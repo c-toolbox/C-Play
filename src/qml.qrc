@@ -1,0 +1,40 @@
+<RCC>
+    <qresource prefix="/">
+        <file>qml/main.qml</file>
+        <file>qml/PlayListItem.qml</file>
+        <file>qml/PlayList.qml</file>
+        <file>qml/MpvVideo.qml</file>
+        <file>qml/HProgressBar.qml</file>
+        <file>qml/Header.qml</file>
+        <file>qml/Footer.qml</file>
+        <file>qml/Osd.qml</file>
+        <file>qml/Actions.qml</file>
+        <file>qml/VolumeSlider.qml</file>
+        <file>qml/Settings/SettingsEditor.qml</file>
+        <file>qml/Haruna/Components/SubtitlesFolders.qml</file>
+        <file alias="General.qml">qml/Settings/General.qml</file>
+        <file alias="Mouse.qml">qml/Settings/Mouse.qml</file>
+        <file alias="Navigation.qml">qml/Settings/Navigation.qml</file>
+        <file alias="Playlist.qml">qml/Settings/Playlist.qml</file>
+        <file alias="Audio.qml">qml/Settings/Audio.qml</file>
+        <file alias="Subtitles.qml">qml/Settings/Subtitles.qml</file>
+        <file alias="Playback.qml">qml/Settings/Playback.qml</file>
+        <file>qml/Menus/FileMenu.qml</file>
+        <file>qml/Menus/PlaybackMenu.qml</file>
+        <file>qml/Menus/SubtitlesMenu.qml</file>
+        <file>qml/Menus/SettingsMenu.qml</file>
+        <file>qml/Menus/AudioMenu.qml</file>
+        <file>qml/Menus/ViewMenu.qml</file>
+        <file>qml/Menus/TrackMenuItems.qml</file>
+        <file>qml/Haruna/Components/SelectActionPopup.qml</file>
+        <file alias="VideoSettings.qml">qml/Settings/VideoSettings.qml</file>
+        <file>qml/Menus/HelpMenu.qml</file>
+        <file>qml/PlayListItemWithThumbnail.qml</file>
+        <file>qml/Haruna/Components/LabelWithTooltip.qml</file>
+        <file>qml/Haruna/Components/SettingsHeader.qml</file>
+        <file>qml/Haruna/Components/SettingsBasePage.qml</file>
+        <file>qml/Haruna/Components/qmldir</file>
+        <file>qml/Haruna/Components/ImageAdjustmentSlider.qml</file>
+        <file>qml/PlayListItemCompact.qml</file>
+    </qresource>
+</RCC>

@@ -1,0 +1,37 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<!--
+ SPDX-FileCopyrightText: 2020 George Florea Bănuș <georgefb899@gmail.com>
+
+ SPDX-License-Identifier: GPL-3.0-or-later
+ -->
+<kcfg xmlns="http://www.kde.org/standards/kcfg/1.0"
+      xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance"
+      xsi:schemaLocation="http://www.kde.org/standards/kcfg/1.0
+                          http://www.kde.org/standards/kcfg/1.0/kcfg.xsd" >
+  <kcfgfile name="georgefb/haruna.conf" />
+  <group name="Playback">
+    <entry name="MinDurationToSavePosition" type="int">
+      <default>1</default>
+    </entry>
+    <entry name="SkipChapters" type="bool">
+      <label>Skip chapters</label>
+      <default>false</default>
+    </entry>
+    <entry name="ChaptersToSkip" type="String">
+      <label>Chapters to skip</label>
+    </entry>
+    <entry name="ShowOsdOnSkipChapters" type="bool">
+      <label>Show osd on skip chapters</label>
+      <default>true</default>
+    </entry>
+    <entry name="YtdlFormat" type="String">
+      <label>Ytdl format selection</label>
+    </entry>
+    <entry name="UseHWDecoding" type="bool">
+      <default>false</default>
+    </entry>
+    <entry name="HWDecoding" type="String">
+      <default>auto</default>
+    </entry>
+  </group>
+</kcfg>

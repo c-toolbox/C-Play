@@ -1,0 +1,44 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<!--
+ SPDX-FileCopyrightText: 2020 George Florea Bănuș <georgefb899@gmail.com>
+
+ SPDX-License-Identifier: GPL-3.0-or-later
+ -->
+<kcfg xmlns="http://www.kde.org/standards/kcfg/1.0"
+      xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance"
+      xsi:schemaLocation="http://www.kde.org/standards/kcfg/1.0
+                          http://www.kde.org/standards/kcfg/1.0/kcfg.xsd" >
+  <kcfgfile name="georgefb/haruna.conf" />
+  <group name="Mouse">
+    <entry name="Left" type="String">
+      <label>Action for left click</label>
+    </entry>
+    <entry name="Leftx2" type="String">
+      <label>Action for left double click</label>
+      <default>toggleFullscreenAction</default>
+    </entry>
+    <entry name="Middle" type="String">
+      <label>Action for middle click</label>
+      <default>muteAction</default>
+    </entry>
+    <entry name="Middlex2" type="String">
+      <label>Action for middle double click</label>
+      <default>configureAction</default>
+    </entry>
+    <entry name="Right" type="String">
+      <label>Action for right click</label>
+      <default>playPauseAction</default>
+    </entry>
+    <entry name="Rightx2" type="String">
+      <label>Action for right double click</label>
+    </entry>
+    <entry name="ScrollUp" type="String">
+      <label>Action for scroll up</label>
+      <default>volumeUpAction</default>
+    </entry>
+    <entry name="ScrollDown" type="String">
+      <label>Action for scroll down</label>
+      <default>volumeDownAction</default>
+    </entry>
+  </group>
+</kcfg>
