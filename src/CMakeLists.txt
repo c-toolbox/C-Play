@@ -6,6 +6,8 @@
 
 qt5_add_dbus_interface(haruna_screensaver_inhibit_SRCS ../org.freedesktop.ScreenSaver.xml screensaverdbusinterface)
 
+set(QML_IMPORT_PATH "${CMAKE_CURRENT_SOURCE_DIR}/qml" CACHE STRING "Qt Creator 4.1 extra qml import paths" FORCE)
+
 add_executable(haruna)
 
 target_sources(haruna
@@ -41,6 +43,10 @@ kconfig_add_kcfg_files(haruna GENERATE_MOC settings/videosettings.kcfgc)
 target_include_directories(haruna PRIVATE playlist mpris2)
 
 target_compile_definitions(haruna PRIVATE $<$<OR:$<CONFIG:Debug>,$<CONFIG:RelWithDebInfo>>:QT_QML_DEBUG>)
+
+if(WIN32)
+	set_target_properties(haruna PROPERTIES WIN32_EXECUTABLE TRUE)
+endif()
 
 target_link_libraries(haruna PRIVATE
     Qt5::Core

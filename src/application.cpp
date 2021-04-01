@@ -24,6 +24,7 @@
 #include "thumbnailimageprovider.h"
 #include "tracksmodel.h"
 #include "worker.h"
+#include <iostream>
 
 #include <QApplication>
 #include <QCommandLineParser>
@@ -99,7 +100,8 @@ Application::Application(int &argc, char **argv, const QString &applicationName)
 
     // Qt sets the locale in the QGuiApplication constructor, but libmpv
     // requires the LC_NUMERIC category to be set to "C", so change it back.
-    std::setlocale(LC_NUMERIC, "C");
+    //std::setlocale(LC_NUMERIC, "C");
+    std::locale::global(std::locale("C"));
 
     setupWorkerThread();
     setupAboutData();

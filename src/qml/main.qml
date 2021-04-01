@@ -4,8 +4,6 @@
  * SPDX-License-Identifier: GPL-3.0-or-later
  */
 
-import QtQuick 2.12
-import QtQuick.Controls 2.12
 import QtQuick.Window 2.12
 import QtQuick.Layouts 1.12
 import QtGraphicalEffects 1.12
@@ -13,6 +11,9 @@ import Qt.labs.platform 1.0 as Platform
 
 import org.kde.kirigami 2.11 as Kirigami
 import com.georgefb.haruna 1.0
+
+import QtQuick 2.12
+import QtQuick.Controls 2.12
 
 import mpv 1.0
 import "Menus"
@@ -42,12 +43,7 @@ Kirigami.ApplicationWindow {
     header: Header { id: header }
 
     menuBar: MenuBar {
-        hoverEnabled: true
-        visible: !window.isFullScreen() && GeneralSettings.showMenuBar
-        background: Rectangle {
-            color: Kirigami.Theme.backgroundColor
-        }
-        Kirigami.Theme.colorSet: Kirigami.Theme.Header
+        id: menuBar
 
         FileMenu {}
         ViewMenu {}
@@ -56,6 +52,13 @@ Kirigami.ApplicationWindow {
         AudioMenu {}
         SettingsMenu {}
         HelpMenu {}
+
+        //hoverEnabled: true
+        //visible: !window.isFullScreen() && GeneralSettings.showMenuBar
+        background: Rectangle {
+            color: Kirigami.Theme.backgroundColor
+        }
+        Kirigami.Theme.colorSet: Kirigami.Theme.Header
     }
 
     Menu {

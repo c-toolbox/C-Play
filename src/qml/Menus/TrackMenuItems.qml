@@ -6,7 +6,7 @@
 
 import QtQuick 2.12
 import QtQuick.Controls 2.12
-import QtQml 2.12
+import QtQml.Models 2.15
 
 Instantiator {
     id: root

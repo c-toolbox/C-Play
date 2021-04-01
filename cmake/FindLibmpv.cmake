@@ -39,13 +39,12 @@ pkg_search_module(PC_MPV QUIET mpv)
 find_path(Libmpv_INCLUDE_DIRS
     NAMES client.h
     PATH_SUFFIXES mpv
-    HINTS ${PC_MPV_INCLUDEDIR}
+    HINTS $ENV{PC_MPV_INCLUDEDIR}
 )
-
 
 find_library(Libmpv_LIBRARIES
     NAMES mpv
-    HINTS ${PC_MPV_LIBDIR}
+    HINTS $ENV{PC_MPV_LIBDIR}
 )
 
 set(Libmpv_VERSION ${PC_MPV_VERSION})
