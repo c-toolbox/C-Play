@@ -7,7 +7,7 @@
 import QtQuick 2.12
 import QtQuick.Controls 2.12
 import QtQuick.Layouts 1.12
-import QtQml 2.12
+import QtQml.Models 2.15
 
 import org.kde.kirigami 2.11 as Kirigami
 import com.georgefb.haruna 1.0

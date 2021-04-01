@@ -13,6 +13,7 @@
 #include "playlistitem.h"
 #include "track.h"
 #include "tracksmodel.h"
+#include <iostream>
 
 #include <QCryptographicHash>
 #include <QDir>
