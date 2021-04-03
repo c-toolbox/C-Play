@@ -113,7 +113,9 @@ MpvObject::MpvObject(QQuickItem * parent)
     setProperty("screenshot-template", VideoSettings::screenshotTemplate());
     setProperty("sub-auto", "exact");
     setProperty("volume-max", "100");
+    updateAudioDeviceList();
 
+    mpv_observe_property(mpv, 0, "audio-device-list", MPV_FORMAT_NODE);
     mpv_observe_property(mpv, 0, "media-title", MPV_FORMAT_STRING);
     mpv_observe_property(mpv, 0, "time-pos", MPV_FORMAT_DOUBLE);
     mpv_observe_property(mpv, 0, "time-remaining", MPV_FORMAT_DOUBLE);
@@ -165,6 +167,16 @@ PlayListModel *MpvObject::playlistModel()
 void MpvObject::setPlaylistModel(PlayListModel *model)
 {
     m_playlistModel = model;
+}
+
+QVariantList MpvObject::audioDevices() const
+{
+    return m_audioDevices;
+}
+
+void MpvObject::setAudioDevices(QVariantList devices)
+{
+    m_audioDevices = devices;
 }
 
 QString MpvObject::mediaTitle()
@@ -368,6 +380,46 @@ void MpvObject::setHWDecoding(bool value)
     emit hwDecodingChanged();
 }
 
+QVariant MpvObject::getAudioDeviceList()
+{
+  return getProperty("audio-device-list");
+}
+
+void MpvObject::updateAudioDeviceList()
+{
+  //QString userDevice = SettingsComponent::Get().value(SETTINGS_SECTION_AUDIO, "device").toString();
+  //bool userDeviceFound = false;
+
+  QVariantList audioDevicesList;
+  QVariant list = getAudioDeviceList();
+  for(const QVariant& d : list.toList())
+  {
+    Q_ASSERT(d.type() == QVariant::Map);
+    QVariantMap dmap = d.toMap();
+
+    //QString device = dmap["name"].toString();
+    //QString description = dmap["description"].toString();
+
+    audioDevicesList << dmap;
+  }
+
+  /*if (!userDeviceFound)
+  {
+    QVariantMap entry;
+    entry["name"] = userDevice;
+    entry["description"] = "[Disconnected device: " + userDevice + "]";
+
+    settingList << entry;
+  }*/
+
+  //SettingsComponent::Get().updatePossibleValues(SETTINGS_SECTION_AUDIO, "device", settingList);
+  //checkCurrentAudioDevice(m_audioDevices, devices);
+
+  m_audioDevices = audioDevicesList;
+
+  emit audioDevicesChanged();
+}
+
 QQuickFramebufferObject::Renderer *MpvObject::createRenderer() const
 {
     window()->setPersistentOpenGLContext(true);
@@ -421,7 +473,11 @@ void MpvObject::eventHandler()
         case MPV_EVENT_PROPERTY_CHANGE: {
             mpv_event_property *prop = (mpv_event_property *)event->data;
 
-            if (strcmp(prop->name, "time-pos") == 0) {
+            if (strcmp(prop->name, "audio-device-list") == 0) {
+                if (prop->format == MPV_FORMAT_NODE) {
+                    updateAudioDeviceList();
+                }
+            } else if (strcmp(prop->name, "time-pos") == 0) {
                 if (prop->format == MPV_FORMAT_DOUBLE) {
                     emit positionChanged();
                 }

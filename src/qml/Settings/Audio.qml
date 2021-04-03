@@ -23,9 +23,106 @@ SettingsBasePage {
 
         columns: 2
 
+        CheckBox {
+            id: audioOutputCheckBox
+            text: qsTr("Use custom audio output")
+            checked: PlaybackSettings.useCustomAudioOutput
+            onCheckedChanged: {
+                PlaybackSettings.useCustomAudioOutput = checked
+                PlaybackSettings.save()
+            }
+        }
+        Item {
+            // spacer item
+            Layout.fillWidth: true
+        }
+
+        RadioButton {
+            id: audioOutputDeviceRadioButton
+            enabled: audioOutputCheckBox.checked
+            text: qsTr("Use audio device")
+            checked: false
+        }
+        ComboBox {
+            id: audioOutputDeviceComboBox
+            enabled: audioOutputDeviceRadioButton.checked
+            textRole: "description"
+            valueRole: "name"
+            model: mpv.audioDevices
+
+            onActivated: {
+                PlaybackSettings.audioOutputDevice = model.get(index).name
+                PlaybackSettings.save()
+                mpv.setProperty("audio-device", model.get(index).name)
+            }
+
+            Component.onCompleted: {
+                for (let i = 0; i < audioOutputDevice.count; ++i) {
+                    if (audioOutputDevice.get(i).name === PlaybackSettings.audioOutputDevice) {
+                        currentIndex = i
+                        break
+                    }
+                }
+            }
+        }
+
+        RadioButton {
+            id: audioOutputDriverRadioButton
+            enabled: audioOutputCheckBox.checked
+            text: qsTr("Use audio driver")
+            checked: false
+        }
+        ComboBox {
+            id: audioOutputDriverComboBox
+            enabled: audioOutputDriverRadioButton.checked
+            textRole: "driver"
+            model: ListModel {
+                id: audioOutputDriver
+                ListElement { driver: "jack"; }
+                ListElement { driver: "openal"; }
+                ListElement { driver: "oss"; }
+                ListElement { driver: "pcm"; }
+                ListElement { driver: "pulse"; }
+                ListElement { driver: "wasapi"; }
+            }
+
+            onActivated: {
+                PlaybackSettings.audioOutputDriver = model.get(index).driver
+                PlaybackSettings.save()
+                mpv.setProperty("ao", model.get(index).driver)
+            }
+
+            Component.onCompleted: {
+                for (let i = 0; i < audioOutputDriver.count; ++i) {
+                    if (audioOutputDriver.get(i).driver === PlaybackSettings.audioOutputDriver) {
+                        currentIndex = i
+                        break
+                    }
+                }
+            }
+        }
+
+        /*Button {
+            text: qsTr("Update audio settings")
+            onClicked: model.submit()
+        }
+        Item {
+            // spacer item
+            Layout.fillWidth: true
+        }*/
+
+        Item {
+            // spacer item
+            Layout.fillWidth: true
+            height: 100
+        }
+        Item {
+            // spacer item
+            Layout.fillWidth: true
+        }
+
         Label {
             text: qsTr("Preferred language")
-            Layout.alignment: Qt.AlignRight
         }
         TextField {
             text: AudioSettings.preferredLanguage
@@ -45,7 +142,6 @@ SettingsBasePage {
 
         Label {
             text: qsTr("Preferred track")
-            Layout.alignment: Qt.AlignRight
         }
         SpinBox {
             from: 0
