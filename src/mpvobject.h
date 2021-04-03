@@ -110,6 +110,14 @@ class MpvObject : public QQuickFramebufferObject
     PlayListModel *playlistModel();
     void setPlaylistModel(PlayListModel *model);
 
+    Q_PROPERTY(QVariantList audioDevices
+               READ audioDevices
+               WRITE setAudioDevices
+               NOTIFY audioDevicesChanged)
+
+    QVariantList audioDevices() const;
+    void setAudioDevices(QVariantList devices);
+
     QString mediaTitle();
 
     double position();
@@ -153,6 +161,9 @@ class MpvObject : public QQuickFramebufferObject
 
     bool hwDecoding();
     void setHWDecoding(bool value);
+
+    QVariant getAudioDeviceList();
+    void updateAudioDeviceList();
 
     mpv_handle *mpv;
     mpv_render_context *mpv_gl;
@@ -201,6 +212,7 @@ signals:
     void subtitleTracksModelChanged();
     void hwDecodingChanged();
     void playlistModelChanged();
+    void audioDevicesChanged();
     void youtubePlaylistLoaded();
 
 private:
@@ -214,6 +226,7 @@ private:
     double m_watchPercentage;
     PlayListModel *m_playlistModel;
     QString m_file;
+    QVariantList m_audioDevices;
 
     void loadTracks();
     QString md5(const QString &str);
