@@ -20,9 +20,9 @@ Kirigami.ApplicationWindow {
     height: 600
     title: qsTr("Haruna Settings")
     visible: false
-    pageStack.initialPage: "qrc:/Navigation.qml"
+    //pageStack.initialPage: "qrc:/Navigation.qml"
 
-    Component.onCompleted: pageStack.push("qrc:/General.qml")
+    Component.onCompleted: pageStack.push("qrc:/Navigation.qml")
 
     Window {
         id: helpWindow

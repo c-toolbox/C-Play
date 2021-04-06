@@ -26,10 +26,11 @@ SettingsBasePage {
         CheckBox {
             id: audioOutputCheckBox
             text: qsTr("Use custom audio output")
-            checked: PlaybackSettings.useCustomAudioOutput
+            enabled: true
+            checked: AudioSettings.useCustomAudioOutput
             onCheckedChanged: {
-                PlaybackSettings.useCustomAudioOutput = checked
-                PlaybackSettings.save()
+                AudioSettings.useCustomAudioOutput = checked
+                AudioSettings.save()
             }
         }
         Item {
@@ -39,26 +40,30 @@ SettingsBasePage {
 
         RadioButton {
             id: audioOutputDeviceRadioButton
-            enabled: audioOutputCheckBox.checked
+            enabled: AudioSettings.useCustomAudioOutput
             text: qsTr("Use audio device")
-            checked: false
+            checked: AudioSettings.useAudioDevice
+            onCheckedChanged: {
+                AudioSettings.useAudioDevice = checked
+                AudioSettings.save()
+            }
         }
         ComboBox {
             id: audioOutputDeviceComboBox
-            enabled: audioOutputDeviceRadioButton.checked
+            enabled: (AudioSettings.useAudioDevice && AudioSettings.useCustomAudioOutput)
             textRole: "description"
             valueRole: "name"
             model: mpv.audioDevices
 
             onActivated: {
-                PlaybackSettings.audioOutputDevice = model.get(index).name
-                PlaybackSettings.save()
-                mpv.setProperty("audio-device", model.get(index).name)
+                AudioSettings.preferredAudioOutputDevice = mpv.audioDevices[index].name
+                AudioSettings.save()
+                mpv.setProperty("audio-device", mpv.audioDevices[index].name)
             }
 
             Component.onCompleted: {
-                for (let i = 0; i < audioOutputDevice.count; ++i) {
-                    if (audioOutputDevice.get(i).name === PlaybackSettings.audioOutputDevice) {
+                for (let i = 0; i < mpv.audioDevices.length; ++i) {
+                    if (mpv.audioDevices[i].name === AudioSettings.preferredAudioOutputDevice) {
                         currentIndex = i
                         break
                     }
@@ -68,13 +73,17 @@ SettingsBasePage {
 
         RadioButton {
             id: audioOutputDriverRadioButton
-            enabled: audioOutputCheckBox.checked
+            enabled: AudioSettings.useCustomAudioOutput
             text: qsTr("Use audio driver")
-            checked: false
+            checked: AudioSettings.useAudioDriver
+            onCheckedChanged: {
+                AudioSettings.useAudioDriver = checked
+                AudioSettings.save()
+            }
         }
         ComboBox {
             id: audioOutputDriverComboBox
-            enabled: audioOutputDriverRadioButton.checked
+            enabled: (AudioSettings.useAudioDriver && AudioSettings.useCustomAudioOutput)
             textRole: "driver"
             model: ListModel {
                 id: audioOutputDriver
@@ -87,14 +96,14 @@ SettingsBasePage {
             }
 
             onActivated: {
-                PlaybackSettings.audioOutputDriver = model.get(index).driver
-                PlaybackSettings.save()
+                AudioSettings.preferredAudioOutputDriver = model.get(index).driver
+                AudioSettings.save()
                 mpv.setProperty("ao", model.get(index).driver)
             }
 
             Component.onCompleted: {
                 for (let i = 0; i < audioOutputDriver.count; ++i) {
-                    if (audioOutputDriver.get(i).driver === PlaybackSettings.audioOutputDriver) {
+                    if (audioOutputDriver.get(i).driver === AudioSettings.preferredAudioOutputDriver) {
                         currentIndex = i
                         break
                     }

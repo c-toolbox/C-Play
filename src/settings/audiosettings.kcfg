@@ -16,5 +16,20 @@
     <entry name="PreferredTrack" type="Int">
       <label>Preferred track</label>
     </entry>
+	<entry name="UseCustomAudioOutput" type="bool">
+      <default>false</default>
+    </entry>
+	<entry name="UseAudioDevice" type="bool">
+      <default>false</default>
+    </entry>
+	<entry name="UseAudioDriver" type="bool">
+      <default>false</default>
+    </entry>
+	<entry name="PreferredAudioOutputDevice" type="String">
+      <label>Preferred audio output device</label>
+    </entry>
+	<entry name="PreferredAudioOutputDriver" type="String">
+      <label>Preferred audio output driver</label>
+    </entry>
   </group>
 </kcfg>
