@@ -7,6 +7,7 @@
 #include "_debug.h"
 #include "mpvobject.h"
 #include "application.h"
+#include "audiosettings.h"
 #include "generalsettings.h"
 #include "playbacksettings.h"
 #include "videosettings.h"
@@ -387,9 +388,9 @@ QVariant MpvObject::getAudioDeviceList()
 
 void MpvObject::updateAudioDeviceList()
 {
-  //QString userDevice = SettingsComponent::Get().value(SETTINGS_SECTION_AUDIO, "device").toString();
-  //bool userDeviceFound = false;
-
+  bool preferredDeviceFound = false;
+  bool savedFirstDevice = false;
+  QString firstDevice;
   QVariantList audioDevicesList;
   QVariant list = getAudioDeviceList();
   for(const QVariant& d : list.toList())
@@ -397,25 +398,35 @@ void MpvObject::updateAudioDeviceList()
     Q_ASSERT(d.type() == QVariant::Map);
     QVariantMap dmap = d.toMap();
 
-    //QString device = dmap["name"].toString();
-    //QString description = dmap["description"].toString();
+    if(!preferredDeviceFound){
+        QString device = dmap["name"].toString();
+        if(device == AudioSettings::preferredAudioOutputDevice()){
+            preferredDeviceFound = true;
+        }
+        if(!savedFirstDevice){
+            firstDevice = device;
+            savedFirstDevice = true;
+        }
+    }
 
     audioDevicesList << dmap;
   }
 
-  /*if (!userDeviceFound)
-  {
-    QVariantMap entry;
-    entry["name"] = userDevice;
-    entry["description"] = "[Disconnected device: " + userDevice + "]";
-
-    settingList << entry;
-  }*/
-
-  //SettingsComponent::Get().updatePossibleValues(SETTINGS_SECTION_AUDIO, "device", settingList);
-  //checkCurrentAudioDevice(m_audioDevices, devices);
-
   m_audioDevices = audioDevicesList;
+
+  if(AudioSettings::useCustomAudioOutput()){
+      if(AudioSettings::useAudioDevice()){
+          if(preferredDeviceFound){
+            setProperty("audio-device", AudioSettings::preferredAudioOutputDevice());
+          }
+          else{
+            //AudioSettings::setPreferredAudioOutputDevice(firstDevice);
+          }
+      }
+      else if(AudioSettings::useAudioDriver()){
+          setProperty("ao", AudioSettings::preferredAudioOutputDriver());
+      }
+  }
 
   emit audioDevicesChanged();
 }
