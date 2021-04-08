@@ -23,10 +23,16 @@ these are just some features that set C-Play apart from others players
 
 # Build on Windows
 
--- Use [Craft](./help/CRAFT_INSTALLS.md) on Windows to install all dependencies for Haruna, from Qt5, KF5 libs.
--- Use [Media Build Suite](https://github.com/m-ab-s/media-autobuild_suite) to compile FFmpeg, MPV libs
--- Use the [Build Jack](./help/BUILD_JACK.md) guide to build libjack with portaudio if you want that functionality.
--- Move result (dll, exe, dll.a etc) from "Build Jack" compiliation (JACK, Portaudio) to MINGW64 bin/lib/pkg folders in "Media Build Suite", so they can be found when running "Media Build Suite" again.
--- Run "Media Build Suite" again, now with PortAudio an JACK support and these [FFmpeg Options](./help/ffmpeg_options.txt)
--- Copy over compiliations for FFmpeg and MPV to Craft bin/libs so whe can have new versions when compiling C-Play.
--- Build in Qt-Creator (the one installed with Craft) for good QML overview.
+- Use [Craft](./help/CRAFT_INSTALLS.md) on Windows to install all dependencies for Haruna, from Qt5, KF5 libs.
+
+- Use [Media Build Suite](https://github.com/m-ab-s/media-autobuild_suite) to compile FFmpeg, MPV libs
+
+- Use the [Build Jack](./help/BUILD_JACK.md) guide to build libjack with portaudio if you want that functionality.
+
+- Move result (dll, exe, dll.a etc) from "Build Jack" compiliation (JACK, Portaudio) to MINGW64 bin/lib/pkg folders in "Media Build Suite", so they can be found when running "Media Build Suite" again.
+
+- Run "Media Build Suite" again, now with PortAudio an JACK support and these [FFmpeg Options](./help/ffmpeg_options.txt)
+
+- Copy over compiliations for FFmpeg and MPV to Craft bin/libs so whe can have new versions when compiling C-Play.
+
+- Build in Qt-Creator (the one installed with Craft) for good QML overview.
