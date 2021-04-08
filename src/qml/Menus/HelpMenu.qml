@@ -12,5 +12,5 @@ Menu {
 
     title: qsTr("&Help")
 
-    MenuItem { action: actions["aboutHarunaAction"] }
+    MenuItem { action: actions["aboutCPlayAction"] }
 }

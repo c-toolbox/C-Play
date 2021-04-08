@@ -171,14 +171,14 @@ QtObject {
         }
     }
 
-    property Action aboutHarunaAction: Action {
-        id: aboutHarunaAction
-        property var qaction: app.action("aboutHaruna")
+    property Action aboutCPlayAction: Action {
+        id: aboutCPlayAction
+        property var qaction: app.action("aboutCPlay")
         text: qaction.text
         shortcut: qaction.shortcutName()
         icon.name: qaction.iconName()
 
-        Component.onCompleted: list["aboutHarunaAction"] = aboutHarunaAction
+        Component.onCompleted: list["aboutCPlayAction"] =aboutCPlayAction
 
         onTriggered: qaction.trigger()
     }

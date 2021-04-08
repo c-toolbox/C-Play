@@ -8,7 +8,7 @@
 
 int main(int argc, char *argv[])
 {
-    Application app(argc, argv, "Haruna");
+    Application app(argc, argv, "C-Play");
 
     return app.run();
 }

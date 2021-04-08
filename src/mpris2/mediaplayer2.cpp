@@ -42,7 +42,7 @@ bool MediaPlayer2::HasTrackList() const
 
 QString MediaPlayer2::Identity() const
 {
-    return QStringLiteral("Haruna");
+    return QStringLiteral("C-Play");
 }
 
 QString MediaPlayer2::DesktopEntry() const
