@@ -27,7 +27,7 @@ Kirigami.ApplicationWindow {
     property var appActions: actions.list
 
     visible: true
-    title: mpv.mediaTitle || qsTr("Haruna")
+    title: mpv.mediaTitle || qsTr("C-Play")
     width: 1200
     minimumWidth: 700
     height: 720

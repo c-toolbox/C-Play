@@ -1,0 +1,6 @@
+<!DOCTYPE RCC><RCC version="1.0">
+    <qresource>
+        <file>C_transparent.png</file>
+        <file>C_desaturated.png</file>
+    </qresource>
+</RCC>

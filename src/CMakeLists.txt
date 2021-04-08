@@ -8,9 +8,9 @@ qt5_add_dbus_interface(haruna_screensaver_inhibit_SRCS ../org.freedesktop.Screen
 
 set(QML_IMPORT_PATH "${CMAKE_CURRENT_SOURCE_DIR}/qml" CACHE STRING "Qt Creator 4.1 extra qml import paths" FORCE)
 
-add_executable(haruna)
+add_executable(C-Play)
 
-target_sources(haruna
+target_sources(C-Play
     PRIVATE
     application.cpp
     haction.cpp
@@ -30,25 +30,26 @@ target_sources(haruna
     qml.qrc
     ../help/help.qrc
     ${haruna_screensaver_inhibit_SRCS}
+    ../data/images/images.qrc
 )
 
-kconfig_add_kcfg_files(haruna GENERATE_MOC settings/audiosettings.kcfgc)
-kconfig_add_kcfg_files(haruna GENERATE_MOC settings/generalsettings.kcfgc)
-kconfig_add_kcfg_files(haruna GENERATE_MOC settings/mousesettings.kcfgc)
-kconfig_add_kcfg_files(haruna GENERATE_MOC settings/playbacksettings.kcfgc)
-kconfig_add_kcfg_files(haruna GENERATE_MOC settings/playlistsettings.kcfgc)
-kconfig_add_kcfg_files(haruna GENERATE_MOC settings/subtitlessettings.kcfgc)
-kconfig_add_kcfg_files(haruna GENERATE_MOC settings/videosettings.kcfgc)
+kconfig_add_kcfg_files(C-Play GENERATE_MOC settings/audiosettings.kcfgc)
+kconfig_add_kcfg_files(C-Play GENERATE_MOC settings/generalsettings.kcfgc)
+kconfig_add_kcfg_files(C-Play GENERATE_MOC settings/mousesettings.kcfgc)
+kconfig_add_kcfg_files(C-Play GENERATE_MOC settings/playbacksettings.kcfgc)
+kconfig_add_kcfg_files(C-Play GENERATE_MOC settings/playlistsettings.kcfgc)
+kconfig_add_kcfg_files(C-Play GENERATE_MOC settings/subtitlessettings.kcfgc)
+kconfig_add_kcfg_files(C-Play GENERATE_MOC settings/videosettings.kcfgc)
 
-target_include_directories(haruna PRIVATE playlist mpris2)
+target_include_directories(C-Play PRIVATE playlist mpris2)
 
-target_compile_definitions(haruna PRIVATE $<$<OR:$<CONFIG:Debug>,$<CONFIG:RelWithDebInfo>>:QT_QML_DEBUG>)
+target_compile_definitions(C-Play PRIVATE $<$<OR:$<CONFIG:Debug>,$<CONFIG:RelWithDebInfo>>:QT_QML_DEBUG>)
 
 if(WIN32)
-	set_target_properties(haruna PROPERTIES WIN32_EXECUTABLE TRUE)
+        set_target_properties(C-Play PROPERTIES WIN32_EXECUTABLE TRUE)
 endif()
 
-target_link_libraries(haruna PRIVATE
+target_link_libraries(C-Play PRIVATE
     Qt5::Core
     Qt5::DBus
     Qt5::Qml
@@ -71,4 +72,4 @@ target_link_libraries(haruna PRIVATE
     Libmpv::Libmpv
 )
 
-install(TARGETS haruna DESTINATION ${KDE_INSTALL_TARGETS_DEFAULT_ARGS})
+install(TARGETS C-Play DESTINATION ${KDE_INSTALL_TARGETS_DEFAULT_ARGS})

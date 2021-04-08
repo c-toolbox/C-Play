@@ -58,19 +58,21 @@
 
 static QApplication *createApplication(int &argc, char **argv, const QString &applicationName)
 {
+    Q_INIT_RESOURCE(images);
+
     QApplication::setAttribute(Qt::AA_EnableHighDpiScaling);
     QApplication::setAttribute(Qt::AA_UseHighDpiPixmaps);
-    QApplication::setOrganizationName("georgefb");
+    QApplication::setOrganizationName("eriksunden");
     QApplication::setApplicationName(applicationName);
-    QApplication::setOrganizationDomain("georgefb.com");
-    QApplication::setApplicationDisplayName("Haruna - Video Player");
+    QApplication::setOrganizationDomain("eriksunden.com");
+    QApplication::setApplicationDisplayName("C-Play : Cluster Video Player");
     QApplication::setApplicationVersion(Application::version());
-    QApplication::setWindowIcon(QIcon::fromTheme("com.georgefb.haruna"));
 
     QQuickStyle::setStyle(QStringLiteral("org.kde.desktop"));
     QQuickStyle::setFallbackStyle(QStringLiteral("Fusion"));
 
     QApplication *app = new QApplication(argc, argv);
+    app->setWindowIcon(QIcon(":/C_transparent.png"));
     return app;
 }
 
@@ -148,20 +150,27 @@ void Application::setupWorkerThread()
 
 void Application::setupAboutData()
 {
-    m_aboutData = KAboutData(QStringLiteral("haruna"),
-                             i18n("Haruna Video Player"),
+    m_aboutData = KAboutData(QStringLiteral("C-Play"),
+                             i18n("C-Play : Cluster Video Player"),
                              Application::version());
-    m_aboutData.setShortDescription(i18n("A configurable video player."));
+    m_aboutData.setShortDescription(i18n("A configurable cluster video player, based on libmpv, SGCT and g-fb/haruna projects."));
     m_aboutData.setLicense(KAboutLicense::GPL_V3);
     m_aboutData.setCopyrightStatement(i18n("(c) 2019-2021"));
-    m_aboutData.setHomepage(QStringLiteral("https://github.com/g-fb/haruna"));
-    m_aboutData.setBugAddress(QStringLiteral("https://github.com/g-fb/haruna/issues").toUtf8());
-    m_aboutData.setDesktopFileName("com.georgefb.haruna");
+    //m_aboutData.setHomepage(QStringLiteral("https://github.com/g-fb/haruna"));
+    //m_aboutData.setBugAddress(QStringLiteral("https://github.com/g-fb/haruna/issues").toUtf8());
+    //m_aboutData.setDesktopFileName("com.georgefb.haruna");
 
-    m_aboutData.addAuthor(i18n("George Florea Bănuș"),
+    m_aboutData.setHomepage(QStringLiteral(""));
+    m_aboutData.setBugAddress(QStringLiteral("").toUtf8());
+    m_aboutData.setDesktopFileName("com.eriksunden.cplay");
+
+    m_aboutData.addAuthor(i18n("SGCT/Jack integration : Erik Sundén"),
                         i18n("Developer"),
-                        QStringLiteral("georgefb899@gmail.com"),
-                        QStringLiteral("https://georgefb.com"));
+                        QStringLiteral("eriksunden85@gmail.com"));
+
+    m_aboutData.addAuthor(i18n("Haruna : George Florea Bănuș"),
+                        i18n("Developer"),
+                        QStringLiteral("georgefb899@gmail.com"));
 
     KAboutData::setApplicationData(m_aboutData);
 }
@@ -390,7 +399,7 @@ void Application::aboutApplication()
 {
     static QPointer<QDialog> dialog;
     if (!dialog) {
-        dialog = new KAboutApplicationDialog(KAboutData::applicationData(), nullptr);
+        dialog = new KAboutApplicationDialog(KAboutData::applicationData(), KAboutApplicationDialog::Option::HideLibraries);
         dialog->setAttribute(Qt::WA_DeleteOnClose);
     }
     dialog->show();
@@ -469,9 +478,9 @@ void Application::setupActions(const QString &actionName)
         m_collection.addAction(actionName, action);
     }
 
-    if (actionName == QStringLiteral("aboutHaruna")) {
+    if (actionName == QStringLiteral("aboutCPlay")) {
         auto action = new HAction();
-        action->setText(i18n("About Haruna"));
+        action->setText(i18n("About C-Play"));
         action->setIcon(QIcon::fromTheme("help-about-symbolic"));
         m_collection.setDefaultShortcut(action, Qt::Key_F1);
         m_collection.addAction(actionName, action);
