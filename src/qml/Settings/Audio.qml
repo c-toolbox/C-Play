@@ -123,7 +123,38 @@ SettingsBasePage {
         Item {
             // spacer item
             Layout.fillWidth: true
-            height: 100
+            height: 30
+        }
+        Item {
+            // spacer item
+            Layout.fillWidth: true
+        }
+
+        CheckBox {
+            id: loadAudioFilesInVideoFolder
+            text: qsTr("Load audio files in same folder as video file.")
+            enabled: true
+            checked: AudioSettings.loadAudioFileInVideoFolder
+            onCheckedChanged: {
+                AudioSettings.loadAudioFileInVideoFolder = checked
+                AudioSettings.save()
+                if(checked){
+                    mpv.setProperty("audio-file-auto", "all")
+                }
+                else{
+                    mpv.setProperty("audio-file-auto", "no")
+                }
+            }
+        }
+        Item {
+            // spacer item
+            Layout.fillWidth: true
+        }
+
+        Item {
+            // spacer item
+            Layout.fillWidth: true
+            height: 30
         }
         Item {
             // spacer item
