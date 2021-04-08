@@ -16,6 +16,9 @@
     <entry name="PreferredTrack" type="Int">
       <label>Preferred track</label>
     </entry>
+	<entry name="LoadAudioFileInVideoFolder" type="bool">
+      <default>false</default>
+    </entry>
 	<entry name="UseCustomAudioOutput" type="bool">
       <default>false</default>
     </entry>
