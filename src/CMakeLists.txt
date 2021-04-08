@@ -1,10 +1,12 @@
 #
+# Copyright: 2021 Erik Sunden <eriksunden85@gmail.com>
+#
 # SPDX-FileCopyrightText: 2020 George Florea Bănuș <georgefb899@gmail.com>
 #
 # SPDX-License-Identifier: GPL-3.0-or-later
 #
 
-qt5_add_dbus_interface(haruna_screensaver_inhibit_SRCS ../org.freedesktop.ScreenSaver.xml screensaverdbusinterface)
+qt5_add_dbus_interface(haruna_screensaver_inhibit_SRCS ../data/org.freedesktop.ScreenSaver.xml screensaverdbusinterface)
 
 set(QML_IMPORT_PATH "${CMAKE_CURRENT_SOURCE_DIR}/qml" CACHE STRING "Qt Creator 4.1 extra qml import paths" FORCE)
 
