@@ -2,26 +2,23 @@
 
 ## Downloads
 https://github.com/jackaudio/jack2/archive/refs/tags/v1.9.17.tar.gz
+
 https://github.com/msys2/MINGW-packages/archive/refs/heads/master.zip
+
 https://www.steinberg.net/asiosdk
+
 https://github.com/notepad-plus-plus/notepad-plus-plus/releases/download/v7.9.5/npp.7.9.5.Installer.exe (for editing PKGBUILD and maintaing unix style end of lines)
 
-##Pre-setups
-This guide assumes you first run [Media Build Suite](https://github.com/m-ab-s/media-autobuild_suite) to get a free setup of MSYS and the dependencies to build ffmpeg.
+## Pre-setups
+
+This guide assumes you first run [Media Build Suite](https://github.com/m-ab-s/media-autobuild_suite) to get a free setup of MSYS64 and the dependencies to build ffmpeg.
 
 ## Onto how to do it
 msys2 prompts preceded with ?
 replace <UserName> for all paths with your login username
 
-##Install msys2 to default path of C:\msys64
-Run msys2
+Run msys2 installed during "Media Build Suite" setup
 ```
-pacman -Suy
-?Proceed with installation? [Y/n] - enter Y
-?To complete this update all MSYS2 processes including this terminal will be closed. Confirm to proceed [Y/n] - enter Y and restart msys2
-may have to update again
-pacman -Suy
-?Proceed with installation? [Y/n] - enter Y
 pacman -S mingw-w64-x86_64-toolchain
 ?Enter a selection (default=all): - pick 3 mingw-w64-x86_64-gcc
 ?Proceed with installation? [Y/n] - enter Y
@@ -86,4 +83,4 @@ enter : pacman -U mingw-w64-x86_64-jack2 - press tab to auto complete
 ```
 
 copy over portaudio and jack results to bin/lib/include/pkg folders in media-autobuild_suite\msys64
-So we can find these results when we run "Media Builde Suite" again.
+So we can find these results when we run "Media Build Suite" again.

@@ -2,8 +2,9 @@
 
 [Craft on Windows](https://community.kde.org/Guidelines_and_HOWTOs/Build_from_source/Windows)
 
-### Packages to install
+### Packages to install with Craft
 - FFmpeg
+- QtCreator
 - Qt5Core
 - Qt5DBus
 - Qt5Qml
