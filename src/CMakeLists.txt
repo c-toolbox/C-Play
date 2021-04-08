@@ -31,6 +31,7 @@ target_sources(C-Play
     ../help/help.qrc
     ${haruna_screensaver_inhibit_SRCS}
     ../data/images/images.qrc
+    ../data/images/icon.rc
 )
 
 kconfig_add_kcfg_files(C-Play GENERATE_MOC settings/audiosettings.kcfgc)
