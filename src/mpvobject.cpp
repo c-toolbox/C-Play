@@ -111,6 +111,8 @@ MpvObject::MpvObject(QQuickItem * parent)
 
     QString hwdec = PlaybackSettings::useHWDecoding() ? PlaybackSettings::hWDecoding() : "no";
     setProperty("hwdec", hwdec);
+    QString loadAudioInVidFolder = AudioSettings::loadAudioFileInVideoFolder() ? "all" : "no";
+    setProperty("audio-file-auto", loadAudioInVidFolder);
     setProperty("screenshot-template", VideoSettings::screenshotTemplate());
     setProperty("sub-auto", "exact");
     setProperty("volume-max", "100");

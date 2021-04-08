@@ -111,15 +111,6 @@ SettingsBasePage {
             }
         }
 
-        /*Button {
-            text: qsTr("Update audio settings")
-            onClicked: model.submit()
-        }
-        Item {
-            // spacer item
-            Layout.fillWidth: true
-        }*/
-
         Item {
             // spacer item
             Layout.fillWidth: true
