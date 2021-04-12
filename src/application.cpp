@@ -25,6 +25,7 @@
 #include "tracksmodel.h"
 #include "worker.h"
 #include <iostream>
+#include <sgct/sgct.h>
 
 #include <QApplication>
 #include <QCommandLineParser>
@@ -124,6 +125,9 @@ Application::Application(int &argc, char **argv, const QString &applicationName)
     m_engine->addImageProvider("thumbnail", new ThumbnailImageProvider());
     setupQmlContextProperties();
     m_engine->load(url);
+
+    QObject::connect(&renderThread, &QThread::finished, m_app, &QApplication::quit);
+    QObject::connect(&renderThread, &QThread::finished, &renderThread, &QThread::deleteLater);
 }
 
 Application::~Application()
@@ -133,7 +137,10 @@ Application::~Application()
 
 int Application::run()
 {
-    return m_app->exec();
+    renderThread.render();
+    int returnCode = m_app->exec();
+    sgct::Engine::instance().terminate();
+    return returnCode;
 }
 
 void Application::setupWorkerThread()

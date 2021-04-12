@@ -16,6 +16,7 @@
 #include <KAboutData>
 #include <KActionCollection>
 #include <KSharedConfig>
+#include "renderthread.h"
 
 class KActionCollection;
 class KConfigDialog;
@@ -74,6 +75,7 @@ private:
     QMap<int, QString> m_args;
     KColorSchemeManager *m_schemes;
     QString m_systemDefaultStyle;
+    RenderThread renderThread;
 };
 
 #endif // APPLICATION_H
