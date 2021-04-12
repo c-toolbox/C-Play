@@ -10,9 +10,11 @@ qt5_add_dbus_interface(haruna_screensaver_inhibit_SRCS ../data/org.freedesktop.S
 
 set(QML_IMPORT_PATH "${CMAKE_CURRENT_SOURCE_DIR}/qml" CACHE STRING "Qt Creator 4.1 extra qml import paths" FORCE)
 
-add_executable(C-Play)
+set(TARGET_NAME C-Play)
 
-target_sources(C-Play
+add_executable(${TARGET_NAME})
+
+target_sources(${TARGET_NAME}
     PRIVATE
     application.cpp
     haction.cpp
@@ -24,6 +26,7 @@ target_sources(C-Play
     qthelper.h
     playlist/playlistitem.cpp
     playlist/playlistmodel.cpp
+	renderthread.cpp
     subtitlesfoldersmodel.cpp
     thumbnailimageprovider.cpp
     track.cpp
@@ -36,23 +39,25 @@ target_sources(C-Play
     ../data/images/icon.rc
 )
 
-kconfig_add_kcfg_files(C-Play GENERATE_MOC settings/audiosettings.kcfgc)
-kconfig_add_kcfg_files(C-Play GENERATE_MOC settings/generalsettings.kcfgc)
-kconfig_add_kcfg_files(C-Play GENERATE_MOC settings/mousesettings.kcfgc)
-kconfig_add_kcfg_files(C-Play GENERATE_MOC settings/playbacksettings.kcfgc)
-kconfig_add_kcfg_files(C-Play GENERATE_MOC settings/playlistsettings.kcfgc)
-kconfig_add_kcfg_files(C-Play GENERATE_MOC settings/subtitlessettings.kcfgc)
-kconfig_add_kcfg_files(C-Play GENERATE_MOC settings/videosettings.kcfgc)
+kconfig_add_kcfg_files(${TARGET_NAME} GENERATE_MOC settings/audiosettings.kcfgc)
+kconfig_add_kcfg_files(${TARGET_NAME} GENERATE_MOC settings/generalsettings.kcfgc)
+kconfig_add_kcfg_files(${TARGET_NAME} GENERATE_MOC settings/mousesettings.kcfgc)
+kconfig_add_kcfg_files(${TARGET_NAME} GENERATE_MOC settings/playbacksettings.kcfgc)
+kconfig_add_kcfg_files(${TARGET_NAME} GENERATE_MOC settings/playlistsettings.kcfgc)
+kconfig_add_kcfg_files(${TARGET_NAME} GENERATE_MOC settings/subtitlessettings.kcfgc)
+kconfig_add_kcfg_files(${TARGET_NAME} GENERATE_MOC settings/videosettings.kcfgc)
 
-target_include_directories(C-Play PRIVATE playlist mpris2)
+target_include_directories(${TARGET_NAME} PRIVATE playlist mpris2)
 
-target_compile_definitions(C-Play PRIVATE $<$<OR:$<CONFIG:Debug>,$<CONFIG:RelWithDebInfo>>:QT_QML_DEBUG>)
+target_compile_definitions(${TARGET_NAME} PRIVATE $<$<OR:$<CONFIG:Debug>,$<CONFIG:RelWithDebInfo>>:QT_QML_DEBUG>)
 
 if(WIN32)
-        set_target_properties(C-Play PROPERTIES WIN32_EXECUTABLE TRUE)
+        set_target_properties(${TARGET_NAME} PROPERTIES WIN32_EXECUTABLE TRUE)
 endif()
 
-target_link_libraries(C-Play PRIVATE
+add_subdirectory(${CMAKE_CURRENT_SOURCE_DIR}/sgct)
+
+target_link_libraries(${TARGET_NAME} PRIVATE
     Qt5::Core
     Qt5::DBus
     Qt5::Qml
@@ -73,6 +78,10 @@ target_link_libraries(C-Play PRIVATE
     KF5::XmlGui
 
     Libmpv::Libmpv
+    sgct
+    glm
 )
 
-install(TARGETS C-Play DESTINATION ${KDE_INSTALL_TARGETS_DEFAULT_ARGS})
+target_compile_features(${TARGET_NAME} PRIVATE cxx_std_17)
+
+install(TARGETS ${TARGET_NAME} DESTINATION ${KDE_INSTALL_TARGETS_DEFAULT_ARGS})
