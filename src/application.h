@@ -32,6 +32,8 @@ class Application : public QObject
 
 public:
     explicit Application(int &argc, char **argv, const QString &applicationName);
+    static void create(int &argc, char **argv, const QString &applicationName);
+    static Application& instance();
     ~Application();
 
     int run();
@@ -76,6 +78,26 @@ private:
     KColorSchemeManager *m_schemes;
     QString m_systemDefaultStyle;
     RenderThread renderThread;
+    static Application* _instance;
+};
+
+class SyncHelper
+{
+public:
+    struct SyncVariables {
+        std::string loadedFile;
+        int test;
+    };
+
+    SyncHelper();
+    ~SyncHelper();
+
+    static SyncHelper& instance();
+
+    SyncVariables variables;
+private:
+    static SyncHelper* _instance;
+
 };
 
 #endif // APPLICATION_H

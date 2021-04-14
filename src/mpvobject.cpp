@@ -443,6 +443,7 @@ QQuickFramebufferObject::Renderer *MpvObject::createRenderer() const
 void MpvObject::loadFile(const QString &file, bool updateLastPlayedFile)
 {
     command(QStringList() << "loadfile" << file);
+    SyncHelper::instance().variables.loadedFile = file.toStdString();
 
     if (updateLastPlayedFile) {
         GeneralSettings::setLastPlayedFile(file);
@@ -690,6 +691,10 @@ QVariant MpvObject::getProperty(const QString &name, bool debug)
 
 QVariant MpvObject::command(const QVariant &params)
 {
+    //Store command for syncing if:
+    //load of new file
+    //seeking
+
     return mpv::qt::command(mpv, params);
 }
 

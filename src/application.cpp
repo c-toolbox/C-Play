@@ -130,9 +130,25 @@ Application::Application(int &argc, char **argv, const QString &applicationName)
     QObject::connect(&renderThread, &QThread::finished, &renderThread, &QThread::deleteLater);
 }
 
+Application* Application::_instance = nullptr;
+
+void Application::create(int &argc, char **argv, const QString &applicationName)
+{
+    _instance = new Application(argc, argv, applicationName);
+}
+
+Application& Application::instance() {
+    if (_instance == nullptr) {
+        throw std::logic_error("Using the instance before it was created or set");
+    }
+    return *_instance;
+}
+
 Application::~Application()
 {
     delete m_engine;
+    delete _instance;
+    _instance = nullptr;
 }
 
 int Application::run()
@@ -852,3 +868,22 @@ void Application::setupActions(const QString &actionName)
     }
     m_collection.readSettings(m_shortcuts);
 }
+
+
+SyncHelper* SyncHelper::_instance = nullptr;
+
+SyncHelper::SyncHelper() {}
+
+SyncHelper::~SyncHelper()
+{
+    delete _instance;
+    _instance = nullptr;
+}
+
+SyncHelper& SyncHelper::instance() {
+    if(!_instance){
+        _instance = new SyncHelper();
+    }
+    return *_instance;
+}
+
