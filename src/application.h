@@ -86,7 +86,8 @@ class SyncHelper
 public:
     struct SyncVariables {
         std::string loadedFile;
-        int test;
+        bool paused;
+        double timePosition;
     };
 
     SyncHelper();
