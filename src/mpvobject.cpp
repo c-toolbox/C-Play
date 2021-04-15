@@ -385,6 +385,17 @@ void MpvObject::setHWDecoding(bool value)
     emit hwDecodingChanged();
 }
 
+bool MpvObject::stereoscopicVideo()
+{
+    return SyncHelper::instance().variables.sbs3DVideo;
+}
+
+void MpvObject::setStereoscopicVideo(bool value)
+{
+    SyncHelper::instance().variables.sbs3DVideo = value;
+    emit stereoscopicVideoChanged();
+}
+
 QVariant MpvObject::getAudioDeviceList()
 {
   return getProperty("audio-device-list");

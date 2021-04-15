@@ -246,6 +246,7 @@ std::vector<std::byte> encode() {
     serializeObject(data, SyncHelper::instance().variables.loadedFile);
     serializeObject(data, SyncHelper::instance().variables.paused);
     serializeObject(data, SyncHelper::instance().variables.timePosition);
+    serializeObject(data, SyncHelper::instance().variables.sbs3DVideo);
     return data;
 }
 
@@ -253,6 +254,7 @@ void decode(const std::vector<std::byte>& data, unsigned int pos) {
     deserializeObject(data, pos, SyncHelper::instance().variables.loadedFile);
     deserializeObject(data, pos, SyncHelper::instance().variables.paused);
     deserializeObject(data, pos, SyncHelper::instance().variables.timePosition);
+    deserializeObject(data, pos, SyncHelper::instance().variables.sbs3DVideo);
 }
 
 void postSyncPreDraw() {
@@ -336,7 +338,13 @@ void draw(const RenderData& data) {
     glBindTexture(GL_TEXTURE_2D, mpvTex);
 
     videoPrg->bind();
-    glUniform1i(eyeModeLoc, (GLint)data.frustumMode);
+
+    if(SyncHelper::instance().variables.sbs3DVideo){
+        glUniform1i(eyeModeLoc, (GLint)data.frustumMode);
+    }
+    else{
+        glUniform1i(eyeModeLoc, 0);
+    }
 
     data.window.renderScreenQuad();
 
