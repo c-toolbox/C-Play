@@ -30,6 +30,13 @@ void RenderThread::render()
     }
 }
 
+void RenderThread::terminate(){
+    mutex.lock();
+    sgct::Log::Info("Terminate rendering");
+    sgct::Engine::instance().terminate();
+    mutex.unlock();
+}
+
 void RenderThread::run()
 {
     mutex.lock();

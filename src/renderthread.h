@@ -16,6 +16,9 @@ public:
 
     void render();
 
+public slots:
+    void terminate();
+
 protected:
     void run() override;
 

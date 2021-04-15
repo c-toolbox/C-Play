@@ -126,8 +126,8 @@ Application::Application(int &argc, char **argv, const QString &applicationName)
     setupQmlContextProperties();
     m_engine->load(url);
 
-    QObject::connect(&renderThread, &QThread::finished, m_app, &QApplication::quit);
-    QObject::connect(&renderThread, &QThread::finished, &renderThread, &QThread::deleteLater);
+    //QObject::connect(&renderThread, &QThread::finished, m_app, &QApplication::quit);
+    //QObject::connect(&renderThread, &QThread::finished, &renderThread, &QThread::deleteLater);
 }
 
 Application* Application::_instance = nullptr;
@@ -153,9 +153,13 @@ Application::~Application()
 
 int Application::run()
 {
+    QEventLoop loop;
+    connect(&renderThread, &QThread::finished, &loop, &QEventLoop::quit);
     renderThread.render();
     int returnCode = m_app->exec();
-    sgct::Engine::instance().terminate();
+    sgct::Log::Info("Qt Application exited");
+    renderThread.terminate();
+    loop.exec();
     return returnCode;
 }
 
