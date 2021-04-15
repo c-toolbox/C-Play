@@ -74,6 +74,26 @@ QtObject {
         }
     }
 
+    property Action stereoscopicAction: Action {
+        id: stereoscopicAction
+        property var qaction: app.action("stereoscopic-video")
+        text: qaction.text
+        shortcut: qaction.shortcutName()
+        //ToolTip.text: qaction.tooltip
+        Component.onCompleted: list["stereoscopicAction"] = stereoscopicAction
+
+        onTriggered: {
+            mpv.stereoscopicVideo = !mpv.stereoscopicVideo
+            if (mpv.stereoscopicVideo) {
+                text = qsTr("3D")
+                //ToolTip.text = qsTr("3D Mode On")
+            } else {
+                text = qsTr("2D")
+                //ToolTip.text = qsTr("2D Mode On")
+            }
+        }
+    }
+
     property Action muteAction: Action {
         id: muteAction
         property var qaction: app.action("mute")

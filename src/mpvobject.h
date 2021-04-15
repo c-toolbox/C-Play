@@ -102,6 +102,11 @@ class MpvObject : public QQuickFramebufferObject
                WRITE setHWDecoding
                NOTIFY hwDecodingChanged)
 
+    Q_PROPERTY(bool stereoscopicVideo
+               READ stereoscopicVideo
+               WRITE setStereoscopicVideo
+               NOTIFY stereoscopicVideoChanged)
+
     Q_PROPERTY(PlayListModel* playlistModel
                READ playlistModel
                WRITE setPlaylistModel
@@ -162,6 +167,9 @@ class MpvObject : public QQuickFramebufferObject
     bool hwDecoding();
     void setHWDecoding(bool value);
 
+    bool stereoscopicVideo();
+    void setStereoscopicVideo(bool value);
+
     QVariant getAudioDeviceList();
     void updateAudioDeviceList();
 
@@ -211,6 +219,7 @@ signals:
     void audioTracksModelChanged();
     void subtitleTracksModelChanged();
     void hwDecodingChanged();
+    void stereoscopicVideoChanged();
     void playlistModelChanged();
     void audioDevicesChanged();
     void youtubePlaylistLoaded();

@@ -635,6 +635,14 @@ void Application::setupActions(const QString &actionName)
         m_collection.setDefaultShortcut(action, Qt::Key_M);
         m_collection.addAction(actionName, action);
     }
+    if (actionName == QStringLiteral("stereoscopic-video")) {
+        auto action = new HAction();
+        action->setText(i18n("2D"));
+        action->setToolTip(i18n("2D Mode On"));
+        //action->setIcon(QIcon::fromTheme("face-cool"));
+        m_collection.setDefaultShortcut(action, Qt::Key_S);
+        m_collection.addAction(actionName, action);
+    }
     if (actionName == QStringLiteral("seekForwardSmall")) {
         auto action = new HAction();
         action->setText(i18n("Seek Small Step Forward"));
