@@ -193,6 +193,7 @@ double MpvObject::position()
 
 void MpvObject::setPosition(double value)
 {
+    SyncHelper::instance().variables.timePosition = value;
     if (value == position()) {
         return;
     }
@@ -217,6 +218,7 @@ bool MpvObject::pause()
 
 void MpvObject::setPause(bool value)
 {
+    SyncHelper::instance().variables.paused = value;
     if (value == pause()) {
         return;
     }
@@ -493,6 +495,7 @@ void MpvObject::eventHandler()
                 }
             } else if (strcmp(prop->name, "time-pos") == 0) {
                 if (prop->format == MPV_FORMAT_DOUBLE) {
+                    SyncHelper::instance().variables.timePosition = position();
                     emit positionChanged();
                 }
             } else if (strcmp(prop->name, "media-title") == 0) {
@@ -513,6 +516,7 @@ void MpvObject::eventHandler()
                 }
             } else if (strcmp(prop->name, "pause") == 0) {
                 if (prop->format == MPV_FORMAT_FLAG) {
+                    SyncHelper::instance().variables.paused = pause();
                     emit pauseChanged();
                 }
             } else if (strcmp(prop->name, "chapter") == 0) {
@@ -691,10 +695,6 @@ QVariant MpvObject::getProperty(const QString &name, bool debug)
 
 QVariant MpvObject::command(const QVariant &params)
 {
-    //Store command for syncing if:
-    //load of new file
-    //seeking
-
     return mpv::qt::command(mpv, params);
 }
 

@@ -19,6 +19,7 @@ Slider {
     property alias loopIndicator: loopIndicator
     property var chapters
     property bool seekStarted: false
+    property bool videoWasPaused: false
 
     from: 0
     to: mpv.duration
@@ -148,9 +149,12 @@ Slider {
     onToChanged: value = mpv.position
     onPressedChanged: {
         if (pressed) {
+            videoWasPaused = mpv.pause
+            mpv.pause = true
             seekStarted = true
         } else {
             mpv.command(["seek", value, "absolute"])
+            mpv.pause = videoWasPaused
             seekStarted = false
         }
     }

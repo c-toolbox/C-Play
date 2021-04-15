@@ -29,8 +29,8 @@ int videoWidth = 0;
 int videoHeight = 0;
 unsigned int mpvFBO = 0;
 unsigned int mpvTex = 0;
+bool paused = true;
 int eyeModeLoc = -1;
-double currentTime = 0.0;
 
 constexpr const char* VideoVert = R"(
   #version 330 core
@@ -160,6 +160,11 @@ void on_mpv_events(void*)
                             resizeMpvFBO((int)w, (int)h);
                         }
                     }
+                    else if (strcmp(prop->name, "pause") == 0) {
+                        if (prop->format == MPV_FORMAT_FLAG) {
+                            paused = mpv::qt::get_property(mpvHandle, "pause").toBool();
+                        }
+                    }
                     break;
             }
 #endif
@@ -218,6 +223,7 @@ void initOGL(GLFWwindow*) {
 #ifndef ONLY_RENDER_TO_SCREEN
     //Observe video parameters
     mpv_observe_property(mpvHandle, 0, "video-params", MPV_FORMAT_NODE);
+    mpv_observe_property(mpvHandle, 0, "pause", MPV_FORMAT_FLAG);
 
     //Creating new FBO to render mpv into
     createMpvFBO(512, 512);
@@ -233,9 +239,20 @@ void initOGL(GLFWwindow*) {
 }
 
 void preSync() {
-    if (Engine::instance().isMaster()) {
-        currentTime = Engine::getTime();
-    }
+}
+
+std::vector<std::byte> encode() {
+    std::vector<std::byte> data;
+    serializeObject(data, SyncHelper::instance().variables.loadedFile);
+    serializeObject(data, SyncHelper::instance().variables.paused);
+    serializeObject(data, SyncHelper::instance().variables.timePosition);
+    return data;
+}
+
+void decode(const std::vector<std::byte>& data, unsigned int pos) {
+    deserializeObject(data, pos, SyncHelper::instance().variables.loadedFile);
+    deserializeObject(data, pos, SyncHelper::instance().variables.paused);
+    deserializeObject(data, pos, SyncHelper::instance().variables.timePosition);
 }
 
 void postSyncPreDraw() {
@@ -248,10 +265,24 @@ void postSyncPreDraw() {
             Log::Info(fmt::format("Loading new file: {}", newfile.toStdString()));
             mpv::qt::command_async(mpvHandle, QStringList() << "loadfile" << newfile);
         }
+        if(paused && SyncHelper::instance().variables.timePosition != mpv::qt::get_property(mpvHandle, "time-pos").toDouble()){
+            mpv::qt::set_property(mpvHandle, "time-pos", SyncHelper::instance().variables.timePosition);
+            Log::Info(fmt::format("New video position: {}", SyncHelper::instance().variables.timePosition));
+        }
+        if(SyncHelper::instance().variables.paused != paused){
+            paused = SyncHelper::instance().variables.paused;
+            if(paused) {
+                Log::Info("Video paused.");
+            }
+            else{
+                Log::Info("Video playing...");
+            }
+            mpv::qt::set_property(mpvHandle, "pause", paused);
+        }
     }
 
-    //Clear all MpvSyncVariables variables after syncing has occured
-    // For both master and nodes
+    //Clear all MpvSyncVariables string variables after syncing has occured
+    //For both master and nodes
     SyncHelper::instance().variables.loadedFile = "";
 
     if (Engine::instance().isMaster()) {
@@ -311,18 +342,6 @@ void draw(const RenderData& data) {
 
     videoPrg->unbind();
 #endif
-}
-
-std::vector<std::byte> encode() {
-    std::vector<std::byte> data;
-    serializeObject(data, currentTime);
-    serializeObject(data, SyncHelper::instance().variables.loadedFile);
-    return data;
-}
-
-void decode(const std::vector<std::byte>& data, unsigned int pos) {
-    deserializeObject(data, pos, currentTime);
-    deserializeObject(data, pos, SyncHelper::instance().variables.loadedFile);
 }
 
 void cleanup() {
