@@ -106,8 +106,8 @@ MpvObject::MpvObject(QQuickItem * parent)
     if (!mpv)
         throw std::runtime_error("could not create mpv context");
 
-//    setProperty("terminal", "yes");
-//    setProperty("msg-level", "all=v");
+    //setProperty("terminal", "yes");
+    //setProperty("msg-level", "all=v");
 
     QString hwdec = PlaybackSettings::useHWDecoding() ? PlaybackSettings::hWDecoding() : "no";
     setProperty("hwdec", hwdec);
@@ -446,6 +446,16 @@ void MpvObject::loadFile(const QString &file, bool updateLastPlayedFile)
 {
     command(QStringList() << "loadfile" << file);
     SyncHelper::instance().variables.loadedFile = file.toStdString();
+
+    /*if(AudioSettings::loadAudioFileInVideoFolder()){
+        QString filePath = file;
+        filePath.replace("file:///", "");
+        QDir directory = QFileInfo(filePath).absoluteDir();
+        QFileInfoList audioFiles = directory.entryInfoList(QStringList() << "*.wav" << "*.mp3", QDir::Files);
+        foreach(QFileInfo audioFile, audioFiles) {
+            command(QStringList() << "audio-add" << audioFile.absoluteFilePath());
+        }
+    }*/
 
     if (updateLastPlayedFile) {
         GeneralSettings::setLastPlayedFile(file);
