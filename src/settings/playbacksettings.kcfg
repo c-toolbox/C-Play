@@ -11,7 +11,13 @@
   <kcfgfile name="georgefb/haruna.conf" />
   <group name="Playback">
     <entry name="MinDurationToSavePosition" type="int">
-      <default>1</default>
+      <default>-1</default>
+    </entry>
+	<entry name="LoadOnStartupMode" type="int">
+      <default>0</default>
+    </entry>
+	<entry name="FileToLoadOnStartup" type="String">
+      <label>./data/startup_image.png</label>
     </entry>
     <entry name="SkipChapters" type="bool">
       <label>Skip chapters</label>
