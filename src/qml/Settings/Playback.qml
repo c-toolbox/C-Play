@@ -116,6 +116,53 @@ SettingsBasePage {
             }
         }
 
+        Label {
+            text: qsTr("Load on startup:")
+        }
+        ComboBox {
+            id: loadOnStartupComboBox
+            enabled: true
+            textRole: "mode"
+            model: ListModel {
+                id: loadOnStartupMode
+                ListElement { mode: "No file"; value: 0 }
+                ListElement { mode: "Last opened file"; value: 1}
+                ListElement { mode: "Custom file (specify path below)"; value: 2 }
+            }
+
+            onActivated: {
+                    PlaybackSettings.loadOnStartupMode = model.get(index).value
+                    PlaybackSettings.save()
+            }
+
+            Component.onCompleted: {
+                for (let i = 0; i < loadOnStartupMode.count; ++i) {
+                    if (loadOnStartupMode.get(i).value === PlaybackSettings.loadOnStartupMode) {
+                        currentIndex = i
+                        break
+                    }
+                }
+            }
+        }
+
+        Label {
+            text: qsTr("File to load on startup:")
+        }
+        TextField {
+            text: PlaybackSettings.fileToLoadOnStartup
+            placeholderText: "Path to image or video file"
+            enabled: (PlaybackSettings.loadOnStartupMode === 2)
+            Layout.fillWidth: true
+            onEditingFinished: {
+                PlaybackSettings.fileToLoadOnStartup = text
+                PlaybackSettings.save()
+            }
+
+            ToolTip {
+                text: qsTr("Path to image or video file")
+            }
+        }
+
         CheckBox {
             id: skipChaptersCheckBox
             text: qsTr("Skip chapters")

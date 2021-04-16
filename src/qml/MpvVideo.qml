@@ -62,12 +62,19 @@ MpvObject {
             window.openFile(app.argument(0), true, PlaylistSettings.loadSiblings)
         } else {
             // open last played file
-            if (app.isYoutubePlaylist(GeneralSettings.lastPlayedFile)) {
-                getYouTubePlaylist(GeneralSettings.lastPlayedFile)
-                playList.isYouTubePlaylist = true
-            } else {
-                // file is local, open normally
-                window.openFile(GeneralSettings.lastPlayedFile, false, PlaylistSettings.loadSiblings)
+            if(PlaybackSettings.loadOnStartupMode == 1){
+                if (app.isYoutubePlaylist(GeneralSettings.lastPlayedFile)) {
+                    getYouTubePlaylist(GeneralSettings.lastPlayedFile)
+                    playList.isYouTubePlaylist = true
+                } else {
+                    // file is local, open normally
+                    window.openFile(GeneralSettings.lastPlayedFile, false, PlaylistSettings.loadSiblings)
+                }
+            }
+            else if(PlaybackSettings.loadOnStartupMode == 2){
+                if(PlaybackSettings.fileToLoadOnStartup !== ""){
+                    window.openFile(PlaybackSettings.fileToLoadOnStartup, false, PlaylistSettings.loadSiblings)
+                }
             }
         }
     }
@@ -97,7 +104,7 @@ MpvObject {
         setProperty("ab-loop-a", "no")
         setProperty("ab-loop-b", "no")
 
-        mpv.pause = loadTimePosition() !== 0
+        mpv.pause = true
         position = loadTimePosition()
     }
 
