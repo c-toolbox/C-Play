@@ -85,10 +85,10 @@ QtObject {
         onTriggered: {
             mpv.stereoscopicVideo = !mpv.stereoscopicVideo
             if (mpv.stereoscopicVideo) {
-                text = qsTr("3D")
+                text = qsTr("3D is On")
                 //ToolTip.text = qsTr("3D Mode On")
             } else {
-                text = qsTr("2D")
+                text = qsTr("2D is On")
                 //ToolTip.text = qsTr("2D Mode On")
             }
         }

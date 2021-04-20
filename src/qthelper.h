@@ -8,7 +8,6 @@
 #define LIBMPV_QTHELPER_H_
 
 #include <client.h>
-
 #include <cstring>
 
 #include <QVariant>
@@ -17,6 +16,10 @@
 #include <QHash>
 #include <QSharedPointer>
 #include <QMetaType>
+#include <QFile>
+#include <QJsonArray>
+#include <QJsonDocument>
+#include <QJsonObject>
 
 namespace mpv {
 namespace qt {
@@ -276,6 +279,7 @@ static inline int set_property(mpv_handle *ctx, const QString &name,
                                        const QVariant &v)
 {
     node_builder node(v);
+    qInfo() << "(MPV) SetProperty: Name = " << name << ", Value = " << v.toString();
     return mpv_set_property(ctx, name.toUtf8().data(), MPV_FORMAT_NODE, node.node());
 }
 
@@ -306,6 +310,33 @@ static inline void command_async(mpv_handle *ctx, const QVariant &args)
 {
     node_builder node(args);
     mpv_command_node_async(ctx, 0, node.node());
+}
+
+/**
+ * Load and set mpv-conf.json file with MPV configurations
+ *
+ * @return false or true for success
+ */
+static inline bool load_configurations(mpv_handle *ctx) {
+    QFile mpvConfFile(QStringLiteral("./data/mpv-conf.json"));
+
+    if (!mpvConfFile.open(QIODevice::ReadOnly)) {
+        qWarning("Couldn't open mpv configuration file.");
+        return false;
+    }
+
+    QByteArray mpvCommandsArray = mpvConfFile.readAll();
+
+    QJsonDocument mpvCommandsDoc(QJsonDocument::fromJson(mpvCommandsArray));
+
+    QJsonObject mpvCommands = mpvCommandsDoc.object();
+
+    foreach(const QString& key, mpvCommands.keys()) {
+        QJsonValue value = mpvCommands.value(key);
+        set_property(ctx, key, value.toVariant());
+    }
+
+    return true;
 }
 
 }
