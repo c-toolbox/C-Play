@@ -116,6 +116,9 @@ MpvObject::MpvObject(QQuickItem * parent)
     setProperty("screenshot-template", VideoSettings::screenshotTemplate());
     setProperty("sub-auto", "exact");
     setProperty("volume-max", "100");
+
+    mpv::qt::load_configurations(mpv);
+
     updateAudioDeviceList();
 
     mpv_observe_property(mpv, 0, "audio-device-list", MPV_FORMAT_NODE);

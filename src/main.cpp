@@ -211,8 +211,8 @@ void initOGL(GLFWwindow*) {
     //  users which run OpenGL on a different thread.)
     mpv_render_context_set_update_callback(mpvRenderContext, on_mpv_render_update, NULL);
 
-    // Request hw decoding
-    mpv::qt::set_property(mpvHandle, "hwdec", "auto");
+    // Load mpv configurations
+    mpv::qt::load_configurations(mpvHandle);
 
 #ifdef SGCT_ONLY
     SyncHelper::instance().variables.loadedFile = "G:/Splits/Life_of_trees_3D_bravo/Life_of_trees_3D.mp4";
