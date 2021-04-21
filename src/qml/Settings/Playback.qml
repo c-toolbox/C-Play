@@ -83,7 +83,7 @@ SettingsBasePage {
         }
 
         Label {
-            text: qsTr("Remember time position")
+            text: qsTr("Remember time position:")
         }
 
         RowLayout {
@@ -110,6 +110,32 @@ SettingsBasePage {
                     } else {
                         return qsTr("For files longer than %1 minutes").arg(timePositionSaving.value)
                     }
+                }
+                elide: Text.ElideRight
+                Layout.fillWidth: true
+            }
+        }
+
+        Label {
+            text: qsTr("Time position sync threshold:")
+        }
+
+        RowLayout {
+            SpinBox {
+                id: timeThresholdSaving
+                from: 100
+                to: 5000
+                value: PlaybackSettings.thresholdToSyncTimePosition
+
+                onValueChanged: {
+                    PlaybackSettings.thresholdToSyncTimePosition = value
+                    PlaybackSettings.save()
+                }
+            }
+
+            LabelWithTooltip {
+                text: {
+                    qsTr("ms = Set time position if it is %1 seconds off from master").arg(Number((timeThresholdSaving.value*1.0)/1000.0).toFixed(3))
                 }
                 elide: Text.ElideRight
                 Layout.fillWidth: true
