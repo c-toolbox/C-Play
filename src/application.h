@@ -85,10 +85,11 @@ class SyncHelper
 {
 public:
     struct SyncVariables {
-        std::string loadedFile = "";
-        bool paused = false;
-        double timePosition = 0;
-        bool sbs3DVideo = false;
+        std::string loadedFile;
+        bool paused;
+        double timePosition;
+        double timeThreshold;
+        bool sbs3DVideo;
     };
 
     SyncHelper();

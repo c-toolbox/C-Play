@@ -246,6 +246,7 @@ std::vector<std::byte> encode() {
     serializeObject(data, SyncHelper::instance().variables.loadedFile);
     serializeObject(data, SyncHelper::instance().variables.paused);
     serializeObject(data, SyncHelper::instance().variables.timePosition);
+    serializeObject(data, SyncHelper::instance().variables.timeThreshold);
     serializeObject(data, SyncHelper::instance().variables.sbs3DVideo);
     return data;
 }
@@ -254,6 +255,7 @@ void decode(const std::vector<std::byte>& data, unsigned int pos) {
     deserializeObject(data, pos, SyncHelper::instance().variables.loadedFile);
     deserializeObject(data, pos, SyncHelper::instance().variables.paused);
     deserializeObject(data, pos, SyncHelper::instance().variables.timePosition);
+    deserializeObject(data, pos, SyncHelper::instance().variables.timeThreshold);
     deserializeObject(data, pos, SyncHelper::instance().variables.sbs3DVideo);
 }
 
@@ -267,10 +269,6 @@ void postSyncPreDraw() {
             Log::Info(fmt::format("Loading new file: {}", newfile.toStdString()));
             mpv::qt::command_async(mpvHandle, QStringList() << "loadfile" << newfile);
         }
-        if(paused && SyncHelper::instance().variables.timePosition != mpv::qt::get_property(mpvHandle, "time-pos").toDouble()){
-            mpv::qt::set_property(mpvHandle, "time-pos", SyncHelper::instance().variables.timePosition);
-            Log::Info(fmt::format("New video position: {}", SyncHelper::instance().variables.timePosition));
-        }
         if(SyncHelper::instance().variables.paused != paused){
             paused = SyncHelper::instance().variables.paused;
             if(paused) {
@@ -280,6 +278,15 @@ void postSyncPreDraw() {
                 Log::Info("Video playing...");
             }
             mpv::qt::set_property(mpvHandle, "pause", paused);
+        }
+        double currentTimePos = mpv::qt::get_property(mpvHandle, "time-pos").toDouble();
+        if(SyncHelper::instance().variables.timePosition != currentTimePos){
+            if(paused || (abs(currentTimePos-SyncHelper::instance().variables.timePosition)>SyncHelper::instance().variables.timeThreshold)){
+                //Always set time pos when paused and not same time
+                //Or set time position as it is above sync threshold
+                mpv::qt::set_property(mpvHandle, "time-pos", SyncHelper::instance().variables.timePosition);
+                Log::Info(fmt::format("New video position: {}", SyncHelper::instance().variables.timePosition));
+            }
         }
     }
 

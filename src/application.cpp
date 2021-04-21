@@ -895,6 +895,11 @@ SyncHelper::~SyncHelper()
 SyncHelper& SyncHelper::instance() {
     if(!_instance){
         _instance = new SyncHelper();
+        _instance->variables.loadedFile = "";
+        _instance->variables.paused = false;
+        _instance->variables.timePosition = 0.0;
+        _instance->variables.timeThreshold = 1.0;
+        _instance->variables.sbs3DVideo = false;
     }
     return *_instance;
 }
