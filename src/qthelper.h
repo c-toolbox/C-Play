@@ -317,8 +317,8 @@ static inline void command_async(mpv_handle *ctx, const QVariant &args)
  *
  * @return false or true for success
  */
-static inline bool load_configurations(mpv_handle *ctx) {
-    QFile mpvConfFile(QStringLiteral("./data/mpv-conf.json"));
+static inline bool load_configurations(mpv_handle *ctx, QString filepath) {
+    QFile mpvConfFile(filepath);
 
     if (!mpvConfFile.open(QIODevice::ReadOnly)) {
         qWarning("Couldn't open mpv configuration file.");
