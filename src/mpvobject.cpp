@@ -117,6 +117,8 @@ MpvObject::MpvObject(QQuickItem * parent)
     setProperty("sub-auto", "exact");
     setProperty("volume-max", "100");
 
+    SyncHelper::instance().variables.sbs3DVideo = PlaybackSettings::stereoModeOnStartup();
+
     mpv::qt::load_configurations(mpv);
 
     updateAudioDeviceList();
