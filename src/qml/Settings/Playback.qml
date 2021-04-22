@@ -142,6 +142,17 @@ SettingsBasePage {
             }
         }
 
+        CheckBox {
+            text: qsTr("Use 3D Mode on startup")
+            enabled: enabled
+            checked: PlaybackSettings.stereoModeOnStartup
+            onCheckedChanged: {
+                PlaybackSettings.stereoModeOnStartup = checked
+                PlaybackSettings.save()
+            }
+            Layout.columnSpan: 2
+        }
+
         Label {
             text: qsTr("Load on startup:")
         }

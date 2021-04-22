@@ -637,7 +637,12 @@ void Application::setupActions(const QString &actionName)
     }
     if (actionName == QStringLiteral("stereoscopic-video")) {
         auto action = new HAction();
-        action->setText(i18n("2D is On"));
+        if(SyncHelper::instance().variables.sbs3DVideo){
+            action->setText(i18n("3D is On"));
+        }
+        else{
+            action->setText(i18n("2D is On"));
+        }
         action->setToolTip(i18n(""));
         //action->setIcon(QIcon::fromTheme("face-cool"));
         m_collection.setDefaultShortcut(action, Qt::Key_S);

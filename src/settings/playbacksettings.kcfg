@@ -22,6 +22,10 @@
 	<entry name="FileToLoadOnStartup" type="String">
       <label>./data/startup_image.png</label>
     </entry>
+	<entry name="stereoModeOnStartup" type="bool">
+      <label>Have 3D Mode On/Off on startup</label>
+      <default>false</default>
+    </entry>
     <entry name="SkipChapters" type="bool">
       <label>Skip chapters</label>
       <default>false</default>
