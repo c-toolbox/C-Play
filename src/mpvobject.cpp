@@ -119,7 +119,8 @@ MpvObject::MpvObject(QQuickItem * parent)
 
     SyncHelper::instance().variables.sbs3DVideo = PlaybackSettings::stereoModeOnStartup();
 
-    mpv::qt::load_configurations(mpv);
+    mpv::qt::load_configurations(mpv, QStringLiteral("./data/mpv-conf.json"));
+    mpv::qt::load_configurations(mpv, QStringLiteral("./data/mpv-conf-master.json"));
 
     updateAudioDeviceList();
 
