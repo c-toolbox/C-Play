@@ -107,6 +107,11 @@ class MpvObject : public QQuickFramebufferObject
                WRITE setStereoscopicVideo
                NOTIFY stereoscopicVideoChanged)
 
+    Q_PROPERTY(int gridToMapOn
+               READ gridToMapOn
+               WRITE setGridToMapOn
+               NOTIFY gridToMapOnChanged)
+
     Q_PROPERTY(PlayListModel* playlistModel
                READ playlistModel
                WRITE setPlaylistModel
@@ -170,6 +175,9 @@ class MpvObject : public QQuickFramebufferObject
     bool stereoscopicVideo();
     void setStereoscopicVideo(bool value);
 
+    int gridToMapOn();
+    void setGridToMapOn(int value);
+
     QVariant getAudioDeviceList();
     void updateAudioDeviceList();
 
@@ -220,6 +228,7 @@ signals:
     void subtitleTracksModelChanged();
     void hwDecodingChanged();
     void stereoscopicVideoChanged();
+    void gridToMapOnChanged();
     void playlistModelChanged();
     void audioDevicesChanged();
     void youtubePlaylistLoaded();
@@ -233,6 +242,7 @@ private:
     QMap<int, Track*> m_audioTracks;
     QList<int> m_secondsWatched;
     double m_watchPercentage;
+    double m_lastSetPosition;
     PlayListModel *m_playlistModel;
     QString m_file;
     QVariantList m_audioDevices;

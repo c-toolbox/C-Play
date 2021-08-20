@@ -142,6 +142,32 @@ SettingsBasePage {
             }
         }
 
+        Label {
+            text: qsTr("Set position interval:")
+        }
+
+        RowLayout {
+            SpinBox {
+                id: timeSetInterval
+                from: 0
+                to: 20000
+                value: PlaybackSettings.intervalToSetPosition
+
+                onValueChanged: {
+                    PlaybackSettings.intervalToSetPosition = value
+                    PlaybackSettings.save()
+                }
+            }
+
+            LabelWithTooltip {
+                text: {
+                    qsTr("ms = Set time position every %1 seconds of the video").arg(Number((timeSetInterval.value*1.0)/1000.0).toFixed(3))
+                }
+                elide: Text.ElideRight
+                Layout.fillWidth: true
+            }
+        }
+
         CheckBox {
             text: qsTr("Use 3D Mode on startup")
             enabled: enabled
