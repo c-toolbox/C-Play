@@ -6,6 +6,8 @@
 
 #include <sgct/sgct.h>
 #include <sgct/opengl.h>
+#include <sgct/utils/dome.h>
+#include <sgct/utils/sphere.h>
 #include <glm/glm.hpp>
 #include <glm/gtc/type_ptr.hpp>
 #include <GLFW/glfw3.h>
@@ -24,6 +26,8 @@
 namespace {
 mpv_handle *mpvHandle;
 mpv_render_context *mpvRenderContext;
+std::unique_ptr<sgct::utils::Dome> dome;
+std::unique_ptr<sgct::utils::Sphere> sphere;
 
 int videoWidth = 0;
 int videoHeight = 0;
@@ -31,15 +35,17 @@ unsigned int mpvFBO = 0;
 unsigned int mpvTex = 0;
 bool paused = true;
 int eyeModeLoc = -1;
+int matrixLoc = -1;
 
 constexpr const char* VideoVert = R"(
   #version 330 core
 
   layout (location = 0) in vec2 in_position;
   layout (location = 1) in vec2 in_texCoords;
-  out vec2 tr_uv;
 
   uniform int eye;
+
+  out vec2 tr_uv;
 
   void main() {
     gl_Position = vec4(in_position, 0.0, 1.0);
@@ -57,34 +63,60 @@ constexpr const char* VideoVert = R"(
   }
 )";
 
+constexpr const char* MeshVert = R"(
+  #version 330 core
+
+  layout (location = 0) in vec2 in_texCoords;
+  layout (location = 1) in vec3 in_normals;
+  layout (location = 2) in vec3 in_position;
+
+  uniform mat4 mvp;
+
+  out vec2 tr_uv;
+
+  void main() {
+    gl_Position = mvp * vec4(in_position, 1.0);
+    tr_uv = in_texCoords;
+  }
+)";
+
 constexpr const char* VideoFrag = R"(
   #version 330 core
 
+  uniform sampler2D tex;
+
   in vec2 tr_uv;
   out vec4 out_color;
-
-  uniform sampler2D tex;
 
   void main() {
     out_color = texture(tex, tr_uv);
   }
 )";
+
 } // namespace
 
 using namespace sgct;
 
 const ShaderProgram* videoPrg;
+const ShaderProgram* meshPrg;
 
 void generateTexture(unsigned int& id, int width, int height) {
     glGenTextures(1, &id);
+    glPixelStorei(GL_PACK_ALIGNMENT, 1);
+    glPixelStorei(GL_UNPACK_ALIGNMENT, 1);
+
     glBindTexture(GL_TEXTURE_2D, id);
 
     glTexImage2D(GL_TEXTURE_2D, 0, GL_RGBA16F, width, height, 0, GL_RGBA, GL_FLOAT, nullptr);
 
+    // Disable mipmaps
+    glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_BASE_LEVEL, 0);
+    glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_MAX_LEVEL, 0);
+
     glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_MIN_FILTER, GL_LINEAR);
     glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_MAG_FILTER, GL_LINEAR);
-    glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_WRAP_S, GL_CLAMP_TO_BORDER);
-    glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_WRAP_T, GL_CLAMP_TO_BORDER);
+    glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_WRAP_S, GL_CLAMP_TO_EDGE);
+    glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_WRAP_T, GL_CLAMP_TO_EDGE);
 }
 
 void createMpvFBO(int width, int height){
@@ -229,13 +261,31 @@ void initOGL(GLFWwindow*) {
     //Creating new FBO to render mpv into
     createMpvFBO(512, 512);
 
-    // Create video shader
+    // Create shaders
+    ShaderManager::instance().addShaderProgram("mesh", MeshVert, VideoFrag);
     ShaderManager::instance().addShaderProgram("video", VideoVert, VideoFrag);
+
+    //OBS: Need to create all shaders befor using any of them. Bug?
+    meshPrg = &ShaderManager::instance().shaderProgram("mesh");
+    meshPrg->bind();
+    glUniform1i(glGetUniformLocation(meshPrg->id(), "tex"), 0);
+    matrixLoc = glGetUniformLocation(meshPrg->id(), "mvp");
+    meshPrg->unbind();
+
     videoPrg = &ShaderManager::instance().shaderProgram("video");
     videoPrg->bind();
     glUniform1i(glGetUniformLocation(videoPrg->id(), "tex"), 0);
     eyeModeLoc = glGetUniformLocation(videoPrg->id(), "eye");
     videoPrg->unbind();
+
+    // create meshes
+    dome = std::make_unique<utils::Dome>(7.4f, 180.f, 256, 128);
+    sphere = std::make_unique<utils::Sphere>(7.4f, 256);
+
+    // Set up backface culling
+    glCullFace(GL_BACK);
+    // our polygon winding is clockwise since we are inside of the dome
+    glFrontFace(GL_CW);
 #endif
 }
 
@@ -249,6 +299,7 @@ std::vector<std::byte> encode() {
     serializeObject(data, SyncHelper::instance().variables.timePosition);
     serializeObject(data, SyncHelper::instance().variables.timeThreshold);
     serializeObject(data, SyncHelper::instance().variables.sbs3DVideo);
+    serializeObject(data, SyncHelper::instance().variables.gridToMapOn);
     return data;
 }
 
@@ -258,6 +309,7 @@ void decode(const std::vector<std::byte>& data, unsigned int pos) {
     deserializeObject(data, pos, SyncHelper::instance().variables.timePosition);
     deserializeObject(data, pos, SyncHelper::instance().variables.timeThreshold);
     deserializeObject(data, pos, SyncHelper::instance().variables.sbs3DVideo);
+    deserializeObject(data, pos, SyncHelper::instance().variables.gridToMapOn);
 }
 
 void postSyncPreDraw() {
@@ -345,18 +397,43 @@ void draw(const RenderData& data) {
     glActiveTexture(GL_TEXTURE0);
     glBindTexture(GL_TEXTURE_2D, mpvTex);
 
-    videoPrg->bind();
+    if (SyncHelper::instance().variables.gridToMapOn > 0) {
+        glEnable(GL_DEPTH_TEST);
+        glEnable(GL_CULL_FACE);
+        glEnable(GL_BLEND);
 
-    if(SyncHelper::instance().variables.sbs3DVideo){
-        glUniform1i(eyeModeLoc, (GLint)data.frustumMode);
+        meshPrg->bind();
+
+        const mat4& mvp = data.modelViewProjectionMatrix;
+        glUniformMatrix4fv(matrixLoc, 1, GL_FALSE, mvp.values);
+
+        if (SyncHelper::instance().variables.gridToMapOn == 2) {
+            sphere->draw();
+        }
+        else {
+            dome->draw();
+        }
+
+        meshPrg->unbind();
+
+        glDisable(GL_CULL_FACE);
+        glDisable(GL_DEPTH_TEST);
+        glDisable(GL_BLEND);
     }
-    else{
-        glUniform1i(eyeModeLoc, 0);
+    else {
+        videoPrg->bind();
+
+        if (SyncHelper::instance().variables.sbs3DVideo) {
+            glUniform1i(eyeModeLoc, (GLint)data.frustumMode);
+        }
+        else {
+            glUniform1i(eyeModeLoc, 0);
+        }
+
+        data.window.renderScreenQuad();
+
+        videoPrg->unbind();
     }
-
-    data.window.renderScreenQuad();
-
-    videoPrg->unbind();
 #endif
 }
 
@@ -374,6 +451,9 @@ void cleanup() {
 
     glDeleteFramebuffers(1, &mpvFBO);
     glDeleteTextures(1, &mpvTex);
+
+    dome = nullptr;
+    sphere = nullptr;
 }
 
 int main(int argc, char *argv[])

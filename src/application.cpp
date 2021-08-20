@@ -905,6 +905,7 @@ SyncHelper& SyncHelper::instance() {
         _instance->variables.timePosition = 0.0;
         _instance->variables.timeThreshold = 1.0;
         _instance->variables.sbs3DVideo = false;
+        _instance->variables.gridToMapOn = 0;
     }
     return *_instance;
 }

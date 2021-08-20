@@ -158,6 +158,68 @@ ToolBar {
             }
         }
 
+        ToolButton {
+            id: gridMenuButton
+
+            property var model: 0
+
+            text: qsTr("Grid")
+            icon.name: "kstars_hgrid"
+            focusPolicy: Qt.NoFocus
+
+            onClicked: {
+                if (gridMenuButton.model === 0) {
+                    gridMenuButton.model = mpv.subtitleTracksModel
+                }
+
+                gridMenu.visible = !gridMenu.visible
+            }
+
+            Menu {
+                id: gridMenu
+
+                y: parent.height
+
+                MenuSeparator {}
+
+                ButtonGroup {
+                    buttons: column.children
+                }
+
+                Column {
+                    id: column
+
+                    RadioButton {
+                        checked: true
+                        text: qsTr("Flat")
+                        onClicked: {
+                            PlaybackSettings.gridToMapOn = 0
+                            PlaybackSettings.save()
+                            mpv.gridToMapOn = 0
+                        }
+                    }
+
+                    RadioButton {
+                        text: qsTr("Dome")
+                        onClicked: {
+                             PlaybackSettings.gridToMapOn = 1
+                             PlaybackSettings.save()
+                             mpv.gridToMapOn = 1
+                        }
+                    }
+
+                    RadioButton {
+                        text: qsTr("Sphere")
+                        onClicked: {
+                            PlaybackSettings.gridToMapOn = 2
+                            PlaybackSettings.save()
+                            mpv.gridToMapOn = 2
+                        }
+                    }
+                }
+            }
+        }
+
         Item {
             Layout.fillWidth: true
         }

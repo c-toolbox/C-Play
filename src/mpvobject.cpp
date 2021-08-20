@@ -118,6 +118,7 @@ MpvObject::MpvObject(QQuickItem * parent)
     setProperty("volume-max", "100");
 
     SyncHelper::instance().variables.sbs3DVideo = PlaybackSettings::stereoModeOnStartup();
+    SyncHelper::instance().variables.gridToMapOn = PlaybackSettings::gridToMapOn();
 
     mpv::qt::load_configurations(mpv, QStringLiteral("./data/mpv-conf.json"));
     mpv::qt::load_configurations(mpv, QStringLiteral("./data/mpv-conf-master.json"));
@@ -200,6 +201,7 @@ double MpvObject::position()
 void MpvObject::setPosition(double value)
 {
     SyncHelper::instance().variables.timePosition = value;
+    m_lastSetPosition = value;
     SyncHelper::instance().variables.timeThreshold = double(PlaybackSettings::thresholdToSyncTimePosition())/1000.0;
     if (value == position()) {
         return;
@@ -403,6 +405,17 @@ void MpvObject::setStereoscopicVideo(bool value)
     emit stereoscopicVideoChanged();
 }
 
+int MpvObject::gridToMapOn()
+{
+    return SyncHelper::instance().variables.gridToMapOn;
+}
+
+void MpvObject::setGridToMapOn(int value)
+{
+    SyncHelper::instance().variables.gridToMapOn = value;
+    emit gridToMapOnChanged();
+}
+
 QVariant MpvObject::getAudioDeviceList()
 {
   return getProperty("audio-device-list");
@@ -524,7 +537,18 @@ void MpvObject::eventHandler()
             } else if (strcmp(prop->name, "time-pos") == 0) {
                 if (prop->format == MPV_FORMAT_DOUBLE) {
                     SyncHelper::instance().variables.timePosition = position();
-                    SyncHelper::instance().variables.timeThreshold = double(PlaybackSettings::thresholdToSyncTimePosition())/1000.0;
+                    if(PlaybackSettings::intervalToSetPosition() > 0){
+                        if(SyncHelper::instance().variables.timePosition > m_lastSetPosition + PlaybackSettings::intervalToSetPosition()){
+                            m_lastSetPosition = SyncHelper::instance().variables.timePosition;
+                            SyncHelper::instance().variables.timeThreshold = 0.0;
+                        }
+                        else{
+                            SyncHelper::instance().variables.timeThreshold = double(PlaybackSettings::thresholdToSyncTimePosition())/1000.0;
+                        }
+                    }
+                    else{
+                        SyncHelper::instance().variables.timeThreshold = double(PlaybackSettings::thresholdToSyncTimePosition())/1000.0;
+                    }
                     emit positionChanged();
                 }
             } else if (strcmp(prop->name, "media-title") == 0) {
@@ -545,6 +569,7 @@ void MpvObject::eventHandler()
                 }
             } else if (strcmp(prop->name, "pause") == 0) {
                 if (prop->format == MPV_FORMAT_FLAG) {
+                    m_lastSetPosition = position();
                     SyncHelper::instance().variables.paused = pause();
                     emit pauseChanged();
                 }

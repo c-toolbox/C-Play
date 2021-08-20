@@ -90,6 +90,7 @@ public:
         double timePosition;
         double timeThreshold;
         bool sbs3DVideo;
+        int gridToMapOn;
     };
 
     SyncHelper();
