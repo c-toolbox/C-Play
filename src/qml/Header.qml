@@ -190,34 +190,41 @@ ToolBar {
                     id: column
 
                     RadioButton {
-                        checked: true
-                        text: qsTr("Flat")
+                        checked: PlaybackSettings.gridToMapOn == 0
+                        text: qsTr("Flat/Pre-split")
                         onClicked: {
-                            PlaybackSettings.gridToMapOn = 0
-                            PlaybackSettings.save()
                             mpv.gridToMapOn = 0
                         }
                     }
 
                     RadioButton {
+                        checked: PlaybackSettings.gridToMapOn == 1
                         text: qsTr("Dome")
                         onClicked: {
-                             PlaybackSettings.gridToMapOn = 1
-                             PlaybackSettings.save()
                              mpv.gridToMapOn = 1
                         }
                     }
 
                     RadioButton {
+                        checked: PlaybackSettings.gridToMapOn == 2
                         text: qsTr("Sphere")
                         onClicked: {
-                            PlaybackSettings.gridToMapOn = 2
-                            PlaybackSettings.save()
                             mpv.gridToMapOn = 2
                         }
                     }
                 }
             }
+        }
+
+        ToolButton {
+            id: stereoscopic
+            action: actions.stereoscopicAction
+            text: actions.stereoscopicAction.text
+            focusPolicy: Qt.NoFocus
+
+            /*ToolTip {
+                text: actions.stereoscopicAction.tooltip
+            }*/
         }
 
         Item {

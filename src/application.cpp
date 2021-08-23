@@ -906,6 +906,11 @@ SyncHelper& SyncHelper::instance() {
         _instance->variables.timeThreshold = 1.0;
         _instance->variables.sbs3DVideo = false;
         _instance->variables.gridToMapOn = 0;
+        _instance->variables.radius = 740;
+        _instance->variables.fov = 165;
+        _instance->variables.rotateX = 0;
+        _instance->variables.rotateY = 0;
+        _instance->variables.rotateZ = 0;
     }
     return *_instance;
 }

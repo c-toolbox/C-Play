@@ -123,17 +123,6 @@ ToolBar {
             }
         }
 
-        ToolButton {
-            id: stereoscopic
-            action: actions.stereoscopicAction
-            text: actions.stereoscopicAction.text
-            focusPolicy: Qt.NoFocus
-
-            /*ToolTip {
-                text: actions.stereoscopicAction.tooltip
-            }*/
-        }
-
         VolumeSlider { id: volume }
 
         Loader {

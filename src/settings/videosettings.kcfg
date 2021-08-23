@@ -23,5 +23,20 @@
       </code>
       <default code="true">screenshotsFolder</default>
     </entry>
+	<entry name="DomeRadius" type="double">
+      <default>740</default>
+    </entry>
+	<entry name="DomeFov" type="double">
+      <default>165</default>
+    </entry>
+	<entry name="DomeRotateX" type="int">
+      <default>27</default>
+    </entry>
+	<entry name="DomeRotateY" type="int">
+      <default>0</default>
+    </entry>
+	<entry name="DomeRotateZ" type="int">
+      <default>0</default>
+    </entry>
   </group>
 </kcfg>
