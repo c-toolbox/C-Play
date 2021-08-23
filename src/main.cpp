@@ -29,13 +29,18 @@ mpv_render_context *mpvRenderContext;
 std::unique_ptr<sgct::utils::Dome> dome;
 std::unique_ptr<sgct::utils::Sphere> sphere;
 
+int domeRadius = 740;
+int domeFov = 165;
+std::string loadedVideoFile = "";
+
 int videoWidth = 0;
 int videoHeight = 0;
 unsigned int mpvFBO = 0;
 unsigned int mpvTex = 0;
 bool paused = true;
-int eyeModeLoc = -1;
-int matrixLoc = -1;
+int videoEyeModeLoc = -1;
+int meshMatrixLoc = -1;
+int meshEyeModeLoc = -1;
 
 constexpr const char* VideoVert = R"(
   #version 330 core
@@ -71,12 +76,23 @@ constexpr const char* MeshVert = R"(
   layout (location = 2) in vec3 in_position;
 
   uniform mat4 mvp;
+  uniform int eye;
 
   out vec2 tr_uv;
 
   void main() {
     gl_Position = mvp * vec4(in_position, 1.0);
     tr_uv = in_texCoords;
+
+    if(eye==1) { //Left Eye
+      tr_uv = in_texCoords * vec2(0.5, 1.0);
+    }
+    else if(eye==2) { //Right Eye
+      tr_uv = (in_texCoords * vec2(0.5, 1.0)) + vec2(0.5, 0.0);
+    }
+    else { //Mono eye=0
+      tr_uv = in_texCoords;
+    }
   }
 )";
 
@@ -269,18 +285,21 @@ void initOGL(GLFWwindow*) {
     meshPrg = &ShaderManager::instance().shaderProgram("mesh");
     meshPrg->bind();
     glUniform1i(glGetUniformLocation(meshPrg->id(), "tex"), 0);
-    matrixLoc = glGetUniformLocation(meshPrg->id(), "mvp");
+    meshMatrixLoc = glGetUniformLocation(meshPrg->id(), "mvp");
+    meshEyeModeLoc = glGetUniformLocation(meshPrg->id(), "eye");
     meshPrg->unbind();
 
     videoPrg = &ShaderManager::instance().shaderProgram("video");
     videoPrg->bind();
     glUniform1i(glGetUniformLocation(videoPrg->id(), "tex"), 0);
-    eyeModeLoc = glGetUniformLocation(videoPrg->id(), "eye");
+    videoEyeModeLoc = glGetUniformLocation(videoPrg->id(), "eye");
     videoPrg->unbind();
 
     // create meshes
-    dome = std::make_unique<utils::Dome>(7.4f, 180.f, 256, 128);
-    sphere = std::make_unique<utils::Sphere>(7.4f, 256);
+    domeRadius = SyncHelper::instance().variables.radius;
+    domeFov = SyncHelper::instance().variables.fov;
+    dome = std::make_unique<utils::Dome>(float(domeRadius)/100.f, float(domeFov), 256, 128);
+    sphere = std::make_unique<utils::Sphere>(float(domeRadius) / 100.f, 256);
 
     // Set up backface culling
     glCullFace(GL_BACK);
@@ -300,6 +319,11 @@ std::vector<std::byte> encode() {
     serializeObject(data, SyncHelper::instance().variables.timeThreshold);
     serializeObject(data, SyncHelper::instance().variables.sbs3DVideo);
     serializeObject(data, SyncHelper::instance().variables.gridToMapOn);
+    serializeObject(data, SyncHelper::instance().variables.radius);
+    serializeObject(data, SyncHelper::instance().variables.fov);
+    serializeObject(data, SyncHelper::instance().variables.rotateX);
+    serializeObject(data, SyncHelper::instance().variables.rotateY);
+    serializeObject(data, SyncHelper::instance().variables.rotateZ);
     return data;
 }
 
@@ -310,15 +334,21 @@ void decode(const std::vector<std::byte>& data, unsigned int pos) {
     deserializeObject(data, pos, SyncHelper::instance().variables.timeThreshold);
     deserializeObject(data, pos, SyncHelper::instance().variables.sbs3DVideo);
     deserializeObject(data, pos, SyncHelper::instance().variables.gridToMapOn);
+    deserializeObject(data, pos, SyncHelper::instance().variables.radius);
+    deserializeObject(data, pos, SyncHelper::instance().variables.fov);
+    deserializeObject(data, pos, SyncHelper::instance().variables.rotateX);
+    deserializeObject(data, pos, SyncHelper::instance().variables.rotateY);
+    deserializeObject(data, pos, SyncHelper::instance().variables.rotateZ);
 }
 
 void postSyncPreDraw() {
 #ifndef SGCT_ONLY
     //Apply synced commands
     if (!Engine::instance().isMaster()) {
-        if(!SyncHelper::instance().variables.loadedFile.empty()){
+        if(!SyncHelper::instance().variables.loadedFile.empty() && loadedVideoFile != SyncHelper::instance().variables.loadedFile){
             //Load new file
-            QString newfile = QString::fromStdString(SyncHelper::instance().variables.loadedFile);
+            loadedVideoFile = SyncHelper::instance().variables.loadedFile;
+            QString newfile = QString::fromStdString(loadedVideoFile);
             Log::Info(fmt::format("Loading new file: {}", newfile.toStdString()));
             mpv::qt::command_async(mpvHandle, QStringList() << "loadfile" << newfile);
         }
@@ -341,11 +371,16 @@ void postSyncPreDraw() {
                 Log::Info(fmt::format("New video position: {}", SyncHelper::instance().variables.timePosition));
             }
         }
-    }
 
-    //Clear all MpvSyncVariables string variables after syncing has occured
-    //For both master and nodes
-    SyncHelper::instance().variables.loadedFile = "";
+        if (domeRadius != SyncHelper::instance().variables.radius || domeFov != SyncHelper::instance().variables.fov) {
+            dome = nullptr;
+            sphere = nullptr;
+            domeRadius = SyncHelper::instance().variables.radius;
+            domeFov = SyncHelper::instance().variables.fov;
+            dome = std::make_unique<utils::Dome>(float(domeRadius) / 100.f, float(domeFov), 256, 128);
+            sphere = std::make_unique<utils::Sphere>(float(domeRadius) / 100.f, 256);
+        }
+    }
 
     if (Engine::instance().isMaster()) {
         return;
@@ -405,7 +440,17 @@ void draw(const RenderData& data) {
         meshPrg->bind();
 
         const mat4& mvp = data.modelViewProjectionMatrix;
-        glUniformMatrix4fv(matrixLoc, 1, GL_FALSE, mvp.values);
+        glm::mat4 MVP_rot = glm::rotate(glm::make_mat4(mvp.values), glm::radians(float(360-SyncHelper::instance().variables.rotateX)), glm::vec3(1.0f, 0.0f, 0.0f));
+        MVP_rot = glm::rotate(MVP_rot, glm::radians(float(SyncHelper::instance().variables.rotateY)), glm::vec3(0.0f, 1.0f, 0.0f));
+        MVP_rot = glm::rotate(MVP_rot, glm::radians(float(SyncHelper::instance().variables.rotateZ)), glm::vec3(0.0f, 0.0f, 1.0f));
+        glUniformMatrix4fv(meshMatrixLoc, 1, GL_FALSE, &MVP_rot[0][0]);
+
+        if (SyncHelper::instance().variables.sbs3DVideo) {
+            glUniform1i(meshEyeModeLoc, (GLint)data.frustumMode);
+        }
+        else {
+            glUniform1i(meshEyeModeLoc, 0);
+        }
 
         if (SyncHelper::instance().variables.gridToMapOn == 2) {
             sphere->draw();
@@ -424,10 +469,10 @@ void draw(const RenderData& data) {
         videoPrg->bind();
 
         if (SyncHelper::instance().variables.sbs3DVideo) {
-            glUniform1i(eyeModeLoc, (GLint)data.frustumMode);
+            glUniform1i(videoEyeModeLoc, (GLint)data.frustumMode);
         }
         else {
-            glUniform1i(eyeModeLoc, 0);
+            glUniform1i(videoEyeModeLoc, 0);
         }
 
         data.window.renderScreenQuad();

@@ -173,5 +173,184 @@ SettingsBasePage {
             Layout.topMargin: Kirigami.Units.largeSpacing
         }
 
+
+        // ------------------------------------
+        // GRID PARAMETERS
+        // --
+        SettingsHeader {
+            text: qsTr("Grid parameters")
+            Layout.columnSpan: 2
+            Layout.fillWidth: true
+        }
+
+        Label {
+            text: qsTr("Load grid on startup:")
+        }
+        ComboBox {
+            id: loadGridOnStartupComboBox
+            enabled: true
+            textRole: "mode"
+            model: ListModel {
+                id: loadGridOnStartupMode
+                ListElement { mode: "Flat/Pre-split"; value: 0 }
+                ListElement { mode: "Dome"; value: 1}
+                ListElement { mode: "Sphere"; value: 2 }
+            }
+
+            onActivated: {
+                PlaybackSettings.gridToMapOn = model.get(index).value
+                PlaybackSettings.save()
+            }
+
+            Component.onCompleted: {
+                for (let i = 0; i < loadGridOnStartupMode.count; ++i) {
+                    if (loadGridOnStartupMode.get(i).value === PlaybackSettings.gridToMapOn) {
+                        currentIndex = i
+                        break
+                    }
+                }
+            }
+        }
+
+        // ------------------------------------
+        // Dome/sphere radius
+        // ------------------------------------
+        Label {
+            text: qsTr("Dome/Sphere radius:")
+        }
+
+        RowLayout {
+            SpinBox {
+                id: domeRadius
+                from: 0
+                to: 2000
+                value: mpv.radius
+
+                onValueChanged: {
+                    mpv.radius = value
+                }
+            }
+
+            LabelWithTooltip {
+                text: {
+                    qsTr("cm")
+                }
+                elide: Text.ElideRight
+                Layout.fillWidth: true
+            }
+        }
+
+        // ------------------------------------
+        // Dome fov
+        // ------------------------------------
+        Label {
+            text: qsTr("Dome field of view:")
+        }
+
+        RowLayout {
+            SpinBox {
+                id: domeFov
+                from: 0
+                to: 360
+                value: mpv.fov
+
+                onValueChanged: {
+                    mpv.fov = value
+                }
+            }
+
+            LabelWithTooltip {
+                text: {
+                    qsTr("degrees")
+                }
+                elide: Text.ElideRight
+                Layout.fillWidth: true
+            }
+        }
+
+        // ------------------------------------
+        // RotateX
+        // ------------------------------------
+        Label {
+            text: qsTr("Dome/Sphere rotate around X")
+            Layout.alignment: Qt.AlignRight
+        }
+
+        RowLayout {
+            Slider {
+                id: rotateXSlider
+
+                value: mpv.rotateX
+                from: 0
+                to: 360
+                onValueChanged: mpv.rotateX = value.toFixed(0)
+
+                Layout.topMargin: Kirigami.Units.largeSpacing
+            }
+            LabelWithTooltip {
+                text: {
+                    qsTr("%1 degrees").arg(Number(mpv.rotateX))
+                }
+                elide: Text.ElideRight
+                Layout.fillWidth: true
+            }
+        }
+
+        // ------------------------------------
+        // RotateY
+        // ------------------------------------
+        Label {
+            text: qsTr("Dome/Sphere rotate around Y")
+            Layout.alignment: Qt.AlignRight
+        }
+
+        RowLayout {
+            Slider {
+                id: rotateYSlider
+
+                value: mpv.rotateY
+                from: 0
+                to: 360
+                onValueChanged: mpv.rotateY = value.toFixed(0)
+
+                Layout.topMargin: Kirigami.Units.largeSpacing
+            }
+            LabelWithTooltip {
+                text: {
+                    qsTr("%1 degrees").arg(Number(mpv.rotateY))
+                }
+                elide: Text.ElideRight
+                Layout.fillWidth: true
+            }
+        }
+
+        // ------------------------------------
+        // RotateZ
+        // ------------------------------------
+        Label {
+            text: qsTr("Dome/Sphere rotate around Z")
+            Layout.alignment: Qt.AlignRight
+        }
+
+        RowLayout {
+            Slider {
+                id: rotateZSlider
+
+                value: mpv.rotateZ
+                from: 0
+                to: 360
+                onValueChanged: mpv.rotateZ = value.toFixed(0)
+
+                Layout.topMargin: Kirigami.Units.largeSpacing
+            }
+            LabelWithTooltip {
+                text: {
+                    qsTr("%1 degrees").arg(Number(mpv.rotateZ))
+                }
+                elide: Text.ElideRight
+                Layout.fillWidth: true
+            }
+        }
+
     }
 }

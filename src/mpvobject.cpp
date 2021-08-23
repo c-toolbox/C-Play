@@ -111,6 +111,19 @@ MpvObject::MpvObject(QQuickItem * parent)
 
     QString hwdec = PlaybackSettings::useHWDecoding() ? PlaybackSettings::hWDecoding() : "no";
     setProperty("hwdec", hwdec);
+
+    m_radius = VideoSettings::domeRadius();
+    m_fov = VideoSettings::domeFov();
+    m_rotateX = VideoSettings::domeRotateX();
+    m_rotateY = VideoSettings::domeRotateY();
+    m_rotateZ = VideoSettings::domeRotateZ();
+
+    SyncHelper::instance().variables.radius = m_radius;
+    SyncHelper::instance().variables.fov = m_fov;
+    SyncHelper::instance().variables.rotateX = m_rotateX;
+    SyncHelper::instance().variables.rotateY = m_rotateY;
+    SyncHelper::instance().variables.rotateZ = m_rotateZ;
+
     QString loadAudioInVidFolder = AudioSettings::loadAudioFileInVideoFolder() ? "all" : "no";
     setProperty("audio-file-auto", loadAudioInVidFolder);
     setProperty("screenshot-template", VideoSettings::screenshotTemplate());
@@ -361,20 +374,6 @@ void MpvObject::setSaturation(int value)
     emit saturationChanged();
 }
 
-double MpvObject::watchPercentage()
-{
-    return m_watchPercentage;
-}
-
-void MpvObject::setWatchPercentage(double value)
-{
-    if (m_watchPercentage == value) {
-        return;
-    }
-    m_watchPercentage = value;
-    emit watchPercentageChanged();
-}
-
 bool MpvObject::hwDecoding()
 {
     if (getProperty("hwdec") == "yes") {
@@ -392,6 +391,20 @@ void MpvObject::setHWDecoding(bool value)
         setProperty("hwdec", "no");
     }
     emit hwDecodingChanged();
+}
+
+double MpvObject::watchPercentage()
+{
+    return m_watchPercentage;
+}
+
+void MpvObject::setWatchPercentage(double value)
+{
+    if (m_watchPercentage == value) {
+        return;
+    }
+    m_watchPercentage = value;
+    emit watchPercentageChanged();
 }
 
 bool MpvObject::stereoscopicVideo()
@@ -414,6 +427,91 @@ void MpvObject::setGridToMapOn(int value)
 {
     SyncHelper::instance().variables.gridToMapOn = value;
     emit gridToMapOnChanged();
+}
+
+double MpvObject::radius()
+{
+    return m_radius;
+}
+
+void MpvObject::setRadius(double value)
+{
+    SyncHelper::instance().variables.radius = value;
+    VideoSettings::setDomeRadius(value);
+    VideoSettings::self()->save();
+    if (m_radius == value) {
+        return;
+    }
+    m_radius = value;
+    emit radiusChanged();
+}
+
+double MpvObject::fov()
+{
+    return m_fov;
+}
+
+void MpvObject::setFov(double value)
+{
+    SyncHelper::instance().variables.fov = value;
+    VideoSettings::setDomeFov(value);
+    VideoSettings::self()->save();
+    if (m_fov == value) {
+        return;
+    }
+    m_fov = value;
+    emit fovChanged();
+}
+
+int MpvObject::rotateX()
+{
+    return m_rotateX;
+}
+
+void MpvObject::setRotateX(int value)
+{
+    SyncHelper::instance().variables.rotateX = value;
+    VideoSettings::setDomeRotateX(value);
+    VideoSettings::self()->save();
+    if (m_rotateX == value) {
+        return;
+    }
+    m_rotateX = value;
+    emit rotateXChanged();
+}
+
+int MpvObject::rotateY()
+{
+    return m_rotateY;
+}
+
+void MpvObject::setRotateY(int value)
+{
+    SyncHelper::instance().variables.rotateY = value;
+    VideoSettings::setDomeRotateY(value);
+    VideoSettings::self()->save();
+    if (m_rotateY == value) {
+        return;
+    }
+    m_rotateY = value;
+    emit rotateYChanged();
+}
+
+int MpvObject::rotateZ()
+{
+    return m_rotateZ;
+}
+
+void MpvObject::setRotateZ(int value)
+{
+    SyncHelper::instance().variables.rotateZ = value;
+    VideoSettings::setDomeRotateZ(value);
+    VideoSettings::self()->save();
+    if (m_rotateZ == value) {
+        return;
+    }
+    m_rotateZ = value;
+    emit rotateZChanged();
 }
 
 QVariant MpvObject::getAudioDeviceList()

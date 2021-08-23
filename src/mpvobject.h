@@ -112,6 +112,36 @@ class MpvObject : public QQuickFramebufferObject
                WRITE setGridToMapOn
                NOTIFY gridToMapOnChanged)
 
+    Q_PROPERTY(double radius
+               MEMBER m_radius
+               READ radius
+               WRITE setRadius
+               NOTIFY radiusChanged)
+
+    Q_PROPERTY(double fov
+               MEMBER m_fov
+               READ fov
+               WRITE setFov
+               NOTIFY fovChanged)
+
+    Q_PROPERTY(double rotateX
+               MEMBER m_rotateX
+               READ rotateX
+               WRITE setRotateX
+               NOTIFY rotateXChanged)
+
+    Q_PROPERTY(double rotateY
+               MEMBER m_rotateY
+               READ rotateY
+               WRITE setRotateY
+               NOTIFY rotateYChanged)
+
+    Q_PROPERTY(double rotateZ
+               MEMBER m_rotateZ
+               READ rotateZ
+               WRITE setRotateZ
+               NOTIFY rotateZChanged)
+
     Q_PROPERTY(PlayListModel* playlistModel
                READ playlistModel
                WRITE setPlaylistModel
@@ -178,6 +208,21 @@ class MpvObject : public QQuickFramebufferObject
     int gridToMapOn();
     void setGridToMapOn(int value);
 
+    double radius();
+    void setRadius(double value);
+
+    double fov();
+    void setFov(double value);
+
+    int rotateX();
+    void setRotateX(int value);
+
+    int rotateY();
+    void setRotateY(int value);
+
+    int rotateZ();
+    void setRotateZ(int value);
+
     QVariant getAudioDeviceList();
     void updateAudioDeviceList();
 
@@ -229,6 +274,11 @@ signals:
     void hwDecodingChanged();
     void stereoscopicVideoChanged();
     void gridToMapOnChanged();
+    void radiusChanged();
+    void fovChanged();
+    void rotateXChanged();
+    void rotateYChanged();
+    void rotateZChanged();
     void playlistModelChanged();
     void audioDevicesChanged();
     void youtubePlaylistLoaded();
@@ -242,6 +292,11 @@ private:
     QMap<int, Track*> m_audioTracks;
     QList<int> m_secondsWatched;
     double m_watchPercentage;
+    double m_radius;
+    double m_fov;
+    int m_rotateX;
+    int m_rotateY;
+    int m_rotateZ;
     double m_lastSetPosition;
     PlayListModel *m_playlistModel;
     QString m_file;

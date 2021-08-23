@@ -91,6 +91,11 @@ public:
         double timeThreshold;
         bool sbs3DVideo;
         int gridToMapOn;
+        double radius;
+        double fov;
+        int rotateX;
+        int rotateY;
+        int rotateZ;
     };
 
     SyncHelper();
