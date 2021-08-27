@@ -168,15 +168,30 @@ SettingsBasePage {
             }
         }
 
-        CheckBox {
-            text: qsTr("Use 3D Mode on startup")
-            enabled: enabled
-            checked: PlaybackSettings.stereoModeOnStartup
-            onCheckedChanged: {
-                PlaybackSettings.stereoModeOnStartup = checked
-                PlaybackSettings.save()
+        Label {
+            text: qsTr("Set fade duration:")
+        }
+
+        RowLayout {
+            SpinBox {
+                id: fadeDuration
+                from: 0
+                to: 20000
+                value: PlaybackSettings.fadeDuration
+
+                onValueChanged: {
+                    PlaybackSettings.fadeDuration = value
+                    PlaybackSettings.save()
+                }
             }
-            Layout.columnSpan: 2
+
+            LabelWithTooltip {
+                text: {
+                    qsTr("ms = Fades out/in %1 seconds in total when loading new content").arg(Number((timeSetInterval.value*1.0)/1000.0).toFixed(3))
+                }
+                elide: Text.ElideRight
+                Layout.fillWidth: true
+            }
         }
 
         Label {

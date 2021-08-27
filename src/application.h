@@ -12,6 +12,7 @@
 #include <QApplication>
 #include <QQmlApplicationEngine>
 #include <QObject>
+#include <QElapsedTimer>
 
 #include <KAboutData>
 #include <KActionCollection>
@@ -58,6 +59,9 @@ public:
     Q_INVOKABLE static void hideCursor();
     Q_INVOKABLE static void showCursor();
 
+    int getFadeDurationCurrentTime(bool restart);
+    int getFadeDurationSetting();
+
 private:
     void setupWorkerThread();
     void setupAboutData();
@@ -78,6 +82,7 @@ private:
     KColorSchemeManager *m_schemes;
     QString m_systemDefaultStyle;
     RenderThread renderThread;
+    QElapsedTimer fadeDurationTimer;
     static Application* _instance;
 };
 
@@ -89,7 +94,9 @@ public:
         bool paused;
         double timePosition;
         double timeThreshold;
+        float alpha;
         bool sbs3DVideo;
+        bool syncOn;
         int gridToMapOn;
         double radius;
         double fov;
