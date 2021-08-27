@@ -221,11 +221,15 @@ ToolBar {
             action: actions.stereoscopicAction
             text: actions.stereoscopicAction.text
             focusPolicy: Qt.NoFocus
-
-            /*ToolTip {
-                text: actions.stereoscopicAction.tooltip
-            }*/
         }
+
+        ToolButton {
+            id: sync
+            action: actions.syncAction
+            text: actions.syncAction.text
+            focusPolicy: Qt.NoFocus
+        }
+
 
         Item {
             Layout.fillWidth: true

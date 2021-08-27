@@ -178,9 +178,20 @@ SettingsBasePage {
         // GRID PARAMETERS
         // --
         SettingsHeader {
-            text: qsTr("Grid parameters")
+            text: qsTr("Mapping/grid parameters")
             Layout.columnSpan: 2
             Layout.fillWidth: true
+        }
+
+        CheckBox {
+            text: qsTr("Use 3D Mode on startup")
+            enabled: enabled
+            checked: PlaybackSettings.stereoModeOnStartup
+            onCheckedChanged: {
+                PlaybackSettings.stereoModeOnStartup = checked
+                PlaybackSettings.save()
+            }
+            Layout.columnSpan: 2
         }
 
         Label {
@@ -244,7 +255,7 @@ SettingsBasePage {
         // Dome fov
         // ------------------------------------
         Label {
-            text: qsTr("Dome field of view:")
+            text: qsTr("Dome field of view (fov):")
         }
 
         RowLayout {
@@ -350,6 +361,37 @@ SettingsBasePage {
                 elide: Text.ElideRight
                 Layout.fillWidth: true
             }
+        }
+
+        RowLayout {
+            Button {
+                    text: "Reset radius/fov/rotation settings to startup values"
+                    onClicked: {
+                        mpv.radius = VideoSettings.domeRadius
+                        mpv.fov = VideoSettings.domeFov
+                        mpv.rotateX = VideoSettings.domeRotateX
+                        mpv.rotateY = VideoSettings.domeRotateY
+                        mpv.rotateZ = VideoSettings.domeRotateZ
+                    }
+            }
+            Layout.columnSpan: 2
+            Layout.fillWidth: true
+        }
+
+        RowLayout {
+            Button {
+                    text: "Save current radius/fov/rotation settings to load on startup"
+                    onClicked: {
+                        VideoSettings.domeRadius = mpv.radius
+                        VideoSettings.domeFov = mpv.fov
+                        VideoSettings.domeRotateX = mpv.rotateX
+                        VideoSettings.domeRotateY = mpv.rotateY
+                        VideoSettings.domeRotateZ = mpv.rotateZ
+                        VideoSettings.save()
+                    }
+            }
+            Layout.columnSpan: 2
+            Layout.fillWidth: true
         }
 
     }

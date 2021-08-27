@@ -39,8 +39,11 @@ unsigned int mpvFBO = 0;
 unsigned int mpvTex = 0;
 bool paused = true;
 int videoEyeModeLoc = -1;
+int videoAlphaLoc = -1;
 int meshMatrixLoc = -1;
 int meshEyeModeLoc = -1;
+int meshAlphaLoc = -1;
+bool fadeDurationOngoing = false;
 
 constexpr const char* VideoVert = R"(
   #version 330 core
@@ -100,12 +103,13 @@ constexpr const char* VideoFrag = R"(
   #version 330 core
 
   uniform sampler2D tex;
+  uniform float alpha;
 
   in vec2 tr_uv;
   out vec4 out_color;
 
   void main() {
-    out_color = texture(tex, tr_uv);
+    out_color = texture(tex, tr_uv) * vec4(1.0, 1.0, 1.0, alpha);
   }
 )";
 
@@ -287,12 +291,14 @@ void initOGL(GLFWwindow*) {
     glUniform1i(glGetUniformLocation(meshPrg->id(), "tex"), 0);
     meshMatrixLoc = glGetUniformLocation(meshPrg->id(), "mvp");
     meshEyeModeLoc = glGetUniformLocation(meshPrg->id(), "eye");
+    meshAlphaLoc = glGetUniformLocation(meshPrg->id(), "alpha");
     meshPrg->unbind();
 
     videoPrg = &ShaderManager::instance().shaderProgram("video");
     videoPrg->bind();
     glUniform1i(glGetUniformLocation(videoPrg->id(), "tex"), 0);
     videoEyeModeLoc = glGetUniformLocation(videoPrg->id(), "eye");
+    videoAlphaLoc = glGetUniformLocation(videoPrg->id(), "alpha");
     videoPrg->unbind();
 
     // create meshes
@@ -309,10 +315,42 @@ void initOGL(GLFWwindow*) {
 }
 
 void preSync() {
+    if (Engine::instance().isMaster()) {
+        int fds = Application::instance().getFadeDurationSetting();
+        if (fds > 0) {
+            // Start a fade duration if new file is loaded.
+            bool restartTimer = false;
+            if (!SyncHelper::instance().variables.loadedFile.empty() 
+                && loadedVideoFile != SyncHelper::instance().variables.loadedFile 
+                && SyncHelper::instance().variables.syncOn) {
+                fadeDurationOngoing = true;
+                restartTimer = true;
+                SyncHelper::instance().variables.syncOn = false;
+                loadedVideoFile = SyncHelper::instance().variables.loadedFile;
+            }
+            if (fadeDurationOngoing) {
+                int fdct = Application::instance().getFadeDurationCurrentTime(restartTimer);
+                int half_fds = fds / 2;
+                if (fdct < half_fds) { // Fade out
+                    SyncHelper::instance().variables.alpha = 1.f - (float(fdct) / float(half_fds));
+                }
+                else if (fdct >= fds) { // Fade complete
+                    fadeDurationOngoing = false;
+                    SyncHelper::instance().variables.alpha = 1.f;
+                }
+                else { // Fade in
+                    SyncHelper::instance().variables.syncOn = true;
+                    SyncHelper::instance().variables.alpha = float(fdct-half_fds) / float(half_fds);
+                }
+            }
+        }
+    }
 }
 
 std::vector<std::byte> encode() {
     std::vector<std::byte> data;
+    serializeObject(data, SyncHelper::instance().variables.syncOn);
+    serializeObject(data, SyncHelper::instance().variables.alpha);
     serializeObject(data, SyncHelper::instance().variables.loadedFile);
     serializeObject(data, SyncHelper::instance().variables.paused);
     serializeObject(data, SyncHelper::instance().variables.timePosition);
@@ -328,17 +366,21 @@ std::vector<std::byte> encode() {
 }
 
 void decode(const std::vector<std::byte>& data, unsigned int pos) {
-    deserializeObject(data, pos, SyncHelper::instance().variables.loadedFile);
-    deserializeObject(data, pos, SyncHelper::instance().variables.paused);
-    deserializeObject(data, pos, SyncHelper::instance().variables.timePosition);
-    deserializeObject(data, pos, SyncHelper::instance().variables.timeThreshold);
-    deserializeObject(data, pos, SyncHelper::instance().variables.sbs3DVideo);
-    deserializeObject(data, pos, SyncHelper::instance().variables.gridToMapOn);
-    deserializeObject(data, pos, SyncHelper::instance().variables.radius);
-    deserializeObject(data, pos, SyncHelper::instance().variables.fov);
-    deserializeObject(data, pos, SyncHelper::instance().variables.rotateX);
-    deserializeObject(data, pos, SyncHelper::instance().variables.rotateY);
-    deserializeObject(data, pos, SyncHelper::instance().variables.rotateZ);
+    deserializeObject(data, pos, SyncHelper::instance().variables.syncOn);
+    deserializeObject(data, pos, SyncHelper::instance().variables.alpha);
+    if (SyncHelper::instance().variables.syncOn) {
+        deserializeObject(data, pos, SyncHelper::instance().variables.loadedFile);
+        deserializeObject(data, pos, SyncHelper::instance().variables.paused);
+        deserializeObject(data, pos, SyncHelper::instance().variables.timePosition);
+        deserializeObject(data, pos, SyncHelper::instance().variables.timeThreshold);
+        deserializeObject(data, pos, SyncHelper::instance().variables.sbs3DVideo);
+        deserializeObject(data, pos, SyncHelper::instance().variables.gridToMapOn);
+        deserializeObject(data, pos, SyncHelper::instance().variables.radius);
+        deserializeObject(data, pos, SyncHelper::instance().variables.fov);
+        deserializeObject(data, pos, SyncHelper::instance().variables.rotateX);
+        deserializeObject(data, pos, SyncHelper::instance().variables.rotateY);
+        deserializeObject(data, pos, SyncHelper::instance().variables.rotateZ);
+    }
 }
 
 void postSyncPreDraw() {
@@ -363,7 +405,7 @@ void postSyncPreDraw() {
             mpv::qt::set_property(mpvHandle, "pause", paused);
         }
         double currentTimePos = mpv::qt::get_property(mpvHandle, "time-pos").toDouble();
-        if(SyncHelper::instance().variables.timePosition != currentTimePos){
+        if(SyncHelper::instance().variables.timePosition != currentTimePos && SyncHelper::instance().variables.syncOn){
             if(paused || (abs(currentTimePos-SyncHelper::instance().variables.timePosition)>SyncHelper::instance().variables.timeThreshold)){
                 //Always set time pos when paused and not same time
                 //Or set time position as it is above sync threshold
@@ -452,6 +494,8 @@ void draw(const RenderData& data) {
             glUniform1i(meshEyeModeLoc, 0);
         }
 
+        glUniform1f(meshAlphaLoc, SyncHelper::instance().variables.alpha);
+
         if (SyncHelper::instance().variables.gridToMapOn == 2) {
             sphere->draw();
         }
@@ -474,6 +518,8 @@ void draw(const RenderData& data) {
         else {
             glUniform1i(videoEyeModeLoc, 0);
         }
+
+        glUniform1f(videoAlphaLoc, SyncHelper::instance().variables.alpha);
 
         data.window.renderScreenQuad();
 

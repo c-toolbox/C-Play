@@ -418,6 +418,17 @@ void MpvObject::setStereoscopicVideo(bool value)
     emit stereoscopicVideoChanged();
 }
 
+bool MpvObject::syncVideo()
+{
+    return SyncHelper::instance().variables.syncOn;
+}
+
+void MpvObject::setSyncVideo(bool value)
+{
+    SyncHelper::instance().variables.syncOn = value;
+    emit syncVideoChanged();
+}
+
 int MpvObject::gridToMapOn()
 {
     return SyncHelper::instance().variables.gridToMapOn;
@@ -437,8 +448,6 @@ double MpvObject::radius()
 void MpvObject::setRadius(double value)
 {
     SyncHelper::instance().variables.radius = value;
-    VideoSettings::setDomeRadius(value);
-    VideoSettings::self()->save();
     if (m_radius == value) {
         return;
     }
@@ -454,8 +463,6 @@ double MpvObject::fov()
 void MpvObject::setFov(double value)
 {
     SyncHelper::instance().variables.fov = value;
-    VideoSettings::setDomeFov(value);
-    VideoSettings::self()->save();
     if (m_fov == value) {
         return;
     }
@@ -471,8 +478,6 @@ int MpvObject::rotateX()
 void MpvObject::setRotateX(int value)
 {
     SyncHelper::instance().variables.rotateX = value;
-    VideoSettings::setDomeRotateX(value);
-    VideoSettings::self()->save();
     if (m_rotateX == value) {
         return;
     }
@@ -488,8 +493,6 @@ int MpvObject::rotateY()
 void MpvObject::setRotateY(int value)
 {
     SyncHelper::instance().variables.rotateY = value;
-    VideoSettings::setDomeRotateY(value);
-    VideoSettings::self()->save();
     if (m_rotateY == value) {
         return;
     }
@@ -505,8 +508,6 @@ int MpvObject::rotateZ()
 void MpvObject::setRotateZ(int value)
 {
     SyncHelper::instance().variables.rotateZ = value;
-    VideoSettings::setDomeRotateZ(value);
-    VideoSettings::self()->save();
     if (m_rotateZ == value) {
         return;
     }

@@ -348,6 +348,24 @@ void Application::showCursor()
     QApplication::setOverrideCursor(Qt::ArrowCursor);
 }
 
+int Application::getFadeDurationCurrentTime(bool restart) {
+    if (restart) {
+        fadeDurationTimer.start();
+        return 0;
+    }
+    else if(PlaybackSettings::fadeDuration() <= fadeDurationTimer.elapsed()) {
+        return PlaybackSettings::fadeDuration();
+
+    }
+    else {
+        return fadeDurationTimer.elapsed();
+    }
+}
+
+int Application::getFadeDurationSetting() {
+    return PlaybackSettings::fadeDuration();
+}
+
 QString Application::argument(int key)
 {
     return m_args[key];
@@ -644,7 +662,18 @@ void Application::setupActions(const QString &actionName)
             action->setText(i18n("2D is On"));
         }
         action->setToolTip(i18n(""));
-        //action->setIcon(QIcon::fromTheme("face-cool"));
+        m_collection.setDefaultShortcut(action, Qt::Key_D);
+        m_collection.addAction(actionName, action);
+    }
+    if (actionName == QStringLiteral("sync-video")) {
+        auto action = new HAction();
+        if (SyncHelper::instance().variables.syncOn) {
+            action->setText(i18n("Sync is On"));
+        }
+        else {
+            action->setText(i18n("Sync is Off"));
+        }
+        action->setToolTip(i18n(""));
         m_collection.setDefaultShortcut(action, Qt::Key_S);
         m_collection.addAction(actionName, action);
     }
@@ -904,7 +933,9 @@ SyncHelper& SyncHelper::instance() {
         _instance->variables.paused = false;
         _instance->variables.timePosition = 0.0;
         _instance->variables.timeThreshold = 1.0;
+        _instance->variables.alpha = 1.f;
         _instance->variables.sbs3DVideo = false;
+        _instance->variables.syncOn = true;
         _instance->variables.gridToMapOn = 0;
         _instance->variables.radius = 740;
         _instance->variables.fov = 165;

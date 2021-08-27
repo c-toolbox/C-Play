@@ -79,17 +79,31 @@ QtObject {
         property var qaction: app.action("stereoscopic-video")
         text: qaction.text
         shortcut: qaction.shortcutName()
-        //ToolTip.text: qaction.tooltip
         Component.onCompleted: list["stereoscopicAction"] = stereoscopicAction
 
         onTriggered: {
             mpv.stereoscopicVideo = !mpv.stereoscopicVideo
             if (mpv.stereoscopicVideo) {
                 text = qsTr("3D is On")
-                //ToolTip.text = qsTr("3D Mode On")
             } else {
                 text = qsTr("2D is On")
-                //ToolTip.text = qsTr("2D Mode On")
+            }
+        }
+    }
+
+    property Action syncAction: Action {
+        id: syncAction
+        property var qaction: app.action("sync-video")
+        text: qaction.text
+        shortcut: qaction.shortcutName()
+        Component.onCompleted: list["syncAction"] = syncAction
+
+        onTriggered: {
+            mpv.syncVideo = !mpv.syncVideo
+            if (mpv.syncVideo) {
+                text = qsTr("Sync is On")
+            } else {
+                text = qsTr("Sync is Off")
             }
         }
     }
