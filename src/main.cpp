@@ -331,16 +331,22 @@ void preSync() {
             if (fadeDurationOngoing) {
                 int fdct = Application::instance().getFadeDurationCurrentTime(restartTimer);
                 int half_fds = fds / 2;
-                if (fdct < half_fds) { // Fade out
-                    SyncHelper::instance().variables.alpha = 1.f - (float(fdct) / float(half_fds));
+                if (fdct < half_fds - 500) { // Fade out
+                    SyncHelper::instance().variables.alpha = 1.f - (float(fdct) / float(half_fds - 500));
+                }
+                else if (fdct < half_fds + 500) { // Sync On again, Keep black for 1 second
+                    SyncHelper::instance().variables.syncOn = true;
+                    SyncHelper::instance().variables.alpha = 0.f;
+
                 }
                 else if (fdct >= fds) { // Fade complete
                     fadeDurationOngoing = false;
+                    SyncHelper::instance().variables.syncOn = true;
                     SyncHelper::instance().variables.alpha = 1.f;
                 }
                 else { // Fade in
                     SyncHelper::instance().variables.syncOn = true;
-                    SyncHelper::instance().variables.alpha = float(fdct-half_fds) / float(half_fds);
+                    SyncHelper::instance().variables.alpha = float(fdct - half_fds - 500) / float(half_fds - 500);
                 }
             }
         }
@@ -510,6 +516,8 @@ void draw(const RenderData& data) {
         glDisable(GL_BLEND);
     }
     else {
+        glEnable(GL_BLEND);
+
         videoPrg->bind();
 
         if (SyncHelper::instance().variables.sbs3DVideo) {
@@ -524,6 +532,8 @@ void draw(const RenderData& data) {
         data.window.renderScreenQuad();
 
         videoPrg->unbind();
+
+        glDisable(GL_BLEND);
     }
 #endif
 }

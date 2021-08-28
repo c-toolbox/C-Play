@@ -353,10 +353,6 @@ int Application::getFadeDurationCurrentTime(bool restart) {
         fadeDurationTimer.start();
         return 0;
     }
-    else if(PlaybackSettings::fadeDuration() <= fadeDurationTimer.elapsed()) {
-        return PlaybackSettings::fadeDuration();
-
-    }
     else {
         return fadeDurationTimer.elapsed();
     }
