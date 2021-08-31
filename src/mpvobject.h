@@ -112,6 +112,11 @@ class MpvObject : public QQuickFramebufferObject
             WRITE setSyncVideo
             NOTIFY syncVideoChanged)
 
+    Q_PROPERTY(int visibility
+               READ visibility
+               WRITE setVisibility
+               NOTIFY visibilityChanged)
+
     Q_PROPERTY(int gridToMapOn
                READ gridToMapOn
                WRITE setGridToMapOn
@@ -213,6 +218,9 @@ class MpvObject : public QQuickFramebufferObject
     bool syncVideo();
     void setSyncVideo(bool value);
 
+    int visibility();
+    void setVisibility(int value);
+
     int gridToMapOn();
     void setGridToMapOn(int value);
 
@@ -282,6 +290,7 @@ signals:
     void hwDecodingChanged();
     void stereoscopicVideoChanged();
     void syncVideoChanged();
+    void visibilityChanged();
     void gridToMapOnChanged();
     void radiusChanged();
     void fovChanged();

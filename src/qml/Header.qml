@@ -11,6 +11,7 @@ import QtQml.Models 2.15
 
 import org.kde.kirigami 2.11 as Kirigami
 import com.georgefb.haruna 1.0
+import Haruna.Components 1.0
 
 import "Menus"
 
@@ -33,19 +34,19 @@ ToolBar {
             focusPolicy: Qt.NoFocus
         }
 
-        ToolButton {
-            action: actions.openUrlAction
-            focusPolicy: Qt.NoFocus
-            MouseArea {
-                anchors.fill: parent
-                acceptedButtons: Qt.MiddleButton
-                onClicked: {
-                    openUrlTextField.clear()
-                    openUrlTextField.paste()
-                    window.openFile(openUrlTextField.text, true, false)
-                }
-            }
-        }
+//        ToolButton {
+//            action: actions.openUrlAction
+//            focusPolicy: Qt.NoFocus
+//            MouseArea {
+//                anchors.fill: parent
+//                acceptedButtons: Qt.MiddleButton
+//                onClicked: {
+//                    openUrlTextField.clear()
+//                    openUrlTextField.paste()
+//                    window.openFile(openUrlTextField.text, true, false)
+//                }
+//            }
+//        }
 
         ToolSeparator {
             padding: vertical ? 10 : 2
@@ -158,6 +159,18 @@ ToolBar {
             }
         }
 
+        ToolSeparator {
+            padding: vertical ? 10 : 2
+            topPadding: vertical ? 2 : 10
+            bottomPadding: vertical ? 2 : 10
+
+            contentItem: Rectangle {
+                implicitWidth: parent.vertical ? 1 : 24
+                implicitHeight: parent.vertical ? 24 : 1
+                color: Kirigami.Theme.textColor
+            }
+        }
+
         ToolButton {
             id: gridMenuButton
 
@@ -230,6 +243,65 @@ ToolBar {
             focusPolicy: Qt.NoFocus
         }
 
+        ToolSeparator {
+            padding: vertical ? 10 : 2
+            topPadding: vertical ? 2 : 10
+            bottomPadding: vertical ? 2 : 10
+
+            contentItem: Rectangle {
+                implicitWidth: parent.vertical ? 1 : 24
+                implicitHeight: parent.vertical ? 24 : 1
+                color: Kirigami.Theme.textColor
+            }
+        }
+
+        Label {
+            text: qsTr("Visibility")
+            Layout.alignment: Qt.AlignRight
+        }
+        Slider {
+            id: visibilitySlider
+            value: mpv.visibility
+            from: 0
+            to: 100
+            onValueChanged: mpv.visibility = value.toFixed(0)
+
+            Layout.topMargin: Kirigami.Units.largeSpacing
+        }
+        LabelWithTooltip {
+            text: {
+                if(mpv.visibility < 10)
+                    qsTr("__%1\%").arg(Number(mpv.visibility))
+                else if(mpv.visibility < 100)
+                    qsTr("_%1\%").arg(Number(mpv.visibility))
+                else
+                    qsTr("%1\%").arg(Number(mpv.visibility))
+            }
+            elide: Text.ElideRight
+        }
+
+        ToolButton {
+            text: qsTr("Fade Out")
+            focusPolicy: Qt.NoFocus
+            enabled: mpv.visibility != 0
+            onClicked: PropertyAnimation {
+                target: visibilitySlider;
+                property: "value";
+                to: 0;
+                duration: PlaybackSettings.fadeDuration;
+            }
+        }
+        ToolButton {
+            text: qsTr("Fade In")
+            focusPolicy: Qt.NoFocus
+            enabled: mpv.visibility != 100
+            onClicked: PropertyAnimation {
+                target: visibilitySlider;
+                property: "value";
+                to: 100;
+                duration: PlaybackSettings.fadeDuration;
+            }
+        }
 
         Item {
             Layout.fillWidth: true
