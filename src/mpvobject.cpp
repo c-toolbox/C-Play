@@ -429,6 +429,17 @@ void MpvObject::setSyncVideo(bool value)
     emit syncVideoChanged();
 }
 
+int MpvObject::visibility()
+{
+    return int(SyncHelper::instance().variables.alpha*100.f);
+}
+
+void MpvObject::setVisibility(int value)
+{
+    SyncHelper::instance().variables.alpha = float(value)/100.f;
+    emit visibilityChanged();
+}
+
 int MpvObject::gridToMapOn()
 {
     return SyncHelper::instance().variables.gridToMapOn;

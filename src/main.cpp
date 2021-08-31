@@ -315,7 +315,8 @@ void initOGL(GLFWwindow*) {
 }
 
 void preSync() {
-    if (Engine::instance().isMaster()) {
+    // Running fade in/out with buttons through QML instead
+    /*if (Engine::instance().isMaster()) {
         int fds = Application::instance().getFadeDurationSetting();
         if (fds > 0) {
             // Start a fade duration if new file is loaded.
@@ -350,7 +351,7 @@ void preSync() {
                 }
             }
         }
-    }
+    }*/
 }
 
 std::vector<std::byte> encode() {
