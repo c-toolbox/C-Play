@@ -130,8 +130,8 @@ MpvObject::MpvObject(QQuickItem * parent)
     setProperty("sub-auto", "exact");
     setProperty("volume-max", "100");
 
-    SyncHelper::instance().variables.sbs3DVideo = PlaybackSettings::stereoModeOnStartup();
-    SyncHelper::instance().variables.gridToMapOn = PlaybackSettings::gridToMapOn();
+    setStereoscopicVideo(PlaybackSettings::stereoModeOnStartup());
+    setGridToMapOn(PlaybackSettings::gridToMapOn());
 
     mpv::qt::load_configurations(mpv, QStringLiteral("./data/mpv-conf.json"));
     mpv::qt::load_configurations(mpv, QStringLiteral("./data/mpv-conf-master.json"));
@@ -583,20 +583,34 @@ QQuickFramebufferObject::Renderer *MpvObject::createRenderer() const
     return new MpvRenderer(const_cast<MpvObject *>(this));
 }
 
+QString MpvObject::getFileContent(const QString& file)
+{
+    QString fileToLoad = file;
+    fileToLoad.replace("file:///", "");
+    qInfo() << "getFileContent: " << fileToLoad;
+    QFile f(fileToLoad);
+    f.open(QIODevice::ReadOnly);
+    QString content = f.readAll();
+    f.close();
+    return content;
+}
+
 void MpvObject::loadFile(const QString &file, bool updateLastPlayedFile)
 {
-    command(QStringList() << "loadfile" << file);
-    SyncHelper::instance().variables.loadedFile = file.toStdString();
+    QFileInfo fi(file);
+    QString ext = fi.suffix();
 
-    /*if(AudioSettings::loadAudioFileInVideoFolder()){
-        QString filePath = file;
-        filePath.replace("file:///", "");
-        QDir directory = QFileInfo(filePath).absoluteDir();
-        QFileInfoList audioFiles = directory.entryInfoList(QStringList() << "*.wav" << "*.mp3", QDir::Files);
-        foreach(QFileInfo audioFile, audioFiles) {
-            command(QStringList() << "audio-add" << audioFile.absoluteFilePath());
-        }
-    }*/
+    if (ext == "fdv") {
+        PlayListItem* videoFile = loadUniviewFDV(file);
+        loadItem(videoFile);
+    }
+    else if (ext == "playlist") {
+        loadUniviewPlaylist(file);
+    }
+    else {
+        command(QStringList() << "loadfile" << file);
+        SyncHelper::instance().variables.loadedFile = file.toStdString();
+    }
 
     if (updateLastPlayedFile) {
         GeneralSettings::setLastPlayedFile(file);
@@ -605,6 +619,122 @@ void MpvObject::loadFile(const QString &file, bool updateLastPlayedFile)
         GeneralSettings::setLastPlaylistIndex(m_playlistModel->getPlayingVideo());
         GeneralSettings::self()->save();
     }
+}
+
+void MpvObject::loadItem(PlayListItem* item, bool updateLastPlayedFile, QString flag) {
+    if (!item->separateAudioFile().isEmpty()) {
+        QStringList option = QStringList() << "audio-file=" + item->separateAudioFile();
+        QStringList newCommand = QStringList() << "loadfile" << item->filePath() << flag << option;
+        qInfo() << newCommand;
+        command(newCommand);
+    }
+    else
+        command(QStringList() << "loadfile" << item->filePath() << flag);
+
+    SyncHelper::instance().variables.loadedFile = item->filePath().toStdString();
+
+    if (item->gridToMapOn() >= 0)
+        setGridToMapOn(item->gridToMapOn());
+
+    if (item->stereoVideo() == 1)
+        setStereoscopicVideo(true);
+    else if (item->stereoVideo() == 0)
+        setStereoscopicVideo(false);
+
+    if (updateLastPlayedFile) {
+        GeneralSettings::setLastPlayedFile(item->filePath());
+        GeneralSettings::self()->save();
+    }
+    else {
+        GeneralSettings::setLastPlaylistIndex(m_playlistModel->getPlayingVideo());
+        GeneralSettings::self()->save();
+    }
+}
+
+PlayListItem* MpvObject::loadUniviewFDV(const QString& file)
+{
+    QString fileContent = getFileContent(file);
+    QStringList fileEntries = fileContent.split(QRegExp("[\r\n]"), QString::SkipEmptyParts);
+    qInfo() << "File Content: " << fileEntries;
+
+    QString fileMainPath = GeneralSettings::univiewVideoLocation();
+
+    if (!fileEntries.isEmpty()) {
+        QString videoFileRelatiePath = fileEntries.at(1).mid(6); //"Video="
+        QString videoFile = videoFileRelatiePath;
+        if(!fileMainPath.isEmpty())
+            videoFile = QDir::cleanPath(fileMainPath + QDir::separator() + videoFileRelatiePath);
+
+        QString audioFileRelatiePath = fileEntries.at(2).mid(6); //"Audio="
+        QString audioFile = audioFileRelatiePath;
+        if (!fileMainPath.isEmpty())
+            audioFile = QDir::cleanPath(fileMainPath + QDir::separator() + audioFileRelatiePath);
+
+        QString title = fileEntries.at(3).mid(6); //"Title="
+        double duration = fileEntries.at(4).mid(9).toDouble(); //"Duration="
+
+        auto video = new PlayListItem(videoFile);
+        video->setSeparateAudioFile(audioFile);
+        video->setMediaTitle(title);
+        video->setFileName(title);
+        video->setDuration(Application::formatTime(duration));
+        video->setGridToMapOn(0); //Assume Pre-split with FDV files
+        
+        if (title.contains("3D"))
+            video->setStereoVideo(1);
+        else if (title.contains("2D"))
+            video->setStereoVideo(0);
+
+        return video;
+    }
+    else {
+        auto video = new PlayListItem(file);
+        return video;
+    }
+}
+
+void MpvObject::loadUniviewPlaylist(const QString& file)
+{
+    QString fileContent = getFileContent(file);
+    QStringList playListEntries = fileContent.split(QRegExp("[\r\n]"), QString::SkipEmptyParts);
+
+    int videoItems = playListEntries.at(1).mid(14).toInt(); //"NumberOfItems="
+
+    m_playlistModel->clear();
+    Playlist m_playList;
+
+    for (int i = 0; i < videoItems; ++i) {
+        int itemStart = (i * 7) + 2;
+
+        QString title = playListEntries.at(itemStart + 1).mid(5); //"Name="
+        QString path = playListEntries.at(itemStart + 2).mid(5); //"Path="
+        double startTime = playListEntries.at(itemStart + 3).mid(10).toDouble(); //"Starttime="
+        double endTime = playListEntries.at(itemStart + 4).mid(8).toDouble(); //"Endtime="
+        int loopMode = playListEntries.at(itemStart + 5).mid(9).toInt(); //"Loopmode="
+        int transitionMode = playListEntries.at(itemStart + 6).mid(15).toInt(); //"Transitionmode="
+
+        QString fileToLoad = file;
+        fileToLoad.replace("file:///", "");
+        QFileInfo fileInfo(fileToLoad);
+        
+        auto video = loadUniviewFDV(QDir::cleanPath(fileInfo.absoluteDir().absolutePath() + QDir::separator() + path));
+        video->setMediaTitle(title);
+
+        if (title.contains("3D"))
+            video->setStereoVideo(1);
+        else if (title.contains("2D"))
+            video->setStereoVideo(0);
+
+        video->setStartTime(startTime);
+        video->setEndTime(endTime);
+        video->setLoopMode(loopMode);
+        video->setTransitionMode(transitionMode);
+
+        m_playList.append(video);
+    }
+
+    // save playlist to disk
+    m_playlistModel->setPlayList(m_playList);
 }
 
 void MpvObject::mpvEvents(void *ctx)

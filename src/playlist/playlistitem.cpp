@@ -79,6 +79,76 @@ void PlayListItem::setDuration(const QString &duration)
     m_duration = duration;
 }
 
+QString PlayListItem::separateAudioFile() const
+{
+    return m_separateAudioFile;
+}
+
+void PlayListItem::setSeparateAudioFile(const QString& audioFile) 
+{
+    m_separateAudioFile = audioFile;
+}
+
+double PlayListItem::startTime() const
+{
+    return m_startTime;
+}
+
+void PlayListItem::setStartTime(double startTime)
+{
+    m_startTime = startTime;
+}
+
+double PlayListItem::endTime() const
+{
+    return m_endTime;
+}
+
+void PlayListItem::setEndTime(double endTime)
+{
+    m_endTime = endTime;
+}
+
+int PlayListItem::loopMode() const
+{
+    return m_loopMode;
+}
+
+void PlayListItem::setLoopMode(int loopMode)
+{
+    m_loopMode = loopMode;
+}
+
+int PlayListItem::transitionMode() const
+{
+    return m_transitionMode;
+}
+
+void PlayListItem::setTransitionMode(int transitionMode)
+{
+    m_transitionMode = transitionMode;
+}
+
+int PlayListItem::gridToMapOn() const
+{
+    return m_gridToMapOn;
+}
+
+void PlayListItem::setGridToMapOn(int gridToMapOn)
+{
+    m_gridToMapOn = gridToMapOn;
+}
+
+int PlayListItem::stereoVideo() const
+{
+    return m_stereoVideo;
+}
+
+void PlayListItem::setStereoVideo(int stereoVideo)
+{
+    m_stereoVideo = stereoVideo;
+}
+
 bool PlayListItem::isPlaying() const
 {
     return m_isPlaying;

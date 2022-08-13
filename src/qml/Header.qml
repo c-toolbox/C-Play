@@ -176,7 +176,14 @@ ToolBar {
 
             property var model: 0
 
-            text: qsTr("Grid")
+            text: {
+                if(mpv.gridToMapOn == 0)
+                    gridMenuButton.text = qsTr("Grid (Pre-split)")
+                else if(mpv.gridToMapOn == 1)
+                    gridMenuButton.text = qsTr("Grid (Dome)")
+                else if(mpv.gridToMapOn == 2)
+                    gridMenuButton.text = qsTr("Grid (Sphere)")
+            }
             icon.name: "kstars_hgrid"
             focusPolicy: Qt.NoFocus
 
@@ -186,6 +193,18 @@ ToolBar {
                 }
 
                 gridMenu.visible = !gridMenu.visible
+            }
+
+            Connections {
+                target: mpv
+                onGridToMapOnChanged: {
+                    if(mpv.gridToMapOn == 0)
+                        gridMenuButton.text = qsTr("Grid (Pre-split)")
+                    else if(mpv.gridToMapOn == 1)
+                        gridMenuButton.text = qsTr("Grid (Dome)")
+                    else if(mpv.gridToMapOn == 2)
+                        gridMenuButton.text = qsTr("Grid (Sphere)")
+                }
             }
 
             Menu {
@@ -203,26 +222,41 @@ ToolBar {
                     id: column
 
                     RadioButton {
+                        id: presplit_grid
                         checked: PlaybackSettings.gridToMapOn == 0
                         text: qsTr("Flat/Pre-split")
                         onClicked: {
                             mpv.gridToMapOn = 0
                         }
+                        Connections {
+                            target: mpv
+                            onGridToMapOnChanged: presplit_grid.checked = (mpv.gridToMapOn == 0)
+                        }
                     }
 
                     RadioButton {
+                        id: dome_grid
                         checked: PlaybackSettings.gridToMapOn == 1
                         text: qsTr("Dome")
                         onClicked: {
                              mpv.gridToMapOn = 1
                         }
+                        Connections {
+                            target: mpv
+                            onGridToMapOnChanged: dome_grid.checked = (mpv.gridToMapOn == 1)
+                        }
                     }
 
                     RadioButton {
+                        id: sphere_grid
                         checked: PlaybackSettings.gridToMapOn == 2
                         text: qsTr("Sphere")
                         onClicked: {
                             mpv.gridToMapOn = 2
+                        }
+                        Connections {
+                            target: mpv
+                            onGridToMapOnChanged: dome_grid.checked = (mpv.gridToMapOn == 1)
                         }
                     }
                 }
@@ -234,6 +268,17 @@ ToolBar {
             action: actions.stereoscopicAction
             text: actions.stereoscopicAction.text
             focusPolicy: Qt.NoFocus
+
+            Connections {
+                target: mpv
+                onStereoscopicVideoChanged: {
+                    if (mpv.stereoscopicVideo) {
+                        stereoscopic.text = qsTr("3D is On")
+                    } else {
+                        stereoscopic.text = qsTr("2D is On")
+                    }
+                }
+            }
         }
 
         ToolButton {

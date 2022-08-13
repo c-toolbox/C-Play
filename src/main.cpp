@@ -271,7 +271,8 @@ void initOGL(GLFWwindow*) {
     SyncHelper::instance().variables.loadedFile = "G:/Splits/Life_of_trees_3D_bravo/Life_of_trees_3D.mp4";
 #endif
     Log::Info(fmt::format("Loading new file: {}", SyncHelper::instance().variables.loadedFile));
-    mpv::qt::command_async(mpvHandle, QStringList() << "loadfile" << SyncHelper::instance().variables.loadedFile.c_str());
+    if(!SyncHelper::instance().variables.loadedFile.empty())
+        mpv::qt::command_async(mpvHandle, QStringList() << "loadfile" << SyncHelper::instance().variables.loadedFile.c_str());
 
 #ifndef ONLY_RENDER_TO_SCREEN
     //Observe video parameters
