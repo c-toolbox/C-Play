@@ -242,6 +242,9 @@ class MpvObject : public QQuickFramebufferObject
     QVariant getAudioDeviceList();
     void updateAudioDeviceList();
 
+    PlayListItem* loadUniviewFDV(const QString& file);
+    void loadUniviewPlaylist(const QString& file);
+
     mpv_handle *mpv;
     mpv_render_context *mpv_gl;
 
@@ -252,7 +255,9 @@ public:
     virtual ~MpvObject();
     virtual Renderer *createRenderer() const;
 
+    Q_INVOKABLE QString getFileContent(const QString& file);
     Q_INVOKABLE void loadFile(const QString &file, bool updateLastPlayedFile = true);
+    Q_INVOKABLE void loadItem(PlayListItem* item, bool updateLastPlayedFile = true, QString flag = "replace");
     Q_INVOKABLE void getYouTubePlaylist(const QString &path);
     Q_INVOKABLE QVariant command(const QVariant &params);
     Q_INVOKABLE QVariant getProperty(const QString &name, bool debug = false);

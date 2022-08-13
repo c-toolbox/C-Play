@@ -97,7 +97,7 @@ Kirigami.BasicListItem {
     }
     onDoubleClicked: {
         mpv.playlistModel.setPlayingVideo(index)
-        mpv.loadFile(path, !isYouTubePlaylist)
+        mpv.loadItem(mpv.playlistModel.getItem(index))
         mpv.pause = false
     }
 }

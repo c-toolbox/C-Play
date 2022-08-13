@@ -30,6 +30,27 @@ public:
     Q_INVOKABLE QString duration() const;
     void setDuration(const QString &duration);
 
+    Q_INVOKABLE QString separateAudioFile() const;
+    void setSeparateAudioFile(const QString& audioFile);
+
+    Q_INVOKABLE double startTime() const;
+    void setStartTime(double startTime);
+
+    Q_INVOKABLE double endTime() const;
+    void setEndTime(double endTime);
+
+    Q_INVOKABLE int loopMode() const;
+    void setLoopMode(int loopMode);
+
+    Q_INVOKABLE int transitionMode() const;
+    void setTransitionMode(int transitionMode);
+
+    Q_INVOKABLE int gridToMapOn() const;
+    void setGridToMapOn(int gridToMapOn);
+
+    Q_INVOKABLE int stereoVideo() const;
+    void setStereoVideo(int stereoVideo);
+
     Q_INVOKABLE bool isPlaying() const;
     void setIsPlaying(bool isPlaying);
 
@@ -42,6 +63,13 @@ private:
     QString m_fileName;
     QString m_folderPath;
     QString m_duration;
+    QString m_separateAudioFile{ "" };
+    double m_startTime{ 0.0 };
+    double m_endTime{ 0.0 };
+    int m_loopMode{ 0 };
+    int m_transitionMode{ 1 };
+    int m_gridToMapOn{ -1 };
+    int m_stereoVideo{ -1 };
     bool m_isHovered {false};
     bool m_isPlaying {false};
     int m_index {-1};

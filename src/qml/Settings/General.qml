@@ -169,6 +169,30 @@ SettingsBasePage {
             }
         }
 
+        Label {
+            text: qsTr("Uniview video location")
+            Layout.alignment: Qt.AlignRight
+        }
+
+        Item {
+            height: univiewVideoLocation.height
+            Layout.fillWidth: true
+
+            TextField {
+                id: univiewVideoLocation
+
+                text: GeneralSettings.univiewVideoLocation
+                onEditingFinished: {
+                    GeneralSettings.univiewVideoLocation = univiewVideoLocation.text
+                    GeneralSettings.save()
+                }
+
+                ToolTip {
+                    text: qsTr("Where the video files are stored.")
+                }
+            }
+        }
+
         SettingsHeader {
             text: qsTr("Interface")
             Layout.columnSpan: 2
