@@ -608,7 +608,7 @@ void MpvObject::loadFile(const QString &file, bool updateLastPlayedFile)
         loadUniviewPlaylist(file);
     }
     else {
-        command(QStringList() << "loadfile" << file);
+        command(QStringList() << "loadfile" << file, true);
         SyncHelper::instance().variables.loadedFile = file.toStdString();
     }
 
@@ -621,15 +621,25 @@ void MpvObject::loadFile(const QString &file, bool updateLastPlayedFile)
     }
 }
 
+void MpvObject::loadItem(int playListIndex, bool updateLastPlayedFile) {
+    PlayListItem* item = m_playlistModel->getItem(playListIndex);
+    loadItem(item, updateLastPlayedFile);
+}
+
 void MpvObject::loadItem(PlayListItem* item, bool updateLastPlayedFile, QString flag) {
+    if (!item) {
+        qWarning() << "PlayListItem pointer was null";
+        return;
+    }
+
     if (!item->separateAudioFile().isEmpty()) {
         QStringList option = QStringList() << "audio-file=" + item->separateAudioFile();
         QStringList newCommand = QStringList() << "loadfile" << item->filePath() << flag << option;
         qInfo() << newCommand;
-        command(newCommand);
+        command(newCommand, true);
     }
     else
-        command(QStringList() << "loadfile" << item->filePath() << flag);
+        command(QStringList() << "loadfile" << item->filePath() << flag, true);
 
     SyncHelper::instance().variables.loadedFile = item->filePath().toStdString();
 
@@ -703,6 +713,10 @@ void MpvObject::loadUniviewPlaylist(const QString& file)
     m_playlistModel->clear();
     Playlist m_playList;
 
+    QString fileToLoad = file;
+    fileToLoad.replace("file:///", "");
+    QFileInfo fileInfo(fileToLoad);
+
     for (int i = 0; i < videoItems; ++i) {
         int itemStart = (i * 7) + 2;
 
@@ -713,11 +727,18 @@ void MpvObject::loadUniviewPlaylist(const QString& file)
         int loopMode = playListEntries.at(itemStart + 5).mid(9).toInt(); //"Loopmode="
         int transitionMode = playListEntries.at(itemStart + 6).mid(15).toInt(); //"Transitionmode="
 
-        QString fileToLoad = file;
-        fileToLoad.replace("file:///", "");
-        QFileInfo fileInfo(fileToLoad);
+        QFileInfo videoFileInfo(path);
+        QString videoFileExt = videoFileInfo.suffix();
+        PlayListItem* video;
+
+        if (videoFileExt == "fdv") {
+            video = loadUniviewFDV(QDir::cleanPath(fileInfo.absoluteDir().absolutePath() + QDir::separator() + path));
+        }
+        else {
+            video = new PlayListItem(path);
+            video->setDuration(Application::formatTime(endTime - startTime));
+        }
         
-        auto video = loadUniviewFDV(QDir::cleanPath(fileInfo.absoluteDir().absolutePath() + QDir::separator() + path));
         video->setMediaTitle(title);
 
         if (title.contains("3D"))
@@ -735,6 +756,7 @@ void MpvObject::loadUniviewPlaylist(const QString& file)
 
     // save playlist to disk
     m_playlistModel->setPlayList(m_playList);
+    emit playlistModelChanged();
 }
 
 void MpvObject::mpvEvents(void *ctx)
@@ -987,9 +1009,13 @@ QVariant MpvObject::getProperty(const QString &name, bool debug)
     return result;
 }
 
-QVariant MpvObject::command(const QVariant &params)
+QVariant MpvObject::command(const QVariant &params, bool debug)
 {
-    return mpv::qt::command(mpv, params);
+    auto result = mpv::qt::command(mpv, params);
+    if (debug) {
+        DEBUG << mpv::qt::get_error(result);
+    }
+    return result;
 }
 
 void MpvObject::saveTimePosition()
