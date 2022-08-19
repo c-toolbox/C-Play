@@ -39,9 +39,14 @@ public:
     Q_INVOKABLE double endTime() const;
     void setEndTime(double endTime);
 
+    // 0 = Continue
+    // 1 = Pause
+    // 2 = Loop
     Q_INVOKABLE int loopMode() const;
     void setLoopMode(int loopMode);
 
+    // 0 = Instant
+    // 1 = Fade
     Q_INVOKABLE int transitionMode() const;
     void setTransitionMode(int transitionMode);
 
@@ -67,7 +72,7 @@ private:
     double m_startTime{ 0.0 };
     double m_endTime{ 0.0 };
     int m_loopMode{ 0 };
-    int m_transitionMode{ 1 };
+    int m_transitionMode{ 0 };
     int m_gridToMapOn{ -1 };
     int m_stereoVideo{ -1 };
     bool m_isHovered {false};

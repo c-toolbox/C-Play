@@ -26,6 +26,27 @@ Kirigami.BasicListItem {
         let color = model.isPlaying ? Kirigami.Theme.highlightColor : Kirigami.Theme.backgroundColor
         Qt.hsla(color.hslHue, color.hslSaturation, color.hslLightness, alpha)
     }
+    Timer {
+       id: playItem
+       interval: 2000
+       onTriggered: {
+           mpv.pause = false
+       }
+    }
+    Timer {
+       id: loadItem
+       interval: 100
+       onTriggered: {
+           mpv.loadItem(index)
+           mpv.playlistModel.setPlayingVideo(index)
+           playItem.start()
+       }
+    }
+    onDoubleClicked: {
+        mpv.pause = true
+        mpv.position = 0
+        loadItem.start()
+    }
 
     contentItem: Rectangle {
         anchors.fill: parent
@@ -94,10 +115,5 @@ Kirigami.BasicListItem {
                 Layout.margins: Kirigami.Units.largeSpacing
             }
         }
-    }
-    onDoubleClicked: {
-        mpv.playlistModel.setPlayingVideo(index)
-        mpv.loadItem(mpv.playlistModel.getItem(index))
-        mpv.pause = false
     }
 }

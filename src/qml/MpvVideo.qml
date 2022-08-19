@@ -86,6 +86,15 @@ MpvObject {
         playList.setPlayListScrollPosition()
     }
 
+    onPlaylistModelChanged: {
+        if (playList.playlistView.count > 0) {
+            playList.state = "visible"
+        }
+        else {
+            playList.state = "hidden"
+        }
+    }
+
     onFileStarted: {
         if (playList.isYouTubePlaylist) {
             loadingIndicatorParent.visible = true
@@ -147,16 +156,26 @@ MpvObject {
                 return
             }
         }
-        const nextFileRow = playlistModel.getPlayingVideo() + 1
-        if (nextFileRow < playList.playlistView.count) {
-            const nextFile = playlistModel.getItem(nextFileRow)
-            playlistModel.setPlayingVideo(nextFileRow)
-            loadItem(nextFile, !playList.isYouTubePlaylist)
-        } else {
-            // Last file in playlist
-            if (PlaylistSettings.repeat) {
-                playlistModel.setPlayingVideo(0)
-                loadItem(playlistModel.getItem(0))
+        const currentFile = playlistModel.getItem(playlistModel.getPlayingVideo())
+
+        if(currentFile.loopMode()===1){ //Pause
+            mpv.setPause(true);
+        }
+        else if(currentFile.loopMode()===2){ //Loop
+            mpv.setPosition(0);
+            mpv.setPause(false);
+        }
+        else { // Continue (0)
+            const nextFileRow = playlistModel.getPlayingVideo() + 1
+            if (nextFileRow < playList.playlistView.count) {
+                playlistModel.setPlayingVideo(nextFileRow)
+                loadItem(nextFileRow, !playList.isYouTubePlaylist)
+            } else {
+                // Last file in playlist
+                if (PlaylistSettings.repeat) {
+                    playlistModel.setPlayingVideo(0)
+                    loadItem(0)
+                }
             }
         }
     }
