@@ -1,0 +1,15 @@
+{
+    "playlist": [{
+        "file": "illustris.cplay_file",
+		"on_file_end": "continue"
+    }, {
+        "file": "C.cplay_file",
+		"on_file_end": "continue"
+    }, {
+        "file": "C_mono.cplay_file",
+		"on_file_end": "pause"
+    }, {
+        "file": "biosphere.cplay_file",
+		"on_file_end": "loop"
+    }]
+}

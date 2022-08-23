@@ -87,9 +87,14 @@ public:
     Q_INVOKABLE int transitionMode() const;
     void setTransitionMode(int transitionMode);
 
+    // 0 = Pre-split
+    // 1 = Dome
+    // 2 = Sphere
     Q_INVOKABLE int gridToMapOn() const;
     void setGridToMapOn(int gridToMapOn);
 
+    // 0 = 2D
+    // 1 = 3D
     Q_INVOKABLE int stereoVideo() const;
     void setStereoVideo(int stereoVideo);
 

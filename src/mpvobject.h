@@ -245,6 +245,10 @@ class MpvObject : public QQuickFramebufferObject
 
     PlayListItem* loadUniviewFDV(const QString& file);
     void loadUniviewPlaylist(const QString& file);
+
+    PlayListItem* loadJSONPlayfile(const QString& file);
+    void loadJSONPlayList(const QString& file);
+
     void loadItem(PlayListItemData itemData, bool updateLastPlayedFile = true, QString flag = "replace");
 
     mpv_handle *mpv;
