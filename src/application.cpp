@@ -938,6 +938,7 @@ SyncHelper& SyncHelper::instance() {
         _instance->variables.rotateX = 0;
         _instance->variables.rotateY = 0;
         _instance->variables.rotateZ = 0;
+        _instance->variables.translateY = 0;
     }
     return *_instance;
 }

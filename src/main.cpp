@@ -43,6 +43,7 @@ int videoAlphaLoc = -1;
 int meshMatrixLoc = -1;
 int meshEyeModeLoc = -1;
 int meshAlphaLoc = -1;
+int meshOutsideLoc = -1;
 bool fadeDurationOngoing = false;
 
 constexpr const char* VideoVert = R"(
@@ -104,12 +105,18 @@ constexpr const char* VideoFrag = R"(
 
   uniform sampler2D tex;
   uniform float alpha;
+  uniform bool outside;
 
   in vec2 tr_uv;
   out vec4 out_color;
 
   void main() {
-    out_color = texture(tex, tr_uv) * vec4(1.0, 1.0, 1.0, alpha);
+    vec2 texCoods = tr_uv;
+    if(outside){
+        texCoods = vec2(1.0-tr_uv.x, tr_uv.y);
+    }
+   
+    out_color = texture(tex, texCoods) * vec4(1.0, 1.0, 1.0, alpha);
   }
 )";
 
@@ -293,6 +300,7 @@ void initOGL(GLFWwindow*) {
     meshMatrixLoc = glGetUniformLocation(meshPrg->id(), "mvp");
     meshEyeModeLoc = glGetUniformLocation(meshPrg->id(), "eye");
     meshAlphaLoc = glGetUniformLocation(meshPrg->id(), "alpha");
+    meshOutsideLoc = glGetUniformLocation(meshPrg->id(), "outside");
     meshPrg->unbind();
 
     videoPrg = &ShaderManager::instance().shaderProgram("video");
@@ -370,6 +378,7 @@ std::vector<std::byte> encode() {
     serializeObject(data, SyncHelper::instance().variables.rotateX);
     serializeObject(data, SyncHelper::instance().variables.rotateY);
     serializeObject(data, SyncHelper::instance().variables.rotateZ);
+    serializeObject(data, SyncHelper::instance().variables.translateY);
     return data;
 }
 
@@ -388,6 +397,7 @@ void decode(const std::vector<std::byte>& data, unsigned int pos) {
         deserializeObject(data, pos, SyncHelper::instance().variables.rotateX);
         deserializeObject(data, pos, SyncHelper::instance().variables.rotateY);
         deserializeObject(data, pos, SyncHelper::instance().variables.rotateZ);
+        deserializeObject(data, pos, SyncHelper::instance().variables.translateY);
     }
 }
 
@@ -490,10 +500,11 @@ void draw(const RenderData& data) {
         meshPrg->bind();
 
         const mat4& mvp = data.modelViewProjectionMatrix;
-        glm::mat4 MVP_rot = glm::rotate(glm::make_mat4(mvp.values), glm::radians(float(360-SyncHelper::instance().variables.rotateX)), glm::vec3(1.0f, 0.0f, 0.0f));
-        MVP_rot = glm::rotate(MVP_rot, glm::radians(float(SyncHelper::instance().variables.rotateY)), glm::vec3(0.0f, 1.0f, 0.0f));
-        MVP_rot = glm::rotate(MVP_rot, glm::radians(float(SyncHelper::instance().variables.rotateZ)), glm::vec3(0.0f, 0.0f, 1.0f));
-        glUniformMatrix4fv(meshMatrixLoc, 1, GL_FALSE, &MVP_rot[0][0]);
+        glm::mat4 MVP_transformed = glm::translate(glm::make_mat4(mvp.values), glm::vec3(0.0f, float(SyncHelper::instance().variables.translateY) / 100.f, 0.0f));
+        MVP_transformed = glm::rotate(MVP_transformed, glm::radians(float(360-SyncHelper::instance().variables.rotateX)), glm::vec3(1.0f, 0.0f, 0.0f));
+        MVP_transformed = glm::rotate(MVP_transformed, glm::radians(float(SyncHelper::instance().variables.rotateY)), glm::vec3(0.0f, 1.0f, 0.0f));
+        MVP_transformed = glm::rotate(MVP_transformed, glm::radians(float(SyncHelper::instance().variables.rotateZ)), glm::vec3(0.0f, 0.0f, 1.0f));
+        glUniformMatrix4fv(meshMatrixLoc, 1, GL_FALSE, &MVP_transformed[0][0]);
 
         if (SyncHelper::instance().variables.sbs3DVideo) {
             glUniform1i(meshEyeModeLoc, (GLint)data.frustumMode);
@@ -505,7 +516,19 @@ void draw(const RenderData& data) {
         glUniform1f(meshAlphaLoc, SyncHelper::instance().variables.alpha);
 
         if (SyncHelper::instance().variables.gridToMapOn == 2) {
+            //render inside sphere
+            glUniform1i(meshOutsideLoc, 0);
             sphere->draw();
+
+            // Set up frontface culling
+            glCullFace(GL_FRONT);
+            //render outside sphere
+            glUniform1i(meshOutsideLoc, 1);
+            sphere->draw();
+
+            // Set up backface culling again
+            glCullFace(GL_BACK);
+            glUniform1i(meshOutsideLoc, 0);
         }
         else {
             dome->draw();
@@ -529,6 +552,7 @@ void draw(const RenderData& data) {
             glUniform1i(videoEyeModeLoc, 0);
         }
 
+        glUniform1f(videoAlphaLoc, SyncHelper::instance().variables.alpha);
         glUniform1f(videoAlphaLoc, SyncHelper::instance().variables.alpha);
 
         data.window.renderScreenQuad();

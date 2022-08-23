@@ -103,6 +103,7 @@ public:
         int rotateX;
         int rotateY;
         int rotateZ;
+        int translateY;
     };
 
     SyncHelper();
