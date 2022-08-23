@@ -14,7 +14,7 @@
 
 class PlayListItem;
 
-using Playlist = QList<PlayListItem*>;
+using Playlist = QList<QPointer<PlayListItem>>;
 
 class PlayListModel : public QAbstractListModel
 {
@@ -42,11 +42,23 @@ public:
     virtual QHash<int, QByteArray> roleNames() const override;
 
     Q_INVOKABLE QString getPath(int i);
-    Q_INVOKABLE PlayListItem *getItem(int i);
+    Q_INVOKABLE QPointer<PlayListItem> getItem(int i);
     Q_INVOKABLE void setPlayingVideo(int playingVideo);
     Q_INVOKABLE int getPlayingVideo() const;
     Q_INVOKABLE void getVideos(QString path);
     Q_INVOKABLE void clear();
+    Q_INVOKABLE QString mediaTitle(int i) const;
+    Q_INVOKABLE QString filePath(int i) const;
+    Q_INVOKABLE QString fileName(int i) const;
+    Q_INVOKABLE QString folderPath(int i) const;
+    Q_INVOKABLE QString duration(int i) const;
+    Q_INVOKABLE QString separateAudioFile(int i) const;
+    Q_INVOKABLE double startTime(int i) const;
+    Q_INVOKABLE double endTime(int i) const;
+    Q_INVOKABLE int loopMode(int i) const;
+    Q_INVOKABLE int transitionMode(int i) const;
+    Q_INVOKABLE int gridToMapOn(int i) const;
+    Q_INVOKABLE int stereoVideo(int i) const;
 
     Playlist getPlayList() const;
     void setPlayList(const Playlist &playList);

@@ -602,7 +602,7 @@ void MpvObject::loadFile(const QString &file, bool updateLastPlayedFile)
 
     if (ext == "fdv") {
         PlayListItem* videoFile = loadUniviewFDV(file);
-        loadItem(videoFile);
+        loadItem(videoFile->data());
     }
     else if (ext == "playlist") {
         loadUniviewPlaylist(file);
@@ -622,42 +622,51 @@ void MpvObject::loadFile(const QString &file, bool updateLastPlayedFile)
 }
 
 void MpvObject::loadItem(int playListIndex, bool updateLastPlayedFile) {
-    PlayListItem* item = m_playlistModel->getItem(playListIndex);
-    loadItem(item, updateLastPlayedFile);
+    try {
+        QPointer<PlayListItem> item = m_playlistModel->getItem(playListIndex);
+        if (!item) {
+            qWarning() << "PlayListItem pointer was null";
+            return;
+        }
+        PlayListItemData d = item->data();
+        loadItem(d, updateLastPlayedFile);
+    }
+    catch (...) {
+    }
 }
 
-void MpvObject::loadItem(PlayListItem* item, bool updateLastPlayedFile, QString flag) {
-    if (!item) {
-        qWarning() << "PlayListItem pointer was null";
-        return;
+void MpvObject::loadItem(PlayListItemData itemData, bool updateLastPlayedFile, QString flag) {
+    try {
+        if (itemData.separateAudioFile() != "") {
+            QStringList option = QStringList() << "audio-file=" + itemData.separateAudioFile();
+            QStringList newCommand = QStringList() << "loadfile" << itemData.filePath() << flag << option;
+            qInfo() << newCommand;
+            command(newCommand, true);
+            SyncHelper::instance().variables.loadedFile = itemData.filePath().toStdString();
+        }
+        else if (itemData.filePath() != "") {
+            command(QStringList() << "loadfile" << itemData.filePath() << flag, true);
+            SyncHelper::instance().variables.loadedFile = itemData.filePath().toStdString();
+        }
+
+        if (itemData.gridToMapOn() >= 0)
+            setGridToMapOn(itemData.gridToMapOn());
+
+        if (itemData.stereoVideo() == 1)
+            setStereoscopicVideo(true);
+        else if (itemData.stereoVideo() == 0)
+            setStereoscopicVideo(false);
+
+        if (updateLastPlayedFile) {
+            GeneralSettings::setLastPlayedFile(itemData.filePath());
+            GeneralSettings::self()->save();
+        }
+        else {
+            GeneralSettings::setLastPlaylistIndex(m_playlistModel->getPlayingVideo());
+            GeneralSettings::self()->save();
+        }
     }
-
-    if (!item->separateAudioFile().isEmpty()) {
-        QStringList option = QStringList() << "audio-file=" + item->separateAudioFile();
-        QStringList newCommand = QStringList() << "loadfile" << item->filePath() << flag << option;
-        qInfo() << newCommand;
-        command(newCommand, true);
-    }
-    else
-        command(QStringList() << "loadfile" << item->filePath() << flag, true);
-
-    SyncHelper::instance().variables.loadedFile = item->filePath().toStdString();
-
-    if (item->gridToMapOn() >= 0)
-        setGridToMapOn(item->gridToMapOn());
-
-    if (item->stereoVideo() == 1)
-        setStereoscopicVideo(true);
-    else if (item->stereoVideo() == 0)
-        setStereoscopicVideo(false);
-
-    if (updateLastPlayedFile) {
-        GeneralSettings::setLastPlayedFile(item->filePath());
-        GeneralSettings::self()->save();
-    }
-    else {
-        GeneralSettings::setLastPlaylistIndex(m_playlistModel->getPlayingVideo());
-        GeneralSettings::self()->save();
+    catch (...) {
     }
 }
 
@@ -751,7 +760,7 @@ void MpvObject::loadUniviewPlaylist(const QString& file)
         video->setLoopMode(loopMode);
         video->setTransitionMode(transitionMode);
 
-        m_playList.append(video);
+        m_playList.append(QPointer<PlayListItem>(video));
     }
 
     // save playlist to disk
@@ -949,7 +958,7 @@ TracksModel *MpvObject::audioTracksModel() const
 
 void MpvObject::getYouTubePlaylist(const QString &path)
 {
-    m_playlistModel->clear();
+    /*m_playlistModel->clear();
 
     // use youtube-dl to get the required playlist info as json
     auto ytdlProcess = new QProcess();
@@ -988,7 +997,7 @@ void MpvObject::getYouTubePlaylist(const QString &path)
         m_playlistModel->setPlayList(m_playList);
 
         emit youtubePlaylistLoaded();
-    });
+    });*/
 }
 
 int MpvObject::setProperty(const QString &name, const QVariant &value, bool debug)

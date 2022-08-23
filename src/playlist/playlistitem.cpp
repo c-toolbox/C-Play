@@ -10,6 +10,76 @@
 #include <QFileInfo>
 #include <QUrl>
 
+QString PlayListItemData::mediaTitle() const
+{
+    return m_mediaTitle;
+}
+
+QString PlayListItemData::filePath() const
+{
+    return m_filePath;
+}
+
+QString PlayListItemData::fileName() const
+{
+    return m_fileName;
+}
+
+QString PlayListItemData::folderPath() const
+{
+    return m_folderPath;
+}
+
+QString PlayListItemData::duration() const
+{
+    return m_duration;
+}
+
+QString PlayListItemData::separateAudioFile() const
+{
+    return m_separateAudioFile;
+}
+
+double PlayListItemData::startTime() const
+{
+    return m_startTime;
+}
+
+double PlayListItemData::endTime() const
+{
+    return m_endTime;
+}
+
+int PlayListItemData::loopMode() const
+{
+    return m_loopMode;
+}
+
+int PlayListItemData::transitionMode() const
+{
+    return m_transitionMode;
+}
+
+int PlayListItemData::gridToMapOn() const
+{
+    return m_gridToMapOn;
+}
+
+int PlayListItemData::stereoVideo() const
+{
+    return m_stereoVideo;
+}
+
+bool PlayListItemData::isPlaying() const
+{
+    return m_isPlaying;
+}
+
+int PlayListItemData::index() const
+{
+    return m_index;
+}
+
 PlayListItem::PlayListItem(const QString &path, int i, QObject *parent)
     : QObject(parent)
 {
@@ -27,144 +97,161 @@ PlayListItem::PlayListItem(const QString &path, int i, QObject *parent)
     }
     setIndex(i);
     setIsPlaying(false);
+    setSeparateAudioFile(QStringLiteral());
+}
+
+PlayListItem::PlayListItem(const PlayListItem& p1) {
+    setData(p1.data());
+}
+
+PlayListItem::PlayListItem(const PlayListItemData& d) {
+    setData(d);
 }
 
 QString PlayListItem::mediaTitle() const
 {
-    return m_mediaTitle;
+    return m_data.m_mediaTitle;
 }
 
 void PlayListItem::setMediaTitle(const QString &title)
 {
-    m_mediaTitle = title;
+    m_data.m_mediaTitle = title;
 }
 
 QString PlayListItem::filePath() const
 {
-    return m_filePath;
+    return m_data.m_filePath;
 }
 
 void PlayListItem::setFilePath(const QString &filePath)
 {
-    m_filePath = filePath;
+    m_data.m_filePath = filePath;
 }
 
 QString PlayListItem::fileName() const
 {
-    return m_fileName;
+    return m_data.m_fileName;
 }
 
 void PlayListItem::setFileName(const QString &fileName)
 {
-    m_fileName = fileName;
+    m_data.m_fileName = fileName;
 }
 
 QString PlayListItem::folderPath() const
 {
-    return m_folderPath;
+    return m_data.m_folderPath;
 }
 
 void PlayListItem::setFolderPath(const QString &folderPath)
 {
-    m_folderPath = folderPath;
+    m_data.m_folderPath = folderPath;
 }
 
 QString PlayListItem::duration() const
 {
-    return m_duration;
+    return m_data.m_duration;
 }
 
 void PlayListItem::setDuration(const QString &duration)
 {
-    m_duration = duration;
+    m_data.m_duration = duration;
 }
 
 QString PlayListItem::separateAudioFile() const
 {
-    return m_separateAudioFile;
+    return m_data.m_separateAudioFile;
 }
 
 void PlayListItem::setSeparateAudioFile(const QString& audioFile) 
 {
-    m_separateAudioFile = audioFile;
+    m_data.m_separateAudioFile = audioFile;
 }
 
 double PlayListItem::startTime() const
 {
-    return m_startTime;
+    return m_data.m_startTime;
 }
 
 void PlayListItem::setStartTime(double startTime)
 {
-    m_startTime = startTime;
+    m_data.m_startTime = startTime;
 }
 
 double PlayListItem::endTime() const
 {
-    return m_endTime;
+    return m_data.m_endTime;
 }
 
 void PlayListItem::setEndTime(double endTime)
 {
-    m_endTime = endTime;
+    m_data.m_endTime = endTime;
 }
 
 int PlayListItem::loopMode() const
 {
-    return m_loopMode;
+    return m_data.m_loopMode;
 }
 
 void PlayListItem::setLoopMode(int loopMode)
 {
-    m_loopMode = loopMode;
+    m_data.m_loopMode = loopMode;
 }
 
 int PlayListItem::transitionMode() const
 {
-    return m_transitionMode;
+    return m_data.m_transitionMode;
 }
 
 void PlayListItem::setTransitionMode(int transitionMode)
 {
-    m_transitionMode = transitionMode;
+    m_data.m_transitionMode = transitionMode;
 }
 
 int PlayListItem::gridToMapOn() const
 {
-    return m_gridToMapOn;
+    return m_data.m_gridToMapOn;
 }
 
 void PlayListItem::setGridToMapOn(int gridToMapOn)
 {
-    m_gridToMapOn = gridToMapOn;
+    m_data.m_gridToMapOn = gridToMapOn;
 }
 
 int PlayListItem::stereoVideo() const
 {
-    return m_stereoVideo;
+    return m_data.m_stereoVideo;
 }
 
 void PlayListItem::setStereoVideo(int stereoVideo)
 {
-    m_stereoVideo = stereoVideo;
+    m_data.m_stereoVideo = stereoVideo;
 }
 
 bool PlayListItem::isPlaying() const
 {
-    return m_isPlaying;
+    return m_data.m_isPlaying;
 }
 
 void PlayListItem::setIsPlaying(bool isPlaying)
 {
-    m_isPlaying = isPlaying;
+    m_data.m_isPlaying = isPlaying;
 }
 
 int PlayListItem::index() const
 {
-    return m_index;
+    return m_data.m_index;
 }
 
 void PlayListItem::setIndex(int index)
 {
-    m_index = index;
+    m_data.m_index = index;
+}
+
+PlayListItemData PlayListItem::data() const {
+    return m_data;
+}
+
+void PlayListItem::setData(PlayListItemData d) {
+    m_data = d;
 }

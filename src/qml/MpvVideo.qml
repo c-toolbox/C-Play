@@ -109,6 +109,18 @@ MpvObject {
         if (playList.playlistView.count <= 1) {
             setProperty("loop-file", "inf")
         }
+        else{
+            const loopMode = playlistModel.loopMode(playlistModel.getPlayingVideo())
+            if(loopMode===1){ //Pause
+                setProperty("loop-file", "no")
+            }
+            else if(loopMode===2){ //Loop
+                setProperty("loop-file", "inf")
+            }
+            else { // Continue (0)
+                setProperty("loop-file", "no")
+            }
+        }
 
         setProperty("ab-loop-a", "no")
         setProperty("ab-loop-b", "no")
@@ -142,13 +154,21 @@ MpvObject {
         }
     }
 
+    Timer {
+       id: playItem
+       interval: 2000
+       onTriggered: {
+           mpv.pause = false
+       }
+    }
+
     onEndFile: {
         if (reason === "error") {
             if (playlistModel.rowCount() === 0) {
                 return
             }
 
-            const title = playlistModel.getItem(playlistModel.getPlayingVideo()).mediaTitle()
+            const title = playlistModel.mediaTitle(playlistModel.getPlayingVideo())
             osd.message(qsTr("Could not play: %1").arg(title))
             // only skip to next video if it's a youtube playList
             // to do: figure out why playback fails and act accordingly
@@ -156,25 +176,26 @@ MpvObject {
                 return
             }
         }
-        const currentFile = playlistModel.getItem(playlistModel.getPlayingVideo())
 
-        if(currentFile.loopMode()===1){ //Pause
-            mpv.setPause(true);
+        const loopMode = playlistModel.loopMode(playlistModel.getPlayingVideo())
+        if(loopMode===1){ //Pause
+            //Covered in onFileLoaded
         }
-        else if(currentFile.loopMode()===2){ //Loop
-            mpv.setPosition(0);
-            mpv.setPause(false);
+        else if(loopMode===2){ //Loop
+            //Covered in onFileLoaded
         }
         else { // Continue (0)
             const nextFileRow = playlistModel.getPlayingVideo() + 1
             if (nextFileRow < playList.playlistView.count) {
                 playlistModel.setPlayingVideo(nextFileRow)
                 loadItem(nextFileRow, !playList.isYouTubePlaylist)
+                playItem.start()
             } else {
                 // Last file in playlist
                 if (PlaylistSettings.repeat) {
                     playlistModel.setPlayingVideo(0)
                     loadItem(0)
+                    playItem.start()
                 }
             }
         }

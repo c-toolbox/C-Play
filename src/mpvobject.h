@@ -13,6 +13,7 @@
 #include <render_gl.h>
 #include "qthelper.h"
 #include "playlistmodel.h"
+#include "playlistitem.h"
 #include "tracksmodel.h"
 
 class MpvRenderer;
@@ -244,7 +245,7 @@ class MpvObject : public QQuickFramebufferObject
 
     PlayListItem* loadUniviewFDV(const QString& file);
     void loadUniviewPlaylist(const QString& file);
-    void loadItem(PlayListItem* item, bool updateLastPlayedFile = true, QString flag = "replace");
+    void loadItem(PlayListItemData itemData, bool updateLastPlayedFile = true, QString flag = "replace");
 
     mpv_handle *mpv;
     mpv_render_context *mpv_gl;
