@@ -117,12 +117,14 @@ MpvObject::MpvObject(QQuickItem * parent)
     m_rotateX = VideoSettings::domeRotateX();
     m_rotateY = VideoSettings::domeRotateY();
     m_rotateZ = VideoSettings::domeRotateZ();
+    m_translateY = VideoSettings::domeTranslateY();
 
     SyncHelper::instance().variables.radius = m_radius;
     SyncHelper::instance().variables.fov = m_fov;
     SyncHelper::instance().variables.rotateX = m_rotateX;
     SyncHelper::instance().variables.rotateY = m_rotateY;
     SyncHelper::instance().variables.rotateZ = m_rotateZ;
+    SyncHelper::instance().variables.translateY = m_translateY;
 
     QString loadAudioInVidFolder = AudioSettings::loadAudioFileInVideoFolder() ? "all" : "no";
     setProperty("audio-file-auto", loadAudioInVidFolder);
@@ -524,6 +526,21 @@ void MpvObject::setRotateZ(int value)
     }
     m_rotateZ = value;
     emit rotateZChanged();
+}
+
+int MpvObject::translateY()
+{
+    return m_translateY;
+}
+
+void MpvObject::setTranslateY(int value)
+{
+    SyncHelper::instance().variables.translateY = value;
+    if (m_translateY == value) {
+        return;
+    }
+    m_translateY = value;
+    emit translateYChanged();
 }
 
 QVariant MpvObject::getAudioDeviceList()

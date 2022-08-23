@@ -235,6 +235,7 @@ SettingsBasePage {
                 id: domeRadius
                 from: 0
                 to: 2000
+                stepSize: 1
                 value: mpv.radius
 
                 onValueChanged: {
@@ -273,6 +274,34 @@ SettingsBasePage {
             LabelWithTooltip {
                 text: {
                     qsTr("degrees")
+                }
+                elide: Text.ElideRight
+                Layout.fillWidth: true
+            }
+        }
+
+        // ------------------------------------
+        // Dome translate Y
+        // ------------------------------------
+        Label {
+            text: qsTr("Dome translation up-down (y):")
+        }
+
+        RowLayout {
+            SpinBox {
+                id: domeTranslate
+                from: -500
+                to: 500
+                value: mpv.translateY
+
+                onValueChanged: {
+                    mpv.translateY = value
+                }
+            }
+
+            LabelWithTooltip {
+                text: {
+                    qsTr("")
                 }
                 elide: Text.ElideRight
                 Layout.fillWidth: true
@@ -372,6 +401,7 @@ SettingsBasePage {
                         mpv.rotateX = VideoSettings.domeRotateX
                         mpv.rotateY = VideoSettings.domeRotateY
                         mpv.rotateZ = VideoSettings.domeRotateZ
+                        mpv.translateY = VideoSettings.domeTranslateY
                     }
             }
             Layout.columnSpan: 2
@@ -387,6 +417,7 @@ SettingsBasePage {
                         VideoSettings.domeRotateX = mpv.rotateX
                         VideoSettings.domeRotateY = mpv.rotateY
                         VideoSettings.domeRotateZ = mpv.rotateZ
+                        VideoSettings.domeTranslateY = mpv.translateY
                         VideoSettings.save()
                     }
             }
