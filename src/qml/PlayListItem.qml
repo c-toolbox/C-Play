@@ -33,19 +33,13 @@ Kirigami.BasicListItem {
            mpv.pause = false
        }
     }
-    Timer {
-       id: loadItem
-       interval: 100
-       onTriggered: {
-           mpv.loadItem(index)
-           mpv.playlistModel.setPlayingVideo(index)
-           playItem.start()
-       }
-    }
+
     onDoubleClicked: {
         mpv.pause = true
         mpv.position = 0
-        loadItem.start()
+        mpv.loadItem(index)
+        mpv.playlistModel.setPlayingVideo(index)
+        playItem.start()
     }
 
     contentItem: Rectangle {

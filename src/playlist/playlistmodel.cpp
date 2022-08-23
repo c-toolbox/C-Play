@@ -49,6 +49,12 @@ QVariant PlayListModel::data(const QModelIndex &index, int role) const
         return QVariant();
 
     auto playListItem = m_playList.at(index.row());
+
+    if (!playListItem) {
+        qWarning() << "PlayListItem pointer was null";
+        return QVariant();
+    }
+
     switch (role) {
     case NameRole:
         return QVariant(playListItem->fileName());
@@ -107,7 +113,7 @@ void PlayListModel::getVideos(QString path)
 
     for (int i = 0; i < videoFiles.count(); ++i) {
         auto video = new PlayListItem(videoFiles.at(i), i, this);
-        m_playList.append(video);
+        m_playList.append(QPointer<PlayListItem>(video));
         if (path == videoFiles.at(i)) {
             setPlayingVideo(i);
         }
@@ -168,7 +174,7 @@ QString PlayListModel::getPath(int i)
     return m_playList[i]->filePath();
 }
 
-PlayListItem *PlayListModel::getItem(int i)
+QPointer<PlayListItem> PlayListModel::getItem(int i)
 {
     if (m_playList.size() <= i) {
         return m_playList[0];
@@ -188,4 +194,64 @@ void PlayListModel::setPlayingVideo(int playingVideo)
 
     m_playingVideo = playingVideo;
     emit playingVideoChanged();
+}
+
+QString PlayListModel::mediaTitle(int i) const
+{
+    return m_playList[i].data()->mediaTitle();
+}
+
+QString PlayListModel::filePath(int i) const
+{
+    return m_playList[i].data()->filePath();
+}
+
+QString PlayListModel::fileName(int i) const
+{
+    return m_playList[i].data()->fileName();
+}
+
+QString PlayListModel::folderPath(int i) const
+{
+    return m_playList[i].data()->folderPath();
+}
+
+QString PlayListModel::duration(int i) const
+{
+    return m_playList[i].data()->duration();
+}
+
+QString PlayListModel::separateAudioFile(int i) const
+{
+    return m_playList[i].data()->separateAudioFile();
+}
+
+double PlayListModel::startTime(int i) const
+{
+    return m_playList[i].data()->startTime();
+}
+
+double PlayListModel::endTime(int i) const
+{
+    return m_playList[i].data()->endTime();
+}
+
+int PlayListModel::loopMode(int i) const
+{
+    return m_playList[i].data()->loopMode();
+}
+
+int PlayListModel::transitionMode(int i) const
+{
+    return m_playList[i].data()->transitionMode();
+}
+
+int PlayListModel::gridToMapOn(int i) const
+{
+    return m_playList[i].data()->gridToMapOn();
+}
+
+int PlayListModel::stereoVideo(int i) const
+{
+    return m_playList[i].data()->stereoVideo();
 }

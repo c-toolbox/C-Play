@@ -21,7 +21,7 @@ Kirigami.BasicListItem {
     property var alpha: PlaylistSettings.overlayVideo ? 0.6 : 1
 
     label: mainText()
-    subtitle: model.duration
+    subtitle: model.duration + " : (" + loopModeText(index) + ")"
     padding: 0
     icon: model.isPlaying ? "media-playback-start" : ""
     backgroundColor: {
@@ -35,20 +35,13 @@ Kirigami.BasicListItem {
            mpv.pause = false
        }
     }
-    Timer {
-       id: loadItem
-       interval: 100
-       onTriggered: {
-           mpv.loadItem(index)
-           mpv.playlistModel.setPlayingVideo(index)
-           playItem.start()
-       }
-    }
 
     onDoubleClicked: {
         mpv.pause = true
         mpv.position = 0
-        loadItem.start()
+        mpv.loadItem(index)
+        mpv.playlistModel.setPlayingVideo(index)
+        playItem.start()
     }
 
     ToolTip {
@@ -70,5 +63,18 @@ Kirigami.BasicListItem {
         while (number.length < length)
             number = "0" + number;
         return number;
+    }
+
+    function loopModeText(i) {
+        const loopMode = mpv.playlistModel.loopMode(i)
+        if(loopMode===1){ //Pause
+            return "Pause after end";
+        }
+        else if(loopMode===2){ //Loop
+            return "Loop video";
+        }
+        else { // Continue (0)
+            return "Continue to next";
+        }
     }
 }
