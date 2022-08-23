@@ -198,60 +198,96 @@ void PlayListModel::setPlayingVideo(int playingVideo)
 
 QString PlayListModel::mediaTitle(int i) const
 {
-    return m_playList[i].data()->mediaTitle();
+    if (i > 0 && m_playList.size() > i && m_playList[i])
+        return m_playList[i].data()->mediaTitle();
+    else
+        return "";
 }
 
 QString PlayListModel::filePath(int i) const
 {
-    return m_playList[i].data()->filePath();
+    if (i > 0 && m_playList.size() > i && m_playList[i])
+        return m_playList[i].data()->filePath();
+    else
+        return "";
 }
 
 QString PlayListModel::fileName(int i) const
 {
-    return m_playList[i].data()->fileName();
+    if (i > 0 && m_playList.size() > i && m_playList[i])
+        return m_playList[i].data()->fileName();
+    else
+        return "";
 }
 
 QString PlayListModel::folderPath(int i) const
 {
-    return m_playList[i].data()->folderPath();
+    if (i > 0 && m_playList.size() > i && m_playList[i])
+        return m_playList[i].data()->folderPath();
+    else
+        return "";
 }
 
 QString PlayListModel::duration(int i) const
 {
-    return m_playList[i].data()->duration();
+    if (i > 0 && m_playList.size() > i && m_playList[i])
+        return m_playList[i].data()->duration();
+    else
+        return "";
 }
 
 QString PlayListModel::separateAudioFile(int i) const
 {
-    return m_playList[i].data()->separateAudioFile();
+    if (i > 0 && m_playList.size() > i && m_playList[i])
+        return m_playList[i].data()->separateAudioFile();
+    else
+        return "";
 }
 
 double PlayListModel::startTime(int i) const
 {
-    return m_playList[i].data()->startTime();
+    if (i > 0 && m_playList.size() > i && m_playList[i])
+        return m_playList[i].data()->startTime();
+    else
+        return 0.0;
 }
 
 double PlayListModel::endTime(int i) const
 {
-    return m_playList[i].data()->endTime();
+    if (i > 0 && m_playList.size() > i && m_playList[i])
+        return m_playList[i].data()->endTime();
+    else
+        return 0.0;
 }
 
 int PlayListModel::loopMode(int i) const
 {
-    return m_playList[i].data()->loopMode();
+    if (i > 0 && m_playList.size() > i && m_playList[i])
+        return m_playList[i].data()->loopMode();
+    else
+        return 0;
 }
 
 int PlayListModel::transitionMode(int i) const
 {
-    return m_playList[i].data()->transitionMode();
+    if (i > 0 && m_playList.size() > i && m_playList[i])
+        return m_playList[i].data()->transitionMode();
+    else
+        return 0;
 }
 
 int PlayListModel::gridToMapOn(int i) const
 {
-    return m_playList[i].data()->gridToMapOn();
+    if (i > 0 && m_playList.size() > i && m_playList[i])
+        return m_playList[i].data()->gridToMapOn();
+    else
+        return 0;
 }
 
 int PlayListModel::stereoVideo(int i) const
 {
-    return m_playList[i].data()->stereoVideo();
+    if (i > 0 && m_playList.size() > i && m_playList[i])
+        return m_playList[i].data()->stereoVideo();
+    else
+        return 0;
 }

@@ -602,10 +602,19 @@ void MpvObject::loadFile(const QString &file, bool updateLastPlayedFile)
 
     if (ext == "fdv") {
         PlayListItem* videoFile = loadUniviewFDV(file);
-        loadItem(videoFile->data());
+        if(videoFile)
+            loadItem(videoFile->data());
     }
     else if (ext == "playlist") {
         loadUniviewPlaylist(file);
+    }
+    else if (ext == "cplay_file") {
+        PlayListItem* videoFile = loadJSONPlayfile(file);
+        if (videoFile)
+            loadItem(videoFile->data());
+    }
+    else if (ext == "cplay_playlist") {
+        loadJSONPlayList(file);
     }
     else {
         command(QStringList() << "loadfile" << file, true);
@@ -761,6 +770,178 @@ void MpvObject::loadUniviewPlaylist(const QString& file)
         video->setTransitionMode(transitionMode);
 
         m_playList.append(QPointer<PlayListItem>(video));
+    }
+
+    // save playlist to disk
+    m_playlistModel->setPlayList(m_playList);
+    emit playlistModelChanged();
+}
+
+PlayListItem* MpvObject::loadJSONPlayfile(const QString& file) {
+    QString fileToLoad = file;
+    fileToLoad.replace("file:///", "");
+    QFileInfo jsonFileInfo(fileToLoad);
+    if (!jsonFileInfo.exists())
+        return NULL;
+
+    QString fileContent = getFileContent(file);
+    QJsonDocument doc = QJsonDocument::fromJson(fileContent.toUtf8());
+    if (doc.isNull())
+    {
+        qDebug() << "Parsing cplay_file failed: " << fileToLoad;
+        return NULL;
+    }
+
+    QJsonObject obj = doc.object();
+
+    auto item = new PlayListItem(fileToLoad);
+
+    if (obj.contains("video")) {
+        QString videoFile = obj.value("video").toString();
+        QFileInfo videoFileInfo(videoFile);
+        if (videoFileInfo.exists())
+            item->setFilePath(videoFile);
+        else if(videoFileInfo.isRelative()){ //Check first if next to JSON file
+            QString videoFileNextToJSONfile = QDir::cleanPath(jsonFileInfo.absoluteDir().absolutePath() + QDir::separator() + videoFile);
+            QFileInfo videoFileInfoNextToJsonFile(videoFileNextToJSONfile);
+            if (videoFileInfoNextToJsonFile.exists())
+                item->setFilePath(videoFileNextToJSONfile);
+            else { // Check if stored in Uniview video folder
+                QString fileUniviewMainPath = GeneralSettings::univiewVideoLocation();
+                QString videoFileAbsoluteUniview = QDir::cleanPath(fileUniviewMainPath + QDir::separator() + videoFile);
+                QFileInfo videoFileInfoUniview(videoFileAbsoluteUniview);
+                if (videoFileInfoUniview.exists())
+                    item->setFilePath(videoFileAbsoluteUniview);
+            }
+        }
+    }
+
+    if (obj.contains("audio")) {
+        QString audioFile = obj.value("audio").toString();
+        QFileInfo audioFileInfo(audioFile);
+        if (audioFileInfo.exists())
+            item->setSeparateAudioFile(audioFile);
+        else if (audioFileInfo.isRelative()) { //Check first if next to JSON file
+            QString audioFileNextToJSONfile = QDir::cleanPath(jsonFileInfo.absoluteDir().absolutePath() + QDir::separator() + audioFile);
+            QFileInfo audioFileInfoNextToJsonFile(audioFileNextToJSONfile);
+            if (audioFileInfoNextToJsonFile.exists())
+                item->setSeparateAudioFile(audioFileNextToJSONfile);
+            else { // Check if stored in Uniview audio folder
+                QString fileUniviewMainPath = GeneralSettings::univiewVideoLocation();
+                QString audioFileAbsoluteUniview = QDir::cleanPath(fileUniviewMainPath + QDir::separator() + audioFile);
+                QFileInfo audioFileInfoUniview(audioFileAbsoluteUniview);
+                if (audioFileInfoUniview.exists())
+                    item->setSeparateAudioFile(audioFileAbsoluteUniview);
+            }
+        }
+    }
+
+    if (obj.contains("title")) {
+        QString title = obj.value("title").toString();
+        item->setMediaTitle(title);
+        item->setFileName(title);
+    }
+
+    if (obj.contains("duration")) {
+        double duration = obj.value("duration").toDouble();
+        item->setDuration(Application::formatTime(duration));
+    }
+
+    if (obj.contains("grid")) {
+        QString grid = obj.value("grid").toString();
+        if (grid == "pre-split") {
+            item->setGridToMapOn(0);
+        }
+        else if (grid == "dome") {
+            item->setGridToMapOn(1);
+        }
+        else if (grid == "sphere") {
+            item->setGridToMapOn(2);
+        }
+    }
+
+    if (obj.contains("stereoscopic")) {
+        QString stereo = obj.value("stereoscopic").toString();
+        if (stereo == "no") {
+            item->setStereoVideo(0);
+        }
+        else if (stereo == "yes") {
+            item->setStereoVideo(1);
+        }
+    }
+
+    return item;
+}
+
+void MpvObject::loadJSONPlayList(const QString& file) {
+    QString fileToLoad = file;
+    fileToLoad.replace("file:///", "");
+    QFileInfo jsonFileInfo(fileToLoad);
+    if (!jsonFileInfo.exists())
+        return;
+
+    QString fileContent = getFileContent(file);
+    QJsonDocument doc = QJsonDocument::fromJson(fileContent.toUtf8());
+    if (doc.isNull())
+    {
+        qDebug() << "Parsing cplay_playlist failed: " << fileToLoad;
+        return;
+    }
+
+    QJsonObject obj = doc.object();
+    QJsonValue value = obj.value("playlist");
+    QJsonArray array = value.toArray();
+
+    m_playlistModel->clear();
+    Playlist m_playList;
+
+    foreach(const QJsonValue & v, array) {
+        QJsonObject o = v.toObject();
+        if (o.contains("file")) {
+            QString filePath = o.value("file").toString();
+            QFileInfo filePathInfo(filePath);
+            if (filePathInfo.isRelative()) { //Check first if next to JSON file
+                QString videoFileNextToJSONfile = QDir::cleanPath(jsonFileInfo.absoluteDir().absolutePath() + QDir::separator() + filePath);
+                QFileInfo videoFileInfoNextToJsonFile(videoFileNextToJSONfile);
+                if (videoFileInfoNextToJsonFile.exists())
+                    filePath = videoFileNextToJSONfile;
+                else { // Check if stored in Uniview video folder
+                    QString fileUniviewMainPath = GeneralSettings::univiewVideoLocation();
+                    QString videoFileAbsoluteUniview = QDir::cleanPath(fileUniviewMainPath + QDir::separator() + filePath);
+                    QFileInfo videoFileInfoUniview(videoFileAbsoluteUniview);
+                    if (videoFileInfoUniview.exists())
+                        filePath = videoFileAbsoluteUniview;
+                }
+            }
+
+            QString videoFileExt = filePathInfo.suffix();
+            PlayListItem* video;
+
+            if (videoFileExt == "cplay_file") {
+                video = loadJSONPlayfile(filePath);
+            }
+            else if (videoFileExt == "fdv") {
+                video = loadUniviewFDV(filePath);
+            }
+            else {
+                video = new PlayListItem(filePath);
+            }
+
+            if (o.contains("on_file_end")) {
+                QString loopMode = o.value("on_file_end").toString();
+                if (loopMode == "continue") {
+                    video->setLoopMode(0);
+                }
+                else if (loopMode == "pause") {
+                    video->setLoopMode(1);
+                }
+                else if (loopMode == "loop") {
+                    video->setLoopMode(2);
+                }
+            }
+
+            m_playList.append(QPointer<PlayListItem>(video));
+        }
     }
 
     // save playlist to disk
