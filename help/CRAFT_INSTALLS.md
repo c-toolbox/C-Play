@@ -25,3 +25,5 @@
 - Breeze icons
 - Breeze widgets style
 - QQC2-Desktop-Style
+
+NOTE: Due to Qt3DInput and QtWidgets both having QAction, some includes in KDE do not handle this, and might need changes in header file, from <QAction> to <QtWidgets/qaction.h>

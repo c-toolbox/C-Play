@@ -14,7 +14,6 @@ import com.georgefb.haruna 1.0
 
 import QtQuick 2.12
 import QtQuick.Controls 2.12
-import QtQuick.Scene3D 2.0
 
 import mpv 1.0
 import "Menus"
@@ -86,19 +85,6 @@ Kirigami.ApplicationWindow {
         id: mpv
 
         Osd { id: osd }
-
-        Scene3D{
-            id: scene3D
-            anchors.fill: parent
-            focus: true
-            aspects: ["input", "logic"]
-            cameraAspectRatioMode: Scene3D.AutomaticAspectRatio
-
-            TrackBall{
-                id: trackBall
-            }
-
-        }
     }
 
     PlayList { id: playList }

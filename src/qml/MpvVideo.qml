@@ -9,6 +9,7 @@ import QtQuick.Window 2.12
 import QtQuick.Controls 2.12
 import QtQuick.Layouts 1.12
 import mpv 1.0
+import QtQuick.Scene3D 2.0
 
 import com.georgefb.haruna 1.0
 import org.kde.kirigami 2.10 as Kirigami
@@ -276,7 +277,7 @@ MpvObject {
         }
 
         onWheel: {
-            if (wheel.angleDelta.y > 0) {
+            /*if (wheel.angleDelta.y > 0) {
                 if (MouseSettings.scrollUp) {
                     actions[MouseSettings.scrollUp].trigger()
                 }
@@ -284,7 +285,7 @@ MpvObject {
                 if (MouseSettings.scrollDown) {
                     actions[MouseSettings.scrollDown].trigger()
                 }
-            }
+            }*/
         }
 
         onPressed: {
@@ -388,6 +389,18 @@ MpvObject {
                 parent.width = width + 10
                 parent.height = height + 10
             }
+        }
+    }
+
+    Scene3D{
+        id: scene3D
+        anchors.fill: parent
+        focus: true
+        aspects: ["input", "logic"]
+        cameraAspectRatioMode: Scene3D.AutomaticAspectRatio
+
+        TrackBall{
+            id: trackBall
         }
     }
 

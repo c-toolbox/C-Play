@@ -37,5 +37,8 @@
         <file>qml/Haruna/Components/qmldir</file>
         <file>qml/Haruna/Components/ImageAdjustmentSlider.qml</file>
         <file>qml/PlayListItemCompact.qml</file>
+        <file>qml/Images/earthmap2k.jpg</file>
+        <file>qml/Images/earthnormal2k.jpg</file>
+        <file>qml/Images/earthspec2k.jpg</file>
     </qresource>
 </RCC>
