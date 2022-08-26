@@ -8,6 +8,7 @@ import QtQuick 2.12
 import QtQuick.Controls 2.12
 import QtQuick.Layouts 1.12
 import QtQml.Models 2.15
+import QtQuick.Extras 1.4
 
 import org.kde.kirigami 2.11 as Kirigami
 import com.georgefb.haruna 1.0
@@ -219,7 +220,7 @@ ToolBar {
                 }
 
                 Column {
-                    id: column
+                    id: columnGrid
 
                     RadioButton {
                         id: presplit_grid
@@ -348,8 +349,221 @@ ToolBar {
             }
         }
 
-        Item {
-            Layout.fillWidth: true
+        ToolButton {
+            id: spinMenuButton
+
+            property var model: 0
+
+            text: {
+                qsTr("Constant Spin")
+            }
+            focusPolicy: Qt.NoFocus
+
+            onClicked: {
+                if (spinMenuButton.model === 0) {
+                    spinMenuButton.model = mpv.subtitleTracksModel
+                }
+
+                spinMenu.visible = !spinMenu.visible
+            }
+
+            Menu {
+                id: spinMenu
+
+                y: parent.height
+
+                MenuSeparator {}
+
+                ButtonGroup {
+                    buttons: column.children
+                }
+
+                Column {
+                    id: columnSpin
+
+                    RowLayout {
+                        CheckBox {
+                            id: spinX
+                            checked: false
+                            text: qsTr("Spin X:")
+                            onClicked: {
+                                //mpv.gridToMapOn = 0
+                            }
+                        }
+                        SpinBox {
+                            id: spinXSpeed
+                            from: 0
+                            value: 1000
+                            to: 200 * 100
+                            stepSize: 10
+
+                            property int decimals: 2
+                            property real realValue: value / 100
+
+                            validator: DoubleValidator {
+                                bottom: Math.min(spinXSpeed.from, spinXSpeed.to)
+                                top:  Math.max(spinXSpeed.from, spinXSpeed.to)
+                            }
+
+                            textFromValue: function(value, locale) {
+                                return Number(value / 100).toLocaleString(locale, 'f', spinXSpeed.decimals)
+                            }
+
+                            valueFromText: function(text, locale) {
+                                return Number.fromLocaleString(locale, text) * 100
+                            }
+                        }
+                    }
+
+                    RowLayout {
+                        CheckBox {
+                            id: spinY
+                            checked: false
+                            text: qsTr("Spin Y:")
+                            onClicked: {
+                                //mpv.gridToMapOn = 0
+                            }
+                        }
+                        SpinBox {
+                            id: spinYSpeed
+                            from: 0
+                            value: 0
+                            to: 20000
+                            stepSize: 10
+
+                            property int decimals: 2
+                            property real realValue: value / 100
+
+                            validator: DoubleValidator {
+                                bottom: Math.min(spinYSpeed.from, spinYSpeed.to)
+                                top:  Math.max(spinYSpeed.from, spinYSpeed.to)
+                            }
+
+                            textFromValue: function(value, locale) {
+                                return Number(value / 100).toLocaleString(locale, 'f', spinYSpeed.decimals)
+                            }
+
+                            valueFromText: function(text, locale) {
+                                return Number.fromLocaleString(locale, text) * 100
+                            }
+                        }
+                    }
+
+                    RowLayout {
+                        CheckBox {
+                            id: spinZ
+                            checked: false
+                            text: qsTr("Spin Z:")
+                            onClicked: {
+                                //mpv.gridToMapOn = 0
+                            }
+                        }
+                        SpinBox {
+                            id: spinZSpeed
+                            from: -200
+                            to: 200
+                            stepSize: 1
+                            value: 0
+
+                            onValueChanged: {
+                            }
+                        }
+                    }
+
+                    Item {
+                        id: mpvRotateX
+                        property real number: 0
+                    }
+
+                    SpinBox {
+                        id: rotateXValue
+                        from: -20000
+                        to: 20000
+                        stepSize: 1
+                        value: 0
+                        visible: false
+
+                        onValueChanged: {
+                            mpv.rotateX = value / 100.0;
+                            spinZSpeed.value = value / 100.0;
+                        }
+                    }
+                    ParallelAnimation {
+                            id: spinAnimations
+                            NumberAnimation {
+                                id: spinAnimationX
+                                target: rotateXValue
+                                property: "value"
+                                from: 0;
+                                to: 36000;
+                                loops: Animation.Infinite;
+                                duration: 10000
+                            }
+
+                    }
+
+                    ToggleButton {
+                        id: startSpin
+                        text: qsTr("Start Spin")
+                        checked: false
+                        onClicked: {
+                            if(checked){
+                                startSpin.text = qsTr("Stop Spin")
+                                spinAnimationX.duration = Math.abs(spinAnimationX.to - spinAnimationX.from)*(10/Math.abs(spinXSpeed.realValue))
+
+                                if(spinXSpeed.realValue < 0)
+                                    spinAnimationX.to = -36000
+                                else
+                                    spinAnimationX.to = 36000
+
+                                spinAnimations.start()
+                            }
+                            else{
+                                startSpin.text = qsTr("Start Spin")
+                                spinAnimations.stop()
+                            }
+                        }
+                        Layout.fillWidth: true
+                    }
+
+                    Rectangle {
+                        id: rootRect
+                        width: 360
+                        height: 360
+                        Rectangle {
+                            id: tomatorect
+                            width: 20
+                            height: 80
+                            color: "tomato"
+                            anchors.centerIn: parent
+                            rotation: 0
+                            smooth: true
+                        }
+                        MouseArea {
+                            id: mouse_area1
+                            anchors.fill: parent
+                            property real truex: mouseX-root.width/2
+                            property real truey: root.height/2-mouseY
+                            property real angle: Math.atan2(truex, truey)
+                            property real strictangle: parseInt(angle * 180 / Math.PI)
+                            property real modulo: strictangle % 1 /* rotation "jump" 10 degrees */
+                            onPositionChanged: if (mouse_area1.angle < 0)
+                                tomatorect.rotation = strictangle - modulo + 360
+                            else
+                                tomatorect.rotation = strictangle - modulo + 1 /* prevent skipping 180 degrees */
+                        }
+                        TextInput {
+                            id: rotation
+                            text: tomatorect.rotation
+                            anchors {
+                                horizontalCenter: parent.horizontalCenter
+                                bottom: parent.bottom
+                                bottomMargin: 10
+                            }
+                        }
+                    }
+                }
+            }
         }
 
         ToolButton {
@@ -364,6 +578,10 @@ ToolBar {
             icon: actions.quitApplicationAction.icon
             focusPolicy: Qt.NoFocus
             onClicked: actions.quitApplicationAction.trigger()
+        }
+
+        Item {
+            Layout.fillWidth: true
         }
     }
 }

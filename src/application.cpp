@@ -23,6 +23,7 @@
 #include "subtitlesfoldersmodel.h"
 #include "thumbnailimageprovider.h"
 #include "tracksmodel.h"
+#include "trackballcameracontroller.h"
 #include "worker.h"
 #include <iostream>
 #include <sgct/sgct.h>
@@ -218,6 +219,7 @@ void Application::setupCommandLineParser()
 void Application::registerQmlTypes()
 {
     qmlRegisterType<MpvObject>("mpv", 1, 0, "MpvObject");
+    qmlRegisterType<TrackballCameraController>("TrackballCameraController", 1, 0, "TrackballCameraController");
     qRegisterMetaType<PlayListModel*>();
     qRegisterMetaType<PlayListItem*>();
     qRegisterMetaType<QAction*>();

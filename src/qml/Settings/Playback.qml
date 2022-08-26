@@ -23,6 +23,15 @@ SettingsBasePage {
 
         columns: 2
 
+        // ------------------------------------
+        // DECODING AND SYNC PARAMETERS
+        // --
+        SettingsHeader {
+            text: qsTr("Decoding and sync settings")
+            Layout.columnSpan: 2
+            Layout.fillWidth: true
+        }
+
         CheckBox {
             id: hwDecodingCheckBox
             text: qsTr("Use hardware decoding")
@@ -194,6 +203,15 @@ SettingsBasePage {
             }
         }
 
+        // ------------------------------------
+        // STARTUP PARAMETERS
+        // --
+        SettingsHeader {
+            text: qsTr("Startup settings")
+            Layout.columnSpan: 2
+            Layout.fillWidth: true
+        }
+
         Label {
             text: qsTr("Load on startup:")
         }
@@ -239,6 +257,15 @@ SettingsBasePage {
             ToolTip {
                 text: qsTr("Path to image or video file")
             }
+        }
+
+        // ------------------------------------
+        // CHAPTER PARAMETERS
+        // --
+        SettingsHeader {
+            text: qsTr("Chaper settings")
+            Layout.columnSpan: 2
+            Layout.fillWidth: true
         }
 
         CheckBox {
