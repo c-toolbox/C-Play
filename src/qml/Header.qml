@@ -525,43 +525,6 @@ ToolBar {
                         }
                         Layout.fillWidth: true
                     }
-
-                    Rectangle {
-                        id: rootRect
-                        width: 360
-                        height: 360
-                        Rectangle {
-                            id: tomatorect
-                            width: 20
-                            height: 80
-                            color: "tomato"
-                            anchors.centerIn: parent
-                            rotation: 0
-                            smooth: true
-                        }
-                        MouseArea {
-                            id: mouse_area1
-                            anchors.fill: parent
-                            property real truex: mouseX-root.width/2
-                            property real truey: root.height/2-mouseY
-                            property real angle: Math.atan2(truex, truey)
-                            property real strictangle: parseInt(angle * 180 / Math.PI)
-                            property real modulo: strictangle % 1 /* rotation "jump" 10 degrees */
-                            onPositionChanged: if (mouse_area1.angle < 0)
-                                tomatorect.rotation = strictangle - modulo + 360
-                            else
-                                tomatorect.rotation = strictangle - modulo + 1 /* prevent skipping 180 degrees */
-                        }
-                        TextInput {
-                            id: rotation
-                            text: tomatorect.rotation
-                            anchors {
-                                horizontalCenter: parent.horizontalCenter
-                                bottom: parent.bottom
-                                bottomMargin: 10
-                            }
-                        }
-                    }
                 }
             }
         }

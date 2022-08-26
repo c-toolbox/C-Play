@@ -22,7 +22,7 @@ Slider {
     value: mpv.volume
     implicitWidth: 100
     implicitHeight: 25
-    wheelEnabled: true
+    wheelEnabled: false
     stepSize: GeneralSettings.volumeStep
     leftPadding: 0
     rightPadding: 0

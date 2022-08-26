@@ -97,14 +97,14 @@ void TrackballCameraController::moveCamera(const Qt3DExtras::QAbstractCameraCont
         theCamera->rotateAboutViewCenter(QQuaternion::fromAxisAndAngle(rotatedAxis, angle * M_1_PI * 180));
     }else if(state.middleMouseButtonActive){
         auto offset = m_mouseCurrentPosition - m_mouseLastPosition;
-        qDebug()<<"offset:"<<offset;
+        //qDebug()<<"offset:"<<offset;
         theCamera->translate(QVector3D(-offset.x() / float(m_windowSize.width()) * ls,
                                       offset.y() / float(m_windowSize.height()) * ls,
                                       0));
 
 
     }else if(dt != 0){
-        qDebug()<<"dt:"<<dt;
+        //qDebug()<<"dt:"<<dt;
         theCamera->translate(QVector3D(state.txAxisValue * ls,
                                       state.tyAxisValue * ls,
                                       state.tzAxisValue * ls) * dt,
