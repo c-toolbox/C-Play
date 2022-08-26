@@ -100,10 +100,10 @@ public:
         int gridToMapOn;
         double radius;
         double fov;
-        int rotateX;
-        int rotateY;
-        int rotateZ;
-        int translateY;
+        double rotateX;
+        double rotateY;
+        double rotateZ;
+        double translateY;
     };
 
     SyncHelper();

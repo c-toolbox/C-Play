@@ -483,12 +483,12 @@ void MpvObject::setFov(double value)
     emit fovChanged();
 }
 
-int MpvObject::rotateX()
+double MpvObject::rotateX()
 {
     return m_rotateX;
 }
 
-void MpvObject::setRotateX(int value)
+void MpvObject::setRotateX(double value)
 {
     SyncHelper::instance().variables.rotateX = value;
     if (m_rotateX == value) {
@@ -498,12 +498,12 @@ void MpvObject::setRotateX(int value)
     emit rotateXChanged();
 }
 
-int MpvObject::rotateY()
+double MpvObject::rotateY()
 {
     return m_rotateY;
 }
 
-void MpvObject::setRotateY(int value)
+void MpvObject::setRotateY(double value)
 {
     SyncHelper::instance().variables.rotateY = value;
     if (m_rotateY == value) {
@@ -513,12 +513,12 @@ void MpvObject::setRotateY(int value)
     emit rotateYChanged();
 }
 
-int MpvObject::rotateZ()
+double MpvObject::rotateZ()
 {
     return m_rotateZ;
 }
 
-void MpvObject::setRotateZ(int value)
+void MpvObject::setRotateZ(double value)
 {
     SyncHelper::instance().variables.rotateZ = value;
     if (m_rotateZ == value) {
@@ -528,12 +528,12 @@ void MpvObject::setRotateZ(int value)
     emit rotateZChanged();
 }
 
-int MpvObject::translateY()
+double MpvObject::translateY()
 {
     return m_translateY;
 }
 
-void MpvObject::setTranslateY(int value)
+void MpvObject::setTranslateY(double value)
 {
     SyncHelper::instance().variables.translateY = value;
     if (m_translateY == value) {

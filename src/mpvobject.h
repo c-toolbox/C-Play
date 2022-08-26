@@ -237,17 +237,17 @@ class MpvObject : public QQuickFramebufferObject
     double fov();
     void setFov(double value);
 
-    int rotateX();
-    void setRotateX(int value);
+    double rotateX();
+    void setRotateX(double value);
 
-    int rotateY();
-    void setRotateY(int value);
+    double rotateY();
+    void setRotateY(double value);
 
-    int rotateZ();
-    void setRotateZ(int value);
+    double rotateZ();
+    void setRotateZ(double value);
 
-    int translateY();
-    void setTranslateY(int value);
+    double translateY();
+    void setTranslateY(double value);
 
     QVariant getAudioDeviceList();
     void updateAudioDeviceList();
@@ -333,10 +333,10 @@ private:
     double m_watchPercentage;
     double m_radius;
     double m_fov;
-    int m_rotateX;
-    int m_rotateY;
-    int m_rotateZ;
-    int m_translateY;
+    double m_rotateX;
+    double m_rotateY;
+    double m_rotateZ;
+    double m_translateY;
     double m_lastSetPosition;
     PlayListModel *m_playlistModel;
     QString m_file;

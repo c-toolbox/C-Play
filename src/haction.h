@@ -7,7 +7,7 @@
 #ifndef HACTION_H
 #define HACTION_H
 
-#include <QAction>
+#include <QtWidgets/qaction.h>
 
 class HAction : public QAction
 {

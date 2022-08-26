@@ -29,16 +29,16 @@
 	<entry name="DomeFov" type="double">
       <default>165</default>
     </entry>
-	<entry name="DomeRotateX" type="int">
+	<entry name="DomeRotateX" type="double">
       <default>27</default>
     </entry>
-	<entry name="DomeRotateY" type="int">
+	<entry name="DomeRotateY" type="double">
       <default>0</default>
     </entry>
-	<entry name="DomeRotateZ" type="int">
+	<entry name="DomeRotateZ" type="double">
       <default>0</default>
     </entry>
-    <entry name="DomeTranslateY" type="int">
+    <entry name="DomeTranslateY" type="double">
       <default>0</default>
     </entry>
   </group>

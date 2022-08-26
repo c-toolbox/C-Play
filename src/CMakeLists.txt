@@ -30,6 +30,7 @@ target_sources(${TARGET_NAME}
     subtitlesfoldersmodel.cpp
     thumbnailimageprovider.cpp
     track.cpp
+    trackballcameracontroller.cpp
     tracksmodel.cpp
     worker.cpp
     qml.qrc
@@ -63,6 +64,11 @@ target_link_libraries(${TARGET_NAME} PRIVATE
     Qt5::Qml
     Qt5::Quick
     Qt5::QuickControls2
+    Qt5::3DCore
+    Qt5::3DRender
+    Qt5::3DInput
+    Qt5::3DLogic
+    Qt5::3DExtras
 
     KF5::ConfigCore
     KF5::ConfigGui
