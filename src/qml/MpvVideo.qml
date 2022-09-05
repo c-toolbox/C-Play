@@ -35,6 +35,34 @@ MpvObject {
     anchors.top: parent.top
     volume: GeneralSettings.volume
 
+    onGridToMapOnChanged: {
+        if(mpv.gridToMapOn == 0 && scene3D.visible){
+            scene3D.visible = false
+            mpv.radius = VideoSettings.surfaceRadius
+            mpv.fov = VideoSettings.surfaceFov
+            mpv.rotateX = VideoSettings.surfaceRotateX
+            mpv.rotateY = VideoSettings.surfaceRotateY
+            mpv.rotateZ = VideoSettings.surfaceRotateZ
+            mpv.translateX = VideoSettings.surfaceTranslateX
+            mpv.translateY = VideoSettings.surfaceTranslateY
+            mpv.translateZ = VideoSettings.surfaceTranslateZ
+        }
+        else if(mpv.gridToMapOn == 1 && scene3D.visible){
+            scene3D.visible = false
+            mpv.radius = VideoSettings.surfaceRadius
+            mpv.fov = VideoSettings.surfaceFov
+            mpv.rotateX = VideoSettings.surfaceRotateX
+            mpv.rotateY = VideoSettings.surfaceRotateY
+            mpv.rotateZ = VideoSettings.surfaceRotateZ
+            mpv.translateX = VideoSettings.surfaceTranslateX
+            mpv.translateY = VideoSettings.surfaceTranslateY
+            mpv.translateZ = VideoSettings.surfaceTranslateZ
+        }
+        else if(mpv.gridToMapOn == 2){
+            scene3D.visible = true
+        }
+    }
+
     onSetSubtitle: {
         setProperty("sid", id)
     }
@@ -113,7 +141,7 @@ MpvObject {
         else{
             const loopMode = playlistModel.loopMode(playlistModel.getPlayingVideo())
             if(loopMode===1){ //Pause
-                setProperty("loop-file", "no")
+                setProperty("loop-file", "inf")
             }
             else if(loopMode===2){ //Loop
                 setProperty("loop-file", "inf")
@@ -178,14 +206,12 @@ MpvObject {
             }
         }
 
+        if (playList.playlistView.count <= 1) {
+            return;
+        }
+
         const loopMode = playlistModel.loopMode(playlistModel.getPlayingVideo())
-        if(loopMode===1){ //Pause
-            //Covered in onFileLoaded
-        }
-        else if(loopMode===2){ //Loop
-            //Covered in onFileLoaded
-        }
-        else { // Continue (0)
+        if(loopMode===0){ // Continue
             const nextFileRow = playlistModel.getPlayingVideo() + 1
             if (nextFileRow < playList.playlistView.count) {
                 playlistModel.setPlayingVideo(nextFileRow)
@@ -198,6 +224,16 @@ MpvObject {
                     loadItem(0)
                     playItem.start()
                 }
+            }
+        }
+        //Pause and Loop are covered in onFileLoaded
+    }
+
+    onRemainingChanged: {
+        if(mpv.remaining <= 0.15){
+            const loopMode = playlistModel.loopMode(playlistModel.getPlayingVideo())
+            if(loopMode===1){ // Pause
+                mpv.pause = true
             }
         }
     }
@@ -392,15 +428,33 @@ MpvObject {
         }
     }
 
-    Scene3D{
+    Scene3D {
         id: scene3D
         anchors.fill: parent
         focus: true
         aspects: ["input", "logic"]
         cameraAspectRatioMode: Scene3D.AutomaticAspectRatio
+        visible: (mpv.gridToMapOn == 2)
 
         TrackBall{
             id: trackBall
+        }
+    }
+
+    Shortcut {
+        sequence: StandardKey.NextChild
+        onActivated: view.currentIndex++
+    }
+
+    Timer {
+        id: trackBallRotateTimer
+        interval: 1000/60;
+        running: true;
+        repeat: true
+        onTriggered: {
+            /*mpv.rotateX += trackBallController.rotationXYZ.x;
+            mpv.rotateY -= trackBallController.rotationXYZ.y;
+            mpv.rotateZ -= trackBallController.rotationXYZ.z;*/
         }
     }
 

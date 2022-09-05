@@ -198,7 +198,7 @@ void PlayListModel::setPlayingVideo(int playingVideo)
 
 QString PlayListModel::mediaTitle(int i) const
 {
-    if (i > 0 && m_playList.size() > i && m_playList[i])
+    if (i >= 0 && m_playList.size() > i && m_playList[i])
         return m_playList[i].data()->mediaTitle();
     else
         return "";
@@ -206,7 +206,7 @@ QString PlayListModel::mediaTitle(int i) const
 
 QString PlayListModel::filePath(int i) const
 {
-    if (i > 0 && m_playList.size() > i && m_playList[i])
+    if (i >= 0 && m_playList.size() > i && m_playList[i])
         return m_playList[i].data()->filePath();
     else
         return "";
@@ -214,7 +214,7 @@ QString PlayListModel::filePath(int i) const
 
 QString PlayListModel::fileName(int i) const
 {
-    if (i > 0 && m_playList.size() > i && m_playList[i])
+    if (i >= 0 && m_playList.size() > i && m_playList[i])
         return m_playList[i].data()->fileName();
     else
         return "";
@@ -222,7 +222,7 @@ QString PlayListModel::fileName(int i) const
 
 QString PlayListModel::folderPath(int i) const
 {
-    if (i > 0 && m_playList.size() > i && m_playList[i])
+    if (i >= 0 && m_playList.size() > i && m_playList[i])
         return m_playList[i].data()->folderPath();
     else
         return "";
@@ -230,7 +230,7 @@ QString PlayListModel::folderPath(int i) const
 
 QString PlayListModel::duration(int i) const
 {
-    if (i > 0 && m_playList.size() > i && m_playList[i])
+    if (i >= 0 && m_playList.size() > i && m_playList[i])
         return m_playList[i].data()->duration();
     else
         return "";
@@ -238,7 +238,7 @@ QString PlayListModel::duration(int i) const
 
 QString PlayListModel::separateAudioFile(int i) const
 {
-    if (i > 0 && m_playList.size() > i && m_playList[i])
+    if (i >= 0 && m_playList.size() > i && m_playList[i])
         return m_playList[i].data()->separateAudioFile();
     else
         return "";
@@ -246,7 +246,7 @@ QString PlayListModel::separateAudioFile(int i) const
 
 double PlayListModel::startTime(int i) const
 {
-    if (i > 0 && m_playList.size() > i && m_playList[i])
+    if (i >= 0 && m_playList.size() > i && m_playList[i])
         return m_playList[i].data()->startTime();
     else
         return 0.0;
@@ -254,7 +254,7 @@ double PlayListModel::startTime(int i) const
 
 double PlayListModel::endTime(int i) const
 {
-    if (i > 0 && m_playList.size() > i && m_playList[i])
+    if (i >= 0 && m_playList.size() > i && m_playList[i])
         return m_playList[i].data()->endTime();
     else
         return 0.0;
@@ -262,15 +262,22 @@ double PlayListModel::endTime(int i) const
 
 int PlayListModel::loopMode(int i) const
 {
-    if (i > 0 && m_playList.size() > i && m_playList[i])
+    if (i >= 0 && m_playList.size() > i && m_playList[i])
         return m_playList[i].data()->loopMode();
     else
-        return 0;
+        return 1;
+}
+
+void PlayListModel::setLoopMode(int i, int loopMode) {
+    if (i >= 0 && m_playList.size() > i && m_playList[i])
+        m_playList[i]->setLoopMode(loopMode);
+
+    emit dataChanged(index(m_playingVideo, 0), index(m_playingVideo, 0));
 }
 
 int PlayListModel::transitionMode(int i) const
 {
-    if (i > 0 && m_playList.size() > i && m_playList[i])
+    if (i >= 0 && m_playList.size() > i && m_playList[i])
         return m_playList[i].data()->transitionMode();
     else
         return 0;
@@ -278,7 +285,7 @@ int PlayListModel::transitionMode(int i) const
 
 int PlayListModel::gridToMapOn(int i) const
 {
-    if (i > 0 && m_playList.size() > i && m_playList[i])
+    if (i >= 0 && m_playList.size() > i && m_playList[i])
         return m_playList[i].data()->gridToMapOn();
     else
         return 0;
@@ -286,7 +293,7 @@ int PlayListModel::gridToMapOn(int i) const
 
 int PlayListModel::stereoVideo(int i) const
 {
-    if (i > 0 && m_playList.size() > i && m_playList[i])
+    if (i >= 0 && m_playList.size() > i && m_playList[i])
         return m_playList[i].data()->stereoVideo();
     else
         return 0;

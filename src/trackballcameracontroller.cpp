@@ -11,6 +11,7 @@
 #include <Qt3DInput/QKeyboardHandler>
 #include <Qt3DCore/QTransform>
 #include <QtMath>
+#include <QTimer>
 
 TrackballCameraController::TrackballCameraController(Qt3DCore::QNode *parent)
     : Qt3DExtras::QAbstractCameraController (parent)
@@ -31,7 +32,22 @@ TrackballCameraController::TrackballCameraController(Qt3DCore::QNode *parent)
         m_mouseCurrentPosition = QPoint(positionChangedEvent->x(),
                                               positionChangedEvent->y());
     });
-    //keyboardDevice()->set
+
+    rotationTimer = new QTimer(this);
+    connect(rotationTimer, &QTimer::timeout, [this]()
+        {
+            emit rotationXYZChanged();
+        });
+    rotationTimer->start(1000 / 60);
+}
+
+void TrackballCameraController::toggleRotationTimer() {
+    if (rotationTimer->isActive()) {
+        rotationTimer->stop();
+    }
+    else {
+        rotationTimer->start(1000/60);
+    }
 }
 
 QVector3D TrackballCameraController::projectToTrackball(const QPoint &screenCoords) const
@@ -94,7 +110,12 @@ void TrackballCameraController::moveCamera(const Qt3DExtras::QAbstractCameraCont
         auto rotatedAxis = currentRotation.rotatedVector(dir);
         angle *= m_rotationSpeed;
 
-        theCamera->rotateAboutViewCenter(QQuaternion::fromAxisAndAngle(rotatedAxis, angle * M_1_PI * 180));
+        QQuaternion rotation = QQuaternion::fromAxisAndAngle(rotatedAxis, angle * M_1_PI * 180);
+
+        QVector3D rotationAngles = rotation.toEulerAngles();
+        setRotationXYZ(rotationAngles);
+
+        //theCamera->rotateAboutViewCenter(rotation);
     }else if(state.middleMouseButtonActive){
         auto offset = m_mouseCurrentPosition - m_mouseLastPosition;
         //qDebug()<<"offset:"<<offset;

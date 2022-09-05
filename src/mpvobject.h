@@ -153,11 +153,23 @@ class MpvObject : public QQuickFramebufferObject
                WRITE setRotateZ
                NOTIFY rotateZChanged)
 
+    Q_PROPERTY(double translateX
+               MEMBER m_translateX
+               READ translateX
+               WRITE setTranslateX
+               NOTIFY translateXChanged)
+
     Q_PROPERTY(double translateY
                MEMBER m_translateY
                READ translateY
                WRITE setTranslateY
                NOTIFY translateYChanged)
+
+    Q_PROPERTY(double translateZ
+               MEMBER m_translateZ
+               READ translateZ
+               WRITE setTranslateZ
+               NOTIFY translateZChanged)
 
     Q_PROPERTY(PlayListModel* playlistModel
                READ playlistModel
@@ -246,8 +258,14 @@ class MpvObject : public QQuickFramebufferObject
     double rotateZ();
     void setRotateZ(double value);
 
+    double translateX();
+    void setTranslateX(double value);
+
     double translateY();
     void setTranslateY(double value);
+
+    double translateZ();
+    void setTranslateZ(double value);
 
     QVariant getAudioDeviceList();
     void updateAudioDeviceList();
@@ -303,6 +321,7 @@ signals:
     void fileStarted();
     void fileLoaded();
     void endFile(QString reason);
+    void positionOnEnd();
     void watchPercentageChanged();
     void ready();
     void audioTracksModelChanged();
@@ -317,7 +336,9 @@ signals:
     void rotateXChanged();
     void rotateYChanged();
     void rotateZChanged();
+    void translateXChanged();
     void translateYChanged();
+    void translateZChanged();
     void playlistModelChanged();
     void audioDevicesChanged();
     void youtubePlaylistLoaded();
@@ -336,7 +357,9 @@ private:
     double m_rotateX;
     double m_rotateY;
     double m_rotateZ;
+    double m_translateX;
     double m_translateY;
+    double m_translateZ;
     double m_lastSetPosition;
     PlayListModel *m_playlistModel;
     QString m_file;
