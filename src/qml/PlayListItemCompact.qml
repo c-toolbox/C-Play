@@ -68,7 +68,7 @@ Kirigami.BasicListItem {
     function loopModeText(i) {
         const loopMode = mpv.playlistModel.loopMode(i)
         if(loopMode===1){ //Pause
-            return "Pause after end";
+            return "Pause at end";
         }
         else if(loopMode===2){ //Loop
             return "Loop video";

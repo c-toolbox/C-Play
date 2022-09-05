@@ -88,7 +88,7 @@ SettingsBasePage {
 
         RowLayout {
             SpinBox {
-                id: domeRadius
+                id: surfaceRadius
                 from: 0
                 to: 2000
                 stepSize: 1
@@ -110,7 +110,7 @@ SettingsBasePage {
 
         RowLayout {
             SpinBox {
-                id: domeRadiusScenario
+                id: surfaceRadiusScenario
                 from: 0
                 to: 2000
                 stepSize: 1
@@ -128,7 +128,7 @@ SettingsBasePage {
 
         RowLayout {
             SpinBox {
-                id: domeFov
+                id: surfaceFov
                 from: 0
                 to: 360
                 value: mpv.fov
@@ -149,7 +149,7 @@ SettingsBasePage {
 
         RowLayout {
             SpinBox {
-                id: domeFovScenario
+                id: surfaceFovScenario
                 from: 0
                 to: 360
                 value: mpv.fov
@@ -158,15 +158,53 @@ SettingsBasePage {
         }
 
         // ------------------------------------
-        // Dome translate Y
+        // Dome translate X
         // ------------------------------------
         Label {
-            text: qsTr("Translate up-down:")
+            text: qsTr("Translate X:")
         }
 
         RowLayout {
             SpinBox {
-                id: domeTranslate
+                id: surfaceTranslateX
+                from: -5000
+                to: 5000
+                value: mpv.translateX
+
+                onValueChanged: {
+                    mpv.translateX = value
+                }
+            }
+
+            LabelWithTooltip {
+                text: {
+                    qsTr("")
+                }
+                elide: Text.ElideRight
+                Layout.fillWidth: true
+            }
+        }
+
+        RowLayout {
+            SpinBox {
+                id: surfaceTranslateXScenario
+                from: -5000
+                to: 5000
+                value: 0
+            }
+            Layout.alignment: Qt.AlignRight
+        }
+
+        // ------------------------------------
+        // Dome translate Y
+        // ------------------------------------
+        Label {
+            text: qsTr("Translate Y:")
+        }
+
+        RowLayout {
+            SpinBox {
+                id: surfaceTranslateY
                 from: -5000
                 to: 5000
                 value: mpv.translateY
@@ -187,10 +225,48 @@ SettingsBasePage {
 
         RowLayout {
             SpinBox {
-                id: domeTranslateScenario
+                id: surfaceTranslateYScenario
                 from: -5000
                 to: 5000
-                value: 750
+                value: 800
+            }
+            Layout.alignment: Qt.AlignRight
+        }
+
+        // ------------------------------------
+        // Dome translate Z
+        // ------------------------------------
+        Label {
+            text: qsTr("Translate Z:")
+        }
+
+        RowLayout {
+            SpinBox {
+                id: surfaceTranslateZ
+                from: -5000
+                to: 5000
+                value: mpv.translateZ
+
+                onValueChanged: {
+                    mpv.translateZ = value
+                }
+            }
+
+            LabelWithTooltip {
+                text: {
+                    qsTr("")
+                }
+                elide: Text.ElideRight
+                Layout.fillWidth: true
+            }
+        }
+
+        RowLayout {
+            SpinBox {
+                id: surfaceTranslateZScenario
+                from: -5000
+                to: 5000
+                value: -800
             }
             Layout.alignment: Qt.AlignRight
         }
@@ -261,13 +337,15 @@ SettingsBasePage {
                 }
                 elide: Text.ElideLeft
                 Layout.fillWidth: true
+                Layout.columnSpan: 2
+
             }
-            SpinBox {
+            /*SpinBox {
                 id: rotateXSpinBoxScenario
                 from: -180
                 to: 180
                 value: -90
-            }
+            }*/
             Layout.alignment: Qt.AlignRight
         }
 
@@ -282,45 +360,70 @@ SettingsBasePage {
         RowLayout {
             Slider {
                 id: rotateYSlider
-
-                value: mpv.rotateY
-                from: -180
-                to: 180
+                value: mpv.rotateY * 100
+                from: -18000
+                to: 18000
                 onValueChanged:
-                    if(mpv.rotateY !== value.toFixed(0)){
-                        mpv.rotateY = value.toFixed(0)
+                    if(rotateYSpinBox.value !== value.toFixed(0)){
                         rotateYSpinBox.value = value.toFixed(0)
                     }
                 Layout.topMargin: Kirigami.Units.largeSpacing
             }
             SpinBox {
                 id: rotateYSpinBox
-                from: -180
-                to: 180
-                value: mpv.rotateY
+                from: -18000
+                value: mpv.rotateY * 100
+                to: 18000
+                stepSize: 10
+
+                property int decimals: 2
+                property real realValue: value / 100
+
+                validator: DoubleValidator {
+                    bottom: Math.min(rotateYSpinBox.from, rotateYSpinBox.to)
+                    top:  Math.max(rotateYSpinBox.from, rotateYSpinBox.to)
+                }
+
+                textFromValue: function(value, locale) {
+                    return Number(value / 100).toLocaleString(locale, 'f', rotateYSpinBox.decimals)
+                }
+
+                valueFromText: function(text, locale) {
+                    return Number.fromLocaleString(locale, text) * 100
+                }
 
                 onValueChanged: {
-                    if(mpv.rotateY !== value){
-                        mpv.rotateY = value
+                    if(mpv.rotateY !== realValue){
+                        mpv.rotateY = realValue
                         rotateYSlider.value = value
                     }
                 }
-            }
-            LabelWithTooltip {
-                text: {
-                    qsTr(" degrees")
+
+                Connections {
+                    target: mpv
+                    onRotateYChanged: {
+                        if(rotateYSpinBox.realValue !== mpv.rotateY)
+                            rotateYSpinBox.value = mpv.rotateY * 100
+                    }
                 }
-                elide: Text.ElideRight
-                Layout.fillWidth: true
             }
         }
         RowLayout {
-            SpinBox {
+            LabelWithTooltip {
+                text: {
+                    qsTr("degrees")
+                }
+                elide: Text.ElideLeft
+                Layout.fillWidth: true
+                Layout.columnSpan: 2
+
+            }
+            /*SpinBox {
                 id: rotateYSpinBoxScenario
                 from: -180
                 to: 180
-                value: 90
-            }
+                value: -90
+            }*/
             Layout.alignment: Qt.AlignRight
         }
 
@@ -335,58 +438,89 @@ SettingsBasePage {
         RowLayout {
             Slider {
                 id: rotateZSlider
-
-                value: mpv.rotateZ
-                from: -180
-                to: 180
+                value: mpv.rotateZ * 100
+                from: -18000
+                to: 18000
                 onValueChanged:
-                    if(mpv.rotateZ !== value.toFixed(0)){
-                        mpv.rotateZ = value.toFixed(0)
+                    if(rotateZSpinBox.value !== value.toFixed(0)){
                         rotateZSpinBox.value = value.toFixed(0)
                     }
                 Layout.topMargin: Kirigami.Units.largeSpacing
             }
             SpinBox {
                 id: rotateZSpinBox
-                from: -180
-                to: 180
-                value: mpv.rotateZ
+                from: -18000
+                value: mpv.rotateZ * 100
+                to: 18000
+                stepSize: 10
+
+                property int decimals: 2
+                property real realValue: value / 100
+
+                validator: DoubleValidator {
+                    bottom: Math.min(rotateZSpinBox.from, rotateZSpinBox.to)
+                    top:  Math.max(rotateZSpinBox.from, rotateZSpinBox.to)
+                }
+
+                textFromValue: function(value, locale) {
+                    return Number(value / 100).toLocaleString(locale, 'f', rotateZSpinBox.decimals)
+                }
+
+                valueFromText: function(text, locale) {
+                    return Number.fromLocaleString(locale, text) * 100
+                }
 
                 onValueChanged: {
-                    if(mpv.rotateZ !== value){
-                        mpv.rotateZ = value
+                    if(mpv.rotateZ !== realValue){
+                        mpv.rotateZ = realValue
                         rotateZSlider.value = value
                     }
                 }
-            }
-            LabelWithTooltip {
-                text: {
-                    qsTr(" degrees")
+
+                Connections {
+                    target: mpv
+                    onRotateZChanged: {
+                        if(rotateZSpinBox.realValue !== mpv.rotateZ)
+                            rotateZSpinBox.value = mpv.rotateZ * 100
+                    }
                 }
-                elide: Text.ElideRight
-                Layout.fillWidth: true
             }
         }
         RowLayout {
-            SpinBox {
+            LabelWithTooltip {
+                text: {
+                    qsTr("degrees")
+                }
+                elide: Text.ElideLeft
+                Layout.fillWidth: true
+                Layout.columnSpan: 2
+
+            }
+            /*SpinBox {
                 id: rotateZSpinBoxScenario
                 from: -180
                 to: 180
-                value: 0
-            }
+                value: -90
+            }*/
             Layout.alignment: Qt.AlignRight
         }
+
+        // ------------------------------------
+        // Reset
+        // ------------------------------------
 
         RowLayout {
             Button {
                     text: "Reset radius/fov/rotation settings to startup values"
                     onClicked: {
-                        mpv.radius = VideoSettings.domeRadius
-                        mpv.fov = VideoSettings.domeFov
-                        mpv.rotateX = VideoSettings.domeRotateX
-                        mpv.rotateY = VideoSettings.domeRotateY
-                        mpv.rotateZ = VideoSettings.domeRotateZ
-                        mpv.translateY = VideoSettings.domeTranslateY
+                        mpv.radius = VideoSettings.surfaceRadius
+                        mpv.fov = VideoSettings.surfaceFov
+                        mpv.rotateX = VideoSettings.surfaceRotateX
+                        mpv.rotateY = VideoSettings.surfaceRotateY
+                        mpv.rotateZ = VideoSettings.surfaceRotateZ
+                        mpv.translateX = VideoSettings.surfaceTranslateX
+                        mpv.translateY = VideoSettings.surfaceTranslateY
+                        mpv.translateZ = VideoSettings.surfaceTranslateZ
                     }
             }
             Layout.columnSpan: 2
@@ -420,12 +554,14 @@ SettingsBasePage {
             Button {
                     text: "Save current radius/fov/rotation settings to load on startup"
                     onClicked: {
-                        VideoSettings.domeRadius = mpv.radius
-                        VideoSettings.domeFov = mpv.fov
-                        VideoSettings.domeRotateX = mpv.rotateX
-                        VideoSettings.domeRotateY = mpv.rotateY
-                        VideoSettings.domeRotateZ = mpv.rotateZ
-                        VideoSettings.domeTranslateY = mpv.translateY
+                        VideoSettings.surfaceRadius = mpv.radius
+                        VideoSettings.surfaceFov = mpv.fov
+                        VideoSettings.surfaceRotateX = mpv.rotateX
+                        VideoSettings.surfaceRotateY = mpv.rotateY
+                        VideoSettings.surfaceRotateZ = mpv.rotateZ
+                        VideoSettings.surfaceTranslateX = mpv.translateX
+                        VideoSettings.surfaceTranslateY = mpv.translateY
+                        VideoSettings.surfaceTranslateZ = mpv.translateZ
                         VideoSettings.save()
                     }
             }
@@ -441,29 +577,45 @@ SettingsBasePage {
                             id: gridAnimations
                             NumberAnimation
                             {
-                                id: domeRadiusAnimation
-                                target: domeRadius
+                                id: surfaceRadiusAnimation
+                                target: surfaceRadius
                                 property: "value"
                                 to: 50;
                                 duration: 1000
                             }
                             NumberAnimation
                             {
-                                id: domeFovAnimation
-                                target: domeFov
+                                id: surfaceFovAnimation
+                                target: surfaceFov
                                 property: "value"
                                 to: 50;
                                 duration: 1000
                             }
                             NumberAnimation
                             {
-                                id: domeTranslateAnimation
-                                target: domeTranslate
+                                id: surfaceTranslateXAnimation
+                                target: surfaceTranslateX
                                 property: "value"
                                 to: 50;
                                 duration: 1000
                             }
                             NumberAnimation
+                            {
+                                id: surfaceTranslateYAnimation
+                                target: surfaceTranslateY
+                                property: "value"
+                                to: 50;
+                                duration: 1000
+                            }
+                            NumberAnimation
+                            {
+                                id: surfaceTranslateZAnimation
+                                target: surfaceTranslateZ
+                                property: "value"
+                                to: 50;
+                                duration: 1000
+                            }
+                            /*NumberAnimation
                             {
                                 id: rotateXAnimation
                                 target: rotateXSpinBox
@@ -486,23 +638,31 @@ SettingsBasePage {
                                 property: "value"
                                 to: 50;
                                 duration: 1000
-                            }
+                            }*/
                     }
 
                     onClicked: {
-                        domeRadiusAnimation.to = domeRadiusScenario.value
-                        domeRadiusAnimation.duration = transitionTime.value * 1000
-                        domeRadiusScenario.value = domeRadius.value
+                        surfaceRadiusAnimation.to = surfaceRadiusScenario.value
+                        surfaceRadiusAnimation.duration = transitionTime.value * 1000
+                        surfaceRadiusScenario.value = surfaceRadius.value
 
-                        domeFovAnimation.to = domeFovScenario.value
-                        domeFovAnimation.duration = transitionTime.value * 1000
-                        domeFovScenario.value = domeFov.value
+                        surfaceFovAnimation.to = surfaceFovScenario.value
+                        surfaceFovAnimation.duration = transitionTime.value * 1000
+                        surfaceFovScenario.value = surfaceFov.value
 
-                        domeTranslateAnimation.to = domeTranslateScenario.value
-                        domeTranslateAnimation.duration = transitionTime.value * 1000
-                        domeTranslateScenario.value = domeTranslate.value
+                        surfaceTranslateXAnimation.to = surfaceTranslateXScenario.value
+                        surfaceTranslateXAnimation.duration = transitionTime.value * 1000
+                        surfaceTranslateXScenario.value = surfaceTranslateX.value
 
-                        rotateXAnimation.to = rotateXSpinBoxScenario.value
+                        surfaceTranslateYAnimation.to = surfaceTranslateYScenario.value
+                        surfaceTranslateYAnimation.duration = transitionTime.value * 1000
+                        surfaceTranslateYScenario.value = surfaceTranslateY.value
+
+                        surfaceTranslateZAnimation.to = surfaceTranslateZScenario.value
+                        surfaceTranslateZAnimation.duration = transitionTime.value * 1000
+                        surfaceTranslateZScenario.value = surfaceTranslateZ.value
+
+                        /*rotateXAnimation.to = rotateXSpinBoxScenario.value
                         rotateXAnimation.duration = transitionTime.value * 1000
                         rotateXSpinBoxScenario.value = rotateXSpinBox.value
 
@@ -512,7 +672,7 @@ SettingsBasePage {
 
                         rotateZAnimation.to = rotateZSpinBoxScenario.value
                         rotateZAnimation.duration = transitionTime.value * 1000
-                        rotateZSpinBoxScenario.value = rotateZSpinBox.value
+                        rotateZSpinBoxScenario.value = rotateZSpinBox.value*/
 
                         gridAnimations.start()
                     }

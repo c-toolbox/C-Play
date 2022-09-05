@@ -175,8 +175,6 @@ ToolBar {
         ToolButton {
             id: gridMenuButton
 
-            property var model: 0
-
             text: {
                 if(mpv.gridToMapOn == 0)
                     gridMenuButton.text = qsTr("Grid (Pre-split)")
@@ -189,10 +187,6 @@ ToolBar {
             focusPolicy: Qt.NoFocus
 
             onClicked: {
-                if (gridMenuButton.model === 0) {
-                    gridMenuButton.model = mpv.subtitleTracksModel
-                }
-
                 gridMenu.visible = !gridMenu.visible
             }
 
@@ -216,7 +210,7 @@ ToolBar {
                 MenuSeparator {}
 
                 ButtonGroup {
-                    buttons: column.children
+                    buttons: columnGrid.children
                 }
 
                 Column {
@@ -301,6 +295,117 @@ ToolBar {
             }
         }
 
+        ToolButton {
+            id: eofMenuButton
+
+            text: {
+                const loopMode = mpv.playlistModel.loopMode(mpv.playlistModel.getPlayingVideo())
+                if(loopMode===0){ //Continue
+                    eofMenuButton.text = qsTr("EOF: Next ")
+                }
+                else if(loopMode===2){ //Loop
+                    eofMenuButton.text = qsTr("EOF: Loop ")
+                }
+                else { // Pause (1)
+                    eofMenuButton.text = qsTr("EOF: Pause")
+                }
+            }
+            icon.name: "media-playback-pause"
+            focusPolicy: Qt.NoFocus
+
+            onClicked: {
+                eofMenu.visible = !eofMenu.visible
+            }
+
+            Connections {
+                target: mpv
+                onFileLoaded: {
+                    const loopMode = mpv.playlistModel.loopMode(mpv.playlistModel.getPlayingVideo())
+                    if(loopMode===0){ //Continue
+                        mpv.setProperty("loop-file", "no")
+                        eofMenuButton.text = qsTr("EOF: Next ")
+                        eofMenuButton.icon.name = "go-next"
+                    }
+                    else if(loopMode===2){ //Loop
+                        mpv.setProperty("loop-file", "inf")
+                        eofMenuButton.text = qsTr("EOF: Loop ")
+                        eofMenuButton.icon.name = "media-playlist-repeat"
+                    }
+                    else { // Pause (1)
+                        mpv.setProperty("loop-file", "inf")
+                        eofMenuButton.text = qsTr("EOF: Pause")
+                        eofMenuButton.icon.name = "media-playback-pause"
+                    }
+                }
+            }
+
+            Menu {
+                id: eofMenu
+
+                y: parent.height
+
+                MenuSeparator {}
+
+                ButtonGroup {
+                    buttons: columnEOF.children
+                }
+
+                Column {
+                    id: columnEOF
+
+                    RadioButton {
+                        id: eof_pause
+                        checked: true
+                        text: qsTr("EOF: Pause")
+                        onClicked: {
+                            mpv.playlistModel.setLoopMode(mpv.playlistModel.getPlayingVideo(), 1)
+                            mpv.setProperty("loop-file", "inf")
+                            eofMenuButton.text = qsTr("EOF: Pause")
+                            eofMenuButton.icon.name = "media-playback-pause"
+
+                        }
+                        Connections {
+                            target: mpv
+                            onFileLoaded: eof_pause.checked = (mpv.playlistModel.loopMode(mpv.playlistModel.getPlayingVideo()) === 1)
+                        }
+                    }
+
+                    RadioButton {
+                        id: eof_loop
+                        checked: false
+                        text: qsTr("EOF: Loop ")
+                        onClicked: {
+                            mpv.playlistModel.setLoopMode(mpv.playlistModel.getPlayingVideo(), 2)
+                            mpv.setProperty("loop-file", "inf")
+                            eofMenuButton.text = qsTr("EOF: Loop")
+                            eofMenuButton.icon.name = "media-playlist-repeat"
+                        }
+                        Connections {
+                            target: mpv
+                            onFileLoaded: eof_loop.checked = (mpv.playlistModel.loopMode(mpv.playlistModel.getPlayingVideo()) === 2)
+                        }
+                    }
+
+                    RadioButton {
+                        id: eof_next
+                        checked: false
+                        text: qsTr("EOF: Next ")
+                        enabled: (playList.playlistView.count > 1)
+                        onClicked: {
+                           mpv.playlistModel.setLoopMode(mpv.playlistModel.getPlayingVideo(), 0)
+                           mpv.setProperty("loop-file", "no")
+                           eofMenuButton.text = qsTr("EOF: Next")
+                           eofMenuButton.icon.name = "go-next"
+                        }
+                        Connections {
+                            target: mpv
+                            onFileLoaded: eof_next.checked = (mpv.playlistModel.loopMode(mpv.playlistModel.getPlayingVideo()) === 0)
+                        }
+                    }
+                }
+            }
+        }
+
         Label {
             text: qsTr("Visibility")
             Layout.alignment: Qt.AlignRight
@@ -352,18 +457,12 @@ ToolBar {
         ToolButton {
             id: spinMenuButton
 
-            property var model: 0
-
             text: {
                 qsTr("Constant Spin")
             }
             focusPolicy: Qt.NoFocus
 
             onClicked: {
-                if (spinMenuButton.model === 0) {
-                    spinMenuButton.model = mpv.subtitleTracksModel
-                }
-
                 spinMenu.visible = !spinMenu.visible
             }
 
@@ -375,7 +474,7 @@ ToolBar {
                 MenuSeparator {}
 
                 ButtonGroup {
-                    buttons: column.children
+                    buttons: columnSpin.children
                 }
 
                 Column {
@@ -387,15 +486,24 @@ ToolBar {
                             checked: false
                             text: qsTr("Spin X:")
                             onClicked: {
-                                //mpv.gridToMapOn = 0
+                                if(startSpin.checked){
+                                    if(spinX.checked){
+                                        if(!spinTimerX.running)
+                                            spinTimerX.start()
+                                    }
+                                    else{
+                                        if(spinTimerX.running)
+                                            spinTimerX.stop()
+                                    }
+                                }
                             }
                         }
                         SpinBox {
                             id: spinXSpeed
-                            from: 0
-                            value: 1000
+                            from: -1000
+                            value: 10
                             to: 200 * 100
-                            stepSize: 10
+                            stepSize: 1
 
                             property int decimals: 2
                             property real realValue: value / 100
@@ -421,15 +529,24 @@ ToolBar {
                             checked: false
                             text: qsTr("Spin Y:")
                             onClicked: {
-                                //mpv.gridToMapOn = 0
+                                if(startSpin.checked){
+                                    if(spinY.checked){
+                                        if(!spinTimerY.running)
+                                            spinTimerY.start()
+                                    }
+                                    else{
+                                        if(spinTimerY.running)
+                                            spinTimerY.stop()
+                                    }
+                                }
                             }
                         }
                         SpinBox {
                             id: spinYSpeed
-                            from: 0
-                            value: 0
-                            to: 20000
-                            stepSize: 10
+                            from: -1000
+                            value: 10
+                            to: 200 * 100
+                            stepSize: 1
 
                             property int decimals: 2
                             property real realValue: value / 100
@@ -455,24 +572,41 @@ ToolBar {
                             checked: false
                             text: qsTr("Spin Z:")
                             onClicked: {
-                                //mpv.gridToMapOn = 0
+                                if(startSpin.checked){
+                                    if(spinZ.checked){
+                                        if(!spinTimerZ.running)
+                                            spinTimerZ.start()
+                                    }
+                                    else{
+                                        if(spinTimerZ.running)
+                                            spinTimerZ.stop()
+                                    }
+                                }
                             }
                         }
                         SpinBox {
                             id: spinZSpeed
-                            from: -200
-                            to: 200
+                            from: -1000
+                            value: 10
+                            to: 200 * 100
                             stepSize: 1
-                            value: 0
 
-                            onValueChanged: {
+                            property int decimals: 2
+                            property real realValue: value / 100
+
+                            validator: DoubleValidator {
+                                bottom: Math.min(spinZSpeed.from, spinZSpeed.to)
+                                top:  Math.max(spinZSpeed.from, spinZSpeed.to)
+                            }
+
+                            textFromValue: function(value, locale) {
+                                return Number(value / 100).toLocaleString(locale, 'f', spinZSpeed.decimals)
+                            }
+
+                            valueFromText: function(text, locale) {
+                                return Number.fromLocaleString(locale, text) * 100
                             }
                         }
-                    }
-
-                    Item {
-                        id: mpvRotateX
-                        property real number: 0
                     }
 
                     SpinBox {
@@ -485,21 +619,55 @@ ToolBar {
 
                         onValueChanged: {
                             mpv.rotateX = value / 100.0;
-                            spinZSpeed.value = value / 100.0;
                         }
                     }
-                    ParallelAnimation {
-                            id: spinAnimations
-                            NumberAnimation {
-                                id: spinAnimationX
-                                target: rotateXValue
-                                property: "value"
-                                from: 0;
-                                to: 36000;
-                                loops: Animation.Infinite;
-                                duration: 10000
-                            }
+                    SpinBox {
+                        id: rotateYValue
+                        from: -20000
+                        to: 20000
+                        stepSize: 1
+                        value: 0
+                        visible: false
 
+                        onValueChanged: {
+                            mpv.rotateY = value / 100.0;
+                        }
+                    }
+                    SpinBox {
+                        id: rotateZValue
+                        from: -20000
+                        to: 20000
+                        stepSize: 1
+                        value: 0
+                        visible: false
+
+                        onValueChanged: {
+                            mpv.rotateZ = value / 100.0;
+                        }
+                    }
+
+                    Timer {
+                        id: spinTimerX
+                        interval: 1000/60;
+                        running: false;
+                        repeat: true
+                        onTriggered: mpv.rotateX += spinXSpeed.realValue;
+                    }
+
+                    Timer {
+                        id: spinTimerY
+                        interval: 1000/60;
+                        running: false;
+                        repeat: true
+                        onTriggered: mpv.rotateY += spinYSpeed.realValue;
+                    }
+
+                    Timer {
+                        id: spinTimerZ
+                        interval: 1000/60;
+                        running: false;
+                        repeat: true
+                        onTriggered: mpv.rotateZ += spinZSpeed.realValue;
                     }
 
                     ToggleButton {
@@ -509,18 +677,21 @@ ToolBar {
                         onClicked: {
                             if(checked){
                                 startSpin.text = qsTr("Stop Spin")
-                                spinAnimationX.duration = Math.abs(spinAnimationX.to - spinAnimationX.from)*(10/Math.abs(spinXSpeed.realValue))
 
-                                if(spinXSpeed.realValue < 0)
-                                    spinAnimationX.to = -36000
-                                else
-                                    spinAnimationX.to = 36000
+                                if(spinX.checked)
+                                    spinTimerX.start()
 
-                                spinAnimations.start()
+                                if(spinY.checked)
+                                    spinTimerY.start()
+
+                                if(spinZ.checked)
+                                    spinTimerZ.start()
                             }
                             else{
                                 startSpin.text = qsTr("Start Spin")
-                                spinAnimations.stop()
+                                spinTimerX.stop()
+                                spinTimerY.stop()
+                                spinTimerZ.stop()
                             }
                         }
                         Layout.fillWidth: true

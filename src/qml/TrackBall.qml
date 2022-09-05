@@ -5,7 +5,13 @@ import Qt3D.Extras 2.15
 
 import QtQuick 2.0 as QQ2
 import TrackballCameraController 1.0
-import QtQuick.Window 2.11
+import QtQuick 2.12
+import QtQuick.Window 2.12
+import QtQuick.Controls 2.12
+import QtQuick.Layouts 1.12
+
+import com.georgefb.haruna 1.0
+import Haruna.Components 1.0
 
 Entity{
     id: root
@@ -25,9 +31,21 @@ Entity{
     }
 
     TrackballCameraController{
+        id: trackBallController
         camera: camera
         windowSize: Qt.size(window.width, window.height)
         rotationSpeed: 0.1
+
+        onRotationXYZChanged: {
+            mpv.rotateX += rotationXYZ.x;
+            mpv.rotateY -= rotationXYZ.y;
+            mpv.rotateZ -= rotationXYZ.z;
+        }
+
+        Shortcut {
+            sequence: "Ctrl+E"
+            onActivated: toggleRotationTimer();
+        }
     }
 
     components: [
@@ -89,7 +107,8 @@ Entity{
     Transform {
         id: sphereTransform
         //scale3D: Qt.vector3d(1.5, 1, 0.5)
-        rotation: fromAxisAndAngle(Qt.vector3d(0, 0, 1), 180)
+        //rotation: fromEulerAngles(mpv.rotateX, mpv.rotateY, mpv.rotateZ)
+        rotation: fromEulerAngles(mpv.rotateX, mpv.rotateY-180, mpv.rotateZ+180)
     }
 
     Entity {

@@ -103,7 +103,9 @@ public:
         double rotateX;
         double rotateY;
         double rotateZ;
+        double translateX;
         double translateY;
+        double translateZ;
     };
 
     SyncHelper();

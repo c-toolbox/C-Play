@@ -56,6 +56,7 @@ public:
     Q_INVOKABLE double startTime(int i) const;
     Q_INVOKABLE double endTime(int i) const;
     Q_INVOKABLE int loopMode(int i) const;
+    Q_INVOKABLE void setLoopMode(int i, int loopMode);
     Q_INVOKABLE int transitionMode(int i) const;
     Q_INVOKABLE int gridToMapOn(int i) const;
     Q_INVOKABLE int stereoVideo(int i) const;

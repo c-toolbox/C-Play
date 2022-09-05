@@ -35,7 +35,7 @@ public:
     QString m_separateAudioFile{ "" };
     double m_startTime{ 0.0 };
     double m_endTime{ 0.0 };
-    int m_loopMode{ 0 };
+    int m_loopMode{ 1 };
     int m_transitionMode{ 0 };
     int m_gridToMapOn{ -1 };
     int m_stereoVideo{ -1 };

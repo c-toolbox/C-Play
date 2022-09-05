@@ -112,19 +112,23 @@ MpvObject::MpvObject(QQuickItem * parent)
     QString hwdec = PlaybackSettings::useHWDecoding() ? PlaybackSettings::hWDecoding() : "no";
     setProperty("hwdec", hwdec);
 
-    m_radius = VideoSettings::domeRadius();
-    m_fov = VideoSettings::domeFov();
-    m_rotateX = VideoSettings::domeRotateX();
-    m_rotateY = VideoSettings::domeRotateY();
-    m_rotateZ = VideoSettings::domeRotateZ();
-    m_translateY = VideoSettings::domeTranslateY();
+    m_radius = VideoSettings::surfaceRadius();
+    m_fov = VideoSettings::surfaceFov();
+    m_rotateX = VideoSettings::surfaceRotateX();
+    m_rotateY = VideoSettings::surfaceRotateY();
+    m_rotateZ = VideoSettings::surfaceRotateZ();
+    m_translateX = VideoSettings::surfaceTranslateX();
+    m_translateY = VideoSettings::surfaceTranslateY();
+    m_translateZ = VideoSettings::surfaceTranslateZ();
 
     SyncHelper::instance().variables.radius = m_radius;
     SyncHelper::instance().variables.fov = m_fov;
     SyncHelper::instance().variables.rotateX = m_rotateX;
     SyncHelper::instance().variables.rotateY = m_rotateY;
     SyncHelper::instance().variables.rotateZ = m_rotateZ;
+    SyncHelper::instance().variables.translateX = m_translateX;
     SyncHelper::instance().variables.translateY = m_translateY;
+    SyncHelper::instance().variables.translateZ = m_translateX;
 
     QString loadAudioInVidFolder = AudioSettings::loadAudioFileInVideoFolder() ? "all" : "no";
     setProperty("audio-file-auto", loadAudioInVidFolder);
@@ -490,10 +494,10 @@ double MpvObject::rotateX()
 
 void MpvObject::setRotateX(double value)
 {
-    SyncHelper::instance().variables.rotateX = value;
-    if (m_rotateX == value) {
+    if (qFuzzyCompare(m_rotateX, value)) {
         return;
     }
+    SyncHelper::instance().variables.rotateX = value;
     m_rotateX = value;
     emit rotateXChanged();
 }
@@ -505,10 +509,10 @@ double MpvObject::rotateY()
 
 void MpvObject::setRotateY(double value)
 {
-    SyncHelper::instance().variables.rotateY = value;
-    if (m_rotateY == value) {
+    if (qFuzzyCompare(m_rotateY,value)) {
         return;
     }
+    SyncHelper::instance().variables.rotateY = value;
     m_rotateY = value;
     emit rotateYChanged();
 }
@@ -520,12 +524,27 @@ double MpvObject::rotateZ()
 
 void MpvObject::setRotateZ(double value)
 {
-    SyncHelper::instance().variables.rotateZ = value;
-    if (m_rotateZ == value) {
+    if (qFuzzyCompare(m_rotateZ, value)) {
         return;
     }
+    SyncHelper::instance().variables.rotateZ = value;
     m_rotateZ = value;
     emit rotateZChanged();
+}
+
+double MpvObject::translateX()
+{
+    return m_translateX;
+}
+
+void MpvObject::setTranslateX(double value)
+{
+    if (qFuzzyCompare(m_translateX, value)) {
+        return;
+    }
+    SyncHelper::instance().variables.translateX = value;
+    m_translateX = value;
+    emit translateXChanged();
 }
 
 double MpvObject::translateY()
@@ -535,12 +554,27 @@ double MpvObject::translateY()
 
 void MpvObject::setTranslateY(double value)
 {
-    SyncHelper::instance().variables.translateY = value;
-    if (m_translateY == value) {
+    if (qFuzzyCompare(m_translateY, value)) {
         return;
     }
+    SyncHelper::instance().variables.translateY = value;
     m_translateY = value;
     emit translateYChanged();
+}
+
+double MpvObject::translateZ()
+{
+    return m_translateZ;
+}
+
+void MpvObject::setTranslateZ(double value)
+{
+    if (qFuzzyCompare(m_translateZ, value)) {
+        return;
+    }
+    SyncHelper::instance().variables.translateZ = value;
+    m_translateZ = value;
+    emit translateZChanged();
 }
 
 QVariant MpvObject::getAudioDeviceList()
@@ -1079,6 +1113,9 @@ void MpvObject::eventHandler()
                     loadTracks();
                 }
             }
+
+
+            void positionOnEnd();
             break;
         }
         default: ;

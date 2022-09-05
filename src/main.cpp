@@ -378,7 +378,9 @@ std::vector<std::byte> encode() {
     serializeObject(data, SyncHelper::instance().variables.rotateX);
     serializeObject(data, SyncHelper::instance().variables.rotateY);
     serializeObject(data, SyncHelper::instance().variables.rotateZ);
+    serializeObject(data, SyncHelper::instance().variables.translateX);
     serializeObject(data, SyncHelper::instance().variables.translateY);
+    serializeObject(data, SyncHelper::instance().variables.translateZ);
     return data;
 }
 
@@ -397,7 +399,9 @@ void decode(const std::vector<std::byte>& data, unsigned int pos) {
         deserializeObject(data, pos, SyncHelper::instance().variables.rotateX);
         deserializeObject(data, pos, SyncHelper::instance().variables.rotateY);
         deserializeObject(data, pos, SyncHelper::instance().variables.rotateZ);
+        deserializeObject(data, pos, SyncHelper::instance().variables.translateX);
         deserializeObject(data, pos, SyncHelper::instance().variables.translateY);
+        deserializeObject(data, pos, SyncHelper::instance().variables.translateZ);
     }
 }
 
@@ -500,7 +504,7 @@ void draw(const RenderData& data) {
         meshPrg->bind();
 
         const mat4& mvp = data.modelViewProjectionMatrix;
-        glm::mat4 MVP_transformed = glm::translate(glm::make_mat4(mvp.values), glm::vec3(0.0f, float(SyncHelper::instance().variables.translateY) / 100.f, 0.0f));
+        glm::mat4 MVP_transformed = glm::translate(glm::make_mat4(mvp.values), glm::vec3(float(SyncHelper::instance().variables.translateX) / 100.f, float(SyncHelper::instance().variables.translateY) / 100.f, float(SyncHelper::instance().variables.translateZ) / 100.f));
         MVP_transformed = glm::rotate(MVP_transformed, glm::radians(float(360-SyncHelper::instance().variables.rotateX)), glm::vec3(1.0f, 0.0f, 0.0f));
         MVP_transformed = glm::rotate(MVP_transformed, glm::radians(float(SyncHelper::instance().variables.rotateY)), glm::vec3(0.0f, 1.0f, 0.0f));
         MVP_transformed = glm::rotate(MVP_transformed, glm::radians(float(SyncHelper::instance().variables.rotateZ)), glm::vec3(0.0f, 0.0f, 1.0f));

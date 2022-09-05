@@ -13,6 +13,7 @@ public:
     Q_PROPERTY(QSize windowSize READ windowSize WRITE setWindowSize NOTIFY windowSizeChanged)
     Q_PROPERTY(float trackballSize READ trackballSize WRITE setTrackballSize NOTIFY trackballSizeChanged)
     Q_PROPERTY(float rotationSpeed READ rotationSpeed WRITE setRotationSpeed NOTIFY rotationSpeedChanged)
+    Q_PROPERTY(QVector3D rotationXYZ READ rotationXYZ WRITE setRotationXYZ NOTIFY rotationXYZChanged)
 
     TrackballCameraController(Qt3DCore::QNode *parent = nullptr);
 
@@ -29,6 +30,11 @@ public:
     float rotationSpeed() const
     {
         return m_rotationSpeed;
+    }
+
+    QVector3D rotationXYZ() const
+    {
+        return m_rotationXYZ;
     }
 
 public slots:
@@ -59,10 +65,22 @@ public slots:
         emit rotationSpeedChanged(m_rotationSpeed);
     }
 
+    void setRotationXYZ(QVector3D rotationXYZ)
+    {
+        if (m_rotationXYZ == rotationXYZ)
+            return;
+
+        m_rotationXYZ = rotationXYZ;
+        emit rotationXYZChanged();
+    }
+
+    void toggleRotationTimer();
+
 signals:
     void windowSizeChanged(QSize windowSize);
     void trackballSizeChanged(float trackballSize);
     void rotationSpeedChanged(float rotationSpeed);
+    void rotationXYZChanged();
 
 protected:
     void moveCamera(const Qt3DExtras::QAbstractCameraController::InputState &state, float dt) override;
@@ -71,6 +89,7 @@ protected:
                                const QPoint &nextPoint, QVector3D &dir, float &angle);
 
 private:
+    QVector3D m_rotationXYZ;
     QPoint m_mouseLastPosition, m_mouseCurrentPosition;
     QSize m_windowSize;
     float m_trackballRadius = 1.0f;
@@ -79,6 +98,7 @@ private:
     float m_rotationSpeed = 1.0f;
     float m_zoomCameraLimit = 1.0f;
     float m_trackballSize = 1.0f;
+    QTimer* rotationTimer;
 };
 
 #endif // TRACKBALLCAMERACONTROLLER_H
