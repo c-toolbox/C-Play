@@ -91,6 +91,8 @@ class SyncHelper
 public:
     struct SyncVariables {
         std::string loadedFile;
+        std::string overlayFile;
+        bool loadFile;
         bool paused;
         double timePosition;
         double timeThreshold;
@@ -98,6 +100,10 @@ public:
         bool sbs3DVideo;
         bool syncOn;
         int gridToMapOn;
+        int contrast;
+        int brightness;
+        int gamma;
+        int saturation;
         double radius;
         double fov;
         double rotateX;

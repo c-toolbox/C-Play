@@ -321,18 +321,21 @@ ToolBar {
                 target: mpv
                 onFileLoaded: {
                     const loopMode = mpv.playlistModel.loopMode(mpv.playlistModel.getPlayingVideo())
-                    if(loopMode===0){ //Continue
+                    if(loopMode===0 && playList.playlistView.count > 1){ //Continue
                         mpv.setProperty("loop-file", "no")
+                        mpv.setProperty("keep-open", "no")
                         eofMenuButton.text = qsTr("EOF: Next ")
                         eofMenuButton.icon.name = "go-next"
                     }
                     else if(loopMode===2){ //Loop
                         mpv.setProperty("loop-file", "inf")
+                        mpv.setProperty("keep-open", "yes")
                         eofMenuButton.text = qsTr("EOF: Loop ")
                         eofMenuButton.icon.name = "media-playlist-repeat"
                     }
                     else { // Pause (1)
-                        mpv.setProperty("loop-file", "inf")
+                        mpv.setProperty("loop-file", "no")
+                        mpv.setProperty("keep-open", "yes")
                         eofMenuButton.text = qsTr("EOF: Pause")
                         eofMenuButton.icon.name = "media-playback-pause"
                     }
@@ -359,7 +362,8 @@ ToolBar {
                         text: qsTr("EOF: Pause")
                         onClicked: {
                             mpv.playlistModel.setLoopMode(mpv.playlistModel.getPlayingVideo(), 1)
-                            mpv.setProperty("loop-file", "inf")
+                            mpv.setProperty("loop-file", "no")
+                            mpv.setProperty("keep-open", "yes")
                             eofMenuButton.text = qsTr("EOF: Pause")
                             eofMenuButton.icon.name = "media-playback-pause"
 
@@ -377,6 +381,7 @@ ToolBar {
                         onClicked: {
                             mpv.playlistModel.setLoopMode(mpv.playlistModel.getPlayingVideo(), 2)
                             mpv.setProperty("loop-file", "inf")
+                            mpv.setProperty("keep-open", "yes")
                             eofMenuButton.text = qsTr("EOF: Loop")
                             eofMenuButton.icon.name = "media-playlist-repeat"
                         }
@@ -394,6 +399,7 @@ ToolBar {
                         onClicked: {
                            mpv.playlistModel.setLoopMode(mpv.playlistModel.getPlayingVideo(), 0)
                            mpv.setProperty("loop-file", "no")
+                           mpv.setProperty("keep-open", "no")
                            eofMenuButton.text = qsTr("EOF: Next")
                            eofMenuButton.icon.name = "go-next"
                         }

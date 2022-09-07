@@ -441,7 +441,7 @@ QtObject {
 
         Component.onCompleted: list["playPauseAction"] = playPauseAction
 
-        onTriggered: mpv.setProperty("pause", !mpv.getProperty("pause"))
+        onTriggered: mpv.togglePlayPause()
     }
 
     property Action configureShortcutsAction: Action {

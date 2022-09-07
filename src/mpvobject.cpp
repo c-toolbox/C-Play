@@ -135,6 +135,7 @@ MpvObject::MpvObject(QQuickItem * parent)
     setProperty("screenshot-template", VideoSettings::screenshotTemplate());
     setProperty("sub-auto", "exact");
     setProperty("volume-max", "100");
+    setProperty("keep-open", "yes");
 
     setStereoscopicVideo(PlaybackSettings::stereoModeOnStartup());
     setGridToMapOn(PlaybackSettings::gridToMapOn());
@@ -254,6 +255,13 @@ void MpvObject::setPause(bool value)
     emit pauseChanged();
 }
 
+void MpvObject::togglePlayPause()
+{
+    SyncHelper::instance().variables.paused = !pause();
+    setProperty("pause", SyncHelper::instance().variables.paused);
+    emit pauseChanged();
+}
+
 int MpvObject::volume()
 {
     return getProperty("volume").toInt();
@@ -331,6 +339,7 @@ int MpvObject::contrast()
 
 void MpvObject::setContrast(int value)
 {
+    SyncHelper::instance().variables.contrast = value;
     if (value == contrast()) {
         return;
     }
@@ -345,6 +354,7 @@ int MpvObject::brightness()
 
 void MpvObject::setBrightness(int value)
 {
+    SyncHelper::instance().variables.brightness = value;
     if (value == brightness()) {
         return;
     }
@@ -359,6 +369,7 @@ int MpvObject::gamma()
 
 void MpvObject::setGamma(int value)
 {
+    SyncHelper::instance().variables.gamma = value;
     if (value == gamma()) {
         return;
     }
@@ -373,6 +384,7 @@ int MpvObject::saturation()
 
 void MpvObject::setSaturation(int value)
 {
+    SyncHelper::instance().variables.saturation = value;
     if (value == saturation()) {
         return;
     }
@@ -670,6 +682,8 @@ void MpvObject::loadFile(const QString &file, bool updateLastPlayedFile)
     else {
         command(QStringList() << "loadfile" << file, true);
         SyncHelper::instance().variables.loadedFile = file.toStdString();
+        SyncHelper::instance().variables.overlayFile = "";
+        SyncHelper::instance().variables.loadFile = true;
     }
 
     if (updateLastPlayedFile) {
@@ -697,17 +711,37 @@ void MpvObject::loadItem(int playListIndex, bool updateLastPlayedFile) {
 
 void MpvObject::loadItem(PlayListItemData itemData, bool updateLastPlayedFile, QString flag) {
     try {
+        QStringList optionsList;
+
+        if (itemData.separateOverlayFile() != "") {
+            optionsList << "external-file=" + itemData.separateOverlayFile();
+        }
+
         if (itemData.separateAudioFile() != "") {
-            QStringList option = QStringList() << "audio-file=" + itemData.separateAudioFile();
-            QStringList newCommand = QStringList() << "loadfile" << itemData.filePath() << flag << option;
-            qInfo() << newCommand;
-            command(newCommand, true);
-            SyncHelper::instance().variables.loadedFile = itemData.filePath().toStdString();
+            optionsList << "audio-file=" + itemData.separateAudioFile();
         }
-        else if (itemData.filePath() != "") {
-            command(QStringList() << "loadfile" << itemData.filePath() << flag, true);
-            SyncHelper::instance().variables.loadedFile = itemData.filePath().toStdString();
+
+        QString options = "";
+        if (optionsList.size() > 0) {
+            options = optionsList.join(",");
         }
+
+        QStringList newCommand = QStringList() << "loadfile" << itemData.filePath() << flag << options;
+        
+        qInfo() << newCommand;
+        
+        command(newCommand, true);
+
+        if (itemData.separateOverlayFile() != "") {
+            setProperty("lavfi-complex", "[vid1][vid2]overlay@myoverlay[vo]");
+        }
+        else {
+            setProperty("lavfi-complex", "");
+        }
+        
+        SyncHelper::instance().variables.loadedFile = itemData.filePath().toStdString();
+        SyncHelper::instance().variables.overlayFile = itemData.separateOverlayFile().toStdString();
+        SyncHelper::instance().variables.loadFile = true;
 
         if (itemData.gridToMapOn() >= 0)
             setGridToMapOn(itemData.gridToMapOn());
@@ -867,6 +901,26 @@ PlayListItem* MpvObject::loadJSONPlayfile(const QString& file) {
         }
     }
 
+    if (obj.contains("overlay")) {
+        QString overlayFile = obj.value("overlay").toString();
+        QFileInfo overlayFileInfo(overlayFile);
+        if (overlayFileInfo.exists())
+            item->setSeparateOverlayFile(overlayFile);
+        else if (overlayFileInfo.isRelative()) { //Check first if next to JSON file
+            QString overlayFileNextToJSONfile = QDir::cleanPath(jsonFileInfo.absoluteDir().absolutePath() + QDir::separator() + overlayFile);
+            QFileInfo overlayFileInfoNextToJsonFile(overlayFileNextToJSONfile);
+            if (overlayFileInfoNextToJsonFile.exists())
+                item->setSeparateOverlayFile(overlayFileNextToJSONfile);
+            else { // Check if stored in Uniview video folder
+                QString fileUniviewMainPath = GeneralSettings::univiewVideoLocation();
+                QString overlayFileAbsoluteUniview = QDir::cleanPath(fileUniviewMainPath + QDir::separator() + overlayFile);
+                QFileInfo overlayFileInfoUniview(overlayFileAbsoluteUniview);
+                if (overlayFileInfoUniview.exists())
+                    item->setSeparateOverlayFile(overlayFileAbsoluteUniview);
+            }
+        }
+    }
+
     if (obj.contains("audio")) {
         QString audioFile = obj.value("audio").toString();
         QFileInfo audioFileInfo(audioFile);
@@ -877,7 +931,7 @@ PlayListItem* MpvObject::loadJSONPlayfile(const QString& file) {
             QFileInfo audioFileInfoNextToJsonFile(audioFileNextToJSONfile);
             if (audioFileInfoNextToJsonFile.exists())
                 item->setSeparateAudioFile(audioFileNextToJSONfile);
-            else { // Check if stored in Uniview audio folder
+            else { // Check if stored in Uniview video folder
                 QString fileUniviewMainPath = GeneralSettings::univiewVideoLocation();
                 QString audioFileAbsoluteUniview = QDir::cleanPath(fileUniviewMainPath + QDir::separator() + audioFile);
                 QFileInfo audioFileInfoUniview(audioFileAbsoluteUniview);
@@ -1113,9 +1167,6 @@ void MpvObject::eventHandler()
                     loadTracks();
                 }
             }
-
-
-            void positionOnEnd();
             break;
         }
         default: ;

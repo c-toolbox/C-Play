@@ -31,7 +31,6 @@ std::unique_ptr<sgct::utils::Sphere> sphere;
 
 int domeRadius = 740;
 int domeFov = 165;
-std::string loadedVideoFile = "";
 
 int videoWidth = 0;
 int videoHeight = 0;
@@ -221,7 +220,7 @@ void on_mpv_events(void*)
                     }
                     else if (strcmp(prop->name, "pause") == 0) {
                         if (prop->format == MPV_FORMAT_FLAG) {
-                            paused = mpv::qt::get_property(mpvHandle, "pause").toBool();
+                            //paused = mpv::qt::get_property(mpvHandle, "pause").toBool();
                         }
                     }
                     break;
@@ -273,6 +272,10 @@ void initOGL(GLFWwindow*) {
     // Load mpv configurations for nodes
     mpv::qt::load_configurations(mpvHandle, QStringLiteral("./data/mpv-conf.json"));
     mpv::qt::load_configurations(mpvHandle, QStringLiteral("./data/mpv-conf-nodes.json"));
+
+    // Set default settings
+    mpv::qt::set_property(mpvHandle, "keep-open", "yes");
+    mpv::qt::set_property(mpvHandle, "loop-file", "inf");
 
 #ifdef SGCT_ONLY
     SyncHelper::instance().variables.loadedFile = "G:/Splits/Life_of_trees_3D_bravo/Life_of_trees_3D.mp4";
@@ -368,11 +371,17 @@ std::vector<std::byte> encode() {
     serializeObject(data, SyncHelper::instance().variables.syncOn);
     serializeObject(data, SyncHelper::instance().variables.alpha);
     serializeObject(data, SyncHelper::instance().variables.loadedFile);
+    serializeObject(data, SyncHelper::instance().variables.overlayFile);
+    serializeObject(data, SyncHelper::instance().variables.loadFile);
     serializeObject(data, SyncHelper::instance().variables.paused);
     serializeObject(data, SyncHelper::instance().variables.timePosition);
     serializeObject(data, SyncHelper::instance().variables.timeThreshold);
     serializeObject(data, SyncHelper::instance().variables.sbs3DVideo);
     serializeObject(data, SyncHelper::instance().variables.gridToMapOn);
+    serializeObject(data, SyncHelper::instance().variables.contrast);
+    serializeObject(data, SyncHelper::instance().variables.brightness);
+    serializeObject(data, SyncHelper::instance().variables.gamma);
+    serializeObject(data, SyncHelper::instance().variables.saturation);
     serializeObject(data, SyncHelper::instance().variables.radius);
     serializeObject(data, SyncHelper::instance().variables.fov);
     serializeObject(data, SyncHelper::instance().variables.rotateX);
@@ -381,6 +390,11 @@ std::vector<std::byte> encode() {
     serializeObject(data, SyncHelper::instance().variables.translateX);
     serializeObject(data, SyncHelper::instance().variables.translateY);
     serializeObject(data, SyncHelper::instance().variables.translateZ);
+
+    //Reset load flag every frame cycle
+    if(SyncHelper::instance().variables.loadFile)
+        SyncHelper::instance().variables.loadFile = false;
+
     return data;
 }
 
@@ -389,11 +403,17 @@ void decode(const std::vector<std::byte>& data, unsigned int pos) {
     deserializeObject(data, pos, SyncHelper::instance().variables.alpha);
     if (SyncHelper::instance().variables.syncOn) {
         deserializeObject(data, pos, SyncHelper::instance().variables.loadedFile);
+        deserializeObject(data, pos, SyncHelper::instance().variables.overlayFile);
+        deserializeObject(data, pos, SyncHelper::instance().variables.loadFile);
         deserializeObject(data, pos, SyncHelper::instance().variables.paused);
         deserializeObject(data, pos, SyncHelper::instance().variables.timePosition);
         deserializeObject(data, pos, SyncHelper::instance().variables.timeThreshold);
         deserializeObject(data, pos, SyncHelper::instance().variables.sbs3DVideo);
         deserializeObject(data, pos, SyncHelper::instance().variables.gridToMapOn);
+        deserializeObject(data, pos, SyncHelper::instance().variables.contrast);
+        deserializeObject(data, pos, SyncHelper::instance().variables.brightness);
+        deserializeObject(data, pos, SyncHelper::instance().variables.gamma);
+        deserializeObject(data, pos, SyncHelper::instance().variables.saturation);
         deserializeObject(data, pos, SyncHelper::instance().variables.radius);
         deserializeObject(data, pos, SyncHelper::instance().variables.fov);
         deserializeObject(data, pos, SyncHelper::instance().variables.rotateX);
@@ -409,13 +429,23 @@ void postSyncPreDraw() {
 #ifndef SGCT_ONLY
     //Apply synced commands
     if (!Engine::instance().isMaster()) {
-        if(!SyncHelper::instance().variables.loadedFile.empty() && loadedVideoFile != SyncHelper::instance().variables.loadedFile){
+        if(SyncHelper::instance().variables.loadFile && !SyncHelper::instance().variables.loadedFile.empty()){
             //Load new file
-            loadedVideoFile = SyncHelper::instance().variables.loadedFile;
-            QString newfile = QString::fromStdString(loadedVideoFile);
-            Log::Info(fmt::format("Loading new file: {}", newfile.toStdString()));
-            mpv::qt::command_async(mpvHandle, QStringList() << "loadfile" << newfile);
+            SyncHelper::instance().variables.loadFile = false;
+            Log::Info(fmt::format("Loading new file: {}", SyncHelper::instance().variables.loadedFile));
+
+            if (!SyncHelper::instance().variables.overlayFile.empty()) {
+                Log::Info(fmt::format("Loading overlay file: {}", SyncHelper::instance().variables.overlayFile));
+                mpv::qt::command_async(mpvHandle, QStringList() << "loadfile" << QString::fromStdString(SyncHelper::instance().variables.loadedFile) << "replace" << QString::fromStdString("external-file=" + SyncHelper::instance().variables.overlayFile));
+                mpv::qt::set_property(mpvHandle, "lavfi-complex", "[vid1][vid2]overlay@myoverlay[vo]");
+            }
+            else {
+                mpv::qt::command_async(mpvHandle, QStringList() << "loadfile" << QString::fromStdString(SyncHelper::instance().variables.loadedFile));
+                mpv::qt::set_property(mpvHandle, "lavfi-complex", "");
+            }
         }
+        
+        paused = mpv::qt::get_property(mpvHandle, "pause").toBool();
         if(SyncHelper::instance().variables.paused != paused){
             paused = SyncHelper::instance().variables.paused;
             if(paused) {
@@ -426,6 +456,23 @@ void postSyncPreDraw() {
             }
             mpv::qt::set_property(mpvHandle, "pause", paused);
         }
+
+        if (SyncHelper::instance().variables.contrast != mpv::qt::get_property(mpvHandle, "contrast").toInt()) {
+            mpv::qt::set_property(mpvHandle, "contrast", SyncHelper::instance().variables.contrast);
+        }
+
+        if (SyncHelper::instance().variables.brightness != mpv::qt::get_property(mpvHandle, "brightness").toInt()) {
+            mpv::qt::set_property(mpvHandle, "brightness", SyncHelper::instance().variables.brightness);
+        }
+
+        if (SyncHelper::instance().variables.gamma != mpv::qt::get_property(mpvHandle, "gamma").toInt()) {
+            mpv::qt::set_property(mpvHandle, "gamma", SyncHelper::instance().variables.gamma);
+        }
+
+        if (SyncHelper::instance().variables.saturation != mpv::qt::get_property(mpvHandle, "saturation").toInt()) {
+            mpv::qt::set_property(mpvHandle, "saturation", SyncHelper::instance().variables.saturation);
+        }
+
         double currentTimePos = mpv::qt::get_property(mpvHandle, "time-pos").toDouble();
         if(SyncHelper::instance().variables.timePosition != currentTimePos && SyncHelper::instance().variables.syncOn){
             if(paused || (abs(currentTimePos-SyncHelper::instance().variables.timePosition)>SyncHelper::instance().variables.timeThreshold)){
