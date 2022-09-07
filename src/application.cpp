@@ -928,6 +928,8 @@ SyncHelper& SyncHelper::instance() {
     if(!_instance){
         _instance = new SyncHelper();
         _instance->variables.loadedFile = "";
+        _instance->variables.overlayFile = "";
+        _instance->variables.loadFile = false;
         _instance->variables.paused = false;
         _instance->variables.timePosition = 0.0;
         _instance->variables.timeThreshold = 1.0;
@@ -935,6 +937,10 @@ SyncHelper& SyncHelper::instance() {
         _instance->variables.sbs3DVideo = false;
         _instance->variables.syncOn = true;
         _instance->variables.gridToMapOn = 0;
+        _instance->variables.contrast = 0;
+        _instance->variables.brightness = 0;
+        _instance->variables.gamma = 0;
+        _instance->variables.saturation = 0;
         _instance->variables.radius = 740;
         _instance->variables.fov = 165;
         _instance->variables.rotateX = 0;

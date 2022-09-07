@@ -17,6 +17,7 @@ public:
     QString fileName() const;
     QString folderPath() const;
     QString duration() const;
+    QString separateOverlayFile() const;
     QString separateAudioFile() const;
     double startTime() const;
     double endTime() const;
@@ -32,6 +33,7 @@ public:
     QString m_fileName;
     QString m_folderPath;
     QString m_duration;
+    QString m_separateOverlayFile{ "" };
     QString m_separateAudioFile{ "" };
     double m_startTime{ 0.0 };
     double m_endTime{ 0.0 };
@@ -66,6 +68,9 @@ public:
 
     Q_INVOKABLE QString duration() const;
     void setDuration(const QString &duration);
+
+    Q_INVOKABLE QString separateOverlayFile() const;
+    void setSeparateOverlayFile(const QString& audioFile);
 
     Q_INVOKABLE QString separateAudioFile() const;
     void setSeparateAudioFile(const QString& audioFile);

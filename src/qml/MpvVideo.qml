@@ -135,25 +135,6 @@ MpvObject {
         header.audioTracks = getProperty("track-list").filter(track => track["type"] === "audio")
         header.subtitleTracks = getProperty("track-list").filter(track => track["type"] === "sub")
 
-        if (playList.playlistView.count <= 1) {
-            setProperty("loop-file", "inf")
-        }
-        else{
-            const loopMode = playlistModel.loopMode(playlistModel.getPlayingVideo())
-            if(loopMode===1){ //Pause
-                setProperty("loop-file", "inf")
-            }
-            else if(loopMode===2){ //Loop
-                setProperty("loop-file", "inf")
-            }
-            else { // Continue (0)
-                setProperty("loop-file", "no")
-            }
-        }
-
-        setProperty("ab-loop-a", "no")
-        setProperty("ab-loop-b", "no")
-
         mpv.pause = true
         position = loadTimePosition()
     }
@@ -227,15 +208,6 @@ MpvObject {
             }
         }
         //Pause and Loop are covered in onFileLoaded
-    }
-
-    onRemainingChanged: {
-        if(mpv.remaining <= 0.15){
-            const loopMode = playlistModel.loopMode(playlistModel.getPlayingVideo())
-            if(loopMode===1){ // Pause
-                mpv.pause = true
-            }
-        }
     }
 
     onPauseChanged: {

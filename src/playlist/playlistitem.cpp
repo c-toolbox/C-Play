@@ -35,6 +35,11 @@ QString PlayListItemData::duration() const
     return m_duration;
 }
 
+QString PlayListItemData::separateOverlayFile() const
+{
+    return m_separateOverlayFile;
+}
+
 QString PlayListItemData::separateAudioFile() const
 {
     return m_separateAudioFile;
@@ -97,6 +102,7 @@ PlayListItem::PlayListItem(const QString &path, int i, QObject *parent)
     }
     setIndex(i);
     setIsPlaying(false);
+    setSeparateOverlayFile(QStringLiteral());
     setSeparateAudioFile(QStringLiteral());
 }
 
@@ -156,6 +162,16 @@ QString PlayListItem::duration() const
 void PlayListItem::setDuration(const QString &duration)
 {
     m_data.m_duration = duration;
+}
+
+QString PlayListItem::separateOverlayFile() const
+{
+    return m_data.m_separateOverlayFile;
+}
+
+void PlayListItem::setSeparateOverlayFile(const QString& overlayFile)
+{
+    m_data.m_separateOverlayFile = overlayFile;
 }
 
 QString PlayListItem::separateAudioFile() const
