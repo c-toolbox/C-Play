@@ -19,6 +19,7 @@ Kirigami.Page
 
     Component.onCompleted: applicationWindow().pageStack.columnView.columnWidth = 250
 
+    Loader { asynchronous: true }
 
     footer: ToolBar {
         RowLayout {

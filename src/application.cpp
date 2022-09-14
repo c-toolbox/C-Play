@@ -655,9 +655,11 @@ void Application::setupActions(const QString &actionName)
         auto action = new HAction();
         if(SyncHelper::instance().variables.sbs3DVideo){
             action->setText(i18n("3D is On"));
+            action->setIcon(QIcon::fromTheme("visibility"));
         }
         else{
             action->setText(i18n("2D is On"));
+            action->setIcon(QIcon::fromTheme("redeyes"));
         }
         action->setToolTip(i18n(""));
         m_collection.setDefaultShortcut(action, Qt::Key_D);
@@ -667,9 +669,11 @@ void Application::setupActions(const QString &actionName)
         auto action = new HAction();
         if (SyncHelper::instance().variables.syncOn) {
             action->setText(i18n("Sync is On"));
+            action->setIcon(QIcon::fromTheme("im-user-online"));
         }
         else {
             action->setText(i18n("Sync is Off"));
+            action->setIcon(QIcon::fromTheme("im-user-offline"));
         }
         action->setToolTip(i18n(""));
         m_collection.setDefaultShortcut(action, Qt::Key_S);

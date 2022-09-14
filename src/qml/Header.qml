@@ -269,8 +269,10 @@ ToolBar {
                 onStereoscopicVideoChanged: {
                     if (mpv.stereoscopicVideo) {
                         stereoscopic.text = qsTr("3D is On")
+                        stereoscopic.icon.name = "visibility"
                     } else {
                         stereoscopic.text = qsTr("2D is On")
+                        stereoscopic.icon.name = "redeyes"
                     }
                 }
             }
@@ -303,11 +305,11 @@ ToolBar {
                 if(loopMode===0){ //Continue
                     eofMenuButton.text = qsTr("EOF: Next ")
                 }
-                else if(loopMode===2){ //Loop
-                    eofMenuButton.text = qsTr("EOF: Loop ")
-                }
-                else { // Pause (1)
+                else if(loopMode===1){ // Pause (1)
                     eofMenuButton.text = qsTr("EOF: Pause")
+                }
+                else {
+                    eofMenuButton.text = qsTr("EOF: Loop ")
                 }
             }
             icon.name: "media-playback-pause"
@@ -327,17 +329,17 @@ ToolBar {
                         eofMenuButton.text = qsTr("EOF: Next ")
                         eofMenuButton.icon.name = "go-next"
                     }
-                    else if(loopMode===2){ //Loop
-                        mpv.setProperty("loop-file", "inf")
-                        mpv.setProperty("keep-open", "yes")
-                        eofMenuButton.text = qsTr("EOF: Loop ")
-                        eofMenuButton.icon.name = "media-playlist-repeat"
-                    }
-                    else { // Pause (1)
+                    else if(loopMode===1){ //Pause (1)
                         mpv.setProperty("loop-file", "no")
                         mpv.setProperty("keep-open", "yes")
                         eofMenuButton.text = qsTr("EOF: Pause")
                         eofMenuButton.icon.name = "media-playback-pause"
+                    }
+                    else { //Loop
+                        mpv.setProperty("loop-file", "inf")
+                        mpv.setProperty("keep-open", "yes")
+                        eofMenuButton.text = qsTr("EOF: Loop ")
+                        eofMenuButton.icon.name = "media-playlist-repeat"
                     }
                 }
             }
@@ -358,7 +360,7 @@ ToolBar {
 
                     RadioButton {
                         id: eof_pause
-                        checked: true
+                        checked: false
                         text: qsTr("EOF: Pause")
                         onClicked: {
                             mpv.playlistModel.setLoopMode(mpv.playlistModel.getPlayingVideo(), 1)
@@ -376,7 +378,7 @@ ToolBar {
 
                     RadioButton {
                         id: eof_loop
-                        checked: false
+                        checked: true
                         text: qsTr("EOF: Loop ")
                         onClicked: {
                             mpv.playlistModel.setLoopMode(mpv.playlistModel.getPlayingVideo(), 2)
@@ -422,15 +424,14 @@ ToolBar {
             from: 0
             to: 100
             onValueChanged: mpv.visibility = value.toFixed(0)
-
             Layout.topMargin: Kirigami.Units.largeSpacing
         }
         LabelWithTooltip {
             text: {
                 if(mpv.visibility < 10)
-                    qsTr("__%1\%").arg(Number(mpv.visibility))
+                    qsTr("%1\%    ").arg(Number(mpv.visibility))
                 else if(mpv.visibility < 100)
-                    qsTr("_%1\%").arg(Number(mpv.visibility))
+                    qsTr("%1\%  ").arg(Number(mpv.visibility))
                 else
                     qsTr("%1\%").arg(Number(mpv.visibility))
             }
@@ -439,6 +440,7 @@ ToolBar {
 
         ToolButton {
             text: qsTr("Fade Out")
+            icon.name: "choice-round"
             focusPolicy: Qt.NoFocus
             enabled: mpv.visibility != 0
             onClicked: PropertyAnimation {
@@ -450,6 +452,7 @@ ToolBar {
         }
         ToolButton {
             text: qsTr("Fade In")
+            icon.name: "atmosphere"
             focusPolicy: Qt.NoFocus
             enabled: mpv.visibility != 100
             onClicked: PropertyAnimation {
@@ -464,8 +467,9 @@ ToolBar {
             id: spinMenuButton
 
             text: {
-                qsTr("Constant Spin")
+                qsTr("Spin + Move")
             }
+            icon.name: "hand"
             focusPolicy: Qt.NoFocus
 
             onClicked: {
@@ -485,6 +489,7 @@ ToolBar {
 
                 Column {
                     id: columnSpin
+                    Layout.fillWidth: true
 
                     RowLayout {
                         CheckBox {
@@ -503,6 +508,10 @@ ToolBar {
                                     }
                                 }
                             }
+                        }
+                        Item {
+                            Layout.fillWidth: true
+                            Layout.fillHeight: true
                         }
                         SpinBox {
                             id: spinXSpeed
@@ -527,6 +536,7 @@ ToolBar {
                                 return Number.fromLocaleString(locale, text) * 100
                             }
                         }
+                        Layout.fillWidth: true
                     }
 
                     RowLayout {
@@ -546,6 +556,10 @@ ToolBar {
                                     }
                                 }
                             }
+                        }
+                        Item {
+                            Layout.fillWidth: true
+                            Layout.fillHeight: true
                         }
                         SpinBox {
                             id: spinYSpeed
@@ -570,6 +584,7 @@ ToolBar {
                                 return Number.fromLocaleString(locale, text) * 100
                             }
                         }
+                        Layout.fillWidth: true
                     }
 
                     RowLayout {
@@ -589,6 +604,10 @@ ToolBar {
                                     }
                                 }
                             }
+                        }
+                        Item {
+                            Layout.fillWidth: true
+                            Layout.fillHeight: true
                         }
                         SpinBox {
                             id: spinZSpeed
@@ -613,6 +632,7 @@ ToolBar {
                                 return Number.fromLocaleString(locale, text) * 100
                             }
                         }
+                        Layout.fillWidth: true
                     }
 
                     SpinBox {
@@ -622,10 +642,7 @@ ToolBar {
                         stepSize: 1
                         value: 0
                         visible: false
-
-                        onValueChanged: {
-                            mpv.rotateX = value / 100.0;
-                        }
+                        onValueModified: mpv.rotateX = value / 100.0;
                     }
                     SpinBox {
                         id: rotateYValue
@@ -634,10 +651,7 @@ ToolBar {
                         stepSize: 1
                         value: 0
                         visible: false
-
-                        onValueChanged: {
-                            mpv.rotateY = value / 100.0;
-                        }
+                        onValueModified: mpv.rotateY = value / 100.0;
                     }
                     SpinBox {
                         id: rotateZValue
@@ -646,10 +660,7 @@ ToolBar {
                         stepSize: 1
                         value: 0
                         visible: false
-
-                        onValueChanged: {
-                            mpv.rotateZ = value / 100.0;
-                        }
+                        onValueModified: mpv.rotateZ = value / 100.0;
                     }
 
                     Timer {
@@ -676,31 +687,70 @@ ToolBar {
                         onTriggered: mpv.rotateZ += spinZSpeed.realValue;
                     }
 
-                    ToggleButton {
-                        id: startSpin
-                        text: qsTr("Start Spin")
-                        checked: false
-                        onClicked: {
-                            if(checked){
-                                startSpin.text = qsTr("Stop Spin")
+                    RowLayout {
+                        Item {
+                            Layout.fillWidth: true
+                            Layout.fillHeight: true
+                        }
+                        Item {
+                            Layout.fillWidth: true
+                            Layout.fillHeight: true
+                        }
+                        Item {
+                            Layout.fillWidth: true
+                            Layout.fillHeight: true
+                        }
+                        ToggleButton {
+                            id: startSpin
+                            text: qsTr("Start Spin")
+                            checked: false
+                            onClicked: {
+                                if(checked){
+                                    startSpin.text = qsTr("Stop Spin")
 
-                                if(spinX.checked)
-                                    spinTimerX.start()
+                                    if(spinX.checked)
+                                        spinTimerX.start()
 
-                                if(spinY.checked)
-                                    spinTimerY.start()
+                                    if(spinY.checked)
+                                        spinTimerY.start()
 
-                                if(spinZ.checked)
-                                    spinTimerZ.start()
+                                    if(spinZ.checked)
+                                        spinTimerZ.start()
+                                }
+                                else{
+                                    startSpin.text = qsTr("Start Spin")
+                                    spinTimerX.stop()
+                                    spinTimerY.stop()
+                                    spinTimerZ.stop()
+                                }
+                            }
+                            Layout.alignment: Qt.AlignHCenter | Qt.AlignVCenter
+                        }
+                    }
+                    ToolButton {
+                        id: transistionHeaderButton
+
+                        text: {
+                            qsTr("Move between scenarios")
+                        }
+
+                        enabled: !mpv.surfaceTransistionOnGoing
+                        onEnabledChanged: {
+                            if(enabled){
+                                transistionHeaderButton.text = qsTr("Move between scenarios")
                             }
                             else{
-                                startSpin.text = qsTr("Start Spin")
-                                spinTimerX.stop()
-                                spinTimerY.stop()
-                                spinTimerZ.stop()
+                                transistionHeaderButton.text = qsTr("Move/transition ongoing")
                             }
                         }
-                        Layout.fillWidth: true
+
+                        focusPolicy: Qt.NoFocus
+
+                        onClicked: {
+                            mpv.performSurfaceTransistion();
+                        }
+
+                        Layout.alignment: Qt.AlignHCenter | Qt.AlignVCenter
                     }
                 }
             }

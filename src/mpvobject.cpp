@@ -120,6 +120,7 @@ MpvObject::MpvObject(QQuickItem * parent)
     m_translateX = VideoSettings::surfaceTranslateX();
     m_translateY = VideoSettings::surfaceTranslateY();
     m_translateZ = VideoSettings::surfaceTranslateZ();
+    m_surfaceTransistionOnGoing = false;
 
     SyncHelper::instance().variables.radius = m_radius;
     SyncHelper::instance().variables.fov = m_fov;
@@ -128,7 +129,7 @@ MpvObject::MpvObject(QQuickItem * parent)
     SyncHelper::instance().variables.rotateZ = m_rotateZ;
     SyncHelper::instance().variables.translateX = m_translateX;
     SyncHelper::instance().variables.translateY = m_translateY;
-    SyncHelper::instance().variables.translateZ = m_translateX;
+    SyncHelper::instance().variables.translateZ = m_translateZ;
 
     QString loadAudioInVidFolder = AudioSettings::loadAudioFileInVideoFolder() ? "all" : "no";
     setProperty("audio-file-auto", loadAudioInVidFolder);
@@ -587,6 +588,15 @@ void MpvObject::setTranslateZ(double value)
     SyncHelper::instance().variables.translateZ = value;
     m_translateZ = value;
     emit translateZChanged();
+}
+
+bool MpvObject::surfaceTransistionOnGoing() {
+    return m_surfaceTransistionOnGoing;
+}
+
+void MpvObject::setSurfaceTransistionOnGoing(bool value) {
+    m_surfaceTransistionOnGoing = value;
+    emit surfaceTransistionOnGoingChanged();
 }
 
 QVariant MpvObject::getAudioDeviceList()
@@ -1173,6 +1183,10 @@ void MpvObject::eventHandler()
             // Ignore uninteresting or unknown events.
         }
     }
+}
+
+void MpvObject::performSurfaceTransistion() {
+    emit surfaceTransistionPerformed();
 }
 
 void MpvObject::loadTracks()

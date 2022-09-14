@@ -109,9 +109,9 @@ class MpvObject : public QQuickFramebufferObject
                NOTIFY stereoscopicVideoChanged)
 
     Q_PROPERTY(bool syncVideo
-            READ syncVideo
-            WRITE setSyncVideo
-            NOTIFY syncVideoChanged)
+               READ syncVideo
+               WRITE setSyncVideo
+               NOTIFY syncVideoChanged)
 
     Q_PROPERTY(int visibility
                READ visibility
@@ -170,6 +170,12 @@ class MpvObject : public QQuickFramebufferObject
                READ translateZ
                WRITE setTranslateZ
                NOTIFY translateZChanged)
+
+    Q_PROPERTY(bool surfaceTransistionOnGoing
+               MEMBER m_surfaceTransistionOnGoing
+               READ surfaceTransistionOnGoing
+               WRITE setSurfaceTransistionOnGoing
+               NOTIFY surfaceTransistionOnGoingChanged)
 
     Q_PROPERTY(PlayListModel* playlistModel
                READ playlistModel
@@ -267,6 +273,9 @@ class MpvObject : public QQuickFramebufferObject
     double translateZ();
     void setTranslateZ(double value);
 
+    bool surfaceTransistionOnGoing();
+    void setSurfaceTransistionOnGoing(bool value);
+
     QVariant getAudioDeviceList();
     void updateAudioDeviceList();
 
@@ -303,6 +312,7 @@ public:
 public slots:
     static void mpvEvents(void *ctx);
     void eventHandler();
+    void performSurfaceTransistion();
 
 signals:
     void mediaTitleChanged();
@@ -339,9 +349,11 @@ signals:
     void translateXChanged();
     void translateYChanged();
     void translateZChanged();
+    void surfaceTransistionOnGoingChanged();
     void playlistModelChanged();
     void audioDevicesChanged();
     void youtubePlaylistLoaded();
+    void surfaceTransistionPerformed();
 
 private:
     TracksModel *audioTracksModel() const;
@@ -360,6 +372,7 @@ private:
     double m_translateX;
     double m_translateY;
     double m_translateZ;
+    bool m_surfaceTransistionOnGoing;
     double m_lastSetPosition;
     PlayListModel *m_playlistModel;
     QString m_file;

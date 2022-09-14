@@ -73,6 +73,7 @@ private:
     QString configFolder();
     Playlist m_playList;
     int m_playingVideo = 0;
+    int m_defaultLoopMode = 2; // Looping
     KSharedConfig::Ptr m_config;
 };
 
