@@ -74,7 +74,7 @@ SettingsBasePage {
         }
 
         Label {
-            text: qsTr("Transistion Scenario:")
+            text: qsTr("Alternative Transistion Scenario:")
             Layout.alignment: Qt.AlignRight
             Layout.columnSpan: 3
         }
@@ -93,10 +93,7 @@ SettingsBasePage {
                 to: 2000
                 stepSize: 1
                 value: mpv.radius
-
-                onValueChanged: {
-                    mpv.radius = value
-                }
+                onValueChanged: mpv.radius = value
             }
 
             LabelWithTooltip {
@@ -114,7 +111,7 @@ SettingsBasePage {
                 from: 0
                 to: 2000
                 stepSize: 1
-                value: 400
+                value: VideoSettings.surfaceRadius_2ndState
             }
             Layout.alignment: Qt.AlignRight
         }
@@ -132,10 +129,7 @@ SettingsBasePage {
                 from: 0
                 to: 360
                 value: mpv.fov
-
-                onValueChanged: {
-                    mpv.fov = value
-                }
+                onValueChanged: mpv.fov = value
             }
 
             LabelWithTooltip {
@@ -152,7 +146,7 @@ SettingsBasePage {
                 id: surfaceFovScenario
                 from: 0
                 to: 360
-                value: mpv.fov
+                value: VideoSettings.surfaceFov_2ndState
             }
             Layout.alignment: Qt.AlignRight
         }
@@ -170,10 +164,7 @@ SettingsBasePage {
                 from: -5000
                 to: 5000
                 value: mpv.translateX
-
-                onValueChanged: {
-                    mpv.translateX = value
-                }
+                onValueChanged: mpv.translateX = value
             }
 
             LabelWithTooltip {
@@ -190,7 +181,7 @@ SettingsBasePage {
                 id: surfaceTranslateXScenario
                 from: -5000
                 to: 5000
-                value: 0
+                value: VideoSettings.surfaceTranslateX_2ndState
             }
             Layout.alignment: Qt.AlignRight
         }
@@ -208,10 +199,7 @@ SettingsBasePage {
                 from: -5000
                 to: 5000
                 value: mpv.translateY
-
-                onValueChanged: {
-                    mpv.translateY = value
-                }
+                onValueChanged: mpv.translateY = value
             }
 
             LabelWithTooltip {
@@ -228,7 +216,7 @@ SettingsBasePage {
                 id: surfaceTranslateYScenario
                 from: -5000
                 to: 5000
-                value: 800
+                value: VideoSettings.surfaceTranslateY_2ndState
             }
             Layout.alignment: Qt.AlignRight
         }
@@ -246,10 +234,7 @@ SettingsBasePage {
                 from: -5000
                 to: 5000
                 value: mpv.translateZ
-
-                onValueChanged: {
-                    mpv.translateZ = value
-                }
+                onValueChanged: mpv.translateZ = value
             }
 
             LabelWithTooltip {
@@ -266,7 +251,7 @@ SettingsBasePage {
                 id: surfaceTranslateZScenario
                 from: -5000
                 to: 5000
-                value: -800
+                value: VideoSettings.surfaceTranslateZ_2ndState
             }
             Layout.alignment: Qt.AlignRight
         }
@@ -285,10 +270,11 @@ SettingsBasePage {
                 value: mpv.rotateX * 100
                 from: -18000
                 to: 18000
-                onValueChanged:
-                    if(rotateXSpinBox.value !== value.toFixed(0)){
-                        rotateXSpinBox.value = value.toFixed(0)
-                    }
+                enabled: mpv.gridToMapOn !== 2
+                onMoved: {
+                    mpv.rotateX = value.toFixed(0)
+                    rotateXSpinBox.value = value.toFixed(0)
+                }
                 Layout.topMargin: Kirigami.Units.largeSpacing
             }
             SpinBox {
@@ -296,6 +282,7 @@ SettingsBasePage {
                 from: -18000
                 value: mpv.rotateX * 100
                 to: 18000
+                enabled: mpv.gridToMapOn !== 2
                 stepSize: 10
 
                 property int decimals: 2
@@ -314,11 +301,9 @@ SettingsBasePage {
                     return Number.fromLocaleString(locale, text) * 100
                 }
 
-                onValueChanged: {
-                    if(mpv.rotateX !== realValue){
-                        mpv.rotateX = realValue
-                        rotateXSlider.value = value
-                    }
+                onValueModified: {
+                    mpv.rotateX = realValue
+                    rotateXSlider.value = value
                 }
 
                 Connections {
@@ -363,10 +348,11 @@ SettingsBasePage {
                 value: mpv.rotateY * 100
                 from: -18000
                 to: 18000
-                onValueChanged:
-                    if(rotateYSpinBox.value !== value.toFixed(0)){
-                        rotateYSpinBox.value = value.toFixed(0)
-                    }
+                enabled: mpv.gridToMapOn !== 2
+                onMoved: {
+                    mpv.rotateY = value.toFixed(0)
+                    rotateYSpinBox.value = value.toFixed(0)
+                }
                 Layout.topMargin: Kirigami.Units.largeSpacing
             }
             SpinBox {
@@ -374,6 +360,7 @@ SettingsBasePage {
                 from: -18000
                 value: mpv.rotateY * 100
                 to: 18000
+                enabled: mpv.gridToMapOn !== 2
                 stepSize: 10
 
                 property int decimals: 2
@@ -392,11 +379,9 @@ SettingsBasePage {
                     return Number.fromLocaleString(locale, text) * 100
                 }
 
-                onValueChanged: {
-                    if(mpv.rotateY !== realValue){
-                        mpv.rotateY = realValue
-                        rotateYSlider.value = value
-                    }
+                onValueModified: {
+                    mpv.rotateY = realValue
+                    rotateYSlider.value = value
                 }
 
                 Connections {
@@ -441,10 +426,11 @@ SettingsBasePage {
                 value: mpv.rotateZ * 100
                 from: -18000
                 to: 18000
-                onValueChanged:
-                    if(rotateZSpinBox.value !== value.toFixed(0)){
-                        rotateZSpinBox.value = value.toFixed(0)
-                    }
+                enabled: mpv.gridToMapOn !== 2
+                onMoved: {
+                    mpv.rotateZ = value.toFixed(0)
+                    rotateZSpinBox.value = value.toFixed(0)
+                }
                 Layout.topMargin: Kirigami.Units.largeSpacing
             }
             SpinBox {
@@ -452,6 +438,7 @@ SettingsBasePage {
                 from: -18000
                 value: mpv.rotateZ * 100
                 to: 18000
+                enabled: mpv.gridToMapOn !== 2
                 stepSize: 10
 
                 property int decimals: 2
@@ -470,11 +457,9 @@ SettingsBasePage {
                     return Number.fromLocaleString(locale, text) * 100
                 }
 
-                onValueChanged: {
-                    if(mpv.rotateZ !== realValue){
-                        mpv.rotateZ = realValue
-                        rotateZSlider.value = value
-                    }
+                onValueModified: {
+                    mpv.rotateZ = realValue
+                    rotateZSlider.value = value
                 }
 
                 Connections {
@@ -521,6 +506,11 @@ SettingsBasePage {
                         mpv.translateX = VideoSettings.surfaceTranslateX
                         mpv.translateY = VideoSettings.surfaceTranslateY
                         mpv.translateZ = VideoSettings.surfaceTranslateZ
+                        surfaceRadiusScenario.value = VideoSettings.surfaceRadius_2ndState
+                        surfaceFovScenario.value = VideoSettings.surfaceFov_2ndState
+                        surfaceTranslateXScenario.value = VideoSettings.surfaceTranslateX_2ndState
+                        surfaceTranslateYScenario.value = VideoSettings.surfaceTranslateY_2ndState
+                        surfaceTranslateZScenario.value = VideoSettings.surfaceTranslateZ_2ndState
                     }
             }
             Layout.columnSpan: 2
@@ -537,9 +527,6 @@ SettingsBasePage {
                 to: 20
                 stepSize: 1
                 value: 10
-
-                onValueChanged: {
-                }
             }
             LabelWithTooltip {
                 text: {
@@ -562,6 +549,11 @@ SettingsBasePage {
                         VideoSettings.surfaceTranslateX = mpv.translateX
                         VideoSettings.surfaceTranslateY = mpv.translateY
                         VideoSettings.surfaceTranslateZ = mpv.translateZ
+                        VideoSettings.surfaceRadius_2ndState = surfaceRadiusScenario.value
+                        VideoSettings.surfaceFov_2ndState = surfaceFovScenario.value
+                        VideoSettings.surfaceTranslateX_2ndState = surfaceTranslateXScenario.value
+                        VideoSettings.surfaceTranslateY_2ndState = surfaceTranslateYScenario.value
+                        VideoSettings.surfaceTranslateZ_2ndState = surfaceTranslateZScenario.value
                         VideoSettings.save()
                     }
             }
@@ -571,10 +563,21 @@ SettingsBasePage {
 
         RowLayout {
             Button {
-                    text: "Start transition"
+                    id: startTransitionButton
+                    text: qsTr("Start transition")
+                    enabled: !mpv.surfaceTransistionOnGoing
+                    onEnabledChanged: {
+                        if(enabled){
+                            startTransitionButton.text = qsTr("Start transition")
+                        }
+                        else{
+                            startTransitionButton.text = qsTr("Transition ongoing")
+                        }
+                    }
 
                     ParallelAnimation {
                             id: gridAnimations
+                            onFinished: mpv.surfaceTransistionOnGoing = false
                             NumberAnimation
                             {
                                 id: surfaceRadiusAnimation
@@ -675,9 +678,16 @@ SettingsBasePage {
                         rotateZSpinBoxScenario.value = rotateZSpinBox.value*/
 
                         gridAnimations.start()
+
+                        mpv.surfaceTransistionOnGoing = true
                     }
             }
             Layout.alignment: Qt.AlignRight
+
+            Connections {
+                target: mpv
+                onSurfaceTransistionPerformed: startTransitionButton.clicked()
+            }
         }
 
         // ------------------------------------

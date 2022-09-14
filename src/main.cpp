@@ -31,6 +31,7 @@ std::unique_ptr<sgct::utils::Sphere> sphere;
 
 int domeRadius = 740;
 int domeFov = 165;
+std::string loadedFile = "";
 
 int videoWidth = 0;
 int videoHeight = 0;
@@ -429,8 +430,9 @@ void postSyncPreDraw() {
 #ifndef SGCT_ONLY
     //Apply synced commands
     if (!Engine::instance().isMaster()) {
-        if(SyncHelper::instance().variables.loadFile && !SyncHelper::instance().variables.loadedFile.empty()){
+        if(!SyncHelper::instance().variables.loadedFile.empty() && (SyncHelper::instance().variables.loadFile || loadedFile != SyncHelper::instance().variables.loadedFile)){
             //Load new file
+            loadedFile = SyncHelper::instance().variables.loadedFile;
             SyncHelper::instance().variables.loadFile = false;
             Log::Info(fmt::format("Loading new file: {}", SyncHelper::instance().variables.loadedFile));
 
@@ -552,10 +554,10 @@ void draw(const RenderData& data) {
 
         const mat4& mvp = data.modelViewProjectionMatrix;
         glm::mat4 MVP_transformed = glm::translate(glm::make_mat4(mvp.values), glm::vec3(float(SyncHelper::instance().variables.translateX) / 100.f, float(SyncHelper::instance().variables.translateY) / 100.f, float(SyncHelper::instance().variables.translateZ) / 100.f));
-        MVP_transformed = glm::rotate(MVP_transformed, glm::radians(float(360-SyncHelper::instance().variables.rotateX)), glm::vec3(1.0f, 0.0f, 0.0f));
-        MVP_transformed = glm::rotate(MVP_transformed, glm::radians(float(SyncHelper::instance().variables.rotateY)), glm::vec3(0.0f, 1.0f, 0.0f));
-        MVP_transformed = glm::rotate(MVP_transformed, glm::radians(float(SyncHelper::instance().variables.rotateZ)), glm::vec3(0.0f, 0.0f, 1.0f));
-        glUniformMatrix4fv(meshMatrixLoc, 1, GL_FALSE, &MVP_transformed[0][0]);
+        glm::mat4 MVP_transformed_rot = glm::rotate(MVP_transformed, glm::radians(float(SyncHelper::instance().variables.rotateX)), glm::vec3(1.0f, 0.0f, 0.0f));
+        MVP_transformed_rot = glm::rotate(MVP_transformed_rot, glm::radians(float(SyncHelper::instance().variables.rotateY)), glm::vec3(0.0f, 1.0f, 0.0f));
+        MVP_transformed_rot = glm::rotate(MVP_transformed_rot, glm::radians(float(SyncHelper::instance().variables.rotateZ)), glm::vec3(0.0f, 0.0f, 1.0f));
+        glUniformMatrix4fv(meshMatrixLoc, 1, GL_FALSE, &MVP_transformed_rot[0][0]);
 
         if (SyncHelper::instance().variables.sbs3DVideo) {
             glUniform1i(meshEyeModeLoc, (GLint)data.frustumMode);
@@ -573,6 +575,13 @@ void draw(const RenderData& data) {
 
             // Set up frontface culling
             glCullFace(GL_FRONT);
+            // Compensate from the 27 degree angle of the dome
+            glm::mat4 MVP_transformed_rot2 = glm::rotate(MVP_transformed, glm::radians(float(360 - SyncHelper::instance().variables.rotateX)), glm::vec3(1.0f, 0.0f, 0.0f));
+            MVP_transformed_rot2 = glm::rotate(MVP_transformed_rot2, glm::radians(float(360 - SyncHelper::instance().variables.rotateY)), glm::vec3(0.0f, 1.0f, 0.0f));
+            MVP_transformed_rot2 = glm::rotate(MVP_transformed_rot2, glm::radians(float(360 - SyncHelper::instance().variables.rotateZ)), glm::vec3(0.0f, 0.0f, 1.0f));
+            //glUniformMatrix4fv(meshMatrixLoc, 1, GL_FALSE, &MVP_transformed_rot[0][0]);
+            MVP_transformed_rot2 = glm::rotate(MVP_transformed_rot2, glm::radians(float(27.f)), glm::vec3(1.0f, 0.0f, 0.0f));
+            glUniformMatrix4fv(meshMatrixLoc, 1, GL_FALSE, &MVP_transformed_rot2[0][0]);
             //render outside sphere
             glUniform1i(meshOutsideLoc, 1);
             sphere->draw();

@@ -80,13 +80,15 @@ QtObject {
         text: qaction.text
         shortcut: qaction.shortcutName()
         Component.onCompleted: list["stereoscopicAction"] = stereoscopicAction
-
+        icon.name: "redeyes"
         onTriggered: {
             mpv.stereoscopicVideo = !mpv.stereoscopicVideo
             if (mpv.stereoscopicVideo) {
                 text = qsTr("3D is On")
+                icon.name = "visibility"
             } else {
                 text = qsTr("2D is On")
+                icon.name = "redeyes"
             }
         }
     }
@@ -97,13 +99,15 @@ QtObject {
         text: qaction.text
         shortcut: qaction.shortcutName()
         Component.onCompleted: list["syncAction"] = syncAction
-
+        icon.name: "im-user-online"
         onTriggered: {
             mpv.syncVideo = !mpv.syncVideo
             if (mpv.syncVideo) {
                 text = qsTr("Sync is On")
+                icon.name = "im-user-online"
             } else {
                 text = qsTr("Sync is Off")
+                icon.name = "im-user-offline"
             }
         }
     }

@@ -25,7 +25,7 @@ Entity{
         fieldOfView: 45
         nearPlane : 0.1
         farPlane : 1000.0
-        position: Qt.vector3d( 0.0, 0.0, 5.0 )
+        position: Qt.vector3d( 0.0, 0.0, 1.0 )
         upVector: Qt.vector3d( 0.0, 1.0, 0.0 )
         viewCenter: Qt.vector3d( 0.0, 0.0, 0.0 )
     }
@@ -37,9 +37,33 @@ Entity{
         rotationSpeed: 0.1
 
         onRotationXYZChanged: {
-            mpv.rotateX += rotationXYZ.x;
-            mpv.rotateY -= rotationXYZ.y;
-            mpv.rotateZ -= rotationXYZ.z;
+            if(mpv.gridToMapOn === 2) {
+                mpv.rotateX = rotationXYZ.x;
+                mpv.rotateY = rotationXYZ.y;
+                mpv.rotateZ = rotationXYZ.z;
+
+                if(mpv.rotateX < -180)
+                    mpv.rotateX += 360;
+                else if(mpv.rotateX > 180)
+                    mpv.rotateX -= 360;
+
+                if(mpv.rotateY < -180)
+                    mpv.rotateY += 360;
+                else if(mpv.rotateY > 180)
+                    mpv.rotateY -= 360;
+
+                if(mpv.rotateZ < -180)
+                    mpv.rotateZ += 360;
+                else if(mpv.rotateZ > 180)
+                    mpv.rotateZ -= 360;
+            }
+            else {
+                rotationXYZ.x = 0;
+                rotationXYZ.y = 0;
+                rotationXYZ.z = 0;
+                camera.upVector = Qt.vector3d( 0.0, 1.0, 0.0 );
+                camera.position = Qt.vector3d( 0.0, 0.0, 1.0 );
+            }
         }
 
         Shortcut {
@@ -98,7 +122,7 @@ Entity{
 
     SphereMesh  {
         id: sphereMesh
-        radius: 1.0
+        radius: 0.2
         generateTangents: true
         rings: 128
         slices: 128
@@ -106,9 +130,7 @@ Entity{
 
     Transform {
         id: sphereTransform
-        //scale3D: Qt.vector3d(1.5, 1, 0.5)
-        //rotation: fromEulerAngles(mpv.rotateX, mpv.rotateY, mpv.rotateZ)
-        rotation: fromEulerAngles(mpv.rotateX, mpv.rotateY-180, mpv.rotateZ+180)
+        rotation: fromEulerAngles(VideoSettings.surfaceRotateX-45, VideoSettings.surfaceRotateY-180, VideoSettings.surfaceRotateZ+180)
     }
 
     Entity {

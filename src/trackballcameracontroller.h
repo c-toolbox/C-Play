@@ -90,6 +90,7 @@ protected:
 
 private:
     QVector3D m_rotationXYZ;
+    QQuaternion m_lastRotation;
     QPoint m_mouseLastPosition, m_mouseCurrentPosition;
     QSize m_windowSize;
     float m_trackballRadius = 1.0f;

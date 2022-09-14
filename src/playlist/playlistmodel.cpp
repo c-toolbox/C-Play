@@ -265,7 +265,7 @@ int PlayListModel::loopMode(int i) const
     if (i >= 0 && m_playList.size() > i && m_playList[i])
         return m_playList[i].data()->loopMode();
     else
-        return 1;
+        return m_defaultLoopMode;
 }
 
 void PlayListModel::setLoopMode(int i, int loopMode) {
