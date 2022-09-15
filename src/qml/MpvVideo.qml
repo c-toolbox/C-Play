@@ -38,6 +38,7 @@ MpvObject {
     onGridToMapOnChanged: {
         if(mpv.gridToMapOn == 0 && scene3D.visible){
             scene3D.visible = false
+            mpv.angle = VideoSettings.surfaceAngle
             mpv.radius = VideoSettings.surfaceRadius
             mpv.fov = VideoSettings.surfaceFov
             mpv.rotateX = VideoSettings.surfaceRotateX
@@ -49,6 +50,7 @@ MpvObject {
         }
         else if(mpv.gridToMapOn == 1 && scene3D.visible){
             scene3D.visible = false
+            mpv.angle = VideoSettings.surfaceAngle
             mpv.radius = VideoSettings.surfaceRadius
             mpv.fov = VideoSettings.surfaceFov
             mpv.rotateX = VideoSettings.surfaceRotateX

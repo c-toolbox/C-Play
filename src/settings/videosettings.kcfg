@@ -23,6 +23,9 @@
       </code>
       <default code="true">screenshotsFolder</default>
     </entry>
+    <entry name="SurfaceRotationSpeed" type="double">
+      <default>0.01</default>
+    </entry>
 	<entry name="SurfaceRadius" type="double">
       <default>740</default>
     </entry>
