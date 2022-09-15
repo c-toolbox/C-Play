@@ -40,7 +40,42 @@ SettingsBasePage {
                 PlaybackSettings.stereoModeOnStartup = checked
                 PlaybackSettings.save()
             }
-            Layout.columnSpan: 3
+            Layout.columnSpan: 2
+        }
+
+        RowLayout {
+            Label {
+                text: qsTr("Rotation speed:")
+            }
+            SpinBox {
+                id: rotationSpeed
+                from: 0
+                value: mpv.rotationSpeed * 1000
+                to: 10000
+                enabled: mpv.gridToMapOn === 2
+                stepSize: 1
+
+                property int decimals: 3
+                property real realValue: value / 1000
+
+                validator: DoubleValidator {
+                    bottom: Math.min(rotationSpeed.from, rotationSpeed.to)
+                    top:  Math.max(rotationSpeed.from, rotationSpeed.to)
+                }
+
+                textFromValue: function(value, locale) {
+                    return Number(value / 1000).toLocaleString(locale, 'f', rotationSpeed.decimals)
+                }
+
+                valueFromText: function(text, locale) {
+                    return Number.fromLocaleString(locale, text) * 1000
+                }
+
+                onValueModified: {
+                    mpv.rotationSpeed = realValue
+                }
+            }
+            Layout.alignment: Qt.AlignRight
         }
 
         Label {
@@ -181,7 +216,7 @@ SettingsBasePage {
                 id: surfaceAngleScenario
                 from: 0
                 to: 360
-                value: VideoSettings.surfacegAngle_2ndState
+                value: VideoSettings.surfaceAngle_2ndState
             }
             Layout.alignment: Qt.AlignRight
         }
@@ -533,6 +568,7 @@ SettingsBasePage {
             Button {
                     text: "Reset radius/fov/rotation settings to startup values"
                     onClicked: {
+                        mpv.rotationSpeed = VideoSettings.surfaceRotationSpeed
                         mpv.radius = VideoSettings.surfaceRadius
                         mpv.fov = VideoSettings.surfaceFov
                         mpv.angle = VideoSettings.surfaceAngle
@@ -578,6 +614,7 @@ SettingsBasePage {
             Button {
                     text: "Save current radius/fov/rotation settings to load on startup"
                     onClicked: {
+                        VideoSettings.surfaceRotationSpeed = mpv.rotationSpeed
                         VideoSettings.surfaceRadius = mpv.radius
                         VideoSettings.surfaceFov = mpv.fov
                         VideoSettings.surfaceAngle = mpv.angle

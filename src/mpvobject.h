@@ -123,6 +123,12 @@ class MpvObject : public QQuickFramebufferObject
                WRITE setGridToMapOn
                NOTIFY gridToMapOnChanged)
 
+    Q_PROPERTY(double rotationSpeed
+               MEMBER m_rotationSpeed
+               READ rotationSpeed
+               WRITE setRotationSpeed
+               NOTIFY rotationSpeedChanged)
+
     Q_PROPERTY(double radius
                MEMBER m_radius
                READ radius
@@ -255,6 +261,9 @@ class MpvObject : public QQuickFramebufferObject
     int gridToMapOn();
     void setGridToMapOn(int value);
 
+    double rotationSpeed();
+    void setRotationSpeed(double value);
+
     double radius();
     void setRadius(double value);
 
@@ -350,6 +359,7 @@ signals:
     void syncVideoChanged();
     void visibilityChanged();
     void gridToMapOnChanged();
+    void rotationSpeedChanged();
     void radiusChanged();
     void fovChanged();
     void angleChanged();
@@ -374,6 +384,7 @@ private:
     QMap<int, Track*> m_audioTracks;
     QList<int> m_secondsWatched;
     double m_watchPercentage;
+    double m_rotationSpeed;
     double m_radius;
     double m_fov;
     double m_angle;

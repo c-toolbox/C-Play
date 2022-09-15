@@ -34,7 +34,7 @@ Entity{
         id: trackBallController
         camera: camera
         windowSize: Qt.size(window.width, window.height)
-        rotationSpeed: 0.1
+        rotationSpeed: mpv.rotationSpeed
 
         onRotationXYZChanged: {
             if(mpv.gridToMapOn === 2) {

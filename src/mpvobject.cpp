@@ -112,6 +112,7 @@ MpvObject::MpvObject(QQuickItem * parent)
     QString hwdec = PlaybackSettings::useHWDecoding() ? PlaybackSettings::hWDecoding() : "no";
     setProperty("hwdec", hwdec);
 
+    m_rotationSpeed = VideoSettings::surfaceRotationSpeed();
     m_radius = VideoSettings::surfaceRadius();
     m_fov = VideoSettings::surfaceFov();
     m_angle = VideoSettings::surfaceAngle();
@@ -470,6 +471,20 @@ void MpvObject::setGridToMapOn(int value)
 {
     SyncHelper::instance().variables.gridToMapOn = value;
     emit gridToMapOnChanged();
+}
+
+double MpvObject::rotationSpeed()
+{
+    return m_rotationSpeed;
+}
+
+void MpvObject::setRotationSpeed(double value)
+{
+    if (m_rotationSpeed == value) {
+        return;
+    }
+    m_rotationSpeed = value;
+    emit rotationSpeedChanged();
 }
 
 double MpvObject::radius()
