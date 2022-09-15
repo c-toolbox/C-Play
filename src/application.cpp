@@ -947,6 +947,7 @@ SyncHelper& SyncHelper::instance() {
         _instance->variables.saturation = 0;
         _instance->variables.radius = 740;
         _instance->variables.fov = 165;
+        _instance->variables.angle = 27.f;
         _instance->variables.rotateX = 0;
         _instance->variables.rotateY = 0;
         _instance->variables.rotateZ = 0;

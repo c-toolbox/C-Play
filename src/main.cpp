@@ -385,6 +385,7 @@ std::vector<std::byte> encode() {
     serializeObject(data, SyncHelper::instance().variables.saturation);
     serializeObject(data, SyncHelper::instance().variables.radius);
     serializeObject(data, SyncHelper::instance().variables.fov);
+    serializeObject(data, SyncHelper::instance().variables.angle);
     serializeObject(data, SyncHelper::instance().variables.rotateX);
     serializeObject(data, SyncHelper::instance().variables.rotateY);
     serializeObject(data, SyncHelper::instance().variables.rotateZ);
@@ -417,6 +418,7 @@ void decode(const std::vector<std::byte>& data, unsigned int pos) {
         deserializeObject(data, pos, SyncHelper::instance().variables.saturation);
         deserializeObject(data, pos, SyncHelper::instance().variables.radius);
         deserializeObject(data, pos, SyncHelper::instance().variables.fov);
+        deserializeObject(data, pos, SyncHelper::instance().variables.angle);
         deserializeObject(data, pos, SyncHelper::instance().variables.rotateX);
         deserializeObject(data, pos, SyncHelper::instance().variables.rotateY);
         deserializeObject(data, pos, SyncHelper::instance().variables.rotateZ);
@@ -554,9 +556,10 @@ void draw(const RenderData& data) {
 
         const mat4& mvp = data.modelViewProjectionMatrix;
         glm::mat4 MVP_transformed = glm::translate(glm::make_mat4(mvp.values), glm::vec3(float(SyncHelper::instance().variables.translateX) / 100.f, float(SyncHelper::instance().variables.translateY) / 100.f, float(SyncHelper::instance().variables.translateZ) / 100.f));
-        glm::mat4 MVP_transformed_rot = glm::rotate(MVP_transformed, glm::radians(float(SyncHelper::instance().variables.rotateX)), glm::vec3(1.0f, 0.0f, 0.0f));
-        MVP_transformed_rot = glm::rotate(MVP_transformed_rot, glm::radians(float(SyncHelper::instance().variables.rotateY)), glm::vec3(0.0f, 1.0f, 0.0f));
-        MVP_transformed_rot = glm::rotate(MVP_transformed_rot, glm::radians(float(SyncHelper::instance().variables.rotateZ)), glm::vec3(0.0f, 0.0f, 1.0f));
+        glm::mat4 MVP_transformed_rot = MVP_transformed;
+        MVP_transformed_rot = glm::rotate(MVP_transformed_rot, glm::radians(float(SyncHelper::instance().variables.rotateZ)), glm::vec3(0.0f, 0.0f, 1.0f)); //roll
+        MVP_transformed_rot = glm::rotate(MVP_transformed_rot, glm::radians(float(SyncHelper::instance().variables.rotateX)), glm::vec3(1.0f, 0.0f, 0.0f)); //pitch
+        MVP_transformed_rot = glm::rotate(MVP_transformed_rot, glm::radians(float(SyncHelper::instance().variables.rotateY)), glm::vec3(0.0f, 1.0f, 0.0f)); //yaw
         glUniformMatrix4fv(meshMatrixLoc, 1, GL_FALSE, &MVP_transformed_rot[0][0]);
 
         if (SyncHelper::instance().variables.sbs3DVideo) {
@@ -575,12 +578,12 @@ void draw(const RenderData& data) {
 
             // Set up frontface culling
             glCullFace(GL_FRONT);
-            // Compensate from the 27 degree angle of the dome
-            glm::mat4 MVP_transformed_rot2 = glm::rotate(MVP_transformed, glm::radians(float(360 - SyncHelper::instance().variables.rotateX)), glm::vec3(1.0f, 0.0f, 0.0f));
-            MVP_transformed_rot2 = glm::rotate(MVP_transformed_rot2, glm::radians(float(360 - SyncHelper::instance().variables.rotateY)), glm::vec3(0.0f, 1.0f, 0.0f));
-            MVP_transformed_rot2 = glm::rotate(MVP_transformed_rot2, glm::radians(float(360 - SyncHelper::instance().variables.rotateZ)), glm::vec3(0.0f, 0.0f, 1.0f));
-            //glUniformMatrix4fv(meshMatrixLoc, 1, GL_FALSE, &MVP_transformed_rot[0][0]);
-            MVP_transformed_rot2 = glm::rotate(MVP_transformed_rot2, glm::radians(float(27.f)), glm::vec3(1.0f, 0.0f, 0.0f));
+            glm::mat4 MVP_transformed_rot2 = MVP_transformed;
+            MVP_transformed_rot2 = glm::rotate(MVP_transformed_rot2, glm::radians(float(360 - SyncHelper::instance().variables.rotateZ)), glm::vec3(0.0f, 0.0f, 1.0f)); //roll
+            MVP_transformed_rot2 = glm::rotate(MVP_transformed_rot2, glm::radians(float(360 - SyncHelper::instance().variables.rotateX)), glm::vec3(1.0f, 0.0f, 0.0f)); //pitch
+            MVP_transformed_rot2 = glm::rotate(MVP_transformed_rot2, glm::radians(float(360 - SyncHelper::instance().variables.rotateY)), glm::vec3(0.0f, 1.0f, 0.0f)); //yaw
+            // Compensate for the angle of the dome
+            MVP_transformed_rot2 = glm::rotate(MVP_transformed_rot2, glm::radians(float(SyncHelper::instance().variables.angle)), glm::vec3(1.0f, 0.0f, 0.0f)); //pitch
             glUniformMatrix4fv(meshMatrixLoc, 1, GL_FALSE, &MVP_transformed_rot2[0][0]);
             //render outside sphere
             glUniform1i(meshOutsideLoc, 1);

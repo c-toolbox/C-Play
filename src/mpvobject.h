@@ -135,6 +135,12 @@ class MpvObject : public QQuickFramebufferObject
                WRITE setFov
                NOTIFY fovChanged)
 
+    Q_PROPERTY(double angle
+               MEMBER m_angle
+               READ angle
+               WRITE setAngle
+               NOTIFY angleChanged)
+
     Q_PROPERTY(double rotateX
                MEMBER m_rotateX
                READ rotateX
@@ -255,6 +261,9 @@ class MpvObject : public QQuickFramebufferObject
     double fov();
     void setFov(double value);
 
+    double angle();
+    void setAngle(double value);
+
     double rotateX();
     void setRotateX(double value);
 
@@ -343,6 +352,7 @@ signals:
     void gridToMapOnChanged();
     void radiusChanged();
     void fovChanged();
+    void angleChanged();
     void rotateXChanged();
     void rotateYChanged();
     void rotateZChanged();
@@ -366,6 +376,7 @@ private:
     double m_watchPercentage;
     double m_radius;
     double m_fov;
+    double m_angle;
     double m_rotateX;
     double m_rotateY;
     double m_rotateZ;

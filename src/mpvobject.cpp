@@ -114,6 +114,7 @@ MpvObject::MpvObject(QQuickItem * parent)
 
     m_radius = VideoSettings::surfaceRadius();
     m_fov = VideoSettings::surfaceFov();
+    m_angle = VideoSettings::surfaceAngle();
     m_rotateX = VideoSettings::surfaceRotateX();
     m_rotateY = VideoSettings::surfaceRotateY();
     m_rotateZ = VideoSettings::surfaceRotateZ();
@@ -124,6 +125,7 @@ MpvObject::MpvObject(QQuickItem * parent)
 
     SyncHelper::instance().variables.radius = m_radius;
     SyncHelper::instance().variables.fov = m_fov;
+    SyncHelper::instance().variables.angle = m_angle;
     SyncHelper::instance().variables.rotateX = m_rotateX;
     SyncHelper::instance().variables.rotateY = m_rotateY;
     SyncHelper::instance().variables.rotateZ = m_rotateZ;
@@ -498,6 +500,21 @@ void MpvObject::setFov(double value)
     }
     m_fov = value;
     emit fovChanged();
+}
+
+double MpvObject::angle()
+{
+    return m_angle;
+}
+
+void MpvObject::setAngle(double value)
+{
+    if (qFuzzyCompare(m_angle, value)) {
+        return;
+    }
+    SyncHelper::instance().variables.angle = value;
+    m_angle = value;
+    emit angleChanged();
 }
 
 double MpvObject::rotateX()

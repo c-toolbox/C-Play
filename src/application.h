@@ -106,6 +106,7 @@ public:
         int saturation;
         double radius;
         double fov;
+        double angle;
         double rotateX;
         double rotateY;
         double rotateZ;

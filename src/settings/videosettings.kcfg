@@ -29,8 +29,11 @@
 	<entry name="SurfaceFov" type="double">
       <default>165</default>
     </entry>
-	<entry name="SurfaceRotateX" type="double">
+    <entry name="SurfaceAngle" type="double">
       <default>27</default>
+    </entry>
+	<entry name="SurfaceRotateX" type="double">
+      <default>0</default>
     </entry>
 	<entry name="SurfaceRotateY" type="double">
       <default>0</default>
@@ -52,6 +55,9 @@
     </entry>
 	<entry name="SurfaceFov_2ndState" type="double">
       <default>165</default>
+    </entry>
+    <entry name="SurfaceAngle_2ndState" type="double">
+      <default>27</default>
     </entry>
     <entry name="SurfaceTranslateX_2ndState" type="double">
       <default>0</default>
