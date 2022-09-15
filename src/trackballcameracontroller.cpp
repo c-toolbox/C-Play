@@ -41,49 +41,8 @@ TrackballCameraController::TrackballCameraController(Qt3DCore::QNode *parent)
             if (theCamera != nullptr) {
                 if (m_lastRotation.length() > 0.f) {
                     theCamera->rotateAboutViewCenter(m_lastRotation);
-
-                    //Node application does not change up vector
-                    //So rotation calculation must be based on this
-                    /*auto currentUpVector = theCamera->upVector();
-
-                    if (currentUpVector.y() < 0.f) {
-                        theCamera->rotateAboutViewCenter(-m_lastRotation);
-                        m_lastRotation = QQuaternion(0.f, 0.f, 0.f, 0.f);
-                    }*/
-
-                    //theCamera->setUpVector(QVector3D(0.f, 1.f, 0.f));
-                    //auto currentTransform = theCamera->transform();
-                    //auto newMatrix = theCamera->transform()->matrix();
-
-                    // Compute axis of rotation:
-                    //dir = QVector3D::crossProduct(theCamera->upVector(), QVector3D(0.f, 1.f, 0.f));
-                    
-
-                    // Approximate rotation angle:
-                    //qDebug()<<"dot:"<<QVector3D::dotProduct(currentPos3D, lastPos3D);
-                    //angle = acos(clamp(QVector3D::dotProduct(currentPos3D, lastPos3D)));
-
-                    //if(currentUpVector.y() <= 0.f)
-                      //  newMatrix.rotate(QQuaternion::rotationTo(QVector3D(0.f, -1.f, 0.f), theCamera->upVector()));
-
-                    //auto currentUpVector = theCamera->upVector();
-
-                    /*QMatrix4x4 mat;
-                    mat.setToIdentity();
-                    mat.lookAt(theCamera->position(), theCamera->viewCenter(), theCamera->upVector());
-                    newMatrix *= mat.inverted();
-                    mat.lookAt(theCamera->position(), theCamera->viewCenter(), QVector3D(0.f, 1.f, 0.f));
-                    newMatrix *= mat;*/
-
-                    //newMatrix.lookAt(theCamera->position(), QVector3D(0.f, 0.f, 0.f), QVector3D(0.f, -1.f, 0.f));
-                    //Qt3DCore::QTransform newTransform;
-                    //newTransform.setMatrix(newMatrix);
-                    //setRotationXYZ(newTransform.rotation().toEulerAngles());
-                    
-                    //theCamera->setUpVector(QVector3D(0.f, 1.f, 0.f));
                     setRotationXYZ(theCamera->transform()->rotation().toEulerAngles());
                     emit rotationXYZChanged();
-                    //theCamera->setUpVector(currentUpVector);
                 }
             }
         });
@@ -104,7 +63,6 @@ QVector3D TrackballCameraController::projectToTrackball(const QPoint &screenCoor
     float sx = screenCoords.x(), sy = m_windowSize.height() - screenCoords.y();
 
     QVector2D p2d(sx / m_windowSize.width() - 0.5f, sy / m_windowSize.height() - 0.5f);
-    //qDebug()<<p2d;
 
     float z = 0.0f;
     float r2 = m_trackballSize * m_trackballSize;
@@ -114,7 +72,7 @@ QVector3D TrackballCameraController::projectToTrackball(const QPoint &screenCoor
         z = r2 * 0.5f / p2d.length();
     }
     QVector3D p3d(p2d, z);
-    //qDebug()<<p3d;
+
     return p3d;
 }
 
@@ -133,10 +91,7 @@ void TrackballCameraController::createRotation(const QPoint &firstPoint, const Q
     dir = QVector3D::crossProduct(currentPos3D, lastPos3D);
 
     // Approximate rotation angle:
-    //qDebug()<<"dot:"<<QVector3D::dotProduct(currentPos3D, lastPos3D);
     angle = acos(clamp(QVector3D::dotProduct(currentPos3D, lastPos3D)));
-
-    //qDebug()<<"dir:"<<dir<<"angle:"<<angle;
 }
 
 void TrackballCameraController::moveCamera(const Qt3DExtras::QAbstractCameraController::InputState &state, float dt)
@@ -181,15 +136,5 @@ void TrackballCameraController::moveCamera(const Qt3DExtras::QAbstractCameraCont
         m_lastRotation = rotation;
 
     }
-    else if (state.middleMouseButtonActive) {
-        theCamera->setUpVector(QVector3D(0.f, 1.f, 0.f));
-    }
-    /*else if (dt != 0) {
-        //qDebug()<<"dt:"<<dt;
-        theCamera->translate(QVector3D(state.txAxisValue * ls,
-                                      state.tyAxisValue * ls,
-                                      state.tzAxisValue * ls) * dt,
-                             Qt3DRender::QCamera::DontTranslateViewCenter);
-    }*/
     m_mouseLastPosition = m_mouseCurrentPosition;
 }

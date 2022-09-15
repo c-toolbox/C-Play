@@ -152,6 +152,41 @@ SettingsBasePage {
         }
 
         // ------------------------------------
+        // Dome angle
+        // ------------------------------------
+        Label {
+            text: qsTr("Dome angle:")
+        }
+
+        RowLayout {
+            SpinBox {
+                id: surfaceAngle
+                from: 0
+                to: 360
+                value: mpv.angle
+                onValueChanged: mpv.angle = value
+            }
+
+            LabelWithTooltip {
+                text: {
+                    qsTr("degrees")
+                }
+                elide: Text.ElideRight
+                Layout.fillWidth: true
+            }
+        }
+
+        RowLayout {
+            SpinBox {
+                id: surfaceAngleScenario
+                from: 0
+                to: 360
+                value: VideoSettings.surfacegAngle_2ndState
+            }
+            Layout.alignment: Qt.AlignRight
+        }
+
+        // ------------------------------------
         // Dome translate X
         // ------------------------------------
         Label {
@@ -500,6 +535,7 @@ SettingsBasePage {
                     onClicked: {
                         mpv.radius = VideoSettings.surfaceRadius
                         mpv.fov = VideoSettings.surfaceFov
+                        mpv.angle = VideoSettings.surfaceAngle
                         mpv.rotateX = VideoSettings.surfaceRotateX
                         mpv.rotateY = VideoSettings.surfaceRotateY
                         mpv.rotateZ = VideoSettings.surfaceRotateZ
@@ -508,6 +544,7 @@ SettingsBasePage {
                         mpv.translateZ = VideoSettings.surfaceTranslateZ
                         surfaceRadiusScenario.value = VideoSettings.surfaceRadius_2ndState
                         surfaceFovScenario.value = VideoSettings.surfaceFov_2ndState
+                        surfaceAngleScenario.value = VideoSettings.surfaceAngle_2ndState
                         surfaceTranslateXScenario.value = VideoSettings.surfaceTranslateX_2ndState
                         surfaceTranslateYScenario.value = VideoSettings.surfaceTranslateY_2ndState
                         surfaceTranslateZScenario.value = VideoSettings.surfaceTranslateZ_2ndState
@@ -543,6 +580,7 @@ SettingsBasePage {
                     onClicked: {
                         VideoSettings.surfaceRadius = mpv.radius
                         VideoSettings.surfaceFov = mpv.fov
+                        VideoSettings.surfaceAngle = mpv.angle
                         VideoSettings.surfaceRotateX = mpv.rotateX
                         VideoSettings.surfaceRotateY = mpv.rotateY
                         VideoSettings.surfaceRotateZ = mpv.rotateZ
@@ -551,6 +589,7 @@ SettingsBasePage {
                         VideoSettings.surfaceTranslateZ = mpv.translateZ
                         VideoSettings.surfaceRadius_2ndState = surfaceRadiusScenario.value
                         VideoSettings.surfaceFov_2ndState = surfaceFovScenario.value
+                        VideoSettings.surfaceAngle_2ndState = surfaceAngleScenario.value
                         VideoSettings.surfaceTranslateX_2ndState = surfaceTranslateXScenario.value
                         VideoSettings.surfaceTranslateY_2ndState = surfaceTranslateYScenario.value
                         VideoSettings.surfaceTranslateZ_2ndState = surfaceTranslateZScenario.value
@@ -590,6 +629,14 @@ SettingsBasePage {
                             {
                                 id: surfaceFovAnimation
                                 target: surfaceFov
+                                property: "value"
+                                to: 50;
+                                duration: 1000
+                            }
+                            NumberAnimation
+                            {
+                                id: surfaceAngleAnimation
+                                target: surfaceAngle
                                 property: "value"
                                 to: 50;
                                 duration: 1000
@@ -652,6 +699,10 @@ SettingsBasePage {
                         surfaceFovAnimation.to = surfaceFovScenario.value
                         surfaceFovAnimation.duration = transitionTime.value * 1000
                         surfaceFovScenario.value = surfaceFov.value
+
+                        surfaceAngleAnimation.to = surfaceAngleScenario.value
+                        surfaceAngleAnimation.duration = transitionTime.value * 1000
+                        surfaceAngleScenario.value = surfaceAngle.value
 
                         surfaceTranslateXAnimation.to = surfaceTranslateXScenario.value
                         surfaceTranslateXAnimation.duration = transitionTime.value * 1000

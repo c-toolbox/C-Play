@@ -41,21 +41,6 @@ Entity{
                 mpv.rotateX = rotationXYZ.x;
                 mpv.rotateY = rotationXYZ.y;
                 mpv.rotateZ = rotationXYZ.z;
-
-                if(mpv.rotateX < -180)
-                    mpv.rotateX += 360;
-                else if(mpv.rotateX > 180)
-                    mpv.rotateX -= 360;
-
-                if(mpv.rotateY < -180)
-                    mpv.rotateY += 360;
-                else if(mpv.rotateY > 180)
-                    mpv.rotateY -= 360;
-
-                if(mpv.rotateZ < -180)
-                    mpv.rotateZ += 360;
-                else if(mpv.rotateZ > 180)
-                    mpv.rotateZ -= 360;
             }
             else {
                 rotationXYZ.x = 0;
