@@ -149,12 +149,13 @@ Slider {
     onToChanged: value = mpv.position
     onPressedChanged: {
         if (pressed) {
-            videoWasPaused = mpv.pause
-            mpv.pause = true
+            //videoWasPaused = mpv.pause
+            //mpv.pause = true
             seekStarted = true
         } else {
-            mpv.command(["seek", value, "absolute"])
-            mpv.pause = videoWasPaused
+            mpv.pause = true
+            mpv.position = value
+            //mpv.pause = videoWasPaused
             seekStarted = false
         }
     }

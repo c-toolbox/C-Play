@@ -96,9 +96,11 @@ public:
         bool paused;
         double timePosition;
         double timeThreshold;
+        bool timeDirty;
         float alpha;
         bool sbs3DVideo;
         bool syncOn;
+        int loopMode;
         int gridToMapOn;
         int contrast;
         int brightness;

@@ -233,8 +233,8 @@ SettingsBasePage {
                 id: surfaceTranslateX
                 from: -5000
                 to: 5000
-                value: mpv.translateX
-                onValueChanged: mpv.translateX = value
+                value: mpv.translate.x
+                onValueChanged: mpv.translate.x = value
             }
 
             LabelWithTooltip {
@@ -268,8 +268,8 @@ SettingsBasePage {
                 id: surfaceTranslateY
                 from: -5000
                 to: 5000
-                value: mpv.translateY
-                onValueChanged: mpv.translateY = value
+                value: mpv.translate.y
+                onValueChanged: mpv.translate.y = value
             }
 
             LabelWithTooltip {
@@ -303,8 +303,8 @@ SettingsBasePage {
                 id: surfaceTranslateZ
                 from: -5000
                 to: 5000
-                value: mpv.translateZ
-                onValueChanged: mpv.translateZ = value
+                value: mpv.translate.z
+                onValueChanged: mpv.translate.z = value
             }
 
             LabelWithTooltip {
@@ -337,20 +337,20 @@ SettingsBasePage {
         RowLayout {
             Slider {
                 id: rotateXSlider
-                value: mpv.rotateX * 100
+                value: mpv.rotate.x * 100
                 from: -18000
                 to: 18000
                 enabled: mpv.gridToMapOn !== 2
                 onMoved: {
-                    mpv.rotateX = value.toFixed(0)
                     rotateXSpinBox.value = value.toFixed(0)
+                    mpv.rotate.x = rotateXSpinBox.realValue
                 }
                 Layout.topMargin: Kirigami.Units.largeSpacing
             }
             SpinBox {
                 id: rotateXSpinBox
                 from: -18000
-                value: mpv.rotateX * 100
+                value: mpv.rotate.x * 100
                 to: 18000
                 enabled: mpv.gridToMapOn !== 2
                 stepSize: 10
@@ -372,15 +372,15 @@ SettingsBasePage {
                 }
 
                 onValueModified: {
-                    mpv.rotateX = realValue
+                    mpv.rotate.x = realValue
                     rotateXSlider.value = value
                 }
 
                 Connections {
                     target: mpv
-                    onRotateXChanged: {
-                        if(rotateXSpinBox.realValue !== mpv.rotateX)
-                            rotateXSpinBox.value = mpv.rotateX * 100
+                    onRotateChanged: {
+                        if(rotateXSpinBox.realValue !== mpv.rotate.x)
+                            rotateXSpinBox.value = mpv.rotate.x * 100
                     }
                 }
             }
@@ -415,20 +415,20 @@ SettingsBasePage {
         RowLayout {
             Slider {
                 id: rotateYSlider
-                value: mpv.rotateY * 100
+                value: mpv.rotate.y * 100
                 from: -18000
                 to: 18000
                 enabled: mpv.gridToMapOn !== 2
                 onMoved: {
-                    mpv.rotateY = value.toFixed(0)
                     rotateYSpinBox.value = value.toFixed(0)
+                    mpv.rotate.y = rotateYSpinBox.realValue
                 }
                 Layout.topMargin: Kirigami.Units.largeSpacing
             }
             SpinBox {
                 id: rotateYSpinBox
                 from: -18000
-                value: mpv.rotateY * 100
+                value: mpv.rotate.y * 100
                 to: 18000
                 enabled: mpv.gridToMapOn !== 2
                 stepSize: 10
@@ -450,15 +450,15 @@ SettingsBasePage {
                 }
 
                 onValueModified: {
-                    mpv.rotateY = realValue
+                    mpv.rotate.y = realValue
                     rotateYSlider.value = value
                 }
 
                 Connections {
                     target: mpv
-                    onRotateYChanged: {
-                        if(rotateYSpinBox.realValue !== mpv.rotateY)
-                            rotateYSpinBox.value = mpv.rotateY * 100
+                    onRotateChanged: {
+                        if(rotateYSpinBox.realValue !== mpv.rotate.y)
+                            rotateYSpinBox.value = mpv.rotate.y * 100
                     }
                 }
             }
@@ -493,20 +493,20 @@ SettingsBasePage {
         RowLayout {
             Slider {
                 id: rotateZSlider
-                value: mpv.rotateZ * 100
+                value: mpv.rotate.z * 100
                 from: -18000
                 to: 18000
                 enabled: mpv.gridToMapOn !== 2
                 onMoved: {
-                    mpv.rotateZ = value.toFixed(0)
                     rotateZSpinBox.value = value.toFixed(0)
+                    mpv.rotate.z = rotateZSpinBox.realValue
                 }
                 Layout.topMargin: Kirigami.Units.largeSpacing
             }
             SpinBox {
                 id: rotateZSpinBox
                 from: -18000
-                value: mpv.rotateZ * 100
+                value: mpv.rotate.z * 100
                 to: 18000
                 enabled: mpv.gridToMapOn !== 2
                 stepSize: 10
@@ -528,15 +528,15 @@ SettingsBasePage {
                 }
 
                 onValueModified: {
-                    mpv.rotateZ = realValue
+                    mpv.rotate.z = realValue
                     rotateZSlider.value = value
                 }
 
                 Connections {
                     target: mpv
-                    onRotateZChanged: {
-                        if(rotateZSpinBox.realValue !== mpv.rotateZ)
-                            rotateZSpinBox.value = mpv.rotateZ * 100
+                    onRotateChanged: {
+                        if(rotateZSpinBox.realValue !== mpv.rotate.z)
+                            rotateZSpinBox.value = mpv.rotate.z * 100
                     }
                 }
             }
@@ -572,12 +572,8 @@ SettingsBasePage {
                         mpv.radius = VideoSettings.surfaceRadius
                         mpv.fov = VideoSettings.surfaceFov
                         mpv.angle = VideoSettings.surfaceAngle
-                        mpv.rotateX = VideoSettings.surfaceRotateX
-                        mpv.rotateY = VideoSettings.surfaceRotateY
-                        mpv.rotateZ = VideoSettings.surfaceRotateZ
-                        mpv.translateX = VideoSettings.surfaceTranslateX
-                        mpv.translateY = VideoSettings.surfaceTranslateY
-                        mpv.translateZ = VideoSettings.surfaceTranslateZ
+                        mpv.rotate = Qt.vector3d(VideoSettings.surfaceRotateX, VideoSettings.surfaceRotateY, VideoSettings.surfaceRotateZ)
+                        mpv.translate = Qt.vector3d(VideoSettings.surfaceTranslateX, VideoSettings.surfaceTranslateY, VideoSettings.surfaceTranslateZ)
                         surfaceRadiusScenario.value = VideoSettings.surfaceRadius_2ndState
                         surfaceFovScenario.value = VideoSettings.surfaceFov_2ndState
                         surfaceAngleScenario.value = VideoSettings.surfaceAngle_2ndState
@@ -618,12 +614,12 @@ SettingsBasePage {
                         VideoSettings.surfaceRadius = mpv.radius
                         VideoSettings.surfaceFov = mpv.fov
                         VideoSettings.surfaceAngle = mpv.angle
-                        VideoSettings.surfaceRotateX = mpv.rotateX
-                        VideoSettings.surfaceRotateY = mpv.rotateY
-                        VideoSettings.surfaceRotateZ = mpv.rotateZ
-                        VideoSettings.surfaceTranslateX = mpv.translateX
-                        VideoSettings.surfaceTranslateY = mpv.translateY
-                        VideoSettings.surfaceTranslateZ = mpv.translateZ
+                        VideoSettings.surfaceRotateX = mpv.rotate.x
+                        VideoSettings.surfaceRotateY = mpv.rotate.y
+                        VideoSettings.surfaceRotateZ = mpv.rotate.z
+                        VideoSettings.surfaceTranslateX = mpv.translate.x
+                        VideoSettings.surfaceTranslateY = mpv.translate.y
+                        VideoSettings.surfaceTranslateZ = mpv.translate.z
                         VideoSettings.surfaceRadius_2ndState = surfaceRadiusScenario.value
                         VideoSettings.surfaceFov_2ndState = surfaceFovScenario.value
                         VideoSettings.surfaceAngle_2ndState = surfaceAngleScenario.value
@@ -702,30 +698,6 @@ SettingsBasePage {
                                 to: 50;
                                 duration: 1000
                             }
-                            /*NumberAnimation
-                            {
-                                id: rotateXAnimation
-                                target: rotateXSpinBox
-                                property: "value"
-                                to: 50;
-                                duration: 1000
-                            }
-                            NumberAnimation
-                            {
-                                id: rotateYAnimation
-                                target: rotateYSpinBox
-                                property: "value"
-                                to: 50;
-                                duration: 1000
-                            }
-                            NumberAnimation
-                            {
-                                id: rotateZAnimation
-                                target: rotateZSpinBox
-                                property: "value"
-                                to: 50;
-                                duration: 1000
-                            }*/
                     }
 
                     onClicked: {
@@ -752,18 +724,6 @@ SettingsBasePage {
                         surfaceTranslateZAnimation.to = surfaceTranslateZScenario.value
                         surfaceTranslateZAnimation.duration = transitionTime.value * 1000
                         surfaceTranslateZScenario.value = surfaceTranslateZ.value
-
-                        /*rotateXAnimation.to = rotateXSpinBoxScenario.value
-                        rotateXAnimation.duration = transitionTime.value * 1000
-                        rotateXSpinBoxScenario.value = rotateXSpinBox.value
-
-                        rotateYAnimation.to = rotateYSpinBoxScenario.value
-                        rotateYAnimation.duration = transitionTime.value * 1000
-                        rotateYSpinBoxScenario.value = rotateYSpinBox.value
-
-                        rotateZAnimation.to = rotateZSpinBoxScenario.value
-                        rotateZAnimation.duration = transitionTime.value * 1000
-                        rotateZSpinBoxScenario.value = rotateZSpinBox.value*/
 
                         gridAnimations.start()
 

@@ -35,33 +35,49 @@ MpvObject {
     anchors.top: parent.top
     volume: GeneralSettings.volume
 
+    Timer {
+        id: sphereRotationTimer
+        interval: 1000/60;
+        running: false;
+        repeat: true
+        onTriggered: {
+            if(trackBall.trackballCameraController.performRotation())
+                mpv.rotate = trackBall.trackballCameraController.rotationXYZ;
+            else
+                trackBall.trackballCameraController.setAbsoluteRotation(mpv.rotate)
+
+        }
+    }
+
     onGridToMapOnChanged: {
+        trackBall.camera.upVector = Qt.vector3d( 0.0, 1.0, 0.0 );
+        trackBall.camera.position = Qt.vector3d( 0.0, 0.0, 1.0 );
+        trackBall.trackballCameraController.stopRotation()
         if(mpv.gridToMapOn == 0 && scene3D.visible){
             scene3D.visible = false
+            trackBall.trackballCameraController.rotationXYZ = Qt.vector3d(0, 0, 0);
             mpv.angle = VideoSettings.surfaceAngle
             mpv.radius = VideoSettings.surfaceRadius
             mpv.fov = VideoSettings.surfaceFov
-            mpv.rotateX = VideoSettings.surfaceRotateX
-            mpv.rotateY = VideoSettings.surfaceRotateY
-            mpv.rotateZ = VideoSettings.surfaceRotateZ
-            mpv.translateX = VideoSettings.surfaceTranslateX
-            mpv.translateY = VideoSettings.surfaceTranslateY
-            mpv.translateZ = VideoSettings.surfaceTranslateZ
+            mpv.rotate = Qt.vector3d(VideoSettings.surfaceRotateX, VideoSettings.surfaceRotateY, VideoSettings.surfaceRotateZ)
+            mpv.translate = Qt.vector3d(VideoSettings.surfaceTranslateX, VideoSettings.surfaceTranslateY, VideoSettings.surfaceTranslateZ)
+            sphereRotationTimer.stop()
         }
         else if(mpv.gridToMapOn == 1 && scene3D.visible){
             scene3D.visible = false
+            trackBall.trackballCameraController.rotationXYZ = Qt.vector3d(0, 0, 0);
             mpv.angle = VideoSettings.surfaceAngle
             mpv.radius = VideoSettings.surfaceRadius
             mpv.fov = VideoSettings.surfaceFov
-            mpv.rotateX = VideoSettings.surfaceRotateX
-            mpv.rotateY = VideoSettings.surfaceRotateY
-            mpv.rotateZ = VideoSettings.surfaceRotateZ
-            mpv.translateX = VideoSettings.surfaceTranslateX
-            mpv.translateY = VideoSettings.surfaceTranslateY
-            mpv.translateZ = VideoSettings.surfaceTranslateZ
+            mpv.rotate = Qt.vector3d(VideoSettings.surfaceRotateX, VideoSettings.surfaceRotateY, VideoSettings.surfaceRotateZ)
+            mpv.translate = Qt.vector3d(VideoSettings.surfaceTranslateX, VideoSettings.surfaceTranslateY, VideoSettings.surfaceTranslateZ)
+            sphereRotationTimer.stop()
         }
         else if(mpv.gridToMapOn == 2){
             scene3D.visible = true
+            mpv.rotate = Qt.vector3d(0.58, -86.52, 2.14);
+            trackBall.trackballCameraController.rotationXYZ = Qt.vector3d(0.58, -86.52, 2.14);
+            sphereRotationTimer.start()
         }
     }
 
@@ -199,13 +215,13 @@ MpvObject {
             if (nextFileRow < playList.playlistView.count) {
                 playlistModel.setPlayingVideo(nextFileRow)
                 loadItem(nextFileRow, !playList.isYouTubePlaylist)
-                playItem.start()
+                //playItem.start()
             } else {
                 // Last file in playlist
                 if (PlaylistSettings.repeat) {
                     playlistModel.setPlayingVideo(0)
                     loadItem(0)
-                    playItem.start()
+                    //playItem.start()
                 }
             }
         }
@@ -418,18 +434,6 @@ MpvObject {
     Shortcut {
         sequence: StandardKey.NextChild
         onActivated: view.currentIndex++
-    }
-
-    Timer {
-        id: trackBallRotateTimer
-        interval: 1000/60;
-        running: true;
-        repeat: true
-        onTriggered: {
-            /*mpv.rotateX += trackBallController.rotationXYZ.x;
-            mpv.rotateY -= trackBallController.rotationXYZ.y;
-            mpv.rotateZ -= trackBallController.rotationXYZ.z;*/
-        }
     }
 
     Component.onCompleted: {

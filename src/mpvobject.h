@@ -8,6 +8,7 @@
 #define MPVOBJECT_H
 
 #include <QtQuick/QQuickFramebufferObject>
+#include <QVector3D>
 
 #include <client.h>
 #include <render_gl.h>
@@ -118,6 +119,11 @@ class MpvObject : public QQuickFramebufferObject
                WRITE setVisibility
                NOTIFY visibilityChanged)
 
+    Q_PROPERTY(int loopMode
+               READ loopMode
+               WRITE setLoopMode
+               NOTIFY loopModeChanged)
+
     Q_PROPERTY(int gridToMapOn
                READ gridToMapOn
                WRITE setGridToMapOn
@@ -147,41 +153,17 @@ class MpvObject : public QQuickFramebufferObject
                WRITE setAngle
                NOTIFY angleChanged)
 
-    Q_PROPERTY(double rotateX
-               MEMBER m_rotateX
-               READ rotateX
-               WRITE setRotateX
-               NOTIFY rotateXChanged)
+    Q_PROPERTY(QVector3D rotate
+               MEMBER m_rotate
+               READ rotate
+               WRITE setRotate
+               NOTIFY rotateChanged)
 
-    Q_PROPERTY(double rotateY
-               MEMBER m_rotateY
-               READ rotateY
-               WRITE setRotateY
-               NOTIFY rotateYChanged)
-
-    Q_PROPERTY(double rotateZ
-               MEMBER m_rotateZ
-               READ rotateZ
-               WRITE setRotateZ
-               NOTIFY rotateZChanged)
-
-    Q_PROPERTY(double translateX
-               MEMBER m_translateX
-               READ translateX
-               WRITE setTranslateX
-               NOTIFY translateXChanged)
-
-    Q_PROPERTY(double translateY
-               MEMBER m_translateY
-               READ translateY
-               WRITE setTranslateY
-               NOTIFY translateYChanged)
-
-    Q_PROPERTY(double translateZ
-               MEMBER m_translateZ
-               READ translateZ
-               WRITE setTranslateZ
-               NOTIFY translateZChanged)
+    Q_PROPERTY(QVector3D translate
+               MEMBER m_translate
+               READ translate
+               WRITE setTranslate
+               NOTIFY translateChanged)
 
     Q_PROPERTY(bool surfaceTransistionOnGoing
                MEMBER m_surfaceTransistionOnGoing
@@ -258,6 +240,9 @@ class MpvObject : public QQuickFramebufferObject
     int visibility();
     void setVisibility(int value);
 
+    int loopMode();
+    void setLoopMode(int value);
+
     int gridToMapOn();
     void setGridToMapOn(int value);
 
@@ -273,23 +258,11 @@ class MpvObject : public QQuickFramebufferObject
     double angle();
     void setAngle(double value);
 
-    double rotateX();
-    void setRotateX(double value);
+    QVector3D rotate();
+    void setRotate(QVector3D value);
 
-    double rotateY();
-    void setRotateY(double value);
-
-    double rotateZ();
-    void setRotateZ(double value);
-
-    double translateX();
-    void setTranslateX(double value);
-
-    double translateY();
-    void setTranslateY(double value);
-
-    double translateZ();
-    void setTranslateZ(double value);
+    QVector3D translate();
+    void setTranslate(QVector3D value);
 
     bool surfaceTransistionOnGoing();
     void setSurfaceTransistionOnGoing(bool value);
@@ -358,17 +331,14 @@ signals:
     void stereoscopicVideoChanged();
     void syncVideoChanged();
     void visibilityChanged();
+    void loopModeChanged();
     void gridToMapOnChanged();
     void rotationSpeedChanged();
     void radiusChanged();
     void fovChanged();
     void angleChanged();
-    void rotateXChanged();
-    void rotateYChanged();
-    void rotateZChanged();
-    void translateXChanged();
-    void translateYChanged();
-    void translateZChanged();
+    void rotateChanged();
+    void translateChanged();
     void surfaceTransistionOnGoingChanged();
     void playlistModelChanged();
     void audioDevicesChanged();
@@ -388,12 +358,8 @@ private:
     double m_radius;
     double m_fov;
     double m_angle;
-    double m_rotateX;
-    double m_rotateY;
-    double m_rotateZ;
-    double m_translateX;
-    double m_translateY;
-    double m_translateZ;
+    QVector3D m_rotate;
+    QVector3D m_translate;
     bool m_surfaceTransistionOnGoing;
     double m_lastSetPosition;
     PlayListModel *m_playlistModel;

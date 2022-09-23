@@ -116,23 +116,19 @@ MpvObject::MpvObject(QQuickItem * parent)
     m_radius = VideoSettings::surfaceRadius();
     m_fov = VideoSettings::surfaceFov();
     m_angle = VideoSettings::surfaceAngle();
-    m_rotateX = VideoSettings::surfaceRotateX();
-    m_rotateY = VideoSettings::surfaceRotateY();
-    m_rotateZ = VideoSettings::surfaceRotateZ();
-    m_translateX = VideoSettings::surfaceTranslateX();
-    m_translateY = VideoSettings::surfaceTranslateY();
-    m_translateZ = VideoSettings::surfaceTranslateZ();
+    m_rotate = QVector3D(VideoSettings::surfaceRotateX(), VideoSettings::surfaceRotateY(), VideoSettings::surfaceRotateZ());
+    m_translate = QVector3D(VideoSettings::surfaceTranslateX(), VideoSettings::surfaceTranslateY(), VideoSettings::surfaceTranslateZ());
     m_surfaceTransistionOnGoing = false;
 
     SyncHelper::instance().variables.radius = m_radius;
     SyncHelper::instance().variables.fov = m_fov;
     SyncHelper::instance().variables.angle = m_angle;
-    SyncHelper::instance().variables.rotateX = m_rotateX;
-    SyncHelper::instance().variables.rotateY = m_rotateY;
-    SyncHelper::instance().variables.rotateZ = m_rotateZ;
-    SyncHelper::instance().variables.translateX = m_translateX;
-    SyncHelper::instance().variables.translateY = m_translateY;
-    SyncHelper::instance().variables.translateZ = m_translateZ;
+    SyncHelper::instance().variables.rotateX = m_rotate.x();
+    SyncHelper::instance().variables.rotateY = m_rotate.y();
+    SyncHelper::instance().variables.rotateZ = m_rotate.z();
+    SyncHelper::instance().variables.translateX = m_translate.x();
+    SyncHelper::instance().variables.translateY = m_translate.y();
+    SyncHelper::instance().variables.translateZ = m_translate.z();
 
     QString loadAudioInVidFolder = AudioSettings::loadAudioFileInVideoFolder() ? "all" : "no";
     setProperty("audio-file-auto", loadAudioInVidFolder);
@@ -225,6 +221,7 @@ double MpvObject::position()
 void MpvObject::setPosition(double value)
 {
     SyncHelper::instance().variables.timePosition = value;
+    SyncHelper::instance().variables.timeDirty = true;
     m_lastSetPosition = value;
     SyncHelper::instance().variables.timeThreshold = double(PlaybackSettings::thresholdToSyncTimePosition())/1000.0;
     if (value == position()) {
@@ -462,6 +459,28 @@ void MpvObject::setVisibility(int value)
     emit visibilityChanged();
 }
 
+int MpvObject::loopMode() {
+    return SyncHelper::instance().variables.loopMode;
+}
+
+void MpvObject::setLoopMode(int value) {
+    SyncHelper::instance().variables.loopMode = value;
+
+    if (value == 0) { //Continue
+        setProperty("loop-file", "no");
+        setProperty("keep-open", "no");
+    }
+    else if (value == 1) { //Pause (1)
+        setProperty("loop-file", "no");
+        setProperty("keep-open", "yes");
+    }
+    else { //Loop
+        setProperty("loop-file", "inf");
+        setProperty("keep-open", "yes");
+    }
+    emit loopModeChanged();
+}
+
 int MpvObject::gridToMapOn()
 {
     return SyncHelper::instance().variables.gridToMapOn;
@@ -469,8 +488,10 @@ int MpvObject::gridToMapOn()
 
 void MpvObject::setGridToMapOn(int value)
 {
-    SyncHelper::instance().variables.gridToMapOn = value;
-    emit gridToMapOnChanged();
+    if (SyncHelper::instance().variables.gridToMapOn != value) {
+        SyncHelper::instance().variables.gridToMapOn = value;
+        emit gridToMapOnChanged();
+    }
 }
 
 double MpvObject::rotationSpeed()
@@ -532,94 +553,38 @@ void MpvObject::setAngle(double value)
     emit angleChanged();
 }
 
-double MpvObject::rotateX()
+QVector3D MpvObject::rotate()
 {
-    return m_rotateX;
+    return m_rotate;
 }
 
-void MpvObject::setRotateX(double value)
+void MpvObject::setRotate(QVector3D value)
 {
-    if (qFuzzyCompare(m_rotateX, value)) {
+    if (qFuzzyCompare(m_rotate, value)) {
         return;
     }
-    SyncHelper::instance().variables.rotateX = value;
-    m_rotateX = value;
-    emit rotateXChanged();
+    m_rotate = value;
+    SyncHelper::instance().variables.rotateX = value.x();
+    SyncHelper::instance().variables.rotateY = value.y();
+    SyncHelper::instance().variables.rotateZ = value.z();
+    emit rotateChanged();
 }
 
-double MpvObject::rotateY()
+QVector3D MpvObject::translate()
 {
-    return m_rotateY;
+    return m_translate;
 }
 
-void MpvObject::setRotateY(double value)
+void MpvObject::setTranslate(QVector3D value)
 {
-    if (qFuzzyCompare(m_rotateY,value)) {
+    if (qFuzzyCompare(m_translate, value)) {
         return;
     }
-    SyncHelper::instance().variables.rotateY = value;
-    m_rotateY = value;
-    emit rotateYChanged();
-}
-
-double MpvObject::rotateZ()
-{
-    return m_rotateZ;
-}
-
-void MpvObject::setRotateZ(double value)
-{
-    if (qFuzzyCompare(m_rotateZ, value)) {
-        return;
-    }
-    SyncHelper::instance().variables.rotateZ = value;
-    m_rotateZ = value;
-    emit rotateZChanged();
-}
-
-double MpvObject::translateX()
-{
-    return m_translateX;
-}
-
-void MpvObject::setTranslateX(double value)
-{
-    if (qFuzzyCompare(m_translateX, value)) {
-        return;
-    }
-    SyncHelper::instance().variables.translateX = value;
-    m_translateX = value;
-    emit translateXChanged();
-}
-
-double MpvObject::translateY()
-{
-    return m_translateY;
-}
-
-void MpvObject::setTranslateY(double value)
-{
-    if (qFuzzyCompare(m_translateY, value)) {
-        return;
-    }
-    SyncHelper::instance().variables.translateY = value;
-    m_translateY = value;
-    emit translateYChanged();
-}
-
-double MpvObject::translateZ()
-{
-    return m_translateZ;
-}
-
-void MpvObject::setTranslateZ(double value)
-{
-    if (qFuzzyCompare(m_translateZ, value)) {
-        return;
-    }
-    SyncHelper::instance().variables.translateZ = value;
-    m_translateZ = value;
-    emit translateZChanged();
+    m_translate = value;
+    SyncHelper::instance().variables.translateX = value.x();
+    SyncHelper::instance().variables.translateY = value.y();
+    SyncHelper::instance().variables.translateZ = value.z();
+    emit translateChanged();
 }
 
 bool MpvObject::surfaceTransistionOnGoing() {
@@ -1074,20 +1039,24 @@ void MpvObject::loadJSONPlayList(const QString& file) {
                 video = new PlayListItem(filePath);
             }
 
-            if (o.contains("on_file_end")) {
-                QString loopMode = o.value("on_file_end").toString();
-                if (loopMode == "continue") {
-                    video->setLoopMode(0);
+            if (video != NULL) {
+                if (o.contains("on_file_end")) {
+                    QString loopMode = o.value("on_file_end").toString();
+                    if (loopMode == "continue") {
+                        video->setLoopMode(0);
+                    }
+                    else if (loopMode == "pause") {
+                        video->setLoopMode(1);
+                    }
+                    else if (loopMode == "loop") {
+                        video->setLoopMode(2);
+                    }
                 }
-                else if (loopMode == "pause") {
-                    video->setLoopMode(1);
-                }
-                else if (loopMode == "loop") {
-                    video->setLoopMode(2);
-                }
-            }
 
-            m_playList.append(QPointer<PlayListItem>(video));
+                m_playList.append(QPointer<PlayListItem>(video));
+            }
+            else
+                qDebug() << "Parsing file failed: " << filePath;
         }
     }
 
@@ -1135,11 +1104,13 @@ void MpvObject::eventHandler()
                 }
             } else if (strcmp(prop->name, "time-pos") == 0) {
                 if (prop->format == MPV_FORMAT_DOUBLE) {
-                    SyncHelper::instance().variables.timePosition = position();
+                    double latestPosition = position();
+                    SyncHelper::instance().variables.timePosition = latestPosition;
+                    SyncHelper::instance().variables.paused = pause();
                     if(PlaybackSettings::intervalToSetPosition() > 0){
-                        if(SyncHelper::instance().variables.timePosition > m_lastSetPosition + PlaybackSettings::intervalToSetPosition()){
+                        if(abs(latestPosition - m_lastSetPosition)*1000 > PlaybackSettings::intervalToSetPosition()){
                             m_lastSetPosition = SyncHelper::instance().variables.timePosition;
-                            SyncHelper::instance().variables.timeThreshold = 0.0;
+                            SyncHelper::instance().variables.timeDirty = true;
                         }
                         else{
                             SyncHelper::instance().variables.timeThreshold = double(PlaybackSettings::thresholdToSyncTimePosition())/1000.0;
@@ -1168,7 +1139,7 @@ void MpvObject::eventHandler()
                 }
             } else if (strcmp(prop->name, "pause") == 0) {
                 if (prop->format == MPV_FORMAT_FLAG) {
-                    m_lastSetPosition = position();
+                    //m_lastSetPosition = position();
                     SyncHelper::instance().variables.paused = pause();
                     emit pauseChanged();
                 }
