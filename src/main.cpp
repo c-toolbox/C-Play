@@ -38,6 +38,7 @@ int videoHeight = 0;
 unsigned int mpvFBO = 0;
 unsigned int mpvTex = 0;
 bool paused = true;
+int loopMode = -1;
 int videoEyeModeLoc = -1;
 int videoAlphaLoc = -1;
 int meshMatrixLoc = -1;
@@ -221,7 +222,14 @@ void on_mpv_events(void*)
                     }
                     else if (strcmp(prop->name, "pause") == 0) {
                         if (prop->format == MPV_FORMAT_FLAG) {
-                            //paused = mpv::qt::get_property(mpvHandle, "pause").toBool();
+                            paused = mpv::qt::get_property(mpvHandle, "pause").toBool();
+                            if (SyncHelper::instance().variables.paused != paused)
+                                mpv::qt::set_property(mpvHandle, "pause", SyncHelper::instance().variables.paused);
+                        }
+                    }
+                    else if (strcmp(prop->name, "time-pos") == 0) {
+                        if (prop->format == MPV_FORMAT_DOUBLE) {
+                            //mpv::qt::set_property(mpvHandle, "pause", SyncHelper::instance().variables.paused);
                         }
                     }
                     break;
@@ -289,6 +297,7 @@ void initOGL(GLFWwindow*) {
     //Observe video parameters
     mpv_observe_property(mpvHandle, 0, "video-params", MPV_FORMAT_NODE);
     mpv_observe_property(mpvHandle, 0, "pause", MPV_FORMAT_FLAG);
+    mpv_observe_property(mpvHandle, 0, "time-pos", MPV_FORMAT_DOUBLE);
 
     //Creating new FBO to render mpv into
     createMpvFBO(512, 512);
@@ -377,7 +386,9 @@ std::vector<std::byte> encode() {
     serializeObject(data, SyncHelper::instance().variables.paused);
     serializeObject(data, SyncHelper::instance().variables.timePosition);
     serializeObject(data, SyncHelper::instance().variables.timeThreshold);
+    serializeObject(data, SyncHelper::instance().variables.timeDirty);
     serializeObject(data, SyncHelper::instance().variables.sbs3DVideo);
+    serializeObject(data, SyncHelper::instance().variables.loopMode);
     serializeObject(data, SyncHelper::instance().variables.gridToMapOn);
     serializeObject(data, SyncHelper::instance().variables.contrast);
     serializeObject(data, SyncHelper::instance().variables.brightness);
@@ -393,9 +404,9 @@ std::vector<std::byte> encode() {
     serializeObject(data, SyncHelper::instance().variables.translateY);
     serializeObject(data, SyncHelper::instance().variables.translateZ);
 
-    //Reset load flag every frame cycle
-    if(SyncHelper::instance().variables.loadFile)
-        SyncHelper::instance().variables.loadFile = false;
+    //Reset flags every frame cycle
+    SyncHelper::instance().variables.loadFile = false;
+    SyncHelper::instance().variables.timeDirty = false;
 
     return data;
 }
@@ -410,7 +421,9 @@ void decode(const std::vector<std::byte>& data, unsigned int pos) {
         deserializeObject(data, pos, SyncHelper::instance().variables.paused);
         deserializeObject(data, pos, SyncHelper::instance().variables.timePosition);
         deserializeObject(data, pos, SyncHelper::instance().variables.timeThreshold);
+        deserializeObject(data, pos, SyncHelper::instance().variables.timeDirty);
         deserializeObject(data, pos, SyncHelper::instance().variables.sbs3DVideo);
+        deserializeObject(data, pos, SyncHelper::instance().variables.loopMode);
         deserializeObject(data, pos, SyncHelper::instance().variables.gridToMapOn);
         deserializeObject(data, pos, SyncHelper::instance().variables.contrast);
         deserializeObject(data, pos, SyncHelper::instance().variables.brightness);
@@ -432,7 +445,7 @@ void postSyncPreDraw() {
 #ifndef SGCT_ONLY
     //Apply synced commands
     if (!Engine::instance().isMaster()) {
-        if(!SyncHelper::instance().variables.loadedFile.empty() && (SyncHelper::instance().variables.loadFile || loadedFile != SyncHelper::instance().variables.loadedFile)){
+        if (!SyncHelper::instance().variables.loadedFile.empty() && (SyncHelper::instance().variables.loadFile || loadedFile != SyncHelper::instance().variables.loadedFile)) {
             //Load new file
             loadedFile = SyncHelper::instance().variables.loadedFile;
             SyncHelper::instance().variables.loadFile = false;
@@ -448,17 +461,34 @@ void postSyncPreDraw() {
                 mpv::qt::set_property(mpvHandle, "lavfi-complex", "");
             }
         }
-        
+
         paused = mpv::qt::get_property(mpvHandle, "pause").toBool();
-        if(SyncHelper::instance().variables.paused != paused){
+        if (SyncHelper::instance().variables.paused != paused) {
             paused = SyncHelper::instance().variables.paused;
-            if(paused) {
+            if (paused) {
                 Log::Info("Video paused.");
             }
-            else{
+            else {
                 Log::Info("Video playing...");
             }
             mpv::qt::set_property(mpvHandle, "pause", paused);
+        }
+
+        if (SyncHelper::instance().variables.loopMode != loopMode) {
+            loopMode = SyncHelper::instance().variables.loopMode;
+
+            if (loopMode == 0) { //Continue
+                mpv::qt::set_property(mpvHandle, "keep-open", "no");
+                mpv::qt::set_property(mpvHandle, "loop-file", "no");
+            }
+            else if (loopMode == 1) { //Pause (1)
+                mpv::qt::set_property(mpvHandle, "keep-open", "yes");
+                mpv::qt::set_property(mpvHandle, "loop-file", "no");
+            }
+            else { //Loop
+                mpv::qt::set_property(mpvHandle, "keep-open", "yes");
+                mpv::qt::set_property(mpvHandle, "loop-file", "inf");
+            }
         }
 
         if (SyncHelper::instance().variables.contrast != mpv::qt::get_property(mpvHandle, "contrast").toInt()) {
@@ -478,12 +508,16 @@ void postSyncPreDraw() {
         }
 
         double currentTimePos = mpv::qt::get_property(mpvHandle, "time-pos").toDouble();
-        if(SyncHelper::instance().variables.timePosition != currentTimePos && SyncHelper::instance().variables.syncOn){
-            if(paused || (abs(currentTimePos-SyncHelper::instance().variables.timePosition)>SyncHelper::instance().variables.timeThreshold)){
+        if (SyncHelper::instance().variables.timePosition != currentTimePos && SyncHelper::instance().variables.syncOn) {
+            double timeToSet = SyncHelper::instance().variables.timePosition;
+            double timeThreshold = SyncHelper::instance().variables.timeThreshold;
+            bool timeOff = ((timeToSet - currentTimePos) > timeThreshold);
+            if (SyncHelper::instance().variables.timeDirty || paused || timeOff) {
+                mpv::qt::set_property(mpvHandle, "time-pos", timeToSet);
                 //Always set time pos when paused and not same time
                 //Or set time position as it is above sync threshold
-                mpv::qt::set_property(mpvHandle, "time-pos", SyncHelper::instance().variables.timePosition);
-                Log::Info(fmt::format("New video position: {}", SyncHelper::instance().variables.timePosition));
+                //mpv::qt::command_async(mpvHandle, QVariantList() << "seek" << timeToSet << "absolute");
+                Log::Info(fmt::format("New video position: {}", timeToSet));     
             }
         }
 

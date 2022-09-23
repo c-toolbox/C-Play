@@ -324,20 +324,17 @@ ToolBar {
                 onFileLoaded: {
                     const loopMode = mpv.playlistModel.loopMode(mpv.playlistModel.getPlayingVideo())
                     if(loopMode===0 && playList.playlistView.count > 1){ //Continue
-                        mpv.setProperty("loop-file", "no")
-                        mpv.setProperty("keep-open", "no")
+                        mpv.loopMode = 0;
                         eofMenuButton.text = qsTr("EOF: Next ")
                         eofMenuButton.icon.name = "go-next"
                     }
                     else if(loopMode===1){ //Pause (1)
-                        mpv.setProperty("loop-file", "no")
-                        mpv.setProperty("keep-open", "yes")
+                        mpv.loopMode = 1;
                         eofMenuButton.text = qsTr("EOF: Pause")
                         eofMenuButton.icon.name = "media-playback-pause"
                     }
                     else { //Loop
-                        mpv.setProperty("loop-file", "inf")
-                        mpv.setProperty("keep-open", "yes")
+                        mpv.loopMode = 2;
                         eofMenuButton.text = qsTr("EOF: Loop ")
                         eofMenuButton.icon.name = "media-playlist-repeat"
                     }
@@ -364,8 +361,7 @@ ToolBar {
                         text: qsTr("EOF: Pause")
                         onClicked: {
                             mpv.playlistModel.setLoopMode(mpv.playlistModel.getPlayingVideo(), 1)
-                            mpv.setProperty("loop-file", "no")
-                            mpv.setProperty("keep-open", "yes")
+                            mpv.loopMode = 1;
                             eofMenuButton.text = qsTr("EOF: Pause")
                             eofMenuButton.icon.name = "media-playback-pause"
 
@@ -382,8 +378,7 @@ ToolBar {
                         text: qsTr("EOF: Loop ")
                         onClicked: {
                             mpv.playlistModel.setLoopMode(mpv.playlistModel.getPlayingVideo(), 2)
-                            mpv.setProperty("loop-file", "inf")
-                            mpv.setProperty("keep-open", "yes")
+                            mpv.loopMode = 2;
                             eofMenuButton.text = qsTr("EOF: Loop")
                             eofMenuButton.icon.name = "media-playlist-repeat"
                         }
@@ -400,8 +395,7 @@ ToolBar {
                         enabled: (playList.playlistView.count > 1)
                         onClicked: {
                            mpv.playlistModel.setLoopMode(mpv.playlistModel.getPlayingVideo(), 0)
-                           mpv.setProperty("loop-file", "no")
-                           mpv.setProperty("keep-open", "no")
+                           mpv.loopMode = 0;
                            eofMenuButton.text = qsTr("EOF: Next")
                            eofMenuButton.icon.name = "go-next"
                         }
@@ -642,7 +636,7 @@ ToolBar {
                         stepSize: 1
                         value: 0
                         visible: false
-                        onValueModified: mpv.rotateX = value / 100.0;
+                        onValueModified: mpv.rotate.x = value / 100.0;
                     }
                     SpinBox {
                         id: rotateYValue
@@ -651,7 +645,7 @@ ToolBar {
                         stepSize: 1
                         value: 0
                         visible: false
-                        onValueModified: mpv.rotateY = value / 100.0;
+                        onValueModified: mpv.rotate.y = value / 100.0;
                     }
                     SpinBox {
                         id: rotateZValue
@@ -660,7 +654,7 @@ ToolBar {
                         stepSize: 1
                         value: 0
                         visible: false
-                        onValueModified: mpv.rotateZ = value / 100.0;
+                        onValueModified: mpv.rotate.z = value / 100.0;
                     }
 
                     Timer {
@@ -668,7 +662,7 @@ ToolBar {
                         interval: 1000/60;
                         running: false;
                         repeat: true
-                        onTriggered: mpv.rotateX += spinXSpeed.realValue;
+                        onTriggered: mpv.rotate.x += spinXSpeed.realValue;
                     }
 
                     Timer {
@@ -676,7 +670,7 @@ ToolBar {
                         interval: 1000/60;
                         running: false;
                         repeat: true
-                        onTriggered: mpv.rotateY += spinYSpeed.realValue;
+                        onTriggered: mpv.rotate.y += spinYSpeed.realValue;
                     }
 
                     Timer {
@@ -684,7 +678,7 @@ ToolBar {
                         interval: 1000/60;
                         running: false;
                         repeat: true
-                        onTriggered: mpv.rotateZ += spinZSpeed.realValue;
+                        onTriggered: mpv.rotate.z += spinZSpeed.realValue;
                     }
 
                     RowLayout {
@@ -748,6 +742,21 @@ ToolBar {
 
                         onClicked: {
                             mpv.performSurfaceTransistion();
+                        }
+
+                        Layout.alignment: Qt.AlignHCenter | Qt.AlignVCenter
+                    }
+                    ToolButton {
+                        id: resetOrientation
+
+                        text: {
+                            qsTr("Reset Orientation")
+                        }
+
+                        focusPolicy: Qt.NoFocus
+
+                        onClicked: {
+                            mpv.gridToMapOnChanged()
                         }
 
                         Layout.alignment: Qt.AlignHCenter | Qt.AlignVCenter

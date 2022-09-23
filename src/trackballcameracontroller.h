@@ -65,16 +65,10 @@ public slots:
         emit rotationSpeedChanged(m_rotationSpeed);
     }
 
-    void setRotationXYZ(QVector3D rotationXYZ)
-    {
-        if (m_rotationXYZ == rotationXYZ)
-            return;
-
-        m_rotationXYZ = rotationXYZ;
-        emit rotationXYZChanged();
-    }
-
-    void toggleRotationTimer();
+    void setRotationXYZ(QVector3D rotationXYZ);
+    void setAbsoluteRotation(QVector3D rotationXYZ);
+    void stopRotation();
+    bool performRotation();
 
 signals:
     void windowSizeChanged(QSize windowSize);
@@ -91,6 +85,7 @@ protected:
 private:
     QVector3D m_rotationXYZ;
     QQuaternion m_lastRotation;
+    bool m_continousRotation;
     QPoint m_mouseLastPosition, m_mouseCurrentPosition;
     QSize m_windowSize;
     float m_trackballRadius = 1.0f;
@@ -99,7 +94,6 @@ private:
     float m_rotationSpeed = 1.0f;
     float m_zoomCameraLimit = 1.0f;
     float m_trackballSize = 1.0f;
-    QTimer* rotationTimer;
 };
 
 #endif // TRACKBALLCAMERACONTROLLER_H

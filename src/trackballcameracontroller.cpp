@@ -33,29 +33,56 @@ TrackballCameraController::TrackballCameraController(Qt3DCore::QNode *parent)
                                               positionChangedEvent->y());
     });
 
-    rotationTimer = new QTimer(this);
     m_lastRotation = QQuaternion(0.f, 0.f, 0.f, 0.f);
-    connect(rotationTimer, &QTimer::timeout, [this]()
-        {
-            auto theCamera = camera();
-            if (theCamera != nullptr) {
-                if (m_lastRotation.length() > 0.f) {
-                    theCamera->rotateAboutViewCenter(m_lastRotation);
-                    setRotationXYZ(theCamera->transform()->rotation().toEulerAngles());
-                    emit rotationXYZChanged();
-                }
-            }
-        });
-    rotationTimer->start(1000 / 60);
+    m_continousRotation = false;
 }
 
-void TrackballCameraController::toggleRotationTimer() {
-    if (rotationTimer->isActive()) {
-        rotationTimer->stop();
+void TrackballCameraController::setRotationXYZ(QVector3D rotationXYZ)
+{
+    if (m_rotationXYZ == rotationXYZ)
+        return;
+
+    auto theCamera = camera();
+    if (theCamera != nullptr) {
+        auto theCamera = camera();
+        QQuaternion rotation = QQuaternion::fromEulerAngles(rotationXYZ);
+        theCamera->rotateAboutViewCenter(rotation);
+
+        m_rotationXYZ = rotationXYZ;
+        emit rotationXYZChanged();
     }
-    else {
-        rotationTimer->start(1000/60);
+}
+
+void TrackballCameraController::setAbsoluteRotation(QVector3D rotationXYZ) {
+    if (m_rotationXYZ == rotationXYZ)
+        return;
+
+    auto theCamera = camera();
+    if (theCamera != nullptr) {
+        QVector3D diff = m_rotationXYZ - rotationXYZ;
+        auto theCamera = camera();
+        QQuaternion rotation = QQuaternion::fromEulerAngles(diff);
+        theCamera->rotateAboutViewCenter(rotation);
+        m_rotationXYZ = rotationXYZ;
     }
+}
+
+void TrackballCameraController::stopRotation() {
+    m_lastRotation = QQuaternion(0.f, 0.f, 0.f, 0.f);
+    m_continousRotation = false;
+}
+
+bool TrackballCameraController::performRotation() {
+    auto theCamera = camera();
+    if (theCamera != nullptr) {
+        if (m_continousRotation) {
+            theCamera->rotateAboutViewCenter(m_lastRotation);
+            m_rotationXYZ = theCamera->transform()->rotation().toEulerAngles();
+            emit rotationXYZChanged();
+            return true;
+        }
+    }
+    return false;
 }
 
 QVector3D TrackballCameraController::projectToTrackball(const QPoint &screenCoords) const
@@ -101,9 +128,6 @@ void TrackballCameraController::moveCamera(const Qt3DExtras::QAbstractCameraCont
     if(theCamera == nullptr)
         return;
 
-    auto ls = linearSpeed();
-
-
     if(state.leftMouseButtonActive){
         QVector3D dir;
         float angle;
@@ -116,6 +140,11 @@ void TrackballCameraController::moveCamera(const Qt3DExtras::QAbstractCameraCont
 
         QQuaternion rotation = QQuaternion::fromAxisAndAngle(rotatedAxis, angle * M_1_PI * 180);
         //theCamera->rotateAboutViewCenter(rotation);
+
+        if (!rotation.isIdentity())
+            m_continousRotation = true;
+        else
+            m_continousRotation = false;
 
         m_lastRotation = rotation;
 
@@ -132,6 +161,11 @@ void TrackballCameraController::moveCamera(const Qt3DExtras::QAbstractCameraCont
 
         QQuaternion rotation = QQuaternion::fromAxisAndAngle(theCamera->viewVector(), angle * M_1_PI * 180);
         //theCamera->rotateAboutViewCenter(rotation);
+
+        if (!rotation.isIdentity())
+            m_continousRotation = true;
+        else
+            m_continousRotation = false;
 
         m_lastRotation = rotation;
 

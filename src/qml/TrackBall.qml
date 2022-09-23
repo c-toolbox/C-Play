@@ -16,6 +16,7 @@ import Haruna.Components 1.0
 Entity{
     id: root
     property alias camera: camera
+    property alias trackballCameraController: trackBallController
     property color ambientStrengthPlanet: "#ffffff"
     property real shininessSpecularMap: 0.0
 
@@ -35,21 +36,6 @@ Entity{
         camera: camera
         windowSize: Qt.size(window.width, window.height)
         rotationSpeed: mpv.rotationSpeed
-
-        onRotationXYZChanged: {
-            if(mpv.gridToMapOn === 2) {
-                mpv.rotateX = rotationXYZ.x;
-                mpv.rotateY = rotationXYZ.y;
-                mpv.rotateZ = rotationXYZ.z;
-            }
-            else {
-                rotationXYZ.x = 0;
-                rotationXYZ.y = 0;
-                rotationXYZ.z = 0;
-                camera.upVector = Qt.vector3d( 0.0, 1.0, 0.0 );
-                camera.position = Qt.vector3d( 0.0, 0.0, 1.0 );
-            }
-        }
 
         Shortcut {
             sequence: "Ctrl+E"

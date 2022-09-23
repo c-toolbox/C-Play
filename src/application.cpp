@@ -937,9 +937,11 @@ SyncHelper& SyncHelper::instance() {
         _instance->variables.paused = false;
         _instance->variables.timePosition = 0.0;
         _instance->variables.timeThreshold = 1.0;
+        _instance->variables.timeDirty = false;
         _instance->variables.alpha = 1.f;
         _instance->variables.sbs3DVideo = false;
         _instance->variables.syncOn = true;
+        _instance->variables.loopMode = 2;
         _instance->variables.gridToMapOn = 0;
         _instance->variables.contrast = 0;
         _instance->variables.brightness = 0;
