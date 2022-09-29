@@ -72,37 +72,29 @@ constexpr const char* VideoVert = R"(
     gl_Position = vec4(in_position, 0.0, 1.0);
     tr_uv = in_texCoords;
 
-    if(stereoscopicMode == 1) //Side-by-side
-    {
-        if(eye==1) { //Left Eye
-          tr_uv = in_texCoords * vec2(0.5, 1.0);
+    if(eye==1) { //Left Eye
+        if(stereoscopicMode==1) { //Side-by-side
+            tr_uv = in_texCoords * vec2(0.5, 1.0);
         }
-        else if(eye==2) { //Right Eye
-          tr_uv = (in_texCoords * vec2(0.5, 1.0)) + vec2(0.5, 0.0);
+        else if(stereoscopicMode==2) { //Top-bottom
+            tr_uv = (in_texCoords * vec2(1.0, 0.5)) + vec2(0.0, 0.5);
         }
-    }
-    else if(stereoscopicMode == 2) //Top-bottom
-    {
-        if(eye==1) { //Left Eye
-          tr_uv = (in_texCoords * vec2(1.0, 0.5)) + vec2(1.0, 0.5);
-        }
-        else if(eye==2) { //Right Eye
-          tr_uv = in_texCoords * vec2(1.0, 0.5);
+        else if(stereoscopicMode==3) { //Top-bottom-flip
+            tr_uv = (in_texCoords * vec2(1.0, 0.5)) + vec2(0.0, 0.5);
+            tr_uv = vec2(1.0 - tr_uv.y, tr_uv.x);
         }
     }
-    else if(stereoscopicMode == 3) //Top-bottom+flip
-    {
-        if(eye==1) { //Left Eye
-          tr_uv = (in_texCoords * vec2(1.0, 0.5)) + vec2(1.0, 0.5);
-          tr_uv = vec2(1.0 - tr_uv.y, tr_uv.x);
+    else if(eye==2) { //Right Eye
+        if(stereoscopicMode==1) { //Side-by-side
+            tr_uv = (in_texCoords * vec2(0.5, 1.0)) + vec2(0.5, 0.0);
         }
-        else if(eye==2) { //Right Eye
-          tr_uv = in_texCoords * vec2(1.0, 0.5);
-          tr_uv = vec2(1.0 - tr_uv.y, tr_uv.x);
+        else if(stereoscopicMode==2) { //Top-bottom
+            tr_uv = in_texCoords * vec2(1.0, 0.5);
         }
-    }
-    else { //Mono eye=0
-      tr_uv = in_texCoords;
+        else if(stereoscopicMode==3) { //Top-bottom-flip
+            tr_uv = in_texCoords * vec2(1.0, 0.5);
+            tr_uv = vec2(1.0 - tr_uv.y, tr_uv.x);
+        }
     }
   }
 )";
@@ -126,37 +118,29 @@ constexpr const char* MeshVert = R"(
     tr_uv = in_texCoords;
     tr_normals = in_normals;
 
-    if(stereoscopicMode == 1) //Side-by-side
-    {
-        if(eye==1) { //Left Eye
-          tr_uv = in_texCoords * vec2(0.5, 1.0);
+    if(eye==1) { //Left Eye
+        if(stereoscopicMode==1) { //Side-by-side
+            tr_uv = in_texCoords * vec2(0.5, 1.0);
         }
-        else if(eye==2) { //Right Eye
-          tr_uv = (in_texCoords * vec2(0.5, 1.0)) + vec2(0.5, 0.0);
+        else if(stereoscopicMode==2) { //Top-bottom
+            tr_uv = (in_texCoords * vec2(1.0, 0.5)) + vec2(0.0, 0.5);
         }
-    }
-    else if(stereoscopicMode == 2) //Top-bottom
-    {
-        if(eye==1) { //Left Eye
-          tr_uv = (in_texCoords * vec2(1.0, 0.5)) + vec2(1.0, 0.5);
-        }
-        else if(eye==2) { //Right Eye
-          tr_uv = in_texCoords * vec2(1.0, 0.5);
+        else if(stereoscopicMode==3) { //Top-bottom-flip
+            tr_uv = (in_texCoords * vec2(1.0, 0.5)) + vec2(0.0, 0.5);
+            tr_uv = vec2(1.0 - tr_uv.y, tr_uv.x);
         }
     }
-    else if(stereoscopicMode == 3) //Top-bottom+flip
-    {
-        if(eye==1) { //Left Eye
-          tr_uv = (in_texCoords * vec2(1.0, 0.5)) + vec2(1.0, 0.5);
-          tr_uv = vec2(1.0 - tr_uv.y, tr_uv.x);
+    else if(eye==2) { //Right Eye
+        if(stereoscopicMode==1) { //Side-by-side
+            tr_uv = (in_texCoords * vec2(0.5, 1.0)) + vec2(0.5, 0.0);
         }
-        else if(eye==2) { //Right Eye
-          tr_uv = in_texCoords * vec2(1.0, 0.5);
-          tr_uv = vec2(1.0 - tr_uv.y, tr_uv.x);
+        else if(stereoscopicMode==2) { //Top-bottom
+            tr_uv = in_texCoords * vec2(1.0, 0.5);
         }
-    }
-    else { //Mono eye=0
-      tr_uv = in_texCoords;
+        else if(stereoscopicMode==3) { //Top-bottom-flip
+            tr_uv = in_texCoords * vec2(1.0, 0.5);
+            tr_uv = vec2(1.0 - tr_uv.y, tr_uv.x);
+        }
     }
   }
 )";
@@ -216,7 +200,10 @@ constexpr const char* EACSphereVideoFrag = R"(
 
   void main() {
     float pi = M_PI;
-	vec3 xyz = normalize(tr_normals);
+	vec3 xyz = normalize(-tr_normals);
+    if(outside){
+        xyz = normalize(tr_normals);
+    }
 	float x = xyz.x;
     float y = xyz.y;
     float z = xyz.z;
@@ -253,39 +240,28 @@ constexpr const char* EACSphereVideoFrag = R"(
 		}
 	}
 
-    vec2 texCoods;
-    if(outside){
-        texCoods = vec2(1.0 - (u / 6.0), 1.0 - (v / 4.0));
-    }
-    else{
-        texCoods = vec2(u / 6.0, v / 4.0);
-    }
+    vec2 texCoods = vec2(u / 6.0, v / 4.0);
 
-    if(stereoscopicMode == 1) //Side-by-side
-    {
-        if(eye==1) { //Left Eye
-          texCoods = texCoods * vec2(0.5, 1.0);
+    if(eye==1) { //Left Eye
+        if(stereoscopicMode==1) { //Side-by-side
+            texCoods = texCoods * vec2(0.5, 1.0);
         }
-        else if(eye==2) { //Right Eye
-          texCoods = (texCoods * vec2(0.5, 1.0)) + vec2(0.5, 0.0);
+        else if(stereoscopicMode==2) { //Top-bottom
+            texCoods = (texCoods * vec2(1.0, 0.5)) + vec2(0.0, 0.5);
         }
-    }
-    else if(stereoscopicMode == 2) //Top-bottom
-    {
-        if(eye==1) { //Left Eye
-          texCoods = (texCoods * vec2(1.0, 0.5)) + vec2(1.0, 0.5);
-        }
-        else if(eye==2) { //Right Eye
-          texCoods = texCoods * vec2(1.0, 0.5);
-        }
-    }
-    else if(stereoscopicMode == 3) //Top-bottom+flip
-    {
-        if(eye==1) { //Left Eye
+        else if(stereoscopicMode==3) { //Top-bottom-flip
             texCoods = (texCoods * vec2(1.0, 0.5)) + vec2(0.0, 0.5);
             texCoods = vec2(1.0 - texCoods.y, texCoods.x);
         }
-        else if(eye==2) { //Right Eye
+    }
+    else if(eye==2) { //Right Eye
+        if(stereoscopicMode==1) { //Side-by-side
+            texCoods = (texCoods * vec2(0.5, 1.0)) + vec2(0.5, 0.0);
+        }
+        else if(stereoscopicMode==2) { //Top-bottom
+            texCoods = texCoods * vec2(1.0, 0.5);
+        }
+        else if(stereoscopicMode==3) { //Top-bottom-flip
             texCoods = texCoods * vec2(1.0, 0.5);
             texCoods = vec2(1.0 - texCoods.y, texCoods.x);
         }
@@ -507,6 +483,7 @@ void initOGL(GLFWwindow*) {
     videoPrg->bind();
     glUniform1i(glGetUniformLocation(videoPrg->id(), "tex"), 0);
     videoEyeModeLoc = glGetUniformLocation(videoPrg->id(), "eye");
+    videoStereoscopicModeLoc = glGetUniformLocation(videoPrg->id(), "stereoscopicMode");
     videoAlphaLoc = glGetUniformLocation(videoPrg->id(), "alpha");
     videoPrg->unbind();
 
@@ -833,7 +810,7 @@ void draw(const RenderData& data) {
 
                 if (SyncHelper::instance().variables.stereoscopicMode > 0) {
                     glUniform1i(meshEyeModeLoc, (GLint)data.frustumMode);
-                    glUniform1i(meshStereoscopicModeLoc, SyncHelper::instance().variables.stereoscopicMode);
+                    glUniform1i(meshStereoscopicModeLoc, (GLint)SyncHelper::instance().variables.stereoscopicMode);
                 }
                 else {
                     glUniform1i(meshEyeModeLoc, 0);
@@ -868,7 +845,7 @@ void draw(const RenderData& data) {
 
             if (SyncHelper::instance().variables.stereoscopicMode > 0) {
                 glUniform1i(meshEyeModeLoc, (GLint)data.frustumMode);
-                glUniform1i(meshStereoscopicModeLoc, SyncHelper::instance().variables.stereoscopicMode);
+                glUniform1i(meshStereoscopicModeLoc, (GLint)SyncHelper::instance().variables.stereoscopicMode);
             }
             else {
                 glUniform1i(meshEyeModeLoc, 0);
@@ -901,14 +878,13 @@ void draw(const RenderData& data) {
 
         if (SyncHelper::instance().variables.stereoscopicMode > 0) {
             glUniform1i(videoEyeModeLoc, (GLint)data.frustumMode);
-            glUniform1i(videoStereoscopicModeLoc, SyncHelper::instance().variables.stereoscopicMode);
+            glUniform1i(videoStereoscopicModeLoc, (GLint)SyncHelper::instance().variables.stereoscopicMode);
         }
         else {
             glUniform1i(videoEyeModeLoc, 0);
             glUniform1i(videoStereoscopicModeLoc, 0);
         }
 
-        glUniform1f(videoAlphaLoc, SyncHelper::instance().variables.alpha);
         glUniform1f(videoAlphaLoc, SyncHelper::instance().variables.alpha);
 
         data.window.renderScreenQuad();

@@ -29,9 +29,9 @@ Kirigami.ApplicationWindow {
     visible: true
     title: mpv.mediaTitle || qsTr("C-Play")
     width: 1536
-    minimumWidth: 1536
+    minimumWidth: 1152
     height: 880
-    minimumHeight: 880
+    minimumHeight: 660
     color: Kirigami.Theme.backgroundColor
 
     onVisibilityChanged: {
