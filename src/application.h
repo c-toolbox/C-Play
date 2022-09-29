@@ -98,7 +98,7 @@ public:
         double timeThreshold;
         bool timeDirty;
         float alpha;
-        bool sbs3DVideo;
+        int stereoscopicMode;
         bool syncOn;
         int loopMode;
         int gridToMapOn;

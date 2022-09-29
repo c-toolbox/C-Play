@@ -181,7 +181,9 @@ ToolBar {
                 else if(mpv.gridToMapOn == 1)
                     gridMenuButton.text = qsTr("Grid (Dome)")
                 else if(mpv.gridToMapOn == 2)
-                    gridMenuButton.text = qsTr("Grid (Sphere)")
+                    gridMenuButton.text = qsTr("Grid (Sphere EQR)")
+                else if(mpv.gridToMapOn == 3)
+                    gridMenuButton.text = qsTr("Grid (Sphere EAC)")
             }
             icon.name: "kstars_hgrid"
             focusPolicy: Qt.NoFocus
@@ -198,7 +200,9 @@ ToolBar {
                     else if(mpv.gridToMapOn == 1)
                         gridMenuButton.text = qsTr("Grid (Dome)")
                     else if(mpv.gridToMapOn == 2)
-                        gridMenuButton.text = qsTr("Grid (Sphere)")
+                        gridMenuButton.text = qsTr("Grid (Sphere EQR)")
+                    else if(mpv.gridToMapOn == 3)
+                        gridMenuButton.text = qsTr("Grid (Sphere EAC)")
                 }
             }
 
@@ -218,40 +222,53 @@ ToolBar {
 
                     RadioButton {
                         id: presplit_grid
-                        checked: PlaybackSettings.gridToMapOn == 0
+                        checked: PlaybackSettings.gridToMapOn === 0
                         text: qsTr("Flat/Pre-split")
                         onClicked: {
                             mpv.gridToMapOn = 0
                         }
                         Connections {
                             target: mpv
-                            onGridToMapOnChanged: presplit_grid.checked = (mpv.gridToMapOn == 0)
+                            onGridToMapOnChanged: presplit_grid.checked = (mpv.gridToMapOn === 0)
                         }
                     }
 
                     RadioButton {
                         id: dome_grid
-                        checked: PlaybackSettings.gridToMapOn == 1
+                        checked: PlaybackSettings.gridToMapOn === 1
                         text: qsTr("Dome")
                         onClicked: {
                              mpv.gridToMapOn = 1
                         }
                         Connections {
                             target: mpv
-                            onGridToMapOnChanged: dome_grid.checked = (mpv.gridToMapOn == 1)
+                            onGridToMapOnChanged: dome_grid.checked = (mpv.gridToMapOn === 1)
                         }
                     }
 
                     RadioButton {
-                        id: sphere_grid
-                        checked: PlaybackSettings.gridToMapOn == 2
-                        text: qsTr("Sphere")
+                        id: sphere_eqr_grid
+                        checked: PlaybackSettings.gridToMapOn === 2
+                        text: qsTr("Sphere EQR")
                         onClicked: {
                             mpv.gridToMapOn = 2
                         }
                         Connections {
                             target: mpv
-                            onGridToMapOnChanged: dome_grid.checked = (mpv.gridToMapOn == 1)
+                            onGridToMapOnChanged: sphere_eqr_grid.checked = (mpv.gridToMapOn === 2)
+                        }
+                    }
+
+                    RadioButton {
+                        id: sphere_eac_grid
+                        checked: PlaybackSettings.gridToMapOn === 3
+                        text: qsTr("Sphere EAC")
+                        onClicked: {
+                            mpv.gridToMapOn = 3
+                        }
+                        Connections {
+                            target: mpv
+                            onGridToMapOnChanged: sphere_eac_grid.checked = (mpv.gridToMapOn === 3)
                         }
                     }
                 }
@@ -259,20 +276,118 @@ ToolBar {
         }
 
         ToolButton {
-            id: stereoscopic
-            action: actions.stereoscopicAction
-            text: actions.stereoscopicAction.text
+            id: stereoscopicMenuButton
+
+            text: {
+                if(mpv.stereoscopicVideo == 0){
+                    stereoscopicMenuButton.text = qsTr("2D (Mono)")
+                    stereoscopicMenuButton.icon.name = "redeyes"
+                }
+                else if(mpv.stereoscopicVideo == 1){
+                    stereoscopicMenuButton.text = qsTr("3D (SBS)")
+                    stereoscopicMenuButton.icon.name = "visibility"
+                }
+                else if(mpv.stereoscopicVideo == 2){
+                    stereoscopicMenuButton.text = qsTr("3D (TB)")
+                    stereoscopicMenuButton.icon.name = "visibility"
+                }
+                else if(mpv.stereoscopicVideo == 3){
+                    stereoscopicMenuButton.text = qsTr("3D (TB+F)")
+                    stereoscopicMenuButton.icon.name = "visibility"
+                }
+            }
             focusPolicy: Qt.NoFocus
+
+            onClicked: {
+                stereoscopicMenu.visible = !stereoscopicMenu.visible
+            }
 
             Connections {
                 target: mpv
                 onStereoscopicVideoChanged: {
-                    if (mpv.stereoscopicVideo) {
-                        stereoscopic.text = qsTr("3D is On")
-                        stereoscopic.icon.name = "visibility"
-                    } else {
-                        stereoscopic.text = qsTr("2D is On")
-                        stereoscopic.icon.name = "redeyes"
+                    if(mpv.stereoscopicVideo == 0){
+                        stereoscopicMenuButton.text = qsTr("2D (Mono)")
+                        stereoscopicMenuButton.icon.name = "redeyes"
+                    }
+                    else if(mpv.stereoscopicVideo == 1){
+                        stereoscopicMenuButton.text = qsTr("3D (SBS)")
+                        stereoscopicMenuButton.icon.name = "visibility"
+                    }
+                    else if(mpv.stereoscopicVideo == 2){
+                        stereoscopicMenuButton.text = qsTr("3D (TB)")
+                        stereoscopicMenuButton.icon.name = "visibility"
+                    }
+                    else if(mpv.stereoscopicVideo == 3){
+                        stereoscopicMenuButton.text = qsTr("3D (TB+F)")
+                        stereoscopicMenuButton.icon.name = "visibility"
+                    }
+                }
+            }
+
+            Menu {
+                id: stereoscopicMenu
+
+                y: parent.height
+
+                MenuSeparator {}
+
+                ButtonGroup {
+                    buttons: stereoscopicMenuGrid.children
+                }
+
+                Column {
+                    id: stereoscopicMenuGrid
+
+                    RadioButton {
+                        id: stereoscopic_2D
+                        checked: PlaybackSettings.stereoModeOnStartup === 0
+                        text: qsTr("2D Mono")
+                        onClicked: {
+                            mpv.stereoscopicVideo = 0
+                        }
+                        Connections {
+                            target: mpv
+                            onStereoscopicVideoChanged: stereoscopic_2D.checked = (mpv.stereoscopicVideo === 0)
+                        }
+                    }
+
+                    RadioButton {
+                        id: stereoscopic_3D_sbs
+                        checked: PlaybackSettings.stereoModeOnStartup === 1
+                        text: qsTr("3D Side-by-side")
+                        onClicked: {
+                             mpv.stereoscopicVideo = 1
+                        }
+                        Connections {
+                            target: mpv
+                            onStereoscopicVideoChanged: stereoscopic_3D_sbs.checked = (mpv.stereoscopicVideo === 1)
+                        }
+                    }
+
+                    RadioButton {
+                        id: stereoscopic_3D_tp
+                        checked: PlaybackSettings.stereoModeOnStartup === 2
+                        text: qsTr("3D Top/Bottom")
+                        onClicked: {
+                            mpv.stereoscopicVideo = 2
+                        }
+                        Connections {
+                            target: mpv
+                            onStereoscopicVideoChanged: stereoscopic_3D_tp.checked = (mpv.stereoscopicVideo === 2)
+                        }
+                    }
+
+                    RadioButton {
+                        id: stereoscopic_3D_tbf
+                        checked: PlaybackSettings.stereoModeOnStartup === 3
+                        text: qsTr("3D Top/Bottom+Flip")
+                        onClicked: {
+                            mpv.stereoscopicVideo = 3
+                        }
+                        Connections {
+                            target: mpv
+                            onStereoscopicVideoChanged: stereoscopic_3D_tbf.checked = (mpv.stereoscopicVideo === 3)
+                        }
                     }
                 }
             }

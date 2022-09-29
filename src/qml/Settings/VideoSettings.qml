@@ -32,15 +32,35 @@ SettingsBasePage {
             Layout.fillWidth: true
         }
 
-        CheckBox {
-            text: qsTr("Use 3D Mode on startup")
-            enabled: enabled
-            checked: PlaybackSettings.stereoModeOnStartup
-            onCheckedChanged: {
-                PlaybackSettings.stereoModeOnStartup = checked
+        Label {
+            text: qsTr("Stereoscopic mode on startup:")
+        }
+        ComboBox {
+            id: stereoscopicModeOnStartupComboBox
+            enabled: true
+            textRole: "mode"
+            Layout.columnSpan: 2
+            model: ListModel {
+                id: stereoscopicModeOnStartupMode
+                ListElement { mode: "2D (mono)"; value: 0 }
+                ListElement { mode: "3D (side-by-side)"; value: 1}
+                ListElement { mode: "3D (top-bottom)"; value: 2 }
+                ListElement { mode: "3D (top-bottom+flip)"; value: 3 }
+            }
+
+            onActivated: {
+                PlaybackSettings.stereoModeOnStartup = model.get(index).value
                 PlaybackSettings.save()
             }
-            Layout.columnSpan: 2
+
+            Component.onCompleted: {
+                for (let i = 0; i < stereoscopicModeOnStartupMode.count; ++i) {
+                    if (stereoscopicModeOnStartupMode.get(i).value === PlaybackSettings.stereoModeOnStartup) {
+                        currentIndex = i
+                        break
+                    }
+                }
+            }
         }
 
         RowLayout {
@@ -52,7 +72,7 @@ SettingsBasePage {
                 from: 0
                 value: mpv.rotationSpeed * 1000
                 to: 10000
-                enabled: mpv.gridToMapOn === 2
+                enabled: mpv.gridToMapOn >= 2
                 stepSize: 1
 
                 property int decimals: 3
@@ -331,7 +351,6 @@ SettingsBasePage {
         // ------------------------------------
         Label {
             text: qsTr("Rotate around X: ")
-            Layout.alignment: Qt.AlignRight
         }
 
         RowLayout {
@@ -340,7 +359,7 @@ SettingsBasePage {
                 value: mpv.rotate.x * 100
                 from: -18000
                 to: 18000
-                enabled: mpv.gridToMapOn !== 2
+                enabled: mpv.gridToMapOn < 2
                 onMoved: {
                     rotateXSpinBox.value = value.toFixed(0)
                     mpv.rotate.x = rotateXSpinBox.realValue
@@ -352,7 +371,7 @@ SettingsBasePage {
                 from: -18000
                 value: mpv.rotate.x * 100
                 to: 18000
-                enabled: mpv.gridToMapOn !== 2
+                enabled: mpv.gridToMapOn < 2
                 stepSize: 10
 
                 property int decimals: 2
@@ -401,7 +420,6 @@ SettingsBasePage {
                 to: 180
                 value: -90
             }*/
-            Layout.alignment: Qt.AlignRight
         }
 
         // ------------------------------------
@@ -409,7 +427,6 @@ SettingsBasePage {
         // ------------------------------------
         Label {
             text: qsTr("Rotate around Y: ")
-            Layout.alignment: Qt.AlignRight
         }
 
         RowLayout {
@@ -418,7 +435,7 @@ SettingsBasePage {
                 value: mpv.rotate.y * 100
                 from: -18000
                 to: 18000
-                enabled: mpv.gridToMapOn !== 2
+                enabled: mpv.gridToMapOn < 2
                 onMoved: {
                     rotateYSpinBox.value = value.toFixed(0)
                     mpv.rotate.y = rotateYSpinBox.realValue
@@ -430,7 +447,7 @@ SettingsBasePage {
                 from: -18000
                 value: mpv.rotate.y * 100
                 to: 18000
-                enabled: mpv.gridToMapOn !== 2
+                enabled: mpv.gridToMapOn < 2
                 stepSize: 10
 
                 property int decimals: 2
@@ -479,7 +496,6 @@ SettingsBasePage {
                 to: 180
                 value: -90
             }*/
-            Layout.alignment: Qt.AlignRight
         }
 
         // ------------------------------------
@@ -487,7 +503,6 @@ SettingsBasePage {
         // ------------------------------------
         Label {
             text: qsTr("Rotate around Z: ")
-            Layout.alignment: Qt.AlignRight
         }
 
         RowLayout {
@@ -496,7 +511,7 @@ SettingsBasePage {
                 value: mpv.rotate.z * 100
                 from: -18000
                 to: 18000
-                enabled: mpv.gridToMapOn !== 2
+                enabled: mpv.gridToMapOn < 2
                 onMoved: {
                     rotateZSpinBox.value = value.toFixed(0)
                     mpv.rotate.z = rotateZSpinBox.realValue
@@ -508,7 +523,7 @@ SettingsBasePage {
                 from: -18000
                 value: mpv.rotate.z * 100
                 to: 18000
-                enabled: mpv.gridToMapOn !== 2
+                enabled: mpv.gridToMapOn < 2
                 stepSize: 10
 
                 property int decimals: 2
@@ -557,7 +572,6 @@ SettingsBasePage {
                 to: 180
                 value: -90
             }*/
-            Layout.alignment: Qt.AlignRight
         }
 
         // ------------------------------------

@@ -73,10 +73,12 @@ MpvObject {
             mpv.translate = Qt.vector3d(VideoSettings.surfaceTranslateX, VideoSettings.surfaceTranslateY, VideoSettings.surfaceTranslateZ)
             sphereRotationTimer.stop()
         }
-        else if(mpv.gridToMapOn == 2){
+        else if(mpv.gridToMapOn === 2 || mpv.gridToMapOn === 3){
+            sphereRotationTimer.stop()
+            trackBall.trackballCameraController.rotationXYZ = Qt.vector3d(0, 0, 0);
             scene3D.visible = true
-            mpv.rotate = Qt.vector3d(0.58, -86.52, 2.14);
-            trackBall.trackballCameraController.rotationXYZ = Qt.vector3d(0.58, -86.52, 2.14);
+            mpv.rotate = Qt.vector3d(0, -90, 0);
+            trackBall.trackballCameraController.rotationXYZ = Qt.vector3d(0, -90, 0);
             sphereRotationTimer.start()
         }
     }
@@ -424,7 +426,7 @@ MpvObject {
         focus: true
         aspects: ["input", "logic"]
         cameraAspectRatioMode: Scene3D.AutomaticAspectRatio
-        visible: (mpv.gridToMapOn == 2)
+        visible: (mpv.gridToMapOn >= 2)
 
         TrackBall{
             id: trackBall
@@ -438,6 +440,7 @@ MpvObject {
 
     Component.onCompleted: {
         mediaPlayer2Player.mpv = root
+        mpv.gridToMapOnChanged()
     }
 
     function handleTimePosition() {
