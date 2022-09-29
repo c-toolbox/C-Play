@@ -94,12 +94,14 @@ public:
 
     // 0 = Pre-split
     // 1 = Dome
-    // 2 = Sphere
+    // 2 = Sphere EQR
+    // 3 = Sphere EAC
     Q_INVOKABLE int gridToMapOn() const;
     void setGridToMapOn(int gridToMapOn);
 
-    // 0 = 2D
-    // 1 = 3D
+    // 0 = 2D (mono)
+    // 1 = 3D (side-by-side)
+    // 2 = 3D (top-bottom)
     Q_INVOKABLE int stereoVideo() const;
     void setStereoVideo(int stereoVideo);
 

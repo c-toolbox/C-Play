@@ -426,14 +426,14 @@ void MpvObject::setWatchPercentage(double value)
     emit watchPercentageChanged();
 }
 
-bool MpvObject::stereoscopicVideo()
+int MpvObject::stereoscopicVideo()
 {
-    return SyncHelper::instance().variables.sbs3DVideo;
+    return SyncHelper::instance().variables.stereoscopicMode;
 }
 
-void MpvObject::setStereoscopicVideo(bool value)
+void MpvObject::setStereoscopicVideo(int value)
 {
-    SyncHelper::instance().variables.sbs3DVideo = value;
+    SyncHelper::instance().variables.stereoscopicMode = value;
     emit stereoscopicVideoChanged();
 }
 
@@ -753,10 +753,8 @@ void MpvObject::loadItem(PlayListItemData itemData, bool updateLastPlayedFile, Q
         if (itemData.gridToMapOn() >= 0)
             setGridToMapOn(itemData.gridToMapOn());
 
-        if (itemData.stereoVideo() == 1)
-            setStereoscopicVideo(true);
-        else if (itemData.stereoVideo() == 0)
-            setStereoscopicVideo(false);
+        if (itemData.stereoVideo() >= 0)
+            setStereoscopicVideo(itemData.stereoVideo());
 
         if (updateLastPlayedFile) {
             GeneralSettings::setLastPlayedFile(itemData.filePath());
@@ -800,7 +798,7 @@ PlayListItem* MpvObject::loadUniviewFDV(const QString& file)
         video->setDuration(Application::formatTime(duration));
         video->setGridToMapOn(0); //Assume Pre-split with FDV files
         
-        if (title.contains("3D"))
+        if (title.contains("3D")) // Assume 3D side-by-side stereo
             video->setStereoVideo(1);
         else if (title.contains("2D"))
             video->setStereoVideo(0);
@@ -851,7 +849,7 @@ void MpvObject::loadUniviewPlaylist(const QString& file)
         
         video->setMediaTitle(title);
 
-        if (title.contains("3D"))
+        if (title.contains("3D")) // Assume 3D side-by-side stereo
             video->setStereoVideo(1);
         else if (title.contains("2D"))
             video->setStereoVideo(0);
@@ -970,6 +968,12 @@ PlayListItem* MpvObject::loadJSONPlayfile(const QString& file) {
         else if (grid == "sphere") {
             item->setGridToMapOn(2);
         }
+        else if (grid == "sphere-eqr") {
+            item->setGridToMapOn(2);
+        }
+        else if (grid == "sphere-eac") {
+            item->setGridToMapOn(3);
+        }
     }
 
     if (obj.contains("stereoscopic")) {
@@ -977,8 +981,17 @@ PlayListItem* MpvObject::loadJSONPlayfile(const QString& file) {
         if (stereo == "no") {
             item->setStereoVideo(0);
         }
-        else if (stereo == "yes") {
+        else if (stereo == "mono") {
+            item->setStereoVideo(0);
+        }
+        else if (stereo == "yes") { //Assume side-by-side if yes
             item->setStereoVideo(1);
+        }
+        else if (stereo == "sbs") {
+            item->setStereoVideo(1);
+        }
+        else if (stereo == "tb") {
+            item->setStereoVideo(2);
         }
     }
 

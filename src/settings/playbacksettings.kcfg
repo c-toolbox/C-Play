@@ -28,9 +28,9 @@
 	<entry name="FileToLoadOnStartup" type="String">
       <label>./data/startup_image.png</label>
     </entry>
-	<entry name="stereoModeOnStartup" type="bool">
-      <label>Have 3D Mode On/Off on startup</label>
-      <default>false</default>
+	<entry name="StereoModeOnStartup" type="int">
+      <label>Have 2D or a 3D Mode On/Off on startup</label>
+      <default>0</default>
     </entry>
 	<entry name="GridToMapOn" type="int">
       <default>0</default>

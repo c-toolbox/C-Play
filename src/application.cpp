@@ -653,7 +653,7 @@ void Application::setupActions(const QString &actionName)
     }
     if (actionName == QStringLiteral("stereoscopic-video")) {
         auto action = new HAction();
-        if(SyncHelper::instance().variables.sbs3DVideo){
+        if(SyncHelper::instance().variables.stereoscopicMode == 1){
             action->setText(i18n("3D is On"));
             action->setIcon(QIcon::fromTheme("visibility"));
         }
@@ -939,7 +939,7 @@ SyncHelper& SyncHelper::instance() {
         _instance->variables.timeThreshold = 1.0;
         _instance->variables.timeDirty = false;
         _instance->variables.alpha = 1.f;
-        _instance->variables.sbs3DVideo = false;
+        _instance->variables.stereoscopicMode = 0;
         _instance->variables.syncOn = true;
         _instance->variables.loopMode = 2;
         _instance->variables.gridToMapOn = 0;

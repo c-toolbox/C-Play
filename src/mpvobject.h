@@ -104,7 +104,7 @@ class MpvObject : public QQuickFramebufferObject
                WRITE setHWDecoding
                NOTIFY hwDecodingChanged)
 
-    Q_PROPERTY(bool stereoscopicVideo
+    Q_PROPERTY(int stereoscopicVideo
                READ stereoscopicVideo
                WRITE setStereoscopicVideo
                NOTIFY stereoscopicVideoChanged)
@@ -231,8 +231,8 @@ class MpvObject : public QQuickFramebufferObject
     bool hwDecoding();
     void setHWDecoding(bool value);
 
-    bool stereoscopicVideo();
-    void setStereoscopicVideo(bool value);
+    int stereoscopicVideo();
+    void setStereoscopicVideo(int value);
 
     bool syncVideo();
     void setSyncVideo(bool value);
