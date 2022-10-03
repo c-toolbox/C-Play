@@ -8,6 +8,7 @@
 #include <sgct/opengl.h>
 #include <sgct/utils/dome.h>
 #include <sgct/utils/sphere.h>
+#include <sgct/utils/box.h>
 #include <glm/glm.hpp>
 #include <glm/gtc/type_ptr.hpp>
 #include <GLFW/glfw3.h>
@@ -28,6 +29,7 @@ mpv_handle *mpvHandle;
 mpv_render_context *mpvRenderContext;
 std::unique_ptr<sgct::utils::Dome> dome;
 std::unique_ptr<sgct::utils::Sphere> sphere;
+std::unique_ptr<sgct::utils::Box> cube;
 
 int domeRadius = 740;
 int domeFov = 165;
@@ -50,12 +52,13 @@ int meshEyeModeLoc = -1;
 int meshMatrixLoc = -1;
 int meshOutsideLoc = -1;
 int meshStereoscopicModeLoc = -1;
-// meshEAC
-int meshEACAlphaLoc = -1;
-int meshEACEyeModeLoc = -1;
-int meshEACMatrixLoc = -1;
-int meshEACOutsideLoc = -1;
-int meshEACStereoscopicModeLoc = -1;
+// cubeEAC
+int cubeEACAlphaLoc = -1;
+int cubeEACEyeModeLoc = -1;
+int cubeEACMatrixLoc = -1;
+int cubeEACOutsideLoc = -1;
+int cubeEACEdgeSizeLoc = -1;
+int cubeEACStereoscopicModeLoc = -1;
 
 constexpr const char* VideoVert = R"(
   #version 330 core
@@ -72,19 +75,7 @@ constexpr const char* VideoVert = R"(
     gl_Position = vec4(in_position, 0.0, 1.0);
     tr_uv = in_texCoords;
 
-    if(eye==1) { //Left Eye
-        if(stereoscopicMode==1) { //Side-by-side
-            tr_uv = in_texCoords * vec2(0.5, 1.0);
-        }
-        else if(stereoscopicMode==2) { //Top-bottom
-            tr_uv = (in_texCoords * vec2(1.0, 0.5)) + vec2(0.0, 0.5);
-        }
-        else if(stereoscopicMode==3) { //Top-bottom-flip
-            tr_uv = (in_texCoords * vec2(1.0, 0.5)) + vec2(0.0, 0.5);
-            tr_uv = vec2(1.0 - tr_uv.y, tr_uv.x);
-        }
-    }
-    else if(eye==2) { //Right Eye
+    if(eye==2) { //Right Eye
         if(stereoscopicMode==1) { //Side-by-side
             tr_uv = (in_texCoords * vec2(0.5, 1.0)) + vec2(0.5, 0.0);
         }
@@ -93,6 +84,18 @@ constexpr const char* VideoVert = R"(
         }
         else if(stereoscopicMode==3) { //Top-bottom-flip
             tr_uv = in_texCoords * vec2(1.0, 0.5);
+            tr_uv = vec2(1.0 - tr_uv.y, tr_uv.x);
+        }
+    }
+    else { //Left Eye
+        if(stereoscopicMode==1) { //Side-by-side
+            tr_uv = in_texCoords * vec2(0.5, 1.0);
+        }
+        else if(stereoscopicMode==2) { //Top-bottom
+            tr_uv = (in_texCoords * vec2(1.0, 0.5)) + vec2(0.0, 0.5);
+        }
+        else if(stereoscopicMode==3) { //Top-bottom-flip
+            tr_uv = (in_texCoords * vec2(1.0, 0.5)) + vec2(0.0, 0.5);
             tr_uv = vec2(1.0 - tr_uv.y, tr_uv.x);
         }
     }
@@ -118,19 +121,7 @@ constexpr const char* MeshVert = R"(
     tr_uv = in_texCoords;
     tr_normals = in_normals;
 
-    if(eye==1) { //Left Eye
-        if(stereoscopicMode==1) { //Side-by-side
-            tr_uv = in_texCoords * vec2(0.5, 1.0);
-        }
-        else if(stereoscopicMode==2) { //Top-bottom
-            tr_uv = (in_texCoords * vec2(1.0, 0.5)) + vec2(0.0, 0.5);
-        }
-        else if(stereoscopicMode==3) { //Top-bottom-flip
-            tr_uv = (in_texCoords * vec2(1.0, 0.5)) + vec2(0.0, 0.5);
-            tr_uv = vec2(1.0 - tr_uv.y, tr_uv.x);
-        }
-    }
-    else if(eye==2) { //Right Eye
+    if(eye==2) { //Right Eye
         if(stereoscopicMode==1) { //Side-by-side
             tr_uv = (in_texCoords * vec2(0.5, 1.0)) + vec2(0.5, 0.0);
         }
@@ -139,6 +130,18 @@ constexpr const char* MeshVert = R"(
         }
         else if(stereoscopicMode==3) { //Top-bottom-flip
             tr_uv = in_texCoords * vec2(1.0, 0.5);
+            tr_uv = vec2(1.0 - tr_uv.y, tr_uv.x);
+        }
+    }
+    else { // Left Eye or Mono
+        if(stereoscopicMode==1) { //Side-by-side
+            tr_uv = in_texCoords * vec2(0.5, 1.0);
+        }
+        else if(stereoscopicMode==2) { //Top-bottom
+            tr_uv = (in_texCoords * vec2(1.0, 0.5)) + vec2(0.0, 0.5);
+        }
+        else if(stereoscopicMode==3) { //Top-bottom-flip
+            tr_uv = (in_texCoords * vec2(1.0, 0.5)) + vec2(0.0, 0.5);
             tr_uv = vec2(1.0 - tr_uv.y, tr_uv.x);
         }
     }
@@ -175,11 +178,172 @@ constexpr const char* EACMeshVert = R"(
 
   uniform mat4 mvp;
 
+  out vec2 tr_uv;
   out vec3 tr_normals;
+  out vec3 tr_position;
 
   void main() {
     gl_Position = mvp * vec4(in_position, 1.0);
+    tr_uv = in_texCoords;
     tr_normals = in_normals;
+  }
+)";
+
+constexpr const char* EACVideoFrag = R"(
+  #version 330 core
+
+  uniform sampler2D tex;
+  uniform float alpha;
+  uniform bool outside;
+  uniform int eye;
+  uniform int stereoscopicMode;
+  uniform vec2 edgeSize;
+
+  in vec2 tr_uv;
+  in vec3 tr_normals;
+  out vec4 out_color;
+
+  // Layout summary, for reference:
+  // 1 - Front (+X) - maps to upper middle, upright
+  // 2 - Back (-X) - maps to bottom middle, tipped to the right
+  // 3 - Up (+Y) - maps to left bottom, tipped to the left
+  // 4 - Down (-Y) - maps to right bottom, tipped to the left
+  // 5 - Left (+Z) - maps to left top, upright
+  // 6 - Right (-Z) - maps to right top, upright
+
+  // Matrices to orient a [0..+1] square for each side
+  const mat3 ORIENT_POS_X = mat3(1, 0, 0, 0, 1, 0, 0, 0, 1);
+  const mat3 ORIENT_NEG_X = mat3(0, 1, 0, -1, 0, 0, 0, 0, 1);
+  const mat3 ORIENT_POS_Y = mat3(1, 0, 0, 0, 1, 0, 0, 0, 1);
+  const mat3 ORIENT_NEG_Y = mat3(1, 0, 0, 0, 1, 0, 0, 0, 1);
+  const mat3 ORIENT_POS_Z = mat3(1, 0, 0, 0, 1, 0, 0, 0, 1);
+  const mat3 ORIENT_NEG_Z = mat3(1, 0, 0, 0, 1, 0, 0, 0, 1);
+
+  // Vectors to offset a rectangle for each side
+  const vec2 OFFSET_POS_X = vec2(0.33333333, 0.5);
+  const vec2 OFFSET_NEG_X = vec2(0.0, 0.0);
+  const vec2 OFFSET_POS_Y = vec2(0.0, 0.0);
+  const vec2 OFFSET_NEG_Y = vec2(0.66666666, 0.0);
+  const vec2 OFFSET_POS_Z = vec2(0.0, 0.5);
+  const vec2 OFFSET_NEG_Z = vec2(0.66666666, 0.5);
+
+  const float M_PI = 3.14159265358979323846264338327950288;
+
+  /**
+   * Converts a direction vector to equi-angular cubemap coordinates.
+   *
+   * @param coords the input direction vector.
+  */
+  vec2 EquiAngularCubemap(vec3 normal, vec2 texCoords, vec2 texEdgeSize, bool inside)
+  {
+    vec3 absn = abs(normal);
+
+    // Equi-angular cubemap
+    // Using equation documented here:
+    // https://blog.google/products/google-vr/bringing-pixels-front-and-center-vr-video/
+    vec2 tc = texCoords - 0.5f;
+    tc = (2.0 / M_PI) * atan(2.0 * tc) + 0.5;
+
+    if(inside){
+        // Depending on which face of the cube we landed on, flip and/or
+        // rotate the coords and transform to land in the right orientation.
+
+        // Layout summary, for reference:
+        // 1 - Front (+X) - maps to upper middle, upright
+        // 2 - Back (-X) - maps to bottom middle, tipped to the right
+        // 3 - Up (+Y) - maps to left bottom, tipped to the left
+        // 4 - Down (-Y) - maps to right bottom, tipped to the left
+        // 5 - Left (+Z) - maps to left top, upright
+        // 6 - Right (-Z) - maps to right top, upright
+        int section =
+            (absn.x > 0) ? (normal.x > 0 ? 2 : 1)
+          : (absn.y > 0) ? (normal.y > 0 ? 3 : 4)
+          :                (normal.z > 0 ? 6 : 5);
+
+        mat3 orientMatrix =
+            (absn.x > 0) ? (normal.x > 0 ? ORIENT_NEG_X : ORIENT_POS_X)
+          : (absn.y > 0) ? (normal.y > 0 ? ORIENT_NEG_Y : ORIENT_POS_Y)
+          :                (normal.z > 0 ? ORIENT_NEG_Z : ORIENT_POS_Z);
+        tc = (orientMatrix * vec3(tc, 1)).xy;
+
+        // Need to flip coordinates for inside a cube (different for floor)
+        if(section != 4)
+            tc = vec2(1.0 - tc.x, tc.y);
+        else
+            tc = vec2(tc.x, 1.0 - tc.y);
+
+        // At the end of that step, the values are still from [0..+1, 0..+1].
+        // Now scale to a range for one cell of the video.
+        tc = vec2(0.33333333, 0.5) * tc;
+
+        // Clamp to edges to avoid seams (changing it in the texture isn't enough,
+        // because it only solves the edges of the video, not our divisions inside
+        // the video!)
+        // This is done after the scaling because that's the units `edgeSize` uses.
+        tc = clamp(tc, texEdgeSize, vec2(0.33333333, 0.5) - texEdgeSize);
+
+        // Translate to destination.
+        vec2 offsetVector = 
+            (absn.x > 0) ? (normal.x > 0 ? OFFSET_NEG_X : OFFSET_POS_X)
+          : (absn.y > 0) ? (normal.y > 0 ? OFFSET_NEG_Y : OFFSET_POS_Y)
+          :                (normal.z > 0 ? OFFSET_POS_Z : OFFSET_NEG_Z);
+        tc += offsetVector;
+    }
+    else{
+        //OUTSIDE CONFIGURATION HAS NOT BEEN TESTED....
+
+        // Depending on which face of the cube we landed on, flip and/or
+        // rotate the coords and transform to land in the right orientation.
+        mat3 orientMatrix =
+            (absn.x > 0) ? (normal.x > 0 ? ORIENT_POS_X : ORIENT_NEG_X)
+          : (absn.y > 0) ? (normal.y > 0 ? ORIENT_POS_Y : ORIENT_NEG_Y)
+          :                (normal.z > 0 ? ORIENT_POS_Z : ORIENT_NEG_Z);
+        tc = (orientMatrix * vec3(tc, 1)).xy;
+
+        // At the end of that step, the values are still from [0..+1, 0..+1].
+        // Now scale to a range for one cell of the video.
+        tc = vec2(0.33333333, 0.5) * tc;
+
+        // Translate to destination.
+        vec2 offsetVector = 
+            (absn.x > 0) ? (normal.x > 0 ? OFFSET_POS_X : OFFSET_NEG_X)
+          : (absn.y > 0) ? (normal.y > 0 ? OFFSET_POS_Y : OFFSET_NEG_Y)
+          :                (normal.z > 0 ? OFFSET_POS_Z : OFFSET_NEG_Z);
+        tc += offsetVector;
+    }
+
+    return tc;
+  }
+
+  void main() {
+    vec2 texCoods = EquiAngularCubemap(tr_normals, tr_uv, edgeSize, !outside);
+
+    if(eye==2) { //Right Eye
+        if(stereoscopicMode==1) { //Side-by-side
+            texCoods = (texCoods * vec2(0.5, 1.0)) + vec2(0.5, 0.0);
+        }
+        else if(stereoscopicMode==2) { //Top-bottom
+            texCoods = texCoods * vec2(1.0, 0.5);
+        }
+        else if(stereoscopicMode==3) { //Top-bottom-flip
+            texCoods = texCoods * vec2(1.0, 0.5);
+            texCoods = vec2(1.0 - texCoods.y, texCoods.x);
+        }
+    }
+    else { // Left Eye or Mono
+        if(stereoscopicMode==1) { //Side-by-side
+            texCoods = texCoods * vec2(0.5, 1.0);
+        }
+        else if(stereoscopicMode==2) { //Top-bottom
+            texCoods = (texCoods * vec2(1.0, 0.5)) + vec2(0.0, 0.5);
+        }
+        else if(stereoscopicMode==3) { //Top-bottom-flip
+            texCoods = (texCoods * vec2(1.0, 0.5)) + vec2(0.0, 0.5);
+            texCoods = vec2(1.0 - texCoods.y, texCoods.x);
+        }
+    }
+
+    out_color = texture(tex, texCoods) * vec4(1.0, 1.0, 1.0, alpha);
   }
 )";
 
@@ -277,7 +441,7 @@ using namespace sgct;
 
 const ShaderProgram* videoPrg;
 const ShaderProgram* meshPrg;
-const ShaderProgram* meshEACPrg;
+const ShaderProgram* cubeEACPrg;
 
 void generateTexture(unsigned int& id, int width, int height) {
     glGenTextures(1, &id);
@@ -455,7 +619,7 @@ void initOGL(GLFWwindow*) {
 
     // Create shaders
     ShaderManager::instance().addShaderProgram("mesh", MeshVert, VideoFrag);
-    ShaderManager::instance().addShaderProgram("meshEAC", EACMeshVert, EACSphereVideoFrag);
+    ShaderManager::instance().addShaderProgram("cubeEAC", EACMeshVert, EACVideoFrag);
     ShaderManager::instance().addShaderProgram("video", VideoVert, VideoFrag);
 
     //OBS: Need to create all shaders befor using any of them. Bug?
@@ -469,15 +633,16 @@ void initOGL(GLFWwindow*) {
     meshOutsideLoc = glGetUniformLocation(meshPrg->id(), "outside");
     meshPrg->unbind();
 
-    meshEACPrg = &ShaderManager::instance().shaderProgram("meshEAC");
-    meshEACPrg->bind();
-    glUniform1i(glGetUniformLocation(meshEACPrg->id(), "tex"), 0);
-    meshEACMatrixLoc = glGetUniformLocation(meshEACPrg->id(), "mvp");
-    meshEACEyeModeLoc = glGetUniformLocation(meshEACPrg->id(), "eye");
-    meshEACStereoscopicModeLoc = glGetUniformLocation(meshEACPrg->id(), "stereoscopicMode");
-    meshEACAlphaLoc = glGetUniformLocation(meshEACPrg->id(), "alpha");
-    meshEACOutsideLoc = glGetUniformLocation(meshEACPrg->id(), "outside");
-    meshEACPrg->unbind();
+    cubeEACPrg = &ShaderManager::instance().shaderProgram("cubeEAC");
+    cubeEACPrg->bind();
+    glUniform1i(glGetUniformLocation(cubeEACPrg->id(), "tex"), 0);
+    cubeEACMatrixLoc = glGetUniformLocation(cubeEACPrg->id(), "mvp");
+    cubeEACEyeModeLoc = glGetUniformLocation(cubeEACPrg->id(), "eye");
+    cubeEACStereoscopicModeLoc = glGetUniformLocation(cubeEACPrg->id(), "stereoscopicMode");
+    cubeEACAlphaLoc = glGetUniformLocation(cubeEACPrg->id(), "alpha");
+    cubeEACOutsideLoc = glGetUniformLocation(cubeEACPrg->id(), "outside");
+    cubeEACEdgeSizeLoc = glGetUniformLocation(cubeEACPrg->id(), "edgeSize");
+    cubeEACPrg->unbind();
 
     videoPrg = &ShaderManager::instance().shaderProgram("video");
     videoPrg->bind();
@@ -492,6 +657,7 @@ void initOGL(GLFWwindow*) {
     domeFov = SyncHelper::instance().variables.fov;
     dome = std::make_unique<utils::Dome>(float(domeRadius)/100.f, float(domeFov), 256, 128);
     sphere = std::make_unique<utils::Sphere>(float(domeRadius) / 100.f, 256);
+    cube = std::make_unique<utils::Box>(2.f * float(domeRadius) / 100.f);
 
     // Set up backface culling
     glCullFace(GL_BACK);
@@ -688,10 +854,12 @@ void postSyncPreDraw() {
         if (domeRadius != SyncHelper::instance().variables.radius || domeFov != SyncHelper::instance().variables.fov) {
             dome = nullptr;
             sphere = nullptr;
+            cube = nullptr;
             domeRadius = SyncHelper::instance().variables.radius;
             domeFov = SyncHelper::instance().variables.fov;
             dome = std::make_unique<utils::Dome>(float(domeRadius) / 100.f, float(domeFov), 256, 128);
             sphere = std::make_unique<utils::Sphere>(float(domeRadius) / 100.f, 256);
+            cube = std::make_unique<utils::Box>(2.f * float(domeRadius) / 100.f);
         }
     }
 
@@ -724,6 +892,8 @@ void draw(const RenderData& data) {
         return;
 #endif
     glDisable(GL_DEPTH_TEST);
+    glDepthMask(false);
+
     glDisable(GL_BLEND);
 
 #ifdef ONLY_RENDER_TO_SCREEN
@@ -745,100 +915,86 @@ void draw(const RenderData& data) {
     glActiveTexture(GL_TEXTURE0);
     glBindTexture(GL_TEXTURE_2D, mpvTex);
 
+    mat4 vp = data.projectionMatrix * data.viewMatrix;
+    glm::mat4 VP_transformed = glm::translate(glm::make_mat4(vp.values), glm::vec3(float(SyncHelper::instance().variables.translateX) / 100.f, float(SyncHelper::instance().variables.translateY) / 100.f, float(SyncHelper::instance().variables.translateZ) / 100.f));
+
     if (SyncHelper::instance().variables.gridToMapOn > 0) {
-        glEnable(GL_DEPTH_TEST);
         glEnable(GL_CULL_FACE);
         glEnable(GL_BLEND);
+   
+        if (SyncHelper::instance().variables.gridToMapOn == 3) {
+            glm::mat4 VP_transformed_rot = VP_transformed;
+            VP_transformed_rot = glm::rotate(VP_transformed_rot, glm::radians(float(SyncHelper::instance().variables.rotateZ)), glm::vec3(0.0f, 0.0f, 1.0f)); //roll
+            VP_transformed_rot = glm::rotate(VP_transformed_rot, glm::radians(float(360 - SyncHelper::instance().variables.rotateX + SyncHelper::instance().variables.angle)), glm::vec3(1.0f, 0.0f, 0.0f)); //pitch
+            VP_transformed_rot = glm::rotate(VP_transformed_rot, glm::radians(float(SyncHelper::instance().variables.rotateY)), glm::vec3(0.0f, 1.0f, 0.0f)); //yaw
 
-        if (SyncHelper::instance().variables.gridToMapOn >= 2) {
-            const mat4& mvp = data.modelViewProjectionMatrix;
-            glm::mat4 MVP_transformed = glm::translate(glm::make_mat4(mvp.values), glm::vec3(float(SyncHelper::instance().variables.translateX) / 100.f, float(SyncHelper::instance().variables.translateY) / 100.f, float(SyncHelper::instance().variables.translateZ) / 100.f));
-            
-            glm::mat4 MVP_transformed_rot = MVP_transformed;
-            MVP_transformed_rot = glm::rotate(MVP_transformed_rot, glm::radians(float(SyncHelper::instance().variables.rotateZ)), glm::vec3(0.0f, 0.0f, 1.0f)); //roll
-            MVP_transformed_rot = glm::rotate(MVP_transformed_rot, glm::radians(float(SyncHelper::instance().variables.rotateX)), glm::vec3(1.0f, 0.0f, 0.0f)); //pitch
-            MVP_transformed_rot = glm::rotate(MVP_transformed_rot, glm::radians(float(SyncHelper::instance().variables.rotateY)), glm::vec3(0.0f, 1.0f, 0.0f)); //yaw
+            cubeEACPrg->bind();
 
-            // Compensate for the angle of the dome
-            glm::mat4 MVP_transformed_rot2 = MVP_transformed;
-            MVP_transformed_rot2 = glm::rotate(MVP_transformed_rot2, glm::radians(float(360 - SyncHelper::instance().variables.rotateZ)), glm::vec3(0.0f, 0.0f, 1.0f)); //roll
-            MVP_transformed_rot2 = glm::rotate(MVP_transformed_rot2, glm::radians(float(360 - SyncHelper::instance().variables.rotateX + SyncHelper::instance().variables.angle)), glm::vec3(1.0f, 0.0f, 0.0f)); //pitch
-            MVP_transformed_rot2 = glm::rotate(MVP_transformed_rot2, glm::radians(float(360 - SyncHelper::instance().variables.rotateY)), glm::vec3(0.0f, 1.0f, 0.0f)); //yaw
-            
-            if (SyncHelper::instance().variables.gridToMapOn == 3) {
-                meshEACPrg->bind();
-
-                if (SyncHelper::instance().variables.stereoscopicMode > 0) {
-                    glUniform1i(meshEACEyeModeLoc, (GLint)data.frustumMode);
-                    glUniform1i(meshEACStereoscopicModeLoc, SyncHelper::instance().variables.stereoscopicMode);
-                }
-                else {
-                    glUniform1i(meshEACEyeModeLoc, 0);
-                    glUniform1i(meshEACStereoscopicModeLoc, 0);
-                }
-
-                glUniform1f(meshEACAlphaLoc, SyncHelper::instance().variables.alpha);
-
-                //EAC is 90 degrees of in the caluclations
-                MVP_transformed_rot = glm::rotate(MVP_transformed_rot, glm::radians(-90.f), glm::vec3(0.0f, 1.0f, 0.0f)); //yaw
-
-                glUniformMatrix4fv(meshEACMatrixLoc, 1, GL_FALSE, &MVP_transformed_rot[0][0]);
-
-                //render inside sphere
-                glUniform1i(meshEACOutsideLoc, 0);
-                sphere->draw();
-
-                // Set up frontface culling
-                glCullFace(GL_FRONT);
-
-                //EAC is 90 degrees of in the caluclations
-                MVP_transformed_rot2 = glm::rotate(MVP_transformed_rot2, glm::radians(-90.f), glm::vec3(0.0f, 1.0f, 0.0f)); //yaw
-
-                glUniformMatrix4fv(meshEACMatrixLoc, 1, GL_FALSE, &MVP_transformed_rot2[0][0]);
-                //render outside sphere
-                glUniform1i(meshEACOutsideLoc, 1);
-                sphere->draw();
-
-                // Set up backface culling again
-                glCullFace(GL_BACK);
-                glUniform1i(meshEACOutsideLoc, 0);
-
-                meshEACPrg->unbind();
+            if (SyncHelper::instance().variables.stereoscopicMode > 0) {
+                glUniform1i(cubeEACEyeModeLoc, (GLint)data.frustumMode);
+                glUniform1i(cubeEACStereoscopicModeLoc, SyncHelper::instance().variables.stereoscopicMode);
             }
             else {
-                meshPrg->bind();
-
-                if (SyncHelper::instance().variables.stereoscopicMode > 0) {
-                    glUniform1i(meshEyeModeLoc, (GLint)data.frustumMode);
-                    glUniform1i(meshStereoscopicModeLoc, (GLint)SyncHelper::instance().variables.stereoscopicMode);
-                }
-                else {
-                    glUniform1i(meshEyeModeLoc, 0);
-                    glUniform1i(meshStereoscopicModeLoc, 0);
-                }
-
-                glUniform1f(meshAlphaLoc, SyncHelper::instance().variables.alpha);
-
-                glUniformMatrix4fv(meshMatrixLoc, 1, GL_FALSE, &MVP_transformed_rot[0][0]);
-
-                //render inside sphere
-                glUniform1i(meshOutsideLoc, 0);
-                sphere->draw();
-
-                // Set up frontface culling
-                glCullFace(GL_FRONT);
-
-                glUniformMatrix4fv(meshMatrixLoc, 1, GL_FALSE, &MVP_transformed_rot2[0][0]);
-                //render outside sphere
-                glUniform1i(meshOutsideLoc, 1);
-                sphere->draw();
-
-                // Set up backface culling again
-                glCullFace(GL_BACK);
-                glUniform1i(meshOutsideLoc, 0);
-
-                meshPrg->unbind();
+                glUniform1i(cubeEACEyeModeLoc, 0);
+                glUniform1i(cubeEACStereoscopicModeLoc, 0);
             }
+
+            glUniform2f(cubeEACEdgeSizeLoc, 2.f / float(videoWidth), 2.f / float(videoHeight));
+
+            glUniform1f(cubeEACAlphaLoc, SyncHelper::instance().variables.alpha);
+
+            glUniformMatrix4fv(cubeEACMatrixLoc, 1, GL_FALSE, &VP_transformed_rot[0][0]);
+
+            //render skybox
+            glUniform1i(cubeEACOutsideLoc, 0);
+            cube->draw();
+
+            cubeEACPrg->unbind();
+        }
+        else if (SyncHelper::instance().variables.gridToMapOn == 2) {
+            glm::mat4 VP_transformed_rot = VP_transformed;
+            VP_transformed_rot = glm::rotate(VP_transformed_rot, glm::radians(float(SyncHelper::instance().variables.rotateZ)), glm::vec3(0.0f, 0.0f, 1.0f)); //roll
+            VP_transformed_rot = glm::rotate(VP_transformed_rot, glm::radians(float(SyncHelper::instance().variables.rotateX)), glm::vec3(1.0f, 0.0f, 0.0f)); //pitch
+            VP_transformed_rot = glm::rotate(VP_transformed_rot, glm::radians(float(SyncHelper::instance().variables.rotateY)), glm::vec3(0.0f, 1.0f, 0.0f)); //yaw
+
+            // Compensate for the angle of the dome
+            glm::mat4 VP_transformed_rot2 = VP_transformed;
+            VP_transformed_rot2 = glm::rotate(VP_transformed_rot2, glm::radians(float(360 - SyncHelper::instance().variables.rotateZ)), glm::vec3(0.0f, 0.0f, 1.0f)); //roll
+            VP_transformed_rot2 = glm::rotate(VP_transformed_rot2, glm::radians(float(360 - SyncHelper::instance().variables.rotateX + SyncHelper::instance().variables.angle)), glm::vec3(1.0f, 0.0f, 0.0f)); //pitch
+            VP_transformed_rot2 = glm::rotate(VP_transformed_rot2, glm::radians(float(360 - SyncHelper::instance().variables.rotateY)), glm::vec3(0.0f, 1.0f, 0.0f)); //yaw
+
+            meshPrg->bind();
+
+            if (SyncHelper::instance().variables.stereoscopicMode > 0) {
+                glUniform1i(meshEyeModeLoc, (GLint)data.frustumMode);
+                glUniform1i(meshStereoscopicModeLoc, (GLint)SyncHelper::instance().variables.stereoscopicMode);
+            }
+            else {
+                glUniform1i(meshEyeModeLoc, 0);
+                glUniform1i(meshStereoscopicModeLoc, 0);
+            }
+
+            glUniform1f(meshAlphaLoc, SyncHelper::instance().variables.alpha);
+
+            glUniformMatrix4fv(meshMatrixLoc, 1, GL_FALSE, &VP_transformed_rot[0][0]);
+
+            //render inside sphere
+            glUniform1i(meshOutsideLoc, 0);
+            sphere->draw();
+
+            // Set up frontface culling
+            glCullFace(GL_FRONT);
+
+            glUniformMatrix4fv(meshMatrixLoc, 1, GL_FALSE, &VP_transformed_rot2[0][0]);
+            //render outside sphere
+            glUniform1i(meshOutsideLoc, 1);
+            sphere->draw();
+
+            // Set up backface culling again
+            glCullFace(GL_BACK);
+            glUniform1i(meshOutsideLoc, 0);
+
+            meshPrg->unbind();
         }
         else {
             meshPrg->bind();
@@ -854,13 +1010,11 @@ void draw(const RenderData& data) {
 
             glUniform1f(meshAlphaLoc, SyncHelper::instance().variables.alpha);
 
-            const mat4& mvp = data.modelViewProjectionMatrix;
-            glm::mat4 MVP_transformed = glm::translate(glm::make_mat4(mvp.values), glm::vec3(float(SyncHelper::instance().variables.translateX) / 100.f, float(SyncHelper::instance().variables.translateY) / 100.f, float(SyncHelper::instance().variables.translateZ) / 100.f));
-            glm::mat4 MVP_transformed_rot = MVP_transformed;
-            MVP_transformed_rot = glm::rotate(MVP_transformed_rot, glm::radians(float(SyncHelper::instance().variables.rotateZ)), glm::vec3(0.0f, 0.0f, 1.0f)); //roll
-            MVP_transformed_rot = glm::rotate(MVP_transformed_rot, glm::radians(float(SyncHelper::instance().variables.rotateX - SyncHelper::instance().variables.angle)), glm::vec3(1.0f, 0.0f, 0.0f)); //pitch
-            MVP_transformed_rot = glm::rotate(MVP_transformed_rot, glm::radians(float(SyncHelper::instance().variables.rotateY)), glm::vec3(0.0f, 1.0f, 0.0f)); //yaw
-            glUniformMatrix4fv(meshMatrixLoc, 1, GL_FALSE, &MVP_transformed_rot[0][0]);
+            glm::mat4 VP_transformed_rot = VP_transformed;
+            VP_transformed_rot = glm::rotate(VP_transformed_rot, glm::radians(float(SyncHelper::instance().variables.rotateZ)), glm::vec3(0.0f, 0.0f, 1.0f)); //roll
+            VP_transformed_rot = glm::rotate(VP_transformed_rot, glm::radians(float(SyncHelper::instance().variables.rotateX - SyncHelper::instance().variables.angle)), glm::vec3(1.0f, 0.0f, 0.0f)); //pitch
+            VP_transformed_rot = glm::rotate(VP_transformed_rot, glm::radians(float(SyncHelper::instance().variables.rotateY)), glm::vec3(0.0f, 1.0f, 0.0f)); //yaw
+            glUniformMatrix4fv(meshMatrixLoc, 1, GL_FALSE, &VP_transformed_rot[0][0]);
 
             dome->draw();
 
@@ -868,7 +1022,6 @@ void draw(const RenderData& data) {
         }
 
         glDisable(GL_CULL_FACE);
-        glDisable(GL_DEPTH_TEST);
         glDisable(GL_BLEND);
     }
     else {
@@ -913,6 +1066,7 @@ void cleanup() {
 
     dome = nullptr;
     sphere = nullptr;
+    cube = nullptr;
 }
 
 int main(int argc, char *argv[])
