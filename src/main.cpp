@@ -203,37 +203,24 @@ constexpr const char* EACVideoFrag = R"(
   in vec3 tr_normals;
   out vec4 out_color;
 
-  // Layout summary, for reference:
-  // 1 - Front (+X) - maps to upper middle, upright
-  // 2 - Back (-X) - maps to bottom middle, tipped to the right
-  // 3 - Up (+Y) - maps to left bottom, tipped to the left
-  // 4 - Down (-Y) - maps to right bottom, tipped to the left
-  // 5 - Left (+Z) - maps to left top, upright
-  // 6 - Right (-Z) - maps to right top, upright
-
   // Matrices to orient a [0..+1] square for each side
-  const mat3 ORIENT_POS_X = mat3(1, 0, 0, 0, 1, 0, 0, 0, 1);
-  const mat3 ORIENT_NEG_X = mat3(0, 1, 0, -1, 0, 0, 0, 0, 1);
-  const mat3 ORIENT_POS_Y = mat3(1, 0, 0, 0, 1, 0, 0, 0, 1);
-  const mat3 ORIENT_NEG_Y = mat3(1, 0, 0, 0, 1, 0, 0, 0, 1);
-  const mat3 ORIENT_POS_Z = mat3(1, 0, 0, 0, 1, 0, 0, 0, 1);
-  const mat3 ORIENT_NEG_Z = mat3(1, 0, 0, 0, 1, 0, 0, 0, 1);
+  const mat3 ORIENT_FRONT = mat3(1, 0, 0, 0, 1, 0, 0, 0, 1);
+  const mat3 ORIENT_BACK = mat3(0, 1, 0, -1, 0, 0, 0, 0, 1);
+  const mat3 ORIENT_UP = mat3(1, 0, 0, 0, 1, 0, 0, 0, 1);
+  const mat3 ORIENT_DOWN = mat3(1, 0, 0, 0, 1, 0, 0, 0, 1);
+  const mat3 ORIENT_LEFT = mat3(1, 0, 0, 0, 1, 0, 0, 0, 1);
+  const mat3 ORIENT_RIGHT = mat3(1, 0, 0, 0, 1, 0, 0, 0, 1);
 
   // Vectors to offset a rectangle for each side
-  const vec2 OFFSET_POS_X = vec2(0.33333333, 0.5);
-  const vec2 OFFSET_NEG_X = vec2(0.0, 0.0);
-  const vec2 OFFSET_POS_Y = vec2(0.0, 0.0);
-  const vec2 OFFSET_NEG_Y = vec2(0.66666666, 0.0);
-  const vec2 OFFSET_POS_Z = vec2(0.0, 0.5);
-  const vec2 OFFSET_NEG_Z = vec2(0.66666666, 0.5);
+  const vec2 OFFSET_FRONT = vec2(0.33333333, 0.5);
+  const vec2 OFFSET_BACK = vec2(0.0, 0.0);
+  const vec2 OFFSET_UP = vec2(0.66666666, 0.0);
+  const vec2 OFFSET_DOWN = vec2(0.0, 0.0);
+  const vec2 OFFSET_LEFT = vec2(0.0, 0.5);
+  const vec2 OFFSET_RIGHT = vec2(0.66666666, 0.5);
 
   const float M_PI = 3.14159265358979323846264338327950288;
 
-  /**
-   * Converts a direction vector to equi-angular cubemap coordinates.
-   *
-   * @param coords the input direction vector.
-  */
   vec2 EquiAngularCubemap(vec3 normal, vec2 texCoords, vec2 texEdgeSize, bool inside)
   {
     vec3 absn = abs(normal);
@@ -249,67 +236,75 @@ constexpr const char* EACVideoFrag = R"(
         // rotate the coords and transform to land in the right orientation.
 
         // Layout summary, for reference:
-        // 1 - Front (+X) - maps to upper middle, upright
-        // 2 - Back (-X) - maps to bottom middle, tipped to the right
-        // 3 - Up (+Y) - maps to left bottom, tipped to the left
-        // 4 - Down (-Y) - maps to right bottom, tipped to the left
-        // 5 - Left (+Z) - maps to left top, upright
-        // 6 - Right (-Z) - maps to right top, upright
+        // 1 - Front - maps to upper middle, upright
+        // 2 - Back - maps to bottom middle, tipped to the right
+        // 3 - Up - maps to left bottom, tipped to the left
+        // 4 - Down - maps to right bottom, tipped to the left
+        // 5 - Left - maps to left top, upright
+        // 6 - Right - maps to right top, upright
         int section =
             (absn.x > 0) ? (normal.x > 0 ? 2 : 1)
           : (absn.y > 0) ? (normal.y > 0 ? 3 : 4)
-          :                (normal.z > 0 ? 6 : 5);
+          :                (normal.z > 0 ? 5 : 6);
 
-        mat3 orientMatrix =
-            (absn.x > 0) ? (normal.x > 0 ? ORIENT_NEG_X : ORIENT_POS_X)
-          : (absn.y > 0) ? (normal.y > 0 ? ORIENT_NEG_Y : ORIENT_POS_Y)
-          :                (normal.z > 0 ? ORIENT_NEG_Z : ORIENT_POS_Z);
-        tc = (orientMatrix * vec3(tc, 1)).xy;
+        // Clamp to edges to avoid seams (but only where there are seems)
+        //tc = clamp(tc, texEdgeSize, vec2(1.0, 1.0) - texEdgeSize);
 
-        // Need to flip coordinates for inside a cube (different for floor)
-        if(section != 4)
+        if(section==1) {
+            //out_color = vec4(1.0, 1.0, 1.0, 1.0);  //Front is white
+            tc = (ORIENT_FRONT * vec3(tc, 1)).xy;
             tc = vec2(1.0 - tc.x, tc.y);
-        else
+            tc = vec2(0.33333333, 0.5) * tc;
+            tc.y = clamp(tc.y, texEdgeSize.y, 0.5 - texEdgeSize.y);
+            tc += OFFSET_FRONT;
+        }
+        else if(section==2) {
+            //out_color = vec4(0.0, 0.0, 0.0, 1.0);  //Back is black
+            tc = (ORIENT_BACK * vec3(tc, 1)).xy;
+            tc = vec2(1.0 - tc.x, tc.y);
+            tc = vec2(0.33333333, 0.5) * tc;
+            tc.y = clamp(tc.y, texEdgeSize.y, 0.5 - texEdgeSize.y);
+            tc += OFFSET_BACK;
+        }
+        else if(section==3) {
+            //out_color = vec4(0.0, 1.0, 0.0, 1.0);  // Up is green
+            tc = (ORIENT_UP * vec3(tc, 1)).xy;
+            tc = vec2(1.0 - tc.x, tc.y);
+            tc = vec2(0.33333333, 0.5) * tc;
+            tc.y = clamp(tc.y, texEdgeSize.y, 0.5 - texEdgeSize.y);
+            tc.x = clamp(tc.x, 0.0, 0.33333333 - texEdgeSize.x);
+            tc += OFFSET_UP;
+        }
+        else if(section==4) {
+            //out_color = vec4(1.0, 1.0, 0.0, 1.0); // Down is yellow
+            tc = (ORIENT_DOWN * vec3(tc, 1)).xy;
             tc = vec2(tc.x, 1.0 - tc.y);
-
-        // At the end of that step, the values are still from [0..+1, 0..+1].
-        // Now scale to a range for one cell of the video.
-        tc = vec2(0.33333333, 0.5) * tc;
-
-        // Clamp to edges to avoid seams (changing it in the texture isn't enough,
-        // because it only solves the edges of the video, not our divisions inside
-        // the video!)
-        // This is done after the scaling because that's the units `edgeSize` uses.
-        tc = clamp(tc, texEdgeSize, vec2(0.33333333, 0.5) - texEdgeSize);
-
-        // Translate to destination.
-        vec2 offsetVector = 
-            (absn.x > 0) ? (normal.x > 0 ? OFFSET_NEG_X : OFFSET_POS_X)
-          : (absn.y > 0) ? (normal.y > 0 ? OFFSET_NEG_Y : OFFSET_POS_Y)
-          :                (normal.z > 0 ? OFFSET_POS_Z : OFFSET_NEG_Z);
-        tc += offsetVector;
+            tc = vec2(0.33333333, 0.5) * tc;
+            tc.y = clamp(tc.y, texEdgeSize.y, 0.5 - texEdgeSize.y);
+            tc.x = clamp(tc.x, texEdgeSize.x, 0.33333333);
+            tc += OFFSET_DOWN;
+        }
+        else if(section==5) {
+            //out_color = vec4(0.0, 0.0, 1.0, 1.0); // Left is blue
+            tc = (ORIENT_LEFT * vec3(tc, 1)).xy;
+            tc = vec2(1.0 - tc.x, tc.y);
+            tc = vec2(0.33333333, 0.5) * tc;
+            tc.y = clamp(tc.y, texEdgeSize.y, 0.5 - texEdgeSize.y);
+            tc.x = clamp(tc.x, texEdgeSize.x, 0.33333333);
+            tc += OFFSET_LEFT;
+        }
+        else if(section==6) {
+            //out_color = vec4(1.0, 0.0, 0.0, 1.0); // Right is red
+            tc = (ORIENT_RIGHT * vec3(tc, 1)).xy;
+            tc = vec2(1.0 - tc.x, tc.y);
+            tc = vec2(0.33333333, 0.5) * tc;
+            tc.y = clamp(tc.y, texEdgeSize.y, 0.5 - texEdgeSize.y);
+            tc.x = clamp(tc.x, 0.0, 0.33333333 - texEdgeSize.x);
+            tc += OFFSET_RIGHT;
+        }
     }
     else{
         //OUTSIDE CONFIGURATION HAS NOT BEEN TESTED....
-
-        // Depending on which face of the cube we landed on, flip and/or
-        // rotate the coords and transform to land in the right orientation.
-        mat3 orientMatrix =
-            (absn.x > 0) ? (normal.x > 0 ? ORIENT_POS_X : ORIENT_NEG_X)
-          : (absn.y > 0) ? (normal.y > 0 ? ORIENT_POS_Y : ORIENT_NEG_Y)
-          :                (normal.z > 0 ? ORIENT_POS_Z : ORIENT_NEG_Z);
-        tc = (orientMatrix * vec3(tc, 1)).xy;
-
-        // At the end of that step, the values are still from [0..+1, 0..+1].
-        // Now scale to a range for one cell of the video.
-        tc = vec2(0.33333333, 0.5) * tc;
-
-        // Translate to destination.
-        vec2 offsetVector = 
-            (absn.x > 0) ? (normal.x > 0 ? OFFSET_POS_X : OFFSET_NEG_X)
-          : (absn.y > 0) ? (normal.y > 0 ? OFFSET_POS_Y : OFFSET_NEG_Y)
-          :                (normal.z > 0 ? OFFSET_POS_Z : OFFSET_NEG_Z);
-        tc += offsetVector;
     }
 
     return tc;
@@ -920,7 +915,7 @@ void draw(const RenderData& data) {
 
     if (SyncHelper::instance().variables.gridToMapOn > 0) {
         glEnable(GL_CULL_FACE);
-        glEnable(GL_BLEND);
+        //glEnable(GL_BLEND);
    
         if (SyncHelper::instance().variables.gridToMapOn == 3) {
             glm::mat4 VP_transformed_rot = VP_transformed;
@@ -939,7 +934,7 @@ void draw(const RenderData& data) {
                 glUniform1i(cubeEACStereoscopicModeLoc, 0);
             }
 
-            glUniform2f(cubeEACEdgeSizeLoc, 2.f / float(videoWidth), 2.f / float(videoHeight));
+            glUniform2f(cubeEACEdgeSizeLoc, 1.f / float(videoWidth), 1.f / float(videoHeight));
 
             glUniform1f(cubeEACAlphaLoc, SyncHelper::instance().variables.alpha);
 
