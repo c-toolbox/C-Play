@@ -959,7 +959,10 @@ PlayListItem* MpvObject::loadJSONPlayfile(const QString& file) {
 
     if (obj.contains("grid")) {
         QString grid = obj.value("grid").toString();
-        if (grid == "pre-split") {
+        if (grid == "none") {
+            item->setGridToMapOn(0);
+        }
+        else if (grid == "pre-split") {
             item->setGridToMapOn(0);
         }
         else if (grid == "dome") {
@@ -971,7 +974,10 @@ PlayListItem* MpvObject::loadJSONPlayfile(const QString& file) {
         else if (grid == "sphere-eqr") {
             item->setGridToMapOn(2);
         }
-        else if (grid == "sphere-eac") {
+        else if (grid == "cube") {
+            item->setGridToMapOn(3);
+        }
+        else if (grid == "cube-eac") {
             item->setGridToMapOn(3);
         }
     }
@@ -990,8 +996,20 @@ PlayListItem* MpvObject::loadJSONPlayfile(const QString& file) {
         else if (stereo == "sbs") {
             item->setStereoVideo(1);
         }
+        else if (stereo == "side-by-side") {
+            item->setStereoVideo(1);
+        }
         else if (stereo == "tb") {
             item->setStereoVideo(2);
+        }
+        else if (stereo == "top-bottom") {
+            item->setStereoVideo(2);
+        }
+        else if (stereo == "tbf") {
+            item->setStereoVideo(3);
+        }
+        else if (stereo == "top-bottom-flip") {
+            item->setStereoVideo(3);
         }
     }
 
