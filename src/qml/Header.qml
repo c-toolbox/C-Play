@@ -177,12 +177,14 @@ ToolBar {
 
             text: {
                 if(mpv.gridToMapOn == 0)
-                    gridMenuButton.text = qsTr("Grid (Pre-split)")
+                    gridMenuButton.text = qsTr("Grid (None)")
                 else if(mpv.gridToMapOn == 1)
                     gridMenuButton.text = qsTr("Grid (Dome)")
                 else if(mpv.gridToMapOn == 2)
                     gridMenuButton.text = qsTr("Grid (Sphere EQR)")
                 else if(mpv.gridToMapOn == 3)
+                    gridMenuButton.text = qsTr("Grid (Sphere EAC)")
+                else if(mpv.gridToMapOn == 4)
                     gridMenuButton.text = qsTr("Grid (Cube EAC)")
             }
             icon.name: "kstars_hgrid"
@@ -196,12 +198,14 @@ ToolBar {
                 target: mpv
                 onGridToMapOnChanged: {
                     if(mpv.gridToMapOn == 0)
-                        gridMenuButton.text = qsTr("Grid (Pre-split)")
+                        gridMenuButton.text = qsTr("Grid (None)")
                     else if(mpv.gridToMapOn == 1)
                         gridMenuButton.text = qsTr("Grid (Dome)")
                     else if(mpv.gridToMapOn == 2)
                         gridMenuButton.text = qsTr("Grid (Sphere EQR)")
                     else if(mpv.gridToMapOn == 3)
+                        gridMenuButton.text = qsTr("Grid (Sphere EAC)")
+                    else if(mpv.gridToMapOn == 4)
                         gridMenuButton.text = qsTr("Grid (Cube EAC)")
                 }
             }
@@ -223,7 +227,7 @@ ToolBar {
                     RadioButton {
                         id: presplit_grid
                         checked: PlaybackSettings.gridToMapOn === 0
-                        text: qsTr("Flat/Pre-split")
+                        text: qsTr("None")
                         onClicked: {
                             mpv.gridToMapOn = 0
                         }
@@ -262,13 +266,26 @@ ToolBar {
                     RadioButton {
                         id: sphere_eac_grid
                         checked: PlaybackSettings.gridToMapOn === 3
-                        text: qsTr("Cube EAC")
+                        text: qsTr("Sphere EAC")
                         onClicked: {
                             mpv.gridToMapOn = 3
                         }
                         Connections {
                             target: mpv
                             onGridToMapOnChanged: sphere_eac_grid.checked = (mpv.gridToMapOn === 3)
+                        }
+                    }
+
+                    RadioButton {
+                        id: cube_eac_grid
+                        checked: PlaybackSettings.gridToMapOn === 4
+                        text: qsTr("Cube EAC")
+                        onClicked: {
+                            mpv.gridToMapOn = 4
+                        }
+                        Connections {
+                            target: mpv
+                            onGridToMapOnChanged: cube_eac_grid.checked = (mpv.gridToMapOn === 4)
                         }
                     }
                 }

@@ -31,6 +31,7 @@ std::unique_ptr<sgct::utils::Box> cube;
 int domeRadius = 740;
 int domeFov = 165;
 std::string loadedFile = "";
+std::string videoFilters = "";
 
 int videoWidth = 0;
 int videoHeight = 0;
@@ -38,6 +39,7 @@ unsigned int mpvFBO = 0;
 unsigned int mpvTex = 0;
 
 int cubeMapSize = 0;
+float cubeSize = 1.f;
 unsigned int cubeMapFBO = 0;
 unsigned int cubeMapTex = 0;
 
@@ -57,6 +59,7 @@ int meshStereoscopicModeLoc = -1;
 // cubeEAC
 int cubeEACAlphaLoc = -1;
 int cubeEACMatrixLoc = -1;
+int cubeEACScaleLoc = -1;
 // cubeMap
 int createCubeMapEyeModeLoc = -1;
 int createCubeMapStereoscopicModeLoc = -1;
@@ -298,7 +301,7 @@ constexpr const char* CreateCubeMapFrag = R"(
   }
 )";
 
-constexpr const char* EACMeshVert = R"(
+constexpr const char* CubeEACMeshVert = R"(
   #version 410 core
 
   layout (location = 0) in vec2 in_texCoords;
@@ -306,16 +309,17 @@ constexpr const char* EACMeshVert = R"(
   layout (location = 2) in vec3 in_position;
 
   uniform mat4 mvp;
+  uniform float scaleToUnitCube;
 
   out vec3 tr_position;
 
   void main() {
     gl_Position = mvp * vec4(in_position, 1.0);
-    tr_position = in_position;
+    tr_position = in_position * scaleToUnitCube;
   }
 )";
 
-constexpr const char* EACVideoFrag = R"(
+constexpr const char* CubeEACVideoFrag = R"(
   #version 410 core
 
   uniform samplerCube cubeMap;
@@ -408,7 +412,7 @@ void createCubeMapFBO(int size) {
     glTexParameteri(GL_TEXTURE_CUBE_MAP, GL_TEXTURE_WRAP_S, GL_CLAMP_TO_EDGE);
     glTexParameteri(GL_TEXTURE_CUBE_MAP, GL_TEXTURE_WRAP_T, GL_CLAMP_TO_EDGE);
     glTexParameteri(GL_TEXTURE_CUBE_MAP, GL_TEXTURE_WRAP_R, GL_CLAMP_TO_EDGE);
-    glGenerateMipmap(GL_TEXTURE_CUBE_MAP);
+    //glGenerateMipmap(GL_TEXTURE_CUBE_MAP);
 
     // Allocate space for each side of the cube map
     for (GLuint i = 0; i < 6; ++i)
@@ -568,6 +572,7 @@ void initOGL(GLFWwindow*) {
     // Set default settings
     mpv::qt::set_property(mpvHandle, "keep-open", "yes");
     mpv::qt::set_property(mpvHandle, "loop-file", "inf");
+    mpv::qt::set_property(mpvHandle, "aid", "no"); //No audio on nodes.
 
 #ifdef SGCT_ONLY
     SyncHelper::instance().variables.loadedFile = "G:/Splits/Life_of_trees_3D_bravo/Life_of_trees_3D.mp4";
@@ -588,7 +593,7 @@ void initOGL(GLFWwindow*) {
 
     // Create shaders
     ShaderManager::instance().addShaderProgram("mesh", MeshVert, VideoFrag);
-    ShaderManager::instance().addShaderProgram("cubeEAC", EACMeshVert, EACVideoFrag);
+    ShaderManager::instance().addShaderProgram("cubeEAC", CubeEACMeshVert, CubeEACVideoFrag);
     ShaderManager::instance().addShaderProgram("createCubeMap", CreateCubeMapVert, CreateCubeMapFrag);
     ShaderManager::instance().addShaderProgram("video", VideoVert, VideoFrag);
 
@@ -609,6 +614,7 @@ void initOGL(GLFWwindow*) {
     glUniform1i(glGetUniformLocation(cubeEACPrg->id(), "cubeMap"), 1);
     cubeEACMatrixLoc = glGetUniformLocation(cubeEACPrg->id(), "mvp");
     cubeEACAlphaLoc = glGetUniformLocation(cubeEACPrg->id(), "alpha");
+    cubeEACScaleLoc = glGetUniformLocation(cubeEACPrg->id(), "scaleToUnitCube");
     cubeEACPrg->unbind();
 
     createCubeMapPrg = &ShaderManager::instance().shaderProgram("createCubeMap");
@@ -632,7 +638,8 @@ void initOGL(GLFWwindow*) {
     domeFov = SyncHelper::instance().variables.fov;
     dome = std::make_unique<utils::Dome>(float(domeRadius)/100.f, float(domeFov), 256, 128);
     sphere = std::make_unique<utils::Sphere>(float(domeRadius) / 100.f, 256);
-    cube = std::make_unique<utils::Box>(1.f);
+    cubeSize = (2.0 * float(domeRadius)) / 100.f;
+    cube = std::make_unique<utils::Box>(cubeSize);
 
     // Set up backface culling
     glCullFace(GL_BACK);
@@ -642,43 +649,7 @@ void initOGL(GLFWwindow*) {
 }
 
 void preSync() {
-    // Running fade in/out with buttons through QML instead
-    /*if (Engine::instance().isMaster()) {
-        int fds = Application::instance().getFadeDurationSetting();
-        if (fds > 0) {
-            // Start a fade duration if new file is loaded.
-            bool restartTimer = false;
-            if (!SyncHelper::instance().variables.loadedFile.empty() 
-                && loadedVideoFile != SyncHelper::instance().variables.loadedFile 
-                && SyncHelper::instance().variables.syncOn) {
-                fadeDurationOngoing = true;
-                restartTimer = true;
-                SyncHelper::instance().variables.syncOn = false;
-                loadedVideoFile = SyncHelper::instance().variables.loadedFile;
-            }
-            if (fadeDurationOngoing) {
-                int fdct = Application::instance().getFadeDurationCurrentTime(restartTimer);
-                int half_fds = fds / 2;
-                if (fdct < half_fds - 500) { // Fade out
-                    SyncHelper::instance().variables.alpha = 1.f - (float(fdct) / float(half_fds - 500));
-                }
-                else if (fdct < half_fds + 500) { // Sync On again, Keep black for 1 second
-                    SyncHelper::instance().variables.syncOn = true;
-                    SyncHelper::instance().variables.alpha = 0.f;
 
-                }
-                else if (fdct >= fds) { // Fade complete
-                    fadeDurationOngoing = false;
-                    SyncHelper::instance().variables.syncOn = true;
-                    SyncHelper::instance().variables.alpha = 1.f;
-                }
-                else { // Fade in
-                    SyncHelper::instance().variables.syncOn = true;
-                    SyncHelper::instance().variables.alpha = float(fdct - half_fds - 500) / float(half_fds - 500);
-                }
-            }
-        }
-    }*/
 }
 
 std::vector<std::byte> encode() {
@@ -833,6 +804,30 @@ void postSyncPreDraw() {
             domeFov = SyncHelper::instance().variables.fov;
             dome = std::make_unique<utils::Dome>(float(domeRadius) / 100.f, float(domeFov), 256, 128);
             sphere = std::make_unique<utils::Sphere>(float(domeRadius) / 100.f, 256);
+            cubeSize = (2.0 * float(domeRadius)) / 100.f;
+            cube = std::make_unique<utils::Box>(cubeSize);
+        }
+
+        //Build video-filters based on synced settings
+        std::string newVideoFilterSettings = "";
+        if(SyncHelper::instance().variables.gridToMapOn == 3) { //Equi-Angular Cubemap (EAC) that needs to be converted to Equirectangular format (EQR)
+            if (SyncHelper::instance().variables.stereoscopicMode == 3) { //EAC TB-F converted to EQR TB
+                newVideoFilterSettings = "v360=eac:equirect:in_stereo=sbs:in_trans=1:ih_flip=1:yaw=180:roll=90:out_stereo=tb";
+            }
+            else if (SyncHelper::instance().variables.stereoscopicMode == 2) { //EAC TB converted to EQR TB
+                newVideoFilterSettings = "v360=eac:equirect:in_stereo=tb:yaw=180:roll=90:out_stereo=tb";
+            }
+            else if (SyncHelper::instance().variables.stereoscopicMode == 1) { //EAC SBS converted to EQR TB
+                newVideoFilterSettings = "v360=eac:equirect:in_stereo=sbs:yaw=180:roll=90:out_stereo=tb";
+            }
+            else { //EAC converted to EQR
+                newVideoFilterSettings = "v360=eac:equirect";
+            }
+        }
+
+        if (videoFilters != newVideoFilterSettings) { //Apply new video filters if something changed
+            videoFilters = newVideoFilterSettings;
+            mpv::qt::set_property(mpvHandle, "vf", QString::fromStdString(newVideoFilterSettings));
         }
     }
 
@@ -888,7 +883,7 @@ void draw(const RenderData& data) {
     glActiveTexture(GL_TEXTURE0);
     glBindTexture(GL_TEXTURE_2D, mpvTex);
  
-    if (SyncHelper::instance().variables.gridToMapOn == 3) {
+    if (SyncHelper::instance().variables.gridToMapOn == 4) {
         GLint saveFrameBuffer = 0;
         glGetIntegerv(GL_FRAMEBUFFER_BINDING, &saveFrameBuffer);
         int viewport[4];
@@ -932,18 +927,19 @@ void draw(const RenderData& data) {
 
         glActiveTexture(GL_TEXTURE1);
         glBindTexture(GL_TEXTURE_CUBE_MAP, cubeMapTex);
-        glGenerateMipmap(GL_TEXTURE_CUBE_MAP);
+        //glGenerateMipmap(GL_TEXTURE_CUBE_MAP);
 
         cubeEACPrg->bind();
 
         glUniform1f(cubeEACAlphaLoc, SyncHelper::instance().variables.alpha);
+        glUniform1f(cubeEACScaleLoc, 1.f / cubeSize);
 
-        mat4 p = data.projectionMatrix;
-        glm::mat4 P_transformed_rot = glm::translate(glm::make_mat4(p.values), glm::vec3(float(SyncHelper::instance().variables.translateX) / 100.f, float(SyncHelper::instance().variables.translateY) / 100.f, float(SyncHelper::instance().variables.translateZ) / 100.f));
-        P_transformed_rot = glm::rotate(P_transformed_rot, glm::radians(float(SyncHelper::instance().variables.rotateZ)), glm::vec3(0.0f, 0.0f, 1.0f)); //roll
-        P_transformed_rot = glm::rotate(P_transformed_rot, glm::radians(float(360 - SyncHelper::instance().variables.rotateX + SyncHelper::instance().variables.angle)), glm::vec3(1.0f, 0.0f, 0.0f)); //pitch
-        P_transformed_rot = glm::rotate(P_transformed_rot, glm::radians(float(SyncHelper::instance().variables.rotateY)), glm::vec3(0.0f, 1.0f, 0.0f)); //yaw
-        glUniformMatrix4fv(cubeEACMatrixLoc, 1, GL_FALSE, &P_transformed_rot[0][0]);
+        mat4 vp = data.projectionMatrix * data.viewMatrix;
+        glm::mat4 VP_transformed_rot = glm::translate(glm::make_mat4(vp.values), glm::vec3(float(SyncHelper::instance().variables.translateX) / 100.f, float(SyncHelper::instance().variables.translateY) / 100.f, float(SyncHelper::instance().variables.translateZ) / 100.f));
+        VP_transformed_rot = glm::rotate(VP_transformed_rot, glm::radians(float(SyncHelper::instance().variables.rotateZ)), glm::vec3(0.0f, 0.0f, 1.0f)); //roll
+        VP_transformed_rot = glm::rotate(VP_transformed_rot, glm::radians(float(360 - SyncHelper::instance().variables.rotateX)), glm::vec3(1.0f, 0.0f, 0.0f)); //pitch
+        VP_transformed_rot = glm::rotate(VP_transformed_rot, glm::radians(float(SyncHelper::instance().variables.rotateY+90.f)), glm::vec3(0.0f, 1.0f, 0.0f)); //yaw
+        glUniformMatrix4fv(cubeEACMatrixLoc, 1, GL_FALSE, &VP_transformed_rot[0][0]);
 
         cube->draw();
 
@@ -951,7 +947,7 @@ void draw(const RenderData& data) {
 
         glDisable(GL_CULL_FACE);
     }
-    else if (SyncHelper::instance().variables.gridToMapOn == 2) {
+    else if (SyncHelper::instance().variables.gridToMapOn == 2 || SyncHelper::instance().variables.gridToMapOn == 3) {
         glEnable(GL_CULL_FACE);
 
         mat4 vp = data.projectionMatrix * data.viewMatrix;
@@ -970,7 +966,11 @@ void draw(const RenderData& data) {
 
         meshPrg->bind();
 
-        if (SyncHelper::instance().variables.stereoscopicMode > 0) {
+        if (SyncHelper::instance().variables.gridToMapOn == 3 && SyncHelper::instance().variables.stereoscopicMode > 0) { //We are always converting EAC 3D formats to EQR Top-Bottom
+            glUniform1i(meshEyeModeLoc, (GLint)data.frustumMode);
+            glUniform1i(meshStereoscopicModeLoc, 2);
+        }
+        else if (SyncHelper::instance().variables.stereoscopicMode > 0) {
             glUniform1i(meshEyeModeLoc, (GLint)data.frustumMode);
             glUniform1i(meshStereoscopicModeLoc, (GLint)SyncHelper::instance().variables.stereoscopicMode);
         }

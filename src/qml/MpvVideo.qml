@@ -73,7 +73,7 @@ MpvObject {
             mpv.translate = Qt.vector3d(VideoSettings.surfaceTranslateX, VideoSettings.surfaceTranslateY, VideoSettings.surfaceTranslateZ)
             sphereRotationTimer.stop()
         }
-        else if(mpv.gridToMapOn === 2){
+        else if(mpv.gridToMapOn === 2 || mpv.gridToMapOn === 3){
             sphereRotationTimer.stop()
             trackBall.trackballCameraController.rotationXYZ = Qt.vector3d(0, 0, 0);
             scene3D.visible = true
@@ -81,11 +81,13 @@ MpvObject {
             trackBall.trackballCameraController.rotationXYZ = Qt.vector3d(0, -90, 0);
             sphereRotationTimer.start()
         }
-        else if(mpv.gridToMapOn === 3){
+        else if(mpv.gridToMapOn === 4){
             sphereRotationTimer.stop()
             mpv.rotate = Qt.vector3d(0, 0, 0);
             trackBall.trackballCameraController.rotationXYZ = Qt.vector3d(0, 0, 0);
             scene3D.visible = true
+            mpv.rotate = Qt.vector3d(0, -90, 0);
+            trackBall.trackballCameraController.rotationXYZ = Qt.vector3d(0, -90, 0);
             sphereRotationTimer.start()
         }
     }
