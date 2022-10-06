@@ -888,7 +888,7 @@ ToolBar {
                         focusPolicy: Qt.NoFocus
 
                         onClicked: {
-                            mpv.gridToMapOnChanged()
+                            mpv.resetOrientation()
                         }
 
                         Layout.alignment: Qt.AlignHCenter | Qt.AlignVCenter

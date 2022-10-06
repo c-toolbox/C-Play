@@ -43,6 +43,9 @@ float cubeSize = 1.f;
 unsigned int cubeMapFBO = 0;
 unsigned int cubeMapTex = 0;
 
+int mpvVideoReconfigs = 0;
+bool updateRendering = true;
+
 bool paused = true;
 int loopMode = -1;
 bool fadeDurationOngoing = false;
@@ -493,6 +496,8 @@ void on_mpv_events(void*)
                     w > 0 && h > 0)
                 {
                     resizeMpvFBO((int)w, (int)h);
+                    mpvVideoReconfigs++;
+                    updateRendering = (mpvVideoReconfigs > 1);
                 }
                 break;
             }
@@ -726,6 +731,8 @@ void postSyncPreDraw() {
             loadedFile = SyncHelper::instance().variables.loadedFile;
             SyncHelper::instance().variables.loadFile = false;
             Log::Info(fmt::format("Loading new file: {}", SyncHelper::instance().variables.loadedFile));
+            mpvVideoReconfigs = 0;
+            updateRendering = false;
 
             if (!SyncHelper::instance().variables.overlayFile.empty()) {
                 Log::Info(fmt::format("Loading overlay file: {}", SyncHelper::instance().variables.overlayFile));
@@ -828,6 +835,8 @@ void postSyncPreDraw() {
         if (videoFilters != newVideoFilterSettings) { //Apply new video filters if something changed
             videoFilters = newVideoFilterSettings;
             mpv::qt::set_property(mpvHandle, "vf", QString::fromStdString(newVideoFilterSettings));
+            updateRendering = false; //Hold rendering until two video-reconfig has happends
+            mpvVideoReconfigs = 0;
         }
     }
 
@@ -840,23 +849,25 @@ void postSyncPreDraw() {
     on_mpv_events(mpvHandle);
 
 #ifndef ONLY_RENDER_TO_SCREEN
-    mpv_opengl_fbo mpfbo{static_cast<int>(mpvFBO), videoWidth, videoHeight, GL_RGBA16F};
-    int flip_y{1};
+    if (updateRendering) {
+        mpv_opengl_fbo mpfbo{ static_cast<int>(mpvFBO), videoWidth, videoHeight, GL_RGBA16F };
+        int flip_y{ 1 };
 
-    mpv_render_param params[] = {
-        {MPV_RENDER_PARAM_OPENGL_FBO, &mpfbo},
-        {MPV_RENDER_PARAM_FLIP_Y, &flip_y},
-        {MPV_RENDER_PARAM_INVALID, nullptr}
-    };
-    // See render_gl.h on what OpenGL environment mpv expects, and
-    // other API details.
-    mpv_render_context_render(mpvRenderContext, params);
+        mpv_render_param params[] = {
+            {MPV_RENDER_PARAM_OPENGL_FBO, &mpfbo},
+            {MPV_RENDER_PARAM_FLIP_Y, &flip_y},
+            {MPV_RENDER_PARAM_INVALID, nullptr}
+        };
+        // See render_gl.h on what OpenGL environment mpv expects, and
+        // other API details.
+        mpv_render_context_render(mpvRenderContext, params);
+    }
 #endif
 }
 
 void draw(const RenderData& data) {
 #ifndef SGCT_ONLY
-    if (Engine::instance().isMaster())
+    if (Engine::instance().isMaster() || !updateRendering)
         return;
 #endif
     glDisable(GL_DEPTH_TEST);
@@ -937,7 +948,7 @@ void draw(const RenderData& data) {
         mat4 vp = data.projectionMatrix * data.viewMatrix;
         glm::mat4 VP_transformed_rot = glm::translate(glm::make_mat4(vp.values), glm::vec3(float(SyncHelper::instance().variables.translateX) / 100.f, float(SyncHelper::instance().variables.translateY) / 100.f, float(SyncHelper::instance().variables.translateZ) / 100.f));
         VP_transformed_rot = glm::rotate(VP_transformed_rot, glm::radians(float(SyncHelper::instance().variables.rotateZ)), glm::vec3(0.0f, 0.0f, 1.0f)); //roll
-        VP_transformed_rot = glm::rotate(VP_transformed_rot, glm::radians(float(360 - SyncHelper::instance().variables.rotateX)), glm::vec3(1.0f, 0.0f, 0.0f)); //pitch
+        VP_transformed_rot = glm::rotate(VP_transformed_rot, glm::radians(float(SyncHelper::instance().variables.rotateX)), glm::vec3(1.0f, 0.0f, 0.0f)); //pitch
         VP_transformed_rot = glm::rotate(VP_transformed_rot, glm::radians(float(SyncHelper::instance().variables.rotateY+90.f)), glm::vec3(0.0f, 1.0f, 0.0f)); //yaw
         glUniformMatrix4fv(cubeEACMatrixLoc, 1, GL_FALSE, &VP_transformed_rot[0][0]);
 

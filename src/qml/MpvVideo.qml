@@ -49,12 +49,11 @@ MpvObject {
         }
     }
 
-    onGridToMapOnChanged: {
+    onResetOrientation: {
         trackBall.camera.upVector = Qt.vector3d( 0.0, 1.0, 0.0 );
         trackBall.camera.position = Qt.vector3d( 0.0, 0.0, 1.0 );
         trackBall.trackballCameraController.stopRotation()
-        if(mpv.gridToMapOn == 0 && scene3D.visible){
-            scene3D.visible = false
+        if(mpv.gridToMapOn < 2){
             trackBall.trackballCameraController.rotationXYZ = Qt.vector3d(0, 0, 0);
             mpv.angle = VideoSettings.surfaceAngle
             mpv.radius = VideoSettings.surfaceRadius
@@ -63,32 +62,23 @@ MpvObject {
             mpv.translate = Qt.vector3d(VideoSettings.surfaceTranslateX, VideoSettings.surfaceTranslateY, VideoSettings.surfaceTranslateZ)
             sphereRotationTimer.stop()
         }
-        else if(mpv.gridToMapOn == 1 && scene3D.visible){
+        else{
+            sphereRotationTimer.stop()
+            trackBall.trackballCameraController.rotationXYZ = Qt.vector3d(0, 0, 0);
+            mpv.rotate = Qt.vector3d(0, -90, 0);
+            trackBall.trackballCameraController.rotationXYZ = Qt.vector3d(0, -90, 0);
+            sphereRotationTimer.start()
+        }
+    }
+
+    onGridToMapOnChanged: {
+        if(mpv.gridToMapOn < 2 && scene3D.visible){
             scene3D.visible = false
-            trackBall.trackballCameraController.rotationXYZ = Qt.vector3d(0, 0, 0);
-            mpv.angle = VideoSettings.surfaceAngle
-            mpv.radius = VideoSettings.surfaceRadius
-            mpv.fov = VideoSettings.surfaceFov
-            mpv.rotate = Qt.vector3d(VideoSettings.surfaceRotateX, VideoSettings.surfaceRotateY, VideoSettings.surfaceRotateZ)
-            mpv.translate = Qt.vector3d(VideoSettings.surfaceTranslateX, VideoSettings.surfaceTranslateY, VideoSettings.surfaceTranslateZ)
-            sphereRotationTimer.stop()
+            mpv.resetOrientation()
         }
-        else if(mpv.gridToMapOn === 2 || mpv.gridToMapOn === 3){
-            sphereRotationTimer.stop()
-            trackBall.trackballCameraController.rotationXYZ = Qt.vector3d(0, 0, 0);
+        else if(!scene3D.visible){
+            mpv.resetOrientation()
             scene3D.visible = true
-            mpv.rotate = Qt.vector3d(0, -90, 0);
-            trackBall.trackballCameraController.rotationXYZ = Qt.vector3d(0, -90, 0);
-            sphereRotationTimer.start()
-        }
-        else if(mpv.gridToMapOn === 4){
-            sphereRotationTimer.stop()
-            mpv.rotate = Qt.vector3d(0, 0, 0);
-            trackBall.trackballCameraController.rotationXYZ = Qt.vector3d(0, 0, 0);
-            scene3D.visible = true
-            mpv.rotate = Qt.vector3d(0, -90, 0);
-            trackBall.trackballCameraController.rotationXYZ = Qt.vector3d(0, -90, 0);
-            sphereRotationTimer.start()
         }
     }
 
@@ -435,7 +425,7 @@ MpvObject {
         focus: true
         aspects: ["input", "logic"]
         cameraAspectRatioMode: Scene3D.AutomaticAspectRatio
-        visible: (mpv.gridToMapOn >= 2)
+        visible: false
 
         TrackBall{
             id: trackBall

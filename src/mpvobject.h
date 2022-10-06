@@ -333,6 +333,7 @@ signals:
     void visibilityChanged();
     void loopModeChanged();
     void gridToMapOnChanged();
+    void resetOrientation();
     void rotationSpeedChanged();
     void radiusChanged();
     void fovChanged();
