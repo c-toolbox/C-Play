@@ -974,11 +974,14 @@ PlayListItem* MpvObject::loadJSONPlayfile(const QString& file) {
         else if (grid == "sphere-eqr") {
             item->setGridToMapOn(2);
         }
-        else if (grid == "cube") {
+        else if (grid == "sphere-eac") {
             item->setGridToMapOn(3);
         }
+        else if (grid == "cube") {
+            item->setGridToMapOn(4);
+        }
         else if (grid == "cube-eac") {
-            item->setGridToMapOn(3);
+            item->setGridToMapOn(4);
         }
     }
 
