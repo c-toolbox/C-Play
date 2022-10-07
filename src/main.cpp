@@ -800,30 +800,6 @@ void postSyncPreDraw() {
             dome = std::make_unique<utils::Dome>(float(domeRadius) / 100.f, float(domeFov), 256, 128);
             sphere = std::make_unique<utils::Sphere>(float(domeRadius) / 100.f, 256);
         }
-
-        //Build video-filters based on synced settings
-        std::string newVideoFilterSettings = "";
-        if(SyncHelper::instance().variables.gridToMapOn == 3) { //Equi-Angular Cubemap (EAC) that needs to be converted to Equirectangular format (EQR)
-            if (SyncHelper::instance().variables.stereoscopicMode == 3) { //EAC TB-F converted to EQR TB
-                newVideoFilterSettings = "v360=eac:equirect:in_stereo=sbs:in_trans=1:ih_flip=1:yaw=180:roll=90:out_stereo=tb";
-            }
-            else if (SyncHelper::instance().variables.stereoscopicMode == 2) { //EAC TB converted to EQR TB
-                newVideoFilterSettings = "v360=eac:equirect:in_stereo=tb:yaw=180:roll=90:out_stereo=tb";
-            }
-            else if (SyncHelper::instance().variables.stereoscopicMode == 1) { //EAC SBS converted to EQR TB
-                newVideoFilterSettings = "v360=eac:equirect:in_stereo=sbs:yaw=180:roll=90:out_stereo=tb";
-            }
-            else { //EAC converted to EQR
-                newVideoFilterSettings = "v360=eac:equirect";
-            }
-        }
-
-        if (videoFilters != newVideoFilterSettings) { //Apply new video filters if something changed
-            videoFilters = newVideoFilterSettings;
-            mpv::qt::set_property(mpvHandle, "vf", QString::fromStdString(newVideoFilterSettings));
-            updateRendering = false; //Hold rendering until two video-reconfig has happends
-            mpvVideoReconfigs = 0;
-        }
     }
 
     if (Engine::instance().isMaster()) {
@@ -880,7 +856,7 @@ void draw(const RenderData& data) {
     glActiveTexture(GL_TEXTURE0);
     glBindTexture(GL_TEXTURE_2D, mpvTex);
  
-    if (SyncHelper::instance().variables.gridToMapOn == 4) {
+    if (SyncHelper::instance().variables.gridToMapOn == 3) {
         glEnable(GL_CULL_FACE);
 
         EACPrg->bind();
@@ -934,7 +910,7 @@ void draw(const RenderData& data) {
 
         glDisable(GL_CULL_FACE);
     }
-    else if (SyncHelper::instance().variables.gridToMapOn == 2 || SyncHelper::instance().variables.gridToMapOn == 3) {
+    else if (SyncHelper::instance().variables.gridToMapOn == 2) {
         glEnable(GL_CULL_FACE);
 
         mat4 vp = data.projectionMatrix * data.viewMatrix;
@@ -947,11 +923,7 @@ void draw(const RenderData& data) {
 
         meshPrg->bind();
 
-        if (SyncHelper::instance().variables.gridToMapOn == 3 && SyncHelper::instance().variables.stereoscopicMode > 0) { //We are always converting EAC 3D formats to EQR Top-Bottom
-            glUniform1i(meshEyeModeLoc, (GLint)data.frustumMode);
-            glUniform1i(meshStereoscopicModeLoc, 2);
-        }
-        else if (SyncHelper::instance().variables.stereoscopicMode > 0) {
+        if (SyncHelper::instance().variables.stereoscopicMode > 0) {
             glUniform1i(meshEyeModeLoc, (GLint)data.frustumMode);
             glUniform1i(meshStereoscopicModeLoc, (GLint)SyncHelper::instance().variables.stereoscopicMode);
         }

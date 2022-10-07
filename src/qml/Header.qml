@@ -184,8 +184,6 @@ ToolBar {
                     gridMenuButton.text = qsTr("Grid (Sphere EQR)")
                 else if(mpv.gridToMapOn == 3)
                     gridMenuButton.text = qsTr("Grid (Sphere EAC)")
-                else if(mpv.gridToMapOn == 4)
-                    gridMenuButton.text = qsTr("Grid (Cube EAC)")
             }
             icon.name: "kstars_hgrid"
             focusPolicy: Qt.NoFocus
@@ -205,8 +203,6 @@ ToolBar {
                         gridMenuButton.text = qsTr("Grid (Sphere EQR)")
                     else if(mpv.gridToMapOn == 3)
                         gridMenuButton.text = qsTr("Grid (Sphere EAC)")
-                    else if(mpv.gridToMapOn == 4)
-                        gridMenuButton.text = qsTr("Grid (Cube EAC)")
                 }
             }
 
@@ -273,19 +269,6 @@ ToolBar {
                         Connections {
                             target: mpv
                             onGridToMapOnChanged: sphere_eac_grid.checked = (mpv.gridToMapOn === 3)
-                        }
-                    }
-
-                    RadioButton {
-                        id: cube_eac_grid
-                        checked: PlaybackSettings.gridToMapOn === 4
-                        text: qsTr("Cube EAC")
-                        onClicked: {
-                            mpv.gridToMapOn = 4
-                        }
-                        Connections {
-                            target: mpv
-                            onGridToMapOnChanged: cube_eac_grid.checked = (mpv.gridToMapOn === 4)
                         }
                     }
                 }
