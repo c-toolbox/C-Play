@@ -8,7 +8,6 @@
 #include <sgct/opengl.h>
 #include <sgct/utils/dome.h>
 #include <sgct/utils/sphere.h>
-#include <sgct/utils/box.h>
 #include <sgct/offscreenbuffer.h>
 #include <glm/glm.hpp>
 #include <glm/gtc/type_ptr.hpp>
@@ -26,7 +25,6 @@ mpv_handle *mpvHandle;
 mpv_render_context *mpvRenderContext;
 std::unique_ptr<sgct::utils::Dome> dome;
 std::unique_ptr<sgct::utils::Sphere> sphere;
-std::unique_ptr<sgct::utils::Box> cube;
 
 int domeRadius = 740;
 int domeFov = 165;
@@ -37,11 +35,6 @@ int videoWidth = 0;
 int videoHeight = 0;
 unsigned int mpvFBO = 0;
 unsigned int mpvTex = 0;
-
-int cubeMapSize = 0;
-float cubeSize = 1.f;
-unsigned int cubeMapFBO = 0;
-unsigned int cubeMapTex = 0;
 
 int mpvVideoReconfigs = 0;
 bool updateRendering = true;
@@ -59,16 +52,14 @@ int meshEyeModeLoc = -1;
 int meshMatrixLoc = -1;
 int meshOutsideLoc = -1;
 int meshStereoscopicModeLoc = -1;
-// cubeEAC
-int cubeEACAlphaLoc = -1;
-int cubeEACMatrixLoc = -1;
-int cubeEACScaleLoc = -1;
-int cubeEACVideoWidthLoc = -1;
-int cubeEACVideoHeightLoc = -1;
-// cubeMap
-int createCubeMapEyeModeLoc = -1;
-int createCubeMapStereoscopicModeLoc = -1;
-int createCubeMapTexelSize = -1;
+// EAC
+int EACAlphaLoc = -1;
+int EACMatrixLoc = -1;
+int EACScaleLoc = -1;
+int EACVideoWidthLoc = -1;
+int EACVideoHeightLoc = -1;
+int EACEyeModeLoc = -1;
+int EACStereoscopicModeLoc = -1;
 
 constexpr const char* VideoVert = R"(
   #version 410 core
@@ -179,136 +170,7 @@ constexpr const char* VideoFrag = R"(
   }
 )";
 
-constexpr const char* CreateCubeMapVert = R"(
-  #version 410 core
-
-  layout (location = 0) in vec2 in_position;
-  layout (location = 1) in vec2 in_texCoord;
-
-  out vec2 tr_uv;
-
-  void main() {
-    gl_Position = vec4(in_position, 0.0, 1.0);
-    tr_uv = in_texCoord;
-  }
-)";
-
-constexpr const char* CreateCubeMapFrag = R"(
-  #version 410 core
-
-  uniform sampler2D tex;
-  uniform int eye;
-  uniform int stereoscopicMode;
-  uniform float cubeMapTexelSize;
-
-  in vec2 tr_uv;
-  
-  //GL_TEXTURE_CUBE_MAP_POSITIVE_X : Right
-  //GL_TEXTURE_CUBE_MAP_NEGATIVE_X : Left
-  //GL_TEXTURE_CUBE_MAP_POSITIVE_Y : Top
-  //GL_TEXTURE_CUBE_MAP_NEGATIVE_Y : Bottom
-  //GL_TEXTURE_CUBE_MAP_POSITIVE_Z : Back
-  //GL_TEXTURE_CUBE_MAP_NEGATIVE_Z : Front
-
-  layout(location = 0) out vec4 cube_right;
-  layout(location = 1) out vec4 cube_left;
-  layout(location = 2) out vec4 cube_top;
-  layout(location = 3) out vec4 cube_bottom;
-  layout(location = 4) out vec4 cube_back;
-  layout(location = 5) out vec4 cube_front;
-
-  // Matrices to orient a [0..+1] square for each side
-  const mat3 ORIENT_FRONT = mat3(1, 0, 0, 0, 1, 0, 0, 0, 1);
-  const mat3 ORIENT_BACK = mat3(0, 1, 0, -1, 0, 0, 0, 0, 1);
-  const mat3 ORIENT_UP = mat3(0, 1, 0, -1, 0, 0, 0, 0, 1);
-  const mat3 ORIENT_DOWN = mat3(0, 1, 0, -1, 0, 0, 0, 0, 1);
-  const mat3 ORIENT_LEFT = mat3(1, 0, 0, 0, 1, 0, 0, 0, 1);
-  const mat3 ORIENT_RIGHT = mat3(1, 0, 0, 0, 1, 0, 0, 0, 1);
-
-  // Vectors to offset a rectangle for each side
-  const vec2 OFFSET_FRONT = vec2(0.33333333, 0.5);
-  const vec2 OFFSET_BACK = vec2(0.66666666, 0.0);
-  const vec2 OFFSET_UP = vec2(1.0, 0.0);
-  const vec2 OFFSET_DOWN = vec2(0.33333333, 0.0);
-  const vec2 OFFSET_LEFT = vec2(0.0, 0.5);
-  const vec2 OFFSET_RIGHT = vec2(0.66666666, 0.5);
-
-  vec2 getCubeMapTextureCoord(vec2 texCoord, mat3 orientation, vec2 offset, bool flip) {
-    vec2 tc = texCoord;
-
-    float clampValue = cubeMapTexelSize;
-    //tc *= (1.0 - clampValue);
-    //tc += (0.5 * clampValue);
-
-    tc = (orientation * vec3(tc, 1)).xy;
-    
-    if(flip)
-        tc = vec2(1.0 - tc.x, 1.0 - tc.y);
-
-    tc = vec2(0.33333333, 0.5) * tc;
-
-    tc += offset;
-
-    if(eye==2) { //Right Eye
-        if(stereoscopicMode==1) { //Side-by-side
-            tc = (tc * vec2(0.5, 1.0)) + vec2(0.5, 0.0);
-        }
-        else if(stereoscopicMode==2) { //Top-bottom
-            tc = tc * vec2(1.0, 0.5);
-        }
-        else if(stereoscopicMode==3) { //Top-bottom-flip
-            tc = tc * vec2(1.0, 0.5);
-            tc = vec2(1.0 - tc.y, tc.x);
-        }
-    }
-    else { // Left Eye or Mono
-        if(stereoscopicMode==1) { //Side-by-side
-            tc = tc * vec2(0.5, 1.0);
-        }
-        else if(stereoscopicMode==2) { //Top-bottom
-            tc = (tc * vec2(1.0, 0.5)) + vec2(0.0, 0.5);
-        }
-        else if(stereoscopicMode==3) { //Top-bottom-flip
-            tc = (tc * vec2(1.0, 0.5)) + vec2(0.0, 0.5);
-            tc = vec2(1.0 - tc.y, tc.x);
-        }
-    }
-
-    return tc;
-  }
-
-  void main() {
-    vec2 texCoord;
-
-    // EAC has 2-pixel padding on faces except between faces on the same row
-
-    //cube_front = vec4(1.0, 1.0, 1.0, 1.0);  //Front is white
-    texCoord = getCubeMapTextureCoord(tr_uv, ORIENT_FRONT, OFFSET_FRONT, true);
-    cube_front = texture(tex, texCoord);
-
-    //cube_back = vec4(0.0, 0.0, 0.0, 1.0);  //Back is black
-    texCoord = getCubeMapTextureCoord(tr_uv, ORIENT_BACK, OFFSET_BACK, false);
-    cube_back = texture(tex, texCoord);
-
-    //cube_top = vec4(0.0, 1.0, 0.0, 1.0);  // Up is green
-    texCoord = getCubeMapTextureCoord(tr_uv, ORIENT_UP, OFFSET_UP, false);
-    cube_top = texture(tex, texCoord);
-    
-    //cube_bottom = vec4(1.0, 1.0, 0.0, 1.0); // Down is yellow
-    texCoord = getCubeMapTextureCoord(tr_uv, ORIENT_DOWN, OFFSET_DOWN, false);
-    cube_bottom = texture(tex, texCoord);
-
-    //cube_left = vec4(0.0, 0.0, 1.0, 1.0); // Left is blue
-    texCoord = getCubeMapTextureCoord(tr_uv, ORIENT_LEFT, OFFSET_LEFT, true);
-    cube_left = texture(tex, texCoord);
-    
-    //cube_right = vec4(1.0, 0.0, 0.0, 1.0); // Right is red
-    texCoord = getCubeMapTextureCoord(tr_uv, ORIENT_RIGHT, OFFSET_RIGHT, true);
-    cube_right = texture(tex, texCoord);
-  }
-)";
-
-constexpr const char* CubeEACMeshVert = R"(
+constexpr const char* EACMeshVert = R"(
   #version 410 core
 
   layout (location = 0) in vec2 in_texCoord;
@@ -328,11 +190,12 @@ constexpr const char* CubeEACMeshVert = R"(
   }
 )";
 
-constexpr const char* CubeEACVideoFrag = R"(
+constexpr const char* EACVideoFrag = R"(
   #version 410 core
 
-  //uniform samplerCube cubeMap;
   uniform sampler2D tex;
+  uniform int eye;
+  uniform int stereoscopicMode;
   uniform float alpha;
   uniform int videoWidth;
   uniform int videoHeight;
@@ -500,102 +363,38 @@ constexpr const char* CubeEACVideoFrag = R"(
     uv.x = (uv.x + u_face) * (1.0 - 2.0 * u_pad) / 3.0 + u_pad;
     uv.y = uv.y * (0.5 - (2.0 * v_pad)) + v_pad + (0.5 * v_face);
 
-    /*uv.x *= width;
-    uv.y *= height;*/
-
-    //uv -= 0.5;
-    //uv -= floor(uv);
-
     return uv;
   }
 
   void main() {
-    //vec3 eac_normal = (2.0 / M_PI) * atan(2.0 *  normalize(tr_normal));
-
-    //out_color = texture(cubeMap, eac_normal) * vec4(1.0, 1.0, 1.0, alpha);
-
     vec2 uv = xyz_to_eac(normalize(tr_normal), videoWidth, videoHeight);
+
+    if(eye==2) { //Right Eye
+        if(stereoscopicMode==1) { //Side-by-side
+            uv = (uv * vec2(0.5, 1.0)) + vec2(0.5, 0.0);
+        }
+        else if(stereoscopicMode==2) { //Top-bottom
+            uv = uv * vec2(1.0, 0.5);
+        }
+        else if(stereoscopicMode==3) { //Top-bottom-flip
+            uv = uv * vec2(1.0, 0.5);
+            uv = vec2(1.0 - uv.y, uv.x);
+        }
+    }
+    else { // Left Eye or Mono
+        if(stereoscopicMode==1) { //Side-by-side
+            uv = uv * vec2(0.5, 1.0);
+        }
+        else if(stereoscopicMode==2) { //Top-bottom
+            uv = (uv * vec2(1.0, 0.5)) + vec2(0.0, 0.5);
+        }
+        else if(stereoscopicMode==3) { //Top-bottom-flip
+            uv = (uv * vec2(1.0, 0.5)) + vec2(0.0, 0.5);
+            uv = vec2(1.0 - uv.y, uv.x);
+        }
+    }
    
     out_color = texture(tex, uv) * vec4(1.0, 1.0, 1.0, alpha);
-
-    /*vec3 eac_position = (2.0 / M_PI) * atan(2.0 *  tr_position);
-
-	vec3 xyz = -eac_position;
-	float x = xyz.x;
-    float y = xyz.y;
-    float z = xyz.z;
-
-    // EAC has 2-pixel padding on faces except between faces on the same row
-    float pixel_pad = 2.0;
-    float u_pad = pixel_pad / videoWidth;
-    float v_pad = pixel_pad / videoHeight;
-
-	float u = 0.0;
-    float v = 0.0;
-	float scale; // sphere coordinates to cube coordinates according to similar-triangle
-	if (abs(x) >= abs(y) && abs(x) >= abs(z)) {
-		scale = 1.0 / abs(x); // let's assume that radius of sphere is 1, which means u is 6.0 and v is 4.0
-		if (x >= 0.0) { // right
-			u = 5.0 - 4.0 * atan(z * scale) / M_PI;
-			v = 3.0 + 4.0 * atan(y * scale) / M_PI;
-            u = u / 6.0;
-            v = v / 4.0;
-            u *= (1.0 - u_pad);
-            v *= (1.0 - v_pad);
-            v += v_pad;
-		} else { // left
-			u = 1.0 + 4.0 * atan(z * scale) / M_PI;
-			v = 3.0 + 4.0 * atan(y * scale) / M_PI;
-            u = u / 6.0;
-            v = v / 4.0;
-            u += u_pad;
-            v *= (1.0 - v_pad);
-            v += v_pad;
-		}
-	} else if (abs(y) >= abs(x) && abs(y) >= abs(z)) {
-		scale = 1.0 / abs(y);
-		if (y >= 0.0) { // top
-			u = 5.0 + 4.0 * atan(z * scale) / M_PI;
-			v = 1.0 + 4.0 * atan(x * scale) / M_PI;
-            u = u / 6.0;
-            v = v / 4.0;
-            u *= (1.0 - u_pad);
-            u += u_pad;
-            v *= (1.0 - v_pad);
-		} else { // down
-			u = 1.0 - 4.0 * atan(z * scale) / M_PI;
-			v = 1.0 + 4.0 * atan(x * scale) / M_PI;
-            u = u / 6.0;
-            v = v / 4.0;
-            u *= (1.0 - u_pad);
-            u += u_pad;
-            v -= v_pad;
-		}
-	} else if (abs(z) >= abs(x) && abs(z) >= abs(y)) {
-		scale = 1.0 / abs(z);
-		if (z >= 0.0) { // front
-			u = 3.0 + 4.0 * atan(x * scale) / M_PI;
-			v = 3.0 + 4.0 * atan(y * scale) / M_PI;
-            //pad y only
-            u = u / 6.0;
-            v = v / 4.0;
-            v *= (1.0 - v_pad);
-            v += v_pad;
-		} else { // back
-			u = 3.0 + 4.0 * atan(y * scale) / M_PI;
-			v = 1.0 + 4.0 * atan(x * scale) / M_PI;
-            u = u / 6.0;
-            v = v / 4.0;
-            v *= (1.0 - v_pad);
-            v -= v_pad;
-		}
-	}*/
-
-    //vec2 uv = vec2(u, v);
-
-    //uv = M_2_PI * atan(uv);
-
-    //out_color = texture(tex, uv) * vec4(1.0, 1.0, 1.0, alpha);
   }
 )";
 
@@ -605,7 +404,7 @@ using namespace sgct;
 
 const ShaderProgram* videoPrg;
 const ShaderProgram* meshPrg;
-const ShaderProgram* cubeEACPrg;
+const ShaderProgram* EACPrg;
 const ShaderProgram* createCubeMapPrg;
 
 void generateTexture(unsigned int& id, int width, int height) {
@@ -649,74 +448,6 @@ void createMpvFBO(int width, int height){
     glBindFramebuffer(GL_FRAMEBUFFER, 0);
 }
 
-void createCubeMapFBO(int size) {
-    cubeMapSize = size;
-
-    Engine::instance().thisNode().windows().front()->makeSharedContextCurrent();
-
-    // Setup framebuffer to render to
-    glGenFramebuffers(1, &cubeMapFBO);
-    glBindFramebuffer(GL_FRAMEBUFFER, cubeMapFBO);
-
-    // Create empty cubemap
-    glGenTextures(1, &cubeMapTex);
-    glBindTexture(GL_TEXTURE_CUBE_MAP, cubeMapTex);
-    glEnable(GL_TEXTURE_CUBE_MAP_SEAMLESS);
-    //glTexParameteri(GL_TEXTURE_CUBE_MAP, GL_TEXTURE_BASE_LEVEL, 0);
-    //glTexParameteri(GL_TEXTURE_CUBE_MAP, GL_TEXTURE_MAX_LEVEL, 4);
-
-    // Disable mipmaps
-    glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_BASE_LEVEL, 0);
-    glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_MAX_LEVEL, 0);
-
-    glTexParameteri(GL_TEXTURE_CUBE_MAP, GL_TEXTURE_MAG_FILTER, GL_LINEAR);
-    glTexParameteri(GL_TEXTURE_CUBE_MAP, GL_TEXTURE_MIN_FILTER, GL_LINEAR);
-    glTexParameteri(GL_TEXTURE_CUBE_MAP, GL_TEXTURE_WRAP_S, GL_CLAMP_TO_EDGE);
-    glTexParameteri(GL_TEXTURE_CUBE_MAP, GL_TEXTURE_WRAP_T, GL_CLAMP_TO_EDGE);
-    glTexParameteri(GL_TEXTURE_CUBE_MAP, GL_TEXTURE_WRAP_R, GL_CLAMP_TO_EDGE);
-    //glGenerateMipmap(GL_TEXTURE_CUBE_MAP);
-
-    // Allocate space for each side of the cube map
-    for (GLuint i = 0; i < 6; ++i)
-    {
-        glTexImage2D(GL_TEXTURE_CUBE_MAP_POSITIVE_X + i, 0, GL_RGBA16F, cubeMapSize,
-            cubeMapSize, 0, GL_RGBA, GL_FLOAT, NULL);
-    }
-
-    //GL_TEXTURE_CUBE_MAP_POSITIVE_X : Right
-    //GL_TEXTURE_CUBE_MAP_NEGATIVE_X : Left
-    //GL_TEXTURE_CUBE_MAP_POSITIVE_Y : Top
-    //GL_TEXTURE_CUBE_MAP_NEGATIVE_Y : Bottom
-    //GL_TEXTURE_CUBE_MAP_POSITIVE_Z : Back
-    //GL_TEXTURE_CUBE_MAP_NEGATIVE_Z : Front
-    glFramebufferTexture2D(GL_FRAMEBUFFER, GL_COLOR_ATTACHMENT0, GL_TEXTURE_CUBE_MAP_POSITIVE_X, cubeMapTex, 0);
-    glFramebufferTexture2D(GL_FRAMEBUFFER, GL_COLOR_ATTACHMENT1, GL_TEXTURE_CUBE_MAP_NEGATIVE_X, cubeMapTex, 0);
-    glFramebufferTexture2D(GL_FRAMEBUFFER, GL_COLOR_ATTACHMENT2, GL_TEXTURE_CUBE_MAP_POSITIVE_Y, cubeMapTex, 0);
-    glFramebufferTexture2D(GL_FRAMEBUFFER, GL_COLOR_ATTACHMENT3, GL_TEXTURE_CUBE_MAP_NEGATIVE_Y, cubeMapTex, 0);
-    glFramebufferTexture2D(GL_FRAMEBUFFER, GL_COLOR_ATTACHMENT4, GL_TEXTURE_CUBE_MAP_POSITIVE_Z, cubeMapTex, 0);
-    glFramebufferTexture2D(GL_FRAMEBUFFER, GL_COLOR_ATTACHMENT5, GL_TEXTURE_CUBE_MAP_NEGATIVE_Z, cubeMapTex, 0);
-
-    static const GLuint draw_buffers[] = { GL_COLOR_ATTACHMENT0, GL_COLOR_ATTACHMENT1, GL_COLOR_ATTACHMENT2, GL_COLOR_ATTACHMENT3, GL_COLOR_ATTACHMENT4, GL_COLOR_ATTACHMENT5 };
-    glDrawBuffers(6, draw_buffers);
-
-    glBindFramebuffer(GL_FRAMEBUFFER, 0);
-}
-
-void resizeCubeMapFBO() {
-    //Calculate proper cube size
-    double maxCubeSize = glm::max(double(videoWidth) / 3.0, double(videoHeight) / 2.0);
-    int size = int(pow(2.0, ceil(glm::log(maxCubeSize) / glm::log(2.0))));
-
-    if (cubeMapSize == size)
-        return;
-
-    Log::Info(fmt::format("New cube map size:{}", size));
-
-    glDeleteFramebuffers(1, &cubeMapFBO);
-    glDeleteTextures(1, &cubeMapTex);
-    createCubeMapFBO(size);
-}
-
 void resizeMpvFBO(int width, int height){
     if(width == videoWidth && height == videoHeight)
         return;
@@ -726,7 +457,6 @@ void resizeMpvFBO(int width, int height){
     glDeleteFramebuffers(1, &mpvFBO);
     glDeleteTextures(1, &mpvTex);
     createMpvFBO(width, height);
-    resizeCubeMapFBO();
 }
 
 static void *get_proc_address_mpv(void*, const char *name)
@@ -853,12 +583,10 @@ void initOGL(GLFWwindow*) {
 
     //Creating new FBO to render mpv into
     createMpvFBO(512, 512);
-    createCubeMapFBO(512);
 
     // Create shaders
     ShaderManager::instance().addShaderProgram("mesh", MeshVert, VideoFrag);
-    ShaderManager::instance().addShaderProgram("cubeEAC", CubeEACMeshVert, CubeEACVideoFrag);
-    ShaderManager::instance().addShaderProgram("createCubeMap", CreateCubeMapVert, CreateCubeMapFrag);
+    ShaderManager::instance().addShaderProgram("EAC", EACMeshVert, EACVideoFrag);
     ShaderManager::instance().addShaderProgram("video", VideoVert, VideoFrag);
 
     //OBS: Need to create all shaders befor using any of them. Bug?
@@ -872,24 +600,17 @@ void initOGL(GLFWwindow*) {
     meshOutsideLoc = glGetUniformLocation(meshPrg->id(), "outside");
     meshPrg->unbind();
 
-    cubeEACPrg = &ShaderManager::instance().shaderProgram("cubeEAC");
-    cubeEACPrg->bind();
-    glUniform1i(glGetUniformLocation(cubeEACPrg->id(), "tex"), 0);
-    glUniform1i(glGetUniformLocation(cubeEACPrg->id(), "cubeMap"), 1);
-    cubeEACMatrixLoc = glGetUniformLocation(cubeEACPrg->id(), "mvp");
-    cubeEACAlphaLoc = glGetUniformLocation(cubeEACPrg->id(), "alpha");
-    cubeEACScaleLoc = glGetUniformLocation(cubeEACPrg->id(), "scaleToUnitCube");
-    cubeEACVideoWidthLoc = glGetUniformLocation(cubeEACPrg->id(), "videoWidth");
-    cubeEACVideoHeightLoc = glGetUniformLocation(cubeEACPrg->id(), "videoHeight");
-    cubeEACPrg->unbind();
-
-    createCubeMapPrg = &ShaderManager::instance().shaderProgram("createCubeMap");
-    createCubeMapPrg->bind();
-    glUniform1i(glGetUniformLocation(createCubeMapPrg->id(), "tex"), 0);
-    createCubeMapEyeModeLoc = glGetUniformLocation(createCubeMapPrg->id(), "eye");
-    createCubeMapStereoscopicModeLoc = glGetUniformLocation(createCubeMapPrg->id(), "stereoscopicMode");
-    createCubeMapTexelSize = glGetUniformLocation(createCubeMapPrg->id(), "cubeMapTexelSize");
-    createCubeMapPrg->unbind();
+    EACPrg = &ShaderManager::instance().shaderProgram("EAC");
+    EACPrg->bind();
+    glUniform1i(glGetUniformLocation(EACPrg->id(), "tex"), 0);
+    EACMatrixLoc = glGetUniformLocation(EACPrg->id(), "mvp");
+    EACEyeModeLoc = glGetUniformLocation(EACPrg->id(), "eye");
+    EACStereoscopicModeLoc = glGetUniformLocation(EACPrg->id(), "stereoscopicMode");
+    EACAlphaLoc = glGetUniformLocation(EACPrg->id(), "alpha");
+    EACScaleLoc = glGetUniformLocation(EACPrg->id(), "scaleToUnitCube");
+    EACVideoWidthLoc = glGetUniformLocation(EACPrg->id(), "videoWidth");
+    EACVideoHeightLoc = glGetUniformLocation(EACPrg->id(), "videoHeight");
+    EACPrg->unbind();
 
     videoPrg = &ShaderManager::instance().shaderProgram("video");
     videoPrg->bind();
@@ -904,8 +625,6 @@ void initOGL(GLFWwindow*) {
     domeFov = SyncHelper::instance().variables.fov;
     dome = std::make_unique<utils::Dome>(float(domeRadius)/100.f, float(domeFov), 256, 128);
     sphere = std::make_unique<utils::Sphere>(float(domeRadius) / 100.f, 256);
-    cubeSize = (2.0 * float(domeRadius)) / 100.f;
-    cube = std::make_unique<utils::Box>(cubeSize);
 
     // Set up backface culling
     glCullFace(GL_BACK);
@@ -1072,8 +791,6 @@ void postSyncPreDraw() {
             domeFov = SyncHelper::instance().variables.fov;
             dome = std::make_unique<utils::Dome>(float(domeRadius) / 100.f, float(domeFov), 256, 128);
             sphere = std::make_unique<utils::Sphere>(float(domeRadius) / 100.f, 256);
-            cubeSize = (2.0 * float(domeRadius)) / 100.f;
-            cube = std::make_unique<utils::Box>(cubeSize);
         }
 
         //Build video-filters based on synced settings
@@ -1156,69 +873,34 @@ void draw(const RenderData& data) {
     glBindTexture(GL_TEXTURE_2D, mpvTex);
  
     if (SyncHelper::instance().variables.gridToMapOn == 4) {
-        /*GLint saveFrameBuffer = 0;
-        glGetIntegerv(GL_FRAMEBUFFER_BINDING, &saveFrameBuffer);
-        int viewport[4];
-        glGetIntegerv(GL_VIEWPORT, viewport);
-
-        // Create cube maps
-        glBindFramebuffer(GL_FRAMEBUFFER, cubeMapFBO);
-
-        createCubeMapPrg->bind();
-
-        if (SyncHelper::instance().variables.stereoscopicMode > 0) {
-            glUniform1i(createCubeMapEyeModeLoc, (GLint)data.frustumMode);
-            glUniform1i(createCubeMapStereoscopicModeLoc, SyncHelper::instance().variables.stereoscopicMode);
-        }
-        else {
-            glUniform1i(createCubeMapEyeModeLoc, 0);
-            glUniform1i(createCubeMapStereoscopicModeLoc, 0);
-        }
-
-        glUniform1f(createCubeMapTexelSize, 1.f / float(cubeMapSize));
-
-        glViewport(0, 0, cubeMapSize, cubeMapSize);
-        glScissor(0, 0, cubeMapSize, cubeMapSize);
-        glEnable(GL_SCISSOR_TEST);
-        glClearColor(0.f, 0.f, 0.f, 1.f);
-        glClear(GL_COLOR_BUFFER_BIT | GL_DEPTH_BUFFER_BIT);
-
-        data.window.renderScreenQuad();
-
-        createCubeMapPrg->unbind();
-
-        glBindFramebuffer(GL_FRAMEBUFFER, 0);
-
-        glDisable(GL_SCISSOR_TEST);
-
-        // Restore setting
-        glBindFramebuffer(GL_FRAMEBUFFER, saveFrameBuffer);
-        glViewport(viewport[0], viewport[1], viewport[2], viewport[3]);
-
-        glActiveTexture(GL_TEXTURE1);
-        glBindTexture(GL_TEXTURE_CUBE_MAP, cubeMapTex);*/
-        //glGenerateMipmap(GL_TEXTURE_CUBE_MAP);
-
         glEnable(GL_CULL_FACE);
 
-        cubeEACPrg->bind();
+        EACPrg->bind();
 
-        glUniform1f(cubeEACAlphaLoc, SyncHelper::instance().variables.alpha);
-        glUniform1f(cubeEACScaleLoc, 1.f / cubeSize);
-        glUniform1i(cubeEACVideoWidthLoc, videoWidth);
-        glUniform1i(cubeEACVideoHeightLoc, videoHeight);
+        glUniform1f(EACAlphaLoc, SyncHelper::instance().variables.alpha);
+        glUniform1i(EACVideoWidthLoc, videoWidth);
+        glUniform1i(EACVideoHeightLoc, videoHeight);
+
+        if (SyncHelper::instance().variables.stereoscopicMode > 0) {
+            glUniform1i(EACEyeModeLoc, (GLint)data.frustumMode);
+            glUniform1i(EACStereoscopicModeLoc, (GLint)SyncHelper::instance().variables.stereoscopicMode);
+        }
+        else {
+            glUniform1i(EACEyeModeLoc, 0);
+            glUniform1i(EACStereoscopicModeLoc, 0);
+        }
 
         mat4 vp = data.projectionMatrix * data.viewMatrix;
         glm::mat4 VP_transformed_rot = glm::translate(glm::make_mat4(vp.values), glm::vec3(float(SyncHelper::instance().variables.translateX) / 100.f, float(SyncHelper::instance().variables.translateY) / 100.f, float(SyncHelper::instance().variables.translateZ) / 100.f));
         VP_transformed_rot = glm::rotate(VP_transformed_rot, glm::radians(float(SyncHelper::instance().variables.rotateZ)), glm::vec3(0.0f, 0.0f, 1.0f)); //roll
         VP_transformed_rot = glm::rotate(VP_transformed_rot, glm::radians(float(SyncHelper::instance().variables.rotateX)), glm::vec3(1.0f, 0.0f, 0.0f)); //pitch
         VP_transformed_rot = glm::rotate(VP_transformed_rot, glm::radians(float(SyncHelper::instance().variables.rotateY+90.f)), glm::vec3(0.0f, 1.0f, 0.0f)); //yaw
-        glUniformMatrix4fv(cubeEACMatrixLoc, 1, GL_FALSE, &VP_transformed_rot[0][0]);
+        glUniformMatrix4fv(EACMatrixLoc, 1, GL_FALSE, &VP_transformed_rot[0][0]);
 
         //cube->draw();
         sphere->draw();
 
-        cubeEACPrg->unbind();
+        EACPrg->unbind();
 
         glDisable(GL_CULL_FACE);
     }
@@ -1347,12 +1029,8 @@ void cleanup() {
     glDeleteFramebuffers(1, &mpvFBO);
     glDeleteTextures(1, &mpvTex);
 
-    glDeleteFramebuffers(1, &cubeMapFBO);
-    glDeleteTextures(1, &cubeMapTex);
-
     dome = nullptr;
     sphere = nullptr;
-    cube = nullptr;
 }
 
 int main(int argc, char *argv[])
