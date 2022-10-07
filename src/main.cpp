@@ -56,6 +56,7 @@ int meshStereoscopicModeLoc = -1;
 int EACAlphaLoc = -1;
 int EACMatrixLoc = -1;
 int EACScaleLoc = -1;
+int EACOutsideLoc = -1;
 int EACVideoWidthLoc = -1;
 int EACVideoHeightLoc = -1;
 int EACEyeModeLoc = -1;
@@ -178,7 +179,9 @@ constexpr const char* EACMeshVert = R"(
   layout (location = 2) in vec3 in_position;
 
   uniform mat4 mvp;
+  
   uniform float scaleToUnitCube;
+  uniform bool outside;
 
   out vec3 tr_position;
   out vec3 tr_normal;
@@ -186,7 +189,11 @@ constexpr const char* EACMeshVert = R"(
   void main() {
     gl_Position = mvp * vec4(in_position, 1.0);
     tr_position = in_position * scaleToUnitCube;
-    tr_normal = in_normal;
+
+    if(outside)
+        tr_normal = -in_normal;
+    else
+        tr_normal = in_normal;
   }
 )";
 
@@ -607,6 +614,7 @@ void initOGL(GLFWwindow*) {
     EACEyeModeLoc = glGetUniformLocation(EACPrg->id(), "eye");
     EACStereoscopicModeLoc = glGetUniformLocation(EACPrg->id(), "stereoscopicMode");
     EACAlphaLoc = glGetUniformLocation(EACPrg->id(), "alpha");
+    EACOutsideLoc = glGetUniformLocation(meshPrg->id(), "outside");
     EACScaleLoc = glGetUniformLocation(EACPrg->id(), "scaleToUnitCube");
     EACVideoWidthLoc = glGetUniformLocation(EACPrg->id(), "videoWidth");
     EACVideoHeightLoc = glGetUniformLocation(EACPrg->id(), "videoHeight");
@@ -878,6 +886,7 @@ void draw(const RenderData& data) {
         EACPrg->bind();
 
         glUniform1f(EACAlphaLoc, SyncHelper::instance().variables.alpha);
+        glUniform1i(EACOutsideLoc, 0);
         glUniform1i(EACVideoWidthLoc, videoWidth);
         glUniform1i(EACVideoHeightLoc, videoHeight);
 
@@ -891,14 +900,35 @@ void draw(const RenderData& data) {
         }
 
         mat4 vp = data.projectionMatrix * data.viewMatrix;
-        glm::mat4 VP_transformed_rot = glm::translate(glm::make_mat4(vp.values), glm::vec3(float(SyncHelper::instance().variables.translateX) / 100.f, float(SyncHelper::instance().variables.translateY) / 100.f, float(SyncHelper::instance().variables.translateZ) / 100.f));
+        glm::mat4 VP_transformed = glm::translate(glm::make_mat4(vp.values), glm::vec3(float(SyncHelper::instance().variables.translateX) / 100.f, float(SyncHelper::instance().variables.translateY) / 100.f, float(SyncHelper::instance().variables.translateZ) / 100.f));
+        
+        glm::mat4 VP_transformed_rot = VP_transformed;
         VP_transformed_rot = glm::rotate(VP_transformed_rot, glm::radians(float(SyncHelper::instance().variables.rotateZ)), glm::vec3(0.0f, 0.0f, 1.0f)); //roll
         VP_transformed_rot = glm::rotate(VP_transformed_rot, glm::radians(float(SyncHelper::instance().variables.rotateX)), glm::vec3(1.0f, 0.0f, 0.0f)); //pitch
         VP_transformed_rot = glm::rotate(VP_transformed_rot, glm::radians(float(SyncHelper::instance().variables.rotateY+90.f)), glm::vec3(0.0f, 1.0f, 0.0f)); //yaw
+        VP_transformed_rot = glm::rotate(VP_transformed_rot, glm::radians(90.f), glm::vec3(0.0f, 0.0f, 1.0f)); //roll
         glUniformMatrix4fv(EACMatrixLoc, 1, GL_FALSE, &VP_transformed_rot[0][0]);
 
-        //cube->draw();
         sphere->draw();
+
+        // Set up frontface culling
+        glCullFace(GL_FRONT);
+
+        // Compensate for the angle of the dome
+        glm::mat4 VP_transformed_rot2 = VP_transformed;
+        VP_transformed_rot2 = glm::rotate(VP_transformed_rot2, glm::radians(float(360 - SyncHelper::instance().variables.rotateZ)), glm::vec3(0.0f, 0.0f, 1.0f)); //roll
+        VP_transformed_rot2 = glm::rotate(VP_transformed_rot2, glm::radians(float(360 - SyncHelper::instance().variables.rotateX + SyncHelper::instance().variables.angle)), glm::vec3(1.0f, 0.0f, 0.0f)); //pitch
+        VP_transformed_rot2 = glm::rotate(VP_transformed_rot2, glm::radians(float(360 - SyncHelper::instance().variables.rotateY - 90.f)), glm::vec3(0.0f, 1.0f, 0.0f)); //yaw
+        VP_transformed_rot2 = glm::rotate(VP_transformed_rot2, glm::radians(360.f - 90.f), glm::vec3(0.0f, 0.0f, 1.0f)); //roll
+
+        glUniformMatrix4fv(EACMatrixLoc, 1, GL_FALSE, &VP_transformed_rot2[0][0]);
+        //render outside sphere
+        glUniform1i(EACOutsideLoc, 1);
+        sphere->draw();
+
+        // Set up backface culling again
+        glCullFace(GL_BACK);
+        glUniform1i(EACOutsideLoc, 0);
 
         EACPrg->unbind();
 
@@ -914,12 +944,6 @@ void draw(const RenderData& data) {
         VP_transformed_rot = glm::rotate(VP_transformed_rot, glm::radians(float(SyncHelper::instance().variables.rotateZ)), glm::vec3(0.0f, 0.0f, 1.0f)); //roll
         VP_transformed_rot = glm::rotate(VP_transformed_rot, glm::radians(float(SyncHelper::instance().variables.rotateX)), glm::vec3(1.0f, 0.0f, 0.0f)); //pitch
         VP_transformed_rot = glm::rotate(VP_transformed_rot, glm::radians(float(SyncHelper::instance().variables.rotateY)), glm::vec3(0.0f, 1.0f, 0.0f)); //yaw
-
-        // Compensate for the angle of the dome
-        glm::mat4 VP_transformed_rot2 = VP_transformed;
-        VP_transformed_rot2 = glm::rotate(VP_transformed_rot2, glm::radians(float(360 - SyncHelper::instance().variables.rotateZ)), glm::vec3(0.0f, 0.0f, 1.0f)); //roll
-        VP_transformed_rot2 = glm::rotate(VP_transformed_rot2, glm::radians(float(360 - SyncHelper::instance().variables.rotateX + SyncHelper::instance().variables.angle)), glm::vec3(1.0f, 0.0f, 0.0f)); //pitch
-        VP_transformed_rot2 = glm::rotate(VP_transformed_rot2, glm::radians(float(360 - SyncHelper::instance().variables.rotateY)), glm::vec3(0.0f, 1.0f, 0.0f)); //yaw
 
         meshPrg->bind();
 
@@ -946,6 +970,12 @@ void draw(const RenderData& data) {
 
         // Set up frontface culling
         glCullFace(GL_FRONT);
+
+        // Compensate for the angle of the dome
+        glm::mat4 VP_transformed_rot2 = VP_transformed;
+        VP_transformed_rot2 = glm::rotate(VP_transformed_rot2, glm::radians(float(360 - SyncHelper::instance().variables.rotateZ)), glm::vec3(0.0f, 0.0f, 1.0f)); //roll
+        VP_transformed_rot2 = glm::rotate(VP_transformed_rot2, glm::radians(float(360 - SyncHelper::instance().variables.rotateX + SyncHelper::instance().variables.angle)), glm::vec3(1.0f, 0.0f, 0.0f)); //pitch
+        VP_transformed_rot2 = glm::rotate(VP_transformed_rot2, glm::radians(float(360 - SyncHelper::instance().variables.rotateY)), glm::vec3(0.0f, 1.0f, 0.0f)); //yaw
 
         glUniformMatrix4fv(meshMatrixLoc, 1, GL_FALSE, &VP_transformed_rot2[0][0]);
         //render outside sphere
