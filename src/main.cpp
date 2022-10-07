@@ -63,6 +63,8 @@ int meshStereoscopicModeLoc = -1;
 int cubeEACAlphaLoc = -1;
 int cubeEACMatrixLoc = -1;
 int cubeEACScaleLoc = -1;
+int cubeEACVideoWidthLoc = -1;
+int cubeEACVideoHeightLoc = -1;
 // cubeMap
 int createCubeMapEyeModeLoc = -1;
 int createCubeMapStereoscopicModeLoc = -1;
@@ -72,7 +74,7 @@ constexpr const char* VideoVert = R"(
   #version 410 core
 
   layout (location = 0) in vec2 in_position;
-  layout (location = 1) in vec2 in_texCoords;
+  layout (location = 1) in vec2 in_texCoord;
 
   uniform int eye;
   uniform int stereoscopicMode;
@@ -81,29 +83,29 @@ constexpr const char* VideoVert = R"(
 
   void main() {
     gl_Position = vec4(in_position, 0.0, 1.0);
-    tr_uv = in_texCoords;
+    tr_uv = in_texCoord;
 
     if(eye==2) { //Right Eye
         if(stereoscopicMode==1) { //Side-by-side
-            tr_uv = (in_texCoords * vec2(0.5, 1.0)) + vec2(0.5, 0.0);
+            tr_uv = (in_texCoord * vec2(0.5, 1.0)) + vec2(0.5, 0.0);
         }
         else if(stereoscopicMode==2) { //Top-bottom
-            tr_uv = in_texCoords * vec2(1.0, 0.5);
+            tr_uv = in_texCoord * vec2(1.0, 0.5);
         }
         else if(stereoscopicMode==3) { //Top-bottom-flip
-            tr_uv = in_texCoords * vec2(1.0, 0.5);
+            tr_uv = in_texCoord * vec2(1.0, 0.5);
             tr_uv = vec2(1.0 - tr_uv.y, tr_uv.x);
         }
     }
     else { //Left Eye
         if(stereoscopicMode==1) { //Side-by-side
-            tr_uv = in_texCoords * vec2(0.5, 1.0);
+            tr_uv = in_texCoord * vec2(0.5, 1.0);
         }
         else if(stereoscopicMode==2) { //Top-bottom
-            tr_uv = (in_texCoords * vec2(1.0, 0.5)) + vec2(0.0, 0.5);
+            tr_uv = (in_texCoord * vec2(1.0, 0.5)) + vec2(0.0, 0.5);
         }
         else if(stereoscopicMode==3) { //Top-bottom-flip
-            tr_uv = (in_texCoords * vec2(1.0, 0.5)) + vec2(0.0, 0.5);
+            tr_uv = (in_texCoord * vec2(1.0, 0.5)) + vec2(0.0, 0.5);
             tr_uv = vec2(1.0 - tr_uv.y, tr_uv.x);
         }
     }
@@ -113,8 +115,8 @@ constexpr const char* VideoVert = R"(
 constexpr const char* MeshVert = R"(
   #version 410 core
 
-  layout (location = 0) in vec2 in_texCoords;
-  layout (location = 1) in vec3 in_normals;
+  layout (location = 0) in vec2 in_texCoord;
+  layout (location = 1) in vec3 in_normal;
   layout (location = 2) in vec3 in_position;
 
   uniform mat4 mvp;
@@ -126,30 +128,30 @@ constexpr const char* MeshVert = R"(
 
   void main() {
     gl_Position = mvp * vec4(in_position, 1.0);
-    tr_uv = in_texCoords;
-    tr_normals = in_normals;
+    tr_uv = in_texCoord;
+    tr_normals = in_normal;
 
     if(eye==2) { //Right Eye
         if(stereoscopicMode==1) { //Side-by-side
-            tr_uv = (in_texCoords * vec2(0.5, 1.0)) + vec2(0.5, 0.0);
+            tr_uv = (in_texCoord * vec2(0.5, 1.0)) + vec2(0.5, 0.0);
         }
         else if(stereoscopicMode==2) { //Top-bottom
-            tr_uv = in_texCoords * vec2(1.0, 0.5);
+            tr_uv = in_texCoord * vec2(1.0, 0.5);
         }
         else if(stereoscopicMode==3) { //Top-bottom-flip
-            tr_uv = in_texCoords * vec2(1.0, 0.5);
+            tr_uv = in_texCoord * vec2(1.0, 0.5);
             tr_uv = vec2(1.0 - tr_uv.y, tr_uv.x);
         }
     }
     else { // Left Eye or Mono
         if(stereoscopicMode==1) { //Side-by-side
-            tr_uv = in_texCoords * vec2(0.5, 1.0);
+            tr_uv = in_texCoord * vec2(0.5, 1.0);
         }
         else if(stereoscopicMode==2) { //Top-bottom
-            tr_uv = (in_texCoords * vec2(1.0, 0.5)) + vec2(0.0, 0.5);
+            tr_uv = (in_texCoord * vec2(1.0, 0.5)) + vec2(0.0, 0.5);
         }
         else if(stereoscopicMode==3) { //Top-bottom-flip
-            tr_uv = (in_texCoords * vec2(1.0, 0.5)) + vec2(0.0, 0.5);
+            tr_uv = (in_texCoord * vec2(1.0, 0.5)) + vec2(0.0, 0.5);
             tr_uv = vec2(1.0 - tr_uv.y, tr_uv.x);
         }
     }
@@ -181,13 +183,13 @@ constexpr const char* CreateCubeMapVert = R"(
   #version 410 core
 
   layout (location = 0) in vec2 in_position;
-  layout (location = 1) in vec2 in_texCoords;
+  layout (location = 1) in vec2 in_texCoord;
 
   out vec2 tr_uv;
 
   void main() {
     gl_Position = vec4(in_position, 0.0, 1.0);
-    tr_uv = in_texCoords;
+    tr_uv = in_texCoord;
   }
 )";
 
@@ -235,8 +237,8 @@ constexpr const char* CreateCubeMapFrag = R"(
     vec2 tc = texCoord;
 
     float clampValue = cubeMapTexelSize;
-    tc *= (1.0 - (2.0*clampValue));
-    tc += clampValue;
+    //tc *= (1.0 - clampValue);
+    //tc += (0.5 * clampValue);
 
     tc = (orientation * vec3(tc, 1)).xy;
     
@@ -278,6 +280,8 @@ constexpr const char* CreateCubeMapFrag = R"(
   void main() {
     vec2 texCoord;
 
+    // EAC has 2-pixel padding on faces except between faces on the same row
+
     //cube_front = vec4(1.0, 1.0, 1.0, 1.0);  //Front is white
     texCoord = getCubeMapTextureCoord(tr_uv, ORIENT_FRONT, OFFSET_FRONT, true);
     cube_front = texture(tex, texCoord);
@@ -307,36 +311,291 @@ constexpr const char* CreateCubeMapFrag = R"(
 constexpr const char* CubeEACMeshVert = R"(
   #version 410 core
 
-  layout (location = 0) in vec2 in_texCoords;
-  layout (location = 1) in vec3 in_normals;
+  layout (location = 0) in vec2 in_texCoord;
+  layout (location = 1) in vec3 in_normal;
   layout (location = 2) in vec3 in_position;
 
   uniform mat4 mvp;
   uniform float scaleToUnitCube;
 
   out vec3 tr_position;
+  out vec3 tr_normal;
 
   void main() {
     gl_Position = mvp * vec4(in_position, 1.0);
     tr_position = in_position * scaleToUnitCube;
+    tr_normal = in_normal;
   }
 )";
 
 constexpr const char* CubeEACVideoFrag = R"(
   #version 410 core
 
-  uniform samplerCube cubeMap;
+  //uniform samplerCube cubeMap;
+  uniform sampler2D tex;
   uniform float alpha;
+  uniform int videoWidth;
+  uniform int videoHeight;
 
   in vec3 tr_position;
+  in vec3 tr_normal;
   out vec4 out_color;
 
+  const float M_PI_2 = 1.57079632679489661923;   // pi/2
+  const float M_PI_4 = 0.785398163397448309616;  // pi/4
+  const float M_1_PI = 0.318309886183790671538;  // 1/pi
+  const float M_2_PI = 0.636619772367581343076;  // 2/pi
   const float M_PI = 3.14159265358979323846264338327950288;
+  
+  const int TOP_LEFT = 0;
+  const int TOP_MIDDLE = 1;
+  const int TOP_RIGHT = 2;
+  const int BOTTOM_LEFT = 3;
+  const int BOTTOM_MIDDLE = 4;
+  const int BOTTOM_RIGHT = 5;
+
+  const int RIGHT = 0; ///< Axis +X
+  const int LEFT = 1; ///< Axis -X
+  const int UP = 2; ///< Axis +Y
+  const int DOWN = 3; ///< Axis -Y
+  const int FRONT = 4; ///< Axis -Z
+  const int BACK = 5; ///< Axis +Z
+
+  const int ROT_0 = 0;
+  const int ROT_90 = 1;
+  const int ROT_180 = 2;
+  const int ROT_270 = 3;
+
+  vec2 rotate_cube_face(vec2 uv_in, int rotation)
+  {
+      vec2 uv_out;
+
+      switch (rotation) {
+          case ROT_0:
+              uv_out = uv_in;
+              break;
+          case ROT_90:
+              uv_out.x = -uv_in.y;
+              uv_out.y =  uv_in.x;
+              break;
+          case ROT_180:
+              uv_out.x = -uv_in.x;
+              uv_out.y = -uv_in.y;
+              break;
+          case ROT_270:
+              uv_out.x = uv_in.y;
+              uv_out.y = -uv_in.x;
+              break;
+      }
+
+      return uv_out;
+  }
+
+  /**
+  * Calculate direction from corresponding 3D coordinates on sphere.
+  * @param vec3 coordinated on sphere
+  * @return direction direction of view
+  */
+  int xyz_to_direction(vec3 xyz)
+  {
+    int direction;
+    float phi = atan(xyz.x, xyz.z);
+    float theta = asin(xyz.y);
+    float phi_norm, theta_threshold;
+    int face;
+
+    if (phi >= -M_PI_4 && phi < M_PI_4) {
+        direction = FRONT;
+        phi_norm = phi;
+    } else if (phi >= -(M_PI_2 + M_PI_4) && phi < -M_PI_4) {
+        direction = LEFT;
+        phi_norm = phi + M_PI_2;
+    } else if (phi >= M_PI_4 && phi < M_PI_2 + M_PI_4) {
+        direction = RIGHT;
+        phi_norm = phi - M_PI_2;
+    } else {
+        direction = BACK;
+        phi_norm = phi + ((phi > 0.f) ? -M_PI : M_PI);
+    }
+
+    theta_threshold = atan(cos(phi_norm));
+    if (theta > theta_threshold) {
+        direction = DOWN;
+    } else if (theta < -theta_threshold) {
+        direction = UP;
+    }
+
+    return direction;
+  }
+
+  /**
+   * Calculate frame position in equi-angular cubemap format for corresponding 3D coordinates on sphere.
+   *
+   * @param xyz coordinates on sphere
+   * @param width frame width
+   * @param height frame height
+   * @return uv texture coordinate
+   */
+  vec2 xyz_to_eac(vec3 xyz, int width, int height)
+  {
+    // EAC has 2-pixel padding on faces except between faces on the same row
+    float pixel_pad = 2;
+    float u_pad = pixel_pad / width;
+    float v_pad = pixel_pad / height;
+
+    int in_cubemap_face_order[6];
+    in_cubemap_face_order[RIGHT] = TOP_RIGHT;
+    in_cubemap_face_order[LEFT]  = TOP_LEFT;
+    in_cubemap_face_order[UP]    = BOTTOM_RIGHT;
+    in_cubemap_face_order[DOWN]  = BOTTOM_LEFT;
+    in_cubemap_face_order[FRONT] = TOP_MIDDLE;
+    in_cubemap_face_order[BACK]  = BOTTOM_MIDDLE;
+
+    int in_cubemap_face_rotation[6];
+    in_cubemap_face_rotation[TOP_LEFT]      = ROT_0;
+    in_cubemap_face_rotation[TOP_MIDDLE]    = ROT_0;
+    in_cubemap_face_rotation[TOP_RIGHT]     = ROT_0;
+    in_cubemap_face_rotation[BOTTOM_LEFT]   = ROT_270;
+    in_cubemap_face_rotation[BOTTOM_MIDDLE] = ROT_90;
+    in_cubemap_face_rotation[BOTTOM_RIGHT]  = ROT_270;
+
+    int direction = xyz_to_direction(xyz);
+
+    vec2 uv = vec2(0.0, 0.0);
+    switch (direction) {
+        case LEFT:
+            uv.x = -xyz.z / xyz.x;
+            uv.y =  xyz.y / xyz.x;
+            break;
+        case RIGHT:
+            uv.x = -xyz.z  / xyz.x;
+            uv.y = -xyz.y / xyz.x;
+            break;
+        case DOWN:
+            uv.x = -xyz.x / xyz.y;
+            uv.y = -xyz.z  / xyz.y;
+            break;
+        case UP:
+            uv.x =  xyz.x / xyz.y;
+            uv.y = -xyz.z  / xyz.y;
+            break;
+        case BACK:
+            uv.x =  -xyz.x / xyz.z;
+            uv.y =  -xyz.y / xyz.z;
+            break;
+        case FRONT:
+            uv.x =  xyz.x / xyz.z;
+            uv.y = -xyz.y / xyz.z;
+            break;
+    }
+
+    int face = in_cubemap_face_order[direction];
+    uv = rotate_cube_face(uv, in_cubemap_face_rotation[face]);
+
+    int u_face = face % 3;
+    int v_face = face / 3;
+
+    uv = M_2_PI * atan(uv) + 0.5;
+
+    uv.x = (uv.x + u_face) * (1.0 - 2.0 * u_pad) / 3.0 + u_pad;
+    uv.y = uv.y * (0.5 - (2.0 * v_pad)) + v_pad + (0.5 * v_face);
+
+    /*uv.x *= width;
+    uv.y *= height;*/
+
+    //uv -= 0.5;
+    //uv -= floor(uv);
+
+    return uv;
+  }
 
   void main() {
-    vec3 eac_position = (2.0 / M_PI) * atan(2.0 * tr_position);
+    //vec3 eac_normal = (2.0 / M_PI) * atan(2.0 *  normalize(tr_normal));
 
-    out_color = texture(cubeMap, eac_position) * vec4(1.0, 1.0, 1.0, alpha);
+    //out_color = texture(cubeMap, eac_normal) * vec4(1.0, 1.0, 1.0, alpha);
+
+    vec2 uv = xyz_to_eac(normalize(tr_normal), videoWidth, videoHeight);
+   
+    out_color = texture(tex, uv) * vec4(1.0, 1.0, 1.0, alpha);
+
+    /*vec3 eac_position = (2.0 / M_PI) * atan(2.0 *  tr_position);
+
+	vec3 xyz = -eac_position;
+	float x = xyz.x;
+    float y = xyz.y;
+    float z = xyz.z;
+
+    // EAC has 2-pixel padding on faces except between faces on the same row
+    float pixel_pad = 2.0;
+    float u_pad = pixel_pad / videoWidth;
+    float v_pad = pixel_pad / videoHeight;
+
+	float u = 0.0;
+    float v = 0.0;
+	float scale; // sphere coordinates to cube coordinates according to similar-triangle
+	if (abs(x) >= abs(y) && abs(x) >= abs(z)) {
+		scale = 1.0 / abs(x); // let's assume that radius of sphere is 1, which means u is 6.0 and v is 4.0
+		if (x >= 0.0) { // right
+			u = 5.0 - 4.0 * atan(z * scale) / M_PI;
+			v = 3.0 + 4.0 * atan(y * scale) / M_PI;
+            u = u / 6.0;
+            v = v / 4.0;
+            u *= (1.0 - u_pad);
+            v *= (1.0 - v_pad);
+            v += v_pad;
+		} else { // left
+			u = 1.0 + 4.0 * atan(z * scale) / M_PI;
+			v = 3.0 + 4.0 * atan(y * scale) / M_PI;
+            u = u / 6.0;
+            v = v / 4.0;
+            u += u_pad;
+            v *= (1.0 - v_pad);
+            v += v_pad;
+		}
+	} else if (abs(y) >= abs(x) && abs(y) >= abs(z)) {
+		scale = 1.0 / abs(y);
+		if (y >= 0.0) { // top
+			u = 5.0 + 4.0 * atan(z * scale) / M_PI;
+			v = 1.0 + 4.0 * atan(x * scale) / M_PI;
+            u = u / 6.0;
+            v = v / 4.0;
+            u *= (1.0 - u_pad);
+            u += u_pad;
+            v *= (1.0 - v_pad);
+		} else { // down
+			u = 1.0 - 4.0 * atan(z * scale) / M_PI;
+			v = 1.0 + 4.0 * atan(x * scale) / M_PI;
+            u = u / 6.0;
+            v = v / 4.0;
+            u *= (1.0 - u_pad);
+            u += u_pad;
+            v -= v_pad;
+		}
+	} else if (abs(z) >= abs(x) && abs(z) >= abs(y)) {
+		scale = 1.0 / abs(z);
+		if (z >= 0.0) { // front
+			u = 3.0 + 4.0 * atan(x * scale) / M_PI;
+			v = 3.0 + 4.0 * atan(y * scale) / M_PI;
+            //pad y only
+            u = u / 6.0;
+            v = v / 4.0;
+            v *= (1.0 - v_pad);
+            v += v_pad;
+		} else { // back
+			u = 3.0 + 4.0 * atan(y * scale) / M_PI;
+			v = 1.0 + 4.0 * atan(x * scale) / M_PI;
+            u = u / 6.0;
+            v = v / 4.0;
+            v *= (1.0 - v_pad);
+            v -= v_pad;
+		}
+	}*/
+
+    //vec2 uv = vec2(u, v);
+
+    //uv = M_2_PI * atan(uv);
+
+    //out_color = texture(tex, uv) * vec4(1.0, 1.0, 1.0, alpha);
   }
 )";
 
@@ -620,6 +879,8 @@ void initOGL(GLFWwindow*) {
     cubeEACMatrixLoc = glGetUniformLocation(cubeEACPrg->id(), "mvp");
     cubeEACAlphaLoc = glGetUniformLocation(cubeEACPrg->id(), "alpha");
     cubeEACScaleLoc = glGetUniformLocation(cubeEACPrg->id(), "scaleToUnitCube");
+    cubeEACVideoWidthLoc = glGetUniformLocation(cubeEACPrg->id(), "videoWidth");
+    cubeEACVideoHeightLoc = glGetUniformLocation(cubeEACPrg->id(), "videoHeight");
     cubeEACPrg->unbind();
 
     createCubeMapPrg = &ShaderManager::instance().shaderProgram("createCubeMap");
@@ -895,7 +1156,7 @@ void draw(const RenderData& data) {
     glBindTexture(GL_TEXTURE_2D, mpvTex);
  
     if (SyncHelper::instance().variables.gridToMapOn == 4) {
-        GLint saveFrameBuffer = 0;
+        /*GLint saveFrameBuffer = 0;
         glGetIntegerv(GL_FRAMEBUFFER_BINDING, &saveFrameBuffer);
         int viewport[4];
         glGetIntegerv(GL_VIEWPORT, viewport);
@@ -934,16 +1195,18 @@ void draw(const RenderData& data) {
         glBindFramebuffer(GL_FRAMEBUFFER, saveFrameBuffer);
         glViewport(viewport[0], viewport[1], viewport[2], viewport[3]);
 
-        glEnable(GL_CULL_FACE);
-
         glActiveTexture(GL_TEXTURE1);
-        glBindTexture(GL_TEXTURE_CUBE_MAP, cubeMapTex);
+        glBindTexture(GL_TEXTURE_CUBE_MAP, cubeMapTex);*/
         //glGenerateMipmap(GL_TEXTURE_CUBE_MAP);
+
+        glEnable(GL_CULL_FACE);
 
         cubeEACPrg->bind();
 
         glUniform1f(cubeEACAlphaLoc, SyncHelper::instance().variables.alpha);
         glUniform1f(cubeEACScaleLoc, 1.f / cubeSize);
+        glUniform1i(cubeEACVideoWidthLoc, videoWidth);
+        glUniform1i(cubeEACVideoHeightLoc, videoHeight);
 
         mat4 vp = data.projectionMatrix * data.viewMatrix;
         glm::mat4 VP_transformed_rot = glm::translate(glm::make_mat4(vp.values), glm::vec3(float(SyncHelper::instance().variables.translateX) / 100.f, float(SyncHelper::instance().variables.translateY) / 100.f, float(SyncHelper::instance().variables.translateZ) / 100.f));
@@ -952,7 +1215,8 @@ void draw(const RenderData& data) {
         VP_transformed_rot = glm::rotate(VP_transformed_rot, glm::radians(float(SyncHelper::instance().variables.rotateY+90.f)), glm::vec3(0.0f, 1.0f, 0.0f)); //yaw
         glUniformMatrix4fv(cubeEACMatrixLoc, 1, GL_FALSE, &VP_transformed_rot[0][0]);
 
-        cube->draw();
+        //cube->draw();
+        sphere->draw();
 
         cubeEACPrg->unbind();
 
