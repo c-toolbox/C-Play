@@ -875,15 +875,15 @@ void draw(const RenderData& data) {
             glUniform1i(EACStereoscopicModeLoc, 0);
         }
 
-        mat4 vp = data.projectionMatrix * data.viewMatrix;
-        glm::mat4 VP_transformed = glm::translate(glm::make_mat4(vp.values), glm::vec3(float(SyncHelper::instance().variables.translateX) / 100.f, float(SyncHelper::instance().variables.translateY) / 100.f, float(SyncHelper::instance().variables.translateZ) / 100.f));
+        mat4 mvp = data.modelViewProjectionMatrix;
+        glm::mat4 MVP_transformed = glm::translate(glm::make_mat4(mvp.values), glm::vec3(float(SyncHelper::instance().variables.translateX) / 100.f, float(SyncHelper::instance().variables.translateY) / 100.f, float(SyncHelper::instance().variables.translateZ) / 100.f));
         
-        glm::mat4 VP_transformed_rot = VP_transformed;
-        VP_transformed_rot = glm::rotate(VP_transformed_rot, glm::radians(float(SyncHelper::instance().variables.rotateZ)), glm::vec3(0.0f, 0.0f, 1.0f)); //roll
-        VP_transformed_rot = glm::rotate(VP_transformed_rot, glm::radians(float(SyncHelper::instance().variables.rotateX)), glm::vec3(1.0f, 0.0f, 0.0f)); //pitch
-        VP_transformed_rot = glm::rotate(VP_transformed_rot, glm::radians(float(SyncHelper::instance().variables.rotateY+90.f)), glm::vec3(0.0f, 1.0f, 0.0f)); //yaw
-        VP_transformed_rot = glm::rotate(VP_transformed_rot, glm::radians(90.f), glm::vec3(0.0f, 0.0f, 1.0f)); //roll
-        glUniformMatrix4fv(EACMatrixLoc, 1, GL_FALSE, &VP_transformed_rot[0][0]);
+        glm::mat4 MVP_transformed_rot = MVP_transformed;
+        MVP_transformed_rot = glm::rotate(MVP_transformed_rot, glm::radians(float(SyncHelper::instance().variables.rotateZ)), glm::vec3(0.0f, 0.0f, 1.0f)); //roll
+        MVP_transformed_rot = glm::rotate(MVP_transformed_rot, glm::radians(float(SyncHelper::instance().variables.rotateX)), glm::vec3(1.0f, 0.0f, 0.0f)); //pitch
+        MVP_transformed_rot = glm::rotate(MVP_transformed_rot, glm::radians(float(SyncHelper::instance().variables.rotateY+90.f)), glm::vec3(0.0f, 1.0f, 0.0f)); //yaw
+        MVP_transformed_rot = glm::rotate(MVP_transformed_rot, glm::radians(90.f), glm::vec3(0.0f, 0.0f, 1.0f)); //roll
+        glUniformMatrix4fv(EACMatrixLoc, 1, GL_FALSE, &MVP_transformed_rot[0][0]);
 
         sphere->draw();
 
@@ -891,13 +891,13 @@ void draw(const RenderData& data) {
         glCullFace(GL_FRONT);
 
         // Compensate for the angle of the dome
-        glm::mat4 VP_transformed_rot2 = VP_transformed;
-        VP_transformed_rot2 = glm::rotate(VP_transformed_rot2, glm::radians(float(360 - SyncHelper::instance().variables.rotateZ)), glm::vec3(0.0f, 0.0f, 1.0f)); //roll
-        VP_transformed_rot2 = glm::rotate(VP_transformed_rot2, glm::radians(float(360 - SyncHelper::instance().variables.rotateX + SyncHelper::instance().variables.angle)), glm::vec3(1.0f, 0.0f, 0.0f)); //pitch
-        VP_transformed_rot2 = glm::rotate(VP_transformed_rot2, glm::radians(float(360 - SyncHelper::instance().variables.rotateY - 90.f)), glm::vec3(0.0f, 1.0f, 0.0f)); //yaw
-        VP_transformed_rot2 = glm::rotate(VP_transformed_rot2, glm::radians(360.f - 90.f), glm::vec3(0.0f, 0.0f, 1.0f)); //roll
+        glm::mat4 MVP_transformed_rot2 = MVP_transformed;
+        MVP_transformed_rot2 = glm::rotate(MVP_transformed_rot2, glm::radians(float(360 - SyncHelper::instance().variables.rotateZ)), glm::vec3(0.0f, 0.0f, 1.0f)); //roll
+        MVP_transformed_rot2 = glm::rotate(MVP_transformed_rot2, glm::radians(float(360 - SyncHelper::instance().variables.rotateX + SyncHelper::instance().variables.angle)), glm::vec3(1.0f, 0.0f, 0.0f)); //pitch
+        MVP_transformed_rot2 = glm::rotate(MVP_transformed_rot2, glm::radians(float(360 - SyncHelper::instance().variables.rotateY - 90.f)), glm::vec3(0.0f, 1.0f, 0.0f)); //yaw
+        MVP_transformed_rot2 = glm::rotate(MVP_transformed_rot2, glm::radians(360.f - 90.f), glm::vec3(0.0f, 0.0f, 1.0f)); //roll
 
-        glUniformMatrix4fv(EACMatrixLoc, 1, GL_FALSE, &VP_transformed_rot2[0][0]);
+        glUniformMatrix4fv(EACMatrixLoc, 1, GL_FALSE, &MVP_transformed_rot2[0][0]);
         //render outside sphere
         glUniform1i(EACOutsideLoc, 1);
         sphere->draw();
@@ -913,13 +913,13 @@ void draw(const RenderData& data) {
     else if (SyncHelper::instance().variables.gridToMapOn == 2) {
         glEnable(GL_CULL_FACE);
 
-        mat4 vp = data.projectionMatrix * data.viewMatrix;
-        glm::mat4 VP_transformed = glm::translate(glm::make_mat4(vp.values), glm::vec3(float(SyncHelper::instance().variables.translateX) / 100.f, float(SyncHelper::instance().variables.translateY) / 100.f, float(SyncHelper::instance().variables.translateZ) / 100.f));
+        mat4 mvp = data.modelViewProjectionMatrix;
+        glm::mat4 MVP_transformed = glm::translate(glm::make_mat4(mvp.values), glm::vec3(float(SyncHelper::instance().variables.translateX) / 100.f, float(SyncHelper::instance().variables.translateY) / 100.f, float(SyncHelper::instance().variables.translateZ) / 100.f));
 
-        glm::mat4 VP_transformed_rot = VP_transformed;
-        VP_transformed_rot = glm::rotate(VP_transformed_rot, glm::radians(float(SyncHelper::instance().variables.rotateZ)), glm::vec3(0.0f, 0.0f, 1.0f)); //roll
-        VP_transformed_rot = glm::rotate(VP_transformed_rot, glm::radians(float(SyncHelper::instance().variables.rotateX)), glm::vec3(1.0f, 0.0f, 0.0f)); //pitch
-        VP_transformed_rot = glm::rotate(VP_transformed_rot, glm::radians(float(SyncHelper::instance().variables.rotateY)), glm::vec3(0.0f, 1.0f, 0.0f)); //yaw
+        glm::mat4 MVP_transformed_rot = MVP_transformed;
+        MVP_transformed_rot = glm::rotate(MVP_transformed_rot, glm::radians(float(SyncHelper::instance().variables.rotateZ)), glm::vec3(0.0f, 0.0f, 1.0f)); //roll
+        MVP_transformed_rot = glm::rotate(MVP_transformed_rot, glm::radians(float(SyncHelper::instance().variables.rotateX)), glm::vec3(1.0f, 0.0f, 0.0f)); //pitch
+        MVP_transformed_rot = glm::rotate(MVP_transformed_rot, glm::radians(float(SyncHelper::instance().variables.rotateY)), glm::vec3(0.0f, 1.0f, 0.0f)); //yaw
 
         meshPrg->bind();
 
@@ -934,7 +934,7 @@ void draw(const RenderData& data) {
 
         glUniform1f(meshAlphaLoc, SyncHelper::instance().variables.alpha);
 
-        glUniformMatrix4fv(meshMatrixLoc, 1, GL_FALSE, &VP_transformed_rot[0][0]);
+        glUniformMatrix4fv(meshMatrixLoc, 1, GL_FALSE, &MVP_transformed_rot[0][0]);
 
         //render inside sphere
         glUniform1i(meshOutsideLoc, 0);
@@ -944,12 +944,12 @@ void draw(const RenderData& data) {
         glCullFace(GL_FRONT);
 
         // Compensate for the angle of the dome
-        glm::mat4 VP_transformed_rot2 = VP_transformed;
-        VP_transformed_rot2 = glm::rotate(VP_transformed_rot2, glm::radians(float(360 - SyncHelper::instance().variables.rotateZ)), glm::vec3(0.0f, 0.0f, 1.0f)); //roll
-        VP_transformed_rot2 = glm::rotate(VP_transformed_rot2, glm::radians(float(360 - SyncHelper::instance().variables.rotateX + SyncHelper::instance().variables.angle)), glm::vec3(1.0f, 0.0f, 0.0f)); //pitch
-        VP_transformed_rot2 = glm::rotate(VP_transformed_rot2, glm::radians(float(360 - SyncHelper::instance().variables.rotateY)), glm::vec3(0.0f, 1.0f, 0.0f)); //yaw
+        glm::mat4 MVP_transformed_rot2 = MVP_transformed;
+        MVP_transformed_rot2 = glm::rotate(MVP_transformed_rot2, glm::radians(float(360 - SyncHelper::instance().variables.rotateZ)), glm::vec3(0.0f, 0.0f, 1.0f)); //roll
+        MVP_transformed_rot2 = glm::rotate(MVP_transformed_rot2, glm::radians(float(360 - SyncHelper::instance().variables.rotateX + SyncHelper::instance().variables.angle)), glm::vec3(1.0f, 0.0f, 0.0f)); //pitch
+        MVP_transformed_rot2 = glm::rotate(MVP_transformed_rot2, glm::radians(float(360 - SyncHelper::instance().variables.rotateY)), glm::vec3(0.0f, 1.0f, 0.0f)); //yaw
 
-        glUniformMatrix4fv(meshMatrixLoc, 1, GL_FALSE, &VP_transformed_rot2[0][0]);
+        glUniformMatrix4fv(meshMatrixLoc, 1, GL_FALSE, &MVP_transformed_rot2[0][0]);
         //render outside sphere
         glUniform1i(meshOutsideLoc, 1);
         sphere->draw();
@@ -978,12 +978,12 @@ void draw(const RenderData& data) {
 
         glUniform1f(meshAlphaLoc, SyncHelper::instance().variables.alpha);
 
-        mat4 vp = data.projectionMatrix * data.viewMatrix;
-        glm::mat4 VP_transformed_rot = glm::translate(glm::make_mat4(vp.values), glm::vec3(float(SyncHelper::instance().variables.translateX) / 100.f, float(SyncHelper::instance().variables.translateY) / 100.f, float(SyncHelper::instance().variables.translateZ) / 100.f));
-        VP_transformed_rot = glm::rotate(VP_transformed_rot, glm::radians(float(SyncHelper::instance().variables.rotateZ)), glm::vec3(0.0f, 0.0f, 1.0f)); //roll
-        VP_transformed_rot = glm::rotate(VP_transformed_rot, glm::radians(float(SyncHelper::instance().variables.rotateX - SyncHelper::instance().variables.angle)), glm::vec3(1.0f, 0.0f, 0.0f)); //pitch
-        VP_transformed_rot = glm::rotate(VP_transformed_rot, glm::radians(float(SyncHelper::instance().variables.rotateY)), glm::vec3(0.0f, 1.0f, 0.0f)); //yaw
-        glUniformMatrix4fv(meshMatrixLoc, 1, GL_FALSE, &VP_transformed_rot[0][0]);
+        mat4 mvp = data.modelViewProjectionMatrix;
+        glm::mat4 MVP_transformed_rot = glm::translate(glm::make_mat4(mvp.values), glm::vec3(float(SyncHelper::instance().variables.translateX) / 100.f, float(SyncHelper::instance().variables.translateY) / 100.f, float(SyncHelper::instance().variables.translateZ) / 100.f));
+        MVP_transformed_rot = glm::rotate(MVP_transformed_rot, glm::radians(float(SyncHelper::instance().variables.rotateZ)), glm::vec3(0.0f, 0.0f, 1.0f)); //roll
+        MVP_transformed_rot = glm::rotate(MVP_transformed_rot, glm::radians(float(SyncHelper::instance().variables.rotateX - SyncHelper::instance().variables.angle)), glm::vec3(1.0f, 0.0f, 0.0f)); //pitch
+        MVP_transformed_rot = glm::rotate(MVP_transformed_rot, glm::radians(float(SyncHelper::instance().variables.rotateY)), glm::vec3(0.0f, 1.0f, 0.0f)); //yaw
+        glUniformMatrix4fv(meshMatrixLoc, 1, GL_FALSE, &MVP_transformed_rot[0][0]);
 
         dome->draw();
 
