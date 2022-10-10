@@ -72,9 +72,10 @@ MpvObject {
     }
 
     onGridToMapOnChanged: {
-        if(mpv.gridToMapOn < 2 && scene3D.visible){
+        if(mpv.gridToMapOn < 2){
+            if(scene3D.visible)
+                mpv.resetOrientation()
             scene3D.visible = false
-            mpv.resetOrientation()
         }
         else if(!scene3D.visible){
             mpv.resetOrientation()
