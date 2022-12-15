@@ -493,7 +493,7 @@ void on_mpv_events(void*)
                 {
                     resizeMpvFBO((int)w, (int)h);
                     mpvVideoReconfigs++;
-                    updateRendering = (mpvVideoReconfigs > 1);
+                    updateRendering = (mpvVideoReconfigs > 0);
                 }
                 break;
             }
