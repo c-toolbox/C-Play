@@ -119,6 +119,10 @@ MpvObject::MpvObject(QQuickItem * parent)
     m_rotate = QVector3D(VideoSettings::surfaceRotateX(), VideoSettings::surfaceRotateY(), VideoSettings::surfaceRotateZ());
     m_translate = QVector3D(VideoSettings::surfaceTranslateX(), VideoSettings::surfaceTranslateY(), VideoSettings::surfaceTranslateZ());
     m_surfaceTransistionOnGoing = false;
+    m_planeWidth = VideoSettings::plane_Width_CM();
+    m_planeHeight = VideoSettings::plane_Height_CM();
+    m_planeElevation = VideoSettings::plane_Elevation_Degrees();
+    m_planeDistance = VideoSettings::plane_Distance_CM();
 
     SyncHelper::instance().variables.radius = m_radius;
     SyncHelper::instance().variables.fov = m_fov;
@@ -129,6 +133,10 @@ MpvObject::MpvObject(QQuickItem * parent)
     SyncHelper::instance().variables.translateX = m_translate.x();
     SyncHelper::instance().variables.translateY = m_translate.y();
     SyncHelper::instance().variables.translateZ = m_translate.z();
+    SyncHelper::instance().variables.planeWidth = m_planeWidth;
+    SyncHelper::instance().variables.planeHeight = m_planeHeight;
+    SyncHelper::instance().variables.planeElevation = m_planeElevation;
+    SyncHelper::instance().variables.planeDistance = m_planeDistance;
 
     QString loadAudioInVidFolder = AudioSettings::loadAudioFileInVideoFolder() ? "all" : "no";
     setProperty("audio-file-auto", loadAudioInVidFolder);
@@ -161,6 +169,7 @@ MpvObject::MpvObject(QQuickItem * parent)
     mpv_observe_property(mpv, 0, "gamma", MPV_FORMAT_INT64);
     mpv_observe_property(mpv, 0, "saturation", MPV_FORMAT_INT64);
     mpv_observe_property(mpv, 0, "track-list", MPV_FORMAT_NODE);
+    mpv_observe_property(mpv, 0, "video-params", MPV_FORMAT_NODE);
 
     if (mpv_initialize(mpv) < 0)
         throw std::runtime_error("could not initialize mpv context");
@@ -169,6 +178,12 @@ MpvObject::MpvObject(QQuickItem * parent)
 
     connect(this, &MpvObject::fileLoaded,
             this, &MpvObject::loadTracks);
+
+    connect(this, &MpvObject::planeChanged,
+            this, &MpvObject::updatePlane);
+
+    connect(this, &MpvObject::stereoscopicVideoChanged,
+        this, &MpvObject::updatePlane);
 
     connect(this, &MpvObject::positionChanged, this, [this]() {
         int pos = getProperty("time-pos").toInt();
@@ -249,9 +264,9 @@ bool MpvObject::pause()
 void MpvObject::setPause(bool value)
 {
     SyncHelper::instance().variables.paused = value;
-    if (value == pause()) {
+    /*if (value == pause()) {
         return;
-    }
+    }*/
     setProperty("pause", value);
     emit pauseChanged();
 }
@@ -585,6 +600,66 @@ void MpvObject::setTranslate(QVector3D value)
     SyncHelper::instance().variables.translateY = value.y();
     SyncHelper::instance().variables.translateZ = value.z();
     emit translateChanged();
+}
+
+double MpvObject::planeWidth()
+{
+    return m_planeWidth;
+}
+
+void MpvObject::setPlaneWidth(double value)
+{
+    SyncHelper::instance().variables.planeWidth = value;
+    if (m_planeWidth == value) {
+        return;
+    }
+    m_planeWidth = value;
+    emit planeChanged();
+}
+
+double MpvObject::planeHeight()
+{
+    return m_planeHeight;
+}
+
+void MpvObject::setPlaneHeight(double value)
+{
+    SyncHelper::instance().variables.planeHeight = value;
+    if (m_planeHeight == value) {
+        return;
+    }
+    m_planeHeight = value;
+    emit planeChanged();
+}
+
+double MpvObject::planeElevation()
+{
+    return m_planeElevation;
+}
+
+void MpvObject::setPlaneElevation(double value)
+{
+    SyncHelper::instance().variables.planeElevation = value;
+    if (m_planeElevation == value) {
+        return;
+    }
+    m_planeElevation = value;
+    emit planeChanged();
+}
+
+double MpvObject::planeDistance()
+{
+    return m_planeDistance;
+}
+
+void MpvObject::setPlaneDistance(double value)
+{
+    SyncHelper::instance().variables.planeDistance = value;
+    if (m_planeDistance == value) {
+        return;
+    }
+    m_planeDistance = value;
+    emit planeChanged();
 }
 
 bool MpvObject::surfaceTransistionOnGoing() {
@@ -965,23 +1040,29 @@ PlayListItem* MpvObject::loadJSONPlayfile(const QString& file) {
         else if (grid == "pre-split") {
             item->setGridToMapOn(0);
         }
-        else if (grid == "dome") {
+        else if (grid == "plane") {
             item->setGridToMapOn(1);
         }
-        else if (grid == "sphere") {
+        else if (grid == "flat") {
+            item->setGridToMapOn(1);
+        }
+        else if (grid == "dome") {
             item->setGridToMapOn(2);
+        }
+        else if (grid == "sphere") {
+            item->setGridToMapOn(3);
         }
         else if (grid == "eqr") {
-            item->setGridToMapOn(2);
+            item->setGridToMapOn(3);
         }
         else if (grid == "sphere-eqr") {
-            item->setGridToMapOn(2);
+            item->setGridToMapOn(3);
         }
         else if (grid == "eac") {
-            item->setGridToMapOn(3);
+            item->setGridToMapOn(4);
         }
         else if (grid == "sphere-eac") {
-            item->setGridToMapOn(3);
+            item->setGridToMapOn(4);
         }
     }
 
@@ -1129,6 +1210,19 @@ void MpvObject::eventHandler()
             }
             break;
         }
+        case MPV_EVENT_VIDEO_RECONFIG: {
+            // Retrieve the new video size.
+            int64_t w, h;
+            if (mpv_get_property(mpv, "dwidth", MPV_FORMAT_INT64, &w) >= 0 &&
+                mpv_get_property(mpv, "dheight", MPV_FORMAT_INT64, &h) >= 0 &&
+                w > 0 && h > 0)
+            {
+                m_videoWidth = (int)w;
+                m_videoHeight = (int)h;
+                emit planeChanged();
+            }
+            break;
+        }
         case MPV_EVENT_PROPERTY_CHANGE: {
             mpv_event_property *prop = (mpv_event_property *)event->data;
 
@@ -1213,6 +1307,14 @@ void MpvObject::eventHandler()
                 if (prop->format == MPV_FORMAT_NODE) {
                     loadTracks();
                 }
+            } else if (strcmp(prop->name, "video-params") == 0) {
+                if (prop->format == MPV_FORMAT_NODE) {
+                    const QVariant videoParams = mpv::qt::get_property(mpv, "video-params");
+                    auto vm = videoParams.toMap();
+                    m_videoWidth = vm["w"].toInt();
+                    m_videoHeight = vm["h"].toInt();
+                    emit planeChanged();
+                }
             }
             break;
         }
@@ -1281,6 +1383,43 @@ void MpvObject::loadTracks()
 
     emit audioTracksModelChanged();
     emit subtitleTracksModelChanged();
+}
+
+void MpvObject::updatePlane() {
+    int pcsbov = VideoSettings::plane_Calculate_Size_Based_on_Video();
+    int sm = stereoscopicVideo();
+    if (pcsbov == 1) { //Calculate width from video
+        double ratio = double(m_videoWidth) / double(m_videoHeight);
+
+        if (sm == 1) { //Side-by-side
+            ratio *= 0.5f;
+        }
+        else if (sm == 2) { //Top-bottom
+            ratio *= 2.0f;
+        }
+        else if (sm == 3) { //Top-bottom-flip
+            ratio = double(m_videoHeight) / double(m_videoWidth);
+            ratio *= 2.0f;
+        }
+
+        setPlaneWidth(ratio * planeHeight());
+    }
+    else if (pcsbov == 2) { //Calculate height from video
+        double ratio = double(m_videoHeight) / double(m_videoWidth);
+
+        if (sm == 1) { //Side-by-side
+            ratio *= 0.5f;
+        }
+        else if (sm == 2) { //Top-bottom
+            ratio *= 2.0f;
+        }
+        else if (sm == 3) { //Top-bottom-flip
+            ratio = double(m_videoWidth) / double(m_videoHeight);
+            ratio *= 2.0f;
+        }
+
+        setPlaneHeight(ratio * planeWidth());
+    }
 }
 
 TracksModel *MpvObject::subtitleTracksModel() const

@@ -8,6 +8,7 @@
 #include <sgct/opengl.h>
 #include <sgct/utils/dome.h>
 #include <sgct/utils/sphere.h>
+#include <sgct/utils/plane.h>
 #include <sgct/offscreenbuffer.h>
 #include <glm/glm.hpp>
 #include <glm/gtc/type_ptr.hpp>
@@ -25,9 +26,15 @@ mpv_handle *mpvHandle;
 mpv_render_context *mpvRenderContext;
 std::unique_ptr<sgct::utils::Dome> dome;
 std::unique_ptr<sgct::utils::Sphere> sphere;
+std::unique_ptr<sgct::utils::Plane> plane;
 
 int domeRadius = 740;
 int domeFov = 165;
+float planeWidth = 0.f;
+float planeHeight = 0.f;
+float planeElevation = 0.f;
+float planeDistance = 0.f;
+float planeScale = 9.f; //For far-away apperance
 std::string loadedFile = "";
 std::string videoFilters = "";
 
@@ -634,6 +641,12 @@ void initOGL(GLFWwindow*) {
     dome = std::make_unique<utils::Dome>(float(domeRadius)/100.f, float(domeFov), 256, 128);
     sphere = std::make_unique<utils::Sphere>(float(domeRadius) / 100.f, 256);
 
+    float planeWidth = float(SyncHelper::instance().variables.planeWidth);
+    float planeHeight = float(SyncHelper::instance().variables.planeHeight);
+    float planeElevation = float(SyncHelper::instance().variables.planeElevation);
+    float planeDistance = float(SyncHelper::instance().variables.planeDistance);
+    plane = std::make_unique<utils::Plane>(planeScale * (planeWidth / 100.f), planeScale * (planeHeight / 100.f));
+
     // Set up backface culling
     glCullFace(GL_BACK);
     // our polygon winding is clockwise since we are inside of the dome
@@ -672,6 +685,10 @@ std::vector<std::byte> encode() {
     serializeObject(data, SyncHelper::instance().variables.translateX);
     serializeObject(data, SyncHelper::instance().variables.translateY);
     serializeObject(data, SyncHelper::instance().variables.translateZ);
+    serializeObject(data, SyncHelper::instance().variables.planeWidth);
+    serializeObject(data, SyncHelper::instance().variables.planeHeight);
+    serializeObject(data, SyncHelper::instance().variables.planeElevation);
+    serializeObject(data, SyncHelper::instance().variables.planeDistance);
 
     //Reset flags every frame cycle
     SyncHelper::instance().variables.loadFile = false;
@@ -707,6 +724,10 @@ void decode(const std::vector<std::byte>& data, unsigned int pos) {
         deserializeObject(data, pos, SyncHelper::instance().variables.translateX);
         deserializeObject(data, pos, SyncHelper::instance().variables.translateY);
         deserializeObject(data, pos, SyncHelper::instance().variables.translateZ);
+        deserializeObject(data, pos, SyncHelper::instance().variables.planeWidth);
+        deserializeObject(data, pos, SyncHelper::instance().variables.planeHeight);
+        deserializeObject(data, pos, SyncHelper::instance().variables.planeElevation);
+        deserializeObject(data, pos, SyncHelper::instance().variables.planeDistance);
     }
 }
 
@@ -781,9 +802,9 @@ void postSyncPreDraw() {
         double currentTimePos = mpv::qt::get_property(mpvHandle, "time-pos").toDouble();
         if (SyncHelper::instance().variables.timePosition != currentTimePos && SyncHelper::instance().variables.syncOn) {
             double timeToSet = SyncHelper::instance().variables.timePosition;
-            double timeThreshold = SyncHelper::instance().variables.timeThreshold;
-            bool timeOff = ((timeToSet - currentTimePos) > timeThreshold);
-            if (SyncHelper::instance().variables.timeDirty || paused || timeOff) {
+            //double timeThreshold = SyncHelper::instance().variables.timeThreshold;
+            //bool timeOff = ((timeToSet - currentTimePos) > timeThreshold);
+            if (SyncHelper::instance().variables.timeDirty /* || paused || timeOff */ ) {
                 mpv::qt::set_property(mpvHandle, "time-pos", timeToSet);
                 //Always set time pos when paused and not same time
                 //Or set time position as it is above sync threshold
@@ -798,7 +819,13 @@ void postSyncPreDraw() {
             domeRadius = SyncHelper::instance().variables.radius;
             domeFov = SyncHelper::instance().variables.fov;
             dome = std::make_unique<utils::Dome>(float(domeRadius) / 100.f, float(domeFov), 256, 128);
-            sphere = std::make_unique<utils::Sphere>(float(domeRadius) / 100.f, 256);
+        }
+
+        if (planeWidth != SyncHelper::instance().variables.planeWidth || planeHeight != SyncHelper::instance().variables.planeHeight) {
+            plane = nullptr;
+            planeWidth = float(SyncHelper::instance().variables.planeWidth);
+            planeHeight = float(SyncHelper::instance().variables.planeHeight);
+            plane = std::make_unique<utils::Plane>(planeScale * (planeWidth / 100.f), planeScale * (planeHeight / 100.f));
         }
     }
 
@@ -855,8 +882,9 @@ void draw(const RenderData& data) {
 #else
     glActiveTexture(GL_TEXTURE0);
     glBindTexture(GL_TEXTURE_2D, mpvTex);
+    glEnable(GL_BLEND);
  
-    if (SyncHelper::instance().variables.gridToMapOn == 3) {
+    if (SyncHelper::instance().variables.gridToMapOn == 4) {
         glEnable(GL_CULL_FACE);
 
         EACPrg->bind();
@@ -910,7 +938,7 @@ void draw(const RenderData& data) {
 
         glDisable(GL_CULL_FACE);
     }
-    else if (SyncHelper::instance().variables.gridToMapOn == 2) {
+    else if (SyncHelper::instance().variables.gridToMapOn == 3) {
         glEnable(GL_CULL_FACE);
 
         mat4 mvp = data.modelViewProjectionMatrix;
@@ -962,7 +990,7 @@ void draw(const RenderData& data) {
 
         glDisable(GL_CULL_FACE);
     }
-    else if (SyncHelper::instance().variables.gridToMapOn == 1) {
+    else if (SyncHelper::instance().variables.gridToMapOn == 2) {
         glEnable(GL_CULL_FACE);
 
         meshPrg->bind();
@@ -991,9 +1019,44 @@ void draw(const RenderData& data) {
 
         glDisable(GL_CULL_FACE);
     }
-    else {
-        glEnable(GL_BLEND);
+    else if (SyncHelper::instance().variables.gridToMapOn == 1) {
+        glEnable(GL_CULL_FACE);
+        // Set up frontface culling
+        glCullFace(GL_FRONT);
 
+        meshPrg->bind();
+
+        if (SyncHelper::instance().variables.stereoscopicMode > 0) {
+            glUniform1i(meshEyeModeLoc, (GLint)data.frustumMode);
+            glUniform1i(meshStereoscopicModeLoc, (GLint)SyncHelper::instance().variables.stereoscopicMode);
+        }
+        else {
+            glUniform1i(meshEyeModeLoc, 0);
+            glUniform1i(meshStereoscopicModeLoc, 0);
+        }
+
+        glUniform1f(meshAlphaLoc, SyncHelper::instance().variables.alpha);
+
+        mat4 mvp = data.projectionMatrix * data.viewMatrix;
+
+        glm::mat4 planeTransform = glm::mat4(1.0f);
+        //planeTransform = glm::rotate(planeTransform, glm::radians(float(SyncHelper::instance().variables.planeAzimuth)), glm::vec3(0.0f, -1.0f, 0.0f)); //azimuth
+        planeTransform = glm::rotate(planeTransform, glm::radians(float(SyncHelper::instance().variables.planeElevation)), glm::vec3(1.0f, 0.0f, 0.0f)); //elevation
+        //planeTransform = glm::rotate(planeTransform, glm::radians(float(SyncHelper::instance().variables.planeRoll)), glm::vec3(0.0f, 0.0f, 1.0f)); //roll
+        planeTransform = glm::translate(planeTransform, glm::vec3(0.0f, 0.0f, planeScale*float(-SyncHelper::instance().variables.planeDistance) / 100.f)); //distance
+        planeTransform = glm::make_mat4(mvp.values) * planeTransform;
+        glUniformMatrix4fv(meshMatrixLoc, 1, GL_FALSE, &planeTransform[0][0]);
+
+        plane->draw();
+
+        meshPrg->unbind();
+
+        // Set up backface culling again
+        glCullFace(GL_BACK);
+
+        glDisable(GL_CULL_FACE);
+    }
+    else {
         videoPrg->bind();
 
         if (SyncHelper::instance().variables.stereoscopicMode > 0) {
@@ -1010,9 +1073,8 @@ void draw(const RenderData& data) {
         data.window.renderScreenQuad();
 
         videoPrg->unbind();
-
-        glDisable(GL_BLEND);
     }
+    glDisable(GL_BLEND);
 #endif
 }
 
@@ -1033,6 +1095,7 @@ void cleanup() {
 
     dome = nullptr;
     sphere = nullptr;
+    plane = nullptr;
 }
 
 int main(int argc, char *argv[])

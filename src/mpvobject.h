@@ -165,6 +165,30 @@ class MpvObject : public QQuickFramebufferObject
                WRITE setTranslate
                NOTIFY translateChanged)
 
+    Q_PROPERTY(double planeWidth
+               MEMBER m_planeWidth
+               READ planeWidth
+               WRITE setPlaneWidth
+               NOTIFY planeChanged)
+
+    Q_PROPERTY(double planeHeight
+               MEMBER m_planeHeight
+               READ planeHeight
+               WRITE setPlaneHeight
+               NOTIFY planeChanged)
+
+    Q_PROPERTY(double planeElevation
+               MEMBER m_planeElevation
+               READ planeElevation
+               WRITE setPlaneElevation
+               NOTIFY planeChanged)
+
+    Q_PROPERTY(double planeDistance
+               MEMBER m_planeDistance
+               READ planeDistance
+               WRITE setPlaneDistance
+               NOTIFY planeChanged)
+
     Q_PROPERTY(bool surfaceTransistionOnGoing
                MEMBER m_surfaceTransistionOnGoing
                READ surfaceTransistionOnGoing
@@ -264,6 +288,18 @@ class MpvObject : public QQuickFramebufferObject
     QVector3D translate();
     void setTranslate(QVector3D value);
 
+    double planeWidth();
+    void setPlaneWidth(double value);
+
+    double planeHeight();
+    void setPlaneHeight(double value);
+
+    double planeElevation();
+    void setPlaneElevation(double value);
+
+    double planeDistance();
+    void setPlaneDistance(double value);
+
     bool surfaceTransistionOnGoing();
     void setSurfaceTransistionOnGoing(bool value);
 
@@ -340,6 +376,7 @@ signals:
     void angleChanged();
     void rotateChanged();
     void translateChanged();
+    void planeChanged();
     void surfaceTransistionOnGoingChanged();
     void playlistModelChanged();
     void audioDevicesChanged();
@@ -361,13 +398,20 @@ private:
     double m_angle;
     QVector3D m_rotate;
     QVector3D m_translate;
+    double m_planeWidth;
+    double m_planeHeight;
+    double m_planeElevation;
+    double m_planeDistance;
     bool m_surfaceTransistionOnGoing;
     double m_lastSetPosition;
     PlayListModel *m_playlistModel;
     QString m_file;
     QVariantList m_audioDevices;
+    int m_videoWidth;
+    int m_videoHeight;
 
     void loadTracks();
+    void updatePlane();
     QString md5(const QString &str);
 };
 

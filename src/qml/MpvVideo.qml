@@ -53,7 +53,7 @@ MpvObject {
         trackBall.camera.upVector = Qt.vector3d( 0.0, 1.0, 0.0 );
         trackBall.camera.position = Qt.vector3d( 0.0, 0.0, 1.0 );
         trackBall.trackballCameraController.stopRotation()
-        if(mpv.gridToMapOn < 2){
+        if(mpv.gridToMapOn < 3){
             trackBall.trackballCameraController.rotationXYZ = Qt.vector3d(0, 0, 0);
             mpv.angle = VideoSettings.surfaceAngle
             mpv.radius = VideoSettings.surfaceRadius
@@ -72,7 +72,7 @@ MpvObject {
     }
 
     onGridToMapOnChanged: {
-        if(mpv.gridToMapOn < 2){
+        if(mpv.gridToMapOn < 3){
             if(scene3D.visible)
                 mpv.resetOrientation()
             scene3D.visible = false

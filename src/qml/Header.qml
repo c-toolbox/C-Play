@@ -179,10 +179,12 @@ ToolBar {
                 if(mpv.gridToMapOn == 0)
                     gridMenuButton.text = qsTr("Grid (None)")
                 else if(mpv.gridToMapOn == 1)
-                    gridMenuButton.text = qsTr("Grid (Dome)")
+                    gridMenuButton.text = qsTr("Grid (Plane)")
                 else if(mpv.gridToMapOn == 2)
-                    gridMenuButton.text = qsTr("Grid (Sphere EQR)")
+                    gridMenuButton.text = qsTr("Grid (Dome)")
                 else if(mpv.gridToMapOn == 3)
+                    gridMenuButton.text = qsTr("Grid (Sphere EQR)")
+                else if(mpv.gridToMapOn == 4)
                     gridMenuButton.text = qsTr("Grid (Sphere EAC)")
             }
             icon.name: "kstars_hgrid"
@@ -198,10 +200,12 @@ ToolBar {
                     if(mpv.gridToMapOn == 0)
                         gridMenuButton.text = qsTr("Grid (None)")
                     else if(mpv.gridToMapOn == 1)
-                        gridMenuButton.text = qsTr("Grid (Dome)")
+                        gridMenuButton.text = qsTr("Grid (Plane)")
                     else if(mpv.gridToMapOn == 2)
-                        gridMenuButton.text = qsTr("Grid (Sphere EQR)")
+                        gridMenuButton.text = qsTr("Grid (Dome)")
                     else if(mpv.gridToMapOn == 3)
+                        gridMenuButton.text = qsTr("Grid (Sphere EQR)")
+                    else if(mpv.gridToMapOn == 4)
                         gridMenuButton.text = qsTr("Grid (Sphere EAC)")
                 }
             }
@@ -234,41 +238,54 @@ ToolBar {
                     }
 
                     RadioButton {
-                        id: dome_grid
+                        id: plane_grid
                         checked: PlaybackSettings.gridToMapOn === 1
-                        text: qsTr("Dome")
+                        text: qsTr("Plane")
                         onClicked: {
                              mpv.gridToMapOn = 1
                         }
                         Connections {
                             target: mpv
-                            onGridToMapOnChanged: dome_grid.checked = (mpv.gridToMapOn === 1)
+                            onGridToMapOnChanged: plane_grid.checked = (mpv.gridToMapOn === 1)
+                        }
+                    }
+
+                    RadioButton {
+                        id: dome_grid
+                        checked: PlaybackSettings.gridToMapOn === 2
+                        text: qsTr("Dome")
+                        onClicked: {
+                             mpv.gridToMapOn = 2
+                        }
+                        Connections {
+                            target: mpv
+                            onGridToMapOnChanged: dome_grid.checked = (mpv.gridToMapOn === 2)
                         }
                     }
 
                     RadioButton {
                         id: sphere_eqr_grid
-                        checked: PlaybackSettings.gridToMapOn === 2
-                        text: qsTr("Sphere EQR")
-                        onClicked: {
-                            mpv.gridToMapOn = 2
-                        }
-                        Connections {
-                            target: mpv
-                            onGridToMapOnChanged: sphere_eqr_grid.checked = (mpv.gridToMapOn === 2)
-                        }
-                    }
-
-                    RadioButton {
-                        id: sphere_eac_grid
                         checked: PlaybackSettings.gridToMapOn === 3
-                        text: qsTr("Sphere EAC")
+                        text: qsTr("Sphere EQR")
                         onClicked: {
                             mpv.gridToMapOn = 3
                         }
                         Connections {
                             target: mpv
-                            onGridToMapOnChanged: sphere_eac_grid.checked = (mpv.gridToMapOn === 3)
+                            onGridToMapOnChanged: sphere_eqr_grid.checked = (mpv.gridToMapOn === 3)
+                        }
+                    }
+
+                    RadioButton {
+                        id: sphere_eac_grid
+                        checked: PlaybackSettings.gridToMapOn === 4
+                        text: qsTr("Sphere EAC")
+                        onClicked: {
+                            mpv.gridToMapOn = 4
+                        }
+                        Connections {
+                            target: mpv
+                            onGridToMapOnChanged: sphere_eac_grid.checked = (mpv.gridToMapOn === 4)
                         }
                     }
                 }
