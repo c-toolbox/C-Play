@@ -115,6 +115,11 @@ public:
         double translateX;
         double translateY;
         double translateZ;
+        double planeWidth;
+        double planeHeight;
+        double planeElevation;
+        double planeDistance;
+
     };
 
     SyncHelper();

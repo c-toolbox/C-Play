@@ -32,7 +32,7 @@
 	<entry name="SurfaceFov" type="double">
       <default>165</default>
     </entry>
-    <entry name="SurfaceAngle" type="double">
+  <entry name="SurfaceAngle" type="double">
       <default>27</default>
     </entry>
 	<entry name="SurfaceRotateX" type="double">
@@ -70,6 +70,21 @@
     </entry>
     <entry name="SurfaceTranslateZ_2ndState" type="double">
       <default>-800</default>
+    </entry>
+    <entry name="Plane_Calculate_Size_Based_on_Video" type="int">
+      <default>1</default>
+    </entry>
+    <entry name="Plane_Width_CM" type="double">
+      <default>1480</default>
+    </entry>
+    <entry name="Plane_Height_CM" type="double">
+      <default>740</default>
+    </entry>
+    <entry name="Plane_Distance_CM" type="double">
+      <default>740</default>
+    </entry>
+    <entry name="Plane_Elevation_Degrees" type="double">
+      <default>36</default>
     </entry>
   </group>
 </kcfg>
