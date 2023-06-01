@@ -84,7 +84,7 @@
       <default>740</default>
     </entry>
     <entry name="Plane_Elevation_Degrees" type="double">
-      <default>36</default>
+      <default>39</default>
     </entry>
   </group>
 </kcfg>
