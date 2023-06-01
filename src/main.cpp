@@ -34,7 +34,6 @@ float planeWidth = 0.f;
 float planeHeight = 0.f;
 float planeElevation = 0.f;
 float planeDistance = 0.f;
-float planeScale = 9.f; //For far-away apperance
 std::string loadedFile = "";
 std::string videoFilters = "";
 
@@ -645,7 +644,7 @@ void initOGL(GLFWwindow*) {
     float planeHeight = float(SyncHelper::instance().variables.planeHeight);
     float planeElevation = float(SyncHelper::instance().variables.planeElevation);
     float planeDistance = float(SyncHelper::instance().variables.planeDistance);
-    plane = std::make_unique<utils::Plane>(planeScale * (planeWidth / 100.f), planeScale * (planeHeight / 100.f));
+    plane = std::make_unique<utils::Plane>(planeWidth / 100.f, planeHeight / 100.f);
 
     // Set up backface culling
     glCullFace(GL_BACK);
@@ -825,7 +824,7 @@ void postSyncPreDraw() {
             plane = nullptr;
             planeWidth = float(SyncHelper::instance().variables.planeWidth);
             planeHeight = float(SyncHelper::instance().variables.planeHeight);
-            plane = std::make_unique<utils::Plane>(planeScale * (planeWidth / 100.f), planeScale * (planeHeight / 100.f));
+            plane = std::make_unique<utils::Plane>(planeWidth / 100.f, planeHeight / 100.f);
         }
     }
 
@@ -1043,7 +1042,7 @@ void draw(const RenderData& data) {
         //planeTransform = glm::rotate(planeTransform, glm::radians(float(SyncHelper::instance().variables.planeAzimuth)), glm::vec3(0.0f, -1.0f, 0.0f)); //azimuth
         planeTransform = glm::rotate(planeTransform, glm::radians(float(SyncHelper::instance().variables.planeElevation)), glm::vec3(1.0f, 0.0f, 0.0f)); //elevation
         //planeTransform = glm::rotate(planeTransform, glm::radians(float(SyncHelper::instance().variables.planeRoll)), glm::vec3(0.0f, 0.0f, 1.0f)); //roll
-        planeTransform = glm::translate(planeTransform, glm::vec3(0.0f, 0.0f, planeScale*float(-SyncHelper::instance().variables.planeDistance) / 100.f)); //distance
+        planeTransform = glm::translate(planeTransform, glm::vec3(0.0f, 0.0f, float(-SyncHelper::instance().variables.planeDistance) / 100.f)); //distance
         planeTransform = glm::make_mat4(mvp.values) * planeTransform;
         glUniformMatrix4fv(meshMatrixLoc, 1, GL_FALSE, &planeTransform[0][0]);
 
