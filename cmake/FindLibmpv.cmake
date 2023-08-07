@@ -36,16 +36,26 @@ find_package(PkgConfig QUIET)
 
 pkg_search_module(PC_MPV QUIET mpv)
 
+find_library(Libmpv_LIBRARIES
+    NAMES mpv
+    HINTS $ENV{PC_MPV_LIBDIR}
+)
+
 find_path(Libmpv_INCLUDE_DIRS
     NAMES client.h
     PATH_SUFFIXES mpv
     HINTS $ENV{PC_MPV_INCLUDEDIR}
 )
 
-find_library(Libmpv_LIBRARIES
-    NAMES mpv
-    HINTS $ENV{PC_MPV_LIBDIR}
-)
+if(Libmpv_LIBRARIES AND NOT Libmpv_INCLUDE_DIRS)
+    get_filename_component(LIBMPV_LIBDIR ${Libmpv_LIBRARIES} PATH)
+    get_filename_component(LIBMPV_ROOT_DIR ${LIBMPV_LIBDIR} DIRECTORY)
+    find_path(Libmpv_INCLUDE_DIRS
+        NAMES client.h
+        PATH_SUFFIXES mpv
+        PATHS "${LIBMPV_ROOT_DIR}/include"
+    )
+endif()
 
 set(Libmpv_VERSION ${PC_MPV_VERSION})
 

@@ -1,0 +1,37 @@
+# Lines starting with this character are ignored
+
+# Built-in options, use --disable- to disable them
+#--enable-cplayer
+#--enable-manpage-build
+#--enable-lua
+#--enable-javascript
+--disable-libbluray
+#--enable-uchardet
+#--enable-rubberband
+#--enable-lcms2
+#--enable-libarchive
+#--enable-libavdevice
+--disable-shaderc
+#--enable-spirv-cross
+--disable-d3d11
+#--enable-jpeg
+--disable-vapoursynth
+--disable-vulkan
+--disable-libplacebo
+
+# Common options or overriden defaults
+--disable-debug-build
+--lua=luajit
+
+# Full
+#--enable-dvdnav
+#--enable-cdda
+#--enable-egl-angle
+#--enable-html-build
+#--enable-pdf-build
+--enable-libmpv-shared
+#--enable-openal
+#--enable-sdl2
+#--enable-sdl2-gamepad
+#--enable-sdl2-audio
+#--enable-sdl2-video

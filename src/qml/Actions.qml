@@ -448,7 +448,9 @@ QtObject {
         icon.name: qaction.iconName()
         shortcut: qaction.shortcutName()
 
-        Component.onCompleted: list["quitApplicationAction"] = quitApplicationAction
+        Component.onCompleted: {
+            list["quitApplicationAction"] = quitApplicationAction
+        }
 
         onTriggered: {
             mpv.handleTimePosition()

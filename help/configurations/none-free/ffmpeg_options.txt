@@ -1,0 +1,53 @@
+# Lines starting with this character are ignored
+# To override some options specifically for the shared build, create a ffmpeg_options_shared.txt file.
+
+# Basic built-in options, can be removed if you delete "--disable-autodetect"
+--disable-autodetect
+--enable-amf
+--enable-bzlib
+--enable-d3d11va
+--enable-dxva2
+--enable-iconv
+--enable-lzma
+--enable-schannel
+--enable-zlib
+--disable-sdl2
+--enable-ffnvcodec # NVIDIA onwards
+--enable-cuda-llvm
+--enable-nvdec
+--disable-nvenc # Failed to be found...
+--enable-cuda
+--enable-cuvid
+
+# Common options
+--enable-gmp
+--enable-libmp3lame
+--enable-libopus
+--enable-libvorbis
+--enable-libvpx
+--enable-libx264
+--enable-libx265
+--enable-libdav1d
+--enable-libaom
+--disable-debug
+--enable-libfdk-aac
+--enable-libfreetype
+
+# Enable JACK
+--enable-libjack
+
+# Zeranoe
+--enable-libass
+
+# Full
+--enable-libglslang
+#--enable-vulkan
+#--enable-libplacebo
+--enable-libjxl
+
+# Full plus options that add shared dependencies
+#--enable-opencl
+--enable-opengl
+--enable-cuda-nvcc
+--enable-libnpp
+--enable-libopenh264

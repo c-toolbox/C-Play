@@ -554,7 +554,7 @@ void initOGL(GLFWwindow*) {
     mpv_set_option_string(mpvHandle, "msg-level", "all=v");
     mpv_request_log_messages(mpvHandle, "debug");*/
 
-    mpv_opengl_init_params gl_init_params{get_proc_address_mpv, nullptr, nullptr};
+    mpv_opengl_init_params gl_init_params{get_proc_address_mpv, nullptr};
     mpv_render_param params[]{
         {MPV_RENDER_PARAM_API_TYPE, const_cast<char *>(MPV_RENDER_API_TYPE_OPENGL)},
         {MPV_RENDER_PARAM_OPENGL_INIT_PARAMS, &gl_init_params},
@@ -1087,7 +1087,7 @@ void cleanup() {
     // is still running, the video track will be deselected.
     mpv_render_context_free(mpvRenderContext);
 
-    mpv_detach_destroy(mpvHandle);
+    mpv_destroy(mpvHandle);
 
     glDeleteFramebuffers(1, &mpvFBO);
     glDeleteTextures(1, &mpvTex);

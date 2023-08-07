@@ -61,70 +61,70 @@ ToolBar {
             }
         }
 
-        ToolButton {
-            id: subtitleMenuButton
+//        ToolButton {
+//            id: subtitleMenuButton
 
-            property var model: 0
+//            property var model: 0
 
-            text: qsTr("Subtitles")
-            icon.name: "media-view-subtitles-symbolic"
-            focusPolicy: Qt.NoFocus
+//            text: qsTr("Subtitles")
+//            icon.name: "media-view-subtitles-symbolic"
+//            focusPolicy: Qt.NoFocus
 
-            onClicked: {
-                if (subtitleMenuButton.model === 0) {
-                    subtitleMenuButton.model = mpv.subtitleTracksModel
-                }
+//            onClicked: {
+//                if (subtitleMenuButton.model === 0) {
+//                    subtitleMenuButton.model = mpv.subtitleTracksModel
+//                }
 
-                subtitleMenu.visible = !subtitleMenu.visible
-            }
+//                subtitleMenu.visible = !subtitleMenu.visible
+//            }
 
-            Menu {
-                id: subtitleMenu
+//            Menu {
+//                id: subtitleMenu
 
-                y: parent.height
+//                y: parent.height
 
-                Menu {
-                    id: secondarySubtitleMenu
+//                Menu {
+//                    id: secondarySubtitleMenu
 
-                    title: qsTr("Secondary Subtitle")
+//                    title: qsTr("Secondary Subtitle")
 
-                    Instantiator {
-                        id: secondarySubtitleMenuInstantiator
-                        model: subtitleMenuButton.model
-                        onObjectAdded: secondarySubtitleMenu.insertItem( index, object )
-                        onObjectRemoved: secondarySubtitleMenu.removeItem( object )
-                        delegate: MenuItem {
-                            enabled: model.id !== mpv.subtitleId || model.id === 0
-                            checkable: true
-                            checked: model.id === mpv.secondarySubtitleId
-                            text: model.text
-                            onTriggered: mpv.secondarySubtitleId = model.id
-                        }
-                    }
-                }
+//                    Instantiator {
+//                        id: secondarySubtitleMenuInstantiator
+//                        model: subtitleMenuButton.model
+//                        onObjectAdded: secondarySubtitleMenu.insertItem( index, object )
+//                        onObjectRemoved: secondarySubtitleMenu.removeItem( object )
+//                        delegate: MenuItem {
+//                            enabled: model.id !== mpv.subtitleId || model.id === 0
+//                            checkable: true
+//                            checked: model.id === mpv.secondarySubtitleId
+//                            text: model.text
+//                            onTriggered: mpv.secondarySubtitleId = model.id
+//                        }
+//                    }
+//                }
 
-                MenuSeparator {}
+//                MenuSeparator {}
 
-                MenuItem {
-                    text: qsTr("Primary Subtitle")
-                    hoverEnabled: false
-                }
+//                MenuItem {
+//                    text: qsTr("Primary Subtitle")
+//                    hoverEnabled: false
+//                }
 
-                Instantiator {
-                    id: primarySubtitleMenuInstantiator
-                    model: subtitleMenuButton.model
-                    onObjectAdded: subtitleMenu.addItem( object )
-                    onObjectRemoved: subtitleMenu.removeItem( object )
-                    delegate: MenuItem {
-                        enabled: model.id !== mpv.secondarySubtitleId || model.id === 0
-                        checkable: true
-                        checked: model.id === mpv.subtitleId
-                        text: model.text
-                        onTriggered: mpv.subtitleId = model.id
-                    }
-                }
-            }
-        }
+//                Instantiator {
+//                    id: primarySubtitleMenuInstantiator
+//                    model: subtitleMenuButton.model
+//                    onObjectAdded: subtitleMenu.addItem( object )
+//                    onObjectRemoved: subtitleMenu.removeItem( object )
+//                    delegate: MenuItem {
+//                        enabled: model.id !== mpv.secondarySubtitleId || model.id === 0
+//                        checkable: true
+//                        checked: model.id === mpv.subtitleId
+//                        text: model.text
+//                        onTriggered: mpv.subtitleId = model.id
+//                    }
+//                }
+//            }
+//        }
 
         ToolButton {
             text: qsTr("Audio")
@@ -897,19 +897,19 @@ ToolBar {
             }
         }
 
-        ToolButton {
-            action: actions.configureAction
-            focusPolicy: Qt.NoFocus
-        }
+//        ToolButton {
+//            action: actions.configureAction
+//            focusPolicy: Qt.NoFocus
+//        }
 
-        ToolButton {
+        /*ToolButton {
             // using `action: actions.quitApplicationAction` breaks the action
             // doens't work on the first try in certain circumstances
             text: actions.quitApplicationAction.text
             icon: actions.quitApplicationAction.icon
             focusPolicy: Qt.NoFocus
             onClicked: actions.quitApplicationAction.trigger()
-        }
+        }*/
 
         Item {
             Layout.fillWidth: true

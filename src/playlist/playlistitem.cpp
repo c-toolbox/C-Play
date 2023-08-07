@@ -92,8 +92,8 @@ PlayListItem::PlayListItem(const QString &path, int i, QObject *parent)
 
     if (url.scheme().startsWith("http")) {
         setFilePath(url.toString());
-        setFileName(QStringLiteral());
-        setFolderPath(QStringLiteral());
+        setFileName(QStringLiteral(""));
+        setFolderPath(QStringLiteral(""));
     } else {
         QFileInfo fileInfo(path);
         setFileName(fileInfo.fileName());
@@ -102,8 +102,8 @@ PlayListItem::PlayListItem(const QString &path, int i, QObject *parent)
     }
     setIndex(i);
     setIsPlaying(false);
-    setSeparateOverlayFile(QStringLiteral());
-    setSeparateAudioFile(QStringLiteral());
+    setSeparateOverlayFile(QStringLiteral(""));
+    setSeparateAudioFile(QStringLiteral(""));
 }
 
 PlayListItem::PlayListItem(const PlayListItem& p1) {

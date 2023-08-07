@@ -122,6 +122,7 @@ Application::Application(int &argc, char **argv, const QString &applicationName)
     };
     QObject::connect(m_engine, &QQmlApplicationEngine::objectCreated,
                      m_app, onObjectCreated, Qt::QueuedConnection);
+    QObject::connect(m_engine, &QQmlApplicationEngine::quit, m_app, &QApplication::quit);
     m_engine->addImportPath("qrc:/qml");
     m_engine->addImageProvider("thumbnail", new ThumbnailImageProvider());
     setupQmlContextProperties();
@@ -461,7 +462,7 @@ void Application::setupActions(const QString &actionName)
         auto action = new HAction();
         action->setText(i18n("Quit"));
         action->setIcon(QIcon::fromTheme("application-exit"));
-        connect(action, &QAction::triggered, m_app, &QApplication::quit);
+        connect(action, &QAction::triggered, m_engine, &QQmlApplicationEngine::quit);
         m_collection.setDefaultShortcut(action, Qt::CTRL + Qt::Key_Q);
         m_collection.addAction(actionName, action);
     }

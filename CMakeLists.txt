@@ -8,6 +8,8 @@ cmake_minimum_required(VERSION 3.15)
 cmake_policy(SET CMP0048 NEW)
 cmake_policy(SET CMP0063 NEW)
 cmake_policy(SET CMP0072 NEW)
+get_filename_component(C_PLAY_SOURCE_PARENT ${CMAKE_SOURCE_DIR} DIRECTORY)
+set(CMAKE_INSTALL_PREFIX "${C_PLAY_SOURCE_PARENT}/install" CACHE PATH "")
 
 project(c-play LANGUAGES CXX)
 
@@ -60,6 +62,7 @@ set_package_properties(Libmpv PROPERTIES TYPE REQUIRED
     URL "https://mpv.io")
 
 find_package(Breeze)
+option(InstallColorSchemes "" ON)
 set_package_properties(Breeze PROPERTIES TYPE RECOMMENDED
     URL "https://api.kde.org/frameworks/breeze-icons/html/index.html")
 
