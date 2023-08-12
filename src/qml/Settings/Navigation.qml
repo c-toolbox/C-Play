@@ -56,11 +56,11 @@ Kirigami.Page
             iconName: "audio-speakers-symbolic"
             page: "qrc:/Audio.qml"
         }
-        ListElement {
+        /*ListElement {
             name: "Subtitles"
             iconName: "media-view-subtitles-symbolic"
             page: "qrc:/Subtitles.qml"
-        }
+        }*/
         ListElement {
             name: "Playlist"
             iconName: "view-media-playlist"

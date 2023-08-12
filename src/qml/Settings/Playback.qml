@@ -316,7 +316,7 @@ SettingsBasePage {
         // Youtube-dl format settings
         // ------------------------------------
 
-        SettingsHeader {
+        /*SettingsHeader {
             text: qsTr("Youtube-dl")
             Layout.columnSpan: 2
             Layout.fillWidth: true
@@ -419,7 +419,7 @@ SettingsBasePage {
             selectByMouse: true
             Layout.fillWidth: true
             Layout.columnSpan: 2
-        }
+        }*/
         // ------------------------------------
         // END - Youtube-dl format settings
         // ------------------------------------

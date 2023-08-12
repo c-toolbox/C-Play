@@ -48,7 +48,7 @@ Kirigami.ApplicationWindow {
         FileMenu {}
         ViewMenu {}
         PlaybackMenu {}
-        SubtitlesMenu {}
+        //SubtitlesMenu {}
         AudioMenu {}
         SettingsMenu {}
         HelpMenu {}
@@ -69,7 +69,7 @@ Kirigami.ApplicationWindow {
         FileMenu {}
         ViewMenu {}
         PlaybackMenu {}
-        SubtitlesMenu {}
+        //SubtitlesMenu {}
         AudioMenu {}
         SettingsMenu {}
         HelpMenu {}

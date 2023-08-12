@@ -34,14 +34,82 @@ Rectangle {
     }
     x: position === "right" ? parent.width : -width
     y: 0
-    state: "hidden"
+    state: "visible"
     color: Kirigami.Theme.backgroundColor
+
+    ColumnLayout{
+        spacing: 10
+
+        RowLayout {
+            spacing: 1
+            anchors.rightMargin: Kirigami.Units.largeSpacing
+
+            Button {
+                icon.name: "list-add"
+                onClicked: {
+                }
+                ToolTip {
+                    text: qsTr("Add to playlist")
+                }
+            }
+            Button {
+                icon.name: "list-remove"
+                onClicked: {
+                    mpv.playlistModel.removeItem(playlistView.currentIndex)
+                }
+                ToolTip {
+                    text: qsTr("Remove from playlist")
+                }
+            }
+            Button {
+                icon.name: "edit-entry"
+                onClicked: {
+                }
+                ToolTip {
+                    text: qsTr("Edit playlist entry")
+                }
+            }
+            Button {
+                icon.name: "system-save-session"
+                onClicked: {
+                }
+                ToolTip {
+                    text: qsTr("Save playlist")
+                }
+            }
+            Item {
+                // spacer item
+                Layout.fillWidth: true
+                Layout.fillHeight: true
+            }
+        }
+
+        RowLayout {
+            Rectangle {
+                width: Kirigami.Units.gridUnit + 10
+                height: 1
+                color: Kirigami.Theme.alternateBackgroundColor
+            }
+
+            Label {
+                text: qsTr("Playlist: ") + mpv.playlistModel.getPlayListName()
+            }
+
+            Rectangle {
+                height: 1
+                width: 500
+                color: Kirigami.Theme.alternateBackgroundColor
+                Layout.fillWidth: true
+            }
+        }
+    }
 
     ScrollView {
         id: playlistScrollView
 
         z: 20
         anchors.fill: parent
+        anchors.topMargin: 60
         ScrollBar.horizontal.policy: ScrollBar.AlwaysOff
 
         ListView {

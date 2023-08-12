@@ -33,6 +33,8 @@ PlayListModel::PlayListModel(QObject *parent)
         emit dataChanged(index(i, 0), index(i, 0));
 
     });
+
+    playListName = "";
 }
 
 int PlayListModel::rowCount(const QModelIndex &parent) const
@@ -150,6 +152,16 @@ void PlayListModel::setPlayList(const Playlist &playList)
     endInsertRows();
 }
 
+void PlayListModel::setPlayListName(QString name)
+{
+    playListName = name;
+}
+
+QString PlayListModel::getPlayListName() const
+{
+    return playListName;
+}
+
 int PlayListModel::getPlayingVideo() const
 {
     return m_playingVideo;
@@ -180,6 +192,15 @@ QPointer<PlayListItem> PlayListModel::getItem(int i)
         return m_playList[0];
     }
     return m_playList[i];
+}
+
+void PlayListModel::removeItem(int i) {
+    if(m_playingVideo == i)
+        m_playingVideo = 0;
+
+    beginRemoveRows(QModelIndex(), i, i);
+    m_playList.removeAt(i);
+    endRemoveRows();
 }
 
 void PlayListModel::setPlayingVideo(int playingVideo)

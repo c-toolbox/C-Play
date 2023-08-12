@@ -13,7 +13,7 @@ Menu {
     title: qsTr("&File")
 
     MenuItem { action: actions["openAction"] }
-    MenuItem { action: actions["openUrlAction"] }
+    //MenuItem { action: actions["openUrlAction"] }
 
     MenuSeparator {}
 

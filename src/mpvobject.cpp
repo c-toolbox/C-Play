@@ -937,6 +937,8 @@ void MpvObject::loadUniviewPlaylist(const QString& file)
         m_playList.append(QPointer<PlayListItem>(video));
     }
 
+    m_playlistModel->setPlayListName(fileInfo.baseName());
+
     // save playlist to disk
     m_playlistModel->setPlayList(m_playList);
     emit playlistModelChanged();
@@ -1174,6 +1176,8 @@ void MpvObject::loadJSONPlayList(const QString& file) {
                 qDebug() << "Parsing file failed: " << filePath;
         }
     }
+
+    m_playlistModel->setPlayListName(jsonFileInfo.baseName());
 
     // save playlist to disk
     m_playlistModel->setPlayList(m_playList);

@@ -21,7 +21,7 @@ Kirigami.BasicListItem {
     property var alpha: PlaylistSettings.overlayVideo ? 0.6 : 1
 
     label: mainText()
-    subtitle: model.duration + " : (" + loopModeText(index) + ")"
+    subtitle: model.duration + " : " + stereoVideoText(index) + " " + gridToMapOnText(index) + " : (" + loopModeText(index) + ")"
     padding: 0
     icon: model.isPlaying ? "media-playback-start" : ""
     backgroundColor: {
@@ -63,6 +63,32 @@ Kirigami.BasicListItem {
         while (number.length < length)
             number = "0" + number;
         return number;
+    }
+
+    function stereoVideoText(i) {
+        const stereoVideo = mpv.playlistModel.stereoVideo(i)
+        if(stereoVideo===0){
+            return "2D";
+        }
+        else {
+            return "3D";
+        }
+    }
+
+    function gridToMapOnText(i) {
+        const gridToMapOn = mpv.playlistModel.gridToMapOn(i)
+        if(gridToMapOn===0){
+            return "Split";
+        }
+        else if(gridToMapOn===1){
+            return "Flat";
+        }
+        else if(gridToMapOn===2){
+            return "Dome";
+        }
+        else {
+            return "Sphere";
+        }
     }
 
     function loopModeText(i) {

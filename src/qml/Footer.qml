@@ -106,6 +106,7 @@ ToolBar {
 
             text: app.formatTime(mpv.position) + " / " + app.formatTime(mpv.duration)
             font.pointSize: Kirigami.Units.gridUnit - 4
+            fontSizeMode: Text.Fit
             toolTipText: qsTr("Remaining: ") + app.formatTime(mpv.remaining)
             toolTipFontSize: timeInfo.font.pointSize + 2
             alwaysShowToolTip: true

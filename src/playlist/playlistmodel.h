@@ -41,8 +41,16 @@ public:
     QVariant data(const QModelIndex &index, int role = Qt::DisplayRole) const override;
     virtual QHash<int, QByteArray> roleNames() const override;
 
+    Playlist getPlayList() const;
+    void setPlayList(const Playlist& playList);
+
+    void setPlayListName(QString name);
+    Q_INVOKABLE QString getPlayListName() const;
+
     Q_INVOKABLE QString getPath(int i);
     Q_INVOKABLE QPointer<PlayListItem> getItem(int i);
+    Q_INVOKABLE void removeItem(int i);
+
     Q_INVOKABLE void setPlayingVideo(int playingVideo);
     Q_INVOKABLE int getPlayingVideo() const;
     Q_INVOKABLE void getVideos(QString path);
@@ -61,9 +69,6 @@ public:
     Q_INVOKABLE int gridToMapOn(int i) const;
     Q_INVOKABLE int stereoVideo(int i) const;
 
-    Playlist getPlayList() const;
-    void setPlayList(const Playlist &playList);
-
 signals:
     void videoAdded(int index, QString path);
     void playingVideoChanged();
@@ -72,6 +77,7 @@ private:
     Playlist items() const;
     QString configFolder();
     Playlist m_playList;
+    QString playListName;
     int m_playingVideo = 0;
     int m_defaultLoopMode = 2; // Looping
     KSharedConfig::Ptr m_config;
