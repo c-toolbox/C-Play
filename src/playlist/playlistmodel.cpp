@@ -247,6 +247,10 @@ void PlayListModel::moveItemDown(int i) {
     endMoveRows();
 }
 
+void PlayListModel::updateItem(int i) {
+    emit dataChanged(index(i, 0), index(i, 0));
+}
+
 void PlayListModel::setPlayingVideo(int playingVideo)
 {
     // unset current playing video

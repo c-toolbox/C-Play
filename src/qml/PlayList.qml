@@ -27,8 +27,8 @@ Rectangle {
     height: mpv.height
     width: {
         if (PlaylistSettings.style === "compact") {
-            //return Kirigami.Units.gridUnit * 20
-            return Kirigami.Units.gridUnit * 30
+            const w = Kirigami.Units.gridUnit * 19
+            return (parent.width * 0.17) < w ? w : parent.width * 0.17
         } else {
             const w = Kirigami.Units.gridUnit * 30
             return (parent.width * 0.33) < w ? w : parent.width * 0.33
@@ -81,6 +81,73 @@ Rectangle {
                 }
                 ToolTip {
                     text: qsTr("Save playlist")
+                }
+            }
+            Button {
+                id: eofMenuButton
+                icon.name: "media-playback-pause"
+                focusPolicy: Qt.NoFocus
+
+                onClicked: {
+                    eofMenu.visible = !eofMenu.visible
+                }
+
+                Menu {
+                    id: eofMenu
+
+                    y: parent.height
+
+                    MenuSeparator {}
+
+                    ButtonGroup {
+                        buttons: columnEOF.children
+                    }
+
+                    Column {
+                        id: columnEOF
+
+                        RadioButton {
+                            id: eof_pause
+                            checked: false
+                            text: qsTr("EOF: Pause")
+                            onClicked: {
+                                mpv.playlistModel.setLoopMode(playlistView.currentIndex, 1)
+                                mpv.playlistModel.updateItem(playlistView.currentIndex)
+                            }
+                            onCheckedChanged: {
+                                if(checked)
+                                    eofMenuButton.icon.name = "media-playback-pause";
+                            }
+                        }
+
+                        RadioButton {
+                            id: eof_loop
+                            checked: true
+                            text: qsTr("EOF: Loop ")
+                            onClicked: {
+                                mpv.playlistModel.setLoopMode(playlistView.currentIndex, 2)
+                                mpv.playlistModel.updateItem(playlistView.currentIndex)
+                            }
+                            onCheckedChanged: {
+                                if(checked)
+                                    eofMenuButton.icon.name = "media-playlist-repeat";
+                            }
+                        }
+
+                        RadioButton {
+                            id: eof_next
+                            checked: false
+                            text: qsTr("EOF: Next ")
+                            onClicked: {
+                               mpv.playlistModel.setLoopMode(playlistView.currentIndex, 0)
+                               mpv.playlistModel.updateItem(playlistView.currentIndex)
+                            }
+                            onCheckedChanged: {
+                                if(checked)
+                                    eofMenuButton.icon.name = "go-next";
+                            }
+                        }
+                    }
                 }
             }
             Button {
@@ -170,7 +237,11 @@ Rectangle {
 
     Component {
         id: playListItemCompact
-        PlayListItemCompact {}
+        PlayListItemCompact {
+            onClicked: {
+                updateLoopModeButton()
+            }
+        }
     }
 
     Timer {
@@ -254,8 +325,16 @@ Rectangle {
         }
     ]
 
+    function updateLoopModeButton() {
+        var loopMode = mpv.playlistModel.loopMode(playlistView.currentIndex)
+        eof_next.checked = (loopMode === 0)
+        eof_pause.checked = (loopMode === 1)
+        eof_loop.checked = (loopMode === 2)
+    }
+
     function setPlayListScrollPosition() {
         playlistView.positionViewAtIndex(playlistView.model.playingVideo, ListView.Beginning)
+        updateLoopModeButton()
     }
 
 }

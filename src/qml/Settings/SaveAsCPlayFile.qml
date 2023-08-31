@@ -17,7 +17,7 @@ import Haruna.Components 1.0
 
 Kirigami.ApplicationWindow {
     width: 400
-    height: 300
+    height: 350
     title: qsTr("Save As C-Play File")
     visible: false
 

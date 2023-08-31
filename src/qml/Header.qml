@@ -497,7 +497,6 @@ ToolBar {
                         checked: false
                         text: qsTr("EOF: Pause")
                         onClicked: {
-                            mpv.playlistModel.setLoopMode(mpv.playlistModel.getPlayingVideo(), 1)
                             mpv.loopMode = 1;
                             eofMenuButton.text = qsTr("EOF: Pause")
                             eofMenuButton.icon.name = "media-playback-pause"
@@ -505,7 +504,7 @@ ToolBar {
                         }
                         Connections {
                             target: mpv
-                            onFileLoaded: eof_pause.checked = (mpv.playlistModel.loopMode(mpv.playlistModel.getPlayingVideo()) === 1)
+                            onFileLoaded: eof_pause.checked = (mpv.loopMode === 1)
                         }
                     }
 
@@ -514,14 +513,13 @@ ToolBar {
                         checked: true
                         text: qsTr("EOF: Loop ")
                         onClicked: {
-                            mpv.playlistModel.setLoopMode(mpv.playlistModel.getPlayingVideo(), 2)
                             mpv.loopMode = 2;
                             eofMenuButton.text = qsTr("EOF: Loop")
                             eofMenuButton.icon.name = "media-playlist-repeat"
                         }
                         Connections {
                             target: mpv
-                            onFileLoaded: eof_loop.checked = (mpv.playlistModel.loopMode(mpv.playlistModel.getPlayingVideo()) === 2)
+                            onFileLoaded: eof_loop.checked = (mpv.loopMode === 2)
                         }
                     }
 
@@ -531,14 +529,13 @@ ToolBar {
                         text: qsTr("EOF: Next ")
                         enabled: (playList.playlistView.count > 1)
                         onClicked: {
-                           mpv.playlistModel.setLoopMode(mpv.playlistModel.getPlayingVideo(), 0)
                            mpv.loopMode = 0;
                            eofMenuButton.text = qsTr("EOF: Next")
                            eofMenuButton.icon.name = "go-next"
                         }
                         Connections {
                             target: mpv
-                            onFileLoaded: eof_next.checked = (mpv.playlistModel.loopMode(mpv.playlistModel.getPlayingVideo()) === 0)
+                            onFileLoaded: eof_next.checked = (mpv.loopMode === 0)
                         }
                     }
                 }

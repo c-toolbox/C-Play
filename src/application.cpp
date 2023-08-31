@@ -64,6 +64,7 @@ static QApplication *createApplication(int &argc, char **argv, const QString &ap
 
     QApplication::setAttribute(Qt::AA_EnableHighDpiScaling);
     QApplication::setAttribute(Qt::AA_UseHighDpiPixmaps);
+    QApplication::setHighDpiScaleFactorRoundingPolicy(Qt::HighDpiScaleFactorRoundingPolicy::PassThrough);
     QApplication::setOrganizationName("eriksunden");
     QApplication::setApplicationName(applicationName);
     QApplication::setOrganizationDomain("eriksunden.com");

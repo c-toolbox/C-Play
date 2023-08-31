@@ -56,6 +56,7 @@ public:
     Q_INVOKABLE void removeItem(int i);
     Q_INVOKABLE void moveItemUp(int i);
     Q_INVOKABLE void moveItemDown(int i);
+    Q_INVOKABLE void updateItem(int i);
 
     Q_INVOKABLE void setPlayingVideo(int playingVideo);
     Q_INVOKABLE int getPlayingVideo() const;
