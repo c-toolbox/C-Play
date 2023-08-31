@@ -203,6 +203,14 @@ class MpvObject : public QQuickFramebufferObject
     PlayListModel *playlistModel();
     void setPlaylistModel(PlayListModel *model);
 
+    Q_PROPERTY(PlayListItem* currentEditItem
+        READ currentEditItem
+        WRITE setCurrentEditItem
+        NOTIFY currentEditItemChanged)
+
+    PlayListItem* currentEditItem();
+    void setCurrentEditItem(PlayListItem* item);
+
     Q_PROPERTY(QVariantList audioDevices
                READ audioDevices
                WRITE setAudioDevices
@@ -289,10 +297,10 @@ class MpvObject : public QQuickFramebufferObject
     void setTranslate(QVector3D value);
 
     double planeWidth();
-    void setPlaneWidth(double value);
+    void setPlaneWidth(double value, bool updatePlane = true);
 
     double planeHeight();
-    void setPlaneHeight(double value);
+    void setPlaneHeight(double value, bool updatePlane = true);
 
     double planeElevation();
     void setPlaneElevation(double value);
@@ -326,6 +334,9 @@ public:
 
     Q_INVOKABLE QString getFileContent(const QString& file);
     Q_INVOKABLE void loadFile(const QString &file, bool updateLastPlayedFile = true);
+    Q_INVOKABLE void addFileToPlaylist(const QString& file);
+    Q_INVOKABLE void setLoadedAsCurrentEditItem();
+    Q_INVOKABLE void setCurrentEditItemFromPlaylist(int playListIndex);
     Q_INVOKABLE void loadItem(int playListIndex, bool updateLastPlayedFile = true);
     Q_INVOKABLE void getYouTubePlaylist(const QString &path);
     Q_INVOKABLE QVariant command(const QVariant &params, bool debug = false);
@@ -379,6 +390,7 @@ signals:
     void planeChanged();
     void surfaceTransistionOnGoingChanged();
     void playlistModelChanged();
+    void currentEditItemChanged();
     void audioDevicesChanged();
     void youtubePlaylistLoaded();
     void surfaceTransistionPerformed();
@@ -405,7 +417,11 @@ private:
     bool m_surfaceTransistionOnGoing;
     double m_lastSetPosition;
     PlayListModel *m_playlistModel;
-    QString m_file;
+    PlayListItem* m_currentEditItem;
+    QString m_loadedFileStructure;
+    QString m_separateAudioFile;
+    double m_startTime;
+    double m_endTime;
     QVariantList m_audioDevices;
     int m_videoWidth;
     int m_videoHeight;

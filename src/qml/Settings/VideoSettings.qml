@@ -174,7 +174,6 @@ SettingsBasePage {
                 enabled: VideoSettings.plane_Calculate_Size_Based_on_Video !== 1
                 stepSize: 1
                 value: mpv.planeWidth
-                onValueChanged: mpv.planeWidth = value
             }
 
             LabelWithTooltip {
@@ -199,7 +198,6 @@ SettingsBasePage {
                 enabled: VideoSettings.plane_Calculate_Size_Based_on_Video !== 2
                 stepSize: 1
                 value: mpv.planeHeight
-                onValueChanged: mpv.planeHeight = value
             }
 
             LabelWithTooltip {

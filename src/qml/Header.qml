@@ -35,6 +35,11 @@ ToolBar {
             focusPolicy: Qt.NoFocus
         }
 
+        ToolButton {
+            action: actions.saveAsCPlayFileAction
+            focusPolicy: Qt.NoFocus
+        }
+
 //        ToolButton {
 //            action: actions.openUrlAction
 //            focusPolicy: Qt.NoFocus

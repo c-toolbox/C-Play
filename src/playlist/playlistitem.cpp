@@ -9,11 +9,8 @@
 
 #include <QFileInfo>
 #include <QUrl>
-
-QString PlayListItemData::mediaTitle() const
-{
-    return m_mediaTitle;
-}
+#include <QJsonDocument>
+#include <QJsonObject>
 
 QString PlayListItemData::filePath() const
 {
@@ -25,9 +22,19 @@ QString PlayListItemData::fileName() const
     return m_fileName;
 }
 
-QString PlayListItemData::folderPath() const
+QString PlayListItemData::fileFolderPath() const
 {
-    return m_folderPath;
+    return m_fileFolderPath;
+}
+
+QString PlayListItemData::mediaFile() const
+{
+    return m_mediaFile;
+}
+
+QString PlayListItemData::mediaTitle() const
+{
+    return m_mediaTitle;
 }
 
 QString PlayListItemData::duration() const
@@ -88,22 +95,8 @@ int PlayListItemData::index() const
 PlayListItem::PlayListItem(const QString &path, int i, QObject *parent)
     : QObject(parent)
 {
-    QUrl url(path);
-
-    if (url.scheme().startsWith("http")) {
-        setFilePath(url.toString());
-        setFileName(QStringLiteral(""));
-        setFolderPath(QStringLiteral(""));
-    } else {
-        QFileInfo fileInfo(path);
-        setFileName(fileInfo.fileName());
-        setFilePath(fileInfo.absoluteFilePath());
-        setFolderPath(fileInfo.absolutePath());
-    }
+    updateToNewFile(path);
     setIndex(i);
-    setIsPlaying(false);
-    setSeparateOverlayFile(QStringLiteral(""));
-    setSeparateAudioFile(QStringLiteral(""));
 }
 
 PlayListItem::PlayListItem(const PlayListItem& p1) {
@@ -114,14 +107,9 @@ PlayListItem::PlayListItem(const PlayListItemData& d) {
     setData(d);
 }
 
-QString PlayListItem::mediaTitle() const
-{
-    return m_data.m_mediaTitle;
-}
-
-void PlayListItem::setMediaTitle(const QString &title)
-{
-    m_data.m_mediaTitle = title;
+PlayListItem& PlayListItem::operator =(const PlayListItem& p1) {
+    PlayListItem* p2 = new PlayListItem(p1);
+    return *p2;
 }
 
 QString PlayListItem::filePath() const
@@ -144,14 +132,34 @@ void PlayListItem::setFileName(const QString &fileName)
     m_data.m_fileName = fileName;
 }
 
-QString PlayListItem::folderPath() const
+QUrl PlayListItem::fileFolderPath() const
 {
-    return m_data.m_folderPath;
+    return QUrl("file:///" + m_data.m_fileFolderPath);
 }
 
-void PlayListItem::setFolderPath(const QString &folderPath)
+void PlayListItem::setFileFolderPath(const QString &folderPath)
 {
-    m_data.m_folderPath = folderPath;
+    m_data.m_fileFolderPath = folderPath;
+}
+
+QString PlayListItem::mediaFile() const
+{
+    return m_data.m_mediaFile;
+}
+
+void PlayListItem::setMediaFile(const QString& file)
+{
+    m_data.m_mediaFile = file;
+}
+
+QString PlayListItem::mediaTitle() const
+{
+    return m_data.m_mediaTitle;
+}
+
+void PlayListItem::setMediaTitle(const QString& title)
+{
+    m_data.m_mediaTitle = title;
 }
 
 QString PlayListItem::duration() const
@@ -264,10 +272,94 @@ void PlayListItem::setIndex(int index)
     m_data.m_index = index;
 }
 
+void PlayListItem::saveAsJSONPlayFile(const QString& path) const {
+    QJsonDocument doc;
+    QJsonObject obj = doc.object();
+
+    QString fileToSave = path;
+    fileToSave.replace("file:///", "");
+
+    obj.insert("video", filePath());
+
+    if (!separateOverlayFile().isEmpty())
+        obj.insert("overlay", separateOverlayFile());
+
+    if (!separateAudioFile().isEmpty())
+        obj.insert("audio", separateAudioFile());
+
+    if (!mediaTitle().isEmpty())
+        obj.insert("title", mediaTitle());
+
+    obj.insert("duration", QString::number(endTime() - startTime()));
+
+    QString grid;
+    int gridIdx = gridToMapOn();
+    if (gridIdx == 1) {
+        grid = "plane";
+    }
+    else if (gridIdx == 2) {
+        grid = "dome";
+    }
+    else if (gridIdx == 3) {
+        grid = "sphere-eqr";
+    }
+    else if (gridIdx == 4) {
+        grid = "sphere-eac";
+    }
+    else { // 0
+        grid = "pre-split";
+    }
+    obj.insert("grid", grid);
+
+    QString sv;
+    int stereoVideoIdx = stereoVideo();
+    if (stereoVideoIdx == 1) {
+        sv = "side-by-side";
+    }
+    else if (stereoVideoIdx == 2) {
+        sv = "top-bottom";
+    }
+    else if (stereoVideoIdx == 3) {
+        sv = "top-bottom-flip";
+    }
+    else { // 0
+        sv = "no";
+    }
+    obj.insert("stereoscopic", sv);
+
+    doc.setObject(obj);
+
+    QFile jsonFile(fileToSave);
+    jsonFile.open(QFile::WriteOnly);
+    jsonFile.write(doc.toJson());
+    jsonFile.close();
+}
+
 PlayListItemData PlayListItem::data() const {
     return m_data;
 }
 
 void PlayListItem::setData(PlayListItemData d) {
     m_data = d;
+}
+
+void PlayListItem::updateToNewFile(const QString& path) {
+    QUrl url(path);
+
+    if (url.scheme().startsWith("http")) {
+        setFilePath(url.toString());
+        setFileName(QStringLiteral(""));
+        setFileFolderPath(QStringLiteral(""));
+        setMediaFile(url.toString());
+    }
+    else {
+        QFileInfo fileInfo(path);
+        setFileName(fileInfo.fileName());
+        setFilePath(fileInfo.absoluteFilePath());
+        setFileFolderPath(fileInfo.absolutePath());
+        setMediaFile(fileInfo.absoluteFilePath());
+    }
+    setIsPlaying(false);
+    setSeparateOverlayFile(QStringLiteral(""));
+    setSeparateAudioFile(QStringLiteral(""));
 }

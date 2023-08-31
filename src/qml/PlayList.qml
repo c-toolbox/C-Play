@@ -17,6 +17,7 @@ Rectangle {
 
     property alias scrollPositionTimer: scrollPositionTimer
     property alias playlistView: playlistView
+    property alias playlistName: playlistName
     property bool canToggleWithMouse: PlaylistSettings.canToggleWithMouse
     property string position: PlaylistSettings.position
     property int rowHeight: PlaylistSettings.rowHeight
@@ -26,7 +27,8 @@ Rectangle {
     height: mpv.height
     width: {
         if (PlaylistSettings.style === "compact") {
-            return Kirigami.Units.gridUnit * 20
+            //return Kirigami.Units.gridUnit * 20
+            return Kirigami.Units.gridUnit * 30
         } else {
             const w = Kirigami.Units.gridUnit * 30
             return (parent.width * 0.33) < w ? w : parent.width * 0.33
@@ -47,6 +49,7 @@ Rectangle {
             Button {
                 icon.name: "list-add"
                 onClicked: {
+                    addToPlaylistDialog.open()
                 }
                 ToolTip {
                     text: qsTr("Add to playlist")
@@ -64,6 +67,8 @@ Rectangle {
             Button {
                 icon.name: "edit-entry"
                 onClicked: {
+                    mpv.setCurrentEditItemFromPlaylist(playlistView.currentIndex)
+                    saveAsCPlayFileWindow.visible = true
                 }
                 ToolTip {
                     text: qsTr("Edit playlist entry")
@@ -72,9 +77,28 @@ Rectangle {
             Button {
                 icon.name: "system-save-session"
                 onClicked: {
+                    saveCPlayPlaylistDialog.open()
                 }
                 ToolTip {
                     text: qsTr("Save playlist")
+                }
+            }
+            Button {
+                icon.name: "kdenlive-zindex-up"
+                onClicked: {
+                    mpv.playlistModel.moveItemUp(playlistView.currentIndex)
+                }
+                ToolTip {
+                    text: qsTr("Move selected upwards")
+                }
+            }
+            Button {
+                icon.name: "kdenlive-zindex-down"
+                onClicked: {
+                    mpv.playlistModel.moveItemDown(playlistView.currentIndex)
+                }
+                ToolTip {
+                    text: qsTr("Move selected downwards")
                 }
             }
             Item {
@@ -92,6 +116,7 @@ Rectangle {
             }
 
             Label {
+                id: playlistName
                 text: qsTr("Playlist: ") + mpv.playlistModel.getPlayListName()
             }
 

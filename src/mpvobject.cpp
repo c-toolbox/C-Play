@@ -102,6 +102,7 @@ MpvObject::MpvObject(QQuickItem * parent)
     , m_audioTracksModel(new TracksModel)
     , m_subtitleTracksModel(new TracksModel)
     , m_playlistModel(new PlayListModel)
+    , m_currentEditItem(nullptr)
 {
     if (!mpv)
         throw std::runtime_error("could not create mpv context");
@@ -212,6 +213,17 @@ PlayListModel *MpvObject::playlistModel()
 void MpvObject::setPlaylistModel(PlayListModel *model)
 {
     m_playlistModel = model;
+}
+
+PlayListItem* MpvObject::currentEditItem() 
+{
+    return m_currentEditItem;
+}
+
+void MpvObject::setCurrentEditItem(PlayListItem* item) 
+{
+    m_currentEditItem = item;
+    emit currentEditItemChanged();
 }
 
 QVariantList MpvObject::audioDevices() const
@@ -607,14 +619,16 @@ double MpvObject::planeWidth()
     return m_planeWidth;
 }
 
-void MpvObject::setPlaneWidth(double value)
+void MpvObject::setPlaneWidth(double value, bool updatePlane)
 {
     SyncHelper::instance().variables.planeWidth = value;
     if (m_planeWidth == value) {
         return;
     }
     m_planeWidth = value;
-    emit planeChanged();
+
+    if(updatePlane)
+        emit planeChanged();
 }
 
 double MpvObject::planeHeight()
@@ -622,14 +636,16 @@ double MpvObject::planeHeight()
     return m_planeHeight;
 }
 
-void MpvObject::setPlaneHeight(double value)
+void MpvObject::setPlaneHeight(double value, bool updatePlane)
 {
     SyncHelper::instance().variables.planeHeight = value;
     if (m_planeHeight == value) {
         return;
     }
     m_planeHeight = value;
-    emit planeChanged();
+
+    if (updatePlane)
+        emit planeChanged();
 }
 
 double MpvObject::planeElevation()
@@ -730,10 +746,7 @@ QQuickFramebufferObject::Renderer *MpvObject::createRenderer() const
 
 QString MpvObject::getFileContent(const QString& file)
 {
-    QString fileToLoad = file;
-    fileToLoad.replace("file:///", "");
-    qInfo() << "getFileContent: " << fileToLoad;
-    QFile f(fileToLoad);
+    QFile f(file);
     f.open(QIODevice::ReadOnly);
     QString content = f.readAll();
     f.close();
@@ -744,6 +757,7 @@ void MpvObject::loadFile(const QString &file, bool updateLastPlayedFile)
 {
     QFileInfo fi(file);
     QString ext = fi.suffix();
+    m_playlistModel->setPlayListName("");
 
     if (ext == "fdv") {
         PlayListItem* videoFile = loadUniviewFDV(file);
@@ -762,10 +776,19 @@ void MpvObject::loadFile(const QString &file, bool updateLastPlayedFile)
         loadJSONPlayList(file);
     }
     else {
-        command(QStringList() << "loadfile" << file, true);
-        SyncHelper::instance().variables.loadedFile = file.toStdString();
+        QString fileToLoad = file;
+        fileToLoad.replace("file:///", "");
+
+        m_loadedFileStructure = fileToLoad;
+        m_separateAudioFile = "";
+        m_startTime = 0;
+        m_endTime = 0;
+        SyncHelper::instance().variables.loadedFile = fileToLoad.toStdString();
         SyncHelper::instance().variables.overlayFile = "";
         SyncHelper::instance().variables.loadFile = true;
+
+        setProperty("lavfi-complex", "");
+        command(QStringList() << "loadfile" << fileToLoad, true);
     }
 
     if (updateLastPlayedFile) {
@@ -775,6 +798,52 @@ void MpvObject::loadFile(const QString &file, bool updateLastPlayedFile)
         GeneralSettings::setLastPlaylistIndex(m_playlistModel->getPlayingVideo());
         GeneralSettings::self()->save();
     }
+}
+
+void MpvObject::addFileToPlaylist(const QString& file) {
+    QFileInfo fi(file);
+    QString ext = fi.suffix();
+    PlayListItem* item = nullptr;
+    
+    if (ext == "fdv") {
+        item = loadUniviewFDV(file);
+    }
+    else if (ext == "cplay_file") {
+        item = loadJSONPlayfile(file);
+    }
+
+    if (item) {
+        m_playlistModel->addItem(item);
+    }
+}
+
+void MpvObject::setLoadedAsCurrentEditItem() {
+    if (!m_currentEditItem)
+        m_currentEditItem = new PlayListItem(m_loadedFileStructure);
+    else
+        m_currentEditItem->updateToNewFile(m_loadedFileStructure);
+
+    m_currentEditItem->setMediaFile(QString::fromStdString(SyncHelper::instance().variables.loadedFile));
+    m_currentEditItem->setSeparateOverlayFile(QString::fromStdString(SyncHelper::instance().variables.overlayFile));
+    m_currentEditItem->setSeparateAudioFile(m_separateAudioFile);
+    m_currentEditItem->setMediaTitle(mediaTitle());
+    m_currentEditItem->setDuration(Application::formatTime(duration()));
+    if (m_startTime + m_endTime > 0) {
+        m_currentEditItem->setStartTime(m_startTime);
+        m_currentEditItem->setEndTime(m_endTime);
+    }
+    else {
+        m_currentEditItem->setStartTime(0);
+        m_currentEditItem->setEndTime(duration());
+    }
+    m_currentEditItem->setGridToMapOn(gridToMapOn());
+    m_currentEditItem->setStereoVideo(stereoscopicVideo());
+    m_currentEditItem->setLoopMode(loopMode());
+    emit currentEditItemChanged();
+}
+
+void MpvObject::setCurrentEditItemFromPlaylist(int playListIndex) {
+    setCurrentEditItem(m_playlistModel->getItem(playListIndex));
 }
 
 void MpvObject::loadItem(int playListIndex, bool updateLastPlayedFile) {
@@ -801,14 +870,15 @@ void MpvObject::loadItem(PlayListItemData itemData, bool updateLastPlayedFile, Q
 
         if (itemData.separateAudioFile() != "") {
             optionsList << "audio-file=" + itemData.separateAudioFile();
-        }
+        }   
 
         QString options = "";
         if (optionsList.size() > 0) {
             options = optionsList.join(",");
         }
 
-        QStringList newCommand = QStringList() << "loadfile" << itemData.filePath() << flag << options;
+        m_loadedFileStructure = itemData.filePath();
+        QStringList newCommand = QStringList() << "loadfile" << itemData.mediaFile() << flag << options;
         
         qInfo() << newCommand;
         
@@ -821,9 +891,13 @@ void MpvObject::loadItem(PlayListItemData itemData, bool updateLastPlayedFile, Q
             setProperty("lavfi-complex", "");
         }
         
-        SyncHelper::instance().variables.loadedFile = itemData.filePath().toStdString();
+        m_loadedFileStructure = itemData.filePath();
+        SyncHelper::instance().variables.loadedFile = itemData.mediaFile().toStdString();
         SyncHelper::instance().variables.overlayFile = itemData.separateOverlayFile().toStdString();
         SyncHelper::instance().variables.loadFile = true;
+        m_separateAudioFile = itemData.separateAudioFile();
+        m_startTime = itemData.startTime();
+        m_endTime = itemData.endTime();
 
         if (itemData.gridToMapOn() >= 0)
             setGridToMapOn(itemData.gridToMapOn());
@@ -846,7 +920,13 @@ void MpvObject::loadItem(PlayListItemData itemData, bool updateLastPlayedFile, Q
 
 PlayListItem* MpvObject::loadUniviewFDV(const QString& file)
 {
-    QString fileContent = getFileContent(file);
+    QString fileToLoad = file;
+    fileToLoad.replace("file:///", "");
+    QFileInfo fileInfo(fileToLoad);
+    if (!fileInfo.exists())
+        return nullptr;
+
+    QString fileContent = getFileContent(fileToLoad);
     QStringList fileEntries = fileContent.split(QRegExp("[\r\n]"), QString::SkipEmptyParts);
     qInfo() << "File Content: " << fileEntries;
 
@@ -866,7 +946,8 @@ PlayListItem* MpvObject::loadUniviewFDV(const QString& file)
         QString title = fileEntries.at(3).mid(6); //"Title="
         double duration = fileEntries.at(4).mid(9).toDouble(); //"Duration="
 
-        auto video = new PlayListItem(videoFile);
+        auto video = new PlayListItem(fileToLoad);
+        video->setMediaFile(videoFile);
         video->setSeparateAudioFile(audioFile);
         video->setMediaTitle(title);
         video->setFileName(title);
@@ -881,24 +962,26 @@ PlayListItem* MpvObject::loadUniviewFDV(const QString& file)
         return video;
     }
     else {
-        auto video = new PlayListItem(file);
+        auto video = new PlayListItem(fileToLoad);
         return video;
     }
 }
 
 void MpvObject::loadUniviewPlaylist(const QString& file)
 {
-    QString fileContent = getFileContent(file);
+    QString fileToLoad = file;
+    fileToLoad.replace("file:///", "");
+    QFileInfo fileInfo(fileToLoad);
+    if (!fileInfo.exists())
+        return;
+
+    QString fileContent = getFileContent(fileToLoad);
     QStringList playListEntries = fileContent.split(QRegExp("[\r\n]"), QString::SkipEmptyParts);
 
     int videoItems = playListEntries.at(1).mid(14).toInt(); //"NumberOfItems="
 
     m_playlistModel->clear();
     Playlist m_playList;
-
-    QString fileToLoad = file;
-    fileToLoad.replace("file:///", "");
-    QFileInfo fileInfo(fileToLoad);
 
     for (int i = 0; i < videoItems; ++i) {
         int itemStart = (i * 7) + 2;
@@ -938,6 +1021,7 @@ void MpvObject::loadUniviewPlaylist(const QString& file)
     }
 
     m_playlistModel->setPlayListName(fileInfo.baseName());
+    m_playlistModel->setPlayListPath(fileToLoad);
 
     // save playlist to disk
     m_playlistModel->setPlayList(m_playList);
@@ -951,7 +1035,7 @@ PlayListItem* MpvObject::loadJSONPlayfile(const QString& file) {
     if (!jsonFileInfo.exists())
         return NULL;
 
-    QString fileContent = getFileContent(file);
+    QString fileContent = getFileContent(fileToLoad);
     QJsonDocument doc = QJsonDocument::fromJson(fileContent.toUtf8());
     if (doc.isNull())
     {
@@ -967,18 +1051,18 @@ PlayListItem* MpvObject::loadJSONPlayfile(const QString& file) {
         QString videoFile = obj.value("video").toString();
         QFileInfo videoFileInfo(videoFile);
         if (videoFileInfo.exists())
-            item->setFilePath(videoFile);
+            item->setMediaFile(videoFile);
         else if(videoFileInfo.isRelative()){ //Check first if next to JSON file
             QString videoFileNextToJSONfile = QDir::cleanPath(jsonFileInfo.absoluteDir().absolutePath() + QDir::separator() + videoFile);
             QFileInfo videoFileInfoNextToJsonFile(videoFileNextToJSONfile);
             if (videoFileInfoNextToJsonFile.exists())
-                item->setFilePath(videoFileNextToJSONfile);
+                item->setMediaFile(videoFileNextToJSONfile);
             else { // Check if stored in Uniview video folder
                 QString fileUniviewMainPath = GeneralSettings::univiewVideoLocation();
                 QString videoFileAbsoluteUniview = QDir::cleanPath(fileUniviewMainPath + QDir::separator() + videoFile);
                 QFileInfo videoFileInfoUniview(videoFileAbsoluteUniview);
                 if (videoFileInfoUniview.exists())
-                    item->setFilePath(videoFileAbsoluteUniview);
+                    item->setMediaFile(videoFileAbsoluteUniview);
             }
         }
     }
@@ -1029,9 +1113,27 @@ PlayListItem* MpvObject::loadJSONPlayfile(const QString& file) {
         item->setFileName(title);
     }
 
+    bool durationFound = false;
     if (obj.contains("duration")) {
+        durationFound = true;
         double duration = obj.value("duration").toDouble();
         item->setDuration(Application::formatTime(duration));
+        item->setStartTime(0);
+        item->setEndTime(duration);
+    }
+
+    if (obj.contains("startime")) {
+        item->setStartTime(obj.value("startime").toDouble());
+    }
+    else {
+        item->setStartTime(0);
+    }
+
+    if (obj.contains("endtime")) {
+        item->setStartTime(obj.value("startime").toDouble());
+    }
+    else if (!durationFound) {
+        item->setEndTime(0);
     }
 
     if (obj.contains("grid")) {
@@ -1109,7 +1211,7 @@ void MpvObject::loadJSONPlayList(const QString& file) {
     if (!jsonFileInfo.exists())
         return;
 
-    QString fileContent = getFileContent(file);
+    QString fileContent = getFileContent(fileToLoad);
     QJsonDocument doc = QJsonDocument::fromJson(fileContent.toUtf8());
     if (doc.isNull())
     {
@@ -1143,34 +1245,34 @@ void MpvObject::loadJSONPlayList(const QString& file) {
                 }
             }
 
-            QString videoFileExt = filePathInfo.suffix();
-            PlayListItem* video;
+            QString fileExt = filePathInfo.suffix();
+            PlayListItem* file;
 
-            if (videoFileExt == "cplay_file") {
-                video = loadJSONPlayfile(filePath);
+            if (fileExt == "cplay_file") {
+                file = loadJSONPlayfile(filePath);
             }
-            else if (videoFileExt == "fdv") {
-                video = loadUniviewFDV(filePath);
+            else if (fileExt == "fdv") {
+                file = loadUniviewFDV(filePath);
             }
             else {
-                video = new PlayListItem(filePath);
+                file = new PlayListItem(filePath);
             }
 
-            if (video != NULL) {
+            if (file != NULL) {
                 if (o.contains("on_file_end")) {
                     QString loopMode = o.value("on_file_end").toString();
                     if (loopMode == "continue") {
-                        video->setLoopMode(0);
+                        file->setLoopMode(0);
                     }
                     else if (loopMode == "pause") {
-                        video->setLoopMode(1);
+                        file->setLoopMode(1);
                     }
                     else if (loopMode == "loop") {
-                        video->setLoopMode(2);
+                        file->setLoopMode(2);
                     }
                 }
 
-                m_playList.append(QPointer<PlayListItem>(video));
+                m_playList.append(QPointer<PlayListItem>(file));
             }
             else
                 qDebug() << "Parsing file failed: " << filePath;
@@ -1178,6 +1280,7 @@ void MpvObject::loadJSONPlayList(const QString& file) {
     }
 
     m_playlistModel->setPlayListName(jsonFileInfo.baseName());
+    m_playlistModel->setPlayListPath(fileToLoad);
 
     // save playlist to disk
     m_playlistModel->setPlayList(m_playList);
@@ -1406,7 +1509,7 @@ void MpvObject::updatePlane() {
             ratio *= 2.0f;
         }
 
-        setPlaneWidth(ratio * planeHeight());
+        setPlaneWidth(ratio * planeHeight(), false);
     }
     else if (pcsbov == 2) { //Calculate height from video
         double ratio = double(m_videoHeight) / double(m_videoWidth);
@@ -1422,7 +1525,7 @@ void MpvObject::updatePlane() {
             ratio *= 2.0f;
         }
 
-        setPlaneHeight(ratio * planeWidth());
+        setPlaneHeight(ratio * planeWidth(), false);
     }
 }
 

@@ -47,18 +47,25 @@ public:
     void setPlayListName(QString name);
     Q_INVOKABLE QString getPlayListName() const;
 
+    void setPlayListPath(QString path);
+    Q_INVOKABLE QString getPlayListPath() const;
+
     Q_INVOKABLE QString getPath(int i);
     Q_INVOKABLE QPointer<PlayListItem> getItem(int i);
+    Q_INVOKABLE void addItem(PlayListItem* item);
     Q_INVOKABLE void removeItem(int i);
+    Q_INVOKABLE void moveItemUp(int i);
+    Q_INVOKABLE void moveItemDown(int i);
 
     Q_INVOKABLE void setPlayingVideo(int playingVideo);
     Q_INVOKABLE int getPlayingVideo() const;
     Q_INVOKABLE void getVideos(QString path);
     Q_INVOKABLE void clear();
-    Q_INVOKABLE QString mediaTitle(int i) const;
     Q_INVOKABLE QString filePath(int i) const;
     Q_INVOKABLE QString fileName(int i) const;
-    Q_INVOKABLE QString folderPath(int i) const;
+    Q_INVOKABLE QUrl fileFolderPath(int i) const;
+    Q_INVOKABLE QString mediaFile(int i) const;
+    Q_INVOKABLE QString mediaTitle(int i) const;
     Q_INVOKABLE QString duration(int i) const;
     Q_INVOKABLE QString separateAudioFile(int i) const;
     Q_INVOKABLE double startTime(int i) const;
@@ -69,6 +76,8 @@ public:
     Q_INVOKABLE int gridToMapOn(int i) const;
     Q_INVOKABLE int stereoVideo(int i) const;
 
+    Q_INVOKABLE void saveAsJSONPlaylist(const QString& path);
+
 signals:
     void videoAdded(int index, QString path);
     void playingVideoChanged();
@@ -77,7 +86,8 @@ private:
     Playlist items() const;
     QString configFolder();
     Playlist m_playList;
-    QString playListName;
+    QString m_playListName;
+    QString m_playListPath;
     int m_playingVideo = 0;
     int m_defaultLoopMode = 2; // Looping
     KSharedConfig::Ptr m_config;

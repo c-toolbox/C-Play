@@ -28,10 +28,15 @@ Kirigami.ApplicationWindow {
 
     visible: true
     title: mpv.mediaTitle || qsTr("C-Play")
-    width: 1536
+    /*width: 1536
     minimumWidth: 1152
     height: 880
-    minimumHeight: 660
+    minimumHeight: 660*/
+    //Below, only for remote debugging
+    width: 1152
+    minimumWidth: 864
+    height: 660
+    minimumHeight: 495
     color: Kirigami.Theme.backgroundColor
 
     onVisibilityChanged: {
@@ -79,6 +84,8 @@ Kirigami.ApplicationWindow {
 
     SettingsEditor { id: settingsEditor }
 
+    SaveAsCPlayFile { id: saveAsCPlayFileWindow }
+
     Actions { id: actions }
 
     MpvVideo {
@@ -91,25 +98,85 @@ Kirigami.ApplicationWindow {
 
     Footer { id: footer }
 
+    property url location: GeneralSettings.fileDialogLocation
+                           ? app.pathToUrl(GeneralSettings.fileDialogLocation)
+                           : app.pathToUrl(GeneralSettings.fileDialogLastLocation)
+
     Platform.FileDialog {
-        id: fileDialog
-
-        property url location: GeneralSettings.fileDialogLocation
-                               ? app.pathToUrl(GeneralSettings.fileDialogLocation)
-                               : app.pathToUrl(GeneralSettings.fileDialogLastLocation)
-
+        id: openFileDialog
         folder: location
-        title: "Select file"
+        title: "Open File"
         fileMode: Platform.FileDialog.OpenFile
 
         onAccepted: {
-            openFile(fileDialog.file.toString(), true, PlaylistSettings.loadSiblings)
+            openFile(openFileDialog.file.toString(), true, PlaylistSettings.loadSiblings)
             // the timer scrolls the playlist to the playing file
             // once the table view rows are loaded
             playList.scrollPositionTimer.start()
+            updatePlayListHeader()
             mpv.focus = true
 
-            GeneralSettings.fileDialogLastLocation = app.parentUrl(fileDialog.file)
+            GeneralSettings.fileDialogLastLocation = app.parentUrl(openFileDialog.file)
+            GeneralSettings.save()
+        }
+        onRejected: mpv.focus = true
+    }
+
+    Platform.FileDialog {
+        id: addToPlaylistDialog
+        folder: location
+        title: "Add file to playlist"
+        fileMode: Platform.FileDialog.OpenFile
+        nameFilters: [ "C-Play file (*.cplay_file)", "Uniview file (*.fdv)" ]
+
+        onAccepted: {
+            mpv.addFileToPlaylist(addToPlaylistDialog.file.toString())
+            mpv.focus = true
+
+            GeneralSettings.fileDialogLastLocation = app.parentUrl(openFileDialog.file)
+            GeneralSettings.save()
+        }
+        onRejected: mpv.focus = true
+    }
+
+    Platform.FileDialog {
+        id: saveCPlayFileDialog
+
+        folder: location
+        title: "Save C-Play File Config"
+        fileMode: Platform.FileDialog.SaveFile
+        nameFilters: [ "C-Play file (*.cplay_file)" ]
+
+        onVisibleChanged: {
+            if(mpv.currentEditItem) {
+                location = mpv.currentEditItem.fileFolderPath()
+            }
+        }
+
+        onAccepted: {
+            saveCPlayFile(saveCPlayFileDialog.file.toString())
+            mpv.focus = true
+
+            GeneralSettings.fileDialogLastLocation = app.parentUrl(saveCPlayFileDialog.file)
+            GeneralSettings.save()
+        }
+        onRejected: mpv.focus = true
+    }
+
+    Platform.FileDialog {
+        id: saveCPlayPlaylistDialog
+
+        folder: location
+        title: "Save C-Play File Config"
+        fileMode: Platform.FileDialog.SaveFile
+        nameFilters: [ "C-Play playlist (*.cplay_playlist)" ]
+
+        onAccepted: {
+            saveCPlayPlaylist(saveCPlayPlaylistDialog.file.toString())
+            updatePlayListHeader()
+            mpv.focus = true
+
+            GeneralSettings.fileDialogLastLocation = app.parentUrl(saveCPlayPlaylistDialog.file)
             GeneralSettings.save()
         }
         onRejected: mpv.focus = true
@@ -174,12 +241,12 @@ Kirigami.ApplicationWindow {
 
     function openFile(path, startPlayback, loadSiblings) {
 
-        if (app.isYoutubePlaylist(path)) {
+        /*if (app.isYoutubePlaylist(path)) {
             mpv.getYouTubePlaylist(path);
             playList.isYouTubePlaylist = true
         } else {
             playList.isYouTubePlaylist = false
-        }
+        }*/
 
         mpv.playlistModel.clear()
         mpv.pause = !startPlayback
@@ -188,6 +255,21 @@ Kirigami.ApplicationWindow {
             mpv.playlistModel.getVideos(path)
         }
         mpv.loadFile(path)
+    }
+
+    function saveCPlayFile(path) {
+        mpv.currentEditItem.saveAsJSONPlayFile(path)
+    }
+
+    function saveCPlayPlaylist(path) {
+        mpv.playlistModel.saveAsJSONPlaylist(path)
+    }
+
+    function updatePlayListHeader() {
+        if(mpv.playlistModel.getPlayListName() !== "")
+            playList.playlistName.text = qsTr("Playlist: ") + mpv.playlistModel.getPlayListName()
+        else
+            playList.playlistName.text = qsTr("")
     }
 
     function isFullScreen() {

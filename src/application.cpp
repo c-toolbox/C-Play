@@ -471,7 +471,7 @@ void Application::setupActions(const QString &actionName)
         action->setText(i18n("Configure Keyboard Shortcuts"));
         action->setIcon(QIcon::fromTheme("configure-shortcuts"));
         connect(action, &QAction::triggered, this, &Application::configureShortcuts);
-        m_collection.setDefaultShortcut(action, Qt::CTRL + Qt::SHIFT + Qt::Key_S);
+        m_collection.setDefaultShortcut(action, Qt::CTRL + Qt::ALT + Qt::Key_S);
         m_collection.addAction(actionName, action);
     }
     if (actionName == QStringLiteral("configure")) {
@@ -511,6 +511,14 @@ void Application::setupActions(const QString &actionName)
         action->setText(i18n("Open File"));
         action->setIcon(QIcon::fromTheme("folder-videos-symbolic"));
         m_collection.setDefaultShortcut(action, Qt::CTRL + Qt::Key_O);
+        m_collection.addAction(actionName, action);
+    }
+
+    if (actionName == QStringLiteral("saveAsCPlayFile")) {
+        auto action = new HAction();
+        action->setText(i18n("Save As C-Play file"));
+        action->setIcon(QIcon::fromTheme("document-save-as"));
+        m_collection.setDefaultShortcut(action, Qt::CTRL + Qt::SHIFT + Qt::Key_S);
         m_collection.addAction(actionName, action);
     }
 

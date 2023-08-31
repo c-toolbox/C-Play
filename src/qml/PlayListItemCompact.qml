@@ -25,7 +25,7 @@ Kirigami.BasicListItem {
     padding: 0
     icon: model.isPlaying ? "media-playback-start" : ""
     backgroundColor: {
-        let color = model.isPlaying ? Kirigami.Theme.highlightColor : Kirigami.Theme.backgroundColor
+        let color = Kirigami.Theme.backgroundColor
         Qt.hsla(color.hslHue, color.hslSaturation, color.hslLightness, alpha)
     }
     Timer {

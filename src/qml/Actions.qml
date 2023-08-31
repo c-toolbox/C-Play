@@ -173,7 +173,7 @@ QtObject {
 
         Component.onCompleted: list["openAction"] = openAction
 
-        onTriggered: fileDialog.open()
+        onTriggered: openFileDialog.open()
     }
 
     property Action openUrlAction: Action {
@@ -191,6 +191,21 @@ QtObject {
             } else {
                 openUrlPopup.open()
             }
+        }
+    }
+
+    property Action saveAsCPlayFileAction: Action {
+        id: saveAsCPlayFileAction
+        property var qaction: app.action("saveAsCPlayFile")
+        text: qaction.text
+        shortcut: qaction.shortcutName()
+        icon.name: qaction.iconName()
+
+        Component.onCompleted: list["saveAsCPlayFileAction"] = saveAsCPlayFileAction
+
+        onTriggered: {
+            mpv.setLoadedAsCurrentEditItem()
+            saveAsCPlayFileWindow.visible = true
         }
     }
 
