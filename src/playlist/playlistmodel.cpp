@@ -8,6 +8,7 @@
 #include "playlistitem.h"
 #include "_debug.h"
 #include "application.h"
+#include "generalsettings.h"
 #include "worker.h"
 
 #include <QCollator>
@@ -376,12 +377,28 @@ int PlayListModel::stereoVideo(int i) const
         return 0;
 }
 
+QString PlayListModel::makePathRelativeTo(const QString& filePath, const QStringList& pathsToConsider) {
+    // Assuming filePath is absolute
+    for (int i = 0; i < pathsToConsider.size(); i++) {
+        if (filePath.startsWith(pathsToConsider[i])) {
+            QDir foundDir(pathsToConsider[i]);
+            return foundDir.relativeFilePath(filePath);
+        }
+    }
+    return filePath;
+}
+
 void PlayListModel::saveAsJSONPlaylist(const QString& path) {
     QJsonDocument doc;
     QJsonObject obj = doc.object();
 
     QString fileToSave = path;
     fileToSave.replace("file:///", "");
+    QFileInfo fileToSaveInfo(fileToSave);
+
+    QStringList pathsToConsider;
+    pathsToConsider.append(GeneralSettings::cPlayFileLocation());
+    pathsToConsider.append(fileToSaveInfo.absoluteDir().absolutePath());
 
     QJsonArray playlistArray;
     for (int i=0; i < m_playList.size(); i++)
@@ -403,7 +420,9 @@ void PlayListModel::saveAsJSONPlaylist(const QString& path) {
             break;
         }
 
-        item_data.insert("file", QJsonValue(m_playList[i]->filePath()));
+        QString checkedFilePath = makePathRelativeTo(m_playList[i]->filePath(), pathsToConsider);
+
+        item_data.insert("file", QJsonValue(checkedFilePath));
         item_data.insert("on_file_end", QJsonValue(loopModeText));
 
         playlistArray.push_back(QJsonValue(item_data));

@@ -93,13 +93,11 @@ Kirigami.ApplicationWindow {
 
     Footer { id: footer }
 
-    property url location: GeneralSettings.fileDialogLocation
-                           ? app.pathToUrl(GeneralSettings.fileDialogLocation)
-                           : app.pathToUrl(GeneralSettings.fileDialogLastLocation)
-
     Platform.FileDialog {
         id: openFileDialog
-        folder: location
+        folder: GeneralSettings.fileDialogLocation !== ""
+                ? app.pathToUrl(GeneralSettings.fileDialogLocation)
+                : app.pathToUrl(GeneralSettings.fileDialogLastLocation)
         title: "Open File"
         fileMode: Platform.FileDialog.OpenFile
 
@@ -119,7 +117,9 @@ Kirigami.ApplicationWindow {
 
     Platform.FileDialog {
         id: addToPlaylistDialog
-        folder: location
+        folder: GeneralSettings.fileDialogLocation !== ""
+                ? app.pathToUrl(GeneralSettings.fileDialogLocation)
+                : app.pathToUrl(GeneralSettings.fileDialogLastLocation)
         title: "Add file to playlist"
         fileMode: Platform.FileDialog.OpenFile
         nameFilters: [ "C-Play file (*.cplay_file)", "Uniview file (*.fdv)" ]
@@ -128,7 +128,7 @@ Kirigami.ApplicationWindow {
             mpv.addFileToPlaylist(addToPlaylistDialog.file.toString())
             mpv.focus = true
 
-            GeneralSettings.fileDialogLastLocation = app.parentUrl(openFileDialog.file)
+            GeneralSettings.fileDialogLastLocation = app.parentUrl(addToPlaylistDialog.file)
             GeneralSettings.save()
         }
         onRejected: mpv.focus = true
@@ -137,7 +137,9 @@ Kirigami.ApplicationWindow {
     Platform.FileDialog {
         id: saveCPlayFileDialog
 
-        folder: location
+        folder: GeneralSettings.fileDialogLocation !== ""
+                ? app.pathToUrl(GeneralSettings.fileDialogLocation)
+                : app.pathToUrl(GeneralSettings.fileDialogLastLocation)
         title: "Save C-Play File Config"
         fileMode: Platform.FileDialog.SaveFile
         nameFilters: [ "C-Play file (*.cplay_file)" ]
@@ -161,7 +163,9 @@ Kirigami.ApplicationWindow {
     Platform.FileDialog {
         id: saveCPlayPlaylistDialog
 
-        folder: location
+        folder: GeneralSettings.fileDialogLocation !== ""
+                ? app.pathToUrl(GeneralSettings.fileDialogLocation)
+                : app.pathToUrl(GeneralSettings.fileDialogLastLocation)
         title: "Save C-Play File Config"
         fileMode: Platform.FileDialog.SaveFile
         nameFilters: [ "C-Play playlist (*.cplay_playlist)" ]

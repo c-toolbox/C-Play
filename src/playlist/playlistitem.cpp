@@ -6,8 +6,10 @@
 
 #include "_debug.h"
 #include "playlistitem.h"
+#include "generalsettings.h"
 
 #include <QFileInfo>
+#include <QDir>
 #include <QUrl>
 #include <QJsonDocument>
 #include <QJsonObject>
@@ -272,20 +274,36 @@ void PlayListItem::setIndex(int index)
     m_data.m_index = index;
 }
 
+QString PlayListItem::makePathRelativeTo(const QString& filePath, const QStringList& pathsToConsider) const {
+    // Assuming filePath is absolute
+    for (int i = 0; i < pathsToConsider.size(); i++) {
+        if (filePath.startsWith(pathsToConsider[i])) {
+            QDir foundDir(pathsToConsider[i]);
+            return foundDir.relativeFilePath(filePath);
+        }
+    }
+    return filePath;
+}
+
 void PlayListItem::saveAsJSONPlayFile(const QString& path) const {
     QJsonDocument doc;
     QJsonObject obj = doc.object();
 
     QString fileToSave = path;
     fileToSave.replace("file:///", "");
+    QFileInfo fileToSaveInfo(fileToSave);
 
-    obj.insert("video", filePath());
+    QStringList pathsToConsider;
+    pathsToConsider.append(GeneralSettings::cPlayMediaLocation());
+    pathsToConsider.append(fileToSaveInfo.absoluteDir().absolutePath());
+
+    obj.insert("video", makePathRelativeTo(mediaFile(), pathsToConsider));
 
     if (!separateOverlayFile().isEmpty())
-        obj.insert("overlay", separateOverlayFile());
+        obj.insert("overlay", makePathRelativeTo(separateOverlayFile(), pathsToConsider));
 
     if (!separateAudioFile().isEmpty())
-        obj.insert("audio", separateAudioFile());
+        obj.insert("audio", makePathRelativeTo(separateAudioFile(), pathsToConsider));
 
     if (!mediaTitle().isEmpty())
         obj.insert("title", mediaTitle());

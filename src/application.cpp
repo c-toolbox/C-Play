@@ -321,7 +321,9 @@ QUrl Application::parentUrl(const QString &path)
 
 QUrl Application::pathToUrl(const QString &path)
 {
-    QUrl url(path);
+    QString correctedFilePath = path;
+    correctedFilePath.replace("file:///", "");
+    QUrl url("file:///" + correctedFilePath);
     if (!url.isValid()) {
         return QUrl();
     }

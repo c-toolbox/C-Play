@@ -77,6 +77,7 @@ public:
     Q_INVOKABLE int gridToMapOn(int i) const;
     Q_INVOKABLE int stereoVideo(int i) const;
 
+    Q_INVOKABLE QString makePathRelativeTo(const QString& filePath, const QStringList& pathsToConsider);
     Q_INVOKABLE void saveAsJSONPlaylist(const QString& path);
 
 signals:

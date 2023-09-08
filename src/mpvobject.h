@@ -333,6 +333,7 @@ public:
     virtual Renderer *createRenderer() const;
 
     Q_INVOKABLE QString getFileContent(const QString& file);
+    Q_INVOKABLE QString checkAndCorrectPath(const QString& filePath, const QStringList& searchPaths);
     Q_INVOKABLE void loadFile(const QString &file, bool updateLastPlayedFile = true);
     Q_INVOKABLE void addFileToPlaylist(const QString& file);
     Q_INVOKABLE void setLoadedAsCurrentEditItem();

@@ -7,6 +7,7 @@
 import QtQuick 2.0
 import QtQuick.Layouts 1.12
 import QtQuick.Controls 2.12
+import QtQuick.Dialogs 1.3
 
 import org.kde.kirigami 2.11 as Kirigami
 import com.georgefb.haruna 1.0
@@ -19,10 +20,98 @@ SettingsBasePage {
     hasHelp: true
     helpFile: ":/GeneralSettings.html"
 
+    FileDialog {
+        id: openPrimaryFileDialogLocation
+
+        folder: GeneralSettings.fileDialogLocation
+        selectFolder: true
+        title: "Choose Primary File Dialog Location"
+
+        onAccepted: {
+            var filePath = openPrimaryFileDialogLocation.fileUrl.toString();
+            // remove prefixed "file:///"
+            filePath = filePath.replace(/^(file:\/{3})/,"");
+
+            fileDialogLocation.text = filePath
+
+            GeneralSettings.fileDialogLocation = fileDialogLocation.text
+            GeneralSettings.save()
+
+            mpv.focus = true
+        }
+        onRejected: mpv.focus = true
+    }
+
+    FileDialog {
+        id: openCPlayFileLocation
+
+        folder: GeneralSettings.cPlayFileLocation
+        selectFolder: true
+        title: "Choose Common C-Play File Location"
+
+        onAccepted: {
+            var filePath = openCPlayFileLocation.fileUrl.toString();
+            // remove prefixed "file:///"
+            filePath = filePath.replace(/^(file:\/{3})/,"");
+
+            cPlayFileLocation.text = filePath
+
+            GeneralSettings.cPlayFileLocation = cPlayFileLocation.text
+            GeneralSettings.save()
+
+            mpv.focus = true
+        }
+        onRejected: mpv.focus = true
+    }
+
+    FileDialog {
+        id: openCPlayMediaLocation
+
+        folder: GeneralSettings.cPlayMediaLocation
+        selectFolder: true
+        title: "Choose Common C-Play Media Location"
+
+        onAccepted: {
+            var filePath = openCPlayMediaLocation.fileUrl.toString();
+            // remove prefixed "file:///"
+            filePath = filePath.replace(/^(file:\/{3})/,"");
+
+            cPlayMediaLocation.text = filePath
+
+            GeneralSettings.cPlayMediaLocation = cPlayMediaLocation.text
+            GeneralSettings.save()
+
+            mpv.focus = true
+        }
+        onRejected: mpv.focus = true
+    }
+
+    FileDialog {
+        id: openUniviewVideoLocation
+
+        folder: GeneralSettings.univiewVideoLocation
+        selectFolder: true
+        title: "Choose Common Uniview Media Location"
+
+        onAccepted: {
+            var filePath = openUniviewVideoLocation.fileUrl.toString();
+            // remove prefixed "file:///"
+            filePath = filePath.replace(/^(file:\/{3})/,"");
+
+            univiewVideoLocation.text = filePath
+
+            GeneralSettings.univiewVideoLocation = univiewVideoLocation.text
+            GeneralSettings.save()
+
+            mpv.focus = true
+        }
+        onRejected: mpv.focus = true
+    }
+
     GridLayout {
         id: content
 
-        columns: 2
+        columns: 3
 
         // OSD Font Size
         Label {
@@ -53,6 +142,7 @@ SettingsBasePage {
                 Component.onCompleted: completed = true
             }
             Layout.fillWidth: true
+            Layout.columnSpan: 2
         }
 
         // Volume Step
@@ -77,6 +167,7 @@ SettingsBasePage {
                 }
             }
             Layout.fillWidth: true
+            Layout.columnSpan: 2
         }
 
         // Seek Small Step
@@ -99,6 +190,7 @@ SettingsBasePage {
                 }
             }
             Layout.fillWidth: true
+            Layout.columnSpan: 2
         }
 
         // Seek Medium Step
@@ -121,6 +213,7 @@ SettingsBasePage {
                 }
             }
             Layout.fillWidth: true
+            Layout.columnSpan: 2
         }
 
         // Seek Big Step
@@ -143,6 +236,7 @@ SettingsBasePage {
                 }
             }
             Layout.fillWidth: true
+            Layout.columnSpan: 2
         }
 
         Label {
@@ -168,6 +262,87 @@ SettingsBasePage {
                 }
             }
         }
+        ToolButton {
+            id: fileDialogLocationLoadButton
+            text: ""
+            icon.name: "system-file-manager"
+            icon.height: 16
+            focusPolicy: Qt.NoFocus
+
+            onClicked: {
+                openPrimaryFileDialogLocation.open()
+            }
+        }
+
+        Label {
+            text: qsTr("Common C-play file location")
+            Layout.alignment: Qt.AlignRight
+        }
+
+        Item {
+            height: cPlayFileLocation.height
+            Layout.fillWidth: true
+
+            TextField {
+                id: cPlayFileLocation
+
+                text: GeneralSettings.cPlayFileLocation
+                onEditingFinished: {
+                    GeneralSettings.cPlayFileLocation = cPlayFileLocation.text
+                    GeneralSettings.save()
+                }
+
+                ToolTip {
+                    text: qsTr("Common directory for where the cplay_file(s) are stored.")
+                }
+            }
+        }
+        ToolButton {
+            id: cPlayFileLocationLoadButton
+            text: ""
+            icon.name: "system-file-manager"
+            icon.height: 16
+            focusPolicy: Qt.NoFocus
+
+            onClicked: {
+                openCPlayFileLocation.open()
+            }
+        }
+
+        Label {
+            text: qsTr("Common C-play media location")
+            Layout.alignment: Qt.AlignRight
+        }
+
+        Item {
+            height: cPlayMediaLocation.height
+            Layout.fillWidth: true
+
+            TextField {
+                id: cPlayMediaLocation
+
+                text: GeneralSettings.cPlayMediaLocation
+                onEditingFinished: {
+                    GeneralSettings.cPlayMediaLocation = cPlayMediaLocation.text
+                    GeneralSettings.save()
+                }
+
+                ToolTip {
+                    text: qsTr("Common directory for where the media (video/audio/etc) are stored.")
+                }
+            }
+        }
+        ToolButton {
+            id: cPlayMediaLocationLoadButton
+            text: ""
+            icon.name: "system-file-manager"
+            icon.height: 16
+            focusPolicy: Qt.NoFocus
+
+            onClicked: {
+                openCPlayMediaLocation.open()
+            }
+        }
 
         Label {
             text: qsTr("Uniview video location")
@@ -188,14 +363,25 @@ SettingsBasePage {
                 }
 
                 ToolTip {
-                    text: qsTr("Where the video files are stored.")
+                    text: qsTr("Common directory where the Uniview video files are stored.")
                 }
+            }
+        }
+        ToolButton {
+            id: univiewVideoLocationLoadButton
+            text: ""
+            icon.name: "system-file-manager"
+            icon.height: 16
+            focusPolicy: Qt.NoFocus
+
+            onClicked: {
+                openUniviewVideoLocation.open()
             }
         }
 
         SettingsHeader {
             text: qsTr("Interface")
-            Layout.columnSpan: 2
+            Layout.columnSpan: 3
             Layout.fillWidth: true
         }
 
@@ -206,7 +392,7 @@ SettingsBasePage {
                 GeneralSettings.showMenuBar = checked
                 GeneralSettings.save()
             }
-            Layout.row: 8
+            Layout.row: 10
             Layout.column: 1
         }
 
@@ -217,7 +403,7 @@ SettingsBasePage {
                 GeneralSettings.showHeader = checked
                 GeneralSettings.save()
             }
-            Layout.row: 9
+            Layout.row: 11
             Layout.column: 1
         }
 
@@ -228,8 +414,13 @@ SettingsBasePage {
                 GeneralSettings.showChapterMarkers = checked
                 GeneralSettings.save()
             }
-            Layout.row: 10
+            Layout.row: 12
             Layout.column: 1
+        }
+
+        Item {
+            // spacer item
+            Layout.fillWidth: true
         }
 
         Label {
@@ -267,6 +458,7 @@ SettingsBasePage {
             }
 
             Component.onCompleted: currentIndex = find(GeneralSettings.colorScheme)
+            Layout.columnSpan: 2
         }
 
         Label {
@@ -316,6 +508,7 @@ SettingsBasePage {
                     }
                 }
             }
+            Layout.columnSpan: 2
         }
 
         CheckBox {
@@ -325,7 +518,7 @@ SettingsBasePage {
                 GeneralSettings.useBreezeIconTheme = checked
                 GeneralSettings.save()
             }
-            Layout.row: 14
+            Layout.row: 16
             Layout.column: 1
 
             ToolTip {

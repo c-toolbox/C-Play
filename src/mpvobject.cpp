@@ -753,6 +753,21 @@ QString MpvObject::getFileContent(const QString& file)
     return content;
 }
 
+QString MpvObject::checkAndCorrectPath(const QString& filePath, const QStringList& searchPaths) {
+    QFileInfo fileInfo(filePath);
+    if (fileInfo.exists())
+        return filePath;
+    else if (fileInfo.isRelative()) { // Go through search list in order
+        for (int i = 0; i < searchPaths.size(); i++) {
+            QString newFilePath = QDir::cleanPath(searchPaths[i] + QDir::separator() + filePath);
+            QFileInfo newFilePathInfo(newFilePath);
+            if (newFilePathInfo.exists())
+                return newFilePath;
+        }
+    }
+    return "";
+}
+
 void MpvObject::loadFile(const QString &file, bool updateLastPlayedFile)
 {
     QFileInfo fi(file);
@@ -1047,64 +1062,31 @@ PlayListItem* MpvObject::loadJSONPlayfile(const QString& file) {
 
     auto item = new PlayListItem(fileToLoad);
 
+    QStringList fileSearchPaths;
+    fileSearchPaths.append(jsonFileInfo.absoluteDir().absolutePath());
+    fileSearchPaths.append(GeneralSettings::cPlayMediaLocation());
+    fileSearchPaths.append(GeneralSettings::cPlayFileLocation());
+    fileSearchPaths.append(GeneralSettings::univiewVideoLocation());
+
     if (obj.contains("video")) {
         QString videoFile = obj.value("video").toString();
-        QFileInfo videoFileInfo(videoFile);
-        if (videoFileInfo.exists())
-            item->setMediaFile(videoFile);
-        else if(videoFileInfo.isRelative()){ //Check first if next to JSON file
-            QString videoFileNextToJSONfile = QDir::cleanPath(jsonFileInfo.absoluteDir().absolutePath() + QDir::separator() + videoFile);
-            QFileInfo videoFileInfoNextToJsonFile(videoFileNextToJSONfile);
-            if (videoFileInfoNextToJsonFile.exists())
-                item->setMediaFile(videoFileNextToJSONfile);
-            else { // Check if stored in Uniview video folder
-                QString fileUniviewMainPath = GeneralSettings::univiewVideoLocation();
-                QString videoFileAbsoluteUniview = QDir::cleanPath(fileUniviewMainPath + QDir::separator() + videoFile);
-                QFileInfo videoFileInfoUniview(videoFileAbsoluteUniview);
-                if (videoFileInfoUniview.exists())
-                    item->setMediaFile(videoFileAbsoluteUniview);
-            }
-        }
+        QString videoFilePath = checkAndCorrectPath(videoFile, fileSearchPaths);
+        if (!videoFilePath.isEmpty())
+            item->setMediaFile(videoFilePath);
     }
 
     if (obj.contains("overlay")) {
         QString overlayFile = obj.value("overlay").toString();
-        QFileInfo overlayFileInfo(overlayFile);
-        if (overlayFileInfo.exists())
-            item->setSeparateOverlayFile(overlayFile);
-        else if (overlayFileInfo.isRelative()) { //Check first if next to JSON file
-            QString overlayFileNextToJSONfile = QDir::cleanPath(jsonFileInfo.absoluteDir().absolutePath() + QDir::separator() + overlayFile);
-            QFileInfo overlayFileInfoNextToJsonFile(overlayFileNextToJSONfile);
-            if (overlayFileInfoNextToJsonFile.exists())
-                item->setSeparateOverlayFile(overlayFileNextToJSONfile);
-            else { // Check if stored in Uniview video folder
-                QString fileUniviewMainPath = GeneralSettings::univiewVideoLocation();
-                QString overlayFileAbsoluteUniview = QDir::cleanPath(fileUniviewMainPath + QDir::separator() + overlayFile);
-                QFileInfo overlayFileInfoUniview(overlayFileAbsoluteUniview);
-                if (overlayFileInfoUniview.exists())
-                    item->setSeparateOverlayFile(overlayFileAbsoluteUniview);
-            }
-        }
+        QString overlayFilePath = checkAndCorrectPath(overlayFile, fileSearchPaths);
+        if (!overlayFilePath.isEmpty())
+            item->setSeparateOverlayFile(overlayFilePath);
     }
 
     if (obj.contains("audio")) {
         QString audioFile = obj.value("audio").toString();
-        QFileInfo audioFileInfo(audioFile);
-        if (audioFileInfo.exists())
-            item->setSeparateAudioFile(audioFile);
-        else if (audioFileInfo.isRelative()) { //Check first if next to JSON file
-            QString audioFileNextToJSONfile = QDir::cleanPath(jsonFileInfo.absoluteDir().absolutePath() + QDir::separator() + audioFile);
-            QFileInfo audioFileInfoNextToJsonFile(audioFileNextToJSONfile);
-            if (audioFileInfoNextToJsonFile.exists())
-                item->setSeparateAudioFile(audioFileNextToJSONfile);
-            else { // Check if stored in Uniview video folder
-                QString fileUniviewMainPath = GeneralSettings::univiewVideoLocation();
-                QString audioFileAbsoluteUniview = QDir::cleanPath(fileUniviewMainPath + QDir::separator() + audioFile);
-                QFileInfo audioFileInfoUniview(audioFileAbsoluteUniview);
-                if (audioFileInfoUniview.exists())
-                    item->setSeparateAudioFile(audioFileAbsoluteUniview);
-            }
-        }
+        QString audioFilePath = checkAndCorrectPath(audioFile, fileSearchPaths);
+        if (!audioFilePath.isEmpty())
+            item->setSeparateAudioFile(audioFilePath);
     }
 
     if (obj.contains("title")) {
@@ -1226,56 +1208,55 @@ void MpvObject::loadJSONPlayList(const QString& file) {
     m_playlistModel->clear();
     Playlist m_playList;
 
+    QStringList fileSearchPaths;
+    fileSearchPaths.append(jsonFileInfo.absoluteDir().absolutePath());
+    fileSearchPaths.append(GeneralSettings::cPlayFileLocation());
+    fileSearchPaths.append(GeneralSettings::cPlayMediaLocation());
+    fileSearchPaths.append(GeneralSettings::univiewVideoLocation());
+
     foreach(const QJsonValue & v, array) {
         QJsonObject o = v.toObject();
         if (o.contains("file")) {
             QString filePath = o.value("file").toString();
-            QFileInfo filePathInfo(filePath);
-            if (filePathInfo.isRelative()) { //Check first if next to JSON file
-                QString videoFileNextToJSONfile = QDir::cleanPath(jsonFileInfo.absoluteDir().absolutePath() + QDir::separator() + filePath);
-                QFileInfo videoFileInfoNextToJsonFile(videoFileNextToJSONfile);
-                if (videoFileInfoNextToJsonFile.exists())
-                    filePath = videoFileNextToJSONfile;
-                else { // Check if stored in Uniview video folder
-                    QString fileUniviewMainPath = GeneralSettings::univiewVideoLocation();
-                    QString videoFileAbsoluteUniview = QDir::cleanPath(fileUniviewMainPath + QDir::separator() + filePath);
-                    QFileInfo videoFileInfoUniview(videoFileAbsoluteUniview);
-                    if (videoFileInfoUniview.exists())
-                        filePath = videoFileAbsoluteUniview;
+            QString checkedFilePath = checkAndCorrectPath(filePath, fileSearchPaths);
+            if (!checkedFilePath.isEmpty()) {
+                QFileInfo checkedFilePathInfo(checkedFilePath);
+                QString fileExt = checkedFilePathInfo.suffix();
+                PlayListItem* file;
+
+                if (fileExt == "cplay_file") {
+                    file = loadJSONPlayfile(checkedFilePath);
                 }
-            }
-
-            QString fileExt = filePathInfo.suffix();
-            PlayListItem* file;
-
-            if (fileExt == "cplay_file") {
-                file = loadJSONPlayfile(filePath);
-            }
-            else if (fileExt == "fdv") {
-                file = loadUniviewFDV(filePath);
-            }
-            else {
-                file = new PlayListItem(filePath);
-            }
-
-            if (file != NULL) {
-                if (o.contains("on_file_end")) {
-                    QString loopMode = o.value("on_file_end").toString();
-                    if (loopMode == "continue") {
-                        file->setLoopMode(0);
-                    }
-                    else if (loopMode == "pause") {
-                        file->setLoopMode(1);
-                    }
-                    else if (loopMode == "loop") {
-                        file->setLoopMode(2);
-                    }
+                else if (fileExt == "fdv") {
+                    file = loadUniviewFDV(checkedFilePath);
+                }
+                else {
+                    file = new PlayListItem(checkedFilePath);
                 }
 
-                m_playList.append(QPointer<PlayListItem>(file));
+                if (file != NULL) {
+                    if (o.contains("on_file_end")) {
+                        QString loopMode = o.value("on_file_end").toString();
+                        if (loopMode == "continue") {
+                            file->setLoopMode(0);
+                        }
+                        else if (loopMode == "pause") {
+                            file->setLoopMode(1);
+                        }
+                        else if (loopMode == "loop") {
+                            file->setLoopMode(2);
+                        }
+                    }
+
+                    m_playList.append(QPointer<PlayListItem>(file));
+                }
+                else
+                    qDebug() << "Parsing file failed: " << checkedFilePath;
             }
             else
-                qDebug() << "Parsing file failed: " << filePath;
+                qDebug() << "Could not find file: " << filePath;
+
+           
         }
     }
 
