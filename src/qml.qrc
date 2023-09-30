@@ -25,9 +25,7 @@
         <file>qml/MpvVideo.qml</file>
         <file>qml/Osd.qml</file>
         <file>qml/PlayList.qml</file>
-        <file>qml/PlayListItem.qml</file>
         <file>qml/PlayListItemCompact.qml</file>
-        <file>qml/PlayListItemWithThumbnail.qml</file>
         <file alias="Audio.qml">qml/Settings/Audio.qml</file>
         <file alias="General.qml">qml/Settings/General.qml</file>
         <file alias="Mouse.qml">qml/Settings/Mouse.qml</file>
@@ -41,5 +39,8 @@
         <file>qml/TrackBall.qml</file>
         <file>qml/VolumeSlider.qml</file>
         <file>qml/main.qml</file>
+        <file>qml/PlaySections.qml</file>
+        <file>qml/PlaySectionsItemCompact.qml</file>
+        <file>qml/VisibilitySlider.qml</file>
     </qresource>
 </RCC>

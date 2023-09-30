@@ -8,6 +8,7 @@ import QtQuick 2.12
 import QtQuick.Controls 2.12
 import QtQuick.Layouts 1.12
 import QtGraphicalEffects 1.12
+import QtQuick.Dialogs 1.3
 
 import org.kde.kirigami 2.11 as Kirigami
 import com.georgefb.haruna 1.0
@@ -26,20 +27,16 @@ Rectangle {
 
     height: mpv.height
     width: {
-        if (PlaylistSettings.style === "compact") {
             const w = Kirigami.Units.gridUnit * 19
-            return (parent.width * 0.17) < w ? w : parent.width * 0.17
-        } else {
-            const w = Kirigami.Units.gridUnit * 30
-            return (parent.width * 0.33) < w ? w : parent.width * 0.33
-        }
+            return (parent.width * 0.172) < w ? w : parent.width * 0.172
     }
     x: position === "right" ? parent.width : -width
     y: 0
-    state: "visible"
+    state: "hidden"
     color: Kirigami.Theme.backgroundColor
 
     ColumnLayout{
+        id: playListHeader
         spacing: 10
 
         RowLayout {
@@ -168,6 +165,26 @@ Rectangle {
                     text: qsTr("Move selected downwards")
                 }
             }
+            Button {
+                icon.name: "trash-empty"
+                onClicked: {
+                    clearPlaylistDialog.open()
+                }
+                ToolTip {
+                    text: qsTr("Clear playlist")
+                }
+
+                MessageDialog {
+                    id: clearPlaylistDialog
+                    title: "Clear playlist"
+                    text: "Confirm clearing of all items in playlist."
+                    standardButtons: StandardButton.Yes | StandardButton.No
+                    onAccepted: {
+                        mpv.clearPlaylist()
+                    }
+                    Component.onCompleted: visible = false
+                }
+            }
             Item {
                 // spacer item
                 Layout.fillWidth: true
@@ -184,15 +201,18 @@ Rectangle {
 
             Label {
                 id: playlistName
-                text: qsTr("Playlist: ") + mpv.playlistModel.getPlayListName()
+                font.pointSize: 9
             }
+        }
+    }
 
-            Rectangle {
-                height: 1
-                width: 500
-                color: Kirigami.Theme.alternateBackgroundColor
-                Layout.fillWidth: true
-            }
+    Connections {
+        target: mpv
+        function onPlaylistModelChanged() {
+            if(mpv.playlistModel.getPlayListName() !== "")
+                playlistName.text = qsTr("Playlist: ") + mpv.playlistModel.getPlayListName()
+            else
+                playlistName.text = qsTr("")
         }
     }
 
@@ -201,7 +221,7 @@ Rectangle {
 
         z: 20
         anchors.fill: parent
-        anchors.topMargin: 60
+        anchors.topMargin: playListHeader.height + 5
         ScrollBar.horizontal.policy: ScrollBar.AlwaysOff
 
         ListView {
@@ -209,36 +229,15 @@ Rectangle {
 
             model: mpv.playlistModel
             spacing: 1
-            delegate: {
-                switch (PlaylistSettings.style) {
-                case "default":
-                    playListItemSimple
-                    break
-                case "withThumbnails":
-                    playListItemWithThumbnail
-                    break
-                case "compact":
-                    playListItemCompact
-                    break
-                }
-            }
+            delegate: playListItemCompact
         }
-    }
-
-    Component {
-        id: playListItemWithThumbnail
-        PlayListItemWithThumbnail {}
-    }
-
-    Component {
-        id: playListItemSimple
-        PlayListItem {}
     }
 
     Component {
         id: playListItemCompact
         PlayListItemCompact {
             onClicked: {
+                mpv.setCurrentEditItemFromPlaylist(playlistView.currentIndex)
                 updateLoopModeButton()
             }
         }
@@ -252,25 +251,6 @@ Rectangle {
             setPlayListScrollPosition()
             scrollPositionTimer.stop()
         }
-    }
-
-    ShaderEffectSource {
-        id: shaderEffect
-
-        visible: PlaylistSettings.overlayVideo
-        anchors.fill: playlistScrollView
-        sourceItem: mpv
-        sourceRect: position === "right"
-                    ? Qt.rect(mpv.width - root.width, mpv.y, root.width, root.height)
-                    : Qt.rect(0, 0, root.width, root.height)
-    }
-
-    FastBlur {
-        visible: PlaylistSettings.overlayVideo
-        anchors.fill: shaderEffect
-        radius: 100
-        source: shaderEffect
-        z: 10
     }
 
     states: [

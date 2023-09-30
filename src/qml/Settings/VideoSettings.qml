@@ -526,7 +526,7 @@ SettingsBasePage {
 
                 Connections {
                     target: mpv
-                    onRotateChanged: {
+                    function onRotateChanged() {
                         if(rotateXSpinBox.realValue !== mpv.rotate.x)
                             rotateXSpinBox.value = mpv.rotate.x * 100
                     }
@@ -602,7 +602,7 @@ SettingsBasePage {
 
                 Connections {
                     target: mpv
-                    onRotateChanged: {
+                    function onRotateChanged() {
                         if(rotateYSpinBox.realValue !== mpv.rotate.y)
                             rotateYSpinBox.value = mpv.rotate.y * 100
                     }
@@ -678,7 +678,7 @@ SettingsBasePage {
 
                 Connections {
                     target: mpv
-                    onRotateChanged: {
+                    function onRotateChanged() {
                         if(rotateZSpinBox.realValue !== mpv.rotate.z)
                             rotateZSpinBox.value = mpv.rotate.z * 100
                     }
@@ -885,7 +885,9 @@ SettingsBasePage {
 
             Connections {
                 target: mpv
-                onSurfaceTransistionPerformed: startTransitionButton.clicked()
+                function onSurfaceTransistionPerformed() {
+                    startTransitionButton.clicked()
+                }
             }
         }
 

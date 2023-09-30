@@ -35,6 +35,7 @@ RowLayout {
 
     Label {
         text: slider.value
+        font.pointSize: 9
         horizontalAlignment: Qt.AlignHCenter
         Layout.preferredWidth: 40
     }

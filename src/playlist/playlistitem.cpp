@@ -13,6 +13,7 @@
 #include <QUrl>
 #include <QJsonDocument>
 #include <QJsonObject>
+#include <QJsonArray>
 
 QString PlayListItemData::filePath() const
 {
@@ -39,7 +40,7 @@ QString PlayListItemData::mediaTitle() const
     return m_mediaTitle;
 }
 
-QString PlayListItemData::duration() const
+double PlayListItemData::duration() const
 {
     return m_duration;
 }
@@ -52,16 +53,6 @@ QString PlayListItemData::separateOverlayFile() const
 QString PlayListItemData::separateAudioFile() const
 {
     return m_separateAudioFile;
-}
-
-double PlayListItemData::startTime() const
-{
-    return m_startTime;
-}
-
-double PlayListItemData::endTime() const
-{
-    return m_endTime;
 }
 
 int PlayListItemData::loopMode() const
@@ -82,6 +73,11 @@ int PlayListItemData::gridToMapOn() const
 int PlayListItemData::stereoVideo() const
 {
     return m_stereoVideo;
+}
+
+QList<PlayListItemData::Section> PlayListItemData::sections() const
+{
+    return m_sections;
 }
 
 bool PlayListItemData::isPlaying() const
@@ -164,12 +160,19 @@ void PlayListItem::setMediaTitle(const QString& title)
     m_data.m_mediaTitle = title;
 }
 
-QString PlayListItem::duration() const
+QString PlayListItem::durationFormatted() const 
+{
+    QTime t(0, 0, 0);
+    QString formattedTime = t.addSecs(static_cast<qint64>(m_data.m_duration)).toString("hh:mm:ss");
+    return formattedTime;
+}
+
+double PlayListItem::duration() const
 {
     return m_data.m_duration;
 }
 
-void PlayListItem::setDuration(const QString &duration)
+void PlayListItem::setDuration(double duration)
 {
     m_data.m_duration = duration;
 }
@@ -192,26 +195,6 @@ QString PlayListItem::separateAudioFile() const
 void PlayListItem::setSeparateAudioFile(const QString& audioFile) 
 {
     m_data.m_separateAudioFile = audioFile;
-}
-
-double PlayListItem::startTime() const
-{
-    return m_data.m_startTime;
-}
-
-void PlayListItem::setStartTime(double startTime)
-{
-    m_data.m_startTime = startTime;
-}
-
-double PlayListItem::endTime() const
-{
-    return m_data.m_endTime;
-}
-
-void PlayListItem::setEndTime(double endTime)
-{
-    m_data.m_endTime = endTime;
 }
 
 int PlayListItem::loopMode() const
@@ -264,6 +247,32 @@ void PlayListItem::setIsPlaying(bool isPlaying)
     m_data.m_isPlaying = isPlaying;
 }
 
+void PlayListItem::addSection(QString name, double startTime, double endTime, int eosMode) 
+{
+    m_data.m_sections.append(PlayListItemData::Section(name, startTime, endTime, eosMode));
+}
+
+void PlayListItem::addSection(QString name, QString startTime, QString endTime, int eosMode)
+{
+    QTime start = QTime::fromString(startTime, "hh:mm:ss");
+    QTime end = QTime::fromString(endTime, "hh:mm:ss");
+    QTime zero = QTime(0, 0);
+    addSection(name, double(zero.msecsTo(start)) / 1000.0, double(zero.msecsTo(end)) / 1000.0, eosMode);
+}
+
+QList<PlayListItemData::Section> PlayListItem::sections()
+{
+    return m_data.m_sections;
+}
+
+bool PlayListItem::isSectionPlaying(int index) const {
+    return m_data.m_sections[index].isPlaying;
+}
+
+void PlayListItem::setIsSectionPlaying(int index, bool isPlaying) {
+    m_data.m_sections[index].isPlaying = isPlaying;
+}
+
 int PlayListItem::index() const
 {
     return m_data.m_index;
@@ -308,7 +317,7 @@ void PlayListItem::saveAsJSONPlayFile(const QString& path) const {
     if (!mediaTitle().isEmpty())
         obj.insert("title", mediaTitle());
 
-    obj.insert("duration", QString::number(endTime() - startTime()));
+    obj.insert("duration", duration());
 
     QString grid;
     int gridIdx = gridToMapOn();
@@ -344,6 +353,42 @@ void PlayListItem::saveAsJSONPlayFile(const QString& path) const {
         sv = "no";
     }
     obj.insert("stereoscopic", sv);
+
+    QJsonArray sectionsArray;
+    for (int i = 0; i < m_data.m_sections.size(); i++)
+    {
+        QJsonObject item_data;
+
+        int eosMode = m_data.m_sections[i].eosMode;
+        QString eosModeText;
+        switch (eosMode)
+        {
+        case 1:
+            eosModeText = "fade_out";
+            break;
+        case 2:
+            eosModeText = "continue";
+            break;
+        case 3:
+            eosModeText = "next";
+            break;
+        case 4:
+            eosModeText = "loop";
+            break;
+        default:
+            eosModeText = "pause";
+            break;
+        }
+
+        item_data.insert("section_title", QJsonValue(m_data.m_sections[i].title));
+        item_data.insert("time_begin", QJsonValue(m_data.m_sections[i].startTime));
+        item_data.insert("time_end", QJsonValue(m_data.m_sections[i].endTime));
+        item_data.insert("transition_at_end", QJsonValue(eosModeText));
+
+        sectionsArray.push_back(QJsonValue(item_data));
+    }
+    if(!sectionsArray.isEmpty())
+        obj.insert(QString("video_sections"), QJsonValue(sectionsArray));
 
     doc.setObject(obj);
 

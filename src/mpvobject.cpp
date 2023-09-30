@@ -102,7 +102,7 @@ MpvObject::MpvObject(QQuickItem * parent)
     , m_audioTracksModel(new TracksModel)
     , m_subtitleTracksModel(new TracksModel)
     , m_playlistModel(new PlayListModel)
-    , m_currentEditItem(nullptr)
+    , m_playSectionsModel(new PlaySectionsModel)
 {
     if (!mpv)
         throw std::runtime_error("could not create mpv context");
@@ -213,17 +213,18 @@ PlayListModel *MpvObject::playlistModel()
 void MpvObject::setPlaylistModel(PlayListModel *model)
 {
     m_playlistModel = model;
+    emit playlistModelChanged();
 }
 
-PlayListItem* MpvObject::currentEditItem() 
+PlaySectionsModel* MpvObject::playSectionsModel()
 {
-    return m_currentEditItem;
+    return m_playSectionsModel;
 }
 
-void MpvObject::setCurrentEditItem(PlayListItem* item) 
+void MpvObject::setPlaySectionsModel(PlaySectionsModel* model)
 {
-    m_currentEditItem = item;
-    emit currentEditItemChanged();
+    m_playSectionsModel = model;
+    emit playSectionsModelChanged();
 }
 
 QVariantList MpvObject::audioDevices() const
@@ -772,20 +773,23 @@ void MpvObject::loadFile(const QString &file, bool updateLastPlayedFile)
 {
     QFileInfo fi(file);
     QString ext = fi.suffix();
-    m_playlistModel->setPlayListName("");
 
     if (ext == "fdv") {
         PlayListItem* videoFile = loadUniviewFDV(file);
-        if(videoFile)
+        if (videoFile) {
             loadItem(videoFile->data());
+            m_playSectionsModel->setCurrentEditItem(videoFile);
+        }
     }
     else if (ext == "playlist") {
         loadUniviewPlaylist(file);
     }
     else if (ext == "cplay_file") {
         PlayListItem* videoFile = loadJSONPlayfile(file);
-        if (videoFile)
+        if (videoFile) {
             loadItem(videoFile->data());
+            m_playSectionsModel->setCurrentEditItem(videoFile);
+        }
     }
     else if (ext == "cplay_playlist") {
         loadJSONPlayList(file);
@@ -796,11 +800,10 @@ void MpvObject::loadFile(const QString &file, bool updateLastPlayedFile)
 
         m_loadedFileStructure = fileToLoad;
         m_separateAudioFile = "";
-        m_startTime = 0;
-        m_endTime = 0;
         SyncHelper::instance().variables.loadedFile = fileToLoad.toStdString();
         SyncHelper::instance().variables.overlayFile = "";
         SyncHelper::instance().variables.loadFile = true;
+        clearPlaylist();
 
         setProperty("lavfi-complex", "");
         command(QStringList() << "loadfile" << fileToLoad, true);
@@ -829,36 +832,41 @@ void MpvObject::addFileToPlaylist(const QString& file) {
 
     if (item) {
         m_playlistModel->addItem(item);
+        emit playlistModelChanged();
     }
+}
+
+void MpvObject::clearPlaylist() {
+    m_playlistModel->clear();
+    emit playlistModelChanged();
 }
 
 void MpvObject::setLoadedAsCurrentEditItem() {
-    if (!m_currentEditItem)
-        m_currentEditItem = new PlayListItem(m_loadedFileStructure);
-    else
-        m_currentEditItem->updateToNewFile(m_loadedFileStructure);
+    if (m_loadedFileStructure.isEmpty())
+        return;
 
-    m_currentEditItem->setMediaFile(QString::fromStdString(SyncHelper::instance().variables.loadedFile));
-    m_currentEditItem->setSeparateOverlayFile(QString::fromStdString(SyncHelper::instance().variables.overlayFile));
-    m_currentEditItem->setSeparateAudioFile(m_separateAudioFile);
-    m_currentEditItem->setMediaTitle(mediaTitle());
-    m_currentEditItem->setDuration(Application::formatTime(duration()));
-    if (m_startTime + m_endTime > 0) {
-        m_currentEditItem->setStartTime(m_startTime);
-        m_currentEditItem->setEndTime(m_endTime);
+    PlayListItem* currentItem;
+    if (!m_playSectionsModel->currentEditItem()) {
+        currentItem = new PlayListItem(m_loadedFileStructure);
     }
-    else {
-        m_currentEditItem->setStartTime(0);
-        m_currentEditItem->setEndTime(duration());
+    else{
+        currentItem = m_playSectionsModel->currentEditItem();
+        currentItem->updateToNewFile(m_loadedFileStructure);
     }
-    m_currentEditItem->setGridToMapOn(gridToMapOn());
-    m_currentEditItem->setStereoVideo(stereoscopicVideo());
-    m_currentEditItem->setLoopMode(loopMode());
-    emit currentEditItemChanged();
+
+    currentItem->setMediaFile(QString::fromStdString(SyncHelper::instance().variables.loadedFile));
+    currentItem->setSeparateOverlayFile(QString::fromStdString(SyncHelper::instance().variables.overlayFile));
+    currentItem->setSeparateAudioFile(m_separateAudioFile);
+    currentItem->setMediaTitle(mediaTitle());
+    currentItem->setDuration(duration());
+    currentItem->setGridToMapOn(gridToMapOn());
+    currentItem->setStereoVideo(stereoscopicVideo());
+    currentItem->setLoopMode(loopMode());
+    m_playSectionsModel->setCurrentEditItem(currentItem);
 }
 
 void MpvObject::setCurrentEditItemFromPlaylist(int playListIndex) {
-    setCurrentEditItem(m_playlistModel->getItem(playListIndex));
+    m_playSectionsModel->setCurrentEditItem(m_playlistModel->getItem(playListIndex));
 }
 
 void MpvObject::loadItem(int playListIndex, bool updateLastPlayedFile) {
@@ -911,8 +919,6 @@ void MpvObject::loadItem(PlayListItemData itemData, bool updateLastPlayedFile, Q
         SyncHelper::instance().variables.overlayFile = itemData.separateOverlayFile().toStdString();
         SyncHelper::instance().variables.loadFile = true;
         m_separateAudioFile = itemData.separateAudioFile();
-        m_startTime = itemData.startTime();
-        m_endTime = itemData.endTime();
 
         if (itemData.gridToMapOn() >= 0)
             setGridToMapOn(itemData.gridToMapOn());
@@ -966,7 +972,7 @@ PlayListItem* MpvObject::loadUniviewFDV(const QString& file)
         video->setSeparateAudioFile(audioFile);
         video->setMediaTitle(title);
         video->setFileName(title);
-        video->setDuration(Application::formatTime(duration));
+        video->setDuration(duration);
         video->setGridToMapOn(0); //Assume Pre-split with FDV files
         
         if (title.contains("3D")) // Assume 3D side-by-side stereo
@@ -1017,7 +1023,7 @@ void MpvObject::loadUniviewPlaylist(const QString& file)
         }
         else {
             video = new PlayListItem(path);
-            video->setDuration(Application::formatTime(endTime - startTime));
+            video->setDuration(endTime - startTime);
         }
         
         video->setMediaTitle(title);
@@ -1027,8 +1033,6 @@ void MpvObject::loadUniviewPlaylist(const QString& file)
         else if (title.contains("2D"))
             video->setStereoVideo(0);
 
-        video->setStartTime(startTime);
-        video->setEndTime(endTime);
         video->setLoopMode(loopMode);
         video->setTransitionMode(transitionMode);
 
@@ -1099,23 +1103,7 @@ PlayListItem* MpvObject::loadJSONPlayfile(const QString& file) {
     if (obj.contains("duration")) {
         durationFound = true;
         double duration = obj.value("duration").toDouble();
-        item->setDuration(Application::formatTime(duration));
-        item->setStartTime(0);
-        item->setEndTime(duration);
-    }
-
-    if (obj.contains("startime")) {
-        item->setStartTime(obj.value("startime").toDouble());
-    }
-    else {
-        item->setStartTime(0);
-    }
-
-    if (obj.contains("endtime")) {
-        item->setStartTime(obj.value("startime").toDouble());
-    }
-    else if (!durationFound) {
-        item->setEndTime(0);
+        item->setDuration(duration);
     }
 
     if (obj.contains("grid")) {
@@ -1180,6 +1168,40 @@ PlayListItem* MpvObject::loadJSONPlayfile(const QString& file) {
         }
         else if (stereo == "top-bottom-flip") {
             item->setStereoVideo(3);
+        }
+    }
+
+    if (obj.contains("video_sections")) {
+        QJsonValue value = obj.value("video_sections");
+        QJsonArray array = value.toArray();
+        foreach(const QJsonValue & v, array) {
+            QJsonObject o = v.toObject();
+
+            if (o.contains("section_title") && o.contains("time_begin") && o.contains("time_end")) {
+                QString title = o.value("section_title").toString();
+                double startTime = o.value("time_begin").toDouble();
+                double endTime = o.value("time_end").toDouble();
+                int eosMode = 0; //Pause by default
+                if (o.contains("transition_at_end")) {
+                    QString esoModeText = o.value("transition_at_end").toString();
+                    if (esoModeText == "pause") {
+                        eosMode = 0;
+                    }
+                    else if (esoModeText == "fade_out") {
+                        eosMode = 1;
+                    }
+                    else if (esoModeText == "continue") {
+                        eosMode = 2;
+                    }
+                    else if (esoModeText == "next") {
+                        eosMode = 3;
+                    }
+                    else if (esoModeText == "loop") {
+                        eosMode = 4;
+                    }
+                }
+                item->addSection(title, startTime, endTime, eosMode);
+            }
         }
     }
 

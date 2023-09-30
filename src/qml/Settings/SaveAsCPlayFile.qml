@@ -16,25 +16,33 @@ import com.georgefb.haruna 1.0 as Haruna
 import Haruna.Components 1.0
 
 Kirigami.ApplicationWindow {
-    width: 400
+    width: 600
     height: 350
     title: qsTr("Save As C-Play File")
     visible: false
 
     onVisibilityChanged: {
-        if(visible) {
+        if(visible && !mpv.playSectionsModel.isEmpty()) {
+            mediaFileLabel.text = mpv.playSectionsModel.currentEditItem.mediaFile()
+            durationLabel.text = mpv.playSectionsModel.currentEditItem.durationFormatted()
+            sectionsLabel.text = qsTr("%1").arg(Number(mpv.playSectionsModel.rowCount()))
+            mediaTitleLabel.text = mpv.playSectionsModel.currentEditItem.mediaTitle()
             for (let i = 0; i < stereoscopicModeToSave.count; ++i) {
-                if (stereoscopicModeToSave.get(i).value === mpv.currentEditItem.stereoVideo()) {
+                if (stereoscopicModeToSave.get(i).value === mpv.playSectionsModel.currentEditItem.stereoVideo()) {
                     stereoscopicModeToSaveComboBox.currentIndex = i
                     break
                 }
             }
             for (let j = 0; j < gridModeToSave.count; ++j) {
-                if (gridModeToSave.get(j).value === mpv.currentEditItem.gridToMapOn()) {
+                if (gridModeToSave.get(j).value === mpv.playSectionsModel.currentEditItem.gridToMapOn()) {
                     gridModeToSaveComboBox.currentIndex = j
                     break
                 }
             }
+            separateAudioFileCheckBox.checked = (mpv.playSectionsModel.currentEditItem.separateAudioFile() !== "")
+            separateAudioFileTextField.text = mpv.playSectionsModel.currentEditItem.separateAudioFile()
+            separateOverlayFileTextField.text = mpv.playSectionsModel.currentEditItem.separateOverlayFile()
+
         }
     }
 
@@ -112,14 +120,7 @@ Kirigami.ApplicationWindow {
             text: qsTr("File:")
         }
         Label {
-            text: {
-                if(mpv.currentEditItem){
-                    return mpv.currentEditItem.mediaFile()
-                }
-                else {
-                    return ""
-                }
-            }
+            id: mediaFileLabel
             Layout.fillWidth: true
             ToolTip {
                 text: qsTr("The actual file to be played.")
@@ -131,17 +132,25 @@ Kirigami.ApplicationWindow {
             Layout.fillWidth: true
         }
         Label {
-            text: qsTr("Duraction:")
+            text: qsTr("Duration:")
         }
         Label {
-            text: {
-                if(mpv.currentEditItem){
-                    return mpv.currentEditItem.duration();
-                }
-                else {
-                    return ""
-                }
+            id: durationLabel
+            Layout.fillWidth: true
+            ToolTip {
+                text: qsTr("Duration of the clip")
             }
+        }
+
+        Item {
+            // spacer item
+            Layout.fillWidth: true
+        }
+        Label {
+            text: qsTr("Sections:")
+        }
+        Label {
+            id: sectionsLabel
             Layout.fillWidth: true
             ToolTip {
                 text: qsTr("Duration of the clip")
@@ -156,18 +165,13 @@ Kirigami.ApplicationWindow {
             text: qsTr("Media title:")
         }
         TextField {
-            text: {
-                if(mpv.currentEditItem){
-                    return mpv.currentEditItem.mediaTitle()
-                }
-                else {
-                    return ""
-                }
-            }
+            id: mediaTitleLabel
             placeholderText: "A title for playlists etc"
             Layout.fillWidth: true
             onEditingFinished: {
-                mpv.currentEditItem.setMediaTitle(text);
+                if(!mpv.playSectionsModel.isEmpty()){
+                    mpv.playSectionsModel.currentEditItem.setMediaTitle(text);
+                }
             }
 
             ToolTip {
@@ -194,7 +198,9 @@ Kirigami.ApplicationWindow {
             }
 
             onActivated: {
-                mpv.currentEditItem.setStereoVideo(model.get(index).value)
+                if(!mpv.playSectionsModel.isEmpty()){
+                    mpv.playSectionsModel.currentEditItem.setStereoVideo(model.get(index).value)
+                }
             }
 
             Layout.fillWidth: true
@@ -220,7 +226,9 @@ Kirigami.ApplicationWindow {
             }
 
             onActivated: {
-                mpv.currentEditItem.setGridToMapOn(model.get(index).value)
+                if(!mpv.playSectionsModel.isEmpty()){
+                    mpv.playSectionsModel.currentEditItem.setGridToMapOn(model.get(index).value)
+                }
             }
 
             Layout.fillWidth: true
@@ -230,14 +238,7 @@ Kirigami.ApplicationWindow {
             id: separateAudioFileCheckBox
             text: qsTr("")
             enabled: true
-            checked: {
-                if(mpv.currentEditItem){
-                    return mpv.currentEditItem.separateAudioFile() !== ""
-                }
-                else {
-                    return false
-                }
-            }
+            checked: false
             onCheckedChanged: {
             }
             ToolTip {
@@ -250,33 +251,31 @@ Kirigami.ApplicationWindow {
         RowLayout {
             TextField {
                 id: separateAudioFileTextField
-                text: {
-                    if(mpv.currentEditItem){
-                        return mpv.currentEditItem.separateAudioFile()
-                    }
-                    else {
-                        return ""
-                    }
-                }
                 onTextChanged: {
-                    if(mpv.currentEditItem.separateAudioFile() !== "")
-                        separateAudioFileCheckBox.checked = true;
-                    else
-                        separateAudioFileCheckBox.checked = false;
+                    if(!mpv.playSectionsModel.isEmpty()){
+                        if(mpv.playSectionsModel.currentEditItem.separateAudioFile() !== ""){
+                            separateAudioFileCheckBox.checked = true;
+                        }
+                        else {
+                            separateAudioFileCheckBox.checked = false;
+                        }
 
-                    if(enabled){
-                        mpv.currentEditItem.setSeparateAudioFile(text);
-                    }
-                    else {
-                        mpv.currentEditItem.setSeparateAudioFile("");
+                        if(enabled){
+                            mpv.playSectionsModel.currentEditItem.setSeparateAudioFile(text);
+                        }
+                        else {
+                            mpv.playSectionsModel.currentEditItem.setSeparateAudioFile("");
+                        }
                     }
                 }
                 onEnabledChanged: {
-                    if(enabled){
-                        mpv.currentEditItem.setSeparateAudioFile(text);
-                    }
-                    else {
-                        mpv.currentEditItem.setSeparateAudioFile("");
+                    if(!mpv.playSectionsModel.isEmpty()){
+                        if(enabled){
+                            mpv.playSectionsModel.currentEditItem.setSeparateAudioFile(text);
+                        }
+                        else {
+                            mpv.playSectionsModel.currentEditItem.setSeparateAudioFile("");
+                        }
                     }
                 }
                 enabled: separateAudioFileCheckBox.checked
@@ -303,8 +302,8 @@ Kirigami.ApplicationWindow {
             text: qsTr("")
             enabled: true
             checked: {
-                if(mpv.currentEditItem){
-                    return mpv.currentEditItem.separateOverlayFile() !== ""
+                if(!mpv.playSectionsModel.isEmpty()){
+                    return mpv.playSectionsModel.currentEditItem.separateOverlayFile() !== ""
                 }
                 else {
                     return false
@@ -322,33 +321,29 @@ Kirigami.ApplicationWindow {
         RowLayout {
             TextField {
                 id: separateOverlayFileTextField
-                text: {
-                    if(mpv.currentEditItem){
-                        return mpv.currentEditItem.separateOverlayFile()
-                    }
-                    else {
-                        return ""
-                    }
-                }
                 onTextChanged: {
-                    if(mpv.currentEditItem.separateOverlayFile() !== "")
-                        separateOverlayFileCheckBox.checked = true;
-                    else
-                        separateOverlayFileCheckBox.checked = false;
+                    if(!mpv.playSectionsModel.isEmpty()){
+                        if(mpv.playSectionsModel.currentEditItem.separateOverlayFile() !== "")
+                            separateOverlayFileCheckBox.checked = true;
+                        else
+                            separateOverlayFileCheckBox.checked = false;
 
-                    if(enabled){
-                        mpv.currentEditItem.setSeparateOverlayFile(text);
-                    }
-                    else {
-                        mpv.currentEditItem.setSeparateOverlayFile("");
+                        if(enabled){
+                            mpv.playSectionsModel.currentEditItem.setSeparateOverlayFile(text);
+                        }
+                        else {
+                            mpv.playSectionsModel.currentEditItem.setSeparateOverlayFile("");
+                        }
                     }
                 }
                 onEnabledChanged: {
-                    if(enabled){
-                        mpv.currentEditItem.setSeparateOverlayFile(text);
-                    }
-                    else {
-                        mpv.currentEditItem.setSeparateOverlayFile("");
+                    if(!mpv.playSectionsModel.isEmpty()){
+                        if(enabled){
+                            mpv.playSectionsModel.currentEditItem.setSeparateOverlayFile(text);
+                        }
+                        else {
+                            mpv.playSectionsModel.currentEditItem.setSeparateOverlayFile("");
+                        }
                     }
                 }
                 enabled: separateOverlayFileCheckBox.checked
@@ -378,7 +373,7 @@ Kirigami.ApplicationWindow {
         }
 
         RowLayout {
-            ToolButton {
+            Button {
                 text: qsTr("Save C-Play file")
                 icon.name: "document-save"
                 onClicked: saveCPlayFileDialog.open()

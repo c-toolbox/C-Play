@@ -19,11 +19,10 @@ Slider {
 
     from: 0
     to: 100
-    value: mpv.volume
+    value: mpv.visibility
     implicitWidth: 100
     implicitHeight: 25
     wheelEnabled: false
-    //stepSize: GeneralSettings.volumeStep
     leftPadding: 0
     rightPadding: 0
 
@@ -43,7 +42,7 @@ Slider {
 
     Label {
         id: progressBarToolTip
-        text: qsTr("%1").arg(Number(root.value.toFixed(0)))
+        text: qsTr("%1\%").arg(Number(root.value.toFixed(0)))
         font.pointSize: 9
         anchors.centerIn: root
         color: "#fff"
@@ -52,10 +51,8 @@ Slider {
     }
 
     onValueChanged: {
-        if(value.toFixed(0) !== mpv.volume) {
-            mpv.volume = value.toFixed(0)
-            GeneralSettings.volume = value.toFixed(0)
-            GeneralSettings.save()
+        if(value.toFixed(0) != mpv.visibility) {
+            mpv.visibility = value.toFixed(0)
         }
     }
 

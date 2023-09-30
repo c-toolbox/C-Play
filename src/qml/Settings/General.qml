@@ -110,7 +110,6 @@ SettingsBasePage {
 
     GridLayout {
         id: content
-
         columns: 3
 
         // OSD Font Size
@@ -244,10 +243,8 @@ SettingsBasePage {
             Layout.alignment: Qt.AlignRight
         }
 
-        Item {
+        RowLayout {
             height: fileDialogLocation.height
-            Layout.fillWidth: true
-
             TextField {
                 id: fileDialogLocation
 
@@ -261,27 +258,28 @@ SettingsBasePage {
                     text: qsTr("If empty the file dialog will remember the last opened location.")
                 }
             }
-        }
-        ToolButton {
-            id: fileDialogLocationLoadButton
-            text: ""
-            icon.name: "system-file-manager"
-            icon.height: 16
-            focusPolicy: Qt.NoFocus
-
-            onClicked: {
-                openPrimaryFileDialogLocation.open()
+            ToolButton {
+                id: fileDialogLocationLoadButton
+                text: ""
+                icon.name: "system-file-manager"
+                icon.height: 16
+                focusPolicy: Qt.NoFocus
+                onClicked: {
+                    openPrimaryFileDialogLocation.open()
+                }
             }
+            Layout.fillWidth: true
+            Layout.columnSpan: 2
         }
+
 
         Label {
             text: qsTr("Common C-play file location")
             Layout.alignment: Qt.AlignRight
         }
 
-        Item {
+        RowLayout {
             height: cPlayFileLocation.height
-            Layout.fillWidth: true
 
             TextField {
                 id: cPlayFileLocation
@@ -296,17 +294,19 @@ SettingsBasePage {
                     text: qsTr("Common directory for where the cplay_file(s) are stored.")
                 }
             }
-        }
-        ToolButton {
-            id: cPlayFileLocationLoadButton
-            text: ""
-            icon.name: "system-file-manager"
-            icon.height: 16
-            focusPolicy: Qt.NoFocus
+            ToolButton {
+                id: cPlayFileLocationLoadButton
+                text: ""
+                icon.name: "system-file-manager"
+                icon.height: 16
+                focusPolicy: Qt.NoFocus
 
-            onClicked: {
-                openCPlayFileLocation.open()
+                onClicked: {
+                    openCPlayFileLocation.open()
+                }
             }
+            Layout.fillWidth: true
+            Layout.columnSpan: 2
         }
 
         Label {
@@ -314,9 +314,8 @@ SettingsBasePage {
             Layout.alignment: Qt.AlignRight
         }
 
-        Item {
+        RowLayout {
             height: cPlayMediaLocation.height
-            Layout.fillWidth: true
 
             TextField {
                 id: cPlayMediaLocation
@@ -331,17 +330,19 @@ SettingsBasePage {
                     text: qsTr("Common directory for where the media (video/audio/etc) are stored.")
                 }
             }
-        }
-        ToolButton {
-            id: cPlayMediaLocationLoadButton
-            text: ""
-            icon.name: "system-file-manager"
-            icon.height: 16
-            focusPolicy: Qt.NoFocus
+            ToolButton {
+                id: cPlayMediaLocationLoadButton
+                text: ""
+                icon.name: "system-file-manager"
+                icon.height: 16
+                focusPolicy: Qt.NoFocus
 
-            onClicked: {
-                openCPlayMediaLocation.open()
+                onClicked: {
+                    openCPlayMediaLocation.open()
+                }
             }
+            Layout.fillWidth: true
+            Layout.columnSpan: 2
         }
 
         Label {
@@ -349,9 +350,8 @@ SettingsBasePage {
             Layout.alignment: Qt.AlignRight
         }
 
-        Item {
+        RowLayout {
             height: univiewVideoLocation.height
-            Layout.fillWidth: true
 
             TextField {
                 id: univiewVideoLocation
@@ -366,17 +366,19 @@ SettingsBasePage {
                     text: qsTr("Common directory where the Uniview video files are stored.")
                 }
             }
-        }
-        ToolButton {
-            id: univiewVideoLocationLoadButton
-            text: ""
-            icon.name: "system-file-manager"
-            icon.height: 16
-            focusPolicy: Qt.NoFocus
+            ToolButton {
+                id: univiewVideoLocationLoadButton
+                text: ""
+                icon.name: "system-file-manager"
+                icon.height: 16
+                focusPolicy: Qt.NoFocus
 
-            onClicked: {
-                openUniviewVideoLocation.open()
+                onClicked: {
+                    openUniviewVideoLocation.open()
+                }
             }
+            Layout.fillWidth: true
+            Layout.columnSpan: 2
         }
 
         SettingsHeader {

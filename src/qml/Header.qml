@@ -21,6 +21,7 @@ ToolBar {
 
     property var audioTracks
     property var subtitleTracks
+    property bool syncImageVideoFading: false
 
     position: ToolBar.Header
     visible: !window.isFullScreen() && GeneralSettings.showHeader
@@ -36,8 +37,18 @@ ToolBar {
         }
 
         ToolButton {
+            id: saveAsCPlayFileActionButton
             action: actions.saveAsCPlayFileAction
             focusPolicy: Qt.NoFocus
+            enabled: false
+        }
+
+        Connections {
+            target: mpv.playSectionsModel
+            function onCurrentEditItemChanged() {
+                saveAsCPlayFileActionButton.enabled = !mpv.playSectionsModel.isEmpty()
+                actions.saveAsCPlayFileAction.enabled = !mpv.playSectionsModel.isEmpty()
+            }
         }
 
 //        ToolButton {
@@ -132,8 +143,8 @@ ToolBar {
 //        }
 
         ToolButton {
-            text: qsTr("Audio")
-            icon.name: "audio-volume-high"
+            text: qsTr("Audio File")
+            icon.name: "new-audio-alarm"
             focusPolicy: Qt.NoFocus
 
             onClicked: {
@@ -165,6 +176,181 @@ ToolBar {
             }
         }
 
+        ToolButton {
+            id: mute
+            action: actions.muteAction
+            text: ""
+            focusPolicy: Qt.NoFocus
+
+            ToolTip {
+                text: actions.muteAction.text
+            }
+        }
+
+        Label {
+            text: qsTr("Volume:")
+            font.pointSize: 9
+            Layout.alignment: Qt.AlignRight
+        }
+
+        PropertyAnimation {
+            id: volume_fade_down_animation;
+            target: volumeSlider;
+            property: "value";
+            to: 0;
+            duration: PlaybackSettings.fadeDuration;
+        }
+        ToolButton {
+            id: fade_volume_down
+            icon.name: "audio-volume-low"
+            focusPolicy: Qt.NoFocus
+            enabled: mpv.volume !== 0
+            onClicked: {
+                volume_fade_up_animation.to = mpv.volume;
+                volume_fade_down_animation.start()
+                if(root.syncImageVideoFading){
+                    visibility_fade_out_animation.start()
+                }
+            }
+        }
+
+        VolumeSlider { id: volumeSlider }
+
+        PropertyAnimation {
+            id: volume_fade_up_animation;
+            target: volumeSlider;
+            property: "value";
+            to: 100;
+            duration: PlaybackSettings.fadeDuration;
+            onFinished: {
+                volume_fade_up_animation.to = 100;
+            }
+        }
+        ToolButton {
+            id: fade_volume_up
+            icon.name: "audio-volume-high"
+            focusPolicy: Qt.NoFocus
+            enabled: mpv.volume !== 100
+            onClicked: {
+                volume_fade_up_animation.start()
+                if(root.syncImageVideoFading){
+                    visibility_fade_in_animation.start()
+                }
+            }
+        }
+
+        ToolButton {
+            id: faiMenuButton
+            icon.name: "media-repeat-none"
+            focusPolicy: Qt.NoFocus
+
+            ToolTip {
+                id: faiToolTip
+                text: "Sync audio+image fading: No"
+                y: Math.round(-(parent.height - height))
+            }
+
+            onClicked: {
+                faiMenu.visible = !faiMenu.visible
+            }
+
+            Menu {
+                id: faiMenu
+
+                y: parent.height
+
+                MenuSeparator {}
+
+                ButtonGroup {
+                    buttons: columnFAI.children
+                }
+
+                Column {
+                    id: columnFAI
+
+                    RadioButton {
+                        id: fai_no_fade_sync
+                        checked: true
+                        text: qsTr("Do not sync audio and image fading")
+                        onClicked: {
+                        }
+                        onCheckedChanged: {
+                            if(checked){
+                                faiMenuButton.icon.name = "media-repeat-none";
+                                faiToolTip.text = "Sync audio+image fading: No";
+                                root.syncImageVideoFading = false;
+                            }
+                        }
+                    }
+
+                    RadioButton {
+                        id: fai_fade_sync
+                        checked: false
+                        text: qsTr("Sync audio+image fading")
+                        onClicked: {
+                        }
+                        onCheckedChanged: {
+                            if(checked){
+                                faiMenuButton.icon.name = "media-playlist-repeat";
+                                faiToolTip.text = "Sync audio+image fading: Yes";
+                                root.syncImageVideoFading = true;
+                            }
+                        }
+                    }
+                }
+            }
+        }
+
+        Label {
+            text: qsTr("Visibility:")
+            font.pointSize: 9
+            Layout.alignment: Qt.AlignRight
+        }
+
+
+        PropertyAnimation {
+            id: visibility_fade_out_animation;
+            target: visibilitySlider;
+            property: "value";
+            to: 0;
+            duration: PlaybackSettings.fadeDuration;
+        }
+        ToolButton {
+            id: fade_image_out
+            icon.name: "view-hidden"
+            focusPolicy: Qt.NoFocus
+            enabled: mpv.visibility !== 0
+            onClicked: {
+                visibility_fade_out_animation.start()
+                if(root.syncImageVideoFading){
+                    volume_fade_up_animation.to = mpv.volume;
+                    volume_fade_down_animation.start()
+                }
+            }
+        }
+
+        VisibilitySlider { id: visibilitySlider }
+
+        PropertyAnimation {
+            id: visibility_fade_in_animation;
+            target: visibilitySlider;
+            property: "value";
+            to: 100;
+            duration: PlaybackSettings.fadeDuration;
+        }
+        ToolButton {
+            id: fade_image_in
+            icon.name: "view-visible"
+            focusPolicy: Qt.NoFocus
+            enabled: mpv.visibility !== 100
+            onClicked: {
+                visibility_fade_in_animation.start()
+                if(root.syncImageVideoFading){
+                    volume_fade_up_animation.start()
+                }
+            }
+        }
+
         ToolSeparator {
             padding: vertical ? 10 : 2
             topPadding: vertical ? 2 : 10
@@ -178,127 +364,8 @@ ToolBar {
         }
 
         ToolButton {
-            id: gridMenuButton
-
-            text: {
-                if(mpv.gridToMapOn == 0)
-                    gridMenuButton.text = qsTr("Grid (None)")
-                else if(mpv.gridToMapOn == 1)
-                    gridMenuButton.text = qsTr("Grid (Plane)")
-                else if(mpv.gridToMapOn == 2)
-                    gridMenuButton.text = qsTr("Grid (Dome)")
-                else if(mpv.gridToMapOn == 3)
-                    gridMenuButton.text = qsTr("Grid (Sphere EQR)")
-                else if(mpv.gridToMapOn == 4)
-                    gridMenuButton.text = qsTr("Grid (Sphere EAC)")
-            }
-            icon.name: "kstars_hgrid"
-            focusPolicy: Qt.NoFocus
-
-            onClicked: {
-                gridMenu.visible = !gridMenu.visible
-            }
-
-            Connections {
-                target: mpv
-                onGridToMapOnChanged: {
-                    if(mpv.gridToMapOn == 0)
-                        gridMenuButton.text = qsTr("Grid (None)")
-                    else if(mpv.gridToMapOn == 1)
-                        gridMenuButton.text = qsTr("Grid (Plane)")
-                    else if(mpv.gridToMapOn == 2)
-                        gridMenuButton.text = qsTr("Grid (Dome)")
-                    else if(mpv.gridToMapOn == 3)
-                        gridMenuButton.text = qsTr("Grid (Sphere EQR)")
-                    else if(mpv.gridToMapOn == 4)
-                        gridMenuButton.text = qsTr("Grid (Sphere EAC)")
-                }
-            }
-
-            Menu {
-                id: gridMenu
-
-                y: parent.height
-
-                MenuSeparator {}
-
-                ButtonGroup {
-                    buttons: columnGrid.children
-                }
-
-                Column {
-                    id: columnGrid
-
-                    RadioButton {
-                        id: presplit_grid
-                        checked: PlaybackSettings.gridToMapOn === 0
-                        text: qsTr("None")
-                        onClicked: {
-                            mpv.gridToMapOn = 0
-                        }
-                        Connections {
-                            target: mpv
-                            onGridToMapOnChanged: presplit_grid.checked = (mpv.gridToMapOn === 0)
-                        }
-                    }
-
-                    RadioButton {
-                        id: plane_grid
-                        checked: PlaybackSettings.gridToMapOn === 1
-                        text: qsTr("Plane")
-                        onClicked: {
-                             mpv.gridToMapOn = 1
-                        }
-                        Connections {
-                            target: mpv
-                            onGridToMapOnChanged: plane_grid.checked = (mpv.gridToMapOn === 1)
-                        }
-                    }
-
-                    RadioButton {
-                        id: dome_grid
-                        checked: PlaybackSettings.gridToMapOn === 2
-                        text: qsTr("Dome")
-                        onClicked: {
-                             mpv.gridToMapOn = 2
-                        }
-                        Connections {
-                            target: mpv
-                            onGridToMapOnChanged: dome_grid.checked = (mpv.gridToMapOn === 2)
-                        }
-                    }
-
-                    RadioButton {
-                        id: sphere_eqr_grid
-                        checked: PlaybackSettings.gridToMapOn === 3
-                        text: qsTr("Sphere EQR")
-                        onClicked: {
-                            mpv.gridToMapOn = 3
-                        }
-                        Connections {
-                            target: mpv
-                            onGridToMapOnChanged: sphere_eqr_grid.checked = (mpv.gridToMapOn === 3)
-                        }
-                    }
-
-                    RadioButton {
-                        id: sphere_eac_grid
-                        checked: PlaybackSettings.gridToMapOn === 4
-                        text: qsTr("Sphere EAC")
-                        onClicked: {
-                            mpv.gridToMapOn = 4
-                        }
-                        Connections {
-                            target: mpv
-                            onGridToMapOnChanged: sphere_eac_grid.checked = (mpv.gridToMapOn === 4)
-                        }
-                    }
-                }
-            }
-        }
-
-        ToolButton {
             id: stereoscopicMenuButton
+            implicitWidth: 100
 
             text: {
                 if(mpv.stereoscopicVideo == 0){
@@ -326,7 +393,7 @@ ToolBar {
 
             Connections {
                 target: mpv
-                onStereoscopicVideoChanged: {
+                function onStereoscopicVideoChanged() {
                     if(mpv.stereoscopicVideo == 0){
                         stereoscopicMenuButton.text = qsTr("2D (Mono)")
                         stereoscopicMenuButton.icon.name = "redeyes"
@@ -369,7 +436,9 @@ ToolBar {
                         }
                         Connections {
                             target: mpv
-                            onStereoscopicVideoChanged: stereoscopic_2D.checked = (mpv.stereoscopicVideo === 0)
+                            function onStereoscopicVideoChanged(){
+                                stereoscopic_2D.checked = (mpv.stereoscopicVideo === 0)
+                            }
                         }
                     }
 
@@ -382,7 +451,9 @@ ToolBar {
                         }
                         Connections {
                             target: mpv
-                            onStereoscopicVideoChanged: stereoscopic_3D_sbs.checked = (mpv.stereoscopicVideo === 1)
+                            function onStereoscopicVideoChanged(){
+                                stereoscopic_3D_sbs.checked = (mpv.stereoscopicVideo === 1)
+                            }
                         }
                     }
 
@@ -395,7 +466,9 @@ ToolBar {
                         }
                         Connections {
                             target: mpv
-                            onStereoscopicVideoChanged: stereoscopic_3D_tp.checked = (mpv.stereoscopicVideo === 2)
+                            function onStereoscopicVideoChanged(){
+                                stereoscopic_3D_tp.checked = (mpv.stereoscopicVideo === 2)
+                            }
                         }
                     }
 
@@ -408,7 +481,9 @@ ToolBar {
                         }
                         Connections {
                             target: mpv
-                            onStereoscopicVideoChanged: stereoscopic_3D_tbf.checked = (mpv.stereoscopicVideo === 3)
+                            function onStereoscopicVideoChanged(){
+                                stereoscopic_3D_tbf.checked = (mpv.stereoscopicVideo === 3)
+                            }
                         }
                     }
                 }
@@ -416,183 +491,140 @@ ToolBar {
         }
 
         ToolButton {
-            id: sync
-            action: actions.syncAction
-            text: actions.syncAction.text
-            focusPolicy: Qt.NoFocus
-        }
-
-        ToolSeparator {
-            padding: vertical ? 10 : 2
-            topPadding: vertical ? 2 : 10
-            bottomPadding: vertical ? 2 : 10
-
-            contentItem: Rectangle {
-                implicitWidth: parent.vertical ? 1 : 24
-                implicitHeight: parent.vertical ? 24 : 1
-                color: Kirigami.Theme.textColor
-            }
-        }
-
-        ToolButton {
-            id: eofMenuButton
+            id: gridMenuButton
+            implicitWidth: 130
 
             text: {
-                const loopMode = mpv.playlistModel.loopMode(mpv.playlistModel.getPlayingVideo())
-                if(loopMode===0){ //Continue
-                    eofMenuButton.text = qsTr("EOF: Next ")
-                }
-                else if(loopMode===1){ // Pause (1)
-                    eofMenuButton.text = qsTr("EOF: Pause")
-                }
-                else {
-                    eofMenuButton.text = qsTr("EOF: Loop ")
-                }
+                if(mpv.gridToMapOn == 0)
+                    gridMenuButton.text = qsTr("Grid (None)")
+                else if(mpv.gridToMapOn == 1)
+                    gridMenuButton.text = qsTr("Grid (Plane)")
+                else if(mpv.gridToMapOn == 2)
+                    gridMenuButton.text = qsTr("Grid (Dome)")
+                else if(mpv.gridToMapOn == 3)
+                    gridMenuButton.text = qsTr("Grid (Sphere EQR)")
+                else if(mpv.gridToMapOn == 4)
+                    gridMenuButton.text = qsTr("Grid (Sphere EAC)")
             }
-            icon.name: "media-playback-pause"
+            icon.name: "kstars_hgrid"
             focusPolicy: Qt.NoFocus
 
             onClicked: {
-                eofMenu.visible = !eofMenu.visible
+                gridMenu.visible = !gridMenu.visible
             }
 
             Connections {
                 target: mpv
-                onFileLoaded: {
-                    const loopMode = mpv.playlistModel.loopMode(mpv.playlistModel.getPlayingVideo())
-                    if(loopMode===0 && playList.playlistView.count > 1){ //Continue
-                        mpv.loopMode = 0;
-                        eofMenuButton.text = qsTr("EOF: Next ")
-                        eofMenuButton.icon.name = "go-next"
-                    }
-                    else if(loopMode===1){ //Pause (1)
-                        mpv.loopMode = 1;
-                        eofMenuButton.text = qsTr("EOF: Pause")
-                        eofMenuButton.icon.name = "media-playback-pause"
-                    }
-                    else { //Loop
-                        mpv.loopMode = 2;
-                        eofMenuButton.text = qsTr("EOF: Loop ")
-                        eofMenuButton.icon.name = "media-playlist-repeat"
-                    }
+                function onGridToMapOnChanged() {
+                    if(mpv.gridToMapOn == 0)
+                        gridMenuButton.text = qsTr("Grid (None)")
+                    else if(mpv.gridToMapOn == 1)
+                        gridMenuButton.text = qsTr("Grid (Plane)")
+                    else if(mpv.gridToMapOn == 2)
+                        gridMenuButton.text = qsTr("Grid (Dome)")
+                    else if(mpv.gridToMapOn == 3)
+                        gridMenuButton.text = qsTr("Grid (Sphere EQR)")
+                    else if(mpv.gridToMapOn == 4)
+                        gridMenuButton.text = qsTr("Grid (Sphere EAC)")
                 }
             }
 
             Menu {
-                id: eofMenu
+                id: gridMenu
 
                 y: parent.height
 
                 MenuSeparator {}
 
                 ButtonGroup {
-                    buttons: columnEOF.children
+                    buttons: columnGrid.children
                 }
 
                 Column {
-                    id: columnEOF
+                    id: columnGrid
 
                     RadioButton {
-                        id: eof_pause
-                        checked: false
-                        text: qsTr("EOF: Pause")
+                        id: presplit_grid
+                        checked: PlaybackSettings.gridToMapOn === 0
+                        text: qsTr("None")
                         onClicked: {
-                            mpv.loopMode = 1;
-                            eofMenuButton.text = qsTr("EOF: Pause")
-                            eofMenuButton.icon.name = "media-playback-pause"
-
+                            mpv.gridToMapOn = 0
                         }
                         Connections {
                             target: mpv
-                            onFileLoaded: eof_pause.checked = (mpv.loopMode === 1)
+                            function onGridToMapOnChanged() {
+                                presplit_grid.checked = (mpv.gridToMapOn === 0)
+                            }
                         }
                     }
 
                     RadioButton {
-                        id: eof_loop
-                        checked: true
-                        text: qsTr("EOF: Loop ")
+                        id: plane_grid
+                        checked: PlaybackSettings.gridToMapOn === 1
+                        text: qsTr("Plane")
                         onClicked: {
-                            mpv.loopMode = 2;
-                            eofMenuButton.text = qsTr("EOF: Loop")
-                            eofMenuButton.icon.name = "media-playlist-repeat"
+                             mpv.gridToMapOn = 1
                         }
                         Connections {
                             target: mpv
-                            onFileLoaded: eof_loop.checked = (mpv.loopMode === 2)
+                            function onGridToMapOnChanged() {
+                                plane_grid.checked = (mpv.gridToMapOn === 1)
+                            }
                         }
                     }
 
                     RadioButton {
-                        id: eof_next
-                        checked: false
-                        text: qsTr("EOF: Next ")
-                        enabled: (playList.playlistView.count > 1)
+                        id: dome_grid
+                        checked: PlaybackSettings.gridToMapOn === 2
+                        text: qsTr("Dome")
                         onClicked: {
-                           mpv.loopMode = 0;
-                           eofMenuButton.text = qsTr("EOF: Next")
-                           eofMenuButton.icon.name = "go-next"
+                             mpv.gridToMapOn = 2
                         }
                         Connections {
                             target: mpv
-                            onFileLoaded: eof_next.checked = (mpv.loopMode === 0)
+                            function onGridToMapOnChanged() {
+                                dome_grid.checked = (mpv.gridToMapOn === 2)
+                            }
+                        }
+                    }
+
+                    RadioButton {
+                        id: sphere_eqr_grid
+                        checked: PlaybackSettings.gridToMapOn === 3
+                        text: qsTr("Sphere EQR")
+                        onClicked: {
+                            mpv.gridToMapOn = 3
+                        }
+                        Connections {
+                            target: mpv
+                            function onGridToMapOnChanged() {
+                                sphere_eqr_grid.checked = (mpv.gridToMapOn === 3)
+                            }
+                        }
+                    }
+
+                    RadioButton {
+                        id: sphere_eac_grid
+                        checked: PlaybackSettings.gridToMapOn === 4
+                        text: qsTr("Sphere EAC")
+                        onClicked: {
+                            mpv.gridToMapOn = 4
+                        }
+                        Connections {
+                            target: mpv
+                            function onGridToMapOnChanged() {
+                                sphere_eac_grid.checked = (mpv.gridToMapOn === 4)
+                            }
                         }
                     }
                 }
-            }
-        }
-
-        Label {
-            text: qsTr("Visibility")
-            Layout.alignment: Qt.AlignRight
-        }
-        Slider {
-            id: visibilitySlider
-            value: mpv.visibility
-            from: 0
-            to: 100
-            onValueChanged: mpv.visibility = value.toFixed(0)
-            Layout.topMargin: Kirigami.Units.largeSpacing
-        }
-        LabelWithTooltip {
-            text: {
-                if(mpv.visibility < 10)
-                    qsTr("%1\%    ").arg(Number(mpv.visibility))
-                else if(mpv.visibility < 100)
-                    qsTr("%1\%  ").arg(Number(mpv.visibility))
-                else
-                    qsTr("%1\%").arg(Number(mpv.visibility))
-            }
-            elide: Text.ElideRight
-        }
-
-        ToolButton {
-            text: qsTr("Fade Out")
-            icon.name: "choice-round"
-            focusPolicy: Qt.NoFocus
-            enabled: mpv.visibility != 0
-            onClicked: PropertyAnimation {
-                target: visibilitySlider;
-                property: "value";
-                to: 0;
-                duration: PlaybackSettings.fadeDuration;
-            }
-        }
-        ToolButton {
-            text: qsTr("Fade In")
-            icon.name: "atmosphere"
-            focusPolicy: Qt.NoFocus
-            enabled: mpv.visibility != 100
-            onClicked: PropertyAnimation {
-                target: visibilitySlider;
-                property: "value";
-                to: 100;
-                duration: PlaybackSettings.fadeDuration;
             }
         }
 
         ToolButton {
             id: spinMenuButton
+
+            enabled: mpv.gridToMapOn >= 2
 
             text: {
                 qsTr("Spin + Move")
@@ -899,12 +931,158 @@ ToolBar {
             }
         }
 
-//        ToolButton {
-//            action: actions.configureAction
-//            focusPolicy: Qt.NoFocus
-//        }
+        ToolButton {
+            id: sync
+            action: actions.syncAction
+            text: actions.syncAction.text
+            focusPolicy: Qt.NoFocus
+        }
+
+        ToolSeparator {
+            padding: vertical ? 10 : 2
+            topPadding: vertical ? 2 : 10
+            bottomPadding: vertical ? 2 : 10
+
+            contentItem: Rectangle {
+                implicitWidth: parent.vertical ? 1 : 24
+                implicitHeight: parent.vertical ? 24 : 1
+                color: Kirigami.Theme.textColor
+            }
+        }
+
+        ToolButton {
+            id: eofMenuButton
+            implicitWidth: 100
+
+            text: {
+                const loopMode = mpv.playlistModel.loopMode(mpv.playlistModel.getPlayingVideo())
+                if(loopMode===0){ //Continue
+                    eofMenuButton.text = qsTr("EOF: Next ")
+                }
+                else if(loopMode===1){ // Pause (1)
+                    eofMenuButton.text = qsTr("EOF: Pause")
+                }
+                else {
+                    eofMenuButton.text = qsTr("EOF: Loop ")
+                }
+            }
+            icon.name: "media-playback-pause"
+            focusPolicy: Qt.NoFocus
+
+            onClicked: {
+                eofMenu.visible = !eofMenu.visible
+            }
+
+            Connections {
+                target: mpv
+                function onFileLoaded() {
+                    const loopMode = mpv.playlistModel.loopMode(mpv.playlistModel.getPlayingVideo())
+                    if(loopMode===0 && playList.playlistView.count > 1){ //Continue
+                        mpv.loopMode = 0;
+                        eofMenuButton.text = qsTr("EOF: Next ")
+                        eofMenuButton.icon.name = "go-next"
+                    }
+                    else if(loopMode===1){ //Pause (1)
+                        mpv.loopMode = 1;
+                        eofMenuButton.text = qsTr("EOF: Pause")
+                        eofMenuButton.icon.name = "media-playback-pause"
+                    }
+                    else { //Loop
+                        mpv.loopMode = 2;
+                        eofMenuButton.text = qsTr("EOF: Loop ")
+                        eofMenuButton.icon.name = "media-playlist-repeat"
+                    }
+                }
+            }
+
+            Menu {
+                id: eofMenu
+
+                y: parent.height
+
+                MenuSeparator {}
+
+                ButtonGroup {
+                    buttons: columnEOF.children
+                }
+
+                Column {
+                    id: columnEOF
+
+                    RadioButton {
+                        id: eof_pause
+                        checked: false
+                        text: qsTr("EOF: Pause")
+                        onClicked: {
+                            mpv.loopMode = 1;
+                            eofMenuButton.text = qsTr("EOF: Pause")
+                            eofMenuButton.icon.name = "media-playback-pause"
+
+                        }
+                        Connections {
+                            target: mpv
+                            function onFileLoaded() {
+                                eof_pause.checked = (mpv.loopMode === 1)
+                            }
+                        }
+                    }
+
+                    RadioButton {
+                        id: eof_loop
+                        checked: true
+                        text: qsTr("EOF: Loop ")
+                        onClicked: {
+                            mpv.loopMode = 2;
+                            eofMenuButton.text = qsTr("EOF: Loop")
+                            eofMenuButton.icon.name = "media-playlist-repeat"
+                        }
+                        Connections {
+                            target: mpv
+                            function onFileLoaded() {
+                                eof_loop.checked = (mpv.loopMode === 2)
+                            }
+                        }
+                    }
+
+                    RadioButton {
+                        id: eof_next
+                        checked: false
+                        text: qsTr("EOF: Next ")
+                        enabled: (playList.playlistView.count > 1)
+                        onClicked: {
+                           mpv.loopMode = 0;
+                           eofMenuButton.text = qsTr("EOF: Next")
+                           eofMenuButton.icon.name = "go-next"
+                        }
+                        Connections {
+                            target: mpv
+                            function onFileLoaded() {
+                                eof_next.checked = (mpv.loopMode === 0)
+                            }
+                        }
+                    }
+                }
+            }
+        }
+
+        /*ToolSeparator {
+            padding: vertical ? 10 : 2
+            topPadding: vertical ? 2 : 10
+            bottomPadding: vertical ? 2 : 10
+
+            contentItem: Rectangle {
+                implicitWidth: parent.vertical ? 1 : 24
+                implicitHeight: parent.vertical ? 24 : 1
+                color: Kirigami.Theme.textColor
+            }
+        }*/
 
         /*ToolButton {
+            action: actions.configureAction
+            focusPolicy: Qt.NoFocus
+        }
+
+        ToolButton {
             // using `action: actions.quitApplicationAction` breaks the action
             // doens't work on the first try in certain circumstances
             text: actions.quitApplicationAction.text

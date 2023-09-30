@@ -26,6 +26,24 @@ QtObject {
         onTriggered: mpvContextMenu.popup()
     }
 
+    property Action toggleSectionsAction: Action {
+        id: toggleSectionsAction
+        property var qaction: app.action("toggleSections")
+        text: qaction.text
+        shortcut: qaction.shortcutName()
+        icon.name: qaction.iconName()
+
+        Component.onCompleted: list["toggleSectionsAction"] = toggleSectionsAction
+
+        onTriggered: {
+            if (playSections.state === "visible") {
+                playSections.state = "hidden"
+            } else {
+                playSections.state = "visible"
+            }
+        }
+    }
+
     property Action togglePlaylistAction: Action {
         id: togglePlaylistAction
         property var qaction: app.action("togglePlaylist")
@@ -200,12 +218,12 @@ QtObject {
         text: qaction.text
         shortcut: qaction.shortcutName()
         icon.name: qaction.iconName()
-
         Component.onCompleted: list["saveAsCPlayFileAction"] = saveAsCPlayFileAction
-
+        enabled: false
         onTriggered: {
             mpv.setLoadedAsCurrentEditItem()
-            saveAsCPlayFileWindow.visible = true
+            if(!mpv.playSectionsModel.isEmpty())
+                saveAsCPlayFileWindow.visible = true
         }
     }
 

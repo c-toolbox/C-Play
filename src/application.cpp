@@ -481,7 +481,7 @@ void Application::setupActions(const QString &actionName)
         auto action = new HAction();
         action->setText(i18n("Configure"));
         action->setIcon(QIcon::fromTheme("configure"));
-        m_collection.setDefaultShortcut(action, Qt::CTRL + Qt::SHIFT + Qt::Key_Comma);
+        m_collection.setDefaultShortcut(action, Qt::CTRL + Qt::SHIFT + Qt::Key_S);
         m_collection.addAction(actionName, action);
     }
 
@@ -490,6 +490,14 @@ void Application::setupActions(const QString &actionName)
         action->setText(i18n("Playlist"));
         action->setIcon(QIcon::fromTheme("view-media-playlist"));
         m_collection.setDefaultShortcut(action, Qt::Key_P);
+        m_collection.addAction(actionName, action);
+    }
+
+    if (actionName == QStringLiteral("toggleSections")) {
+        auto action = new HAction();
+        action->setText(i18n("Sections"));
+        action->setIcon(QIcon::fromTheme("view-media-playlist"));
+        m_collection.setDefaultShortcut(action, Qt::Key_S);
         m_collection.addAction(actionName, action);
     }
 
@@ -659,7 +667,7 @@ void Application::setupActions(const QString &actionName)
     if (actionName == QStringLiteral("mute")) {
         auto action = new HAction();
         action->setText(i18n("Mute"));
-        action->setIcon(QIcon::fromTheme("player-volume"));
+        action->setIcon(QIcon::fromTheme("audio-on"));
         m_collection.setDefaultShortcut(action, Qt::Key_M);
         m_collection.addAction(actionName, action);
     }
@@ -680,7 +688,7 @@ void Application::setupActions(const QString &actionName)
     if (actionName == QStringLiteral("sync-video")) {
         auto action = new HAction();
         if (SyncHelper::instance().variables.syncOn) {
-            action->setText(i18n("Sync is On"));
+            action->setText(i18n("Sync is On "));
             action->setIcon(QIcon::fromTheme("im-user-online"));
         }
         else {
@@ -688,7 +696,7 @@ void Application::setupActions(const QString &actionName)
             action->setIcon(QIcon::fromTheme("im-user-offline"));
         }
         action->setToolTip(i18n(""));
-        m_collection.setDefaultShortcut(action, Qt::Key_S);
+        m_collection.setDefaultShortcut(action, Qt::CTRL + Qt::Key_S);
         m_collection.addAction(actionName, action);
     }
     if (actionName == QStringLiteral("seekForwardSmall")) {
@@ -806,7 +814,7 @@ void Application::setupActions(const QString &actionName)
     if (actionName == QStringLiteral("subtitleToggle")) {
         auto action = new HAction();
         action->setText(i18n("Subtitle Toggle"));
-        m_collection.setDefaultShortcut(action, Qt::CTRL + Qt::Key_S);
+        m_collection.setDefaultShortcut(action, Qt::SHIFT + Qt::Key_S);
         m_collection.addAction(actionName, action);
     }
     if (actionName == QStringLiteral("audioCycleUp")) {

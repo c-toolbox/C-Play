@@ -20,6 +20,105 @@
 #include <QJsonObject>
 #include <QJsonArray>
 
+PlaySectionsModel::PlaySectionsModel(QObject* parent)
+    : QAbstractListModel(parent), 
+    m_currentEditItem(nullptr)
+{
+}
+
+int PlaySectionsModel::rowCount(const QModelIndex& parent) const
+{
+    if (parent.isValid() || !m_currentEditItem)
+        return 0;
+
+    return m_currentEditItem->sections().size();
+}
+
+QVariant PlaySectionsModel::data(const QModelIndex& index, int role) const
+{
+    if (!index.isValid() || !m_currentEditItem || m_currentEditItem->sections().empty())
+        return QVariant();
+
+    auto playListItemSection = m_currentEditItem->sections().at(index.row());
+
+    switch (role) {
+    case TitleRole:
+        return QVariant(playListItemSection.title);
+    case StartTimeRole:
+        return QVariant(Application::formatTime(playListItemSection.startTime));
+    case EndTimeRole:
+        return QVariant(Application::formatTime(playListItemSection.endTime));
+    case DurationRole:
+        return QVariant(Application::formatTime(playListItemSection.endTime-playListItemSection.startTime));
+    case EndOfSectionModeRole:
+        if (playListItemSection.eosMode == 1) { //Fade out
+            return QVariant("Fade out");
+        }
+        else if (playListItemSection.eosMode == 2) { //Continue
+            return QVariant("Continue playing");
+        }
+        else if (playListItemSection.eosMode == 3) { //Next
+            return QVariant("Next section");
+        }
+        else if (playListItemSection.eosMode == 4) { //Loop
+            return QVariant("Loop section");
+        }
+        else { // Pause (0)
+            return QVariant("Pause");
+        }
+    case PlayingRole:
+        return QVariant(playListItemSection.isPlaying);
+    }
+
+    return QVariant();
+}
+
+QHash<int, QByteArray> PlaySectionsModel::roleNames() const
+{
+    QHash<int, QByteArray> roles;
+    roles[TitleRole] = "title";
+    roles[StartTimeRole] = "startTime";
+    roles[EndTimeRole] = "endTime";
+    roles[DurationRole] = "duration";
+    roles[EndOfSectionModeRole] = "eosMode";
+    roles[PlayingRole] = "isPlaying";
+    return roles;
+}
+
+void PlaySectionsModel::clear()
+{
+    beginResetModel();
+    m_currentEditItem = nullptr;
+    endResetModel();
+}
+
+bool PlaySectionsModel::isEmpty() {
+    return m_currentEditItem == nullptr;
+}
+
+PlayListItem* PlaySectionsModel::currentEditItem()
+{
+    return m_currentEditItem;
+}
+
+void PlaySectionsModel::setCurrentEditItem(PlayListItem* item)
+{
+    beginResetModel();
+    m_currentEditItem = item;
+    emit currentEditItemChanged();
+    endResetModel();
+}
+
+void PlaySectionsModel::addSection(QString name, QString startTime, QString endTime, int eosMode)
+{
+    if (!m_currentEditItem)
+        return;
+
+    beginInsertRows(QModelIndex(), m_currentEditItem->sections().size(), m_currentEditItem->sections().size());
+    m_currentEditItem->addSection(name, startTime, endTime, eosMode);
+    endInsertRows();
+}
+
 PlayListModel::PlayListModel(QObject *parent)
     : QAbstractListModel(parent)
 {
@@ -31,7 +130,7 @@ PlayListModel::PlayListModel(QObject *parent)
         auto duration = metaData[KFileMetaData::Property::Duration].toInt();
         auto title = metaData[KFileMetaData::Property::Title].toString();
 
-        m_playList[i]->setDuration(Application::formatTime(duration));
+        m_playList[i]->setDuration(duration);
         m_playList[i]->setMediaTitle(title);
 
         emit dataChanged(index(i, 0), index(i, 0));
@@ -62,6 +161,10 @@ QVariant PlayListModel::data(const QModelIndex &index, int role) const
         return QVariant();
     }
 
+    int stereoVideo = playListItem->stereoVideo();
+    int gridToMapOn = playListItem->gridToMapOn();
+    int loopMode = playListItem->loopMode();
+
     switch (role) {
     case NameRole:
         return QVariant(playListItem->fileName());
@@ -72,11 +175,41 @@ QVariant PlayListModel::data(const QModelIndex &index, int role) const
     case PathRole:
         return QVariant(playListItem->mediaFile());
     case DurationRole:
-        return QVariant(playListItem->duration());
+        return QVariant(Application::formatTime(playListItem->duration()));
     case PlayingRole:
         return QVariant(playListItem->isPlaying());
     case FolderPathRole:
         return QVariant(playListItem->fileFolderPath());
+    case StereoRole:
+        if (stereoVideo == 0) {
+            return QVariant("2D");
+        }
+        else {
+            return QVariant("3D");
+        }
+    case GridRole:
+        if (gridToMapOn == 0) {
+            return QVariant("Split");
+        }
+        else if (gridToMapOn == 1) {
+            return QVariant("Flat");
+        }
+        else if (gridToMapOn == 2) {
+            return QVariant("Dome");
+        }
+        else {
+            return QVariant("Sphere");
+        }
+    case LoopRole:
+        if (loopMode == 1) { //Pause
+            return QVariant("Pause at end");
+        }
+        else if (loopMode == 2) { //Loop
+            return QVariant("Loop video");
+        }
+        else { // Continue (0)
+            return QVariant("Continue to next");
+        }
     }
 
     return QVariant();
@@ -91,6 +224,9 @@ QHash<int, QByteArray> PlayListModel::roleNames() const
     roles[FolderPathRole] = "folderPath";
     roles[DurationRole] = "duration";
     roles[PlayingRole] = "isPlaying";
+    roles[StereoRole] = "stereoVideo";
+    roles[GridRole] = "gridToMapOn";
+    roles[LoopRole] = "loopMode";
     return roles;
 }
 
@@ -137,7 +273,6 @@ Playlist PlayListModel::items() const
 
 QString PlayListModel::configFolder()
 {
-
     auto configPath = QStandardPaths::writableLocation(m_config->locationType());
     auto configFilePath = configPath.append(QStringLiteral("/")).append(m_config->name());
     QFileInfo fileInfo(configFilePath);
@@ -188,6 +323,8 @@ void PlayListModel::clear()
     qDeleteAll(m_playList);
     beginResetModel();
     m_playList.clear();
+    m_playListName = "";
+    m_playListPath = "";
     endResetModel();
 }
 
@@ -309,7 +446,7 @@ QString PlayListModel::mediaTitle(int i) const
 QString PlayListModel::duration(int i) const
 {
     if (i >= 0 && m_playList.size() > i && m_playList[i])
-        return m_playList[i].data()->duration();
+        return m_playList[i].data()->durationFormatted();
     else
         return "";
 }
@@ -320,22 +457,6 @@ QString PlayListModel::separateAudioFile(int i) const
         return m_playList[i].data()->separateAudioFile();
     else
         return "";
-}
-
-double PlayListModel::startTime(int i) const
-{
-    if (i >= 0 && m_playList.size() > i && m_playList[i])
-        return m_playList[i].data()->startTime();
-    else
-        return 0.0;
-}
-
-double PlayListModel::endTime(int i) const
-{
-    if (i >= 0 && m_playList.size() > i && m_playList[i])
-        return m_playList[i].data()->endTime();
-    else
-        return 0.0;
 }
 
 int PlayListModel::loopMode(int i) const

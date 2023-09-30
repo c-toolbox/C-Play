@@ -19,7 +19,6 @@ ToolBar {
     property alias footerRow: footerRow
     property alias timeInfo: timeInfo
     property alias playPauseButton: playPauseButton
-    property alias volume: volume
 
     anchors.left: parent.left
     anchors.right: parent.right
@@ -28,6 +27,14 @@ ToolBar {
     position: ToolBar.Footer
     hoverEnabled: true
     visible: !window.isFullScreen() || mpv.mouseY > window.height - footer.height
+
+    Component {
+        id: toggleSectionsButton
+
+        ToolButton {
+            action: actions.toggleSectionsAction
+        }
+    }
 
     Component {
         id: togglePlaylistButton
@@ -54,6 +61,11 @@ ToolBar {
                 const menuHeight = mpvContextMenu.count * mpvContextMenu.itemAt(0).height
                 mpvContextMenu.popup(footer, 0, -menuHeight)
             }
+        }
+
+        Loader {
+            sourceComponent: toggleSectionsButton
+            visible: !PlaylistSettings.canToggleWithMouse && PlaylistSettings.position === "right"
         }
 
         Loader {
@@ -105,7 +117,7 @@ ToolBar {
             id: timeInfo
 
             text: app.formatTime(mpv.position) + " / " + app.formatTime(mpv.duration)
-            font.pointSize: Kirigami.Units.gridUnit - 4
+            font.pointSize: 9
             fontSizeMode: Text.Fit
             toolTipText: qsTr("Remaining: ") + app.formatTime(mpv.remaining)
             toolTipFontSize: timeInfo.font.pointSize + 2
@@ -113,18 +125,10 @@ ToolBar {
             horizontalAlignment: Qt.AlignHCenter
         }
 
-        ToolButton {
-            id: mute
-            action: actions.muteAction
-            text: ""
-            focusPolicy: Qt.NoFocus
-
-            ToolTip {
-                text: actions.muteAction.text
-            }
+        Loader {
+            sourceComponent: toggleSectionsButton
+            visible: !PlaylistSettings.canToggleWithMouse && PlaylistSettings.position === "left"
         }
-
-        VolumeSlider { id: volume }
 
         Loader {
             sourceComponent: togglePlaylistButton

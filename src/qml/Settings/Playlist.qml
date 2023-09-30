@@ -49,64 +49,6 @@ SettingsBasePage {
             }
         }
 
-        Label {
-            text: qsTr("Row height")
-            Layout.alignment: Qt.AlignRight
-        }
-
-        SpinBox {
-            from: 0
-            to: 100
-            value: PlaylistSettings.rowHeight
-            enabled: PlaylistSettings.style === "compact" ? false : true
-            onValueChanged: {
-                PlaylistSettings.rowHeight = value
-                PlaylistSettings.save()
-                playList.rowHeight = value
-                playList.playlistView.forceLayout()
-            }
-        }
-
-        Label {
-            text: qsTr("Playlist style")
-            Layout.alignment: Qt.AlignRight
-        }
-
-        ComboBox {
-            textRole: "display"
-            model: ListModel {
-                ListElement { display: "Default"; value: "default" }
-                ListElement { display: "WithThumbnails"; value: "withThumbnails" }
-                ListElement { display: "Compact"; value: "compact" }
-            }
-            Component.onCompleted: {
-                for (let i = 0; i < model.count; ++i) {
-                    if (model.get(i).value === PlaylistSettings.style) {
-                        currentIndex = i
-                        break
-                    }
-                }
-            }
-            onActivated: {
-                PlaylistSettings.style = model.get(index).value
-                PlaylistSettings.save()
-            }
-        }
-
-        Item { width: 1; height: 1 }
-        CheckBox {
-            checked: PlaylistSettings.overlayVideo
-            text: qsTr("Overlay video")
-            onCheckStateChanged: {
-                PlaylistSettings.overlayVideo = checked
-                PlaylistSettings.save()
-            }
-
-            ToolTip {
-                text: qsTr("When checked the playlist goes on top of the video\nWhen unchecked the video is resized")
-            }
-        }
-
         Item { width: 1; height: 1 }
         CheckBox {
             checked: PlaylistSettings.showMediaTitle
@@ -155,19 +97,6 @@ SettingsBasePage {
                 PlaylistSettings.canToggleWithMouse = checked
                 PlaylistSettings.save()
                 playList.canToggleWithMouse = checked
-            }
-        }
-
-        Item { width: 1; height: 1 }
-        CheckBox {
-            text: qsTr("Increase font size when fullscreen")
-            checked: PlaylistSettings.bigFontFullscreen
-            enabled: PlaylistSettings.style === "compact" ? false : true
-            onCheckStateChanged: {
-                PlaylistSettings.bigFontFullscreen = checked
-                PlaylistSettings.save()
-                playList.bigFont = checked
-                playList.playlistView.forceLayout()
             }
         }
 

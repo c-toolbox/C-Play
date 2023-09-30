@@ -89,6 +89,8 @@ Kirigami.ApplicationWindow {
         Osd { id: osd }
     }
 
+    PlaySections { id: playSections }
+
     PlayList { id: playList }
 
     Footer { id: footer }
@@ -106,7 +108,6 @@ Kirigami.ApplicationWindow {
             // the timer scrolls the playlist to the playing file
             // once the table view rows are loaded
             playList.scrollPositionTimer.start()
-            updatePlayListHeader()
             mpv.focus = true
 
             GeneralSettings.fileDialogLastLocation = app.parentUrl(openFileDialog.file)
@@ -145,8 +146,8 @@ Kirigami.ApplicationWindow {
         nameFilters: [ "C-Play file (*.cplay_file)" ]
 
         onVisibleChanged: {
-            if(mpv.currentEditItem) {
-                location = mpv.currentEditItem.fileFolderPath()
+            if(!mpv.playSectionsModel.isEmpty()) {
+                saveCPlayFileDialog.folder = mpv.playSectionsModel.currentEditItem.fileFolderPath()
             }
         }
 
@@ -172,7 +173,6 @@ Kirigami.ApplicationWindow {
 
         onAccepted: {
             saveCPlayPlaylist(saveCPlayPlaylistDialog.file.toString())
-            updatePlayListHeader()
             mpv.focus = true
 
             GeneralSettings.fileDialogLastLocation = app.parentUrl(saveCPlayPlaylistDialog.file)
@@ -247,7 +247,6 @@ Kirigami.ApplicationWindow {
             playList.isYouTubePlaylist = false
         }*/
 
-        mpv.playlistModel.clear()
         mpv.pause = !startPlayback
         if (loadSiblings) {
             // get video files from same folder as the opened file
@@ -257,18 +256,12 @@ Kirigami.ApplicationWindow {
     }
 
     function saveCPlayFile(path) {
-        mpv.currentEditItem.saveAsJSONPlayFile(path)
+        mpv.playSectionsModel.currentEditItem.saveAsJSONPlayFile(path)
     }
 
     function saveCPlayPlaylist(path) {
         mpv.playlistModel.saveAsJSONPlaylist(path)
-    }
-
-    function updatePlayListHeader() {
-        if(mpv.playlistModel.getPlayListName() !== "")
-            playList.playlistName.text = qsTr("Playlist: ") + mpv.playlistModel.getPlayListName()
-        else
-            playList.playlistName.text = qsTr("")
+        mpv.playlistModelChanged()
     }
 
     function isFullScreen() {

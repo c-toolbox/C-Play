@@ -19,10 +19,9 @@ Kirigami.BasicListItem {
     property string rowNumber: (index + 1).toString()
 
     label: mainText()
-    subtitle: model.duration + " : " + model.stereoVideo + " " + model.gridToMapOn + " : (" + model.loopMode + ")"
+    subtitle: model.startTime + " - " + model.endTime + " (" + model.duration + ")" + " - At end: " + model.eosMode
     padding: 0
     icon: model.isPlaying ? "media-playback-start" : ""
-    font.pointSize: 9
     backgroundColor: {
         let color = Kirigami.Theme.backgroundColor
         Qt.hsla(color.hslHue, color.hslSaturation, color.hslLightness, 1)
@@ -36,26 +35,21 @@ Kirigami.BasicListItem {
     }
 
     onDoubleClicked: {
-        mpv.pause = true
-        mpv.position = 0
-        mpv.loadItem(index)
-        mpv.playlistModel.setPlayingVideo(index)
-        //playItem.start()
     }
 
     ToolTip {
-        text: (PlaylistSettings.showMediaTitle ? model.title : model.name)
+        text: model.title
         visible: root.containsMouse
         font.pointSize: Kirigami.Units.gridUnit - 5
     }
 
     function mainText() {
-        const rowNumber = pad(root.rowNumber, playlistView.count.toString().length) + ". "
+        const rowNumber = pad(root.rowNumber, sectionsView.count.toString().length) + ". "
 
         if(PlaylistSettings.showRowNumber) {
-            return rowNumber + (PlaylistSettings.showMediaTitle ? model.title : model.name)
+            return rowNumber + (model.title)
         }
-        return (PlaylistSettings.showMediaTitle ? model.title : model.name)
+        return (model.title)
     }
 
     function pad(number, length) {

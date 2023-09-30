@@ -84,7 +84,7 @@ SettingsBasePage {
 
                 Connections {
                     target: selectActionPopup
-                    onActionSelected: {
+                    function onActionSelected() {
                         if (selectActionPopup.buttonIndex === model.index) {
                             MouseSettings[model.key] = actionName
                             MouseSettings.save()

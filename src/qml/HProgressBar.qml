@@ -205,11 +205,13 @@ Slider {
 
     Connections {
         target: mpv
-        onFileLoaded: chapters = mpv.getProperty("chapter-list")
-        onChapterChanged: {
+        function onFileLoaded() {
+            chapters = mpv.getProperty("chapter-list")
+        }
+        function onChapterChanged() {
             chaptersMenu.checkedItem = mpv.chapter
         }
-        onPositionChanged: {
+        function onPositionChanged() {
             if (!root.seekStarted) {
                 root.value = mpv.position
             }

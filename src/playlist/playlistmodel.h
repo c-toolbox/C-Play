@@ -16,6 +16,47 @@ class PlayListItem;
 
 using Playlist = QList<QPointer<PlayListItem>>;
 
+class PlaySectionsModel : public QAbstractListModel
+{
+    Q_OBJECT
+
+public:
+    explicit PlaySectionsModel(QObject* parent = nullptr);
+
+    enum {
+        TitleRole = Qt::UserRole,
+        StartTimeRole,
+        EndTimeRole,
+        DurationRole,
+        EndOfSectionModeRole,
+        PlayingRole
+    };
+
+    int rowCount(const QModelIndex& parent = QModelIndex()) const override;
+    QVariant data(const QModelIndex& index, int role = Qt::DisplayRole) const override;
+    virtual QHash<int, QByteArray> roleNames() const override;
+
+    Q_PROPERTY(PlayListItem* currentEditItem
+        READ currentEditItem
+        WRITE setCurrentEditItem
+        NOTIFY currentEditItemChanged)
+
+    Q_INVOKABLE void clear();
+    Q_INVOKABLE bool isEmpty();
+
+    PlayListItem* currentEditItem();
+    void setCurrentEditItem(PlayListItem* item);
+
+    Q_INVOKABLE void addSection(QString name, QString startTime, QString endTime, int eosMode);
+
+signals:
+    void currentEditItemChanged();
+
+private:
+    PlayListItem* m_currentEditItem;
+};
+
+
 class PlayListModel : public QAbstractListModel
 {
     Q_OBJECT
@@ -34,7 +75,10 @@ public:
         DurationRole,
         PathRole,
         FolderPathRole,
-        PlayingRole
+        PlayingRole,
+        StereoRole,
+        GridRole,
+        LoopRole,
     };
 
     int rowCount(const QModelIndex &parent = QModelIndex()) const override;
@@ -44,10 +88,10 @@ public:
     Playlist getPlayList() const;
     void setPlayList(const Playlist& playList);
 
-    void setPlayListName(QString name);
+    Q_INVOKABLE void setPlayListName(QString name);
     Q_INVOKABLE QString getPlayListName() const;
 
-    void setPlayListPath(QString path);
+    Q_INVOKABLE void setPlayListPath(QString path);
     Q_INVOKABLE QString getPlayListPath() const;
 
     Q_INVOKABLE QString getPath(int i);
@@ -69,8 +113,6 @@ public:
     Q_INVOKABLE QString mediaTitle(int i) const;
     Q_INVOKABLE QString duration(int i) const;
     Q_INVOKABLE QString separateAudioFile(int i) const;
-    Q_INVOKABLE double startTime(int i) const;
-    Q_INVOKABLE double endTime(int i) const;
     Q_INVOKABLE int loopMode(int i) const;
     Q_INVOKABLE void setLoopMode(int i, int loopMode);
     Q_INVOKABLE int transitionMode(int i) const;

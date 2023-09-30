@@ -14,7 +14,7 @@ Menu {
 
     MenuItem { action: actions["openAction"] }
     MenuItem { action: actions["saveAsCPlayFileAction"] }
-    MenuItem { action: actions["openUrlAction"] }
+    //MenuItem { action: actions["openUrlAction"] }
 
     MenuSeparator {}
 

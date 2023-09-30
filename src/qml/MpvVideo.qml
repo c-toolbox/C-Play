@@ -26,12 +26,8 @@ MpvObject {
 
     width: parent.width
     height: window.isFullScreen() ? parent.height : parent.height - footer.height
-    anchors.left: PlaylistSettings.overlayVideo
-                  ? parent.left
-                  : (PlaylistSettings.position === "left" ? playList.right : parent.left)
-    anchors.right: PlaylistSettings.overlayVideo
-                   ? parent.right
-                   : (PlaylistSettings.position === "right" ? playList.left : parent.right)
+    anchors.left: PlaylistSettings.position === "left" ? playList.right : playSections.right
+    anchors.right: PlaylistSettings.position === "right" ? playList.left : playSections.left
     anchors.top: parent.top
     volume: GeneralSettings.volume
 
@@ -141,6 +137,15 @@ MpvObject {
         }
         else {
             playList.state = "hidden"
+        }
+    }
+
+    onPlaySectionsModelChanged: {
+        if (playSections.sectionsView.count > 0) {
+            playSections.state = "visible"
+        }
+        else {
+            playSections.state = "hidden"
         }
     }
 
@@ -302,6 +307,24 @@ MpvObject {
                     playList.state = "hidden"
                 }
             }
+            if (!playSections.canToggleWithMouse || playSections.sectionsView.count <= 1) {
+                return
+            }
+            if (playSections.position !== "right") {
+                if (mouseX > width - 50) {
+                    playSections.state = "visible"
+                }
+                if (mouseX < width - playList.width - 20) {
+                    playSections.state = "hidden"
+                }
+            } else {
+                if (mouseX < 50) {
+                    playSections.state = "visible"
+                }
+                if (mouseX > playList.width + 20) {
+                    playSections.state = "hidden"
+                }
+            }
         }
 
         onWheel: {
@@ -373,17 +396,31 @@ MpvObject {
     Connections {
         target: mediaPlayer2Player
 
-        onPlaypause: actions.playPauseAction.trigger()
-        onPlay: root.pause = false
-        onPause: root.pause = true
-        onStop: {
+        function onPlaypause() {
+            actions.playPauseAction.trigger()
+        }
+        function onPlay() {
+            root.pause = false
+        }
+        function onPause() {
+            root.pause = true
+        }
+        function onStop() {
             root.position = 0
             root.pause = true
         }
-        onNext: actions.playNextAction.trigger()
-        onPrevious: actions.playPreviousAction.trigger()
-        onSeek: root.command(["add", "time-pos", offset])
-        onOpenUri: openFile(uri, false, false)
+        function onNext() {
+            actions.playNextAction.trigger()
+        }
+        function onPrevious() {
+            actions.playPreviousAction.trigger()
+        }
+        function onSeek() {
+            root.command(["add", "time-pos", offset])
+        }
+        function onOpenUri() {
+            openFile(uri, false, false)
+        }
     }
 
     Rectangle {
@@ -433,10 +470,10 @@ MpvObject {
         }
     }
 
-    Shortcut {
+    /*Shortcut {
         sequence: StandardKey.NextChild
         onActivated: view.currentIndex++
-    }
+    }*/
 
     Component.onCompleted: {
         mediaPlayer2Player.mpv = root

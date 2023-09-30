@@ -33,7 +33,7 @@ Menu {
         }
         Connections {
             target: mpv
-            onFileLoaded: {
+            function onFileLoaded() {
                 audioMenuInstantiator.model = mpv.audioTracksModel
             }
         }

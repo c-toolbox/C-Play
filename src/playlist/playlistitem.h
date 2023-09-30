@@ -7,26 +7,41 @@
 #ifndef PLAYLISTITEM_H
 #define PLAYLISTITEM_H
 
+#include <QString>
 #include <QObject>
 
 class PlayListItemData
 {
 public:
+    struct Section {
+        Section(QString name, double start, double end, int eos) 
+            : title(name), startTime(start), endTime(end), eosMode(eos), isPlaying(false) {}
+        QString title;
+        double startTime;
+        double endTime;
+        // 0 = Pause
+        // 1 = Fade out
+        // 2 = Continue
+        // 3 = Next
+        // 4 = Loop
+        int eosMode; //End of section
+        bool isPlaying;
+    };
     
     QString filePath() const;
     QString fileName() const;
     QString fileFolderPath() const;
     QString mediaFile() const;
     QString mediaTitle() const;
-    QString duration() const;
+    double duration() const;
     QString separateOverlayFile() const;
     QString separateAudioFile() const;
-    double startTime() const;
-    double endTime() const;
     int loopMode() const;
     int transitionMode() const;
     int gridToMapOn() const;
     int stereoVideo() const;
+    QList<PlayListItemData::Section> sections() const;
+
     bool isPlaying() const;
     int index() const;
 
@@ -35,15 +50,15 @@ public:
     QString m_fileFolderPath;
     QString m_mediaFile;
     QString m_mediaTitle;
-    QString m_duration;
+    double m_duration;
     QString m_separateOverlayFile{ "" };
     QString m_separateAudioFile{ "" };
-    double m_startTime{ 0.0 };
-    double m_endTime{ 0.0 };
     int m_loopMode{ 2 };
     int m_transitionMode{ 0 };
     int m_gridToMapOn{ -1 };
     int m_stereoVideo{ -1 };
+    QList<Section> m_sections;
+
     bool m_isHovered{ false };
     bool m_isPlaying{ false };
     int m_index{ -1 };
@@ -74,8 +89,9 @@ public:
     Q_INVOKABLE QString mediaTitle() const;
     Q_INVOKABLE void setMediaTitle(const QString& title);
 
-    Q_INVOKABLE QString duration() const;
-    Q_INVOKABLE void setDuration(const QString &duration);
+    Q_INVOKABLE QString durationFormatted() const;
+    Q_INVOKABLE double duration() const;
+    Q_INVOKABLE void setDuration(double duration);
 
     Q_INVOKABLE QString separateOverlayFile() const;
     Q_INVOKABLE void setSeparateOverlayFile(const QString& audioFile);
@@ -83,13 +99,7 @@ public:
     Q_INVOKABLE QString separateAudioFile() const;
     Q_INVOKABLE void setSeparateAudioFile(const QString& audioFile);
 
-    Q_INVOKABLE double startTime() const;
-    Q_INVOKABLE void setStartTime(double startTime);
-
-    Q_INVOKABLE double endTime() const;
-    Q_INVOKABLE void setEndTime(double endTime);
-
-    // 0 = Continue
+    // 0 = Continue ( Next
     // 1 = Pause
     // 2 = Loop
     Q_INVOKABLE int loopMode() const;
@@ -117,6 +127,13 @@ public:
 
     Q_INVOKABLE bool isPlaying() const;
     Q_INVOKABLE void setIsPlaying(bool isPlaying);
+
+    Q_INVOKABLE void addSection(QString name, double startTime, double endTime, int eosMode);
+    Q_INVOKABLE void addSection(QString name, QString startTime, QString endTime, int eosMode);
+    Q_INVOKABLE QList<PlayListItemData::Section> sections();
+
+    Q_INVOKABLE bool isSectionPlaying(int index) const;
+    Q_INVOKABLE void setIsSectionPlaying(int index, bool isPlaying);
 
     Q_INVOKABLE int index() const;
     Q_INVOKABLE void setIndex(int index);
