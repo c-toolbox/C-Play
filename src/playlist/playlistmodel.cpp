@@ -31,15 +31,15 @@ int PlaySectionsModel::rowCount(const QModelIndex& parent) const
     if (parent.isValid() || !m_currentEditItem)
         return 0;
 
-    return m_currentEditItem->sections().size();
+    return m_currentEditItem->numberOfSections();
 }
 
 QVariant PlaySectionsModel::data(const QModelIndex& index, int role) const
 {
-    if (!index.isValid() || !m_currentEditItem || m_currentEditItem->sections().empty())
+    if (!index.isValid() || !m_currentEditItem || m_currentEditItem->numberOfSections() == 0)
         return QVariant();
 
-    auto playListItemSection = m_currentEditItem->sections().at(index.row());
+    auto playListItemSection = m_currentEditItem->getSection(index.row());
 
     switch (role) {
     case TitleRole:
@@ -85,8 +85,22 @@ QHash<int, QByteArray> PlaySectionsModel::roleNames() const
     return roles;
 }
 
+void PlaySectionsModel::setPlayingSection(int section)
+{
+    // unset current playing section
+    m_currentEditItem->setIsSectionPlaying(m_playingSection, false);
+    emit dataChanged(index(m_playingSection, 0), index(m_playingSection, 0));
+
+    // set new playing section
+    m_currentEditItem->setIsSectionPlaying(section, true);
+    emit dataChanged(index(section, 0), index(section, 0));
+
+    m_playingSection = section;
+}
+
 void PlaySectionsModel::clear()
 {
+    m_playingSection = 0;
     beginResetModel();
     m_currentEditItem = nullptr;
     endResetModel();
@@ -103,6 +117,7 @@ PlayListItem* PlaySectionsModel::currentEditItem()
 
 void PlaySectionsModel::setCurrentEditItem(PlayListItem* item)
 {
+    m_playingSection = 0;
     beginResetModel();
     m_currentEditItem = item;
     emit currentEditItemChanged();
@@ -114,9 +129,52 @@ void PlaySectionsModel::addSection(QString name, QString startTime, QString endT
     if (!m_currentEditItem)
         return;
 
-    beginInsertRows(QModelIndex(), m_currentEditItem->sections().size(), m_currentEditItem->sections().size());
+    beginInsertRows(QModelIndex(), m_currentEditItem->numberOfSections(), m_currentEditItem->sections().size());
     m_currentEditItem->addSection(name, startTime, endTime, eosMode);
     endInsertRows();
+}
+
+void PlaySectionsModel::removeSection(int i) {
+    beginRemoveRows(QModelIndex(), i, i);
+    if (m_playingSection == i) {
+        m_playingSection = 0;
+    }
+    m_currentEditItem->removeSection(i);
+    endRemoveRows();
+}
+
+void PlaySectionsModel::moveSectionUp(int i) {
+    if (i == 0) return;
+    beginMoveRows(QModelIndex(), i, i, QModelIndex(), i - 1);
+    m_currentEditItem->moveSection(i, i - 1);
+    endMoveRows();
+}
+
+void PlaySectionsModel::moveSectionDown(int i) {
+    if (i == (m_currentEditItem->numberOfSections() - 1)) return;
+    beginMoveRows(QModelIndex(), i + 1, i + 1, QModelIndex(), i);
+    m_currentEditItem->moveSection(i, i + 1);
+    endMoveRows();
+}
+
+QString PlaySectionsModel::sectionTitle(int i) const
+{
+    return m_currentEditItem->sectionTitle(i);
+}
+
+double PlaySectionsModel::sectionStartTime(int i) const
+{
+    return m_currentEditItem->sectionStartTime(i);
+}
+
+double PlaySectionsModel::sectionEndTime(int i) const
+{
+    return m_currentEditItem->sectionEndTime(i);
+}
+
+int PlaySectionsModel::sectionEOSMode(int i) const
+{
+    return m_currentEditItem->sectionEOSMode(i);
 }
 
 PlayListModel::PlayListModel(QObject *parent)

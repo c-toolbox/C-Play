@@ -671,10 +671,6 @@ std::vector<std::byte> encode() {
     serializeObject(data, SyncHelper::instance().variables.stereoscopicMode);
     serializeObject(data, SyncHelper::instance().variables.loopMode);
     serializeObject(data, SyncHelper::instance().variables.gridToMapOn);
-    serializeObject(data, SyncHelper::instance().variables.contrast);
-    serializeObject(data, SyncHelper::instance().variables.brightness);
-    serializeObject(data, SyncHelper::instance().variables.gamma);
-    serializeObject(data, SyncHelper::instance().variables.saturation);
     serializeObject(data, SyncHelper::instance().variables.radius);
     serializeObject(data, SyncHelper::instance().variables.fov);
     serializeObject(data, SyncHelper::instance().variables.angle);
@@ -688,10 +684,21 @@ std::vector<std::byte> encode() {
     serializeObject(data, SyncHelper::instance().variables.planeHeight);
     serializeObject(data, SyncHelper::instance().variables.planeElevation);
     serializeObject(data, SyncHelper::instance().variables.planeDistance);
+    serializeObject(data, SyncHelper::instance().variables.eqDirty);
+    serializeObject(data, SyncHelper::instance().variables.eqContrast);
+    serializeObject(data, SyncHelper::instance().variables.eqBrightness);
+    serializeObject(data, SyncHelper::instance().variables.eqGamma);
+    serializeObject(data, SyncHelper::instance().variables.eqSaturation);
+    serializeObject(data, SyncHelper::instance().variables.loopTimeDirty);
+    serializeObject(data, SyncHelper::instance().variables.loopTimeEnabled);
+    serializeObject(data, SyncHelper::instance().variables.loopTimeA);
+    serializeObject(data, SyncHelper::instance().variables.loopTimeB);
 
     //Reset flags every frame cycle
     SyncHelper::instance().variables.loadFile = false;
     SyncHelper::instance().variables.timeDirty = false;
+    SyncHelper::instance().variables.eqDirty = false;
+    SyncHelper::instance().variables.loopTimeDirty = false;
 
     return data;
 }
@@ -710,10 +717,6 @@ void decode(const std::vector<std::byte>& data, unsigned int pos) {
         deserializeObject(data, pos, SyncHelper::instance().variables.stereoscopicMode);
         deserializeObject(data, pos, SyncHelper::instance().variables.loopMode);
         deserializeObject(data, pos, SyncHelper::instance().variables.gridToMapOn);
-        deserializeObject(data, pos, SyncHelper::instance().variables.contrast);
-        deserializeObject(data, pos, SyncHelper::instance().variables.brightness);
-        deserializeObject(data, pos, SyncHelper::instance().variables.gamma);
-        deserializeObject(data, pos, SyncHelper::instance().variables.saturation);
         deserializeObject(data, pos, SyncHelper::instance().variables.radius);
         deserializeObject(data, pos, SyncHelper::instance().variables.fov);
         deserializeObject(data, pos, SyncHelper::instance().variables.angle);
@@ -727,6 +730,15 @@ void decode(const std::vector<std::byte>& data, unsigned int pos) {
         deserializeObject(data, pos, SyncHelper::instance().variables.planeHeight);
         deserializeObject(data, pos, SyncHelper::instance().variables.planeElevation);
         deserializeObject(data, pos, SyncHelper::instance().variables.planeDistance);
+        deserializeObject(data, pos, SyncHelper::instance().variables.eqDirty);
+        deserializeObject(data, pos, SyncHelper::instance().variables.eqContrast);
+        deserializeObject(data, pos, SyncHelper::instance().variables.eqBrightness);
+        deserializeObject(data, pos, SyncHelper::instance().variables.eqGamma);
+        deserializeObject(data, pos, SyncHelper::instance().variables.eqSaturation);
+        deserializeObject(data, pos, SyncHelper::instance().variables.loopTimeDirty);
+        deserializeObject(data, pos, SyncHelper::instance().variables.loopTimeEnabled);
+        deserializeObject(data, pos, SyncHelper::instance().variables.loopTimeA);
+        deserializeObject(data, pos, SyncHelper::instance().variables.loopTimeB);
     }
 }
 
@@ -782,33 +794,41 @@ void postSyncPreDraw() {
             }
         }
 
-        if (SyncHelper::instance().variables.contrast != mpv::qt::get_property(mpvHandle, "contrast").toInt()) {
-            mpv::qt::set_property(mpvHandle, "contrast", SyncHelper::instance().variables.contrast);
-        }
-
-        if (SyncHelper::instance().variables.brightness != mpv::qt::get_property(mpvHandle, "brightness").toInt()) {
-            mpv::qt::set_property(mpvHandle, "brightness", SyncHelper::instance().variables.brightness);
-        }
-
-        if (SyncHelper::instance().variables.gamma != mpv::qt::get_property(mpvHandle, "gamma").toInt()) {
-            mpv::qt::set_property(mpvHandle, "gamma", SyncHelper::instance().variables.gamma);
-        }
-
-        if (SyncHelper::instance().variables.saturation != mpv::qt::get_property(mpvHandle, "saturation").toInt()) {
-            mpv::qt::set_property(mpvHandle, "saturation", SyncHelper::instance().variables.saturation);
-        }
-
         double currentTimePos = mpv::qt::get_property(mpvHandle, "time-pos").toDouble();
         if (SyncHelper::instance().variables.timePosition != currentTimePos && SyncHelper::instance().variables.syncOn) {
             double timeToSet = SyncHelper::instance().variables.timePosition;
-            //double timeThreshold = SyncHelper::instance().variables.timeThreshold;
-            //bool timeOff = ((timeToSet - currentTimePos) > timeThreshold);
-            if (SyncHelper::instance().variables.timeDirty /* || paused || timeOff */ ) {
+            if (SyncHelper::instance().variables.timeDirty) {
                 mpv::qt::set_property(mpvHandle, "time-pos", timeToSet);
-                //Always set time pos when paused and not same time
-                //Or set time position as it is above sync threshold
-                //mpv::qt::command_async(mpvHandle, QVariantList() << "seek" << timeToSet << "absolute");
-                Log::Info(fmt::format("New video position: {}", timeToSet));     
+                //Log::Info(fmt::format("New video position: {}", timeToSet));     
+            }
+        }
+
+        if (SyncHelper::instance().variables.loopTimeDirty) {
+            if (SyncHelper::instance().variables.loopTimeEnabled) {
+                mpv::qt::set_property(mpvHandle, "ab-loop-a", SyncHelper::instance().variables.loopTimeA);
+                mpv::qt::set_property(mpvHandle, "ab-loop-b", SyncHelper::instance().variables.loopTimeB);
+            }
+            else {
+                mpv::qt::set_property(mpvHandle, "ab-loop-a", "no");
+                mpv::qt::set_property(mpvHandle, "ab-loop-b", "no");
+            }
+        }
+
+        if (SyncHelper::instance().variables.eqDirty) {
+            if (SyncHelper::instance().variables.eqContrast != mpv::qt::get_property(mpvHandle, "contrast").toInt()) {
+                mpv::qt::set_property(mpvHandle, "contrast", SyncHelper::instance().variables.eqContrast);
+            }
+
+            if (SyncHelper::instance().variables.eqBrightness != mpv::qt::get_property(mpvHandle, "brightness").toInt()) {
+                mpv::qt::set_property(mpvHandle, "brightness", SyncHelper::instance().variables.eqBrightness);
+            }
+
+            if (SyncHelper::instance().variables.eqGamma != mpv::qt::get_property(mpvHandle, "gamma").toInt()) {
+                mpv::qt::set_property(mpvHandle, "gamma", SyncHelper::instance().variables.eqGamma);
+            }
+
+            if (SyncHelper::instance().variables.eqSaturation != mpv::qt::get_property(mpvHandle, "saturation").toInt()) {
+                mpv::qt::set_property(mpvHandle, "saturation", SyncHelper::instance().variables.eqSaturation);
             }
         }
 

@@ -41,6 +41,7 @@ public:
         WRITE setCurrentEditItem
         NOTIFY currentEditItemChanged)
 
+    Q_INVOKABLE void setPlayingSection(int section);
     Q_INVOKABLE void clear();
     Q_INVOKABLE bool isEmpty();
 
@@ -48,12 +49,20 @@ public:
     void setCurrentEditItem(PlayListItem* item);
 
     Q_INVOKABLE void addSection(QString name, QString startTime, QString endTime, int eosMode);
+    Q_INVOKABLE void removeSection(int i);
+    Q_INVOKABLE void moveSectionUp(int i);
+    Q_INVOKABLE void moveSectionDown(int i);
+    Q_INVOKABLE QString sectionTitle(int i) const;
+    Q_INVOKABLE double sectionStartTime(int i) const;
+    Q_INVOKABLE double sectionEndTime(int i) const;
+    Q_INVOKABLE int sectionEOSMode(int i) const;
 
 signals:
     void currentEditItemChanged();
 
 private:
     PlayListItem* m_currentEditItem;
+    int m_playingSection = 0;
 };
 
 

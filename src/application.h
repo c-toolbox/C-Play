@@ -98,14 +98,10 @@ public:
         double timeThreshold;
         bool timeDirty;
         float alpha;
-        int stereoscopicMode;
         bool syncOn;
-        int loopMode;
         int gridToMapOn;
-        int contrast;
-        int brightness;
-        int gamma;
-        int saturation;
+        int stereoscopicMode;
+        int loopMode;
         double radius;
         double fov;
         double angle;
@@ -119,6 +115,15 @@ public:
         double planeHeight;
         double planeElevation;
         double planeDistance;
+        bool eqDirty;
+        int eqContrast;
+        int eqBrightness;
+        int eqGamma;
+        int eqSaturation;
+        bool loopTimeDirty;
+        bool loopTimeEnabled;
+        double loopTimeA;
+        double loopTimeB;
 
     };
 

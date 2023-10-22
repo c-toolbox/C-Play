@@ -959,14 +959,10 @@ SyncHelper& SyncHelper::instance() {
         _instance->variables.timeThreshold = 1.0;
         _instance->variables.timeDirty = false;
         _instance->variables.alpha = 1.f;
-        _instance->variables.stereoscopicMode = 0;
         _instance->variables.syncOn = true;
-        _instance->variables.loopMode = 2;
         _instance->variables.gridToMapOn = 0;
-        _instance->variables.contrast = 0;
-        _instance->variables.brightness = 0;
-        _instance->variables.gamma = 0;
-        _instance->variables.saturation = 0;
+        _instance->variables.stereoscopicMode = 0;
+        _instance->variables.loopMode = 2;
         _instance->variables.radius = 740;
         _instance->variables.fov = 165;
         _instance->variables.angle = 27.f;
@@ -976,6 +972,15 @@ SyncHelper& SyncHelper::instance() {
         _instance->variables.translateX = 0;
         _instance->variables.translateY = 0;
         _instance->variables.translateZ = 0;
+        _instance->variables.eqDirty = false;
+        _instance->variables.eqContrast = 0;
+        _instance->variables.eqBrightness = 0;
+        _instance->variables.eqGamma = 0;
+        _instance->variables.eqSaturation = 0;
+        _instance->variables.loopTimeDirty = false;
+        _instance->variables.loopTimeEnabled = false;
+        _instance->variables.loopTimeA = 0;
+        _instance->variables.loopTimeB = 0;
     }
     return *_instance;
 }

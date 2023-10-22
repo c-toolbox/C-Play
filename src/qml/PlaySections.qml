@@ -150,13 +150,57 @@ Rectangle {
                     Layout.fillWidth: true
                 }
 
-                Button {
-                    text: qsTr("Add section")
-                    icon.name: "list-add"
-                    enabled: true
-                    focus: true
-                    onClicked: {
-                        mpv.playSectionsModel.addSection(sectionTitle.text, startTimeTextField.text, endTimeTextField.text, eosComboBox.currentIndex)
+                RowLayout {
+                    Button {
+                        icon.name: "list-add"
+                        enabled: true
+                        focus: true
+                        onClicked: {
+                            mpv.playSectionsModel.addSection(sectionTitle.text, startTimeTextField.text, endTimeTextField.text, eosComboBox.currentIndex)
+                        }
+                        ToolTip {
+                            text: qsTr("Add section")
+                        }
+                    }
+
+                    Button {
+                        icon.name: "list-remove"
+                        onClicked: {
+                           mpv.playSectionsModel.removeSection(sectionsView.currentIndex)
+                        }
+                        ToolTip {
+                            text: qsTr("Remove selected sections")
+                        }
+                    }
+                    Button {
+                        icon.name: "edit-entry"
+                        onClicked: {
+                            sectionTitle.text = mpv.playSectionsModel.sectionTitle(sectionsView.currentIndex)
+                            startTimeTextField.text = app.formatTime(mpv.playSectionsModel.sectionStartTime(sectionsView.currentIndex))
+                            endTimeTextField.text = app.formatTime(mpv.playSectionsModel.sectionEndTime(sectionsView.currentIndex))
+                            eosComboBox.currentIndex = mpv.playSectionsModel.sectionEOSMode(sectionsView.currentIndex)
+                        }
+                        ToolTip {
+                            text: qsTr("Edit section entry")
+                        }
+                    }
+                    Button {
+                        icon.name: "kdenlive-zindex-up"
+                        onClicked: {
+                            mpv.playSectionsModel.moveSectionUp(sectionsView.currentIndex)
+                        }
+                        ToolTip {
+                            text: qsTr("Move selected upwards")
+                        }
+                    }
+                    Button {
+                        icon.name: "kdenlive-zindex-down"
+                        onClicked: {
+                            mpv.playSectionsModel.moveSectionDown(sectionsView.currentIndex)
+                        }
+                        ToolTip {
+                            text: qsTr("Move selected downwards")
+                        }
                     }
                     Layout.columnSpan: 3
                 }

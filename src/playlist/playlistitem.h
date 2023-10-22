@@ -20,7 +20,7 @@ public:
         double startTime;
         double endTime;
         // 0 = Pause
-        // 1 = Fade out
+        // 1 = Fade out (then pause)
         // 2 = Continue
         // 3 = Next
         // 4 = Loop
@@ -128,8 +128,16 @@ public:
     Q_INVOKABLE bool isPlaying() const;
     Q_INVOKABLE void setIsPlaying(bool isPlaying);
 
-    Q_INVOKABLE void addSection(QString name, double startTime, double endTime, int eosMode);
-    Q_INVOKABLE void addSection(QString name, QString startTime, QString endTime, int eosMode);
+    Q_INVOKABLE void addSection(QString title, double startTime, double endTime, int eosMode);
+    Q_INVOKABLE void addSection(QString title, QString startTime, QString endTime, int eosMode);
+    Q_INVOKABLE void removeSection(int i);
+    Q_INVOKABLE void moveSection(int from, int to);
+    Q_INVOKABLE QString sectionTitle(int i) const;
+    Q_INVOKABLE double sectionStartTime(int i) const;
+    Q_INVOKABLE double sectionEndTime(int i) const;
+    Q_INVOKABLE int sectionEOSMode(int i) const;
+    Q_INVOKABLE int numberOfSections() const;
+    Q_INVOKABLE const PlayListItemData::Section& getSection(int i) const;
     Q_INVOKABLE QList<PlayListItemData::Section> sections();
 
     Q_INVOKABLE bool isSectionPlaying(int index) const;
@@ -144,9 +152,12 @@ public:
     PlayListItemData data() const;
     void setData(PlayListItemData d);
     void updateToNewFile(const QString& path);
+    void loadFromDisk();
 
 private:
     PlayListItemData m_data;
+
+    QString checkAndCorrectPath(const QString& filePath, const QStringList& searchPaths);
 };
 
 #endif // PLAYLISTITEM_H

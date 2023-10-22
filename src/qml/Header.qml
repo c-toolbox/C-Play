@@ -206,10 +206,12 @@ ToolBar {
             focusPolicy: Qt.NoFocus
             enabled: mpv.volume !== 0
             onClicked: {
-                volume_fade_up_animation.to = mpv.volume;
-                volume_fade_down_animation.start()
-                if(root.syncImageVideoFading){
-                    visibility_fade_out_animation.start()
+                if(!volume_fade_down_animation.running){
+                    volume_fade_up_animation.to = mpv.volume;
+                    volume_fade_down_animation.start()
+                    if(root.syncImageVideoFading){
+                        visibility_fade_out_animation.start()
+                    }
                 }
             }
         }
@@ -232,9 +234,11 @@ ToolBar {
             focusPolicy: Qt.NoFocus
             enabled: mpv.volume !== 100
             onClicked: {
-                volume_fade_up_animation.start()
-                if(root.syncImageVideoFading){
-                    visibility_fade_in_animation.start()
+                if(!volume_fade_up_animation.running){
+                    volume_fade_up_animation.start()
+                    if(root.syncImageVideoFading){
+                        visibility_fade_in_animation.start()
+                    }
                 }
             }
         }
@@ -321,10 +325,12 @@ ToolBar {
             focusPolicy: Qt.NoFocus
             enabled: mpv.visibility !== 0
             onClicked: {
-                visibility_fade_out_animation.start()
-                if(root.syncImageVideoFading){
-                    volume_fade_up_animation.to = mpv.volume;
-                    volume_fade_down_animation.start()
+                if(!visibility_fade_out_animation.running){
+                    visibility_fade_out_animation.start()
+                    if(root.syncImageVideoFading){
+                        volume_fade_up_animation.to = mpv.volume;
+                        volume_fade_down_animation.start()
+                    }
                 }
             }
         }
@@ -344,10 +350,22 @@ ToolBar {
             focusPolicy: Qt.NoFocus
             enabled: mpv.visibility !== 100
             onClicked: {
-                visibility_fade_in_animation.start()
-                if(root.syncImageVideoFading){
-                    volume_fade_up_animation.start()
+                if(!visibility_fade_in_animation.running){
+                    visibility_fade_in_animation.start()
+                    if(root.syncImageVideoFading){
+                        volume_fade_up_animation.start()
+                    }
                 }
+            }
+        }
+
+        Connections {
+            target: mpv
+            function onTriggerFadeDown() {
+                fade_image_out.clicked()
+            }
+            function onTriggerFadeUp() {
+                fade_image_in.clicked()
             }
         }
 

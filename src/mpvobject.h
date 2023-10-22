@@ -339,6 +339,7 @@ public:
     Q_INVOKABLE void clearPlaylist();
     Q_INVOKABLE void setLoadedAsCurrentEditItem();
     Q_INVOKABLE void setCurrentEditItemFromPlaylist(int playListIndex);
+    Q_INVOKABLE void loadSection(int playSectionsIndex);
     Q_INVOKABLE void loadItem(int playListIndex, bool updateLastPlayedFile = true);
     Q_INVOKABLE void getYouTubePlaylist(const QString &path);
     Q_INVOKABLE QVariant command(const QVariant &params, bool debug = false);
@@ -396,8 +397,11 @@ signals:
     void audioDevicesChanged();
     void youtubePlaylistLoaded();
     void surfaceTransistionPerformed();
+    void triggerFadeDown();
+    void triggerFadeUp();
 
 private:
+    void sectionPositionCheck(double position);
     TracksModel *audioTracksModel() const;
     TracksModel *subtitleTracksModel() const;
     TracksModel *m_audioTracksModel;
@@ -420,6 +424,8 @@ private:
     double m_lastSetPosition;
     PlayListModel *m_playlistModel;
     PlaySectionsModel* m_playSectionsModel;
+    int m_currentSectionsIndex;
+    PlayListItemData::Section m_currentSection;
     QString m_loadedFileStructure;
     QString m_separateAudioFile;
     double m_startTime;

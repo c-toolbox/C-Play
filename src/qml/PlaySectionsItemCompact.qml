@@ -35,6 +35,9 @@ Kirigami.BasicListItem {
     }
 
     onDoubleClicked: {
+        mpv.pause = true
+        mpv.loadSection(index)
+        mpv.playSectionsModel.setPlayingSection(index)
     }
 
     ToolTip {
