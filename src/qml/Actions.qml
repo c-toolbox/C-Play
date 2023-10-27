@@ -1100,4 +1100,28 @@ QtObject {
             osd.message(`Deinterlace: ${mpv.getProperty("deinterlace")}`)
         }
     }
+
+    property Action clearRecentMediaFilesAction: Action {
+        id: clearRecentMediaFilesAction
+        property var qaction: app.action("clearRecentMediaFiles")
+        text: qaction.text
+
+        Component.onCompleted: list["clearRecentMediaFilesAction"] = clearRecentMediaFilesAction
+
+        onTriggered: {
+            mpv.clearRecentMediaFilelist()
+        }
+    }
+
+    property Action clearRecentPlaylistsAction: Action {
+        id: clearRecentPlaylistsAction
+        property var qaction: app.action("clearRecentPlaylists")
+        text: qaction.text
+
+        Component.onCompleted: list["clearRecentPlaylistsAction"] = clearRecentPlaylistsAction
+
+        onTriggered: {
+            mpv.clearRecentPlaylist()
+        }
+    }
 }

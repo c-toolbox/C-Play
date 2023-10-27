@@ -1,6 +1,7 @@
-<!DOCTYPE RCC><RCC version="1.0">
-    <qresource>
+<RCC>
+    <qresource prefix="/">
         <file>C_transparent.png</file>
         <file>C_desaturated.png</file>
+        <file>C_play_transparent.png</file>
     </qresource>
 </RCC>

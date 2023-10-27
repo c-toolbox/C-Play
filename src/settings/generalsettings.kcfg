@@ -62,6 +62,12 @@
     <entry name="LastPlaylistIndex" type="Int">
       <default>0</default>
     </entry>
+    <entry name="RecentLoadedMediaFiles" type="StringList">
+      <label>Recently loaded media files</label>
+    </entry>
+    <entry name="RecentLoadedPlaylists" type="StringList">
+      <label>Recently loaded playlists</label>
+    </entry>
     <entry name="CPlayFileLocation" type="String">
       <label>Location of common cplay_file(s) storage</label>
     </entry>

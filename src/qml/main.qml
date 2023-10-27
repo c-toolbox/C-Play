@@ -154,9 +154,14 @@ Kirigami.ApplicationWindow {
         onAccepted: {
             saveCPlayFile(saveCPlayFileDialog.file.toString())
             mpv.focus = true
+            saveCPlayFileDialog.visible = false;
 
             GeneralSettings.fileDialogLastLocation = app.parentUrl(saveCPlayFileDialog.file)
             GeneralSettings.save()
+
+            if (saveCPlayFileDialog.visible) {
+                saveCPlayFileDialog.close()
+            }
         }
         onRejected: mpv.focus = true
     }

@@ -239,10 +239,35 @@ void MpvObject::setAudioDevices(QVariantList devices)
     m_audioDevices = devices;
 }
 
+QStringList MpvObject::recentMediaFiles() const 
+{
+    return GeneralSettings::recentLoadedMediaFiles();
+}
+
+void MpvObject::setRecentMediaFiles(QStringList list)
+{
+    GeneralSettings::setRecentLoadedMediaFiles(list);
+    GeneralSettings::self()->save();
+    emit recentMediaFilesChanged();
+}
+
+QStringList MpvObject::recentPlaylists() const
+{
+    return GeneralSettings::recentLoadedPlaylists();
+}
+
+void MpvObject::setRecentPlaylists(QStringList list) 
+{
+    GeneralSettings::setRecentLoadedPlaylists(list);
+    GeneralSettings::self()->save();
+    emit recentPlaylistsChanged();
+}
+
 QString MpvObject::mediaTitle()
 {
     return getProperty("media-title").toString();
 }
+
 double MpvObject::position()
 {
     return getProperty("time-pos").toDouble();
@@ -291,6 +316,20 @@ void MpvObject::setPause(bool value)
 void MpvObject::togglePlayPause()
 {
     setPause(!pause());
+}
+
+void MpvObject::clearRecentMediaFilelist() {
+    QStringList empty;
+    GeneralSettings::setRecentLoadedMediaFiles(empty);
+    emit recentMediaFilesChanged();
+    GeneralSettings::self()->save();
+}
+
+void MpvObject::clearRecentPlaylist() {
+    QStringList empty;
+    GeneralSettings::setRecentLoadedPlaylists(empty);
+    emit recentPlaylistsChanged();
+    GeneralSettings::self()->save();
 }
 
 int MpvObject::volume()
@@ -783,7 +822,7 @@ void MpvObject::loadFile(const QString &file, bool updateLastPlayedFile)
     if (ext == "fdv") {
         PlayListItem* videoFile = loadUniviewFDV(file);
         if (videoFile) {
-            loadItem(videoFile->data());
+            loadItem(videoFile->data(), updateLastPlayedFile);
             m_playSectionsModel->setCurrentEditItem(videoFile);
             emit playSectionsModelChanged();
         }
@@ -794,7 +833,7 @@ void MpvObject::loadFile(const QString &file, bool updateLastPlayedFile)
     else if (ext == "cplay_file") {
         PlayListItem* videoFile = loadJSONPlayfile(file);
         if (videoFile) {
-            loadItem(videoFile->data());
+            loadItem(videoFile->data(), updateLastPlayedFile);
             m_playSectionsModel->setCurrentEditItem(videoFile);
             emit playSectionsModelChanged();
         }
@@ -815,14 +854,16 @@ void MpvObject::loadFile(const QString &file, bool updateLastPlayedFile)
         setProperty("lavfi-complex", "");
         m_currentSectionsIndex = -1;
         command(QStringList() << "loadfile" << fileToLoad, true);
-    }
 
-    if (updateLastPlayedFile) {
-        GeneralSettings::setLastPlayedFile(file);
-        GeneralSettings::self()->save();
-    } else {
-        GeneralSettings::setLastPlaylistIndex(m_playlistModel->getPlayingVideo());
-        GeneralSettings::self()->save();
+        if (updateLastPlayedFile) {
+            GeneralSettings::setLastPlayedFile(file);
+            updateRecentLoadedMediaFiles(fileToLoad);
+            GeneralSettings::self()->save();
+        }
+        else {
+            GeneralSettings::setLastPlaylistIndex(m_playlistModel->getPlayingVideo());
+            GeneralSettings::self()->save();
+        }
     }
 }
 
@@ -872,7 +913,6 @@ void MpvObject::setLoadedAsCurrentEditItem() {
     currentItem->setStereoVideo(stereoscopicVideo());
     currentItem->setLoopMode(loopMode());
     m_playSectionsModel->setCurrentEditItem(currentItem);
-    emit playSectionsModelChanged();
 }
 
 void MpvObject::setCurrentEditItemFromPlaylist(int playListIndex) {
@@ -968,7 +1008,7 @@ void MpvObject::loadItem(PlayListItemData itemData, bool updateLastPlayedFile, Q
 
         if (updateLastPlayedFile) {
             GeneralSettings::setLastPlayedFile(itemData.filePath());
-            GeneralSettings::self()->save();
+            updateRecentLoadedMediaFiles(itemData.filePath());
         }
         else {
             GeneralSettings::setLastPlaylistIndex(m_playlistModel->getPlayingVideo());
@@ -1028,7 +1068,7 @@ PlayListItem* MpvObject::loadUniviewFDV(const QString& file)
     }
 }
 
-void MpvObject::loadUniviewPlaylist(const QString& file)
+void MpvObject::loadUniviewPlaylist(const QString& file, bool updateLastPlayedFile)
 {
     QString fileToLoad = file;
     fileToLoad.replace("file:///", "");
@@ -1085,6 +1125,11 @@ void MpvObject::loadUniviewPlaylist(const QString& file)
     // save playlist to disk
     m_playlistModel->setPlayList(m_playList);
     emit playlistModelChanged();
+
+    if (updateLastPlayedFile) {
+        GeneralSettings::setLastPlayedFile(fileToLoad);
+        updateRecentLoadedPlaylists(fileToLoad);
+    }
 }
 
 PlayListItem* MpvObject::loadJSONPlayfile(const QString& file) {
@@ -1097,7 +1142,7 @@ PlayListItem* MpvObject::loadJSONPlayfile(const QString& file) {
     return item;
 }
 
-void MpvObject::loadJSONPlayList(const QString& file) {
+void MpvObject::loadJSONPlayList(const QString& file, bool updateLastPlayedFile) {
     QString fileToLoad = file;
     fileToLoad.replace("file:///", "");
     QFileInfo jsonFileInfo(fileToLoad);
@@ -1177,6 +1222,11 @@ void MpvObject::loadJSONPlayList(const QString& file) {
     // save playlist to disk
     m_playlistModel->setPlayList(m_playList);
     emit playlistModelChanged();
+
+    if (updateLastPlayedFile) {
+        GeneralSettings::setLastPlayedFile(fileToLoad);
+        updateRecentLoadedPlaylists(fileToLoad);
+    }
 }
 
 void MpvObject::mpvEvents(void *ctx)
@@ -1421,6 +1471,30 @@ void MpvObject::updatePlane() {
 
         setPlaneHeight(ratio * planeWidth(), false);
     }
+}
+
+void MpvObject::updateRecentLoadedMediaFiles(QString path)
+{
+    QStringList recentMediaFiles = GeneralSettings::recentLoadedMediaFiles();
+    recentMediaFiles.push_front(path);
+    recentMediaFiles.removeDuplicates();
+    if (recentMediaFiles.size() > 8)
+        recentMediaFiles.pop_back();
+    GeneralSettings::setRecentLoadedMediaFiles(recentMediaFiles);
+    emit recentMediaFilesChanged();
+    GeneralSettings::self()->save();
+}
+
+void MpvObject::updateRecentLoadedPlaylists(QString path)
+{
+    QStringList recentPlaylists = GeneralSettings::recentLoadedPlaylists();
+    recentPlaylists.push_front(path);
+    recentPlaylists.removeDuplicates();
+    if (recentPlaylists.size() > 8)
+        recentPlaylists.pop_back();
+    GeneralSettings::setRecentLoadedPlaylists(recentPlaylists);
+    emit recentPlaylistsChanged();
+    GeneralSettings::self()->save();
 }
 
 void MpvObject::sectionPositionCheck(double position) {

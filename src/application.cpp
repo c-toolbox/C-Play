@@ -75,7 +75,7 @@ static QApplication *createApplication(int &argc, char **argv, const QString &ap
     QQuickStyle::setFallbackStyle(QStringLiteral("Fusion"));
 
     QApplication *app = new QApplication(argc, argv);
-    app->setWindowIcon(QIcon(":/C_transparent.png"));
+    app->setWindowIcon(QIcon(":/C_play_transparent.png"));
     return app;
 }
 
@@ -190,11 +190,11 @@ void Application::setupAboutData()
     //m_aboutData.setBugAddress(QStringLiteral("https://github.com/g-fb/haruna/issues").toUtf8());
     //m_aboutData.setDesktopFileName("com.georgefb.haruna");
 
-    m_aboutData.setHomepage(QStringLiteral(""));
-    m_aboutData.setBugAddress(QStringLiteral("").toUtf8());
+    m_aboutData.setHomepage(QStringLiteral("https://c-toolbox.github.io/C-Play/"));
+    m_aboutData.setBugAddress(QStringLiteral("https://github.com/c-toolbox/C-Play/issues").toUtf8());
     m_aboutData.setDesktopFileName("com.eriksunden.cplay");
 
-    m_aboutData.addAuthor(i18n("SGCT/Jack integration : Erik Sundén"),
+    m_aboutData.addAuthor(i18n("Clustered player (SGCT/Jack etc) : Erik Sundén"),
                         i18n("Developer"),
                         QStringLiteral("eriksunden85@gmail.com"));
 
@@ -932,6 +932,16 @@ void Application::setupActions(const QString &actionName)
         auto action = new HAction();
         action->setText(i18n("Toggle deinterlacing"));
         m_collection.setDefaultShortcut(action, Qt::Key_D);
+        m_collection.addAction(actionName, action);
+    }
+    if (actionName == QStringLiteral("clearRecentMediaFiles")) {
+        auto action = new HAction();
+        action->setText(i18n("Clear list"));
+        m_collection.addAction(actionName, action);
+    }
+    if (actionName == QStringLiteral("clearRecentPlaylists")) {
+        auto action = new HAction();
+        action->setText(i18n("Clear list"));
         m_collection.addAction(actionName, action);
     }
     m_collection.readSettings(m_shortcuts);

@@ -219,6 +219,22 @@ class MpvObject : public QQuickFramebufferObject
     QVariantList audioDevices() const;
     void setAudioDevices(QVariantList devices);
 
+    Q_PROPERTY(QStringList recentMediaFiles
+        READ recentMediaFiles
+        WRITE setRecentMediaFiles
+        NOTIFY recentMediaFilesChanged)
+
+    QStringList recentMediaFiles() const;
+    void setRecentMediaFiles(QStringList list);
+
+    Q_PROPERTY(QStringList recentPlaylists
+        READ recentPlaylists
+        WRITE setRecentPlaylists
+        NOTIFY recentPlaylistsChanged)
+
+    QStringList recentPlaylists() const;
+    void setRecentPlaylists(QStringList list);
+
     QString mediaTitle();
 
     double position();
@@ -315,10 +331,10 @@ class MpvObject : public QQuickFramebufferObject
     void updateAudioDeviceList();
 
     PlayListItem* loadUniviewFDV(const QString& file);
-    void loadUniviewPlaylist(const QString& file);
+    void loadUniviewPlaylist(const QString& file, bool updateLastPlayedFile = true);
 
     PlayListItem* loadJSONPlayfile(const QString& file);
-    void loadJSONPlayList(const QString& file);
+    void loadJSONPlayList(const QString& file, bool updateLastPlayedFile = true);
 
     void loadItem(PlayListItemData itemData, bool updateLastPlayedFile = true, QString flag = "replace");
 
@@ -349,6 +365,8 @@ public:
     Q_INVOKABLE double loadTimePosition();
     Q_INVOKABLE void resetTimePosition();
     Q_INVOKABLE void togglePlayPause();
+    Q_INVOKABLE void clearRecentMediaFilelist();
+    Q_INVOKABLE void clearRecentPlaylist();
 
 public slots:
     static void mpvEvents(void *ctx);
@@ -395,6 +413,8 @@ signals:
     void playlistModelChanged();
     void playSectionsModelChanged();
     void audioDevicesChanged();
+    void recentPlaylistsChanged();
+    void recentMediaFilesChanged();
     void youtubePlaylistLoaded();
     void surfaceTransistionPerformed();
     void triggerFadeDown();
@@ -436,6 +456,8 @@ private:
 
     void loadTracks();
     void updatePlane();
+    void updateRecentLoadedMediaFiles(QString path);
+    void updateRecentLoadedPlaylists(QString path);
     QString md5(const QString &str);
 };
 
