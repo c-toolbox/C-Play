@@ -237,7 +237,9 @@ Rectangle {
         id: playListItemCompact
         PlayListItemCompact {
             onClicked: {
-                mpv.setCurrentEditItemFromPlaylist(playlistView.currentIndex)
+                if(saveAsCPlayFileWindow.visible) {
+                    mpv.setCurrentEditItemFromPlaylist(playlistView.currentIndex)
+                }
                 updateLoopModeButton()
             }
         }

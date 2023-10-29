@@ -236,6 +236,7 @@ class MpvObject : public QQuickFramebufferObject
     void setRecentPlaylists(QStringList list);
 
     QString mediaTitle();
+    QString separateAudioFile();
 
     double position();
     void setPosition(double value);

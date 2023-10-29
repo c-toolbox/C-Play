@@ -21,8 +21,8 @@ Kirigami.ApplicationWindow {
     title: qsTr("Save As C-Play File")
     visible: false
 
-    onVisibilityChanged: {
-        if(visible && !mpv.playSectionsModel.isEmpty()) {
+    function updateValues() {
+        if(!mpv.playSectionsModel.isEmpty()) {
             mediaFileLabel.text = mpv.playSectionsModel.currentEditItem.mediaFile()
             durationLabel.text = mpv.playSectionsModel.currentEditItem.durationFormatted()
             sectionsLabel.text = qsTr("%1").arg(Number(mpv.playSectionsModel.rowCount()))
@@ -39,10 +39,24 @@ Kirigami.ApplicationWindow {
                     break
                 }
             }
-            separateAudioFileCheckBox.checked = (mpv.playSectionsModel.currentEditItem.separateAudioFile() !== "")
             separateAudioFileTextField.text = mpv.playSectionsModel.currentEditItem.separateAudioFile()
-            separateOverlayFileTextField.text = mpv.playSectionsModel.currentEditItem.separateOverlayFile()
+            separateAudioFileCheckBox.checked = (mpv.playSectionsModel.currentEditItem.separateAudioFile() !== "")
 
+            separateOverlayFileTextField.text = mpv.playSectionsModel.currentEditItem.separateOverlayFile()
+            separateOverlayFileCheckBox.checked = (mpv.playSectionsModel.currentEditItem.separateOverlayFile() !== "")
+        }
+    }
+
+    Connections {
+        target: mpv.playSectionsModel
+        function onCurrentEditItemChanged() {
+            updateValues()
+        }
+    }
+
+    onVisibilityChanged: {
+        if(visible) {
+            updateValues()
         }
     }
 
@@ -239,8 +253,7 @@ Kirigami.ApplicationWindow {
             text: qsTr("")
             enabled: true
             checked: false
-            onCheckedChanged: {
-            }
+            onCheckedChanged: separateAudioFileTextField.enabled = checked
             ToolTip {
                 text: qsTr("Save with separate audio file:")
             }
@@ -253,18 +266,8 @@ Kirigami.ApplicationWindow {
                 id: separateAudioFileTextField
                 onTextChanged: {
                     if(!mpv.playSectionsModel.isEmpty()){
-                        if(mpv.playSectionsModel.currentEditItem.separateAudioFile() !== ""){
-                            separateAudioFileCheckBox.checked = true;
-                        }
-                        else {
-                            separateAudioFileCheckBox.checked = false;
-                        }
-
                         if(enabled){
                             mpv.playSectionsModel.currentEditItem.setSeparateAudioFile(text);
-                        }
-                        else {
-                            mpv.playSectionsModel.currentEditItem.setSeparateAudioFile("");
                         }
                     }
                 }
@@ -301,16 +304,8 @@ Kirigami.ApplicationWindow {
             id: separateOverlayFileCheckBox
             text: qsTr("")
             enabled: true
-            checked: {
-                if(!mpv.playSectionsModel.isEmpty()){
-                    return mpv.playSectionsModel.currentEditItem.separateOverlayFile() !== ""
-                }
-                else {
-                    return false
-                }
-            }
-            onCheckedChanged: {
-            }
+            checked: false
+            onCheckedChanged: separateOverlayFileTextField.enabled = checked
             ToolTip {
                 text: qsTr("Save with separate overlay file:")
             }
@@ -323,16 +318,9 @@ Kirigami.ApplicationWindow {
                 id: separateOverlayFileTextField
                 onTextChanged: {
                     if(!mpv.playSectionsModel.isEmpty()){
-                        if(mpv.playSectionsModel.currentEditItem.separateOverlayFile() !== "")
-                            separateOverlayFileCheckBox.checked = true;
-                        else
-                            separateOverlayFileCheckBox.checked = false;
-
                         if(enabled){
+                            separateOverlayFileCheckBox.checked = true;
                             mpv.playSectionsModel.currentEditItem.setSeparateOverlayFile(text);
-                        }
-                        else {
-                            mpv.playSectionsModel.currentEditItem.setSeparateOverlayFile("");
                         }
                     }
                 }

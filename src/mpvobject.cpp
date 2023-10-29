@@ -268,6 +268,15 @@ QString MpvObject::mediaTitle()
     return getProperty("media-title").toString();
 }
 
+QString MpvObject::separateAudioFile()
+{
+    if(getProperty("current-tracks/audio/external").toBool()) {
+        return getProperty("current-tracks/audio/external-filename").toString();
+    }
+
+    return m_separateAudioFile;
+}
+
 double MpvObject::position()
 {
     return getProperty("time-pos").toDouble();
@@ -906,7 +915,7 @@ void MpvObject::setLoadedAsCurrentEditItem() {
 
     currentItem->setMediaFile(QString::fromStdString(SyncHelper::instance().variables.loadedFile));
     currentItem->setSeparateOverlayFile(QString::fromStdString(SyncHelper::instance().variables.overlayFile));
-    currentItem->setSeparateAudioFile(m_separateAudioFile);
+    currentItem->setSeparateAudioFile(separateAudioFile());
     currentItem->setMediaTitle(mediaTitle());
     currentItem->setDuration(duration());
     currentItem->setGridToMapOn(gridToMapOn());
@@ -917,8 +926,16 @@ void MpvObject::setLoadedAsCurrentEditItem() {
 
 void MpvObject::setCurrentEditItemFromPlaylist(int playListIndex) {
     m_currentSectionsIndex = -1;
-    m_playSectionsModel->setCurrentEditItem(m_playlistModel->getItem(playListIndex));
-    emit playSectionsModelChanged();
+    PlayListItem* playItem = m_playlistModel->getItem(playListIndex);
+    PlayListItem* currentItem;
+    if (!m_playSectionsModel->currentEditItem()) {
+        currentItem = new PlayListItem(playItem->data());
+    }
+    else {
+        currentItem = m_playSectionsModel->currentEditItem();
+        currentItem->setData(playItem->data());
+    }
+    m_playSectionsModel->setCurrentEditItem(currentItem);
 }
 
 void MpvObject::loadSection(int playSectionsIndex) {
