@@ -1145,6 +1145,13 @@ int main(int argc, char *argv[])
 
 #ifndef SGCT_ONLY
     if (Engine::instance().isMaster()) {
+        if(!ClusterManager::instance().ignoreSync() || ClusterManager::instance().numberOfNodes() > 1) {
+            if(!NetworkManager::instance().areAllNodesConnected()) {
+                Engine::destroy();
+                return EXIT_FAILURE;
+            }
+        }
+
         Log::Info("Start Master");
 
         //Hide window (as we are not using it on master)
