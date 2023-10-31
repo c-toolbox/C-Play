@@ -138,18 +138,12 @@ Kirigami.ApplicationWindow {
     Platform.FileDialog {
         id: saveCPlayFileDialog
 
-        folder: GeneralSettings.fileDialogLocation !== ""
-                ? app.pathToUrl(GeneralSettings.fileDialogLocation)
+        folder: GeneralSettings.cPlayFileLocation !== ""
+                ? app.pathToUrl(GeneralSettings.cPlayFileLocation)
                 : app.pathToUrl(GeneralSettings.fileDialogLastLocation)
         title: "Save C-Play File Config"
         fileMode: Platform.FileDialog.SaveFile
         nameFilters: [ "C-Play file (*.cplay_file)" ]
-
-        onVisibleChanged: {
-            if(!mpv.playSectionsModel.isEmpty()) {
-                saveCPlayFileDialog.folder = mpv.playSectionsModel.currentEditItem.fileFolderPath()
-            }
-        }
 
         onAccepted: {
             saveCPlayFile(saveCPlayFileDialog.file.toString())
@@ -169,10 +163,10 @@ Kirigami.ApplicationWindow {
     Platform.FileDialog {
         id: saveCPlayPlaylistDialog
 
-        folder: GeneralSettings.fileDialogLocation !== ""
-                ? app.pathToUrl(GeneralSettings.fileDialogLocation)
+        folder: GeneralSettings.cPlayFileLocation !== ""
+                ? app.pathToUrl(GeneralSettings.cPlayFileLocation)
                 : app.pathToUrl(GeneralSettings.fileDialogLastLocation)
-        title: "Save C-Play File Config"
+        title: "Save C-Playlist"
         fileMode: Platform.FileDialog.SaveFile
         nameFilters: [ "C-Play playlist (*.cplay_playlist)" ]
 

@@ -4,16 +4,18 @@
  * SPDX-License-Identifier: GPL-3.0-or-later
  */
 
-import QtQuick 2.10
+import QtQuick 2.12
 import QtQuick.Window 2.1
 import QtQuick.Layouts 1.12
 import QtQuick.Controls 2.12
 import QtGraphicalEffects 1.12
 import QtQuick.Dialogs 1.3
+import Qt.labs.platform 1.0 as Platform
 
 import org.kde.kirigami 2.11 as Kirigami
-import com.georgefb.haruna 1.0 as Haruna
+import com.georgefb.haruna 1.0
 import Haruna.Components 1.0
+import mpv 1.0
 
 Kirigami.ApplicationWindow {
     width: 600
@@ -60,11 +62,10 @@ Kirigami.ApplicationWindow {
         }
     }
 
-    FileDialog {
+    Platform.FileDialog {
         id: openSeparateAudioFileDialog
-
-        //folder: location
         title: "Choose Separate Audio File"
+        fileMode: Platform.FileDialog.OpenFile
 
         onAccepted: {
             separateAudioFileCheckBox.checked = true
@@ -79,11 +80,10 @@ Kirigami.ApplicationWindow {
         onRejected: mpv.focus = true
     }
 
-    FileDialog {
+    Platform.FileDialog {
         id: openSeparateOverlayFileDialog
-
-        //folder: location
         title: "Choose Separate Overlay File"
+        fileMode: Platform.FileDialog.OpenFile
 
         onAccepted: {
             separateOverlayFileCheckBox.checked = true
@@ -95,6 +95,7 @@ Kirigami.ApplicationWindow {
             separateOverlayFileTextField.text = filePath
             mpv.focus = true
         }
+
         onRejected: mpv.focus = true
     }
 
@@ -294,6 +295,12 @@ Kirigami.ApplicationWindow {
                 focusPolicy: Qt.NoFocus
 
                 onClicked: {
+                    if(separateAudioFileTextField.text !== ""){
+                        openSeparateAudioFileDialog.folder = app.parentUrl(separateAudioFileTextField.text)
+                    }
+                    else {
+                        openSeparateAudioFileDialog.folder = app.parentUrl(mpv.playSectionsModel.currentEditItem.mediaFile())
+                    }
                     openSeparateAudioFileDialog.open()
                 }
             }
@@ -347,6 +354,12 @@ Kirigami.ApplicationWindow {
                 focusPolicy: Qt.NoFocus
 
                 onClicked: {
+                    if(separateOverlayFileTextField.text !== ""){
+                        openSeparateOverlayFileDialog.folder = app.parentUrl(separateOverlayFileTextField.text)
+                    }
+                    else {
+                        openSeparateOverlayFileDialog.folder = app.parentUrl(mpv.playSectionsModel.currentEditItem.mediaFile())
+                    }
                     openSeparateOverlayFileDialog.open()
                 }
             }

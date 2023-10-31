@@ -7,6 +7,7 @@
 import QtQuick 2.12
 import QtQuick.Layouts 1.12
 import QtQuick.Controls 2.12
+import QtQuick.Dialogs 1.3
 
 import org.kde.kirigami 2.11 as Kirigami
 import com.georgefb.haruna 1.0
@@ -17,6 +18,27 @@ SettingsBasePage {
 
     hasHelp: true
     helpFile: ":/PlaybackSettings.html"
+
+    FileDialog {
+        id: fileToLoadOnStartupDialog
+
+        folder: GeneralSettings.cPlayFileLocation !== ""
+                ? app.pathToUrl(GeneralSettings.cPlayFileLocation)
+                : app.pathToUrl(GeneralSettings.fileDialogLastLocation)
+        title: "Choose file to load on startup"
+
+        onAccepted: {
+            var filePath = fileToLoadOnStartupDialog.fileUrl.toString();
+            // remove prefixed "file:///"
+            filePath = filePath.replace(/^(file:\/{3})/,"");
+
+            PlaybackSettings.fileToLoadOnStartup = filePath
+            PlaybackSettings.save()
+
+            mpv.focus = true
+        }
+        onRejected: mpv.focus = true
+    }
 
     GridLayout {
         id: content
@@ -244,19 +266,34 @@ SettingsBasePage {
         Label {
             text: qsTr("File to load on startup:")
         }
-        TextField {
-            text: PlaybackSettings.fileToLoadOnStartup
-            placeholderText: "Path to image or video file"
-            enabled: (PlaybackSettings.loadOnStartupMode === 2)
-            Layout.fillWidth: true
-            onEditingFinished: {
-                PlaybackSettings.fileToLoadOnStartup = text
-                PlaybackSettings.save()
-            }
+        RowLayout {
+            TextField {
+                id: fileToLoadOnStartupText
+                text: PlaybackSettings.fileToLoadOnStartup
+                placeholderText: "Path to image or video file"
+                enabled: (PlaybackSettings.loadOnStartupMode === 2)
+                Layout.fillWidth: true
+                onEditingFinished: {
+                    PlaybackSettings.fileToLoadOnStartup = text
+                    PlaybackSettings.save()
+                }
 
-            ToolTip {
-                text: qsTr("Path to image or video file")
+                ToolTip {
+                    text: qsTr("Path to image or video file")
+                }
             }
+            ToolButton {
+                id: fileToLoadOnStartupLoadButton
+                text: ""
+                icon.name: "system-file-manager"
+                icon.height: 16
+                focusPolicy: Qt.NoFocus
+
+                onClicked: {
+                    fileToLoadOnStartupDialog.open()
+                }
+            }
+            Layout.fillWidth: true
         }
 
         // ------------------------------------

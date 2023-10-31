@@ -313,7 +313,7 @@ QUrl Application::parentUrl(const QString &path)
     } else {
         fileInfo.setFile(url.toString());
     }
-    QUrl parentFolderUrl(fileInfo.absolutePath());
+    QUrl parentFolderUrl("file:///" + fileInfo.absolutePath());
     parentFolderUrl.setScheme("file");
 
     return parentFolderUrl;

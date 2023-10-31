@@ -1074,7 +1074,7 @@ PlayListItem* MpvObject::loadUniviewFDV(const QString& file)
         
         if (title.contains("3D")) // Assume 3D side-by-side stereo
             video->setStereoVideo(1);
-        else if (title.contains("2D"))
+        else
             video->setStereoVideo(0);
 
         return video;

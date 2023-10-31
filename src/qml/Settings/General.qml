@@ -4,7 +4,7 @@
  * SPDX-License-Identifier: GPL-3.0-or-later
  */
 
-import QtQuick 2.0
+import QtQuick 2.12
 import QtQuick.Layouts 1.12
 import QtQuick.Controls 2.12
 import QtQuick.Dialogs 1.3
@@ -23,7 +23,9 @@ SettingsBasePage {
     FileDialog {
         id: openPrimaryFileDialogLocation
 
-        folder: GeneralSettings.fileDialogLocation
+        folder: GeneralSettings.fileDialogLocation !== ""
+                ? app.pathToUrl(GeneralSettings.fileDialogLocation)
+                : app.pathToUrl(GeneralSettings.fileDialogLastLocation)
         selectFolder: true
         title: "Choose Primary File Dialog Location"
 
@@ -45,7 +47,9 @@ SettingsBasePage {
     FileDialog {
         id: openCPlayFileLocation
 
-        folder: GeneralSettings.cPlayFileLocation
+        folder: GeneralSettings.cPlayFileLocation !== ""
+                ? app.pathToUrl(GeneralSettings.cPlayFileLocation)
+                : app.pathToUrl(GeneralSettings.fileDialogLastLocation)
         selectFolder: true
         title: "Choose Common C-Play File Location"
 
@@ -67,7 +71,9 @@ SettingsBasePage {
     FileDialog {
         id: openCPlayMediaLocation
 
-        folder: GeneralSettings.cPlayMediaLocation
+        folder: GeneralSettings.cPlayMediaLocation !== ""
+                ? app.pathToUrl(GeneralSettings.cPlayMediaLocation)
+                : app.pathToUrl(GeneralSettings.fileDialogLastLocation)
         selectFolder: true
         title: "Choose Common C-Play Media Location"
 
@@ -89,7 +95,9 @@ SettingsBasePage {
     FileDialog {
         id: openUniviewVideoLocation
 
-        folder: GeneralSettings.univiewVideoLocation
+        folder: GeneralSettings.univiewVideoLocation !== ""
+                ? app.pathToUrl(GeneralSettings.univiewVideoLocation)
+                : app.pathToUrl(GeneralSettings.fileDialogLastLocation)
         selectFolder: true
         title: "Choose Common Uniview Media Location"
 
