@@ -8,7 +8,6 @@ import QtQuick 2.12
 import QtQuick.Controls 2.12
 import QtQuick.Layouts 1.12
 import QtQml.Models 2.15
-import QtQuick.Extras 1.4
 
 import org.kde.kirigami 2.11 as Kirigami
 import com.georgefb.haruna 1.0
@@ -661,154 +660,258 @@ ToolBar {
 
                 MenuSeparator {}
 
-                ButtonGroup {
-                    buttons: columnSpin.children
-                }
+                GridLayout {
+                    columns: 2
 
-                Column {
-                    id: columnSpin
-                    Layout.fillWidth: true
-
+                    Label {
+                        text: qsTr("Pitch:")
+                        Layout.alignment: Qt.AlignRight
+                    }
                     RowLayout {
-                        CheckBox {
-                            id: spinX
+                        Button {
+                            id: spinPitchUp
+                            icon.name: "go-up"
+                            icon.color: spinPitchUp.checked ? "lawngreen" : "red"
+                            checkable: true
                             checked: false
-                            text: qsTr("Spin X:")
                             onClicked: {
-                                if(startSpin.checked){
-                                    if(spinX.checked){
-                                        if(!spinTimerX.running)
-                                            spinTimerX.start()
-                                    }
-                                    else{
-                                        if(spinTimerX.running)
-                                            spinTimerX.stop()
-                                    }
+                                spinPitchDown.checked = false
+
+                                if(spinPitchUp.checked){
+                                    if(!spinTimerPitch.running)
+                                        spinTimerPitch.start()
                                 }
+                                else{
+                                    if(spinTimerPitch.running)
+                                        spinTimerPitch.stop()
+                                }
+                            }
+                            ToolTip {
+                                text: qsTr("Pitch Down")
+                            }
+                        }
+                        ToolSeparator {
+                            padding: 2
+                            contentItem: Rectangle {
+                                implicitWidth: 1
+                                implicitHeight: 24
+                                color: Kirigami.Theme.textColor
+                            }
+                        }
+                        Button {
+                            id: spinPitchDown
+                            icon.name: "go-down"
+                            icon.color: spinPitchDown.checked ? "lawngreen" : "red"
+                            checkable: true
+                            checked: false
+                            onClicked: {
+                                spinPitchUp.checked = false
+
+                                if(spinPitchDown.checked){
+                                    if(!spinTimerPitch.running)
+                                        spinTimerPitch.start()
+                                }
+                                else{
+                                    if(spinTimerPitch.running)
+                                        spinTimerPitch.stop()
+                                }
+                            }
+                            ToolTip {
+                                text: qsTr("Pitch Up")
                             }
                         }
                         Item {
                             Layout.fillWidth: true
                             Layout.fillHeight: true
                         }
+                        Layout.fillWidth: true
+                    }
+
+                    Label {
+                        text: qsTr("Yaw:")
+                        Layout.alignment: Qt.AlignRight
+                    }
+                    RowLayout {
+                        Button {
+                            id: spinYawLeft
+                            icon.name: "go-previous"
+                            icon.color: spinYawLeft.checked ? "lawngreen" : "red"
+                            checkable: true
+                            checked: false
+                            onClicked: {
+                                spinYawRight.checked = false
+
+                                if(spinYawLeft.checked){
+                                    if(!spinTimerYaw.running)
+                                        spinTimerYaw.start()
+                                }
+                                else{
+                                    if(spinTimerYaw.running)
+                                        spinTimerYaw.stop()
+                                }
+                            }
+                            ToolTip {
+                                text: qsTr("Yaw Left")
+                            }
+                        }
+                        ToolSeparator {
+                            padding: 2
+                            contentItem: Rectangle {
+                                implicitWidth: 1
+                                implicitHeight: 24
+                                color: Kirigami.Theme.textColor
+                            }
+                        }
+                        Button {
+                            id: spinYawRight
+                            icon.name: "go-next"
+                            icon.color: spinYawRight.checked ? "lawngreen" : "red"
+                            checkable: true
+                            checked: false
+                            onClicked: {
+                                spinYawLeft.checked = false
+
+                                if(spinYawRight.checked){
+                                    if(!spinTimerYaw.running)
+                                        spinTimerYaw.start()
+                                }
+                                else{
+                                    if(spinTimerYaw.running)
+                                        spinTimerYaw.stop()
+                                }
+                            }
+                            ToolTip {
+                                text: qsTr("Yaw Right")
+                            }
+                        }
+                        Item {
+                            Layout.fillWidth: true
+                            Layout.fillHeight: true
+                        }
+                        Layout.fillWidth: true
+                    }
+
+                    Label {
+                        text: qsTr("Roll:")
+                        Layout.alignment: Qt.AlignRight
+                    }
+                    RowLayout {
+                        Button {
+                            id: spinRollCounterClockwise
+                            icon.name: "object-rotate-left"
+                            icon.color: spinRollCounterClockwise.checked ? "lawngreen" : "red"
+                            checkable: true
+                            checked: false
+                            onClicked: {
+                                spinRollClockwise.checked = false
+
+                                if(spinRollCounterClockwise.checked){
+                                    if(!spinTimerRoll.running)
+                                        spinTimerRoll.start()
+                                }
+                                else{
+                                    if(spinTimerRoll.running)
+                                        spinTimerRoll.stop()
+                                }
+                            }
+                            ToolTip {
+                                text: qsTr("Roll counter-clockwise")
+                            }
+                        }
+                        ToolSeparator {
+                            padding: 2
+                            contentItem: Rectangle {
+                                implicitWidth: 1
+                                implicitHeight: 24
+                                color: Kirigami.Theme.textColor
+                            }
+                        }
+                        Button {
+                            id: spinRollClockwise
+                            icon.name: "object-rotate-right"
+                            icon.color: spinRollClockwise.checked ? "lawngreen" : "red"
+                            checkable: true
+                            checked: false
+                            onClicked: {
+                                spinRollCounterClockwise.checked = false
+
+                                if(spinRollClockwise.checked){
+                                    if(!spinTimerRoll.running)
+                                        spinTimerRoll.start()
+                                }
+                                else{
+                                    if(spinTimerRoll.running)
+                                        spinTimerRoll.stop()
+                                }
+                            }
+                            ToolTip {
+                                text: qsTr("Roll clockwise")
+                            }
+                        }
+                        Item {
+                            Layout.fillWidth: true
+                            Layout.fillHeight: true
+                        }
+                        Layout.fillWidth: true
+                    }
+
+
+                    Label {
+                        id: spinSpeedLabel
+                        text: qsTr("Speed:")
+                        Layout.alignment: Qt.AlignRight
+                    }
+                    RowLayout {
                         SpinBox {
-                            id: spinXSpeed
+                            id: spinSpeed
                             from: -1000
                             value: 10
                             to: 200 * 100
                             stepSize: 1
 
-                            property int decimals: 2
-                            property real realValue: value / 100
+                            property int decimals: 0
+                            property real realValue: {
+                                if(location.checked)
+                                    return value / 1000
+                                else
+                                    return -value / 1000
+                            }
 
                             validator: DoubleValidator {
-                                bottom: Math.min(spinXSpeed.from, spinXSpeed.to)
-                                top:  Math.max(spinXSpeed.from, spinXSpeed.to)
+                                bottom: Math.min(spinSpeed.from, spinSpeed.to)
+                                top:  Math.max(spinSpeed.from, spinSpeed.to)
                             }
 
                             textFromValue: function(value, locale) {
-                                return Number(value / 100).toLocaleString(locale, 'f', spinXSpeed.decimals)
+                                return Number(value).toLocaleString(locale, 'f', spinSpeed.decimals)
                             }
 
                             valueFromText: function(text, locale) {
-                                return Number.fromLocaleString(locale, text) * 100
+                                return Number.fromLocaleString(locale, text)
                             }
                         }
                         Layout.fillWidth: true
                     }
 
-                    RowLayout {
-                        CheckBox {
-                            id: spinY
-                            checked: false
-                            text: qsTr("Spin Y:")
-                            onClicked: {
-                                if(startSpin.checked){
-                                    if(spinY.checked){
-                                        if(!spinTimerY.running)
-                                            spinTimerY.start()
-                                    }
-                                    else{
-                                        if(spinTimerY.running)
-                                            spinTimerY.stop()
-                                    }
-                                }
-                            }
-                        }
-                        Item {
-                            Layout.fillWidth: true
-                            Layout.fillHeight: true
-                        }
-                        SpinBox {
-                            id: spinYSpeed
-                            from: -1000
-                            value: 10
-                            to: 200 * 100
-                            stepSize: 1
-
-                            property int decimals: 2
-                            property real realValue: value / 100
-
-                            validator: DoubleValidator {
-                                bottom: Math.min(spinYSpeed.from, spinYSpeed.to)
-                                top:  Math.max(spinYSpeed.from, spinYSpeed.to)
-                            }
-
-                            textFromValue: function(value, locale) {
-                                return Number(value / 100).toLocaleString(locale, 'f', spinYSpeed.decimals)
-                            }
-
-                            valueFromText: function(text, locale) {
-                                return Number.fromLocaleString(locale, text) * 100
-                            }
-                        }
-                        Layout.fillWidth: true
+                    Label {
+                        text: qsTr("Location:")
+                        Layout.alignment: Qt.AlignRight
                     }
-
                     RowLayout {
-                        CheckBox {
-                            id: spinZ
+                        Button {
+                            id: location
+                            text: location.checked ? "Outside" : "Inside"
+                            checkable: true
                             checked: false
-                            text: qsTr("Spin Z:")
                             onClicked: {
-                                if(startSpin.checked){
-                                    if(spinZ.checked){
-                                        if(!spinTimerZ.running)
-                                            spinTimerZ.start()
-                                    }
-                                    else{
-                                        if(spinTimerZ.running)
-                                            spinTimerZ.stop()
-                                    }
-                                }
+                            }
+                            ToolTip {
+                                text: qsTr("Inside or outside sphere/mesh")
                             }
                         }
                         Item {
                             Layout.fillWidth: true
                             Layout.fillHeight: true
-                        }
-                        SpinBox {
-                            id: spinZSpeed
-                            from: -1000
-                            value: 10
-                            to: 200 * 100
-                            stepSize: 1
-
-                            property int decimals: 2
-                            property real realValue: value / 100
-
-                            validator: DoubleValidator {
-                                bottom: Math.min(spinZSpeed.from, spinZSpeed.to)
-                                top:  Math.max(spinZSpeed.from, spinZSpeed.to)
-                            }
-
-                            textFromValue: function(value, locale) {
-                                return Number(value / 100).toLocaleString(locale, 'f', spinZSpeed.decimals)
-                            }
-
-                            valueFromText: function(text, locale) {
-                                return Number.fromLocaleString(locale, text) * 100
-                            }
                         }
                         Layout.fillWidth: true
                     }
@@ -842,69 +945,44 @@ ToolBar {
                     }
 
                     Timer {
-                        id: spinTimerX
+                        id: spinTimerPitch
                         interval: 1000/60;
                         running: false;
                         repeat: true
-                        onTriggered: mpv.rotate.x += spinXSpeed.realValue;
+                        onTriggered: {
+                            if(spinPitchUp.checked)
+                                mpv.rotate.x += spinSpeed.realValue;
+                            else
+                                mpv.rotate.x -= spinSpeed.realValue;
+                        }
                     }
 
                     Timer {
-                        id: spinTimerY
+                        id: spinTimerYaw
                         interval: 1000/60;
                         running: false;
                         repeat: true
-                        onTriggered: mpv.rotate.y += spinYSpeed.realValue;
+                        onTriggered: {
+                            if(spinYawLeft.checked)
+                                mpv.rotate.y += spinSpeed.realValue;
+                            else
+                                mpv.rotate.y -= spinSpeed.realValue;
+                        }
                     }
 
                     Timer {
-                        id: spinTimerZ
+                        id: spinTimerRoll
                         interval: 1000/60;
                         running: false;
                         repeat: true
-                        onTriggered: mpv.rotate.z += spinZSpeed.realValue;
-                    }
-
-                    RowLayout {
-                        Item {
-                            Layout.fillWidth: true
-                            Layout.fillHeight: true
-                        }
-                        Item {
-                            Layout.fillWidth: true
-                            Layout.fillHeight: true
-                        }
-                        Item {
-                            Layout.fillWidth: true
-                            Layout.fillHeight: true
-                        }
-                        ToggleButton {
-                            id: startSpin
-                            text: qsTr("Start Spin")
-                            checked: false
-                            onClicked: {
-                                if(checked){
-                                    startSpin.text = qsTr("Stop Spin")
-
-                                    if(spinX.checked)
-                                        spinTimerX.start()
-
-                                    if(spinY.checked)
-                                        spinTimerY.start()
-
-                                    if(spinZ.checked)
-                                        spinTimerZ.start()
-                                }
-                                else{
-                                    startSpin.text = qsTr("Start Spin")
-                                    spinTimerX.stop()
-                                    spinTimerY.stop()
-                                    spinTimerZ.stop()
-                                }
-                            }
-                            Layout.alignment: Qt.AlignHCenter | Qt.AlignVCenter
+                        onTriggered: {
+                            if(spinRollClockwise.checked)
+                                mpv.rotate.z += spinSpeed.realValue;
+                            else
+                                mpv.rotate.z -= spinSpeed.realValue;
                         }
                     }
+
                     ToolButton {
                         id: transistionHeaderButton
 
@@ -925,10 +1003,22 @@ ToolBar {
                         focusPolicy: Qt.NoFocus
 
                         onClicked: {
+                            spinPitchUp.checked = false
+                            spinPitchDown.checked = false
+                            spinYawLeft.checked = false
+                            spinYawRight.checked = false
+                            spinRollClockwise.checked = false
+                            spinRollCounterClockwise.checked = false
+
+                            spinTimerPitch.stop()
+                            spinTimerYaw.stop()
+                            spinTimerRoll.stop()
+
                             mpv.performSurfaceTransistion();
                         }
 
                         Layout.alignment: Qt.AlignHCenter | Qt.AlignVCenter
+                        Layout.columnSpan: 2
                     }
                     ToolButton {
                         id: resetOrientation
@@ -940,10 +1030,22 @@ ToolBar {
                         focusPolicy: Qt.NoFocus
 
                         onClicked: {
+                            spinPitchUp.checked = false
+                            spinPitchDown.checked = false
+                            spinYawLeft.checked = false
+                            spinYawRight.checked = false
+                            spinRollClockwise.checked = false
+                            spinRollCounterClockwise.checked = false
+
+                            spinTimerPitch.stop()
+                            spinTimerYaw.stop()
+                            spinTimerRoll.stop()
+
                             mpv.resetOrientation()
                         }
 
                         Layout.alignment: Qt.AlignHCenter | Qt.AlignVCenter
+                        Layout.columnSpan: 2
                     }
                 }
             }
@@ -1082,32 +1184,6 @@ ToolBar {
                 }
             }
         }
-
-        /*ToolSeparator {
-            padding: vertical ? 10 : 2
-            topPadding: vertical ? 2 : 10
-            bottomPadding: vertical ? 2 : 10
-
-            contentItem: Rectangle {
-                implicitWidth: parent.vertical ? 1 : 24
-                implicitHeight: parent.vertical ? 24 : 1
-                color: Kirigami.Theme.textColor
-            }
-        }*/
-
-        /*ToolButton {
-            action: actions.configureAction
-            focusPolicy: Qt.NoFocus
-        }
-
-        ToolButton {
-            // using `action: actions.quitApplicationAction` breaks the action
-            // doens't work on the first try in certain circumstances
-            text: actions.quitApplicationAction.text
-            icon: actions.quitApplicationAction.icon
-            focusPolicy: Qt.NoFocus
-            onClicked: actions.quitApplicationAction.trigger()
-        }*/
 
         Item {
             Layout.fillWidth: true
