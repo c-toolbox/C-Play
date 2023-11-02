@@ -1,3 +1,6 @@
 [submodule "src/sgct"]
 	path = src/sgct
 	url = https://github.com/sgct/sgct.git
+[submodule "src/cpp-httplib"]
+	path = src/cpp-httplib
+	url = https://github.com/yhirose/cpp-httplib.git
