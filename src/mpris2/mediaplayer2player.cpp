@@ -7,16 +7,19 @@
 #include "mediaplayer2player.h"
 #include "_debug.h"
 #include "mpvobject.h"
+#include "httpserverthread.h"
 
 #include <QDBusConnection>
 #include <QDBusMessage>
 #include <QDBusObjectPath>
 
 MediaPlayer2Player::MediaPlayer2Player(QObject *parent)
-    : QDBusAbstractAdaptor(parent)
+    : QDBusAbstractAdaptor(parent), httpServer(new HttpServerThread(this))
 {
     connect(this, &MediaPlayer2Player::mpvChanged,
             this, &MediaPlayer2Player::setupConnections);
+
+    setupHttpServer();
 }
 
 void MediaPlayer2Player::setupConnections()
@@ -41,6 +44,17 @@ void MediaPlayer2Player::setupConnections()
         propertiesChanged("Metadata", Metadata());
         Q_EMIT metadataChanged();
     });
+}
+
+void MediaPlayer2Player::setupHttpServer()
+{
+    httpServer->setupHttpServer();
+
+    connect(httpServer, &HttpServerThread::finished, httpServer, &QObject::deleteLater);
+    connect(httpServer, &HttpServerThread::pauseMedia, this, &MediaPlayer2Player::Pause);
+    connect(httpServer, &HttpServerThread::playMedia, this, &MediaPlayer2Player::Play);
+
+    httpServer->start();
 }
 
 void MediaPlayer2Player::propertiesChanged(const QString &property, const QVariant &value)

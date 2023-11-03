@@ -20,6 +20,7 @@ target_sources(${TARGET_NAME}
     haction.cpp
     lockmanager.cpp
     main.cpp
+    mpris2/httpserverthread.cpp
     mpris2/mediaplayer2.cpp
     mpris2/mediaplayer2player.cpp
     mpvobject.cpp

@@ -11,6 +11,7 @@
 
 class MpvObject;
 class QDBusObjectPath;
+class HttpServerThread;
 
 class MediaPlayer2Player : public QDBusAbstractAdaptor
 {
@@ -77,7 +78,10 @@ private:
     MpvObject *mpv() const;
     void setMpv(MpvObject *mpv);
 
+    void setupHttpServer();
+
     MpvObject *m_mpv;
+    HttpServerThread* httpServer;
 };
 
 #endif // MEDIAPLAYER2PLAYER_H
