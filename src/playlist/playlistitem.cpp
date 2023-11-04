@@ -262,31 +262,50 @@ void PlayListItem::addSection(QString title, QString startTime, QString endTime,
 
 void PlayListItem::removeSection(int i) 
 {
+    if (i < 0 || i >= m_data.m_sections.size())
+        return;
+
     m_data.m_sections.removeAt(i);
 }
 
 void PlayListItem::moveSection(int from, int to)
 {
+    if (from < 0 || from >= m_data.m_sections.size() ||
+        to < 0 || to >= m_data.m_sections.size())
+        return;
+
     m_data.m_sections.move(from, to);
 }
 
 QString PlayListItem::sectionTitle(int i) const
 {
+    if (i < 0 || i >= m_data.m_sections.size())
+        return "";
+
     return m_data.m_sections.at(i).title;
 }
 
 double PlayListItem::sectionStartTime(int i) const
 {
+    if (i < 0 || i >= m_data.m_sections.size())
+        return 0;
+
     return m_data.m_sections.at(i).startTime;
 }
 
 double PlayListItem::sectionEndTime(int i) const
 {
+    if (i < 0 || i >= m_data.m_sections.size())
+        return 0;
+
     return m_data.m_sections.at(i).endTime;
 }
 
 int PlayListItem::sectionEOSMode(int i) const
 {
+    if (i < 0 || i >= m_data.m_sections.size())
+        return 0;
+
     return m_data.m_sections.at(i).eosMode;
 }
 
@@ -306,10 +325,16 @@ QList<PlayListItemData::Section> PlayListItem::sections()
 }
 
 bool PlayListItem::isSectionPlaying(int index) const {
+    if (index < 0 || index >= m_data.m_sections.size())
+        return false;
+
     return m_data.m_sections[index].isPlaying;
 }
 
 void PlayListItem::setIsSectionPlaying(int index, bool isPlaying) {
+    if (index < 0 || index >= m_data.m_sections.size())
+        return;
+
     m_data.m_sections[index].isPlaying = isPlaying;
 }
 

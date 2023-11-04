@@ -36,6 +36,9 @@ private:
     const std::string getPlayListItems(std::string charsPerItemStr = "");
     const std::string getSectionsItems(std::string charsPerItemStr = "");
 
+    const std::string getPlaylingItemIndexFromPlaylist();
+    const std::string getPlaylingItemIndexFromSections();
+
     MpvObject* m_mpv;
     httplib::Server svr;
     bool runServer;

@@ -42,6 +42,7 @@ public:
         NOTIFY currentEditItemChanged)
 
     Q_INVOKABLE void setPlayingSection(int section);
+    Q_INVOKABLE int getPlayingSection();
     Q_INVOKABLE void clear();
     Q_INVOKABLE bool isEmpty();
 
@@ -64,7 +65,7 @@ signals:
 
 private:
     PlayListItem* m_currentEditItem;
-    int m_playingSection = 0;
+    int m_playingSection = -1;
 };
 
 
@@ -145,7 +146,7 @@ private:
     Playlist m_playList;
     QString m_playListName;
     QString m_playListPath;
-    int m_playingVideo = 0;
+    int m_playingVideo = -1;
     int m_defaultLoopMode = 2; // Looping
     KSharedConfig::Ptr m_config;
 };

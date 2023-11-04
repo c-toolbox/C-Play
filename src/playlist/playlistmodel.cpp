@@ -101,9 +101,17 @@ void PlaySectionsModel::setPlayingSection(int section)
     m_playingSection = section;
 }
 
+int PlaySectionsModel::getPlayingSection()
+{
+    if (!m_currentEditItem)
+        return -1;
+
+    return m_playingSection;
+}
+
 void PlaySectionsModel::clear()
 {
-    m_playingSection = 0;
+    m_playingSection = -1;
     beginResetModel();
     m_currentEditItem = nullptr;
     endResetModel();
@@ -120,7 +128,7 @@ PlayListItem* PlaySectionsModel::currentEditItem()
 
 void PlaySectionsModel::setCurrentEditItem(PlayListItem* item)
 {
-    m_playingSection = 0;
+    m_playingSection = -1;
     beginResetModel();
     m_currentEditItem = item;
     emit currentEditItemChanged();
@@ -143,7 +151,7 @@ void PlaySectionsModel::removeSection(int i) {
 
     beginRemoveRows(QModelIndex(), i, i);
     if (m_playingSection == i) {
-        m_playingSection = 0;
+        m_playingSection = -1;
     }
     m_currentEditItem->removeSection(i);
     endRemoveRows();
@@ -469,7 +477,7 @@ int PlayListModel::getPlayingVideo() const
 
 void PlayListModel::clear()
 {
-    m_playingVideo = 0;
+    m_playingVideo = -1;
     qDeleteAll(m_playList);
     beginResetModel();
     m_playList.clear();
@@ -507,7 +515,7 @@ void PlayListModel::removeItem(int i) {
     beginRemoveRows(QModelIndex(), i, i);
     m_playList.removeAt(i);
     if (m_playingVideo == i)
-        m_playingVideo = 0;
+        m_playingVideo = -1;
     else if (m_playingVideo > i)
         m_playingVideo -= 1;
     endRemoveRows();
@@ -542,8 +550,10 @@ void PlayListModel::updateItem(int i) {
 void PlayListModel::setPlayingVideo(int playingVideo)
 {
     // unset current playing video
-    m_playList[m_playingVideo]->setIsPlaying(false);
-    emit dataChanged(index(m_playingVideo, 0), index(m_playingVideo, 0));
+    if(m_playingVideo >= 0) {
+        m_playList[m_playingVideo]->setIsPlaying(false);
+        emit dataChanged(index(m_playingVideo, 0), index(m_playingVideo, 0));
+    }
 
     // set new playing video
     m_playList[playingVideo]->setIsPlaying(true);
@@ -617,11 +627,10 @@ int PlayListModel::loopMode(int i) const
         return m_defaultLoopMode;
 }
 
-void PlayListModel::setLoopMode(int i, int loopMode) {
+void PlayListModel::setLoopMode(int i, int loopMode) 
+{
     if (i >= 0 && m_playList.size() > i && m_playList[i])
         m_playList[i]->setLoopMode(loopMode);
-
-    emit dataChanged(index(m_playingVideo, 0), index(m_playingVideo, 0));
 }
 
 int PlayListModel::transitionMode(int i) const

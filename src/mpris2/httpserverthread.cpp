@@ -71,12 +71,20 @@ void HttpServerThread::setupHttpServer()
             res.set_content(getPlayListItems(charsPerItem), "text/plain");
         });
 
+        svr.Post("/playing_in_list", [this](const httplib::Request& req, httplib::Response& res) {
+            res.set_content(getPlaylingItemIndexFromPlaylist(), "text/plain");
+        });
+
         svr.Post("/sections", [this](const httplib::Request& req, httplib::Response& res) {
             std::string charsPerItem = "";
             if (req.has_param("charsPerItem")) {
                 charsPerItem = req.get_param_value("charsPerItem");
             }
             res.set_content(getSectionsItems(charsPerItem), "text/plain");
+        });
+
+        svr.Post("/playing_in_sections", [this](const httplib::Request& req, httplib::Response& res) {
+            res.set_content(getPlaylingItemIndexFromSections(), "text/plain");
         });
 
         runServer = true;
@@ -152,6 +160,22 @@ const std::string HttpServerThread::getSectionsItems(std::string charsPerItemStr
     }
     else
         return "";
+}
+
+const std::string HttpServerThread::getPlaylingItemIndexFromPlaylist()
+{
+    if (m_mpv) {
+        return std::to_string(m_mpv->getPlayListModel()->getPlayingVideo());
+    }
+    return "-1";
+}
+
+const std::string HttpServerThread::getPlaylingItemIndexFromSections()
+{
+    if (m_mpv) {
+        return std::to_string(m_mpv->getPlaySectionsModel()->getPlayingSection());
+    }
+    return "-1";
 }
 
 void HttpServerThread::setMpv(MpvObject* mpv)
