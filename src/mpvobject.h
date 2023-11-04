@@ -349,6 +349,9 @@ public:
     virtual ~MpvObject();
     virtual Renderer *createRenderer() const;
 
+    PlayListModel* getPlayListModel() const;
+    PlaySectionsModel* getPlaySectionsModel() const;
+
     Q_INVOKABLE QString getFileContent(const QString& file);
     Q_INVOKABLE QString checkAndCorrectPath(const QString& filePath, const QStringList& searchPaths);
     Q_INVOKABLE void loadFile(const QString &file, bool updateLastPlayedFile = true);

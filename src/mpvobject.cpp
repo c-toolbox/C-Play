@@ -799,6 +799,16 @@ QQuickFramebufferObject::Renderer *MpvObject::createRenderer() const
     return new MpvRenderer(const_cast<MpvObject *>(this));
 }
 
+PlayListModel* MpvObject::getPlayListModel() const
+{
+    return m_playlistModel;
+}
+
+PlaySectionsModel* MpvObject::getPlaySectionsModel() const
+{
+    return m_playSectionsModel;
+}
+
 QString MpvObject::getFileContent(const QString& file)
 {
     QFile f(file);

@@ -350,6 +350,37 @@ void PlayListModel::setPlayList(const Playlist &playList)
     endInsertRows();
 }
 
+std::string PlayListModel::getListAsFormattedString(int charsPerItem) const 
+{
+    std::string fullItemList = "";
+    for (int i = 0; i < m_playList.size(); i++)
+    {
+        std::string title = std::to_string(i+1) + ". ";
+        if(m_playList[i]->mediaTitle().isEmpty()) {
+            title += m_playList[i]->fileName().toStdString();
+        }
+        else {
+            title += m_playList[i]->mediaTitle().toStdString();
+        }
+        std::string duration = Application::formatTime(m_playList[i]->duration()).toStdString();
+
+        int countChars = title.size() + duration.size();
+        if(countChars < charsPerItem) {
+            title.insert(title.end(), charsPerItem-countChars, ' ');
+        }
+        else if (countChars >= charsPerItem) {
+            title.erase(title.end() - (countChars - charsPerItem + 4), title.end());
+            title.insert(title.end(), 3, '.');
+            title.insert(title.end(), 1, ' ');
+        }
+        std::string itemText = title + duration;
+        fullItemList += itemText;
+        if(i < m_playList.size())
+            fullItemList += "\n";
+    }
+    return fullItemList;
+}
+
 void PlayListModel::setPlayListName(QString name)
 {
     m_playListName = name;

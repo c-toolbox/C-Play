@@ -220,5 +220,6 @@ void MediaPlayer2Player::setMpv(MpvObject *mpv)
         return;
     }
     m_mpv = mpv;
+    httpServer->setMpv(mpv);
     Q_EMIT mpvChanged();
 }

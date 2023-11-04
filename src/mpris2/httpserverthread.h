@@ -7,6 +7,8 @@
 #include <QWaitCondition>
 #include <cpp-httplib/httplib.h>
 
+class MpvObject;
+
 class HttpServerThread : public QThread
 {
     Q_OBJECT
@@ -16,6 +18,7 @@ public:
     ~HttpServerThread();
 
     void setupHttpServer();
+    void setMpv(MpvObject* mpv);
 
 public slots:
     void terminate();
@@ -28,6 +31,9 @@ protected:
     void run() override;
 
 private:
+    const std::string getPlayListItems(std::string charsPerItemStr = "");
+
+    MpvObject* m_mpv;
     httplib::Server svr;
     bool runServer;
     int portServer;

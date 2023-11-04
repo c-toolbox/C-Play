@@ -1,4 +1,5 @@
 #include "httpserverthread.h"
+#include "mpvobject.h"
 #include <QFile>
 #include <QJsonDocument>
 #include <QJsonObject>
@@ -52,15 +53,23 @@ void HttpServerThread::setupHttpServer()
     }
 
     if (runServerStr == "yes") {
-        svr.Get("/play", [this](const httplib::Request& req, httplib::Response& res) {
+        svr.Post("/play", [this](const httplib::Request& req, httplib::Response& res) {
             res.set_content("Play", "text/plain");
             Q_EMIT playMedia();
         });
 
-        svr.Get("/pause", [this](const httplib::Request& req, httplib::Response& res) {
+        svr.Post("/pause", [this](const httplib::Request& req, httplib::Response& res) {
             res.set_content("Pause", "text/plain");
             Q_EMIT pauseMedia();
          });
+
+        svr.Post("/playlist", [this](const httplib::Request& req, httplib::Response& res) {
+            std::string charsPerItem = "";
+            if(req.has_param("charsPerItem")) {
+                charsPerItem = req.get_param_value("charsPerItem");
+            }
+            res.set_content(getPlayListItems(charsPerItem), "text/plain");
+        });
 
         runServer = true;
         return;
@@ -89,4 +98,40 @@ void HttpServerThread::run()
     if (runServer) {
         svr.listen("localhost", portServer);
     }
+}
+
+const std::string HttpServerThread::getPlayListItems(std::string charsPerItemStr)
+{
+    int charsPerItem = 0;
+    if(!charsPerItemStr.empty()) {
+        try
+        {
+            charsPerItem = std::stoi(charsPerItemStr);
+        }
+        catch (std::invalid_argument const& ex)
+        {
+            charsPerItem = 0;
+        }
+        catch (std::out_of_range const& ex)
+        {
+            charsPerItem = 0;
+        }
+    }
+
+    if (m_mpv) {
+        if(charsPerItem > 0)
+            return m_mpv->getPlayListModel()->getListAsFormattedString(charsPerItem);
+        else
+            return m_mpv->getPlayListModel()->getListAsFormattedString();
+    }
+    else
+        return "";
+}
+
+void HttpServerThread::setMpv(MpvObject* mpv)
+{
+    if (m_mpv == mpv) {
+        return;
+    }
+    m_mpv = mpv;
 }

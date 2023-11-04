@@ -97,6 +97,8 @@ public:
     Playlist getPlayList() const;
     void setPlayList(const Playlist& playList);
 
+    std::string getListAsFormattedString(int charsPerItem = 40) const;
+
     Q_INVOKABLE void setPlayListName(QString name);
     Q_INVOKABLE QString getPlayListName() const;
 
