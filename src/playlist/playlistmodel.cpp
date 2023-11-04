@@ -87,6 +87,9 @@ QHash<int, QByteArray> PlaySectionsModel::roleNames() const
 
 void PlaySectionsModel::setPlayingSection(int section)
 {
+    if (!m_currentEditItem)
+        return;
+
     // unset current playing section
     m_currentEditItem->setIsSectionPlaying(m_playingSection, false);
     emit dataChanged(index(m_playingSection, 0), index(m_playingSection, 0));
@@ -135,6 +138,9 @@ void PlaySectionsModel::addSection(QString name, QString startTime, QString endT
 }
 
 void PlaySectionsModel::removeSection(int i) {
+    if (!m_currentEditItem)
+        return;
+
     beginRemoveRows(QModelIndex(), i, i);
     if (m_playingSection == i) {
         m_playingSection = 0;
@@ -144,14 +150,24 @@ void PlaySectionsModel::removeSection(int i) {
 }
 
 void PlaySectionsModel::moveSectionUp(int i) {
-    if (i == 0) return;
+    if (!m_currentEditItem)
+        return;
+
+    if (i == 0) 
+        return;
+
     beginMoveRows(QModelIndex(), i, i, QModelIndex(), i - 1);
     m_currentEditItem->moveSection(i, i - 1);
     endMoveRows();
 }
 
 void PlaySectionsModel::moveSectionDown(int i) {
-    if (i == (m_currentEditItem->numberOfSections() - 1)) return;
+    if (!m_currentEditItem)
+        return;
+
+    if (i == (m_currentEditItem->numberOfSections() - 1)) 
+        return;
+
     beginMoveRows(QModelIndex(), i + 1, i + 1, QModelIndex(), i);
     m_currentEditItem->moveSection(i, i + 1);
     endMoveRows();
@@ -159,22 +175,67 @@ void PlaySectionsModel::moveSectionDown(int i) {
 
 QString PlaySectionsModel::sectionTitle(int i) const
 {
+    if (!m_currentEditItem)
+        return "";
+
     return m_currentEditItem->sectionTitle(i);
 }
 
 double PlaySectionsModel::sectionStartTime(int i) const
 {
+    if (!m_currentEditItem)
+        return 0;
+
     return m_currentEditItem->sectionStartTime(i);
 }
 
 double PlaySectionsModel::sectionEndTime(int i) const
 {
+    if (!m_currentEditItem)
+        return 0;
+
     return m_currentEditItem->sectionEndTime(i);
 }
 
 int PlaySectionsModel::sectionEOSMode(int i) const
 {
+    if (!m_currentEditItem)
+        return 0;
+
     return m_currentEditItem->sectionEOSMode(i);
+}
+
+std::string PlaySectionsModel::getSectionsAsFormattedString(int charsPerItem) const
+{
+    if (!m_currentEditItem)
+        return "";
+
+    std::string fullItemList = "";
+    for (int i = 0; i < m_currentEditItem->numberOfSections(); i++)
+    {
+        std::string title = std::to_string(i + 1) + ". ";
+
+        auto playListItemSection = m_currentEditItem->getSection(i);
+
+        title += playListItemSection.title.toStdString();
+
+        std::string duration = Application::formatTime(playListItemSection.endTime - playListItemSection.startTime).toStdString();
+
+        int countChars = title.size() + duration.size();
+        if (countChars < charsPerItem) {
+            title.insert(title.end(), charsPerItem - countChars, ' ');
+        }
+        else if (countChars >= charsPerItem) {
+            title.erase(title.end() - (countChars - charsPerItem + 4), title.end());
+            title.insert(title.end(), 3, '.');
+            title.insert(title.end(), 1, ' ');
+        }
+        std::string itemText = title + duration;
+        fullItemList += itemText;
+        if (i < m_currentEditItem->numberOfSections())
+            fullItemList += "\n";
+    }
+    return fullItemList;
 }
 
 PlayListModel::PlayListModel(QObject *parent)

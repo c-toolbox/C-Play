@@ -467,8 +467,19 @@ void PlayListItem::updateToNewFile(const QString& path) {
     setSeparateAudioFile(QStringLiteral(""));
 }
 
-void PlayListItem::loadFromDisk()
-{
+void PlayListItem::loadDetailsFromDisk() {
+    QFileInfo checkedFilePathInfo(filePath());
+    QString fileExt = checkedFilePathInfo.suffix();
+
+    if (fileExt == "cplay_file") {
+        loadJSONPlayfile();
+    }
+    else if (fileExt == "fdv") {
+        loadUniviewFDV();
+    }
+}
+
+void PlayListItem::loadJSONPlayfile() {
     QFileInfo jsonFileInfo(filePath());
     if (!jsonFileInfo.exists())
     {
@@ -520,7 +531,6 @@ void PlayListItem::loadFromDisk()
     if (obj.contains("title")) {
         QString title = obj.value("title").toString();
         setMediaTitle(title);
-        setFileName(title);
     }
 
     bool durationFound = false;
@@ -627,6 +637,52 @@ void PlayListItem::loadFromDisk()
                 addSection(title, startTime, endTime, eosMode);
             }
         }
+    }
+}
+
+void PlayListItem::loadUniviewFDV()
+{
+    QFileInfo fileToLoad(filePath());
+    if (!fileToLoad.exists())
+    {
+        qDebug() << "FDV files " << filePath() << " did not exist.";
+        return;
+    }
+
+    QFile f(filePath());
+    f.open(QIODevice::ReadOnly);
+    QString fileContent = f.readAll();
+    f.close();
+
+    QStringList fileEntries = fileContent.split(QRegExp("[\r\n]"), QString::SkipEmptyParts);
+    qInfo() << "File Content: " << fileEntries;
+
+    QString fileMainPath = GeneralSettings::univiewVideoLocation();
+
+    if (!fileEntries.isEmpty()) {
+        QString videoFileRelatiePath = fileEntries.at(1).mid(6); //"Video="
+        QString videoFile = videoFileRelatiePath;
+        if (!fileMainPath.isEmpty())
+            videoFile = QDir::cleanPath(fileMainPath + QDir::separator() + videoFileRelatiePath);
+
+        QString audioFileRelatiePath = fileEntries.at(2).mid(6); //"Audio="
+        QString audioFile = audioFileRelatiePath;
+        if (!fileMainPath.isEmpty())
+            audioFile = QDir::cleanPath(fileMainPath + QDir::separator() + audioFileRelatiePath);
+
+        QString title = fileEntries.at(3).mid(6); //"Title="
+        double duration = fileEntries.at(4).mid(9).toDouble(); //"Duration="
+
+        setMediaFile(videoFile);
+        setSeparateAudioFile(audioFile);
+        setMediaTitle(title);
+        setDuration(duration);
+        setGridToMapOn(0); //Assume Pre-split with FDV files
+
+        if (title.contains("3D")) // Assume 3D side-by-side stereo
+            setStereoVideo(1);
+        else
+            setStereoVideo(0);
     }
 }
 

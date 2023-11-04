@@ -331,11 +331,9 @@ class MpvObject : public QQuickFramebufferObject
     QVariant getAudioDeviceList();
     void updateAudioDeviceList();
 
-    PlayListItem* loadUniviewFDV(const QString& file);
-    void loadUniviewPlaylist(const QString& file, bool updateLastPlayedFile = true);
-
-    PlayListItem* loadJSONPlayfile(const QString& file);
+    PlayListItem* loadMediaFileDescription(const QString& file);
     void loadJSONPlayList(const QString& file, bool updateLastPlayedFile = true);
+    void loadUniviewPlaylist(const QString& file, bool updateLastPlayedFile = true);
 
     void loadItem(PlayListItemData itemData, bool updateLastPlayedFile = true, QString flag = "replace");
 
@@ -352,7 +350,6 @@ public:
     PlayListModel* getPlayListModel() const;
     PlaySectionsModel* getPlaySectionsModel() const;
 
-    Q_INVOKABLE QString getFileContent(const QString& file);
     Q_INVOKABLE QString checkAndCorrectPath(const QString& filePath, const QStringList& searchPaths);
     Q_INVOKABLE void loadFile(const QString &file, bool updateLastPlayedFile = true);
     Q_INVOKABLE void addFileToPlaylist(const QString& file);

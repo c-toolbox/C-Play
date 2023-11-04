@@ -71,6 +71,14 @@ void HttpServerThread::setupHttpServer()
             res.set_content(getPlayListItems(charsPerItem), "text/plain");
         });
 
+        svr.Post("/sections", [this](const httplib::Request& req, httplib::Response& res) {
+            std::string charsPerItem = "";
+            if (req.has_param("charsPerItem")) {
+                charsPerItem = req.get_param_value("charsPerItem");
+            }
+            res.set_content(getSectionsItems(charsPerItem), "text/plain");
+        });
+
         runServer = true;
         return;
     }
@@ -100,29 +108,47 @@ void HttpServerThread::run()
     }
 }
 
-const std::string HttpServerThread::getPlayListItems(std::string charsPerItemStr)
+bool HttpServerThread::stringToInt(std::string str, int& parsedInt)
 {
-    int charsPerItem = 0;
-    if(!charsPerItemStr.empty()) {
+    if (!str.empty()) {
         try
         {
-            charsPerItem = std::stoi(charsPerItemStr);
+            parsedInt = std::stoi(str);
+            return true;
         }
         catch (std::invalid_argument const& ex)
         {
-            charsPerItem = 0;
+            return false;
         }
         catch (std::out_of_range const& ex)
         {
-            charsPerItem = 0;
+            return true;
         }
     }
+    return false;
+}
 
+const std::string HttpServerThread::getPlayListItems(std::string charsPerItemStr)
+{
     if (m_mpv) {
-        if(charsPerItem > 0)
+        int charsPerItem = 0;
+        if(stringToInt(charsPerItemStr, charsPerItem))
             return m_mpv->getPlayListModel()->getListAsFormattedString(charsPerItem);
         else
             return m_mpv->getPlayListModel()->getListAsFormattedString();
+    }
+    else
+        return "";
+}
+
+const std::string HttpServerThread::getSectionsItems(std::string charsPerItemStr)
+{
+    if (m_mpv) {
+        int charsPerItem = 0;
+        if (stringToInt(charsPerItemStr, charsPerItem))
+            return m_mpv->getPlaySectionsModel()->getSectionsAsFormattedString(charsPerItem);
+        else
+            return m_mpv->getPlaySectionsModel()->getSectionsAsFormattedString();
     }
     else
         return "";

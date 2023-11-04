@@ -31,7 +31,10 @@ protected:
     void run() override;
 
 private:
+    bool stringToInt(std::string str, int& parsedInt);
+
     const std::string getPlayListItems(std::string charsPerItemStr = "");
+    const std::string getSectionsItems(std::string charsPerItemStr = "");
 
     MpvObject* m_mpv;
     httplib::Server svr;
