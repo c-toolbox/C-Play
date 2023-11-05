@@ -360,10 +360,16 @@ ToolBar {
 
         Connections {
             target: mpv
-            function onTriggerFadeDown() {
+            function onFadeVolumeDown() {
+                fade_volume_down.clicked()
+            }
+            function onFadeVolumeUp() {
+                fade_volume_up.clicked()
+            }
+            function onFadeImageDown() {
                 fade_image_out.clicked()
             }
-            function onTriggerFadeUp() {
+            function onFadeImageUp() {
                 fade_image_in.clicked()
             }
         }

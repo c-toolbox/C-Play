@@ -1,5 +1,6 @@
 #include "httpserverthread.h"
 #include "mpvobject.h"
+#include "playbacksettings.h"
 #include <QFile>
 #include <QJsonDocument>
 #include <QJsonObject>
@@ -54,14 +55,60 @@ void HttpServerThread::setupHttpServer()
 
     if (runServerStr == "yes") {
         svr.Post("/play", [this](const httplib::Request& req, httplib::Response& res) {
-            res.set_content("Play", "text/plain");
             Q_EMIT playMedia();
+            res.set_content("Play", "text/plain");
         });
 
         svr.Post("/pause", [this](const httplib::Request& req, httplib::Response& res) {
-            res.set_content("Pause", "text/plain");
             Q_EMIT pauseMedia();
-         });
+            res.set_content("Pause", "text/plain");
+        });
+
+        svr.Post("/volume", [this](const httplib::Request& req, httplib::Response& res) {
+            if (req.has_param("level")) {
+                setVolumeFromStr(req.get_param_value("level"));
+            }
+            
+            if(m_mpv){
+                res.set_content(std::to_string(m_mpv->volume()), "text/plain");
+            }
+            else {
+                res.set_content("0", "text/plain");
+            }
+        });
+
+        svr.Post("/fade_duration", [this](const httplib::Request& req, httplib::Response& res) {
+            res.set_content(std::to_string(double(PlaybackSettings::fadeDuration())/1000.0), "text/plain");
+        });
+
+        svr.Post("/fade_volume_down", [this](const httplib::Request& req, httplib::Response& res) {
+            Q_EMIT fadeVolumeDown();
+            res.set_content("Fading volume down", "text/plain");
+        });
+
+        svr.Post("/fade_volume_up", [this](const httplib::Request& req, httplib::Response& res) {
+            Q_EMIT fadeVolumeUp();
+            res.set_content("Fading volume up", "text/plain");
+        });
+
+        svr.Post("/visibility", [this](const httplib::Request& req, httplib::Response& res) {
+            if (m_mpv) {
+                res.set_content(std::to_string(m_mpv->visibility()), "text/plain");
+            }
+            else {
+                res.set_content("0", "text/plain");
+            }
+        });
+
+        svr.Post("/fade_image_down", [this](const httplib::Request& req, httplib::Response& res) {
+            Q_EMIT fadeImageDown();
+            res.set_content("Fading image down", "text/plain");
+        });
+
+        svr.Post("/fade_image_up", [this](const httplib::Request& req, httplib::Response& res) {
+            Q_EMIT fadeImageUp();
+            res.set_content("Fading image up", "text/plain");
+        });
 
         svr.Post("/playlist", [this](const httplib::Request& req, httplib::Response& res) {
             std::string charsPerItem = "";
@@ -71,7 +118,7 @@ void HttpServerThread::setupHttpServer()
             res.set_content(getPlayListItems(charsPerItem), "text/plain");
         });
 
-        svr.Post("/playing_in_list", [this](const httplib::Request& req, httplib::Response& res) {
+        svr.Post("/playing_in_playlist", [this](const httplib::Request& req, httplib::Response& res) {
             res.set_content(getPlaylingItemIndexFromPlaylist(), "text/plain");
         });
 
@@ -79,14 +126,6 @@ void HttpServerThread::setupHttpServer()
             if (req.has_param("index")) {
                 std::string indexStr = req.get_param_value("index");
                 res.set_content(LoadIndexFromPlaylist(indexStr), "text/plain");
-            }
-            res.set_content("Missing index parameter", "text/plain");
-        });
-
-        svr.Post("/load_from_sections", [this](const httplib::Request& req, httplib::Response& res) {
-            if (req.has_param("index")) {
-                std::string indexStr = req.get_param_value("index");
-                res.set_content(LoadIndexFromSections(indexStr), "text/plain");
             }
             res.set_content("Missing index parameter", "text/plain");
         });
@@ -101,6 +140,14 @@ void HttpServerThread::setupHttpServer()
 
         svr.Post("/playing_in_sections", [this](const httplib::Request& req, httplib::Response& res) {
             res.set_content(getPlaylingItemIndexFromSections(), "text/plain");
+        });
+
+        svr.Post("/load_from_sections", [this](const httplib::Request& req, httplib::Response& res) {
+            if (req.has_param("index")) {
+                std::string indexStr = req.get_param_value("index");
+                res.set_content(LoadIndexFromSections(indexStr), "text/plain");
+            }
+            res.set_content("Missing index parameter", "text/plain");
         });
 
         runServer = true;
@@ -150,6 +197,16 @@ bool HttpServerThread::stringToInt(std::string str, int& parsedInt)
         }
     }
     return false;
+}
+
+void HttpServerThread::setVolumeFromStr(std::string volumeLevelStr)
+{
+    int volumeLevel = 0;
+    if (stringToInt(volumeLevelStr, volumeLevel)) {
+        if (volumeLevel >= 0 && volumeLevel <= 100) {
+            Q_EMIT setVolume(volumeLevel);
+        }
+    }
 }
 
 const std::string HttpServerThread::getPlayListItems(std::string charsPerItemStr)

@@ -26,6 +26,11 @@ public slots:
 Q_SIGNALS:
     void pauseMedia();
     void playMedia();
+    void setVolume(int level);
+    void fadeVolumeDown();
+    void fadeVolumeUp();
+    void fadeImageDown();
+    void fadeImageUp();
     void loadFromPlaylist(int idx);
     void loadFromSections(int idx);
 
@@ -34,6 +39,8 @@ protected:
 
 private:
     bool stringToInt(std::string str, int& parsedInt);
+
+    void setVolumeFromStr(std::string volumeLevelStr);
 
     const std::string getPlayListItems(std::string charsPerItemStr = "");
     const std::string getSectionsItems(std::string charsPerItemStr = "");

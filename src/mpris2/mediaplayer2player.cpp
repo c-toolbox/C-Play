@@ -53,6 +53,11 @@ void MediaPlayer2Player::setupHttpServer()
     connect(httpServer, &HttpServerThread::finished, httpServer, &QObject::deleteLater);
     connect(httpServer, &HttpServerThread::pauseMedia, this, &MediaPlayer2Player::Pause);
     connect(httpServer, &HttpServerThread::playMedia, this, &MediaPlayer2Player::Play);
+    connect(httpServer, &HttpServerThread::setVolume, this, &MediaPlayer2Player::SetVolume);
+    connect(httpServer, &HttpServerThread::fadeVolumeDown, this, &MediaPlayer2Player::FadeVolumeDown);
+    connect(httpServer, &HttpServerThread::fadeVolumeUp, this, &MediaPlayer2Player::FadeVolumeUp);
+    connect(httpServer, &HttpServerThread::fadeImageDown, this, &MediaPlayer2Player::FadeImageDown);
+    connect(httpServer, &HttpServerThread::fadeImageUp, this, &MediaPlayer2Player::FadeImageUp);
     connect(httpServer, &HttpServerThread::loadFromPlaylist, this, &MediaPlayer2Player::LoadFromPlaylist);
     connect(httpServer, &HttpServerThread::loadFromSections, this, &MediaPlayer2Player::LoadFromSections);
 
@@ -113,7 +118,10 @@ void MediaPlayer2Player::Seek(qlonglong offset)
 void MediaPlayer2Player::SetPosition(const QDBusObjectPath &trackId, qlonglong pos)
 {
     Q_UNUSED(trackId)
-    m_mpv->setProperty("time-pos", pos/1000/1000);
+
+    if (m_mpv) {
+        m_mpv->setProperty("time-pos", pos / 1000 / 1000);
+    }
 }
 
 void MediaPlayer2Player::LoadFromPlaylist(int idx)
@@ -124,6 +132,41 @@ void MediaPlayer2Player::LoadFromPlaylist(int idx)
 void MediaPlayer2Player::LoadFromSections(int idx)
 {
     Q_EMIT loadFromSections(idx);
+}
+
+void MediaPlayer2Player::SetVolume(int level)
+{
+    if (m_mpv) {
+        m_mpv->setVolume(level);
+    }
+}
+
+void MediaPlayer2Player::FadeVolumeDown()
+{
+    if (m_mpv) {
+        Q_EMIT m_mpv->fadeVolumeDown();
+    }
+}
+
+void MediaPlayer2Player::FadeVolumeUp()
+{
+    if (m_mpv) {
+        Q_EMIT m_mpv->fadeVolumeUp();
+    }
+}
+
+void MediaPlayer2Player::FadeImageDown()
+{
+    if (m_mpv) {
+        Q_EMIT m_mpv->fadeImageDown();
+    }
+}
+
+void MediaPlayer2Player::FadeImageUp()
+{
+    if (m_mpv) {
+        Q_EMIT m_mpv->fadeImageUp();
+    }
 }
 
 void MediaPlayer2Player::OpenUri(const QString &uri)

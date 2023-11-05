@@ -48,6 +48,11 @@ public Q_SLOTS:
     void SetPosition(const QDBusObjectPath &trackId, qlonglong pos);
     void LoadFromPlaylist(int idx);
     void LoadFromSections(int idx);
+    void SetVolume(int level);
+    void FadeVolumeDown();
+    void FadeVolumeUp();
+    void FadeImageDown();
+    void FadeImageUp();
     void OpenUri(const QString &uri);
     QString PlaybackStatus();
     QVariantMap Metadata();

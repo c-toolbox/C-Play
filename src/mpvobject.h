@@ -23,6 +23,7 @@ class Track;
 class MpvObject : public QQuickFramebufferObject
 {
     Q_OBJECT
+public:
     Q_PROPERTY(TracksModel* audioTracksModel READ audioTracksModel NOTIFY audioTracksModelChanged)
     Q_PROPERTY(TracksModel* subtitleTracksModel READ subtitleTracksModel NOTIFY subtitleTracksModelChanged)
 
@@ -418,8 +419,10 @@ signals:
     void recentMediaFilesChanged();
     void youtubePlaylistLoaded();
     void surfaceTransistionPerformed();
-    void triggerFadeDown();
-    void triggerFadeUp();
+    void fadeVolumeDown();
+    void fadeVolumeUp();
+    void fadeImageDown();
+    void fadeImageUp();
 
 private:
     void sectionPositionCheck(double position);

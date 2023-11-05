@@ -318,7 +318,7 @@ void MpvObject::setPause(bool value)
 
     //If playing again and no visibility -> Fade up
     if (!value && (visibility() == 0)) {
-        emit triggerFadeUp();
+        emit fadeImageUp();
     }
 }
 
@@ -1490,7 +1490,7 @@ void MpvObject::sectionPositionCheck(double position) {
         }
         else if (m_currentSection.eosMode == 1) { // Fade out (then pause)
             if ((m_currentSection.endTime - (((double)PlaybackSettings::fadeDuration())/1000.0)) <= position) {
-                emit triggerFadeDown();
+                emit fadeImageDown();
                 m_currentSection.eosMode = 0;
             }
         }
