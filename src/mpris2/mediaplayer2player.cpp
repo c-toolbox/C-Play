@@ -53,6 +53,8 @@ void MediaPlayer2Player::setupHttpServer()
     connect(httpServer, &HttpServerThread::finished, httpServer, &QObject::deleteLater);
     connect(httpServer, &HttpServerThread::pauseMedia, this, &MediaPlayer2Player::Pause);
     connect(httpServer, &HttpServerThread::playMedia, this, &MediaPlayer2Player::Play);
+    connect(httpServer, &HttpServerThread::loadFromPlaylist, this, &MediaPlayer2Player::LoadFromPlaylist);
+    connect(httpServer, &HttpServerThread::loadFromSections, this, &MediaPlayer2Player::LoadFromSections);
 
     httpServer->start();
 }
@@ -112,6 +114,16 @@ void MediaPlayer2Player::SetPosition(const QDBusObjectPath &trackId, qlonglong p
 {
     Q_UNUSED(trackId)
     m_mpv->setProperty("time-pos", pos/1000/1000);
+}
+
+void MediaPlayer2Player::LoadFromPlaylist(int idx)
+{
+    Q_EMIT loadFromPlaylist(idx);
+}
+
+void MediaPlayer2Player::LoadFromSections(int idx)
+{
+    Q_EMIT loadFromSections(idx);
 }
 
 void MediaPlayer2Player::OpenUri(const QString &uri)

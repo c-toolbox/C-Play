@@ -43,6 +43,7 @@ public:
 
     Q_INVOKABLE void setPlayingSection(int section);
     Q_INVOKABLE int getPlayingSection();
+    Q_INVOKABLE int getNumberOfSections();
     Q_INVOKABLE void clear();
     Q_INVOKABLE bool isEmpty();
 
@@ -109,6 +110,7 @@ public:
     Q_INVOKABLE QString getPlayListPath() const;
 
     Q_INVOKABLE QString getPath(int i);
+    Q_INVOKABLE int getPlayListSize() const;
     Q_INVOKABLE QPointer<PlayListItem> getItem(int i);
     Q_INVOKABLE void addItem(PlayListItem* item);
     Q_INVOKABLE void removeItem(int i);

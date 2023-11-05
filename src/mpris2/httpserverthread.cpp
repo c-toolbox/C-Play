@@ -75,6 +75,22 @@ void HttpServerThread::setupHttpServer()
             res.set_content(getPlaylingItemIndexFromPlaylist(), "text/plain");
         });
 
+        svr.Post("/load_from_playlist", [this](const httplib::Request& req, httplib::Response& res) {
+            if (req.has_param("index")) {
+                std::string indexStr = req.get_param_value("index");
+                res.set_content(LoadIndexFromPlaylist(indexStr), "text/plain");
+            }
+            res.set_content("Missing index parameter", "text/plain");
+        });
+
+        svr.Post("/load_from_sections", [this](const httplib::Request& req, httplib::Response& res) {
+            if (req.has_param("index")) {
+                std::string indexStr = req.get_param_value("index");
+                res.set_content(LoadIndexFromSections(indexStr), "text/plain");
+            }
+            res.set_content("Missing index parameter", "text/plain");
+        });
+
         svr.Post("/sections", [this](const httplib::Request& req, httplib::Response& res) {
             std::string charsPerItem = "";
             if (req.has_param("charsPerItem")) {
@@ -176,6 +192,50 @@ const std::string HttpServerThread::getPlaylingItemIndexFromSections()
         return std::to_string(m_mpv->getPlaySectionsModel()->getPlayingSection());
     }
     return "-1";
+}
+
+const std::string HttpServerThread::LoadIndexFromPlaylist(std::string indexStr) 
+{
+    int index = -1;
+    if (stringToInt(indexStr, index)) {
+        if (m_mpv) {
+            if (index >= 0 && index < m_mpv->getPlayListModel()->getPlayListSize()) {
+                Q_EMIT loadFromPlaylist(index);
+                return "Loading media with index: " + indexStr;
+            }
+            else {
+                return "Index was out of bounds of playlist";
+            }
+        }
+        else{
+            return "Could not find reference to MPV";
+        }
+    }
+    else {
+        return "Could not interpret index parameter";
+    }
+}
+
+const std::string HttpServerThread::LoadIndexFromSections(std::string indexStr)
+{
+    int index = -1;
+    if (stringToInt(indexStr, index)) {
+        if (m_mpv) {
+            if (index >= 0 && index < m_mpv->getPlaySectionsModel()->getNumberOfSections()) {
+                Q_EMIT loadFromSections(index);
+                return "Loading section with index: " + indexStr;
+            }
+            else {
+                return "Index was out of bounds of sections list";
+            }
+        }
+        else {
+            return "Could not find reference to MPV";
+        }
+    }
+    else {
+        return "Could not interpret index parameter";
+    }
 }
 
 void HttpServerThread::setMpv(MpvObject* mpv)

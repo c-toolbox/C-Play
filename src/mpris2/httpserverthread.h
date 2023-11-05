@@ -26,6 +26,8 @@ public slots:
 Q_SIGNALS:
     void pauseMedia();
     void playMedia();
+    void loadFromPlaylist(int idx);
+    void loadFromSections(int idx);
 
 protected:
     void run() override;
@@ -38,6 +40,9 @@ private:
 
     const std::string getPlaylingItemIndexFromPlaylist();
     const std::string getPlaylingItemIndexFromSections();
+
+    const std::string LoadIndexFromPlaylist(std::string indexStr);
+    const std::string LoadIndexFromSections(std::string indexStr);
 
     MpvObject* m_mpv;
     httplib::Server svr;

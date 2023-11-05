@@ -46,6 +46,8 @@ public Q_SLOTS:
     void Play();
     void Seek(qlonglong offset);
     void SetPosition(const QDBusObjectPath &trackId, qlonglong pos);
+    void LoadFromPlaylist(int idx);
+    void LoadFromSections(int idx);
     void OpenUri(const QString &uri);
     QString PlaybackStatus();
     QVariantMap Metadata();
@@ -68,6 +70,8 @@ Q_SIGNALS:
     void stop();
     void play();
     void seek(int offset);
+    void loadFromPlaylist(int idx);
+    void loadFromSections(int idx);
     void openUri(QString uri);
     void playbackStatusChanged();
     void metadataChanged();

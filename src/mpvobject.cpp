@@ -915,6 +915,10 @@ void MpvObject::setLoadedAsCurrentEditItem() {
 }
 
 void MpvObject::setCurrentEditItemFromPlaylist(int playListIndex) {
+    if (playListIndex < 0 || playListIndex >= m_playlistModel->getPlayListSize()) {
+        return;
+    }
+
     m_currentSectionsIndex = -1;
     PlayListItem* playItem = m_playlistModel->getItem(playListIndex);
     PlayListItem* currentItem;
@@ -954,6 +958,10 @@ void MpvObject::loadSection(int playSectionsIndex) {
 }
 
 void MpvObject::loadItem(int playListIndex, bool updateLastPlayedFile) {
+    if (playListIndex < 0 || playListIndex >= m_playlistModel->getPlayListSize()) {
+        return;
+    }
+
     try {
         QPointer<PlayListItem> item = m_playlistModel->getItem(playListIndex);
         if (!item) {

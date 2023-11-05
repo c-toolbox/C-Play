@@ -40,7 +40,6 @@ Kirigami.BasicListItem {
         mpv.position = 0
         mpv.loadItem(index)
         mpv.playlistModel.setPlayingVideo(index)
-        //playItem.start()
     }
 
     ToolTip {

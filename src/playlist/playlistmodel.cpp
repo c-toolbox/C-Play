@@ -90,9 +90,16 @@ void PlaySectionsModel::setPlayingSection(int section)
     if (!m_currentEditItem)
         return;
 
-    // unset current playing section
-    m_currentEditItem->setIsSectionPlaying(m_playingSection, false);
-    emit dataChanged(index(m_playingSection, 0), index(m_playingSection, 0));
+    if (m_playingSection >= 0 && m_playingSection < m_currentEditItem->numberOfSections()) {
+        // unset current playing section
+        m_currentEditItem->setIsSectionPlaying(m_playingSection, false);
+        emit dataChanged(index(m_playingSection, 0), index(m_playingSection, 0));
+    }
+
+    if (section < 0 || section >= m_currentEditItem->numberOfSections()) {
+        m_playingSection = -1;
+        return;
+    }
 
     // set new playing section
     m_currentEditItem->setIsSectionPlaying(section, true);
@@ -107,6 +114,14 @@ int PlaySectionsModel::getPlayingSection()
         return -1;
 
     return m_playingSection;
+}
+
+int PlaySectionsModel::getNumberOfSections()
+{
+    if (!m_currentEditItem)
+        return -1;
+
+    return m_currentEditItem->numberOfSections();
 }
 
 void PlaySectionsModel::clear()
@@ -496,6 +511,10 @@ QString PlayListModel::getPath(int i)
     return m_playList[i]->mediaFile();
 }
 
+int PlayListModel::getPlayListSize() const {
+    return m_playList.size();
+}
+
 void PlayListModel::addItem(PlayListItem* item)
 {
     beginInsertRows(QModelIndex(), m_playList.size(), m_playList.size());
@@ -505,9 +524,10 @@ void PlayListModel::addItem(PlayListItem* item)
 
 QPointer<PlayListItem> PlayListModel::getItem(int i)
 {
-    if (m_playList.size() <= i) {
-        return m_playList[0];
+    if (i < 0 || i >= getPlayListSize()) {
+        return nullptr;
     }
+
     return m_playList[i];
 }
 
@@ -550,9 +570,15 @@ void PlayListModel::updateItem(int i) {
 void PlayListModel::setPlayingVideo(int playingVideo)
 {
     // unset current playing video
-    if(m_playingVideo >= 0) {
+    if(m_playingVideo >= 0 && m_playingVideo < m_playList.size()) {
         m_playList[m_playingVideo]->setIsPlaying(false);
         emit dataChanged(index(m_playingVideo, 0), index(m_playingVideo, 0));
+    }
+
+    if (playingVideo < 0 || playingVideo >= m_playList.size()) {
+        m_playingVideo = -1;
+        emit playingVideoChanged();
+        return;
     }
 
     // set new playing video

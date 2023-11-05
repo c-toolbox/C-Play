@@ -415,10 +415,21 @@ MpvObject {
         function onPrevious() {
             actions.playPreviousAction.trigger()
         }
-        function onSeek() {
+        function onSeek(offset) {
             root.command(["add", "time-pos", offset])
         }
-        function onOpenUri() {
+        function onLoadFromPlaylist(index) {
+            root.pause = true
+            root.position = 0
+            root.loadItem(index)
+            root.playlistModel.setPlayingVideo(index)
+        }
+        function onLoadFromSections(index) {
+            root.pause = true
+            root.loadSection(index)
+            root.playSectionsModel.setPlayingSection(index)
+        }
+        function onOpenUri(uri) {
             openFile(uri, false, false)
         }
     }
