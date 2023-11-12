@@ -26,8 +26,8 @@ MpvObject {
 
     width: parent.width
     height: window.isFullScreen() ? parent.height : parent.height - footer.height
-    anchors.left: PlaylistSettings.position === "left" ? playList.right : playSections.right
-    anchors.right: PlaylistSettings.position === "right" ? playList.left : playSections.left
+    anchors.left: PlaylistSettings.position === "left" ? playSections.right : parent.left
+    anchors.right: PlaylistSettings.position === "right" ? playList.left : parent.right
     anchors.top: parent.top
     volume: GeneralSettings.volume
 
@@ -116,20 +116,20 @@ MpvObject {
     }
 
     onPlaylistModelChanged: {
-        if (playList.playlistView.count > 0) {
-            playList.state = "visible"
+        if (playList.playlistView.count > 0 && playList.state === "hidden") {
+            actions.togglePlaylistAction.trigger()
         }
-        else {
-            playList.state = "hidden"
+        else if(playList.state !== "hidden") {
+            actions.togglePlaylistAction.trigger()
         }
     }
 
     onPlaySectionsModelChanged: {
-        if (playSections.sectionsView.count > 0) {
-            playSections.state = "visible"
+        if (playSections.sectionsView.count > 0 && playSections.state === "hidden") {
+            actions.toggleSectionsAction.trigger()
         }
-        else {
-            playSections.state = "hidden"
+        else if(playSections.state !== "hidden") {
+            actions.toggleSectionsAction.trigger()
         }
     }
 
@@ -273,42 +273,6 @@ MpvObject {
         hoverEnabled: true
 
         onPositionChanged: {
-            if (!playList.canToggleWithMouse || playList.playlistView.count <= 1) {
-                return
-            }
-            if (playList.position === "right") {
-                if (mouseX > width - 50) {
-                    playList.state = "visible"
-                }
-                if (mouseX < width - playList.width - 20) {
-                    playList.state = "hidden"
-                }
-            } else {
-                if (mouseX < 50) {
-                    playList.state = "visible"
-                }
-                if (mouseX > playList.width + 20) {
-                    playList.state = "hidden"
-                }
-            }
-            if (!playSections.canToggleWithMouse || playSections.sectionsView.count <= 1) {
-                return
-            }
-            if (playSections.position !== "right") {
-                if (mouseX > width - 50) {
-                    playSections.state = "visible"
-                }
-                if (mouseX < width - playList.width - 20) {
-                    playSections.state = "hidden"
-                }
-            } else {
-                if (mouseX < 50) {
-                    playSections.state = "visible"
-                }
-                if (mouseX > playList.width + 20) {
-                    playSections.state = "hidden"
-                }
-            }
         }
 
         onWheel: {

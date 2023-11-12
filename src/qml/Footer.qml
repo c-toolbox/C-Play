@@ -64,13 +64,13 @@ ToolBar {
         }
 
         Loader {
-            sourceComponent: toggleSectionsButton
-            visible: !PlaylistSettings.canToggleWithMouse && PlaylistSettings.position === "right"
+            sourceComponent: togglePlaylistButton
+            visible: PlaylistSettings.position === "left"
         }
 
         Loader {
-            sourceComponent: togglePlaylistButton
-            visible: !PlaylistSettings.canToggleWithMouse && PlaylistSettings.position === "left"
+            sourceComponent: toggleSectionsButton
+            visible: PlaylistSettings.position === "left"
         }
 
         ToolButton {
@@ -126,13 +126,13 @@ ToolBar {
         }
 
         Loader {
-            sourceComponent: toggleSectionsButton
-            visible: !PlaylistSettings.canToggleWithMouse && PlaylistSettings.position === "left"
+            sourceComponent: togglePlaylistButton
+            visible: PlaylistSettings.position === "right"
         }
 
         Loader {
-            sourceComponent: togglePlaylistButton
-            visible: !PlaylistSettings.canToggleWithMouse && PlaylistSettings.position === "right"
+            sourceComponent: toggleSectionsButton
+            visible: PlaylistSettings.position === "right"
         }
 
     }

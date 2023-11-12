@@ -28,10 +28,11 @@ Rectangle {
     height: mpv.height
     width: {
             const w = Kirigami.Units.gridUnit * 19
-            return (parent.width * 0.172) < w ? w : parent.width * 0.172
+            return (parent.width * 0.17) < w ? w : parent.width * 0.17
     }
     x: position === "right" ? parent.width : -width
     y: 0
+    z: position === "right" ? 40 : 41
     state: "hidden"
     color: Kirigami.Theme.backgroundColor
 
@@ -262,15 +263,20 @@ Rectangle {
             PropertyChanges { target: root; visible: false }
         },
         State {
-            name : "visible"
+            name : "visible-without-partner"
             PropertyChanges { target: root; x: position === "right" ? parent.width - root.width : 0 }
+            PropertyChanges { target: root; visible: true }
+        },
+        State {
+            name : "visible-with-partner"
+            PropertyChanges { target: root; x: position === "right" ? parent.width - (root.width * 2): 0 }
             PropertyChanges { target: root; visible: true }
         }
     ]
 
     transitions: [
         Transition {
-            from: "visible"
+            from: "visible-without-partner"
             to: "hidden"
 
             SequentialAnimation {
@@ -289,7 +295,7 @@ Rectangle {
         },
         Transition {
             from: "hidden"
-            to: "visible"
+            to: "visible-without-partner"
 
             SequentialAnimation {
                 PropertyAction {
@@ -297,6 +303,68 @@ Rectangle {
                     property: "visible"
                     value: true
                 }
+                NumberAnimation {
+                    target: root
+                    property: "x"
+                    duration: 120
+                    easing.type: Easing.OutQuad
+                }
+            }
+        },
+        Transition {
+            from: "visible-with-partner"
+            to: "hidden"
+
+            SequentialAnimation {
+                NumberAnimation {
+                    target: root
+                    property: "x"
+                    duration: 120
+                    easing.type: Easing.InQuad
+                }
+                PropertyAction {
+                    target: root
+                    property: "visible"
+                    value: false
+                }
+            }
+        },
+        Transition {
+            from: "hidden"
+            to: "visible-with-partner"
+
+            SequentialAnimation {
+                PropertyAction {
+                    target: root
+                    property: "visible"
+                    value: true
+                }
+                NumberAnimation {
+                    target: root
+                    property: "x"
+                    duration: 120
+                    easing.type: Easing.OutQuad
+                }
+            }
+        },
+        Transition {
+            from: "visible-without-partner"
+            to: "visible-with-partner"
+
+            SequentialAnimation {
+                NumberAnimation {
+                    target: root
+                    property: "x"
+                    duration: 120
+                    easing.type: Easing.OutQuad
+                }
+            }
+        },
+        Transition {
+            from: "visible-with-partner"
+            to: "visible-without-partner"
+
+            SequentialAnimation {
                 NumberAnimation {
                     target: root
                     property: "x"

@@ -16,8 +16,8 @@ import com.georgefb.haruna 1.0 as Haruna
 Kirigami.ApplicationWindow {
     id: root
 
-    width: 800
-    height: 600
+    width: 1000
+    height: 700
     title: qsTr("C-Play Settings")
     visible: false
     //pageStack.initialPage: "qrc:/Navigation.qml"
@@ -37,8 +37,8 @@ Kirigami.ApplicationWindow {
     Window {
         id: helpWindow
 
-        width: 700
-        height: 600
+        width: 900
+        height: 700
         title: qsTr("Help")
         color: Kirigami.Theme.backgroundColor
         onVisibleChanged: info.text = app.getFileContent(applicationWindow().pageStack.currentItem.helpFile)

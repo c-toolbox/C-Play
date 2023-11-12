@@ -30,6 +30,7 @@ Rectangle {
     }
     x: position !== "right" ? parent.width : -width
     y: 0
+    z: position === "right" ? 41 : 40
     state: "hidden"
     color: Kirigami.Theme.backgroundColor
 
@@ -263,30 +264,35 @@ Rectangle {
     states: [
         State {
             name: "hidden"
-            PropertyChanges { target: sectionsRoot; x: position !== "right" ? parent.width : -width }
+            PropertyChanges { target: sectionsRoot; x: position === "right" ? parent.width : -width }
             PropertyChanges { target: sectionsRoot; visible: false }
         },
         State {
-            name : "visible"
-            PropertyChanges { target: sectionsRoot; x: position !== "right" ? parent.width - sectionsRoot.width : 0 }
+            name : "visible-without-partner"
+            PropertyChanges { target: sectionsRoot; x: position === "right" ? parent.width - sectionsRoot.width : 0 }
+            PropertyChanges { target: sectionsRoot; visible: true }
+        },
+        State {
+            name : "visible-with-partner"
+            PropertyChanges { target: sectionsRoot; x: position === "right" ? parent.width - sectionsRoot.width : sectionsRoot.width }
             PropertyChanges { target: sectionsRoot; visible: true }
         }
     ]
 
     transitions: [
         Transition {
-            from: "visible"
+            from: "visible-without-partner"
             to: "hidden"
 
             SequentialAnimation {
                 NumberAnimation {
-                    target: sectionsRoot
+                    target: root
                     property: "x"
                     duration: 120
                     easing.type: Easing.InQuad
                 }
                 PropertyAction {
-                    target: sectionsRoot
+                    target: root
                     property: "visible"
                     value: false
                 }
@@ -294,16 +300,78 @@ Rectangle {
         },
         Transition {
             from: "hidden"
-            to: "visible"
+            to: "visible-without-partner"
 
             SequentialAnimation {
                 PropertyAction {
-                    target: sectionsRoot
+                    target: root
                     property: "visible"
                     value: true
                 }
                 NumberAnimation {
-                    target: sectionsRoot
+                    target: root
+                    property: "x"
+                    duration: 120
+                    easing.type: Easing.OutQuad
+                }
+            }
+        },
+        Transition {
+            from: "visible-with-partner"
+            to: "hidden"
+
+            SequentialAnimation {
+                NumberAnimation {
+                    target: root
+                    property: "x"
+                    duration: 120
+                    easing.type: Easing.InQuad
+                }
+                PropertyAction {
+                    target: root
+                    property: "visible"
+                    value: false
+                }
+            }
+        },
+        Transition {
+            from: "hidden"
+            to: "visible-with-partner"
+
+            SequentialAnimation {
+                PropertyAction {
+                    target: root
+                    property: "visible"
+                    value: true
+                }
+                NumberAnimation {
+                    target: root
+                    property: "x"
+                    duration: 120
+                    easing.type: Easing.OutQuad
+                }
+            }
+        },
+        Transition {
+            from: "visible-without-partner"
+            to: "visible-with-partner"
+
+            SequentialAnimation {
+                NumberAnimation {
+                    target: root
+                    property: "x"
+                    duration: 120
+                    easing.type: Easing.OutQuad
+                }
+            }
+        },
+        Transition {
+            from: "visible-with-partner"
+            to: "visible-without-partner"
+
+            SequentialAnimation {
+                NumberAnimation {
+                    target: root
                     property: "x"
                     duration: 120
                     easing.type: Easing.OutQuad

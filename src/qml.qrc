@@ -42,5 +42,6 @@
         <file>qml/PlaySections.qml</file>
         <file>qml/PlaySectionsItemCompact.qml</file>
         <file>qml/VisibilitySlider.qml</file>
+        <file>qml/Presentation.qml</file>
     </qresource>
 </RCC>

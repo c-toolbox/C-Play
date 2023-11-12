@@ -36,10 +36,19 @@ QtObject {
         Component.onCompleted: list["toggleSectionsAction"] = toggleSectionsAction
 
         onTriggered: {
-            if (playSections.state === "visible") {
+            if(playSections.state === "hidden" && playList.state === "hidden"){
+                playSections.state = "visible-without-partner"
+            }
+            else if(playSections.state === "hidden" && playList.state === "visible-without-partner"){
+                playList.state = "visible-with-partner"
+                playSections.state = "visible-with-partner"
+            }
+            else if(playList.state === "visible-with-partner") {
+                playList.state = "visible-without-partner"
                 playSections.state = "hidden"
-            } else {
-                playSections.state = "visible"
+            }
+            else {
+                playSections.state = "hidden"
             }
         }
     }
@@ -54,10 +63,19 @@ QtObject {
         Component.onCompleted: list["togglePlaylistAction"] = togglePlaylistAction
 
         onTriggered: {
-            if (playList.state === "visible") {
+            if(playList.state === "hidden" && playSections.state === "hidden"){
+                playList.state = "visible-without-partner"
+            }
+            else if(playList.state === "hidden" && playSections.state === "visible-without-partner"){
+                playList.state = "visible-with-partner"
+                playSections.state = "visible-with-partner"
+            }
+            else if(playSections.state === "visible-with-partner") {
+                playSections.state = "visible-without-partner"
                 playList.state = "hidden"
-            } else {
-                playList.state = "visible"
+            }
+            else {
+                playList.state = "hidden"
             }
         }
     }
