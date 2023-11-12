@@ -496,7 +496,7 @@ void PlayListItem::loadDetailsFromDisk() {
     QFileInfo checkedFilePathInfo(filePath());
     QString fileExt = checkedFilePathInfo.suffix();
 
-    if (fileExt == "cplay_file") {
+    if (fileExt == "cplayfile" || fileExt == "cplay_file") {
         loadJSONPlayfile();
     }
     else if (fileExt == "fdv") {
@@ -508,7 +508,7 @@ void PlayListItem::loadJSONPlayfile() {
     QFileInfo jsonFileInfo(filePath());
     if (!jsonFileInfo.exists())
     {
-        qDebug() << "Cplay_file " << filePath() << " did not exist.";
+        qDebug() << "C-play file " << filePath() << " did not exist.";
         return;
     }
 
@@ -520,7 +520,7 @@ void PlayListItem::loadJSONPlayfile() {
     QJsonDocument doc = QJsonDocument::fromJson(fileContent.toUtf8());
     if (doc.isNull())
     {
-        qDebug() << "Parsing cplay_file failed: " << filePath();
+        qDebug() << "Parsing C-play file failed: " << filePath();
         return;
     }
 

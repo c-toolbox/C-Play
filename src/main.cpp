@@ -35,15 +35,30 @@ float planeHeight = 0.f;
 float planeElevation = 0.f;
 float planeDistance = 0.f;
 std::string loadedFile = "";
+std::string backgroundImageFile = "";
 std::string videoFilters = "";
+glm::vec3 bgRotate = glm::vec3(0.f);
+glm::vec3 bgTranslate = glm::vec3(0.f);
 
 int videoWidth = 0;
 int videoHeight = 0;
 unsigned int mpvFBO = 0;
 unsigned int mpvTex = 0;
+unsigned int bgImageTex = -1;
+
+struct RenderParams {
+    unsigned int tex;
+    float alpha;
+    int gridMode;
+    int stereoMode;
+    glm::vec3 rotate;
+    glm::vec3 translate;
+};
+std::vector<RenderParams> renderParams;
 
 int mpvVideoReconfigs = 0;
 bool updateRendering = true;
+bool doingBackgroundUpdate = false;
 
 bool paused = true;
 int loopMode = -1;
@@ -448,27 +463,46 @@ void createMpvFBO(int width, int height){
     glGenFramebuffers(1, &mpvFBO);
     glBindFramebuffer(GL_FRAMEBUFFER, mpvFBO);
 
-    generateTexture(mpvTex, width, height);
+    if (doingBackgroundUpdate) {
+        generateTexture(mpvTex, width, height);
+        generateTexture(bgImageTex, width, height);
 
-    glFramebufferTexture2D(
-        GL_FRAMEBUFFER,
-        GL_COLOR_ATTACHMENT0,
-        GL_TEXTURE_2D,
-        mpvTex,
-        0
-    );
+        glFramebufferTexture2D(
+            GL_FRAMEBUFFER,
+            GL_COLOR_ATTACHMENT0,
+            GL_TEXTURE_2D,
+            bgImageTex,
+            0
+        );
+    }
+    else {
+        generateTexture(mpvTex, width, height);
+
+        glFramebufferTexture2D(
+            GL_FRAMEBUFFER,
+            GL_COLOR_ATTACHMENT0,
+            GL_TEXTURE_2D,
+            mpvTex,
+            0
+        );
+    }
 
     glBindFramebuffer(GL_FRAMEBUFFER, 0);
 }
 
 void resizeMpvFBO(int width, int height){
-    if(width == videoWidth && height == videoHeight)
+    if(doingBackgroundUpdate == false && width == videoWidth && height == videoHeight)
         return;
 
     Log::Info(fmt::format("New MPV FBO width:{} and height:{}", width, height));
 
     glDeleteFramebuffers(1, &mpvFBO);
     glDeleteTextures(1, &mpvTex);
+
+    if (doingBackgroundUpdate) {
+        glDeleteTextures(1, &bgImageTex);
+    }
+
     createMpvFBO(width, height);
 }
 
@@ -500,6 +534,8 @@ void on_mpv_events(void*)
                     resizeMpvFBO((int)w, (int)h);
                     mpvVideoReconfigs++;
                     updateRendering = (mpvVideoReconfigs > 0);
+                    if(!doingBackgroundUpdate)
+                        mpv::qt::set_property(mpvHandle, "time-pos", SyncHelper::instance().variables.timePosition);
                 }
                 break;
             }
@@ -581,9 +617,6 @@ void initOGL(GLFWwindow*) {
     mpv::qt::set_property(mpvHandle, "loop-file", "inf");
     mpv::qt::set_property(mpvHandle, "aid", "no"); //No audio on nodes.
 
-#ifdef SGCT_ONLY
-    SyncHelper::instance().variables.loadedFile = "G:/Splits/Life_of_trees_3D_bravo/Life_of_trees_3D.mp4";
-#endif
     Log::Info(fmt::format("Loading new file: {}", SyncHelper::instance().variables.loadedFile));
     if(!SyncHelper::instance().variables.loadedFile.empty())
         mpv::qt::command_async(mpvHandle, QStringList() << "loadfile" << SyncHelper::instance().variables.loadedFile.c_str());
@@ -661,16 +694,20 @@ std::vector<std::byte> encode() {
     std::vector<std::byte> data;
     serializeObject(data, SyncHelper::instance().variables.syncOn);
     serializeObject(data, SyncHelper::instance().variables.alpha);
+    serializeObject(data, SyncHelper::instance().variables.alphaBg);
     serializeObject(data, SyncHelper::instance().variables.loadedFile);
+    serializeObject(data, SyncHelper::instance().variables.bgImageFile);
     serializeObject(data, SyncHelper::instance().variables.overlayFile);
     serializeObject(data, SyncHelper::instance().variables.loadFile);
     serializeObject(data, SyncHelper::instance().variables.paused);
     serializeObject(data, SyncHelper::instance().variables.timePosition);
     serializeObject(data, SyncHelper::instance().variables.timeThreshold);
     serializeObject(data, SyncHelper::instance().variables.timeDirty);
-    serializeObject(data, SyncHelper::instance().variables.stereoscopicMode);
-    serializeObject(data, SyncHelper::instance().variables.loopMode);
     serializeObject(data, SyncHelper::instance().variables.gridToMapOn);
+    serializeObject(data, SyncHelper::instance().variables.gridToMapOnBg);
+    serializeObject(data, SyncHelper::instance().variables.stereoscopicMode);
+    serializeObject(data, SyncHelper::instance().variables.stereoscopicModeBg);
+    serializeObject(data, SyncHelper::instance().variables.loopMode);
     serializeObject(data, SyncHelper::instance().variables.radius);
     serializeObject(data, SyncHelper::instance().variables.fov);
     serializeObject(data, SyncHelper::instance().variables.angle);
@@ -706,17 +743,21 @@ std::vector<std::byte> encode() {
 void decode(const std::vector<std::byte>& data, unsigned int pos) {
     deserializeObject(data, pos, SyncHelper::instance().variables.syncOn);
     deserializeObject(data, pos, SyncHelper::instance().variables.alpha);
+    deserializeObject(data, pos, SyncHelper::instance().variables.alphaBg);
     if (SyncHelper::instance().variables.syncOn) {
         deserializeObject(data, pos, SyncHelper::instance().variables.loadedFile);
+        deserializeObject(data, pos, SyncHelper::instance().variables.bgImageFile);
         deserializeObject(data, pos, SyncHelper::instance().variables.overlayFile);
         deserializeObject(data, pos, SyncHelper::instance().variables.loadFile);
         deserializeObject(data, pos, SyncHelper::instance().variables.paused);
         deserializeObject(data, pos, SyncHelper::instance().variables.timePosition);
         deserializeObject(data, pos, SyncHelper::instance().variables.timeThreshold);
         deserializeObject(data, pos, SyncHelper::instance().variables.timeDirty);
-        deserializeObject(data, pos, SyncHelper::instance().variables.stereoscopicMode);
-        deserializeObject(data, pos, SyncHelper::instance().variables.loopMode);
         deserializeObject(data, pos, SyncHelper::instance().variables.gridToMapOn);
+        deserializeObject(data, pos, SyncHelper::instance().variables.gridToMapOnBg);
+        deserializeObject(data, pos, SyncHelper::instance().variables.stereoscopicMode);
+        deserializeObject(data, pos, SyncHelper::instance().variables.stereoscopicModeBg);
+        deserializeObject(data, pos, SyncHelper::instance().variables.loopMode);
         deserializeObject(data, pos, SyncHelper::instance().variables.radius);
         deserializeObject(data, pos, SyncHelper::instance().variables.fov);
         deserializeObject(data, pos, SyncHelper::instance().variables.angle);
@@ -746,23 +787,86 @@ void postSyncPreDraw() {
 #ifndef SGCT_ONLY
     //Apply synced commands
     if (!Engine::instance().isMaster()) {
-        if (!SyncHelper::instance().variables.loadedFile.empty() && (SyncHelper::instance().variables.loadFile || loadedFile != SyncHelper::instance().variables.loadedFile)) {
+        if (doingBackgroundUpdate && updateRendering && !loadedFile.empty())
+            SyncHelper::instance().variables.loadFile = true;
+
+        if (!SyncHelper::instance().variables.bgImageFile.empty() && backgroundImageFile != SyncHelper::instance().variables.bgImageFile) {
+            //Load background file
+            backgroundImageFile = SyncHelper::instance().variables.bgImageFile;
+            Log::Info(fmt::format("Loading new background: {}", backgroundImageFile));
+            mpvVideoReconfigs = 0;
+            updateRendering = false;
+            doingBackgroundUpdate = true;
+
+            bgRotate = glm::vec3(float(SyncHelper::instance().variables.rotateX),
+                float(SyncHelper::instance().variables.rotateY),
+                float(SyncHelper::instance().variables.rotateZ));
+            bgTranslate = glm::vec3(float(SyncHelper::instance().variables.translateX) / 100.f,
+                float(SyncHelper::instance().variables.translateY) / 100.f,
+                float(SyncHelper::instance().variables.translateZ) / 100.f);
+
+            mpv::qt::command_async(mpvHandle, QStringList() << "loadfile" << QString::fromStdString(backgroundImageFile));
+            mpv::qt::set_property(mpvHandle, "lavfi-complex", "");
+        }
+        else if (!SyncHelper::instance().variables.loadedFile.empty() && (SyncHelper::instance().variables.loadFile || loadedFile != SyncHelper::instance().variables.loadedFile)) {
+            if(doingBackgroundUpdate) {
+                glGenFramebuffers(1, &mpvFBO);
+                glBindFramebuffer(GL_FRAMEBUFFER, mpvFBO);
+                glFramebufferTexture2D(
+                    GL_FRAMEBUFFER,
+                    GL_COLOR_ATTACHMENT0,
+                    GL_TEXTURE_2D,
+                    mpvTex,
+                    0
+                );
+                glBindFramebuffer(GL_FRAMEBUFFER, 0);
+                doingBackgroundUpdate = false;
+            }
+            
             //Load new file
             loadedFile = SyncHelper::instance().variables.loadedFile;
             SyncHelper::instance().variables.loadFile = false;
-            Log::Info(fmt::format("Loading new file: {}", SyncHelper::instance().variables.loadedFile));
+            Log::Info(fmt::format("Loading new file: {}", loadedFile));
             mpvVideoReconfigs = 0;
             updateRendering = false;
 
             if (!SyncHelper::instance().variables.overlayFile.empty()) {
                 Log::Info(fmt::format("Loading overlay file: {}", SyncHelper::instance().variables.overlayFile));
-                mpv::qt::command_async(mpvHandle, QStringList() << "loadfile" << QString::fromStdString(SyncHelper::instance().variables.loadedFile) << "replace" << QString::fromStdString("external-file=" + SyncHelper::instance().variables.overlayFile));
+                mpv::qt::command_async(mpvHandle, QStringList() << "loadfile" << QString::fromStdString(loadedFile) << "replace" << QString::fromStdString("external-file=" + SyncHelper::instance().variables.overlayFile));
                 mpv::qt::set_property(mpvHandle, "lavfi-complex", "[vid1][vid2]overlay@myoverlay[vo]");
             }
             else {
-                mpv::qt::command_async(mpvHandle, QStringList() << "loadfile" << QString::fromStdString(SyncHelper::instance().variables.loadedFile));
+                mpv::qt::command_async(mpvHandle, QStringList() << "loadfile" << QString::fromStdString(loadedFile));
                 mpv::qt::set_property(mpvHandle, "lavfi-complex", "");
             }
+        }
+
+        renderParams.clear();
+
+        if (!backgroundImageFile.empty() && SyncHelper::instance().variables.alphaBg > 0.f) {
+            RenderParams rpBg;
+            rpBg.tex = bgImageTex;
+            rpBg.alpha = SyncHelper::instance().variables.alphaBg;
+            rpBg.gridMode = SyncHelper::instance().variables.gridToMapOnBg;
+            rpBg.stereoMode = SyncHelper::instance().variables.stereoscopicModeBg;
+            rpBg.rotate = bgRotate;
+            rpBg.translate = bgTranslate;
+            renderParams.push_back(rpBg);
+        }
+
+        if (!loadedFile.empty() && SyncHelper::instance().variables.alpha > 0.f) {
+            RenderParams rpMpv;
+            rpMpv.tex = mpvTex;
+            rpMpv.alpha = SyncHelper::instance().variables.alpha;
+            rpMpv.gridMode = SyncHelper::instance().variables.gridToMapOn;
+            rpMpv.stereoMode = SyncHelper::instance().variables.stereoscopicMode;
+            rpMpv.rotate = glm::vec3(float(SyncHelper::instance().variables.rotateX),
+                float(SyncHelper::instance().variables.rotateY),
+                float(SyncHelper::instance().variables.rotateZ));
+            rpMpv.translate = glm::vec3(float(SyncHelper::instance().variables.translateX) / 100.f, 
+                float(SyncHelper::instance().variables.translateY) / 100.f, 
+                float(SyncHelper::instance().variables.translateZ) / 100.f);
+            renderParams.push_back(rpMpv);
         }
 
         paused = mpv::qt::get_property(mpvHandle, "pause").toBool();
@@ -899,199 +1003,202 @@ void draw(const RenderData& data) {
     // other API details.
     mpv_render_context_render(mpvRenderContext, params);
 #else
-    glActiveTexture(GL_TEXTURE0);
-    glBindTexture(GL_TEXTURE_2D, mpvTex);
-    glEnable(GL_BLEND);
- 
-    if (SyncHelper::instance().variables.gridToMapOn == 4) {
-        glEnable(GL_CULL_FACE);
 
-        EACPrg->bind();
+    for (const auto& renderParam : renderParams) {
+        glActiveTexture(GL_TEXTURE0);
+        glBindTexture(GL_TEXTURE_2D, renderParam.tex);
+        glEnable(GL_BLEND);
 
-        glUniform1f(EACAlphaLoc, SyncHelper::instance().variables.alpha);
-        glUniform1i(EACOutsideLoc, 0);
-        glUniform1i(EACVideoWidthLoc, videoWidth);
-        glUniform1i(EACVideoHeightLoc, videoHeight);
+        if (renderParam.gridMode == 4) {
+            glEnable(GL_CULL_FACE);
 
-        if (SyncHelper::instance().variables.stereoscopicMode > 0) {
-            glUniform1i(EACEyeModeLoc, (GLint)data.frustumMode);
-            glUniform1i(EACStereoscopicModeLoc, (GLint)SyncHelper::instance().variables.stereoscopicMode);
+            EACPrg->bind();
+
+            glUniform1f(EACAlphaLoc, renderParam.alpha);
+            glUniform1i(EACOutsideLoc, 0);
+            glUniform1i(EACVideoWidthLoc, videoWidth);
+            glUniform1i(EACVideoHeightLoc, videoHeight);
+
+            if (renderParam.stereoMode > 0) {
+                glUniform1i(EACEyeModeLoc, (GLint)data.frustumMode);
+                glUniform1i(EACStereoscopicModeLoc, (GLint)renderParam.stereoMode);
+            }
+            else {
+                glUniform1i(EACEyeModeLoc, 0);
+                glUniform1i(EACStereoscopicModeLoc, 0);
+            }
+
+            mat4 mvp = data.modelViewProjectionMatrix;
+            glm::mat4 MVP_transformed = glm::translate(glm::make_mat4(mvp.values), renderParam.translate);
+
+            glm::mat4 MVP_transformed_rot = MVP_transformed;
+            MVP_transformed_rot = glm::rotate(MVP_transformed_rot, glm::radians(renderParam.rotate.z), glm::vec3(0.0f, 0.0f, 1.0f)); //roll
+            MVP_transformed_rot = glm::rotate(MVP_transformed_rot, glm::radians(renderParam.rotate.x), glm::vec3(1.0f, 0.0f, 0.0f)); //pitch
+            MVP_transformed_rot = glm::rotate(MVP_transformed_rot, glm::radians(renderParam.rotate.y + 90.f), glm::vec3(0.0f, 1.0f, 0.0f)); //yaw
+            MVP_transformed_rot = glm::rotate(MVP_transformed_rot, glm::radians(90.f), glm::vec3(0.0f, 0.0f, 1.0f)); //roll
+            glUniformMatrix4fv(EACMatrixLoc, 1, GL_FALSE, &MVP_transformed_rot[0][0]);
+
+            sphere->draw();
+
+            // Set up frontface culling
+            glCullFace(GL_FRONT);
+
+            // Compensate for the angle of the dome
+            glm::mat4 MVP_transformed_rot2 = MVP_transformed;
+            MVP_transformed_rot2 = glm::rotate(MVP_transformed_rot2, glm::radians(360.f - renderParam.rotate.z), glm::vec3(0.0f, 0.0f, 1.0f)); //roll
+            MVP_transformed_rot2 = glm::rotate(MVP_transformed_rot2, glm::radians(360.f - renderParam.rotate.x + float(SyncHelper::instance().variables.angle)), glm::vec3(1.0f, 0.0f, 0.0f)); //pitch
+            MVP_transformed_rot2 = glm::rotate(MVP_transformed_rot2, glm::radians(360.f - renderParam.rotate.y - 90.f), glm::vec3(0.0f, 1.0f, 0.0f)); //yaw
+            MVP_transformed_rot2 = glm::rotate(MVP_transformed_rot2, glm::radians(360.f - 90.f), glm::vec3(0.0f, 0.0f, 1.0f)); //roll
+
+            glUniformMatrix4fv(EACMatrixLoc, 1, GL_FALSE, &MVP_transformed_rot2[0][0]);
+            //render outside sphere
+            glUniform1i(EACOutsideLoc, 1);
+            sphere->draw();
+
+            // Set up backface culling again
+            glCullFace(GL_BACK);
+            glUniform1i(EACOutsideLoc, 0);
+
+            EACPrg->unbind();
+
+            glDisable(GL_CULL_FACE);
+        }
+        else if (renderParam.gridMode == 3) {
+            glEnable(GL_CULL_FACE);
+
+            mat4 mvp = data.modelViewProjectionMatrix;
+            glm::mat4 MVP_transformed = glm::translate(glm::make_mat4(mvp.values), renderParam.translate);
+
+            glm::mat4 MVP_transformed_rot = MVP_transformed;
+            MVP_transformed_rot = glm::rotate(MVP_transformed_rot, glm::radians(renderParam.rotate.z), glm::vec3(0.0f, 0.0f, 1.0f)); //roll
+            MVP_transformed_rot = glm::rotate(MVP_transformed_rot, glm::radians(renderParam.rotate.x), glm::vec3(1.0f, 0.0f, 0.0f)); //pitch
+            MVP_transformed_rot = glm::rotate(MVP_transformed_rot, glm::radians(renderParam.rotate.y), glm::vec3(0.0f, 1.0f, 0.0f)); //yaw
+
+            meshPrg->bind();
+
+            if (renderParam.stereoMode > 0) {
+                glUniform1i(meshEyeModeLoc, (GLint)data.frustumMode);
+                glUniform1i(meshStereoscopicModeLoc, (GLint)renderParam.stereoMode);
+            }
+            else {
+                glUniform1i(meshEyeModeLoc, 0);
+                glUniform1i(meshStereoscopicModeLoc, 0);
+            }
+
+            glUniform1f(meshAlphaLoc, renderParam.alpha);
+
+            glUniformMatrix4fv(meshMatrixLoc, 1, GL_FALSE, &MVP_transformed_rot[0][0]);
+
+            //render inside sphere
+            glUniform1i(meshOutsideLoc, 0);
+            sphere->draw();
+
+            // Set up frontface culling
+            glCullFace(GL_FRONT);
+
+            // Compensate for the angle of the dome
+            glm::mat4 MVP_transformed_rot2 = MVP_transformed;
+            MVP_transformed_rot2 = glm::rotate(MVP_transformed_rot2, glm::radians(360.f - renderParam.rotate.z), glm::vec3(0.0f, 0.0f, 1.0f)); //roll
+            MVP_transformed_rot2 = glm::rotate(MVP_transformed_rot2, glm::radians(360.f - renderParam.rotate.x + float(SyncHelper::instance().variables.angle)), glm::vec3(1.0f, 0.0f, 0.0f)); //pitch
+            MVP_transformed_rot2 = glm::rotate(MVP_transformed_rot2, glm::radians(360.f - renderParam.rotate.y), glm::vec3(0.0f, 1.0f, 0.0f)); //yaw
+
+            glUniformMatrix4fv(meshMatrixLoc, 1, GL_FALSE, &MVP_transformed_rot2[0][0]);
+            //render outside sphere
+            glUniform1i(meshOutsideLoc, 1);
+            sphere->draw();
+
+            // Set up backface culling again
+            glCullFace(GL_BACK);
+            glUniform1i(meshOutsideLoc, 0);
+
+            meshPrg->unbind();
+
+            glDisable(GL_CULL_FACE);
+        }
+        else if (renderParam.gridMode == 2) {
+            glEnable(GL_CULL_FACE);
+
+            meshPrg->bind();
+
+            if (renderParam.stereoMode > 0) {
+                glUniform1i(meshEyeModeLoc, (GLint)data.frustumMode);
+                glUniform1i(meshStereoscopicModeLoc, (GLint)renderParam.stereoMode);
+            }
+            else {
+                glUniform1i(meshEyeModeLoc, 0);
+                glUniform1i(meshStereoscopicModeLoc, 0);
+            }
+
+            glUniform1f(meshAlphaLoc, renderParam.alpha);
+
+            mat4 mvp = data.modelViewProjectionMatrix;
+            glm::mat4 MVP_transformed_rot = glm::translate(glm::make_mat4(mvp.values), renderParam.translate);
+            MVP_transformed_rot = glm::rotate(MVP_transformed_rot, glm::radians(renderParam.rotate.z), glm::vec3(0.0f, 0.0f, 1.0f)); //roll
+            MVP_transformed_rot = glm::rotate(MVP_transformed_rot, glm::radians(renderParam.rotate.x - float(SyncHelper::instance().variables.angle)), glm::vec3(1.0f, 0.0f, 0.0f)); //pitch
+            MVP_transformed_rot = glm::rotate(MVP_transformed_rot, glm::radians(renderParam.rotate.y), glm::vec3(0.0f, 1.0f, 0.0f)); //yaw
+            glUniformMatrix4fv(meshMatrixLoc, 1, GL_FALSE, &MVP_transformed_rot[0][0]);
+
+            dome->draw();
+
+            meshPrg->unbind();
+
+            glDisable(GL_CULL_FACE);
+        }
+        else if (renderParam.gridMode == 1) {
+            glEnable(GL_CULL_FACE);
+            // Set up frontface culling
+            glCullFace(GL_FRONT);
+
+            meshPrg->bind();
+
+            if (renderParam.stereoMode > 0) {
+                glUniform1i(meshEyeModeLoc, (GLint)data.frustumMode);
+                glUniform1i(meshStereoscopicModeLoc, (GLint)renderParam.stereoMode);
+            }
+            else {
+                glUniform1i(meshEyeModeLoc, 0);
+                glUniform1i(meshStereoscopicModeLoc, 0);
+            }
+
+            glUniform1f(meshAlphaLoc, renderParam.alpha);
+
+            mat4 mvp = data.projectionMatrix * data.viewMatrix;
+
+            glm::mat4 planeTransform = glm::mat4(1.0f);
+            //planeTransform = glm::rotate(planeTransform, glm::radians(float(SyncHelper::instance().variables.planeAzimuth)), glm::vec3(0.0f, -1.0f, 0.0f)); //azimuth
+            planeTransform = glm::rotate(planeTransform, glm::radians(float(SyncHelper::instance().variables.planeElevation)), glm::vec3(1.0f, 0.0f, 0.0f)); //elevation
+            //planeTransform = glm::rotate(planeTransform, glm::radians(float(SyncHelper::instance().variables.planeRoll)), glm::vec3(0.0f, 0.0f, 1.0f)); //roll
+            planeTransform = glm::translate(planeTransform, glm::vec3(0.0f, 0.0f, float(-SyncHelper::instance().variables.planeDistance) / 100.f)); //distance
+            planeTransform = glm::make_mat4(mvp.values) * planeTransform;
+            glUniformMatrix4fv(meshMatrixLoc, 1, GL_FALSE, &planeTransform[0][0]);
+
+            plane->draw();
+
+            meshPrg->unbind();
+
+            // Set up backface culling again
+            glCullFace(GL_BACK);
+
+            glDisable(GL_CULL_FACE);
         }
         else {
-            glUniform1i(EACEyeModeLoc, 0);
-            glUniform1i(EACStereoscopicModeLoc, 0);
+            videoPrg->bind();
+
+            if (renderParam.stereoMode > 0) {
+                glUniform1i(videoEyeModeLoc, (GLint)data.frustumMode);
+                glUniform1i(videoStereoscopicModeLoc, (GLint)renderParam.stereoMode);
+            }
+            else {
+                glUniform1i(videoEyeModeLoc, 0);
+                glUniform1i(videoStereoscopicModeLoc, 0);
+            }
+
+            glUniform1f(videoAlphaLoc, renderParam.alpha);
+
+            data.window.renderScreenQuad();
+
+            videoPrg->unbind();
         }
-
-        mat4 mvp = data.modelViewProjectionMatrix;
-        glm::mat4 MVP_transformed = glm::translate(glm::make_mat4(mvp.values), glm::vec3(float(SyncHelper::instance().variables.translateX) / 100.f, float(SyncHelper::instance().variables.translateY) / 100.f, float(SyncHelper::instance().variables.translateZ) / 100.f));
-        
-        glm::mat4 MVP_transformed_rot = MVP_transformed;
-        MVP_transformed_rot = glm::rotate(MVP_transformed_rot, glm::radians(float(SyncHelper::instance().variables.rotateZ)), glm::vec3(0.0f, 0.0f, 1.0f)); //roll
-        MVP_transformed_rot = glm::rotate(MVP_transformed_rot, glm::radians(float(SyncHelper::instance().variables.rotateX)), glm::vec3(1.0f, 0.0f, 0.0f)); //pitch
-        MVP_transformed_rot = glm::rotate(MVP_transformed_rot, glm::radians(float(SyncHelper::instance().variables.rotateY+90.f)), glm::vec3(0.0f, 1.0f, 0.0f)); //yaw
-        MVP_transformed_rot = glm::rotate(MVP_transformed_rot, glm::radians(90.f), glm::vec3(0.0f, 0.0f, 1.0f)); //roll
-        glUniformMatrix4fv(EACMatrixLoc, 1, GL_FALSE, &MVP_transformed_rot[0][0]);
-
-        sphere->draw();
-
-        // Set up frontface culling
-        glCullFace(GL_FRONT);
-
-        // Compensate for the angle of the dome
-        glm::mat4 MVP_transformed_rot2 = MVP_transformed;
-        MVP_transformed_rot2 = glm::rotate(MVP_transformed_rot2, glm::radians(float(360 - SyncHelper::instance().variables.rotateZ)), glm::vec3(0.0f, 0.0f, 1.0f)); //roll
-        MVP_transformed_rot2 = glm::rotate(MVP_transformed_rot2, glm::radians(float(360 - SyncHelper::instance().variables.rotateX + SyncHelper::instance().variables.angle)), glm::vec3(1.0f, 0.0f, 0.0f)); //pitch
-        MVP_transformed_rot2 = glm::rotate(MVP_transformed_rot2, glm::radians(float(360 - SyncHelper::instance().variables.rotateY - 90.f)), glm::vec3(0.0f, 1.0f, 0.0f)); //yaw
-        MVP_transformed_rot2 = glm::rotate(MVP_transformed_rot2, glm::radians(360.f - 90.f), glm::vec3(0.0f, 0.0f, 1.0f)); //roll
-
-        glUniformMatrix4fv(EACMatrixLoc, 1, GL_FALSE, &MVP_transformed_rot2[0][0]);
-        //render outside sphere
-        glUniform1i(EACOutsideLoc, 1);
-        sphere->draw();
-
-        // Set up backface culling again
-        glCullFace(GL_BACK);
-        glUniform1i(EACOutsideLoc, 0);
-
-        EACPrg->unbind();
-
-        glDisable(GL_CULL_FACE);
-    }
-    else if (SyncHelper::instance().variables.gridToMapOn == 3) {
-        glEnable(GL_CULL_FACE);
-
-        mat4 mvp = data.modelViewProjectionMatrix;
-        glm::mat4 MVP_transformed = glm::translate(glm::make_mat4(mvp.values), glm::vec3(float(SyncHelper::instance().variables.translateX) / 100.f, float(SyncHelper::instance().variables.translateY) / 100.f, float(SyncHelper::instance().variables.translateZ) / 100.f));
-
-        glm::mat4 MVP_transformed_rot = MVP_transformed;
-        MVP_transformed_rot = glm::rotate(MVP_transformed_rot, glm::radians(float(SyncHelper::instance().variables.rotateZ)), glm::vec3(0.0f, 0.0f, 1.0f)); //roll
-        MVP_transformed_rot = glm::rotate(MVP_transformed_rot, glm::radians(float(SyncHelper::instance().variables.rotateX)), glm::vec3(1.0f, 0.0f, 0.0f)); //pitch
-        MVP_transformed_rot = glm::rotate(MVP_transformed_rot, glm::radians(float(SyncHelper::instance().variables.rotateY)), glm::vec3(0.0f, 1.0f, 0.0f)); //yaw
-
-        meshPrg->bind();
-
-        if (SyncHelper::instance().variables.stereoscopicMode > 0) {
-            glUniform1i(meshEyeModeLoc, (GLint)data.frustumMode);
-            glUniform1i(meshStereoscopicModeLoc, (GLint)SyncHelper::instance().variables.stereoscopicMode);
-        }
-        else {
-            glUniform1i(meshEyeModeLoc, 0);
-            glUniform1i(meshStereoscopicModeLoc, 0);
-        }
-
-        glUniform1f(meshAlphaLoc, SyncHelper::instance().variables.alpha);
-
-        glUniformMatrix4fv(meshMatrixLoc, 1, GL_FALSE, &MVP_transformed_rot[0][0]);
-
-        //render inside sphere
-        glUniform1i(meshOutsideLoc, 0);
-        sphere->draw();
-
-        // Set up frontface culling
-        glCullFace(GL_FRONT);
-
-        // Compensate for the angle of the dome
-        glm::mat4 MVP_transformed_rot2 = MVP_transformed;
-        MVP_transformed_rot2 = glm::rotate(MVP_transformed_rot2, glm::radians(float(360 - SyncHelper::instance().variables.rotateZ)), glm::vec3(0.0f, 0.0f, 1.0f)); //roll
-        MVP_transformed_rot2 = glm::rotate(MVP_transformed_rot2, glm::radians(float(360 - SyncHelper::instance().variables.rotateX + SyncHelper::instance().variables.angle)), glm::vec3(1.0f, 0.0f, 0.0f)); //pitch
-        MVP_transformed_rot2 = glm::rotate(MVP_transformed_rot2, glm::radians(float(360 - SyncHelper::instance().variables.rotateY)), glm::vec3(0.0f, 1.0f, 0.0f)); //yaw
-
-        glUniformMatrix4fv(meshMatrixLoc, 1, GL_FALSE, &MVP_transformed_rot2[0][0]);
-        //render outside sphere
-        glUniform1i(meshOutsideLoc, 1);
-        sphere->draw();
-
-        // Set up backface culling again
-        glCullFace(GL_BACK);
-        glUniform1i(meshOutsideLoc, 0);
-
-        meshPrg->unbind();
-
-        glDisable(GL_CULL_FACE);
-    }
-    else if (SyncHelper::instance().variables.gridToMapOn == 2) {
-        glEnable(GL_CULL_FACE);
-
-        meshPrg->bind();
-
-        if (SyncHelper::instance().variables.stereoscopicMode > 0) {
-            glUniform1i(meshEyeModeLoc, (GLint)data.frustumMode);
-            glUniform1i(meshStereoscopicModeLoc, (GLint)SyncHelper::instance().variables.stereoscopicMode);
-        }
-        else {
-            glUniform1i(meshEyeModeLoc, 0);
-            glUniform1i(meshStereoscopicModeLoc, 0);
-        }
-
-        glUniform1f(meshAlphaLoc, SyncHelper::instance().variables.alpha);
-
-        mat4 mvp = data.modelViewProjectionMatrix;
-        glm::mat4 MVP_transformed_rot = glm::translate(glm::make_mat4(mvp.values), glm::vec3(float(SyncHelper::instance().variables.translateX) / 100.f, float(SyncHelper::instance().variables.translateY) / 100.f, float(SyncHelper::instance().variables.translateZ) / 100.f));
-        MVP_transformed_rot = glm::rotate(MVP_transformed_rot, glm::radians(float(SyncHelper::instance().variables.rotateZ)), glm::vec3(0.0f, 0.0f, 1.0f)); //roll
-        MVP_transformed_rot = glm::rotate(MVP_transformed_rot, glm::radians(float(SyncHelper::instance().variables.rotateX - SyncHelper::instance().variables.angle)), glm::vec3(1.0f, 0.0f, 0.0f)); //pitch
-        MVP_transformed_rot = glm::rotate(MVP_transformed_rot, glm::radians(float(SyncHelper::instance().variables.rotateY)), glm::vec3(0.0f, 1.0f, 0.0f)); //yaw
-        glUniformMatrix4fv(meshMatrixLoc, 1, GL_FALSE, &MVP_transformed_rot[0][0]);
-
-        dome->draw();
-
-        meshPrg->unbind();
-
-        glDisable(GL_CULL_FACE);
-    }
-    else if (SyncHelper::instance().variables.gridToMapOn == 1) {
-        glEnable(GL_CULL_FACE);
-        // Set up frontface culling
-        glCullFace(GL_FRONT);
-
-        meshPrg->bind();
-
-        if (SyncHelper::instance().variables.stereoscopicMode > 0) {
-            glUniform1i(meshEyeModeLoc, (GLint)data.frustumMode);
-            glUniform1i(meshStereoscopicModeLoc, (GLint)SyncHelper::instance().variables.stereoscopicMode);
-        }
-        else {
-            glUniform1i(meshEyeModeLoc, 0);
-            glUniform1i(meshStereoscopicModeLoc, 0);
-        }
-
-        glUniform1f(meshAlphaLoc, SyncHelper::instance().variables.alpha);
-
-        mat4 mvp = data.projectionMatrix * data.viewMatrix;
-
-        glm::mat4 planeTransform = glm::mat4(1.0f);
-        //planeTransform = glm::rotate(planeTransform, glm::radians(float(SyncHelper::instance().variables.planeAzimuth)), glm::vec3(0.0f, -1.0f, 0.0f)); //azimuth
-        planeTransform = glm::rotate(planeTransform, glm::radians(float(SyncHelper::instance().variables.planeElevation)), glm::vec3(1.0f, 0.0f, 0.0f)); //elevation
-        //planeTransform = glm::rotate(planeTransform, glm::radians(float(SyncHelper::instance().variables.planeRoll)), glm::vec3(0.0f, 0.0f, 1.0f)); //roll
-        planeTransform = glm::translate(planeTransform, glm::vec3(0.0f, 0.0f, float(-SyncHelper::instance().variables.planeDistance) / 100.f)); //distance
-        planeTransform = glm::make_mat4(mvp.values) * planeTransform;
-        glUniformMatrix4fv(meshMatrixLoc, 1, GL_FALSE, &planeTransform[0][0]);
-
-        plane->draw();
-
-        meshPrg->unbind();
-
-        // Set up backface culling again
-        glCullFace(GL_BACK);
-
-        glDisable(GL_CULL_FACE);
-    }
-    else {
-        videoPrg->bind();
-
-        if (SyncHelper::instance().variables.stereoscopicMode > 0) {
-            glUniform1i(videoEyeModeLoc, (GLint)data.frustumMode);
-            glUniform1i(videoStereoscopicModeLoc, (GLint)SyncHelper::instance().variables.stereoscopicMode);
-        }
-        else {
-            glUniform1i(videoEyeModeLoc, 0);
-            glUniform1i(videoStereoscopicModeLoc, 0);
-        }
-
-        glUniform1f(videoAlphaLoc, SyncHelper::instance().variables.alpha);
-
-        data.window.renderScreenQuad();
-
-        videoPrg->unbind();
     }
     glDisable(GL_BLEND);
 #endif
@@ -1111,6 +1218,7 @@ void cleanup() {
 
     glDeleteFramebuffers(1, &mpvFBO);
     glDeleteTextures(1, &mpvTex);
+    glDeleteTextures(1, &bgImageTex);
 
     dome = nullptr;
     sphere = nullptr;

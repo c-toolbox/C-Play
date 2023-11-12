@@ -123,7 +123,7 @@ Kirigami.ApplicationWindow {
                 : app.pathToUrl(GeneralSettings.fileDialogLastLocation)
         title: "Add file to playlist"
         fileMode: Platform.FileDialog.OpenFile
-        nameFilters: [ "C-Play file (*.cplay_file)", "Uniview file (*.fdv)" ]
+        nameFilters: [ "C-Play file (*.cplayfile)", "Uniview file (*.fdv)" ]
 
         onAccepted: {
             mpv.addFileToPlaylist(addToPlaylistDialog.file.toString())
@@ -143,7 +143,7 @@ Kirigami.ApplicationWindow {
                 : app.pathToUrl(GeneralSettings.fileDialogLastLocation)
         title: "Save C-Play File Config"
         fileMode: Platform.FileDialog.SaveFile
-        nameFilters: [ "C-Play file (*.cplay_file)" ]
+        nameFilters: [ "C-Play file (*.cplayfile)" ]
 
         onAccepted: {
             saveCPlayFile(saveCPlayFileDialog.file.toString())
@@ -168,7 +168,7 @@ Kirigami.ApplicationWindow {
                 : app.pathToUrl(GeneralSettings.fileDialogLastLocation)
         title: "Save C-Playlist"
         fileMode: Platform.FileDialog.SaveFile
-        nameFilters: [ "C-Play playlist (*.cplay_playlist)" ]
+        nameFilters: [ "C-Play playlist (*.cplaylist)" ]
 
         onAccepted: {
             saveCPlayPlaylist(saveCPlayPlaylistDialog.file.toString())

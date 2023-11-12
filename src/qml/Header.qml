@@ -374,6 +374,68 @@ ToolBar {
             }
         }
 
+        ToolButton {
+            id: backgroundMenuButton
+            icon.name: "preview-render-on"
+            focusPolicy: Qt.NoFocus
+
+            ToolTip {
+                id: backgroundToolTip
+                text: "Show background when video is not visible"
+                y: Math.round(-(parent.height - height))
+            }
+
+            onClicked: {
+                backgroundMenu.visible = !backgroundMenu.visible
+            }
+
+            Menu {
+                id: backgroundMenu
+
+                y: parent.height
+
+                MenuSeparator {}
+
+                ButtonGroup {
+                    buttons: columnBackground.children
+                }
+
+                Column {
+                    id: columnBackground
+
+                    RadioButton {
+                        id: background_visible
+                        checked: true
+                        text: qsTr("Show background when video is not visible")
+                        onClicked: {
+                        }
+                        onCheckedChanged: {
+                            if(checked){
+                                backgroundMenuButton.icon.name = "preview-render-on";
+                                backgroundToolTip.text = "Background visible when video is not.";
+                                app.setBackgroundVisibility(1);
+                            }
+                        }
+                    }
+
+                    RadioButton {
+                        id: background_not_visible
+                        checked: false
+                        text: qsTr("Do NOT show background when video is not visible")
+                        onClicked: {
+                        }
+                        onCheckedChanged: {
+                            if(checked){
+                                backgroundMenuButton.icon.name = "preview-render-off";
+                                backgroundToolTip.text = "Background NOT visible when video is not.";
+                                app.setBackgroundVisibility(0);
+                            }
+                        }
+                    }
+                }
+            }
+        }
+
         ToolSeparator {
             padding: vertical ? 10 : 2
             topPadding: vertical ? 2 : 10

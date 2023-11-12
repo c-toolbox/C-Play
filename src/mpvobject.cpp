@@ -148,8 +148,8 @@ MpvObject::MpvObject(QQuickItem * parent)
     setProperty("volume-max", "100");
     setProperty("keep-open", "yes");
 
-    setStereoscopicVideo(PlaybackSettings::stereoModeOnStartup());
-    setGridToMapOn(PlaybackSettings::gridToMapOn());
+    setStereoscopicVideo(PlaybackSettings::stereoModeForBackground());
+    setGridToMapOn(PlaybackSettings::gridToMapOnForBackground());
 
     mpv::qt::load_configurations(mpv, QStringLiteral("./data/mpv-conf.json"));
     mpv::qt::load_configurations(mpv, QStringLiteral("./data/mpv-conf-master.json"));
@@ -826,11 +826,24 @@ QString MpvObject::checkAndCorrectPath(const QString& filePath, const QStringLis
 
 void MpvObject::loadFile(const QString &file, bool updateLastPlayedFile)
 {
-    QFileInfo fi(file);
-    QString ext = fi.suffix();
+    QString fileToLoad = file;
+    fileToLoad.replace("file:///", "");
+    QFileInfo fileInfo(fileToLoad);
+    if (!fileInfo.exists()) {
+        QStringList fileSearchPaths;
+        fileSearchPaths.append(fileInfo.absoluteDir().absolutePath());
+        fileSearchPaths.append(GeneralSettings::cPlayFileLocation());
+        fileSearchPaths.append(GeneralSettings::cPlayMediaLocation());
+        fileSearchPaths.append(GeneralSettings::univiewVideoLocation());
+        fileToLoad = checkAndCorrectPath(fileToLoad, fileSearchPaths);
+        if (fileToLoad.isEmpty()) {
+            return;
+        }
+    }
 
-    if (ext == "cplay_file" || ext == "fdv") {
-        PlayListItem* videoFile = loadMediaFileDescription(file);
+    QString ext = fileInfo.suffix();
+    if (ext == "cplayfile" || ext == "cplay_file" || ext == "fdv") {
+        PlayListItem* videoFile = loadMediaFileDescription(fileToLoad);
         if (videoFile) {
             loadItem(videoFile->data(), updateLastPlayedFile);
             m_playSectionsModel->setCurrentEditItem(videoFile);
@@ -838,15 +851,12 @@ void MpvObject::loadFile(const QString &file, bool updateLastPlayedFile)
         }
     }
     else if (ext == "playlist") {
-        loadUniviewPlaylist(file);
+        loadUniviewPlaylist(fileToLoad);
     }
-    else if (ext == "cplay_playlist") {
-        loadJSONPlayList(file);
+    else if (ext == "cplaylist" || ext == "cplay_playlist") {
+        loadJSONPlayList(fileToLoad);
     }
     else {
-        QString fileToLoad = file;
-        fileToLoad.replace("file:///", "");
-
         m_loadedFileStructure = fileToLoad;
         m_separateAudioFile = "";
         SyncHelper::instance().variables.loadedFile = fileToLoad.toStdString();
@@ -874,7 +884,7 @@ void MpvObject::addFileToPlaylist(const QString& file) {
     QString ext = fi.suffix();
     PlayListItem* item = nullptr;
     
-    if (ext == "cplay_file" || ext == "fdv") {
+    if (ext == "cplayfile" || ext == "cplay_file" || ext == "fdv") {
         item = loadMediaFileDescription(file);
     }
 
@@ -1068,7 +1078,7 @@ void MpvObject::loadJSONPlayList(const QString& file, bool updateLastPlayedFile)
     QJsonDocument doc = QJsonDocument::fromJson(fileContent.toUtf8());
     if (doc.isNull())
     {
-        qDebug() << "Parsing cplay_playlist failed: " << fileToLoad;
+        qDebug() << "Parsing C-play playlist failed: " << fileToLoad;
         return;
     }
 
@@ -1095,7 +1105,7 @@ void MpvObject::loadJSONPlayList(const QString& file, bool updateLastPlayedFile)
                 QString fileExt = checkedFilePathInfo.suffix();
                 PlayListItem* file = nullptr;
 
-                if (fileExt == "cplay_file" || fileExt == "fdv") {
+                if (fileExt == "cplayfile" || fileExt == "cplay_file" || fileExt == "fdv") {
                     file = loadMediaFileDescription(checkedFilePath);
                 }
                 else {

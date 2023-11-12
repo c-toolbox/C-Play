@@ -4,7 +4,7 @@
  * SPDX-License-Identifier: GPL-3.0-or-later
  */
 
-import QtQuick 2.0
+import QtQuick 2.12
 import QtQuick.Layouts 1.12
 import QtQuick.Controls 2.12
 import org.kde.kirigami 2.11 as Kirigami
@@ -42,13 +42,13 @@ Kirigami.Page
             page: "qrc:/General.qml"
         }
         ListElement {
-            name: "Playback"
-            iconName: "media-playback-start"
+            name: "Decoding & Startup"
+            iconName: "video-x-generic"
             page: "qrc:/Playback.qml"
         }
         ListElement {
-            name: "Video"
-            iconName: "video-x-generic"
+            name: "Mapping & Image"
+            iconName: "kstars_hgrid"
             page: "qrc:/VideoSettings.qml"
         }
         ListElement {

@@ -54,8 +54,6 @@ Slider {
     onValueChanged: {
         if(value.toFixed(0) !== mpv.volume) {
             mpv.volume = value.toFixed(0)
-            GeneralSettings.volume = value.toFixed(0)
-            GeneralSettings.save()
         }
     }
 

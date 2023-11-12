@@ -19,7 +19,7 @@
       <label>Screenshot template</label>
       <code>
         QString screenshotsFolder = QStandardPaths::writableLocation(QStandardPaths::PicturesLocation);
-        screenshotsFolder.append("/Haruna screenshots/%F-%n");
+        screenshotsFolder.append("/C-play-screenshots/%F-%n");
       </code>
       <default code="true">screenshotsFolder</default>
     </entry>

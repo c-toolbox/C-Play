@@ -22,17 +22,18 @@
 	<entry name="FadeDuration" type="int">
       <default>2000</default>
     </entry>
-	<entry name="LoadOnStartupMode" type="int">
+  <entry name="PlaylistToLoadOnStartup" type="String">
+      <label>A playlist to load at startup</label>
+  </entry>
+	<entry name="ImageToLoadAsBackground" type="String">
+      <label>An image file that will be shown when video is not visible</label>
+    </entry>
+	<entry name="StereoModeForBackground" type="int">
+      <label>Have 2D or a 3D Mode On/Off on for background</label>
       <default>0</default>
     </entry>
-	<entry name="FileToLoadOnStartup" type="String">
-      <label>./data/startup_image.png</label>
-    </entry>
-	<entry name="StereoModeOnStartup" type="int">
-      <label>Have 2D or a 3D Mode On/Off on startup</label>
-      <default>0</default>
-    </entry>
-	<entry name="GridToMapOn" type="int">
+	<entry name="GridToMapOnForBackground" type="int">
+      <label>The grid that background uses</label>
       <default>0</default>
     </entry>
     <entry name="SkipChapters" type="bool">

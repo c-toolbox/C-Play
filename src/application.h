@@ -42,6 +42,8 @@ public:
     QUrl configFolderPath();
     Q_INVOKABLE QUrl parentUrl(const QString &path);
     Q_INVOKABLE QUrl pathToUrl(const QString &path);
+    Q_INVOKABLE QString returnRelativeOrAbsolutePath(const QString& path);
+    Q_INVOKABLE QString checkAndCorrectPath(const QString& path);
     Q_INVOKABLE QString argument(int key);
     Q_INVOKABLE void addArgument(int key, const QString &value);
     Q_INVOKABLE QAction *action(const QString &name);
@@ -58,6 +60,15 @@ public:
     Q_INVOKABLE static QString formatTime(const double time);
     Q_INVOKABLE static void hideCursor();
     Q_INVOKABLE static void showCursor();
+
+    Q_INVOKABLE float backgroundVisibility();
+    Q_INVOKABLE void setBackgroundVisibility(float value);
+    Q_INVOKABLE QString backgroundImageFile();
+    Q_INVOKABLE void setBackgroundImageFile(const QString& path);
+    Q_INVOKABLE int backgroundGridMode();
+    Q_INVOKABLE void setBackgroundGridMode(int value);
+    Q_INVOKABLE int backgroundStereoMode();
+    Q_INVOKABLE void setBackgroundStereoMode(int value);
 
     int getFadeDurationCurrentTime(bool restart);
     int getFadeDurationSetting();
@@ -81,6 +92,7 @@ private:
     QMap<int, QString> m_args;
     KColorSchemeManager *m_schemes;
     QString m_systemDefaultStyle;
+    QString m_backgroundFile;
     RenderThread renderThread;
     QElapsedTimer fadeDurationTimer;
     static Application* _instance;
@@ -91,16 +103,20 @@ class SyncHelper
 public:
     struct SyncVariables {
         std::string loadedFile;
+        std::string bgImageFile;
         std::string overlayFile;
         bool loadFile;
         bool paused;
         double timePosition;
         double timeThreshold;
         bool timeDirty;
-        float alpha;
         bool syncOn;
+        float alpha;
+        float alphaBg;
         int gridToMapOn;
+        int gridToMapOnBg;
         int stereoscopicMode;
+        int stereoscopicModeBg;
         int loopMode;
         double radius;
         double fov;

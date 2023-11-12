@@ -299,7 +299,7 @@ SettingsBasePage {
                 }
 
                 ToolTip {
-                    text: qsTr("Common directory for where the cplay_file(s) are stored.")
+                    text: qsTr("Common directory for where the C-play file(s) are stored.")
                 }
             }
             ToolButton {
@@ -533,6 +533,77 @@ SettingsBasePage {
 
             ToolTip {
                 text: qsTr("Sets the icon theme to breeze.\nRequires restart.")
+            }
+        }
+
+        // ------------------------------------
+        // Screenshot Format
+        // ------------------------------------
+        SettingsHeader {
+            text: qsTr("Screenshots")
+            topMargin: 0
+            Layout.columnSpan: 3
+            Layout.fillWidth: true
+        }
+
+        Label {
+            text: qsTr("Format")
+            Layout.alignment: Qt.AlignRight
+        }
+
+        Item {
+            height: screenshotFormat.height
+            ComboBox {
+                id: screenshotFormat
+                textRole: "key"
+                model: ListModel {
+                    ListElement { key: "PNG"; }
+                    ListElement { key: "JPG"; }
+                    ListElement { key: "WebP"; }
+                }
+
+                onActivated: {
+                    VideoSettings.screenshotFormat = model.get(index).key
+                    VideoSettings.save()
+                    mpv.setProperty("screenshot-format", VideoSettings.screenshotFormat)
+                }
+
+                Component.onCompleted: {
+                    if (VideoSettings.screenshotFormat === "PNG") {
+                        currentIndex = 0
+                    }
+                    if (VideoSettings.screenshotFormat === "JPG") {
+                        currentIndex = 1
+                    }
+                    if (VideoSettings.screenshotFormat === "WebP") {
+                        currentIndex = 2
+                    }
+                }
+            }
+            Layout.fillWidth: true
+            Layout.columnSpan: 2
+        }
+
+        // ------------------------------------
+        // Screenshot template
+        // ------------------------------------
+        Label {
+            text: qsTr("Template")
+            Layout.alignment: Qt.AlignRight
+        }
+
+        Item {
+            height: screenshotTemplate.height
+            TextField {
+                id: screenshotTemplate
+                text: VideoSettings.screenshotTemplate
+                onEditingFinished: {
+                    VideoSettings.screenshotTemplate = text
+                    VideoSettings.save()
+                    mpv.setProperty("screenshot-template", VideoSettings.screenshotTemplate)
+                }
+                Layout.fillWidth: true
+                Layout.columnSpan: 2
             }
         }
 

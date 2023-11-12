@@ -82,6 +82,7 @@ static QApplication *createApplication(int &argc, char **argv, const QString &ap
 Application::Application(int &argc, char **argv, const QString &applicationName)
     : m_app(createApplication(argc, argv, applicationName))
     , m_collection(this)
+    , m_backgroundFile("")
 {
     m_config = KSharedConfig::openConfig("georgefb/haruna.conf");
     m_shortcuts = new KConfigGroup(m_config, "Shortcuts");
@@ -126,7 +127,12 @@ Application::Application(int &argc, char **argv, const QString &applicationName)
     QObject::connect(m_engine, &QQmlApplicationEngine::quit, m_app, &QApplication::quit);
     m_engine->addImportPath("qrc:/qml");
     m_engine->addImageProvider("thumbnail", new ThumbnailImageProvider());
+
     setupQmlContextProperties();
+    setBackgroundImageFile(PlaybackSettings::imageToLoadAsBackground());
+    setBackgroundGridMode(PlaybackSettings::gridToMapOnForBackground());
+    setBackgroundStereoMode(PlaybackSettings::stereoModeForBackground());
+
     m_engine->load(url);
 
     //QObject::connect(&renderThread, &QThread::finished, m_app, &QApplication::quit);
@@ -332,6 +338,51 @@ QUrl Application::pathToUrl(const QString &path)
     return url;
 }
 
+QString Application::returnRelativeOrAbsolutePath(const QString& path)
+{
+    QString filePath = path;
+    filePath.replace("file:///", "");
+    QFileInfo fileInfo(filePath);
+
+    QStringList pathsToConsider;
+    pathsToConsider.append(fileInfo.absoluteDir().absolutePath());
+    pathsToConsider.append(GeneralSettings::cPlayFileLocation());
+    pathsToConsider.append(GeneralSettings::cPlayMediaLocation());
+    pathsToConsider.append(GeneralSettings::univiewVideoLocation());
+
+    // Assuming filePath is absolute
+    for (int i = 0; i < pathsToConsider.size(); i++) {
+        if (filePath.startsWith(pathsToConsider[i])) {
+            QDir foundDir(pathsToConsider[i]);
+            return foundDir.relativeFilePath(filePath);
+        }
+    }
+    return filePath;
+}
+
+QString Application::checkAndCorrectPath(const QString& path) {
+    QString filePath = path;
+    filePath.replace("file:///", "");
+    QFileInfo fileInfo(filePath);
+
+    if (fileInfo.exists())
+        return filePath;
+    else if (fileInfo.isRelative()) { // Go through search list in order
+        QStringList searchPaths;
+        searchPaths.append(GeneralSettings::cPlayMediaLocation());
+        searchPaths.append(GeneralSettings::cPlayFileLocation());
+        searchPaths.append(GeneralSettings::univiewVideoLocation());
+
+        for (int i = 0; i < searchPaths.size(); i++) {
+            QString newFilePath = QDir::cleanPath(searchPaths[i] + QDir::separator() + filePath);
+            QFileInfo newFilePathInfo(newFilePath);
+            if (newFilePathInfo.exists())
+                return newFilePath;
+        }
+    }
+    return "";
+}
+
 bool Application::isYoutubePlaylist(const QString &path)
 {
     return path.contains("youtube.com/playlist?list");
@@ -352,6 +403,71 @@ void Application::hideCursor()
 void Application::showCursor()
 {
     QApplication::setOverrideCursor(Qt::ArrowCursor);
+}
+
+float Application::backgroundVisibility() 
+{
+    return SyncHelper::instance().variables.alphaBg;
+}
+
+void Application::setBackgroundVisibility(float value) 
+{
+    SyncHelper::instance().variables.alphaBg = value;
+}
+
+QString Application::backgroundImageFile()
+{
+    return m_backgroundFile;
+}
+
+void Application::setBackgroundImageFile(const QString& path)
+{
+    QString filePath = path;
+    filePath.replace("file:///", "");
+    QFileInfo fileInfo(filePath);
+
+    QString absolutePath;
+    if (fileInfo.exists()) { //isAbsolute
+        m_backgroundFile = returnRelativeOrAbsolutePath(path);
+        absolutePath = path;
+    }
+    else if (fileInfo.isRelative()) { //isRelative
+        QString bgFilePath = checkAndCorrectPath(path);
+        if (bgFilePath.isEmpty()) {
+            return;
+        }
+        m_backgroundFile = path;
+        absolutePath = bgFilePath;
+    }
+    else
+        return;
+
+    std::string str = absolutePath.toStdString();
+    if (SyncHelper::instance().variables.bgImageFile != str) {
+        SyncHelper::instance().variables.bgImageFile = str;
+        setBackgroundVisibility(1.f);
+        sgct::Log::Info("Set background image: " + str);
+    }
+}
+
+int Application::backgroundGridMode() 
+{
+    return SyncHelper::instance().variables.gridToMapOnBg;
+}
+
+void Application::setBackgroundGridMode(int value)
+{
+    SyncHelper::instance().variables.gridToMapOnBg = value;
+}
+
+int Application::backgroundStereoMode()
+{
+    return SyncHelper::instance().variables.stereoscopicModeBg;
+}
+
+void Application::setBackgroundStereoMode(int value)
+{
+    SyncHelper::instance().variables.stereoscopicModeBg = value;
 }
 
 int Application::getFadeDurationCurrentTime(bool restart) {
@@ -962,16 +1078,20 @@ SyncHelper& SyncHelper::instance() {
     if(!_instance){
         _instance = new SyncHelper();
         _instance->variables.loadedFile = "";
+        _instance->variables.bgImageFile = "";
         _instance->variables.overlayFile = "";
         _instance->variables.loadFile = false;
         _instance->variables.paused = false;
         _instance->variables.timePosition = 0.0;
         _instance->variables.timeThreshold = 1.0;
         _instance->variables.timeDirty = false;
-        _instance->variables.alpha = 1.f;
         _instance->variables.syncOn = true;
+        _instance->variables.alpha = 1.f;
+        _instance->variables.alphaBg = 1.f;
         _instance->variables.gridToMapOn = 0;
+        _instance->variables.gridToMapOnBg = 0;
         _instance->variables.stereoscopicMode = 0;
+        _instance->variables.stereoscopicModeBg = 0;
         _instance->variables.loopMode = 2;
         _instance->variables.radius = 740;
         _instance->variables.fov = 165;

@@ -7,7 +7,7 @@
 import QtQuick 2.12
 import QtQuick.Layouts 1.12
 import QtQuick.Controls 2.12
-import QtQuick.Dialogs 1.3
+import Qt.labs.platform 1.0 as Platform
 
 import org.kde.kirigami 2.11 as Kirigami
 import com.georgefb.haruna 1.0
@@ -19,22 +19,38 @@ SettingsBasePage {
     hasHelp: true
     helpFile: ":/PlaybackSettings.html"
 
-    FileDialog {
-        id: fileToLoadOnStartupDialog
+    Platform.FileDialog {
+        id: playlistToLoadOnStartupDialog
 
         folder: GeneralSettings.cPlayFileLocation !== ""
                 ? app.pathToUrl(GeneralSettings.cPlayFileLocation)
                 : app.pathToUrl(GeneralSettings.fileDialogLastLocation)
-        title: "Choose file to load on startup"
+        title: "Choose playlist to load on startup"
+        fileMode: Platform.FileDialog.OpenFile
+        nameFilters: [ "C-Play playlist (*.cplaylist)", "Uniview playlist (*.playlist)" ]
 
         onAccepted: {
-            var filePath = fileToLoadOnStartupDialog.fileUrl.toString();
-            // remove prefixed "file:///"
-            filePath = filePath.replace(/^(file:\/{3})/,"");
-
-            PlaybackSettings.fileToLoadOnStartup = filePath
+            var filePath = app.returnRelativeOrAbsolutePath(playlistToLoadOnStartupDialog.file.toString());
+            PlaybackSettings.playlistToLoadOnStartup = filePath
             PlaybackSettings.save()
 
+            mpv.focus = true
+        }
+        onRejected: mpv.focus = true
+    }
+
+    Platform.FileDialog {
+        id: fileToLoadAsBackgroundDialog
+        folder: GeneralSettings.cPlayMediaLocation !== ""
+                ? app.pathToUrl(GeneralSettings.cPlayMediaLocation)
+                : app.pathToUrl(GeneralSettings.fileDialogLastLocation)
+        fileMode: Platform.FileDialog.OpenFile
+        title: "Choose file to load on startup"
+        nameFilters: [ "Image files (*.png *.jpg *.jpeg *.tga)" ]
+
+        onAccepted: {
+            app.setBackgroundImageFile(fileToLoadAsBackgroundDialog.file.toString());
+            fileForBackgroundImageText.text = app.backgroundImageFile();
             mpv.focus = true
         }
         onRejected: mpv.focus = true
@@ -226,36 +242,113 @@ SettingsBasePage {
         }
 
         // ------------------------------------
-        // STARTUP PARAMETERS
+        // STARTUP AND BACKGROUND PARAMETERS
         // --
         SettingsHeader {
-            text: qsTr("Startup settings")
+            text: qsTr("Startup / Background settings")
             Layout.columnSpan: 2
             Layout.fillWidth: true
         }
 
         Label {
-            text: qsTr("Load on startup:")
+            text: qsTr("Playlist/file to load on startup:")
+        }
+        RowLayout {
+            TextField {
+                id: playlistToLoadOnStartupText
+                text: PlaybackSettings.playlistToLoadOnStartup
+                placeholderText: "Path to playlist"
+                Layout.fillWidth: true
+                onEditingFinished: {
+                    PlaybackSettings.playlistToLoadOnStartup = text
+                    PlaybackSettings.save()
+                }
+
+                ToolTip {
+                    text: qsTr("Path to playlist")
+                }
+            }
+            ToolButton {
+                id: playlistToLoadOnStartupButton
+                text: ""
+                icon.name: "system-file-manager"
+                icon.height: 16
+                focusPolicy: Qt.NoFocus
+
+                onClicked: {
+                    playlistToLoadOnStartupDialog.open()
+                }
+            }
+            Layout.fillWidth: true
+        }
+
+        Label {
+            text: qsTr("Volume at startup:")
+        }
+        SpinBox {
+            from: 0
+            to: 100
+            value: GeneralSettings.volume
+            editable: true
+            onValueChanged: {
+                GeneralSettings.volume = value.toFixed(0)
+                GeneralSettings.save()
+            }
+        }
+
+        Label {
+            text: qsTr("Image to load as background:")
+        }
+        RowLayout {
+            TextField {
+                id: fileForBackgroundImageText
+                text: app.backgroundImageFile()
+                placeholderText: "Path to image file"
+                Layout.fillWidth: true
+                onEditingFinished: {
+                    app.setBackgroundImageFile(text);
+                }
+
+                ToolTip {
+                    text: qsTr("Path to image file for first start and use as background")
+                }
+            }
+            ToolButton {
+                id: fileToLoadAsBackgroundLoadButton
+                text: ""
+                icon.name: "system-file-manager"
+                icon.height: 16
+                focusPolicy: Qt.NoFocus
+
+                onClicked: {
+                    fileToLoadAsBackgroundDialog.open()
+                }
+            }
+            Layout.fillWidth: true
+        }
+
+        Label {
+            text: qsTr("Stereoscopic mode for background:")
         }
         ComboBox {
-            id: loadOnStartupComboBox
+            id: stereoscopicModeOnStartupComboBox
             enabled: true
             textRole: "mode"
             model: ListModel {
-                id: loadOnStartupMode
-                ListElement { mode: "No file"; value: 0 }
-                ListElement { mode: "Last opened file"; value: 1}
-                ListElement { mode: "Custom file (specify path below)"; value: 2 }
+                id: stereoscopicModeOnStartupMode
+                ListElement { mode: "2D (mono)"; value: 0 }
+                ListElement { mode: "3D (side-by-side)"; value: 1}
+                ListElement { mode: "3D (top-bottom)"; value: 2 }
+                ListElement { mode: "3D (top-bottom+flip)"; value: 3 }
             }
 
             onActivated: {
-                    PlaybackSettings.loadOnStartupMode = model.get(index).value
-                    PlaybackSettings.save()
+                app.setBackgroundStereoMode(model.get(index).value);
             }
 
             Component.onCompleted: {
-                for (let i = 0; i < loadOnStartupMode.count; ++i) {
-                    if (loadOnStartupMode.get(i).value === PlaybackSettings.loadOnStartupMode) {
+                for (let i = 0; i < stereoscopicModeOnStartupMode.count; ++i) {
+                    if (stereoscopicModeOnStartupMode.get(i).value === app.backgroundStereoMode()) {
                         currentIndex = i
                         break
                     }
@@ -264,35 +357,78 @@ SettingsBasePage {
         }
 
         Label {
-            text: qsTr("File to load on startup:")
+            text: qsTr("Grid mode for background:")
+        }
+        ComboBox {
+            id: loadGridOnStartupComboBox
+            enabled: true
+            textRole: "mode"
+            model: ListModel {
+                id: loadGridOnStartupMode
+                ListElement { mode: "None/Pre-split"; value: 0 }
+                ListElement { mode: "Plane"; value: 1 }
+                ListElement { mode: "Dome"; value: 2}
+                ListElement { mode: "Sphere EQR"; value: 3 }
+                ListElement { mode: "Sphere EAC"; value: 4 }
+            }
+
+            onActivated: {
+                app.setBackgroundGridMode(model.get(index).value);
+            }
+
+            Component.onCompleted: {
+                for (let i = 0; i < loadGridOnStartupMode.count; ++i) {
+                    if (loadGridOnStartupMode.get(i).value === app.backgroundGridMode()) {
+                        currentIndex = i
+                        break
+                    }
+                }
+            }
+        }
+
+        // ------------------------------------
+        // Save & Reset
+        // ------------------------------------
+
+        RowLayout {
+            Button {
+                    text: "Reset background values"
+                    onClicked: {
+                        app.setBackgroundImageFile(PlaybackSettings.imageToLoadAsBackground)
+                        app.setBackgroundStereoMode(PlaybackSettings.stereoModeForBackground)
+                        app.setBackgroundGridMode(PlaybackSettings.gridToMapOnForBackground)
+
+                        fileForBackgroundImageText.text = app.backgroundImageFile();
+
+                        for (let i = 0; i < loadGridOnStartupMode.count; ++i) {
+                            if (loadGridOnStartupMode.get(i).value === app.backgroundGridMode()) {
+                                loadGridOnStartupComboBox.currentIndex = i
+                                break
+                            }
+                        }
+
+                        for (let j = 0; j < stereoscopicModeOnStartupMode.count; ++j) {
+                            if (stereoscopicModeOnStartupMode.get(j).value === app.backgroundStereoMode()) {
+                                stereoscopicModeOnStartupComboBox.currentIndex = j
+                                break
+                            }
+                        }
+                    }
+            }
+            Layout.columnSpan: 2
+            Layout.fillWidth: true
         }
         RowLayout {
-            TextField {
-                id: fileToLoadOnStartupText
-                text: PlaybackSettings.fileToLoadOnStartup
-                placeholderText: "Path to image or video file"
-                enabled: (PlaybackSettings.loadOnStartupMode === 2)
-                Layout.fillWidth: true
-                onEditingFinished: {
-                    PlaybackSettings.fileToLoadOnStartup = text
-                    PlaybackSettings.save()
-                }
-
-                ToolTip {
-                    text: qsTr("Path to image or video file")
-                }
+            Button {
+                    text: "Save background values for startup"
+                    onClicked: {
+                        PlaybackSettings.imageToLoadAsBackground = app.backgroundImageFile()
+                        PlaybackSettings.stereoModeForBackground = app.backgroundStereoMode()
+                        PlaybackSettings.gridToMapOnForBackground = app.backgroundGridMode()
+                        PlaybackSettings.save()
+                    }
             }
-            ToolButton {
-                id: fileToLoadOnStartupLoadButton
-                text: ""
-                icon.name: "system-file-manager"
-                icon.height: 16
-                focusPolicy: Qt.NoFocus
-
-                onClicked: {
-                    fileToLoadOnStartupDialog.open()
-                }
-            }
+            Layout.columnSpan: 2
             Layout.fillWidth: true
         }
 

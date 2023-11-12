@@ -23,6 +23,7 @@ class Track;
 class MpvObject : public QQuickFramebufferObject
 {
     Q_OBJECT
+
 public:
     Q_PROPERTY(TracksModel* audioTracksModel READ audioTracksModel NOTIFY audioTracksModelChanged)
     Q_PROPERTY(TracksModel* subtitleTracksModel READ subtitleTracksModel NOTIFY subtitleTracksModelChanged)
@@ -332,18 +333,6 @@ public:
     QVariant getAudioDeviceList();
     void updateAudioDeviceList();
 
-    PlayListItem* loadMediaFileDescription(const QString& file);
-    void loadJSONPlayList(const QString& file, bool updateLastPlayedFile = true);
-    void loadUniviewPlaylist(const QString& file, bool updateLastPlayedFile = true);
-
-    void loadItem(PlayListItemData itemData, bool updateLastPlayedFile = true, QString flag = "replace");
-
-    mpv_handle *mpv;
-    mpv_render_context *mpv_gl;
-
-    friend class MpvRenderer;
-
-public:
     MpvObject(QQuickItem * parent = 0);
     virtual ~MpvObject();
     virtual Renderer *createRenderer() const;
@@ -425,6 +414,17 @@ signals:
     void fadeImageUp();
 
 private:
+    PlayListItem* loadMediaFileDescription(const QString& file);
+    void loadJSONPlayList(const QString& file, bool updateLastPlayedFile = true);
+    void loadUniviewPlaylist(const QString& file, bool updateLastPlayedFile = true);
+
+    void loadItem(PlayListItemData itemData, bool updateLastPlayedFile = true, QString flag = "replace");
+
+    mpv_handle* mpv;
+    mpv_render_context* mpv_gl;
+
+    friend class MpvRenderer;
+
     void sectionPositionCheck(double position);
     TracksModel *audioTracksModel() const;
     TracksModel *subtitleTracksModel() const;
