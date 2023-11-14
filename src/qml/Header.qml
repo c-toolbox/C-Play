@@ -453,19 +453,19 @@ ToolBar {
             implicitWidth: 100
 
             text: {
-                if(mpv.stereoscopicVideo == 0){
+                if(mpv.stereoscopicMode === 0){
                     stereoscopicMenuButton.text = qsTr("2D (Mono)")
                     stereoscopicMenuButton.icon.name = "redeyes"
                 }
-                else if(mpv.stereoscopicVideo == 1){
+                else if(mpv.stereoscopicMode === 1){
                     stereoscopicMenuButton.text = qsTr("3D (SBS)")
                     stereoscopicMenuButton.icon.name = "visibility"
                 }
-                else if(mpv.stereoscopicVideo == 2){
+                else if(mpv.stereoscopicMode === 2){
                     stereoscopicMenuButton.text = qsTr("3D (TB)")
                     stereoscopicMenuButton.icon.name = "visibility"
                 }
-                else if(mpv.stereoscopicVideo == 3){
+                else if(mpv.stereoscopicMode === 3){
                     stereoscopicMenuButton.text = qsTr("3D (TB+F)")
                     stereoscopicMenuButton.icon.name = "visibility"
                 }
@@ -478,20 +478,20 @@ ToolBar {
 
             Connections {
                 target: mpv
-                function onStereoscopicVideoChanged() {
-                    if(mpv.stereoscopicVideo == 0){
+                function onStereoscopicModeChanged() {
+                    if(mpv.stereoscopicMode === 0){
                         stereoscopicMenuButton.text = qsTr("2D (Mono)")
                         stereoscopicMenuButton.icon.name = "redeyes"
                     }
-                    else if(mpv.stereoscopicVideo == 1){
+                    else if(mpv.stereoscopicMode === 1){
                         stereoscopicMenuButton.text = qsTr("3D (SBS)")
                         stereoscopicMenuButton.icon.name = "visibility"
                     }
-                    else if(mpv.stereoscopicVideo == 2){
+                    else if(mpv.stereoscopicMode === 2){
                         stereoscopicMenuButton.text = qsTr("3D (TB)")
                         stereoscopicMenuButton.icon.name = "visibility"
                     }
-                    else if(mpv.stereoscopicVideo == 3){
+                    else if(mpv.stereoscopicMode === 3){
                         stereoscopicMenuButton.text = qsTr("3D (TB+F)")
                         stereoscopicMenuButton.icon.name = "visibility"
                     }
@@ -517,12 +517,12 @@ ToolBar {
                         checked: PlaybackSettings.stereoModeOnStartup === 0
                         text: qsTr("2D Mono")
                         onClicked: {
-                            mpv.stereoscopicVideo = 0
+                            mpv.stereoscopicMode = 0
                         }
                         Connections {
                             target: mpv
-                            function onStereoscopicVideoChanged(){
-                                stereoscopic_2D.checked = (mpv.stereoscopicVideo === 0)
+                            function onStereoscopicModeChanged(){
+                                stereoscopic_2D.checked = (mpv.stereoscopicMode === 0)
                             }
                         }
                     }
@@ -532,12 +532,12 @@ ToolBar {
                         checked: PlaybackSettings.stereoModeOnStartup === 1
                         text: qsTr("3D Side-by-side")
                         onClicked: {
-                             mpv.stereoscopicVideo = 1
+                             mpv.stereoscopicMode = 1
                         }
                         Connections {
                             target: mpv
-                            function onStereoscopicVideoChanged(){
-                                stereoscopic_3D_sbs.checked = (mpv.stereoscopicVideo === 1)
+                            function onStereoscopicModeChanged(){
+                                stereoscopic_3D_sbs.checked = (mpv.stereoscopicMode === 1)
                             }
                         }
                     }
@@ -547,12 +547,12 @@ ToolBar {
                         checked: PlaybackSettings.stereoModeOnStartup === 2
                         text: qsTr("3D Top/Bottom")
                         onClicked: {
-                            mpv.stereoscopicVideo = 2
+                            mpv.stereoscopicMode = 2
                         }
                         Connections {
                             target: mpv
-                            function onStereoscopicVideoChanged(){
-                                stereoscopic_3D_tp.checked = (mpv.stereoscopicVideo === 2)
+                            function onStereoscopicModeChanged(){
+                                stereoscopic_3D_tp.checked = (mpv.stereoscopicMode === 2)
                             }
                         }
                     }
@@ -562,12 +562,12 @@ ToolBar {
                         checked: PlaybackSettings.stereoModeOnStartup === 3
                         text: qsTr("3D Top/Bottom+Flip")
                         onClicked: {
-                            mpv.stereoscopicVideo = 3
+                            mpv.stereoscopicMode = 3
                         }
                         Connections {
                             target: mpv
-                            function onStereoscopicVideoChanged(){
-                                stereoscopic_3D_tbf.checked = (mpv.stereoscopicVideo === 3)
+                            function onStereoscopicModeChanged(){
+                                stereoscopic_3D_tbf.checked = (mpv.stereoscopicMode === 3)
                             }
                         }
                     }
@@ -580,15 +580,15 @@ ToolBar {
             implicitWidth: 130
 
             text: {
-                if(mpv.gridToMapOn == 0)
+                if(mpv.gridToMapOn === 0)
                     gridMenuButton.text = qsTr("Grid (None)")
-                else if(mpv.gridToMapOn == 1)
+                else if(mpv.gridToMapOn === 1)
                     gridMenuButton.text = qsTr("Grid (Plane)")
-                else if(mpv.gridToMapOn == 2)
+                else if(mpv.gridToMapOn === 2)
                     gridMenuButton.text = qsTr("Grid (Dome)")
-                else if(mpv.gridToMapOn == 3)
+                else if(mpv.gridToMapOn === 3)
                     gridMenuButton.text = qsTr("Grid (Sphere EQR)")
-                else if(mpv.gridToMapOn == 4)
+                else if(mpv.gridToMapOn === 4)
                     gridMenuButton.text = qsTr("Grid (Sphere EAC)")
             }
             icon.name: "kstars_hgrid"
@@ -601,15 +601,15 @@ ToolBar {
             Connections {
                 target: mpv
                 function onGridToMapOnChanged() {
-                    if(mpv.gridToMapOn == 0)
+                    if(mpv.gridToMapOn === 0)
                         gridMenuButton.text = qsTr("Grid (None)")
-                    else if(mpv.gridToMapOn == 1)
+                    else if(mpv.gridToMapOn === 1)
                         gridMenuButton.text = qsTr("Grid (Plane)")
-                    else if(mpv.gridToMapOn == 2)
+                    else if(mpv.gridToMapOn === 2)
                         gridMenuButton.text = qsTr("Grid (Dome)")
-                    else if(mpv.gridToMapOn == 3)
+                    else if(mpv.gridToMapOn === 3)
                         gridMenuButton.text = qsTr("Grid (Sphere EQR)")
-                    else if(mpv.gridToMapOn == 4)
+                    else if(mpv.gridToMapOn === 4)
                         gridMenuButton.text = qsTr("Grid (Sphere EAC)")
                 }
             }

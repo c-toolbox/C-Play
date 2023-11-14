@@ -26,6 +26,7 @@ public slots:
 Q_SIGNALS:
     void pauseMedia();
     void playMedia();
+    void setPosition(double position);
     void setVolume(int level);
     void fadeVolumeDown();
     void fadeVolumeUp();
@@ -39,7 +40,9 @@ protected:
 
 private:
     bool stringToInt(std::string str, int& parsedInt);
+    bool stringToDouble(std::string str, double& parsedDouble);
 
+    void setPositionFromStr(std::string positionTimeStr);
     void setVolumeFromStr(std::string volumeLevelStr);
 
     const std::string getPlayListItems(std::string charsPerItemStr = "");

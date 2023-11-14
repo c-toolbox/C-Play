@@ -106,10 +106,10 @@ public:
                WRITE setHWDecoding
                NOTIFY hwDecodingChanged)
 
-    Q_PROPERTY(int stereoscopicVideo
-               READ stereoscopicVideo
-               WRITE setStereoscopicVideo
-               NOTIFY stereoscopicVideoChanged)
+    Q_PROPERTY(int stereoscopicMode
+               READ stereoscopicMode
+               WRITE setStereoscopicMode
+               NOTIFY stereoscopicModeChanged)
 
     Q_PROPERTY(bool syncVideo
                READ syncVideo
@@ -282,9 +282,6 @@ public:
     bool hwDecoding();
     void setHWDecoding(bool value);
 
-    int stereoscopicVideo();
-    void setStereoscopicVideo(int value);
-
     bool syncVideo();
     void setSyncVideo(bool value);
 
@@ -294,8 +291,14 @@ public:
     int loopMode();
     void setLoopMode(int value);
 
+    int stereoscopicMode();
+    void setStereoscopicMode(int value);
+
     int gridToMapOn();
     void setGridToMapOn(int value);
+
+    int stereoscopicModeBackground();
+    int gridToMapOnBackground();
 
     double rotationSpeed();
     void setRotationSpeed(double value);
@@ -387,7 +390,7 @@ signals:
     void audioTracksModelChanged();
     void subtitleTracksModelChanged();
     void hwDecodingChanged();
-    void stereoscopicVideoChanged();
+    void stereoscopicModeChanged();
     void syncVideoChanged();
     void visibilityChanged();
     void loopModeChanged();

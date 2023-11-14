@@ -27,23 +27,6 @@ void MediaPlayer2Player::setupConnections()
     if (!m_mpv) {
         return;
     }
-
-    connect(m_mpv, &MpvObject::pauseChanged, this, [=]() {
-        propertiesChanged("PlaybackStatus", PlaybackStatus());
-        Q_EMIT playbackStatusChanged();
-    });
-    connect(m_mpv, &MpvObject::positionChanged, this, [=]() {
-        propertiesChanged("PlaybackStatus", PlaybackStatus());
-        Q_EMIT playbackStatusChanged();
-    });
-    connect(m_mpv, &MpvObject::volumeChanged, this, [=]() {
-        propertiesChanged("Volume", Volume());
-        Q_EMIT volumeChanged();
-    });
-    connect(m_mpv, &MpvObject::fileLoaded, this, [=]() {
-        propertiesChanged("Metadata", Metadata());
-        Q_EMIT metadataChanged();
-    });
 }
 
 void MediaPlayer2Player::setupHttpServer()
@@ -53,6 +36,7 @@ void MediaPlayer2Player::setupHttpServer()
     connect(httpServer, &HttpServerThread::finished, httpServer, &QObject::deleteLater);
     connect(httpServer, &HttpServerThread::pauseMedia, this, &MediaPlayer2Player::Pause);
     connect(httpServer, &HttpServerThread::playMedia, this, &MediaPlayer2Player::Play);
+    connect(httpServer, &HttpServerThread::setPosition, this, &MediaPlayer2Player::SetPosition);
     connect(httpServer, &HttpServerThread::setVolume, this, &MediaPlayer2Player::SetVolume);
     connect(httpServer, &HttpServerThread::fadeVolumeDown, this, &MediaPlayer2Player::FadeVolumeDown);
     connect(httpServer, &HttpServerThread::fadeVolumeUp, this, &MediaPlayer2Player::FadeVolumeUp);
@@ -115,15 +99,6 @@ void MediaPlayer2Player::Seek(qlonglong offset)
     Q_EMIT seek(offset/1000/1000);
 }
 
-void MediaPlayer2Player::SetPosition(const QDBusObjectPath &trackId, qlonglong pos)
-{
-    Q_UNUSED(trackId)
-
-    if (m_mpv) {
-        m_mpv->setProperty("time-pos", pos / 1000 / 1000);
-    }
-}
-
 void MediaPlayer2Player::LoadFromPlaylist(int idx)
 {
     Q_EMIT loadFromPlaylist(idx);
@@ -132,6 +107,13 @@ void MediaPlayer2Player::LoadFromPlaylist(int idx)
 void MediaPlayer2Player::LoadFromSections(int idx)
 {
     Q_EMIT loadFromSections(idx);
+}
+
+void MediaPlayer2Player::SetPosition(double pos)
+{
+    if (m_mpv) {
+        m_mpv->setPosition(pos);
+    }
 }
 
 void MediaPlayer2Player::SetVolume(int level)
@@ -167,101 +149,6 @@ void MediaPlayer2Player::FadeImageUp()
     if (m_mpv) {
         Q_EMIT m_mpv->fadeImageUp();
     }
-}
-
-void MediaPlayer2Player::OpenUri(const QString &uri)
-{
-    Q_EMIT openUri(uri);
-}
-
-QString MediaPlayer2Player::PlaybackStatus()
-{
-    if (!m_mpv) {
-        return QString();
-    }
-    bool isPaused = m_mpv->getProperty("pause").toBool();
-    int position = m_mpv->getProperty("time-pos").toInt();
-
-    return isPaused && position == 0 ? "Stopped" : (isPaused ? "Paused" : "Playing");
-}
-
-QVariantMap MediaPlayer2Player::Metadata()
-{
-    if (!m_mpv) {
-        return QVariantMap();
-    }
-    QVariantMap metadata;
-    metadata[QStringLiteral("mpris:length")] = m_mpv->getProperty("duration").toDouble() * 1000 * 1000;
-    metadata[QStringLiteral("mpris:trackid")] = QVariant::fromValue<QDBusObjectPath>(QDBusObjectPath("/com/georgefb/haruna"));
-    metadata[QStringLiteral("xesam:title")] = m_mpv->getProperty("filename").toString();
-    QUrl url(m_mpv->getProperty("path").toString());
-    url.setScheme("file");
-    metadata[QStringLiteral("xesam:url")] = url.toString();
-
-    return metadata;
-}
-
-double MediaPlayer2Player::Volume()
-{
-    if (!m_mpv) {
-        return 0;
-    }
-    return m_mpv->getProperty("volume").toDouble()/100;
-}
-
-qlonglong MediaPlayer2Player::Position()
-{
-    if (!m_mpv) {
-        return 0;
-    }
-    return m_mpv->getProperty("time-pos").toDouble()*1000*1000;
-}
-
-
-bool MediaPlayer2Player::CanGoNext()
-{
-    return true;
-}
-
-bool MediaPlayer2Player::CanGoPrevious()
-{
-    return true;
-}
-
-bool MediaPlayer2Player::CanPlay()
-{
-    return true;
-}
-
-bool MediaPlayer2Player::CanPause()
-{
-    return true;
-}
-
-bool MediaPlayer2Player::CanSeek()
-{
-    return true;
-}
-
-bool MediaPlayer2Player::CanControl()
-{
-    return true;
-}
-
-void MediaPlayer2Player::setPosition(int pos)
-{
-    if (!m_mpv) {
-        return;
-    }
-    m_mpv->setProperty("position", pos);
-}
-
-void MediaPlayer2Player::setVolume(double vol)
-{
-    if (!m_mpv) {
-        return;
-    }
-    m_mpv->setProperty("volume", vol*100);
 }
 
 MpvObject *MediaPlayer2Player::mpv() const

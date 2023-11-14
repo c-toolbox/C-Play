@@ -276,15 +276,6 @@ MpvObject {
         }
 
         onWheel: {
-            /*if (wheel.angleDelta.y > 0) {
-                if (MouseSettings.scrollUp) {
-                    actions[MouseSettings.scrollUp].trigger()
-                }
-            } else if (wheel.angleDelta.y) {
-                if (MouseSettings.scrollDown) {
-                    actions[MouseSettings.scrollDown].trigger()
-                }
-            }*/
         }
 
         onPressed: {
@@ -376,9 +367,6 @@ MpvObject {
             root.pause = true
             root.loadSection(index)
             root.playSectionsModel.setPlayingSection(index)
-        }
-        function onOpenUri(uri) {
-            openFile(uri, false, false)
         }
     }
 

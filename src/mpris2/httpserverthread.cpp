@@ -91,6 +91,16 @@ void HttpServerThread::setupHttpServer()
             res.set_content("Fading volume up", "text/plain");
         });
 
+        svr.Post("/fade_image_down", [this](const httplib::Request& req, httplib::Response& res) {
+            Q_EMIT fadeImageDown();
+            res.set_content("Fading image down", "text/plain");
+        });
+
+        svr.Post("/fade_image_up", [this](const httplib::Request& req, httplib::Response& res) {
+            Q_EMIT fadeImageUp();
+            res.set_content("Fading image up", "text/plain");
+        });
+
         svr.Post("/visibility", [this](const httplib::Request& req, httplib::Response& res) {
             if (m_mpv) {
                 res.set_content(std::to_string(m_mpv->visibility()), "text/plain");
@@ -100,14 +110,89 @@ void HttpServerThread::setupHttpServer()
             }
         });
 
-        svr.Post("/fade_image_down", [this](const httplib::Request& req, httplib::Response& res) {
-            Q_EMIT fadeImageDown();
-            res.set_content("Fading image down", "text/plain");
+        svr.Post("/stereo_mode", [this](const httplib::Request& req, httplib::Response& res) {
+            if (m_mpv) {
+                res.set_content(std::to_string(m_mpv->stereoscopicMode()), "text/plain");
+            }
+            else {
+                res.set_content("0", "text/plain");
+            }
         });
 
-        svr.Post("/fade_image_up", [this](const httplib::Request& req, httplib::Response& res) {
-            Q_EMIT fadeImageUp();
-            res.set_content("Fading image up", "text/plain");
+        svr.Post("/grid_mode", [this](const httplib::Request& req, httplib::Response& res) {
+            if (m_mpv) {
+                res.set_content(std::to_string(m_mpv->gridToMapOn()), "text/plain");
+            }
+            else {
+                res.set_content("0", "text/plain");
+            }
+        });
+
+        svr.Post("/background_stereo_mode", [this](const httplib::Request& req, httplib::Response& res) {
+            if (m_mpv) {
+                res.set_content(std::to_string(m_mpv->stereoscopicModeBackground()), "text/plain");
+            }
+            else {
+                res.set_content("0", "text/plain");
+            }
+        });
+
+        svr.Post("/background_grid_mode", [this](const httplib::Request& req, httplib::Response& res) {
+            if (m_mpv) {
+                res.set_content(std::to_string(m_mpv->gridToMapOnBackground()), "text/plain");
+            }
+            else {
+                res.set_content("0", "text/plain");
+            }
+        });
+
+        svr.Post("/loop_mode", [this](const httplib::Request& req, httplib::Response& res) {
+            if (m_mpv) {
+                res.set_content(std::to_string(m_mpv->loopMode()), "text/plain");
+            }
+            else {
+                res.set_content("0", "text/plain");
+            }
+        });
+
+        svr.Post("/media_title", [this](const httplib::Request& req, httplib::Response& res) {
+            if (m_mpv) {
+                res.set_content(m_mpv->mediaTitle().toStdString(), "text/plain");
+            }
+            else {
+                res.set_content("", "text/plain");
+            }
+        });
+
+        svr.Post("/position", [this](const httplib::Request& req, httplib::Response& res) {
+            if (req.has_param("set")) {
+                setPositionFromStr(req.get_param_value("set"));
+            }
+            
+            if (m_mpv) {
+                res.set_content(std::to_string(m_mpv->position()), "text/plain");
+            }
+            else {
+                res.set_content("0", "text/plain");
+            }
+        });
+
+        svr.Post("/remaining", [this](const httplib::Request& req, httplib::Response& res) {
+            if (m_mpv) {
+                res.set_content(std::to_string(m_mpv->remaining()), "text/plain");
+            }
+            else {
+                res.set_content("0", "text/plain");
+            }
+        });
+
+        svr.Post("/duration", [this](const httplib::Request& req, httplib::Response& res) {
+            if (m_mpv) {
+                res.set_content(std::to_string(m_mpv->duration()), "text/plain");
+            }
+            else {
+                res.set_content("0", "text/plain");
+            }
         });
 
         svr.Post("/playlist", [this](const httplib::Request& req, httplib::Response& res) {
@@ -197,6 +282,36 @@ bool HttpServerThread::stringToInt(std::string str, int& parsedInt)
         }
     }
     return false;
+}
+
+bool HttpServerThread::stringToDouble(std::string str, double& parsedDouble)
+{
+    if (!str.empty()) {
+        try
+        {
+            parsedDouble = std::stod(str);
+            return true;
+        }
+        catch (std::invalid_argument const& ex)
+        {
+            return false;
+        }
+        catch (std::out_of_range const& ex)
+        {
+            return true;
+        }
+    }
+    return false;
+}
+
+void HttpServerThread::setPositionFromStr(std::string positionTimeStr)
+{
+    double pos = 0;
+    if (stringToDouble(positionTimeStr, pos)) {
+        if (pos >= 0) {
+            Q_EMIT setPosition(pos);
+        }
+    }
 }
 
 void HttpServerThread::setVolumeFromStr(std::string volumeLevelStr)

@@ -148,7 +148,7 @@ MpvObject::MpvObject(QQuickItem * parent)
     setProperty("volume-max", "100");
     setProperty("keep-open", "yes");
 
-    setStereoscopicVideo(PlaybackSettings::stereoModeForBackground());
+    setStereoscopicMode(PlaybackSettings::stereoModeForBackground());
     setGridToMapOn(PlaybackSettings::gridToMapOnForBackground());
 
     mpv::qt::load_configurations(mpv, QStringLiteral("./data/mpv-conf.json"));
@@ -185,7 +185,7 @@ MpvObject::MpvObject(QQuickItem * parent)
     connect(this, &MpvObject::planeChanged,
             this, &MpvObject::updatePlane);
 
-    connect(this, &MpvObject::stereoscopicVideoChanged,
+    connect(this, &MpvObject::stereoscopicModeChanged,
         this, &MpvObject::updatePlane);
 
     connect(this, &MpvObject::positionChanged, this, [this]() {
@@ -508,17 +508,6 @@ void MpvObject::setWatchPercentage(double value)
     emit watchPercentageChanged();
 }
 
-int MpvObject::stereoscopicVideo()
-{
-    return SyncHelper::instance().variables.stereoscopicMode;
-}
-
-void MpvObject::setStereoscopicVideo(int value)
-{
-    SyncHelper::instance().variables.stereoscopicMode = value;
-    emit stereoscopicVideoChanged();
-}
-
 bool MpvObject::syncVideo()
 {
     return SyncHelper::instance().variables.syncOn;
@@ -563,6 +552,17 @@ void MpvObject::setLoopMode(int value) {
     emit loopModeChanged();
 }
 
+int MpvObject::stereoscopicMode()
+{
+    return SyncHelper::instance().variables.stereoscopicMode;
+}
+
+void MpvObject::setStereoscopicMode(int value)
+{
+    SyncHelper::instance().variables.stereoscopicMode = value;
+    emit stereoscopicModeChanged();
+}
+
 int MpvObject::gridToMapOn()
 {
     return SyncHelper::instance().variables.gridToMapOn;
@@ -574,6 +574,16 @@ void MpvObject::setGridToMapOn(int value)
         SyncHelper::instance().variables.gridToMapOn = value;
         emit gridToMapOnChanged();
     }
+}
+
+int MpvObject::stereoscopicModeBackground()
+{
+    return SyncHelper::instance().variables.stereoscopicModeBg;
+}
+
+int MpvObject::gridToMapOnBackground()
+{
+    return SyncHelper::instance().variables.gridToMapOnBg;
 }
 
 double MpvObject::rotationSpeed()
@@ -919,7 +929,7 @@ void MpvObject::setLoadedAsCurrentEditItem() {
     currentItem->setMediaTitle(mediaTitle());
     currentItem->setDuration(duration());
     currentItem->setGridToMapOn(gridToMapOn());
-    currentItem->setStereoVideo(stereoscopicVideo());
+    currentItem->setStereoVideo(stereoscopicMode());
     currentItem->setLoopMode(loopMode());
     m_playSectionsModel->setCurrentEditItem(currentItem);
 }
@@ -1035,7 +1045,7 @@ void MpvObject::loadItem(PlayListItemData itemData, bool updateLastPlayedFile, Q
             setGridToMapOn(itemData.gridToMapOn());
 
         if (itemData.stereoVideo() >= 0)
-            setStereoscopicVideo(itemData.stereoVideo());
+            setStereoscopicMode(itemData.stereoVideo());
 
         if (updateLastPlayedFile) {
             GeneralSettings::setLastPlayedFile(itemData.filePath());
@@ -1428,7 +1438,7 @@ void MpvObject::loadTracks()
 
 void MpvObject::updatePlane() {
     int pcsbov = VideoSettings::plane_Calculate_Size_Based_on_Video();
-    int sm = stereoscopicVideo();
+    int sm = stereoscopicMode();
     if (pcsbov == 1) { //Calculate width from video
         double ratio = double(m_videoWidth) / double(m_videoHeight);
 

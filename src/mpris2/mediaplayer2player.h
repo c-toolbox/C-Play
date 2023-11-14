@@ -18,16 +18,6 @@ class MediaPlayer2Player : public QDBusAbstractAdaptor
     Q_OBJECT
     Q_CLASSINFO("D-Bus Interface", "org.mpris.MediaPlayer2.Player")
 
-    Q_PROPERTY(QString PlaybackStatus READ PlaybackStatus NOTIFY playbackStatusChanged)
-    Q_PROPERTY(QVariantMap Metadata READ Metadata NOTIFY metadataChanged)
-    Q_PROPERTY(double Volume READ Volume WRITE setVolume NOTIFY volumeChanged)
-    Q_PROPERTY(qlonglong Position READ Position WRITE setPosition NOTIFY playbackStatusChanged)
-    Q_PROPERTY(bool CanGoNext READ CanGoNext CONSTANT)
-    Q_PROPERTY(bool CanGoPrevious READ CanGoPrevious CONSTANT)
-    Q_PROPERTY(bool CanPlay READ CanPlay CONSTANT)
-    Q_PROPERTY(bool CanPause READ CanPause CONSTANT)
-    Q_PROPERTY(bool CanSeek READ CanSeek CONSTANT)
-    Q_PROPERTY(bool CanControl READ CanControl CONSTANT)
     Q_PROPERTY(MpvObject *mpv READ mpv WRITE setMpv NOTIFY mpvChanged)
 
 public:
@@ -45,7 +35,7 @@ public Q_SLOTS:
     void Stop();
     void Play();
     void Seek(qlonglong offset);
-    void SetPosition(const QDBusObjectPath &trackId, qlonglong pos);
+    void SetPosition(double pos);
     void LoadFromPlaylist(int idx);
     void LoadFromSections(int idx);
     void SetVolume(int level);
@@ -53,19 +43,6 @@ public Q_SLOTS:
     void FadeVolumeUp();
     void FadeImageDown();
     void FadeImageUp();
-    void OpenUri(const QString &uri);
-    QString PlaybackStatus();
-    QVariantMap Metadata();
-    double Volume();
-    qlonglong Position();
-    bool CanGoNext();
-    bool CanGoPrevious();
-    bool CanPlay();
-    bool CanPause();
-    bool CanSeek();
-    bool CanControl();
-    void setPosition(int pos);
-    void setVolume(double vol);
 
 Q_SIGNALS:
     void next();
@@ -77,10 +54,6 @@ Q_SIGNALS:
     void seek(int offset);
     void loadFromPlaylist(int idx);
     void loadFromSections(int idx);
-    void openUri(QString uri);
-    void playbackStatusChanged();
-    void metadataChanged();
-    void volumeChanged();
     void mpvChanged();
 
 private:
