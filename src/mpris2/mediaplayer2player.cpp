@@ -44,6 +44,14 @@ void MediaPlayer2Player::setupHttpServer()
     connect(httpServer, &HttpServerThread::fadeImageUp, this, &MediaPlayer2Player::FadeImageUp);
     connect(httpServer, &HttpServerThread::loadFromPlaylist, this, &MediaPlayer2Player::LoadFromPlaylist);
     connect(httpServer, &HttpServerThread::loadFromSections, this, &MediaPlayer2Player::LoadFromSections);
+    connect(httpServer, &HttpServerThread::spinPitchUp, this, &MediaPlayer2Player::SpinPitchUp);
+    connect(httpServer, &HttpServerThread::spinPitchDown, this, &MediaPlayer2Player::SpinPitchDown);
+    connect(httpServer, &HttpServerThread::spinYawLeft, this, &MediaPlayer2Player::SpinYawLeft);
+    connect(httpServer, &HttpServerThread::spinYawRight, this, &MediaPlayer2Player::SpinYawRight);
+    connect(httpServer, &HttpServerThread::spinRollCCW, this, &MediaPlayer2Player::SpinRollCCW);
+    connect(httpServer, &HttpServerThread::spinRollCW, this, &MediaPlayer2Player::SpinRollCW);
+    connect(httpServer, &HttpServerThread::orientationAndSpinReset, this, &MediaPlayer2Player::OrientationAndSpinReset);
+    connect(httpServer, &HttpServerThread::runSurfaceTransistion, this, &MediaPlayer2Player::RunSurfaceTransistion);
 
     httpServer->start();
 }
@@ -150,6 +158,47 @@ void MediaPlayer2Player::FadeImageUp()
         Q_EMIT m_mpv->fadeImageUp();
     }
 }
+
+void MediaPlayer2Player::SpinPitchUp()
+{
+    Q_EMIT spinPitchUp();
+}
+
+void MediaPlayer2Player::SpinPitchDown()
+{
+    Q_EMIT spinPitchDown();
+}
+
+void MediaPlayer2Player::SpinYawLeft()
+{
+    Q_EMIT spinYawLeft();
+}
+
+void MediaPlayer2Player::SpinYawRight()
+{
+    Q_EMIT spinYawRight();
+}
+
+void MediaPlayer2Player::SpinRollCW()
+{
+    Q_EMIT spinRollCW();
+}
+
+void MediaPlayer2Player::SpinRollCCW()
+{
+    Q_EMIT spinRollCCW();
+}
+
+void MediaPlayer2Player::OrientationAndSpinReset()
+{
+    Q_EMIT orientationAndSpinReset();
+}
+
+void MediaPlayer2Player::RunSurfaceTransistion()
+{
+    Q_EMIT runSurfaceTransistion();
+}
+
 
 MpvObject *MediaPlayer2Player::mpv() const
 {

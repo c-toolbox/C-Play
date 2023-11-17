@@ -18,7 +18,6 @@ Rectangle {
     property alias scrollPositionTimer: scrollPositionTimer
     property alias presentationView: presentationView
     property alias mediaTitle: mediaTitle
-    property bool canToggleWithMouse: PlaylistSettings.canToggleWithMouse
     property string position: PlaylistSettings.position
     property int rowHeight: PlaylistSettings.rowHeight
     property int bigFont: PlaylistSettings.bigFontFullscreen

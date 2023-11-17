@@ -738,6 +738,7 @@ ToolBar {
                     RowLayout {
                         Button {
                             id: spinPitchUp
+                            enabled: mpv.gridToMapOn >= 3
                             icon.name: "go-up"
                             icon.color: spinPitchUp.checked ? "lawngreen" : "red"
                             checkable: true
@@ -768,6 +769,7 @@ ToolBar {
                         }
                         Button {
                             id: spinPitchDown
+                            enabled: mpv.gridToMapOn >= 3
                             icon.name: "go-down"
                             icon.color: spinPitchDown.checked ? "lawngreen" : "red"
                             checkable: true
@@ -802,6 +804,7 @@ ToolBar {
                     RowLayout {
                         Button {
                             id: spinYawLeft
+                            enabled: mpv.gridToMapOn >= 2
                             icon.name: "go-previous"
                             icon.color: spinYawLeft.checked ? "lawngreen" : "red"
                             checkable: true
@@ -832,6 +835,7 @@ ToolBar {
                         }
                         Button {
                             id: spinYawRight
+                            enabled: mpv.gridToMapOn >= 2
                             icon.name: "go-next"
                             icon.color: spinYawRight.checked ? "lawngreen" : "red"
                             checkable: true
@@ -866,6 +870,7 @@ ToolBar {
                     RowLayout {
                         Button {
                             id: spinRollCounterClockwise
+                            enabled: mpv.gridToMapOn >= 3
                             icon.name: "object-rotate-left"
                             icon.color: spinRollCounterClockwise.checked ? "lawngreen" : "red"
                             checkable: true
@@ -896,6 +901,7 @@ ToolBar {
                         }
                         Button {
                             id: spinRollClockwise
+                            enabled: mpv.gridToMapOn >= 3
                             icon.name: "object-rotate-right"
                             icon.color: spinRollClockwise.checked ? "lawngreen" : "red"
                             checkable: true
@@ -1114,6 +1120,49 @@ ToolBar {
 
                         Layout.alignment: Qt.AlignHCenter | Qt.AlignVCenter
                         Layout.columnSpan: 2
+                    }
+                }
+
+                Connections {
+                    target: mediaPlayer2Player
+
+                    function onSpinPitchUp() {
+                        if(mpv.gridToMapOn >= 3) {
+                            spinPitchUp.clicked()
+                        }
+                    }
+                    function onSpinPitchDown() {
+                        if(mpv.gridToMapOn >= 3) {
+                            spinPitchDown.clicked()
+                        }
+                    }
+                    function onSpinYawLeft() {
+                        if(mpv.gridToMapOn >= 2) {
+                            spinYawLeft.clicked()
+                        }
+                    }
+                    function onSpinYawRight() {
+                        if(mpv.gridToMapOn >= 2) {
+                            spinYawRight.clicked()
+                        }
+                    }
+                    function onSpinRollCCW() {
+                        if(mpv.gridToMapOn >= 3) {
+                            spinRollCounterClockwise.clicked()
+                        }
+                    }
+                    function onSpinRollCW() {
+                        if(mpv.gridToMapOn >= 3) {
+                            spinRollClockwise.clicked()
+                        }
+                    }
+                    function onOrientationAndSpinReset() {
+                        resetOrientation.clicked()
+                    }
+                    function onRunSurfaceTransistion() {
+                        if(!mpv.surfaceTransistionOnGoing){
+                            transistionHeaderButton.clicked()
+                        }
                     }
                 }
             }

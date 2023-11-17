@@ -235,6 +235,46 @@ void HttpServerThread::setupHttpServer()
             res.set_content("Missing index parameter", "text/plain");
         });
 
+        svr.Post("/spin_pitch_up", [this](const httplib::Request& req, httplib::Response& res) {
+            Q_EMIT spinPitchUp();
+            res.set_content("Pitch Up", "text/plain");
+        });
+
+        svr.Post("/spin_pitch_down", [this](const httplib::Request& req, httplib::Response& res) {
+            Q_EMIT spinPitchDown();
+            res.set_content("Pitch Down", "text/plain");
+        });
+
+        svr.Post("/spin_yaw_left", [this](const httplib::Request& req, httplib::Response& res) {
+            Q_EMIT spinYawLeft();
+            res.set_content("Yaw Left", "text/plain");
+        });
+
+        svr.Post("/spin_yaw_right", [this](const httplib::Request& req, httplib::Response& res) {
+            Q_EMIT spinYawRight();
+            res.set_content("Yaw Right", "text/plain");
+        });
+
+        svr.Post("/spin_roll_ccw", [this](const httplib::Request& req, httplib::Response& res) {
+            Q_EMIT spinRollCCW();
+            res.set_content("Roll CCW", "text/plain");
+        });
+
+        svr.Post("/spin_roll_cw", [this](const httplib::Request& req, httplib::Response& res) {
+            Q_EMIT spinRollCW();
+            res.set_content("Roll CCW", "text/plain");
+        });
+
+        svr.Post("/orientation_reset", [this](const httplib::Request& req, httplib::Response& res) {
+            Q_EMIT orientationAndSpinReset();
+            res.set_content("Origin Reset", "text/plain");
+        });
+
+        svr.Post("/surface_transition", [this](const httplib::Request& req, httplib::Response& res) {
+            Q_EMIT runSurfaceTransistion();
+            res.set_content("Surface Transition", "text/plain");
+        });
+
         runServer = true;
         return;
     }

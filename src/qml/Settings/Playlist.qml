@@ -4,7 +4,7 @@
  * SPDX-License-Identifier: GPL-3.0-or-later
  */
 
-import QtQuick 2.0
+import QtQuick 2.12
 import QtQuick.Layouts 1.12
 import QtQuick.Controls 2.12
 
@@ -86,17 +86,6 @@ SettingsBasePage {
             onCheckStateChanged: {
                 PlaylistSettings.showRowNumber = checked
                 PlaylistSettings.save()
-            }
-        }
-
-        Item { width: 1; height: 1 }
-        CheckBox {
-            checked: PlaylistSettings.canToggleWithMouse
-            text: qsTr("Toggle with mouse")
-            onCheckStateChanged: {
-                PlaylistSettings.canToggleWithMouse = checked
-                PlaylistSettings.save()
-                playList.canToggleWithMouse = checked
             }
         }
 

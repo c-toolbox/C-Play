@@ -19,7 +19,6 @@ Rectangle {
     property alias scrollPositionTimer: scrollPositionTimer
     property alias playlistView: playlistView
     property alias playlistName: playlistName
-    property bool canToggleWithMouse: PlaylistSettings.canToggleWithMouse
     property string position: PlaylistSettings.position
     property int rowHeight: PlaylistSettings.rowHeight
     property int bigFont: PlaylistSettings.bigFontFullscreen

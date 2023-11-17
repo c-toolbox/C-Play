@@ -34,6 +34,14 @@ Q_SIGNALS:
     void fadeImageUp();
     void loadFromPlaylist(int idx);
     void loadFromSections(int idx);
+    void spinPitchUp();
+    void spinPitchDown();
+    void spinYawLeft();
+    void spinYawRight();
+    void spinRollCCW();
+    void spinRollCW();
+    void orientationAndSpinReset();
+    void runSurfaceTransistion();
 
 protected:
     void run() override;
