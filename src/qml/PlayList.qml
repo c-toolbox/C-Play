@@ -108,12 +108,26 @@ Rectangle {
                             checked: false
                             text: qsTr("EOF: Pause")
                             onClicked: {
-                                mpv.playlistModel.setLoopMode(playlistView.currentIndex, 1)
+                                mpv.playlistModel.setLoopMode(playlistView.currentIndex, 0)
                                 mpv.playlistModel.updateItem(playlistView.currentIndex)
                             }
                             onCheckedChanged: {
                                 if(checked)
                                     eofMenuButton.icon.name = "media-playback-pause";
+                            }
+                        }
+
+                        RadioButton {
+                            id: eof_next
+                            checked: false
+                            text: qsTr("EOF: Next ")
+                            onClicked: {
+                               mpv.playlistModel.setLoopMode(playlistView.currentIndex, 1)
+                               mpv.playlistModel.updateItem(playlistView.currentIndex)
+                            }
+                            onCheckedChanged: {
+                                if(checked)
+                                    eofMenuButton.icon.name = "go-next";
                             }
                         }
 
@@ -128,20 +142,6 @@ Rectangle {
                             onCheckedChanged: {
                                 if(checked)
                                     eofMenuButton.icon.name = "media-playlist-repeat";
-                            }
-                        }
-
-                        RadioButton {
-                            id: eof_next
-                            checked: false
-                            text: qsTr("EOF: Next ")
-                            onClicked: {
-                               mpv.playlistModel.setLoopMode(playlistView.currentIndex, 0)
-                               mpv.playlistModel.updateItem(playlistView.currentIndex)
-                            }
-                            onCheckedChanged: {
-                                if(checked)
-                                    eofMenuButton.icon.name = "go-next";
                             }
                         }
                     }
@@ -376,8 +376,8 @@ Rectangle {
 
     function updateLoopModeButton() {
         var loopMode = mpv.playlistModel.loopMode(playlistView.currentIndex)
-        eof_next.checked = (loopMode === 0)
-        eof_pause.checked = (loopMode === 1)
+        eof_pause.checked = (loopMode === 0)
+        eof_next.checked = (loopMode === 1)
         eof_loop.checked = (loopMode === 2)
     }
 

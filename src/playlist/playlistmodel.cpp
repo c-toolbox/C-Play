@@ -343,14 +343,14 @@ QVariant PlayListModel::data(const QModelIndex &index, int role) const
             return QVariant("Sphere");
         }
     case LoopRole:
-        if (loopMode == 1) { //Pause
-            return QVariant("Pause at end");
+        if (loopMode == 1) { //Continue
+            return QVariant("Continue to next");
         }
         else if (loopMode == 2) { //Loop
             return QVariant("Loop video");
         }
-        else { // Continue (0)
-            return QVariant("Continue to next");
+        else { // Pause (0)
+            return QVariant("Pause at end");
         }
     }
 
@@ -716,13 +716,13 @@ void PlayListModel::saveAsJSONPlaylist(const QString& path) {
         switch (loopMode)
         {
         case 1:
-            loopModeText = "pause";
+            loopModeText = "continue";
             break;
         case 2:
             loopModeText = "loop";
             break;
         default:
-            loopModeText = "continue";
+            loopModeText = "pause";
             break;
         }
 

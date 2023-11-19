@@ -124,6 +124,7 @@ public:
     Q_PROPERTY(int loopMode
                READ loopMode
                WRITE setLoopMode
+               WRITE setLoopMode
                NOTIFY loopModeChanged)
 
     Q_PROPERTY(int gridToMapOn

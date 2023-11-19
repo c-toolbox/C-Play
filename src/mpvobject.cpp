@@ -537,13 +537,13 @@ int MpvObject::loopMode() {
 void MpvObject::setLoopMode(int value) {
     SyncHelper::instance().variables.loopMode = value;
 
-    if (value == 0) { //Continue
-        setProperty("loop-file", "no");
-        setProperty("keep-open", "no");
-    }
-    else if (value == 1) { //Pause (1)
+    if (value == 0) { //Pause
         setProperty("loop-file", "no");
         setProperty("keep-open", "yes");
+    }
+    else if (value == 1) { //Continue
+        setProperty("loop-file", "no");
+        setProperty("keep-open", "no");
     }
     else { //Loop
         setProperty("loop-file", "inf");
@@ -851,6 +851,8 @@ void MpvObject::loadFile(const QString &file, bool updateLastPlayedFile)
         }
     }
 
+    m_playlistModel->setPlayingVideo(-1);
+
     QString ext = fileInfo.suffix();
     if (ext == "cplayfile" || ext == "cplay_file" || ext == "fdv") {
         PlayListItem* videoFile = loadMediaFileDescription(fileToLoad);
@@ -1047,6 +1049,9 @@ void MpvObject::loadItem(PlayListItemData itemData, bool updateLastPlayedFile, Q
         if (itemData.stereoVideo() >= 0)
             setStereoscopicMode(itemData.stereoVideo());
 
+        if (itemData.loopMode() >= 0)
+            setLoopMode(itemData.loopMode());
+
         if (updateLastPlayedFile) {
             GeneralSettings::setLastPlayedFile(itemData.filePath());
             updateRecentLoadedMediaFiles(itemData.filePath());
@@ -1125,10 +1130,10 @@ void MpvObject::loadJSONPlayList(const QString& file, bool updateLastPlayedFile)
                 if (file != NULL) {
                     if (o.contains("on_file_end")) {
                         QString loopMode = o.value("on_file_end").toString();
-                        if (loopMode == "continue") {
+                        if (loopMode == "pause") {
                             file->setLoopMode(0);
                         }
-                        else if (loopMode == "pause") {
+                        else if (loopMode == "continue") {
                             file->setLoopMode(1);
                         }
                         else if (loopMode == "loop") {
@@ -1210,7 +1215,13 @@ void MpvObject::loadUniviewPlaylist(const QString& file, bool updateLastPlayedFi
         else if (title.contains("2D"))
             video->setStereoVideo(0);
 
-        video->setLoopMode(loopMode);
+        if(loopMode == 0) //Next in Uniview
+            video->setLoopMode(1);
+        else if (loopMode == 2) //Loop in Uniview
+            video->setLoopMode(2);
+        else // Set pause otherwise
+            video->setLoopMode(0);
+
         video->setTransitionMode(transitionMode);
 
         m_playList.append(QPointer<PlayListItem>(video));

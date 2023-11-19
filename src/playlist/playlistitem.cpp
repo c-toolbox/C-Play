@@ -487,7 +487,6 @@ void PlayListItem::updateToNewFile(const QString& path) {
         setFileFolderPath(fileInfo.absolutePath());
         setMediaFile(fileInfo.absoluteFilePath());
     }
-    setIsPlaying(false);
     setSeparateOverlayFile(QStringLiteral(""));
     setSeparateAudioFile(QStringLiteral(""));
 }

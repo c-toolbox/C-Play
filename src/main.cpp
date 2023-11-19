@@ -884,12 +884,12 @@ void postSyncPreDraw() {
         if (SyncHelper::instance().variables.loopMode != loopMode) {
             loopMode = SyncHelper::instance().variables.loopMode;
 
-            if (loopMode == 0) { //Continue
-                mpv::qt::set_property(mpvHandle, "keep-open", "no");
+            if (loopMode == 0) { //Pause
+                mpv::qt::set_property(mpvHandle, "keep-open", "yes");
                 mpv::qt::set_property(mpvHandle, "loop-file", "no");
             }
-            else if (loopMode == 1) { //Pause (1)
-                mpv::qt::set_property(mpvHandle, "keep-open", "yes");
+            else if (loopMode == 1) { //Continue
+                mpv::qt::set_property(mpvHandle, "keep-open", "no");
                 mpv::qt::set_property(mpvHandle, "loop-file", "no");
             }
             else { //Loop

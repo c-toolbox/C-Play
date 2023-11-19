@@ -1092,7 +1092,7 @@ SyncHelper& SyncHelper::instance() {
         _instance->variables.gridToMapOnBg = 0;
         _instance->variables.stereoscopicMode = 0;
         _instance->variables.stereoscopicModeBg = 0;
-        _instance->variables.loopMode = 2;
+        _instance->variables.loopMode = 0;
         _instance->variables.radius = 740;
         _instance->variables.fov = 165;
         _instance->variables.angle = 27.f;

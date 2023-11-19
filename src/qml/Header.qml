@@ -1191,18 +1191,7 @@ ToolBar {
             id: eofMenuButton
             implicitWidth: 100
 
-            text: {
-                const loopMode = mpv.playlistModel.loopMode(mpv.playlistModel.getPlayingVideo())
-                if(loopMode===0){ //Continue
-                    eofMenuButton.text = qsTr("EOF: Next ")
-                }
-                else if(loopMode===1){ // Pause (1)
-                    eofMenuButton.text = qsTr("EOF: Pause")
-                }
-                else {
-                    eofMenuButton.text = qsTr("EOF: Loop ")
-                }
-            }
+            text: qsTr("EOF: Pause")
             icon.name: "media-playback-pause"
             focusPolicy: Qt.NoFocus
 
@@ -1214,20 +1203,20 @@ ToolBar {
                 target: mpv
                 function onFileLoaded() {
                     const loopMode = mpv.playlistModel.loopMode(mpv.playlistModel.getPlayingVideo())
-                    if(loopMode===0 && playList.playlistView.count > 1){ //Continue
-                        mpv.loopMode = 0;
+                    if(loopMode===1 && playList.playlistView.count > 1){ //Continue
+                        mpv.loopMode = 1;
                         eofMenuButton.text = qsTr("EOF: Next ")
                         eofMenuButton.icon.name = "go-next"
                     }
-                    else if(loopMode===1){ //Pause (1)
-                        mpv.loopMode = 1;
-                        eofMenuButton.text = qsTr("EOF: Pause")
-                        eofMenuButton.icon.name = "media-playback-pause"
-                    }
-                    else { //Loop
+                    else if(loopMode===2){ //Loop
                         mpv.loopMode = 2;
                         eofMenuButton.text = qsTr("EOF: Loop ")
                         eofMenuButton.icon.name = "media-playlist-repeat"
+                    }
+                    else { //Pause
+                        mpv.loopMode = 0;
+                        eofMenuButton.text = qsTr("EOF: Pause")
+                        eofMenuButton.icon.name = "media-playback-pause"
                     }
                 }
             }
@@ -1248,10 +1237,10 @@ ToolBar {
 
                     RadioButton {
                         id: eof_pause
-                        checked: false
+                        checked: true
                         text: qsTr("EOF: Pause")
                         onClicked: {
-                            mpv.loopMode = 1;
+                            mpv.loopMode = 0;
                             eofMenuButton.text = qsTr("EOF: Pause")
                             eofMenuButton.icon.name = "media-playback-pause"
 
@@ -1259,24 +1248,7 @@ ToolBar {
                         Connections {
                             target: mpv
                             function onFileLoaded() {
-                                eof_pause.checked = (mpv.loopMode === 1)
-                            }
-                        }
-                    }
-
-                    RadioButton {
-                        id: eof_loop
-                        checked: true
-                        text: qsTr("EOF: Loop ")
-                        onClicked: {
-                            mpv.loopMode = 2;
-                            eofMenuButton.text = qsTr("EOF: Loop")
-                            eofMenuButton.icon.name = "media-playlist-repeat"
-                        }
-                        Connections {
-                            target: mpv
-                            function onFileLoaded() {
-                                eof_loop.checked = (mpv.loopMode === 2)
+                                eof_pause.checked = (mpv.loopMode === 0)
                             }
                         }
                     }
@@ -1287,14 +1259,31 @@ ToolBar {
                         text: qsTr("EOF: Next ")
                         enabled: (playList.playlistView.count > 1)
                         onClicked: {
-                           mpv.loopMode = 0;
+                           mpv.loopMode = 1;
                            eofMenuButton.text = qsTr("EOF: Next")
                            eofMenuButton.icon.name = "go-next"
                         }
                         Connections {
                             target: mpv
                             function onFileLoaded() {
-                                eof_next.checked = (mpv.loopMode === 0)
+                                eof_next.checked = (mpv.loopMode === 1)
+                            }
+                        }
+                    }
+
+                    RadioButton {
+                        id: eof_loop
+                        checked: false
+                        text: qsTr("EOF: Loop ")
+                        onClicked: {
+                            mpv.loopMode = 2;
+                            eofMenuButton.text = qsTr("EOF: Loop")
+                            eofMenuButton.icon.name = "media-playlist-repeat"
+                        }
+                        Connections {
+                            target: mpv
+                            function onFileLoaded() {
+                                eof_loop.checked = (mpv.loopMode === 2)
                             }
                         }
                     }

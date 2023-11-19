@@ -14,6 +14,12 @@
       <label>Position</label>
       <default>right</default>
     </entry>
+    <entry name="AutoPlayNext" type="bool">
+      <default>true</default>
+    </entry>
+    <entry name="AutoPlayAfterTime" type="int">
+      <default>3000</default>
+    </entry>
     <entry name="RowHeight" type="Int">
       <label>Row height</label>
       <default>10</default>

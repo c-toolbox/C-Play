@@ -51,6 +51,42 @@ SettingsBasePage {
 
         Item { width: 1; height: 1 }
         CheckBox {
+            checked: PlaylistSettings.autoPlayNext
+            text: qsTr("Auto-play video is (continue to next)")
+            onCheckStateChanged: {
+                PlaylistSettings.autoPlayNext = checked
+                PlaylistSettings.save()
+            }
+        }
+
+        Label {
+            text: qsTr("Autoplay after certain seconds:")
+        }
+
+        RowLayout {
+            SpinBox {
+                id: autoPlayWaitime
+                from: 0
+                to: 20000
+                value: PlaylistSettings.autoPlayAfterTime
+                enabled: PlaylistSettings.autoPlayNext
+                onValueChanged: {
+                    PlaylistSettings.autoPlayAfterTime = value
+                    PlaylistSettings.save()
+                }
+            }
+
+            LabelWithTooltip {
+                text: {
+                    qsTr("ms = Plays next file (if continue to next) in %1 seconds").arg(Number((timeSetInterval.value*1.0)/1000.0).toFixed(3))
+                }
+                elide: Text.ElideRight
+                Layout.fillWidth: true
+            }
+        }
+
+        Item { width: 1; height: 1 }
+        CheckBox {
             checked: PlaylistSettings.showMediaTitle
             text: qsTr("Show media title instead of file name")
             onCheckStateChanged: {

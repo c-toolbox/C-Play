@@ -175,7 +175,7 @@ MpvObject {
 
     Timer {
        id: playItem
-       interval: 2000
+       interval: PlaybackSettings.autoPlayAfterTime
        onTriggered: {
            mpv.pause = false
        }
@@ -201,18 +201,20 @@ MpvObject {
         }
 
         const loopMode = playlistModel.loopMode(playlistModel.getPlayingVideo())
-        if(loopMode===0){ // Continue
+        if(loopMode===1){ // Continue
             const nextFileRow = playlistModel.getPlayingVideo() + 1
             if (nextFileRow < playList.playlistView.count) {
                 playlistModel.setPlayingVideo(nextFileRow)
                 loadItem(nextFileRow, !playList.isYouTubePlaylist)
-                //playItem.start()
+                if(PlaylistSettings.autoPlayNext)
+                    playItem.start()
             } else {
                 // Last file in playlist
                 if (PlaylistSettings.repeat) {
                     playlistModel.setPlayingVideo(0)
                     loadItem(0)
-                    //playItem.start()
+                    if(PlaylistSettings.autoPlayNext)
+                        playItem.start()
                 }
             }
         }

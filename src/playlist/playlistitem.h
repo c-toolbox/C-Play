@@ -99,7 +99,7 @@ public:
     Q_INVOKABLE QString separateAudioFile() const;
     Q_INVOKABLE void setSeparateAudioFile(const QString& audioFile);
 
-    // 0 = Continue ( Next
+    // 0 = Continue to next
     // 1 = Pause
     // 2 = Loop
     Q_INVOKABLE int loopMode() const;
