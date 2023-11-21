@@ -214,6 +214,9 @@ Rectangle {
             else
                 playlistName.text = qsTr("")
         }
+        function onFileLoaded() {
+            playlistView.currentIndex = -1
+        }
     }
 
     ScrollView {

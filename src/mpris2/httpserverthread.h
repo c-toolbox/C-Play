@@ -26,6 +26,7 @@ public slots:
 Q_SIGNALS:
     void pauseMedia();
     void playMedia();
+    void rewindMedia();
     void setPosition(double position);
     void setVolume(int level);
     void fadeVolumeDown();

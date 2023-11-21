@@ -98,6 +98,7 @@ void PlaySectionsModel::setPlayingSection(int section)
 
     if (section < 0 || section >= m_currentEditItem->numberOfSections()) {
         m_playingSection = -1;
+        emit playingSectionChanged();
         return;
     }
 
@@ -106,6 +107,8 @@ void PlaySectionsModel::setPlayingSection(int section)
     emit dataChanged(index(section, 0), index(section, 0));
 
     m_playingSection = section;
+
+    emit playingSectionChanged();
 }
 
 int PlaySectionsModel::getPlayingSection()

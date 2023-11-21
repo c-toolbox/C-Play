@@ -36,6 +36,7 @@ void MediaPlayer2Player::setupHttpServer()
     connect(httpServer, &HttpServerThread::finished, httpServer, &QObject::deleteLater);
     connect(httpServer, &HttpServerThread::pauseMedia, this, &MediaPlayer2Player::Pause);
     connect(httpServer, &HttpServerThread::playMedia, this, &MediaPlayer2Player::Play);
+    connect(httpServer, &HttpServerThread::rewindMedia, this, &MediaPlayer2Player::Rewind);
     connect(httpServer, &HttpServerThread::setPosition, this, &MediaPlayer2Player::SetPosition);
     connect(httpServer, &HttpServerThread::setVolume, this, &MediaPlayer2Player::SetVolume);
     connect(httpServer, &HttpServerThread::fadeVolumeDown, this, &MediaPlayer2Player::FadeVolumeDown);
@@ -100,6 +101,13 @@ void MediaPlayer2Player::Stop()
 void MediaPlayer2Player::Play()
 {
     Q_EMIT play();
+}
+
+void MediaPlayer2Player::Rewind()
+{
+    if (m_mpv) {
+        m_mpv->performRewind();
+    }
 }
 
 void MediaPlayer2Player::Seek(qlonglong offset)

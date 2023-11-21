@@ -52,7 +52,7 @@ SettingsBasePage {
         Item { width: 1; height: 1 }
         CheckBox {
             checked: PlaylistSettings.autoPlayNext
-            text: qsTr("Auto-play video is (continue to next)")
+            text: qsTr("Auto-play video when (continue to next)")
             onCheckStateChanged: {
                 PlaylistSettings.autoPlayNext = checked
                 PlaylistSettings.save()

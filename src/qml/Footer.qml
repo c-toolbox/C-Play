@@ -86,31 +86,25 @@ ToolBar {
             }
         }
 
-        ToolButton {
-            id: playPreviousFile
-            action: actions.playPreviousAction
-            text: ""
-            focusPolicy: Qt.NoFocus
-
-            ToolTip {
-                text: qsTr("Play Previous File")
-            }
-        }
-
-        ToolButton {
-            id: playNextFile
-            action: actions.playNextAction
-            text: ""
-            focusPolicy: Qt.NoFocus
-
-            ToolTip {
-                text: qsTr("Play Next File")
-            }
-        }
-
         HProgressBar {
             id: progressBar
             Layout.fillWidth: true
+        }
+
+        ToolButton {
+            id: rewindButton
+            text: ""
+            icon.name: "backup"
+            focusPolicy: Qt.NoFocus
+
+            onClicked: {
+                mpv.performRewind()
+            }
+
+            ToolTip {
+                id: rewindButtonToolTip
+                text: qsTr("Rewind")
+            }
         }
 
         LabelWithTooltip {

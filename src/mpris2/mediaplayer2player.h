@@ -34,6 +34,7 @@ public Q_SLOTS:
     void PlayPause();
     void Stop();
     void Play();
+    void Rewind();
     void Seek(qlonglong offset);
     void SetPosition(double pos);
     void LoadFromPlaylist(int idx);

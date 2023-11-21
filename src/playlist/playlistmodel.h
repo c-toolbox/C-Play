@@ -63,6 +63,7 @@ public:
 
 signals:
     void currentEditItemChanged();
+    void playingSectionChanged();
 
 private:
     PlayListItem* m_currentEditItem;

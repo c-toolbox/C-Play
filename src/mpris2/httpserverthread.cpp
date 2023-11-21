@@ -64,6 +64,11 @@ void HttpServerThread::setupHttpServer()
             res.set_content("Pause", "text/plain");
         });
 
+        svr.Post("/rewind", [this](const httplib::Request& req, httplib::Response& res) {
+            Q_EMIT rewindMedia();
+            res.set_content("Rewind", "text/plain");
+        });
+
         svr.Post("/volume", [this](const httplib::Request& req, httplib::Response& res) {
             if (req.has_param("level")) {
                 setVolumeFromStr(req.get_param_value("level"));

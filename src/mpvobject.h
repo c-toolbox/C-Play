@@ -362,6 +362,7 @@ public:
     Q_INVOKABLE void togglePlayPause();
     Q_INVOKABLE void clearRecentMediaFilelist();
     Q_INVOKABLE void clearRecentPlaylist();
+    Q_INVOKABLE void performRewind();
 
 public slots:
     static void mpvEvents(void *ctx);
@@ -416,6 +417,7 @@ signals:
     void fadeVolumeUp();
     void fadeImageDown();
     void fadeImageUp();
+    void rewind();
 
 private:
     PlayListItem* loadMediaFileDescription(const QString& file);

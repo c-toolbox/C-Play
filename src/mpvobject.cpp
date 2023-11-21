@@ -341,6 +341,11 @@ void MpvObject::clearRecentPlaylist() {
     GeneralSettings::self()->save();
 }
 
+void MpvObject::performRewind() {
+    setPosition(0);
+    emit rewind();
+}
+
 int MpvObject::volume()
 {
     return getProperty("volume").toInt();
@@ -957,6 +962,20 @@ void MpvObject::setCurrentEditItemFromPlaylist(int playListIndex) {
 void MpvObject::loadSection(int playSectionsIndex) {
     if (m_playSectionsModel->currentEditItem()) {
         m_currentSectionsIndex = -1; //Disabling current section first
+        
+        if (playSectionsIndex < 0 || playSectionsIndex >= m_playSectionsModel->getNumberOfSections()) {
+            m_currentSection = PlayListItemData::Section("", 0, 0, 0);
+            if (SyncHelper::instance().variables.loopTimeEnabled) {
+                SyncHelper::instance().variables.loopTimeA = 0;
+                SyncHelper::instance().variables.loopTimeB = 0;
+                SyncHelper::instance().variables.loopTimeEnabled = false;
+                SyncHelper::instance().variables.loopTimeDirty = true;
+                setProperty("ab-loop-a", "no");
+                setProperty("ab-loop-b", "no");
+            }
+            return;
+        }
+
         m_currentSection = m_playSectionsModel->currentEditItem()->getSection(playSectionsIndex);;
         setPosition(m_currentSection.startTime);
         if (m_currentSection.eosMode == 4) {

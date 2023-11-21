@@ -21,7 +21,7 @@ Kirigami.BasicListItem {
     label: mainText()
     subtitle: model.startTime + " - " + model.endTime + " (" + model.duration + ")" + " - At end: " + model.eosMode
     padding: 0
-    icon: model.isPlaying ? "media-playback-start" : ""
+    icon: model.isPlaying ? "office-chart-pie" : ""
     backgroundColor: {
         let color = Kirigami.Theme.backgroundColor
         Qt.hsla(color.hslHue, color.hslSaturation, color.hslLightness, 1)

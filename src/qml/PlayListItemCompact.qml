@@ -21,7 +21,7 @@ Kirigami.BasicListItem {
     label: mainText()
     subtitle: model.duration + " : " + model.stereoVideo + " " + model.gridToMapOn + " : (" + model.loopMode + ")"
     padding: 0
-    icon: model.isPlaying ? "media-playback-start" : ""
+    icon: model.isPlaying ? "kt-set-max-upload-speed" : ""
     font.pointSize: 9
     backgroundColor: {
         let color = Kirigami.Theme.backgroundColor
@@ -40,6 +40,23 @@ Kirigami.BasicListItem {
         mpv.position = 0
         mpv.loadItem(index)
         mpv.playlistModel.setPlayingVideo(index)
+    }
+
+    Connections {
+        target: mpv
+        function onPauseChanged() {
+            if (model.isPlaying) {
+                if (mpv.pause) {
+                    root.icon = "media-playback-pause"
+                }
+                else {
+                    root.icon = "media-playback-start"
+                }
+            }
+            else if (root.icon !== "") {
+                root.icon = ""
+            }
+        }
     }
 
     ToolTip {

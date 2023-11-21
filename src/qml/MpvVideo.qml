@@ -204,15 +204,19 @@ MpvObject {
         if(loopMode===1){ // Continue
             const nextFileRow = playlistModel.getPlayingVideo() + 1
             if (nextFileRow < playList.playlistView.count) {
-                playlistModel.setPlayingVideo(nextFileRow)
-                loadItem(nextFileRow, !playList.isYouTubePlaylist)
+                mpv.pause = true
+                mpv.position = 0
+                mpv.loadItem(nextFileRow)
+                mpv.playlistModel.setPlayingVideo(nextFileRow)
                 if(PlaylistSettings.autoPlayNext)
                     playItem.start()
             } else {
                 // Last file in playlist
                 if (PlaylistSettings.repeat) {
-                    playlistModel.setPlayingVideo(0)
-                    loadItem(0)
+                    mpv.pause = true
+                    mpv.position = 0
+                    mpv.loadItem(0)
+                    mpv.playlistModel.setPlayingVideo(0)
                     if(PlaylistSettings.autoPlayNext)
                         playItem.start()
                 }

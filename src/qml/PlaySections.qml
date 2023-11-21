@@ -202,6 +202,17 @@ Rectangle {
                             text: qsTr("Move selected downwards")
                         }
                     }
+                    Button {
+                        icon.name: "edit-reset"
+                        onClicked: {
+                            mpv.loadSection(-1)
+                            mpv.playSectionsModel.setPlayingSection(-1)
+                            sectionsView.currentIndex = -1
+                        }
+                        ToolTip {
+                            text: qsTr("Reset to full file")
+                        }
+                    }
                     Layout.columnSpan: 3
                 }
             }
@@ -225,6 +236,18 @@ Rectangle {
                 text: qsTr("Sections: ")
                 font.pointSize: 9
             }
+        }
+    }
+
+    Connections {
+        target: mpv
+        function onFileLoaded() {
+            sectionsView.currentIndex = -1
+        }
+        function onRewind() {
+            mpv.loadSection(-1)
+            mpv.playSectionsModel.setPlayingSection(-1)
+            sectionsView.currentIndex = -1
         }
     }
 

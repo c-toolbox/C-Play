@@ -612,7 +612,7 @@ void Application::setupActions(const QString &actionName)
     if (actionName == QStringLiteral("toggleSections")) {
         auto action = new HAction();
         action->setText(i18n("Sections"));
-        action->setIcon(QIcon::fromTheme("view-media-playlist"));
+        action->setIcon(QIcon::fromTheme("office-chart-pie"));
         m_collection.setDefaultShortcut(action, Qt::Key_S);
         m_collection.addAction(actionName, action);
     }
