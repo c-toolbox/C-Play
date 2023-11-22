@@ -59,7 +59,7 @@ public:
     Q_INVOKABLE double sectionEndTime(int i) const;
     Q_INVOKABLE int sectionEOSMode(int i) const;
 
-    std::string getSectionsAsFormattedString(int charsPerItem = 40) const;
+    std::string getSectionsAsFormattedString(size_t charsPerItem = 40) const;
 
 signals:
     void currentEditItemChanged();

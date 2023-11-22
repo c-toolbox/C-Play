@@ -678,7 +678,7 @@ void PlayListItem::loadUniviewFDV()
     QString fileContent = f.readAll();
     f.close();
 
-    QStringList fileEntries = fileContent.split(QRegExp("[\r\n]"), QString::SkipEmptyParts);
+    QStringList fileEntries = fileContent.split(QRegExp("[\r\n]"), Qt::SkipEmptyParts);
     qInfo() << "File Content: " << fileEntries;
 
     QString fileMainPath = GeneralSettings::univiewVideoLocation();

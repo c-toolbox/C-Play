@@ -44,7 +44,6 @@ void TrackballCameraController::setRotationXYZ(QVector3D rotationXYZ)
 
     auto theCamera = camera();
     if (theCamera != nullptr) {
-        auto theCamera = camera();
         QQuaternion rotation = QQuaternion::fromEulerAngles(rotationXYZ);
         theCamera->rotateAboutViewCenter(rotation);
 
@@ -60,7 +59,6 @@ void TrackballCameraController::setAbsoluteRotation(QVector3D rotationXYZ) {
     auto theCamera = camera();
     if (theCamera != nullptr) {
         QVector3D diff = m_rotationXYZ - rotationXYZ;
-        auto theCamera = camera();
         QQuaternion rotation = QQuaternion::fromEulerAngles(diff);
         theCamera->rotateAboutViewCenter(rotation);
         m_rotationXYZ = rotationXYZ;
@@ -121,7 +119,7 @@ void TrackballCameraController::createRotation(const QPoint &firstPoint, const Q
     angle = acos(clamp(QVector3D::dotProduct(currentPos3D, lastPos3D)));
 }
 
-void TrackballCameraController::moveCamera(const Qt3DExtras::QAbstractCameraController::InputState &state, float dt)
+void TrackballCameraController::moveCamera(const Qt3DExtras::QAbstractCameraController::InputState &state, float)
 {
     auto theCamera = camera();
 

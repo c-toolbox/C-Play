@@ -231,7 +231,7 @@ int PlaySectionsModel::sectionEOSMode(int i) const
     return m_currentEditItem->sectionEOSMode(i);
 }
 
-std::string PlaySectionsModel::getSectionsAsFormattedString(int charsPerItem) const
+std::string PlaySectionsModel::getSectionsAsFormattedString(size_t charsPerItem) const
 {
     if (!m_currentEditItem)
         return "";
@@ -247,7 +247,7 @@ std::string PlaySectionsModel::getSectionsAsFormattedString(int charsPerItem) co
 
         std::string duration = Application::formatTime(playListItemSection.endTime - playListItemSection.startTime).toStdString();
 
-        int countChars = title.size() + duration.size();
+        size_t countChars = title.size() + duration.size();
         if (countChars < charsPerItem) {
             title.insert(title.end(), charsPerItem - countChars, ' ');
         }
@@ -451,7 +451,7 @@ std::string PlayListModel::getListAsFormattedString(int charsPerItem) const
         }
         std::string duration = Application::formatTime(m_playList[i]->duration()).toStdString();
 
-        int countChars = title.size() + duration.size();
+        size_t countChars = title.size() + duration.size();
         if(countChars < charsPerItem) {
             title.insert(title.end(), charsPerItem-countChars, ' ');
         }

@@ -769,10 +769,10 @@ void MpvObject::updateAudioDeviceList()
   QString firstDevice;
   QVariantList audioDevicesList;
   QVariant list = getAudioDeviceList();
-  for(const QVariant& d : list.toList())
+  for(const QVariant& audioDevice : list.toList())
   {
-    Q_ASSERT(d.type() == QVariant::Map);
-    QVariantMap dmap = d.toMap();
+    Q_ASSERT(audioDevice.type() == QVariant::Map);
+    QVariantMap dmap = audioDevice.toMap();
 
     if(!preferredDeviceFound){
         QString device = dmap["name"].toString();
@@ -1010,8 +1010,8 @@ void MpvObject::loadItem(int playListIndex, bool updateLastPlayedFile) {
             return;
         }
         item->loadDetailsFromDisk();
-        PlayListItemData d = item->data();
-        loadItem(d, updateLastPlayedFile);
+        PlayListItemData pld = item->data();
+        loadItem(pld, updateLastPlayedFile);
         m_playSectionsModel->setCurrentEditItem(item);
         emit playSectionsModelChanged();
     }
@@ -1137,30 +1137,30 @@ void MpvObject::loadJSONPlayList(const QString& file, bool updateLastPlayedFile)
             if (!checkedFilePath.isEmpty()) {
                 QFileInfo checkedFilePathInfo(checkedFilePath);
                 QString fileExt = checkedFilePathInfo.suffix();
-                PlayListItem* file = nullptr;
+                PlayListItem* filePtr = nullptr;
 
                 if (fileExt == "cplayfile" || fileExt == "cplay_file" || fileExt == "fdv") {
-                    file = loadMediaFileDescription(checkedFilePath);
+                    filePtr = loadMediaFileDescription(checkedFilePath);
                 }
                 else {
-                    file = new PlayListItem(checkedFilePath);
+                    filePtr = new PlayListItem(checkedFilePath);
                 }
 
-                if (file != NULL) {
+                if (filePtr != NULL) {
                     if (o.contains("on_file_end")) {
                         QString loopMode = o.value("on_file_end").toString();
                         if (loopMode == "pause") {
-                            file->setLoopMode(0);
+                            filePtr->setLoopMode(0);
                         }
                         else if (loopMode == "continue") {
-                            file->setLoopMode(1);
+                            filePtr->setLoopMode(1);
                         }
                         else if (loopMode == "loop") {
-                            file->setLoopMode(2);
+                            filePtr->setLoopMode(2);
                         }
                     }
 
-                    m_playList.append(QPointer<PlayListItem>(file));
+                    m_playList.append(QPointer<PlayListItem>(filePtr));
                 }
                 else
                     qDebug() << "Parsing file failed: " << checkedFilePath;
@@ -1198,7 +1198,7 @@ void MpvObject::loadUniviewPlaylist(const QString& file, bool updateLastPlayedFi
     QString fileContent = f.readAll();
     f.close();
 
-    QStringList playListEntries = fileContent.split(QRegExp("[\r\n]"), QString::SkipEmptyParts);
+    QStringList playListEntries = fileContent.split(QRegExp("[\r\n]"), Qt::SkipEmptyParts);
 
     int videoItems = playListEntries.at(1).mid(14).toInt(); //"NumberOfItems="
 
@@ -1425,37 +1425,37 @@ void MpvObject::loadTracks()
     for (const auto &track : tracks) {
         const auto t = track.toMap();
         if (track.toMap()["type"] == "sub") {
-            auto track = new Track();
-            track->setCodec(t["codec"].toString());
-            track->setType(t["type"].toString());
-            track->setDefaut(t["default"].toBool());
-            track->setDependent(t["dependent"].toBool());
-            track->setForced(t["forced"].toBool());
-            track->setId(t["id"].toLongLong());
-            track->setSrcId(t["src-id"].toLongLong());
-            track->setFfIndex(t["ff-index"].toLongLong());
-            track->setLang(t["lang"].toString());
-            track->setTitle(t["title"].toString());
-            track->setIndex(subIndex);
+            auto newTrack = new Track();
+            newTrack->setCodec(t["codec"].toString());
+            newTrack->setType(t["type"].toString());
+            newTrack->setDefaut(t["default"].toBool());
+            newTrack->setDependent(t["dependent"].toBool());
+            newTrack->setForced(t["forced"].toBool());
+            newTrack->setId(t["id"].toLongLong());
+            newTrack->setSrcId(t["src-id"].toLongLong());
+            newTrack->setFfIndex(t["ff-index"].toLongLong());
+            newTrack->setLang(t["lang"].toString());
+            newTrack->setTitle(t["title"].toString());
+            newTrack->setIndex(subIndex);
 
-            m_subtitleTracks.insert(subIndex, track);
+            m_subtitleTracks.insert(subIndex, newTrack);
             subIndex++;
         }
         if (track.toMap()["type"] == "audio") {
-            auto track = new Track();
-            track->setCodec(t["codec"].toString());
-            track->setType(t["type"].toString());
-            track->setDefaut(t["default"].toBool());
-            track->setDependent(t["dependent"].toBool());
-            track->setForced(t["forced"].toBool());
-            track->setId(t["id"].toLongLong());
-            track->setSrcId(t["src-id"].toLongLong());
-            track->setFfIndex(t["ff-index"].toLongLong());
-            track->setLang(t["lang"].toString());
-            track->setTitle(t["title"].toString());
-            track->setIndex(audioIndex);
+            auto newTrack = new Track();
+            newTrack->setCodec(t["codec"].toString());
+            newTrack->setType(t["type"].toString());
+            newTrack->setDefaut(t["default"].toBool());
+            newTrack->setDependent(t["dependent"].toBool());
+            newTrack->setForced(t["forced"].toBool());
+            newTrack->setId(t["id"].toLongLong());
+            newTrack->setSrcId(t["src-id"].toLongLong());
+            newTrack->setFfIndex(t["ff-index"].toLongLong());
+            newTrack->setLang(t["lang"].toString());
+            newTrack->setTitle(t["title"].toString());
+            newTrack->setIndex(audioIndex);
 
-            m_audioTracks.insert(audioIndex, track);
+            m_audioTracks.insert(audioIndex, newTrack);
             audioIndex++;
         }
     }
@@ -1567,7 +1567,7 @@ TracksModel *MpvObject::audioTracksModel() const
     return m_audioTracksModel;
 }
 
-void MpvObject::getYouTubePlaylist(const QString &path)
+void MpvObject::getYouTubePlaylist(const QString&)
 {
     /*m_playlistModel->clear();
 

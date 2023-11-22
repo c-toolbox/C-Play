@@ -199,7 +199,8 @@ private:
             delete list;
             break;
         }
-        default: ;
+        default:
+            break;
         }
         dst->format = MPV_FORMAT_NONE;
     }

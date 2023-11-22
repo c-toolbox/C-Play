@@ -148,7 +148,41 @@ public:
 
     static SyncHelper& instance();
 
-    SyncVariables variables;
+    SyncVariables variables = {         
+        /*loadedFile*/"",
+        /*bgImageFile*/"",
+        /*overlayFile*/"",
+        /*loadFile*/false,
+        /*paused*/false,
+        /*timePosition*/0.0,
+        /*timeThreshold*/1.0,
+        /*timeDirty*/false,
+        /*syncOn*/true,
+        /*alpha*/1.f,
+        /*alphaBg*/1.f,
+        /*gridToMapOn*/0,
+        /*gridToMapOnBg*/0,
+        /*stereoscopicMode*/0,
+        /*stereoscopicModeBg*/0,
+        /*loopMode*/0,
+        /*radius*/740,
+        /*fov*/165,
+        /*angle*/27.f,
+        /*rotateX*/0,
+        /*rotateY*/0,
+        /*rotateZ*/0,
+        /*translateX*/0,
+        /*translateY*/0,
+        /*translateZ*/0,
+        /*eqDirty*/false,
+        /*eqContrast*/0,
+        /*eqBrightness*/0,
+        /*eqGamma*/0,
+        /*eqSaturation*/0,
+        /*loopTimeDirty*/false,
+        /*loopTimeEnabled*/false,
+        /*loopTimeA*/0,
+        /*loopTimeB*/0 };
 private:
     static SyncHelper* _instance;
 

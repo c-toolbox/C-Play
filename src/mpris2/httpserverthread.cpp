@@ -6,7 +6,10 @@
 #include <QJsonObject>
 
 HttpServerThread::HttpServerThread(QObject *parent)
-    : QThread(parent), runServer(false), portServer(7007)
+    : QThread(parent), 
+    runServer(false), 
+    portServer(7007),
+    m_mpv(nullptr)
 {
 }
 
@@ -54,17 +57,17 @@ void HttpServerThread::setupHttpServer()
     }
 
     if (runServerStr == "yes") {
-        svr.Post("/play", [this](const httplib::Request& req, httplib::Response& res) {
+        svr.Post("/play", [this](const httplib::Request&, httplib::Response& res) {
             Q_EMIT playMedia();
             res.set_content("Play", "text/plain");
         });
 
-        svr.Post("/pause", [this](const httplib::Request& req, httplib::Response& res) {
+        svr.Post("/pause", [this](const httplib::Request&, httplib::Response& res) {
             Q_EMIT pauseMedia();
             res.set_content("Pause", "text/plain");
         });
 
-        svr.Post("/rewind", [this](const httplib::Request& req, httplib::Response& res) {
+        svr.Post("/rewind", [this](const httplib::Request&, httplib::Response& res) {
             Q_EMIT rewindMedia();
             res.set_content("Rewind", "text/plain");
         });
@@ -82,31 +85,31 @@ void HttpServerThread::setupHttpServer()
             }
         });
 
-        svr.Post("/fade_duration", [this](const httplib::Request& req, httplib::Response& res) {
+        svr.Post("/fade_duration", [this](const httplib::Request&, httplib::Response& res) {
             res.set_content(std::to_string(double(PlaybackSettings::fadeDuration())/1000.0), "text/plain");
         });
 
-        svr.Post("/fade_volume_down", [this](const httplib::Request& req, httplib::Response& res) {
+        svr.Post("/fade_volume_down", [this](const httplib::Request&, httplib::Response& res) {
             Q_EMIT fadeVolumeDown();
             res.set_content("Fading volume down", "text/plain");
         });
 
-        svr.Post("/fade_volume_up", [this](const httplib::Request& req, httplib::Response& res) {
+        svr.Post("/fade_volume_up", [this](const httplib::Request&, httplib::Response& res) {
             Q_EMIT fadeVolumeUp();
             res.set_content("Fading volume up", "text/plain");
         });
 
-        svr.Post("/fade_image_down", [this](const httplib::Request& req, httplib::Response& res) {
+        svr.Post("/fade_image_down", [this](const httplib::Request&, httplib::Response& res) {
             Q_EMIT fadeImageDown();
             res.set_content("Fading image down", "text/plain");
         });
 
-        svr.Post("/fade_image_up", [this](const httplib::Request& req, httplib::Response& res) {
+        svr.Post("/fade_image_up", [this](const httplib::Request&, httplib::Response& res) {
             Q_EMIT fadeImageUp();
             res.set_content("Fading image up", "text/plain");
         });
 
-        svr.Post("/visibility", [this](const httplib::Request& req, httplib::Response& res) {
+        svr.Post("/visibility", [this](const httplib::Request&, httplib::Response& res) {
             if (m_mpv) {
                 res.set_content(std::to_string(m_mpv->visibility()), "text/plain");
             }
@@ -115,7 +118,7 @@ void HttpServerThread::setupHttpServer()
             }
         });
 
-        svr.Post("/stereo_mode", [this](const httplib::Request& req, httplib::Response& res) {
+        svr.Post("/stereo_mode", [this](const httplib::Request&, httplib::Response& res) {
             if (m_mpv) {
                 res.set_content(std::to_string(m_mpv->stereoscopicMode()), "text/plain");
             }
@@ -124,7 +127,7 @@ void HttpServerThread::setupHttpServer()
             }
         });
 
-        svr.Post("/grid_mode", [this](const httplib::Request& req, httplib::Response& res) {
+        svr.Post("/grid_mode", [this](const httplib::Request&, httplib::Response& res) {
             if (m_mpv) {
                 res.set_content(std::to_string(m_mpv->gridToMapOn()), "text/plain");
             }
@@ -133,7 +136,7 @@ void HttpServerThread::setupHttpServer()
             }
         });
 
-        svr.Post("/background_stereo_mode", [this](const httplib::Request& req, httplib::Response& res) {
+        svr.Post("/background_stereo_mode", [this](const httplib::Request&, httplib::Response& res) {
             if (m_mpv) {
                 res.set_content(std::to_string(m_mpv->stereoscopicModeBackground()), "text/plain");
             }
@@ -142,7 +145,7 @@ void HttpServerThread::setupHttpServer()
             }
         });
 
-        svr.Post("/background_grid_mode", [this](const httplib::Request& req, httplib::Response& res) {
+        svr.Post("/background_grid_mode", [this](const httplib::Request&, httplib::Response& res) {
             if (m_mpv) {
                 res.set_content(std::to_string(m_mpv->gridToMapOnBackground()), "text/plain");
             }
@@ -151,7 +154,7 @@ void HttpServerThread::setupHttpServer()
             }
         });
 
-        svr.Post("/loop_mode", [this](const httplib::Request& req, httplib::Response& res) {
+        svr.Post("/loop_mode", [this](const httplib::Request&, httplib::Response& res) {
             if (m_mpv) {
                 res.set_content(std::to_string(m_mpv->loopMode()), "text/plain");
             }
@@ -160,7 +163,7 @@ void HttpServerThread::setupHttpServer()
             }
         });
 
-        svr.Post("/media_title", [this](const httplib::Request& req, httplib::Response& res) {
+        svr.Post("/media_title", [this](const httplib::Request&, httplib::Response& res) {
             if (m_mpv) {
                 res.set_content(m_mpv->mediaTitle().toStdString(), "text/plain");
             }
@@ -182,7 +185,7 @@ void HttpServerThread::setupHttpServer()
             }
         });
 
-        svr.Post("/remaining", [this](const httplib::Request& req, httplib::Response& res) {
+        svr.Post("/remaining", [this](const httplib::Request&, httplib::Response& res) {
             if (m_mpv) {
                 res.set_content(std::to_string(m_mpv->remaining()), "text/plain");
             }
@@ -191,7 +194,7 @@ void HttpServerThread::setupHttpServer()
             }
         });
 
-        svr.Post("/duration", [this](const httplib::Request& req, httplib::Response& res) {
+        svr.Post("/duration", [this](const httplib::Request&, httplib::Response& res) {
             if (m_mpv) {
                 res.set_content(std::to_string(m_mpv->duration()), "text/plain");
             }
@@ -208,7 +211,7 @@ void HttpServerThread::setupHttpServer()
             res.set_content(getPlayListItems(charsPerItem), "text/plain");
         });
 
-        svr.Post("/playing_in_playlist", [this](const httplib::Request& req, httplib::Response& res) {
+        svr.Post("/playing_in_playlist", [this](const httplib::Request&, httplib::Response& res) {
             res.set_content(getPlaylingItemIndexFromPlaylist(), "text/plain");
         });
 
@@ -228,7 +231,7 @@ void HttpServerThread::setupHttpServer()
             res.set_content(getSectionsItems(charsPerItem), "text/plain");
         });
 
-        svr.Post("/playing_in_sections", [this](const httplib::Request& req, httplib::Response& res) {
+        svr.Post("/playing_in_sections", [this](const httplib::Request&, httplib::Response& res) {
             res.set_content(getPlaylingItemIndexFromSections(), "text/plain");
         });
 
@@ -240,42 +243,42 @@ void HttpServerThread::setupHttpServer()
             res.set_content("Missing index parameter", "text/plain");
         });
 
-        svr.Post("/spin_pitch_up", [this](const httplib::Request& req, httplib::Response& res) {
+        svr.Post("/spin_pitch_up", [this](const httplib::Request&, httplib::Response& res) {
             Q_EMIT spinPitchUp();
             res.set_content("Pitch Up", "text/plain");
         });
 
-        svr.Post("/spin_pitch_down", [this](const httplib::Request& req, httplib::Response& res) {
+        svr.Post("/spin_pitch_down", [this](const httplib::Request&, httplib::Response& res) {
             Q_EMIT spinPitchDown();
             res.set_content("Pitch Down", "text/plain");
         });
 
-        svr.Post("/spin_yaw_left", [this](const httplib::Request& req, httplib::Response& res) {
+        svr.Post("/spin_yaw_left", [this](const httplib::Request&, httplib::Response& res) {
             Q_EMIT spinYawLeft();
             res.set_content("Yaw Left", "text/plain");
         });
 
-        svr.Post("/spin_yaw_right", [this](const httplib::Request& req, httplib::Response& res) {
+        svr.Post("/spin_yaw_right", [this](const httplib::Request&, httplib::Response& res) {
             Q_EMIT spinYawRight();
             res.set_content("Yaw Right", "text/plain");
         });
 
-        svr.Post("/spin_roll_ccw", [this](const httplib::Request& req, httplib::Response& res) {
+        svr.Post("/spin_roll_ccw", [this](const httplib::Request&, httplib::Response& res) {
             Q_EMIT spinRollCCW();
             res.set_content("Roll CCW", "text/plain");
         });
 
-        svr.Post("/spin_roll_cw", [this](const httplib::Request& req, httplib::Response& res) {
+        svr.Post("/spin_roll_cw", [this](const httplib::Request&, httplib::Response& res) {
             Q_EMIT spinRollCW();
             res.set_content("Roll CCW", "text/plain");
         });
 
-        svr.Post("/orientation_reset", [this](const httplib::Request& req, httplib::Response& res) {
+        svr.Post("/orientation_reset", [this](const httplib::Request&, httplib::Response& res) {
             Q_EMIT orientationAndSpinReset();
             res.set_content("Origin Reset", "text/plain");
         });
 
-        svr.Post("/surface_transition", [this](const httplib::Request& req, httplib::Response& res) {
+        svr.Post("/surface_transition", [this](const httplib::Request&, httplib::Response& res) {
             Q_EMIT runSurfaceTransistion();
             res.set_content("Surface Transition", "text/plain");
         });
@@ -317,11 +320,11 @@ bool HttpServerThread::stringToInt(std::string str, int& parsedInt)
             parsedInt = std::stoi(str);
             return true;
         }
-        catch (std::invalid_argument const& ex)
+        catch (std::invalid_argument const&)
         {
             return false;
         }
-        catch (std::out_of_range const& ex)
+        catch (std::out_of_range const&)
         {
             return true;
         }
@@ -337,11 +340,11 @@ bool HttpServerThread::stringToDouble(std::string str, double& parsedDouble)
             parsedDouble = std::stod(str);
             return true;
         }
-        catch (std::invalid_argument const& ex)
+        catch (std::invalid_argument const&)
         {
             return false;
         }
-        catch (std::out_of_range const& ex)
+        catch (std::out_of_range const&)
         {
             return true;
         }

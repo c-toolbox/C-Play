@@ -34,8 +34,6 @@ int domeRadius = 740;
 int domeFov = 165;
 float planeWidth = 0.f;
 float planeHeight = 0.f;
-float planeElevation = 0.f;
-float planeDistance = 0.f;
 std::string loadedFile = "";
 std::string backgroundImageFile = "";
 std::string videoFilters = "";
@@ -46,7 +44,7 @@ int videoWidth = 0;
 int videoHeight = 0;
 unsigned int mpvFBO = 0;
 unsigned int mpvTex = 0;
-unsigned int bgImageTex = -1;
+unsigned int bgImageTex = 0;
 
 struct RenderParams {
     unsigned int tex;
@@ -675,10 +673,8 @@ void initOGL(GLFWwindow*) {
     dome = std::make_unique<utils::Dome>(float(domeRadius)/100.f, float(domeFov), 256, 128);
     sphere = std::make_unique<utils::Sphere>(float(domeRadius) / 100.f, 256);
 
-    float planeWidth = float(SyncHelper::instance().variables.planeWidth);
-    float planeHeight = float(SyncHelper::instance().variables.planeHeight);
-    float planeElevation = float(SyncHelper::instance().variables.planeElevation);
-    float planeDistance = float(SyncHelper::instance().variables.planeDistance);
+    planeWidth = float(SyncHelper::instance().variables.planeWidth);
+    planeHeight = float(SyncHelper::instance().variables.planeHeight);
     plane = std::make_unique<utils::Plane>(planeWidth / 100.f, planeHeight / 100.f);
 
     // Set up backface culling
@@ -1272,7 +1268,7 @@ int main(int argc, char *argv[])
         //Do not support arguments to QApp, only SGCT
         std::vector<char*> cargv;
         cargv.push_back(argv[0]);
-        int cargv_size = cargv.size();
+        int cargv_size = static_cast<int>(cargv.size());
 
         //Launch master application (which calls Engine::render from thread)
         Application::create(cargv_size, &cargv[0], "C-Play");
