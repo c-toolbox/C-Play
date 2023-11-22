@@ -1,13 +1,5 @@
-#
-# SPDX-FileCopyrightText: 2020 George Florea Bănuș <georgefb899@gmail.com>
-#
-# SPDX-License-Identifier: GPL-3.0-or-later
-#
-
-cmake_minimum_required(VERSION 3.15)
-cmake_policy(SET CMP0048 NEW)
-cmake_policy(SET CMP0063 NEW)
-cmake_policy(SET CMP0072 NEW)
+cmake_minimum_required(VERSION 3.25 FATAL_ERROR)
+cmake_policy(VERSION 3.25)
 get_filename_component(C_PLAY_SOURCE_PARENT ${CMAKE_SOURCE_DIR} DIRECTORY)
 set(CMAKE_INSTALL_PREFIX "${C_PLAY_SOURCE_PARENT}/install" CACHE PATH "")
 
@@ -23,6 +15,7 @@ set_property(GLOBAL PROPERTY USE_FOLDERS ON)
 find_package(ECM 1.0.0 REQUIRED NO_MODULE)
 set(CMAKE_MODULE_PATH ${ECM_MODULE_PATH} ${ECM_KDE_MODULE_DIR} ${CMAKE_CURRENT_SOURCE_DIR}/cmake)
 
+include(${PROJECT_SOURCE_DIR}/src/sgct/support/cmake/set_compile_options.cmake)
 include(KDEInstallDirs)
 include(ECMInstallIcons)
 include(FeatureSummary)

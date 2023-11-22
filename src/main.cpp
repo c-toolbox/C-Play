@@ -10,9 +10,11 @@
 #include <sgct/utils/sphere.h>
 #include <sgct/utils/plane.h>
 #include <sgct/offscreenbuffer.h>
-#include <glm/glm.hpp>
-#include <glm/gtc/type_ptr.hpp>
+#define GLFW_INCLUDE_NONE
 #include <GLFW/glfw3.h>
+#include <glm/glm.hpp>
+#include <glm/gtc/matrix_transform.hpp>
+#include <glm/gtc/type_ptr.hpp>
 #include "application.h"
 #include <client.h>
 #include <render_gl.h>
@@ -37,8 +39,8 @@ float planeDistance = 0.f;
 std::string loadedFile = "";
 std::string backgroundImageFile = "";
 std::string videoFilters = "";
-glm::vec3 bgRotate = glm::vec3(0.f);
-glm::vec3 bgTranslate = glm::vec3(0.f);
+glm::vec3 bgRotate(0.f);
+glm::vec3 bgTranslate(0.f);
 
 int videoWidth = 0;
 int videoHeight = 0;
@@ -740,7 +742,8 @@ std::vector<std::byte> encode() {
     return data;
 }
 
-void decode(const std::vector<std::byte>& data, unsigned int pos) {
+void decode(const std::vector<std::byte>& data) {
+    unsigned pos = 0;
     deserializeObject(data, pos, SyncHelper::instance().variables.syncOn);
     deserializeObject(data, pos, SyncHelper::instance().variables.alpha);
     deserializeObject(data, pos, SyncHelper::instance().variables.alphaBg);
@@ -1028,7 +1031,7 @@ void draw(const RenderData& data) {
                 glUniform1i(EACStereoscopicModeLoc, 0);
             }
 
-            mat4 mvp = data.modelViewProjectionMatrix;
+            const sgct::mat4 mvp = data.modelViewProjectionMatrix;
             glm::mat4 MVP_transformed = glm::translate(glm::make_mat4(mvp.values), renderParam.translate);
 
             glm::mat4 MVP_transformed_rot = MVP_transformed;
@@ -1066,7 +1069,7 @@ void draw(const RenderData& data) {
         else if (renderParam.gridMode == 3) {
             glEnable(GL_CULL_FACE);
 
-            mat4 mvp = data.modelViewProjectionMatrix;
+            const sgct::mat4 mvp = data.modelViewProjectionMatrix;
             glm::mat4 MVP_transformed = glm::translate(glm::make_mat4(mvp.values), renderParam.translate);
 
             glm::mat4 MVP_transformed_rot = MVP_transformed;
@@ -1131,7 +1134,7 @@ void draw(const RenderData& data) {
 
             glUniform1f(meshAlphaLoc, renderParam.alpha);
 
-            mat4 mvp = data.modelViewProjectionMatrix;
+            const sgct::mat4 mvp = data.modelViewProjectionMatrix;
             glm::mat4 MVP_transformed_rot = glm::translate(glm::make_mat4(mvp.values), renderParam.translate);
             MVP_transformed_rot = glm::rotate(MVP_transformed_rot, glm::radians(renderParam.rotate.z), glm::vec3(0.0f, 0.0f, 1.0f)); //roll
             MVP_transformed_rot = glm::rotate(MVP_transformed_rot, glm::radians(renderParam.rotate.x - float(SyncHelper::instance().variables.angle)), glm::vec3(1.0f, 0.0f, 0.0f)); //pitch
@@ -1162,7 +1165,7 @@ void draw(const RenderData& data) {
 
             glUniform1f(meshAlphaLoc, renderParam.alpha);
 
-            mat4 mvp = data.projectionMatrix * data.viewMatrix;
+            const sgct::mat4 mvp = data.projectionMatrix * data.viewMatrix;
 
             glm::mat4 planeTransform = glm::mat4(1.0f);
             //planeTransform = glm::rotate(planeTransform, glm::radians(float(SyncHelper::instance().variables.planeAzimuth)), glm::vec3(0.0f, -1.0f, 0.0f)); //azimuth
@@ -1279,7 +1282,7 @@ int main(int argc, char *argv[])
 #endif
         Log::Info("Start Client");
 
-        Engine::instance().render();
+        Engine::instance().exec();
         Engine::destroy();
         return EXIT_SUCCESS;
 #ifndef SGCT_ONLY

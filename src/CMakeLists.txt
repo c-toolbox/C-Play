@@ -13,6 +13,7 @@ set(QML_IMPORT_PATH "${CMAKE_CURRENT_SOURCE_DIR}/qml" CACHE STRING "Qt Creator 4
 set(TARGET_NAME C-Play)
 
 add_executable(${TARGET_NAME})
+set_compile_options(${TARGET_NAME})
 
 target_sources(${TARGET_NAME}
     PRIVATE
@@ -60,6 +61,7 @@ endif()
 
 option(SGCT_FREETYPE_SUPPORT "Build SGCT with Freetype2" OFF)
 option(SGCT_DEP_INCLUDE_FREETYPE "Include FreeType library" OFF)
+option(SGCT_BUILD_TESTS "Build SGCT tests" OFF)
 add_subdirectory(${CMAKE_CURRENT_SOURCE_DIR}/sgct)
 
 target_link_libraries(${TARGET_NAME} PRIVATE

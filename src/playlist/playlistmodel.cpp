@@ -613,7 +613,7 @@ QUrl PlayListModel::fileFolderPath(int i) const
     if (i >= 0 && m_playList.size() > i && m_playList[i])
         return m_playList[i].data()->fileFolderPath();
     else
-        return "";
+        return QUrl();
 }
 
 QString PlayListModel::mediaFile(int i) const
