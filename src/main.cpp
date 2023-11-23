@@ -56,9 +56,23 @@ struct RenderParams {
 };
 std::vector<RenderParams> renderParams;
 
+struct ImageData {
+    std::string filename;
+    sgct::Image img;
+    std::atomic_bool imageDone = false;
+    std::atomic_bool uploadDone = false;
+    std::atomic_bool threadDone = false;
+};
+auto loadImage = [](ImageData& data) {
+    data.img.load(data.filename);
+    data.imageDone = true;
+    while (!data.uploadDone) {}
+    data.img = sgct::Image();
+    data.threadDone = true;
+};
+
 int mpvVideoReconfigs = 0;
 bool updateRendering = true;
-bool doingBackgroundUpdate = false;
 
 bool paused = true;
 int loopMode = -1;
@@ -83,7 +97,7 @@ int EACVideoHeightLoc = -1;
 int EACEyeModeLoc = -1;
 int EACStereoscopicModeLoc = -1;
 
-constexpr const char* VideoVert = R"(
+constexpr std::string_view VideoVert = R"(
   #version 410 core
 
   layout (location = 0) in vec2 in_position;
@@ -125,7 +139,7 @@ constexpr const char* VideoVert = R"(
   }
 )";
 
-constexpr const char* MeshVert = R"(
+constexpr std::string_view MeshVert = R"(
   #version 410 core
 
   layout (location = 0) in vec2 in_texCoord;
@@ -171,7 +185,7 @@ constexpr const char* MeshVert = R"(
   }
 )";
 
-constexpr const char* VideoFrag = R"(
+constexpr std::string_view VideoFrag = R"(
   #version 410 core
 
   uniform sampler2D tex;
@@ -192,7 +206,7 @@ constexpr const char* VideoFrag = R"(
   }
 )";
 
-constexpr const char* EACMeshVert = R"(
+constexpr std::string_view EACMeshVert = R"(
   #version 410 core
 
   layout (location = 0) in vec2 in_texCoord;
@@ -218,7 +232,7 @@ constexpr const char* EACMeshVert = R"(
   }
 )";
 
-constexpr const char* EACVideoFrag = R"(
+constexpr std::string_view EACVideoFrag = R"(
   #version 410 core
 
   uniform sampler2D tex;
@@ -463,45 +477,27 @@ void createMpvFBO(int width, int height){
     glGenFramebuffers(1, &mpvFBO);
     glBindFramebuffer(GL_FRAMEBUFFER, mpvFBO);
 
-    if (doingBackgroundUpdate) {
-        generateTexture(mpvTex, width, height);
-        generateTexture(bgImageTex, width, height);
+    generateTexture(mpvTex, width, height);
 
-        glFramebufferTexture2D(
-            GL_FRAMEBUFFER,
-            GL_COLOR_ATTACHMENT0,
-            GL_TEXTURE_2D,
-            bgImageTex,
-            0
-        );
-    }
-    else {
-        generateTexture(mpvTex, width, height);
-
-        glFramebufferTexture2D(
-            GL_FRAMEBUFFER,
-            GL_COLOR_ATTACHMENT0,
-            GL_TEXTURE_2D,
-            mpvTex,
-            0
-        );
-    }
+    glFramebufferTexture2D(
+        GL_FRAMEBUFFER,
+        GL_COLOR_ATTACHMENT0,
+        GL_TEXTURE_2D,
+        mpvTex,
+        0
+    );
 
     glBindFramebuffer(GL_FRAMEBUFFER, 0);
 }
 
 void resizeMpvFBO(int width, int height){
-    if(doingBackgroundUpdate == false && width == videoWidth && height == videoHeight)
+    if(width == videoWidth && height == videoHeight)
         return;
 
     Log::Info(fmt::format("New MPV FBO width:{} and height:{}", width, height));
 
     glDeleteFramebuffers(1, &mpvFBO);
     glDeleteTextures(1, &mpvTex);
-
-    if (doingBackgroundUpdate) {
-        glDeleteTextures(1, &bgImageTex);
-    }
 
     createMpvFBO(width, height);
 }
@@ -534,8 +530,7 @@ void on_mpv_events(void*)
                     resizeMpvFBO((int)w, (int)h);
                     mpvVideoReconfigs++;
                     updateRendering = (mpvVideoReconfigs > 0);
-                    if(!doingBackgroundUpdate)
-                        mpv::qt::set_property(mpvHandle, "time-pos", SyncHelper::instance().variables.timePosition);
+                    mpv::qt::set_property(mpvHandle, "time-pos", SyncHelper::instance().variables.timePosition);
                 }
                 break;
             }
@@ -786,16 +781,26 @@ void postSyncPreDraw() {
 #ifndef SGCT_ONLY
     //Apply synced commands
     if (!Engine::instance().isMaster()) {
-        if (doingBackgroundUpdate && updateRendering && !loadedFile.empty())
-            SyncHelper::instance().variables.loadFile = true;
-
         if (!SyncHelper::instance().variables.bgImageFile.empty() && backgroundImageFile != SyncHelper::instance().variables.bgImageFile) {
             //Load background file
             backgroundImageFile = SyncHelper::instance().variables.bgImageFile;
-            Log::Info(fmt::format("Loading new background: {}", backgroundImageFile));
-            mpvVideoReconfigs = 0;
-            updateRendering = false;
-            doingBackgroundUpdate = true;
+            if (!std::filesystem::exists(backgroundImageFile)) {
+                Log::Error(fmt::format("Could not find image: {}", backgroundImageFile));
+            }
+            else {
+                Log::Info(fmt::format("Loading new background: {}", backgroundImageFile));
+
+                ImageData background;
+                background.filename = backgroundImageFile;
+                std::thread t1(loadImage, std::ref(background));
+                while (!background.imageDone) {}
+
+                bgImageTex = TextureManager::instance().loadTexture(std::move(background.img));
+                background.uploadDone = true;
+
+                while (!background.threadDone) {}
+                t1.join();
+            }
 
             bgRotate = glm::vec3(float(SyncHelper::instance().variables.rotateX),
                 float(SyncHelper::instance().variables.rotateY),
@@ -803,25 +808,8 @@ void postSyncPreDraw() {
             bgTranslate = glm::vec3(float(SyncHelper::instance().variables.translateX) / 100.f,
                 float(SyncHelper::instance().variables.translateY) / 100.f,
                 float(SyncHelper::instance().variables.translateZ) / 100.f);
-
-            mpv::qt::command_async(mpvHandle, QStringList() << "loadfile" << QString::fromStdString(backgroundImageFile));
-            mpv::qt::set_property(mpvHandle, "lavfi-complex", "");
         }
-        else if (!SyncHelper::instance().variables.loadedFile.empty() && (SyncHelper::instance().variables.loadFile || loadedFile != SyncHelper::instance().variables.loadedFile)) {
-            if(doingBackgroundUpdate) {
-                glGenFramebuffers(1, &mpvFBO);
-                glBindFramebuffer(GL_FRAMEBUFFER, mpvFBO);
-                glFramebufferTexture2D(
-                    GL_FRAMEBUFFER,
-                    GL_COLOR_ATTACHMENT0,
-                    GL_TEXTURE_2D,
-                    mpvTex,
-                    0
-                );
-                glBindFramebuffer(GL_FRAMEBUFFER, 0);
-                doingBackgroundUpdate = false;
-            }
-            
+        else if (!SyncHelper::instance().variables.loadedFile.empty() && (SyncHelper::instance().variables.loadFile || loadedFile != SyncHelper::instance().variables.loadedFile)) {            
             //Load new file
             loadedFile = SyncHelper::instance().variables.loadedFile;
             SyncHelper::instance().variables.loadFile = false;

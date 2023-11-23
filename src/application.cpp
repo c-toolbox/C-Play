@@ -442,6 +442,7 @@ void Application::setBackgroundImageFile(const QString& path)
     else
         return;
 
+    absolutePath.replace("file:///", "");
     std::string str = absolutePath.toStdString();
     if (SyncHelper::instance().variables.bgImageFile != str) {
         SyncHelper::instance().variables.bgImageFile = str;
