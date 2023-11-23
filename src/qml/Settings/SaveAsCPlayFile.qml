@@ -83,7 +83,11 @@ Kirigami.ApplicationWindow {
     Platform.FileDialog {
         id: openSeparateOverlayFileDialog
         title: "Choose Separate Overlay File"
+        folder: GeneralSettings.cPlayMediaLocation !== ""
+                ? app.pathToUrl(GeneralSettings.cPlayMediaLocation)
+                : app.pathToUrl(GeneralSettings.fileDialogLastLocation)
         fileMode: Platform.FileDialog.OpenFile
+        nameFilters: [ "Image files (*.png *.jpg *.jpeg *.tga)" ]
 
         onAccepted: {
             separateOverlayFileCheckBox.checked = true

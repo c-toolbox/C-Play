@@ -880,7 +880,7 @@ void MpvObject::loadFile(const QString &file, bool updateLastPlayedFile)
         SyncHelper::instance().variables.overlayFile = "";
         SyncHelper::instance().variables.loadFile = true;
 
-        setProperty("lavfi-complex", "");
+        //setProperty("lavfi-complex", "");
         m_currentSectionsIndex = -1;
         command(QStringList() << "loadfile" << fileToLoad, true);
 
@@ -1049,12 +1049,13 @@ void MpvObject::loadItem(PlayListItemData itemData, bool updateLastPlayedFile, Q
         
         command(newCommand, true);
 
-        if (itemData.separateOverlayFile() != "") {
-            setProperty("lavfi-complex", "[vid1][vid2]overlay@myoverlay[vo]");
-        }
-        else {
-            setProperty("lavfi-complex", "");
-        }
+        // Crashing in mpv 0.36
+        //if (itemData.separateOverlayFile() != "") {
+        //    setProperty("lavfi-complex", "[vid1][vid2]overlay@myoverlay[vo]");
+        //}
+        //else {
+        //    setProperty("lavfi-complex", "");
+        //}
         
         m_loadedFileStructure = itemData.filePath();
         SyncHelper::instance().variables.loadedFile = itemData.mediaFile().toStdString();

@@ -35,7 +35,6 @@ int domeFov = 165;
 float planeWidth = 0.f;
 float planeHeight = 0.f;
 std::string loadedFile = "";
-std::string backgroundImageFile = "";
 std::string videoFilters = "";
 glm::vec3 bgRotate(0.f);
 glm::vec3 bgTranslate(0.f);
@@ -67,6 +66,7 @@ struct ImageData {
 };
 
 ImageData backgroundImageData;
+ImageData overlayImageData;
 
 auto loadImageAsync = [](ImageData& data) {
     data.threadRunning = true;
@@ -804,48 +804,62 @@ void postSyncPreDraw() {
     //Apply synced commands
     if (!Engine::instance().isMaster()) {
         handleAsyncImageUpload(backgroundImageData);
+        handleAsyncImageUpload(overlayImageData);
 
-        if (!SyncHelper::instance().variables.bgImageFile.empty() && backgroundImageFile != SyncHelper::instance().variables.bgImageFile) {
-            //Load background file
-            backgroundImageFile = SyncHelper::instance().variables.bgImageFile;
-            if (!std::filesystem::exists(backgroundImageFile)) {
-                Log::Error(fmt::format("Could not find image: {}", backgroundImageFile));
+        if (backgroundImageData.filename != SyncHelper::instance().variables.bgImageFile) {
+            if (!SyncHelper::instance().variables.bgImageFile.empty()) {
+                //Load background file
+                if (!std::filesystem::exists(SyncHelper::instance().variables.bgImageFile)) {
+                    Log::Error(fmt::format("Could not find image: {}", SyncHelper::instance().variables.bgImageFile));
+                }
+                else {
+                    backgroundImageData.filename = SyncHelper::instance().variables.bgImageFile;
+                    Log::Info(fmt::format("Loading new background image asynchronously: {}", backgroundImageData.filename));
+                    backgroundImageData.trd = std::thread(loadImageAsync, std::ref(backgroundImageData));
+                }
+
+                bgRotate = glm::vec3(float(SyncHelper::instance().variables.rotateX),
+                    float(SyncHelper::instance().variables.rotateY),
+                    float(SyncHelper::instance().variables.rotateZ));
+                bgTranslate = glm::vec3(float(SyncHelper::instance().variables.translateX) / 100.f,
+                    float(SyncHelper::instance().variables.translateY) / 100.f,
+                    float(SyncHelper::instance().variables.translateZ) / 100.f);
             }
             else {
-                Log::Info(fmt::format("Loading new background asynchronously: {}", backgroundImageFile));
-                backgroundImageData.filename = backgroundImageFile;
-                backgroundImageData.trd = std::thread(loadImageAsync, std::ref(backgroundImageData));
+                backgroundImageData.filename = "";
             }
-
-            bgRotate = glm::vec3(float(SyncHelper::instance().variables.rotateX),
-                float(SyncHelper::instance().variables.rotateY),
-                float(SyncHelper::instance().variables.rotateZ));
-            bgTranslate = glm::vec3(float(SyncHelper::instance().variables.translateX) / 100.f,
-                float(SyncHelper::instance().variables.translateY) / 100.f,
-                float(SyncHelper::instance().variables.translateZ) / 100.f);
         }
-        else if (!SyncHelper::instance().variables.loadedFile.empty() && (SyncHelper::instance().variables.loadFile || loadedFile != SyncHelper::instance().variables.loadedFile)) {            
+
+        if (overlayImageData.filename != SyncHelper::instance().variables.overlayFile) {
+            if (!SyncHelper::instance().variables.overlayFile.empty()) {
+                //Load overlay file
+                if (!std::filesystem::exists(SyncHelper::instance().variables.overlayFile)) {
+                    Log::Error(fmt::format("Could not find image: {}", SyncHelper::instance().variables.overlayFile));
+                }
+                else {
+                    overlayImageData.filename = SyncHelper::instance().variables.overlayFile;
+                    Log::Info(fmt::format("Loading new overlay image asynchronously: {}", overlayImageData.filename));
+                    overlayImageData.trd = std::thread(loadImageAsync, std::ref(overlayImageData));
+                }
+            }
+            else {
+                overlayImageData.filename = "";
+            }
+        }
+
+        if (!SyncHelper::instance().variables.loadedFile.empty() && (SyncHelper::instance().variables.loadFile || loadedFile != SyncHelper::instance().variables.loadedFile)) {            
             //Load new file
             loadedFile = SyncHelper::instance().variables.loadedFile;
             SyncHelper::instance().variables.loadFile = false;
             Log::Info(fmt::format("Loading new file: {}", loadedFile));
             mpvVideoReconfigs = 0;
             updateRendering = false;
-
-            if (!SyncHelper::instance().variables.overlayFile.empty()) {
-                Log::Info(fmt::format("Loading overlay file: {}", SyncHelper::instance().variables.overlayFile));
-                mpv::qt::command_async(mpvHandle, QStringList() << "loadfile" << QString::fromStdString(loadedFile) << "replace" << QString::fromStdString("external-file=" + SyncHelper::instance().variables.overlayFile));
-                mpv::qt::set_property(mpvHandle, "lavfi-complex", "[vid1][vid2]overlay@myoverlay[vo]");
-            }
-            else {
-                mpv::qt::command_async(mpvHandle, QStringList() << "loadfile" << QString::fromStdString(loadedFile));
-                mpv::qt::set_property(mpvHandle, "lavfi-complex", "");
-            }
+            mpv::qt::command_async(mpvHandle, QStringList() << "loadfile" << QString::fromStdString(loadedFile));
         }
 
         renderParams.clear();
 
-        if (!backgroundImageFile.empty() && SyncHelper::instance().variables.alphaBg > 0.f) {
+        if (!backgroundImageData.filename.empty() && SyncHelper::instance().variables.alphaBg > 0.f) {
             RenderParams rpBg;
             rpBg.tex = backgroundImageData.texId;
             rpBg.alpha = SyncHelper::instance().variables.alphaBg;
@@ -869,6 +883,21 @@ void postSyncPreDraw() {
                 float(SyncHelper::instance().variables.translateY) / 100.f, 
                 float(SyncHelper::instance().variables.translateZ) / 100.f);
             renderParams.push_back(rpMpv);
+        }
+
+        if (!overlayImageData.filename.empty() && SyncHelper::instance().variables.alphaBg > 0.f) {
+            RenderParams rpOverlay;
+            rpOverlay.tex = overlayImageData.texId;
+            rpOverlay.alpha = SyncHelper::instance().variables.alpha;
+            rpOverlay.gridMode = SyncHelper::instance().variables.gridToMapOn;
+            rpOverlay.stereoMode = SyncHelper::instance().variables.stereoscopicMode;
+            rpOverlay.rotate = glm::vec3(float(SyncHelper::instance().variables.rotateX),
+                float(SyncHelper::instance().variables.rotateY),
+                float(SyncHelper::instance().variables.rotateZ));
+            rpOverlay.translate = glm::vec3(float(SyncHelper::instance().variables.translateX) / 100.f,
+                float(SyncHelper::instance().variables.translateY) / 100.f,
+                float(SyncHelper::instance().variables.translateZ) / 100.f);
+            renderParams.push_back(rpOverlay);
         }
 
         paused = mpv::qt::get_property(mpvHandle, "pause").toBool();
