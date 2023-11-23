@@ -44,7 +44,6 @@ int videoWidth = 0;
 int videoHeight = 0;
 unsigned int mpvFBO = 0;
 unsigned int mpvTex = 0;
-unsigned int bgImageTex = 0;
 
 struct RenderParams {
     unsigned int tex;
@@ -59,11 +58,18 @@ std::vector<RenderParams> renderParams;
 struct ImageData {
     std::string filename;
     sgct::Image img;
+    std::thread trd;
+    unsigned int texId = 0;
+    std::atomic_bool threadRunning = false;
     std::atomic_bool imageDone = false;
     std::atomic_bool uploadDone = false;
     std::atomic_bool threadDone = false;
 };
-auto loadImage = [](ImageData& data) {
+
+ImageData backgroundImageData;
+
+auto loadImageAsync = [](ImageData& data) {
+    data.threadRunning = true;
     data.img.load(data.filename);
     data.imageDone = true;
     while (!data.uploadDone) {}
@@ -449,6 +455,22 @@ const ShaderProgram* meshPrg;
 const ShaderProgram* EACPrg;
 const ShaderProgram* createCubeMapPrg;
 
+void handleAsyncImageUpload(ImageData& imgData) {
+    if (imgData.threadRunning) {
+        if (imgData.imageDone && !imgData.uploadDone) {
+            imgData.texId = TextureManager::instance().loadTexture(std::move(imgData.img));
+            imgData.uploadDone = true;
+        }
+        else if (imgData.threadDone) {
+            imgData.threadRunning = false;
+            imgData.imageDone = false;
+            imgData.uploadDone = false;
+            imgData.threadDone = false;
+            imgData.trd.join();
+        }
+    }
+}
+
 void generateTexture(unsigned int& id, int width, int height) {
     glGenTextures(1, &id);
     glPixelStorei(GL_PACK_ALIGNMENT, 1);
@@ -472,7 +494,7 @@ void createMpvFBO(int width, int height){
     videoWidth = width;
     videoHeight = height;
 
-    Engine::instance().thisNode().windows().front()->makeSharedContextCurrent();
+    sgct::Window::makeSharedContextCurrent();
 
     glGenFramebuffers(1, &mpvFBO);
     glBindFramebuffer(GL_FRAMEBUFFER, mpvFBO);
@@ -781,6 +803,8 @@ void postSyncPreDraw() {
 #ifndef SGCT_ONLY
     //Apply synced commands
     if (!Engine::instance().isMaster()) {
+        handleAsyncImageUpload(backgroundImageData);
+
         if (!SyncHelper::instance().variables.bgImageFile.empty() && backgroundImageFile != SyncHelper::instance().variables.bgImageFile) {
             //Load background file
             backgroundImageFile = SyncHelper::instance().variables.bgImageFile;
@@ -788,18 +812,9 @@ void postSyncPreDraw() {
                 Log::Error(fmt::format("Could not find image: {}", backgroundImageFile));
             }
             else {
-                Log::Info(fmt::format("Loading new background: {}", backgroundImageFile));
-
-                ImageData background;
-                background.filename = backgroundImageFile;
-                std::thread t1(loadImage, std::ref(background));
-                while (!background.imageDone) {}
-
-                bgImageTex = TextureManager::instance().loadTexture(std::move(background.img));
-                background.uploadDone = true;
-
-                while (!background.threadDone) {}
-                t1.join();
+                Log::Info(fmt::format("Loading new background asynchronously: {}", backgroundImageFile));
+                backgroundImageData.filename = backgroundImageFile;
+                backgroundImageData.trd = std::thread(loadImageAsync, std::ref(backgroundImageData));
             }
 
             bgRotate = glm::vec3(float(SyncHelper::instance().variables.rotateX),
@@ -832,7 +847,7 @@ void postSyncPreDraw() {
 
         if (!backgroundImageFile.empty() && SyncHelper::instance().variables.alphaBg > 0.f) {
             RenderParams rpBg;
-            rpBg.tex = bgImageTex;
+            rpBg.tex = backgroundImageData.texId;
             rpBg.alpha = SyncHelper::instance().variables.alphaBg;
             rpBg.gridMode = SyncHelper::instance().variables.gridToMapOnBg;
             rpBg.stereoMode = SyncHelper::instance().variables.stereoscopicModeBg;
@@ -1205,7 +1220,7 @@ void cleanup() {
 
     glDeleteFramebuffers(1, &mpvFBO);
     glDeleteTextures(1, &mpvTex);
-    glDeleteTextures(1, &bgImageTex);
+    glDeleteTextures(1, &backgroundImageData.texId);
 
     dome = nullptr;
     sphere = nullptr;
