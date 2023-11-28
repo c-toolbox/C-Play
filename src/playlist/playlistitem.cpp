@@ -537,6 +537,11 @@ void PlayListItem::loadJSONPlayfile() {
         if (!videoFilePath.isEmpty())
             setMediaFile(videoFilePath);
     }
+    else if (obj.contains("stream")) {
+        QString streamPath = obj.value("stream").toString();
+        if (!streamPath.isEmpty())
+            setMediaFile(streamPath);
+    }
 
     if (obj.contains("overlay")) {
         QString overlayFile = obj.value("overlay").toString();

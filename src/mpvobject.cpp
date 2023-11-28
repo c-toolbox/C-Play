@@ -1568,6 +1568,11 @@ TracksModel *MpvObject::audioTracksModel() const
     return m_audioTracksModel;
 }
 
+QUrl MpvObject::getOverlayFileUrl() const
+{
+    return QUrl::fromLocalFile(QString::fromStdString(SyncHelper::instance().variables.overlayFile));
+}
+
 void MpvObject::getYouTubePlaylist(const QString&)
 {
     /*m_playlistModel->clear();

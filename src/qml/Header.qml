@@ -413,7 +413,7 @@ ToolBar {
                             if(checked){
                                 backgroundMenuButton.icon.name = "preview-render-on";
                                 backgroundToolTip.text = "Background visible when video is not.";
-                                app.setBackgroundVisibility(1);
+                                playerController.setBackgroundVisibility(1);
                             }
                         }
                     }
@@ -428,7 +428,52 @@ ToolBar {
                             if(checked){
                                 backgroundMenuButton.icon.name = "preview-render-off";
                                 backgroundToolTip.text = "Background NOT visible when video is not.";
-                                app.setBackgroundVisibility(0);
+                                playerController.setBackgroundVisibility(0);
+                            }
+                        }
+                    }
+                }
+
+                MenuSeparator {}
+
+                Column {
+                    id: columnViewOnMaster
+
+                    RadioButton {
+                        id: show_same_as_nodes
+                        checked: true
+                        text: qsTr("On master: Same view as nodes")
+                        onClicked: {
+                        }
+                        onCheckedChanged: {
+                            if(checked){
+                                playerController.setViewModeOnMaster(0);
+                            }
+                        }
+                    }
+
+                    RadioButton {
+                        id: media_only
+                        checked: false
+                        text: qsTr("On master: Show media and Hide background")
+                        onClicked: {
+                        }
+                        onCheckedChanged: {
+                            if(checked){
+                                playerController.setViewModeOnMaster(1);
+                            }
+                        }
+                    }
+
+                    RadioButton {
+                        id: background_only
+                        checked: false
+                        text: qsTr("On master: Show background and Hide media")
+                        onClicked: {
+                        }
+                        onCheckedChanged: {
+                            if(checked){
+                                playerController.setViewModeOnMaster(2);
                             }
                         }
                     }
@@ -1124,7 +1169,7 @@ ToolBar {
                 }
 
                 Connections {
-                    target: mediaPlayer2Player
+                    target: playerController
 
                     function onSpinPitchUp() {
                         if(mpv.gridToMapOn >= 3) {

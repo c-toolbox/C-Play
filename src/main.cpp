@@ -885,7 +885,7 @@ void postSyncPreDraw() {
             renderParams.push_back(rpMpv);
         }
 
-        if (!overlayImageData.filename.empty() && SyncHelper::instance().variables.alphaBg > 0.f) {
+        if (!overlayImageData.filename.empty() && SyncHelper::instance().variables.alpha > 0.f) {
             RenderParams rpOverlay;
             rpOverlay.tex = overlayImageData.texId;
             rpOverlay.alpha = SyncHelper::instance().variables.alpha;

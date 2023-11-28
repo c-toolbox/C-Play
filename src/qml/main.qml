@@ -30,8 +30,10 @@ Kirigami.ApplicationWindow {
     title: mpv.mediaTitle || qsTr("C-Play")
     width: 1580
     minimumWidth: 1152
+    maximumWidth: 1728
     height: 880
     minimumHeight: 660
+    maximumHeight: 990
     color: Kirigami.Theme.backgroundColor
 
     onVisibilityChanged: {
@@ -82,6 +84,10 @@ Kirigami.ApplicationWindow {
     SaveAsCPlayFile { id: saveAsCPlayFileWindow }
 
     Actions { id: actions }
+
+    BackgroundImage {
+        id: bgImage
+    }
 
     MpvVideo {
         id: mpv
@@ -238,7 +244,6 @@ Kirigami.ApplicationWindow {
     Component.onCompleted: app.activateColorScheme(GeneralSettings.colorScheme)
 
     function openFile(path, startPlayback, loadSiblings) {
-
         /*if (app.isYoutubePlaylist(path)) {
             mpv.getYouTubePlaylist(path);
             playList.isYouTubePlaylist = true

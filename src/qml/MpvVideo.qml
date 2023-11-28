@@ -146,6 +146,9 @@ MpvObject {
 
         mpv.pause = true
         position = loadTimePosition()
+
+        overlayImage.source = mpv.getOverlayFileUrl();
+        overlayImage.opacity = (!overlayImage.source.empty() ? 1 : 0);
     }
 
     onChapterChanged: {
@@ -339,7 +342,7 @@ MpvObject {
     }
 
     Connections {
-        target: mediaPlayer2Player
+        target: playerController
 
         function onPlaypause() {
             actions.playPauseAction.trigger()
@@ -373,6 +376,9 @@ MpvObject {
             root.pause = true
             root.loadSection(index)
             root.playSectionsModel.setPlayingSection(index)
+        }
+        function onBackgroundVisibilityChanged(){
+            root.opacity = 1 - playerController.backgroundVisibility()
         }
     }
 
@@ -410,6 +416,13 @@ MpvObject {
         }
     }
 
+    Image {
+        id: overlayImage
+        fillMode: Image.PreserveAspectFit
+        anchors.fill: parent
+        opacity: 1
+    }
+
     Scene3D {
         id: scene3D
         anchors.fill: parent
@@ -429,7 +442,7 @@ MpvObject {
     }*/
 
     Component.onCompleted: {
-        mediaPlayer2Player.mpv = root
+        playerController.mpv = root
         mpv.gridToMapOnChanged()
     }
 

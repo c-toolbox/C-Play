@@ -12,8 +12,7 @@
 #include "audiosettings.h"
 #include "generalsettings.h"
 #include "mousesettings.h"
-#include "mediaplayer2.h"
-#include "mediaplayer2player.h"
+#include "playercontroller.h"
 #include "playbacksettings.h"
 #include "playlistsettings.h"
 #include "subtitlessettings.h"
@@ -33,7 +32,6 @@
 #include <QCoreApplication>
 #include <QGuiApplication>
 #include <QDir>
-#include <QDBusConnection>
 #include <QFileInfo>
 #include <QPointer>
 #include <QQmlApplicationEngine>
@@ -82,19 +80,11 @@ static QApplication *createApplication(int &argc, char **argv, const QString &ap
 Application::Application(int &argc, char **argv, const QString &applicationName)
     : m_app(createApplication(argc, argv, applicationName))
     , m_collection(this)
-    , m_backgroundFile("")
 {
     m_config = KSharedConfig::openConfig("georgefb/haruna.conf");
     m_shortcuts = new KConfigGroup(m_config, "Shortcuts");
     m_schemes = new KColorSchemeManager(this);
     m_systemDefaultStyle = m_app->style()->objectName();
-
-    // register mpris dbus service
-    QString mspris2Name(QStringLiteral("org.mpris.MediaPlayer2.haruna"));
-    QDBusConnection::sessionBus().registerService(mspris2Name);
-    QDBusConnection::sessionBus().registerObject(QStringLiteral("/org/mpris/MediaPlayer2"), this, QDBusConnection::ExportAdaptors);
-    // org.mpris.MediaPlayer2 mpris2 interface
-    new MediaPlayer2(this);
 
     if (GeneralSettings::useBreezeIconTheme()) {
         QIcon::setThemeName("breeze");
@@ -129,9 +119,6 @@ Application::Application(int &argc, char **argv, const QString &applicationName)
     m_engine->addImageProvider("thumbnail", new ThumbnailImageProvider());
 
     setupQmlContextProperties();
-    setBackgroundImageFile(PlaybackSettings::imageToLoadAsBackground());
-    setBackgroundGridMode(PlaybackSettings::gridToMapOnForBackground());
-    setBackgroundStereoMode(PlaybackSettings::stereoModeForBackground());
 
     m_engine->load(url);
 
@@ -268,7 +255,7 @@ void Application::setupQmlContextProperties()
     qmlRegisterUncreatableType<Application>("Application", 1, 0, "Application",
                                             QStringLiteral("Application should not be created in QML"));
 
-    m_engine->rootContext()->setContextProperty(QStringLiteral("mediaPlayer2Player"), new MediaPlayer2Player(this));
+    m_engine->rootContext()->setContextProperty(QStringLiteral("playerController"), new PlayerController(this));
 
     m_engine->rootContext()->setContextProperty(QStringLiteral("lockManager"), lockManager.release());
     qmlRegisterUncreatableType<LockManager>("LockManager", 1, 0, "LockManager",
@@ -338,51 +325,6 @@ QUrl Application::pathToUrl(const QString &path)
     return url;
 }
 
-QString Application::returnRelativeOrAbsolutePath(const QString& path)
-{
-    QString filePath = path;
-    filePath.replace("file:///", "");
-    QFileInfo fileInfo(filePath);
-
-    QStringList pathsToConsider;
-    pathsToConsider.append(fileInfo.absoluteDir().absolutePath());
-    pathsToConsider.append(GeneralSettings::cPlayFileLocation());
-    pathsToConsider.append(GeneralSettings::cPlayMediaLocation());
-    pathsToConsider.append(GeneralSettings::univiewVideoLocation());
-
-    // Assuming filePath is absolute
-    for (int i = 0; i < pathsToConsider.size(); i++) {
-        if (filePath.startsWith(pathsToConsider[i])) {
-            QDir foundDir(pathsToConsider[i]);
-            return foundDir.relativeFilePath(filePath);
-        }
-    }
-    return filePath;
-}
-
-QString Application::checkAndCorrectPath(const QString& path) {
-    QString filePath = path;
-    filePath.replace("file:///", "");
-    QFileInfo fileInfo(filePath);
-
-    if (fileInfo.exists())
-        return filePath;
-    else if (fileInfo.isRelative()) { // Go through search list in order
-        QStringList searchPaths;
-        searchPaths.append(GeneralSettings::cPlayMediaLocation());
-        searchPaths.append(GeneralSettings::cPlayFileLocation());
-        searchPaths.append(GeneralSettings::univiewVideoLocation());
-
-        for (int i = 0; i < searchPaths.size(); i++) {
-            QString newFilePath = QDir::cleanPath(searchPaths[i] + QDir::separator() + filePath);
-            QFileInfo newFilePathInfo(newFilePath);
-            if (newFilePathInfo.exists())
-                return newFilePath;
-        }
-    }
-    return "";
-}
-
 bool Application::isYoutubePlaylist(const QString &path)
 {
     return path.contains("youtube.com/playlist?list");
@@ -403,72 +345,6 @@ void Application::hideCursor()
 void Application::showCursor()
 {
     QApplication::setOverrideCursor(Qt::ArrowCursor);
-}
-
-float Application::backgroundVisibility() 
-{
-    return SyncHelper::instance().variables.alphaBg;
-}
-
-void Application::setBackgroundVisibility(float value) 
-{
-    SyncHelper::instance().variables.alphaBg = value;
-}
-
-QString Application::backgroundImageFile()
-{
-    return m_backgroundFile;
-}
-
-void Application::setBackgroundImageFile(const QString& path)
-{
-    QString filePath = path;
-    filePath.replace("file:///", "");
-    QFileInfo fileInfo(filePath);
-
-    QString absolutePath;
-    if (fileInfo.exists()) { //isAbsolute
-        m_backgroundFile = returnRelativeOrAbsolutePath(path);
-        absolutePath = path;
-    }
-    else if (fileInfo.isRelative()) { //isRelative
-        QString bgFilePath = checkAndCorrectPath(path);
-        if (bgFilePath.isEmpty()) {
-            return;
-        }
-        m_backgroundFile = path;
-        absolutePath = bgFilePath;
-    }
-    else
-        return;
-
-    absolutePath.replace("file:///", "");
-    std::string str = absolutePath.toStdString();
-    if (SyncHelper::instance().variables.bgImageFile != str) {
-        SyncHelper::instance().variables.bgImageFile = str;
-        setBackgroundVisibility(1.f);
-        sgct::Log::Info("Set background image: " + str);
-    }
-}
-
-int Application::backgroundGridMode() 
-{
-    return SyncHelper::instance().variables.gridToMapOnBg;
-}
-
-void Application::setBackgroundGridMode(int value)
-{
-    SyncHelper::instance().variables.gridToMapOnBg = value;
-}
-
-int Application::backgroundStereoMode()
-{
-    return SyncHelper::instance().variables.stereoscopicModeBg;
-}
-
-void Application::setBackgroundStereoMode(int value)
-{
-    SyncHelper::instance().variables.stereoscopicModeBg = value;
 }
 
 int Application::getFadeDurationCurrentTime(bool restart) {

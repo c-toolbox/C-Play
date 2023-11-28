@@ -18,23 +18,37 @@ set_compile_options(${TARGET_NAME})
 target_sources(${TARGET_NAME}
     PRIVATE
     application.cpp
+    application.h
     haction.cpp
+    haction.h
+    httpserverthread.cpp
+    httpserverthread.h
     lockmanager.cpp
-    main.cpp
-    mpris2/httpserverthread.cpp
-    mpris2/mediaplayer2.cpp
-    mpris2/mediaplayer2player.cpp
+    lockmanager.h
+    main.cpp    
     mpvobject.cpp
+    mpvobject.h
     qthelper.h
+    playercontroller.cpp
+    playercontroller.h
     playlist/playlistitem.cpp
+    playlist/playlistitem.h
     playlist/playlistmodel.cpp
+    playlist/playlistmodel.h
 	renderthread.cpp
+    renderthread.h
     subtitlesfoldersmodel.cpp
+    subtitlesfoldersmodel.h
     thumbnailimageprovider.cpp
+    thumbnailimageprovider.h
     track.cpp
+    track.h
     trackballcameracontroller.cpp
+    trackballcameracontroller.h
     tracksmodel.cpp
+    tracksmodel.h
     worker.cpp
+    worker.h
     qml.qrc
     ../help/help.qrc
     ${haruna_screensaver_inhibit_SRCS}
@@ -50,7 +64,7 @@ kconfig_add_kcfg_files(${TARGET_NAME} GENERATE_MOC settings/playlistsettings.kcf
 kconfig_add_kcfg_files(${TARGET_NAME} GENERATE_MOC settings/subtitlessettings.kcfgc)
 kconfig_add_kcfg_files(${TARGET_NAME} GENERATE_MOC settings/videosettings.kcfgc)
 
-target_include_directories(${TARGET_NAME} PRIVATE playlist mpris2)
+target_include_directories(${TARGET_NAME} PRIVATE playlist)
 
 target_compile_definitions(${TARGET_NAME} PRIVATE $<$<OR:$<CONFIG:Debug>,$<CONFIG:RelWithDebInfo>>:QT_QML_DEBUG>)
 

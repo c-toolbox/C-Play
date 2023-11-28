@@ -1,31 +1,23 @@
-/*
- * SPDX-FileCopyrightText: 2021 George Florea Bănuș <georgefb899@gmail.com>
- *
- * SPDX-License-Identifier: GPL-3.0-or-later
- */
+#ifndef PLAYERCONTROLLER_H
+#define PLAYERCONTROLLER_H
 
-#ifndef MEDIAPLAYER2PLAYER_H
-#define MEDIAPLAYER2PLAYER_H
-
-#include <QDBusAbstractAdaptor>
+#include <QObject>
 
 class MpvObject;
-class QDBusObjectPath;
 class HttpServerThread;
 
-class MediaPlayer2Player : public QDBusAbstractAdaptor
+class PlayerController : public QObject
 {
     Q_OBJECT
-    Q_CLASSINFO("D-Bus Interface", "org.mpris.MediaPlayer2.Player")
+    Q_CLASSINFO("D-Bus Interface", "org.PlayerController")
 
     Q_PROPERTY(MpvObject *mpv READ mpv WRITE setMpv NOTIFY mpvChanged)
 
 public:
-    explicit MediaPlayer2Player(QObject *parent = nullptr);
-    ~MediaPlayer2Player() = default;
+    explicit PlayerController(QObject *parent = nullptr);
+    ~PlayerController() = default;
 
     void setupConnections();
-    void propertiesChanged(const QString &property, const QVariant &value);
 
 public Q_SLOTS:
     void Next();
@@ -53,6 +45,22 @@ public Q_SLOTS:
     void OrientationAndSpinReset();
     void RunSurfaceTransistion();
 
+    QString returnRelativeOrAbsolutePath(const QString& path);
+    QString checkAndCorrectPath(const QString& path);
+
+    float backgroundVisibility();
+    void setBackgroundVisibility(float value);
+    QString backgroundImageFile();
+    QUrl backgroundImageFileUrl();
+    void setBackgroundImageFile(const QString& path);
+    int backgroundGridMode();
+    void setBackgroundGridMode(int value);
+    int backgroundStereoMode();
+    void setBackgroundStereoMode(int value);
+
+    void setViewModeOnMaster(int value);
+    int getViewModeOnMaster();
+
 Q_SIGNALS:
     void next();
     void previous();
@@ -72,6 +80,8 @@ Q_SIGNALS:
     void orientationAndSpinReset();
     void runSurfaceTransistion();
     void mpvChanged();
+    void backgroundImageChanged();
+    void backgroundVisibilityChanged();
 
 private:
     MpvObject *mpv() const;
@@ -81,6 +91,8 @@ private:
 
     MpvObject *m_mpv;
     HttpServerThread* httpServer;
+    QString m_backgroundFile;
+    int m_viewModeOnMaster;
 };
 
-#endif // MEDIAPLAYER2PLAYER_H
+#endif // PLAYERCONTROLLER_H

@@ -49,8 +49,8 @@ SettingsBasePage {
         nameFilters: [ "Image files (*.png *.jpg *.jpeg *.tga)" ]
 
         onAccepted: {
-            app.setBackgroundImageFile(fileToLoadAsBackgroundDialog.file.toString());
-            fileForBackgroundImageText.text = app.backgroundImageFile();
+            playerController.setBackgroundImageFile(fileToLoadAsBackgroundDialog.file.toString());
+            fileForBackgroundImageText.text = playerController.backgroundImageFile();
             mpv.focus = true
         }
         onRejected: mpv.focus = true
@@ -302,11 +302,11 @@ SettingsBasePage {
         RowLayout {
             TextField {
                 id: fileForBackgroundImageText
-                text: app.backgroundImageFile()
+                text: playerController.backgroundImageFile()
                 placeholderText: "Path to image file"
                 Layout.fillWidth: true
                 onEditingFinished: {
-                    app.setBackgroundImageFile(text);
+                    playerController.setBackgroundImageFile(text);
                 }
 
                 ToolTip {
@@ -343,12 +343,12 @@ SettingsBasePage {
             }
 
             onActivated: {
-                app.setBackgroundStereoMode(model.get(index).value);
+                playerController.setBackgroundStereoMode(model.get(index).value);
             }
 
             Component.onCompleted: {
                 for (let i = 0; i < stereoscopicModeOnStartupMode.count; ++i) {
-                    if (stereoscopicModeOnStartupMode.get(i).value === app.backgroundStereoMode()) {
+                    if (stereoscopicModeOnStartupMode.get(i).value === playerController.backgroundStereoMode()) {
                         currentIndex = i
                         break
                     }
@@ -373,12 +373,12 @@ SettingsBasePage {
             }
 
             onActivated: {
-                app.setBackgroundGridMode(model.get(index).value);
+                playerController.setBackgroundGridMode(model.get(index).value);
             }
 
             Component.onCompleted: {
                 for (let i = 0; i < loadGridOnStartupMode.count; ++i) {
-                    if (loadGridOnStartupMode.get(i).value === app.backgroundGridMode()) {
+                    if (loadGridOnStartupMode.get(i).value === playerController.backgroundGridMode()) {
                         currentIndex = i
                         break
                     }
@@ -394,21 +394,21 @@ SettingsBasePage {
             Button {
                     text: "Reset background values"
                     onClicked: {
-                        app.setBackgroundImageFile(PlaybackSettings.imageToLoadAsBackground)
-                        app.setBackgroundStereoMode(PlaybackSettings.stereoModeForBackground)
-                        app.setBackgroundGridMode(PlaybackSettings.gridToMapOnForBackground)
+                        playerController.setBackgroundImageFile(PlaybackSettings.imageToLoadAsBackground)
+                        playerController.setBackgroundStereoMode(PlaybackSettings.stereoModeForBackground)
+                        playerController.setBackgroundGridMode(PlaybackSettings.gridToMapOnForBackground)
 
-                        fileForBackgroundImageText.text = app.backgroundImageFile();
+                        fileForBackgroundImageText.text = playerController.backgroundImageFile();
 
                         for (let i = 0; i < loadGridOnStartupMode.count; ++i) {
-                            if (loadGridOnStartupMode.get(i).value === app.backgroundGridMode()) {
+                            if (loadGridOnStartupMode.get(i).value === playerController.backgroundGridMode()) {
                                 loadGridOnStartupComboBox.currentIndex = i
                                 break
                             }
                         }
 
                         for (let j = 0; j < stereoscopicModeOnStartupMode.count; ++j) {
-                            if (stereoscopicModeOnStartupMode.get(j).value === app.backgroundStereoMode()) {
+                            if (stereoscopicModeOnStartupMode.get(j).value === playerController.backgroundStereoMode()) {
                                 stereoscopicModeOnStartupComboBox.currentIndex = j
                                 break
                             }
@@ -422,9 +422,9 @@ SettingsBasePage {
             Button {
                     text: "Save background values for startup"
                     onClicked: {
-                        PlaybackSettings.imageToLoadAsBackground = app.backgroundImageFile()
-                        PlaybackSettings.stereoModeForBackground = app.backgroundStereoMode()
-                        PlaybackSettings.gridToMapOnForBackground = app.backgroundGridMode()
+                        PlaybackSettings.imageToLoadAsBackground = playerController.backgroundImageFile()
+                        PlaybackSettings.stereoModeForBackground = playerController.backgroundStereoMode()
+                        PlaybackSettings.gridToMapOnForBackground = playerController.backgroundGridMode()
                         PlaybackSettings.save()
                     }
             }
