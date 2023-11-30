@@ -870,36 +870,38 @@ void postSyncPreDraw() {
             renderParams.push_back(rpBg);
         }
 
-        if (!loadedFile.empty() && SyncHelper::instance().variables.alpha > 0.f) {
-            RenderParams rpMpv;
-            rpMpv.tex = mpvTex;
-            rpMpv.alpha = SyncHelper::instance().variables.alpha;
-            rpMpv.gridMode = SyncHelper::instance().variables.gridToMapOn;
-            rpMpv.stereoMode = SyncHelper::instance().variables.stereoscopicMode;
-            rpMpv.rotate = glm::vec3(float(SyncHelper::instance().variables.rotateX),
-                float(SyncHelper::instance().variables.rotateY),
-                float(SyncHelper::instance().variables.rotateZ));
-            rpMpv.translate = glm::vec3(float(SyncHelper::instance().variables.translateX) / 100.f, 
-                float(SyncHelper::instance().variables.translateY) / 100.f, 
-                float(SyncHelper::instance().variables.translateZ) / 100.f);
-            renderParams.push_back(rpMpv);
-        }
+        if (updateRendering) {
+            if (!loadedFile.empty() && SyncHelper::instance().variables.alpha > 0.f) {
+                RenderParams rpMpv;
+                rpMpv.tex = mpvTex;
+                rpMpv.alpha = SyncHelper::instance().variables.alpha;
+                rpMpv.gridMode = SyncHelper::instance().variables.gridToMapOn;
+                rpMpv.stereoMode = SyncHelper::instance().variables.stereoscopicMode;
+                rpMpv.rotate = glm::vec3(float(SyncHelper::instance().variables.rotateX),
+                    float(SyncHelper::instance().variables.rotateY),
+                    float(SyncHelper::instance().variables.rotateZ));
+                rpMpv.translate = glm::vec3(float(SyncHelper::instance().variables.translateX) / 100.f,
+                    float(SyncHelper::instance().variables.translateY) / 100.f,
+                    float(SyncHelper::instance().variables.translateZ) / 100.f);
+                renderParams.push_back(rpMpv);
+            }
 
-        if (!overlayImageData.filename.empty() && SyncHelper::instance().variables.alpha > 0.f) {
-            RenderParams rpOverlay;
-            rpOverlay.tex = overlayImageData.texId;
-            rpOverlay.alpha = SyncHelper::instance().variables.alpha;
-            rpOverlay.gridMode = SyncHelper::instance().variables.gridToMapOn;
-            rpOverlay.stereoMode = SyncHelper::instance().variables.stereoscopicMode;
-            rpOverlay.rotate = glm::vec3(float(SyncHelper::instance().variables.rotateX),
-                float(SyncHelper::instance().variables.rotateY),
-                float(SyncHelper::instance().variables.rotateZ));
-            rpOverlay.translate = glm::vec3(float(SyncHelper::instance().variables.translateX) / 100.f,
-                float(SyncHelper::instance().variables.translateY) / 100.f,
-                float(SyncHelper::instance().variables.translateZ) / 100.f);
-            renderParams.push_back(rpOverlay);
+            if (!overlayImageData.filename.empty() && SyncHelper::instance().variables.alpha > 0.f) {
+                RenderParams rpOverlay;
+                rpOverlay.tex = overlayImageData.texId;
+                rpOverlay.alpha = SyncHelper::instance().variables.alpha;
+                rpOverlay.gridMode = SyncHelper::instance().variables.gridToMapOn;
+                rpOverlay.stereoMode = SyncHelper::instance().variables.stereoscopicMode;
+                rpOverlay.rotate = glm::vec3(float(SyncHelper::instance().variables.rotateX),
+                    float(SyncHelper::instance().variables.rotateY),
+                    float(SyncHelper::instance().variables.rotateZ));
+                rpOverlay.translate = glm::vec3(float(SyncHelper::instance().variables.translateX) / 100.f,
+                    float(SyncHelper::instance().variables.translateY) / 100.f,
+                    float(SyncHelper::instance().variables.translateZ) / 100.f);
+                renderParams.push_back(rpOverlay);
+            }
         }
-
+        
         paused = mpv::qt::get_property(mpvHandle, "pause").toBool();
         if (SyncHelper::instance().variables.paused != paused) {
             paused = SyncHelper::instance().variables.paused;
@@ -1010,7 +1012,7 @@ void postSyncPreDraw() {
 
 void draw(const RenderData& data) {
 #ifndef SGCT_ONLY
-    if (Engine::instance().isMaster() || !updateRendering)
+    if (Engine::instance().isMaster())
         return;
 #endif
     glDisable(GL_DEPTH_TEST);
