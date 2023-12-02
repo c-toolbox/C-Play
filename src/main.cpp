@@ -471,6 +471,38 @@ void handleAsyncImageUpload(ImageData& imgData) {
     }
 }
 
+bool fileIsImage(std::string& filePath) {
+    if (!filePath.empty()) {
+        //Load background file
+        if (std::filesystem::exists(filePath)) {
+            std::filesystem::path bgPath = std::filesystem::path(filePath);
+            if (bgPath.has_extension()) {
+                std::filesystem::path bgPathExt = bgPath.extension();
+                if (bgPathExt == ".png" ||
+                    bgPathExt == ".jpg" ||
+                    bgPathExt == ".jpeg" ||
+                    bgPathExt == ".tga") {
+                    return true;
+                }
+                else {
+                    Log::Warning(fmt::format("Image file extension is not supported: {}", filePath));
+                }
+            }
+            else {
+                Log::Warning(fmt::format("Image file has no extension: {}", filePath));
+            }
+        }
+        else {
+            Log::Warning(fmt::format("Could not find image file: {}", filePath));
+        }
+    }
+    else {
+        Log::Warning(fmt::format("Image file is empty: {}", filePath));
+    }
+
+    return false;
+}
+
 void generateTexture(unsigned int& id, int width, int height) {
     glGenTextures(1, &id);
     glPixelStorei(GL_PACK_ALIGNMENT, 1);
@@ -807,16 +839,11 @@ void postSyncPreDraw() {
         handleAsyncImageUpload(overlayImageData);
 
         if (backgroundImageData.filename != SyncHelper::instance().variables.bgImageFile) {
-            if (!SyncHelper::instance().variables.bgImageFile.empty()) {
+            if (fileIsImage(SyncHelper::instance().variables.bgImageFile)) {
                 //Load background file
-                if (!std::filesystem::exists(SyncHelper::instance().variables.bgImageFile)) {
-                    Log::Error(fmt::format("Could not find image: {}", SyncHelper::instance().variables.bgImageFile));
-                }
-                else {
-                    backgroundImageData.filename = SyncHelper::instance().variables.bgImageFile;
-                    Log::Info(fmt::format("Loading new background image asynchronously: {}", backgroundImageData.filename));
-                    backgroundImageData.trd = std::thread(loadImageAsync, std::ref(backgroundImageData));
-                }
+                backgroundImageData.filename = SyncHelper::instance().variables.bgImageFile;
+                Log::Info(fmt::format("Loading new background image asynchronously: {}", backgroundImageData.filename));
+                backgroundImageData.trd = std::thread(loadImageAsync, std::ref(backgroundImageData));
 
                 bgRotate = glm::vec3(float(SyncHelper::instance().variables.rotateX),
                     float(SyncHelper::instance().variables.rotateY),
@@ -831,16 +858,11 @@ void postSyncPreDraw() {
         }
 
         if (overlayImageData.filename != SyncHelper::instance().variables.overlayFile) {
-            if (!SyncHelper::instance().variables.overlayFile.empty()) {
+            if (fileIsImage(SyncHelper::instance().variables.overlayFile)) {
                 //Load overlay file
-                if (!std::filesystem::exists(SyncHelper::instance().variables.overlayFile)) {
-                    Log::Error(fmt::format("Could not find image: {}", SyncHelper::instance().variables.overlayFile));
-                }
-                else {
-                    overlayImageData.filename = SyncHelper::instance().variables.overlayFile;
-                    Log::Info(fmt::format("Loading new overlay image asynchronously: {}", overlayImageData.filename));
-                    overlayImageData.trd = std::thread(loadImageAsync, std::ref(overlayImageData));
-                }
+                overlayImageData.filename = SyncHelper::instance().variables.overlayFile;
+                Log::Info(fmt::format("Loading new overlay image asynchronously: {}", overlayImageData.filename));
+                overlayImageData.trd = std::thread(loadImageAsync, std::ref(overlayImageData));
             }
             else {
                 overlayImageData.filename = "";

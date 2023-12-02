@@ -207,10 +207,9 @@ QString PlayerController::returnRelativeOrAbsolutePath(const QString& path)
     QFileInfo fileInfo(filePath);
 
     QStringList pathsToConsider;
-    pathsToConsider.append(fileInfo.absoluteDir().absolutePath());
-    pathsToConsider.append(GeneralSettings::cPlayFileLocation());
     pathsToConsider.append(GeneralSettings::cPlayMediaLocation());
     pathsToConsider.append(GeneralSettings::univiewVideoLocation());
+    pathsToConsider.append(GeneralSettings::cPlayFileLocation());
 
     // Assuming filePath is absolute
     for (int i = 0; i < pathsToConsider.size(); i++) {
@@ -280,11 +279,23 @@ QString PlayerController::backgroundImageFile()
 
 QUrl PlayerController::backgroundImageFileUrl()
 {
+    if (SyncHelper::instance().variables.bgImageFile.empty()) {
+        return QUrl();
+    }
+
     return QUrl::fromLocalFile(QString::fromStdString(SyncHelper::instance().variables.bgImageFile));
 }
 
 void PlayerController::setBackgroundImageFile(const QString& path)
 {
+    if (path.isEmpty()) {
+        m_backgroundFile = "";
+        SyncHelper::instance().variables.bgImageFile = "";
+        setBackgroundVisibility(0.f);
+        emit backgroundImageChanged();
+        return;
+    }
+
     QString filePath = path;
     filePath.replace("file:///", "");
     QFileInfo fileInfo(filePath);

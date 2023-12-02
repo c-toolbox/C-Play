@@ -30,7 +30,7 @@ SettingsBasePage {
         nameFilters: [ "C-Play playlist (*.cplaylist)", "Uniview playlist (*.playlist)" ]
 
         onAccepted: {
-            var filePath = app.returnRelativeOrAbsolutePath(playlistToLoadOnStartupDialog.file.toString());
+            var filePath = playerController.returnRelativeOrAbsolutePath(playlistToLoadOnStartupDialog.file.toString());
             PlaybackSettings.playlistToLoadOnStartup = filePath
             PlaybackSettings.save()
 

@@ -31,39 +31,16 @@ MpvObject {
     anchors.top: parent.top
     volume: GeneralSettings.volume
 
-    Timer {
-        id: sphereRotationTimer
-        interval: 1000/60;
-        running: false;
-        repeat: true
-        onTriggered: {
-            if(trackBall.trackballCameraController.performRotation())
-                mpv.rotate = trackBall.trackballCameraController.rotationXYZ;
-            else
-                trackBall.trackballCameraController.setAbsoluteRotation(mpv.rotate)
-
-        }
-    }
-
     onResetOrientation: {
-        trackBall.camera.upVector = Qt.vector3d( 0.0, 1.0, 0.0 );
-        trackBall.camera.position = Qt.vector3d( 0.0, 0.0, 1.0 );
-        trackBall.trackballCameraController.stopRotation()
         if(mpv.gridToMapOn < 3){
-            trackBall.trackballCameraController.rotationXYZ = Qt.vector3d(0, 0, 0);
             mpv.angle = VideoSettings.surfaceAngle
             mpv.radius = VideoSettings.surfaceRadius
             mpv.fov = VideoSettings.surfaceFov
             mpv.rotate = Qt.vector3d(VideoSettings.surfaceRotateX, VideoSettings.surfaceRotateY, VideoSettings.surfaceRotateZ)
             mpv.translate = Qt.vector3d(VideoSettings.surfaceTranslateX, VideoSettings.surfaceTranslateY, VideoSettings.surfaceTranslateZ)
-            sphereRotationTimer.stop()
         }
         else{
-            sphereRotationTimer.stop()
-            trackBall.trackballCameraController.rotationXYZ = Qt.vector3d(0, 0, 0);
             mpv.rotate = Qt.vector3d(0, -90, 0);
-            trackBall.trackballCameraController.rotationXYZ = Qt.vector3d(0, -90, 0);
-            sphereRotationTimer.start()
         }
     }
 
@@ -430,10 +407,6 @@ MpvObject {
         aspects: ["input", "logic"]
         cameraAspectRatioMode: Scene3D.AutomaticAspectRatio
         visible: false
-
-        TrackBall{
-            id: trackBall
-        }
     }
 
     /*Shortcut {

@@ -18,7 +18,7 @@ Image {
     Connections {
         target: playerController
 
-        function onBackgroundChanged(){
+        function onBackgroundImageChanged(){
             root.source = playerController.backgroundImageFileUrl()
         }
         function onBackgroundVisibilityChanged(){
