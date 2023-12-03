@@ -305,73 +305,9 @@ ToolBar {
         }
 
         Label {
-            text: qsTr("Visibility:")
+            text: qsTr("Image:")
             font.pointSize: 9
             Layout.alignment: Qt.AlignRight
-        }
-
-
-        PropertyAnimation {
-            id: visibility_fade_out_animation;
-            target: visibilitySlider;
-            property: "value";
-            to: 0;
-            duration: PlaybackSettings.fadeDuration;
-        }
-        ToolButton {
-            id: fade_image_out
-            icon.name: "view-hidden"
-            focusPolicy: Qt.NoFocus
-            enabled: mpv.visibility !== 0
-            onClicked: {
-                if(!visibility_fade_out_animation.running){
-                    visibility_fade_out_animation.start()
-                    if(root.syncImageVideoFading){
-                        volume_fade_up_animation.to = mpv.volume;
-                        volume_fade_down_animation.start()
-                    }
-                }
-            }
-        }
-
-        VisibilitySlider { id: visibilitySlider }
-
-        PropertyAnimation {
-            id: visibility_fade_in_animation;
-            target: visibilitySlider;
-            property: "value";
-            to: 100;
-            duration: PlaybackSettings.fadeDuration;
-        }
-        ToolButton {
-            id: fade_image_in
-            icon.name: "view-visible"
-            focusPolicy: Qt.NoFocus
-            enabled: mpv.visibility !== 100
-            onClicked: {
-                if(!visibility_fade_in_animation.running){
-                    visibility_fade_in_animation.start()
-                    if(root.syncImageVideoFading){
-                        volume_fade_up_animation.start()
-                    }
-                }
-            }
-        }
-
-        Connections {
-            target: mpv
-            function onFadeVolumeDown() {
-                fade_volume_down.clicked()
-            }
-            function onFadeVolumeUp() {
-                fade_volume_up.clicked()
-            }
-            function onFadeImageDown() {
-                fade_image_out.clicked()
-            }
-            function onFadeImageUp() {
-                fade_image_in.clicked()
-            }
         }
 
         ToolButton {
@@ -478,6 +414,69 @@ ToolBar {
                         }
                     }
                 }
+            }
+        }
+
+        PropertyAnimation {
+            id: visibility_fade_out_animation;
+            target: visibilitySlider;
+            property: "value";
+            to: 0;
+            duration: PlaybackSettings.fadeDuration;
+        }
+        ToolButton {
+            id: fade_image_out
+            icon.name: "view-hidden"
+            focusPolicy: Qt.NoFocus
+            enabled: mpv.visibility !== 0
+            onClicked: {
+                if(!visibility_fade_out_animation.running){
+                    visibility_fade_out_animation.start()
+                    if(root.syncImageVideoFading){
+                        volume_fade_up_animation.to = mpv.volume;
+                        volume_fade_down_animation.start()
+                    }
+                }
+            }
+        }
+
+        VisibilitySlider { id: visibilitySlider }
+
+        PropertyAnimation {
+            id: visibility_fade_in_animation;
+            target: visibilitySlider;
+            property: "value";
+            to: 100;
+            duration: PlaybackSettings.fadeDuration;
+        }
+        ToolButton {
+            id: fade_image_in
+            icon.name: "view-visible"
+            focusPolicy: Qt.NoFocus
+            enabled: mpv.visibility !== 100
+            onClicked: {
+                if(!visibility_fade_in_animation.running){
+                    visibility_fade_in_animation.start()
+                    if(root.syncImageVideoFading){
+                        volume_fade_up_animation.start()
+                    }
+                }
+            }
+        }
+
+        Connections {
+            target: mpv
+            function onFadeVolumeDown() {
+                fade_volume_down.clicked()
+            }
+            function onFadeVolumeUp() {
+                fade_volume_up.clicked()
+            }
+            function onFadeImageDown() {
+                fade_image_out.clicked()
+            }
+            function onFadeImageUp() {
+                fade_image_in.clicked()
             }
         }
 

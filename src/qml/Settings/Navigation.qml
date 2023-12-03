@@ -42,7 +42,7 @@ Kirigami.Page
             page: "qrc:/General.qml"
         }
         ListElement {
-            name: "Decoding & Startup"
+            name: "Sync & Startup"
             iconName: "video-x-generic"
             page: "qrc:/Playback.qml"
         }

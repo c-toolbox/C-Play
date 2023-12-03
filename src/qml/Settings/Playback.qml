@@ -65,12 +65,13 @@ SettingsBasePage {
         // DECODING AND SYNC PARAMETERS
         // --
         SettingsHeader {
-            text: qsTr("Decoding and sync settings")
+            //text: qsTr("Decoding and sync settings")
+            text: qsTr("Sync settings")
             Layout.columnSpan: 2
             Layout.fillWidth: true
         }
 
-        CheckBox {
+        /*CheckBox {
             id: hwDecodingCheckBox
             text: qsTr("Use hardware decoding")
             checked: PlaybackSettings.useHWDecoding
@@ -127,7 +128,7 @@ SettingsBasePage {
                     }
                 }
             }
-        }
+        }*/
 
         Label {
             text: qsTr("Remember time position:")

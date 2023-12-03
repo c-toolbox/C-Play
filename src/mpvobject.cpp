@@ -112,8 +112,8 @@ MpvObject::MpvObject(QQuickItem * parent)
     //setProperty("terminal", "yes");
     //setProperty("msg-level", "all=v");
 
-    QString hwdec = PlaybackSettings::useHWDecoding() ? PlaybackSettings::hWDecoding() : "no";
-    setProperty("hwdec", hwdec);
+    //QString hwdec = PlaybackSettings::useHWDecoding() ? PlaybackSettings::hWDecoding() : "no";
+    //setProperty("hwdec", hwdec);
 
     m_rotationSpeed = VideoSettings::surfaceRotationSpeed();
     m_radius = VideoSettings::surfaceRadius();
