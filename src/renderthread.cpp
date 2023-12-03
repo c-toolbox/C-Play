@@ -45,7 +45,7 @@ void RenderThread::run()
     sgct::Log::Info("Starting rendering");
     mutex.unlock();
 
-    sgct::Engine::instance().exec();
+    sgct::Engine::instance().render();
 
     mutex.lock();
     sgct::Log::Info("Finished rendering");

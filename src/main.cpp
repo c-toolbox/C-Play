@@ -19,6 +19,7 @@
 #include <client.h>
 #include <render_gl.h>
 #include "qthelper.h"
+#include <filesystem>
 
 //#define SGCT_ONLY
 //#define ONLY_RENDER_TO_SCREEN
@@ -103,7 +104,7 @@ int EACVideoHeightLoc = -1;
 int EACEyeModeLoc = -1;
 int EACStereoscopicModeLoc = -1;
 
-constexpr std::string_view VideoVert = R"(
+constexpr const char* VideoVert = R"(
   #version 410 core
 
   layout (location = 0) in vec2 in_position;
@@ -145,7 +146,7 @@ constexpr std::string_view VideoVert = R"(
   }
 )";
 
-constexpr std::string_view MeshVert = R"(
+constexpr const char* MeshVert = R"(
   #version 410 core
 
   layout (location = 0) in vec2 in_texCoord;
@@ -191,7 +192,7 @@ constexpr std::string_view MeshVert = R"(
   }
 )";
 
-constexpr std::string_view VideoFrag = R"(
+constexpr const char* VideoFrag = R"(
   #version 410 core
 
   uniform sampler2D tex;
@@ -212,7 +213,7 @@ constexpr std::string_view VideoFrag = R"(
   }
 )";
 
-constexpr std::string_view EACMeshVert = R"(
+constexpr const char* EACMeshVert = R"(
   #version 410 core
 
   layout (location = 0) in vec2 in_texCoord;
@@ -238,7 +239,7 @@ constexpr std::string_view EACMeshVert = R"(
   }
 )";
 
-constexpr std::string_view EACVideoFrag = R"(
+constexpr const char* EACVideoFrag = R"(
   #version 410 core
 
   uniform sampler2D tex;
@@ -787,8 +788,7 @@ std::vector<std::byte> encode() {
     return data;
 }
 
-void decode(const std::vector<std::byte>& data) {
-    unsigned pos = 0;
+void decode(const std::vector<std::byte>& data, unsigned pos) {
     deserializeObject(data, pos, SyncHelper::instance().variables.syncOn);
     deserializeObject(data, pos, SyncHelper::instance().variables.alpha);
     deserializeObject(data, pos, SyncHelper::instance().variables.alphaBg);
@@ -1334,7 +1334,7 @@ int main(int argc, char *argv[])
 #endif
         Log::Info("Start Client");
 
-        Engine::instance().exec();
+        Engine::instance().render();
         Engine::destroy();
         return EXIT_SUCCESS;
 #ifndef SGCT_ONLY
