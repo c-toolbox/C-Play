@@ -19,6 +19,7 @@ MpvObject {
 
     property int mouseX: mouseArea.mouseX
     property int mouseY: mouseArea.mouseY
+    property bool sphereGrid: false
 
     signal setSubtitle(int id)
     signal setSecondarySubtitle(int id)
@@ -46,13 +47,13 @@ MpvObject {
 
     onGridToMapOnChanged: {
         if(mpv.gridToMapOn < 3){
-            if(scene3D.visible)
+            if(root.sphereGrid)
                 mpv.resetOrientation()
-            scene3D.visible = false
+            root.sphereGrid = false
         }
-        else if(!scene3D.visible){
+        else if(!root.sphereGrid){
             mpv.resetOrientation()
-            scene3D.visible = true
+            root.sphereGrid = true
         }
     }
 
@@ -398,15 +399,6 @@ MpvObject {
         fillMode: Image.PreserveAspectFit
         anchors.fill: parent
         opacity: 1
-    }
-
-    Scene3D {
-        id: scene3D
-        anchors.fill: parent
-        focus: true
-        aspects: ["input", "logic"]
-        cameraAspectRatioMode: Scene3D.AutomaticAspectRatio
-        visible: false
     }
 
     /*Shortcut {

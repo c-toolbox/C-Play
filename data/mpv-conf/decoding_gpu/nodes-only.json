@@ -1,0 +1,8 @@
+{
+	"vd-lavc-threads": "240",
+	"framedrop": "vo",
+	"video-sync": "display-vdrop",
+	"video-latency-hacks": "yes",
+	"vd-lavc-skiploopfilter": "all",
+	"vd-lavc-fast": ""
+}

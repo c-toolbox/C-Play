@@ -58,7 +58,7 @@ std::vector<RenderParams> renderParams;
 struct ImageData {
     std::string filename;
     sgct::Image img;
-    std::thread trd;
+    std::unique_ptr<std::thread> trd;
     unsigned int texId = 0;
     std::atomic_bool threadRunning = false;
     std::atomic_bool imageDone = false;
@@ -467,7 +467,8 @@ void handleAsyncImageUpload(ImageData& imgData) {
             imgData.imageDone = false;
             imgData.uploadDone = false;
             imgData.threadDone = false;
-            imgData.trd.join();
+            imgData.trd->join();
+            imgData.trd = nullptr;
         }
     }
 }
@@ -659,8 +660,8 @@ void initOGL(GLFWwindow*) {
     mpv_render_context_set_update_callback(mpvRenderContext, on_mpv_render_update, NULL);
 
     // Load mpv configurations for nodes
-    mpv::qt::load_configurations(mpvHandle, QStringLiteral("./data/mpv-conf.json"));
-    mpv::qt::load_configurations(mpvHandle, QStringLiteral("./data/mpv-conf-nodes.json"));
+    mpv::qt::load_configurations(mpvHandle, QString::fromStdString(SyncHelper::instance().configuration.confAll));
+    mpv::qt::load_configurations(mpvHandle, QString::fromStdString(SyncHelper::instance().configuration.confNodesOnly));
 
     // Set default settings
     mpv::qt::set_property(mpvHandle, "keep-open", "yes");
@@ -843,7 +844,7 @@ void postSyncPreDraw() {
                 //Load background file
                 backgroundImageData.filename = SyncHelper::instance().variables.bgImageFile;
                 Log::Info(fmt::format("Loading new background image asynchronously: {}", backgroundImageData.filename));
-                backgroundImageData.trd = std::thread(loadImageAsync, std::ref(backgroundImageData));
+                backgroundImageData.trd = std::make_unique<std::thread>(loadImageAsync, std::ref(backgroundImageData));
 
                 bgRotate = glm::vec3(float(SyncHelper::instance().variables.rotateX),
                     float(SyncHelper::instance().variables.rotateY),
@@ -862,7 +863,7 @@ void postSyncPreDraw() {
                 //Load overlay file
                 overlayImageData.filename = SyncHelper::instance().variables.overlayFile;
                 Log::Info(fmt::format("Loading new overlay image asynchronously: {}", overlayImageData.filename));
-                overlayImageData.trd = std::thread(loadImageAsync, std::ref(overlayImageData));
+                overlayImageData.trd = std::make_unique<std::thread>(loadImageAsync, std::ref(overlayImageData));
             }
             else {
                 overlayImageData.filename = "";
@@ -1287,6 +1288,22 @@ int main(int argc, char *argv[])
     config::Cluster cluster = loadCluster(config.configFilename);
     if (!cluster.success) {
         return -1;
+    }
+
+    //Look for C-Play command line specific things
+    size_t i = 0;
+    while (i < arg.size()) {
+        if (arg[i] == "--mpvconf") {
+            std::string mpvConfFolder = arg[i + 1]; // for instance, either "decoding_cpu" or "decoding_cpu"
+            SyncHelper::instance().configuration.confAll = "./data/mpv-conf/" + mpvConfFolder + "/all.json";
+            SyncHelper::instance().configuration.confMasterOnly = "./data/mpv-conf/" + mpvConfFolder + "/master-only.json";
+            SyncHelper::instance().configuration.confNodesOnly = "./data/mpv-conf/" + mpvConfFolder + "/nodes-only.json";
+            arg.erase(arg.begin() + i, arg.begin() + i + 2);
+        }
+        else {
+            // Ignore unknown commands
+            i++;
+        }
     }
 
     Engine::Callbacks callbacks;
