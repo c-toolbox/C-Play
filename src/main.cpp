@@ -57,7 +57,7 @@ std::vector<RenderParams> renderParams;
 struct ImageData {
     std::string filename;
     sgct::Image img;
-    std::thread trd;
+    std::unique_ptr<std::thread> trd;
     unsigned int texId = 0;
     std::atomic_bool threadRunning = false;
     std::atomic_bool imageDone = false;
@@ -466,7 +466,8 @@ void handleAsyncImageUpload(ImageData& imgData) {
             imgData.imageDone = false;
             imgData.uploadDone = false;
             imgData.threadDone = false;
-            imgData.trd.join();
+            imgData.trd->join();
+            imgData.trd = nullptr;
         }
     }
 }
@@ -843,7 +844,7 @@ void postSyncPreDraw() {
                 //Load background file
                 backgroundImageData.filename = SyncHelper::instance().variables.bgImageFile;
                 Log::Info(fmt::format("Loading new background image asynchronously: {}", backgroundImageData.filename));
-                backgroundImageData.trd = std::thread(loadImageAsync, std::ref(backgroundImageData));
+                backgroundImageData.trd = std::make_unique<std::thread>(loadImageAsync, std::ref(backgroundImageData));
 
                 bgRotate = glm::vec3(float(SyncHelper::instance().variables.rotateX),
                     float(SyncHelper::instance().variables.rotateY),
@@ -862,7 +863,7 @@ void postSyncPreDraw() {
                 //Load overlay file
                 overlayImageData.filename = SyncHelper::instance().variables.overlayFile;
                 Log::Info(fmt::format("Loading new overlay image asynchronously: {}", overlayImageData.filename));
-                overlayImageData.trd = std::thread(loadImageAsync, std::ref(overlayImageData));
+                overlayImageData.trd = std::make_unique<std::thread>(loadImageAsync, std::ref(overlayImageData));
             }
             else {
                 overlayImageData.filename = "";
