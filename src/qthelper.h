@@ -322,8 +322,11 @@ static inline bool load_configurations(mpv_handle *ctx, QString filepath) {
     QFile mpvConfFile(filepath);
 
     if (!mpvConfFile.open(QIODevice::ReadOnly)) {
-        qWarning("Couldn't open mpv configuration file.");
+        qWarning() << "Couldn't open mpv configuration file: " << filepath;
         return false;
+    }
+    else {
+        qInfo() << "Loading mpv configuration file: " << filepath;
     }
 
     QByteArray mpvCommandsArray = mpvConfFile.readAll();

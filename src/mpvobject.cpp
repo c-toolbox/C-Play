@@ -151,8 +151,8 @@ MpvObject::MpvObject(QQuickItem * parent)
     setStereoscopicMode(PlaybackSettings::stereoModeForBackground());
     setGridToMapOn(PlaybackSettings::gridToMapOnForBackground());
 
-    mpv::qt::load_configurations(mpv, QStringLiteral("./data/mpv-conf.json"));
-    mpv::qt::load_configurations(mpv, QStringLiteral("./data/mpv-conf-master.json"));
+    mpv::qt::load_configurations(mpv, QString::fromStdString(SyncHelper::instance().configuration.confAll));
+    mpv::qt::load_configurations(mpv, QString::fromStdString(SyncHelper::instance().configuration.confMasterOnly));
 
     updateAudioDeviceList();
 

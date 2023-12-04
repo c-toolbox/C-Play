@@ -131,6 +131,12 @@ public:
 
     };
 
+    struct ConfigurationVariables {
+        std::string confAll;
+        std::string confMasterOnly;
+        std::string confNodesOnly;
+    };
+
     SyncHelper();
     ~SyncHelper();
 
@@ -171,6 +177,12 @@ public:
         /*loopTimeEnabled*/false,
         /*loopTimeA*/0,
         /*loopTimeB*/0 };
+
+    ConfigurationVariables configuration = {
+        /*confAll*/"./data/mpv-conf/default/all.json",
+        /*confMasterOnly*/"./data/mpv-conf/default/master-only.json",
+        /*confNodesOnly*/"./data/mpv-conf/default/nodes-only.json" };
+
 private:
     static SyncHelper* _instance;
 
