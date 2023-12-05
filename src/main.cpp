@@ -80,7 +80,7 @@ auto loadImageAsync = [](ImageData& data) {
 int mpvVideoReconfigs = 0;
 bool updateRendering = true;
 
-bool paused = true;
+bool videoIsPaused = true;
 int loopMode = -1;
 bool fadeDurationOngoing = false;
 // video
@@ -602,8 +602,8 @@ void on_mpv_events(void*)
                     }
                     else if (strcmp(prop->name, "pause") == 0) {
                         if (prop->format == MPV_FORMAT_FLAG) {
-                            paused = mpv::qt::get_property(mpvHandle, "pause").toBool();
-                            if (SyncHelper::instance().variables.paused != paused)
+                            videoIsPaused = mpv::qt::get_property(mpvHandle, "pause").toBool();
+                            if (SyncHelper::instance().variables.paused != videoIsPaused)
                                 mpv::qt::set_property(mpvHandle, "pause", SyncHelper::instance().variables.paused);
                         }
                     }
@@ -882,7 +882,8 @@ void postSyncPreDraw() {
 
         renderParams.clear();
 
-        if (!backgroundImageData.filename.empty() && SyncHelper::instance().variables.alphaBg > 0.f) {
+        if ((!updateRendering || loadedFile.empty() || SyncHelper::instance().variables.alpha < 1.f)
+            && !backgroundImageData.filename.empty() && SyncHelper::instance().variables.alphaBg > 0.f) {
             RenderParams rpBg;
             rpBg.tex = backgroundImageData.texId;
             rpBg.alpha = SyncHelper::instance().variables.alphaBg;
@@ -925,16 +926,16 @@ void postSyncPreDraw() {
             }
         }
         
-        paused = mpv::qt::get_property(mpvHandle, "pause").toBool();
-        if (SyncHelper::instance().variables.paused != paused) {
-            paused = SyncHelper::instance().variables.paused;
-            if (paused) {
+        videoIsPaused = mpv::qt::get_property(mpvHandle, "pause").toBool();
+        if (SyncHelper::instance().variables.paused != videoIsPaused) {
+            videoIsPaused = SyncHelper::instance().variables.paused;
+            if (videoIsPaused) {
                 Log::Info("Video paused.");
             }
             else {
                 Log::Info("Video playing...");
             }
-            mpv::qt::set_property(mpvHandle, "pause", paused);
+            mpv::qt::set_property(mpvHandle, "pause", videoIsPaused);
         }
 
         if (SyncHelper::instance().variables.loopMode != loopMode) {
