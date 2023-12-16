@@ -549,6 +549,11 @@ void resizeMpvFBO(int width, int height){
     if(width == videoWidth && height == videoHeight)
         return;
 
+    int maxTexSize;
+    glGetIntegerv(GL_MAX_TEXTURE_SIZE, &maxTexSize);
+    if (width <= 0 || height <= 0 || width > maxTexSize || height > maxTexSize)
+        return;
+
     Log::Info(fmt::format("New MPV FBO width:{} and height:{}", width, height));
 
     glDeleteFramebuffers(1, &mpvFBO);
@@ -576,24 +581,16 @@ void on_mpv_events(void*)
         switch (event->event_id) {
 #ifndef ONLY_RENDER_TO_SCREEN
             case MPV_EVENT_VIDEO_RECONFIG: {
-                // Retrieve the new video size.
-                int64_t w, h;
-                if (mpv_get_property(mpvHandle, "dwidth", MPV_FORMAT_INT64, &w) >= 0 &&
-                    mpv_get_property(mpvHandle, "dheight", MPV_FORMAT_INT64, &h) >= 0 &&
-                    w > 0 && h > 0)
-                {
-                    resizeMpvFBO((int)w, (int)h);
-                    mpvVideoReconfigs++;
-                    updateRendering = (mpvVideoReconfigs > 0);
-                    mpv::qt::set_property(mpvHandle, "time-pos", SyncHelper::instance().variables.timePosition);
-                }
+                mpvVideoReconfigs++;
+                updateRendering = (mpvVideoReconfigs > 1);
+                mpv::qt::set_property_async(mpvHandle, "time-pos", SyncHelper::instance().variables.timePosition);
                 break;
             }
             case MPV_EVENT_PROPERTY_CHANGE: {
                     mpv_event_property *prop = (mpv_event_property *)event->data;
                     if (strcmp(prop->name, "video-params") == 0) {
                         if (prop->format == MPV_FORMAT_NODE) {
-                            const QVariant videoParams = mpv::qt::get_property(mpvHandle, "video-params");
+                            const QVariant videoParams = mpv::qt::node_to_variant(reinterpret_cast<mpv_node*>(prop->data));
                             auto vm = videoParams.toMap();
                             int w = vm["w"].toInt();
                             int h = vm["h"].toInt();
@@ -602,14 +599,9 @@ void on_mpv_events(void*)
                     }
                     else if (strcmp(prop->name, "pause") == 0) {
                         if (prop->format == MPV_FORMAT_FLAG) {
-                            videoIsPaused = mpv::qt::get_property(mpvHandle, "pause").toBool();
+                            videoIsPaused = *reinterpret_cast<bool*>(prop->data);
                             if (SyncHelper::instance().variables.paused != videoIsPaused)
-                                mpv::qt::set_property(mpvHandle, "pause", SyncHelper::instance().variables.paused);
-                        }
-                    }
-                    else if (strcmp(prop->name, "time-pos") == 0) {
-                        if (prop->format == MPV_FORMAT_DOUBLE) {
-                            //mpv::qt::set_property(mpvHandle, "pause", SyncHelper::instance().variables.paused);
+                                mpv::qt::set_property_async(mpvHandle, "pause", SyncHelper::instance().variables.paused);
                         }
                     }
                     break;
@@ -946,23 +938,23 @@ void postSyncPreDraw() {
             else {
                 Log::Info("Video playing...");
             }
-            mpv::qt::set_property(mpvHandle, "pause", videoIsPaused);
+            mpv::qt::set_property_async(mpvHandle, "pause", videoIsPaused);
         }
 
         if (SyncHelper::instance().variables.loopMode != loopMode) {
             loopMode = SyncHelper::instance().variables.loopMode;
 
             if (loopMode == 0) { //Pause
-                mpv::qt::set_property(mpvHandle, "keep-open", "yes");
-                mpv::qt::set_property(mpvHandle, "loop-file", "no");
+                mpv::qt::set_property_async(mpvHandle, "keep-open", "yes");
+                mpv::qt::set_property_async(mpvHandle, "loop-file", "no");
             }
             else if (loopMode == 1) { //Continue
-                mpv::qt::set_property(mpvHandle, "keep-open", "no");
-                mpv::qt::set_property(mpvHandle, "loop-file", "no");
+                mpv::qt::set_property_async(mpvHandle, "keep-open", "no");
+                mpv::qt::set_property_async(mpvHandle, "loop-file", "no");
             }
             else { //Loop
-                mpv::qt::set_property(mpvHandle, "keep-open", "yes");
-                mpv::qt::set_property(mpvHandle, "loop-file", "inf");
+                mpv::qt::set_property_async(mpvHandle, "keep-open", "yes");
+                mpv::qt::set_property_async(mpvHandle, "loop-file", "inf");
             }
         }
 
@@ -971,38 +963,27 @@ void postSyncPreDraw() {
         if (SyncHelper::instance().variables.timePosition != currentTimePos && SyncHelper::instance().variables.syncOn) {
             double timeToSet = SyncHelper::instance().variables.timePosition;
             if (SyncHelper::instance().variables.timeDirty) {
-                mpv::qt::set_property(mpvHandle, "time-pos", timeToSet);
+                mpv::qt::set_property_async(mpvHandle, "time-pos", timeToSet);
                 //Log::Info(fmt::format("New video position: {}", timeToSet));     
             }
         }
 
         if (SyncHelper::instance().variables.loopTimeDirty) {
             if (SyncHelper::instance().variables.loopTimeEnabled) {
-                mpv::qt::set_property(mpvHandle, "ab-loop-a", SyncHelper::instance().variables.loopTimeA);
-                mpv::qt::set_property(mpvHandle, "ab-loop-b", SyncHelper::instance().variables.loopTimeB);
+                mpv::qt::set_property_async(mpvHandle, "ab-loop-a", SyncHelper::instance().variables.loopTimeA);
+                mpv::qt::set_property_async(mpvHandle, "ab-loop-b", SyncHelper::instance().variables.loopTimeB);
             }
             else {
-                mpv::qt::set_property(mpvHandle, "ab-loop-a", "no");
-                mpv::qt::set_property(mpvHandle, "ab-loop-b", "no");
+                mpv::qt::set_property_async(mpvHandle, "ab-loop-a", "no");
+                mpv::qt::set_property_async(mpvHandle, "ab-loop-b", "no");
             }
         }
 
         if (SyncHelper::instance().variables.eqDirty) {
-            if (SyncHelper::instance().variables.eqContrast != mpv::qt::get_property(mpvHandle, "contrast").toInt()) {
-                mpv::qt::set_property(mpvHandle, "contrast", SyncHelper::instance().variables.eqContrast);
-            }
-
-            if (SyncHelper::instance().variables.eqBrightness != mpv::qt::get_property(mpvHandle, "brightness").toInt()) {
-                mpv::qt::set_property(mpvHandle, "brightness", SyncHelper::instance().variables.eqBrightness);
-            }
-
-            if (SyncHelper::instance().variables.eqGamma != mpv::qt::get_property(mpvHandle, "gamma").toInt()) {
-                mpv::qt::set_property(mpvHandle, "gamma", SyncHelper::instance().variables.eqGamma);
-            }
-
-            if (SyncHelper::instance().variables.eqSaturation != mpv::qt::get_property(mpvHandle, "saturation").toInt()) {
-                mpv::qt::set_property(mpvHandle, "saturation", SyncHelper::instance().variables.eqSaturation);
-            }
+            mpv::qt::set_property_async(mpvHandle, "contrast", SyncHelper::instance().variables.eqContrast);
+            mpv::qt::set_property_async(mpvHandle, "brightness", SyncHelper::instance().variables.eqBrightness);
+            mpv::qt::set_property_async(mpvHandle, "gamma", SyncHelper::instance().variables.eqGamma);
+            mpv::qt::set_property_async(mpvHandle, "saturation", SyncHelper::instance().variables.eqSaturation);
         }
 
         if (domeRadius != SyncHelper::instance().variables.radius || domeFov != SyncHelper::instance().variables.fov) {

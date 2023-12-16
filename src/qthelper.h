@@ -285,6 +285,19 @@ static inline int set_property(mpv_handle *ctx, const QString &name,
 }
 
 /**
+ * Set the given property as mpv_node converted from the QVariant argument.
+ *
+ * @return mpv error code (<0 on error, >= 0 on success)
+ */
+static inline void set_property_async(mpv_handle* ctx, const QString& name,
+    const QVariant& v)
+{
+    node_builder node(v);
+    qInfo() << "(MPV) SetProperty (ASYNC): Name = " << name << ", Value = " << v.toString();
+    mpv_set_property_async(ctx, 0, name.toUtf8().data(), MPV_FORMAT_NODE, node.node());
+}
+
+/**
  * mpv_command_node() equivalent.
  *
  * @param args command arguments, with args[0] being the command name as string
