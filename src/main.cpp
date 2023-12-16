@@ -640,10 +640,26 @@ void initOGL(GLFWwindow*) {
     mpv_set_option_string(mpvHandle, "msg-level", "all=v");
     mpv_request_log_messages(mpvHandle, "debug");*/
 
-    mpv_opengl_init_params gl_init_params{get_proc_address_mpv, nullptr};
+    // Load mpv configurations for nodes
+    mpv::qt::load_configurations(mpvHandle, QString::fromStdString(SyncHelper::instance().configuration.confAll));
+    mpv::qt::load_configurations(mpvHandle, QString::fromStdString(SyncHelper::instance().configuration.confNodesOnly));
+
+    // Setup OpenGL MPV settings
+    mpv_opengl_init_params gl_init_params{ get_proc_address_mpv, nullptr };
+    int advancedControl = mpv::qt::get_property(mpvHandle, "vd-lavc-dr").toInt();
     mpv_render_param params[]{
         {MPV_RENDER_PARAM_API_TYPE, const_cast<char *>(MPV_RENDER_API_TYPE_OPENGL)},
         {MPV_RENDER_PARAM_OPENGL_INIT_PARAMS, &gl_init_params},
+        // Tell libmpv that you will call mpv_render_context_update() on render
+        // context update callbacks, and that you will _not_ block on the core
+        // ever (see <libmpv/render.h> "Threading" section for what libmpv
+        // functions you can call at all when this is active).
+        // In particular, this means you must call e.g. mpv_command_async()
+        // instead of mpv_command().
+        // If you want to use synchronous calls, either make them on a separate
+        // thread, or remove the option below (this will disable features like
+        // DR and is not recommended anyway).
+        {MPV_RENDER_PARAM_ADVANCED_CONTROL, &advancedControl},
         {MPV_RENDER_PARAM_INVALID, nullptr}
     };
 
@@ -657,10 +673,6 @@ void initOGL(GLFWwindow*) {
     // (Separate from the normal event handling mechanism for the sake of
     //  users which run OpenGL on a different thread.)
     mpv_render_context_set_update_callback(mpvRenderContext, on_mpv_render_update, NULL);
-
-    // Load mpv configurations for nodes
-    mpv::qt::load_configurations(mpvHandle, QString::fromStdString(SyncHelper::instance().configuration.confAll));
-    mpv::qt::load_configurations(mpvHandle, QString::fromStdString(SyncHelper::instance().configuration.confNodesOnly));
 
     // Set default settings
     mpv::qt::set_property(mpvHandle, "keep-open", "yes");
@@ -926,7 +938,6 @@ void postSyncPreDraw() {
             }
         }
         
-        videoIsPaused = mpv::qt::get_property(mpvHandle, "pause").toBool();
         if (SyncHelper::instance().variables.paused != videoIsPaused) {
             videoIsPaused = SyncHelper::instance().variables.paused;
             if (videoIsPaused) {
@@ -955,7 +966,8 @@ void postSyncPreDraw() {
             }
         }
 
-        double currentTimePos = mpv::qt::get_property(mpvHandle, "time-pos").toDouble();
+        int64_t timeInMicroSeconds = mpv_get_time_us(mpvHandle);
+        double currentTimePos = double(timeInMicroSeconds) / 1000.0;
         if (SyncHelper::instance().variables.timePosition != currentTimePos && SyncHelper::instance().variables.syncOn) {
             double timeToSet = SyncHelper::instance().variables.timePosition;
             if (SyncHelper::instance().variables.timeDirty) {

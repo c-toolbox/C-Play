@@ -437,5 +437,22 @@ SettingsBasePage {
             width: Kirigami.Units.gridUnit
             height: Kirigami.Units.gridUnit
         }
+        Item {
+            width: Kirigami.Units.gridUnit
+            height: Kirigami.Units.gridUnit
+        }
+
+        Label {
+            text: qsTr("Configuration from external files:")
+        }
+        ScrollView {
+            id: confText
+            TextArea {
+                text: mpv.getReadableExternalConfiguration()
+                readOnly: true
+                Layout.fillWidth: true
+            }
+            Layout.fillWidth: true
+        }
     }
 }

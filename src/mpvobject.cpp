@@ -1573,6 +1573,31 @@ QUrl MpvObject::getOverlayFileUrl() const
     return QUrl::fromLocalFile(QString::fromStdString(SyncHelper::instance().variables.overlayFile));
 }
 
+QString MpvObject::getReadableExternalConfiguration() {
+    QString returnStr;
+
+    QStringList confFiles;
+    confFiles.append(QString::fromStdString(SyncHelper::instance().configuration.confAll));
+    confFiles.append(QString::fromStdString(SyncHelper::instance().configuration.confMasterOnly));
+    confFiles.append(QString::fromStdString(SyncHelper::instance().configuration.confNodesOnly));
+
+    QString conf;
+    foreach(conf, confFiles) {
+        returnStr.append(conf + "\n");
+        QFileInfo confFileInfo(conf);
+        if (confFileInfo.exists()) {
+            QFile f(conf);
+            f.open(QIODevice::ReadOnly);
+            returnStr.append(f.readAll() + "\n");
+            f.close();
+        }
+        else {
+            returnStr.append("Configuration file was not found\n");
+        }
+    }
+    return returnStr;
+}
+
 void MpvObject::getYouTubePlaylist(const QString&)
 {
     /*m_playlistModel->clear();

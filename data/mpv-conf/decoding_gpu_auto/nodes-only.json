@@ -1,4 +1,5 @@
 {
 	"vd-lavc-threads": "240",
+	"vd-lavc-dr": "yes",
 	"opengl-pbo": "yes"
 }

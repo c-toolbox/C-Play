@@ -353,6 +353,7 @@ public:
     Q_INVOKABLE void loadSection(int playSectionsIndex);
     Q_INVOKABLE void loadItem(int playListIndex, bool updateLastPlayedFile = true);
     Q_INVOKABLE QUrl getOverlayFileUrl() const;
+    Q_INVOKABLE QString getReadableExternalConfiguration();
     Q_INVOKABLE void getYouTubePlaylist(const QString &path);
     Q_INVOKABLE QVariant command(const QVariant &params, bool debug = false);
     Q_INVOKABLE QVariant getProperty(const QString &name, bool debug = false);

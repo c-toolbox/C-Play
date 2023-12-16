@@ -1,8 +1,0 @@
-{
-	"cache": "yes",
-	"demuxer-max-bytes": "223400KiB",
-	"demuxer-readahead-secs": "20",
-	"hwdec": "nvdec",
-	"vd-lavc-dr": "yes",
-	"opengl-pbo": "yes"
-}
