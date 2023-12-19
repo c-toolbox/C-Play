@@ -20,13 +20,22 @@
 #include <client.h>
 #include <render_gl.h>
 #include "qthelper.h"
+#include <fstream>   
+#include <mutex>
 
 //#define SGCT_ONLY
 //#define ONLY_RENDER_TO_SCREEN
 
 namespace {
-mpv_handle *mpvHandle;
-mpv_render_context *mpvRenderContext;
+
+bool allowDirectRendering = false;
+bool mpvAndRenderOnSeparateThreads = true;
+
+std::mutex logMutex;
+std::ofstream logFile;
+std::string logFilePath = "";
+std::string logLevel = "";
+
 std::unique_ptr<sgct::utils::Dome> dome;
 std::unique_ptr<sgct::utils::Sphere> sphere;
 std::unique_ptr<sgct::utils::Plane> plane;
@@ -39,11 +48,6 @@ std::string loadedFile = "";
 std::string videoFilters = "";
 glm::vec3 bgRotate(0.f);
 glm::vec3 bgTranslate(0.f);
-
-int videoWidth = 0;
-int videoHeight = 0;
-unsigned int mpvFBO = 0;
-unsigned int mpvTex = 0;
 
 struct RenderParams {
     unsigned int tex;
@@ -78,7 +82,26 @@ auto loadImageAsync = [](ImageData& data) {
     data.threadDone = true;
 };
 
-int mpvVideoReconfigs = 0;
+struct mpvData {
+    mpv_handle* handle;
+    mpv_render_context* renderContext;
+    std::unique_ptr<std::thread> trd;
+    int videoWidth = 0;
+    int videoHeight = 0;
+    int fboWidth = 0;
+    int fboHeight = 0;
+    unsigned int fboId = 0;
+    unsigned int texId = 0;
+    int reconfigs = 0;
+    int reconfigsBeforeUpdate = 1;
+    int advancedControl = 0;
+    std::atomic_bool threadRunning = false;
+    std::atomic_bool mpvInitialized = false;
+    std::atomic_bool threadDone = false;
+    std::atomic_bool terminate = false;
+};
+mpvData videoData;
+
 bool updateRendering = true;
 
 bool videoIsPaused = true;
@@ -524,43 +547,43 @@ void generateTexture(unsigned int& id, int width, int height) {
     glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_WRAP_T, GL_CLAMP_TO_EDGE);
 }
 
-void createMpvFBO(int width, int height){
-    videoWidth = width;
-    videoHeight = height;
+void createMpvFBO(mpvData& vd, int width, int height){
+    vd.fboWidth = width;
+    vd.fboHeight = height;
 
     sgct::Window::makeSharedContextCurrent();
 
-    glGenFramebuffers(1, &mpvFBO);
-    glBindFramebuffer(GL_FRAMEBUFFER, mpvFBO);
+    glGenFramebuffers(1, &vd.fboId);
+    glBindFramebuffer(GL_FRAMEBUFFER, vd.fboId);
 
-    generateTexture(mpvTex, width, height);
+    generateTexture(vd.texId, width, height);
 
     glFramebufferTexture2D(
         GL_FRAMEBUFFER,
         GL_COLOR_ATTACHMENT0,
         GL_TEXTURE_2D,
-        mpvTex,
+        vd.texId,
         0
     );
 
     glBindFramebuffer(GL_FRAMEBUFFER, 0);
 }
 
-void resizeMpvFBO(int width, int height){
-    if(width == videoWidth && height == videoHeight)
+void checkNeededMpvFboResize(mpvData& vd){
+    if(vd.fboWidth == vd.videoWidth && vd.fboHeight == vd.videoHeight)
         return;
 
     int maxTexSize;
     glGetIntegerv(GL_MAX_TEXTURE_SIZE, &maxTexSize);
-    if (width <= 0 || height <= 0 || width > maxTexSize || height > maxTexSize)
+    if (vd.videoWidth <= 0 || vd.videoHeight <= 0 || vd.videoWidth > maxTexSize || vd.videoHeight > maxTexSize)
         return;
 
-    Log::Info(fmt::format("New MPV FBO width:{} and height:{}", width, height));
+    Log::Info(fmt::format("New MPV FBO width:{} and height:{}", vd.videoWidth, vd.videoHeight));
 
-    glDeleteFramebuffers(1, &mpvFBO);
-    glDeleteTextures(1, &mpvTex);
+    glDeleteFramebuffers(1, &vd.fboId);
+    glDeleteTextures(1, &vd.texId);
 
-    createMpvFBO(width, height);
+    createMpvFBO(vd, vd.videoWidth, vd.videoHeight);
 }
 
 static void *get_proc_address_mpv(void*, const char *name)
@@ -570,21 +593,32 @@ static void *get_proc_address_mpv(void*, const char *name)
 
 void on_mpv_render_update(void*)
 {
+    sgct::Window::makeSharedContextCurrent();
+    checkNeededMpvFboResize(videoData);
 }
 
-void on_mpv_events(void*)
+void on_mpv_events(mpvData& vd)
 {
-    while (mpvHandle) {
-        mpv_event *event = mpv_wait_event(mpvHandle, 0);
+    while (vd.handle) {
+        mpv_event *event = mpv_wait_event(vd.handle, 0);
         if (event->event_id == MPV_EVENT_NONE) {
             break;
         }
         switch (event->event_id) {
 #ifndef ONLY_RENDER_TO_SCREEN
             case MPV_EVENT_VIDEO_RECONFIG: {
-                mpvVideoReconfigs++;
-                updateRendering = (mpvVideoReconfigs > 1);
-                mpv::qt::set_property_async(mpvHandle, "time-pos", SyncHelper::instance().variables.timePosition);
+                // Retrieve the new video size.
+                int64_t w, h;
+                if (mpv_get_property(vd.handle, "dwidth", MPV_FORMAT_INT64, &w) >= 0 &&
+                    mpv_get_property(vd.handle, "dheight", MPV_FORMAT_INT64, &h) >= 0 &&
+                    w > 0 && h > 0)
+                {
+                    vd.videoWidth = w;
+                    vd.videoHeight = h;
+                    vd.reconfigs++;
+                    updateRendering = (vd.reconfigs > vd.reconfigsBeforeUpdate);
+                    mpv::qt::set_property_async(vd.handle, "time-pos", SyncHelper::instance().variables.timePosition);
+                }
                 break;
             }
             case MPV_EVENT_PROPERTY_CHANGE: {
@@ -593,21 +627,42 @@ void on_mpv_events(void*)
                         if (prop->format == MPV_FORMAT_NODE) {
                             const QVariant videoParams = mpv::qt::node_to_variant(reinterpret_cast<mpv_node*>(prop->data));
                             auto vm = videoParams.toMap();
-                            int w = vm["w"].toInt();
-                            int h = vm["h"].toInt();
-                            resizeMpvFBO((int)w, (int)h);
+                            vd.videoWidth = vm["w"].toInt();
+                            vd.videoHeight = vm["h"].toInt();
                         }
                     }
                     else if (strcmp(prop->name, "pause") == 0) {
                         if (prop->format == MPV_FORMAT_FLAG) {
                             videoIsPaused = *reinterpret_cast<bool*>(prop->data);
                             if (SyncHelper::instance().variables.paused != videoIsPaused)
-                                mpv::qt::set_property_async(mpvHandle, "pause", SyncHelper::instance().variables.paused);
+                                mpv::qt::set_property_async(vd.handle, "pause", SyncHelper::instance().variables.paused);
                         }
                     }
                     break;
             }
 #endif
+            case MPV_EVENT_LOG_MESSAGE: {
+                mpv_event_log_message* message = (mpv_event_log_message*)event->data;
+                if (message->log_level == mpv_log_level::MPV_LOG_LEVEL_FATAL) {
+                    Log::Error(fmt::format("FATAL: {}", message->text));
+                }
+                else if (message->log_level == mpv_log_level::MPV_LOG_LEVEL_ERROR) {
+                    Log::Error(message->text);
+                }
+                else if (message->log_level == mpv_log_level::MPV_LOG_LEVEL_WARN) {
+                    Log::Warning(message->text);
+                }
+                else if (message->log_level == mpv_log_level::MPV_LOG_LEVEL_INFO) {
+                    Log::Info(message->text);
+                }
+                else if (message->log_level == mpv_log_level::MPV_LOG_LEVEL_V) {
+                    Log::Info(message->text);
+                }
+                else if (message->log_level == mpv_log_level::MPV_LOG_LEVEL_DEBUG) {
+                    Log::Debug(message->text);
+                }
+                break;
+            }
             default: {
                 // Ignore uninteresting or unknown events.
                 break;
@@ -616,32 +671,86 @@ void on_mpv_events(void*)
     }
 }
 
+void initMPV(mpvData& vd) {
+    vd.handle = mpv_create();
+    if (!vd.handle)
+        Log::Error("mpv context init failed");
+
+    // Some minor options can only be set before mpv_initialize().
+    if (mpv_initialize(vd.handle) < 0)
+        Log::Error("mpv init failed");
+
+    if (!logFilePath.empty() || !logLevel.empty()) {
+        mpv_set_option_string(vd.handle, "terminal", "yes");
+        mpv_set_option_string(vd.handle, "msg-level", "all=v");
+        mpv_request_log_messages(vd.handle, logLevel.c_str());
+    }
+
+    // Set default settings
+    mpv::qt::set_property(vd.handle, "keep-open", "yes");
+    mpv::qt::set_property(vd.handle, "loop-file", "inf");
+    mpv::qt::set_property(vd.handle, "aid", "no"); //No audio on nodes.
+
+    // Load mpv configurations for nodes
+    mpv::qt::load_configurations(vd.handle, QString::fromStdString(SyncHelper::instance().configuration.confAll));
+    mpv::qt::load_configurations(vd.handle, QString::fromStdString(SyncHelper::instance().configuration.confNodesOnly));
+
+    if (allowDirectRendering) {
+        //Run with direct rendering if requested
+        if (mpv::qt::get_property(vd.handle, "vd-lavc-dr").toBool()) {
+            vd.advancedControl = 1;
+            vd.reconfigsBeforeUpdate = 1;
+        }
+        else {
+            vd.advancedControl = 0;
+            vd.reconfigsBeforeUpdate = 1;
+        }
+    }
+    else {
+        //Do not allow direct rendering (EVER).
+        mpv::qt::set_property(vd.handle, "vd-lavc-dr", "no");
+        vd.advancedControl = 0;
+        vd.reconfigsBeforeUpdate = 1;
+    }
+}
+
+auto runMpvAsync = [](mpvData& data) {
+    data.threadRunning = true;
+    initMPV(data);
+    data.mpvInitialized = true;
+    while (!data.terminate) {
+        on_mpv_events(data);
+    }
+    mpv_destroy(data.handle);
+    data.threadDone = true;
+};
+
 void initOGL(GLFWwindow*) {
 #ifndef SGCT_ONLY
     if (Engine::instance().isMaster())
         return;
 #endif
-    mpvHandle = mpv_create();
-    if (!mpvHandle)
-        Log::Error("mpv context init failed");
 
-    // Some minor options can only be set before mpv_initialize().
-    if (mpv_initialize(mpvHandle) < 0)
-        Log::Error("mpv init failed");
+if (mpvAndRenderOnSeparateThreads) {
+    //Run MPV on another thread
+    videoData.trd = std::make_unique<std::thread>(runMpvAsync, std::ref(videoData));
+    while (!videoData.mpvInitialized) {}
+}
+else{
+    initMPV(videoData);
+}
 
-    /*mpv_set_option_string(mpvHandle, "terminal", "yes");
-    mpv_set_option_string(mpvHandle, "msg-level", "all=v");
-    mpv_request_log_messages(mpvHandle, "debug");*/
-
-    // Load mpv configurations for nodes
-    mpv::qt::load_configurations(mpvHandle, QString::fromStdString(SyncHelper::instance().configuration.confAll));
-    mpv::qt::load_configurations(mpvHandle, QString::fromStdString(SyncHelper::instance().configuration.confNodesOnly));
+#ifndef ONLY_RENDER_TO_SCREEN
+    //Observe video parameters
+    mpv_observe_property(videoData.handle, 0, "video-params", MPV_FORMAT_NODE);
+    mpv_observe_property(videoData.handle, 0, "pause", MPV_FORMAT_FLAG);
+    mpv_observe_property(videoData.handle, 0, "time-pos", MPV_FORMAT_DOUBLE);
+#endif
 
     // Setup OpenGL MPV settings
     mpv_opengl_init_params gl_init_params{ get_proc_address_mpv, nullptr };
-    int advancedControl = mpv::qt::get_property(mpvHandle, "vd-lavc-dr").toInt();
     mpv_render_param params[]{
-        {MPV_RENDER_PARAM_API_TYPE, const_cast<char *>(MPV_RENDER_API_TYPE_OPENGL)},
+        {MPV_RENDER_PARAM_API_TYPE, const_cast<char*>(MPV_RENDER_API_TYPE_OPENGL)},
         {MPV_RENDER_PARAM_OPENGL_INIT_PARAMS, &gl_init_params},
         // Tell libmpv that you will call mpv_render_context_update() on render
         // context update callbacks, and that you will _not_ block on the core
@@ -652,38 +761,28 @@ void initOGL(GLFWwindow*) {
         // If you want to use synchronous calls, either make them on a separate
         // thread, or remove the option below (this will disable features like
         // DR and is not recommended anyway).
-        {MPV_RENDER_PARAM_ADVANCED_CONTROL, &advancedControl},
+        {MPV_RENDER_PARAM_ADVANCED_CONTROL, &videoData.advancedControl},
         {MPV_RENDER_PARAM_INVALID, nullptr}
     };
 
     // This makes mpv use the currently set GL context. It will use the callback
     // (passed via params) to resolve GL builtin functions, as well as extensions.
-    if (mpv_render_context_create(&mpvRenderContext, mpvHandle, params) < 0)
+    if (mpv_render_context_create(&videoData.renderContext, videoData.handle, params) < 0)
         Log::Error("failed to initialize mpv GL context");
 
     // When there is a need to call mpv_render_context_update(), which can
     // request a new frame to be rendered.
     // (Separate from the normal event handling mechanism for the sake of
     //  users which run OpenGL on a different thread.)
-    mpv_render_context_set_update_callback(mpvRenderContext, on_mpv_render_update, NULL);
-
-    // Set default settings
-    mpv::qt::set_property(mpvHandle, "keep-open", "yes");
-    mpv::qt::set_property(mpvHandle, "loop-file", "inf");
-    mpv::qt::set_property(mpvHandle, "aid", "no"); //No audio on nodes.
+    mpv_render_context_set_update_callback(videoData.renderContext, on_mpv_render_update, NULL);
 
     Log::Info(fmt::format("Loading new file: {}", SyncHelper::instance().variables.loadedFile));
-    if(!SyncHelper::instance().variables.loadedFile.empty())
-        mpv::qt::command_async(mpvHandle, QStringList() << "loadfile" << SyncHelper::instance().variables.loadedFile.c_str());
+    if (!SyncHelper::instance().variables.loadedFile.empty())
+        mpv::qt::command_async(videoData.handle, QStringList() << "loadfile" << SyncHelper::instance().variables.loadedFile.c_str());
 
 #ifndef ONLY_RENDER_TO_SCREEN
-    //Observe video parameters
-    mpv_observe_property(mpvHandle, 0, "video-params", MPV_FORMAT_NODE);
-    mpv_observe_property(mpvHandle, 0, "pause", MPV_FORMAT_FLAG);
-    mpv_observe_property(mpvHandle, 0, "time-pos", MPV_FORMAT_DOUBLE);
-
     //Creating new FBO to render mpv into
-    createMpvFBO(512, 512);
+    createMpvFBO(videoData, 512, 512);
 
     // Create shaders
     ShaderManager::instance().addShaderProgram("mesh", MeshVert, VideoFrag);
@@ -845,33 +944,46 @@ void postSyncPreDraw() {
         handleAsyncImageUpload(overlayImageData);
 
         if (backgroundImageData.filename != SyncHelper::instance().variables.bgImageFile) {
-            if (fileIsImage(SyncHelper::instance().variables.bgImageFile)) {
-                //Load background file
-                backgroundImageData.filename = SyncHelper::instance().variables.bgImageFile;
-                Log::Info(fmt::format("Loading new background image asynchronously: {}", backgroundImageData.filename));
-                backgroundImageData.trd = std::make_unique<std::thread>(loadImageAsync, std::ref(backgroundImageData));
-
-                bgRotate = glm::vec3(float(SyncHelper::instance().variables.rotateX),
-                    float(SyncHelper::instance().variables.rotateY),
-                    float(SyncHelper::instance().variables.rotateZ));
-                bgTranslate = glm::vec3(float(SyncHelper::instance().variables.translateX) / 100.f,
-                    float(SyncHelper::instance().variables.translateY) / 100.f,
-                    float(SyncHelper::instance().variables.translateZ) / 100.f);
-            }
-            else {
+            if (SyncHelper::instance().variables.bgImageFile.empty()){
+                Log::Info("Clearing background");
                 backgroundImageData.filename = "";
             }
+            else{
+                if (fileIsImage(SyncHelper::instance().variables.bgImageFile)) {
+                    //Load background file
+                    backgroundImageData.filename = SyncHelper::instance().variables.bgImageFile;
+                    Log::Info(fmt::format("Loading new background image asynchronously: {}", backgroundImageData.filename));
+                    backgroundImageData.trd = std::make_unique<std::thread>(loadImageAsync, std::ref(backgroundImageData));
+
+                    bgRotate = glm::vec3(float(SyncHelper::instance().variables.rotateX),
+                        float(SyncHelper::instance().variables.rotateY),
+                        float(SyncHelper::instance().variables.rotateZ));
+                    bgTranslate = glm::vec3(float(SyncHelper::instance().variables.translateX) / 100.f,
+                        float(SyncHelper::instance().variables.translateY) / 100.f,
+                        float(SyncHelper::instance().variables.translateZ) / 100.f);
+                }
+                else {
+                    backgroundImageData.filename = "";
+                }
+            }
+
         }
 
         if (overlayImageData.filename != SyncHelper::instance().variables.overlayFile) {
-            if (fileIsImage(SyncHelper::instance().variables.overlayFile)) {
-                //Load overlay file
-                overlayImageData.filename = SyncHelper::instance().variables.overlayFile;
-                Log::Info(fmt::format("Loading new overlay image asynchronously: {}", overlayImageData.filename));
-                overlayImageData.trd = std::make_unique<std::thread>(loadImageAsync, std::ref(overlayImageData));
+            if (SyncHelper::instance().variables.overlayFile.empty()) {
+                Log::Info("Clearing overlay");
+                overlayImageData.filename = "";
             }
             else {
-                overlayImageData.filename = "";
+                if (fileIsImage(SyncHelper::instance().variables.overlayFile)) {
+                    //Load overlay file
+                    overlayImageData.filename = SyncHelper::instance().variables.overlayFile;
+                    Log::Info(fmt::format("Loading new overlay image asynchronously: {}", overlayImageData.filename));
+                    overlayImageData.trd = std::make_unique<std::thread>(loadImageAsync, std::ref(overlayImageData));
+                }
+                else {
+                    overlayImageData.filename = "";
+                }
             }
         }
 
@@ -880,9 +992,9 @@ void postSyncPreDraw() {
             loadedFile = SyncHelper::instance().variables.loadedFile;
             SyncHelper::instance().variables.loadFile = false;
             Log::Info(fmt::format("Loading new file: {}", loadedFile));
-            mpvVideoReconfigs = 0;
+            videoData.reconfigs = 0;
             updateRendering = false;
-            mpv::qt::command_async(mpvHandle, QStringList() << "loadfile" << QString::fromStdString(loadedFile));
+            mpv::qt::command_async(videoData.handle, QStringList() << "loadfile" << QString::fromStdString(loadedFile));
         }
 
         renderParams.clear();
@@ -902,7 +1014,7 @@ void postSyncPreDraw() {
         if (updateRendering) {
             if (!loadedFile.empty() && SyncHelper::instance().variables.alpha > 0.f) {
                 RenderParams rpMpv;
-                rpMpv.tex = mpvTex;
+                rpMpv.tex = videoData.texId;
                 rpMpv.alpha = SyncHelper::instance().variables.alpha;
                 rpMpv.gridMode = SyncHelper::instance().variables.gridToMapOn;
                 rpMpv.stereoMode = SyncHelper::instance().variables.stereoscopicMode;
@@ -939,52 +1051,52 @@ void postSyncPreDraw() {
             else {
                 Log::Info("Video playing...");
             }
-            mpv::qt::set_property_async(mpvHandle, "pause", videoIsPaused);
+            mpv::qt::set_property_async(videoData.handle, "pause", videoIsPaused);
         }
 
         if (SyncHelper::instance().variables.loopMode != loopMode) {
             loopMode = SyncHelper::instance().variables.loopMode;
 
             if (loopMode == 0) { //Pause
-                mpv::qt::set_property_async(mpvHandle, "keep-open", "yes");
-                mpv::qt::set_property_async(mpvHandle, "loop-file", "no");
+                mpv::qt::set_property_async(videoData.handle, "keep-open", "yes");
+                mpv::qt::set_property_async(videoData.handle, "loop-file", "no");
             }
             else if (loopMode == 1) { //Continue
-                mpv::qt::set_property_async(mpvHandle, "keep-open", "no");
-                mpv::qt::set_property_async(mpvHandle, "loop-file", "no");
+                mpv::qt::set_property_async(videoData.handle, "keep-open", "no");
+                mpv::qt::set_property_async(videoData.handle, "loop-file", "no");
             }
             else { //Loop
-                mpv::qt::set_property_async(mpvHandle, "keep-open", "yes");
-                mpv::qt::set_property_async(mpvHandle, "loop-file", "inf");
+                mpv::qt::set_property_async(videoData.handle, "keep-open", "yes");
+                mpv::qt::set_property_async(videoData.handle, "loop-file", "inf");
             }
         }
 
-        int64_t timeInMicroSeconds = mpv_get_time_us(mpvHandle);
+        int64_t timeInMicroSeconds = mpv_get_time_us(videoData.handle);
         double currentTimePos = double(timeInMicroSeconds) / 1000.0;
         if (SyncHelper::instance().variables.timePosition != currentTimePos && SyncHelper::instance().variables.syncOn) {
             double timeToSet = SyncHelper::instance().variables.timePosition;
             if (SyncHelper::instance().variables.timeDirty) {
-                mpv::qt::set_property_async(mpvHandle, "time-pos", timeToSet);
+                mpv::qt::set_property_async(videoData.handle, "time-pos", timeToSet);
                 //Log::Info(fmt::format("New video position: {}", timeToSet));     
             }
         }
 
         if (SyncHelper::instance().variables.loopTimeDirty) {
             if (SyncHelper::instance().variables.loopTimeEnabled) {
-                mpv::qt::set_property_async(mpvHandle, "ab-loop-a", SyncHelper::instance().variables.loopTimeA);
-                mpv::qt::set_property_async(mpvHandle, "ab-loop-b", SyncHelper::instance().variables.loopTimeB);
+                mpv::qt::set_property_async(videoData.handle, "ab-loop-a", SyncHelper::instance().variables.loopTimeA);
+                mpv::qt::set_property_async(videoData.handle, "ab-loop-b", SyncHelper::instance().variables.loopTimeB);
             }
             else {
-                mpv::qt::set_property_async(mpvHandle, "ab-loop-a", "no");
-                mpv::qt::set_property_async(mpvHandle, "ab-loop-b", "no");
+                mpv::qt::set_property_async(videoData.handle, "ab-loop-a", "no");
+                mpv::qt::set_property_async(videoData.handle, "ab-loop-b", "no");
             }
         }
 
         if (SyncHelper::instance().variables.eqDirty) {
-            mpv::qt::set_property_async(mpvHandle, "contrast", SyncHelper::instance().variables.eqContrast);
-            mpv::qt::set_property_async(mpvHandle, "brightness", SyncHelper::instance().variables.eqBrightness);
-            mpv::qt::set_property_async(mpvHandle, "gamma", SyncHelper::instance().variables.eqGamma);
-            mpv::qt::set_property_async(mpvHandle, "saturation", SyncHelper::instance().variables.eqSaturation);
+            mpv::qt::set_property_async(videoData.handle, "contrast", SyncHelper::instance().variables.eqContrast);
+            mpv::qt::set_property_async(videoData.handle, "brightness", SyncHelper::instance().variables.eqBrightness);
+            mpv::qt::set_property_async(videoData.handle, "gamma", SyncHelper::instance().variables.eqGamma);
+            mpv::qt::set_property_async(videoData.handle, "saturation", SyncHelper::instance().variables.eqSaturation);
         }
 
         if (domeRadius != SyncHelper::instance().variables.radius || domeFov != SyncHelper::instance().variables.fov) {
@@ -1008,12 +1120,17 @@ void postSyncPreDraw() {
     }
 #endif
 
-    //Check mpv events
-    on_mpv_events(mpvHandle);
+    if (!mpvAndRenderOnSeparateThreads) {
+        on_mpv_events(videoData);
+    }
+
+    checkNeededMpvFboResize(videoData);
 
 #ifndef ONLY_RENDER_TO_SCREEN
+    // See render_gl.h on what OpenGL environment mpv expects, and
+    // other API details.
     if (updateRendering) {
-        mpv_opengl_fbo mpfbo{ static_cast<int>(mpvFBO), videoWidth, videoHeight, GL_RGBA16F };
+        mpv_opengl_fbo mpfbo{ static_cast<int>(videoData.fboId), videoData.fboWidth, videoData.fboHeight, GL_RGBA16F };
         int flip_y{ 1 };
 
         mpv_render_param params[] = {
@@ -1021,9 +1138,15 @@ void postSyncPreDraw() {
             {MPV_RENDER_PARAM_FLIP_Y, &flip_y},
             {MPV_RENDER_PARAM_INVALID, nullptr}
         };
-        // See render_gl.h on what OpenGL environment mpv expects, and
-        // other API details.
-        mpv_render_context_render(mpvRenderContext, params);
+        mpv_render_context_render(videoData.renderContext, params);
+    }
+    else {
+        int skip_rendering{ 1 };
+        mpv_render_param params[] = {
+                {MPV_RENDER_PARAM_SKIP_RENDERING, &skip_rendering},
+                {MPV_RENDER_PARAM_INVALID, nullptr}
+        };
+        mpv_render_context_render(videoData.renderContext, params);
     }
 #endif
 }
@@ -1052,7 +1175,7 @@ void draw(const RenderData& data) {
     };
     // See render_gl.h on what OpenGL environment mpv expects, and
     // other API details.
-    mpv_render_context_render(mpvRenderContext, params);
+    mpv_render_context_render(videoData.renderContext, params);
 #else
 
     for (const auto& renderParam : renderParams) {
@@ -1067,8 +1190,8 @@ void draw(const RenderData& data) {
 
             glUniform1f(EACAlphaLoc, renderParam.alpha);
             glUniform1i(EACOutsideLoc, 0);
-            glUniform1i(EACVideoWidthLoc, videoWidth);
-            glUniform1i(EACVideoHeightLoc, videoHeight);
+            glUniform1i(EACVideoWidthLoc, videoData.fboWidth);
+            glUniform1i(EACVideoHeightLoc, videoData.fboHeight);
 
             if (renderParam.stereoMode > 0) {
                 glUniform1i(EACEyeModeLoc, (GLint)data.frustumMode);
@@ -1256,6 +1379,10 @@ void draw(const RenderData& data) {
 }
 
 void cleanup() {
+    if (!logFilePath.empty()) {
+        logFile.close();
+    }
+
 #ifndef SGCT_ONLY
     if (Engine::instance().isMaster())
         return;
@@ -1263,17 +1390,34 @@ void cleanup() {
 
     // Destroy the GL renderer and all of the GL objects it allocated. If video
     // is still running, the video track will be deselected.
-    mpv_render_context_free(mpvRenderContext);
+    mpv_render_context_free(videoData.renderContext);
 
-    mpv_destroy(mpvHandle);
+    if (mpvAndRenderOnSeparateThreads) {
+        //End Mpv running on separate thread
+        videoData.terminate = true;
+        while (!videoData.threadDone) {}
+        videoData.trd->join();
+        videoData.trd = nullptr;
+     }
+    else {
+        mpv_destroy(videoData.handle);
+    }
 
-    glDeleteFramebuffers(1, &mpvFBO);
-    glDeleteTextures(1, &mpvTex);
+
+#ifndef ONLY_RENDER_TO_SCREEN
+    glDeleteFramebuffers(1, &videoData.fboId);
+    glDeleteTextures(1, &videoData.texId);
+#endif
     glDeleteTextures(1, &backgroundImageData.texId);
 
     dome = nullptr;
     sphere = nullptr;
     plane = nullptr;
+}
+
+void logging(Log::Level, std::string_view message) {
+    std::lock_guard<std::mutex> lock(logMutex);
+    logFile << message << std::endl;
 }
 
 int main(int argc, char *argv[])
@@ -1293,6 +1437,48 @@ int main(int argc, char *argv[])
             SyncHelper::instance().configuration.confAll = "./data/mpv-conf/" + mpvConfFolder + "/all.json";
             SyncHelper::instance().configuration.confMasterOnly = "./data/mpv-conf/" + mpvConfFolder + "/master-only.json";
             SyncHelper::instance().configuration.confNodesOnly = "./data/mpv-conf/" + mpvConfFolder + "/nodes-only.json";
+            arg.erase(arg.begin() + i, arg.begin() + i + 2);
+        }
+        else if (arg[i] == "--allowDirectRendering") {
+            allowDirectRendering = true;
+            arg.erase(arg.begin() + i);
+        }
+        else if (arg[i] == "--mpv_and_render_on_same_thread") {
+            mpvAndRenderOnSeparateThreads = false;
+            arg.erase(arg.begin() + i);
+        }
+        else if (arg[i] == "--loglevel") {
+            //Valid log levels: error warn info debug
+            std::string level = arg[i + 1];
+            if(level == "error") {
+                Log::instance().setNotifyLevel(Log::Level::Error);
+                logLevel = level;
+            }
+            else if (level == "warn") {
+                Log::instance().setNotifyLevel(Log::Level::Warning);
+                logLevel = level;
+            }
+            else if (level == "info") {
+                Log::instance().setNotifyLevel(Log::Level::Info);
+                logLevel = level;
+            }
+            else if (level == "debug") {
+                Log::instance().setNotifyLevel(Log::Level::Debug);
+                logLevel = level;
+            }
+            arg.erase(arg.begin() + i, arg.begin() + i + 2);
+        }
+        else if (arg[i] == "--logfile") {
+            std::string logFileName = arg[i + 1]; // for instance, either "log_master.txt" or "log_client.txt"
+            logFilePath = "./data/log/" + logFileName;
+            logFile.open(logFilePath, std::ofstream::out | std::ofstream::trunc);
+            if (logLevel.empty()) { //Set log level to info if we specfied a log file
+                Log::instance().setNotifyLevel(Log::Level::Info);
+                logLevel = "info";
+            }
+            Log::instance().setShowLogLevel(true);
+            Log::instance().setShowTime(true);
+            Log::instance().setLogCallback(logging);
             arg.erase(arg.begin() + i, arg.begin() + i + 2);
         }
         else {
