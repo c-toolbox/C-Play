@@ -93,7 +93,7 @@ struct mpvData {
     unsigned int fboId = 0;
     unsigned int texId = 0;
     int reconfigs = 0;
-    int reconfigsBeforeUpdate = 1;
+    int reconfigsBeforeUpdate = 0;
     int advancedControl = 0;
     std::atomic_bool threadRunning = false;
     std::atomic_bool mpvInitialized = false;
@@ -699,18 +699,18 @@ void initMPV(mpvData& vd) {
         //Run with direct rendering if requested
         if (mpv::qt::get_property(vd.handle, "vd-lavc-dr").toBool()) {
             vd.advancedControl = 1;
-            vd.reconfigsBeforeUpdate = 1;
+            vd.reconfigsBeforeUpdate = 0;
         }
         else {
             vd.advancedControl = 0;
-            vd.reconfigsBeforeUpdate = 1;
+            vd.reconfigsBeforeUpdate = 0;
         }
     }
     else {
         //Do not allow direct rendering (EVER).
         mpv::qt::set_property(vd.handle, "vd-lavc-dr", "no");
         vd.advancedControl = 0;
-        vd.reconfigsBeforeUpdate = 1;
+        vd.reconfigsBeforeUpdate = 0;
     }
 }
 
