@@ -203,6 +203,30 @@ void HttpServerThread::setupHttpServer()
             }
         });
 
+        svr.Post("/audiotracks", [this](const httplib::Request& req, httplib::Response& res) {
+            std::string charsPerItem = "";
+            std::string removeLoadedFilePrefix = "";
+            if (req.has_param("charsPerItem")) {
+                charsPerItem = req.get_param_value("charsPerItem");
+            }
+            if (req.has_param("removeLoadedFilePrefix")) {
+                removeLoadedFilePrefix = req.get_param_value("removeLoadedFilePrefix");
+            }
+            res.set_content(getAudioTracksItems(charsPerItem, removeLoadedFilePrefix), "text/plain");
+        });
+
+        svr.Post("/playing_in_audiotracks", [this](const httplib::Request&, httplib::Response& res) {
+            res.set_content(getPlaylingItemIndexFromAudioTracks(), "text/plain");
+        });
+
+        svr.Post("/load_from_audiotracks", [this](const httplib::Request& req, httplib::Response& res) {
+            if (req.has_param("index")) {
+                std::string indexStr = req.get_param_value("index");
+                res.set_content(LoadIndexFromAudioTracks(indexStr), "text/plain");
+            }
+            res.set_content("Missing index parameter", "text/plain");
+        });
+
         svr.Post("/playlist", [this](const httplib::Request& req, httplib::Response& res) {
             std::string charsPerItem = "";
             if(req.has_param("charsPerItem")) {
@@ -372,6 +396,25 @@ void HttpServerThread::setVolumeFromStr(std::string volumeLevelStr)
     }
 }
 
+const std::string HttpServerThread::getAudioTracksItems(std::string charsPerItemStr, std::string removeLoadedFilePrefixStr)
+{
+    if (m_mpv) {
+        int removeLoadedFilePrefix = 0;
+        std::string prefixToRemove = "";
+        if (stringToInt(removeLoadedFilePrefixStr, removeLoadedFilePrefix)) {
+            if(removeLoadedFilePrefix == 1)
+                prefixToRemove = m_mpv->getProperty("filename").toString().toStdString();
+        }
+        int charsPerItem = 0;
+        if (stringToInt(charsPerItemStr, charsPerItem))
+            return m_mpv->audioTracksModel()->getListAsFormattedString(prefixToRemove, charsPerItem);
+        else
+            return m_mpv->audioTracksModel()->getListAsFormattedString(prefixToRemove);
+    }
+    else
+        return "";
+}
+
 const std::string HttpServerThread::getPlayListItems(std::string charsPerItemStr)
 {
     if (m_mpv) {
@@ -398,6 +441,15 @@ const std::string HttpServerThread::getSectionsItems(std::string charsPerItemStr
         return "";
 }
 
+const std::string HttpServerThread::getPlaylingItemIndexFromAudioTracks()
+{
+    if (m_mpv) {
+        return std::to_string(m_mpv->audioId()-1);
+    }
+    return "-1";
+}
+
+
 const std::string HttpServerThread::getPlaylingItemIndexFromPlaylist()
 {
     if (m_mpv) {
@@ -412,6 +464,28 @@ const std::string HttpServerThread::getPlaylingItemIndexFromSections()
         return std::to_string(m_mpv->getPlaySectionsModel()->getPlayingSection());
     }
     return "-1";
+}
+
+const std::string HttpServerThread::LoadIndexFromAudioTracks(std::string indexStr)
+{
+    int index = -1;
+    if (stringToInt(indexStr, index)) {
+        if (m_mpv) {
+            if (index >= 0 && index < m_mpv->audioTracksModel()->countTracks()) {
+                Q_EMIT loadFromAudioTracks(index);
+                return "Loading audio track with index: " + indexStr;
+            }
+            else {
+                return "Index was out of bounds of audio tracks";
+            }
+        }
+        else {
+            return "Could not find reference to MPV";
+        }
+    }
+    else {
+        return "Could not interpret index parameter";
+    }
 }
 
 const std::string HttpServerThread::LoadIndexFromPlaylist(std::string indexStr) 

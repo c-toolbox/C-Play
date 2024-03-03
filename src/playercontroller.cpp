@@ -52,6 +52,7 @@ void PlayerController::setupHttpServer()
     connect(httpServer, &HttpServerThread::fadeVolumeUp, this, &PlayerController::FadeVolumeUp);
     connect(httpServer, &HttpServerThread::fadeImageDown, this, &PlayerController::FadeImageDown);
     connect(httpServer, &HttpServerThread::fadeImageUp, this, &PlayerController::FadeImageUp);
+    connect(httpServer, &HttpServerThread::loadFromAudioTracks, this, &PlayerController::LoadFromAudioTracks);
     connect(httpServer, &HttpServerThread::loadFromPlaylist, this, &PlayerController::LoadFromPlaylist);
     connect(httpServer, &HttpServerThread::loadFromSections, this, &PlayerController::LoadFromSections);
     connect(httpServer, &HttpServerThread::spinPitchUp, this, &PlayerController::SpinPitchUp);
@@ -106,6 +107,13 @@ void PlayerController::Rewind()
 void PlayerController::Seek(qlonglong offset)
 {
     Q_EMIT seek(offset/1000/1000);
+}
+
+void PlayerController::LoadFromAudioTracks(int idx)
+{
+    if (m_mpv) {
+        m_mpv->setAudioId(idx+1); //AudioID starts from 1.
+    }
 }
 
 void PlayerController::LoadFromPlaylist(int idx)

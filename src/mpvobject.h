@@ -343,6 +343,7 @@ public:
     virtual ~MpvObject();
     virtual Renderer *createRenderer() const;
 
+    TracksModel* audioTracksModel() const;
     PlayListModel* getPlayListModel() const;
     PlaySectionsModel* getPlaySectionsModel() const;
 
@@ -436,7 +437,6 @@ private:
     friend class MpvRenderer;
 
     void sectionPositionCheck(double position);
-    TracksModel *audioTracksModel() const;
     TracksModel *subtitleTracksModel() const;
     TracksModel *m_audioTracksModel;
     TracksModel *m_subtitleTracksModel;

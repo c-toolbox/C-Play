@@ -54,10 +54,12 @@ public:
     void setIndex(int index);
 
     QString text();
+    QString shortTitle();
 
 private:
     QString m_lang;
     QString m_title;
+    QString m_shortTitle;
     QString m_codec;
     QString m_type;
     qlonglong m_id {};

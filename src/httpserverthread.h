@@ -33,6 +33,7 @@ Q_SIGNALS:
     void fadeVolumeUp();
     void fadeImageDown();
     void fadeImageUp();
+    void loadFromAudioTracks(int idx);
     void loadFromPlaylist(int idx);
     void loadFromSections(int idx);
     void spinPitchUp();
@@ -54,12 +55,15 @@ private:
     void setPositionFromStr(std::string positionTimeStr);
     void setVolumeFromStr(std::string volumeLevelStr);
 
+    const std::string getAudioTracksItems(std::string charsPerItemStr = "", std::string removeLoadedFilePrefix = "");
     const std::string getPlayListItems(std::string charsPerItemStr = "");
     const std::string getSectionsItems(std::string charsPerItemStr = "");
 
+    const std::string getPlaylingItemIndexFromAudioTracks();
     const std::string getPlaylingItemIndexFromPlaylist();
     const std::string getPlaylingItemIndexFromSections();
 
+    const std::string LoadIndexFromAudioTracks(std::string indexStr);
     const std::string LoadIndexFromPlaylist(std::string indexStr);
     const std::string LoadIndexFromSections(std::string indexStr);
 

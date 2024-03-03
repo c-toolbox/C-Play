@@ -145,3 +145,14 @@ QString Track::text()
     }
     return text;
 }
+
+QString Track::shortTitle()
+{
+    QString shortTitle;
+    if (!m_title.isEmpty()) {
+        //Remove ext if it has one
+        QStringList titleParts = m_title.split(".");
+        shortTitle = titleParts.at(0);
+    }
+    return shortTitle;
+}
