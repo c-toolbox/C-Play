@@ -70,7 +70,7 @@ Kirigami.ApplicationWindow {
         onAccepted: {
             separateAudioFileCheckBox.checked = true
 
-            var filePath = openSeparateAudioFileDialog.fileUrl.toString();
+            var filePath = openSeparateAudioFileDialog.file.toString();
             // remove prefixed "file:///"
             filePath = filePath.replace(/^(file:\/{3})/,"");
 
@@ -92,7 +92,7 @@ Kirigami.ApplicationWindow {
         onAccepted: {
             separateOverlayFileCheckBox.checked = true
 
-            var filePath = openSeparateOverlayFileDialog.fileUrl.toString();
+            var filePath = openSeparateOverlayFileDialog.file.toString();
             // remove prefixed "file:///"
             filePath = filePath.replace(/^(file:\/{3})/,"");
 

@@ -21,9 +21,9 @@ public:
     explicit TracksModel(QObject *parent = nullptr);
     enum {
         TextRole = Qt::UserRole,
+        ShortTextRole,
         LanguageRole,
         TitleRole,
-        ShortTitleRole,
         IDRole,
         CodecRole,
     };

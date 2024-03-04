@@ -7,6 +7,7 @@
  */
 
 #include "track.h"
+#include <filesystem>
 
 Track::Track(QObject *parent) : QObject(parent)
 {}
@@ -146,13 +147,20 @@ QString Track::text()
     return text;
 }
 
-QString Track::shortTitle()
+QString Track::shortText()
 {
-    QString shortTitle;
-    if (!m_title.isEmpty()) {
-        //Remove ext if it has one
-        QStringList titleParts = m_title.split(".");
-        shortTitle = titleParts.at(0);
+    QString shortText;
+    if (!m_lang.isEmpty()) {
+        shortText = m_lang;
     }
-    return shortTitle;
+    else if (!m_title.isEmpty()) {
+        std::filesystem::path titlePath = std::filesystem::path(m_title.toStdString());
+        if (titlePath.has_extension()) {
+            shortText = QString::fromStdString(titlePath.stem().string());
+        }
+        else {
+            shortText = m_title;
+        }
+    }
+    return shortText;
 }

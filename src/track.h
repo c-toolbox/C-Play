@@ -54,7 +54,7 @@ public:
     void setIndex(int index);
 
     QString text();
-    QString shortTitle();
+    QString shortText();
 
 private:
     QString m_lang;

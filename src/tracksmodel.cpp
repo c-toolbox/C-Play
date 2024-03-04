@@ -32,12 +32,12 @@ QVariant TracksModel::data(const QModelIndex &index, int role) const
     switch (role) {
     case TextRole:
         return QVariant(track->text());
+    case ShortTextRole:
+        return QVariant(track->shortText());
     case LanguageRole:
         return QVariant(track->lang());
     case TitleRole:
         return QVariant(track->title());
-    case ShortTitleRole:
-        return QVariant(track->shortTitle());
     case IDRole:
         return QVariant(track->id());
     case CodecRole:
@@ -51,9 +51,9 @@ QHash<int, QByteArray> TracksModel::roleNames() const
 {
     QHash<int, QByteArray> roles;
     roles[TextRole] = "text";
+    roles[ShortTextRole] = "shortText";
     roles[LanguageRole] = "language";
     roles[TitleRole] = "title";
-    roles[ShortTitleRole] = "shortTitle";
     roles[IDRole] = "id";
     roles[CodecRole] = "codec";
     return roles;
@@ -76,7 +76,7 @@ std::string TracksModel::getListAsFormattedString(std::string removePrefix, int 
     for (int i = 0; i < m_tracks.size(); i++)
     {
         std::string title = "";
-        title += m_tracks[i]->shortTitle().toStdString();
+        title += m_tracks[i]->shortText().toStdString();
 
         if (!removePrefix.empty()) {
             int mc = 0;
@@ -90,6 +90,7 @@ std::string TracksModel::getListAsFormattedString(std::string removePrefix, int 
                 title.erase(0, mc);
             }
         }
+        std::replace(title.begin(), title.end(), '_', ' ');
 
         size_t countChars = title.size();
         if (countChars < charsPerItem) {
