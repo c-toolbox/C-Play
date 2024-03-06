@@ -252,6 +252,7 @@ Kirigami.ApplicationWindow {
         }*/
 
         mpv.pause = !startPlayback
+        mpv.position = 0
         if (loadSiblings) {
             // get video files from same folder as the opened file
             mpv.playlistModel.getVideos(path)
