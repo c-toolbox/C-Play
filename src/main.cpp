@@ -999,7 +999,8 @@ void postSyncPreDraw() {
 
         renderParams.clear();
 
-        if ((!updateRendering || loadedFile.empty() || SyncHelper::instance().variables.alpha < 1.f)
+        if ((!updateRendering || loadedFile.empty() || 
+            (SyncHelper::instance().variables.alpha < 1.f || SyncHelper::instance().variables.gridToMapOn == 1))
             && !backgroundImageData.filename.empty() && SyncHelper::instance().variables.alphaBg > 0.f) {
             RenderParams rpBg;
             rpBg.tex = backgroundImageData.texId;
@@ -1041,6 +1042,69 @@ void postSyncPreDraw() {
                     float(SyncHelper::instance().variables.translateZ) / 100.f);
                 renderParams.push_back(rpOverlay);
             }
+
+            //If we have 2D and 3D viewports defined, deside based on renderParams which to render
+            //1. Check what stereo mode we should choose
+            //2. For each window, check if there is a mix of viewports (2D and 3D). If not mix, skip step 3 (for that window).
+            //3. Enable/disable viewport based on defined stereo mode
+
+            //Step 1
+            bool show2Dcontent = false;
+            bool show3Dcontent = false;
+            bool has3Dplane = false;
+            for (const auto& renderParam : renderParams) {
+                if (renderParam.stereoMode > 0) {
+                    show3Dcontent = true;
+                    if (renderParam.gridMode == 1) {
+                        has3Dplane = true;
+                    }
+                }
+                else {
+                    show2Dcontent = true;
+                }
+            }
+            //If we have one 2D renderParam visible, it takes president
+            //But only if a 3D plane is not present
+            if (show2Dcontent) {
+                if (has3Dplane) {
+                    show2Dcontent = false;
+                }
+                else {
+                    show3Dcontent = false;
+                }
+            }
+            else if (!show3Dcontent) { //If not 2D or 3D, still enable 2D viewports
+                show2Dcontent = true;
+            }
+
+            for (const std::unique_ptr<Window>& win : Engine::instance().thisNode().windows()) {
+                bool exist2Dviewports = false;
+                bool exist3Dviewports = false;
+                // Step 2
+                for (const std::unique_ptr<Viewport>& vp : win->viewports()) {
+                    if (vp->eye() == Frustum::Mode::MonoEye) {
+                        exist2Dviewports = true;
+                    }
+                    else if (vp->eye() == Frustum::Mode::StereoLeftEye || vp->eye() == Frustum::Mode::StereoRightEye) {
+                        exist3Dviewports = true;
+                    }
+                }
+                // Step 3
+                if (exist2Dviewports && exist3Dviewports) {
+                    for (const std::unique_ptr<Viewport>& vp : win->viewports()) {
+                        if (show2Dcontent && (vp->eye() == Frustum::Mode::MonoEye)) {
+                            vp->setEnabled(true);
+                        }
+                        else if (show3Dcontent && (vp->eye() == Frustum::Mode::StereoLeftEye || vp->eye() == Frustum::Mode::StereoRightEye)) {
+                            vp->setEnabled(true);
+                        }
+                        else {
+                            vp->setEnabled(false);
+                        }
+                    }
+                }
+            }
+            
         }
         
         if (SyncHelper::instance().variables.paused != videoIsPaused) {
