@@ -57,6 +57,10 @@ void HttpServerThread::setupHttpServer()
     }
 
     if (runServerStr == "yes") {
+        svr.Post("/status", [this](const httplib::Request&, httplib::Response& res) {
+            res.set_content("OK", "text/plain");
+        });
+
         svr.Post("/play", [this](const httplib::Request&, httplib::Response& res) {
             Q_EMIT playMedia();
             res.set_content("Play", "text/plain");
