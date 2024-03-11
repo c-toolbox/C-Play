@@ -9,11 +9,11 @@ nav_order: 3
 # Cluster configuration (through SGCT)
  - [Cluster configuration](guides/setup/sgct)
 
-# Decoding configuration (through MPV)
- - [Decoding configuration](guides/setup/mpv)
+# General/startup settings
+ - [General settings](guides/setup/settings)
 
-# Audio configuration (through JACK)
+# Video configuration
+ - [Video configuration](guides/setup/video)
+
+# Audio configuration
  - [Audio configuration](guides/setup/audio)
-
-# C-Play startup settings
- - [Startup settings](guides/setup/settings)

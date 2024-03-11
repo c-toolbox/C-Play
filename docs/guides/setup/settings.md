@@ -1,4 +1,4 @@
 ---
-title: Startup settings
+title: General settings
 parent: Setup C-Play
 ---

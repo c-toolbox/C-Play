@@ -26,23 +26,35 @@ C-Play is an open source cluster video player, based on these open source projec
 ### Current Features
 These are just some features that set C-Play apart from others media/video players:
 
-- Runs a QT/QML UI application on master computer and small none-UI GLFW/SGCT application on nodes.
+C-Play support videos that are:
 
-- Sync playback, loading and other properties between master and nodes.
+- Stereoscopic (Side-by-side or Top-Bottom) and Monoscopic
 
-- Playing audio only on master (support for audio settings, primarily using JACK for multi-channel output to ASIO devices).
+- 180 fulldome / fisheye
 
-- Loading external audio files as multiple tracks .
+- 360 equirectangular or equiangular cubemap (common on YouTube)
 
-- Tested and used on primarily Windows 10, in domes and other big arenas.
+- Any "flat" video arbitary aspect ratio
+
+Some technical features:
+
+- Runs a QT/QML UI application on master computer and small none-UI GLFW/SGCT application on clients.
+
+- Sync playback, loading and other properties between master and clients.
+
+- Playing audio is only available on master. C-Play support change of audio output, and is pre-built with support for "JACK", which opens for multi-channel low-latency output to for instance ASIO devices.
+
+- Loading external audio files as multiple tracks.
 
 - Editing and saving playlist and playfiles including all necassary parameters.
 
-- Introduce "Sections" and associated editor to create bookmarks to jump between clips inside a larger movie.
+- Configure "sections" in a editor to create bookmarks to jump between clips inside a larger movie.
 
 - Sync video+audio fade in/out
 
 - HTTP Server API
+
+- Tested and used on primarily Windows 10, in domes and other big arenas.
 
 ### Launcher
 To launch application on master+nodes, we use an own developed application called [C-Troll](https://github.com/c-toolbox/C-Troll).

@@ -1,6 +1,6 @@
 /*
  * SPDX-FileCopyrightText: 
- * 2021-2023 Erik Sundén <eriksunden85@gmail.com> 
+ * 2021-2024 Erik Sundén <eriksunden85@gmail.com> 
  * 2020 George Florea Bănuș <georgefb899@gmail.com>
  *
  * SPDX-License-Identifier: GPL-3.0-or-later
@@ -180,7 +180,7 @@ void Application::setupAboutData()
                              Application::version());
     m_aboutData.setShortDescription(i18n("A configurable cluster video player, based on libmpv, SGCT and g-fb/haruna projects."));
     m_aboutData.setLicense(KAboutLicense::GPL_V3);
-    m_aboutData.setCopyrightStatement(i18n("(c) 2019-2023"));
+    m_aboutData.setCopyrightStatement(i18n("(c) 2019-2024"));
     //m_aboutData.setHomepage(QStringLiteral("https://github.com/g-fb/haruna"));
     //m_aboutData.setBugAddress(QStringLiteral("https://github.com/g-fb/haruna/issues").toUtf8());
     //m_aboutData.setDesktopFileName("com.georgefb.haruna");
