@@ -167,6 +167,19 @@ void HttpServerThread::setupHttpServer()
             }
         });
 
+        svr.Post("/view_mode", [this](const httplib::Request& req, httplib::Response& res) {
+            if (req.has_param("mode")) {
+                setViewModeFromStr(req.get_param_value("mode"));
+            }
+
+            if (m_mpv) {
+                res.set_content(std::to_string(m_mpv->viewModeOnClients()), "text/plain");
+            }
+            else {
+                res.set_content("0", "text/plain");
+            }
+        });
+
         svr.Post("/media_title", [this](const httplib::Request&, httplib::Response& res) {
             if (m_mpv) {
                 res.set_content(m_mpv->mediaTitle().toStdString(), "text/plain");
@@ -396,6 +409,16 @@ void HttpServerThread::setVolumeFromStr(std::string volumeLevelStr)
     if (stringToInt(volumeLevelStr, volumeLevel)) {
         if (volumeLevel >= 0 && volumeLevel <= 100) {
             Q_EMIT setVolume(volumeLevel);
+        }
+    }
+}
+
+void HttpServerThread::setViewModeFromStr(std::string viewModeStr)
+{
+    int viewMode = 0;
+    if (stringToInt(viewModeStr, viewMode)) {
+        if (viewMode >= 0 && viewMode <= 1) {
+            Q_EMIT setViewMode(viewMode);
         }
     }
 }

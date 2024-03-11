@@ -108,6 +108,7 @@ public:
         int stereoscopicMode;
         int stereoscopicModeBg;
         int loopMode;
+        int viewMode;
         double radius;
         double fov;
         double angle;
@@ -161,6 +162,7 @@ public:
         /*stereoscopicMode*/0,
         /*stereoscopicModeBg*/0,
         /*loopMode*/0,
+        /*viewMode*/0,
         /*radius*/740,
         /*fov*/165,
         /*angle*/27.f,

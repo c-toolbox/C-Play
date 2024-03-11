@@ -48,6 +48,7 @@ void PlayerController::setupHttpServer()
     connect(httpServer, &HttpServerThread::rewindMedia, this, &PlayerController::Rewind);
     connect(httpServer, &HttpServerThread::setPosition, this, &PlayerController::SetPosition);
     connect(httpServer, &HttpServerThread::setVolume, this, &PlayerController::SetVolume);
+    connect(httpServer, &HttpServerThread::setViewMode, this, &PlayerController::setViewModeOnClients);
     connect(httpServer, &HttpServerThread::fadeVolumeDown, this, &PlayerController::FadeVolumeDown);
     connect(httpServer, &HttpServerThread::fadeVolumeUp, this, &PlayerController::FadeVolumeUp);
     connect(httpServer, &HttpServerThread::fadeImageDown, this, &PlayerController::FadeImageDown);
@@ -359,7 +360,7 @@ void PlayerController::setViewModeOnMaster(int value)
     //0 = Same as nodes
     //1 = Show media always
     //2 = Show background always
-    m_viewModeOnMaster = value;
+    SyncHelper::instance().variables.stereoscopicModeBg = value;
 
     emit backgroundVisibilityChanged();
 }
@@ -367,6 +368,20 @@ void PlayerController::setViewModeOnMaster(int value)
 int PlayerController::getViewModeOnMaster()
 {
     return m_viewModeOnMaster;
+}
+
+void PlayerController::setViewModeOnClients(int value)
+{
+    //0 = Auto 2D/3D switch
+    //1 = Force 2D for all
+    SyncHelper::instance().variables.viewMode = value;
+
+    emit viewModeOnClientsChanged();
+}
+
+int PlayerController::getViewModeOnClients()
+{
+    return SyncHelper::instance().variables.viewMode;
 }
 
 MpvObject *PlayerController::mpv() const

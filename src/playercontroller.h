@@ -61,6 +61,8 @@ public Q_SLOTS:
 
     void setViewModeOnMaster(int value);
     int getViewModeOnMaster();
+    void setViewModeOnClients(int value);
+    int getViewModeOnClients();
 
 Q_SIGNALS:
     void next();
@@ -83,6 +85,7 @@ Q_SIGNALS:
     void mpvChanged();
     void backgroundImageChanged();
     void backgroundVisibilityChanged();
+    void viewModeOnClientsChanged();
 
 private:
     MpvObject *mpv() const;

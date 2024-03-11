@@ -29,6 +29,7 @@ Q_SIGNALS:
     void rewindMedia();
     void setPosition(double position);
     void setVolume(int level);
+    void setViewMode(int mode);
     void fadeVolumeDown();
     void fadeVolumeUp();
     void fadeImageDown();
@@ -54,6 +55,7 @@ private:
 
     void setPositionFromStr(std::string positionTimeStr);
     void setVolumeFromStr(std::string volumeLevelStr);
+    void setViewModeFromStr(std::string volumeLevelStr);
 
     const std::string getAudioTracksItems(std::string charsPerItemStr = "", std::string removeLoadedFilePrefix = "");
     const std::string getPlayListItems(std::string charsPerItemStr = "");

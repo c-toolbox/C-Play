@@ -593,6 +593,10 @@ int MpvObject::gridToMapOnBackground()
     return SyncHelper::instance().variables.gridToMapOnBg;
 }
 
+int MpvObject::viewModeOnClients() {
+    return SyncHelper::instance().variables.viewMode;
+}
+
 double MpvObject::rotationSpeed()
 {
     return m_rotationSpeed;

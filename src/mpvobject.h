@@ -302,6 +302,7 @@ public:
 
     int stereoscopicModeBackground();
     int gridToMapOnBackground();
+    int viewModeOnClients();
 
     double rotationSpeed();
     void setRotationSpeed(double value);

@@ -860,6 +860,7 @@ std::vector<std::byte> encode() {
     serializeObject(data, SyncHelper::instance().variables.stereoscopicMode);
     serializeObject(data, SyncHelper::instance().variables.stereoscopicModeBg);
     serializeObject(data, SyncHelper::instance().variables.loopMode);
+    serializeObject(data, SyncHelper::instance().variables.viewMode);
     serializeObject(data, SyncHelper::instance().variables.radius);
     serializeObject(data, SyncHelper::instance().variables.fov);
     serializeObject(data, SyncHelper::instance().variables.angle);
@@ -911,6 +912,7 @@ void decode(const std::vector<std::byte>& data) {
         deserializeObject(data, pos, SyncHelper::instance().variables.stereoscopicMode);
         deserializeObject(data, pos, SyncHelper::instance().variables.stereoscopicModeBg);
         deserializeObject(data, pos, SyncHelper::instance().variables.loopMode);
+        deserializeObject(data, pos, SyncHelper::instance().variables.viewMode);
         deserializeObject(data, pos, SyncHelper::instance().variables.radius);
         deserializeObject(data, pos, SyncHelper::instance().variables.fov);
         deserializeObject(data, pos, SyncHelper::instance().variables.angle);
@@ -1075,6 +1077,12 @@ void postSyncPreDraw() {
             }
             else if (!show3Dcontent) { //If not 2D or 3D, still enable 2D viewports
                 show2Dcontent = true;
+            }
+
+            //If viewMode==1, that means the user has asked to force all content to 2D
+            if (SyncHelper::instance().variables.viewMode == 1) {
+                show2Dcontent = true;
+                show3Dcontent = false;
             }
 
             for (const std::unique_ptr<Window>& win : Engine::instance().thisNode().windows()) {
@@ -1242,6 +1250,13 @@ void draw(const RenderData& data) {
     mpv_render_context_render(videoData.renderContext, params);
 #else
 
+    Frustum::Mode currentEye = data.frustumMode;
+
+    //Check if we force all viewports to 2D, meaning only show LeftEye if 3D
+    if (SyncHelper::instance().variables.viewMode == 1 && currentEye == Frustum::Mode::StereoRightEye) {
+        currentEye = Frustum::Mode::StereoLeftEye;
+    }
+
     for (const auto& renderParam : renderParams) {
         glActiveTexture(GL_TEXTURE0);
         glBindTexture(GL_TEXTURE_2D, renderParam.tex);
@@ -1258,7 +1273,7 @@ void draw(const RenderData& data) {
             glUniform1i(EACVideoHeightLoc, videoData.fboHeight);
 
             if (renderParam.stereoMode > 0) {
-                glUniform1i(EACEyeModeLoc, (GLint)data.frustumMode);
+                glUniform1i(EACEyeModeLoc, (GLint)currentEye);
                 glUniform1i(EACStereoscopicModeLoc, (GLint)renderParam.stereoMode);
             }
             else {
@@ -1315,7 +1330,7 @@ void draw(const RenderData& data) {
             meshPrg->bind();
 
             if (renderParam.stereoMode > 0) {
-                glUniform1i(meshEyeModeLoc, (GLint)data.frustumMode);
+                glUniform1i(meshEyeModeLoc, (GLint)currentEye);
                 glUniform1i(meshStereoscopicModeLoc, (GLint)renderParam.stereoMode);
             }
             else {
@@ -1359,7 +1374,7 @@ void draw(const RenderData& data) {
             meshPrg->bind();
 
             if (renderParam.stereoMode > 0) {
-                glUniform1i(meshEyeModeLoc, (GLint)data.frustumMode);
+                glUniform1i(meshEyeModeLoc, (GLint)currentEye);
                 glUniform1i(meshStereoscopicModeLoc, (GLint)renderParam.stereoMode);
             }
             else {
@@ -1390,7 +1405,7 @@ void draw(const RenderData& data) {
             meshPrg->bind();
 
             if (renderParam.stereoMode > 0) {
-                glUniform1i(meshEyeModeLoc, (GLint)data.frustumMode);
+                glUniform1i(meshEyeModeLoc, (GLint)currentEye);
                 glUniform1i(meshStereoscopicModeLoc, (GLint)renderParam.stereoMode);
             }
             else {
@@ -1423,7 +1438,7 @@ void draw(const RenderData& data) {
             videoPrg->bind();
 
             if (renderParam.stereoMode > 0) {
-                glUniform1i(videoEyeModeLoc, (GLint)data.frustumMode);
+                glUniform1i(videoEyeModeLoc, (GLint)currentEye);
                 glUniform1i(videoStereoscopicModeLoc, (GLint)renderParam.stereoMode);
             }
             else {

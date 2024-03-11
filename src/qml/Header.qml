@@ -539,6 +539,12 @@ ToolBar {
                         stereoscopicMenuButton.text = qsTr("3D (TB+F)")
                         stereoscopicMenuButton.icon.name = "visibility"
                     }
+                    if(mpv.stereoscopicMode > 0){
+                        if(playerController.getViewModeOnClients() > 0){
+                            stereoscopicMenuButton.text += qsTr("->2D")
+                            stereoscopicMenuButton.icon.name = "redeyes"
+                        }
+                    }
                 }
             }
 
@@ -612,6 +618,54 @@ ToolBar {
                             target: mpv
                             function onStereoscopicModeChanged(){
                                 stereoscopic_3D_tbf.checked = (mpv.stereoscopicMode === 3)
+                            }
+                        }
+                    }
+                }
+
+                MenuSeparator {}
+
+                Column {
+                    id: columnViewOnClients
+
+                    RadioButton {
+                        id: clients_auto_2D_3D_switch
+                        checked: true
+                        text: qsTr("On clients: Auto 2D / 3D switch")
+                        onClicked: {
+                        }
+                        onCheckedChanged: {
+                            if(checked){
+                                playerController.setViewModeOnClients(0);
+                                mpv.stereoscopicModeChanged()
+                            }
+                        }
+                        Connections {
+                            target: playerController
+                            function onViewModeOnClientsChanged(){
+                                clients_auto_2D_3D_switch.checked = (playerController.getViewModeOnClients() === 0)
+                                mpv.stereoscopicModeChanged()
+                            }
+                        }
+                    }
+
+                    RadioButton {
+                        id: clients_force_2D
+                        checked: false
+                        text: qsTr("On clients: Force all to 2D")
+                        onClicked: {
+                        }
+                        onCheckedChanged: {
+                            if(checked){
+                                playerController.setViewModeOnClients(1);
+                                mpv.stereoscopicModeChanged()
+                            }
+                        }
+                        Connections {
+                            target: playerController
+                            function onViewModeOnClientsChanged(){
+                                clients_force_2D.checked = (playerController.getViewModeOnClients() === 1)
+                                mpv.stereoscopicModeChanged()
                             }
                         }
                     }
