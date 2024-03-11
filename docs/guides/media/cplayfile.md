@@ -1,5 +1,6 @@
 ---
-title: Video description files
+title: Save video settings (*.cplayfile)
+nav_order: 5
 parent: Media file structure
 ---
 
@@ -26,6 +27,10 @@ parent: Media file structure
      * C-Play supports incorporated audio tracks in the video, however, through this option a seperate file can be loaded (on the master) as the default selected audio track.
 * Separate Overlay File
      * C-Play support the loading of an overlay image file (such as *.png or *.jpg) to be overlayed ontop of the video. This might be useful when mapping a static world map ontop a video showing ocean flow, for instance. This overlay file needs to be loaded when the video is, thus can only be define in a *"*.cplayfile*".
+
+## Sections
+
+....
 
 ## Workflow for *.cplayfile creation
 

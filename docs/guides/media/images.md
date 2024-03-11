@@ -1,5 +1,5 @@
 ---
-title: Audio files
-nav_order: 4
+title: Image files
+nav_order: 2
 parent: Media file structure
 ---
