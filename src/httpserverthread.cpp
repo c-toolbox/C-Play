@@ -349,7 +349,7 @@ void HttpServerThread::run()
     mutex.unlock();
 
     if (runServer) {
-        svr.listen("localhost", portServer);
+        svr.listen("0.0.0.0", portServer);
     }
 }
 
