@@ -6,6 +6,8 @@
  * SPDX-License-Identifier: GPL-3.0-or-later
  */
 
+#pragma warning(disable : 4996)
+
 #include "_debug.h"
 #include "mpvobject.h"
 #include "application.h"
@@ -123,11 +125,13 @@ MpvObject::MpvObject(QQuickItem * parent)
     m_angle = VideoSettings::surfaceAngle();
     m_rotate = QVector3D(VideoSettings::surfaceRotateX(), VideoSettings::surfaceRotateY(), VideoSettings::surfaceRotateZ());
     m_translate = QVector3D(VideoSettings::surfaceTranslateX(), VideoSettings::surfaceTranslateY(), VideoSettings::surfaceTranslateZ());
-    m_surfaceTransistionOnGoing = false;
+    m_surfaceTransitionTime = VideoSettings::surfaceTransitionTime();
+    m_surfaceTransitionOnGoing = false;
     m_planeWidth = VideoSettings::plane_Width_CM();
     m_planeHeight = VideoSettings::plane_Height_CM();
     m_planeElevation = VideoSettings::plane_Elevation_Degrees();
     m_planeDistance = VideoSettings::plane_Distance_CM();
+    m_syncImageVideoFading = PlaybackSettings::syncImageVideoFading();
 
     SyncHelper::instance().variables.radius = m_radius;
     SyncHelper::instance().variables.fov = m_fov;
@@ -526,6 +530,17 @@ void MpvObject::setSyncVideo(bool value)
     emit syncVideoChanged();
 }
 
+bool MpvObject::syncImageVideoFading()
+{
+    return m_syncImageVideoFading;
+}
+
+void MpvObject::setSyncImageVideoFading(bool value)
+{
+    m_syncImageVideoFading = value;
+    emit syncImageVideoFadingChanged();
+}
+
 int MpvObject::visibility()
 {
     return int(SyncHelper::instance().variables.alpha*100.f);
@@ -754,13 +769,22 @@ void MpvObject::setPlaneDistance(double value)
     emit planeChanged();
 }
 
-bool MpvObject::surfaceTransistionOnGoing() {
-    return m_surfaceTransistionOnGoing;
+int MpvObject::surfaceTransitionTime() {
+    return m_surfaceTransitionTime;
 }
 
-void MpvObject::setSurfaceTransistionOnGoing(bool value) {
-    m_surfaceTransistionOnGoing = value;
-    emit surfaceTransistionOnGoingChanged();
+void MpvObject::setSurfaceTransitionTime(int value) {
+    m_surfaceTransitionTime = value;
+    emit surfaceTransitionTimeChanged();
+}
+
+bool MpvObject::surfaceTransitionOnGoing() {
+    return m_surfaceTransitionOnGoing;
+}
+
+void MpvObject::setSurfaceTransitionOnGoing(bool value) {
+    m_surfaceTransitionOnGoing = value;
+    emit surfaceTransitionOnGoingChanged();
 }
 
 QVariant MpvObject::getAudioDeviceList()
@@ -1412,8 +1436,8 @@ void MpvObject::eventHandler()
     }
 }
 
-void MpvObject::performSurfaceTransistion() {
-    emit surfaceTransistionPerformed();
+void MpvObject::performSurfaceTransition() {
+    emit surfaceTransitionPerformed();
 }
 
 void MpvObject::loadTracks()

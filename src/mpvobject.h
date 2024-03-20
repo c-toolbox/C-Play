@@ -118,6 +118,11 @@ public:
                WRITE setSyncVideo
                NOTIFY syncVideoChanged)
 
+    Q_PROPERTY(bool syncImageVideoFading
+               READ syncImageVideoFading
+               WRITE setSyncImageVideoFading
+               NOTIFY syncImageVideoFadingChanged)
+
     Q_PROPERTY(int visibility
                READ visibility
                WRITE setVisibility
@@ -194,11 +199,17 @@ public:
                WRITE setPlaneDistance
                NOTIFY planeChanged)
 
-    Q_PROPERTY(bool surfaceTransistionOnGoing
-               MEMBER m_surfaceTransistionOnGoing
-               READ surfaceTransistionOnGoing
-               WRITE setSurfaceTransistionOnGoing
-               NOTIFY surfaceTransistionOnGoingChanged)
+    Q_PROPERTY(int surfaceTransitionTime
+               MEMBER m_surfaceTransitionTime
+               READ surfaceTransitionTime
+               WRITE setSurfaceTransitionTime
+               NOTIFY surfaceTransitionTimeChanged)
+
+    Q_PROPERTY(bool surfaceTransitionOnGoing
+               MEMBER m_surfaceTransitionOnGoing
+               READ surfaceTransitionOnGoing
+               WRITE setSurfaceTransitionOnGoing
+               NOTIFY surfaceTransitionOnGoingChanged)
 
     Q_PROPERTY(PlayListModel* playlistModel
                READ playlistModel
@@ -288,6 +299,9 @@ public:
     bool syncVideo();
     void setSyncVideo(bool value);
 
+    bool syncImageVideoFading();
+    void setSyncImageVideoFading(bool value);
+
     int visibility();
     void setVisibility(int value);
 
@@ -334,8 +348,11 @@ public:
     double planeDistance();
     void setPlaneDistance(double value);
 
-    bool surfaceTransistionOnGoing();
-    void setSurfaceTransistionOnGoing(bool value);
+    int surfaceTransitionTime();
+    void setSurfaceTransitionTime(int value);
+
+    bool surfaceTransitionOnGoing();
+    void setSurfaceTransitionOnGoing(bool value);
 
     QVariant getAudioDeviceList();
     void updateAudioDeviceList();
@@ -373,7 +390,7 @@ public:
 public slots:
     static void mpvEvents(void *ctx);
     void eventHandler();
-    void performSurfaceTransistion();
+    void performSurfaceTransition();
 
 signals:
     void mediaTitleChanged();
@@ -400,6 +417,7 @@ signals:
     void hwDecodingChanged();
     void stereoscopicModeChanged();
     void syncVideoChanged();
+    void syncImageVideoFadingChanged();
     void visibilityChanged();
     void loopModeChanged();
     void gridToMapOnChanged();
@@ -411,14 +429,15 @@ signals:
     void rotateChanged();
     void translateChanged();
     void planeChanged();
-    void surfaceTransistionOnGoingChanged();
+    void surfaceTransitionTimeChanged();
+    void surfaceTransitionOnGoingChanged();
     void playlistModelChanged();
     void playSectionsModelChanged();
     void audioDevicesChanged();
     void recentPlaylistsChanged();
     void recentMediaFilesChanged();
     void youtubePlaylistLoaded();
-    void surfaceTransistionPerformed();
+    void surfaceTransitionPerformed();
     void fadeVolumeDown();
     void fadeVolumeUp();
     void fadeImageDown();
@@ -455,7 +474,8 @@ private:
     double m_planeHeight;
     double m_planeElevation;
     double m_planeDistance;
-    bool m_surfaceTransistionOnGoing;
+    int m_surfaceTransitionTime;
+    bool m_surfaceTransitionOnGoing;
     double m_lastSetPosition;
     PlayListModel *m_playlistModel;
     PlaySectionsModel* m_playSectionsModel;
@@ -468,6 +488,7 @@ private:
     QVariantList m_audioDevices;
     int m_videoWidth;
     int m_videoHeight;
+    bool m_syncImageVideoFading;
 
     void loadTracks();
     void updatePlane();

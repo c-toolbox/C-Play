@@ -162,7 +162,7 @@ SettingsBasePage {
         }
 
         Label {
-            text: qsTr("Alternative Transistion Scenario:")
+            text: qsTr("Alternative Transition Scenario:")
             Layout.alignment: Qt.AlignRight
             Layout.columnSpan: 3
         }
@@ -625,6 +625,7 @@ SettingsBasePage {
                         mpv.angle = VideoSettings.surfaceAngle
                         mpv.rotate = Qt.vector3d(VideoSettings.surfaceRotateX, VideoSettings.surfaceRotateY, VideoSettings.surfaceRotateZ)
                         mpv.translate = Qt.vector3d(VideoSettings.surfaceTranslateX, VideoSettings.surfaceTranslateY, VideoSettings.surfaceTranslateZ)
+                        mpv.surfaceTransitionTime = VideoSettings.surfaceTransitionTime
                         surfaceRadiusScenario.value = VideoSettings.surfaceRadius_2ndState
                         surfaceFovScenario.value = VideoSettings.surfaceFov_2ndState
                         surfaceAngleScenario.value = VideoSettings.surfaceAngle_2ndState
@@ -646,7 +647,8 @@ SettingsBasePage {
                 from: 0
                 to: 20
                 stepSize: 1
-                value: 10
+                value: mpv.surfaceTransitionTime
+                onValueChanged: mpv.surfaceTransitionTime = value
             }
             LabelWithTooltip {
                 text: {
@@ -675,6 +677,7 @@ SettingsBasePage {
                         VideoSettings.surfaceTranslateX = mpv.translate.x
                         VideoSettings.surfaceTranslateY = mpv.translate.y
                         VideoSettings.surfaceTranslateZ = mpv.translate.z
+                        VideoSettings.surfaceTransitionTime = mpv.surfaceTransitionTime
                         VideoSettings.surfaceRadius_2ndState = surfaceRadiusScenario.value
                         VideoSettings.surfaceFov_2ndState = surfaceFovScenario.value
                         VideoSettings.surfaceAngle_2ndState = surfaceAngleScenario.value
@@ -692,7 +695,7 @@ SettingsBasePage {
             Button {
                     id: startTransitionButton
                     text: qsTr("Start transition")
-                    enabled: !mpv.surfaceTransistionOnGoing
+                    enabled: !mpv.surfaceTransitionOnGoing
                     onEnabledChanged: {
                         if(enabled){
                             startTransitionButton.text = qsTr("Start transition")
@@ -704,7 +707,7 @@ SettingsBasePage {
 
                     ParallelAnimation {
                             id: gridAnimations
-                            onFinished: mpv.surfaceTransistionOnGoing = false
+                            onFinished: mpv.surfaceTransitionOnGoing = false
                             NumberAnimation
                             {
                                 id: surfaceRadiusAnimation
@@ -782,14 +785,14 @@ SettingsBasePage {
 
                         gridAnimations.start()
 
-                        mpv.surfaceTransistionOnGoing = true
+                        mpv.surfaceTransitionOnGoing = true
                     }
             }
             Layout.alignment: Qt.AlignRight
 
             Connections {
                 target: mpv
-                function onSurfaceTransistionPerformed() {
+                function onSurfaceTransitionPerformed() {
                     startTransitionButton.clicked()
                 }
             }

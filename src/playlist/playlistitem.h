@@ -149,6 +149,7 @@ public:
     Q_INVOKABLE void setIndex(int index);
 
     Q_INVOKABLE QString makePathRelativeTo(const QString& filePath, const QStringList& pathsToConsider) const;
+    Q_INVOKABLE void asJSON(QJsonObject& obj);
     Q_INVOKABLE void saveAsJSONPlayFile(const QString& path) const;
 
     PlayListItemData data() const;

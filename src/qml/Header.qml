@@ -20,7 +20,6 @@ ToolBar {
 
     property var audioTracks
     property var subtitleTracks
-    property bool syncImageVideoFading: false
 
     position: ToolBar.Header
     visible: !window.isFullScreen() && GeneralSettings.showHeader
@@ -208,7 +207,7 @@ ToolBar {
                 if(!volume_fade_down_animation.running){
                     volume_fade_up_animation.to = mpv.volume;
                     volume_fade_down_animation.start()
-                    if(root.syncImageVideoFading){
+                    if(mpv.syncImageVideoFading){
                         visibility_fade_out_animation.start()
                     }
                 }
@@ -235,7 +234,7 @@ ToolBar {
             onClicked: {
                 if(!volume_fade_up_animation.running){
                     volume_fade_up_animation.start()
-                    if(root.syncImageVideoFading){
+                    if(mpv.syncImageVideoFading){
                         visibility_fade_in_animation.start()
                     }
                 }
@@ -273,7 +272,7 @@ ToolBar {
 
                     RadioButton {
                         id: fai_no_fade_sync
-                        checked: true
+                        checked: mpv.syncImageVideoFading === false
                         text: qsTr("Do not sync audio and image fading")
                         onClicked: {
                         }
@@ -281,14 +280,14 @@ ToolBar {
                             if(checked){
                                 faiMenuButton.icon.name = "media-repeat-none";
                                 faiToolTip.text = "Sync audio+image fading: No";
-                                root.syncImageVideoFading = false;
+                                mpv.syncImageVideoFading = false;
                             }
                         }
                     }
 
                     RadioButton {
                         id: fai_fade_sync
-                        checked: false
+                        checked: mpv.syncImageVideoFading === true
                         text: qsTr("Sync audio+image fading")
                         onClicked: {
                         }
@@ -296,7 +295,7 @@ ToolBar {
                             if(checked){
                                 faiMenuButton.icon.name = "media-playlist-repeat";
                                 faiToolTip.text = "Sync audio+image fading: Yes";
-                                root.syncImageVideoFading = true;
+                                mpv.syncImageVideoFading = true;
                             }
                         }
                     }
@@ -432,7 +431,7 @@ ToolBar {
             onClicked: {
                 if(!visibility_fade_out_animation.running){
                     visibility_fade_out_animation.start()
-                    if(root.syncImageVideoFading){
+                    if(mpv.syncImageVideoFading){
                         volume_fade_up_animation.to = mpv.volume;
                         volume_fade_down_animation.start()
                     }
@@ -457,7 +456,7 @@ ToolBar {
             onClicked: {
                 if(!visibility_fade_in_animation.running){
                     visibility_fade_in_animation.start()
-                    if(root.syncImageVideoFading){
+                    if(mpv.syncImageVideoFading){
                         volume_fade_up_animation.start()
                     }
                 }
@@ -1156,19 +1155,19 @@ ToolBar {
                     }
 
                     ToolButton {
-                        id: transistionHeaderButton
+                        id: transitionHeaderButton
 
                         text: {
                             qsTr("Move between scenarios")
                         }
 
-                        enabled: !mpv.surfaceTransistionOnGoing
+                        enabled: !mpv.surfaceTransitionOnGoing
                         onEnabledChanged: {
                             if(enabled){
-                                transistionHeaderButton.text = qsTr("Move between scenarios")
+                                transitionHeaderButton.text = qsTr("Move between scenarios")
                             }
                             else{
-                                transistionHeaderButton.text = qsTr("Move/transition ongoing")
+                                transitionHeaderButton.text = qsTr("Move/transition ongoing")
                             }
                         }
 
@@ -1186,7 +1185,7 @@ ToolBar {
                             spinTimerYaw.stop()
                             spinTimerRoll.stop()
 
-                            mpv.performSurfaceTransistion();
+                            mpv.performSurfaceTransition();
                         }
 
                         Layout.alignment: Qt.AlignHCenter | Qt.AlignVCenter
@@ -1257,9 +1256,9 @@ ToolBar {
                     function onOrientationAndSpinReset() {
                         resetOrientation.clicked()
                     }
-                    function onRunSurfaceTransistion() {
-                        if(!mpv.surfaceTransistionOnGoing){
-                            transistionHeaderButton.clicked()
+                    function onRunSurfaceTransition() {
+                        if(!mpv.surfaceTransitionOnGoing){
+                            transitionHeaderButton.clicked()
                         }
                     }
                 }

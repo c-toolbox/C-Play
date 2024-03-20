@@ -33,6 +33,7 @@ public Q_SLOTS:
     void LoadFromPlaylist(int idx);
     void LoadFromSections(int idx);
     void SetVolume(int level);
+    void SetSyncImageVideoFading(bool value);
     void FadeVolumeDown();
     void FadeVolumeUp();
     void FadeImageDown();
@@ -44,7 +45,7 @@ public Q_SLOTS:
     void SpinRollCW();
     void SpinRollCCW();
     void OrientationAndSpinReset();
-    void RunSurfaceTransistion();
+    void RunSurfaceTransition();
 
     QString returnRelativeOrAbsolutePath(const QString& path);
     QString checkAndCorrectPath(const QString& path);
@@ -81,7 +82,7 @@ Q_SIGNALS:
     void spinRollCCW();
     void spinRollCW();
     void orientationAndSpinReset();
-    void runSurfaceTransistion();
+    void runSurfaceTransition();
     void mpvChanged();
     void backgroundImageChanged();
     void backgroundVisibilityChanged();

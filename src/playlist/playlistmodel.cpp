@@ -699,6 +699,37 @@ QString PlayListModel::makePathRelativeTo(const QString& filePath, const QString
     return filePath;
 }
 
+void PlayListModel::asJSON(QJsonObject& obj) {
+
+    QJsonArray playlistArray;
+    for (int i = 0; i < m_playList.size(); i++)
+    {
+        QJsonObject item_data;
+
+        m_playList[i]->asJSON(item_data);
+
+        int loopMode = m_playList[i]->loopMode();
+        QString loopModeText;
+        switch (loopMode)
+        {
+        case 1:
+            loopModeText = "continue";
+            break;
+        case 2:
+            loopModeText = "loop";
+            break;
+        default:
+            loopModeText = "pause";
+            break;
+        }
+        item_data.insert("on_file_end", QJsonValue(loopModeText));
+
+        playlistArray.push_back(QJsonValue(item_data));
+    }
+
+    obj.insert(QString("playlist"), QJsonValue(playlistArray));
+}
+
 void PlayListModel::saveAsJSONPlaylist(const QString& path) {
     QJsonDocument doc;
     QJsonObject obj = doc.object();

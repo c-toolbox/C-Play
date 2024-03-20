@@ -30,6 +30,7 @@ Q_SIGNALS:
     void setPosition(double position);
     void setVolume(int level);
     void setViewMode(int mode);
+    void setSyncImageVideoFading(bool sync);
     void fadeVolumeDown();
     void fadeVolumeUp();
     void fadeImageDown();
@@ -44,7 +45,7 @@ Q_SIGNALS:
     void spinRollCCW();
     void spinRollCW();
     void orientationAndSpinReset();
-    void runSurfaceTransistion();
+    void runSurfaceTransition();
 
 protected:
     void run() override;
@@ -56,6 +57,7 @@ private:
     void setPositionFromStr(std::string positionTimeStr);
     void setVolumeFromStr(std::string volumeLevelStr);
     void setViewModeFromStr(std::string volumeLevelStr);
+    void setSyncImageFadingFromStr(std::string valueStr);
 
     const std::string getAudioTracksItems(std::string charsPerItemStr = "", std::string removeLoadedFilePrefix = "");
     const std::string getPlayListItems(std::string charsPerItemStr = "");

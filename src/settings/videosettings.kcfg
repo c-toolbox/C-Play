@@ -26,22 +26,22 @@
     <entry name="SurfaceRotationSpeed" type="double">
       <default>0.01</default>
     </entry>
-	<entry name="SurfaceRadius" type="double">
+	  <entry name="SurfaceRadius" type="double">
       <default>740</default>
     </entry>
-	<entry name="SurfaceFov" type="double">
+	  <entry name="SurfaceFov" type="double">
       <default>165</default>
     </entry>
-  <entry name="SurfaceAngle" type="double">
+    <entry name="SurfaceAngle" type="double">
       <default>27</default>
     </entry>
-	<entry name="SurfaceRotateX" type="double">
+	  <entry name="SurfaceRotateX" type="double">
       <default>0</default>
     </entry>
-	<entry name="SurfaceRotateY" type="double">
+	  <entry name="SurfaceRotateY" type="double">
       <default>0</default>
     </entry>
-	<entry name="SurfaceRotateZ" type="double">
+	  <entry name="SurfaceRotateZ" type="double">
       <default>0</default>
     </entry>
     <entry name="SurfaceTranslateX" type="double">
@@ -56,7 +56,7 @@
     <entry name="SurfaceRadius_2ndState" type="double">
       <default>400</default>
     </entry>
-	<entry name="SurfaceFov_2ndState" type="double">
+	  <entry name="SurfaceFov_2ndState" type="double">
       <default>165</default>
     </entry>
     <entry name="SurfaceAngle_2ndState" type="double">
@@ -70,6 +70,9 @@
     </entry>
     <entry name="SurfaceTranslateZ_2ndState" type="double">
       <default>-800</default>
+    </entry>
+    <entry name="SurfaceTransitionTime" type="int">
+      <default>10</default>
     </entry>
     <entry name="Plane_Calculate_Size_Based_on_Video" type="int">
       <default>1</default>

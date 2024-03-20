@@ -5,6 +5,14 @@
 #include <QJsonDocument>
 #include <QJsonObject>
 
+
+std::string formatTime(double timeInSeconds, std::string format = "hh:mm:ss/zz") {
+    QTime t(0, 0, 0);
+    QString formatQ = QString::fromStdString(format);
+    QString formattedTime = t.addMSecs(static_cast<qint64>(timeInSeconds*1000)).toString(formatQ);
+    return formattedTime.toStdString();
+}
+
 HttpServerThread::HttpServerThread(QObject *parent)
     : QThread(parent), 
     runServer(false), 
@@ -89,8 +97,14 @@ void HttpServerThread::setupHttpServer()
             }
         });
 
-        svr.Post("/fade_duration", [this](const httplib::Request&, httplib::Response& res) {
-            res.set_content(std::to_string(double(PlaybackSettings::fadeDuration())/1000.0), "text/plain");
+        svr.Post("/fade_duration", [this](const httplib::Request& req, httplib::Response& res) {
+            double fadeDurationTime = double(PlaybackSettings::fadeDuration()) / 1000.0;
+            if (req.has_param("format")) {
+                res.set_content(formatTime(fadeDurationTime, req.get_param_value("format")), "text/plain");
+            }
+            else {
+                res.set_content(std::to_string(fadeDurationTime), "text/plain");
+            }
         });
 
         svr.Post("/fade_volume_down", [this](const httplib::Request&, httplib::Response& res) {
@@ -111,6 +125,27 @@ void HttpServerThread::setupHttpServer()
         svr.Post("/fade_image_up", [this](const httplib::Request&, httplib::Response& res) {
             Q_EMIT fadeImageUp();
             res.set_content("Fading image up", "text/plain");
+        });
+
+        svr.Post("/sync_image_volume_fade", [this](const httplib::Request& req, httplib::Response& res) {
+            if (req.has_param("value")) {
+                std::string valueStr = req.get_param_value("value");
+                setSyncImageFadingFromStr(valueStr);
+                res.set_content("Setting syncImageVolumeFade to " + valueStr, "text/plain");
+            }
+            else {
+                if (m_mpv) {
+                    if (req.has_param("format")) {
+                        res.set_content(formatTime(m_mpv->syncImageVideoFading(), req.get_param_value("format")), "text/plain");
+                    }
+                    else {
+                        res.set_content(std::to_string(m_mpv->syncImageVideoFading()), "text/plain");
+                    }
+                }
+                else {
+                    res.set_content("0", "text/plain");
+                }
+            }
         });
 
         svr.Post("/visibility", [this](const httplib::Request&, httplib::Response& res) {
@@ -195,25 +230,40 @@ void HttpServerThread::setupHttpServer()
             }
             
             if (m_mpv) {
-                res.set_content(std::to_string(m_mpv->position()), "text/plain");
+                if (req.has_param("format")) {
+                    res.set_content(formatTime(m_mpv->position(), req.get_param_value("format")), "text/plain");
+                }
+                else {
+                    res.set_content(std::to_string(m_mpv->position()), "text/plain");
+                }
             }
             else {
                 res.set_content("0", "text/plain");
             }
         });
 
-        svr.Post("/remaining", [this](const httplib::Request&, httplib::Response& res) {
+        svr.Post("/remaining", [this](const httplib::Request& req, httplib::Response& res) {
             if (m_mpv) {
-                res.set_content(std::to_string(m_mpv->remaining()), "text/plain");
+                if (req.has_param("format")) {
+                    res.set_content(formatTime(m_mpv->remaining(), req.get_param_value("format")), "text/plain");
+                }
+                else {
+                    res.set_content(std::to_string(m_mpv->remaining()), "text/plain");
+                }
             }
             else {
                 res.set_content("0", "text/plain");
             }
         });
 
-        svr.Post("/duration", [this](const httplib::Request&, httplib::Response& res) {
+        svr.Post("/duration", [this](const httplib::Request& req, httplib::Response& res) {
             if (m_mpv) {
-                res.set_content(std::to_string(m_mpv->duration()), "text/plain");
+                if (req.has_param("format")) {
+                    res.set_content(formatTime(m_mpv->duration(), req.get_param_value("format")), "text/plain");
+                }
+                else {
+                    res.set_content(std::to_string(m_mpv->duration()), "text/plain");
+                }
             }
             else {
                 res.set_content("0", "text/plain");
@@ -284,6 +334,92 @@ void HttpServerThread::setupHttpServer()
             res.set_content("Missing index parameter", "text/plain");
         });
 
+        svr.Post("/section_start_time", [this](const httplib::Request& req, httplib::Response& res) {
+            if (m_mpv) {
+                int playingIndex = m_mpv->getPlaySectionsModel()->getPlayingSection();
+                if (playingIndex >= 0) {
+                    double startTime = m_mpv->getPlaySectionsModel()->sectionStartTime(playingIndex);
+                    if (req.has_param("format")) {
+                        res.set_content(formatTime(startTime, req.get_param_value("format")), "text/plain");
+                    }
+                    else {
+                        res.set_content(std::to_string(startTime), "text/plain");
+                    }
+                }
+                else {
+                    res.set_content("0", "text/plain");
+                }
+            }
+            else {
+                res.set_content("0", "text/plain");
+            }
+        });
+
+        svr.Post("/section_end_time", [this](const httplib::Request& req, httplib::Response& res) {
+            if (m_mpv) {
+                int playingIndex = m_mpv->getPlaySectionsModel()->getPlayingSection();
+                if (playingIndex >= 0) {
+                    double endTime = m_mpv->getPlaySectionsModel()->sectionEndTime(playingIndex);
+                    if (req.has_param("format")) {
+                        res.set_content(formatTime(endTime, req.get_param_value("format")), "text/plain");
+                    }
+                    else {
+                        res.set_content(std::to_string(endTime), "text/plain");
+                    }
+                }
+                else {
+                    res.set_content("0", "text/plain");
+                }
+            }
+            else {
+                res.set_content("0", "text/plain");
+            }
+        });
+
+        svr.Post("/section_end_mode", [this](const httplib::Request&, httplib::Response& res) {
+            if (m_mpv) {
+                int playingIndex = m_mpv->getPlaySectionsModel()->getPlayingSection();
+                if (playingIndex >= 0) {
+                    int endMode = m_mpv->getPlaySectionsModel()->sectionEOSMode(playingIndex);
+                    res.set_content(std::to_string(endMode), "text/plain");
+                }
+                else {
+                    res.set_content("0", "text/plain");
+                }
+            }
+            else {
+                res.set_content("0", "text/plain");
+            }
+        });
+
+        svr.Post("/playfile_json", [this](const httplib::Request&, httplib::Response& res) {
+            if (m_mpv) {
+                QJsonDocument doc;
+                QJsonObject obj = doc.object();
+                if (m_mpv->getPlaySectionsModel()->currentEditItem()) {
+                    m_mpv->getPlaySectionsModel()->currentEditItem()->asJSON(obj);
+                }
+                doc.setObject(obj);
+                res.set_content(doc.toJson(QJsonDocument::Compact).toStdString(), "application/json");
+            }
+            else {
+                res.set_content("Could not retrieve playlist", "text/plain");
+            }
+        });
+
+        svr.Post("/playlist_json", [this](const httplib::Request&, httplib::Response& res) {
+            if (m_mpv) {
+                QJsonDocument doc;
+                QJsonObject obj = doc.object();
+                m_mpv->getPlayListModel()->asJSON(obj);
+                doc.setObject(obj);
+                res.set_content(doc.toJson(QJsonDocument::Compact).toStdString(), "application/json");
+            }
+            else {
+                res.set_content("Could not retrieve playlist", "text/plain");
+            }
+        });
+
         svr.Post("/spin_pitch_up", [this](const httplib::Request&, httplib::Response& res) {
             Q_EMIT spinPitchUp();
             res.set_content("Pitch Up", "text/plain");
@@ -319,9 +455,21 @@ void HttpServerThread::setupHttpServer()
             res.set_content("Origin Reset", "text/plain");
         });
 
-        svr.Post("/surface_transition", [this](const httplib::Request&, httplib::Response& res) {
-            Q_EMIT runSurfaceTransistion();
-            res.set_content("Surface Transition", "text/plain");
+        svr.Post("/surface_transition", [this](const httplib::Request& req, httplib::Response& res) {
+            Q_EMIT runSurfaceTransition();
+
+            if (m_mpv) {
+                res.set_content(std::to_string(m_mpv->surfaceTransitionTime()), "text/plain");
+                if (req.has_param("format")) {
+                    res.set_content(formatTime(m_mpv->surfaceTransitionTime(), req.get_param_value("format")), "text/plain");
+                }
+                else {
+                    res.set_content(std::to_string(m_mpv->surfaceTransitionTime()), "text/plain");
+                }
+            }
+            else {
+                res.set_content("0", "text/plain");
+            }
         });
 
         runServer = true;
@@ -419,6 +567,19 @@ void HttpServerThread::setViewModeFromStr(std::string viewModeStr)
     if (stringToInt(viewModeStr, viewMode)) {
         if (viewMode >= 0 && viewMode <= 1) {
             Q_EMIT setViewMode(viewMode);
+        }
+    }
+}
+
+void HttpServerThread::setSyncImageFadingFromStr(std::string valueStr)
+{
+    int value = 0;
+    if (stringToInt(valueStr, value)) {
+        if (value == 0) {
+            Q_EMIT setSyncImageVideoFading(false);
+        }
+        else if(value <= 1) {
+            Q_EMIT setSyncImageVideoFading(true);
         }
     }
 }

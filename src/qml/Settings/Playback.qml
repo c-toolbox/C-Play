@@ -251,6 +251,18 @@ SettingsBasePage {
             Layout.fillWidth: true
         }
 
+        CheckBox {
+            id: checkSyncImageAudioFading
+            text: qsTr("Sync audio+image fading at startup")
+            checked: PlaybackSettings.syncImageVideoFading
+            onCheckedChanged: {
+                PlaybackSettings.syncImageVideoFading = checked
+                PlaybackSettings.save()
+            }
+            Layout.columnSpan: 2
+            Layout.fillWidth: true
+        }
+
         Label {
             text: qsTr("Playlist/file to load on startup:")
         }

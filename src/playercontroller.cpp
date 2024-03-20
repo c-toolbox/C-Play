@@ -9,6 +9,8 @@
 #include <QDir>
 #include <QFileInfo>
 
+#pragma warning(disable : 4996)
+
 PlayerController::PlayerController(QObject *parent)
     : QObject(parent)
     , httpServer(new HttpServerThread(this))
@@ -49,6 +51,7 @@ void PlayerController::setupHttpServer()
     connect(httpServer, &HttpServerThread::setPosition, this, &PlayerController::SetPosition);
     connect(httpServer, &HttpServerThread::setVolume, this, &PlayerController::SetVolume);
     connect(httpServer, &HttpServerThread::setViewMode, this, &PlayerController::setViewModeOnClients);
+    connect(httpServer, &HttpServerThread::setSyncImageVideoFading, this, &PlayerController::SetSyncImageVideoFading);
     connect(httpServer, &HttpServerThread::fadeVolumeDown, this, &PlayerController::FadeVolumeDown);
     connect(httpServer, &HttpServerThread::fadeVolumeUp, this, &PlayerController::FadeVolumeUp);
     connect(httpServer, &HttpServerThread::fadeImageDown, this, &PlayerController::FadeImageDown);
@@ -63,7 +66,7 @@ void PlayerController::setupHttpServer()
     connect(httpServer, &HttpServerThread::spinRollCCW, this, &PlayerController::SpinRollCCW);
     connect(httpServer, &HttpServerThread::spinRollCW, this, &PlayerController::SpinRollCW);
     connect(httpServer, &HttpServerThread::orientationAndSpinReset, this, &PlayerController::OrientationAndSpinReset);
-    connect(httpServer, &HttpServerThread::runSurfaceTransistion, this, &PlayerController::RunSurfaceTransistion);
+    connect(httpServer, &HttpServerThread::runSurfaceTransition, this, &PlayerController::RunSurfaceTransition);
 
     httpServer->start();
 }
@@ -141,6 +144,13 @@ void PlayerController::SetVolume(int level)
     }
 }
 
+void PlayerController::SetSyncImageVideoFading(bool value)
+{
+    if (m_mpv) {
+        m_mpv->setSyncImageVideoFading(value);
+    }
+}
+
 void PlayerController::FadeVolumeDown()
 {
     if (m_mpv) {
@@ -204,9 +214,9 @@ void PlayerController::OrientationAndSpinReset()
     Q_EMIT orientationAndSpinReset();
 }
 
-void PlayerController::RunSurfaceTransistion()
+void PlayerController::RunSurfaceTransition()
 {
-    Q_EMIT runSurfaceTransistion();
+    Q_EMIT runSurfaceTransition();
 }
 
 QString PlayerController::returnRelativeOrAbsolutePath(const QString& path)
