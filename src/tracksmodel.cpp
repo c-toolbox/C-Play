@@ -103,7 +103,7 @@ std::string TracksModel::getListAsFormattedString(std::string removePrefix, int 
         }
         std::string itemText = title;
         fullItemList += itemText;
-        if (i < m_tracks.size())
+        if (i < m_tracks.size() - 1)
             fullItemList += "\n";
     }
     return fullItemList;

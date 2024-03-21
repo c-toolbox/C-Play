@@ -1177,6 +1177,7 @@ void postSyncPreDraw() {
             domeRadius = SyncHelper::instance().variables.radius;
             domeFov = SyncHelper::instance().variables.fov;
             dome = std::make_unique<utils::Dome>(float(domeRadius) / 100.f, float(domeFov), 256, 128);
+            sphere = std::make_unique<utils::Sphere>(float(domeRadius) / 100.f, 256);
         }
 
         if (planeWidth != SyncHelper::instance().variables.planeWidth || planeHeight != SyncHelper::instance().variables.planeHeight) {

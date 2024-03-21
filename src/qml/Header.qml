@@ -1225,32 +1225,32 @@ ToolBar {
 
                     function onSpinPitchUp() {
                         if(mpv.gridToMapOn >= 3) {
-                            spinPitchUp.clicked()
+                            spinPitchUp.toggle()
                         }
                     }
                     function onSpinPitchDown() {
                         if(mpv.gridToMapOn >= 3) {
-                            spinPitchDown.clicked()
+                            spinPitchDown.toggle()
                         }
                     }
                     function onSpinYawLeft() {
                         if(mpv.gridToMapOn >= 2) {
-                            spinYawLeft.clicked()
+                            spinYawLeft.toggle()
                         }
                     }
                     function onSpinYawRight() {
                         if(mpv.gridToMapOn >= 2) {
-                            spinYawRight.clicked()
+                            spinYawRight.toggle()
                         }
                     }
                     function onSpinRollCCW() {
                         if(mpv.gridToMapOn >= 3) {
-                            spinRollCounterClockwise.clicked()
+                            spinRollCounterClockwise.toggle()
                         }
                     }
                     function onSpinRollCW() {
                         if(mpv.gridToMapOn >= 3) {
-                            spinRollClockwise.clicked()
+                            spinRollClockwise.toggle()
                         }
                     }
                     function onOrientationAndSpinReset() {

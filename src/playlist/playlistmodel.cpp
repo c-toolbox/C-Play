@@ -260,7 +260,7 @@ std::string PlaySectionsModel::getSectionsAsFormattedString(size_t charsPerItem)
         }
         std::string itemText = title + duration;
         fullItemList += itemText;
-        if (i < m_currentEditItem->numberOfSections())
+        if (i < m_currentEditItem->numberOfSections() - 1)
             fullItemList += "\n";
     }
     return fullItemList;
@@ -464,7 +464,7 @@ std::string PlayListModel::getListAsFormattedString(int charsPerItem) const
         }
         std::string itemText = title + duration;
         fullItemList += itemText;
-        if(i < m_playList.size())
+        if(i < m_playList.size() - 1)
             fullItemList += "\n";
     }
     return fullItemList;
