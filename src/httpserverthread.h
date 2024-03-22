@@ -38,12 +38,12 @@ Q_SIGNALS:
     void loadFromAudioTracks(int idx);
     void loadFromPlaylist(int idx);
     void loadFromSections(int idx);
-    void spinPitchUp();
-    void spinPitchDown();
-    void spinYawLeft();
-    void spinYawRight();
-    void spinRollCCW();
-    void spinRollCW();
+    void spinPitchUp(bool run);
+    void spinPitchDown(bool run);
+    void spinYawLeft(bool run);
+    void spinYawRight(bool run);
+    void spinRollCCW(bool run);
+    void spinRollCW(bool run);
     void orientationAndSpinReset();
     void runSurfaceTransition();
 

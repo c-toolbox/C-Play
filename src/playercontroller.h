@@ -38,12 +38,12 @@ public Q_SLOTS:
     void FadeVolumeUp();
     void FadeImageDown();
     void FadeImageUp();
-    void SpinPitchUp();
-    void SpinPitchDown();
-    void SpinYawLeft();
-    void SpinYawRight();
-    void SpinRollCW();
-    void SpinRollCCW();
+    void SpinPitchUp(bool run);
+    void SpinPitchDown(bool run);
+    void SpinYawLeft(bool run);
+    void SpinYawRight(bool run);
+    void SpinRollCW(bool run);
+    void SpinRollCCW(bool run);
     void OrientationAndSpinReset();
     void RunSurfaceTransition();
 
@@ -75,12 +75,12 @@ Q_SIGNALS:
     void seek(int offset);
     void loadFromPlaylist(int idx);
     void loadFromSections(int idx);
-    void spinPitchUp();
-    void spinPitchDown();
-    void spinYawLeft();
-    void spinYawRight();
-    void spinRollCCW();
-    void spinRollCW();
+    void spinPitchUp(bool run);
+    void spinPitchDown(bool run);
+    void spinYawLeft(bool run);
+    void spinYawRight(bool run);
+    void spinRollCCW(bool run);
+    void spinRollCW(bool run);
     void orientationAndSpinReset();
     void runSurfaceTransition();
     void mpvChanged();

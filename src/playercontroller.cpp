@@ -179,34 +179,34 @@ void PlayerController::FadeImageUp()
     }
 }
 
-void PlayerController::SpinPitchUp()
+void PlayerController::SpinPitchUp(bool run)
 {
-    Q_EMIT spinPitchUp();
+    Q_EMIT spinPitchUp(run);
 }
 
-void PlayerController::SpinPitchDown()
+void PlayerController::SpinPitchDown(bool run)
 {
-    Q_EMIT spinPitchDown();
+    Q_EMIT spinPitchDown(run);
 }
 
-void PlayerController::SpinYawLeft()
+void PlayerController::SpinYawLeft(bool run)
 {
-    Q_EMIT spinYawLeft();
+    Q_EMIT spinYawLeft(run);
 }
 
-void PlayerController::SpinYawRight()
+void PlayerController::SpinYawRight(bool run)
 {
-    Q_EMIT spinYawRight();
+    Q_EMIT spinYawRight(run);
 }
 
-void PlayerController::SpinRollCW()
+void PlayerController::SpinRollCW(bool run)
 {
-    Q_EMIT spinRollCW();
+    Q_EMIT spinRollCW(run);
 }
 
-void PlayerController::SpinRollCCW()
+void PlayerController::SpinRollCCW(bool run)
 {
-    Q_EMIT spinRollCCW();
+    Q_EMIT spinRollCCW(run);
 }
 
 void PlayerController::OrientationAndSpinReset()

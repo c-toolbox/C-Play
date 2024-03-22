@@ -420,34 +420,154 @@ void HttpServerThread::setupHttpServer()
             }
         });
 
-        svr.Post("/spin_pitch_up", [this](const httplib::Request&, httplib::Response& res) {
-            Q_EMIT spinPitchUp();
-            res.set_content("Pitch Up", "text/plain");
+        svr.Post("/spin_pitch_up", [this](const httplib::Request& req, httplib::Response& res) {
+            if (req.has_param("on")) {
+                int runSpin = -1;
+                if (stringToInt(req.get_param_value("on"), runSpin)) {
+                    if (runSpin == 1) {
+                        Q_EMIT spinPitchUp(true);
+                        res.set_content("Pitch Up is On", "text/plain");
+                    }
+                    else if (runSpin == 0) {
+                        Q_EMIT spinPitchUp(false);
+                        res.set_content("Pitch Up is Off", "text/plain");
+                    }
+                    else {
+                        res.set_content("Supply parameter on with value 0 or 1", "text/plain");
+                    }
+                }
+                else {
+                    res.set_content("Supply parameter on with value 0 or 1", "text/plain");
+                }
+            }
+            else {
+                res.set_content("Supply parameter on with value 0 or 1", "text/plain");
+            }
         });
 
-        svr.Post("/spin_pitch_down", [this](const httplib::Request&, httplib::Response& res) {
-            Q_EMIT spinPitchDown();
-            res.set_content("Pitch Down", "text/plain");
+        svr.Post("/spin_pitch_down", [this](const httplib::Request& req, httplib::Response& res) {
+            if (req.has_param("on")) {
+                int runSpin = -1;
+                if (stringToInt(req.get_param_value("on"), runSpin)) {
+                    if (runSpin == 1) {
+                        Q_EMIT spinPitchDown(true);
+                        res.set_content("Pitch Down is On", "text/plain");
+                    }
+                    else if (runSpin == 0) {
+                        Q_EMIT spinPitchDown(false);
+                        res.set_content("Pitch Down is Off", "text/plain");
+                    }
+                    else {
+                        res.set_content("Supply parameter on with value 0 or 1", "text/plain");
+                    }
+                }
+                else {
+                    res.set_content("Supply parameter on with value 0 or 1", "text/plain");
+                }
+            }
+            else {
+                res.set_content("Supply parameter on with value 0 or 1", "text/plain");
+            }
         });
 
-        svr.Post("/spin_yaw_left", [this](const httplib::Request&, httplib::Response& res) {
-            Q_EMIT spinYawLeft();
-            res.set_content("Yaw Left", "text/plain");
+        svr.Post("/spin_yaw_left", [this](const httplib::Request& req, httplib::Response& res) {
+            if (req.has_param("on")) {
+                int runSpin = -1;
+                if (stringToInt(req.get_param_value("on"), runSpin)) {
+                    if (runSpin == 1) {
+                        Q_EMIT spinYawLeft(true);
+                        res.set_content("Yaw Left is On", "text/plain");
+                    }
+                    else if (runSpin == 0) {
+                        Q_EMIT spinYawLeft(false);
+                        res.set_content("Yaw Left is Off", "text/plain");
+                    }
+                    else {
+                        res.set_content("Supply parameter on with value 0 or 1", "text/plain");
+                    }
+                }
+                else {
+                    res.set_content("Supply parameter on with value 0 or 1", "text/plain");
+                }
+            }
+            else {
+                res.set_content("Supply parameter on with value 0 or 1", "text/plain");
+            }
         });
 
-        svr.Post("/spin_yaw_right", [this](const httplib::Request&, httplib::Response& res) {
-            Q_EMIT spinYawRight();
-            res.set_content("Yaw Right", "text/plain");
+        svr.Post("/spin_yaw_right", [this](const httplib::Request& req, httplib::Response& res) {
+            if (req.has_param("on")) {
+                int runSpin = -1;
+                if (stringToInt(req.get_param_value("on"), runSpin)) {
+                    if (runSpin == 1) {
+                        Q_EMIT spinYawRight(true);
+                        res.set_content("Yaw Right is On", "text/plain");
+                    }
+                    else if (runSpin == 0) {
+                        Q_EMIT spinYawRight(false);
+                        res.set_content("Yaw Right is Off", "text/plain");
+                    }
+                    else {
+                        res.set_content("Supply parameter on with value 0 or 1", "text/plain");
+                    }
+                }
+                else {
+                    res.set_content("Supply parameter on with value 0 or 1", "text/plain");
+                }
+            }
+            else {
+                res.set_content("Supply parameter on with value 0 or 1", "text/plain");
+            }
         });
 
-        svr.Post("/spin_roll_ccw", [this](const httplib::Request&, httplib::Response& res) {
-            Q_EMIT spinRollCCW();
-            res.set_content("Roll CCW", "text/plain");
+        svr.Post("/spin_roll_ccw", [this](const httplib::Request& req, httplib::Response& res) {
+            if (req.has_param("on")) {
+                int runSpin = -1;
+                if (stringToInt(req.get_param_value("on"), runSpin)) {
+                    if (runSpin == 1) {
+                        Q_EMIT spinRollCCW(true);
+                        res.set_content("Roll CCW is On", "text/plain");
+                    }
+                    else if (runSpin == 0) {
+                        Q_EMIT spinRollCCW(false);
+                        res.set_content("Roll CCW is Off", "text/plain");
+                    }
+                    else {
+                        res.set_content("Supply parameter on with value 0 or 1", "text/plain");
+                    }
+                }
+                else {
+                    res.set_content("Supply parameter on with value 0 or 1", "text/plain");
+                }
+            }
+            else {
+                res.set_content("Supply parameter on with value 0 or 1", "text/plain");
+            }
         });
 
-        svr.Post("/spin_roll_cw", [this](const httplib::Request&, httplib::Response& res) {
-            Q_EMIT spinRollCW();
-            res.set_content("Roll CCW", "text/plain");
+        svr.Post("/spin_roll_cw", [this](const httplib::Request& req, httplib::Response& res) {
+            if (req.has_param("on")) {
+                int runSpin = -1;
+                if (stringToInt(req.get_param_value("on"), runSpin)) {
+                    if (runSpin == 1) {
+                        Q_EMIT spinRollCW(true);
+                        res.set_content("Roll CCW is On", "text/plain");
+                    }
+                    else if (runSpin == 0) {
+                        Q_EMIT spinRollCW(false);
+                        res.set_content("Roll CCW is Off", "text/plain");
+                    }
+                    else {
+                        res.set_content("Supply parameter on with value 0 or 1", "text/plain");
+                    }
+                }
+                else {
+                    res.set_content("Supply parameter on with value 0 or 1", "text/plain");
+                }
+            }
+            else {
+                res.set_content("Supply parameter on with value 0 or 1", "text/plain");
+            }
         });
 
         svr.Post("/orientation_reset", [this](const httplib::Request&, httplib::Response& res) {

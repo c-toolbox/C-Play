@@ -840,14 +840,15 @@ ToolBar {
                             icon.color: spinPitchUp.checked ? "lawngreen" : "red"
                             checkable: true
                             checked: false
-                            onClicked: {
-                                spinPitchDown.checked = false
-
+                            onCheckedChanged: {
                                 if(spinPitchUp.checked){
-                                    if(!spinTimerPitch.running)
+                                    if(spinPitchDown.checked){
+                                        spinPitchDown.checked = false
+                                    }
+                                    else if(!spinTimerPitch.running)
                                         spinTimerPitch.start()
                                 }
-                                else{
+                                else if(!spinPitchDown.checked){
                                     if(spinTimerPitch.running)
                                         spinTimerPitch.stop()
                                 }
@@ -871,14 +872,15 @@ ToolBar {
                             icon.color: spinPitchDown.checked ? "lawngreen" : "red"
                             checkable: true
                             checked: false
-                            onClicked: {
-                                spinPitchUp.checked = false
-
+                            onCheckedChanged: {
                                 if(spinPitchDown.checked){
-                                    if(!spinTimerPitch.running)
+                                    if(spinPitchUp.checked){
+                                        spinPitchUp.checked = false
+                                    }
+                                    else if(!spinTimerPitch.running)
                                         spinTimerPitch.start()
                                 }
-                                else{
+                                else if(!spinPitchUp.checked){
                                     if(spinTimerPitch.running)
                                         spinTimerPitch.stop()
                                 }
@@ -906,14 +908,15 @@ ToolBar {
                             icon.color: spinYawLeft.checked ? "lawngreen" : "red"
                             checkable: true
                             checked: false
-                            onClicked: {
-                                spinYawRight.checked = false
-
+                            onCheckedChanged: {
                                 if(spinYawLeft.checked){
-                                    if(!spinTimerYaw.running)
+                                    if(spinYawRight.checked){
+                                        spinYawRight.checked = false
+                                    }
+                                    else if(!spinTimerYaw.running)
                                         spinTimerYaw.start()
                                 }
-                                else{
+                                else if(!spinYawRight.checked){
                                     if(spinTimerYaw.running)
                                         spinTimerYaw.stop()
                                 }
@@ -937,14 +940,15 @@ ToolBar {
                             icon.color: spinYawRight.checked ? "lawngreen" : "red"
                             checkable: true
                             checked: false
-                            onClicked: {
-                                spinYawLeft.checked = false
-
+                            onCheckedChanged: {
                                 if(spinYawRight.checked){
-                                    if(!spinTimerYaw.running)
+                                    if(spinYawLeft.checked){
+                                        spinYawLeft.checked = false
+                                    }
+                                    else if(!spinTimerYaw.running)
                                         spinTimerYaw.start()
                                 }
-                                else{
+                                else if(!spinYawLeft.checked){
                                     if(spinTimerYaw.running)
                                         spinTimerYaw.stop()
                                 }
@@ -972,14 +976,15 @@ ToolBar {
                             icon.color: spinRollCounterClockwise.checked ? "lawngreen" : "red"
                             checkable: true
                             checked: false
-                            onClicked: {
-                                spinRollClockwise.checked = false
-
+                            onCheckedChanged: {
                                 if(spinRollCounterClockwise.checked){
-                                    if(!spinTimerRoll.running)
+                                    if(spinRollClockwise.checked){
+                                        spinRollClockwise.checked = false
+                                    }
+                                    else if(!spinTimerYaw.running)
                                         spinTimerRoll.start()
                                 }
-                                else{
+                                else if(!spinRollClockwise.checked){
                                     if(spinTimerRoll.running)
                                         spinTimerRoll.stop()
                                 }
@@ -1003,14 +1008,15 @@ ToolBar {
                             icon.color: spinRollClockwise.checked ? "lawngreen" : "red"
                             checkable: true
                             checked: false
-                            onClicked: {
-                                spinRollCounterClockwise.checked = false
-
+                            onCheckedChanged: {
                                 if(spinRollClockwise.checked){
-                                    if(!spinTimerRoll.running)
+                                    if(spinRollCounterClockwise.checked){
+                                        spinRollCounterClockwise.checked = false
+                                    }
+                                    else if(!spinTimerYaw.running)
                                         spinTimerRoll.start()
                                 }
-                                else{
+                                else if(!spinRollCounterClockwise.checked){
                                     if(spinTimerRoll.running)
                                         spinTimerRoll.stop()
                                 }
@@ -1223,34 +1229,34 @@ ToolBar {
                 Connections {
                     target: playerController
 
-                    function onSpinPitchUp() {
+                    function onSpinPitchUp(run) {
                         if(mpv.gridToMapOn >= 3) {
-                            spinPitchUp.toggle()
+                            spinPitchUp.checked = run
                         }
                     }
-                    function onSpinPitchDown() {
+                    function onSpinPitchDown(run) {
                         if(mpv.gridToMapOn >= 3) {
-                            spinPitchDown.toggle()
+                            spinPitchDown.checked = run
                         }
                     }
-                    function onSpinYawLeft() {
+                    function onSpinYawLeft(run) {
                         if(mpv.gridToMapOn >= 2) {
-                            spinYawLeft.toggle()
+                            spinYawLeft.checked = run
                         }
                     }
-                    function onSpinYawRight() {
+                    function onSpinYawRight(run) {
                         if(mpv.gridToMapOn >= 2) {
-                            spinYawRight.toggle()
+                            spinYawRight.checked = run
                         }
                     }
-                    function onSpinRollCCW() {
+                    function onSpinRollCCW(run) {
                         if(mpv.gridToMapOn >= 3) {
-                            spinRollCounterClockwise.toggle()
+                            spinRollCounterClockwise.checked = run
                         }
                     }
-                    function onSpinRollCW() {
+                    function onSpinRollCW(run) {
                         if(mpv.gridToMapOn >= 3) {
-                            spinRollClockwise.toggle()
+                            spinRollClockwise.checked = run
                         }
                     }
                     function onOrientationAndSpinReset() {
