@@ -124,8 +124,8 @@ Kirigami.ApplicationWindow {
 
     Platform.FileDialog {
         id: addToPlaylistDialog
-        folder: GeneralSettings.fileDialogLocation !== ""
-                ? app.pathToUrl(GeneralSettings.fileDialogLocation)
+        folder: GeneralSettings.cPlayFileLocation !== ""
+                ? app.pathToUrl(GeneralSettings.cPlayFileLocation)
                 : app.pathToUrl(GeneralSettings.fileDialogLastLocation)
         title: "Add file to playlist"
         fileMode: Platform.FileDialog.OpenFile
@@ -134,9 +134,6 @@ Kirigami.ApplicationWindow {
         onAccepted: {
             mpv.addFileToPlaylist(addToPlaylistDialog.file.toString())
             mpv.focus = true
-
-            GeneralSettings.fileDialogLastLocation = app.parentUrl(addToPlaylistDialog.file)
-            GeneralSettings.save()
         }
         onRejected: mpv.focus = true
     }
@@ -155,9 +152,6 @@ Kirigami.ApplicationWindow {
             saveCPlayFile(saveCPlayFileDialog.file.toString())
             mpv.focus = true
             saveCPlayFileDialog.visible = false;
-
-            GeneralSettings.fileDialogLastLocation = app.parentUrl(saveCPlayFileDialog.file)
-            GeneralSettings.save()
 
             if (saveCPlayFileDialog.visible) {
                 saveCPlayFileDialog.close()
@@ -179,9 +173,6 @@ Kirigami.ApplicationWindow {
         onAccepted: {
             saveCPlayPlaylist(saveCPlayPlaylistDialog.file.toString())
             mpv.focus = true
-
-            GeneralSettings.fileDialogLastLocation = app.parentUrl(saveCPlayPlaylistDialog.file)
-            GeneralSettings.save()
         }
         onRejected: mpv.focus = true
     }

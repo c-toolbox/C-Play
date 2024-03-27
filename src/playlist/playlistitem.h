@@ -55,7 +55,7 @@ public:
     double m_duration;
     QString m_separateOverlayFile{ "" };
     QString m_separateAudioFile{ "" };
-    int m_loopMode{ 2 };
+    int m_loopMode{ 0 };
     int m_transitionMode{ 0 };
     int m_gridToMapOn{ -1 };
     int m_stereoVideo{ -1 };
