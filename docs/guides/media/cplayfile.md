@@ -56,7 +56,7 @@ If the setting *"Load audio files in same folder as video file"* in the audio co
 1. Optionally, define "*Sections*" for you movie/video if you want to have users jump to certain pre-defined locations.
 
 1. Click the button *"Save As C-Play File"* in the header menu, which will open the dialog below.
- ![Save As CPlayfile](/assets/ui/saveAsCplayfile.png)
+ ![Save As CPlayfile](../../assets/ui/saveAsCplayfile.png)
  The dialog will already be pre-defined with the current user defined values currently chosen in C-Play. You can change any value here before you save as well, and optionally add an overlay image as well.
 
  1. Click "*Save C-Play File*" do save it, preferably in the folder you defiend in the "*General settings*" as "*Common C-play file location*", which if set, is the start location when this dialog opens.

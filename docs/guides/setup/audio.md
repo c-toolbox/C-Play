@@ -30,7 +30,7 @@ In "*QJackCtl*", you can configure it to a specifc driver, such as the competent
 
 When C-Play loads a audio file, you should see how many channels it has by how many channels that are connect in the graph, as seen below.
 
- ![Jack](/docs/assets/jack/12_channels.png)
+ ![Jack](../../assets/jack/12_channels.png)
 
 ## Naming of external files
 
