@@ -135,12 +135,7 @@ void HttpServerThread::setupHttpServer()
             }
             else {
                 if (m_mpv) {
-                    if (req.has_param("format")) {
-                        res.set_content(formatTime(m_mpv->syncImageVideoFading(), req.get_param_value("format")), "text/plain");
-                    }
-                    else {
-                        res.set_content(std::to_string(m_mpv->syncImageVideoFading()), "text/plain");
-                    }
+                    res.set_content(std::to_string(m_mpv->syncImageVideoFading()), "text/plain");
                 }
                 else {
                     res.set_content("0", "text/plain");

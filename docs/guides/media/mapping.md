@@ -4,6 +4,8 @@ nav_order: 3
 parent: Media file structure
 ---
 
+# Video & image mapping modes
+
 In C-Play, this aspects is controlled by different "Grid modes", which can be paired with different "Stereo modes" for stereoscopic content.
 
 ### Grid mode

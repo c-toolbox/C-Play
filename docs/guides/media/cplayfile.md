@@ -1,10 +1,10 @@
 ---
-title: Save video settings (*.cplayfile)
+title: Save video description (*.cplayfile)
 nav_order: 5
 parent: Media file structure
 ---
 
-# Build video description files (*.cplayfile)
+# Build and save video description files (*.cplayfile)
 
  C-Play can open any format that MPV support, which is basically any that the included FFmpeg libraries support.
 
