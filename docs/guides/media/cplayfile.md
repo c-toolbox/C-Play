@@ -30,7 +30,19 @@ parent: Media file structure
 
 ## Sections
 
-....
+Sections is a concept similar but more powerful then bookmarks or chapters in a video. Every section has a title, start time, end time and eos(*end of section*) mode.
+
+Basically, a section is a piece of the video that can be triggered easily, with various *end behaviours* depending on eos mode. The different eos modes are:
+
+* Pause
+* Fade out video, then pause
+* Continue video (do not pause)
+* Next section
+* Loop section
+
+The sections view, where sections are created and managed, is opened in the bottom right (or bottom left, depending on settings). 
+
+It should be straight-forward to build sections, and while you can edit start and stop time manually, you can easily grab then from the current time in the video.
 
 ## Workflow for *.cplayfile creation
 
@@ -44,7 +56,7 @@ If the setting *"Load audio files in same folder as video file"* in the audio co
 1. Optionally, define "*Sections*" for you movie/video if you want to have users jump to certain pre-defined locations.
 
 1. Click the button *"Save As C-Play File"* in the header menu, which will open the dialog below.
- ![Save As CPlayfile](/docs/assets/ui/saveAsCplayfile.png)
+ ![Save As CPlayfile](/assets/ui/saveAsCplayfile.png)
  The dialog will already be pre-defined with the current user defined values currently chosen in C-Play. You can change any value here before you save as well, and optionally add an overlay image as well.
 
  1. Click "*Save C-Play File*" do save it, preferably in the folder you defiend in the "*General settings*" as "*Common C-play file location*", which if set, is the start location when this dialog opens.

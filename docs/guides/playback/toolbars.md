@@ -3,7 +3,11 @@ title: Playback UI controls
 parent: Playback features
 ---
 
-## Fade audio and background image
+# Content playback features
+
+## Spin the grid
 
 ## Force all content to 2D
+
+## Pause sync
 
