@@ -65,9 +65,9 @@ static QApplication *createApplication(int &argc, char **argv, const QString &ap
     QApplication::setAttribute(Qt::AA_EnableHighDpiScaling);
     QApplication::setAttribute(Qt::AA_UseHighDpiPixmaps);
     QApplication::setHighDpiScaleFactorRoundingPolicy(Qt::HighDpiScaleFactorRoundingPolicy::PassThrough);
-    QApplication::setOrganizationName("eriksunden");
+    QApplication::setOrganizationName("C-Play");
     QApplication::setApplicationName(applicationName);
-    QApplication::setOrganizationDomain("eriksunden.com");
+    QApplication::setOrganizationDomain("github.com/c-toolbox/C-Play");
     QApplication::setApplicationDisplayName("C-Play : Cluster Video Player");
     QApplication::setApplicationVersion(Application::version());
 
@@ -83,13 +83,14 @@ Application::Application(int &argc, char **argv, const QString &applicationName)
     : m_app(createApplication(argc, argv, applicationName))
     , m_collection(this)
 {
-    m_config = KSharedConfig::openConfig("georgefb/haruna.conf");
+    m_config = KSharedConfig::openConfig("C-Play/cplay.conf");
     m_shortcuts = new KConfigGroup(m_config, "Shortcuts");
     m_schemes = new KColorSchemeManager(this);
     m_systemDefaultStyle = m_app->style()->objectName();
 
     if (GeneralSettings::useBreezeIconTheme()) {
         QIcon::setThemeName("breeze");
+        QApplication::setStyle("Breeze Dark");
     }
 
     if (GeneralSettings::guiStyle() != QStringLiteral("System")) {
@@ -178,23 +179,20 @@ void Application::setupAboutData()
     m_aboutData = KAboutData(QStringLiteral("C-Play"),
                              i18n("C-Play : Cluster Video Player"),
                              Application::version());
-    m_aboutData.setShortDescription(i18n("A configurable cluster video player, based on libmpv, SGCT and g-fb/haruna projects."));
+    m_aboutData.setShortDescription(i18n("A configurable cluster video player, based on libmpv, SGCT and Haruna projects."));
     m_aboutData.setLicense(KAboutLicense::GPL_V3);
-    m_aboutData.setCopyrightStatement(i18n("(c) 2019-2024"));
-    //m_aboutData.setHomepage(QStringLiteral("https://github.com/g-fb/haruna"));
-    //m_aboutData.setBugAddress(QStringLiteral("https://github.com/g-fb/haruna/issues").toUtf8());
-    //m_aboutData.setDesktopFileName("com.georgefb.haruna");
+    m_aboutData.setCopyrightStatement(i18n("(c) 2021-2024"));
 
     m_aboutData.setHomepage(QStringLiteral("https://c-toolbox.github.io/C-Play/"));
     m_aboutData.setBugAddress(QStringLiteral("https://github.com/c-toolbox/C-Play/issues").toUtf8());
-    m_aboutData.setDesktopFileName("com.eriksunden.cplay");
+    m_aboutData.setDesktopFileName("org.ctoolbox.cplay");
 
-    m_aboutData.addAuthor(i18n("Clustered player (SGCT/Jack etc) : Erik Sundén"),
-                        i18n("Developer"),
+    m_aboutData.addAuthor(i18n("Contact/owner: Erik Sundén"),
+                        i18n("Creator of C-Play"),
                         QStringLiteral("eriksunden85@gmail.com"));
 
-    m_aboutData.addAuthor(i18n("Haruna : George Florea Bănuș"),
-                        i18n("Developer"),
+    m_aboutData.addAuthor(i18n("Specific credits to George Florea Bănuș"),
+                        i18n("Creator of Haruna"),
                         QStringLiteral("georgefb899@gmail.com"));
 
     KAboutData::setApplicationData(m_aboutData);
@@ -227,25 +225,25 @@ void Application::registerQmlTypes()
 void Application::setupQmlSettingsTypes()
 {
     auto audioProvider = [](QQmlEngine *, QJSEngine *) -> QObject * { return AudioSettings::self(); };
-    qmlRegisterSingletonType<AudioSettings>("com.georgefb.haruna", 1, 0, "AudioSettings", audioProvider);
+    qmlRegisterSingletonType<AudioSettings>("org.ctoolbox.cplay", 1, 0, "AudioSettings", audioProvider);
 
     auto generalProvider = [](QQmlEngine *, QJSEngine *) -> QObject * { return GeneralSettings::self(); };
-    qmlRegisterSingletonType<GeneralSettings>("com.georgefb.haruna", 1, 0, "GeneralSettings", generalProvider);
+    qmlRegisterSingletonType<GeneralSettings>("org.ctoolbox.cplay", 1, 0, "GeneralSettings", generalProvider);
 
     auto mouseProvider = [](QQmlEngine *, QJSEngine *) -> QObject * { return MouseSettings::self(); };
-    qmlRegisterSingletonType<MouseSettings>("com.georgefb.haruna", 1, 0, "MouseSettings", mouseProvider);
+    qmlRegisterSingletonType<MouseSettings>("org.ctoolbox.cplay", 1, 0, "MouseSettings", mouseProvider);
 
     auto playbackProvider = [](QQmlEngine *, QJSEngine *) -> QObject * { return PlaybackSettings::self(); };
-    qmlRegisterSingletonType<PlaybackSettings>("com.georgefb.haruna", 1, 0, "PlaybackSettings", playbackProvider);
+    qmlRegisterSingletonType<PlaybackSettings>("org.ctoolbox.cplay", 1, 0, "PlaybackSettings", playbackProvider);
 
     auto playlistProvider = [](QQmlEngine *, QJSEngine *) -> QObject * { return PlaylistSettings::self(); };
-    qmlRegisterSingletonType<PlaylistSettings>("com.georgefb.haruna", 1, 0, "PlaylistSettings", playlistProvider);
+    qmlRegisterSingletonType<PlaylistSettings>("org.ctoolbox.cplay", 1, 0, "PlaylistSettings", playlistProvider);
 
     auto subtitlesProvider = [](QQmlEngine *, QJSEngine *) -> QObject * { return SubtitlesSettings::self(); };
-    qmlRegisterSingletonType<SubtitlesSettings>("com.georgefb.haruna", 1, 0, "SubtitlesSettings", subtitlesProvider);
+    qmlRegisterSingletonType<SubtitlesSettings>("org.ctoolbox.cplay", 1, 0, "SubtitlesSettings", subtitlesProvider);
 
     auto videoProvider = [](QQmlEngine *, QJSEngine *) -> QObject * { return VideoSettings::self(); };
-    qmlRegisterSingletonType<VideoSettings>("com.georgefb.haruna", 1, 0, "VideoSettings", videoProvider);
+    qmlRegisterSingletonType<VideoSettings>("org.ctoolbox.cplay", 1, 0, "VideoSettings", videoProvider);
 }
 
 void Application::setupQmlContextProperties()

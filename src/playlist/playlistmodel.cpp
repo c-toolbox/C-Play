@@ -269,7 +269,7 @@ std::string PlaySectionsModel::getSectionsAsFormattedString(size_t charsPerItem)
 PlayListModel::PlayListModel(QObject *parent)
     : QAbstractListModel(parent)
 {
-    m_config = KSharedConfig::openConfig("georgefb/haruna.conf");
+    m_config = KSharedConfig::openConfig("C-Play/cplay.conf");
     connect(this, &PlayListModel::videoAdded,
             Worker::instance(), &Worker::getMetaData);
 

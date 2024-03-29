@@ -17,7 +17,7 @@
 SubtitlesFoldersModel::SubtitlesFoldersModel(QObject *parent)
     : QAbstractListModel(parent)
 {
-    m_config = KSharedConfig::openConfig("georgefb/haruna.conf");
+    m_config = KSharedConfig::openConfig("C-Play/cplay.conf");
     m_list = m_config->group("Subtitles").readPathEntry("Folders", QStringList());
 }
 

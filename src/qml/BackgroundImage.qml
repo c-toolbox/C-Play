@@ -1,5 +1,5 @@
 import QtQuick 2.12
-import com.georgefb.haruna 1.0
+import org.ctoolbox.cplay 1.0
 
 Image {
     id: root

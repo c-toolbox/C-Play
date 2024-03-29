@@ -1,5 +1,5 @@
 #
-# Copyright: 2021 Erik Sunden <eriksunden85@gmail.com>
+# Copyright: 2021-2024 Erik Sunden <eriksunden85@gmail.com>
 #
 # SPDX-FileCopyrightText: 2020 George Florea Bănuș <georgefb899@gmail.com>
 #

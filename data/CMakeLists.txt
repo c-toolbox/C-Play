@@ -1,10 +1,13 @@
 #
+# Copyright: 2021 Erik Sunden <eriksunden85@gmail.com>
+#
 # SPDX-FileCopyrightText: 2020 George Florea Bănuș <georgefb899@gmail.com>
 #
 # SPDX-License-Identifier: GPL-3.0-or-later
 #
 
+
 add_subdirectory(color-schemes)
 
-install(FILES com.georgefb.haruna.desktop DESTINATION ${KDE_INSTALL_APPDIR})
-install(FILES com.georgefb.haruna.appdata.xml DESTINATION ${KDE_INSTALL_METAINFODIR})
+install(FILES org.ctoolbox.cplay.desktop DESTINATION ${KDE_INSTALL_APPDIR})
+install(FILES org.ctoolbox.cplay.appdata.xml DESTINATION ${KDE_INSTALL_METAINFODIR})

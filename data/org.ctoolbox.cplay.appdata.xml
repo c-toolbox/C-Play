@@ -1,0 +1,59 @@
+<?xml version="1.0" encoding="utf-8"?>
+<!--
+ SPDX-FileCopyrightText: 2021-2024 Erik Sunden <eriksunden85@gmail.com>
+ SPDX-FileCopyrightText: 2020 George Florea Bănuș <georgefb899@gmail.com>
+ SPDX-License-Identifier: CC-BY-4.0
+ -->
+<component type="desktop-application">
+    <name>C-Play</name>
+    <id>org.ctoolbox.cplay</id>
+    <launchable type="desktop-id">org.ctoolbox.cplay.desktop</launchable>
+    <metadata_license>CC-BY-4.0</metadata_license>
+    <project_license>GPL-3.0-or-later</project_license>
+    <url type="homepage">https://github.com/c-toolbox/C-Play</url>
+    <url type="bugtracker">https://github.com/c-toolbox/C-Play/issues</url>
+    <summary>A configurable cluster video player, based on libmpv, SGCT and Haruna projects.</summary>
+    <developer_name>Erik Sundén</developer_name>
+    <description>
+        <p>A configurable cluster video player, based on libmpv, SGCT and Haruna projects.</p>
+    </description>
+    <releases>
+        <release version="2.0.0" date="2024-03-29">
+            <description>
+                <p>Features:</p>
+                <ul>
+                    <li>Added flat video support (on planes).</li>
+                    <li>UI for playlist, playfile creation.</li>
+                    <li>Configuration and test wtih GPU decoding.</li>
+                    <li>Added section stucture and UI elements.</li>
+                    <li>Improved spin control.</li>
+                    <li>Background support.</li>
+                    <li>Http REST API.</li>
+                    <li>Sync between audio/video fading.</li>
+                    <li>Auto 2D/3D switch, and force 2D option.</li>
+                    <li>SGCT update.</li>
+                </ul>
+            </description>
+
+        </release>
+        <release version="1.0.0" date="2023-08-07">
+            <description>
+                <ul>
+                    <li>Working video playback in clustered environment.</li>
+                    <li>Support for pre-split, 180(fisheye) and 360 videos.</li>
+                    <li>Mapping to different grids.</li>
+                    <li>Various stereoscopic support (side-by-side, top-down etc).</li>
+                    <li>Playlist and playfile strutcture.</li>
+                    <li>Tested primarily with CPU decoding only.</li>
+                </ul>
+            </description>
+        </release>
+    </releases>
+    <screenshots>
+        <screenshot type="default">
+            <caption>C-Play</caption>
+            <image>https://c-toolbox.github.io/C-Play/assets/Cplay-v2.png</image>
+        </screenshot>
+    </screenshots>
+    <content_rating type="oars-1.0" />
+</component>

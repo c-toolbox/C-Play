@@ -10,7 +10,7 @@ import QtQuick.Controls 2.12
 import Qt.labs.platform 1.0 as Platform
 
 import org.kde.kirigami 2.11 as Kirigami
-import com.georgefb.haruna 1.0
+import org.ctoolbox.cplay 1.0
 import Haruna.Components 1.0
 
 SettingsBasePage {

@@ -1713,7 +1713,7 @@ void MpvObject::saveTimePosition()
     auto hash = md5(getProperty("path").toString());
     auto timePosition = getProperty("time-pos");
     auto configPath = QStandardPaths::writableLocation(QStandardPaths::ConfigLocation);
-    KConfig *config = new KConfig(configPath.append("/georgefb/watch-later/").append(hash));
+    KConfig *config = new KConfig(configPath.append("/cplay/watch-later/").append(hash));
     config->group("").writeEntry("TimePosition", timePosition);
     config->sync();
 }
@@ -1733,7 +1733,7 @@ double MpvObject::loadTimePosition()
 
     auto hash = md5(getProperty("path").toString());
     auto configPath = QStandardPaths::writableLocation(QStandardPaths::ConfigLocation);
-    KConfig *config = new KConfig(configPath.append("/georgefb/watch-later/").append(hash));
+    KConfig *config = new KConfig(configPath.append("/cplay/watch-later/").append(hash));
     int position = config->group("").readEntry("TimePosition", QString::number(0)).toDouble();
 
     return position;
@@ -1743,7 +1743,7 @@ void MpvObject::resetTimePosition()
 {
     auto hash = md5(getProperty("path").toString());
     auto configPath = QStandardPaths::writableLocation(QStandardPaths::ConfigLocation);
-    QFile f(configPath.append("/georgefb/watch-later/").append(hash));
+    QFile f(configPath.append("/cplay/watch-later/").append(hash));
 
     if (f.exists()) {
         f.remove();
