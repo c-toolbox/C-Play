@@ -483,7 +483,7 @@ SettingsBasePage {
             model: ListModel {
                 id: stylesModel
 
-                ListElement { key: "Default"; }
+                ListElement { key: "Breeeze Dark"; }
             }
 
             onActivated: {

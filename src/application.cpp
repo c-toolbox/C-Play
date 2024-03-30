@@ -90,7 +90,6 @@ Application::Application(int &argc, char **argv, const QString &applicationName)
 
     if (GeneralSettings::useBreezeIconTheme()) {
         QIcon::setThemeName("breeze");
-        QApplication::setStyle("Breeze Dark");
     }
 
     if (GeneralSettings::guiStyle() != QStringLiteral("System")) {
