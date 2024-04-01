@@ -314,10 +314,6 @@ public:
     int gridToMapOn();
     void setGridToMapOn(int value);
 
-    int stereoscopicModeBackground();
-    int gridToMapOnBackground();
-    int viewModeOnClients();
-
     double rotationSpeed();
     void setRotationSpeed(double value);
 

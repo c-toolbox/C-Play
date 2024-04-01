@@ -1,6 +1,7 @@
 #include "httpserverthread.h"
 #include "mpvobject.h"
 #include "playbacksettings.h"
+#include "playercontroller.h"
 #include <QFile>
 #include <QJsonDocument>
 #include <QJsonObject>
@@ -171,8 +172,9 @@ void HttpServerThread::setupHttpServer()
         });
 
         svr.Post("/background_stereo_mode", [this](const httplib::Request&, httplib::Response& res) {
-            if (m_mpv) {
-                res.set_content(std::to_string(m_mpv->stereoscopicModeBackground()), "text/plain");
+            PlayerController* playctrl = qobject_cast<PlayerController*>(parent());
+            if (playctrl) {
+                res.set_content(std::to_string(playctrl->backgroundStereoMode()), "text/plain");
             }
             else {
                 res.set_content("0", "text/plain");
@@ -180,8 +182,9 @@ void HttpServerThread::setupHttpServer()
         });
 
         svr.Post("/background_grid_mode", [this](const httplib::Request&, httplib::Response& res) {
-            if (m_mpv) {
-                res.set_content(std::to_string(m_mpv->gridToMapOnBackground()), "text/plain");
+            PlayerController* playctrl = qobject_cast<PlayerController*>(parent());
+            if (playctrl) {
+                res.set_content(std::to_string(playctrl->backgroundGridMode()), "text/plain");
             }
             else {
                 res.set_content("0", "text/plain");
@@ -202,8 +205,9 @@ void HttpServerThread::setupHttpServer()
                 setViewModeFromStr(req.get_param_value("mode"));
             }
 
-            if (m_mpv) {
-                res.set_content(std::to_string(m_mpv->viewModeOnClients()), "text/plain");
+            PlayerController* playctrl = qobject_cast<PlayerController*>(parent());
+            if (playctrl) {
+                res.set_content(std::to_string(playctrl->getViewModeOnClients()), "text/plain");
             }
             else {
                 res.set_content("0", "text/plain");

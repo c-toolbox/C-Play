@@ -370,7 +370,7 @@ void PlayerController::setViewModeOnMaster(int value)
     //0 = Same as nodes
     //1 = Show media always
     //2 = Show background always
-    SyncHelper::instance().variables.stereoscopicModeBg = value;
+    m_viewModeOnMaster = value;
 
     emit backgroundVisibilityChanged();
 }
