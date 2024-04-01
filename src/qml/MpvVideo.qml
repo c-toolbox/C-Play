@@ -356,7 +356,7 @@ MpvObject {
             root.playSectionsModel.setPlayingSection(index)
         }
         function onBackgroundVisibilityChanged(){
-            root.opacity = 1 - playerController.backgroundVisibility()
+            root.opacity = 1 - playerController.backgroundVisibilityOnMaster()
         }
     }
 

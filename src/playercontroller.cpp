@@ -51,6 +51,7 @@ void PlayerController::setupHttpServer()
     connect(httpServer, &HttpServerThread::setPosition, this, &PlayerController::SetPosition);
     connect(httpServer, &HttpServerThread::setVolume, this, &PlayerController::SetVolume);
     connect(httpServer, &HttpServerThread::setViewMode, this, &PlayerController::setViewModeOnClients);
+    connect(httpServer, &HttpServerThread::setBackgroundVisibility, this, &PlayerController::setBackgroundVisibility);
     connect(httpServer, &HttpServerThread::setSyncImageVideoFading, this, &PlayerController::SetSyncImageVideoFading);
     connect(httpServer, &HttpServerThread::fadeVolumeDown, this, &PlayerController::FadeVolumeDown);
     connect(httpServer, &HttpServerThread::fadeVolumeUp, this, &PlayerController::FadeVolumeUp);
@@ -265,23 +266,7 @@ QString PlayerController::checkAndCorrectPath(const QString& path) {
 
 float PlayerController::backgroundVisibility()
 {
-    if (getViewModeOnMaster() == 1) {
-        return 0.f;
-    }
-    else if (getViewModeOnMaster() == 2) {
-        return 1.f;
-    }
-
-    if (SyncHelper::instance().variables.alphaBg > 0.f) {
-        if (SyncHelper::instance().variables.loadedFile.empty()) {
-            return SyncHelper::instance().variables.alphaBg;
-        }
-        else {
-            return 1.f - SyncHelper::instance().variables.alpha;
-        }
-    }
-
-    return 0.f;
+    return SyncHelper::instance().variables.alphaBg;
 }
 
 void PlayerController::setBackgroundVisibility(float value)
@@ -363,6 +348,27 @@ int PlayerController::backgroundStereoMode()
 void PlayerController::setBackgroundStereoMode(int value)
 {
     SyncHelper::instance().variables.stereoscopicModeBg = value;
+}
+
+float PlayerController::backgroundVisibilityOnMaster()
+{
+    if (getViewModeOnMaster() == 1) {
+        return 0.f;
+    }
+    else if (getViewModeOnMaster() == 2) {
+        return 1.f;
+    }
+
+    if (backgroundVisibility() > 0.f) {
+        if (SyncHelper::instance().variables.loadedFile.empty()) {
+            return backgroundVisibility();
+        }
+        else {
+            return 1.f - SyncHelper::instance().variables.alpha;
+        }
+    }
+
+    return 0.f;
 }
 
 void PlayerController::setViewModeOnMaster(int value)

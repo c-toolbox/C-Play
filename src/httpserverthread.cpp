@@ -171,6 +171,28 @@ void HttpServerThread::setupHttpServer()
             }
         });
 
+        svr.Post("/background", [this](const httplib::Request& req, httplib::Response& res) {
+            if (req.has_param("on")) {
+                int value = -1;
+                if (stringToInt(req.get_param_value("on"), value)) {
+                    if (value == 1) {
+                        Q_EMIT setBackgroundVisibility(1.f);
+                        res.set_content("Background is On", "text/plain");
+                    }
+                    else if (value == 0) {
+                        Q_EMIT setBackgroundVisibility(0.f);
+                        res.set_content("Background is Off", "text/plain");
+                    }
+                    else {
+                        res.set_content("Supply parameter on with value 0 or 1", "text/plain");
+                    }
+                }
+                else {
+                    res.set_content("Supply parameter on with value 0 or 1", "text/plain");
+                }
+            }
+        });
+
         svr.Post("/background_stereo_mode", [this](const httplib::Request&, httplib::Response& res) {
             PlayerController* playctrl = qobject_cast<PlayerController*>(parent());
             if (playctrl) {

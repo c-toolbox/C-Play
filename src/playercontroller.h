@@ -60,6 +60,7 @@ public Q_SLOTS:
     int backgroundStereoMode();
     void setBackgroundStereoMode(int value);
 
+    float backgroundVisibilityOnMaster();
     void setViewModeOnMaster(int value);
     int getViewModeOnMaster();
     void setViewModeOnClients(int value);

@@ -108,14 +108,6 @@ To easier understand these commands, feel free to utilize a sample Medialon Mana
     // 3 = Sphere EQR
     // 4 = Sphere EAC
 
-    Endpoint: /background_stereo_mode
-    Purpose:  Return the stereoscopic mode for the baclground image.
-    Returns:  A value between 0 and 3 (see /stereo_mode enpoint for logic)
-
-    Endpoint: /background_grid_mode
-    Purpose:  Return the grid mode for the baclground image.
-    Returns:  A value between 0 and 4 (see /grid_mode enpoint for logic)
-
     Endpoint: /loop_mode
     Purpose:  Return the current loop/eof (end of file) mode in C-play.
     Returns:  A value between 0 and 2
@@ -131,6 +123,21 @@ To easier understand these commands, feel free to utilize a sample Medialon Mana
 
     //0 = Auto 2D/3D switch
     //1 = Force 2D for all
+
+## Handle background image remotely
+
+    Endpoint: /background
+    Purpose:  Enable or disables the use of background.
+    Params:   Mandatory to supply a "on=1" or "on=0" to enable or disable the background image.
+    Returns:  A message indiciating success or an error.
+
+    Endpoint: /background_stereo_mode
+    Purpose:  Return the stereoscopic mode for the background image.
+    Returns:  A value between 0 and 3 (see /stereo_mode enpoint for logic)
+
+    Endpoint: /background_grid_mode
+    Purpose:  Return the grid mode for the background image.
+    Returns:  A value between 0 and 4 (see /grid_mode enpoint for logic)
 
 ## Handle lists remotely
 

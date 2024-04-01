@@ -351,6 +351,12 @@ ToolBar {
                                 playerController.setBackgroundVisibility(1);
                             }
                         }
+                        Connections {
+                            target: playerController
+                            function onBackgroundVisibilityChanged(){
+                                background_visible.checked = (playerController.backgroundVisibility() === 1)
+                            }
+                        }
                     }
 
                     RadioButton {
@@ -364,6 +370,12 @@ ToolBar {
                                 backgroundMenuButton.icon.name = "preview-render-off";
                                 backgroundToolTip.text = "Background NOT visible when video is not.";
                                 playerController.setBackgroundVisibility(0);
+                            }
+                        }
+                        Connections {
+                            target: playerController
+                            function onBackgroundVisibilityChanged(){
+                                background_not_visible.checked = (playerController.backgroundVisibility() === 0)
                             }
                         }
                     }

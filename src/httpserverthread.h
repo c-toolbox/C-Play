@@ -31,6 +31,7 @@ Q_SIGNALS:
     void setVolume(int level);
     void setViewMode(int mode);
     void setSyncImageVideoFading(bool sync);
+    void setBackgroundVisibility(float value);
     void fadeVolumeDown();
     void fadeVolumeUp();
     void fadeImageDown();
