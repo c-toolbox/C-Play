@@ -48,6 +48,8 @@ std::string loadedFile = "";
 std::string videoFilters = "";
 glm::vec3 bgRotate(0.f);
 glm::vec3 bgTranslate(0.f);
+glm::vec3 fgRotate(0.f);
+glm::vec3 fgTranslate(0.f);
 
 struct RenderParams {
     unsigned int tex;
@@ -71,6 +73,7 @@ struct ImageData {
 };
 
 ImageData backgroundImageData;
+ImageData foregroundImageData;
 ImageData overlayImageData;
 
 auto loadImageAsync = [](ImageData& data) {
@@ -847,48 +850,87 @@ std::vector<std::byte> encode() {
     serializeObject(data, SyncHelper::instance().variables.syncOn);
     serializeObject(data, SyncHelper::instance().variables.alpha);
     serializeObject(data, SyncHelper::instance().variables.alphaBg);
-    serializeObject(data, SyncHelper::instance().variables.loadedFile);
-    serializeObject(data, SyncHelper::instance().variables.bgImageFile);
-    serializeObject(data, SyncHelper::instance().variables.overlayFile);
-    serializeObject(data, SyncHelper::instance().variables.loadFile);
-    serializeObject(data, SyncHelper::instance().variables.paused);
-    serializeObject(data, SyncHelper::instance().variables.timePosition);
-    serializeObject(data, SyncHelper::instance().variables.timeThreshold);
-    serializeObject(data, SyncHelper::instance().variables.timeDirty);
-    serializeObject(data, SyncHelper::instance().variables.gridToMapOn);
-    serializeObject(data, SyncHelper::instance().variables.gridToMapOnBg);
-    serializeObject(data, SyncHelper::instance().variables.stereoscopicMode);
-    serializeObject(data, SyncHelper::instance().variables.stereoscopicModeBg);
-    serializeObject(data, SyncHelper::instance().variables.loopMode);
-    serializeObject(data, SyncHelper::instance().variables.viewMode);
-    serializeObject(data, SyncHelper::instance().variables.radius);
-    serializeObject(data, SyncHelper::instance().variables.fov);
-    serializeObject(data, SyncHelper::instance().variables.angle);
-    serializeObject(data, SyncHelper::instance().variables.rotateX);
-    serializeObject(data, SyncHelper::instance().variables.rotateY);
-    serializeObject(data, SyncHelper::instance().variables.rotateZ);
-    serializeObject(data, SyncHelper::instance().variables.translateX);
-    serializeObject(data, SyncHelper::instance().variables.translateY);
-    serializeObject(data, SyncHelper::instance().variables.translateZ);
-    serializeObject(data, SyncHelper::instance().variables.planeWidth);
-    serializeObject(data, SyncHelper::instance().variables.planeHeight);
-    serializeObject(data, SyncHelper::instance().variables.planeElevation);
-    serializeObject(data, SyncHelper::instance().variables.planeDistance);
-    serializeObject(data, SyncHelper::instance().variables.eqDirty);
-    serializeObject(data, SyncHelper::instance().variables.eqContrast);
-    serializeObject(data, SyncHelper::instance().variables.eqBrightness);
-    serializeObject(data, SyncHelper::instance().variables.eqGamma);
-    serializeObject(data, SyncHelper::instance().variables.eqSaturation);
-    serializeObject(data, SyncHelper::instance().variables.loopTimeDirty);
-    serializeObject(data, SyncHelper::instance().variables.loopTimeEnabled);
-    serializeObject(data, SyncHelper::instance().variables.loopTimeA);
-    serializeObject(data, SyncHelper::instance().variables.loopTimeB);
+    serializeObject(data, SyncHelper::instance().variables.alphaFg);
 
-    //Reset flags every frame cycle
-    SyncHelper::instance().variables.loadFile = false;
-    SyncHelper::instance().variables.timeDirty = false;
-    SyncHelper::instance().variables.eqDirty = false;
-    SyncHelper::instance().variables.loopTimeDirty = false;
+    if (SyncHelper::instance().variables.syncOn) {
+        serializeObject(data, SyncHelper::instance().variables.paused);
+        serializeObject(data, SyncHelper::instance().variables.timePosition);
+        serializeObject(data, SyncHelper::instance().variables.timeThreshold);
+        serializeObject(data, SyncHelper::instance().variables.timeDirty);
+        serializeObject(data, SyncHelper::instance().variables.gridToMapOn);
+        serializeObject(data, SyncHelper::instance().variables.gridToMapOnBg);
+        serializeObject(data, SyncHelper::instance().variables.gridToMapOnFg);
+        serializeObject(data, SyncHelper::instance().variables.stereoscopicMode);
+        serializeObject(data, SyncHelper::instance().variables.stereoscopicModeBg);
+        serializeObject(data, SyncHelper::instance().variables.stereoscopicModeFg);
+        serializeObject(data, SyncHelper::instance().variables.loopMode);
+        serializeObject(data, SyncHelper::instance().variables.viewMode);
+        serializeObject(data, SyncHelper::instance().variables.radius);
+        serializeObject(data, SyncHelper::instance().variables.fov);
+        serializeObject(data, SyncHelper::instance().variables.angle);
+        serializeObject(data, SyncHelper::instance().variables.rotateX);
+        serializeObject(data, SyncHelper::instance().variables.rotateY);
+        serializeObject(data, SyncHelper::instance().variables.rotateZ);
+        serializeObject(data, SyncHelper::instance().variables.translateX);
+        serializeObject(data, SyncHelper::instance().variables.translateY);
+        serializeObject(data, SyncHelper::instance().variables.translateZ);
+        serializeObject(data, SyncHelper::instance().variables.planeWidth);
+        serializeObject(data, SyncHelper::instance().variables.planeHeight);
+        serializeObject(data, SyncHelper::instance().variables.planeElevation);
+        serializeObject(data, SyncHelper::instance().variables.planeDistance);
+
+        //Eq
+        serializeObject(data, SyncHelper::instance().variables.eqDirty);
+        if (SyncHelper::instance().variables.eqDirty) {
+            serializeObject(data, SyncHelper::instance().variables.eqContrast);
+            serializeObject(data, SyncHelper::instance().variables.eqBrightness);
+            serializeObject(data, SyncHelper::instance().variables.eqGamma);
+            serializeObject(data, SyncHelper::instance().variables.eqSaturation);
+        }
+
+        //Looptime
+        serializeObject(data, SyncHelper::instance().variables.loopTimeDirty);
+        if (SyncHelper::instance().variables.loopTimeDirty) {
+            serializeObject(data, SyncHelper::instance().variables.loopTimeEnabled);
+            serializeObject(data, SyncHelper::instance().variables.loopTimeA);
+            serializeObject(data, SyncHelper::instance().variables.loopTimeB);
+        }
+
+        // As strings can be quiet long.
+        // Saving connection load, to only send one URL at a time.
+        if (SyncHelper::instance().variables.loadFile) { // ID: 0 = mpv media file
+            serializeObject(data, 0);
+            serializeObject(data, SyncHelper::instance().variables.loadFile);
+            serializeObject(data, SyncHelper::instance().variables.loadedFile);
+            SyncHelper::instance().variables.loadFile = false;
+        }
+        else if (SyncHelper::instance().variables.overlayFileDirty) { // ID: 1 = overlay image file
+            serializeObject(data, 1);
+            serializeObject(data, SyncHelper::instance().variables.overlayFileDirty);
+            serializeObject(data, SyncHelper::instance().variables.overlayFile);
+            SyncHelper::instance().variables.overlayFileDirty = false;
+        }
+        else if (SyncHelper::instance().variables.bgImageFileDirty) { // ID: 2 = background image file
+            serializeObject(data, 2);
+            serializeObject(data, SyncHelper::instance().variables.bgImageFileDirty);
+            serializeObject(data, SyncHelper::instance().variables.bgImageFile);
+            SyncHelper::instance().variables.bgImageFileDirty = false;
+        }
+        else if (SyncHelper::instance().variables.fgImageFileDirty) { // ID: 3 = foreground image file
+            serializeObject(data, 3);
+            serializeObject(data, SyncHelper::instance().variables.fgImageFileDirty);
+            serializeObject(data, SyncHelper::instance().variables.fgImageFile);
+            SyncHelper::instance().variables.fgImageFileDirty = false;
+        }
+        else { // Sending no URL
+            serializeObject(data, -1);
+        }
+
+        //Reset flags every frame cycle
+        SyncHelper::instance().variables.timeDirty = false;
+        SyncHelper::instance().variables.eqDirty = false;
+        SyncHelper::instance().variables.loopTimeDirty = false;
+    }
 
     return data;
 }
@@ -898,19 +940,18 @@ void decode(const std::vector<std::byte>& data) {
     deserializeObject(data, pos, SyncHelper::instance().variables.syncOn);
     deserializeObject(data, pos, SyncHelper::instance().variables.alpha);
     deserializeObject(data, pos, SyncHelper::instance().variables.alphaBg);
+    deserializeObject(data, pos, SyncHelper::instance().variables.alphaFg);
     if (SyncHelper::instance().variables.syncOn) {
-        deserializeObject(data, pos, SyncHelper::instance().variables.loadedFile);
-        deserializeObject(data, pos, SyncHelper::instance().variables.bgImageFile);
-        deserializeObject(data, pos, SyncHelper::instance().variables.overlayFile);
-        deserializeObject(data, pos, SyncHelper::instance().variables.loadFile);
         deserializeObject(data, pos, SyncHelper::instance().variables.paused);
         deserializeObject(data, pos, SyncHelper::instance().variables.timePosition);
         deserializeObject(data, pos, SyncHelper::instance().variables.timeThreshold);
         deserializeObject(data, pos, SyncHelper::instance().variables.timeDirty);
         deserializeObject(data, pos, SyncHelper::instance().variables.gridToMapOn);
         deserializeObject(data, pos, SyncHelper::instance().variables.gridToMapOnBg);
+        deserializeObject(data, pos, SyncHelper::instance().variables.gridToMapOnFg);
         deserializeObject(data, pos, SyncHelper::instance().variables.stereoscopicMode);
         deserializeObject(data, pos, SyncHelper::instance().variables.stereoscopicModeBg);
+        deserializeObject(data, pos, SyncHelper::instance().variables.stereoscopicModeFg);
         deserializeObject(data, pos, SyncHelper::instance().variables.loopMode);
         deserializeObject(data, pos, SyncHelper::instance().variables.viewMode);
         deserializeObject(data, pos, SyncHelper::instance().variables.radius);
@@ -926,15 +967,44 @@ void decode(const std::vector<std::byte>& data) {
         deserializeObject(data, pos, SyncHelper::instance().variables.planeHeight);
         deserializeObject(data, pos, SyncHelper::instance().variables.planeElevation);
         deserializeObject(data, pos, SyncHelper::instance().variables.planeDistance);
+
+        //Eq
         deserializeObject(data, pos, SyncHelper::instance().variables.eqDirty);
-        deserializeObject(data, pos, SyncHelper::instance().variables.eqContrast);
-        deserializeObject(data, pos, SyncHelper::instance().variables.eqBrightness);
-        deserializeObject(data, pos, SyncHelper::instance().variables.eqGamma);
-        deserializeObject(data, pos, SyncHelper::instance().variables.eqSaturation);
+        if (SyncHelper::instance().variables.eqDirty) {
+            deserializeObject(data, pos, SyncHelper::instance().variables.eqContrast);
+            deserializeObject(data, pos, SyncHelper::instance().variables.eqBrightness);
+            deserializeObject(data, pos, SyncHelper::instance().variables.eqGamma);
+            deserializeObject(data, pos, SyncHelper::instance().variables.eqSaturation);
+        }
+
+        //Looptime
         deserializeObject(data, pos, SyncHelper::instance().variables.loopTimeDirty);
-        deserializeObject(data, pos, SyncHelper::instance().variables.loopTimeEnabled);
-        deserializeObject(data, pos, SyncHelper::instance().variables.loopTimeA);
-        deserializeObject(data, pos, SyncHelper::instance().variables.loopTimeB);
+        if (SyncHelper::instance().variables.loopTimeDirty) {
+            deserializeObject(data, pos, SyncHelper::instance().variables.loopTimeEnabled);
+            deserializeObject(data, pos, SyncHelper::instance().variables.loopTimeA);
+            deserializeObject(data, pos, SyncHelper::instance().variables.loopTimeB);
+        }
+
+        //Strings
+        int transferedImageId = -1;
+        deserializeObject(data, pos, transferedImageId);
+
+        if (transferedImageId == 0) {
+            deserializeObject(data, pos, SyncHelper::instance().variables.loadFile);
+            deserializeObject(data, pos, SyncHelper::instance().variables.loadedFile);
+        }
+        else if (transferedImageId == 1) {
+            deserializeObject(data, pos, SyncHelper::instance().variables.overlayFileDirty);
+            deserializeObject(data, pos, SyncHelper::instance().variables.overlayFile);
+        }
+        else if (transferedImageId == 2) {
+            deserializeObject(data, pos, SyncHelper::instance().variables.bgImageFileDirty);
+            deserializeObject(data, pos, SyncHelper::instance().variables.bgImageFile);
+        }
+        else if (transferedImageId == 3) {
+            deserializeObject(data, pos, SyncHelper::instance().variables.fgImageFileDirty);
+            deserializeObject(data, pos, SyncHelper::instance().variables.fgImageFile);
+        }
     }
 }
 
@@ -943,9 +1013,11 @@ void postSyncPreDraw() {
     //Apply synced commands
     if (!Engine::instance().isMaster()) {
         handleAsyncImageUpload(backgroundImageData);
+        handleAsyncImageUpload(foregroundImageData);
         handleAsyncImageUpload(overlayImageData);
 
-        if (backgroundImageData.filename != SyncHelper::instance().variables.bgImageFile) {
+        if (!backgroundImageData.threadRunning && SyncHelper::instance().variables.bgImageFileDirty) {
+            SyncHelper::instance().variables.bgImageFileDirty = false;
             if (SyncHelper::instance().variables.bgImageFile.empty()){
                 Log::Info("Clearing background");
                 backgroundImageData.filename = "";
@@ -971,7 +1043,35 @@ void postSyncPreDraw() {
 
         }
 
-        if (overlayImageData.filename != SyncHelper::instance().variables.overlayFile) {
+        if (!foregroundImageData.threadRunning && SyncHelper::instance().variables.fgImageFileDirty) {
+            SyncHelper::instance().variables.fgImageFileDirty = false;
+            if (SyncHelper::instance().variables.fgImageFile.empty()) {
+                Log::Info("Clearing foreground");
+                foregroundImageData.filename = "";
+            }
+            else {
+                if (fileIsImage(SyncHelper::instance().variables.fgImageFile)) {
+                    //Load background file
+                    foregroundImageData.filename = SyncHelper::instance().variables.fgImageFile;
+                    Log::Info(fmt::format("Loading new foreground image asynchronously: {}", foregroundImageData.filename));
+                    foregroundImageData.trd = std::make_unique<std::thread>(loadImageAsync, std::ref(foregroundImageData));
+
+                    fgRotate = glm::vec3(float(SyncHelper::instance().variables.rotateX),
+                        float(SyncHelper::instance().variables.rotateY),
+                        float(SyncHelper::instance().variables.rotateZ));
+                    fgTranslate = glm::vec3(float(SyncHelper::instance().variables.translateX) / 100.f,
+                        float(SyncHelper::instance().variables.translateY) / 100.f,
+                        float(SyncHelper::instance().variables.translateZ) / 100.f);
+                }
+                else {
+                    foregroundImageData.filename = "";
+                }
+            }
+
+        }
+
+        if (!overlayImageData.threadRunning && SyncHelper::instance().variables.overlayFileDirty) {
+            SyncHelper::instance().variables.overlayFileDirty = false;
             if (SyncHelper::instance().variables.overlayFile.empty()) {
                 Log::Info("Clearing overlay");
                 overlayImageData.filename = "";
@@ -1043,6 +1143,17 @@ void postSyncPreDraw() {
                     float(SyncHelper::instance().variables.translateY) / 100.f,
                     float(SyncHelper::instance().variables.translateZ) / 100.f);
                 renderParams.push_back(rpOverlay);
+            }
+
+            if (!foregroundImageData.filename.empty() && SyncHelper::instance().variables.alphaFg > 0.f) {
+                RenderParams rpFg;
+                rpFg.tex = foregroundImageData.texId;
+                rpFg.alpha = SyncHelper::instance().variables.alphaFg;
+                rpFg.gridMode = SyncHelper::instance().variables.gridToMapOnFg;
+                rpFg.stereoMode = SyncHelper::instance().variables.stereoscopicModeFg;
+                rpFg.rotate = fgRotate;
+                rpFg.translate = fgTranslate;
+                renderParams.push_back(rpFg);
             }
 
             //If we have 2D and 3D viewports defined, deside based on renderParams which to render

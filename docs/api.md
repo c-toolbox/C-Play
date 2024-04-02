@@ -124,19 +124,32 @@ To easier understand these commands, feel free to utilize a sample Medialon Mana
     //0 = Auto 2D/3D switch
     //1 = Force 2D for all
 
-## Handle background image remotely
+## Handle background and foreground image remotely
 
-    Endpoint: /background
+    Endpoint: /background_image
     Purpose:  Enable or disables the use of background.
-    Params:   Mandatory to supply a "on=1" or "on=0" to enable or disable the background image.
-    Returns:  A message indiciating success or an error.
+    Params:   Optional to supply a "on=1" or "on=0" to enable or disable the background image.
+    Returns:  When "on=" is added, a message indiciating success or an error. Otherwise the 0 is background is disabled and 1 if disabled.
 
-    Endpoint: /background_stereo_mode
+    Endpoint: /background_image_stereo_mode
     Purpose:  Return the stereoscopic mode for the background image.
     Returns:  A value between 0 and 3 (see /stereo_mode enpoint for logic)
 
-    Endpoint: /background_grid_mode
+    Endpoint: /background_image_grid_mode
     Purpose:  Return the grid mode for the background image.
+    Returns:  A value between 0 and 4 (see /grid_mode enpoint for logic)
+
+    Endpoint: /foreground_image
+    Purpose:  Enable or disables the use of foreground.
+    Params:   Optional to supply a "on=1" or "on=0" to enable or disable the foreground image.
+    Returns:  When "on=" is added, a message indiciating success or an error. Otherwise the 0 is foreground is disabled and 1 if disabled.
+
+    Endpoint: /foreground_image_stereo_mode
+    Purpose:  Return the stereoscopic mode for the foreground image.
+    Returns:  A value between 0 and 3 (see /stereo_mode enpoint for logic)
+
+    Endpoint: /foreground_image_grid_mode
+    Purpose:  Return the grid mode for the foreground image.
     Returns:  A value between 0 and 4 (see /grid_mode enpoint for logic)
 
 ## Handle lists remotely

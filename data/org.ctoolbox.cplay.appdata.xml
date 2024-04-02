@@ -27,7 +27,7 @@
                     <li>Configuration and test wtih GPU decoding.</li>
                     <li>Added section stucture and UI elements.</li>
                     <li>Improved spin control.</li>
-                    <li>Background support.</li>
+                    <li>Background and foreground image support.</li>
                     <li>Http REST API.</li>
                     <li>Sync between audio/video fading.</li>
                     <li>Auto 2D/3D switch, and force 2D option.</li>

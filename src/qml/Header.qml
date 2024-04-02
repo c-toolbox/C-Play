@@ -310,24 +310,88 @@ ToolBar {
         }
 
         ToolButton {
-            id: backgroundMenuButton
-            icon.name: "preview-render-on"
+            id: imageMenuButton
+            icon.name: "layer-visible-off"
             focusPolicy: Qt.NoFocus
 
             ToolTip {
-                id: backgroundToolTip
-                text: "Show background when video is not visible"
+                id: imageToolTip
+                text: "Background image OFF and Foreground image OFF"
                 y: Math.round(-(parent.height - height))
             }
 
             onClicked: {
-                backgroundMenu.visible = !backgroundMenu.visible
+                imageMenu.visible = !imageMenu.visible
             }
 
             Menu {
-                id: backgroundMenu
+                id: imageMenu
 
                 y: parent.height
+
+                MenuSeparator {}
+
+                ButtonGroup {
+                    buttons: columnForeground.children
+                }
+
+                Column {
+                    id: columnForeground
+
+                    RadioButton {
+                        id: foreground_visible
+                        checked: false
+                        text: qsTr("Show foreground image")
+                        onClicked: {
+                        }
+                        onCheckedChanged: {
+                            if(checked){
+                                if(background_visible.checked){
+                                    imageMenuButton.icon.name = "layer-visible-on";
+                                    imageToolTip.text = "Background image ON and Foreground image ON";
+                                }
+                                else {
+                                    imageMenuButton.icon.name = "layer-top-icon";
+                                    imageToolTip.text = "Background image OFF and Foreground image ON";
+                                }
+                                playerController.setForegroundVisibility(1);
+                            }
+                        }
+                        Connections {
+                            target: playerController
+                            function onForegroundVisibilityChanged(){
+                                foreground_visible.checked = (playerController.foregroundVisibility() === 1)
+                            }
+                        }
+                    }
+
+                    RadioButton {
+                        id: foreground_not_visible
+                        checked: true
+                        text: qsTr("Hide foreground image")
+                        onClicked: {
+                        }
+                        onCheckedChanged: {
+                            if(checked){
+                                if(background_visible.checked){
+                                    imageMenuButton.icon.name = "layer-bottom-icon";
+                                    imageToolTip.text = "Background image ON and Foreground image OFF";
+                                }
+                                else {
+                                    imageMenuButton.icon.name = "layer-visible-off";
+                                    imageToolTip.text = "Background image OFF and Foreground image OFF";
+                                }
+                                playerController.setForegroundVisibility(0);
+                            }
+                        }
+                        Connections {
+                            target: playerController
+                            function onForegroundVisibilityChanged(){
+                                foreground_not_visible.checked = (playerController.foregroundVisibility() === 0)
+                            }
+                        }
+                    }
+                }
 
                 MenuSeparator {}
 
@@ -340,14 +404,20 @@ ToolBar {
 
                     RadioButton {
                         id: background_visible
-                        checked: true
+                        checked: false
                         text: qsTr("Show background when video is not visible")
                         onClicked: {
                         }
                         onCheckedChanged: {
                             if(checked){
-                                backgroundMenuButton.icon.name = "preview-render-on";
-                                backgroundToolTip.text = "Background visible when video is not.";
+                                if(foreground_visible.checked){
+                                    imageMenuButton.icon.name = "layer-visible-on";
+                                    imageToolTip.text = "Background image ON and Foreground image ON";
+                                }
+                                else {
+                                    imageMenuButton.icon.name = "layer-bottom-icon";
+                                    imageToolTip.text = "Background image ON and Foreground image OFF";
+                                }
                                 playerController.setBackgroundVisibility(1);
                             }
                         }
@@ -361,14 +431,20 @@ ToolBar {
 
                     RadioButton {
                         id: background_not_visible
-                        checked: false
+                        checked: true
                         text: qsTr("Do NOT show background when video is not visible")
                         onClicked: {
                         }
                         onCheckedChanged: {
                             if(checked){
-                                backgroundMenuButton.icon.name = "preview-render-off";
-                                backgroundToolTip.text = "Background NOT visible when video is not.";
+                                if(foreground_visible.checked){
+                                    imageMenuButton.icon.name = "layer-top-icon";
+                                    imageToolTip.text = "Background image OFF and Foreground image ON";
+                                }
+                                else {
+                                    imageMenuButton.icon.name = "layer-visible-off";
+                                    imageToolTip.text = "Background image OFF and Foreground image OFF";
+                                }
                                 playerController.setBackgroundVisibility(0);
                             }
                         }

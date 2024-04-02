@@ -93,9 +93,13 @@ class SyncHelper
 public:
     struct SyncVariables {
         std::string loadedFile;
-        std::string bgImageFile;
         std::string overlayFile;
+        std::string bgImageFile;
+        std::string fgImageFile;
         bool loadFile;
+        bool overlayFileDirty;
+        bool bgImageFileDirty;
+        bool fgImageFileDirty;
         bool paused;
         double timePosition;
         double timeThreshold;
@@ -103,10 +107,13 @@ public:
         bool syncOn;
         float alpha;
         float alphaBg;
+        float alphaFg;
         int gridToMapOn;
         int gridToMapOnBg;
+        int gridToMapOnFg;
         int stereoscopicMode;
         int stereoscopicModeBg;
+        int stereoscopicModeFg;
         int loopMode;
         int viewMode;
         double radius;
@@ -147,9 +154,13 @@ public:
 
     SyncVariables variables = {         
         /*loadedFile*/"",
-        /*bgImageFile*/"",
         /*overlayFile*/"",
+        /*bgImageFile*/"",
+        /*fgImageFile*/"",
         /*loadFile*/false,
+        /*overlayFileDirty*/false,
+        /*bgImageFileDirty*/false,
+        /*fgImageFileDirty*/false,
         /*paused*/false,
         /*timePosition*/0.0,
         /*timeThreshold*/1.0,
@@ -157,10 +168,13 @@ public:
         /*syncOn*/true,
         /*alpha*/1.f,
         /*alphaBg*/1.f,
+        /*alphaFg*/0.f,
         /*gridToMapOn*/0,
         /*gridToMapOnBg*/0,
+        /*gridToMapOnFg*/0,
         /*stereoscopicMode*/0,
         /*stereoscopicModeBg*/0,
+        /*stereoscopicModeFg*/0,
         /*loopMode*/0,
         /*viewMode*/0,
         /*radius*/740,

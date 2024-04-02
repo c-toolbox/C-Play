@@ -56,6 +56,23 @@ SettingsBasePage {
         onRejected: mpv.focus = true
     }
 
+    Platform.FileDialog {
+        id: fileToLoadAsForegroundDialog
+        folder: GeneralSettings.cPlayMediaLocation !== ""
+                ? app.pathToUrl(GeneralSettings.cPlayMediaLocation)
+                : app.pathToUrl(GeneralSettings.fileDialogLastLocation)
+        fileMode: Platform.FileDialog.OpenFile
+        title: "Choose file to load on startup"
+        nameFilters: [ "Image files (*.png *.jpg *.jpeg *.tga)" ]
+
+        onAccepted: {
+            playerController.setForegroundImageFile(fileToLoadAsForegroundDialog.file.toString());
+            fileForForegroundImageText.text = playerController.foregroundImageFile();
+            mpv.focus = true
+        }
+        onRejected: mpv.focus = true
+    }
+
     GridLayout {
         id: content
 
@@ -246,7 +263,7 @@ SettingsBasePage {
         // STARTUP AND BACKGROUND PARAMETERS
         // --
         SettingsHeader {
-            text: qsTr("Startup / Background settings")
+            text: qsTr("Startup settings")
             Layout.columnSpan: 2
             Layout.fillWidth: true
         }
@@ -309,6 +326,12 @@ SettingsBasePage {
             }
         }
 
+
+        SettingsHeader {
+            text: qsTr("Background settings")
+            Layout.columnSpan: 2
+            Layout.fillWidth: true
+        }
         Label {
             text: qsTr("Image to load as background:")
         }
@@ -344,11 +367,11 @@ SettingsBasePage {
             text: qsTr("Stereoscopic mode for background:")
         }
         ComboBox {
-            id: stereoscopicModeOnStartupComboBox
+            id: stereoscopicModeOnStartupComboBoxBg
             enabled: true
             textRole: "mode"
             model: ListModel {
-                id: stereoscopicModeOnStartupMode
+                id: stereoscopicModeOnStartupModeBg
                 ListElement { mode: "2D (mono)"; value: 0 }
                 ListElement { mode: "3D (side-by-side)"; value: 1}
                 ListElement { mode: "3D (top-bottom)"; value: 2 }
@@ -360,8 +383,8 @@ SettingsBasePage {
             }
 
             Component.onCompleted: {
-                for (let i = 0; i < stereoscopicModeOnStartupMode.count; ++i) {
-                    if (stereoscopicModeOnStartupMode.get(i).value === playerController.backgroundStereoMode()) {
+                for (let i = 0; i < stereoscopicModeOnStartupModeBg.count; ++i) {
+                    if (stereoscopicModeOnStartupModeBg.get(i).value === playerController.backgroundStereoMode()) {
                         currentIndex = i
                         break
                     }
@@ -373,11 +396,11 @@ SettingsBasePage {
             text: qsTr("Grid mode for background:")
         }
         ComboBox {
-            id: loadGridOnStartupComboBox
+            id: loadGridOnStartupComboBoxBg
             enabled: true
             textRole: "mode"
             model: ListModel {
-                id: loadGridOnStartupMode
+                id: loadGridOnStartupModeBg
                 ListElement { mode: "None/Pre-split"; value: 0 }
                 ListElement { mode: "Plane"; value: 1 }
                 ListElement { mode: "Dome"; value: 2}
@@ -390,18 +413,14 @@ SettingsBasePage {
             }
 
             Component.onCompleted: {
-                for (let i = 0; i < loadGridOnStartupMode.count; ++i) {
-                    if (loadGridOnStartupMode.get(i).value === playerController.backgroundGridMode()) {
+                for (let i = 0; i < loadGridOnStartupModeBg.count; ++i) {
+                    if (loadGridOnStartupModeBg.get(i).value === playerController.backgroundGridMode()) {
                         currentIndex = i
                         break
                     }
                 }
             }
         }
-
-        // ------------------------------------
-        // Save & Reset
-        // ------------------------------------
 
         RowLayout {
             Button {
@@ -413,16 +432,16 @@ SettingsBasePage {
 
                         fileForBackgroundImageText.text = playerController.backgroundImageFile();
 
-                        for (let i = 0; i < loadGridOnStartupMode.count; ++i) {
-                            if (loadGridOnStartupMode.get(i).value === playerController.backgroundGridMode()) {
-                                loadGridOnStartupComboBox.currentIndex = i
+                        for (let i = 0; i < loadGridOnStartupModeBg.count; ++i) {
+                            if (loadGridOnStartupModeBg.get(i).value === playerController.backgroundGridMode()) {
+                                loadGridOnStartupComboBoxBg.currentIndex = i
                                 break
                             }
                         }
 
-                        for (let j = 0; j < stereoscopicModeOnStartupMode.count; ++j) {
-                            if (stereoscopicModeOnStartupMode.get(j).value === playerController.backgroundStereoMode()) {
-                                stereoscopicModeOnStartupComboBox.currentIndex = j
+                        for (let j = 0; j < stereoscopicModeOnStartupModeBg.count; ++j) {
+                            if (stereoscopicModeOnStartupModeBg.get(j).value === playerController.backgroundStereoMode()) {
+                                stereoscopicModeOnStartupComboBoxBg.currentIndex = j
                                 break
                             }
                         }
@@ -445,6 +464,143 @@ SettingsBasePage {
             Layout.fillWidth: true
         }
 
+        SettingsHeader {
+            text: qsTr("Foreground settings")
+            Layout.columnSpan: 2
+            Layout.fillWidth: true
+        }
+        Label {
+            text: qsTr("Image to load as foreground:")
+        }
+        RowLayout {
+            TextField {
+                id: fileForForegroundImageText
+                text: playerController.foregroundImageFile()
+                placeholderText: "Path to image file"
+                Layout.fillWidth: true
+                onEditingFinished: {
+                    playerController.setForegroundImageFile(text);
+                }
+
+                ToolTip {
+                    text: qsTr("Path to image file to use as foreground")
+                }
+            }
+            ToolButton {
+                id: fileToLoadAsForegroundLoadButton
+                text: ""
+                icon.name: "system-file-manager"
+                icon.height: 16
+                focusPolicy: Qt.NoFocus
+
+                onClicked: {
+                    fileToLoadAsForegroundDialog.open()
+                }
+            }
+            Layout.fillWidth: true
+        }
+
+        Label {
+            text: qsTr("Stereoscopic mode for foreground:")
+        }
+        ComboBox {
+            id: stereoscopicModeOnStartupComboBoxFg
+            enabled: true
+            textRole: "mode"
+            model: ListModel {
+                id: stereoscopicModeOnStartupModeFg
+                ListElement { mode: "2D (mono)"; value: 0 }
+                ListElement { mode: "3D (side-by-side)"; value: 1}
+                ListElement { mode: "3D (top-bottom)"; value: 2 }
+                ListElement { mode: "3D (top-bottom+flip)"; value: 3 }
+            }
+
+            onActivated: {
+                playerController.setForegroundStereoMode(model.get(index).value);
+            }
+
+            Component.onCompleted: {
+                for (let i = 0; i < stereoscopicModeOnStartupModeFg.count; ++i) {
+                    if (stereoscopicModeOnStartupModeFg.get(i).value === playerController.foregroundStereoMode()) {
+                        currentIndex = i
+                        break
+                    }
+                }
+            }
+        }
+
+        Label {
+            text: qsTr("Grid mode for foreground:")
+        }
+        ComboBox {
+            id: loadGridOnStartupComboBoxFg
+            enabled: true
+            textRole: "mode"
+            model: ListModel {
+                id: loadGridOnStartupModeFg
+                ListElement { mode: "None/Pre-split"; value: 0 }
+                ListElement { mode: "Plane"; value: 1 }
+                ListElement { mode: "Dome"; value: 2}
+                ListElement { mode: "Sphere EQR"; value: 3 }
+                ListElement { mode: "Sphere EAC"; value: 4 }
+            }
+
+            onActivated: {
+                playerController.setForegroundGridMode(model.get(index).value);
+            }
+
+            Component.onCompleted: {
+                for (let i = 0; i < loadGridOnStartupModeFg.count; ++i) {
+                    if (loadGridOnStartupModeFg.get(i).value === playerController.foregroundGridMode()) {
+                        currentIndex = i
+                        break
+                    }
+                }
+            }
+        }
+
+        RowLayout {
+            Button {
+                    text: "Reset foreground values"
+                    onClicked: {
+                        playerController.setForegroundImageFile(PlaybackSettings.imageToLoadAsForeground)
+                        playerController.setForegroundStereoMode(PlaybackSettings.stereoModeForForeground)
+                        playerController.setForegroundGridMode(PlaybackSettings.gridToMapOnForForeground)
+
+                        fileForForegroundImageText.text = playerController.foregroundImageFile();
+
+                        for (let i = 0; i < loadGridOnStartupModeFg.count; ++i) {
+                            if (loadGridOnStartupModeFg.get(i).value === playerController.foregroundGridMode()) {
+                                loadGridOnStartupComboBoxFg.currentIndex = i
+                                break
+                            }
+                        }
+
+                        for (let j = 0; j < stereoscopicModeOnStartupModeFg.count; ++j) {
+                            if (stereoscopicModeOnStartupModeFg.get(j).value === playerController.foregroundStereoMode()) {
+                                stereoscopicModeOnStartupComboBoxFg.currentIndex = j
+                                break
+                            }
+                        }
+                    }
+            }
+            Layout.columnSpan: 2
+            Layout.fillWidth: true
+        }
+        RowLayout {
+            Button {
+                    text: "Save foreground values for startup"
+                    onClicked: {
+                        PlaybackSettings.imageToLoadAsForeground = playerController.foregroundImageFile()
+                        PlaybackSettings.stereoModeForForeground = playerController.foregroundStereoMode()
+                        PlaybackSettings.gridToMapOnForForeground = playerController.foregroundGridMode()
+                        PlaybackSettings.save()
+                    }
+            }
+            Layout.columnSpan: 2
+            Layout.fillWidth: true
+        }
+
         Item {
             width: Kirigami.Units.gridUnit
             height: Kirigami.Units.gridUnit
@@ -452,6 +608,12 @@ SettingsBasePage {
         Item {
             width: Kirigami.Units.gridUnit
             height: Kirigami.Units.gridUnit
+        }
+
+        SettingsHeader {
+            text: qsTr("Loaded configuration")
+            Layout.columnSpan: 2
+            Layout.fillWidth: true
         }
 
         Label {

@@ -15,6 +15,7 @@ PlayerController::PlayerController(QObject *parent)
     : QObject(parent)
     , httpServer(new HttpServerThread(this))
     , m_backgroundFile("")
+    , m_foregroundFile("")
     , m_viewModeOnMaster(0)
 {
     connect(this, &PlayerController::mpvChanged,
@@ -25,6 +26,10 @@ PlayerController::PlayerController(QObject *parent)
     setBackgroundImageFile(PlaybackSettings::imageToLoadAsBackground());
     setBackgroundGridMode(PlaybackSettings::gridToMapOnForBackground());
     setBackgroundStereoMode(PlaybackSettings::stereoModeForBackground());
+
+    setForegroundImageFile(PlaybackSettings::imageToLoadAsForeground());
+    setForegroundGridMode(PlaybackSettings::gridToMapOnForForeground());
+    setForegroundStereoMode(PlaybackSettings::stereoModeForForeground());
 }
 
 void PlayerController::setupConnections()
@@ -52,6 +57,7 @@ void PlayerController::setupHttpServer()
     connect(httpServer, &HttpServerThread::setVolume, this, &PlayerController::SetVolume);
     connect(httpServer, &HttpServerThread::setViewMode, this, &PlayerController::setViewModeOnClients);
     connect(httpServer, &HttpServerThread::setBackgroundVisibility, this, &PlayerController::setBackgroundVisibility);
+    connect(httpServer, &HttpServerThread::setForegroundVisibility, this, &PlayerController::setForegroundVisibility);
     connect(httpServer, &HttpServerThread::setSyncImageVideoFading, this, &PlayerController::SetSyncImageVideoFading);
     connect(httpServer, &HttpServerThread::fadeVolumeDown, this, &PlayerController::FadeVolumeDown);
     connect(httpServer, &HttpServerThread::fadeVolumeUp, this, &PlayerController::FadeVolumeUp);
@@ -295,6 +301,7 @@ void PlayerController::setBackgroundImageFile(const QString& path)
     if (path.isEmpty()) {
         m_backgroundFile = "";
         SyncHelper::instance().variables.bgImageFile = "";
+        SyncHelper::instance().variables.bgImageFileDirty = true;
         setBackgroundVisibility(0.f);
         emit backgroundImageChanged();
         return;
@@ -324,6 +331,7 @@ void PlayerController::setBackgroundImageFile(const QString& path)
     std::string str = absolutePath.toStdString();
     if (SyncHelper::instance().variables.bgImageFile != str) {
         SyncHelper::instance().variables.bgImageFile = str;
+        SyncHelper::instance().variables.bgImageFileDirty = true;
         setBackgroundVisibility(1.f);
     }
 
@@ -348,6 +356,92 @@ int PlayerController::backgroundStereoMode()
 void PlayerController::setBackgroundStereoMode(int value)
 {
     SyncHelper::instance().variables.stereoscopicModeBg = value;
+}
+
+float PlayerController::foregroundVisibility()
+{
+    return SyncHelper::instance().variables.alphaFg;
+}
+
+void PlayerController::setForegroundVisibility(float value)
+{
+    SyncHelper::instance().variables.alphaFg = value;
+
+    emit foregroundVisibilityChanged();
+}
+
+QString PlayerController::foregroundImageFile()
+{
+    return m_foregroundFile;
+}
+
+QUrl PlayerController::foregroundImageFileUrl()
+{
+    if (SyncHelper::instance().variables.fgImageFile.empty()) {
+        return QUrl();
+    }
+
+    return QUrl::fromLocalFile(QString::fromStdString(SyncHelper::instance().variables.fgImageFile));
+}
+
+void PlayerController::setForegroundImageFile(const QString& path)
+{
+    if (path.isEmpty()) {
+        m_foregroundFile = "";
+        SyncHelper::instance().variables.fgImageFile = "";
+        SyncHelper::instance().variables.fgImageFileDirty = true;
+        emit foregroundImageChanged();
+        return;
+    }
+
+    QString filePath = path;
+    filePath.replace("file:///", "");
+    QFileInfo fileInfo(filePath);
+
+    QString absolutePath;
+    if (fileInfo.exists()) { //isAbsolute
+        m_foregroundFile = returnRelativeOrAbsolutePath(path);
+        absolutePath = path;
+    }
+    else if (fileInfo.isRelative()) { //isRelative
+        QString fgFilePath = checkAndCorrectPath(path);
+        if (fgFilePath.isEmpty()) {
+            return;
+        }
+        m_foregroundFile = path;
+        absolutePath = fgFilePath;
+    }
+    else
+        return;
+
+    absolutePath.replace("file:///", "");
+    std::string str = absolutePath.toStdString();
+    if (SyncHelper::instance().variables.fgImageFile != str) {
+        SyncHelper::instance().variables.fgImageFile = str;
+        SyncHelper::instance().variables.fgImageFileDirty = true;
+    }
+
+    emit foregroundImageChanged();
+}
+
+int PlayerController::foregroundGridMode()
+{
+    return SyncHelper::instance().variables.gridToMapOnFg;
+}
+
+void PlayerController::setForegroundGridMode(int value)
+{
+    SyncHelper::instance().variables.gridToMapOnFg = value;
+}
+
+int PlayerController::foregroundStereoMode()
+{
+    return SyncHelper::instance().variables.stereoscopicModeFg;
+}
+
+void PlayerController::setForegroundStereoMode(int value)
+{
+    SyncHelper::instance().variables.stereoscopicModeFg = value;
 }
 
 float PlayerController::backgroundVisibilityOnMaster()

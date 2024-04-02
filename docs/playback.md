@@ -6,8 +6,8 @@ has_toc: false
 nav_order: 5
 ---
 
-# Background images
- - [Background](guides/media/background)
+# Background and foreground images
+ - [Background & Foreground](guides/playback/images)
 
 # Playback UI controls
- - [Toolbars](guides/media/toolbars)
+ - [Toolbars](guides/playback/toolbars)

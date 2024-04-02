@@ -895,6 +895,7 @@ void MpvObject::loadFile(const QString &file, bool updateLastPlayedFile)
         SyncHelper::instance().variables.loadedFile = fileToLoad.toStdString();
         SyncHelper::instance().variables.overlayFile = "";
         SyncHelper::instance().variables.loadFile = true;
+        SyncHelper::instance().variables.overlayFileDirty = true;
 
         //setProperty("lavfi-complex", "");
         m_currentSectionsIndex = -1;
@@ -1077,6 +1078,7 @@ void MpvObject::loadItem(PlayListItemData itemData, bool updateLastPlayedFile, Q
         SyncHelper::instance().variables.loadedFile = itemData.mediaFile().toStdString();
         SyncHelper::instance().variables.overlayFile = itemData.separateOverlayFile().toStdString();
         SyncHelper::instance().variables.loadFile = true;
+        SyncHelper::instance().variables.overlayFileDirty = true;
         m_separateAudioFile = itemData.separateAudioFile();
 
         if (itemData.gridToMapOn() >= 0)

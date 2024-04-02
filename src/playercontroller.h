@@ -60,6 +60,16 @@ public Q_SLOTS:
     int backgroundStereoMode();
     void setBackgroundStereoMode(int value);
 
+    float foregroundVisibility();
+    void setForegroundVisibility(float value);
+    QString foregroundImageFile();
+    QUrl foregroundImageFileUrl();
+    void setForegroundImageFile(const QString& path);
+    int foregroundGridMode();
+    void setForegroundGridMode(int value);
+    int foregroundStereoMode();
+    void setForegroundStereoMode(int value);
+
     float backgroundVisibilityOnMaster();
     void setViewModeOnMaster(int value);
     int getViewModeOnMaster();
@@ -87,6 +97,8 @@ Q_SIGNALS:
     void mpvChanged();
     void backgroundImageChanged();
     void backgroundVisibilityChanged();
+    void foregroundImageChanged();
+    void foregroundVisibilityChanged();
     void viewModeOnClientsChanged();
 
 private:
@@ -98,6 +110,7 @@ private:
     MpvObject *m_mpv;
     HttpServerThread* httpServer;
     QString m_backgroundFile;
+    QString m_foregroundFile;
     int m_viewModeOnMaster;
 };
 

@@ -25,15 +25,26 @@
     <entry name="PlaylistToLoadOnStartup" type="String">
       <label>A playlist to load at startup</label>
     </entry>
-	  <entry name="ImageToLoadAsBackground" type="String">
+    <entry name="ImageToLoadAsBackground" type="String">
       <label>An image file that will be shown when video is not visible</label>
     </entry>
-	  <entry name="StereoModeForBackground" type="int">
-      <label>Have 2D or a 3D Mode On/Off on for background</label>
+	<entry name="StereoModeForBackground" type="int">
+      <label>Have 2D or a 3D Mode On/Off on for background image</label>
       <default>0</default>
     </entry>
-	  <entry name="GridToMapOnForBackground" type="int">
-      <label>The grid that background uses</label>
+	<entry name="GridToMapOnForBackground" type="int">
+      <label>The grid that background image uses</label>
+      <default>0</default>
+    </entry>
+	<entry name="ImageToLoadAsForeground" type="String">
+      <label>An image file (with transparency) that will be shown ontop of everything</label>
+    </entry>
+	<entry name="StereoModeForForeground" type="int">
+      <label>Have 2D or a 3D Mode On/Off on for foreground image</label>
+      <default>0</default>
+    </entry>
+	<entry name="GridToMapOnForForeground" type="int">
+      <label>The grid that foreground image uses</label>
       <default>0</default>
     </entry>
     <entry name="SyncImageVideoFading" type="bool">
