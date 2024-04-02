@@ -178,9 +178,9 @@ void Application::setupAboutData()
     m_aboutData = KAboutData(QStringLiteral("C-Play"),
                              i18n("C-Play : Cluster Video Player"),
                              Application::version());
-    m_aboutData.setShortDescription(i18n("A configurable cluster video player, based on libmpv, SGCT and Haruna projects."));
+    m_aboutData.setShortDescription(i18n("A configurable cluster video player, based on MPV, SGCT and Haruna projects."));
     m_aboutData.setLicense(KAboutLicense::GPL_V3);
-    m_aboutData.setCopyrightStatement(i18n("(c) 2021-2024"));
+    m_aboutData.setCopyrightStatement(i18n("(c) Erik Sundén 2021-2024"));
 
     m_aboutData.setHomepage(QStringLiteral("https://c-toolbox.github.io/C-Play/"));
     m_aboutData.setBugAddress(QStringLiteral("https://github.com/c-toolbox/C-Play/issues").toUtf8());
@@ -189,10 +189,6 @@ void Application::setupAboutData()
     m_aboutData.addAuthor(i18n("Contact/owner: Erik Sundén"),
                         i18n("Creator of C-Play"),
                         QStringLiteral("eriksunden85@gmail.com"));
-
-    m_aboutData.addAuthor(i18n("Specific credits to George Florea Bănuș"),
-                        i18n("Creator of Haruna"),
-                        QStringLiteral("georgefb899@gmail.com"));
 
     KAboutData::setApplicationData(m_aboutData);
 }

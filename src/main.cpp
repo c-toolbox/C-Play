@@ -1145,17 +1145,6 @@ void postSyncPreDraw() {
                 renderParams.push_back(rpOverlay);
             }
 
-            if (!foregroundImageData.filename.empty() && SyncHelper::instance().variables.alphaFg > 0.f) {
-                RenderParams rpFg;
-                rpFg.tex = foregroundImageData.texId;
-                rpFg.alpha = SyncHelper::instance().variables.alphaFg;
-                rpFg.gridMode = SyncHelper::instance().variables.gridToMapOnFg;
-                rpFg.stereoMode = SyncHelper::instance().variables.stereoscopicModeFg;
-                rpFg.rotate = fgRotate;
-                rpFg.translate = fgTranslate;
-                renderParams.push_back(rpFg);
-            }
-
             //If we have 2D and 3D viewports defined, deside based on renderParams which to render
             //1. Check what stereo mode we should choose
             //2. For each window, check if there is a mix of viewports (2D and 3D). If not mix, skip step 3 (for that window).
@@ -1224,6 +1213,17 @@ void postSyncPreDraw() {
                 }
             }
             
+        }
+
+        if (!foregroundImageData.filename.empty() && SyncHelper::instance().variables.alphaFg > 0.f) {
+            RenderParams rpFg;
+            rpFg.tex = foregroundImageData.texId;
+            rpFg.alpha = SyncHelper::instance().variables.alphaFg;
+            rpFg.gridMode = SyncHelper::instance().variables.gridToMapOnFg;
+            rpFg.stereoMode = SyncHelper::instance().variables.stereoscopicModeFg;
+            rpFg.rotate = fgRotate;
+            rpFg.translate = fgTranslate;
+            renderParams.push_back(rpFg);
         }
         
         if (SyncHelper::instance().variables.paused != videoIsPaused) {

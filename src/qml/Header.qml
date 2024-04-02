@@ -651,7 +651,7 @@ ToolBar {
 
                     RadioButton {
                         id: stereoscopic_2D
-                        checked: PlaybackSettings.stereoModeOnStartup === 0
+                        checked: false
                         text: qsTr("2D Mono")
                         onClicked: {
                             mpv.stereoscopicMode = 0
@@ -666,7 +666,7 @@ ToolBar {
 
                     RadioButton {
                         id: stereoscopic_3D_sbs
-                        checked: PlaybackSettings.stereoModeOnStartup === 1
+                        checked: false
                         text: qsTr("3D Side-by-side")
                         onClicked: {
                              mpv.stereoscopicMode = 1
@@ -681,7 +681,7 @@ ToolBar {
 
                     RadioButton {
                         id: stereoscopic_3D_tp
-                        checked: PlaybackSettings.stereoModeOnStartup === 2
+                        checked: false
                         text: qsTr("3D Top/Bottom")
                         onClicked: {
                             mpv.stereoscopicMode = 2
@@ -696,7 +696,7 @@ ToolBar {
 
                     RadioButton {
                         id: stereoscopic_3D_tbf
-                        checked: PlaybackSettings.stereoModeOnStartup === 3
+                        checked: false
                         text: qsTr("3D Top/Bottom+Flip")
                         onClicked: {
                             mpv.stereoscopicMode = 3
@@ -815,7 +815,7 @@ ToolBar {
 
                     RadioButton {
                         id: presplit_grid
-                        checked: PlaybackSettings.gridToMapOn === 0
+                        checked: false
                         text: qsTr("None")
                         onClicked: {
                             mpv.gridToMapOn = 0
@@ -830,7 +830,7 @@ ToolBar {
 
                     RadioButton {
                         id: plane_grid
-                        checked: PlaybackSettings.gridToMapOn === 1
+                        checked: false
                         text: qsTr("Plane")
                         onClicked: {
                              mpv.gridToMapOn = 1
@@ -845,7 +845,7 @@ ToolBar {
 
                     RadioButton {
                         id: dome_grid
-                        checked: PlaybackSettings.gridToMapOn === 2
+                        checked: false
                         text: qsTr("Dome")
                         onClicked: {
                              mpv.gridToMapOn = 2
@@ -860,7 +860,7 @@ ToolBar {
 
                     RadioButton {
                         id: sphere_eqr_grid
-                        checked: PlaybackSettings.gridToMapOn === 3
+                        checked: false
                         text: qsTr("Sphere EQR")
                         onClicked: {
                             mpv.gridToMapOn = 3
@@ -875,7 +875,7 @@ ToolBar {
 
                     RadioButton {
                         id: sphere_eac_grid
-                        checked: PlaybackSettings.gridToMapOn === 4
+                        checked: false
                         text: qsTr("Sphere EAC")
                         onClicked: {
                             mpv.gridToMapOn = 4
