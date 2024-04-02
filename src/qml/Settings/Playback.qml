@@ -82,8 +82,7 @@ SettingsBasePage {
         // DECODING AND SYNC PARAMETERS
         // --
         SettingsHeader {
-            //text: qsTr("Decoding and sync settings")
-            text: qsTr("Sync settings")
+            text: qsTr("Time settings")
             Layout.columnSpan: 2
             Layout.fillWidth: true
         }
@@ -201,32 +200,6 @@ SettingsBasePage {
             LabelWithTooltip {
                 text: {
                     qsTr("ms = Set time position if it is %1 seconds off from master").arg(Number((timeThresholdSaving.value*1.0)/1000.0).toFixed(3))
-                }
-                elide: Text.ElideRight
-                Layout.fillWidth: true
-            }
-        }
-
-        Label {
-            text: qsTr("Set position interval:")
-        }
-
-        RowLayout {
-            SpinBox {
-                id: timeSetInterval
-                from: 0
-                to: 20000
-                value: PlaybackSettings.intervalToSetPosition
-
-                onValueChanged: {
-                    PlaybackSettings.intervalToSetPosition = value
-                    PlaybackSettings.save()
-                }
-            }
-
-            LabelWithTooltip {
-                text: {
-                    qsTr("ms = Set time position every %1 seconds of the video").arg(Number((timeSetInterval.value*1.0)/1000.0).toFixed(3))
                 }
                 elide: Text.ElideRight
                 Layout.fillWidth: true

@@ -641,6 +641,16 @@ void on_mpv_events(mpvData& vd)
                                 mpv::qt::set_property_async(vd.handle, "pause", SyncHelper::instance().variables.paused);
                         }
                     }
+                    else if (strcmp(prop->name, "time-pos") == 0) {
+                        if (prop->format == MPV_FORMAT_DOUBLE) {
+                            double latestPosition = *reinterpret_cast<double*>(prop->data);
+                            double timeToSet = SyncHelper::instance().variables.timePosition;
+                            if (SyncHelper::instance().variables.timeThreshold > 0 && (abs(latestPosition - timeToSet) > SyncHelper::instance().variables.timeThreshold))
+                            {
+                                mpv::qt::set_property_async(videoData.handle, "time-pos", timeToSet); 
+                            }
+                        }
+                    }
                     break;
             }
 #endif
@@ -1254,14 +1264,9 @@ void postSyncPreDraw() {
             }
         }
 
-        int64_t timeInMicroSeconds = mpv_get_time_us(videoData.handle);
-        double currentTimePos = double(timeInMicroSeconds) / 1000.0;
-        if (SyncHelper::instance().variables.timePosition != currentTimePos && SyncHelper::instance().variables.syncOn) {
-            double timeToSet = SyncHelper::instance().variables.timePosition;
-            if (SyncHelper::instance().variables.timeDirty) {
-                mpv::qt::set_property_async(videoData.handle, "time-pos", timeToSet);
-                //Log::Info(fmt::format("New video position: {}", timeToSet));     
-            }
+        if (SyncHelper::instance().variables.timeDirty) {
+            mpv::qt::set_property_async(videoData.handle, "time-pos", SyncHelper::instance().variables.timePosition);
+            //Log::Info(fmt::format("New video position: {}", timeToSet));     
         }
 
         if (SyncHelper::instance().variables.loopTimeDirty) {

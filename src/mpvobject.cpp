@@ -1331,21 +1331,10 @@ void MpvObject::eventHandler()
                 }
             } else if (strcmp(prop->name, "time-pos") == 0) {
                 if (prop->format == MPV_FORMAT_DOUBLE) {
-                    double latestPosition = position();
+                    double latestPosition = *reinterpret_cast<double*>(prop->data);
                     SyncHelper::instance().variables.timePosition = latestPosition;
                     SyncHelper::instance().variables.paused = pause();
-                    if(PlaybackSettings::intervalToSetPosition() > 0){
-                        if(abs(latestPosition - m_lastSetPosition)*1000 > PlaybackSettings::intervalToSetPosition()){
-                            m_lastSetPosition = SyncHelper::instance().variables.timePosition;
-                            SyncHelper::instance().variables.timeDirty = true;
-                        }
-                        else{
-                            SyncHelper::instance().variables.timeThreshold = double(PlaybackSettings::thresholdToSyncTimePosition())/1000.0;
-                        }
-                    }
-                    else{
-                        SyncHelper::instance().variables.timeThreshold = double(PlaybackSettings::thresholdToSyncTimePosition())/1000.0;
-                    }
+                    SyncHelper::instance().variables.timeThreshold = double(PlaybackSettings::thresholdToSyncTimePosition())/1000.0;
                     sectionPositionCheck(latestPosition);
                     emit positionChanged();
                 }

@@ -14,10 +14,7 @@
       <default>-1</default>
     </entry>
 	  <entry name="ThresholdToSyncTimePosition" type="int">
-      <default>1000</default>
-    </entry>
-  	<entry name="IntervalToSetPosition" type="int">
-      <default>0</default>
+      <default>200</default>
     </entry>
 	  <entry name="FadeDuration" type="int">
       <default>2000</default>
