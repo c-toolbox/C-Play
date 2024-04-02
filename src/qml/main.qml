@@ -95,6 +95,10 @@ Kirigami.ApplicationWindow {
         Osd { id: osd }
     }
 
+    ForegroundImage {
+        id: fgImage
+    }
+
     PlaySections { id: playSections }
 
     PlayList { id: playList }

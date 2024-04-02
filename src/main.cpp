@@ -1120,6 +1120,11 @@ void postSyncPreDraw() {
             rpBg.gridMode = SyncHelper::instance().variables.gridToMapOnBg;
             rpBg.stereoMode = SyncHelper::instance().variables.stereoscopicModeBg;
             rpBg.rotate = bgRotate;
+
+            if(rpBg.gridMode > 2) {
+                rpBg.rotate.y -= 90.f;
+            }
+
             rpBg.translate = bgTranslate;
             renderParams.push_back(rpBg);
         }
@@ -1232,6 +1237,11 @@ void postSyncPreDraw() {
             rpFg.gridMode = SyncHelper::instance().variables.gridToMapOnFg;
             rpFg.stereoMode = SyncHelper::instance().variables.stereoscopicModeFg;
             rpFg.rotate = fgRotate;
+
+            if (rpFg.gridMode > 2) {
+                rpFg.rotate.y -= 90.f;
+            }
+
             rpFg.translate = fgTranslate;
             renderParams.push_back(rpFg);
         }

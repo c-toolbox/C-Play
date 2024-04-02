@@ -10,18 +10,18 @@ Image {
     anchors.right: PlaylistSettings.position === "right" ? playList.left : parent.right
     anchors.top: parent.top
 
-    source: playerController.backgroundImageFileUrl()
+    source: playerController.foregroundImageFileUrl()
     fillMode: Image.PreserveAspectFit
-    opacity: playerController.backgroundVisibility()
+    opacity: playerController.foregroundVisibility()
 
     Connections {
         target: playerController
 
-        function onBackgroundImageChanged(){
-            root.source = playerController.backgroundImageFileUrl()
+        function onForegroundImageChanged(){
+            root.source = playerController.foregroundImageFileUrl()
         }
-        function onBackgroundVisibilityChanged(){
-            root.opacity = playerController.backgroundVisibility()
+        function onForegroundVisibilityChanged(){
+            root.opacity = playerController.foregroundVisibility()
         }
     }
 }

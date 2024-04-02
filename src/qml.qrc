@@ -44,5 +44,6 @@
         <file>qml/VisibilitySlider.qml</file>
         <file>qml/Presentation.qml</file>
         <file>qml/BackgroundImage.qml</file>
+		<file>qml/ForegroundImage.qml</file>
     </qresource>
 </RCC>
