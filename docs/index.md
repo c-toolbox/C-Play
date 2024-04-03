@@ -52,7 +52,7 @@ Some technical features:
 
 - Sync video+audio fade in/out
 
-- HTTP Server API
+- HTTP Web API
 
 - Tested and used on primarily Windows 10, in domes and other big arenas.
 
