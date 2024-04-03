@@ -34,9 +34,17 @@ As seen in the image below, the data that was fetched in the remote UI above, co
 
 The remote UI contains some parts, that might not be used as much, which are important to explain.
 
+### C-Play to dome (3D)
+
+This button effectivly is a shortcut to switch the current selected C-Play state to either "*Atlas 3D*", "*Bravo 3D*" or "*Draco 3D*". Same as in the *Projectors* section. Notice you do not need to switch to "*Atlas 2D*", "*Bravo 2D*" or "*Draco 2D*" with C-Play, as it can handle 3D and 2D content correctly without this switching.
+
 ### 3D -> 2D
 
-The button named "*3D -> 2D*", forces even 3D content to show as 2D content. Thus, this is the button you want to use, when you want show a 3D movie in the dome, without the use of 3D glasses.
+The button named "*3D -> 2D*", FORCES even 3D content to show as 2D content. This is the button you want to use, when you want show a 3D movie in the dome, without the use of 3D glasses. *You want to disable this one to make it 3D correct again.*
+
+### Background
+
+This button enabled and disables the background, if you would like the dome to fade to black or the background image, when you want to hide the video.
 
 ### Presentation Projector
 
