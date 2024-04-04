@@ -19,11 +19,11 @@ Thus, C-Play could be launched on multiple machines with various configuration u
 ## Cluster configuration (through SGCT)
  - [Cluster configuration](guides/setup/sgct)
 
-## General/startup settings
- - [General settings](guides/setup/settings)
-
 ## Video configuration
  - [Video configuration](guides/setup/video)
 
 ## Audio configuration
  - [Audio configuration](guides/setup/audio)
+
+ ## C-Play application settings
+ - [Settings](guides/setup/settings)

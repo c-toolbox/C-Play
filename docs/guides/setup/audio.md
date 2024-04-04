@@ -1,6 +1,6 @@
 ---
 title: Audio configuration
-nav_order: 3
+nav_order: 2
 parent: Setup C-Play
 ---
 
