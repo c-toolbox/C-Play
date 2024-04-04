@@ -23,8 +23,6 @@ target_sources(${TARGET_NAME}
     haction.h
     httpserverthread.cpp
     httpserverthread.h
-    lockmanager.cpp
-    lockmanager.h
     main.cpp    
     mpvobject.cpp
     mpvobject.h
@@ -50,8 +48,6 @@ target_sources(${TARGET_NAME}
     worker.cpp
     worker.h
     qml.qrc
-    ../help/help.qrc
-    ${haruna_screensaver_inhibit_SRCS}
     ../data/images/images.qrc
     ../data/images/icon.rc
 )

@@ -1,7 +1,7 @@
 ---
 title: Audio settings
 nav_order: 4
-parent: Application settings
+parent: Settings
 ---
 
 # Audio settings

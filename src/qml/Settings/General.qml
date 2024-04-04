@@ -17,9 +17,6 @@ import Haruna.Components 1.0
 SettingsBasePage {
     id: root
 
-    hasHelp: true
-    helpFile: ":/GeneralSettings.html"
-
     FileDialog {
         id: openPrimaryFileDialogLocation
 

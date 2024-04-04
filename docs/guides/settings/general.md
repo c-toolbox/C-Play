@@ -1,7 +1,7 @@
 ---
 title: General settings
 nav_order: 1
-parent: Application settings
+parent: Settings
 ---
 
 # General settings of C-Play

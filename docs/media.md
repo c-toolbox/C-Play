@@ -3,7 +3,7 @@ title: Media file structure
 
 has_children: true
 has_toc: false
-nav_order: 5
+nav_order: 4
 ---
 
 # How C-Play opens and interpret media files

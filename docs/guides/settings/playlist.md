@@ -1,7 +1,7 @@
 ---
 title: Playlist settings
 nav_order: 5
-parent: Application settings
+parent: Settings
 ---
 
 # Playlist settings

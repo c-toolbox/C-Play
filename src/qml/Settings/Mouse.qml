@@ -17,7 +17,7 @@ SettingsBasePage {
     id: root
 
     hasHelp: false
-    helpFile: ""
+    helpUrl: ""
 
     ColumnLayout {
         id: content

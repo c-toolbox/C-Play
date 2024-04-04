@@ -15,9 +15,6 @@ import Haruna.Components 1.0
 SettingsBasePage {
     id: root
 
-    hasHelp: true
-    helpFile: ":/VideoSettings.html"
-
     GridLayout {
         id: content
 

@@ -9,7 +9,6 @@
 #include "_debug.h"
 #include "application.h"
 #include "haction.h"
-#include "lockmanager.h"
 #include "mpvobject.h"
 #include "audiosettings.h"
 #include "generalsettings.h"
@@ -243,7 +242,6 @@ void Application::setupQmlSettingsTypes()
 
 void Application::setupQmlContextProperties()
 {
-    std::unique_ptr<LockManager> lockManager = std::make_unique<LockManager>();
     std::unique_ptr<SubtitlesFoldersModel> subsFoldersModel = std::make_unique<SubtitlesFoldersModel>();
 
     m_engine->rootContext()->setContextProperty(QStringLiteral("app"), this);
@@ -251,10 +249,6 @@ void Application::setupQmlContextProperties()
                                             QStringLiteral("Application should not be created in QML"));
 
     m_engine->rootContext()->setContextProperty(QStringLiteral("playerController"), new PlayerController(this));
-
-    m_engine->rootContext()->setContextProperty(QStringLiteral("lockManager"), lockManager.release());
-    qmlRegisterUncreatableType<LockManager>("LockManager", 1, 0, "LockManager",
-                                            QStringLiteral("LockManager should not be created in QML"));
 
     m_engine->rootContext()->setContextProperty(QStringLiteral("subsFoldersModel"), subsFoldersModel.release());
 }

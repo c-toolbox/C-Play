@@ -14,8 +14,8 @@ import org.kde.kirigami 2.11 as Kirigami
 Kirigami.ScrollablePage {
     id: root
 
-    property bool hasHelp: false
-    property string helpFile: ""
+    property bool hasHelp: true
+    property string helpUrl: "https://c-toolbox.github.io/C-Play/versions/v_2_0.html"
 
     actions {
         contextualActions: [
@@ -23,19 +23,7 @@ Kirigami.ScrollablePage {
                 text: qsTr("Help!")
                 iconName: "system-help"
                 enabled: root.hasHelp
-                onTriggered: root.hasHelp ? helpWindow.show() : undefined
-            },
-            Kirigami.Action {
-                text: qsTr("Open config ...")
-                iconName: "folder"
-                Kirigami.Action {
-                    text: qsTr("File")
-                    onTriggered: Qt.openUrlExternally(app.configFilePath)
-                }
-                Kirigami.Action {
-                    text: qsTr("Folder")
-                    onTriggered: Qt.openUrlExternally(app.configFolderPath)
-                }
+                onTriggered: Qt.openUrlExternally(helpUrl)
             }
         ]
     }

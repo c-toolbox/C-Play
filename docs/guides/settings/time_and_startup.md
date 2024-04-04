@@ -1,7 +1,7 @@
 ---
 title: Time & Startup settings
 nav_order: 2
-parent: Application settings
+parent: Settings
 ---
 
 # Time & Startup settings

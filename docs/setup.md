@@ -23,6 +23,3 @@ Thus, C-Play could be launched on multiple machines with various configuration u
 
 ## Audio configuration
  - [Audio configuration](guides/setup/audio)
-
- ## C-Play application settings
- - [Settings](guides/setup/settings)

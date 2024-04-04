@@ -16,9 +16,6 @@ import Haruna.Components 1.0
 SettingsBasePage {
     id: root
 
-    hasHelp: true
-    helpFile: ":/PlaybackSettings.html"
-
     Platform.FileDialog {
         id: playlistToLoadOnStartupDialog
 
