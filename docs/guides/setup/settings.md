@@ -8,8 +8,8 @@ parent: Setup C-Play
 
 # All the application settings within C-Play
 
- - [General](guides/setup/settings/general)
- - [Time & Startup](guides/setup/settings/time_and_startup)
- - [Mapping & Image](guides/setup/settings/mapping_and_image)
- - [Audio](guides/setup/settings/audio)
- - [Playlist](guides/setup/settings/playlist)
+ - [General](settings/general)
+ - [Time & Startup](settings/time_and_startup)
+ - [Mapping & Image](settings/mapping_and_image)
+ - [Audio](settings/audio)
+ - [Playlist](settings/playlist)

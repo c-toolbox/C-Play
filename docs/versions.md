@@ -8,5 +8,5 @@ nav_order: 8
 
 # C-Play Versions
 
- - [Version 2.0 (Latest)](guides/versions/v2_0)
- - [Version 1.0 (Legacy)](guides/versions/v1_0)
+ - [Version 2.0 (Latest)](versions/v2_0)
+ - [Version 1.0 (Legacy)](versions/v1_0)
