@@ -48,9 +48,7 @@ Kirigami.ApplicationWindow {
         id: menuBar
 
         FileMenu {}
-        ViewMenu {}
         PlaybackMenu {}
-        //SubtitlesMenu {}
         AudioMenu {}
         SettingsMenu {}
         HelpMenu {}
@@ -69,9 +67,7 @@ Kirigami.ApplicationWindow {
         modal: true
 
         FileMenu {}
-        ViewMenu {}
         PlaybackMenu {}
-        //SubtitlesMenu {}
         AudioMenu {}
         SettingsMenu {}
         HelpMenu {}

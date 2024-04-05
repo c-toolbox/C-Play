@@ -35,10 +35,6 @@ target_sources(${TARGET_NAME}
     playlist/playlistmodel.h
 	renderthread.cpp
     renderthread.h
-    subtitlesfoldersmodel.cpp
-    subtitlesfoldersmodel.h
-    thumbnailimageprovider.cpp
-    thumbnailimageprovider.h
     track.cpp
     track.h
     trackballcameracontroller.cpp
@@ -57,7 +53,6 @@ kconfig_add_kcfg_files(${TARGET_NAME} GENERATE_MOC settings/generalsettings.kcfg
 kconfig_add_kcfg_files(${TARGET_NAME} GENERATE_MOC settings/mousesettings.kcfgc)
 kconfig_add_kcfg_files(${TARGET_NAME} GENERATE_MOC settings/playbacksettings.kcfgc)
 kconfig_add_kcfg_files(${TARGET_NAME} GENERATE_MOC settings/playlistsettings.kcfgc)
-kconfig_add_kcfg_files(${TARGET_NAME} GENERATE_MOC settings/subtitlessettings.kcfgc)
 kconfig_add_kcfg_files(${TARGET_NAME} GENERATE_MOC settings/videosettings.kcfgc)
 
 target_include_directories(${TARGET_NAME} PRIVATE playlist)

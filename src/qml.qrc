@@ -8,7 +8,6 @@
         <file>qml/Haruna/Components/SelectActionPopup.qml</file>
         <file>qml/Haruna/Components/SettingsBasePage.qml</file>
         <file>qml/Haruna/Components/SettingsHeader.qml</file>
-        <file>qml/Haruna/Components/SubtitlesFolders.qml</file>
         <file>qml/Haruna/Components/qmldir</file>
         <file>qml/Header.qml</file>
         <file>qml/Images/earthmap2k.jpg</file>
@@ -19,9 +18,7 @@
         <file>qml/Menus/HelpMenu.qml</file>
         <file>qml/Menus/PlaybackMenu.qml</file>
         <file>qml/Menus/SettingsMenu.qml</file>
-        <file>qml/Menus/SubtitlesMenu.qml</file>
         <file>qml/Menus/TrackMenuItems.qml</file>
-        <file>qml/Menus/ViewMenu.qml</file>
         <file>qml/MpvVideo.qml</file>
         <file>qml/Osd.qml</file>
         <file>qml/PlayList.qml</file>
@@ -34,7 +31,6 @@
         <file alias="Playlist.qml">qml/Settings/Playlist.qml</file>
         <file>qml/Settings/SaveAsCPlayFile.qml</file>
         <file>qml/Settings/SettingsEditor.qml</file>
-        <file alias="Subtitles.qml">qml/Settings/Subtitles.qml</file>
         <file alias="VideoSettings.qml">qml/Settings/VideoSettings.qml</file>
         <file>qml/TrackBall.qml</file>
         <file>qml/VolumeSlider.qml</file>

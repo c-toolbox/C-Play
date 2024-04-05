@@ -28,7 +28,6 @@ class MpvObject : public QQuickFramebufferObject
 
 public:
     Q_PROPERTY(TracksModel* audioTracksModel READ audioTracksModel NOTIFY audioTracksModelChanged)
-    Q_PROPERTY(TracksModel* subtitleTracksModel READ subtitleTracksModel NOTIFY subtitleTracksModelChanged)
 
     Q_PROPERTY(QString mediaTitle
                READ mediaTitle
@@ -71,16 +70,6 @@ public:
                READ audioId
                WRITE setAudioId
                NOTIFY audioIdChanged)
-
-    Q_PROPERTY(int subtitleId
-               READ subtitleId
-               WRITE setSubtitleId
-               NOTIFY subtitleIdChanged)
-
-    Q_PROPERTY(int secondarySubtitleId
-               READ secondarySubtitleId
-               WRITE setSecondarySubtitleId
-               NOTIFY secondarySubtitleIdChanged)
 
     Q_PROPERTY(int contrast
                READ contrast
@@ -280,12 +269,6 @@ public:
     int audioId();
     void setAudioId(int value);
 
-    int subtitleId();
-    void setSubtitleId(int value);
-
-    int secondarySubtitleId();
-    void setSecondarySubtitleId(int value);
-
     int contrast();
     void setContrast(int value);
 
@@ -406,8 +389,6 @@ signals:
     void autoPlayChanged();
     void chapterChanged();
     void audioIdChanged();
-    void subtitleIdChanged();
-    void secondarySubtitleIdChanged();
     void contrastChanged();
     void brightnessChanged();
     void gammaChanged();
@@ -418,7 +399,6 @@ signals:
     void watchPercentageChanged();
     void ready();
     void audioTracksModelChanged();
-    void subtitleTracksModelChanged();
     void hwDecodingChanged();
     void stereoscopicModeChanged();
     void syncVideoChanged();
@@ -462,10 +442,7 @@ private:
     friend class MpvRenderer;
 
     void sectionPositionCheck(double position);
-    TracksModel *subtitleTracksModel() const;
     TracksModel *m_audioTracksModel;
-    TracksModel *m_subtitleTracksModel;
-    QMap<int, Track*> m_subtitleTracks;
     QMap<int, Track*> m_audioTracks;
     QList<int> m_secondsWatched;
     double m_watchPercentage;

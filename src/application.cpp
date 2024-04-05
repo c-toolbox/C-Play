@@ -16,12 +16,9 @@
 #include "playercontroller.h"
 #include "playbacksettings.h"
 #include "playlistsettings.h"
-#include "subtitlessettings.h"
 #include "videosettings.h"
 #include "playlistitem.h"
 #include "playlistmodel.h"
-#include "subtitlesfoldersmodel.h"
-#include "thumbnailimageprovider.h"
 #include "tracksmodel.h"
 #include "trackballcameracontroller.h"
 #include "worker.h"
@@ -117,7 +114,6 @@ Application::Application(int &argc, char **argv, const QString &applicationName)
                      m_app, onObjectCreated, Qt::QueuedConnection);
     QObject::connect(m_engine, &QQmlApplicationEngine::quit, m_app, &QApplication::quit);
     m_engine->addImportPath("qrc:/qml");
-    m_engine->addImageProvider("thumbnail", new ThumbnailImageProvider());
 
     setupQmlContextProperties();
 
@@ -233,24 +229,17 @@ void Application::setupQmlSettingsTypes()
     auto playlistProvider = [](QQmlEngine *, QJSEngine *) -> QObject * { return PlaylistSettings::self(); };
     qmlRegisterSingletonType<PlaylistSettings>("org.ctoolbox.cplay", 1, 0, "PlaylistSettings", playlistProvider);
 
-    auto subtitlesProvider = [](QQmlEngine *, QJSEngine *) -> QObject * { return SubtitlesSettings::self(); };
-    qmlRegisterSingletonType<SubtitlesSettings>("org.ctoolbox.cplay", 1, 0, "SubtitlesSettings", subtitlesProvider);
-
     auto videoProvider = [](QQmlEngine *, QJSEngine *) -> QObject * { return VideoSettings::self(); };
     qmlRegisterSingletonType<VideoSettings>("org.ctoolbox.cplay", 1, 0, "VideoSettings", videoProvider);
 }
 
 void Application::setupQmlContextProperties()
 {
-    std::unique_ptr<SubtitlesFoldersModel> subsFoldersModel = std::make_unique<SubtitlesFoldersModel>();
-
     m_engine->rootContext()->setContextProperty(QStringLiteral("app"), this);
     qmlRegisterUncreatableType<Application>("Application", 1, 0, "Application",
                                             QStringLiteral("Application should not be created in QML"));
 
     m_engine->rootContext()->setContextProperty(QStringLiteral("playerController"), new PlayerController(this));
-
-    m_engine->rootContext()->setContextProperty(QStringLiteral("subsFoldersModel"), subsFoldersModel.release());
 }
 
 QUrl Application::configFilePath()
@@ -737,20 +726,6 @@ void Application::setupActions(const QString &actionName)
         m_collection.setDefaultShortcut(action, Qt::Key_PageUp);
         m_collection.addAction(actionName, action);
     }
-    if (actionName == QStringLiteral("seekNextSubtitle")) {
-        auto action = new HAction();
-        action->setText(i18n("Seek To Next Subtitle"));
-        action->setIcon(QIcon::fromTheme("media-seek-forward"));
-        m_collection.setDefaultShortcut(action, QKeySequence(Qt::CTRL, Qt::Key_Right));
-        m_collection.addAction(actionName, action);
-    }
-    if (actionName == QStringLiteral("seekPreviousSubtitle")) {
-        auto action = new HAction();
-        action->setText(i18n("Seek To Previous Subtitle"));
-        action->setIcon(QIcon::fromTheme("media-seek-backward"));
-        m_collection.setDefaultShortcut(action, QKeySequence(Qt::CTRL, Qt::Key_Left));
-        m_collection.addAction(actionName, action);
-    }
     if (actionName == QStringLiteral("frameStep")) {
         auto action = new HAction();
         action->setText(i18n("Move one frame forward, then pause"));
@@ -781,24 +756,6 @@ void Application::setupActions(const QString &actionName)
         m_collection.setDefaultShortcut(action, Qt::Key_Backspace);
         m_collection.addAction(actionName, action);
     }
-    if (actionName == QStringLiteral("subtitleQuicken")) {
-        auto action = new HAction();
-        action->setText(i18n("Subtitle Quicken"));
-        m_collection.setDefaultShortcut(action, Qt::Key_Z);
-        m_collection.addAction(actionName, action);
-    }
-    if (actionName == QStringLiteral("subtitleDelay")) {
-        auto action = new HAction();
-        action->setText(i18n("Subtitle Delay"));
-        m_collection.setDefaultShortcut(action, QKeySequence(Qt::SHIFT,  Qt::Key_Z));
-        m_collection.addAction(actionName, action);
-    }
-    if (actionName == QStringLiteral("subtitleToggle")) {
-        auto action = new HAction();
-        action->setText(i18n("Subtitle Toggle"));
-        m_collection.setDefaultShortcut(action, QKeySequence(Qt::SHIFT,  Qt::Key_S));
-        m_collection.addAction(actionName, action);
-    }
     if (actionName == QStringLiteral("audioCycleUp")) {
         auto action = new HAction();
         action->setText(i18n("Cycle Audio Up"));
@@ -809,18 +766,6 @@ void Application::setupActions(const QString &actionName)
         auto action = new HAction();
         action->setText(i18n("Cycle Audio Down"));
         m_collection.setDefaultShortcut(action, QKeySequence(Qt::SHIFT,  Qt::Key_2));
-        m_collection.addAction(actionName, action);
-    }
-    if (actionName == QStringLiteral("subtitleCycleUp")) {
-        auto action = new HAction();
-        action->setText(i18n("Cycle Subtitle Up"));
-        m_collection.setDefaultShortcut(action, Qt::Key_J);
-        m_collection.addAction(actionName, action);
-    }
-    if (actionName == QStringLiteral("subtitleCycleDown")) {
-        auto action = new HAction();
-        action->setText(i18n("Cycle Subtitle Down"));
-        m_collection.setDefaultShortcut(action, QKeySequence(Qt::SHIFT,  Qt::Key_J));
         m_collection.addAction(actionName, action);
     }
     if (actionName == QStringLiteral("zoomIn")) {
@@ -884,30 +829,6 @@ void Application::setupActions(const QString &actionName)
         auto action = new HAction();
         action->setText(i18n("Set Loop"));
         m_collection.setDefaultShortcut(action, Qt::Key_L);
-        m_collection.addAction(actionName, action);
-    }
-    if (actionName == QStringLiteral("increaseSubtitleFontSize")) {
-        auto action = new HAction();
-        action->setText(i18n("Increase Subtitle Font Size"));
-        m_collection.setDefaultShortcut(action, QKeySequence(Qt::CTRL, Qt::Key_Z));
-        m_collection.addAction(actionName, action);
-    }
-    if (actionName == QStringLiteral("decreaseSubtitleFontSize")) {
-        auto action = new HAction();
-        action->setText(i18n("Decrease Subtitle Font Size"));
-        m_collection.setDefaultShortcut(action, QKeySequence(Qt::CTRL, Qt::Key_X));
-        m_collection.addAction(actionName, action);
-    }
-    if (actionName == QStringLiteral("subtitlePositionUp")) {
-        auto action = new HAction();
-        action->setText(i18n("Move Subtitle Up"));
-        m_collection.setDefaultShortcut(action, Qt::Key_R);
-        m_collection.addAction(actionName, action);
-    }
-    if (actionName == QStringLiteral("subtitlePositionDown")) {
-        auto action = new HAction();
-        action->setText(i18n("Move Subtitle Down"));
-        m_collection.setDefaultShortcut(action, QKeySequence(Qt::SHIFT,  Qt::Key_R));
         m_collection.addAction(actionName, action);
     }
     if (actionName == QStringLiteral("toggleDeinterlacing")) {

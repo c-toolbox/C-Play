@@ -105,7 +105,6 @@ MpvObject::MpvObject(QQuickItem * parent)
     , mpv{mpv_create()}
     , mpv_gl(nullptr)
     , m_audioTracksModel(new TracksModel)
-    , m_subtitleTracksModel(new TracksModel)
     , m_playlistModel(new PlayListModel)
     , m_playSectionsModel(new PlaySectionsModel)
     , m_currentSectionsIndex(-1)
@@ -405,34 +404,6 @@ void MpvObject::setAudioId(int value)
     }
     setProperty("aid", value);
     emit audioIdChanged();
-}
-
-int MpvObject::subtitleId()
-{
-    return getProperty("sid").toInt();
-}
-
-void MpvObject::setSubtitleId(int value)
-{
-    if (value == subtitleId()) {
-        return;
-    }
-    setProperty("sid", value);
-    emit subtitleIdChanged();
-}
-
-int MpvObject::secondarySubtitleId()
-{
-    return getProperty("secondary-sid").toInt();
-}
-
-void MpvObject::setSecondarySubtitleId(int value)
-{
-    if (value == secondarySubtitleId()) {
-        return;
-    }
-    setProperty("secondary-sid", value);
-    emit secondarySubtitleIdChanged();
 }
 
 int MpvObject::contrast()
@@ -1381,14 +1352,6 @@ void MpvObject::eventHandler()
                 if (prop->format == MPV_FORMAT_INT64) {
                     emit audioIdChanged();
                 }
-            } else if (strcmp(prop->name, "sid") == 0) {
-                if (prop->format == MPV_FORMAT_INT64) {
-                    emit subtitleIdChanged();
-                }
-            } else if (strcmp(prop->name, "secondary-sid") == 0) {
-                if (prop->format == MPV_FORMAT_INT64) {
-                    emit secondarySubtitleIdChanged();
-                }
             } else if (strcmp(prop->name, "contrast") == 0) {
                 if (prop->format == MPV_FORMAT_INT64) {
                     emit contrastChanged();
@@ -1432,36 +1395,12 @@ void MpvObject::performSurfaceTransition() {
 
 void MpvObject::loadTracks()
 {
-    m_subtitleTracks.clear();
     m_audioTracks.clear();
 
-    auto none = new Track();
-    none->setId(0);
-    none->setTitle("None");
-    m_subtitleTracks.insert(0, none);
-
     const QList<QVariant> tracks = getProperty("track-list").toList();
-    int subIndex = 1;
     int audioIndex = 0;
     for (const auto &track : tracks) {
         const auto t = track.toMap();
-        if (track.toMap()["type"] == "sub") {
-            auto newTrack = new Track();
-            newTrack->setCodec(t["codec"].toString());
-            newTrack->setType(t["type"].toString());
-            newTrack->setDefaut(t["default"].toBool());
-            newTrack->setDependent(t["dependent"].toBool());
-            newTrack->setForced(t["forced"].toBool());
-            newTrack->setId(t["id"].toLongLong());
-            newTrack->setSrcId(t["src-id"].toLongLong());
-            newTrack->setFfIndex(t["ff-index"].toLongLong());
-            newTrack->setLang(t["lang"].toString());
-            newTrack->setTitle(t["title"].toString());
-            newTrack->setIndex(subIndex);
-
-            m_subtitleTracks.insert(subIndex, newTrack);
-            subIndex++;
-        }
         if (track.toMap()["type"] == "audio") {
             auto newTrack = new Track();
             newTrack->setCodec(t["codec"].toString());
@@ -1480,11 +1419,9 @@ void MpvObject::loadTracks()
             audioIndex++;
         }
     }
-    m_subtitleTracksModel->setTracks(m_subtitleTracks);
     m_audioTracksModel->setTracks(m_audioTracks);
 
     emit audioTracksModelChanged();
-    emit subtitleTracksModelChanged();
 }
 
 void MpvObject::updatePlane() {
@@ -1576,11 +1513,6 @@ void MpvObject::sectionPositionCheck(double position) {
             }
         }
     }
-}
-
-TracksModel *MpvObject::subtitleTracksModel() const
-{
-    return m_subtitleTracksModel;
 }
 
 TracksModel *MpvObject::audioTracksModel() const

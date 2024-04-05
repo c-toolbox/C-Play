@@ -33,10 +33,6 @@
     <entry name="OverlayVideo" type="bool">
       <default>true</default>
     </entry>
-    <entry name="ShowThumbnails" type="bool">
-      <label>Show thumbnails</label>
-      <default>false</default>
-    </entry>
     <entry name="ShowMediaTitle" type="bool">
       <label>Show media title instead of file name</label>
       <default>true</default>
