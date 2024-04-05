@@ -19,7 +19,6 @@ ToolBar {
     id: root
 
     property var audioTracks
-    property var subtitleTracks
 
     position: ToolBar.Header
     visible: !window.isFullScreen() && GeneralSettings.showHeader
@@ -32,6 +31,9 @@ ToolBar {
         ToolButton {
             action: actions.openAction
             focusPolicy: Qt.NoFocus
+            ToolTip {
+                text: "Open a any media file, as well as *.cplayfile or *.cplaylist."
+            }
         }
 
         ToolButton {
@@ -39,6 +41,9 @@ ToolBar {
             action: actions.saveAsCPlayFileAction
             focusPolicy: Qt.NoFocus
             enabled: false
+            ToolTip {
+                text: "Save current media and settings as a *.cplayfile"
+            }
         }
 
         Connections {
@@ -49,101 +54,14 @@ ToolBar {
             }
         }
 
-//        ToolButton {
-//            action: actions.openUrlAction
-//            focusPolicy: Qt.NoFocus
-//            MouseArea {
-//                anchors.fill: parent
-//                acceptedButtons: Qt.MiddleButton
-//                onClicked: {
-//                    openUrlTextField.clear()
-//                    openUrlTextField.paste()
-//                    window.openFile(openUrlTextField.text, true, false)
-//                }
-//            }
-//        }
-
-        ToolSeparator {
-            padding: vertical ? 10 : 2
-            topPadding: vertical ? 2 : 10
-            bottomPadding: vertical ? 2 : 10
-
-            contentItem: Rectangle {
-                implicitWidth: parent.vertical ? 1 : 24
-                implicitHeight: parent.vertical ? 24 : 1
-                color: Kirigami.Theme.textColor
-            }
-        }
-
-//        ToolButton {
-//            id: subtitleMenuButton
-
-//            property var model: 0
-
-//            text: qsTr("Subtitles")
-//            icon.name: "media-view-subtitles-symbolic"
-//            focusPolicy: Qt.NoFocus
-
-//            onClicked: {
-//                if (subtitleMenuButton.model === 0) {
-//                    subtitleMenuButton.model = mpv.subtitleTracksModel
-//                }
-
-//                subtitleMenu.visible = !subtitleMenu.visible
-//            }
-
-//            Menu {
-//                id: subtitleMenu
-
-//                y: parent.height
-
-//                Menu {
-//                    id: secondarySubtitleMenu
-
-//                    title: qsTr("Secondary Subtitle")
-
-//                    Instantiator {
-//                        id: secondarySubtitleMenuInstantiator
-//                        model: subtitleMenuButton.model
-//                        onObjectAdded: secondarySubtitleMenu.insertItem( index, object )
-//                        onObjectRemoved: secondarySubtitleMenu.removeItem( object )
-//                        delegate: MenuItem {
-//                            enabled: model.id !== mpv.subtitleId || model.id === 0
-//                            checkable: true
-//                            checked: model.id === mpv.secondarySubtitleId
-//                            text: model.text
-//                            onTriggered: mpv.secondarySubtitleId = model.id
-//                        }
-//                    }
-//                }
-
-//                MenuSeparator {}
-
-//                MenuItem {
-//                    text: qsTr("Primary Subtitle")
-//                    hoverEnabled: false
-//                }
-
-//                Instantiator {
-//                    id: primarySubtitleMenuInstantiator
-//                    model: subtitleMenuButton.model
-//                    onObjectAdded: subtitleMenu.addItem( object )
-//                    onObjectRemoved: subtitleMenu.removeItem( object )
-//                    delegate: MenuItem {
-//                        enabled: model.id !== mpv.secondarySubtitleId || model.id === 0
-//                        checkable: true
-//                        checked: model.id === mpv.subtitleId
-//                        text: model.text
-//                        onTriggered: mpv.subtitleId = model.id
-//                    }
-//                }
-//            }
-//        }
-
         ToolButton {
             text: qsTr("Audio File")
             icon.name: "new-audio-alarm"
             focusPolicy: Qt.NoFocus
+
+            ToolTip {
+                text: "Choose the audio track/file that was loaded with the media."
+            }
 
             onClicked: {
                 if (audioMenuInstantiator.model === 0) {
@@ -212,6 +130,9 @@ ToolBar {
                     }
                 }
             }
+            ToolTip {
+                text: "Fade volume down to 0"
+            }
         }
 
         VolumeSlider { id: volumeSlider }
@@ -239,6 +160,9 @@ ToolBar {
                     }
                 }
             }
+            ToolTip {
+                text: "Fade volume up to previous highest level"
+            }
         }
 
         ToolButton {
@@ -249,7 +173,6 @@ ToolBar {
             ToolTip {
                 id: faiToolTip
                 text: "Sync audio+image fading: No"
-                y: Math.round(-(parent.height - height))
             }
 
             onClicked: {
@@ -317,7 +240,6 @@ ToolBar {
             ToolTip {
                 id: imageToolTip
                 text: "Background image OFF and Foreground image OFF"
-                y: Math.round(-(parent.height - height))
             }
 
             onClicked: {
@@ -525,6 +447,9 @@ ToolBar {
                     }
                 }
             }
+            ToolTip {
+                text: "Fade image/media transparency down to 0."
+            }
         }
 
         VisibilitySlider { id: visibilitySlider }
@@ -548,6 +473,9 @@ ToolBar {
                         volume_fade_up_animation.start()
                     }
                 }
+            }
+            ToolTip {
+                text: "Fade image/media transparency up to 100."
             }
         }
 
@@ -582,6 +510,10 @@ ToolBar {
         ToolButton {
             id: stereoscopicMenuButton
             implicitWidth: 100
+
+            ToolTip {
+                text: "Stereoscopic mode of the current media."
+            }
 
             text: {
                 if(mpv.stereoscopicMode === 0){
@@ -764,6 +696,10 @@ ToolBar {
             id: gridMenuButton
             implicitWidth: 130
 
+            ToolTip {
+                text: "Mapping/grid mode of the current media."
+            }
+
             text: {
                 if(mpv.gridToMapOn === 0)
                     gridMenuButton.text = qsTr("Grid (None)")
@@ -896,10 +832,17 @@ ToolBar {
 
             enabled: mpv.gridToMapOn >= 2
 
+            ToolTip {
+                text: "Spin and translate the mapping grid."
+            }
+
             text: {
-                qsTr("Spin + Move")
+                qsTr("Spin && Move")
             }
             icon.name: "hand"
+            icon.color: (!spinPitchUp.checked & !spinPitchDown.checked
+                         & !spinYawLeft.checked & !spinYawRight.checked
+                         & !spinRollClockwise.checked & !spinRollCounterClockwise.checked) ? "crimson" : "lime"
             focusPolicy: Qt.NoFocus
 
             onClicked: {
@@ -925,7 +868,7 @@ ToolBar {
                             id: spinPitchUp
                             enabled: mpv.gridToMapOn >= 3
                             icon.name: "go-up"
-                            icon.color: spinPitchUp.checked ? "lawngreen" : "red"
+                            icon.color: spinPitchUp.checked ? "lime" : "crimson"
                             checkable: true
                             checked: false
                             onCheckedChanged: {
@@ -957,7 +900,7 @@ ToolBar {
                             id: spinPitchDown
                             enabled: mpv.gridToMapOn >= 3
                             icon.name: "go-down"
-                            icon.color: spinPitchDown.checked ? "lawngreen" : "red"
+                            icon.color: spinPitchDown.checked ? "lime" : "crimson"
                             checkable: true
                             checked: false
                             onCheckedChanged: {
@@ -993,7 +936,7 @@ ToolBar {
                             id: spinYawLeft
                             enabled: mpv.gridToMapOn >= 2
                             icon.name: "go-previous"
-                            icon.color: spinYawLeft.checked ? "lawngreen" : "red"
+                            icon.color: spinYawLeft.checked ? "lime" : "crimson"
                             checkable: true
                             checked: false
                             onCheckedChanged: {
@@ -1025,7 +968,7 @@ ToolBar {
                             id: spinYawRight
                             enabled: mpv.gridToMapOn >= 2
                             icon.name: "go-next"
-                            icon.color: spinYawRight.checked ? "lawngreen" : "red"
+                            icon.color: spinYawRight.checked ? "lime" : "crimson"
                             checkable: true
                             checked: false
                             onCheckedChanged: {
@@ -1061,7 +1004,7 @@ ToolBar {
                             id: spinRollCounterClockwise
                             enabled: mpv.gridToMapOn >= 3
                             icon.name: "object-rotate-left"
-                            icon.color: spinRollCounterClockwise.checked ? "lawngreen" : "red"
+                            icon.color: spinRollCounterClockwise.checked ? "lime" : "crimson"
                             checkable: true
                             checked: false
                             onCheckedChanged: {
@@ -1093,7 +1036,7 @@ ToolBar {
                             id: spinRollClockwise
                             enabled: mpv.gridToMapOn >= 3
                             icon.name: "object-rotate-right"
-                            icon.color: spinRollClockwise.checked ? "lawngreen" : "red"
+                            icon.color: spinRollClockwise.checked ? "lime" : "crimson"
                             checkable: true
                             checked: false
                             onCheckedChanged: {
@@ -1360,25 +1303,6 @@ ToolBar {
         }
 
         ToolButton {
-            id: sync
-            action: actions.syncAction
-            text: actions.syncAction.text
-            focusPolicy: Qt.NoFocus
-        }
-
-        ToolSeparator {
-            padding: vertical ? 10 : 2
-            topPadding: vertical ? 2 : 10
-            bottomPadding: vertical ? 2 : 10
-
-            contentItem: Rectangle {
-                implicitWidth: parent.vertical ? 1 : 24
-                implicitHeight: parent.vertical ? 24 : 1
-                color: Kirigami.Theme.textColor
-            }
-        }
-
-        ToolButton {
             id: eofMenuButton
             implicitWidth: 100
 
@@ -1388,6 +1312,10 @@ ToolBar {
 
             onClicked: {
                 eofMenu.visible = !eofMenu.visible
+            }
+
+            ToolTip {
+                text: "\"End of file\" mode for current media."
             }
 
             Connections {
@@ -1479,6 +1407,29 @@ ToolBar {
                         }
                     }
                 }
+            }
+        }
+
+        ToolSeparator {
+            padding: vertical ? 10 : 2
+            topPadding: vertical ? 2 : 10
+            bottomPadding: vertical ? 2 : 10
+
+            contentItem: Rectangle {
+                implicitWidth: parent.vertical ? 1 : 24
+                implicitHeight: parent.vertical ? 24 : 1
+                color: Kirigami.Theme.textColor
+            }
+        }
+
+        ToolButton {
+            id: sync
+            action: actions.syncAction
+            text: actions.syncAction.text
+            focusPolicy: Qt.NoFocus
+            icon.color: mpv.autoPlay ? "lime" : "crimson"
+            ToolTip {
+                text: "ON/OFF to sync state from master to clients."
             }
         }
 
