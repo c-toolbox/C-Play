@@ -51,6 +51,11 @@ To easier understand these commands, feel free to utilize a sample Medialon Mana
     Purpose:  Ask C-play to rewind current media to start position.
     Returns:  "Rewind"
 
+    Endpoint: /auto_play
+    Purpose:  Enable or disables the use of auto play in the playlist.
+    Params:   Optional to supply a "on=1" or "on=0" to enable or disable the auto play feature.
+    Returns:  When "on=" is added, a message indiciating success or an error. Otherwise returns 0 if auto play is disabled and 1 if it's enabled.
+
 ### Handle volume level and image visibility
     
     Endpoint: /volume
@@ -130,7 +135,7 @@ To easier understand these commands, feel free to utilize a sample Medialon Mana
     Endpoint: /background_image
     Purpose:  Enable or disables the use of background.
     Params:   Optional to supply a "on=1" or "on=0" to enable or disable the background image.
-    Returns:  When "on=" is added, a message indiciating success or an error. Otherwise the 0 is background is disabled and 1 if disabled.
+    Returns:  When "on=" is added, a message indiciating success or an error. Otherwise return 0 if background is disabled and 1 if enabled.
 
     Endpoint: /background_image_stereo_mode
     Purpose:  Return the stereoscopic mode for the background image.
@@ -143,7 +148,7 @@ To easier understand these commands, feel free to utilize a sample Medialon Mana
     Endpoint: /foreground_image
     Purpose:  Enable or disables the use of foreground.
     Params:   Optional to supply a "on=1" or "on=0" to enable or disable the foreground image.
-    Returns:  When "on=" is added, a message indiciating success or an error. Otherwise the 0 is foreground is disabled and 1 if disabled.
+    Returns:  When "on=" is added, a message indiciating success or an error. Otherwise returns 0 if foreground is disabled and 1 if enabled.
 
     Endpoint: /foreground_image_stereo_mode
     Purpose:  Return the stereoscopic mode for the foreground image.

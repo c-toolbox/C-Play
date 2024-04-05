@@ -27,6 +27,7 @@ Q_SIGNALS:
     void pauseMedia();
     void playMedia();
     void rewindMedia();
+    void setAutoPlay(bool value);
     void setPosition(double position);
     void setVolume(int level);
     void setViewMode(int mode);

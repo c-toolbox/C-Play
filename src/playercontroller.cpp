@@ -53,6 +53,7 @@ void PlayerController::setupHttpServer()
     connect(httpServer, &HttpServerThread::pauseMedia, this, &PlayerController::Pause);
     connect(httpServer, &HttpServerThread::playMedia, this, &PlayerController::Play);
     connect(httpServer, &HttpServerThread::rewindMedia, this, &PlayerController::Rewind);
+    connect(httpServer, &HttpServerThread::setAutoPlay, this, &PlayerController::SetAutoPlay);
     connect(httpServer, &HttpServerThread::setPosition, this, &PlayerController::SetPosition);
     connect(httpServer, &HttpServerThread::setVolume, this, &PlayerController::SetVolume);
     connect(httpServer, &HttpServerThread::setViewMode, this, &PlayerController::setViewModeOnClients);
@@ -112,6 +113,13 @@ void PlayerController::Rewind()
 {
     if (m_mpv) {
         m_mpv->performRewind();
+    }
+}
+
+void PlayerController::SetAutoPlay(bool value)
+{
+    if (m_mpv) {
+        m_mpv->setAutoPlay(value);
     }
 }
 
