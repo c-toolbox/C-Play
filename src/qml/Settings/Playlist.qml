@@ -48,8 +48,24 @@ SettingsBasePage {
 
         Item { width: 1; height: 1 }
         CheckBox {
+            checked: PlaylistSettings.autoPlayOnLoad
+            text: qsTr("Auto-play videos in playlist (at startup)")
+            onCheckStateChanged: {
+                PlaylistSettings.autoPlayOnLoad = checked
+                PlaylistSettings.save()
+            }
+        }
+
+        Item { width: 1; height: 1 }
+        Label {
+            text: qsTr("Runtime auto-play ON/OFF is available in the playlist widget")
+            font.italic: true
+        }
+
+        Item { width: 1; height: 1 }
+        CheckBox {
             checked: PlaylistSettings.autoPlayNext
-            text: qsTr("Auto-play video when (continue to next)")
+            text: qsTr("Also auto-play when (continue to next)")
             onCheckStateChanged: {
                 PlaylistSettings.autoPlayNext = checked
                 PlaylistSettings.save()
@@ -64,7 +80,7 @@ SettingsBasePage {
             SpinBox {
                 id: autoPlayWaitime
                 from: 0
-                to: 20000
+                to: 10
                 value: PlaylistSettings.autoPlayAfterTime
                 enabled: PlaylistSettings.autoPlayNext
                 onValueChanged: {

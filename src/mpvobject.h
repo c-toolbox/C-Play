@@ -52,6 +52,11 @@ public:
                WRITE setPause
                NOTIFY pauseChanged)
 
+    Q_PROPERTY(bool autoPlay
+               READ autoPlay
+               WRITE setAutoPlay
+               NOTIFY autoPlayChanged)
+
     Q_PROPERTY(int volume
                READ volume
                WRITE setVolume
@@ -262,6 +267,9 @@ public:
 
     bool pause();
     void setPause(bool value);
+
+    bool autoPlay();
+    void setAutoPlay(bool value);
     
     int volume();
     void setVolume(int value);
@@ -395,6 +403,7 @@ signals:
     void remainingChanged();
     void volumeChanged();
     void pauseChanged();
+    void autoPlayChanged();
     void chapterChanged();
     void audioIdChanged();
     void subtitleIdChanged();
@@ -485,6 +494,7 @@ private:
     int m_videoWidth;
     int m_videoHeight;
     bool m_syncImageVideoFading;
+    bool m_autoPlay;
 
     void loadTracks();
     void updatePlane();

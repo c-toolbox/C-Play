@@ -14,6 +14,7 @@
 #include "audiosettings.h"
 #include "generalsettings.h"
 #include "playbacksettings.h"
+#include "playlistsettings.h"
 #include "videosettings.h"
 #include "playlistitem.h"
 #include "track.h"
@@ -132,6 +133,7 @@ MpvObject::MpvObject(QQuickItem * parent)
     m_planeElevation = VideoSettings::plane_Elevation_Degrees();
     m_planeDistance = VideoSettings::plane_Distance_CM();
     m_syncImageVideoFading = PlaybackSettings::syncImageVideoFading();
+    m_autoPlay = PlaylistSettings::autoPlayOnLoad();
 
     SyncHelper::instance().variables.radius = m_radius;
     SyncHelper::instance().variables.fov = m_fov;
@@ -326,6 +328,17 @@ void MpvObject::setPause(bool value)
     if (!value && (visibility() == 0)) {
         emit fadeImageUp();
     }
+}
+
+bool MpvObject::autoPlay()
+{
+    return m_autoPlay;
+}
+
+void MpvObject::setAutoPlay(bool value)
+{
+    m_autoPlay = value;
+    emit autoPlayChanged();
 }
 
 void MpvObject::togglePlayPause()

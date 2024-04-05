@@ -156,7 +156,7 @@ MpvObject {
 
     Timer {
        id: playItem
-       interval: PlaybackSettings.autoPlayAfterTime
+       interval: PlaylistSettings.autoPlayAfterTime * 1000
        onTriggered: {
            mpv.pause = false
        }
@@ -349,6 +349,8 @@ MpvObject {
             root.position = 0
             root.loadItem(index)
             root.playlistModel.setPlayingVideo(index)
+            if(mpv.autoPlay)
+                playItem.start()
         }
         function onLoadFromSections(index) {
             root.pause = true

@@ -29,7 +29,7 @@ Kirigami.BasicListItem {
     }
     Timer {
        id: playItem
-       interval: 2000
+       interval: PlaylistSettings.autoPlayAfterTime * 1000
        onTriggered: {
            mpv.pause = false
        }
@@ -40,6 +40,8 @@ Kirigami.BasicListItem {
         mpv.position = 0
         mpv.loadItem(index)
         mpv.playlistModel.setPlayingVideo(index)
+        if(mpv.autoPlay)
+            playItem.start()
     }
 
     Connections {

@@ -72,21 +72,15 @@ Rectangle {
                 }
             }
             Button {
-                icon.name: "system-save-session"
-                onClicked: {
-                    saveCPlayPlaylistDialog.open()
-                }
-                ToolTip {
-                    text: qsTr("Save playlist")
-                }
-            }
-            Button {
                 id: eofMenuButton
                 icon.name: "media-playback-pause"
                 focusPolicy: Qt.NoFocus
 
                 onClicked: {
                     eofMenu.visible = !eofMenu.visible
+                }
+                ToolTip {
+                    text: qsTr("\"End of file\" action")
                 }
 
                 Menu {
@@ -166,6 +160,15 @@ Rectangle {
                 }
             }
             Button {
+                icon.name: "system-save-session"
+                onClicked: {
+                    saveCPlayPlaylistDialog.open()
+                }
+                ToolTip {
+                    text: qsTr("Save playlist")
+                }
+            }
+            Button {
                 icon.name: "trash-empty"
                 onClicked: {
                     clearPlaylistDialog.open()
@@ -202,6 +205,29 @@ Rectangle {
             Label {
                 id: playlistName
                 font.pointSize: 9
+            }
+
+            Item {
+                // spacer item
+                Layout.fillWidth: true
+                Layout.fillHeight: true
+            }
+
+            Button {
+                id: autoPlayButton
+                checkable : true
+                checked: mpv.autoPlay
+                icon.name: "media-playlist-play"
+                icon.color: mpv.autoPlay ? "lime" : "crimson"
+                onCheckedChanged: {
+                    mpv.autoPlay = autoPlayButton.checked
+                }
+                ToolTip {
+                    id: autoPlayTooltip
+                    text: {
+                        mpv.autoPlay ? qsTr("Autoplay is ON") : qsTr("Autoplay is OFF")
+                    }
+                }
             }
         }
     }
