@@ -30,11 +30,12 @@ public:
     int rowCount(const QModelIndex &parent = QModelIndex()) const override;
     QVariant data(const QModelIndex &index, int role = Qt::DisplayRole) const override;
     virtual QHash<int, QByteArray> roleNames() const override;
-    int countTracks() const;
     std::string getListAsFormattedString(std::string removePrefix = "", int charsPerItem = 40) const;
 
 public slots:
     void setTracks(QMap<int, Track *> tracks);
+    int countTracks() const;
+
 private:
     QMap<int, Track *> m_tracks;
 };

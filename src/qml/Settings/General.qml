@@ -117,130 +117,10 @@ SettingsBasePage {
         id: content
         columns: 3
 
-        // OSD Font Size
-        Label {
-            text: qsTr("Osd font size")
-            Layout.alignment: Qt.AlignRight
-        }
-
-        Item {
-            height: osdFontSize.height
-            SpinBox {
-                id: osdFontSize
-
-                // used to prevent osd showing when opening the page
-                property bool completed: false
-
-                editable: true
-                from: 0
-                to: 100
-                value: GeneralSettings.osdFontSize
-                onValueChanged: {
-                    if (completed) {
-                        osd.label.font.pointSize = osdFontSize.value
-                        osd.message("Test osd font size")
-                        GeneralSettings.osdFontSize = osdFontSize.value
-                        GeneralSettings.save()
-                    }
-                }
-                Component.onCompleted: completed = true
-            }
+        SettingsHeader {
+            text: qsTr("Relative path settings")
+            Layout.columnSpan: 3
             Layout.fillWidth: true
-            Layout.columnSpan: 2
-        }
-
-        // Volume Step
-        Label {
-            text: qsTr("Volume step")
-            Layout.alignment: Qt.AlignRight
-        }
-
-        Item {
-            height: volumeStep.height
-            SpinBox {
-                id: volumeStep
-                editable: true
-                from: 0
-                to: 100
-                value: GeneralSettings.volumeStep
-                onValueChanged: {
-                    if (root.visible) {
-                        GeneralSettings.volumeStep = volumeStep.value
-                        GeneralSettings.save()
-                    }
-                }
-            }
-            Layout.fillWidth: true
-            Layout.columnSpan: 2
-        }
-
-        // Seek Small Step
-        Label {
-            text: qsTr("Seek small step")
-            Layout.alignment: Qt.AlignRight
-        }
-
-        Item {
-            height: seekSmallStep.height
-            SpinBox {
-                id: seekSmallStep
-                editable: true
-                from: 0
-                to: 100
-                value: GeneralSettings.seekSmallStep
-                onValueChanged: {
-                    GeneralSettings.seekSmallStep = seekSmallStep.value
-                    GeneralSettings.save()
-                }
-            }
-            Layout.fillWidth: true
-            Layout.columnSpan: 2
-        }
-
-        // Seek Medium Step
-        Label {
-            text: qsTr("Seek medium step")
-            Layout.alignment: Qt.AlignRight
-        }
-
-        Item {
-            height: seekMediumStep.height
-            SpinBox {
-                id: seekMediumStep
-                editable: true
-                from: 0
-                to: 100
-                value: GeneralSettings.seekMediumStep
-                onValueChanged: {
-                    GeneralSettings.seekMediumStep = seekMediumStep.value
-                    GeneralSettings.save()
-                }
-            }
-            Layout.fillWidth: true
-            Layout.columnSpan: 2
-        }
-
-        // Seek Big Step
-        Label {
-            text: qsTr("Seek big step")
-            Layout.alignment: Qt.AlignRight
-        }
-
-        Item {
-            height: seekBigStep.height
-            SpinBox {
-                id: seekBigStep
-                editable: true
-                from: 0
-                to: 100
-                value: GeneralSettings.seekBigStep
-                onValueChanged: {
-                    GeneralSettings.seekBigStep = seekBigStep.value
-                    GeneralSettings.save()
-                }
-            }
-            Layout.fillWidth: true
-            Layout.columnSpan: 2
         }
 
         Label {
@@ -531,6 +411,138 @@ SettingsBasePage {
             ToolTip {
                 text: qsTr("Sets the icon theme to breeze.\nRequires restart.")
             }
+        }
+
+        SettingsHeader {
+            text: qsTr("Steps and sizes")
+            Layout.columnSpan: 3
+            Layout.fillWidth: true
+        }
+
+        // OSD Font Size
+        Label {
+            text: qsTr("Osd font size")
+            Layout.alignment: Qt.AlignRight
+        }
+
+        Item {
+            height: osdFontSize.height
+            SpinBox {
+                id: osdFontSize
+
+                // used to prevent osd showing when opening the page
+                property bool completed: false
+
+                editable: true
+                from: 0
+                to: 100
+                value: GeneralSettings.osdFontSize
+                onValueChanged: {
+                    if (completed) {
+                        osd.label.font.pointSize = osdFontSize.value
+                        osd.message("Test osd font size")
+                        GeneralSettings.osdFontSize = osdFontSize.value
+                        GeneralSettings.save()
+                    }
+                }
+                Component.onCompleted: completed = true
+            }
+            Layout.fillWidth: true
+            Layout.columnSpan: 2
+        }
+
+        // Volume Step
+        Label {
+            text: qsTr("Volume step")
+            Layout.alignment: Qt.AlignRight
+        }
+
+        Item {
+            height: volumeStep.height
+            SpinBox {
+                id: volumeStep
+                editable: true
+                from: 0
+                to: 100
+                value: GeneralSettings.volumeStep
+                onValueChanged: {
+                    if (root.visible) {
+                        GeneralSettings.volumeStep = volumeStep.value
+                        GeneralSettings.save()
+                    }
+                }
+            }
+            Layout.fillWidth: true
+            Layout.columnSpan: 2
+        }
+
+        // Seek Small Step
+        Label {
+            text: qsTr("Seek small step")
+            Layout.alignment: Qt.AlignRight
+        }
+
+        Item {
+            height: seekSmallStep.height
+            SpinBox {
+                id: seekSmallStep
+                editable: true
+                from: 0
+                to: 100
+                value: GeneralSettings.seekSmallStep
+                onValueChanged: {
+                    GeneralSettings.seekSmallStep = seekSmallStep.value
+                    GeneralSettings.save()
+                }
+            }
+            Layout.fillWidth: true
+            Layout.columnSpan: 2
+        }
+
+        // Seek Medium Step
+        Label {
+            text: qsTr("Seek medium step")
+            Layout.alignment: Qt.AlignRight
+        }
+
+        Item {
+            height: seekMediumStep.height
+            SpinBox {
+                id: seekMediumStep
+                editable: true
+                from: 0
+                to: 100
+                value: GeneralSettings.seekMediumStep
+                onValueChanged: {
+                    GeneralSettings.seekMediumStep = seekMediumStep.value
+                    GeneralSettings.save()
+                }
+            }
+            Layout.fillWidth: true
+            Layout.columnSpan: 2
+        }
+
+        // Seek Big Step
+        Label {
+            text: qsTr("Seek big step")
+            Layout.alignment: Qt.AlignRight
+        }
+
+        Item {
+            height: seekBigStep.height
+            SpinBox {
+                id: seekBigStep
+                editable: true
+                from: 0
+                to: 100
+                value: GeneralSettings.seekBigStep
+                onValueChanged: {
+                    GeneralSettings.seekBigStep = seekBigStep.value
+                    GeneralSettings.save()
+                }
+            }
+            Layout.fillWidth: true
+            Layout.columnSpan: 2
         }
 
         // ------------------------------------

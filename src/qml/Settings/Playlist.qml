@@ -20,6 +20,12 @@ SettingsBasePage {
 
         columns: 2
 
+        SettingsHeader {
+            text: qsTr("Playlist settings")
+            Layout.columnSpan: 2
+            Layout.fillWidth: true
+        }
+
         Label {
             text: qsTr("Position")
             Layout.alignment: Qt.AlignRight

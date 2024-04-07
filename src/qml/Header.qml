@@ -57,6 +57,7 @@ ToolBar {
         ToolButton {
             text: qsTr("Audio File")
             icon.name: "new-audio-alarm"
+            icon.color: mpv.audioTracksModel.countTracks() > 0 ? "lime" : "crimson"
             focusPolicy: Qt.NoFocus
 
             ToolTip {

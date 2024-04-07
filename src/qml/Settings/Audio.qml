@@ -20,6 +20,18 @@ SettingsBasePage {
 
         columns: 2
 
+        SettingsHeader {
+            text: qsTr("Audio settings")
+            Layout.columnSpan: 2
+            Layout.fillWidth: true
+        }
+
+        Item {
+            // spacer item
+            Layout.fillWidth: true
+            Layout.columnSpan: 2
+        }
+
         CheckBox {
             id: audioOutputCheckBox
             text: qsTr("Use custom audio output")
@@ -66,6 +78,7 @@ SettingsBasePage {
                     }
                 }
             }
+            Layout.fillWidth: true
         }
 
         RadioButton {
@@ -106,6 +119,7 @@ SettingsBasePage {
                     }
                 }
             }
+            Layout.fillWidth: true
         }
 
         Item {
@@ -133,9 +147,7 @@ SettingsBasePage {
                     mpv.setProperty("audio-file-auto", "no")
                 }
             }
-        }
-        Item {
-            // spacer item
+            Layout.columnSpan: 2
             Layout.fillWidth: true
         }
 
