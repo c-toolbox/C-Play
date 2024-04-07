@@ -41,11 +41,6 @@ Menu {
 
         MenuSeparator {}
 
-        MenuItem { action: actions["seekNextSubtitleAction"] }
-        MenuItem { action: actions["seekPrevSubtitleAction"] }
-
-        MenuSeparator {}
-
         MenuItem { action: actions["seekPreviousChapterAction"] }
         MenuItem { action: actions["seekNextChapterAction"] }
 

@@ -298,7 +298,7 @@ SettingsBasePage {
 
 
         SettingsHeader {
-            text: qsTr("Background settings")
+            text: qsTr("Background & Foreground settings")
             Layout.columnSpan: 2
             Layout.fillWidth: true
         }
@@ -392,53 +392,6 @@ SettingsBasePage {
             }
         }
 
-        RowLayout {
-            Button {
-                    text: "Reset background values"
-                    onClicked: {
-                        playerController.setBackgroundImageFile(PlaybackSettings.imageToLoadAsBackground)
-                        playerController.setBackgroundStereoMode(PlaybackSettings.stereoModeForBackground)
-                        playerController.setBackgroundGridMode(PlaybackSettings.gridToMapOnForBackground)
-
-                        fileForBackgroundImageText.text = playerController.backgroundImageFile();
-
-                        for (let i = 0; i < loadGridOnStartupModeBg.count; ++i) {
-                            if (loadGridOnStartupModeBg.get(i).value === playerController.backgroundGridMode()) {
-                                loadGridOnStartupComboBoxBg.currentIndex = i
-                                break
-                            }
-                        }
-
-                        for (let j = 0; j < stereoscopicModeOnStartupModeBg.count; ++j) {
-                            if (stereoscopicModeOnStartupModeBg.get(j).value === playerController.backgroundStereoMode()) {
-                                stereoscopicModeOnStartupComboBoxBg.currentIndex = j
-                                break
-                            }
-                        }
-                    }
-            }
-            Layout.columnSpan: 2
-            Layout.fillWidth: true
-        }
-        RowLayout {
-            Button {
-                    text: "Save background values for startup"
-                    onClicked: {
-                        PlaybackSettings.imageToLoadAsBackground = playerController.backgroundImageFile()
-                        PlaybackSettings.stereoModeForBackground = playerController.backgroundStereoMode()
-                        PlaybackSettings.gridToMapOnForBackground = playerController.backgroundGridMode()
-                        PlaybackSettings.save()
-                    }
-            }
-            Layout.columnSpan: 2
-            Layout.fillWidth: true
-        }
-
-        SettingsHeader {
-            text: qsTr("Foreground settings")
-            Layout.columnSpan: 2
-            Layout.fillWidth: true
-        }
         Label {
             text: qsTr("Image to load as foreground:")
         }
@@ -531,8 +484,28 @@ SettingsBasePage {
 
         RowLayout {
             Button {
-                    text: "Reset foreground values"
+                    text: "Reset background and foreground values"
                     onClicked: {
+                        playerController.setBackgroundImageFile(PlaybackSettings.imageToLoadAsBackground)
+                        playerController.setBackgroundStereoMode(PlaybackSettings.stereoModeForBackground)
+                        playerController.setBackgroundGridMode(PlaybackSettings.gridToMapOnForBackground)
+
+                        fileForBackgroundImageText.text = playerController.backgroundImageFile();
+
+                        for (let i = 0; i < loadGridOnStartupModeBg.count; ++i) {
+                            if (loadGridOnStartupModeBg.get(i).value === playerController.backgroundGridMode()) {
+                                loadGridOnStartupComboBoxBg.currentIndex = i
+                                break
+                            }
+                        }
+
+                        for (let j = 0; j < stereoscopicModeOnStartupModeBg.count; ++j) {
+                            if (stereoscopicModeOnStartupModeBg.get(j).value === playerController.backgroundStereoMode()) {
+                                stereoscopicModeOnStartupComboBoxBg.currentIndex = j
+                                break
+                            }
+                        }
+
                         playerController.setForegroundImageFile(PlaybackSettings.imageToLoadAsForeground)
                         playerController.setForegroundStereoMode(PlaybackSettings.stereoModeForForeground)
                         playerController.setForegroundGridMode(PlaybackSettings.gridToMapOnForForeground)
@@ -559,8 +532,11 @@ SettingsBasePage {
         }
         RowLayout {
             Button {
-                    text: "Save foreground values for startup"
+                    text: "Save background and foreground values for startup"
                     onClicked: {
+                        PlaybackSettings.imageToLoadAsBackground = playerController.backgroundImageFile()
+                        PlaybackSettings.stereoModeForBackground = playerController.backgroundStereoMode()
+                        PlaybackSettings.gridToMapOnForBackground = playerController.backgroundGridMode()
                         PlaybackSettings.imageToLoadAsForeground = playerController.foregroundImageFile()
                         PlaybackSettings.stereoModeForForeground = playerController.foregroundStereoMode()
                         PlaybackSettings.gridToMapOnForForeground = playerController.foregroundGridMode()

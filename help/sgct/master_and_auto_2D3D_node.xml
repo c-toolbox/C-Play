@@ -1,0 +1,65 @@
+<?xml version="1.0" ?>
+<Cluster masterAddress="127.0.0.1">
+  <Node address="127.0.0.1" port="20401">
+    <Window fullScreen="false">
+      <Pos x="0" y="300" />
+      <!-- 16:9 aspect ratio -->
+      <Size x="1024" y="1024" />
+      <Viewport>
+        <Pos x="0.0" y="0.0" />
+        <Size x="1.0" y="1.0" />
+          <PlanarProjection>
+            <FOV down="25.267007923362" left="40.0" right="40.0" up="25.267007923362" />
+            <Orientation heading="-20.0" pitch="0.0" roll="0.0" />
+          </PlanarProjection>
+      </Viewport>
+    </Window>
+  </Node>
+  <Node address="127.0.0.2" port="20402">
+    <Window fullScreen="false" numberOfSamples="1" draw2D="false">
+        <Stereo type="none" />
+        <Pos x="120" y="300" />
+        <Size x="2048" y="540" />
+        <Res x="8192" y="2160" />
+        <Viewport eye="left" mesh="F:/SGCT/config/dome/correction_sameview/channel1_warp_L_u3.sgc" name="Channel 1 Left">
+            <Pos x="0.0" y="0.0" />
+            <Size x="0.5" y="1.0" />
+            <!-- Proj 1 left (when 3D/Stereo content) -->
+            <PlanarProjection>
+                <FOV left="61.3407" right="61.4876" up="70.238" down="-7.701" />
+                <Orientation heading="-45.0" pitch="0.0" roll="0.0" />
+            </PlanarProjection>
+        </Viewport>
+        <Viewport eye="right" mesh="F:/SGCT/config/dome/correction_sameview/channel1_warp_R_u3.sgc" name="Channel 1 Right">
+            <Pos x="0.5" y="0.0" />
+            <Size x="0.5" y="1.0" />
+            <!-- Proj 1 right (when 3D/Stereo content) -->
+            <PlanarProjection>
+                <FOV left="61.2299" right="61.0821" up="70.238" down="-7.701" />
+                <Orientation heading="-45.0" pitch="0.0" roll="0.0" />
+            </PlanarProjection>
+        </Viewport>
+        <Viewport eye="center">
+          <Pos x="0.0" y="0.0" />
+          <Size x="0.5" y="1.0" />
+          <!-- Proj 1 left (when 2D/Mono content) -->
+          <PlanarProjection>
+                <FOV left="58.865" right="58.865" up="70.238" down="-7.701" />
+                <Orientation heading="-45.0" pitch="0.0" roll="0.0" />
+          </PlanarProjection>
+        </Viewport>
+        <Viewport eye="center">
+          <Pos x="0.5" y="0.0" />
+          <Size x="0.5" y="1.0" />
+          <!-- Proj 1 right (when 2D/Mono content) -->
+          <PlanarProjection>
+                <FOV left="58.865" right="58.865" up="70.238" down="-7.701" />
+                <Orientation heading="-45.0" pitch="0.0" roll="0.0" />
+          </PlanarProjection>
+        </Viewport>
+    </Window>
+  </Node>
+  <User eyeSeparation="0.06">
+    <Pos x="0.0" y="0.0" z="4.0" />
+  </User>
+</Cluster>

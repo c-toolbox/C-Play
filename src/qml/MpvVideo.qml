@@ -21,8 +21,6 @@ MpvObject {
     property int mouseY: mouseArea.mouseY
     property bool sphereGrid: false
 
-    signal setSubtitle(int id)
-    signal setSecondarySubtitle(int id)
     signal setAudio(int id)
 
     width: parent.width
@@ -57,14 +55,6 @@ MpvObject {
         }
     }
 
-    onSetSubtitle: {
-        setProperty("sid", id)
-    }
-
-    onSetSecondarySubtitle: {
-        setProperty("secondary-sid", id)
-    }
-
     onSetAudio: {
         setProperty("aid", id)
     }
@@ -75,11 +65,6 @@ MpvObject {
         const preferredAudioTrack = AudioSettings.preferredTrack
         setProperty("aid", preferredAudioTrack === 0 ? "auto" : preferredAudioTrack)
         setProperty("alang", AudioSettings.preferredLanguage)
-
-        const preferredSubTrack = SubtitlesSettings.preferredTrack
-        setProperty("sid", preferredSubTrack === 0 ? "auto" : preferredSubTrack)
-        setProperty("slang", SubtitlesSettings.preferredLanguage)
-        setProperty("sub-file-paths", SubtitlesSettings.subtitlesFolders.join(":"))
 
         if(PlaybackSettings.playlistToLoadOnStartup !== ""){
             window.openFile(PlaybackSettings.playlistToLoadOnStartup, false, PlaylistSettings.loadSiblings)
@@ -120,7 +105,6 @@ MpvObject {
     onFileLoaded: {
         loadingIndicatorParent.visible = false
         header.audioTracks = getProperty("track-list").filter(track => track["type"] === "audio")
-        header.subtitleTracks = getProperty("track-list").filter(track => track["type"] === "sub")
 
         mpv.pause = true
         position = loadTimePosition()
@@ -302,17 +286,10 @@ MpvObject {
     DropArea {
         id: dropArea
 
-        property var acceptedSubtitleTypes: ["application/x-subrip", "text/x-ssa"]
-
         anchors.fill: parent
         keys: ["text/uri-list"]
 
         onDropped: {
-            if (acceptedSubtitleTypes.includes(app.mimeType(drop.urls[0]))) {
-                const subFile = drop.urls[0].replace("file://", "")
-                command(["sub-add", drop.urls[0], "select"])
-            }
-
             if (app.mimeType(drop.urls[0]).startsWith("video/")) {
                 window.openFile(drop.urls[0], true, PlaylistSettings.loadSiblings)
             }

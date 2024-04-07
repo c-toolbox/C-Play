@@ -364,41 +364,7 @@ QtObject {
         }
     }
 
-    property Action seekNextSubtitleAction: Action {
-        id: seekNextSubtitleAction
-        property var qaction: app.action("seekNextSubtitle")
-        text: qaction.text
-        shortcut: qaction.shortcutName()
-        icon.name: qaction.iconName()
 
-        Component.onCompleted: list["seekNextSubtitleAction"] = seekNextSubtitleAction
-
-        onTriggered: {
-            if (mpv.getProperty("sid") !== false) {
-                mpv.command(["sub-seek", "1"])
-            } else {
-                seekForwardSmallAction.trigger()
-            }
-        }
-    }
-
-    property Action seekPrevSubtitleAction: Action {
-        id: seekPrevSubtitleAction
-        property var qaction: app.action("seekPreviousSubtitle")
-        text: qaction.text
-        shortcut: qaction.shortcutName()
-        icon.name: qaction.iconName()
-
-        Component.onCompleted: list["seekPrevSubtitleAction"] = seekPrevSubtitleAction
-
-        onTriggered: {
-             if (mpv.getProperty("sid") !== false) {
-                 mpv.command(["sub-seek", "-1"])
-             } else {
-                 seekBackwardSmallAction.trigger()
-             }
-         }
-    }
 
     property Action frameStepAction: Action {
         id: frameStepAction
@@ -523,53 +489,6 @@ QtObject {
         }
     }
 
-    property Action subtitleQuickenAction: Action {
-        id: subtitleQuickenAction
-        property var qaction: app.action("subtitleQuicken")
-        text: qaction.text
-        icon.name: qaction.iconName()
-        shortcut: qaction.shortcutName()
-
-        Component.onCompleted: list["subtitleQuickenAction"] = subtitleQuickenAction
-
-        onTriggered: {
-            mpv.setProperty("sub-delay", mpv.getProperty("sub-delay") - 0.1)
-            osd.message(`Subtitle timing: ${mpv.getProperty("sub-delay").toFixed(2)}`)
-        }
-    }
-
-    property Action subtitleDelayAction: Action {
-        id: subtitleDelayAction
-        property var qaction: app.action("subtitleDelay")
-        text: qaction.text
-        icon.name: qaction.iconName()
-        shortcut: qaction.shortcutName()
-
-        Component.onCompleted: list["subtitleDelayAction"] = subtitleDelayAction
-
-        onTriggered: {
-            mpv.setProperty("sub-delay", mpv.getProperty("sub-delay") + 0.1)
-            osd.message(`Subtitle timing: ${mpv.getProperty("sub-delay").toFixed(2)}`)
-        }
-    }
-
-    property Action subtitleToggleAction: Action {
-        id: subtitleToggleAction
-        property var qaction: app.action("subtitleToggle")
-        text: qaction.text
-        icon.name: qaction.iconName()
-        shortcut: qaction.shortcutName()
-
-        Component.onCompleted: list["subtitleToggleAction"] = subtitleToggleAction
-
-        onTriggered: {
-            const visible = mpv.getProperty("sub-visibility")
-            const message = visible ? "Subtitles off" : "Subtitles on"
-            mpv.setProperty("sub-visibility", !visible)
-            osd.message(message)
-        }
-    }
-
     property Action audioCycleUpAction: Action {
         id: audioCycleUpAction
         property var qaction: app.action("audioCycleUp")
@@ -628,53 +547,7 @@ QtObject {
         }
     }
 
-    property Action subtitleCycleUpAction: Action {
-        id: subtitleCycleUpAction
-        property var qaction: app.action("subtitleCycleUp")
-        text: qaction.text
-        icon.name: qaction.iconName()
-        shortcut: qaction.shortcutName()
 
-        Component.onCompleted: list["subtitleCycleUpAction"] = subtitleCycleUpAction
-
-        onTriggered: {
-            mpv.command(["cycle", "sid", "up"])
-            const currentTrackId = mpv.getProperty("sid")
-            let message;
-            if (currentTrackId === false) {
-                message = `Subtitle: None`
-            } else {
-                const tracks = mpv.getProperty("track-list")
-                const track = tracks.find(t => t.type === "sub" && t.id === currentTrackId)
-                message = `Subtitle: ${currentTrackId} (${track.lang})`
-            }
-            osd.message(message)
-        }
-    }
-
-    property Action subtitleCycleDownAction: Action {
-        id: subtitleCycleDownAction
-        property var qaction: app.action("subtitleCycleDown")
-        text: qaction.text
-        icon.name: qaction.iconName()
-        shortcut: qaction.shortcutName()
-
-        Component.onCompleted: list["subtitleCycleDownAction"] = subtitleCycleDownAction
-
-        onTriggered: {
-            mpv.command(["cycle", "sid", "down"])
-            const currentTrackId = mpv.getProperty("sid")
-            let message;
-            if (currentTrackId === false) {
-                message = `Subtitle: None`
-            } else {
-                const tracks = mpv.getProperty("track-list")
-                const track = tracks.find(t => t.type === "sub" && t.id === currentTrackId)
-                message = `Subtitle: ${currentTrackId} (${track.lang})`
-            }
-            osd.message(message)
-        }
-    }
 
     property Action contrastUpAction: Action {
         id: contrastUpAction
@@ -706,6 +579,7 @@ QtObject {
             osd.message(`Contrast: ${contrast}`)
         }
     }
+
     property Action contrastResetAction: Action {
         id: contrastResetAction
         property var qaction: app.action("contrastReset")
@@ -1043,64 +917,6 @@ QtObject {
                 footer.progressBar.loopIndicator.endPosition = -1
                 osd.message("Loop cleared")
             }
-        }
-    }
-
-    property Action increaseSubtitleFontSizeAction: Action {
-        id: increaseSubtitleFontSizeAction
-        property var qaction: app.action("increaseSubtitleFontSize")
-        text: qaction.text
-        icon.name: qaction.iconName()
-        shortcut: qaction.shortcutName()
-
-        Component.onCompleted: list["increaseSubtitleFontSizeAction"] = increaseSubtitleFontSizeAction
-
-        onTriggered: {
-            mpv.command(["add", "sub-scale", "+0.1"])
-            osd.message(qsTr("Subtitle scale: " + mpv.getProperty("sub-scale").toFixed(1)))
-        }
-    }
-
-    property Action decreaseSubtitleFontSizeAction: Action {
-        id: decreaseSubtitleFontSizeAction
-        property var qaction: app.action("decreaseSubtitleFontSize")
-        text: qaction.text
-        icon.name: qaction.iconName()
-        shortcut: qaction.shortcutName()
-
-        Component.onCompleted: list["decreaseSubtitleFontSizeAction"] = decreaseSubtitleFontSizeAction
-
-        onTriggered: {
-            mpv.command(["add", "sub-scale", "-0.1"])
-            osd.message(qsTr("Subtitle scale: " + mpv.getProperty("sub-scale").toFixed(1)))
-        }
-    }
-
-    property Action subtitlePositionUpAction: Action {
-        id: subtitlePositionUpAction
-        property var qaction: app.action("subtitlePositionUp")
-        text: qaction.text
-        icon.name: qaction.iconName()
-        shortcut: qaction.shortcutName()
-
-        Component.onCompleted: list["subtitlePositionUpAction"] = subtitlePositionUpAction
-
-        onTriggered: {
-            mpv.command(["add", "sub-pos", "-1"])
-        }
-    }
-
-    property Action subtitlePositionDownAction: Action {
-        id: subtitlePositionDownAction
-        property var qaction: app.action("subtitlePositionDown")
-        text: qaction.text
-        icon.name: qaction.iconName()
-        shortcut: qaction.shortcutName()
-
-        Component.onCompleted: list["subtitlePositionDownAction"] = subtitlePositionDownAction
-
-        onTriggered: {
-            mpv.command(["add", "sub-pos", "+1"])
         }
     }
 

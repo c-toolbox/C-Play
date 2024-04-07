@@ -18,7 +18,6 @@
         <file>qml/Menus/HelpMenu.qml</file>
         <file>qml/Menus/PlaybackMenu.qml</file>
         <file>qml/Menus/SettingsMenu.qml</file>
-        <file>qml/Menus/TrackMenuItems.qml</file>
         <file>qml/MpvVideo.qml</file>
         <file>qml/Osd.qml</file>
         <file>qml/PlayList.qml</file>
