@@ -642,12 +642,16 @@ void on_mpv_events(mpvData& vd)
                         }
                     }
                     else if (strcmp(prop->name, "time-pos") == 0) {
-                        if (prop->format == MPV_FORMAT_DOUBLE) {
-                            double latestPosition = *reinterpret_cast<double*>(prop->data);
-                            double timeToSet = SyncHelper::instance().variables.timePosition;
-                            if (SyncHelper::instance().variables.timeThreshold > 0 && (abs(latestPosition - timeToSet) > SyncHelper::instance().variables.timeThreshold))
-                            {
-                                mpv::qt::set_property_async(videoData.handle, "time-pos", timeToSet); 
+                        if (SyncHelper::instance().variables.timeThresholdEnabled) {
+                            if (!SyncHelper::instance().variables.timeThresholdOnLoopOnly || loopMode > 1) {
+                                if (prop->format == MPV_FORMAT_DOUBLE) {
+                                    double latestPosition = *reinterpret_cast<double*>(prop->data);
+                                    double timeToSet = SyncHelper::instance().variables.timePosition;
+                                    if (SyncHelper::instance().variables.timeThreshold > 0 && (abs(latestPosition - timeToSet) > SyncHelper::instance().variables.timeThreshold))
+                                    {
+                                        mpv::qt::set_property_async(videoData.handle, "time-pos", timeToSet);
+                                    }
+                                }
                             }
                         }
                     }
@@ -866,6 +870,8 @@ std::vector<std::byte> encode() {
         serializeObject(data, SyncHelper::instance().variables.paused);
         serializeObject(data, SyncHelper::instance().variables.timePosition);
         serializeObject(data, SyncHelper::instance().variables.timeThreshold);
+        serializeObject(data, SyncHelper::instance().variables.timeThresholdEnabled);
+        serializeObject(data, SyncHelper::instance().variables.timeThresholdOnLoopOnly);
         serializeObject(data, SyncHelper::instance().variables.timeDirty);
         serializeObject(data, SyncHelper::instance().variables.gridToMapOn);
         serializeObject(data, SyncHelper::instance().variables.gridToMapOnBg);
@@ -955,6 +961,8 @@ void decode(const std::vector<std::byte>& data) {
         deserializeObject(data, pos, SyncHelper::instance().variables.paused);
         deserializeObject(data, pos, SyncHelper::instance().variables.timePosition);
         deserializeObject(data, pos, SyncHelper::instance().variables.timeThreshold);
+        deserializeObject(data, pos, SyncHelper::instance().variables.timeThresholdEnabled);
+        deserializeObject(data, pos, SyncHelper::instance().variables.timeThresholdOnLoopOnly);
         deserializeObject(data, pos, SyncHelper::instance().variables.timeDirty);
         deserializeObject(data, pos, SyncHelper::instance().variables.gridToMapOn);
         deserializeObject(data, pos, SyncHelper::instance().variables.gridToMapOnBg);

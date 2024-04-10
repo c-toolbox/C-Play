@@ -295,6 +295,8 @@ void MpvObject::setPosition(double value)
     SyncHelper::instance().variables.timeDirty = true;
     m_lastSetPosition = value;
     SyncHelper::instance().variables.timeThreshold = double(PlaybackSettings::thresholdToSyncTimePosition())/1000.0;
+    SyncHelper::instance().variables.timeThresholdEnabled = PlaybackSettings::useThresholdToSyncTimePosition();
+    SyncHelper::instance().variables.timeThresholdOnLoopOnly = PlaybackSettings::applyThresholdSyncOnLoopOnly();
     if (value == position()) {
         return;
     }

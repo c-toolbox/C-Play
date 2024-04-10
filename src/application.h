@@ -103,6 +103,8 @@ public:
         bool paused;
         double timePosition;
         double timeThreshold;
+        bool timeThresholdEnabled;
+        bool timeThresholdOnLoopOnly;
         bool timeDirty;
         bool syncOn;
         float alpha;
@@ -164,6 +166,8 @@ public:
         /*paused*/false,
         /*timePosition*/0.0,
         /*timeThreshold*/1.0,
+        /*timeThresholdEnabled*/false,
+        /*timeThresholdOnLoopOnly*/false,
         /*timeDirty*/false,
         /*syncOn*/true,
         /*alpha*/1.f,

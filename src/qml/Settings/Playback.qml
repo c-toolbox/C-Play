@@ -143,6 +143,87 @@ SettingsBasePage {
             }
         }*/
 
+        CheckBox {
+            id: useThresholdToSyncTimePositionCheckbox
+            text: qsTr("Use functionality to sync time based on position threshold")
+            checked: PlaybackSettings.useThresholdToSyncTimePosition
+            onCheckedChanged: {
+                PlaybackSettings.useThresholdToSyncTimePosition = checked
+                PlaybackSettings.save()
+            }
+            Layout.columnSpan: 2
+            Layout.fillWidth: true
+        }
+
+        Label {
+            text: qsTr("Time position sync threshold:")
+        }
+
+        RowLayout {
+            SpinBox {
+                id: timeThresholdSaving
+                enabled: useThresholdToSyncTimePositionCheckbox.checked
+                from: 100
+                to: 5000
+                value: PlaybackSettings.thresholdToSyncTimePosition
+
+                onValueChanged: {
+                    PlaybackSettings.thresholdToSyncTimePosition = value
+                    PlaybackSettings.save()
+                }
+            }
+
+            LabelWithTooltip {
+                text: {
+                    qsTr("ms = Set time position if it is %1 seconds off from master").arg(Number((timeThresholdSaving.value*1.0)/1000.0).toFixed(3))
+                }
+                elide: Text.ElideRight
+                Layout.fillWidth: true
+            }
+        }
+
+        Item {
+            width: Kirigami.Units.gridUnit
+            height: Kirigami.Units.gridUnit
+        }
+        CheckBox {
+            id: applyThresholdSyncOnLoopOnlyCheckbox
+            text: qsTr("Apply sync threshold when looping only")
+            checked: PlaybackSettings.applyThresholdSyncOnLoopOnly
+            enabled: useThresholdToSyncTimePositionCheckbox.checked
+            onCheckedChanged: {
+                PlaybackSettings.applyThresholdSyncOnLoopOnly = checked
+                PlaybackSettings.save()
+            }
+            Layout.fillWidth: true
+        }
+
+        Label {
+            text: qsTr("Set fade duration:")
+        }
+
+        RowLayout {
+            SpinBox {
+                id: fadeDuration
+                from: 0
+                to: 20000
+                value: PlaybackSettings.fadeDuration
+
+                onValueChanged: {
+                    PlaybackSettings.fadeDuration = value
+                    PlaybackSettings.save()
+                }
+            }
+
+            LabelWithTooltip {
+                text: {
+                    qsTr("ms = Fades out/in %1 seconds in total when loading new content").arg(Number((timeSetInterval.value*1.0)/1000.0).toFixed(3))
+                }
+                elide: Text.ElideRight
+                Layout.fillWidth: true
+            }
+        }
+
         Label {
             text: qsTr("Remember time position:")
         }
@@ -171,58 +252,6 @@ SettingsBasePage {
                     } else {
                         return qsTr("For files longer than %1 minutes").arg(timePositionSaving.value)
                     }
-                }
-                elide: Text.ElideRight
-                Layout.fillWidth: true
-            }
-        }
-
-        Label {
-            text: qsTr("Time position sync threshold:")
-        }
-
-        RowLayout {
-            SpinBox {
-                id: timeThresholdSaving
-                from: 100
-                to: 5000
-                value: PlaybackSettings.thresholdToSyncTimePosition
-
-                onValueChanged: {
-                    PlaybackSettings.thresholdToSyncTimePosition = value
-                    PlaybackSettings.save()
-                }
-            }
-
-            LabelWithTooltip {
-                text: {
-                    qsTr("ms = Set time position if it is %1 seconds off from master").arg(Number((timeThresholdSaving.value*1.0)/1000.0).toFixed(3))
-                }
-                elide: Text.ElideRight
-                Layout.fillWidth: true
-            }
-        }
-
-        Label {
-            text: qsTr("Set fade duration:")
-        }
-
-        RowLayout {
-            SpinBox {
-                id: fadeDuration
-                from: 0
-                to: 20000
-                value: PlaybackSettings.fadeDuration
-
-                onValueChanged: {
-                    PlaybackSettings.fadeDuration = value
-                    PlaybackSettings.save()
-                }
-            }
-
-            LabelWithTooltip {
-                text: {
-                    qsTr("ms = Fades out/in %1 seconds in total when loading new content").arg(Number((timeSetInterval.value*1.0)/1000.0).toFixed(3))
                 }
                 elide: Text.ElideRight
                 Layout.fillWidth: true

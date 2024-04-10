@@ -13,10 +13,18 @@
     <entry name="MinDurationToSavePosition" type="int">
       <default>-1</default>
     </entry>
-	  <entry name="ThresholdToSyncTimePosition" type="int">
+	<entry name="UseThresholdToSyncTimePosition" type="bool">
+      <label>Use functionality to sync time based on position threshold</label>
+      <default>true</default>
+    </entry>
+    <entry name="ThresholdToSyncTimePosition" type="int">
       <default>200</default>
     </entry>
-	  <entry name="FadeDuration" type="int">
+	<entry name="ApplyThresholdSyncOnLoopOnly" type="bool">
+      <label>Sync time based on threshold for looping only</label>
+      <default>true</default>
+    </entry>
+	<entry name="FadeDuration" type="int">
       <default>2000</default>
     </entry>
     <entry name="PlaylistToLoadOnStartup" type="String">

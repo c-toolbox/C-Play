@@ -4,9 +4,9 @@ nav_order: 3
 parent: Setup C-Play
 ---
 
-## SGCT
+# Cluster configuration
 
-SGCT (Simple Graphics Cluster Toolkit) is the backend that handles communication between master and nodes in a cluster setup, and the setup of windows and viewports based on configuration files.
+The backend that enables management and cluster rendering is handled by a library called SGCT (Simple Graphics Cluster Toolkit). It handles communication between master and nodes in a cluster setup, as well as the setup of windows and viewports based on configuration files.
 The documentation can be found here:
 
  - [SGCT Docs](https://sgct.github.io)
@@ -53,3 +53,5 @@ This makes it possible to apply different calibrations for 3D vs 2D content, whi
     <PlanarProjection />
 </Viewport>
 ```
+
+Bare in mind, that you can also run a "active 3D" configuraton or any configuration when left and right eye has the same viewport parameters. In most cases this works correctly. Then C-Play will show 3D and 2D correctly without additional viewports, as this is built in in C-Play to adapt the rendering based on mono vs stereographic material.
