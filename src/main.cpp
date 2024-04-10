@@ -643,7 +643,7 @@ void on_mpv_events(mpvData& vd)
                     }
                     else if (strcmp(prop->name, "time-pos") == 0) {
                         if (SyncHelper::instance().variables.timeThresholdEnabled) {
-                            if (!SyncHelper::instance().variables.timeThresholdOnLoopOnly || loopMode > 1) {
+                            if (!SyncHelper::instance().variables.timeThresholdOnLoopOnly || loopMode > 1 || SyncHelper::instance().variables.loopTimeEnabled) {
                                 if (prop->format == MPV_FORMAT_DOUBLE) {
                                     double latestPosition = *reinterpret_cast<double*>(prop->data);
                                     double timeToSet = SyncHelper::instance().variables.timePosition;
