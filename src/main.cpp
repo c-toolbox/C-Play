@@ -106,8 +106,8 @@ struct mpvData {
 mpvData videoData;
 
 bool updateRendering = true;
-
 bool videoIsPaused = true;
+double videoDuration = 0.0;
 int loopMode = -1;
 bool fadeDurationOngoing = false;
 // video
@@ -641,12 +641,25 @@ void on_mpv_events(mpvData& vd)
                                 mpv::qt::set_property_async(vd.handle, "pause", SyncHelper::instance().variables.paused);
                         }
                     }
+                    else if (strcmp(prop->name, "duration") == 0) {
+                        if (prop->format == MPV_FORMAT_DOUBLE) {
+                            videoDuration = *reinterpret_cast<double*>(prop->data);
+                        }
+                    }
                     else if (strcmp(prop->name, "time-pos") == 0) {
                         if (SyncHelper::instance().variables.timeThresholdEnabled) {
-                            if (!SyncHelper::instance().variables.timeThresholdOnLoopOnly || loopMode > 1 || SyncHelper::instance().variables.loopTimeEnabled) {
+                            double timeToSet = SyncHelper::instance().variables.timePosition;
+                            //We do not want to "over-force" seeks, as this will slow down and might cause continued stutter.
+                            //Normally, playback is syncronized, however looping depends on seek speed.
+                            //Seek speeds (thus loop speed) is faster when no audio is present, thus nodes might be faster then master.
+                            //Hence, we might need to correct things after a loop, between master and nodes.
+                            if (!SyncHelper::instance().variables.timeThresholdOnLoopOnly 
+                                || (loopMode > 1 && timeToSet < SyncHelper::instance().variables.timeThresholdOnLoopCheckTime)
+                                || (loopMode > 1 && timeToSet > (videoDuration - SyncHelper::instance().variables.timeThresholdOnLoopCheckTime) && (videoDuration > 0))
+                                || (SyncHelper::instance().variables.loopTimeEnabled && timeToSet < (SyncHelper::instance().variables.loopTimeA + SyncHelper::instance().variables.timeThresholdOnLoopCheckTime))
+                                || (SyncHelper::instance().variables.loopTimeEnabled && SyncHelper::instance().variables.loopTimeB < (timeToSet + SyncHelper::instance().variables.timeThresholdOnLoopCheckTime))) {
                                 if (prop->format == MPV_FORMAT_DOUBLE) {
                                     double latestPosition = *reinterpret_cast<double*>(prop->data);
-                                    double timeToSet = SyncHelper::instance().variables.timePosition;
                                     if (SyncHelper::instance().variables.timeThreshold > 0 && (abs(latestPosition - timeToSet) > SyncHelper::instance().variables.timeThreshold))
                                     {
                                         mpv::qt::set_property_async(videoData.handle, "time-pos", timeToSet);
@@ -762,6 +775,7 @@ else{
     mpv_observe_property(videoData.handle, 0, "video-params", MPV_FORMAT_NODE);
     mpv_observe_property(videoData.handle, 0, "pause", MPV_FORMAT_FLAG);
     mpv_observe_property(videoData.handle, 0, "time-pos", MPV_FORMAT_DOUBLE);
+    mpv_observe_property(videoData.handle, 0, "duration", MPV_FORMAT_DOUBLE);
 #endif
 
     // Setup OpenGL MPV settings

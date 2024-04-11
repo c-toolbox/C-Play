@@ -198,6 +198,33 @@ SettingsBasePage {
             Layout.fillWidth: true
         }
 
+        Item {
+            width: Kirigami.Units.gridUnit
+            height: Kirigami.Units.gridUnit
+        }
+        RowLayout {
+            SpinBox {
+                id: timeCheckThresholdOnLoopBox
+                enabled: applyThresholdSyncOnLoopOnlyCheckbox.checked && applyThresholdSyncOnLoopOnlyCheckbox.enabled
+                from: 0
+                to: 20000
+                value: PlaybackSettings.timeToCheckThresholdSyncAfterLoop
+
+                onValueChanged: {
+                    PlaybackSettings.timeToCheckThresholdSyncAfterLoop = value
+                    PlaybackSettings.save()
+                }
+            }
+
+            LabelWithTooltip {
+                text: {
+                    qsTr("ms = Stops checking threshold sync %1 seconds after loop").arg(Number((timeCheckThresholdOnLoopBox.value*1.0)/1000.0).toFixed(3))
+                }
+                elide: Text.ElideRight
+                Layout.fillWidth: true
+            }
+        }
+
         Label {
             text: qsTr("Set fade duration:")
         }
@@ -217,7 +244,7 @@ SettingsBasePage {
 
             LabelWithTooltip {
                 text: {
-                    qsTr("ms = Fades out/in %1 seconds in total when loading new content").arg(Number((timeSetInterval.value*1.0)/1000.0).toFixed(3))
+                    qsTr("ms = Fades out/in %1 seconds in total when loading new content").arg(Number((fadeDuration.value*1.0)/1000.0).toFixed(3))
                 }
                 elide: Text.ElideRight
                 Layout.fillWidth: true
