@@ -29,6 +29,11 @@ To easier understand these commands, feel free to utilize a sample Medialon Mana
     Params:   Optional to supply "format=hh:mm:ss/zz", or similiar to get a format time string. Or supply "set=" to actually set a time position.
     Returns:  The time (in seconds) or as formatted time string.
 
+    Endpoint: /seek
+    Purpose:  Seek relative time, backward or forward
+    Params:   Required to supply "time=value", where value is in seconds. A negative integer is for backward seek and positive integer for forward seek. Optional to supply "format=hh:mm:ss/zz", or similiar to get a format time string.
+    Returns:  The time (in seconds) or as formatted time string.
+
     Endpoint: /remaining
     Purpose:  Which remaining time the current media has.
     Params:   Optional to supply "format=hh:mm:ss/zz", or similiar to get a format time string.

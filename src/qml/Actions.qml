@@ -266,7 +266,7 @@ QtObject {
 
         Component.onCompleted: list["seekForwardSmallAction"] = seekForwardSmallAction
 
-        onTriggered: mpv.command(["seek", GeneralSettings.seekSmallStep, "exact"])
+        onTriggered: mpv.seek(GeneralSettings.seekSmallStep)
     }
 
     property Action seekBackwardSmallAction: Action {
@@ -278,7 +278,7 @@ QtObject {
 
         Component.onCompleted: list["seekBackwardSmallAction"] = seekBackwardSmallAction
 
-        onTriggered: mpv.command(["seek", -GeneralSettings.seekSmallStep, "exact"])
+        onTriggered: mpv.seek(-GeneralSettings.seekSmallStep)
     }
 
     property Action seekForwardMediumAction: Action {
@@ -290,7 +290,7 @@ QtObject {
 
         Component.onCompleted: list["seekForwardMediumAction"] = seekForwardMediumAction
 
-        onTriggered: mpv.command(["seek", GeneralSettings.seekMediumStep, "exact"])
+        onTriggered: mpv.seek(GeneralSettings.seekMediumStep)
     }
 
     property Action seekBackwardMediumAction: Action {
@@ -302,7 +302,7 @@ QtObject {
 
         Component.onCompleted: list["seekBackwardMediumAction"] = seekBackwardMediumAction
 
-        onTriggered: mpv.command(["seek", -GeneralSettings.seekMediumStep, "exact"])
+        onTriggered: mpv.seek(-GeneralSettings.seekMediumStep)
     }
 
     property Action seekForwardBigAction: Action {
@@ -314,7 +314,7 @@ QtObject {
 
         Component.onCompleted: list["seekForwardBigAction"] = seekForwardBigAction
 
-        onTriggered: mpv.command(["seek", GeneralSettings.seekBigStep, "exact"])
+        onTriggered: mpv.seek(GeneralSettings.seekBigStep)
     }
 
     property Action seekBackwardBigAction: Action {
@@ -326,113 +326,7 @@ QtObject {
 
         Component.onCompleted: list["seekBackwardBigAction"] = seekBackwardBigAction
 
-        onTriggered: mpv.command(["seek", -GeneralSettings.seekBigStep, "exact"])
-    }
-
-    property Action seekPreviousChapterAction: Action {
-        id: seekPreviousChapterAction
-        property var qaction: app.action("seekPreviousChapter")
-        text: qaction.text
-        shortcut: qaction.shortcutName()
-        icon.name: qaction.iconName()
-
-        Component.onCompleted: list["seekPreviousChapterAction"] = seekPreviousChapterAction
-
-        onTriggered: {
-            mpv.command(["add", "chapter", "-1"])
-        }
-    }
-
-    property Action seekNextChapterAction: Action {
-        id: seekNextChapterAction
-        property var qaction: app.action("seekNextChapter")
-        text: qaction.text
-        shortcut: qaction.shortcutName()
-        icon.name: qaction.iconName()
-
-        Component.onCompleted: list["seekNextChapterAction"] = seekNextChapterAction
-
-        onTriggered: {
-            const chapters = mpv.getProperty("chapter-list")
-            const currentChapter = mpv.getProperty("chapter")
-            const nextChapter = currentChapter + 1
-            if (nextChapter === chapters.length) {
-                playNextAction.trigger()
-                return
-            }
-            mpv.command(["add", "chapter", "1"])
-        }
-    }
-
-
-
-    property Action frameStepAction: Action {
-        id: frameStepAction
-        property var qaction: app.action("frameStep")
-        text: qaction.text
-        shortcut: qaction.shortcutName()
-        icon.name: qaction.iconName()
-
-        Component.onCompleted: list["frameStepAction"] = frameStepAction
-
-        onTriggered: mpv.command(["frame-step"])
-    }
-
-    property Action frameBackStepAction: Action {
-        id: frameBackStepAction
-        property var qaction: app.action("frameBackStep")
-        text: qaction.text
-        shortcut: qaction.shortcutName()
-        icon.name: qaction.iconName()
-
-        Component.onCompleted: list["frameBackStepAction"] = frameBackStepAction
-
-        onTriggered: mpv.command(["frame-back-step"])
-    }
-
-    property Action increasePlayBackSpeedAction: Action {
-        id: increasePlayBackSpeedAction
-        property var qaction: app.action("increasePlayBackSpeed")
-        text: qaction.text
-        shortcut: qaction.shortcutName()
-        icon.name: qaction.iconName()
-
-        Component.onCompleted: list["increasePlayBackSpeedAction"] = increasePlayBackSpeedAction
-
-        onTriggered: {
-            mpv.command(["add", "speed", "0.1"])
-            osd.message(`Speed: ${mpv.getProperty("speed").toFixed(2)}`)
-        }
-    }
-
-    property Action decreasePlayBackSpeedAction: Action {
-        id: decreasePlayBackSpeedAction
-        property var qaction: app.action("decreasePlayBackSpeed")
-        text: qaction.text
-        shortcut: qaction.shortcutName()
-        icon.name: qaction.iconName()
-
-        Component.onCompleted: list["decreasePlayBackSpeedAction"] = decreasePlayBackSpeedAction
-
-        onTriggered: {
-            mpv.command(["add", "speed", "-0.1"])
-            osd.message(`Speed: ${mpv.getProperty("speed").toFixed(2)}`)
-        }
-    }
-
-    property Action resetPlayBackSpeedAction: Action {
-        id: resetPlayBackSpeedAction
-        property var qaction: app.action("resetPlayBackSpeed")
-        text: qaction.text
-        shortcut: qaction.shortcutName()
-        icon.name: qaction.iconName()
-
-        Component.onCompleted: list["resetPlayBackSpeedAction"] = resetPlayBackSpeedAction
-
-        onTriggered: {
-            mpv.setProperty("speed", 1.0)
-            osd.message(`Speed: ${mpv.getProperty("speed").toFixed(2)}`)
-         }
+        onTriggered: mpv.seek(-GeneralSettings.seekBigStep)
     }
 
     property Action playPauseAction: Action {

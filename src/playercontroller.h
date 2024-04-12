@@ -27,8 +27,8 @@ public Q_SLOTS:
     void Stop();
     void Play();
     void Rewind();
+    void Seek(int timeInSec);
     void SetAutoPlay(bool value);
-    void Seek(qlonglong offset);
     void SetPosition(double pos);
     void LoadFromAudioTracks(int idx);
     void LoadFromPlaylist(int idx);

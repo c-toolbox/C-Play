@@ -367,6 +367,11 @@ void MpvObject::performRewind() {
     emit rewind();
 }
 
+void MpvObject::seek(int timeInSec) {
+    command(QStringList() << "seek" << QString::number(timeInSec) << "exact");
+    SyncHelper::instance().variables.timeDirty = true;
+}
+
 int MpvObject::volume()
 {
     return getProperty("volume").toInt();

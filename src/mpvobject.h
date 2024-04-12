@@ -373,6 +373,7 @@ public:
     Q_INVOKABLE void clearRecentMediaFilelist();
     Q_INVOKABLE void clearRecentPlaylist();
     Q_INVOKABLE void performRewind();
+    Q_INVOKABLE void seek(int timeInSec);
 
 public slots:
     static void mpvEvents(void *ctx);

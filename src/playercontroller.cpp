@@ -53,6 +53,7 @@ void PlayerController::setupHttpServer()
     connect(httpServer, &HttpServerThread::pauseMedia, this, &PlayerController::Pause);
     connect(httpServer, &HttpServerThread::playMedia, this, &PlayerController::Play);
     connect(httpServer, &HttpServerThread::rewindMedia, this, &PlayerController::Rewind);
+    connect(httpServer, &HttpServerThread::seekInMedia, this, &PlayerController::Seek);
     connect(httpServer, &HttpServerThread::setAutoPlay, this, &PlayerController::SetAutoPlay);
     connect(httpServer, &HttpServerThread::setPosition, this, &PlayerController::SetPosition);
     connect(httpServer, &HttpServerThread::setVolume, this, &PlayerController::SetVolume);
@@ -116,16 +117,18 @@ void PlayerController::Rewind()
     }
 }
 
+void PlayerController::Seek(int timeInSec)
+{
+    if (m_mpv) {
+        m_mpv->seek(timeInSec);
+    }
+}
+
 void PlayerController::SetAutoPlay(bool value)
 {
     if (m_mpv) {
         m_mpv->setAutoPlay(value);
     }
-}
-
-void PlayerController::Seek(qlonglong offset)
-{
-    Q_EMIT seek(offset/1000/1000);
 }
 
 void PlayerController::LoadFromAudioTracks(int idx)

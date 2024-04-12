@@ -85,6 +85,78 @@ void HttpServerThread::setupHttpServer()
             res.set_content("Rewind", "text/plain");
         });
 
+        svr.Post("/position", [this](const httplib::Request& req, httplib::Response& res) {
+            if (req.has_param("set")) {
+                setPositionFromStr(req.get_param_value("set"));
+            }
+
+            if (m_mpv) {
+                if (req.has_param("format")) {
+                    res.set_content(formatTime(m_mpv->position(), req.get_param_value("format")), "text/plain");
+                }
+                else {
+                    res.set_content(std::to_string(m_mpv->position()), "text/plain");
+                }
+            }
+            else {
+                res.set_content("0", "text/plain");
+            }
+        });
+
+        svr.Post("/seek", [this](const httplib::Request& req, httplib::Response& res) {
+            if (req.has_param("time")) {
+                int timeInSec = 0;
+                if (stringToInt(req.get_param_value("time"), timeInSec)) {
+                    Q_EMIT seekInMedia(timeInSec);
+                    if (m_mpv) {
+                        if (req.has_param("format")) {
+                            res.set_content(formatTime(m_mpv->position()+timeInSec, req.get_param_value("format")), "text/plain");
+                        }
+                        else {
+                            res.set_content(std::to_string(m_mpv->position()+timeInSec), "text/plain");
+                        }
+                    }
+                    else {
+                        res.set_content("Seeking " + req.get_param_value("time") + " s", "text / plain");
+                    }
+                }
+                else {
+                    res.set_content("Supply parameter time with a positive or negative value (in seconds)", "text/plain");
+                }
+            }
+            else {
+                res.set_content("Supply parameter time with a positive or negative value (in seconds)", "text/plain");
+            }
+        });
+
+        svr.Post("/remaining", [this](const httplib::Request& req, httplib::Response& res) {
+            if (m_mpv) {
+                if (req.has_param("format")) {
+                    res.set_content(formatTime(m_mpv->remaining(), req.get_param_value("format")), "text/plain");
+                }
+                else {
+                    res.set_content(std::to_string(m_mpv->remaining()), "text/plain");
+                }
+            }
+            else {
+                res.set_content("0", "text/plain");
+            }
+        });
+
+        svr.Post("/duration", [this](const httplib::Request& req, httplib::Response& res) {
+            if (m_mpv) {
+                if (req.has_param("format")) {
+                    res.set_content(formatTime(m_mpv->duration(), req.get_param_value("format")), "text/plain");
+                }
+                else {
+                    res.set_content(std::to_string(m_mpv->duration()), "text/plain");
+                }
+            }
+            else {
+                res.set_content("0", "text/plain");
+            }
+        });
+
         svr.Post("/auto_play", [this](const httplib::Request& req, httplib::Response& res) {
             if (req.has_param("on")) {
                 int value = -1;
@@ -347,52 +419,6 @@ void HttpServerThread::setupHttpServer()
             }
             else {
                 res.set_content("", "text/plain");
-            }
-        });
-
-        svr.Post("/position", [this](const httplib::Request& req, httplib::Response& res) {
-            if (req.has_param("set")) {
-                setPositionFromStr(req.get_param_value("set"));
-            }
-            
-            if (m_mpv) {
-                if (req.has_param("format")) {
-                    res.set_content(formatTime(m_mpv->position(), req.get_param_value("format")), "text/plain");
-                }
-                else {
-                    res.set_content(std::to_string(m_mpv->position()), "text/plain");
-                }
-            }
-            else {
-                res.set_content("0", "text/plain");
-            }
-        });
-
-        svr.Post("/remaining", [this](const httplib::Request& req, httplib::Response& res) {
-            if (m_mpv) {
-                if (req.has_param("format")) {
-                    res.set_content(formatTime(m_mpv->remaining(), req.get_param_value("format")), "text/plain");
-                }
-                else {
-                    res.set_content(std::to_string(m_mpv->remaining()), "text/plain");
-                }
-            }
-            else {
-                res.set_content("0", "text/plain");
-            }
-        });
-
-        svr.Post("/duration", [this](const httplib::Request& req, httplib::Response& res) {
-            if (m_mpv) {
-                if (req.has_param("format")) {
-                    res.set_content(formatTime(m_mpv->duration(), req.get_param_value("format")), "text/plain");
-                }
-                else {
-                    res.set_content(std::to_string(m_mpv->duration()), "text/plain");
-                }
-            }
-            else {
-                res.set_content("0", "text/plain");
             }
         });
 

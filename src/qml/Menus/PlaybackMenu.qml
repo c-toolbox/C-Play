@@ -18,10 +18,6 @@ Menu {
 
     MenuSeparator {}
 
-    MenuItem { action: actions["increasePlayBackSpeedAction"] }
-    MenuItem { action: actions["decreasePlayBackSpeedAction"] }
-    MenuItem { action: actions["resetPlayBackSpeedAction"] }
-
     MenuSeparator {}
 
     Menu {
@@ -38,15 +34,5 @@ Menu {
 
         MenuItem { action: actions["seekForwardBigAction"] }
         MenuItem { action: actions["seekBackwardBigAction"] }
-
-        MenuSeparator {}
-
-        MenuItem { action: actions["seekPreviousChapterAction"] }
-        MenuItem { action: actions["seekNextChapterAction"] }
-
-        MenuSeparator {}
-
-        MenuItem { action: actions["frameStepAction"] }
-        MenuItem { action: actions["frameBackStepAction"] }
     }
 }

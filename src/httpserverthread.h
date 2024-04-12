@@ -27,8 +27,9 @@ Q_SIGNALS:
     void pauseMedia();
     void playMedia();
     void rewindMedia();
-    void setAutoPlay(bool value);
     void setPosition(double position);
+    void seekInMedia(int timeInSec);
+    void setAutoPlay(bool value);
     void setVolume(int level);
     void setViewMode(int mode);
     void setSyncImageVideoFading(bool sync);
