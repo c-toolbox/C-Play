@@ -150,7 +150,12 @@ void PlaySectionsModel::setCurrentEditItem(PlayListItem* item)
 {
     m_playingSection = -1;
     beginResetModel();
-    m_currentEditItem = item;
+    if (!m_currentEditItem) {
+        m_currentEditItem = new PlayListItem(item->data());
+    }
+    else {
+        m_currentEditItem->setData(item->data());
+    }
     emit currentEditItemChanged();
     endResetModel();
 }

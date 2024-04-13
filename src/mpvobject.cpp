@@ -368,6 +368,7 @@ void MpvObject::performRewind() {
 }
 
 void MpvObject::seek(int timeInSec) {
+    setPause(true);
     command(QStringList() << "seek" << QString::number(timeInSec) << "exact");
     SyncHelper::instance().variables.timeDirty = true;
 }
@@ -930,24 +931,16 @@ void MpvObject::setLoadedAsCurrentEditItem() {
         return;
 
     m_currentSectionsIndex = -1;
-    PlayListItem* currentItem;
-    if (!m_playSectionsModel->currentEditItem()) {
-        currentItem = new PlayListItem(m_loadedFileStructure);
-    }
-    else{
-        currentItem = m_playSectionsModel->currentEditItem();
-        currentItem->updateToNewFile(m_loadedFileStructure);
-    }
-
-    currentItem->setMediaFile(QString::fromStdString(SyncHelper::instance().variables.loadedFile));
-    currentItem->setSeparateOverlayFile(QString::fromStdString(SyncHelper::instance().variables.overlayFile));
-    currentItem->setSeparateAudioFile(separateAudioFile());
-    currentItem->setMediaTitle(mediaTitle());
-    currentItem->setDuration(duration());
-    currentItem->setGridToMapOn(gridToMapOn());
-    currentItem->setStereoVideo(stereoscopicMode());
-    currentItem->setLoopMode(loopMode());
-    m_playSectionsModel->setCurrentEditItem(currentItem);
+    PlayListItem* newCurrentItem = new PlayListItem(m_loadedFileStructure);
+    newCurrentItem->setMediaFile(QString::fromStdString(SyncHelper::instance().variables.loadedFile));
+    newCurrentItem->setSeparateOverlayFile(QString::fromStdString(SyncHelper::instance().variables.overlayFile));
+    newCurrentItem->setSeparateAudioFile(separateAudioFile());
+    newCurrentItem->setMediaTitle(mediaTitle());
+    newCurrentItem->setDuration(duration());
+    newCurrentItem->setGridToMapOn(gridToMapOn());
+    newCurrentItem->setStereoVideo(stereoscopicMode());
+    newCurrentItem->setLoopMode(loopMode());
+    m_playSectionsModel->setCurrentEditItem(newCurrentItem);
 }
 
 void MpvObject::setCurrentEditItemFromPlaylist(int playListIndex) {
@@ -957,15 +950,7 @@ void MpvObject::setCurrentEditItemFromPlaylist(int playListIndex) {
 
     m_currentSectionsIndex = -1;
     PlayListItem* playItem = m_playlistModel->getItem(playListIndex);
-    PlayListItem* currentItem;
-    if (!m_playSectionsModel->currentEditItem()) {
-        currentItem = new PlayListItem(playItem->data());
-    }
-    else {
-        currentItem = m_playSectionsModel->currentEditItem();
-        currentItem->setData(playItem->data());
-    }
-    m_playSectionsModel->setCurrentEditItem(currentItem);
+    m_playSectionsModel->setCurrentEditItem(playItem);
 }
 
 void MpvObject::loadSection(int playSectionsIndex) {

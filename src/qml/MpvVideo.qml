@@ -71,13 +71,6 @@ MpvObject {
         }
     }
 
-    onYoutubePlaylistLoaded: {
-        mpv.command(["loadfile", playlistModel.getPath(GeneralSettings.lastPlaylistIndex)])
-        playlistModel.setPlayingVideo(GeneralSettings.lastPlaylistIndex)
-
-        playList.setPlayListScrollPosition()
-    }
-
     onPlaylistModelChanged: {
         if (playList.playlistView.count > 0 && playList.state === "hidden") {
             actions.togglePlaylistAction.trigger()
@@ -193,10 +186,8 @@ MpvObject {
     onPauseChanged: {
         if (pause) {
             footer.playPauseButton.icon.name = "media-playback-start"
-            lockManager.setInhibitionOff()
         } else {
             footer.playPauseButton.icon.name = "media-playback-pause"
-            lockManager.setInhibitionOn()
         }
     }
 
