@@ -83,6 +83,12 @@ class PlayListModel : public QAbstractListModel
                WRITE setPlayingVideo
                NOTIFY playingVideoChanged)
 
+    Q_PROPERTY(bool playListIsEdited
+            MEMBER m_playListEdited
+            READ getPlayListIsEdited
+            WRITE setPlayListIsEdited
+            NOTIFY playListIsEditedChanged)
+
 public:
     explicit PlayListModel(QObject *parent = nullptr);
 
@@ -121,7 +127,8 @@ public:
     Q_INVOKABLE void moveItemUp(int i);
     Q_INVOKABLE void moveItemDown(int i);
     Q_INVOKABLE void updateItem(int i);
-
+    Q_INVOKABLE void setPlayListIsEdited(bool value);
+    Q_INVOKABLE bool getPlayListIsEdited();
     Q_INVOKABLE void setPlayingVideo(int playingVideo);
     Q_INVOKABLE int getPlayingVideo() const;
     Q_INVOKABLE void getVideos(QString path);
@@ -147,6 +154,7 @@ public:
 signals:
     void videoAdded(int index, QString path);
     void playingVideoChanged();
+    void playListIsEditedChanged();
 
 private:
     Playlist items() const;
@@ -156,6 +164,7 @@ private:
     QString m_playListPath;
     int m_playingVideo = -1;
     int m_defaultLoopMode = 2; // Looping
+    bool m_playListEdited = false;
     KSharedConfig::Ptr m_config;
 };
 

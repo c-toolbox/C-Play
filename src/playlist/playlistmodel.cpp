@@ -452,6 +452,7 @@ void PlayListModel::setPlayList(const Playlist &playList)
     beginInsertRows(QModelIndex(), 0, playList.size() - 1);
     m_playList = playList;
     endInsertRows();
+    setPlayListIsEdited(false);
 }
 
 std::string PlayListModel::getListAsFormattedString(int charsPerItem) const 
@@ -540,6 +541,7 @@ void PlayListModel::addItem(PlayListItem* item)
     beginInsertRows(QModelIndex(), m_playList.size(), m_playList.size());
     m_playList.append(QPointer<PlayListItem>(item));
     endInsertRows();
+    setPlayListIsEdited(true);
 }
 
 QPointer<PlayListItem> PlayListModel::getItem(int i)
@@ -559,6 +561,7 @@ void PlayListModel::removeItem(int i) {
     else if (m_playingVideo > i)
         m_playingVideo -= 1;
     endRemoveRows();
+    setPlayListIsEdited(true);
 }
 
 void PlayListModel::moveItemUp(int i) {
@@ -570,6 +573,7 @@ void PlayListModel::moveItemUp(int i) {
     else if (m_playingVideo == i-1)
         m_playingVideo = i;
     endMoveRows();
+    setPlayListIsEdited(true);
 }
 
 void PlayListModel::moveItemDown(int i) {
@@ -581,10 +585,21 @@ void PlayListModel::moveItemDown(int i) {
     else if (m_playingVideo == i-1)
         m_playingVideo = i;
     endMoveRows();
+    setPlayListIsEdited(true);
 }
 
 void PlayListModel::updateItem(int i) {
     emit dataChanged(index(i, 0), index(i, 0));
+    setPlayListIsEdited(true);
+}
+
+void PlayListModel::setPlayListIsEdited(bool value) {
+    m_playListEdited = value;
+    emit playListIsEditedChanged();
+}
+
+bool PlayListModel::getPlayListIsEdited() {
+    return m_playListEdited;
 }
 
 void PlayListModel::setPlayingVideo(int playingVideo)
@@ -811,4 +826,6 @@ void PlayListModel::saveAsJSONPlaylist(const QString& path) {
 
     QFileInfo fileInfo(jsonFile);
     setPlayListName(fileInfo.baseName());
+
+    setPlayListIsEdited(false);
 }

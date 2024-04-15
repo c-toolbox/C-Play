@@ -163,6 +163,7 @@ Rectangle {
             }
             Button {
                 icon.name: "system-save-session"
+                icon.color: mpv.playlistModel.playListIsEdited ? "orange" : "lime"
                 onClicked: {
                     saveCPlayPlaylistDialog.open()
                 }
@@ -172,6 +173,7 @@ Rectangle {
             }
             Button {
                 icon.name: "trash-empty"
+                icon.color: "crimson"
                 onClicked: {
                     clearPlaylistDialog.open()
                 }
