@@ -13,8 +13,8 @@ Image {
 
     width: parent.width
     height: window.isFullScreen() ? parent.height : parent.height - footer.height
-    anchors.left: PlaylistSettings.position === "left" ? playSections.right : parent.left
-    anchors.right: PlaylistSettings.position === "right" ? playList.left : parent.right
+    anchors.left: PlaylistSettings.position === "left" ? (playSections.visible ? playSections.right : playList.right) : parent.left
+    anchors.right: PlaylistSettings.position === "right" ? (playList.visible ? playList.left : playSections.left) : parent.right
     anchors.top: parent.top
 
     source: playerController.backgroundImageFileUrl()
