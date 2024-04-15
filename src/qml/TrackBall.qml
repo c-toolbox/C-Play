@@ -1,3 +1,10 @@
+/*
+ * SPDX-FileCopyrightText:
+ * 2021-2024 Erik Sundén <eriksunden85@gmail.com>
+ *
+ * SPDX-License-Identifier: GPL-3.0-or-later
+ */
+
 import Qt3D.Core 2.15
 import Qt3D.Render 2.15
 import Qt3D.Input 2.15

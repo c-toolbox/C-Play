@@ -1,3 +1,10 @@
+/*
+ * SPDX-FileCopyrightText:
+ * 2021-2024 Erik Sundén <eriksunden85@gmail.com>
+ *
+ * SPDX-License-Identifier: GPL-3.0-or-later
+ */
+
 import QtQuick 2.12
 import org.ctoolbox.cplay 1.0
 
