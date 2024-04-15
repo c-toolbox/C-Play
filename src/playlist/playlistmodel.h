@@ -51,6 +51,7 @@ public:
 
     PlayListItem* currentEditItem();
     void setCurrentEditItem(PlayListItem* item);
+    void updateCurrentEditItem(PlayListItem& item);
 
     Q_INVOKABLE void addSection(QString name, QString startTime, QString endTime, int eosMode);
     Q_INVOKABLE void removeSection(int i);
@@ -132,12 +133,13 @@ public:
     Q_INVOKABLE QString mediaTitle(int i) const;
     Q_INVOKABLE QString duration(int i) const;
     Q_INVOKABLE QString separateAudioFile(int i) const;
+    Q_INVOKABLE QString separateOverlayFile(int i) const;
     Q_INVOKABLE int loopMode(int i) const;
     Q_INVOKABLE void setLoopMode(int i, int loopMode);
     Q_INVOKABLE int transitionMode(int i) const;
     Q_INVOKABLE int gridToMapOn(int i) const;
     Q_INVOKABLE int stereoVideo(int i) const;
-
+    Q_INVOKABLE int numberOfSections(int i) const;
     Q_INVOKABLE QString makePathRelativeTo(const QString& filePath, const QStringList& pathsToConsider);
     Q_INVOKABLE void asJSON(QJsonObject& obj);
     Q_INVOKABLE void saveAsJSONPlaylist(const QString& path);

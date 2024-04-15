@@ -357,7 +357,6 @@ public:
     Q_INVOKABLE void addFileToPlaylist(const QString& file);
     Q_INVOKABLE void clearPlaylist();
     Q_INVOKABLE void setLoadedAsCurrentEditItem();
-    Q_INVOKABLE void setCurrentEditItemFromPlaylist(int playListIndex);
     Q_INVOKABLE void loadSection(int playSectionsIndex);
     Q_INVOKABLE void loadItem(int playListIndex, bool updateLastPlayedFile = true);
     Q_INVOKABLE QUrl getOverlayFileUrl() const;

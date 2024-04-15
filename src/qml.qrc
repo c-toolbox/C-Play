@@ -1,15 +1,11 @@
 <RCC>
     <qresource prefix="/">
-        <file>qml/Actions.qml</file>
-        <file>qml/Footer.qml</file>
-        <file>qml/HProgressBar.qml</file>
         <file>qml/Haruna/Components/ImageAdjustmentSlider.qml</file>
         <file>qml/Haruna/Components/LabelWithTooltip.qml</file>
         <file>qml/Haruna/Components/SelectActionPopup.qml</file>
         <file>qml/Haruna/Components/SettingsBasePage.qml</file>
         <file>qml/Haruna/Components/SettingsHeader.qml</file>
         <file>qml/Haruna/Components/qmldir</file>
-        <file>qml/Header.qml</file>
         <file>qml/Images/earthmap2k.jpg</file>
         <file>qml/Images/earthnormal2k.jpg</file>
         <file>qml/Images/earthspec2k.jpg</file>
@@ -18,19 +14,22 @@
         <file>qml/Menus/HelpMenu.qml</file>
         <file>qml/Menus/PlaybackMenu.qml</file>
         <file>qml/Menus/SettingsMenu.qml</file>
-        <file>qml/MpvVideo.qml</file>
-        <file>qml/Osd.qml</file>
-        <file>qml/PlayList.qml</file>
-        <file>qml/PlayListItemCompact.qml</file>
         <file alias="Audio.qml">qml/Settings/Audio.qml</file>
         <file alias="General.qml">qml/Settings/General.qml</file>
         <file alias="Mouse.qml">qml/Settings/Mouse.qml</file>
         <file alias="Navigation.qml">qml/Settings/Navigation.qml</file>
         <file alias="Playback.qml">qml/Settings/Playback.qml</file>
         <file alias="Playlist.qml">qml/Settings/Playlist.qml</file>
-        <file>qml/Settings/SaveAsCPlayFile.qml</file>
-        <file>qml/Settings/SettingsEditor.qml</file>
         <file alias="VideoSettings.qml">qml/Settings/VideoSettings.qml</file>
+		<file>qml/Settings/SettingsEditor.qml</file>
+		<file>qml/Actions.qml</file>
+        <file>qml/Footer.qml</file>
+        <file>qml/HProgressBar.qml</file>
+		<file>qml/Header.qml</file>
+        <file>qml/MpvVideo.qml</file>
+        <file>qml/Osd.qml</file>
+        <file>qml/PlayList.qml</file>
+        <file>qml/PlayListItemCompact.qml</file>
         <file>qml/TrackBall.qml</file>
         <file>qml/VolumeSlider.qml</file>
         <file>qml/main.qml</file>
@@ -40,5 +39,7 @@
         <file>qml/Presentation.qml</file>
         <file>qml/BackgroundImage.qml</file>
 		<file>qml/ForegroundImage.qml</file>
+		<file>qml/SaveAsCPlayFile.qml</file>
+		<file>qml/ViewPlaylistItem.qml</file>
     </qresource>
 </RCC>

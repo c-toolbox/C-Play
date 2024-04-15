@@ -133,6 +133,7 @@ void PlaySectionsModel::clear()
 {
     m_playingSection = -1;
     beginResetModel();
+    delete m_currentEditItem;
     m_currentEditItem = nullptr;
     endResetModel();
 }
@@ -150,11 +151,20 @@ void PlaySectionsModel::setCurrentEditItem(PlayListItem* item)
 {
     m_playingSection = -1;
     beginResetModel();
+    m_currentEditItem = item;
+    emit currentEditItemChanged();
+    endResetModel();
+}
+
+void PlaySectionsModel::updateCurrentEditItem(PlayListItem& item)
+{
+    m_playingSection = -1;
+    beginResetModel();
     if (!m_currentEditItem) {
-        m_currentEditItem = new PlayListItem(item->data());
+        m_currentEditItem = new PlayListItem(item.data());
     }
     else {
-        m_currentEditItem->setData(item->data());
+        m_currentEditItem->setData(item.data());
     }
     emit currentEditItemChanged();
     endResetModel();
@@ -655,6 +665,14 @@ QString PlayListModel::separateAudioFile(int i) const
         return "";
 }
 
+QString PlayListModel::separateOverlayFile(int i) const
+{
+    if (i >= 0 && m_playList.size() > i && m_playList[i])
+        return m_playList[i].data()->separateOverlayFile();
+    else
+        return "";
+}
+
 int PlayListModel::loopMode(int i) const
 {
     if (i >= 0 && m_playList.size() > i && m_playList[i])
@@ -689,6 +707,14 @@ int PlayListModel::stereoVideo(int i) const
 {
     if (i >= 0 && m_playList.size() > i && m_playList[i])
         return m_playList[i].data()->stereoVideo();
+    else
+        return 0;
+}
+
+int PlayListModel::numberOfSections(int i) const
+{
+    if (i >= 0 && m_playList.size() > i && m_playList[i])
+        return m_playList[i].data()->numberOfSections();
     else
         return 0;
 }

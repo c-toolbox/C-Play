@@ -1,5 +1,7 @@
 /*
- * SPDX-FileCopyrightText: 2020 George Florea Bănuș <georgefb899@gmail.com>
+ * SPDX-FileCopyrightText:
+ * 2021-2024 Erik Sundén <eriksunden85@gmail.com>
+ * 2020 George Florea Bănuș <georgefb899@gmail.com>
  *
  * SPDX-License-Identifier: GPL-3.0-or-later
  */
@@ -62,13 +64,13 @@ Rectangle {
                 }
             }
             Button {
-                icon.name: "edit-entry"
+                icon.name: "view-form"
                 onClicked: {
-                    mpv.setCurrentEditItemFromPlaylist(playlistView.currentIndex)
-                    saveAsCPlayFileWindow.visible = true
+                    viewPlaylistItemWindow.updateValues(playlistView.currentIndex)
+                    viewPlaylistItemWindow.visible = true
                 }
                 ToolTip {
-                    text: qsTr("Edit playlist entry")
+                    text: qsTr("View playlist entry")
                 }
             }
             Button {
@@ -266,8 +268,8 @@ Rectangle {
         id: playListItemCompact
         PlayListItemCompact {
             onClicked: {
-                if(saveAsCPlayFileWindow.visible) {
-                    mpv.setCurrentEditItemFromPlaylist(playlistView.currentIndex)
+                if(viewPlaylistItemWindow.visible) {
+                    viewPlaylistItemWindow.updateValues(playlistView.currentIndex)
                 }
                 updateLoopModeButton()
             }

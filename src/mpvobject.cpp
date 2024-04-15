@@ -109,6 +109,7 @@ MpvObject::MpvObject(QQuickItem * parent)
     , m_playSectionsModel(new PlaySectionsModel)
     , m_currentSectionsIndex(-1)
     , m_currentSection("", 0, 0, 0)
+    , m_loadedFileStructure("")
 {
     if (!mpv)
         throw std::runtime_error("could not create mpv context");
@@ -872,7 +873,7 @@ void MpvObject::loadFile(const QString &file, bool updateLastPlayedFile)
         PlayListItem* videoFile = loadMediaFileDescription(fileToLoad);
         if (videoFile) {
             loadItem(videoFile->data(), updateLastPlayedFile);
-            m_playSectionsModel->setCurrentEditItem(videoFile);
+            m_playSectionsModel->updateCurrentEditItem(*videoFile);
             emit playSectionsModelChanged();
         }
     }
@@ -892,6 +893,7 @@ void MpvObject::loadFile(const QString &file, bool updateLastPlayedFile)
 
         //setProperty("lavfi-complex", "");
         m_currentSectionsIndex = -1;
+        m_playSectionsModel->clear();
         command(QStringList() << "loadfile" << fileToLoad, true);
 
         if (updateLastPlayedFile) {
@@ -931,26 +933,20 @@ void MpvObject::setLoadedAsCurrentEditItem() {
         return;
 
     m_currentSectionsIndex = -1;
-    PlayListItem* newCurrentItem = new PlayListItem(m_loadedFileStructure);
-    newCurrentItem->setMediaFile(QString::fromStdString(SyncHelper::instance().variables.loadedFile));
-    newCurrentItem->setSeparateOverlayFile(QString::fromStdString(SyncHelper::instance().variables.overlayFile));
-    newCurrentItem->setSeparateAudioFile(separateAudioFile());
-    newCurrentItem->setMediaTitle(mediaTitle());
-    newCurrentItem->setDuration(duration());
-    newCurrentItem->setGridToMapOn(gridToMapOn());
-    newCurrentItem->setStereoVideo(stereoscopicMode());
-    newCurrentItem->setLoopMode(loopMode());
-    m_playSectionsModel->setCurrentEditItem(newCurrentItem);
-}
+    PlayListItem newCurrentItem(m_loadedFileStructure);
 
-void MpvObject::setCurrentEditItemFromPlaylist(int playListIndex) {
-    if (playListIndex < 0 || playListIndex >= m_playlistModel->getPlayListSize()) {
-        return;
-    }
+    if(!m_playSectionsModel->isEmpty())
+        newCurrentItem.setData(m_playSectionsModel->currentEditItem()->data());
 
-    m_currentSectionsIndex = -1;
-    PlayListItem* playItem = m_playlistModel->getItem(playListIndex);
-    m_playSectionsModel->setCurrentEditItem(playItem);
+    newCurrentItem.setMediaFile(QString::fromStdString(SyncHelper::instance().variables.loadedFile));
+    newCurrentItem.setSeparateOverlayFile(QString::fromStdString(SyncHelper::instance().variables.overlayFile));
+    newCurrentItem.setSeparateAudioFile(separateAudioFile());
+    newCurrentItem.setMediaTitle(mediaTitle());
+    newCurrentItem.setDuration(duration());
+    newCurrentItem.setGridToMapOn(gridToMapOn());
+    newCurrentItem.setStereoVideo(stereoscopicMode());
+    newCurrentItem.setLoopMode(loopMode());
+    m_playSectionsModel->updateCurrentEditItem(newCurrentItem);
 }
 
 void MpvObject::loadSection(int playSectionsIndex) {
@@ -1006,7 +1002,7 @@ void MpvObject::loadItem(int playListIndex, bool updateLastPlayedFile) {
         item->loadDetailsFromDisk();
         PlayListItemData pld = item->data();
         loadItem(pld, updateLastPlayedFile);
-        m_playSectionsModel->setCurrentEditItem(item);
+        m_playSectionsModel->updateCurrentEditItem(*item);
         emit playSectionsModelChanged();
     }
     catch (...) {
@@ -1042,16 +1038,7 @@ void MpvObject::loadItem(PlayListItemData itemData, bool updateLastPlayedFile, Q
         m_currentSectionsIndex = -1;
         
         command(newCommand, true);
-
-        // Crashing in mpv 0.36
-        //if (itemData.separateOverlayFile() != "") {
-        //    setProperty("lavfi-complex", "[vid1][vid2]overlay@myoverlay[vo]");
-        //}
-        //else {
-        //    setProperty("lavfi-complex", "");
-        //}
         
-        m_loadedFileStructure = itemData.filePath();
         SyncHelper::instance().variables.loadedFile = itemData.mediaFile().toStdString();
         SyncHelper::instance().variables.overlayFile = itemData.separateOverlayFile().toStdString();
         SyncHelper::instance().variables.loadFile = true;
