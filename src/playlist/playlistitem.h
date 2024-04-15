@@ -82,7 +82,7 @@ public:
     Q_INVOKABLE QString fileName() const;
     Q_INVOKABLE void setFileName(const QString &fileName);
 
-    Q_INVOKABLE QUrl fileFolderPath() const;
+    Q_INVOKABLE QString fileFolderPath() const;
     Q_INVOKABLE void setFileFolderPath(const QString &folderPath);
 
     Q_INVOKABLE QString mediaFile() const;

@@ -238,9 +238,11 @@ QtObject {
         text: qaction.text
         shortcut: qaction.shortcutName()
         icon.name: qaction.iconName()
+        icon.color: mpv.playSectionsModel.currentEditItemIsEdited ? "orange" : "lime"
         Component.onCompleted: list["saveAsCPlayFileAction"] = saveAsCPlayFileAction
         enabled: false
         onTriggered: {
+            saveCPlayFileDialog.currentFile = mpv.playSectionsModel.getSuggestedFileURL()
             mpv.setLoadedAsCurrentEditItem()
             if(!mpv.playSectionsModel.isEmpty())
                 saveAsCPlayFileWindow.visible = true
@@ -254,7 +256,7 @@ QtObject {
         shortcut: qaction.shortcutName()
         icon.name: qaction.iconName()
 
-        Component.onCompleted: list["aboutCPlayAction"] =aboutCPlayAction
+        Component.onCompleted: list["aboutCPlayAction"] = aboutCPlayAction
 
         onTriggered: qaction.trigger()
     }

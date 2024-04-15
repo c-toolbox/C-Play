@@ -170,6 +170,45 @@ void PlaySectionsModel::updateCurrentEditItem(PlayListItem& item)
     endResetModel();
 }
 
+void PlaySectionsModel::setCurrentEditItemIsEdited(bool value) {
+    m_currentEditItemIsEdited = value;
+    emit currentEditItemIsEditedChanged();
+}
+
+bool PlaySectionsModel::getCurrentEditItemIsEdited() {
+    return m_currentEditItemIsEdited;
+}
+
+QUrl PlaySectionsModel::getSuggestedFileURL() {
+    QString suggestFolderPath;
+    if(!GeneralSettings::cPlayFileLocation().isEmpty()) {
+        suggestFolderPath = GeneralSettings::cPlayFileLocation();
+    }
+    else {
+        suggestFolderPath = GeneralSettings::fileDialogLastLocation();
+    }
+
+    if (m_currentEditItem) {
+        QFileInfo filePathInfo(m_currentEditItem->filePath());
+        QString fileExt = filePathInfo.suffix();
+        if (fileExt == "cplayfile" || fileExt == "cplay_file") {
+            return QUrl("file:///" + m_currentEditItem->filePath());
+        }
+        else {
+            QString fileName = filePathInfo.baseName();
+            if(fileName.isEmpty()) {
+                QFileInfo mediaInfo(m_currentEditItem->mediaFile());
+                fileName = mediaInfo.baseName();
+            }
+            fileName.replace(" ", "_");
+            return QUrl("file:///" + suggestFolderPath + "/" + fileName + ".cplayfile");
+        }
+    }
+    else {
+        return QUrl();
+    }
+}
+
 void PlaySectionsModel::addSection(QString name, QString startTime, QString endTime, int eosMode)
 {
     if (!m_currentEditItem)
@@ -178,6 +217,7 @@ void PlaySectionsModel::addSection(QString name, QString startTime, QString endT
     beginInsertRows(QModelIndex(), m_currentEditItem->numberOfSections(), m_currentEditItem->sections().size());
     m_currentEditItem->addSection(name, startTime, endTime, eosMode);
     endInsertRows();
+    setCurrentEditItemIsEdited(true);
 }
 
 void PlaySectionsModel::removeSection(int i) {
@@ -190,6 +230,7 @@ void PlaySectionsModel::removeSection(int i) {
     }
     m_currentEditItem->removeSection(i);
     endRemoveRows();
+    setCurrentEditItemIsEdited(true);
 }
 
 void PlaySectionsModel::moveSectionUp(int i) {
@@ -202,6 +243,7 @@ void PlaySectionsModel::moveSectionUp(int i) {
     beginMoveRows(QModelIndex(), i, i, QModelIndex(), i - 1);
     m_currentEditItem->moveSection(i, i - 1);
     endMoveRows();
+    setCurrentEditItemIsEdited(true);
 }
 
 void PlaySectionsModel::moveSectionDown(int i) {
@@ -214,6 +256,7 @@ void PlaySectionsModel::moveSectionDown(int i) {
     beginMoveRows(QModelIndex(), i + 1, i + 1, QModelIndex(), i);
     m_currentEditItem->moveSection(i, i + 1);
     endMoveRows();
+    setCurrentEditItemIsEdited(true);
 }
 
 QString PlaySectionsModel::sectionTitle(int i) const
@@ -506,6 +549,11 @@ QString PlayListModel::getPlayListPath() const
     return m_playListPath;
 }
 
+QUrl PlayListModel::getPlayListPathAsURL() const
+{
+    return QUrl("file:///" + m_playListPath);
+}
+
 int PlayListModel::getPlayingVideo() const
 {
     return m_playingVideo;
@@ -632,6 +680,14 @@ QString PlayListModel::filePath(int i) const
         return "";
 }
 
+QUrl PlayListModel::filePathAsURL(int i) const
+{
+    if (i >= 0 && m_playList.size() > i && m_playList[i])
+        return QUrl("file:///" + m_playList[i].data()->filePath());
+    else
+        return QUrl();
+}
+
 QString PlayListModel::fileName(int i) const
 {
     if (i >= 0 && m_playList.size() > i && m_playList[i])
@@ -640,10 +696,18 @@ QString PlayListModel::fileName(int i) const
         return "";
 }
 
-QUrl PlayListModel::fileFolderPath(int i) const
+QString PlayListModel::fileFolderPath(int i) const
 {
     if (i >= 0 && m_playList.size() > i && m_playList[i])
         return m_playList[i].data()->fileFolderPath();
+    else
+        return "";
+}
+
+QUrl PlayListModel::fileFolderPathAsURL(int i) const
+{
+    if (i >= 0 && m_playList.size() > i && m_playList[i])
+        return QUrl("file:///" + m_playList[i].data()->fileFolderPath());
     else
         return QUrl();
 }

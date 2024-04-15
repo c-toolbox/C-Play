@@ -876,6 +876,14 @@ void MpvObject::loadFile(const QString &file, bool updateLastPlayedFile)
             m_playSectionsModel->updateCurrentEditItem(*videoFile);
             emit playSectionsModelChanged();
         }
+
+        if (ext == "cplayfile") {
+            m_playSectionsModel->setCurrentEditItemIsEdited(false);
+        }
+        else {
+            m_playSectionsModel->setCurrentEditItemIsEdited(true);
+        }
+
     }
     else if (ext == "playlist") {
         loadUniviewPlaylist(fileToLoad);
@@ -894,6 +902,7 @@ void MpvObject::loadFile(const QString &file, bool updateLastPlayedFile)
         //setProperty("lavfi-complex", "");
         m_currentSectionsIndex = -1;
         m_playSectionsModel->clear();
+        m_playSectionsModel->setCurrentEditItemIsEdited(true);
         command(QStringList() << "loadfile" << fileToLoad, true);
 
         if (updateLastPlayedFile) {
@@ -1004,6 +1013,7 @@ void MpvObject::loadItem(int playListIndex, bool updateLastPlayedFile) {
         loadItem(pld, updateLastPlayedFile);
         m_playSectionsModel->updateCurrentEditItem(*item);
         emit playSectionsModelChanged();
+        m_playSectionsModel->setCurrentEditItemIsEdited(false);
     }
     catch (...) {
     }

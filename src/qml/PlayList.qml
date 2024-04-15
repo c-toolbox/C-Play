@@ -165,6 +165,7 @@ Rectangle {
                 icon.name: "system-save-session"
                 icon.color: mpv.playlistModel.playListIsEdited ? "orange" : "lime"
                 onClicked: {
+                    saveCPlayPlaylistDialog.currentFile = mpv.playlistModel.getPlayListPathAsURL()
                     saveCPlayPlaylistDialog.open()
                 }
                 ToolTip {

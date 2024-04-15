@@ -590,6 +590,7 @@ ToolBar {
                         text: qsTr("2D Mono")
                         onClicked: {
                             mpv.stereoscopicMode = 0
+                            mpv.playSectionsModel.currentEditItemIsEdited = true
                         }
                         Connections {
                             target: mpv
@@ -605,6 +606,7 @@ ToolBar {
                         text: qsTr("3D Side-by-side")
                         onClicked: {
                              mpv.stereoscopicMode = 1
+                            mpv.playSectionsModel.currentEditItemIsEdited = true
                         }
                         Connections {
                             target: mpv
@@ -620,6 +622,7 @@ ToolBar {
                         text: qsTr("3D Top/Bottom")
                         onClicked: {
                             mpv.stereoscopicMode = 2
+                            mpv.playSectionsModel.currentEditItemIsEdited = true
                         }
                         Connections {
                             target: mpv
@@ -635,6 +638,7 @@ ToolBar {
                         text: qsTr("3D Top/Bottom+Flip")
                         onClicked: {
                             mpv.stereoscopicMode = 3
+                            mpv.playSectionsModel.currentEditItemIsEdited = true
                         }
                         Connections {
                             target: mpv
@@ -758,6 +762,7 @@ ToolBar {
                         text: qsTr("None")
                         onClicked: {
                             mpv.gridToMapOn = 0
+                            mpv.playSectionsModel.currentEditItemIsEdited = true
                         }
                         Connections {
                             target: mpv
@@ -773,6 +778,7 @@ ToolBar {
                         text: qsTr("Plane")
                         onClicked: {
                              mpv.gridToMapOn = 1
+                            mpv.playSectionsModel.currentEditItemIsEdited = true
                         }
                         Connections {
                             target: mpv
@@ -788,6 +794,7 @@ ToolBar {
                         text: qsTr("Dome")
                         onClicked: {
                              mpv.gridToMapOn = 2
+                            mpv.playSectionsModel.currentEditItemIsEdited = true
                         }
                         Connections {
                             target: mpv
@@ -803,6 +810,7 @@ ToolBar {
                         text: qsTr("Sphere EQR")
                         onClicked: {
                             mpv.gridToMapOn = 3
+                            mpv.playSectionsModel.currentEditItemIsEdited = true
                         }
                         Connections {
                             target: mpv
@@ -818,6 +826,7 @@ ToolBar {
                         text: qsTr("Sphere EAC")
                         onClicked: {
                             mpv.gridToMapOn = 4
+                            mpv.playSectionsModel.currentEditItemIsEdited = true
                         }
                         Connections {
                             target: mpv

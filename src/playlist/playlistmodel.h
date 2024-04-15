@@ -43,6 +43,12 @@ public:
         WRITE setCurrentEditItem
         NOTIFY currentEditItemChanged)
 
+    Q_PROPERTY(bool currentEditItemIsEdited
+        MEMBER m_currentEditItemIsEdited
+        READ getCurrentEditItemIsEdited
+        WRITE setCurrentEditItemIsEdited
+        NOTIFY currentEditItemIsEditedChanged)
+
     Q_INVOKABLE void setPlayingSection(int section);
     Q_INVOKABLE int getPlayingSection();
     Q_INVOKABLE int getNumberOfSections();
@@ -52,6 +58,10 @@ public:
     PlayListItem* currentEditItem();
     void setCurrentEditItem(PlayListItem* item);
     void updateCurrentEditItem(PlayListItem& item);
+
+    Q_INVOKABLE void setCurrentEditItemIsEdited(bool value);
+    Q_INVOKABLE bool getCurrentEditItemIsEdited();
+    Q_INVOKABLE QUrl getSuggestedFileURL();
 
     Q_INVOKABLE void addSection(QString name, QString startTime, QString endTime, int eosMode);
     Q_INVOKABLE void removeSection(int i);
@@ -66,13 +76,14 @@ public:
 
 signals:
     void currentEditItemChanged();
+    void currentEditItemIsEditedChanged();
     void playingSectionChanged();
 
 private:
     PlayListItem* m_currentEditItem;
     int m_playingSection = -1;
+    int m_currentEditItemIsEdited = false;
 };
-
 
 class PlayListModel : public QAbstractListModel
 {
@@ -118,6 +129,7 @@ public:
 
     Q_INVOKABLE void setPlayListPath(QString path);
     Q_INVOKABLE QString getPlayListPath() const;
+    Q_INVOKABLE QUrl getPlayListPathAsURL() const;
 
     Q_INVOKABLE QString getPath(int i);
     Q_INVOKABLE int getPlayListSize() const;
@@ -134,8 +146,10 @@ public:
     Q_INVOKABLE void getVideos(QString path);
     Q_INVOKABLE void clear();
     Q_INVOKABLE QString filePath(int i) const;
+    Q_INVOKABLE QUrl filePathAsURL(int i) const;
     Q_INVOKABLE QString fileName(int i) const;
-    Q_INVOKABLE QUrl fileFolderPath(int i) const;
+    Q_INVOKABLE QString fileFolderPath(int i) const;
+    Q_INVOKABLE QUrl fileFolderPathAsURL(int i) const;
     Q_INVOKABLE QString mediaFile(int i) const;
     Q_INVOKABLE QString mediaTitle(int i) const;
     Q_INVOKABLE QString duration(int i) const;

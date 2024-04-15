@@ -132,9 +132,9 @@ void PlayListItem::setFileName(const QString &fileName)
     m_data.m_fileName = fileName;
 }
 
-QUrl PlayListItem::fileFolderPath() const
+QString PlayListItem::fileFolderPath() const
 {
-    return QUrl("file:///" + m_data.m_fileFolderPath);
+    return m_data.m_fileFolderPath;
 }
 
 void PlayListItem::setFileFolderPath(const QString &folderPath)
