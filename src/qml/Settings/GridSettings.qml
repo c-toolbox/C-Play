@@ -26,7 +26,7 @@ SettingsBasePage {
         // GRID PARAMETERS
         // --
         SettingsHeader {
-            text: qsTr("Mapping/grid parameters")
+            text: qsTr("Grid/mapping parameters")
             Layout.columnSpan: 3
             Layout.fillWidth: true
         }
@@ -103,12 +103,12 @@ SettingsBasePage {
                 value: mpv.planeHeight
             }
 
-            LabelWithTooltip {
+            Label {
                 text: {
                     qsTr("cm")
                 }
-                elide: Text.ElideRight
                 Layout.fillWidth: true
+                Layout.alignment: Qt.AlignLeft
             }
             Layout.columnSpan: 2
         }
@@ -126,12 +126,12 @@ SettingsBasePage {
                 onValueChanged: mpv.planeElevation = value
             }
 
-            LabelWithTooltip {
+            Label {
                 text: {
                     qsTr("degrees")
                 }
-                elide: Text.ElideRight
                 Layout.fillWidth: true
+                Layout.alignment: Qt.AlignLeft
             }
             Layout.columnSpan: 2
         }
@@ -154,8 +154,9 @@ SettingsBasePage {
                 text: {
                     qsTr("cm")
                 }
-                elide: Text.ElideRight
+                elide: Text.ElideLeft
                 Layout.fillWidth: true
+                Layout.alignment: Qt.AlignLeft
             }
             Layout.columnSpan: 2
         }
@@ -435,23 +436,14 @@ SettingsBasePage {
                     }
                 }
             }
-        }
-        RowLayout {
-            LabelWithTooltip {
+            Label {
                 text: {
                     qsTr("degrees")
                 }
-                elide: Text.ElideLeft
+                Layout.alignment: Qt.AlignLeft
                 Layout.fillWidth: true
-                Layout.columnSpan: 2
-
             }
-            /*SpinBox {
-                id: rotateXSpinBoxScenario
-                from: -180
-                to: 180
-                value: -90
-            }*/
+            Layout.columnSpan: 2
         }
 
         // ------------------------------------
@@ -511,23 +503,14 @@ SettingsBasePage {
                     }
                 }
             }
-        }
-        RowLayout {
-            LabelWithTooltip {
+            Label {
                 text: {
                     qsTr("degrees")
                 }
-                elide: Text.ElideLeft
+                Layout.alignment: Qt.AlignLeft
                 Layout.fillWidth: true
-                Layout.columnSpan: 2
-
             }
-            /*SpinBox {
-                id: rotateYSpinBoxScenario
-                from: -180
-                to: 180
-                value: -90
-            }*/
+            Layout.columnSpan: 2
         }
 
         // ------------------------------------
@@ -587,23 +570,14 @@ SettingsBasePage {
                     }
                 }
             }
-        }
-        RowLayout {
-            LabelWithTooltip {
+            Label {
                 text: {
                     qsTr("degrees")
                 }
-                elide: Text.ElideLeft
+                Layout.alignment: Qt.AlignLeft
                 Layout.fillWidth: true
-                Layout.columnSpan: 2
-
             }
-            /*SpinBox {
-                id: rotateZSpinBoxScenario
-                from: -180
-                to: 180
-                value: -90
-            }*/
+            Layout.columnSpan: 2
         }
 
         // ------------------------------------
@@ -796,91 +770,5 @@ SettingsBasePage {
                 }
             }
         }
-
-        SettingsHeader {
-            text: qsTr("Image adjustments")
-            Layout.columnSpan: 3
-            Layout.fillWidth: true
-        }
-
-
-        // ------------------------------------
-        // CONTRAST
-        // ------------------------------------
-        Label {
-            text: qsTr("Contrast")
-            Layout.alignment: Qt.AlignRight
-        }
-
-        ImageAdjustmentSlider {
-            id: contrastSlider
-
-            value: mpv.contrast
-            onSliderValueChanged: mpv.contrast = value.toFixed(0)
-
-            Layout.topMargin: Kirigami.Units.largeSpacing
-            Layout.columnSpan: 2
-        }
-
-        // ------------------------------------
-        // BRIGHTNESS
-        // ------------------------------------
-        Label {
-            text: qsTr("Brightness")
-            Layout.alignment: Qt.AlignRight
-        }
-
-        ImageAdjustmentSlider {
-            id: brightnessSlider
-
-            value: mpv.brightness
-            onSliderValueChanged: mpv.brightness = value.toFixed(0)
-
-            Layout.topMargin: Kirigami.Units.largeSpacing
-            Layout.columnSpan: 2
-        }
-
-        // ------------------------------------
-        // GAMMA
-        // ------------------------------------
-        Label {
-            text: qsTr("Gamma")
-            Layout.alignment: Qt.AlignRight
-        }
-
-        ImageAdjustmentSlider {
-            id: gammaSlider
-
-            value: mpv.gamma
-            onSliderValueChanged: mpv.gamma = value.toFixed(0)
-
-            Layout.topMargin: Kirigami.Units.largeSpacing
-            Layout.columnSpan: 2
-        }
-
-        // ------------------------------------
-        // SATURATION
-        // ------------------------------------
-        Label {
-            text: qsTr("Saturation")
-            Layout.alignment: Qt.AlignRight
-        }
-
-        ImageAdjustmentSlider {
-            id: saturationSlider
-
-            value: mpv.saturation
-            onSliderValueChanged: mpv.saturation = value.toFixed(0)
-
-            Layout.topMargin: Kirigami.Units.largeSpacing
-            Layout.columnSpan: 2
-        }
-
-        Label {
-            text: qsTr("Middle click on the sliders to reset them")
-            Layout.columnSpan: 3
-            Layout.topMargin: Kirigami.Units.largeSpacing
-        }
-
     }
 }

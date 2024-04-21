@@ -20,18 +20,18 @@ SettingsBasePage {
     GridLayout {
         id: content
 
-        columns: 2
+        columns: 3
 
         SettingsHeader {
             text: qsTr("Audio settings")
-            Layout.columnSpan: 2
+            Layout.columnSpan: 3
             Layout.fillWidth: true
         }
 
         Item {
             // spacer item
             Layout.fillWidth: true
-            Layout.columnSpan: 2
+            Layout.columnSpan: 3
         }
 
         CheckBox {
@@ -43,9 +43,11 @@ SettingsBasePage {
                 AudioSettings.useCustomAudioOutput = checked
                 AudioSettings.save()
             }
+            Layout.alignment: Qt.AlignRight
         }
         Item {
             // spacer item
+            Layout.columnSpan: 2
             Layout.fillWidth: true
         }
 
@@ -58,6 +60,7 @@ SettingsBasePage {
                 AudioSettings.useAudioDevice = checked
                 AudioSettings.save()
             }
+            Layout.alignment: Qt.AlignRight
         }
         ComboBox {
             id: audioOutputDeviceComboBox
@@ -80,6 +83,9 @@ SettingsBasePage {
                     }
                 }
             }
+        }
+        Item {
+            // spacer item
             Layout.fillWidth: true
         }
 
@@ -92,6 +98,7 @@ SettingsBasePage {
                 AudioSettings.useAudioDriver = checked
                 AudioSettings.save()
             }
+            Layout.alignment: Qt.AlignRight
         }
         ComboBox {
             id: audioOutputDriverComboBox
@@ -121,19 +128,20 @@ SettingsBasePage {
                     }
                 }
             }
-            Layout.fillWidth: true
-        }
-
-        Item {
-            // spacer item
-            Layout.fillWidth: true
-            height: 30
         }
         Item {
             // spacer item
             Layout.fillWidth: true
         }
 
+        Item {
+            // spacer item
+            height: 10
+            Layout.columnSpan: 3
+            Layout.fillWidth: true
+        }
+
+        Item { width: 1; height: 1 }
         CheckBox {
             id: loadAudioFilesInVideoFolder
             text: qsTr("Load audio files in same folder as video file.")
@@ -149,27 +157,74 @@ SettingsBasePage {
                     mpv.setProperty("audio-file-auto", "no")
                 }
             }
-            Layout.columnSpan: 2
+        }
+        Item {
+            // spacer item
             Layout.fillWidth: true
         }
 
         Item {
             // spacer item
-            Layout.fillWidth: true
-            height: 30
-        }
-        Item {
-            // spacer item
+            height: 10
+            Layout.columnSpan: 3
             Layout.fillWidth: true
         }
 
         Label {
-            text: qsTr("Preferred language")
+            text: qsTr("Volume at startup:")
+            Layout.alignment: Qt.AlignRight
+        }
+        SpinBox {
+            from: 0
+            to: 100
+            value: GeneralSettings.volume
+            editable: true
+            onValueChanged: {
+                GeneralSettings.volume = value.toFixed(0)
+                GeneralSettings.save()
+            }
+        }
+        Item {
+            // spacer item
+            Layout.fillWidth: true
+        }
+
+
+        // Volume Step
+        Label {
+            text: qsTr("Volume step:")
+            Layout.alignment: Qt.AlignRight
+        }
+
+        Item {
+            height: volumeStep.height
+            SpinBox {
+                id: volumeStep
+                editable: true
+                from: 0
+                to: 100
+                value: GeneralSettings.volumeStep
+                onValueChanged: {
+                    if (root.visible) {
+                        GeneralSettings.volumeStep = volumeStep.value
+                        GeneralSettings.save()
+                    }
+                }
+            }
+        }
+        Item {
+            // spacer item
+            Layout.fillWidth: true
+        }
+
+
+        Label {
+            text: qsTr("Preferred language:")
+            Layout.alignment: Qt.AlignRight
         }
         TextField {
             text: AudioSettings.preferredLanguage
             placeholderText: "eng,ger etc."
-            Layout.fillWidth: true
             onTextEdited: {
                 AudioSettings.preferredLanguage = text
                 AudioSettings.save()
@@ -180,10 +235,14 @@ SettingsBasePage {
                 text: qsTr("Do not use spaces.")
             }
         }
-
+        Item {
+            // spacer item
+            Layout.fillWidth: true
+        }
 
         Label {
-            text: qsTr("Preferred track")
+            text: qsTr("Preferred track:")
+            Layout.alignment: Qt.AlignRight
         }
         SpinBox {
             from: 0
@@ -200,10 +259,9 @@ SettingsBasePage {
                 }
             }
         }
-
         Item {
-            width: Kirigami.Units.gridUnit
-            height: Kirigami.Units.gridUnit
+            // spacer item
+            Layout.fillWidth: true
         }
     }
 }

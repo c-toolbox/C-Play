@@ -9,6 +9,7 @@
 import QtQuick 2.12
 import QtQuick.Layouts 1.12
 import QtQuick.Controls 2.12
+import Qt.labs.platform 1.0 as Platform
 
 import org.kde.kirigami 2.11 as Kirigami
 import org.ctoolbox.cplay 1.0
@@ -16,6 +17,26 @@ import Haruna.Components 1.0
 
 SettingsBasePage {
     id: root
+
+    Platform.FileDialog {
+        id: playlistToLoadOnStartupDialog
+
+        folder: GeneralSettings.cPlayFileLocation !== ""
+                ? app.pathToUrl(GeneralSettings.cPlayFileLocation)
+                : app.pathToUrl(GeneralSettings.fileDialogLastLocation)
+        title: "Choose playlist to load on startup"
+        fileMode: Platform.FileDialog.OpenFile
+        nameFilters: [ "C-Play playlist (*.cplaylist)", "Uniview playlist (*.playlist)" ]
+
+        onAccepted: {
+            var filePath = playerController.returnRelativeOrAbsolutePath(playlistToLoadOnStartupDialog.file.toString());
+            PlaybackSettings.playlistToLoadOnStartup = filePath
+            PlaybackSettings.save()
+
+            mpv.focus = true
+        }
+        onRejected: mpv.focus = true
+    }
 
     GridLayout {
         id: content
@@ -25,6 +46,38 @@ SettingsBasePage {
         SettingsHeader {
             text: qsTr("Playlist settings")
             Layout.columnSpan: 2
+            Layout.fillWidth: true
+        }
+
+        Label {
+            text: qsTr("Playlist/file to load on startup:")
+        }
+        RowLayout {
+            TextField {
+                id: playlistToLoadOnStartupText
+                text: PlaybackSettings.playlistToLoadOnStartup
+                placeholderText: "Path to playlist"
+                Layout.fillWidth: true
+                onEditingFinished: {
+                    PlaybackSettings.playlistToLoadOnStartup = text
+                    PlaybackSettings.save()
+                }
+
+                ToolTip {
+                    text: qsTr("Path to playlist")
+                }
+            }
+            ToolButton {
+                id: playlistToLoadOnStartupButton
+                text: ""
+                icon.name: "system-file-manager"
+                icon.height: 16
+                focusPolicy: Qt.NoFocus
+
+                onClicked: {
+                    playlistToLoadOnStartupDialog.open()
+                }
+            }
             Layout.fillWidth: true
         }
 

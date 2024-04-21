@@ -25,12 +25,17 @@ Kirigami.ApplicationWindow {
     Component.onCompleted: pageStack.push("qrc:/Navigation.qml")
 
     Loader {
-        source: "qrc:/Playback.qml"
+        source: "qrc:/PlaybackSettings.qml"
         asynchronous: true
     }
 
     Loader {
-        source: "qrc:/VideoSettings.qml"
+        source: "qrc:/GridSettings.qml"
+        asynchronous: true
+    }
+	
+	Loader {
+        source: "qrc:/ImageSettings.qml"
         asynchronous: true
     }
 

@@ -38,35 +38,45 @@ Kirigami.Page
 
     ListModel {
         id: settingsPagesModel
-        ListElement {
-            name: "General"
-            iconName: "configure"
-            page: "qrc:/General.qml"
-        }
-        ListElement {
-            name: "Time & Startup"
-            iconName: "video-x-generic"
-            page: "qrc:/Playback.qml"
-        }
-        ListElement {
-            name: "Mapping & Image"
-            iconName: "kstars_hgrid"
-            page: "qrc:/VideoSettings.qml"
-        }
-        ListElement {
+		ListElement {
             name: "Audio"
             iconName: "audio-speakers-symbolic"
-            page: "qrc:/Audio.qml"
+            page: "qrc:/AudioSettings.qml"
+        }
+		ListElement {
+            name: "Grid/mapping"
+            iconName: "kstars_hgrid"
+            page: "qrc:/GridSettings.qml"
+        }
+		ListElement {
+            name: "Image"
+            iconName: "kdenlive-select-images"
+            page: "qrc:/ImageSettings.qml"
+        }
+        ListElement {
+            name: "Location"
+            iconName: "find-location"
+            page: "qrc:/LocationSettings.qml"
+        }
+		ListElement {
+            name: "Mouse"
+            iconName: "input-mouse"
+            page: "qrc:/MouseSettings.qml"
+        }
+        ListElement {
+            name: "Playback"
+            iconName: "video-x-generic"
+            page: "qrc:/PlaybackSettings.qml"
         }
         ListElement {
             name: "Playlist"
             iconName: "view-media-playlist"
-            page: "qrc:/Playlist.qml"
+            page: "qrc:/PlaylistSettings.qml"
         }
-        ListElement {
-            name: "Mouse"
-            iconName: "input-mouse"
-            page: "qrc:/Mouse.qml"
+		ListElement {
+            name: "User interface"
+            iconName: "edit-paste-style"
+            page: "qrc:/UserInterfaceSettings.qml"
         }
     }
 
