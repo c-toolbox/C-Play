@@ -154,6 +154,9 @@ MpvObject::MpvObject(QQuickItem * parent)
     setProperty("volume-max", "100");
     setProperty("keep-open", "yes");
 
+    setStereoscopicMode(ImageSettings::stereoModeForBackground());
+    setGridToMapOn(ImageSettings::gridToMapOnForBackground());
+
     mpv::qt::load_configurations(mpv, QString::fromStdString(SyncHelper::instance().configuration.confAll));
     mpv::qt::load_configurations(mpv, QString::fromStdString(SyncHelper::instance().configuration.confMasterOnly));
 

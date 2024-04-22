@@ -104,29 +104,36 @@ SettingsBasePage {
             text: qsTr("Stereoscopic mode for background:")
             Layout.alignment: Qt.AlignRight
         }
-        ComboBox {
-            id: stereoscopicModeOnStartupComboBoxBg
-            enabled: true
-            textRole: "mode"
-            model: ListModel {
-                id: stereoscopicModeOnStartupModeBg
-                ListElement { mode: "2D (mono)"; value: 0 }
-                ListElement { mode: "3D (side-by-side)"; value: 1}
-                ListElement { mode: "3D (top-bottom)"; value: 2 }
-                ListElement { mode: "3D (top-bottom+flip)"; value: 3 }
-            }
+        RowLayout {
+            ComboBox {
+                id: stereoscopicModeOnStartupComboBoxBg
+                enabled: true
+                textRole: "mode"
+                model: ListModel {
+                    id: stereoscopicModeOnStartupModeBg
+                    ListElement { mode: "2D (mono)"; value: 0 }
+                    ListElement { mode: "3D (side-by-side)"; value: 1}
+                    ListElement { mode: "3D (top-bottom)"; value: 2 }
+                    ListElement { mode: "3D (top-bottom+flip)"; value: 3 }
+                }
 
-            onActivated: {
-                playerController.setBackgroundStereoMode(model.get(index).value);
-            }
+                onActivated: {
+                    playerController.setBackgroundStereoMode(model.get(index).value);
+                }
 
-            Component.onCompleted: {
-                for (let i = 0; i < stereoscopicModeOnStartupModeBg.count; ++i) {
-                    if (stereoscopicModeOnStartupModeBg.get(i).value === playerController.backgroundStereoMode()) {
-                        currentIndex = i
-                        break
+                Component.onCompleted: {
+                    for (let i = 0; i < stereoscopicModeOnStartupModeBg.count; ++i) {
+                        if (stereoscopicModeOnStartupModeBg.get(i).value === playerController.backgroundStereoMode()) {
+                            currentIndex = i
+                            break
+                        }
                     }
                 }
+            }
+            Label {
+                text: qsTr("Also used as startup value.")
+                Layout.alignment: Qt.AlignLeft
+                font.italic: true
             }
         }
         Item {
@@ -138,30 +145,37 @@ SettingsBasePage {
             text: qsTr("Grid mode for background:")
             Layout.alignment: Qt.AlignRight
         }
-        ComboBox {
-            id: loadGridOnStartupComboBoxBg
-            enabled: true
-            textRole: "mode"
-            model: ListModel {
-                id: loadGridOnStartupModeBg
-                ListElement { mode: "None/Pre-split"; value: 0 }
-                ListElement { mode: "Plane"; value: 1 }
-                ListElement { mode: "Dome"; value: 2}
-                ListElement { mode: "Sphere EQR"; value: 3 }
-                ListElement { mode: "Sphere EAC"; value: 4 }
-            }
+        RowLayout {
+            ComboBox {
+                id: loadGridOnStartupComboBoxBg
+                enabled: true
+                textRole: "mode"
+                model: ListModel {
+                    id: loadGridOnStartupModeBg
+                    ListElement { mode: "None/Pre-split"; value: 0 }
+                    ListElement { mode: "Plane"; value: 1 }
+                    ListElement { mode: "Dome"; value: 2}
+                    ListElement { mode: "Sphere EQR"; value: 3 }
+                    ListElement { mode: "Sphere EAC"; value: 4 }
+                }
 
-            onActivated: {
-                playerController.setBackgroundGridMode(model.get(index).value);
-            }
+                onActivated: {
+                    playerController.setBackgroundGridMode(model.get(index).value);
+                }
 
-            Component.onCompleted: {
-                for (let i = 0; i < loadGridOnStartupModeBg.count; ++i) {
-                    if (loadGridOnStartupModeBg.get(i).value === playerController.backgroundGridMode()) {
-                        currentIndex = i
-                        break
+                Component.onCompleted: {
+                    for (let i = 0; i < loadGridOnStartupModeBg.count; ++i) {
+                        if (loadGridOnStartupModeBg.get(i).value === playerController.backgroundGridMode()) {
+                            currentIndex = i
+                            break
+                        }
                     }
                 }
+            }
+            Label {
+                text: qsTr("Also used as startup value.")
+                Layout.alignment: Qt.AlignLeft
+                font.italic: true
             }
         }
         Item {
