@@ -20,9 +20,9 @@ SettingsBasePage {
 
     Platform.FileDialog {
         id: fileToLoadAsBackgroundDialog
-        folder: GeneralSettings.cPlayMediaLocation !== ""
-                ? app.pathToUrl(GeneralSettings.cPlayMediaLocation)
-                : app.pathToUrl(GeneralSettings.fileDialogLastLocation)
+        folder: LocationSettings.cPlayMediaLocation !== ""
+                ? app.pathToUrl(LocationSettings.cPlayMediaLocation)
+                : app.pathToUrl(LocationSettings.fileDialogLastLocation)
         fileMode: Platform.FileDialog.OpenFile
         title: "Choose file to load on startup"
         nameFilters: [ "Image files (*.png *.jpg *.jpeg *.tga)" ]
@@ -37,9 +37,9 @@ SettingsBasePage {
 
     Platform.FileDialog {
         id: fileToLoadAsForegroundDialog
-        folder: GeneralSettings.cPlayMediaLocation !== ""
-                ? app.pathToUrl(GeneralSettings.cPlayMediaLocation)
-                : app.pathToUrl(GeneralSettings.fileDialogLastLocation)
+        folder: LocationSettings.cPlayMediaLocation !== ""
+                ? app.pathToUrl(LocationSettings.cPlayMediaLocation)
+                : app.pathToUrl(LocationSettings.fileDialogLastLocation)
         fileMode: Platform.FileDialog.OpenFile
         title: "Choose file to load on startup"
         nameFilters: [ "Image files (*.png *.jpg *.jpeg *.tga)" ]
@@ -276,9 +276,9 @@ SettingsBasePage {
             Button {
                     text: "Reset background and foreground values"
                     onClicked: {
-                        playerController.setBackgroundImageFile(PlaybackSettings.imageToLoadAsBackground)
-                        playerController.setBackgroundStereoMode(PlaybackSettings.stereoModeForBackground)
-                        playerController.setBackgroundGridMode(PlaybackSettings.gridToMapOnForBackground)
+                        playerController.setBackgroundImageFile(ImageSettings.imageToLoadAsBackground)
+                        playerController.setBackgroundStereoMode(ImageSettings.stereoModeForBackground)
+                        playerController.setBackgroundGridMode(ImageSettings.gridToMapOnForBackground)
 
                         fileForBackgroundImageText.text = playerController.backgroundImageFile();
 
@@ -296,9 +296,9 @@ SettingsBasePage {
                             }
                         }
 
-                        playerController.setForegroundImageFile(PlaybackSettings.imageToLoadAsForeground)
-                        playerController.setForegroundStereoMode(PlaybackSettings.stereoModeForForeground)
-                        playerController.setForegroundGridMode(PlaybackSettings.gridToMapOnForForeground)
+                        playerController.setForegroundImageFile(ImageSettings.imageToLoadAsForeground)
+                        playerController.setForegroundStereoMode(ImageSettings.stereoModeForForeground)
+                        playerController.setForegroundGridMode(ImageSettings.gridToMapOnForForeground)
 
                         fileForForegroundImageText.text = playerController.foregroundImageFile();
 
@@ -328,13 +328,13 @@ SettingsBasePage {
             Button {
                     text: "Save background and foreground values for startup"
                     onClicked: {
-                        PlaybackSettings.imageToLoadAsBackground = playerController.backgroundImageFile()
-                        PlaybackSettings.stereoModeForBackground = playerController.backgroundStereoMode()
-                        PlaybackSettings.gridToMapOnForBackground = playerController.backgroundGridMode()
-                        PlaybackSettings.imageToLoadAsForeground = playerController.foregroundImageFile()
-                        PlaybackSettings.stereoModeForForeground = playerController.foregroundStereoMode()
-                        PlaybackSettings.gridToMapOnForForeground = playerController.foregroundGridMode()
-                        PlaybackSettings.save()
+                        ImageSettings.imageToLoadAsBackground = playerController.backgroundImageFile()
+                        ImageSettings.stereoModeForBackground = playerController.backgroundStereoMode()
+                        ImageSettings.gridToMapOnForBackground = playerController.backgroundGridMode()
+                        ImageSettings.imageToLoadAsForeground = playerController.foregroundImageFile()
+                        ImageSettings.stereoModeForForeground = playerController.foregroundStereoMode()
+                        ImageSettings.gridToMapOnForForeground = playerController.foregroundGridMode()
+                        ImageSettings.save()
                     }
             }
             Layout.columnSpan: 2

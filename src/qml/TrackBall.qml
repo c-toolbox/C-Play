@@ -108,7 +108,7 @@ Entity{
 
     Transform {
         id: sphereTransform
-        rotation: fromEulerAngles(VideoSettings.surfaceRotateX, VideoSettings.surfaceRotateY-180, VideoSettings.surfaceRotateZ+180)
+        rotation: fromEulerAngles(GridSettings.surfaceRotateX, GridSettings.surfaceRotateY-180, GridSettings.surfaceRotateZ+180)
     }
 
     Entity {

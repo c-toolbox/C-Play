@@ -8,7 +8,7 @@
 
 #include "_debug.h"
 #include "playlistitem.h"
-#include "generalsettings.h"
+#include "locationsettings.h"
 
 #include <QFileInfo>
 #include <QDir>
@@ -456,7 +456,7 @@ void PlayListItem::saveAsJSONPlayFile(const QString& path) const {
     QFileInfo fileToSaveInfo(fileToSave);
 
     QStringList pathsToConsider;
-    pathsToConsider.append(GeneralSettings::cPlayMediaLocation());
+    pathsToConsider.append(LocationSettings::cPlayMediaLocation());
     pathsToConsider.append(fileToSaveInfo.absoluteDir().absolutePath());
 
     obj.insert("video", makePathRelativeTo(mediaFile(), pathsToConsider));
@@ -615,9 +615,9 @@ void PlayListItem::loadJSONPlayfile() {
 
     QStringList fileSearchPaths;
     fileSearchPaths.append(jsonFileInfo.absoluteDir().absolutePath());
-    fileSearchPaths.append(GeneralSettings::cPlayMediaLocation());
-    fileSearchPaths.append(GeneralSettings::cPlayFileLocation());
-    fileSearchPaths.append(GeneralSettings::univiewVideoLocation());
+    fileSearchPaths.append(LocationSettings::cPlayMediaLocation());
+    fileSearchPaths.append(LocationSettings::cPlayFileLocation());
+    fileSearchPaths.append(LocationSettings::univiewVideoLocation());
 
     if (obj.contains("video")) {
         QString videoFile = obj.value("video").toString();
@@ -774,7 +774,7 @@ void PlayListItem::loadUniviewFDV()
     QStringList fileEntries = fileContent.split(QRegExp("[\r\n]"), Qt::SkipEmptyParts);
     qInfo() << "File Content: " << fileEntries;
 
-    QString fileMainPath = GeneralSettings::univiewVideoLocation();
+    QString fileMainPath = LocationSettings::univiewVideoLocation();
 
     if (!fileEntries.isEmpty()) {
         QString videoFileRelatiePath = fileEntries.at(1).mid(6); //"Video="

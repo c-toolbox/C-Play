@@ -10,19 +10,7 @@
                           http://www.kde.org/standards/kcfg/1.0/kcfg.xsd" >
   <kcfgfile name="C-Play/cplay.conf" />
   <include>QStandardPaths</include>
-  <group name="Video">
-    <entry name="ScreenshotFormat" type="String">
-      <label>Screenshot format</label>
-      <default>jpg</default>
-    </entry>
-    <entry name="ScreenshotTemplate" type="String">
-      <label>Screenshot template</label>
-      <code>
-        QString screenshotsFolder = QStandardPaths::writableLocation(QStandardPaths::PicturesLocation);
-        screenshotsFolder.append("/C-play-screenshots/%F-%n");
-      </code>
-      <default code="true">screenshotsFolder</default>
-    </entry>
+  <group name="Grid">
     <entry name="SurfaceRotationSpeed" type="double">
       <default>0.01</default>
     </entry>

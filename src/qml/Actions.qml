@@ -92,7 +92,7 @@ QtObject {
         Component.onCompleted: list["volumeUpAction"] = volumeUpAction
 
         onTriggered: {
-            mpv.command(["add", "volume", GeneralSettings.volumeStep])
+            mpv.command(["add", "volume", AudioSettings.volumeStep])
             osd.message(`Volume: ${parseInt(mpv.getProperty("volume"))}`)
         }
     }
@@ -107,7 +107,7 @@ QtObject {
         Component.onCompleted: list["volumeDownAction"] = volumeDownAction
 
         onTriggered: {
-            mpv.command(["add", "volume", -GeneralSettings.volumeStep])
+            mpv.command(["add", "volume", -AudioSettings.volumeStep])
             osd.message(`Volume: ${parseInt(mpv.getProperty("volume"))}`)
         }
     }
@@ -270,7 +270,7 @@ QtObject {
 
         Component.onCompleted: list["seekForwardSmallAction"] = seekForwardSmallAction
 
-        onTriggered: mpv.seek(GeneralSettings.seekSmallStep)
+        onTriggered: mpv.seek(PlaybackSettings.seekSmallStep)
     }
 
     property Action seekBackwardSmallAction: Action {
@@ -282,7 +282,7 @@ QtObject {
 
         Component.onCompleted: list["seekBackwardSmallAction"] = seekBackwardSmallAction
 
-        onTriggered: mpv.seek(-GeneralSettings.seekSmallStep)
+        onTriggered: mpv.seek(-PlaybackSettings.seekSmallStep)
     }
 
     property Action seekForwardMediumAction: Action {
@@ -294,7 +294,7 @@ QtObject {
 
         Component.onCompleted: list["seekForwardMediumAction"] = seekForwardMediumAction
 
-        onTriggered: mpv.seek(GeneralSettings.seekMediumStep)
+        onTriggered: mpv.seek(PlaybackSettings.seekMediumStep)
     }
 
     property Action seekBackwardMediumAction: Action {
@@ -306,7 +306,7 @@ QtObject {
 
         Component.onCompleted: list["seekBackwardMediumAction"] = seekBackwardMediumAction
 
-        onTriggered: mpv.seek(-GeneralSettings.seekMediumStep)
+        onTriggered: mpv.seek(-PlaybackSettings.seekMediumStep)
     }
 
     property Action seekForwardBigAction: Action {
@@ -318,7 +318,7 @@ QtObject {
 
         Component.onCompleted: list["seekForwardBigAction"] = seekForwardBigAction
 
-        onTriggered: mpv.seek(GeneralSettings.seekBigStep)
+        onTriggered: mpv.seek(PlaybackSettings.seekBigStep)
     }
 
     property Action seekBackwardBigAction: Action {
@@ -330,7 +330,7 @@ QtObject {
 
         Component.onCompleted: list["seekBackwardBigAction"] = seekBackwardBigAction
 
-        onTriggered: mpv.seek(-GeneralSettings.seekBigStep)
+        onTriggered: mpv.seek(-PlaybackSettings.seekBigStep)
     }
 
     property Action playPauseAction: Action {
@@ -757,7 +757,7 @@ QtObject {
 
         Component.onCompleted: list["toggleMenuBarAction"] = toggleMenuBarAction
 
-        onTriggered: GeneralSettings.showMenuBar = !menuBar.visible
+        onTriggered: UserInterfaceSettings.showMenuBar = !menuBar.visible
     }
 
     property Action toggleHeaderAction: Action {
@@ -769,7 +769,7 @@ QtObject {
 
         Component.onCompleted: list["toggleHeaderAction"] = toggleHeaderAction
 
-        onTriggered: GeneralSettings.showHeader = !header.visible
+        onTriggered: UserInterfaceSettings.showHeader = !header.visible
     }
 
     property Action screenshotAction: Action {

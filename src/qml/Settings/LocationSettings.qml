@@ -22,9 +22,9 @@ SettingsBasePage {
     FileDialog {
         id: openPrimaryFileDialogLocation
 
-        folder: GeneralSettings.fileDialogLocation !== ""
-                ? app.pathToUrl(GeneralSettings.fileDialogLocation)
-                : app.pathToUrl(GeneralSettings.fileDialogLastLocation)
+        folder: LocationSettings.fileDialogLocation !== ""
+                ? app.pathToUrl(LocationSettings.fileDialogLocation)
+                : app.pathToUrl(LocationSettings.fileDialogLastLocation)
         selectFolder: true
         title: "Choose Primary File Dialog Location"
 
@@ -35,8 +35,8 @@ SettingsBasePage {
 
             fileDialogLocation.text = filePath
 
-            GeneralSettings.fileDialogLocation = fileDialogLocation.text
-            GeneralSettings.save()
+            LocationSettings.fileDialogLocation = fileDialogLocation.text
+            LocationSettings.save()
 
             mpv.focus = true
         }
@@ -46,9 +46,9 @@ SettingsBasePage {
     FileDialog {
         id: openCPlayFileLocation
 
-        folder: GeneralSettings.cPlayFileLocation !== ""
-                ? app.pathToUrl(GeneralSettings.cPlayFileLocation)
-                : app.pathToUrl(GeneralSettings.fileDialogLastLocation)
+        folder: LocationSettings.cPlayFileLocation !== ""
+                ? app.pathToUrl(LocationSettings.cPlayFileLocation)
+                : app.pathToUrl(LocationSettings.fileDialogLastLocation)
         selectFolder: true
         title: "Choose Common C-Play File Location"
 
@@ -59,8 +59,8 @@ SettingsBasePage {
 
             cPlayFileLocation.text = filePath
 
-            GeneralSettings.cPlayFileLocation = cPlayFileLocation.text
-            GeneralSettings.save()
+            LocationSettings.cPlayFileLocation = cPlayFileLocation.text
+            LocationSettings.save()
 
             mpv.focus = true
         }
@@ -70,9 +70,9 @@ SettingsBasePage {
     FileDialog {
         id: openCPlayMediaLocation
 
-        folder: GeneralSettings.cPlayMediaLocation !== ""
-                ? app.pathToUrl(GeneralSettings.cPlayMediaLocation)
-                : app.pathToUrl(GeneralSettings.fileDialogLastLocation)
+        folder: LocationSettings.cPlayMediaLocation !== ""
+                ? app.pathToUrl(LocationSettings.cPlayMediaLocation)
+                : app.pathToUrl(LocationSettings.fileDialogLastLocation)
         selectFolder: true
         title: "Choose Common C-Play Media Location"
 
@@ -83,8 +83,8 @@ SettingsBasePage {
 
             cPlayMediaLocation.text = filePath
 
-            GeneralSettings.cPlayMediaLocation = cPlayMediaLocation.text
-            GeneralSettings.save()
+            LocationSettings.cPlayMediaLocation = cPlayMediaLocation.text
+            LocationSettings.save()
 
             mpv.focus = true
         }
@@ -94,9 +94,9 @@ SettingsBasePage {
     FileDialog {
         id: openUniviewVideoLocation
 
-        folder: GeneralSettings.univiewVideoLocation !== ""
-                ? app.pathToUrl(GeneralSettings.univiewVideoLocation)
-                : app.pathToUrl(GeneralSettings.fileDialogLastLocation)
+        folder: LocationSettings.univiewVideoLocation !== ""
+                ? app.pathToUrl(LocationSettings.univiewVideoLocation)
+                : app.pathToUrl(LocationSettings.fileDialogLastLocation)
         selectFolder: true
         title: "Choose Common Uniview Media Location"
 
@@ -107,8 +107,8 @@ SettingsBasePage {
 
             univiewVideoLocation.text = filePath
 
-            GeneralSettings.univiewVideoLocation = univiewVideoLocation.text
-            GeneralSettings.save()
+            LocationSettings.univiewVideoLocation = univiewVideoLocation.text
+            LocationSettings.save()
 
             mpv.focus = true
         }
@@ -126,41 +126,6 @@ SettingsBasePage {
         }
 
         Label {
-            text: qsTr("File dialog location")
-            Layout.alignment: Qt.AlignRight
-        }
-
-        RowLayout {
-            height: fileDialogLocation.height
-            TextField {
-                id: fileDialogLocation
-
-                text: GeneralSettings.fileDialogLocation
-                onEditingFinished: {
-                    GeneralSettings.fileDialogLocation = fileDialogLocation.text
-                    GeneralSettings.save()
-                }
-
-                ToolTip {
-                    text: qsTr("If empty the file dialog will remember the last opened location.")
-                }
-            }
-            ToolButton {
-                id: fileDialogLocationLoadButton
-                text: ""
-                icon.name: "system-file-manager"
-                icon.height: 16
-                focusPolicy: Qt.NoFocus
-                onClicked: {
-                    openPrimaryFileDialogLocation.open()
-                }
-            }
-            Layout.fillWidth: true
-            Layout.columnSpan: 2
-        }
-
-
-        Label {
             text: qsTr("Common C-play file location")
             Layout.alignment: Qt.AlignRight
         }
@@ -171,11 +136,13 @@ SettingsBasePage {
             TextField {
                 id: cPlayFileLocation
 
-                text: GeneralSettings.cPlayFileLocation
+                text: LocationSettings.cPlayFileLocation
                 onEditingFinished: {
-                    GeneralSettings.cPlayFileLocation = cPlayFileLocation.text
-                    GeneralSettings.save()
+                    LocationSettings.cPlayFileLocation = cPlayFileLocation.text
+                    LocationSettings.save()
                 }
+
+                placeholderText: qsTr("Set for relative cplayfile/list paths")
 
                 ToolTip {
                     text: qsTr("Common directory for where the C-play file(s) are stored.")
@@ -207,11 +174,13 @@ SettingsBasePage {
             TextField {
                 id: cPlayMediaLocation
 
-                text: GeneralSettings.cPlayMediaLocation
+                text: LocationSettings.cPlayMediaLocation
                 onEditingFinished: {
-                    GeneralSettings.cPlayMediaLocation = cPlayMediaLocation.text
-                    GeneralSettings.save()
+                    LocationSettings.cPlayMediaLocation = cPlayMediaLocation.text
+                    LocationSettings.save()
                 }
+
+                placeholderText: qsTr("Set for relative media paths")
 
                 ToolTip {
                     text: qsTr("Common directory for where the media (video/audio/etc) are stored.")
@@ -233,6 +202,42 @@ SettingsBasePage {
         }
 
         Label {
+            text: qsTr("File dialog location")
+            Layout.alignment: Qt.AlignRight
+        }
+
+        RowLayout {
+            height: fileDialogLocation.height
+            TextField {
+                id: fileDialogLocation
+
+                text: LocationSettings.fileDialogLocation
+                onEditingFinished: {
+                    LocationSettings.fileDialogLocation = fileDialogLocation.text
+                    LocationSettings.save()
+                }
+
+                placeholderText: qsTr("Recommended empty...")
+
+                ToolTip {
+                    text: qsTr("If empty the file dialog will remember the last opened location.")
+                }
+            }
+            ToolButton {
+                id: fileDialogLocationLoadButton
+                text: ""
+                icon.name: "system-file-manager"
+                icon.height: 16
+                focusPolicy: Qt.NoFocus
+                onClicked: {
+                    openPrimaryFileDialogLocation.open()
+                }
+            }
+            Layout.fillWidth: true
+            Layout.columnSpan: 2
+        }
+
+        Label {
             text: qsTr("Uniview video location")
             Layout.alignment: Qt.AlignRight
         }
@@ -243,11 +248,13 @@ SettingsBasePage {
             TextField {
                 id: univiewVideoLocation
 
-                text: GeneralSettings.univiewVideoLocation
+                text: LocationSettings.univiewVideoLocation
                 onEditingFinished: {
-                    GeneralSettings.univiewVideoLocation = univiewVideoLocation.text
-                    GeneralSettings.save()
+                    LocationSettings.univiewVideoLocation = univiewVideoLocation.text
+                    LocationSettings.save()
                 }
+
+                placeholderText: qsTr("Only needed to load *.fdv files")
 
                 ToolTip {
                     text: qsTr("Common directory where the Uniview video files are stored.")
@@ -300,19 +307,19 @@ SettingsBasePage {
             }
 
             onActivated: {
-                VideoSettings.screenshotFormat = model.get(index).key
-                VideoSettings.save()
-                mpv.setProperty("screenshot-format", VideoSettings.screenshotFormat)
+                LocationSettings.screenshotFormat = model.get(index).key
+                LocationSettings.save()
+                mpv.setProperty("screenshot-format", LocationSettings.screenshotFormat)
             }
 
             Component.onCompleted: {
-                if (VideoSettings.screenshotFormat === "PNG") {
+                if (LocationSettings.screenshotFormat === "PNG") {
                     currentIndex = 0
                 }
-                if (VideoSettings.screenshotFormat === "JPG") {
+                if (LocationSettings.screenshotFormat === "JPG") {
                     currentIndex = 1
                 }
-                if (VideoSettings.screenshotFormat === "WebP") {
+                if (LocationSettings.screenshotFormat === "WebP") {
                     currentIndex = 2
                 }
             }
@@ -331,11 +338,11 @@ SettingsBasePage {
 
         TextField {
             id: screenshotTemplate
-            text: VideoSettings.screenshotTemplate
+            text: LocationSettings.screenshotTemplate
             onEditingFinished: {
-                VideoSettings.screenshotTemplate = text
-                VideoSettings.save()
-                mpv.setProperty("screenshot-template", VideoSettings.screenshotTemplate)
+                LocationSettings.screenshotTemplate = text
+                LocationSettings.save()
+                mpv.setProperty("screenshot-template", LocationSettings.screenshotTemplate)
             }
         }
         Item {

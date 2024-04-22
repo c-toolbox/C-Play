@@ -1,0 +1,37 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<!--
+ SPDX-FileCopyrightText: 2021-2024 Erik Sundén <eriksunden85@gmail.com>
+ SPDX-FileCopyrightText: 2020 George Florea Bănuș <georgefb899@gmail.com>
+ SPDX-License-Identifier: GPL-3.0-or-later
+ -->
+<kcfg xmlns="http://www.kde.org/standards/kcfg/1.0"
+      xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance"
+      xsi:schemaLocation="http://www.kde.org/standards/kcfg/1.0
+                          http://www.kde.org/standards/kcfg/1.0/kcfg.xsd" >
+  <kcfgfile name="C-Play/cplay.conf" />
+  <include>QStandardPaths</include>
+  <group name="Image">
+    <entry name="ImageToLoadAsBackground" type="String">
+      <label>An image file that will be shown when video is not visible</label>
+    </entry>
+	<entry name="StereoModeForBackground" type="int">
+      <label>Have 2D or a 3D Mode On/Off on for background image</label>
+      <default>0</default>
+    </entry>
+	<entry name="GridToMapOnForBackground" type="int">
+      <label>The grid that background image uses</label>
+      <default>0</default>
+    </entry>
+	<entry name="ImageToLoadAsForeground" type="String">
+      <label>An image file (with transparency) that will be shown ontop of everything</label>
+    </entry>
+	<entry name="StereoModeForForeground" type="int">
+      <label>Have 2D or a 3D Mode On/Off on for foreground image</label>
+      <default>0</default>
+    </entry>
+	<entry name="GridToMapOnForForeground" type="int">
+      <label>The grid that foreground image uses</label>
+      <default>0</default>
+    </entry>
+  </group>
+</kcfg>

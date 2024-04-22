@@ -55,8 +55,6 @@ Kirigami.ApplicationWindow {
         SettingsMenu {}
         HelpMenu {}
 
-        //hoverEnabled: true
-        //visible: !window.isFullScreen() && GeneralSettings.showMenuBar
         background: Rectangle {
             color: Kirigami.Theme.backgroundColor
         }
@@ -103,9 +101,9 @@ Kirigami.ApplicationWindow {
 
     Platform.FileDialog {
         id: openFileDialog
-        folder: GeneralSettings.fileDialogLocation !== ""
-                ? app.pathToUrl(GeneralSettings.fileDialogLocation)
-                : app.pathToUrl(GeneralSettings.fileDialogLastLocation)
+        folder: LocationSettings.fileDialogLocation !== ""
+                ? app.pathToUrl(LocationSettings.fileDialogLocation)
+                : app.pathToUrl(LocationSettings.fileDialogLastLocation)
         title: "Open File"
         fileMode: Platform.FileDialog.OpenFile
 
@@ -116,17 +114,17 @@ Kirigami.ApplicationWindow {
             playList.scrollPositionTimer.start()
             mpv.focus = true
 
-            GeneralSettings.fileDialogLastLocation = app.parentUrl(openFileDialog.file)
-            GeneralSettings.save()
+            LocationSettings.fileDialogLastLocation = app.parentUrl(openFileDialog.file)
+            LocationSettings.save()
         }
         onRejected: mpv.focus = true
     }
 
     Platform.FileDialog {
         id: addToPlaylistDialog
-        folder: GeneralSettings.cPlayFileLocation !== ""
-                ? app.pathToUrl(GeneralSettings.cPlayFileLocation)
-                : app.pathToUrl(GeneralSettings.fileDialogLastLocation)
+        folder: LocationSettings.cPlayFileLocation !== ""
+                ? app.pathToUrl(LocationSettings.cPlayFileLocation)
+                : app.pathToUrl(LocationSettings.fileDialogLastLocation)
         title: "Add file to playlist"
         fileMode: Platform.FileDialog.OpenFile
         nameFilters: [ "C-Play file (*.cplayfile)", "Uniview file (*.fdv)" ]
@@ -141,9 +139,9 @@ Kirigami.ApplicationWindow {
     Platform.FileDialog {
         id: saveCPlayFileDialog
 
-        folder: GeneralSettings.cPlayFileLocation !== ""
-                ? app.pathToUrl(GeneralSettings.cPlayFileLocation)
-                : app.pathToUrl(GeneralSettings.fileDialogLastLocation)
+        folder: LocationSettings.cPlayFileLocation !== ""
+                ? app.pathToUrl(LocationSettings.cPlayFileLocation)
+                : app.pathToUrl(LocationSettings.fileDialogLastLocation)
         title: "Save C-Play File Config"
         fileMode: Platform.FileDialog.SaveFile
         nameFilters: [ "C-Play file (*.cplayfile)" ]
@@ -163,9 +161,9 @@ Kirigami.ApplicationWindow {
     Platform.FileDialog {
         id: saveCPlayPlaylistDialog
 
-        folder: GeneralSettings.cPlayFileLocation !== ""
-                ? app.pathToUrl(GeneralSettings.cPlayFileLocation)
-                : app.pathToUrl(GeneralSettings.fileDialogLastLocation)
+        folder: LocationSettings.cPlayFileLocation !== ""
+                ? app.pathToUrl(LocationSettings.cPlayFileLocation)
+                : app.pathToUrl(LocationSettings.fileDialogLastLocation)
         title: "Save C-Playlist"
         fileMode: Platform.FileDialog.SaveFile
         nameFilters: [ "C-Play playlist (*.cplaylist)" ]
@@ -202,7 +200,7 @@ Kirigami.ApplicationWindow {
                 visible: app.hasYoutubeDl()
                 Layout.preferredWidth: 400
                 Layout.fillWidth: true
-                Component.onCompleted: text = GeneralSettings.lastUrl
+                Component.onCompleted: text = LocationSettings.lastUrl
 
                 Keys.onPressed: {
                     if (event.key === Qt.Key_Enter
@@ -222,9 +220,9 @@ Kirigami.ApplicationWindow {
 
                 onClicked: {
                     openFile(openUrlTextField.text, true, false)
-                    GeneralSettings.lastUrl = openUrlTextField.text
+                    LocationSettings.lastUrl = openUrlTextField.text
                     // in case the url is a playList, it opens the first video
-                    GeneralSettings.lastPlaylistIndex = 0
+                    PlaylistSettings.lastPlaylistIndex = 0
                     openUrlPopup.close()
                     openUrlTextField.clear()
                 }
@@ -232,7 +230,7 @@ Kirigami.ApplicationWindow {
         }
     }
 
-    Component.onCompleted: app.activateColorScheme(GeneralSettings.colorScheme)
+    Component.onCompleted: app.activateColorScheme(UserInterfaceSettings.colorScheme)
 
     function openFile(path, startPlayback, loadSiblings) {
         /*if (app.isYoutubePlaylist(path)) {

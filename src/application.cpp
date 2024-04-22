@@ -10,17 +10,21 @@
 #include "application.h"
 #include "haction.h"
 #include "mpvobject.h"
-#include "audiosettings.h"
-#include "generalsettings.h"
-#include "mousesettings.h"
 #include "playercontroller.h"
-#include "playbacksettings.h"
-#include "playlistsettings.h"
-#include "videosettings.h"
 #include "playlistitem.h"
 #include "playlistmodel.h"
 #include "tracksmodel.h"
 #include "trackballcameracontroller.h"
+
+#include "audiosettings.h"
+#include "gridsettings.h"
+#include "imagesettings.h"
+#include "locationsettings.h"
+#include "mousesettings.h"
+#include "playbacksettings.h"
+#include "playlistsettings.h"
+#include "userinterfacesettings.h"
+
 #include "worker.h"
 #include <iostream>
 #include <sgct/sgct.h>
@@ -84,12 +88,12 @@ Application::Application(int &argc, char **argv, const QString &applicationName)
     m_schemes = new KColorSchemeManager(this);
     m_systemDefaultStyle = m_app->style()->objectName();
 
-    if (GeneralSettings::useBreezeIconTheme()) {
+    if (UserInterfaceSettings::useBreezeIconTheme()) {
         QIcon::setThemeName("breeze");
     }
 
-    if (GeneralSettings::guiStyle() != QStringLiteral("System")) {
-        QApplication::setStyle(GeneralSettings::guiStyle());
+    if (UserInterfaceSettings::guiStyle() != QStringLiteral("System")) {
+        QApplication::setStyle(UserInterfaceSettings::guiStyle());
     }
 
     // Qt sets the locale in the QGuiApplication constructor, but libmpv
@@ -217,8 +221,14 @@ void Application::setupQmlSettingsTypes()
     auto audioProvider = [](QQmlEngine *, QJSEngine *) -> QObject * { return AudioSettings::self(); };
     qmlRegisterSingletonType<AudioSettings>("org.ctoolbox.cplay", 1, 0, "AudioSettings", audioProvider);
 
-    auto generalProvider = [](QQmlEngine *, QJSEngine *) -> QObject * { return GeneralSettings::self(); };
-    qmlRegisterSingletonType<GeneralSettings>("org.ctoolbox.cplay", 1, 0, "GeneralSettings", generalProvider);
+    auto gridProvider = [](QQmlEngine*, QJSEngine*) -> QObject* { return GridSettings::self(); };
+    qmlRegisterSingletonType<GridSettings>("org.ctoolbox.cplay", 1, 0, "GridSettings", gridProvider);
+
+    auto imageProvider = [](QQmlEngine*, QJSEngine*) -> QObject* { return ImageSettings::self(); };
+    qmlRegisterSingletonType<ImageSettings>("org.ctoolbox.cplay", 1, 0, "ImageSettings", imageProvider);
+
+    auto locationProvider = [](QQmlEngine*, QJSEngine*) -> QObject* { return LocationSettings::self(); };
+    qmlRegisterSingletonType<LocationSettings>("org.ctoolbox.cplay", 1, 0, "LocationSettings", locationProvider);
 
     auto mouseProvider = [](QQmlEngine *, QJSEngine *) -> QObject * { return MouseSettings::self(); };
     qmlRegisterSingletonType<MouseSettings>("org.ctoolbox.cplay", 1, 0, "MouseSettings", mouseProvider);
@@ -229,8 +239,8 @@ void Application::setupQmlSettingsTypes()
     auto playlistProvider = [](QQmlEngine *, QJSEngine *) -> QObject * { return PlaylistSettings::self(); };
     qmlRegisterSingletonType<PlaylistSettings>("org.ctoolbox.cplay", 1, 0, "PlaylistSettings", playlistProvider);
 
-    auto videoProvider = [](QQmlEngine *, QJSEngine *) -> QObject * { return VideoSettings::self(); };
-    qmlRegisterSingletonType<VideoSettings>("org.ctoolbox.cplay", 1, 0, "VideoSettings", videoProvider);
+    auto uiProvider = [](QQmlEngine*, QJSEngine*) -> QObject* { return UserInterfaceSettings::self(); };
+    qmlRegisterSingletonType<UserInterfaceSettings>("org.ctoolbox.cplay", 1, 0, "UserInterfaceSettings", uiProvider);
 }
 
 void Application::setupQmlContextProperties()

@@ -50,14 +50,14 @@ SettingsBasePage {
             }
 
             onActivated: {
-                VideoSettings.plane_Calculate_Size_Based_on_Video = model.get(index).value
-                VideoSettings.save()
+                GridSettings.plane_Calculate_Size_Based_on_Video = model.get(index).value
+                GridSettings.save()
                 mpv.planeChanged
             }
 
             Component.onCompleted: {
                 for (let i = 0; i < planeSizeBasedOnMode.count; ++i) {
-                    if (planeSizeBasedOnMode.get(i).value === VideoSettings.plane_Calculate_Size_Based_on_Video) {
+                    if (planeSizeBasedOnMode.get(i).value === GridSettings.plane_Calculate_Size_Based_on_Video) {
                         currentIndex = i
                         break
                     }
@@ -74,7 +74,7 @@ SettingsBasePage {
                 id: planeWidthBox
                 from: 0
                 to: 2000
-                enabled: VideoSettings.plane_Calculate_Size_Based_on_Video !== 1
+                enabled: GridSettings.plane_Calculate_Size_Based_on_Video !== 1
                 stepSize: 1
                 value: mpv.planeWidth
             }
@@ -98,7 +98,7 @@ SettingsBasePage {
                 id: planeHeightBox
                 from: 0
                 to: 2000
-                enabled: VideoSettings.plane_Calculate_Size_Based_on_Video !== 2
+                enabled: GridSettings.plane_Calculate_Size_Based_on_Video !== 2
                 stepSize: 1
                 value: mpv.planeHeight
             }
@@ -199,7 +199,7 @@ SettingsBasePage {
                 from: 0
                 to: 2000
                 stepSize: 1
-                value: VideoSettings.surfaceRadius_2ndState
+                value: GridSettings.surfaceRadius_2ndState
             }
             Layout.alignment: Qt.AlignRight
         }
@@ -234,7 +234,7 @@ SettingsBasePage {
                 id: surfaceFovScenario
                 from: 0
                 to: 360
-                value: VideoSettings.surfaceFov_2ndState
+                value: GridSettings.surfaceFov_2ndState
             }
             Layout.alignment: Qt.AlignRight
         }
@@ -269,7 +269,7 @@ SettingsBasePage {
                 id: surfaceAngleScenario
                 from: 0
                 to: 360
-                value: VideoSettings.surfaceAngle_2ndState
+                value: GridSettings.surfaceAngle_2ndState
             }
             Layout.alignment: Qt.AlignRight
         }
@@ -304,7 +304,7 @@ SettingsBasePage {
                 id: surfaceTranslateXScenario
                 from: -5000
                 to: 5000
-                value: VideoSettings.surfaceTranslateX_2ndState
+                value: GridSettings.surfaceTranslateX_2ndState
             }
             Layout.alignment: Qt.AlignRight
         }
@@ -339,7 +339,7 @@ SettingsBasePage {
                 id: surfaceTranslateYScenario
                 from: -5000
                 to: 5000
-                value: VideoSettings.surfaceTranslateY_2ndState
+                value: GridSettings.surfaceTranslateY_2ndState
             }
             Layout.alignment: Qt.AlignRight
         }
@@ -374,7 +374,7 @@ SettingsBasePage {
                 id: surfaceTranslateZScenario
                 from: -5000
                 to: 5000
-                value: VideoSettings.surfaceTranslateZ_2ndState
+                value: GridSettings.surfaceTranslateZ_2ndState
             }
             Layout.alignment: Qt.AlignRight
         }
@@ -588,23 +588,23 @@ SettingsBasePage {
             Button {
                     text: "Reset radius/fov/rotation settings to startup values"
                     onClicked: {
-                        mpv.planeWidth = VideoSettings.planeWidth
-                        mpv.planeHeight = VideoSettings.planeHeight
-                        mpv.planeElevation = VideoSettings.planeElevation
-                        mpv.planeDistance = VideoSettings.planeDistance
-                        mpv.rotationSpeed = VideoSettings.surfaceRotationSpeed
-                        mpv.radius = VideoSettings.surfaceRadius
-                        mpv.fov = VideoSettings.surfaceFov
-                        mpv.angle = VideoSettings.surfaceAngle
-                        mpv.rotate = Qt.vector3d(VideoSettings.surfaceRotateX, VideoSettings.surfaceRotateY, VideoSettings.surfaceRotateZ)
-                        mpv.translate = Qt.vector3d(VideoSettings.surfaceTranslateX, VideoSettings.surfaceTranslateY, VideoSettings.surfaceTranslateZ)
-                        mpv.surfaceTransitionTime = VideoSettings.surfaceTransitionTime
-                        surfaceRadiusScenario.value = VideoSettings.surfaceRadius_2ndState
-                        surfaceFovScenario.value = VideoSettings.surfaceFov_2ndState
-                        surfaceAngleScenario.value = VideoSettings.surfaceAngle_2ndState
-                        surfaceTranslateXScenario.value = VideoSettings.surfaceTranslateX_2ndState
-                        surfaceTranslateYScenario.value = VideoSettings.surfaceTranslateY_2ndState
-                        surfaceTranslateZScenario.value = VideoSettings.surfaceTranslateZ_2ndState
+                        mpv.planeWidth = GridSettings.planeWidth
+                        mpv.planeHeight = GridSettings.planeHeight
+                        mpv.planeElevation = GridSettings.planeElevation
+                        mpv.planeDistance = GridSettings.planeDistance
+                        mpv.rotationSpeed = GridSettings.surfaceRotationSpeed
+                        mpv.radius = GridSettings.surfaceRadius
+                        mpv.fov = GridSettings.surfaceFov
+                        mpv.angle = GridSettings.surfaceAngle
+                        mpv.rotate = Qt.vector3d(GridSettings.surfaceRotateX, GridSettings.surfaceRotateY, GridSettings.surfaceRotateZ)
+                        mpv.translate = Qt.vector3d(GridSettings.surfaceTranslateX, GridSettings.surfaceTranslateY, GridSettings.surfaceTranslateZ)
+                        mpv.surfaceTransitionTime = GridSettings.surfaceTransitionTime
+                        surfaceRadiusScenario.value = GridSettings.surfaceRadius_2ndState
+                        surfaceFovScenario.value = GridSettings.surfaceFov_2ndState
+                        surfaceAngleScenario.value = GridSettings.surfaceAngle_2ndState
+                        surfaceTranslateXScenario.value = GridSettings.surfaceTranslateX_2ndState
+                        surfaceTranslateYScenario.value = GridSettings.surfaceTranslateY_2ndState
+                        surfaceTranslateZScenario.value = GridSettings.surfaceTranslateZ_2ndState
                     }
             }
             Layout.columnSpan: 2
@@ -620,7 +620,7 @@ SettingsBasePage {
                 from: 0
                 to: 20
                 stepSize: 1
-                value: mpv.surfaceTransitionTime
+                Component.onCompleted: transitionTime.value = mpv.surfaceTransitionTime
                 onValueChanged: mpv.surfaceTransitionTime = value
             }
             LabelWithTooltip {
@@ -636,28 +636,28 @@ SettingsBasePage {
             Button {
                     text: "Save current radius/fov/rotation settings to load on startup"
                     onClicked: {
-                        VideoSettings.planeWidth = mpv.planeWidth
-                        VideoSettings.planeHeight = mpv.planeHeight
-                        VideoSettings.planeElevation = mpv.planeElevation
-                        VideoSettings.planeDistance = mpv.planeDistance
-                        VideoSettings.surfaceRotationSpeed = mpv.rotationSpeed
-                        VideoSettings.surfaceRadius = mpv.radius
-                        VideoSettings.surfaceFov = mpv.fov
-                        VideoSettings.surfaceAngle = mpv.angle
-                        VideoSettings.surfaceRotateX = mpv.rotate.x
-                        VideoSettings.surfaceRotateY = mpv.rotate.y
-                        VideoSettings.surfaceRotateZ = mpv.rotate.z
-                        VideoSettings.surfaceTranslateX = mpv.translate.x
-                        VideoSettings.surfaceTranslateY = mpv.translate.y
-                        VideoSettings.surfaceTranslateZ = mpv.translate.z
-                        VideoSettings.surfaceTransitionTime = mpv.surfaceTransitionTime
-                        VideoSettings.surfaceRadius_2ndState = surfaceRadiusScenario.value
-                        VideoSettings.surfaceFov_2ndState = surfaceFovScenario.value
-                        VideoSettings.surfaceAngle_2ndState = surfaceAngleScenario.value
-                        VideoSettings.surfaceTranslateX_2ndState = surfaceTranslateXScenario.value
-                        VideoSettings.surfaceTranslateY_2ndState = surfaceTranslateYScenario.value
-                        VideoSettings.surfaceTranslateZ_2ndState = surfaceTranslateZScenario.value
-                        VideoSettings.save()
+                        GridSettings.planeWidth = mpv.planeWidth
+                        GridSettings.planeHeight = mpv.planeHeight
+                        GridSettings.planeElevation = mpv.planeElevation
+                        GridSettings.planeDistance = mpv.planeDistance
+                        GridSettings.surfaceRotationSpeed = mpv.rotationSpeed
+                        GridSettings.surfaceRadius = mpv.radius
+                        GridSettings.surfaceFov = mpv.fov
+                        GridSettings.surfaceAngle = mpv.angle
+                        GridSettings.surfaceRotateX = mpv.rotate.x
+                        GridSettings.surfaceRotateY = mpv.rotate.y
+                        GridSettings.surfaceRotateZ = mpv.rotate.z
+                        GridSettings.surfaceTranslateX = mpv.translate.x
+                        GridSettings.surfaceTranslateY = mpv.translate.y
+                        GridSettings.surfaceTranslateZ = mpv.translate.z
+                        GridSettings.surfaceTransitionTime = mpv.surfaceTransitionTime
+                        GridSettings.surfaceRadius_2ndState = surfaceRadiusScenario.value
+                        GridSettings.surfaceFov_2ndState = surfaceFovScenario.value
+                        GridSettings.surfaceAngle_2ndState = surfaceAngleScenario.value
+                        GridSettings.surfaceTranslateX_2ndState = surfaceTranslateXScenario.value
+                        GridSettings.surfaceTranslateY_2ndState = surfaceTranslateYScenario.value
+                        GridSettings.surfaceTranslateZ_2ndState = surfaceTranslateZScenario.value
+                        GridSettings.save()
                     }
             }
             Layout.columnSpan: 2

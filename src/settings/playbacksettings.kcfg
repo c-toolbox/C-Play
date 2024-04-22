@@ -27,37 +27,24 @@
 	<entry name="TimeToCheckThresholdSyncAfterLoop" type="int">
       <default>3000</default>
     </entry>
+	<entry name="SyncImageVideoFading" type="bool">
+      <label>Sync audio+image fading</label>
+      <default>false</default>
+    </entry>
 	<entry name="FadeDuration" type="int">
       <default>2000</default>
     </entry>
-    <entry name="PlaylistToLoadOnStartup" type="String">
-      <label>A playlist to load at startup</label>
+	<entry name="SeekSmallStep" type="Int">
+      <label>Seek small step</label>
+      <default>5</default>
     </entry>
-    <entry name="ImageToLoadAsBackground" type="String">
-      <label>An image file that will be shown when video is not visible</label>
+    <entry name="SeekMediumStep" type="Int">
+      <label>Seek medium step</label>
+      <default>15</default>
     </entry>
-	<entry name="StereoModeForBackground" type="int">
-      <label>Have 2D or a 3D Mode On/Off on for background image</label>
-      <default>0</default>
-    </entry>
-	<entry name="GridToMapOnForBackground" type="int">
-      <label>The grid that background image uses</label>
-      <default>0</default>
-    </entry>
-	<entry name="ImageToLoadAsForeground" type="String">
-      <label>An image file (with transparency) that will be shown ontop of everything</label>
-    </entry>
-	<entry name="StereoModeForForeground" type="int">
-      <label>Have 2D or a 3D Mode On/Off on for foreground image</label>
-      <default>0</default>
-    </entry>
-	<entry name="GridToMapOnForForeground" type="int">
-      <label>The grid that foreground image uses</label>
-      <default>0</default>
-    </entry>
-    <entry name="SyncImageVideoFading" type="bool">
-      <label>Sync audio+image fading</label>
-      <default>false</default>
+    <entry name="SeekBigStep" type="Int">
+      <label>Seek big step</label>
+      <default>30</default>
     </entry>
     <entry name="SkipChapters" type="bool">
       <label>Skip chapters</label>
@@ -65,10 +52,6 @@
     </entry>
     <entry name="ChaptersToSkip" type="String">
       <label>Chapters to skip</label>
-    </entry>
-    <entry name="ShowOsdOnSkipChapters" type="bool">
-      <label>Show osd on skip chapters</label>
-      <default>true</default>
     </entry>
     <entry name="YtdlFormat" type="String">
       <label>Ytdl format selection</label>

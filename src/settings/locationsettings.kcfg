@@ -10,59 +10,7 @@
                           http://www.kde.org/standards/kcfg/1.0/kcfg.xsd" >
   <kcfgfile name="C-Play/cplay.conf" />
   <include>QStandardPaths</include>
-  <group name="General">
-    <entry name="OsdFontSize" type="Int">
-      <label>Osd font size</label>
-      <default>25</default>
-    </entry>
-    <entry name="VolumeStep" type="Int">
-      <label>Volume step</label>
-      <default>5</default>
-    </entry>
-    <entry name="SeekSmallStep" type="Int">
-      <label>Seek small step</label>
-      <default>5</default>
-    </entry>
-    <entry name="SeekMediumStep" type="Int">
-      <label>Seek medium step</label>
-      <default>15</default>
-    </entry>
-    <entry name="SeekBigStep" type="Int">
-      <label>Seek big step</label>
-      <default>30</default>
-    </entry>
-    <entry name="ShowMenuBar" type="bool">
-      <label>Show menu bar</label>
-      <default>true</default>
-    </entry>
-    <entry name="ShowHeader" type="bool">
-      <label>Show header</label>
-      <default>true</default>
-    </entry>
-    <entry name="ShowChapterMarkers" type="bool">
-      <label>Show chapter markers</label>
-      <default>true</default>
-    </entry>
-    <entry name="ColorScheme" type="String">
-      <label>Color scheme</label>
-	  <default>Breeze Dark</default>
-    </entry>
-    <entry name="UseBreezeIconTheme" type="bool">
-      <default>true</default>
-    </entry>
-    <entry name="GuiStyle" type="String">
-        <default>Breeze</default>
-    </entry>
-    <entry name="Volume" type="Int">
-      <label>Volume</label>
-      <default>80</default>
-    </entry>
-    <entry name="LastPlayedFile" type="String">
-      <label>Last played file</label>
-    </entry>
-    <entry name="LastPlaylistIndex" type="Int">
-      <default>0</default>
-    </entry>
+  <group name="Location">
     <entry name="RecentLoadedMediaFiles" type="StringList">
       <label>Recently loaded media files</label>
     </entry>
@@ -88,8 +36,23 @@
       </code>
       <default code="true">videoFolder</default>
     </entry>
-    <entry name="LastUrl" type="String">
+	<entry name="LastPlayedFile" type="String">
+      <label>Last played file</label>
+    </entry>
+	<entry name="LastUrl" type="String">
       <label>Last url</label>
+    </entry>
+	<entry name="ScreenshotFormat" type="String">
+      <label>Screenshot format</label>
+      <default>jpg</default>
+    </entry>
+    <entry name="ScreenshotTemplate" type="String">
+      <label>Screenshot template</label>
+      <code>
+        QString screenshotsFolder = QStandardPaths::writableLocation(QStandardPaths::PicturesLocation);
+        screenshotsFolder.append("/C-play-screenshots/%F-%n");
+      </code>
+      <default code="true">screenshotsFolder</default>
     </entry>
   </group>
 </kcfg>

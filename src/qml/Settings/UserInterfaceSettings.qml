@@ -31,10 +31,10 @@ SettingsBasePage {
         Item { width: 1; height: 1 }
         CheckBox {
             text: qsTr("Show MenuBar")
-            checked: GeneralSettings.showMenuBar
+            checked: UserInterfaceSettings.showMenuBar
             onCheckedChanged: {
-                GeneralSettings.showMenuBar = checked
-                GeneralSettings.save()
+                UserInterfaceSettings.showMenuBar = checked
+                UserInterfaceSettings.save()
             }
         }
         Item {
@@ -44,10 +44,10 @@ SettingsBasePage {
         Item { width: 1; height: 1 }
         CheckBox {
             text: qsTr("Show Header")
-            checked: GeneralSettings.showHeader
+            checked: UserInterfaceSettings.showHeader
             onCheckedChanged: {
-                GeneralSettings.showHeader = checked
-                GeneralSettings.save()
+                UserInterfaceSettings.showHeader = checked
+                UserInterfaceSettings.save()
             }
         }
         Item {
@@ -57,10 +57,10 @@ SettingsBasePage {
         Item { width: 1; height: 1 }
         CheckBox {
             text: qsTr("Show chapter markers")
-            checked: GeneralSettings.showChapterMarkers
+            checked: UserInterfaceSettings.showChapterMarkers
             onCheckedChanged: {
-                GeneralSettings.showChapterMarkers = checked
-                GeneralSettings.save()
+                UserInterfaceSettings.showChapterMarkers = checked
+                UserInterfaceSettings.save()
             }
         }
         Item {
@@ -79,7 +79,7 @@ SettingsBasePage {
             delegate: ItemDelegate {
                 Kirigami.Theme.colorSet: Kirigami.Theme.View
                 width: colorThemeSwitcher.width
-                highlighted: model.display === GeneralSettings.colorScheme
+                highlighted: model.display === UserInterfaceSettings.colorScheme
                 contentItem: RowLayout {
                     Kirigami.Icon {
                         source: model.decoration
@@ -94,12 +94,12 @@ SettingsBasePage {
             }
 
             onActivated: {
-                GeneralSettings.colorScheme = colorThemeSwitcher.textAt(index)
-                GeneralSettings.save()
-                app.activateColorScheme(GeneralSettings.colorScheme)
+                UserInterfaceSettings.colorScheme = colorThemeSwitcher.textAt(index)
+                UserInterfaceSettings.save()
+                app.activateColorScheme(UserInterfaceSettings.colorScheme)
             }
 
-            Component.onCompleted: currentIndex = find(GeneralSettings.colorScheme)
+            Component.onCompleted: currentIndex = find(UserInterfaceSettings.colorScheme)
         }
         Item {
             Layout.fillWidth: true
@@ -120,8 +120,8 @@ SettingsBasePage {
             }
 
             onActivated: {
-                GeneralSettings.guiStyle = model.get(index).key
-                app.setGuiStyle(GeneralSettings.guiStyle)
+                UserInterfaceSettings.guiStyle = model.get(index).key
+                app.setGuiStyle(UserInterfaceSettings.guiStyle)
                 // some themes can cause a crash
                 // the timer prevents saving the crashing theme,
                 // which would cause the app to crash on startup
@@ -134,7 +134,7 @@ SettingsBasePage {
                 interval: 1000
                 running: false
                 repeat: false
-                onTriggered: GeneralSettings.save()
+                onTriggered: UserInterfaceSettings.save()
             }
 
             Component.onCompleted: {
@@ -145,7 +145,7 @@ SettingsBasePage {
 
                 // set the saved style as the current item in the combo box
                 for (let j = 0; j < stylesModel.count; ++j) {
-                    if (stylesModel.get(j).key === GeneralSettings.guiStyle) {
+                    if (stylesModel.get(j).key === UserInterfaceSettings.guiStyle) {
                         currentIndex = j
                         break
                     }
@@ -159,10 +159,10 @@ SettingsBasePage {
         Item { width: 1; height: 1 }
         CheckBox {
             text: qsTr("Use Breeze icon theme")
-            checked: GeneralSettings.useBreezeIconTheme
+            checked: UserInterfaceSettings.useBreezeIconTheme
             onCheckedChanged: {
-                GeneralSettings.useBreezeIconTheme = checked
-                GeneralSettings.save()
+                UserInterfaceSettings.useBreezeIconTheme = checked
+                UserInterfaceSettings.save()
             }
 
             ToolTip {
@@ -189,13 +189,13 @@ SettingsBasePage {
                 editable: true
                 from: 0
                 to: 100
-                value: GeneralSettings.osdFontSize
+                value: UserInterfaceSettings.osdFontSize
                 onValueChanged: {
                     if (completed) {
                         osd.label.font.pointSize = osdFontSize.value
                         osd.message("Test osd font size")
-                        GeneralSettings.osdFontSize = osdFontSize.value
-                        GeneralSettings.save()
+                        UserInterfaceSettings.osdFontSize = osdFontSize.value
+                        UserInterfaceSettings.save()
                     }
                 }
                 Component.onCompleted: completed = true

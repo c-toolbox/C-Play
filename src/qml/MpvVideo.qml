@@ -30,15 +30,15 @@ MpvObject {
     anchors.left: PlaylistSettings.position === "left" ? (playSections.visible ? playSections.right : playList.right) : parent.left
     anchors.right: PlaylistSettings.position === "right" ? (playList.visible ? playList.left : playSections.left) : parent.right
     anchors.top: parent.top
-    volume: GeneralSettings.volume
+    volume: AudioSettings.volume
 
     onResetOrientation: {
         if(mpv.gridToMapOn < 3){
-            mpv.angle = VideoSettings.surfaceAngle
-            mpv.radius = VideoSettings.surfaceRadius
-            mpv.fov = VideoSettings.surfaceFov
-            mpv.rotate = Qt.vector3d(VideoSettings.surfaceRotateX, VideoSettings.surfaceRotateY, VideoSettings.surfaceRotateZ)
-            mpv.translate = Qt.vector3d(VideoSettings.surfaceTranslateX, VideoSettings.surfaceTranslateY, VideoSettings.surfaceTranslateZ)
+            mpv.angle = GridSettings.surfaceAngle
+            mpv.radius = GridSettings.surfaceRadius
+            mpv.fov = GridSettings.surfaceFov
+            mpv.rotate = Qt.vector3d(GridSettings.surfaceRotateX, GridSettings.surfaceRotateY, GridSettings.surfaceRotateZ)
+            mpv.translate = Qt.vector3d(GridSettings.surfaceTranslateX, GridSettings.surfaceTranslateY, GridSettings.surfaceTranslateZ)
         }
         else{
             mpv.rotate = Qt.vector3d(0, -90, 0);
@@ -62,14 +62,14 @@ MpvObject {
     }
 
     onReady: {
-        setProperty("screenshot-template", VideoSettings.screenshotTemplate)
-        setProperty("screenshot-format", VideoSettings.screenshotFormat)
+        setProperty("screenshot-template", LocationSettings.screenshotTemplate)
+        setProperty("screenshot-format", LocationSettings.screenshotFormat)
         const preferredAudioTrack = AudioSettings.preferredTrack
         setProperty("aid", preferredAudioTrack === 0 ? "auto" : preferredAudioTrack)
         setProperty("alang", AudioSettings.preferredLanguage)
 
-        if(PlaybackSettings.playlistToLoadOnStartup !== ""){
-            window.openFile(PlaybackSettings.playlistToLoadOnStartup, false, PlaylistSettings.loadSiblings)
+        if(PlaylistSettings.playlistToLoadOnStartup !== ""){
+            window.openFile(PlaylistSettings.playlistToLoadOnStartup, false, PlaylistSettings.loadSiblings)
         }
     }
 
@@ -123,7 +123,7 @@ MpvObject {
         for (let i = 0; i < words.length; ++i) {
             if (chapters[mpv.chapter] && chapters[mpv.chapter].title.toLowerCase().includes(words[i].trim())) {
                 actions.seekNextChapterAction.trigger()
-                if (PlaybackSettings.showOsdOnSkipChapters) {
+                if (UserInterfaceSettings.showOsdOnSkipChapters) {
                     osd.message(qsTr("Skipped chapter: %1").arg(chapters[mpv.chapter-1].title))
                 }
                 // a chapter title can match multiple words

@@ -23,7 +23,7 @@ ToolBar {
     property var audioTracks
 
     position: ToolBar.Header
-    visible: !window.isFullScreen() && GeneralSettings.showHeader
+    visible: !window.isFullScreen() && UserInterfaceSettings.showHeader
 
     RowLayout {
         id: headerRow

@@ -10,7 +10,7 @@
 #include "playlistitem.h"
 #include "_debug.h"
 #include "application.h"
-#include "generalsettings.h"
+#include "locationsettings.h"
 #include "worker.h"
 
 #include <QCollator>
@@ -181,11 +181,11 @@ bool PlaySectionsModel::getCurrentEditItemIsEdited() {
 
 QUrl PlaySectionsModel::getSuggestedFileURL() {
     QString suggestFolderPath;
-    if(!GeneralSettings::cPlayFileLocation().isEmpty()) {
-        suggestFolderPath = GeneralSettings::cPlayFileLocation();
+    if(!LocationSettings::cPlayFileLocation().isEmpty()) {
+        suggestFolderPath = LocationSettings::cPlayFileLocation();
     }
     else {
-        suggestFolderPath = GeneralSettings::fileDialogLastLocation();
+        suggestFolderPath = LocationSettings::fileDialogLastLocation();
     }
 
     if (m_currentEditItem) {
@@ -849,7 +849,7 @@ void PlayListModel::saveAsJSONPlaylist(const QString& path) {
     QFileInfo fileToSaveInfo(fileToSave);
 
     QStringList pathsToConsider;
-    pathsToConsider.append(GeneralSettings::cPlayFileLocation());
+    pathsToConsider.append(LocationSettings::cPlayFileLocation());
     pathsToConsider.append(fileToSaveInfo.absoluteDir().absolutePath());
 
     QJsonArray playlistArray;

@@ -69,7 +69,7 @@ Slider {
 
             onClicked: {
                 if (mouse.button === Qt.MiddleButton) {
-                    if (!GeneralSettings.showChapterMarkers) {
+                    if (!UserInterfaceSettings.showChapterMarkers) {
                         return
                     }
 
@@ -102,7 +102,7 @@ Slider {
     // create markers for the chapters
     Repeater {
         id: chaptersInstantiator
-        model: GeneralSettings.showChapterMarkers ? chapters : 0
+        model: UserInterfaceSettings.showChapterMarkers ? chapters : 0
         delegate: Shape {
             id: chapterMarkerShape
 

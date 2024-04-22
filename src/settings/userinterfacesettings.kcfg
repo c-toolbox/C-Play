@@ -1,0 +1,45 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<!--
+ SPDX-FileCopyrightText: 2021-2024 Erik Sundén <eriksunden85@gmail.com>
+ SPDX-FileCopyrightText: 2020 George Florea Bănuș <georgefb899@gmail.com>
+ SPDX-License-Identifier: GPL-3.0-or-later
+ -->
+<kcfg xmlns="http://www.kde.org/standards/kcfg/1.0"
+      xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance"
+      xsi:schemaLocation="http://www.kde.org/standards/kcfg/1.0
+                          http://www.kde.org/standards/kcfg/1.0/kcfg.xsd" >
+  <kcfgfile name="C-Play/cplay.conf" />
+  <include>QStandardPaths</include>
+  <group name="UserInterface">
+    <entry name="OsdFontSize" type="Int">
+      <label>Osd font size</label>
+      <default>25</default>
+    </entry>
+	<entry name="ShowOsdOnSkipChapters" type="bool">
+      <label>Show osd on skip chapters</label>
+      <default>true</default>
+    </entry>
+    <entry name="ShowMenuBar" type="bool">
+      <label>Show menu bar</label>
+      <default>false</default>
+    </entry>
+    <entry name="ShowHeader" type="bool">
+      <label>Show header</label>
+      <default>true</default>
+    </entry>
+    <entry name="ShowChapterMarkers" type="bool">
+      <label>Show chapter markers</label>
+      <default>true</default>
+    </entry>
+    <entry name="ColorScheme" type="String">
+      <label>Color scheme</label>
+	  <default>Breeze Dark</default>
+    </entry>
+    <entry name="UseBreezeIconTheme" type="bool">
+      <default>true</default>
+    </entry>
+    <entry name="GuiStyle" type="String">
+        <default>Breeze</default>
+    </entry>
+  </group>
+</kcfg>

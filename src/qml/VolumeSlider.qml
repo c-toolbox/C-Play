@@ -23,7 +23,6 @@ Slider {
     implicitWidth: 100
     implicitHeight: 25
     wheelEnabled: false
-    //stepSize: GeneralSettings.volumeStep
     leftPadding: 0
     rightPadding: 0
 

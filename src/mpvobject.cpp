@@ -12,10 +12,11 @@
 #include "mpvobject.h"
 #include "application.h"
 #include "audiosettings.h"
-#include "generalsettings.h"
+#include "locationsettings.h"
 #include "playbacksettings.h"
 #include "playlistsettings.h"
-#include "videosettings.h"
+#include "gridsettings.h"
+#include "imagesettings.h"
 #include "playlistitem.h"
 #include "track.h"
 #include "tracksmodel.h"
@@ -117,21 +118,18 @@ MpvObject::MpvObject(QQuickItem * parent)
     //setProperty("terminal", "yes");
     //setProperty("msg-level", "all=v");
 
-    //QString hwdec = PlaybackSettings::useHWDecoding() ? PlaybackSettings::hWDecoding() : "no";
-    //setProperty("hwdec", hwdec);
-
-    m_rotationSpeed = VideoSettings::surfaceRotationSpeed();
-    m_radius = VideoSettings::surfaceRadius();
-    m_fov = VideoSettings::surfaceFov();
-    m_angle = VideoSettings::surfaceAngle();
-    m_rotate = QVector3D(VideoSettings::surfaceRotateX(), VideoSettings::surfaceRotateY(), VideoSettings::surfaceRotateZ());
-    m_translate = QVector3D(VideoSettings::surfaceTranslateX(), VideoSettings::surfaceTranslateY(), VideoSettings::surfaceTranslateZ());
-    m_surfaceTransitionTime = VideoSettings::surfaceTransitionTime();
+    m_rotationSpeed = GridSettings::surfaceRotationSpeed();
+    m_radius = GridSettings::surfaceRadius();
+    m_fov = GridSettings::surfaceFov();
+    m_angle = GridSettings::surfaceAngle();
+    m_rotate = QVector3D(GridSettings::surfaceRotateX(), GridSettings::surfaceRotateY(), GridSettings::surfaceRotateZ());
+    m_translate = QVector3D(GridSettings::surfaceTranslateX(), GridSettings::surfaceTranslateY(), GridSettings::surfaceTranslateZ());
+    m_surfaceTransitionTime = GridSettings::surfaceTransitionTime();
     m_surfaceTransitionOnGoing = false;
-    m_planeWidth = VideoSettings::plane_Width_CM();
-    m_planeHeight = VideoSettings::plane_Height_CM();
-    m_planeElevation = VideoSettings::plane_Elevation_Degrees();
-    m_planeDistance = VideoSettings::plane_Distance_CM();
+    m_planeWidth = GridSettings::plane_Width_CM();
+    m_planeHeight = GridSettings::plane_Height_CM();
+    m_planeElevation = GridSettings::plane_Elevation_Degrees();
+    m_planeDistance = GridSettings::plane_Distance_CM();
     m_syncImageVideoFading = PlaybackSettings::syncImageVideoFading();
     m_autoPlay = PlaylistSettings::autoPlayOnLoad();
 
@@ -151,13 +149,10 @@ MpvObject::MpvObject(QQuickItem * parent)
 
     QString loadAudioInVidFolder = AudioSettings::loadAudioFileInVideoFolder() ? "all" : "no";
     setProperty("audio-file-auto", loadAudioInVidFolder);
-    setProperty("screenshot-template", VideoSettings::screenshotTemplate());
+    setProperty("screenshot-template", LocationSettings::screenshotTemplate());
     setProperty("sub-auto", "exact");
     setProperty("volume-max", "100");
     setProperty("keep-open", "yes");
-
-    setStereoscopicMode(PlaybackSettings::stereoModeForBackground());
-    setGridToMapOn(PlaybackSettings::gridToMapOnForBackground());
 
     mpv::qt::load_configurations(mpv, QString::fromStdString(SyncHelper::instance().configuration.confAll));
     mpv::qt::load_configurations(mpv, QString::fromStdString(SyncHelper::instance().configuration.confMasterOnly));
@@ -249,25 +244,25 @@ void MpvObject::setAudioDevices(QVariantList devices)
 
 QStringList MpvObject::recentMediaFiles() const 
 {
-    return GeneralSettings::recentLoadedMediaFiles();
+    return LocationSettings::recentLoadedMediaFiles();
 }
 
 void MpvObject::setRecentMediaFiles(QStringList list)
 {
-    GeneralSettings::setRecentLoadedMediaFiles(list);
-    GeneralSettings::self()->save();
+    LocationSettings::setRecentLoadedMediaFiles(list);
+    LocationSettings::self()->save();
     emit recentMediaFilesChanged();
 }
 
 QStringList MpvObject::recentPlaylists() const
 {
-    return GeneralSettings::recentLoadedPlaylists();
+    return LocationSettings::recentLoadedPlaylists();
 }
 
 void MpvObject::setRecentPlaylists(QStringList list) 
 {
-    GeneralSettings::setRecentLoadedPlaylists(list);
-    GeneralSettings::self()->save();
+    LocationSettings::setRecentLoadedPlaylists(list);
+    LocationSettings::self()->save();
     emit recentPlaylistsChanged();
 }
 
@@ -351,16 +346,16 @@ void MpvObject::togglePlayPause()
 
 void MpvObject::clearRecentMediaFilelist() {
     QStringList empty;
-    GeneralSettings::setRecentLoadedMediaFiles(empty);
+    LocationSettings::setRecentLoadedMediaFiles(empty);
     emit recentMediaFilesChanged();
-    GeneralSettings::self()->save();
+    LocationSettings::self()->save();
 }
 
 void MpvObject::clearRecentPlaylist() {
     QStringList empty;
-    GeneralSettings::setRecentLoadedPlaylists(empty);
+    LocationSettings::setRecentLoadedPlaylists(empty);
     emit recentPlaylistsChanged();
-    GeneralSettings::self()->save();
+    LocationSettings::self()->save();
 }
 
 void MpvObject::performRewind() {
@@ -857,9 +852,9 @@ void MpvObject::loadFile(const QString &file, bool updateLastPlayedFile)
     if (!fileInfo.exists()) {
         QStringList fileSearchPaths;
         fileSearchPaths.append(fileInfo.absoluteDir().absolutePath());
-        fileSearchPaths.append(GeneralSettings::cPlayFileLocation());
-        fileSearchPaths.append(GeneralSettings::cPlayMediaLocation());
-        fileSearchPaths.append(GeneralSettings::univiewVideoLocation());
+        fileSearchPaths.append(LocationSettings::cPlayFileLocation());
+        fileSearchPaths.append(LocationSettings::cPlayMediaLocation());
+        fileSearchPaths.append(LocationSettings::univiewVideoLocation());
         fileToLoad = checkAndCorrectPath(fileToLoad, fileSearchPaths);
         if (fileToLoad.isEmpty()) {
             return;
@@ -906,13 +901,13 @@ void MpvObject::loadFile(const QString &file, bool updateLastPlayedFile)
         command(QStringList() << "loadfile" << fileToLoad, true);
 
         if (updateLastPlayedFile) {
-            GeneralSettings::setLastPlayedFile(file);
+            LocationSettings::setLastPlayedFile(file);
             updateRecentLoadedMediaFiles(fileToLoad);
-            GeneralSettings::self()->save();
+            LocationSettings::self()->save();
         }
         else {
-            GeneralSettings::setLastPlaylistIndex(m_playlistModel->getPlayingVideo());
-            GeneralSettings::self()->save();
+            PlaylistSettings::setLastPlaylistIndex(m_playlistModel->getPlayingVideo());
+            PlaylistSettings::self()->save();
         }
     }
 }
@@ -1065,12 +1060,12 @@ void MpvObject::loadItem(PlayListItemData itemData, bool updateLastPlayedFile, Q
             setLoopMode(itemData.loopMode());
 
         if (updateLastPlayedFile) {
-            GeneralSettings::setLastPlayedFile(itemData.filePath());
+            LocationSettings::setLastPlayedFile(itemData.filePath());
             updateRecentLoadedMediaFiles(itemData.filePath());
         }
         else {
-            GeneralSettings::setLastPlaylistIndex(m_playlistModel->getPlayingVideo());
-            GeneralSettings::self()->save();
+            PlaylistSettings::setLastPlaylistIndex(m_playlistModel->getPlayingVideo());
+            PlaylistSettings::self()->save();
         }
     }
     catch (...) {
@@ -1118,9 +1113,9 @@ void MpvObject::loadJSONPlayList(const QString& file, bool updateLastPlayedFile)
 
     QStringList fileSearchPaths;
     fileSearchPaths.append(jsonFileInfo.absoluteDir().absolutePath());
-    fileSearchPaths.append(GeneralSettings::cPlayFileLocation());
-    fileSearchPaths.append(GeneralSettings::cPlayMediaLocation());
-    fileSearchPaths.append(GeneralSettings::univiewVideoLocation());
+    fileSearchPaths.append(LocationSettings::cPlayFileLocation());
+    fileSearchPaths.append(LocationSettings::cPlayMediaLocation());
+    fileSearchPaths.append(LocationSettings::univiewVideoLocation());
 
     foreach(const QJsonValue & v, array) {
         QJsonObject o = v.toObject();
@@ -1173,7 +1168,7 @@ void MpvObject::loadJSONPlayList(const QString& file, bool updateLastPlayedFile)
     emit playlistModelChanged();
 
     if (updateLastPlayedFile) {
-        GeneralSettings::setLastPlayedFile(fileToLoad);
+        LocationSettings::setLastPlayedFile(fileToLoad);
         updateRecentLoadedPlaylists(fileToLoad);
     }
 }
@@ -1247,7 +1242,7 @@ void MpvObject::loadUniviewPlaylist(const QString& file, bool updateLastPlayedFi
     emit playlistModelChanged();
 
     if (updateLastPlayedFile) {
-        GeneralSettings::setLastPlayedFile(fileToLoad);
+        LocationSettings::setLastPlayedFile(fileToLoad);
         updateRecentLoadedPlaylists(fileToLoad);
     }
 }
@@ -1415,7 +1410,7 @@ void MpvObject::loadTracks()
 }
 
 void MpvObject::updatePlane() {
-    int pcsbov = VideoSettings::plane_Calculate_Size_Based_on_Video();
+    int pcsbov = GridSettings::plane_Calculate_Size_Based_on_Video();
     int sm = stereoscopicMode();
     if (pcsbov == 1) { //Calculate width from video
         double ratio = double(m_videoWidth) / double(m_videoHeight);
@@ -1453,26 +1448,26 @@ void MpvObject::updatePlane() {
 
 void MpvObject::updateRecentLoadedMediaFiles(QString path)
 {
-    QStringList recentMediaFiles = GeneralSettings::recentLoadedMediaFiles();
+    QStringList recentMediaFiles = LocationSettings::recentLoadedMediaFiles();
     recentMediaFiles.push_front(path);
     recentMediaFiles.removeDuplicates();
     if (recentMediaFiles.size() > 8)
         recentMediaFiles.pop_back();
-    GeneralSettings::setRecentLoadedMediaFiles(recentMediaFiles);
+    LocationSettings::setRecentLoadedMediaFiles(recentMediaFiles);
     emit recentMediaFilesChanged();
-    GeneralSettings::self()->save();
+    LocationSettings::self()->save();
 }
 
 void MpvObject::updateRecentLoadedPlaylists(QString path)
 {
-    QStringList recentPlaylists = GeneralSettings::recentLoadedPlaylists();
+    QStringList recentPlaylists = LocationSettings::recentLoadedPlaylists();
     recentPlaylists.push_front(path);
     recentPlaylists.removeDuplicates();
     if (recentPlaylists.size() > 8)
         recentPlaylists.pop_back();
-    GeneralSettings::setRecentLoadedPlaylists(recentPlaylists);
+    LocationSettings::setRecentLoadedPlaylists(recentPlaylists);
     emit recentPlaylistsChanged();
-    GeneralSettings::self()->save();
+    LocationSettings::self()->save();
 }
 
 void MpvObject::sectionPositionCheck(double position) {

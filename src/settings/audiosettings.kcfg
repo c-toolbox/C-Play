@@ -17,7 +17,7 @@
       <label>Preferred track</label>
     </entry>
 	<entry name="LoadAudioFileInVideoFolder" type="bool">
-      <default>false</default>
+      <default>true</default>
     </entry>
 	<entry name="UseCustomAudioOutput" type="bool">
       <default>false</default>
@@ -33,6 +33,14 @@
     </entry>
 	<entry name="PreferredAudioOutputDriver" type="String">
       <label>Preferred audio output driver</label>
+    </entry>
+	<entry name="VolumeStep" type="Int">
+      <label>Volume step</label>
+      <default>5</default>
+    </entry>
+	 <entry name="Volume" type="Int">
+      <label>Volume</label>
+      <default>100</default>
     </entry>
   </group>
 </kcfg>

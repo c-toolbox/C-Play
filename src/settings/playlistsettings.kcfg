@@ -9,7 +9,11 @@
       xsi:schemaLocation="http://www.kde.org/standards/kcfg/1.0
                           http://www.kde.org/standards/kcfg/1.0/kcfg.xsd" >
   <kcfgfile name="C-Play/cplay.conf" />
+  <include>QStandardPaths</include>
   <group name="Playlist">
+	<entry name="PlaylistToLoadOnStartup" type="String">
+      <label>A playlist to load at startup</label>
+    </entry>
     <entry name="Position" type="String">
       <label>Position</label>
       <default>right</default>
@@ -31,7 +35,7 @@
       <default>compact</default>
     </entry>
     <entry name="OverlayVideo" type="bool">
-      <default>true</default>
+      <default>false</default>
     </entry>
     <entry name="ShowMediaTitle" type="bool">
       <label>Show media title instead of file name</label>
@@ -43,7 +47,7 @@
     </entry>
     <entry name="Repeat" type="bool">
       <label>Repeat</label>
-      <default>true</default>
+      <default>false</default>
     </entry>
     <entry name="ShowRowNumber" type="bool">
       <label>Show row number</label>
@@ -51,11 +55,14 @@
     </entry>
     <entry name="CanToggleWithMouse" type="bool">
       <label>Toggle with mouse</label>
-      <default>true</default>
+      <default>false</default>
     </entry>
     <entry name="BigFontFullscreen" type="bool">
       <label>Increase font size when fullscreen</label>
       <default>true</default>
+    </entry>
+	<entry name="LastPlaylistIndex" type="Int">
+      <default>0</default>
     </entry>
   </group>
 </kcfg>

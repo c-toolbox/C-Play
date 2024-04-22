@@ -21,17 +21,17 @@ SettingsBasePage {
     Platform.FileDialog {
         id: playlistToLoadOnStartupDialog
 
-        folder: GeneralSettings.cPlayFileLocation !== ""
-                ? app.pathToUrl(GeneralSettings.cPlayFileLocation)
-                : app.pathToUrl(GeneralSettings.fileDialogLastLocation)
+        folder: LocationSettings.cPlayFileLocation !== ""
+                ? app.pathToUrl(LocationSettings.cPlayFileLocation)
+                : app.pathToUrl(LocationSettings.fileDialogLastLocation)
         title: "Choose playlist to load on startup"
         fileMode: Platform.FileDialog.OpenFile
         nameFilters: [ "C-Play playlist (*.cplaylist)", "Uniview playlist (*.playlist)" ]
 
         onAccepted: {
             var filePath = playerController.returnRelativeOrAbsolutePath(playlistToLoadOnStartupDialog.file.toString());
-            PlaybackSettings.playlistToLoadOnStartup = filePath
-            PlaybackSettings.save()
+            PlaylistSettings.playlistToLoadOnStartup = filePath
+            PlaylistSettings.save()
 
             mpv.focus = true
         }
@@ -55,12 +55,11 @@ SettingsBasePage {
         RowLayout {
             TextField {
                 id: playlistToLoadOnStartupText
-                text: PlaybackSettings.playlistToLoadOnStartup
+                text: PlaylistSettings.playlistToLoadOnStartup
                 placeholderText: "Path to playlist"
-                Layout.fillWidth: true
                 onEditingFinished: {
-                    PlaybackSettings.playlistToLoadOnStartup = text
-                    PlaybackSettings.save()
+                    PlaylistSettings.playlistToLoadOnStartup = text
+                    PlaylistSettings.save()
                 }
 
                 ToolTip {
@@ -152,7 +151,7 @@ SettingsBasePage {
 
             LabelWithTooltip {
                 text: {
-                    qsTr("ms = Plays next file (if continue to next) in %1 seconds").arg(Number((timeSetInterval.value*1.0)/1000.0).toFixed(3))
+                    qsTr("ms = Plays next file (if continue to next) in %1 seconds").arg(Number((autoPlayWaitime.value*1.0)/1000.0).toFixed(3))
                 }
                 elide: Text.ElideRight
                 Layout.fillWidth: true

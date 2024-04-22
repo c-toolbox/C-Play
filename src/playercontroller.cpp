@@ -3,8 +3,8 @@
 #include "application.h"
 #include "mpvobject.h"
 #include "httpserverthread.h"
-#include "generalsettings.h"
-#include "playbacksettings.h"
+#include "locationsettings.h"
+#include "imagesettings.h"
 
 #include <QDir>
 #include <QFileInfo>
@@ -23,13 +23,13 @@ PlayerController::PlayerController(QObject *parent)
 
     setupHttpServer();
 
-    setBackgroundImageFile(PlaybackSettings::imageToLoadAsBackground());
-    setBackgroundGridMode(PlaybackSettings::gridToMapOnForBackground());
-    setBackgroundStereoMode(PlaybackSettings::stereoModeForBackground());
+    setBackgroundImageFile(ImageSettings::imageToLoadAsBackground());
+    setBackgroundGridMode(ImageSettings::gridToMapOnForBackground());
+    setBackgroundStereoMode(ImageSettings::stereoModeForBackground());
 
-    setForegroundImageFile(PlaybackSettings::imageToLoadAsForeground());
-    setForegroundGridMode(PlaybackSettings::gridToMapOnForForeground());
-    setForegroundStereoMode(PlaybackSettings::stereoModeForForeground());
+    setForegroundImageFile(ImageSettings::imageToLoadAsForeground());
+    setForegroundGridMode(ImageSettings::gridToMapOnForForeground());
+    setForegroundStereoMode(ImageSettings::stereoModeForForeground());
 }
 
 void PlayerController::setupConnections()
@@ -244,9 +244,9 @@ QString PlayerController::returnRelativeOrAbsolutePath(const QString& path)
     QFileInfo fileInfo(filePath);
 
     QStringList pathsToConsider;
-    pathsToConsider.append(GeneralSettings::cPlayMediaLocation());
-    pathsToConsider.append(GeneralSettings::univiewVideoLocation());
-    pathsToConsider.append(GeneralSettings::cPlayFileLocation());
+    pathsToConsider.append(LocationSettings::cPlayMediaLocation());
+    pathsToConsider.append(LocationSettings::univiewVideoLocation());
+    pathsToConsider.append(LocationSettings::cPlayFileLocation());
 
     // Assuming filePath is absolute
     for (int i = 0; i < pathsToConsider.size(); i++) {
@@ -267,9 +267,9 @@ QString PlayerController::checkAndCorrectPath(const QString& path) {
         return filePath;
     else if (fileInfo.isRelative()) { // Go through search list in order
         QStringList searchPaths;
-        searchPaths.append(GeneralSettings::cPlayMediaLocation());
-        searchPaths.append(GeneralSettings::cPlayFileLocation());
-        searchPaths.append(GeneralSettings::univiewVideoLocation());
+        searchPaths.append(LocationSettings::cPlayMediaLocation());
+        searchPaths.append(LocationSettings::cPlayFileLocation());
+        searchPaths.append(LocationSettings::univiewVideoLocation());
 
         for (int i = 0; i < searchPaths.size(); i++) {
             QString newFilePath = QDir::cleanPath(searchPaths[i] + QDir::separator() + filePath);

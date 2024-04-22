@@ -177,11 +177,11 @@ SettingsBasePage {
         SpinBox {
             from: 0
             to: 100
-            value: GeneralSettings.volume
+            value: AudioSettings.volume
             editable: true
             onValueChanged: {
-                GeneralSettings.volume = value.toFixed(0)
-                GeneralSettings.save()
+                AudioSettings.volume = value.toFixed(0)
+                AudioSettings.save()
             }
         }
         Item {
@@ -203,11 +203,11 @@ SettingsBasePage {
                 editable: true
                 from: 0
                 to: 100
-                value: GeneralSettings.volumeStep
+                value: AudioSettings.volumeStep
                 onValueChanged: {
                     if (root.visible) {
-                        GeneralSettings.volumeStep = volumeStep.value
-                        GeneralSettings.save()
+                        AudioSettings.volumeStep = volumeStep.value
+                        AudioSettings.save()
                     }
                 }
             }

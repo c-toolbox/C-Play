@@ -6,8 +6,6 @@
 # SPDX-License-Identifier: GPL-3.0-or-later
 #
 
-qt5_add_dbus_interface(haruna_screensaver_inhibit_SRCS ../data/org.freedesktop.ScreenSaver.xml screensaverdbusinterface)
-
 set(QML_IMPORT_PATH "${CMAKE_CURRENT_SOURCE_DIR}/qml" CACHE STRING "Qt Creator 4.1 extra qml import paths" FORCE)
 
 set(TARGET_NAME C-Play)
@@ -49,11 +47,13 @@ target_sources(${TARGET_NAME}
 )
 
 kconfig_add_kcfg_files(${TARGET_NAME} GENERATE_MOC settings/audiosettings.kcfgc)
-kconfig_add_kcfg_files(${TARGET_NAME} GENERATE_MOC settings/generalsettings.kcfgc)
+kconfig_add_kcfg_files(${TARGET_NAME} GENERATE_MOC settings/gridsettings.kcfgc)
+kconfig_add_kcfg_files(${TARGET_NAME} GENERATE_MOC settings/imagesettings.kcfgc)
+kconfig_add_kcfg_files(${TARGET_NAME} GENERATE_MOC settings/locationsettings.kcfgc)
 kconfig_add_kcfg_files(${TARGET_NAME} GENERATE_MOC settings/mousesettings.kcfgc)
 kconfig_add_kcfg_files(${TARGET_NAME} GENERATE_MOC settings/playbacksettings.kcfgc)
 kconfig_add_kcfg_files(${TARGET_NAME} GENERATE_MOC settings/playlistsettings.kcfgc)
-kconfig_add_kcfg_files(${TARGET_NAME} GENERATE_MOC settings/videosettings.kcfgc)
+kconfig_add_kcfg_files(${TARGET_NAME} GENERATE_MOC settings/userinterfacesettings.kcfgc)
 
 target_include_directories(${TARGET_NAME} PRIVATE playlist)
 

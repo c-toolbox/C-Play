@@ -25,7 +25,7 @@ Item {
             color: Kirigami.Theme.backgroundColor
         }
         padding: 5
-        font.pointSize: parseInt(GeneralSettings.osdFontSize)
+        font.pointSize: parseInt(UserInterfaceSettings.osdFontSize)
     }
 
     Timer {
@@ -40,7 +40,7 @@ Item {
     }
 
     function message(text) {
-        const osdFontSize = parseInt(GeneralSettings.osdFontSize)
+        const osdFontSize = parseInt(UserInterfaceSettings.osdFontSize)
         label.text = text
         if (osdFontSize === 0) {
             return;
