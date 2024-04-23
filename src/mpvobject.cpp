@@ -918,11 +918,8 @@ void MpvObject::loadFile(const QString &file, bool updateLastPlayedFile)
 void MpvObject::addFileToPlaylist(const QString& file) {
     QFileInfo fi(file);
     QString ext = fi.suffix();
-    PlayListItem* item = nullptr;
     
-    if (ext == "cplayfile" || ext == "cplay_file" || ext == "fdv") {
-        item = loadMediaFileDescription(file);
-    }
+    PlayListItem* item = loadMediaFileDescription(file);
 
     if (item) {
         m_playlistModel->addItem(item);

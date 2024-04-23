@@ -389,8 +389,11 @@ QVariant PlayListModel::data(const QModelIndex &index, int role) const
         if (stereoVideo == 0) {
             return QVariant("2D");
         }
-        else {
+        else if (stereoVideo > 0) {
             return QVariant("3D");
+        }
+        else {
+            return QVariant("");
         }
     case GridRole:
         if (gridToMapOn == 0) {
@@ -402,8 +405,11 @@ QVariant PlayListModel::data(const QModelIndex &index, int role) const
         else if (gridToMapOn == 2) {
             return QVariant("Dome");
         }
-        else {
+        else if (gridToMapOn == 3 || gridToMapOn == 4) {
             return QVariant("Sphere");
+        }
+        else {
+            return QVariant("");
         }
     case LoopRole:
         if (loopMode == 1) { //Continue
@@ -415,6 +421,8 @@ QVariant PlayListModel::data(const QModelIndex &index, int role) const
         else { // Pause (0)
             return QVariant("Pause at end");
         }
+    case HasDescriptionFileRole:
+        return QVariant(playListItem->hasDescriptionFile());
     }
 
     return QVariant();
@@ -432,6 +440,7 @@ QHash<int, QByteArray> PlayListModel::roleNames() const
     roles[StereoRole] = "stereoVideo";
     roles[GridRole] = "gridToMapOn";
     roles[LoopRole] = "loopMode";
+    roles[HasDescriptionFileRole] = "hasDescriptionFile";
     return roles;
 }
 

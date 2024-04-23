@@ -113,6 +113,7 @@ public:
         StereoRole,
         GridRole,
         LoopRole,
+        HasDescriptionFileRole
     };
 
     int rowCount(const QModelIndex &parent = QModelIndex()) const override;

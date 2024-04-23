@@ -577,11 +577,14 @@ void PlayListItem::updateToNewFile(const QString& path) {
     }
     setSeparateOverlayFile(QStringLiteral(""));
     setSeparateAudioFile(QStringLiteral(""));
+    m_hasDescriptionFile = false;
 }
 
 void PlayListItem::loadDetailsFromDisk() {
     QFileInfo checkedFilePathInfo(filePath());
     QString fileExt = checkedFilePathInfo.suffix();
+
+    m_hasDescriptionFile = false;
 
     if (fileExt == "cplayfile" || fileExt == "cplay_file") {
         loadJSONPlayfile();
@@ -589,6 +592,10 @@ void PlayListItem::loadDetailsFromDisk() {
     else if (fileExt == "fdv") {
         loadUniviewFDV();
     }
+}
+
+bool PlayListItem::hasDescriptionFile() {
+    return m_hasDescriptionFile;
 }
 
 void PlayListItem::loadJSONPlayfile() {
@@ -755,6 +762,8 @@ void PlayListItem::loadJSONPlayfile() {
             }
         }
     }
+
+    m_hasDescriptionFile = true;
 }
 
 void PlayListItem::loadUniviewFDV()
@@ -801,6 +810,8 @@ void PlayListItem::loadUniviewFDV()
         else
             setStereoVideo(0);
     }
+
+    m_hasDescriptionFile = true;
 }
 
 QString PlayListItem::checkAndCorrectPath(const QString& filePath, const QStringList& searchPaths) {

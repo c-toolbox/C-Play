@@ -156,11 +156,13 @@ public:
     void setData(PlayListItemData d);
     void updateToNewFile(const QString& path);
     void loadDetailsFromDisk();
+    bool hasDescriptionFile();
 
 private:
     void loadJSONPlayfile();
     void loadUniviewFDV();
 
+    bool m_hasDescriptionFile;
     PlayListItemData m_data;
 
     QString checkAndCorrectPath(const QString& filePath, const QStringList& searchPaths);

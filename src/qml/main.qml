@@ -127,7 +127,7 @@ Kirigami.ApplicationWindow {
                 : app.pathToUrl(LocationSettings.fileDialogLastLocation)
         title: "Add file to playlist"
         fileMode: Platform.FileDialog.OpenFile
-        nameFilters: [ "C-Play file (*.cplayfile)", "Uniview file (*.fdv)" ]
+        nameFilters: [ "C-Play file (*.cplayfile)", "Uniview file (*.fdv)", "All files (*)"  ]
 
         onAccepted: {
             mpv.addFileToPlaylist(addToPlaylistDialog.file.toString())

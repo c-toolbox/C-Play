@@ -43,7 +43,7 @@
     </entry>
     <entry name="LoadSiblings" type="bool">
       <label>Auto load videos from same folder</label>
-      <default>true</default>
+      <default>false</default>
     </entry>
     <entry name="Repeat" type="bool">
       <label>Repeat</label>
