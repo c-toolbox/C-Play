@@ -5,10 +5,11 @@ has_toc: false
 nav_order: 5
 ---
 
-# All the application settings within C-Play
+# The primary application settings within C-Play
 
- - [General](guides/settings/general)
- - [Time & Startup](guides/settings/time_and_startup)
- - [Mapping & Image](guides/settings/mapping_and_image)
- - [Audio](guides/settings/audio)
- - [Playlist](guides/settings/playlist)
+ - [Audio settings](guides/settings/audio)
+ - [Grid/mapping settings](guides/settings/grid)
+ - [Image settings](guides/settings/image)
+ - [Location settings](guides/settings/location)
+ - [Playback settings](guides/settings/playback)
+ - [Playlist settings](guides/settings/playlist)

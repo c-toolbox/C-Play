@@ -151,7 +151,7 @@ SettingsBasePage {
 
             LabelWithTooltip {
                 text: {
-                    qsTr("ms = Plays next file (if continue to next) in %1 seconds").arg(Number((autoPlayWaitime.value*1.0)/1000.0).toFixed(3))
+                    qsTr("s = Plays next file (if continue to next) in %1 seconds").arg(Number((autoPlayWaitime.value*1.0)).toFixed(3))
                 }
                 elide: Text.ElideRight
                 Layout.fillWidth: true
