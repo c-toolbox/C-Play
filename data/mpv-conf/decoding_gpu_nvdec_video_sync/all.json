@@ -1,0 +1,5 @@
+{
+	"hwdec": "nvdec",
+	"video-sync": "display-resample",
+	"display-fps-override": "59.94"
+}
