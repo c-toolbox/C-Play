@@ -28,15 +28,33 @@ Each configuration folder can contain up to three different JSON files:
 
 The *all.json* should include option you would like C-Play to utilize on both master and clients/nodes. An respectivly, you can set settings for only the master or only the clients/nodes in the other two files.
 
+The various configuration that C-Play ship with can be found [here](https://github.com/c-toolbox/C-Play/tree/master/data/mpv-conf), for reference.
+
 All the different mpv options can be found [here](https://mpv.io/manual/stable/).
 
-## CPU vs GPU
+### CPU vs GPU
 
 As noticed by the included bunch of configurations, there is some that are named "*_gpu*" and some(one) named "*_cpu*". MPV is a diverse and powerful media player that can take advantage of a high-end cpu system (by defining thread usage in the configuration file) or high-end gpu:s by selecting a decoding library of your choice.
 
 It should be noted, that when you select that you prefer to use a GPU decoding library, does libraries are often more limited in terms of supported formats and resolutions.
 
 However, should you load a video file that is not supported by the GPU to be decoded, MPV automatically tries to utilize the CPU to decode it if the GPU says it can't.
+
+### Time sync vs Display sync
+
+By default, the MPV playback engine time the video frames to the audio, and then everything is synced against the system clock. If no audio is present (as is the usual case for the nodes), system clock is also default method for syncing. As you normally, you would have a domain NTP (Network Time Protocol), which hopefully i setup in such away that the computers in the cluster do not differ in time buy many milliseconds, and the default mode should work fine.
+
+However, as a cluster setup usually requires frame-syncing to avoid tearing, we could ideally use a timer based on the display rate, instead of the system clock for our playback timing.
+
+The MPV configuration named *"decoding_gpu_nvdec_video_sync"* does showcase the settings needed to enabled this. As seen in the config, there is two interesting options: 
+
+1) *"video-sync": "display-resample"*
+
+This line tells MPV to resample the audio to match the display rate, opposite of the default behaviour.
+
+2) *"display-fps-override": "59.94"*
+
+As usually the nodes are frame-synced, but not the master. Does, we want to tell all instances to use the refresh-rate of the syncronized displays, even the master, such that the timing between master and nodes is the same. You could override only on the master, and let the nodes use a detected value, if desired, but in the included example we override all.
  
 ## H264 vs H265
 

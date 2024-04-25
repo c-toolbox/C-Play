@@ -160,10 +160,10 @@ SettingsBasePage {
 
         Item { width: 1; height: 1 }
         CheckBox {
-            checked: PlaylistSettings.showMediaTitle
-            text: qsTr("Show media title instead of file name")
+            checked: PlaylistSettings.repeat
+            text: qsTr("Repeat playlist (when continue to next is selected)")
             onCheckStateChanged: {
-                PlaylistSettings.showMediaTitle = checked
+                PlaylistSettings.repeat = checked
                 PlaylistSettings.save()
             }
         }
@@ -180,10 +180,10 @@ SettingsBasePage {
 
         Item { width: 1; height: 1 }
         CheckBox {
-            checked: PlaylistSettings.repeat
-            text: qsTr("Repeat")
+            checked: PlaylistSettings.showMediaTitle
+            text: qsTr("Show media title instead of file name")
             onCheckStateChanged: {
-                PlaylistSettings.repeat = checked
+                PlaylistSettings.showMediaTitle = checked
                 PlaylistSettings.save()
             }
         }
