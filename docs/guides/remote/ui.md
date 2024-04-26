@@ -36,7 +36,7 @@ The remote UI contains some parts, that might not be used as much, which are imp
 
 ### C-Play to dome (3D)
 
-This button effectivly is a shortcut to switch the current selected C-Play state to either "*Atlas 3D*", "*Bravo 3D*" or "*Draco 3D*". Same as in the *Projectors* section. Notice you do not need to switch to "*Atlas 2D*", "*Bravo 2D*" or "*Draco 2D*" with C-Play, as it can handle 3D and 2D content correctly without this switching.
+This button effectively is a shortcut to switch the current selected C-Play state to either "*Atlas 3D*", "*Bravo 3D*" or "*Draco 3D*". Same as in the *Projectors* section. Notice you do not need to switch to "*Atlas 2D*", "*Bravo 2D*" or "*Draco 2D*" with C-Play, as it can handle 3D and 2D content correctly without this switching.
 
 ### 3D -> 2D
 
@@ -52,7 +52,7 @@ This opens and closes the shutter of the presentation projector, but also, puts 
 
 ### 360 Control
 
-C-Play support 360 movies and images (2D and 3D). However, in the dome, the content shown of that video is usually only half of that. To create a interactive moment of the 360 video, to show another side, there is convience button to rotate the sphere around, and also transition the sphere to another defined state (see "*Settings -> Configure -> Mapping & Image*" do change this state.)
+C-Play support 360 movies and images (2D and 3D). However, in the dome, the content shown of that video is usually only half of that. To create a interactive moment of the 360 video, to show another side, there is a button to rotate the sphere around, and also transition the sphere to another defined state (see "*Settings -> Configure -> Mapping & Image*" do change this state.)
 
 
 

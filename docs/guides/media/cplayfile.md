@@ -24,15 +24,15 @@ parent: Media file structure
      * 3D (top-bottom)
      * 3D (top-bottom+flip)
 * Separate Audio File
-     * C-Play supports incorporated audio tracks in the video, however, through this option a seperate file can be loaded (on the master) as the default selected audio track.
+     * C-Play supports incorporated audio tracks in the video, however, through this option a separate file can be loaded (on the master) as the default selected audio track.
 * Separate Overlay File
-     * C-Play support the loading of an overlay image file (such as *.png or *.jpg) to be overlayed ontop of the video. This might be useful when mapping a static world map ontop a video showing ocean flow, for instance. This overlay file needs to be loaded when the video is, thus can only be define in a *"*.cplayfile*".
+     * C-Play support the loading of an overlay image file (such as *.png or *.jpg) to be put on top of the video. This might be useful when mapping a static world map on top a video showing ocean flow, for instance. This overlay file needs to be loaded when the video is, thus can only be define in a *"*.cplayfile*".
 
 ## Sections
 
 Sections is a concept similar but more powerful then bookmarks or chapters in a video. Every section has a title, start time, end time and eos(*end of section*) mode.
 
-Basically, a section is a piece of the video that can be triggered easily, with various *end behaviours* depending on eos mode. The different eos modes are:
+Basically, a section is a piece of the video that can be triggered easily, with various *end behaviors* depending on eos mode. The different eos modes are:
 
 * Pause
 * Fade out video, then pause
@@ -59,4 +59,4 @@ If the setting *"Load audio files in same folder as video file"* in the audio co
  ![Save As CPlayfile](../../assets/ui/saveAsCplayfile.png)
  The dialog will already be pre-defined with the current user defined values currently chosen in C-Play. You can change any value here before you save as well, and optionally add an overlay image as well.
 
- 1. Click "*Save C-Play File*" do save it, preferably in the folder you defiend in the "*General settings*" as "*Common C-play file location*", which if set, is the start location when this dialog opens.
+ 1. Click "*Save C-Play File*" do save it, preferably in the folder you defined in the "*General settings*" as "*Common C-play file location*", which if set, is the start location when this dialog opens.

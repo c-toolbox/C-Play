@@ -67,7 +67,7 @@ However, the specs limit H264 to 4K videos. You are allowed to go beyond that, t
 
 C-Play will load and play this video. However, even if you specifed the use of a GPU decoding library (such as nvdec), the GPU will not allow that video to be decoded, as it is outside the specifications. So C-Play will play it utilizing the cpu decoder, which is not a restricted.
 
-### Cons/pros of H265
+### Pros/cons of H265
 
 H265 is a bit newer format, and the premier format for streaming 4K content and beyond. While it takes longer time to encode, it produces higher quality for smaller bitrate, and does smaller files then H264, with the same quality.
 

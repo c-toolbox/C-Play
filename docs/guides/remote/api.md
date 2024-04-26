@@ -6,7 +6,7 @@ parent: Remote Control
 
 # HTTP Web API
 
-It's up to you if you want the HTTP Web API of C-Play to be enabled or not. Just change the configuration file in "*data/http-server-conf.json*" to enable/disable the service at runtime. Here you can alos modify which port it should utilize.
+It's up to you if you want the HTTP Web API of C-Play to be enabled or not. Just change the configuration file in "*data/http-server-conf.json*" to enable/disable the service at runtime. Here you can also modify which port it should utilize.
 
 All api commands are in form of HTTP Post, regardless of what it does, for simplicity.
 

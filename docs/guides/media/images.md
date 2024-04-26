@@ -18,4 +18,4 @@ A background image can be set in the settings, and will be shown when a video fa
 A foreground image is shown on top of everything, including video and overlay below.
 Se [here](../playback/images.md) for more details on backgrounds and foregrounds.
 
-Overlays, are images that are "side-loaded" with video files, and are actually mapped ontop of the video. Such that you can add a static map ontop a ocean flow field, or a logo ontop of the video, for instance. The grid and stereoscopic mappings need to be the same as the video. Read the [cplayfile](cplayfile.md) docs for more info.
+Overlays, are images that are "side-loaded" with video files, and are actually mapped on top of the video. Such that you can add a static map on top a ocean flow field, or a logo on top of the video, for instance. The grid and stereoscopic mappings need to be the same as the video. Read the [cplayfile](cplayfile.md) docs for more info.

@@ -63,8 +63,9 @@ To launch application on master+nodes, we use an own developed application calle
 1. [Install C-Play](install.md)
 1. [Setup C-Play](setup.md)
 1. [Media structure](media.md)
+1. [Settings](settings.md)
 1. [Playback features](playback.md)
-1. [Web API](api.md)
+1. [Remote control](remote_control.md)
 1. [Build from code](build.md)
 
 # License
