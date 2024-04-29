@@ -134,6 +134,21 @@ MpvObject {
     }
 
     Timer {
+       id: rewindAfterFades
+       interval: PlaybackSettings.fadeDuration
+       onTriggered: {
+           mpv.pause = true
+           mpv.position = 0
+           mpv.rewind();
+       }
+    }
+
+    onFadeDownTheRewind: {
+        mpv.fadeImageDown();
+        rewindAfterFades.start();
+    }
+
+    Timer {
        id: playItem
        interval: PlaylistSettings.autoPlayAfterTime * 1000
        onTriggered: {
@@ -158,8 +173,8 @@ MpvObject {
             return;
         }
 
-        if(mpv.loopMode === 0 && playerController.fadeMediaOnEOF()) {
-            mpv.fadeImageDown()
+        if(mpv.loopMode === 0 && playerController.rewindMediaOnEOF()) {
+            mpv.performRewind()
         }
         else if(mpv.loopMode === 1){ // Continue
             if (playList.playlistView.count <= 1) {

@@ -27,15 +27,19 @@
 	<entry name="TimeToCheckThresholdSyncAfterLoop" type="int">
       <default>3000</default>
     </entry>
-	<entry name="SyncImageVideoFading" type="bool">
-      <label>Sync volume+media fading</label>
+	<entry name="SyncVolumeVisibilityFading" type="bool">
+      <label>Sync volume+visibility fading</label>
       <default>false</default>
     </entry>
 	<entry name="FadeDuration" type="int">
       <default>2000</default>
     </entry>
-	<entry name="FadeMediaDownOnEOF" type="bool">
-      <label>Fade media down when end of file</label>
+	<entry name="RewindOnEOFwhenPause" type="bool">
+      <label>Rewind media if end of file + pause</label>
+      <default>false</default>
+    </entry>
+	<entry name="FadeDownBeforeRewind" type="bool">
+      <label>Fade down media visibility before rewind</label>
       <default>false</default>
     </entry>
 	<entry name="SeekSmallStep" type="Int">

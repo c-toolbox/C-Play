@@ -34,7 +34,7 @@ public Q_SLOTS:
     void LoadFromPlaylist(int idx);
     void LoadFromSections(int idx);
     void SetVolume(int level);
-    void SetSyncImageVideoFading(bool value);
+    void SetSyncVolumeVisibilityFading(bool value);
     void FadeVolumeDown();
     void FadeVolumeUp();
     void FadeImageDown();
@@ -77,8 +77,8 @@ public Q_SLOTS:
     void setViewModeOnClients(int value);
     int getViewModeOnClients();
 
-    bool fadeMediaOnEOF();
-    void setFadeMediaOnEOF(bool value);
+    bool rewindMediaOnEOF();
+    void setRewindMediaOnEOF(bool value);
 
 Q_SIGNALS:
     void next();
@@ -104,7 +104,7 @@ Q_SIGNALS:
     void foregroundImageChanged();
     void foregroundVisibilityChanged();
     void viewModeOnClientsChanged();
-    void fadeMediaOnEOFChanged();
+    void rewindMediaOnEOFChanged();
 
 private:
     MpvObject *mpv() const;
@@ -117,7 +117,7 @@ private:
     QString m_backgroundFile;
     QString m_foregroundFile;
     int m_viewModeOnMaster;
-    bool m_fadeMediaOnEOF;
+    bool m_rewindMediaOnEOF;
 };
 
 #endif // PLAYERCONTROLLER_H

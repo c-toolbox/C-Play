@@ -23,7 +23,7 @@ SettingsBasePage {
         columns: 2
 
         SettingsHeader {
-            text: qsTr("Fade settings")
+            text: qsTr("Fade / rewind settings")
             Layout.columnSpan: 2
             Layout.fillWidth: true
         }
@@ -57,22 +57,33 @@ SettingsBasePage {
 
         Item { width: 1; height: 1 }
         CheckBox {
-            id: checkSyncImageAudioFading
-            text: qsTr("Startup: Sync audio+image fading")
-            checked: PlaybackSettings.syncImageVideoFading
+            id: checkSyncVolumeVisibilityFading
+            text: qsTr("Startup: Sync media volume+visibility fading")
+            checked: PlaybackSettings.syncVolumeVisibilityFading
             onCheckedChanged: {
-                PlaybackSettings.syncImageVideoFading = checked
+                PlaybackSettings.syncVolumeVisibilityFading = checked
                 PlaybackSettings.save()
             }
         }
 
         Item { width: 1; height: 1 }
         CheckBox {
-            id: fadeDownMediaOnEOF
-            text: qsTr("Startup: Fade down media on end-of-file+pause")
-            checked: PlaybackSettings.fadeMediaDownOnEOF
+            id: rewindMediaOnEOF
+            text: qsTr("Startup: Rewind media when end-of-file+pause")
+            checked: PlaybackSettings.rewindOnEOFwhenPause
             onCheckedChanged: {
-                PlaybackSettings.fadeMediaDownOnEOF = checked
+                PlaybackSettings.rewindOnEOFwhenPause = checked
+                PlaybackSettings.save()
+            }
+        }
+
+        Item { width: 1; height: 1 }
+        CheckBox {
+            id: fadeDownBeforeRewind
+            text: qsTr("On Rewind: Fade down media visibility before")
+            checked: PlaybackSettings.fadeDownBeforeRewind
+            onCheckedChanged: {
+                PlaybackSettings.fadeDownBeforeRewind = checked
                 PlaybackSettings.save()
             }
         }

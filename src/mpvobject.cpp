@@ -130,7 +130,7 @@ MpvObject::MpvObject(QQuickItem * parent)
     m_planeHeight = GridSettings::plane_Height_CM();
     m_planeElevation = GridSettings::plane_Elevation_Degrees();
     m_planeDistance = GridSettings::plane_Distance_CM();
-    m_syncImageVideoFading = PlaybackSettings::syncImageVideoFading();
+    m_syncVolumeVisibilityFading = PlaybackSettings::syncVolumeVisibilityFading();
     m_autoPlay = PlaylistSettings::autoPlayOnLoad();
 
     SyncHelper::instance().variables.radius = m_radius;
@@ -362,8 +362,14 @@ void MpvObject::clearRecentPlaylist() {
 }
 
 void MpvObject::performRewind() {
-    setPosition(0);
-    emit rewind();
+    if(PlaybackSettings::fadeDownBeforeRewind()) {
+        emit fadeDownTheRewind();
+    }
+    else {
+        setPause(true);
+        setPosition(0);
+        emit rewind();
+    }
 }
 
 void MpvObject::seek(int timeInSec) {
@@ -522,15 +528,15 @@ void MpvObject::setSyncVideo(bool value)
     emit syncVideoChanged();
 }
 
-bool MpvObject::syncImageVideoFading()
+bool MpvObject::syncVolumeVisibilityFading()
 {
-    return m_syncImageVideoFading;
+    return m_syncVolumeVisibilityFading;
 }
 
-void MpvObject::setSyncImageVideoFading(bool value)
+void MpvObject::setSyncVolumeVisibilityFading(bool value)
 {
-    m_syncImageVideoFading = value;
-    emit syncImageVideoFadingChanged();
+    m_syncVolumeVisibilityFading = value;
+    emit syncVolumeVisibilityFadingChanged();
 }
 
 int MpvObject::visibility()

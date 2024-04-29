@@ -32,7 +32,7 @@ PlayerController::PlayerController(QObject *parent)
     setForegroundGridMode(ImageSettings::gridToMapOnForForeground());
     setForegroundStereoMode(ImageSettings::stereoModeForForeground());
 
-    setFadeMediaOnEOF(PlaybackSettings::fadeMediaDownOnEOF());
+    setRewindMediaOnEOF(PlaybackSettings::rewindOnEOFwhenPause());
 }
 
 void PlayerController::setupConnections()
@@ -63,7 +63,7 @@ void PlayerController::setupHttpServer()
     connect(httpServer, &HttpServerThread::setViewMode, this, &PlayerController::setViewModeOnClients);
     connect(httpServer, &HttpServerThread::setBackgroundVisibility, this, &PlayerController::setBackgroundVisibility);
     connect(httpServer, &HttpServerThread::setForegroundVisibility, this, &PlayerController::setForegroundVisibility);
-    connect(httpServer, &HttpServerThread::setSyncImageVideoFading, this, &PlayerController::SetSyncImageVideoFading);
+    connect(httpServer, &HttpServerThread::setSyncVolumeVisibilityFading, this, &PlayerController::SetSyncVolumeVisibilityFading);
     connect(httpServer, &HttpServerThread::fadeVolumeDown, this, &PlayerController::FadeVolumeDown);
     connect(httpServer, &HttpServerThread::fadeVolumeUp, this, &PlayerController::FadeVolumeUp);
     connect(httpServer, &HttpServerThread::fadeImageDown, this, &PlayerController::FadeImageDown);
@@ -165,10 +165,10 @@ void PlayerController::SetVolume(int level)
     }
 }
 
-void PlayerController::SetSyncImageVideoFading(bool value)
+void PlayerController::SetSyncVolumeVisibilityFading(bool value)
 {
     if (m_mpv) {
-        m_mpv->setSyncImageVideoFading(value);
+        m_mpv->setSyncVolumeVisibilityFading(value);
     }
 }
 
@@ -508,14 +508,14 @@ int PlayerController::getViewModeOnClients()
     return SyncHelper::instance().variables.viewMode;
 }
 
-bool PlayerController::fadeMediaOnEOF() {
-    return m_fadeMediaOnEOF;
+bool PlayerController::rewindMediaOnEOF() {
+    return m_rewindMediaOnEOF;
 }
 
-void PlayerController::setFadeMediaOnEOF(bool value) {
-    m_fadeMediaOnEOF = value;
+void PlayerController::setRewindMediaOnEOF(bool value) {
+    m_rewindMediaOnEOF = value;
 
-    emit fadeMediaOnEOFChanged();
+    emit rewindMediaOnEOFChanged();
 }
 
 MpvObject *PlayerController::mpv() const

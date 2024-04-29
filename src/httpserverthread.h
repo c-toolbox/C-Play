@@ -32,7 +32,7 @@ Q_SIGNALS:
     void setAutoPlay(bool value);
     void setVolume(int level);
     void setViewMode(int mode);
-    void setSyncImageVideoFading(bool sync);
+    void setSyncVolumeVisibilityFading(bool sync);
     void setBackgroundVisibility(float value);
     void setForegroundVisibility(float value);
     void fadeVolumeDown();

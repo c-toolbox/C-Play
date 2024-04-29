@@ -122,7 +122,7 @@ ToolBar {
                 if(!volume_fade_down_animation.running){
                     volume_fade_up_animation.to = mpv.volume;
                     volume_fade_down_animation.start()
-                    if(mpv.syncImageVideoFading){
+                    if(mpv.syncVolumeVisibilityFading){
                         visibility_fade_out_animation.start()
                     }
                 }
@@ -152,7 +152,7 @@ ToolBar {
             onClicked: {
                 if(!volume_fade_up_animation.running){
                     volume_fade_up_animation.start()
-                    if(mpv.syncImageVideoFading){
+                    if(mpv.syncVolumeVisibilityFading){
                         visibility_fade_in_animation.start()
                     }
                 }
@@ -192,30 +192,30 @@ ToolBar {
 
                     RadioButton {
                         id: fai_no_fade_sync
-                        checked: mpv.syncImageVideoFading === false
-                        text: qsTr("Do not sync audio and image fading")
+                        checked: mpv.syncVolumeVisibilityFading === false
+                        text: qsTr("Do not sync volume and visibility fading")
                         onClicked: {
                         }
                         onCheckedChanged: {
                             if(checked){
                                 faiMenuButton.icon.name = "media-repeat-none";
-                                faiToolTip.text = "Sync audio+image fading: No";
-                                mpv.syncImageVideoFading = false;
+                                faiToolTip.text = "Sync volume+visibility fading: No";
+                                mpv.syncVolumeVisibilityFading = false;
                             }
                         }
                     }
 
                     RadioButton {
                         id: fai_fade_sync
-                        checked: mpv.syncImageVideoFading === true
-                        text: qsTr("Sync audio+image fading")
+                        checked: mpv.syncVolumeVisibilityFading === true
+                        text: qsTr("Sync volume+visibility fading")
                         onClicked: {
                         }
                         onCheckedChanged: {
                             if(checked){
                                 faiMenuButton.icon.name = "media-playlist-repeat";
                                 faiToolTip.text = "Sync audio+image fading: Yes";
-                                mpv.syncImageVideoFading = true;
+                                mpv.syncVolumeVisibilityFading = true;
                             }
                         }
                     }
@@ -238,7 +238,7 @@ ToolBar {
             onClicked: {
                 if(!visibility_fade_out_animation.running){
                     visibility_fade_out_animation.start()
-                    if(mpv.syncImageVideoFading){
+                    if(mpv.syncVolumeVisibilityFading){
                         volume_fade_up_animation.to = mpv.volume;
                         volume_fade_down_animation.start()
                     }
@@ -266,7 +266,7 @@ ToolBar {
             onClicked: {
                 if(!visibility_fade_in_animation.running){
                     visibility_fade_in_animation.start()
-                    if(mpv.syncImageVideoFading){
+                    if(mpv.syncVolumeVisibilityFading){
                         volume_fade_up_animation.start()
                     }
                 }
@@ -503,8 +503,8 @@ ToolBar {
             id: eofMenuButton
             implicitWidth: 100
 
-            text: qsTr("EOF: Pause")
-            icon.name: playerController.fadeMediaOnEOF() ? "kdenlive-hide-video" : "media-playback-pause"
+            text: playerController.rewindMediaOnEOF() ? qsTr("EOF: Rewind") : qsTr("EOF: Pause")
+            icon.name: playerController.rewindMediaOnEOF() ? "backup" : "media-playback-pause"
             focusPolicy: Qt.NoFocus
 
             onClicked: {
@@ -531,11 +531,13 @@ ToolBar {
                     }
                     else { //Pause
                         mpv.loopMode = 0;
-                        eofMenuButton.text = qsTr("EOF: Pause")
-                        if(playerController.fadeMediaOnEOF()){
-                            eofMenuButton.icon.name = "kdenlive-hide-video"
+
+                        if(playerController.rewindMediaOnEOF()){
+                            eofMenuButton.text = qsTr("EOF: Rewind")
+                            eofMenuButton.icon.name = "backup"
                         }
                         else {
+                            eofMenuButton.text = qsTr("EOF: Pause")
                             eofMenuButton.icon.name = "media-playback-pause"
                         }
                     }
@@ -559,14 +561,15 @@ ToolBar {
                     RadioButton {
                         id: eof_pause
                         checked: true
-                        text: qsTr("EOF: Pause")
+                        text: qsTr("EOF: Pause (Or Rewind, see below)")
                         onClicked: {
                             mpv.loopMode = 0;
-                            eofMenuButton.text = qsTr("EOF: Pause")
-                            if(playerController.fadeMediaOnEOF()){
-                                eofMenuButton.icon.name = "kdenlive-hide-video"
+                            if(playerController.rewindMediaOnEOF()){
+                                eofMenuButton.text = qsTr("EOF: Rewind")
+                                eofMenuButton.icon.name = "backup"
                             }
                             else {
+                                eofMenuButton.text = qsTr("EOF: Pause")
                                 eofMenuButton.icon.name = "media-playback-pause"
                             }
                         }
@@ -620,41 +623,43 @@ ToolBar {
                     id: columeFadeOnPauseEOF
 
                     RadioButton {
-                        id: do_not_fade_on_eof
-                        checked: !playerController.fadeMediaOnEOF()
-                        text: qsTr("Do NOT fade down media when end of file.")
+                        id: do_not_rewind_on_eof
+                        checked: !playerController.rewindMediaOnEOF()
+                        text: qsTr("EOF-Pause: Only pause media.")
                         onClicked: {
                             if(checked){
-                                playerController.setFadeMediaOnEOF(false);
+                                playerController.setRewindMediaOnEOF(false);
                                 if(mpv.loopMode === 0){
+                                    eofMenuButton.text = qsTr("EOF: Pause")
                                     eofMenuButton.icon.name = "media-playback-pause"
                                 }
                             }
                         }
                         Connections {
                             target: playerController
-                            function onFadeMediaOnEOFChanged(){
-                                do_not_fade_on_eof.checked = !playerController.fadeMediaOnEOF()
+                            function onRewindMediaOnEOFChanged(){
+                                do_not_rewind_on_eof.checked = !playerController.rewindMediaOnEOF()
                             }
                         }
                     }
 
                     RadioButton {
-                        id: do_fade_on_eof
-                        checked: playerController.fadeMediaOnEOF()
-                        text: qsTr("Fade down media when end of file.")
+                        id: do_rewind_on_eof
+                        checked: playerController.rewindMediaOnEOF()
+                        text: qsTr("EOF-Pause: Rewind instead of pause.")
                         onClicked: {
                             if(checked){
-                                playerController.setFadeMediaOnEOF(true);
+                                playerController.setRewindMediaOnEOF(true);
                                 if(mpv.loopMode === 0){
-                                    eofMenuButton.icon.name = "kdenlive-hide-video"
+                                    eofMenuButton.text = qsTr("EOF: Rewind")
+                                    eofMenuButton.icon.name = "backup"
                                 }
                             }
                         }
                         Connections {
                             target: playerController
-                            function onFadeMediaOnEOFChanged(){
-                                do_fade_on_eof.checked = playerController.fadeMediaOnEOF()
+                            function onRewindMediaOnEOFChanged(){
+                                do_rewind_on_eof.checked = playerController.rewindMediaOnEOF()
                             }
                         }
                     }

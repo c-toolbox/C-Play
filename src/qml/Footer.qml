@@ -105,7 +105,7 @@ ToolBar {
 
             ToolTip {
                 id: rewindButtonToolTip
-                text: qsTr("Rewind")
+                text: PlaybackSettings.fadeDownBeforeRewind ? qsTr("Fade down then rewind") : qsTr("Rewind")
             }
         }
 

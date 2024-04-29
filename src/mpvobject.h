@@ -112,10 +112,10 @@ public:
                WRITE setSyncVideo
                NOTIFY syncVideoChanged)
 
-    Q_PROPERTY(bool syncImageVideoFading
-               READ syncImageVideoFading
-               WRITE setSyncImageVideoFading
-               NOTIFY syncImageVideoFadingChanged)
+    Q_PROPERTY(bool syncVolumeVisibilityFading
+               READ syncVolumeVisibilityFading
+               WRITE setSyncVolumeVisibilityFading
+               NOTIFY syncVolumeVisibilityFadingChanged)
 
     Q_PROPERTY(int visibility
                READ visibility
@@ -290,8 +290,8 @@ public:
     bool syncVideo();
     void setSyncVideo(bool value);
 
-    bool syncImageVideoFading();
-    void setSyncImageVideoFading(bool value);
+    bool syncVolumeVisibilityFading();
+    void setSyncVolumeVisibilityFading(bool value);
 
     int visibility();
     void setVisibility(int value);
@@ -402,7 +402,7 @@ signals:
     void hwDecodingChanged();
     void stereoscopicModeChanged();
     void syncVideoChanged();
-    void syncImageVideoFadingChanged();
+    void syncVolumeVisibilityFadingChanged();
     void visibilityChanged();
     void loopModeChanged();
     void gridToMapOnChanged();
@@ -428,6 +428,7 @@ signals:
     void fadeImageDown();
     void fadeImageUp();
     void rewind();
+    void fadeDownTheRewind();
 
 private:
     PlayListItem* loadMediaFileDescription(const QString& file);
@@ -470,7 +471,7 @@ private:
     QVariantList m_audioDevices;
     int m_videoWidth;
     int m_videoHeight;
-    bool m_syncImageVideoFading;
+    bool m_syncVolumeVisibilityFading;
     bool m_autoPlay;
 
     void loadTracks();

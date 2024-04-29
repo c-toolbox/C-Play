@@ -243,7 +243,7 @@ void HttpServerThread::setupHttpServer()
             }
             else {
                 if (m_mpv) {
-                    res.set_content(std::to_string(m_mpv->syncImageVideoFading()), "text/plain");
+                    res.set_content(std::to_string(m_mpv->syncVolumeVisibilityFading()), "text/plain");
                 }
                 else {
                     res.set_content("0", "text/plain");
@@ -848,10 +848,10 @@ void HttpServerThread::setSyncImageFadingFromStr(std::string valueStr)
     int value = 0;
     if (stringToInt(valueStr, value)) {
         if (value == 0) {
-            Q_EMIT setSyncImageVideoFading(false);
+            Q_EMIT setSyncVolumeVisibilityFading(false);
         }
         else if(value <= 1) {
-            Q_EMIT setSyncImageVideoFading(true);
+            Q_EMIT setSyncVolumeVisibilityFading(true);
         }
     }
 }
