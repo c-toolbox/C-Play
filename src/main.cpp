@@ -1202,17 +1202,11 @@ void postSyncPreDraw() {
                     show2Dcontent = true;
                 }
             }
-            //If we have one 2D renderParam visible, it takes president
-            //But only if a 3D plane is not present
-            if (show2Dcontent) {
-                if (has3Dplane) {
-                    show2Dcontent = false;
-                }
-                else {
-                    show3Dcontent = false;
-                }
+            //If we have one 3D renderParam visible, it takes president
+            if (show3Dcontent) {
+                show2Dcontent = false;
             }
-            else if (!show3Dcontent) { //If not 2D or 3D, still enable 2D viewports
+            else { //If not 2D or 3D, still enable 2D viewports
                 show2Dcontent = true;
             }
 
