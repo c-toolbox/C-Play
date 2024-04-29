@@ -20,7 +20,7 @@ Slider {
     from: 0
     to: 100
     value: mpv.volume
-    implicitWidth: 100
+    implicitWidth: 130
     implicitHeight: 25
     wheelEnabled: false
     leftPadding: 0
@@ -42,7 +42,7 @@ Slider {
 
     Label {
         id: progressBarToolTip
-        text: qsTr("%1").arg(Number(root.value.toFixed(0)))
+        text: qsTr("Media volume: %1").arg(Number(root.value.toFixed(0)))
         font.pointSize: 9
         anchors.centerIn: root
         color: "#fff"

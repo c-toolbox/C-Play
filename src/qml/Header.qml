@@ -106,12 +106,6 @@ ToolBar {
             }
         }
 
-        Label {
-            text: qsTr("Volume:")
-            font.pointSize: 9
-            Layout.alignment: Qt.AlignRight
-        }
-
         PropertyAnimation {
             id: volume_fade_down_animation;
             target: volumeSlider;
@@ -229,12 +223,6 @@ ToolBar {
             }
         }
 
-        Label {
-            text: qsTr("Media:")
-            font.pointSize: 9
-            Layout.alignment: Qt.AlignRight
-        }
-
         PropertyAnimation {
             id: visibility_fade_out_animation;
             target: visibilitySlider;
@@ -257,7 +245,7 @@ ToolBar {
                 }
             }
             ToolTip {
-                text: "Fade media transparency down to 0."
+                text: "Fade media visibility down to 0."
             }
         }
 
@@ -284,7 +272,7 @@ ToolBar {
                 }
             }
             ToolTip {
-                text: "Fade media transparency up to 100."
+                text: "Fade media visibility up to 100."
             }
         }
 
@@ -304,14 +292,9 @@ ToolBar {
             }
         }
 
-        Label {
-            text: qsTr("Image:")
-            font.pointSize: 9
-            Layout.alignment: Qt.AlignRight
-        }
-
         ToolButton {
             id: imageMenuButton
+            text: qsTr("Bg/Fg images")
             icon.name: "layer-visible-off"
             focusPolicy: Qt.NoFocus
 
