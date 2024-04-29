@@ -146,6 +146,7 @@ MpvObject::MpvObject(QQuickItem * parent)
     SyncHelper::instance().variables.planeHeight = m_planeHeight;
     SyncHelper::instance().variables.planeElevation = m_planeElevation;
     SyncHelper::instance().variables.planeDistance = m_planeDistance;
+    SyncHelper::instance().variables.alpha = float(PlaybackSettings::visibility()) / 100.f;
 
     QString loadAudioInVidFolder = AudioSettings::loadAudioFileInVideoFolder() ? "all" : "no";
     setProperty("audio-file-auto", loadAudioInVidFolder);

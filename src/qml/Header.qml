@@ -503,8 +503,8 @@ ToolBar {
             id: eofMenuButton
             implicitWidth: 100
 
-            text: playerController.rewindMediaOnEOF() ? qsTr("EOF: Rewind") : qsTr("EOF: Pause")
-            icon.name: playerController.rewindMediaOnEOF() ? "backup" : "media-playback-pause"
+            text: playerController.rewindMediaOnEOF() ? qsTr("EOF: Stop") : qsTr("EOF: Pause")
+            icon.name: playerController.rewindMediaOnEOF() ? "media-playback-stop" : "media-playback-pause"
             focusPolicy: Qt.NoFocus
 
             onClicked: {
@@ -533,8 +533,8 @@ ToolBar {
                         mpv.loopMode = 0;
 
                         if(playerController.rewindMediaOnEOF()){
-                            eofMenuButton.text = qsTr("EOF: Rewind")
-                            eofMenuButton.icon.name = "backup"
+                            eofMenuButton.text = qsTr("EOF: Stop")
+                            eofMenuButton.icon.name = "media-playback-stop"
                         }
                         else {
                             eofMenuButton.text = qsTr("EOF: Pause")
@@ -561,12 +561,12 @@ ToolBar {
                     RadioButton {
                         id: eof_pause
                         checked: true
-                        text: qsTr("EOF: Pause (Or Rewind, see below)")
+                        text: qsTr("EOF: Pause (Or Stop, see below)")
                         onClicked: {
                             mpv.loopMode = 0;
                             if(playerController.rewindMediaOnEOF()){
-                                eofMenuButton.text = qsTr("EOF: Rewind")
-                                eofMenuButton.icon.name = "backup"
+                                eofMenuButton.text = qsTr("EOF: Stop")
+                                eofMenuButton.icon.name = "media-playback-stop"
                             }
                             else {
                                 eofMenuButton.text = qsTr("EOF: Pause")
@@ -646,13 +646,13 @@ ToolBar {
                     RadioButton {
                         id: do_rewind_on_eof
                         checked: playerController.rewindMediaOnEOF()
-                        text: qsTr("EOF-Pause: Rewind instead of pause.")
+                        text: qsTr("EOF-Pause: Stop/rewind instead of pause.")
                         onClicked: {
                             if(checked){
                                 playerController.setRewindMediaOnEOF(true);
                                 if(mpv.loopMode === 0){
-                                    eofMenuButton.text = qsTr("EOF: Rewind")
-                                    eofMenuButton.icon.name = "backup"
+                                    eofMenuButton.text = qsTr("EOF: Stop")
+                                    eofMenuButton.icon.name = "media-playback-stop"
                                 }
                             }
                         }

@@ -233,14 +233,7 @@ Kirigami.ApplicationWindow {
     Component.onCompleted: app.activateColorScheme(UserInterfaceSettings.colorScheme)
 
     function openFile(path, startPlayback, loadSiblings) {
-        /*if (app.isYoutubePlaylist(path)) {
-            mpv.getYouTubePlaylist(path);
-            playList.isYouTubePlaylist = true
-        } else {
-            playList.isYouTubePlaylist = false
-        }*/
-
-        mpv.pause = !startPlayback
+        mpv.pause = true
         mpv.position = 0
         if (loadSiblings) {
             // get video files from same folder as the opened file

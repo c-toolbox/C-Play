@@ -96,7 +96,7 @@ ToolBar {
         ToolButton {
             id: rewindButton
             text: ""
-            icon.name: "backup"
+            icon.name: "media-playback-stop"
             focusPolicy: Qt.NoFocus
 
             onClicked: {
@@ -105,7 +105,7 @@ ToolBar {
 
             ToolTip {
                 id: rewindButtonToolTip
-                text: PlaybackSettings.fadeDownBeforeRewind ? qsTr("Fade down then rewind") : qsTr("Rewind")
+                text: PlaybackSettings.fadeDownBeforeRewind ? qsTr("Fade down then stop/rewind") : qsTr("Stop/rewind")
             }
         }
 

@@ -23,8 +23,29 @@ SettingsBasePage {
         columns: 2
 
         SettingsHeader {
-            text: qsTr("Fade / rewind settings")
+            text: qsTr("Playback settings")
             Layout.columnSpan: 2
+            Layout.fillWidth: true
+        }
+
+        Label {
+            text: qsTr("Media visibility at startup:")
+            Layout.alignment: Qt.AlignRight
+        }
+
+        Item {
+            height: visibilityAtStartup.height
+            SpinBox {
+                id: visibilityAtStartup
+                editable: true
+                from: 0
+                to: 100
+                value: PlaybackSettings.visibility
+                onValueChanged: {
+                    PlaybackSettings.visibility = visibilityAtStartup.value
+                    PlaybackSettings.save()
+                }
+            }
             Layout.fillWidth: true
         }
 
@@ -86,12 +107,6 @@ SettingsBasePage {
                 PlaybackSettings.fadeDownBeforeRewind = checked
                 PlaybackSettings.save()
             }
-        }
-
-        SettingsHeader {
-            text: qsTr("Time settings")
-            Layout.columnSpan: 2
-            Layout.fillWidth: true
         }
 
         Item { width: 1; height: 1 }
