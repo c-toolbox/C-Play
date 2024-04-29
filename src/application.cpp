@@ -669,11 +669,11 @@ void Application::setupActions(const QString &actionName)
     if (actionName == QStringLiteral("sync-video")) {
         auto action = new HAction();
         if (SyncHelper::instance().variables.syncOn) {
-            action->setText(i18n("Sync is On "));
+            action->setText(i18n("Sync On "));
             action->setIcon(QIcon::fromTheme("im-user-online"));
         }
         else {
-            action->setText(i18n("Sync is Off"));
+            action->setText(i18n("Sync Off"));
             action->setIcon(QIcon::fromTheme("im-user-offline"));
         }
         action->setToolTip(i18n(""));

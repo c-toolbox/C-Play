@@ -122,10 +122,10 @@ QtObject {
         onTriggered: {
             mpv.syncVideo = !mpv.syncVideo
             if (mpv.syncVideo) {
-                text = qsTr("Sync is On")
+                text = qsTr("Sync On")
                 icon.name = "im-user-online"
             } else {
-                text = qsTr("Sync is Off")
+                text = qsTr("Sync Off")
                 icon.name = "im-user-offline"
             }
         }
