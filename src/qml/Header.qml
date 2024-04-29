@@ -230,6 +230,81 @@ ToolBar {
         }
 
         Label {
+            text: qsTr("Media:")
+            font.pointSize: 9
+            Layout.alignment: Qt.AlignRight
+        }
+
+        PropertyAnimation {
+            id: visibility_fade_out_animation;
+            target: visibilitySlider;
+            property: "value";
+            to: 0;
+            duration: PlaybackSettings.fadeDuration;
+        }
+        ToolButton {
+            id: fade_image_out
+            icon.name: "view-hidden"
+            focusPolicy: Qt.NoFocus
+            enabled: mpv.visibility !== 0
+            onClicked: {
+                if(!visibility_fade_out_animation.running){
+                    visibility_fade_out_animation.start()
+                    if(mpv.syncImageVideoFading){
+                        volume_fade_up_animation.to = mpv.volume;
+                        volume_fade_down_animation.start()
+                    }
+                }
+            }
+            ToolTip {
+                text: "Fade media transparency down to 0."
+            }
+        }
+
+        VisibilitySlider { id: visibilitySlider }
+
+        PropertyAnimation {
+            id: visibility_fade_in_animation;
+            target: visibilitySlider;
+            property: "value";
+            to: 100;
+            duration: PlaybackSettings.fadeDuration;
+        }
+        ToolButton {
+            id: fade_image_in
+            icon.name: "view-visible"
+            focusPolicy: Qt.NoFocus
+            enabled: mpv.visibility !== 100
+            onClicked: {
+                if(!visibility_fade_in_animation.running){
+                    visibility_fade_in_animation.start()
+                    if(mpv.syncImageVideoFading){
+                        volume_fade_up_animation.start()
+                    }
+                }
+            }
+            ToolTip {
+                text: "Fade media transparency up to 100."
+            }
+        }
+
+        Connections {
+            target: mpv
+            function onFadeVolumeDown() {
+                fade_volume_down.clicked()
+            }
+            function onFadeVolumeUp() {
+                fade_volume_up.clicked()
+            }
+            function onFadeImageDown() {
+                fade_image_out.clicked()
+            }
+            function onFadeImageUp() {
+                fade_image_in.clicked()
+            }
+        }
+
+        Label {
             text: qsTr("Image:")
             font.pointSize: 9
             Layout.alignment: Qt.AlignRight
@@ -429,75 +504,6 @@ ToolBar {
             }
         }
 
-        PropertyAnimation {
-            id: visibility_fade_out_animation;
-            target: visibilitySlider;
-            property: "value";
-            to: 0;
-            duration: PlaybackSettings.fadeDuration;
-        }
-        ToolButton {
-            id: fade_image_out
-            icon.name: "view-hidden"
-            focusPolicy: Qt.NoFocus
-            enabled: mpv.visibility !== 0
-            onClicked: {
-                if(!visibility_fade_out_animation.running){
-                    visibility_fade_out_animation.start()
-                    if(mpv.syncImageVideoFading){
-                        volume_fade_up_animation.to = mpv.volume;
-                        volume_fade_down_animation.start()
-                    }
-                }
-            }
-            ToolTip {
-                text: "Fade image/media transparency down to 0."
-            }
-        }
-
-        VisibilitySlider { id: visibilitySlider }
-
-        PropertyAnimation {
-            id: visibility_fade_in_animation;
-            target: visibilitySlider;
-            property: "value";
-            to: 100;
-            duration: PlaybackSettings.fadeDuration;
-        }
-        ToolButton {
-            id: fade_image_in
-            icon.name: "view-visible"
-            focusPolicy: Qt.NoFocus
-            enabled: mpv.visibility !== 100
-            onClicked: {
-                if(!visibility_fade_in_animation.running){
-                    visibility_fade_in_animation.start()
-                    if(mpv.syncImageVideoFading){
-                        volume_fade_up_animation.start()
-                    }
-                }
-            }
-            ToolTip {
-                text: "Fade image/media transparency up to 100."
-            }
-        }
-
-        Connections {
-            target: mpv
-            function onFadeVolumeDown() {
-                fade_volume_down.clicked()
-            }
-            function onFadeVolumeUp() {
-                fade_volume_up.clicked()
-            }
-            function onFadeImageDown() {
-                fade_image_out.clicked()
-            }
-            function onFadeImageUp() {
-                fade_image_in.clicked()
-            }
-        }
-
         ToolSeparator {
             padding: vertical ? 10 : 2
             topPadding: vertical ? 2 : 10
@@ -507,6 +513,169 @@ ToolBar {
                 implicitWidth: parent.vertical ? 1 : 24
                 implicitHeight: parent.vertical ? 24 : 1
                 color: Kirigami.Theme.textColor
+            }
+        }
+
+        ToolButton {
+            id: eofMenuButton
+            implicitWidth: 100
+
+            text: qsTr("EOF: Pause")
+            icon.name: playerController.fadeMediaOnEOF() ? "kdenlive-hide-video" : "media-playback-pause"
+            focusPolicy: Qt.NoFocus
+
+            onClicked: {
+                eofMenu.visible = !eofMenu.visible
+            }
+
+            ToolTip {
+                text: "\"End of file\" mode for current media."
+            }
+
+            Connections {
+                target: mpv
+                function onFileLoaded() {
+                    const loopMode = mpv.playlistModel.loopMode(mpv.playlistModel.getPlayingVideo())
+                    if(loopMode===1 && playList.playlistView.count > 1){ //Continue
+                        mpv.loopMode = 1;
+                        eofMenuButton.text = qsTr("EOF: Next ")
+                        eofMenuButton.icon.name = "go-next"
+                    }
+                    else if(loopMode===2){ //Loop
+                        mpv.loopMode = 2;
+                        eofMenuButton.text = qsTr("EOF: Loop ")
+                        eofMenuButton.icon.name = "media-playlist-repeat"
+                    }
+                    else { //Pause
+                        mpv.loopMode = 0;
+                        eofMenuButton.text = qsTr("EOF: Pause")
+                        if(playerController.fadeMediaOnEOF()){
+                            eofMenuButton.icon.name = "kdenlive-hide-video"
+                        }
+                        else {
+                            eofMenuButton.icon.name = "media-playback-pause"
+                        }
+                    }
+                }
+            }
+
+            Menu {
+                id: eofMenu
+
+                y: parent.height
+
+                MenuSeparator {}
+
+                ButtonGroup {
+                    buttons: columnEOF.children
+                }
+
+                Column {
+                    id: columnEOF
+
+                    RadioButton {
+                        id: eof_pause
+                        checked: true
+                        text: qsTr("EOF: Pause")
+                        onClicked: {
+                            mpv.loopMode = 0;
+                            eofMenuButton.text = qsTr("EOF: Pause")
+                            if(playerController.fadeMediaOnEOF()){
+                                eofMenuButton.icon.name = "kdenlive-hide-video"
+                            }
+                            else {
+                                eofMenuButton.icon.name = "media-playback-pause"
+                            }
+                        }
+                        Connections {
+                            target: mpv
+                            function onFileLoaded() {
+                                eof_pause.checked = (mpv.loopMode === 0)
+                            }
+                        }
+                    }
+
+                    RadioButton {
+                        id: eof_next
+                        checked: false
+                        text: qsTr("EOF: Next ")
+                        enabled: (playList.playlistView.count > 1)
+                        onClicked: {
+                           mpv.loopMode = 1;
+                           eofMenuButton.text = qsTr("EOF: Next")
+                           eofMenuButton.icon.name = "go-next"
+                        }
+                        Connections {
+                            target: mpv
+                            function onFileLoaded() {
+                                eof_next.checked = (mpv.loopMode === 1)
+                            }
+                        }
+                    }
+
+                    RadioButton {
+                        id: eof_loop
+                        checked: false
+                        text: qsTr("EOF: Loop ")
+                        onClicked: {
+                            mpv.loopMode = 2;
+                            eofMenuButton.text = qsTr("EOF: Loop")
+                            eofMenuButton.icon.name = "media-playlist-repeat"
+                        }
+                        Connections {
+                            target: mpv
+                            function onFileLoaded() {
+                                eof_loop.checked = (mpv.loopMode === 2)
+                            }
+                        }
+                    }
+                }
+
+                MenuSeparator {}
+
+                Column {
+                    id: columeFadeOnPauseEOF
+
+                    RadioButton {
+                        id: do_not_fade_on_eof
+                        checked: !playerController.fadeMediaOnEOF()
+                        text: qsTr("Do NOT fade down media when end of file.")
+                        onClicked: {
+                            if(checked){
+                                playerController.setFadeMediaOnEOF(false);
+                                if(mpv.loopMode === 0){
+                                    eofMenuButton.icon.name = "media-playback-pause"
+                                }
+                            }
+                        }
+                        Connections {
+                            target: playerController
+                            function onFadeMediaOnEOFChanged(){
+                                do_not_fade_on_eof.checked = !playerController.fadeMediaOnEOF()
+                            }
+                        }
+                    }
+
+                    RadioButton {
+                        id: do_fade_on_eof
+                        checked: playerController.fadeMediaOnEOF()
+                        text: qsTr("Fade down media when end of file.")
+                        onClicked: {
+                            if(checked){
+                                playerController.setFadeMediaOnEOF(true);
+                                if(mpv.loopMode === 0){
+                                    eofMenuButton.icon.name = "kdenlive-hide-video"
+                                }
+                            }
+                        }
+                        Connections {
+                            target: playerController
+                            function onFadeMediaOnEOFChanged(){
+                                do_fade_on_eof.checked = playerController.fadeMediaOnEOF()
+                            }
+                        }
+                    }
+                }
             }
         }
 
@@ -1308,114 +1477,6 @@ ToolBar {
                     function onRunSurfaceTransition() {
                         if(!mpv.surfaceTransitionOnGoing){
                             transitionHeaderButton.clicked()
-                        }
-                    }
-                }
-            }
-        }
-
-        ToolButton {
-            id: eofMenuButton
-            implicitWidth: 100
-
-            text: qsTr("EOF: Pause")
-            icon.name: "media-playback-pause"
-            focusPolicy: Qt.NoFocus
-
-            onClicked: {
-                eofMenu.visible = !eofMenu.visible
-            }
-
-            ToolTip {
-                text: "\"End of file\" mode for current media."
-            }
-
-            Connections {
-                target: mpv
-                function onFileLoaded() {
-                    const loopMode = mpv.playlistModel.loopMode(mpv.playlistModel.getPlayingVideo())
-                    if(loopMode===1 && playList.playlistView.count > 1){ //Continue
-                        mpv.loopMode = 1;
-                        eofMenuButton.text = qsTr("EOF: Next ")
-                        eofMenuButton.icon.name = "go-next"
-                    }
-                    else if(loopMode===2){ //Loop
-                        mpv.loopMode = 2;
-                        eofMenuButton.text = qsTr("EOF: Loop ")
-                        eofMenuButton.icon.name = "media-playlist-repeat"
-                    }
-                    else { //Pause
-                        mpv.loopMode = 0;
-                        eofMenuButton.text = qsTr("EOF: Pause")
-                        eofMenuButton.icon.name = "media-playback-pause"
-                    }
-                }
-            }
-
-            Menu {
-                id: eofMenu
-
-                y: parent.height
-
-                MenuSeparator {}
-
-                ButtonGroup {
-                    buttons: columnEOF.children
-                }
-
-                Column {
-                    id: columnEOF
-
-                    RadioButton {
-                        id: eof_pause
-                        checked: true
-                        text: qsTr("EOF: Pause")
-                        onClicked: {
-                            mpv.loopMode = 0;
-                            eofMenuButton.text = qsTr("EOF: Pause")
-                            eofMenuButton.icon.name = "media-playback-pause"
-
-                        }
-                        Connections {
-                            target: mpv
-                            function onFileLoaded() {
-                                eof_pause.checked = (mpv.loopMode === 0)
-                            }
-                        }
-                    }
-
-                    RadioButton {
-                        id: eof_next
-                        checked: false
-                        text: qsTr("EOF: Next ")
-                        enabled: (playList.playlistView.count > 1)
-                        onClicked: {
-                           mpv.loopMode = 1;
-                           eofMenuButton.text = qsTr("EOF: Next")
-                           eofMenuButton.icon.name = "go-next"
-                        }
-                        Connections {
-                            target: mpv
-                            function onFileLoaded() {
-                                eof_next.checked = (mpv.loopMode === 1)
-                            }
-                        }
-                    }
-
-                    RadioButton {
-                        id: eof_loop
-                        checked: false
-                        text: qsTr("EOF: Loop ")
-                        onClicked: {
-                            mpv.loopMode = 2;
-                            eofMenuButton.text = qsTr("EOF: Loop")
-                            eofMenuButton.icon.name = "media-playlist-repeat"
-                        }
-                        Connections {
-                            target: mpv
-                            function onFileLoaded() {
-                                eof_loop.checked = (mpv.loopMode === 2)
-                            }
                         }
                     }
                 }

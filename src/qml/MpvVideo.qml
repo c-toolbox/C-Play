@@ -154,14 +154,17 @@ MpvObject {
             if (!playList.isYouTubePlaylist) {
                 return
             }
-        }
 
-        if (playList.playlistView.count <= 1) {
             return;
         }
 
-        const loopMode = playlistModel.loopMode(playlistModel.getPlayingVideo())
-        if(loopMode===1){ // Continue
+        if(mpv.loopMode === 0 && playerController.fadeMediaOnEOF()) {
+            mpv.fadeImageDown()
+        }
+        else if(mpv.loopMode === 1){ // Continue
+            if (playList.playlistView.count <= 1) {
+                return;
+            }
             const nextFileRow = playlistModel.getPlayingVideo() + 1
             if (nextFileRow < playList.playlistView.count) {
                 mpv.pause = true
@@ -182,7 +185,6 @@ MpvObject {
                 }
             }
         }
-        //Pause and Loop are covered in onFileLoaded
     }
 
     onPauseChanged: {

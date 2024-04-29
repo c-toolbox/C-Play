@@ -58,10 +58,21 @@ SettingsBasePage {
         Item { width: 1; height: 1 }
         CheckBox {
             id: checkSyncImageAudioFading
-            text: qsTr("Sync audio+image fading at startup")
+            text: qsTr("Startup: Sync audio+image fading")
             checked: PlaybackSettings.syncImageVideoFading
             onCheckedChanged: {
                 PlaybackSettings.syncImageVideoFading = checked
+                PlaybackSettings.save()
+            }
+        }
+
+        Item { width: 1; height: 1 }
+        CheckBox {
+            id: fadeDownMediaOnEOF
+            text: qsTr("Startup: Fade down media on end-of-file+pause")
+            checked: PlaybackSettings.fadeMediaDownOnEOF
+            onCheckedChanged: {
+                PlaybackSettings.fadeMediaDownOnEOF = checked
                 PlaybackSettings.save()
             }
         }

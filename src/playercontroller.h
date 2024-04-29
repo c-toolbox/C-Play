@@ -77,6 +77,9 @@ public Q_SLOTS:
     void setViewModeOnClients(int value);
     int getViewModeOnClients();
 
+    bool fadeMediaOnEOF();
+    void setFadeMediaOnEOF(bool value);
+
 Q_SIGNALS:
     void next();
     void previous();
@@ -101,6 +104,7 @@ Q_SIGNALS:
     void foregroundImageChanged();
     void foregroundVisibilityChanged();
     void viewModeOnClientsChanged();
+    void fadeMediaOnEOFChanged();
 
 private:
     MpvObject *mpv() const;
@@ -113,6 +117,7 @@ private:
     QString m_backgroundFile;
     QString m_foregroundFile;
     int m_viewModeOnMaster;
+    bool m_fadeMediaOnEOF;
 };
 
 #endif // PLAYERCONTROLLER_H

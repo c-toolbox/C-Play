@@ -557,7 +557,7 @@ void MpvObject::setLoopMode(int value) {
     }
     else if (value == 1) { //Continue
         setProperty("loop-file", "no");
-        setProperty("keep-open", "no");
+        setProperty("keep-open", "yes");
     }
     else { //Loop
         setProperty("loop-file", "inf");
@@ -1325,6 +1325,10 @@ void MpvObject::eventHandler()
                 }
             } else if (strcmp(prop->name, "pause") == 0) {
                 if (prop->format == MPV_FORMAT_FLAG) {
+                    const QVariant eofReached = mpv::qt::get_property(mpv, "eof-reached");
+                    if(eofReached.toBool()) {
+                        emit endFile("eof");
+                    }
                     //m_lastSetPosition = position();
                     SyncHelper::instance().variables.paused = pause();
                     emit pauseChanged();

@@ -5,6 +5,7 @@
 #include "httpserverthread.h"
 #include "locationsettings.h"
 #include "imagesettings.h"
+#include "playbacksettings.h"
 
 #include <QDir>
 #include <QFileInfo>
@@ -30,6 +31,8 @@ PlayerController::PlayerController(QObject *parent)
     setForegroundImageFile(ImageSettings::imageToLoadAsForeground());
     setForegroundGridMode(ImageSettings::gridToMapOnForForeground());
     setForegroundStereoMode(ImageSettings::stereoModeForForeground());
+
+    setFadeMediaOnEOF(PlaybackSettings::fadeMediaDownOnEOF());
 }
 
 void PlayerController::setupConnections()
@@ -503,6 +506,16 @@ void PlayerController::setViewModeOnClients(int value)
 int PlayerController::getViewModeOnClients()
 {
     return SyncHelper::instance().variables.viewMode;
+}
+
+bool PlayerController::fadeMediaOnEOF() {
+    return m_fadeMediaOnEOF;
+}
+
+void PlayerController::setFadeMediaOnEOF(bool value) {
+    m_fadeMediaOnEOF = value;
+
+    emit fadeMediaOnEOFChanged();
 }
 
 MpvObject *PlayerController::mpv() const

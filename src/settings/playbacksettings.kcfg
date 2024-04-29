@@ -28,11 +28,15 @@
       <default>3000</default>
     </entry>
 	<entry name="SyncImageVideoFading" type="bool">
-      <label>Sync audio+image fading</label>
+      <label>Sync volume+media fading</label>
       <default>false</default>
     </entry>
 	<entry name="FadeDuration" type="int">
       <default>2000</default>
+    </entry>
+	<entry name="FadeMediaDownOnEOF" type="bool">
+      <label>Fade media down when end of file</label>
+      <default>false</default>
     </entry>
 	<entry name="SeekSmallStep" type="Int">
       <label>Seek small step</label>
