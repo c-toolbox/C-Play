@@ -119,10 +119,10 @@ ToolBar {
             focusPolicy: Qt.NoFocus
             enabled: mpv.volume !== 0
             onClicked: {
-                if(!volume_fade_down_animation.running){
+                if(!volume_fade_down_animation.running && mpv.volume > 0){
                     volume_fade_up_animation.to = mpv.volume;
                     volume_fade_down_animation.start()
-                    if(mpv.syncVolumeVisibilityFading){
+                    if(mpv.syncVolumeVisibilityFading && !visibility_fade_out_animation.running){
                         visibility_fade_out_animation.start()
                     }
                 }
@@ -150,9 +150,9 @@ ToolBar {
             focusPolicy: Qt.NoFocus
             enabled: mpv.volume !== 100
             onClicked: {
-                if(!volume_fade_up_animation.running){
+                if(!volume_fade_up_animation.running && mpv.volume < 100){
                     volume_fade_up_animation.start()
-                    if(mpv.syncVolumeVisibilityFading){
+                    if(mpv.syncVolumeVisibilityFading && !visibility_fade_in_animation.running){
                         visibility_fade_in_animation.start()
                     }
                 }
@@ -238,7 +238,7 @@ ToolBar {
             onClicked: {
                 if(!visibility_fade_out_animation.running){
                     visibility_fade_out_animation.start()
-                    if(mpv.syncVolumeVisibilityFading){
+                    if(mpv.syncVolumeVisibilityFading && !volume_fade_down_animation.running && mpv.volume > 0){
                         volume_fade_up_animation.to = mpv.volume;
                         volume_fade_down_animation.start()
                     }
@@ -266,7 +266,7 @@ ToolBar {
             onClicked: {
                 if(!visibility_fade_in_animation.running){
                     visibility_fade_in_animation.start()
-                    if(mpv.syncVolumeVisibilityFading){
+                    if(mpv.syncVolumeVisibilityFading && !volume_fade_up_animation.running && mpv.volume < 100){
                         volume_fade_up_animation.start()
                     }
                 }

@@ -359,9 +359,20 @@ SettingsBasePage {
         }
 
         SettingsHeader {
-            text: qsTr("Image adjustments")
+            text: qsTr("Media image adjustments")
             Layout.columnSpan: 3
             Layout.fillWidth: true
+        }
+
+        Label {
+            text: qsTr("Only applied to media player files, not background, foreground or overlay images.")
+            Layout.columnSpan: 3
+            Layout.alignment: Qt.AlignLeft
+        }
+        Label {
+            text: qsTr("Never saved. Primary use is testing.")
+            Layout.columnSpan: 3
+            Layout.alignment: Qt.AlignLeft
         }
 
         // ------------------------------------
