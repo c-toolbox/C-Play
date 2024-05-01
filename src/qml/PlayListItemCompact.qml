@@ -21,7 +21,7 @@ Kirigami.BasicListItem {
     property string rowNumber: (index + 1).toString()
 
     label: mainText()
-    subtitle: model.hasDescriptionFile === true ? (model.duration + " : " + model.stereoVideo + " " + model.gridToMapOn + " : (" + model.loopMode + ")") : (model.duration + " : (" + model.loopMode + ")")
+    subtitle: model.hasDescriptionFile === true ? (model.duration + " : " + model.stereoVideo + " " + model.gridToMapOn + " : (" + model.eofMode + ")") : (model.duration + " : (" + model.eofMode + ")")
     padding: 0
     icon: model.isPlaying ? "kt-set-max-upload-speed" : ""
     font.pointSize: 9

@@ -173,10 +173,10 @@ MpvObject {
             return;
         }
 
-        if(mpv.loopMode === 0 && playerController.rewindMediaOnEOF()) {
+        if(mpv.eofMode === 0 && playerController.rewindMediaOnEOF()) {
             mpv.performRewind()
         }
-        else if(mpv.loopMode === 1){ // Continue
+        else if(mpv.eofMode === 1){ // Continue
             if (playList.playlistView.count <= 1) {
                 return;
             }

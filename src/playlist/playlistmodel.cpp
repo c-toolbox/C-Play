@@ -368,7 +368,7 @@ QVariant PlayListModel::data(const QModelIndex &index, int role) const
 
     int stereoVideo = playListItem->stereoVideo();
     int gridToMapOn = playListItem->gridToMapOn();
-    int loopMode = playListItem->loopMode();
+    int eofMode = playListItem->eofMode();
 
     switch (role) {
     case NameRole:
@@ -411,11 +411,11 @@ QVariant PlayListModel::data(const QModelIndex &index, int role) const
         else {
             return QVariant("");
         }
-    case LoopRole:
-        if (loopMode == 1) { //Continue
+    case EofRole:
+        if (eofMode == 1) { //Continue
             return QVariant("Continue to next");
         }
-        else if (loopMode == 2) { //Loop
+        else if (eofMode == 2) { //Loop
             return QVariant("Loop video");
         }
         else { // Pause (0)
@@ -439,7 +439,7 @@ QHash<int, QByteArray> PlayListModel::roleNames() const
     roles[PlayingRole] = "isPlaying";
     roles[StereoRole] = "stereoVideo";
     roles[GridRole] = "gridToMapOn";
-    roles[LoopRole] = "loopMode";
+    roles[EofRole] = "eofMode";
     roles[HasDescriptionFileRole] = "hasDescriptionFile";
     return roles;
 }
@@ -761,18 +761,18 @@ QString PlayListModel::separateOverlayFile(int i) const
         return "";
 }
 
-int PlayListModel::loopMode(int i) const
+int PlayListModel::eofMode(int i) const
 {
     if (i >= 0 && m_playList.size() > i && m_playList[i])
-        return m_playList[i].data()->loopMode();
+        return m_playList[i].data()->eofMode();
     else
-        return m_defaultLoopMode;
+        return m_defaultEofMode;
 }
 
-void PlayListModel::setLoopMode(int i, int loopMode) 
+void PlayListModel::setEofMode(int i, int eofMode) 
 {
     if (i >= 0 && m_playList.size() > i && m_playList[i])
-        m_playList[i]->setLoopMode(loopMode);
+        m_playList[i]->setEofMode(eofMode);
 }
 
 int PlayListModel::transitionMode(int i) const
@@ -827,21 +827,21 @@ void PlayListModel::asJSON(QJsonObject& obj) {
 
         m_playList[i]->asJSON(item_data);
 
-        int loopMode = m_playList[i]->loopMode();
-        QString loopModeText;
-        switch (loopMode)
+        int eofMode = m_playList[i]->eofMode();
+        QString eofModeText;
+        switch (eofMode)
         {
         case 1:
-            loopModeText = "continue";
+            eofModeText = "continue";
             break;
         case 2:
-            loopModeText = "loop";
+            eofModeText = "loop";
             break;
         default:
-            loopModeText = "pause";
+            eofModeText = "pause";
             break;
         }
-        item_data.insert("on_file_end", QJsonValue(loopModeText));
+        item_data.insert("on_file_end", QJsonValue(eofModeText));
 
         playlistArray.push_back(QJsonValue(item_data));
     }
@@ -866,25 +866,25 @@ void PlayListModel::saveAsJSONPlaylist(const QString& path) {
     {
         QJsonObject item_data;
 
-        int loopMode = m_playList[i]->loopMode();
-        QString loopModeText;
-        switch (loopMode)
+        int eofMode = m_playList[i]->eofMode();
+        QString eofModeText;
+        switch (eofMode)
         {
         case 1:
-            loopModeText = "continue";
+            eofModeText = "continue";
             break;
         case 2:
-            loopModeText = "loop";
+            eofModeText = "loop";
             break;
         default:
-            loopModeText = "pause";
+            eofModeText = "pause";
             break;
         }
 
         QString checkedFilePath = makePathRelativeTo(m_playList[i]->filePath(), pathsToConsider);
 
         item_data.insert("file", QJsonValue(checkedFilePath));
-        item_data.insert("on_file_end", QJsonValue(loopModeText));
+        item_data.insert("on_file_end", QJsonValue(eofModeText));
 
         playlistArray.push_back(QJsonValue(item_data));
     }

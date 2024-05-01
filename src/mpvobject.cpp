@@ -551,12 +551,12 @@ void MpvObject::setVisibility(int value)
     emit visibilityChanged();
 }
 
-int MpvObject::loopMode() {
-    return SyncHelper::instance().variables.loopMode;
+int MpvObject::eofMode() {
+    return SyncHelper::instance().variables.eofMode;
 }
 
-void MpvObject::setLoopMode(int value) {
-    SyncHelper::instance().variables.loopMode = value;
+void MpvObject::setEofMode(int value) {
+    SyncHelper::instance().variables.eofMode = value;
 
     if (value == 0) { //Pause
         setProperty("loop-file", "no");
@@ -570,7 +570,7 @@ void MpvObject::setLoopMode(int value) {
         setProperty("loop-file", "inf");
         setProperty("keep-open", "yes");
     }
-    emit loopModeChanged();
+    emit eofModeChanged();
 }
 
 int MpvObject::stereoscopicMode()
@@ -956,7 +956,7 @@ void MpvObject::setLoadedAsCurrentEditItem() {
     newCurrentItem.setDuration(duration());
     newCurrentItem.setGridToMapOn(gridToMapOn());
     newCurrentItem.setStereoVideo(stereoscopicMode());
-    newCurrentItem.setLoopMode(loopMode());
+    newCurrentItem.setEofMode(eofMode());
     m_playSectionsModel->updateCurrentEditItem(newCurrentItem);
 }
 
@@ -1063,8 +1063,8 @@ void MpvObject::loadItem(PlayListItemData itemData, bool updateLastPlayedFile, Q
         if (itemData.stereoVideo() >= 0)
             setStereoscopicMode(itemData.stereoVideo());
 
-        if (itemData.loopMode() >= 0)
-            setLoopMode(itemData.loopMode());
+        if (itemData.eofMode() >= 0)
+            setEofMode(itemData.eofMode());
 
         if (updateLastPlayedFile) {
             LocationSettings::setLastPlayedFile(itemData.filePath());
@@ -1143,15 +1143,15 @@ void MpvObject::loadJSONPlayList(const QString& file, bool updateLastPlayedFile)
 
                 if (filePtr != NULL) {
                     if (o.contains("on_file_end")) {
-                        QString loopMode = o.value("on_file_end").toString();
-                        if (loopMode == "pause") {
-                            filePtr->setLoopMode(0);
+                        QString eofMode = o.value("on_file_end").toString();
+                        if (eofMode == "pause") {
+                            filePtr->setEofMode(0);
                         }
-                        else if (loopMode == "continue") {
-                            filePtr->setLoopMode(1);
+                        else if (eofMode == "continue") {
+                            filePtr->setEofMode(1);
                         }
-                        else if (loopMode == "loop") {
-                            filePtr->setLoopMode(2);
+                        else if (eofMode == "loop") {
+                            filePtr->setEofMode(2);
                         }
                     }
 
@@ -1207,7 +1207,7 @@ void MpvObject::loadUniviewPlaylist(const QString& file, bool updateLastPlayedFi
         QString path = playListEntries.at(itemStart + 2).mid(5); //"Path="
         double startTime = playListEntries.at(itemStart + 3).mid(10).toDouble(); //"Starttime="
         double endTime = playListEntries.at(itemStart + 4).mid(8).toDouble(); //"Endtime="
-        int loopMode = playListEntries.at(itemStart + 5).mid(9).toInt(); //"Loopmode="
+        int eofMode = playListEntries.at(itemStart + 5).mid(9).toInt(); //"Loopmode="
         int transitionMode = playListEntries.at(itemStart + 6).mid(15).toInt(); //"Transitionmode="
 
         QFileInfo videoFileInfo(path);
@@ -1229,12 +1229,12 @@ void MpvObject::loadUniviewPlaylist(const QString& file, bool updateLastPlayedFi
         else if (title.contains("2D"))
             video->setStereoVideo(0);
 
-        if(loopMode == 0) //Next in Uniview
-            video->setLoopMode(1);
-        else if (loopMode == 2) //Loop in Uniview
-            video->setLoopMode(2);
+        if(eofMode == 0) //Next in Uniview
+            video->setEofMode(1);
+        else if (eofMode == 2) //Loop in Uniview
+            video->setEofMode(2);
         else // Set pause otherwise
-            video->setLoopMode(0);
+            video->setEofMode(0);
 
         video->setTransitionMode(transitionMode);
 

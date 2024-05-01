@@ -518,19 +518,19 @@ ToolBar {
             Connections {
                 target: mpv
                 function onFileLoaded() {
-                    const loopMode = mpv.playlistModel.loopMode(mpv.playlistModel.getPlayingVideo())
-                    if(loopMode===1 && playList.playlistView.count > 1){ //Continue
-                        mpv.loopMode = 1;
+                    const eofMode = mpv.playlistModel.eofMode(mpv.playlistModel.getPlayingVideo())
+                    if(eofMode===1 && playList.playlistView.count > 1){ //Continue
+                        mpv.eofMode = 1;
                         eofMenuButton.text = qsTr("EOF: Next ")
                         eofMenuButton.icon.name = "go-next"
                     }
-                    else if(loopMode===2){ //Loop
-                        mpv.loopMode = 2;
+                    else if(eofMode===2){ //Loop
+                        mpv.eofMode = 2;
                         eofMenuButton.text = qsTr("EOF: Loop ")
                         eofMenuButton.icon.name = "media-playlist-repeat"
                     }
                     else { //Pause
-                        mpv.loopMode = 0;
+                        mpv.eofMode = 0;
 
                         if(playerController.rewindMediaOnEOF()){
                             eofMenuButton.text = qsTr("EOF: Stop")
@@ -563,7 +563,7 @@ ToolBar {
                         checked: true
                         text: qsTr("EOF: Pause (Or Stop, see below)")
                         onClicked: {
-                            mpv.loopMode = 0;
+                            mpv.eofMode = 0;
                             if(playerController.rewindMediaOnEOF()){
                                 eofMenuButton.text = qsTr("EOF: Stop")
                                 eofMenuButton.icon.name = "media-playback-stop"
@@ -576,7 +576,7 @@ ToolBar {
                         Connections {
                             target: mpv
                             function onFileLoaded() {
-                                eof_pause.checked = (mpv.loopMode === 0)
+                                eof_pause.checked = (mpv.eofMode === 0)
                             }
                         }
                     }
@@ -587,14 +587,14 @@ ToolBar {
                         text: qsTr("EOF: Next ")
                         enabled: (playList.playlistView.count > 1)
                         onClicked: {
-                           mpv.loopMode = 1;
+                           mpv.eofMode = 1;
                            eofMenuButton.text = qsTr("EOF: Next")
                            eofMenuButton.icon.name = "go-next"
                         }
                         Connections {
                             target: mpv
                             function onFileLoaded() {
-                                eof_next.checked = (mpv.loopMode === 1)
+                                eof_next.checked = (mpv.eofMode === 1)
                             }
                         }
                     }
@@ -604,14 +604,14 @@ ToolBar {
                         checked: false
                         text: qsTr("EOF: Loop ")
                         onClicked: {
-                            mpv.loopMode = 2;
+                            mpv.eofMode = 2;
                             eofMenuButton.text = qsTr("EOF: Loop")
                             eofMenuButton.icon.name = "media-playlist-repeat"
                         }
                         Connections {
                             target: mpv
                             function onFileLoaded() {
-                                eof_loop.checked = (mpv.loopMode === 2)
+                                eof_loop.checked = (mpv.eofMode === 2)
                             }
                         }
                     }
@@ -629,7 +629,7 @@ ToolBar {
                         onClicked: {
                             if(checked){
                                 playerController.setRewindMediaOnEOF(false);
-                                if(mpv.loopMode === 0){
+                                if(mpv.eofMode === 0){
                                     eofMenuButton.text = qsTr("EOF: Pause")
                                     eofMenuButton.icon.name = "media-playback-pause"
                                 }
@@ -650,7 +650,7 @@ ToolBar {
                         onClicked: {
                             if(checked){
                                 playerController.setRewindMediaOnEOF(true);
-                                if(mpv.loopMode === 0){
+                                if(mpv.eofMode === 0){
                                     eofMenuButton.text = qsTr("EOF: Stop")
                                     eofMenuButton.icon.name = "media-playback-stop"
                                 }

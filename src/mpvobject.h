@@ -122,11 +122,11 @@ public:
                WRITE setVisibility
                NOTIFY visibilityChanged)
 
-    Q_PROPERTY(int loopMode
-               READ loopMode
-               WRITE setLoopMode
-               WRITE setLoopMode
-               NOTIFY loopModeChanged)
+    Q_PROPERTY(int eofMode
+               READ eofMode
+               WRITE setEofMode
+               WRITE setEofMode
+               NOTIFY eofModeChanged)
 
     Q_PROPERTY(int gridToMapOn
                READ gridToMapOn
@@ -296,8 +296,8 @@ public:
     int visibility();
     void setVisibility(int value);
 
-    int loopMode();
-    void setLoopMode(int value);
+    int eofMode();
+    void setEofMode(int value);
 
     int stereoscopicMode();
     void setStereoscopicMode(int value);
@@ -404,7 +404,7 @@ signals:
     void syncVideoChanged();
     void syncVolumeVisibilityFadingChanged();
     void visibilityChanged();
-    void loopModeChanged();
+    void eofModeChanged();
     void gridToMapOnChanged();
     void resetOrientation();
     void rotationSpeedChanged();

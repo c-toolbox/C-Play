@@ -108,7 +108,7 @@ mpvData videoData;
 bool updateRendering = true;
 bool videoIsPaused = true;
 double videoDuration = 0.0;
-int loopMode = -1;
+int eofMode = -1;
 bool fadeDurationOngoing = false;
 // video
 int videoAlphaLoc = -1;
@@ -654,8 +654,8 @@ void on_mpv_events(mpvData& vd)
                             //Seek speeds (thus loop speed) is faster when no audio is present, thus nodes might be faster then master.
                             //Hence, we might need to correct things after a loop, between master and nodes.
                             if (!SyncHelper::instance().variables.timeThresholdOnLoopOnly 
-                                || (loopMode > 1 && timeToSet < SyncHelper::instance().variables.timeThresholdOnLoopCheckTime)
-                                || (loopMode > 1 && timeToSet > (videoDuration - SyncHelper::instance().variables.timeThresholdOnLoopCheckTime) && (videoDuration > 0))
+                                || (eofMode > 1 && timeToSet < SyncHelper::instance().variables.timeThresholdOnLoopCheckTime)
+                                || (eofMode > 1 && timeToSet > (videoDuration - SyncHelper::instance().variables.timeThresholdOnLoopCheckTime) && (videoDuration > 0))
                                 || (SyncHelper::instance().variables.loopTimeEnabled && timeToSet < (SyncHelper::instance().variables.loopTimeA + SyncHelper::instance().variables.timeThresholdOnLoopCheckTime))
                                 || (SyncHelper::instance().variables.loopTimeEnabled && SyncHelper::instance().variables.loopTimeB < (timeToSet + SyncHelper::instance().variables.timeThresholdOnLoopCheckTime))) {
                                 if (prop->format == MPV_FORMAT_DOUBLE) {
@@ -893,7 +893,7 @@ std::vector<std::byte> encode() {
         serializeObject(data, SyncHelper::instance().variables.stereoscopicMode);
         serializeObject(data, SyncHelper::instance().variables.stereoscopicModeBg);
         serializeObject(data, SyncHelper::instance().variables.stereoscopicModeFg);
-        serializeObject(data, SyncHelper::instance().variables.loopMode);
+        serializeObject(data, SyncHelper::instance().variables.eofMode);
         serializeObject(data, SyncHelper::instance().variables.viewMode);
         serializeObject(data, SyncHelper::instance().variables.radius);
         serializeObject(data, SyncHelper::instance().variables.fov);
@@ -984,7 +984,7 @@ void decode(const std::vector<std::byte>& data) {
         deserializeObject(data, pos, SyncHelper::instance().variables.stereoscopicMode);
         deserializeObject(data, pos, SyncHelper::instance().variables.stereoscopicModeBg);
         deserializeObject(data, pos, SyncHelper::instance().variables.stereoscopicModeFg);
-        deserializeObject(data, pos, SyncHelper::instance().variables.loopMode);
+        deserializeObject(data, pos, SyncHelper::instance().variables.eofMode);
         deserializeObject(data, pos, SyncHelper::instance().variables.viewMode);
         deserializeObject(data, pos, SyncHelper::instance().variables.radius);
         deserializeObject(data, pos, SyncHelper::instance().variables.fov);
@@ -1273,14 +1273,14 @@ void postSyncPreDraw() {
             mpv::qt::set_property_async(videoData.handle, "pause", videoIsPaused);
         }
 
-        if (SyncHelper::instance().variables.loopMode != loopMode) {
-            loopMode = SyncHelper::instance().variables.loopMode;
+        if (SyncHelper::instance().variables.eofMode != eofMode) {
+            eofMode = SyncHelper::instance().variables.eofMode;
 
-            if (loopMode == 0) { //Pause
+            if (eofMode == 0) { //Pause
                 mpv::qt::set_property_async(videoData.handle, "keep-open", "yes");
                 mpv::qt::set_property_async(videoData.handle, "loop-file", "no");
             }
-            else if (loopMode == 1) { //Continue
+            else if (eofMode == 1) { //Continue
                 mpv::qt::set_property_async(videoData.handle, "keep-open", "no");
                 mpv::qt::set_property_async(videoData.handle, "loop-file", "no");
             }

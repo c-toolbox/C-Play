@@ -38,7 +38,7 @@ public:
     double duration() const;
     QString separateOverlayFile() const;
     QString separateAudioFile() const;
-    int loopMode() const;
+    int eofMode() const;
     int transitionMode() const;
     int gridToMapOn() const;
     int stereoVideo() const;
@@ -55,7 +55,7 @@ public:
     double m_duration;
     QString m_separateOverlayFile{ "" };
     QString m_separateAudioFile{ "" };
-    int m_loopMode{ 0 };
+    int m_eofMode{ 0 };
     int m_transitionMode{ 0 };
     int m_gridToMapOn{ -1 };
     int m_stereoVideo{ -1 };
@@ -104,8 +104,8 @@ public:
     // 0 = Pause
     // 1 = Continue to next
     // 2 = Loop
-    Q_INVOKABLE int loopMode() const;
-    Q_INVOKABLE void setLoopMode(int loopMode);
+    Q_INVOKABLE int eofMode() const;
+    Q_INVOKABLE void setEofMode(int eofMode);
 
     // 0 = Instant
     // 1 = Fade

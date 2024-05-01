@@ -112,7 +112,7 @@ public:
         PlayingRole,
         StereoRole,
         GridRole,
-        LoopRole,
+        EofRole,
         HasDescriptionFileRole
     };
 
@@ -156,8 +156,8 @@ public:
     Q_INVOKABLE QString duration(int i) const;
     Q_INVOKABLE QString separateAudioFile(int i) const;
     Q_INVOKABLE QString separateOverlayFile(int i) const;
-    Q_INVOKABLE int loopMode(int i) const;
-    Q_INVOKABLE void setLoopMode(int i, int loopMode);
+    Q_INVOKABLE int eofMode(int i) const;
+    Q_INVOKABLE void setEofMode(int i, int eofMode);
     Q_INVOKABLE int transitionMode(int i) const;
     Q_INVOKABLE int gridToMapOn(int i) const;
     Q_INVOKABLE int stereoVideo(int i) const;
@@ -178,7 +178,7 @@ private:
     QString m_playListName;
     QString m_playListPath;
     int m_playingVideo = -1;
-    int m_defaultLoopMode = 2; // Looping
+    int m_defaultEofMode = 2; // Looping
     bool m_playListEdited = false;
     KSharedConfig::Ptr m_config;
 };

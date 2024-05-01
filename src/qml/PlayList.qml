@@ -104,7 +104,7 @@ Rectangle {
                             checked: false
                             text: qsTr("EOF: Pause")
                             onClicked: {
-                                mpv.playlistModel.setLoopMode(playlistView.currentIndex, 0)
+                                mpv.playlistModel.setEofMode(playlistView.currentIndex, 0)
                                 mpv.playlistModel.updateItem(playlistView.currentIndex)
                             }
                             onCheckedChanged: {
@@ -118,7 +118,7 @@ Rectangle {
                             checked: false
                             text: qsTr("EOF: Next ")
                             onClicked: {
-                               mpv.playlistModel.setLoopMode(playlistView.currentIndex, 1)
+                               mpv.playlistModel.setEofMode(playlistView.currentIndex, 1)
                                mpv.playlistModel.updateItem(playlistView.currentIndex)
                             }
                             onCheckedChanged: {
@@ -132,7 +132,7 @@ Rectangle {
                             checked: true
                             text: qsTr("EOF: Loop ")
                             onClicked: {
-                                mpv.playlistModel.setLoopMode(playlistView.currentIndex, 2)
+                                mpv.playlistModel.setEofMode(playlistView.currentIndex, 2)
                                 mpv.playlistModel.updateItem(playlistView.currentIndex)
                             }
                             onCheckedChanged: {
@@ -274,7 +274,7 @@ Rectangle {
                 if(viewPlaylistItemWindow.visible) {
                     viewPlaylistItemWindow.updateValues(playlistView.currentIndex)
                 }
-                updateLoopModeButton()
+                updateEofModeButton()
             }
         }
     }
@@ -408,16 +408,16 @@ Rectangle {
         }
     ]
 
-    function updateLoopModeButton() {
-        var loopMode = mpv.playlistModel.loopMode(playlistView.currentIndex)
-        eof_pause.checked = (loopMode === 0)
-        eof_next.checked = (loopMode === 1)
-        eof_loop.checked = (loopMode === 2)
+    function updateEofModeButton() {
+        var eofMode = mpv.playlistModel.eofMode(playlistView.currentIndex)
+        eof_pause.checked = (eofMode === 0)
+        eof_next.checked = (eofMode === 1)
+        eof_loop.checked = (eofMode === 2)
     }
 
     function setPlayListScrollPosition() {
         playlistView.positionViewAtIndex(playlistView.model.playingVideo, ListView.Beginning)
-        updateLoopModeButton()
+        updateEofModeButton()
     }
 
 }

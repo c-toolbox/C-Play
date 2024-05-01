@@ -57,9 +57,9 @@ QString PlayListItemData::separateAudioFile() const
     return m_separateAudioFile;
 }
 
-int PlayListItemData::loopMode() const
+int PlayListItemData::eofMode() const
 {
-    return m_loopMode;
+    return m_eofMode;
 }
 
 int PlayListItemData::transitionMode() const
@@ -199,14 +199,14 @@ void PlayListItem::setSeparateAudioFile(const QString& audioFile)
     m_data.m_separateAudioFile = audioFile;
 }
 
-int PlayListItem::loopMode() const
+int PlayListItem::eofMode() const
 {
-    return m_data.m_loopMode;
+    return m_data.m_eofMode;
 }
 
-void PlayListItem::setLoopMode(int loopMode)
+void PlayListItem::setEofMode(int eofMode)
 {
-    m_data.m_loopMode = loopMode;
+    m_data.m_eofMode = eofMode;
 }
 
 int PlayListItem::transitionMode() const
@@ -741,20 +741,20 @@ void PlayListItem::loadJSONPlayfile() {
                 double endTime = o.value("time_end").toDouble();
                 int eosMode = 0; //Pause by default
                 if (o.contains("transition_at_end")) {
-                    QString esoModeText = o.value("transition_at_end").toString();
-                    if (esoModeText == "pause") {
+                    QString eosModeText = o.value("transition_at_end").toString();
+                    if (eosModeText == "pause") {
                         eosMode = 0;
                     }
-                    else if (esoModeText == "fade_out") {
+                    else if (eosModeText == "fade_out") {
                         eosMode = 1;
                     }
-                    else if (esoModeText == "continue") {
+                    else if (eosModeText == "continue") {
                         eosMode = 2;
                     }
-                    else if (esoModeText == "next") {
+                    else if (eosModeText == "next") {
                         eosMode = 3;
                     }
-                    else if (esoModeText == "loop") {
+                    else if (eosModeText == "loop") {
                         eosMode = 4;
                     }
                 }

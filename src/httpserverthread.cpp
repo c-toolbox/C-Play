@@ -80,9 +80,14 @@ void HttpServerThread::setupHttpServer()
             res.set_content("Pause", "text/plain");
         });
 
+        svr.Post("/stop", [this](const httplib::Request&, httplib::Response& res) {
+            Q_EMIT rewindMedia();
+            res.set_content("Stop/rewind", "text/plain");
+        });
+
         svr.Post("/rewind", [this](const httplib::Request&, httplib::Response& res) {
             Q_EMIT rewindMedia();
-            res.set_content("Rewind", "text/plain");
+            res.set_content("Stop/rewind", "text/plain");
         });
 
         svr.Post("/position", [this](const httplib::Request& req, httplib::Response& res) {
@@ -390,9 +395,18 @@ void HttpServerThread::setupHttpServer()
             }
         });
 
+        svr.Post("/eof_mode", [this](const httplib::Request&, httplib::Response& res) {
+            if (m_mpv) {
+                res.set_content(std::to_string(m_mpv->eofMode()), "text/plain");
+            }
+            else {
+                res.set_content("0", "text/plain");
+            }
+        });
+
         svr.Post("/loop_mode", [this](const httplib::Request&, httplib::Response& res) {
             if (m_mpv) {
-                res.set_content(std::to_string(m_mpv->loopMode()), "text/plain");
+                res.set_content(std::to_string(m_mpv->eofMode()), "text/plain");
             }
             else {
                 res.set_content("0", "text/plain");

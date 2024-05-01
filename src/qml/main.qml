@@ -154,6 +154,8 @@ Kirigami.ApplicationWindow {
             if (saveCPlayFileDialog.visible) {
                 saveCPlayFileDialog.close()
             }
+
+            saveAsCPlayFileWindow.visible = false
         }
         onRejected: mpv.focus = true
     }
@@ -244,6 +246,7 @@ Kirigami.ApplicationWindow {
 
     function saveCPlayFile(path) {
         mpv.playSectionsModel.currentEditItem.saveAsJSONPlayFile(path)
+        mpv.playSectionsModel.setCurrentEditItemIsEdited(false)
     }
 
     function saveCPlayPlaylist(path) {
