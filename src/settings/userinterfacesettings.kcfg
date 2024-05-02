@@ -21,7 +21,7 @@
     </entry>
     <entry name="ShowMenuBar" type="bool">
       <label>Show menu bar</label>
-      <default>false</default>
+      <default>true</default>
     </entry>
     <entry name="ShowHeader" type="bool">
       <label>Show header</label>
