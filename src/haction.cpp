@@ -17,7 +17,7 @@ HAction::HAction(QObject *parent) : QAction(parent)
 
 QString HAction::shortcutName()
 {
-    return shortcut().toString();
+    return shortcut().toString(QKeySequence::NativeText);
 }
 
 QString HAction::iconName()

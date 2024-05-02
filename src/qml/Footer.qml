@@ -50,21 +50,6 @@ ToolBar {
         id: footerRow
         anchors.fill: parent
 
-        ToolButton {
-            icon.name: "application-menu"
-            visible: !menuBar.visible
-            focusPolicy: Qt.NoFocus
-            onClicked: {
-                if (mpvContextMenu.visible) {
-                    return
-                }
-
-                mpvContextMenu.visible = !mpvContextMenu.visible
-                const menuHeight = mpvContextMenu.count * mpvContextMenu.itemAt(0).height
-                mpvContextMenu.popup(footer, 0, -menuHeight)
-            }
-        }
-
         Loader {
             sourceComponent: togglePlaylistButton
             visible: PlaylistSettings.position === "left"

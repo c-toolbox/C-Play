@@ -13,6 +13,7 @@ Menu {
     title: qsTr("&Playback")
 
     MenuItem { action: actions["playPauseAction"] }
+    MenuItem { action: actions["stopRewindAction"] }
     MenuItem { action: actions["playNextAction"] }
     MenuItem { action: actions["playPreviousAction"] }
 

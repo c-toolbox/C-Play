@@ -48,6 +48,7 @@ Kirigami.ApplicationWindow {
 
     menuBar: MenuBar {
         id: menuBar
+        visible: UserInterfaceSettings.showMenuBar
 
         FileMenu {}
         PlaybackMenu {}
@@ -59,18 +60,6 @@ Kirigami.ApplicationWindow {
             color: Kirigami.Theme.backgroundColor
         }
         Kirigami.Theme.colorSet: Kirigami.Theme.Header
-    }
-
-    Menu {
-        id: mpvContextMenu
-
-        modal: true
-
-        FileMenu {}
-        PlaybackMenu {}
-        AudioMenu {}
-        SettingsMenu {}
-        HelpMenu {}
     }
 
     SystemPalette { id: systemPalette; colorGroup: SystemPalette.Active }
