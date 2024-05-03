@@ -100,6 +100,34 @@ QtObject {
         }
     }
 
+    property Action volumeFadeUpAction: Action {
+        id: volumeFadeUpAction
+        property var qaction: app.action("volumeFadeUp")
+        text: qaction.text
+        shortcut: qaction.shortcutName()
+        icon.name: qaction.iconName()
+
+        Component.onCompleted: list["volumeFadeUpAction"] = volumeFadeUpAction
+
+        onTriggered: {
+            mpv.fadeVolumeUp()
+        }
+    }
+
+    property Action volumeFadeDownAction: Action {
+        id: volumeFadeDownAction
+        property var qaction: app.action("volumeFadeDown")
+        text: qaction.text
+        shortcut: qaction.shortcutName()
+        icon.name: qaction.iconName()
+
+        Component.onCompleted: list["volumeFadeDownAction"] = volumeFadeDownAction
+
+        onTriggered: {
+            mpv.fadeVolumeDown()
+        }
+    }
+
     property Action syncAction: Action {
         id: syncAction
         text: qsTr("Sync On")
@@ -184,6 +212,34 @@ QtObject {
                 mpv.playlistModel.setPlayingVideo(previousFileRow)
                 mpv.loadItem(previousFileRow)
             }
+        }
+    }
+
+    property Action visibilityFadeUpAction: Action {
+        id: visibilityFadeUpAction
+        property var qaction: app.action("visibilityFadeUp")
+        text: qaction.text
+        shortcut: qaction.shortcutName()
+        icon.name: qaction.iconName()
+
+        Component.onCompleted: list["visibilityFadeUpAction"] = visibilityFadeUpAction
+
+        onTriggered: {
+            mpv.fadeImageUp()
+        }
+    }
+
+    property Action visibilityFadeDownAction: Action {
+        id: visibilityFadeDownAction
+        property var qaction: app.action("visibilityFadeDown")
+        text: qaction.text
+        shortcut: qaction.shortcutName()
+        icon.name: qaction.iconName()
+
+        Component.onCompleted: list["visibilityFadeDownAction"] = visibilityFadeDownAction
+
+        onTriggered: {
+            mpv.fadeImageDown()
         }
     }
 

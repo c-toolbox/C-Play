@@ -525,21 +525,49 @@ void Application::setupActions(const QString &actionName)
         auto action = new HAction();
         action->setText(i18n("Volume Up"));
         action->setIcon(QIcon::fromTheme("audio-volume-high"));
-        m_collection.setDefaultShortcut(action, QKeySequence("Shift+Up"));
+        m_collection.setDefaultShortcut(action, QKeySequence("Shift++"));
         m_collection.addAction(actionName, action);
     }
     if (actionName == QStringLiteral("volumeDown")) {
         auto action = new HAction();
         action->setText(i18n("Volume Down"));
         action->setIcon(QIcon::fromTheme("audio-volume-low"));
+        m_collection.setDefaultShortcut(action, QKeySequence("Shift+-"));
+        m_collection.addAction(actionName, action);
+    }
+    if (actionName == QStringLiteral("volumeFadeUp")) {
+        auto action = new HAction();
+        action->setText(i18n("Volume Fade Up"));
+        action->setIcon(QIcon::fromTheme("audio-volume-high"));
+        m_collection.setDefaultShortcut(action, QKeySequence("Shift+Up"));
+        m_collection.addAction(actionName, action);
+    }
+    if (actionName == QStringLiteral("volumeFadeDown")) {
+        auto action = new HAction();
+        action->setText(i18n("Volume Fade Down"));
+        action->setIcon(QIcon::fromTheme("audio-volume-low"));
         m_collection.setDefaultShortcut(action, QKeySequence("Shift+Down"));
         m_collection.addAction(actionName, action);
     }
     if (actionName == QStringLiteral("mute")) {
         auto action = new HAction();
-        action->setText(i18n("Mute"));
+        action->setText(i18n("Volume Mute"));
         action->setIcon(QIcon::fromTheme("audio-on"));
         m_collection.setDefaultShortcut(action, QKeySequence("Ctrl+M"));
+        m_collection.addAction(actionName, action);
+    }
+    if (actionName == QStringLiteral("visibilityFadeUp")) {
+        auto action = new HAction();
+        action->setText(i18n("Visibility Fade Up"));
+        action->setIcon(QIcon::fromTheme("view-visible"));
+        m_collection.setDefaultShortcut(action, QKeySequence("Shift+PgUp"));
+        m_collection.addAction(actionName, action);
+    }
+    if (actionName == QStringLiteral("visibilityFadeDown")) {
+        auto action = new HAction();
+        action->setText(i18n("Visibility Fade Down"));
+        action->setIcon(QIcon::fromTheme("view-hidden"));
+        m_collection.setDefaultShortcut(action, QKeySequence("Shift+PgDown"));
         m_collection.addAction(actionName, action);
     }
     if (actionName == QStringLiteral("seekForwardSmall")) {

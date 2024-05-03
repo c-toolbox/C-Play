@@ -16,6 +16,8 @@ Menu {
     MenuItem { action: actions["stopRewindAction"] }
     MenuItem { action: actions["playNextAction"] }
     MenuItem { action: actions["playPreviousAction"] }
+    MenuItem { action: actions["visibilityFadeUpAction"] }
+    MenuItem { action: actions["visibilityFadeDownAction"] }
 
     MenuSeparator {}
 

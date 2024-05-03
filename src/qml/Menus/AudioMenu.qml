@@ -44,4 +44,6 @@ Menu {
     MenuItem { action: actions["muteAction"] }
     MenuItem { action: actions["volumeUpAction"] }
     MenuItem { action: actions["volumeDownAction"] }
+    MenuItem { action: actions["volumeFadeUpAction"] }
+    MenuItem { action: actions["volumeFadeDownAction"] }
 }
