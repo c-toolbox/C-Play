@@ -90,7 +90,7 @@ SettingsBasePage {
         Item { width: 1; height: 1 }
         CheckBox {
             id: rewindMediaOnEOF
-            text: qsTr("Startup: Rewind media when end-of-file+pause")
+            text: qsTr("Startup: Stop/Rewind media when end-of-file+pause")
             checked: PlaybackSettings.rewindOnEOFwhenPause
             onCheckedChanged: {
                 PlaybackSettings.rewindOnEOFwhenPause = checked
@@ -101,7 +101,7 @@ SettingsBasePage {
         Item { width: 1; height: 1 }
         CheckBox {
             id: fadeDownBeforeRewind
-            text: qsTr("On Rewind: Fade down media visibility before")
+            text: qsTr("On Stop/Rewind: Fade down media visibility before")
             checked: PlaybackSettings.fadeDownBeforeRewind
             onCheckedChanged: {
                 PlaybackSettings.fadeDownBeforeRewind = checked
