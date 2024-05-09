@@ -1,5 +1,6 @@
 ---
 title: Video configuration
+layout: home
 nav_order: 1
 parent: Setup C-Play
 ---

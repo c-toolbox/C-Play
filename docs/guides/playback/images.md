@@ -1,5 +1,6 @@
 ---
 title: Background and foreground images
+layout: home
 nav_order: 2
 parent: Playback features
 ---

@@ -1,5 +1,6 @@
 ---
 title: Playlist settings
+layout: home
 nav_order: 6
 parent: Settings
 ---

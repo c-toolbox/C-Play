@@ -1,5 +1,6 @@
 ---
 title: Image files
+layout: home
 nav_order: 2
 parent: Media file structure
 ---

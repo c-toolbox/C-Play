@@ -1,5 +1,6 @@
 ---
 title: Grid/mapping settings
+layout: home
 nav_order: 2
 parent: Settings
 ---

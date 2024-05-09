@@ -1,5 +1,6 @@
 ---
 title: Video files
+layout: home
 nav_order: 1
 parent: Media file structure
 ---

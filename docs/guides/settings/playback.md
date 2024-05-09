@@ -1,5 +1,6 @@
 ---
 title: Playback settings
+layout: home
 nav_order: 5
 parent: Settings
 ---

@@ -1,5 +1,6 @@
 ---
 title: Build playlists (*.cplaylists)
+layout: home
 nav_order: 6
 parent: Media file structure
 ---

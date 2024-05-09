@@ -1,5 +1,6 @@
 ---
 title: Playback UI controls
+layout: home
 nav_order: 1
 parent: Playback features
 ---

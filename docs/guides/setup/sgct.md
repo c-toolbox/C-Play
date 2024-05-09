@@ -1,5 +1,6 @@
 ---
 title: Cluster configuration
+layout: home
 nav_order: 3
 parent: Setup C-Play
 ---

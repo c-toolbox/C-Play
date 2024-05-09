@@ -1,4 +1,5 @@
-remote_theme: just-the-docs/just-the-docs
+theme: "just-the-docs"
+#bundle exec jekyll serve --config _config_local.yml
 
 title: C-Play
 description: Open source media player for clustered environments

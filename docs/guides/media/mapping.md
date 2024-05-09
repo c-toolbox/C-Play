@@ -1,5 +1,6 @@
 ---
 title: Video & image mapping modes
+layout: home
 nav_order: 3
 parent: Media file structure
 ---

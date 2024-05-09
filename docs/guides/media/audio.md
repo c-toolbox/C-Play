@@ -1,5 +1,6 @@
 ---
 title: Audio files
+layout: home
 nav_order: 4
 parent: Media file structure
 ---
