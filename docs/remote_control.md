@@ -6,8 +6,10 @@ has_toc: false
 nav_order: 7
 ---
 
-# Control UI
- - [Control UI](guides/remote/ui)
+# Remote Control
 
-# HTTP Web API
- - [API](guides/remote/api)
+C-Play has integrated a REST API library to enable external control against the master UI, to enable control from an external application, which could be a more portable web UI.
+Below you find links to the API as well as and example UI.
+
+ - [HTTP Web API](guides/remote/api)
+ - [Medialon Example Web UI](guides/remote/ui)

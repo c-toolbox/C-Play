@@ -1,7 +1,7 @@
 ---
 title: iPad (Web) UI
 layout: home
-nav_order: 1
+nav_order: 2
 parent: Remote Control
 ---
 
@@ -51,7 +51,7 @@ This button enabled and disables the background, if you would like the dome to f
 
 This opens and closes the shutter of the presentation projector, but also, puts a black mask on-top of the c-play content, that corresponds to the projected footprint on the dome of the presentation projector. Such that you could have a powerpoint in the middle of the dome from a laptop, while also having content around which is shown by the dome projectors.
 
-### 360 Control
+### 360 Spin
 
 C-Play support 360 movies and images (2D and 3D). However, in the dome, the content shown of that video is usually only half of that. To create a interactive moment of the 360 video, to show another side, there is a button to rotate the sphere around, and also transition the sphere to another defined state (see "*Settings -> Configure -> Mapping & Image*" do change this state.)
 

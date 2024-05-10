@@ -16,11 +16,6 @@ However, we have a perfect additional system for that, called [C-Troll](https://
 
 Thus, C-Play could be launched on multiple machines with various configuration utilizing C-Troll as the start/stop program utility.
 
-## Video configuration
  - [Video configuration](guides/setup/video)
-
-## Audio configuration
  - [Audio configuration](guides/setup/audio)
-
-## Cluster configuration (through SGCT)
  - [Cluster configuration](guides/setup/sgct)

@@ -5,12 +5,10 @@ nav_order: 2
 parent: Playback features
 ---
 
-# Background and foreground image
+# Background and foreground image visibility
+
+![Image control](../../assets/ui/header_taskbar/image.png){:width="50%"}
+
+### Add/change background image
 
 ![Image settings](../../assets/ui/settings/image.png) 
-
-## Add/change background image
-
-![alt text](../../assets/ui/header_taskbar/image.png) 
-
-## Fade in/out image (and audio)

@@ -6,12 +6,16 @@ has_toc: false
 nav_order: 6
 ---
 
-# Playback UI controls
- - [Playback UI controls](guides/playback/features)
+# Playback features
 
-# Background and foreground images
- - [Background & Foreground](guides/playback/images)
+![Header](../../assets/ui/header_taskbar/all.png) 
 
-# 360 Control / Spin
- - [360 Control / Spin](guides/playback/spin)
+Most of the playback settings are conveniently available in the UI header (as seen above).
+
+Here are further details on the available controls:
+
+ - [Control/select media features](guides/playback/control_media)
+ - [Control background & foreground images](guides/playback/images)
+ - [Control 360 spin & move](guides/playback/spin)
+ - [Enable/disable sync](guides/playback/sync)
 

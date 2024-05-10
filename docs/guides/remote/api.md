@@ -1,7 +1,7 @@
 ---
 title: HTTP Web API
 layout: home
-nav_order: 2
+nav_order: 1
 parent: Remote Control
 ---
 
@@ -53,9 +53,9 @@ To easier understand these commands, feel free to utilize a sample Medialon Mana
     Purpose:  Ask C-play to pause current media.
     Returns:  "Pause"
 
-    Endpoint: /rewind
-    Purpose:  Ask C-play to rewind current media to start position.
-    Returns:  "Rewind"
+    Endpoint: /stop or /rewind
+    Purpose:  Ask C-play to stop/rewind current media to start position.
+    Returns:  "Stop/Rewind"
 
     Endpoint: /auto_play
     Purpose:  Enable or disables the use of auto play in the playlist.
