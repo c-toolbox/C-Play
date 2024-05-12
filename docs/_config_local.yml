@@ -16,3 +16,6 @@ color_scheme: "dark"
 aux_links:
   "C-Play on GitHub":
     - "//github.com/c-toolbox/C-Play"
+    
+exclude: 
+    - guides/build/dependencies/
