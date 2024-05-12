@@ -37,10 +37,10 @@ These are just some features that set C-Play apart from others players
 
 # Build on Windows
 
-- Use [Craft Guide](./help/CRAFT_INSTALLS.md) to install all dependencies for the UI, from Qt5, KF5 libs.
+- Use [Craft Guide](./docs/guides/build/dependencies/CRAFT_INSTALLS.md) to install all dependencies for the UI, from Qt5, KF5 libs.
 
-- Use the [Build FFMPEG and MPV Guide](./help/BUILD_FFMPEG_AND_MPV.md) guide to build FFmpeg and MPV with JACK+portaudio support.
+- Use the [Build FFMPEG and MPV Guide](./docs/guides/build/dependencies/BUILD_MPV_AND_FFMPEG.md) guide to build FFmpeg and MPV with JACK+portaudio support.
 
 - Configure C-Play with CMake.
 
-- Build in Qt-Creator for good QML overview, or use Visual Studio.
+- Build in Visual Studio 2022 or in Qt-Creator for good QML overview.

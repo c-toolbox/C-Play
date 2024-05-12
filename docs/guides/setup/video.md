@@ -7,7 +7,7 @@ parent: Setup C-Play
 
 # Video decoding configuration
 
-This is the configuration guide for installers, how to get maximum performance out of C-Play. See the [video](../media/video.md) in the media guide if you want to now how C-Play loads and handle video files.
+This is the configuration guide for installers, how to get maximum performance out of C-Play. See the [video](../media/video) in the media guide if you want to now how C-Play loads and handle video files.
 
 C-Play has embedded [mpv](https://mpv.io/), which is highly capable free and open-source media player. MPV can be configured in many ways to maximize performance based on your system.
 

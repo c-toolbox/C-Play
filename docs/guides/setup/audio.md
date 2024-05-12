@@ -5,21 +5,25 @@ nav_order: 2
 parent: Setup C-Play
 ---
 
-# Audio output in C-Play
+# Audio configuration
 
 As C-Play has embedded [MPV](https://mpv.io/) as it media player backend, C-Play support whatever MPV support in terms of audio files.
+
+And a MPV has it's own unique and features rich configuration, for both video and audio processing, several configuration for the audio can also be made in the MPV configuration files, which are outlined more extensively in the [Video configuration guide](video#mpv-configuration-files), while providing settings, as [*audio-spdif*](https://mpv.io/manual/master/#options-audio-spdif) for passthrough of certain audio files to be directly handled by own audio system.
+
+## Audio output in C-Play
 
 The audio output device you want C-Play to use can be configured in "Settings -> Configure -> Audio".
 
 You can choose to either use a custom audio device that MPV has detected, or to go for a specific audio driver.
 
-## Native, up to 8 channels
+### Native, up to 8 channels
 
 C-Play is a "*Windows only*" application, and as such, is partially limited by the native capabilities of Windows when it comes to audio output. You should expect C-Play to find any device output you have connected. However, native Windows audio support up to 8 channels of output (such as 7.1) without the use of any additional third-party solution.
 
 However, C-Play was designed with the intention of supporting much more audio channels, and a such C-Play is capable of using the "*JACK*" if you need above eight channels.
 
-## JACK, low latency up to 64 or 128 channels
+### JACK, low latency up to 64 or 128 channels
 
 In C-Play, the MPV and ffmpeg library, that are utilzied as the backend for video and audio decoding, is compilied together with the cross-platform audio API named [JACK](https://jackaudio.org/).
 
