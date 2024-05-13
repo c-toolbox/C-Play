@@ -242,8 +242,15 @@ Rectangle {
 
             Label {
                 id: mediaTitle
-                text: qsTr("Sections: ")
+                text: qsTr("Sections")
                 font.pointSize: 9
+            }
+
+            Rectangle {
+                width: Kirigami.Units.gridUnit + 10
+                height: 1
+                color: Kirigami.Theme.alternateBackgroundColor
+                Layout.fillWidth: true
             }
         }
     }

@@ -212,6 +212,13 @@ Rectangle {
                 font.pointSize: 9
             }
 
+            Rectangle {
+                width: Kirigami.Units.gridUnit + 10
+                height: 1
+                color: Kirigami.Theme.alternateBackgroundColor
+                Layout.fillWidth: true
+            }
+
             Item {
                 // spacer item
                 Layout.fillWidth: true
@@ -243,7 +250,7 @@ Rectangle {
             if(mpv.playlistModel.getPlayListName() !== "")
                 playlistName.text = qsTr("Playlist: ") + mpv.playlistModel.getPlayListName()
             else
-                playlistName.text = qsTr("")
+                playlistName.text = qsTr("Playlist")
         }
         function onFileLoaded() {
             playlistView.currentIndex = -1
