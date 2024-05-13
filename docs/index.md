@@ -61,13 +61,13 @@ Some technical features:
 To launch application on master+nodes, we use an own developed application called [C-Troll](https://github.com/c-toolbox/C-Troll).
 
 ## Guides
-1. [Install C-Play](install.md)
-1. [Setup C-Play](setup.md)
-1. [Media structure](media.md)
-1. [Settings](settings.md)
-1. [Playback features](playback.md)
-1. [Remote control](remote_control.md)
-1. [Build from code](build.md)
+1. [Install C-Play](install)
+1. [Setup C-Play](setup)
+1. [Media structure](media)
+1. [Settings](settings)
+1. [Playback features](playback)
+1. [Remote control](remote_control)
+1. [Build from code](build)
 
 # License
 C-Play is licensed under the [GNU General Public License v3.0](https://choosealicense.com/licenses/gpl-3.0/)
