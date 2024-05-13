@@ -160,7 +160,7 @@ Rectangle {
                             mpv.playSectionsModel.addSection(sectionTitle.text, startTimeTextField.text, endTimeTextField.text, eosComboBox.currentIndex)
                         }
                         ToolTip {
-                            text: qsTr("Add section")
+                            text: qsTr("Add section to bottom of list")
                         }
                     }
 
@@ -170,7 +170,16 @@ Rectangle {
                            mpv.playSectionsModel.removeSection(sectionsView.currentIndex)
                         }
                         ToolTip {
-                            text: qsTr("Remove selected sections")
+                            text: qsTr("Remove selected section")
+                        }
+                    }
+                    Button {
+                        icon.name: "document-replace"
+                        onClicked: {
+                            mpv.playSectionsModel.replaceSection(sectionsView.currentIndex, sectionTitle.text, startTimeTextField.text, endTimeTextField.text, eosComboBox.currentIndex)
+                        }
+                        ToolTip {
+                            text: qsTr("Replace selected section")
                         }
                     }
                     Button {
@@ -182,7 +191,7 @@ Rectangle {
                             eosComboBox.currentIndex = mpv.playSectionsModel.sectionEOSMode(sectionsView.currentIndex)
                         }
                         ToolTip {
-                            text: qsTr("Edit section entry")
+                            text: qsTr("Copy values from selected section")
                         }
                     }
                     Button {
@@ -191,7 +200,7 @@ Rectangle {
                             mpv.playSectionsModel.moveSectionUp(sectionsView.currentIndex)
                         }
                         ToolTip {
-                            text: qsTr("Move selected upwards")
+                            text: qsTr("Move selected section upwards")
                         }
                     }
                     Button {
@@ -200,14 +209,13 @@ Rectangle {
                             mpv.playSectionsModel.moveSectionDown(sectionsView.currentIndex)
                         }
                         ToolTip {
-                            text: qsTr("Move selected downwards")
+                            text: qsTr("Move selected section downwards")
                         }
                     }
                     Button {
                         icon.name: "edit-reset"
                         onClicked: {
                             mpv.loadSection(-1)
-                            mpv.playSectionsModel.setPlayingSection(-1)
                             sectionsView.currentIndex = -1
                         }
                         ToolTip {
@@ -247,7 +255,6 @@ Rectangle {
         }
         function onRewind() {
             mpv.loadSection(-1)
-            mpv.playSectionsModel.setPlayingSection(-1)
             sectionsView.currentIndex = -1
         }
     }
@@ -309,13 +316,13 @@ Rectangle {
 
             SequentialAnimation {
                 NumberAnimation {
-                    target: root
+                    target: sectionsRoot
                     property: "x"
                     duration: 120
                     easing.type: Easing.InQuad
                 }
                 PropertyAction {
-                    target: root
+                    target: sectionsRoot
                     property: "visible"
                     value: false
                 }
@@ -327,12 +334,12 @@ Rectangle {
 
             SequentialAnimation {
                 PropertyAction {
-                    target: root
+                    target: sectionsRoot
                     property: "visible"
                     value: true
                 }
                 NumberAnimation {
-                    target: root
+                    target: sectionsRoot
                     property: "x"
                     duration: 120
                     easing.type: Easing.OutQuad
@@ -345,13 +352,13 @@ Rectangle {
 
             SequentialAnimation {
                 NumberAnimation {
-                    target: root
+                    target: sectionsRoot
                     property: "x"
                     duration: 120
                     easing.type: Easing.InQuad
                 }
                 PropertyAction {
-                    target: root
+                    target: sectionsRoot
                     property: "visible"
                     value: false
                 }
@@ -363,12 +370,12 @@ Rectangle {
 
             SequentialAnimation {
                 PropertyAction {
-                    target: root
+                    target: sectionsRoot
                     property: "visible"
                     value: true
                 }
                 NumberAnimation {
-                    target: root
+                    target: sectionsRoot
                     property: "x"
                     duration: 120
                     easing.type: Easing.OutQuad
@@ -381,7 +388,7 @@ Rectangle {
 
             SequentialAnimation {
                 NumberAnimation {
-                    target: root
+                    target: sectionsRoot
                     property: "x"
                     duration: 120
                     easing.type: Easing.OutQuad
@@ -394,7 +401,7 @@ Rectangle {
 
             SequentialAnimation {
                 NumberAnimation {
-                    target: root
+                    target: sectionsRoot
                     property: "x"
                     duration: 120
                     easing.type: Easing.OutQuad

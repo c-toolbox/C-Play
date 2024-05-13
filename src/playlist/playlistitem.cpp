@@ -270,6 +270,25 @@ void PlayListItem::removeSection(int i)
     m_data.m_sections.removeAt(i);
 }
 
+void PlayListItem::replaceSection(int i, QString title, double startTime, double endTime, int eosMode)
+{
+    if (i < 0 || i >= m_data.m_sections.size())
+        return;
+
+    m_data.m_sections.replace(i, PlayListItemData::Section(title, startTime, endTime, eosMode));
+}
+
+void PlayListItem::replaceSection(int i, QString title, QString startTime, QString endTime, int eosMode)
+{
+    if (i < 0 || i >= m_data.m_sections.size())
+        return;
+
+    QTime start = QTime::fromString(startTime, "hh:mm:ss");
+    QTime end = QTime::fromString(endTime, "hh:mm:ss");
+    QTime zero = QTime(0, 0);
+    replaceSection(i, title, double(zero.msecsTo(start)) / 1000.0, double(zero.msecsTo(end)) / 1000.0, eosMode);
+}
+
 void PlayListItem::moveSection(int from, int to)
 {
     if (from < 0 || from >= m_data.m_sections.size() ||

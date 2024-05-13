@@ -233,6 +233,17 @@ void PlaySectionsModel::removeSection(int i) {
     setCurrentEditItemIsEdited(true);
 }
 
+void PlaySectionsModel::replaceSection(int i, QString name, QString startTime, QString endTime, int eosMode)
+{
+    if (!m_currentEditItem)
+        return;
+
+    beginResetModel();
+    m_currentEditItem->replaceSection(i, name, startTime, endTime, eosMode);
+    endResetModel();
+    setCurrentEditItemIsEdited(true);
+}
+
 void PlaySectionsModel::moveSectionUp(int i) {
     if (!m_currentEditItem)
         return;
@@ -270,7 +281,7 @@ QString PlaySectionsModel::sectionTitle(int i) const
 double PlaySectionsModel::sectionStartTime(int i) const
 {
     if (!m_currentEditItem)
-        return 0;
+        return -1;
 
     return m_currentEditItem->sectionStartTime(i);
 }
@@ -278,7 +289,7 @@ double PlaySectionsModel::sectionStartTime(int i) const
 double PlaySectionsModel::sectionEndTime(int i) const
 {
     if (!m_currentEditItem)
-        return 0;
+        return -1;
 
     return m_currentEditItem->sectionEndTime(i);
 }

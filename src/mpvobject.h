@@ -395,6 +395,7 @@ signals:
     void saturationChanged();
     void fileStarted();
     void fileLoaded();
+    void sectionLoaded(int);
     void endFile(QString reason);
     void watchPercentageChanged();
     void ready();

@@ -65,6 +65,7 @@ public:
 
     Q_INVOKABLE void addSection(QString name, QString startTime, QString endTime, int eosMode);
     Q_INVOKABLE void removeSection(int i);
+    Q_INVOKABLE void replaceSection(int i, QString name, QString startTime, QString endTime, int eosMode);
     Q_INVOKABLE void moveSectionUp(int i);
     Q_INVOKABLE void moveSectionDown(int i);
     Q_INVOKABLE QString sectionTitle(int i) const;

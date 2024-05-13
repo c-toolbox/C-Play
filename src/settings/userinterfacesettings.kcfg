@@ -27,10 +27,6 @@
       <label>Show header</label>
       <default>true</default>
     </entry>
-    <entry name="ShowChapterMarkers" type="bool">
-      <label>Show chapter markers</label>
-      <default>true</default>
-    </entry>
     <entry name="ColorScheme" type="String">
       <label>Color scheme</label>
 	  <default>Breeze Dark</default>

@@ -54,19 +54,6 @@ SettingsBasePage {
             Layout.fillWidth: true
         }
 
-        Item { width: 1; height: 1 }
-        CheckBox {
-            text: qsTr("Show chapter markers")
-            checked: UserInterfaceSettings.showChapterMarkers
-            onCheckedChanged: {
-                UserInterfaceSettings.showChapterMarkers = checked
-                UserInterfaceSettings.save()
-            }
-        }
-        Item {
-            Layout.fillWidth: true
-        }
-
         Label {
             text: qsTr("Color scheme")
             Layout.alignment: Qt.AlignRight

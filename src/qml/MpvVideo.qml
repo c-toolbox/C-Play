@@ -108,31 +108,6 @@ MpvObject {
         overlayImage.opacity = (!overlayImage.source.empty() ? 1 : 0);
     }
 
-    onChapterChanged: {
-        if (!PlaybackSettings.skipChapters) {
-            return
-        }
-
-        const chapters = mpv.getProperty("chapter-list")
-        const chaptersToSkip = PlaybackSettings.chaptersToSkip
-        if (chapters.length === 0 || chaptersToSkip === "") {
-            return
-        }
-
-        const words = chaptersToSkip.split(",")
-        for (let i = 0; i < words.length; ++i) {
-            if (chapters[mpv.chapter] && chapters[mpv.chapter].title.toLowerCase().includes(words[i].trim())) {
-                actions.seekNextChapterAction.trigger()
-                if (UserInterfaceSettings.showOsdOnSkipChapters) {
-                    osd.message(qsTr("Skipped chapter: %1").arg(chapters[mpv.chapter-1].title))
-                }
-                // a chapter title can match multiple words
-                // return to prevent skipping multiple chapters
-                return
-            }
-        }
-    }
-
     Timer {
        id: rewindAfterFades
        interval: PlaybackSettings.fadeDuration
@@ -342,7 +317,6 @@ MpvObject {
         function onLoadFromSections(index) {
             root.pause = true
             root.loadSection(index)
-            root.playSectionsModel.setPlayingSection(index)
         }
         function onBackgroundVisibilityChanged(){
             root.opacity = 1 - playerController.backgroundVisibilityOnMaster()

@@ -974,10 +974,12 @@ void MpvObject::loadSection(int playSectionsIndex) {
                 setProperty("ab-loop-a", "no");
                 setProperty("ab-loop-b", "no");
             }
+            m_playSectionsModel->setPlayingSection(m_currentSectionsIndex);
+            emit sectionLoaded(m_currentSectionsIndex);
             return;
         }
 
-        m_currentSection = m_playSectionsModel->currentEditItem()->getSection(playSectionsIndex);;
+        m_currentSection = m_playSectionsModel->currentEditItem()->getSection(playSectionsIndex);
         setPosition(m_currentSection.startTime);
         if (m_currentSection.eosMode == 4) {
             SyncHelper::instance().variables.loopTimeA = m_currentSection.startTime;
@@ -996,6 +998,8 @@ void MpvObject::loadSection(int playSectionsIndex) {
             setProperty("ab-loop-b", "no");
         }
         m_currentSectionsIndex = playSectionsIndex; //Enabling new section
+        m_playSectionsModel->setPlayingSection(m_currentSectionsIndex);
+        emit sectionLoaded(m_currentSectionsIndex);
     }
 }
 
