@@ -8,7 +8,7 @@ nav_order: 6
 
 # Playback features
 
-![Header](../../assets/ui/header_taskbar/all.png) 
+![Header](assets/ui/header_taskbar/all.png) 
 
 Most of the playback settings are conveniently available in the UI header (as seen above).
 
