@@ -5,7 +5,7 @@ nav_order: 3
 parent: Playback features
 ---
 
-## Spin & Move / 360 Control
+# Spin & Move / 360 Control
 
 C-Play has built in some controls to make static material feel a bot more alive, or alter the viewpoint of certain material at runtime. These are located in the UI header under the *"Spin & Move"* button.
 

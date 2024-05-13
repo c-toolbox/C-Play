@@ -5,7 +5,7 @@ nav_order: 2
 parent: Remote Control
 ---
 
-## C-Play iPad Control Interface
+# C-Play iPad Control Interface
 
 This UI, currently used in the Visualization Center C, is an example on how C-Play can be used with a remote UI. This exact one is specific to this site, but feel free to utilize a generic one, that can be found [here](https://github.com/c-toolbox/C-Play/tree/master/help/http_server).
 

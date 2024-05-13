@@ -7,7 +7,7 @@ parent: Settings
 
 # Playback settings
 
-![Playback settings](assets/ui/settings/playback.png) 
+![Playback settings](../../assets/ui/settings/playback.png) 
 
 The playback settings within C-Play handles timing of fades, loops and seeks as well indicate which MPV configuration has been loaded and what it contains.
 

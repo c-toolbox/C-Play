@@ -5,7 +5,7 @@ nav_order: 4
 parent: Settings
 ---
 
-# Location settings of C-Play
+# Location settings
 
 ![Location settings](../../assets/ui/settings/location.png) 
 
