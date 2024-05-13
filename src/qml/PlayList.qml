@@ -209,6 +209,7 @@ Rectangle {
 
             Label {
                 id: playlistName
+                text: qsTr("Playlist")
                 font.pointSize: 9
             }
 
