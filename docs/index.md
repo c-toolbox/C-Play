@@ -8,7 +8,7 @@ nav_order: 1
 
 C-Play is a video/media player developed for cluster environments where you need multiple computers and/or displays to run your content on. The displays could be flat or curved in any setup that is supported by our underlying toolkit [SGCT](https://sgct.github.io/) and any media format supported by [MPV](https://mpv.io/).
 
-![Render v1](assets/Cplay-v1.png) 
+![Render v2](assets/Cplay-v2.png) 
 
 ![Render Dome Image 1](assets/CPlay-in-dome-1.jpg)
 
@@ -22,7 +22,7 @@ C-Play is an open source cluster video player, based on these open source projec
 
 ## Version: 2.0
 
-![Render v2](assets/Cplay-v2.png)
+![Render v2 with Sections](assets/Cplay-v2-section.png)
 
 ### Current Features
 These are just some features that set C-Play apart from others media/video players:
