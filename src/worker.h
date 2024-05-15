@@ -21,11 +21,10 @@ public:
 
     static Worker* instance();
 
-signals:
-    void metaDataReady(int index, KFileMetaData::PropertyMap metadata);
+    Q_INVOKABLE void getMetaData(int index, const QString& path);
 
-public slots:
-    void getMetaData(int index, const QString &path);
+Q_SIGNALS:
+    void metaDataReady(int index, KFileMetaData::PropertyMultiMap metadata);
 
 private:
     static Worker *sm_worker;
