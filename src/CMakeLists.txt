@@ -35,8 +35,6 @@ target_sources(${TARGET_NAME}
     renderthread.h
     track.cpp
     track.h
-    trackballcameracontroller.cpp
-    trackballcameracontroller.h
     tracksmodel.cpp
     tracksmodel.h
     worker.cpp

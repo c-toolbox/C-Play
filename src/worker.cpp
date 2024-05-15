@@ -8,7 +8,9 @@
 
 #include "_debug.h"
 #include "worker.h"
+#include "application.h"
 
+#include <QUrl>
 #include <QMimeDatabase>
 #include <QThread>
 #include <KFileMetaData/ExtractorCollection>
@@ -26,18 +28,21 @@ Worker* Worker::instance()
 
 void Worker::getMetaData(int index, const QString &path)
 {
-    QMimeDatabase db;
-    QMimeType type = db.mimeTypeForFile(path);
+    auto url = QUrl::fromUserInput(path);
+    if (url.scheme() != QStringLiteral("file")) {
+        return;
+    }
+    QString mimeType = Application::mimeType(url);
     KFileMetaData::ExtractorCollection exCol;
-    QList<KFileMetaData::Extractor*> extractors = exCol.fetchExtractors(type.name());
-    KFileMetaData::SimpleExtractionResult result(path, type.name(),
-                                                 KFileMetaData::ExtractionResult::ExtractMetaData);
+    QList<KFileMetaData::Extractor*> extractors = exCol.fetchExtractors(mimeType);
+    KFileMetaData::SimpleExtractionResult result(url.toLocalFile(), mimeType, KFileMetaData::ExtractionResult::ExtractMetaData);
     if (extractors.size() == 0) {
         return;
     }
     KFileMetaData::Extractor* ex = extractors.first();
     ex->extract(&result);
+
     auto properties = result.properties(KFileMetaData::PropertiesMapType::MultiMap);
 
-    emit metaDataReady(index, properties);
+    Q_EMIT metaDataReady(index, properties);
 }
