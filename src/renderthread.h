@@ -16,8 +16,7 @@ public:
 
     void render();
 
-public slots:
-    void terminate();
+    Q_INVOKABLE void terminate();
 
 protected:
     void run() override;

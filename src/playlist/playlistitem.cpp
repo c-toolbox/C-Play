@@ -9,6 +9,7 @@
 #include "_debug.h"
 #include "playlistitem.h"
 #include "locationsettings.h"
+#include <algorithm>
 
 #include <QFileInfo>
 #include <QDir>
@@ -16,6 +17,8 @@
 #include <QJsonDocument>
 #include <QJsonObject>
 #include <QJsonArray>
+#include <QRegularExpression>
+#include <QStringList>
 
 QString PlayListItemData::filePath() const
 {
@@ -165,7 +168,7 @@ void PlayListItem::setMediaTitle(const QString& title)
 QString PlayListItem::durationFormatted() const 
 {
     QTime t(0, 0, 0);
-    QString formattedTime = t.addSecs(static_cast<qint64>(m_data.m_duration)).toString("hh:mm:ss");
+    QString formattedTime = t.addSecs(static_cast<qint64>(m_data.m_duration)).toString(QStringLiteral("hh:mm:ss"));
     return formattedTime;
 }
 
@@ -256,8 +259,8 @@ void PlayListItem::addSection(QString title, double startTime, double endTime, i
 
 void PlayListItem::addSection(QString title, QString startTime, QString endTime, int eosMode)
 {
-    QTime start = QTime::fromString(startTime, "hh:mm:ss");
-    QTime end = QTime::fromString(endTime, "hh:mm:ss");
+    QTime start = QTime::fromString(startTime, QStringLiteral("hh:mm:ss"));
+    QTime end = QTime::fromString(endTime, QStringLiteral("hh:mm:ss"));
     QTime zero = QTime(0, 0);
     addSection(title, double(zero.msecsTo(start)) / 1000.0, double(zero.msecsTo(end)) / 1000.0, eosMode);
 }
@@ -283,8 +286,8 @@ void PlayListItem::replaceSection(int i, QString title, QString startTime, QStri
     if (i < 0 || i >= m_data.m_sections.size())
         return;
 
-    QTime start = QTime::fromString(startTime, "hh:mm:ss");
-    QTime end = QTime::fromString(endTime, "hh:mm:ss");
+    QTime start = QTime::fromString(startTime, QStringLiteral("hh:mm:ss"));
+    QTime end = QTime::fromString(endTime, QStringLiteral("hh:mm:ss"));
     QTime zero = QTime(0, 0);
     replaceSection(i, title, double(zero.msecsTo(start)) / 1000.0, double(zero.msecsTo(end)) / 1000.0, eosMode);
 }
@@ -301,7 +304,7 @@ void PlayListItem::moveSection(int from, int to)
 QString PlayListItem::sectionTitle(int i) const
 {
     if (i < 0 || i >= m_data.m_sections.size())
-        return "";
+        return QStringLiteral("");
 
     return m_data.m_sections.at(i).title;
 }
@@ -381,53 +384,53 @@ QString PlayListItem::makePathRelativeTo(const QString& filePath, const QStringL
 }
 
 void PlayListItem::asJSON(QJsonObject& obj) {
-    obj.insert("video", mediaFile());
+    obj.insert(QStringLiteral("video"), mediaFile());
 
     if (!separateOverlayFile().isEmpty())
-        obj.insert("overlay", separateOverlayFile());
+        obj.insert(QStringLiteral("overlay"), separateOverlayFile());
 
     if (!separateAudioFile().isEmpty())
-        obj.insert("audio", separateAudioFile());
+        obj.insert(QStringLiteral("audio"), separateAudioFile());
 
     if (!mediaTitle().isEmpty())
-        obj.insert("title", mediaTitle());
+        obj.insert(QStringLiteral("title"), mediaTitle());
 
-    obj.insert("duration", duration());
+    obj.insert(QStringLiteral("duration"), duration());
 
     QString grid;
     int gridIdx = gridToMapOn();
     if (gridIdx == 1) {
-        grid = "plane";
+        grid = QStringLiteral("plane");
     }
     else if (gridIdx == 2) {
-        grid = "dome";
+        grid = QStringLiteral("dome");
     }
     else if (gridIdx == 3) {
-        grid = "sphere-eqr";
+        grid = QStringLiteral("sphere-eqr");
     }
     else if (gridIdx == 4) {
-        grid = "sphere-eac";
+        grid = QStringLiteral("sphere-eac");
     }
     else { // 0
-        grid = "pre-split";
+        grid = QStringLiteral("pre-split");
     }
-    obj.insert("grid", grid);
+    obj.insert(QStringLiteral("grid"), grid);
 
     QString sv;
     int stereoVideoIdx = stereoVideo();
     if (stereoVideoIdx == 1) {
-        sv = "side-by-side";
+        sv = QStringLiteral("side-by-side");
     }
     else if (stereoVideoIdx == 2) {
-        sv = "top-bottom";
+        sv = QStringLiteral("top-bottom");
     }
     else if (stereoVideoIdx == 3) {
-        sv = "top-bottom-flip";
+        sv = QStringLiteral("top-bottom-flip");
     }
     else { // 0
-        sv = "no";
+        sv = QStringLiteral("no");
     }
-    obj.insert("stereoscopic", sv);
+    obj.insert(QStringLiteral("stereoscopic"), sv);
 
     QJsonArray sectionsArray;
     for (int i = 0; i < m_data.m_sections.size(); i++)
@@ -439,31 +442,31 @@ void PlayListItem::asJSON(QJsonObject& obj) {
         switch (eosMode)
         {
         case 1:
-            eosModeText = "fade_out";
+            eosModeText = QStringLiteral("fade_out");
             break;
         case 2:
-            eosModeText = "continue";
+            eosModeText = QStringLiteral("continue");
             break;
         case 3:
-            eosModeText = "next";
+            eosModeText = QStringLiteral("next");
             break;
         case 4:
-            eosModeText = "loop";
+            eosModeText = QStringLiteral("loop");
             break;
         default:
-            eosModeText = "pause";
+            eosModeText = QStringLiteral("pause");
             break;
         }
 
-        item_data.insert("section_title", QJsonValue(m_data.m_sections[i].title));
-        item_data.insert("time_begin", QJsonValue(m_data.m_sections[i].startTime));
-        item_data.insert("time_end", QJsonValue(m_data.m_sections[i].endTime));
-        item_data.insert("transition_at_end", QJsonValue(eosModeText));
+        item_data.insert(QStringLiteral("section_title"), QJsonValue(m_data.m_sections[i].title));
+        item_data.insert(QStringLiteral("time_begin"), QJsonValue(m_data.m_sections[i].startTime));
+        item_data.insert(QStringLiteral("time_end"), QJsonValue(m_data.m_sections[i].endTime));
+        item_data.insert(QStringLiteral("transition_at_end"), QJsonValue(eosModeText));
 
         sectionsArray.push_back(QJsonValue(item_data));
     }
     if (!sectionsArray.isEmpty())
-        obj.insert(QString("video_sections"), QJsonValue(sectionsArray));
+        obj.insert(QStringLiteral("video_sections"), QJsonValue(sectionsArray));
 }
 
 void PlayListItem::saveAsJSONPlayFile(const QString& path) const {
@@ -471,60 +474,60 @@ void PlayListItem::saveAsJSONPlayFile(const QString& path) const {
     QJsonObject obj = doc.object();
 
     QString fileToSave = path;
-    fileToSave.replace("file:///", "");
+    fileToSave.replace(QStringLiteral("file:///"), QStringLiteral(""));
     QFileInfo fileToSaveInfo(fileToSave);
 
     QStringList pathsToConsider;
     pathsToConsider.append(LocationSettings::cPlayMediaLocation());
     pathsToConsider.append(fileToSaveInfo.absoluteDir().absolutePath());
 
-    obj.insert("video", makePathRelativeTo(mediaFile(), pathsToConsider));
+    obj.insert(QStringLiteral("video"), makePathRelativeTo(mediaFile(), pathsToConsider));
 
     if (!separateOverlayFile().isEmpty())
-        obj.insert("overlay", makePathRelativeTo(separateOverlayFile(), pathsToConsider));
+        obj.insert(QStringLiteral("overlay"), makePathRelativeTo(separateOverlayFile(), pathsToConsider));
 
     if (!separateAudioFile().isEmpty())
-        obj.insert("audio", makePathRelativeTo(separateAudioFile(), pathsToConsider));
+        obj.insert(QStringLiteral("audio"), makePathRelativeTo(separateAudioFile(), pathsToConsider));
 
     if (!mediaTitle().isEmpty())
-        obj.insert("title", mediaTitle());
+        obj.insert(QStringLiteral("title"), mediaTitle());
 
-    obj.insert("duration", duration());
+    obj.insert(QStringLiteral("duration"), duration());
 
     QString grid;
     int gridIdx = gridToMapOn();
     if (gridIdx == 1) {
-        grid = "plane";
+        grid = QStringLiteral("plane");
     }
     else if (gridIdx == 2) {
-        grid = "dome";
+        grid = QStringLiteral("dome");
     }
     else if (gridIdx == 3) {
-        grid = "sphere-eqr";
+        grid = QStringLiteral("sphere-eqr");
     }
     else if (gridIdx == 4) {
-        grid = "sphere-eac";
+        grid = QStringLiteral("sphere-eac");
     }
     else { // 0
-        grid = "pre-split";
+        grid = QStringLiteral("pre-split");
     }
-    obj.insert("grid", grid);
+    obj.insert(QStringLiteral("grid"), grid);
 
     QString sv;
     int stereoVideoIdx = stereoVideo();
     if (stereoVideoIdx == 1) {
-        sv = "side-by-side";
+        sv = QStringLiteral("side-by-side");
     }
     else if (stereoVideoIdx == 2) {
-        sv = "top-bottom";
+        sv = QStringLiteral("top-bottom");
     }
     else if (stereoVideoIdx == 3) {
-        sv = "top-bottom-flip";
+        sv = QStringLiteral("top-bottom-flip");
     }
     else { // 0
-        sv = "no";
+        sv = QStringLiteral("no");
     }
-    obj.insert("stereoscopic", sv);
+    obj.insert(QStringLiteral("stereoscopic"), sv);
 
     QJsonArray sectionsArray;
     for (int i = 0; i < m_data.m_sections.size(); i++)
@@ -536,31 +539,31 @@ void PlayListItem::saveAsJSONPlayFile(const QString& path) const {
         switch (eosMode)
         {
         case 1:
-            eosModeText = "fade_out";
+            eosModeText = QStringLiteral("fade_out");
             break;
         case 2:
-            eosModeText = "continue";
+            eosModeText = QStringLiteral("continue");
             break;
         case 3:
-            eosModeText = "next";
+            eosModeText = QStringLiteral("next");
             break;
         case 4:
-            eosModeText = "loop";
+            eosModeText = QStringLiteral("loop");
             break;
         default:
-            eosModeText = "pause";
+            eosModeText = QStringLiteral("pause");
             break;
         }
 
-        item_data.insert("section_title", QJsonValue(m_data.m_sections[i].title));
-        item_data.insert("time_begin", QJsonValue(m_data.m_sections[i].startTime));
-        item_data.insert("time_end", QJsonValue(m_data.m_sections[i].endTime));
-        item_data.insert("transition_at_end", QJsonValue(eosModeText));
+        item_data.insert(QStringLiteral("section_title"), QJsonValue(m_data.m_sections[i].title));
+        item_data.insert(QStringLiteral("time_begin"), QJsonValue(m_data.m_sections[i].startTime));
+        item_data.insert(QStringLiteral("time_end"), QJsonValue(m_data.m_sections[i].endTime));
+        item_data.insert(QStringLiteral("transition_at_end"), QJsonValue(eosModeText));
 
         sectionsArray.push_back(QJsonValue(item_data));
     }
     if(!sectionsArray.isEmpty())
-        obj.insert(QString("video_sections"), QJsonValue(sectionsArray));
+        obj.insert(QStringLiteral("video_sections"), QJsonValue(sectionsArray));
 
     doc.setObject(obj);
 
@@ -581,7 +584,7 @@ void PlayListItem::setData(PlayListItemData d) {
 void PlayListItem::updateToNewFile(const QString& path) {
     QUrl url(path);
 
-    if (url.scheme().startsWith("http")) {
+    if (url.scheme().startsWith(QStringLiteral("http"))) {
         setFilePath(url.toString());
         setFileName(QStringLiteral(""));
         setFileFolderPath(QStringLiteral(""));
@@ -605,10 +608,10 @@ void PlayListItem::loadDetailsFromDisk() {
 
     m_hasDescriptionFile = false;
 
-    if (fileExt == "cplayfile" || fileExt == "cplay_file") {
+    if (fileExt == QStringLiteral("cplayfile") || fileExt == QStringLiteral("cplay_file")) {
         loadJSONPlayfile();
     }
-    else if (fileExt == "fdv") {
+    else if (fileExt == QStringLiteral("fdv")) {
         loadUniviewFDV();
     }
 }
@@ -621,19 +624,19 @@ void PlayListItem::loadJSONPlayfile() {
     QFileInfo jsonFileInfo(filePath());
     if (!jsonFileInfo.exists())
     {
-        qDebug() << "C-play file " << filePath() << " did not exist.";
+        qDebug() << QStringLiteral("C-play file ") << filePath() << QStringLiteral(" did not exist.");
         return;
     }
 
     QFile f(filePath());
     f.open(QIODevice::ReadOnly);
-    QString fileContent = f.readAll();
+    QByteArray fileContent = f.readAll();
     f.close();
 
-    QJsonDocument doc = QJsonDocument::fromJson(fileContent.toUtf8());
+    QJsonDocument doc = QJsonDocument::fromJson(fileContent);
     if (doc.isNull())
     {
-        qDebug() << "Parsing C-play file failed: " << filePath();
+        qDebug() << QStringLiteral("Parsing C-play file failed: ") << filePath();
         return;
     }
 
@@ -645,135 +648,135 @@ void PlayListItem::loadJSONPlayfile() {
     fileSearchPaths.append(LocationSettings::cPlayFileLocation());
     fileSearchPaths.append(LocationSettings::univiewVideoLocation());
 
-    if (obj.contains("video")) {
-        QString videoFile = obj.value("video").toString();
+    if (obj.contains(QStringLiteral("video"))) {
+        QString videoFile = obj.value(QStringLiteral("video")).toString();
         QString videoFilePath = checkAndCorrectPath(videoFile, fileSearchPaths);
         if (!videoFilePath.isEmpty())
             setMediaFile(videoFilePath);
     }
-    else if (obj.contains("stream")) {
-        QString streamPath = obj.value("stream").toString();
+    else if (obj.contains(QStringLiteral("stream"))) {
+        QString streamPath = obj.value(QStringLiteral("stream")).toString();
         if (!streamPath.isEmpty())
             setMediaFile(streamPath);
     }
 
-    if (obj.contains("overlay")) {
-        QString overlayFile = obj.value("overlay").toString();
+    if (obj.contains(QStringLiteral("overlay"))) {
+        QString overlayFile = obj.value(QStringLiteral("overlay")).toString();
         QString overlayFilePath = checkAndCorrectPath(overlayFile, fileSearchPaths);
         if (!overlayFilePath.isEmpty())
             setSeparateOverlayFile(overlayFilePath);
     }
 
-    if (obj.contains("audio")) {
-        QString audioFile = obj.value("audio").toString();
+    if (obj.contains(QStringLiteral("audio"))) {
+        QString audioFile = obj.value(QStringLiteral("audio")).toString();
         QString audioFilePath = checkAndCorrectPath(audioFile, fileSearchPaths);
         if (!audioFilePath.isEmpty())
             setSeparateAudioFile(audioFilePath);
     }
 
-    if (obj.contains("title")) {
-        QString title = obj.value("title").toString();
+    if (obj.contains(QStringLiteral("title"))) {
+        QString title = obj.value(QStringLiteral("title")).toString();
         setMediaTitle(title);
     }
 
     bool durationFound = false;
-    if (obj.contains("duration")) {
+    if (obj.contains(QStringLiteral("duration"))) {
         durationFound = true;
-        double duration = obj.value("duration").toDouble();
+        double duration = obj.value(QStringLiteral("duration")).toDouble();
         setDuration(duration);
     }
 
-    if (obj.contains("grid")) {
-        QString grid = obj.value("grid").toString();
-        if (grid == "none") {
+    if (obj.contains(QStringLiteral("grid"))) {
+        QString grid = obj.value(QStringLiteral("grid")).toString();
+        if (grid == QStringLiteral("none")) {
             setGridToMapOn(0);
         }
-        else if (grid == "pre-split") {
+        else if (grid == QStringLiteral("pre-split")) {
             setGridToMapOn(0);
         }
-        else if (grid == "plane") {
+        else if (grid == QStringLiteral("plane")) {
             setGridToMapOn(1);
         }
-        else if (grid == "flat") {
+        else if (grid == QStringLiteral("flat")) {
             setGridToMapOn(1);
         }
-        else if (grid == "dome") {
+        else if (grid == QStringLiteral("dome")) {
             setGridToMapOn(2);
         }
-        else if (grid == "sphere") {
+        else if (grid == QStringLiteral("sphere")) {
             setGridToMapOn(3);
         }
-        else if (grid == "eqr") {
+        else if (grid == QStringLiteral("eqr")) {
             setGridToMapOn(3);
         }
-        else if (grid == "sphere-eqr") {
+        else if (grid == QStringLiteral("sphere-eqr")) {
             setGridToMapOn(3);
         }
-        else if (grid == "eac") {
+        else if (grid == QStringLiteral("eac")) {
             setGridToMapOn(4);
         }
-        else if (grid == "sphere-eac") {
+        else if (grid == QStringLiteral("sphere-eac")) {
             setGridToMapOn(4);
         }
     }
 
-    if (obj.contains("stereoscopic")) {
-        QString stereo = obj.value("stereoscopic").toString();
-        if (stereo == "no") {
+    if (obj.contains(QStringLiteral("stereoscopic"))) {
+        QString stereo = obj.value(QStringLiteral("stereoscopic")).toString();
+        if (stereo == QStringLiteral("no")) {
             setStereoVideo(0);
         }
-        else if (stereo == "mono") {
+        else if (stereo == QStringLiteral("mono")) {
             setStereoVideo(0);
         }
-        else if (stereo == "yes") { //Assume side-by-side if yes
+        else if (stereo == QStringLiteral("yes")) { //Assume side-by-side if yes
             setStereoVideo(1);
         }
-        else if (stereo == "sbs") {
+        else if (stereo == QStringLiteral("sbs")) {
             setStereoVideo(1);
         }
-        else if (stereo == "side-by-side") {
+        else if (stereo == QStringLiteral("side-by-side")) {
             setStereoVideo(1);
         }
-        else if (stereo == "tb") {
+        else if (stereo == QStringLiteral("tb")) {
             setStereoVideo(2);
         }
-        else if (stereo == "top-bottom") {
+        else if (stereo == QStringLiteral("top-bottom")) {
             setStereoVideo(2);
         }
-        else if (stereo == "tbf") {
+        else if (stereo == QStringLiteral("tbf")) {
             setStereoVideo(3);
         }
-        else if (stereo == "top-bottom-flip") {
+        else if (stereo == QStringLiteral("top-bottom-flip")) {
             setStereoVideo(3);
         }
     }
 
-    if (obj.contains("video_sections")) {
+    if (obj.contains(QStringLiteral("video_sections"))) {
         m_data.m_sections.clear();
-        QJsonValue value = obj.value("video_sections");
+        QJsonValue value = obj.value(QStringLiteral("video_sections"));
         QJsonArray array = value.toArray();
-        foreach(const QJsonValue & v, array) {
+        for (auto v : array) {
             QJsonObject o = v.toObject();
-            if (o.contains("section_title") && o.contains("time_begin") && o.contains("time_end")) {
-                QString title = o.value("section_title").toString();
-                double startTime = o.value("time_begin").toDouble();
-                double endTime = o.value("time_end").toDouble();
+            if (o.contains(QStringLiteral("section_title")) && o.contains(QStringLiteral("time_begin")) && o.contains(QStringLiteral("time_end"))) {
+                QString title = o.value(QStringLiteral("section_title")).toString();
+                double startTime = o.value(QStringLiteral("time_begin")).toDouble();
+                double endTime = o.value(QStringLiteral("time_end")).toDouble();
                 int eosMode = 0; //Pause by default
-                if (o.contains("transition_at_end")) {
-                    QString eosModeText = o.value("transition_at_end").toString();
-                    if (eosModeText == "pause") {
+                if (o.contains(QStringLiteral("transition_at_end"))) {
+                    QString eosModeText = o.value(QStringLiteral("transition_at_end")).toString();
+                    if (eosModeText == QStringLiteral("pause")) {
                         eosMode = 0;
                     }
-                    else if (eosModeText == "fade_out") {
+                    else if (eosModeText == QStringLiteral("fade_out")) {
                         eosMode = 1;
                     }
-                    else if (eosModeText == "continue") {
+                    else if (eosModeText == QStringLiteral("continue")) {
                         eosMode = 2;
                     }
-                    else if (eosModeText == "next") {
+                    else if (eosModeText == QStringLiteral("next")) {
                         eosMode = 3;
                     }
-                    else if (eosModeText == "loop") {
+                    else if (eosModeText == QStringLiteral("loop")) {
                         eosMode = 4;
                     }
                 }
@@ -790,17 +793,17 @@ void PlayListItem::loadUniviewFDV()
     QFileInfo fileToLoad(filePath());
     if (!fileToLoad.exists())
     {
-        qDebug() << "FDV files " << filePath() << " did not exist.";
+        qDebug() << QStringLiteral("FDV files ") << filePath() << QStringLiteral(" did not exist.");
         return;
     }
 
     QFile f(filePath());
     f.open(QIODevice::ReadOnly);
-    QString fileContent = f.readAll();
+    QString fileContent = QString::fromUtf8(f.readAll());
     f.close();
 
-    QStringList fileEntries = fileContent.split(QRegExp("[\r\n]"), Qt::SkipEmptyParts);
-    qInfo() << "File Content: " << fileEntries;
+    QStringList fileEntries = fileContent.split(QRegularExpression(QStringLiteral("[\r\n]")), Qt::SkipEmptyParts);
+    qInfo() << QStringLiteral("File Content: ") << fileEntries;
 
     QString fileMainPath = LocationSettings::univiewVideoLocation();
 
@@ -824,7 +827,7 @@ void PlayListItem::loadUniviewFDV()
         setDuration(duration);
         setGridToMapOn(0); //Assume Pre-split with FDV files
 
-        if (title.contains("3D")) // Assume 3D side-by-side stereo
+        if (title.contains(QStringLiteral("3D"))) // Assume 3D side-by-side stereo
             setStereoVideo(1);
         else
             setStereoVideo(0);
@@ -845,5 +848,5 @@ QString PlayListItem::checkAndCorrectPath(const QString& filePath, const QString
                 return newFilePath;
         }
     }
-    return "";
+    return QStringLiteral("");
 }

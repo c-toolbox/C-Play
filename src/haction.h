@@ -17,9 +17,8 @@ class HAction : public QAction
 public:
     explicit HAction(QObject *parent = nullptr);
 
-public slots:
-    QString shortcutName();
-    QString iconName();
+    Q_INVOKABLE QString shortcutName();
+    Q_INVOKABLE QString iconName();
 
 };
 

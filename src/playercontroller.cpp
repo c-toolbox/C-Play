@@ -15,8 +15,8 @@
 PlayerController::PlayerController(QObject *parent)
     : QObject(parent)
     , httpServer(new HttpServerThread(this))
-    , m_backgroundFile("")
-    , m_foregroundFile("")
+    , m_backgroundFile(QStringLiteral(""))
+    , m_foregroundFile(QStringLiteral(""))
     , m_viewModeOnMaster(0)
 {
     connect(this, &PlayerController::mpvChanged,
@@ -45,7 +45,7 @@ void PlayerController::setupConnections()
     connect(m_mpv, &MpvObject::visibilityChanged, this, &PlayerController::backgroundVisibilityChanged);
     connect(this, &PlayerController::backgroundImageChanged, this, &PlayerController::backgroundVisibilityChanged);
 
-    emit backgroundVisibilityChanged();
+    Q_EMIT backgroundVisibilityChanged();
 }
 
 void PlayerController::setupHttpServer()
@@ -243,7 +243,7 @@ void PlayerController::RunSurfaceTransition()
 QString PlayerController::returnRelativeOrAbsolutePath(const QString& path)
 {
     QString filePath = path;
-    filePath.replace("file:///", "");
+    filePath.replace(QStringLiteral("file:///"), QStringLiteral(""));
     QFileInfo fileInfo(filePath);
 
     QStringList pathsToConsider;
@@ -263,7 +263,7 @@ QString PlayerController::returnRelativeOrAbsolutePath(const QString& path)
 
 QString PlayerController::checkAndCorrectPath(const QString& path) {
     QString filePath = path;
-    filePath.replace("file:///", "");
+    filePath.replace(QStringLiteral("file:///"), QStringLiteral(""));
     QFileInfo fileInfo(filePath);
 
     if (fileInfo.exists())
@@ -281,7 +281,7 @@ QString PlayerController::checkAndCorrectPath(const QString& path) {
                 return newFilePath;
         }
     }
-    return "";
+    return QStringLiteral("");
 }
 
 float PlayerController::backgroundVisibility()
@@ -293,7 +293,7 @@ void PlayerController::setBackgroundVisibility(float value)
 {
     SyncHelper::instance().variables.alphaBg = value;
 
-    emit backgroundVisibilityChanged();
+    Q_EMIT backgroundVisibilityChanged();
 }
 
 QString PlayerController::backgroundImageFile()
@@ -313,16 +313,16 @@ QUrl PlayerController::backgroundImageFileUrl()
 void PlayerController::setBackgroundImageFile(const QString& path)
 {
     if (path.isEmpty()) {
-        m_backgroundFile = "";
+        m_backgroundFile = QStringLiteral("");
         SyncHelper::instance().variables.bgImageFile = "";
         SyncHelper::instance().variables.bgImageFileDirty = true;
         setBackgroundVisibility(0.f);
-        emit backgroundImageChanged();
+        Q_EMIT backgroundImageChanged();
         return;
     }
 
     QString filePath = path;
-    filePath.replace("file:///", "");
+    filePath.replace(QStringLiteral("file:///"), QStringLiteral(""));
     QFileInfo fileInfo(filePath);
 
     QString absolutePath;
@@ -341,7 +341,7 @@ void PlayerController::setBackgroundImageFile(const QString& path)
     else
         return;
 
-    absolutePath.replace("file:///", "");
+    absolutePath.replace(QStringLiteral("file:///"), QStringLiteral(""));
     std::string str = absolutePath.toStdString();
     if (SyncHelper::instance().variables.bgImageFile != str) {
         SyncHelper::instance().variables.bgImageFile = str;
@@ -349,7 +349,7 @@ void PlayerController::setBackgroundImageFile(const QString& path)
         setBackgroundVisibility(1.f);
     }
 
-    emit backgroundImageChanged();
+    Q_EMIT backgroundImageChanged();
 }
 
 int PlayerController::backgroundGridMode()
@@ -381,7 +381,7 @@ void PlayerController::setForegroundVisibility(float value)
 {
     SyncHelper::instance().variables.alphaFg = value;
 
-    emit foregroundVisibilityChanged();
+    Q_EMIT foregroundVisibilityChanged();
 }
 
 QString PlayerController::foregroundImageFile()
@@ -401,15 +401,15 @@ QUrl PlayerController::foregroundImageFileUrl()
 void PlayerController::setForegroundImageFile(const QString& path)
 {
     if (path.isEmpty()) {
-        m_foregroundFile = "";
+        m_foregroundFile = QStringLiteral("");
         SyncHelper::instance().variables.fgImageFile = "";
         SyncHelper::instance().variables.fgImageFileDirty = true;
-        emit foregroundImageChanged();
+        Q_EMIT foregroundImageChanged();
         return;
     }
 
     QString filePath = path;
-    filePath.replace("file:///", "");
+    filePath.replace(QStringLiteral("file:///"), QStringLiteral(""));
     QFileInfo fileInfo(filePath);
 
     QString absolutePath;
@@ -428,14 +428,14 @@ void PlayerController::setForegroundImageFile(const QString& path)
     else
         return;
 
-    absolutePath.replace("file:///", "");
+    absolutePath.replace(QStringLiteral("file:///"), QStringLiteral(""));
     std::string str = absolutePath.toStdString();
     if (SyncHelper::instance().variables.fgImageFile != str) {
         SyncHelper::instance().variables.fgImageFile = str;
         SyncHelper::instance().variables.fgImageFileDirty = true;
     }
 
-    emit foregroundImageChanged();
+    Q_EMIT foregroundImageChanged();
 }
 
 int PlayerController::foregroundGridMode()
@@ -486,7 +486,7 @@ void PlayerController::setViewModeOnMaster(int value)
     //2 = Show background always
     m_viewModeOnMaster = value;
 
-    emit backgroundVisibilityChanged();
+    Q_EMIT backgroundVisibilityChanged();
 }
 
 int PlayerController::getViewModeOnMaster()
@@ -500,7 +500,7 @@ void PlayerController::setViewModeOnClients(int value)
     //1 = Force 2D for all
     SyncHelper::instance().variables.viewMode = value;
 
-    emit viewModeOnClientsChanged();
+    Q_EMIT viewModeOnClientsChanged();
 }
 
 int PlayerController::getViewModeOnClients()
@@ -515,7 +515,7 @@ bool PlayerController::rewindMediaOnEOF() {
 void PlayerController::setRewindMediaOnEOF(bool value) {
     m_rewindMediaOnEOF = value;
 
-    emit rewindMediaOnEOFChanged();
+    Q_EMIT rewindMediaOnEOFChanged();
 }
 
 MpvObject *PlayerController::mpv() const

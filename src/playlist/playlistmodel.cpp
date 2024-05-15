@@ -54,19 +54,19 @@ QVariant PlaySectionsModel::data(const QModelIndex& index, int role) const
         return QVariant(Application::formatTime(playListItemSection.endTime-playListItemSection.startTime));
     case EndOfSectionModeRole:
         if (playListItemSection.eosMode == 1) { //Fade out
-            return QVariant("Fade out");
+            return QVariant(QStringLiteral("Fade out"));
         }
         else if (playListItemSection.eosMode == 2) { //Continue
-            return QVariant("Continue playing");
+            return QVariant(QStringLiteral("Continue playing"));
         }
         else if (playListItemSection.eosMode == 3) { //Next
-            return QVariant("Next section");
+            return QVariant(QStringLiteral("Next section"));
         }
         else if (playListItemSection.eosMode == 4) { //Loop
-            return QVariant("Loop section");
+            return QVariant(QStringLiteral("Loop section"));
         }
         else { // Pause (0)
-            return QVariant("Pause");
+            return QVariant(QStringLiteral("Pause"));
         }
     case PlayingRole:
         return QVariant(playListItemSection.isPlaying);
@@ -95,22 +95,22 @@ void PlaySectionsModel::setPlayingSection(int section)
     if (m_playingSection >= 0 && m_playingSection < m_currentEditItem->numberOfSections()) {
         // unset current playing section
         m_currentEditItem->setIsSectionPlaying(m_playingSection, false);
-        emit dataChanged(index(m_playingSection, 0), index(m_playingSection, 0));
+        Q_EMIT dataChanged(index(m_playingSection, 0), index(m_playingSection, 0));
     }
 
     if (section < 0 || section >= m_currentEditItem->numberOfSections()) {
         m_playingSection = -1;
-        emit playingSectionChanged();
+        Q_EMIT playingSectionChanged();
         return;
     }
 
     // set new playing section
     m_currentEditItem->setIsSectionPlaying(section, true);
-    emit dataChanged(index(section, 0), index(section, 0));
+    Q_EMIT dataChanged(index(section, 0), index(section, 0));
 
     m_playingSection = section;
 
-    emit playingSectionChanged();
+    Q_EMIT playingSectionChanged();
 }
 
 int PlaySectionsModel::getPlayingSection()
@@ -152,7 +152,7 @@ void PlaySectionsModel::setCurrentEditItem(PlayListItem* item)
     m_playingSection = -1;
     beginResetModel();
     m_currentEditItem = item;
-    emit currentEditItemChanged();
+    Q_EMIT currentEditItemChanged();
     endResetModel();
 }
 
@@ -166,13 +166,13 @@ void PlaySectionsModel::updateCurrentEditItem(PlayListItem& item)
     else {
         m_currentEditItem->setData(item.data());
     }
-    emit currentEditItemChanged();
+    Q_EMIT currentEditItemChanged();
     endResetModel();
 }
 
 void PlaySectionsModel::setCurrentEditItemIsEdited(bool value) {
     m_currentEditItemIsEdited = value;
-    emit currentEditItemIsEditedChanged();
+    Q_EMIT currentEditItemIsEditedChanged();
 }
 
 bool PlaySectionsModel::getCurrentEditItemIsEdited() {
@@ -191,8 +191,8 @@ QUrl PlaySectionsModel::getSuggestedFileURL() {
     if (m_currentEditItem) {
         QFileInfo filePathInfo(m_currentEditItem->filePath());
         QString fileExt = filePathInfo.suffix();
-        if (fileExt == "cplayfile" || fileExt == "cplay_file") {
-            return QUrl("file:///" + m_currentEditItem->filePath());
+        if (fileExt == QStringLiteral("cplayfile") || fileExt == QStringLiteral("cplay_file")) {
+            return QUrl(QStringLiteral("file:///") + m_currentEditItem->filePath());
         }
         else {
             QString fileName = filePathInfo.baseName();
@@ -200,8 +200,8 @@ QUrl PlaySectionsModel::getSuggestedFileURL() {
                 QFileInfo mediaInfo(m_currentEditItem->mediaFile());
                 fileName = mediaInfo.baseName();
             }
-            fileName.replace(" ", "_");
-            return QUrl("file:///" + suggestFolderPath + "/" + fileName + ".cplayfile");
+            fileName.replace(QStringLiteral(" "), QStringLiteral("_"));
+            return QUrl(QStringLiteral("file:///") + suggestFolderPath + QStringLiteral("/") + fileName + QStringLiteral(".cplayfile"));
         }
     }
     else {
@@ -273,7 +273,7 @@ void PlaySectionsModel::moveSectionDown(int i) {
 QString PlaySectionsModel::sectionTitle(int i) const
 {
     if (!m_currentEditItem)
-        return "";
+        return QStringLiteral("");
 
     return m_currentEditItem->sectionTitle(i);
 }
@@ -338,23 +338,23 @@ std::string PlaySectionsModel::getSectionsAsFormattedString(size_t charsPerItem)
 PlayListModel::PlayListModel(QObject *parent)
     : QAbstractListModel(parent)
 {
-    m_config = KSharedConfig::openConfig("C-Play/cplay.conf");
+    m_config = KSharedConfig::openConfig(QStringLiteral("C-Play/cplay.conf"));
     connect(this, &PlayListModel::videoAdded,
             Worker::instance(), &Worker::getMetaData);
 
-    connect(Worker::instance(), &Worker::metaDataReady, this, [ = ](int i, KFileMetaData::PropertyMap metaData) {
-        auto duration = metaData[KFileMetaData::Property::Duration].toInt();
-        auto title = metaData[KFileMetaData::Property::Title].toString();
+    connect(Worker::instance(), &Worker::metaDataReady, this, [ = ](int i, KFileMetaData::PropertyMultiMap metaData) {
+        auto duration = metaData.value(KFileMetaData::Property::Duration).toInt();
+        auto title = metaData.value(KFileMetaData::Property::Title).toString();
 
         m_playList[i]->setDuration(duration);
         m_playList[i]->setMediaTitle(title);
 
-        emit dataChanged(index(i, 0), index(i, 0));
+        Q_EMIT dataChanged(index(i, 0), index(i, 0));
 
     });
 
-    m_playListName = "";
-    m_playListPath = "";
+    m_playListName = QStringLiteral("");
+    m_playListPath = QStringLiteral("");
 }
 
 int PlayListModel::rowCount(const QModelIndex &parent) const
@@ -398,39 +398,39 @@ QVariant PlayListModel::data(const QModelIndex &index, int role) const
         return QVariant(playListItem->fileFolderPath());
     case StereoRole:
         if (stereoVideo == 0) {
-            return QVariant("2D");
+            return QVariant(QStringLiteral("2D"));
         }
         else if (stereoVideo > 0) {
-            return QVariant("3D");
+            return QVariant(QStringLiteral("3D"));
         }
         else {
-            return QVariant("");
+            return QVariant(QStringLiteral(""));
         }
     case GridRole:
         if (gridToMapOn == 0) {
-            return QVariant("Split");
+            return QVariant(QStringLiteral("Split"));
         }
         else if (gridToMapOn == 1) {
-            return QVariant("Flat");
+            return QVariant(QStringLiteral("Flat"));
         }
         else if (gridToMapOn == 2) {
-            return QVariant("Dome");
+            return QVariant(QStringLiteral("Dome"));
         }
         else if (gridToMapOn == 3 || gridToMapOn == 4) {
-            return QVariant("Sphere");
+            return QVariant(QStringLiteral("Sphere"));
         }
         else {
-            return QVariant("");
+            return QVariant(QStringLiteral(""));
         }
     case EofRole:
         if (eofMode == 1) { //Continue
-            return QVariant("Continue to next");
+            return QVariant(QStringLiteral("Continue to next"));
         }
         else if (eofMode == 2) { //Loop
-            return QVariant("Loop video");
+            return QVariant(QStringLiteral("Loop video"));
         }
         else { // Pause (0)
-            return QVariant("Pause at end");
+            return QVariant(QStringLiteral("Pause at end"));
         }
     case HasDescriptionFileRole:
         return QVariant(playListItem->hasDescriptionFile());
@@ -468,7 +468,7 @@ void PlayListModel::getVideos(QString path)
             QFileInfo fileInfo(file);
             QMimeDatabase db;
             QMimeType type = db.mimeTypeForFile(file);
-            if (fileInfo.exists() && type.name().startsWith("video/")) {
+            if (fileInfo.exists() && type.name().startsWith(QStringLiteral("video/"))) {
                 videoFiles.append(fileInfo.absoluteFilePath());
             }
         }
@@ -485,7 +485,7 @@ void PlayListModel::getVideos(QString path)
         if (path == videoFiles.at(i)) {
             setPlayingVideo(i);
         }
-        emit videoAdded(i, video->filePath());
+        Q_EMIT videoAdded(i, video->filePath());
     }
 
     endInsertRows();
@@ -571,7 +571,7 @@ QString PlayListModel::getPlayListPath() const
 
 QUrl PlayListModel::getPlayListPathAsURL() const
 {
-    return QUrl("file:///" + m_playListPath);
+    return QUrl(QStringLiteral("file:///") + m_playListPath);
 }
 
 int PlayListModel::getPlayingVideo() const
@@ -585,8 +585,8 @@ void PlayListModel::clear()
     qDeleteAll(m_playList);
     beginResetModel();
     m_playList.clear();
-    m_playListName = "";
-    m_playListPath = "";
+    m_playListName = QStringLiteral("");
+    m_playListPath = QStringLiteral("");
     endResetModel();
 }
 
@@ -657,13 +657,13 @@ void PlayListModel::moveItemDown(int i) {
 }
 
 void PlayListModel::updateItem(int i) {
-    emit dataChanged(index(i, 0), index(i, 0));
+    Q_EMIT dataChanged(index(i, 0), index(i, 0));
     setPlayListIsEdited(true);
 }
 
 void PlayListModel::setPlayListIsEdited(bool value) {
     m_playListEdited = value;
-    emit playListIsEditedChanged();
+    Q_EMIT playListIsEditedChanged();
 }
 
 bool PlayListModel::getPlayListIsEdited() {
@@ -675,21 +675,21 @@ void PlayListModel::setPlayingVideo(int playingVideo)
     // unset current playing video
     if(m_playingVideo >= 0 && m_playingVideo < m_playList.size()) {
         m_playList[m_playingVideo]->setIsPlaying(false);
-        emit dataChanged(index(m_playingVideo, 0), index(m_playingVideo, 0));
+        Q_EMIT dataChanged(index(m_playingVideo, 0), index(m_playingVideo, 0));
     }
 
     if (playingVideo < 0 || playingVideo >= m_playList.size()) {
         m_playingVideo = -1;
-        emit playingVideoChanged();
+        Q_EMIT playingVideoChanged();
         return;
     }
 
     // set new playing video
     m_playList[playingVideo]->setIsPlaying(true);
-    emit dataChanged(index(playingVideo, 0), index(playingVideo, 0));
+    Q_EMIT dataChanged(index(playingVideo, 0), index(playingVideo, 0));
 
     m_playingVideo = playingVideo;
-    emit playingVideoChanged();
+    Q_EMIT playingVideoChanged();
 }
 
 QString PlayListModel::filePath(int i) const
@@ -697,13 +697,13 @@ QString PlayListModel::filePath(int i) const
     if (i >= 0 && m_playList.size() > i && m_playList[i])
         return m_playList[i].data()->filePath();
     else
-        return "";
+        return QStringLiteral("");
 }
 
 QUrl PlayListModel::filePathAsURL(int i) const
 {
     if (i >= 0 && m_playList.size() > i && m_playList[i])
-        return QUrl("file:///" + m_playList[i].data()->filePath());
+        return QUrl(QStringLiteral("file:///") + m_playList[i].data()->filePath());
     else
         return QUrl();
 }
@@ -713,7 +713,7 @@ QString PlayListModel::fileName(int i) const
     if (i >= 0 && m_playList.size() > i && m_playList[i])
         return m_playList[i].data()->fileName();
     else
-        return "";
+        return QStringLiteral("");
 }
 
 QString PlayListModel::fileFolderPath(int i) const
@@ -721,13 +721,13 @@ QString PlayListModel::fileFolderPath(int i) const
     if (i >= 0 && m_playList.size() > i && m_playList[i])
         return m_playList[i].data()->fileFolderPath();
     else
-        return "";
+        return QStringLiteral("");
 }
 
 QUrl PlayListModel::fileFolderPathAsURL(int i) const
 {
     if (i >= 0 && m_playList.size() > i && m_playList[i])
-        return QUrl("file:///" + m_playList[i].data()->fileFolderPath());
+        return QUrl(QStringLiteral("file:///") + m_playList[i].data()->fileFolderPath());
     else
         return QUrl();
 }
@@ -737,7 +737,7 @@ QString PlayListModel::mediaFile(int i) const
     if (i >= 0 && m_playList.size() > i && m_playList[i])
         return m_playList[i].data()->mediaFile();
     else
-        return "";
+        return QStringLiteral("");
 }
 
 QString PlayListModel::mediaTitle(int i) const
@@ -745,7 +745,7 @@ QString PlayListModel::mediaTitle(int i) const
     if (i >= 0 && m_playList.size() > i && m_playList[i])
         return m_playList[i].data()->mediaTitle();
     else
-        return "";
+        return QStringLiteral("");
 }
 
 QString PlayListModel::duration(int i) const
@@ -753,7 +753,7 @@ QString PlayListModel::duration(int i) const
     if (i >= 0 && m_playList.size() > i && m_playList[i])
         return m_playList[i].data()->durationFormatted();
     else
-        return "";
+        return QStringLiteral("");
 }
 
 QString PlayListModel::separateAudioFile(int i) const
@@ -761,7 +761,7 @@ QString PlayListModel::separateAudioFile(int i) const
     if (i >= 0 && m_playList.size() > i && m_playList[i])
         return m_playList[i].data()->separateAudioFile();
     else
-        return "";
+        return QStringLiteral("");
 }
 
 QString PlayListModel::separateOverlayFile(int i) const
@@ -769,7 +769,7 @@ QString PlayListModel::separateOverlayFile(int i) const
     if (i >= 0 && m_playList.size() > i && m_playList[i])
         return m_playList[i].data()->separateOverlayFile();
     else
-        return "";
+        return QStringLiteral("");
 }
 
 int PlayListModel::eofMode(int i) const
@@ -843,21 +843,21 @@ void PlayListModel::asJSON(QJsonObject& obj) {
         switch (eofMode)
         {
         case 1:
-            eofModeText = "continue";
+            eofModeText = QStringLiteral("continue");
             break;
         case 2:
-            eofModeText = "loop";
+            eofModeText = QStringLiteral("loop");
             break;
         default:
-            eofModeText = "pause";
+            eofModeText = QStringLiteral("pause");
             break;
         }
-        item_data.insert("on_file_end", QJsonValue(eofModeText));
+        item_data.insert(QStringLiteral("on_file_end"), QJsonValue(eofModeText));
 
         playlistArray.push_back(QJsonValue(item_data));
     }
 
-    obj.insert(QString("playlist"), QJsonValue(playlistArray));
+    obj.insert(QString(QStringLiteral("playlist")), QJsonValue(playlistArray));
 }
 
 void PlayListModel::saveAsJSONPlaylist(const QString& path) {
@@ -865,7 +865,7 @@ void PlayListModel::saveAsJSONPlaylist(const QString& path) {
     QJsonObject obj = doc.object();
 
     QString fileToSave = path;
-    fileToSave.replace("file:///", "");
+    fileToSave.replace(QStringLiteral("file:///"), QStringLiteral(""));
     QFileInfo fileToSaveInfo(fileToSave);
 
     QStringList pathsToConsider;
@@ -882,25 +882,25 @@ void PlayListModel::saveAsJSONPlaylist(const QString& path) {
         switch (eofMode)
         {
         case 1:
-            eofModeText = "continue";
+            eofModeText = QStringLiteral("continue");
             break;
         case 2:
-            eofModeText = "loop";
+            eofModeText = QStringLiteral("loop");
             break;
         default:
-            eofModeText = "pause";
+            eofModeText = QStringLiteral("pause");
             break;
         }
 
         QString checkedFilePath = makePathRelativeTo(m_playList[i]->filePath(), pathsToConsider);
 
-        item_data.insert("file", QJsonValue(checkedFilePath));
-        item_data.insert("on_file_end", QJsonValue(eofModeText));
+        item_data.insert(QStringLiteral("file"), QJsonValue(checkedFilePath));
+        item_data.insert(QStringLiteral("on_file_end"), QJsonValue(eofModeText));
 
         playlistArray.push_back(QJsonValue(item_data));
     }
 
-    obj.insert(QString("playlist"), QJsonValue(playlistArray));
+    obj.insert(QString(QStringLiteral("playlist")), QJsonValue(playlistArray));
     doc.setObject(obj);
 
     QFile jsonFile(fileToSave);

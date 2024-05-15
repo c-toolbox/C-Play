@@ -32,7 +32,6 @@
         <file>qml/Osd.qml</file>
         <file>qml/PlayList.qml</file>
         <file>qml/PlayListItemCompact.qml</file>
-        <file>qml/TrackBall.qml</file>
         <file>qml/VolumeSlider.qml</file>
         <file>qml/main.qml</file>
         <file>qml/PlaySections.qml</file>

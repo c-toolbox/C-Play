@@ -620,7 +620,7 @@ void on_mpv_events(mpvData& vd)
                     vd.videoHeight = h;
                     vd.reconfigs++;
                     updateRendering = (vd.reconfigs > vd.reconfigsBeforeUpdate);
-                    mpv::qt::set_property_async(vd.handle, "time-pos", SyncHelper::instance().variables.timePosition);
+                    mpv::qt::set_property_async(vd.handle, QStringLiteral("time-pos"), SyncHelper::instance().variables.timePosition);
                 }
                 break;
             }
@@ -630,15 +630,15 @@ void on_mpv_events(mpvData& vd)
                         if (prop->format == MPV_FORMAT_NODE) {
                             const QVariant videoParams = mpv::qt::node_to_variant(reinterpret_cast<mpv_node*>(prop->data));
                             auto vm = videoParams.toMap();
-                            vd.videoWidth = vm["w"].toInt();
-                            vd.videoHeight = vm["h"].toInt();
+                            vd.videoWidth = vm[QStringLiteral("w")].toInt();
+                            vd.videoHeight = vm[QStringLiteral("h")].toInt();
                         }
                     }
                     else if (strcmp(prop->name, "pause") == 0) {
                         if (prop->format == MPV_FORMAT_FLAG) {
                             videoIsPaused = *reinterpret_cast<bool*>(prop->data);
                             if (SyncHelper::instance().variables.paused != videoIsPaused)
-                                mpv::qt::set_property_async(vd.handle, "pause", SyncHelper::instance().variables.paused);
+                                mpv::qt::set_property_async(vd.handle, QStringLiteral("pause"), SyncHelper::instance().variables.paused);
                         }
                     }
                     else if (strcmp(prop->name, "duration") == 0) {
@@ -662,7 +662,7 @@ void on_mpv_events(mpvData& vd)
                                     double latestPosition = *reinterpret_cast<double*>(prop->data);
                                     if (SyncHelper::instance().variables.timeThreshold > 0 && (abs(latestPosition - timeToSet) > SyncHelper::instance().variables.timeThreshold))
                                     {
-                                        mpv::qt::set_property_async(videoData.handle, "time-pos", timeToSet);
+                                        mpv::qt::set_property_async(videoData.handle, QStringLiteral("time-pos"), timeToSet);
                                     }
                                 }
                             }
@@ -717,9 +717,9 @@ void initMPV(mpvData& vd) {
     }
 
     // Set default settings
-    mpv::qt::set_property(vd.handle, "keep-open", "yes");
-    mpv::qt::set_property(vd.handle, "loop-file", "inf");
-    mpv::qt::set_property(vd.handle, "aid", "no"); //No audio on nodes.
+    mpv::qt::set_property(vd.handle, QStringLiteral("keep-open"), QStringLiteral("yes"));
+    mpv::qt::set_property(vd.handle, QStringLiteral("loop-file"), QStringLiteral("inf"));
+    mpv::qt::set_property(vd.handle, QStringLiteral("aid"), QStringLiteral("no")); //No audio on nodes.
 
     // Load mpv configurations for nodes
     mpv::qt::load_configurations(vd.handle, QString::fromStdString(SyncHelper::instance().configuration.confAll));
@@ -727,7 +727,7 @@ void initMPV(mpvData& vd) {
 
     if (allowDirectRendering) {
         //Run with direct rendering if requested
-        if (mpv::qt::get_property(vd.handle, "vd-lavc-dr").toBool()) {
+        if (mpv::qt::get_property(vd.handle, QStringLiteral("vd-lavc-dr")).toBool()) {
             vd.advancedControl = 1;
             vd.reconfigsBeforeUpdate = 0;
         }
@@ -738,7 +738,7 @@ void initMPV(mpvData& vd) {
     }
     else {
         //Do not allow direct rendering (EVER).
-        mpv::qt::set_property(vd.handle, "vd-lavc-dr", "no");
+        mpv::qt::set_property(vd.handle, QStringLiteral("vd-lavc-dr"), QStringLiteral("no"));
         vd.advancedControl = 0;
         vd.reconfigsBeforeUpdate = 0;
     }
@@ -809,7 +809,7 @@ else{
 
     Log::Info(fmt::format("Loading new file: {}", SyncHelper::instance().variables.loadedFile));
     if (!SyncHelper::instance().variables.loadedFile.empty())
-        mpv::qt::command_async(videoData.handle, QStringList() << "loadfile" << SyncHelper::instance().variables.loadedFile.c_str());
+        mpv::qt::command_async(videoData.handle, QStringList() << QStringLiteral("loadfile") << QString::fromStdString(SyncHelper::instance().variables.loadedFile));
 
 #ifndef ONLY_RENDER_TO_SCREEN
     //Creating new FBO to render mpv into
@@ -1128,7 +1128,7 @@ void postSyncPreDraw() {
             Log::Info(fmt::format("Loading new file: {}", loadedFile));
             videoData.reconfigs = 0;
             updateRendering = false;
-            mpv::qt::command_async(videoData.handle, QStringList() << "loadfile" << QString::fromStdString(loadedFile));
+            mpv::qt::command_async(videoData.handle, QStringList() << QStringLiteral("loadfile") << QString::fromStdString(loadedFile));
         }
 
         renderParams.clear();
@@ -1270,47 +1270,47 @@ void postSyncPreDraw() {
             else {
                 Log::Info("Video playing...");
             }
-            mpv::qt::set_property_async(videoData.handle, "pause", videoIsPaused);
+            mpv::qt::set_property_async(videoData.handle, QStringLiteral("pause"), videoIsPaused);
         }
 
         if (SyncHelper::instance().variables.eofMode != eofMode) {
             eofMode = SyncHelper::instance().variables.eofMode;
 
             if (eofMode == 0) { //Pause
-                mpv::qt::set_property_async(videoData.handle, "keep-open", "yes");
-                mpv::qt::set_property_async(videoData.handle, "loop-file", "no");
+                mpv::qt::set_property_async(videoData.handle, QStringLiteral("keep-open"), QStringLiteral("yes"));
+                mpv::qt::set_property_async(videoData.handle, QStringLiteral("loop-file"), QStringLiteral("no"));
             }
             else if (eofMode == 1) { //Continue
-                mpv::qt::set_property_async(videoData.handle, "keep-open", "no");
-                mpv::qt::set_property_async(videoData.handle, "loop-file", "no");
+                mpv::qt::set_property_async(videoData.handle, QStringLiteral("keep-open"), QStringLiteral("no"));
+                mpv::qt::set_property_async(videoData.handle, QStringLiteral("loop-file"), QStringLiteral("no"));
             }
             else { //Loop
-                mpv::qt::set_property_async(videoData.handle, "keep-open", "yes");
-                mpv::qt::set_property_async(videoData.handle, "loop-file", "inf");
+                mpv::qt::set_property_async(videoData.handle, QStringLiteral("keep-open"), QStringLiteral("yes"));
+                mpv::qt::set_property_async(videoData.handle, QStringLiteral("loop-file"), QStringLiteral("inf"));
             }
         }
 
         if (SyncHelper::instance().variables.timeDirty) {
-            mpv::qt::set_property_async(videoData.handle, "time-pos", SyncHelper::instance().variables.timePosition);
+            mpv::qt::set_property_async(videoData.handle, QStringLiteral("time-pos"), SyncHelper::instance().variables.timePosition);
             //Log::Info(fmt::format("New video position: {}", timeToSet));     
         }
 
         if (SyncHelper::instance().variables.loopTimeDirty) {
             if (SyncHelper::instance().variables.loopTimeEnabled) {
-                mpv::qt::set_property_async(videoData.handle, "ab-loop-a", SyncHelper::instance().variables.loopTimeA);
-                mpv::qt::set_property_async(videoData.handle, "ab-loop-b", SyncHelper::instance().variables.loopTimeB);
+                mpv::qt::set_property_async(videoData.handle, QStringLiteral("ab-loop-a"), SyncHelper::instance().variables.loopTimeA);
+                mpv::qt::set_property_async(videoData.handle, QStringLiteral("ab-loop-b"), SyncHelper::instance().variables.loopTimeB);
             }
             else {
-                mpv::qt::set_property_async(videoData.handle, "ab-loop-a", "no");
-                mpv::qt::set_property_async(videoData.handle, "ab-loop-b", "no");
+                mpv::qt::set_property_async(videoData.handle, QStringLiteral("ab-loop-a"), QStringLiteral("no"));
+                mpv::qt::set_property_async(videoData.handle, QStringLiteral("ab-loop-b"), QStringLiteral("no"));
             }
         }
 
         if (SyncHelper::instance().variables.eqDirty) {
-            mpv::qt::set_property_async(videoData.handle, "contrast", SyncHelper::instance().variables.eqContrast);
-            mpv::qt::set_property_async(videoData.handle, "brightness", SyncHelper::instance().variables.eqBrightness);
-            mpv::qt::set_property_async(videoData.handle, "gamma", SyncHelper::instance().variables.eqGamma);
-            mpv::qt::set_property_async(videoData.handle, "saturation", SyncHelper::instance().variables.eqSaturation);
+            mpv::qt::set_property_async(videoData.handle, QStringLiteral("contrast"), SyncHelper::instance().variables.eqContrast);
+            mpv::qt::set_property_async(videoData.handle, QStringLiteral("brightness"), SyncHelper::instance().variables.eqBrightness);
+            mpv::qt::set_property_async(videoData.handle, QStringLiteral("gamma"), SyncHelper::instance().variables.eqGamma);
+            mpv::qt::set_property_async(videoData.handle, QStringLiteral("saturation"), SyncHelper::instance().variables.eqSaturation);
         }
 
         if (domeRadius != SyncHelper::instance().variables.radius || domeFov != SyncHelper::instance().variables.fov) {
@@ -1747,7 +1747,7 @@ int main(int argc, char *argv[])
         int cargv_size = static_cast<int>(cargv.size());
 
         //Launch master application (which calls Engine::render from thread)
-        Application::create(cargv_size, &cargv[0], "C-Play");
+        Application::create(cargv_size, &cargv[0], QStringLiteral("C-Play"));
         return Application::instance().run();
     }
     else{

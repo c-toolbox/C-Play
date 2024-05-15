@@ -373,13 +373,11 @@ public:
     Q_INVOKABLE void clearRecentPlaylist();
     Q_INVOKABLE void performRewind();
     Q_INVOKABLE void seek(int timeInSec);
+    Q_INVOKABLE static void mpvEvents(void *ctx);
+    Q_INVOKABLE void eventHandler();
+    Q_INVOKABLE void performSurfaceTransition();
 
-public slots:
-    static void mpvEvents(void *ctx);
-    void eventHandler();
-    void performSurfaceTransition();
-
-signals:
+Q_SIGNALS:
     void mediaTitleChanged();
     void positionChanged();
     void durationChanged();
@@ -436,7 +434,7 @@ private:
     void loadJSONPlayList(const QString& file, bool updateLastPlayedFile = true);
     void loadUniviewPlaylist(const QString& file, bool updateLastPlayedFile = true);
 
-    void loadItem(PlayListItemData itemData, bool updateLastPlayedFile = true, QString flag = "replace");
+    void loadItem(PlayListItemData itemData, bool updateLastPlayedFile = true, QString flag = QStringLiteral("replace"));
 
     mpv_handle* mpv;
     mpv_render_context* mpv_gl;

@@ -53,8 +53,8 @@ public:
     QString m_mediaFile;
     QString m_mediaTitle;
     double m_duration;
-    QString m_separateOverlayFile{ "" };
-    QString m_separateAudioFile{ "" };
+    QString m_separateOverlayFile{ QStringLiteral("") };
+    QString m_separateAudioFile{ QStringLiteral("") };
     int m_eofMode{ 0 };
     int m_transitionMode{ 0 };
     int m_gridToMapOn{ -1 };

@@ -75,7 +75,7 @@ public:
 
     std::string getSectionsAsFormattedString(size_t charsPerItem = 40) const;
 
-signals:
+Q_SIGNALS:
     void currentEditItemChanged();
     void currentEditItemIsEditedChanged();
     void playingSectionChanged();
@@ -167,7 +167,7 @@ public:
     Q_INVOKABLE void asJSON(QJsonObject& obj);
     Q_INVOKABLE void saveAsJSONPlaylist(const QString& path);
 
-signals:
+Q_SIGNALS:
     void videoAdded(int index, QString path);
     void playingVideoChanged();
     void playListIsEditedChanged();

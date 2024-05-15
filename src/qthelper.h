@@ -348,7 +348,7 @@ static inline bool load_configurations(mpv_handle *ctx, QString filepath) {
 
     QJsonObject mpvCommands = mpvCommandsDoc.object();
 
-    foreach(const QString& key, mpvCommands.keys()) {
+    for (const QString& key : mpvCommands.keys()) {
         QJsonValue value = mpvCommands.value(key);
         set_property(ctx, key, value.toVariant());
     }

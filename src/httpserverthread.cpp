@@ -46,9 +46,9 @@ void HttpServerThread::setupHttpServer()
     QJsonDocument httpServerConfDoc(QJsonDocument::fromJson(httpServerConfigArray));
     QJsonObject httpServerConf = httpServerConfDoc.object();
 
-    QString runServerStr = "";
-    if (httpServerConf.contains("run")) {
-        runServerStr = httpServerConf.value("run").toString();
+    QString runServerStr = QStringLiteral("");
+    if (httpServerConf.contains(QStringLiteral("run"))) {
+        runServerStr = httpServerConf.value(QStringLiteral("run")).toString();
     }
     else {
         qWarning("Couldn't find run parameter in http server configuration file.");
@@ -56,8 +56,8 @@ void HttpServerThread::setupHttpServer()
         return;
     }
 
-    if (httpServerConf.contains("port")) {
-        portServer = httpServerConf.value("port").toInt();
+    if (httpServerConf.contains(QStringLiteral("port"))) {
+        portServer = httpServerConf.value(QStringLiteral("port")).toInt();
     }
     else {
         qWarning("Couldn't find port parameter in http server configuration file.");
@@ -65,7 +65,7 @@ void HttpServerThread::setupHttpServer()
         return;
     }
 
-    if (runServerStr == "yes") {
+    if (runServerStr == QStringLiteral("yes")) {
         svr.Post("/status", [this](const httplib::Request&, httplib::Response& res) {
             res.set_content("OK", "text/plain");
         });
@@ -877,7 +877,7 @@ const std::string HttpServerThread::getAudioTracksItems(std::string charsPerItem
         std::string prefixToRemove = "";
         if (stringToInt(removeLoadedFilePrefixStr, removeLoadedFilePrefix)) {
             if(removeLoadedFilePrefix == 1)
-                prefixToRemove = m_mpv->getProperty("filename").toString().toStdString();
+                prefixToRemove = m_mpv->getProperty(QStringLiteral("filename")).toString().toStdString();
         }
         int charsPerItem = 0;
         if (stringToInt(charsPerItemStr, charsPerItem))

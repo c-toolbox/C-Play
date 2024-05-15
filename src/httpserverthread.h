@@ -20,8 +20,7 @@ public:
     void setupHttpServer();
     void setMpv(MpvObject* mpv);
 
-public slots:
-    void terminate();
+    Q_INVOKABLE void terminate();
 
 Q_SIGNALS:
     void pauseMedia();
