@@ -6,9 +6,6 @@
         <file>qml/Haruna/Components/SettingsBasePage.qml</file>
         <file>qml/Haruna/Components/SettingsHeader.qml</file>
         <file>qml/Haruna/Components/qmldir</file>
-        <file>qml/Images/earthmap2k.jpg</file>
-        <file>qml/Images/earthnormal2k.jpg</file>
-        <file>qml/Images/earthspec2k.jpg</file>
         <file>qml/Menus/AudioMenu.qml</file>
         <file>qml/Menus/FileMenu.qml</file>
         <file>qml/Menus/HelpMenu.qml</file>

@@ -42,7 +42,7 @@ void Worker::getMetaData(int index, const QString &path)
     KFileMetaData::Extractor* ex = extractors.first();
     ex->extract(&result);
 
-    auto properties = result.properties(KFileMetaData::PropertiesMapType::MultiMap);
+    auto properties = result.properties();
 
     Q_EMIT metaDataReady(index, properties);
 }

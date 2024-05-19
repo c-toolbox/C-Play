@@ -2,14 +2,9 @@
 
 [Craft on Windows](https://community.kde.org/Guidelines_and_HOWTOs/Build_from_source/Windows)
 
-Use Visual Studio as compiler. (However MSYS / MinGW will be installed later anyway)
+Use Visual Studio 2019 as compiler. (However MSYS / MinGW will be installed later anyway, if you compile/install FFmpeg + MPV + JACK)
 
-NOTE: C-Play has currently been tested with Qt 5.15.5. To reproduce this build, add the following lines to the etc/BlueprintSettings.ini in your craft folder before "crafting": 
-
-```
-[libs/qt5]
-version = 5.15.5
-```
+*Note, this is needed for Qt5. EYou can use Visual Studio 2022 for C-Play even if these dependencies require VS2019. C-Play has currently been tested with Qt 5.15 LTS. It should be the latest QT5 in the Craft source currently (2024-05-17).*
 
 ### Packages to install (via Craft)
 
@@ -23,7 +18,6 @@ These are the list of packages needed for this project
 - Qt5Qml (within Declarative)
 - Qt5Quick (within Declarative)
 - Qt5QuickControls2 (qtquickcontrols2)
-- Qt3D
 - ExtraCmakeModules
 - KF5Config (kconfig)
 - KF5CoreAddons (kcoreaddons)
@@ -38,7 +32,5 @@ These are the list of packages needed for this project
 - Breeze icons (breeze-icons)
 - Breeze widgets style (qqc2-breeze-style)
 - QQC2-Desktop-Style
-
-NOTE: Due to Qt3DInput and QtWidgets both having QAction, some includes in KDE do not handle this, and might need changes in header file, from to <QtWidgets/qaction.h>
 
 The add Craft bin and the dev-utils\bin folder to your environmental "Path".

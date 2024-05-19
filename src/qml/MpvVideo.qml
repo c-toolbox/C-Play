@@ -11,7 +11,6 @@ import QtQuick.Window 2.12
 import QtQuick.Controls 2.12
 import QtQuick.Layouts 1.12
 import mpv 1.0
-import QtQuick.Scene3D 2.0
 
 import org.ctoolbox.cplay 1.0
 import org.kde.kirigami 2.10 as Kirigami

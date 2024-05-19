@@ -35,21 +35,6 @@ set_package_properties(Qt5Quick PROPERTIES TYPE REQUIRED)
 find_package(Qt5QuickControls2)
 set_package_properties(Qt5QuickControls2 PROPERTIES TYPE REQUIRED)
 
-find_package(Qt53DCore)
-set_package_properties(Qt53DCore PROPERTIES TYPE REQUIRED)
-
-find_package(Qt53DRender)
-set_package_properties(Qt53DRender PROPERTIES TYPE REQUIRED)
-
-find_package(Qt53DInput)
-set_package_properties(Qt53DInput PROPERTIES TYPE REQUIRED)
-
-find_package(Qt53DLogic)
-set_package_properties(Qt53DLogic PROPERTIES TYPE REQUIRED)
-
-find_package(Qt53DExtras)
-set_package_properties(Qt53DExtras PROPERTIES TYPE REQUIRED)
-
 find_package(Libmpv)
 set_package_properties(Libmpv PROPERTIES TYPE REQUIRED
     URL "https://mpv.io")
