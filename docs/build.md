@@ -22,4 +22,6 @@ The are the steps:
 
 - Configure C-Play with CMake.
 
+- Good practice to follow [Deploy Guide](guides/build/deploy) as well, to copy the build with it's dependencies to single binary folder.
+
 - Build in Visual Studio 2022 or in Qt-Creator for good QML overview.

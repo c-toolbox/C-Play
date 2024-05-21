@@ -98,64 +98,80 @@ target_compile_features(${TARGET_NAME} PRIVATE cxx_std_17)
 
 install(TARGETS ${TARGET_NAME} DESTINATION ${KDE_INSTALL_TARGETS_DEFAULT_ARGS})
 
-get_target_property(_qmake_executable Qt5::qmake IMPORTED_LOCATION)
-get_filename_component(_qt_bin_dir "${_qmake_executable}" DIRECTORY)
-get_filename_component(_qt_dir "${_qt_bin_dir}" DIRECTORY)
+if(CPLAY_INSTALL_DEPENDENCIES)
+    get_target_property(_qmake_executable Qt5::qmake IMPORTED_LOCATION)
+    get_filename_component(_qt_bin_dir "${_qmake_executable}" DIRECTORY)
+    get_filename_component(_qt_dir "${_qt_bin_dir}" DIRECTORY)
+    get_filename_component(_mpv_bin_dir "${Libmpv_LIBRARIES}" DIRECTORY)
 
-get_filename_component(_mpv_bin_dir "${Libmpv_LIBRARIES}" DIRECTORY)    
-set(MY_DEPENDENCY_PATHS ${_qt_bin_dir} ${_mpv_bin_dir})
+    install(CODE "set(PROJECT_SOURCE_DIR \"${PROJECT_SOURCE_DIR}\")")
+    install(CODE "set(QT_BIN_DIR \"${_qt_bin_dir}\")")
 
-# Transfer the values into the install script
-install(CODE "set(MY_DEPENDENCY_PATHS \"${MY_DEPENDENCY_PATHS}\")")
-install(CODE "set(QT_BIN_DIR \"${_qt_bin_dir}\")")
-install(CODE "set(QT_QML_DIR \"${_qt_dir}/qml\")")
-install(CODE "set(QT_QMAKE_EXE \"${_qmake_executable}\")")
+    option(CPLAY_INSTALL_PLUGINS_FROM_CRAFT "Copy complete plugins folder for Qt/KDE" ON)   
+    if(CPLAY_INSTALL_PLUGINS_FROM_CRAFT)
+        install(CODE [[
+            message("Copying Qt/KDE plugins folder")
+        ]])
+        install(DIRECTORY "${_qt_dir}/plugins" DESTINATION "${CMAKE_INSTALL_PREFIX}/bin")
+    endif()
 
-option(CPLAY_FIND_QT5_DEPENDENCIES_CQTDEPLOYER "Look for dependencies with cqtdeployer and copy them" OFF)
-if(CPLAY_FIND_QT5_DEPENDENCIES_CQTDEPLOYER)
-    install(CODE [[
-        execute_process(
-            COMMAND cqtdeployer -bin ${CMAKE_INSTALL_PREFIX}/bin/C-Play.exe -qmlDir ${QT_QML_DIR} -qmake ${QT_QMAKE_EXE}
-        )
-    ]])
-endif()
+    option(CPLAY_INSTALL_QML_FROM_CRAFT "Copy complete qml folder for Qt/KDE" ON)
+    if(CPLAY_INSTALL_QML_FROM_CRAFT)
+        install(CODE [[
+            message("Copying Qt/KDE qml folder")
+        ]])
+        install(DIRECTORY "${_qt_dir}/qml" DESTINATION "${CMAKE_INSTALL_PREFIX}/bin")
+    endif()
 
-option(CPLAY_FIND_QT5_DEPENDENCIES_WINDEPLOYQT "Look for dependencies with windeployqt and copy them" OFF)
+    option(CPLAY_INSTALL_PREDEFINED_DLL_LIST_FROM_CRAFT "Shared dlls and delayed load is hard to detect. Copy predefined list" ON)
+    if(CPLAY_INSTALL_PREDEFINED_DLL_LIST_FROM_CRAFT)
+        install(CODE [[
+            message("Copying predefined DLL:s (${PROJECT_SOURCE_DIR}/data/craft_dlls.txt) from Craft folder")
+            file(READ "${PROJECT_SOURCE_DIR}/data/craft_dlls.txt" DEPENDENCY_DLLS)
+            string(REGEX REPLACE ";" "\\\\;" DEPENDENCY_DLLS "${DEPENDENCY_DLLS}")
+            string(REGEX REPLACE "\n" ";" DEPENDENCY_DLLS "${DEPENDENCY_DLLS}")
+            foreach(DLL_FILE ${DEPENDENCY_DLLS})
+                message("Copying ${QT_BIN_DIR}/${DLL_FILE}")
+                if(EXISTS "${QT_BIN_DIR}/${DLL_FILE}")
+                    file(INSTALL
+                        DESTINATION "${CMAKE_INSTALL_PREFIX}/bin"
+                        FILES "${QT_BIN_DIR}/${DLL_FILE}"
+                    )
+                else()
+                    message("${QT_BIN_DIR}/${DLL_FILE} was not found")
+                endif()
+            endforeach()
+        ]])
+    endif()   
 
-if(CPLAY_FIND_QT5_DEPENDENCIES_WINDEPLOYQT)
-    add_custom_command(TARGET ${TARGET_NAME} POST_BUILD
-        COMMAND "${_qt_bin_dir}/windeployqt.exe"
-                --qmldir  "${_qt_dir}/qml"        
-                --verbose 1
-                --release
-                --compiler-runtime
-                \"$<TARGET_FILE:C-Play>\"
-        COMMENT "Deploying Qt libraries using windeployqt for compilation target '${target}' ..."
-    )
-endif()
-
-option(CPLAY_GET_RUNTIME_DEPENDENCIES "When running INSTALL, look for dependencies with GET_RUNTIME_DEPENDENCIES and copy them" OFF)
-if(CPLAY_GET_RUNTIME_DEPENDENCIES)
-    # Install dependency
-    install(CODE [[
-        file(GET_RUNTIME_DEPENDENCIES
-            EXECUTABLES $<TARGET_FILE:C-Play>
-            PRE_EXCLUDE_REGEXES api-ms
-            POST_EXCLUDE_REGEXES C:[/\\]Windows[/\\]
-            RESOLVED_DEPENDENCIES_VAR RESOLVED_DEPENDENCIES
-            UNRESOLVED_DEPENDENCIES_VAR UNRESOLVED_DEPENDENCIES
-            DIRECTORIES ${MY_DEPENDENCY_PATHS}
-        )
-        foreach(DEPENDENCY ${UNRESOLVED_DEPENDENCIES})
-            message(WARNING "Unable to resolve dependency ${DEPENDENCY}")
-        endforeach()
-        foreach(DEPENDENCY ${RESOLVED_DEPENDENCIES})
-            message("Copying ${DEPENDENCY}")
-            file(INSTALL
-                DESTINATION "${CMAKE_INSTALL_PREFIX}/bin"
-                FILES "${DEPENDENCY}"
+    option(CPLAY_INSTALL_GET_RUNTIME_DEPENDENCIES "When running INSTALL, look for dependencies with GET_RUNTIME_DEPENDENCIES and copy them" ON)
+    if(CPLAY_INSTALL_GET_RUNTIME_DEPENDENCIES)
+        set(MY_DEPENDENCY_PATHS ${_qt_bin_dir} ${_mpv_bin_dir})
+        # Transfer the values into the install script
+        install(CODE "set(MY_DEPENDENCY_PATHS \"${MY_DEPENDENCY_PATHS}\")")
+        install(CODE "set(target \"$<TARGET_FILE:${TARGET_NAME}>\")")
+        # Install dependencies
+        install(CODE [[
+            message("Looking for direct dependencies for C-Play.exe (In Qt and MPV build directories)")
+            file(GET_RUNTIME_DEPENDENCIES
+                EXECUTABLES ${target}
+                PRE_EXCLUDE_REGEXES api-ms msvcp vcruntime kernel32
+                POST_EXCLUDE_REGEXES C:[/\\]Windows[/\\]
+                RESOLVED_DEPENDENCIES_VAR RESOLVED_DEPENDENCIES
+                UNRESOLVED_DEPENDENCIES_VAR UNRESOLVED_DEPENDENCIES
+                DIRECTORIES ${MY_DEPENDENCY_PATHS}
             )
-        endforeach()
-        file(WRITE ${CMAKE_INSTALL_PREFIX}/bin/qt.conf "[Paths]") # Setup Qt libraries paths
-    ]])
+            foreach(DEPENDENCY ${UNRESOLVED_DEPENDENCIES})
+                message(WARNING "Unable to resolve dependency ${DEPENDENCY}")
+            endforeach()
+            message("Copying dependencies")
+            foreach(DEPENDENCY ${RESOLVED_DEPENDENCIES})
+                message("Copying ${DEPENDENCY}")
+                file(INSTALL
+                    DESTINATION "${CMAKE_INSTALL_PREFIX}/bin"
+                    FILES "${DEPENDENCY}"
+                )
+            endforeach()
+        ]])
+    endif()
 endif()

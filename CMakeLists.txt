@@ -40,7 +40,6 @@ set_package_properties(Libmpv PROPERTIES TYPE REQUIRED
     URL "https://mpv.io")
 
 find_package(Breeze)
-option(InstallColorSchemes "" ON)
 set_package_properties(Breeze PROPERTIES TYPE RECOMMENDED
     URL "https://api.kde.org/frameworks/breeze-icons/html/index.html")
 
@@ -76,9 +75,9 @@ find_package(KF5XmlGui)
 set_package_properties(KF5XmlGui PROPERTIES TYPE REQUIRED
     URL "https://api.kde.org/frameworks/kxmlgui/html/index.html")
 
-option(InstallColorSchemes "Installs breeze color schemes." OFF)
-
+option(CPLAY_INSTALL_DEPENDENCIES "Global On/Off for all CPLAY_INSTALL_* dependencies" OFF)
 feature_summary(WHAT ALL FATAL_ON_MISSING_REQUIRED_PACKAGES)
 
 add_subdirectory(data)
+add_subdirectory(help)
 add_subdirectory(src)

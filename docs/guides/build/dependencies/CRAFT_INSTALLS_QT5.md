@@ -4,13 +4,13 @@
 
 Use Visual Studio 2019 as compiler. (However MSYS / MinGW will be installed later anyway, if you compile/install FFmpeg + MPV + JACK)
 
-*Note, this is needed for Qt5. EYou can use Visual Studio 2022 for C-Play even if these dependencies require VS2019. C-Play has currently been tested with Qt 5.15 LTS. It should be the latest QT5 in the Craft source currently (2024-05-17).*
+*Note, this is needed for Qt5. You can use Visual Studio 2022 for C-Play even if these dependencies require VS2019. C-Play has currently been tested with Qt 5.15 LTS. It should be the latest QT5 in the Craft source currently (2024-05-21).*
 
 ### Packages to install (via Craft)
 
 Run command
 ```
-craft libs/qt5/qtbase libs/qt5/qtdeclarative libs/qt5/qtquickcontrols2 libs/qt5/qt3d libs/qt5/qttools extra-cmake-modules kconfig kcoreaddons kfilemetadata ki18n kiconthemes kio kirigami kio-extras breeze breeze-icons qqc2-breeze-style qqc2-desktop-style
+craft libs/qt5/qtbase libs/qt5/qtdeclarative libs/qt5/qtquickcontrols2 libs/qt5/qttools extra-cmake-modules kconfig kcoreaddons kfilemetadata ki18n kiconthemes kio kirigami kio-extras breeze breeze-icons qqc2-breeze-style qqc2-desktop-style
 ```
 These are the list of packages needed for this project
 - Qt5Core (within Base)
@@ -32,5 +32,3 @@ These are the list of packages needed for this project
 - Breeze icons (breeze-icons)
 - Breeze widgets style (qqc2-breeze-style)
 - QQC2-Desktop-Style
-
-The add Craft bin and the dev-utils\bin folder to your environmental "Path".
