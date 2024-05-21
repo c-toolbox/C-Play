@@ -58,7 +58,7 @@ target_include_directories(${TARGET_NAME} PRIVATE playlist)
 target_compile_definitions(${TARGET_NAME} PRIVATE $<$<OR:$<CONFIG:Debug>,$<CONFIG:RelWithDebInfo>>:QT_QML_DEBUG>)
 
 if(WIN32)
-        set_target_properties(${TARGET_NAME} PROPERTIES WIN32_EXECUTABLE TRUE)
+	set_target_properties(${TARGET_NAME} PROPERTIES WIN32_EXECUTABLE TRUE)
 endif()
 
 
@@ -104,7 +104,6 @@ if(CPLAY_INSTALL_DEPENDENCIES)
     get_filename_component(_qt_dir "${_qt_bin_dir}" DIRECTORY)
     get_filename_component(_mpv_bin_dir "${Libmpv_LIBRARIES}" DIRECTORY)
 
-    install(CODE "set(PROJECT_SOURCE_DIR \"${PROJECT_SOURCE_DIR}\")")
     install(CODE "set(QT_BIN_DIR \"${_qt_bin_dir}\")")
 
     option(CPLAY_INSTALL_PLUGINS_FROM_CRAFT "Copy complete plugins folder for Qt/KDE" ON)   
@@ -123,27 +122,6 @@ if(CPLAY_INSTALL_DEPENDENCIES)
         install(DIRECTORY "${_qt_dir}/qml" DESTINATION "${CMAKE_INSTALL_PREFIX}/bin")
     endif()
 
-    option(CPLAY_INSTALL_PREDEFINED_DLL_LIST_FROM_CRAFT "Shared dlls and delayed load is hard to detect. Copy predefined list" ON)
-    if(CPLAY_INSTALL_PREDEFINED_DLL_LIST_FROM_CRAFT)
-        install(CODE [[
-            message("Copying predefined DLL:s (${PROJECT_SOURCE_DIR}/data/craft_dlls.txt) from Craft folder")
-            file(READ "${PROJECT_SOURCE_DIR}/data/craft_dlls.txt" DEPENDENCY_DLLS)
-            string(REGEX REPLACE ";" "\\\\;" DEPENDENCY_DLLS "${DEPENDENCY_DLLS}")
-            string(REGEX REPLACE "\n" ";" DEPENDENCY_DLLS "${DEPENDENCY_DLLS}")
-            foreach(DLL_FILE ${DEPENDENCY_DLLS})
-                message("Copying ${QT_BIN_DIR}/${DLL_FILE}")
-                if(EXISTS "${QT_BIN_DIR}/${DLL_FILE}")
-                    file(INSTALL
-                        DESTINATION "${CMAKE_INSTALL_PREFIX}/bin"
-                        FILES "${QT_BIN_DIR}/${DLL_FILE}"
-                    )
-                else()
-                    message("${QT_BIN_DIR}/${DLL_FILE} was not found")
-                endif()
-            endforeach()
-        ]])
-    endif()   
-
     option(CPLAY_INSTALL_GET_RUNTIME_DEPENDENCIES "When running INSTALL, look for dependencies with GET_RUNTIME_DEPENDENCIES and copy them" ON)
     if(CPLAY_INSTALL_GET_RUNTIME_DEPENDENCIES)
         set(MY_DEPENDENCY_PATHS ${_qt_bin_dir} ${_mpv_bin_dir})
@@ -152,6 +130,10 @@ if(CPLAY_INSTALL_DEPENDENCIES)
         install(CODE "set(target \"$<TARGET_FILE:${TARGET_NAME}>\")")
         # Install dependencies
         install(CODE [[
+			if(EXISTS "${CMAKE_BINARY_DIR}/zlib1.dll")
+				file(REMOVE "${CMAKE_BINARY_DIR}/zlib1.dll")
+			endif()
+			file(READ "${PROJECT_SOURCE_DIR}/help/craft_dlls.txt" DEPENDENCY_DLLS)
             message("Looking for direct dependencies for C-Play.exe (In Qt and MPV build directories)")
             file(GET_RUNTIME_DEPENDENCIES
                 EXECUTABLES ${target}

@@ -4,6 +4,9 @@
 # SPDX-License-Identifier: GPL-3.0-or-later
 #
 
+install(FILES org.ctoolbox.cplay.desktop DESTINATION ${KDE_INSTALL_APPDIR})
+install(FILES org.ctoolbox.cplay.appdata.xml DESTINATION ${KDE_INSTALL_METAINFODIR})
+
 if(CPLAY_INSTALL_DEPENDENCIES)
     option(CPLAY_INSTALL_ITEMS_TO_DATA "Copy specific data items to C-Play" ON)
     if(CPLAY_INSTALL_ITEMS_TO_DATA)
