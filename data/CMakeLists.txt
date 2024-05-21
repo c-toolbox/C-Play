@@ -15,7 +15,7 @@ if(CPLAY_INSTALL_DEPENDENCIES)
 		install(CODE [[
             message("Copying Color Schemes Icons")
         ]])
-        install(DIRECTORY "${_qt_bin_dir}/data/color-schemes" DESTINATION "${CMAKE_INSTALL_PREFIX}/bin/data")
+        install(DIRECTORY "${PROJECT_SOURCE_DIR}/data/color-schemes" DESTINATION "${CMAKE_INSTALL_PREFIX}/bin/data")
 		install(CODE [[
             message("Copying Breeze Icons")
         ]])

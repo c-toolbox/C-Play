@@ -43,4 +43,6 @@ These are just some features that set C-Play apart from others players
 
 - Configure C-Play with CMake.
 
+- Good practice to follow [Deploy Guide](./docs/guides/build/dependencies/DEPLOY.md) as well, to copy the build with it's dependencies to single binary folder.
+
 - Build in Visual Studio 2022 or in Qt-Creator for good QML overview.
