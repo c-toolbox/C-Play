@@ -18,15 +18,27 @@ ItemDelegate {
 
     property string rowNumber: (index + 1).toString()
 
-    label: mainText()
-    subtitle: model.hasDescriptionFile === true ? (model.duration + " : " + model.stereoVideo + " " + model.gridToMapOn + " : (" + model.eofMode + ")") : (model.duration + " : (" + model.eofMode + ")")
     padding: 0
-    icon: model.isPlaying ? "kt-set-max-upload-speed" : ""
     font.pointSize: 9
-    backgroundColor: {
-        let color = Kirigami.Theme.backgroundColor
-        Qt.hsla(color.hslHue, color.hslSaturation, color.hslLightness, 1)
+
+    background: Rectangle {
+        anchors.fill: parent
+        color: {
+            let color = Kirigami.Theme.backgroundColor
+            Qt.hsla(color.hslHue, color.hslSaturation, color.hslLightness, 1)
+        }
     }
+
+    contentItem: Kirigami.IconTitleSubtitle {
+        icon.name: model.isPlaying ? "kt-set-max-upload-speed" : ""
+        icon.color: color
+        title: mainText()
+        subtitle: model.hasDescriptionFile === true ? (model.duration + " : " + model.stereoVideo + " " + model.gridToMapOn + " : (" + model.eofMode + ")") : (model.duration + " : (" + model.eofMode + ")")
+        color: root.hovered || root.highlighted ? Kirigami.Theme.highlightedTextColor : Kirigami.Theme.textColor
+        ToolTip.text: title
+        ToolTip.visible: root.hovered
+    }
+
     Timer {
        id: playItem
        interval: PlaylistSettings.autoPlayAfterTime * 1000

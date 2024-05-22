@@ -82,7 +82,7 @@ Rectangle {
                     text: "00:00:00"
                     maximumLength: 8
                     inputMask: "99:99:99"
-                    validator: RegularExpressionValidator { regExp: /^([0-1\s]?[0-9\s]|2[0-3\s]):([0-5\s][0-9\s]):([0-5\s][0-9\s])$ / }
+                    validator: RegularExpressionValidator { regularExpression: /^([0-1\s]?[0-9\s]|2[0-3\s]):([0-5\s][0-9\s]):([0-5\s][0-9\s])$ / }
                     Layout.preferredWidth: font.pointSize * 8
                     font.pointSize: 9
                 }
@@ -110,7 +110,7 @@ Rectangle {
                     text: "00:00:00"
                     maximumLength: 8
                     inputMask: "99:99:99"
-                    validator: RegularExpressionValidator { regExp: /^([0-1\s]?[0-9\s]|2[0-3\s]):([0-5\s][0-9\s]):([0-5\s][0-9\s])$ / }
+                    validator: RegularExpressionValidator { regularExpression: /^([0-1\s]?[0-9\s]|2[0-3\s]):([0-5\s][0-9\s]):([0-5\s][0-9\s])$ / }
                     Layout.preferredWidth: font.pointSize * 8
                     font.pointSize: 9
                 }

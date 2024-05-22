@@ -186,7 +186,7 @@ Rectangle {
                     id: clearPlaylistDialog
                     title: "Clear playlist"
                     text: "Confirm clearing of all items in playlist."
-                    standardButtons: StandardButton.Yes | StandardButton.No
+                    buttons: MessageDialog.Yes | MessageDialog.No
                     onAccepted: {
                         mpv.clearPlaylist()
                     }

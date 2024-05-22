@@ -16,15 +16,26 @@ ItemDelegate {
     id: root
 
     property string rowNumber: (index + 1).toString()
-
-    label: mainText()
-    subtitle: model.startTime + " - " + model.endTime + " (" + model.duration + ")" + " - At end: " + model.eosMode
     padding: 0
-    icon: model.isPlaying ? "office-chart-pie" : ""
-    backgroundColor: {
-        let color = Kirigami.Theme.backgroundColor
-        Qt.hsla(color.hslHue, color.hslSaturation, color.hslLightness, 1)
+
+    background: Rectangle {
+        anchors.fill: parent
+        color: {
+            let color = Kirigami.Theme.backgroundColor
+            Qt.hsla(color.hslHue, color.hslSaturation, color.hslLightness, 1)
+        }
     }
+
+    contentItem: Kirigami.IconTitleSubtitle {
+        icon.name: model.isPlaying ? "office-chart-pie" : ""
+        icon.color: color
+        title: mainText()
+        subtitle: model.startTime + " - " + model.endTime + " (" + model.duration + ")" + " - At end: " + model.eosMode
+        color: root.hovered || root.highlighted ? Kirigami.Theme.highlightedTextColor : Kirigami.Theme.textColor
+        ToolTip.text: title
+        ToolTip.visible: root.hovered
+    }
+
     Timer {
        id: playItem
        interval: 2000
