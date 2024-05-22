@@ -12,9 +12,15 @@ For copying the correct source (as of Craft with 5.15 LTS) and MPV through curre
 The following options become visible below (and executed in this order): 
 
 * *CPLAY_INSTALL_ITEMS_FROM_DATA*: Does copy all files from C-Play data source into the install directory.
+
 * *CPLAY_INSTALL_PLUGINS_FROM_CRAFT* : Copy all plugins (dlls) from Craft build
+
 * *CPLAY_INSTALL_QML_FROM_CRAFT* : Copy all qml files from Craft build
+
 * *CPLAY_INSTALL_PREDEFINED_DLL_LIST_FROM_CRAFT* : Will copy a predefined list of DLLs from Craft build (made manually and then printed with *"dir /b *.dll > craft_dlls.txt*"). The easiest approach of generating your own (if this does not work), is coping all dlls from craft to the bin directory, launch C-Play and then try to delete all dlls. The ones that cannot be deleted is the ones to keep.
+
+* *CPLAY_INSTALL_PRECOMPILIED_JACK_DLL*: Compiling a JACK version for MPV can be quite tricky. As such as small but important library, C-Play include some pre-complied libs for JACK that works with MPV+FFmpeg.
+
 * *CPLAY_INSTALL_GET_RUNTIME_DEPENDENCIES*: Runs a cmake command to look for any direct dependencies of C-Play, in the QMAKE/CRAFT and MPV build directories. To complete the pre-defined list (which only fetches from CRAFT/QMAKE directory).
 
 Run *INSTALL* from Visual Studio to trigger a complete install/copy operation for each of the above options.
