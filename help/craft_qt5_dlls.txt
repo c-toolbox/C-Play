@@ -37,6 +37,8 @@ KF5WindowSystem.dll
 KF5XmlGui.dll
 libbzip2.dll
 libcrypto-3-x64.dll
+libjack.dll
+libjack64.dll
 liblzma.dll
 libpng16.dll
 libssl-3-x64.dll

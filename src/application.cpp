@@ -183,7 +183,7 @@ void Application::setupAboutData()
     m_aboutData = KAboutData(QStringLiteral("C-Play"),
                              i18n("C-Play : Cluster Video Player"),
                              Application::version());
-    m_aboutData.setShortDescription(i18n("A configurable cluster video player, based on MPV, SGCT and Haruna projects."));
+    m_aboutData.setShortDescription(i18n("A configurable cluster video player, based on MPV, SGCT and Haruna projects. Master UI compilied with Qt ") + QStringLiteral(QT_VERSION_STR));
     m_aboutData.setLicense(KAboutLicense::GPL_V3);
     m_aboutData.setCopyrightStatement(i18n("(c) Erik Sundén 2021-2024"));
 
@@ -278,7 +278,7 @@ QUrl Application::configFolderPath()
 
 QString Application::version()
 {
-    return QStringLiteral("2.0.0");
+    return QStringLiteral(CPLAY_VERSION);
 }
 
 bool Application::hasYoutubeDl()
