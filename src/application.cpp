@@ -46,6 +46,7 @@
 #include <QThread>
 #include <QQmlEngine>
 #include <QMimeDatabase>
+#include <QtGlobal>
 
 #include <KAboutApplicationDialog>
 #include <KAboutData>
@@ -106,20 +107,27 @@ Application::Application(int &argc, char **argv, const QString &applicationName)
     setupQmlSettingsTypes();
 
     m_engine = new QQmlApplicationEngine(this);
+    QObject::connect(m_engine, &QQmlApplicationEngine::quit, m_app, &QApplication::quit);
+
+#if QT_VERSION >= QT_VERSION_CHECK(6, 0, 0)
+    setupQmlContextProperties();
+
+    m_engine->loadFromModule("org.ctoolbox.cplay", "Main");
+#else
     const QUrl url(QStringLiteral("qrc:/qml/main.qml"));
-    auto onObjectCreated = [url](QObject *obj, const QUrl &objUrl) {
+    auto onObjectCreated = [url](QObject* obj, const QUrl& objUrl) {
         if (!obj && url == objUrl) {
             QCoreApplication::exit(-1);
         }
-    };
+        };
     QObject::connect(m_engine, &QQmlApplicationEngine::objectCreated,
-                     m_app, onObjectCreated, Qt::QueuedConnection);
-    QObject::connect(m_engine, &QQmlApplicationEngine::quit, m_app, &QApplication::quit);
+        m_app, onObjectCreated, Qt::QueuedConnection);
     m_engine->addImportPath(QStringLiteral("qrc:/qml"));
 
     setupQmlContextProperties();
 
     m_engine->load(url);
+#endif
 
     //QObject::connect(&renderThread, &QThread::finished, m_app, &QApplication::quit);
     //QObject::connect(&renderThread, &QThread::finished, &renderThread, &QThread::deleteLater);

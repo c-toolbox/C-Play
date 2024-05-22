@@ -6,15 +6,12 @@
 # SPDX-License-Identifier: GPL-3.0-or-later
 #
 
-set(QML_IMPORT_PATH "${CMAKE_CURRENT_SOURCE_DIR}/qml" CACHE STRING "Qt Creator 4.1 extra qml import paths" FORCE)
-
 set(TARGET_NAME C-Play)
 
 add_executable(${TARGET_NAME})
 set_compile_options(${TARGET_NAME})
 
-target_sources(${TARGET_NAME}
-    PRIVATE
+set(SOURCE_FILES
     application.cpp
     application.h
     haction.cpp
@@ -39,19 +36,141 @@ target_sources(${TARGET_NAME}
     tracksmodel.h
     worker.cpp
     worker.h
-    qml.qrc
-    ../data/images/images.qrc
-    ../data/images/icon.rc
 )
 
-kconfig_add_kcfg_files(${TARGET_NAME} GENERATE_MOC settings/audiosettings.kcfgc)
-kconfig_add_kcfg_files(${TARGET_NAME} GENERATE_MOC settings/gridsettings.kcfgc)
-kconfig_add_kcfg_files(${TARGET_NAME} GENERATE_MOC settings/imagesettings.kcfgc)
-kconfig_add_kcfg_files(${TARGET_NAME} GENERATE_MOC settings/locationsettings.kcfgc)
-kconfig_add_kcfg_files(${TARGET_NAME} GENERATE_MOC settings/mousesettings.kcfgc)
-kconfig_add_kcfg_files(${TARGET_NAME} GENERATE_MOC settings/playbacksettings.kcfgc)
-kconfig_add_kcfg_files(${TARGET_NAME} GENERATE_MOC settings/playlistsettings.kcfgc)
-kconfig_add_kcfg_files(${TARGET_NAME} GENERATE_MOC settings/userinterfacesettings.kcfgc)
+if(BUILD_CPLAY_WITH_QT6)
+    target_sources(${TARGET_NAME} 
+        PRIVATE 
+        ${SOURCE_FILES}
+        ../data/images/images.qrc
+        ../data/images/icon.rc
+    )
+
+    qt_policy(SET QTP0001 NEW)
+
+    set(QML_SRC_FILES
+        qml_qt6/Components/ImageAdjustmentSlider.qml
+        qml_qt6/Components/LabelWithTooltip.qml
+        qml_qt6/Components/SelectActionPopup.qml
+        qml_qt6/Components/SettingsBasePage.qml
+        qml_qt6/Components/SettingsHeader.qml
+        qml_qt6/Menus/AudioMenu.qml
+        qml_qt6/Menus/FileMenu.qml
+        qml_qt6/Menus/HelpMenu.qml
+        qml_qt6/Menus/PlaybackMenu.qml
+        qml_qt6/Menus/SettingsMenu.qml
+        qml_qt6/Settings/AudioSettings.qml
+        qml_qt6/Settings/GridSettings.qml
+        qml_qt6/Settings/ImageSettings.qml
+        qml_qt6/Settings/LocationSettings.qml
+        qml_qt6/Settings/MouseSettings.qml
+        qml_qt6/Settings/Navigation.qml
+        qml_qt6/Settings/PlaybackSettings.qml
+        qml_qt6/Settings/PlaylistSettings.qml
+        qml_qt6/Settings/UserInterfaceSettings.qml
+        qml_qt6/Settings/SettingsEditor.qml
+        qml_qt6/Actions.qml
+        qml_qt6/Footer.qml
+        qml_qt6/HProgressBar.qml
+        qml_qt6/Header.qml
+        qml_qt6/MpvVideo.qml
+        qml_qt6/Osd.qml
+        qml_qt6/PlayList.qml
+        qml_qt6/PlayListItemCompact.qml
+        qml_qt6/VolumeSlider.qml
+        qml_qt6/Main.qml
+        qml_qt6/PlaySections.qml
+        qml_qt6/PlaySectionsItemCompact.qml
+        qml_qt6/VisibilitySlider.qml
+        qml_qt6/Presentation.qml
+        qml_qt6/BackgroundImage.qml
+        qml_qt6/ForegroundImage.qml
+        qml_qt6/SaveAsCPlayFile.qml
+        qml_qt6/ViewPlaylistItem.qml
+    )
+
+    qt_add_qml_module(${TARGET_NAME}
+        URI org.ctoolbox.cplay
+        QML_FILES
+        ${QML_SRC_FILES}
+    )
+    source_group(Qml FILES ${QML_SRC_FILES})
+
+    set(TARGET_LIBRARIES
+        Qt6::Core
+        Qt6::Gui
+        Qt6::Qml
+        Qt6::Quick
+        Qt6::QuickControls2
+
+        KF6::ColorScheme
+        KF6::ConfigCore
+        KF6::ConfigGui
+        KF6::CoreAddons
+        KF6::FileMetaData
+        KF6::I18n
+        KF6::IconThemes
+        KF6::KIOWidgets
+        KF6::Kirigami
+        KF6::WindowSystem
+        KF6::XmlGui
+
+        Libmpv::Libmpv
+        sgct
+        glm
+    )
+
+else()
+    set(QML_IMPORT_PATH "${CMAKE_CURRENT_SOURCE_DIR}/qml" CACHE STRING "Qt Creator 4.1 extra qml import paths" FORCE)
+
+    target_sources(${TARGET_NAME} 
+        PRIVATE 
+        ${SOURCE_FILES}
+        qml.qrc
+        ../data/images/images.qrc
+        ../data/images/icon.rc
+    )
+
+    set(TARGET_LIBRARIES
+        Qt5::Core
+        Qt5::DBus
+        Qt5::Qml
+        Qt5::Quick
+        Qt5::QuickControls2
+
+        KF5::ConfigCore
+        KF5::ConfigGui
+        KF5::CoreAddons
+        KF5::FileMetaData
+        KF5::I18n
+        KF5::IconThemes
+        KF5::KIOCore
+        KF5::KIOFileWidgets
+        KF5::KIOWidgets
+        KF5::KIONTLM
+        KF5::Kirigami2
+        KF5::XmlGui
+
+        Libmpv::Libmpv
+        sgct
+        glm
+    )
+endif()
+
+set(KCFCG_FILES
+    settings/audiosettings.kcfgc
+    settings/gridsettings.kcfgc
+    settings/imagesettings.kcfgc
+    settings/locationsettings.kcfgc
+    settings/mousesettings.kcfgc
+    settings/playbacksettings.kcfgc
+    settings/playlistsettings.kcfgc
+    settings/userinterfacesettings.kcfgc
+)
+foreach(KCFCG_FILE ${KCFCG_FILES})
+    kconfig_add_kcfg_files(${TARGET_NAME} GENERATE_MOC ${KCFCG_FILE})
+endforeach()
+source_group(Kcfcg FILES ${KCFCG_FILES})
 
 target_include_directories(${TARGET_NAME} PRIVATE playlist)
 
@@ -61,36 +180,10 @@ if(WIN32)
 	set_target_properties(${TARGET_NAME} PROPERTIES WIN32_EXECUTABLE TRUE)
 endif()
 
-
 option(SGCT_FREETYPE_SUPPORT "Build SGCT with Freetype2" OFF)
 option(SGCT_DEP_INCLUDE_FREETYPE "Include FreeType library" OFF)
 option(SGCT_BUILD_TESTS "Build SGCT tests" OFF)
 add_subdirectory(${CMAKE_CURRENT_SOURCE_DIR}/sgct)
-
-set(TARGET_LIBRARIES
-    Qt5::Core
-    Qt5::DBus
-    Qt5::Qml
-    Qt5::Quick
-    Qt5::QuickControls2
-
-    KF5::ConfigCore
-    KF5::ConfigGui
-    KF5::CoreAddons
-    KF5::FileMetaData
-    KF5::I18n
-    KF5::IconThemes
-    KF5::KIOCore
-    KF5::KIOFileWidgets
-    KF5::KIOWidgets
-    KF5::KIONTLM
-    KF5::Kirigami2
-    KF5::XmlGui
-
-    Libmpv::Libmpv
-    sgct
-    glm
-)
 
 target_link_libraries(${TARGET_NAME} PRIVATE ${TARGET_LIBRARIES})
 
@@ -99,7 +192,11 @@ target_compile_features(${TARGET_NAME} PRIVATE cxx_std_17)
 install(TARGETS ${TARGET_NAME} DESTINATION ${KDE_INSTALL_TARGETS_DEFAULT_ARGS})
 
 if(CPLAY_INSTALL_DEPENDENCIES)
-    get_target_property(_qmake_executable Qt5::qmake IMPORTED_LOCATION)
+    if(BUILD_CPLAY_WITH_QT6)
+        get_target_property(_qmake_executable Qt6::qmake IMPORTED_LOCATION)
+    else()
+        get_target_property(_qmake_executable Qt5::qmake IMPORTED_LOCATION)
+    endif()
     get_filename_component(_qt_bin_dir "${_qmake_executable}" DIRECTORY)
     get_filename_component(_qt_dir "${_qt_bin_dir}" DIRECTORY)
     get_filename_component(_mpv_bin_dir "${Libmpv_LIBRARIES}" DIRECTORY)
@@ -130,21 +227,21 @@ if(CPLAY_INSTALL_DEPENDENCIES)
         install(CODE "set(target \"$<TARGET_FILE:${TARGET_NAME}>\")")
         # Install dependencies
         install(CODE [[
-			if(EXISTS "${CMAKE_BINARY_DIR}/zlib1.dll")
-				file(REMOVE "${CMAKE_BINARY_DIR}/zlib1.dll")
-			endif()
-			file(READ "${PROJECT_SOURCE_DIR}/help/craft_dlls.txt" DEPENDENCY_DLLS)
             message("Looking for direct dependencies for C-Play.exe (In Qt and MPV build directories)")
             file(GET_RUNTIME_DEPENDENCIES
                 EXECUTABLES ${target}
                 PRE_EXCLUDE_REGEXES api-ms msvcp vcruntime kernel32
                 POST_EXCLUDE_REGEXES C:[/\\]Windows[/\\]
+				CONFLICTING_DEPENDENCIES_PREFIX CONFLICTING_DEPENDENCIES
                 RESOLVED_DEPENDENCIES_VAR RESOLVED_DEPENDENCIES
                 UNRESOLVED_DEPENDENCIES_VAR UNRESOLVED_DEPENDENCIES
                 DIRECTORIES ${MY_DEPENDENCY_PATHS}
             )
             foreach(DEPENDENCY ${UNRESOLVED_DEPENDENCIES})
                 message(WARNING "Unable to resolve dependency ${DEPENDENCY}")
+            endforeach()
+			foreach(DEPENDENCY ${CONFLICTING_DEPENDENCIES})
+                message(WARNING "Conflicting dependency ${DEPENDENCY}")
             endforeach()
             message("Copying dependencies")
             foreach(DEPENDENCY ${RESOLVED_DEPENDENCIES})

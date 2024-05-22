@@ -1,0 +1,110 @@
+/*
+ * SPDX-FileCopyrightText:
+ * 2021-2024 Erik Sundén <eriksunden85@gmail.com>
+ *
+ * SPDX-License-Identifier: GPL-3.0-or-later
+ */
+
+import QtQuick
+import QtQuick.Controls
+import QtQuick.Layouts
+
+import org.kde.kirigami as Kirigami
+import org.ctoolbox.cplay
+
+Rectangle {
+    id: presentationRoot
+
+    property alias scrollPositionTimer: scrollPositionTimer
+    property alias presentationView: presentationView
+    property alias mediaTitle: mediaTitle
+    property string position: PlaylistSettings.position
+    property int rowHeight: PlaylistSettings.rowHeight
+    property int bigFont: PlaylistSettings.bigFontFullscreen
+
+    height: mpv.height
+    width: {
+            const w = Kirigami.Units.gridUnit * 19
+            return (parent.width * 0.17) < w ? w : parent.width * 0.17
+    }
+    x: position !== "right" ? parent.width : -width
+    y: 0
+    state: "hidden"
+    color: Kirigami.Theme.backgroundColor
+
+    ColumnLayout {
+        id: presentationHeader
+        spacing: 10
+    }
+
+    ScrollView {
+        id: presentationScrollView
+
+        z: 20
+        anchors.fill: parent
+        anchors.topMargin: presentationHeader.height + 5
+        ScrollBar.horizontal.policy: ScrollBar.AlwaysOff
+    }
+
+    Timer {
+        id: scrollPositionTimer
+        interval: 50; running: true; repeat: true
+
+        onTriggered: {
+            scrollPositionTimer.stop()
+        }
+    }
+
+    states: [
+        State {
+            name: "hidden"
+            PropertyChanges { target: presentationRoot; x: position !== "right" ? parent.width : -width }
+            PropertyChanges { target: presentationRoot; visible: false }
+        },
+        State {
+            name : "visible"
+            PropertyChanges { target: presentationRoot; x: position !== "right" ? parent.width - presentationRoot.width : 0 }
+            PropertyChanges { target: presentationRoot; visible: true }
+        }
+    ]
+
+    transitions: [
+        Transition {
+            from: "visible"
+            to: "hidden"
+
+            SequentialAnimation {
+                NumberAnimation {
+                    target: presentationRoot
+                    property: "x"
+                    duration: 120
+                    easing.type: Easing.InQuad
+                }
+                PropertyAction {
+                    target: presentationRoot
+                    property: "visible"
+                    value: false
+                }
+            }
+        },
+        Transition {
+            from: "hidden"
+            to: "visible"
+
+            SequentialAnimation {
+                PropertyAction {
+                    target: presentationRoot
+                    property: "visible"
+                    value: true
+                }
+                NumberAnimation {
+                    target: presentationRoot
+                    property: "x"
+                    duration: 120
+                    easing.type: Easing.OutQuad
+                }
+            }
+        }
+    ]
+
+}

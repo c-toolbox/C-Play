@@ -1,10 +1,10 @@
 # Craft Guide
 
-[Craft on Windows](https://community.kde.org/Guidelines_and_HOWTOs/Build_from_source/Windows)
+[Craft on Windows](https://community.kde.org/Get_Involved/development/Windows)
 
 Use Visual Studio 2019 as compiler. (However MSYS / MinGW will be installed later anyway, if you compile/install FFmpeg + MPV + JACK)
 
-*Note, this is needed for Qt5. You can use Visual Studio 2022 for C-Play even if these dependencies require VS2019. C-Play has currently been tested with Qt 5.15 LTS. It should be the latest QT5 in the Craft source currently (2024-05-21).*
+*Note, Visual Studio 2019 is needed for Qt5 with Craft. You can use Visual Studio 2022 for C-Play even if these dependencies require VS2019. C-Play has currently been tested with Qt 5.15 LTS. It should be the latest QT5 in the Craft source currently (2024-05-21).*
 
 ### Packages to install (via Craft)
 
