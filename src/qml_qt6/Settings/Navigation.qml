@@ -71,7 +71,7 @@ Kirigami.Page
         }
         ListElement {
             name: "Playlist"
-            iconName: "view-media-playlist"
+            iconName: "format-list-unordered"
             page: "PlaylistSettings.qml"
         }
 		ListElement {

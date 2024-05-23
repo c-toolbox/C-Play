@@ -195,7 +195,7 @@ Rectangle {
                         }
                     }
                     Button {
-                        icon.name: "kdenlive-zindex-up"
+                        icon.name: "pan-up-symbolic"
                         onClicked: {
                             mpv.playSectionsModel.moveSectionUp(sectionsView.currentIndex)
                         }
@@ -204,7 +204,7 @@ Rectangle {
                         }
                     }
                     Button {
-                        icon.name: "kdenlive-zindex-down"
+                        icon.name: "pan-down-symbolic"
                         onClicked: {
                             mpv.playSectionsModel.moveSectionDown(sectionsView.currentIndex)
                         }

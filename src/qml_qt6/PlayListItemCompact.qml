@@ -30,6 +30,7 @@ ItemDelegate {
     }
 
     contentItem: Kirigami.IconTitleSubtitle {
+        id: listContentItem
         icon.name: model.isPlaying ? "kt-set-max-upload-speed" : ""
         icon.color: color
         title: mainText()
@@ -61,14 +62,14 @@ ItemDelegate {
         function onPauseChanged() {
             if (model.isPlaying) {
                 if (mpv.pause) {
-                    root.icon.name = "media-playback-pause"
+                    listContentItem.icon.name = "media-playback-pause"
                 }
                 else {
-                    root.icon.name = "media-playback-start"
+                    listContentItem.icon.name = "media-playback-start"
                 }
             }
-            else if (root.icon.name !== "") {
-                root.icon.name = ""
+            else if (listContentItem.icon.name !== "") {
+                listContentItem.icon.name = ""
             }
         }
     }
