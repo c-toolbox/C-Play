@@ -41,6 +41,27 @@ set(SOURCE_FILES
     worker.h
 )
 
+set(KCFCG_FILE_NAMES
+    audiosettings
+    gridsettings
+    imagesettings
+    locationsettings
+    mousesettings
+    playbacksettings
+    playlistsettings
+    userinterfacesettings
+)
+set(KCFCG_MOC_FILES "")
+set(KCFCG_FILES "")
+foreach(KCFCG_NAME ${KCFCG_FILE_NAMES})
+	set(KCFCG_FILE settings/${KCFCG_NAME}.kcfgc)
+    kconfig_add_kcfg_files(${TARGET_NAME} GENERATE_MOC ${KCFCG_FILE})
+	list(APPEND KCFCG_FILES ${KCFCG_FILE})
+	list(APPEND KCFCG_MOC_FILES ${CMAKE_CURRENT_BINARY_DIR}/${KCFCG_NAME}.moc)
+endforeach()
+source_group(Kcfcg FILES ${KCFCG_FILES})
+source_group(${AUTO_SOURCE_NAME} FILES ${KCFCG_MOC_FILES})
+
 if(BUILD_CPLAY_WITH_QT6)
     target_sources(${TARGET_NAME} 
         PRIVATE 
@@ -98,6 +119,21 @@ if(BUILD_CPLAY_WITH_QT6)
         ${QML_SRC_FILES}
     )
     source_group(Qml FILES ${QML_SRC_FILES})
+	
+	set(RCC_FILE_DIR ${CMAKE_CURRENT_BINARY_DIR}/.rcc)
+	set(QMLCACHE_FILE_DIR ${RCC_FILE_DIR}/qmlcache)
+	set(QMLCACHE_FILES "")
+	foreach(QML_SRC_FILE ${QML_SRC_FILES})
+		string(REPLACE ".qml" "_qml.cpp" QML_CACHE_FILE ${QML_SRC_FILE})
+		list(APPEND QMLCACHE_FILES ${QMLCACHE_FILE_DIR}/C-Play_${QML_CACHE_FILE})
+	endforeach()
+	list(APPEND QMLCACHE_FILES ${RCC_FILE_DIR}/qrc_cplay_raw_qml_0.cpp)
+	list(APPEND QMLCACHE_FILES ${RCC_FILE_DIR}/qrc_C-Play_raw_qml_0.cpp)
+	list(APPEND QMLCACHE_FILES ${RCC_FILE_DIR}/qrc_qmake_org_ctoolbox_cplay.cpp)
+	list(APPEND QMLCACHE_FILES ${QMLCACHE_FILE_DIR}/C-Play_qml_loader_file_list.cpp)
+	list(APPEND QMLCACHE_FILES ${QMLCACHE_FILE_DIR}/C-Play_qmlcache_loader.cpp)
+	list(APPEND QMLCACHE_FILES ${CMAKE_CURRENT_BINARY_DIR}/C-play_qmltyperegistrations.cpp)
+	source_group(${AUTO_SOURCE_NAME} FILES ${QMLCACHE_FILES})
 
     set(TARGET_LIBRARIES
         Qt6::Core
@@ -122,6 +158,13 @@ if(BUILD_CPLAY_WITH_QT6)
         sgct
         glm
     )
+	
+	set_target_properties(all_qmltyperegistrations PROPERTIES FOLDER ${AUTO_TARGET_NAME})
+	set_target_properties(${TARGET_NAME}_automoc_json_extraction PROPERTIES FOLDER ${AUTO_TARGET_NAME})
+	set_target_properties(${TARGET_NAME}_other_files PROPERTIES FOLDER ${AUTO_TARGET_NAME})
+	set_target_properties(${TARGET_NAME}_qmltyperegistration PROPERTIES FOLDER ${AUTO_TARGET_NAME})
+	set_target_properties(${TARGET_NAME}_tooling PROPERTIES FOLDER ${AUTO_TARGET_NAME})
+	set_target_properties(fetch-translations PROPERTIES FOLDER ${AUTO_TARGET_NAME})
 
 else()
     set(QML_IMPORT_PATH "${CMAKE_CURRENT_SOURCE_DIR}/qml/qt5" CACHE STRING "Qt Creator 4.1 extra qml import paths" FORCE)
@@ -159,21 +202,6 @@ else()
         glm
     )
 endif()
-
-set(KCFCG_FILES
-    settings/audiosettings.kcfgc
-    settings/gridsettings.kcfgc
-    settings/imagesettings.kcfgc
-    settings/locationsettings.kcfgc
-    settings/mousesettings.kcfgc
-    settings/playbacksettings.kcfgc
-    settings/playlistsettings.kcfgc
-    settings/userinterfacesettings.kcfgc
-)
-foreach(KCFCG_FILE ${KCFCG_FILES})
-    kconfig_add_kcfg_files(${TARGET_NAME} GENERATE_MOC ${KCFCG_FILE})
-endforeach()
-source_group(Kcfcg FILES ${KCFCG_FILES})
 
 target_include_directories(${TARGET_NAME} PRIVATE playlist)
 
