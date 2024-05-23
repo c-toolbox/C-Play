@@ -19,22 +19,22 @@ Kirigami.ApplicationWindow {
     height: 700
     title: qsTr("C-Play Settings")
     visible: false
-    //pageStack.initialPage: "qrc:/Navigation.qml"
+    property string pagePath: "qrc:/qt/qml/org/ctoolbox/cplay/qml_qt6/Settings"
 
-    Component.onCompleted: pageStack.push("qrc:/Navigation.qml")
+    Component.onCompleted: pageStack.push(`${root.pagePath}/Navigation.qml`)
 
     Loader {
-        source: "qrc:/PlaybackSettings.qml"
+        source: `${root.pagePath}/PlaybackSettings.qml`
         asynchronous: true
     }
 
     Loader {
-        source: "qrc:/GridSettings.qml"
+        source: `${root.pagePath}/GridSettings.qml`
         asynchronous: true
     }
 	
 	Loader {
-        source: "qrc:/ImageSettings.qml"
+        source: `${root.pagePath}/ImageSettings.qml`
         asynchronous: true
     }
 

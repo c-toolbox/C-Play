@@ -51,7 +51,6 @@ ItemDelegate {
 
     ToolTip {
         text: model.title
-        visible: root.containsMouse
         font.pointSize: Kirigami.Units.gridUnit - 5
     }
 

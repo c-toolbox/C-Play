@@ -1,18 +1,22 @@
 /*
+ * SPDX-FileCopyrightText: 2024 Erik Sundén <eriksunden85@gmail.com>
  * SPDX-FileCopyrightText: 2020 George Florea Bănuș <georgefb899@gmail.com>
  *
  * SPDX-License-Identifier: GPL-3.0-or-later
  */
 
-import QtQuick 2.12
-import QtQuick.Controls 2.12
-import QtQuick.Layouts 1.12
-import org.kde.kirigami 2.11 as Kirigami
+import QtQuick
+import QtQuick.Controls
+import QtQuick.Layouts
+import org.kde.kirigami as Kirigami
+
+import org.ctoolbox.cplay
 
 Popup {
     id: root
 
-    property string headerTitle
+    property string title: ""
+    property string subtitle: ""
     property int buttonIndex: -1
 
     signal actionSelected(string actionName)
@@ -24,26 +28,24 @@ Popup {
     focus: true
 
     onOpened: {
-        filterActionsField.text = ""
+        actionsListView.positionViewAtBeginning()
+        filterActionsField.selectAll()
         filterActionsField.focus = true
     }
 
     onActionSelected: close()
 
-    Action {
-        shortcut: "ctrl+f"
-        onTriggered: filterActionsField.forceActiveFocus(Qt.ShortcutFocusReason)
-    }
-
     ColumnLayout {
         anchors.fill: parent
 
         Kirigami.Heading {
-            text: root.headerTitle
+            text: root.title
+            visible: text !== ""
         }
 
         Label {
-            text: qsTr("Double click to set action")
+            text: root.subtitle
+            visible: text !== ""
             Layout.fillWidth: true
             Layout.alignment: Qt.AlignTop
         }
@@ -75,39 +77,50 @@ Popup {
             Keys.onReturnPressed: actionSelected("")
         }
 
-        ListView {
-            id: actionsListView
-
-            property var actionsList: Object.keys(window.appActions).sort()
-
-            implicitHeight: 30 * model.count
-            model: actionsList
-            spacing: 1
-            clip: true
-            currentIndex: focus ? 0 : -1
-            delegate: Kirigami.BasicListItem {
-                height: 30
-                width: root.width
-                label: modelData
-                reserveSpaceForIcon: false
-                onDoubleClicked: actionSelected(modelData)
-                Keys.onEnterPressed: actionSelected(modelData)
-                Keys.onReturnPressed: actionSelected(modelData)
-            }
-
+        ScrollView {
             Layout.fillWidth: true
             Layout.fillHeight: true
             Layout.alignment: Qt.AlignTop
-            KeyNavigation.up: clearActionButton
-            KeyNavigation.down: filterActionsField
-            Keys.onPressed: {
-                if (event.key === Qt.Key_End) {
-                    actionsListView.currentIndex = actionsListView.count - 1
-                    actionsListView.positionViewAtIndex(actionsListView.currentIndex,ListView.Center)
+
+            ListView {
+                id: actionsListView
+
+                property var actionsList: Object.keys(window.appActions).sort()
+
+                implicitHeight: 30 * model.count
+                model: actionsList
+                spacing: 1
+                clip: true
+                currentIndex: focus ? 0 : -1
+
+                delegate: ItemDelegate {
+                    property string actionName: modelData
+
+                    width: actionsListView.width
+
+                    contentItem: RowLayout {
+                        Label {
+                            text: modelData
+
+                            Layout.fillWidth: true
+                        }
+                    }
+                    onClicked: actionSelected(modelData)
+                    Keys.onEnterPressed: actionSelected(modelData)
+                    Keys.onReturnPressed: actionSelected(modelData)
                 }
-                if (event.key === Qt.Key_Home) {
-                    actionsListView.currentIndex = 0
-                    actionsListView.positionViewAtIndex(actionsListView.currentIndex,ListView.Center)
+
+                KeyNavigation.up: filterActionsField
+                KeyNavigation.down: filterActionsField
+                Keys.onPressed: {
+                    if (event.key === Qt.Key_End) {
+                        actionsListView.currentIndex = actionsListView.count - 1
+                        actionsListView.positionViewAtEnd()
+                    }
+                    if (event.key === Qt.Key_Home) {
+                        actionsListView.currentIndex = 0
+                        actionsListView.positionViewAtBeginning()
+                    }
                 }
             }
         }

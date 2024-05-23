@@ -12,7 +12,6 @@ import QtQuick.Controls
 import org.kde.kirigami as Kirigami
 import org.ctoolbox.cplay
 
-
 SettingsBasePage {
     id: root
 
@@ -22,6 +21,7 @@ SettingsBasePage {
     ColumnLayout {
         id: content
 
+        anchors.fill: parent
         spacing: Kirigami.Units.largeSpacing
 
         ListModel {
@@ -52,11 +52,11 @@ SettingsBasePage {
                 key: "middlex2"
             }
             ListElement {
-                label: "ScrollUp"
+                label: "Scroll up"
                 key: "scrollUp"
             }
             ListElement {
-                label: "ScrollDown"
+                label: "Scroll down"
                 key: "scrollDown"
             }
         }
@@ -66,25 +66,43 @@ SettingsBasePage {
 
             property int delegateHeight
 
-            implicitHeight: delegateHeight * (mouseButtonsListView.count + 1)
             model: mouseActionsModel
-
-            delegate: Kirigami.BasicListItem {
+            delegate: ItemDelegate {
                 id: delegate
 
-                label: model.label
-                subtitle: MouseSettings[model.key] ? MouseSettings[model.key] : "No action set"
-                icon: MouseSettings[model.key] ? "checkmark" : ""
-                reserveSpaceForIcon: true
                 width: content.width
                 highlighted: false
+
+                contentItem: RowLayout {
+                    Kirigami.IconTitleSubtitle {
+                        title: model.label
+                        subtitle: MouseSettings[model.key]
+                                  ? appActions[MouseSettings[model.key]].text
+                                  : "No action set"
+                        icon.name: MouseSettings[model.key] ? "checkmark" : ""
+
+                        Layout.fillWidth: true
+                    }
+                    ToolButton {
+                        visible: MouseSettings[model.key]
+                        icon.name: "edit-clear-all"
+                        onClicked: {
+                            MouseSettings[model.key] = ""
+                            MouseSettings.save()
+                        }
+
+                        ToolTip {
+                            text: "Clear action"
+                        }
+                    }
+                }
 
                 onClicked: openSelectActionPopup()
                 Component.onCompleted: mouseButtonsListView.delegateHeight = height
 
                 Connections {
                     target: selectActionPopup
-                    function onActionSelected() {
+                    function onActionSelected(actionName) {
                         if (selectActionPopup.buttonIndex === model.index) {
                             MouseSettings[model.key] = actionName
                             MouseSettings.save()
@@ -94,11 +112,13 @@ SettingsBasePage {
 
                 function openSelectActionPopup() {
                     selectActionPopup.buttonIndex = model.index
-                    selectActionPopup.headerTitle = model.label
+                    selectActionPopup.title = model.label
                     selectActionPopup.open()
                 }
             }
 
+            Layout.fillWidth: true
+            Layout.fillHeight: true
         }
 
         Item {
@@ -106,6 +126,10 @@ SettingsBasePage {
             height: Kirigami.Units.gridUnit
         }
 
-        SelectActionPopup { id: selectActionPopup }
+        SelectActionPopup {
+            id: selectActionPopup
+
+            subtitle: "Double click to set action"
+        }
     }
 }

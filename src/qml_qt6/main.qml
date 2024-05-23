@@ -8,15 +8,13 @@
 
 import QtQuick.Window
 import QtQuick.Layouts
+import QtQuick
+import QtQuick.Controls
 import Qt.labs.platform 1.0 as Platform
 
 import org.kde.kirigami as Kirigami
 import org.ctoolbox.cplay
 
-import QtQuick
-import QtQuick.Controls
-
-import mpv 1.0
 import "Menus"
 import "Settings"
 
@@ -29,7 +27,7 @@ Kirigami.ApplicationWindow {
 
     visible: true
     title: mpv.mediaTitle || qsTr("C-Play")
-    width: 1580
+    width: 1610
     minimumWidth: 1152
     maximumWidth: 1728
     height: 880
@@ -37,7 +35,7 @@ Kirigami.ApplicationWindow {
     maximumHeight: 990
     color: Kirigami.Theme.backgroundColor
 
-    onVisibilityChanged: {
+    onVisibilityChanged: function(visibility) {
         if (!window.isFullScreen()) {
             preFullScreenVisibility = visibility
         }

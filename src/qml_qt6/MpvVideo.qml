@@ -10,7 +10,6 @@ import QtQuick
 import QtQuick.Window
 import QtQuick.Controls
 import QtQuick.Layouts
-import mpv 1.0
 
 import org.ctoolbox.cplay
 import org.kde.kirigami as Kirigami

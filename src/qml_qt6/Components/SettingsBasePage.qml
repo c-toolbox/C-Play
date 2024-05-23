@@ -4,12 +4,12 @@
  * SPDX-License-Identifier: GPL-3.0-or-later
  */
 
-import QtQuick 2.12
-import QtQuick.Controls 2.12
-import QtQuick.Layouts 1.12
-import QtQml 2.12
+import QtQuick
+import QtQuick.Controls
+import QtQuick.Layouts
+import QtQml
 
-import org.kde.kirigami 2.11 as Kirigami
+import org.kde.kirigami as Kirigami
 
 Kirigami.ScrollablePage {
     id: root
@@ -17,15 +17,13 @@ Kirigami.ScrollablePage {
     property bool hasHelp: true
     property string helpUrl: "https://c-toolbox.github.io/C-Play/versions/v_2_0.html"
 
-    actions {
-        contextualActions: [
-            Kirigami.Action {
-                text: qsTr("Help!")
-                iconName: "system-help"
-                enabled: root.hasHelp
-                onTriggered: Qt.openUrlExternally(helpUrl)
-            }
-        ]
-    }
+    actions: [
+        Kirigami.Action {
+            text: qsTr("Help!")
+            icon.name: "system-help"
+            enabled: root.hasHelp
+            onTriggered: Qt.openUrlExternally(helpUrl)
+        }
+    ]
 
 }

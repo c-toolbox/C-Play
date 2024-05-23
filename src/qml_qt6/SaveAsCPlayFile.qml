@@ -16,8 +16,6 @@ import Qt.labs.platform 1.0 as Platform
 import org.kde.kirigami as Kirigami
 import org.ctoolbox.cplay
 
-import mpv 1.0
-
 Kirigami.ApplicationWindow {
     width: 600
     height: 350

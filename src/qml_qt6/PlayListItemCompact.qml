@@ -61,21 +61,20 @@ ItemDelegate {
         function onPauseChanged() {
             if (model.isPlaying) {
                 if (mpv.pause) {
-                    root.icon = "media-playback-pause"
+                    root.icon.name = "media-playback-pause"
                 }
                 else {
-                    root.icon = "media-playback-start"
+                    root.icon.name = "media-playback-start"
                 }
             }
-            else if (root.icon !== "") {
-                root.icon = ""
+            else if (root.icon.name !== "") {
+                root.icon.name = ""
             }
         }
     }
 
     ToolTip {
         text: (PlaylistSettings.showMediaTitle ? model.title : model.name)
-        visible: root.containsMouse
         font.pointSize: Kirigami.Units.gridUnit - 5
     }
 

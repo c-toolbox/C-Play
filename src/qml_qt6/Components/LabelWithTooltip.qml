@@ -4,9 +4,9 @@
  * SPDX-License-Identifier: GPL-3.0-or-later
  */
 
-import QtQuick 2.12
-import QtQuick.Controls 2.12 as QQC2
-import QtQuick.Layouts 1.12
+import QtQuick
+import QtQuick.Controls as QQC2
+import QtQuick.Layouts
 
 QQC2.Label {
     id: root

@@ -38,45 +38,46 @@ Kirigami.Page
 
     ListModel {
         id: settingsPagesModel
+        property string pagePath: "qrc:/qt/qml/org/ctoolbox/cplay/qml_qt6/Settings"
 		ListElement {
             name: "Audio"
             iconName: "audio-speakers-symbolic"
-            page: "qrc:/AudioSettings.qml"
+            page: "AudioSettings.qml"
         }
 		ListElement {
             name: "Grid/mapping"
             iconName: "kstars_hgrid"
-            page: "qrc:/GridSettings.qml"
+            page: "GridSettings.qml"
         }
 		ListElement {
             name: "Image"
             iconName: "kdenlive-select-images"
-            page: "qrc:/ImageSettings.qml"
+            page: "ImageSettings.qml"
         }
         ListElement {
             name: "Location"
             iconName: "find-location"
-            page: "qrc:/LocationSettings.qml"
+            page: "LocationSettings.qml"
         }
 		ListElement {
             name: "Mouse"
             iconName: "input-mouse"
-            page: "qrc:/MouseSettings.qml"
+            page: "MouseSettings.qml"
         }
         ListElement {
             name: "Playback"
             iconName: "video-x-generic"
-            page: "qrc:/PlaybackSettings.qml"
+            page: "PlaybackSettings.qml"
         }
         ListElement {
             name: "Playlist"
             iconName: "view-media-playlist"
-            page: "qrc:/PlaylistSettings.qml"
+            page: "PlaylistSettings.qml"
         }
 		ListElement {
             name: "User interface"
             iconName: "edit-paste-style"
-            page: "qrc:/UserInterfaceSettings.qml"
+            page: "UserInterfaceSettings.qml"
         }
     }
 
@@ -85,10 +86,11 @@ Kirigami.Page
 
         anchors.fill: parent
         model: settingsPagesModel
-        delegate: Kirigami.BasicListItem {
+        delegate: ItemDelegate {
+            width: settingsPagesList.width
             text: qsTr(name)
-            icon: iconName
-            onClicked: applicationWindow().pageStack.push(model.page)
+            icon.name: iconName
+            onClicked: applicationWindow().pageStack.push(`${settingsPagesModel.pagePath}/${model.page}`)
         }
     }
 }

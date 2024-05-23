@@ -19,17 +19,16 @@ import org.ctoolbox.cplay
 SettingsBasePage {
     id: root
 
-    FileDialog {
+    FolderDialog {
         id: openPrimaryFileDialogLocation
 
-        folder: LocationSettings.fileDialogLocation !== ""
+        currentFolder: LocationSettings.fileDialogLocation !== ""
                 ? app.pathToUrl(LocationSettings.fileDialogLocation)
                 : app.pathToUrl(LocationSettings.fileDialogLastLocation)
-        selectFolder: true
         title: "Choose Primary File Dialog Location"
 
         onAccepted: {
-            var filePath = openPrimaryFileDialogLocation.fileUrl.toString();
+            var filePath = openPrimaryFileDialogLocation.selectedFolder.toString();
             // remove prefixed "file:///"
             filePath = filePath.replace(/^(file:\/{3})/,"");
 
@@ -43,17 +42,16 @@ SettingsBasePage {
         onRejected: mpv.focus = true
     }
 
-    FileDialog {
+    FolderDialog {
         id: openCPlayFileLocation
 
-        folder: LocationSettings.cPlayFileLocation !== ""
+        currentFolder: LocationSettings.cPlayFileLocation !== ""
                 ? app.pathToUrl(LocationSettings.cPlayFileLocation)
                 : app.pathToUrl(LocationSettings.fileDialogLastLocation)
-        selectFolder: true
         title: "Choose Common C-Play File Location"
 
         onAccepted: {
-            var filePath = openCPlayFileLocation.fileUrl.toString();
+            var filePath = openCPlayFileLocation.selectedFolder.toString();
             // remove prefixed "file:///"
             filePath = filePath.replace(/^(file:\/{3})/,"");
 
@@ -67,17 +65,16 @@ SettingsBasePage {
         onRejected: mpv.focus = true
     }
 
-    FileDialog {
+    FolderDialog {
         id: openCPlayMediaLocation
 
-        folder: LocationSettings.cPlayMediaLocation !== ""
+        currentFolder: LocationSettings.cPlayMediaLocation !== ""
                 ? app.pathToUrl(LocationSettings.cPlayMediaLocation)
                 : app.pathToUrl(LocationSettings.fileDialogLastLocation)
-        selectFolder: true
         title: "Choose Common C-Play Media Location"
 
         onAccepted: {
-            var filePath = openCPlayMediaLocation.fileUrl.toString();
+            var filePath = openCPlayMediaLocation.selectedFolder.toString();
             // remove prefixed "file:///"
             filePath = filePath.replace(/^(file:\/{3})/,"");
 
@@ -91,17 +88,16 @@ SettingsBasePage {
         onRejected: mpv.focus = true
     }
 
-    FileDialog {
+    FolderDialog {
         id: openUniviewVideoLocation
 
-        folder: LocationSettings.univiewVideoLocation !== ""
+        currentFolder: LocationSettings.univiewVideoLocation !== ""
                 ? app.pathToUrl(LocationSettings.univiewVideoLocation)
                 : app.pathToUrl(LocationSettings.fileDialogLastLocation)
-        selectFolder: true
         title: "Choose Common Uniview Media Location"
 
         onAccepted: {
-            var filePath = openUniviewVideoLocation.fileUrl.toString();
+            var filePath = openUniviewVideoLocation.selectedFolder.toString();
             // remove prefixed "file:///"
             filePath = filePath.replace(/^(file:\/{3})/,"");
 

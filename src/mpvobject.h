@@ -9,7 +9,7 @@
 #ifndef MPVOBJECT_H
 #define MPVOBJECT_H
 
-#include <QtQuick/QQuickFramebufferObject>
+#include <QQuickFramebufferObject>
 #include <QVector3D>
 
 #include <client.h>
@@ -346,7 +346,7 @@ public:
 
     MpvObject(QQuickItem * parent = 0);
     virtual ~MpvObject();
-    virtual Renderer *createRenderer() const;
+    Renderer *createRenderer() const override;
 
     TracksModel* audioTracksModel() const;
     PlayListModel* getPlayListModel() const;
