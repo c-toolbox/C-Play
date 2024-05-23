@@ -52,44 +52,44 @@ if(BUILD_CPLAY_WITH_QT6)
     qt_policy(SET QTP0001 NEW)
 
     set(QML_SRC_FILES
-        qml_qt6/Components/ImageAdjustmentSlider.qml
-        qml_qt6/Components/LabelWithTooltip.qml
-        qml_qt6/Components/SelectActionPopup.qml
-        qml_qt6/Components/SettingsBasePage.qml
-        qml_qt6/Components/SettingsHeader.qml
-        qml_qt6/Menus/AudioMenu.qml
-        qml_qt6/Menus/FileMenu.qml
-        qml_qt6/Menus/HelpMenu.qml
-        qml_qt6/Menus/PlaybackMenu.qml
-        qml_qt6/Menus/SettingsMenu.qml
-        qml_qt6/Settings/AudioSettings.qml
-        qml_qt6/Settings/GridSettings.qml
-        qml_qt6/Settings/ImageSettings.qml
-        qml_qt6/Settings/LocationSettings.qml
-        qml_qt6/Settings/MouseSettings.qml
-        qml_qt6/Settings/Navigation.qml
-        qml_qt6/Settings/PlaybackSettings.qml
-        qml_qt6/Settings/PlaylistSettings.qml
-        qml_qt6/Settings/UserInterfaceSettings.qml
-        qml_qt6/Settings/SettingsEditor.qml
-        qml_qt6/Actions.qml
-        qml_qt6/Footer.qml
-        qml_qt6/HProgressBar.qml
-        qml_qt6/Header.qml
-        qml_qt6/MpvVideo.qml
-        qml_qt6/Osd.qml
-        qml_qt6/PlayList.qml
-        qml_qt6/PlayListItemCompact.qml
-        qml_qt6/VolumeSlider.qml
-        qml_qt6/Main.qml
-        qml_qt6/PlaySections.qml
-        qml_qt6/PlaySectionsItemCompact.qml
-        qml_qt6/VisibilitySlider.qml
-        qml_qt6/Presentation.qml
-        qml_qt6/BackgroundImage.qml
-        qml_qt6/ForegroundImage.qml
-        qml_qt6/SaveAsCPlayFile.qml
-        qml_qt6/ViewPlaylistItem.qml
+        qml/qt6/Components/ImageAdjustmentSlider.qml
+        qml/qt6/Components/LabelWithTooltip.qml
+        qml/qt6/Components/SelectActionPopup.qml
+        qml/qt6/Components/SettingsBasePage.qml
+        qml/qt6/Components/SettingsHeader.qml
+        qml/qt6/Menus/AudioMenu.qml
+        qml/qt6/Menus/FileMenu.qml
+        qml/qt6/Menus/HelpMenu.qml
+        qml/qt6/Menus/PlaybackMenu.qml
+        qml/qt6/Menus/SettingsMenu.qml
+        qml/qt6/Settings/AudioSettings.qml
+        qml/qt6/Settings/GridSettings.qml
+        qml/qt6/Settings/ImageSettings.qml
+        qml/qt6/Settings/LocationSettings.qml
+        qml/qt6/Settings/MouseSettings.qml
+        qml/qt6/Settings/Navigation.qml
+        qml/qt6/Settings/PlaybackSettings.qml
+        qml/qt6/Settings/PlaylistSettings.qml
+        qml/qt6/Settings/UserInterfaceSettings.qml
+        qml/qt6/Settings/SettingsEditor.qml
+        qml/qt6/Actions.qml
+        qml/qt6/Footer.qml
+        qml/qt6/HProgressBar.qml
+        qml/qt6/Header.qml
+        qml/qt6/MpvVideo.qml
+        qml/qt6/Osd.qml
+        qml/qt6/PlayList.qml
+        qml/qt6/PlayListItemCompact.qml
+        qml/qt6/VolumeSlider.qml
+        qml/qt6/Main.qml
+        qml/qt6/PlaySections.qml
+        qml/qt6/PlaySectionsItemCompact.qml
+        qml/qt6/VisibilitySlider.qml
+        qml/qt6/Presentation.qml
+        qml/qt6/BackgroundImage.qml
+        qml/qt6/ForegroundImage.qml
+        qml/qt6/SaveAsCPlayFile.qml
+        qml/qt6/ViewPlaylistItem.qml
     )
 
     qt_add_qml_module(${TARGET_NAME}
@@ -124,12 +124,12 @@ if(BUILD_CPLAY_WITH_QT6)
     )
 
 else()
-    set(QML_IMPORT_PATH "${CMAKE_CURRENT_SOURCE_DIR}/qml" CACHE STRING "Qt Creator 4.1 extra qml import paths" FORCE)
+    set(QML_IMPORT_PATH "${CMAKE_CURRENT_SOURCE_DIR}/qml/qt5" CACHE STRING "Qt Creator 4.1 extra qml import paths" FORCE)
 
     target_sources(${TARGET_NAME} 
         PRIVATE 
         ${SOURCE_FILES}
-        qml.qrc
+        qml/qml.qrc
         ../data/images/images.qrc
         ../data/images/icon.rc
     )

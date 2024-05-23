@@ -119,7 +119,7 @@ Application::Application(int &argc, char **argv, const QString &applicationName)
 
     m_engine->loadFromModule("org.ctoolbox.cplay", "Main");
 #else
-    const QUrl url(QStringLiteral("qrc:/qml/main.qml"));
+    const QUrl url(QStringLiteral("qrc:/qt5/main.qml"));
     auto onObjectCreated = [url](QObject* obj, const QUrl& objUrl) {
         if (!obj && url == objUrl) {
             QCoreApplication::exit(-1);
@@ -127,7 +127,7 @@ Application::Application(int &argc, char **argv, const QString &applicationName)
         };
     QObject::connect(m_engine, &QQmlApplicationEngine::objectCreated,
         m_app, onObjectCreated, Qt::QueuedConnection);
-    m_engine->addImportPath(QStringLiteral("qrc:/qml"));
+    m_engine->addImportPath(QStringLiteral("qrc:/qt5"));
 
     setupQmlContextProperties();
 
