@@ -4,7 +4,7 @@
 # These three must be integers
 !define VERSIONMAJOR 2
 !define VERSIONMINOR 0
-!define VERSIONBUILD 0
+!define VERSIONBUILD 1
 # This is the size (in kB) of all the files copied into the folder
 !define INSTALLSIZE 400000
 
@@ -83,12 +83,12 @@ functionEnd
 section "uninstall"
  
 	# Remove Start Menu launcher
-	delete "$SMPROGRAMS\${APPNAME}\${APPNAME} ${VERSIONMAJOR}.${VERSIONMINOR}${VERSIONBUILD}.lnk"
+	delete "$SMPROGRAMS\${APPNAME}\${APPNAME} ${VERSIONMAJOR}.${VERSIONMINOR}.lnk"
 	# Try to remove the Start Menu folder - this will only happen if it is empty
 	rmDir "$SMPROGRAMS\${APPNAME}"
 	
 	# Remove Desktop shortcut
-	delete "$DESKTOP\${APPNAME} ${VERSIONMAJOR}.${VERSIONMINOR}${VERSIONBUILD}.lnk"
+	delete "$DESKTOP\${APPNAME} ${VERSIONMAJOR}.${VERSIONMINOR}.lnk"
  
 	# Remove files
 	RMDir /R $INSTDIR

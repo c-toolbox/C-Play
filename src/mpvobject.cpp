@@ -414,7 +414,7 @@ void MpvObject::setAudioId(int value)
         return;
     }
     if(value < 0) {
-        setProperty(QStringLiteral("aid"), "auto");
+        setProperty(QStringLiteral("aid"), QStringLiteral("auto"));
     }
     else
         setProperty(QStringLiteral("aid"), value);
