@@ -278,7 +278,9 @@ Rectangle {
     Component {
         id: playListItemCompact
         PlayListItemCompact {
+            highlighted: playlistView.currentIndex === index
             onClicked: {
+                playlistView.currentIndex = index
                 if(viewPlaylistItemWindow.visible) {
                     viewPlaylistItemWindow.updateValues(playlistView.currentIndex)
                 }

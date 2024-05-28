@@ -19,17 +19,21 @@ ItemDelegate {
     padding: 0
 
     implicitWidth: ListView.view.width
-    highlighted: model.isPlaying
+    down: model.isPlaying
 
     background: Rectangle {
         anchors.fill: parent
         color: {
-            if (hovered) {
-                return Qt.alpha(Kirigami.Theme.hoverColor, 0.6)
+            if (highlighted) {
+                return Qt.alpha(Kirigami.Theme.highlightColor, 0.6)
             }
 
-            if (highlighted) {
-                return Qt.alpha(Kirigami.Theme.highlightColor, 0.3)
+            if (hovered) {
+                return Qt.alpha(Kirigami.Theme.hoverColor, 0.4)
+            }
+
+            if(down) {
+                return Qt.alpha(Kirigami.Theme.positiveBackgroundColor, 0.8)
             }
 
             return Kirigami.Theme.backgroundColor

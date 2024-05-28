@@ -285,7 +285,12 @@ Rectangle {
 
     Component {
         id: playSectionsItemCompact
-        PlaySectionsItemCompact {}
+        PlaySectionsItemCompact {
+            highlighted: sectionsView.currentIndex === index
+            onClicked: {
+                sectionsView.currentIndex = index
+            }
+        }
     }
 
     Timer {
