@@ -18,22 +18,31 @@ ItemDelegate {
     property string rowNumber: (index + 1).toString()
     padding: 0
 
+    implicitWidth: ListView.view.width
+    highlighted: model.isPlaying
+
     background: Rectangle {
         anchors.fill: parent
         color: {
-            let color = Kirigami.Theme.backgroundColor
-            Qt.hsla(color.hslHue, color.hslSaturation, color.hslLightness, 1)
+            if (hovered) {
+                return Qt.alpha(Kirigami.Theme.hoverColor, 0.6)
+            }
+
+            if (highlighted) {
+                return Qt.alpha(Kirigami.Theme.highlightColor, 0.3)
+            }
+
+            return Kirigami.Theme.backgroundColor
         }
     }
 
     contentItem: Kirigami.IconTitleSubtitle {
-        icon.name: model.isPlaying ? "office-chart-pie" : ""
+        icon.name: "drive-partition"
         icon.color: color
+        icon.width: model.isPlaying ? root.height * 0.8 : 0
         title: mainText()
-        subtitle: model.startTime + " - " + model.endTime + " (" + model.duration + ")" + " - At end: " + model.eosMode
+        subtitle: subText()
         color: root.hovered || root.highlighted ? Kirigami.Theme.highlightedTextColor : Kirigami.Theme.textColor
-        ToolTip.text: title
-        ToolTip.visible: root.hovered
     }
 
     Timer {
@@ -49,11 +58,6 @@ ItemDelegate {
         mpv.loadSection(index)
     }
 
-    ToolTip {
-        text: model.title
-        font.pointSize: Kirigami.Units.gridUnit - 5
-    }
-
     function mainText() {
         const rowNumber = pad(root.rowNumber, sectionsView.count.toString().length) + ". "
 
@@ -62,6 +66,10 @@ ItemDelegate {
         }
         return (model.title)
     }
+
+    function subText() {
+        return model.startTime + " - " + model.endTime + " (" + model.duration + ")" + "\nAt end: " + model.eosMode
+    } 
 
     function pad(number, length) {
         while (number.length < length)

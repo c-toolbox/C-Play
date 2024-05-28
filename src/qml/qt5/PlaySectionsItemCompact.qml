@@ -10,7 +10,7 @@ import QtQuick.Controls 2.15
 import QtQuick.Layouts 1.15
 import QtGraphicalEffects 1.15
 
-import org.kde.kirigami 2.11 as Kirigami
+import org.kde.kirigami 2.15 as Kirigami
 import org.ctoolbox.cplay 1.0
 import Haruna.Components 1.0 as HC
 
@@ -38,12 +38,6 @@ Kirigami.BasicListItem {
     onDoubleClicked: {
         mpv.pause = true
         mpv.loadSection(index)
-    }
-
-    ToolTip {
-        text: model.title
-        visible: root.containsMouse
-        font.pointSize: Kirigami.Units.gridUnit - 5
     }
 
     function mainText() {

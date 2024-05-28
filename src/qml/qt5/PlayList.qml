@@ -12,7 +12,7 @@ import QtQuick.Layouts 1.15
 import QtGraphicalEffects 1.15
 import QtQuick.Dialogs 1.3
 
-import org.kde.kirigami 2.11 as Kirigami
+import org.kde.kirigami 2.15 as Kirigami
 import org.ctoolbox.cplay 1.0
 
 Rectangle {
@@ -144,7 +144,7 @@ Rectangle {
                 }
             }
             Button {
-                icon.name: "kdenlive-zindex-up"
+                icon.name: "pan-up-symbolic"
                 onClicked: {
                     mpv.playlistModel.moveItemUp(playlistView.currentIndex)
                 }
@@ -153,7 +153,7 @@ Rectangle {
                 }
             }
             Button {
-                icon.name: "kdenlive-zindex-down"
+                icon.name: "pan-down-symbolic"
                 onClicked: {
                     mpv.playlistModel.moveItemDown(playlistView.currentIndex)
                 }

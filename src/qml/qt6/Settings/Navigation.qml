@@ -38,7 +38,7 @@ Kirigami.Page
 
     ListModel {
         id: settingsPagesModel
-        property string pagePath: "qrc:/qt/qml/org/ctoolbox/cplay/qml_qt6/Settings"
+        property string pagePath: "qrc:/qt/qml/org/ctoolbox/cplay/qml/qt6/Settings"
 		ListElement {
             name: "Audio"
             iconName: "audio-speakers-symbolic"

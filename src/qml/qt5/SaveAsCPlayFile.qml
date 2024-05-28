@@ -13,7 +13,7 @@ import QtGraphicalEffects 1.15
 import QtQuick.Dialogs 1.3
 import Qt.labs.platform 1.0 as Platform
 
-import org.kde.kirigami 2.11 as Kirigami
+import org.kde.kirigami 2.15 as Kirigami
 import org.ctoolbox.cplay 1.0
 import Haruna.Components 1.0
 import mpv 1.0

@@ -19,7 +19,7 @@ Kirigami.ApplicationWindow {
     height: 700
     title: qsTr("C-Play Settings")
     visible: false
-    property string pagePath: "qrc:/qt/qml/org/ctoolbox/cplay/qml_qt6/Settings"
+    property string pagePath: "qrc:/qt/qml/org/ctoolbox/cplay/qml/qt6/Settings"
 
     Component.onCompleted: pageStack.push(`${root.pagePath}/Navigation.qml`)
 
