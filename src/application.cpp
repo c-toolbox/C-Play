@@ -76,6 +76,9 @@ static QApplication *createApplication(int &argc, char **argv, const QString &ap
 
 #if QT_VERSION >= QT_VERSION_CHECK(6, 0, 0)
     QQuickWindow::setGraphicsApi(QSGRendererInterface::OpenGL);
+#else
+    QApplication::setAttribute(Qt::AA_EnableHighDpiScaling);
+    QApplication::setHighDpiScaleFactorRoundingPolicy(Qt::HighDpiScaleFactorRoundingPolicy::PassThrough);
 #endif
 
     QApplication *app = new QApplication(argc, argv);
@@ -190,13 +193,13 @@ void Application::setupAboutData()
                              Application::version());
     m_aboutData.setShortDescription(QStringLiteral("A configurable cluster video player, based on MPV, SGCT and Haruna projects. Master UI compilied with Qt ") + QStringLiteral(QT_VERSION_STR));
     m_aboutData.setLicense(KAboutLicense::GPL_V3);
-    m_aboutData.setCopyrightStatement(QStringLiteral("(c) Erik Sundén 2021-2024"));
+    m_aboutData.setCopyrightStatement(QString::fromUtf8("(c) Erik Sundén 2021-2024"));
 
     m_aboutData.setHomepage(QStringLiteral("https://c-toolbox.github.io/C-Play/"));
     m_aboutData.setBugAddress(QStringLiteral("https://github.com/c-toolbox/C-Play/issues").toUtf8());
     m_aboutData.setDesktopFileName(QStringLiteral("org.ctoolbox.cplay"));
 
-    m_aboutData.addAuthor(QStringLiteral("Contact/owner: Erik Sundén"),
+    m_aboutData.addAuthor(QString::fromUtf8("Contact/owner: Erik Sundén"),
                         QStringLiteral("Creator of C-Play"),
                         QStringLiteral("eriksunden85@gmail.com"));
 
@@ -495,7 +498,7 @@ void Application::setupActions(const QString &actionName)
     if (actionName == QStringLiteral("toggleSections")) {
         auto action = new HAction();
         action->setText(QStringLiteral("Sections"));
-        action->setIcon(QIcon::fromTheme(QStringLiteral("office-chart-pie")));
+        action->setIcon(QIcon::fromTheme(QStringLiteral("drive-partition")));
         m_collection.setDefaultShortcut(action, Qt::Key_S);
         m_collection.addAction(actionName, action);
     }

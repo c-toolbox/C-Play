@@ -413,7 +413,12 @@ void MpvObject::setAudioId(int value)
     if (value == audioId()) {
         return;
     }
-    setProperty(QStringLiteral("aid"), value);
+    if(value < 0) {
+        setProperty(QStringLiteral("aid"), "auto");
+    }
+    else
+        setProperty(QStringLiteral("aid"), value);
+    
     Q_EMIT audioIdChanged();
 }
 
@@ -900,6 +905,7 @@ void MpvObject::loadFile(const QString &file, bool updateLastPlayedFile)
         SyncHelper::instance().variables.overlayFileDirty = true;
 
         //setProperty("lavfi-complex", "");
+        setAudioId(-1);
         m_currentSectionsIndex = -1;
         m_playSectionsModel->clear();
         m_playSectionsModel->setCurrentEditItemIsEdited(true);
@@ -1022,6 +1028,8 @@ void MpvObject::loadItem(int playListIndex, bool updateLastPlayedFile) {
 
 void MpvObject::loadItem(PlayListItemData itemData, bool updateLastPlayedFile, QString flag) {
     try {
+        setAudioId(-1);
+
         QStringList optionsList;
 
         if (itemData.separateOverlayFile() != QStringLiteral("")) {

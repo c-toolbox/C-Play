@@ -13,6 +13,8 @@ set(CPLAY_VERSION_PATCH 1)
 
 add_executable(${TARGET_NAME})
 set_compile_options(${TARGET_NAME})
+add_compile_options("$<$<C_COMPILER_ID:MSVC>:/utf-8>")
+add_compile_options("$<$<CXX_COMPILER_ID:MSVC>:/utf-8>")
 
 set(SOURCE_FILES
     application.cpp
