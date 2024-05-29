@@ -1,5 +1,5 @@
 # For development use, run "bundle install", then lijne below for serving the site.
-# bundle exec jekyll serve --config _config_local.yml --livereload
+# bundle exec jekyll serve --livereload
 
 theme: "just-the-docs"
 
