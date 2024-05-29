@@ -21,8 +21,6 @@ Menu {
 
     MenuSeparator {}
 
-    MenuSeparator {}
-
     Menu {
         title: "Seek"
         MenuItem { action: actions["seekForwardSmallAction"] }

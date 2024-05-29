@@ -68,7 +68,7 @@ static QApplication *createApplication(int &argc, char **argv, const QString &ap
     QApplication::setOrganizationName(QStringLiteral("C-Play"));
     QApplication::setApplicationName(applicationName);
     QApplication::setOrganizationDomain(QStringLiteral("github.com/c-toolbox/C-Play"));
-    QApplication::setApplicationDisplayName(QStringLiteral("C-Play : Cluster Video Player"));
+    QApplication::setApplicationDisplayName(QStringLiteral("C-Play"));
     QApplication::setApplicationVersion(Application::version());
 
     QQuickStyle::setStyle(QStringLiteral("org.kde.desktop"));
@@ -189,7 +189,7 @@ void Application::setupWorkerThread()
 void Application::setupAboutData()
 {
     m_aboutData = KAboutData(QStringLiteral("C-Play"),
-                             QStringLiteral("C-Play : Cluster Video Player"),
+                             QStringLiteral("C-Play"),
                              Application::version());
     m_aboutData.setShortDescription(QStringLiteral("A configurable cluster video player, based on MPV, SGCT and Haruna projects. Master UI compilied with Qt ") + QStringLiteral(QT_VERSION_STR));
     m_aboutData.setLicense(KAboutLicense::GPL_V3);
