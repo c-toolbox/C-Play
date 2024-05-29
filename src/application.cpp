@@ -191,7 +191,7 @@ void Application::setupAboutData()
     m_aboutData = KAboutData(QStringLiteral("C-Play"),
                              QStringLiteral("C-Play"),
                              Application::version());
-    m_aboutData.setShortDescription(QStringLiteral("A configurable cluster video player, based on MPV, SGCT and Haruna projects. Master UI compilied with Qt ") + QStringLiteral(QT_VERSION_STR));
+    m_aboutData.setShortDescription(QStringLiteral("A configurable cluster video player, based on MPV, SGCT and Haruna projects. Master UI compiled with Qt ") + QStringLiteral(QT_VERSION_STR));
     m_aboutData.setLicense(KAboutLicense::GPL_V3);
     m_aboutData.setCopyrightStatement(QString::fromUtf8("(c) Erik Sundén 2021-2024"));
 
