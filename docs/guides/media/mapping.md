@@ -19,8 +19,16 @@ But "flat" movies are normally mapped onto a plane grid, fulldome/fisheye onto d
 
 In C-Play there are two different sphere grids, one for equirectangular video (EQR) and one for equi-angular cubemap video (EAC).
 
+So in summary, the mappings are:
+
+     * None (pre-split / prepared content. no mapping)
+     * Plane (regular flat content with various aspect ratios)
+     * Dome (180 fulldome/fisheye projection)
+     * Sphere EQR (360 equirectangular projection)
+     * Sphere EAC (360 equi-angular cubemap projection)
+
 This option can be changed for the current video in the master header UI:
-![Grid Mode UI](../../assets/ui/gridMode.png)
+![Grid Mode UI](../../assets/ui/gridMode.png){:width="221"}
 
 ### Stereoscopic mode
 
@@ -34,7 +42,7 @@ The possible options for this mapping is:
      * 3D (top-bottom+flip)
 
 This option can be changed for the current video in the master header UI:
-![Stereo Mode UI](../../assets/ui/stereoMode.png)
+![Stereo Mode UI](../../assets/ui/stereoMode.png){:width="221"}
 
 ### YouTube 360 3D videos
 

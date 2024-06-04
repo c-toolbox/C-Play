@@ -20,10 +20,11 @@ parent: Media file structure
      * 3D (top-bottom)
      * 3D (top-bottom+flip)
 * Grid mode
-     * 2D (mono)
-     * 3D (side-by-side)
-     * 3D (top-bottom)
-     * 3D (top-bottom+flip)
+     * None (pre-split / prepared content. no mapping)
+     * Plane (regular flat content with various aspect ratios)
+     * Dome (180 fulldome/fisheye projection)
+     * Sphere EQR (360 equirectangular projection)
+     * Sphere EAC (360 equi-angular cubemap projection)
 * Separate Audio File
      * C-Play supports incorporated audio tracks in the video, however, through this option a separate file can be loaded (on the master) as the default selected audio track.
 * Separate Overlay File
