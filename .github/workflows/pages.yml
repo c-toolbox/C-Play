@@ -28,6 +28,18 @@ concurrency:
   cancel-in-progress: true
 
 jobs:
+  # Cleanup before new build
+  cleanup:
+    runs-on: ubuntu-latest
+    permissions: write-all
+
+    steps:
+      - name: Delete deployment
+        uses: strumwolf/delete-deployment-environment@v2
+        with:
+          token: ${{ secrets.GITHUB_TOKEN }}
+          environment: github-pages
+          onlyRemoveDeployments: true
   # Build job
   build:
     runs-on: ubuntu-latest
