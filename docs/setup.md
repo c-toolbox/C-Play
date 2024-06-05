@@ -8,9 +8,7 @@ nav_order: 3
 
 # Setup C-Play
 
-Download and install C-Play from here. 
-
-While C-Play is designed to be a media player used for clustered environments, there is not an additional program within C-Play to launch C-Play on the different machines in a syncronized manor.
+While C-Play is designed to be a media player used for clustered environments, there is not an additional program within C-Play to launch C-Play on the different machines in a synchronized manor.
 
 However, we have a perfect additional system for that, called [C-Troll](https://github.com/c-toolbox/C-Troll), that can launch any program on multiple computers with various configuration options.
 
