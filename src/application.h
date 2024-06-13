@@ -52,6 +52,7 @@ public:
     Q_INVOKABLE void setGuiStyle(const QString &style);
     Q_INVOKABLE void activateColorScheme(const QString &name);
     Q_INVOKABLE void configureShortcuts();
+    Q_INVOKABLE void updateAboutOtherText(const QString& mpvVersion, const QString& ffmpegVersion);
 
     static QString version();
     Q_INVOKABLE static bool hasYoutubeDl();

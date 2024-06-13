@@ -27,6 +27,7 @@
 #include "worker.h"
 #include <iostream>
 #include <sgct/sgct.h>
+#include <sgct/version.h>
 
 #include <QApplication>
 #include <QCommandLineParser>
@@ -191,7 +192,7 @@ void Application::setupAboutData()
     m_aboutData = KAboutData(QStringLiteral("C-Play"),
                              QStringLiteral("C-Play"),
                              Application::version());
-    m_aboutData.setShortDescription(QStringLiteral("A configurable cluster video player, based on MPV, SGCT and Haruna projects. Master UI compiled with Qt ") + QStringLiteral(QT_VERSION_STR));
+    m_aboutData.setShortDescription(QStringLiteral("A media player for immersive content and cluster environments."));
     m_aboutData.setLicense(KAboutLicense::GPL_V3);
     m_aboutData.setCopyrightStatement(QString::fromUtf8("(c) Erik Sundén 2021-2024"));
 
@@ -437,6 +438,22 @@ void Application::configureShortcuts()
     dlg.setModal(true);
     dlg.addCollection(&m_collection);
     dlg.configure(false);
+}
+
+void Application::updateAboutOtherText(const QString& mpvVersion, const QString& ffmpegVersion) {
+    QStringList ffmpeg_version_num = ffmpegVersion.split(QStringLiteral("-"), Qt::SkipEmptyParts);
+    QString ffmpeg_version_clean;
+    for (const QChar c : qAsConst(ffmpeg_version_num[0])) {
+        if (!c.isLetter()) {
+            ffmpeg_version_clean.append(c);
+        }
+    }
+    QString otherText;
+    otherText += QStringLiteral("Using media playback engine ") + mpvVersion + QStringLiteral(" with ffmpeg ") + ffmpeg_version_clean + QStringLiteral(".\n");
+    otherText += QStringLiteral("Master UI compiled with Qt ") + QStringLiteral(QT_VERSION_STR) + QStringLiteral(" and based on Haruna project.\n");
+    otherText += QStringLiteral("SGCT ") + QString::fromStdString(std::string(sgct::Version)) + QStringLiteral(" for cluster environment and client rendering.");
+    m_aboutData.setOtherText(otherText);
+    KAboutData::setApplicationData(m_aboutData);
 }
 
 void Application::aboutApplication()

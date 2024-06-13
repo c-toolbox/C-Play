@@ -281,7 +281,10 @@ QtObject {
 
         Component.onCompleted: list["aboutCPlayAction"] = aboutCPlayAction
 
-        onTriggered: qaction.trigger()
+        onTriggered: {
+            app.updateAboutOtherText(mpv.getProperty("mpv-version"), mpv.getProperty("ffmpeg-version"));
+            qaction.trigger();
+        }
     }
 
     property Action seekForwardSmallAction: Action {
