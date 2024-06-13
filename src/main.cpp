@@ -706,15 +706,16 @@ void initMPV(mpvData& vd) {
     if (!vd.handle)
         Log::Error("mpv context init failed");
 
-    // Some minor options can only be set before mpv_initialize().
-    if (mpv_initialize(vd.handle) < 0)
-        Log::Error("mpv init failed");
-
+    mpv_set_option_string(vd.handle, "vo", "libmpv");
     if (!logFilePath.empty() || !logLevel.empty()) {
         mpv_set_option_string(vd.handle, "terminal", "yes");
         mpv_set_option_string(vd.handle, "msg-level", "all=v");
         mpv_request_log_messages(vd.handle, logLevel.c_str());
     }
+
+    // Some minor options can only be set before mpv_initialize().
+    if (mpv_initialize(vd.handle) < 0)
+        Log::Error("mpv init failed");
 
     // Set default settings
     mpv::qt::set_property(vd.handle, QStringLiteral("keep-open"), QStringLiteral("yes"));
@@ -779,7 +780,7 @@ else{
 #endif
 
     // Setup OpenGL MPV settings
-    mpv_opengl_init_params gl_init_params{ get_proc_address_mpv, nullptr };
+    mpv_opengl_init_params gl_init_params[1] = { get_proc_address_mpv, nullptr };
     mpv_render_param params[]{
         {MPV_RENDER_PARAM_API_TYPE, const_cast<char*>(MPV_RENDER_API_TYPE_OPENGL)},
         {MPV_RENDER_PARAM_OPENGL_INIT_PARAMS, &gl_init_params},

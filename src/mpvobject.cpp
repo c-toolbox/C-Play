@@ -81,7 +81,7 @@ QOpenGLFramebufferObject * MpvRenderer::createFramebufferObject(const QSize &siz
     // init mpv_gl:
     if (!obj->mpv_gl)
     {
-        mpv_opengl_init_params gl_init_params{get_proc_address_mpv, nullptr};
+        mpv_opengl_init_params gl_init_params[1] = { get_proc_address_mpv, nullptr };
         mpv_render_param params[]{
             {MPV_RENDER_PARAM_API_TYPE, const_cast<char *>(MPV_RENDER_API_TYPE_OPENGL)},
             {MPV_RENDER_PARAM_OPENGL_INIT_PARAMS, &gl_init_params},
@@ -111,8 +111,9 @@ MpvObject::MpvObject(QQuickItem * parent)
     if (!mpv)
         throw std::runtime_error("could not create mpv context");
 
-    //setProperty("terminal", "yes");
-    //setProperty("msg-level", "all=v");
+    mpv_set_option_string(mpv, "vo", "libmpv");
+    //mpv_set_option_string(mpv, "terminal", "yes");
+    //mpv_set_option_string(mpv, "msg-level", "all=v");
 
     m_rotationSpeed = GridSettings::surfaceRotationSpeed();
     m_radius = GridSettings::surfaceRadius();
@@ -1050,8 +1051,13 @@ void MpvObject::loadItem(PlayListItemData itemData, bool updateLastPlayedFile, Q
         }
 
         m_loadedFileStructure = itemData.filePath();
-        QStringList newCommand = QStringList() << QStringLiteral("loadfile") << itemData.mediaFile() << flag << options;
+        QStringList newCommand = QStringList() << QStringLiteral("loadfile") << itemData.mediaFile() << flag;
         
+#if MPV_CLIENT_API_VERSION >= MPV_MAKE_VERSION(2, 3)
+        newCommand << QStringLiteral("0");
+#endif
+        newCommand << options;
+
         qInfo() << newCommand;
 
         m_currentSectionsIndex = -1;
