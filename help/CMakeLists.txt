@@ -73,7 +73,7 @@ if(CPLAY_INSTALL_DEPENDENCIES)
         ]])
     endif() 
 	
-	option(CPLAY_INSTALL_PRECOMPILIED_JACK_DLL "Jack2 can be difficult. Here are some pre-compilied DLLs to install." OFF)
+	option(CPLAY_INSTALL_PRECOMPILIED_JACK_DLL "Jack2 can be difficult. Here are some pre-compilied DLLs to install." ON)
     if(CPLAY_INSTALL_PRECOMPILIED_JACK_DLL)
 		install(CODE [[
 			message("Copying ${PROJECT_SOURCE_DIR}/help/jack DLLs to bin")
