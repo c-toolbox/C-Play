@@ -367,6 +367,10 @@ int Application::getFadeDurationSetting() {
     return PlaybackSettings::fadeDuration();
 }
 
+void Application::setStartupFile(std::string filePath) {
+    m_startupFileFromCmd = QString::fromStdString(filePath);
+}
+
 QString Application::argument(int key)
 {
     return m_args[key];
@@ -454,6 +458,13 @@ void Application::updateAboutOtherText(const QString& mpvVersion, const QString&
     otherText += QStringLiteral("SGCT ") + QString::fromStdString(std::string(sgct::Version)) + QStringLiteral(" for cluster environment and client rendering.");
     m_aboutData.setOtherText(otherText);
     KAboutData::setApplicationData(m_aboutData);
+}
+
+QString Application::getStartupFile() {
+    if (m_startupFileFromCmd.isEmpty())
+        return PlaylistSettings::playlistToLoadOnStartup();
+    else
+        return m_startupFileFromCmd;
 }
 
 void Application::aboutApplication()

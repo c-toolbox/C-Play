@@ -80,6 +80,12 @@ SettingsBasePage {
             Layout.fillWidth: true
         }
 
+        Item { width: 1; height: 1 }
+        Label {
+            text: qsTr("Command line argument \"--loadfile\" overrides above path.")
+            font.italic: true
+        }
+
         Label {
             text: qsTr("Position")
             Layout.alignment: Qt.AlignRight

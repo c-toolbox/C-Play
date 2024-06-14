@@ -35,6 +35,7 @@ std::mutex logMutex;
 std::ofstream logFile;
 std::string logFilePath = "";
 std::string logLevel = "";
+std::string startupFile = "";
 
 std::unique_ptr<sgct::utils::Dome> dome;
 std::unique_ptr<sgct::utils::Sphere> sphere;
@@ -1704,6 +1705,10 @@ int main(int argc, char *argv[])
             Log::instance().setLogCallback(logging);
             arg.erase(arg.begin() + i, arg.begin() + i + 2);
         }
+        else if (arg[i] == "--loadfile") {
+            startupFile = arg[i + 1];
+            arg.erase(arg.begin() + i, arg.begin() + i + 2);
+        }
         else {
             // Ignore unknown commands
             i++;
@@ -1749,6 +1754,7 @@ int main(int argc, char *argv[])
 
         //Launch master application (which calls Engine::render from thread)
         Application::create(cargv_size, &cargv[0], QStringLiteral("C-Play"));
+        Application::instance().setStartupFile(startupFile);
         return Application::instance().run();
     }
     else{

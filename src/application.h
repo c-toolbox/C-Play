@@ -53,6 +53,7 @@ public:
     Q_INVOKABLE void activateColorScheme(const QString &name);
     Q_INVOKABLE void configureShortcuts();
     Q_INVOKABLE void updateAboutOtherText(const QString& mpvVersion, const QString& ffmpegVersion);
+    Q_INVOKABLE QString getStartupFile();
 
     static QString version();
     Q_INVOKABLE static bool hasYoutubeDl();
@@ -64,6 +65,7 @@ public:
 
     int getFadeDurationCurrentTime(bool restart);
     int getFadeDurationSetting();
+    void setStartupFile(std::string filePath);
 
 private:
     void setupWorkerThread();
@@ -84,6 +86,7 @@ private:
     QMap<int, QString> m_args;
     KColorSchemeManager *m_schemes;
     QString m_systemDefaultStyle;
+    QString m_startupFileFromCmd;
     RenderThread renderThread;
     QElapsedTimer fadeDurationTimer;
     static Application* _instance;

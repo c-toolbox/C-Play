@@ -66,8 +66,8 @@ MpvObject {
         setProperty("aid", preferredAudioTrack === 0 ? "auto" : preferredAudioTrack)
         setProperty("alang", AudioSettings.preferredLanguage)
 
-        if(PlaylistSettings.playlistToLoadOnStartup !== ""){
-            window.openFile(PlaylistSettings.playlistToLoadOnStartup, false, PlaylistSettings.loadSiblings)
+        if(app.getStartupFile() !== ""){
+            window.openFile(app.getStartupFile(), false, PlaylistSettings.loadSiblings)
         }
     }
 

@@ -9,7 +9,7 @@ parent: Settings
 
 ![Playlist settings](../../assets/ui/settings/playlist.png) 
 
-The playlist settings within C-Play let you choose a startup file playlist. In practice, this could even be a media file that is played as well, but that is not the intended use.
+The playlist settings within C-Play let you choose a startup file playlist. In practice, this could even be a media file that is played as well, but that is not the intended use. *Note: Optionally you can specify a playlist or playfile (or any media file) at startup through the command line argument "--loadfile", which takes precedence over this setting.*
 
 You can also decided on which side you want the playlist and section interface to located.
 

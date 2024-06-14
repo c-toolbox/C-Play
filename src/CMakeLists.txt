@@ -9,7 +9,7 @@
 set(TARGET_NAME C-Play)
 set(CPLAY_VERSION_MAJOR 2)
 set(CPLAY_VERSION_MINOR 0)
-set(CPLAY_VERSION_PATCH 1)
+set(CPLAY_VERSION_PATCH 2)
 
 add_executable(${TARGET_NAME})
 set_compile_options(${TARGET_NAME})
