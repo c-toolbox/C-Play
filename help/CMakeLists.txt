@@ -5,7 +5,23 @@
 #
 
 if(CPLAY_INSTALL_DEPENDENCIES)
+	if(BUILD_CPLAY_WITH_QT6)
+		set(CPLAY_INSTALL_PREDEFINED_DLL_NAME "qt6_ffmpeg6_dlls" CACHE STRING "qt6_ffmpeg6_dlls.txt chosen as predefined dll list")
+		get_target_property(_qmake_executable Qt6::qmake IMPORTED_LOCATION)
+	else()
+		set(CPLAY_INSTALL_PREDEFINED_DLL_NAME "qt5_ffmpeg5_dlls" CACHE STRING "qt5_ffmpeg5_dlls.txt chosen as predefined dll list")
+		get_target_property(_qmake_executable Qt5::qmake IMPORTED_LOCATION)
+	endif()
+	set_property(CACHE CPLAY_INSTALL_PREDEFINED_DLL_NAME PROPERTY STRINGS qt6_ffmpeg6_dlls qt6_ffmpeg5_dlls qt5_ffmpeg5_dlls)
+	
+	get_filename_component(_qt_bin_dir "${_qmake_executable}" DIRECTORY)
+	install(CODE "set(QT_BIN_DIR \"${_qt_bin_dir}\")")
+	
+	get_filename_component(_mpv_bin_dir "${Libmpv_LIBRARIES}" DIRECTORY)
+	install(CODE "set(MPV_BIN_DIR \"${_mpv_bin_dir}\")")
+	
 	install(CODE "set(PROJECT_SOURCE_DIR \"${PROJECT_SOURCE_DIR}\")")
+	install(CODE "set(CPLAY_INSTALL_PREDEFINED_DLL_NAME \"${CPLAY_INSTALL_PREDEFINED_DLL_NAME}\")")
 	install(CODE [[
 		if(EXISTS "${PROJECT_SOURCE_DIR}/CPlay_Pack.nsi")
 			file(INSTALL
@@ -30,26 +46,28 @@ if(CPLAY_INSTALL_DEPENDENCIES)
 	]])
 	install(DIRECTORY "${PROJECT_SOURCE_DIR}/help/sgct/" DESTINATION "${CMAKE_INSTALL_PREFIX}/bin")
 	
-	option(CPLAY_INSTALL_PREDEFINED_DLL_LIST_FROM_CRAFT "Shared dlls and delayed load is hard to detect. Copy predefined list" ON)
-    if(CPLAY_INSTALL_PREDEFINED_DLL_LIST_FROM_CRAFT)
+	option(CPLAY_INSTALL_PREDEFINED_DLL_LIST "Shared dlls and delayed load is hard to detect. Copy predefined list" ON)
+    if(CPLAY_INSTALL_PREDEFINED_DLL_LIST)
         install(CODE [[
-            message("Copying predefined DLL:s (${PROJECT_SOURCE_DIR}/help/craft_dlls.txt) from Craft folder")
-			if(BUILD_CPLAY_WITH_QT6)
-				file(READ "${PROJECT_SOURCE_DIR}/help/craft_qt6_dlls.txt" DEPENDENCY_DLLS)
-			else()
-				file(READ "${PROJECT_SOURCE_DIR}/help/craft_qt5_dlls.txt" DEPENDENCY_DLLS)
-			endif()
+            message("Copying predefined DLL:s (${PROJECT_SOURCE_DIR}/help/dll_lists/${CPLAY_INSTALL_PREDEFINED_DLL_NAME}.txt) to install folder")
+			file(READ "${PROJECT_SOURCE_DIR}/help/dll_lists/${CPLAY_INSTALL_PREDEFINED_DLL_NAME}.txt" DEPENDENCY_DLLS)
             string(REGEX REPLACE ";" "\\\\;" DEPENDENCY_DLLS "${DEPENDENCY_DLLS}")
             string(REGEX REPLACE "\n" ";" DEPENDENCY_DLLS "${DEPENDENCY_DLLS}")
             foreach(DLL_FILE ${DEPENDENCY_DLLS})
-                message("Copying ${QT_BIN_DIR}/${DLL_FILE}")
                 if(EXISTS "${QT_BIN_DIR}/${DLL_FILE}")
+					message("Copying ${QT_BIN_DIR}/${DLL_FILE}")
                     file(INSTALL
                         DESTINATION "${CMAKE_INSTALL_PREFIX}/bin"
                         FILES "${QT_BIN_DIR}/${DLL_FILE}"
                     )
+				elseif(EXISTS "${MPV_BIN_DIR}/${DLL_FILE}")
+					message("Copying ${MPV_BIN_DIR}/${DLL_FILE}")
+                    file(INSTALL
+                        DESTINATION "${CMAKE_INSTALL_PREFIX}/bin"
+                        FILES "${MPV_BIN_DIR}/${DLL_FILE}"
+                    )
                 else()
-                    message("${QT_BIN_DIR}/${DLL_FILE} was not found")
+                    message("${DLL_FILE} was not found")
                 endif()
             endforeach()
         ]])

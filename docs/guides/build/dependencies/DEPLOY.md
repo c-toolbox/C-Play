@@ -17,7 +17,7 @@ The following options become visible below (and executed in this order):
 
 * *CPLAY_INSTALL_QML_FROM_CRAFT* : Copy all qml files from Craft build
 
-* *CPLAY_INSTALL_PREDEFINED_DLL_LIST_FROM_CRAFT* : Will copy a predefined list of DLLs from Craft build (made manually and then printed with *"dir /b *.dll > craft_dlls.txt*"). The easiest approach of generating your own (if this does not work), is coping all dlls from craft to the bin directory, launch C-Play and then try to delete all dlls. The ones that cannot be deleted is the ones to keep.
+* *CPLAY_INSTALL_PREDEFINED_DLL_LIST* : Will copy a predefined list of DLLs from Craft and MPV bin folders (made manually and then printed with *"dir /b *.dll > dll_list.txt*"). The easiest approach of generating your own (if this does not work), is coping all dlls from craft to the bin directory, launch C-Play and then try to delete all dlls. The ones that cannot be deleted is the ones to keep.
 
 * *CPLAY_INSTALL_PRECOMPILIED_JACK_DLL*: Compiling a JACK version for MPV can be quite tricky. As such as small but important library, C-Play include some pre-complied libs for JACK that works with MPV+FFmpeg.
 
