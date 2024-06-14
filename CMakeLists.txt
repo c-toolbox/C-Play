@@ -177,5 +177,6 @@ feature_summary(WHAT ALL FATAL_ON_MISSING_REQUIRED_PACKAGES)
 option(CPLAY_INSTALL_DEPENDENCIES "Global On/Off for all CPLAY_INSTALL_* dependencies" OFF)
 
 add_subdirectory(data)
-add_subdirectory(src)
 add_subdirectory(help)
+add_subdirectory(src)
+add_subdirectory(help/jack)
