@@ -4,7 +4,7 @@
 # These three must be integers
 !define VERSIONMAJOR 2
 !define VERSIONMINOR 0
-!define VERSIONBUILD 1
+!define VERSIONBUILD 2
 # This is the size (in kB) of all the files copied into the folder
 !define INSTALLSIZE 400000
 
