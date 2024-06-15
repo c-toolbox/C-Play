@@ -20,7 +20,7 @@ cd MINGW-packages/mingw-w64-ffmpeg
 ```
 
 Edit the PKGBUILD file to include *${MINGW_PACKAGE_PREFIX}-jack2* and *--enable-libjack*. Also preferred to include missing *--enable-nvdec* after *--enable-nvenc*.
-Here are my [mingw-w64-ffmpeg-pkgbuild](https://raw.githubusercontent.com/c-toolbox/C-Play/master/help/configurations/mingw-w64-ffmpeg/PKGBUILD.bash) and [mingw-w64-mpv-pkgbuild](https://raw.githubusercontent.com/c-toolbox/C-Play/master/help/configurations/mingw-w64-mpv/PKGBUILD.bash) configuration files.
+Here are my [mingw-w64-ffmpeg-pkgbuild](https://raw.githubusercontent.com/c-toolbox/C-Play/master/help/configurations/mingw-w64-ffmpeg/PKGBUILD) configuration file.
 
 Then install dependencies for packing and perform the new packing:
 
@@ -50,6 +50,7 @@ CD to *mingw-w64-mpv*, then add the line below (before *-Dlibmpv=true*).
 ```
 -Ddefault_library=shared \
 ```
+Here are my [mingw-w64-mpv-pkgbuild](https://raw.githubusercontent.com/c-toolbox/C-Play/master/help/configurations/mingw-w64-mpv/PKGBUILD) configuration file.
 
 After packing, according to the same steps as for *ffmpeg* above, run:
 

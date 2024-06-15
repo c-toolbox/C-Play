@@ -168,3 +168,5 @@ vulkan-1.dll
 xvidcore.dll
 zlib1.dll
 zstd.dll
+ffmpeg.exe
+mpv.exe

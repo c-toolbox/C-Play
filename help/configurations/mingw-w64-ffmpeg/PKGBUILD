@@ -161,6 +161,8 @@ build() {
   if [[ "${MINGW_PACKAGE_PREFIX}" != *clang-aarch64* ]]; then
     common_config+=(
         --enable-amf
+		--enable-cuda
+		--enable-cuvid
         --enable-nvenc
 		--enable-nvdec
     )

@@ -259,7 +259,7 @@ if(CPLAY_INSTALL_DEPENDENCIES)
 
     option(CPLAY_INSTALL_GET_RUNTIME_DEPENDENCIES "When running INSTALL, look for dependencies with GET_RUNTIME_DEPENDENCIES and copy them" ON)
     if(CPLAY_INSTALL_GET_RUNTIME_DEPENDENCIES)
-        set(MY_DEPENDENCY_PATHS ${_qt_bin_dir} ${_mpv_bin_dir})
+        set(MY_DEPENDENCY_PATHS ${_mpv_bin_dir} ${_qt_bin_dir})
         # Transfer the values into the install script
         install(CODE "set(MY_DEPENDENCY_PATHS \"${MY_DEPENDENCY_PATHS}\")")
         install(CODE "set(target \"$<TARGET_FILE:${TARGET_NAME}>\")")

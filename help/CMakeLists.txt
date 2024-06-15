@@ -54,17 +54,17 @@ if(CPLAY_INSTALL_DEPENDENCIES)
             string(REGEX REPLACE ";" "\\\\;" DEPENDENCY_DLLS "${DEPENDENCY_DLLS}")
             string(REGEX REPLACE "\n" ";" DEPENDENCY_DLLS "${DEPENDENCY_DLLS}")
             foreach(DLL_FILE ${DEPENDENCY_DLLS})
-                if(EXISTS "${QT_BIN_DIR}/${DLL_FILE}")
-					message("Copying ${QT_BIN_DIR}/${DLL_FILE}")
-                    file(INSTALL
-                        DESTINATION "${CMAKE_INSTALL_PREFIX}/bin"
-                        FILES "${QT_BIN_DIR}/${DLL_FILE}"
-                    )
-				elseif(EXISTS "${MPV_BIN_DIR}/${DLL_FILE}")
+				if(EXISTS "${MPV_BIN_DIR}/${DLL_FILE}")
 					message("Copying ${MPV_BIN_DIR}/${DLL_FILE}")
                     file(INSTALL
                         DESTINATION "${CMAKE_INSTALL_PREFIX}/bin"
                         FILES "${MPV_BIN_DIR}/${DLL_FILE}"
+                    )
+				elseif(EXISTS "${QT_BIN_DIR}/${DLL_FILE}")
+					message("Copying ${QT_BIN_DIR}/${DLL_FILE}")
+                    file(INSTALL
+                        DESTINATION "${CMAKE_INSTALL_PREFIX}/bin"
+                        FILES "${QT_BIN_DIR}/${DLL_FILE}"
                     )
                 else()
                     message("${DLL_FILE} was not found")

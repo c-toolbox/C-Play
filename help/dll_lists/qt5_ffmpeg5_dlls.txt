@@ -64,3 +64,5 @@ swresample-4.dll
 swscale-6.dll
 zlib1.dll
 zstd.dll
+ffmpeg.exe
+mpv.exe
