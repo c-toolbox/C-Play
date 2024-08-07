@@ -1,10 +1,11 @@
-# Build MPV and FFmpeg with JACK+portaudio support on Windows
+# Build MPV and FFmpeg with JACK+portaudio+ASIO support on Windows
 
 C-Play depends on the great *mpv* media player library, which indeed depends on the great *ffmpeg* library. It is usually straight-forward to build in many ways, but normally we want to modify the standard build by including JACK, to go from maximum 8-channel audio support, to support ASIO and other low-latency audio frameworks. Choose one of the two below options. After building, check further below for creating a linkable library.
 
 ## Option 1: Build mpv and ffmpeg from MINGW-packages
 
 As of writing (2024-06-08) this is mpv 0.38 and ffmpeg 6.1.1.
+
 This is the recommend option, as it gives you latest libraries.
 
 Here are the steps:
@@ -16,6 +17,79 @@ Then clone "https://github.com/msys2/MINGW-packages" into your mingw64 home fold
 
 ```
 git clone "https://github.com/msys2/MINGW-packages"
+```
+
+### 1.1 (Optional) Build PortAudio with ASIO support
+Download the [ASIO SDK](https://www.steinberg.net/asiosdk)
+Extract the zip to two identical folder named MSYS64_INSTALL_ROOT\opt\asiosdkstatic and MSYS64_INSTALL_ROOT\opt\asiosdkshared.
+
+```
+cd MINGW-packages/mingw-w64-portaudio
+```
+
+edit the PKGBUILD file, to so that the build sections has this:
+
+```
+build() {
+  export lt_cv_deplibs_check_method='pass_all'
+
+  [[ -d "build-static-${MINGW_CHOST}" ]] && rm -rf "build-static-${MINGW_CHOST}"
+  mkdir -p "${srcdir}/build-static-${MINGW_CHOST}"
+  cd "${srcdir}/build-static-${MINGW_CHOST}"
+
+  ../${_realname}/configure \
+    --prefix=${MINGW_PREFIX} \
+    --build=${MINGW_CHOST} \
+    --host=${MINGW_CHOST} \
+    --target=${MINGW_CHOST} \
+    --disable-shared \
+    --enable-static \
+    --with-dxdir=${MINGW_PREFIX}/${MINGW_CHOST} \
+    --with-winapi=wmme,directx,wasapi,wdmks,asio \
+    --with-asiodir=/opt/asiosdkstatic
+
+  make
+
+  [[ -d "build-shared-${MINGW_CHOST}" ]] && rm -rf "build-shared-${MINGW_CHOST}"
+  mkdir -p "${srcdir}/build-shared-${MINGW_CHOST}"
+  cd "${srcdir}/build-shared-${MINGW_CHOST}"
+
+  ../${_realname}/configure \
+    --prefix=${MINGW_PREFIX} \
+    --build=${MINGW_CHOST} \
+    --host=${MINGW_CHOST} \
+    --target=${MINGW_CHOST} \
+    --enable-shared \
+    --with-dxdir=${MINGW_PREFIX}/${MINGW_CHOST} \
+    --with-winapi=wmme,directx,wasapi,wdmks,asio \
+    --with-asiodir=/opt/asiosdkshared
+
+  make
+}
+
+package() {
+  cd "${srcdir}/build-static-${MINGW_CHOST}"
+  make DESTDIR="${pkgdir}" install
+
+  cd "${srcdir}/build-shared-${MINGW_CHOST}"
+  make DESTDIR="${pkgdir}" install
+}
+```
+The run these commands to build and install jack2 + portaudio with the ASIO support configured.
+
+```
+updpkgsums
+makepkg-mingw -sCLf
+pacman -U mingw-w64-*-portaudio-*-any.pkg.tar.zst
+```
+
+In MSYS64_INSTALL_ROOT\mingw64\bin you may find *libportaudio-2.dll* or similiar. Please copy and rename it to *libportaudio.dll*.
+
+### 1.2 Build FFmpeg with custom options (supporting jack2, nvdec etc)
+
+FFmpeg is highly customizable, but here are the preferred settings for using it with C-Play.
+
+```
 cd MINGW-packages/mingw-w64-ffmpeg
 ```
 
@@ -43,6 +117,8 @@ After packing, run:
 pacman -U mingw-w64-*-ffmpeg-*-any.pkg.tar.zst
 ```
 
+### 1.3 Build MPV with custom options.
+
 When your happy with the ffmpeg build, let's do the mpv build.
 We want *shared* library so you need to change the PKGBUILD here as well.
 CD to *mingw-w64-mpv*, then add the line below (before *-Dlibmpv=true*).
@@ -60,7 +136,9 @@ pacman -U mingw-w64-*-mpv-*-any.pkg.tar.zst
 
 Create an environmental variable called "PKG_CONFIG_PATH" and add the path "MSYS64_INSTALL_ROOT\mingw64\lib\pkgconfig". Also add the "MSYS64_INSTALL_ROOT\mingw64\bin to your environmental "Path".
 
-## Option 2: Build mpv 0.36 and ffmpeg 5.1 with *m-ab-s*
+## Option 2: Build mpv and ffmpeg with *m-ab-s*
+
+As of writing (2024-06-20) this build setup includes mpv 0.36 and then option to specify and ffmpeg version under that.
 
 This compilation takes much more time(as you are checking out all sources from git of ffmpeg dependencies), but has easier and more flexible configuration options.
 
@@ -68,7 +146,11 @@ This guide assumes you use [Media Build Suite](https://github.com/m-ab-s/media-a
 
 Run the batch script after unzipping it in a short path, but quit after MSYS has been setup (i.e. do not run the configure yet)
 
-Run msys2 installed during "Media Build Suite" setup. Then install Jack package (see below).
+Run msys2 installed during "Media Build Suite" setup. 
+
+*Optional: Perform step 1.1 above to include ASIO into portaudio.*
+
+Then install Jack package (see below).
 
 ```
 pacman -S mingw-w64-x86_64-jack2
@@ -93,15 +175,24 @@ If you have a mpv.def file(*Option 2 normally gives that*), you can already do t
 lib /def:mpv.def /name:mpv-2.dll /out:mpv.lib /MACHINE:X64
 ```
 
-If the build hasn't generated one (*Option 1 does not*), we need to generate one. Install *gendef*, as part of *-tools* and then generate the definition file.
+If the build hasn't generated one (*normally it does not*), we need to generate one. Install *gendef*, as part of *-tools* and then generate the definition file.
 
 ```
 pacman -S mingw-w64-x86_64-tools
 
 gendef - MSYS64_INSTALL_ROOT/mingw64/bin/libmpv-2.dll > MSYS64_INSTALL_ROOT/mingw64/bin/libmpv.def
+
+or
+
+gendef - M-AB-S/local64/bin-video/mpv-2.dll > M-AB-S/local64/bin-video/mpv.def
+
 ```
 With the new *libmpv.def* file, generate the lib by running the command below in a Visual Studio 2022 Developer Command Prompt:
 
 ```
 lib /def:libmpv.def /name:libmpv-2.dll /out:mpv.lib /MACHINE:X64
+
+or
+
+lib /def:mpv.def /name:mpv-2.dll /out:mpv.lib /MACHINE:X64
 ```

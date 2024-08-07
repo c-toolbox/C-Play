@@ -447,13 +447,20 @@ void Application::configureShortcuts()
 void Application::updateAboutOtherText(const QString& mpvVersion, const QString& ffmpegVersion) {
     QStringList ffmpeg_version_num = ffmpegVersion.split(QStringLiteral("-"), Qt::SkipEmptyParts);
     QString ffmpeg_version_clean;
-    for (const QChar c : qAsConst(ffmpeg_version_num[0])) {
+    for (const QChar c : std::as_const(ffmpeg_version_num[0])) {
         if (!c.isLetter()) {
             ffmpeg_version_clean.append(c);
         }
     }
+    QStringList mpv_version_num = mpvVersion.split(QStringLiteral("-"), Qt::SkipEmptyParts);
+    QString mpv_version_clean;
+    for (const QChar c : std::as_const(mpv_version_num[0])) {
+        if (!c.isLetter()) {
+            mpv_version_clean.append(c);
+        }
+    }
     QString otherText;
-    otherText += QStringLiteral("Using media playback engine ") + mpvVersion + QStringLiteral(" with ffmpeg ") + ffmpeg_version_clean + QStringLiteral(".\n");
+    otherText += QStringLiteral("Using media playback engine MPV ") + mpv_version_clean + QStringLiteral(" with FFmpeg ") + ffmpeg_version_clean + QStringLiteral(".\n");
     otherText += QStringLiteral("Master UI compiled with Qt ") + QStringLiteral(QT_VERSION_STR) + QStringLiteral(" and based on Haruna project.\n");
     otherText += QStringLiteral("SGCT ") + QString::fromStdString(std::string(sgct::Version)) + QStringLiteral(" for cluster environment and client rendering.");
     m_aboutData.setOtherText(otherText);

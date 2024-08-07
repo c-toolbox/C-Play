@@ -20,9 +20,7 @@ The are the steps:
 
 - Use the [Build MPV and FFMPEG Guide](guides/build/mpv_ffmpeg) guide to build FFmpeg and MPV with JACK+portaudio support.
 
-- Add paths to qmake.exe (*Craft bin/*) and mpv.exe (*MINGW bin/*) to your environmental path. 
-
-- Configure C-Play with CMake.
+- Launch CMake. Add paths to qmake.exe (*Craft bin/*) and mpv.exe (*MINGW bin/*) to your path in CMake if there not in your environmental path already. Configure C-Play with CMake.
 
 - Good practice to follow [Deploy Guide](guides/build/deploy) as well, to copy the build with it's dependencies to single binary folder.
 
