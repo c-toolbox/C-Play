@@ -9,7 +9,7 @@
 set(TARGET_NAME C-Play)
 set(CPLAY_VERSION_MAJOR 2)
 set(CPLAY_VERSION_MINOR 0)
-set(CPLAY_VERSION_PATCH 2)
+set(CPLAY_VERSION_PATCH 3)
 
 add_executable(${TARGET_NAME})
 set_compile_options(${TARGET_NAME})
@@ -23,6 +23,12 @@ set(SOURCE_FILES
     haction.h
     httpserverthread.cpp
     httpserverthread.h
+	layers/baselayer.cpp
+	layers/baselayer.h
+	layers/imagelayer.cpp
+	layers/imagelayer.h
+	layers/mpvlayer.cpp
+	layers/mpvlayer.h
     main.cpp    
     mpvobject.cpp
     mpvobject.h

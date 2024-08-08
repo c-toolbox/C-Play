@@ -16,20 +16,21 @@
 #include <glm/glm.hpp>
 #include <glm/gtc/matrix_transform.hpp>
 #include <glm/gtc/type_ptr.hpp>
+#include <layers/baselayer.h>
+#include <layers/imagelayer.h>
+#include <layers/mpvlayer.h>
 #include "application.h"
 #include <client.h>
 #include <render_gl.h>
-#include "qthelper.h"
 #include <fstream>   
 #include <mutex>
 
+
 //#define SGCT_ONLY
-//#define ONLY_RENDER_TO_SCREEN
 
 namespace {
 
 bool allowDirectRendering = false;
-bool mpvAndRenderOnSeparateThreads = true;
 
 std::mutex logMutex;
 std::ofstream logFile;
@@ -37,79 +38,21 @@ std::string logFilePath = "";
 std::string logLevel = "";
 std::string startupFile = "";
 
-std::unique_ptr<sgct::utils::Dome> dome;
-std::unique_ptr<sgct::utils::Sphere> sphere;
-std::unique_ptr<sgct::utils::Plane> plane;
+std::unique_ptr<sgct::utils::Dome> domeMesh;
+std::unique_ptr<sgct::utils::Sphere> sphereMesh;
+std::unique_ptr<sgct::utils::Plane> planeMesh;
 
 int domeRadius = 740;
 int domeFov = 165;
 float planeWidth = 0.f;
 float planeHeight = 0.f;
-std::string loadedFile = "";
-std::string videoFilters = "";
-glm::vec3 bgRotate(0.f);
-glm::vec3 bgTranslate(0.f);
-glm::vec3 fgRotate(0.f);
-glm::vec3 fgTranslate(0.f);
 
-struct RenderParams {
-    unsigned int tex;
-    float alpha;
-    int gridMode;
-    int stereoMode;
-    glm::vec3 rotate;
-    glm::vec3 translate;
-};
-std::vector<RenderParams> renderParams;
+std::vector<BaseLayer*> layers2render;
+ImageLayer* backgroundImageLayer;
+ImageLayer* foregroundImageLayer;
+ImageLayer* overlayImageLayer;
+MpvLayer* mainMpvLayer;
 
-struct ImageData {
-    std::string filename;
-    sgct::Image img;
-    std::unique_ptr<std::thread> trd;
-    unsigned int texId = 0;
-    std::atomic_bool threadRunning = false;
-    std::atomic_bool imageDone = false;
-    std::atomic_bool uploadDone = false;
-    std::atomic_bool threadDone = false;
-};
-
-ImageData backgroundImageData;
-ImageData foregroundImageData;
-ImageData overlayImageData;
-
-auto loadImageAsync = [](ImageData& data) {
-    data.threadRunning = true;
-    data.img.load(data.filename);
-    data.imageDone = true;
-    while (!data.uploadDone) {}
-    data.img = sgct::Image();
-    data.threadDone = true;
-};
-
-struct mpvData {
-    mpv_handle* handle;
-    mpv_render_context* renderContext;
-    std::unique_ptr<std::thread> trd;
-    int videoWidth = 0;
-    int videoHeight = 0;
-    int fboWidth = 0;
-    int fboHeight = 0;
-    unsigned int fboId = 0;
-    unsigned int texId = 0;
-    int reconfigs = 0;
-    int reconfigsBeforeUpdate = 0;
-    int advancedControl = 0;
-    std::atomic_bool threadRunning = false;
-    std::atomic_bool mpvInitialized = false;
-    std::atomic_bool threadDone = false;
-    std::atomic_bool terminate = false;
-};
-mpvData videoData;
-
-bool updateRendering = true;
-bool videoIsPaused = true;
-double videoDuration = 0.0;
-int eofMode = -1;
 bool fadeDurationOngoing = false;
 // video
 int videoAlphaLoc = -1;
@@ -483,339 +426,19 @@ const ShaderProgram* meshPrg;
 const ShaderProgram* EACPrg;
 const ShaderProgram* createCubeMapPrg;
 
-void handleAsyncImageUpload(ImageData& imgData) {
-    if (imgData.threadRunning) {
-        if (imgData.imageDone && !imgData.uploadDone) {
-            imgData.texId = TextureManager::instance().loadTexture(std::move(imgData.img));
-            imgData.uploadDone = true;
-        }
-        else if (imgData.threadDone) {
-            imgData.threadRunning = false;
-            imgData.imageDone = false;
-            imgData.uploadDone = false;
-            imgData.threadDone = false;
-            imgData.trd->join();
-            imgData.trd = nullptr;
-        }
-    }
-}
-
-bool fileIsImage(std::string& filePath) {
-    if (!filePath.empty()) {
-        //Load background file
-        if (std::filesystem::exists(filePath)) {
-            std::filesystem::path bgPath = std::filesystem::path(filePath);
-            if (bgPath.has_extension()) {
-                std::filesystem::path bgPathExt = bgPath.extension();
-                if (bgPathExt == ".png" ||
-                    bgPathExt == ".jpg" ||
-                    bgPathExt == ".jpeg" ||
-                    bgPathExt == ".tga") {
-                    return true;
-                }
-                else {
-                    Log::Warning(fmt::format("Image file extension is not supported: {}", filePath));
-                }
-            }
-            else {
-                Log::Warning(fmt::format("Image file has no extension: {}", filePath));
-            }
-        }
-        else {
-            Log::Warning(fmt::format("Could not find image file: {}", filePath));
-        }
-    }
-    else {
-        Log::Warning(fmt::format("Image file is empty: {}", filePath));
-    }
-
-    return false;
-}
-
-void generateTexture(unsigned int& id, int width, int height) {
-    glGenTextures(1, &id);
-    glPixelStorei(GL_PACK_ALIGNMENT, 1);
-    glPixelStorei(GL_UNPACK_ALIGNMENT, 1);
-
-    glBindTexture(GL_TEXTURE_2D, id);
-
-    glTexImage2D(GL_TEXTURE_2D, 0, GL_RGBA16F, width, height, 0, GL_RGBA, GL_FLOAT, nullptr);
-
-    // Disable mipmaps
-    glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_BASE_LEVEL, 0);
-    glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_MAX_LEVEL, 0);
-
-    glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_MIN_FILTER, GL_LINEAR);
-    glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_MAG_FILTER, GL_LINEAR);
-    glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_WRAP_S, GL_CLAMP_TO_EDGE);
-    glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_WRAP_T, GL_CLAMP_TO_EDGE);
-}
-
-void createMpvFBO(mpvData& vd, int width, int height){
-    vd.fboWidth = width;
-    vd.fboHeight = height;
-
-    sgct::Window::makeSharedContextCurrent();
-
-    glGenFramebuffers(1, &vd.fboId);
-    glBindFramebuffer(GL_FRAMEBUFFER, vd.fboId);
-
-    generateTexture(vd.texId, width, height);
-
-    glFramebufferTexture2D(
-        GL_FRAMEBUFFER,
-        GL_COLOR_ATTACHMENT0,
-        GL_TEXTURE_2D,
-        vd.texId,
-        0
-    );
-
-    glBindFramebuffer(GL_FRAMEBUFFER, 0);
-}
-
-void checkNeededMpvFboResize(mpvData& vd){
-    if(vd.fboWidth == vd.videoWidth && vd.fboHeight == vd.videoHeight)
-        return;
-
-    int maxTexSize;
-    glGetIntegerv(GL_MAX_TEXTURE_SIZE, &maxTexSize);
-    if (vd.videoWidth <= 0 || vd.videoHeight <= 0 || vd.videoWidth > maxTexSize || vd.videoHeight > maxTexSize)
-        return;
-
-    Log::Info(fmt::format("New MPV FBO width:{} and height:{}", vd.videoWidth, vd.videoHeight));
-
-    glDeleteFramebuffers(1, &vd.fboId);
-    glDeleteTextures(1, &vd.texId);
-
-    createMpvFBO(vd, vd.videoWidth, vd.videoHeight);
-}
-
-static void *get_proc_address_mpv(void*, const char *name)
-{
-    return reinterpret_cast<void *>(glfwGetProcAddress(name));
-}
-
-void on_mpv_render_update(void*)
-{
-    sgct::Window::makeSharedContextCurrent();
-    checkNeededMpvFboResize(videoData);
-}
-
-void on_mpv_events(mpvData& vd)
-{
-    while (vd.handle) {
-        mpv_event *event = mpv_wait_event(vd.handle, 0);
-        if (event->event_id == MPV_EVENT_NONE) {
-            break;
-        }
-        switch (event->event_id) {
-#ifndef ONLY_RENDER_TO_SCREEN
-            case MPV_EVENT_VIDEO_RECONFIG: {
-                // Retrieve the new video size.
-                int64_t w, h;
-                if (mpv_get_property(vd.handle, "dwidth", MPV_FORMAT_INT64, &w) >= 0 &&
-                    mpv_get_property(vd.handle, "dheight", MPV_FORMAT_INT64, &h) >= 0 &&
-                    w > 0 && h > 0)
-                {
-                    vd.videoWidth = w;
-                    vd.videoHeight = h;
-                    vd.reconfigs++;
-                    updateRendering = (vd.reconfigs > vd.reconfigsBeforeUpdate);
-                    mpv::qt::set_property_async(vd.handle, QStringLiteral("time-pos"), SyncHelper::instance().variables.timePosition);
-                }
-                break;
-            }
-            case MPV_EVENT_PROPERTY_CHANGE: {
-                    mpv_event_property *prop = (mpv_event_property *)event->data;
-                    if (strcmp(prop->name, "video-params") == 0) {
-                        if (prop->format == MPV_FORMAT_NODE) {
-                            const QVariant videoParams = mpv::qt::node_to_variant(reinterpret_cast<mpv_node*>(prop->data));
-                            auto vm = videoParams.toMap();
-                            vd.videoWidth = vm[QStringLiteral("w")].toInt();
-                            vd.videoHeight = vm[QStringLiteral("h")].toInt();
-                        }
-                    }
-                    else if (strcmp(prop->name, "pause") == 0) {
-                        if (prop->format == MPV_FORMAT_FLAG) {
-                            videoIsPaused = *reinterpret_cast<bool*>(prop->data);
-                            if (SyncHelper::instance().variables.paused != videoIsPaused)
-                                mpv::qt::set_property_async(vd.handle, QStringLiteral("pause"), SyncHelper::instance().variables.paused);
-                        }
-                    }
-                    else if (strcmp(prop->name, "duration") == 0) {
-                        if (prop->format == MPV_FORMAT_DOUBLE) {
-                            videoDuration = *reinterpret_cast<double*>(prop->data);
-                        }
-                    }
-                    else if (strcmp(prop->name, "time-pos") == 0) {
-                        if (SyncHelper::instance().variables.timeThresholdEnabled) {
-                            double timeToSet = SyncHelper::instance().variables.timePosition;
-                            //We do not want to "over-force" seeks, as this will slow down and might cause continued stutter.
-                            //Normally, playback is syncronized, however looping depends on seek speed.
-                            //Seek speeds (thus loop speed) is faster when no audio is present, thus nodes might be faster then master.
-                            //Hence, we might need to correct things after a loop, between master and nodes.
-                            if (!SyncHelper::instance().variables.timeThresholdOnLoopOnly 
-                                || (eofMode > 1 && timeToSet < SyncHelper::instance().variables.timeThresholdOnLoopCheckTime)
-                                || (eofMode > 1 && timeToSet > (videoDuration - SyncHelper::instance().variables.timeThresholdOnLoopCheckTime) && (videoDuration > 0))
-                                || (SyncHelper::instance().variables.loopTimeEnabled && timeToSet < (SyncHelper::instance().variables.loopTimeA + SyncHelper::instance().variables.timeThresholdOnLoopCheckTime))
-                                || (SyncHelper::instance().variables.loopTimeEnabled && SyncHelper::instance().variables.loopTimeB < (timeToSet + SyncHelper::instance().variables.timeThresholdOnLoopCheckTime))) {
-                                if (prop->format == MPV_FORMAT_DOUBLE) {
-                                    double latestPosition = *reinterpret_cast<double*>(prop->data);
-                                    if (SyncHelper::instance().variables.timeThreshold > 0 && (abs(latestPosition - timeToSet) > SyncHelper::instance().variables.timeThreshold))
-                                    {
-                                        mpv::qt::set_property_async(videoData.handle, QStringLiteral("time-pos"), timeToSet);
-                                    }
-                                }
-                            }
-                        }
-                    }
-                    break;
-            }
-#endif
-            case MPV_EVENT_LOG_MESSAGE: {
-                mpv_event_log_message* message = (mpv_event_log_message*)event->data;
-                if (message->log_level == mpv_log_level::MPV_LOG_LEVEL_FATAL) {
-                    Log::Error(fmt::format("FATAL: {}", message->text));
-                }
-                else if (message->log_level == mpv_log_level::MPV_LOG_LEVEL_ERROR) {
-                    Log::Error(message->text);
-                }
-                else if (message->log_level == mpv_log_level::MPV_LOG_LEVEL_WARN) {
-                    Log::Warning(message->text);
-                }
-                else if (message->log_level == mpv_log_level::MPV_LOG_LEVEL_INFO) {
-                    Log::Info(message->text);
-                }
-                else if (message->log_level == mpv_log_level::MPV_LOG_LEVEL_V) {
-                    Log::Info(message->text);
-                }
-                else if (message->log_level == mpv_log_level::MPV_LOG_LEVEL_DEBUG) {
-                    Log::Debug(message->text);
-                }
-                break;
-            }
-            default: {
-                // Ignore uninteresting or unknown events.
-                break;
-            }
-        }
-    }
-}
-
-void initMPV(mpvData& vd) {
-    vd.handle = mpv_create();
-    if (!vd.handle)
-        Log::Error("mpv context init failed");
-
-    mpv_set_option_string(vd.handle, "vo", "libmpv");
-    if (!logFilePath.empty() || !logLevel.empty()) {
-        mpv_set_option_string(vd.handle, "terminal", "yes");
-        mpv_set_option_string(vd.handle, "msg-level", "all=v");
-        mpv_request_log_messages(vd.handle, logLevel.c_str());
-    }
-
-    // Some minor options can only be set before mpv_initialize().
-    if (mpv_initialize(vd.handle) < 0)
-        Log::Error("mpv init failed");
-
-    // Set default settings
-    mpv::qt::set_property(vd.handle, QStringLiteral("keep-open"), QStringLiteral("yes"));
-    mpv::qt::set_property(vd.handle, QStringLiteral("loop-file"), QStringLiteral("inf"));
-    mpv::qt::set_property(vd.handle, QStringLiteral("aid"), QStringLiteral("no")); //No audio on nodes.
-
-    // Load mpv configurations for nodes
-    mpv::qt::load_configurations(vd.handle, QString::fromStdString(SyncHelper::instance().configuration.confAll));
-    mpv::qt::load_configurations(vd.handle, QString::fromStdString(SyncHelper::instance().configuration.confNodesOnly));
-
-    if (allowDirectRendering) {
-        //Run with direct rendering if requested
-        if (mpv::qt::get_property(vd.handle, QStringLiteral("vd-lavc-dr")).toBool()) {
-            vd.advancedControl = 1;
-            vd.reconfigsBeforeUpdate = 0;
-        }
-        else {
-            vd.advancedControl = 0;
-            vd.reconfigsBeforeUpdate = 0;
-        }
-    }
-    else {
-        //Do not allow direct rendering (EVER).
-        mpv::qt::set_property(vd.handle, QStringLiteral("vd-lavc-dr"), QStringLiteral("no"));
-        vd.advancedControl = 0;
-        vd.reconfigsBeforeUpdate = 0;
-    }
-}
-
-auto runMpvAsync = [](mpvData& data) {
-    data.threadRunning = true;
-    initMPV(data);
-    data.mpvInitialized = true;
-    while (!data.terminate) {
-        on_mpv_events(data);
-    }
-    mpv_destroy(data.handle);
-    data.threadDone = true;
-};
-
 void initOGL(GLFWwindow*) {
 #ifndef SGCT_ONLY
     if (Engine::instance().isMaster())
         return;
 #endif
 
-if (mpvAndRenderOnSeparateThreads) {
-    //Run MPV on another thread
-    videoData.trd = std::make_unique<std::thread>(runMpvAsync, std::ref(videoData));
-    while (!videoData.mpvInitialized) {}
-}
-else{
-    initMPV(videoData);
-}
+    backgroundImageLayer = new ImageLayer("background");
+    foregroundImageLayer = new ImageLayer("foreground");
+    overlayImageLayer = new ImageLayer("overlay");
 
-#ifndef ONLY_RENDER_TO_SCREEN
-    //Observe video parameters
-    mpv_observe_property(videoData.handle, 0, "video-params", MPV_FORMAT_NODE);
-    mpv_observe_property(videoData.handle, 0, "pause", MPV_FORMAT_FLAG);
-    mpv_observe_property(videoData.handle, 0, "time-pos", MPV_FORMAT_DOUBLE);
-    mpv_observe_property(videoData.handle, 0, "duration", MPV_FORMAT_DOUBLE);
-#endif
-
-    // Setup OpenGL MPV settings
-    mpv_opengl_init_params gl_init_params[1] = { get_proc_address_mpv, nullptr };
-    mpv_render_param params[]{
-        {MPV_RENDER_PARAM_API_TYPE, const_cast<char*>(MPV_RENDER_API_TYPE_OPENGL)},
-        {MPV_RENDER_PARAM_OPENGL_INIT_PARAMS, &gl_init_params},
-        // Tell libmpv that you will call mpv_render_context_update() on render
-        // context update callbacks, and that you will _not_ block on the core
-        // ever (see <libmpv/render.h> "Threading" section for what libmpv
-        // functions you can call at all when this is active).
-        // In particular, this means you must call e.g. mpv_command_async()
-        // instead of mpv_command().
-        // If you want to use synchronous calls, either make them on a separate
-        // thread, or remove the option below (this will disable features like
-        // DR and is not recommended anyway).
-        {MPV_RENDER_PARAM_ADVANCED_CONTROL, &videoData.advancedControl},
-        {MPV_RENDER_PARAM_INVALID, nullptr}
-    };
-
-    // This makes mpv use the currently set GL context. It will use the callback
-    // (passed via params) to resolve GL builtin functions, as well as extensions.
-    if (mpv_render_context_create(&videoData.renderContext, videoData.handle, params) < 0)
-        Log::Error("failed to initialize mpv GL context");
-
-    // When there is a need to call mpv_render_context_update(), which can
-    // request a new frame to be rendered.
-    // (Separate from the normal event handling mechanism for the sake of
-    //  users which run OpenGL on a different thread.)
-    mpv_render_context_set_update_callback(videoData.renderContext, on_mpv_render_update, NULL);
-
-    Log::Info(fmt::format("Loading new file: {}", SyncHelper::instance().variables.loadedFile));
-    if (!SyncHelper::instance().variables.loadedFile.empty())
-        mpv::qt::command_async(videoData.handle, QStringList() << QStringLiteral("loadfile") << QString::fromStdString(SyncHelper::instance().variables.loadedFile));
-
-#ifndef ONLY_RENDER_TO_SCREEN
-    //Creating new FBO to render mpv into
-    createMpvFBO(videoData, 512, 512);
+    mainMpvLayer = new MpvLayer(allowDirectRendering, !logFilePath.empty() || !logLevel.empty(), logLevel);
+    mainMpvLayer->initialize();
+    mainMpvLayer->loadFile(SyncHelper::instance().variables.loadedFile);
 
     // Create shaders
     ShaderManager::instance().addShaderProgram("mesh", MeshVert, VideoFrag);
@@ -857,18 +480,17 @@ else{
     // create meshes
     domeRadius = SyncHelper::instance().variables.radius;
     domeFov = SyncHelper::instance().variables.fov;
-    dome = std::make_unique<utils::Dome>(float(domeRadius)/100.f, float(domeFov), 256, 128);
-    sphere = std::make_unique<utils::Sphere>(float(domeRadius) / 100.f, 256);
+    domeMesh = std::make_unique<utils::Dome>(float(domeRadius)/100.f, float(domeFov), 256, 128);
+    sphereMesh = std::make_unique<utils::Sphere>(float(domeRadius) / 100.f, 256);
 
     planeWidth = float(SyncHelper::instance().variables.planeWidth);
     planeHeight = float(SyncHelper::instance().variables.planeHeight);
-    plane = std::make_unique<utils::Plane>(planeWidth / 100.f, planeHeight / 100.f);
+    planeMesh = std::make_unique<utils::Plane>(planeWidth / 100.f, planeHeight / 100.f);
 
     // Set up backface culling
     glCullFace(GL_BACK);
     // our polygon winding is clockwise since we are inside of the dome
     glFrontFace(GL_CW);
-#endif
 }
 
 void preSync() {
@@ -1046,142 +668,71 @@ void postSyncPreDraw() {
 #ifndef SGCT_ONLY
     //Apply synced commands
     if (!Engine::instance().isMaster()) {
-        handleAsyncImageUpload(backgroundImageData);
-        handleAsyncImageUpload(foregroundImageData);
-        handleAsyncImageUpload(overlayImageData);
 
-        if (!backgroundImageData.threadRunning && SyncHelper::instance().variables.bgImageFileDirty) {
-            SyncHelper::instance().variables.bgImageFileDirty = false;
-            if (SyncHelper::instance().variables.bgImageFile.empty()){
-                Log::Info("Clearing background");
-                backgroundImageData.filename = "";
-            }
-            else{
-                if (fileIsImage(SyncHelper::instance().variables.bgImageFile)) {
-                    //Load background file
-                    backgroundImageData.filename = SyncHelper::instance().variables.bgImageFile;
-                    Log::Info(fmt::format("Loading new background image asynchronously: {}", backgroundImageData.filename));
-                    backgroundImageData.trd = std::make_unique<std::thread>(loadImageAsync, std::ref(backgroundImageData));
+        glm::vec3 rotXYZ = glm::vec3(float(SyncHelper::instance().variables.rotateX),
+            float(SyncHelper::instance().variables.rotateY),
+            float(SyncHelper::instance().variables.rotateZ));
 
-                    bgRotate = glm::vec3(float(SyncHelper::instance().variables.rotateX),
-                        float(SyncHelper::instance().variables.rotateY),
-                        float(SyncHelper::instance().variables.rotateZ));
-                    bgTranslate = glm::vec3(float(SyncHelper::instance().variables.translateX) / 100.f,
-                        float(SyncHelper::instance().variables.translateY) / 100.f,
-                        float(SyncHelper::instance().variables.translateZ) / 100.f);
-                }
-                else {
-                    backgroundImageData.filename = "";
-                }
-            }
+        glm::vec3 translateXYZ = glm::vec3(float(SyncHelper::instance().variables.translateX) / 100.f,
+            float(SyncHelper::instance().variables.translateY) / 100.f,
+            float(SyncHelper::instance().variables.translateZ) / 100.f);
 
+        bool newImage = false;
+
+        //Process background image loading
+        newImage = backgroundImageLayer->processImageUpload(SyncHelper::instance().variables.bgImageFile, SyncHelper::instance().variables.bgImageFileDirty);
+        if (newImage) {
+            backgroundImageLayer->setRotate(rotXYZ);
+            backgroundImageLayer->setTranslate(translateXYZ);
         }
+        SyncHelper::instance().variables.bgImageFileDirty = false;
 
-        if (!foregroundImageData.threadRunning && SyncHelper::instance().variables.fgImageFileDirty) {
-            SyncHelper::instance().variables.fgImageFileDirty = false;
-            if (SyncHelper::instance().variables.fgImageFile.empty()) {
-                Log::Info("Clearing foreground");
-                foregroundImageData.filename = "";
-            }
-            else {
-                if (fileIsImage(SyncHelper::instance().variables.fgImageFile)) {
-                    //Load background file
-                    foregroundImageData.filename = SyncHelper::instance().variables.fgImageFile;
-                    Log::Info(fmt::format("Loading new foreground image asynchronously: {}", foregroundImageData.filename));
-                    foregroundImageData.trd = std::make_unique<std::thread>(loadImageAsync, std::ref(foregroundImageData));
-
-                    fgRotate = glm::vec3(float(SyncHelper::instance().variables.rotateX),
-                        float(SyncHelper::instance().variables.rotateY),
-                        float(SyncHelper::instance().variables.rotateZ));
-                    fgTranslate = glm::vec3(float(SyncHelper::instance().variables.translateX) / 100.f,
-                        float(SyncHelper::instance().variables.translateY) / 100.f,
-                        float(SyncHelper::instance().variables.translateZ) / 100.f);
-                }
-                else {
-                    foregroundImageData.filename = "";
-                }
-            }
-
+        //Process foreground image loading
+        newImage = foregroundImageLayer->processImageUpload(SyncHelper::instance().variables.fgImageFile, SyncHelper::instance().variables.fgImageFileDirty);
+        if (newImage) {
+            foregroundImageLayer->setRotate(rotXYZ);
+            foregroundImageLayer->setTranslate(translateXYZ);
         }
+        SyncHelper::instance().variables.fgImageFileDirty = false;
 
-        if (!overlayImageData.threadRunning && SyncHelper::instance().variables.overlayFileDirty) {
-            SyncHelper::instance().variables.overlayFileDirty = false;
-            if (SyncHelper::instance().variables.overlayFile.empty()) {
-                Log::Info("Clearing overlay");
-                overlayImageData.filename = "";
-            }
-            else {
-                if (fileIsImage(SyncHelper::instance().variables.overlayFile)) {
-                    //Load overlay file
-                    overlayImageData.filename = SyncHelper::instance().variables.overlayFile;
-                    Log::Info(fmt::format("Loading new overlay image asynchronously: {}", overlayImageData.filename));
-                    overlayImageData.trd = std::make_unique<std::thread>(loadImageAsync, std::ref(overlayImageData));
-                }
-                else {
-                    overlayImageData.filename = "";
-                }
-            }
-        }
+        //Process overlay image loading
+        newImage = overlayImageLayer->processImageUpload(SyncHelper::instance().variables.overlayFile, SyncHelper::instance().variables.overlayFileDirty);
+        SyncHelper::instance().variables.overlayFileDirty = false;
 
-        if (!SyncHelper::instance().variables.loadedFile.empty() && (SyncHelper::instance().variables.loadFile || loadedFile != SyncHelper::instance().variables.loadedFile)) {            
-            //Load new file
-            loadedFile = SyncHelper::instance().variables.loadedFile;
+        if (!SyncHelper::instance().variables.loadedFile.empty()) {            
+            //Load new MPV file
+            mainMpvLayer->loadFile(SyncHelper::instance().variables.loadedFile, SyncHelper::instance().variables.loadFile);
             SyncHelper::instance().variables.loadFile = false;
-            Log::Info(fmt::format("Loading new file: {}", loadedFile));
-            videoData.reconfigs = 0;
-            updateRendering = false;
-            mpv::qt::command_async(videoData.handle, QStringList() << QStringLiteral("loadfile") << QString::fromStdString(loadedFile));
         }
 
-        renderParams.clear();
+        layers2render.clear();
 
-        if ((!updateRendering || loadedFile.empty() || 
+        if ((!mainMpvLayer->renderingIsOn() || mainMpvLayer->hasLoadedFile() ||
             (SyncHelper::instance().variables.alpha < 1.f || SyncHelper::instance().variables.gridToMapOn == 1))
-            && !backgroundImageData.filename.empty() && SyncHelper::instance().variables.alphaBg > 0.f) {
-            RenderParams rpBg;
-            rpBg.tex = backgroundImageData.texId;
-            rpBg.alpha = SyncHelper::instance().variables.alphaBg;
-            rpBg.gridMode = SyncHelper::instance().variables.gridToMapOnBg;
-            rpBg.stereoMode = SyncHelper::instance().variables.stereoscopicModeBg;
-            rpBg.rotate = bgRotate;
-
-            if(rpBg.gridMode > 2) {
-                rpBg.rotate.y -= 90.f;
-            }
-
-            rpBg.translate = bgTranslate;
-            renderParams.push_back(rpBg);
+            && !backgroundImageLayer->hasLoadedFile() && SyncHelper::instance().variables.alphaBg > 0.f) {
+            backgroundImageLayer->setAlpha(SyncHelper::instance().variables.alphaBg);
+            backgroundImageLayer->setGridMode(SyncHelper::instance().variables.gridToMapOnBg);
+            backgroundImageLayer->setStereoMode(SyncHelper::instance().variables.stereoscopicModeBg);
+            layers2render.push_back(backgroundImageLayer);
         }
 
-        if (updateRendering) {
-            if (!loadedFile.empty() && SyncHelper::instance().variables.alpha > 0.f) {
-                RenderParams rpMpv;
-                rpMpv.tex = videoData.texId;
-                rpMpv.alpha = SyncHelper::instance().variables.alpha;
-                rpMpv.gridMode = SyncHelper::instance().variables.gridToMapOn;
-                rpMpv.stereoMode = SyncHelper::instance().variables.stereoscopicMode;
-                rpMpv.rotate = glm::vec3(float(SyncHelper::instance().variables.rotateX),
-                    float(SyncHelper::instance().variables.rotateY),
-                    float(SyncHelper::instance().variables.rotateZ));
-                rpMpv.translate = glm::vec3(float(SyncHelper::instance().variables.translateX) / 100.f,
-                    float(SyncHelper::instance().variables.translateY) / 100.f,
-                    float(SyncHelper::instance().variables.translateZ) / 100.f);
-                renderParams.push_back(rpMpv);
+        if (mainMpvLayer->renderingIsOn()) {
+            if (!mainMpvLayer->hasLoadedFile() && SyncHelper::instance().variables.alpha > 0.f) {
+                mainMpvLayer->setAlpha(SyncHelper::instance().variables.alpha);
+                mainMpvLayer->setGridMode(SyncHelper::instance().variables.gridToMapOn);
+                mainMpvLayer->setStereoMode(SyncHelper::instance().variables.stereoscopicMode);
+                mainMpvLayer->setRotate(rotXYZ);
+                mainMpvLayer->setTranslate(translateXYZ);
+                layers2render.push_back(mainMpvLayer);
             }
 
-            if (!overlayImageData.filename.empty() && SyncHelper::instance().variables.alpha > 0.f) {
-                RenderParams rpOverlay;
-                rpOverlay.tex = overlayImageData.texId;
-                rpOverlay.alpha = SyncHelper::instance().variables.alpha;
-                rpOverlay.gridMode = SyncHelper::instance().variables.gridToMapOn;
-                rpOverlay.stereoMode = SyncHelper::instance().variables.stereoscopicMode;
-                rpOverlay.rotate = glm::vec3(float(SyncHelper::instance().variables.rotateX),
-                    float(SyncHelper::instance().variables.rotateY),
-                    float(SyncHelper::instance().variables.rotateZ));
-                rpOverlay.translate = glm::vec3(float(SyncHelper::instance().variables.translateX) / 100.f,
-                    float(SyncHelper::instance().variables.translateY) / 100.f,
-                    float(SyncHelper::instance().variables.translateZ) / 100.f);
-                renderParams.push_back(rpOverlay);
+            if (!overlayImageLayer->hasLoadedFile() && SyncHelper::instance().variables.alpha > 0.f) {
+                overlayImageLayer->setAlpha(SyncHelper::instance().variables.alpha);
+                overlayImageLayer->setGridMode(SyncHelper::instance().variables.gridToMapOn);
+                overlayImageLayer->setStereoMode(SyncHelper::instance().variables.stereoscopicMode);
+                overlayImageLayer->setRotate(rotXYZ);
+                overlayImageLayer->setTranslate(translateXYZ);
+                layers2render.push_back(overlayImageLayer);
             }
 
             //If we have 2D and 3D viewports defined, deside based on renderParams which to render
@@ -1193,10 +744,10 @@ void postSyncPreDraw() {
             bool show2Dcontent = false;
             bool show3Dcontent = false;
             bool has3Dplane = false;
-            for (const auto& renderParam : renderParams) {
-                if (renderParam.stereoMode > 0) {
+            for (const auto& layer : layers2render) {
+                if (layer->stereoMode() > 0) {
                     show3Dcontent = true;
-                    if (renderParam.gridMode == 1) {
+                    if (layer->gridMode() == 1) {
                         has3Dplane = true;
                     }
                 }
@@ -1248,87 +799,46 @@ void postSyncPreDraw() {
             
         }
 
-        if (!foregroundImageData.filename.empty() && SyncHelper::instance().variables.alphaFg > 0.f) {
-            RenderParams rpFg;
-            rpFg.tex = foregroundImageData.texId;
-            rpFg.alpha = SyncHelper::instance().variables.alphaFg;
-            rpFg.gridMode = SyncHelper::instance().variables.gridToMapOnFg;
-            rpFg.stereoMode = SyncHelper::instance().variables.stereoscopicModeFg;
-            rpFg.rotate = fgRotate;
-
-            if (rpFg.gridMode > 2) {
-                rpFg.rotate.y -= 90.f;
-            }
-
-            rpFg.translate = fgTranslate;
-            renderParams.push_back(rpFg);
+        if (!foregroundImageLayer->hasLoadedFile() && SyncHelper::instance().variables.alphaFg > 0.f) {
+            foregroundImageLayer->setAlpha(SyncHelper::instance().variables.alphaFg);
+            foregroundImageLayer->setGridMode(SyncHelper::instance().variables.gridToMapOnFg);
+            foregroundImageLayer->setStereoMode(SyncHelper::instance().variables.stereoscopicModeFg);
+            layers2render.push_back(foregroundImageLayer);
         }
         
-        if (SyncHelper::instance().variables.paused != videoIsPaused) {
-            videoIsPaused = SyncHelper::instance().variables.paused;
-            if (videoIsPaused) {
-                Log::Info("Video paused.");
-            }
-            else {
-                Log::Info("Video playing...");
-            }
-            mpv::qt::set_property_async(videoData.handle, QStringLiteral("pause"), videoIsPaused);
-        }
-
-        if (SyncHelper::instance().variables.eofMode != eofMode) {
-            eofMode = SyncHelper::instance().variables.eofMode;
-
-            if (eofMode == 0) { //Pause
-                mpv::qt::set_property_async(videoData.handle, QStringLiteral("keep-open"), QStringLiteral("yes"));
-                mpv::qt::set_property_async(videoData.handle, QStringLiteral("loop-file"), QStringLiteral("no"));
-            }
-            else if (eofMode == 1) { //Continue
-                mpv::qt::set_property_async(videoData.handle, QStringLiteral("keep-open"), QStringLiteral("no"));
-                mpv::qt::set_property_async(videoData.handle, QStringLiteral("loop-file"), QStringLiteral("no"));
-            }
-            else { //Loop
-                mpv::qt::set_property_async(videoData.handle, QStringLiteral("keep-open"), QStringLiteral("yes"));
-                mpv::qt::set_property_async(videoData.handle, QStringLiteral("loop-file"), QStringLiteral("inf"));
-            }
-        }
-
-        if (SyncHelper::instance().variables.timeDirty) {
-            mpv::qt::set_property_async(videoData.handle, QStringLiteral("time-pos"), SyncHelper::instance().variables.timePosition);
-            //Log::Info(fmt::format("New video position: {}", timeToSet));     
-        }
-
+        // Set properties of main mpv layer
+        mainMpvLayer->setPause(SyncHelper::instance().variables.paused);
+        mainMpvLayer->setEOFMode(SyncHelper::instance().variables.eofMode);
+        mainMpvLayer->setTimePosition(
+            SyncHelper::instance().variables.timePosition, 
+            SyncHelper::instance().variables.timeDirty);
         if (SyncHelper::instance().variables.loopTimeDirty) {
-            if (SyncHelper::instance().variables.loopTimeEnabled) {
-                mpv::qt::set_property_async(videoData.handle, QStringLiteral("ab-loop-a"), SyncHelper::instance().variables.loopTimeA);
-                mpv::qt::set_property_async(videoData.handle, QStringLiteral("ab-loop-b"), SyncHelper::instance().variables.loopTimeB);
-            }
-            else {
-                mpv::qt::set_property_async(videoData.handle, QStringLiteral("ab-loop-a"), QStringLiteral("no"));
-                mpv::qt::set_property_async(videoData.handle, QStringLiteral("ab-loop-b"), QStringLiteral("no"));
-            }
+            mainMpvLayer->setLoopTime(
+                SyncHelper::instance().variables.loopTimeA, 
+                SyncHelper::instance().variables.loopTimeB, 
+                SyncHelper::instance().variables.loopTimeEnabled);
         }
-
         if (SyncHelper::instance().variables.eqDirty) {
-            mpv::qt::set_property_async(videoData.handle, QStringLiteral("contrast"), SyncHelper::instance().variables.eqContrast);
-            mpv::qt::set_property_async(videoData.handle, QStringLiteral("brightness"), SyncHelper::instance().variables.eqBrightness);
-            mpv::qt::set_property_async(videoData.handle, QStringLiteral("gamma"), SyncHelper::instance().variables.eqGamma);
-            mpv::qt::set_property_async(videoData.handle, QStringLiteral("saturation"), SyncHelper::instance().variables.eqSaturation);
+            mainMpvLayer->setValue("contrast", SyncHelper::instance().variables.eqContrast);
+            mainMpvLayer->setValue("brightness", SyncHelper::instance().variables.eqBrightness);
+            mainMpvLayer->setValue("gamma", SyncHelper::instance().variables.eqGamma);
+            mainMpvLayer->setValue("saturation", SyncHelper::instance().variables.eqSaturation);
         }
 
         if (domeRadius != SyncHelper::instance().variables.radius || domeFov != SyncHelper::instance().variables.fov) {
-            dome = nullptr;
-            sphere = nullptr;
+            domeMesh = nullptr;
+            sphereMesh = nullptr;
             domeRadius = SyncHelper::instance().variables.radius;
             domeFov = SyncHelper::instance().variables.fov;
-            dome = std::make_unique<utils::Dome>(float(domeRadius) / 100.f, float(domeFov), 256, 128);
-            sphere = std::make_unique<utils::Sphere>(float(domeRadius) / 100.f, 256);
+            domeMesh = std::make_unique<utils::Dome>(float(domeRadius) / 100.f, float(domeFov), 256, 128);
+            sphereMesh = std::make_unique<utils::Sphere>(float(domeRadius) / 100.f, 256);
         }
 
         if (planeWidth != SyncHelper::instance().variables.planeWidth || planeHeight != SyncHelper::instance().variables.planeHeight) {
-            plane = nullptr;
+            planeMesh = nullptr;
             planeWidth = float(SyncHelper::instance().variables.planeWidth);
             planeHeight = float(SyncHelper::instance().variables.planeHeight);
-            plane = std::make_unique<utils::Plane>(planeWidth / 100.f, planeHeight / 100.f);
+            planeMesh = std::make_unique<utils::Plane>(planeWidth / 100.f, planeHeight / 100.f);
         }
     }
 
@@ -1337,35 +847,8 @@ void postSyncPreDraw() {
     }
 #endif
 
-    if (!mpvAndRenderOnSeparateThreads) {
-        on_mpv_events(videoData);
-    }
-
-    checkNeededMpvFboResize(videoData);
-
-#ifndef ONLY_RENDER_TO_SCREEN
-    // See render_gl.h on what OpenGL environment mpv expects, and
-    // other API details.
-    if (updateRendering) {
-        mpv_opengl_fbo mpfbo{ static_cast<int>(videoData.fboId), videoData.fboWidth, videoData.fboHeight, GL_RGBA16F };
-        int flip_y{ 1 };
-
-        mpv_render_param params[] = {
-            {MPV_RENDER_PARAM_OPENGL_FBO, &mpfbo},
-            {MPV_RENDER_PARAM_FLIP_Y, &flip_y},
-            {MPV_RENDER_PARAM_INVALID, nullptr}
-        };
-        mpv_render_context_render(videoData.renderContext, params);
-    }
-    else {
-        int skip_rendering{ 1 };
-        mpv_render_param params[] = {
-                {MPV_RENDER_PARAM_SKIP_RENDERING, &skip_rendering},
-                {MPV_RENDER_PARAM_INVALID, nullptr}
-        };
-        mpv_render_context_render(videoData.renderContext, params);
-    }
-#endif
+    // Update/render the frame from MPV pipeline
+    mainMpvLayer->updateFrame();
 }
 
 void draw(const RenderData& data) {
@@ -1378,23 +861,6 @@ void draw(const RenderData& data) {
 
     glDisable(GL_BLEND);
 
-#ifdef ONLY_RENDER_TO_SCREEN
-    OffScreenBuffer *osb = data.window.fbo();
-    ivec2 size = osb->size();
-
-    mpv_opengl_fbo mpfbo{static_cast<int>(osb->fboHandle()), size.x, size.y, 0};
-    int flip_y{1};
-
-    mpv_render_param params[] = {
-        {MPV_RENDER_PARAM_OPENGL_FBO, &mpfbo},
-        {MPV_RENDER_PARAM_FLIP_Y, &flip_y},
-        {MPV_RENDER_PARAM_INVALID, nullptr}
-    };
-    // See render_gl.h on what OpenGL environment mpv expects, and
-    // other API details.
-    mpv_render_context_render(videoData.renderContext, params);
-#else
-
     Frustum::Mode currentEye = data.frustumMode;
 
     //Check if we force all viewports to 2D, meaning only show LeftEye if 3D
@@ -1402,24 +868,24 @@ void draw(const RenderData& data) {
         currentEye = Frustum::Mode::StereoLeftEye;
     }
 
-    for (const auto& renderParam : renderParams) {
+    for (const auto& layer : layers2render) {
         glActiveTexture(GL_TEXTURE0);
-        glBindTexture(GL_TEXTURE_2D, renderParam.tex);
+        glBindTexture(GL_TEXTURE_2D, layer->textureId());
         glEnable(GL_BLEND);
 
-        if (renderParam.gridMode == 4) {
+        if (layer->gridMode() == 4) {
             glEnable(GL_CULL_FACE);
 
             EACPrg->bind();
 
-            glUniform1f(EACAlphaLoc, renderParam.alpha);
+            glUniform1f(EACAlphaLoc, layer->alpha());
             glUniform1i(EACOutsideLoc, 0);
-            glUniform1i(EACVideoWidthLoc, videoData.fboWidth);
-            glUniform1i(EACVideoHeightLoc, videoData.fboHeight);
+            glUniform1i(EACVideoWidthLoc, layer->width());
+            glUniform1i(EACVideoHeightLoc, layer->height());
 
-            if (renderParam.stereoMode > 0) {
+            if (layer->stereoMode() > 0) {
                 glUniform1i(EACEyeModeLoc, (GLint)currentEye);
-                glUniform1i(EACStereoscopicModeLoc, (GLint)renderParam.stereoMode);
+                glUniform1i(EACStereoscopicModeLoc, (GLint)layer->stereoMode());
             }
             else {
                 glUniform1i(EACEyeModeLoc, 0);
@@ -1427,31 +893,31 @@ void draw(const RenderData& data) {
             }
 
             const sgct::mat4 mvp = data.modelViewProjectionMatrix;
-            glm::mat4 MVP_transformed = glm::translate(glm::make_mat4(mvp.values), renderParam.translate);
+            glm::mat4 MVP_transformed = glm::translate(glm::make_mat4(mvp.values), layer->translate());
 
             glm::mat4 MVP_transformed_rot = MVP_transformed;
-            MVP_transformed_rot = glm::rotate(MVP_transformed_rot, glm::radians(renderParam.rotate.z), glm::vec3(0.0f, 0.0f, 1.0f)); //roll
-            MVP_transformed_rot = glm::rotate(MVP_transformed_rot, glm::radians(renderParam.rotate.x), glm::vec3(1.0f, 0.0f, 0.0f)); //pitch
-            MVP_transformed_rot = glm::rotate(MVP_transformed_rot, glm::radians(renderParam.rotate.y + 90.f), glm::vec3(0.0f, 1.0f, 0.0f)); //yaw
+            MVP_transformed_rot = glm::rotate(MVP_transformed_rot, glm::radians(layer->rotate().z), glm::vec3(0.0f, 0.0f, 1.0f)); //roll
+            MVP_transformed_rot = glm::rotate(MVP_transformed_rot, glm::radians(layer->rotate().x), glm::vec3(1.0f, 0.0f, 0.0f)); //pitch
+            MVP_transformed_rot = glm::rotate(MVP_transformed_rot, glm::radians(layer->rotate().y + 90.f), glm::vec3(0.0f, 1.0f, 0.0f)); //yaw
             MVP_transformed_rot = glm::rotate(MVP_transformed_rot, glm::radians(90.f), glm::vec3(0.0f, 0.0f, 1.0f)); //roll
             glUniformMatrix4fv(EACMatrixLoc, 1, GL_FALSE, &MVP_transformed_rot[0][0]);
 
-            sphere->draw();
+            sphereMesh->draw();
 
             // Set up frontface culling
             glCullFace(GL_FRONT);
 
             // Compensate for the angle of the dome
             glm::mat4 MVP_transformed_rot2 = MVP_transformed;
-            MVP_transformed_rot2 = glm::rotate(MVP_transformed_rot2, glm::radians(360.f - renderParam.rotate.z), glm::vec3(0.0f, 0.0f, 1.0f)); //roll
-            MVP_transformed_rot2 = glm::rotate(MVP_transformed_rot2, glm::radians(360.f - renderParam.rotate.x + float(SyncHelper::instance().variables.angle)), glm::vec3(1.0f, 0.0f, 0.0f)); //pitch
-            MVP_transformed_rot2 = glm::rotate(MVP_transformed_rot2, glm::radians(360.f - renderParam.rotate.y - 90.f), glm::vec3(0.0f, 1.0f, 0.0f)); //yaw
+            MVP_transformed_rot2 = glm::rotate(MVP_transformed_rot2, glm::radians(360.f - layer->rotate().z), glm::vec3(0.0f, 0.0f, 1.0f)); //roll
+            MVP_transformed_rot2 = glm::rotate(MVP_transformed_rot2, glm::radians(360.f - layer->rotate().x + float(SyncHelper::instance().variables.angle)), glm::vec3(1.0f, 0.0f, 0.0f)); //pitch
+            MVP_transformed_rot2 = glm::rotate(MVP_transformed_rot2, glm::radians(360.f - layer->rotate().y - 90.f), glm::vec3(0.0f, 1.0f, 0.0f)); //yaw
             MVP_transformed_rot2 = glm::rotate(MVP_transformed_rot2, glm::radians(360.f - 90.f), glm::vec3(0.0f, 0.0f, 1.0f)); //roll
 
             glUniformMatrix4fv(EACMatrixLoc, 1, GL_FALSE, &MVP_transformed_rot2[0][0]);
             //render outside sphere
             glUniform1i(EACOutsideLoc, 1);
-            sphere->draw();
+            sphereMesh->draw();
 
             // Set up backface culling again
             glCullFace(GL_BACK);
@@ -1461,49 +927,49 @@ void draw(const RenderData& data) {
 
             glDisable(GL_CULL_FACE);
         }
-        else if (renderParam.gridMode == 3) {
+        else if (layer->gridMode() == 3) {
             glEnable(GL_CULL_FACE);
 
             const sgct::mat4 mvp = data.modelViewProjectionMatrix;
-            glm::mat4 MVP_transformed = glm::translate(glm::make_mat4(mvp.values), renderParam.translate);
+            glm::mat4 MVP_transformed = glm::translate(glm::make_mat4(mvp.values), layer->translate());
 
             glm::mat4 MVP_transformed_rot = MVP_transformed;
-            MVP_transformed_rot = glm::rotate(MVP_transformed_rot, glm::radians(renderParam.rotate.z), glm::vec3(0.0f, 0.0f, 1.0f)); //roll
-            MVP_transformed_rot = glm::rotate(MVP_transformed_rot, glm::radians(renderParam.rotate.x), glm::vec3(1.0f, 0.0f, 0.0f)); //pitch
-            MVP_transformed_rot = glm::rotate(MVP_transformed_rot, glm::radians(renderParam.rotate.y), glm::vec3(0.0f, 1.0f, 0.0f)); //yaw
+            MVP_transformed_rot = glm::rotate(MVP_transformed_rot, glm::radians(layer->rotate().z), glm::vec3(0.0f, 0.0f, 1.0f)); //roll
+            MVP_transformed_rot = glm::rotate(MVP_transformed_rot, glm::radians(layer->rotate().x), glm::vec3(1.0f, 0.0f, 0.0f)); //pitch
+            MVP_transformed_rot = glm::rotate(MVP_transformed_rot, glm::radians(layer->rotate().y), glm::vec3(0.0f, 1.0f, 0.0f)); //yaw
 
             meshPrg->bind();
 
-            if (renderParam.stereoMode > 0) {
+            if (layer->stereoMode() > 0) {
                 glUniform1i(meshEyeModeLoc, (GLint)currentEye);
-                glUniform1i(meshStereoscopicModeLoc, (GLint)renderParam.stereoMode);
+                glUniform1i(meshStereoscopicModeLoc, (GLint)layer->stereoMode());
             }
             else {
                 glUniform1i(meshEyeModeLoc, 0);
                 glUniform1i(meshStereoscopicModeLoc, 0);
             }
 
-            glUniform1f(meshAlphaLoc, renderParam.alpha);
+            glUniform1f(meshAlphaLoc, layer->alpha());
 
             glUniformMatrix4fv(meshMatrixLoc, 1, GL_FALSE, &MVP_transformed_rot[0][0]);
 
             //render inside sphere
             glUniform1i(meshOutsideLoc, 0);
-            sphere->draw();
+            sphereMesh->draw();
 
             // Set up frontface culling
             glCullFace(GL_FRONT);
 
             // Compensate for the angle of the dome
             glm::mat4 MVP_transformed_rot2 = MVP_transformed;
-            MVP_transformed_rot2 = glm::rotate(MVP_transformed_rot2, glm::radians(360.f - renderParam.rotate.z), glm::vec3(0.0f, 0.0f, 1.0f)); //roll
-            MVP_transformed_rot2 = glm::rotate(MVP_transformed_rot2, glm::radians(360.f - renderParam.rotate.x + float(SyncHelper::instance().variables.angle)), glm::vec3(1.0f, 0.0f, 0.0f)); //pitch
-            MVP_transformed_rot2 = glm::rotate(MVP_transformed_rot2, glm::radians(360.f - renderParam.rotate.y), glm::vec3(0.0f, 1.0f, 0.0f)); //yaw
+            MVP_transformed_rot2 = glm::rotate(MVP_transformed_rot2, glm::radians(360.f - layer->rotate().z), glm::vec3(0.0f, 0.0f, 1.0f)); //roll
+            MVP_transformed_rot2 = glm::rotate(MVP_transformed_rot2, glm::radians(360.f - layer->rotate().x + float(SyncHelper::instance().variables.angle)), glm::vec3(1.0f, 0.0f, 0.0f)); //pitch
+            MVP_transformed_rot2 = glm::rotate(MVP_transformed_rot2, glm::radians(360.f - layer->rotate().y), glm::vec3(0.0f, 1.0f, 0.0f)); //yaw
 
             glUniformMatrix4fv(meshMatrixLoc, 1, GL_FALSE, &MVP_transformed_rot2[0][0]);
             //render outside sphere
             glUniform1i(meshOutsideLoc, 1);
-            sphere->draw();
+            sphereMesh->draw();
 
             // Set up backface culling again
             glCullFace(GL_BACK);
@@ -1513,52 +979,52 @@ void draw(const RenderData& data) {
 
             glDisable(GL_CULL_FACE);
         }
-        else if (renderParam.gridMode == 2) {
+        else if (layer->gridMode() == 2) {
             glEnable(GL_CULL_FACE);
 
             meshPrg->bind();
 
-            if (renderParam.stereoMode > 0) {
+            if (layer->stereoMode() > 0) {
                 glUniform1i(meshEyeModeLoc, (GLint)currentEye);
-                glUniform1i(meshStereoscopicModeLoc, (GLint)renderParam.stereoMode);
+                glUniform1i(meshStereoscopicModeLoc, (GLint)layer->stereoMode());
             }
             else {
                 glUniform1i(meshEyeModeLoc, 0);
                 glUniform1i(meshStereoscopicModeLoc, 0);
             }
 
-            glUniform1f(meshAlphaLoc, renderParam.alpha);
+            glUniform1f(meshAlphaLoc, layer->alpha());
 
             const sgct::mat4 mvp = data.modelViewProjectionMatrix;
-            glm::mat4 MVP_transformed_rot = glm::translate(glm::make_mat4(mvp.values), renderParam.translate);
-            MVP_transformed_rot = glm::rotate(MVP_transformed_rot, glm::radians(renderParam.rotate.z), glm::vec3(0.0f, 0.0f, 1.0f)); //roll
-            MVP_transformed_rot = glm::rotate(MVP_transformed_rot, glm::radians(renderParam.rotate.x - float(SyncHelper::instance().variables.angle)), glm::vec3(1.0f, 0.0f, 0.0f)); //pitch
-            MVP_transformed_rot = glm::rotate(MVP_transformed_rot, glm::radians(renderParam.rotate.y), glm::vec3(0.0f, 1.0f, 0.0f)); //yaw
+            glm::mat4 MVP_transformed_rot = glm::translate(glm::make_mat4(mvp.values), layer->translate());
+            MVP_transformed_rot = glm::rotate(MVP_transformed_rot, glm::radians(layer->rotate().z), glm::vec3(0.0f, 0.0f, 1.0f)); //roll
+            MVP_transformed_rot = glm::rotate(MVP_transformed_rot, glm::radians(layer->rotate().x - float(SyncHelper::instance().variables.angle)), glm::vec3(1.0f, 0.0f, 0.0f)); //pitch
+            MVP_transformed_rot = glm::rotate(MVP_transformed_rot, glm::radians(layer->rotate().y), glm::vec3(0.0f, 1.0f, 0.0f)); //yaw
             glUniformMatrix4fv(meshMatrixLoc, 1, GL_FALSE, &MVP_transformed_rot[0][0]);
 
-            dome->draw();
+            domeMesh->draw();
 
             meshPrg->unbind();
 
             glDisable(GL_CULL_FACE);
         }
-        else if (renderParam.gridMode == 1) {
+        else if (layer->gridMode() == 1) {
             glEnable(GL_CULL_FACE);
             // Set up frontface culling
             glCullFace(GL_FRONT);
 
             meshPrg->bind();
 
-            if (renderParam.stereoMode > 0) {
+            if (layer->stereoMode() > 0) {
                 glUniform1i(meshEyeModeLoc, (GLint)currentEye);
-                glUniform1i(meshStereoscopicModeLoc, (GLint)renderParam.stereoMode);
+                glUniform1i(meshStereoscopicModeLoc, (GLint)layer->stereoMode());
             }
             else {
                 glUniform1i(meshEyeModeLoc, 0);
                 glUniform1i(meshStereoscopicModeLoc, 0);
             }
 
-            glUniform1f(meshAlphaLoc, renderParam.alpha);
+            glUniform1f(meshAlphaLoc, layer->alpha());
 
             const sgct::mat4 mvp = data.projectionMatrix * data.viewMatrix;
 
@@ -1570,7 +1036,7 @@ void draw(const RenderData& data) {
             planeTransform = glm::make_mat4(mvp.values) * planeTransform;
             glUniformMatrix4fv(meshMatrixLoc, 1, GL_FALSE, &planeTransform[0][0]);
 
-            plane->draw();
+            planeMesh->draw();
 
             meshPrg->unbind();
 
@@ -1582,16 +1048,16 @@ void draw(const RenderData& data) {
         else {
             videoPrg->bind();
 
-            if (renderParam.stereoMode > 0) {
+            if (layer->stereoMode() > 0) {
                 glUniform1i(videoEyeModeLoc, (GLint)currentEye);
-                glUniform1i(videoStereoscopicModeLoc, (GLint)renderParam.stereoMode);
+                glUniform1i(videoStereoscopicModeLoc, (GLint)layer->stereoMode());
             }
             else {
                 glUniform1i(videoEyeModeLoc, 0);
                 glUniform1i(videoStereoscopicModeLoc, 0);
             }
 
-            glUniform1f(videoAlphaLoc, renderParam.alpha);
+            glUniform1f(videoAlphaLoc, layer->alpha());
 
             data.window.renderScreenQuad();
 
@@ -1599,7 +1065,6 @@ void draw(const RenderData& data) {
         }
     }
     glDisable(GL_BLEND);
-#endif
 }
 
 void cleanup() {
@@ -1612,31 +1077,18 @@ void cleanup() {
         return;
 #endif
 
-    // Destroy the GL renderer and all of the GL objects it allocated. If video
-    // is still running, the video track will be deselected.
-    mpv_render_context_free(videoData.renderContext);
+    //Cleanup mainMpvLayer
+    mainMpvLayer->cleanup();
+    delete mainMpvLayer;
+    mainMpvLayer = nullptr;
 
-    if (mpvAndRenderOnSeparateThreads) {
-        //End Mpv running on separate thread
-        videoData.terminate = true;
-        while (!videoData.threadDone) {}
-        videoData.trd->join();
-        videoData.trd = nullptr;
-     }
-    else {
-        mpv_destroy(videoData.handle);
-    }
+    delete backgroundImageLayer;
+    delete foregroundImageLayer;
+    delete overlayImageLayer;
 
-
-#ifndef ONLY_RENDER_TO_SCREEN
-    glDeleteFramebuffers(1, &videoData.fboId);
-    glDeleteTextures(1, &videoData.texId);
-#endif
-    glDeleteTextures(1, &backgroundImageData.texId);
-
-    dome = nullptr;
-    sphere = nullptr;
-    plane = nullptr;
+    domeMesh = nullptr;
+    sphereMesh = nullptr;
+    planeMesh = nullptr;
 }
 
 void logging(Log::Level, std::string_view message) {
@@ -1665,10 +1117,6 @@ int main(int argc, char *argv[])
         }
         else if (arg[i] == "--allowDirectRendering") {
             allowDirectRendering = true;
-            arg.erase(arg.begin() + i);
-        }
-        else if (arg[i] == "--mpv_and_render_on_same_thread") {
-            mpvAndRenderOnSeparateThreads = false;
             arg.erase(arg.begin() + i);
         }
         else if (arg[i] == "--loglevel") {
