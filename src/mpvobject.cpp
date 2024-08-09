@@ -1320,6 +1320,8 @@ void MpvObject::eventHandler()
                     SyncHelper::instance().variables.timePosition = latestPosition;
                     SyncHelper::instance().variables.paused = pause();
                     SyncHelper::instance().variables.timeThreshold = double(PlaybackSettings::thresholdToSyncTimePosition())/1000.0;
+                    if (SyncHelper::instance().variables.paused)
+                        SyncHelper::instance().variables.timeDirty = true;
                     sectionPositionCheck(latestPosition);
                     Q_EMIT positionChanged();
                 }
@@ -1345,8 +1347,9 @@ void MpvObject::eventHandler()
                     if(eofReached.toBool()) {
                         Q_EMIT endFile(QStringLiteral("eof"));
                     }
-                    //m_lastSetPosition = position();
                     SyncHelper::instance().variables.paused = pause();
+                    if (SyncHelper::instance().variables.paused)
+                        SyncHelper::instance().variables.timeDirty = true;
                     Q_EMIT pauseChanged();
                 }
             } else if (strcmp(prop->name, "chapter") == 0) {

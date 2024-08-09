@@ -297,13 +297,14 @@ bool MpvLayer::renderingIsOn() {
 void MpvLayer::setPause(bool paused) {
     if (paused != videoData.videoIsPaused) {
         videoData.videoIsPaused = paused;
+        mpv::qt::set_property_async(videoData.handle, QStringLiteral("pause"), videoData.videoIsPaused);
         if (videoData.videoIsPaused) {
             sgct::Log::Info("Video paused.");
+            mpv::qt::set_property_async(videoData.handle, QStringLiteral("time-pos"), videoData.timePos);
         }
         else {
             sgct::Log::Info("Video playing...");
-        }
-        mpv::qt::set_property_async(videoData.handle, QStringLiteral("pause"), videoData.videoIsPaused);
+        }   
     }
 }
 
