@@ -193,6 +193,12 @@ public:
                WRITE setPlaneDistance
                NOTIFY planeChanged)
 
+    Q_PROPERTY(int planeConsiderAspectRatio
+               MEMBER m_planeConsiderAspectRatio
+               READ planeConsiderAspectRatio
+               WRITE setPlaneConsiderAspectRatio
+               NOTIFY planeChanged)
+
     Q_PROPERTY(int surfaceTransitionTime
                MEMBER m_surfaceTransitionTime
                READ surfaceTransitionTime
@@ -335,6 +341,9 @@ public:
     double planeDistance();
     void setPlaneDistance(double value);
 
+    int planeConsiderAspectRatio();
+    void setPlaneConsiderAspectRatio(int value);
+
     int surfaceTransitionTime();
     void setSurfaceTransitionTime(int value);
 
@@ -456,6 +465,7 @@ private:
     double m_planeHeight;
     double m_planeElevation;
     double m_planeDistance;
+    int m_planeConsiderAspectRatio;
     int m_surfaceTransitionTime;
     bool m_surfaceTransitionOnGoing;
     double m_lastSetPosition;

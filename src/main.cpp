@@ -25,7 +25,6 @@
 #include <fstream>   
 #include <mutex>
 
-
 //#define SGCT_ONLY
 
 namespace {
@@ -40,13 +39,11 @@ std::string startupFile = "";
 
 std::unique_ptr<sgct::utils::Dome> domeMesh;
 std::unique_ptr<sgct::utils::Sphere> sphereMesh;
-std::unique_ptr<sgct::utils::Plane> planeMesh;
 
 int domeRadius = 740;
 int domeFov = 165;
-float planeWidth = 0.f;
-float planeHeight = 0.f;
 
+std::vector<BaseLayer*> allLayers;
 std::vector<BaseLayer*> layers2render;
 ImageLayer* backgroundImageLayer;
 ImageLayer* foregroundImageLayer;
@@ -432,13 +429,20 @@ void initOGL(GLFWwindow*) {
         return;
 #endif
 
+    // Create standard layers
     backgroundImageLayer = new ImageLayer("background");
-    foregroundImageLayer = new ImageLayer("foreground");
-    overlayImageLayer = new ImageLayer("overlay");
+    allLayers.push_back(backgroundImageLayer);
 
     mainMpvLayer = new MpvLayer(allowDirectRendering, !logFilePath.empty() || !logLevel.empty(), logLevel);
     mainMpvLayer->initialize();
     mainMpvLayer->loadFile(SyncHelper::instance().variables.loadedFile);
+    allLayers.push_back(mainMpvLayer);
+
+    overlayImageLayer = new ImageLayer("overlay");
+    allLayers.push_back(overlayImageLayer);
+
+    foregroundImageLayer = new ImageLayer("foreground");
+    allLayers.push_back(foregroundImageLayer);
 
     // Create shaders
     ShaderManager::instance().addShaderProgram("mesh", MeshVert, VideoFrag);
@@ -482,10 +486,6 @@ void initOGL(GLFWwindow*) {
     domeFov = SyncHelper::instance().variables.fov;
     domeMesh = std::make_unique<utils::Dome>(float(domeRadius)/100.f, float(domeFov), 256, 128);
     sphereMesh = std::make_unique<utils::Sphere>(float(domeRadius) / 100.f, 256);
-
-    planeWidth = float(SyncHelper::instance().variables.planeWidth);
-    planeHeight = float(SyncHelper::instance().variables.planeHeight);
-    planeMesh = std::make_unique<utils::Plane>(planeWidth / 100.f, planeHeight / 100.f);
 
     // Set up backface culling
     glCullFace(GL_BACK);
@@ -532,6 +532,7 @@ std::vector<std::byte> encode() {
         serializeObject(data, SyncHelper::instance().variables.planeHeight);
         serializeObject(data, SyncHelper::instance().variables.planeElevation);
         serializeObject(data, SyncHelper::instance().variables.planeDistance);
+        serializeObject(data, SyncHelper::instance().variables.planeConsiderAspectRatio);
 
         //Eq
         serializeObject(data, SyncHelper::instance().variables.eqDirty);
@@ -623,6 +624,7 @@ void decode(const std::vector<std::byte>& data) {
         deserializeObject(data, pos, SyncHelper::instance().variables.planeHeight);
         deserializeObject(data, pos, SyncHelper::instance().variables.planeElevation);
         deserializeObject(data, pos, SyncHelper::instance().variables.planeDistance);
+        deserializeObject(data, pos, SyncHelper::instance().variables.planeConsiderAspectRatio);
 
         //Eq
         deserializeObject(data, pos, SyncHelper::instance().variables.eqDirty);
@@ -825,6 +827,15 @@ void postSyncPreDraw() {
             mainMpvLayer->setValue("saturation", SyncHelper::instance().variables.eqSaturation);
         }
 
+        // Set latest plane details for all layers
+        glm::vec2 planeSize = glm::vec2(float(SyncHelper::instance().variables.planeWidth), float(SyncHelper::instance().variables.planeHeight));
+        for (const auto& layer : allLayers) {
+            layer->setPlaneDistance(SyncHelper::instance().variables.planeDistance);
+            layer->setPlaneElevation(SyncHelper::instance().variables.planeElevation);
+            layer->setPlaneSize(planeSize, SyncHelper::instance().variables.planeConsiderAspectRatio);
+        }
+
+        // Set new general dome/sphere details
         if (domeRadius != SyncHelper::instance().variables.radius || domeFov != SyncHelper::instance().variables.fov) {
             domeMesh = nullptr;
             sphereMesh = nullptr;
@@ -832,13 +843,6 @@ void postSyncPreDraw() {
             domeFov = SyncHelper::instance().variables.fov;
             domeMesh = std::make_unique<utils::Dome>(float(domeRadius) / 100.f, float(domeFov), 256, 128);
             sphereMesh = std::make_unique<utils::Sphere>(float(domeRadius) / 100.f, 256);
-        }
-
-        if (planeWidth != SyncHelper::instance().variables.planeWidth || planeHeight != SyncHelper::instance().variables.planeHeight) {
-            planeMesh = nullptr;
-            planeWidth = float(SyncHelper::instance().variables.planeWidth);
-            planeHeight = float(SyncHelper::instance().variables.planeHeight);
-            planeMesh = std::make_unique<utils::Plane>(planeWidth / 100.f, planeHeight / 100.f);
         }
     }
 
@@ -1036,7 +1040,7 @@ void draw(const RenderData& data) {
             planeTransform = glm::make_mat4(mvp.values) * planeTransform;
             glUniformMatrix4fv(meshMatrixLoc, 1, GL_FALSE, &planeTransform[0][0]);
 
-            planeMesh->draw();
+            layer->drawPlane();
 
             meshPrg->unbind();
 
@@ -1088,7 +1092,6 @@ void cleanup() {
 
     domeMesh = nullptr;
     sphereMesh = nullptr;
-    planeMesh = nullptr;
 }
 
 void logging(Log::Level, std::string_view message) {

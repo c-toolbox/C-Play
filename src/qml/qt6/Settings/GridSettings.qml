@@ -50,14 +50,12 @@ SettingsBasePage {
             }
 
             onActivated: {
-                GridSettings.plane_Calculate_Size_Based_on_Video = model.get(index).value
-                GridSettings.save()
-                mpv.planeChanged
+                mpv.planeConsiderAspectRatio = model.get(index).value
             }
 
             Component.onCompleted: {
                 for (let i = 0; i < planeSizeBasedOnMode.count; ++i) {
-                    if (planeSizeBasedOnMode.get(i).value === GridSettings.plane_Calculate_Size_Based_on_Video) {
+                    if (planeSizeBasedOnMode.get(i).value === mpv.planeConsiderAspectRatio) {
                         currentIndex = i
                         break
                     }
@@ -74,9 +72,10 @@ SettingsBasePage {
                 id: planeWidthBox
                 from: 0
                 to: 2000
-                enabled: GridSettings.plane_Calculate_Size_Based_on_Video !== 1
+                enabled: mpv.planeConsiderAspectRatio !== 1
                 stepSize: 1
                 value: mpv.planeWidth
+                onValueChanged: mpv.planeWidth = value
             }
 
             LabelWithTooltip {
@@ -98,9 +97,10 @@ SettingsBasePage {
                 id: planeHeightBox
                 from: 0
                 to: 2000
-                enabled: GridSettings.plane_Calculate_Size_Based_on_Video !== 2
+                enabled: mpv.planeConsiderAspectRatio !== 2
                 stepSize: 1
                 value: mpv.planeHeight
+                onValueChanged: mpv.planeHeight = value
             }
 
             Label {
@@ -592,6 +592,7 @@ SettingsBasePage {
                         mpv.planeHeight = GridSettings.planeHeight
                         mpv.planeElevation = GridSettings.planeElevation
                         mpv.planeDistance = GridSettings.planeDistance
+                        mpv.planeConsiderAspectRatio = GridSettings.plane_Calculate_Size_Based_on_Video
                         mpv.rotationSpeed = GridSettings.surfaceRotationSpeed
                         mpv.radius = GridSettings.surfaceRadius
                         mpv.fov = GridSettings.surfaceFov
@@ -640,6 +641,7 @@ SettingsBasePage {
                         GridSettings.planeHeight = mpv.planeHeight
                         GridSettings.planeElevation = mpv.planeElevation
                         GridSettings.planeDistance = mpv.planeDistance
+                        GridSettings.plane_Calculate_Size_Based_on_Video = mpv.planeConsiderAspectRatio
                         GridSettings.surfaceRotationSpeed = mpv.rotationSpeed
                         GridSettings.surfaceRadius = mpv.radius
                         GridSettings.surfaceFov = mpv.fov

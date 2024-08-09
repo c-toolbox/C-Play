@@ -136,6 +136,7 @@ public:
         double planeHeight;
         double planeElevation;
         double planeDistance;
+        int planeConsiderAspectRatio;
         bool eqDirty;
         int eqContrast;
         int eqBrightness;
@@ -196,6 +197,11 @@ public:
         /*translateX*/0,
         /*translateY*/0,
         /*translateZ*/0,
+        /*planeWidth*/0,
+        /*planeHeight*/0,
+        /*planeElevation*/0,
+        /*planeElevation*/0,
+        /*planeConsiderAspectRatio*/0,
         /*eqDirty*/false,
         /*eqContrast*/0,
         /*eqBrightness*/0,

@@ -127,6 +127,7 @@ MpvObject::MpvObject(QQuickItem * parent)
     m_planeHeight = GridSettings::plane_Height_CM();
     m_planeElevation = GridSettings::plane_Elevation_Degrees();
     m_planeDistance = GridSettings::plane_Distance_CM();
+    m_planeConsiderAspectRatio = GridSettings::plane_Calculate_Size_Based_on_Video();
     m_syncVolumeVisibilityFading = PlaybackSettings::syncVolumeVisibilityFading();
     m_autoPlay = PlaylistSettings::autoPlayOnLoad();
 
@@ -699,10 +700,6 @@ double MpvObject::planeWidth()
 
 void MpvObject::setPlaneWidth(double value, bool updatePlane)
 {
-    SyncHelper::instance().variables.planeWidth = value;
-    if (m_planeWidth == value) {
-        return;
-    }
     m_planeWidth = value;
 
     if(updatePlane)
@@ -716,10 +713,6 @@ double MpvObject::planeHeight()
 
 void MpvObject::setPlaneHeight(double value, bool updatePlane)
 {
-    SyncHelper::instance().variables.planeHeight = value;
-    if (m_planeHeight == value) {
-        return;
-    }
     m_planeHeight = value;
 
     if (updatePlane)
@@ -734,11 +727,7 @@ double MpvObject::planeElevation()
 void MpvObject::setPlaneElevation(double value)
 {
     SyncHelper::instance().variables.planeElevation = value;
-    if (m_planeElevation == value) {
-        return;
-    }
     m_planeElevation = value;
-    Q_EMIT planeChanged();
 }
 
 double MpvObject::planeDistance()
@@ -749,10 +738,17 @@ double MpvObject::planeDistance()
 void MpvObject::setPlaneDistance(double value)
 {
     SyncHelper::instance().variables.planeDistance = value;
-    if (m_planeDistance == value) {
-        return;
-    }
     m_planeDistance = value;
+}
+
+int MpvObject::planeConsiderAspectRatio()
+{
+    return m_planeConsiderAspectRatio;
+}
+
+void MpvObject::setPlaneConsiderAspectRatio(int value)
+{
+    m_planeConsiderAspectRatio = value;
     Q_EMIT planeChanged();
 }
 
@@ -1433,41 +1429,11 @@ void MpvObject::loadTracks()
     Q_EMIT audioTracksModelChanged();
 }
 
-void MpvObject::updatePlane() {
-    int pcsbov = GridSettings::plane_Calculate_Size_Based_on_Video();
-    int sm = stereoscopicMode();
-    if (pcsbov == 1) { //Calculate width from video
-        double ratio = double(m_videoWidth) / double(m_videoHeight);
-
-        if (sm == 1) { //Side-by-side
-            ratio *= 0.5f;
-        }
-        else if (sm == 2) { //Top-bottom
-            ratio *= 2.0f;
-        }
-        else if (sm == 3) { //Top-bottom-flip
-            ratio = double(m_videoHeight) / double(m_videoWidth);
-            ratio *= 2.0f;
-        }
-
-        setPlaneWidth(ratio * planeHeight(), false);
-    }
-    else if (pcsbov == 2) { //Calculate height from video
-        double ratio = double(m_videoHeight) / double(m_videoWidth);
-
-        if (sm == 1) { //Side-by-side
-            ratio *= 0.5f;
-        }
-        else if (sm == 2) { //Top-bottom
-            ratio *= 2.0f;
-        }
-        else if (sm == 3) { //Top-bottom-flip
-            ratio = double(m_videoWidth) / double(m_videoHeight);
-            ratio *= 2.0f;
-        }
-
-        setPlaneHeight(ratio * planeWidth(), false);
-    }
+void MpvObject::updatePlane() 
+{
+    SyncHelper::instance().variables.planeWidth = m_planeWidth;
+    SyncHelper::instance().variables.planeHeight = m_planeHeight;
+    SyncHelper::instance().variables.planeConsiderAspectRatio = m_planeConsiderAspectRatio;
 }
 
 void MpvObject::updateRecentLoadedMediaFiles(QString path)
