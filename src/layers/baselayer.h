@@ -20,8 +20,10 @@ public:
     };
 
     struct PlaneParams {
+        double azimuth = 0.0;
         double elevation = 0.0;
         double distance = 0.0;
+        double roll = 0.0;
         glm::vec2 specifiedSize = glm::vec2(0);
         glm::vec2 actualSize = glm::vec2(0);
         int aspectRatioConsideration = 1;
@@ -50,11 +52,17 @@ public:
     const glm::vec3& translate();
     void setTranslate(glm::vec3& t);
 
+    double planeAzimuth();
+    void setPlaneAzimuth(double pA);
+
     double planeElevation();
     void setPlaneElevation(double pE);
 
     double planeDistance();
     void setPlaneDistance(double pD);
+
+    double planeRoll();
+    void setPlaneRoll(double pR);
 
     void setPlaneSize(glm::vec2 pS, int parc);
 

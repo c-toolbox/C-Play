@@ -29,6 +29,8 @@ set(SOURCE_FILES
 	layers/imagelayer.h
 	layers/mpvlayer.cpp
 	layers/mpvlayer.h
+	layerrenderer.cpp
+	layerrenderer.h
     main.cpp    
     mpvobject.cpp
     mpvobject.h

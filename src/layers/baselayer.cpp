@@ -63,6 +63,14 @@ void BaseLayer::setTranslate(glm::vec3& t) {
     renderData.translate = t;
 }
 
+double BaseLayer::planeAzimuth() {
+    return planeData.azimuth;
+}
+
+void BaseLayer::setPlaneAzimuth(double pA) {
+    planeData.azimuth = pA;
+}
+
 double BaseLayer::planeElevation() {
     return planeData.elevation;
 }
@@ -77,6 +85,14 @@ double BaseLayer::planeDistance() {
 
 void BaseLayer::setPlaneDistance(double pD) {
     planeData.distance = pD;
+}
+
+double BaseLayer::planeRoll() {
+    return planeData.roll;
+}
+
+void BaseLayer::setPlaneRoll(double pR) {
+    planeData.roll = pR;
 }
 
 void BaseLayer::setPlaneSize(glm::vec2 pS, int parc) {
@@ -98,7 +114,7 @@ void BaseLayer::updatePlane() {
     glm::vec2 calculatedPlaneSize = planeData.specifiedSize;
     int sm = renderData.stereoMode;
     if (planeData.aspectRatioConsideration == 1) { //Calculate width from video
-        double ratio = double(renderData.width) / double(renderData.height);
+        float ratio = float(renderData.width) / float(renderData.height);
 
         if (sm == 1) { //Side-by-side
             ratio *= 0.5f;
@@ -107,14 +123,14 @@ void BaseLayer::updatePlane() {
             ratio *= 2.0f;
         }
         else if (sm == 3) { //Top-bottom-flip
-            ratio = double(renderData.height) / double(renderData.width);
+            ratio = float(renderData.height) / float(renderData.width);
             ratio *= 2.0f;
         }
 
         calculatedPlaneSize.x = ratio * planeData.specifiedSize.y;
     }
     else if (planeData.aspectRatioConsideration == 2) { //Calculate height from video
-        double ratio = double(renderData.height) / double(renderData.width);
+        float ratio = float(renderData.height) / float(renderData.width);
 
         if (sm == 1) { //Side-by-side
             ratio *= 0.5f;
@@ -123,7 +139,7 @@ void BaseLayer::updatePlane() {
             ratio *= 2.0f;
         }
         else if (sm == 3) { //Top-bottom-flip
-            ratio = double(renderData.width) / double(renderData.height);
+            ratio = float(renderData.width) / float(renderData.height);
             ratio *= 2.0f;
         }
 
