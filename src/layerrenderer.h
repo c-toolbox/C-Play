@@ -27,8 +27,8 @@ public:
 private:
     std::vector<BaseLayer*> layers2render;
 
-    int meshRadius;
-    int meshFov;
+    double meshRadius;
+    double meshFov;
 
     // video
     int videoAlphaLoc;
