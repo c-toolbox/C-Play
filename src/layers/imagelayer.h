@@ -1,7 +1,7 @@
 #ifndef IMAGELAYER_H
 #define IMAGELAYER_H
 
-#include "baselayer.h"
+#include <layers/baselayer.h>
 #include <sgct/sgct.h>
 
 class ImageLayer : public BaseLayer
@@ -18,7 +18,7 @@ public:
         std::atomic_bool threadDone = false;
     };
 
-    ImageLayer(std::string name);
+    ImageLayer(std::string identifier);
     ~ImageLayer();
 
     bool processImageUpload(std::string filename, bool forceUpdate);

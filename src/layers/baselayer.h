@@ -8,10 +8,19 @@
 class BaseLayer
 {
 public:
+    enum LayerType { 
+        BASE, 
+        IMAGE, 
+        VIDEO,
+        INVALID
+    };
+
+    static std::string typeDescription(BaseLayer::LayerType e);
+
     struct RenderParams {
         unsigned int texId = 0;
-        int width = -1;
-        int height = -1;
+        int width = 0;
+        int height = 0;
         float alpha = 100.f;
         int gridMode = 0;
         int stereoMode = 0;
@@ -33,35 +42,46 @@ public:
     BaseLayer();
     ~BaseLayer();
 
-    unsigned int textureId();
-    int width();
-    int height();
+    LayerType type() const;
+    void setType(LayerType t);
 
-    float alpha();
+    std::string typeName() const;
+
+    std::string title() const;
+    void setTitle(std::string t);
+
+    std::string filepath() const;
+    void setFilePath(std::string p);
+
+    unsigned int textureId() const;
+    int width() const;
+    int height() const;
+
+    float alpha() const;
     void setAlpha(float a);
 
-    int gridMode();
+    int gridMode() const;
     void setGridMode(int g);
 
-    int stereoMode();
+    int stereoMode() const;
     void setStereoMode(int s);
 
-    const glm::vec3& rotate();
+    const glm::vec3& rotate() const;
     void setRotate(glm::vec3& r);
 
-    const glm::vec3& translate();
+    const glm::vec3& translate() const;
     void setTranslate(glm::vec3& t);
 
-    double planeAzimuth();
+    double planeAzimuth() const;
     void setPlaneAzimuth(double pA);
 
-    double planeElevation();
+    double planeElevation() const;
     void setPlaneElevation(double pE);
 
-    double planeDistance();
+    double planeDistance() const;
     void setPlaneDistance(double pD);
 
-    double planeRoll();
+    double planeRoll() const;
     void setPlaneRoll(double pR);
 
     void setPlaneSize(glm::vec2 pS, int parc);
@@ -69,6 +89,9 @@ public:
     void drawPlane();
 
 protected:
+    std::string m_title;
+    std::string m_filepath;
+    LayerType m_type;
     RenderParams renderData;
     PlaneParams planeData;
 

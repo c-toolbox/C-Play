@@ -10,9 +10,11 @@ auto loadImageAsync = [](ImageLayer::ImageData& data) {
     data.threadDone = true;
 };
 
-ImageLayer::ImageLayer(std::string name)
+ImageLayer::ImageLayer(std::string identifier)
 {
-    imageData.identifier = name;
+    imageData.identifier = identifier;
+    imageData.filename = "";
+    setType(BaseLayer::LayerType::IMAGE);
 }
 
 ImageLayer::~ImageLayer()

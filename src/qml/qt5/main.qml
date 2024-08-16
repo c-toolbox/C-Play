@@ -36,7 +36,7 @@ Kirigami.ApplicationWindow {
     height: 880
     minimumHeight: 660
     maximumHeight: 990
-    color: Kirigami.Theme.backgroundColor
+    color: Kirigami.Theme.alternateBackgroundColor
 
     onVisibilityChanged: {
         if (!window.isFullScreen()) {
@@ -85,6 +85,8 @@ Kirigami.ApplicationWindow {
     PlaySections { id: playSections }
 
     PlayList { id: playList }
+
+    Layers { id: layers }
 
     Footer { id: footer }
 

@@ -70,6 +70,25 @@ QtObject {
         }
     }
 
+    property Action toggleLayersAction: Action {
+        id: toggleLayersAction
+        property var qaction: app.action("toggleLayers")
+        text: qaction.text
+        shortcut: qaction.shortcutName()
+        icon.name: qaction.iconName()
+
+        Component.onCompleted: list["toggleLayersAction"] = toggleLayersAction
+
+        onTriggered: {
+            if(layers.state === "hidden"){
+                layers.state = "visible"
+            }
+            else {
+                layers.state = "hidden"
+            }
+        }
+    }
+
     property Action volumeUpAction: Action {
         id: volumeUpAction
         property var qaction: app.action("volumeUp")

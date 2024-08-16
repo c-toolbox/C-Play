@@ -8,8 +8,8 @@
 
 set(TARGET_NAME C-Play)
 set(CPLAY_VERSION_MAJOR 2)
-set(CPLAY_VERSION_MINOR 0)
-set(CPLAY_VERSION_PATCH 3)
+set(CPLAY_VERSION_MINOR 1)
+set(CPLAY_VERSION_PATCH 0)
 
 add_executable(${TARGET_NAME})
 set_compile_options(${TARGET_NAME})
@@ -23,14 +23,16 @@ set(SOURCE_FILES
     haction.h
     httpserverthread.cpp
     httpserverthread.h
-	layers/baselayer.cpp
-	layers/baselayer.h
-	layers/imagelayer.cpp
-	layers/imagelayer.h
-	layers/mpvlayer.cpp
-	layers/mpvlayer.h
-	layerrenderer.cpp
-	layerrenderer.h
+    layers/baselayer.cpp
+    layers/baselayer.h
+    layers/imagelayer.cpp
+    layers/imagelayer.h
+    layers/mpvlayer.cpp
+    layers/mpvlayer.h
+    layerrenderer.cpp
+    layerrenderer.h
+    layersmodel.cpp
+    layersmodel.h
     main.cpp    
     mpvobject.cpp
     mpvobject.h
@@ -116,7 +118,8 @@ if(BUILD_CPLAY_WITH_QT6)
         qml/qt6/PlaySections.qml
         qml/qt6/PlaySectionsItemCompact.qml
         qml/qt6/VisibilitySlider.qml
-        qml/qt6/Presentation.qml
+        qml/qt6/Layers.qml
+        qml/qt6/LayersItemCompact.qml
         qml/qt6/BackgroundImage.qml
         qml/qt6/ForegroundImage.qml
         qml/qt6/SaveAsCPlayFile.qml

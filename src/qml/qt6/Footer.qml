@@ -46,6 +46,14 @@ ToolBar {
         }
     }
 
+    Component {
+        id: toggleLayersButton
+
+        ToolButton {
+            action: actions.toggleLayersAction
+        }
+    }
+
     RowLayout {
         id: footerRow
         anchors.fill: parent
@@ -58,6 +66,11 @@ ToolBar {
         Loader {
             sourceComponent: toggleSectionsButton
             visible: PlaylistSettings.position === "left"
+        }
+
+        Loader {
+            sourceComponent: toggleLayersButton
+            visible: PlaylistSettings.position === "right"
         }
 
         ToolButton {
@@ -114,6 +127,11 @@ ToolBar {
         Loader {
             sourceComponent: toggleSectionsButton
             visible: PlaylistSettings.position === "right"
+        }
+
+        Loader {
+            sourceComponent: toggleLayersButton
+            visible: PlaylistSettings.position === "left"
         }
 
     }

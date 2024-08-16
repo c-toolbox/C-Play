@@ -1,8 +1,21 @@
 #include "baselayer.h"
 #include <sgct/opengl.h>
 
+std::string BaseLayer::typeDescription(BaseLayer::LayerType e)
+{
+    switch (e)
+    {
+        case BASE: return "Base";
+        case IMAGE: return "Image";
+        case VIDEO: return "Video";
+        default: return "";
+    }
+}
+
 BaseLayer::BaseLayer()
 {
+    m_title = "";
+    m_type = BASE;
 }
 
 BaseLayer::~BaseLayer()
@@ -10,19 +23,47 @@ BaseLayer::~BaseLayer()
     glDeleteTextures(1, &renderData.texId);
 }
 
-unsigned int BaseLayer::textureId() {
+BaseLayer::LayerType BaseLayer::type() const {
+    return m_type;
+}
+
+void BaseLayer::setType(LayerType t) {
+    m_type = t;
+}
+
+std::string BaseLayer::typeName() const {
+    return typeDescription(m_type);
+}
+
+std::string BaseLayer::title() const {
+    return m_title;
+}
+
+void BaseLayer::setTitle(std::string t) {
+    m_title = t;
+}
+
+std::string BaseLayer::filepath() const {
+    return m_filepath;
+}
+
+void BaseLayer::setFilePath(std::string p) {
+    m_filepath = p;
+}
+
+unsigned int BaseLayer::textureId() const {
     return renderData.texId;
 }
 
-int BaseLayer::width() {
+int BaseLayer::width() const {
     return renderData.width;
 }
 
-int BaseLayer::height() {
+int BaseLayer::height() const {
     return renderData.height;
 }
 
-float BaseLayer::alpha() {
+float BaseLayer::alpha() const {
     return renderData.alpha;
 }
 
@@ -30,7 +71,7 @@ void BaseLayer::setAlpha(float a) {
     renderData.alpha = a;
 }
 
-int BaseLayer::gridMode() {
+int BaseLayer::gridMode() const {
     return renderData.gridMode;
 }
 
@@ -38,7 +79,7 @@ void BaseLayer::setGridMode(int g) {
     renderData.gridMode = g;
 }
 
-int BaseLayer::stereoMode() {
+int BaseLayer::stereoMode() const {
     return renderData.stereoMode;
 }
 
@@ -47,7 +88,7 @@ void BaseLayer::setStereoMode(int s) {
     updatePlane();
 }
 
-const glm::vec3& BaseLayer::rotate() {
+const glm::vec3& BaseLayer::rotate() const {
     return renderData.rotate;
 }
 
@@ -55,7 +96,7 @@ void BaseLayer::setRotate(glm::vec3& r) {
     renderData.rotate = r;
 }
 
-const glm::vec3& BaseLayer::translate() {
+const glm::vec3& BaseLayer::translate() const {
     return renderData.translate;
 }
 
@@ -63,7 +104,7 @@ void BaseLayer::setTranslate(glm::vec3& t) {
     renderData.translate = t;
 }
 
-double BaseLayer::planeAzimuth() {
+double BaseLayer::planeAzimuth() const {
     return planeData.azimuth;
 }
 
@@ -71,7 +112,7 @@ void BaseLayer::setPlaneAzimuth(double pA) {
     planeData.azimuth = pA;
 }
 
-double BaseLayer::planeElevation() {
+double BaseLayer::planeElevation() const {
     return planeData.elevation;
 }
 
@@ -79,7 +120,7 @@ void BaseLayer::setPlaneElevation(double pE) {
     planeData.elevation = pE;
 }
 
-double BaseLayer::planeDistance() {
+double BaseLayer::planeDistance() const {
     return planeData.distance;
 }
 
@@ -87,7 +128,7 @@ void BaseLayer::setPlaneDistance(double pD) {
     planeData.distance = pD;
 }
 
-double BaseLayer::planeRoll() {
+double BaseLayer::planeRoll() const {
     return planeData.roll;
 }
 

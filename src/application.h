@@ -20,6 +20,7 @@
 #include <KActionCollection>
 #include <KSharedConfig>
 #include "renderthread.h"
+#include "layersmodel.h"
 
 class KActionCollection;
 class KConfigDialog;
@@ -67,6 +68,17 @@ public:
     int getFadeDurationSetting();
     void setStartupFile(std::string filePath);
 
+    Q_PROPERTY(LayersModel* layersModel
+        READ layersModel
+        WRITE setLayersModel
+        NOTIFY layersModelChanged)
+
+    LayersModel* layersModel();
+    void setLayersModel(LayersModel* model);
+
+Q_SIGNALS:
+    void layersModelChanged();
+
 private:
     void setupWorkerThread();
     void setupAboutData();
@@ -76,6 +88,8 @@ private:
     void setupQmlContextProperties();
     void aboutApplication();
     void setupActions(const QString &actionName);
+
+    LayersModel* m_layersModel;
     QAbstractItemModel *colorSchemesModel();
     QApplication *m_app;
     QQmlApplicationEngine *m_engine;

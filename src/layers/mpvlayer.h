@@ -1,7 +1,7 @@
 #ifndef MPVLAYER_H
 #define MPVLAYER_H
 
-#include "baselayer.h"
+#include <layers/baselayer.h>
 #include <client.h>
 #include <render_gl.h>
 #include <mutex>

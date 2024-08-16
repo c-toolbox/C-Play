@@ -14,7 +14,6 @@
 #include "playlistitem.h"
 #include "playlistmodel.h"
 #include "tracksmodel.h"
-
 #include "audiosettings.h"
 #include "gridsettings.h"
 #include "imagesettings.h"
@@ -90,6 +89,7 @@ static QApplication *createApplication(int &argc, char **argv, const QString &ap
 Application::Application(int &argc, char **argv, const QString &applicationName)
     : m_app(createApplication(argc, argv, applicationName))
     , m_collection(this)
+    , m_layersModel(new LayersModel(this))
 {
     m_config = KSharedConfig::openConfig(QStringLiteral("C-Play/cplay.conf"));
     m_shortcuts = new KConfigGroup(m_config, QStringLiteral("Shortcuts"));
@@ -371,6 +371,14 @@ void Application::setStartupFile(std::string filePath) {
     m_startupFileFromCmd = QString::fromStdString(filePath);
 }
 
+LayersModel* Application::layersModel() {
+    return m_layersModel;
+}
+
+void Application::setLayersModel(LayersModel* model) {
+    m_layersModel = model;
+}
+
 QString Application::argument(int key)
 {
     return m_args[key];
@@ -535,6 +543,13 @@ void Application::setupActions(const QString &actionName)
         action->setText(QStringLiteral("Sections"));
         action->setIcon(QIcon::fromTheme(QStringLiteral("drive-partition")));
         m_collection.setDefaultShortcut(action, Qt::Key_S);
+        m_collection.addAction(actionName, action);
+    }
+    if (actionName == QStringLiteral("toggleLayers")) {
+        auto action = new HAction();
+        action->setText(QStringLiteral("Layers"));
+        action->setIcon(QIcon::fromTheme(QStringLiteral("dialog-layers")));
+        m_collection.setDefaultShortcut(action, Qt::Key_L);
         m_collection.addAction(actionName, action);
     }
     if (actionName == QStringLiteral("openFile")) {

@@ -175,6 +175,7 @@ static void* get_proc_address_mpv(void*, const char* name) {
 MpvLayer::MpvLayer(bool allowDirectRendering, bool loggingOn, std::string logLevel) {
     videoData.allowDirectRendering = allowDirectRendering;
     videoData.loggingOn = loggingOn;
+    setType(BaseLayer::LayerType::VIDEO);
 }
 
 MpvLayer::~MpvLayer() {
