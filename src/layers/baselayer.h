@@ -12,6 +12,9 @@ public:
         BASE, 
         IMAGE, 
         VIDEO,
+#ifdef NDI_SUPPORT
+        NDI,
+#endif
         INVALID
     };
 

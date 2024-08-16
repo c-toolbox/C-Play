@@ -9,6 +9,9 @@
 #include <layers/baselayer.h>
 #include <layers/imagelayer.h>
 #include <layers/mpvlayer.h>
+#ifdef NDI_SUPPORT
+#include <ndi/ndilayer.h>
+#endif
 #include <QQuickView>
 
 LayersModel::LayersModel(QObject *parent)
@@ -115,6 +118,13 @@ void LayersModel::addLayer(QString title, int type, QString filepath, int stereo
             newLayer = newMpv;
             break;
         }
+#ifdef NDI_SUPPORT
+        case static_cast<int>(BaseLayer::LayerType::NDI): {
+            NdiLayer* newNDI = new NdiLayer();
+            newLayer = newNDI;
+            break;
+        }
+#endif
         default:
             break;
     }

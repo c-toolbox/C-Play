@@ -8,6 +8,9 @@ std::string BaseLayer::typeDescription(BaseLayer::LayerType e)
         case BASE: return "Base";
         case IMAGE: return "Image";
         case VIDEO: return "Video";
+#ifdef NDI_SUPPORT
+        case NDI: return "NDI";
+#endif
         default: return "";
     }
 }

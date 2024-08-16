@@ -74,6 +74,22 @@ endforeach()
 source_group(Kcfcg FILES ${KCFCG_FILES})
 source_group(${AUTO_SOURCE_NAME} FILES ${KCFCG_MOC_FILES})
 
+if(BUILD_CPLAY_WITH_NDI)
+    list(APPEND SOURCE_FILES ndi/ndilayer.cpp)
+    list(APPEND SOURCE_FILES ndi/ndilayer.h)
+    set(OFX_NDI_FILES
+        ndi/ofxNDI/ofxNDIdynloader.cpp
+        ndi/ofxNDI/ofxNDIdynloader.h
+        ndi/ofxNDI/ofxNDIplatforms.h
+        ndi/ofxNDI/ofxNDIreceive.cpp
+        ndi/ofxNDI/ofxNDIreceive.h
+        ndi/ofxNDI/ofxNDIutils.cpp
+        ndi/ofxNDI/ofxNDIutils.h
+    )
+    source_group(ofxNDI FILES ${OFX_NDI_FILES})
+    list(APPEND SOURCE_FILES ${OFX_NDI_FILES})
+endif()
+
 if(BUILD_CPLAY_WITH_QT6)
     target_sources(${TARGET_NAME} 
         PRIVATE 
@@ -224,6 +240,11 @@ if(WIN32)
 	set_target_properties(${TARGET_NAME} PROPERTIES WIN32_EXECUTABLE TRUE)
 endif()
 
+if(BUILD_CPLAY_WITH_NDI)
+    list(APPEND TARGET_LIBRARIES NDI::NDI)
+    target_compile_definitions(${TARGET_NAME} PUBLIC NDI_SUPPORT)
+endif()
+
 option(SGCT_FREETYPE_SUPPORT "Build SGCT with Freetype2" OFF)
 option(SGCT_DEP_INCLUDE_FREETYPE "Include FreeType library" OFF)
 option(SGCT_BUILD_TESTS "Build SGCT tests" OFF)
@@ -301,5 +322,15 @@ if(CPLAY_INSTALL_DEPENDENCIES)
                 )
             endforeach()
         ]])
+        if(BUILD_CPLAY_WITH_NDI)
+            install(CODE "set(_ndi_dll \"${NDI_BINARY_DIR}/${NDI_LIBS}.dll\")")
+            install(CODE [[
+                message("Copying ${_ndi_dll}")
+                file(INSTALL
+                    DESTINATION "${CMAKE_INSTALL_PREFIX}/bin"
+                    FILES "${_ndi_dll}"
+                )
+            ]])
+        endif()
     endif()
 endif()
