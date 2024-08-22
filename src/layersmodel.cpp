@@ -12,7 +12,10 @@
 #ifdef NDI_SUPPORT
 #include <ndi/ndilayer.h>
 #endif
+#include "locationsettings.h"
 #include <QQuickView>
+#include <QFileInfo>
+#include <QDir>
 
 LayersModel::LayersModel(QObject *parent)
     : QAbstractListModel(parent),
@@ -99,6 +102,11 @@ void LayersModel::setLayers(const Layers &layers)
     endInsertRows();
 }
 
+BaseLayer* LayersModel::layer(int i)
+{
+    return m_layers[i];
+}
+
 void LayersModel::addLayer(QString title, int type, QString filepath, int stereoMode, int gridMode)
 {
     //Need to offest type ID by 1 (to avoid BASE);
@@ -131,7 +139,30 @@ void LayersModel::addLayer(QString title, int type, QString filepath, int stereo
 
     if (newLayer) {
         newLayer->setTitle(title.toStdString());
-        newLayer->setFilePath(filepath.toStdString());
+
+        QString fileToLoad = filepath;
+        fileToLoad.replace(QStringLiteral("file:///"), QStringLiteral(""));
+        newLayer->setFilePath(fileToLoad.toStdString());
+
+        QFileInfo fileInfo(fileToLoad);
+        if (!fileInfo.exists()) {
+            QStringList fileSearchPaths;
+            fileSearchPaths.append(fileInfo.absoluteDir().absolutePath());
+            fileSearchPaths.append(LocationSettings::cPlayFileLocation());
+            fileSearchPaths.append(LocationSettings::cPlayMediaLocation());
+            fileSearchPaths.append(LocationSettings::univiewVideoLocation());
+            if (fileInfo.isRelative()) { // Go through search list in order
+                for (int i = 0; i < fileSearchPaths.size(); i++) {
+                    QString newFilePath = QDir::cleanPath(fileSearchPaths[i] + QDir::separator() + fileToLoad);
+                    QFileInfo newFilePathInfo(newFilePath);
+                    if (newFilePathInfo.exists()) {
+                        newLayer->setFilePath(newFilePath.toStdString());
+                        break;
+                    }
+                }
+            }
+        }
+
         newLayer->setStereoMode(stereoMode);
         newLayer->setGridMode(gridMode);
         m_layers.push_back(newLayer);

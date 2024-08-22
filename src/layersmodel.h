@@ -58,6 +58,8 @@ public:
     Layers getLayers() const;
     void setLayers(const Layers& layers);
 
+    Q_INVOKABLE BaseLayer* layer(int i);
+
     Q_INVOKABLE void addLayer(QString title, int type, QString filepath, int stereoMode, int gridMode);
     Q_INVOKABLE void removeLayer(int i);
     Q_INVOKABLE void moveLayerUp(int i);

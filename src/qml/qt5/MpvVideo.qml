@@ -10,7 +10,6 @@ import QtQuick 2.15
 import QtQuick.Window 2.15
 import QtQuick.Controls 2.15
 import QtQuick.Layouts 1.15
-import mpv 1.0
 
 import org.ctoolbox.cplay 1.0
 import org.kde.kirigami 2.10 as Kirigami
@@ -104,7 +103,7 @@ MpvObject {
         position = loadTimePosition()
 
         overlayImage.source = mpv.getOverlayFileUrl();
-        overlayImage.opacity = (!overlayImage.source === "" ? 1 : 0);
+        overlayImage.opacity = (overlayImage.source !== "" ? 1 : 0);
     }
 
     Timer {

@@ -26,6 +26,15 @@ BaseLayer::~BaseLayer()
     glDeleteTextures(1, &renderData.texId);
 }
 
+void BaseLayer::update() {
+    //Overwrite in subclasses
+}
+
+bool BaseLayer::ready() {
+    //Overwrite in subclasses
+    return false;
+}
+
 BaseLayer::LayerType BaseLayer::type() const {
     return m_type;
 }

@@ -181,6 +181,14 @@ MpvLayer::MpvLayer(bool allowDirectRendering, bool loggingOn, std::string logLev
 MpvLayer::~MpvLayer() {
 }
 
+void MpvLayer::update() {
+    updateFrame();
+}
+
+bool MpvLayer::ready() {
+    return !videoData.loadedFile.empty() && videoData.updateRendering;
+}
+
 void MpvLayer::initialize() {
     //Run MPV on another thread
     videoData.trd = std::make_unique<std::thread>(runMpvAsync, std::ref(videoData), std::ref(renderData));
@@ -277,10 +285,6 @@ void MpvLayer::loadFile(std::string filePath, bool reload) {
 
 std::string MpvLayer::loadedFile() {
     return videoData.loadedFile;
-}
-
-bool MpvLayer::hasLoadedFile() {
-    return videoData.loadedFile.empty();
 }
 
 void MpvLayer::updateFbo() {

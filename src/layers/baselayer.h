@@ -45,6 +45,9 @@ public:
     BaseLayer();
     ~BaseLayer();
 
+    virtual void update();
+    virtual bool ready();
+
     LayerType type() const;
     void setType(LayerType t);
 

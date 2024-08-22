@@ -1,3 +1,10 @@
+/*
+ * SPDX-FileCopyrightText:
+ * 2024 Erik Sundén <eriksunden85@gmail.com>
+ *
+ * SPDX-License-Identifier: GPL-3.0-or-later
+ */
+
 #ifndef LAYERRENDERER_H
 #define LAYERRENDERER_H
 

@@ -21,6 +21,14 @@ ImageLayer::~ImageLayer()
 {
 }
 
+void ImageLayer::update() {
+    processImageUpload(filepath(), imageData.filename != filepath());
+}
+
+bool ImageLayer::ready() {
+    return !imageData.filename.empty() && imageData.trd == nullptr;
+}
+
 bool ImageLayer::processImageUpload(std::string filename, bool forceUpdate) {
     handleAsyncImageUpload();
 
@@ -50,10 +58,6 @@ bool ImageLayer::processImageUpload(std::string filename, bool forceUpdate) {
 
 std::string ImageLayer::loadedFile() {
     return imageData.filename;
-}
-
-bool ImageLayer::hasLoadedFile() {
-    return imageData.filename.empty();
 }
 
 bool ImageLayer::fileIsImage(std::string& filePath) {

@@ -21,9 +21,11 @@ public:
     ImageLayer(std::string identifier);
     ~ImageLayer();
 
+    void update();
+    bool ready();
+
     bool processImageUpload(std::string filename, bool forceUpdate);
     std::string loadedFile();
-    bool hasLoadedFile();
 
     bool fileIsImage(std::string& filePath);
 

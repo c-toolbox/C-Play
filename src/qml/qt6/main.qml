@@ -87,6 +87,8 @@ Kirigami.ApplicationWindow {
 
     Footer { id: footer }
 
+    LayerView { id: layerView }
+
     Platform.FileDialog {
         id: openFileDialog
         folder: LocationSettings.fileDialogLocation !== ""

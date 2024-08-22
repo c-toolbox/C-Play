@@ -288,9 +288,9 @@ void postSyncPreDraw() {
 
         layerRender->clearLayers();
 
-        if ((!mainMpvLayer->renderingIsOn() || mainMpvLayer->hasLoadedFile() ||
+        if ((!mainMpvLayer->renderingIsOn() || mainMpvLayer->ready() ||
             (SyncHelper::instance().variables.alpha < 1.f || SyncHelper::instance().variables.gridToMapOn == 1))
-            && !backgroundImageLayer->hasLoadedFile() && SyncHelper::instance().variables.alphaBg > 0.f) {
+            && backgroundImageLayer->ready() && SyncHelper::instance().variables.alphaBg > 0.f) {
             backgroundImageLayer->setAlpha(SyncHelper::instance().variables.alphaBg);
             backgroundImageLayer->setGridMode(SyncHelper::instance().variables.gridToMapOnBg);
             backgroundImageLayer->setStereoMode(SyncHelper::instance().variables.stereoscopicModeBg);
@@ -298,7 +298,7 @@ void postSyncPreDraw() {
         }
 
         if (mainMpvLayer->renderingIsOn()) {
-            if (!mainMpvLayer->hasLoadedFile() && SyncHelper::instance().variables.alpha > 0.f) {
+            if (mainMpvLayer->ready() && SyncHelper::instance().variables.alpha > 0.f) {
                 mainMpvLayer->setAlpha(SyncHelper::instance().variables.alpha);
                 mainMpvLayer->setGridMode(SyncHelper::instance().variables.gridToMapOn);
                 mainMpvLayer->setStereoMode(SyncHelper::instance().variables.stereoscopicMode);
@@ -307,7 +307,7 @@ void postSyncPreDraw() {
                 layerRender->addLayer(mainMpvLayer);
             }
 
-            if (!overlayImageLayer->hasLoadedFile() && SyncHelper::instance().variables.alpha > 0.f) {
+            if (overlayImageLayer->ready() && SyncHelper::instance().variables.alpha > 0.f) {
                 overlayImageLayer->setAlpha(SyncHelper::instance().variables.alpha);
                 overlayImageLayer->setGridMode(SyncHelper::instance().variables.gridToMapOn);
                 overlayImageLayer->setStereoMode(SyncHelper::instance().variables.stereoscopicMode);
@@ -380,7 +380,7 @@ void postSyncPreDraw() {
             
         }
 
-        if (!foregroundImageLayer->hasLoadedFile() && SyncHelper::instance().variables.alphaFg > 0.f) {
+        if (foregroundImageLayer->ready() && SyncHelper::instance().variables.alphaFg > 0.f) {
             foregroundImageLayer->setAlpha(SyncHelper::instance().variables.alphaFg);
             foregroundImageLayer->setGridMode(SyncHelper::instance().variables.gridToMapOnFg);
             foregroundImageLayer->setStereoMode(SyncHelper::instance().variables.stereoscopicModeFg);

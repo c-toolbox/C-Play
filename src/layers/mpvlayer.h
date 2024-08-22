@@ -37,13 +37,15 @@ public:
     MpvLayer(bool allowDirectRendering = false, bool loggingOn = false, std::string logLevel = "info");
     ~MpvLayer();
 
+    void update();
+    bool ready();
+
     void initialize();
     void cleanup();
     void updateFrame();
 
     void loadFile(std::string filePath, bool reload = false);
     std::string loadedFile();
-    bool hasLoadedFile();
 
     void updateFbo();
     void skipRendering(bool skipRendering);

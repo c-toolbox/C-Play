@@ -9,6 +9,7 @@
 #include "_debug.h"
 #include "application.h"
 #include "haction.h"
+#include "layerqtitem.h"
 #include "mpvobject.h"
 #include "playercontroller.h"
 #include "playlistitem.h"
@@ -222,11 +223,9 @@ void Application::setupCommandLineParser()
 
 void Application::registerQmlTypes()
 {
-#if QT_VERSION >= QT_VERSION_CHECK(6, 0, 0)
+    qmlRegisterType<LayerQtItem>("org.ctoolbox.cplay", 1, 0, "LayerQtItem");
     qmlRegisterType<MpvObject>("org.ctoolbox.cplay", 1, 0, "MpvObject");
-#else
-    qmlRegisterType<MpvObject>("mpv", 1, 0, "MpvObject");
-#endif
+
     qRegisterMetaType<PlayListModel*>();
     qRegisterMetaType<PlayListItem*>();
     qRegisterMetaType<QAction*>();

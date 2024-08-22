@@ -221,7 +221,6 @@ Rectangle {
                     Button {
                         icon.name: "document-replace"
                         onClicked: {
-                            //mpv.playSectionsModel.replaceSection(layersView.currentIndex, sectionTitle.text, startTimeTextField.text, endTimeTextField.text, eosComboBox.currentIndex)
                         }
                         ToolTip {
                             text: qsTr("Replace selected layer")
@@ -230,10 +229,6 @@ Rectangle {
                     Button {
                         icon.name: "edit-entry"
                         onClicked: {
-                            //sectionTitle.text = mpv.playSectionsModel.sectionTitle(layersView.currentIndex)
-                            //startTimeTextField.text = app.formatTime(mpv.playSectionsModel.sectionStartTime(layersView.currentIndex))
-                            //endTimeTextField.text = app.formatTime(mpv.playSectionsModel.sectionEndTime(layersView.currentIndex))
-                            //eosComboBox.currentIndex = mpv.playSectionsModel.sectionEOSMode(layersView.currentIndex)
                         }
                         ToolTip {
                             text: qsTr("Copy values from selected layer")

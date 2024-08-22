@@ -31,6 +31,9 @@ Kirigami.BasicListItem {
     }
 
     onDoubleClicked: {
+        layerView.layerItem.layerIdx = index
+        layerView.title = layerView.layerItem.layerTitle
+        layerView.visible = true
     }
 
     function mainText() {

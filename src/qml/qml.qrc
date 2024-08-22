@@ -27,6 +27,7 @@
 		<file>qt5/Header.qml</file>
 		<file>qt5/Layers.qml</file>
 		<file>qt5/LayersItemCompact.qml</file>
+		<file>qt5/LayerView.qml</file>
         <file>qt5/MpvVideo.qml</file>
         <file>qt5/Osd.qml</file>
         <file>qt5/PlayList.qml</file>

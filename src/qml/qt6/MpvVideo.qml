@@ -103,7 +103,7 @@ MpvObject {
         position = loadTimePosition()
 
         overlayImage.source = mpv.getOverlayFileUrl();
-        overlayImage.opacity = (!overlayImage.source === "" ? 1 : 0);
+        overlayImage.opacity = (overlayImage.source !== "" ? 1 : 0);
     }
 
     Timer {

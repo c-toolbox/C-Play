@@ -17,7 +17,6 @@ import org.ctoolbox.cplay 1.0
 import QtQuick 2.15
 import QtQuick.Controls 2.15
 
-import mpv 1.0
 import "Menus"
 import "Settings"
 
@@ -87,6 +86,8 @@ Kirigami.ApplicationWindow {
     PlayList { id: playList }
 
     Layers { id: layers }
+
+    LayerView { id: layerView }
 
     Footer { id: footer }
 
