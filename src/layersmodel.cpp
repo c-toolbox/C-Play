@@ -21,6 +21,9 @@ LayersModel::LayersModel(QObject *parent)
     : QAbstractListModel(parent),
     m_layerTypeModel(new LayersTypeModel(this))
 {
+#ifdef NDI_SUPPORT
+    m_ndiSendersModel = new NDISendersModel(this);
+#endif
 }
 
 int LayersModel::rowCount(const QModelIndex &parent) const
@@ -114,6 +117,7 @@ void LayersModel::addLayer(QString title, int type, QString filepath, int stereo
 
     beginInsertRows(QModelIndex(), m_layers.size(), m_layers.size());
     BaseLayer* newLayer = nullptr;
+    bool modifyFilePath = true;
 
     switch (layerType) {
         case static_cast<int>(BaseLayer::LayerType::IMAGE): {
@@ -130,6 +134,7 @@ void LayersModel::addLayer(QString title, int type, QString filepath, int stereo
         case static_cast<int>(BaseLayer::LayerType::NDI): {
             NdiLayer* newNDI = new NdiLayer();
             newLayer = newNDI;
+            modifyFilePath = false;
             break;
         }
 #endif
@@ -139,25 +144,28 @@ void LayersModel::addLayer(QString title, int type, QString filepath, int stereo
 
     if (newLayer) {
         newLayer->setTitle(title.toStdString());
+        newLayer->setFilePath(filepath.toStdString());
 
-        QString fileToLoad = filepath;
-        fileToLoad.replace(QStringLiteral("file:///"), QStringLiteral(""));
-        newLayer->setFilePath(fileToLoad.toStdString());
+        if (modifyFilePath) {
+            QString fileToLoad = filepath;
+            fileToLoad.replace(QStringLiteral("file:///"), QStringLiteral(""));
+            newLayer->setFilePath(fileToLoad.toStdString());
 
-        QFileInfo fileInfo(fileToLoad);
-        if (!fileInfo.exists()) {
-            QStringList fileSearchPaths;
-            fileSearchPaths.append(fileInfo.absoluteDir().absolutePath());
-            fileSearchPaths.append(LocationSettings::cPlayFileLocation());
-            fileSearchPaths.append(LocationSettings::cPlayMediaLocation());
-            fileSearchPaths.append(LocationSettings::univiewVideoLocation());
-            if (fileInfo.isRelative()) { // Go through search list in order
-                for (int i = 0; i < fileSearchPaths.size(); i++) {
-                    QString newFilePath = QDir::cleanPath(fileSearchPaths[i] + QDir::separator() + fileToLoad);
-                    QFileInfo newFilePathInfo(newFilePath);
-                    if (newFilePathInfo.exists()) {
-                        newLayer->setFilePath(newFilePath.toStdString());
-                        break;
+            QFileInfo fileInfo(fileToLoad);
+            if (!fileInfo.exists()) {
+                QStringList fileSearchPaths;
+                fileSearchPaths.append(fileInfo.absoluteDir().absolutePath());
+                fileSearchPaths.append(LocationSettings::cPlayFileLocation());
+                fileSearchPaths.append(LocationSettings::cPlayMediaLocation());
+                fileSearchPaths.append(LocationSettings::univiewVideoLocation());
+                if (fileInfo.isRelative()) { // Go through search list in order
+                    for (int i = 0; i < fileSearchPaths.size(); i++) {
+                        QString newFilePath = QDir::cleanPath(fileSearchPaths[i] + QDir::separator() + fileToLoad);
+                        QFileInfo newFilePathInfo(newFilePath);
+                        if (newFilePathInfo.exists()) {
+                            newLayer->setFilePath(newFilePath.toStdString());
+                            break;
+                        }
                     }
                 }
             }
@@ -199,6 +207,16 @@ void LayersModel::setLayersTypeModel(LayersTypeModel* model) {
     m_layerTypeModel = model;
 }
 
+#ifdef NDI_SUPPORT
+NDISendersModel* LayersModel::ndiSendersModel() {
+    return m_ndiSendersModel;
+}
+
+void LayersModel::setNdiSendersModel(NDISendersModel* model) {
+    m_ndiSendersModel = model;
+}
+#endif
+
 LayersTypeModel::LayersTypeModel(QObject* parent)
     : QAbstractListModel(parent)
 {
@@ -235,3 +253,59 @@ QHash<int, QByteArray> LayersTypeModel::roleNames() const
     roles[textRole] = "typeName";
     return roles;
 }
+
+#ifdef NDI_SUPPORT
+NDISendersModel::NDISendersModel(QObject* parent)
+    : QAbstractListModel(parent),
+    m_NDIreceiver(new ofxNDIreceive())
+{
+    m_NDIreceiver->CreateFinder();
+}
+
+int NDISendersModel::rowCount(const QModelIndex& parent) const
+{
+    if (parent.isValid())
+        return 0;
+
+    return m_NDIsenders.size();
+}
+
+QVariant NDISendersModel::data(const QModelIndex& index, int role) const
+{
+    if (!index.isValid() || m_NDIsenders.empty())
+        return QVariant();
+
+    if (!checkIndex(index)) {
+        return QVariant();
+    }
+    if (role == textRole) {
+        return m_NDIsenders.at(index.row());
+    }
+    return QVariant();
+}
+
+QHash<int, QByteArray> NDISendersModel::roleNames() const
+{
+    QHash<int, QByteArray> roles;
+    roles[textRole] = "typeName";
+    return roles;
+}
+
+int NDISendersModel::updateSendersList() 
+{
+    int senders = m_NDIreceiver->FindSenders();
+    std::vector<std::string> sendersList = m_NDIreceiver->GetSenderList();
+
+    beginResetModel();
+    m_NDIsenders.clear();
+    for (auto s : sendersList) {
+        m_NDIsenders.append(QString::fromStdString(s));
+    }
+    endResetModel();
+
+    if (senders > 0)
+        return 0;
+    else
+        return -1;
+}
+#endif

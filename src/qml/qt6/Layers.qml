@@ -109,12 +109,14 @@ Rectangle {
                 }
 
                 Label {
+                    visible: typeComboBox.currentIndex >= 0 && typeComboBox.currentIndex <= 1
                     text: qsTr("File:")
                     Layout.alignment: Qt.AlignRight
                     font.pointSize: 9
                 }
 
                 RowLayout {
+                    visible: typeComboBox.currentIndex >= 0 && typeComboBox.currentIndex <= 1
                     TextField {
                         id: fileForLayer
                         text: ""
@@ -140,6 +142,43 @@ Rectangle {
                                 fileToLoadAsImageLayerDialog.open()
                             else if(typeComboBox.currentIndex == 1)
                                 fileToLoadAsVideoLayerDialog.open()
+                        }
+                    }
+                }
+
+                Label {
+                    visible: typeComboBox.currentIndex == 2
+                    text: qsTr("Name:")
+                    Layout.alignment: Qt.AlignRight
+                }
+                RowLayout {
+                    visible: typeComboBox.currentIndex == 2
+                    ComboBox {
+                        id: ndiSenderComboBox
+                        implicitWidth: layersRoot.width * 0.6
+                        model: app.layersModel.ndiSendersModel
+                        textRole: "typeName"
+
+                        onVisibleChanged: {
+                            if (visible)
+                                updateSendersBox.clicked()
+                        }
+
+                        onActivated: {
+                        }
+
+                        Component.onCompleted: {
+                        }
+                    }
+                    ToolButton {
+                        id: updateSendersBox
+                        text: ""
+                        icon.name: "view-refresh"
+                        icon.height: 16
+                        focusPolicy: Qt.NoFocus
+
+                        onClicked: {
+                            ndiSenderComboBox.currentIndex = app.layersModel.ndiSendersModel.updateSendersList()
                         }
                     }
                 }
@@ -201,7 +240,10 @@ Rectangle {
                         enabled: true
                         focus: true
                         onClicked: {
-                            app.layersModel.addLayer(layerTitle.text, typeComboBox.currentIndex, fileForLayer.text, stereoscopicModeForLayer.currentIndex, gridModeForLayer.currentIndex)
+                            if(typeComboBox.currentIndex == 2)
+                                app.layersModel.addLayer(layerTitle.text, typeComboBox.currentIndex, ndiSenderComboBox.currentText, stereoscopicModeForLayer.currentIndex, gridModeForLayer.currentIndex)
+                            else
+                                app.layersModel.addLayer(layerTitle.text, typeComboBox.currentIndex, fileForLayer.text, stereoscopicModeForLayer.currentIndex, gridModeForLayer.currentIndex)
                         }
                         ToolTip {
                             text: qsTr("Add layer to bottom of list")
