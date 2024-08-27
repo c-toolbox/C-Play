@@ -179,6 +179,7 @@ MpvLayer::MpvLayer(bool allowDirectRendering, bool loggingOn, std::string logLev
 }
 
 MpvLayer::~MpvLayer() {
+    cleanup();
 }
 
 void MpvLayer::update() {
@@ -245,6 +246,7 @@ void MpvLayer::cleanup() {
     videoData.trd = nullptr;
 
     glDeleteFramebuffers(1, &videoData.fboId);
+    glDeleteTextures(1, &renderData.texId);
 }
 
 void MpvLayer::updateFrame() {

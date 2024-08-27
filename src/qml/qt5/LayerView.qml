@@ -16,8 +16,8 @@ import org.kde.kirigami 2.15 as Kirigami
 import org.ctoolbox.cplay 1.0
 
 Kirigami.ApplicationWindow {
-    width: 600
-    height: 300
+    width: 1024
+    height: 576
     title: qsTr("")
     visible: false
 

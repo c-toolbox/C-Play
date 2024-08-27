@@ -7,19 +7,18 @@
 
 #include "layersmodel.h"
 #include <layers/baselayer.h>
-#include <layers/imagelayer.h>
-#include <layers/mpvlayer.h>
-#ifdef NDI_SUPPORT
-#include <ndi/ndilayer.h>
-#endif
 #include "locationsettings.h"
 #include <QQuickView>
 #include <QFileInfo>
 #include <QDir>
+#ifdef NDI_SUPPORT
+#include <ndi/ofxNDI/ofxNDIreceive.h>
+#endif
 
 LayersModel::LayersModel(QObject *parent)
     : QAbstractListModel(parent),
-    m_layerTypeModel(new LayersTypeModel(this))
+    m_layerTypeModel(new LayersTypeModel(this)),
+    m_needsSync(false)
 {
 #ifdef NDI_SUPPORT
     m_ndiSendersModel = new NDISendersModel(this);
@@ -105,6 +104,21 @@ void LayersModel::setLayers(const Layers &layers)
     endInsertRows();
 }
 
+int LayersModel::numberOfLayers()
+{
+    return m_layers.size();
+}
+
+bool LayersModel::needsSync()
+{
+    return m_needsSync;
+}
+
+void LayersModel::setHasSynced()
+{
+    m_needsSync = false;
+}
+
 BaseLayer* LayersModel::layer(int i)
 {
     return m_layers[i];
@@ -112,39 +126,22 @@ BaseLayer* LayersModel::layer(int i)
 
 void LayersModel::addLayer(QString title, int type, QString filepath, int stereoMode, int gridMode)
 {
+    beginInsertRows(QModelIndex(), m_layers.size(), m_layers.size());
+
+    //Create new layer
     //Need to offest type ID by 1 (to avoid BASE);
     int layerType = type + 1;
-
-    beginInsertRows(QModelIndex(), m_layers.size(), m_layers.size());
-    BaseLayer* newLayer = nullptr;
-    bool modifyFilePath = true;
-
-    switch (layerType) {
-        case static_cast<int>(BaseLayer::LayerType::IMAGE): {
-            ImageLayer* newImg = new ImageLayer(title.toStdString());
-            newLayer = newImg;
-            break;
-        }
-        case static_cast<int>(BaseLayer::LayerType::VIDEO): {
-            MpvLayer* newMpv = new MpvLayer();
-            newLayer = newMpv;
-            break;
-        }
-#ifdef NDI_SUPPORT
-        case static_cast<int>(BaseLayer::LayerType::NDI): {
-            NdiLayer* newNDI = new NdiLayer();
-            newLayer = newNDI;
-            modifyFilePath = false;
-            break;
-        }
-#endif
-        default:
-            break;
-    }
+    BaseLayer* newLayer = BaseLayer::createLayer(layerType, title.toStdString());
 
     if (newLayer) {
         newLayer->setTitle(title.toStdString());
         newLayer->setFilePath(filepath.toStdString());
+
+        bool modifyFilePath = true;
+#ifdef NDI_SUPPORT
+        if (layerType == static_cast<int>(BaseLayer::LayerType::NDI))
+            modifyFilePath = false;
+#endif
 
         if (modifyFilePath) {
             QString fileToLoad = filepath;
@@ -174,6 +171,8 @@ void LayersModel::addLayer(QString title, int type, QString filepath, int stereo
         newLayer->setStereoMode(stereoMode);
         newLayer->setGridMode(gridMode);
         m_layers.push_back(newLayer);
+
+        m_needsSync = true;
     }
 
     endInsertRows();
@@ -181,8 +180,10 @@ void LayersModel::addLayer(QString title, int type, QString filepath, int stereo
 
 void LayersModel::removeLayer(int i) {
     beginRemoveRows(QModelIndex(), i, i);
+    delete m_layers[i];
     m_layers.removeAt(i);
     endRemoveRows();
+    m_needsSync = true;
 }
 
 void LayersModel::moveLayerUp(int i) {
@@ -190,6 +191,7 @@ void LayersModel::moveLayerUp(int i) {
     beginMoveRows(QModelIndex(), i, i, QModelIndex(), i - 1);
     m_layers.move(i, i - 1);
     endMoveRows();
+    m_needsSync = true;
 }
 
 void LayersModel::moveLayerDown(int i) {
@@ -197,6 +199,7 @@ void LayersModel::moveLayerDown(int i) {
     beginMoveRows(QModelIndex(), i + 1, i + 1, QModelIndex(), i);
     m_layers.move(i, i + 1);
     endMoveRows();
+    m_needsSync = true;
 }
 
 LayersTypeModel* LayersModel::layersTypeModel() {

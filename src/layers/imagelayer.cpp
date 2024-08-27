@@ -19,6 +19,8 @@ ImageLayer::ImageLayer(std::string identifier)
 
 ImageLayer::~ImageLayer()
 {
+    if (renderData.texId > 0)
+        sgct::TextureManager::instance().removeTexture(renderData.texId);
 }
 
 void ImageLayer::update() {

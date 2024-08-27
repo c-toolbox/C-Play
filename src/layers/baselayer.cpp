@@ -1,5 +1,13 @@
 #include "baselayer.h"
 #include <sgct/opengl.h>
+#include <sgct/shareddata.h>
+#include <layers/imagelayer.h>
+#include <layers/mpvlayer.h>
+#ifdef NDI_SUPPORT
+#include <ndi/ndilayer.h>
+#endif
+
+std::atomic_uint32_t BaseLayer::m_id_gen = 0;
 
 std::string BaseLayer::typeDescription(BaseLayer::LayerType e)
 {
@@ -15,15 +23,51 @@ std::string BaseLayer::typeDescription(BaseLayer::LayerType e)
     }
 }
 
+BaseLayer* BaseLayer::createLayer(int layerType, std::string strId, uint32_t numID)
+{
+    BaseLayer* newLayer = nullptr;
+    switch (layerType) {
+        case static_cast<int>(BaseLayer::LayerType::IMAGE): {
+            ImageLayer* newImg = new ImageLayer(strId);
+            newLayer = newImg;
+            break;
+        }
+        case static_cast<int>(BaseLayer::LayerType::VIDEO): {
+            MpvLayer* newMpv = new MpvLayer();
+            newLayer = newMpv;
+            break;
+        }
+    #ifdef NDI_SUPPORT
+        case static_cast<int>(BaseLayer::LayerType::NDI): {
+            NdiLayer* newNDI = new NdiLayer();
+            newLayer = newNDI;
+            break;
+        }
+    #endif
+    default:
+        break;
+    }
+
+    if (newLayer) {
+        if (numID != 0)
+            newLayer->setIdentifier(numID);
+        else
+            newLayer->updateIdentifierBasedOnCount();
+    }
+
+    return newLayer;
+}
+
 BaseLayer::BaseLayer()
 {
     m_title = "";
     m_type = BASE;
+    m_identifier = -1;
+    m_needSync = true;
 }
 
 BaseLayer::~BaseLayer()
 {
-    glDeleteTextures(1, &renderData.texId);
 }
 
 void BaseLayer::update() {
@@ -33,6 +77,40 @@ void BaseLayer::update() {
 bool BaseLayer::ready() {
     //Overwrite in subclasses
     return false;
+}
+
+uint32_t BaseLayer::identifier() const {
+    return m_identifier;
+}
+
+void BaseLayer::setIdentifier(uint32_t id) {
+    m_identifier = id;
+}
+
+void BaseLayer::updateIdentifierBasedOnCount() {
+    m_identifier = m_id_gen++;
+}
+
+bool BaseLayer::needSync() const {
+    return m_needSync;
+}
+
+void BaseLayer::setHasSynced() {
+    m_needSync = false;
+}
+
+void BaseLayer::encode(std::vector<std::byte>& data) {
+    sgct::serializeObject(data, m_title);
+    sgct::serializeObject(data, m_filepath);
+    sgct::serializeObject(data, renderData.gridMode);
+    sgct::serializeObject(data, renderData.stereoMode);
+}
+
+void BaseLayer::decode(const std::vector<std::byte>& data, unsigned int& pos) {
+    sgct::deserializeObject(data, pos, m_title);
+    sgct::deserializeObject(data, pos, m_filepath);
+    sgct::deserializeObject(data, pos, renderData.gridMode);
+    sgct::deserializeObject(data, pos, renderData.stereoMode);
 }
 
 BaseLayer::LayerType BaseLayer::type() const {
@@ -161,6 +239,9 @@ void BaseLayer::drawPlane() {
 }
 
 void BaseLayer::updatePlane() {
+    if (renderData.width <= 0 || renderData.height <= 0)
+        return;
+
     if (planeData.specifiedSize.x <= 0 || planeData.specifiedSize.y <= 0)
         return;
 
@@ -200,7 +281,8 @@ void BaseLayer::updatePlane() {
     }
 
     //Re-create plane if it isn't correct size
-    if (calculatedPlaneSize != planeData.actualSize) {
+    if (calculatedPlaneSize.x != planeData.actualSize.x 
+        || calculatedPlaneSize.y != planeData.actualSize.y) {
         planeData.mesh = nullptr;
         planeData.actualSize = calculatedPlaneSize;
         planeData.mesh = std::make_unique<sgct::utils::Plane>(calculatedPlaneSize.x / 100.f, calculatedPlaneSize.y / 100.f);

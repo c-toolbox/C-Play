@@ -30,11 +30,15 @@ std::string logFilePath = "";
 std::string logLevel = "";
 std::string startupFile = "";
 
-std::vector<BaseLayer*> allLayers;
+std::vector<BaseLayer*> primaryLayers;
 ImageLayer* backgroundImageLayer;
 ImageLayer* foregroundImageLayer;
 ImageLayer* overlayImageLayer;
 MpvLayer* mainMpvLayer;
+
+bool updateLayers = false;
+std::vector<BaseLayer*> secondaryLayers;
+std::vector<BaseLayer*> updatedSecondaryLayers;
 
 LayerRenderer* layerRender;
 
@@ -50,18 +54,18 @@ void initOGL(GLFWwindow*) {
 
     // Create standard layers
     backgroundImageLayer = new ImageLayer("background");
-    allLayers.push_back(backgroundImageLayer);
+    primaryLayers.push_back(backgroundImageLayer);
 
     mainMpvLayer = new MpvLayer(allowDirectRendering, !logFilePath.empty() || !logLevel.empty(), logLevel);
     mainMpvLayer->initialize();
     mainMpvLayer->loadFile(SyncHelper::instance().variables.loadedFile);
-    allLayers.push_back(mainMpvLayer);
+    primaryLayers.push_back(mainMpvLayer);
 
     overlayImageLayer = new ImageLayer("overlay");
-    allLayers.push_back(overlayImageLayer);
+    primaryLayers.push_back(overlayImageLayer);
 
     foregroundImageLayer = new ImageLayer("foreground");
-    allLayers.push_back(foregroundImageLayer);
+    primaryLayers.push_back(foregroundImageLayer);
 
     layerRender = new LayerRenderer();
     layerRender->initialize(SyncHelper::instance().variables.radius, SyncHelper::instance().variables.fov);
@@ -160,6 +164,38 @@ std::vector<std::byte> encode() {
             serializeObject(data, -1);
         }
 
+        int numLayers = Application::instance().layersModel()->numberOfLayers();
+        //Check if model says sync needed
+        bool needLayerSync = Application::instance().layersModel()->needsSync();
+        if (!needLayerSync) {
+            //Even if model says, no, check for needed sync for each layer
+            for (int i = 0; i < numLayers; i++) {
+                if (Application::instance().layersModel()->layer(i)->needSync()) {
+                    needLayerSync = true;
+                }
+            }
+        }
+
+        // Sync if layer sync is needed
+        serializeObject(data, needLayerSync);
+        if (needLayerSync) {
+            // Layers sync...
+            // Orders is top to bottom in the list = (first to last in the vector)
+            // Sync only complete layer information when needed
+            serializeObject(data, numLayers);
+            for (int i = 0; i < numLayers; i++) {
+                BaseLayer* nextLayer = Application::instance().layersModel()->layer(i);
+                serializeObject(data, nextLayer->identifier()); // ID
+                serializeObject(data, nextLayer->needSync()); // Check needs sync
+                if (nextLayer->needSync()) {
+                    serializeObject(data, static_cast<int>(nextLayer->type())); // Type
+                    nextLayer->encode(data);
+                    nextLayer->setHasSynced();
+                }
+            }
+            Application::instance().layersModel()->setHasSynced();
+        }
+
         //Reset flags every frame cycle
         SyncHelper::instance().variables.timeDirty = false;
         SyncHelper::instance().variables.eqDirty = false;
@@ -242,6 +278,44 @@ void decode(const std::vector<std::byte>& data) {
             deserializeObject(data, pos, SyncHelper::instance().variables.fgImageFileDirty);
             deserializeObject(data, pos, SyncHelper::instance().variables.fgImageFile);
         }
+
+        //Layers
+        bool layerSync = false;
+        deserializeObject(data, pos, layerSync);
+        if (layerSync) {
+            updateLayers = true;
+            int numLayers = -1;
+            deserializeObject(data, pos, numLayers);
+            uint32_t id;
+            for (int i = 0; i < numLayers; i++) {
+                deserializeObject(data, pos, id);
+                deserializeObject(data, pos, layerSync);
+                int layerType = -1;
+
+                //Find if layer exists
+                auto it = find_if(secondaryLayers.begin(), secondaryLayers.end(),
+                    [&id](const BaseLayer* t1) { return t1->identifier() == id; });
+                if (it != secondaryLayers.end()) {//If exist, add to new pos and remove from old container
+                    //If exist, sync if needed
+                    if (layerSync) {
+                        deserializeObject(data, pos, layerType);
+                        (*it)->decode(data, pos);
+                    }
+                    updatedSecondaryLayers.push_back(*it);
+                    secondaryLayers.erase(it);
+                }
+                else {//Did not exist. Let's create it
+                    deserializeObject(data, pos, layerType);
+                    BaseLayer* newLayer = BaseLayer::createLayer(layerType, std::to_string(id), id);
+                    if (newLayer) {
+                        if (layerSync) {
+                            newLayer->decode(data, pos);
+                        }
+                        updatedSecondaryLayers.push_back(newLayer);
+                    }
+                }
+            }
+        }
     }
 }
 
@@ -249,6 +323,18 @@ void postSyncPreDraw() {
 #ifndef SGCT_ONLY
     //Apply synced commands
     if (!Engine::instance().isMaster()) {
+
+        //Delete layers left in old container, and update to new
+        //Needs to be done in this function, not in the deserialization.
+        if (updateLayers) {
+            for (auto l : secondaryLayers) {
+                delete l;
+            }
+            secondaryLayers.clear();
+            secondaryLayers = updatedSecondaryLayers;
+            updatedSecondaryLayers.clear();
+            updateLayers = false;
+        }
 
         glm::vec3 rotXYZ = glm::vec3(float(SyncHelper::instance().variables.rotateX),
             float(SyncHelper::instance().variables.rotateY),
@@ -288,6 +374,7 @@ void postSyncPreDraw() {
 
         layerRender->clearLayers();
 
+        //Background image layer
         if ((!mainMpvLayer->renderingIsOn() || mainMpvLayer->ready() ||
             (SyncHelper::instance().variables.alpha < 1.f || SyncHelper::instance().variables.gridToMapOn == 1))
             && backgroundImageLayer->ready() && SyncHelper::instance().variables.alphaBg > 0.f) {
@@ -297,6 +384,7 @@ void postSyncPreDraw() {
             layerRender->addLayer(backgroundImageLayer);
         }
 
+        //Main video/media layer
         if (mainMpvLayer->renderingIsOn()) {
             if (mainMpvLayer->ready() && SyncHelper::instance().variables.alpha > 0.f) {
                 mainMpvLayer->setAlpha(SyncHelper::instance().variables.alpha);
@@ -380,6 +468,18 @@ void postSyncPreDraw() {
             
         }
 
+        //Custom layers
+        //Rendered top to bottom, so need to add them the other way around...
+        for (auto it = secondaryLayers.rbegin(); it != secondaryLayers.rend(); ++it) {
+            (*it)->update();
+            if ((*it)->ready()) {
+                (*it)->setRotate(rotXYZ);
+                (*it)->setTranslate(translateXYZ);
+                layerRender->addLayer((*it));
+            }
+        }
+
+        //Foreground image layer
         if (foregroundImageLayer->ready() && SyncHelper::instance().variables.alphaFg > 0.f) {
             foregroundImageLayer->setAlpha(SyncHelper::instance().variables.alphaFg);
             foregroundImageLayer->setGridMode(SyncHelper::instance().variables.gridToMapOnFg);
@@ -406,9 +506,15 @@ void postSyncPreDraw() {
             mainMpvLayer->setValue("saturation", SyncHelper::instance().variables.eqSaturation);
         }
 
-        // Set latest plane details for all layers
+        // Set latest plane details for all primary layers
         glm::vec2 planeSize = glm::vec2(float(SyncHelper::instance().variables.planeWidth), float(SyncHelper::instance().variables.planeHeight));
-        for (const auto& layer : allLayers) {
+        for (auto& layer : primaryLayers) {
+            layer->setPlaneDistance(SyncHelper::instance().variables.planeDistance);
+            layer->setPlaneElevation(SyncHelper::instance().variables.planeElevation);
+            layer->setPlaneSize(planeSize, SyncHelper::instance().variables.planeConsiderAspectRatio);
+        }
+        // Just temporary for al secondar layers
+        for (auto& layer : secondaryLayers) {
             layer->setPlaneDistance(SyncHelper::instance().variables.planeDistance);
             layer->setPlaneElevation(SyncHelper::instance().variables.planeElevation);
             layer->setPlaneSize(planeSize, SyncHelper::instance().variables.planeConsiderAspectRatio);
@@ -456,7 +562,6 @@ void cleanup() {
 #endif
 
     //Cleanup mainMpvLayer
-    mainMpvLayer->cleanup();
     delete mainMpvLayer;
     mainMpvLayer = nullptr;
 

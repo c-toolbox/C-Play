@@ -4,6 +4,7 @@
 #include <glm/glm.hpp>
 #include <sgct/utils/plane.h>
 #include <mutex>
+#include <vector>
 
 class BaseLayer
 {
@@ -19,6 +20,7 @@ public:
     };
 
     static std::string typeDescription(BaseLayer::LayerType e);
+    static BaseLayer* createLayer(int layerType, std::string strId = "", uint32_t numID = 0);
 
     struct RenderParams {
         unsigned int texId = 0;
@@ -47,6 +49,16 @@ public:
 
     virtual void update();
     virtual bool ready();
+
+    uint32_t identifier() const;
+    void setIdentifier(uint32_t id);
+    void updateIdentifierBasedOnCount();
+    
+    bool needSync() const;
+    void setHasSynced();
+    
+    virtual void encode(std::vector<std::byte>& data);
+    virtual void decode(const std::vector<std::byte>& data, unsigned int& pos);
 
     LayerType type() const;
     void setType(LayerType t);
@@ -100,6 +112,11 @@ protected:
     LayerType m_type;
     RenderParams renderData;
     PlaneParams planeData;
+
+    uint32_t m_identifier;
+    static std::atomic_uint32_t m_id_gen;
+
+    bool m_needSync;
 
 private:
     void updatePlane();

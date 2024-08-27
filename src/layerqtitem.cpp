@@ -217,7 +217,34 @@ void LayerQtItemRenderer::paint()
 
     m_program->setUniformValue("tex", 1);
 
-    glViewport(0, 0, m_viewportSize.width(), m_viewportSize.height());
+    int viewW = m_viewportSize.width();
+    int viewH = m_viewportSize.height();
+    int offsetX = 0;
+    int offsetY = 0;
+    float ratioWindow = static_cast<float>(viewW) / static_cast<float>(viewH);
+    float ratioLayer = static_cast<float>(m_layer->width()) / static_cast<float>(m_layer->height());
+    if (ratioLayer > ratioWindow) {
+        //Use full width of window
+        if (ratioLayer > 1.f) {
+            viewH = static_cast<int>(static_cast<float>(m_viewportSize.width()) / ratioLayer);
+        }
+        else {
+            viewH = static_cast<int>(static_cast<float>(m_viewportSize.width()) * ratioLayer);
+        }
+        offsetY = static_cast<int>(0.5f * (static_cast<float>(m_viewportSize.height() - viewH)));
+    }
+    else if(ratioLayer < ratioWindow) {
+        //Use full height of window
+        if (ratioLayer > 1.f) {
+            viewW = static_cast<int>(static_cast<float>(m_viewportSize.height()) * ratioLayer);
+        }
+        else {
+            viewW = static_cast<int>(static_cast<float>(m_viewportSize.height()) / ratioLayer);
+        }
+        offsetX = static_cast<int>(0.5f * (static_cast<float>(m_viewportSize.width() - viewW)));
+    }
+
+    glViewport(offsetX, offsetY, viewW, viewH);
 
     glDisable(GL_DEPTH_TEST);
 

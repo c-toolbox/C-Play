@@ -82,6 +82,10 @@ public:
     Layers getLayers() const;
     void setLayers(const Layers& layers);
 
+    int numberOfLayers();
+    bool needsSync();
+    void setHasSynced();
+
     Q_INVOKABLE BaseLayer* layer(int i);
 
     Q_INVOKABLE void addLayer(QString title, int type, QString filepath, int stereoMode, int gridMode);
@@ -119,6 +123,7 @@ private:
 #ifdef NDI_SUPPORT
     NDISendersModel* m_ndiSendersModel;
 #endif
+    bool m_needsSync;
 };
 
 #endif // LAYERSMODEL_H
