@@ -35,7 +35,7 @@
 #include <QStandardPaths>
 #include <QtGlobal>
 
-void on_mpv_redraw(void *ctx)
+static void on_mpv_redraw(void *ctx)
 {
     QMetaObject::invokeMethod(static_cast<MpvObject*>(ctx), "update", Qt::QueuedConnection);
 }

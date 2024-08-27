@@ -19,8 +19,9 @@ public:
         INVALID
     };
 
+    typedef void* (*opengl_func_adress_ptr)(void* ctx, const char* name);
     static std::string typeDescription(BaseLayer::LayerType e);
-    static BaseLayer* createLayer(int layerType, std::string strId = "", uint32_t numID = 0);
+    static BaseLayer* createLayer(int layerType, opengl_func_adress_ptr opa, std::string strId = "", uint32_t numID = 0);
 
     struct RenderParams {
         unsigned int texId = 0;
@@ -113,6 +114,7 @@ protected:
     RenderParams renderData;
     PlaneParams planeData;
 
+    opengl_func_adress_ptr m_openglProcAdr;
     uint32_t m_identifier;
     static std::atomic_uint32_t m_id_gen;
 

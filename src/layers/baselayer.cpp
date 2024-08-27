@@ -23,7 +23,7 @@ std::string BaseLayer::typeDescription(BaseLayer::LayerType e)
     }
 }
 
-BaseLayer* BaseLayer::createLayer(int layerType, std::string strId, uint32_t numID)
+BaseLayer* BaseLayer::createLayer(int layerType, opengl_func_adress_ptr opa, std::string strId, uint32_t numID)
 {
     BaseLayer* newLayer = nullptr;
     switch (layerType) {
@@ -33,7 +33,7 @@ BaseLayer* BaseLayer::createLayer(int layerType, std::string strId, uint32_t num
             break;
         }
         case static_cast<int>(BaseLayer::LayerType::VIDEO): {
-            MpvLayer* newMpv = new MpvLayer();
+            MpvLayer* newMpv = new MpvLayer(opa);
             newLayer = newMpv;
             break;
         }

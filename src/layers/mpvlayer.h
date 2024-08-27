@@ -9,6 +9,7 @@
 class MpvLayer : public BaseLayer
 {
 public:
+
     struct mpvData {
         mpv_handle* handle;
         mpv_render_context* renderContext;
@@ -34,7 +35,10 @@ public:
         int timePos = 0;
     };
 
-    MpvLayer(bool allowDirectRendering = false, bool loggingOn = false, std::string logLevel = "info");
+    MpvLayer(opengl_func_adress_ptr opa, 
+        bool allowDirectRendering = false, 
+        bool loggingOn = false, 
+        std::string logLevel = "info");
     ~MpvLayer();
 
     void update();

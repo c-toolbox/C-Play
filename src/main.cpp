@@ -46,6 +46,10 @@ LayerRenderer* layerRender;
 
 using namespace sgct;
 
+static void* get_proc_address_glfw(void*, const char* name) {
+    return reinterpret_cast<void*>(glfwGetProcAddress(name));
+}
+
 void initOGL(GLFWwindow*) {
 #ifndef SGCT_ONLY
     if (Engine::instance().isMaster())
@@ -56,7 +60,7 @@ void initOGL(GLFWwindow*) {
     backgroundImageLayer = new ImageLayer("background");
     primaryLayers.push_back(backgroundImageLayer);
 
-    mainMpvLayer = new MpvLayer(allowDirectRendering, !logFilePath.empty() || !logLevel.empty(), logLevel);
+    mainMpvLayer = new MpvLayer(get_proc_address_glfw, allowDirectRendering, !logFilePath.empty() || !logLevel.empty(), logLevel);
     mainMpvLayer->initialize();
     mainMpvLayer->loadFile(SyncHelper::instance().variables.loadedFile);
     primaryLayers.push_back(mainMpvLayer);
@@ -306,7 +310,7 @@ void decode(const std::vector<std::byte>& data) {
                 }
                 else {//Did not exist. Let's create it
                     deserializeObject(data, pos, layerType);
-                    BaseLayer* newLayer = BaseLayer::createLayer(layerType, std::to_string(id), id);
+                    BaseLayer* newLayer = BaseLayer::createLayer(layerType, get_proc_address_glfw, std::to_string(id), id);
                     if (newLayer) {
                         if (layerSync) {
                             newLayer->decode(data, pos);

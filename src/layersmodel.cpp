@@ -9,11 +9,22 @@
 #include <layers/baselayer.h>
 #include "locationsettings.h"
 #include <QQuickView>
+#include <QOpenGLContext>
 #include <QFileInfo>
 #include <QDir>
 #ifdef NDI_SUPPORT
 #include <ndi/ofxNDI/ofxNDIreceive.h>
 #endif
+
+static void* get_proc_address_qopengl(void* ctx, const char* name)
+{
+    Q_UNUSED(ctx)
+
+    QOpenGLContext* glctx = QOpenGLContext::currentContext();
+    if (!glctx) return nullptr;
+
+    return reinterpret_cast<void*>(glctx->getProcAddress(QByteArray(name)));
+}
 
 LayersModel::LayersModel(QObject *parent)
     : QAbstractListModel(parent),
@@ -131,7 +142,7 @@ void LayersModel::addLayer(QString title, int type, QString filepath, int stereo
     //Create new layer
     //Need to offest type ID by 1 (to avoid BASE);
     int layerType = type + 1;
-    BaseLayer* newLayer = BaseLayer::createLayer(layerType, title.toStdString());
+    BaseLayer* newLayer = BaseLayer::createLayer(layerType, get_proc_address_qopengl, title.toStdString());
 
     if (newLayer) {
         newLayer->setTitle(title.toStdString());

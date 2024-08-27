@@ -2,14 +2,11 @@
 #include <sgct/sgct.h>
 #include <sgct/opengl.h>
 #include <fmt/core.h>
-#define GLFW_INCLUDE_NONE
-#include <GLFW/glfw3.h>
 #include "qthelper.h"
 #include "application.h"
 
 void on_mpv_render_update(void* ctx) {
     MpvLayer* mpvLayer = static_cast<MpvLayer*>(ctx);
-    sgct::Window::makeSharedContextCurrent();
     mpvLayer->updateFbo();
 }
 
@@ -168,11 +165,11 @@ auto runMpvAsync = [](MpvLayer::mpvData& data, BaseLayer::RenderParams& rp) {
     data.threadDone = true;
 };
 
-static void* get_proc_address_mpv(void*, const char* name) {
-    return reinterpret_cast<void*>(glfwGetProcAddress(name));
-}
-
-MpvLayer::MpvLayer(bool allowDirectRendering, bool loggingOn, std::string logLevel) {
+MpvLayer::MpvLayer(opengl_func_adress_ptr opa, 
+    bool allowDirectRendering, 
+    bool loggingOn, 
+    std::string logLevel) {
+    m_openglProcAdr = opa;
     videoData.allowDirectRendering = allowDirectRendering;
     videoData.loggingOn = loggingOn;
     setType(BaseLayer::LayerType::VIDEO);
@@ -183,6 +180,12 @@ MpvLayer::~MpvLayer() {
 }
 
 void MpvLayer::update() {
+    if (!videoData.mpvInitialized)
+        initialize();
+
+    if (videoData.loadedFile != filepath())
+        loadFile(filepath());
+
     updateFrame();
 }
 
@@ -202,7 +205,7 @@ void MpvLayer::initialize() {
     mpv_observe_property(videoData.handle, 0, "duration", MPV_FORMAT_DOUBLE);
 
     // Setup OpenGL MPV settings
-    mpv_opengl_init_params gl_init_params[1] = { get_proc_address_mpv, nullptr };
+    mpv_opengl_init_params gl_init_params[1] = { m_openglProcAdr, nullptr };
     mpv_render_param params[]{
         {MPV_RENDER_PARAM_API_TYPE, const_cast<char*>(MPV_RENDER_API_TYPE_OPENGL)},
         {MPV_RENDER_PARAM_OPENGL_INIT_PARAMS, &gl_init_params},
@@ -376,8 +379,6 @@ void MpvLayer::checkNeededMpvFboResize() {
 void MpvLayer::createMpvFBO(int width, int height) {
     videoData.fboWidth = width;
     videoData.fboHeight = height;
-
-    sgct::Window::makeSharedContextCurrent();
 
     glGenFramebuffers(1, &videoData.fboId);
     glBindFramebuffer(GL_FRAMEBUFFER, videoData.fboId);
