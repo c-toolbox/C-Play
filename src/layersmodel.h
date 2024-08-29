@@ -72,7 +72,8 @@ public:
         PathRole,
         TypeRole,
         StereoRole,
-        GridRole
+        GridRole,
+        VisibilityRole
     };
 
     int rowCount(const QModelIndex &parent = QModelIndex()) const override;
@@ -88,10 +89,11 @@ public:
 
     Q_INVOKABLE BaseLayer* layer(int i);
 
-    Q_INVOKABLE void addLayer(QString title, int type, QString filepath, int stereoMode, int gridMode);
+    Q_INVOKABLE void addLayer(QString title, int type, QString filepath);
     Q_INVOKABLE void removeLayer(int i);
     Q_INVOKABLE void moveLayerUp(int i);
     Q_INVOKABLE void moveLayerDown(int i);
+    Q_INVOKABLE void updateLayer(int i);
 
     Q_PROPERTY(LayersTypeModel* layersTypeModel
         READ layersTypeModel

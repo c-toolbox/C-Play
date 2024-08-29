@@ -17,6 +17,8 @@ import org.ctoolbox.cplay
 Slider {
     id: root
 
+    property string overlayLabel: qsTr("Media volume")
+
     from: 0
     to: 100
     value: mpv.volume
@@ -42,18 +44,12 @@ Slider {
 
     Label {
         id: progressBarToolTip
-        text: qsTr("Media volume: %1").arg(Number(root.value.toFixed(0)))
+        text: root.overlayLabel + qsTr(": %1\%").arg(Number(root.value.toFixed(0)))
         font.pointSize: 9
         anchors.centerIn: root
         color: "#fff"
         layer.enabled: true
         layer.effect: DropShadow { verticalOffset: 1; color: "#111"; radius: 5; spread: 0.3; samples: 17 }
-    }
-
-    onValueChanged: {
-        if(value.toFixed(0) !== mpv.volume) {
-            mpv.volume = value.toFixed(0)
-        }
     }
 
 }

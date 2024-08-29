@@ -104,6 +104,7 @@ void BaseLayer::encode(std::vector<std::byte>& data) {
     sgct::serializeObject(data, m_filepath);
     sgct::serializeObject(data, renderData.gridMode);
     sgct::serializeObject(data, renderData.stereoMode);
+    sgct::serializeObject(data, renderData.alpha);
 }
 
 void BaseLayer::decode(const std::vector<std::byte>& data, unsigned int& pos) {
@@ -111,6 +112,7 @@ void BaseLayer::decode(const std::vector<std::byte>& data, unsigned int& pos) {
     sgct::deserializeObject(data, pos, m_filepath);
     sgct::deserializeObject(data, pos, renderData.gridMode);
     sgct::deserializeObject(data, pos, renderData.stereoMode);
+    sgct::deserializeObject(data, pos, renderData.alpha);
 }
 
 BaseLayer::LayerType BaseLayer::type() const {
@@ -119,6 +121,7 @@ BaseLayer::LayerType BaseLayer::type() const {
 
 void BaseLayer::setType(LayerType t) {
     m_type = t;
+    m_needSync = true;
 }
 
 std::string BaseLayer::typeName() const {
@@ -139,6 +142,7 @@ std::string BaseLayer::filepath() const {
 
 void BaseLayer::setFilePath(std::string p) {
     m_filepath = p;
+    m_needSync = true;
 }
 
 unsigned int BaseLayer::textureId() const {
@@ -159,6 +163,7 @@ float BaseLayer::alpha() const {
 
 void BaseLayer::setAlpha(float a) {
     renderData.alpha = a;
+    m_needSync = true;
 }
 
 int BaseLayer::gridMode() const {
@@ -167,6 +172,7 @@ int BaseLayer::gridMode() const {
 
 void BaseLayer::setGridMode(int g) {
     renderData.gridMode = g;
+    m_needSync = true;
 }
 
 int BaseLayer::stereoMode() const {
@@ -176,6 +182,7 @@ int BaseLayer::stereoMode() const {
 void BaseLayer::setStereoMode(int s) {
     renderData.stereoMode = s;
     updatePlane();
+    m_needSync = true;
 }
 
 const glm::vec3& BaseLayer::rotate() const {
@@ -184,6 +191,7 @@ const glm::vec3& BaseLayer::rotate() const {
 
 void BaseLayer::setRotate(glm::vec3& r) {
     renderData.rotate = r;
+    m_needSync = true;
 }
 
 const glm::vec3& BaseLayer::translate() const {
@@ -192,6 +200,7 @@ const glm::vec3& BaseLayer::translate() const {
 
 void BaseLayer::setTranslate(glm::vec3& t) {
     renderData.translate = t;
+    m_needSync = true;
 }
 
 double BaseLayer::planeAzimuth() const {
@@ -200,6 +209,7 @@ double BaseLayer::planeAzimuth() const {
 
 void BaseLayer::setPlaneAzimuth(double pA) {
     planeData.azimuth = pA;
+    m_needSync = true;
 }
 
 double BaseLayer::planeElevation() const {
@@ -208,6 +218,7 @@ double BaseLayer::planeElevation() const {
 
 void BaseLayer::setPlaneElevation(double pE) {
     planeData.elevation = pE;
+    m_needSync = true;
 }
 
 double BaseLayer::planeDistance() const {
@@ -216,6 +227,7 @@ double BaseLayer::planeDistance() const {
 
 void BaseLayer::setPlaneDistance(double pD) {
     planeData.distance = pD;
+    m_needSync = true;
 }
 
 double BaseLayer::planeRoll() const {
@@ -224,12 +236,14 @@ double BaseLayer::planeRoll() const {
 
 void BaseLayer::setPlaneRoll(double pR) {
     planeData.roll = pR;
+    m_needSync = true;
 }
 
 void BaseLayer::setPlaneSize(glm::vec2 pS, int parc) {
     planeData.specifiedSize = pS;
     planeData.aspectRatioConsideration = parc;
     updatePlane();
+    m_needSync = true;
 }
 
 void BaseLayer::drawPlane() {
@@ -286,5 +300,6 @@ void BaseLayer::updatePlane() {
         planeData.mesh = nullptr;
         planeData.actualSize = calculatedPlaneSize;
         planeData.mesh = std::make_unique<sgct::utils::Plane>(calculatedPlaneSize.x / 100.f, calculatedPlaneSize.y / 100.f);
+        m_needSync = true;
     }
 }

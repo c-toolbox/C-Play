@@ -15,9 +15,11 @@
 #include "playlistitem.h"
 #include "playlistmodel.h"
 #include "tracksmodel.h"
+
 #include "audiosettings.h"
 #include "gridsettings.h"
 #include "imagesettings.h"
+#include "layersettings.h"
 #include "locationsettings.h"
 #include "mousesettings.h"
 #include "playbacksettings.h"
@@ -243,6 +245,9 @@ void Application::setupQmlSettingsTypes()
 
     auto imageProvider = [](QQmlEngine*, QJSEngine*) -> QObject* { return ImageSettings::self(); };
     qmlRegisterSingletonType<ImageSettings>("org.ctoolbox.cplay", 1, 0, "ImageSettings", imageProvider);
+
+    auto layerProvider = [](QQmlEngine*, QJSEngine*) -> QObject* { return LayerSettings::self(); };
+    qmlRegisterSingletonType<LocationSettings>("org.ctoolbox.cplay", 1, 0, "LayerSettings", layerProvider);
 
     auto locationProvider = [](QQmlEngine*, QJSEngine*) -> QObject* { return LocationSettings::self(); };
     qmlRegisterSingletonType<LocationSettings>("org.ctoolbox.cplay", 1, 0, "LocationSettings", locationProvider);

@@ -59,6 +59,7 @@ set(KCFCG_FILE_NAMES
     audiosettings
     gridsettings
     imagesettings
+	layersettings
     locationsettings
     mousesettings
     playbacksettings
@@ -116,6 +117,7 @@ if(BUILD_CPLAY_WITH_QT6)
         qml/qt6/Settings/AudioSettings.qml
         qml/qt6/Settings/GridSettings.qml
         qml/qt6/Settings/ImageSettings.qml
+		qml/qt6/Settings/LayerSettings.qml
         qml/qt6/Settings/LocationSettings.qml
         qml/qt6/Settings/MouseSettings.qml
         qml/qt6/Settings/Navigation.qml

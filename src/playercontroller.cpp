@@ -284,6 +284,11 @@ QString PlayerController::checkAndCorrectPath(const QString& path) {
     return QStringLiteral("");
 }
 
+QString PlayerController::returnBaseName(const QString& path) {
+    QFileInfo fileInfo(path);
+    return fileInfo.baseName();
+}
+
 float PlayerController::backgroundVisibility()
 {
     return SyncHelper::instance().variables.alphaBg;

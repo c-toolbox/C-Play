@@ -22,7 +22,9 @@ class LayerQtItemRenderer : public QObject, protected QOpenGLFunctions
 public:
     ~LayerQtItemRenderer();
 
+    void setWindowSize(const QSize& size);
     void setViewportSize(const QSize& size);
+    void setPosition(const QPoint& position);
     void setWindow(QQuickWindow* window);
 
     BaseLayer* layer();
@@ -32,7 +34,9 @@ public:
     Q_INVOKABLE void paint();
 
 private:
+    QSize m_windowSize;
     QSize m_viewportSize;
+    QPoint m_position;
     QOpenGLShaderProgram* m_program = nullptr;
     QQuickWindow *m_window = nullptr;
     BaseLayer* m_layer = nullptr;
@@ -46,6 +50,9 @@ class LayerQtItem : public QQuickItem
 {
     Q_OBJECT
     Q_PROPERTY(int layerIdx READ layerIdx WRITE setLayerIdx NOTIFY layerChanged)
+    Q_PROPERTY(int layerStereoMode READ layerStereoMode WRITE setLayerStereoMode NOTIFY layerValueChanged)
+    Q_PROPERTY(int layerGridMode READ layerGridMode WRITE setLayerGridMode NOTIFY layerValueChanged)
+    Q_PROPERTY(int layerVisibility READ layerVisibility WRITE setLayerVisibility NOTIFY layerValueChanged)
     Q_PROPERTY(QString layerTitle READ layerTitle)
     QML_ELEMENT
 
@@ -55,6 +62,15 @@ public:
     int layerIdx();
     void setLayerIdx(int idx);
 
+    int layerStereoMode();
+    void setLayerStereoMode(int mode);
+
+    int layerGridMode();
+    void setLayerGridMode(int mode);
+
+    int layerVisibility();
+    void setLayerVisibility(int value);
+
     QString layerTitle();
 
     Q_INVOKABLE void sync();
@@ -62,6 +78,7 @@ public:
 
 Q_SIGNALS:
     void layerChanged();
+    void layerValueChanged();
 
 private:
     Q_INVOKABLE void handleWindowChanged(QQuickWindow* win);

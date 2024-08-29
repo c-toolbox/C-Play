@@ -6,6 +6,7 @@
  */
 
 #include "layerqtitem.h"
+#include "layersettings.h"
 #include "application.h"
 
 #include <QtQuick/qquickwindow.h>
@@ -34,6 +35,54 @@ void LayerQtItem::setLayerIdx(int idx)
     Q_EMIT layerChanged();
     if (window()) {
         window()->update();
+    }
+}
+
+int LayerQtItem::layerStereoMode()
+{
+    if (m_layer)
+        return m_layer->stereoMode();
+    else
+        return LayerSettings::defaultStereoModeForLayers();
+}
+
+void LayerQtItem::setLayerStereoMode(int mode)
+{
+    if (m_layer) {
+        m_layer->setStereoMode(mode);
+        Q_EMIT layerValueChanged();
+    }
+}
+
+int LayerQtItem::layerGridMode()
+{
+    if (m_layer)
+        return m_layer->gridMode();
+    else
+        return LayerSettings::defaultGridModeForLayers();
+}
+
+void LayerQtItem::setLayerGridMode(int mode)
+{
+    if (m_layer) {
+        m_layer->setGridMode(mode);
+        Q_EMIT layerValueChanged();
+    }
+}
+
+int LayerQtItem::layerVisibility()
+{
+    if (m_layer)
+        return static_cast<int>(m_layer->alpha() * 100.f);
+    else
+        return LayerSettings::defaultLayerVisibility();
+}
+
+void LayerQtItem::setLayerVisibility(int value) 
+{
+    if (m_layer) {
+        m_layer->setAlpha(static_cast<float>(value) * 0.01f);
+        Q_EMIT layerValueChanged();
     }
 }
 
@@ -89,12 +138,23 @@ LayerQtItemRenderer::~LayerQtItemRenderer()
     delete m_program;
 }
 
+void LayerQtItemRenderer::setWindowSize(const QSize& size)
+{
+    m_windowSize = size;
+}
+
 void LayerQtItemRenderer::setViewportSize(const QSize& size)
 { 
     m_viewportSize = size; 
 }
 
-void LayerQtItemRenderer::setWindow(QQuickWindow* window) { 
+void LayerQtItemRenderer::setPosition(const QPoint& position) 
+{
+    m_position = position;
+}
+
+void LayerQtItemRenderer::setWindow(QQuickWindow* window) 
+{ 
     m_window = window; 
 }
 
@@ -116,7 +176,9 @@ void LayerQtItem::sync()
         connect(window(), &QQuickWindow::beforeRenderPassRecording, m_renderer, &LayerQtItemRenderer::paint, Qt::DirectConnection);
     }
     m_renderer->setLayer(m_layer);
-    m_renderer->setViewportSize(window()->size() * window()->devicePixelRatio());
+    m_renderer->setWindowSize(window()->size() * window()->devicePixelRatio());
+    m_renderer->setViewportSize(this->size().toSize() * window()->devicePixelRatio());
+    m_renderer->setPosition(this->position().toPoint());
     m_renderer->setWindow(window());
 }
 
@@ -221,10 +283,10 @@ void LayerQtItemRenderer::paint()
     int viewH = m_viewportSize.height();
     int offsetX = 0;
     int offsetY = 0;
-    float ratioWindow = static_cast<float>(viewW) / static_cast<float>(viewH);
+    float ratioViewport = static_cast<float>(viewW) / static_cast<float>(viewH);
     float ratioLayer = static_cast<float>(m_layer->width()) / static_cast<float>(m_layer->height());
-    if (ratioLayer > ratioWindow) {
-        //Use full width of window
+    if (ratioLayer > ratioViewport) {
+        //Use full width of viewport
         if (ratioLayer > 1.f) {
             viewH = static_cast<int>(static_cast<float>(m_viewportSize.width()) / ratioLayer);
         }
@@ -233,8 +295,8 @@ void LayerQtItemRenderer::paint()
         }
         offsetY = static_cast<int>(0.5f * (static_cast<float>(m_viewportSize.height() - viewH)));
     }
-    else if(ratioLayer < ratioWindow) {
-        //Use full height of window
+    else if(ratioLayer < ratioViewport) {
+        //Use full height of viewport
         if (ratioLayer > 1.f) {
             viewW = static_cast<int>(static_cast<float>(m_viewportSize.height()) * ratioLayer);
         }
@@ -258,4 +320,10 @@ void LayerQtItemRenderer::paint()
     m_program->release();
 
     m_window->endExternalCommands();
+
+    glViewport(0, 0, m_windowSize.width(), m_windowSize.height());
+
+#if QT_VERSION < QT_VERSION_CHECK(6, 0, 0)
+    m_window->resetOpenGLState();
+#endif
 }

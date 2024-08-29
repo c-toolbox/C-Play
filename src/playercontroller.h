@@ -50,6 +50,7 @@ public Q_SLOTS:
 
     QString returnRelativeOrAbsolutePath(const QString& path);
     QString checkAndCorrectPath(const QString& path);
+    QString returnBaseName(const QString& path);
 
     float backgroundVisibility();
     void setBackgroundVisibility(float value);

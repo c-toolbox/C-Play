@@ -14,6 +14,7 @@
         <file alias="AudioSettings.qml">qt5/Settings/AudioSettings.qml</file>
         <file alias="GridSettings.qml">qt5/Settings/GridSettings.qml</file>
 		<file alias="ImageSettings.qml">qt5/Settings/ImageSettings.qml</file>
+		<file alias="LayerSettings.qml">qt5/Settings/LayerSettings.qml</file>
 		<file alias="LocationSettings.qml">qt5/Settings/LocationSettings.qml</file>
         <file alias="MouseSettings.qml">qt5/Settings/MouseSettings.qml</file>
         <file alias="Navigation.qml">qt5/Settings/Navigation.qml</file>

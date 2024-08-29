@@ -55,6 +55,11 @@ Kirigami.Page
             page: "ImageSettings.qml"
         }
         ListElement {
+            name: "Layers"
+            iconName: "dialog-layers"
+            page: "LayerSettings.qml"
+        }
+        ListElement {
             name: "Location"
             iconName: "find-location"
             page: "LocationSettings.qml"

@@ -57,7 +57,6 @@ ItemDelegate {
 
     onDoubleClicked: {
         layerView.layerItem.layerIdx = index
-        layerView.title = layerView.layerItem.layerTitle
         layerView.visible = true
     }
 
@@ -67,8 +66,8 @@ ItemDelegate {
     }
 
     function subText() {
-        return model.type + " - " + model.stereoVideo + " " + model.gridToMapOn
-    } 
+        return model.type + " - " + model.stereoVideo + " " + model.gridToMapOn + " : " + model.visibility + "%"
+    }
 
     function pad(number, length) {
         while (number.length < length)

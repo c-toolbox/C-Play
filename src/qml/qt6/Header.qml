@@ -132,7 +132,14 @@ ToolBar {
             }
         }
 
-        VolumeSlider { id: volumeSlider }
+        VolumeSlider { 
+            id: volumeSlider     
+            onValueChanged: {
+                if(value.toFixed(0) !== mpv.volume) {
+                    mpv.volume = value.toFixed(0)
+                }
+            }
+        }
 
         PropertyAnimation {
             id: volume_fade_up_animation;
@@ -249,7 +256,14 @@ ToolBar {
             }
         }
 
-        VisibilitySlider { id: visibilitySlider }
+        VisibilitySlider { 
+            id: visibilitySlider
+            onValueChanged: {
+                if(value.toFixed(0) !== mpv.visibility) {
+                    mpv.visibility = value.toFixed(0)
+                }
+            }
+        }
 
         PropertyAnimation {
             id: visibility_fade_in_animation;

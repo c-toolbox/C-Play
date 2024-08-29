@@ -42,7 +42,8 @@ Rectangle {
         nameFilters: [ "Image files (*.png *.jpg *.jpeg *.tga)" ]
 
         onAccepted: {
-            fileForLayer.text = fileToLoadAsImageLayerDialog.file;
+            fileForLayer.text = playerController.checkAndCorrectPath(fileToLoadAsImageLayerDialog.file);
+            layerTitle.text = playerController.returnBaseName(fileForLayer.text);
             mpv.focus = true
         }
         onRejected: mpv.focus = true
@@ -57,7 +58,8 @@ Rectangle {
         fileMode: Platform.FileDialog.OpenFile
 
         onAccepted: {
-            fileForLayer.text = fileToLoadAsVideoLayerDialog.file;
+            fileForLayer.text = playerController.checkAndCorrectPath(fileToLoadAsVideoLayerDialog.file);
+            layerTitle.text = playerController.returnBaseName(fileForLayer.text);
             mpv.focus = true
         }
         onRejected: mpv.focus = true
@@ -75,22 +77,6 @@ Rectangle {
                 columns: 2
                 Layout.preferredWidth: parent.width
                 rowSpacing: 1
-
-                Label {
-                    text: qsTr("Title:")
-                    Layout.alignment: Qt.AlignRight
-                    font.pointSize: 9
-                }
-
-                TextField {
-                    id: layerTitle
-                    text: ""
-                    placeholderText: "Layer title"
-                    maximumLength: 20
-                    Layout.preferredWidth: font.pointSize * 17
-                    font.pointSize: 9
-                    Layout.fillWidth: true
-                }
 
                 Label {
                     text: qsTr("Type:")
@@ -184,53 +170,18 @@ Rectangle {
                 }
 
                 Label {
-                    text: qsTr("Stereo:")
+                    text: qsTr("Title:")
                     Layout.alignment: Qt.AlignRight
-                }
-                ComboBox {
-                    id: stereoscopicModeForLayer
-                    enabled: true
-                    textRole: "mode"
-                    model: ListModel {
-                        id: stereoscopicModeForLayerList
-                        ListElement { mode: "2D (mono)"; value: 0 }
-                        ListElement { mode: "3D (side-by-side)"; value: 1}
-                        ListElement { mode: "3D (top-bottom)"; value: 2 }
-                        ListElement { mode: "3D (top-bottom+flip)"; value: 3 }
-                    }
-
-                    onActivated: {
-                    }
-
-                    Component.onCompleted: {
-                    }
-
-                    Layout.fillWidth: true
+                    font.pointSize: 9
                 }
 
-                Label {
-                    text: qsTr("Grid:")
-                    Layout.alignment: Qt.AlignRight
-                }
-                ComboBox {
-                    id: gridModeForLayer
-                    enabled: true
-                    textRole: "mode"
-                    model: ListModel {
-                        id: gridModeForLayerList
-                        ListElement { mode: "None/Pre-split"; value: 0 }
-                        ListElement { mode: "Plane"; value: 1 }
-                        ListElement { mode: "Dome"; value: 2}
-                        ListElement { mode: "Sphere EQR"; value: 3 }
-                        ListElement { mode: "Sphere EAC"; value: 4 }
-                    }
-
-                    onActivated: {
-                    }
-
-                    Component.onCompleted: {
-                    }
-
+                TextField {
+                    id: layerTitle
+                    text: ""
+                    placeholderText: "Layer title"
+                    maximumLength: 20
+                    Layout.preferredWidth: font.pointSize * 17
+                    font.pointSize: 9
                     Layout.fillWidth: true
                 }
 
@@ -241,9 +192,9 @@ Rectangle {
                         focus: true
                         onClicked: {
                             if(typeComboBox.currentIndex == 2)
-                                app.layersModel.addLayer(layerTitle.text, typeComboBox.currentIndex, ndiSenderComboBox.currentText, stereoscopicModeForLayer.currentIndex, gridModeForLayer.currentIndex)
+                                app.layersModel.addLayer(layerTitle.text, typeComboBox.currentIndex, ndiSenderComboBox.currentText)
                             else
-                                app.layersModel.addLayer(layerTitle.text, typeComboBox.currentIndex, fileForLayer.text, stereoscopicModeForLayer.currentIndex, gridModeForLayer.currentIndex)
+                                app.layersModel.addLayer(layerTitle.text, typeComboBox.currentIndex, fileForLayer.text)
                         }
                         ToolTip {
                             text: qsTr("Add layer to bottom of list")
@@ -345,6 +296,13 @@ Rectangle {
             model: app.layersModel
             spacing: 1
             delegate: layersItemCompact
+        }
+
+        Connections {
+            target: layerView.layerItem
+            function onLayerValueChanged(){
+                app.layersModel.updateLayer(layerView.layerItem.layerIdx)
+            }
         }
     }
 

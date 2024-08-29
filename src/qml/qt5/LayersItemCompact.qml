@@ -21,7 +21,7 @@ Kirigami.BasicListItem {
     property string rowNumber: (index + 1).toString()
 
     label: mainText()
-    subtitle: model.type + " - " + model.stereoVideo + " " + model.gridToMapOn
+    subtitle: subText()
     padding: 0
     //icon: "kt-set-max-upload-speed"
     font.pointSize: 9
@@ -32,7 +32,6 @@ Kirigami.BasicListItem {
 
     onDoubleClicked: {
         layerView.layerItem.layerIdx = index
-        layerView.title = layerView.layerItem.layerTitle
         layerView.visible = true
     }
 
@@ -42,7 +41,7 @@ Kirigami.BasicListItem {
     }
 
     function subText() {
-        return model.stereoVideo + " " + model.gridToMapOn
+        return model.type + " - " + model.stereoVideo + " " + model.gridToMapOn + " : " + model.visibility + "%"
     } 
 
     function pad(number, length) {

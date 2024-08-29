@@ -7,6 +7,7 @@
 
 #include "layersmodel.h"
 #include <layers/baselayer.h>
+#include "layersettings.h"
 #include "locationsettings.h"
 #include <QQuickView>
 #include <QOpenGLContext>
@@ -87,6 +88,8 @@ QVariant LayersModel::data(const QModelIndex &index, int role) const
         else {
             return QVariant(QStringLiteral(""));
         }
+    case VisibilityRole:
+        return QVariant(static_cast<int>(layerItem->alpha()*100.f));
     }
 
     return QVariant();
@@ -100,6 +103,7 @@ QHash<int, QByteArray> LayersModel::roleNames() const
     roles[TypeRole] = "type";
     roles[StereoRole] = "stereoVideo";
     roles[GridRole] = "gridToMapOn";
+    roles[VisibilityRole] = "visibility";
     return roles;
 }
 
@@ -135,7 +139,7 @@ BaseLayer* LayersModel::layer(int i)
     return m_layers[i];
 }
 
-void LayersModel::addLayer(QString title, int type, QString filepath, int stereoMode, int gridMode)
+void LayersModel::addLayer(QString title, int type, QString filepath)
 {
     beginInsertRows(QModelIndex(), m_layers.size(), m_layers.size());
 
@@ -147,40 +151,9 @@ void LayersModel::addLayer(QString title, int type, QString filepath, int stereo
     if (newLayer) {
         newLayer->setTitle(title.toStdString());
         newLayer->setFilePath(filepath.toStdString());
-
-        bool modifyFilePath = true;
-#ifdef NDI_SUPPORT
-        if (layerType == static_cast<int>(BaseLayer::LayerType::NDI))
-            modifyFilePath = false;
-#endif
-
-        if (modifyFilePath) {
-            QString fileToLoad = filepath;
-            fileToLoad.replace(QStringLiteral("file:///"), QStringLiteral(""));
-            newLayer->setFilePath(fileToLoad.toStdString());
-
-            QFileInfo fileInfo(fileToLoad);
-            if (!fileInfo.exists()) {
-                QStringList fileSearchPaths;
-                fileSearchPaths.append(fileInfo.absoluteDir().absolutePath());
-                fileSearchPaths.append(LocationSettings::cPlayFileLocation());
-                fileSearchPaths.append(LocationSettings::cPlayMediaLocation());
-                fileSearchPaths.append(LocationSettings::univiewVideoLocation());
-                if (fileInfo.isRelative()) { // Go through search list in order
-                    for (int i = 0; i < fileSearchPaths.size(); i++) {
-                        QString newFilePath = QDir::cleanPath(fileSearchPaths[i] + QDir::separator() + fileToLoad);
-                        QFileInfo newFilePathInfo(newFilePath);
-                        if (newFilePathInfo.exists()) {
-                            newLayer->setFilePath(newFilePath.toStdString());
-                            break;
-                        }
-                    }
-                }
-            }
-        }
-
-        newLayer->setStereoMode(stereoMode);
-        newLayer->setGridMode(gridMode);
+        newLayer->setStereoMode(LayerSettings::defaultStereoModeForLayers());
+        newLayer->setGridMode(LayerSettings::defaultDefaultGridModeForLayersValue());
+        newLayer->setAlpha(static_cast<float>(LayerSettings::defaultLayerVisibility()));
         m_layers.push_back(newLayer);
 
         m_needsSync = true;
@@ -211,6 +184,11 @@ void LayersModel::moveLayerDown(int i) {
     m_layers.move(i, i + 1);
     endMoveRows();
     m_needsSync = true;
+}
+
+void LayersModel::updateLayer(int i)
+{
+    Q_EMIT dataChanged(index(i, 0), index(i, 0));
 }
 
 LayersTypeModel* LayersModel::layersTypeModel() {
