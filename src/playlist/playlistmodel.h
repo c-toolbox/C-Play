@@ -83,7 +83,7 @@ Q_SIGNALS:
 private:
     PlayListItem* m_currentEditItem;
     int m_playingSection = -1;
-    int m_currentEditItemIsEdited = false;
+    bool m_currentEditItemIsEdited = false;
 };
 
 class PlayListModel : public QAbstractListModel

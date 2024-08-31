@@ -23,16 +23,85 @@ Kirigami.BasicListItem {
     label: mainText()
     subtitle: subText()
     padding: 0
-    //icon: "kt-set-max-upload-speed"
     font.pointSize: 9
     backgroundColor: {
         let color = Kirigami.Theme.backgroundColor
         Qt.hsla(color.hslHue, color.hslSaturation, color.hslLightness, 1)
     }
 
+    onClicked: {
+        layerView.layerItem.layerIdx = index
+    }
+
     onDoubleClicked: {
         layerView.layerItem.layerIdx = index
-        layerView.visible = true
+
+        if(layerView.layerItem.layerVisibility === 100 && !visibility_fade_out_animation.running){
+            visibility_fade_out_animation.start()
+        }
+
+        if(layerView.layerItem.layerVisibility === 0 && !visibility_fade_in_animation.running){
+            visibility_fade_in_animation.start()
+        }
+    }
+
+    PropertyAnimation {
+        id: visibility_fade_out_animation;
+        target: visibilitySlider;
+        property: "value";
+        to: 0;
+        duration: PlaybackSettings.fadeDuration;
+        onStarted: {
+            layersView.enabled = false
+        }
+        onFinished: {
+            layersView.enabled = true
+        }
+    }
+
+    Item {
+        implicitWidth: 50
+        visible: layersView.currentIndex !== index
+        Label {
+            text: model.visibility + "%"
+            horizontalAlignment: Text.AlignHCenter
+            verticalAlignment: Text.AlignVCenter
+            anchors.fill: parent
+        }
+    }
+
+    VisibilitySlider {
+        id: visibilitySlider
+        visible: layersView.currentIndex === index
+        overlayLabel: qsTr("")
+        implicitWidth: 50
+        onValueChanged: {
+            if(value.toFixed(0) !== layerView.layerItem.layerVisibility) {
+                layerView.layerItem.layerVisibility = value.toFixed(0)
+            }
+        }
+    }
+
+    PropertyAnimation {
+        id: visibility_fade_in_animation;
+        target: visibilitySlider;
+        property: "value";
+        to: 100;
+        duration: PlaybackSettings.fadeDuration;
+        onStarted: {
+            layersView.enabled = false
+        }
+        onFinished: {
+            layersView.enabled = true
+        }
+    }
+
+    Connections {
+        target: layerView.layerItem
+        function onLayerValueChanged(){
+            if(visibilitySlider.value !== layerView.layerItem.layerVisibility)
+                visibilitySlider.value = layerView.layerItem.layerVisibility
+        }
     }
 
     function mainText() {
@@ -41,7 +110,7 @@ Kirigami.BasicListItem {
     }
 
     function subText() {
-        return model.type + " - " + model.stereoVideo + " " + model.gridToMapOn + " : " + model.visibility + "%"
+        return model.type + " - " + model.stereoVideo + " " + model.gridToMapOn
     } 
 
     function pad(number, length) {

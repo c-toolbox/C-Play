@@ -139,6 +139,7 @@ if(BUILD_CPLAY_WITH_QT6)
         qml/qt6/PlaySectionsItemCompact.qml
         qml/qt6/VisibilitySlider.qml
         qml/qt6/Layers.qml
+		qml/qt6/LayersAddNew.qml
         qml/qt6/LayersItemCompact.qml
 		qml/qt6/LayerView.qml
         qml/qt6/BackgroundImage.qml

@@ -89,16 +89,26 @@ public:
 
     Q_INVOKABLE BaseLayer* layer(int i);
 
-    Q_INVOKABLE void addLayer(QString title, int type, QString filepath);
+    Q_INVOKABLE int addLayer(QString title, int type, QString filepath, int stereoMode, int gridMode);
     Q_INVOKABLE void removeLayer(int i);
     Q_INVOKABLE void moveLayerUp(int i);
     Q_INVOKABLE void moveLayerDown(int i);
     Q_INVOKABLE void updateLayer(int i);
+    Q_INVOKABLE void clearLayers();
 
     Q_PROPERTY(LayersTypeModel* layersTypeModel
         READ layersTypeModel
         WRITE setLayersTypeModel
         NOTIFY layersTypeModelChanged)
+
+    Q_PROPERTY(bool layersNeedsSave
+        MEMBER m_layersNeedsSave
+        READ getLayersNeedsSave
+        WRITE setLayersNeedsSave
+        NOTIFY layersNeedsSaveChanged)
+
+    Q_INVOKABLE void setLayersNeedsSave(bool value);
+    Q_INVOKABLE bool getLayersNeedsSave();
 
     LayersTypeModel* layersTypeModel();
     void setLayersTypeModel(LayersTypeModel* model);
@@ -115,6 +125,7 @@ public:
 
 Q_SIGNALS:
     void layersTypeModelChanged();
+    void layersNeedsSaveChanged();
 #ifdef NDI_SUPPORT
     void ndiSendersModelChanged();
 #endif
@@ -125,6 +136,7 @@ private:
 #ifdef NDI_SUPPORT
     NDISendersModel* m_ndiSendersModel;
 #endif
+    int m_layersNeedsSave = false;
     bool m_needsSync;
 };
 

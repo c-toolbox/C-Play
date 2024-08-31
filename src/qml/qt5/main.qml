@@ -87,6 +87,8 @@ Kirigami.ApplicationWindow {
 
     Layers { id: layers }
 
+    LayersAddNew { id: layersAddNew }
+
     LayerView { id: layerView }
 
     Footer { id: footer }

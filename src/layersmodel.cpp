@@ -136,10 +136,13 @@ void LayersModel::setHasSynced()
 
 BaseLayer* LayersModel::layer(int i)
 {
-    return m_layers[i];
+    if (i >= 0 && m_layers.size() > i)
+        return m_layers[i];
+    else
+        return nullptr;
 }
 
-void LayersModel::addLayer(QString title, int type, QString filepath)
+int LayersModel::addLayer(QString title, int type, QString filepath, int stereoMode, int gridMode)
 {
     beginInsertRows(QModelIndex(), m_layers.size(), m_layers.size());
 
@@ -151,15 +154,17 @@ void LayersModel::addLayer(QString title, int type, QString filepath)
     if (newLayer) {
         newLayer->setTitle(title.toStdString());
         newLayer->setFilePath(filepath.toStdString());
-        newLayer->setStereoMode(LayerSettings::defaultStereoModeForLayers());
-        newLayer->setGridMode(LayerSettings::defaultDefaultGridModeForLayersValue());
+        newLayer->setStereoMode(stereoMode);
+        newLayer->setGridMode(gridMode);
         newLayer->setAlpha(static_cast<float>(LayerSettings::defaultLayerVisibility()));
         m_layers.push_back(newLayer);
-
+        setLayersNeedsSave(true);
         m_needsSync = true;
     }
 
     endInsertRows();
+
+    return m_layers.size() - 1;
 }
 
 void LayersModel::removeLayer(int i) {
@@ -167,6 +172,7 @@ void LayersModel::removeLayer(int i) {
     delete m_layers[i];
     m_layers.removeAt(i);
     endRemoveRows();
+    setLayersNeedsSave(true);
     m_needsSync = true;
 }
 
@@ -175,6 +181,7 @@ void LayersModel::moveLayerUp(int i) {
     beginMoveRows(QModelIndex(), i, i, QModelIndex(), i - 1);
     m_layers.move(i, i - 1);
     endMoveRows();
+    setLayersNeedsSave(true);
     m_needsSync = true;
 }
 
@@ -183,12 +190,36 @@ void LayersModel::moveLayerDown(int i) {
     beginMoveRows(QModelIndex(), i + 1, i + 1, QModelIndex(), i);
     m_layers.move(i, i + 1);
     endMoveRows();
+    setLayersNeedsSave(true);
     m_needsSync = true;
 }
 
 void LayersModel::updateLayer(int i)
 {
     Q_EMIT dataChanged(index(i, 0), index(i, 0));
+    setLayersNeedsSave(true);
+}
+
+void LayersModel::clearLayers() 
+{
+    beginRemoveRows(QModelIndex(), 0, m_layers.size()-1);
+    for (auto l : m_layers)
+        delete l;
+    m_layers.clear();
+    endRemoveRows();
+    setLayersNeedsSave(false);
+    m_needsSync = true;
+}
+
+void LayersModel::setLayersNeedsSave(bool value) 
+{
+    m_layersNeedsSave = value;
+    Q_EMIT layersNeedsSaveChanged();
+}
+
+bool LayersModel::getLayersNeedsSave()
+{
+    return m_layersNeedsSave;
 }
 
 LayersTypeModel* LayersModel::layersTypeModel() {

@@ -18,7 +18,7 @@ import org.ctoolbox.cplay 1.0
 Slider {
     id: root
 
-    property string overlayLabel: qsTr("Media visibility")
+    property string overlayLabel: qsTr("Media visibility: ")
 
     from: 0
     to: 100
@@ -45,7 +45,7 @@ Slider {
 
     Label {
         id: progressBarToolTip
-        text: root.overlayLabel + qsTr(": %1\%").arg(Number(root.value.toFixed(0)))
+        text: root.overlayLabel + qsTr("%1\%").arg(Number(root.value.toFixed(0)))
         font.pointSize: 9
         anchors.centerIn: root
         color: "#fff"

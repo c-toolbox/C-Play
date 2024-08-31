@@ -85,9 +85,11 @@ Kirigami.ApplicationWindow {
 
     Layers { id: layers }
 
-    Footer { id: footer }
+    LayersAddNew { id: layersAddNew }
 
     LayerView { id: layerView }
+
+    Footer { id: footer }
 
     Platform.FileDialog {
         id: openFileDialog

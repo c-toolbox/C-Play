@@ -17,16 +17,27 @@ import org.ctoolbox.cplay 1.0
 
 Kirigami.ApplicationWindow {
     id: layerWindow
-    width: 1024
-    height: 576
+    width: 550
+    height: 600
     title: qsTr("")
     visible: false
     color: Kirigami.Theme.alternateBackgroundColor
+
+    Component.onCompleted: {
+        if(window.x > width) {
+            x = window.x - width
+        }
+        else {
+            x = Screen.width / 2 - width
+        }
+        y = Screen.height / 2 - height / 2
+    }
 
     property var layerItem : layerViewItem
 
     ToolBar {
         id: toolBarLayerView
+        visible: layers.layersView.currentIndex !== -1
 
         RowLayout {
             id: layerHeaderRow
@@ -38,6 +49,7 @@ Kirigami.ApplicationWindow {
             ComboBox {
                 id: stereoscopicModeForLayer
                 enabled: true
+                focusPolicy: Qt.NoFocus
                 textRole: "mode"
                 model: ListModel {
                     id: stereoscopicModeForLayerList
@@ -64,6 +76,7 @@ Kirigami.ApplicationWindow {
             ComboBox {
                 id: gridModeForLayer
                 enabled: true
+                focusPolicy: Qt.NoFocus
                 textRole: "mode"
                 model: ListModel {
                     id: gridModeForLayerList
@@ -101,14 +114,11 @@ Kirigami.ApplicationWindow {
                         visibility_fade_out_animation.start()
                     }
                 }
-                ToolTip {
-                    text: "Fade media visibility down to 0."
-                }
             }
 
             VisibilitySlider {
                 id: visibilitySlider
-                overlayLabel: qsTr("Layer visibility")
+                overlayLabel: qsTr("Layer visibility: ")
                 onValueChanged: {
                     if(value.toFixed(0) !== layerView.layerItem.layerVisibility) {
                         layerView.layerItem.layerVisibility = value.toFixed(0)
@@ -133,9 +143,6 @@ Kirigami.ApplicationWindow {
                         visibility_fade_in_animation.start()
                     }
                 }
-                ToolTip {
-                    text: "Fade media visibility up to 100."
-                }
             }
             Connections {
                 target: layerView.layerItem
@@ -155,6 +162,10 @@ Kirigami.ApplicationWindow {
                         }
                     }
                 }
+                function onLayerValueChanged(){
+                    if(visibilitySlider.value !== layerView.layerItem.layerVisibility)
+                        visibilitySlider.value = layerView.layerItem.layerVisibility
+                }
             }
         }
     }
@@ -165,5 +176,17 @@ Kirigami.ApplicationWindow {
         width: parent.width
         height: parent.height - toolBarLayerView.height
         anchors.top: toolBarLayerView.bottom
+
+        Label {
+            id: noLayerLabel
+            anchors.fill: parent
+            visible: layers.layersView.currentIndex === -1
+            text: "Select a layer in the list to view it here..."
+            font.family: "Helvetica"
+            font.pointSize: 18
+            wrapMode: Text.WordWrap
+            horizontalAlignment: Text.AlignHCenter
+            verticalAlignment: Text.AlignVCenter
+        }
     }
 }

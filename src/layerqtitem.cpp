@@ -31,10 +31,18 @@ int LayerQtItem::layerIdx()
 void LayerQtItem::setLayerIdx(int idx)
 {
     m_layerIdx = idx;
-    m_layer = Application::instance().layersModel()->layer(m_layerIdx);
-    Q_EMIT layerChanged();
-    if (window()) {
-        window()->update();
+    BaseLayer* nl = Application::instance().layersModel()->layer(m_layerIdx);
+    if (nl == nullptr) {
+        m_layerIdx = -1;
+        m_layer = nullptr;
+        return;
+    }
+    if (nl != m_layer) {
+        m_layer = nl;
+        Q_EMIT layerChanged();
+        if (window()) {
+            window()->update();
+        }
     }
 }
 

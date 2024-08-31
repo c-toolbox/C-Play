@@ -21,7 +21,6 @@ ItemDelegate {
     property string rowNumber: (index + 1).toString()
 
     implicitWidth: ListView.view.width
-    //down: model.isPlaying
     padding: 0
     font.pointSize: 9
 
@@ -44,20 +43,99 @@ ItemDelegate {
         }
     }
 
-    contentItem: Kirigami.IconTitleSubtitle {
-        anchors.fill: parent
-        icon.name: iconName
-        icon.color: color
-        icon.width: iconWidth
-        title: mainText()
-        subtitle: subText()
-        color: root.hovered || root.highlighted ? Kirigami.Theme.highlightedTextColor : Kirigami.Theme.textColor
-        selected: root.down
+    PropertyAnimation {
+        id: visibility_fade_out_animation;
+        target: visibilitySlider;
+        property: "value";
+        to: 0;
+        duration: PlaybackSettings.fadeDuration;
+        onStarted: {
+            layersView.enabled = false
+        }
+        onFinished: {
+            layersView.enabled = true
+        }
+    }
+
+    PropertyAnimation {
+        id: visibility_fade_in_animation;
+        target: visibilitySlider;
+        property: "value";
+        to: 100;
+        duration: PlaybackSettings.fadeDuration;
+        onStarted: {
+            layersView.enabled = false
+        }
+        onFinished: {
+            layersView.enabled = true
+        }
+    }
+
+    contentItem: RowLayout { 
+        Kirigami.IconTitleSubtitle {
+            id: its
+            anchors.fill: parent
+            anchors.bottomMargin: 15
+            implicitHeight: 50
+            icon.name: iconName
+            icon.color: color
+            icon.width: iconWidth
+            title: mainText()
+            subtitle: subText()
+            color: root.hovered || root.highlighted ? Kirigami.Theme.highlightedTextColor : Kirigami.Theme.textColor
+            selected: root.down
+        }
+ 
+        VisibilitySlider {
+            id: visibilitySlider
+            overlayLabel: qsTr("")
+            visible: layersView.currentIndex === index
+            implicitWidth: 100
+            anchors.bottom: parent.bottom
+            anchors.right: its.right
+            onValueChanged: {
+                if(value.toFixed(0) !== layerView.layerItem.layerVisibility) {
+                    layerView.layerItem.layerVisibility = value.toFixed(0)
+                }
+            }
+        }
+
+        Item {
+            visible: layersView.currentIndex !== index
+            implicitWidth: 100
+            implicitHeight: 20
+            anchors.bottom: parent.bottom
+            anchors.right: its.right
+            Label {
+                text: model.visibility + "%"
+                horizontalAlignment: Text.AlignHCenter
+                anchors.fill: parent
+            }
+        }
+    }
+
+    onClicked: {
+        layerView.layerItem.layerIdx = index
     }
 
     onDoubleClicked: {
         layerView.layerItem.layerIdx = index
-        layerView.visible = true
+
+        if(layerView.layerItem.layerVisibility === 100 && !visibility_fade_out_animation.running){
+            visibility_fade_out_animation.start()
+        }
+
+        if(layerView.layerItem.layerVisibility === 0 && !visibility_fade_in_animation.running){
+            visibility_fade_in_animation.start()
+        }
+    }
+
+    Connections {
+        target: layerView.layerItem
+        function onLayerValueChanged(){
+            if(visibilitySlider.value !== layerView.layerItem.layerVisibility)
+                visibilitySlider.value = layerView.layerItem.layerVisibility
+        }
     }
 
     function mainText() {
@@ -66,7 +144,7 @@ ItemDelegate {
     }
 
     function subText() {
-        return model.type + " - " + model.stereoVideo + " " + model.gridToMapOn + " : " + model.visibility + "%"
+        return model.type + " - " + model.stereoVideo + " " + model.gridToMapOn
     }
 
     function pad(number, length) {
