@@ -47,6 +47,14 @@ ToolBar {
     }
 
     Component {
+        id: toggleSlidesButton
+
+        ToolButton {
+            action: actions.toggleSlidesAction
+        }
+    }
+
+    Component {
         id: toggleLayersButton
 
         ToolButton {
@@ -66,6 +74,11 @@ ToolBar {
         Loader {
             sourceComponent: toggleSectionsButton
             visible: PlaylistSettings.position === "left"
+        }
+
+        Loader {
+            sourceComponent: toggleSlidesButton
+            visible: PlaylistSettings.position === "right"
         }
 
         Loader {
@@ -127,6 +140,11 @@ ToolBar {
         Loader {
             sourceComponent: toggleSectionsButton
             visible: PlaylistSettings.position === "right"
+        }
+
+        Loader {
+            sourceComponent: toggleSlidesButton
+            visible: PlaylistSettings.position === "left"
         }
 
         Loader {

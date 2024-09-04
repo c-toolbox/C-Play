@@ -47,6 +47,8 @@ set(SOURCE_FILES
     playlist/playlistmodel.h
 	renderthread.cpp
     renderthread.h
+	slidesmodel.cpp
+    slidesmodel.h
     track.cpp
     track.h
     tracksmodel.cpp
@@ -142,6 +144,8 @@ if(BUILD_CPLAY_WITH_QT6)
 		qml/qt6/LayersAddNew.qml
         qml/qt6/LayersItemCompact.qml
 		qml/qt6/LayerView.qml
+		qml/qt6/Slides.qml
+        qml/qt6/SlidesItemCompact.qml
         qml/qt6/BackgroundImage.qml
         qml/qt6/ForegroundImage.qml
         qml/qt6/SaveAsCPlayFile.qml

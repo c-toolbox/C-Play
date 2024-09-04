@@ -16,27 +16,44 @@ import org.kde.kirigami 2.15 as Kirigami
 import org.ctoolbox.cplay 1.0
 
 Rectangle {
-    id: layersRoot
+    id: slidesRoot
 
     property alias scrollPositionTimer: scrollPositionTimer
-    property alias layersView: layersView
+    property alias slidesView: slidesView
     property string position: PlaylistSettings.position
     property int rowHeight: PlaylistSettings.rowHeight
     property int bigFont: PlaylistSettings.bigFontFullscreen
 
     height: mpv.height
     width: {
-        const w = Kirigami.Units.gridUnit * 17
-        return (parent.width * 0.15) < w ? w : parent.width * 0.15
+            const w = Kirigami.Units.gridUnit * 17
+            return (parent.width * 0.15) < w ? w : parent.width * 0.15
     }
-    x: position !== "left" ? parent.width : -width
+    x: position === "left" ? parent.width : -width
     y: 0
-    z: position === "left" ? 41 : 40
+    z: position === "left" ? 40 : 41
     state: "hidden"
     color: Kirigami.Theme.backgroundColor
 
+    Platform.FileDialog {
+        id: saveCPlayPresentationDialog
+
+        folder: LocationSettings.cPlayFileLocation !== ""
+                ? app.pathToUrl(LocationSettings.cPlayFileLocation)
+                : app.pathToUrl(LocationSettings.fileDialogLastLocation)
+        title: "Save C-Play Presentation"
+        fileMode: Platform.FileDialog.SaveFile
+        nameFilters: [ "C-Play Presentation (*.cplaypres)" ]
+
+        onAccepted: {
+            //app.slides.saveAsJSONFile(saveCPlaySlidesDialog.file.toString())
+            mpv.focus = true
+        }
+        onRejected: mpv.focus = true
+    }
+
     ColumnLayout {
-        id: layersHeader
+        id: slidesHeader
         spacing: 10
 
         ColumnLayout {
@@ -49,80 +66,77 @@ Rectangle {
                 Layout.preferredWidth: parent.width
 
                 Button {
-                    icon.name: "layer-new"
+                    icon.name: "list-add"
                     onClicked: {
-                        layersAddNew.visible = true
+                        app.slides.addSlide()
                     }
                     ToolTip {
-                        text: qsTr("Add layer to bottom of list")
+                        text: qsTr("Add slider to bottom of list")
                     }
                 }
 
                 Button {
-                    icon.name: "layer-delete"
+                    icon.name: "list-remove"
                     onClicked: {
-                       app.slides.selected.removeLayer(layersView.currentIndex)
-                       app.slides.updateSelectedSlide()
+                       app.slides.removeSlide(slidesView.currentIndex)
                     }
                     ToolTip {
-                        text: qsTr("Remove selected layer")
+                        text: qsTr("Remove selected slider")
                     }
                 }
                 Button {
-                    icon.name: "layer-top"
+                    icon.name: "pan-up-symbolic"
                     onClicked: {
-                        app.slides.selected.moveLayerTop(layersView.currentIndex)
+                        app.slides.moveSlideUp(slidesView.currentIndex)
                     }
                     ToolTip {
-                        text: qsTr("Move selected layer to top")
+                        text: qsTr("Move selected slider upwards")
                     }
                 }
                 Button {
-                    icon.name: "layer-raise"
+                    icon.name: "pan-down-symbolic"
                     onClicked: {
-                        app.slides.selected.moveLayerUp(layersView.currentIndex)
+                        app.slides.moveSlideDown(slidesView.currentIndex)
                     }
                     ToolTip {
-                        text: qsTr("Move selected layer upwards")
+                        text: qsTr("Move selected slider downwards")
                     }
                 }
                 Button {
-                    icon.name: "layer-lower"
+                    icon.name: "document-open"
                     onClicked: {
-                        app.slides.selected.moveLayerDown(layersView.currentIndex)
                     }
                     ToolTip {
-                        text: qsTr("Move selected layer downwards")
+                        text: qsTr("Open presentation/slides")
                     }
                 }
                 Button {
-                    icon.name: "layer-bottom"
+                    icon.name: "system-save-session"
+                    icon.color: app.slides.slidesNeedsSave ? "orange" : "lime"
                     onClicked: {
-                        app.slides.selected.moveLayerBottom(layersView.currentIndex)
-                        layersView.currentIndex = layersView.count - 1
+                        saveCPlayPresentationDialog.open()
                     }
                     ToolTip {
-                        text: qsTr("Move selected layer to bottom")
+                        text: qsTr("Save presentation/slides")
                     }
                 }
                 Button {
                     icon.name: "trash-empty"
                     icon.color: "crimson"
                     onClicked: {
-                        clearLayersDialog.open()
+                        clearSlidesDialog.open()
                     }
                     ToolTip {
-                        text: qsTr("Clear layers list")
+                        text: qsTr("Clear slides list")
                     }
 
                     MessageDialog {
-                        id: clearLayersDialog
-                        title: "Clear layers list"
-                        text: "Confirm clearing of all items in layers list."
+                        id: clearSlidesDialog
+                        title: "Clear presentation/slides list"
+                        text: "Confirm clearing of all items in slides list."
                         standardButtons: StandardButton.Yes | StandardButton.No
                         onAccepted: {
-                            app.slides.selected.clearLayers()
-                            app.slides.updateSelectedSlide()
+                            app.slides.clearSlides();
                         }
                         Component.onCompleted: visible = false
                     }
@@ -144,8 +158,8 @@ Rectangle {
             }
 
             Label {
-                id: layersTitle
-                text: app.slides.selected.layersName + qsTr(" Layers")
+                id: mediaTitle
+                text: qsTr("Slides")
                 font.pointSize: 9
             }
 
@@ -157,58 +171,48 @@ Rectangle {
             }
 
             Button {
-                icon.name: "document-edit-decrypt-verify"
-                anchors.right: layersRoot.right
+                id: masterSlideButton
+                anchors.right: slidesRoot.right
+                icon.name: "backgroundtool"
+                text: qsTr("Master slide")
                 checkable: true
-                checked: layerView.visible
-                text: qsTr("Layer View")
+                checked: slidesView.currentIndex === -1
                 onClicked: {
-                    layerView.visible = checked
+                    slidesView.currentIndex = -1
                 }
                 ToolTip {
-                    text: qsTr("Layer View (showing the selected layer)")
+                    text: qsTr("Master slide with perminent layers")
                 }
             }
-            Layout.preferredWidth: layersRoot.width
+            Layout.preferredWidth: slidesRoot.width
         }
     }
 
     ScrollView {
-        id: layersScrollView
+        id: slidesScrollView
 
         z: 20
         anchors.fill: parent
-        anchors.topMargin: layersHeader.height + 5
+        anchors.topMargin: slidesHeader.height + 5
         ScrollBar.horizontal.policy: ScrollBar.AlwaysOff
 
         ListView {
-            id: layersView
+            id: slidesView
 
-            model: app.slides.selected
+            model: app.slides
             spacing: 1
-            delegate: layersItemCompact
+            delegate: slidesItemCompact
 
             onCurrentIndexChanged: {
-                layerView.layerItem.layerIdx = layersView.currentIndex
-            }
-        }
-
-        Connections {
-            target: layerView.layerItem
-            function onLayerChanged(){
-                if(layerView.layerItem.layerIdx !== layersView.currentIndex){
-                   layersView.currentIndex = layerView.layerItem.layerIdx
-                }
-            }
-            function onLayerValueChanged(){
-                app.slides.selected.updateLayer(layerView.layerItem.layerIdx)
+                app.slides.selectedSlideIdx = slidesView.currentIndex
+                layers.layersView.currentIndex = -1
             }
         }
     }
 
     Component {
-        id: layersItemCompact
-        LayersItemCompact {}
+        id: slidesItemCompact
+        SlidesItemCompact {}
     }
 
     Timer {
@@ -223,18 +227,18 @@ Rectangle {
     states: [
         State {
             name: "hidden"
-            PropertyChanges { target: layersRoot; x: position === "left" ? parent.width : -width }
-            PropertyChanges { target: layersRoot; visible: false }
+            PropertyChanges { target: slidesRoot; x: position === "left" ? parent.width : -width }
+            PropertyChanges { target: slidesRoot; visible: false }
         },
         State {
             name : "visible-without-partner"
-            PropertyChanges { target: layersRoot; x: position === "left" ? parent.width - layersRoot.width : 0 }
-            PropertyChanges { target: layersRoot; visible: true }
+            PropertyChanges { target: slidesRoot; x: position === "left" ? parent.width - slidesRoot.width : 0 }
+            PropertyChanges { target: slidesRoot; visible: true }
         },
         State {
             name : "visible-with-partner"
-            PropertyChanges { target: layersRoot; x: position === "left" ? parent.width - layersRoot.width : layersRoot.width }
-            PropertyChanges { target: layersRoot; visible: true }
+            PropertyChanges { target: slidesRoot; x: position === "left" ? parent.width - (slidesRoot.width * 2) : 0 }
+            PropertyChanges { target: slidesRoot; visible: true }
         }
     ]
 
@@ -245,13 +249,13 @@ Rectangle {
 
             SequentialAnimation {
                 NumberAnimation {
-                    target: layersRoot
+                    target: slidesRoot
                     property: "x"
                     duration: 120
                     easing.type: Easing.InQuad
                 }
                 PropertyAction {
-                    target: layersRoot
+                    target: slidesRoot
                     property: "visible"
                     value: false
                 }
@@ -263,12 +267,12 @@ Rectangle {
 
             SequentialAnimation {
                 PropertyAction {
-                    target: layersRoot
+                    target: slidesRoot
                     property: "visible"
                     value: true
                 }
                 NumberAnimation {
-                    target: layersRoot
+                    target: slidesRoot
                     property: "x"
                     duration: 120
                     easing.type: Easing.OutQuad
@@ -281,13 +285,13 @@ Rectangle {
 
             SequentialAnimation {
                 NumberAnimation {
-                    target: layersRoot
+                    target: slidesRoot
                     property: "x"
                     duration: 120
                     easing.type: Easing.InQuad
                 }
                 PropertyAction {
-                    target: layersRoot
+                    target: slidesRoot
                     property: "visible"
                     value: false
                 }
@@ -299,12 +303,12 @@ Rectangle {
 
             SequentialAnimation {
                 PropertyAction {
-                    target: layersRoot
+                    target: slidesRoot
                     property: "visible"
                     value: true
                 }
                 NumberAnimation {
-                    target: layersRoot
+                    target: slidesRoot
                     property: "x"
                     duration: 120
                     easing.type: Easing.OutQuad
@@ -317,7 +321,7 @@ Rectangle {
 
             SequentialAnimation {
                 NumberAnimation {
-                    target: layersRoot
+                    target: slidesRoot
                     property: "x"
                     duration: 120
                     easing.type: Easing.OutQuad
@@ -330,7 +334,7 @@ Rectangle {
 
             SequentialAnimation {
                 NumberAnimation {
-                    target: layersRoot
+                    target: slidesRoot
                     property: "x"
                     duration: 120
                     easing.type: Easing.OutQuad
@@ -338,4 +342,5 @@ Rectangle {
             }
         }
     ]
+
 }

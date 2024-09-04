@@ -5,9 +5,11 @@
  * SPDX-License-Identifier: GPL-3.0-or-later
  */
 
+#include "application.h"
+#include "slidesmodel.h"
 #include "layerqtitem.h"
 #include "layersettings.h"
-#include "application.h"
+#include "layersmodel.h"
 
 #include <QtQuick/qquickwindow.h>
 #include <QOpenGLContext>
@@ -31,7 +33,7 @@ int LayerQtItem::layerIdx()
 void LayerQtItem::setLayerIdx(int idx)
 {
     m_layerIdx = idx;
-    BaseLayer* nl = Application::instance().layersModel()->layer(m_layerIdx);
+    BaseLayer* nl = Application::instance().slidesModel()->selectedSlide()->layer(m_layerIdx);
     if (nl == nullptr) {
         m_layerIdx = -1;
         m_layer = nullptr;
@@ -100,6 +102,14 @@ QString LayerQtItem::layerTitle()
         return QString::fromStdString(m_layer->title());
     else
         return QStringLiteral("");
+}
+
+void LayerQtItem::setLayerTitle(QString value)
+{
+    if (m_layer) {
+        m_layer->setTitle(value.toStdString());
+        Q_EMIT layerValueChanged();
+    }
 }
 
 void LayerQtItem::handleWindowChanged(QQuickWindow *win)

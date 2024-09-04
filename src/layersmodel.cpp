@@ -13,6 +13,9 @@
 #include <QOpenGLContext>
 #include <QFileInfo>
 #include <QDir>
+#include <QJsonDocument>
+#include <QJsonObject>
+#include <QJsonArray>
 #ifdef NDI_SUPPORT
 #include <ndi/ofxNDI/ofxNDIreceive.h>
 #endif
@@ -30,11 +33,20 @@ static void* get_proc_address_qopengl(void* ctx, const char* name)
 LayersModel::LayersModel(QObject *parent)
     : QAbstractListModel(parent),
     m_layerTypeModel(new LayersTypeModel(this)),
-    m_needsSync(false)
+    m_needsSync(false),
+    m_layersName(QStringLiteral("Untitled")),
+    m_layersPath(QStringLiteral(""))
 {
 #ifdef NDI_SUPPORT
     m_ndiSendersModel = new NDISendersModel(this);
 #endif
+}
+
+LayersModel::~LayersModel() 
+{ 
+    for (auto l : m_layers)
+        delete l;
+    m_layers.clear();
 }
 
 int LayersModel::rowCount(const QModelIndex &parent) const
@@ -114,9 +126,9 @@ Layers LayersModel::getLayers() const
 
 void LayersModel::setLayers(const Layers &layers)
 {
-    beginInsertRows(QModelIndex(), 0, layers.size() - 1);
+    beginResetModel();
     m_layers = layers;
-    endInsertRows();
+    endResetModel();
 }
 
 int LayersModel::numberOfLayers()
@@ -168,10 +180,22 @@ int LayersModel::addLayer(QString title, int type, QString filepath, int stereoM
 }
 
 void LayersModel::removeLayer(int i) {
+    if (i < 0 || i >= m_layers.size())
+        return;
+
     beginRemoveRows(QModelIndex(), i, i);
     delete m_layers[i];
     m_layers.removeAt(i);
     endRemoveRows();
+    setLayersNeedsSave(true);
+    m_needsSync = true;
+}
+
+void LayersModel::moveLayerTop(int i) {
+    if (i == 0) return;
+    beginMoveRows(QModelIndex(), i, i, QModelIndex(), 0);
+    m_layers.move(i, 0);
+    endMoveRows();
     setLayersNeedsSave(true);
     m_needsSync = true;
 }
@@ -194,6 +218,15 @@ void LayersModel::moveLayerDown(int i) {
     m_needsSync = true;
 }
 
+void LayersModel::moveLayerBottom(int i) {
+    if (i == (m_layers.size() - 1)) return;
+    beginMoveRows(QModelIndex(), m_layers.size() - 1, m_layers.size() - 1, QModelIndex(), i);
+    m_layers.move(i, m_layers.size() - 1);
+    endMoveRows();
+    setLayersNeedsSave(true);
+    m_needsSync = true;
+}
+
 void LayersModel::updateLayer(int i)
 {
     Q_EMIT dataChanged(index(i, 0), index(i, 0));
@@ -211,6 +244,23 @@ void LayersModel::clearLayers()
     m_needsSync = true;
 }
 
+void LayersModel::setLayersVisibility(int value) 
+{
+    m_layersVisibility = value;
+    for (int i = 0; i < m_layers.size(); i++) {
+        m_layers[i]->setAlpha(static_cast<float>(value) * 0.01f);
+        updateLayer(i);
+    }
+    Q_EMIT layersVisibilityChanged();
+    setLayersNeedsSave(true);
+    m_needsSync = true;
+}
+
+int LayersModel::getLayersVisibility() 
+{
+    return m_layersVisibility;
+}
+
 void LayersModel::setLayersNeedsSave(bool value) 
 {
     m_layersNeedsSave = value;
@@ -226,8 +276,120 @@ LayersTypeModel* LayersModel::layersTypeModel() {
     return m_layerTypeModel;
 }
 
-void LayersModel::setLayersTypeModel(LayersTypeModel* model) {
-    m_layerTypeModel = model;
+void LayersModel::setLayersName(QString name)
+{
+    m_layersName = name;
+    Q_EMIT layersNameChanged();
+}
+
+QString LayersModel::getLayersName() const
+{
+    return m_layersName;
+}
+
+void LayersModel::setLayersPath(QString path)
+{
+    m_layersPath = path;
+}
+
+QString LayersModel::getLayersPath() const
+{
+    return m_layersPath;
+}
+
+QUrl LayersModel::getLayersPathAsURL() const
+{
+    return QUrl(QStringLiteral("file:///") + m_layersPath);
+}
+
+QString LayersModel::makePathRelativeTo(const QString& filePath, const QStringList& pathsToConsider) {
+    // Assuming filePath is absolute
+    for (int i = 0; i < pathsToConsider.size(); i++) {
+        if (filePath.startsWith(pathsToConsider[i])) {
+            QDir foundDir(pathsToConsider[i]);
+            return foundDir.relativeFilePath(filePath);
+        }
+    }
+    return filePath;
+}
+
+void LayersModel::loadFromJSONFile(const QString& path) {
+
+}
+
+void LayersModel::saveAsJSONFile(const QString& path) {
+    QJsonDocument doc;
+    QJsonObject obj = doc.object();
+
+    QString fileToSave = path;
+    fileToSave.replace(QStringLiteral("file:///"), QStringLiteral(""));
+    QFileInfo fileToSaveInfo(fileToSave);
+
+    QStringList pathsToConsider;
+    pathsToConsider.append(LocationSettings::cPlayFileLocation());
+    pathsToConsider.append(fileToSaveInfo.absoluteDir().absolutePath());
+
+    QJsonArray layersArray;
+    for (auto layer : m_layers)
+    {
+        QJsonObject layerData;
+
+        layerData.insert(QStringLiteral("type"), QJsonValue(QString::fromStdString(layer->typeName())));
+
+        QString checkedFilePath = makePathRelativeTo(QString::fromStdString(layer->filepath()), pathsToConsider);
+        obj.insert(QStringLiteral("filepath"), checkedFilePath);
+
+        QString grid;
+        int gridIdx = layer->gridMode();
+        if (gridIdx == 1) {
+            grid = QStringLiteral("plane");
+        }
+        else if (gridIdx == 2) {
+            grid = QStringLiteral("dome");
+        }
+        else if (gridIdx == 3) {
+            grid = QStringLiteral("sphere-eqr");
+        }
+        else if (gridIdx == 4) {
+            grid = QStringLiteral("sphere-eac");
+        }
+        else { // 0
+            grid = QStringLiteral("pre-split");
+        }
+        obj.insert(QStringLiteral("grid"), grid);
+
+        QString sv;
+        int stereoVideoIdx = layer->stereoMode();
+        if (stereoVideoIdx == 1) {
+            sv = QStringLiteral("side-by-side");
+        }
+        else if (stereoVideoIdx == 2) {
+            sv = QStringLiteral("top-bottom");
+        }
+        else if (stereoVideoIdx == 3) {
+            sv = QStringLiteral("top-bottom-flip");
+        }
+        else { // 0
+            sv = QStringLiteral("no");
+        }
+        obj.insert(QStringLiteral("stereoscopic"), sv);
+
+
+        layersArray.push_back(QJsonValue(layerData));
+    }
+
+    obj.insert(QString(QStringLiteral("layers")), QJsonValue(layersArray));
+    doc.setObject(obj);
+
+    QFile jsonFile(fileToSave);
+    jsonFile.open(QFile::WriteOnly);
+    jsonFile.write(doc.toJson());
+    jsonFile.close();
+
+    //QFileInfo fileInfo(jsonFile);
+    //setLayersName(fileInfo.baseName());
+
+    setLayersNeedsSave(false);
 }
 
 #ifdef NDI_SUPPORT

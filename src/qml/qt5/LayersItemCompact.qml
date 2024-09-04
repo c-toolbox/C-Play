@@ -20,9 +20,9 @@ Kirigami.BasicListItem {
 
     property string rowNumber: (index + 1).toString()
 
-    label: mainText()
+    label: (layersView.currentIndex === index ? layersNumText() : layersNumText() + model.title)
     subtitle: subText()
-    padding: 0
+    padding: 2
     font.pointSize: 9
     backgroundColor: {
         let color = Kirigami.Theme.backgroundColor
@@ -30,6 +30,7 @@ Kirigami.BasicListItem {
     }
 
     onClicked: {
+        slideTitleField.text = model.title
         layerView.layerItem.layerIdx = index
     }
 
@@ -70,14 +71,36 @@ Kirigami.BasicListItem {
         }
     }
 
+    Item {
+        implicitWidth: 100
+        visible: layersView.currentIndex === index
+        anchors.top: parent.top
+        anchors.left: parent.left
+        anchors.leftMargin: 14
+        TextInput {
+            id: slideTitleField
+            text: model.title
+            color: Kirigami.Theme.textColor
+            font.pointSize: 9
+            maximumLength: 18
+            onAccepted: {
+                layerView.layerItem.layerTitle = slideTitleField.text
+            }
+        }
+    }
+
     VisibilitySlider {
         id: visibilitySlider
         visible: layersView.currentIndex === index
+        enabled: app.slides.selectedSlideIdx === -1
         overlayLabel: qsTr("")
         implicitWidth: 50
         onValueChanged: {
-            if(value.toFixed(0) !== layerView.layerItem.layerVisibility) {
-                layerView.layerItem.layerVisibility = value.toFixed(0)
+            if(!layersView.enabled || visibilitySlider.enabled){
+                if(value.toFixed(0) !== layerView.layerItem.layerVisibility) {
+                    layerView.layerItem.layerVisibility = value.toFixed(0)
+                    app.slides.needsSync = true
+                }
             }
         }
     }
@@ -104,9 +127,9 @@ Kirigami.BasicListItem {
         }
     }
 
-    function mainText() {
-        const rowNumber = pad(root.rowNumber, layersView.count.toString().length) + ". "
-        return rowNumber + model.title
+    function layersNumText() {
+        const rowNumber = pad(root.rowNumber, layersView.count.toString().length) + ". ";
+        return rowNumber;
     }
 
     function subText() {

@@ -70,6 +70,33 @@ QtObject {
         }
     }
 
+    property Action toggleSlidesAction: Action {
+        id: toggleSlidesAction
+        property var qaction: app.action("toggleSlides")
+        text: qaction.text
+        shortcut: qaction.shortcutName()
+        icon.name: qaction.iconName()
+
+        Component.onCompleted: list["toggleSlidesAction"] = toggleSlidesAction
+
+        onTriggered: {
+            if(slides.state === "hidden" && layers.state === "hidden"){
+                slides.state = "visible-without-partner"
+            }
+            else if(slides.state === "hidden" && layers.state === "visible-without-partner"){
+                slides.state = "visible-with-partner"
+                layers.state = "visible-with-partner"
+            }
+            else if(layers.state === "visible-with-partner") {
+                layers.state = "visible-without-partner"
+                slides.state = "hidden"
+            }
+            else {
+                slides.state = "hidden"
+            }
+        }
+    }
+
     property Action toggleLayersAction: Action {
         id: toggleLayersAction
         property var qaction: app.action("toggleLayers")
@@ -80,8 +107,16 @@ QtObject {
         Component.onCompleted: list["toggleLayersAction"] = toggleLayersAction
 
         onTriggered: {
-            if(layers.state === "hidden"){
-                layers.state = "visible"
+            if(layers.state === "hidden" && slides.state === "hidden"){
+                layers.state = "visible-without-partner"
+            }
+            else if(layers.state === "hidden" && slides.state === "visible-without-partner"){
+                slides.state = "visible-with-partner"
+                layers.state = "visible-with-partner"
+            }
+            else if(slides.state === "visible-with-partner") {
+                slides.state = "visible-without-partner"
+                layers.state = "hidden"
             }
             else {
                 layers.state = "hidden"

@@ -622,6 +622,9 @@ QPointer<PlayListItem> PlayListModel::getItem(int i)
 }
 
 void PlayListModel::removeItem(int i) {
+    if (i < 0 || i >= m_playList.size())
+        return;
+
     beginRemoveRows(QModelIndex(), i, i);
     m_playList.removeAt(i);
     if (m_playingVideo == i)

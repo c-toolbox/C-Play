@@ -25,11 +25,12 @@ Rectangle {
 
     height: mpv.height
     width: {
-            const w = Kirigami.Units.gridUnit * 17
-            return (parent.width * 0.15) < w ? w : parent.width * 0.15
+        const w = Kirigami.Units.gridUnit * 15
+        return (parent.width * 0.13) < w ? w : parent.width * 0.13
     }
-    x: position !== "right" ? parent.width : -width
+    x: position !== "left" ? parent.width : -width
     y: 0
+    z: position === "left" ? 41 : 40
     state: "hidden"
     color: Kirigami.Theme.backgroundColor
 
@@ -37,96 +38,95 @@ Rectangle {
         id: layersHeader
         spacing: 10
 
-        RowLayout {
+        ColumnLayout {
+            id: slidesMenu
             spacing: 1
-            anchors.rightMargin: Kirigami.Units.largeSpacing
-            Layout.preferredWidth: parent.width
 
-            Button {
-                icon.name: "layer-new"
-                onClicked: {
-                    layersAddNew.visible = true
-                }
-                ToolTip {
-                    text: qsTr("Add layer to bottom of list")
-                }
-            }
+            RowLayout {
+                spacing: 1
+                anchors.rightMargin: Kirigami.Units.largeSpacing
+                Layout.preferredWidth: parent.width
 
-            Button {
-                icon.name: "layer-delete"
-                onClicked: {
-                   app.layersModel.removeLayer(layersView.currentIndex)
-                }
-                ToolTip {
-                    text: qsTr("Remove selected layer")
-                }
-            }
-            Button {
-                icon.name: "layer-raise"
-                onClicked: {
-                    app.layersModel.moveLayerUp(layersView.currentIndex)
-                }
-                ToolTip {
-                    text: qsTr("Move selected layer upwards")
-                }
-            }
-            Button {
-                icon.name: "layer-lower"
-                onClicked: {
-                    app.layersModel.moveLayerDown(layersView.currentIndex)
-                }
-                ToolTip {
-                    text: qsTr("Move selected layer downwards")
-                }
-            }
-            Button {
-                icon.name: "document-edit-decrypt-verify"
-                onClicked: {
-                    layerView.visible = true
-                }
-                ToolTip {
-                    text: qsTr("Layer Inspector (showing the selected layer)")
-                }
-            }
-            Button {
-                icon.name: "document-open"
-                onClicked: {
-                }
-                ToolTip {
-                    text: qsTr("Open layers list")
-                }
-            }
-            Button {
-                icon.name: "system-save-session"
-                icon.color: app.layersModel.layersNeedsSave ? "orange" : "lime"
-                onClicked: {
-                }
-                ToolTip {
-                    text: qsTr("Save layers list")
-                }
-            }
-            Button {
-                icon.name: "trash-empty"
-                icon.color: "crimson"
-                onClicked: {
-                    clearLayersDialog.open()
-                }
-                ToolTip {
-                    text: qsTr("Clear layers list")
-                }
-
-                MessageDialog {
-                    id: clearLayersDialog
-                    title: "Clear layers list"
-                    text: "Confirm clearing of all items in layers list."
-                    buttons: MessageDialog.Yes | MessageDialog.No
-                    onAccepted: {
-                        app.layersModel.clearLayers();
+                Button {
+                    icon.name: "layer-new"
+                    onClicked: {
+                        layersAddNew.visible = true
                     }
-                    Component.onCompleted: visible = false
+                    ToolTip {
+                        text: qsTr("Add layer to bottom of list")
+                    }
+                }
+
+                Button {
+                    icon.name: "layer-delete"
+                    onClicked: {
+                       app.slides.selected.removeLayer(layersView.currentIndex)
+                       app.slides.updateSelectedSlide()
+                    }
+                    ToolTip {
+                        text: qsTr("Remove selected layer")
+                    }
+                }
+                Button {
+                    icon.name: "layer-top"
+                    onClicked: {
+                        app.slides.selected.moveLayerTop(layersView.currentIndex)
+                    }
+                    ToolTip {
+                        text: qsTr("Move selected layer to top")
+                    }
+                }
+                Button {
+                    icon.name: "layer-raise"
+                    onClicked: {
+                        app.slides.selected.moveLayerUp(layersView.currentIndex)
+                    }
+                    ToolTip {
+                        text: qsTr("Move selected layer upwards")
+                    }
+                }
+                Button {
+                    icon.name: "layer-lower"
+                    onClicked: {
+                        app.slides.selected.moveLayerDown(layersView.currentIndex)
+                    }
+                    ToolTip {
+                        text: qsTr("Move selected layer downwards")
+                    }
+                }
+                Button {
+                    icon.name: "layer-bottom"
+                    onClicked: {
+                        app.slides.selected.moveLayerBottom(layersView.currentIndex)
+                        layersView.currentIndex = layersView.count - 1
+                    }
+                    ToolTip {
+                        text: qsTr("Move selected layer to bottom")
+                    }
+                }
+                Button {
+                    icon.name: "trash-empty"
+                    icon.color: "crimson"
+                    onClicked: {
+                        clearLayersDialog.open()
+                    }
+                    ToolTip {
+                        text: qsTr("Clear layers list")
+                    }
+
+                    MessageDialog {
+                        id: clearLayersDialog
+                        title: "Clear layers list"
+                        text: "Confirm clearing of all items in layers list."
+                        buttons: MessageDialog.Yes | MessageDialog.No
+                        onAccepted: {
+                            app.slides.selected.clearLayers()
+                            app.slides.updateSelectedSlide()
+                        }
+                        Component.onCompleted: visible = false
+                    }
                 }
             }
-            Layout.columnSpan: 2
         }
 
         Item {
@@ -143,8 +143,8 @@ Rectangle {
             }
 
             Label {
-                id: mediaTitle
-                text: qsTr("Layers")
+                id: layersTitle
+                text: app.slides.selected.layersName + qsTr(" Layers")
                 font.pointSize: 9
             }
 
@@ -154,6 +154,21 @@ Rectangle {
                 color: Kirigami.Theme.alternateBackgroundColor
                 Layout.fillWidth: true
             }
+
+            Button {
+                icon.name: "document-edit-decrypt-verify"
+                anchors.right: layersRoot.right
+                checkable: true
+                checked: layerView.visible
+                text: qsTr("Layer View")
+                onClicked: {
+                    layerView.visible = checked
+                }
+                ToolTip {
+                    text: qsTr("Layer View (showing the selected layer)")
+                }
+            }
+            Layout.preferredWidth: layersRoot.width
         }
     }
 
@@ -168,7 +183,7 @@ Rectangle {
         ListView {
             id: layersView
 
-            model: app.layersModel
+            model: app.slides.selected
             spacing: 1
             delegate: layersItemCompact
 
@@ -185,19 +200,14 @@ Rectangle {
                 }
             }
             function onLayerValueChanged(){
-                app.layersModel.updateLayer(layerView.layerItem.layerIdx)
+                app.slides.selected.updateLayer(layerView.layerItem.layerIdx)
             }
         }
     }
 
     Component {
         id: layersItemCompact
-        LayersItemCompact {
-            highlighted: layersView.currentIndex === index
-            onClicked: {
-                layersView.currentIndex = index
-            }
-        }
+        LayersItemCompact {}
     }
 
     Timer {
@@ -212,19 +222,24 @@ Rectangle {
     states: [
         State {
             name: "hidden"
-            PropertyChanges { target: layersRoot; x: position !== "right" ? parent.width : -width }
+            PropertyChanges { target: layersRoot; x: position === "left" ? parent.width : -width }
             PropertyChanges { target: layersRoot; visible: false }
         },
         State {
-            name : "visible"
-            PropertyChanges { target: layersRoot; x: position !== "right" ? parent.width - layersRoot.width : 0 }
+            name : "visible-without-partner"
+            PropertyChanges { target: layersRoot; x: position === "left" ? parent.width - layersRoot.width : 0 }
+            PropertyChanges { target: layersRoot; visible: true }
+        },
+        State {
+            name : "visible-with-partner"
+            PropertyChanges { target: layersRoot; x: position === "left" ? parent.width - layersRoot.width : layersRoot.width }
             PropertyChanges { target: layersRoot; visible: true }
         }
     ]
 
     transitions: [
         Transition {
-            from: "visible"
+            from: "visible-without-partner"
             to: "hidden"
 
             SequentialAnimation {
@@ -243,7 +258,7 @@ Rectangle {
         },
         Transition {
             from: "hidden"
-            to: "visible"
+            to: "visible-without-partner"
 
             SequentialAnimation {
                 PropertyAction {
@@ -258,7 +273,68 @@ Rectangle {
                     easing.type: Easing.OutQuad
                 }
             }
+        },
+        Transition {
+            from: "visible-with-partner"
+            to: "hidden"
+
+            SequentialAnimation {
+                NumberAnimation {
+                    target: layersRoot
+                    property: "x"
+                    duration: 120
+                    easing.type: Easing.InQuad
+                }
+                PropertyAction {
+                    target: layersRoot
+                    property: "visible"
+                    value: false
+                }
+            }
+        },
+        Transition {
+            from: "hidden"
+            to: "visible-with-partner"
+
+            SequentialAnimation {
+                PropertyAction {
+                    target: layersRoot
+                    property: "visible"
+                    value: true
+                }
+                NumberAnimation {
+                    target: layersRoot
+                    property: "x"
+                    duration: 120
+                    easing.type: Easing.OutQuad
+                }
+            }
+        },
+        Transition {
+            from: "visible-without-partner"
+            to: "visible-with-partner"
+
+            SequentialAnimation {
+                NumberAnimation {
+                    target: layersRoot
+                    property: "x"
+                    duration: 120
+                    easing.type: Easing.OutQuad
+                }
+            }
+        },
+        Transition {
+            from: "visible-with-partner"
+            to: "visible-without-partner"
+
+            SequentialAnimation {
+                NumberAnimation {
+                    target: layersRoot
+                    property: "x"
+                    duration: 120
+                    easing.type: Easing.OutQuad
+                }
+            }
         }
     ]
-
 }

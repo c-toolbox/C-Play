@@ -126,7 +126,7 @@ Kirigami.ApplicationWindow {
         }
         ComboBox {
             id: typeComboBox
-            model: app.layersModel.layersTypeModel
+            model: app.slides.selected.layersTypeModel
             textRole: "typeName"
 
             onActivated: {
@@ -183,7 +183,7 @@ Kirigami.ApplicationWindow {
             visible: typeComboBox.currentIndex == 2
             ComboBox {
                 id: ndiSenderComboBox
-                model: app.layersModel.ndiSendersModel
+                model: app.slides.selected.ndiSendersModel
                 textRole: "typeName"
 
                 onVisibleChanged: {
@@ -209,7 +209,7 @@ Kirigami.ApplicationWindow {
                 focusPolicy: Qt.NoFocus
 
                 onClicked: {
-                    ndiSenderComboBox.currentIndex = app.layersModel.ndiSendersModel.updateSendersList()
+                    ndiSenderComboBox.currentIndex = app.slides.selected.ndiSendersModel.updateSendersList()
                     layerTitle.text = ndiSenderComboBox.currentText
                 }
             }
@@ -225,6 +225,7 @@ Kirigami.ApplicationWindow {
         TextField {
             id: layerTitle
             text: ""
+            maximumLength: 18
             placeholderText: "Layer title"
             font.pointSize: 9
             Layout.fillWidth: true
@@ -295,13 +296,20 @@ Kirigami.ApplicationWindow {
                 text: qsTr("Add new layer")
                 icon.name: "layer-new"
                 onClicked: {
-                    if(typeComboBox.currentIndex == 2)
-                        layerView.layerItem.layerIdx = app.layersModel.addLayer(layerTitle.text, typeComboBox.currentIndex, ndiSenderComboBox.currentText, stereoscopicModeForLayer.currentIndex, gridModeForLayer.currentIndex)
-                    else
-                        layerView.layerItem.layerIdx = app.layersModel.addLayer(layerTitle.text, typeComboBox.currentIndex, fileForLayer.text, stereoscopicModeForLayer.currentIndex, gridModeForLayer.currentIndex)
-
-                    layersAddNew.visible = false
-                    mpv.focus = true
+                    if(layerTitle.text !== ""){
+                        if(typeComboBox.currentIndex == 2){
+                            layerView.layerItem.layerIdx = app.slides.selected.addLayer(layerTitle.text, typeComboBox.currentIndex, ndiSenderComboBox.currentText, stereoscopicModeForLayer.currentIndex, gridModeForLayer.currentIndex)
+                            layersAddNew.visible = false
+                            app.slides.updateSelectedSlide()
+                            mpv.focus = true
+                        }
+                        else if(fileForLayer.text !== ""){
+                            layerView.layerItem.layerIdx = app.slides.selected.addLayer(layerTitle.text, typeComboBox.currentIndex, fileForLayer.text, stereoscopicModeForLayer.currentIndex, gridModeForLayer.currentIndex)
+                            layersAddNew.visible = false
+                            app.slides.updateSelectedSlide()
+                            mpv.focus = true
+                        }
+                    }
                 }
                 ToolTip {
                     text: qsTr("Add layer to bottom of list")

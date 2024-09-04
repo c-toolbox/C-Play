@@ -20,12 +20,19 @@
 #include <KActionCollection>
 #include <KSharedConfig>
 #include "renderthread.h"
-#include "layersmodel.h"
 
 class KActionCollection;
 class KConfigDialog;
 class KColorSchemeManager;
 class QAction;
+class SlidesModel;
+
+#if QT_VERSION >= QT_VERSION_CHECK(6, 0, 0)
+#ifndef OPAQUE_PTR_SlidesModel
+#define OPAQUE_PTR_SlidesModel
+Q_DECLARE_OPAQUE_POINTER(SlidesModel*)
+#endif
+#endif
 
 class Application : public QObject
 {
@@ -68,16 +75,13 @@ public:
     int getFadeDurationSetting();
     void setStartupFile(std::string filePath);
 
-    Q_PROPERTY(LayersModel* layersModel
-        READ layersModel
-        WRITE setLayersModel
-        NOTIFY layersModelChanged)
-
-    LayersModel* layersModel();
-    void setLayersModel(LayersModel* model);
+    Q_PROPERTY(SlidesModel* slides 
+        READ slidesModel 
+        NOTIFY slidesModelChanged)
+    SlidesModel* slidesModel();
 
 Q_SIGNALS:
-    void layersModelChanged();
+    void slidesModelChanged();
 
 private:
     void setupWorkerThread();
@@ -89,7 +93,7 @@ private:
     void aboutApplication();
     void setupActions(const QString &actionName);
 
-    LayersModel* m_layersModel;
+    SlidesModel* m_slidesModel;
     QAbstractItemModel *colorSchemesModel();
     QApplication *m_app;
     QQmlApplicationEngine *m_engine;

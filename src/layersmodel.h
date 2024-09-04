@@ -66,6 +66,7 @@ class LayersModel : public QAbstractListModel
 
 public:
     explicit LayersModel(QObject *parent = nullptr);
+    ~LayersModel();
 
     enum {
         TitleRole = Qt::UserRole,
@@ -91,18 +92,26 @@ public:
 
     Q_INVOKABLE int addLayer(QString title, int type, QString filepath, int stereoMode, int gridMode);
     Q_INVOKABLE void removeLayer(int i);
+    Q_INVOKABLE void moveLayerTop(int i);
     Q_INVOKABLE void moveLayerUp(int i);
     Q_INVOKABLE void moveLayerDown(int i);
+    Q_INVOKABLE void moveLayerBottom(int i);
     Q_INVOKABLE void updateLayer(int i);
     Q_INVOKABLE void clearLayers();
 
     Q_PROPERTY(LayersTypeModel* layersTypeModel
         READ layersTypeModel
-        WRITE setLayersTypeModel
         NOTIFY layersTypeModelChanged)
 
+    Q_PROPERTY(int layersVisibility
+        READ getLayersVisibility
+        WRITE setLayersVisibility
+        NOTIFY layersVisibilityChanged)
+
+    Q_INVOKABLE void setLayersVisibility(int value);
+    Q_INVOKABLE int getLayersVisibility();
+
     Q_PROPERTY(bool layersNeedsSave
-        MEMBER m_layersNeedsSave
         READ getLayersNeedsSave
         WRITE setLayersNeedsSave
         NOTIFY layersNeedsSaveChanged)
@@ -111,7 +120,22 @@ public:
     Q_INVOKABLE bool getLayersNeedsSave();
 
     LayersTypeModel* layersTypeModel();
-    void setLayersTypeModel(LayersTypeModel* model);
+
+    Q_PROPERTY(QString layersName
+        READ getLayersName
+        WRITE setLayersName
+        NOTIFY layersNameChanged)
+
+    Q_INVOKABLE void setLayersName(QString name);
+    Q_INVOKABLE QString getLayersName() const;
+
+    Q_INVOKABLE void setLayersPath(QString path);
+    Q_INVOKABLE QString getLayersPath() const;
+    Q_INVOKABLE QUrl getLayersPathAsURL() const;
+
+    Q_INVOKABLE QString makePathRelativeTo(const QString& filePath, const QStringList& pathsToConsider);
+    Q_INVOKABLE void loadFromJSONFile(const QString& path);
+    Q_INVOKABLE void saveAsJSONFile(const QString& path);
 
 #ifdef NDI_SUPPORT
     Q_PROPERTY(NDISendersModel* ndiSendersModel
@@ -125,7 +149,9 @@ public:
 
 Q_SIGNALS:
     void layersTypeModelChanged();
+    void layersVisibilityChanged();
     void layersNeedsSaveChanged();
+    void layersNameChanged();
 #ifdef NDI_SUPPORT
     void ndiSendersModelChanged();
 #endif
@@ -136,8 +162,11 @@ private:
 #ifdef NDI_SUPPORT
     NDISendersModel* m_ndiSendersModel;
 #endif
-    int m_layersNeedsSave = false;
+    int m_layersVisibility = 0;
+    bool m_layersNeedsSave = false;
     bool m_needsSync;
+    QString m_layersName;
+    QString m_layersPath;
 };
 
 #endif // LAYERSMODEL_H

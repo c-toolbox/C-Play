@@ -14,6 +14,8 @@
 #include <layers/imagelayer.h>
 #include <layers/mpvlayer.h>
 #include <layerrenderer.h>
+#include <slidesmodel.h>
+#include <layersmodel.h>
 #include "application.h"
 #include <fstream>   
 #include <mutex>
@@ -38,7 +40,7 @@ MpvLayer* mainMpvLayer;
 
 bool updateLayers = false;
 std::vector<BaseLayer*> secondaryLayers;
-std::vector<BaseLayer*> updatedSecondaryLayers;
+std::vector<BaseLayer*> secondaryLayersToKeep;
 
 LayerRenderer* layerRender;
 
@@ -168,14 +170,38 @@ std::vector<std::byte> encode() {
             serializeObject(data, -1);
         }
 
-        int numLayers = Application::instance().layersModel()->numberOfLayers();
+        //Always syncing master slide, selected slide and previous slide so fade-down can occur.
+        //Ideally, should most likely sync slide after selected as well
+        //Currently syncing master slide and selected slide
+        //Need figure out other scheme
+        std::vector<int> slideIdxToSync;
+        //slideIdxToSync.push_back(Application::instance().slidesModel()->triggeredSlideIdx());
+        //slideIdxToSync.push_back(Application::instance().slidesModel()->previousTriggeredIdx());
+        //slideIdxToSync.push_back(Application::instance().slidesModel()->selectedSlideIdx());
+        //slideIdxToSync.push_back(Application::instance().slidesModel()->previousSlideIdx());
+        //slideIdxToSync.push_back(Application::instance().slidesModel()->nextSlideIdx());
+        //slideIdxToSync.push_back(-1); //Master slide
+        
+        //Sync all slides for now...
+        for (int i = Application::instance().slidesModel()->numberOfSlides() - 1; i >= -1; i--) {
+            slideIdxToSync.push_back(i);
+        }
+
         //Check if model says sync needed
-        bool needLayerSync = Application::instance().layersModel()->needsSync();
-        if (!needLayerSync) {
-            //Even if model says, no, check for needed sync for each layer
-            for (int i = 0; i < numLayers; i++) {
-                if (Application::instance().layersModel()->layer(i)->needSync()) {
+        int totalLayersToSync = 0;
+        bool needLayerSync = Application::instance().slidesModel()->needsSync();
+        for (auto s : slideIdxToSync) {
+            if (s < Application::instance().slidesModel()->numberOfSlides()) {
+                int numLayers = Application::instance().slidesModel()->slide(s)->numberOfLayers();
+                totalLayersToSync += numLayers;
+                if (Application::instance().slidesModel()->slide(s)->needsSync())
                     needLayerSync = true;
+                if (!Application::instance().slidesModel()->slide(s)->needsSync()) { //Even if layers model says, no, check for needed sync for each layer
+                    for (int l = 0; l < numLayers; l++) {
+                        if (Application::instance().slidesModel()->slide(s)->layer(l)->needSync()) {
+                            needLayerSync = true;
+                        }
+                    }
                 }
             }
         }
@@ -186,18 +212,28 @@ std::vector<std::byte> encode() {
             // Layers sync...
             // Orders is top to bottom in the list = (first to last in the vector)
             // Sync only complete layer information when needed
-            serializeObject(data, numLayers);
-            for (int i = 0; i < numLayers; i++) {
-                BaseLayer* nextLayer = Application::instance().layersModel()->layer(i);
-                serializeObject(data, nextLayer->identifier()); // ID
-                serializeObject(data, nextLayer->needSync()); // Check needs sync
-                if (nextLayer->needSync()) {
-                    serializeObject(data, static_cast<int>(nextLayer->type())); // Type
-                    nextLayer->encode(data);
-                    nextLayer->setHasSynced();
+            serializeObject(data, totalLayersToSync);
+            for (auto s : slideIdxToSync) {
+                if (s < Application::instance().slidesModel()->numberOfSlides()) {
+                    int numLayers = Application::instance().slidesModel()->slide(s)->numberOfLayers();
+                    for (int l = 0; l < numLayers; l++) {
+                        BaseLayer* nextLayer = Application::instance().slidesModel()->slide(s)->layer(l);
+                        serializeObject(data, nextLayer->identifier()); // ID
+                        serializeObject(data, nextLayer->needSync()); // Check needs sync
+                        if (nextLayer->needSync()) {
+                            serializeObject(data, static_cast<int>(nextLayer->type())); // Type
+                            nextLayer->encode(data);
+                            nextLayer->setHasSynced();
+                        }
+                        else {
+                            //Sync alpha anyway
+                            serializeObject(data, nextLayer->alpha());
+                        }
+                    }
+                    Application::instance().slidesModel()->slide(s)->setHasSynced();
                 }
             }
-            Application::instance().layersModel()->setHasSynced();
+            Application::instance().slidesModel()->setHasSynced();
         }
 
         //Reset flags every frame cycle
@@ -287,35 +323,49 @@ void decode(const std::vector<std::byte>& data) {
         bool layerSync = false;
         deserializeObject(data, pos, layerSync);
         if (layerSync) {
-            updateLayers = true;
             int numLayers = -1;
             deserializeObject(data, pos, numLayers);
             uint32_t id;
+            updateLayers = true;
             for (int i = 0; i < numLayers; i++) {
                 deserializeObject(data, pos, id);
                 deserializeObject(data, pos, layerSync);
                 int layerType = -1;
 
-                //Find if layer exists
-                auto it = find_if(secondaryLayers.begin(), secondaryLayers.end(),
+                //Check if already updated this layer before a draw has been made
+                auto it_up = find_if(secondaryLayersToKeep.begin(), secondaryLayersToKeep.end(),
                     [&id](const BaseLayer* t1) { return t1->identifier() == id; });
-                if (it != secondaryLayers.end()) {//If exist, add to new pos and remove from old container
-                    //If exist, sync if needed
-                    if (layerSync) {
-                        deserializeObject(data, pos, layerType);
-                        (*it)->decode(data, pos);
-                    }
-                    updatedSecondaryLayers.push_back(*it);
-                    secondaryLayers.erase(it);
-                }
-                else {//Did not exist. Let's create it
-                    deserializeObject(data, pos, layerType);
-                    BaseLayer* newLayer = BaseLayer::createLayer(layerType, get_proc_address_glfw, std::to_string(id), id);
-                    if (newLayer) {
+                if (it_up == secondaryLayersToKeep.end()) {
+                    //Find if layer exists is all previously created layers
+                    auto it = find_if(secondaryLayers.begin(), secondaryLayers.end(),
+                        [&id](const BaseLayer* t1) { return t1->identifier() == id; });
+                    if (it != secondaryLayers.end()) {//If exist, add to new pos and remove from old container
+                        //If exist, sync if needed
                         if (layerSync) {
-                            newLayer->decode(data, pos);
+                            deserializeObject(data, pos, layerType);
+                            (*it)->decode(data, pos);
                         }
-                        updatedSecondaryLayers.push_back(newLayer);
+                        else {
+                            float layerAlpha = 0.f;
+                            deserializeObject(data, pos, layerAlpha);
+                            (*it)->setAlpha(layerAlpha);
+                        }
+                        secondaryLayersToKeep.push_back(*it);
+                    }
+                    else if(layerSync) {//Did not exist. Let's create it
+                        deserializeObject(data, pos, layerType);
+                        BaseLayer* newLayer = BaseLayer::createLayer(layerType, get_proc_address_glfw, std::to_string(id), id);
+                        if (newLayer) {
+                            if (layerSync) {
+                                newLayer->decode(data, pos);
+                            }
+                            else {
+                                float layerAlpha = 0.f;
+                                deserializeObject(data, pos, layerAlpha);
+                                newLayer->setAlpha(layerAlpha);
+                            }
+                            secondaryLayersToKeep.push_back(newLayer);
+                        }
                     }
                 }
             }
@@ -331,12 +381,19 @@ void postSyncPreDraw() {
         //Delete layers left in old container, and update to new
         //Needs to be done in this function, not in the deserialization.
         if (updateLayers) {
-            for (auto l : secondaryLayers) {
-                delete l;
+            auto it = secondaryLayers.begin();
+            for ( ; it != secondaryLayers.end() ; ) {
+                if (std::find(secondaryLayersToKeep.begin(), secondaryLayersToKeep.end(), (*it)) == secondaryLayersToKeep.end()) {
+                    auto ptr_to_delete = (*it);
+                    it = secondaryLayers.erase(it);
+                    delete ptr_to_delete;
+                }
+                else {
+                    ++it;
+                }
             }
-            secondaryLayers.clear();
-            secondaryLayers = updatedSecondaryLayers;
-            updatedSecondaryLayers.clear();
+            secondaryLayers = secondaryLayersToKeep;
+            secondaryLayersToKeep.clear();
             updateLayers = false;
         }
 

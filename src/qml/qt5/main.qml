@@ -85,6 +85,8 @@ Kirigami.ApplicationWindow {
 
     PlayList { id: playList }
 
+    Slides { id: slides }
+
     Layers { id: layers }
 
     LayersAddNew { id: layersAddNew }

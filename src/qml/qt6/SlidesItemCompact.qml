@@ -23,7 +23,8 @@ ItemDelegate {
     implicitWidth: ListView.view.width
     padding: 0
     font.pointSize: 9
-    highlighted: layersView.currentIndex === index
+    highlighted: slidesView.currentIndex === index
+    down: app.slides.triggeredSlideIdx === index
 
     background: Rectangle {
         anchors.fill: parent
@@ -51,10 +52,10 @@ ItemDelegate {
         to: 0;
         duration: PlaybackSettings.fadeDuration;
         onStarted: {
-            layersView.enabled = false
+            slidesView.enabled = false
         }
         onFinished: {
-            layersView.enabled = true
+            slidesView.enabled = true
         }
     }
 
@@ -65,10 +66,10 @@ ItemDelegate {
         to: 100;
         duration: PlaybackSettings.fadeDuration;
         onStarted: {
-            layersView.enabled = false
+            slidesView.enabled = false
         }
         onFinished: {
-            layersView.enabled = true
+            slidesView.enabled = true
         }
     }
 
@@ -84,48 +85,52 @@ ItemDelegate {
             icon.name: iconName
             icon.color: color
             icon.width: iconWidth
-            title: (layersView.currentIndex === index ? layersNumText() : layersNumText() + model.title)
+            title: (slidesView.currentIndex === index ? slideNumText() : slideNumText() + model.name)
             subtitle: subText()
             color: root.hovered || root.highlighted ? Kirigami.Theme.highlightedTextColor : Kirigami.Theme.textColor
             selected: root.down
         }
 
         TextInput {
-            id: slideTitleField
-            text: model.title
+            id: slideNameField
+            text: model.name
             anchors.top: parent.top
             anchors.left: its.left
             anchors.topMargin: 3
             anchors.leftMargin: 12
-            visible: layersView.currentIndex === index
+            visible: slidesView.currentIndex === index
             color: Kirigami.Theme.textColor
             font.pointSize: 9
-            maximumLength: 18
-            onAccepted: {
-                layerView.layerItem.layerTitle = slideTitleField.text
+            maximumLength: 12
+            onEditingFinished: {
+                app.slides.selected.layersName = slideNameField.text
+                app.slides.updateSelectedSlide()
             }
         }
-
+ 
         VisibilitySlider {
             id: visibilitySlider
             overlayLabel: qsTr("")
-            visible: layersView.currentIndex === index
-            enabled: app.slides.selectedSlideIdx === -1
+            visible: slidesView.currentIndex === index
+            enabled: false
             implicitWidth: 100
             anchors.bottom: parent.bottom
             anchors.right: its.right
             onValueChanged: {
-                if(!layersView.enabled || visibilitySlider.enabled){
+                if(!slidesView.enabled){
+                    if(value.toFixed(0) !== app.slides.triggeredSlideVisibility) {
+                        app.slides.triggeredSlideVisibility = value.toFixed(0)
+                    }
                     if(value.toFixed(0) !== layerView.layerItem.layerVisibility) {
                         layerView.layerItem.layerVisibility = value.toFixed(0)
-                        app.slides.needsSync = true
                     }
+                    app.slides.updateSelectedSlide()
                 }
             }
         }
 
         Item {
-            visible: layersView.currentIndex !== index
+            visible: slidesView.currentIndex !== index
             implicitWidth: 100
             implicitHeight: 20
             anchors.bottom: parent.bottom
@@ -139,37 +144,36 @@ ItemDelegate {
     }
 
     onClicked: {
-        slideTitleField.text = model.title
-        layerView.layerItem.layerIdx = index
+        slidesView.currentIndex = index
     }
 
     onDoubleClicked: {
-        layerView.layerItem.layerIdx = index
+        slidesView.currentIndex = index
+        app.slides.triggeredSlideIdx = index
 
-        if(layerView.layerItem.layerVisibility === 100 && !visibility_fade_out_animation.running){
+        if(app.slides.selected.layersVisibility === 100 && !visibility_fade_out_animation.running){
             visibility_fade_out_animation.start()
         }
 
-        if(layerView.layerItem.layerVisibility === 0 && !visibility_fade_in_animation.running){
+        if(app.slides.selected.layersVisibility === 0 && !visibility_fade_in_animation.running){
             visibility_fade_in_animation.start()
         }
     }
 
     Connections {
-        target: layerView.layerItem
-        function onLayerValueChanged(){
-            if(visibilitySlider.value !== layerView.layerItem.layerVisibility)
-                visibilitySlider.value = layerView.layerItem.layerVisibility
+        target: app.slides
+        function onSelectedSlideChanged(){
+            visibilitySlider.value = app.slides.selected.layersVisibility
         }
     }
 
-    function layersNumText() {
-        const rowNumber = pad(root.rowNumber, layersView.count.toString().length) + ". "
+    function slideNumText() {
+        const rowNumber = pad(root.rowNumber, slidesView.count.toString().length) + ". ";
         return rowNumber;
     }
 
     function subText() {
-        return model.type + " - " + model.stereoVideo + " " + model.gridToMapOn
+        return model.layers + (model.layers === 1 ?  " layer" : " layers");
     }
 
     function pad(number, length) {

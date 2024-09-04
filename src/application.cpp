@@ -9,12 +9,14 @@
 #include "_debug.h"
 #include "application.h"
 #include "haction.h"
-#include "layerqtitem.h"
 #include "mpvobject.h"
 #include "playercontroller.h"
 #include "playlistitem.h"
 #include "playlistmodel.h"
 #include "tracksmodel.h"
+#include "slidesmodel.h"
+#include "layersmodel.h"
+#include "layerqtitem.h"
 
 #include "audiosettings.h"
 #include "gridsettings.h"
@@ -92,7 +94,7 @@ static QApplication *createApplication(int &argc, char **argv, const QString &ap
 Application::Application(int &argc, char **argv, const QString &applicationName)
     : m_app(createApplication(argc, argv, applicationName))
     , m_collection(this)
-    , m_layersModel(new LayersModel(this))
+    , m_slidesModel(new SlidesModel(this))
 {
     m_config = KSharedConfig::openConfig(QStringLiteral("C-Play/cplay.conf"));
     m_shortcuts = new KConfigGroup(m_config, QStringLiteral("Shortcuts"));
@@ -232,6 +234,12 @@ void Application::registerQmlTypes()
     qRegisterMetaType<PlayListItem*>();
     qRegisterMetaType<QAction*>();
     qRegisterMetaType<TracksModel*>();
+    qRegisterMetaType<LayersTypeModel*>();
+#ifdef NDI_SUPPORT
+    qRegisterMetaType<NDISendersModel*>();
+#endif
+    qRegisterMetaType<LayersModel*>();
+    qRegisterMetaType<SlidesModel*>();
     qRegisterMetaType<KFileMetaData::PropertyMultiMap>("KFileMetaData::PropertyMultiMap");
 }
 
@@ -375,12 +383,8 @@ void Application::setStartupFile(std::string filePath) {
     m_startupFileFromCmd = QString::fromStdString(filePath);
 }
 
-LayersModel* Application::layersModel() {
-    return m_layersModel;
-}
-
-void Application::setLayersModel(LayersModel* model) {
-    m_layersModel = model;
+SlidesModel* Application::slidesModel() {
+    return m_slidesModel;
 }
 
 QString Application::argument(int key)
@@ -549,11 +553,18 @@ void Application::setupActions(const QString &actionName)
         m_collection.setDefaultShortcut(action, Qt::Key_S);
         m_collection.addAction(actionName, action);
     }
+    if (actionName == QStringLiteral("toggleSlides")) {
+        auto action = new HAction();
+        action->setText(QStringLiteral("Slides"));
+        action->setIcon(QIcon::fromTheme(QStringLiteral("view-list-details")));
+        m_collection.setDefaultShortcut(action, QKeySequence(QStringLiteral("Shift+S")));
+        m_collection.addAction(actionName, action);
+    }
     if (actionName == QStringLiteral("toggleLayers")) {
         auto action = new HAction();
         action->setText(QStringLiteral("Layers"));
         action->setIcon(QIcon::fromTheme(QStringLiteral("dialog-layers")));
-        m_collection.setDefaultShortcut(action, Qt::Key_L);
+        m_collection.setDefaultShortcut(action, QKeySequence(QStringLiteral("Shift+L")));
         m_collection.addAction(actionName, action);
     }
     if (actionName == QStringLiteral("openFile")) {

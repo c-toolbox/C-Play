@@ -30,6 +30,8 @@
 		<file>qt5/LayersAddNew.qml</file>
 		<file>qt5/LayersItemCompact.qml</file>
 		<file>qt5/LayerView.qml</file>
+		<file>qt5/Slides.qml</file>
+		<file>qt5/SlidesItemCompact.qml</file>
         <file>qt5/MpvVideo.qml</file>
         <file>qt5/Osd.qml</file>
         <file>qt5/PlayList.qml</file>

@@ -7,7 +7,7 @@
 #include <ndi/ndilayer.h>
 #endif
 
-std::atomic_uint32_t BaseLayer::m_id_gen = 0;
+std::atomic_uint32_t BaseLayer::m_id_gen = 1;
 
 std::string BaseLayer::typeDescription(BaseLayer::LayerType e)
 {
@@ -62,7 +62,7 @@ BaseLayer::BaseLayer()
 {
     m_title = "";
     m_type = BASE;
-    m_identifier = -1;
+    m_identifier = 0;
     m_needSync = true;
 }
 
@@ -163,7 +163,10 @@ float BaseLayer::alpha() const {
 
 void BaseLayer::setAlpha(float a) {
     renderData.alpha = a;
-    m_needSync = true;
+
+    // Is handled always right now anyway.
+    // If slideModel or layerModel changed
+    // m_needSync = true;
 }
 
 int BaseLayer::gridMode() const {

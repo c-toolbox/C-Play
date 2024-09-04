@@ -53,7 +53,7 @@ class LayerQtItem : public QQuickItem
     Q_PROPERTY(int layerStereoMode READ layerStereoMode WRITE setLayerStereoMode NOTIFY layerValueChanged)
     Q_PROPERTY(int layerGridMode READ layerGridMode WRITE setLayerGridMode NOTIFY layerValueChanged)
     Q_PROPERTY(int layerVisibility READ layerVisibility WRITE setLayerVisibility NOTIFY layerValueChanged)
-    Q_PROPERTY(QString layerTitle READ layerTitle)
+    Q_PROPERTY(QString layerTitle READ layerTitle WRITE setLayerTitle NOTIFY layerValueChanged)
     QML_ELEMENT
 
 public:
@@ -72,6 +72,7 @@ public:
     void setLayerVisibility(int value);
 
     QString layerTitle();
+    void setLayerTitle(QString value);
 
     Q_INVOKABLE void sync();
     Q_INVOKABLE void cleanup();
