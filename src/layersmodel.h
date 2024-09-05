@@ -133,9 +133,11 @@ public:
     Q_INVOKABLE QString getLayersPath() const;
     Q_INVOKABLE QUrl getLayersPathAsURL() const;
 
+    Q_INVOKABLE QString checkAndCorrectPath(const QString& filePath, const QStringList& searchPaths);
     Q_INVOKABLE QString makePathRelativeTo(const QString& filePath, const QStringList& pathsToConsider);
-    Q_INVOKABLE void loadFromJSONFile(const QString& path);
-    Q_INVOKABLE void saveAsJSONFile(const QString& path);
+
+    Q_INVOKABLE void decodeFromJSON(QJsonObject& obj, const QStringList& forRelativePaths);
+    Q_INVOKABLE void encodeToJSON(QJsonObject& obj, const QStringList& forRelativePaths);
 
 #ifdef NDI_SUPPORT
     Q_PROPERTY(NDISendersModel* ndiSendersModel

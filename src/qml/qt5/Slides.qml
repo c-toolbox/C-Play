@@ -36,6 +36,23 @@ Rectangle {
     color: Kirigami.Theme.backgroundColor
 
     Platform.FileDialog {
+        id: openCPlayPresentationDialog
+
+        folder: LocationSettings.cPlayFileLocation !== ""
+                ? app.pathToUrl(LocationSettings.cPlayFileLocation)
+                : app.pathToUrl(LocationSettings.fileDialogLastLocation)
+        title: "Open C-Play Presentation"
+        fileMode: Platform.FileDialog.OpenFile
+        nameFilters: [ "C-Play Presentation (*.cplaypres)" ]
+
+        onAccepted: {
+            app.slides.loadFromJSONFile(openCPlayPresentationDialog.file.toString())
+            mpv.focus = true
+        }
+        onRejected: mpv.focus = true
+    }
+
+    Platform.FileDialog {
         id: saveCPlayPresentationDialog
 
         folder: LocationSettings.cPlayFileLocation !== ""
@@ -46,7 +63,7 @@ Rectangle {
         nameFilters: [ "C-Play Presentation (*.cplaypres)" ]
 
         onAccepted: {
-            //app.slides.saveAsJSONFile(saveCPlaySlidesDialog.file.toString())
+            app.slides.saveAsJSONFile(saveCPlayPresentationDialog.file.toString())
             mpv.focus = true
         }
         onRejected: mpv.focus = true
@@ -105,19 +122,21 @@ Rectangle {
                 Button {
                     icon.name: "document-open"
                     onClicked: {
+                        openCPlayPresentationDialog.open()
                     }
                     ToolTip {
-                        text: qsTr("Open presentation/slides")
+                        text: qsTr("Open presentation")
                     }
                 }
                 Button {
                     icon.name: "system-save-session"
                     icon.color: app.slides.slidesNeedsSave ? "orange" : "lime"
                     onClicked: {
+                        saveCPlayPresentationDialog.currentFile = app.slides.getSlidesPathAsURL()
                         saveCPlayPresentationDialog.open()
                     }
                     ToolTip {
-                        text: qsTr("Save presentation/slides")
+                        text: qsTr("Save presentation")
                     }
                 }
                 Button {
@@ -148,6 +167,16 @@ Rectangle {
             // spacer item
             Layout.fillWidth: true
             Layout.fillHeight: true
+            Layout.leftMargin: 5
+            Layout.margins: 2
+
+            Label {
+                id: sliderName
+                text: app.slides.slidesName
+                font.pointSize: 7
+                font.italic: true
+                color: Kirigami.Theme.disabledTextColor
+            }
         }
 
         RowLayout {
@@ -158,7 +187,6 @@ Rectangle {
             }
 
             Label {
-                id: mediaTitle
                 text: qsTr("Slides")
                 font.pointSize: 9
             }
@@ -179,6 +207,9 @@ Rectangle {
                 checked: slidesView.currentIndex === -1
                 onClicked: {
                     slidesView.currentIndex = -1
+                    if(layers.state === "hidden"){
+                        actions.toggleLayersAction.trigger()
+                    }
                 }
                 ToolTip {
                     text: qsTr("Master slide with perminent layers")

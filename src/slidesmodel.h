@@ -102,6 +102,11 @@ public:
     Q_INVOKABLE void setSlidesNeedsSave(bool value);
     Q_INVOKABLE bool getSlidesNeedsSave();
 
+    Q_PROPERTY(QString slidesName
+        READ getSlidesName
+        WRITE setSlidesName
+        NOTIFY slidesNameChanged)
+
     Q_INVOKABLE void setSlidesName(QString name);
     Q_INVOKABLE QString getSlidesName() const;
 
@@ -119,6 +124,7 @@ Q_SIGNALS:
     void slidesNeedsSaveChanged();
     void triggeredSlideChanged();
     void needsSyncChanged();
+    void slidesNameChanged();
 
 private:
     QList<LayersModel*> m_slides;

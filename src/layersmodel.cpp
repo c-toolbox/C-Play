@@ -302,6 +302,21 @@ QUrl LayersModel::getLayersPathAsURL() const
     return QUrl(QStringLiteral("file:///") + m_layersPath);
 }
 
+QString LayersModel::checkAndCorrectPath(const QString& filePath, const QStringList& searchPaths) {
+    QFileInfo fileInfo(filePath);
+    if (fileInfo.exists())
+        return filePath;
+    else if (fileInfo.isRelative()) { // Go through search list in order
+        for (int i = 0; i < searchPaths.size(); i++) {
+            QString newFilePath = QDir::cleanPath(searchPaths[i] + QDir::separator() + filePath);
+            QFileInfo newFilePathInfo(newFilePath);
+            if (newFilePathInfo.exists())
+                return newFilePath;
+        }
+    }
+    return QStringLiteral("");
+}
+
 QString LayersModel::makePathRelativeTo(const QString& filePath, const QStringList& pathsToConsider) {
     // Assuming filePath is absolute
     for (int i = 0; i < pathsToConsider.size(); i++) {
@@ -313,21 +328,83 @@ QString LayersModel::makePathRelativeTo(const QString& filePath, const QStringLi
     return filePath;
 }
 
-void LayersModel::loadFromJSONFile(const QString& path) {
+void LayersModel::decodeFromJSON(QJsonObject& obj, const QStringList& forRelativePaths) {
+    if(obj.contains(QStringLiteral("name"))) {
+        QString name = obj.value(QStringLiteral("name")).toString();
+        setLayersName(name);
+    }
 
+    if (obj.contains(QStringLiteral("layers"))) {
+        clearLayers();
+        QJsonValue value = obj.value(QStringLiteral("layers"));
+        QJsonArray array = value.toArray();
+        for (auto v : array) {
+            QJsonObject o = v.toObject();
+            if (o.contains(QStringLiteral("type"))){
+                int type = 0;
+                QString typeStr = o.value(QStringLiteral("type")).toString();
+                for (int i = 1; i != (int)BaseLayer::LayerType::INVALID; i++) {
+                    if (typeStr == QString::fromStdString(BaseLayer::typeDescription((BaseLayer::LayerType)i))) {
+                        type = i;
+                    }
+                }
+
+                if (type > 0 && o.contains(QStringLiteral("title"))
+                    && o.contains(QStringLiteral("path"))
+                    && o.contains(QStringLiteral("grid"))
+                    && o.contains(QStringLiteral("stereoscopic"))) {
+                    QString title = o.value(QStringLiteral("title")).toString();
+
+                    QString path = o.value(QStringLiteral("path")).toString();
+                    path = checkAndCorrectPath(path, forRelativePaths);
+
+                    int grid = LayerSettings::defaultGridModeForLayers();
+                    QString gridStr = o.value(QStringLiteral("grid")).toString();
+                    if (gridStr == QStringLiteral("none") || gridStr == QStringLiteral("pre-split")) {
+                        grid = 0;
+                    }
+                    else if (gridStr == QStringLiteral("plane") || gridStr == QStringLiteral("flat")) {
+                        grid = 1;
+                    }
+                    else if (gridStr == QStringLiteral("dome")) {
+                        grid = 2;
+                    }
+                    else if (gridStr == QStringLiteral("sphere") || gridStr == QStringLiteral("eqr") || gridStr == QStringLiteral("sphere-eqr")) {
+                        grid = 3;
+                    }
+                    else if (gridStr == QStringLiteral("eac") || gridStr == QStringLiteral("sphere-eac")) {
+                        grid = 4;
+                    }
+
+                    int stereo = LayerSettings::defaultStereoModeForLayers();
+                    QString stereoStr = o.value(QStringLiteral("stereoscopic")).toString();
+                    if (stereoStr == QStringLiteral("no") || stereoStr == QStringLiteral("mono")) {
+                        stereo = 0;
+                    }
+                    else if (stereoStr == QStringLiteral("yes") || stereoStr == QStringLiteral("sbs") || stereoStr == QStringLiteral("side-by-side")) {
+                        stereo = 1;
+                    }
+                    else if (stereoStr == QStringLiteral("tb") || stereoStr == QStringLiteral("top-bottom")) {
+                        stereo = 2;
+                    }
+                    else if (stereoStr == QStringLiteral("tbf") || stereoStr == QStringLiteral("top-bottom-flip")) {
+                        stereo = 3;
+                    }
+
+                    int idx = addLayer(title, type, path, stereo, grid);
+
+                    if (o.contains(QStringLiteral("visibility"))) {
+                        int visibility = o.value(QStringLiteral("visibility")).toInt();
+                        m_layers[idx]->setAlpha(static_cast<float>(visibility) * 0.01f);
+                    }
+                }
+            }
+        }
+    }
 }
 
-void LayersModel::saveAsJSONFile(const QString& path) {
-    QJsonDocument doc;
-    QJsonObject obj = doc.object();
-
-    QString fileToSave = path;
-    fileToSave.replace(QStringLiteral("file:///"), QStringLiteral(""));
-    QFileInfo fileToSaveInfo(fileToSave);
-
-    QStringList pathsToConsider;
-    pathsToConsider.append(LocationSettings::cPlayFileLocation());
-    pathsToConsider.append(fileToSaveInfo.absoluteDir().absolutePath());
+void LayersModel::encodeToJSON(QJsonObject& obj, const QStringList& forRelativePaths) {
+    obj.insert(QStringLiteral("name"), QJsonValue(getLayersName()));
 
     QJsonArray layersArray;
     for (auto layer : m_layers)
@@ -336,8 +413,10 @@ void LayersModel::saveAsJSONFile(const QString& path) {
 
         layerData.insert(QStringLiteral("type"), QJsonValue(QString::fromStdString(layer->typeName())));
 
-        QString checkedFilePath = makePathRelativeTo(QString::fromStdString(layer->filepath()), pathsToConsider);
-        obj.insert(QStringLiteral("filepath"), checkedFilePath);
+        layerData.insert(QStringLiteral("title"), QJsonValue(QString::fromStdString(layer->title())));
+
+        QString checkedFilePath = makePathRelativeTo(QString::fromStdString(layer->filepath()), forRelativePaths);
+        layerData.insert(QStringLiteral("path"), QJsonValue(checkedFilePath));
 
         QString grid;
         int gridIdx = layer->gridMode();
@@ -356,7 +435,7 @@ void LayersModel::saveAsJSONFile(const QString& path) {
         else { // 0
             grid = QStringLiteral("pre-split");
         }
-        obj.insert(QStringLiteral("grid"), grid);
+        layerData.insert(QStringLiteral("grid"), QJsonValue(grid));
 
         QString sv;
         int stereoVideoIdx = layer->stereoMode();
@@ -372,22 +451,14 @@ void LayersModel::saveAsJSONFile(const QString& path) {
         else { // 0
             sv = QStringLiteral("no");
         }
-        obj.insert(QStringLiteral("stereoscopic"), sv);
+        layerData.insert(QStringLiteral("stereoscopic"), QJsonValue(sv));
 
+        layerData.insert(QStringLiteral("visibility"), QJsonValue(static_cast<int>(layer->alpha()*100.f)));
 
         layersArray.push_back(QJsonValue(layerData));
     }
 
     obj.insert(QString(QStringLiteral("layers")), QJsonValue(layersArray));
-    doc.setObject(obj);
-
-    QFile jsonFile(fileToSave);
-    jsonFile.open(QFile::WriteOnly);
-    jsonFile.write(doc.toJson());
-    jsonFile.close();
-
-    //QFileInfo fileInfo(jsonFile);
-    //setLayersName(fileInfo.baseName());
 
     setLayersNeedsSave(false);
 }

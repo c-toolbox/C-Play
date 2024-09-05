@@ -265,6 +265,8 @@ void SlidesModel::clearSlides()
     beginRemoveRows(QModelIndex(), 0, m_slides.size()-1);
     m_slides.clear();
     endRemoveRows();
+    setSlidesName(QStringLiteral(""));
+    setSlidesPath(QStringLiteral(""));
     setSlidesNeedsSave(false);
     m_needsSync = true;
 }
@@ -283,6 +285,7 @@ bool SlidesModel::getSlidesNeedsSave()
 void SlidesModel::setSlidesName(QString name)
 {
     m_slidesName = name;
+    Q_EMIT slidesNameChanged();
 }
 
 QString SlidesModel::getSlidesName() const
@@ -317,7 +320,57 @@ QString SlidesModel::makePathRelativeTo(const QString& filePath, const QStringLi
 }
 
 void SlidesModel::loadFromJSONFile(const QString& path) {
+    QString fileToOpen = path;
+    fileToOpen.replace(QStringLiteral("file:///"), QStringLiteral(""));
 
+    QFileInfo jsonFileInfo(fileToOpen);
+    if (!jsonFileInfo.exists())
+    {
+        qDebug() << QStringLiteral("C-play presentation ") << fileToOpen << QStringLiteral(" did not exist.");
+        return;
+    }
+
+    QFile f(fileToOpen);
+    f.open(QIODevice::ReadOnly);
+    QByteArray fileContent = f.readAll();
+    f.close();
+
+    QJsonDocument doc = QJsonDocument::fromJson(fileContent);
+    if (doc.isNull())
+    {
+        qDebug() << QStringLiteral("Parsing C-play presentation failed: ") << fileToOpen;
+        return;
+    }
+
+    QJsonObject obj = doc.object();
+
+    QStringList fileSearchPaths;
+    fileSearchPaths.append(jsonFileInfo.absoluteDir().absolutePath());
+    fileSearchPaths.append(LocationSettings::cPlayMediaLocation());
+    fileSearchPaths.append(LocationSettings::cPlayFileLocation());
+    fileSearchPaths.append(LocationSettings::univiewVideoLocation());
+
+    if (obj.contains(QStringLiteral("master"))) {
+        m_masterSlide->clearLayers();
+        QJsonValue value = obj.value(QStringLiteral("master"));
+        QJsonObject o = value.toObject();
+        m_masterSlide->decodeFromJSON(o, fileSearchPaths);
+    }
+
+    if (obj.contains(QStringLiteral("slides"))) {
+        clearSlides();
+        QJsonValue value = obj.value(QStringLiteral("slides"));
+        QJsonArray array = value.toArray();
+        for (auto v : array) {
+            QJsonObject o = v.toObject();
+            int idx = addSlide();
+            m_slides[idx]->decodeFromJSON(o, fileSearchPaths);
+        }
+    }
+
+    setSlidesPath(jsonFileInfo.absoluteFilePath());
+    setSlidesName(jsonFileInfo.baseName());
+    setSlidesNeedsSave(false);
 }
 
 void SlidesModel::saveAsJSONFile(const QString& path) {
@@ -329,29 +382,33 @@ void SlidesModel::saveAsJSONFile(const QString& path) {
     QFileInfo fileToSaveInfo(fileToSave);
 
     QStringList pathsToConsider;
-    pathsToConsider.append(LocationSettings::cPlayFileLocation());
     pathsToConsider.append(fileToSaveInfo.absoluteDir().absolutePath());
+    pathsToConsider.append(LocationSettings::cPlayMediaLocation());
+    pathsToConsider.append(LocationSettings::cPlayFileLocation());
+    pathsToConsider.append(LocationSettings::univiewVideoLocation());
+
+    QJsonObject masterSlideData;
+    m_masterSlide->encodeToJSON(masterSlideData, pathsToConsider);
+    obj.insert(QStringLiteral("master"), masterSlideData);
 
     QJsonArray slidesArray;
-    for (int i=0; i < m_slides.size(); i++)
+    for (auto slide : m_slides)
     {
         QJsonObject slideData;
-
-        slideData.insert(QStringLiteral("name"), QJsonValue(m_slides[i]->getLayersName()));
-
+        slide->encodeToJSON(slideData, pathsToConsider);
         slidesArray.push_back(QJsonValue(slideData));
     }
-
     obj.insert(QString(QStringLiteral("slides")), QJsonValue(slidesArray));
+    
     doc.setObject(obj);
-
     QFile jsonFile(fileToSave);
     jsonFile.open(QFile::WriteOnly);
     jsonFile.write(doc.toJson());
     jsonFile.close();
 
-    //QFileInfo fileInfo(jsonFile);
-    //setSlidesName(fileInfo.baseName());
+    QFileInfo fileInfo(jsonFile);
+    setSlidesName(fileInfo.baseName());
+    setSlidesPath(fileToSave);
 
     setSlidesNeedsSave(false);
 }
