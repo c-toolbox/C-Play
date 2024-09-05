@@ -159,9 +159,7 @@ int LayersModel::addLayer(QString title, int type, QString filepath, int stereoM
     beginInsertRows(QModelIndex(), m_layers.size(), m_layers.size());
 
     //Create new layer
-    //Need to offest type ID by 1 (to avoid BASE);
-    int layerType = type + 1;
-    BaseLayer* newLayer = BaseLayer::createLayer(layerType, get_proc_address_qopengl, title.toStdString());
+    BaseLayer* newLayer = BaseLayer::createLayer(type, get_proc_address_qopengl, title.toStdString());
 
     if (newLayer) {
         newLayer->setTitle(title.toStdString());

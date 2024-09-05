@@ -327,6 +327,8 @@ void LayerQtItemRenderer::paint()
     glViewport(offsetX, offsetY, viewW, viewH);
 
     glDisable(GL_DEPTH_TEST);
+    glEnable(GL_BLEND);
+    glBlendFunc(GL_SRC_ALPHA, GL_ONE_MINUS_SRC_ALPHA);
 
     m_vao.bind();
 
@@ -336,6 +338,8 @@ void LayerQtItemRenderer::paint()
 
     m_program->disableAttributeArray(0);
     m_program->release();
+
+    glDisable(GL_BLEND);
 
     m_window->endExternalCommands();
 

@@ -297,13 +297,13 @@ Kirigami.ApplicationWindow {
                 onClicked: {
                     if(layerTitle.text !== ""){
                         if(typeComboBox.currentIndex == 2){
-                            layerView.layerItem.layerIdx = app.slides.selected.addLayer(layerTitle.text, typeComboBox.currentIndex, ndiSenderComboBox.currentText, stereoscopicModeForLayer.currentIndex, gridModeForLayer.currentIndex)
+                            layerView.layerItem.layerIdx = app.slides.selected.addLayer(layerTitle.text, typeComboBox.currentIndex+1, ndiSenderComboBox.currentText, stereoscopicModeForLayer.currentIndex, gridModeForLayer.currentIndex)
                             layersAddNew.visible = false
                             app.slides.updateSelectedSlide()
                             mpv.focus = true
                         }
                         else if(fileForLayer.text !== ""){
-                            layerView.layerItem.layerIdx = app.slides.selected.addLayer(layerTitle.text, typeComboBox.currentIndex, fileForLayer.text, stereoscopicModeForLayer.currentIndex, gridModeForLayer.currentIndex)
+                            layerView.layerItem.layerIdx = app.slides.selected.addLayer(layerTitle.text, typeComboBox.currentIndex+1, fileForLayer.text, stereoscopicModeForLayer.currentIndex, gridModeForLayer.currentIndex)
                             layersAddNew.visible = false
                             app.slides.updateSelectedSlide()
                             mpv.focus = true
