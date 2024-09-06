@@ -39,13 +39,13 @@ Kirigami.ApplicationWindow {
         layerTitle.text = "";
 
         for (let sm = 0; sm < stereoscopicModeForLayerList.count; ++sm) {
-            if (stereoscopicModeForLayerList.get(sm).value === LayerSettings.defaultStereoModeForLayers) {
+            if (stereoscopicModeForLayerList.get(sm).value === PresentationSettings.defaultStereoModeForLayers) {
                 stereoscopicModeForLayer.currentIndex = sm
                 break
             }
         }
         for (let gm = 0; gm < gridModeForLayerList.count; ++gm) {
-            if (gridModeForLayerList.get(gm).value === LayerSettings.defaultGridModeForLayers) {
+            if (gridModeForLayerList.get(gm).value === PresentationSettings.defaultGridModeForLayers) {
                 gridModeForLayer.currentIndex = gm
                 break
             }

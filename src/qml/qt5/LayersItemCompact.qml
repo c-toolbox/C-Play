@@ -40,8 +40,7 @@ Kirigami.BasicListItem {
         if(layerView.layerItem.layerVisibility === 100 && !visibility_fade_out_animation.running){
             visibility_fade_out_animation.start()
         }
-
-        if(layerView.layerItem.layerVisibility === 0 && !visibility_fade_in_animation.running){
+        else if(layerView.layerItem.layerVisibility < 100 && !visibility_fade_in_animation.running){
             visibility_fade_in_animation.start()
         }
     }
@@ -93,6 +92,7 @@ Kirigami.BasicListItem {
         id: visibilitySlider
         visible: layersView.currentIndex === index
         enabled: app.slides.selectedSlideIdx === -1
+        value: model.visibility
         overlayLabel: qsTr("")
         implicitWidth: 50
         onValueChanged: {
@@ -110,7 +110,7 @@ Kirigami.BasicListItem {
         target: visibilitySlider;
         property: "value";
         to: 100;
-        duration: PlaybackSettings.fadeDuration;
+        duration: PlaybackSettings.fadeDuration * ((100 - visibilitySlider.value) / 100);
         onStarted: {
             layersView.enabled = false
         }

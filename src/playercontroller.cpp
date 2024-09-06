@@ -252,13 +252,17 @@ QString PlayerController::returnRelativeOrAbsolutePath(const QString& path)
     pathsToConsider.append(LocationSettings::cPlayFileLocation());
 
     // Assuming filePath is absolute
+    // Looking for shortest relative path
+    QString shortFilePath = filePath;
     for (int i = 0; i < pathsToConsider.size(); i++) {
         if (filePath.startsWith(pathsToConsider[i])) {
             QDir foundDir(pathsToConsider[i]);
-            return foundDir.relativeFilePath(filePath);
+            QString newRelativePath = foundDir.relativeFilePath(filePath);
+            if (newRelativePath.length() < shortFilePath.length())
+                shortFilePath = newRelativePath;
         }
     }
-    return filePath;
+    return shortFilePath;
 }
 
 QString PlayerController::checkAndCorrectPath(const QString& path) {

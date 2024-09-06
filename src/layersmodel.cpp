@@ -7,7 +7,7 @@
 
 #include "layersmodel.h"
 #include <layers/baselayer.h>
-#include "layersettings.h"
+#include "presentationsettings.h"
 #include "locationsettings.h"
 #include <QQuickView>
 #include <QOpenGLContext>
@@ -166,7 +166,7 @@ int LayersModel::addLayer(QString title, int type, QString filepath, int stereoM
         newLayer->setFilePath(filepath.toStdString());
         newLayer->setStereoMode(stereoMode);
         newLayer->setGridMode(gridMode);
-        newLayer->setAlpha(static_cast<float>(LayerSettings::defaultLayerVisibility()));
+        newLayer->setAlpha(static_cast<float>(PresentationSettings::defaultLayerVisibility())*0.01f);
         m_layers.push_back(newLayer);
         setLayersNeedsSave(true);
         m_needsSync = true;
@@ -356,7 +356,7 @@ void LayersModel::decodeFromJSON(QJsonObject& obj, const QStringList& forRelativ
                     QString path = o.value(QStringLiteral("path")).toString();
                     path = checkAndCorrectPath(path, forRelativePaths);
 
-                    int grid = LayerSettings::defaultGridModeForLayers();
+                    int grid = PresentationSettings::defaultGridModeForLayers();
                     QString gridStr = o.value(QStringLiteral("grid")).toString();
                     if (gridStr == QStringLiteral("none") || gridStr == QStringLiteral("pre-split")) {
                         grid = 0;
@@ -374,7 +374,7 @@ void LayersModel::decodeFromJSON(QJsonObject& obj, const QStringList& forRelativ
                         grid = 4;
                     }
 
-                    int stereo = LayerSettings::defaultStereoModeForLayers();
+                    int stereo = PresentationSettings::defaultStereoModeForLayers();
                     QString stereoStr = o.value(QStringLiteral("stereoscopic")).toString();
                     if (stereoStr == QStringLiteral("no") || stereoStr == QStringLiteral("mono")) {
                         stereo = 0;

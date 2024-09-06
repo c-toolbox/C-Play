@@ -55,11 +55,6 @@ Kirigami.Page
             page: "ImageSettings.qml"
         }
         ListElement {
-            name: "Layers"
-            iconName: "dialog-layers"
-            page: "LayerSettings.qml"
-        }
-        ListElement {
             name: "Location"
             iconName: "find-location"
             page: "LocationSettings.qml"
@@ -78,6 +73,11 @@ Kirigami.Page
             name: "Playlist"
             iconName: "format-list-unordered"
             page: "PlaylistSettings.qml"
+        }
+        ListElement {
+            name: "Presentation"
+            iconName: "dialog-layers"
+            page: "PresentationSettings.qml"
         }
 		ListElement {
             name: "User interface"

@@ -38,32 +38,27 @@ Kirigami.Page
 
     ListModel {
         id: settingsPagesModel
-		ListElement {
+        ListElement {
             name: "Audio"
             iconName: "audio-speakers-symbolic"
             page: "qrc:/AudioSettings.qml"
         }
-		ListElement {
+        ListElement {
             name: "Grid/mapping"
             iconName: "kstars_hgrid"
             page: "qrc:/GridSettings.qml"
         }
-		ListElement {
+        ListElement {
             name: "Image"
             iconName: "kdenlive-select-images"
             page: "qrc:/ImageSettings.qml"
-        }
-        ListElement {
-            name: "Layers"
-            iconName: "dialog-layers"
-            page: "qrc:/LayerSettings.qml"
         }
         ListElement {
             name: "Location"
             iconName: "find-location"
             page: "qrc:/LocationSettings.qml"
         }
-		ListElement {
+        ListElement {
             name: "Mouse"
             iconName: "input-mouse"
             page: "qrc:/MouseSettings.qml"
@@ -78,7 +73,12 @@ Kirigami.Page
             iconName: "format-list-unordered"
             page: "qrc:/PlaylistSettings.qml"
         }
-		ListElement {
+        ListElement {
+            name: "Presentation"
+            iconName: "dialog-layers"
+            page: "qrc:/PresentationSettings.qml"
+        }
+        ListElement {
             name: "User interface"
             iconName: "edit-paste-style"
             page: "qrc:/UserInterfaceSettings.qml"

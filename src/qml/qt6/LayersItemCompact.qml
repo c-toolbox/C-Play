@@ -63,7 +63,7 @@ ItemDelegate {
         target: visibilitySlider;
         property: "value";
         to: 100;
-        duration: PlaybackSettings.fadeDuration;
+        duration: PlaybackSettings.fadeDuration * ((100 - visibilitySlider.value) / 100);
         onStarted: {
             layersView.enabled = false
         }
@@ -114,6 +114,7 @@ ItemDelegate {
             implicitWidth: 100
             anchors.bottom: parent.bottom
             anchors.right: its.right
+            value: model.visibility
             onValueChanged: {
                 if(!layersView.enabled || visibilitySlider.enabled){
                     if(value.toFixed(0) !== layerView.layerItem.layerVisibility) {
@@ -149,8 +150,7 @@ ItemDelegate {
         if(layerView.layerItem.layerVisibility === 100 && !visibility_fade_out_animation.running){
             visibility_fade_out_animation.start()
         }
-
-        if(layerView.layerItem.layerVisibility === 0 && !visibility_fade_in_animation.running){
+        else if(layerView.layerItem.layerVisibility < 100 && !visibility_fade_in_animation.running){
             visibility_fade_in_animation.start()
         }
     }

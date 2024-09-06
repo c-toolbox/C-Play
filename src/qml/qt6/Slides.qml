@@ -46,6 +46,7 @@ Rectangle {
 
         onAccepted: {
             app.slides.loadFromJSONFile(openCPlayPresentationDialog.file.toString())
+            slidesView.currentIndex = -1
             mpv.focus = true
         }
         onRejected: mpv.focus = true
@@ -236,6 +237,10 @@ Rectangle {
             onCurrentIndexChanged: {
                 app.slides.selectedSlideIdx = slidesView.currentIndex
                 layers.layersView.currentIndex = -1
+            }
+
+            Component.onCompleted:   {
+                slidesView.currentIndex = -1
             }
         }
     }

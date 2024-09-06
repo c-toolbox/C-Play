@@ -21,7 +21,7 @@
 #include "audiosettings.h"
 #include "gridsettings.h"
 #include "imagesettings.h"
-#include "layersettings.h"
+#include "presentationsettings.h"
 #include "locationsettings.h"
 #include "mousesettings.h"
 #include "playbacksettings.h"
@@ -143,8 +143,8 @@ Application::Application(int &argc, char **argv, const QString &applicationName)
     m_engine->load(url);
 #endif
 
-    //QObject::connect(&renderThread, &QThread::finished, m_app, &QApplication::quit);
-    //QObject::connect(&renderThread, &QThread::finished, &renderThread, &QThread::deleteLater);
+    if(!PresentationSettings::presentationToLoadOnStartup().isEmpty())
+        m_slidesModel->loadFromJSONFile(PresentationSettings::presentationToLoadOnStartup());
 }
 
 Application* Application::_instance = nullptr;
@@ -254,8 +254,8 @@ void Application::setupQmlSettingsTypes()
     auto imageProvider = [](QQmlEngine*, QJSEngine*) -> QObject* { return ImageSettings::self(); };
     qmlRegisterSingletonType<ImageSettings>("org.ctoolbox.cplay", 1, 0, "ImageSettings", imageProvider);
 
-    auto layerProvider = [](QQmlEngine*, QJSEngine*) -> QObject* { return LayerSettings::self(); };
-    qmlRegisterSingletonType<LocationSettings>("org.ctoolbox.cplay", 1, 0, "LayerSettings", layerProvider);
+    auto layerProvider = [](QQmlEngine*, QJSEngine*) -> QObject* { return PresentationSettings::self(); };
+    qmlRegisterSingletonType<LocationSettings>("org.ctoolbox.cplay", 1, 0, "PresentationSettings", layerProvider);
 
     auto locationProvider = [](QQmlEngine*, QJSEngine*) -> QObject* { return LocationSettings::self(); };
     qmlRegisterSingletonType<LocationSettings>("org.ctoolbox.cplay", 1, 0, "LocationSettings", locationProvider);

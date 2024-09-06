@@ -13,25 +13,25 @@
         <file>qt5/Menus/SettingsMenu.qml</file>
         <file alias="AudioSettings.qml">qt5/Settings/AudioSettings.qml</file>
         <file alias="GridSettings.qml">qt5/Settings/GridSettings.qml</file>
-		<file alias="ImageSettings.qml">qt5/Settings/ImageSettings.qml</file>
-		<file alias="LayerSettings.qml">qt5/Settings/LayerSettings.qml</file>
-		<file alias="LocationSettings.qml">qt5/Settings/LocationSettings.qml</file>
+        <file alias="ImageSettings.qml">qt5/Settings/ImageSettings.qml</file>
+        <file alias="LocationSettings.qml">qt5/Settings/LocationSettings.qml</file>
         <file alias="MouseSettings.qml">qt5/Settings/MouseSettings.qml</file>
         <file alias="Navigation.qml">qt5/Settings/Navigation.qml</file>
         <file alias="PlaybackSettings.qml">qt5/Settings/PlaybackSettings.qml</file>
         <file alias="PlaylistSettings.qml">qt5/Settings/PlaylistSettings.qml</file>
-		<file alias="UserInterfaceSettings.qml">qt5/Settings/UserInterfaceSettings.qml</file>
-		<file>qt5/Settings/SettingsEditor.qml</file>
-		<file>qt5/Actions.qml</file>
+        <file alias="PresentationSettings.qml">qt5/Settings/PresentationSettings.qml</file>
+        <file alias="UserInterfaceSettings.qml">qt5/Settings/UserInterfaceSettings.qml</file>
+        <file>qt5/Settings/SettingsEditor.qml</file>
+        <file>qt5/Actions.qml</file>
         <file>qt5/Footer.qml</file>
         <file>qt5/HProgressBar.qml</file>
-		<file>qt5/Header.qml</file>
-		<file>qt5/Layers.qml</file>
-		<file>qt5/LayersAddNew.qml</file>
-		<file>qt5/LayersItemCompact.qml</file>
-		<file>qt5/LayerView.qml</file>
-		<file>qt5/Slides.qml</file>
-		<file>qt5/SlidesItemCompact.qml</file>
+        <file>qt5/Header.qml</file>
+        <file>qt5/Layers.qml</file>
+        <file>qt5/LayersAddNew.qml</file>
+        <file>qt5/LayersItemCompact.qml</file>
+        <file>qt5/LayerView.qml</file>
+        <file>qt5/Slides.qml</file>
+        <file>qt5/SlidesItemCompact.qml</file>
         <file>qt5/MpvVideo.qml</file>
         <file>qt5/Osd.qml</file>
         <file>qt5/PlayList.qml</file>
@@ -42,8 +42,8 @@
         <file>qt5/PlaySectionsItemCompact.qml</file>
         <file>qt5/VisibilitySlider.qml</file>
         <file>qt5/BackgroundImage.qml</file>
-		<file>qt5/ForegroundImage.qml</file>
-		<file>qt5/SaveAsCPlayFile.qml</file>
-		<file>qt5/ViewPlaylistItem.qml</file>
+        <file>qt5/ForegroundImage.qml</file>
+        <file>qt5/SaveAsCPlayFile.qml</file>
+        <file>qt5/ViewPlaylistItem.qml</file>
     </qresource>
 </RCC>

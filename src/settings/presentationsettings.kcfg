@@ -8,16 +8,19 @@
       xsi:schemaLocation="http://www.kde.org/standards/kcfg/1.0
                           http://www.kde.org/standards/kcfg/1.0/kcfg.xsd" >
   <kcfgfile name="C-Play/cplay.conf" />
-  <group name="Layers">
+  <group name="Presentation">
+    <entry name="PresentationToLoadOnStartup" type="String">
+      <label>A presentation to load at startup</label>
+    </entry>
   	<entry name="DefaultStereoModeForLayers" type="int">
       <label>The default stereoscopic mode for new layers</label>
       <default>0</default>
     </entry>
-	<entry name="DefaultGridModeForLayers" type="int">
+	  <entry name="DefaultGridModeForLayers" type="int">
       <label>The default grid mode for new layers</label>
       <default>1</default>
     </entry>
-	<entry name="DefaultLayerVisibility" type="int">
+	  <entry name="DefaultLayerVisibility" type="int">
       <label>The default visibility for new layers</label>
       <default>0</default>
     </entry>

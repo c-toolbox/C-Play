@@ -7,7 +7,7 @@
 
 #include "slidesmodel.h"
 #include "layersmodel.h"
-#include "layersettings.h"
+#include "presentationsettings.h"
 #include "locationsettings.h"
 #include <QFileInfo>
 #include <QDir>
@@ -264,6 +264,7 @@ void SlidesModel::clearSlides()
 {
     beginRemoveRows(QModelIndex(), 0, m_slides.size()-1);
     m_slides.clear();
+    m_masterSlide->clearLayers();
     endRemoveRows();
     setSlidesName(QStringLiteral(""));
     setSlidesPath(QStringLiteral(""));
@@ -323,6 +324,13 @@ void SlidesModel::loadFromJSONFile(const QString& path) {
     QString fileToOpen = path;
     fileToOpen.replace(QStringLiteral("file:///"), QStringLiteral(""));
 
+    QStringList pathsToConsider;
+    pathsToConsider.append(LocationSettings::cPlayMediaLocation());
+    pathsToConsider.append(LocationSettings::cPlayFileLocation());
+    pathsToConsider.append(LocationSettings::univiewVideoLocation());
+
+    fileToOpen = m_masterSlide->checkAndCorrectPath(fileToOpen, pathsToConsider);
+
     QFileInfo jsonFileInfo(fileToOpen);
     if (!jsonFileInfo.exists())
     {
@@ -350,13 +358,6 @@ void SlidesModel::loadFromJSONFile(const QString& path) {
     fileSearchPaths.append(LocationSettings::cPlayFileLocation());
     fileSearchPaths.append(LocationSettings::univiewVideoLocation());
 
-    if (obj.contains(QStringLiteral("master"))) {
-        m_masterSlide->clearLayers();
-        QJsonValue value = obj.value(QStringLiteral("master"));
-        QJsonObject o = value.toObject();
-        m_masterSlide->decodeFromJSON(o, fileSearchPaths);
-    }
-
     if (obj.contains(QStringLiteral("slides"))) {
         clearSlides();
         QJsonValue value = obj.value(QStringLiteral("slides"));
@@ -368,6 +369,14 @@ void SlidesModel::loadFromJSONFile(const QString& path) {
         }
     }
 
+    if (obj.contains(QStringLiteral("master"))) {
+        m_masterSlide->clearLayers();
+        QJsonValue value = obj.value(QStringLiteral("master"));
+        QJsonObject o = value.toObject();
+        m_masterSlide->decodeFromJSON(o, fileSearchPaths);
+    }
+
+    setSelectedSlideIdx(-1);
     setSlidesPath(jsonFileInfo.absoluteFilePath());
     setSlidesName(jsonFileInfo.baseName());
     setSlidesNeedsSave(false);

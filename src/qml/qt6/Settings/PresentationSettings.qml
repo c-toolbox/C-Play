@@ -1,22 +1,40 @@
 /*
  * SPDX-FileCopyrightText:
- * 2021-2024 Erik Sundén <eriksunden85@gmail.com>
- * 2020 George Florea Bănuș <georgefb899@gmail.com>
+ * 2024 Erik Sundén <eriksunden85@gmail.com>
  *
  * SPDX-License-Identifier: GPL-3.0-or-later
  */
 
-import QtQuick 2.15
-import QtQuick.Layouts 1.15
-import QtQuick.Controls 2.15
+import QtQuick
+import QtQuick.Layouts
+import QtQuick.Controls
 import Qt.labs.platform 1.0 as Platform
 
-import org.kde.kirigami 2.15 as Kirigami
-import org.ctoolbox.cplay 1.0
-import Haruna.Components 1.0
+import org.kde.kirigami as Kirigami
+import org.ctoolbox.cplay
 
 SettingsBasePage {
     id: root
+
+    Platform.FileDialog {
+        id: presentationToLoadOnStartupDialog
+
+        folder: LocationSettings.cPlayFileLocation !== ""
+                ? app.pathToUrl(LocationSettings.cPlayFileLocation)
+                : app.pathToUrl(LocationSettings.fileDialogLastLocation)
+        title: "Choose presentation to load on startup"
+        fileMode: Platform.FileDialog.OpenFile
+        nameFilters: [ "C-Play presentation (*.cplaypres)" ]
+
+        onAccepted: {
+            var filePath = playerController.returnRelativeOrAbsolutePath(presentationToLoadOnStartupDialog.file.toString());
+            PresentationSettings.presentationToLoadOnStartup = filePath
+            PresentationSettings.save()
+
+            mpv.focus = true
+        }
+        onRejected: mpv.focus = true
+    }
 
     GridLayout {
         id: content
@@ -24,12 +42,47 @@ SettingsBasePage {
         columns: 3
 
         // ------------------------------------
-        // LAYERS PARAMETERS
+        // PRESENTATION PARAMETERS
         // --
 
         SettingsHeader {
-            text: qsTr("Layer settings")
+            text: qsTr("Presentation (Slides and Layers) settings")
             Layout.columnSpan: 3
+            Layout.fillWidth: true
+        }
+
+        Label {
+            text: qsTr("Presentation to load on startup:")
+        }
+        RowLayout {
+            TextField {
+                id: presentationToLoadOnStartupText
+                text: PresentationSettings.presentationToLoadOnStartup
+                placeholderText: "Path to presentation"
+                onEditingFinished: {
+                    PresentationSettings.presentationToLoadOnStartup = text
+                    PresentationSettings.save()
+                }
+
+                ToolTip {
+                    text: qsTr("Path to presentation")
+                }
+            }
+            ToolButton {
+                id: presentationToLoadOnStartupButton
+                text: ""
+                icon.name: "system-file-manager"
+                icon.height: 16
+                focusPolicy: Qt.NoFocus
+
+                onClicked: {
+                    presentationToLoadOnStartupDialog.open()
+                }
+            }
+            Layout.fillWidth: true
+        }
+        Item {
+            // spacer item
             Layout.fillWidth: true
         }
 
@@ -51,13 +104,13 @@ SettingsBasePage {
                 }
 
                 onActivated: {
-                    LayerSettings.defaultStereoModeForLayers = model.get(index).value
-                    LayerSettings.save()
+                    PresentationSettings.defaultStereoModeForLayers = model.get(index).value
+                    PresentationSettings.save()
                 }
 
                 Component.onCompleted: {
                     for (let i = 0; i < stereoscopicModeForNewLayer.count; ++i) {
-                        if (stereoscopicModeForNewLayer.get(i).value === LayerSettings.defaultStereoModeForLayers) {
+                        if (stereoscopicModeForNewLayer.get(i).value === PresentationSettings.defaultStereoModeForLayers) {
                             currentIndex = i
                             break
                         }
@@ -89,13 +142,13 @@ SettingsBasePage {
                 }
 
                 onActivated: {
-                    LayerSettings.defaultGridModeForLayers = model.get(index).value
-                    LayerSettings.save()
+                    PresentationSettings.defaultGridModeForLayers = model.get(index).value
+                    PresentationSettings.save()
                 }
 
                 Component.onCompleted: {
                     for (let i = 0; i < gridModeForNewLayer.count; ++i) {
-                        if (gridModeForNewLayer.get(i).value === LayerSettings.defaultGridModeForLayers) {
+                        if (gridModeForNewLayer.get(i).value === PresentationSettings.defaultGridModeForLayers) {
                             currentIndex = i
                             break
                         }
@@ -115,11 +168,11 @@ SettingsBasePage {
         SpinBox {
             from: 0
             to: 100
-            value: LayerSettings.defaultLayerVisibility
+            value: PresentationSettings.defaultLayerVisibility
             editable: true
             onValueChanged: {
-                LayerSettings.defaultLayerVisibility = value.toFixed(0)
-                LayerSettings.save()
+                PresentationSettings.defaultLayerVisibility = value.toFixed(0)
+                PresentationSettings.save()
             }
         }
         Item {

@@ -1,6 +1,6 @@
 /*
  * SPDX-FileCopyrightText:
- * 2024 Erik Sundén <eriksunden85@gmail.com>
+ * 2024 Erik Sundï¿½n <eriksunden85@gmail.com>
  *
  * SPDX-License-Identifier: GPL-3.0-or-later
  */
@@ -8,7 +8,7 @@
 #include "application.h"
 #include "slidesmodel.h"
 #include "layerqtitem.h"
-#include "layersettings.h"
+#include "presentationsettings.h"
 #include "layersmodel.h"
 
 #include <QtQuick/qquickwindow.h>
@@ -53,7 +53,7 @@ int LayerQtItem::layerStereoMode()
     if (m_layer)
         return m_layer->stereoMode();
     else
-        return LayerSettings::defaultStereoModeForLayers();
+        return PresentationSettings::defaultStereoModeForLayers();
 }
 
 void LayerQtItem::setLayerStereoMode(int mode)
@@ -69,7 +69,7 @@ int LayerQtItem::layerGridMode()
     if (m_layer)
         return m_layer->gridMode();
     else
-        return LayerSettings::defaultGridModeForLayers();
+        return PresentationSettings::defaultGridModeForLayers();
 }
 
 void LayerQtItem::setLayerGridMode(int mode)
@@ -85,7 +85,7 @@ int LayerQtItem::layerVisibility()
     if (m_layer)
         return static_cast<int>(m_layer->alpha() * 100.f);
     else
-        return LayerSettings::defaultLayerVisibility();
+        return PresentationSettings::defaultLayerVisibility();
 }
 
 void LayerQtItem::setLayerVisibility(int value) 

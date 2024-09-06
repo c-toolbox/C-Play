@@ -29,8 +29,8 @@ set(SOURCE_FILES
     layers/imagelayer.h
     layers/mpvlayer.cpp
     layers/mpvlayer.h
-	layerqtitem.cpp
-	layerqtitem.h
+    layerqtitem.cpp
+    layerqtitem.h
     layerrenderer.cpp
     layerrenderer.h
     layersmodel.cpp
@@ -45,9 +45,9 @@ set(SOURCE_FILES
     playlist/playlistitem.h
     playlist/playlistmodel.cpp
     playlist/playlistmodel.h
-	renderthread.cpp
+    renderthread.cpp
     renderthread.h
-	slidesmodel.cpp
+    slidesmodel.cpp
     slidesmodel.h
     track.cpp
     track.h
@@ -61,20 +61,20 @@ set(KCFCG_FILE_NAMES
     audiosettings
     gridsettings
     imagesettings
-	layersettings
     locationsettings
     mousesettings
     playbacksettings
     playlistsettings
+    presentationsettings
     userinterfacesettings
 )
 set(KCFCG_MOC_FILES "")
 set(KCFCG_FILES "")
 foreach(KCFCG_NAME ${KCFCG_FILE_NAMES})
-	set(KCFCG_FILE settings/${KCFCG_NAME}.kcfgc)
+    set(KCFCG_FILE settings/${KCFCG_NAME}.kcfgc)
     kconfig_add_kcfg_files(${TARGET_NAME} GENERATE_MOC ${KCFCG_FILE})
-	list(APPEND KCFCG_FILES ${KCFCG_FILE})
-	list(APPEND KCFCG_MOC_FILES ${CMAKE_CURRENT_BINARY_DIR}/${KCFCG_NAME}.moc)
+    list(APPEND KCFCG_FILES ${KCFCG_FILE})
+    list(APPEND KCFCG_MOC_FILES ${CMAKE_CURRENT_BINARY_DIR}/${KCFCG_NAME}.moc)
 endforeach()
 source_group(Kcfcg FILES ${KCFCG_FILES})
 source_group(${AUTO_SOURCE_NAME} FILES ${KCFCG_MOC_FILES})
@@ -119,12 +119,12 @@ if(BUILD_CPLAY_WITH_QT6)
         qml/qt6/Settings/AudioSettings.qml
         qml/qt6/Settings/GridSettings.qml
         qml/qt6/Settings/ImageSettings.qml
-		qml/qt6/Settings/LayerSettings.qml
         qml/qt6/Settings/LocationSettings.qml
         qml/qt6/Settings/MouseSettings.qml
         qml/qt6/Settings/Navigation.qml
         qml/qt6/Settings/PlaybackSettings.qml
         qml/qt6/Settings/PlaylistSettings.qml
+        qml/qt6/Settings/PresentationSettings.qml
         qml/qt6/Settings/UserInterfaceSettings.qml
         qml/qt6/Settings/SettingsEditor.qml
         qml/qt6/Actions.qml
@@ -141,10 +141,10 @@ if(BUILD_CPLAY_WITH_QT6)
         qml/qt6/PlaySectionsItemCompact.qml
         qml/qt6/VisibilitySlider.qml
         qml/qt6/Layers.qml
-		qml/qt6/LayersAddNew.qml
+        qml/qt6/LayersAddNew.qml
         qml/qt6/LayersItemCompact.qml
-		qml/qt6/LayerView.qml
-		qml/qt6/Slides.qml
+        qml/qt6/LayerView.qml
+        qml/qt6/Slides.qml
         qml/qt6/SlidesItemCompact.qml
         qml/qt6/BackgroundImage.qml
         qml/qt6/ForegroundImage.qml
@@ -158,21 +158,21 @@ if(BUILD_CPLAY_WITH_QT6)
         ${QML_SRC_FILES}
     )
     source_group(Qml FILES ${QML_SRC_FILES})
-	
-	set(RCC_FILE_DIR ${CMAKE_CURRENT_BINARY_DIR}/.rcc)
-	set(QMLCACHE_FILE_DIR ${RCC_FILE_DIR}/qmlcache)
-	set(QMLCACHE_FILES "")
-	foreach(QML_SRC_FILE ${QML_SRC_FILES})
-		string(REPLACE ".qml" "_qml.cpp" QML_CACHE_FILE ${QML_SRC_FILE})
-		list(APPEND QMLCACHE_FILES ${QMLCACHE_FILE_DIR}/C-Play_${QML_CACHE_FILE})
-	endforeach()
-	list(APPEND QMLCACHE_FILES ${RCC_FILE_DIR}/qrc_cplay_raw_qml_0.cpp)
-	list(APPEND QMLCACHE_FILES ${RCC_FILE_DIR}/qrc_C-Play_raw_qml_0.cpp)
-	list(APPEND QMLCACHE_FILES ${RCC_FILE_DIR}/qrc_qmake_org_ctoolbox_cplay.cpp)
-	list(APPEND QMLCACHE_FILES ${QMLCACHE_FILE_DIR}/C-Play_qml_loader_file_list.cpp)
-	list(APPEND QMLCACHE_FILES ${QMLCACHE_FILE_DIR}/C-Play_qmlcache_loader.cpp)
-	list(APPEND QMLCACHE_FILES ${CMAKE_CURRENT_BINARY_DIR}/C-play_qmltyperegistrations.cpp)
-	source_group(${AUTO_SOURCE_NAME} FILES ${QMLCACHE_FILES})
+    
+    set(RCC_FILE_DIR ${CMAKE_CURRENT_BINARY_DIR}/.rcc)
+    set(QMLCACHE_FILE_DIR ${RCC_FILE_DIR}/qmlcache)
+    set(QMLCACHE_FILES "")
+    foreach(QML_SRC_FILE ${QML_SRC_FILES})
+        string(REPLACE ".qml" "_qml.cpp" QML_CACHE_FILE ${QML_SRC_FILE})
+        list(APPEND QMLCACHE_FILES ${QMLCACHE_FILE_DIR}/C-Play_${QML_CACHE_FILE})
+    endforeach()
+    list(APPEND QMLCACHE_FILES ${RCC_FILE_DIR}/qrc_cplay_raw_qml_0.cpp)
+    list(APPEND QMLCACHE_FILES ${RCC_FILE_DIR}/qrc_C-Play_raw_qml_0.cpp)
+    list(APPEND QMLCACHE_FILES ${RCC_FILE_DIR}/qrc_qmake_org_ctoolbox_cplay.cpp)
+    list(APPEND QMLCACHE_FILES ${QMLCACHE_FILE_DIR}/C-Play_qml_loader_file_list.cpp)
+    list(APPEND QMLCACHE_FILES ${QMLCACHE_FILE_DIR}/C-Play_qmlcache_loader.cpp)
+    list(APPEND QMLCACHE_FILES ${CMAKE_CURRENT_BINARY_DIR}/C-play_qmltyperegistrations.cpp)
+    source_group(${AUTO_SOURCE_NAME} FILES ${QMLCACHE_FILES})
 
     set(TARGET_LIBRARIES
         Qt6::Core
@@ -197,13 +197,13 @@ if(BUILD_CPLAY_WITH_QT6)
         sgct
         glm
     )
-	
-	set_target_properties(all_qmltyperegistrations PROPERTIES FOLDER ${AUTO_TARGET_NAME})
-	set_target_properties(${TARGET_NAME}_automoc_json_extraction PROPERTIES FOLDER ${AUTO_TARGET_NAME})
-	set_target_properties(${TARGET_NAME}_other_files PROPERTIES FOLDER ${AUTO_TARGET_NAME})
-	set_target_properties(${TARGET_NAME}_qmltyperegistration PROPERTIES FOLDER ${AUTO_TARGET_NAME})
-	set_target_properties(${TARGET_NAME}_tooling PROPERTIES FOLDER ${AUTO_TARGET_NAME})
-	set_target_properties(fetch-translations PROPERTIES FOLDER ${AUTO_TARGET_NAME})
+    
+    set_target_properties(all_qmltyperegistrations PROPERTIES FOLDER ${AUTO_TARGET_NAME})
+    set_target_properties(${TARGET_NAME}_automoc_json_extraction PROPERTIES FOLDER ${AUTO_TARGET_NAME})
+    set_target_properties(${TARGET_NAME}_other_files PROPERTIES FOLDER ${AUTO_TARGET_NAME})
+    set_target_properties(${TARGET_NAME}_qmltyperegistration PROPERTIES FOLDER ${AUTO_TARGET_NAME})
+    set_target_properties(${TARGET_NAME}_tooling PROPERTIES FOLDER ${AUTO_TARGET_NAME})
+    set_target_properties(fetch-translations PROPERTIES FOLDER ${AUTO_TARGET_NAME})
 
 else()
     set(QML_IMPORT_PATH "${CMAKE_CURRENT_SOURCE_DIR}/qml/qt5" CACHE STRING "Qt Creator 4.1 extra qml import paths" FORCE)
@@ -247,7 +247,7 @@ target_include_directories(${TARGET_NAME} PRIVATE playlist)
 target_compile_definitions(${TARGET_NAME} PRIVATE $<$<OR:$<CONFIG:Debug>,$<CONFIG:RelWithDebInfo>>:QT_QML_DEBUG>)
 
 if(WIN32)
-	set_target_properties(${TARGET_NAME} PROPERTIES WIN32_EXECUTABLE TRUE)
+    set_target_properties(${TARGET_NAME} PROPERTIES WIN32_EXECUTABLE TRUE)
 endif()
 
 if(BUILD_CPLAY_WITH_NDI)
@@ -312,7 +312,7 @@ if(CPLAY_INSTALL_DEPENDENCIES)
                 EXECUTABLES ${target}
                 PRE_EXCLUDE_REGEXES api-ms msvcp vcruntime kernel32
                 POST_EXCLUDE_REGEXES C:[/\\]Windows[/\\]
-				CONFLICTING_DEPENDENCIES_PREFIX CONFLICTING_DEPENDENCIES
+                CONFLICTING_DEPENDENCIES_PREFIX CONFLICTING_DEPENDENCIES
                 RESOLVED_DEPENDENCIES_VAR RESOLVED_DEPENDENCIES
                 UNRESOLVED_DEPENDENCIES_VAR UNRESOLVED_DEPENDENCIES
                 DIRECTORIES ${MY_DEPENDENCY_PATHS}
@@ -320,7 +320,7 @@ if(CPLAY_INSTALL_DEPENDENCIES)
             foreach(DEPENDENCY ${UNRESOLVED_DEPENDENCIES})
                 message(WARNING "Unable to resolve dependency ${DEPENDENCY}")
             endforeach()
-			foreach(DEPENDENCY ${CONFLICTING_DEPENDENCIES})
+            foreach(DEPENDENCY ${CONFLICTING_DEPENDENCIES})
                 message(WARNING "Conflicting dependency ${DEPENDENCY}")
             endforeach()
             message("Copying dependencies")
