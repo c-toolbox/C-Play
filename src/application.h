@@ -1,6 +1,6 @@
 /*
- * SPDX-FileCopyrightText: 
- * 2021-2024 Erik Sundén <eriksunden85@gmail.com> 
+ * SPDX-FileCopyrightText:
+ * 2021-2024 Erik Sundén <eriksunden85@gmail.com>
  * 2020 George Florea Bănuș <georgefb899@gmail.com>
  *
  * SPDX-License-Identifier: GPL-3.0-or-later
@@ -12,14 +12,14 @@
 #include <QAbstractItemModel>
 #include <QAction>
 #include <QApplication>
-#include <QQmlApplicationEngine>
-#include <QObject>
 #include <QElapsedTimer>
+#include <QObject>
+#include <QQmlApplicationEngine>
 
+#include "renderthread.h"
 #include <KAboutData>
 #include <KActionCollection>
 #include <KSharedConfig>
-#include "renderthread.h"
 
 class KActionCollection;
 class KConfigDialog;
@@ -30,21 +30,20 @@ class SlidesModel;
 #if QT_VERSION >= QT_VERSION_CHECK(6, 0, 0)
 #ifndef OPAQUE_PTR_SlidesModel
 #define OPAQUE_PTR_SlidesModel
-Q_DECLARE_OPAQUE_POINTER(SlidesModel*)
+Q_DECLARE_OPAQUE_POINTER(SlidesModel *)
 #endif
 #endif
 
-class Application : public QObject
-{
+class Application : public QObject {
     Q_OBJECT
-    Q_PROPERTY(QAbstractItemModel* colorSchemesModel READ colorSchemesModel CONSTANT)
+    Q_PROPERTY(QAbstractItemModel *colorSchemesModel READ colorSchemesModel CONSTANT)
     Q_PROPERTY(QUrl configFilePath READ configFilePath CONSTANT)
     Q_PROPERTY(QUrl configFolderPath READ configFolderPath CONSTANT)
 
 public:
     explicit Application(int &argc, char **argv, const QString &applicationName);
     static void create(int &argc, char **argv, const QString &applicationName);
-    static Application& instance();
+    static Application &instance();
     ~Application();
 
     int run();
@@ -60,7 +59,7 @@ public:
     Q_INVOKABLE void setGuiStyle(const QString &style);
     Q_INVOKABLE void activateColorScheme(const QString &name);
     Q_INVOKABLE void configureShortcuts();
-    Q_INVOKABLE void updateAboutOtherText(const QString& mpvVersion, const QString& ffmpegVersion);
+    Q_INVOKABLE void updateAboutOtherText(const QString &mpvVersion, const QString &ffmpegVersion);
     Q_INVOKABLE QString getStartupFile();
 
     static QString version();
@@ -75,10 +74,10 @@ public:
     int getFadeDurationSetting();
     void setStartupFile(std::string filePath);
 
-    Q_PROPERTY(SlidesModel* slides 
-        READ slidesModel 
-        NOTIFY slidesModelChanged)
-    SlidesModel* slidesModel();
+    Q_PROPERTY(SlidesModel *slides
+                   READ slidesModel
+                       NOTIFY slidesModelChanged)
+    SlidesModel *slidesModel();
 
 Q_SIGNALS:
     void slidesModelChanged();
@@ -93,7 +92,7 @@ private:
     void aboutApplication();
     void setupActions(const QString &actionName);
 
-    SlidesModel* m_slidesModel;
+    SlidesModel *m_slidesModel;
     QAbstractItemModel *colorSchemesModel();
     QApplication *m_app;
     QQmlApplicationEngine *m_engine;
@@ -107,11 +106,10 @@ private:
     QString m_startupFileFromCmd;
     RenderThread renderThread;
     QElapsedTimer fadeDurationTimer;
-    static Application* _instance;
+    static Application *_instance;
 };
 
-class SyncHelper
-{
+class SyncHelper {
 public:
     struct SyncVariables {
         std::string loadedFile;
@@ -164,7 +162,6 @@ public:
         bool loopTimeEnabled;
         double loopTimeA;
         double loopTimeB;
-
     };
 
     struct ConfigurationVariables {
@@ -176,68 +173,67 @@ public:
     SyncHelper();
     ~SyncHelper();
 
-    static SyncHelper& instance();
+    static SyncHelper &instance();
 
-    SyncVariables variables = {         
-        /*loadedFile*/"",
-        /*overlayFile*/"",
-        /*bgImageFile*/"",
-        /*fgImageFile*/"",
-        /*loadFile*/false,
-        /*overlayFileDirty*/false,
-        /*bgImageFileDirty*/false,
-        /*fgImageFileDirty*/false,
-        /*paused*/false,
-        /*timePosition*/0.0,
-        /*timeThreshold*/1.0,
-        /*timeThresholdEnabled*/false,
-        /*timeThresholdOnLoopOnly*/false,
-        /*timeThresholdOnLoopCheckTime*/1.0,
-        /*timeDirty*/false,
-        /*syncOn*/true,
-        /*alpha*/1.f,
-        /*alphaBg*/1.f,
-        /*alphaFg*/0.f,
-        /*gridToMapOn*/0,
-        /*gridToMapOnBg*/0,
-        /*gridToMapOnFg*/0,
-        /*stereoscopicMode*/0,
-        /*stereoscopicModeBg*/0,
-        /*stereoscopicModeFg*/0,
-        /*eofMode*/0,
-        /*viewMode*/0,
-        /*radius*/740,
-        /*fov*/165,
-        /*angle*/27.f,
-        /*rotateX*/0,
-        /*rotateY*/0,
-        /*rotateZ*/0,
-        /*translateX*/0,
-        /*translateY*/0,
-        /*translateZ*/0,
-        /*planeWidth*/0,
-        /*planeHeight*/0,
-        /*planeElevation*/0,
-        /*planeElevation*/0,
-        /*planeConsiderAspectRatio*/0,
-        /*eqDirty*/false,
-        /*eqContrast*/0,
-        /*eqBrightness*/0,
-        /*eqGamma*/0,
-        /*eqSaturation*/0,
-        /*loopTimeDirty*/false,
-        /*loopTimeEnabled*/false,
-        /*loopTimeA*/0,
-        /*loopTimeB*/0 };
+    SyncVariables variables = {
+        /*loadedFile*/ "",
+        /*overlayFile*/ "",
+        /*bgImageFile*/ "",
+        /*fgImageFile*/ "",
+        /*loadFile*/ false,
+        /*overlayFileDirty*/ false,
+        /*bgImageFileDirty*/ false,
+        /*fgImageFileDirty*/ false,
+        /*paused*/ false,
+        /*timePosition*/ 0.0,
+        /*timeThreshold*/ 1.0,
+        /*timeThresholdEnabled*/ false,
+        /*timeThresholdOnLoopOnly*/ false,
+        /*timeThresholdOnLoopCheckTime*/ 1.0,
+        /*timeDirty*/ false,
+        /*syncOn*/ true,
+        /*alpha*/ 1.f,
+        /*alphaBg*/ 1.f,
+        /*alphaFg*/ 0.f,
+        /*gridToMapOn*/ 0,
+        /*gridToMapOnBg*/ 0,
+        /*gridToMapOnFg*/ 0,
+        /*stereoscopicMode*/ 0,
+        /*stereoscopicModeBg*/ 0,
+        /*stereoscopicModeFg*/ 0,
+        /*eofMode*/ 0,
+        /*viewMode*/ 0,
+        /*radius*/ 740,
+        /*fov*/ 165,
+        /*angle*/ 27.f,
+        /*rotateX*/ 0,
+        /*rotateY*/ 0,
+        /*rotateZ*/ 0,
+        /*translateX*/ 0,
+        /*translateY*/ 0,
+        /*translateZ*/ 0,
+        /*planeWidth*/ 0,
+        /*planeHeight*/ 0,
+        /*planeElevation*/ 0,
+        /*planeElevation*/ 0,
+        /*planeConsiderAspectRatio*/ 0,
+        /*eqDirty*/ false,
+        /*eqContrast*/ 0,
+        /*eqBrightness*/ 0,
+        /*eqGamma*/ 0,
+        /*eqSaturation*/ 0,
+        /*loopTimeDirty*/ false,
+        /*loopTimeEnabled*/ false,
+        /*loopTimeA*/ 0,
+        /*loopTimeB*/ 0};
 
     ConfigurationVariables configuration = {
-        /*confAll*/"./data/mpv-conf/default/all.json",
-        /*confMasterOnly*/"./data/mpv-conf/default/master-only.json",
-        /*confNodesOnly*/"./data/mpv-conf/default/nodes-only.json" };
+        /*confAll*/ "./data/mpv-conf/default/all.json",
+        /*confMasterOnly*/ "./data/mpv-conf/default/master-only.json",
+        /*confNodesOnly*/ "./data/mpv-conf/default/nodes-only.json"};
 
 private:
-    static SyncHelper* _instance;
-
+    static SyncHelper *_instance;
 };
 
 #endif // APPLICATION_H

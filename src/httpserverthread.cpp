@@ -6,24 +6,21 @@
 #include <QJsonDocument>
 #include <QJsonObject>
 
-
 std::string formatTime(double timeInSeconds, std::string format = "hh:mm:ss/zz") {
     QTime t(0, 0, 0);
     QString formatQ = QString::fromStdString(format);
-    QString formattedTime = t.addMSecs(static_cast<qint64>(timeInSeconds*1000)).toString(formatQ);
+    QString formattedTime = t.addMSecs(static_cast<qint64>(timeInSeconds * 1000)).toString(formatQ);
     return formattedTime.toStdString();
 }
 
 HttpServerThread::HttpServerThread(QObject *parent)
-    : QThread(parent), 
-    runServer(false), 
-    portServer(7007),
-    m_mpv(nullptr)
-{
+    : QThread(parent),
+      runServer(false),
+      portServer(7007),
+      m_mpv(nullptr) {
 }
 
-HttpServerThread::~HttpServerThread()
-{
+HttpServerThread::~HttpServerThread() {
     mutex.lock();
     abort = true;
     condition.wakeOne();
@@ -32,8 +29,7 @@ HttpServerThread::~HttpServerThread()
     wait();
 }
 
-void HttpServerThread::setupHttpServer()
-{
+void HttpServerThread::setupHttpServer() {
     QFile httpServerConfFile(QStringLiteral("./data/http-server-conf.json"));
 
     if (!httpServerConfFile.open(QIODevice::ReadOnly)) {
@@ -49,8 +45,7 @@ void HttpServerThread::setupHttpServer()
     QString runServerStr = QStringLiteral("");
     if (httpServerConf.contains(QStringLiteral("run"))) {
         runServerStr = httpServerConf.value(QStringLiteral("run")).toString();
-    }
-    else {
+    } else {
         qWarning("Couldn't find run parameter in http server configuration file.");
         runServer = false;
         return;
@@ -58,39 +53,38 @@ void HttpServerThread::setupHttpServer()
 
     if (httpServerConf.contains(QStringLiteral("port"))) {
         portServer = httpServerConf.value(QStringLiteral("port")).toInt();
-    }
-    else {
+    } else {
         qWarning("Couldn't find port parameter in http server configuration file.");
         runServer = false;
         return;
     }
 
     if (runServerStr == QStringLiteral("yes")) {
-        svr.Post("/status", [this](const httplib::Request&, httplib::Response& res) {
+        svr.Post("/status", [this](const httplib::Request &, httplib::Response &res) {
             res.set_content("OK", "text/plain");
         });
 
-        svr.Post("/play", [this](const httplib::Request&, httplib::Response& res) {
+        svr.Post("/play", [this](const httplib::Request &, httplib::Response &res) {
             Q_EMIT playMedia();
             res.set_content("Play", "text/plain");
         });
 
-        svr.Post("/pause", [this](const httplib::Request&, httplib::Response& res) {
+        svr.Post("/pause", [this](const httplib::Request &, httplib::Response &res) {
             Q_EMIT pauseMedia();
             res.set_content("Pause", "text/plain");
         });
 
-        svr.Post("/stop", [this](const httplib::Request&, httplib::Response& res) {
+        svr.Post("/stop", [this](const httplib::Request &, httplib::Response &res) {
             Q_EMIT rewindMedia();
             res.set_content("Stop/rewind", "text/plain");
         });
 
-        svr.Post("/rewind", [this](const httplib::Request&, httplib::Response& res) {
+        svr.Post("/rewind", [this](const httplib::Request &, httplib::Response &res) {
             Q_EMIT rewindMedia();
             res.set_content("Stop/rewind", "text/plain");
         });
 
-        svr.Post("/position", [this](const httplib::Request& req, httplib::Response& res) {
+        svr.Post("/position", [this](const httplib::Request &req, httplib::Response &res) {
             if (req.has_param("set")) {
                 setPositionFromStr(req.get_param_value("set"));
             }
@@ -98,345 +92,302 @@ void HttpServerThread::setupHttpServer()
             if (m_mpv) {
                 if (req.has_param("format")) {
                     res.set_content(formatTime(m_mpv->position(), req.get_param_value("format")), "text/plain");
-                }
-                else {
+                } else {
                     res.set_content(std::to_string(m_mpv->position()), "text/plain");
                 }
-            }
-            else {
+            } else {
                 res.set_content("0", "text/plain");
             }
         });
 
-        svr.Post("/seek", [this](const httplib::Request& req, httplib::Response& res) {
+        svr.Post("/seek", [this](const httplib::Request &req, httplib::Response &res) {
             if (req.has_param("time")) {
                 int timeInSec = 0;
                 if (stringToInt(req.get_param_value("time"), timeInSec)) {
                     Q_EMIT seekInMedia(timeInSec);
                     if (m_mpv) {
                         if (req.has_param("format")) {
-                            res.set_content(formatTime(m_mpv->position()+timeInSec, req.get_param_value("format")), "text/plain");
+                            res.set_content(formatTime(m_mpv->position() + timeInSec, req.get_param_value("format")), "text/plain");
+                        } else {
+                            res.set_content(std::to_string(m_mpv->position() + timeInSec), "text/plain");
                         }
-                        else {
-                            res.set_content(std::to_string(m_mpv->position()+timeInSec), "text/plain");
-                        }
-                    }
-                    else {
+                    } else {
                         res.set_content("Seeking " + req.get_param_value("time") + " s", "text / plain");
                     }
-                }
-                else {
+                } else {
                     res.set_content("Supply parameter time with a positive or negative value (in seconds)", "text/plain");
                 }
-            }
-            else {
+            } else {
                 res.set_content("Supply parameter time with a positive or negative value (in seconds)", "text/plain");
             }
         });
 
-        svr.Post("/remaining", [this](const httplib::Request& req, httplib::Response& res) {
+        svr.Post("/remaining", [this](const httplib::Request &req, httplib::Response &res) {
             if (m_mpv) {
                 if (req.has_param("format")) {
                     res.set_content(formatTime(m_mpv->remaining(), req.get_param_value("format")), "text/plain");
-                }
-                else {
+                } else {
                     res.set_content(std::to_string(m_mpv->remaining()), "text/plain");
                 }
-            }
-            else {
+            } else {
                 res.set_content("0", "text/plain");
             }
         });
 
-        svr.Post("/duration", [this](const httplib::Request& req, httplib::Response& res) {
+        svr.Post("/duration", [this](const httplib::Request &req, httplib::Response &res) {
             if (m_mpv) {
                 if (req.has_param("format")) {
                     res.set_content(formatTime(m_mpv->duration(), req.get_param_value("format")), "text/plain");
-                }
-                else {
+                } else {
                     res.set_content(std::to_string(m_mpv->duration()), "text/plain");
                 }
-            }
-            else {
+            } else {
                 res.set_content("0", "text/plain");
             }
         });
 
-        svr.Post("/auto_play", [this](const httplib::Request& req, httplib::Response& res) {
+        svr.Post("/auto_play", [this](const httplib::Request &req, httplib::Response &res) {
             if (req.has_param("on")) {
                 int value = -1;
                 if (stringToInt(req.get_param_value("on"), value)) {
                     if (value == 1) {
                         Q_EMIT setAutoPlay(true);
                         res.set_content("Auto-play is On", "text/plain");
-                    }
-                    else if (value == 0) {
+                    } else if (value == 0) {
                         Q_EMIT setAutoPlay(false);
                         res.set_content("Auto-play is Off", "text/plain");
-                    }
-                    else {
+                    } else {
                         res.set_content("Supply parameter on with value 0 or 1", "text/plain");
                     }
-                }
-                else {
+                } else {
                     res.set_content("Supply parameter on with value 0 or 1", "text/plain");
                 }
-            }
-            else {
+            } else {
                 if (m_mpv) {
                     if (m_mpv->autoPlay()) {
                         res.set_content("1", "text/plain");
-                    }
-                    else {
+                    } else {
                         res.set_content("0", "text/plain");
                     }
-                }
-                else {
+                } else {
                     res.set_content("0", "text/plain");
                 }
             }
         });
 
-        svr.Post("/volume", [this](const httplib::Request& req, httplib::Response& res) {
+        svr.Post("/volume", [this](const httplib::Request &req, httplib::Response &res) {
             if (req.has_param("level")) {
                 setVolumeFromStr(req.get_param_value("level"));
             }
-            
-            if(m_mpv){
+
+            if (m_mpv) {
                 res.set_content(std::to_string(m_mpv->volume()), "text/plain");
-            }
-            else {
+            } else {
                 res.set_content("0", "text/plain");
             }
         });
 
-        svr.Post("/fade_duration", [this](const httplib::Request& req, httplib::Response& res) {
+        svr.Post("/fade_duration", [this](const httplib::Request &req, httplib::Response &res) {
             double fadeDurationTime = double(PlaybackSettings::fadeDuration()) / 1000.0;
             if (req.has_param("format")) {
                 res.set_content(formatTime(fadeDurationTime, req.get_param_value("format")), "text/plain");
-            }
-            else {
+            } else {
                 res.set_content(std::to_string(fadeDurationTime), "text/plain");
             }
         });
 
-        svr.Post("/fade_volume_down", [this](const httplib::Request&, httplib::Response& res) {
+        svr.Post("/fade_volume_down", [this](const httplib::Request &, httplib::Response &res) {
             Q_EMIT fadeVolumeDown();
             res.set_content("Fading volume down", "text/plain");
         });
 
-        svr.Post("/fade_volume_up", [this](const httplib::Request&, httplib::Response& res) {
+        svr.Post("/fade_volume_up", [this](const httplib::Request &, httplib::Response &res) {
             Q_EMIT fadeVolumeUp();
             res.set_content("Fading volume up", "text/plain");
         });
 
-        svr.Post("/fade_image_down", [this](const httplib::Request&, httplib::Response& res) {
+        svr.Post("/fade_image_down", [this](const httplib::Request &, httplib::Response &res) {
             Q_EMIT fadeImageDown();
             res.set_content("Fading image down", "text/plain");
         });
 
-        svr.Post("/fade_image_up", [this](const httplib::Request&, httplib::Response& res) {
+        svr.Post("/fade_image_up", [this](const httplib::Request &, httplib::Response &res) {
             Q_EMIT fadeImageUp();
             res.set_content("Fading image up", "text/plain");
         });
 
-        svr.Post("/sync_image_volume_fade", [this](const httplib::Request& req, httplib::Response& res) {
+        svr.Post("/sync_image_volume_fade", [this](const httplib::Request &req, httplib::Response &res) {
             if (req.has_param("value")) {
                 std::string valueStr = req.get_param_value("value");
                 setSyncImageFadingFromStr(valueStr);
                 res.set_content("Setting syncImageVolumeFade to " + valueStr, "text/plain");
-            }
-            else {
+            } else {
                 if (m_mpv) {
                     res.set_content(std::to_string(m_mpv->syncVolumeVisibilityFading()), "text/plain");
-                }
-                else {
+                } else {
                     res.set_content("0", "text/plain");
                 }
             }
         });
 
-        svr.Post("/visibility", [this](const httplib::Request&, httplib::Response& res) {
+        svr.Post("/visibility", [this](const httplib::Request &, httplib::Response &res) {
             if (m_mpv) {
                 res.set_content(std::to_string(m_mpv->visibility()), "text/plain");
-            }
-            else {
+            } else {
                 res.set_content("0", "text/plain");
             }
         });
 
-        svr.Post("/stereo_mode", [this](const httplib::Request&, httplib::Response& res) {
+        svr.Post("/stereo_mode", [this](const httplib::Request &, httplib::Response &res) {
             if (m_mpv) {
                 res.set_content(std::to_string(m_mpv->stereoscopicMode()), "text/plain");
-            }
-            else {
+            } else {
                 res.set_content("0", "text/plain");
             }
         });
 
-        svr.Post("/grid_mode", [this](const httplib::Request&, httplib::Response& res) {
+        svr.Post("/grid_mode", [this](const httplib::Request &, httplib::Response &res) {
             if (m_mpv) {
                 res.set_content(std::to_string(m_mpv->gridToMapOn()), "text/plain");
-            }
-            else {
+            } else {
                 res.set_content("0", "text/plain");
             }
         });
 
-        svr.Post("/background_image", [this](const httplib::Request& req, httplib::Response& res) {
+        svr.Post("/background_image", [this](const httplib::Request &req, httplib::Response &res) {
             if (req.has_param("on")) {
                 int value = -1;
                 if (stringToInt(req.get_param_value("on"), value)) {
                     if (value == 1) {
                         Q_EMIT setBackgroundVisibility(1.f);
                         res.set_content("Background image is On", "text/plain");
-                    }
-                    else if (value == 0) {
+                    } else if (value == 0) {
                         Q_EMIT setBackgroundVisibility(0.f);
                         res.set_content("Background image is Off", "text/plain");
-                    }
-                    else {
+                    } else {
                         res.set_content("Supply parameter on with value 0 or 1", "text/plain");
                     }
-                }
-                else {
+                } else {
                     res.set_content("Supply parameter on with value 0 or 1", "text/plain");
                 }
-            }
-            else {
-                PlayerController* playctrl = qobject_cast<PlayerController*>(parent());
+            } else {
+                PlayerController *playctrl = qobject_cast<PlayerController *>(parent());
                 if (playctrl) {
                     if (playctrl->backgroundVisibility() == 0.f) {
                         res.set_content("0", "text/plain");
-                    }
-                    else {
+                    } else {
                         res.set_content("1", "text/plain");
                     }
-                }
-                else {
+                } else {
                     res.set_content("0", "text/plain");
                 }
             }
         });
 
-        svr.Post("/background_image_stereo_mode", [this](const httplib::Request&, httplib::Response& res) {
-            PlayerController* playctrl = qobject_cast<PlayerController*>(parent());
+        svr.Post("/background_image_stereo_mode", [this](const httplib::Request &, httplib::Response &res) {
+            PlayerController *playctrl = qobject_cast<PlayerController *>(parent());
             if (playctrl) {
                 res.set_content(std::to_string(playctrl->backgroundStereoMode()), "text/plain");
-            }
-            else {
+            } else {
                 res.set_content("0", "text/plain");
             }
         });
 
-        svr.Post("/background_image_grid_mode", [this](const httplib::Request&, httplib::Response& res) {
-            PlayerController* playctrl = qobject_cast<PlayerController*>(parent());
+        svr.Post("/background_image_grid_mode", [this](const httplib::Request &, httplib::Response &res) {
+            PlayerController *playctrl = qobject_cast<PlayerController *>(parent());
             if (playctrl) {
                 res.set_content(std::to_string(playctrl->backgroundGridMode()), "text/plain");
-            }
-            else {
+            } else {
                 res.set_content("0", "text/plain");
             }
         });
 
-        svr.Post("/foreground_image", [this](const httplib::Request& req, httplib::Response& res) {
+        svr.Post("/foreground_image", [this](const httplib::Request &req, httplib::Response &res) {
             if (req.has_param("on")) {
                 int value = -1;
                 if (stringToInt(req.get_param_value("on"), value)) {
                     if (value == 1) {
                         Q_EMIT setForegroundVisibility(1.f);
                         res.set_content("Foreground image is On", "text/plain");
-                    }
-                    else if (value == 0) {
+                    } else if (value == 0) {
                         Q_EMIT setForegroundVisibility(0.f);
                         res.set_content("Foreground image is Off", "text/plain");
-                    }
-                    else {
+                    } else {
                         res.set_content("Supply parameter on with value 0 or 1", "text/plain");
                     }
-                }
-                else {
+                } else {
                     res.set_content("Supply parameter on with value 0 or 1", "text/plain");
                 }
-            }
-            else {
-                PlayerController* playctrl = qobject_cast<PlayerController*>(parent());
+            } else {
+                PlayerController *playctrl = qobject_cast<PlayerController *>(parent());
                 if (playctrl) {
                     if (playctrl->foregroundVisibility() == 0.f) {
                         res.set_content("0", "text/plain");
-                    }
-                    else {
+                    } else {
                         res.set_content("1", "text/plain");
                     }
-                }
-                else {
+                } else {
                     res.set_content("0", "text/plain");
                 }
             }
         });
 
-        svr.Post("/foreground_image_stereo_mode", [this](const httplib::Request&, httplib::Response& res) {
-            PlayerController* playctrl = qobject_cast<PlayerController*>(parent());
+        svr.Post("/foreground_image_stereo_mode", [this](const httplib::Request &, httplib::Response &res) {
+            PlayerController *playctrl = qobject_cast<PlayerController *>(parent());
             if (playctrl) {
                 res.set_content(std::to_string(playctrl->foregroundStereoMode()), "text/plain");
-            }
-            else {
+            } else {
                 res.set_content("0", "text/plain");
             }
         });
 
-        svr.Post("/foreground_image_grid_mode", [this](const httplib::Request&, httplib::Response& res) {
-            PlayerController* playctrl = qobject_cast<PlayerController*>(parent());
+        svr.Post("/foreground_image_grid_mode", [this](const httplib::Request &, httplib::Response &res) {
+            PlayerController *playctrl = qobject_cast<PlayerController *>(parent());
             if (playctrl) {
                 res.set_content(std::to_string(playctrl->foregroundGridMode()), "text/plain");
-            }
-            else {
+            } else {
                 res.set_content("0", "text/plain");
             }
         });
 
-        svr.Post("/eof_mode", [this](const httplib::Request&, httplib::Response& res) {
+        svr.Post("/eof_mode", [this](const httplib::Request &, httplib::Response &res) {
             if (m_mpv) {
                 res.set_content(std::to_string(m_mpv->eofMode()), "text/plain");
-            }
-            else {
+            } else {
                 res.set_content("0", "text/plain");
             }
         });
 
-        svr.Post("/loop_mode", [this](const httplib::Request&, httplib::Response& res) {
+        svr.Post("/loop_mode", [this](const httplib::Request &, httplib::Response &res) {
             if (m_mpv) {
                 res.set_content(std::to_string(m_mpv->eofMode()), "text/plain");
-            }
-            else {
+            } else {
                 res.set_content("0", "text/plain");
             }
         });
 
-        svr.Post("/view_mode", [this](const httplib::Request& req, httplib::Response& res) {
+        svr.Post("/view_mode", [this](const httplib::Request &req, httplib::Response &res) {
             if (req.has_param("mode")) {
                 setViewModeFromStr(req.get_param_value("mode"));
             }
 
-            PlayerController* playctrl = qobject_cast<PlayerController*>(parent());
+            PlayerController *playctrl = qobject_cast<PlayerController *>(parent());
             if (playctrl) {
                 res.set_content(std::to_string(playctrl->getViewModeOnClients()), "text/plain");
-            }
-            else {
+            } else {
                 res.set_content("0", "text/plain");
             }
         });
 
-        svr.Post("/media_title", [this](const httplib::Request&, httplib::Response& res) {
+        svr.Post("/media_title", [this](const httplib::Request &, httplib::Response &res) {
             if (m_mpv) {
                 res.set_content(m_mpv->mediaTitle().toStdString(), "text/plain");
-            }
-            else {
+            } else {
                 res.set_content("", "text/plain");
             }
         });
 
-        svr.Post("/audiotracks", [this](const httplib::Request& req, httplib::Response& res) {
+        svr.Post("/audiotracks", [this](const httplib::Request &req, httplib::Response &res) {
             std::string charsPerItem = "";
             std::string removeLoadedFilePrefix = "";
             if (req.has_param("charsPerItem")) {
@@ -448,11 +399,11 @@ void HttpServerThread::setupHttpServer()
             res.set_content(getAudioTracksItems(charsPerItem, removeLoadedFilePrefix), "text/plain");
         });
 
-        svr.Post("/playing_in_audiotracks", [this](const httplib::Request&, httplib::Response& res) {
+        svr.Post("/playing_in_audiotracks", [this](const httplib::Request &, httplib::Response &res) {
             res.set_content(getPlaylingItemIndexFromAudioTracks(), "text/plain");
         });
 
-        svr.Post("/load_from_audiotracks", [this](const httplib::Request& req, httplib::Response& res) {
+        svr.Post("/load_from_audiotracks", [this](const httplib::Request &req, httplib::Response &res) {
             if (req.has_param("index")) {
                 std::string indexStr = req.get_param_value("index");
                 res.set_content(LoadIndexFromAudioTracks(indexStr), "text/plain");
@@ -460,19 +411,19 @@ void HttpServerThread::setupHttpServer()
             res.set_content("Missing index parameter", "text/plain");
         });
 
-        svr.Post("/playlist", [this](const httplib::Request& req, httplib::Response& res) {
+        svr.Post("/playlist", [this](const httplib::Request &req, httplib::Response &res) {
             std::string charsPerItem = "";
-            if(req.has_param("charsPerItem")) {
+            if (req.has_param("charsPerItem")) {
                 charsPerItem = req.get_param_value("charsPerItem");
             }
             res.set_content(getPlayListItems(charsPerItem), "text/plain");
         });
 
-        svr.Post("/playing_in_playlist", [this](const httplib::Request&, httplib::Response& res) {
+        svr.Post("/playing_in_playlist", [this](const httplib::Request &, httplib::Response &res) {
             res.set_content(getPlaylingItemIndexFromPlaylist(), "text/plain");
         });
 
-        svr.Post("/load_from_playlist", [this](const httplib::Request& req, httplib::Response& res) {
+        svr.Post("/load_from_playlist", [this](const httplib::Request &req, httplib::Response &res) {
             if (req.has_param("index")) {
                 std::string indexStr = req.get_param_value("index");
                 res.set_content(LoadIndexFromPlaylist(indexStr), "text/plain");
@@ -480,7 +431,7 @@ void HttpServerThread::setupHttpServer()
             res.set_content("Missing index parameter", "text/plain");
         });
 
-        svr.Post("/sections", [this](const httplib::Request& req, httplib::Response& res) {
+        svr.Post("/sections", [this](const httplib::Request &req, httplib::Response &res) {
             std::string charsPerItem = "";
             if (req.has_param("charsPerItem")) {
                 charsPerItem = req.get_param_value("charsPerItem");
@@ -488,11 +439,11 @@ void HttpServerThread::setupHttpServer()
             res.set_content(getSectionsItems(charsPerItem), "text/plain");
         });
 
-        svr.Post("/playing_in_sections", [this](const httplib::Request&, httplib::Response& res) {
+        svr.Post("/playing_in_sections", [this](const httplib::Request &, httplib::Response &res) {
             res.set_content(getPlaylingItemIndexFromSections(), "text/plain");
         });
 
-        svr.Post("/load_from_sections", [this](const httplib::Request& req, httplib::Response& res) {
+        svr.Post("/load_from_sections", [this](const httplib::Request &req, httplib::Response &res) {
             if (req.has_param("index")) {
                 std::string indexStr = req.get_param_value("index");
                 res.set_content(LoadIndexFromSections(indexStr), "text/plain");
@@ -500,65 +451,57 @@ void HttpServerThread::setupHttpServer()
             res.set_content("Missing index parameter", "text/plain");
         });
 
-        svr.Post("/section_start_time", [this](const httplib::Request& req, httplib::Response& res) {
+        svr.Post("/section_start_time", [this](const httplib::Request &req, httplib::Response &res) {
             if (m_mpv) {
                 int playingIndex = m_mpv->getPlaySectionsModel()->getPlayingSection();
                 if (playingIndex >= 0) {
                     double startTime = m_mpv->getPlaySectionsModel()->sectionStartTime(playingIndex);
                     if (req.has_param("format")) {
                         res.set_content(formatTime(startTime, req.get_param_value("format")), "text/plain");
-                    }
-                    else {
+                    } else {
                         res.set_content(std::to_string(startTime), "text/plain");
                     }
-                }
-                else {
+                } else {
                     res.set_content("0", "text/plain");
                 }
-            }
-            else {
+            } else {
                 res.set_content("0", "text/plain");
             }
         });
 
-        svr.Post("/section_end_time", [this](const httplib::Request& req, httplib::Response& res) {
+        svr.Post("/section_end_time", [this](const httplib::Request &req, httplib::Response &res) {
             if (m_mpv) {
                 int playingIndex = m_mpv->getPlaySectionsModel()->getPlayingSection();
                 if (playingIndex >= 0) {
                     double endTime = m_mpv->getPlaySectionsModel()->sectionEndTime(playingIndex);
                     if (req.has_param("format")) {
                         res.set_content(formatTime(endTime, req.get_param_value("format")), "text/plain");
-                    }
-                    else {
+                    } else {
                         res.set_content(std::to_string(endTime), "text/plain");
                     }
-                }
-                else {
+                } else {
                     res.set_content("0", "text/plain");
                 }
-            }
-            else {
+            } else {
                 res.set_content("0", "text/plain");
             }
         });
 
-        svr.Post("/section_end_mode", [this](const httplib::Request&, httplib::Response& res) {
+        svr.Post("/section_end_mode", [this](const httplib::Request &, httplib::Response &res) {
             if (m_mpv) {
                 int playingIndex = m_mpv->getPlaySectionsModel()->getPlayingSection();
                 if (playingIndex >= 0) {
                     int endMode = m_mpv->getPlaySectionsModel()->sectionEOSMode(playingIndex);
                     res.set_content(std::to_string(endMode), "text/plain");
-                }
-                else {
+                } else {
                     res.set_content("0", "text/plain");
                 }
-            }
-            else {
+            } else {
                 res.set_content("0", "text/plain");
             }
         });
 
-        svr.Post("/playfile_json", [this](const httplib::Request&, httplib::Response& res) {
+        svr.Post("/playfile_json", [this](const httplib::Request &, httplib::Response &res) {
             if (m_mpv) {
                 QJsonDocument doc;
                 QJsonObject obj = doc.object();
@@ -567,193 +510,165 @@ void HttpServerThread::setupHttpServer()
                 }
                 doc.setObject(obj);
                 res.set_content(doc.toJson(QJsonDocument::Compact).toStdString(), "application/json");
-            }
-            else {
+            } else {
                 res.set_content("Could not retrieve playlist", "text/plain");
             }
         });
 
-        svr.Post("/playlist_json", [this](const httplib::Request&, httplib::Response& res) {
+        svr.Post("/playlist_json", [this](const httplib::Request &, httplib::Response &res) {
             if (m_mpv) {
                 QJsonDocument doc;
                 QJsonObject obj = doc.object();
                 m_mpv->getPlayListModel()->asJSON(obj);
                 doc.setObject(obj);
                 res.set_content(doc.toJson(QJsonDocument::Compact).toStdString(), "application/json");
-            }
-            else {
+            } else {
                 res.set_content("Could not retrieve playlist", "text/plain");
             }
         });
 
-        svr.Post("/spin_pitch_up", [this](const httplib::Request& req, httplib::Response& res) {
+        svr.Post("/spin_pitch_up", [this](const httplib::Request &req, httplib::Response &res) {
             if (req.has_param("on")) {
                 int runSpin = -1;
                 if (stringToInt(req.get_param_value("on"), runSpin)) {
                     if (runSpin == 1) {
                         Q_EMIT spinPitchUp(true);
                         res.set_content("Pitch Up is On", "text/plain");
-                    }
-                    else if (runSpin == 0) {
+                    } else if (runSpin == 0) {
                         Q_EMIT spinPitchUp(false);
                         res.set_content("Pitch Up is Off", "text/plain");
-                    }
-                    else {
+                    } else {
                         res.set_content("Supply parameter on with value 0 or 1", "text/plain");
                     }
-                }
-                else {
+                } else {
                     res.set_content("Supply parameter on with value 0 or 1", "text/plain");
                 }
-            }
-            else {
+            } else {
                 res.set_content("Supply parameter on with value 0 or 1", "text/plain");
             }
         });
 
-        svr.Post("/spin_pitch_down", [this](const httplib::Request& req, httplib::Response& res) {
+        svr.Post("/spin_pitch_down", [this](const httplib::Request &req, httplib::Response &res) {
             if (req.has_param("on")) {
                 int runSpin = -1;
                 if (stringToInt(req.get_param_value("on"), runSpin)) {
                     if (runSpin == 1) {
                         Q_EMIT spinPitchDown(true);
                         res.set_content("Pitch Down is On", "text/plain");
-                    }
-                    else if (runSpin == 0) {
+                    } else if (runSpin == 0) {
                         Q_EMIT spinPitchDown(false);
                         res.set_content("Pitch Down is Off", "text/plain");
-                    }
-                    else {
+                    } else {
                         res.set_content("Supply parameter on with value 0 or 1", "text/plain");
                     }
-                }
-                else {
+                } else {
                     res.set_content("Supply parameter on with value 0 or 1", "text/plain");
                 }
-            }
-            else {
+            } else {
                 res.set_content("Supply parameter on with value 0 or 1", "text/plain");
             }
         });
 
-        svr.Post("/spin_yaw_left", [this](const httplib::Request& req, httplib::Response& res) {
+        svr.Post("/spin_yaw_left", [this](const httplib::Request &req, httplib::Response &res) {
             if (req.has_param("on")) {
                 int runSpin = -1;
                 if (stringToInt(req.get_param_value("on"), runSpin)) {
                     if (runSpin == 1) {
                         Q_EMIT spinYawLeft(true);
                         res.set_content("Yaw Left is On", "text/plain");
-                    }
-                    else if (runSpin == 0) {
+                    } else if (runSpin == 0) {
                         Q_EMIT spinYawLeft(false);
                         res.set_content("Yaw Left is Off", "text/plain");
-                    }
-                    else {
+                    } else {
                         res.set_content("Supply parameter on with value 0 or 1", "text/plain");
                     }
-                }
-                else {
+                } else {
                     res.set_content("Supply parameter on with value 0 or 1", "text/plain");
                 }
-            }
-            else {
+            } else {
                 res.set_content("Supply parameter on with value 0 or 1", "text/plain");
             }
         });
 
-        svr.Post("/spin_yaw_right", [this](const httplib::Request& req, httplib::Response& res) {
+        svr.Post("/spin_yaw_right", [this](const httplib::Request &req, httplib::Response &res) {
             if (req.has_param("on")) {
                 int runSpin = -1;
                 if (stringToInt(req.get_param_value("on"), runSpin)) {
                     if (runSpin == 1) {
                         Q_EMIT spinYawRight(true);
                         res.set_content("Yaw Right is On", "text/plain");
-                    }
-                    else if (runSpin == 0) {
+                    } else if (runSpin == 0) {
                         Q_EMIT spinYawRight(false);
                         res.set_content("Yaw Right is Off", "text/plain");
-                    }
-                    else {
+                    } else {
                         res.set_content("Supply parameter on with value 0 or 1", "text/plain");
                     }
-                }
-                else {
+                } else {
                     res.set_content("Supply parameter on with value 0 or 1", "text/plain");
                 }
-            }
-            else {
+            } else {
                 res.set_content("Supply parameter on with value 0 or 1", "text/plain");
             }
         });
 
-        svr.Post("/spin_roll_ccw", [this](const httplib::Request& req, httplib::Response& res) {
+        svr.Post("/spin_roll_ccw", [this](const httplib::Request &req, httplib::Response &res) {
             if (req.has_param("on")) {
                 int runSpin = -1;
                 if (stringToInt(req.get_param_value("on"), runSpin)) {
                     if (runSpin == 1) {
                         Q_EMIT spinRollCCW(true);
                         res.set_content("Roll CCW is On", "text/plain");
-                    }
-                    else if (runSpin == 0) {
+                    } else if (runSpin == 0) {
                         Q_EMIT spinRollCCW(false);
                         res.set_content("Roll CCW is Off", "text/plain");
-                    }
-                    else {
+                    } else {
                         res.set_content("Supply parameter on with value 0 or 1", "text/plain");
                     }
-                }
-                else {
+                } else {
                     res.set_content("Supply parameter on with value 0 or 1", "text/plain");
                 }
-            }
-            else {
+            } else {
                 res.set_content("Supply parameter on with value 0 or 1", "text/plain");
             }
         });
 
-        svr.Post("/spin_roll_cw", [this](const httplib::Request& req, httplib::Response& res) {
+        svr.Post("/spin_roll_cw", [this](const httplib::Request &req, httplib::Response &res) {
             if (req.has_param("on")) {
                 int runSpin = -1;
                 if (stringToInt(req.get_param_value("on"), runSpin)) {
                     if (runSpin == 1) {
                         Q_EMIT spinRollCW(true);
                         res.set_content("Roll CCW is On", "text/plain");
-                    }
-                    else if (runSpin == 0) {
+                    } else if (runSpin == 0) {
                         Q_EMIT spinRollCW(false);
                         res.set_content("Roll CCW is Off", "text/plain");
-                    }
-                    else {
+                    } else {
                         res.set_content("Supply parameter on with value 0 or 1", "text/plain");
                     }
-                }
-                else {
+                } else {
                     res.set_content("Supply parameter on with value 0 or 1", "text/plain");
                 }
-            }
-            else {
+            } else {
                 res.set_content("Supply parameter on with value 0 or 1", "text/plain");
             }
         });
 
-        svr.Post("/orientation_reset", [this](const httplib::Request&, httplib::Response& res) {
+        svr.Post("/orientation_reset", [this](const httplib::Request &, httplib::Response &res) {
             Q_EMIT orientationAndSpinReset();
             res.set_content("Origin Reset", "text/plain");
         });
 
-        svr.Post("/surface_transition", [this](const httplib::Request& req, httplib::Response& res) {
+        svr.Post("/surface_transition", [this](const httplib::Request &req, httplib::Response &res) {
             Q_EMIT runSurfaceTransition();
 
             if (m_mpv) {
                 res.set_content(std::to_string(m_mpv->surfaceTransitionTime()), "text/plain");
                 if (req.has_param("format")) {
                     res.set_content(formatTime(m_mpv->surfaceTransitionTime(), req.get_param_value("format")), "text/plain");
-                }
-                else {
+                } else {
                     res.set_content(std::to_string(m_mpv->surfaceTransitionTime()), "text/plain");
                 }
-            }
-            else {
+            } else {
                 res.set_content("0", "text/plain");
             }
         });
@@ -761,19 +676,18 @@ void HttpServerThread::setupHttpServer()
         runServer = true;
         return;
     }
-    
+
     runServer = false;
     return;
 }
 
-void HttpServerThread::terminate(){
+void HttpServerThread::terminate() {
     mutex.lock();
     abort = true;
     mutex.unlock();
 }
 
-void HttpServerThread::run()
-{
+void HttpServerThread::run() {
     mutex.lock();
     if (abort) {
         svr.stop();
@@ -787,48 +701,35 @@ void HttpServerThread::run()
     }
 }
 
-bool HttpServerThread::stringToInt(std::string str, int& parsedInt)
-{
+bool HttpServerThread::stringToInt(std::string str, int &parsedInt) {
     if (!str.empty()) {
-        try
-        {
+        try {
             parsedInt = std::stoi(str);
             return true;
-        }
-        catch (std::invalid_argument const&)
-        {
+        } catch (std::invalid_argument const &) {
             return false;
-        }
-        catch (std::out_of_range const&)
-        {
+        } catch (std::out_of_range const &) {
             return true;
         }
     }
     return false;
 }
 
-bool HttpServerThread::stringToDouble(std::string str, double& parsedDouble)
-{
+bool HttpServerThread::stringToDouble(std::string str, double &parsedDouble) {
     if (!str.empty()) {
-        try
-        {
+        try {
             parsedDouble = std::stod(str);
             return true;
-        }
-        catch (std::invalid_argument const&)
-        {
+        } catch (std::invalid_argument const &) {
             return false;
-        }
-        catch (std::out_of_range const&)
-        {
+        } catch (std::out_of_range const &) {
             return true;
         }
     }
     return false;
 }
 
-void HttpServerThread::setPositionFromStr(std::string positionTimeStr)
-{
+void HttpServerThread::setPositionFromStr(std::string positionTimeStr) {
     double pos = 0;
     if (stringToDouble(positionTimeStr, pos)) {
         if (pos >= 0) {
@@ -837,8 +738,7 @@ void HttpServerThread::setPositionFromStr(std::string positionTimeStr)
     }
 }
 
-void HttpServerThread::setVolumeFromStr(std::string volumeLevelStr)
-{
+void HttpServerThread::setVolumeFromStr(std::string volumeLevelStr) {
     int volumeLevel = 0;
     if (stringToInt(volumeLevelStr, volumeLevel)) {
         if (volumeLevel >= 0 && volumeLevel <= 100) {
@@ -847,8 +747,7 @@ void HttpServerThread::setVolumeFromStr(std::string volumeLevelStr)
     }
 }
 
-void HttpServerThread::setViewModeFromStr(std::string viewModeStr)
-{
+void HttpServerThread::setViewModeFromStr(std::string viewModeStr) {
     int viewMode = 0;
     if (stringToInt(viewModeStr, viewMode)) {
         if (viewMode >= 0 && viewMode <= 1) {
@@ -857,26 +756,23 @@ void HttpServerThread::setViewModeFromStr(std::string viewModeStr)
     }
 }
 
-void HttpServerThread::setSyncImageFadingFromStr(std::string valueStr)
-{
+void HttpServerThread::setSyncImageFadingFromStr(std::string valueStr) {
     int value = 0;
     if (stringToInt(valueStr, value)) {
         if (value == 0) {
             Q_EMIT setSyncVolumeVisibilityFading(false);
-        }
-        else if(value <= 1) {
+        } else if (value <= 1) {
             Q_EMIT setSyncVolumeVisibilityFading(true);
         }
     }
 }
 
-const std::string HttpServerThread::getAudioTracksItems(std::string charsPerItemStr, std::string removeLoadedFilePrefixStr)
-{
+const std::string HttpServerThread::getAudioTracksItems(std::string charsPerItemStr, std::string removeLoadedFilePrefixStr) {
     if (m_mpv) {
         int removeLoadedFilePrefix = 0;
         std::string prefixToRemove = "";
         if (stringToInt(removeLoadedFilePrefixStr, removeLoadedFilePrefix)) {
-            if(removeLoadedFilePrefix == 1)
+            if (removeLoadedFilePrefix == 1)
                 prefixToRemove = m_mpv->getProperty(QStringLiteral("filename")).toString().toStdString();
         }
         int charsPerItem = 0;
@@ -884,130 +780,108 @@ const std::string HttpServerThread::getAudioTracksItems(std::string charsPerItem
             return m_mpv->audioTracksModel()->getListAsFormattedString(prefixToRemove, charsPerItem);
         else
             return m_mpv->audioTracksModel()->getListAsFormattedString(prefixToRemove);
-    }
-    else
+    } else
         return "";
 }
 
-const std::string HttpServerThread::getPlayListItems(std::string charsPerItemStr)
-{
+const std::string HttpServerThread::getPlayListItems(std::string charsPerItemStr) {
     if (m_mpv) {
         int charsPerItem = 0;
-        if(stringToInt(charsPerItemStr, charsPerItem))
+        if (stringToInt(charsPerItemStr, charsPerItem))
             return m_mpv->getPlayListModel()->getListAsFormattedString(charsPerItem);
         else
             return m_mpv->getPlayListModel()->getListAsFormattedString();
-    }
-    else
+    } else
         return "";
 }
 
-const std::string HttpServerThread::getSectionsItems(std::string charsPerItemStr)
-{
+const std::string HttpServerThread::getSectionsItems(std::string charsPerItemStr) {
     if (m_mpv) {
         int charsPerItem = 0;
         if (stringToInt(charsPerItemStr, charsPerItem))
             return m_mpv->getPlaySectionsModel()->getSectionsAsFormattedString(charsPerItem);
         else
             return m_mpv->getPlaySectionsModel()->getSectionsAsFormattedString();
-    }
-    else
+    } else
         return "";
 }
 
-const std::string HttpServerThread::getPlaylingItemIndexFromAudioTracks()
-{
+const std::string HttpServerThread::getPlaylingItemIndexFromAudioTracks() {
     if (m_mpv) {
-        return std::to_string(m_mpv->audioId()-1);
+        return std::to_string(m_mpv->audioId() - 1);
     }
     return "-1";
 }
 
-
-const std::string HttpServerThread::getPlaylingItemIndexFromPlaylist()
-{
+const std::string HttpServerThread::getPlaylingItemIndexFromPlaylist() {
     if (m_mpv) {
         return std::to_string(m_mpv->getPlayListModel()->getPlayingVideo());
     }
     return "-1";
 }
 
-const std::string HttpServerThread::getPlaylingItemIndexFromSections()
-{
+const std::string HttpServerThread::getPlaylingItemIndexFromSections() {
     if (m_mpv) {
         return std::to_string(m_mpv->getPlaySectionsModel()->getPlayingSection());
     }
     return "-1";
 }
 
-const std::string HttpServerThread::LoadIndexFromAudioTracks(std::string indexStr)
-{
+const std::string HttpServerThread::LoadIndexFromAudioTracks(std::string indexStr) {
     int index = -1;
     if (stringToInt(indexStr, index)) {
         if (m_mpv) {
             if (index >= 0 && index < m_mpv->audioTracksModel()->countTracks()) {
                 Q_EMIT loadFromAudioTracks(index);
                 return "Loading audio track with index: " + indexStr;
-            }
-            else {
+            } else {
                 return "Index was out of bounds of audio tracks";
             }
-        }
-        else {
+        } else {
             return "Could not find reference to MPV";
         }
-    }
-    else {
+    } else {
         return "Could not interpret index parameter";
     }
 }
 
-const std::string HttpServerThread::LoadIndexFromPlaylist(std::string indexStr) 
-{
+const std::string HttpServerThread::LoadIndexFromPlaylist(std::string indexStr) {
     int index = -1;
     if (stringToInt(indexStr, index)) {
         if (m_mpv) {
             if (index >= 0 && index < m_mpv->getPlayListModel()->getPlayListSize()) {
                 Q_EMIT loadFromPlaylist(index);
                 return "Loading media with index: " + indexStr;
-            }
-            else {
+            } else {
                 return "Index was out of bounds of playlist";
             }
-        }
-        else{
+        } else {
             return "Could not find reference to MPV";
         }
-    }
-    else {
+    } else {
         return "Could not interpret index parameter";
     }
 }
 
-const std::string HttpServerThread::LoadIndexFromSections(std::string indexStr)
-{
+const std::string HttpServerThread::LoadIndexFromSections(std::string indexStr) {
     int index = -1;
     if (stringToInt(indexStr, index)) {
         if (m_mpv) {
             if (index >= 0 && index < m_mpv->getPlaySectionsModel()->getNumberOfSections()) {
                 Q_EMIT loadFromSections(index);
                 return "Loading section with index: " + indexStr;
-            }
-            else {
+            } else {
                 return "Index was out of bounds of sections list";
             }
-        }
-        else {
+        } else {
             return "Could not find reference to MPV";
         }
-    }
-    else {
+    } else {
         return "Could not interpret index parameter";
     }
 }
 
-void HttpServerThread::setMpv(MpvObject* mpv)
-{
+void HttpServerThread::setMpv(MpvObject *mpv) {
     if (m_mpv == mpv) {
         return;
     }

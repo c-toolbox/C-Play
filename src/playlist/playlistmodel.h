@@ -1,6 +1,6 @@
 /*
- * SPDX-FileCopyrightText: 
- * 2021-2024 Erik Sundén <eriksunden85@gmail.com> 
+ * SPDX-FileCopyrightText:
+ * 2021-2024 Erik Sundén <eriksunden85@gmail.com>
  * 2020 George Florea Bănuș <georgefb899@gmail.com>
  *
  * SPDX-License-Identifier: GPL-3.0-or-later
@@ -9,8 +9,8 @@
 #ifndef PLAYLISTMODEL_H
 #define PLAYLISTMODEL_H
 
-#include <QAbstractTableModel>
 #include <KSharedConfig>
+#include <QAbstractTableModel>
 #include <map>
 #include <memory>
 
@@ -18,12 +18,11 @@ class PlayListItem;
 
 using Playlist = QList<QPointer<PlayListItem>>;
 
-class PlaySectionsModel : public QAbstractListModel
-{
+class PlaySectionsModel : public QAbstractListModel {
     Q_OBJECT
 
 public:
-    explicit PlaySectionsModel(QObject* parent = nullptr);
+    explicit PlaySectionsModel(QObject *parent = nullptr);
 
     enum {
         TitleRole = Qt::UserRole,
@@ -34,20 +33,20 @@ public:
         PlayingRole
     };
 
-    int rowCount(const QModelIndex& parent = QModelIndex()) const override;
-    QVariant data(const QModelIndex& index, int role = Qt::DisplayRole) const override;
+    int rowCount(const QModelIndex &parent = QModelIndex()) const override;
+    QVariant data(const QModelIndex &index, int role = Qt::DisplayRole) const override;
     virtual QHash<int, QByteArray> roleNames() const override;
 
-    Q_PROPERTY(PlayListItem* currentEditItem
-        READ currentEditItem
-        WRITE setCurrentEditItem
-        NOTIFY currentEditItemChanged)
+    Q_PROPERTY(PlayListItem *currentEditItem
+                   READ currentEditItem
+                       WRITE setCurrentEditItem
+                           NOTIFY currentEditItemChanged)
 
     Q_PROPERTY(bool currentEditItemIsEdited
-        MEMBER m_currentEditItemIsEdited
-        READ getCurrentEditItemIsEdited
-        WRITE setCurrentEditItemIsEdited
-        NOTIFY currentEditItemIsEditedChanged)
+                   MEMBER m_currentEditItemIsEdited
+                       READ getCurrentEditItemIsEdited
+                           WRITE setCurrentEditItemIsEdited
+                               NOTIFY currentEditItemIsEditedChanged)
 
     Q_INVOKABLE void setPlayingSection(int section);
     Q_INVOKABLE int getPlayingSection();
@@ -55,9 +54,9 @@ public:
     Q_INVOKABLE void clear();
     Q_INVOKABLE bool isEmpty();
 
-    PlayListItem* currentEditItem();
-    void setCurrentEditItem(PlayListItem* item);
-    void updateCurrentEditItem(PlayListItem& item);
+    PlayListItem *currentEditItem();
+    void setCurrentEditItem(PlayListItem *item);
+    void updateCurrentEditItem(PlayListItem &item);
 
     Q_INVOKABLE void setCurrentEditItemIsEdited(bool value);
     Q_INVOKABLE bool getCurrentEditItemIsEdited();
@@ -81,25 +80,24 @@ Q_SIGNALS:
     void playingSectionChanged();
 
 private:
-    PlayListItem* m_currentEditItem;
+    PlayListItem *m_currentEditItem;
     int m_playingSection = -1;
     bool m_currentEditItemIsEdited = false;
 };
 
-class PlayListModel : public QAbstractListModel
-{
+class PlayListModel : public QAbstractListModel {
     Q_OBJECT
     Q_PROPERTY(int playingVideo
-               MEMBER m_playingVideo
-               READ getPlayingVideo
-               WRITE setPlayingVideo
-               NOTIFY playingVideoChanged)
+                   MEMBER m_playingVideo
+                       READ getPlayingVideo
+                           WRITE setPlayingVideo
+                               NOTIFY playingVideoChanged)
 
     Q_PROPERTY(bool playListIsEdited
-            MEMBER m_playListEdited
-            READ getPlayListIsEdited
-            WRITE setPlayListIsEdited
-            NOTIFY playListIsEditedChanged)
+                   MEMBER m_playListEdited
+                       READ getPlayListIsEdited
+                           WRITE setPlayListIsEdited
+                               NOTIFY playListIsEditedChanged)
 
 public:
     explicit PlayListModel(QObject *parent = nullptr);
@@ -122,7 +120,7 @@ public:
     virtual QHash<int, QByteArray> roleNames() const override;
 
     Playlist getPlayList() const;
-    void setPlayList(const Playlist& playList);
+    void setPlayList(const Playlist &playList);
 
     std::string getListAsFormattedString(int charsPerItem = 40) const;
 
@@ -136,7 +134,7 @@ public:
     Q_INVOKABLE QString getPath(int i);
     Q_INVOKABLE int getPlayListSize() const;
     Q_INVOKABLE QPointer<PlayListItem> getItem(int i);
-    Q_INVOKABLE void addItem(PlayListItem* item);
+    Q_INVOKABLE void addItem(PlayListItem *item);
     Q_INVOKABLE void removeItem(int i);
     Q_INVOKABLE void moveItemUp(int i);
     Q_INVOKABLE void moveItemDown(int i);
@@ -163,9 +161,9 @@ public:
     Q_INVOKABLE int gridToMapOn(int i) const;
     Q_INVOKABLE int stereoVideo(int i) const;
     Q_INVOKABLE int numberOfSections(int i) const;
-    Q_INVOKABLE QString makePathRelativeTo(const QString& filePath, const QStringList& pathsToConsider);
-    Q_INVOKABLE void asJSON(QJsonObject& obj);
-    Q_INVOKABLE void saveAsJSONPlaylist(const QString& path);
+    Q_INVOKABLE QString makePathRelativeTo(const QString &filePath, const QStringList &pathsToConsider);
+    Q_INVOKABLE void asJSON(QJsonObject &obj);
+    Q_INVOKABLE void saveAsJSONPlaylist(const QString &path);
 
 Q_SIGNALS:
     void videoAdded(int index, QString path);

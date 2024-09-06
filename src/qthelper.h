@@ -10,29 +10,29 @@
 #include <client.h>
 #include <cstring>
 
-#include <QVariant>
-#include <QString>
-#include <QList>
-#include <QHash>
-#include <QSharedPointer>
-#include <QMetaType>
 #include <QFile>
+#include <QHash>
 #include <QJsonArray>
 #include <QJsonDocument>
 #include <QJsonObject>
+#include <QList>
+#include <QMetaType>
+#include <QSharedPointer>
+#include <QString>
+#include <QVariant>
 
 namespace mpv {
 namespace qt {
 
 // Wrapper around mpv_handle. Does refcounting under the hood.
-class Handle
-{
+class Handle {
     struct container {
         container(mpv_handle *h) : mpv(h) {}
         ~container() { mpv_terminate_destroy(mpv); }
         mpv_handle *mpv;
     };
     QSharedPointer<container> sptr;
+
 public:
     // Construct a new Handle from a raw mpv_handle with refcount 1. If the
     // last Handle goes out of scope, the mpv_handle will be destroyed with
@@ -49,11 +49,10 @@ public:
     }
 
     // Return the raw handle; for use with the libmpv C API.
-    operator mpv_handle*() const { return sptr ? (*sptr).mpv : 0; }
+    operator mpv_handle *() const { return sptr ? (*sptr).mpv : 0; }
 };
 
-static inline QVariant node_to_variant(const mpv_node *node)
-{
+static inline QVariant node_to_variant(const mpv_node *node) {
     switch (node->format) {
     case MPV_FORMAT_STRING:
         return QVariant(QString::fromUtf8(node->u.string));
@@ -92,6 +91,7 @@ struct node_builder {
         free_node(&node_);
     }
     mpv_node *node() { return &node_; }
+
 private:
     Q_DISABLE_COPY(node_builder)
     mpv_node node_;
@@ -105,7 +105,7 @@ private:
         if (!list->values)
             goto err;
         if (is_map) {
-            list->keys = new char*[num]();
+            list->keys = new char *[num]();
             if (!list->keys)
                 goto err;
         }
@@ -140,8 +140,7 @@ private:
         } else if (test_type(src, QMetaType::Int) ||
                    test_type(src, QMetaType::LongLong) ||
                    test_type(src, QMetaType::UInt) ||
-                   test_type(src, QMetaType::ULongLong))
-        {
+                   test_type(src, QMetaType::ULongLong)) {
             dst->format = MPV_FORMAT_INT64;
             dst->u.int64 = src.toLongLong();
         } else if (test_type(src, QMetaType::Double)) {
@@ -222,8 +221,7 @@ struct node_autofree {
  * You can use get_error() or is_error() to extract the error status from a
  * QVariant value.
  */
-struct ErrorReturn
-{
+struct ErrorReturn {
     /**
      * enum mpv_error value (or a value outside of it if ABI was extended)
      */
@@ -239,8 +237,7 @@ struct ErrorReturn
  *
  * @return error code (<0) or success (>=0)
  */
-static inline int get_error(const QVariant &v)
-{
+static inline int get_error(const QVariant &v) {
     if (!v.canConvert<ErrorReturn>())
         return 0;
     return v.value<ErrorReturn>().error;
@@ -249,8 +246,7 @@ static inline int get_error(const QVariant &v)
 /**
  * Return whether the QVariant carries a mpv error code.
  */
-static inline bool is_error(const QVariant &v)
-{
+static inline bool is_error(const QVariant &v) {
     return get_error(v) < 0;
 }
 
@@ -261,8 +257,7 @@ static inline bool is_error(const QVariant &v)
  * @param name the property name
  * @return the property value, or an ErrorReturn with the error code
  */
-static inline QVariant get_property(mpv_handle *ctx, const QString &name)
-{
+static inline QVariant get_property(mpv_handle *ctx, const QString &name) {
     mpv_node node;
     int err = mpv_get_property(ctx, name.toUtf8().data(), MPV_FORMAT_NODE, &node);
     if (err < 0)
@@ -277,8 +272,7 @@ static inline QVariant get_property(mpv_handle *ctx, const QString &name)
  * @return mpv error code (<0 on error, >= 0 on success)
  */
 static inline int set_property(mpv_handle *ctx, const QString &name,
-                                       const QVariant &v)
-{
+                               const QVariant &v) {
     node_builder node(v);
     qInfo() << "(MPV) SetProperty: Name = " << name << ", Value = " << v.toString();
     return mpv_set_property(ctx, name.toUtf8().data(), MPV_FORMAT_NODE, node.node());
@@ -289,9 +283,8 @@ static inline int set_property(mpv_handle *ctx, const QString &name,
  *
  * @return mpv error code (<0 on error, >= 0 on success)
  */
-static inline void set_property_async(mpv_handle* ctx, const QString& name,
-    const QVariant& v)
-{
+static inline void set_property_async(mpv_handle *ctx, const QString &name,
+                                      const QVariant &v) {
     node_builder node(v);
     qInfo() << "(MPV) SetProperty (ASYNC): Name = " << name << ", Value = " << v.toString();
     mpv_set_property_async(ctx, 0, name.toUtf8().data(), MPV_FORMAT_NODE, node.node());
@@ -303,8 +296,7 @@ static inline void set_property_async(mpv_handle* ctx, const QString& name,
  * @param args command arguments, with args[0] being the command name as string
  * @return the property value, or an ErrorReturn with the error code
  */
-static inline QVariant command(mpv_handle *ctx, const QVariant &args)
-{
+static inline QVariant command(mpv_handle *ctx, const QVariant &args) {
     node_builder node(args);
     mpv_node res;
     int err = mpv_command_node(ctx, node.node(), &res);
@@ -320,8 +312,7 @@ static inline QVariant command(mpv_handle *ctx, const QVariant &args)
  * @param args command arguments, with args[0] being the command name as string
  * @return the property value, or an ErrorReturn with the error code
  */
-static inline void command_async(mpv_handle *ctx, const QVariant &args)
-{
+static inline void command_async(mpv_handle *ctx, const QVariant &args) {
     node_builder node(args);
     mpv_command_node_async(ctx, 0, node.node());
 }
@@ -337,8 +328,7 @@ static inline bool load_configurations(mpv_handle *ctx, QString filepath) {
     if (!mpvConfFile.open(QIODevice::ReadOnly)) {
         qWarning() << "Couldn't open mpv configuration file: " << filepath;
         return false;
-    }
-    else {
+    } else {
         qInfo() << "Loading mpv configuration file: " << filepath;
     }
 
@@ -348,7 +338,7 @@ static inline bool load_configurations(mpv_handle *ctx, QString filepath) {
 
     QJsonObject mpvCommands = mpvCommandsDoc.object();
 
-    for (const QString& key : mpvCommands.keys()) {
+    for (const QString &key : mpvCommands.keys()) {
         QJsonValue value = mpvCommands.value(key);
         set_property(ctx, key, value.toVariant());
     }
@@ -356,8 +346,8 @@ static inline bool load_configurations(mpv_handle *ctx, QString filepath) {
     return true;
 }
 
-}
-}
+} // namespace qt
+} // namespace mpv
 
 Q_DECLARE_METATYPE(mpv::qt::ErrorReturn)
 

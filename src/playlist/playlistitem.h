@@ -1,6 +1,6 @@
 /*
- * SPDX-FileCopyrightText: 
- * 2021-2024 Erik Sundén <eriksunden85@gmail.com> 
+ * SPDX-FileCopyrightText:
+ * 2021-2024 Erik Sundén <eriksunden85@gmail.com>
  * 2020 George Florea Bănuș <georgefb899@gmail.com>
  *
  * SPDX-License-Identifier: GPL-3.0-or-later
@@ -9,14 +9,13 @@
 #ifndef PLAYLISTITEM_H
 #define PLAYLISTITEM_H
 
-#include <QString>
 #include <QObject>
+#include <QString>
 
-class PlayListItemData
-{
+class PlayListItemData {
 public:
     struct Section {
-        Section(QString name, double start, double end, int eos) 
+        Section(QString name, double start, double end, int eos)
             : title(name), startTime(start), endTime(end), eosMode(eos), isPlaying(false) {}
         QString title;
         double startTime;
@@ -26,10 +25,10 @@ public:
         // 2 = Continue
         // 3 = Next
         // 4 = Loop
-        int eosMode; //End of section
+        int eosMode; // End of section
         bool isPlaying;
     };
-    
+
     QString filePath() const;
     QString fileName() const;
     QString fileFolderPath() const;
@@ -53,28 +52,27 @@ public:
     QString m_mediaFile;
     QString m_mediaTitle;
     double m_duration;
-    QString m_separateOverlayFile{ QStringLiteral("") };
-    QString m_separateAudioFile{ QStringLiteral("") };
-    int m_eofMode{ 0 };
-    int m_transitionMode{ 0 };
-    int m_gridToMapOn{ -1 };
-    int m_stereoVideo{ -1 };
+    QString m_separateOverlayFile{QStringLiteral("")};
+    QString m_separateAudioFile{QStringLiteral("")};
+    int m_eofMode{0};
+    int m_transitionMode{0};
+    int m_gridToMapOn{-1};
+    int m_stereoVideo{-1};
     QList<Section> m_sections;
 
-    bool m_isHovered{ false };
-    bool m_isPlaying{ false };
-    int m_index{ -1 };
+    bool m_isHovered{false};
+    bool m_isPlaying{false};
+    int m_index{-1};
 };
 
-class PlayListItem : public QObject
-{
+class PlayListItem : public QObject {
     Q_OBJECT
 public:
     explicit PlayListItem(const QString &path, int i = 0, QObject *parent = nullptr);
-    PlayListItem(const PlayListItem&);
-    PlayListItem(const PlayListItemData&);
+    PlayListItem(const PlayListItem &);
+    PlayListItem(const PlayListItemData &);
 
-    Q_INVOKABLE PlayListItem& operator =(const PlayListItem&);
+    Q_INVOKABLE PlayListItem &operator=(const PlayListItem &);
 
     Q_INVOKABLE QString filePath() const;
     Q_INVOKABLE void setFilePath(const QString &filePath);
@@ -86,20 +84,20 @@ public:
     Q_INVOKABLE void setFileFolderPath(const QString &folderPath);
 
     Q_INVOKABLE QString mediaFile() const;
-    Q_INVOKABLE void setMediaFile(const QString& title);
+    Q_INVOKABLE void setMediaFile(const QString &title);
 
     Q_INVOKABLE QString mediaTitle() const;
-    Q_INVOKABLE void setMediaTitle(const QString& title);
+    Q_INVOKABLE void setMediaTitle(const QString &title);
 
     Q_INVOKABLE QString durationFormatted() const;
     Q_INVOKABLE double duration() const;
     Q_INVOKABLE void setDuration(double duration);
 
     Q_INVOKABLE QString separateOverlayFile() const;
-    Q_INVOKABLE void setSeparateOverlayFile(const QString& audioFile);
+    Q_INVOKABLE void setSeparateOverlayFile(const QString &audioFile);
 
     Q_INVOKABLE QString separateAudioFile() const;
-    Q_INVOKABLE void setSeparateAudioFile(const QString& audioFile);
+    Q_INVOKABLE void setSeparateAudioFile(const QString &audioFile);
 
     // 0 = Pause
     // 1 = Continue to next
@@ -141,7 +139,7 @@ public:
     Q_INVOKABLE double sectionEndTime(int i) const;
     Q_INVOKABLE int sectionEOSMode(int i) const;
     Q_INVOKABLE int numberOfSections() const;
-    Q_INVOKABLE const PlayListItemData::Section& getSection(int i) const;
+    Q_INVOKABLE const PlayListItemData::Section &getSection(int i) const;
     Q_INVOKABLE QList<PlayListItemData::Section> sections();
 
     Q_INVOKABLE bool isSectionPlaying(int index) const;
@@ -150,13 +148,13 @@ public:
     Q_INVOKABLE int index() const;
     Q_INVOKABLE void setIndex(int index);
 
-    Q_INVOKABLE QString makePathRelativeTo(const QString& filePath, const QStringList& pathsToConsider) const;
-    Q_INVOKABLE void asJSON(QJsonObject& obj);
-    Q_INVOKABLE void saveAsJSONPlayFile(const QString& path) const;
+    Q_INVOKABLE QString makePathRelativeTo(const QString &filePath, const QStringList &pathsToConsider) const;
+    Q_INVOKABLE void asJSON(QJsonObject &obj);
+    Q_INVOKABLE void saveAsJSONPlayFile(const QString &path) const;
 
     PlayListItemData data() const;
     void setData(PlayListItemData d);
-    void updateToNewFile(const QString& path);
+    void updateToNewFile(const QString &path);
     void loadDetailsFromDisk();
     bool hasDescriptionFile();
 
@@ -167,7 +165,7 @@ private:
     bool m_hasDescriptionFile;
     PlayListItemData m_data;
 
-    QString checkAndCorrectPath(const QString& filePath, const QStringList& searchPaths);
+    QString checkAndCorrectPath(const QString &filePath, const QStringList &searchPaths);
 };
 
 #endif // PLAYLISTITEM_H

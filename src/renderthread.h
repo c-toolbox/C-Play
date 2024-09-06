@@ -6,8 +6,7 @@
 #include <QThread>
 #include <QWaitCondition>
 
-class RenderThread : public QThread
-{
+class RenderThread : public QThread {
     Q_OBJECT
 
 public:

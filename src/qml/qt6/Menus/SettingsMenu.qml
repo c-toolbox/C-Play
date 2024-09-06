@@ -12,6 +12,10 @@ Menu {
 
     title: qsTr("&Settings")
 
-    MenuItem { action: actions["configureAction"] }
-    MenuItem { action: actions["configureShortcutsAction"] }
+    MenuItem {
+        action: actions["configureAction"]
+    }
+    MenuItem {
+        action: actions["configureShortcutsAction"]
+    }
 }

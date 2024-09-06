@@ -36,13 +36,13 @@
       </code>
       <default code="true">videoFolder</default>
     </entry>
-	<entry name="LastPlayedFile" type="String">
+    <entry name="LastPlayedFile" type="String">
       <label>Last played file</label>
     </entry>
-	<entry name="LastUrl" type="String">
+    <entry name="LastUrl" type="String">
       <label>Last url</label>
     </entry>
-	<entry name="ScreenshotFormat" type="String">
+    <entry name="ScreenshotFormat" type="String">
       <label>Screenshot format</label>
       <default>jpg</default>
     </entry>

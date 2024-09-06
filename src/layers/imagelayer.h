@@ -4,8 +4,7 @@
 #include <layers/baselayer.h>
 #include <sgct/sgct.h>
 
-class ImageLayer : public BaseLayer
-{
+class ImageLayer : public BaseLayer {
 public:
     struct ImageData {
         std::string filename = "";
@@ -27,7 +26,7 @@ public:
     bool processImageUpload(std::string filename, bool forceUpdate);
     std::string loadedFile();
 
-    bool fileIsImage(std::string& filePath);
+    bool fileIsImage(std::string &filePath);
 
 private:
     ImageData imageData;

@@ -1,6 +1,6 @@
 /*
- * SPDX-FileCopyrightText: 
- * 2021-2024 Erik Sundén <eriksunden85@gmail.com> 
+ * SPDX-FileCopyrightText:
+ * 2021-2024 Erik Sundén <eriksunden85@gmail.com>
  * 2020 George Florea Bănuș <georgefb899@gmail.com>
  *
  * SPDX-License-Identifier: GPL-3.0-or-later
@@ -11,8 +11,7 @@
 
 #include <QObject>
 
-class Track : public QObject
-{
+class Track : public QObject {
     Q_OBJECT
 public:
     explicit Track(QObject *parent = nullptr);
@@ -62,14 +61,14 @@ private:
     QString m_shortTitle;
     QString m_codec;
     QString m_type;
-    qlonglong m_id {};
-    qlonglong m_ffIndex {};
-    qlonglong m_srcId {};
-    bool m_defaut {};
-    bool m_dependent {};
-    bool m_external {};
-    bool m_forced {};
-    int m_index {};
+    qlonglong m_id{};
+    qlonglong m_ffIndex{};
+    qlonglong m_srcId{};
+    bool m_defaut{};
+    bool m_dependent{};
+    bool m_external{};
+    bool m_forced{};
+    int m_index{};
 };
 
 #endif // TRACK_H

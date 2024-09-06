@@ -2,16 +2,15 @@
 #define BASELAYER_H
 
 #include <glm/glm.hpp>
-#include <sgct/utils/plane.h>
 #include <mutex>
+#include <sgct/utils/plane.h>
 #include <vector>
 
-class BaseLayer
-{
+class BaseLayer {
 public:
-    enum LayerType { 
-        BASE, 
-        IMAGE, 
+    enum LayerType {
+        BASE,
+        IMAGE,
         VIDEO,
 #ifdef NDI_SUPPORT
         NDI,
@@ -19,9 +18,9 @@ public:
         INVALID
     };
 
-    typedef void* (*opengl_func_adress_ptr)(void* ctx, const char* name);
+    typedef void *(*opengl_func_adress_ptr)(void *ctx, const char *name);
     static std::string typeDescription(BaseLayer::LayerType e);
-    static BaseLayer* createLayer(int layerType, opengl_func_adress_ptr opa, std::string strId = "", uint32_t numID = 0);
+    static BaseLayer *createLayer(int layerType, opengl_func_adress_ptr opa, std::string strId = "", uint32_t numID = 0);
 
     struct RenderParams {
         unsigned int texId = 0;
@@ -54,12 +53,12 @@ public:
     uint32_t identifier() const;
     void setIdentifier(uint32_t id);
     void updateIdentifierBasedOnCount();
-    
+
     bool needSync() const;
     void setHasSynced();
-    
-    virtual void encode(std::vector<std::byte>& data);
-    virtual void decode(const std::vector<std::byte>& data, unsigned int& pos);
+
+    virtual void encode(std::vector<std::byte> &data);
+    virtual void decode(const std::vector<std::byte> &data, unsigned int &pos);
 
     LayerType type() const;
     void setType(LayerType t);
@@ -85,11 +84,11 @@ public:
     int stereoMode() const;
     void setStereoMode(int s);
 
-    const glm::vec3& rotate() const;
-    void setRotate(glm::vec3& r);
+    const glm::vec3 &rotate() const;
+    void setRotate(glm::vec3 &r);
 
-    const glm::vec3& translate() const;
-    void setTranslate(glm::vec3& t);
+    const glm::vec3 &translate() const;
+    void setTranslate(glm::vec3 &t);
 
     double planeAzimuth() const;
     void setPlaneAzimuth(double pA);

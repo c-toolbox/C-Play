@@ -16,29 +16,29 @@
     <entry name="PreferredTrack" type="Int">
       <label>Preferred track</label>
     </entry>
-	<entry name="LoadAudioFileInVideoFolder" type="bool">
+    <entry name="LoadAudioFileInVideoFolder" type="bool">
       <default>true</default>
     </entry>
-	<entry name="UseCustomAudioOutput" type="bool">
+    <entry name="UseCustomAudioOutput" type="bool">
       <default>false</default>
     </entry>
-	<entry name="UseAudioDevice" type="bool">
+    <entry name="UseAudioDevice" type="bool">
       <default>false</default>
     </entry>
-	<entry name="UseAudioDriver" type="bool">
+    <entry name="UseAudioDriver" type="bool">
       <default>false</default>
     </entry>
-	<entry name="PreferredAudioOutputDevice" type="String">
+    <entry name="PreferredAudioOutputDevice" type="String">
       <label>Preferred audio output device</label>
     </entry>
-	<entry name="PreferredAudioOutputDriver" type="String">
+    <entry name="PreferredAudioOutputDriver" type="String">
       <label>Preferred audio output driver</label>
     </entry>
-	<entry name="VolumeStep" type="Int">
+    <entry name="VolumeStep" type="Int">
       <label>Volume step</label>
       <default>5</default>
     </entry>
-	 <entry name="Volume" type="Int">
+    <entry name="Volume" type="Int">
       <label>Volume</label>
       <default>100</default>
     </entry>

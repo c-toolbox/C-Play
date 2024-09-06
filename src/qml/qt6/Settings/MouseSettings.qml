@@ -28,67 +28,73 @@ SettingsBasePage {
             id: mouseActionsModel
 
             ListElement {
-                label: "Left"
                 key: "left"
+                label: "Left"
             }
             ListElement {
-                label: "Left double click"
                 key: "leftx2"
+                label: "Left double click"
             }
             ListElement {
-                label: "Right"
                 key: "right"
+                label: "Right"
             }
             ListElement {
-                label: "Right double click"
                 key: "rightx2"
+                label: "Right double click"
             }
             ListElement {
-                label: "Middle"
                 key: "middle"
+                label: "Middle"
             }
             ListElement {
-                label: "Middle double click"
                 key: "middlex2"
+                label: "Middle double click"
             }
             ListElement {
-                label: "Scroll up"
                 key: "scrollUp"
+                label: "Scroll up"
             }
             ListElement {
-                label: "Scroll down"
                 key: "scrollDown"
+                label: "Scroll down"
             }
         }
-
         ListView {
             id: mouseButtonsListView
 
             property int delegateHeight
 
+            Layout.fillHeight: true
+            Layout.fillWidth: true
             model: mouseActionsModel
+
             delegate: ItemDelegate {
                 id: delegate
 
-                width: content.width
+                function openSelectActionPopup() {
+                    selectActionPopup.buttonIndex = model.index;
+                    selectActionPopup.title = model.label;
+                    selectActionPopup.open();
+                }
+
                 highlighted: false
+                width: content.width
 
                 contentItem: RowLayout {
                     Kirigami.IconTitleSubtitle {
-                        title: model.label
-                        subtitle: MouseSettings[model.key]
-                                  ? appActions[MouseSettings[model.key]].text
-                                  : "No action set"
-                        icon.name: MouseSettings[model.key] ? "checkmark" : ""
-
                         Layout.fillWidth: true
+                        icon.name: MouseSettings[model.key] ? "checkmark" : ""
+                        subtitle: MouseSettings[model.key] ? appActions[MouseSettings[model.key]].text : "No action set"
+                        title: model.label
                     }
                     ToolButton {
-                        visible: MouseSettings[model.key]
                         icon.name: "edit-clear-all"
+                        visible: MouseSettings[model.key]
+
                         onClicked: {
-                            MouseSettings[model.key] = ""
-                            MouseSettings.save()
+                            MouseSettings[model.key] = "";
+                            MouseSettings.save();
                         }
 
                         ToolTip {
@@ -97,35 +103,25 @@ SettingsBasePage {
                     }
                 }
 
-                onClicked: openSelectActionPopup()
                 Component.onCompleted: mouseButtonsListView.delegateHeight = height
+                onClicked: openSelectActionPopup()
 
                 Connections {
-                    target: selectActionPopup
                     function onActionSelected(actionName) {
                         if (selectActionPopup.buttonIndex === model.index) {
-                            MouseSettings[model.key] = actionName
-                            MouseSettings.save()
+                            MouseSettings[model.key] = actionName;
+                            MouseSettings.save();
                         }
                     }
-                }
 
-                function openSelectActionPopup() {
-                    selectActionPopup.buttonIndex = model.index
-                    selectActionPopup.title = model.label
-                    selectActionPopup.open()
+                    target: selectActionPopup
                 }
             }
-
-            Layout.fillWidth: true
-            Layout.fillHeight: true
         }
-
         Item {
-            width: Kirigami.Units.gridUnit
             height: Kirigami.Units.gridUnit
+            width: Kirigami.Units.gridUnit
         }
-
         SelectActionPopup {
             id: selectActionPopup
 

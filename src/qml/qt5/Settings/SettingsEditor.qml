@@ -16,36 +16,35 @@ import org.ctoolbox.cplay 1.0 as Haruna
 Kirigami.ApplicationWindow {
     id: root
 
-    width: 1000
     height: 700
     title: qsTr("C-Play Settings")
     visible: false
+    width: 1000
+
     //pageStack.initialPage: "qrc:/Navigation.qml"
 
     Component.onCompleted: pageStack.push("qrc:/Navigation.qml")
 
     Loader {
+        asynchronous: true
         source: "qrc:/PlaybackSettings.qml"
-        asynchronous: true
     }
-
     Loader {
+        asynchronous: true
         source: "qrc:/GridSettings.qml"
-        asynchronous: true
     }
-	
-	Loader {
+    Loader {
+        asynchronous: true
         source: "qrc:/ImageSettings.qml"
-        asynchronous: true
     }
-
     Window {
         id: helpWindow
 
-        width: 900
+        color: Kirigami.Theme.backgroundColor
         height: 700
         title: qsTr("Help")
-        color: Kirigami.Theme.backgroundColor
+        width: 900
+
         onVisibleChanged: info.text = app.getFileContent(applicationWindow().pageStack.currentItem.helpFile)
 
         Flickable {
@@ -58,37 +57,40 @@ Kirigami.ApplicationWindow {
 
             ScrollBar.vertical: ScrollBar {
                 id: scrollbar
+
                 policy: ScrollBar.AlwaysOn
-                stepSize: scrollView.scrollStepSize/scrollView.contentHeight
+                stepSize: scrollView.scrollStepSize / scrollView.contentHeight
             }
 
             MouseArea {
                 anchors.fill: parent
+
                 onWheel: {
                     if (wheel.angleDelta.y > 0) {
-                        scrollbar.decrease()
+                        scrollbar.decrease();
                     } else {
-                        scrollbar.increase()
+                        scrollbar.increase();
                     }
                 }
             }
-
             TextArea {
                 id: info
 
-                background: Rectangle {
-                    color: "transparent"
-                    border.color: "transparent"
-                }
-                width: parent.width
                 color: Kirigami.Theme.textColor
                 readOnly: true
-                textFormat: Text.RichText
-                wrapMode: Text.WordWrap
-                selectByMouse: true
                 rightPadding: scrollbar.width
-                onLinkActivated: Qt.openUrlExternally(link)
+                selectByMouse: true
+                textFormat: Text.RichText
+                width: parent.width
+                wrapMode: Text.WordWrap
+
+                background: Rectangle {
+                    border.color: "transparent"
+                    color: "transparent"
+                }
+
                 onHoveredLinkChanged: hoveredLink ? Qt.PointingHandCursor : Qt.ArrowCursor
+                onLinkActivated: Qt.openUrlExternally(link)
             }
         }
     }

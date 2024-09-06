@@ -11,90 +11,94 @@ import QtQuick.Layouts
 import QtQuick.Controls
 import org.kde.kirigami as Kirigami
 
-Kirigami.Page
-{
-    padding: 0
-    leftPadding: 0
-    topPadding: 0
-    rightPadding: 0
+Kirigami.Page {
     bottomPadding: 0
-
-    Component.onCompleted: applicationWindow().pageStack.columnView.columnWidth = 250
-
-    Loader { asynchronous: true }
+    leftPadding: 0
+    padding: 0
+    rightPadding: 0
+    topPadding: 0
 
     footer: ToolBar {
         RowLayout {
             anchors.fill: parent
 
             ToolButton {
-                text: qsTr("Configure shortcuts")
-                icon.name: "configure-shortcuts"
-                onClicked: appActions.configureShortcutsAction.trigger()
                 Layout.fillWidth: true
+                icon.name: "configure-shortcuts"
+                text: qsTr("Configure shortcuts")
+
+                onClicked: appActions.configureShortcutsAction.trigger()
             }
         }
     }
 
+    Component.onCompleted: applicationWindow().pageStack.columnView.columnWidth = 250
+
+    Loader {
+        asynchronous: true
+    }
     ListModel {
         id: settingsPagesModel
+
         property string pagePath: "qrc:/qt/qml/org/ctoolbox/cplay/qml/qt6/Settings"
-		ListElement {
-            name: "Audio"
+
+        ListElement {
             iconName: "audio-speakers-symbolic"
+            name: "Audio"
             page: "AudioSettings.qml"
         }
-		ListElement {
-            name: "Grid/mapping"
+        ListElement {
             iconName: "kstars_hgrid"
+            name: "Grid/mapping"
             page: "GridSettings.qml"
         }
-		ListElement {
-            name: "Image"
+        ListElement {
             iconName: "kdenlive-select-images"
+            name: "Image"
             page: "ImageSettings.qml"
         }
         ListElement {
-            name: "Location"
             iconName: "find-location"
+            name: "Location"
             page: "LocationSettings.qml"
         }
-		ListElement {
-            name: "Mouse"
+        ListElement {
             iconName: "input-mouse"
+            name: "Mouse"
             page: "MouseSettings.qml"
         }
         ListElement {
-            name: "Playback"
             iconName: "video-x-generic"
+            name: "Playback"
             page: "PlaybackSettings.qml"
         }
         ListElement {
-            name: "Playlist"
             iconName: "format-list-unordered"
+            name: "Playlist"
             page: "PlaylistSettings.qml"
         }
         ListElement {
-            name: "Presentation"
             iconName: "dialog-layers"
+            name: "Presentation"
             page: "PresentationSettings.qml"
         }
-		ListElement {
-            name: "User interface"
+        ListElement {
             iconName: "edit-paste-style"
+            name: "User interface"
             page: "UserInterfaceSettings.qml"
         }
     }
-
     ListView {
         id: settingsPagesList
 
         anchors.fill: parent
         model: settingsPagesModel
+
         delegate: ItemDelegate {
-            width: settingsPagesList.width
-            text: qsTr(name)
             icon.name: iconName
+            text: qsTr(name)
+            width: settingsPagesList.width
+
             onClicked: applicationWindow().pageStack.push(`${settingsPagesModel.pagePath}/${model.page}`)
         }
     }

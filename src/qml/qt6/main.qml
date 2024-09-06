@@ -21,164 +21,228 @@ import "Settings"
 Kirigami.ApplicationWindow {
     id: window
 
+    property var appActions: actions.list
     property var configure: app.action("configure")
     property int preFullScreenVisibility
-    property var appActions: actions.list
 
-    visible: true
-    title: mpv.mediaTitle || qsTr("C-Play")
-    width: 1610
-    minimumWidth: 1152
-    maximumWidth: 1728
-    height: 880
-    minimumHeight: 660
-    maximumHeight: 990
-    color: Kirigami.Theme.alternateBackgroundColor
-
-    onVisibilityChanged: function(visibility) {
-        if (!window.isFullScreen()) {
-            preFullScreenVisibility = visibility
+    function isFullScreen() {
+        return window.visibility === Window.FullScreen;
+    }
+    function openFile(path, startPlayback, loadSiblings) {
+        mpv.pause = true;
+        mpv.position = 0;
+        if (loadSiblings) {
+            // get video files from same folder as the opened file
+            mpv.playlistModel.getVideos(path);
         }
+        mpv.loadFile(path);
+    }
+    function saveCPlayFile(path) {
+        mpv.playSectionsModel.currentEditItem.saveAsJSONPlayFile(path);
+        mpv.playSectionsModel.setCurrentEditItemIsEdited(false);
+    }
+    function saveCPlayPlaylist(path) {
+        mpv.playlistModel.saveAsJSONPlaylist(path);
+        mpv.playlistModelChanged();
+    }
+    function toggleFullScreen() {
+        if (!isFullScreen()) {
+            window.showFullScreen();
+        } else {
+            if (window.preFullScreenVisibility === Window.Windowed) {
+                window.showNormal();
+            }
+            if (window.preFullScreenVisibility === Window.Maximized) {
+                window.show();
+                window.showMaximized();
+            }
+        }
+        app.showCursor();
+        playList.scrollPositionTimer.start();
     }
 
-    header: Header { id: header }
+    color: Kirigami.Theme.alternateBackgroundColor
+    height: 880
+    maximumHeight: 990
+    maximumWidth: 1728
+    minimumHeight: 660
+    minimumWidth: 1152
+    title: mpv.mediaTitle || qsTr("C-Play")
+    visible: true
+    width: 1610
 
+    header: Header {
+        id: header
+
+    }
     menuBar: MenuBar {
         id: menuBar
-        visible: UserInterfaceSettings.showMenuBar
 
-        FileMenu {}
-        PlaybackMenu {}
-        AudioMenu {}
-        SettingsMenu {}
-        HelpMenu {}
+        Kirigami.Theme.colorSet: Kirigami.Theme.Header
+        visible: UserInterfaceSettings.showMenuBar
 
         background: Rectangle {
             color: Kirigami.Theme.backgroundColor
         }
-        Kirigami.Theme.colorSet: Kirigami.Theme.Header
+
+        FileMenu {
+        }
+        PlaybackMenu {
+        }
+        AudioMenu {
+        }
+        SettingsMenu {
+        }
+        HelpMenu {
+        }
     }
 
-    SystemPalette { id: systemPalette; colorGroup: SystemPalette.Active }
+    Component.onCompleted: app.activateColorScheme(UserInterfaceSettings.colorScheme)
+    onVisibilityChanged: function (visibility) {
+        if (!window.isFullScreen()) {
+            preFullScreenVisibility = visibility;
+        }
+    }
 
-    SettingsEditor { id: settingsEditor }
+    SystemPalette {
+        id: systemPalette
 
-    SaveAsCPlayFile { id: saveAsCPlayFileWindow }
+        colorGroup: SystemPalette.Active
+    }
+    SettingsEditor {
+        id: settingsEditor
 
-    ViewPlaylistItem { id: viewPlaylistItemWindow }
+    }
+    SaveAsCPlayFile {
+        id: saveAsCPlayFileWindow
 
-    Actions { id: actions }
+    }
+    ViewPlaylistItem {
+        id: viewPlaylistItemWindow
 
-    BackgroundImage { id: bgImage }
+    }
+    Actions {
+        id: actions
 
+    }
+    BackgroundImage {
+        id: bgImage
+
+    }
     MpvVideo {
         id: mpv
 
-        Osd { id: osd }
+        Osd {
+            id: osd
+
+        }
     }
+    ForegroundImage {
+        id: fgImage
 
-    ForegroundImage { id: fgImage }
+    }
+    PlaySections {
+        id: playSections
 
-    PlaySections { id: playSections }
+    }
+    PlayList {
+        id: playList
 
-    PlayList { id: playList }
+    }
+    Slides {
+        id: slides
 
-    Slides { id: slides }
+    }
+    Layers {
+        id: layers
 
-    Layers { id: layers }
+    }
+    LayersAddNew {
+        id: layersAddNew
 
-    LayersAddNew { id: layersAddNew }
+    }
+    LayerView {
+        id: layerView
 
-    LayerView { id: layerView }
+    }
+    Footer {
+        id: footer
 
-    Footer { id: footer }
-
+    }
     Platform.FileDialog {
         id: openFileDialog
-        folder: LocationSettings.fileDialogLocation !== ""
-                ? app.pathToUrl(LocationSettings.fileDialogLocation)
-                : app.pathToUrl(LocationSettings.fileDialogLastLocation)
-        title: "Open File"
+
         fileMode: Platform.FileDialog.OpenFile
+        folder: LocationSettings.fileDialogLocation !== "" ? app.pathToUrl(LocationSettings.fileDialogLocation) : app.pathToUrl(LocationSettings.fileDialogLastLocation)
+        title: "Open File"
 
         onAccepted: {
-            openFile(openFileDialog.file.toString(), true, PlaylistSettings.loadSiblings)
+            openFile(openFileDialog.file.toString(), true, PlaylistSettings.loadSiblings);
             // the timer scrolls the playlist to the playing file
             // once the table view rows are loaded
-            playList.scrollPositionTimer.start()
-            mpv.focus = true
-
-            LocationSettings.fileDialogLastLocation = app.parentUrl(openFileDialog.file)
-            LocationSettings.save()
+            playList.scrollPositionTimer.start();
+            mpv.focus = true;
+            LocationSettings.fileDialogLastLocation = app.parentUrl(openFileDialog.file);
+            LocationSettings.save();
         }
         onRejected: mpv.focus = true
     }
-
     Platform.FileDialog {
         id: addToPlaylistDialog
-        folder: LocationSettings.cPlayFileLocation !== ""
-                ? app.pathToUrl(LocationSettings.cPlayFileLocation)
-                : app.pathToUrl(LocationSettings.fileDialogLastLocation)
-        title: "Add file to playlist"
+
         fileMode: Platform.FileDialog.OpenFile
-        nameFilters: [ "C-Play file (*.cplayfile)", "Uniview file (*.fdv)", "All files (*)"  ]
+        folder: LocationSettings.cPlayFileLocation !== "" ? app.pathToUrl(LocationSettings.cPlayFileLocation) : app.pathToUrl(LocationSettings.fileDialogLastLocation)
+        nameFilters: ["C-Play file (*.cplayfile)", "Uniview file (*.fdv)", "All files (*)"]
+        title: "Add file to playlist"
 
         onAccepted: {
-            mpv.addFileToPlaylist(addToPlaylistDialog.file.toString())
-            mpv.focus = true
+            mpv.addFileToPlaylist(addToPlaylistDialog.file.toString());
+            mpv.focus = true;
         }
         onRejected: mpv.focus = true
     }
-
     Platform.FileDialog {
         id: saveCPlayFileDialog
 
-        folder: LocationSettings.cPlayFileLocation !== ""
-                ? app.pathToUrl(LocationSettings.cPlayFileLocation)
-                : app.pathToUrl(LocationSettings.fileDialogLastLocation)
-        title: "Save C-Play File Config"
         fileMode: Platform.FileDialog.SaveFile
-        nameFilters: [ "C-Play file (*.cplayfile)" ]
+        folder: LocationSettings.cPlayFileLocation !== "" ? app.pathToUrl(LocationSettings.cPlayFileLocation) : app.pathToUrl(LocationSettings.fileDialogLastLocation)
+        nameFilters: ["C-Play file (*.cplayfile)"]
+        title: "Save C-Play File Config"
 
         onAccepted: {
-            saveCPlayFile(saveCPlayFileDialog.file.toString())
-            mpv.focus = true
+            saveCPlayFile(saveCPlayFileDialog.file.toString());
+            mpv.focus = true;
             saveCPlayFileDialog.visible = false;
-
             if (saveCPlayFileDialog.visible) {
-                saveCPlayFileDialog.close()
+                saveCPlayFileDialog.close();
             }
-
-            saveAsCPlayFileWindow.visible = false
+            saveAsCPlayFileWindow.visible = false;
         }
         onRejected: mpv.focus = true
     }
-
     Platform.FileDialog {
         id: saveCPlayPlaylistDialog
 
-        folder: LocationSettings.cPlayFileLocation !== ""
-                ? app.pathToUrl(LocationSettings.cPlayFileLocation)
-                : app.pathToUrl(LocationSettings.fileDialogLastLocation)
-        title: "Save C-Playlist"
         fileMode: Platform.FileDialog.SaveFile
-        nameFilters: [ "C-Play playlist (*.cplaylist)" ]
+        folder: LocationSettings.cPlayFileLocation !== "" ? app.pathToUrl(LocationSettings.cPlayFileLocation) : app.pathToUrl(LocationSettings.fileDialogLastLocation)
+        nameFilters: ["C-Play playlist (*.cplaylist)"]
+        title: "Save C-Playlist"
 
         onAccepted: {
-            saveCPlayPlaylist(saveCPlayPlaylistDialog.file.toString())
-            mpv.focus = true
+            saveCPlayPlaylist(saveCPlayPlaylistDialog.file.toString());
+            mpv.focus = true;
         }
         onRejected: mpv.focus = true
     }
-
     Popup {
         id: openUrlPopup
+
         x: 10
         y: 10
 
         onOpened: {
-            openUrlTextField.forceActiveFocus(Qt.MouseFocusReason)
-            openUrlTextField.selectAll()
+            openUrlTextField.forceActiveFocus(Qt.MouseFocusReason);
+            openUrlTextField.selectAll();
         }
 
         RowLayout {
@@ -187,85 +251,41 @@ Kirigami.ApplicationWindow {
             Label {
                 text: qsTr("<a href=\"https://youtube-dl.org\">Youtube-dl</a> was not found.")
                 visible: !app.hasYoutubeDl()
+
                 onLinkActivated: Qt.openUrlExternally(link)
             }
-
             TextField {
                 id: openUrlTextField
 
-                visible: app.hasYoutubeDl()
-                Layout.preferredWidth: 400
                 Layout.fillWidth: true
-                Component.onCompleted: text = LocationSettings.lastUrl
+                Layout.preferredWidth: 400
+                visible: app.hasYoutubeDl()
 
+                Component.onCompleted: text = LocationSettings.lastUrl
                 Keys.onPressed: {
-                    if (event.key === Qt.Key_Enter
-                            || event.key === Qt.Key_Return) {
-                        openUrlButton.clicked()
+                    if (event.key === Qt.Key_Enter || event.key === Qt.Key_Return) {
+                        openUrlButton.clicked();
                     }
                     if (event.key === Qt.Key_Escape) {
-                        openUrlPopup.close()
+                        openUrlPopup.close();
                     }
                 }
             }
             Button {
                 id: openUrlButton
 
-                visible: app.hasYoutubeDl()
                 text: qsTr("Open")
+                visible: app.hasYoutubeDl()
 
                 onClicked: {
-                    openFile(openUrlTextField.text, true, false)
-                    LocationSettings.lastUrl = openUrlTextField.text
+                    openFile(openUrlTextField.text, true, false);
+                    LocationSettings.lastUrl = openUrlTextField.text;
                     // in case the url is a playList, it opens the first video
-                    PlaylistSettings.lastPlaylistIndex = 0
-                    openUrlPopup.close()
-                    openUrlTextField.clear()
+                    PlaylistSettings.lastPlaylistIndex = 0;
+                    openUrlPopup.close();
+                    openUrlTextField.clear();
                 }
             }
         }
     }
-
-    Component.onCompleted: app.activateColorScheme(UserInterfaceSettings.colorScheme)
-
-    function openFile(path, startPlayback, loadSiblings) {
-        mpv.pause = true
-        mpv.position = 0
-        if (loadSiblings) {
-            // get video files from same folder as the opened file
-            mpv.playlistModel.getVideos(path)
-        }
-        mpv.loadFile(path)
-    }
-
-    function saveCPlayFile(path) {
-        mpv.playSectionsModel.currentEditItem.saveAsJSONPlayFile(path)
-        mpv.playSectionsModel.setCurrentEditItemIsEdited(false)
-    }
-
-    function saveCPlayPlaylist(path) {
-        mpv.playlistModel.saveAsJSONPlaylist(path)
-        mpv.playlistModelChanged()
-    }
-
-    function isFullScreen() {
-        return window.visibility === Window.FullScreen
-    }
-
-    function toggleFullScreen() {
-        if (!isFullScreen()) {
-            window.showFullScreen()
-        } else {
-            if (window.preFullScreenVisibility === Window.Windowed) {
-                window.showNormal()
-            }
-            if (window.preFullScreenVisibility === Window.Maximized) {
-                window.show()
-                window.showMaximized()
-            }
-        }
-        app.showCursor()
-        playList.scrollPositionTimer.start()
-    }
-
 }

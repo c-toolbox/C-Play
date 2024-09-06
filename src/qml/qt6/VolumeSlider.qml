@@ -20,36 +20,45 @@ Slider {
     property string overlayLabel: qsTr("Media volume")
 
     from: 0
-    to: 100
-    value: mpv.volume
-    implicitWidth: 130
     implicitHeight: 25
-    wheelEnabled: false
+    implicitWidth: 130
     leftPadding: 0
     rightPadding: 0
-
-    handle: Item { visible: false }
+    to: 100
+    value: mpv.volume
+    wheelEnabled: false
 
     background: Rectangle {
         id: harunaSliderBG
+
         color: Kirigami.Theme.alternateBackgroundColor
 
         Rectangle {
-            width: visualPosition * parent.width
-            height: parent.height
             color: Kirigami.Theme.highlightColor
+            height: parent.height
             radius: 0
+            width: visualPosition * parent.width
         }
+    }
+    handle: Item {
+        visible: false
     }
 
     Label {
         id: progressBarToolTip
-        text: root.overlayLabel + qsTr(": %1\%").arg(Number(root.value.toFixed(0)))
-        font.pointSize: 9
+
         anchors.centerIn: root
         color: "#fff"
+        font.pointSize: 9
         layer.enabled: true
-        layer.effect: DropShadow { verticalOffset: 1; color: "#111"; radius: 5; spread: 0.3; samples: 17 }
-    }
+        text: root.overlayLabel + qsTr(": %1\%").arg(Number(root.value.toFixed(0)))
 
+        layer.effect: DropShadow {
+            color: "#111"
+            radius: 5
+            samples: 17
+            spread: 0.3
+            verticalOffset: 1
+        }
+    }
 }

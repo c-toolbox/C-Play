@@ -20,97 +20,90 @@ ItemDelegate {
     property int iconWidth: 0
     property string rowNumber: (index + 1).toString()
 
-    implicitWidth: ListView.view.width
+    function mainText() {
+        const rowNumber = pad(root.rowNumber, playlistView.count.toString().length) + ". ";
+        if (PlaylistSettings.showRowNumber) {
+            return rowNumber + (PlaylistSettings.showMediaTitle ? model.title : model.name);
+        }
+        return (PlaylistSettings.showMediaTitle ? model.title : model.name);
+    }
+    function pad(number, length) {
+        while (number.length < length)
+            number = "0" + number;
+        return number;
+    }
+    function subText() {
+        if (model.hasDescriptionFile) {
+            return model.duration + " : " + model.stereoVideo + " " + model.gridToMapOn + " : (" + model.eofMode + ")";
+        }
+        return model.duration + " : (" + model.eofMode + ")";
+    }
+
     down: model.isPlaying
-    padding: 0
     font.pointSize: 9
+    implicitWidth: ListView.view.width
+    padding: 0
 
     background: Rectangle {
         anchors.fill: parent
         color: {
             if (highlighted) {
-                return Qt.alpha(Kirigami.Theme.highlightColor, 0.6)
+                return Qt.alpha(Kirigami.Theme.highlightColor, 0.6);
             }
-
             if (hovered) {
-                return Qt.alpha(Kirigami.Theme.hoverColor, 0.4)
+                return Qt.alpha(Kirigami.Theme.hoverColor, 0.4);
             }
-
-            if(down) {
-                return Qt.alpha(Kirigami.Theme.positiveBackgroundColor, 0.8)
+            if (down) {
+                return Qt.alpha(Kirigami.Theme.positiveBackgroundColor, 0.8);
             }
-
-            return Kirigami.Theme.backgroundColor
+            return Kirigami.Theme.backgroundColor;
         }
     }
-
     contentItem: Kirigami.IconTitleSubtitle {
         anchors.fill: parent
-        icon.name: iconName
-        icon.color: color
-        icon.width: iconWidth
-        title: mainText()
-        subtitle: subText()
         color: root.hovered || root.highlighted ? Kirigami.Theme.highlightedTextColor : Kirigami.Theme.textColor
+        icon.color: color
+        icon.name: iconName
+        icon.width: iconWidth
         selected: root.down
-    }
-
-    Connections {
-        target: mpv
-        function onPauseChanged() {
-            if (model.isPlaying) {
-                if (mpv.pause) {
-                    iconName = "media-playback-pause"
-                }
-                else {
-                    iconName = "media-playback-start"
-                }
-                iconWidth = root.height * 0.8
-            }
-            else {
-                iconName = "kt-set-max-upload-speed"
-                iconWidth = 0
-            }
-        }
-    }
-
-    Timer {
-       id: playItem
-       interval: PlaylistSettings.autoPlayAfterTime * 1000
-       onTriggered: {
-           mpv.pause = false
-       }
+        subtitle: subText()
+        title: mainText()
     }
 
     onDoubleClicked: {
-        mpv.pause = true
-        iconWidth = Kirigami.Units.gridUnit * 1.8
-        mpv.position = 0
-        mpv.loadItem(index)
-        mpv.playlistModel.setPlayingVideo(index)
-        if(mpv.autoPlay)
-            playItem.start()
+        mpv.pause = true;
+        iconWidth = Kirigami.Units.gridUnit * 1.8;
+        mpv.position = 0;
+        mpv.loadItem(index);
+        mpv.playlistModel.setPlayingVideo(index);
+        if (mpv.autoPlay)
+            playItem.start();
     }
 
-    function mainText() {
-        const rowNumber = pad(root.rowNumber, playlistView.count.toString().length) + ". "
-
-        if(PlaylistSettings.showRowNumber) {
-            return rowNumber + (PlaylistSettings.showMediaTitle ? model.title : model.name)
+    Connections {
+        function onPauseChanged() {
+            if (model.isPlaying) {
+                if (mpv.pause) {
+                    iconName = "media-playback-pause";
+                } else {
+                    iconName = "media-playback-start";
+                }
+                iconWidth = root.height * 0.8;
+            } else {
+                iconName = "kt-set-max-upload-speed";
+                iconWidth = 0;
+            }
         }
-        return (PlaylistSettings.showMediaTitle ? model.title : model.name)
+
+        target: mpv
     }
+    Timer {
+        id: playItem
 
-    function subText() {
-        if(model.hasDescriptionFile) {
-            return model.duration + " : " + model.stereoVideo + " " + model.gridToMapOn + " : (" + model.eofMode + ")"
+        interval: PlaylistSettings.autoPlayAfterTime * 1000
+
+        onTriggered: {
+            mpv.pause = false;
         }
-        return model.duration + " : (" + model.eofMode + ")"
-    } 
-
-    function pad(number, length) {
-        while (number.length < length)
-            number = "0" + number;
-        return number;
     }
 }

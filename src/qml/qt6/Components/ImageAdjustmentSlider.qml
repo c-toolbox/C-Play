@@ -12,31 +12,32 @@ RowLayout {
     id: root
 
     property int value: 0
+
     signal sliderValueChanged(int value)
 
     Slider {
         id: slider
 
         from: -100
+        stepSize: 1
         to: 100
         value: root.value
         wheelEnabled: true
-        stepSize: 1
+
+        Component.onCompleted: background.activeControl = ""
         onValueChanged: root.sliderValueChanged(value.toFixed(0))
 
         MouseArea {
-            anchors.fill: parent
             acceptedButtons: Qt.MiddleButton
+            anchors.fill: parent
+
             onClicked: slider.value = 0
         }
-
-        Component.onCompleted: background.activeControl = ""
     }
-
     Label {
-        text: slider.value
+        Layout.preferredWidth: 40
         font.pointSize: 9
         horizontalAlignment: Qt.AlignHCenter
-        Layout.preferredWidth: 40
+        text: slider.value
     }
 }

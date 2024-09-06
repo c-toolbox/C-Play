@@ -17,141 +17,132 @@ import org.ctoolbox.cplay 1.0
 
 Kirigami.ApplicationWindow {
     id: root
-    width: 400
-    height: 300
-    title: qsTr("Add new layer")
-    visible: false
-    color: Kirigami.Theme.alternateBackgroundColor
-
-    Component.onCompleted: {
-        if(window.x > width) {
-            x = window.x - width
-        }
-        else {
-            x = window.x
-        }
-        y = window.y
-    }
 
     function resetValues() {
-        typeComboBox.currentIndex = 0
+        typeComboBox.currentIndex = 0;
         fileForLayer.text = "";
         layerTitle.text = "";
-
         for (let sm = 0; sm < stereoscopicModeForLayerList.count; ++sm) {
             if (stereoscopicModeForLayerList.get(sm).value === PresentationSettings.defaultStereoModeForLayers) {
-                stereoscopicModeForLayer.currentIndex = sm
-                break
+                stereoscopicModeForLayer.currentIndex = sm;
+                break;
             }
         }
         for (let gm = 0; gm < gridModeForLayerList.count; ++gm) {
             if (gridModeForLayerList.get(gm).value === PresentationSettings.defaultGridModeForLayers) {
-                gridModeForLayer.currentIndex = gm
-                break
+                gridModeForLayer.currentIndex = gm;
+                break;
             }
         }
     }
 
+    color: Kirigami.Theme.alternateBackgroundColor
+    height: 300
+    title: qsTr("Add new layer")
+    visible: false
+    width: 400
+
+    Component.onCompleted: {
+        if (window.x > width) {
+            x = window.x - width;
+        } else {
+            x = window.x;
+        }
+        y = window.y;
+    }
     onVisibilityChanged: {
-        if(visible) {
-            resetValues()
+        if (visible) {
+            resetValues();
         }
     }
 
     Platform.FileDialog {
         id: fileToLoadAsImageLayerDialog
-        folder: LocationSettings.fileDialogLocation !== ""
-                ? app.pathToUrl(LocationSettings.fileDialogLocation)
-                : app.pathToUrl(LocationSettings.fileDialogLastLocation)
+
         fileMode: Platform.FileDialog.OpenFile
+        folder: LocationSettings.fileDialogLocation !== "" ? app.pathToUrl(LocationSettings.fileDialogLocation) : app.pathToUrl(LocationSettings.fileDialogLastLocation)
+        nameFilters: ["Image files (*.png *.jpg *.jpeg *.tga)"]
         title: "Choose image file"
-        nameFilters: [ "Image files (*.png *.jpg *.jpeg *.tga)" ]
 
         onAccepted: {
             fileForLayer.text = playerController.checkAndCorrectPath(fileToLoadAsImageLayerDialog.file);
             layerTitle.text = playerController.returnBaseName(fileForLayer.text);
-            mpv.focus = true
+            mpv.focus = true;
         }
         onRejected: mpv.focus = true
     }
-
     Platform.FileDialog {
         id: fileToLoadAsVideoLayerDialog
-        folder: LocationSettings.fileDialogLocation !== ""
-                ? app.pathToUrl(LocationSettings.fileDialogLocation)
-                : app.pathToUrl(LocationSettings.fileDialogLastLocation)
-        title: "Choose video file"
+
         fileMode: Platform.FileDialog.OpenFile
+        folder: LocationSettings.fileDialogLocation !== "" ? app.pathToUrl(LocationSettings.fileDialogLocation) : app.pathToUrl(LocationSettings.fileDialogLastLocation)
+        title: "Choose video file"
 
         onAccepted: {
             fileForLayer.text = playerController.checkAndCorrectPath(fileToLoadAsVideoLayerDialog.file);
             layerTitle.text = playerController.returnBaseName(fileForLayer.text);
-            mpv.focus = true
+            mpv.focus = true;
         }
         onRejected: mpv.focus = true
     }
-
     GridLayout {
-        columnSpacing : 2
-        rowSpacing: 8
-
         anchors.fill: parent
         anchors.margins: 15
-
+        columnSpacing: 2
         columns: 2
+        rowSpacing: 8
 
         RowLayout {
+            Layout.bottomMargin: 5
+            Layout.columnSpan: 2
+
             Rectangle {
-                width: Kirigami.Units.gridUnit
-                height: 1
                 color: Kirigami.Theme.alternateBackgroundColor
+                height: 1
+                width: Kirigami.Units.gridUnit
             }
             Label {
                 text: qsTr("Properties for the new layer")
             }
             Rectangle {
-                height: 1
-                color: Kirigami.Theme.alternateBackgroundColor
                 Layout.fillWidth: true
+                color: Kirigami.Theme.alternateBackgroundColor
+                height: 1
             }
-
-            Layout.bottomMargin: 5
-            Layout.columnSpan: 2
         }
-
         Label {
-            text: qsTr("Type:")
             Layout.alignment: Qt.AlignRight
             font.pointSize: 9
+            text: qsTr("Type:")
         }
         ComboBox {
             id: typeComboBox
+
+            Layout.fillWidth: true
             model: app.slides.selected.layersTypeModel
             textRole: "typeName"
 
-            onActivated: {
-            }
-
-            Layout.fillWidth: true
+            onActivated: {}
         }
-
         Label {
-            visible: typeComboBox.currentIndex >= 0 && typeComboBox.currentIndex <= 1
-            text: qsTr("File:")
             Layout.alignment: Qt.AlignRight
             font.pointSize: 9
+            text: qsTr("File:")
+            visible: typeComboBox.currentIndex >= 0 && typeComboBox.currentIndex <= 1
         }
         RowLayout {
+            Layout.fillWidth: true
             visible: typeComboBox.currentIndex >= 0 && typeComboBox.currentIndex <= 1
 
             TextField {
                 id: fileForLayer
-                text: ""
-                placeholderText: "Path to file"
-                Layout.preferredWidth: font.pointSize * 17
+
                 Layout.fillWidth: true
-                onEditingFinished: {
-                }
+                Layout.preferredWidth: font.pointSize * 17
+                placeholderText: "Path to file"
+                text: ""
+
+                onEditingFinished: {}
 
                 ToolTip {
                     text: qsTr("Path to file for layer")
@@ -159,168 +150,188 @@ Kirigami.ApplicationWindow {
             }
             ToolButton {
                 id: fileToLoadAsLayerButton
-                text: ""
-                icon.name: "system-file-manager"
-                icon.height: 16
+
                 focusPolicy: Qt.NoFocus
+                icon.height: 16
+                icon.name: "system-file-manager"
+                text: ""
 
                 onClicked: {
-                    if(typeComboBox.currentIndex == 0)
-                        fileToLoadAsImageLayerDialog.open()
-                    else if(typeComboBox.currentIndex == 1)
-                        fileToLoadAsVideoLayerDialog.open()
+                    if (typeComboBox.currentIndex == 0)
+                        fileToLoadAsImageLayerDialog.open();
+                    else if (typeComboBox.currentIndex == 1)
+                        fileToLoadAsVideoLayerDialog.open();
                 }
             }
-            Layout.fillWidth: true
         }
-
         Label {
-            visible: typeComboBox.currentIndex == 2
-            text: qsTr("Name:")
             Layout.alignment: Qt.AlignRight
+            text: qsTr("Name:")
+            visible: typeComboBox.currentIndex == 2
         }
         RowLayout {
+            Layout.fillWidth: true
             visible: typeComboBox.currentIndex == 2
+
             ComboBox {
                 id: ndiSenderComboBox
+
+                Layout.fillWidth: true
                 model: app.slides.selected.ndiSendersModel
                 textRole: "typeName"
 
+                Component.onCompleted: {}
+                onActivated: {
+                    layerTitle.text = ndiSenderComboBox.currentText;
+                }
                 onVisibleChanged: {
                     if (visible)
-                        updateSendersBox.clicked()
+                        updateSendersBox.clicked();
                 }
-
-                onActivated: {
-                    layerTitle.text = ndiSenderComboBox.currentText
-                }
-
-                Component.onCompleted: {
-                }
-
-                Layout.fillWidth: true
             }
             ToolButton {
                 id: updateSendersBox
-                text: ""
-                icon.name: "view-refresh"
-                icon.height: 16
+
                 focusPolicy: Qt.NoFocus
+                icon.height: 16
+                icon.name: "view-refresh"
+                text: ""
 
                 onClicked: {
-                    ndiSenderComboBox.currentIndex = app.slides.selected.ndiSendersModel.updateSendersList()
-                    layerTitle.text = ndiSenderComboBox.currentText
+                    ndiSenderComboBox.currentIndex = app.slides.selected.ndiSendersModel.updateSendersList();
+                    layerTitle.text = ndiSenderComboBox.currentText;
                 }
             }
-            Layout.fillWidth: true
         }
-
         Label {
-            text: qsTr("Title:")
             Layout.alignment: Qt.AlignRight
             font.pointSize: 9
+            text: qsTr("Title:")
         }
-
         TextField {
             id: layerTitle
-            text: ""
+
+            Layout.fillWidth: true
+            font.pointSize: 9
             maximumLength: 18
             placeholderText: "Layer title"
-            font.pointSize: 9
-            Layout.fillWidth: true
+            text: ""
         }
-
         Label {
-            text: qsTr("Stereo:")
             Layout.alignment: Qt.AlignRight
+            text: qsTr("Stereo:")
         }
         ComboBox {
             id: stereoscopicModeForLayer
+
+            Layout.fillWidth: true
             enabled: true
             focusPolicy: Qt.NoFocus
             textRole: "mode"
+
             model: ListModel {
                 id: stereoscopicModeForLayerList
-                ListElement { mode: "2D (mono)"; value: 0 }
-                ListElement { mode: "3D (side-by-side)"; value: 1}
-                ListElement { mode: "3D (top-bottom)"; value: 2 }
-                ListElement { mode: "3D (top-bottom+flip)"; value: 3 }
+
+                ListElement {
+                    mode: "2D (mono)"
+                    value: 0
+                }
+                ListElement {
+                    mode: "3D (side-by-side)"
+                    value: 1
+                }
+                ListElement {
+                    mode: "3D (top-bottom)"
+                    value: 2
+                }
+                ListElement {
+                    mode: "3D (top-bottom+flip)"
+                    value: 3
+                }
             }
 
-            onActivated: {
-            }
-
-            Component.onCompleted: {
-            }
-
-            Layout.fillWidth: true
+            Component.onCompleted: {}
+            onActivated: {}
         }
-
         Label {
-            text: qsTr("Grid:")
             Layout.alignment: Qt.AlignRight
+            text: qsTr("Grid:")
         }
         ComboBox {
             id: gridModeForLayer
+
+            Layout.fillWidth: true
             enabled: true
             focusPolicy: Qt.NoFocus
             textRole: "mode"
+
             model: ListModel {
                 id: gridModeForLayerList
-                ListElement { mode: "None/Pre-split"; value: 0 }
-                ListElement { mode: "Plane"; value: 1 }
-                ListElement { mode: "Dome"; value: 2}
-                ListElement { mode: "Sphere EQR"; value: 3 }
-                ListElement { mode: "Sphere EAC"; value: 4 }
+
+                ListElement {
+                    mode: "None/Pre-split"
+                    value: 0
+                }
+                ListElement {
+                    mode: "Plane"
+                    value: 1
+                }
+                ListElement {
+                    mode: "Dome"
+                    value: 2
+                }
+                ListElement {
+                    mode: "Sphere EQR"
+                    value: 3
+                }
+                ListElement {
+                    mode: "Sphere EAC"
+                    value: 4
+                }
             }
 
-            onActivated: {
-            }
-
-            Component.onCompleted: {
-            }
-
-            Layout.fillWidth: true
+            Component.onCompleted: {}
+            onActivated: {}
         }
-
         Item {
+            Layout.columnSpan: 2
+            Layout.fillHeight: true
             // spacer item
             Layout.fillWidth: true
-            Layout.fillHeight: true
-            Layout.columnSpan: 2
         }
-
         RowLayout {
+            Layout.bottomMargin: 5
+            Layout.columnSpan: 2
+
             Button {
-                text: qsTr("Add new layer")
+                Layout.fillWidth: true
                 icon.name: "layer-new"
+                text: qsTr("Add new layer")
+
                 onClicked: {
-                    if(layerTitle.text !== ""){
-                        if(typeComboBox.currentIndex == 2){
-                            layerView.layerItem.layerIdx = app.slides.selected.addLayer(layerTitle.text, typeComboBox.currentIndex+1, ndiSenderComboBox.currentText, stereoscopicModeForLayer.currentIndex, gridModeForLayer.currentIndex)
-                            layersAddNew.visible = false
-                            app.slides.updateSelectedSlide()
-                            mpv.focus = true
-                        }
-                        else if(fileForLayer.text !== ""){
-                            layerView.layerItem.layerIdx = app.slides.selected.addLayer(layerTitle.text, typeComboBox.currentIndex+1, fileForLayer.text, stereoscopicModeForLayer.currentIndex, gridModeForLayer.currentIndex)
-                            layersAddNew.visible = false
-                            app.slides.updateSelectedSlide()
-                            mpv.focus = true
+                    if (layerTitle.text !== "") {
+                        if (typeComboBox.currentIndex == 2) {
+                            layerView.layerItem.layerIdx = app.slides.selected.addLayer(layerTitle.text, typeComboBox.currentIndex + 1, ndiSenderComboBox.currentText, stereoscopicModeForLayer.currentIndex, gridModeForLayer.currentIndex);
+                            layersAddNew.visible = false;
+                            app.slides.updateSelectedSlide();
+                            mpv.focus = true;
+                        } else if (fileForLayer.text !== "") {
+                            layerView.layerItem.layerIdx = app.slides.selected.addLayer(layerTitle.text, typeComboBox.currentIndex + 1, fileForLayer.text, stereoscopicModeForLayer.currentIndex, gridModeForLayer.currentIndex);
+                            layersAddNew.visible = false;
+                            app.slides.updateSelectedSlide();
+                            mpv.focus = true;
                         }
                     }
                 }
+
                 ToolTip {
                     text: qsTr("Add layer to bottom of list")
                 }
-                Layout.fillWidth: true
             }
             Item {
                 // spacer item
                 Layout.fillWidth: true
             }
-            Layout.bottomMargin: 5
-            Layout.columnSpan: 2
         }
     }
 }

@@ -1,26 +1,26 @@
 /*
- * SPDX-FileCopyrightText: 
- * 2021-2024 Erik Sundén <eriksunden85@gmail.com> 
+ * SPDX-FileCopyrightText:
+ * 2021-2024 Erik Sundén <eriksunden85@gmail.com>
  *
  * SPDX-License-Identifier: GPL-3.0-or-later
  */
 
-#include <sgct/sgct.h>
 #include <sgct/opengl.h>
+#include <sgct/sgct.h>
 #define GLFW_INCLUDE_NONE
+#include "application.h"
 #include <GLFW/glfw3.h>
+#include <fstream>
 #include <glm/glm.hpp>
+#include <layerrenderer.h>
 #include <layers/baselayer.h>
 #include <layers/imagelayer.h>
 #include <layers/mpvlayer.h>
-#include <layerrenderer.h>
-#include <slidesmodel.h>
 #include <layersmodel.h>
-#include "application.h"
-#include <fstream>   
 #include <mutex>
+#include <slidesmodel.h>
 
-//#define SGCT_ONLY
+// #define SGCT_ONLY
 
 namespace {
 
@@ -32,27 +32,27 @@ std::string logFilePath = "";
 std::string logLevel = "";
 std::string startupFile = "";
 
-std::vector<BaseLayer*> primaryLayers;
-ImageLayer* backgroundImageLayer;
-ImageLayer* foregroundImageLayer;
-ImageLayer* overlayImageLayer;
-MpvLayer* mainMpvLayer;
+std::vector<BaseLayer *> primaryLayers;
+ImageLayer *backgroundImageLayer;
+ImageLayer *foregroundImageLayer;
+ImageLayer *overlayImageLayer;
+MpvLayer *mainMpvLayer;
 
 bool updateLayers = false;
-std::vector<BaseLayer*> secondaryLayers;
-std::vector<BaseLayer*> secondaryLayersToKeep;
+std::vector<BaseLayer *> secondaryLayers;
+std::vector<BaseLayer *> secondaryLayersToKeep;
 
-LayerRenderer* layerRender;
+LayerRenderer *layerRender;
 
 } // namespace
 
 using namespace sgct;
 
-static void* get_proc_address_glfw(void*, const char* name) {
-    return reinterpret_cast<void*>(glfwGetProcAddress(name));
+static void *get_proc_address_glfw(void *, const char *name) {
+    return reinterpret_cast<void *>(glfwGetProcAddress(name));
 }
 
-void initOGL(GLFWwindow*) {
+void initOGL(GLFWwindow *) {
 #ifndef SGCT_ONLY
     if (Engine::instance().isMaster())
         return;
@@ -83,7 +83,6 @@ void initOGL(GLFWwindow*) {
 }
 
 void preSync() {
-
 }
 
 std::vector<std::byte> encode() {
@@ -123,7 +122,7 @@ std::vector<std::byte> encode() {
         serializeObject(data, SyncHelper::instance().variables.planeDistance);
         serializeObject(data, SyncHelper::instance().variables.planeConsiderAspectRatio);
 
-        //Eq
+        // Eq
         serializeObject(data, SyncHelper::instance().variables.eqDirty);
         if (SyncHelper::instance().variables.eqDirty) {
             serializeObject(data, SyncHelper::instance().variables.eqContrast);
@@ -132,7 +131,7 @@ std::vector<std::byte> encode() {
             serializeObject(data, SyncHelper::instance().variables.eqSaturation);
         }
 
-        //Looptime
+        // Looptime
         serializeObject(data, SyncHelper::instance().variables.loopTimeDirty);
         if (SyncHelper::instance().variables.loopTimeDirty) {
             serializeObject(data, SyncHelper::instance().variables.loopTimeEnabled);
@@ -147,47 +146,43 @@ std::vector<std::byte> encode() {
             serializeObject(data, SyncHelper::instance().variables.loadFile);
             serializeObject(data, SyncHelper::instance().variables.loadedFile);
             SyncHelper::instance().variables.loadFile = false;
-        }
-        else if (SyncHelper::instance().variables.overlayFileDirty) { // ID: 1 = overlay image file
+        } else if (SyncHelper::instance().variables.overlayFileDirty) { // ID: 1 = overlay image file
             serializeObject(data, 1);
             serializeObject(data, SyncHelper::instance().variables.overlayFileDirty);
             serializeObject(data, SyncHelper::instance().variables.overlayFile);
             SyncHelper::instance().variables.overlayFileDirty = false;
-        }
-        else if (SyncHelper::instance().variables.bgImageFileDirty) { // ID: 2 = background image file
+        } else if (SyncHelper::instance().variables.bgImageFileDirty) { // ID: 2 = background image file
             serializeObject(data, 2);
             serializeObject(data, SyncHelper::instance().variables.bgImageFileDirty);
             serializeObject(data, SyncHelper::instance().variables.bgImageFile);
             SyncHelper::instance().variables.bgImageFileDirty = false;
-        }
-        else if (SyncHelper::instance().variables.fgImageFileDirty) { // ID: 3 = foreground image file
+        } else if (SyncHelper::instance().variables.fgImageFileDirty) { // ID: 3 = foreground image file
             serializeObject(data, 3);
             serializeObject(data, SyncHelper::instance().variables.fgImageFileDirty);
             serializeObject(data, SyncHelper::instance().variables.fgImageFile);
             SyncHelper::instance().variables.fgImageFileDirty = false;
-        }
-        else { // Sending no URL
+        } else { // Sending no URL
             serializeObject(data, -1);
         }
 
-        //Always syncing master slide, selected slide and previous slide so fade-down can occur.
-        //Ideally, should most likely sync slide after selected as well
-        //Currently syncing master slide and selected slide
-        //Need figure out other scheme
+        // Always syncing master slide, selected slide and previous slide so fade-down can occur.
+        // Ideally, should most likely sync slide after selected as well
+        // Currently syncing master slide and selected slide
+        // Need figure out other scheme
         std::vector<int> slideIdxToSync;
-        //slideIdxToSync.push_back(Application::instance().slidesModel()->triggeredSlideIdx());
-        //slideIdxToSync.push_back(Application::instance().slidesModel()->previousTriggeredIdx());
-        //slideIdxToSync.push_back(Application::instance().slidesModel()->selectedSlideIdx());
-        //slideIdxToSync.push_back(Application::instance().slidesModel()->previousSlideIdx());
-        //slideIdxToSync.push_back(Application::instance().slidesModel()->nextSlideIdx());
-        //slideIdxToSync.push_back(-1); //Master slide
-        
-        //Sync all slides for now...
+        // slideIdxToSync.push_back(Application::instance().slidesModel()->triggeredSlideIdx());
+        // slideIdxToSync.push_back(Application::instance().slidesModel()->previousTriggeredIdx());
+        // slideIdxToSync.push_back(Application::instance().slidesModel()->selectedSlideIdx());
+        // slideIdxToSync.push_back(Application::instance().slidesModel()->previousSlideIdx());
+        // slideIdxToSync.push_back(Application::instance().slidesModel()->nextSlideIdx());
+        // slideIdxToSync.push_back(-1); //Master slide
+
+        // Sync all slides for now...
         for (int i = Application::instance().slidesModel()->numberOfSlides() - 1; i >= -1; i--) {
             slideIdxToSync.push_back(i);
         }
 
-        //Check if model says sync needed
+        // Check if model says sync needed
         int totalLayersToSync = 0;
         bool needLayerSync = Application::instance().slidesModel()->needsSync();
         for (auto s : slideIdxToSync) {
@@ -196,7 +191,7 @@ std::vector<std::byte> encode() {
                 totalLayersToSync += numLayers;
                 if (Application::instance().slidesModel()->slide(s)->needsSync())
                     needLayerSync = true;
-                if (!Application::instance().slidesModel()->slide(s)->needsSync()) { //Even if layers model says, no, check for needed sync for each layer
+                if (!Application::instance().slidesModel()->slide(s)->needsSync()) { // Even if layers model says, no, check for needed sync for each layer
                     for (int l = 0; l < numLayers; l++) {
                         if (Application::instance().slidesModel()->slide(s)->layer(l)->needSync()) {
                             needLayerSync = true;
@@ -217,16 +212,15 @@ std::vector<std::byte> encode() {
                 if (s < Application::instance().slidesModel()->numberOfSlides()) {
                     int numLayers = Application::instance().slidesModel()->slide(s)->numberOfLayers();
                     for (int l = 0; l < numLayers; l++) {
-                        BaseLayer* nextLayer = Application::instance().slidesModel()->slide(s)->layer(l);
+                        BaseLayer *nextLayer = Application::instance().slidesModel()->slide(s)->layer(l);
                         serializeObject(data, nextLayer->identifier()); // ID
-                        serializeObject(data, nextLayer->needSync()); // Check needs sync
+                        serializeObject(data, nextLayer->needSync());   // Check needs sync
                         if (nextLayer->needSync()) {
                             serializeObject(data, static_cast<int>(nextLayer->type())); // Type
                             nextLayer->encode(data);
                             nextLayer->setHasSynced();
-                        }
-                        else {
-                            //Sync alpha anyway
+                        } else {
+                            // Sync alpha anyway
                             serializeObject(data, nextLayer->alpha());
                         }
                     }
@@ -236,7 +230,7 @@ std::vector<std::byte> encode() {
             Application::instance().slidesModel()->setHasSynced();
         }
 
-        //Reset flags every frame cycle
+        // Reset flags every frame cycle
         SyncHelper::instance().variables.timeDirty = false;
         SyncHelper::instance().variables.eqDirty = false;
         SyncHelper::instance().variables.loopTimeDirty = false;
@@ -245,7 +239,7 @@ std::vector<std::byte> encode() {
     return data;
 }
 
-void decode(const std::vector<std::byte>& data) {
+void decode(const std::vector<std::byte> &data) {
     unsigned pos = 0;
     deserializeObject(data, pos, SyncHelper::instance().variables.syncOn);
     deserializeObject(data, pos, SyncHelper::instance().variables.alpha);
@@ -281,7 +275,7 @@ void decode(const std::vector<std::byte>& data) {
         deserializeObject(data, pos, SyncHelper::instance().variables.planeDistance);
         deserializeObject(data, pos, SyncHelper::instance().variables.planeConsiderAspectRatio);
 
-        //Eq
+        // Eq
         deserializeObject(data, pos, SyncHelper::instance().variables.eqDirty);
         if (SyncHelper::instance().variables.eqDirty) {
             deserializeObject(data, pos, SyncHelper::instance().variables.eqContrast);
@@ -290,7 +284,7 @@ void decode(const std::vector<std::byte>& data) {
             deserializeObject(data, pos, SyncHelper::instance().variables.eqSaturation);
         }
 
-        //Looptime
+        // Looptime
         deserializeObject(data, pos, SyncHelper::instance().variables.loopTimeDirty);
         if (SyncHelper::instance().variables.loopTimeDirty) {
             deserializeObject(data, pos, SyncHelper::instance().variables.loopTimeEnabled);
@@ -298,28 +292,25 @@ void decode(const std::vector<std::byte>& data) {
             deserializeObject(data, pos, SyncHelper::instance().variables.loopTimeB);
         }
 
-        //Strings
+        // Strings
         int transferedImageId = -1;
         deserializeObject(data, pos, transferedImageId);
 
         if (transferedImageId == 0) {
             deserializeObject(data, pos, SyncHelper::instance().variables.loadFile);
             deserializeObject(data, pos, SyncHelper::instance().variables.loadedFile);
-        }
-        else if (transferedImageId == 1) {
+        } else if (transferedImageId == 1) {
             deserializeObject(data, pos, SyncHelper::instance().variables.overlayFileDirty);
             deserializeObject(data, pos, SyncHelper::instance().variables.overlayFile);
-        }
-        else if (transferedImageId == 2) {
+        } else if (transferedImageId == 2) {
             deserializeObject(data, pos, SyncHelper::instance().variables.bgImageFileDirty);
             deserializeObject(data, pos, SyncHelper::instance().variables.bgImageFile);
-        }
-        else if (transferedImageId == 3) {
+        } else if (transferedImageId == 3) {
             deserializeObject(data, pos, SyncHelper::instance().variables.fgImageFileDirty);
             deserializeObject(data, pos, SyncHelper::instance().variables.fgImageFile);
         }
 
-        //Layers
+        // Layers
         bool layerSync = false;
         deserializeObject(data, pos, layerSync);
         if (layerSync) {
@@ -332,34 +323,31 @@ void decode(const std::vector<std::byte>& data) {
                 deserializeObject(data, pos, layerSync);
                 int layerType = -1;
 
-                //Check if already updated this layer before a draw has been made
+                // Check if already updated this layer before a draw has been made
                 auto it_up = find_if(secondaryLayersToKeep.begin(), secondaryLayersToKeep.end(),
-                    [&id](const BaseLayer* t1) { return t1->identifier() == id; });
+                                     [&id](const BaseLayer *t1) { return t1->identifier() == id; });
                 if (it_up == secondaryLayersToKeep.end()) {
-                    //Find if layer exists is all previously created layers
+                    // Find if layer exists is all previously created layers
                     auto it = find_if(secondaryLayers.begin(), secondaryLayers.end(),
-                        [&id](const BaseLayer* t1) { return t1->identifier() == id; });
-                    if (it != secondaryLayers.end()) {//If exist, add to new pos and remove from old container
-                        //If exist, sync if needed
+                                      [&id](const BaseLayer *t1) { return t1->identifier() == id; });
+                    if (it != secondaryLayers.end()) { // If exist, add to new pos and remove from old container
+                        // If exist, sync if needed
                         if (layerSync) {
                             deserializeObject(data, pos, layerType);
                             (*it)->decode(data, pos);
-                        }
-                        else {
+                        } else {
                             float layerAlpha = 0.f;
                             deserializeObject(data, pos, layerAlpha);
                             (*it)->setAlpha(layerAlpha);
                         }
                         secondaryLayersToKeep.push_back(*it);
-                    }
-                    else if(layerSync) {//Did not exist. Let's create it
+                    } else if (layerSync) { // Did not exist. Let's create it
                         deserializeObject(data, pos, layerType);
-                        BaseLayer* newLayer = BaseLayer::createLayer(layerType, get_proc_address_glfw, std::to_string(id), id);
+                        BaseLayer *newLayer = BaseLayer::createLayer(layerType, get_proc_address_glfw, std::to_string(id), id);
                         if (newLayer) {
                             if (layerSync) {
                                 newLayer->decode(data, pos);
-                            }
-                            else {
+                            } else {
                                 float layerAlpha = 0.f;
                                 deserializeObject(data, pos, layerAlpha);
                                 newLayer->setAlpha(layerAlpha);
@@ -375,20 +363,19 @@ void decode(const std::vector<std::byte>& data) {
 
 void postSyncPreDraw() {
 #ifndef SGCT_ONLY
-    //Apply synced commands
+    // Apply synced commands
     if (!Engine::instance().isMaster()) {
 
-        //Delete layers left in old container, and update to new
-        //Needs to be done in this function, not in the deserialization.
+        // Delete layers left in old container, and update to new
+        // Needs to be done in this function, not in the deserialization.
         if (updateLayers) {
             auto it = secondaryLayers.begin();
-            for ( ; it != secondaryLayers.end() ; ) {
+            for (; it != secondaryLayers.end();) {
                 if (std::find(secondaryLayersToKeep.begin(), secondaryLayersToKeep.end(), (*it)) == secondaryLayersToKeep.end()) {
                     auto ptr_to_delete = (*it);
                     it = secondaryLayers.erase(it);
                     delete ptr_to_delete;
-                }
-                else {
+                } else {
                     ++it;
                 }
             }
@@ -398,16 +385,16 @@ void postSyncPreDraw() {
         }
 
         glm::vec3 rotXYZ = glm::vec3(float(SyncHelper::instance().variables.rotateX),
-            float(SyncHelper::instance().variables.rotateY),
-            float(SyncHelper::instance().variables.rotateZ));
+                                     float(SyncHelper::instance().variables.rotateY),
+                                     float(SyncHelper::instance().variables.rotateZ));
 
         glm::vec3 translateXYZ = glm::vec3(float(SyncHelper::instance().variables.translateX) / 100.f,
-            float(SyncHelper::instance().variables.translateY) / 100.f,
-            float(SyncHelper::instance().variables.translateZ) / 100.f);
+                                           float(SyncHelper::instance().variables.translateY) / 100.f,
+                                           float(SyncHelper::instance().variables.translateZ) / 100.f);
 
         bool newImage = false;
 
-        //Process background image loading
+        // Process background image loading
         newImage = backgroundImageLayer->processImageUpload(SyncHelper::instance().variables.bgImageFile, SyncHelper::instance().variables.bgImageFileDirty);
         if (newImage) {
             backgroundImageLayer->setRotate(rotXYZ);
@@ -415,7 +402,7 @@ void postSyncPreDraw() {
         }
         SyncHelper::instance().variables.bgImageFileDirty = false;
 
-        //Process foreground image loading
+        // Process foreground image loading
         newImage = foregroundImageLayer->processImageUpload(SyncHelper::instance().variables.fgImageFile, SyncHelper::instance().variables.fgImageFileDirty);
         if (newImage) {
             foregroundImageLayer->setRotate(rotXYZ);
@@ -423,29 +410,29 @@ void postSyncPreDraw() {
         }
         SyncHelper::instance().variables.fgImageFileDirty = false;
 
-        //Process overlay image loading
+        // Process overlay image loading
         newImage = overlayImageLayer->processImageUpload(SyncHelper::instance().variables.overlayFile, SyncHelper::instance().variables.overlayFileDirty);
         SyncHelper::instance().variables.overlayFileDirty = false;
 
-        if (!SyncHelper::instance().variables.loadedFile.empty()) {            
-            //Load new MPV file
+        if (!SyncHelper::instance().variables.loadedFile.empty()) {
+            // Load new MPV file
             mainMpvLayer->loadFile(SyncHelper::instance().variables.loadedFile, SyncHelper::instance().variables.loadFile);
             SyncHelper::instance().variables.loadFile = false;
         }
 
         layerRender->clearLayers();
 
-        //Background image layer
+        // Background image layer
         if ((!mainMpvLayer->renderingIsOn() || mainMpvLayer->ready() ||
-            (SyncHelper::instance().variables.alpha < 1.f || SyncHelper::instance().variables.gridToMapOn == 1))
-            && backgroundImageLayer->ready() && SyncHelper::instance().variables.alphaBg > 0.f) {
+             (SyncHelper::instance().variables.alpha < 1.f || SyncHelper::instance().variables.gridToMapOn == 1)) &&
+            backgroundImageLayer->ready() && SyncHelper::instance().variables.alphaBg > 0.f) {
             backgroundImageLayer->setAlpha(SyncHelper::instance().variables.alphaBg);
             backgroundImageLayer->setGridMode(SyncHelper::instance().variables.gridToMapOnBg);
             backgroundImageLayer->setStereoMode(SyncHelper::instance().variables.stereoscopicModeBg);
             layerRender->addLayer(backgroundImageLayer);
         }
 
-        //Main video/media layer
+        // Main video/media layer
         if (mainMpvLayer->renderingIsOn()) {
             if (mainMpvLayer->ready() && SyncHelper::instance().variables.alpha > 0.f) {
                 mainMpvLayer->setAlpha(SyncHelper::instance().variables.alpha);
@@ -465,72 +452,66 @@ void postSyncPreDraw() {
                 layerRender->addLayer(overlayImageLayer);
             }
 
-            //If we have 2D and 3D viewports defined, deside based on renderParams which to render
-            //1. Check what stereo mode we should choose
-            //2. For each window, check if there is a mix of viewports (2D and 3D). If not mix, skip step 3 (for that window).
-            //3. Enable/disable viewport based on defined stereo mode
+            // If we have 2D and 3D viewports defined, deside based on renderParams which to render
+            // 1. Check what stereo mode we should choose
+            // 2. For each window, check if there is a mix of viewports (2D and 3D). If not mix, skip step 3 (for that window).
+            // 3. Enable/disable viewport based on defined stereo mode
 
-            //Step 1
+            // Step 1
             bool show2Dcontent = false;
             bool show3Dcontent = false;
             bool has3Dplane = false;
-            for (const auto& layer : layerRender->getLayers()) {
+            for (const auto &layer : layerRender->getLayers()) {
                 if (layer->stereoMode() > 0) {
                     show3Dcontent = true;
                     if (layer->gridMode() == 1) {
                         has3Dplane = true;
                     }
-                }
-                else {
+                } else {
                     show2Dcontent = true;
                 }
             }
-            //If we have one 3D renderParam visible, it takes president
+            // If we have one 3D renderParam visible, it takes president
             if (show3Dcontent) {
                 show2Dcontent = false;
-            }
-            else { //If not 2D or 3D, still enable 2D viewports
+            } else { // If not 2D or 3D, still enable 2D viewports
                 show2Dcontent = true;
             }
 
-            //If viewMode==1, that means the user has asked to force all content to 2D
+            // If viewMode==1, that means the user has asked to force all content to 2D
             if (SyncHelper::instance().variables.viewMode == 1) {
                 show2Dcontent = true;
                 show3Dcontent = false;
             }
 
-            for (const std::unique_ptr<Window>& win : Engine::instance().thisNode().windows()) {
+            for (const std::unique_ptr<Window> &win : Engine::instance().thisNode().windows()) {
                 bool exist2Dviewports = false;
                 bool exist3Dviewports = false;
                 // Step 2
-                for (const std::unique_ptr<Viewport>& vp : win->viewports()) {
+                for (const std::unique_ptr<Viewport> &vp : win->viewports()) {
                     if (vp->eye() == Frustum::Mode::MonoEye) {
                         exist2Dviewports = true;
-                    }
-                    else if (vp->eye() == Frustum::Mode::StereoLeftEye || vp->eye() == Frustum::Mode::StereoRightEye) {
+                    } else if (vp->eye() == Frustum::Mode::StereoLeftEye || vp->eye() == Frustum::Mode::StereoRightEye) {
                         exist3Dviewports = true;
                     }
                 }
                 // Step 3
                 if (exist2Dviewports && exist3Dviewports) {
-                    for (const std::unique_ptr<Viewport>& vp : win->viewports()) {
+                    for (const std::unique_ptr<Viewport> &vp : win->viewports()) {
                         if (show2Dcontent && (vp->eye() == Frustum::Mode::MonoEye)) {
                             vp->setEnabled(true);
-                        }
-                        else if (show3Dcontent && (vp->eye() == Frustum::Mode::StereoLeftEye || vp->eye() == Frustum::Mode::StereoRightEye)) {
+                        } else if (show3Dcontent && (vp->eye() == Frustum::Mode::StereoLeftEye || vp->eye() == Frustum::Mode::StereoRightEye)) {
                             vp->setEnabled(true);
-                        }
-                        else {
+                        } else {
                             vp->setEnabled(false);
                         }
                     }
                 }
             }
-            
         }
 
-        //Custom layers
-        //Rendered top to bottom, so need to add them the other way around...
+        // Custom layers
+        // Rendered top to bottom, so need to add them the other way around...
         for (auto it = secondaryLayers.rbegin(); it != secondaryLayers.rend(); ++it) {
             (*it)->update();
             if ((*it)->ready() && ((*it)->alpha() > 0.f)) {
@@ -540,24 +521,24 @@ void postSyncPreDraw() {
             }
         }
 
-        //Foreground image layer
+        // Foreground image layer
         if (foregroundImageLayer->ready() && SyncHelper::instance().variables.alphaFg > 0.f) {
             foregroundImageLayer->setAlpha(SyncHelper::instance().variables.alphaFg);
             foregroundImageLayer->setGridMode(SyncHelper::instance().variables.gridToMapOnFg);
             foregroundImageLayer->setStereoMode(SyncHelper::instance().variables.stereoscopicModeFg);
             layerRender->addLayer(foregroundImageLayer);
         }
-        
+
         // Set properties of main mpv layer
         mainMpvLayer->setPause(SyncHelper::instance().variables.paused);
         mainMpvLayer->setEOFMode(SyncHelper::instance().variables.eofMode);
         mainMpvLayer->setTimePosition(
-            SyncHelper::instance().variables.timePosition, 
+            SyncHelper::instance().variables.timePosition,
             SyncHelper::instance().variables.timeDirty);
         if (SyncHelper::instance().variables.loopTimeDirty) {
             mainMpvLayer->setLoopTime(
-                SyncHelper::instance().variables.loopTimeA, 
-                SyncHelper::instance().variables.loopTimeB, 
+                SyncHelper::instance().variables.loopTimeA,
+                SyncHelper::instance().variables.loopTimeB,
                 SyncHelper::instance().variables.loopTimeEnabled);
         }
         if (SyncHelper::instance().variables.eqDirty) {
@@ -569,13 +550,13 @@ void postSyncPreDraw() {
 
         // Set latest plane details for all primary layers
         glm::vec2 planeSize = glm::vec2(float(SyncHelper::instance().variables.planeWidth), float(SyncHelper::instance().variables.planeHeight));
-        for (auto& layer : primaryLayers) {
+        for (auto &layer : primaryLayers) {
             layer->setPlaneDistance(SyncHelper::instance().variables.planeDistance);
             layer->setPlaneElevation(SyncHelper::instance().variables.planeElevation);
             layer->setPlaneSize(planeSize, SyncHelper::instance().variables.planeConsiderAspectRatio);
         }
         // Just temporary for al secondar layers
-        for (auto& layer : secondaryLayers) {
+        for (auto &layer : secondaryLayers) {
             layer->setPlaneDistance(SyncHelper::instance().variables.planeDistance);
             layer->setPlaneElevation(SyncHelper::instance().variables.planeElevation);
             layer->setPlaneSize(planeSize, SyncHelper::instance().variables.planeConsiderAspectRatio);
@@ -594,7 +575,7 @@ void postSyncPreDraw() {
     mainMpvLayer->updateFrame();
 }
 
-void draw(const RenderData& data) {
+void draw(const RenderData &data) {
 #ifndef SGCT_ONLY
     if (Engine::instance().isMaster())
         return;
@@ -605,9 +586,9 @@ void draw(const RenderData& data) {
     glDisable(GL_BLEND);
 
     // Render layers
-    layerRender->renderLayers(data, 
-        SyncHelper::instance().variables.viewMode, 
-        float(SyncHelper::instance().variables.angle));
+    layerRender->renderLayers(data,
+                              SyncHelper::instance().variables.viewMode,
+                              float(SyncHelper::instance().variables.angle));
 
     glDisable(GL_BLEND);
 }
@@ -622,7 +603,7 @@ void cleanup() {
         return;
 #endif
 
-    //Cleanup mainMpvLayer
+    // Cleanup mainMpvLayer
     delete mainMpvLayer;
     mainMpvLayer = nullptr;
 
@@ -638,8 +619,7 @@ void logging(Log::Level, std::string_view message) {
     logFile << message << std::endl;
 }
 
-int main(int argc, char *argv[])
-{
+int main(int argc, char *argv[]) {
     std::vector<std::string> arg(argv + 1, argv + argc);
     Configuration config = parseArguments(arg);
     config::Cluster cluster = loadCluster(config.configFilename);
@@ -647,7 +627,7 @@ int main(int argc, char *argv[])
         return -1;
     }
 
-    //Look for C-Play command line specific things
+    // Look for C-Play command line specific things
     size_t i = 0;
     while (i < arg.size()) {
         if (arg[i] == "--mpvconf") {
@@ -656,37 +636,31 @@ int main(int argc, char *argv[])
             SyncHelper::instance().configuration.confMasterOnly = "./data/mpv-conf/" + mpvConfFolder + "/master-only.json";
             SyncHelper::instance().configuration.confNodesOnly = "./data/mpv-conf/" + mpvConfFolder + "/nodes-only.json";
             arg.erase(arg.begin() + i, arg.begin() + i + 2);
-        }
-        else if (arg[i] == "--allowDirectRendering") {
+        } else if (arg[i] == "--allowDirectRendering") {
             allowDirectRendering = true;
             arg.erase(arg.begin() + i);
-        }
-        else if (arg[i] == "--loglevel") {
-            //Valid log levels: error warn info debug
+        } else if (arg[i] == "--loglevel") {
+            // Valid log levels: error warn info debug
             std::string level = arg[i + 1];
-            if(level == "error") {
+            if (level == "error") {
                 Log::instance().setNotifyLevel(Log::Level::Error);
                 logLevel = level;
-            }
-            else if (level == "warn") {
+            } else if (level == "warn") {
                 Log::instance().setNotifyLevel(Log::Level::Warning);
                 logLevel = level;
-            }
-            else if (level == "info") {
+            } else if (level == "info") {
                 Log::instance().setNotifyLevel(Log::Level::Info);
                 logLevel = level;
-            }
-            else if (level == "debug") {
+            } else if (level == "debug") {
                 Log::instance().setNotifyLevel(Log::Level::Debug);
                 logLevel = level;
             }
             arg.erase(arg.begin() + i, arg.begin() + i + 2);
-        }
-        else if (arg[i] == "--logfile") {
+        } else if (arg[i] == "--logfile") {
             std::string logFileName = arg[i + 1]; // for instance, either "log_master.txt" or "log_client.txt"
             logFilePath = "./data/log/" + logFileName;
             logFile.open(logFilePath, std::ofstream::out | std::ofstream::trunc);
-            if (logLevel.empty()) { //Set log level to info if we specfied a log file
+            if (logLevel.empty()) { // Set log level to info if we specfied a log file
                 Log::instance().setNotifyLevel(Log::Level::Info);
                 logLevel = "info";
             }
@@ -694,12 +668,10 @@ int main(int argc, char *argv[])
             Log::instance().setShowTime(true);
             Log::instance().setLogCallback(logging);
             arg.erase(arg.begin() + i, arg.begin() + i + 2);
-        }
-        else if (arg[i] == "--loadfile") {
+        } else if (arg[i] == "--loadfile") {
             startupFile = arg[i + 1];
             arg.erase(arg.begin() + i, arg.begin() + i + 2);
-        }
-        else {
+        } else {
             // Ignore unknown commands
             i++;
         }
@@ -715,8 +687,7 @@ int main(int argc, char *argv[])
     callbacks.cleanup = cleanup;
     try {
         Engine::create(cluster, callbacks, config);
-    }
-    catch (const std::runtime_error& e) {
+    } catch (const std::runtime_error &e) {
         Log::Error(e.what());
         Engine::destroy();
         return EXIT_FAILURE;
@@ -724,8 +695,8 @@ int main(int argc, char *argv[])
 
 #ifndef SGCT_ONLY
     if (Engine::instance().isMaster()) {
-        if(!ClusterManager::instance().ignoreSync() || ClusterManager::instance().numberOfNodes() > 1) {
-            if(!NetworkManager::instance().areAllNodesConnected()) {
+        if (!ClusterManager::instance().ignoreSync() || ClusterManager::instance().numberOfNodes() > 1) {
+            if (!NetworkManager::instance().areAllNodesConnected()) {
                 Engine::destroy();
                 return EXIT_FAILURE;
             }
@@ -733,21 +704,20 @@ int main(int argc, char *argv[])
 
         Log::Info("Start Master");
 
-        //Hide window (as we are not using it on master)
+        // Hide window (as we are not using it on master)
         Engine::instance().thisNode().windows().at(0)->setRenderWhileHidden(true);
         Engine::instance().thisNode().windows().at(0)->setVisible(false);
 
-        //Do not support arguments to QApp, only SGCT
-        std::vector<char*> cargv;
+        // Do not support arguments to QApp, only SGCT
+        std::vector<char *> cargv;
         cargv.push_back(argv[0]);
         int cargv_size = static_cast<int>(cargv.size());
 
-        //Launch master application (which calls Engine::render from thread)
+        // Launch master application (which calls Engine::render from thread)
         Application::create(cargv_size, &cargv[0], QStringLiteral("C-Play"));
         Application::instance().setStartupFile(startupFile);
         return Application::instance().run();
-    }
-    else{
+    } else {
 #endif
         Log::Info("Start Client");
 
@@ -757,6 +727,4 @@ int main(int argc, char *argv[])
 #ifndef SGCT_ONLY
     }
 #endif
-
 }
-

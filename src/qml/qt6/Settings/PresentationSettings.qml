@@ -19,23 +19,19 @@ SettingsBasePage {
     Platform.FileDialog {
         id: presentationToLoadOnStartupDialog
 
-        folder: LocationSettings.cPlayFileLocation !== ""
-                ? app.pathToUrl(LocationSettings.cPlayFileLocation)
-                : app.pathToUrl(LocationSettings.fileDialogLastLocation)
-        title: "Choose presentation to load on startup"
         fileMode: Platform.FileDialog.OpenFile
-        nameFilters: [ "C-Play presentation (*.cplaypres)" ]
+        folder: LocationSettings.cPlayFileLocation !== "" ? app.pathToUrl(LocationSettings.cPlayFileLocation) : app.pathToUrl(LocationSettings.fileDialogLastLocation)
+        nameFilters: ["C-Play presentation (*.cplaypres)"]
+        title: "Choose presentation to load on startup"
 
         onAccepted: {
             var filePath = playerController.returnRelativeOrAbsolutePath(presentationToLoadOnStartupDialog.file.toString());
-            PresentationSettings.presentationToLoadOnStartup = filePath
-            PresentationSettings.save()
-
-            mpv.focus = true
+            PresentationSettings.presentationToLoadOnStartup = filePath;
+            PresentationSettings.save();
+            mpv.focus = true;
         }
         onRejected: mpv.focus = true
     }
-
     GridLayout {
         id: content
 
@@ -46,22 +42,25 @@ SettingsBasePage {
         // --
 
         SettingsHeader {
-            text: qsTr("Presentation (Slides and Layers) settings")
             Layout.columnSpan: 3
             Layout.fillWidth: true
+            text: qsTr("Presentation (Slides and Layers) settings")
         }
-
         Label {
             text: qsTr("Presentation to load on startup:")
         }
         RowLayout {
+            Layout.fillWidth: true
+
             TextField {
                 id: presentationToLoadOnStartupText
-                text: PresentationSettings.presentationToLoadOnStartup
+
                 placeholderText: "Path to presentation"
+                text: PresentationSettings.presentationToLoadOnStartup
+
                 onEditingFinished: {
-                    PresentationSettings.presentationToLoadOnStartup = text
-                    PresentationSettings.save()
+                    PresentationSettings.presentationToLoadOnStartup = text;
+                    PresentationSettings.save();
                 }
 
                 ToolTip {
@@ -70,51 +69,64 @@ SettingsBasePage {
             }
             ToolButton {
                 id: presentationToLoadOnStartupButton
-                text: ""
-                icon.name: "system-file-manager"
-                icon.height: 16
+
                 focusPolicy: Qt.NoFocus
+                icon.height: 16
+                icon.name: "system-file-manager"
+                text: ""
 
                 onClicked: {
-                    presentationToLoadOnStartupDialog.open()
+                    presentationToLoadOnStartupDialog.open();
                 }
             }
-            Layout.fillWidth: true
         }
         Item {
             // spacer item
             Layout.fillWidth: true
         }
-
         Label {
-            text: qsTr("Default stereoscopic mode for new layer:")
             Layout.alignment: Qt.AlignRight
+            text: qsTr("Default stereoscopic mode for new layer:")
         }
         RowLayout {
             ComboBox {
                 id: stereoscopicModeForNewLayerComboBoxBg
+
                 enabled: true
                 textRole: "mode"
+
                 model: ListModel {
                     id: stereoscopicModeForNewLayer
-                    ListElement { mode: "2D (mono)"; value: 0 }
-                    ListElement { mode: "3D (side-by-side)"; value: 1}
-                    ListElement { mode: "3D (top-bottom)"; value: 2 }
-                    ListElement { mode: "3D (top-bottom+flip)"; value: 3 }
-                }
 
-                onActivated: {
-                    PresentationSettings.defaultStereoModeForLayers = model.get(index).value
-                    PresentationSettings.save()
+                    ListElement {
+                        mode: "2D (mono)"
+                        value: 0
+                    }
+                    ListElement {
+                        mode: "3D (side-by-side)"
+                        value: 1
+                    }
+                    ListElement {
+                        mode: "3D (top-bottom)"
+                        value: 2
+                    }
+                    ListElement {
+                        mode: "3D (top-bottom+flip)"
+                        value: 3
+                    }
                 }
 
                 Component.onCompleted: {
                     for (let i = 0; i < stereoscopicModeForNewLayer.count; ++i) {
                         if (stereoscopicModeForNewLayer.get(i).value === PresentationSettings.defaultStereoModeForLayers) {
-                            currentIndex = i
-                            break
+                            currentIndex = i;
+                            break;
                         }
                     }
+                }
+                onActivated: {
+                    PresentationSettings.defaultStereoModeForLayers = model.get(index).value;
+                    PresentationSettings.save();
                 }
             }
         }
@@ -122,37 +134,53 @@ SettingsBasePage {
             // spacer item
             Layout.fillWidth: true
         }
-
         Label {
-            text: qsTr("Default grid mode for new layer:")
             Layout.alignment: Qt.AlignRight
+            text: qsTr("Default grid mode for new layer:")
         }
         RowLayout {
             ComboBox {
                 id: gridModeForNewLayerComboBox
+
                 enabled: true
                 textRole: "mode"
+
                 model: ListModel {
                     id: gridModeForNewLayer
-                    ListElement { mode: "None/Pre-split"; value: 0 }
-                    ListElement { mode: "Plane"; value: 1 }
-                    ListElement { mode: "Dome"; value: 2}
-                    ListElement { mode: "Sphere EQR"; value: 3 }
-                    ListElement { mode: "Sphere EAC"; value: 4 }
-                }
 
-                onActivated: {
-                    PresentationSettings.defaultGridModeForLayers = model.get(index).value
-                    PresentationSettings.save()
+                    ListElement {
+                        mode: "None/Pre-split"
+                        value: 0
+                    }
+                    ListElement {
+                        mode: "Plane"
+                        value: 1
+                    }
+                    ListElement {
+                        mode: "Dome"
+                        value: 2
+                    }
+                    ListElement {
+                        mode: "Sphere EQR"
+                        value: 3
+                    }
+                    ListElement {
+                        mode: "Sphere EAC"
+                        value: 4
+                    }
                 }
 
                 Component.onCompleted: {
                     for (let i = 0; i < gridModeForNewLayer.count; ++i) {
                         if (gridModeForNewLayer.get(i).value === PresentationSettings.defaultGridModeForLayers) {
-                            currentIndex = i
-                            break
+                            currentIndex = i;
+                            break;
                         }
                     }
+                }
+                onActivated: {
+                    PresentationSettings.defaultGridModeForLayers = model.get(index).value;
+                    PresentationSettings.save();
                 }
             }
         }
@@ -160,19 +188,19 @@ SettingsBasePage {
             // spacer item
             Layout.fillWidth: true
         }
-
         Label {
-            text: qsTr("Default visibility for new layer:")
             Layout.alignment: Qt.AlignRight
+            text: qsTr("Default visibility for new layer:")
         }
         SpinBox {
+            editable: true
             from: 0
             to: 100
             value: PresentationSettings.defaultLayerVisibility
-            editable: true
+
             onValueChanged: {
-                PresentationSettings.defaultLayerVisibility = value.toFixed(0)
-                PresentationSettings.save()
+                PresentationSettings.defaultLayerVisibility = value.toFixed(0);
+                PresentationSettings.save();
             }
         }
         Item {

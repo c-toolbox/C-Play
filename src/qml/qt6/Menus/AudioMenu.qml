@@ -20,30 +20,45 @@ Menu {
 
         Instantiator {
             id: audioMenuInstantiator
+
             model: 0
-            onObjectAdded: audioMenu.insertItem( index, object )
-            onObjectRemoved: audioMenu.removeItem( object )
+
             delegate: MenuItem {
                 id: audioMenuItem
+
                 checkable: true
                 checked: model.id === mpv.audioId
                 text: model.text
+
                 onTriggered: mpv.audioId = model.id
             }
+
+            onObjectAdded: audioMenu.insertItem(index, object)
+            onObjectRemoved: audioMenu.removeItem(object)
         }
         Connections {
-            target: mpv
             function onFileLoaded() {
-                audioMenuInstantiator.model = mpv.audioTracksModel
+                audioMenuInstantiator.model = mpv.audioTracksModel;
             }
+
+            target: mpv
         }
     }
-
-    MenuSeparator {}
-
-    MenuItem { action: actions["muteAction"] }
-    MenuItem { action: actions["volumeUpAction"] }
-    MenuItem { action: actions["volumeDownAction"] }
-    MenuItem { action: actions["volumeFadeUpAction"] }
-    MenuItem { action: actions["volumeFadeDownAction"] }
+    MenuSeparator {
+    }
+    MenuItem {
+        action: actions["muteAction"]
+    }
+    MenuItem {
+        action: actions["volumeUpAction"]
+    }
+    MenuItem {
+        action: actions["volumeDownAction"]
+    }
+    MenuItem {
+        action: actions["volumeFadeUpAction"]
+    }
+    MenuItem {
+        action: actions["volumeFadeDownAction"]
+    }
 }

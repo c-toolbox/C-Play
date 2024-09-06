@@ -1,18 +1,16 @@
 #ifndef MPVLAYER_H
 #define MPVLAYER_H
 
-#include <layers/baselayer.h>
 #include <client.h>
-#include <render_gl.h>
+#include <layers/baselayer.h>
 #include <mutex>
+#include <render_gl.h>
 
-class MpvLayer : public BaseLayer
-{
+class MpvLayer : public BaseLayer {
 public:
-
     struct mpvData {
-        mpv_handle* handle;
-        mpv_render_context* renderContext;
+        mpv_handle *handle;
+        mpv_render_context *renderContext;
         std::unique_ptr<std::thread> trd;
         double videoDuration = 0.0;
         int fboWidth = 0;
@@ -35,10 +33,10 @@ public:
         int timePos = 0;
     };
 
-    MpvLayer(opengl_func_adress_ptr opa, 
-        bool allowDirectRendering = false, 
-        bool loggingOn = false, 
-        std::string logLevel = "info");
+    MpvLayer(opengl_func_adress_ptr opa,
+             bool allowDirectRendering = false,
+             bool loggingOn = false,
+             std::string logLevel = "info");
     ~MpvLayer();
 
     void update();
@@ -64,7 +62,7 @@ public:
 private:
     void checkNeededMpvFboResize();
     void createMpvFBO(int width, int height);
-    void generateTexture(unsigned int& id, int width, int height);
+    void generateTexture(unsigned int &id, int width, int height);
 
     mpvData videoData;
 };

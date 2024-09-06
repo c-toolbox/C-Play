@@ -18,119 +18,108 @@ import org.ctoolbox.cplay 1.0
 import Haruna.Components 1.0
 
 Kirigami.ApplicationWindow {
-    width: 600
-    height: 350
-    title: qsTr("Save As C-Play File")
-    visible: false
-
     function updateValues() {
-        if(!mpv.playSectionsModel.isEmpty()) {
-            mediaFileLabel.text = mpv.playSectionsModel.currentEditItem.mediaFile()
-            durationLabel.text = mpv.playSectionsModel.currentEditItem.durationFormatted()
-            sectionsLabel.text = qsTr("%1").arg(Number(mpv.playSectionsModel.rowCount()))
-            mediaTitleLabel.text = mpv.playSectionsModel.currentEditItem.mediaTitle()
+        if (!mpv.playSectionsModel.isEmpty()) {
+            mediaFileLabel.text = mpv.playSectionsModel.currentEditItem.mediaFile();
+            durationLabel.text = mpv.playSectionsModel.currentEditItem.durationFormatted();
+            sectionsLabel.text = qsTr("%1").arg(Number(mpv.playSectionsModel.rowCount()));
+            mediaTitleLabel.text = mpv.playSectionsModel.currentEditItem.mediaTitle();
             for (let i = 0; i < stereoscopicModeToSave.count; ++i) {
                 if (stereoscopicModeToSave.get(i).value === mpv.playSectionsModel.currentEditItem.stereoVideo()) {
-                    stereoscopicModeToSaveComboBox.currentIndex = i
-                    break
+                    stereoscopicModeToSaveComboBox.currentIndex = i;
+                    break;
                 }
             }
             for (let j = 0; j < gridModeToSave.count; ++j) {
                 if (gridModeToSave.get(j).value === mpv.playSectionsModel.currentEditItem.gridToMapOn()) {
-                    gridModeToSaveComboBox.currentIndex = j
-                    break
+                    gridModeToSaveComboBox.currentIndex = j;
+                    break;
                 }
             }
-            separateAudioFileTextField.text = mpv.playSectionsModel.currentEditItem.separateAudioFile()
-            separateAudioFileCheckBox.checked = (mpv.playSectionsModel.currentEditItem.separateAudioFile() !== "")
+            separateAudioFileTextField.text = mpv.playSectionsModel.currentEditItem.separateAudioFile();
+            separateAudioFileCheckBox.checked = (mpv.playSectionsModel.currentEditItem.separateAudioFile() !== "");
+            separateOverlayFileTextField.text = mpv.playSectionsModel.currentEditItem.separateOverlayFile();
+            separateOverlayFileCheckBox.checked = (mpv.playSectionsModel.currentEditItem.separateOverlayFile() !== "");
+        }
+    }
 
-            separateOverlayFileTextField.text = mpv.playSectionsModel.currentEditItem.separateOverlayFile()
-            separateOverlayFileCheckBox.checked = (mpv.playSectionsModel.currentEditItem.separateOverlayFile() !== "")
+    height: 350
+    title: qsTr("Save As C-Play File")
+    visible: false
+    width: 600
+
+    onVisibilityChanged: {
+        if (visible) {
+            updateValues();
         }
     }
 
     Connections {
-        target: mpv.playSectionsModel
         function onCurrentEditItemChanged() {
-            updateValues()
+            updateValues();
         }
-    }
 
-    onVisibilityChanged: {
-        if(visible) {
-            updateValues()
-        }
+        target: mpv.playSectionsModel
     }
-
     Platform.FileDialog {
         id: openSeparateAudioFileDialog
-        title: "Choose Separate Audio File"
+
         fileMode: Platform.FileDialog.OpenFile
+        title: "Choose Separate Audio File"
 
         onAccepted: {
-            separateAudioFileCheckBox.checked = true
-
+            separateAudioFileCheckBox.checked = true;
             var filePath = openSeparateAudioFileDialog.file.toString();
             // remove prefixed "file:///"
-            filePath = filePath.replace(/^(file:\/{3})/,"");
-
-            separateAudioFileTextField.text = filePath
-            mpv.focus = true
+            filePath = filePath.replace(/^(file:\/{3})/, "");
+            separateAudioFileTextField.text = filePath;
+            mpv.focus = true;
         }
         onRejected: mpv.focus = true
     }
-
     Platform.FileDialog {
         id: openSeparateOverlayFileDialog
-        title: "Choose Separate Overlay File"
-        folder: LocationSettings.cPlayMediaLocation !== ""
-                ? app.pathToUrl(LocationSettings.cPlayMediaLocation)
-                : app.pathToUrl(LocationSettings.fileDialogLastLocation)
+
         fileMode: Platform.FileDialog.OpenFile
-        nameFilters: [ "Image files (*.png *.jpg *.jpeg *.tga)" ]
+        folder: LocationSettings.cPlayMediaLocation !== "" ? app.pathToUrl(LocationSettings.cPlayMediaLocation) : app.pathToUrl(LocationSettings.fileDialogLastLocation)
+        nameFilters: ["Image files (*.png *.jpg *.jpeg *.tga)"]
+        title: "Choose Separate Overlay File"
 
         onAccepted: {
-            separateOverlayFileCheckBox.checked = true
-
+            separateOverlayFileCheckBox.checked = true;
             var filePath = openSeparateOverlayFileDialog.file.toString();
             // remove prefixed "file:///"
-            filePath = filePath.replace(/^(file:\/{3})/,"");
-
-            separateOverlayFileTextField.text = filePath
-            mpv.focus = true
+            filePath = filePath.replace(/^(file:\/{3})/, "");
+            separateOverlayFileTextField.text = filePath;
+            mpv.focus = true;
         }
-
         onRejected: mpv.focus = true
     }
-
     GridLayout {
-        columnSpacing : 2
-        rowSpacing: 8
-
         anchors.fill: parent
         anchors.margins: 15
-
+        columnSpacing: 2
         columns: 3
+        rowSpacing: 8
 
         RowLayout {
+            Layout.bottomMargin: 5
+            Layout.columnSpan: 3
+
             Rectangle {
-                width: Kirigami.Units.gridUnit
-                height: 1
                 color: Kirigami.Theme.alternateBackgroundColor
+                height: 1
+                width: Kirigami.Units.gridUnit
             }
             Label {
                 text: qsTr("Customize properties to save into a C-Play file.")
             }
             Rectangle {
-                height: 1
-                color: Kirigami.Theme.alternateBackgroundColor
                 Layout.fillWidth: true
+                color: Kirigami.Theme.alternateBackgroundColor
+                height: 1
             }
-
-            Layout.bottomMargin: 5
-            Layout.columnSpan: 3
         }
-
         Item {
             // spacer item
             Layout.fillWidth: true
@@ -140,12 +129,13 @@ Kirigami.ApplicationWindow {
         }
         Label {
             id: mediaFileLabel
+
             Layout.fillWidth: true
+
             ToolTip {
                 text: qsTr("The actual file to be played.")
             }
         }
-
         Item {
             // spacer item
             Layout.fillWidth: true
@@ -155,12 +145,13 @@ Kirigami.ApplicationWindow {
         }
         Label {
             id: durationLabel
+
             Layout.fillWidth: true
+
             ToolTip {
                 text: qsTr("Duration of the clip")
             }
         }
-
         Item {
             // spacer item
             Layout.fillWidth: true
@@ -170,12 +161,13 @@ Kirigami.ApplicationWindow {
         }
         Label {
             id: sectionsLabel
+
             Layout.fillWidth: true
+
             ToolTip {
                 text: qsTr("Duration of the clip")
             }
         }
-
         Item {
             // spacer item
             Layout.fillWidth: true
@@ -185,10 +177,12 @@ Kirigami.ApplicationWindow {
         }
         TextField {
             id: mediaTitleLabel
-            placeholderText: "A title for playlists etc"
+
             Layout.fillWidth: true
+            placeholderText: "A title for playlists etc"
+
             onEditingFinished: {
-                if(!mpv.playSectionsModel.isEmpty()){
+                if (!mpv.playSectionsModel.isEmpty()) {
                     mpv.playSectionsModel.currentEditItem.setMediaTitle(text);
                 }
             }
@@ -197,7 +191,6 @@ Kirigami.ApplicationWindow {
                 text: qsTr("A title for playlists etc")
             }
         }
-
         Item {
             // spacer item
             Layout.fillWidth: true
@@ -207,24 +200,37 @@ Kirigami.ApplicationWindow {
         }
         ComboBox {
             id: stereoscopicModeToSaveComboBox
+
+            Layout.fillWidth: true
             textRole: "mode"
+
             model: ListModel {
                 id: stereoscopicModeToSave
-                ListElement { mode: "2D (mono)"; value: 0 }
-                ListElement { mode: "3D (side-by-side)"; value: 1}
-                ListElement { mode: "3D (top-bottom)"; value: 2 }
-                ListElement { mode: "3D (top-bottom+flip)"; value: 3 }
-            }
 
-            onActivated: {
-                if(!mpv.playSectionsModel.isEmpty()){
-                    mpv.playSectionsModel.currentEditItem.setStereoVideo(model.get(index).value)
+                ListElement {
+                    mode: "2D (mono)"
+                    value: 0
+                }
+                ListElement {
+                    mode: "3D (side-by-side)"
+                    value: 1
+                }
+                ListElement {
+                    mode: "3D (top-bottom)"
+                    value: 2
+                }
+                ListElement {
+                    mode: "3D (top-bottom+flip)"
+                    value: 3
                 }
             }
 
-            Layout.fillWidth: true
+            onActivated: {
+                if (!mpv.playSectionsModel.isEmpty()) {
+                    mpv.playSectionsModel.currentEditItem.setStereoVideo(model.get(index).value);
+                }
+            }
         }
-
         Item {
             // spacer item
             Layout.fillWidth: true
@@ -234,31 +240,50 @@ Kirigami.ApplicationWindow {
         }
         ComboBox {
             id: gridModeToSaveComboBox
+
+            Layout.fillWidth: true
             textRole: "mode"
+
             model: ListModel {
                 id: gridModeToSave
-                ListElement { mode: "None/Pre-split"; value: 0 }
-                ListElement { mode: "Plane"; value: 1 }
-                ListElement { mode: "Dome"; value: 2}
-                ListElement { mode: "Sphere EQR"; value: 3 }
-                ListElement { mode: "Sphere EAC"; value: 4 }
-            }
 
-            onActivated: {
-                if(!mpv.playSectionsModel.isEmpty()){
-                    mpv.playSectionsModel.currentEditItem.setGridToMapOn(model.get(index).value)
+                ListElement {
+                    mode: "None/Pre-split"
+                    value: 0
+                }
+                ListElement {
+                    mode: "Plane"
+                    value: 1
+                }
+                ListElement {
+                    mode: "Dome"
+                    value: 2
+                }
+                ListElement {
+                    mode: "Sphere EQR"
+                    value: 3
+                }
+                ListElement {
+                    mode: "Sphere EAC"
+                    value: 4
                 }
             }
 
-            Layout.fillWidth: true
+            onActivated: {
+                if (!mpv.playSectionsModel.isEmpty()) {
+                    mpv.playSectionsModel.currentEditItem.setGridToMapOn(model.get(index).value);
+                }
+            }
         }
-
         CheckBox {
             id: separateAudioFileCheckBox
-            text: qsTr("")
-            enabled: true
+
             checked: false
+            enabled: true
+            text: qsTr("")
+
             onCheckedChanged: separateAudioFileTextField.enabled = checked
+
             ToolTip {
                 text: qsTr("Save with separate audio file:")
             }
@@ -267,56 +292,59 @@ Kirigami.ApplicationWindow {
             text: qsTr("Separate Audio File:")
         }
         RowLayout {
+            Layout.fillWidth: true
+
             TextField {
                 id: separateAudioFileTextField
-                onTextChanged: {
-                    if(!mpv.playSectionsModel.isEmpty()){
-                        if(enabled){
-                            mpv.playSectionsModel.currentEditItem.setSeparateAudioFile(text);
-                        }
-                    }
-                }
+
+                Layout.fillWidth: true
+                enabled: separateAudioFileCheckBox.checked
+                readOnly: true
+
                 onEnabledChanged: {
-                    if(!mpv.playSectionsModel.isEmpty()){
-                        if(enabled){
+                    if (!mpv.playSectionsModel.isEmpty()) {
+                        if (enabled) {
                             mpv.playSectionsModel.currentEditItem.setSeparateAudioFile(text);
-                        }
-                        else {
+                        } else {
                             mpv.playSectionsModel.currentEditItem.setSeparateAudioFile("");
                         }
                     }
                 }
-                enabled: separateAudioFileCheckBox.checked
-                readOnly: true
-                Layout.fillWidth: true
+                onTextChanged: {
+                    if (!mpv.playSectionsModel.isEmpty()) {
+                        if (enabled) {
+                            mpv.playSectionsModel.currentEditItem.setSeparateAudioFile(text);
+                        }
+                    }
+                }
             }
             ToolButton {
                 id: separateAudioFileLoadButton
 
-                text: ""
-                icon.name: "system-file-manager"
-                icon.height: 16
                 focusPolicy: Qt.NoFocus
+                icon.height: 16
+                icon.name: "system-file-manager"
+                text: ""
 
                 onClicked: {
-                    if(separateAudioFileTextField.text !== ""){
-                        openSeparateAudioFileDialog.folder = app.parentUrl(separateAudioFileTextField.text)
+                    if (separateAudioFileTextField.text !== "") {
+                        openSeparateAudioFileDialog.folder = app.parentUrl(separateAudioFileTextField.text);
+                    } else {
+                        openSeparateAudioFileDialog.folder = app.parentUrl(mpv.playSectionsModel.currentEditItem.mediaFile());
                     }
-                    else {
-                        openSeparateAudioFileDialog.folder = app.parentUrl(mpv.playSectionsModel.currentEditItem.mediaFile())
-                    }
-                    openSeparateAudioFileDialog.open()
+                    openSeparateAudioFileDialog.open();
                 }
             }
-            Layout.fillWidth: true
         }
-
         CheckBox {
             id: separateOverlayFileCheckBox
-            text: qsTr("")
-            enabled: true
+
             checked: false
+            enabled: true
+            text: qsTr("")
+
             onCheckedChanged: separateOverlayFileTextField.enabled = checked
+
             ToolTip {
                 text: qsTr("Save with separate overlay file:")
             }
@@ -325,72 +353,73 @@ Kirigami.ApplicationWindow {
             text: qsTr("Separate Overlay File:")
         }
         RowLayout {
+            Layout.fillWidth: true
+
             TextField {
                 id: separateOverlayFileTextField
+
+                Layout.fillWidth: true
+                enabled: separateOverlayFileCheckBox.checked
+                readOnly: true
+
+                onEnabledChanged: {
+                    if (!mpv.playSectionsModel.isEmpty()) {
+                        if (enabled) {
+                            mpv.playSectionsModel.currentEditItem.setSeparateOverlayFile(text);
+                        } else {
+                            mpv.playSectionsModel.currentEditItem.setSeparateOverlayFile("");
+                        }
+                    }
+                }
                 onTextChanged: {
-                    if(!mpv.playSectionsModel.isEmpty()){
-                        if(enabled){
+                    if (!mpv.playSectionsModel.isEmpty()) {
+                        if (enabled) {
                             separateOverlayFileCheckBox.checked = true;
                             mpv.playSectionsModel.currentEditItem.setSeparateOverlayFile(text);
                         }
                     }
                 }
-                onEnabledChanged: {
-                    if(!mpv.playSectionsModel.isEmpty()){
-                        if(enabled){
-                            mpv.playSectionsModel.currentEditItem.setSeparateOverlayFile(text);
-                        }
-                        else {
-                            mpv.playSectionsModel.currentEditItem.setSeparateOverlayFile("");
-                        }
-                    }
-                }
-                enabled: separateOverlayFileCheckBox.checked
-                readOnly: true
-                Layout.fillWidth: true
             }
             ToolButton {
                 id: separateOverlayFileLoadButton
 
-                text: ""
-                icon.name: "system-file-manager"
-                icon.height: 16
                 focusPolicy: Qt.NoFocus
+                icon.height: 16
+                icon.name: "system-file-manager"
+                text: ""
 
                 onClicked: {
-                    if(separateOverlayFileTextField.text !== ""){
-                        openSeparateOverlayFileDialog.folder = app.parentUrl(separateOverlayFileTextField.text)
+                    if (separateOverlayFileTextField.text !== "") {
+                        openSeparateOverlayFileDialog.folder = app.parentUrl(separateOverlayFileTextField.text);
+                    } else {
+                        openSeparateOverlayFileDialog.folder = app.parentUrl(mpv.playSectionsModel.currentEditItem.mediaFile());
                     }
-                    else {
-                        openSeparateOverlayFileDialog.folder = app.parentUrl(mpv.playSectionsModel.currentEditItem.mediaFile())
-                    }
-                    openSeparateOverlayFileDialog.open()
+                    openSeparateOverlayFileDialog.open();
                 }
             }
-            Layout.fillWidth: true
         }
-
         Item {
+            Layout.columnSpan: 3
+            Layout.fillHeight: true
             // spacer item
             Layout.fillWidth: true
-            Layout.fillHeight: true
-            Layout.columnSpan: 3
         }
-
         RowLayout {
-            Button {
-                text: qsTr("Save C-Play file")
-                icon.name: "document-save"
-                onClicked: saveCPlayFileDialog.open()
-                Layout.fillWidth: true
-            }
-            Item {
-                // spacer item
-                Layout.fillWidth: true
-                Layout.columnSpan: 2
-            }
             Layout.bottomMargin: 5
             Layout.columnSpan: 3
+
+            Button {
+                Layout.fillWidth: true
+                icon.name: "document-save"
+                text: qsTr("Save C-Play file")
+
+                onClicked: saveCPlayFileDialog.open()
+            }
+            Item {
+                Layout.columnSpan: 2
+                // spacer item
+                Layout.fillWidth: true
+            }
         }
     }
 }

@@ -1,6 +1,6 @@
 ﻿/*
- * SPDX-FileCopyrightText: 
- * 2021-2024 Erik Sundén <eriksunden85@gmail.com> 
+ * SPDX-FileCopyrightText:
+ * 2021-2024 Erik Sundén <eriksunden85@gmail.com>
  * 2020 George Florea Bănuș <georgefb899@gmail.com>
  *
  * SPDX-License-Identifier: GPL-3.0-or-later
@@ -12,241 +12,240 @@
 #include <QQuickFramebufferObject>
 #include <QVector3D>
 
+#include "playlistitem.h"
+#include "playlistmodel.h"
+#include "qthelper.h"
+#include "tracksmodel.h"
 #include <client.h>
 #include <render_gl.h>
-#include "qthelper.h"
-#include "playlistmodel.h"
-#include "playlistitem.h"
-#include "tracksmodel.h"
 
 class MpvRenderer;
 class Track;
 
-class MpvObject : public QQuickFramebufferObject
-{
+class MpvObject : public QQuickFramebufferObject {
     Q_OBJECT
 
 public:
-    Q_PROPERTY(TracksModel* audioTracksModel READ audioTracksModel NOTIFY audioTracksModelChanged)
+    Q_PROPERTY(TracksModel *audioTracksModel READ audioTracksModel NOTIFY audioTracksModelChanged)
 
     Q_PROPERTY(QString mediaTitle
-               READ mediaTitle
-               NOTIFY mediaTitleChanged)
+                   READ mediaTitle
+                       NOTIFY mediaTitleChanged)
 
     Q_PROPERTY(double position
-               READ position
-               WRITE setPosition
-               NOTIFY positionChanged)
+                   READ position
+                       WRITE setPosition
+                           NOTIFY positionChanged)
 
     Q_PROPERTY(double duration
-               READ duration
-               NOTIFY durationChanged)
+                   READ duration
+                       NOTIFY durationChanged)
 
     Q_PROPERTY(double remaining
-               READ remaining
-               NOTIFY remainingChanged)
+                   READ remaining
+                       NOTIFY remainingChanged)
 
     Q_PROPERTY(bool pause
-               READ pause
-               WRITE setPause
-               NOTIFY pauseChanged)
+                   READ pause
+                       WRITE setPause
+                           NOTIFY pauseChanged)
 
     Q_PROPERTY(bool autoPlay
-               READ autoPlay
-               WRITE setAutoPlay
-               NOTIFY autoPlayChanged)
+                   READ autoPlay
+                       WRITE setAutoPlay
+                           NOTIFY autoPlayChanged)
 
     Q_PROPERTY(int volume
-               READ volume
-               WRITE setVolume
-               NOTIFY volumeChanged)
+                   READ volume
+                       WRITE setVolume
+                           NOTIFY volumeChanged)
 
     Q_PROPERTY(int chapter
-               READ chapter
-               WRITE setChapter
-               NOTIFY chapterChanged)
+                   READ chapter
+                       WRITE setChapter
+                           NOTIFY chapterChanged)
 
     Q_PROPERTY(int audioId
-               READ audioId
-               WRITE setAudioId
-               NOTIFY audioIdChanged)
+                   READ audioId
+                       WRITE setAudioId
+                           NOTIFY audioIdChanged)
 
     Q_PROPERTY(int contrast
-               READ contrast
-               WRITE setContrast
-               NOTIFY contrastChanged)
+                   READ contrast
+                       WRITE setContrast
+                           NOTIFY contrastChanged)
 
     Q_PROPERTY(int brightness
-               READ brightness
-               WRITE setBrightness
-               NOTIFY brightnessChanged)
+                   READ brightness
+                       WRITE setBrightness
+                           NOTIFY brightnessChanged)
 
     Q_PROPERTY(int gamma
-               READ gamma
-               WRITE setGamma
-               NOTIFY gammaChanged)
+                   READ gamma
+                       WRITE setGamma
+                           NOTIFY gammaChanged)
 
     Q_PROPERTY(int saturation
-               READ saturation
-               WRITE setSaturation
-               NOTIFY saturationChanged)
+                   READ saturation
+                       WRITE setSaturation
+                           NOTIFY saturationChanged)
 
     Q_PROPERTY(double watchPercentage
-               MEMBER m_watchPercentage
-               READ watchPercentage
-               WRITE setWatchPercentage
-               NOTIFY watchPercentageChanged)
+                   MEMBER m_watchPercentage
+                       READ watchPercentage
+                           WRITE setWatchPercentage
+                               NOTIFY watchPercentageChanged)
 
     Q_PROPERTY(bool hwDecoding
-               READ hwDecoding
-               WRITE setHWDecoding
-               NOTIFY hwDecodingChanged)
+                   READ hwDecoding
+                       WRITE setHWDecoding
+                           NOTIFY hwDecodingChanged)
 
     Q_PROPERTY(int stereoscopicMode
-               READ stereoscopicMode
-               WRITE setStereoscopicMode
-               NOTIFY stereoscopicModeChanged)
+                   READ stereoscopicMode
+                       WRITE setStereoscopicMode
+                           NOTIFY stereoscopicModeChanged)
 
     Q_PROPERTY(bool syncVideo
-               READ syncVideo
-               WRITE setSyncVideo
-               NOTIFY syncVideoChanged)
+                   READ syncVideo
+                       WRITE setSyncVideo
+                           NOTIFY syncVideoChanged)
 
     Q_PROPERTY(bool syncVolumeVisibilityFading
-               READ syncVolumeVisibilityFading
-               WRITE setSyncVolumeVisibilityFading
-               NOTIFY syncVolumeVisibilityFadingChanged)
+                   READ syncVolumeVisibilityFading
+                       WRITE setSyncVolumeVisibilityFading
+                           NOTIFY syncVolumeVisibilityFadingChanged)
 
     Q_PROPERTY(int visibility
-               READ visibility
-               WRITE setVisibility
-               NOTIFY visibilityChanged)
+                   READ visibility
+                       WRITE setVisibility
+                           NOTIFY visibilityChanged)
 
     Q_PROPERTY(int eofMode
-               READ eofMode
-               WRITE setEofMode
-               WRITE setEofMode
-               NOTIFY eofModeChanged)
+                   READ eofMode
+                       WRITE setEofMode
+                           WRITE setEofMode
+                               NOTIFY eofModeChanged)
 
     Q_PROPERTY(int gridToMapOn
-               READ gridToMapOn
-               WRITE setGridToMapOn
-               NOTIFY gridToMapOnChanged)
+                   READ gridToMapOn
+                       WRITE setGridToMapOn
+                           NOTIFY gridToMapOnChanged)
 
     Q_PROPERTY(double rotationSpeed
-               MEMBER m_rotationSpeed
-               READ rotationSpeed
-               WRITE setRotationSpeed
-               NOTIFY rotationSpeedChanged)
+                   MEMBER m_rotationSpeed
+                       READ rotationSpeed
+                           WRITE setRotationSpeed
+                               NOTIFY rotationSpeedChanged)
 
     Q_PROPERTY(double radius
-               MEMBER m_radius
-               READ radius
-               WRITE setRadius
-               NOTIFY radiusChanged)
+                   MEMBER m_radius
+                       READ radius
+                           WRITE setRadius
+                               NOTIFY radiusChanged)
 
     Q_PROPERTY(double fov
-               MEMBER m_fov
-               READ fov
-               WRITE setFov
-               NOTIFY fovChanged)
+                   MEMBER m_fov
+                       READ fov
+                           WRITE setFov
+                               NOTIFY fovChanged)
 
     Q_PROPERTY(double angle
-               MEMBER m_angle
-               READ angle
-               WRITE setAngle
-               NOTIFY angleChanged)
+                   MEMBER m_angle
+                       READ angle
+                           WRITE setAngle
+                               NOTIFY angleChanged)
 
     Q_PROPERTY(QVector3D rotate
-               MEMBER m_rotate
-               READ rotate
-               WRITE setRotate
-               NOTIFY rotateChanged)
+                   MEMBER m_rotate
+                       READ rotate
+                           WRITE setRotate
+                               NOTIFY rotateChanged)
 
     Q_PROPERTY(QVector3D translate
-               MEMBER m_translate
-               READ translate
-               WRITE setTranslate
-               NOTIFY translateChanged)
+                   MEMBER m_translate
+                       READ translate
+                           WRITE setTranslate
+                               NOTIFY translateChanged)
 
     Q_PROPERTY(double planeWidth
-               MEMBER m_planeWidth
-               READ planeWidth
-               WRITE setPlaneWidth
-               NOTIFY planeChanged)
+                   MEMBER m_planeWidth
+                       READ planeWidth
+                           WRITE setPlaneWidth
+                               NOTIFY planeChanged)
 
     Q_PROPERTY(double planeHeight
-               MEMBER m_planeHeight
-               READ planeHeight
-               WRITE setPlaneHeight
-               NOTIFY planeChanged)
+                   MEMBER m_planeHeight
+                       READ planeHeight
+                           WRITE setPlaneHeight
+                               NOTIFY planeChanged)
 
     Q_PROPERTY(double planeElevation
-               MEMBER m_planeElevation
-               READ planeElevation
-               WRITE setPlaneElevation
-               NOTIFY planeChanged)
+                   MEMBER m_planeElevation
+                       READ planeElevation
+                           WRITE setPlaneElevation
+                               NOTIFY planeChanged)
 
     Q_PROPERTY(double planeDistance
-               MEMBER m_planeDistance
-               READ planeDistance
-               WRITE setPlaneDistance
-               NOTIFY planeChanged)
+                   MEMBER m_planeDistance
+                       READ planeDistance
+                           WRITE setPlaneDistance
+                               NOTIFY planeChanged)
 
     Q_PROPERTY(int planeConsiderAspectRatio
-               MEMBER m_planeConsiderAspectRatio
-               READ planeConsiderAspectRatio
-               WRITE setPlaneConsiderAspectRatio
-               NOTIFY planeChanged)
+                   MEMBER m_planeConsiderAspectRatio
+                       READ planeConsiderAspectRatio
+                           WRITE setPlaneConsiderAspectRatio
+                               NOTIFY planeChanged)
 
     Q_PROPERTY(int surfaceTransitionTime
-               MEMBER m_surfaceTransitionTime
-               READ surfaceTransitionTime
-               WRITE setSurfaceTransitionTime
-               NOTIFY surfaceTransitionTimeChanged)
+                   MEMBER m_surfaceTransitionTime
+                       READ surfaceTransitionTime
+                           WRITE setSurfaceTransitionTime
+                               NOTIFY surfaceTransitionTimeChanged)
 
     Q_PROPERTY(bool surfaceTransitionOnGoing
-               MEMBER m_surfaceTransitionOnGoing
-               READ surfaceTransitionOnGoing
-               WRITE setSurfaceTransitionOnGoing
-               NOTIFY surfaceTransitionOnGoingChanged)
+                   MEMBER m_surfaceTransitionOnGoing
+                       READ surfaceTransitionOnGoing
+                           WRITE setSurfaceTransitionOnGoing
+                               NOTIFY surfaceTransitionOnGoingChanged)
 
-    Q_PROPERTY(PlayListModel* playlistModel
-               READ playlistModel
-               WRITE setPlaylistModel
-               NOTIFY playlistModelChanged)
+    Q_PROPERTY(PlayListModel *playlistModel
+                   READ playlistModel
+                       WRITE setPlaylistModel
+                           NOTIFY playlistModelChanged)
 
     PlayListModel *playlistModel();
     void setPlaylistModel(PlayListModel *model);
 
-    Q_PROPERTY(PlaySectionsModel* playSectionsModel
-        READ playSectionsModel
-        WRITE setPlaySectionsModel
-        NOTIFY playSectionsModelChanged)
+    Q_PROPERTY(PlaySectionsModel *playSectionsModel
+                   READ playSectionsModel
+                       WRITE setPlaySectionsModel
+                           NOTIFY playSectionsModelChanged)
 
-    PlaySectionsModel* playSectionsModel();
-    void setPlaySectionsModel(PlaySectionsModel* model);
+    PlaySectionsModel *playSectionsModel();
+    void setPlaySectionsModel(PlaySectionsModel *model);
 
     Q_PROPERTY(QVariantList audioDevices
-               READ audioDevices
-               WRITE setAudioDevices
-               NOTIFY audioDevicesChanged)
+                   READ audioDevices
+                       WRITE setAudioDevices
+                           NOTIFY audioDevicesChanged)
 
     QVariantList audioDevices() const;
     void setAudioDevices(QVariantList devices);
 
     Q_PROPERTY(QStringList recentMediaFiles
-        READ recentMediaFiles
-        WRITE setRecentMediaFiles
-        NOTIFY recentMediaFilesChanged)
+                   READ recentMediaFiles
+                       WRITE setRecentMediaFiles
+                           NOTIFY recentMediaFilesChanged)
 
     QStringList recentMediaFiles() const;
     void setRecentMediaFiles(QStringList list);
 
     Q_PROPERTY(QStringList recentPlaylists
-        READ recentPlaylists
-        WRITE setRecentPlaylists
-        NOTIFY recentPlaylistsChanged)
+                   READ recentPlaylists
+                       WRITE setRecentPlaylists
+                           NOTIFY recentPlaylistsChanged)
 
     QStringList recentPlaylists() const;
     void setRecentPlaylists(QStringList list);
@@ -265,7 +264,7 @@ public:
 
     bool autoPlay();
     void setAutoPlay(bool value);
-    
+
     int volume();
     void setVolume(int value);
 
@@ -353,17 +352,17 @@ public:
     QVariant getAudioDeviceList();
     void updateAudioDeviceList();
 
-    MpvObject(QQuickItem * parent = 0);
+    MpvObject(QQuickItem *parent = 0);
     virtual ~MpvObject();
     Renderer *createRenderer() const override;
 
-    TracksModel* audioTracksModel() const;
-    PlayListModel* getPlayListModel() const;
-    PlaySectionsModel* getPlaySectionsModel() const;
+    TracksModel *audioTracksModel() const;
+    PlayListModel *getPlayListModel() const;
+    PlaySectionsModel *getPlaySectionsModel() const;
 
-    Q_INVOKABLE QString checkAndCorrectPath(const QString& filePath, const QStringList& searchPaths);
+    Q_INVOKABLE QString checkAndCorrectPath(const QString &filePath, const QStringList &searchPaths);
     Q_INVOKABLE void loadFile(const QString &file, bool updateLastPlayedFile = true);
-    Q_INVOKABLE void addFileToPlaylist(const QString& file);
+    Q_INVOKABLE void addFileToPlaylist(const QString &file);
     Q_INVOKABLE void clearPlaylist();
     Q_INVOKABLE void setLoadedAsCurrentEditItem();
     Q_INVOKABLE void loadSection(int playSectionsIndex);
@@ -439,20 +438,20 @@ Q_SIGNALS:
     void fadeDownTheRewind();
 
 private:
-    PlayListItem* loadMediaFileDescription(const QString& file);
-    void loadJSONPlayList(const QString& file, bool updateLastPlayedFile = true);
-    void loadUniviewPlaylist(const QString& file, bool updateLastPlayedFile = true);
+    PlayListItem *loadMediaFileDescription(const QString &file);
+    void loadJSONPlayList(const QString &file, bool updateLastPlayedFile = true);
+    void loadUniviewPlaylist(const QString &file, bool updateLastPlayedFile = true);
 
     void loadItem(PlayListItemData itemData, bool updateLastPlayedFile = true, QString flag = QStringLiteral("replace"));
 
-    mpv_handle* mpv;
-    mpv_render_context* mpv_gl;
+    mpv_handle *mpv;
+    mpv_render_context *mpv_gl;
 
     friend class MpvRenderer;
 
     void sectionPositionCheck(double position);
     TracksModel *m_audioTracksModel;
-    QMap<int, Track*> m_audioTracks;
+    QMap<int, Track *> m_audioTracks;
     QList<int> m_secondsWatched;
     double m_watchPercentage;
     double m_rotationSpeed;
@@ -470,7 +469,7 @@ private:
     bool m_surfaceTransitionOnGoing;
     double m_lastSetPosition;
     PlayListModel *m_playlistModel;
-    PlaySectionsModel* m_playSectionsModel;
+    PlaySectionsModel *m_playSectionsModel;
     int m_currentSectionsIndex;
     PlayListItemData::Section m_currentSection;
     QString m_loadedFileStructure;
@@ -490,8 +489,7 @@ private:
     QString md5(const QString &str);
 };
 
-class MpvRenderer : public QQuickFramebufferObject::Renderer
-{
+class MpvRenderer : public QQuickFramebufferObject::Renderer {
 public:
     MpvRenderer(MpvObject *new_obj);
     ~MpvRenderer() = default;
@@ -500,7 +498,7 @@ public:
 
     // This function is called when a new FBO is needed.
     // This happens on the initial frame.
-    QOpenGLFramebufferObject * createFramebufferObject(const QSize &size);
+    QOpenGLFramebufferObject *createFramebufferObject(const QSize &size);
 
     void render();
 };

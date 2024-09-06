@@ -12,28 +12,50 @@ Menu {
 
     title: qsTr("&Playback")
 
-    MenuItem { action: actions["playPauseAction"] }
-    MenuItem { action: actions["stopRewindAction"] }
-    MenuItem { action: actions["playNextAction"] }
-    MenuItem { action: actions["playPreviousAction"] }
-    MenuItem { action: actions["visibilityFadeUpAction"] }
-    MenuItem { action: actions["visibilityFadeDownAction"] }
-
-    MenuSeparator {}
-
+    MenuItem {
+        action: actions["playPauseAction"]
+    }
+    MenuItem {
+        action: actions["stopRewindAction"]
+    }
+    MenuItem {
+        action: actions["playNextAction"]
+    }
+    MenuItem {
+        action: actions["playPreviousAction"]
+    }
+    MenuItem {
+        action: actions["visibilityFadeUpAction"]
+    }
+    MenuItem {
+        action: actions["visibilityFadeDownAction"]
+    }
+    MenuSeparator {
+    }
     Menu {
         title: "Seek"
-        MenuItem { action: actions["seekForwardSmallAction"] }
-        MenuItem { action: actions["seekBackwardSmallAction"] }
 
-        MenuSeparator {}
-
-        MenuItem { action: actions["seekForwardMediumAction"] }
-        MenuItem { action: actions["seekBackwardMediumAction"] }
-
-        MenuSeparator {}
-
-        MenuItem { action: actions["seekForwardBigAction"] }
-        MenuItem { action: actions["seekBackwardBigAction"] }
+        MenuItem {
+            action: actions["seekForwardSmallAction"]
+        }
+        MenuItem {
+            action: actions["seekBackwardSmallAction"]
+        }
+        MenuSeparator {
+        }
+        MenuItem {
+            action: actions["seekForwardMediumAction"]
+        }
+        MenuItem {
+            action: actions["seekBackwardMediumAction"]
+        }
+        MenuSeparator {
+        }
+        MenuItem {
+            action: actions["seekForwardBigAction"]
+        }
+        MenuItem {
+            action: actions["seekBackwardBigAction"]
+        }
     }
 }

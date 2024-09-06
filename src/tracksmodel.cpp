@@ -1,29 +1,25 @@
 /*
- * SPDX-FileCopyrightText: 
- * 2021-2024 Erik Sundén <eriksunden85@gmail.com> 
+ * SPDX-FileCopyrightText:
+ * 2021-2024 Erik Sundén <eriksunden85@gmail.com>
  * 2020 George Florea Bănuș <georgefb899@gmail.com>
  *
  * SPDX-License-Identifier: GPL-3.0-or-later
  */
 
+#include "tracksmodel.h"
 #include "_debug.h"
 #include "track.h"
-#include "tracksmodel.h"
 #include <utility>
 
 TracksModel::TracksModel(QObject *parent)
-    : QAbstractListModel(parent)
-{
-
+    : QAbstractListModel(parent) {
 }
 
-int TracksModel::rowCount(const QModelIndex &/*parent*/) const
-{
+int TracksModel::rowCount(const QModelIndex & /*parent*/) const {
     return m_tracks.size();
 }
 
-QVariant TracksModel::data(const QModelIndex &index, int role) const
-{
+QVariant TracksModel::data(const QModelIndex &index, int role) const {
     if (!index.isValid() || m_tracks.isEmpty())
         return QVariant();
 
@@ -47,8 +43,7 @@ QVariant TracksModel::data(const QModelIndex &index, int role) const
     return QVariant();
 }
 
-QHash<int, QByteArray> TracksModel::roleNames() const
-{
+QHash<int, QByteArray> TracksModel::roleNames() const {
     QHash<int, QByteArray> roles;
     roles[TextRole] = "text";
     roles[ShortTextRole] = "shortText";
@@ -59,8 +54,7 @@ QHash<int, QByteArray> TracksModel::roleNames() const
     return roles;
 }
 
-void TracksModel::setTracks(QMap<int, Track *> tracks)
-{
+void TracksModel::setTracks(QMap<int, Track *> tracks) {
     beginResetModel();
     m_tracks = std::move(tracks);
     endResetModel();
@@ -70,11 +64,9 @@ int TracksModel::countTracks() const {
     return m_tracks.size();
 }
 
-std::string TracksModel::getListAsFormattedString(std::string removePrefix, int charsPerItem) const
-{
+std::string TracksModel::getListAsFormattedString(std::string removePrefix, int charsPerItem) const {
     std::string fullItemList = "";
-    for (int i = 0; i < m_tracks.size(); i++)
-    {
+    for (int i = 0; i < m_tracks.size(); i++) {
         std::string title = "";
         title += m_tracks[i]->shortText().toStdString();
 
@@ -95,8 +87,7 @@ std::string TracksModel::getListAsFormattedString(std::string removePrefix, int 
         size_t countChars = title.size();
         if (countChars < charsPerItem) {
             title.insert(title.end(), charsPerItem - countChars, ' ');
-        }
-        else if (countChars >= charsPerItem) {
+        } else if (countChars >= charsPerItem) {
             title.erase(title.end() - (countChars - charsPerItem + 4), title.end());
             title.insert(title.end(), 3, '.');
             title.insert(title.end(), 1, ' ');

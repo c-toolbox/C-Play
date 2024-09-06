@@ -9,8 +9,7 @@
 
 class MpvObject;
 
-class HttpServerThread : public QThread
-{
+class HttpServerThread : public QThread {
     Q_OBJECT
 
 public:
@@ -18,7 +17,7 @@ public:
     ~HttpServerThread();
 
     void setupHttpServer();
-    void setMpv(MpvObject* mpv);
+    void setMpv(MpvObject *mpv);
 
     Q_INVOKABLE void terminate();
 
@@ -54,8 +53,8 @@ protected:
     void run() override;
 
 private:
-    bool stringToInt(std::string str, int& parsedInt);
-    bool stringToDouble(std::string str, double& parsedDouble);
+    bool stringToInt(std::string str, int &parsedInt);
+    bool stringToDouble(std::string str, double &parsedDouble);
 
     void setPositionFromStr(std::string positionTimeStr);
     void setVolumeFromStr(std::string volumeLevelStr);
@@ -74,7 +73,7 @@ private:
     const std::string LoadIndexFromPlaylist(std::string indexStr);
     const std::string LoadIndexFromSections(std::string indexStr);
 
-    MpvObject* m_mpv;
+    MpvObject *m_mpv;
     httplib::Server svr;
     bool runServer;
     int portServer;

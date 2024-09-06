@@ -1,24 +1,23 @@
 #include "imagelayer.h"
 #include <fmt/core.h>
 
-auto loadImageAsync = [](ImageLayer::ImageData& data) {
+auto loadImageAsync = [](ImageLayer::ImageData &data) {
     data.threadRunning = true;
     data.img.load(data.filename);
     data.imageDone = true;
-    while (!data.uploadDone) {}
+    while (!data.uploadDone) {
+    }
     data.img = sgct::Image();
     data.threadDone = true;
 };
 
-ImageLayer::ImageLayer(std::string identifier)
-{
+ImageLayer::ImageLayer(std::string identifier) {
     imageData.identifier = identifier;
     imageData.filename = "";
     setType(BaseLayer::LayerType::IMAGE);
 }
 
-ImageLayer::~ImageLayer()
-{
+ImageLayer::~ImageLayer() {
     if (renderData.texId > 0)
         sgct::TextureManager::instance().removeTexture(renderData.texId);
 }
@@ -38,21 +37,18 @@ bool ImageLayer::processImageUpload(std::string filename, bool forceUpdate) {
         if (filename.empty()) {
             sgct::Log::Info("Clearing background");
             imageData.filename = "";
-        }
-        else {
+        } else {
             if (fileIsImage(filename)) {
-                //Load background file
+                // Load background file
                 imageData.filename = filename;
                 sgct::Log::Info(fmt::format("Loading new {} image asynchronously: {}", imageData.identifier, imageData.filename));
                 imageData.trd = std::make_unique<std::thread>(loadImageAsync, std::ref(imageData));
 
                 return true;
-            }
-            else {
+            } else {
                 imageData.filename = "";
             }
         }
-
     }
 
     return false;
@@ -62,9 +58,9 @@ std::string ImageLayer::loadedFile() {
     return imageData.filename;
 }
 
-bool ImageLayer::fileIsImage(std::string& filePath) {
+bool ImageLayer::fileIsImage(std::string &filePath) {
     if (!filePath.empty()) {
-        //Load background file
+        // Load background file
         if (std::filesystem::exists(filePath)) {
             std::filesystem::path bgPath = std::filesystem::path(filePath);
             if (bgPath.has_extension()) {
@@ -74,20 +70,16 @@ bool ImageLayer::fileIsImage(std::string& filePath) {
                     bgPathExt == ".jpeg" ||
                     bgPathExt == ".tga") {
                     return true;
-                }
-                else {
+                } else {
                     sgct::Log::Warning(fmt::format("Image file extension is not supported: {}", filePath));
                 }
-            }
-            else {
+            } else {
                 sgct::Log::Warning(fmt::format("Image file has no extension: {}", filePath));
             }
-        }
-        else {
+        } else {
             sgct::Log::Warning(fmt::format("Could not find image file: {}", filePath));
         }
-    }
-    else {
+    } else {
         sgct::Log::Warning(fmt::format("Image file is empty: {}", filePath));
     }
 
@@ -101,8 +93,7 @@ void ImageLayer::handleAsyncImageUpload() {
             renderData.width = imageData.img.size().x;
             renderData.height = imageData.img.size().y;
             imageData.uploadDone = true;
-        }
-        else if (imageData.threadDone) {
+        } else if (imageData.threadDone) {
             imageData.threadRunning = false;
             imageData.imageDone = false;
             imageData.uploadDone = false;

@@ -13,40 +13,40 @@
     <entry name="MinDurationToSavePosition" type="int">
       <default>-1</default>
     </entry>
-	<entry name="UseThresholdToSyncTimePosition" type="bool">
+    <entry name="UseThresholdToSyncTimePosition" type="bool">
       <label>Use functionality to sync time based on position threshold</label>
       <default>true</default>
     </entry>
     <entry name="ThresholdToSyncTimePosition" type="int">
       <default>100</default>
     </entry>
-	<entry name="ApplyThresholdSyncOnLoopOnly" type="bool">
+    <entry name="ApplyThresholdSyncOnLoopOnly" type="bool">
       <label>Sync time based on threshold for looping only</label>
       <default>true</default>
     </entry>
-	<entry name="TimeToCheckThresholdSyncAfterLoop" type="int">
+    <entry name="TimeToCheckThresholdSyncAfterLoop" type="int">
       <default>3000</default>
     </entry>
-	<entry name="SyncVolumeVisibilityFading" type="bool">
+    <entry name="SyncVolumeVisibilityFading" type="bool">
       <label>Sync volume+visibility fading</label>
       <default>false</default>
     </entry>
-	<entry name="FadeDuration" type="int">
+    <entry name="FadeDuration" type="int">
       <default>2000</default>
     </entry>
-	<entry name="RewindOnEOFwhenPause" type="bool">
+    <entry name="RewindOnEOFwhenPause" type="bool">
       <label>Rewind media if end of file + pause</label>
       <default>false</default>
     </entry>
-	<entry name="FadeDownBeforeRewind" type="bool">
+    <entry name="FadeDownBeforeRewind" type="bool">
       <label>Fade down media visibility before rewind</label>
       <default>false</default>
     </entry>
-	<entry name="Visibility" type="Int">
+    <entry name="Visibility" type="Int">
       <label>Visibility at startup</label>
       <default>100</default>
     </entry>
-	<entry name="SeekSmallStep" type="Int">
+    <entry name="SeekSmallStep" type="Int">
       <label>Seek small step</label>
       <default>5</default>
     </entry>

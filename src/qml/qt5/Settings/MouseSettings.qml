@@ -28,39 +28,38 @@ SettingsBasePage {
             id: mouseActionsModel
 
             ListElement {
-                label: "Left"
                 key: "left"
+                label: "Left"
             }
             ListElement {
-                label: "Left double click"
                 key: "leftx2"
+                label: "Left double click"
             }
             ListElement {
-                label: "Right"
                 key: "right"
+                label: "Right"
             }
             ListElement {
-                label: "Right double click"
                 key: "rightx2"
+                label: "Right double click"
             }
             ListElement {
-                label: "Middle"
                 key: "middle"
+                label: "Middle"
             }
             ListElement {
-                label: "Middle double click"
                 key: "middlex2"
+                label: "Middle double click"
             }
             ListElement {
-                label: "ScrollUp"
                 key: "scrollUp"
+                label: "ScrollUp"
             }
             ListElement {
-                label: "ScrollDown"
                 key: "scrollDown"
+                label: "ScrollDown"
             }
         }
-
         ListView {
             id: mouseButtonsListView
 
@@ -72,40 +71,41 @@ SettingsBasePage {
             delegate: Kirigami.BasicListItem {
                 id: delegate
 
-                label: model.label
-                subtitle: MouseSettings[model.key] ? MouseSettings[model.key] : "No action set"
-                icon: MouseSettings[model.key] ? "checkmark" : ""
-                reserveSpaceForIcon: true
-                width: content.width
-                highlighted: false
+                function openSelectActionPopup() {
+                    selectActionPopup.buttonIndex = model.index;
+                    selectActionPopup.headerTitle = model.label;
+                    selectActionPopup.open();
+                }
 
-                onClicked: openSelectActionPopup()
+                highlighted: false
+                icon: MouseSettings[model.key] ? "checkmark" : ""
+                label: model.label
+                reserveSpaceForIcon: true
+                subtitle: MouseSettings[model.key] ? MouseSettings[model.key] : "No action set"
+                width: content.width
+
                 Component.onCompleted: mouseButtonsListView.delegateHeight = height
+                onClicked: openSelectActionPopup()
 
                 Connections {
-                    target: selectActionPopup
                     function onActionSelected() {
                         if (selectActionPopup.buttonIndex === model.index) {
-                            MouseSettings[model.key] = actionName
-                            MouseSettings.save()
+                            MouseSettings[model.key] = actionName;
+                            MouseSettings.save();
                         }
                     }
-                }
 
-                function openSelectActionPopup() {
-                    selectActionPopup.buttonIndex = model.index
-                    selectActionPopup.headerTitle = model.label
-                    selectActionPopup.open()
+                    target: selectActionPopup
                 }
             }
-
         }
-
         Item {
-            width: Kirigami.Units.gridUnit
             height: Kirigami.Units.gridUnit
+            width: Kirigami.Units.gridUnit
         }
+        SelectActionPopup {
+            id: selectActionPopup
 
-        SelectActionPopup { id: selectActionPopup }
+        }
     }
 }

@@ -15,7 +15,7 @@
       <label>Osd font size</label>
       <default>25</default>
     </entry>
-	<entry name="ShowOsdOnSkipChapters" type="bool">
+    <entry name="ShowOsdOnSkipChapters" type="bool">
       <label>Show osd on skip chapters</label>
       <default>true</default>
     </entry>
@@ -29,7 +29,7 @@
     </entry>
     <entry name="ColorScheme" type="String">
       <label>Color scheme</label>
-	  <default>Breeze Dark</default>
+    <default>Breeze Dark</default>
     </entry>
     <entry name="UseBreezeIconTheme" type="bool">
       <default>true</default>

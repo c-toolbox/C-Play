@@ -1,31 +1,31 @@
 /*
- * SPDX-FileCopyrightText: 
- * 2021-2024 Erik Sundén <eriksunden85@gmail.com> 
+ * SPDX-FileCopyrightText:
+ * 2021-2024 Erik Sundén <eriksunden85@gmail.com>
  * 2020 George Florea Bănuș <georgefb899@gmail.com>
  *
  * SPDX-License-Identifier: GPL-3.0-or-later
  */
 
-#include "_debug.h"
 #include "application.h"
+#include "_debug.h"
 #include "haction.h"
+#include "layerqtitem.h"
+#include "layersmodel.h"
 #include "mpvobject.h"
 #include "playercontroller.h"
 #include "playlistitem.h"
 #include "playlistmodel.h"
-#include "tracksmodel.h"
 #include "slidesmodel.h"
-#include "layersmodel.h"
-#include "layerqtitem.h"
+#include "tracksmodel.h"
 
 #include "audiosettings.h"
 #include "gridsettings.h"
 #include "imagesettings.h"
-#include "presentationsettings.h"
 #include "locationsettings.h"
 #include "mousesettings.h"
 #include "playbacksettings.h"
 #include "playlistsettings.h"
+#include "presentationsettings.h"
 #include "userinterfacesettings.h"
 
 #include "worker.h"
@@ -36,22 +36,22 @@
 #include <QApplication>
 #include <QCommandLineParser>
 #include <QCoreApplication>
-#include <QGuiApplication>
 #include <QDir>
 #include <QFileInfo>
+#include <QGuiApplication>
+#include <QMimeDatabase>
 #include <QPointer>
 #include <QQmlApplicationEngine>
 #include <QQmlContext>
+#include <QQmlEngine>
 #include <QQuickItem>
 #include <QQuickStyle>
 #include <QQuickView>
 #include <QQuickWindow>
 #include <QStandardPaths>
-#include <QStyleFactory>
 #include <QStyle>
+#include <QStyleFactory>
 #include <QThread>
-#include <QQmlEngine>
-#include <QMimeDatabase>
 #include <QtGlobal>
 
 #include <KAboutApplicationDialog>
@@ -65,8 +65,7 @@
 #include <KLocalizedString>
 #include <KShortcutsDialog>
 
-static QApplication *createApplication(int &argc, char **argv, const QString &applicationName)
-{
+static QApplication *createApplication(int &argc, char **argv, const QString &applicationName) {
     Q_INIT_RESOURCE(images);
 
     QApplication::setHighDpiScaleFactorRoundingPolicy(Qt::HighDpiScaleFactorRoundingPolicy::PassThrough);
@@ -92,10 +91,7 @@ static QApplication *createApplication(int &argc, char **argv, const QString &ap
 }
 
 Application::Application(int &argc, char **argv, const QString &applicationName)
-    : m_app(createApplication(argc, argv, applicationName))
-    , m_collection(this)
-    , m_slidesModel(new SlidesModel(this))
-{
+    : m_app(createApplication(argc, argv, applicationName)), m_collection(this), m_slidesModel(new SlidesModel(this)) {
     m_config = KSharedConfig::openConfig(QStringLiteral("C-Play/cplay.conf"));
     m_shortcuts = new KConfigGroup(m_config, QStringLiteral("Shortcuts"));
     m_schemes = new KColorSchemeManager(this);
@@ -111,7 +107,7 @@ Application::Application(int &argc, char **argv, const QString &applicationName)
 
     // Qt sets the locale in the QGuiApplication constructor, but libmpv
     // requires the LC_NUMERIC category to be set to "C", so change it back.
-    //std::setlocale(LC_NUMERIC, "C");
+    // std::setlocale(LC_NUMERIC, "C");
     std::locale::global(std::locale("C"));
 
     setupWorkerThread();
@@ -129,13 +125,13 @@ Application::Application(int &argc, char **argv, const QString &applicationName)
     m_engine->loadFromModule("org.ctoolbox.cplay", "Main");
 #else
     const QUrl url(QStringLiteral("qrc:/qt5/main.qml"));
-    auto onObjectCreated = [url](QObject* obj, const QUrl& objUrl) {
+    auto onObjectCreated = [url](QObject *obj, const QUrl &objUrl) {
         if (!obj && url == objUrl) {
             QCoreApplication::exit(-1);
         }
-        };
+    };
     QObject::connect(m_engine, &QQmlApplicationEngine::objectCreated,
-        m_app, onObjectCreated, Qt::QueuedConnection);
+                     m_app, onObjectCreated, Qt::QueuedConnection);
     m_engine->addImportPath(QStringLiteral("qrc:/qt5"));
 
     setupQmlContextProperties();
@@ -143,33 +139,30 @@ Application::Application(int &argc, char **argv, const QString &applicationName)
     m_engine->load(url);
 #endif
 
-    if(!PresentationSettings::presentationToLoadOnStartup().isEmpty())
+    if (!PresentationSettings::presentationToLoadOnStartup().isEmpty())
         m_slidesModel->loadFromJSONFile(PresentationSettings::presentationToLoadOnStartup());
 }
 
-Application* Application::_instance = nullptr;
+Application *Application::_instance = nullptr;
 
-void Application::create(int &argc, char **argv, const QString &applicationName)
-{
+void Application::create(int &argc, char **argv, const QString &applicationName) {
     _instance = new Application(argc, argv, applicationName);
 }
 
-Application& Application::instance() {
+Application &Application::instance() {
     if (_instance == nullptr) {
         throw std::logic_error("Using the instance before it was created or set");
     }
     return *_instance;
 }
 
-Application::~Application()
-{
+Application::~Application() {
     delete m_engine;
     delete _instance;
     _instance = nullptr;
 }
 
-int Application::run()
-{
+int Application::run() {
     QEventLoop loop;
     connect(&renderThread, &QThread::finished, &loop, &QEventLoop::quit);
     renderThread.render();
@@ -180,8 +173,7 @@ int Application::run()
     return returnCode;
 }
 
-void Application::setupWorkerThread()
-{
+void Application::setupWorkerThread() {
     auto worker = Worker::instance();
     auto thread = new QThread();
     worker->moveToThread(thread);
@@ -192,8 +184,7 @@ void Application::setupWorkerThread()
     thread->start();
 }
 
-void Application::setupAboutData()
-{
+void Application::setupAboutData() {
     m_aboutData = KAboutData(QStringLiteral("C-Play"),
                              QStringLiteral("C-Play"),
                              Application::version());
@@ -206,14 +197,13 @@ void Application::setupAboutData()
     m_aboutData.setDesktopFileName(QStringLiteral("org.ctoolbox.cplay"));
 
     m_aboutData.addAuthor(QString::fromUtf8("Contact/owner: Erik Sundén"),
-                        QStringLiteral("Creator of C-Play"),
-                        QStringLiteral("eriksunden85@gmail.com"));
+                          QStringLiteral("Creator of C-Play"),
+                          QStringLiteral("eriksunden85@gmail.com"));
 
     KAboutData::setApplicationData(m_aboutData);
 }
 
-void Application::setupCommandLineParser()
-{
+void Application::setupCommandLineParser() {
     QCommandLineParser parser;
     m_aboutData.setupCommandLine(&parser);
     parser.addPositionalArgument(QStringLiteral("file"), QStringLiteral("File to open"));
@@ -225,39 +215,37 @@ void Application::setupCommandLineParser()
     }
 }
 
-void Application::registerQmlTypes()
-{
+void Application::registerQmlTypes() {
     qmlRegisterType<LayerQtItem>("org.ctoolbox.cplay", 1, 0, "LayerQtItem");
     qmlRegisterType<MpvObject>("org.ctoolbox.cplay", 1, 0, "MpvObject");
 
-    qRegisterMetaType<PlayListModel*>();
-    qRegisterMetaType<PlayListItem*>();
-    qRegisterMetaType<QAction*>();
-    qRegisterMetaType<TracksModel*>();
-    qRegisterMetaType<LayersTypeModel*>();
+    qRegisterMetaType<PlayListModel *>();
+    qRegisterMetaType<PlayListItem *>();
+    qRegisterMetaType<QAction *>();
+    qRegisterMetaType<TracksModel *>();
+    qRegisterMetaType<LayersTypeModel *>();
 #ifdef NDI_SUPPORT
-    qRegisterMetaType<NDISendersModel*>();
+    qRegisterMetaType<NDISendersModel *>();
 #endif
-    qRegisterMetaType<LayersModel*>();
-    qRegisterMetaType<SlidesModel*>();
+    qRegisterMetaType<LayersModel *>();
+    qRegisterMetaType<SlidesModel *>();
     qRegisterMetaType<KFileMetaData::PropertyMultiMap>("KFileMetaData::PropertyMultiMap");
 }
 
-void Application::setupQmlSettingsTypes()
-{
+void Application::setupQmlSettingsTypes() {
     auto audioProvider = [](QQmlEngine *, QJSEngine *) -> QObject * { return AudioSettings::self(); };
     qmlRegisterSingletonType<AudioSettings>("org.ctoolbox.cplay", 1, 0, "AudioSettings", audioProvider);
 
-    auto gridProvider = [](QQmlEngine*, QJSEngine*) -> QObject* { return GridSettings::self(); };
+    auto gridProvider = [](QQmlEngine *, QJSEngine *) -> QObject * { return GridSettings::self(); };
     qmlRegisterSingletonType<GridSettings>("org.ctoolbox.cplay", 1, 0, "GridSettings", gridProvider);
 
-    auto imageProvider = [](QQmlEngine*, QJSEngine*) -> QObject* { return ImageSettings::self(); };
+    auto imageProvider = [](QQmlEngine *, QJSEngine *) -> QObject * { return ImageSettings::self(); };
     qmlRegisterSingletonType<ImageSettings>("org.ctoolbox.cplay", 1, 0, "ImageSettings", imageProvider);
 
-    auto layerProvider = [](QQmlEngine*, QJSEngine*) -> QObject* { return PresentationSettings::self(); };
+    auto layerProvider = [](QQmlEngine *, QJSEngine *) -> QObject * { return PresentationSettings::self(); };
     qmlRegisterSingletonType<LocationSettings>("org.ctoolbox.cplay", 1, 0, "PresentationSettings", layerProvider);
 
-    auto locationProvider = [](QQmlEngine*, QJSEngine*) -> QObject* { return LocationSettings::self(); };
+    auto locationProvider = [](QQmlEngine *, QJSEngine *) -> QObject * { return LocationSettings::self(); };
     qmlRegisterSingletonType<LocationSettings>("org.ctoolbox.cplay", 1, 0, "LocationSettings", locationProvider);
 
     auto mouseProvider = [](QQmlEngine *, QJSEngine *) -> QObject * { return MouseSettings::self(); };
@@ -269,12 +257,11 @@ void Application::setupQmlSettingsTypes()
     auto playlistProvider = [](QQmlEngine *, QJSEngine *) -> QObject * { return PlaylistSettings::self(); };
     qmlRegisterSingletonType<PlaylistSettings>("org.ctoolbox.cplay", 1, 0, "PlaylistSettings", playlistProvider);
 
-    auto uiProvider = [](QQmlEngine*, QJSEngine*) -> QObject* { return UserInterfaceSettings::self(); };
+    auto uiProvider = [](QQmlEngine *, QJSEngine *) -> QObject * { return UserInterfaceSettings::self(); };
     qmlRegisterSingletonType<UserInterfaceSettings>("org.ctoolbox.cplay", 1, 0, "UserInterfaceSettings", uiProvider);
 }
 
-void Application::setupQmlContextProperties()
-{
+void Application::setupQmlContextProperties() {
     m_engine->rootContext()->setContextProperty(QStringLiteral("app"), this);
     qmlRegisterUncreatableType<Application>("Application", 1, 0, "Application",
                                             QStringLiteral("Application should not be created in QML"));
@@ -282,8 +269,7 @@ void Application::setupQmlContextProperties()
     m_engine->rootContext()->setContextProperty(QStringLiteral("playerController"), new PlayerController(this));
 }
 
-QUrl Application::configFilePath()
-{
+QUrl Application::configFilePath() {
     auto configPath = QStandardPaths::writableLocation(m_config->locationType());
     auto configFilePath = configPath.append(QStringLiteral("/")).append(m_config->name());
     QUrl url(configFilePath);
@@ -291,8 +277,7 @@ QUrl Application::configFilePath()
     return url;
 }
 
-QUrl Application::configFolderPath()
-{
+QUrl Application::configFolderPath() {
     auto configPath = QStandardPaths::writableLocation(m_config->locationType());
     auto configFilePath = configPath.append(QStringLiteral("/")).append(m_config->name());
     QFileInfo fileInfo(configFilePath);
@@ -301,19 +286,15 @@ QUrl Application::configFolderPath()
     return url;
 }
 
-QString Application::version()
-{
+QString Application::version() {
     return QStringLiteral(CPLAY_VERSION);
 }
 
-bool Application::hasYoutubeDl()
-{
+bool Application::hasYoutubeDl() {
     return !QStandardPaths::findExecutable(QStringLiteral("youtube-dl")).isEmpty();
-
 }
 
-QUrl Application::parentUrl(const QString &path)
-{
+QUrl Application::parentUrl(const QString &path) {
     QUrl url(path);
     if (!url.isValid()) {
         return QUrl(QStandardPaths::writableLocation(QStandardPaths::MoviesLocation));
@@ -330,8 +311,7 @@ QUrl Application::parentUrl(const QString &path)
     return parentFolderUrl;
 }
 
-QUrl Application::pathToUrl(const QString &path)
-{
+QUrl Application::pathToUrl(const QString &path) {
     QString correctedFilePath = path;
     correctedFilePath.replace(QStringLiteral("file:///"), QStringLiteral(""));
     QUrl url(QStringLiteral("file:///") + correctedFilePath);
@@ -343,25 +323,21 @@ QUrl Application::pathToUrl(const QString &path)
     return url;
 }
 
-bool Application::isYoutubePlaylist(const QString &path)
-{
+bool Application::isYoutubePlaylist(const QString &path) {
     return path.contains(QStringLiteral("youtube.com/playlist?list"));
 }
 
-QString Application::formatTime(const double time)
-{
+QString Application::formatTime(const double time) {
     QTime t(0, 0, 0);
     QString formattedTime = t.addSecs(static_cast<qint64>(time)).toString(QStringLiteral("hh:mm:ss"));
     return formattedTime;
 }
 
-void Application::hideCursor()
-{
+void Application::hideCursor() {
     QApplication::setOverrideCursor(Qt::BlankCursor);
 }
 
-void Application::showCursor()
-{
+void Application::showCursor() {
     QApplication::setOverrideCursor(Qt::ArrowCursor);
 }
 
@@ -369,8 +345,7 @@ int Application::getFadeDurationCurrentTime(bool restart) {
     if (restart) {
         fadeDurationTimer.start();
         return 0;
-    }
-    else {
+    } else {
         return fadeDurationTimer.elapsed();
     }
 }
@@ -383,22 +358,19 @@ void Application::setStartupFile(std::string filePath) {
     m_startupFileFromCmd = QString::fromStdString(filePath);
 }
 
-SlidesModel* Application::slidesModel() {
+SlidesModel *Application::slidesModel() {
     return m_slidesModel;
 }
 
-QString Application::argument(int key)
-{
+QString Application::argument(int key) {
     return m_args[key];
 }
 
-void Application::addArgument(int key, const QString &value)
-{
+void Application::addArgument(int key, const QString &value) {
     m_args.insert(key, value);
 }
 
-QAction *Application::action(const QString &name)
-{
+QAction *Application::action(const QString &name) {
     auto resultAction = m_collection.action(name);
 
     if (!resultAction) {
@@ -409,8 +381,7 @@ QAction *Application::action(const QString &name)
     return resultAction;
 }
 
-QString Application::getFileContent(const QString &file)
-{
+QString Application::getFileContent(const QString &file) {
     QFile f(file);
     f.open(QIODevice::ReadOnly);
     QString content = QString::fromUtf8(f.readAll());
@@ -418,19 +389,16 @@ QString Application::getFileContent(const QString &file)
     return content;
 }
 
-QString Application::mimeType(QUrl url)
-{
+QString Application::mimeType(QUrl url) {
     KFileItem fileItem(url, KFileItem::NormalMimeTypeDetermination);
     return fileItem.mimetype();
 }
 
-QStringList Application::availableGuiStyles()
-{
+QStringList Application::availableGuiStyles() {
     return QStyleFactory::keys();
 }
 
-void Application::setGuiStyle(const QString &style)
-{
+void Application::setGuiStyle(const QString &style) {
     if (style == QStringLiteral("Default")) {
         QApplication::setStyle(m_systemDefaultStyle);
         return;
@@ -438,20 +406,17 @@ void Application::setGuiStyle(const QString &style)
     QApplication::setStyle(style);
 }
 
-QAbstractItemModel *Application::colorSchemesModel()
-{
+QAbstractItemModel *Application::colorSchemesModel() {
     return m_schemes->model();
 }
 
-void Application::activateColorScheme(const QString &name)
-{
+void Application::activateColorScheme(const QString &name) {
     m_schemes->activateScheme(m_schemes->indexForScheme(name));
 }
 
-void Application::configureShortcuts()
-{
+void Application::configureShortcuts() {
     KShortcutsDialog dlg(KShortcutsEditor::ApplicationAction, KShortcutsEditor::LetterShortcutsAllowed, nullptr);
-    connect(&dlg, &KShortcutsDialog::accepted, this, [ = ](){
+    connect(&dlg, &KShortcutsDialog::accepted, this, [=]() {
         m_collection.writeSettings(m_shortcuts);
         m_config->sync();
     });
@@ -460,7 +425,7 @@ void Application::configureShortcuts()
     dlg.configure(false);
 }
 
-void Application::updateAboutOtherText(const QString& mpvVersion, const QString& ffmpegVersion) {
+void Application::updateAboutOtherText(const QString &mpvVersion, const QString &ffmpegVersion) {
     QStringList ffmpeg_version_num = ffmpegVersion.split(QStringLiteral("-"), Qt::SkipEmptyParts);
     QString ffmpeg_version_clean;
     for (const QChar c : std::as_const(ffmpeg_version_num[0])) {
@@ -490,8 +455,7 @@ QString Application::getStartupFile() {
         return m_startupFileFromCmd;
 }
 
-void Application::aboutApplication()
-{
+void Application::aboutApplication() {
     static QPointer<QDialog> dialog;
     if (!dialog) {
         dialog = new KAboutApplicationDialog(KAboutData::applicationData(), KAboutApplicationDialog::Option::HideLibraries);
@@ -500,8 +464,7 @@ void Application::aboutApplication()
     dialog->show();
 }
 
-void Application::setupActions(const QString &actionName)
-{
+void Application::setupActions(const QString &actionName) {
     if (actionName == QStringLiteral("play_pause")) {
         auto action = new HAction();
         action->setText(QStringLiteral("Play/Pause"));
@@ -692,7 +655,7 @@ void Application::setupActions(const QString &actionName)
         action->setIcon(QIcon::fromTheme(QStringLiteral("media-seek-backward")));
         m_collection.setDefaultShortcut(action, QKeySequence(QStringLiteral("Ctrl+Shift+Left")));
         m_collection.addAction(actionName, action);
-    } 
+    }
     if (actionName == QStringLiteral("toggleMenuBar")) {
         auto action = new HAction();
         action->setText(QStringLiteral("Toggle Menu Bar"));
@@ -708,21 +671,18 @@ void Application::setupActions(const QString &actionName)
     m_collection.readSettings(m_shortcuts);
 }
 
-
-SyncHelper* SyncHelper::_instance = nullptr;
+SyncHelper *SyncHelper::_instance = nullptr;
 
 SyncHelper::SyncHelper() {}
 
-SyncHelper::~SyncHelper()
-{
+SyncHelper::~SyncHelper() {
     delete _instance;
     _instance = nullptr;
 }
 
-SyncHelper& SyncHelper::instance() {
-    if(!_instance){
+SyncHelper &SyncHelper::instance() {
+    if (!_instance) {
         _instance = new SyncHelper();
     }
     return *_instance;
 }
-

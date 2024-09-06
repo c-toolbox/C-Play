@@ -13,21 +13,20 @@ import QtQuick.Layouts
 import org.kde.kirigami as Kirigami
 import org.ctoolbox.cplay
 
-
 ToolBar {
     id: root
 
-    property alias progressBar: progressBar
     property alias footerRow: footerRow
-    property alias timeInfo: timeInfo
     property alias playPauseButton: playPauseButton
+    property alias progressBar: progressBar
+    property alias timeInfo: timeInfo
 
+    anchors.bottom: isFullScreen() ? mpv.bottom : parent.bottom
     anchors.left: parent.left
     anchors.right: parent.right
-    anchors.bottom: isFullScreen() ? mpv.bottom : parent.bottom
+    hoverEnabled: true
     padding: 5
     position: ToolBar.Footer
-    hoverEnabled: true
     visible: !window.isFullScreen() || mpv.mouseY > window.height - footer.height
 
     Component {
@@ -37,7 +36,6 @@ ToolBar {
             action: actions.toggleSectionsAction
         }
     }
-
     Component {
         id: togglePlaylistButton
 
@@ -45,7 +43,6 @@ ToolBar {
             action: actions.togglePlaylistAction
         }
     }
-
     Component {
         id: toggleSlidesButton
 
@@ -53,7 +50,6 @@ ToolBar {
             action: actions.toggleSlidesAction
         }
     }
-
     Component {
         id: toggleLayersButton
 
@@ -61,96 +57,89 @@ ToolBar {
             action: actions.toggleLayersAction
         }
     }
-
     RowLayout {
         id: footerRow
+
         anchors.fill: parent
 
         Loader {
             sourceComponent: togglePlaylistButton
             visible: PlaylistSettings.position === "left"
         }
-
         Loader {
             sourceComponent: toggleSectionsButton
             visible: PlaylistSettings.position === "left"
         }
-
         Loader {
             sourceComponent: toggleSlidesButton
             visible: PlaylistSettings.position === "right"
         }
-
         Loader {
             sourceComponent: toggleLayersButton
             visible: PlaylistSettings.position === "right"
         }
-
         ToolButton {
             id: playPauseButton
+
             action: actions.playPauseAction
-            text: ""
-            icon.name: "media-playback-start"
             focusPolicy: Qt.NoFocus
+            icon.name: "media-playback-start"
+            text: ""
 
             ToolTip {
                 id: playPauseButtonToolTip
+
                 text: mpv.pause ? qsTr("Start Playback") : qsTr("Pause Playback")
             }
         }
-
         HProgressBar {
             id: progressBar
+
             Layout.fillWidth: true
         }
-
         ToolButton {
             id: rewindButton
-            text: ""
-            icon.name: "media-playback-stop"
+
             focusPolicy: Qt.NoFocus
+            icon.name: "media-playback-stop"
+            text: ""
 
             onClicked: {
-                mpv.performRewind()
+                mpv.performRewind();
             }
 
             ToolTip {
                 id: rewindButtonToolTip
+
                 text: PlaybackSettings.fadeDownBeforeRewind ? qsTr("Fade down then stop/rewind") : qsTr("Stop/rewind")
             }
         }
-
         LabelWithTooltip {
             id: timeInfo
 
-            text: app.formatTime(mpv.position) + " / " + app.formatTime(mpv.duration)
+            alwaysShowToolTip: true
             font.pointSize: 9
             fontSizeMode: Text.Fit
-            toolTipText: qsTr("Remaining: ") + app.formatTime(mpv.remaining)
-            toolTipFontSize: timeInfo.font.pointSize + 2
-            alwaysShowToolTip: true
             horizontalAlignment: Qt.AlignHCenter
+            text: app.formatTime(mpv.position) + " / " + app.formatTime(mpv.duration)
+            toolTipFontSize: timeInfo.font.pointSize + 2
+            toolTipText: qsTr("Remaining: ") + app.formatTime(mpv.remaining)
         }
-
         Loader {
             sourceComponent: togglePlaylistButton
             visible: PlaylistSettings.position === "right"
         }
-
         Loader {
             sourceComponent: toggleSectionsButton
             visible: PlaylistSettings.position === "right"
         }
-
         Loader {
             sourceComponent: toggleSlidesButton
             visible: PlaylistSettings.position === "left"
         }
-
         Loader {
             sourceComponent: toggleLayersButton
             visible: PlaylistSettings.position === "left"
         }
-
     }
 }

@@ -19,11 +19,11 @@ Kirigami.ScrollablePage {
 
     actions: [
         Kirigami.Action {
-            text: qsTr("Help!")
-            icon.name: "system-help"
             enabled: root.hasHelp
+            icon.name: "system-help"
+            text: qsTr("Help!")
+
             onTriggered: Qt.openUrlExternally(helpUrl)
         }
     ]
-
 }

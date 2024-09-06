@@ -12,13 +12,15 @@ Menu {
     id: root
 
     title: qsTr("&File")
+
     onOpened: {
-        recentMediaFilesMenuInstantiator.model = mpv.recentMediaFiles
-        recentPlaylistsMenuInstantiator.model = mpv.recentPlaylists
+        recentMediaFilesMenuInstantiator.model = mpv.recentMediaFiles;
+        recentPlaylistsMenuInstantiator.model = mpv.recentPlaylists;
     }
 
-    MenuItem { action: actions["openAction"] }
-
+    MenuItem {
+        action: actions["openAction"]
+    }
     Menu {
         id: recentMediaFilesMenu
 
@@ -26,24 +28,30 @@ Menu {
 
         Instantiator {
             id: recentMediaFilesMenuInstantiator
+
             model: 0
-            onObjectAdded: recentMediaFilesMenu.insertItem( index, object )
-            onObjectRemoved: recentMediaFilesMenu.removeItem( object )
+
             delegate: MenuItem {
                 text: modelData
+
                 onTriggered: mpv.loadFile(modelData)
             }
-        }
 
+            onObjectAdded: recentMediaFilesMenu.insertItem(index, object)
+            onObjectRemoved: recentMediaFilesMenu.removeItem(object)
+        }
         Connections {
-            target: mpv
             function onRecentMediaFilesChanged() {
-                recentMediaFilesMenuInstantiator.model = mpv.recentMediaFiles
+                recentMediaFilesMenuInstantiator.model = mpv.recentMediaFiles;
             }
-        }
 
-        MenuSeparator {}
-        MenuItem { action: actions["clearRecentMediaFilesAction"] }
+            target: mpv
+        }
+        MenuSeparator {
+        }
+        MenuItem {
+            action: actions["clearRecentMediaFilesAction"]
+        }
     }
     Menu {
         id: recentPlaylistsMenu
@@ -52,33 +60,41 @@ Menu {
 
         Instantiator {
             id: recentPlaylistsMenuInstantiator
+
             model: 0
-            onObjectAdded: recentPlaylistsMenu.insertItem( index, object )
-            onObjectRemoved: recentPlaylistsMenu.removeItem( object )
+
             delegate: MenuItem {
                 text: modelData
+
                 onTriggered: mpv.loadFile(modelData)
             }
-        }
 
+            onObjectAdded: recentPlaylistsMenu.insertItem(index, object)
+            onObjectRemoved: recentPlaylistsMenu.removeItem(object)
+        }
         Connections {
-            target: mpv
             function onRecentPlaylistsChanged() {
-                recentPlaylistsMenuInstantiator.model = mpv.recentPlaylists
+                recentPlaylistsMenuInstantiator.model = mpv.recentPlaylists;
             }
+
+            target: mpv
         }
-
-
-        MenuSeparator {}
-        MenuItem { action: actions["clearRecentPlaylistsAction"] }
+        MenuSeparator {
+        }
+        MenuItem {
+            action: actions["clearRecentPlaylistsAction"]
+        }
     }
-
-    MenuSeparator {}
-
-    MenuItem { action: actions["saveAsCPlayFileAction"] }
+    MenuSeparator {
+    }
+    MenuItem {
+        action: actions["saveAsCPlayFileAction"]
+    }
     //MenuItem { action: actions["openUrlAction"] }
 
-    MenuSeparator {}
-
-    MenuItem { action: actions["quitApplicationAction"] }
+    MenuSeparator {
+    }
+    MenuItem {
+        action: actions["quitApplicationAction"]
+    }
 }

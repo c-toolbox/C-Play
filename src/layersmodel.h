@@ -1,6 +1,6 @@
 /*
- * SPDX-FileCopyrightText: 
- * 2024 Erik Sundén <eriksunden85@gmail.com> 
+ * SPDX-FileCopyrightText:
+ * 2024 Erik Sundén <eriksunden85@gmail.com>
  *
  * SPDX-License-Identifier: GPL-3.0-or-later
  */
@@ -13,55 +13,50 @@
 class BaseLayer;
 class ofxNDIreceive;
 
-using Layers = QList<BaseLayer*>;
+using Layers = QList<BaseLayer *>;
 
-class LayersTypeModel : public QAbstractListModel
-{
+class LayersTypeModel : public QAbstractListModel {
     Q_OBJECT
 
 public:
-    explicit LayersTypeModel(QObject* parent = nullptr);
+    explicit LayersTypeModel(QObject *parent = nullptr);
 
     enum {
         textRole = Qt::UserRole
     };
 
-    int rowCount(const QModelIndex& parent = QModelIndex()) const override;
-    QVariant data(const QModelIndex& index, int role = Qt::DisplayRole) const override;
+    int rowCount(const QModelIndex &parent = QModelIndex()) const override;
+    QVariant data(const QModelIndex &index, int role = Qt::DisplayRole) const override;
     virtual QHash<int, QByteArray> roleNames() const override;
 
 private:
     QStringList m_layerTypes;
-
 };
 
 #ifdef NDI_SUPPORT
-class NDISendersModel : public QAbstractListModel
-{
+class NDISendersModel : public QAbstractListModel {
     Q_OBJECT
 
 public:
-    explicit NDISendersModel(QObject* parent = nullptr);
+    explicit NDISendersModel(QObject *parent = nullptr);
 
     enum {
         textRole = Qt::UserRole
     };
 
-    int rowCount(const QModelIndex& parent = QModelIndex()) const override;
-    QVariant data(const QModelIndex& index, int role = Qt::DisplayRole) const override;
+    int rowCount(const QModelIndex &parent = QModelIndex()) const override;
+    QVariant data(const QModelIndex &index, int role = Qt::DisplayRole) const override;
     virtual QHash<int, QByteArray> roleNames() const override;
 
     Q_INVOKABLE int updateSendersList();
 
 private:
     QStringList m_NDIsenders;
-    ofxNDIreceive* m_NDIreceiver;
-
+    ofxNDIreceive *m_NDIreceiver;
 };
 #endif
 
-class LayersModel : public QAbstractListModel
-{
+class LayersModel : public QAbstractListModel {
     Q_OBJECT
 
 public:
@@ -82,13 +77,13 @@ public:
     virtual QHash<int, QByteArray> roleNames() const override;
 
     Layers getLayers() const;
-    void setLayers(const Layers& layers);
+    void setLayers(const Layers &layers);
 
     int numberOfLayers();
     bool needsSync();
     void setHasSynced();
 
-    Q_INVOKABLE BaseLayer* layer(int i);
+    Q_INVOKABLE BaseLayer *layer(int i);
 
     Q_INVOKABLE int addLayer(QString title, int type, QString filepath, int stereoMode, int gridMode);
     Q_INVOKABLE void removeLayer(int i);
@@ -99,32 +94,32 @@ public:
     Q_INVOKABLE void updateLayer(int i);
     Q_INVOKABLE void clearLayers();
 
-    Q_PROPERTY(LayersTypeModel* layersTypeModel
-        READ layersTypeModel
-        NOTIFY layersTypeModelChanged)
+    Q_PROPERTY(LayersTypeModel *layersTypeModel
+                   READ layersTypeModel
+                       NOTIFY layersTypeModelChanged)
 
     Q_PROPERTY(int layersVisibility
-        READ getLayersVisibility
-        WRITE setLayersVisibility
-        NOTIFY layersVisibilityChanged)
+                   READ getLayersVisibility
+                       WRITE setLayersVisibility
+                           NOTIFY layersVisibilityChanged)
 
     Q_INVOKABLE void setLayersVisibility(int value);
     Q_INVOKABLE int getLayersVisibility();
 
     Q_PROPERTY(bool layersNeedsSave
-        READ getLayersNeedsSave
-        WRITE setLayersNeedsSave
-        NOTIFY layersNeedsSaveChanged)
+                   READ getLayersNeedsSave
+                       WRITE setLayersNeedsSave
+                           NOTIFY layersNeedsSaveChanged)
 
     Q_INVOKABLE void setLayersNeedsSave(bool value);
     Q_INVOKABLE bool getLayersNeedsSave();
 
-    LayersTypeModel* layersTypeModel();
+    LayersTypeModel *layersTypeModel();
 
     Q_PROPERTY(QString layersName
-        READ getLayersName
-        WRITE setLayersName
-        NOTIFY layersNameChanged)
+                   READ getLayersName
+                       WRITE setLayersName
+                           NOTIFY layersNameChanged)
 
     Q_INVOKABLE void setLayersName(QString name);
     Q_INVOKABLE QString getLayersName() const;
@@ -133,20 +128,20 @@ public:
     Q_INVOKABLE QString getLayersPath() const;
     Q_INVOKABLE QUrl getLayersPathAsURL() const;
 
-    Q_INVOKABLE QString checkAndCorrectPath(const QString& filePath, const QStringList& searchPaths);
-    Q_INVOKABLE QString makePathRelativeTo(const QString& filePath, const QStringList& pathsToConsider);
+    Q_INVOKABLE QString checkAndCorrectPath(const QString &filePath, const QStringList &searchPaths);
+    Q_INVOKABLE QString makePathRelativeTo(const QString &filePath, const QStringList &pathsToConsider);
 
-    Q_INVOKABLE void decodeFromJSON(QJsonObject& obj, const QStringList& forRelativePaths);
-    Q_INVOKABLE void encodeToJSON(QJsonObject& obj, const QStringList& forRelativePaths);
+    Q_INVOKABLE void decodeFromJSON(QJsonObject &obj, const QStringList &forRelativePaths);
+    Q_INVOKABLE void encodeToJSON(QJsonObject &obj, const QStringList &forRelativePaths);
 
 #ifdef NDI_SUPPORT
-    Q_PROPERTY(NDISendersModel* ndiSendersModel
-        READ ndiSendersModel
-        WRITE setNdiSendersModel
-        NOTIFY ndiSendersModelChanged)
+    Q_PROPERTY(NDISendersModel *ndiSendersModel
+                   READ ndiSendersModel
+                       WRITE setNdiSendersModel
+                           NOTIFY ndiSendersModelChanged)
 
-    NDISendersModel* ndiSendersModel();
-    void setNdiSendersModel(NDISendersModel* model);
+    NDISendersModel *ndiSendersModel();
+    void setNdiSendersModel(NDISendersModel *model);
 #endif
 
 Q_SIGNALS:
@@ -160,9 +155,9 @@ Q_SIGNALS:
 
 private:
     Layers m_layers;
-    LayersTypeModel* m_layerTypeModel;
+    LayersTypeModel *m_layerTypeModel;
 #ifdef NDI_SUPPORT
-    NDISendersModel* m_ndiSendersModel;
+    NDISendersModel *m_ndiSendersModel;
 #endif
     int m_layersVisibility = 0;
     bool m_layersNeedsSave = false;

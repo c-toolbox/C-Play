@@ -14,142 +14,155 @@ import QtQuick.Dialogs
 import org.kde.kirigami as Kirigami
 import org.ctoolbox.cplay
 
-
 SettingsBasePage {
     id: root
 
     GridLayout {
         id: content
+
         columns: 3
 
         SettingsHeader {
-            text: qsTr("User Interface")
             Layout.columnSpan: 3
             Layout.fillWidth: true
+            text: qsTr("User Interface")
         }
-
-        Item { width: 1; height: 1 }
+        Item {
+            height: 1
+            width: 1
+        }
         CheckBox {
-            text: qsTr("Show MenuBar")
             checked: UserInterfaceSettings.showMenuBar
+            text: qsTr("Show MenuBar")
+
             onCheckedChanged: {
-                UserInterfaceSettings.showMenuBar = checked
-                UserInterfaceSettings.save()
+                UserInterfaceSettings.showMenuBar = checked;
+                UserInterfaceSettings.save();
             }
         }
         Item {
             Layout.fillWidth: true
         }
-
-        Item { width: 1; height: 1 }
+        Item {
+            height: 1
+            width: 1
+        }
         CheckBox {
-            text: qsTr("Show Header")
             checked: UserInterfaceSettings.showHeader
+            text: qsTr("Show Header")
+
             onCheckedChanged: {
-                UserInterfaceSettings.showHeader = checked
-                UserInterfaceSettings.save()
+                UserInterfaceSettings.showHeader = checked;
+                UserInterfaceSettings.save();
             }
         }
         Item {
             Layout.fillWidth: true
         }
-
         Label {
-            text: qsTr("Color scheme")
             Layout.alignment: Qt.AlignRight
+            text: qsTr("Color scheme")
         }
         ComboBox {
             id: colorThemeSwitcher
 
-            textRole: "display"
             model: app.colorSchemesModel
+            textRole: "display"
+
             delegate: ItemDelegate {
                 Kirigami.Theme.colorSet: Kirigami.Theme.View
-                width: colorThemeSwitcher.width
                 highlighted: model.display === UserInterfaceSettings.colorScheme
+                width: colorThemeSwitcher.width
+
                 contentItem: RowLayout {
                     Kirigami.Icon {
-                        source: model.decoration
                         Layout.preferredHeight: Kirigami.Units.iconSizes.small
                         Layout.preferredWidth: Kirigami.Units.iconSizes.small
+                        source: model.decoration
                     }
                     Label {
-                        text: model.display
                         color: highlighted ? Kirigami.Theme.highlightedTextColor : Kirigami.Theme.textColor
+                        text: model.display
                     }
                 }
             }
 
-            onActivated: {
-                UserInterfaceSettings.colorScheme = colorThemeSwitcher.textAt(index)
-                UserInterfaceSettings.save()
-                app.activateColorScheme(UserInterfaceSettings.colorScheme)
-            }
-
             Component.onCompleted: currentIndex = find(UserInterfaceSettings.colorScheme)
+            onActivated: {
+                UserInterfaceSettings.colorScheme = colorThemeSwitcher.textAt(index);
+                UserInterfaceSettings.save();
+                app.activateColorScheme(UserInterfaceSettings.colorScheme);
+            }
         }
         Item {
             Layout.fillWidth: true
         }
-
         Label {
-            text: qsTr("GUI Style")
             Layout.alignment: Qt.AlignRight
+            text: qsTr("GUI Style")
         }
         ComboBox {
             id: guiStyleComboBox
 
             textRole: "key"
+
             model: ListModel {
                 id: stylesModel
 
-                ListElement { key: "Breeeze Dark"; }
+                ListElement {
+                    key: "Breeeze Dark"
+                }
             }
 
+            Component.onCompleted: {
+                // populate the model with the available styles
+                for (let i = 0; i < app.availableGuiStyles().length; ++i) {
+                    stylesModel.append({
+                        key: app.availableGuiStyles()[i]
+                    });
+                }
+
+                // set the saved style as the current item in the combo box
+                for (let j = 0; j < stylesModel.count; ++j) {
+                    if (stylesModel.get(j).key === UserInterfaceSettings.guiStyle) {
+                        currentIndex = j;
+                        break;
+                    }
+                }
+            }
             onActivated: {
-                UserInterfaceSettings.guiStyle = model.get(index).key
-                app.setGuiStyle(UserInterfaceSettings.guiStyle)
+                UserInterfaceSettings.guiStyle = model.get(index).key;
+                app.setGuiStyle(UserInterfaceSettings.guiStyle);
                 // some themes can cause a crash
                 // the timer prevents saving the crashing theme,
                 // which would cause the app to crash on startup
-                saveGuiStyleTimer.start()
+                saveGuiStyleTimer.start();
             }
 
             Timer {
                 id: saveGuiStyleTimer
 
                 interval: 1000
-                running: false
                 repeat: false
+                running: false
+
                 onTriggered: UserInterfaceSettings.save()
-            }
-
-            Component.onCompleted: {
-                // populate the model with the available styles
-                for (let i = 0; i < app.availableGuiStyles().length; ++i) {
-                    stylesModel.append({key: app.availableGuiStyles()[i]})
-                }
-
-                // set the saved style as the current item in the combo box
-                for (let j = 0; j < stylesModel.count; ++j) {
-                    if (stylesModel.get(j).key === UserInterfaceSettings.guiStyle) {
-                        currentIndex = j
-                        break
-                    }
-                }
             }
         }
         Item {
             Layout.fillWidth: true
         }
-
-        Item { width: 1; height: 1 }
+        Item {
+            height: 1
+            width: 1
+        }
         CheckBox {
-            text: qsTr("Use Breeze icon theme")
             checked: UserInterfaceSettings.useBreezeIconTheme
+            text: qsTr("Use Breeze icon theme")
+
             onCheckedChanged: {
-                UserInterfaceSettings.useBreezeIconTheme = checked
-                UserInterfaceSettings.save()
+                UserInterfaceSettings.useBreezeIconTheme = checked;
+                UserInterfaceSettings.save();
             }
 
             ToolTip {
@@ -162,11 +175,12 @@ SettingsBasePage {
 
         // OSD Font Size
         Label {
-            text: qsTr("Osd font size")
             Layout.alignment: Qt.AlignRight
+            text: qsTr("Osd font size")
         }
         Item {
             height: osdFontSize.height
+
             SpinBox {
                 id: osdFontSize
 
@@ -177,15 +191,16 @@ SettingsBasePage {
                 from: 0
                 to: 100
                 value: UserInterfaceSettings.osdFontSize
+
+                Component.onCompleted: completed = true
                 onValueChanged: {
                     if (completed) {
-                        osd.label.font.pointSize = osdFontSize.value
-                        osd.message("Test osd font size")
-                        UserInterfaceSettings.osdFontSize = osdFontSize.value
-                        UserInterfaceSettings.save()
+                        osd.label.font.pointSize = osdFontSize.value;
+                        osd.message("Test osd font size");
+                        UserInterfaceSettings.osdFontSize = osdFontSize.value;
+                        UserInterfaceSettings.save();
                     }
                 }
-                Component.onCompleted: completed = true
             }
         }
         Item {

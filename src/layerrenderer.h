@@ -1,6 +1,6 @@
 /*
  * SPDX-FileCopyrightText:
- * 2024 Erik Sundén <eriksunden85@gmail.com>
+ * 2024 Erik Sundï¿½n <eriksunden85@gmail.com>
  *
  * SPDX-License-Identifier: GPL-3.0-or-later
  */
@@ -9,13 +9,12 @@
 #define LAYERRENDERER_H
 
 #include <layers/baselayer.h>
+#include <mutex>
 #include <sgct/sgct.h>
 #include <sgct/utils/dome.h>
 #include <sgct/utils/sphere.h>
-#include <mutex>
 
-class LayerRenderer
-{
+class LayerRenderer {
 public:
     LayerRenderer();
     ~LayerRenderer();
@@ -23,16 +22,16 @@ public:
     void initialize(double radius, double fov);
     void updateMeshes(double radius, double fov);
 
-    void addLayer(BaseLayer* layer);
+    void addLayer(BaseLayer *layer);
 
     void clearLayers();
 
-    const std::vector<BaseLayer*>& getLayers();
+    const std::vector<BaseLayer *> &getLayers();
 
-    void renderLayers(const sgct::RenderData& data, int viewMode, float angle);
+    void renderLayers(const sgct::RenderData &data, int viewMode, float angle);
 
 private:
-    std::vector<BaseLayer*> layers2render;
+    std::vector<BaseLayer *> layers2render;
 
     double meshRadius;
     double meshFov;
@@ -57,9 +56,9 @@ private:
     int EACEyeModeLoc;
     int EACStereoscopicModeLoc;
 
-    const sgct::ShaderProgram* videoPrg;
-    const sgct::ShaderProgram* meshPrg;
-    const sgct::ShaderProgram* EACPrg;
+    const sgct::ShaderProgram *videoPrg;
+    const sgct::ShaderProgram *meshPrg;
+    const sgct::ShaderProgram *EACPrg;
 
     std::unique_ptr<sgct::utils::Dome> domeMesh;
     std::unique_ptr<sgct::utils::Sphere> sphereMesh;

@@ -11,14 +11,14 @@
   <kcfgfile name="C-Play/cplay.conf" />
   <include>QStandardPaths</include>
   <group name="Playlist">
-	  <entry name="PlaylistToLoadOnStartup" type="String">
+    <entry name="PlaylistToLoadOnStartup" type="String">
       <label>A playlist to load at startup</label>
     </entry>
     <entry name="Position" type="String">
       <label>Position</label>
       <default>right</default>
     </entry>
-	  <entry name="AutoPlayOnLoad" type="bool">
+    <entry name="AutoPlayOnLoad" type="bool">
       <default>false</default>
     </entry>
     <entry name="AutoPlayNext" type="bool">
@@ -61,7 +61,7 @@
       <label>Increase font size when fullscreen</label>
       <default>true</default>
     </entry>
-	  <entry name="LastPlaylistIndex" type="Int">
+    <entry name="LastPlaylistIndex" type="Int">
       <default>0</default>
     </entry>
   </group>

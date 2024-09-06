@@ -6,8 +6,7 @@
 class MpvObject;
 class HttpServerThread;
 
-class PlayerController : public QObject
-{
+class PlayerController : public QObject {
     Q_OBJECT
     Q_CLASSINFO("D-Bus Interface", "org.PlayerController")
 
@@ -48,15 +47,15 @@ public Q_SLOTS:
     void OrientationAndSpinReset();
     void RunSurfaceTransition();
 
-    QString returnRelativeOrAbsolutePath(const QString& path);
-    QString checkAndCorrectPath(const QString& path);
-    QString returnBaseName(const QString& path);
+    QString returnRelativeOrAbsolutePath(const QString &path);
+    QString checkAndCorrectPath(const QString &path);
+    QString returnBaseName(const QString &path);
 
     float backgroundVisibility();
     void setBackgroundVisibility(float value);
     QString backgroundImageFile();
     QUrl backgroundImageFileUrl();
-    void setBackgroundImageFile(const QString& path);
+    void setBackgroundImageFile(const QString &path);
     int backgroundGridMode();
     void setBackgroundGridMode(int value);
     int backgroundStereoMode();
@@ -66,7 +65,7 @@ public Q_SLOTS:
     void setForegroundVisibility(float value);
     QString foregroundImageFile();
     QUrl foregroundImageFileUrl();
-    void setForegroundImageFile(const QString& path);
+    void setForegroundImageFile(const QString &path);
     int foregroundGridMode();
     void setForegroundGridMode(int value);
     int foregroundStereoMode();
@@ -114,7 +113,7 @@ private:
     void setupHttpServer();
 
     MpvObject *m_mpv;
-    HttpServerThread* httpServer;
+    HttpServerThread *httpServer;
     QString m_backgroundFile;
     QString m_foregroundFile;
     int m_viewModeOnMaster;

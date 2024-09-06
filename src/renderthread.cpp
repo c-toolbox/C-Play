@@ -2,13 +2,10 @@
 #include <sgct/sgct.h>
 
 RenderThread::RenderThread(QObject *parent)
-    : QThread(parent)
-{
-
+    : QThread(parent) {
 }
 
-RenderThread::~RenderThread()
-{
+RenderThread::~RenderThread() {
     mutex.lock();
     abort = true;
     condition.wakeOne();
@@ -17,11 +14,10 @@ RenderThread::~RenderThread()
     wait();
 }
 
-void RenderThread::render()
-{
+void RenderThread::render() {
     QMutexLocker locker(&mutex);
 
-    //variables
+    // variables
     if (!isRunning()) {
         start();
     } else {
@@ -30,17 +26,16 @@ void RenderThread::render()
     }
 }
 
-void RenderThread::terminate(){
+void RenderThread::terminate() {
     mutex.lock();
     sgct::Log::Info("Terminate rendering");
     sgct::Engine::instance().terminate();
     mutex.unlock();
 }
 
-void RenderThread::run()
-{
+void RenderThread::run() {
     mutex.lock();
-    if(abort)
+    if (abort)
         return;
     sgct::Log::Info("Starting rendering");
     mutex.unlock();

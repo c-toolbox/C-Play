@@ -12,5 +12,7 @@ Menu {
 
     title: qsTr("&Help")
 
-    MenuItem { action: actions["aboutCPlayAction"] }
+    MenuItem {
+        action: actions["aboutCPlayAction"]
+    }
 }

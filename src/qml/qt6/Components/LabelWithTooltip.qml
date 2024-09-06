@@ -11,23 +11,22 @@ import QtQuick.Layouts
 QQC2.Label {
     id: root
 
-    property string toolTipText
-    property int toolTipFontSize
     property bool alwaysShowToolTip
+    property int toolTipFontSize
+    property string toolTipText
 
     QQC2.ToolTip {
         id: toolTip
 
-        visible: (root.alwaysShowToolTip && mouseArea.containsMouse) || (mouseArea.containsMouse && root.truncated)
-        text: root.toolTipText ? root.toolTipText : root.text
         font.pointSize: root.toolTipFontSize ? root.toolTipFontSize : root.font.pointSize
+        text: root.toolTipText ? root.toolTipText : root.text
+        visible: (root.alwaysShowToolTip && mouseArea.containsMouse) || (mouseArea.containsMouse && root.truncated)
     }
-
     MouseArea {
         id: mouseArea
 
-        anchors.fill: parent
         acceptedButtons: Qt.NoButton
+        anchors.fill: parent
         hoverEnabled: true
     }
 }

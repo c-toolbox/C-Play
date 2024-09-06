@@ -11,24 +11,23 @@ import org.ctoolbox.cplay 1.0
 Image {
     id: root
 
-    width: parent.width
-    height: window.isFullScreen() ? parent.height : parent.height - footer.height
     anchors.left: PlaylistSettings.position === "left" ? (playSections.visible ? playSections.right : playList.right) : (layers.visible ? layers.right : slides.right)
     anchors.right: PlaylistSettings.position === "right" ? (playList.visible ? playList.left : playSections.left) : (slides.visible ? slides.left : layers.left)
     anchors.top: parent.top
-
-    source: playerController.backgroundImageFileUrl()
     fillMode: Image.PreserveAspectFit
+    height: window.isFullScreen() ? parent.height : parent.height - footer.height
     opacity: playerController.backgroundVisibility()
+    source: playerController.backgroundImageFileUrl()
+    width: parent.width
 
     Connections {
-        target: playerController
+        function onBackgroundImageChanged() {
+            root.source = playerController.backgroundImageFileUrl();
+        }
+        function onBackgroundVisibilityChanged() {
+            root.opacity = playerController.backgroundVisibility();
+        }
 
-        function onBackgroundImageChanged(){
-            root.source = playerController.backgroundImageFileUrl()
-        }
-        function onBackgroundVisibilityChanged(){
-            root.opacity = playerController.backgroundVisibility()
-        }
+        target: playerController
     }
 }

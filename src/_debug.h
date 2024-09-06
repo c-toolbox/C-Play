@@ -12,4 +12,3 @@
 #define DEBUG qDebug() << Q_FUNC_INFO << ':'
 
 #endif
-

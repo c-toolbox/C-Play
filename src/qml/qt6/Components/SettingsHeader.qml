@@ -19,26 +19,23 @@ ColumnLayout {
     spacing: 0
 
     Item {
-        width: 1
         height: root.topMargin
         visible: root.topMargin > 0
+        width: 1
     }
-
     RowLayout {
         Rectangle {
-            width: Kirigami.Units.gridUnit
-            height: 1
             color: Kirigami.Theme.alternateBackgroundColor
+            height: 1
+            width: Kirigami.Units.gridUnit
         }
-
         Kirigami.Heading {
             text: root.text
         }
-
         Rectangle {
-            height: 1
-            color: Kirigami.Theme.alternateBackgroundColor
             Layout.fillWidth: true
+            color: Kirigami.Theme.alternateBackgroundColor
+            height: 1
         }
     }
 }

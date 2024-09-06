@@ -20,165 +20,163 @@ ItemDelegate {
     property int iconWidth: 0
     property string rowNumber: (index + 1).toString()
 
-    implicitWidth: ListView.view.width
-    padding: 0
+    function pad(number, length) {
+        while (number.length < length)
+            number = "0" + number;
+        return number;
+    }
+    function slideNumText() {
+        const rowNumber = pad(root.rowNumber, slidesView.count.toString().length) + ". ";
+        return rowNumber;
+    }
+    function subText() {
+        return model.layers + (model.layers === 1 ? " layer" : " layers");
+    }
+
+    down: app.slides.triggeredSlideIdx === index
     font.pointSize: 9
     highlighted: slidesView.currentIndex === index
-    down: app.slides.triggeredSlideIdx === index
+    implicitWidth: ListView.view.width
+    padding: 0
 
     background: Rectangle {
         anchors.fill: parent
         color: {
             if (highlighted) {
-                return Qt.alpha(Kirigami.Theme.highlightColor, 0.6)
+                return Qt.alpha(Kirigami.Theme.highlightColor, 0.6);
             }
-
             if (hovered) {
-                return Qt.alpha(Kirigami.Theme.hoverColor, 0.4)
+                return Qt.alpha(Kirigami.Theme.hoverColor, 0.4);
             }
-
-            if(down) {
-                return Qt.alpha(Kirigami.Theme.positiveBackgroundColor, 0.8)
+            if (down) {
+                return Qt.alpha(Kirigami.Theme.positiveBackgroundColor, 0.8);
             }
-
-            return Kirigami.Theme.backgroundColor
+            return Kirigami.Theme.backgroundColor;
         }
     }
-
-    PropertyAnimation {
-        id: visibility_fade_out_animation;
-        target: visibilitySlider;
-        property: "value";
-        to: 0;
-        duration: PlaybackSettings.fadeDuration;
-        onStarted: {
-            slidesView.enabled = false
-        }
-        onFinished: {
-            slidesView.enabled = true
-        }
-    }
-
-    PropertyAnimation {
-        id: visibility_fade_in_animation;
-        target: visibilitySlider;
-        property: "value";
-        to: 100;
-        duration: PlaybackSettings.fadeDuration;
-        onStarted: {
-            slidesView.enabled = false
-        }
-        onFinished: {
-            slidesView.enabled = true
-        }
-    }
-
     contentItem: Rectangle {
-        implicitWidth: root.width
-        implicitHeight: 50
         color: "transparent"
+        implicitHeight: 50
+        implicitWidth: root.width
+
         Kirigami.IconTitleSubtitle {
             id: its
-            anchors.fill: parent
-            anchors.bottomMargin: 15
-            implicitHeight: 50
-            icon.name: iconName
-            icon.color: color
-            icon.width: iconWidth
-            title: (slidesView.currentIndex === index ? slideNumText() : slideNumText() + model.name)
-            subtitle: subText()
-            color: root.hovered || root.highlighted ? Kirigami.Theme.highlightedTextColor : Kirigami.Theme.textColor
-            selected: root.down
-        }
 
+            anchors.bottomMargin: 15
+            anchors.fill: parent
+            color: root.hovered || root.highlighted ? Kirigami.Theme.highlightedTextColor : Kirigami.Theme.textColor
+            icon.color: color
+            icon.name: iconName
+            icon.width: iconWidth
+            implicitHeight: 50
+            selected: root.down
+            subtitle: subText()
+            title: (slidesView.currentIndex === index ? slideNumText() : slideNumText() + model.name)
+        }
         TextInput {
             id: slideNameField
-            text: model.name
-            anchors.top: parent.top
+
             anchors.left: its.left
-            anchors.topMargin: 3
             anchors.leftMargin: 12
-            visible: slidesView.currentIndex === index
+            anchors.top: parent.top
+            anchors.topMargin: 3
             color: Kirigami.Theme.textColor
             font.pointSize: 9
             maximumLength: 12
+            text: model.name
+            visible: slidesView.currentIndex === index
+
             onEditingFinished: {
-                app.slides.selected.layersName = slideNameField.text
-                app.slides.updateSelectedSlide()
+                app.slides.selected.layersName = slideNameField.text;
+                app.slides.updateSelectedSlide();
             }
         }
- 
         VisibilitySlider {
             id: visibilitySlider
-            overlayLabel: qsTr("")
-            visible: slidesView.currentIndex === index
-            enabled: false
-            implicitWidth: 100
+
             anchors.bottom: parent.bottom
             anchors.right: its.right
+            enabled: false
+            implicitWidth: 100
+            overlayLabel: qsTr("")
+            visible: slidesView.currentIndex === index
+
             onValueChanged: {
-                if(!slidesView.enabled){
-                    if(value.toFixed(0) !== app.slides.triggeredSlideVisibility) {
-                        app.slides.triggeredSlideVisibility = value.toFixed(0)
+                if (!slidesView.enabled) {
+                    if (value.toFixed(0) !== app.slides.triggeredSlideVisibility) {
+                        app.slides.triggeredSlideVisibility = value.toFixed(0);
                     }
-                    if(value.toFixed(0) !== layerView.layerItem.layerVisibility) {
-                        layerView.layerItem.layerVisibility = value.toFixed(0)
+                    if (value.toFixed(0) !== layerView.layerItem.layerVisibility) {
+                        layerView.layerItem.layerVisibility = value.toFixed(0);
                     }
-                    app.slides.updateSelectedSlide()
+                    app.slides.updateSelectedSlide();
                 }
             }
         }
-
         Item {
-            visible: slidesView.currentIndex !== index
-            implicitWidth: 100
-            implicitHeight: 20
             anchors.bottom: parent.bottom
             anchors.right: its.right
+            implicitHeight: 20
+            implicitWidth: 100
+            visible: slidesView.currentIndex !== index
+
             Label {
-                text: model.visibility + "%"
-                horizontalAlignment: Text.AlignHCenter
                 anchors.fill: parent
+                horizontalAlignment: Text.AlignHCenter
+                text: model.visibility + "%"
             }
         }
     }
 
     onClicked: {
-        slidesView.currentIndex = index
+        slidesView.currentIndex = index;
     }
-
     onDoubleClicked: {
-        slidesView.currentIndex = index
-        app.slides.triggeredSlideIdx = index
-
-        if(app.slides.selected.layersVisibility === 100 && !visibility_fade_out_animation.running){
-            visibility_fade_out_animation.start()
+        slidesView.currentIndex = index;
+        app.slides.triggeredSlideIdx = index;
+        if (app.slides.selected.layersVisibility === 100 && !visibility_fade_out_animation.running) {
+            visibility_fade_out_animation.start();
         }
-
-        if(app.slides.selected.layersVisibility === 0 && !visibility_fade_in_animation.running){
-            visibility_fade_in_animation.start()
+        if (app.slides.selected.layersVisibility === 0 && !visibility_fade_in_animation.running) {
+            visibility_fade_in_animation.start();
         }
     }
 
+    PropertyAnimation {
+        id: visibility_fade_out_animation
+
+        duration: PlaybackSettings.fadeDuration
+        property: "value"
+        target: visibilitySlider
+        to: 0
+
+        onFinished: {
+            slidesView.enabled = true;
+        }
+        onStarted: {
+            slidesView.enabled = false;
+        }
+    }
+    PropertyAnimation {
+        id: visibility_fade_in_animation
+
+        duration: PlaybackSettings.fadeDuration
+        property: "value"
+        target: visibilitySlider
+        to: 100
+
+        onFinished: {
+            slidesView.enabled = true;
+        }
+        onStarted: {
+            slidesView.enabled = false;
+        }
+    }
     Connections {
-        target: app.slides
-        function onSelectedSlideChanged(){
-            visibilitySlider.value = app.slides.selected.layersVisibility
+        function onSelectedSlideChanged() {
+            visibilitySlider.value = app.slides.selected.layersVisibility;
         }
-    }
 
-    function slideNumText() {
-        const rowNumber = pad(root.rowNumber, slidesView.count.toString().length) + ". ";
-        return rowNumber;
-    }
-
-    function subText() {
-        return model.layers + (model.layers === 1 ?  " layer" : " layers");
-    }
-
-    function pad(number, length) {
-        while (number.length < length)
-            number = "0" + number;
-        return number;
+        target: app.slides
     }
 }
