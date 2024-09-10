@@ -376,6 +376,12 @@ void postSyncPreDraw() {
                     it = secondaryLayers.erase(it);
                     delete ptr_to_delete;
                 } else {
+                    if ((*it)->needSync()) {
+                        if ((*it)->gridMode() == BaseLayer::GridMode::Plane) {
+                            (*it)->updatePlane();
+                        }
+                        (*it)->setHasSynced();
+                    }
                     ++it;
                 }
             }
@@ -551,12 +557,6 @@ void postSyncPreDraw() {
         // Set latest plane details for all primary layers
         glm::vec2 planeSize = glm::vec2(float(SyncHelper::instance().variables.planeWidth), float(SyncHelper::instance().variables.planeHeight));
         for (auto &layer : primaryLayers) {
-            layer->setPlaneDistance(SyncHelper::instance().variables.planeDistance);
-            layer->setPlaneElevation(SyncHelper::instance().variables.planeElevation);
-            layer->setPlaneSize(planeSize, SyncHelper::instance().variables.planeConsiderAspectRatio);
-        }
-        // Just temporary for al secondar layers
-        for (auto &layer : secondaryLayers) {
             layer->setPlaneDistance(SyncHelper::instance().variables.planeDistance);
             layer->setPlaneElevation(SyncHelper::instance().variables.planeElevation);
             layer->setPlaneSize(planeSize, SyncHelper::instance().variables.planeConsiderAspectRatio);

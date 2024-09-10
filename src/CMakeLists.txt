@@ -144,6 +144,7 @@ if(BUILD_CPLAY_WITH_QT6)
         qml/qt6/LayersAddNew.qml
         qml/qt6/LayersItemCompact.qml
         qml/qt6/LayerView.qml
+        qml/qt6/LayerViewGridParams.qml
         qml/qt6/Slides.qml
         qml/qt6/SlidesItemCompact.qml
         qml/qt6/BackgroundImage.qml

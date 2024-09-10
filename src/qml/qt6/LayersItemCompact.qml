@@ -97,7 +97,6 @@ ItemDelegate {
             enabled: app.slides.selectedSlideIdx === -1
             implicitWidth: 100
             overlayLabel: qsTr("")
-            value: model.visibility
             visible: layersView.currentIndex === index
 
             onValueChanged: {

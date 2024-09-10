@@ -19,13 +19,35 @@ Kirigami.ApplicationWindow {
     id: layerWindow
 
     property var layerItem: layerViewItem
+    property var roiEdit: undefined
     property var selection: undefined
 
+    function createRoiComponents() {
+        if (!selection) {
+            selection = selectionComponent.createObject(layerViewItem, {
+                "x": layerViewItem.roiOffset.x,
+                "y": layerViewItem.roiOffset.y,
+                "width": layerViewItem.roiSize.width,
+                "height": layerViewItem.roiSize.height
+            });
+        }
+        if (!roiEdit) {
+            roiEdit = roiEditComponent.createObject(layerViewItem);
+        }
+    }
+    function destroyRoiComponents() {
+        if (selection)
+            selection.destroy();
+        if (roiEdit)
+            roiEdit.destroy();
+    }
+
     color: Kirigami.Theme.alternateBackgroundColor
-    height: 600
+    height: 630
+    minimumWidth: 670
     title: qsTr("")
     visible: false
-    width: 550
+    width: 670
 
     Component.onCompleted: {
         if (window.x > width) {
@@ -35,145 +57,208 @@ Kirigami.ApplicationWindow {
         }
         y = Screen.height / 2 - height / 2;
     }
+    onClosing: {
+        destroyRoiComponents();
+    }
+    onVisibilityChanged: {
+        if (visibility) {
+            if (layerView.layerItem.layerRoiEnabled) {
+                createRoiComponents();
+            }
+        }
+    }
 
+    ToolBar {
+        id: toolBarEmptyLeft
+
+        anchors.left: parent.left
+        anchors.right: toolBarLayerView.left
+        visible: layers.layersView.currentIndex !== -1
+    }
     ToolBar {
         id: toolBarLayerView
 
+        anchors.horizontalCenter: parent.horizontalCenter
         visible: layers.layersView.currentIndex !== -1
 
-        RowLayout {
-            id: layerHeaderRow
+        Row {
+            RowLayout {
+                id: layerHeaderRow
 
-            Label {
-                Layout.alignment: Qt.AlignRight
-                text: qsTr("Stereo:")
-            }
-            ComboBox {
-                id: stereoscopicModeForLayer
+                Item {
+                    Layout.fillHeight: true
+                    Layout.fillWidth: true
+                }
+                Label {
+                    Layout.alignment: Qt.AlignRight
+                    text: qsTr("Stereo:")
+                }
+                ComboBox {
+                    id: stereoscopicModeForLayer
 
-                Layout.fillWidth: true
-                enabled: true
-                focusPolicy: Qt.NoFocus
-                textRole: "mode"
+                    Layout.fillWidth: true
+                    enabled: true
+                    focusPolicy: Qt.NoFocus
+                    textRole: "mode"
 
-                model: ListModel {
-                    id: stereoscopicModeForLayerList
+                    model: ListModel {
+                        id: stereoscopicModeForLayerList
 
-                    ListElement {
-                        mode: "2D (mono)"
-                        value: 0
+                        ListElement {
+                            mode: "2D (mono)"
+                            value: 0
+                        }
+                        ListElement {
+                            mode: "3D (side-by-side)"
+                            value: 1
+                        }
+                        ListElement {
+                            mode: "3D (top-bottom)"
+                            value: 2
+                        }
+                        ListElement {
+                            mode: "3D (top-bottom+flip)"
+                            value: 3
+                        }
                     }
-                    ListElement {
-                        mode: "3D (side-by-side)"
-                        value: 1
-                    }
-                    ListElement {
-                        mode: "3D (top-bottom)"
-                        value: 2
-                    }
-                    ListElement {
-                        mode: "3D (top-bottom+flip)"
-                        value: 3
+
+                    Component.onCompleted: {}
+                    onActivated: {
+                        layerView.layerItem.layerStereoMode = model.get(index).value;
                     }
                 }
-
-                Component.onCompleted: {}
-                onActivated: {
-                    layerView.layerItem.layerStereoMode = model.get(index).value;
+                Label {
+                    Layout.alignment: Qt.AlignRight
+                    text: qsTr("Grid:")
                 }
-            }
-            Label {
-                Layout.alignment: Qt.AlignRight
-                text: qsTr("Grid:")
-            }
-            ComboBox {
-                id: gridModeForLayer
+                ComboBox {
+                    id: gridModeForLayer
 
-                Layout.fillWidth: true
-                enabled: true
-                focusPolicy: Qt.NoFocus
-                textRole: "mode"
+                    Layout.fillWidth: true
+                    enabled: true
+                    focusPolicy: Qt.NoFocus
+                    textRole: "mode"
 
-                model: ListModel {
-                    id: gridModeForLayerList
+                    model: ListModel {
+                        id: gridModeForLayerList
 
-                    ListElement {
-                        mode: "None/Pre-split"
-                        value: 0
+                        ListElement {
+                            mode: "None/Pre-split"
+                            value: 0
+                        }
+                        ListElement {
+                            mode: "Plane"
+                            value: 1
+                        }
+                        ListElement {
+                            mode: "Dome"
+                            value: 2
+                        }
+                        ListElement {
+                            mode: "Sphere EQR"
+                            value: 3
+                        }
+                        ListElement {
+                            mode: "Sphere EAC"
+                            value: 4
+                        }
                     }
-                    ListElement {
-                        mode: "Plane"
-                        value: 1
-                    }
-                    ListElement {
-                        mode: "Dome"
-                        value: 2
-                    }
-                    ListElement {
-                        mode: "Sphere EQR"
-                        value: 3
-                    }
-                    ListElement {
-                        mode: "Sphere EAC"
-                        value: 4
-                    }
-                }
 
-                Component.onCompleted: {}
-                onActivated: {
-                    layerView.layerItem.layerGridMode = model.get(index).value;
-                }
-            }
-            PropertyAnimation {
-                id: visibility_fade_out_animation
-
-                duration: PlaybackSettings.fadeDuration
-                property: "value"
-                target: visibilitySlider
-                to: 0
-            }
-            ToolButton {
-                id: fade_image_out
-
-                enabled: layerView.layerItem.layerVisibility !== 0
-                focusPolicy: Qt.NoFocus
-                icon.name: "view-hidden"
-
-                onClicked: {
-                    if (!visibility_fade_out_animation.running) {
-                        visibility_fade_out_animation.start();
+                    Component.onCompleted: {}
+                    onActivated: {
+                        layerView.layerItem.layerGridMode = model.get(index).value;
                     }
                 }
-            }
-            VisibilitySlider {
-                id: visibilitySlider
+                ToolButton {
+                    id: configureGridParameters
 
-                overlayLabel: qsTr("Layer visibility: ")
+                    checkable: true
+                    checked: layerViewGridParams.visible
+                    focusPolicy: Qt.NoFocus
+                    icon.name: "configure"
 
-                onValueChanged: {
-                    if (value.toFixed(0) !== layerView.layerItem.layerVisibility) {
-                        layerView.layerItem.layerVisibility = value.toFixed(0);
+                    onClicked: {
+                        layerViewGridParams.visible = checked;
+                    }
+
+                    ToolTip {
+                        text: qsTr("Configure Grid Parameters")
                     }
                 }
-            }
-            PropertyAnimation {
-                id: visibility_fade_in_animation
+                PropertyAnimation {
+                    id: visibility_fade_out_animation
 
-                duration: PlaybackSettings.fadeDuration
-                property: "value"
-                target: visibilitySlider
-                to: 100
-            }
-            ToolButton {
-                id: fade_image_in
+                    duration: PlaybackSettings.fadeDuration
+                    property: "value"
+                    target: visibilitySlider
+                    to: 0
+                }
+                ToolButton {
+                    id: fade_image_out
 
-                enabled: layerView.layerItem.layerVisibility !== 100
-                focusPolicy: Qt.NoFocus
-                icon.name: "view-visible"
+                    enabled: layerView.layerItem.layerVisibility !== 0
+                    focusPolicy: Qt.NoFocus
+                    icon.name: "view-hidden"
 
-                onClicked: {
-                    if (!visibility_fade_in_animation.running) {
-                        visibility_fade_in_animation.start();
+                    onClicked: {
+                        if (!visibility_fade_out_animation.running) {
+                            visibility_fade_out_animation.start();
+                        }
+                    }
+                }
+                VisibilitySlider {
+                    id: visibilitySlider
+
+                    overlayLabel: qsTr("Layer visibility: ")
+
+                    onValueChanged: {
+                        if (value.toFixed(0) !== layerView.layerItem.layerVisibility) {
+                            layerView.layerItem.layerVisibility = value.toFixed(0);
+                        }
+                    }
+                }
+                PropertyAnimation {
+                    id: visibility_fade_in_animation
+
+                    duration: PlaybackSettings.fadeDuration
+                    property: "value"
+                    target: visibilitySlider
+                    to: 100
+                }
+                ToolButton {
+                    id: fade_image_in
+
+                    enabled: layerView.layerItem.layerVisibility !== 100
+                    focusPolicy: Qt.NoFocus
+                    icon.name: "view-visible"
+
+                    onClicked: {
+                        if (!visibility_fade_in_animation.running) {
+                            visibility_fade_in_animation.start();
+                        }
+                    }
+                }
+                ToolButton {
+                    id: roiButton
+
+                    checkable: true
+                    checked: layerView.layerItem.layerRoiEnabled
+                    focusPolicy: Qt.NoFocus
+                    icon.color: (checked ? "lime" : "crimson")
+                    icon.name: "trim-to-selection"
+                    text: qsTr("ROI")
+
+                    onClicked: {
+                        layerView.layerItem.layerRoiEnabled = checked;
+                        if (checked) {
+                            createRoiComponents();
+                        } else {
+                            destroyRoiComponents();
+                        }
+                    }
+
+                    ToolTip {
+                        text: qsTr("Region of interest")
                     }
                 }
             }
@@ -193,6 +278,12 @@ Kirigami.ApplicationWindow {
                             break;
                         }
                     }
+                    roiButton.checked = layerView.layerItem.layerRoiEnabled;
+                    if (layerView.layerItem.layerRoiEnabled) {
+                        createRoiComponents();
+                    } else {
+                        destroyRoiComponents();
+                    }
                 }
                 function onLayerValueChanged() {
                     if (visibilitySlider.value !== layerView.layerItem.layerVisibility)
@@ -202,6 +293,13 @@ Kirigami.ApplicationWindow {
                 target: layerView.layerItem
             }
         }
+    }
+    ToolBar {
+        id: toolBarEmptyRight
+
+        anchors.left: toolBarLayerView.right
+        anchors.right: parent.right
+        visible: layers.layersView.currentIndex !== -1
     }
     LayerQtItem {
         id: layerViewItem
@@ -226,151 +324,258 @@ Kirigami.ApplicationWindow {
             anchors.fill: parent
             visible: layers.layersView.currentIndex !== -1
 
-            onClicked: {
-                if (!selection)
-                    selection = selectionComponent.createObject(parent, {
-                        "x": parent.width / 4,
-                        "y": parent.height / 4,
-                        "width": parent.width / 2,
-                        "height": parent.width / 2
-                    });
-            }
+            onClicked: {}
         }
-    }
-    Component {
-        id: selectionComponent
+        Component {
+            id: roiEditComponent
 
-        Rectangle {
-            id: selComp
+            Row {
+                anchors.horizontalCenter: parent.horizontalCenter
+                topPadding: 20
+                visible: selection != undefined
 
-            property int rulersSize: 18
+                RowLayout {
+                    Label {
+                        font.pointSize: 10
+                        text: "Region of Interest - Pos X:"
+                    }
+                    SpinBox {
+                        id: spinX
 
-            color: "#354682B4"
+                        to: layerViewItem.textureSize.width
+                        value: layerViewItem.roiTexOffset.x
 
-            border {
-                color: "steelblue"
-                width: 2
-            }
-            MouseArea {
-                // drag mouse area
-                anchors.fill: parent
+                        onValueChanged: {
+                            if (value != layerViewItem.roiTexOffset.x)
+                                layerViewItem.roiTexOffset = Qt.point(value, layerViewItem.roiTexOffset.y);
+                        }
+                    }
+                    Label {
+                        font.pointSize: 10
+                        text: "Pos Y:"
+                    }
+                    SpinBox {
+                        id: spinY
 
-                onDoubleClicked: {
-                    parent.destroy();        // destroy component
+                        to: layerViewItem.textureSize.height
+                        value: layerViewItem.roiTexOffset.y
+
+                        onValueChanged: {
+                            if (value != layerViewItem.roiTexOffset.y)
+                                layerViewItem.roiTexOffset = Qt.point(layerViewItem.roiTexOffset.x, value);
+                        }
+                    }
+                    Label {
+                        font.pointSize: 10
+                        text: "Width:"
+                    }
+                    SpinBox {
+                        id: spinW
+
+                        to: layerViewItem.textureSize.width
+                        value: layerViewItem.roiTexSize.width
+
+                        onValueChanged: {
+                            if (value != layerViewItem.roiTexSize.width)
+                                layerViewItem.roiTexSize = Qt.size(value, layerViewItem.roiTexSize.height);
+                        }
+                    }
+                    Label {
+                        font.pointSize: 10
+                        text: "Height:"
+                    }
+                    SpinBox {
+                        id: spinH
+
+                        to: layerViewItem.textureSize.height
+                        value: layerViewItem.roiTexSize.height
+
+                        onValueChanged: {
+                            if (value != layerViewItem.roiTexSize.height)
+                                layerViewItem.roiTexSize = Qt.size(layerViewItem.roiTexSize.width, value);
+                        }
+                    }
+                    Button {
+                        icon.name: "edit-reset"
+                        text: "Reset"
+
+                        onClicked: {
+                            layerViewItem.roiTexOffset = Qt.point(0, 0);
+                            layerViewItem.roiTexSize = layerViewItem.textureSize;
+                        }
+
+                        ToolTip {
+                            text: qsTr("Reset ROI values to full image")
+                        }
+                    }
                 }
+                Connections {
+                    function onRoiChanged() {
+                        spinX.value = layerViewItem.roiTexOffset.x;
+                        spinY.value = layerViewItem.roiTexOffset.y;
+                        spinW.value = layerViewItem.roiTexSize.width;
+                        spinH.value = layerViewItem.roiTexSize.height;
+                    }
 
-                drag {
-                    maximumX: parent.width
-                    maximumY: parent.height
-                    minimumX: 0
-                    minimumY: 0
-                    smoothed: true
                     target: layerViewItem
                 }
             }
-            Rectangle {
-                anchors.horizontalCenter: parent.left
-                anchors.verticalCenter: parent.verticalCenter
-                color: "steelblue"
-                height: rulersSize
-                radius: rulersSize
-                width: rulersSize
+        }
+        Component {
+            id: selectionComponent
 
+            Rectangle {
+                id: selComp
+
+                property int rulersSize: 18
+
+                color: "#354682B4"
+                height: layerViewItem.roiSize.height
+                width: layerViewItem.roiSize.width
+                x: layerViewItem.roiOffset.x
+                y: layerViewItem.roiOffset.y
+
+                border {
+                    color: "steelblue"
+                    width: 2
+                }
+                Connections {
+                    function onRoiChanged() {
+                        selComp.x = layerViewItem.roiOffset.x;
+                        selComp.y = layerViewItem.roiOffset.y;
+                        selComp.width = layerViewItem.roiSize.width;
+                        selComp.height = layerViewItem.roiSize.height;
+                    }
+
+                    target: layerViewItem
+                }
                 MouseArea {
+                    id: dragArea
+
+                    // drag mouse area
                     anchors.fill: parent
 
-                    onMouseXChanged: {
+                    onDoubleClicked:
+                    // destroy component
+                    {}
+                    onPositionChanged: {
                         if (drag.active) {
-                            selComp.width = selComp.width - mouseX;
-                            selComp.x = selComp.x + mouseX;
-                            if (selComp.width < 30)
-                                selComp.width = 30;
+                            layerViewItem.setRoi(Qt.point(selComp.x, selComp.y), Qt.size(selComp.width, selComp.height));
                         }
                     }
 
                     drag {
-                        axis: Drag.XAxis
+                        axis: Drag.XAndYAxis
+                        maximumX: layerViewItem.viewOffset.x + layerViewItem.viewSize.width - selComp.width
+                        maximumY: layerViewItem.viewOffset.y + layerViewItem.viewSize.height - selComp.height
+                        minimumX: layerViewItem.viewOffset.x
+                        minimumY: layerViewItem.viewOffset.y
+                        smoothed: true
                         target: parent
                     }
                 }
-            }
-            Rectangle {
-                anchors.horizontalCenter: parent.right
-                anchors.verticalCenter: parent.verticalCenter
-                color: "steelblue"
-                height: rulersSize
-                radius: rulersSize
-                width: rulersSize
+                Rectangle { // Left
+                    id: rectangleLeft
 
-                MouseArea {
-                    anchors.fill: parent
+                    anchors.horizontalCenter: parent.left
+                    anchors.verticalCenter: parent.verticalCenter
+                    color: "green"
+                    height: rulersSize
+                    radius: rulersSize
+                    width: rulersSize
 
-                    onMouseXChanged: {
-                        if (drag.active) {
-                            selComp.width = selComp.width + mouseX;
-                            if (selComp.width < 50)
-                                selComp.width = 50;
+                    MouseArea {
+                        anchors.fill: parent
+
+                        onMouseXChanged: {
+                            if (drag.active) {
+                                layerViewItem.dragLeft(mouseX);
+                            }
                         }
-                    }
 
-                    drag {
-                        axis: Drag.XAxis
-                        target: parent
+                        drag {
+                            axis: Drag.XAxis
+                            target: parent
+                        }
                     }
                 }
-            }
-            Rectangle {
-                anchors.horizontalCenter: parent.horizontalCenter
-                anchors.verticalCenter: parent.top
-                color: "steelblue"
-                height: rulersSize
-                radius: rulersSize
-                width: rulersSize
-                x: parent.x / 2
-                y: 0
+                Rectangle { //Right
+                    id: rectangleRight
 
-                MouseArea {
-                    anchors.fill: parent
+                    anchors.horizontalCenter: parent.right
+                    anchors.verticalCenter: parent.verticalCenter
+                    color: "red"
+                    height: rulersSize
+                    radius: rulersSize
+                    width: rulersSize
 
-                    onMouseYChanged: {
-                        if (drag.active) {
-                            selComp.height = selComp.height - mouseY;
-                            selComp.y = selComp.y + mouseY;
-                            if (selComp.height < 50)
-                                selComp.height = 50;
+                    MouseArea {
+                        anchors.fill: parent
+
+                        onMouseXChanged: {
+                            if (drag.active) {
+                                layerViewItem.dragRight(mouseX);
+                            }
                         }
-                    }
 
-                    drag {
-                        axis: Drag.YAxis
-                        target: parent
+                        drag {
+                            axis: Drag.XAxis
+                            target: parent
+                        }
                     }
                 }
-            }
-            Rectangle {
-                anchors.horizontalCenter: parent.horizontalCenter
-                anchors.verticalCenter: parent.bottom
-                color: "steelblue"
-                height: rulersSize
-                radius: rulersSize
-                width: rulersSize
-                x: parent.x / 2
-                y: parent.y
+                Rectangle { //Top
+                    id: rectangleTop
 
-                MouseArea {
-                    anchors.fill: parent
+                    anchors.horizontalCenter: parent.horizontalCenter
+                    anchors.verticalCenter: parent.top
+                    color: "yellow"
+                    height: rulersSize
+                    radius: rulersSize
+                    width: rulersSize
+                    x: parent.x / 2
+                    y: 0
 
-                    onMouseYChanged: {
-                        if (drag.active) {
-                            selComp.height = selComp.height + mouseY;
-                            if (selComp.height < 50)
-                                selComp.height = 50;
+                    MouseArea {
+                        anchors.fill: parent
+
+                        onMouseYChanged: {
+                            if (drag.active) {
+                                layerViewItem.dragTop(mouseY);
+                            }
+                        }
+
+                        drag {
+                            axis: Drag.YAxis
+                            target: parent
                         }
                     }
+                }
+                Rectangle { //Bottom
+                    id: rectangleBottom
 
-                    drag {
-                        axis: Drag.YAxis
-                        target: parent
+                    anchors.horizontalCenter: parent.horizontalCenter
+                    anchors.verticalCenter: parent.bottom
+                    color: "blue"
+                    height: rulersSize
+                    radius: rulersSize
+                    width: rulersSize
+                    x: parent.x / 2
+                    y: parent.y
+
+                    MouseArea {
+                        anchors.fill: parent
+
+                        onMouseYChanged: {
+                            if (drag.active) {
+                                layerViewItem.dragBottom(mouseY);
+                            }
+                        }
+
+                        drag {
+                            axis: Drag.YAxis
+                            target: parent
+                        }
                     }
                 }
             }

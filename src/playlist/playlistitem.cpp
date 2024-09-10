@@ -9,6 +9,7 @@
 #include "playlistitem.h"
 #include "_debug.h"
 #include "locationsettings.h"
+#include "layers/baselayer.h"
 #include <algorithm>
 
 #include <QDir>
@@ -341,13 +342,13 @@ void PlayListItem::asJSON(QJsonObject &obj) {
 
     QString grid;
     int gridIdx = gridToMapOn();
-    if (gridIdx == 1) {
+    if (gridIdx == BaseLayer::GridMode::Plane) {
         grid = QStringLiteral("plane");
-    } else if (gridIdx == 2) {
+    } else if (gridIdx == BaseLayer::GridMode::Dome) {
         grid = QStringLiteral("dome");
-    } else if (gridIdx == 3) {
+    } else if (gridIdx == BaseLayer::GridMode::Sphere_EQR) {
         grid = QStringLiteral("sphere-eqr");
-    } else if (gridIdx == 4) {
+    } else if (gridIdx == BaseLayer::GridMode::Sphere_EAC) {
         grid = QStringLiteral("sphere-eac");
     } else { // 0
         grid = QStringLiteral("pre-split");
@@ -429,13 +430,16 @@ void PlayListItem::saveAsJSONPlayFile(const QString &path) const {
 
     QString grid;
     int gridIdx = gridToMapOn();
-    if (gridIdx == 1) {
+    if (gridIdx == BaseLayer::GridMode::Plane) {
         grid = QStringLiteral("plane");
-    } else if (gridIdx == 2) {
+    }
+    else if (gridIdx == BaseLayer::GridMode::Dome) {
         grid = QStringLiteral("dome");
-    } else if (gridIdx == 3) {
+    }
+    else if (gridIdx == BaseLayer::GridMode::Sphere_EQR) {
         grid = QStringLiteral("sphere-eqr");
-    } else if (gridIdx == 4) {
+    }
+    else if (gridIdx == BaseLayer::GridMode::Sphere_EAC) {
         grid = QStringLiteral("sphere-eac");
     } else { // 0
         grid = QStringLiteral("pre-split");
@@ -608,25 +612,25 @@ void PlayListItem::loadJSONPlayfile() {
     if (obj.contains(QStringLiteral("grid"))) {
         QString grid = obj.value(QStringLiteral("grid")).toString();
         if (grid == QStringLiteral("none")) {
-            setGridToMapOn(0);
+            setGridToMapOn(BaseLayer::GridMode::None);
         } else if (grid == QStringLiteral("pre-split")) {
-            setGridToMapOn(0);
+            setGridToMapOn(BaseLayer::GridMode::None);
         } else if (grid == QStringLiteral("plane")) {
-            setGridToMapOn(1);
+            setGridToMapOn(BaseLayer::GridMode::Plane);
         } else if (grid == QStringLiteral("flat")) {
-            setGridToMapOn(1);
+            setGridToMapOn(BaseLayer::GridMode::Plane);
         } else if (grid == QStringLiteral("dome")) {
-            setGridToMapOn(2);
+            setGridToMapOn(BaseLayer::GridMode::Dome);
         } else if (grid == QStringLiteral("sphere")) {
-            setGridToMapOn(3);
+            setGridToMapOn(BaseLayer::GridMode::Sphere_EQR);
         } else if (grid == QStringLiteral("eqr")) {
-            setGridToMapOn(3);
+            setGridToMapOn(BaseLayer::GridMode::Sphere_EQR);
         } else if (grid == QStringLiteral("sphere-eqr")) {
-            setGridToMapOn(3);
+            setGridToMapOn(BaseLayer::GridMode::Sphere_EQR);
         } else if (grid == QStringLiteral("eac")) {
-            setGridToMapOn(4);
+            setGridToMapOn(BaseLayer::GridMode::Sphere_EAC);
         } else if (grid == QStringLiteral("sphere-eac")) {
-            setGridToMapOn(4);
+            setGridToMapOn(BaseLayer::GridMode::Sphere_EAC);
         }
     }
 

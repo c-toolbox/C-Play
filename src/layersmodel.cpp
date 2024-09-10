@@ -6,6 +6,7 @@
  */
 
 #include "layersmodel.h"
+#include "gridsettings.h"
 #include "locationsettings.h"
 #include "presentationsettings.h"
 #include <QDir>
@@ -149,6 +150,10 @@ int LayersModel::addLayer(QString title, int type, QString filepath, int stereoM
         newLayer->setStereoMode(stereoMode);
         newLayer->setGridMode(gridMode);
         newLayer->setAlpha(static_cast<float>(PresentationSettings::defaultLayerVisibility()) * 0.01f);
+        newLayer->setPlaneElevation(GridSettings::plane_Elevation_Degrees());
+        newLayer->setPlaneDistance(GridSettings::plane_Distance_CM());
+        newLayer->setPlaneSize(glm::vec2(GridSettings::plane_Width_CM(), GridSettings::plane_Height_CM()), 
+            GridSettings::plane_Calculate_Size_Based_on_Video());
         m_layers.push_back(newLayer);
         setLayersNeedsSave(true);
         m_needsSync = true;
@@ -331,27 +336,27 @@ void LayersModel::decodeFromJSON(QJsonObject &obj, const QStringList &forRelativ
                     int grid = PresentationSettings::defaultGridModeForLayers();
                     QString gridStr = o.value(QStringLiteral("grid")).toString();
                     if (gridStr == QStringLiteral("none") || gridStr == QStringLiteral("pre-split")) {
-                        grid = 0;
+                        grid = BaseLayer::GridMode::None;
                     } else if (gridStr == QStringLiteral("plane") || gridStr == QStringLiteral("flat")) {
-                        grid = 1;
+                        grid = BaseLayer::GridMode::Plane;
                     } else if (gridStr == QStringLiteral("dome")) {
-                        grid = 2;
+                        grid = BaseLayer::GridMode::Dome;
                     } else if (gridStr == QStringLiteral("sphere") || gridStr == QStringLiteral("eqr") || gridStr == QStringLiteral("sphere-eqr")) {
-                        grid = 3;
+                        grid = BaseLayer::GridMode::Sphere_EQR;
                     } else if (gridStr == QStringLiteral("eac") || gridStr == QStringLiteral("sphere-eac")) {
-                        grid = 4;
+                        grid = BaseLayer::GridMode::Sphere_EAC;
                     }
 
                     int stereo = PresentationSettings::defaultStereoModeForLayers();
                     QString stereoStr = o.value(QStringLiteral("stereoscopic")).toString();
                     if (stereoStr == QStringLiteral("no") || stereoStr == QStringLiteral("mono")) {
-                        stereo = 0;
+                        stereo = BaseLayer::StereoMode::No_2D;
                     } else if (stereoStr == QStringLiteral("yes") || stereoStr == QStringLiteral("sbs") || stereoStr == QStringLiteral("side-by-side")) {
-                        stereo = 1;
+                        stereo = BaseLayer::StereoMode::SBS_3D;
                     } else if (stereoStr == QStringLiteral("tb") || stereoStr == QStringLiteral("top-bottom")) {
-                        stereo = 2;
+                        stereo = BaseLayer::StereoMode::TB_3D;
                     } else if (stereoStr == QStringLiteral("tbf") || stereoStr == QStringLiteral("top-bottom-flip")) {
-                        stereo = 3;
+                        stereo = BaseLayer::StereoMode::TBF_3D;
                     }
 
                     int idx = addLayer(title, type, path, stereo, grid);
@@ -359,6 +364,67 @@ void LayersModel::decodeFromJSON(QJsonObject &obj, const QStringList &forRelativ
                     if (o.contains(QStringLiteral("visibility"))) {
                         int visibility = o.value(QStringLiteral("visibility")).toInt();
                         m_layers[idx]->setAlpha(static_cast<float>(visibility) * 0.01f);
+                    }
+
+                    if (grid == BaseLayer::GridMode::Plane && o.contains(QStringLiteral("plane"))) {
+                        QJsonValue planeValues = o.value(QStringLiteral("plane"));
+                        QJsonArray planeArray = planeValues.toArray();
+                        for (auto pa : planeArray) {
+                            QJsonObject po = pa.toObject();
+                            if (po.contains(QStringLiteral("aspectRatio"))) {
+                                int planeAR = po.value(QStringLiteral("aspectRatio")).toInt();
+                                m_layers[idx]->setPlaneAspectRatio(planeAR);
+                            }
+                            if (po.contains(QStringLiteral("width"))) {
+                                double planeW = po.value(QStringLiteral("width")).toDouble();
+                                m_layers[idx]->setPlaneWidth(planeW);
+                            }
+                            if (po.contains(QStringLiteral("height"))) {
+                                double planeH = po.value(QStringLiteral("height")).toDouble();
+                                m_layers[idx]->setPlaneHeight(planeH);
+                            }
+                            if (po.contains(QStringLiteral("distance"))) {
+                                double planeD = po.value(QStringLiteral("distance")).toDouble();
+                                m_layers[idx]->setPlaneDistance(planeD);
+                            }
+                            if (po.contains(QStringLiteral("elevation"))) {
+                                double planeE = po.value(QStringLiteral("elevation")).toDouble();
+                                m_layers[idx]->setPlaneElevation(planeE);
+                            }
+                            if (po.contains(QStringLiteral("azimuth"))) {
+                                double planeA = po.value(QStringLiteral("azimuth")).toDouble();
+                                m_layers[idx]->setPlaneAzimuth(planeA);
+                            }
+                            if (po.contains(QStringLiteral("roll"))) {
+                                double planeR = po.value(QStringLiteral("roll")).toDouble();
+                                m_layers[idx]->setPlaneRoll(planeR);
+                            }
+                        }
+                    }
+                    if (o.contains(QStringLiteral("roi"))) {
+                        QJsonValue roiValues = o.value(QStringLiteral("roi"));
+                        QJsonArray roiArray = roiValues.toArray();
+                        for (auto ra : roiArray) {
+                            QJsonObject pa = ra.toObject();
+                            if (pa.contains(QStringLiteral("enabled"))) {
+                                bool roiEnabled = pa.value(QStringLiteral("enabled")).toBool();
+                                m_layers[idx]->setRoiEnabled(roiEnabled);
+                            }
+                            glm::vec4 roi = glm::vec4(0.f, 0.f, 1.f, 1.f);
+                            if (pa.contains(QStringLiteral("xpos"))) {
+                                roi.x = static_cast<float>(pa.value(QStringLiteral("xpos")).toDouble());
+                            }
+                            if (pa.contains(QStringLiteral("ypos"))) {
+                                roi.y = static_cast<float>(pa.value(QStringLiteral("ypos")).toDouble());
+                            }
+                            if (pa.contains(QStringLiteral("width"))) {
+                                roi.z = static_cast<float>(pa.value(QStringLiteral("width")).toDouble());
+                            }
+                            if (pa.contains(QStringLiteral("height"))) {
+                                roi.w = static_cast<float>(pa.value(QStringLiteral("height")).toDouble());
+                            }
+                            m_layers[idx]->setRoi(roi);
+                        }
                     }
                 }
             }
@@ -382,13 +448,13 @@ void LayersModel::encodeToJSON(QJsonObject &obj, const QStringList &forRelativeP
 
         QString grid;
         int gridIdx = layer->gridMode();
-        if (gridIdx == 1) {
+        if (gridIdx == BaseLayer::GridMode::Plane) {
             grid = QStringLiteral("plane");
-        } else if (gridIdx == 2) {
+        } else if (gridIdx == BaseLayer::GridMode::Dome) {
             grid = QStringLiteral("dome");
-        } else if (gridIdx == 3) {
+        } else if (gridIdx == BaseLayer::GridMode::Sphere_EQR) {
             grid = QStringLiteral("sphere-eqr");
-        } else if (gridIdx == 4) {
+        } else if (gridIdx == BaseLayer::GridMode::Sphere_EAC) {
             grid = QStringLiteral("sphere-eac");
         } else { // 0
             grid = QStringLiteral("pre-split");
@@ -397,11 +463,11 @@ void LayersModel::encodeToJSON(QJsonObject &obj, const QStringList &forRelativeP
 
         QString sv;
         int stereoVideoIdx = layer->stereoMode();
-        if (stereoVideoIdx == 1) {
+        if (stereoVideoIdx == BaseLayer::StereoMode::SBS_3D) {
             sv = QStringLiteral("side-by-side");
-        } else if (stereoVideoIdx == 2) {
+        } else if (stereoVideoIdx == BaseLayer::StereoMode::TB_3D) {
             sv = QStringLiteral("top-bottom");
-        } else if (stereoVideoIdx == 3) {
+        } else if (stereoVideoIdx == BaseLayer::StereoMode::TBF_3D) {
             sv = QStringLiteral("top-bottom-flip");
         } else { // 0
             sv = QStringLiteral("no");
@@ -409,6 +475,32 @@ void LayersModel::encodeToJSON(QJsonObject &obj, const QStringList &forRelativeP
         layerData.insert(QStringLiteral("stereoscopic"), QJsonValue(sv));
 
         layerData.insert(QStringLiteral("visibility"), QJsonValue(static_cast<int>(layer->alpha() * 100.f)));
+
+        // Plane properties
+        if (gridIdx == BaseLayer::GridMode::Plane) {
+            QJsonArray planeArray;
+            QJsonObject planeData;
+            planeData.insert(QStringLiteral("aspectRatio"), QJsonValue(layer->planeAspectRatio()));
+            planeData.insert(QStringLiteral("width"), QJsonValue(layer->planeWidth()));
+            planeData.insert(QStringLiteral("height"), QJsonValue(layer->planeHeight()));
+            planeData.insert(QStringLiteral("distance"), QJsonValue(layer->planeDistance()));
+            planeData.insert(QStringLiteral("elevation"), QJsonValue(layer->planeElevation()));
+            planeData.insert(QStringLiteral("azimuth"), QJsonValue(layer->planeAzimuth()));
+            planeData.insert(QStringLiteral("roll"), QJsonValue(layer->planeRoll()));
+            planeArray.push_back(QJsonValue(planeData));
+            layerData.insert(QString(QStringLiteral("plane")), QJsonValue(planeArray));
+        }
+
+        // ROI details
+        QJsonArray roiArray;
+        QJsonObject roiData;
+        roiData.insert(QStringLiteral("enabled"), QJsonValue(layer->roiEnabled()));
+        roiData.insert(QStringLiteral("xpos"), QJsonValue(layer->roi().x));
+        roiData.insert(QStringLiteral("ypos"), QJsonValue(layer->roi().y));
+        roiData.insert(QStringLiteral("width"), QJsonValue(layer->roi().z));
+        roiData.insert(QStringLiteral("height"), QJsonValue(layer->roi().w));
+        roiArray.push_back(QJsonValue(roiData));
+        layerData.insert(QString(QStringLiteral("roi")), QJsonValue(roiArray));
 
         layersArray.push_back(QJsonValue(layerData));
     }

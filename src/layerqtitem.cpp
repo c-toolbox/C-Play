@@ -9,6 +9,7 @@
 #include "application.h"
 #include "layersmodel.h"
 #include "presentationsettings.h"
+#include "gridsettings.h"
 #include "slidesmodel.h"
 
 #include <QOpenGLContext>
@@ -18,7 +19,8 @@
 #include <array>
 
 LayerQtItem::LayerQtItem()
-    : m_layerIdx(-1), m_layer(nullptr), m_renderer(nullptr) {
+    : m_layerIdx(-1), m_layer(nullptr), m_renderer(nullptr), 
+    m_viewOffset(0, 0), m_viewSize(0, 0), m_roiOffset(0, 0), m_roiSize(0, 0) {
     connect(this, &QQuickItem::windowChanged, this, &LayerQtItem::handleWindowChanged);
 }
 
@@ -85,6 +87,120 @@ void LayerQtItem::setLayerVisibility(int value) {
     }
 }
 
+double LayerQtItem::layerPlaneWidth() const {
+    if (m_layer)
+        return m_layer->planeWidth();
+    else
+        return 0.0;
+}
+
+void LayerQtItem::setLayerPlaneWidth(double pW) {
+    if (m_layer) {
+        m_layer->setPlaneWidth(pW);
+        Q_EMIT layerValueChanged();
+    }
+}
+
+double LayerQtItem::layerPlaneHeight() const {
+    if (m_layer)
+        return m_layer->planeHeight();
+    else
+        return 0.0;
+}
+
+void LayerQtItem::setLayerPlaneHeight(double pH) {
+    if (m_layer) {
+        m_layer->setPlaneHeight(pH);
+        Q_EMIT layerValueChanged();
+    }
+}
+
+int LayerQtItem::layerPlaneAspectRatio() const {
+    if (m_layer)
+        return m_layer->planeAspectRatio();
+    else
+        return 0.0;
+}
+
+void LayerQtItem::setLayerPlaneAspectRatio(int parc) {
+    if (m_layer) {
+        m_layer->setPlaneAspectRatio(parc);
+        Q_EMIT layerValueChanged();
+    }
+}
+
+double LayerQtItem::layerPlaneAzimuth() const {
+    if (m_layer)
+        return m_layer->planeAzimuth();
+    else
+        return 0.0;
+}
+
+void LayerQtItem::setLayerPlaneAzimuth(double pA) {
+    if (m_layer) {
+        m_layer->setPlaneAzimuth(pA);
+        Q_EMIT layerValueChanged();
+    }
+}
+
+double LayerQtItem::layerPlaneElevation() const {
+    if (m_layer)
+        return m_layer->planeElevation();
+    else
+        return GridSettings::plane_Elevation_Degrees();
+}
+
+void LayerQtItem::setLayerPlaneElevation(double pE) {
+    if (m_layer) {
+        m_layer->setPlaneElevation(pE);
+        Q_EMIT layerValueChanged();
+    }
+}
+
+double LayerQtItem::layerPlaneDistance() const {
+    if (m_layer)
+        return m_layer->planeDistance();
+    else
+        return GridSettings::plane_Distance_CM();
+}
+
+void LayerQtItem::setLayerPlaneDistance(double pD) {
+    if (m_layer) {
+        m_layer->setPlaneDistance(pD);
+        Q_EMIT layerValueChanged();
+    }
+}
+
+double LayerQtItem::layerPlaneRoll() const {
+    if (m_layer)
+        return m_layer->planeRoll();
+    else
+        return 0.0;
+}
+
+void LayerQtItem::setLayerPlaneRoll(double pR) {
+    if (m_layer) {
+        m_layer->setPlaneRoll(pR);
+        Q_EMIT layerValueChanged();
+    }
+}
+
+bool LayerQtItem::layerRoiEnabled() {
+    if (m_layer)
+        return m_layer->roiEnabled();
+    else
+        return false;
+}
+
+void LayerQtItem::setLayerRoiEnabled(bool value) {
+    if (m_layer) {
+        m_layer->setRoiEnabled(value);
+        Q_EMIT layerValueChanged();
+        if (value)
+            updateRoi();
+    }
+}
+
 QString LayerQtItem::layerTitle() {
     if (m_layer)
         return QString::fromStdString(m_layer->title());
@@ -96,6 +212,168 @@ void LayerQtItem::setLayerTitle(QString value) {
     if (m_layer) {
         m_layer->setTitle(value.toStdString());
         Q_EMIT layerValueChanged();
+    }
+}
+
+QSize LayerQtItem::textureSize() {
+    if (m_layer) {
+        return QSize(static_cast<int>(m_layer->width()), static_cast<int>(m_layer->height()));
+    }
+    else {
+        return m_viewSize;
+    }
+}
+
+QPoint LayerQtItem::viewOffset() {
+    return m_viewOffset;
+}
+
+void LayerQtItem::setViewOffset(QPoint p) {
+    m_viewOffset = p;
+    Q_EMIT viewChanged();
+}
+
+QSize LayerQtItem::viewSize() {
+    return m_viewSize;
+}
+
+void LayerQtItem::setViewSize(QSize s) {
+    m_viewSize = s;
+    Q_EMIT viewChanged();
+}
+
+QPoint LayerQtItem::roiOffset() {
+    return m_roiOffset;
+}
+
+void LayerQtItem::setRoiOffset(QPoint p) {
+    if (m_layer) {
+        glm::vec4 currentRoi = m_layer->roi();
+        currentRoi.x = glm::max(static_cast<float>(p.x() - m_viewOffset.x()) / static_cast<float>(m_viewSize.width()), 0.f);
+        
+        //UI uses Top-Left coordinate system, while we want to store in Bottom-Left
+        float yFromTop = glm::max(static_cast<float>(p.y() - m_viewOffset.y()) / static_cast<float>(m_viewSize.height()), 0.f);
+        currentRoi.y = 1.f - currentRoi.w - yFromTop;
+        //currentRoi.y = glm::max(static_cast<float>(p.y() - m_viewOffset.y()) / static_cast<float>(m_viewSize.height()), 0.f);
+
+        m_layer->setRoi(currentRoi);
+        updateRoi();
+    }
+}
+
+QSize LayerQtItem::roiSize() {
+    return m_roiSize;
+}
+
+void LayerQtItem::setRoiSize(QSize s) {
+    if (m_layer) {
+        glm::vec4 currentRoi = m_layer->roi();
+        //UI uses Top-Left coordinate system, while we store in Bottom-Left
+        float yFromTop = 1.f - currentRoi.w - currentRoi.y;
+        currentRoi.z = glm::min(static_cast<float>(s.width()) / static_cast<float>(m_viewSize.width()), 1.f - currentRoi.x);
+        currentRoi.w = glm::min(static_cast<float>(s.height()) / static_cast<float>(m_viewSize.height()), 1.f - yFromTop);
+        m_layer->setRoi(currentRoi);
+        updateRoi();
+    }
+}
+
+void LayerQtItem::setRoi(QPoint offset, QSize size) {
+    if (m_layer) {
+        glm::vec4 currentRoi = m_layer->roi();
+        currentRoi.x = glm::max(static_cast<float>(offset.x() - m_viewOffset.x()) / static_cast<float>(m_viewSize.width()), 0.f);
+        //UI uses Top-Left coordinate system, while we want to store in Bottom-Left
+        float yFromTop = glm::max(static_cast<float>(offset.y() - m_viewOffset.y()) / static_cast<float>(m_viewSize.height()), 0.f);
+        currentRoi.z = glm::min(static_cast<float>(size.width()) / static_cast<float>(m_viewSize.width()), 1.f - currentRoi.x);
+        currentRoi.w = glm::min(static_cast<float>(size.height()) / static_cast<float>(m_viewSize.height()), 1.f - yFromTop);
+        currentRoi.y = 1.f - currentRoi.w - yFromTop;
+        m_layer->setRoi(currentRoi);
+        updateRoi();
+    }
+}
+
+void LayerQtItem::dragLeft(double Xdiff) {
+    setRoi(m_roiOffset + QPoint(Xdiff, 0), m_roiSize + QSize(-Xdiff, 0));
+}
+
+void LayerQtItem::dragRight(double Xdiff) {
+    setRoi(m_roiOffset, m_roiSize + QSize(Xdiff, 0));
+}
+
+void LayerQtItem::dragTop(double Ydiff) {
+    setRoi(m_roiOffset + QPoint(0, Ydiff), m_roiSize + QSize(0, -Ydiff));
+}
+
+void LayerQtItem::dragBottom(double Ydiff) {
+    setRoi(m_roiOffset, m_roiSize + QSize(0, Ydiff));
+}
+
+QPoint LayerQtItem::roiTexOffset() {
+    if (m_layer) {
+        QPoint realRoiOffset;
+        realRoiOffset.setX(static_cast<int>(m_layer->roi().x * m_layer->width()));
+        realRoiOffset.setY(static_cast<int>(m_layer->roi().y * m_layer->height()));
+        return realRoiOffset;
+    }
+    else {
+        return m_roiOffset;
+    }
+}
+
+void LayerQtItem::setRoiTexOffset(QPoint p) {
+    if (m_layer) {
+        glm::vec4 currentRoi = m_layer->roi();
+        currentRoi.x = glm::max(static_cast<float>(p.x()) / static_cast<float>(m_layer->width()), 0.f);
+        //This value should already be Bottom-Left
+        currentRoi.y = glm::max(static_cast<float>(p.y()) / static_cast<float>(m_layer->height()), 0.f);
+        m_layer->setRoi(currentRoi);
+        updateRoi();
+    }
+}
+
+QSize LayerQtItem::roiTexSize() {
+    if (m_layer) {
+        QSize realRoiSize;
+        realRoiSize.setWidth(static_cast<int>(m_layer->roi().z * m_layer->width()));
+        realRoiSize.setHeight(static_cast<int>(m_layer->roi().w * m_layer->height()));
+        return realRoiSize;
+    }
+    else {
+        return m_roiSize;
+    }
+}
+
+void LayerQtItem::setRoiTexSize(QSize s) {
+    if (m_layer) {
+        glm::vec4 currentRoi = m_layer->roi();
+        currentRoi.z = glm::min(static_cast<float>(s.width()) / static_cast<float>(m_layer->width()), 1.f);
+        currentRoi.w = glm::min(static_cast<float>(s.height()) / static_cast<float>(m_layer->height()), 1.f);
+        m_layer->setRoi(currentRoi);
+        updateRoi();
+    }
+}
+
+void LayerQtItem::updateView() {
+    if (m_renderer) {
+        m_viewOffset = m_renderer->viewOffset() / window()->devicePixelRatio();
+        m_viewSize = m_renderer->viewSize() / window()->devicePixelRatio();
+        updateRoi();
+        Q_EMIT viewChanged();
+    }
+}
+
+void LayerQtItem::updateRoi() {
+    if (m_layer) {
+        glm::vec4 currentRoi = m_layer->roi();
+        m_roiOffset.setX((static_cast<int>(currentRoi.x * static_cast<float>(m_viewSize.width()))) + m_viewOffset.x());
+
+        //UI uses Top-Left coordinate system, while we store in Bottom-Left
+        float yFromTop = 1.f - currentRoi.w - currentRoi.y;
+        m_roiOffset.setY((static_cast<int>(yFromTop * static_cast<float>(m_viewSize.height()))) + m_viewOffset.y());
+        //m_roiOffset.setY((static_cast<int>(currentRoi.y * static_cast<float>(m_viewSize.height()))) + m_viewOffset.y());
+
+        m_roiSize.setWidth(static_cast<int>(currentRoi.z * static_cast<float>(m_viewSize.width())));
+        m_roiSize.setHeight(static_cast<int>(currentRoi.w * static_cast<float>(m_viewSize.height())));
+        Q_EMIT roiChanged();
     }
 }
 
@@ -163,11 +441,58 @@ void LayerQtItemRenderer::setLayer(BaseLayer *l) {
     m_layer = l;
 }
 
+QPoint LayerQtItemRenderer::viewOffset() {
+    return m_viewOffset;
+}
+
+QSize LayerQtItemRenderer::viewSize() {
+    return m_viewSize;
+}
+
+void LayerQtItemRenderer::calculateViewParameters() {
+    int viewW = m_viewportSize.width();
+    int viewH = m_viewportSize.height();
+    int offsetX = 0;
+    int offsetY = 0;
+    float ratioViewport = static_cast<float>(viewW) / static_cast<float>(viewH);
+    float ratioLayer = static_cast<float>(m_layer->width()) / static_cast<float>(m_layer->height());
+    if (ratioLayer > ratioViewport) {
+        // Use full width of viewport
+        if (ratioLayer > 1.f) {
+            viewH = static_cast<int>(static_cast<float>(m_viewportSize.width()) / ratioLayer);
+        }
+        else {
+            viewH = static_cast<int>(static_cast<float>(m_viewportSize.width()) * ratioLayer);
+        }
+        offsetY = static_cast<int>(0.5f * (static_cast<float>(m_viewportSize.height() - viewH)));
+    }
+    else if (ratioLayer < ratioViewport) {
+        // Use full height of viewport
+        if (ratioLayer > 1.f) {
+            viewW = static_cast<int>(static_cast<float>(m_viewportSize.height()) * ratioLayer);
+        }
+        else {
+            viewW = static_cast<int>(static_cast<float>(m_viewportSize.height()) / ratioLayer);
+        }
+        offsetX = static_cast<int>(0.5f * (static_cast<float>(m_viewportSize.width() - viewW)));
+    }
+
+    if (offsetX != m_viewOffset.x() || offsetY != m_viewOffset.y()
+        || viewW != m_viewSize.width() || viewH != m_viewSize.height()) {
+        m_viewOffset.setX(offsetX);
+        m_viewOffset.setY(offsetY);
+        m_viewSize.setWidth(viewW);
+        m_viewSize.setHeight(viewH);
+        Q_EMIT viewChanged();
+    }
+}
+
 void LayerQtItem::sync() {
     if (!m_renderer) {
         m_renderer = new LayerQtItemRenderer();
         connect(window(), &QQuickWindow::beforeRendering, m_renderer, &LayerQtItemRenderer::init, Qt::DirectConnection);
         connect(window(), &QQuickWindow::beforeRenderPassRecording, m_renderer, &LayerQtItemRenderer::paint, Qt::DirectConnection);
+        connect(m_renderer, &LayerQtItemRenderer::viewChanged, this, &LayerQtItem::updateView);
     }
     m_renderer->setLayer(m_layer);
     m_renderer->setWindowSize(window()->size() * window()->devicePixelRatio());
@@ -259,6 +584,8 @@ void LayerQtItemRenderer::paint() {
         return;
     }
 
+    calculateViewParameters();
+
     m_program->bind();
 
     m_program->enableAttributeArray(0);
@@ -268,31 +595,7 @@ void LayerQtItemRenderer::paint() {
 
     m_program->setUniformValue("tex", 1);
 
-    int viewW = m_viewportSize.width();
-    int viewH = m_viewportSize.height();
-    int offsetX = 0;
-    int offsetY = 0;
-    float ratioViewport = static_cast<float>(viewW) / static_cast<float>(viewH);
-    float ratioLayer = static_cast<float>(m_layer->width()) / static_cast<float>(m_layer->height());
-    if (ratioLayer > ratioViewport) {
-        // Use full width of viewport
-        if (ratioLayer > 1.f) {
-            viewH = static_cast<int>(static_cast<float>(m_viewportSize.width()) / ratioLayer);
-        } else {
-            viewH = static_cast<int>(static_cast<float>(m_viewportSize.width()) * ratioLayer);
-        }
-        offsetY = static_cast<int>(0.5f * (static_cast<float>(m_viewportSize.height() - viewH)));
-    } else if (ratioLayer < ratioViewport) {
-        // Use full height of viewport
-        if (ratioLayer > 1.f) {
-            viewW = static_cast<int>(static_cast<float>(m_viewportSize.height()) * ratioLayer);
-        } else {
-            viewW = static_cast<int>(static_cast<float>(m_viewportSize.height()) / ratioLayer);
-        }
-        offsetX = static_cast<int>(0.5f * (static_cast<float>(m_viewportSize.width() - viewW)));
-    }
-
-    glViewport(offsetX, offsetY, viewW, viewH);
+    glViewport(m_viewOffset.x(), m_viewOffset.y(), m_viewSize.width(), m_viewSize.height());
 
     glDisable(GL_DEPTH_TEST);
     glEnable(GL_BLEND);

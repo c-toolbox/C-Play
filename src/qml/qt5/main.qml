@@ -167,6 +167,10 @@ Kirigami.ApplicationWindow {
         id: layerView
 
     }
+    LayerViewGridParams {
+        id: layerViewGridParams
+
+    }
     Footer {
         id: footer
 

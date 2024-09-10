@@ -107,7 +107,6 @@ Kirigami.BasicListItem {
         enabled: app.slides.selectedSlideIdx === -1
         implicitWidth: 50
         overlayLabel: qsTr("")
-        value: model.visibility
         visible: layersView.currentIndex === index
 
         onValueChanged: {

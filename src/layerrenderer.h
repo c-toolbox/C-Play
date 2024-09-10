@@ -40,12 +40,14 @@ private:
     int videoAlphaLoc;
     int videoEyeModeLoc;
     int videoStereoscopicModeLoc;
+    int videoRoi;
     // mesh
     int meshAlphaLoc;
     int meshEyeModeLoc;
     int meshMatrixLoc;
     int meshOutsideLoc;
     int meshStereoscopicModeLoc;
+    int meshRoi;
     // EAC
     int EACAlphaLoc;
     int EACMatrixLoc;

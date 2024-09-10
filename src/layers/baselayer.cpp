@@ -105,6 +105,24 @@ void BaseLayer::encode(std::vector<std::byte> &data) {
     sgct::serializeObject(data, renderData.gridMode);
     sgct::serializeObject(data, renderData.stereoMode);
     sgct::serializeObject(data, renderData.alpha);
+
+    sgct::serializeObject(data, renderData.roiEnabled);
+    if (renderData.roiEnabled) {
+        sgct::serializeObject(data, renderData.roi.x);
+        sgct::serializeObject(data, renderData.roi.y);
+        sgct::serializeObject(data, renderData.roi.z);
+        sgct::serializeObject(data, renderData.roi.w);
+    }
+
+    if (renderData.gridMode == BaseLayer::GridMode::Plane) {
+        sgct::serializeObject(data, planeData.azimuth);
+        sgct::serializeObject(data, planeData.elevation);
+        sgct::serializeObject(data, planeData.distance);
+        sgct::serializeObject(data, planeData.roll);
+        sgct::serializeObject(data, planeData.specifiedSize.x);
+        sgct::serializeObject(data, planeData.specifiedSize.y);
+        sgct::serializeObject(data, planeData.aspectRatioConsideration);
+    }
 }
 
 void BaseLayer::decode(const std::vector<std::byte> &data, unsigned int &pos) {
@@ -113,6 +131,27 @@ void BaseLayer::decode(const std::vector<std::byte> &data, unsigned int &pos) {
     sgct::deserializeObject(data, pos, renderData.gridMode);
     sgct::deserializeObject(data, pos, renderData.stereoMode);
     sgct::deserializeObject(data, pos, renderData.alpha);
+
+    sgct::deserializeObject(data, pos, renderData.roiEnabled);
+    if (renderData.roiEnabled) {
+        sgct::deserializeObject(data, pos, renderData.roi.x);
+        sgct::deserializeObject(data, pos, renderData.roi.y);
+        sgct::deserializeObject(data, pos, renderData.roi.z);
+        sgct::deserializeObject(data, pos, renderData.roi.w);
+    }
+
+    if (renderData.gridMode == BaseLayer::GridMode::Plane) {
+        sgct::deserializeObject(data, pos, planeData.azimuth);
+        sgct::deserializeObject(data, pos, planeData.elevation);
+        sgct::deserializeObject(data, pos, planeData.distance);
+        sgct::deserializeObject(data, pos, planeData.roll);
+        sgct::deserializeObject(data, pos, planeData.specifiedSize.x);
+        sgct::deserializeObject(data, pos, planeData.specifiedSize.y);
+        sgct::deserializeObject(data, pos, planeData.aspectRatioConsideration);
+    }
+
+    // Marking as needSync means we need know update has occured, which we need to clear
+    m_needSync = true;
 }
 
 BaseLayer::LayerType BaseLayer::type() const {
@@ -206,6 +245,32 @@ void BaseLayer::setTranslate(glm::vec3 &t) {
     m_needSync = true;
 }
 
+bool BaseLayer::roiEnabled() const {
+    return renderData.roiEnabled;
+}
+
+void BaseLayer::setRoiEnabled(bool value) {
+    renderData.roiEnabled = value;
+    m_needSync = true;
+}
+
+const glm::vec4 &BaseLayer::roi() const {
+    return renderData.roi;
+}
+
+void BaseLayer::setRoi(glm::vec4 &r) {
+    renderData.roi = r;
+    m_needSync = true;
+}
+
+void BaseLayer::setRoi(float x, float y, float width, float height) {
+    renderData.roi.x = x;
+    renderData.roi.y = y;
+    renderData.roi.z = width;
+    renderData.roi.w = height;
+    m_needSync = true;
+}
+
 double BaseLayer::planeAzimuth() const {
     return planeData.azimuth;
 }
@@ -242,6 +307,36 @@ void BaseLayer::setPlaneRoll(double pR) {
     m_needSync = true;
 }
 
+double BaseLayer::planeWidth() const {
+    return planeData.specifiedSize.x;
+}
+
+void BaseLayer::setPlaneWidth(double pW) {
+    planeData.specifiedSize.x = static_cast<float>(pW);
+    updatePlane();
+    m_needSync = true;
+}
+
+double BaseLayer::planeHeight() const {
+    return planeData.specifiedSize.y;
+}
+
+void BaseLayer::setPlaneHeight(double pH) {
+    planeData.specifiedSize.y = static_cast<float>(pH);
+    updatePlane();
+    m_needSync = true;
+}
+
+int BaseLayer::planeAspectRatio() const {
+    return planeData.aspectRatioConsideration;
+}
+
+void BaseLayer::setPlaneAspectRatio(int parc) {
+    planeData.aspectRatioConsideration = parc;
+    updatePlane();
+    m_needSync = true;
+}
+
 void BaseLayer::setPlaneSize(glm::vec2 pS, int parc) {
     planeData.specifiedSize = pS;
     planeData.aspectRatioConsideration = parc;
@@ -262,30 +357,37 @@ void BaseLayer::updatePlane() {
     if (planeData.specifiedSize.x <= 0 || planeData.specifiedSize.y <= 0)
         return;
 
+    float width = float(renderData.width);
+    float height = float(renderData.height);
+    if (renderData.roiEnabled) {
+        width *= renderData.roi.z;
+        height *= renderData.roi.w;
+    }
+
     glm::vec2 calculatedPlaneSize = planeData.specifiedSize;
     int sm = renderData.stereoMode;
     if (planeData.aspectRatioConsideration == 1) { // Calculate width from video
-        float ratio = float(renderData.width) / float(renderData.height);
+        float ratio = width / height;
 
         if (sm == 1) { // Side-by-side
             ratio *= 0.5f;
         } else if (sm == 2) { // Top-bottom
             ratio *= 2.0f;
         } else if (sm == 3) { // Top-bottom-flip
-            ratio = float(renderData.height) / float(renderData.width);
+            ratio = height / width;
             ratio *= 2.0f;
         }
 
         calculatedPlaneSize.x = ratio * planeData.specifiedSize.y;
     } else if (planeData.aspectRatioConsideration == 2) { // Calculate height from video
-        float ratio = float(renderData.height) / float(renderData.width);
+        float ratio = height / width;
 
         if (sm == 1) { // Side-by-side
             ratio *= 0.5f;
         } else if (sm == 2) { // Top-bottom
             ratio *= 2.0f;
         } else if (sm == 3) { // Top-bottom-flip
-            ratio = float(renderData.width) / float(renderData.height);
+            ratio = width / height;
             ratio *= 2.0f;
         }
 

@@ -18,6 +18,21 @@ public:
         INVALID
     };
 
+    enum StereoMode {
+        No_2D,
+        SBS_3D,
+        TB_3D,
+        TBF_3D
+    };
+
+    enum GridMode {
+        None,
+        Plane,
+        Dome,
+        Sphere_EQR,
+        Sphere_EAC
+    };
+
     typedef void *(*opengl_func_adress_ptr)(void *ctx, const char *name);
     static std::string typeDescription(BaseLayer::LayerType e);
     static BaseLayer *createLayer(int layerType, opengl_func_adress_ptr opa, std::string strId = "", uint32_t numID = 0);
@@ -31,6 +46,8 @@ public:
         int stereoMode = 0;
         glm::vec3 rotate = glm::vec3(0);
         glm::vec3 translate = glm::vec3(0);
+        bool roiEnabled = false;
+        glm::vec4 roi = glm::vec4(0.f, 0.f, 1.f, 1.f);
     };
 
     struct PlaneParams {
@@ -90,6 +107,13 @@ public:
     const glm::vec3 &translate() const;
     void setTranslate(glm::vec3 &t);
 
+    bool roiEnabled() const;
+    void setRoiEnabled(bool value);
+
+    const glm::vec4 &roi() const;
+    void setRoi(glm::vec4 &r);
+    void setRoi(float x, float y, float width, float height);
+
     double planeAzimuth() const;
     void setPlaneAzimuth(double pA);
 
@@ -102,9 +126,19 @@ public:
     double planeRoll() const;
     void setPlaneRoll(double pR);
 
+    double planeWidth() const;
+    void setPlaneWidth(double pW);
+
+    double planeHeight() const;
+    void setPlaneHeight(double pH);
+
+    int planeAspectRatio() const;
+    void setPlaneAspectRatio(int parc);
+
     void setPlaneSize(glm::vec2 pS, int parc);
 
     void drawPlane();
+    void updatePlane();
 
 protected:
     std::string m_title;
@@ -118,9 +152,6 @@ protected:
     static std::atomic_uint32_t m_id_gen;
 
     bool m_needSync;
-
-private:
-    void updatePlane();
 };
 
 #endif // BASELAYER_H

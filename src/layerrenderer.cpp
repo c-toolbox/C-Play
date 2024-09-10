@@ -19,34 +19,35 @@ constexpr std::string_view VideoVert = R"(
 
   uniform int eye;
   uniform int stereoscopicMode;
+  uniform vec4 roi;
 
   out vec2 tr_uv;
 
   void main() {
     gl_Position = vec4(in_position, 0.0, 1.0);
-    tr_uv = in_texCoord;
+    tr_uv = (in_texCoord * roi.zw) + roi.xy;
 
     if(eye==2) { //Right Eye
         if(stereoscopicMode==1) { //Side-by-side
-            tr_uv = (in_texCoord * vec2(0.5, 1.0)) + vec2(0.5, 0.0);
+            tr_uv = (tr_uv * vec2(0.5, 1.0)) + vec2(0.5, 0.0);
         }
         else if(stereoscopicMode==2) { //Top-bottom
-            tr_uv = in_texCoord * vec2(1.0, 0.5);
+            tr_uv = tr_uv * vec2(1.0, 0.5);
         }
         else if(stereoscopicMode==3) { //Top-bottom-flip
-            tr_uv = in_texCoord * vec2(1.0, 0.5);
+            tr_uv = tr_uv * vec2(1.0, 0.5);
             tr_uv = vec2(1.0 - tr_uv.y, tr_uv.x);
         }
     }
     else { //Left Eye
         if(stereoscopicMode==1) { //Side-by-side
-            tr_uv = in_texCoord * vec2(0.5, 1.0);
+            tr_uv = tr_uv * vec2(0.5, 1.0);
         }
         else if(stereoscopicMode==2) { //Top-bottom
-            tr_uv = (in_texCoord * vec2(1.0, 0.5)) + vec2(0.0, 0.5);
+            tr_uv = (tr_uv * vec2(1.0, 0.5)) + vec2(0.0, 0.5);
         }
         else if(stereoscopicMode==3) { //Top-bottom-flip
-            tr_uv = (in_texCoord * vec2(1.0, 0.5)) + vec2(0.0, 0.5);
+            tr_uv = (tr_uv * vec2(1.0, 0.5)) + vec2(0.0, 0.5);
             tr_uv = vec2(1.0 - tr_uv.y, tr_uv.x);
         }
     }
@@ -63,36 +64,37 @@ constexpr std::string_view MeshVert = R"(
   uniform mat4 mvp;
   uniform int eye;
   uniform int stereoscopicMode;
+  uniform vec4 roi;
 
   out vec2 tr_uv;
   out vec3 tr_normals;
 
   void main() {
     gl_Position = mvp * vec4(in_position, 1.0);
-    tr_uv = in_texCoord;
+    tr_uv = (in_texCoord * roi.zw) + roi.xy;
     tr_normals = in_normal;
 
     if(eye==2) { //Right Eye
         if(stereoscopicMode==1) { //Side-by-side
-            tr_uv = (in_texCoord * vec2(0.5, 1.0)) + vec2(0.5, 0.0);
+            tr_uv = (tr_uv * vec2(0.5, 1.0)) + vec2(0.5, 0.0);
         }
         else if(stereoscopicMode==2) { //Top-bottom
-            tr_uv = in_texCoord * vec2(1.0, 0.5);
+            tr_uv = tr_uv * vec2(1.0, 0.5);
         }
         else if(stereoscopicMode==3) { //Top-bottom-flip
-            tr_uv = in_texCoord * vec2(1.0, 0.5);
+            tr_uv = tr_uv * vec2(1.0, 0.5);
             tr_uv = vec2(1.0 - tr_uv.y, tr_uv.x);
         }
     }
     else { // Left Eye or Mono
         if(stereoscopicMode==1) { //Side-by-side
-            tr_uv = in_texCoord * vec2(0.5, 1.0);
+            tr_uv = tr_uv * vec2(0.5, 1.0);
         }
         else if(stereoscopicMode==2) { //Top-bottom
-            tr_uv = (in_texCoord * vec2(1.0, 0.5)) + vec2(0.0, 0.5);
+            tr_uv = (tr_uv * vec2(1.0, 0.5)) + vec2(0.0, 0.5);
         }
         else if(stereoscopicMode==3) { //Top-bottom-flip
-            tr_uv = (in_texCoord * vec2(1.0, 0.5)) + vec2(0.0, 0.5);
+            tr_uv = (tr_uv * vec2(1.0, 0.5)) + vec2(0.0, 0.5);
             tr_uv = vec2(1.0 - tr_uv.y, tr_uv.x);
         }
     }
@@ -359,11 +361,13 @@ LayerRenderer::LayerRenderer() : meshRadius(0),
                                  videoAlphaLoc(-1),
                                  videoEyeModeLoc(-1),
                                  videoStereoscopicModeLoc(-1),
+                                 videoRoi(-1),
                                  meshAlphaLoc(-1),
                                  meshEyeModeLoc(-1),
                                  meshMatrixLoc(-1),
                                  meshOutsideLoc(-1),
                                  meshStereoscopicModeLoc(-1),
+                                 meshRoi(-1),
                                  EACAlphaLoc(-1),
                                  EACMatrixLoc(-1),
                                  EACScaleLoc(-1),
@@ -395,6 +399,7 @@ void LayerRenderer::initialize(double radius, double fov) {
     meshMatrixLoc = glGetUniformLocation(meshPrg->id(), "mvp");
     meshEyeModeLoc = glGetUniformLocation(meshPrg->id(), "eye");
     meshStereoscopicModeLoc = glGetUniformLocation(meshPrg->id(), "stereoscopicMode");
+    meshRoi = glGetUniformLocation(meshPrg->id(), "roi");
     meshAlphaLoc = glGetUniformLocation(meshPrg->id(), "alpha");
     meshOutsideLoc = glGetUniformLocation(meshPrg->id(), "outside");
     meshPrg->unbind();
@@ -417,6 +422,7 @@ void LayerRenderer::initialize(double radius, double fov) {
     glUniform1i(glGetUniformLocation(videoPrg->id(), "tex"), 0);
     videoEyeModeLoc = glGetUniformLocation(videoPrg->id(), "eye");
     videoStereoscopicModeLoc = glGetUniformLocation(videoPrg->id(), "stereoscopicMode");
+    videoRoi = glGetUniformLocation(videoPrg->id(), "roi");
     videoAlphaLoc = glGetUniformLocation(videoPrg->id(), "alpha");
     videoPrg->unbind();
 
@@ -533,6 +539,13 @@ void LayerRenderer::renderLayers(const sgct::RenderData &data, int viewMode, flo
                 glUniform1i(meshStereoscopicModeLoc, 0);
             }
 
+            if (layer->roiEnabled()) {
+                glUniform4fv(meshRoi, 1, glm::value_ptr(layer->roi()));
+            }
+            else {
+                glUniform4f(meshRoi, 0.f, 0.f, 1.f, 1.f);
+            }
+
             glUniform1f(meshAlphaLoc, layer->alpha());
 
             glUniformMatrix4fv(meshMatrixLoc, 1, GL_FALSE, &MVP_transformed_rot[0][0]);
@@ -575,6 +588,13 @@ void LayerRenderer::renderLayers(const sgct::RenderData &data, int viewMode, flo
                 glUniform1i(meshStereoscopicModeLoc, 0);
             }
 
+            if (layer->roiEnabled()) {
+                glUniform4fv(meshRoi, 1, glm::value_ptr(layer->roi()));
+            }
+            else {
+                glUniform4f(meshRoi, 0.f, 0.f, 1.f, 1.f);
+            }
+
             glUniform1f(meshAlphaLoc, layer->alpha());
 
             const sgct::mat4 mvp = data.modelViewProjectionMatrix;
@@ -602,6 +622,13 @@ void LayerRenderer::renderLayers(const sgct::RenderData &data, int viewMode, flo
             } else {
                 glUniform1i(meshEyeModeLoc, 0);
                 glUniform1i(meshStereoscopicModeLoc, 0);
+            }
+
+            if (layer->roiEnabled()) {
+                glUniform4fv(meshRoi, 1, glm::value_ptr(layer->roi()));
+            }
+            else {
+                glUniform4f(meshRoi, 0.f, 0.f, 1.f, 1.f);
             }
 
             glUniform1f(meshAlphaLoc, layer->alpha());
@@ -633,6 +660,13 @@ void LayerRenderer::renderLayers(const sgct::RenderData &data, int viewMode, flo
             } else {
                 glUniform1i(videoEyeModeLoc, 0);
                 glUniform1i(videoStereoscopicModeLoc, 0);
+            }
+
+            if (layer->roiEnabled()) {
+                glUniform4fv(videoRoi, 1, glm::value_ptr(layer->roi()));
+            }
+            else {
+                glUniform4f(videoRoi, 0.f, 0.f, 1.f, 1.f);
             }
 
             glUniform1f(videoAlphaLoc, layer->alpha());
