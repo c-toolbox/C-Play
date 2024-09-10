@@ -112,6 +112,8 @@ MpvObject::MpvObject(QQuickItem *parent)
     m_planeElevation = GridSettings::plane_Elevation_Degrees();
     m_planeDistance = GridSettings::plane_Distance_CM();
     m_planeConsiderAspectRatio = GridSettings::plane_Calculate_Size_Based_on_Video();
+    updatePlane();
+
     m_syncVolumeVisibilityFading = PlaybackSettings::syncVolumeVisibilityFading();
     m_autoPlay = PlaylistSettings::autoPlayOnLoad();
 
