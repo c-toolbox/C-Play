@@ -521,7 +521,6 @@ void postSyncPreDraw() {
         for (auto it = secondaryLayers.rbegin(); it != secondaryLayers.rend(); ++it) {
             (*it)->update();
             if ((*it)->ready() && ((*it)->alpha() > 0.f)) {
-                (*it)->setRotate(rotXYZ);
                 (*it)->setTranslate(translateXYZ);
                 layerRender->addLayer((*it));
             }

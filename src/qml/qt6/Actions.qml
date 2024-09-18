@@ -431,18 +431,21 @@ QtObject {
 
         property var qaction: app.action("slidePrevious")
 
+        enabled: qaction.enabled
         icon.name: qaction.iconName()
         shortcut: qaction.shortcutName()
         text: qaction.text
 
         Component.onCompleted: list["slidePreviousAction"] = slidePreviousAction
         onTriggered: {
-            if(app.slides.selectedSlideIdx === app.slides.triggeredSlideIdx){
-                app.slides.selectedSlideIdx = app.slides.selectedSlideIdx - 1;
-                app.slides.triggeredSlideIdx = app.slides.triggeredSlideIdx - 1;
-            }
-            else {
-                app.slides.triggeredSlideIdx = app.slides.selectedSlideIdx;
+            if(enabled){
+                if(app.slides.selectedSlideIdx === app.slides.triggeredSlideIdx){
+                    app.slides.selectedSlideIdx = app.slides.selectedSlideIdx - 1;
+                    app.slides.triggeredSlideIdx = app.slides.triggeredSlideIdx - 1;
+                }
+                else {
+                    app.slides.triggeredSlideIdx = app.slides.selectedSlideIdx;
+                }   
             }
         }
     }
@@ -451,18 +454,21 @@ QtObject {
 
         property var qaction: app.action("slideNext")
 
+        enabled: qaction.enabled
         icon.name: qaction.iconName()
         shortcut: qaction.shortcutName()
         text: qaction.text
 
         Component.onCompleted: list["slideNextAction"] = slideNextAction
         onTriggered: {
-            if(app.slides.selectedSlideIdx === app.slides.triggeredSlideIdx){
-                app.slides.selectedSlideIdx = app.slides.selectedSlideIdx + 1;
-                app.slides.triggeredSlideIdx = app.slides.triggeredSlideIdx + 1;
-            }
-            else {
-                app.slides.triggeredSlideIdx = app.slides.selectedSlideIdx;
+            if(enabled){
+                if(app.slides.selectedSlideIdx === app.slides.triggeredSlideIdx){
+                    app.slides.selectedSlideIdx = app.slides.selectedSlideIdx + 1;
+                    app.slides.triggeredSlideIdx = app.slides.triggeredSlideIdx + 1;
+                }
+                else {
+                    app.slides.triggeredSlideIdx = app.slides.selectedSlideIdx;
+                }
             }
         }
     }

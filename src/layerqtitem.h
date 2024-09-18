@@ -59,6 +59,9 @@ class LayerQtItem : public QQuickItem {
     Q_PROPERTY(int layerStereoMode READ layerStereoMode WRITE setLayerStereoMode NOTIFY layerValueChanged)
     Q_PROPERTY(int layerGridMode READ layerGridMode WRITE setLayerGridMode NOTIFY layerValueChanged)
     Q_PROPERTY(int layerVisibility READ layerVisibility WRITE setLayerVisibility NOTIFY layerValueChanged)
+    Q_PROPERTY(double layerRotatePitch READ layerRotatePitch WRITE setLayerRotatePitch NOTIFY layerValueChanged)
+    Q_PROPERTY(double layerRotateYaw READ layerRotateYaw WRITE setLayerRotateYaw NOTIFY layerValueChanged)
+    Q_PROPERTY(double layerRotateRoll READ layerRotateRoll WRITE setLayerRotateRoll NOTIFY layerValueChanged)
     Q_PROPERTY(double layerPlaneWidth READ layerPlaneWidth WRITE setLayerPlaneWidth NOTIFY layerValueChanged)
     Q_PROPERTY(double layerPlaneHeight READ layerPlaneHeight WRITE setLayerPlaneHeight NOTIFY layerValueChanged)
     Q_PROPERTY(int layerPlaneAspectRatio READ layerPlaneAspectRatio WRITE setLayerPlaneAspectRatio NOTIFY layerValueChanged)
@@ -91,6 +94,15 @@ public:
 
     int layerVisibility();
     void setLayerVisibility(int value);
+
+    double layerRotatePitch() const;
+    void setLayerRotatePitch(double x);
+
+    double layerRotateYaw() const;
+    void setLayerRotateYaw(double y);
+
+    double layerRotateRoll() const;
+    void setLayerRotateRoll(double z);
 
     double layerPlaneWidth() const;
     void setLayerPlaneWidth(double pW);

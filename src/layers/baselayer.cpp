@@ -123,6 +123,11 @@ void BaseLayer::encode(std::vector<std::byte> &data) {
         sgct::serializeObject(data, planeData.specifiedSize.y);
         sgct::serializeObject(data, planeData.aspectRatioConsideration);
     }
+    else {
+        sgct::serializeObject(data, renderData.rotate.x);
+        sgct::serializeObject(data, renderData.rotate.y);
+        sgct::serializeObject(data, renderData.rotate.z);
+    }
 }
 
 void BaseLayer::decode(const std::vector<std::byte> &data, unsigned int &pos) {
@@ -148,6 +153,11 @@ void BaseLayer::decode(const std::vector<std::byte> &data, unsigned int &pos) {
         sgct::deserializeObject(data, pos, planeData.specifiedSize.x);
         sgct::deserializeObject(data, pos, planeData.specifiedSize.y);
         sgct::deserializeObject(data, pos, planeData.aspectRatioConsideration);
+    }
+    else {
+        sgct::deserializeObject(data, pos, renderData.rotate.x);
+        sgct::deserializeObject(data, pos, renderData.rotate.y);
+        sgct::deserializeObject(data, pos, renderData.rotate.z);
     }
 
     // Marking as needSync means we need know update has occured, which we need to clear

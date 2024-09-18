@@ -87,6 +87,55 @@ void LayerQtItem::setLayerVisibility(int value) {
     }
 }
 
+double LayerQtItem::layerRotatePitch() const {
+    if (m_layer)
+        return m_layer->rotate().x;
+    else
+        return 0.0;
+}
+
+void LayerQtItem::setLayerRotatePitch(double x) {
+    if (m_layer) {
+        glm::vec3 rot = m_layer->rotate();
+        rot.x = x;
+        m_layer->setRotate(rot);
+        Q_EMIT layerValueChanged();
+    }
+}
+
+double LayerQtItem::layerRotateYaw() const {
+    if (m_layer)
+        return m_layer->rotate().y;
+    else
+        return 0.0;
+}
+
+void LayerQtItem::setLayerRotateYaw(double y)
+{
+    if (m_layer) {
+        glm::vec3 rot = m_layer->rotate();
+        rot.y = y;
+        m_layer->setRotate(rot);
+        Q_EMIT layerValueChanged();
+    }
+}
+
+double LayerQtItem::layerRotateRoll() const {
+    if (m_layer)
+        return m_layer->rotate().z;
+    else
+        return 0.0;
+}
+
+void LayerQtItem::setLayerRotateRoll(double z) {
+    if (m_layer) {
+        glm::vec3 rot = m_layer->rotate();
+        rot.z = z;
+        m_layer->setRotate(rot);
+        Q_EMIT layerValueChanged();
+    }
+}
+
 double LayerQtItem::layerPlaneWidth() const {
     if (m_layer)
         return m_layer->planeWidth();

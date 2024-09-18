@@ -52,9 +52,13 @@ Kirigami.BasicListItem {
 
         onFinished: {
             slidesView.enabled = true;
+            app.action("slidePrevious").enabled = true;
+            app.action("slideNext").enabled = true;
         }
         onStarted: {
             slidesView.enabled = false;
+            app.action("slidePrevious").enabled = false;
+            app.action("slideNext").enabled = false;
         }
     }
     RowLayout {
@@ -154,9 +158,13 @@ Kirigami.BasicListItem {
 
         onFinished: {
             slidesView.enabled = true;
+            app.action("slidePrevious").enabled = true;
+            app.action("slideNext").enabled = true;
         }
         onStarted: {
             slidesView.enabled = false;
+            app.action("slidePrevious").enabled = false;
+            app.action("slideNext").enabled = false;
         }
     }
 }
