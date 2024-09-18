@@ -636,10 +636,16 @@ void LayerRenderer::renderLayers(const sgct::RenderData &data, int viewMode, flo
             const sgct::mat4 mvp = data.projectionMatrix * data.viewMatrix;
 
             glm::mat4 planeTransform = glm::mat4(1.0f);
+
+            //Respect the dome angle
+            planeTransform = glm::rotate(planeTransform, glm::radians(-angle), glm::vec3(1.0f, 0.0f, 0.0f));
+
+            //Specifc plane parameters
             planeTransform = glm::rotate(planeTransform, glm::radians(float(layer->planeAzimuth())), glm::vec3(0.0f, -1.0f, 0.0f));  // azimuth
             planeTransform = glm::rotate(planeTransform, glm::radians(float(layer->planeElevation())), glm::vec3(1.0f, 0.0f, 0.0f)); // elevation
             planeTransform = glm::rotate(planeTransform, glm::radians(float(layer->planeRoll())), glm::vec3(0.0f, 0.0f, 1.0f));      // roll
             planeTransform = glm::translate(planeTransform, glm::vec3(0.0f, 0.0f, float(-layer->planeDistance()) / 100.f));          // distance
+            
             planeTransform = glm::make_mat4(mvp.values) * planeTransform;
             glUniformMatrix4fv(meshMatrixLoc, 1, GL_FALSE, &planeTransform[0][0]);
 

@@ -56,8 +56,8 @@ public:
     Q_INVOKABLE int selectedSlideIdx();
     Q_INVOKABLE void setSelectedSlideIdx(int value);
 
-    int previousSlideIdx();
-    int nextSlideIdx();
+    Q_INVOKABLE int previousSlideIdx();
+    Q_INVOKABLE int nextSlideIdx();
 
     Q_PROPERTY(int triggeredSlideIdx
                    READ triggeredSlideIdx

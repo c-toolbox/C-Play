@@ -138,9 +138,6 @@ Application::Application(int &argc, char **argv, const QString &applicationName)
 
     m_engine->load(url);
 #endif
-
-    if (!PresentationSettings::presentationToLoadOnStartup().isEmpty())
-        m_slidesModel->loadFromJSONFile(PresentationSettings::presentationToLoadOnStartup());
 }
 
 Application *Application::_instance = nullptr;
@@ -666,6 +663,20 @@ void Application::setupActions(const QString &actionName) {
         auto action = new HAction();
         action->setText(QStringLiteral("Toggle Header"));
         m_collection.setDefaultShortcut(action, QKeySequence(QStringLiteral("Ctrl+Shift+H")));
+        m_collection.addAction(actionName, action);
+    }
+    if (actionName == QStringLiteral("slidePrevious")) {
+        auto action = new HAction();
+        action->setText(QStringLiteral("Slide backwards/previous"));
+        action->setIcon(QIcon::fromTheme(QStringLiteral("go-previous")));
+        m_collection.setDefaultShortcut(action, QKeySequence(QKeySequence::MoveToPreviousChar));
+        m_collection.addAction(actionName, action);
+    }
+    if (actionName == QStringLiteral("slideNext")) {
+        auto action = new HAction();
+        action->setText(QStringLiteral("Slide forwards/next"));
+        action->setIcon(QIcon::fromTheme(QStringLiteral("go-next")));
+        m_collection.setDefaultShortcut(action, QKeySequence(QKeySequence::MoveToNextChar));
         m_collection.addAction(actionName, action);
     }
     m_collection.readSettings(m_shortcuts);

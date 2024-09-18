@@ -40,12 +40,6 @@ Kirigami.BasicListItem {
     onClicked: {}
     onDoubleClicked: {
         app.slides.triggeredSlideIdx = index;
-        if (app.slides.selected.layersVisibility === 100 && !visibility_fade_out_animation.running) {
-            visibility_fade_out_animation.start();
-        }
-        if (app.slides.selected.layersVisibility === 0 && !visibility_fade_in_animation.running) {
-            visibility_fade_in_animation.start();
-        }
     }
 
     PropertyAnimation {
@@ -137,6 +131,15 @@ Kirigami.BasicListItem {
     Connections {
         function onSelectedSlideChanged() {
             visibilitySlider.value = app.slides.selected.layersVisibility;
+        }
+
+        function onTriggeredSlideChanged() {
+            if (app.slides.selected.layersVisibility === 100 && !visibility_fade_out_animation.running) {
+                visibility_fade_out_animation.start();
+            }
+            if (app.slides.selected.layersVisibility === 0 && !visibility_fade_in_animation.running) {
+                visibility_fade_in_animation.start();
+            }
         }
 
         target: app.slides

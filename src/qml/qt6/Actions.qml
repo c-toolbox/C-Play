@@ -426,6 +426,46 @@ QtObject {
             }
         }
     }
+    property Action slidePreviousAction: Action {
+        id: slidePreviousAction
+
+        property var qaction: app.action("slidePrevious")
+
+        icon.name: qaction.iconName()
+        shortcut: qaction.shortcutName()
+        text: qaction.text
+
+        Component.onCompleted: list["slidePreviousAction"] = slidePreviousAction
+        onTriggered: {
+            if(app.slides.selectedSlideIdx === app.slides.triggeredSlideIdx){
+                app.slides.selectedSlideIdx = app.slides.selectedSlideIdx - 1;
+                app.slides.triggeredSlideIdx = app.slides.triggeredSlideIdx - 1;
+            }
+            else {
+                app.slides.triggeredSlideIdx = app.slides.selectedSlideIdx;
+            }
+        }
+    }
+    property Action slideNextAction: Action {
+        id: slideNextAction
+
+        property var qaction: app.action("slideNext")
+
+        icon.name: qaction.iconName()
+        shortcut: qaction.shortcutName()
+        text: qaction.text
+
+        Component.onCompleted: list["slideNextAction"] = slideNextAction
+        onTriggered: {
+            if(app.slides.selectedSlideIdx === app.slides.triggeredSlideIdx){
+                app.slides.selectedSlideIdx = app.slides.selectedSlideIdx + 1;
+                app.slides.triggeredSlideIdx = app.slides.triggeredSlideIdx + 1;
+            }
+            else {
+                app.slides.triggeredSlideIdx = app.slides.selectedSlideIdx;
+            }
+        }
+    }
     property Action visibilityFadeDownAction: Action {
         id: visibilityFadeDownAction
 

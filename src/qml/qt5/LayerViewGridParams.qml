@@ -22,16 +22,16 @@ Kirigami.ApplicationWindow {
         planeWidthBox.value = layerView.layerItem.layerPlaneWidth;
         planeHeightBox.value = layerView.layerItem.layerPlaneHeight;
         planeDistanceBox.value = layerView.layerItem.layerPlaneDistance;
-        planeElevationBox.value = layerView.layerItem.layerPlaneElevation;
-        planeAzimuthBox.value = layerView.layerItem.layerPlaneAzimuth;
-        planeRollBox.value = layerView.layerItem.layerPlaneRoll;
+        planeElevationSpinBox.value = layerView.layerItem.layerPlaneElevation*100;
+        planeAzimuthSpinBox.value = layerView.layerItem.layerPlaneAzimuth*100;
+        planeRollSpinBox.value = layerView.layerItem.layerPlaneRoll*100;
     }
 
     color: Kirigami.Theme.alternateBackgroundColor
-    height: 300
+    height: 320
     title: qsTr("Layer Grid Parameters")
     visible: false
-    width: 300
+    width: 400
 
     Component.onCompleted: {
         if (window.x > width) {
@@ -116,6 +116,7 @@ Kirigami.ApplicationWindow {
             // ------------------------------------
             Label {
                 text: qsTr("Determine plane size based on:")
+                Layout.alignment: Qt.AlignRight
             }
             ComboBox {
                 id: planeSizeBasedOnComboBox
@@ -155,6 +156,7 @@ Kirigami.ApplicationWindow {
             }
             Label {
                 text: qsTr("Plane width:")
+                Layout.alignment: Qt.AlignRight
             }
             RowLayout {
                 Layout.columnSpan: 2
@@ -166,7 +168,6 @@ Kirigami.ApplicationWindow {
                     from: 0
                     stepSize: 1
                     to: 2000
-                    value: layerView.layerItem.layerPlaneWidth
 
                     onValueChanged: layerView.layerItem.layerPlaneWidth = value
                 }
@@ -180,6 +181,7 @@ Kirigami.ApplicationWindow {
             }
             Label {
                 text: qsTr("Plane height:")
+                Layout.alignment: Qt.AlignRight
             }
             RowLayout {
                 Layout.columnSpan: 2
@@ -191,7 +193,6 @@ Kirigami.ApplicationWindow {
                     from: 0
                     stepSize: 1
                     to: 2000
-                    value: layerView.layerItem.layerPlaneHeight
 
                     onValueChanged: layerView.layerItem.layerPlaneHeight = value
                 }
@@ -205,6 +206,7 @@ Kirigami.ApplicationWindow {
             }
             Label {
                 text: qsTr("Plane distance:")
+                Layout.alignment: Qt.AlignRight
             }
             RowLayout {
                 Layout.columnSpan: 2
@@ -215,7 +217,6 @@ Kirigami.ApplicationWindow {
                     from: 0
                     stepSize: 1
                     to: 2000
-                    value: layerView.layerItem.layerPlaneDistance
 
                     onValueChanged: layerView.layerItem.layerPlaneDistance = value
                 }
@@ -230,19 +231,39 @@ Kirigami.ApplicationWindow {
             }
             Label {
                 text: qsTr("Plane elevation:")
+                Layout.alignment: Qt.AlignRight
             }
             RowLayout {
                 Layout.columnSpan: 2
 
                 SpinBox {
-                    id: planeElevationBox
+                    id: planeElevationSpinBox
 
-                    from: -180
-                    to: 180
-                    value: layerView.layerItem.layerPlaneElevation
+                    property int decimals: 2
+                    property real realValue: value / 100
 
-                    onValueChanged: layerView.layerItem.layerPlaneElevation = value
+                    from: -18000
+                    stepSize: 10
+                    textFromValue: function (value, locale) {
+                        return Number(value / 100).toLocaleString(locale, 'f', planeElevationSpinBox.decimals);
+                    }
+                    to: 18000
+                    value: layerView.layerItem.layerPlaneElevation * 100
+                    valueFromText: function (text, locale) {
+                        return Number.fromLocaleString(locale, text) * 100;
+                    }
+
+                    validator: DoubleValidator {
+                        bottom: Math.min(planeElevationSpinBox.from, planeElevationSpinBox.to)
+                        top: Math.max(planeElevationSpinBox.from, planeElevationSpinBox.to)
+                    }
+
+                    onValueModified: {
+                        layerView.layerItem.layerPlaneElevation = realValue;
+                        planeElevationSlider.value = value;
+                    }
                 }
+
                 Label {
                     Layout.alignment: Qt.AlignLeft
                     Layout.fillWidth: true
@@ -250,54 +271,208 @@ Kirigami.ApplicationWindow {
                         qsTr("degrees");
                     }
                 }
+
+                Slider {
+                    id: planeElevationSlider
+
+                    Layout.topMargin: Kirigami.Units.largeSpacing
+
+                    implicitWidth: 180
+                    from: -18000
+                    to: 18000
+                    value: layerView.layerItem.layerPlaneElevation * 100
+
+                    onMoved: {
+                        planeElevationSpinBox.value = value.toFixed(0);
+                        layerView.layerItem.layerPlaneElevation = planeElevationSpinBox.realValue;
+                    }
+
+                    MouseArea {
+                        acceptedButtons: Qt.MiddleButton
+                        anchors.fill: parent
+
+                        onClicked: layerView.layerItem.layerPlaneElevation = 0
+                    }
+
+                    Layout.fillWidth: true
+                }
+
+                Connections {
+                    function onLayerValueChanged() {
+                        if (planeElevationSpinBox.realValue !== layerView.layerItem.layerPlaneElevation)
+                            planeElevationSpinBox.value = layerView.layerItem.layerPlaneElevation * 100;
+                    }
+
+                    target: layerView.layerItem
+                }
             }
+
             Label {
                 text: qsTr("Plane azimuth:")
+                Layout.alignment: Qt.AlignRight
             }
             RowLayout {
                 Layout.columnSpan: 2
 
                 SpinBox {
-                    id: planeAzimuthBox
+                    id: planeAzimuthSpinBox
 
-                    from: -180
-                    to: 180
-                    value: layerView.layerItem.layerPlaneAzimuth
+                    property int decimals: 2
+                    property real realValue: value / 100
 
-                    onValueChanged: layerView.layerItem.layerPlaneAzimuth = value
+                    from: -18000
+                    stepSize: 10
+                    textFromValue: function (value, locale) {
+                        return Number(value / 100).toLocaleString(locale, 'f', planeAzimuthSpinBox.decimals);
+                    }
+                    to: 18000
+                    value: layerView.layerItem.layerPlaneAzimuth * 100
+                    valueFromText: function (text, locale) {
+                        return Number.fromLocaleString(locale, text) * 100;
+                    }
+
+                    validator: DoubleValidator {
+                        bottom: Math.min(planeAzimuthSpinBox.from, planeAzimuthSpinBox.to)
+                        top: Math.max(planeAzimuthSpinBox.from, planeAzimuthSpinBox.to)
+                    }
+
+                    onValueModified: {
+                        layerView.layerItem.layerPlaneAzimuth = realValue;
+                        planeAzimuthSlider.value = value;
+                    }
                 }
+
                 Label {
                     Layout.alignment: Qt.AlignLeft
                     Layout.fillWidth: true
-                    elide: Text.ElideLeft
                     text: {
                         qsTr("degrees");
                     }
                 }
+
+                Slider {
+                    id: planeAzimuthSlider
+
+                    Layout.topMargin: Kirigami.Units.largeSpacing
+
+                    implicitWidth: 180
+                    from: -18000
+                    to: 18000
+                    value: layerView.layerItem.layerPlaneAzimuth * 100
+
+                    onMoved: {
+                        planeAzimuthSpinBox.value = value.toFixed(0);
+                        layerView.layerItem.layerPlaneAzimuth = planeAzimuthSpinBox.realValue;
+                    }
+
+                    MouseArea {
+                        acceptedButtons: Qt.MiddleButton
+                        anchors.fill: parent
+
+                        onClicked: layerView.layerItem.layerPlaneAzimuth = 0
+                    }
+
+                    Layout.fillWidth: true
+                }
+
+                Connections {
+                    function onLayerValueChanged() {
+                        if (planeAzimuthSpinBox.realValue !== layerView.layerItem.layerPlaneAzimuth)
+                            planeAzimuthSpinBox.value = layerView.layerItem.layerPlaneAzimuth * 100;
+                    }
+
+                    target: layerView.layerItem
+                }
             }
+
             Label {
                 text: qsTr("Plane roll:")
+                Layout.alignment: Qt.AlignRight
             }
             RowLayout {
                 Layout.columnSpan: 2
 
                 SpinBox {
-                    id: planeRollBox
+                    id: planeRollSpinBox
 
-                    from: -180
-                    to: 180
-                    value: layerView.layerItem.layerPlaneRoll
+                    property int decimals: 2
+                    property real realValue: value / 100
 
-                    onValueChanged: layerView.layerItem.layerPlaneRoll = value
+                    from: -18000
+                    stepSize: 10
+                    textFromValue: function (value, locale) {
+                        return Number(value / 100).toLocaleString(locale, 'f', planeRollSpinBox.decimals);
+                    }
+                    to: 18000
+                    value: layerView.layerItem.layerPlaneRoll * 100
+                    valueFromText: function (text, locale) {
+                        return Number.fromLocaleString(locale, text) * 100;
+                    }
+
+                    validator: DoubleValidator {
+                        bottom: Math.min(planeRollSpinBox.from, planeRollSpinBox.to)
+                        top: Math.max(planeRollSpinBox.from, planeRollSpinBox.to)
+                    }
+
+                    onValueModified: {
+                        layerView.layerItem.layerPlaneRoll = realValue;
+                        planeRollSlider.value = value;
+                    }
                 }
+
                 Label {
                     Layout.alignment: Qt.AlignLeft
                     Layout.fillWidth: true
-                    elide: Text.ElideLeft
                     text: {
                         qsTr("degrees");
                     }
                 }
+
+                Slider {
+                    id: planeRollSlider
+
+                    Layout.topMargin: Kirigami.Units.largeSpacing
+
+                    implicitWidth: 180
+                    from: -18000
+                    to: 18000
+                    value: layerView.layerItem.layerPlaneRoll * 100
+
+                    onMoved: {
+                        planeRollSpinBox.value = value.toFixed(0);
+                        layerView.layerItem.layerPlaneRoll = planeRollSpinBox.realValue;
+                    }
+
+                    MouseArea {
+                        acceptedButtons: Qt.MiddleButton
+                        anchors.fill: parent
+
+                        onClicked: layerView.layerItem.layerPlaneRoll = 0
+                    }
+
+                    Layout.fillWidth: true
+                }
+
+                Connections {
+                    function onLayerValueChanged() {
+                        if (planeRollSpinBox.realValue !== layerView.layerItem.layerPlaneRoll)
+                            planeRollSpinBox.value = layerView.layerItem.layerPlaneRoll * 100;
+                    }
+
+                    target: layerView.layerItem
+                }
+            }
+            Item {
+                height: 1
+                width: 1
+            }
+            Label {
+                Layout.topMargin: Kirigami.Units.largeSpacing
+                text: qsTr("Middle click on the sliders to reset them")
+                horizontalAlignment: Text.AlignHCenter
+                verticalAlignment: Text.AlignVCenter
+                Layout.fillWidth: true
+                Layout.columnSpan: 2
             }
         }
         GridLayout {

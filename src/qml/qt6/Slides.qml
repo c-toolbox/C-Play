@@ -185,6 +185,7 @@ Rectangle {
             app.slides.loadFromJSONFile(openCPlayPresentationDialog.file.toString());
             slidesView.currentIndex = -1;
             mpv.focus = true;
+            syncAfterLoad.start();
         }
         onRejected: mpv.focus = true
     }
@@ -383,11 +384,26 @@ Rectangle {
             spacing: 1
 
             Component.onCompleted: {
+                if (PresentationSettings.presentationToLoadOnStartup !== "") {
+                    app.slides.loadFromJSONFile(PresentationSettings.presentationToLoadOnStartup);
+                    syncAfterLoad.start();
+                }
+
                 slidesView.currentIndex = -1;
             }
             onCurrentIndexChanged: {
-                app.slides.selectedSlideIdx = slidesView.currentIndex;
+                if(app.slides.selectedSlideIdx !== slidesView.currentIndex)
+                    app.slides.selectedSlideIdx = slidesView.currentIndex;
+
                 layers.layersView.currentIndex = -1;
+            }
+
+            Connections {
+                function onSelectedSlideChanged() {
+                    slidesView.currentIndex = app.slides.selectedSlideIdx;
+                }
+
+                target: app.slides
             }
         }
     }
@@ -406,6 +422,15 @@ Rectangle {
 
         onTriggered: {
             scrollPositionTimer.stop();
+        }
+    }
+    Timer {
+        id: syncAfterLoad
+
+        interval: 1000
+
+        onTriggered: {
+            app.slides.needsSync = true;
         }
     }
 }

@@ -167,6 +167,10 @@ ItemDelegate {
         }
     }
     Connections {
+        function onLayerChanged() {
+            if (visibilitySlider.value !== layerView.layerItem.layerVisibility)
+                visibilitySlider.value = layerView.layerItem.layerVisibility;
+        }
         function onLayerValueChanged() {
             if (visibilitySlider.value !== layerView.layerItem.layerVisibility)
                 visibilitySlider.value = layerView.layerItem.layerVisibility;

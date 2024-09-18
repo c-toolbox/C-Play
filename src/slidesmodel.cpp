@@ -349,6 +349,7 @@ void SlidesModel::loadFromJSONFile(const QString &path) {
     setSlidesPath(jsonFileInfo.absoluteFilePath());
     setSlidesName(jsonFileInfo.baseName());
     setSlidesNeedsSave(false);
+    m_needsSync = true;
 }
 
 void SlidesModel::saveAsJSONFile(const QString &path) {
