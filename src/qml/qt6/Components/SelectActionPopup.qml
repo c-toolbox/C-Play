@@ -78,6 +78,7 @@ Popup {
             Layout.alignment: Qt.AlignTop
             Layout.fillHeight: true
             Layout.fillWidth: true
+            clip: true
 
             ListView {
                 id: actionsListView

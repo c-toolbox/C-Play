@@ -79,6 +79,14 @@ bool BaseLayer::ready() {
     return false;
 }
 
+void BaseLayer::start() {
+    // Overwrite in subclasses
+}
+
+void BaseLayer::stop() {
+    // Overwrite in subclasses
+}
+
 uint32_t BaseLayer::identifier() const {
     return m_identifier;
 }

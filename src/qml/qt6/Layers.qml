@@ -331,6 +331,7 @@ Rectangle {
         ScrollBar.horizontal.policy: ScrollBar.AlwaysOff
         anchors.fill: parent
         anchors.topMargin: layersHeader.height + 5
+        clip: true
         z: 20
 
         ListView {

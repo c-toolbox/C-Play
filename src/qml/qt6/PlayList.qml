@@ -433,6 +433,7 @@ Rectangle {
         ScrollBar.horizontal.policy: ScrollBar.AlwaysOff
         anchors.fill: parent
         anchors.topMargin: playListHeader.height + 5
+        clip: true
         z: 20
 
         ListView {

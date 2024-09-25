@@ -114,6 +114,17 @@ public:
     Q_INVOKABLE void setLayersNeedsSave(bool value);
     Q_INVOKABLE bool getLayersNeedsSave();
 
+    Q_PROPERTY(int layerToCopy
+        READ getLayerToCopyIdx
+        WRITE setLayerToCopyIdx
+        NOTIFY layerToCopyIdxChanged)
+
+    Q_INVOKABLE void setLayerToCopyIdx(int value);
+    Q_INVOKABLE int getLayerToCopyIdx();
+    BaseLayer* getLayerToCopy();
+    void addCopyOfLayer(BaseLayer* srcLayer);
+    void overwriteLayerProperties(BaseLayer* srcLayer, int dstLayerIdx);
+
     LayersTypeModel *layersTypeModel();
 
     Q_PROPERTY(QString layersName
@@ -149,6 +160,7 @@ Q_SIGNALS:
     void layersVisibilityChanged();
     void layersNeedsSaveChanged();
     void layersNameChanged();
+    void layerToCopyIdxChanged();
 #ifdef NDI_SUPPORT
     void ndiSendersModelChanged();
 #endif
@@ -160,6 +172,7 @@ private:
     NDISendersModel *m_ndiSendersModel;
 #endif
     int m_layersVisibility = 0;
+    int m_layerToCopyIdx = -1;
     bool m_layersNeedsSave = false;
     bool m_needsSync;
     QString m_layersName;

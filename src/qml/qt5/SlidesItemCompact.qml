@@ -42,6 +42,14 @@ Kirigami.BasicListItem {
         app.slides.triggeredSlideIdx = index;
     }
 
+    Menu {
+        id: pasteLayerMenu
+        MenuItem { 
+            action: actions.layerPasteAction 
+            visible: actions.layerPasteAction.enabled
+        }
+    }
+
     PropertyAnimation {
         id: visibility_fade_out_animation
 
@@ -61,74 +69,95 @@ Kirigami.BasicListItem {
             app.action("slideNext").enabled = false;
         }
     }
-    RowLayout {
-        Label {
-            id: slideNum
 
-            font.pointSize: 9
-            text: slideNumText()
+    MouseArea {
+        id: slidesIC_MA
+        implicitHeight: parent.height
+        implicitWidth: parent.width
+        acceptedButtons: Qt.RightButton
+        onClicked: {
+            pasteLayerMenu.popup();
+            app.slides.slideToPaste = index;
         }
-        Label {
-            id: slideNameLbl
 
-            font.pointSize: 9
-            text: model.name
-            visible: slidesView.currentIndex !== index
-        }
-        TextInput {
-            id: slideNameField
-
-            color: Kirigami.Theme.textColor
-            font.pointSize: 9
-            maximumLength: 12
-            text: model.name
-            visible: slidesView.currentIndex === index
-
-            onEditingFinished: {
-                app.slides.selected.layersName = slideNameField.text;
-                app.slides.updateSelectedSlide();
-            }
-        }
-        Item {
-            Layout.fillHeight: true
-            // spacer item
-            Layout.fillWidth: true
-        }
-    }
-    Label {
-        id: numLayers
-
-        font.pointSize: 9
-        text: model.layers + (model.layers === 1 ? " layer " : " layers")
-    }
-    Item {
-        implicitWidth: 50
-        visible: slidesView.currentIndex !== index
-
-        Label {
+        Row {
             anchors.fill: parent
-            horizontalAlignment: Text.AlignHCenter
-            text: model.visibility + "%"
-            verticalAlignment: Text.AlignVCenter
-        }
-    }
-    VisibilitySlider {
-        id: visibilitySlider
 
-        enabled: false
-        implicitWidth: 50
-        overlayLabel: qsTr("")
-        visible: slidesView.currentIndex === index
+            RowLayout {
+                Label {
+                    id: slideNum
 
-        onValueChanged: {
-            if (!slidesView.enabled) {
-                if (value.toFixed(0) !== app.slides.triggeredSlideVisibility) {
-                    app.slides.triggeredSlideVisibility = value.toFixed(0);
+                    font.pointSize: 9
+                    text: slideNumText()
                 }
-                if (value.toFixed(0) !== layerView.layerItem.layerVisibility) {
-                    layerView.layerItem.layerVisibility = value.toFixed(0);
+                Label {
+                    id: slideNameLbl
+
+                    font.pointSize: 9
+                    text: model.name
+                    visible: slidesView.currentIndex !== index
                 }
-                app.slides.updateSelectedSlide();
+                TextInput {
+                    id: slideNameField
+
+                    color: Kirigami.Theme.textColor
+                    font.pointSize: 9
+                    maximumLength: 12
+                    text: model.name
+                    visible: slidesView.currentIndex === index
+
+                    onEditingFinished: {
+                        app.slides.selected.layersName = slideNameField.text;
+                        app.slides.updateSelectedSlide();
+                    }
+                }
+                Item {
+                    Layout.fillHeight: true
+                    // spacer item
+                    Layout.fillWidth: true
+                }
+            }
+            Label {
+                id: numLayers
+                font.pointSize: 9
+                text: model.layers + (model.layers === 1 ? " layer " : " layers")
+                anchors.right: parent.right
+                anchors.rightMargin: 70
+            }
+            Item {
+                implicitWidth: 50
+                anchors.right: parent.right
+                anchors.rightMargin: -7
+                visible: slidesView.currentIndex !== index
+
+                Label {
+                    horizontalAlignment: Text.AlignHCenter
+                    text: model.visibility + "%"
+                    verticalAlignment: Text.AlignVCenter
+                }
+            }
+            VisibilitySlider {
+                id: visibilitySlider
+
+                enabled: false
+                implicitWidth: 50
+                implicitHeight: parent.height
+                overlayLabel: qsTr("")
+                anchors.right: parent.right
+                anchors.rightMargin: 10
+                visible: slidesView.currentIndex === index
+
+                onValueChanged: {
+                    if (!slidesView.enabled) {
+                        if (value.toFixed(0) !== app.slides.triggeredSlideVisibility) {
+                            app.slides.triggeredSlideVisibility = value.toFixed(0);
+                        }
+                        if (value.toFixed(0) !== layerView.layerItem.layerVisibility) {
+                            layerView.layerItem.layerVisibility = value.toFixed(0);
+                        }
+                        app.slides.updateSelectedSlide();
+                    }
+                }
             }
         }
     }

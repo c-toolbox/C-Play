@@ -54,76 +54,96 @@ ItemDelegate {
             return Kirigami.Theme.backgroundColor;
         }
     }
+    
+    Menu {
+        id: pasteLayerMenu
+        MenuItem { 
+            action: actions.layerPasteAction 
+            visible: actions.layerPasteAction.enabled
+        }
+    }
+    
     contentItem: Rectangle {
         color: "transparent"
         implicitHeight: 50
         implicitWidth: root.width
 
-        Kirigami.IconTitleSubtitle {
-            id: its
-
-            anchors.bottomMargin: 15
-            anchors.fill: parent
-            color: root.hovered || root.highlighted ? Kirigami.Theme.highlightedTextColor : Kirigami.Theme.textColor
-            icon.color: color
-            icon.name: iconName
-            icon.width: iconWidth
-            implicitHeight: 50
-            selected: root.down
-            subtitle: subText()
-            title: (slidesView.currentIndex === index ? slideNumText() : slideNumText() + model.name)
-        }
-        TextInput {
-            id: slideNameField
-
-            anchors.left: its.left
-            anchors.leftMargin: 12
-            anchors.top: parent.top
-            anchors.topMargin: 3
-            color: Kirigami.Theme.textColor
-            font.pointSize: 9
-            maximumLength: 12
-            text: model.name
-            visible: slidesView.currentIndex === index
-
-            onEditingFinished: {
-                app.slides.selected.layersName = slideNameField.text;
-                app.slides.updateSelectedSlide();
+        MouseArea {
+            id: slideIC_MA
+            implicitHeight: parent.height
+            implicitWidth: parent.width
+            acceptedButtons: Qt.RightButton
+            onClicked: {
+                pasteLayerMenu.popup();
+                app.slides.slideToPaste = index;
             }
-        }
-        VisibilitySlider {
-            id: visibilitySlider
 
-            anchors.bottom: parent.bottom
-            anchors.right: its.right
-            enabled: false
-            implicitWidth: 100
-            overlayLabel: qsTr("")
-            visible: slidesView.currentIndex === index
+            Kirigami.IconTitleSubtitle {
+                id: its
 
-            onValueChanged: {
-                if (!slidesView.enabled) {
-                    if (value.toFixed(0) !== app.slides.triggeredSlideVisibility) {
-                        app.slides.triggeredSlideVisibility = value.toFixed(0);
-                    }
-                    if (value.toFixed(0) !== layerView.layerItem.layerVisibility) {
-                        layerView.layerItem.layerVisibility = value.toFixed(0);
-                    }
+                anchors.bottomMargin: 15
+                anchors.fill: parent
+                color: root.hovered || root.highlighted ? Kirigami.Theme.highlightedTextColor : Kirigami.Theme.textColor
+                icon.color: color
+                icon.name: iconName
+                icon.width: iconWidth
+                implicitHeight: 50
+                selected: root.down
+                subtitle: subText()
+                title: (slidesView.currentIndex === index ? slideNumText() : slideNumText() + model.name)
+            }
+            TextInput {
+                id: slideNameField
+
+                anchors.left: its.left
+                anchors.leftMargin: 12
+                anchors.top: parent.top
+                anchors.topMargin: 3
+                color: Kirigami.Theme.textColor
+                font.pointSize: 9
+                maximumLength: 12
+                text: model.name
+                visible: slidesView.currentIndex === index
+
+                onEditingFinished: {
+                    app.slides.selected.layersName = slideNameField.text;
                     app.slides.updateSelectedSlide();
                 }
             }
-        }
-        Item {
-            anchors.bottom: parent.bottom
-            anchors.right: its.right
-            implicitHeight: 20
-            implicitWidth: 100
-            visible: slidesView.currentIndex !== index
+            VisibilitySlider {
+                id: visibilitySlider
 
-            Label {
-                anchors.fill: parent
-                horizontalAlignment: Text.AlignHCenter
-                text: model.visibility + "%"
+                anchors.bottom: parent.bottom
+                anchors.right: its.right
+                enabled: false
+                implicitWidth: 100
+                overlayLabel: qsTr("")
+                visible: slidesView.currentIndex === index
+
+                onValueChanged: {
+                    if (!slidesView.enabled) {
+                        if (value.toFixed(0) !== app.slides.triggeredSlideVisibility) {
+                            app.slides.triggeredSlideVisibility = value.toFixed(0);
+                        }
+                        if (value.toFixed(0) !== layerView.layerItem.layerVisibility) {
+                            layerView.layerItem.layerVisibility = value.toFixed(0);
+                        }
+                        app.slides.updateSelectedSlide();
+                    }
+                }
+            }
+            Item {
+                anchors.bottom: parent.bottom
+                anchors.right: its.right
+                implicitHeight: 20
+                implicitWidth: 100
+                visible: slidesView.currentIndex !== index
+
+                Label {
+                    anchors.fill: parent
+                    horizontalAlignment: Text.AlignHCenter
+                    text: model.visibility + "%"
+                }
             }
         }
     }

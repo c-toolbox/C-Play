@@ -679,6 +679,29 @@ void Application::setupActions(const QString &actionName) {
         m_collection.setDefaultShortcut(action, QKeySequence(QKeySequence::MoveToNextChar));
         m_collection.addAction(actionName, action);
     }
+    if (actionName == QStringLiteral("layerCopy")) {
+        auto action = new HAction();
+        action->setText(QStringLiteral("Copy Layer"));
+        action->setIcon(QIcon::fromTheme(QStringLiteral("edit-copy")));
+        m_collection.setDefaultShortcut(action, QKeySequence(QStringLiteral("Ctrl+C")));
+        m_collection.addAction(actionName, action);
+    }
+    if (actionName == QStringLiteral("layerPaste")) {
+        auto action = new HAction();
+        action->setText(QStringLiteral("Paste Layer"));
+        action->setIcon(QIcon::fromTheme(QStringLiteral("edit-paste")));
+        action->setEnabled(false);
+        m_collection.setDefaultShortcut(action, QKeySequence(QStringLiteral("Ctrl+V")));
+        m_collection.addAction(actionName, action);
+    }
+    if (actionName == QStringLiteral("layerPasteProperties")) {
+        auto action = new HAction();
+        action->setText(QStringLiteral("Paste Properties onto Layer"));
+        action->setIcon(QIcon::fromTheme(QStringLiteral("edit-paste")));
+        action->setEnabled(false);
+        m_collection.setDefaultShortcut(action, QKeySequence(QStringLiteral("Ctrl+Shift+V")));
+        m_collection.addAction(actionName, action);
+    }
     m_collection.readSettings(m_shortcuts);
 }
 

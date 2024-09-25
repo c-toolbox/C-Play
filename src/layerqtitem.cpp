@@ -83,6 +83,17 @@ int LayerQtItem::layerVisibility() {
 void LayerQtItem::setLayerVisibility(int value) {
     if (m_layer) {
         m_layer->setAlpha(static_cast<float>(value) * 0.01f);
+
+        // Control start/stop with Visibility
+        if (m_layer->ready()) {
+            if (value > 0) {
+                m_layer->start();
+            }
+            else {
+                m_layer->stop();
+            }
+        }
+
         Q_EMIT layerValueChanged();
     }
 }

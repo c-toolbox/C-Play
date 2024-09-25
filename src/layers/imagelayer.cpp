@@ -30,6 +30,14 @@ bool ImageLayer::ready() {
     return !imageData.filename.empty() && imageData.trd == nullptr;
 }
 
+void ImageLayer::start() {
+
+}
+
+void ImageLayer::stop() {
+
+}
+
 bool ImageLayer::processImageUpload(std::string filename, bool forceUpdate) {
     handleAsyncImageUpload();
 

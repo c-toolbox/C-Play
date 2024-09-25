@@ -426,6 +426,59 @@ QtObject {
             }
         }
     }
+    property Action layerCopyAction: Action {
+        id: layerCopyAction
+
+        property var qaction: app.action("layerCopy")
+
+        enabled: qaction.enabled
+        icon.name: qaction.iconName()
+        shortcut: qaction.shortcutName()
+        text: qaction.text
+
+        Component.onCompleted: list["layerCopyAction"] = layerCopyAction
+        onTriggered: {
+            if(enabled){
+                app.slides.copyLayer();
+                app.action("layerPaste").enabled = true;
+                app.action("layerPasteProperties").enabled = true;
+            }
+        }
+    }
+    property Action layerPasteAction: Action {
+        id: layerPasteAction
+
+        property var qaction: app.action("layerPaste")
+
+        enabled: qaction.enabled
+        icon.name: qaction.iconName()
+        shortcut: qaction.shortcutName()
+        text: qaction.text
+
+        Component.onCompleted: list["layerPasteAction"] = layerPasteAction
+        onTriggered: {
+            if(enabled){
+                app.slides.pasteLayer();
+            }
+        }
+    }
+    property Action layerPastePropertiesAction: Action {
+        id: layerPastePropertiesAction
+
+        property var qaction: app.action("layerPasteProperties")
+
+        enabled: qaction.enabled
+        icon.name: qaction.iconName()
+        shortcut: qaction.shortcutName()
+        text: qaction.text
+
+        Component.onCompleted: list["layerPastePropertiesAction"] = layerPastePropertiesAction
+        onTriggered: {
+            if(enabled){
+                app.slides.pasteLayerAsProperties(app.slides.selected.layerToCopy);
+            }
+        }
+    }
     property Action slidePreviousAction: Action {
         id: slidePreviousAction
 

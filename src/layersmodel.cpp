@@ -255,6 +255,70 @@ bool LayersModel::getLayersNeedsSave() {
     return m_layersNeedsSave;
 }
 
+void LayersModel::setLayerToCopyIdx(int value) {
+    m_layerToCopyIdx = value;
+}
+
+int LayersModel::getLayerToCopyIdx() {
+    return m_layerToCopyIdx;
+}
+
+BaseLayer* LayersModel::getLayerToCopy() {
+    if (m_layerToCopyIdx >= 0 && m_layerToCopyIdx < m_layers.size())
+        return m_layers[m_layerToCopyIdx];
+
+    return nullptr;
+}
+
+void LayersModel::addCopyOfLayer(BaseLayer* srcLayer) {
+    if (srcLayer == nullptr)
+        return;
+
+    beginInsertRows(QModelIndex(), m_layers.size(), m_layers.size());
+
+    // Create new layer
+    BaseLayer* newLayer = BaseLayer::createLayer(srcLayer->type(), get_proc_address_qopengl, srcLayer->title());
+
+    if (newLayer) {
+        newLayer->setTitle(srcLayer->title());
+        newLayer->setFilePath(srcLayer->filepath());
+
+        std::vector<std::byte> data;
+        srcLayer->encode(data);
+
+        unsigned int pos = 0;
+        newLayer->decode(data, pos);
+
+        m_layers.push_back(newLayer);
+        setLayersNeedsSave(true);
+        m_needsSync = true;
+    }
+
+    endInsertRows();
+}
+
+void LayersModel::overwriteLayerProperties(BaseLayer* srcLayer, int dstLayerIdx) {
+    if (srcLayer == nullptr)
+        return;
+
+    if (dstLayerIdx < 0 || dstLayerIdx >= m_layers.size())
+        return;
+
+    std::string title = m_layers[dstLayerIdx]->title();
+    std::string filePath = m_layers[dstLayerIdx]->filepath();
+
+    std::vector<std::byte> data;
+    srcLayer->encode(data);
+
+    unsigned int pos = 0;
+    m_layers[dstLayerIdx]->decode(data, pos);
+
+    m_layers[dstLayerIdx]->setTitle(title);
+    m_layers[dstLayerIdx]->setFilePath(filePath);
+
+    updateLayer(dstLayerIdx);
+}
+
 LayersTypeModel *LayersModel::layersTypeModel() {
     return m_layerTypeModel;
 }

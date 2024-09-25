@@ -15,6 +15,9 @@ public:
     void update();
     bool ready();
 
+    void start();
+    void stop();
+
 private:
     bool ReceiveImage();
 

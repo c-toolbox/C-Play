@@ -45,6 +45,7 @@ Kirigami.BasicListItem {
     onClicked: {
         slideTitleField.text = model.title;
         layerView.layerItem.layerIdx = index;
+        app.slides.selected.layerToCopy = index;
     }
     onDoubleClicked: {
         layerView.layerItem.layerIdx = index;
@@ -52,6 +53,89 @@ Kirigami.BasicListItem {
             visibility_fade_out_animation.start();
         } else if (layerView.layerItem.layerVisibility < 100 && !visibility_fade_in_animation.running) {
             visibility_fade_in_animation.start();
+        }
+    }
+
+    Menu {
+        id: copyLayerMenu
+        MenuItem { 
+            action: actions.layerCopyAction
+            visible: actions.layerCopyAction.enabled
+        }
+        MenuItem { 
+            action: actions.layerPastePropertiesAction
+            visible: actions.layerPastePropertiesAction.enabled
+        }
+    }
+
+    Item {
+        Layout.fillHeight: true
+        Layout.fillWidth: true
+        visible: layersView.currentIndex !== index
+
+        Item {
+            anchors.top: parent.top
+            anchors.right: parent.right
+            anchors.topMargin: 7
+            anchors.rightMargin: -15
+            implicitWidth: 50
+            visible: layersView.currentIndex !== index
+
+            Label {
+                horizontalAlignment: Text.AlignHCenter
+                text: model.visibility + "%"
+                verticalAlignment: Text.AlignVCenter
+            }
+        }
+    }
+ 
+    MouseArea {
+        id: layerIC_MA
+        implicitHeight: parent.height
+        implicitWidth: parent.width
+        acceptedButtons: Qt.RightButton
+        onClicked: {
+            copyLayerMenu.popup();
+            app.slides.selected.layerToCopy = index;
+        }
+        visible: layersView.currentIndex === index
+
+        Item {
+            x: 10
+            implicitWidth: 100
+            visible: layersView.currentIndex === index
+
+            TextInput {
+                id: slideTitleField
+
+                color: Kirigami.Theme.textColor
+                font.pointSize: 9
+                maximumLength: 18
+                text: model.title
+
+                onAccepted: {
+                    layerView.layerItem.layerTitle = slideTitleField.text;
+                }
+            }
+        }
+
+        VisibilitySlider {
+            id: visibilitySlider
+
+            anchors.right: parent.right
+            enabled: app.slides.selectedSlideIdx === -1
+            implicitWidth: 50
+            overlayLabel: qsTr("")
+            visible: layersView.currentIndex === index
+
+            onValueChanged: {
+                if (!layersView.enabled || visibilitySlider.enabled) {
+                    if (value.toFixed(0) !== layerView.layerItem.layerVisibility) {
+                        layerView.layerItem.layerVisibility = value.toFixed(0);
+                        app.slides.needsSync = true;
+                    }
+                }
+            }
         }
     }
 
@@ -70,54 +154,7 @@ Kirigami.BasicListItem {
             layersView.enabled = false;
         }
     }
-    Item {
-        implicitWidth: 50
-        visible: layersView.currentIndex !== index
 
-        Label {
-            anchors.fill: parent
-            horizontalAlignment: Text.AlignHCenter
-            text: model.visibility + "%"
-            verticalAlignment: Text.AlignVCenter
-        }
-    }
-    Item {
-        anchors.left: parent.left
-        anchors.leftMargin: 14
-        anchors.top: parent.top
-        implicitWidth: 100
-        visible: layersView.currentIndex === index
-
-        TextInput {
-            id: slideTitleField
-
-            color: Kirigami.Theme.textColor
-            font.pointSize: 9
-            maximumLength: 18
-            text: model.title
-
-            onAccepted: {
-                layerView.layerItem.layerTitle = slideTitleField.text;
-            }
-        }
-    }
-    VisibilitySlider {
-        id: visibilitySlider
-
-        enabled: app.slides.selectedSlideIdx === -1
-        implicitWidth: 50
-        overlayLabel: qsTr("")
-        visible: layersView.currentIndex === index
-
-        onValueChanged: {
-            if (!layersView.enabled || visibilitySlider.enabled) {
-                if (value.toFixed(0) !== layerView.layerItem.layerVisibility) {
-                    layerView.layerItem.layerVisibility = value.toFixed(0);
-                    app.slides.needsSync = true;
-                }
-            }
-        }
-    }
     PropertyAnimation {
         id: visibility_fade_in_animation
 
@@ -133,6 +170,7 @@ Kirigami.BasicListItem {
             layersView.enabled = false;
         }
     }
+
     Connections {
         function onLayerChanged() {
             if (visibilitySlider.value !== layerView.layerItem.layerVisibility)

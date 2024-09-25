@@ -404,6 +404,11 @@ Rectangle {
                     slidesView.currentIndex = app.slides.selectedSlideIdx;
                 }
 
+                function onCopyCleared() {
+                    app.action("layerPaste").enabled = false;
+                    app.action("layerPasteProperties").enabled = false;
+                }
+
                 target: app.slides
             }
         }

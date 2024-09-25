@@ -10,7 +10,9 @@
 
 #include <QAbstractTableModel>
 
+class BaseLayer;
 class LayersModel;
+class QTimer;
 
 #if QT_VERSION >= QT_VERSION_CHECK(6, 0, 0)
 #ifndef OPAQUE_PTR_LayersModel
@@ -93,6 +95,20 @@ public:
     Q_INVOKABLE void updateSelectedSlide();
     Q_INVOKABLE void clearSlides();
 
+    Q_INVOKABLE void copyLayer();
+    Q_INVOKABLE void clearCopyLayer();
+    Q_INVOKABLE bool copyIsAvailable();
+    Q_INVOKABLE void pasteLayer();
+    Q_INVOKABLE void pasteLayerAsProperties(int layerIdx);
+
+    Q_PROPERTY(int slideToPaste
+        READ getSlideToPasteIdx
+        WRITE setSlideToPasteIdx
+        NOTIFY slideToPasteIdxChanged)
+
+    Q_INVOKABLE void setSlideToPasteIdx(int value);
+    Q_INVOKABLE int getSlideToPasteIdx();
+
     Q_PROPERTY(bool slidesNeedsSave
                    READ getSlidesNeedsSave
                        WRITE setSlidesNeedsSave
@@ -124,18 +140,23 @@ Q_SIGNALS:
     void triggeredSlideChanged();
     void needsSyncChanged();
     void slidesNameChanged();
+    void slideToPasteIdxChanged();
+    void copyCleared();
 
 private:
     QList<LayersModel *> m_slides;
     LayersModel *m_masterSlide;
+    BaseLayer *m_layerToCopyFrom;
     int m_selectedSlideIdx = -1; // Means master
     int m_previousSelectedSlideIdx = -2;
     int m_triggeredSlideIdx = -2;
     int m_previousTriggeredSlideIdx = -2;
+    int m_slideToPasteIdx = -2;
     int m_slidesNeedsSave = false;
     bool m_needsSync;
     QString m_slidesName;
     QString m_slidesPath;
+    QTimer* m_clearCopyTimer;
 };
 
 #endif // SLIDESMODEL_H

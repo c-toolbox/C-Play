@@ -374,6 +374,7 @@ Rectangle {
         ScrollBar.horizontal.policy: ScrollBar.AlwaysOff
         anchors.fill: parent
         anchors.topMargin: slidesHeader.height + 5
+        clip: true
         z: 20
 
         ListView {
@@ -401,6 +402,11 @@ Rectangle {
             Connections {
                 function onSelectedSlideChanged() {
                     slidesView.currentIndex = app.slides.selectedSlideIdx;
+                }
+
+                function onCopyCleared() {
+                    app.action("layerPaste").enabled = false;
+                    app.action("layerPasteProperties").enabled = false;
                 }
 
                 target: app.slides

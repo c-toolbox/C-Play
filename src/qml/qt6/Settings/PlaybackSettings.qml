@@ -317,6 +317,7 @@ SettingsBasePage {
         }
         ScrollView {
             id: confText
+            clip: true
 
             Layout.fillWidth: true
 

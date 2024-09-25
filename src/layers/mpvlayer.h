@@ -42,6 +42,9 @@ public:
     void update();
     bool ready();
 
+    void start();
+    void stop();
+
     void initialize();
     void cleanup();
     void updateFrame();

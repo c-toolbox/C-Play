@@ -14,6 +14,7 @@
 #include <QJsonArray>
 #include <QJsonDocument>
 #include <QJsonObject>
+#include <QTimer>
 
 SlidesModel::SlidesModel(QObject *parent)
     : QAbstractListModel(parent),
@@ -22,6 +23,10 @@ SlidesModel::SlidesModel(QObject *parent)
       m_slidesName(QStringLiteral("")),
       m_slidesPath(QStringLiteral("")) {
     m_masterSlide->setLayersName(QStringLiteral("Master"));
+    m_clearCopyTimer = new QTimer(this);
+    m_clearCopyTimer->setInterval(30000);
+    m_clearCopyTimer->setSingleShot(true);
+    connect(m_clearCopyTimer, &QTimer::timeout, this, &SlidesModel::clearCopyLayer);
 }
 
 SlidesModel::~SlidesModel() {
@@ -248,6 +253,42 @@ void SlidesModel::clearSlides() {
     setSlidesPath(QStringLiteral(""));
     setSlidesNeedsSave(false);
     m_needsSync = true;
+}
+
+void SlidesModel::copyLayer() {
+    m_layerToCopyFrom = selectedSlide()->getLayerToCopy();
+    m_clearCopyTimer->start();
+}
+
+void SlidesModel::clearCopyLayer() {
+    m_layerToCopyFrom = nullptr;
+    Q_EMIT copyCleared();
+}
+
+bool SlidesModel::copyIsAvailable() {
+    return (m_layerToCopyFrom != nullptr);
+}
+
+void SlidesModel::pasteLayer() {
+    LayersModel* slideToPaste = slide(getSlideToPasteIdx());
+    if (slideToPaste) {
+        slideToPaste->addCopyOfLayer(m_layerToCopyFrom);
+        updateSlide(getSlideToPasteIdx());
+        m_clearCopyTimer->start();
+    }
+}
+
+void SlidesModel::pasteLayerAsProperties(int layerIdx) {
+    selectedSlide()->overwriteLayerProperties(m_layerToCopyFrom, layerIdx);
+    m_clearCopyTimer->start();
+}
+
+void SlidesModel::setSlideToPasteIdx(int value) {
+    m_slideToPasteIdx = value;
+}
+
+int SlidesModel::getSlideToPasteIdx() {
+    return m_slideToPasteIdx;
 }
 
 void SlidesModel::setSlidesNeedsSave(bool value) {

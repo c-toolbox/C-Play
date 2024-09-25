@@ -83,8 +83,9 @@ void on_mpv_events(MpvLayer::mpvData &vd, BaseLayer::RenderParams &rp) {
                 sgct::Log::Info(message->text);
             } else if (message->log_level == mpv_log_level::MPV_LOG_LEVEL_V) {
                 sgct::Log::Info(message->text);
-            } else if (message->log_level == mpv_log_level::MPV_LOG_LEVEL_DEBUG) {
-                sgct::Log::Debug(message->text);
+            }
+ else if (message->log_level == mpv_log_level::MPV_LOG_LEVEL_DEBUG) {
+     sgct::Log::Debug(message->text);
             }
             break;
         }
@@ -96,7 +97,7 @@ void on_mpv_events(MpvLayer::mpvData &vd, BaseLayer::RenderParams &rp) {
     }
 }
 
-void initMPV(MpvLayer::mpvData &vd) {
+void initMPV(MpvLayer::mpvData& vd) {
     vd.handle = mpv_create();
     if (!vd.handle)
         sgct::Log::Error("mpv context init failed");
@@ -126,11 +127,13 @@ void initMPV(MpvLayer::mpvData &vd) {
         if (mpv::qt::get_property(vd.handle, QStringLiteral("vd-lavc-dr")).toBool()) {
             vd.advancedControl = 1;
             vd.reconfigsBeforeUpdate = 0;
-        } else {
+        }
+        else {
             vd.advancedControl = 0;
             vd.reconfigsBeforeUpdate = 0;
         }
-    } else {
+    }
+    else {
         // Do not allow direct rendering (EVER).
         mpv::qt::set_property(vd.handle, QStringLiteral("vd-lavc-dr"), QStringLiteral("no"));
         vd.advancedControl = 0;
@@ -138,7 +141,7 @@ void initMPV(MpvLayer::mpvData &vd) {
     }
 }
 
-auto runMpvAsync = [](MpvLayer::mpvData &data, BaseLayer::RenderParams &rp) {
+auto runMpvAsync = [](MpvLayer::mpvData& data, BaseLayer::RenderParams& rp) {
     data.threadRunning = true;
     initMPV(data);
     data.mpvInitialized = true;
@@ -147,12 +150,12 @@ auto runMpvAsync = [](MpvLayer::mpvData &data, BaseLayer::RenderParams &rp) {
     }
     mpv_destroy(data.handle);
     data.threadDone = true;
-};
+    };
 
 MpvLayer::MpvLayer(opengl_func_adress_ptr opa,
-                   bool allowDirectRendering,
-                   bool loggingOn,
-                   std::string logLevel) {
+    bool allowDirectRendering,
+    bool loggingOn,
+    std::string logLevel) {
     m_openglProcAdr = opa;
     videoData.allowDirectRendering = allowDirectRendering;
     videoData.loggingOn = loggingOn;
@@ -175,6 +178,19 @@ void MpvLayer::update() {
 
 bool MpvLayer::ready() {
     return !videoData.loadedFile.empty() && videoData.updateRendering;
+}
+
+void MpvLayer::start() {
+    if (ready() && videoData.videoIsPaused) {
+        setPause(false);
+    }
+}
+
+void MpvLayer::stop() {
+    if(ready() && !videoData.videoIsPaused) {
+        setPause(true);
+        setTimePosition(0);
+    }
 }
 
 void MpvLayer::initialize() {

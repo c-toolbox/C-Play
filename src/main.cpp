@@ -240,7 +240,7 @@ std::vector<std::byte> encode() {
 }
 
 void decode(const std::vector<std::byte> &data) {
-    unsigned pos = 0;
+    unsigned int pos = 0;
     deserializeObject(data, pos, SyncHelper::instance().variables.syncOn);
     deserializeObject(data, pos, SyncHelper::instance().variables.alpha);
     deserializeObject(data, pos, SyncHelper::instance().variables.alphaBg);
@@ -521,8 +521,12 @@ void postSyncPreDraw() {
         for (auto it = secondaryLayers.rbegin(); it != secondaryLayers.rend(); ++it) {
             (*it)->update();
             if ((*it)->ready() && ((*it)->alpha() > 0.f)) {
+                (*it)->start();
                 (*it)->setTranslate(translateXYZ);
                 layerRender->addLayer((*it));
+            }
+            else {
+                (*it)->stop();
             }
         }
 

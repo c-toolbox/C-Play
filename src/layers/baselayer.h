@@ -67,6 +67,9 @@ public:
     virtual void update();
     virtual bool ready();
 
+    virtual void start();
+    virtual void stop();
+
     uint32_t identifier() const;
     void setIdentifier(uint32_t id);
     void updateIdentifierBasedOnCount();

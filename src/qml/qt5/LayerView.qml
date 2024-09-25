@@ -214,6 +214,7 @@ Kirigami.ApplicationWindow {
                     onValueChanged: {
                         if (value.toFixed(0) !== layerView.layerItem.layerVisibility) {
                             layerView.layerItem.layerVisibility = value.toFixed(0);
+                            app.slides.needsSync = true;
                         }
                     }
                 }
