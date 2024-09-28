@@ -74,8 +74,10 @@ ItemDelegate {
             implicitWidth: parent.width
             acceptedButtons: Qt.RightButton
             onClicked: {
-                pasteLayerMenu.popup();
-                app.slides.slideToPaste = index;
+                if(app.slides.copyIsAvailable()){
+                    pasteLayerMenu.popup();
+                    app.slides.slideToPaste = index;
+                }
             }
 
             Kirigami.IconTitleSubtitle {
@@ -196,15 +198,19 @@ ItemDelegate {
     }
     Connections {
         function onSelectedSlideChanged() {
-            visibilitySlider.value = app.slides.selected.layersVisibility;
+            if(app.slides.selected) {
+                visibilitySlider.value = app.slides.selected.layersVisibility;
+            }
         }
 
         function onTriggeredSlideChanged() {
-            if (app.slides.selected.layersVisibility === 100 && !visibility_fade_out_animation.running) {
-                visibility_fade_out_animation.start();
-            }
-            if (app.slides.selected.layersVisibility === 0 && !visibility_fade_in_animation.running) {
-                visibility_fade_in_animation.start();
+            if(app.slides.selected) {
+                if (app.slides.selected.layersVisibility === 100 && !visibility_fade_out_animation.running) {
+                    visibility_fade_out_animation.start();
+                }
+                if (app.slides.selected.layersVisibility === 0 && !visibility_fade_in_animation.running) {
+                    visibility_fade_in_animation.start();
+                }
             }
         }
 

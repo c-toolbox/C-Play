@@ -6,6 +6,7 @@
 #include "locationsettings.h"
 #include "mpvobject.h"
 #include "playbacksettings.h"
+#include "slidesmodel.h"
 
 #include <QDir>
 #include <QFileInfo>
@@ -13,7 +14,13 @@
 #pragma warning(disable : 4996)
 
 PlayerController::PlayerController(QObject *parent)
-    : QObject(parent), httpServer(new HttpServerThread(this)), m_backgroundFile(QStringLiteral("")), m_foregroundFile(QStringLiteral("")), m_viewModeOnMaster(0) {
+    : QObject(parent), httpServer(new HttpServerThread(this)), 
+    m_backgroundFile(QStringLiteral("")), 
+    m_foregroundFile(QStringLiteral("")), 
+    m_viewModeOnMaster(0),
+    m_mpv(nullptr),
+    m_slidesModel(nullptr) 
+{
     connect(this, &PlayerController::mpvChanged,
             this, &PlayerController::setupConnections);
 
@@ -72,6 +79,8 @@ void PlayerController::setupHttpServer() {
     connect(httpServer, &HttpServerThread::spinRollCW, this, &PlayerController::SpinRollCW);
     connect(httpServer, &HttpServerThread::orientationAndSpinReset, this, &PlayerController::OrientationAndSpinReset);
     connect(httpServer, &HttpServerThread::runSurfaceTransition, this, &PlayerController::RunSurfaceTransition);
+    connect(httpServer, &HttpServerThread::slidePrevious, this, &PlayerController::SlidePrevious);
+    connect(httpServer, &HttpServerThread::slideNext, this, &PlayerController::SlideNext);
 
     httpServer->start();
 }
@@ -204,6 +213,17 @@ void PlayerController::OrientationAndSpinReset() {
 
 void PlayerController::RunSurfaceTransition() {
     Q_EMIT runSurfaceTransition();
+}
+
+void PlayerController::SlidePrevious() {
+    if (m_slidesModel != nullptr) {
+        Q_EMIT m_slidesModel->previousSlide();
+    }
+}
+void PlayerController::SlideNext() {
+    if (m_slidesModel != nullptr) {
+        Q_EMIT m_slidesModel->nextSlide();
+    }
 }
 
 QString PlayerController::returnRelativeOrAbsolutePath(const QString &path) {
@@ -474,4 +494,17 @@ void PlayerController::setMpv(MpvObject *mpv) {
     m_mpv = mpv;
     httpServer->setMpv(mpv);
     Q_EMIT mpvChanged();
+}
+
+SlidesModel* PlayerController::slidesModel() const {
+    return m_slidesModel;
+}
+
+void PlayerController::setSlidesModel(SlidesModel* sm) {
+    if (m_slidesModel == sm) {
+        return;
+    }
+    m_slidesModel = sm;
+    httpServer->setSlidesModel(sm);
+    Q_EMIT slidesModelChanged();
 }

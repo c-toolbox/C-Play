@@ -2,6 +2,8 @@
 #include "mpvobject.h"
 #include "playbacksettings.h"
 #include "playercontroller.h"
+#include "slidesmodel.h"
+#include "layersmodel.h"
 #include <QFile>
 #include <QJsonDocument>
 #include <QJsonObject>
@@ -17,7 +19,8 @@ HttpServerThread::HttpServerThread(QObject *parent)
     : QThread(parent),
       runServer(false),
       portServer(7007),
-      m_mpv(nullptr) {
+      m_mpv(nullptr),
+      m_slidesModel(nullptr) {
 }
 
 HttpServerThread::~HttpServerThread() {
@@ -673,6 +676,31 @@ void HttpServerThread::setupHttpServer() {
             }
         });
 
+        svr.Post("/slide_name", [this](const httplib::Request&, httplib::Response& res) {
+            if (m_slidesModel) {
+                LayersModel* layer = m_slidesModel->selectedSlide();
+                if (layer) {
+                    res.set_content(layer->getLayersName().toStdString(), "text/plain");
+                }
+                else {
+                    res.set_content("", "text/plain");
+                }
+            }
+            else {
+                res.set_content("", "text/plain");
+            }
+        });
+
+        svr.Post("/slide_previous", [this](const httplib::Request&, httplib::Response& res) {
+            Q_EMIT slidePrevious();
+            res.set_content("Previous slide", "text/plain");
+        });
+
+        svr.Post("/slide_next", [this](const httplib::Request&, httplib::Response& res) {
+            Q_EMIT slideNext();
+            res.set_content("Next slide", "text/plain");
+        });
+
         runServer = true;
         return;
     }
@@ -886,4 +914,11 @@ void HttpServerThread::setMpv(MpvObject *mpv) {
         return;
     }
     m_mpv = mpv;
+}
+
+void HttpServerThread::setSlidesModel(SlidesModel* sm) {
+    if (m_slidesModel == sm) {
+        return;
+    }
+    m_slidesModel = sm;
 }

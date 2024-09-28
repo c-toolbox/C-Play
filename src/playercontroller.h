@@ -5,12 +5,14 @@
 
 class MpvObject;
 class HttpServerThread;
+class SlidesModel;
 
 class PlayerController : public QObject {
     Q_OBJECT
     Q_CLASSINFO("D-Bus Interface", "org.PlayerController")
 
     Q_PROPERTY(MpvObject *mpv READ mpv WRITE setMpv NOTIFY mpvChanged)
+    Q_PROPERTY(SlidesModel *slides READ slidesModel WRITE setSlidesModel NOTIFY slidesModelChanged)
 
 public:
     explicit PlayerController(QObject *parent = nullptr);
@@ -46,6 +48,8 @@ public Q_SLOTS:
     void SpinRollCCW(bool run);
     void OrientationAndSpinReset();
     void RunSurfaceTransition();
+    void SlidePrevious();
+    void SlideNext();
 
     QString returnRelativeOrAbsolutePath(const QString &path);
     QString checkAndCorrectPath(const QString &path);
@@ -99,6 +103,7 @@ Q_SIGNALS:
     void orientationAndSpinReset();
     void runSurfaceTransition();
     void mpvChanged();
+    void slidesModelChanged();
     void backgroundImageChanged();
     void backgroundVisibilityChanged();
     void foregroundImageChanged();
@@ -110,9 +115,13 @@ private:
     MpvObject *mpv() const;
     void setMpv(MpvObject *mpv);
 
+    SlidesModel *slidesModel() const;
+    void setSlidesModel(SlidesModel* sm);
+
     void setupHttpServer();
 
     MpvObject *m_mpv;
+    SlidesModel* m_slidesModel;
     HttpServerThread *httpServer;
     QString m_backgroundFile;
     QString m_foregroundFile;

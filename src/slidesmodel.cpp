@@ -95,7 +95,7 @@ int SlidesModel::selectedSlideIdx() {
 
 void SlidesModel::setSelectedSlideIdx(int value) {
     m_previousSelectedSlideIdx = m_selectedSlideIdx;
-    m_selectedSlideIdx = value;
+    m_selectedSlideIdx = std::max(value, -1);
     Q_EMIT selectedSlideChanged();
 }
 
@@ -118,7 +118,7 @@ int SlidesModel::triggeredSlideIdx() {
 
 void SlidesModel::setTriggeredSlideIdx(int value) {
     m_previousTriggeredSlideIdx = m_triggeredSlideIdx;
-    m_triggeredSlideIdx = value;
+    m_triggeredSlideIdx = std::max(value, -1);
     Q_EMIT triggeredSlideChanged();
 }
 

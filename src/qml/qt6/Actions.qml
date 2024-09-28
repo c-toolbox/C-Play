@@ -492,6 +492,7 @@ QtObject {
         Component.onCompleted: list["slidePreviousAction"] = slidePreviousAction
         onTriggered: {
             if(enabled){
+                layers.layersView.currentIndex = -1;
                 if(app.slides.selectedSlideIdx === app.slides.triggeredSlideIdx){
                     app.slides.selectedSlideIdx = app.slides.selectedSlideIdx - 1;
                     app.slides.triggeredSlideIdx = app.slides.triggeredSlideIdx - 1;
@@ -515,6 +516,7 @@ QtObject {
         Component.onCompleted: list["slideNextAction"] = slideNextAction
         onTriggered: {
             if(enabled){
+                layers.layersView.currentIndex = -1;
                 if(app.slides.selectedSlideIdx === app.slides.triggeredSlideIdx){
                     app.slides.selectedSlideIdx = app.slides.selectedSlideIdx + 1;
                     app.slides.triggeredSlideIdx = app.slides.triggeredSlideIdx + 1;

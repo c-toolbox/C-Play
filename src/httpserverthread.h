@@ -8,6 +8,7 @@
 #include <cpp-httplib/httplib.h>
 
 class MpvObject;
+class SlidesModel;
 
 class HttpServerThread : public QThread {
     Q_OBJECT
@@ -18,6 +19,7 @@ public:
 
     void setupHttpServer();
     void setMpv(MpvObject *mpv);
+    void setSlidesModel(SlidesModel* sm);
 
     Q_INVOKABLE void terminate();
 
@@ -48,6 +50,8 @@ Q_SIGNALS:
     void spinRollCW(bool run);
     void orientationAndSpinReset();
     void runSurfaceTransition();
+    void slidePrevious();
+    void slideNext();
 
 protected:
     void run() override;
@@ -74,6 +78,7 @@ private:
     const std::string LoadIndexFromSections(std::string indexStr);
 
     MpvObject *m_mpv;
+    SlidesModel* m_slidesModel;
     httplib::Server svr;
     bool runServer;
     int portServer;

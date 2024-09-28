@@ -142,15 +142,17 @@ Q_SIGNALS:
     void slidesNameChanged();
     void slideToPasteIdxChanged();
     void copyCleared();
+    void previousSlide();
+    void nextSlide();
 
 private:
     QList<LayersModel *> m_slides;
     LayersModel *m_masterSlide;
     BaseLayer *m_layerToCopyFrom;
     int m_selectedSlideIdx = -1; // Means master
-    int m_previousSelectedSlideIdx = -2;
-    int m_triggeredSlideIdx = -2;
-    int m_previousTriggeredSlideIdx = -2;
+    int m_previousSelectedSlideIdx = -1;
+    int m_triggeredSlideIdx = -1;
+    int m_previousTriggeredSlideIdx = -1;
     int m_slideToPasteIdx = -2;
     int m_slidesNeedsSave = false;
     bool m_needsSync;

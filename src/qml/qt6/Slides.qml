@@ -184,6 +184,7 @@ Rectangle {
         onAccepted: {
             app.slides.loadFromJSONFile(openCPlayPresentationDialog.file.toString());
             slidesView.currentIndex = -1;
+            layers.layersView.currentIndex = -1;
             mpv.focus = true;
             syncAfterLoad.start();
         }
@@ -391,6 +392,7 @@ Rectangle {
                 }
 
                 slidesView.currentIndex = -1;
+                layers.layersView.currentIndex = -1;
             }
             onCurrentIndexChanged: {
                 if(app.slides.selectedSlideIdx !== slidesView.currentIndex)
@@ -407,6 +409,28 @@ Rectangle {
                 function onCopyCleared() {
                     app.action("layerPaste").enabled = false;
                     app.action("layerPasteProperties").enabled = false;
+                }
+
+                function onPreviousSlide() {
+                    layers.layersView.currentIndex = -1;
+                    if(app.slides.selectedSlideIdx === app.slides.triggeredSlideIdx){
+                        app.slides.selectedSlideIdx = app.slides.selectedSlideIdx - 1;
+                        app.slides.triggeredSlideIdx = app.slides.triggeredSlideIdx - 1;
+                    }
+                    else {
+                        app.slides.triggeredSlideIdx = app.slides.selectedSlideIdx;
+                    }   
+                }
+
+                function onNextSlide() {
+                    layers.layersView.currentIndex = -1;
+                    if(app.slides.selectedSlideIdx === app.slides.triggeredSlideIdx){
+                        app.slides.selectedSlideIdx = app.slides.selectedSlideIdx + 1;
+                        app.slides.triggeredSlideIdx = app.slides.triggeredSlideIdx + 1;
+                    }
+                    else {
+                        app.slides.triggeredSlideIdx = app.slides.selectedSlideIdx;
+                    }
                 }
 
                 target: app.slides

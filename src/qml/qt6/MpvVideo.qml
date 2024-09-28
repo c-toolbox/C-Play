@@ -45,6 +45,7 @@ MpvObject {
 
     Component.onCompleted: {
         playerController.mpv = root;
+        playerController.slides = app.slides;
         mpv.gridToMapOnChanged();
     }
     onEndFile: {
