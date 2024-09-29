@@ -153,6 +153,18 @@ if(BUILD_CPLAY_WITH_QT6)
         qml/qt6/ViewPlaylistItem.qml
     )
 
+    if(BUILD_CPLAY_WITH_QT6)
+        option(CPLAY_FAST_QML_BUILD "Skip QmlLint and QmlCacheGen. Should be ON for release build." OFF)   
+        if(CPLAY_FAST_QML_BUILD)
+            foreach(QML_FILE ${QML_SRC_FILES})
+                set_source_files_properties(${QML_FILE} PROPERTIES
+                    QT_QML_SKIP_QMLLINT TRUE
+                    QT_QML_SKIP_CACHEGEN TRUE
+                )
+            endforeach()
+        endif()
+    endif()
+
     qt_add_qml_module(${TARGET_NAME}
         URI org.ctoolbox.cplay
         QML_FILES
@@ -198,6 +210,16 @@ if(BUILD_CPLAY_WITH_QT6)
         sgct
         glm
     )
+    
+    if (MSVC)
+        target_compile_options(${TARGET_NAME} PRIVATE
+        /wd26439
+        /wd26444
+        /wd26495
+        /wd26813 
+        /wd4702 # unreachable code
+        /experimental:external /external:anglebrackets /external:templates- /external:W0)
+    endif()
     
     set_target_properties(all_qmltyperegistrations PROPERTIES FOLDER ${AUTO_TARGET_NAME})
     set_target_properties(${TARGET_NAME}_automoc_json_extraction PROPERTIES FOLDER ${AUTO_TARGET_NAME})

@@ -10,6 +10,7 @@
 #include <client.h>
 #include <cstring>
 
+#pragma warning(push, 0)
 #include <QFile>
 #include <QHash>
 #include <QJsonArray>
@@ -20,6 +21,7 @@
 #include <QSharedPointer>
 #include <QString>
 #include <QVariant>
+#pragma warning(pop)
 
 namespace mpv {
 namespace qt {
@@ -126,7 +128,7 @@ private:
         // "QVariant::Type(obsolete), the return value should be interpreted
         // as QMetaType::Type."
         // So a cast really seems to be needed to avoid warnings (urgh).
-        return static_cast<int>(v.type()) == static_cast<int>(t);
+        return static_cast<int>(v.typeId()) == static_cast<int>(t);
     }
     void set(mpv_node *dst, const QVariant &src) {
         if (test_type(src, QMetaType::QString)) {
