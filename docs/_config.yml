@@ -1,4 +1,4 @@
-# For development use, run "bundle install", then lijne below for serving the site.
+# For development use, run "bundle install", then line below for serving the site.
 # bundle exec jekyll serve --livereload
 
 theme: "just-the-docs"

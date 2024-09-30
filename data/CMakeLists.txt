@@ -10,20 +10,16 @@ install(FILES org.ctoolbox.cplay.appdata.xml DESTINATION ${KDE_INSTALL_METAINFOD
 if(CPLAY_INSTALL_DEPENDENCIES)
     option(CPLAY_INSTALL_ITEMS_TO_DATA "Copy specific data items to C-Play" ON)
     if(CPLAY_INSTALL_ITEMS_TO_DATA)
-		if(BUILD_CPLAY_WITH_QT6)
-			get_target_property(_qmake_executable Qt6::qmake IMPORTED_LOCATION)
-		else()
-			get_target_property(_qmake_executable Qt5::qmake IMPORTED_LOCATION)
-		endif()
-		get_filename_component(_qt_bin_dir "${_qmake_executable}" DIRECTORY)
-		get_filename_component(_qt_dir "${_qt_bin_dir}" DIRECTORY)
-		install(CODE "set(PROJECT_SOURCE_DIR \"${PROJECT_SOURCE_DIR}\")")
-		install(CODE "set(QT_BIN_DIR \"${_qt_bin_dir}\")")
-		install(CODE [[
+        get_target_property(_qmake_executable Qt6::qmake IMPORTED_LOCATION)
+        get_filename_component(_qt_bin_dir "${_qmake_executable}" DIRECTORY)
+        get_filename_component(_qt_dir "${_qt_bin_dir}" DIRECTORY)
+        install(CODE "set(PROJECT_SOURCE_DIR \"${PROJECT_SOURCE_DIR}\")")
+        install(CODE "set(QT_BIN_DIR \"${_qt_bin_dir}\")")
+        install(CODE [[
             message("Copying Color Schemes Icons")
         ]])
         install(DIRECTORY "${PROJECT_SOURCE_DIR}/data/color-schemes" DESTINATION "${CMAKE_INSTALL_PREFIX}/bin/data")
-		install(CODE [[
+        install(CODE [[
             message("Copying Breeze Icons")
         ]])
         install(DIRECTORY "${_qt_bin_dir}/data/icons" DESTINATION "${CMAKE_INSTALL_PREFIX}/bin/data")

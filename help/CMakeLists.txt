@@ -5,13 +5,8 @@
 #
 
 if(CPLAY_INSTALL_DEPENDENCIES)
-	if(BUILD_CPLAY_WITH_QT6)
-		set(CPLAY_INSTALL_PREDEFINED_DLL_NAME "qt6_ffmpeg6_dlls" CACHE STRING "qt6_ffmpeg6_dlls.txt chosen as predefined dll list")
-		get_target_property(_qmake_executable Qt6::qmake IMPORTED_LOCATION)
-	else()
-		set(CPLAY_INSTALL_PREDEFINED_DLL_NAME "qt5_ffmpeg5_dlls" CACHE STRING "qt5_ffmpeg5_dlls.txt chosen as predefined dll list")
-		get_target_property(_qmake_executable Qt5::qmake IMPORTED_LOCATION)
-	endif()
+	set(CPLAY_INSTALL_PREDEFINED_DLL_NAME "qt6_ffmpeg6_dlls" CACHE STRING "qt6_ffmpeg6_dlls.txt chosen as predefined dll list")
+	get_target_property(_qmake_executable Qt6::qmake IMPORTED_LOCATION)
 	set_property(CACHE CPLAY_INSTALL_PREDEFINED_DLL_NAME PROPERTY STRINGS qt6_ffmpeg6_dlls qt6_ffmpeg5_dlls qt5_ffmpeg5_dlls)
 	
 	get_filename_component(_qt_bin_dir "${_qmake_executable}" DIRECTORY)

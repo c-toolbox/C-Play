@@ -16,7 +16,7 @@ The are the steps:
 
 - Clone the source on Github.
 
-- Use [Craft Guide](guides/build/craft) to install all dependencies for the UI, from Qt5, KF5 libs.
+- Use [Craft Guide](guides/build/craft) to install all dependencies for the UI, from Qt6, KF6 libs.
 
 - Use the [Build MPV and FFMPEG Guide](guides/build/mpv_ffmpeg) guide to build FFmpeg and MPV with JACK+portaudio support.
 

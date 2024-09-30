@@ -1,6 +1,7 @@
 # Qt and KDE Frameworks for C-Play Master UI
 
 C-Play can be built with either Qt6/KF6 or Qt5/KF5, but for best support for DPI scaling Qt6/KF6 is default and recommended.
+*NOTE: C-Play Version 2.1 and newer will only support Qt6.*
 
 The CMake option *BUILD_CPLAY_WITH_QT6* is enabled by default. Disable it to detect Qt5 installation/dependencies instead.
 KDE Frameworks have the same versioning, as the depend on Qt themselves.
@@ -38,7 +39,7 @@ These are the list of packages needed for this project
 - Breeze widgets style (qqc2-breeze-style)
 - QQC2-Desktop-Style
 
-## Option 2 (older): Build Qt5/KF5 for C-Play Master UI
+## Option 2 (older, not available from C-Play version 2.1 and newer): Build Qt5/KF5 for C-Play Master UI
 
 Use Visual Studio 2019 as compiler. (However MSYS / MinGW will be installed later anyway, if you compile/install FFmpeg + MPV + JACK)
 

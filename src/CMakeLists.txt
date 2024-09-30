@@ -95,176 +95,136 @@ if(BUILD_CPLAY_WITH_NDI)
     list(APPEND SOURCE_FILES ${OFX_NDI_FILES})
 endif()
 
-if(BUILD_CPLAY_WITH_QT6)
-    target_sources(${TARGET_NAME} 
-        PRIVATE 
-        ${SOURCE_FILES}
-        ../data/images/images.qrc
-        ../data/images/icon.rc
-    )
+target_sources(${TARGET_NAME} 
+    PRIVATE 
+    ${SOURCE_FILES}
+    ../data/images/images.qrc
+    ../data/images/icon.rc
+)
 
-    qt_policy(SET QTP0001 NEW)
+qt_policy(SET QTP0001 NEW)
 
-    set(QML_SRC_FILES
-        qml/qt6/Components/ImageAdjustmentSlider.qml
-        qml/qt6/Components/LabelWithTooltip.qml
-        qml/qt6/Components/SelectActionPopup.qml
-        qml/qt6/Components/SettingsBasePage.qml
-        qml/qt6/Components/SettingsHeader.qml
-        qml/qt6/Menus/AudioMenu.qml
-        qml/qt6/Menus/FileMenu.qml
-        qml/qt6/Menus/HelpMenu.qml
-        qml/qt6/Menus/PlaybackMenu.qml
-        qml/qt6/Menus/SettingsMenu.qml
-        qml/qt6/Settings/AudioSettings.qml
-        qml/qt6/Settings/GridSettings.qml
-        qml/qt6/Settings/ImageSettings.qml
-        qml/qt6/Settings/LocationSettings.qml
-        qml/qt6/Settings/MouseSettings.qml
-        qml/qt6/Settings/Navigation.qml
-        qml/qt6/Settings/PlaybackSettings.qml
-        qml/qt6/Settings/PlaylistSettings.qml
-        qml/qt6/Settings/PresentationSettings.qml
-        qml/qt6/Settings/UserInterfaceSettings.qml
-        qml/qt6/Settings/SettingsEditor.qml
-        qml/qt6/Actions.qml
-        qml/qt6/Footer.qml
-        qml/qt6/HProgressBar.qml
-        qml/qt6/Header.qml
-        qml/qt6/MpvVideo.qml
-        qml/qt6/Osd.qml
-        qml/qt6/PlayList.qml
-        qml/qt6/PlayListItemCompact.qml
-        qml/qt6/VolumeSlider.qml
-        qml/qt6/Main.qml
-        qml/qt6/PlaySections.qml
-        qml/qt6/PlaySectionsItemCompact.qml
-        qml/qt6/VisibilitySlider.qml
-        qml/qt6/Layers.qml
-        qml/qt6/LayersAddNew.qml
-        qml/qt6/LayersItemCompact.qml
-        qml/qt6/LayerView.qml
-        qml/qt6/LayerViewGridParams.qml
-        qml/qt6/Slides.qml
-        qml/qt6/SlidesItemCompact.qml
-        qml/qt6/SlidesVisibilityView.qml
-        qml/qt6/BackgroundImage.qml
-        qml/qt6/ForegroundImage.qml
-        qml/qt6/SaveAsCPlayFile.qml
-        qml/qt6/ViewPlaylistItem.qml
-    )
+set(QML_SRC_FILES
+    qml/qt6/Components/ImageAdjustmentSlider.qml
+    qml/qt6/Components/LabelWithTooltip.qml
+    qml/qt6/Components/SelectActionPopup.qml
+    qml/qt6/Components/SettingsBasePage.qml
+    qml/qt6/Components/SettingsHeader.qml
+    qml/qt6/Menus/AudioMenu.qml
+    qml/qt6/Menus/FileMenu.qml
+    qml/qt6/Menus/HelpMenu.qml
+    qml/qt6/Menus/PlaybackMenu.qml
+    qml/qt6/Menus/SettingsMenu.qml
+    qml/qt6/Settings/AudioSettings.qml
+    qml/qt6/Settings/GridSettings.qml
+    qml/qt6/Settings/ImageSettings.qml
+    qml/qt6/Settings/LocationSettings.qml
+    qml/qt6/Settings/MouseSettings.qml
+    qml/qt6/Settings/Navigation.qml
+    qml/qt6/Settings/PlaybackSettings.qml
+    qml/qt6/Settings/PlaylistSettings.qml
+    qml/qt6/Settings/PresentationSettings.qml
+    qml/qt6/Settings/UserInterfaceSettings.qml
+    qml/qt6/Settings/SettingsEditor.qml
+    qml/qt6/Actions.qml
+    qml/qt6/Footer.qml
+    qml/qt6/HProgressBar.qml
+    qml/qt6/Header.qml
+    qml/qt6/MpvVideo.qml
+    qml/qt6/Osd.qml
+    qml/qt6/PlayList.qml
+    qml/qt6/PlayListItemCompact.qml
+    qml/qt6/VolumeSlider.qml
+    qml/qt6/Main.qml
+    qml/qt6/PlaySections.qml
+    qml/qt6/PlaySectionsItemCompact.qml
+    qml/qt6/VisibilitySlider.qml
+    qml/qt6/Layers.qml
+    qml/qt6/LayersAddNew.qml
+    qml/qt6/LayersItemCompact.qml
+    qml/qt6/LayerView.qml
+    qml/qt6/LayerViewGridParams.qml
+    qml/qt6/Slides.qml
+    qml/qt6/SlidesItemCompact.qml
+    qml/qt6/SlidesVisibilityView.qml
+    qml/qt6/BackgroundImage.qml
+    qml/qt6/ForegroundImage.qml
+    qml/qt6/SaveAsCPlayFile.qml
+    qml/qt6/ViewPlaylistItem.qml
+)
 
-    if(BUILD_CPLAY_WITH_QT6)
-        option(CPLAY_FAST_QML_BUILD "Skip QmlLint and QmlCacheGen. Should be ON for release build." OFF)   
-        if(CPLAY_FAST_QML_BUILD)
-            foreach(QML_FILE ${QML_SRC_FILES})
-                set_source_files_properties(${QML_FILE} PROPERTIES
-                    QT_QML_SKIP_QMLLINT TRUE
-                    QT_QML_SKIP_CACHEGEN TRUE
-                )
-            endforeach()
-        endif()
-    endif()
-
-    qt_add_qml_module(${TARGET_NAME}
-        URI org.ctoolbox.cplay
-        QML_FILES
-        ${QML_SRC_FILES}
-    )
-    source_group(Qml FILES ${QML_SRC_FILES})
-    
-    set(RCC_FILE_DIR ${CMAKE_CURRENT_BINARY_DIR}/.rcc)
-    set(QMLCACHE_FILE_DIR ${RCC_FILE_DIR}/qmlcache)
-    set(QMLCACHE_FILES "")
-    foreach(QML_SRC_FILE ${QML_SRC_FILES})
-        string(REPLACE ".qml" "_qml.cpp" QML_CACHE_FILE ${QML_SRC_FILE})
-        list(APPEND QMLCACHE_FILES ${QMLCACHE_FILE_DIR}/C-Play_${QML_CACHE_FILE})
+option(CPLAY_FAST_QML_BUILD "Skip QmlLint and QmlCacheGen. Should be ON for release build." OFF)   
+if(CPLAY_FAST_QML_BUILD)
+    foreach(QML_FILE ${QML_SRC_FILES})
+        set_source_files_properties(${QML_FILE} PROPERTIES
+            QT_QML_SKIP_QMLLINT TRUE
+            QT_QML_SKIP_CACHEGEN TRUE
+        )
     endforeach()
-    list(APPEND QMLCACHE_FILES ${RCC_FILE_DIR}/qrc_cplay_raw_qml_0.cpp)
-    list(APPEND QMLCACHE_FILES ${RCC_FILE_DIR}/qrc_C-Play_raw_qml_0.cpp)
-    list(APPEND QMLCACHE_FILES ${RCC_FILE_DIR}/qrc_qmake_org_ctoolbox_cplay.cpp)
-    list(APPEND QMLCACHE_FILES ${QMLCACHE_FILE_DIR}/C-Play_qml_loader_file_list.cpp)
-    list(APPEND QMLCACHE_FILES ${QMLCACHE_FILE_DIR}/C-Play_qmlcache_loader.cpp)
-    list(APPEND QMLCACHE_FILES ${CMAKE_CURRENT_BINARY_DIR}/C-play_qmltyperegistrations.cpp)
-    source_group(${AUTO_SOURCE_NAME} FILES ${QMLCACHE_FILES})
-
-    set(TARGET_LIBRARIES
-        Qt6::Core
-        Qt6::Gui
-        Qt6::Qml
-        Qt6::Quick
-        Qt6::QuickControls2
-
-        KF6::ColorScheme
-        KF6::ConfigCore
-        KF6::ConfigGui
-        KF6::CoreAddons
-        KF6::FileMetaData
-        KF6::I18n
-        KF6::IconThemes
-        KF6::KIOWidgets
-        KF6::Kirigami
-        KF6::WindowSystem
-        KF6::XmlGui
-
-        Libmpv::Libmpv
-        sgct
-        glm
-    )
-    
-    if (MSVC)
-        target_compile_options(${TARGET_NAME} PRIVATE
-        /wd26439
-        /wd26444
-        /wd26495
-        /wd26813 
-        /wd4702 # unreachable code
-        /experimental:external /external:anglebrackets /external:templates- /external:W0)
-    endif()
-    
-    set_target_properties(all_qmltyperegistrations PROPERTIES FOLDER ${AUTO_TARGET_NAME})
-    set_target_properties(${TARGET_NAME}_automoc_json_extraction PROPERTIES FOLDER ${AUTO_TARGET_NAME})
-    set_target_properties(${TARGET_NAME}_other_files PROPERTIES FOLDER ${AUTO_TARGET_NAME})
-    set_target_properties(${TARGET_NAME}_qmltyperegistration PROPERTIES FOLDER ${AUTO_TARGET_NAME})
-    set_target_properties(${TARGET_NAME}_tooling PROPERTIES FOLDER ${AUTO_TARGET_NAME})
-    set_target_properties(fetch-translations PROPERTIES FOLDER ${AUTO_TARGET_NAME})
-
-else()
-    set(QML_IMPORT_PATH "${CMAKE_CURRENT_SOURCE_DIR}/qml/qt5" CACHE STRING "Qt Creator 4.1 extra qml import paths" FORCE)
-
-    target_sources(${TARGET_NAME} 
-        PRIVATE 
-        ${SOURCE_FILES}
-        qml/qml.qrc
-        ../data/images/images.qrc
-        ../data/images/icon.rc
-    )
-
-    set(TARGET_LIBRARIES
-        Qt5::Core
-        Qt5::DBus
-        Qt5::Qml
-        Qt5::Quick
-        Qt5::QuickControls2
-
-        KF5::ConfigCore
-        KF5::ConfigGui
-        KF5::CoreAddons
-        KF5::FileMetaData
-        KF5::I18n
-        KF5::IconThemes
-        KF5::KIOCore
-        KF5::KIOFileWidgets
-        KF5::KIOWidgets
-        KF5::KIONTLM
-        KF5::Kirigami2
-        KF5::XmlGui
-
-        Libmpv::Libmpv
-        sgct
-        glm
-    )
 endif()
+
+qt_add_qml_module(${TARGET_NAME}
+    URI org.ctoolbox.cplay
+    QML_FILES
+    ${QML_SRC_FILES}
+)
+source_group(Qml FILES ${QML_SRC_FILES})
+
+set(RCC_FILE_DIR ${CMAKE_CURRENT_BINARY_DIR}/.rcc)
+set(QMLCACHE_FILE_DIR ${RCC_FILE_DIR}/qmlcache)
+set(QMLCACHE_FILES "")
+foreach(QML_SRC_FILE ${QML_SRC_FILES})
+    string(REPLACE ".qml" "_qml.cpp" QML_CACHE_FILE ${QML_SRC_FILE})
+    list(APPEND QMLCACHE_FILES ${QMLCACHE_FILE_DIR}/C-Play_${QML_CACHE_FILE})
+endforeach()
+list(APPEND QMLCACHE_FILES ${RCC_FILE_DIR}/qrc_cplay_raw_qml_0.cpp)
+list(APPEND QMLCACHE_FILES ${RCC_FILE_DIR}/qrc_C-Play_raw_qml_0.cpp)
+list(APPEND QMLCACHE_FILES ${RCC_FILE_DIR}/qrc_qmake_org_ctoolbox_cplay.cpp)
+list(APPEND QMLCACHE_FILES ${QMLCACHE_FILE_DIR}/C-Play_qml_loader_file_list.cpp)
+list(APPEND QMLCACHE_FILES ${QMLCACHE_FILE_DIR}/C-Play_qmlcache_loader.cpp)
+list(APPEND QMLCACHE_FILES ${CMAKE_CURRENT_BINARY_DIR}/C-play_qmltyperegistrations.cpp)
+source_group(${AUTO_SOURCE_NAME} FILES ${QMLCACHE_FILES})
+
+set(TARGET_LIBRARIES
+    Qt6::Core
+    Qt6::Gui
+    Qt6::Qml
+    Qt6::Quick
+    Qt6::QuickControls2
+
+    KF6::ColorScheme
+    KF6::ConfigCore
+    KF6::ConfigGui
+    KF6::CoreAddons
+    KF6::FileMetaData
+    KF6::I18n
+    KF6::IconThemes
+    KF6::KIOWidgets
+    KF6::Kirigami
+    KF6::WindowSystem
+    KF6::XmlGui
+
+    Libmpv::Libmpv
+    sgct
+    glm
+)
+
+if (MSVC)
+    target_compile_options(${TARGET_NAME} PRIVATE
+    /wd26439
+    /wd26444
+    /wd26495
+    /wd26813 
+    /wd4702 # unreachable code
+    /experimental:external /external:anglebrackets /external:templates- /external:W0)
+endif()
+
+set_target_properties(all_qmltyperegistrations PROPERTIES FOLDER ${AUTO_TARGET_NAME})
+set_target_properties(${TARGET_NAME}_automoc_json_extraction PROPERTIES FOLDER ${AUTO_TARGET_NAME})
+set_target_properties(${TARGET_NAME}_other_files PROPERTIES FOLDER ${AUTO_TARGET_NAME})
+set_target_properties(${TARGET_NAME}_qmltyperegistration PROPERTIES FOLDER ${AUTO_TARGET_NAME})
+set_target_properties(${TARGET_NAME}_tooling PROPERTIES FOLDER ${AUTO_TARGET_NAME})
+set_target_properties(fetch-translations PROPERTIES FOLDER ${AUTO_TARGET_NAME})
 
 target_include_directories(${TARGET_NAME} PRIVATE playlist)
 
@@ -296,11 +256,8 @@ target_compile_definitions(${TARGET_NAME} PUBLIC CPLAY_VERSION_PATCH=${CPLAY_VER
 install(TARGETS ${TARGET_NAME} DESTINATION ${KDE_INSTALL_TARGETS_DEFAULT_ARGS})
 
 if(CPLAY_INSTALL_DEPENDENCIES)
-    if(BUILD_CPLAY_WITH_QT6)
-        get_target_property(_qmake_executable Qt6::qmake IMPORTED_LOCATION)
-    else()
-        get_target_property(_qmake_executable Qt5::qmake IMPORTED_LOCATION)
-    endif()
+    get_target_property(_qmake_executable Qt6::qmake IMPORTED_LOCATION)
+
     get_filename_component(_qt_bin_dir "${_qmake_executable}" DIRECTORY)
     get_filename_component(_qt_dir "${_qt_bin_dir}" DIRECTORY)
     get_filename_component(_mpv_bin_dir "${Libmpv_LIBRARIES}" DIRECTORY)
