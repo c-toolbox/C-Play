@@ -63,6 +63,7 @@ BaseLayer *BaseLayer::createLayer(int layerType, opengl_func_adress_ptr opa, std
 BaseLayer::BaseLayer() {
     m_title = "";
     m_type = BASE;
+    m_keepVisibilityForNumSlides = 0;
     m_identifier = 0;
     m_needSync = true;
 }
@@ -200,6 +201,14 @@ std::string BaseLayer::filepath() const {
 void BaseLayer::setFilePath(std::string p) {
     m_filepath = p;
     m_needSync = true;
+}
+
+int BaseLayer::keepVisibilityForNumSlides() {
+    return m_keepVisibilityForNumSlides;
+}
+
+void BaseLayer::setKeepVisibilityForNumSlides(int k) {
+    m_keepVisibilityForNumSlides = k;
 }
 
 unsigned int BaseLayer::textureId() const {

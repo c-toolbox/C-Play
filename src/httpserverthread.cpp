@@ -4,9 +4,12 @@
 #include "playercontroller.h"
 #include "slidesmodel.h"
 #include "layersmodel.h"
+
 #include <QFile>
 #include <QJsonDocument>
 #include <QJsonObject>
+
+#pragma warning(disable : 4996)
 
 std::string formatTime(double timeInSeconds, std::string format = "hh:mm:ss/zz") {
     QTime t(0, 0, 0);

@@ -91,6 +91,9 @@ public:
     std::string filepath() const;
     void setFilePath(std::string p);
 
+    int keepVisibilityForNumSlides();
+    void setKeepVisibilityForNumSlides(int k);
+
     unsigned int textureId() const;
     int width() const;
     int height() const;
@@ -147,6 +150,7 @@ protected:
     std::string m_title;
     std::string m_filepath;
     LayerType m_type;
+    int m_keepVisibilityForNumSlides;
     RenderParams renderData;
     PlaneParams planeData;
 

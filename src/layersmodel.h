@@ -8,7 +8,7 @@
 #ifndef LAYERSMODEL_H
 #define LAYERSMODEL_H
 
-#include <QAbstractTableModel>
+#include <QAbstractListModel>
 
 class BaseLayer;
 class ofxNDIreceive;

@@ -349,13 +349,30 @@ Rectangle {
                 width: Kirigami.Units.gridUnit + 10
             }
             Button {
+                id: visibilityViewButton
+
+                anchors.right: slidesRoot.right
+                checkable: true
+                checked: slidesVisView.visible
+                icon.name: "table"
+                text: qsTr("Visibility")
+
+                onClicked: {
+                    slidesVisView.visible = checked;
+                }
+
+                ToolTip {
+                    text: qsTr("Slide Visibility Table View")
+                }
+            }
+            Button {
                 id: masterSlideButton
 
                 anchors.right: slidesRoot.right
                 checkable: true
                 checked: slidesView.currentIndex === -1
                 icon.name: "backgroundtool"
-                text: qsTr("Master slide")
+                text: qsTr("Master")
 
                 onClicked: {
                     slidesView.currentIndex = -1;

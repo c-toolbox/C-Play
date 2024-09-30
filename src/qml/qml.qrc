@@ -33,6 +33,7 @@
 		<file>qt5/LayerViewGridParams.qml</file>
         <file>qt5/Slides.qml</file>
         <file>qt5/SlidesItemCompact.qml</file>
+		<file>qt5/SlidesVisibilityView.qml</file>
         <file>qt5/MpvVideo.qml</file>
         <file>qt5/Osd.qml</file>
         <file>qt5/PlayList.qml</file>

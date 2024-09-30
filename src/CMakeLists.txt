@@ -147,6 +147,7 @@ if(BUILD_CPLAY_WITH_QT6)
         qml/qt6/LayerViewGridParams.qml
         qml/qt6/Slides.qml
         qml/qt6/SlidesItemCompact.qml
+        qml/qt6/SlidesVisibilityView.qml
         qml/qt6/BackgroundImage.qml
         qml/qt6/ForegroundImage.qml
         qml/qt6/SaveAsCPlayFile.qml

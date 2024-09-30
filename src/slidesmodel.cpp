@@ -9,6 +9,7 @@
 #include "layersmodel.h"
 #include "locationsettings.h"
 #include "presentationsettings.h"
+#include "layers/baselayer.h"
 #include <QDir>
 #include <QFileInfo>
 #include <QJsonArray>
@@ -16,9 +17,232 @@
 #include <QJsonObject>
 #include <QTimer>
 
+SlideVisibilityModel::SlideVisibilityModel(QList<LayersModel*>* slideList, QObject* parent)
+    : QAbstractTableModel(parent), m_slideList(slideList){
+
+}
+
+SlideVisibilityModel::~SlideVisibilityModel() {
+}
+
+int SlideVisibilityModel::rowCount(const QModelIndex &parent) const {
+    if (parent.isValid())
+        return 0;
+
+    int rows = 0;
+
+    //Rows = Layers
+    for (auto s : *m_slideList)
+        rows += s->numberOfLayers();
+
+    return rows;
+}
+
+int SlideVisibilityModel::columnCount(const QModelIndex &parent) const {
+    if (parent.isValid())
+        return 0;
+
+    //Column = Slides
+    return m_slideList->size();
+}
+
+QVariant SlideVisibilityModel::data(const QModelIndex& index, int role) const {
+    //Rows = Layers
+    //Column = Slides
+
+    switch (role) {
+    case DisplayRole:
+        return QString(QStringLiteral("%1")).arg(calculateLocalIndex(index.column(), index.row()));
+    case ColorRole:
+        return cellColor(index.column(), index.row());
+    case TextRole:
+        return cellText(index.column(), index.row());
+    default:
+        break;
+    }
+
+    return QVariant();
+}
+
+QVariant SlideVisibilityModel::headerData(int section, Qt::Orientation orientation, int role) const {
+    if (role != Qt::DisplayRole) {
+        return QVariant();
+    }
+
+    if (orientation == Qt::Horizontal) {
+        if(section >= 0 && section < m_slideList->size())
+            return QString(QStringLiteral("%1")).arg(m_slideList->at(section)->getLayersName());
+        else
+            return QString(QStringLiteral("%1")).arg(section+1);
+    }
+    else if (orientation == Qt::Vertical) {
+        //Count until we find correct layer
+        int layerNum = 0;
+        for (auto s : *m_slideList) {
+            const Layers& slideLayers = s->getLayers();
+            for (auto layer : slideLayers) {
+                if (section == layerNum) {
+                    return QString(QStringLiteral("%1")).arg(QString::fromStdString(layer->title()));
+                }
+                layerNum++;
+            }
+        }
+
+        return QString(QStringLiteral("%1")).arg(section+1);
+    }
+    return QVariant();
+}
+
+QHash<int, QByteArray> SlideVisibilityModel::roleNames() const {
+    QHash<int, QByteArray> roles;
+    roles[DisplayRole] = "display";
+    roles[ColorRole] = "color";
+    roles[TextRole] = "text";
+    return roles;
+}
+
+void SlideVisibilityModel::cellClicked(int column, int row) {
+    //qDebug() << QStringLiteral("cellClicked - COL:") << column << QStringLiteral(", ROW:") << row;
+    BaseLayer* foundLayer = findLayer(row);
+    if (foundLayer) {
+        // Calculate local index
+        int localIndex = calculateLocalIndex(column, row, true);
+        if (localIndex >= 0) {
+            int currentKVS = foundLayer->keepVisibilityForNumSlides();
+            foundLayer->setKeepVisibilityForNumSlides(localIndex);
+
+            int maxColumns = m_slideList->size()-1;
+            int lowIdx = 0;
+            int highIdx = maxColumns;
+            if (localIndex > currentKVS) {
+                lowIdx = std::max(column - localIndex, 0);
+                highIdx = std::min(column + localIndex + 1, maxColumns);
+            }
+            else {
+                lowIdx = std::max(column - localIndex, 0);
+                highIdx = std::min(column + currentKVS + 1, maxColumns);
+            }
+            Q_EMIT dataChanged(index(row, lowIdx), index(row, highIdx));
+        }
+    }
+}
+
+BaseLayer* SlideVisibilityModel::findLayer(int row) {
+    int layerNum = 0;
+    for (auto s : *m_slideList) {
+        const Layers& slideLayers = s->getLayers();
+        for (auto layer : slideLayers) {
+            if (row == layerNum) {
+                return layer;
+            }
+            layerNum++;
+        }
+    }
+    return nullptr;
+}
+
+int SlideVisibilityModel::calculateLocalIndex(int column, int row, bool ignoreKeepValue) const {
+    // Negative number if column number is before the layer owner (the slide it is own by)
+    // 0 if the column number equals the layer owner
+    // Positive number for large then the layer owner
+
+    int layerNum = 0;
+    int slideNum = 0;
+    for (auto s : *m_slideList) {
+        const Layers& slideLayers = s->getLayers();
+        for (auto layer : slideLayers) {
+            if (row == layerNum) {
+                if(ignoreKeepValue)
+                    return column - slideNum;
+                else
+                    return column - slideNum - layer->keepVisibilityForNumSlides();
+            }
+            layerNum++;
+        }
+        slideNum++;
+    }
+
+    return column - slideNum;
+}
+
+QString SlideVisibilityModel::cellColor(int column, int row) const {
+    // Negative number = grey
+    // First zero, where visibility starts = green
+    // Other zeros, still visible = white
+    // One, where layer fade = red
+    // Positive value above one = black
+
+    int layerNum = 0;
+    int slideNum = 0;
+    for (auto s : *m_slideList) {
+        const Layers& slideLayers = s->getLayers();
+        for (auto layer : slideLayers) {
+            if (row == layerNum) {
+                int val = column - slideNum;
+                if (val == 0) {
+                    return QStringLiteral("green");
+                }
+                else if (val < 0) {
+                    return QStringLiteral("grey");
+                }
+
+                val -= layer->keepVisibilityForNumSlides();
+                if (val <= 0) {
+                    return QStringLiteral("white");
+                }
+                else if (val == 1) {
+                    return QStringLiteral("red");
+                }
+                else {
+                    return QStringLiteral("black");
+                }
+            }
+            layerNum++;
+        }
+        slideNum++;
+    }
+
+    return QStringLiteral("grey");
+}
+
+QString SlideVisibilityModel::cellText(int column, int row) const {
+    int layerNum = 0;
+    int slideNum = 0;
+    for (auto s : *m_slideList) {
+        const Layers& slideLayers = s->getLayers();
+        for (auto layer : slideLayers) {
+            if (row == layerNum) {
+                int val = column - slideNum;
+                if (val == 0) {
+                    return QStringLiteral("0% -> 100%");
+                }
+                else if (val < 0) {
+                    return QStringLiteral("");
+                }
+
+                val -= layer->keepVisibilityForNumSlides();
+                if (val <= 0) {
+                    return QStringLiteral("100%");
+                }
+                else if (val == 1) {
+                    return QStringLiteral("100% -> 0%");
+                }
+                else {
+                    return QStringLiteral("");
+                }
+            }
+            layerNum++;
+        }
+        slideNum++;
+    }
+
+    return QStringLiteral("");
+}
+
 SlidesModel::SlidesModel(QObject *parent)
     : QAbstractListModel(parent),
       m_masterSlide(new LayersModel(this)),
+      m_visibilityModel(new SlideVisibilityModel(&m_slides, this)),
       m_needsSync(false),
       m_slidesName(QStringLiteral("")),
       m_slidesPath(QStringLiteral("")) {
@@ -34,6 +258,7 @@ SlidesModel::~SlidesModel() {
         delete s;
     m_slides.clear();
     delete m_masterSlide;
+    delete m_visibilityModel;
 }
 
 int SlidesModel::rowCount(const QModelIndex &parent) const {
@@ -168,6 +393,10 @@ LayersModel *SlidesModel::slide(int i) {
 
 LayersModel *SlidesModel::selectedSlide() {
     return slide(m_selectedSlideIdx);
+}
+
+SlideVisibilityModel* SlidesModel::visibilityModel() {
+    return m_visibilityModel;
 }
 
 int SlidesModel::addSlide() {

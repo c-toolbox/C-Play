@@ -8,6 +8,8 @@
 #ifndef SLIDESMODEL_H
 #define SLIDESMODEL_H
 
+#include <qqml.h>
+#include <QAbstractListModel>
 #include <QAbstractTableModel>
 
 class BaseLayer;
@@ -20,6 +22,43 @@ class QTimer;
 Q_DECLARE_OPAQUE_POINTER(LayersModel *)
 #endif
 #endif
+
+class SlideVisibilityModel : public QAbstractTableModel
+{
+    Q_OBJECT
+    QML_ELEMENT
+#if QT_VERSION >= QT_VERSION_CHECK(6, 0, 0)
+    QML_ADDED_IN_VERSION(1, 1)
+#else
+    QML_ADDED_IN_MINOR_VERSION(1)
+#endif
+
+public:
+    explicit SlideVisibilityModel(QList<LayersModel*> *slideList, QObject* parent = nullptr);
+    ~SlideVisibilityModel();
+
+    enum {
+        DisplayRole = Qt::DisplayRole,
+        ColorRole,
+        TextRole
+    };
+
+    int rowCount(const QModelIndex &parent = QModelIndex()) const override;
+    int columnCount(const QModelIndex &parent = QModelIndex()) const override;
+    QVariant data(const QModelIndex& index, int role) const override;
+    QVariant headerData(int section, Qt::Orientation orientation, int role) const override;
+    QHash<int, QByteArray> roleNames() const override;
+
+    Q_INVOKABLE void cellClicked(int column, int row);
+
+private:
+    BaseLayer* findLayer(int row);
+    int calculateLocalIndex(int column, int row, bool ignoreKeepValue = false) const;
+    QString cellColor(int column, int row) const;
+    QString cellText(int column, int row) const;
+
+    QList<LayersModel*>* m_slideList;
+};
 
 class SlidesModel : public QAbstractListModel {
     Q_OBJECT
@@ -87,6 +126,11 @@ public:
     Q_INVOKABLE LayersModel *slide(int i);
     Q_INVOKABLE LayersModel *selectedSlide();
 
+    Q_PROPERTY(SlideVisibilityModel *visibilityModel
+        READ visibilityModel
+        NOTIFY visibilityModelChanged)
+    Q_INVOKABLE SlideVisibilityModel *visibilityModel();
+
     Q_INVOKABLE int addSlide();
     Q_INVOKABLE void removeSlide(int i);
     Q_INVOKABLE void moveSlideUp(int i);
@@ -138,6 +182,7 @@ Q_SIGNALS:
     void triggeredSlideVisibilityChanged();
     void slidesNeedsSaveChanged();
     void triggeredSlideChanged();
+    void visibilityModelChanged();
     void needsSyncChanged();
     void slidesNameChanged();
     void slideToPasteIdxChanged();
@@ -148,6 +193,7 @@ Q_SIGNALS:
 private:
     QList<LayersModel *> m_slides;
     LayersModel *m_masterSlide;
+    SlideVisibilityModel* m_visibilityModel;
     BaseLayer *m_layerToCopyFrom;
     int m_selectedSlideIdx = -1; // Means master
     int m_previousSelectedSlideIdx = -1;

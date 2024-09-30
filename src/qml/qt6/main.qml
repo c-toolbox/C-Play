@@ -153,6 +153,10 @@ Kirigami.ApplicationWindow {
         id: slides
 
     }
+    SlidesVisibilityView {
+        id: slidesVisView
+
+    }
     Layers {
         id: layers
 
