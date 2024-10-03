@@ -19,7 +19,7 @@
 
 SlideVisibilityModel::SlideVisibilityModel(QList<LayersModel*>* slideList, QObject* parent)
     : QAbstractTableModel(parent), m_slideList(slideList){
-
+    resetTable();
 }
 
 SlideVisibilityModel::~SlideVisibilityModel() {
@@ -29,13 +29,7 @@ int SlideVisibilityModel::rowCount(const QModelIndex &parent) const {
     if (parent.isValid())
         return 0;
 
-    int rows = 0;
-
-    //Rows = Layers
-    for (auto s : *m_slideList)
-        rows += s->numberOfLayers();
-
-    return rows;
+    return static_cast<int>(m_visibilityLayers.size());
 }
 
 int SlideVisibilityModel::columnCount(const QModelIndex &parent) const {
@@ -43,7 +37,7 @@ int SlideVisibilityModel::columnCount(const QModelIndex &parent) const {
         return 0;
 
     //Column = Slides
-    return m_slideList->size();
+    return static_cast<int>(m_slideList->size());
 }
 
 QVariant SlideVisibilityModel::data(const QModelIndex& index, int role) const {
@@ -101,8 +95,19 @@ QHash<int, QByteArray> SlideVisibilityModel::roleNames() const {
     return roles;
 }
 
+std::vector<std::pair<BaseLayer*, int>> SlideVisibilityModel::getLayersVisibility(int slideIdx) {
+    std::vector<std::pair<BaseLayer*, int>> layersOperationsInSlide;
+
+    int columns = static_cast<int>(m_slideList->size());
+    for (int row = 0; row < static_cast<int>(m_visibilityLayers.size()); row++) {
+        int keepIdx = (row * columns) + slideIdx;
+        layersOperationsInSlide.push_back(std::make_pair(m_visibilityLayers[row], m_keepVisibilityMatrix[keepIdx]));
+    }
+
+    return layersOperationsInSlide;
+}
+
 void SlideVisibilityModel::cellClicked(int column, int row) {
-    //qDebug() << QStringLiteral("cellClicked - COL:") << column << QStringLiteral(", ROW:") << row;
     BaseLayer* foundLayer = findLayer(row);
     if (foundLayer) {
         // Calculate local index
@@ -125,6 +130,63 @@ void SlideVisibilityModel::cellClicked(int column, int row) {
             Q_EMIT dataChanged(index(row, lowIdx), index(row, highIdx));
         }
     }
+}
+
+void SlideVisibilityModel::resetTable() {
+    beginResetModel();
+
+    // Calculate the table/matrix for visibility of layers across slides
+    std::vector<int> newKeepVisibilityMatrix;
+
+    // Below vector contains all layers, in order from first to last slide.
+    std::vector<BaseLayer*> newVisibilityLayers;
+
+    // Negative number if column number is before the layer owner (the slide it is own by)
+    // 0 if the column number equals the layer owner
+    // Positive number for large then the layer owner
+    
+    //Column = Slides
+    int columns = m_slideList->size();
+
+    //Rows = Layers
+    for (auto s : *m_slideList) {
+        const Layers& slideLayers = s->getLayers();
+        for (auto layer : slideLayers) {
+            newVisibilityLayers.push_back(layer);
+        }
+    }
+    int rows = static_cast<int>(newVisibilityLayers.size());
+
+    //Fill matrix
+    for (int row = 0; row < rows; row++) {
+        for (int column = 0; column < columns; column++) {
+            int layerNum = 0;
+            int slideNum = 0;
+            bool storedValue = false;
+            for (auto s : *m_slideList) {
+                const Layers& slideLayers = s->getLayers();
+                for (int i = 0; i < slideLayers.size(); i++) {
+                    if (row == layerNum) {
+                        if (!storedValue) {
+                            newKeepVisibilityMatrix.push_back(column - slideNum);
+                            storedValue = true;
+                        }                    
+                    }
+                    layerNum++;
+                }
+                slideNum++;
+            }
+            if (!storedValue) {
+                newKeepVisibilityMatrix.push_back(column - slideNum);
+                storedValue = true;
+            }
+        }
+    }
+
+    m_keepVisibilityMatrix = newKeepVisibilityMatrix;
+    m_visibilityLayers = newVisibilityLayers;
+
+    endResetModel();
 }
 
 BaseLayer* SlideVisibilityModel::findLayer(int row) {
@@ -172,71 +234,57 @@ QString SlideVisibilityModel::cellColor(int column, int row) const {
     // One, where layer fade = red
     // Positive value above one = black
 
-    int layerNum = 0;
-    int slideNum = 0;
-    for (auto s : *m_slideList) {
-        const Layers& slideLayers = s->getLayers();
-        for (auto layer : slideLayers) {
-            if (row == layerNum) {
-                int val = column - slideNum;
-                if (val == 0) {
-                    return QStringLiteral("green");
-                }
-                else if (val < 0) {
-                    return QStringLiteral("grey");
-                }
+    int keepIdx = (row * m_slideList->size()) + column;
 
-                val -= layer->keepVisibilityForNumSlides();
-                if (val <= 0) {
-                    return QStringLiteral("white");
-                }
-                else if (val == 1) {
-                    return QStringLiteral("red");
-                }
-                else {
-                    return QStringLiteral("black");
-                }
-            }
-            layerNum++;
-        }
-        slideNum++;
+    if(keepIdx >= m_keepVisibilityMatrix.size() || row >= m_visibilityLayers.size())
+        return QStringLiteral("grey");
+
+    int val = m_keepVisibilityMatrix[keepIdx];
+
+    if (val == 0) {
+        return QStringLiteral("green");
+    }
+    else if (val < 0) {
+        return QStringLiteral("grey");
     }
 
-    return QStringLiteral("grey");
+    val -= m_visibilityLayers[row]->keepVisibilityForNumSlides();
+    if (val <= 0) {
+        return QStringLiteral("white");
+    }
+    else if (val == 1) {
+        return QStringLiteral("red");
+    }
+    else {
+        return QStringLiteral("black");
+    }
 }
 
 QString SlideVisibilityModel::cellText(int column, int row) const {
-    int layerNum = 0;
-    int slideNum = 0;
-    for (auto s : *m_slideList) {
-        const Layers& slideLayers = s->getLayers();
-        for (auto layer : slideLayers) {
-            if (row == layerNum) {
-                int val = column - slideNum;
-                if (val == 0) {
-                    return QStringLiteral("0% -> 100%");
-                }
-                else if (val < 0) {
-                    return QStringLiteral("");
-                }
+    int keepIdx = (row * m_slideList->size()) + column;
 
-                val -= layer->keepVisibilityForNumSlides();
-                if (val <= 0) {
-                    return QStringLiteral("100%");
-                }
-                else if (val == 1) {
-                    return QStringLiteral("100% -> 0%");
-                }
-                else {
-                    return QStringLiteral("");
-                }
-            }
-            layerNum++;
-        }
-        slideNum++;
+    if (keepIdx >= m_keepVisibilityMatrix.size() || row >= m_visibilityLayers.size())
+        return QStringLiteral("");
+
+    int val = m_keepVisibilityMatrix[keepIdx];
+
+    if (val == 0) {
+        return QStringLiteral("0% -> 100%");
+    }
+    else if (val < 0) {
+        return QStringLiteral("");
     }
 
-    return QStringLiteral("");
+    val -= m_visibilityLayers[row]->keepVisibilityForNumSlides();
+    if (val <= 0) {
+        return QStringLiteral("100%");
+    }
+    else if (val == 1) {
+        return QStringLiteral("100% -> 0%");
+    }
+    else {
+        return QStringLiteral("");
+    }
 }
 
 SlidesModel::SlidesModel(QObject *parent)
@@ -251,6 +299,7 @@ SlidesModel::SlidesModel(QObject *parent)
     m_clearCopyTimer->setInterval(30000);
     m_clearCopyTimer->setSingleShot(true);
     connect(m_clearCopyTimer, &QTimer::timeout, this, &SlidesModel::clearCopyLayer);
+    connect(this, &SlidesModel::slideModelChanged, m_visibilityModel, &SlideVisibilityModel::resetTable);
 }
 
 SlidesModel::~SlidesModel() {
@@ -355,18 +404,59 @@ int SlidesModel::triggeredSlideVisibility() {
 }
 
 void SlidesModel::setTriggeredSlideVisibility(int value) {
+    // Visibiity scheme
+    // Calculate based on keepVisibilityForNumSlides which layers should
+    // have 100%(i.e. value) or which should have 0% (100 - value)
+    // The SlideVisibilityModel has the visbility matrix precalculated
+    // to run this scheme on.
+
+    float valF = static_cast<float>(value) * 0.01f;
+
     // Propogate down
     if (m_triggeredSlideIdx >= 0 && m_triggeredSlideIdx < m_slides.size()) {
-        slide(m_triggeredSlideIdx)->setLayersVisibility(value);
+        std::vector<std::pair<BaseLayer*, int>> layers = m_visibilityModel->getLayersVisibility(m_triggeredSlideIdx);
+        for (int i = 0; i < layers.size(); i++) {
+            int localIdx = layers[i].second;
+
+            if (localIdx == 0) {
+                layers[i].first->setAlpha(valF); // 0&->100%
+                continue;
+            }
+            else if (localIdx < 0) {
+                layers[i].first->setAlpha(0.f); //0%
+                continue;
+            }
+
+            localIdx -= layers[i].first->keepVisibilityForNumSlides();
+            if (localIdx <= 0) {
+                layers[i].first->setAlpha(1.f); // 100%
+                continue;
+            }
+            else if (localIdx == 1) {
+                layers[i].first->setAlpha(1.f - valF); //100%->0%
+                continue;
+            }
+            else {
+                layers[i].first->setAlpha(0.f); // 0%
+                continue;
+            }
+        }
+
+        slide(m_triggeredSlideIdx)->setLayersVisibility(value, false);
         updateSlide(m_triggeredSlideIdx);
     }
 
-    // If previous slide is high
-    if (m_previousTriggeredSlideIdx != m_triggeredSlideIdx && m_previousTriggeredSlideIdx >= 0 && m_previousTriggeredSlideIdx < m_slides.size()) {
-        if (slide(m_previousTriggeredSlideIdx)->getLayersVisibility() > 0) {
-            slide(m_previousTriggeredSlideIdx)->setLayersVisibility(100 - value);
-            updateSlide(m_previousTriggeredSlideIdx);
-        }
+    // Need to update UI for all layers that changed
+    // Let's just update selected, triggered and previous slide
+    if (m_previousTriggeredSlideIdx != m_triggeredSlideIdx 
+        && m_previousTriggeredSlideIdx >= 0 && m_previousTriggeredSlideIdx < m_slides.size()) {
+        slide(m_previousTriggeredSlideIdx)->setLayersVisibility(100 - value, false);
+        updateSlide(m_previousTriggeredSlideIdx);
+    }
+    if (m_selectedSlideIdx != m_triggeredSlideIdx && m_selectedSlideIdx != m_previousTriggeredSlideIdx
+        && m_selectedSlideIdx >= 0 && m_selectedSlideIdx < m_slides.size()) {
+        slide(m_selectedSlideIdx)->setLayersVisibility(100 - value, false);
+        updateSlide(m_selectedSlideIdx);
     }
 
     setSlidesNeedsSave(true);
@@ -406,6 +496,9 @@ int SlidesModel::addSlide() {
     m_needsSync = true;
     endInsertRows();
 
+    connect(m_slides[m_slides.size() - 1], &LayersModel::layersModelChanged, this, &SlidesModel::slideContentChanged);
+    Q_EMIT slideModelChanged();
+
     return m_slides.size() - 1;
 }
 
@@ -437,6 +530,8 @@ void SlidesModel::removeSlide(int i) {
     endRemoveRows();
     setSlidesNeedsSave(true);
     m_needsSync = true;
+
+    Q_EMIT slideModelChanged();
 }
 
 void SlidesModel::moveSlideUp(int i) {
@@ -448,6 +543,8 @@ void SlidesModel::moveSlideUp(int i) {
     endMoveRows();
     setSlidesNeedsSave(true);
     m_needsSync = true;
+
+    Q_EMIT slideModelChanged();
 }
 
 void SlidesModel::moveSlideDown(int i) {
@@ -459,6 +556,8 @@ void SlidesModel::moveSlideDown(int i) {
     endMoveRows();
     setSlidesNeedsSave(true);
     m_needsSync = true;
+
+    Q_EMIT slideModelChanged();
 }
 
 void SlidesModel::updateSlide(int i) {
@@ -482,6 +581,12 @@ void SlidesModel::clearSlides() {
     setSlidesPath(QStringLiteral(""));
     setSlidesNeedsSave(false);
     m_needsSync = true;
+
+    Q_EMIT slideModelChanged();
+}
+
+void SlidesModel::slideContentChanged() {
+    Q_EMIT slideModelChanged();
 }
 
 void SlidesModel::copyLayer() {

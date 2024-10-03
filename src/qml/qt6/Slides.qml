@@ -350,7 +350,6 @@ Rectangle {
             Button {
                 id: visibilityViewButton
 
-                anchors.right: slidesRoot.right
                 checkable: true
                 checked: slidesVisView.visible
                 icon.name: "table"
@@ -367,7 +366,6 @@ Rectangle {
             Button {
                 id: masterSlideButton
 
-                anchors.right: slidesRoot.right
                 checkable: true
                 checked: slidesView.currentIndex === -1
                 icon.name: "backgroundtool"

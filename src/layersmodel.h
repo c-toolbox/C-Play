@@ -103,7 +103,7 @@ public:
                        WRITE setLayersVisibility
                            NOTIFY layersVisibilityChanged)
 
-    Q_INVOKABLE void setLayersVisibility(int value);
+    Q_INVOKABLE void setLayersVisibility(int value, bool propagateDown = true);
     Q_INVOKABLE int getLayersVisibility();
 
     Q_PROPERTY(bool layersNeedsSave
@@ -156,6 +156,7 @@ public:
 #endif
 
 Q_SIGNALS:
+    void layersModelChanged();
     void layersTypeModelChanged();
     void layersVisibilityChanged();
     void layersNeedsSaveChanged();

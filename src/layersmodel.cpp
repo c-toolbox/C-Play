@@ -161,6 +161,8 @@ int LayersModel::addLayer(QString title, int type, QString filepath, int stereoM
 
     endInsertRows();
 
+    Q_EMIT layersModelChanged();
+
     return m_layers.size() - 1;
 }
 
@@ -174,6 +176,8 @@ void LayersModel::removeLayer(int i) {
     endRemoveRows();
     setLayersNeedsSave(true);
     m_needsSync = true;
+
+    Q_EMIT layersModelChanged();
 }
 
 void LayersModel::moveLayerTop(int i) {
@@ -184,6 +188,8 @@ void LayersModel::moveLayerTop(int i) {
     endMoveRows();
     setLayersNeedsSave(true);
     m_needsSync = true;
+
+    Q_EMIT layersModelChanged();
 }
 
 void LayersModel::moveLayerUp(int i) {
@@ -194,6 +200,8 @@ void LayersModel::moveLayerUp(int i) {
     endMoveRows();
     setLayersNeedsSave(true);
     m_needsSync = true;
+
+    Q_EMIT layersModelChanged();
 }
 
 void LayersModel::moveLayerDown(int i) {
@@ -204,6 +212,8 @@ void LayersModel::moveLayerDown(int i) {
     endMoveRows();
     setLayersNeedsSave(true);
     m_needsSync = true;
+
+    Q_EMIT layersModelChanged();
 }
 
 void LayersModel::moveLayerBottom(int i) {
@@ -214,6 +224,8 @@ void LayersModel::moveLayerBottom(int i) {
     endMoveRows();
     setLayersNeedsSave(true);
     m_needsSync = true;
+
+    Q_EMIT layersModelChanged();
 }
 
 void LayersModel::updateLayer(int i) {
@@ -229,12 +241,16 @@ void LayersModel::clearLayers() {
     endRemoveRows();
     setLayersNeedsSave(false);
     m_needsSync = true;
+
+    Q_EMIT layersModelChanged();
 }
 
-void LayersModel::setLayersVisibility(int value) {
+void LayersModel::setLayersVisibility(int value, bool propagateDown) {
     m_layersVisibility = value;
     for (int i = 0; i < m_layers.size(); i++) {
-        m_layers[i]->setAlpha(static_cast<float>(value) * 0.01f);
+        if (propagateDown) {
+            m_layers[i]->setAlpha(static_cast<float>(value) * 0.01f);
+        }
         updateLayer(i);
     }
     Q_EMIT layersVisibilityChanged();
@@ -295,6 +311,8 @@ void LayersModel::addCopyOfLayer(BaseLayer* srcLayer) {
     }
 
     endInsertRows();
+
+    Q_EMIT layersModelChanged();
 }
 
 void LayersModel::overwriteLayerProperties(BaseLayer* srcLayer, int dstLayerIdx) {
@@ -430,6 +448,11 @@ void LayersModel::decodeFromJSON(QJsonObject &obj, const QStringList &forRelativ
                         m_layers[idx]->setAlpha(static_cast<float>(visibility) * 0.01f);
                     }
 
+                    if (o.contains(QStringLiteral("keepVisibilityForNumSlides"))) {
+                        int keepVisibilityForNumSlides = o.value(QStringLiteral("keepVisibilityForNumSlides")).toInt();
+                        m_layers[idx]->setKeepVisibilityForNumSlides(keepVisibilityForNumSlides);
+                    }
+
                     if (grid == BaseLayer::GridMode::Plane && o.contains(QStringLiteral("plane"))) {
                         QJsonValue planeValues = o.value(QStringLiteral("plane"));
                         QJsonArray planeArray = planeValues.toArray();
@@ -539,6 +562,7 @@ void LayersModel::encodeToJSON(QJsonObject &obj, const QStringList &forRelativeP
         layerData.insert(QStringLiteral("stereoscopic"), QJsonValue(sv));
 
         layerData.insert(QStringLiteral("visibility"), QJsonValue(static_cast<int>(layer->alpha() * 100.f)));
+        layerData.insert(QStringLiteral("keepVisibilityForNumSlides"), QJsonValue(layer->keepVisibilityForNumSlides()));
 
         // Plane properties
         if (gridIdx == BaseLayer::GridMode::Plane) {

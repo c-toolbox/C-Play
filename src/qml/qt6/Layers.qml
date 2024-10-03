@@ -309,7 +309,6 @@ Rectangle {
                 width: Kirigami.Units.gridUnit + 10
             }
             Button {
-                anchors.right: layersRoot.right
                 checkable: true
                 checked: layerView.visible
                 icon.name: "document-edit-decrypt-verify"

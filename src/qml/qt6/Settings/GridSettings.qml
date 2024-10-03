@@ -84,8 +84,8 @@ SettingsBasePage {
                 enabled: mpv.planeConsiderAspectRatio !== 1
                 from: 0
                 stepSize: 1
-                to: 2000
-                value: mpv.planeWidth
+                to: 20000
+                Component.onCompleted: value = mpv.planeWidth
 
                 onValueChanged: mpv.planeWidth = value
             }
@@ -109,8 +109,8 @@ SettingsBasePage {
                 enabled: mpv.planeConsiderAspectRatio !== 2
                 from: 0
                 stepSize: 1
-                to: 2000
-                value: mpv.planeHeight
+                to: 20000
+                Component.onCompleted: value = mpv.planeHeight
 
                 onValueChanged: mpv.planeHeight = value
             }
@@ -156,7 +156,7 @@ SettingsBasePage {
 
                 from: 0
                 stepSize: 1
-                to: 2000
+                to: 20000
                 value: mpv.planeDistance
 
                 onValueChanged: mpv.planeDistance = value
@@ -188,7 +188,7 @@ SettingsBasePage {
 
                 from: 0
                 stepSize: 1
-                to: 2000
+                to: 20000
                 value: mpv.radius
 
                 onValueChanged: mpv.radius = value
@@ -209,7 +209,7 @@ SettingsBasePage {
 
                 from: 0
                 stepSize: 1
-                to: 2000
+                to: 20000
                 value: GridSettings.surfaceRadius_2ndState
             }
         }

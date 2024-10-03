@@ -224,14 +224,16 @@ ToolBar {
                     RadioButton {
                         id: fai_fade_sync
 
-                        checked: mpv.syncVolumeVisibilityFading === true
+                        checked: mpv.syncVolumeVisibilityFading
+                        Component.onCompleted: checked = mpv.syncVolumeVisibilityFading
                         text: qsTr("Sync volume+visibility fading")
 
                         onCheckedChanged: {
                             if (checked) {
                                 faiMenuButton.icon.name = "media-playlist-repeat";
                                 faiToolTip.text = "Sync audio+image fading: Yes";
-                                mpv.syncVolumeVisibilityFading = true;
+                                if(!mpv.syncVolumeVisibilityFading)
+                                    mpv.syncVolumeVisibilityFading = true;
                             }
                         }
                         onClicked: {}

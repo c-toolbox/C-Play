@@ -37,8 +37,12 @@ Menu {
                 onTriggered: mpv.loadFile(modelData)
             }
 
-            onObjectAdded: recentMediaFilesMenu.insertItem(index, object)
-            onObjectRemoved: recentMediaFilesMenu.removeItem(object)
+            onObjectAdded: function(index, object) {
+                recentMediaFilesMenu.insertItem(index, object)
+            }
+            onObjectRemoved: function(index, object) {
+                recentMediaFilesMenu.removeItem(object)
+            }
         }
         Connections {
             function onRecentMediaFilesChanged() {
@@ -69,8 +73,12 @@ Menu {
                 onTriggered: mpv.loadFile(modelData)
             }
 
-            onObjectAdded: recentPlaylistsMenu.insertItem(index, object)
-            onObjectRemoved: recentPlaylistsMenu.removeItem(object)
+            onObjectAdded: function(index, object) {
+                recentPlaylistsMenu.insertItem(index, object)
+            }
+            onObjectRemoved: function(index, object) {
+                recentPlaylistsMenu.removeItem(object)
+            }
         }
         Connections {
             function onRecentPlaylistsChanged() {

@@ -99,7 +99,10 @@ Kirigami.Page {
             text: qsTr(name)
             width: settingsPagesList.width
 
-            onClicked: applicationWindow().pageStack.push(`${settingsPagesModel.pagePath}/${model.page}`)
+            onClicked: {
+                applicationWindow().pageStack.removePage(1);
+                applicationWindow().pageStack.push(`${settingsPagesModel.pagePath}/${model.page}`);
+            }
         }
     }
 }

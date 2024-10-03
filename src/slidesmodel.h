@@ -49,7 +49,10 @@ public:
     QVariant headerData(int section, Qt::Orientation orientation, int role) const override;
     QHash<int, QByteArray> roleNames() const override;
 
+    std::vector<std::pair<BaseLayer*, int>> getLayersVisibility(int slideIdx);
+
     Q_INVOKABLE void cellClicked(int column, int row);
+    Q_INVOKABLE void resetTable();
 
 private:
     BaseLayer* findLayer(int row);
@@ -58,6 +61,9 @@ private:
     QString cellText(int column, int row) const;
 
     QList<LayersModel*>* m_slideList;
+
+    std::vector<int> m_keepVisibilityMatrix;
+    std::vector<BaseLayer*> m_visibilityLayers;
 };
 
 class SlidesModel : public QAbstractListModel {
@@ -138,6 +144,7 @@ public:
     Q_INVOKABLE void updateSlide(int i);
     Q_INVOKABLE void updateSelectedSlide();
     Q_INVOKABLE void clearSlides();
+    Q_INVOKABLE void slideContentChanged();
 
     Q_INVOKABLE void copyLayer();
     Q_INVOKABLE void clearCopyLayer();
@@ -178,6 +185,7 @@ public:
     Q_INVOKABLE void saveAsJSONFile(const QString &path);
 
 Q_SIGNALS:
+    void slideModelChanged();
     void selectedSlideChanged();
     void triggeredSlideVisibilityChanged();
     void slidesNeedsSaveChanged();
