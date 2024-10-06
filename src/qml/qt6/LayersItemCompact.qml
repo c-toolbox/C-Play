@@ -30,7 +30,7 @@ ItemDelegate {
         return number;
     }
     function subText() {
-        return model.type + " - " + model.stereoVideo + " " + model.gridToMapOn;
+        return model.type + model.page + " - " + model.stereoVideo + " " + model.gridToMapOn;
     }
 
     font.pointSize: 9
@@ -98,12 +98,12 @@ ItemDelegate {
                 id: slideTitleField
 
                 anchors.left: its.left
-                anchors.leftMargin: 15
+                anchors.leftMargin: 12
                 anchors.top: parent.top
                 anchors.topMargin: 3
                 color: Kirigami.Theme.textColor
                 font.pointSize: 9
-                maximumLength: 18
+                maximumLength: 30
                 text: model.title
                 visible: layersView.currentIndex === index
 

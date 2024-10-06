@@ -22,6 +22,10 @@ ImageLayer::~ImageLayer() {
         sgct::TextureManager::instance().removeTexture(renderData.texId);
 }
 
+void ImageLayer::preload() {
+
+}
+
 void ImageLayer::update() {
     processImageUpload(filepath(), imageData.filename != filepath());
 }

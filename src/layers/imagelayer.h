@@ -20,6 +20,7 @@ public:
     ImageLayer(std::string identifier);
     ~ImageLayer();
 
+    void preload();
     void update();
     bool ready();
 

@@ -46,7 +46,9 @@ SettingsBasePage {
             Layout.fillWidth: true
             text: qsTr("Presentation (Slides and Layers) settings")
         }
+
         Label {
+            Layout.alignment: Qt.AlignRight
             text: qsTr("Presentation to load on startup:")
         }
         RowLayout {
@@ -84,6 +86,7 @@ SettingsBasePage {
             // spacer item
             Layout.fillWidth: true
         }
+
         Label {
             Layout.alignment: Qt.AlignRight
             text: qsTr("Default stereoscopic mode for new layer:")
@@ -134,6 +137,7 @@ SettingsBasePage {
             // spacer item
             Layout.fillWidth: true
         }
+
         Label {
             Layout.alignment: Qt.AlignRight
             text: qsTr("Default grid mode for new layer:")
@@ -188,6 +192,7 @@ SettingsBasePage {
             // spacer item
             Layout.fillWidth: true
         }
+
         Label {
             Layout.alignment: Qt.AlignRight
             text: qsTr("Default visibility for new layer:")
@@ -200,6 +205,26 @@ SettingsBasePage {
 
             onValueChanged: {
                 PresentationSettings.defaultLayerVisibility = value.toFixed(0);
+                PresentationSettings.save();
+            }
+        }
+        Item {
+            // spacer item
+            Layout.fillWidth: true
+        }
+        
+        Label {
+            Layout.alignment: Qt.AlignRight
+            text: qsTr("DPI (dots per inch) for rendering PDF pages:")
+        }
+        SpinBox {
+            editable: true
+            from: 0
+            to: 1000
+            value: PresentationSettings.pdfDpi
+
+            onValueChanged: {
+                PresentationSettings.pdfDpi = value.toFixed(0);
                 PresentationSettings.save();
             }
         }

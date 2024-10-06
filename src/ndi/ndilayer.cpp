@@ -23,6 +23,10 @@ NdiLayer::~NdiLayer() {
         glDeleteTextures(1, &renderData.texId);
 }
 
+void NdiLayer::preload() {
+
+}
+
 void NdiLayer::update() {
     ReceiveImage();
 }

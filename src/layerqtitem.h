@@ -59,6 +59,8 @@ class LayerQtItem : public QQuickItem {
     Q_PROPERTY(int layerStereoMode READ layerStereoMode WRITE setLayerStereoMode NOTIFY layerValueChanged)
     Q_PROPERTY(int layerGridMode READ layerGridMode WRITE setLayerGridMode NOTIFY layerValueChanged)
     Q_PROPERTY(int layerVisibility READ layerVisibility WRITE setLayerVisibility NOTIFY layerValueChanged)
+    Q_PROPERTY(int layerPage READ layerPage WRITE setLayerPage NOTIFY layerValueChanged)
+    Q_PROPERTY(int layerNumPages READ layerNumPages NOTIFY layerValueChanged)
     Q_PROPERTY(double layerRotatePitch READ layerRotatePitch WRITE setLayerRotatePitch NOTIFY layerValueChanged)
     Q_PROPERTY(double layerRotateYaw READ layerRotateYaw WRITE setLayerRotateYaw NOTIFY layerValueChanged)
     Q_PROPERTY(double layerRotateRoll READ layerRotateRoll WRITE setLayerRotateRoll NOTIFY layerValueChanged)
@@ -70,6 +72,7 @@ class LayerQtItem : public QQuickItem {
     Q_PROPERTY(double layerPlaneDistance READ layerPlaneDistance WRITE setLayerPlaneDistance NOTIFY layerValueChanged)
     Q_PROPERTY(double layerPlaneRoll READ layerPlaneRoll WRITE setLayerPlaneRoll NOTIFY layerValueChanged)
     Q_PROPERTY(bool layerRoiEnabled READ layerRoiEnabled WRITE setLayerRoiEnabled NOTIFY layerValueChanged)
+    Q_PROPERTY(QString layerTypeName READ layerTypeName NOTIFY layerValueChanged)
     Q_PROPERTY(QString layerTitle READ layerTitle WRITE setLayerTitle NOTIFY layerValueChanged)
     Q_PROPERTY(QSize textureSize READ textureSize NOTIFY viewChanged)
     Q_PROPERTY(QPoint viewOffset READ viewOffset WRITE setViewOffset NOTIFY viewChanged)
@@ -83,17 +86,21 @@ class LayerQtItem : public QQuickItem {
 public:
     LayerQtItem();
 
-    int layerIdx();
+    int layerIdx() const;
     void setLayerIdx(int idx);
 
-    int layerStereoMode();
+    int layerStereoMode() const;
     void setLayerStereoMode(int mode);
 
-    int layerGridMode();
+    int layerGridMode() const;
     void setLayerGridMode(int mode);
 
-    int layerVisibility();
+    int layerVisibility() const;
     void setLayerVisibility(int value);
+
+    int layerPage() const;
+    void setLayerPage(int value);
+    int layerNumPages() const;
 
     double layerRotatePitch() const;
     void setLayerRotatePitch(double x);
@@ -128,6 +135,7 @@ public:
     bool layerRoiEnabled();
     void setLayerRoiEnabled(bool value);
 
+    QString layerTypeName();
     QString layerTitle();
     void setLayerTitle(QString value);
 

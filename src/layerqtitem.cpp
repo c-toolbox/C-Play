@@ -24,7 +24,7 @@ LayerQtItem::LayerQtItem()
     connect(this, &QQuickItem::windowChanged, this, &LayerQtItem::handleWindowChanged);
 }
 
-int LayerQtItem::layerIdx() {
+int LayerQtItem::layerIdx() const{
     return m_layerIdx;
 }
 
@@ -45,7 +45,7 @@ void LayerQtItem::setLayerIdx(int idx) {
     }
 }
 
-int LayerQtItem::layerStereoMode() {
+int LayerQtItem::layerStereoMode() const{
     if (m_layer)
         return m_layer->stereoMode();
     else
@@ -59,7 +59,7 @@ void LayerQtItem::setLayerStereoMode(int mode) {
     }
 }
 
-int LayerQtItem::layerGridMode() {
+int LayerQtItem::layerGridMode() const{
     if (m_layer)
         return m_layer->gridMode();
     else
@@ -73,7 +73,7 @@ void LayerQtItem::setLayerGridMode(int mode) {
     }
 }
 
-int LayerQtItem::layerVisibility() {
+int LayerQtItem::layerVisibility() const{
     if (m_layer)
         return static_cast<int>(m_layer->alpha() * 100.f);
     else
@@ -96,6 +96,27 @@ void LayerQtItem::setLayerVisibility(int value) {
 
         Q_EMIT layerValueChanged();
     }
+}
+
+int LayerQtItem::layerPage() const {
+    if (m_layer)
+        return m_layer->page();
+    else
+        return -1;
+}
+
+void LayerQtItem::setLayerPage(int value) {
+    if (m_layer) {
+        m_layer->setPage(value);
+        Q_EMIT layerValueChanged();
+    }
+}
+
+int LayerQtItem::layerNumPages() const {
+    if (m_layer)
+        return m_layer->numPages();
+    else
+        return -1;
 }
 
 double LayerQtItem::layerRotatePitch() const {
@@ -259,6 +280,13 @@ void LayerQtItem::setLayerRoiEnabled(bool value) {
         if (value)
             updateRoi();
     }
+}
+
+QString LayerQtItem::layerTypeName() {
+    if (m_layer)
+        return QString::fromStdString(m_layer->typeName());
+    else
+        return QStringLiteral("");
 }
 
 QString LayerQtItem::layerTitle() {
@@ -574,9 +602,10 @@ void LayerQtItemRenderer::init() {
                                                     "attribute highp vec3 vertices;"
                                                     "attribute highp vec2 texcoords;"
                                                     "varying highp vec2 coords;"
+                                                    "uniform bool flipY;"
                                                     "void main() {"
                                                     "    gl_Position = vec4(vertices, 1.0);"
-                                                    "    coords = texcoords;"
+                                                    "    coords = flipY ? vec2(texcoords.x, 1.0-texcoords.y) : texcoords;"
                                                     "}");
         m_program->addCacheableShaderFromSourceCode(QOpenGLShader::Fragment,
                                                     "varying highp vec2 coords;"
@@ -654,6 +683,7 @@ void LayerQtItemRenderer::paint() {
     glBindTexture(GL_TEXTURE_2D, m_layer->textureId());
 
     m_program->setUniformValue("tex", 1);
+    m_program->setUniformValue("flipY", (m_layer->flipY() ? 1 : 0 ));
 
     glViewport(m_viewOffset.x(), m_viewOffset.y(), m_viewSize.width(), m_viewSize.height());
 

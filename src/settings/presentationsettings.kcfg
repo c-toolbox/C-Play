@@ -24,5 +24,9 @@
       <label>The default visibility for new layers</label>
       <default>0</default>
     </entry>
+    <entry name="PdfDpi" type="int">
+      <label>The DPI (dots per inch) for PDF rendering to image.</label>
+      <default>300</default>
+    </entry>
   </group>
 </kcfg>

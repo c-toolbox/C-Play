@@ -39,11 +39,13 @@ private:
     // video
     int videoAlphaLoc;
     int videoEyeModeLoc;
+    int videoFlipYLoc;
     int videoStereoscopicModeLoc;
     int videoRoi;
     // mesh
     int meshAlphaLoc;
     int meshEyeModeLoc;
+    int meshFlipYLoc;
     int meshMatrixLoc;
     int meshOutsideLoc;
     int meshStereoscopicModeLoc;

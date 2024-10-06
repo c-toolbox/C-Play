@@ -21,6 +21,7 @@ Kirigami.ApplicationWindow {
     property var layerItem: layerViewItem
     property var roiEdit: undefined
     property var selection: undefined
+    property var pdfPage: undefined
 
     function createRoiComponents() {
         if (!selection) {
@@ -42,6 +43,17 @@ Kirigami.ApplicationWindow {
             roiEdit.destroy();
     }
 
+    function createPageComponents() {
+        if (!pdfPage) {
+            pdfPage = pdfPageComponent.createObject(layerViewItem);
+        }
+    }
+    function destroyPageComponents() {
+        if (pdfPage) {
+            pdfPage.destroy();
+        }
+    }
+
     color: Kirigami.Theme.alternateBackgroundColor
     height: 630
     minimumWidth: 690
@@ -59,11 +71,15 @@ Kirigami.ApplicationWindow {
     }
     onClosing: {
         destroyRoiComponents();
+        destroyPageComponents();
     }
     onVisibilityChanged: {
         if (visibility) {
             if (layerView.layerItem.layerRoiEnabled) {
                 createRoiComponents();
+            }
+            if (layerView.layerItem.layerTypeName === "PDF") {
+                createPageComponents();
             }
         }
     }
@@ -284,6 +300,12 @@ Kirigami.ApplicationWindow {
                         createRoiComponents();
                     } else {
                         destroyRoiComponents();
+                    }
+                    
+                    if (layerView.layerItem.layerTypeName === "PDF") {
+                        createPageComponents();
+                    } else {
+                        destroyPageComponents();
                     }
                 }
                 function onLayerValueChanged() {
@@ -577,6 +599,44 @@ Kirigami.ApplicationWindow {
                             axis: Drag.YAxis
                             target: parent
                         }
+                    }
+                }
+            }
+        }
+        Component {
+            id: pdfPageComponent
+
+            Row {
+                anchors.horizontalCenter: parent.horizontalCenter
+                anchors.bottom: parent.bottom
+                bottomPadding: 20
+
+                RowLayout {
+                    Label {
+                        font.pointSize: 10
+                        text: "Page:"
+                    }
+                    SpinBox {
+                        id: pageNum
+
+                        from: 1
+                        to: 200
+                        value: 1
+
+                        onValueChanged: {
+                            if (pageNum.value !== layerView.layerItem.layerPage)
+                                layerView.layerItem.layerPage = pageNum.value
+                        }
+
+                        Component.onCompleted: {
+                            pageNum.value = layerView.layerItem.layerPage
+                            pageNum.to = layerView.layerItem.layerNumPages
+                        }
+                    }
+                    Label {
+                        id: labelNumPages
+                        font.pointSize: 10
+                        text: qsTr("of %1 pages.").arg(Number(layerView.layerItem.layerNumPages));
                     }
                 }
             }

@@ -20,12 +20,14 @@ constexpr std::string_view VideoVert = R"(
   uniform int eye;
   uniform int stereoscopicMode;
   uniform vec4 roi;
+  uniform bool flipY;
 
   out vec2 tr_uv;
 
   void main() {
     gl_Position = vec4(in_position, 0.0, 1.0);
-    tr_uv = (in_texCoord * roi.zw) + roi.xy;
+    tr_uv = flipY ? vec2(in_texCoord.x, 1.0-in_texCoord.y) : in_texCoord;
+    tr_uv = (tr_uv * roi.zw) + roi.xy;
 
     if(eye==2) { //Right Eye
         if(stereoscopicMode==1) { //Side-by-side
@@ -65,13 +67,15 @@ constexpr std::string_view MeshVert = R"(
   uniform int eye;
   uniform int stereoscopicMode;
   uniform vec4 roi;
+  uniform bool flipY;
 
   out vec2 tr_uv;
   out vec3 tr_normals;
 
   void main() {
     gl_Position = mvp * vec4(in_position, 1.0);
-    tr_uv = (in_texCoord * roi.zw) + roi.xy;
+    tr_uv = flipY ? vec2(in_texCoord.x, 1.0-in_texCoord.y) : in_texCoord;
+    tr_uv = (tr_uv * roi.zw) + roi.xy;
     tr_normals = in_normal;
 
     if(eye==2) { //Right Eye
@@ -398,6 +402,7 @@ void LayerRenderer::initialize(double radius, double fov) {
     glUniform1i(glGetUniformLocation(meshPrg->id(), "tex"), 0);
     meshMatrixLoc = glGetUniformLocation(meshPrg->id(), "mvp");
     meshEyeModeLoc = glGetUniformLocation(meshPrg->id(), "eye");
+    meshFlipYLoc = glGetUniformLocation(meshPrg->id(), "flipY");
     meshStereoscopicModeLoc = glGetUniformLocation(meshPrg->id(), "stereoscopicMode");
     meshRoi = glGetUniformLocation(meshPrg->id(), "roi");
     meshAlphaLoc = glGetUniformLocation(meshPrg->id(), "alpha");
@@ -421,6 +426,7 @@ void LayerRenderer::initialize(double radius, double fov) {
     videoPrg->bind();
     glUniform1i(glGetUniformLocation(videoPrg->id(), "tex"), 0);
     videoEyeModeLoc = glGetUniformLocation(videoPrg->id(), "eye");
+    videoFlipYLoc = glGetUniformLocation(videoPrg->id(), "flipY");
     videoStereoscopicModeLoc = glGetUniformLocation(videoPrg->id(), "stereoscopicMode");
     videoRoi = glGetUniformLocation(videoPrg->id(), "roi");
     videoAlphaLoc = glGetUniformLocation(videoPrg->id(), "alpha");
@@ -547,6 +553,7 @@ void LayerRenderer::renderLayers(const sgct::RenderData &data, int viewMode, flo
             }
 
             glUniform1f(meshAlphaLoc, layer->alpha());
+            glUniform1i(meshFlipYLoc, (layer->flipY() ? 1 : 0));
 
             glUniformMatrix4fv(meshMatrixLoc, 1, GL_FALSE, &MVP_transformed_rot[0][0]);
 
@@ -596,6 +603,7 @@ void LayerRenderer::renderLayers(const sgct::RenderData &data, int viewMode, flo
             }
 
             glUniform1f(meshAlphaLoc, layer->alpha());
+            glUniform1i(meshFlipYLoc, (layer->flipY() ? 1 : 0));
 
             const sgct::mat4 mvp = data.modelViewProjectionMatrix;
             glm::mat4 MVP_transformed_rot = glm::translate(glm::make_mat4(mvp.values), layer->translate());
@@ -632,6 +640,7 @@ void LayerRenderer::renderLayers(const sgct::RenderData &data, int viewMode, flo
             }
 
             glUniform1f(meshAlphaLoc, layer->alpha());
+            glUniform1i(meshFlipYLoc, (layer->flipY() ? 1 : 0));
 
             const sgct::mat4 mvp = data.projectionMatrix * data.viewMatrix;
 
@@ -676,6 +685,7 @@ void LayerRenderer::renderLayers(const sgct::RenderData &data, int viewMode, flo
             }
 
             glUniform1f(videoAlphaLoc, layer->alpha());
+            glUniform1i(videoFlipYLoc, (layer->flipY() ? 1 : 0));
 
             data.window.renderScreenQuad();
 

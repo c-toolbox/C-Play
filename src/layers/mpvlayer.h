@@ -39,6 +39,7 @@ public:
              std::string logLevel = "info");
     ~MpvLayer();
 
+    void preload();
     void update();
     bool ready();
 

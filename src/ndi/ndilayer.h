@@ -12,6 +12,7 @@ public:
     NdiLayer();
     ~NdiLayer();
 
+    void preload();
     void update();
     bool ready();
 

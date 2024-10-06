@@ -6,6 +6,9 @@
 #ifdef NDI_SUPPORT
 #include <ndi/ndilayer.h>
 #endif
+#ifdef PDF_SUPPORT
+#include <layers/pdflayer.h>
+#endif
 
 std::atomic_uint32_t BaseLayer::m_id_gen = 1;
 
@@ -15,6 +18,10 @@ std::string BaseLayer::typeDescription(BaseLayer::LayerType e) {
         return "Base";
     case IMAGE:
         return "Image";
+#ifdef PDF_SUPPORT
+    case PDF:
+        return "PDF";
+#endif
     case VIDEO:
         return "Video";
 #ifdef NDI_SUPPORT
@@ -34,6 +41,13 @@ BaseLayer *BaseLayer::createLayer(int layerType, opengl_func_adress_ptr opa, std
         newLayer = newImg;
         break;
     }
+#ifdef PDF_SUPPORT
+    case static_cast<int>(BaseLayer::LayerType::PDF): {
+        PdfLayer* newPDF = new PdfLayer();
+        newLayer = newPDF;
+        break;
+    }
+#endif
     case static_cast<int>(BaseLayer::LayerType::VIDEO): {
         MpvLayer *newMpv = new MpvLayer(opa);
         newLayer = newMpv;
@@ -63,12 +77,18 @@ BaseLayer *BaseLayer::createLayer(int layerType, opengl_func_adress_ptr opa, std
 BaseLayer::BaseLayer() {
     m_title = "";
     m_type = BASE;
+    m_page = 0;
+    m_numPages = 0;
     m_keepVisibilityForNumSlides = 0;
     m_identifier = 0;
     m_needSync = true;
 }
 
 BaseLayer::~BaseLayer() {
+}
+
+void BaseLayer::preload() {
+    // Overwrite in subclasses
 }
 
 void BaseLayer::update() {
@@ -111,9 +131,11 @@ void BaseLayer::setHasSynced() {
 void BaseLayer::encode(std::vector<std::byte> &data) {
     sgct::serializeObject(data, m_title);
     sgct::serializeObject(data, m_filepath);
+    sgct::serializeObject(data, m_page);
     sgct::serializeObject(data, renderData.gridMode);
     sgct::serializeObject(data, renderData.stereoMode);
     sgct::serializeObject(data, renderData.alpha);
+    sgct::serializeObject(data, renderData.flipY);
 
     sgct::serializeObject(data, renderData.roiEnabled);
     if (renderData.roiEnabled) {
@@ -142,9 +164,11 @@ void BaseLayer::encode(std::vector<std::byte> &data) {
 void BaseLayer::decode(const std::vector<std::byte> &data, unsigned int &pos) {
     sgct::deserializeObject(data, pos, m_title);
     sgct::deserializeObject(data, pos, m_filepath);
+    sgct::deserializeObject(data, pos, m_page);
     sgct::deserializeObject(data, pos, renderData.gridMode);
     sgct::deserializeObject(data, pos, renderData.stereoMode);
     sgct::deserializeObject(data, pos, renderData.alpha);
+    sgct::deserializeObject(data, pos, renderData.flipY);
 
     sgct::deserializeObject(data, pos, renderData.roiEnabled);
     if (renderData.roiEnabled) {
@@ -203,6 +227,37 @@ void BaseLayer::setFilePath(std::string p) {
     m_needSync = true;
 }
 
+int BaseLayer::page() const {
+    return m_page;
+}
+
+void BaseLayer::setPage(int p) {
+    if (p < 1) {
+        m_page = 1;
+    }
+    else if (p >= numPages()) {
+        m_page = numPages();
+    }
+    else {
+        m_page = p;
+    }
+    m_needSync = true;
+}
+
+int BaseLayer::numPages() const {
+    return m_numPages;
+}
+
+void BaseLayer::setNumPages(int np) {
+    if (m_page >= np) {
+        sgct::Log::Info("Page number out of page count, resetting to first page");
+        m_page = 1;
+    }
+
+    m_numPages = np;
+    m_needSync = true;
+}
+
 int BaseLayer::keepVisibilityForNumSlides() {
     return m_keepVisibilityForNumSlides;
 }
@@ -233,6 +288,10 @@ void BaseLayer::setAlpha(float a) {
     // Is handled always right now anyway.
     // If slideModel or layerModel changed
     // m_needSync = true;
+}
+
+bool BaseLayer::flipY() const {
+    return renderData.flipY;
 }
 
 int BaseLayer::gridMode() const {

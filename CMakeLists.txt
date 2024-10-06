@@ -112,6 +112,15 @@ if(BUILD_CPLAY_WITH_NDI)
         URL "https://ndi.video/for-developers/ndi-sdk/download/")
 endif()
 
+option(BUILD_CPLAY_WITH_POPPLER "Global On/Off for PDF support via Poppler library" OFF)
+if(BUILD_CPLAY_WITH_POPPLER)
+    set(VCPKG_TARGET_ARCHITECTURE x64)
+    set(VCPKG_CRT_LINKAGE dynamic)
+    set(VCPKG_LIBRARY_LINKAGE dynamic)
+    find_package(Poppler COMPONENTS Core Cpp)
+    set_package_properties(Poppler PROPERTIES TYPE REQUIRED PURPOSE "Support for PDF page rendering.")
+endif()
+
 feature_summary(WHAT ALL FATAL_ON_MISSING_REQUIRED_PACKAGES)
 
 option(CPLAY_INSTALL_DEPENDENCIES "Global On/Off for all CPLAY_INSTALL_* dependencies" OFF)

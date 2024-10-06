@@ -352,6 +352,7 @@ void decode(const std::vector<std::byte> &data) {
                                 deserializeObject(data, pos, layerAlpha);
                                 newLayer->setAlpha(layerAlpha);
                             }
+                            newLayer->preload();
                             secondaryLayersToKeep.push_back(newLayer);
                         }
                     }

@@ -72,6 +72,21 @@ Kirigami.ApplicationWindow {
         onRejected: mpv.focus = true
     }
     Platform.FileDialog {
+        id: fileToLoadAsPdfLayerDialog
+
+        fileMode: Platform.FileDialog.OpenFile
+        folder: LocationSettings.fileDialogLocation !== "" ? app.pathToUrl(LocationSettings.fileDialogLocation) : app.pathToUrl(LocationSettings.fileDialogLastLocation)
+        nameFilters: ["PDF files (*.pdf)"]
+        title: "Choose pdf file"
+
+        onAccepted: {
+            fileForLayer.text = playerController.checkAndCorrectPath(fileToLoadAsPdfLayerDialog.file);
+            layerTitle.text = playerController.returnBaseName(fileForLayer.text);
+            mpv.focus = true;
+        }
+        onRejected: mpv.focus = true
+    }
+    Platform.FileDialog {
         id: fileToLoadAsVideoLayerDialog
 
         fileMode: Platform.FileDialog.OpenFile
@@ -122,17 +137,19 @@ Kirigami.ApplicationWindow {
             model: app.slides.selected.layersTypeModel
             textRole: "typeName"
 
-            onActivated: {}
+            onActivated: {
+                layerTitle.text = "";
+            }
         }
         Label {
             Layout.alignment: Qt.AlignRight
             font.pointSize: 9
             text: qsTr("File:")
-            visible: typeComboBox.currentIndex >= 0 && typeComboBox.currentIndex <= 1
+            visible: typeComboBox.currentText != "NDI"
         }
         RowLayout {
             Layout.fillWidth: true
-            visible: typeComboBox.currentIndex >= 0 && typeComboBox.currentIndex <= 1
+            visible: typeComboBox.currentText != "NDI"
 
             TextField {
                 id: fileForLayer
@@ -157,9 +174,11 @@ Kirigami.ApplicationWindow {
                 text: ""
 
                 onClicked: {
-                    if (typeComboBox.currentIndex == 0)
+                    if (typeComboBox.currentText === "Image")
                         fileToLoadAsImageLayerDialog.open();
-                    else if (typeComboBox.currentIndex == 1)
+                    else if (typeComboBox.currentText === "PDF")
+                        fileToLoadAsPdfLayerDialog.open();
+                    else if (typeComboBox.currentText === "Video")
                         fileToLoadAsVideoLayerDialog.open();
                 }
             }
@@ -167,11 +186,11 @@ Kirigami.ApplicationWindow {
         Label {
             Layout.alignment: Qt.AlignRight
             text: qsTr("Name:")
-            visible: typeComboBox.currentIndex == 2
+            visible: typeComboBox.currentText === "NDI"
         }
         RowLayout {
             Layout.fillWidth: true
-            visible: typeComboBox.currentIndex == 2
+            visible: typeComboBox.currentText === "NDI"
 
             ComboBox {
                 id: ndiSenderComboBox
@@ -214,7 +233,7 @@ Kirigami.ApplicationWindow {
 
             Layout.fillWidth: true
             font.pointSize: 9
-            maximumLength: 18
+            maximumLength: 30
             placeholderText: "Layer title"
             text: ""
         }
@@ -311,7 +330,7 @@ Kirigami.ApplicationWindow {
 
                 onClicked: {
                     if (layerTitle.text !== "") {
-                        if (typeComboBox.currentIndex == 2) {
+                        if (typeComboBox.currentText === "NDI") {
                             layerView.layerItem.layerIdx = app.slides.selected.addLayer(layerTitle.text, typeComboBox.currentIndex + 1, ndiSenderComboBox.currentText, stereoscopicModeForLayer.currentIndex, gridModeForLayer.currentIndex);
                             layersAddNew.visible = false;
                             app.slides.updateSelectedSlide();

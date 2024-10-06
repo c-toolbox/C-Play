@@ -166,6 +166,10 @@ MpvLayer::~MpvLayer() {
     cleanup();
 }
 
+void MpvLayer::preload() {
+
+}
+
 void MpvLayer::update() {
     if (!videoData.mpvInitialized)
         initialize();

@@ -71,6 +71,14 @@ QVariant LayersModel::data(const QModelIndex &index, int role) const {
         return QVariant(QString::fromStdString(layerItem->filepath()));
     case TypeRole:
         return QVariant(QString::fromStdString(layerItem->typeName()));
+    case PageRole:
+#ifdef PDF_SUPPORT
+        if (layerItem->type() == BaseLayer::PDF){
+            return QVariant(QStringLiteral(" ") + QString::number(layerItem->page())
+                + QStringLiteral("/") + QString::number(layerItem->numPages())  + QStringLiteral(" "));
+        }
+#endif
+        return QVariant(QStringLiteral(""));
     case StereoRole:
         if (stereoVideo == 0) {
             return QVariant(QStringLiteral("2D"));
@@ -103,6 +111,7 @@ QHash<int, QByteArray> LayersModel::roleNames() const {
     roles[TitleRole] = "title";
     roles[PathRole] = "filepath";
     roles[TypeRole] = "type";
+    roles[PageRole] = "page";
     roles[StereoRole] = "stereoVideo";
     roles[GridRole] = "gridToMapOn";
     roles[VisibilityRole] = "visibility";
@@ -154,6 +163,7 @@ int LayersModel::addLayer(QString title, int type, QString filepath, int stereoM
         newLayer->setPlaneDistance(GridSettings::plane_Distance_CM());
         newLayer->setPlaneSize(glm::vec2(GridSettings::plane_Width_CM(), GridSettings::plane_Height_CM()), 
             GridSettings::plane_Calculate_Size_Based_on_Video());
+        newLayer->preload();
         m_layers.push_back(newLayer);
         setLayersNeedsSave(true);
         m_needsSync = true;
@@ -296,15 +306,13 @@ void LayersModel::addCopyOfLayer(BaseLayer* srcLayer) {
     BaseLayer* newLayer = BaseLayer::createLayer(srcLayer->type(), get_proc_address_qopengl, srcLayer->title());
 
     if (newLayer) {
-        newLayer->setTitle(srcLayer->title());
-        newLayer->setFilePath(srcLayer->filepath());
-
         std::vector<std::byte> data;
         srcLayer->encode(data);
 
         unsigned int pos = 0;
         newLayer->decode(data, pos);
 
+        newLayer->preload();
         m_layers.push_back(newLayer);
         setLayersNeedsSave(true);
         m_needsSync = true;
@@ -443,6 +451,16 @@ void LayersModel::decodeFromJSON(QJsonObject &obj, const QStringList &forRelativ
 
                     int idx = addLayer(title, type, path, stereo, grid);
 
+                    if (o.contains(QStringLiteral("numPages"))) {
+                        int numPages = o.value(QStringLiteral("numPages")).toInt();
+                        m_layers[idx]->setNumPages(numPages);
+                    }
+
+                    if (o.contains(QStringLiteral("page"))) {
+                        int page = o.value(QStringLiteral("page")).toInt();
+                        m_layers[idx]->setPage(page);
+                    }
+
                     if (o.contains(QStringLiteral("visibility"))) {
                         int visibility = o.value(QStringLiteral("visibility")).toInt();
                         m_layers[idx]->setAlpha(static_cast<float>(visibility) * 0.01f);
@@ -532,6 +550,12 @@ void LayersModel::encodeToJSON(QJsonObject &obj, const QStringList &forRelativeP
 
         QString checkedFilePath = makePathRelativeTo(QString::fromStdString(layer->filepath()), forRelativePaths);
         layerData.insert(QStringLiteral("path"), QJsonValue(checkedFilePath));
+#ifdef PDF_SUPPORT
+        if (layer->type() == BaseLayer::PDF) {
+            layerData.insert(QStringLiteral("page"), QJsonValue(layer->page()));
+            layerData.insert(QStringLiteral("numPages"), QJsonValue(layer->numPages()));
+        }
+#endif
 
         QString grid;
         int gridIdx = layer->gridMode();

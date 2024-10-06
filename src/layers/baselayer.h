@@ -11,6 +11,9 @@ public:
     enum LayerType {
         BASE,
         IMAGE,
+#ifdef PDF_SUPPORT
+        PDF,
+#endif
         VIDEO,
 #ifdef NDI_SUPPORT
         NDI,
@@ -41,6 +44,7 @@ public:
         unsigned int texId = 0;
         int width = 0;
         int height = 0;
+        bool flipY = false;
         float alpha = 100.f;
         int gridMode = 0;
         int stereoMode = 0;
@@ -64,6 +68,7 @@ public:
     BaseLayer();
     ~BaseLayer();
 
+    virtual void preload();
     virtual void update();
     virtual bool ready();
 
@@ -91,6 +96,12 @@ public:
     std::string filepath() const;
     void setFilePath(std::string p);
 
+    int page() const;
+    void setPage(int p);
+
+    int numPages() const;
+    void setNumPages(int np);
+
     int keepVisibilityForNumSlides();
     void setKeepVisibilityForNumSlides(int k);
 
@@ -100,6 +111,8 @@ public:
 
     float alpha() const;
     void setAlpha(float a);
+
+    bool flipY() const;
 
     int gridMode() const;
     void setGridMode(int g);
@@ -147,10 +160,13 @@ public:
     void updatePlane();
 
 protected:
+    LayerType m_type;
     std::string m_title;
     std::string m_filepath;
-    LayerType m_type;
+    int m_page;
+    int m_numPages;
     int m_keepVisibilityForNumSlides;
+
     RenderParams renderData;
     PlaneParams planeData;
 

@@ -67,6 +67,7 @@ public:
         TitleRole = Qt::UserRole,
         PathRole,
         TypeRole,
+        PageRole,
         StereoRole,
         GridRole,
         VisibilityRole
