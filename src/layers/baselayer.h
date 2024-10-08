@@ -44,13 +44,13 @@ public:
         unsigned int texId = 0;
         int width = 0;
         int height = 0;
-        bool flipY = false;
         float alpha = 100.f;
-        int gridMode = 0;
-        int stereoMode = 0;
+        bool flipY = false;
+        uint8_t gridMode = 0;
+        uint8_t stereoMode = 0;
+        bool roiEnabled = false;
         glm::vec3 rotate = glm::vec3(0);
         glm::vec3 translate = glm::vec3(0);
-        bool roiEnabled = false;
         glm::vec4 roi = glm::vec4(0.f, 0.f, 1.f, 1.f);
     };
 
@@ -59,21 +59,23 @@ public:
         double elevation = 0.0;
         double distance = 0.0;
         double roll = 0.0;
+        uint8_t aspectRatioConsideration = 1;
         glm::vec2 specifiedSize = glm::vec2(0);
         glm::vec2 actualSize = glm::vec2(0);
-        int aspectRatioConsideration = 1;
         std::unique_ptr<sgct::utils::Plane> mesh = nullptr;
     };
 
     BaseLayer();
     ~BaseLayer();
 
-    virtual void preload();
+    virtual void initialize();
     virtual void update();
     virtual bool ready();
 
     virtual void start();
     virtual void stop();
+
+    bool hasInitialized();
 
     uint32_t identifier() const;
     void setIdentifier(uint32_t id);
@@ -82,8 +84,13 @@ public:
     bool needSync() const;
     void setHasSynced();
 
-    virtual void encode(std::vector<std::byte> &data);
-    virtual void decode(const std::vector<std::byte> &data, unsigned int &pos);
+    void encodeFull(std::vector<std::byte> &data);
+    void encodeMinimal(std::vector<std::byte>& data);
+    void encodeProperties(std::vector<std::byte>& data);
+
+    void decodeFull(const std::vector<std::byte> &data, unsigned int &pos);
+    void decodeMinimal(const std::vector<std::byte>& data, unsigned int& pos);
+    void decodeProperties(const std::vector<std::byte>& data, unsigned int& pos);
 
     LayerType type() const;
     void setType(LayerType t);
@@ -112,13 +119,16 @@ public:
     float alpha() const;
     void setAlpha(float a);
 
+    bool shouldUpdate() const;
+    void setShouldUpdate(bool value);
+
     bool flipY() const;
 
-    int gridMode() const;
-    void setGridMode(int g);
+    uint8_t gridMode() const;
+    void setGridMode(uint8_t g);
 
-    int stereoMode() const;
-    void setStereoMode(int s);
+    uint8_t stereoMode() const;
+    void setStereoMode(uint8_t s);
 
     const glm::vec3 &rotate() const;
     void setRotate(glm::vec3 &r);
@@ -151,10 +161,10 @@ public:
     double planeHeight() const;
     void setPlaneHeight(double pH);
 
-    int planeAspectRatio() const;
-    void setPlaneAspectRatio(int parc);
+    uint8_t planeAspectRatio() const;
+    void setPlaneAspectRatio(uint8_t parc);
 
-    void setPlaneSize(glm::vec2 pS, int parc);
+    void setPlaneSize(glm::vec2 pS, uint8_t parc);
 
     void drawPlane();
     void updatePlane();
@@ -166,6 +176,9 @@ protected:
     int m_page;
     int m_numPages;
     int m_keepVisibilityForNumSlides;
+    bool m_shouldUpdate;
+    bool m_hasInitialized;
+    bool m_needSync;
 
     RenderParams renderData;
     PlaneParams planeData;
@@ -173,8 +186,6 @@ protected:
     opengl_func_adress_ptr m_openglProcAdr;
     uint32_t m_identifier;
     static std::atomic_uint32_t m_id_gen;
-
-    bool m_needSync;
 };
 
 #endif // BASELAYER_H

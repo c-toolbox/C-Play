@@ -22,8 +22,8 @@ ImageLayer::~ImageLayer() {
         sgct::TextureManager::instance().removeTexture(renderData.texId);
 }
 
-void ImageLayer::preload() {
-
+void ImageLayer::initialize() {
+    m_hasInitialized = true;
 }
 
 void ImageLayer::update() {

@@ -19,7 +19,7 @@ public:
     LayerRenderer();
     ~LayerRenderer();
 
-    void initialize(double radius, double fov);
+    void initializeGL(double radius, double fov);
     void updateMeshes(double radius, double fov);
 
     void addLayer(BaseLayer *layer);

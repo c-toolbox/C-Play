@@ -79,6 +79,8 @@ BaseLayer::BaseLayer() {
     m_type = BASE;
     m_page = 0;
     m_numPages = 0;
+    m_shouldUpdate = false;
+    m_hasInitialized = false;
     m_keepVisibilityForNumSlides = 0;
     m_identifier = 0;
     m_needSync = true;
@@ -87,7 +89,7 @@ BaseLayer::BaseLayer() {
 BaseLayer::~BaseLayer() {
 }
 
-void BaseLayer::preload() {
+void BaseLayer::initialize() {
     // Overwrite in subclasses
 }
 
@@ -106,6 +108,10 @@ void BaseLayer::start() {
 
 void BaseLayer::stop() {
     // Overwrite in subclasses
+}
+
+bool BaseLayer::hasInitialized() {
+    return m_hasInitialized;
 }
 
 uint32_t BaseLayer::identifier() const {
@@ -128,14 +134,22 @@ void BaseLayer::setHasSynced() {
     m_needSync = false;
 }
 
-void BaseLayer::encode(std::vector<std::byte> &data) {
-    sgct::serializeObject(data, m_title);
+void BaseLayer::encodeFull(std::vector<std::byte>& data) {
     sgct::serializeObject(data, m_filepath);
     sgct::serializeObject(data, m_page);
+    sgct::serializeObject(data, renderData.flipY);
+    encodeMinimal(data);
+    encodeProperties(data);
+}
+
+void BaseLayer::encodeMinimal(std::vector<std::byte>& data) {
+    sgct::serializeObject(data, m_shouldUpdate);
+    sgct::serializeObject(data, renderData.alpha);
+}
+
+void BaseLayer::encodeProperties(std::vector<std::byte> &data) {
     sgct::serializeObject(data, renderData.gridMode);
     sgct::serializeObject(data, renderData.stereoMode);
-    sgct::serializeObject(data, renderData.alpha);
-    sgct::serializeObject(data, renderData.flipY);
 
     sgct::serializeObject(data, renderData.roiEnabled);
     if (renderData.roiEnabled) {
@@ -161,14 +175,25 @@ void BaseLayer::encode(std::vector<std::byte> &data) {
     }
 }
 
-void BaseLayer::decode(const std::vector<std::byte> &data, unsigned int &pos) {
-    sgct::deserializeObject(data, pos, m_title);
+void BaseLayer::decodeFull(const std::vector<std::byte>& data, unsigned int& pos) {
     sgct::deserializeObject(data, pos, m_filepath);
     sgct::deserializeObject(data, pos, m_page);
+    sgct::deserializeObject(data, pos, renderData.flipY);
+    decodeMinimal(data, pos);
+    decodeProperties(data, pos);
+
+    // Marking as needSync means we need know update has occured, which we need to clear
+    m_needSync = true;
+}
+
+void BaseLayer::decodeMinimal(const std::vector<std::byte>& data, unsigned int& pos) {
+    sgct::deserializeObject(data, pos, m_shouldUpdate);
+    sgct::deserializeObject(data, pos, renderData.alpha);
+}
+
+void BaseLayer::decodeProperties(const std::vector<std::byte> &data, unsigned int &pos) {
     sgct::deserializeObject(data, pos, renderData.gridMode);
     sgct::deserializeObject(data, pos, renderData.stereoMode);
-    sgct::deserializeObject(data, pos, renderData.alpha);
-    sgct::deserializeObject(data, pos, renderData.flipY);
 
     sgct::deserializeObject(data, pos, renderData.roiEnabled);
     if (renderData.roiEnabled) {
@@ -192,9 +217,6 @@ void BaseLayer::decode(const std::vector<std::byte> &data, unsigned int &pos) {
         sgct::deserializeObject(data, pos, renderData.rotate.y);
         sgct::deserializeObject(data, pos, renderData.rotate.z);
     }
-
-    // Marking as needSync means we need know update has occured, which we need to clear
-    m_needSync = true;
 }
 
 BaseLayer::LayerType BaseLayer::type() const {
@@ -283,6 +305,13 @@ float BaseLayer::alpha() const {
 }
 
 void BaseLayer::setAlpha(float a) {
+    if (a > 0.f) {
+        // Always set as should update if visible.
+        // However might still be update if not visible.
+        // See slide scheme.
+        setShouldUpdate(true);
+    }
+
     renderData.alpha = a;
 
     // Is handled always right now anyway.
@@ -290,24 +319,32 @@ void BaseLayer::setAlpha(float a) {
     // m_needSync = true;
 }
 
+bool BaseLayer::shouldUpdate() const {
+    return m_shouldUpdate;
+}
+
+void BaseLayer::setShouldUpdate(bool value) {
+    m_shouldUpdate = value;
+}
+
 bool BaseLayer::flipY() const {
     return renderData.flipY;
 }
 
-int BaseLayer::gridMode() const {
+uint8_t BaseLayer::gridMode() const {
     return renderData.gridMode;
 }
 
-void BaseLayer::setGridMode(int g) {
+void BaseLayer::setGridMode(uint8_t g) {
     renderData.gridMode = g;
     m_needSync = true;
 }
 
-int BaseLayer::stereoMode() const {
+uint8_t BaseLayer::stereoMode() const {
     return renderData.stereoMode;
 }
 
-void BaseLayer::setStereoMode(int s) {
+void BaseLayer::setStereoMode(uint8_t s) {
     renderData.stereoMode = s;
     updatePlane();
     m_needSync = true;
@@ -413,17 +450,17 @@ void BaseLayer::setPlaneHeight(double pH) {
     m_needSync = true;
 }
 
-int BaseLayer::planeAspectRatio() const {
+uint8_t BaseLayer::planeAspectRatio() const {
     return planeData.aspectRatioConsideration;
 }
 
-void BaseLayer::setPlaneAspectRatio(int parc) {
+void BaseLayer::setPlaneAspectRatio(uint8_t parc) {
     planeData.aspectRatioConsideration = parc;
     updatePlane();
     m_needSync = true;
 }
 
-void BaseLayer::setPlaneSize(glm::vec2 pS, int parc) {
+void BaseLayer::setPlaneSize(glm::vec2 pS, uint8_t parc) {
     planeData.specifiedSize = pS;
     planeData.aspectRatioConsideration = parc;
     updatePlane();

@@ -63,7 +63,7 @@ void initOGL(GLFWwindow *) {
     primaryLayers.push_back(backgroundImageLayer);
 
     mainMpvLayer = new MpvLayer(get_proc_address_glfw, allowDirectRendering, !logFilePath.empty() || !logLevel.empty(), logLevel);
-    mainMpvLayer->initialize();
+    mainMpvLayer->initializeGL();
     mainMpvLayer->loadFile(SyncHelper::instance().variables.loadedFile);
     primaryLayers.push_back(mainMpvLayer);
 
@@ -74,7 +74,7 @@ void initOGL(GLFWwindow *) {
     primaryLayers.push_back(foregroundImageLayer);
 
     layerRender = new LayerRenderer();
-    layerRender->initialize(SyncHelper::instance().variables.radius, SyncHelper::instance().variables.fov);
+    layerRender->initializeGL(SyncHelper::instance().variables.radius, SyncHelper::instance().variables.fov);
 
     // Set up backface culling
     glCullFace(GL_BACK);
@@ -215,13 +215,12 @@ std::vector<std::byte> encode() {
                         BaseLayer *nextLayer = Application::instance().slidesModel()->slide(s)->layer(l);
                         serializeObject(data, nextLayer->identifier()); // ID
                         serializeObject(data, nextLayer->needSync());   // Check needs sync
+                        serializeObject(data, static_cast<int>(nextLayer->type())); // Type
                         if (nextLayer->needSync()) {
-                            serializeObject(data, static_cast<int>(nextLayer->type())); // Type
-                            nextLayer->encode(data);
+                            nextLayer->encodeFull(data);
                             nextLayer->setHasSynced();
                         } else {
-                            // Sync alpha anyway
-                            serializeObject(data, nextLayer->alpha());
+                            nextLayer->encodeMinimal(data);
                         }
                     }
                     Application::instance().slidesModel()->slide(s)->setHasSynced();
@@ -322,7 +321,7 @@ void decode(const std::vector<std::byte> &data) {
                 deserializeObject(data, pos, id);
                 deserializeObject(data, pos, layerSync);
                 int layerType = -1;
-
+                deserializeObject(data, pos, layerType);
                 // Check if already updated this layer before a draw has been made
                 auto it_up = find_if(secondaryLayersToKeep.begin(), secondaryLayersToKeep.end(),
                                      [&id](const BaseLayer *t1) { return t1->identifier() == id; });
@@ -333,26 +332,19 @@ void decode(const std::vector<std::byte> &data) {
                     if (it != secondaryLayers.end()) { // If exist, add to new pos and remove from old container
                         // If exist, sync if needed
                         if (layerSync) {
-                            deserializeObject(data, pos, layerType);
-                            (*it)->decode(data, pos);
+                            (*it)->decodeFull(data, pos);
                         } else {
-                            float layerAlpha = 0.f;
-                            deserializeObject(data, pos, layerAlpha);
-                            (*it)->setAlpha(layerAlpha);
+                            (*it)->decodeMinimal(data, pos);
                         }
                         secondaryLayersToKeep.push_back(*it);
                     } else if (layerSync) { // Did not exist. Let's create it
-                        deserializeObject(data, pos, layerType);
                         BaseLayer *newLayer = BaseLayer::createLayer(layerType, get_proc_address_glfw, std::to_string(id), id);
                         if (newLayer) {
                             if (layerSync) {
-                                newLayer->decode(data, pos);
+                                newLayer->decodeFull(data, pos);
                             } else {
-                                float layerAlpha = 0.f;
-                                deserializeObject(data, pos, layerAlpha);
-                                newLayer->setAlpha(layerAlpha);
+                                newLayer->decodeMinimal(data, pos);
                             }
-                            newLayer->preload();
                             secondaryLayersToKeep.push_back(newLayer);
                         }
                     }
@@ -520,11 +512,19 @@ void postSyncPreDraw() {
         // Custom layers
         // Rendered top to bottom, so need to add them the other way around...
         for (auto it = secondaryLayers.rbegin(); it != secondaryLayers.rend(); ++it) {
-            (*it)->update();
-            if ((*it)->ready() && ((*it)->alpha() > 0.f)) {
-                (*it)->start();
-                (*it)->setTranslate(translateXYZ);
-                layerRender->addLayer((*it));
+            if ((*it)->shouldUpdate()) {
+                if (!(*it)->hasInitialized()) {
+                    (*it)->initialize();
+                }
+                (*it)->update();
+                if ((*it)->ready() && ((*it)->alpha() > 0.f)) {
+                    (*it)->start();
+                    (*it)->setTranslate(translateXYZ);
+                    layerRender->addLayer((*it));
+                }
+                else {
+                    (*it)->stop();
+                }
             }
             else {
                 (*it)->stop();

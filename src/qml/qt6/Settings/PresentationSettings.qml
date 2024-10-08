@@ -232,5 +232,25 @@ SettingsBasePage {
             // spacer item
             Layout.fillWidth: true
         }
+
+        Label {
+            Layout.alignment: Qt.AlignRight
+            text: qsTr("Number of upcoming slides to preload:")
+        }
+        SpinBox {
+            editable: true
+            from: 0
+            to: 10
+            value: PresentationSettings.updateUpcomingSlideCount
+
+            onValueChanged: {
+                PresentationSettings.updateUpcomingSlideCount = value.toFixed(0);
+                PresentationSettings.save();
+            }
+        }
+        Item {
+            // spacer item
+            Layout.fillWidth: true
+        }
     }
 }

@@ -42,8 +42,9 @@ PdfLayer::~PdfLayer() {
         glDeleteTextures(1, &renderData.texId);
 }
 
-void PdfLayer::preload() {
+void PdfLayer::initialize() {
     loadDocument(filepath());
+    m_hasInitialized = true;
 }
 
 void PdfLayer::update() {

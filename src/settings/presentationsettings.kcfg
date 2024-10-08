@@ -28,5 +28,9 @@
       <label>The DPI (dots per inch) for PDF rendering to image.</label>
       <default>300</default>
     </entry>
+    <entry name="UpdateUpcomingSlideCount" type="int">
+      <label>Update certain number of upcoming slides after triggered slide.</label>
+      <default>2</default>
+    </entry>
   </group>
 </kcfg>

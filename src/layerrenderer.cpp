@@ -390,7 +390,7 @@ LayerRenderer::~LayerRenderer() {
     sphereMesh = nullptr;
 }
 
-void LayerRenderer::initialize(double radius, double fov) {
+void LayerRenderer::initializeGL(double radius, double fov) {
     // Create shaders
     sgct::ShaderManager::instance().addShaderProgram("mesh", MeshVert, VideoFrag);
     sgct::ShaderManager::instance().addShaderProgram("EAC", EACMeshVert, EACVideoFrag);

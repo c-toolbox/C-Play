@@ -39,14 +39,14 @@ public:
              std::string logLevel = "info");
     ~MpvLayer();
 
-    void preload();
+    void initialize();
     void update();
     bool ready();
 
     void start();
     void stop();
 
-    void initialize();
+    void initializeGL();
     void cleanup();
     void updateFrame();
 

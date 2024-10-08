@@ -24,7 +24,7 @@ public:
     PdfLayer();
     ~PdfLayer();
 
-    void preload();
+    void initialize();
     void update();
     bool ready();
 

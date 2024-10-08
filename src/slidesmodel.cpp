@@ -418,12 +418,17 @@ void SlidesModel::setTriggeredSlideVisibility(int value) {
         for (int i = 0; i < layers.size(); i++) {
             int localIdx = layers[i].second;
 
-            if (localIdx == 0) {
+            if (localIdx == 0) { // Exact
                 layers[i].first->setAlpha(valF); // 0&->100%
                 continue;
             }
-            else if (localIdx < 0) {
+            else if (localIdx < 0) {  //Upcoming
                 layers[i].first->setAlpha(0.f); //0%
+
+                //Let's start updating certain number of upcoming slides
+                if (-localIdx <= PresentationSettings::updateUpcomingSlideCount()) {
+                    layers[i].first->setShouldUpdate(true);
+                }
                 continue;
             }
 
@@ -438,6 +443,8 @@ void SlidesModel::setTriggeredSlideVisibility(int value) {
             }
             else {
                 layers[i].first->setAlpha(0.f); // 0%
+                // Slide hidden again. Let's skip it.
+                layers[i].first->setShouldUpdate(false);
                 continue;
             }
         }

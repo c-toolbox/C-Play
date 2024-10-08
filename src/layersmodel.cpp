@@ -163,7 +163,7 @@ int LayersModel::addLayer(QString title, int type, QString filepath, int stereoM
         newLayer->setPlaneDistance(GridSettings::plane_Distance_CM());
         newLayer->setPlaneSize(glm::vec2(GridSettings::plane_Width_CM(), GridSettings::plane_Height_CM()), 
             GridSettings::plane_Calculate_Size_Based_on_Video());
-        newLayer->preload();
+        newLayer->initialize();
         m_layers.push_back(newLayer);
         setLayersNeedsSave(true);
         m_needsSync = true;
@@ -306,13 +306,15 @@ void LayersModel::addCopyOfLayer(BaseLayer* srcLayer) {
     BaseLayer* newLayer = BaseLayer::createLayer(srcLayer->type(), get_proc_address_qopengl, srcLayer->title());
 
     if (newLayer) {
+        newLayer->setTitle(srcLayer->title());
+
         std::vector<std::byte> data;
-        srcLayer->encode(data);
+        srcLayer->encodeFull(data);
 
         unsigned int pos = 0;
-        newLayer->decode(data, pos);
+        newLayer->decodeFull(data, pos);
 
-        newLayer->preload();
+        newLayer->initialize();
         m_layers.push_back(newLayer);
         setLayersNeedsSave(true);
         m_needsSync = true;
@@ -330,17 +332,11 @@ void LayersModel::overwriteLayerProperties(BaseLayer* srcLayer, int dstLayerIdx)
     if (dstLayerIdx < 0 || dstLayerIdx >= m_layers.size())
         return;
 
-    std::string title = m_layers[dstLayerIdx]->title();
-    std::string filePath = m_layers[dstLayerIdx]->filepath();
-
     std::vector<std::byte> data;
-    srcLayer->encode(data);
+    srcLayer->encodeProperties(data);
 
     unsigned int pos = 0;
-    m_layers[dstLayerIdx]->decode(data, pos);
-
-    m_layers[dstLayerIdx]->setTitle(title);
-    m_layers[dstLayerIdx]->setFilePath(filePath);
+    m_layers[dstLayerIdx]->decodeProperties(data, pos);
 
     updateLayer(dstLayerIdx);
 }

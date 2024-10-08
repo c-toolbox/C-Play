@@ -166,13 +166,13 @@ MpvLayer::~MpvLayer() {
     cleanup();
 }
 
-void MpvLayer::preload() {
-
+void MpvLayer::initialize() {
+    m_hasInitialized = true;
 }
 
 void MpvLayer::update() {
     if (!videoData.mpvInitialized)
-        initialize();
+        initializeGL();
 
     if (videoData.loadedFile != filepath())
         loadFile(filepath());
@@ -197,7 +197,7 @@ void MpvLayer::stop() {
     }
 }
 
-void MpvLayer::initialize() {
+void MpvLayer::initializeGL() {
     // Run MPV on another thread
     videoData.trd = std::make_unique<std::thread>(runMpvAsync, std::ref(videoData), std::ref(renderData));
     while (!videoData.mpvInitialized) {
