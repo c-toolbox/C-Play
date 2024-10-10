@@ -170,12 +170,6 @@ std::vector<std::byte> encode() {
         // Currently syncing master slide and selected slide
         // Need figure out other scheme
         std::vector<int> slideIdxToSync;
-        // slideIdxToSync.push_back(Application::instance().slidesModel()->triggeredSlideIdx());
-        // slideIdxToSync.push_back(Application::instance().slidesModel()->previousTriggeredIdx());
-        // slideIdxToSync.push_back(Application::instance().slidesModel()->selectedSlideIdx());
-        // slideIdxToSync.push_back(Application::instance().slidesModel()->previousSlideIdx());
-        // slideIdxToSync.push_back(Application::instance().slidesModel()->nextSlideIdx());
-        // slideIdxToSync.push_back(-1); //Master slide
 
         // Sync all slides for now...
         for (int i = Application::instance().slidesModel()->numberOfSlides() - 1; i >= -1; i--) {
@@ -431,6 +425,32 @@ void postSyncPreDraw() {
             layerRender->addLayer(backgroundImageLayer);
         }
 
+        // Custom layers with hierarchy BACK
+        // Should stop if mainMpvLayer is full visible
+        // Rendered top to bottom, so need to add them the other way around...
+        for (auto it = secondaryLayers.rbegin(); it != secondaryLayers.rend(); ++it) {
+            if ((*it)->hierarchy() == BaseLayer::LayerHierarchy::BACK) {
+                if ((*it)->shouldUpdate()) {
+                    if (!(*it)->hasInitialized()) {
+                        (*it)->initialize();
+                    }
+                    (*it)->update();
+                    if ((*it)->ready() && ((*it)->alpha() > 0.f) && SyncHelper::instance().variables.alpha < 1.f) {
+                        (*it)->start();
+                        (*it)->setTranslate(translateXYZ);
+                        layerRender->addLayer((*it));
+                    }
+                    else {
+                        (*it)->stop();
+                    }
+                }
+                else {
+                    (*it)->stop();
+                }
+            }
+        }
+
+
         // Main video/media layer
         if (mainMpvLayer->renderingIsOn()) {
             if (mainMpvLayer->ready() && SyncHelper::instance().variables.alpha > 0.f) {
@@ -509,25 +529,27 @@ void postSyncPreDraw() {
             }
         }
 
-        // Custom layers
+        // Custom layers with hierarchy FRONT
         // Rendered top to bottom, so need to add them the other way around...
         for (auto it = secondaryLayers.rbegin(); it != secondaryLayers.rend(); ++it) {
-            if ((*it)->shouldUpdate()) {
-                if (!(*it)->hasInitialized()) {
-                    (*it)->initialize();
-                }
-                (*it)->update();
-                if ((*it)->ready() && ((*it)->alpha() > 0.f)) {
-                    (*it)->start();
-                    (*it)->setTranslate(translateXYZ);
-                    layerRender->addLayer((*it));
+            if ((*it)->hierarchy() == BaseLayer::LayerHierarchy::FRONT) {
+                if ((*it)->shouldUpdate()) {
+                    if (!(*it)->hasInitialized()) {
+                        (*it)->initialize();
+                    }
+                    (*it)->update();
+                    if ((*it)->ready() && ((*it)->alpha() > 0.f)) {
+                        (*it)->start();
+                        (*it)->setTranslate(translateXYZ);
+                        layerRender->addLayer((*it));
+                    }
+                    else {
+                        (*it)->stop();
+                    }
                 }
                 else {
                     (*it)->stop();
                 }
-            }
-            else {
-                (*it)->stop();
             }
         }
 

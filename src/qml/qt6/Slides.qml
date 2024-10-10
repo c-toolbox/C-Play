@@ -373,13 +373,14 @@ Rectangle {
 
                 onClicked: {
                     slidesView.currentIndex = -1;
+                    app.slides.slideToPaste = -1;
                     if (layers.state === "hidden") {
                         actions.toggleLayersAction.trigger();
                     }
                 }
 
                 ToolTip {
-                    text: qsTr("Master slide with perminent layers")
+                    text: qsTr("Master slide with perminent background layers")
                 }
             }
         }

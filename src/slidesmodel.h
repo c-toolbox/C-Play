@@ -217,7 +217,7 @@ private:
     int m_triggeredSlideIdx = -1;
     int m_previousTriggeredSlideIdx = -1;
     int m_slideFadeTime = 0;
-    int m_slideToPasteIdx = -2;
+    int m_slideToPasteIdx = -1;
     bool m_slidesNeedsSave = false;
     bool m_needsSync;
     QString m_slidesName;

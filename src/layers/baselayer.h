@@ -21,6 +21,11 @@ public:
         INVALID
     };
 
+    enum LayerHierarchy {
+        BACK,
+        FRONT
+    };
+
     enum StereoMode {
         No_2D,
         SBS_3D,
@@ -94,6 +99,9 @@ public:
 
     LayerType type() const;
     void setType(LayerType t);
+
+    LayerHierarchy hierarchy() const;
+    void setHierarchy(LayerHierarchy h);
 
     std::string typeName() const;
 
@@ -171,6 +179,7 @@ public:
 
 protected:
     LayerType m_type;
+    LayerHierarchy m_hierachy;
     std::string m_title;
     std::string m_filepath;
     int m_page;

@@ -296,6 +296,7 @@ SlidesModel::SlidesModel(QObject *parent)
       m_slidesName(QStringLiteral("")),
       m_slidesPath(QStringLiteral("")) {
     m_masterSlide->setLayersName(QStringLiteral("Master"));
+    m_masterSlide->setHierarchy(BaseLayer::LayerHierarchy::BACK);
     m_clearCopyTimer = new QTimer(this);
     m_clearCopyTimer->setInterval(30000);
     m_clearCopyTimer->setSingleShot(true);
@@ -735,6 +736,7 @@ void SlidesModel::loadFromJSONFile(const QString &path) {
         QJsonValue value = obj.value(QStringLiteral("master"));
         QJsonObject o = value.toObject();
         m_masterSlide->decodeFromJSON(o, fileSearchPaths);
+        m_masterSlide->setLayersName(QStringLiteral("Master"));
     }
 
     setSelectedSlideIdx(-1);

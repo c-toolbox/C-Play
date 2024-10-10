@@ -173,6 +173,14 @@ Rectangle {
         }
     ]
 
+    Menu {
+        id: pasteLayerMenu
+        MenuItem { 
+            action: actions.layerPasteAction 
+            visible: actions.layerPasteAction.enabled
+        }
+    }
+
     ColumnLayout {
         id: layersHeader
 
@@ -343,7 +351,25 @@ Rectangle {
             onCurrentIndexChanged: {
                 layerView.layerItem.layerIdx = layersView.currentIndex;
             }
+
+            MouseArea {
+                id: layers_MA
+                anchors.bottom: layersView.bottom
+                implicitHeight: layersView.height - (layersView.count*50)
+                implicitWidth: parent.width
+                propagateComposedEvents: true
+                acceptedButtons: Qt.RightButton
+                onClicked: (mouse)=> {
+                    if(app.slides.copyIsAvailable()){
+                        pasteLayerMenu.popup();
+                    }
+                    else {
+                        mouse.accepted = false
+                    }
+                }
+            }
         }
+
         Connections {
             function onLayerChanged() {
                 if (layerView.layerItem.layerIdx !== layersView.currentIndex) {

@@ -77,6 +77,7 @@ BaseLayer *BaseLayer::createLayer(int layerType, opengl_func_adress_ptr opa, std
 BaseLayer::BaseLayer() {
     m_title = "";
     m_type = BASE;
+    m_hierachy = FRONT;
     m_page = 0;
     m_numPages = 0;
     m_shouldUpdate = false;
@@ -135,6 +136,7 @@ void BaseLayer::setHasSynced() {
 }
 
 void BaseLayer::encodeFull(std::vector<std::byte>& data) {
+    sgct::serializeObject(data, m_hierachy);
     sgct::serializeObject(data, m_filepath);
     sgct::serializeObject(data, m_page);
     sgct::serializeObject(data, renderData.flipY);
@@ -176,6 +178,7 @@ void BaseLayer::encodeProperties(std::vector<std::byte> &data) {
 }
 
 void BaseLayer::decodeFull(const std::vector<std::byte>& data, unsigned int& pos) {
+    sgct::deserializeObject(data, pos, m_hierachy);
     sgct::deserializeObject(data, pos, m_filepath);
     sgct::deserializeObject(data, pos, m_page);
     sgct::deserializeObject(data, pos, renderData.flipY);
@@ -225,6 +228,15 @@ BaseLayer::LayerType BaseLayer::type() const {
 
 void BaseLayer::setType(LayerType t) {
     m_type = t;
+    m_needSync = true;
+}
+
+BaseLayer::LayerHierarchy BaseLayer::hierarchy() const {
+    return m_hierachy;
+}
+
+void BaseLayer::setHierarchy(LayerHierarchy h) {
+    m_hierachy = h;
     m_needSync = true;
 }
 

@@ -9,8 +9,8 @@
 #define LAYERSMODEL_H
 
 #include <QAbstractListModel>
+#include <layers/baselayer.h>
 
-class BaseLayer;
 class ofxNDIreceive;
 
 using Layers = QList<BaseLayer *>;
@@ -80,6 +80,9 @@ public:
 
     Layers getLayers() const;
     void setLayers(const Layers &layers);
+
+    BaseLayer::LayerHierarchy hierarchy() const;
+    void setHierarchy(BaseLayer::LayerHierarchy h);
 
     int numberOfLayers();
     bool needsSync();
@@ -171,6 +174,7 @@ Q_SIGNALS:
 private:
     Layers m_layers;
     LayersTypeModel *m_layerTypeModel;
+    BaseLayer::LayerHierarchy m_layerHierachy;
 #ifdef NDI_SUPPORT
     NDISendersModel *m_ndiSendersModel;
 #endif

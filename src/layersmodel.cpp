@@ -16,7 +16,7 @@
 #include <QJsonObject>
 #include <QOpenGLContext>
 #include <QQuickView>
-#include <layers/baselayer.h>
+
 #ifdef NDI_SUPPORT
 #include <ndi/ofxNDI/ofxNDIreceive.h>
 #endif
@@ -36,7 +36,8 @@ LayersModel::LayersModel(QObject *parent)
       m_layerTypeModel(new LayersTypeModel(this)),
       m_needsSync(false),
       m_layersName(QStringLiteral("Untitled")),
-      m_layersPath(QStringLiteral("")) {
+      m_layersPath(QStringLiteral("")),
+      m_layerHierachy(BaseLayer::LayerHierarchy::FRONT) {
 #ifdef NDI_SUPPORT
     m_ndiSendersModel = new NDISendersModel(this);
 #endif
@@ -128,6 +129,19 @@ void LayersModel::setLayers(const Layers &layers) {
     endResetModel();
 }
 
+BaseLayer::LayerHierarchy LayersModel::hierarchy() const {
+    return m_layerHierachy;
+}
+
+void LayersModel::setHierarchy(BaseLayer::LayerHierarchy h) {
+    m_layerHierachy = h;
+
+    for (auto l : m_layers)
+        l->setHierarchy(h);
+
+    m_needsSync = true;
+}
+
 int LayersModel::numberOfLayers() {
     return m_layers.size();
 }
@@ -154,6 +168,7 @@ int LayersModel::addLayer(QString title, int type, QString filepath, int stereoM
     BaseLayer *newLayer = BaseLayer::createLayer(type, get_proc_address_qopengl, title.toStdString());
 
     if (newLayer) {
+        newLayer->setHierarchy(hierarchy());
         newLayer->setTitle(title.toStdString());
         newLayer->setFilePath(filepath.toStdString());
         newLayer->setStereoMode(stereoMode);
@@ -314,6 +329,7 @@ void LayersModel::addCopyOfLayer(BaseLayer* srcLayer) {
         unsigned int pos = 0;
         newLayer->decodeFull(data, pos);
 
+        newLayer->setHierarchy(hierarchy());
         newLayer->initialize();
         m_layers.push_back(newLayer);
         setLayersNeedsSave(true);
