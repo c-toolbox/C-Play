@@ -8,7 +8,7 @@
 auto loadPageAsync = [](PdfLayer::PdfData& data) {
     data.threadRunning = true;
 
-    std::unique_ptr<poppler::page> p(data.document->create_page(data.page-1));
+    std::unique_ptr<poppler::page> p(data.document->create_page(data.page - 1));
     if (!p.get()) {
         sgct::Log::Error(fmt::format("PDF creation of page {} in {} failed.", data.page, data.filepath));
     }
@@ -29,6 +29,59 @@ auto loadPageAsync = [](PdfLayer::PdfData& data) {
     data.threadDone = true;
 };
 
+PdfDocumentManager* PdfDocumentManager::_instance = nullptr;
+
+PdfDocumentManager::PdfDocumentManager() {}
+
+PdfDocumentManager::~PdfDocumentManager() {
+    delete _instance;
+    _instance = nullptr;
+}
+
+poppler::document* PdfDocumentManager::getDocument(std::string filepath) {
+    auto it = m_documents.find(filepath);
+
+    if (it == m_documents.end()) {
+        // Not found, let's load it.
+        poppler::document* docPtr = poppler::document::load_from_file(filepath);
+
+        if (docPtr == nullptr) {
+            return nullptr;
+        }
+        else {
+            // Loaded OK,let's store and return it
+            PDFDocument newDoc;
+            newDoc.retrievals = 1;
+            newDoc.document = docPtr;
+            it = m_documents.insert(std::make_pair(filepath, newDoc)).first;
+            return it->second.document;
+        }
+    }
+    else {
+        // Found it, let's return it after we have marked another retrieval
+        it->second.retrievals += 1;
+        return it->second.document;
+    }
+}
+
+void PdfDocumentManager::trashDocument(std::string filepath) {
+    auto it = m_documents.find(filepath);
+    if (it != m_documents.end()) {
+        it->second.retrievals -= 1;
+        if (it->second.retrievals == 0) {
+            delete it->second.document;
+            m_documents.erase(it);
+        }
+    }
+}
+
+PdfDocumentManager& PdfDocumentManager::instance() {
+    if (!_instance) {
+        _instance = new PdfDocumentManager();
+    }
+    return *_instance;
+}
+
 PdfLayer::PdfLayer() {
     setType(BaseLayer::LayerType::PDF);
     setNumPages(1);
@@ -38,8 +91,12 @@ PdfLayer::PdfLayer() {
 }
 
 PdfLayer::~PdfLayer() {
-    if (renderData.texId > 0)
+    if (renderData.texId > 0) {
         glDeleteTextures(1, &renderData.texId);
+    }
+    if (m_pdfData.document != nullptr) {
+        PdfDocumentManager::instance().trashDocument(m_pdfData.filepath);
+    }
 }
 
 void PdfLayer::initialize() {
@@ -59,7 +116,7 @@ void PdfLayer::update() {
     }
     else if (m_pdfData.filepath != filepath()) {
         if (m_pdfData.document != nullptr) {
-            delete m_pdfData.document;
+            PdfDocumentManager::instance().trashDocument(m_pdfData.filepath);
             m_pdfData.document = nullptr;
         }
         loadDoc = true;
@@ -95,7 +152,7 @@ void PdfLayer::stop() {
 bool PdfLayer::loadDocument(std::string filepath) {
     m_pdfData.filepath = filepath;
     if (!m_pdfData.filepath.empty()) {
-        m_pdfData.document = poppler::document::load_from_file(m_pdfData.filepath);
+        m_pdfData.document = PdfDocumentManager::instance().getDocument(m_pdfData.filepath);
     }
 
     if (m_pdfData.document == nullptr) {

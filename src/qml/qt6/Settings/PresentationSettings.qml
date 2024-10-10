@@ -252,5 +252,45 @@ SettingsBasePage {
             // spacer item
             Layout.fillWidth: true
         }
+
+        Label {
+            Layout.alignment: Qt.AlignRight
+            text: qsTr("Slide fade duration (in msec) when moving to previous slide:")
+        }
+        SpinBox {
+            editable: true
+            from: 0
+            to: 20000
+            value: PresentationSettings.fadeDurationToPreviousSlide
+
+            onValueChanged: {
+                PresentationSettings.fadeDurationToPreviousSlide = value.toFixed(0);
+                PresentationSettings.save();
+            }
+        }
+        Item {
+            // spacer item
+            Layout.fillWidth: true
+        }
+
+        Label {
+            Layout.alignment: Qt.AlignRight
+            text: qsTr("Slide fade duration (in msec) when moving to next slide:")
+        }
+        SpinBox {
+            editable: true
+            from: 0
+            to: 20000
+            value: PresentationSettings.fadeDurationToNextSlide
+
+            onValueChanged: {
+                PresentationSettings.fadeDurationToNextSlide = value.toFixed(0);
+                PresentationSettings.save();
+            }
+        }
+        Item {
+            // spacer item
+            Layout.fillWidth: true
+        }
     }
 }

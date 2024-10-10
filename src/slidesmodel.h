@@ -124,6 +124,14 @@ public:
     Q_INVOKABLE int triggeredSlideVisibility();
     Q_INVOKABLE void setTriggeredSlideVisibility(int value);
 
+    Q_PROPERTY(int slideFadeTime
+                  READ slideFadeTime
+                       WRITE setSlideFadeTime
+                           NOTIFY slideFadeTimeChanged)
+
+    Q_INVOKABLE int slideFadeTime();
+    Q_INVOKABLE void setSlideFadeTime(int value);
+
     Q_PROPERTY(LayersModel *selected
                    READ selectedSlide
                        NOTIFY selectedSlideChanged)
@@ -186,9 +194,10 @@ public:
 
 Q_SIGNALS:
     void slideModelChanged();
+    void slidesNeedsSaveChanged();
+    void slideFadeTimeChanged();
     void selectedSlideChanged();
     void triggeredSlideVisibilityChanged();
-    void slidesNeedsSaveChanged();
     void triggeredSlideChanged();
     void visibilityModelChanged();
     void needsSyncChanged();
@@ -207,8 +216,9 @@ private:
     int m_previousSelectedSlideIdx = -1;
     int m_triggeredSlideIdx = -1;
     int m_previousTriggeredSlideIdx = -1;
+    int m_slideFadeTime = 0;
     int m_slideToPasteIdx = -2;
-    int m_slidesNeedsSave = false;
+    bool m_slidesNeedsSave = false;
     bool m_needsSync;
     QString m_slidesName;
     QString m_slidesPath;

@@ -5,6 +5,26 @@
 #include <sgct/opengl.h>
 #include <poppler-document.h>
 #include <poppler-image.h>
+#include <map>
+
+class PdfDocumentManager {
+public:
+    PdfDocumentManager();
+    ~PdfDocumentManager();
+
+    static PdfDocumentManager& instance();
+    poppler::document* getDocument(std::string filepath);
+    void trashDocument(std::string filepath);
+
+private:
+    struct PDFDocument {
+        int retrievals = 0;
+        poppler::document* document = nullptr;
+    };
+
+    static PdfDocumentManager* _instance;
+    std::map<std::string, PDFDocument> m_documents;
+};
 
 class PdfLayer : public BaseLayer {
 public:

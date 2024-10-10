@@ -668,6 +668,10 @@ NDISendersModel::NDISendersModel(QObject *parent)
     m_NDIreceiver->CreateFinder();
 }
 
+NDISendersModel::~NDISendersModel() {
+    delete m_NDIreceiver;
+}
+
 int NDISendersModel::rowCount(const QModelIndex &parent) const {
     if (parent.isValid())
         return 0;

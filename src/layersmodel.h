@@ -39,6 +39,7 @@ class NDISendersModel : public QAbstractListModel {
 
 public:
     explicit NDISendersModel(QObject *parent = nullptr);
+    ~NDISendersModel();
 
     enum {
         textRole = Qt::UserRole

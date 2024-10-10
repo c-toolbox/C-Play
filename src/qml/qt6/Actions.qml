@@ -494,10 +494,12 @@ QtObject {
             if(enabled){
                 layers.layersView.currentIndex = -1;
                 if(app.slides.selectedSlideIdx === app.slides.triggeredSlideIdx){
+                    app.slides.slideFadeTime = PresentationSettings.fadeDurationToPreviousSlide;
                     app.slides.selectedSlideIdx = app.slides.selectedSlideIdx - 1;
                     app.slides.triggeredSlideIdx = app.slides.triggeredSlideIdx - 1;
                 }
                 else {
+                    app.slides.slideFadeTime = PresentationSettings.fadeDurationToNextSlide;
                     app.slides.triggeredSlideIdx = app.slides.selectedSlideIdx;
                 }   
             }
@@ -518,10 +520,12 @@ QtObject {
             if(enabled){
                 layers.layersView.currentIndex = -1;
                 if(app.slides.selectedSlideIdx === app.slides.triggeredSlideIdx){
+                    app.slides.slideFadeTime = PresentationSettings.fadeDurationToNextSlide;
                     app.slides.selectedSlideIdx = app.slides.selectedSlideIdx + 1;
                     app.slides.triggeredSlideIdx = app.slides.triggeredSlideIdx + 1;
                 }
                 else {
+                    app.slides.slideFadeTime = PresentationSettings.fadeDurationToNextSlide;
                     app.slides.triggeredSlideIdx = app.slides.selectedSlideIdx;
                 }
             }

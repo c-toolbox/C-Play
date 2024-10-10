@@ -15,12 +15,17 @@ NdiLayer::NdiLayer() {
 }
 
 NdiLayer::~NdiLayer() {
+    if (!OpenReceiver()) {
+        NDIreceiver.ReleaseReceiver();
+    }
+
     if (m_pbo[0]) {
         glDeleteBuffers(2, m_pbo);
     }
 
-    if (renderData.texId > 0)
+    if (renderData.texId > 0) {
         glDeleteTextures(1, &renderData.texId);
+    }
 }
 
 void NdiLayer::initialize() {

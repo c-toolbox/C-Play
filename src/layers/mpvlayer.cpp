@@ -242,6 +242,9 @@ void MpvLayer::initializeGL() {
 }
 
 void MpvLayer::cleanup() {
+    if (!videoData.mpvInitialized)
+        return;
+
     // Destroy the GL renderer and all of the GL objects it allocated. If video
     // is still running, the video track will be deselected.
     mpv_render_context_free(videoData.renderContext);

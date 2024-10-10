@@ -155,6 +155,7 @@ ItemDelegate {
     }
     onDoubleClicked: {
         slidesView.currentIndex = index;
+        app.slides.slideFadeTime = PresentationSettings.fadeDurationToNextSlide;
         app.slides.triggeredSlideIdx = index;
     }
 
@@ -206,9 +207,11 @@ ItemDelegate {
         function onTriggeredSlideChanged() {
             if(app.slides.selected) {
                 if (app.slides.selected.layersVisibility === 100 && !visibility_fade_out_animation.running) {
+                    visibility_fade_out_animation.duration = app.slides.slideFadeTime;
                     visibility_fade_out_animation.start();
                 }
                 if (app.slides.selected.layersVisibility === 0 && !visibility_fade_in_animation.running) {
+                    visibility_fade_in_animation.duration = app.slides.slideFadeTime;
                     visibility_fade_in_animation.start();
                 }
             }

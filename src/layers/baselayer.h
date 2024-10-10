@@ -66,7 +66,7 @@ public:
     };
 
     BaseLayer();
-    ~BaseLayer();
+    virtual ~BaseLayer();
 
     virtual void initialize();
     virtual void update();
@@ -84,13 +84,13 @@ public:
     bool needSync() const;
     void setHasSynced();
 
-    void encodeFull(std::vector<std::byte> &data);
-    void encodeMinimal(std::vector<std::byte>& data);
-    void encodeProperties(std::vector<std::byte>& data);
+    virtual void encodeFull(std::vector<std::byte> &data);
+    virtual void encodeMinimal(std::vector<std::byte>& data);
+    virtual void encodeProperties(std::vector<std::byte>& data);
 
-    void decodeFull(const std::vector<std::byte> &data, unsigned int &pos);
-    void decodeMinimal(const std::vector<std::byte>& data, unsigned int& pos);
-    void decodeProperties(const std::vector<std::byte>& data, unsigned int& pos);
+    virtual void decodeFull(const std::vector<std::byte> &data, unsigned int &pos);
+    virtual void decodeMinimal(const std::vector<std::byte>& data, unsigned int& pos);
+    virtual void decodeProperties(const std::vector<std::byte>& data, unsigned int& pos);
 
     LayerType type() const;
     void setType(LayerType t);

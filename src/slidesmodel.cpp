@@ -292,6 +292,7 @@ SlidesModel::SlidesModel(QObject *parent)
       m_masterSlide(new LayersModel(this)),
       m_visibilityModel(new SlideVisibilityModel(&m_slides, this)),
       m_needsSync(false),
+      m_slideFadeTime(0),
       m_slidesName(QStringLiteral("")),
       m_slidesPath(QStringLiteral("")) {
     m_masterSlide->setLayersName(QStringLiteral("Master"));
@@ -469,6 +470,15 @@ void SlidesModel::setTriggeredSlideVisibility(int value) {
     setSlidesNeedsSave(true);
 
     Q_EMIT triggeredSlideVisibilityChanged();
+}
+
+int SlidesModel::slideFadeTime() {
+    return m_slideFadeTime;
+}
+
+void SlidesModel::setSlideFadeTime(int value) {
+    m_slideFadeTime = value;
+    Q_EMIT slideFadeTimeChanged();
 }
 
 int SlidesModel::previousTriggeredIdx() {
