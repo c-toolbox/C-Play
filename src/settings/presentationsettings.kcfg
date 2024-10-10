@@ -13,7 +13,7 @@
       <label>A presentation to load at startup</label>
     </entry>
     <entry name="FadeDurationToPreviousSlide" type="int">
-      <default>0</default>
+      <default>20</default>
     </entry>
     <entry name="FadeDurationToNextSlide" type="int">
       <default>2000</default>

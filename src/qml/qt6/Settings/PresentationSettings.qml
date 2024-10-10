@@ -259,7 +259,7 @@ SettingsBasePage {
         }
         SpinBox {
             editable: true
-            from: 0
+            from: 20
             to: 20000
             value: PresentationSettings.fadeDurationToPreviousSlide
 
@@ -279,7 +279,7 @@ SettingsBasePage {
         }
         SpinBox {
             editable: true
-            from: 0
+            from: 20
             to: 20000
             value: PresentationSettings.fadeDurationToNextSlide
 
