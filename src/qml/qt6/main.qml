@@ -125,6 +125,13 @@ Kirigami.ApplicationWindow {
         id: actions
 
     }
+    SlidesQtItem {
+        id: slidesViewItem
+
+        Component.onCompleted: {
+            slidesViewItem.slides = app.slides;
+        }
+    }
     BackgroundImage {
         id: bgImage
 

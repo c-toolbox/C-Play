@@ -16,6 +16,7 @@
 #include "playlistitem.h"
 #include "playlistmodel.h"
 #include "slidesmodel.h"
+#include "slidesqtitem.h"
 #include "tracksmodel.h"
 
 #include "audiosettings.h"
@@ -213,8 +214,9 @@ void Application::setupCommandLineParser() {
 }
 
 void Application::registerQmlTypes() {
-    qmlRegisterType<LayerQtItem>("org.ctoolbox.cplay", 1, 0, "LayerQtItem");
     qmlRegisterType<MpvObject>("org.ctoolbox.cplay", 1, 0, "MpvObject");
+    qmlRegisterType<LayerQtItem>("org.ctoolbox.cplay", 1, 0, "LayerQtItem");
+    qmlRegisterType<SlidesQtItem>("org.ctoolbox.cplay", 1, 0, "SlidesQtItem");
 
     qRegisterMetaType<PlayListModel *>();
     qRegisterMetaType<PlayListItem *>();

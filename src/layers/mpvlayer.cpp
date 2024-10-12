@@ -170,14 +170,22 @@ void MpvLayer::initialize() {
     m_hasInitialized = true;
 }
 
-void MpvLayer::update() {
-    if (!videoData.mpvInitialized)
+void MpvLayer::update(bool updateRendering) {
+    if (!videoData.mpvInitialized) {
+        initializeMpv();
+    }
+
+    if (!videoData.mpvInitializedGL) {
         initializeGL();
+    }
 
-    if (videoData.loadedFile != filepath())
+    if (videoData.loadedFile != filepath()) {
         loadFile(filepath());
+    }
 
-    updateFrame();
+    if (updateRendering) {
+        updateFrame();
+    }
 }
 
 bool MpvLayer::ready() {
@@ -197,7 +205,7 @@ void MpvLayer::stop() {
     }
 }
 
-void MpvLayer::initializeGL() {
+void MpvLayer::initializeMpv() {
     // Run MPV on another thread
     videoData.trd = std::make_unique<std::thread>(runMpvAsync, std::ref(videoData), std::ref(renderData));
     while (!videoData.mpvInitialized) {
@@ -208,7 +216,9 @@ void MpvLayer::initializeGL() {
     mpv_observe_property(videoData.handle, 0, "pause", MPV_FORMAT_FLAG);
     mpv_observe_property(videoData.handle, 0, "time-pos", MPV_FORMAT_DOUBLE);
     mpv_observe_property(videoData.handle, 0, "duration", MPV_FORMAT_DOUBLE);
+}
 
+void MpvLayer::initializeGL() {
     // Setup OpenGL MPV settings
     mpv_opengl_init_params gl_init_params[1] = {m_openglProcAdr, nullptr};
     mpv_render_param params[]{
@@ -228,8 +238,10 @@ void MpvLayer::initializeGL() {
 
     // This makes mpv use the currently set GL context. It will use the callback
     // (passed via params) to resolve GL builtin functions, as well as extensions.
-    if (mpv_render_context_create(&videoData.renderContext, videoData.handle, params) < 0)
+    if (mpv_render_context_create(&videoData.renderContext, videoData.handle, params) < 0) {
         sgct::Log::Error("failed to initialize mpv GL context");
+        return;
+    }
 
     // When there is a need to call mpv_render_context_update(), which can
     // request a new frame to be rendered.
@@ -239,6 +251,8 @@ void MpvLayer::initializeGL() {
 
     // Creating new FBO to render mpv into
     createMpvFBO(512, 512);
+
+    videoData.mpvInitializedGL = true;
 }
 
 void MpvLayer::cleanup() {
@@ -247,8 +261,9 @@ void MpvLayer::cleanup() {
 
     // Destroy the GL renderer and all of the GL objects it allocated. If video
     // is still running, the video track will be deselected.
-    mpv_render_context_free(videoData.renderContext);
-
+    if (videoData.mpvInitializedGL) {
+        mpv_render_context_free(videoData.renderContext);
+    }
     // End Mpv running on separate thread
     videoData.terminate = true;
     while (!videoData.threadDone) {
@@ -256,11 +271,16 @@ void MpvLayer::cleanup() {
     videoData.trd->join();
     videoData.trd = nullptr;
 
-    glDeleteFramebuffers(1, &videoData.fboId);
-    glDeleteTextures(1, &renderData.texId);
+    if (videoData.mpvInitializedGL) {
+        glDeleteFramebuffers(1, &videoData.fboId);
+        glDeleteTextures(1, &renderData.texId);
+    }
 }
 
 void MpvLayer::updateFrame() {
+    if (!videoData.mpvInitializedGL)
+        return;
+
     updateFbo();
 
     // See render_gl.h on what OpenGL environment mpv expects, and

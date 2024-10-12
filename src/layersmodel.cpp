@@ -165,7 +165,7 @@ int LayersModel::addLayer(QString title, int type, QString filepath, int stereoM
     beginInsertRows(QModelIndex(), m_layers.size(), m_layers.size());
 
     // Create new layer
-    BaseLayer *newLayer = BaseLayer::createLayer(type, get_proc_address_qopengl, title.toStdString());
+    BaseLayer *newLayer = BaseLayer::createLayer(true, type, get_proc_address_qopengl, title.toStdString());
 
     if (newLayer) {
         newLayer->setHierarchy(hierarchy());
@@ -318,7 +318,7 @@ void LayersModel::addCopyOfLayer(BaseLayer* srcLayer) {
     beginInsertRows(QModelIndex(), m_layers.size(), m_layers.size());
 
     // Create new layer
-    BaseLayer* newLayer = BaseLayer::createLayer(srcLayer->type(), get_proc_address_qopengl, srcLayer->title());
+    BaseLayer* newLayer = BaseLayer::createLayer(true, srcLayer->type(), get_proc_address_qopengl, srcLayer->title());
 
     if (newLayer) {
         newLayer->setTitle(srcLayer->title());

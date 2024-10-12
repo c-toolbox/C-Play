@@ -63,6 +63,7 @@ void initOGL(GLFWwindow *) {
     primaryLayers.push_back(backgroundImageLayer);
 
     mainMpvLayer = new MpvLayer(get_proc_address_glfw, allowDirectRendering, !logFilePath.empty() || !logLevel.empty(), logLevel);
+    mainMpvLayer->initializeMpv();
     mainMpvLayer->initializeGL();
     mainMpvLayer->loadFile(SyncHelper::instance().variables.loadedFile);
     primaryLayers.push_back(mainMpvLayer);
@@ -332,7 +333,7 @@ void decode(const std::vector<std::byte> &data) {
                         }
                         secondaryLayersToKeep.push_back(*it);
                     } else if (layerSync) { // Did not exist. Let's create it
-                        BaseLayer *newLayer = BaseLayer::createLayer(layerType, get_proc_address_glfw, std::to_string(id), id);
+                        BaseLayer *newLayer = BaseLayer::createLayer(false, layerType, get_proc_address_glfw, std::to_string(id), id);
                         if (newLayer) {
                             if (layerSync) {
                                 newLayer->decodeFull(data, pos);

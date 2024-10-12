@@ -192,6 +192,8 @@ public:
     Q_INVOKABLE void loadFromJSONFile(const QString &path);
     Q_INVOKABLE void saveAsJSONFile(const QString &path);
 
+    void runRenderOnLayersThatShouldUpdate(bool updateRendering);
+
 Q_SIGNALS:
     void slideModelChanged();
     void slidesNeedsSaveChanged();

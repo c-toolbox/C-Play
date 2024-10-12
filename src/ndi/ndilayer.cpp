@@ -32,8 +32,9 @@ void NdiLayer::initialize() {
     m_hasInitialized = true;
 }
 
-void NdiLayer::update() {
-    ReceiveImage();
+void NdiLayer::update(bool updateRendering) {
+    if(updateRendering)
+        ReceiveImage();
 }
 
 bool NdiLayer::ready() {

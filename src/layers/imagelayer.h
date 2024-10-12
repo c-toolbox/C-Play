@@ -21,7 +21,7 @@ public:
     ~ImageLayer();
 
     void initialize();
-    void update();
+    void update(bool updateRendering = true);
     bool ready();
 
     void start();

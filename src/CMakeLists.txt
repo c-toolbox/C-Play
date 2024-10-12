@@ -49,6 +49,8 @@ set(SOURCE_FILES
     renderthread.h
     slidesmodel.cpp
     slidesmodel.h
+    slidesqtitem.cpp
+    slidesqtitem.h
     track.cpp
     track.h
     tracksmodel.cpp

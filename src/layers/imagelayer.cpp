@@ -26,8 +26,9 @@ void ImageLayer::initialize() {
     m_hasInitialized = true;
 }
 
-void ImageLayer::update() {
-    processImageUpload(filepath(), imageData.filename != filepath());
+void ImageLayer::update(bool updateRendering) {
+    if(updateRendering)
+        processImageUpload(filepath(), imageData.filename != filepath());
 }
 
 bool ImageLayer::ready() {

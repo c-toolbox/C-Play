@@ -22,12 +22,13 @@ public:
         int eofMode = -1;
         std::atomic_bool threadRunning = false;
         std::atomic_bool mpvInitialized = false;
+        std::atomic_bool mpvInitializedGL = false;
         std::atomic_bool threadDone = false;
         std::atomic_bool terminate = false;
         bool updateRendering = true;
         bool allowDirectRendering = false;
         bool loggingOn = false;
-        bool videoIsPaused = false;
+        bool videoIsPaused = true;
         std::string logLevel = "info";
         std::string loadedFile = "";
         int timePos = 0;
@@ -40,12 +41,13 @@ public:
     ~MpvLayer();
 
     void initialize();
-    void update();
+    void update(bool updateRendering = true);
     bool ready();
 
     void start();
     void stop();
 
+    void initializeMpv();
     void initializeGL();
     void cleanup();
     void updateFrame();

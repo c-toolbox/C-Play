@@ -43,7 +43,7 @@ public:
 
     typedef void *(*opengl_func_adress_ptr)(void *ctx, const char *name);
     static std::string typeDescription(BaseLayer::LayerType e);
-    static BaseLayer *createLayer(int layerType, opengl_func_adress_ptr opa, std::string strId = "", uint32_t numID = 0);
+    static BaseLayer *createLayer(bool isMaster, int layerType, opengl_func_adress_ptr opa, std::string strId = "", uint32_t numID = 0);
 
     struct RenderParams {
         unsigned int texId = 0;
@@ -74,7 +74,7 @@ public:
     virtual ~BaseLayer();
 
     virtual void initialize();
-    virtual void update();
+    virtual void update(bool updateRendering = true);
     virtual bool ready();
 
     virtual void start();
@@ -82,9 +82,8 @@ public:
 
     bool hasInitialized();
 
+    bool isMaster() const;
     uint32_t identifier() const;
-    void setIdentifier(uint32_t id);
-    void updateIdentifierBasedOnCount();
 
     bool needSync() const;
     void setHasSynced();
@@ -178,6 +177,10 @@ public:
     void updatePlane();
 
 protected:
+    void setIsMaster(bool value);
+    void setIdentifier(uint32_t id);
+    void updateIdentifierBasedOnCount();
+
     LayerType m_type;
     LayerHierarchy m_hierachy;
     std::string m_title;
@@ -185,6 +188,7 @@ protected:
     int m_page;
     int m_numPages;
     int m_keepVisibilityForNumSlides;
+    bool m_isMaster;
     bool m_shouldUpdate;
     bool m_hasInitialized;
     bool m_needSync;

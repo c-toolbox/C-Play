@@ -784,3 +784,24 @@ void SlidesModel::saveAsJSONFile(const QString &path) {
 
     setSlidesNeedsSave(false);
 }
+
+void SlidesModel::runRenderOnLayersThatShouldUpdate(bool updateRendering) {
+    // Control start/stop with Visibility
+    for (auto s : m_slides) {
+        const Layers& slideLayers = s->getLayers();
+        for (auto layer : slideLayers) {
+            if (layer->shouldUpdate()) {
+                if (!layer->hasInitialized()) {
+                    layer->initialize();
+                }
+                layer->update(updateRendering);
+                if (layer->ready() && (layer->alpha() > 0.f)) {
+                    layer->start();
+                }
+                else {
+                    layer->stop();
+                }
+            }
+        }
+    }
+}

@@ -33,7 +33,7 @@ std::string BaseLayer::typeDescription(BaseLayer::LayerType e) {
     }
 }
 
-BaseLayer *BaseLayer::createLayer(int layerType, opengl_func_adress_ptr opa, std::string strId, uint32_t numID) {
+BaseLayer *BaseLayer::createLayer(bool isMaster, int layerType, opengl_func_adress_ptr opa, std::string strId, uint32_t numID) {
     BaseLayer *newLayer = nullptr;
     switch (layerType) {
     case static_cast<int>(BaseLayer::LayerType::IMAGE): {
@@ -65,6 +65,7 @@ BaseLayer *BaseLayer::createLayer(int layerType, opengl_func_adress_ptr opa, std
     }
 
     if (newLayer) {
+        newLayer->setIsMaster(isMaster);
         if (numID != 0)
             newLayer->setIdentifier(numID);
         else
@@ -80,6 +81,7 @@ BaseLayer::BaseLayer() {
     m_hierachy = FRONT;
     m_page = 0;
     m_numPages = 0;
+    m_isMaster = false;
     m_shouldUpdate = false;
     m_hasInitialized = false;
     m_keepVisibilityForNumSlides = 0;
@@ -94,7 +96,7 @@ void BaseLayer::initialize() {
     // Overwrite in subclasses
 }
 
-void BaseLayer::update() {
+void BaseLayer::update(bool) {
     // Overwrite in subclasses
 }
 
@@ -115,16 +117,12 @@ bool BaseLayer::hasInitialized() {
     return m_hasInitialized;
 }
 
+bool BaseLayer::isMaster() const {
+    return m_isMaster;
+}
+
 uint32_t BaseLayer::identifier() const {
     return m_identifier;
-}
-
-void BaseLayer::setIdentifier(uint32_t id) {
-    m_identifier = id;
-}
-
-void BaseLayer::updateIdentifierBasedOnCount() {
-    m_identifier = m_id_gen++;
 }
 
 bool BaseLayer::needSync() const {
@@ -536,4 +534,16 @@ void BaseLayer::updatePlane() {
         planeData.mesh = std::make_unique<sgct::utils::Plane>(calculatedPlaneSize.x / 100.f, calculatedPlaneSize.y / 100.f);
         m_needSync = true;
     }
+}
+
+void BaseLayer::setIsMaster(bool value) {
+    m_isMaster = value;
+}
+
+void BaseLayer::setIdentifier(uint32_t id) {
+    m_identifier = id;
+}
+
+void BaseLayer::updateIdentifierBasedOnCount() {
+    m_identifier = m_id_gen++;
 }

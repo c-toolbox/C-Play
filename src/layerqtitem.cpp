@@ -1,6 +1,6 @@
 /*
  * SPDX-FileCopyrightText:
- * 2024 Erik Sund�n <eriksunden85@gmail.com>
+ * 2024 Erik Sundén <eriksunden85@gmail.com>
  *
  * SPDX-License-Identifier: GPL-3.0-or-later
  */
@@ -83,17 +83,6 @@ int LayerQtItem::layerVisibility() const{
 void LayerQtItem::setLayerVisibility(int value) {
     if (m_layer) {
         m_layer->setAlpha(static_cast<float>(value) * 0.01f);
-
-        // Control start/stop with Visibility
-        if (m_layer->ready()) {
-            if (value > 0) {
-                m_layer->start();
-            }
-            else {
-                m_layer->stop();
-            }
-        }
-
         Q_EMIT layerValueChanged();
     }
 }
