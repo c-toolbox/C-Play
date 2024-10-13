@@ -29,9 +29,12 @@ public:
         bool allowDirectRendering = false;
         bool loggingOn = false;
         bool videoIsPaused = true;
+        bool videoShouldPause = true;
         std::string logLevel = "info";
         std::string loadedFile = "";
-        int timePos = 0;
+        double timePos = 0;
+        double timeToSet = 0;
+        bool timeIsDirty = false;
     };
 
     MpvLayer(opengl_func_adress_ptr opa,
@@ -47,6 +50,18 @@ public:
     void start();
     void stop();
 
+    bool pause();
+    void setPause(bool pause);
+
+    double position();
+    void setPosition(double pos);
+
+    double duration();
+    double remaining();
+
+    void encodeTypeAlways(std::vector<std::byte>& data);
+    void decodeTypeAlways(const std::vector<std::byte>& data, unsigned int& pos);
+
     void initializeMpv();
     void initializeGL();
     void cleanup();
@@ -59,8 +74,8 @@ public:
     void skipRendering(bool skipRendering);
     bool renderingIsOn();
 
-    void setPause(bool paused);
     void setEOFMode(int eofMode);
+    void setTimePause(bool paused, bool updateTime = true);
     void setTimePosition(double timePos, bool updateTime = true);
     void setLoopTime(double A, double B, bool enabled);
     void setValue(std::string param, int val);

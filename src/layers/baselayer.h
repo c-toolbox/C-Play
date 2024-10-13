@@ -71,6 +71,9 @@ public:
     };
 
     BaseLayer();
+
+    // Start of all virtual methods for derived classes
+
     virtual ~BaseLayer();
 
     virtual void initialize();
@@ -80,6 +83,41 @@ public:
     virtual void start();
     virtual void stop();
 
+    virtual bool pause();
+    virtual void setPause(bool paused);
+
+    virtual double position();
+    virtual void setPosition(double pos);
+
+    virtual double duration();
+    virtual double remaining();
+
+    virtual void encodeTypeCore(std::vector<std::byte>& data);
+    virtual void decodeTypeCore(const std::vector<std::byte>& data, unsigned int& pos);
+
+    virtual void encodeTypeAlways(std::vector<std::byte>& data);
+    virtual void decodeTypeAlways(const std::vector<std::byte>& data, unsigned int& pos);
+
+    virtual void encodeTypeProperties(std::vector<std::byte>& data);
+    virtual void decodeTypeProperties(const std::vector<std::byte>& data, unsigned int& pos);
+
+    // End virtual methods to use in derived classes
+
+    void encodeBaseCore(std::vector<std::byte>& data);
+    void decodeBaseCore(const std::vector<std::byte>& data, unsigned int& pos);
+
+    void encodeBaseAlways(std::vector<std::byte>& data);
+    void decodeBaseAlways(const std::vector<std::byte>& data, unsigned int& pos);
+
+    void encodeBaseProperties(std::vector<std::byte>& data);
+    void decodeBaseProperties(const std::vector<std::byte>& data, unsigned int& pos);
+
+    void encodeFull(std::vector<std::byte>& data);
+    void decodeFull(const std::vector<std::byte>& data, unsigned int& pos);
+
+    void encodeAlways(std::vector<std::byte>& data);
+    void decodeAlways(const std::vector<std::byte>& data, unsigned int& pos);
+
     bool hasInitialized();
 
     bool isMaster() const;
@@ -87,14 +125,6 @@ public:
 
     bool needSync() const;
     void setHasSynced();
-
-    virtual void encodeFull(std::vector<std::byte> &data);
-    virtual void encodeMinimal(std::vector<std::byte>& data);
-    virtual void encodeProperties(std::vector<std::byte>& data);
-
-    virtual void decodeFull(const std::vector<std::byte> &data, unsigned int &pos);
-    virtual void decodeMinimal(const std::vector<std::byte>& data, unsigned int& pos);
-    virtual void decodeProperties(const std::vector<std::byte>& data, unsigned int& pos);
 
     LayerType type() const;
     void setType(LayerType t);

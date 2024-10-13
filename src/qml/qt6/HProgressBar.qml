@@ -48,7 +48,7 @@ Slider {
         Rectangle {
             color: Kirigami.Theme.highlightColor
             height: parent.height
-            width: visualPosition * parent.width
+            width: root.visualPosition * parent.width
         }
         ToolTip {
             id: progressBarToolTip

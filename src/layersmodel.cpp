@@ -349,10 +349,16 @@ void LayersModel::overwriteLayerProperties(BaseLayer* srcLayer, int dstLayerIdx)
         return;
 
     std::vector<std::byte> data;
-    srcLayer->encodeProperties(data);
+    srcLayer->encodeBaseProperties(data);
+
+    if(m_layers[dstLayerIdx]->type() == srcLayer->type())
+        srcLayer->encodeTypeProperties(data);
 
     unsigned int pos = 0;
-    m_layers[dstLayerIdx]->decodeProperties(data, pos);
+    m_layers[dstLayerIdx]->decodeBaseProperties(data, pos);
+
+    if (m_layers[dstLayerIdx]->type() == srcLayer->type())
+        m_layers[dstLayerIdx]->decodeTypeProperties(data, pos);
 
     updateLayer(dstLayerIdx);
 }

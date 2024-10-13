@@ -10,6 +10,7 @@ import QtQuick.Window
 import QtQuick.Layouts
 import QtQuick.Controls
 import QtQuick.Dialogs
+import QtQuick.Shapes
 import Qt.labs.platform 1.0 as Platform
 
 import org.kde.kirigami as Kirigami
@@ -22,6 +23,7 @@ Kirigami.ApplicationWindow {
     property var roiEdit: undefined
     property var selection: undefined
     property var pdfPage: undefined
+    property var videoControls: undefined
 
     function createRoiComponents() {
         if (!selection) {
@@ -54,6 +56,17 @@ Kirigami.ApplicationWindow {
         }
     }
 
+    function createVideoComponents() {
+        if (!videoControls) {
+            videoControls = videoComponent.createObject(layerViewItem);
+        }
+    }
+    function destroyVideoComponents() {
+        if (videoControls) {
+            videoControls.destroy();
+        }
+    }
+
     color: Kirigami.Theme.alternateBackgroundColor
     height: 630
     minimumWidth: 690
@@ -72,14 +85,18 @@ Kirigami.ApplicationWindow {
     onClosing: {
         destroyRoiComponents();
         destroyPageComponents();
+        destroyVideoComponents();
     }
     onVisibilityChanged: {
         if (visibility) {
-            if (layerView.layerItem.layerRoiEnabled) {
+            if (layerViewItem.layerRoiEnabled) {
                 createRoiComponents();
             }
-            if (layerView.layerItem.layerTypeName === "PDF") {
+            if (layerViewItem.layerTypeName === "PDF") {
                 createPageComponents();
+            }
+            else if (layerViewItem.layerTypeName === "Video") {
+                createVideoComponents();
             }
         }
     }
@@ -140,7 +157,7 @@ Kirigami.ApplicationWindow {
 
                     Component.onCompleted: {}
                     onActivated: {
-                        layerView.layerItem.layerStereoMode = model.get(index).value;
+                        layerViewItem.layerStereoMode = model.get(index).value;
                     }
                 }
                 Label {
@@ -182,7 +199,7 @@ Kirigami.ApplicationWindow {
 
                     Component.onCompleted: {}
                     onActivated: {
-                        layerView.layerItem.layerGridMode = model.get(index).value;
+                        layerViewItem.layerGridMode = model.get(index).value;
                     }
                 }
                 ToolButton {
@@ -212,7 +229,7 @@ Kirigami.ApplicationWindow {
                 ToolButton {
                     id: fade_image_out
 
-                    enabled: layerView.layerItem.layerVisibility !== 0
+                    enabled: layerViewItem.layerVisibility !== 0
                     focusPolicy: Qt.NoFocus
                     icon.name: "view-hidden"
 
@@ -228,8 +245,8 @@ Kirigami.ApplicationWindow {
                     overlayLabel: qsTr("Layer visibility: ")
 
                     onValueChanged: {
-                        if (value.toFixed(0) !== layerView.layerItem.layerVisibility) {
-                            layerView.layerItem.layerVisibility = value.toFixed(0);
+                        if (value.toFixed(0) !== layerViewItem.layerVisibility) {
+                            layerViewItem.layerVisibility = value.toFixed(0);
                             app.slides.needsSync = true;
                         }
                     }
@@ -245,7 +262,7 @@ Kirigami.ApplicationWindow {
                 ToolButton {
                     id: fade_image_in
 
-                    enabled: layerView.layerItem.layerVisibility !== 100
+                    enabled: layerViewItem.layerVisibility !== 100
                     focusPolicy: Qt.NoFocus
                     icon.name: "view-visible"
 
@@ -259,14 +276,14 @@ Kirigami.ApplicationWindow {
                     id: roiButton
 
                     checkable: true
-                    checked: layerView.layerItem.layerRoiEnabled
+                    checked: layerViewItem.layerRoiEnabled
                     focusPolicy: Qt.NoFocus
                     icon.color: (checked ? "lime" : "crimson")
                     icon.name: "trim-to-selection"
                     text: qsTr("ROI")
 
                     onClicked: {
-                        layerView.layerItem.layerRoiEnabled = checked;
+                        layerViewItem.layerRoiEnabled = checked;
                         if (checked) {
                             createRoiComponents();
                         } else {
@@ -281,39 +298,39 @@ Kirigami.ApplicationWindow {
             }
             Connections {
                 function onLayerChanged() {
-                    layerWindow.title = layerView.layerItem.layerTitle;
-                    visibilitySlider.value = layerView.layerItem.layerVisibility;
+                    layerWindow.title = layerViewItem.layerTitle;
+                    visibilitySlider.value = layerViewItem.layerVisibility;
                     for (let sm = 0; sm < stereoscopicModeForLayerList.count; ++sm) {
-                        if (stereoscopicModeForLayerList.get(sm).value === layerView.layerItem.layerStereoMode) {
+                        if (stereoscopicModeForLayerList.get(sm).value === layerViewItem.layerStereoMode) {
                             stereoscopicModeForLayer.currentIndex = sm;
                             break;
                         }
                     }
                     for (let gm = 0; gm < gridModeForLayerList.count; ++gm) {
-                        if (gridModeForLayerList.get(gm).value === layerView.layerItem.layerGridMode) {
+                        if (gridModeForLayerList.get(gm).value === layerViewItem.layerGridMode) {
                             gridModeForLayer.currentIndex = gm;
                             break;
                         }
                     }
-                    roiButton.checked = layerView.layerItem.layerRoiEnabled;
-                    if (layerView.layerItem.layerRoiEnabled) {
+                    roiButton.checked = layerViewItem.layerRoiEnabled;
+                    if (layerViewItem.layerRoiEnabled) {
                         createRoiComponents();
                     } else {
                         destroyRoiComponents();
                     }
                     
-                    if (layerView.layerItem.layerTypeName === "PDF") {
+                    if (layerViewItem.layerTypeName === "PDF") {
                         createPageComponents();
                     } else {
                         destroyPageComponents();
                     }
                 }
                 function onLayerValueChanged() {
-                    if (visibilitySlider.value !== layerView.layerItem.layerVisibility)
-                        visibilitySlider.value = layerView.layerItem.layerVisibility;
+                    if (visibilitySlider.value !== layerViewItem.layerVisibility)
+                        visibilitySlider.value = layerViewItem.layerVisibility;
                 }
 
-                target: layerView.layerItem
+                target: layerViewItem
             }
         }
     }
@@ -604,6 +621,155 @@ Kirigami.ApplicationWindow {
             }
         }
         Component {
+            id: videoComponent
+
+            Row {
+                anchors.horizontalCenter: parent.horizontalCenter
+                anchors.bottom: parent.bottom
+                bottomPadding: 20
+
+                RowLayout {
+                    ToolButton {
+                        id: playPauseButton
+
+                        property string iconName: "media-playback-start"
+                        property string toolTipText: "Start Playback"
+
+                        focusPolicy: Qt.NoFocus
+                        icon.name: playPauseButton.iconName
+                        text: ""
+
+                        onClicked: {
+                            if(layerViewItem.layerPause){
+                                layerViewItem.layerPause = false
+                            }
+                            else{
+                                layerViewItem.layerPause = true
+                                layerViewItem.layerPosition = videoSlider.value
+                            }
+                            app.slides.needsSync = true;
+                        }
+
+                        ToolTip {
+                            id: playPauseButtonToolTip
+                            text: playPauseButton.toolTipText
+                        }
+                    }
+                    Slider {
+                        id: videoSlider
+
+                        property bool seekStarted: false
+
+                        from: 0
+                        implicitHeight: 25
+                        implicitWidth: 200
+                        leftPadding: 0
+                        rightPadding: 0
+                        to: layerViewItem.layerDuration
+
+                        background: Rectangle {
+                            id: progressBarBackground
+
+                            color: Kirigami.Theme.alternateBackgroundColor
+
+                            Rectangle {
+                                color: Kirigami.Theme.highlightColor
+                                height: parent.height
+                                width: videoSlider.visualPosition * parent.width
+                            }
+                            ToolTip {
+                                id: progressBarToolTip
+
+                                delay: 0
+                                timeout: -1
+                                visible: progressBarMouseArea.containsMouse
+                            }
+                            MouseArea {
+                                id: progressBarMouseArea
+
+                                acceptedButtons: Qt.MiddleButton | Qt.RightButton
+                                anchors.fill: parent
+                                hoverEnabled: true
+
+                                onClicked: {}
+                                onEntered: {
+                                    progressBarToolTip.x = mouseX - (progressBarToolTip.width * 0.5);
+                                    progressBarToolTip.y = videoSlider.height;
+                                }
+                                onMouseXChanged: {
+                                    progressBarToolTip.x = mouseX - (progressBarToolTip.width * 0.5);
+                                    const time = mouseX * 100 / progressBarBackground.width * videoSlider.to / 100;
+                                    progressBarToolTip.text = app.formatTime(time);
+                                }
+                            }
+                        }
+                        handle: Item {
+                            visible: false
+                        }
+
+                        onPressedChanged: {
+                            if (pressed) {
+                                videoSlider.seekStarted = true;
+                            } else {
+                                layerViewItem.layerPause = true;
+                                layerViewItem.layerPosition = value;
+                                app.slides.needsSync = true;
+                                videoSlider.seekStarted = false;
+                            }
+                        }
+                        onToChanged: value = layerViewItem.layerPosition
+
+                        Connections {
+                            function onLayerPositionChanged() {
+                                if (!videoSlider.seekStarted) {
+                                    videoSlider.value = layerViewItem.layerPosition;
+                                }
+                                if (layerViewItem.layerPause) {
+                                    playPauseButton.iconName = "media-playback-start";
+                                    playPauseButton.toolTipText = "Start Playback";
+                                } else {
+                                    playPauseButton.iconName = "media-playback-pause";
+                                    playPauseButton.toolTipText = "Pause Playback";
+                                }
+                            }
+
+                            target: layerViewItem
+                        }
+                    }
+                    ToolButton {
+                        id: rewindButton
+
+                        focusPolicy: Qt.NoFocus
+                        icon.name: "media-playback-stop"
+                        text: ""
+
+                        onClicked: {
+                            layerViewItem.layerPause = true;
+                            layerViewItem.layerPosition = 0;
+                            app.slides.needsSync = true;
+                        }
+
+                        ToolTip {
+                            id: rewindButtonToolTip
+
+                            text: PlaybackSettings.fadeDownBeforeRewind ? qsTr("Fade down then stop/rewind") : qsTr("Stop/rewind")
+                        }
+                    }
+                    LabelWithTooltip {
+                        id: timeInfo
+
+                        alwaysShowToolTip: true
+                        font.pointSize: 9
+                        fontSizeMode: Text.Fit
+                        horizontalAlignment: Qt.AlignHCenter
+                        text: app.formatTime(layerViewItem.layerPosition) + " / " + app.formatTime(layerViewItem.layerDuration)
+                        toolTipFontSize: timeInfo.font.pointSize + 2
+                        toolTipText: qsTr("Remaining: ") + app.formatTime(layerViewItem.layerRemaining)
+                    }
+                }
+            }
+        }
+        Component {
             id: pdfPageComponent
 
             Row {
@@ -624,19 +790,19 @@ Kirigami.ApplicationWindow {
                         value: 1
 
                         onValueChanged: {
-                            if (pageNum.value !== layerView.layerItem.layerPage)
-                                layerView.layerItem.layerPage = pageNum.value
+                            if (pageNum.value !== layerViewItem.layerPage)
+                                layerViewItem.layerPage = pageNum.value
                         }
 
                         Component.onCompleted: {
-                            pageNum.value = layerView.layerItem.layerPage
-                            pageNum.to = layerView.layerItem.layerNumPages
+                            pageNum.value = layerViewItem.layerPage
+                            pageNum.to = layerViewItem.layerNumPages
                         }
                     }
                     Label {
                         id: labelNumPages
                         font.pointSize: 10
-                        text: qsTr("of %1 pages.").arg(Number(layerView.layerItem.layerNumPages));
+                        text: qsTr("of %1 pages.").arg(Number(layerViewItem.layerNumPages));
                     }
                 }
             }

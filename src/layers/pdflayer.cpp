@@ -142,14 +142,6 @@ bool PdfLayer::ready() {
     return !m_pdfData.filepath.empty() && m_pdfData.trd == nullptr;
 }
 
-void PdfLayer::start() {
-
-}
-
-void PdfLayer::stop() {
-
-}
-
 bool PdfLayer::loadDocument(std::string filepath) {
     m_pdfData.filepath = filepath;
     if (!m_pdfData.filepath.empty()) {

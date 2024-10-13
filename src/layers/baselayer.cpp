@@ -93,61 +93,106 @@ BaseLayer::~BaseLayer() {
 }
 
 void BaseLayer::initialize() {
-    // Overwrite in subclasses
+    // Overwrite in derived class
 }
 
 void BaseLayer::update(bool) {
-    // Overwrite in subclasses
+    // Overwrite in derived class
 }
 
 bool BaseLayer::ready() {
-    // Overwrite in subclasses
+    // Overwrite in derived class
     return false;
 }
 
 void BaseLayer::start() {
-    // Overwrite in subclasses
+    // Overwrite in derived class
 }
 
 void BaseLayer::stop() {
-    // Overwrite in subclasses
+    // Overwrite in derived class
 }
 
-bool BaseLayer::hasInitialized() {
-    return m_hasInitialized;
+bool BaseLayer::pause() {
+    return true;
+    // Overwrite in derived class
 }
 
-bool BaseLayer::isMaster() const {
-    return m_isMaster;
+void BaseLayer::setPause(bool) {
+    // Overwrite in derived class
 }
 
-uint32_t BaseLayer::identifier() const {
-    return m_identifier;
+double BaseLayer::position() {
+    return 0.0;
+    // Overwrite in derived class
 }
 
-bool BaseLayer::needSync() const {
-    return m_needSync;
+void BaseLayer::setPosition(double) {
+    // Overwrite in derived class
 }
 
-void BaseLayer::setHasSynced() {
-    m_needSync = false;
+double BaseLayer::duration() {
+    return 0.0;
+    // Overwrite in derived class
 }
 
-void BaseLayer::encodeFull(std::vector<std::byte>& data) {
+double BaseLayer::remaining() {
+    return 0.0;
+    // Overwrite in derived class
+}
+
+void BaseLayer::encodeTypeCore(std::vector<std::byte>&) {
+    // Overwrite in derived class
+}
+
+void BaseLayer::decodeTypeCore(const std::vector<std::byte>&, unsigned int&) {
+    // Overwrite in derived class
+}
+
+void BaseLayer::encodeTypeAlways(std::vector<std::byte>&) {
+    // Overwrite in derived class
+}
+
+void BaseLayer::decodeTypeAlways(const std::vector<std::byte>&, unsigned int&) {
+    // Overwrite in derived class
+}
+
+void BaseLayer::encodeTypeProperties(std::vector<std::byte>&) {
+    // Overwrite in derived class
+}
+
+void BaseLayer::decodeTypeProperties(const std::vector<std::byte>&, unsigned int&) {
+    // Overwrite in derived class
+}
+
+void BaseLayer::encodeBaseCore(std::vector<std::byte>& data) {
     sgct::serializeObject(data, m_hierachy);
     sgct::serializeObject(data, m_filepath);
     sgct::serializeObject(data, m_page);
     sgct::serializeObject(data, renderData.flipY);
-    encodeMinimal(data);
-    encodeProperties(data);
 }
 
-void BaseLayer::encodeMinimal(std::vector<std::byte>& data) {
+void BaseLayer::decodeBaseCore(const std::vector<std::byte>& data, unsigned int& pos) {
+    sgct::deserializeObject(data, pos, m_hierachy);
+    sgct::deserializeObject(data, pos, m_filepath);
+    sgct::deserializeObject(data, pos, m_page);
+    sgct::deserializeObject(data, pos, renderData.flipY);
+
+    // Marking as needSync means we need know update has occured, which we need to clear
+    m_needSync = true;
+}
+
+void BaseLayer::encodeBaseAlways(std::vector<std::byte>& data) {
     sgct::serializeObject(data, m_shouldUpdate);
     sgct::serializeObject(data, renderData.alpha);
 }
 
-void BaseLayer::encodeProperties(std::vector<std::byte> &data) {
+void BaseLayer::decodeBaseAlways(const std::vector<std::byte>& data, unsigned int& pos) {
+    sgct::deserializeObject(data, pos, m_shouldUpdate);
+    sgct::deserializeObject(data, pos, renderData.alpha);
+}
+
+void BaseLayer::encodeBaseProperties(std::vector<std::byte>& data) {
     sgct::serializeObject(data, renderData.gridMode);
     sgct::serializeObject(data, renderData.stereoMode);
 
@@ -175,24 +220,7 @@ void BaseLayer::encodeProperties(std::vector<std::byte> &data) {
     }
 }
 
-void BaseLayer::decodeFull(const std::vector<std::byte>& data, unsigned int& pos) {
-    sgct::deserializeObject(data, pos, m_hierachy);
-    sgct::deserializeObject(data, pos, m_filepath);
-    sgct::deserializeObject(data, pos, m_page);
-    sgct::deserializeObject(data, pos, renderData.flipY);
-    decodeMinimal(data, pos);
-    decodeProperties(data, pos);
-
-    // Marking as needSync means we need know update has occured, which we need to clear
-    m_needSync = true;
-}
-
-void BaseLayer::decodeMinimal(const std::vector<std::byte>& data, unsigned int& pos) {
-    sgct::deserializeObject(data, pos, m_shouldUpdate);
-    sgct::deserializeObject(data, pos, renderData.alpha);
-}
-
-void BaseLayer::decodeProperties(const std::vector<std::byte> &data, unsigned int &pos) {
+void BaseLayer::decodeBaseProperties(const std::vector<std::byte>& data, unsigned int& pos) {
     sgct::deserializeObject(data, pos, renderData.gridMode);
     sgct::deserializeObject(data, pos, renderData.stereoMode);
 
@@ -218,6 +246,53 @@ void BaseLayer::decodeProperties(const std::vector<std::byte> &data, unsigned in
         sgct::deserializeObject(data, pos, renderData.rotate.y);
         sgct::deserializeObject(data, pos, renderData.rotate.z);
     }
+}
+
+void BaseLayer::encodeFull(std::vector<std::byte>& data) {
+    encodeBaseCore(data);
+    encodeBaseAlways(data);
+    encodeBaseProperties(data);
+    encodeTypeCore(data);
+    encodeTypeAlways(data);
+    encodeTypeProperties(data);
+}
+void BaseLayer::decodeFull(const std::vector<std::byte>& data, unsigned int& pos) {
+    decodeBaseCore(data, pos);
+    decodeBaseAlways(data, pos);
+    decodeBaseProperties(data, pos);
+    decodeTypeCore(data, pos);
+    decodeTypeAlways(data, pos);
+    decodeTypeProperties(data, pos);
+}
+
+void BaseLayer::encodeAlways(std::vector<std::byte>& data) {
+    encodeBaseAlways(data);
+    encodeTypeAlways(data);
+}
+
+void BaseLayer::decodeAlways(const std::vector<std::byte>& data, unsigned int& pos) {
+    decodeBaseAlways(data, pos);
+    decodeTypeAlways(data, pos);
+}
+
+bool BaseLayer::hasInitialized() {
+    return m_hasInitialized;
+}
+
+bool BaseLayer::isMaster() const {
+    return m_isMaster;
+}
+
+uint32_t BaseLayer::identifier() const {
+    return m_identifier;
+}
+
+bool BaseLayer::needSync() const {
+    return m_needSync;
+}
+
+void BaseLayer::setHasSynced() {
+    m_needSync = false;
 }
 
 BaseLayer::LayerType BaseLayer::type() const {
@@ -320,6 +395,16 @@ void BaseLayer::setAlpha(float a) {
         // However might still be update if not visible.
         // See slide scheme.
         setShouldUpdate(true);
+    }
+
+    // Alpha starts/stop layer depending on visibility changes.
+    if (isMaster()) {
+        if (alpha() <= 0.f && a > 0.f) {
+            start();
+        }
+        else if (alpha() > 0.f && a <= 0.f) {
+            stop();
+        }
     }
 
     renderData.alpha = a;

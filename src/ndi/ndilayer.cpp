@@ -41,12 +41,6 @@ bool NdiLayer::ready() {
     return m_isReady;
 }
 
-void NdiLayer::start() {
-}
-
-void NdiLayer::stop() {
-}
-
 // Receive ofTexture
 bool NdiLayer::ReceiveImage() {
     // Check for receiver creation

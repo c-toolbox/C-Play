@@ -215,7 +215,7 @@ std::vector<std::byte> encode() {
                             nextLayer->encodeFull(data);
                             nextLayer->setHasSynced();
                         } else {
-                            nextLayer->encodeMinimal(data);
+                            nextLayer->encodeAlways(data);
                         }
                     }
                     Application::instance().slidesModel()->slide(s)->setHasSynced();
@@ -329,7 +329,7 @@ void decode(const std::vector<std::byte> &data) {
                         if (layerSync) {
                             (*it)->decodeFull(data, pos);
                         } else {
-                            (*it)->decodeMinimal(data, pos);
+                            (*it)->decodeAlways(data, pos);
                         }
                         secondaryLayersToKeep.push_back(*it);
                     } else if (layerSync) { // Did not exist. Let's create it
@@ -338,7 +338,7 @@ void decode(const std::vector<std::byte> &data) {
                             if (layerSync) {
                                 newLayer->decodeFull(data, pos);
                             } else {
-                                newLayer->decodeMinimal(data, pos);
+                                newLayer->decodeAlways(data, pos);
                             }
                             secondaryLayersToKeep.push_back(newLayer);
                         }
@@ -437,16 +437,9 @@ void postSyncPreDraw() {
                     }
                     (*it)->update();
                     if ((*it)->ready() && ((*it)->alpha() > 0.f) && SyncHelper::instance().variables.alpha < 1.f) {
-                        (*it)->start();
                         (*it)->setTranslate(translateXYZ);
                         layerRender->addLayer((*it));
                     }
-                    else {
-                        (*it)->stop();
-                    }
-                }
-                else {
-                    (*it)->stop();
                 }
             }
         }
@@ -540,16 +533,9 @@ void postSyncPreDraw() {
                     }
                     (*it)->update();
                     if ((*it)->ready() && ((*it)->alpha() > 0.f)) {
-                        (*it)->start();
                         (*it)->setTranslate(translateXYZ);
                         layerRender->addLayer((*it));
                     }
-                    else {
-                        (*it)->stop();
-                    }
-                }
-                else {
-                    (*it)->stop();
                 }
             }
         }
@@ -563,7 +549,7 @@ void postSyncPreDraw() {
         }
 
         // Set properties of main mpv layer
-        mainMpvLayer->setPause(SyncHelper::instance().variables.paused);
+        mainMpvLayer->setTimePause(SyncHelper::instance().variables.paused);
         mainMpvLayer->setEOFMode(SyncHelper::instance().variables.eofMode);
         mainMpvLayer->setTimePosition(
             SyncHelper::instance().variables.timePosition,

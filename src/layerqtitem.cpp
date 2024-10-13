@@ -87,6 +87,48 @@ void LayerQtItem::setLayerVisibility(int value) {
     }
 }
 
+bool LayerQtItem::layerPause() const {
+    if (m_layer)
+        return m_layer->pause();
+    else
+        return 0.0;
+}
+
+void LayerQtItem::setLayerPause(bool value) {
+    if (m_layer) {
+        m_layer->setPause(value);
+        Q_EMIT layerPositionChanged();
+    }
+}
+
+double LayerQtItem::layerPosition() const {
+    if (m_layer)
+        return m_layer->position();
+    else
+        return 0.0;
+}
+
+void LayerQtItem::setLayerPosition(double value) {
+    if (m_layer) {
+        m_layer->setPosition(value);
+        Q_EMIT layerPositionChanged();
+    }
+}
+
+double LayerQtItem::layerDuration() const {
+    if (m_layer)
+        return m_layer->duration();
+    else
+        return 0.0;
+}
+
+double LayerQtItem::layerRemaining() const {
+    if (m_layer)
+        return m_layer->remaining();
+    else
+        return 0.0;
+}
+
 int LayerQtItem::layerPage() const {
     if (m_layer)
         return m_layer->page();
@@ -576,6 +618,12 @@ void LayerQtItem::sync() {
     m_renderer->setViewportSize(this->size().toSize() * window()->devicePixelRatio());
     m_renderer->setPosition(this->position().toPoint());
     m_renderer->setWindow(window());
+
+    if (m_layer) {
+        if (m_layer->type() == BaseLayer::LayerType::VIDEO) {
+            Q_EMIT layerPositionChanged();
+        }
+    }
 }
 
 void LayerQtItemRenderer::init() {

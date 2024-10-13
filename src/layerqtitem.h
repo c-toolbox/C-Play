@@ -59,6 +59,10 @@ class LayerQtItem : public QQuickItem {
     Q_PROPERTY(int layerStereoMode READ layerStereoMode WRITE setLayerStereoMode NOTIFY layerValueChanged)
     Q_PROPERTY(int layerGridMode READ layerGridMode WRITE setLayerGridMode NOTIFY layerValueChanged)
     Q_PROPERTY(int layerVisibility READ layerVisibility WRITE setLayerVisibility NOTIFY layerValueChanged)
+    Q_PROPERTY(bool layerPause READ layerPause WRITE setLayerPause NOTIFY layerPositionChanged)
+    Q_PROPERTY(double layerPosition READ layerPosition WRITE setLayerPosition NOTIFY layerPositionChanged)
+    Q_PROPERTY(double layerDuration READ layerDuration NOTIFY layerPositionChanged)
+    Q_PROPERTY(double layerRemaining READ layerRemaining NOTIFY layerPositionChanged)
     Q_PROPERTY(int layerPage READ layerPage WRITE setLayerPage NOTIFY layerValueChanged)
     Q_PROPERTY(int layerNumPages READ layerNumPages NOTIFY layerValueChanged)
     Q_PROPERTY(double layerRotatePitch READ layerRotatePitch WRITE setLayerRotatePitch NOTIFY layerValueChanged)
@@ -97,6 +101,15 @@ public:
 
     int layerVisibility() const;
     void setLayerVisibility(int value);
+
+    bool layerPause() const;
+    void setLayerPause(bool value);
+
+    double layerPosition() const;
+    void setLayerPosition(double value);
+
+    double layerDuration() const;
+    double layerRemaining() const;
 
     int layerPage() const;
     void setLayerPage(int value);
@@ -172,6 +185,7 @@ public:
 
 Q_SIGNALS:
     void layerChanged();
+    void layerPositionChanged();
     void layerValueChanged();
     void viewChanged();
     void roiChanged();

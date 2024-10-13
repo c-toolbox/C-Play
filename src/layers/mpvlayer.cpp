@@ -183,6 +183,12 @@ void MpvLayer::update(bool updateRendering) {
         loadFile(filepath());
     }
 
+    if (!isMaster()) {
+        setTimePause(videoData.videoShouldPause, false);
+        setTimePosition(videoData.timeToSet, videoData.timeIsDirty);
+        videoData.timeIsDirty = false;
+    }
+
     if (updateRendering) {
         updateFrame();
     }
@@ -201,8 +207,66 @@ void MpvLayer::start() {
 void MpvLayer::stop() {
     if(ready() && !videoData.videoIsPaused) {
         setPause(true);
-        setTimePosition(0);
+        setPosition(0);
     }
+}
+
+bool MpvLayer::pause() {
+    return videoData.videoIsPaused;
+}
+
+void MpvLayer::setPause(bool pause) {
+    if (isMaster()) {
+        setTimePause(pause, false);
+        videoData.videoShouldPause = pause;
+    }
+}
+
+double MpvLayer::position() {
+    if (videoData.handle && !videoData.loadedFile.empty())
+        return mpv::qt::get_property(videoData.handle, QStringLiteral("time-pos")).toDouble();
+    else
+        return 0.0;
+}
+
+void MpvLayer::setPosition(double value) {
+    if (isMaster()) {
+        setTimePosition(value, isMaster());
+        videoData.timeToSet = value;
+        videoData.timeIsDirty = true;
+    }
+}
+
+double MpvLayer::duration() {
+    if (videoData.handle && !videoData.loadedFile.empty())
+        return mpv::qt::get_property(videoData.handle, QStringLiteral("duration")).toDouble();
+    else
+        return 0.0;
+}
+
+double MpvLayer::remaining() {
+    if (videoData.handle && !videoData.loadedFile.empty())
+        return mpv::qt::get_property(videoData.handle, QStringLiteral("time-remaining")).toDouble();
+    else
+        return 0.0;
+}
+
+void MpvLayer::encodeTypeAlways(std::vector<std::byte>& data) {
+    sgct::serializeObject(data, videoData.videoShouldPause);
+    if (videoData.timeIsDirty) {
+        sgct::serializeObject(data, videoData.timeToSet);
+    }
+    else {
+        sgct::serializeObject(data, position());
+    }
+    sgct::serializeObject(data, videoData.timeIsDirty);
+    videoData.timeIsDirty = false;
+}
+
+void MpvLayer::decodeTypeAlways(const std::vector<std::byte>& data, unsigned int& pos) {
+    sgct::deserializeObject(data, pos, videoData.videoShouldPause);
+    sgct::deserializeObject(data, pos, videoData.timeToSet);
+    sgct::deserializeObject(data, pos, videoData.timeIsDirty);
 }
 
 void MpvLayer::initializeMpv() {
@@ -329,19 +393,6 @@ bool MpvLayer::renderingIsOn() {
     return videoData.updateRendering;
 }
 
-void MpvLayer::setPause(bool paused) {
-    if (paused != videoData.videoIsPaused) {
-        videoData.videoIsPaused = paused;
-        mpv::qt::set_property_async(videoData.handle, QStringLiteral("pause"), videoData.videoIsPaused);
-        if (videoData.videoIsPaused) {
-            sgct::Log::Info("Video paused.");
-            mpv::qt::set_property_async(videoData.handle, QStringLiteral("time-pos"), videoData.timePos);
-        } else {
-            sgct::Log::Info("Video playing...");
-        }
-    }
-}
-
 void MpvLayer::setEOFMode(int eofMode) {
     if (eofMode != videoData.eofMode) {
         videoData.eofMode = eofMode;
@@ -355,6 +406,21 @@ void MpvLayer::setEOFMode(int eofMode) {
         } else { // Loop
             mpv::qt::set_property_async(videoData.handle, QStringLiteral("keep-open"), QStringLiteral("yes"));
             mpv::qt::set_property_async(videoData.handle, QStringLiteral("loop-file"), QStringLiteral("inf"));
+        }
+    }
+}
+
+void MpvLayer::setTimePause(bool paused, bool updateTime) {
+    if (paused != videoData.videoIsPaused) {
+        videoData.videoIsPaused = paused;
+        mpv::qt::set_property_async(videoData.handle, QStringLiteral("pause"), videoData.videoIsPaused);
+        if (videoData.videoIsPaused) {
+            sgct::Log::Info("Video paused.");
+            if(updateTime)
+                mpv::qt::set_property_async(videoData.handle, QStringLiteral("time-pos"), videoData.timePos);
+        }
+        else {
+            sgct::Log::Info("Video playing...");
         }
     }
 }

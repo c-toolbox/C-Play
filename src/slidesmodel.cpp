@@ -795,12 +795,6 @@ void SlidesModel::runRenderOnLayersThatShouldUpdate(bool updateRendering) {
                     layer->initialize();
                 }
                 layer->update(updateRendering);
-                if (layer->ready() && (layer->alpha() > 0.f)) {
-                    layer->start();
-                }
-                else {
-                    layer->stop();
-                }
             }
         }
     }

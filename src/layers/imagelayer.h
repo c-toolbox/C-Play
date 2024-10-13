@@ -24,9 +24,6 @@ public:
     void update(bool updateRendering = true);
     bool ready();
 
-    void start();
-    void stop();
-
     bool processImageUpload(std::string filename, bool forceUpdate);
     std::string loadedFile();
 

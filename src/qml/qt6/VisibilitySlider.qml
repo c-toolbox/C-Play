@@ -38,7 +38,7 @@ Slider {
             color: Kirigami.Theme.highlightColor
             height: parent.height
             radius: 0
-            width: visualPosition * parent.width
+            width: root.visualPosition * parent.width
         }
     }
     handle: Item {
