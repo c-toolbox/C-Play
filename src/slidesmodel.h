@@ -192,10 +192,13 @@ public:
     Q_INVOKABLE void loadFromJSONFile(const QString &path);
     Q_INVOKABLE void saveAsJSONFile(const QString &path);
 
+    Q_INVOKABLE void runStartAfterPresentationLoad();
+    Q_INVOKABLE void checkMasterLayersRunBasedOnMediaVisibility(int mediaVisibility);
     void runRenderOnLayersThatShouldUpdate(bool updateRendering);
 
 Q_SIGNALS:
     void slideModelChanged();
+    void presentationHasLoaded();
     void slidesNeedsSaveChanged();
     void slideFadeTimeChanged();
     void selectedSlideChanged();

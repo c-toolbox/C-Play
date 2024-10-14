@@ -75,6 +75,7 @@ static QApplication *createApplication(int &argc, char **argv, const QString &ap
     QApplication::setOrganizationDomain(QStringLiteral("github.com/c-toolbox/C-Play"));
     QApplication::setApplicationDisplayName(QStringLiteral("C-Play"));
     QApplication::setApplicationVersion(Application::version());
+    QCoreApplication::setAttribute(Qt::AA_ShareOpenGLContexts);
 
     QQuickStyle::setStyle(QStringLiteral("org.kde.desktop"));
     QQuickStyle::setFallbackStyle(QStringLiteral("Fusion"));

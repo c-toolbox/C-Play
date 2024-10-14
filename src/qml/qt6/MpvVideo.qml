@@ -128,17 +128,11 @@ MpvObject {
         if (playSections.sectionsView.count > 0 && playSections.state === "hidden") {
             actions.toggleSectionsAction.trigger();
         }
-        /*else if(playSections.state !== "hidden") {
-            actions.toggleSectionsAction.trigger()
-        }*/
     }
     onPlaylistModelChanged: {
         if (playList.playlistView.count > 0 && playList.state === "hidden") {
             actions.togglePlaylistAction.trigger();
         }
-        /*else if(playList.state !== "hidden") {
-            actions.togglePlaylistAction.trigger()
-        }*/
     }
     onReady: {
         setProperty("screenshot-template", LocationSettings.screenshotTemplate);

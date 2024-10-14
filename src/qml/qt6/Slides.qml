@@ -182,11 +182,8 @@ Rectangle {
         title: "Open C-Play Presentation"
 
         onAccepted: {
-            app.slides.loadFromJSONFile(openCPlayPresentationDialog.file.toString());
-            slidesView.currentIndex = -1;
-            layers.layersView.currentIndex = -1;
-            mpv.focus = true;
-            syncAfterLoad.start();
+            app.slides.clearSlides();
+            loadPresentation.start();
         }
         onRejected: mpv.focus = true
     }
@@ -404,7 +401,6 @@ Rectangle {
             Component.onCompleted: {
                 if (PresentationSettings.presentationToLoadOnStartup !== "") {
                     app.slides.loadFromJSONFile(PresentationSettings.presentationToLoadOnStartup);
-                    syncAfterLoad.start();
                 }
 
                 slidesView.currentIndex = -1;
@@ -418,6 +414,25 @@ Rectangle {
             }
 
             Connections {
+                function onVisibilityChanged() {
+                    app.slides.checkMasterLayersRunBasedOnMediaVisibility(mpv.visibility);
+                }
+
+                target: mpv
+            }
+
+            Connections {
+                function onPresentationHasLoaded() {
+                    if (slidesView.count > 0 && slides.state === "hidden") {
+                        actions.toggleSlidesAction.trigger();
+                    }
+                    if (layers.layersView.count > 0 && layers.state === "hidden") {
+                        actions.toggleLayersAction.trigger();
+                    }
+                    syncAfterLoad.start();
+                    startAfterLoad.start();
+                }
+
                 function onSelectedSlideChanged() {
                     slidesView.currentIndex = app.slides.selectedSlideIdx;
                 }
@@ -471,12 +486,33 @@ Rectangle {
         }
     }
     Timer {
+        id: loadPresentation
+
+        interval: 1000
+
+        onTriggered: {
+            app.slides.loadFromJSONFile(openCPlayPresentationDialog.file.toString());
+            slidesView.currentIndex = -1;
+            layers.layersView.currentIndex = -1;
+            mpv.focus = true;
+        }
+    }
+    Timer {
         id: syncAfterLoad
 
         interval: 1000
 
         onTriggered: {
             app.slides.needsSync = true;
+        }
+    }
+    Timer {
+        id: startAfterLoad
+
+        interval: 5000
+
+        onTriggered: {
+            app.slides.runStartAfterPresentationLoad();
         }
     }
 }

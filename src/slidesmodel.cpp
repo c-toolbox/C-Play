@@ -721,7 +721,6 @@ void SlidesModel::loadFromJSONFile(const QString &path) {
     fileSearchPaths.append(LocationSettings::univiewVideoLocation());
 
     if (obj.contains(QStringLiteral("slides"))) {
-        clearSlides();
         QJsonValue value = obj.value(QStringLiteral("slides"));
         QJsonArray array = value.toArray();
         for (auto v : array) {
@@ -732,7 +731,6 @@ void SlidesModel::loadFromJSONFile(const QString &path) {
     }
 
     if (obj.contains(QStringLiteral("master"))) {
-        m_masterSlide->clearLayers();
         QJsonValue value = obj.value(QStringLiteral("master"));
         QJsonObject o = value.toObject();
         m_masterSlide->decodeFromJSON(o, fileSearchPaths);
@@ -744,6 +742,8 @@ void SlidesModel::loadFromJSONFile(const QString &path) {
     setSlidesName(jsonFileInfo.baseName());
     setSlidesNeedsSave(false);
     m_needsSync = true;
+
+    Q_EMIT presentationHasLoaded();
 }
 
 void SlidesModel::saveAsJSONFile(const QString &path) {
@@ -785,10 +785,38 @@ void SlidesModel::saveAsJSONFile(const QString &path) {
     setSlidesNeedsSave(false);
 }
 
+void SlidesModel::runStartAfterPresentationLoad() {
+    // Let's start all layers that have a visibility
+    for (int i = -1; i < numberOfSlides(); i++) {
+        const Layers& slideLayers = slide(i)->getLayers();
+        for (auto layer : slideLayers) {
+            if (layer->alpha() > 0.f) {
+                layer->start();
+            }
+        }
+    }
+    m_needsSync = true;
+}
+
+void SlidesModel::checkMasterLayersRunBasedOnMediaVisibility(int mediaVisibility) {
+    // Start/stop master layers that are visible dependent on media visibility
+    const Layers& slideLayers = masterSlide()->getLayers();
+    for (auto layer : slideLayers) {
+        if (layer->alpha() > 0.f) {
+            if (mediaVisibility < 100 && layer->pause()) {
+                layer->start();
+            }
+            else if (mediaVisibility == 100 && !layer->pause()) {
+                layer->stop();
+            }
+        }
+    }
+}
+
 void SlidesModel::runRenderOnLayersThatShouldUpdate(bool updateRendering) {
     // Control start/stop with Visibility
-    for (auto s : m_slides) {
-        const Layers& slideLayers = s->getLayers();
+    for (int i = -1; i < numberOfSlides(); i++) {
+        const Layers& slideLayers = slide(i)->getLayers();
         for (auto layer : slideLayers) {
             if (layer->shouldUpdate()) {
                 if (!layer->hasInitialized()) {
