@@ -147,6 +147,7 @@ ItemDelegate {
     }
 
     onClicked: {
+        layersView.currentIndex = index;
         slideTitleField.text = model.title;
         layerView.layerItem.layerIdx = index;
         app.slides.selected.layerToCopy = index;

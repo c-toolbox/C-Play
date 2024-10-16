@@ -360,6 +360,7 @@ public:
     PlayListModel *getPlayListModel() const;
     PlaySectionsModel *getPlaySectionsModel() const;
 
+    Q_INVOKABLE void updateAudioOutput();
     Q_INVOKABLE QString checkAndCorrectPath(const QString &filePath, const QStringList &searchPaths);
     Q_INVOKABLE void loadFile(const QString &file, bool updateLastPlayedFile = true);
     Q_INVOKABLE void addFileToPlaylist(const QString &file);
@@ -391,6 +392,7 @@ Q_SIGNALS:
     void durationChanged();
     void remainingChanged();
     void volumeChanged();
+    void volumeUpdate(int);
     void pauseChanged();
     void autoPlayChanged();
     void chapterChanged();
@@ -426,6 +428,7 @@ Q_SIGNALS:
     void playlistModelChanged();
     void playSectionsModelChanged();
     void audioDevicesChanged();
+    void audioOutputChanged();
     void recentPlaylistsChanged();
     void recentMediaFilesChanged();
     void youtubePlaylistLoaded();
@@ -451,7 +454,7 @@ private:
 
     void sectionPositionCheck(double position);
     TracksModel *m_audioTracksModel;
-    QMap<int, Track *> m_audioTracks;
+    std::vector<Track> m_audioTracks;
     QList<int> m_secondsWatched;
     double m_watchPercentage;
     double m_rotationSpeed;

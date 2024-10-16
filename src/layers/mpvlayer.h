@@ -27,6 +27,9 @@ public:
         std::atomic_bool terminate = false;
         bool updateRendering = true;
         bool allowDirectRendering = false;
+        bool isMaster = false;
+        std::vector<Track> audioTracks;
+        int audioId = -1;
         bool loggingOn = false;
         bool videoIsPaused = true;
         bool videoShouldPause = true;
@@ -58,6 +61,13 @@ public:
 
     double duration();
     double remaining();
+
+    bool hasAudio();
+    int audioId();
+    void setAudioId(int id);
+    std::vector<Track>* audioTracks();
+    void updateAudioOutput();
+    void setVolume(int v);
 
     void encodeTypeAlways(std::vector<std::byte>& data);
     void decodeTypeAlways(const std::vector<std::byte>& data, unsigned int& pos);

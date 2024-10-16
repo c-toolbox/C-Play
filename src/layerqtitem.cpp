@@ -11,6 +11,7 @@
 #include "presentationsettings.h"
 #include "gridsettings.h"
 #include "slidesmodel.h"
+#include "track.h"
 
 #include <QOpenGLContext>
 #include <QTimer>
@@ -19,7 +20,7 @@
 #include <array>
 
 LayerQtItem::LayerQtItem()
-    : m_layerIdx(-1), m_layer(nullptr), m_renderer(nullptr), 
+    : m_layerIdx(-1), m_layer(nullptr), m_renderer(nullptr), m_audioTracksModel(new TracksModel),
     m_viewOffset(0, 0), m_viewSize(0, 0), m_roiOffset(0, 0), m_roiSize(0, 0) {
     connect(this, &QQuickItem::windowChanged, this, &LayerQtItem::handleWindowChanged);
 }
@@ -34,11 +35,14 @@ void LayerQtItem::setLayerIdx(int idx) {
     if (nl == nullptr) {
         m_layerIdx = -1;
         m_layer = nullptr;
+        Q_EMIT layerChanged();
+        Q_EMIT layerValueChanged();
         return;
     }
     if (nl != m_layer) {
         m_layer = nl;
         Q_EMIT layerChanged();
+        Q_EMIT layerValueChanged();
         if (window()) {
             window()->update();
         }
@@ -83,6 +87,41 @@ int LayerQtItem::layerVisibility() const{
 void LayerQtItem::setLayerVisibility(int value) {
     if (m_layer) {
         m_layer->setAlpha(static_cast<float>(value) * 0.01f);
+        Q_EMIT layerValueChanged();
+    }
+}
+
+bool LayerQtItem::layerHasAudio() const {
+    if (m_layer)
+        return m_layer->hasAudio();
+    else
+        return false;
+}
+
+int LayerQtItem::layerAudioId() const {
+    if (m_layer)
+        return m_layer->audioId();
+    else
+        return -1;
+}
+
+void LayerQtItem::setLayerAudioId(int value) {
+    if (m_layer) {
+        m_layer->setAudioId(value);
+        Q_EMIT layerValueChanged();
+    }
+}
+
+int LayerQtItem::layerVolume() const {
+    if (m_layer)
+        return m_layer->volume();
+    else
+        return 0;
+}
+
+void LayerQtItem::setLayerVolume(int value) {
+    if (m_layer) {
+        m_layer->setVolume(value);
         Q_EMIT layerValueChanged();
     }
 }
@@ -494,6 +533,21 @@ void LayerQtItem::updateRoi() {
         m_roiSize.setHeight(static_cast<int>(currentRoi.w * static_cast<float>(m_viewSize.height())));
         Q_EMIT roiChanged();
     }
+}
+
+TracksModel* LayerQtItem::audioTracksModel() const {
+    return m_audioTracksModel;
+}
+
+void LayerQtItem::loadTracks() {
+    if (m_layer) {
+        m_audioTracksModel->setTracks(m_layer->audioTracks());
+    }
+    else {
+        m_audioTracksModel->setTracks(nullptr);
+    }
+
+    Q_EMIT audioTracksModelChanged();
 }
 
 void LayerQtItem::handleWindowChanged(QQuickWindow *win) {

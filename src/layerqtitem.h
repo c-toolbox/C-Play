@@ -15,6 +15,7 @@
 #include <QtQuick/QQuickItem>
 #include <QtQuick/QQuickWindow>
 #include <layers/baselayer.h>
+#include "tracksmodel.h"
 
 class LayerQtItemRenderer : public QObject, protected QOpenGLFunctions {
     Q_OBJECT
@@ -59,6 +60,9 @@ class LayerQtItem : public QQuickItem {
     Q_PROPERTY(int layerStereoMode READ layerStereoMode WRITE setLayerStereoMode NOTIFY layerValueChanged)
     Q_PROPERTY(int layerGridMode READ layerGridMode WRITE setLayerGridMode NOTIFY layerValueChanged)
     Q_PROPERTY(int layerVisibility READ layerVisibility WRITE setLayerVisibility NOTIFY layerValueChanged)
+    Q_PROPERTY(bool layerHasAudio READ layerHasAudio NOTIFY layerPositionChanged)
+    Q_PROPERTY(int layerAudioId READ layerAudioId WRITE setLayerAudioId NOTIFY layerValueChanged)
+    Q_PROPERTY(int layerVolume READ layerVolume WRITE setLayerVolume NOTIFY layerValueChanged)
     Q_PROPERTY(bool layerPause READ layerPause WRITE setLayerPause NOTIFY layerPositionChanged)
     Q_PROPERTY(double layerPosition READ layerPosition WRITE setLayerPosition NOTIFY layerPositionChanged)
     Q_PROPERTY(double layerDuration READ layerDuration NOTIFY layerPositionChanged)
@@ -85,6 +89,7 @@ class LayerQtItem : public QQuickItem {
     Q_PROPERTY(QSize roiSize READ roiSize WRITE setRoiSize NOTIFY roiChanged)
     Q_PROPERTY(QPoint roiTexOffset READ roiTexOffset WRITE setRoiTexOffset NOTIFY roiChanged)
     Q_PROPERTY(QSize roiTexSize READ roiTexSize WRITE setRoiTexSize NOTIFY roiChanged)
+    Q_PROPERTY(TracksModel* audioTracksModel READ audioTracksModel NOTIFY audioTracksModelChanged)
     QML_ELEMENT
 
 public:
@@ -101,6 +106,14 @@ public:
 
     int layerVisibility() const;
     void setLayerVisibility(int value);
+
+    bool layerHasAudio() const;
+
+    int layerAudioId() const;
+    void setLayerAudioId(int value);
+
+    int layerVolume() const;
+    void setLayerVolume(int value);
 
     bool layerPause() const;
     void setLayerPause(bool value);
@@ -183,12 +196,16 @@ public:
     Q_INVOKABLE void updateView();
     Q_INVOKABLE void updateRoi();
 
+    TracksModel* audioTracksModel() const;
+    Q_INVOKABLE void loadTracks();
+
 Q_SIGNALS:
     void layerChanged();
     void layerPositionChanged();
     void layerValueChanged();
     void viewChanged();
     void roiChanged();
+    void audioTracksModelChanged();
 
 private:
     Q_INVOKABLE void handleWindowChanged(QQuickWindow *win);
@@ -204,6 +221,8 @@ private:
 
     QPoint m_roiOffset;
     QSize m_roiSize;
+
+    TracksModel* m_audioTracksModel;
 };
 
 #endif // LAYERQTITEM_H

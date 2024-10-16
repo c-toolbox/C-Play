@@ -484,6 +484,16 @@ void LayersModel::decodeFromJSON(QJsonObject &obj, const QStringList &forRelativ
                         m_layers[idx]->setAlpha(static_cast<float>(visibility) * 0.01f);
                     }
 
+                    if (o.contains(QStringLiteral("volume"))) {
+                        int volume = o.value(QStringLiteral("volume")).toInt();
+                        m_layers[idx]->setVolume(volume);
+                    }
+
+                    if (o.contains(QStringLiteral("audioId"))) {
+                        int audioId = o.value(QStringLiteral("audioId")).toInt();
+                        m_layers[idx]->setAudioId(audioId);
+                    }
+
                     if (o.contains(QStringLiteral("keepVisibilityForNumSlides"))) {
                         int keepVisibilityForNumSlides = o.value(QStringLiteral("keepVisibilityForNumSlides")).toInt();
                         m_layers[idx]->setKeepVisibilityForNumSlides(keepVisibilityForNumSlides);
@@ -574,6 +584,12 @@ void LayersModel::encodeToJSON(QJsonObject &obj, const QStringList &forRelativeP
             layerData.insert(QStringLiteral("numPages"), QJsonValue(layer->numPages()));
         }
 #endif
+        if (layer->type() == BaseLayer::VIDEO) {
+            if (layer->hasAudio()) {
+                layerData.insert(QStringLiteral("volume"), QJsonValue(layer->volume()));
+                layerData.insert(QStringLiteral("audioId"), QJsonValue(layer->audioId()));
+            }
+        }
 
         QString grid;
         int gridIdx = layer->gridMode();

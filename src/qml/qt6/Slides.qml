@@ -418,6 +418,10 @@ Rectangle {
                     app.slides.checkMasterLayersRunBasedOnMediaVisibility(mpv.visibility);
                 }
 
+                function onAudioOutputChanged() {
+                    app.slides.runUpdateAudioOutputOnLayers();
+                }
+
                 target: mpv
             }
 

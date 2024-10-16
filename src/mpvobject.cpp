@@ -350,6 +350,7 @@ void MpvObject::setVolume(int value) {
     }
     setProperty(QStringLiteral("volume"), value);
     Q_EMIT volumeChanged();
+    Q_EMIT volumeUpdate(value);
 }
 
 int MpvObject::chapter() {
@@ -685,42 +686,16 @@ QVariant MpvObject::getAudioDeviceList() {
 }
 
 void MpvObject::updateAudioDeviceList() {
-    bool preferredDeviceFound = false;
-    bool savedFirstDevice = false;
-    QString firstDevice;
     QVariantList audioDevicesList;
     QVariant list = getAudioDeviceList();
     for (const QVariant &audioDevice : list.toList()) {
         Q_ASSERT(audioDevice.type() == QVariant::Map);
         QVariantMap dmap = audioDevice.toMap();
-
-        if (!preferredDeviceFound) {
-            QString device = dmap[QStringLiteral("name")].toString();
-            if (device == AudioSettings::preferredAudioOutputDevice()) {
-                preferredDeviceFound = true;
-            }
-            if (!savedFirstDevice) {
-                firstDevice = device;
-                savedFirstDevice = true;
-            }
-        }
-
         audioDevicesList << dmap;
     }
-
     m_audioDevices = audioDevicesList;
 
-    if (AudioSettings::useCustomAudioOutput()) {
-        if (AudioSettings::useAudioDevice()) {
-            if (preferredDeviceFound) {
-                setProperty(QStringLiteral("audio-device"), AudioSettings::preferredAudioOutputDevice());
-            } else {
-                // AudioSettings::setPreferredAudioOutputDevice(firstDevice);
-            }
-        } else if (AudioSettings::useAudioDriver()) {
-            setProperty(QStringLiteral("ao"), AudioSettings::preferredAudioOutputDriver());
-        }
-    }
+    updateAudioOutput();
 
     Q_EMIT audioDevicesChanged();
 }
@@ -736,6 +711,43 @@ PlayListModel *MpvObject::getPlayListModel() const {
 
 PlaySectionsModel *MpvObject::getPlaySectionsModel() const {
     return m_playSectionsModel;
+}
+
+void MpvObject::updateAudioOutput() {
+    bool preferredDeviceFound = false;
+    bool savedFirstDevice = false;
+    QString firstDevice;
+    for (const QVariant& audioDevice : m_audioDevices) {
+        Q_ASSERT(audioDevice.type() == QVariant::Map);
+        QVariantMap dmap = audioDevice.toMap();
+
+        if (!preferredDeviceFound) {
+            QString device = dmap[QStringLiteral("name")].toString();
+            if (device == AudioSettings::preferredAudioOutputDevice()) {
+                preferredDeviceFound = true;
+            }
+            if (!savedFirstDevice) {
+                firstDevice = device;
+                savedFirstDevice = true;
+            }
+        }
+    }
+
+    if (AudioSettings::useCustomAudioOutput()) {
+        if (AudioSettings::useAudioDevice()) {
+            if (preferredDeviceFound) {
+                setProperty(QStringLiteral("audio-device"), AudioSettings::preferredAudioOutputDevice());
+                Q_EMIT audioOutputChanged();
+            }
+            else {
+                // AudioSettings::setPreferredAudioOutputDevice(firstDevice);
+            }
+        }
+        else if (AudioSettings::useAudioDriver()) {
+            setProperty(QStringLiteral("ao"), AudioSettings::preferredAudioOutputDriver());
+            Q_EMIT audioOutputChanged();
+        }
+    }
 }
 
 QString MpvObject::checkAndCorrectPath(const QString &filePath, const QStringList &searchPaths) {
@@ -1218,7 +1230,9 @@ void MpvObject::eventHandler() {
                 }
             } else if (strcmp(prop->name, "volume") == 0) {
                 if (prop->format == MPV_FORMAT_INT64) {
+                    int volumeLevel = *reinterpret_cast<int*>(prop->data);
                     Q_EMIT volumeChanged();
+                    Q_EMIT volumeUpdate(volumeLevel);
                 }
             } else if (strcmp(prop->name, "pause") == 0) {
                 if (prop->format == MPV_FORMAT_FLAG) {
@@ -1288,24 +1302,24 @@ void MpvObject::loadTracks() {
     for (const auto &track : tracks) {
         const auto t = track.toMap();
         if (track.toMap()[QStringLiteral("type")] == QStringLiteral("audio")) {
-            auto newTrack = new Track();
-            newTrack->setCodec(t[QStringLiteral("codec")].toString());
-            newTrack->setType(t[QStringLiteral("type")].toString());
-            newTrack->setDefaut(t[QStringLiteral("default")].toBool());
-            newTrack->setDependent(t[QStringLiteral("dependent")].toBool());
-            newTrack->setForced(t[QStringLiteral("forced")].toBool());
-            newTrack->setId(t[QStringLiteral("id")].toLongLong());
-            newTrack->setSrcId(t[QStringLiteral("src-id")].toLongLong());
-            newTrack->setFfIndex(t[QStringLiteral("ff-index")].toLongLong());
-            newTrack->setLang(t[QStringLiteral("lang")].toString());
-            newTrack->setTitle(t[QStringLiteral("title")].toString());
-            newTrack->setIndex(audioIndex);
+            auto newTrack = Track();
+            newTrack.setCodec(t[QStringLiteral("codec")].toString().toStdString());
+            newTrack.setType(t[QStringLiteral("type")].toString().toStdString());
+            newTrack.setDefaut(t[QStringLiteral("default")].toBool());
+            newTrack.setDependent(t[QStringLiteral("dependent")].toBool());
+            newTrack.setForced(t[QStringLiteral("forced")].toBool());
+            newTrack.setId(t[QStringLiteral("id")].toLongLong());
+            newTrack.setSrcId(t[QStringLiteral("src-id")].toLongLong());
+            newTrack.setFfIndex(t[QStringLiteral("ff-index")].toLongLong());
+            newTrack.setLang(t[QStringLiteral("lang")].toString().toStdString());
+            newTrack.setTitle(t[QStringLiteral("title")].toString().toStdString());
+            newTrack.setIndex(audioIndex);
 
-            m_audioTracks.insert(audioIndex, newTrack);
+            m_audioTracks.push_back(newTrack);
             audioIndex++;
         }
     }
-    m_audioTracksModel->setTracks(m_audioTracks);
+    m_audioTracksModel->setTracks(&m_audioTracks);
 
     Q_EMIT audioTracksModelChanged();
 }

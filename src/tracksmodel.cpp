@@ -9,35 +9,63 @@
 #include "tracksmodel.h"
 #include "_debug.h"
 #include "track.h"
+#include <filesystem>
 #include <utility>
 
 TracksModel::TracksModel(QObject *parent)
-    : QAbstractListModel(parent) {
+    : QAbstractListModel(parent), m_tracks(nullptr) {
 }
 
 int TracksModel::rowCount(const QModelIndex & /*parent*/) const {
-    return m_tracks.size();
+    if (m_tracks)
+        return m_tracks->size();
+    else return 0;
 }
 
 QVariant TracksModel::data(const QModelIndex &index, int role) const {
-    if (!index.isValid() || m_tracks.isEmpty())
+    if (!index.isValid() || m_tracks == nullptr ||  m_tracks->empty())
         return QVariant();
 
-    Track *track = m_tracks[index.row()];
+    Track track = m_tracks->at(index.row());
 
     switch (role) {
-    case TextRole:
-        return QVariant(track->text());
-    case ShortTextRole:
-        return QVariant(track->shortText());
+    case TextRole: {
+        QString text;
+        if (!track.title().empty()) {
+            text += QString::fromStdString(track.title()) + QStringLiteral(" ");
+        }
+        if (!track.lang().empty()) {
+            text += QString::fromStdString(track.lang()) + QStringLiteral(" ");
+        }
+        if (!track.codec().empty()) {
+            text += QString::fromStdString(track.codec()) + QStringLiteral(" ");
+        }
+        return QVariant(text);
+    }
+    case ShortTextRole: {
+        QString shortText;
+        if (!track.lang().empty()) {
+            shortText = QString::fromStdString(track.lang());
+        }
+        else if (!track.title().empty()) {
+            std::filesystem::path titlePath = std::filesystem::path(track.title());
+            if (titlePath.has_extension()) {
+                shortText = QString::fromStdString(titlePath.stem().string());
+            }
+            else {
+                shortText = QString::fromStdString(track.title());
+            }
+        }
+        return QVariant(shortText);
+    }
     case LanguageRole:
-        return QVariant(track->lang());
+        return QVariant(QString::fromStdString(track.lang()));
     case TitleRole:
-        return QVariant(track->title());
+        return QVariant(QString::fromStdString(track.title()));
     case IDRole:
-        return QVariant(track->id());
+        return QVariant(track.id());
     case CodecRole:
-        return QVariant(track->codec());
+        return QVariant(QString::fromStdString(track.codec()));
     }
 
     return QVariant();
@@ -54,21 +82,41 @@ QHash<int, QByteArray> TracksModel::roleNames() const {
     return roles;
 }
 
-void TracksModel::setTracks(QMap<int, Track *> tracks) {
+void TracksModel::setTracks(std::vector<Track>* tracks) {
     beginResetModel();
-    m_tracks = std::move(tracks);
+    m_tracks = tracks;
     endResetModel();
 }
 
 int TracksModel::countTracks() const {
-    return m_tracks.size();
+    if (m_tracks)
+        return m_tracks->size();
+    else
+        return 0;
 }
 
 std::string TracksModel::getListAsFormattedString(std::string removePrefix, int charsPerItem) const {
+    if (m_tracks == nullptr)
+        return "";
+
     std::string fullItemList = "";
-    for (int i = 0; i < m_tracks.size(); i++) {
+    for (int i = 0; i < m_tracks->size(); i++) {
         std::string title = "";
-        title += m_tracks[i]->shortText().toStdString();
+
+        QString shortText;
+        if (!m_tracks->at(i).lang().empty()) {
+            shortText = QString::fromStdString(m_tracks->at(i).lang());
+        }
+        else if (!m_tracks->at(i).title().empty()) {
+            std::filesystem::path titlePath = std::filesystem::path(m_tracks->at(i).title());
+            if (titlePath.has_extension()) {
+                shortText = QString::fromStdString(titlePath.stem().string());
+            }
+            else {
+                shortText = QString::fromStdString(m_tracks->at(i).title());
+            }
+        }
+        title += shortText.toStdString();
 
         if (!removePrefix.empty()) {
             int mc = 0;
@@ -94,7 +142,7 @@ std::string TracksModel::getListAsFormattedString(std::string removePrefix, int 
         }
         std::string itemText = title;
         fullItemList += itemText;
-        if (i < m_tracks.size() - 1)
+        if (i < m_tracks->size() - 1)
             fullItemList += "\n";
     }
     return fullItemList;

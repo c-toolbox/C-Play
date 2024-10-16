@@ -5,6 +5,7 @@
 #include <mutex>
 #include <sgct/utils/plane.h>
 #include <vector>
+#include "track.h"
 
 class BaseLayer {
 public:
@@ -92,6 +93,13 @@ public:
     virtual double duration();
     virtual double remaining();
 
+    virtual bool hasAudio();
+    virtual int audioId();
+    virtual void setAudioId(int id);
+    virtual std::vector<Track>* audioTracks();
+    virtual void updateAudioOutput();
+    virtual void setVolume(int v);
+
     virtual void encodeTypeCore(std::vector<std::byte>& data);
     virtual void decodeTypeCore(const std::vector<std::byte>& data, unsigned int& pos);
 
@@ -149,6 +157,7 @@ public:
     int keepVisibilityForNumSlides();
     void setKeepVisibilityForNumSlides(int k);
 
+    int volume() const;
     unsigned int textureId() const;
     int width() const;
     int height() const;
@@ -217,6 +226,7 @@ protected:
     std::string m_filepath;
     int m_page;
     int m_numPages;
+    int m_volume;
     int m_keepVisibilityForNumSlides;
     bool m_isMaster;
     bool m_shouldUpdate;

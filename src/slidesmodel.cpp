@@ -798,6 +798,15 @@ void SlidesModel::runStartAfterPresentationLoad() {
     m_needsSync = true;
 }
 
+void SlidesModel::runUpdateAudioOutputOnLayers() {
+    for (int i = -1; i < numberOfSlides(); i++) {
+        const Layers& slideLayers = slide(i)->getLayers();
+        for (auto layer : slideLayers) {
+            layer->updateAudioOutput();
+        }
+    }
+}
+
 void SlidesModel::checkMasterLayersRunBasedOnMediaVisibility(int mediaVisibility) {
     // Start/stop master layers that are visible dependent on media visibility
     const Layers& slideLayers = masterSlide()->getLayers();

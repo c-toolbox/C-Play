@@ -193,6 +193,7 @@ public:
     Q_INVOKABLE void saveAsJSONFile(const QString &path);
 
     Q_INVOKABLE void runStartAfterPresentationLoad();
+    Q_INVOKABLE void runUpdateAudioOutputOnLayers();
     Q_INVOKABLE void checkMasterLayersRunBasedOnMediaVisibility(int mediaVisibility);
     void runRenderOnLayersThatShouldUpdate(bool updateRendering);
 

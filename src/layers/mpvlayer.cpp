@@ -1,5 +1,7 @@
 #include "mpvlayer.h"
 #include "application.h"
+#include "audiosettings.h"
+#include "track.h"
 #include "qthelper.h"
 #include <fmt/core.h>
 #include <sgct/opengl.h>
@@ -10,6 +12,43 @@ void on_mpv_render_update(void *ctx) {
     mpvLayer->updateFbo();
 }
 
+void loadTracks(MpvLayer::mpvData& vd) {
+    if (vd.handle && !vd.loadedFile.empty()) {
+        vd.audioTracks.clear();
+        const QList<QVariant> tracks = mpv::qt::get_property(vd.handle, QStringLiteral("track-list")).toList();
+        int audioIndex = 0;
+        for (const auto& track : tracks) {
+            const auto t = track.toMap();
+            if (track.toMap()[QStringLiteral("type")] == QStringLiteral("audio")) {
+                auto newTrack = Track();
+                newTrack.setCodec(t[QStringLiteral("codec")].toString().toStdString());
+                newTrack.setType(t[QStringLiteral("type")].toString().toStdString());
+                newTrack.setDefaut(t[QStringLiteral("default")].toBool());
+                newTrack.setDependent(t[QStringLiteral("dependent")].toBool());
+                newTrack.setForced(t[QStringLiteral("forced")].toBool());
+                newTrack.setId(t[QStringLiteral("id")].toLongLong());
+                newTrack.setSrcId(t[QStringLiteral("src-id")].toLongLong());
+                newTrack.setFfIndex(t[QStringLiteral("ff-index")].toLongLong());
+                newTrack.setLang(t[QStringLiteral("lang")].toString().toStdString());
+                newTrack.setTitle(t[QStringLiteral("title")].toString().toStdString());
+                newTrack.setIndex(audioIndex);
+
+                vd.audioTracks.push_back(newTrack);
+                audioIndex++;
+            }
+        }
+    }
+}
+
+void loadAudioId(MpvLayer::mpvData& vd) {
+    if (vd.audioId < 0) {
+        mpv::qt::set_property(vd.handle, QStringLiteral("aid"), QStringLiteral("auto"));
+    }
+    else {
+        mpv::qt::set_property(vd.handle, QStringLiteral("aid"), vd.audioId);
+    }
+}
+
 void on_mpv_events(MpvLayer::mpvData &vd, BaseLayer::RenderParams &rp) {
     while (vd.handle) {
         mpv_event *event = mpv_wait_event(vd.handle, 0);
@@ -17,7 +56,13 @@ void on_mpv_events(MpvLayer::mpvData &vd, BaseLayer::RenderParams &rp) {
             break;
         }
         switch (event->event_id) {
-
+        case MPV_EVENT_FILE_LOADED: {
+            if (vd.isMaster) {
+                loadTracks(vd);
+                loadAudioId(vd);
+            }
+            break;
+        }
         case MPV_EVENT_VIDEO_RECONFIG: {
             // Retrieve the new video size.
             int64_t w, h;
@@ -116,11 +161,23 @@ void initMPV(MpvLayer::mpvData& vd) {
     // Set default settings
     mpv::qt::set_property(vd.handle, QStringLiteral("keep-open"), QStringLiteral("yes"));
     mpv::qt::set_property(vd.handle, QStringLiteral("loop-file"), QStringLiteral("inf"));
-    mpv::qt::set_property(vd.handle, QStringLiteral("aid"), QStringLiteral("no")); // No audio on nodes.
 
-    // Load mpv configurations for nodes
+    if (vd.isMaster) { // Only audio on master
+        mpv::qt::set_property(vd.handle, QStringLiteral("aid"), QStringLiteral("auto"));
+        mpv::qt::set_property(vd.handle, QStringLiteral("volume-max"), QStringLiteral("100"));
+    }
+    else {
+        mpv::qt::set_property(vd.handle, QStringLiteral("aid"), QStringLiteral("no"));
+    }
+
+    // Load mpv configurations
     mpv::qt::load_configurations(vd.handle, QString::fromStdString(SyncHelper::instance().configuration.confAll));
-    mpv::qt::load_configurations(vd.handle, QString::fromStdString(SyncHelper::instance().configuration.confNodesOnly));
+    if (vd.isMaster) {
+        mpv::qt::load_configurations(vd.handle, QString::fromStdString(SyncHelper::instance().configuration.confMasterOnly));
+    }
+    else {
+        mpv::qt::load_configurations(vd.handle, QString::fromStdString(SyncHelper::instance().configuration.confNodesOnly));
+    }
 
     if (vd.allowDirectRendering) {
         // Run with direct rendering if requested
@@ -168,6 +225,7 @@ MpvLayer::~MpvLayer() {
 
 void MpvLayer::initialize() {
     m_hasInitialized = true;
+    videoData.isMaster = isMaster();
 }
 
 void MpvLayer::update(bool updateRendering) {
@@ -249,6 +307,59 @@ double MpvLayer::remaining() {
         return mpv::qt::get_property(videoData.handle, QStringLiteral("time-remaining")).toDouble();
     else
         return 0.0;
+}
+
+bool MpvLayer::hasAudio() {
+    return !videoData.audioTracks.empty();
+}
+
+int MpvLayer::audioId() {
+    if (videoData.handle && !videoData.loadedFile.empty())
+        return mpv::qt::get_property(videoData.handle, QStringLiteral("aid")).toInt();
+    else
+        return videoData.audioId;
+}
+
+void MpvLayer::setAudioId(int value) {
+    if (value == audioId()) {
+        return;
+    }
+
+    videoData.audioId = value;
+    if (videoData.handle && !videoData.loadedFile.empty()) {
+        loadAudioId(videoData);
+    }
+}
+
+std::vector<Track>* MpvLayer::audioTracks() {
+    if (videoData.handle && !videoData.loadedFile.empty()) {
+        loadTracks(videoData);
+        setAudioId(videoData.audioId);
+        return &videoData.audioTracks;
+    }
+    else {
+        return nullptr;
+    }
+}
+
+void MpvLayer::updateAudioOutput() {
+    if (videoData.mpvInitialized) {
+        if (AudioSettings::useCustomAudioOutput()) {
+            if (AudioSettings::useAudioDevice()) {
+                mpv::qt::set_property(videoData.handle, QStringLiteral("audio-device"), AudioSettings::preferredAudioOutputDevice());
+            }
+            else if (AudioSettings::useAudioDriver()) {
+                mpv::qt::set_property(videoData.handle, QStringLiteral("ao"), AudioSettings::preferredAudioOutputDriver());
+            }
+        }
+    }
+}
+
+void MpvLayer::setVolume(int v) {
+    m_volume = v;
+    if (videoData.mpvInitialized) {
+        mpv::qt::set_property(videoData.handle, QStringLiteral("volume"), v);
+    }
 }
 
 void MpvLayer::encodeTypeAlways(std::vector<std::byte>& data) {
@@ -373,6 +484,7 @@ void MpvLayer::loadFile(std::string filePath, bool reload) {
         videoData.reconfigs = 0;
         videoData.updateRendering = false;
         videoData.loadedFile = filePath;
+        videoData.audioTracks.clear();
         mpv::qt::command_async(videoData.handle, QStringList() << QStringLiteral("loadfile") << QString::fromStdString(filePath));
     }
 }

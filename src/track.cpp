@@ -9,53 +9,55 @@
 #include "track.h"
 #include <filesystem>
 
-Track::Track(QObject *parent) : QObject(parent) {}
+Track::Track() {}
 
-QString Track::lang() const {
+Track::~Track() {};
+
+std::string Track::lang() const {
     return m_lang;
 }
 
-void Track::setLang(const QString &lang) {
+void Track::setLang(const std::string &lang) {
     m_lang = lang;
 }
 
-QString Track::title() const {
+std::string Track::title() const {
     return m_title;
 }
 
-void Track::setTitle(const QString &title) {
+void Track::setTitle(const std::string &title) {
     m_title = title;
 }
 
-QString Track::codec() const {
+std::string Track::codec() const {
     return m_codec;
 }
 
-void Track::setCodec(const QString &codec) {
+void Track::setCodec(const std::string &codec) {
     m_codec = codec;
 }
 
-qlonglong Track::id() const {
+__int64 Track::id() const {
     return m_id;
 }
 
-void Track::setId(const qlonglong &id) {
+void Track::setId(const __int64 &id) {
     m_id = id;
 }
 
-qlonglong Track::ffIndex() const {
+__int64 Track::ffIndex() const {
     return m_ffIndex;
 }
 
-void Track::setFfIndex(const qlonglong &ffIndex) {
+void Track::setFfIndex(const __int64 &ffIndex) {
     m_ffIndex = ffIndex;
 }
 
-qlonglong Track::srcId() const {
+__int64 Track::srcId() const {
     return m_srcId;
 }
 
-void Track::setSrcId(const qlonglong &srcId) {
+void Track::setSrcId(const __int64 &srcId) {
     m_srcId = srcId;
 }
 
@@ -91,11 +93,11 @@ void Track::setDefaut(bool defaut) {
     m_defaut = defaut;
 }
 
-QString Track::type() const {
+std::string Track::type() const {
     return m_type;
 }
 
-void Track::setType(const QString &type) {
+void Track::setType(const std::string &type) {
     m_type = type;
 }
 
@@ -105,33 +107,4 @@ int Track::index() const {
 
 void Track::setIndex(int index) {
     m_index = index;
-}
-
-QString Track::text() {
-    QString text;
-    if (!m_title.isEmpty()) {
-        text += m_title + QStringLiteral(" ");
-    }
-    if (!m_lang.isEmpty()) {
-        text += m_lang + QStringLiteral(" ");
-    }
-    if (!m_codec.isEmpty()) {
-        text += m_codec;
-    }
-    return text;
-}
-
-QString Track::shortText() {
-    QString shortText;
-    if (!m_lang.isEmpty()) {
-        shortText = m_lang;
-    } else if (!m_title.isEmpty()) {
-        std::filesystem::path titlePath = std::filesystem::path(m_title.toStdString());
-        if (titlePath.has_extension()) {
-            shortText = QString::fromStdString(titlePath.stem().string());
-        } else {
-            shortText = m_title;
-        }
-    }
-    return shortText;
 }

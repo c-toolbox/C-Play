@@ -231,7 +231,7 @@ set_target_properties(${TARGET_NAME}_automoc_json_extraction PROPERTIES FOLDER $
 set_target_properties(${TARGET_NAME}_other_files PROPERTIES FOLDER ${AUTO_TARGET_NAME})
 set_target_properties(${TARGET_NAME}_qmltyperegistration PROPERTIES FOLDER ${AUTO_TARGET_NAME})
 set_target_properties(${TARGET_NAME}_tooling PROPERTIES FOLDER ${AUTO_TARGET_NAME})
-set_target_properties(fetch-translations PROPERTIES FOLDER ${AUTO_TARGET_NAME})
+set_target_properties(fetch-translations PROPERTIES FOLDER "External")
 
 target_include_directories(${TARGET_NAME} PRIVATE playlist)
 

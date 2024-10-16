@@ -60,6 +60,7 @@ SettingsBasePage {
             onCheckedChanged: {
                 AudioSettings.useAudioDevice = checked;
                 AudioSettings.save();
+                mpv.updateAudioOutput();
             }
         }
         ComboBox {
@@ -81,7 +82,7 @@ SettingsBasePage {
             onActivated: {
                 AudioSettings.preferredAudioOutputDevice = mpv.audioDevices[index].name;
                 AudioSettings.save();
-                mpv.setProperty("audio-device", mpv.audioDevices[index].name);
+                mpv.updateAudioOutput();
             }
         }
         Item {
@@ -99,6 +100,7 @@ SettingsBasePage {
             onCheckedChanged: {
                 AudioSettings.useAudioDriver = checked;
                 AudioSettings.save();
+                mpv.updateAudioOutput();
             }
         }
         ComboBox {
@@ -141,7 +143,7 @@ SettingsBasePage {
             onActivated: {
                 AudioSettings.preferredAudioOutputDriver = model.get(index).driver;
                 AudioSettings.save();
-                mpv.setProperty("ao", model.get(index).driver);
+                mpv.updateAudioOutput();
             }
         }
         Item {

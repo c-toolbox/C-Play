@@ -11,6 +11,7 @@ import QtQuick.Layouts
 import QtQuick.Controls
 import QtQuick.Dialogs
 import QtQuick.Shapes
+import Qt5Compat.GraphicalEffects
 import Qt.labs.platform 1.0 as Platform
 
 import org.kde.kirigami as Kirigami
@@ -23,7 +24,8 @@ Kirigami.ApplicationWindow {
     property var roiEdit: undefined
     property var selection: undefined
     property var pdfPage: undefined
-    property var videoControls: undefined
+    property var mediaControls: undefined
+    property var audioControls: undefined
 
     function createRoiComponents() {
         if (!selection) {
@@ -56,14 +58,25 @@ Kirigami.ApplicationWindow {
         }
     }
 
-    function createVideoComponents() {
-        if (!videoControls) {
-            videoControls = videoComponent.createObject(layerViewItem);
+    function createMediaComponents() {
+        if (!mediaControls) {
+            mediaControls = mediaComponent.createObject(layerViewItem);
         }
     }
-    function destroyVideoComponents() {
-        if (videoControls) {
-            videoControls.destroy();
+    function destroyMediaComponents() {
+        if (mediaControls) {
+            mediaControls.destroy();
+        }
+    }
+
+    function createAudioComponents() {
+        if (!audioControls) {
+            audioControls = audioComponent.createObject(layerViewItem);
+        }
+    }
+    function destroyAudioComponents() {
+        if (audioControls) {
+            audioControls.destroy();
         }
     }
 
@@ -85,18 +98,28 @@ Kirigami.ApplicationWindow {
     onClosing: {
         destroyRoiComponents();
         destroyPageComponents();
-        destroyVideoComponents();
+        destroyAudioComponents();
+        destroyMediaComponents();
     }
     onVisibilityChanged: {
         if (visibility) {
-            if (layerViewItem.layerRoiEnabled) {
-                createRoiComponents();
+            if(layerViewItem.layerIdx !== -1){
+                if (layerViewItem.layerRoiEnabled) {
+                    createRoiComponents();
+                }
+                if (layerViewItem.layerTypeName === "PDF") {
+                    createPageComponents();
+                }
+                else if (layerViewItem.layerTypeName === "Video") {
+                    createAudioComponents();
+                    createMediaComponents();
+                }
             }
-            if (layerViewItem.layerTypeName === "PDF") {
-                createPageComponents();
-            }
-            else if (layerViewItem.layerTypeName === "Video") {
-                createVideoComponents();
+            else {
+                destroyRoiComponents();
+                destroyPageComponents();
+                destroyAudioComponents();
+                destroyMediaComponents();
             }
         }
     }
@@ -106,13 +129,13 @@ Kirigami.ApplicationWindow {
 
         anchors.left: parent.left
         anchors.right: toolBarLayerView.left
-        visible: layers.layersView.currentIndex !== -1
+        visible: layerViewItem.layerIdx !== -1
     }
     ToolBar {
         id: toolBarLayerView
 
         anchors.horizontalCenter: parent.horizontalCenter
-        visible: layers.layersView.currentIndex !== -1
+        visible: layerViewItem.layerIdx !== -1
 
         Row {
             RowLayout {
@@ -298,31 +321,51 @@ Kirigami.ApplicationWindow {
             }
             Connections {
                 function onLayerChanged() {
-                    layerWindow.title = layerViewItem.layerTitle;
-                    visibilitySlider.value = layerViewItem.layerVisibility;
-                    for (let sm = 0; sm < stereoscopicModeForLayerList.count; ++sm) {
-                        if (stereoscopicModeForLayerList.get(sm).value === layerViewItem.layerStereoMode) {
-                            stereoscopicModeForLayer.currentIndex = sm;
-                            break;
+                    if(layerViewItem.layerIdx !== -1) {
+                        layerViewItem.loadTracks();
+                        layerWindow.title = layerViewItem.layerTitle;
+                        visibilitySlider.value = layerViewItem.layerVisibility;
+                        for (let sm = 0; sm < stereoscopicModeForLayerList.count; ++sm) {
+                            if (stereoscopicModeForLayerList.get(sm).value === layerViewItem.layerStereoMode) {
+                                stereoscopicModeForLayer.currentIndex = sm;
+                                break;
+                            }
+                        }
+                        for (let gm = 0; gm < gridModeForLayerList.count; ++gm) {
+                            if (gridModeForLayerList.get(gm).value === layerViewItem.layerGridMode) {
+                                gridModeForLayer.currentIndex = gm;
+                                break;
+                            }
+                        }
+                        roiButton.checked = layerViewItem.layerRoiEnabled;
+                        if (layerViewItem.layerRoiEnabled) {
+                            createRoiComponents();
+                        }
+                        else {
+                            destroyRoiComponents();
+                        }
+                        
+                        if (layerViewItem.layerTypeName === "PDF") {
+                            createPageComponents();
+                        }
+                        else {
+                            destroyPageComponents();
+                        }
+
+                        if (layerViewItem.layerTypeName === "Video") {
+                            createAudioComponents();
+                            createMediaComponents();
+                        }
+                        else {
+                            destroyAudioComponents();
+                            destroyMediaComponents();
                         }
                     }
-                    for (let gm = 0; gm < gridModeForLayerList.count; ++gm) {
-                        if (gridModeForLayerList.get(gm).value === layerViewItem.layerGridMode) {
-                            gridModeForLayer.currentIndex = gm;
-                            break;
-                        }
-                    }
-                    roiButton.checked = layerViewItem.layerRoiEnabled;
-                    if (layerViewItem.layerRoiEnabled) {
-                        createRoiComponents();
-                    } else {
+                    else {
                         destroyRoiComponents();
-                    }
-                    
-                    if (layerViewItem.layerTypeName === "PDF") {
-                        createPageComponents();
-                    } else {
                         destroyPageComponents();
+                        destroyAudioComponents();
+                        destroyMediaComponents();
                     }
                 }
                 function onLayerValueChanged() {
@@ -339,7 +382,7 @@ Kirigami.ApplicationWindow {
 
         anchors.left: toolBarLayerView.right
         anchors.right: parent.right
-        visible: layers.layersView.currentIndex !== -1
+        visible: layerViewItem.layerIdx !== -1
     }
     LayerQtItem {
         id: layerViewItem
@@ -357,12 +400,12 @@ Kirigami.ApplicationWindow {
             horizontalAlignment: Text.AlignHCenter
             text: "Select a layer in the list to view it here..."
             verticalAlignment: Text.AlignVCenter
-            visible: layers.layersView.currentIndex === -1
+            visible: layerViewItem.layerIdx === -1
             wrapMode: Text.WordWrap
         }
         MouseArea {
             anchors.fill: parent
-            visible: layers.layersView.currentIndex !== -1
+            visible: layerViewItem.layerIdx !== -1
 
             onClicked: {}
         }
@@ -371,7 +414,7 @@ Kirigami.ApplicationWindow {
 
             Row {
                 anchors.horizontalCenter: parent.horizontalCenter
-                topPadding: 20
+                topPadding: 60
                 visible: selection != undefined
 
                 RowLayout {
@@ -621,7 +664,117 @@ Kirigami.ApplicationWindow {
             }
         }
         Component {
-            id: videoComponent
+            id: audioComponent
+            Row {
+                anchors.horizontalCenter: parent.horizontalCenter
+                anchors.top: parent.top
+                topPadding: 20
+                enabled: layerViewItem.layerHasAudio
+
+                onEnabledChanged: {
+                    if (enabled){
+                        layerViewItem.loadTracks();
+                    }
+                }
+
+                RowLayout {
+                    ToolButton {
+                        focusPolicy: Qt.NoFocus
+                        icon.color: layerViewItem.audioTracksModel.countTracks() > 0 ? "lime" : "crimson"
+                        icon.name: "new-audio-alarm"
+                        text: qsTr("Audio File")
+
+                        onClicked: {
+                            if (audioMenuInstantiator.model === 0) {
+                                audioMenuInstantiator.model = layerViewItem.audioTracksModel;
+                                layerViewItem.layerValueChanged();
+                            }
+                            audioMenu.visible = !audioMenu.visible;
+                        }
+
+                        ToolTip {
+                            text: "Choose the audio track/file that was loaded with the media."
+                        }
+                        Menu {
+                            id: audioMenu
+
+                            y: parent.height
+
+                            Instantiator {
+                                id: audioMenuInstantiator
+
+                                model: 0
+
+                                delegate: MenuItem {
+                                    id: audioMenuItem
+
+                                    checkable: true
+                                    checked: model.id === layerViewItem.layerAudioId
+                                    text: model.text
+
+                                    onTriggered: layerViewItem.layerAudioId = model.id
+                                }
+
+                                onObjectAdded: audioMenu.insertItem(index, object)
+                                onObjectRemoved: audioMenu.removeItem(object)
+                            }
+                        }
+                    }
+                    Slider {
+                        id: volumeSlider
+
+                        from: 0
+                        implicitHeight: 25
+                        implicitWidth: 130
+                        leftPadding: 0
+                        rightPadding: 0
+                        to: 100
+                        value: layerViewItem.layerVolume
+                        wheelEnabled: false
+
+                        onValueChanged: {
+                            if (value.toFixed(0) !== layerViewItem.layerVolume) {
+                                layerViewItem.layerVolume = value.toFixed(0);
+                            }
+                        }
+
+                        background: Rectangle {
+                            color: Kirigami.Theme.alternateBackgroundColor
+
+                            Rectangle {
+                                color: Kirigami.Theme.highlightColor
+                                height: parent.height
+                                radius: 0
+                                width: volumeSlider.visualPosition * parent.width
+                            }
+                        }
+                        handle: Item {
+                            visible: false
+                        }
+
+                        Label {
+                            id: progressBarToolTip
+
+                            anchors.centerIn: volumeSlider
+                            color: enabled ? "white" : "grey"
+                            font.pointSize: 9
+                            layer.enabled: true
+                            text: qsTr("Volume: %1\%").arg(Number(volumeSlider.value.toFixed(0)))
+
+                            layer.effect: DropShadow {
+                                color: "#111"
+                                radius: 5
+                                samples: 17
+                                spread: 0.3
+                                verticalOffset: 1
+                            }
+                        }
+                    }
+                }
+            }
+        }
+        Component {
+            id: mediaComponent
 
             Row {
                 anchors.horizontalCenter: parent.horizontalCenter
@@ -645,7 +798,7 @@ Kirigami.ApplicationWindow {
                             }
                             else{
                                 layerViewItem.layerPause = true
-                                layerViewItem.layerPosition = videoSlider.value
+                                layerViewItem.layerPosition = mediaSlider.value
                             }
                             app.slides.needsSync = true;
                         }
@@ -656,7 +809,7 @@ Kirigami.ApplicationWindow {
                         }
                     }
                     Slider {
-                        id: videoSlider
+                        id: mediaSlider
 
                         property bool seekStarted: false
 
@@ -675,7 +828,7 @@ Kirigami.ApplicationWindow {
                             Rectangle {
                                 color: Kirigami.Theme.highlightColor
                                 height: parent.height
-                                width: videoSlider.visualPosition * parent.width
+                                width: mediaSlider.visualPosition * parent.width
                             }
                             ToolTip {
                                 id: progressBarToolTip
@@ -694,11 +847,11 @@ Kirigami.ApplicationWindow {
                                 onClicked: {}
                                 onEntered: {
                                     progressBarToolTip.x = mouseX - (progressBarToolTip.width * 0.5);
-                                    progressBarToolTip.y = videoSlider.height;
+                                    progressBarToolTip.y = mediaSlider.height;
                                 }
                                 onMouseXChanged: {
                                     progressBarToolTip.x = mouseX - (progressBarToolTip.width * 0.5);
-                                    const time = mouseX * 100 / progressBarBackground.width * videoSlider.to / 100;
+                                    const time = mouseX * 100 / progressBarBackground.width * mediaSlider.to / 100;
                                     progressBarToolTip.text = app.formatTime(time);
                                 }
                             }
@@ -709,20 +862,20 @@ Kirigami.ApplicationWindow {
 
                         onPressedChanged: {
                             if (pressed) {
-                                videoSlider.seekStarted = true;
+                                mediaSlider.seekStarted = true;
                             } else {
                                 layerViewItem.layerPause = true;
                                 layerViewItem.layerPosition = value;
                                 app.slides.needsSync = true;
-                                videoSlider.seekStarted = false;
+                                mediaSlider.seekStarted = false;
                             }
                         }
                         onToChanged: value = layerViewItem.layerPosition
 
                         Connections {
                             function onLayerPositionChanged() {
-                                if (!videoSlider.seekStarted) {
-                                    videoSlider.value = layerViewItem.layerPosition;
+                                if (!mediaSlider.seekStarted) {
+                                    mediaSlider.value = layerViewItem.layerPosition;
                                 }
                                 if (layerViewItem.layerPause) {
                                     playPauseButton.iconName = "media-playback-start";

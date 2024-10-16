@@ -9,30 +9,30 @@
 #ifndef TRACK_H
 #define TRACK_H
 
-#include <QObject>
+#include <string>
 
-class Track : public QObject {
-    Q_OBJECT
+class Track {
 public:
-    explicit Track(QObject *parent = nullptr);
+    Track();
+    ~Track();
 
-    QString lang() const;
-    void setLang(const QString &lang);
+    std::string lang() const;
+    void setLang(const std::string &lang);
 
-    QString title() const;
-    void setTitle(const QString &title);
+    std::string title() const;
+    void setTitle(const std::string &title);
 
-    QString codec() const;
-    void setCodec(const QString &codec);
+    std::string codec() const;
+    void setCodec(const std::string &codec);
 
-    qlonglong id() const;
-    void setId(const qlonglong &id);
+    __int64 id() const;
+    void setId(const __int64 &id);
 
-    qlonglong ffIndex() const;
-    void setFfIndex(const qlonglong &ffIndex);
+    __int64 ffIndex() const;
+    void setFfIndex(const __int64 &ffIndex);
 
-    qlonglong srcId() const;
-    void setSrcId(const qlonglong &srcId);
+    __int64 srcId() const;
+    void setSrcId(const __int64 &srcId);
 
     bool dependent() const;
     void setDependent(bool dependent);
@@ -46,24 +46,21 @@ public:
     bool defaut() const;
     void setDefaut(bool defaut);
 
-    QString type() const;
-    void setType(const QString &type);
+    std::string type() const;
+    void setType(const std::string &type);
 
     int index() const;
     void setIndex(int index);
 
-    QString text();
-    QString shortText();
-
 private:
-    QString m_lang;
-    QString m_title;
-    QString m_shortTitle;
-    QString m_codec;
-    QString m_type;
-    qlonglong m_id{};
-    qlonglong m_ffIndex{};
-    qlonglong m_srcId{};
+    std::string m_lang;
+    std::string m_title;
+    std::string m_shortTitle;
+    std::string m_codec;
+    std::string m_type;
+    __int64 m_id{};
+    __int64 m_ffIndex{};
+    __int64 m_srcId{};
     bool m_defaut{};
     bool m_dependent{};
     bool m_external{};

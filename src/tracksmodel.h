@@ -11,6 +11,7 @@
 
 #include <QAbstractListModel>
 #include <QObject>
+#include <vector>
 
 class Track;
 
@@ -31,11 +32,11 @@ public:
     virtual QHash<int, QByteArray> roleNames() const override;
     std::string getListAsFormattedString(std::string removePrefix = "", int charsPerItem = 40) const;
 
-    Q_INVOKABLE void setTracks(QMap<int, Track *> tracks);
+    Q_INVOKABLE void setTracks(std::vector<Track>* tracks);
     Q_INVOKABLE int countTracks() const;
 
 private:
-    QMap<int, Track *> m_tracks;
+    std::vector<Track>* m_tracks;
 };
 
 #endif // TRACKSMODEL_H

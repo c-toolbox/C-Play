@@ -81,6 +81,7 @@ BaseLayer::BaseLayer() {
     m_hierachy = FRONT;
     m_page = 0;
     m_numPages = 0;
+    m_volume = 100;
     m_isMaster = false;
     m_shouldUpdate = false;
     m_hasInitialized = false;
@@ -138,6 +139,31 @@ double BaseLayer::duration() {
 
 double BaseLayer::remaining() {
     return 0.0;
+    // Overwrite in derived class
+}
+
+bool BaseLayer::hasAudio() {
+    return false;
+}
+
+int BaseLayer::audioId() {
+    return -1;
+}
+
+void BaseLayer::setAudioId(int) {
+    
+}
+
+std::vector<Track>* BaseLayer::audioTracks() {
+    // Overwrite in derived class
+    return nullptr;
+}
+
+void BaseLayer::updateAudioOutput() {
+    // Overwrite in derived class
+}
+
+void BaseLayer::setVolume(int) {
     // Overwrite in derived class
 }
 
@@ -363,6 +389,10 @@ void BaseLayer::setNumPages(int np) {
 
     m_numPages = np;
     m_needSync = true;
+}
+
+int BaseLayer::volume() const {
+    return m_volume;
 }
 
 int BaseLayer::keepVisibilityForNumSlides() {
