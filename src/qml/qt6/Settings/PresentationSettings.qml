@@ -292,5 +292,65 @@ SettingsBasePage {
             // spacer item
             Layout.fillWidth: true
         }
+
+        Label {
+            Layout.alignment: Qt.AlignRight
+            text: qsTr("Delay (in msec) between clearing and loading new presentation:")
+        }
+        SpinBox {
+            editable: true
+            from: 0
+            to: 20000
+            value: PresentationSettings.clearAndLoadDelay
+
+            onValueChanged: {
+                PresentationSettings.clearAndLoadDelay = value.toFixed(0);
+                PresentationSettings.save();
+            }
+        }
+        Item {
+            // spacer item
+            Layout.fillWidth: true
+        }
+
+        Label {
+            Layout.alignment: Qt.AlignRight
+            text: qsTr("Delay (in msec) between presentation load and syncing:")
+        }
+        SpinBox {
+            editable: true
+            from: 0
+            to: 20000
+            value: PresentationSettings.syncAfterLoadDelay
+
+            onValueChanged: {
+                PresentationSettings.syncAfterLoadDelay = value.toFixed(0);
+                PresentationSettings.save();
+            }
+        }
+        Item {
+            // spacer item
+            Layout.fillWidth: true
+        }
+
+        Label {
+            Layout.alignment: Qt.AlignRight
+            text: qsTr("Delay (in msec) between presentation load and start:")
+        }
+        SpinBox {
+            editable: true
+            from: 0
+            to: 20000
+            value: PresentationSettings.startAfterLoadDelay
+
+            onValueChanged: {
+                PresentationSettings.startAfterLoadDelay = value.toFixed(0);
+                PresentationSettings.save();
+            }
+        }
+        Item {
+            // spacer item
+            Layout.fillWidth: true
+        }
     }
 }

@@ -172,7 +172,7 @@ void BaseLayer::updateAudioOutput() {
     // Overwrite in derived class
 }
 
-void BaseLayer::setVolume(int) {
+void BaseLayer::setVolume(int, bool) {
     // Overwrite in derived class
 }
 
@@ -448,6 +448,10 @@ void BaseLayer::setAlpha(float a) {
         else if (alpha() > 0.f && a <= 0.f) {
             stop();
         }
+
+       //Alpha controls volume level as well, from 0 to desired value (100%)
+       float volLevelF = static_cast<float>(volume()) * a;
+       setVolume(static_cast<int>(volLevelF), false);
     }
 
     renderData.alpha = a;

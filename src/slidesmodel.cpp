@@ -720,6 +720,13 @@ void SlidesModel::loadFromJSONFile(const QString &path) {
     fileSearchPaths.append(LocationSettings::cPlayFileLocation());
     fileSearchPaths.append(LocationSettings::univiewVideoLocation());
 
+    if (obj.contains(QStringLiteral("master"))) {
+        QJsonValue value = obj.value(QStringLiteral("master"));
+        QJsonObject o = value.toObject();
+        m_masterSlide->decodeFromJSON(o, fileSearchPaths);
+        m_masterSlide->setLayersName(QStringLiteral("Master"));
+    }
+
     if (obj.contains(QStringLiteral("slides"))) {
         QJsonValue value = obj.value(QStringLiteral("slides"));
         QJsonArray array = value.toArray();
@@ -728,13 +735,6 @@ void SlidesModel::loadFromJSONFile(const QString &path) {
             int idx = addSlide();
             m_slides[idx]->decodeFromJSON(o, fileSearchPaths);
         }
-    }
-
-    if (obj.contains(QStringLiteral("master"))) {
-        QJsonValue value = obj.value(QStringLiteral("master"));
-        QJsonObject o = value.toObject();
-        m_masterSlide->decodeFromJSON(o, fileSearchPaths);
-        m_masterSlide->setLayersName(QStringLiteral("Master"));
     }
 
     setSelectedSlideIdx(-1);

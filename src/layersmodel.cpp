@@ -563,6 +563,7 @@ void LayersModel::decodeFromJSON(QJsonObject &obj, const QStringList &forRelativ
             }
         }
     }
+    m_needsSync = true;
 }
 
 void LayersModel::encodeToJSON(QJsonObject &obj, const QStringList &forRelativePaths) {

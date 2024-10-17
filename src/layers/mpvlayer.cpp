@@ -386,8 +386,10 @@ void MpvLayer::updateAudioOutput() {
     }
 }
 
-void MpvLayer::setVolume(int v) {
-    m_volume = v;
+void MpvLayer::setVolume(int v, bool storeLevel) {
+    if (storeLevel) {
+        m_volume = v;
+    }
     if (m_data.mpvInitialized) {
         mpv::qt::set_property(m_data.handle, QStringLiteral("volume"), v);
     }

@@ -18,6 +18,15 @@
     <entry name="FadeDurationToNextSlide" type="int">
       <default>2000</default>
     </entry>
+    <entry name="ClearAndLoadDelay" type="int">
+      <default>1000</default>
+    </entry>
+    <entry name="SyncAfterLoadDelay" type="int">
+      <default>1000</default>
+    </entry>
+    <entry name="StartAfterLoadDelay" type="int">
+      <default>5000</default>
+    </entry>
   	<entry name="DefaultStereoModeForLayers" type="int">
       <label>The default stereoscopic mode for new layers</label>
       <default>0</default>

@@ -184,6 +184,7 @@ Rectangle {
         onAccepted: {
             app.slides.clearSlides();
             loadPresentation.start();
+            mpv.focus = true;
         }
         onRejected: mpv.focus = true
     }
@@ -492,19 +493,18 @@ Rectangle {
     Timer {
         id: loadPresentation
 
-        interval: 1000
+        interval: PresentationSettings.clearAndLoadDelay
 
         onTriggered: {
             app.slides.loadFromJSONFile(openCPlayPresentationDialog.file.toString());
             slidesView.currentIndex = -1;
             layers.layersView.currentIndex = -1;
-            mpv.focus = true;
         }
     }
     Timer {
         id: syncAfterLoad
 
-        interval: 1000
+        interval: PresentationSettings.syncAfterLoadDelay
 
         onTriggered: {
             app.slides.needsSync = true;
@@ -513,7 +513,7 @@ Rectangle {
     Timer {
         id: startAfterLoad
 
-        interval: 5000
+        interval: PresentationSettings.startAfterLoadDelay
 
         onTriggered: {
             app.slides.runStartAfterPresentationLoad();

@@ -99,7 +99,7 @@ public:
     virtual void setAudioId(int id);
     virtual std::vector<Track>* audioTracks();
     virtual void updateAudioOutput();
-    virtual void setVolume(int v);
+    virtual void setVolume(int v, bool storeLevel = true);
 
     virtual void encodeTypeCore(std::vector<std::byte>& data);
     virtual void decodeTypeCore(const std::vector<std::byte>& data, unsigned int& pos);

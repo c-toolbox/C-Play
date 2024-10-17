@@ -75,7 +75,7 @@ public:
     void setAudioId(int id);
     std::vector<Track>* audioTracks();
     void updateAudioOutput();
-    void setVolume(int v);
+    void setVolume(int v, bool storeLevel = true);
 
     void encodeTypeAlways(std::vector<std::byte>& data);
     void decodeTypeAlways(const std::vector<std::byte>& data, unsigned int& pos);

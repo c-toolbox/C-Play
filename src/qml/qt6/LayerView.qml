@@ -148,14 +148,15 @@ Kirigami.ApplicationWindow {
                 Label {
                     Layout.alignment: Qt.AlignRight
                     text: qsTr("Stereo:")
+                    enabled: layerViewItem.layerTypeName !== "Audio"
                 }
                 ComboBox {
                     id: stereoscopicModeForLayer
 
                     Layout.fillWidth: true
-                    enabled: true
                     focusPolicy: Qt.NoFocus
                     textRole: "mode"
+                    enabled: layerViewItem.layerTypeName !== "Audio"
 
                     model: ListModel {
                         id: stereoscopicModeForLayerList
@@ -186,14 +187,15 @@ Kirigami.ApplicationWindow {
                 Label {
                     Layout.alignment: Qt.AlignRight
                     text: qsTr("Grid:")
+                    enabled: layerViewItem.layerTypeName !== "Audio"
                 }
                 ComboBox {
                     id: gridModeForLayer
 
                     Layout.fillWidth: true
-                    enabled: true
                     focusPolicy: Qt.NoFocus
                     textRole: "mode"
+                    enabled: layerViewItem.layerTypeName !== "Audio"
 
                     model: ListModel {
                         id: gridModeForLayerList
@@ -230,6 +232,7 @@ Kirigami.ApplicationWindow {
 
                     checkable: true
                     checked: layerViewGridParams.visible
+                    enabled: layerViewItem.layerTypeName !== "Audio"
                     focusPolicy: Qt.NoFocus
                     icon.name: "configure"
 
@@ -300,6 +303,7 @@ Kirigami.ApplicationWindow {
 
                     checkable: true
                     checked: layerViewItem.layerRoiEnabled
+                    enabled: layerViewItem.layerTypeName !== "Audio"
                     focusPolicy: Qt.NoFocus
                     icon.color: (checked ? "lime" : "crimson")
                     icon.name: "trim-to-selection"
