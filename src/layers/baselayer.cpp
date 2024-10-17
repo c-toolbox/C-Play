@@ -1,6 +1,7 @@
 #include "baselayer.h"
 #include <layers/imagelayer.h>
-#include <layers/mpvlayer.h>
+#include <layers/videolayer.h>
+#include <layers/audiolayer.h>
 #include <sgct/opengl.h>
 #include <sgct/shareddata.h>
 #ifdef NDI_SUPPORT
@@ -18,12 +19,14 @@ std::string BaseLayer::typeDescription(BaseLayer::LayerType e) {
         return "Base";
     case IMAGE:
         return "Image";
+    case VIDEO:
+        return "Video";
+    case AUDIO:
+        return "Audio";
 #ifdef PDF_SUPPORT
     case PDF:
         return "PDF";
 #endif
-    case VIDEO:
-        return "Video";
 #ifdef NDI_SUPPORT
     case NDI:
         return "NDI";
@@ -41,6 +44,16 @@ BaseLayer *BaseLayer::createLayer(bool isMaster, int layerType, opengl_func_adre
         newLayer = newImg;
         break;
     }
+    case static_cast<int>(BaseLayer::LayerType::VIDEO): {
+        VideoLayer* newVideo = new VideoLayer(opa);
+        newLayer = newVideo;
+        break;
+    }
+    case static_cast<int>(BaseLayer::LayerType::AUDIO): {
+        AudioLayer* newAudio = new AudioLayer(opa);
+        newLayer = newAudio;
+        break;
+    }
 #ifdef PDF_SUPPORT
     case static_cast<int>(BaseLayer::LayerType::PDF): {
         PdfLayer* newPDF = new PdfLayer();
@@ -48,11 +61,6 @@ BaseLayer *BaseLayer::createLayer(bool isMaster, int layerType, opengl_func_adre
         break;
     }
 #endif
-    case static_cast<int>(BaseLayer::LayerType::VIDEO): {
-        MpvLayer *newMpv = new MpvLayer(opa);
-        newLayer = newMpv;
-        break;
-    }
 #ifdef NDI_SUPPORT
     case static_cast<int>(BaseLayer::LayerType::NDI): {
         NdiLayer *newNDI = new NdiLayer();
@@ -83,6 +91,7 @@ BaseLayer::BaseLayer() {
     m_numPages = 0;
     m_volume = 100;
     m_isMaster = false;
+    m_existOnMasterOnly = false;
     m_shouldUpdate = false;
     m_hasInitialized = false;
     m_keepVisibilityForNumSlides = 0;
@@ -307,6 +316,10 @@ bool BaseLayer::hasInitialized() {
 
 bool BaseLayer::isMaster() const {
     return m_isMaster;
+}
+
+bool BaseLayer::existOnMasterOnly() const {
+    return m_existOnMasterOnly;
 }
 
 uint32_t BaseLayer::identifier() const {

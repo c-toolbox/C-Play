@@ -30,7 +30,10 @@ ItemDelegate {
         return number;
     }
     function subText() {
-        return model.type + model.page + " - " + model.stereoVideo + " " + model.gridToMapOn;
+        if(model.type === "Audio")
+            return model.type;
+        else
+            return model.type + model.page + " - " + model.stereoVideo + " " + model.gridToMapOn;
     }
 
     font.pointSize: 9

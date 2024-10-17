@@ -12,7 +12,17 @@ public:
         mpv_handle *handle;
         mpv_render_context *renderContext;
         std::unique_ptr<std::thread> trd;
-        double videoDuration = 0.0;
+        bool loggingOn = false;
+        bool mediaIsPaused = true;
+        bool mediaShouldPause = true;
+        std::string logLevel = "info";
+        std::string loadedFile = "";
+        bool updateRendering = true;
+        bool allowDirectRendering = false;
+        bool isMaster = false;
+        bool supportVideo = true;
+        std::vector<Track> audioTracks;
+        int audioId = -1;
         int fboWidth = 0;
         int fboHeight = 0;
         unsigned int fboId = 0;
@@ -20,35 +30,33 @@ public:
         int reconfigsBeforeUpdate = 0;
         int advancedControl = 0;
         int eofMode = -1;
+        double mediaDuration = 0.0;
+        double timePos = 0;
+        double timeToSet = 0;
+        bool timeIsDirty = false;
         std::atomic_bool threadRunning = false;
         std::atomic_bool mpvInitialized = false;
         std::atomic_bool mpvInitializedGL = false;
         std::atomic_bool threadDone = false;
         std::atomic_bool terminate = false;
-        bool updateRendering = true;
-        bool allowDirectRendering = false;
-        bool isMaster = false;
-        std::vector<Track> audioTracks;
-        int audioId = -1;
-        bool loggingOn = false;
-        bool videoIsPaused = true;
-        bool videoShouldPause = true;
-        std::string logLevel = "info";
-        std::string loadedFile = "";
-        double timePos = 0;
-        double timeToSet = 0;
-        bool timeIsDirty = false;
     };
 
     MpvLayer(opengl_func_adress_ptr opa,
              bool allowDirectRendering = false,
              bool loggingOn = false,
              std::string logLevel = "info");
-    ~MpvLayer();
+
+    virtual ~MpvLayer() = 0; //This is an abstract class
 
     void initialize();
+    void initializeMpv();
+
+    virtual void initializeGL();
+    virtual void cleanup();
+    virtual void updateFrame();
+    virtual bool ready();
+
     void update(bool updateRendering = true);
-    bool ready();
 
     void start();
     void stop();
@@ -72,16 +80,9 @@ public:
     void encodeTypeAlways(std::vector<std::byte>& data);
     void decodeTypeAlways(const std::vector<std::byte>& data, unsigned int& pos);
 
-    void initializeMpv();
-    void initializeGL();
-    void cleanup();
-    void updateFrame();
-
     void loadFile(std::string filePath, bool reload = false);
     std::string loadedFile();
 
-    void updateFbo();
-    void skipRendering(bool skipRendering);
     bool renderingIsOn();
 
     void setEOFMode(int eofMode);
@@ -90,12 +91,8 @@ public:
     void setLoopTime(double A, double B, bool enabled);
     void setValue(std::string param, int val);
 
-private:
-    void checkNeededMpvFboResize();
-    void createMpvFBO(int width, int height);
-    void generateTexture(unsigned int &id, int width, int height);
-
-    mpvData videoData;
+protected:
+    mpvData m_data;
 };
 
 #endif // MPVLAYER_H

@@ -12,10 +12,11 @@ public:
     enum LayerType {
         BASE,
         IMAGE,
+        VIDEO,
+        AUDIO,
 #ifdef PDF_SUPPORT
         PDF,
 #endif
-        VIDEO,
 #ifdef NDI_SUPPORT
         NDI,
 #endif
@@ -129,6 +130,7 @@ public:
     bool hasInitialized();
 
     bool isMaster() const;
+    bool existOnMasterOnly() const;
     uint32_t identifier() const;
 
     bool needSync() const;
@@ -229,6 +231,7 @@ protected:
     int m_volume;
     int m_keepVisibilityForNumSlides;
     bool m_isMaster;
+    bool m_existOnMasterOnly;
     bool m_shouldUpdate;
     bool m_hasInitialized;
     bool m_needSync;

@@ -23,12 +23,16 @@ set(SOURCE_FILES
     haction.h
     httpserverthread.cpp
     httpserverthread.h
+    layers/audiolayer.cpp
+    layers/audiolayer.h
     layers/baselayer.cpp
     layers/baselayer.h
     layers/imagelayer.cpp
     layers/imagelayer.h
     layers/mpvlayer.cpp
     layers/mpvlayer.h
+    layers/videolayer.cpp
+    layers/videolayer.h
     layerqtitem.cpp
     layerqtitem.h
     layerrenderer.cpp

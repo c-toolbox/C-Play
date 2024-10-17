@@ -674,7 +674,7 @@ void LayerQtItem::sync() {
     m_renderer->setWindow(window());
 
     if (m_layer) {
-        if (m_layer->type() == BaseLayer::LayerType::VIDEO) {
+        if (m_layer->type() == BaseLayer::LayerType::VIDEO || m_layer->type() == BaseLayer::LayerType::AUDIO) {
             Q_EMIT layerPositionChanged();
         }
     }

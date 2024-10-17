@@ -110,7 +110,7 @@ Kirigami.ApplicationWindow {
                 if (layerViewItem.layerTypeName === "PDF") {
                     createPageComponents();
                 }
-                else if (layerViewItem.layerTypeName === "Video") {
+                else if (layerViewItem.layerTypeName === "Video" || layerViewItem.layerTypeName === "Audio") {
                     createAudioComponents();
                     createMediaComponents();
                 }
@@ -352,7 +352,7 @@ Kirigami.ApplicationWindow {
                             destroyPageComponents();
                         }
 
-                        if (layerViewItem.layerTypeName === "Video") {
+                        if (layerViewItem.layerTypeName === "Video" || layerViewItem.layerTypeName === "Audio") {
                             createAudioComponents();
                             createMediaComponents();
                         }

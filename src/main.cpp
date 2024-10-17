@@ -15,7 +15,7 @@
 #include <layerrenderer.h>
 #include <layers/baselayer.h>
 #include <layers/imagelayer.h>
-#include <layers/mpvlayer.h>
+#include <layers/videolayer.h>
 #include <layersmodel.h>
 #include <mutex>
 #include <slidesmodel.h>
@@ -36,7 +36,7 @@ std::vector<BaseLayer *> primaryLayers;
 ImageLayer *backgroundImageLayer;
 ImageLayer *foregroundImageLayer;
 ImageLayer *overlayImageLayer;
-MpvLayer *mainMpvLayer;
+MpvLayer *mainVideoLayer;
 
 bool updateLayers = false;
 std::vector<BaseLayer *> secondaryLayers;
@@ -62,11 +62,11 @@ void initOGL(GLFWwindow *) {
     backgroundImageLayer = new ImageLayer("background");
     primaryLayers.push_back(backgroundImageLayer);
 
-    mainMpvLayer = new MpvLayer(get_proc_address_glfw, allowDirectRendering, !logFilePath.empty() || !logLevel.empty(), logLevel);
-    mainMpvLayer->initializeMpv();
-    mainMpvLayer->initializeGL();
-    mainMpvLayer->loadFile(SyncHelper::instance().variables.loadedFile);
-    primaryLayers.push_back(mainMpvLayer);
+    mainVideoLayer = new VideoLayer(get_proc_address_glfw, allowDirectRendering, !logFilePath.empty() || !logLevel.empty(), logLevel);
+    mainVideoLayer->initializeMpv();
+    mainVideoLayer->initializeGL();
+    mainVideoLayer->loadFile(SyncHelper::instance().variables.loadedFile);
+    primaryLayers.push_back(mainVideoLayer);
 
     overlayImageLayer = new ImageLayer("overlay");
     primaryLayers.push_back(overlayImageLayer);
@@ -172,7 +172,7 @@ std::vector<std::byte> encode() {
         // Need figure out other scheme
         std::vector<int> slideIdxToSync;
 
-        // Sync all slides for now...
+        // Sync all slides and layers for now... if not layer set as "existOnMasterOnly"
         for (int i = Application::instance().slidesModel()->numberOfSlides() - 1; i >= -1; i--) {
             slideIdxToSync.push_back(i);
         }
@@ -182,15 +182,18 @@ std::vector<std::byte> encode() {
         bool needLayerSync = Application::instance().slidesModel()->needsSync();
         for (auto s : slideIdxToSync) {
             if (s < Application::instance().slidesModel()->numberOfSlides()) {
-                int numLayers = Application::instance().slidesModel()->slide(s)->numberOfLayers();
-                totalLayersToSync += numLayers;
-                if (Application::instance().slidesModel()->slide(s)->needsSync())
+                LayersModel* slide = Application::instance().slidesModel()->slide(s);
+                int numLayers = slide->numberOfLayers();
+                if (slide->needsSync()) {
                     needLayerSync = true;
-                if (!Application::instance().slidesModel()->slide(s)->needsSync()) { // Even if layers model says, no, check for needed sync for each layer
-                    for (int l = 0; l < numLayers; l++) {
-                        if (Application::instance().slidesModel()->slide(s)->layer(l)->needSync()) {
-                            needLayerSync = true;
-                        }
+                }
+                for (int l = 0; l < numLayers; l++) {
+                    BaseLayer* layer = slide->layer(l);
+                    if (!layer->existOnMasterOnly()) {
+                        totalLayersToSync++;
+                    }
+                    if (layer->needSync()) {
+                        needLayerSync = true;
                     }
                 }
             }
@@ -208,14 +211,17 @@ std::vector<std::byte> encode() {
                     int numLayers = Application::instance().slidesModel()->slide(s)->numberOfLayers();
                     for (int l = 0; l < numLayers; l++) {
                         BaseLayer *nextLayer = Application::instance().slidesModel()->slide(s)->layer(l);
-                        serializeObject(data, nextLayer->identifier()); // ID
-                        serializeObject(data, nextLayer->needSync());   // Check needs sync
-                        serializeObject(data, static_cast<int>(nextLayer->type())); // Type
-                        if (nextLayer->needSync()) {
-                            nextLayer->encodeFull(data);
-                            nextLayer->setHasSynced();
-                        } else {
-                            nextLayer->encodeAlways(data);
+                        if(!nextLayer->existOnMasterOnly()) {
+                            serializeObject(data, nextLayer->identifier()); // ID
+                            serializeObject(data, nextLayer->needSync());   // Check needs sync
+                            serializeObject(data, static_cast<int>(nextLayer->type())); // Type
+                            if (nextLayer->needSync()) {
+                                nextLayer->encodeFull(data);
+                                nextLayer->setHasSynced();
+                            }
+                            else {
+                                nextLayer->encodeAlways(data);
+                            }
                         }
                     }
                     Application::instance().slidesModel()->slide(s)->setHasSynced();
@@ -410,14 +416,14 @@ void postSyncPreDraw() {
 
         if (!SyncHelper::instance().variables.loadedFile.empty()) {
             // Load new MPV file
-            mainMpvLayer->loadFile(SyncHelper::instance().variables.loadedFile, SyncHelper::instance().variables.loadFile);
+            mainVideoLayer->loadFile(SyncHelper::instance().variables.loadedFile, SyncHelper::instance().variables.loadFile);
             SyncHelper::instance().variables.loadFile = false;
         }
 
         layerRender->clearLayers();
 
         // Background image layer
-        if ((!mainMpvLayer->renderingIsOn() || mainMpvLayer->ready() ||
+        if ((!mainVideoLayer->renderingIsOn() || mainVideoLayer->ready() ||
              (SyncHelper::instance().variables.alpha < 1.f || SyncHelper::instance().variables.gridToMapOn == 1)) &&
             backgroundImageLayer->ready() && SyncHelper::instance().variables.alphaBg > 0.f) {
             backgroundImageLayer->setAlpha(SyncHelper::instance().variables.alphaBg);
@@ -427,7 +433,7 @@ void postSyncPreDraw() {
         }
 
         // Custom layers with hierarchy BACK
-        // Should stop if mainMpvLayer is full visible
+        // Should stop if mainVideoLayer is full visible
         // Rendered top to bottom, so need to add them the other way around...
         for (auto it = secondaryLayers.rbegin(); it != secondaryLayers.rend(); ++it) {
             if ((*it)->hierarchy() == BaseLayer::LayerHierarchy::BACK) {
@@ -446,14 +452,14 @@ void postSyncPreDraw() {
 
 
         // Main video/media layer
-        if (mainMpvLayer->renderingIsOn()) {
-            if (mainMpvLayer->ready() && SyncHelper::instance().variables.alpha > 0.f) {
-                mainMpvLayer->setAlpha(SyncHelper::instance().variables.alpha);
-                mainMpvLayer->setGridMode(SyncHelper::instance().variables.gridToMapOn);
-                mainMpvLayer->setStereoMode(SyncHelper::instance().variables.stereoscopicMode);
-                mainMpvLayer->setRotate(rotXYZ);
-                mainMpvLayer->setTranslate(translateXYZ);
-                layerRender->addLayer(mainMpvLayer);
+        if (mainVideoLayer->renderingIsOn()) {
+            if (mainVideoLayer->ready() && SyncHelper::instance().variables.alpha > 0.f) {
+                mainVideoLayer->setAlpha(SyncHelper::instance().variables.alpha);
+                mainVideoLayer->setGridMode(SyncHelper::instance().variables.gridToMapOn);
+                mainVideoLayer->setStereoMode(SyncHelper::instance().variables.stereoscopicMode);
+                mainVideoLayer->setRotate(rotXYZ);
+                mainVideoLayer->setTranslate(translateXYZ);
+                layerRender->addLayer(mainVideoLayer);
             }
 
             if (overlayImageLayer->ready() && SyncHelper::instance().variables.alpha > 0.f) {
@@ -549,22 +555,22 @@ void postSyncPreDraw() {
         }
 
         // Set properties of main mpv layer
-        mainMpvLayer->setTimePause(SyncHelper::instance().variables.paused);
-        mainMpvLayer->setEOFMode(SyncHelper::instance().variables.eofMode);
-        mainMpvLayer->setTimePosition(
+        mainVideoLayer->setTimePause(SyncHelper::instance().variables.paused);
+        mainVideoLayer->setEOFMode(SyncHelper::instance().variables.eofMode);
+        mainVideoLayer->setTimePosition(
             SyncHelper::instance().variables.timePosition,
             SyncHelper::instance().variables.timeDirty);
         if (SyncHelper::instance().variables.loopTimeDirty) {
-            mainMpvLayer->setLoopTime(
+            mainVideoLayer->setLoopTime(
                 SyncHelper::instance().variables.loopTimeA,
                 SyncHelper::instance().variables.loopTimeB,
                 SyncHelper::instance().variables.loopTimeEnabled);
         }
         if (SyncHelper::instance().variables.eqDirty) {
-            mainMpvLayer->setValue("contrast", SyncHelper::instance().variables.eqContrast);
-            mainMpvLayer->setValue("brightness", SyncHelper::instance().variables.eqBrightness);
-            mainMpvLayer->setValue("gamma", SyncHelper::instance().variables.eqGamma);
-            mainMpvLayer->setValue("saturation", SyncHelper::instance().variables.eqSaturation);
+            mainVideoLayer->setValue("contrast", SyncHelper::instance().variables.eqContrast);
+            mainVideoLayer->setValue("brightness", SyncHelper::instance().variables.eqBrightness);
+            mainVideoLayer->setValue("gamma", SyncHelper::instance().variables.eqGamma);
+            mainVideoLayer->setValue("saturation", SyncHelper::instance().variables.eqSaturation);
         }
 
         // Set latest plane details for all primary layers
@@ -585,7 +591,7 @@ void postSyncPreDraw() {
 #endif
 
     // Update/render the frame from MPV pipeline
-    mainMpvLayer->updateFrame();
+    mainVideoLayer->updateFrame();
 }
 
 void draw(const RenderData &data) {
@@ -616,9 +622,9 @@ void cleanup() {
         return;
 #endif
 
-    // Cleanup mainMpvLayer
-    delete mainMpvLayer;
-    mainMpvLayer = nullptr;
+    // Cleanup mainVideoLayer
+    delete mainVideoLayer;
+    mainVideoLayer = nullptr;
 
     delete backgroundImageLayer;
     delete foregroundImageLayer;

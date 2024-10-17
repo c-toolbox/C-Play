@@ -4,13 +4,7 @@
 #include "track.h"
 #include "qthelper.h"
 #include <fmt/core.h>
-#include <sgct/opengl.h>
 #include <sgct/sgct.h>
-
-void on_mpv_render_update(void *ctx) {
-    MpvLayer *mpvLayer = static_cast<MpvLayer *>(ctx);
-    mpvLayer->updateFbo();
-}
 
 void loadTracks(MpvLayer::mpvData& vd) {
     if (vd.handle && !vd.loadedFile.empty()) {
@@ -89,12 +83,12 @@ void on_mpv_events(MpvLayer::mpvData &vd, BaseLayer::RenderParams &rp) {
             } else if (strcmp(prop->name, "pause") == 0) {
                 if (prop->format == MPV_FORMAT_FLAG) {
                     bool isPaused = *reinterpret_cast<bool *>(prop->data);
-                    if (isPaused != vd.videoIsPaused)
-                        mpv::qt::set_property_async(vd.handle, QStringLiteral("pause"), vd.videoIsPaused);
+                    if (isPaused != vd.mediaIsPaused)
+                        mpv::qt::set_property_async(vd.handle, QStringLiteral("pause"), vd.mediaIsPaused);
                 }
             } else if (strcmp(prop->name, "duration") == 0) {
                 if (prop->format == MPV_FORMAT_DOUBLE) {
-                    vd.videoDuration = *reinterpret_cast<double *>(prop->data);
+                    vd.mediaDuration = *reinterpret_cast<double *>(prop->data);
                 }
             } else if (strcmp(prop->name, "time-pos") == 0) {
                 if (SyncHelper::instance().variables.timeThresholdEnabled) {
@@ -103,7 +97,7 @@ void on_mpv_events(MpvLayer::mpvData &vd, BaseLayer::RenderParams &rp) {
                     // Normally, playback is syncronized, however looping depends on seek speed.
                     // Seek speeds (thus loop speed) is faster when no audio is present, thus nodes might be faster then master.
                     // Hence, we might need to correct things after a loop, between master and nodes.
-                    if (!SyncHelper::instance().variables.timeThresholdOnLoopOnly || (vd.eofMode > 1 && timeToSet < SyncHelper::instance().variables.timeThresholdOnLoopCheckTime) || (vd.eofMode > 1 && timeToSet > (vd.videoDuration - SyncHelper::instance().variables.timeThresholdOnLoopCheckTime) && (vd.videoDuration > 0)) || (SyncHelper::instance().variables.loopTimeEnabled && timeToSet < (SyncHelper::instance().variables.loopTimeA + SyncHelper::instance().variables.timeThresholdOnLoopCheckTime)) || (SyncHelper::instance().variables.loopTimeEnabled && SyncHelper::instance().variables.loopTimeB < (timeToSet + SyncHelper::instance().variables.timeThresholdOnLoopCheckTime))) {
+                    if (!SyncHelper::instance().variables.timeThresholdOnLoopOnly || (vd.eofMode > 1 && timeToSet < SyncHelper::instance().variables.timeThresholdOnLoopCheckTime) || (vd.eofMode > 1 && timeToSet > (vd.mediaDuration - SyncHelper::instance().variables.timeThresholdOnLoopCheckTime) && (vd.mediaDuration > 0)) || (SyncHelper::instance().variables.loopTimeEnabled && timeToSet < (SyncHelper::instance().variables.loopTimeA + SyncHelper::instance().variables.timeThresholdOnLoopCheckTime)) || (SyncHelper::instance().variables.loopTimeEnabled && SyncHelper::instance().variables.loopTimeB < (timeToSet + SyncHelper::instance().variables.timeThresholdOnLoopCheckTime))) {
                         if (prop->format == MPV_FORMAT_DOUBLE) {
                             double latestPosition = *reinterpret_cast<double *>(prop->data);
                             if (SyncHelper::instance().variables.timeThreshold > 0 && (abs(latestPosition - timeToSet) > SyncHelper::instance().variables.timeThreshold)) {
@@ -128,9 +122,8 @@ void on_mpv_events(MpvLayer::mpvData &vd, BaseLayer::RenderParams &rp) {
                 sgct::Log::Info(message->text);
             } else if (message->log_level == mpv_log_level::MPV_LOG_LEVEL_V) {
                 sgct::Log::Info(message->text);
-            }
- else if (message->log_level == mpv_log_level::MPV_LOG_LEVEL_DEBUG) {
-     sgct::Log::Debug(message->text);
+            } else if (message->log_level == mpv_log_level::MPV_LOG_LEVEL_DEBUG) {
+                sgct::Log::Debug(message->text);
             }
             break;
         }
@@ -162,7 +155,13 @@ void initMPV(MpvLayer::mpvData& vd) {
     mpv::qt::set_property(vd.handle, QStringLiteral("keep-open"), QStringLiteral("yes"));
     mpv::qt::set_property(vd.handle, QStringLiteral("loop-file"), QStringLiteral("inf"));
 
-    if (vd.isMaster) { // Only audio on master
+    // Set if we support video or not (enabled by default)
+    if (!vd.supportVideo) {
+        mpv::qt::set_property(vd.handle, QStringLiteral("vid"), QStringLiteral("no"));
+    }
+
+    // Only audio on master for now
+    if (vd.isMaster) {
         mpv::qt::set_property(vd.handle, QStringLiteral("aid"), QStringLiteral("auto"));
         mpv::qt::set_property(vd.handle, QStringLiteral("volume-max"), QStringLiteral("100"));
     }
@@ -179,22 +178,24 @@ void initMPV(MpvLayer::mpvData& vd) {
         mpv::qt::load_configurations(vd.handle, QString::fromStdString(SyncHelper::instance().configuration.confNodesOnly));
     }
 
-    if (vd.allowDirectRendering) {
-        // Run with direct rendering if requested
-        if (mpv::qt::get_property(vd.handle, QStringLiteral("vd-lavc-dr")).toBool()) {
-            vd.advancedControl = 1;
-            vd.reconfigsBeforeUpdate = 0;
+    if (vd.supportVideo) {
+        if (vd.allowDirectRendering) {
+            // Run with direct rendering if requested
+            if (mpv::qt::get_property(vd.handle, QStringLiteral("vd-lavc-dr")).toBool()) {
+                vd.advancedControl = 1;
+                vd.reconfigsBeforeUpdate = 0;
+            }
+            else {
+                vd.advancedControl = 0;
+                vd.reconfigsBeforeUpdate = 0;
+            }
         }
         else {
+            // Do not allow direct rendering (EVER).
+            mpv::qt::set_property(vd.handle, QStringLiteral("vd-lavc-dr"), QStringLiteral("no"));
             vd.advancedControl = 0;
             vd.reconfigsBeforeUpdate = 0;
         }
-    }
-    else {
-        // Do not allow direct rendering (EVER).
-        mpv::qt::set_property(vd.handle, QStringLiteral("vd-lavc-dr"), QStringLiteral("no"));
-        vd.advancedControl = 0;
-        vd.reconfigsBeforeUpdate = 0;
     }
 }
 
@@ -207,44 +208,78 @@ auto runMpvAsync = [](MpvLayer::mpvData& data, BaseLayer::RenderParams& rp) {
     }
     mpv_destroy(data.handle);
     data.threadDone = true;
-    };
+};
 
 MpvLayer::MpvLayer(opengl_func_adress_ptr opa,
     bool allowDirectRendering,
     bool loggingOn,
     std::string logLevel) {
     m_openglProcAdr = opa;
-    videoData.allowDirectRendering = allowDirectRendering;
-    videoData.loggingOn = loggingOn;
-    setType(BaseLayer::LayerType::VIDEO);
+    m_data.allowDirectRendering = allowDirectRendering;
+    m_data.loggingOn = loggingOn;
 }
 
-MpvLayer::~MpvLayer() {
-    cleanup();
-}
+MpvLayer::~MpvLayer() = default;
 
 void MpvLayer::initialize() {
     m_hasInitialized = true;
-    videoData.isMaster = isMaster();
+    m_data.isMaster = isMaster();
+}
+
+void MpvLayer::initializeMpv() {
+    // Run MPV on another thread
+    m_data.trd = std::make_unique<std::thread>(runMpvAsync, std::ref(m_data), std::ref(renderData));
+    while (!m_data.mpvInitialized) {
+    }
+
+    // Observe media parameters
+    if (m_data.supportVideo) {
+        mpv_observe_property(m_data.handle, 0, "video-params", MPV_FORMAT_NODE);
+    }
+    mpv_observe_property(m_data.handle, 0, "pause", MPV_FORMAT_FLAG);
+    mpv_observe_property(m_data.handle, 0, "time-pos", MPV_FORMAT_DOUBLE);
+    mpv_observe_property(m_data.handle, 0, "duration", MPV_FORMAT_DOUBLE);
+}
+
+void MpvLayer::initializeGL() {
+}
+
+void MpvLayer::cleanup() {
+    if (!m_data.mpvInitialized)
+        return;
+
+    // End Mpv running on separate thread
+    m_data.terminate = true;
+    while (!m_data.threadDone) {
+    }
+    m_data.trd->join();
+    m_data.trd = nullptr;
+}
+
+void MpvLayer::updateFrame() {
+}
+
+bool MpvLayer::ready() {
+    return false;
 }
 
 void MpvLayer::update(bool updateRendering) {
-    if (!videoData.mpvInitialized) {
+    if (!m_data.mpvInitialized) {
         initializeMpv();
     }
 
-    if (!videoData.mpvInitializedGL) {
+    if (!m_data.mpvInitializedGL) {
         initializeGL();
     }
 
-    if (videoData.loadedFile != filepath()) {
+    if (m_data.loadedFile != filepath()) {
         loadFile(filepath());
     }
 
     if (!isMaster()) {
-        setTimePause(videoData.videoShouldPause, false);
-        setTimePosition(videoData.timeToSet, videoData.timeIsDirty);
-        videoData.timeIsDirty = false;
+        setTimePause(m_data.mediaShouldPause, false);
+        setTimePosition(m_data.timeToSet, m_data.timeIsDirty);
+        m_data.timeIsDirty = false;
     }
 
     if (updateRendering) {
@@ -252,37 +287,33 @@ void MpvLayer::update(bool updateRendering) {
     }
 }
 
-bool MpvLayer::ready() {
-    return !videoData.loadedFile.empty() && videoData.updateRendering;
-}
-
 void MpvLayer::start() {
-    if (ready() && videoData.videoIsPaused) {
+    if (ready() && m_data.mediaIsPaused) {
         setPause(false);
     }
 }
 
 void MpvLayer::stop() {
-    if(ready() && !videoData.videoIsPaused) {
+    if(ready() && !m_data.mediaIsPaused) {
         setPause(true);
         setPosition(0);
     }
 }
 
 bool MpvLayer::pause() {
-    return videoData.videoIsPaused;
+    return m_data.mediaIsPaused;
 }
 
 void MpvLayer::setPause(bool pause) {
     if (isMaster()) {
         setTimePause(pause, false);
-        videoData.videoShouldPause = pause;
+        m_data.mediaShouldPause = pause;
     }
 }
 
 double MpvLayer::position() {
-    if (videoData.handle && !videoData.loadedFile.empty())
-        return mpv::qt::get_property(videoData.handle, QStringLiteral("time-pos")).toDouble();
+    if (m_data.handle && !m_data.loadedFile.empty())
+        return mpv::qt::get_property(m_data.handle, QStringLiteral("time-pos")).toDouble();
     else
         return 0.0;
 }
@@ -290,34 +321,34 @@ double MpvLayer::position() {
 void MpvLayer::setPosition(double value) {
     if (isMaster()) {
         setTimePosition(value, isMaster());
-        videoData.timeToSet = value;
-        videoData.timeIsDirty = true;
+        m_data.timeToSet = value;
+        m_data.timeIsDirty = true;
     }
 }
 
 double MpvLayer::duration() {
-    if (videoData.handle && !videoData.loadedFile.empty())
-        return mpv::qt::get_property(videoData.handle, QStringLiteral("duration")).toDouble();
+    if (m_data.handle && !m_data.loadedFile.empty())
+        return mpv::qt::get_property(m_data.handle, QStringLiteral("duration")).toDouble();
     else
         return 0.0;
 }
 
 double MpvLayer::remaining() {
-    if (videoData.handle && !videoData.loadedFile.empty())
-        return mpv::qt::get_property(videoData.handle, QStringLiteral("time-remaining")).toDouble();
+    if (m_data.handle && !m_data.loadedFile.empty())
+        return mpv::qt::get_property(m_data.handle, QStringLiteral("time-remaining")).toDouble();
     else
         return 0.0;
 }
 
 bool MpvLayer::hasAudio() {
-    return !videoData.audioTracks.empty();
+    return !m_data.audioTracks.empty();
 }
 
 int MpvLayer::audioId() {
-    if (videoData.handle && !videoData.loadedFile.empty())
-        return mpv::qt::get_property(videoData.handle, QStringLiteral("aid")).toInt();
+    if (m_data.handle && !m_data.loadedFile.empty())
+        return mpv::qt::get_property(m_data.handle, QStringLiteral("aid")).toInt();
     else
-        return videoData.audioId;
+        return m_data.audioId;
 }
 
 void MpvLayer::setAudioId(int value) {
@@ -325,17 +356,17 @@ void MpvLayer::setAudioId(int value) {
         return;
     }
 
-    videoData.audioId = value;
-    if (videoData.handle && !videoData.loadedFile.empty()) {
-        loadAudioId(videoData);
+    m_data.audioId = value;
+    if (m_data.handle && !m_data.loadedFile.empty()) {
+        loadAudioId(m_data);
     }
 }
 
 std::vector<Track>* MpvLayer::audioTracks() {
-    if (videoData.handle && !videoData.loadedFile.empty()) {
-        loadTracks(videoData);
-        setAudioId(videoData.audioId);
-        return &videoData.audioTracks;
+    if (m_data.handle && !m_data.loadedFile.empty()) {
+        loadTracks(m_data);
+        setAudioId(m_data.audioId);
+        return &m_data.audioTracks;
     }
     else {
         return nullptr;
@@ -343,13 +374,13 @@ std::vector<Track>* MpvLayer::audioTracks() {
 }
 
 void MpvLayer::updateAudioOutput() {
-    if (videoData.mpvInitialized) {
+    if (m_data.mpvInitialized) {
         if (AudioSettings::useCustomAudioOutput()) {
             if (AudioSettings::useAudioDevice()) {
-                mpv::qt::set_property(videoData.handle, QStringLiteral("audio-device"), AudioSettings::preferredAudioOutputDevice());
+                mpv::qt::set_property(m_data.handle, QStringLiteral("audio-device"), AudioSettings::preferredAudioOutputDevice());
             }
             else if (AudioSettings::useAudioDriver()) {
-                mpv::qt::set_property(videoData.handle, QStringLiteral("ao"), AudioSettings::preferredAudioOutputDriver());
+                mpv::qt::set_property(m_data.handle, QStringLiteral("ao"), AudioSettings::preferredAudioOutputDriver());
             }
         }
     }
@@ -357,258 +388,97 @@ void MpvLayer::updateAudioOutput() {
 
 void MpvLayer::setVolume(int v) {
     m_volume = v;
-    if (videoData.mpvInitialized) {
-        mpv::qt::set_property(videoData.handle, QStringLiteral("volume"), v);
+    if (m_data.mpvInitialized) {
+        mpv::qt::set_property(m_data.handle, QStringLiteral("volume"), v);
     }
 }
 
 void MpvLayer::encodeTypeAlways(std::vector<std::byte>& data) {
-    sgct::serializeObject(data, videoData.videoShouldPause);
-    if (videoData.timeIsDirty) {
-        sgct::serializeObject(data, videoData.timeToSet);
+    sgct::serializeObject(data, m_data.mediaShouldPause);
+    if (m_data.timeIsDirty) {
+        sgct::serializeObject(data, m_data.timeToSet);
     }
     else {
         sgct::serializeObject(data, position());
     }
-    sgct::serializeObject(data, videoData.timeIsDirty);
-    videoData.timeIsDirty = false;
+    sgct::serializeObject(data, m_data.timeIsDirty);
+    m_data.timeIsDirty = false;
 }
 
 void MpvLayer::decodeTypeAlways(const std::vector<std::byte>& data, unsigned int& pos) {
-    sgct::deserializeObject(data, pos, videoData.videoShouldPause);
-    sgct::deserializeObject(data, pos, videoData.timeToSet);
-    sgct::deserializeObject(data, pos, videoData.timeIsDirty);
-}
-
-void MpvLayer::initializeMpv() {
-    // Run MPV on another thread
-    videoData.trd = std::make_unique<std::thread>(runMpvAsync, std::ref(videoData), std::ref(renderData));
-    while (!videoData.mpvInitialized) {
-    }
-
-    // Observe video parameters
-    mpv_observe_property(videoData.handle, 0, "video-params", MPV_FORMAT_NODE);
-    mpv_observe_property(videoData.handle, 0, "pause", MPV_FORMAT_FLAG);
-    mpv_observe_property(videoData.handle, 0, "time-pos", MPV_FORMAT_DOUBLE);
-    mpv_observe_property(videoData.handle, 0, "duration", MPV_FORMAT_DOUBLE);
-}
-
-void MpvLayer::initializeGL() {
-    // Setup OpenGL MPV settings
-    mpv_opengl_init_params gl_init_params[1] = {m_openglProcAdr, nullptr};
-    mpv_render_param params[]{
-        {MPV_RENDER_PARAM_API_TYPE, const_cast<char *>(MPV_RENDER_API_TYPE_OPENGL)},
-        {MPV_RENDER_PARAM_OPENGL_INIT_PARAMS, &gl_init_params},
-        // Tell libmpv that you will call mpv_render_context_update() on render
-        // context update callbacks, and that you will _not_ block on the core
-        // ever (see <libmpv/render.h> "Threading" section for what libmpv
-        // functions you can call at all when this is active).
-        // In particular, this means you must call e.g. mpv_command_async()
-        // instead of mpv_command().
-        // If you want to use synchronous calls, either make them on a separate
-        // thread, or remove the option below (this will disable features like
-        // DR and is not recommended anyway).
-        {MPV_RENDER_PARAM_ADVANCED_CONTROL, &videoData.advancedControl},
-        {MPV_RENDER_PARAM_INVALID, nullptr}};
-
-    // This makes mpv use the currently set GL context. It will use the callback
-    // (passed via params) to resolve GL builtin functions, as well as extensions.
-    if (mpv_render_context_create(&videoData.renderContext, videoData.handle, params) < 0) {
-        sgct::Log::Error("failed to initialize mpv GL context");
-        return;
-    }
-
-    // When there is a need to call mpv_render_context_update(), which can
-    // request a new frame to be rendered.
-    // (Separate from the normal event handling mechanism for the sake of
-    //  users which run OpenGL on a different thread.)
-    mpv_render_context_set_update_callback(videoData.renderContext, on_mpv_render_update, reinterpret_cast<void *>(this));
-
-    // Creating new FBO to render mpv into
-    createMpvFBO(512, 512);
-
-    videoData.mpvInitializedGL = true;
-}
-
-void MpvLayer::cleanup() {
-    if (!videoData.mpvInitialized)
-        return;
-
-    // Destroy the GL renderer and all of the GL objects it allocated. If video
-    // is still running, the video track will be deselected.
-    if (videoData.mpvInitializedGL) {
-        mpv_render_context_free(videoData.renderContext);
-    }
-    // End Mpv running on separate thread
-    videoData.terminate = true;
-    while (!videoData.threadDone) {
-    }
-    videoData.trd->join();
-    videoData.trd = nullptr;
-
-    if (videoData.mpvInitializedGL) {
-        glDeleteFramebuffers(1, &videoData.fboId);
-        glDeleteTextures(1, &renderData.texId);
-    }
-}
-
-void MpvLayer::updateFrame() {
-    if (!videoData.mpvInitializedGL)
-        return;
-
-    updateFbo();
-
-    // See render_gl.h on what OpenGL environment mpv expects, and
-    // other API details.
-    if (videoData.updateRendering) {
-        mpv_opengl_fbo mpfbo{static_cast<int>(videoData.fboId), videoData.fboWidth, videoData.fboHeight, GL_RGBA16F};
-        int flip_y{1};
-
-        mpv_render_param params[] = {
-            {MPV_RENDER_PARAM_OPENGL_FBO, &mpfbo},
-            {MPV_RENDER_PARAM_FLIP_Y, &flip_y},
-            {MPV_RENDER_PARAM_INVALID, nullptr}};
-        mpv_render_context_render(videoData.renderContext, params);
-    } else {
-        int skip_rendering{1};
-        mpv_render_param params[] = {
-            {MPV_RENDER_PARAM_SKIP_RENDERING, &skip_rendering},
-            {MPV_RENDER_PARAM_INVALID, nullptr}};
-        mpv_render_context_render(videoData.renderContext, params);
-    }
+    sgct::deserializeObject(data, pos, m_data.mediaShouldPause);
+    sgct::deserializeObject(data, pos, m_data.timeToSet);
+    sgct::deserializeObject(data, pos, m_data.timeIsDirty);
 }
 
 void MpvLayer::loadFile(std::string filePath, bool reload) {
-    if (!filePath.empty() && (reload || videoData.loadedFile != filePath)) {
+    if (!filePath.empty() && (reload || m_data.loadedFile != filePath)) {
         sgct::Log::Info(fmt::format("Loading new file with mpv: {}", filePath));
-        videoData.reconfigs = 0;
-        videoData.updateRendering = false;
-        videoData.loadedFile = filePath;
-        videoData.audioTracks.clear();
-        mpv::qt::command_async(videoData.handle, QStringList() << QStringLiteral("loadfile") << QString::fromStdString(filePath));
+        m_data.reconfigs = 0;
+        m_data.updateRendering = false;
+        m_data.loadedFile = filePath;
+        m_data.audioTracks.clear();
+        mpv::qt::command_async(m_data.handle, QStringList() << QStringLiteral("loadfile") << QString::fromStdString(filePath));
     }
 }
 
 std::string MpvLayer::loadedFile() {
-    return videoData.loadedFile;
-}
-
-void MpvLayer::updateFbo() {
-    checkNeededMpvFboResize();
-}
-
-void MpvLayer::skipRendering(bool skipRendering) {
-    videoData.updateRendering = !skipRendering;
+    return m_data.loadedFile;
 }
 
 bool MpvLayer::renderingIsOn() {
-    return videoData.updateRendering;
+    return m_data.updateRendering;
 }
 
 void MpvLayer::setEOFMode(int eofMode) {
-    if (eofMode != videoData.eofMode) {
-        videoData.eofMode = eofMode;
+    if (eofMode != m_data.eofMode) {
+        m_data.eofMode = eofMode;
 
-        if (videoData.eofMode == 0) { // Pause
-            mpv::qt::set_property_async(videoData.handle, QStringLiteral("keep-open"), QStringLiteral("yes"));
-            mpv::qt::set_property_async(videoData.handle, QStringLiteral("loop-file"), QStringLiteral("no"));
-        } else if (videoData.eofMode == 1) { // Continue
-            mpv::qt::set_property_async(videoData.handle, QStringLiteral("keep-open"), QStringLiteral("no"));
-            mpv::qt::set_property_async(videoData.handle, QStringLiteral("loop-file"), QStringLiteral("no"));
+        if (m_data.eofMode == 0) { // Pause
+            mpv::qt::set_property_async(m_data.handle, QStringLiteral("keep-open"), QStringLiteral("yes"));
+            mpv::qt::set_property_async(m_data.handle, QStringLiteral("loop-file"), QStringLiteral("no"));
+        } else if (m_data.eofMode == 1) { // Continue
+            mpv::qt::set_property_async(m_data.handle, QStringLiteral("keep-open"), QStringLiteral("no"));
+            mpv::qt::set_property_async(m_data.handle, QStringLiteral("loop-file"), QStringLiteral("no"));
         } else { // Loop
-            mpv::qt::set_property_async(videoData.handle, QStringLiteral("keep-open"), QStringLiteral("yes"));
-            mpv::qt::set_property_async(videoData.handle, QStringLiteral("loop-file"), QStringLiteral("inf"));
+            mpv::qt::set_property_async(m_data.handle, QStringLiteral("keep-open"), QStringLiteral("yes"));
+            mpv::qt::set_property_async(m_data.handle, QStringLiteral("loop-file"), QStringLiteral("inf"));
         }
     }
 }
 
 void MpvLayer::setTimePause(bool paused, bool updateTime) {
-    if (paused != videoData.videoIsPaused) {
-        videoData.videoIsPaused = paused;
-        mpv::qt::set_property_async(videoData.handle, QStringLiteral("pause"), videoData.videoIsPaused);
-        if (videoData.videoIsPaused) {
-            sgct::Log::Info("Video paused.");
+    if (paused != m_data.mediaIsPaused) {
+        m_data.mediaIsPaused = paused;
+        mpv::qt::set_property_async(m_data.handle, QStringLiteral("pause"), m_data.mediaIsPaused);
+        if (m_data.mediaIsPaused) {
+            sgct::Log::Info("Media paused.");
             if(updateTime)
-                mpv::qt::set_property_async(videoData.handle, QStringLiteral("time-pos"), videoData.timePos);
+                mpv::qt::set_property_async(m_data.handle, QStringLiteral("time-pos"), m_data.timePos);
         }
         else {
-            sgct::Log::Info("Video playing...");
+            sgct::Log::Info("Media playing...");
         }
     }
 }
 
 void MpvLayer::setTimePosition(double timePos, bool updateTime) {
-    videoData.timePos = timePos;
+    m_data.timePos = timePos;
 
     if (updateTime)
-        mpv::qt::set_property_async(videoData.handle, QStringLiteral("time-pos"), timePos);
+        mpv::qt::set_property_async(m_data.handle, QStringLiteral("time-pos"), timePos);
 }
 
 void MpvLayer::setLoopTime(double A, double B, bool enabled) {
     if (enabled) {
-        mpv::qt::set_property_async(videoData.handle, QStringLiteral("ab-loop-a"), A);
-        mpv::qt::set_property_async(videoData.handle, QStringLiteral("ab-loop-b"), B);
+        mpv::qt::set_property_async(m_data.handle, QStringLiteral("ab-loop-a"), A);
+        mpv::qt::set_property_async(m_data.handle, QStringLiteral("ab-loop-b"), B);
     } else {
-        mpv::qt::set_property_async(videoData.handle, QStringLiteral("ab-loop-a"), QStringLiteral("no"));
-        mpv::qt::set_property_async(videoData.handle, QStringLiteral("ab-loop-b"), QStringLiteral("no"));
+        mpv::qt::set_property_async(m_data.handle, QStringLiteral("ab-loop-a"), QStringLiteral("no"));
+        mpv::qt::set_property_async(m_data.handle, QStringLiteral("ab-loop-b"), QStringLiteral("no"));
     }
 }
 
 void MpvLayer::setValue(std::string param, int val) {
-    mpv::qt::set_property_async(videoData.handle, QString::fromStdString(param), val);
-}
-
-void MpvLayer::checkNeededMpvFboResize() {
-    if (videoData.fboWidth == renderData.width && videoData.fboHeight == renderData.height)
-        return;
-
-    int maxTexSize;
-    glGetIntegerv(GL_MAX_TEXTURE_SIZE, &maxTexSize);
-    if (renderData.width <= 0 || renderData.height <= 0 || renderData.width > maxTexSize || renderData.height > maxTexSize)
-        return;
-
-    sgct::Log::Info(fmt::format("New MPV FBO width:{} and height:{}", renderData.width, renderData.height));
-
-    glDeleteFramebuffers(1, &videoData.fboId);
-    glDeleteTextures(1, &renderData.texId);
-
-    createMpvFBO(renderData.width, renderData.height);
-}
-
-void MpvLayer::createMpvFBO(int width, int height) {
-    videoData.fboWidth = width;
-    videoData.fboHeight = height;
-
-    glGenFramebuffers(1, &videoData.fboId);
-    glBindFramebuffer(GL_FRAMEBUFFER, videoData.fboId);
-
-    generateTexture(renderData.texId, width, height);
-
-    glFramebufferTexture2D(
-        GL_FRAMEBUFFER,
-        GL_COLOR_ATTACHMENT0,
-        GL_TEXTURE_2D,
-        renderData.texId,
-        0);
-
-    glBindFramebuffer(GL_FRAMEBUFFER, 0);
-}
-
-void MpvLayer::generateTexture(unsigned int &id, int width, int height) {
-    glGenTextures(1, &id);
-    glPixelStorei(GL_PACK_ALIGNMENT, 1);
-    glPixelStorei(GL_UNPACK_ALIGNMENT, 1);
-
-    glBindTexture(GL_TEXTURE_2D, id);
-
-    glTexImage2D(GL_TEXTURE_2D, 0, GL_RGBA16F, width, height, 0, GL_RGBA, GL_FLOAT, nullptr);
-
-    // Disable mipmaps
-    glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_BASE_LEVEL, 0);
-    glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_MAX_LEVEL, 0);
-
-    glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_MIN_FILTER, GL_LINEAR);
-    glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_MAG_FILTER, GL_LINEAR);
-    glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_WRAP_S, GL_CLAMP_TO_EDGE);
-    glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_WRAP_T, GL_CLAMP_TO_EDGE);
+    mpv::qt::set_property_async(m_data.handle, QString::fromStdString(param), val);
 }

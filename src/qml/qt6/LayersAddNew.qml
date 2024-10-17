@@ -100,6 +100,20 @@ Kirigami.ApplicationWindow {
         }
         onRejected: mpv.focus = true
     }
+    Platform.FileDialog {
+        id: fileToLoadAsAudioLayerDialog
+
+        fileMode: Platform.FileDialog.OpenFile
+        folder: LocationSettings.fileDialogLocation !== "" ? app.pathToUrl(LocationSettings.fileDialogLocation) : app.pathToUrl(LocationSettings.fileDialogLastLocation)
+        title: "Choose audio file"
+
+        onAccepted: {
+            fileForLayer.text = playerController.checkAndCorrectPath(fileToLoadAsAudioLayerDialog.file);
+            layerTitle.text = playerController.returnBaseName(fileForLayer.text);
+            mpv.focus = true;
+        }
+        onRejected: mpv.focus = true
+    }
     GridLayout {
         anchors.fill: parent
         anchors.margins: 15
@@ -180,6 +194,8 @@ Kirigami.ApplicationWindow {
                         fileToLoadAsPdfLayerDialog.open();
                     else if (typeComboBox.currentText === "Video")
                         fileToLoadAsVideoLayerDialog.open();
+                    else if (typeComboBox.currentText === "Audio")
+                        fileToLoadAsAudioLayerDialog.open();
                 }
             }
         }
@@ -240,14 +256,15 @@ Kirigami.ApplicationWindow {
         Label {
             Layout.alignment: Qt.AlignRight
             text: qsTr("Stereo:")
+            enabled: typeComboBox.currentText !== "Audio"
         }
         ComboBox {
             id: stereoscopicModeForLayer
 
             Layout.fillWidth: true
-            enabled: true
             focusPolicy: Qt.NoFocus
             textRole: "mode"
+            enabled: typeComboBox.currentText !== "Audio"
 
             model: ListModel {
                 id: stereoscopicModeForLayerList
@@ -276,14 +293,15 @@ Kirigami.ApplicationWindow {
         Label {
             Layout.alignment: Qt.AlignRight
             text: qsTr("Grid:")
+            enabled: typeComboBox.currentText !== "Audio"
         }
         ComboBox {
             id: gridModeForLayer
 
             Layout.fillWidth: true
-            enabled: true
             focusPolicy: Qt.NoFocus
             textRole: "mode"
+            enabled: typeComboBox.currentText !== "Audio"
 
             model: ListModel {
                 id: gridModeForLayerList
