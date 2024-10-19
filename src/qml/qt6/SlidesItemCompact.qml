@@ -170,11 +170,13 @@ ItemDelegate {
 
         onFinished: {
             slidesView.enabled = true;
+            app.slides.pauseLayerUpdate = false;
             app.action("slidePrevious").enabled = true;
             app.action("slideNext").enabled = true;
         }
         onStarted: {
             slidesView.enabled = false;
+            app.slides.pauseLayerUpdate = true;
             app.action("slidePrevious").enabled = false;
             app.action("slideNext").enabled = false;
         }
@@ -189,11 +191,13 @@ ItemDelegate {
 
         onFinished: {
             slidesView.enabled = true;
+            app.slides.pauseLayerUpdate = false;
             app.action("slidePrevious").enabled = true;
             app.action("slideNext").enabled = true;
         }
         onStarted: {
             slidesView.enabled = false;
+            app.slides.pauseLayerUpdate = true;
             app.action("slidePrevious").enabled = false;
             app.action("slideNext").enabled = false;
         }

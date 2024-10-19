@@ -365,6 +365,16 @@ void SlidesModel::setHasSynced() {
     setNeedsSync(false);
 }
 
+bool SlidesModel::preLoadLayers() {
+    return m_preloadLayers;
+}
+
+void SlidesModel::setPreLoadLayers(bool value) {
+    m_preloadLayers = value;
+    m_needsSync = true;
+    Q_EMIT preLoadLayersChanged();
+}
+
 int SlidesModel::selectedSlideIdx() {
     return m_selectedSlideIdx;
 }
@@ -822,16 +832,26 @@ void SlidesModel::checkMasterLayersRunBasedOnMediaVisibility(int mediaVisibility
     }
 }
 
+bool SlidesModel::pauseLayerUpdate() {
+    return m_pauseLayerUpdate;
+}
+void SlidesModel::setPauseLayerUpdate(bool value) {
+    m_pauseLayerUpdate = value;
+    Q_EMIT pauseLayerUpdateChanged();
+}
+
 void SlidesModel::runRenderOnLayersThatShouldUpdate(bool updateRendering) {
     // Control start/stop with Visibility
-    for (int i = -1; i < numberOfSlides(); i++) {
-        const Layers& slideLayers = slide(i)->getLayers();
-        for (auto layer : slideLayers) {
-            if (layer->shouldUpdate()) {
-                if (!layer->hasInitialized()) {
-                    layer->initialize();
+    if (!pauseLayerUpdate()) {
+        for (int i = -1; i < numberOfSlides(); i++) {
+            const Layers& slideLayers = slide(i)->getLayers();
+            for (auto layer : slideLayers) {
+                if (layer->shouldUpdate() || (preLoadLayers() && !layer->ready())) {
+                    if (!layer->hasInitialized()) {
+                        layer->initialize();
+                    }
+                    layer->update(updateRendering);
                 }
-                layer->update(updateRendering);
             }
         }
     }

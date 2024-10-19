@@ -329,11 +329,13 @@ Rectangle {
         }
         RowLayout {
             Layout.preferredWidth: slidesRoot.width
+            spacing: 1
 
             Rectangle {
+                Layout.fillWidth: true
                 color: Kirigami.Theme.alternateBackgroundColor
                 height: 1
-                width: Kirigami.Units.gridUnit + 10
+                width: 10
             }
             Label {
                 font.pointSize: 9
@@ -343,7 +345,27 @@ Rectangle {
                 Layout.fillWidth: true
                 color: Kirigami.Theme.alternateBackgroundColor
                 height: 1
-                width: Kirigami.Units.gridUnit + 10
+                width: Kirigami.Units.gridUnit
+            }
+            Button {
+                id: preLoadLayersButton
+
+                checkable: true
+                checked: app.slides.preLoadLayers
+                icon.color: app.slides.preLoadLayers ? "lime" : "crimson"
+                icon.name: app.slides.preLoadLayers ? "task-complete" : "address-book-new"
+
+                onCheckedChanged: {
+                    app.slides.preLoadLayers = preLoadLayersButton.checked;
+                }
+
+                ToolTip {
+                    id: preLoadLayersTooltip
+
+                    text: {
+                        app.slides.preLoadLayers ? qsTr("Preload Layers is ON") : qsTr("Preload Layers is OFF");
+                    }
+                }
             }
             Button {
                 id: visibilityViewButton

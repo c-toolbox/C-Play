@@ -54,9 +54,6 @@ void VideoLayer::initializeGL() {
     //  users which run OpenGL on a different thread.)
     mpv_render_context_set_update_callback(m_data.renderContext, on_mpv_render_update, reinterpret_cast<void *>(this));
 
-    // Creating new FBO to render mpv into
-    createMpvFBO(512, 512);
-
     m_data.mpvInitializedGL = true;
 }
 
@@ -73,9 +70,10 @@ void VideoLayer::cleanup() {
     // End Mpv running on separate thread
     MpvLayer::cleanup();
 
-    if (m_data.mpvInitializedGL) {
+    if (m_data.fboCreated) {
         glDeleteFramebuffers(1, &m_data.fboId);
         glDeleteTextures(1, &renderData.texId);
+        m_data.fboCreated = false;
     }
 }
 
@@ -124,13 +122,15 @@ void VideoLayer::checkNeededMpvFboResize() {
 
     sgct::Log::Info(fmt::format("New MPV FBO width:{} and height:{}", renderData.width, renderData.height));
 
-    glDeleteFramebuffers(1, &m_data.fboId);
-    glDeleteTextures(1, &renderData.texId);
-
     createMpvFBO(renderData.width, renderData.height);
 }
 
 void VideoLayer::createMpvFBO(int width, int height) {
+    if (m_data.fboCreated) {
+        glDeleteFramebuffers(1, &m_data.fboId);
+        glDeleteTextures(1, &renderData.texId);
+    }
+
     m_data.fboWidth = width;
     m_data.fboHeight = height;
 
@@ -145,6 +145,8 @@ void VideoLayer::createMpvFBO(int width, int height) {
         GL_TEXTURE_2D,
         renderData.texId,
         0);
+
+    m_data.fboCreated = true;
 
     glBindFramebuffer(GL_FRAMEBUFFER, 0);
 }

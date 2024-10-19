@@ -105,7 +105,7 @@ void PdfLayer::initialize() {
 }
 
 void PdfLayer::update(bool updateRendering) {
-    if(updateRendering)
+    if(updateRendering || !ready())
         handleAsyncPageRender();
 
     if (m_pdfData.threadRunning)
@@ -131,7 +131,7 @@ void PdfLayer::update(bool updateRendering) {
         loadPage = true;
     }
 
-    if (updateRendering && loadPage && page() > 0) {
+    if ((updateRendering || !ready()) && loadPage && page() > 0) {
         m_pdfData.page = page();
         sgct::Log::Info(fmt::format("Loading page {} in {} asynchronously.", m_pdfData.page, m_pdfData.filepath));
         m_pdfData.trd = std::make_unique<std::thread>(loadPageAsync, std::ref(m_pdfData));
@@ -139,7 +139,7 @@ void PdfLayer::update(bool updateRendering) {
 }
 
 bool PdfLayer::ready() {
-    return !m_pdfData.filepath.empty() && m_pdfData.trd == nullptr;
+    return m_pdfData.filepath == filepath() && m_pdfData.page == page() && m_pdfData.trd == nullptr;
 }
 
 bool PdfLayer::loadDocument(std::string filepath) {

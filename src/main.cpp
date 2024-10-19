@@ -39,6 +39,7 @@ ImageLayer *overlayImageLayer;
 MpvLayer *mainVideoLayer;
 
 bool updateLayers = false;
+bool preLoadLayers = false;
 std::vector<BaseLayer *> secondaryLayers;
 std::vector<BaseLayer *> secondaryLayersToKeep;
 
@@ -63,9 +64,7 @@ void initOGL(GLFWwindow *) {
     primaryLayers.push_back(backgroundImageLayer);
 
     mainVideoLayer = new VideoLayer(get_proc_address_glfw, allowDirectRendering, !logFilePath.empty() || !logLevel.empty(), logLevel);
-    mainVideoLayer->initializeMpv();
-    mainVideoLayer->initializeGL();
-    mainVideoLayer->loadFile(SyncHelper::instance().variables.loadedFile);
+    mainVideoLayer->initializeAndLoad(SyncHelper::instance().variables.loadedFile);
     primaryLayers.push_back(mainVideoLayer);
 
     overlayImageLayer = new ImageLayer("overlay");
@@ -202,6 +201,7 @@ std::vector<std::byte> encode() {
         // Sync if layer sync is needed
         serializeObject(data, needLayerSync);
         if (needLayerSync) {
+            serializeObject(data, Application::instance().slidesModel()->preLoadLayers());
             // Layers sync...
             // Orders is top to bottom in the list = (first to last in the vector)
             // Sync only complete layer information when needed
@@ -314,6 +314,7 @@ void decode(const std::vector<std::byte> &data) {
         bool layerSync = false;
         deserializeObject(data, pos, layerSync);
         if (layerSync) {
+            deserializeObject(data, pos, preLoadLayers);
             int numLayers = -1;
             deserializeObject(data, pos, numLayers);
             uint32_t id;
@@ -447,6 +448,12 @@ void postSyncPreDraw() {
                         layerRender->addLayer((*it));
                     }
                 }
+                else if (preLoadLayers && !(*it)->ready()) {
+                    if (!(*it)->hasInitialized()) {
+                        (*it)->initialize();
+                    }
+                    (*it)->update(false);
+                }
             }
         }
 
@@ -542,6 +549,12 @@ void postSyncPreDraw() {
                         (*it)->setTranslate(translateXYZ);
                         layerRender->addLayer((*it));
                     }
+                }
+                else if (preLoadLayers && !(*it)->ready()) {
+                    if (!(*it)->hasInitialized()) {
+                        (*it)->initialize();
+                    }
+                    (*it)->update(false);
                 }
             }
         }

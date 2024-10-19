@@ -87,18 +87,26 @@ public:
     int numberOfSlides();
 
     Q_PROPERTY(bool needsSync
-                   READ needsSync
-                       WRITE setNeedsSync
-                           NOTIFY needsSyncChanged)
+        READ needsSync
+        WRITE setNeedsSync
+        NOTIFY needsSyncChanged)
 
     bool needsSync();
     void setNeedsSync(bool value);
     void setHasSynced();
 
+    Q_PROPERTY(bool preLoadLayers
+        READ preLoadLayers
+        WRITE setPreLoadLayers
+        NOTIFY preLoadLayersChanged)
+
+    bool preLoadLayers();
+    void setPreLoadLayers(bool value);
+
     Q_PROPERTY(int selectedSlideIdx
-                   READ selectedSlideIdx
-                       WRITE setSelectedSlideIdx
-                           NOTIFY selectedSlideChanged)
+        READ selectedSlideIdx
+        WRITE setSelectedSlideIdx
+        NOTIFY selectedSlideChanged)
 
     Q_INVOKABLE int selectedSlideIdx();
     Q_INVOKABLE void setSelectedSlideIdx(int value);
@@ -107,9 +115,9 @@ public:
     Q_INVOKABLE int nextSlideIdx();
 
     Q_PROPERTY(int triggeredSlideIdx
-                   READ triggeredSlideIdx
-                       WRITE setTriggeredSlideIdx
-                           NOTIFY triggeredSlideChanged)
+        READ triggeredSlideIdx
+        WRITE setTriggeredSlideIdx
+        NOTIFY triggeredSlideChanged)
 
     Q_INVOKABLE int triggeredSlideIdx();
     Q_INVOKABLE void setTriggeredSlideIdx(int value);
@@ -117,24 +125,24 @@ public:
     int previousTriggeredIdx();
 
     Q_PROPERTY(int triggeredSlideVisibility
-                   READ triggeredSlideVisibility
-                       WRITE setTriggeredSlideVisibility
-                           NOTIFY triggeredSlideVisibilityChanged)
+        READ triggeredSlideVisibility
+        WRITE setTriggeredSlideVisibility
+        NOTIFY triggeredSlideVisibilityChanged)
 
     Q_INVOKABLE int triggeredSlideVisibility();
     Q_INVOKABLE void setTriggeredSlideVisibility(int value);
 
     Q_PROPERTY(int slideFadeTime
-                  READ slideFadeTime
-                       WRITE setSlideFadeTime
-                           NOTIFY slideFadeTimeChanged)
+        READ slideFadeTime
+        WRITE setSlideFadeTime
+        NOTIFY slideFadeTimeChanged)
 
     Q_INVOKABLE int slideFadeTime();
     Q_INVOKABLE void setSlideFadeTime(int value);
 
     Q_PROPERTY(LayersModel *selected
-                   READ selectedSlide
-                       NOTIFY selectedSlideChanged)
+        READ selectedSlide
+        NOTIFY selectedSlideChanged)
 
     Q_INVOKABLE LayersModel *masterSlide();
     Q_INVOKABLE LayersModel *slide(int i);
@@ -169,17 +177,17 @@ public:
     Q_INVOKABLE int getSlideToPasteIdx();
 
     Q_PROPERTY(bool slidesNeedsSave
-                   READ getSlidesNeedsSave
-                       WRITE setSlidesNeedsSave
-                           NOTIFY slidesNeedsSaveChanged)
+        READ getSlidesNeedsSave
+        WRITE setSlidesNeedsSave
+        NOTIFY slidesNeedsSaveChanged)
 
     Q_INVOKABLE void setSlidesNeedsSave(bool value);
     Q_INVOKABLE bool getSlidesNeedsSave();
 
     Q_PROPERTY(QString slidesName
-                   READ getSlidesName
-                       WRITE setSlidesName
-                           NOTIFY slidesNameChanged)
+        READ getSlidesName
+        WRITE setSlidesName
+        NOTIFY slidesNameChanged)
 
     Q_INVOKABLE void setSlidesName(QString name);
     Q_INVOKABLE QString getSlidesName() const;
@@ -195,6 +203,14 @@ public:
     Q_INVOKABLE void runStartAfterPresentationLoad();
     Q_INVOKABLE void runUpdateAudioOutputOnLayers();
     Q_INVOKABLE void checkMasterLayersRunBasedOnMediaVisibility(int mediaVisibility);
+
+    Q_PROPERTY(bool pauseLayerUpdate
+        READ pauseLayerUpdate
+        WRITE setPauseLayerUpdate
+        NOTIFY pauseLayerUpdateChanged)
+
+    bool pauseLayerUpdate();
+    void setPauseLayerUpdate(bool value);
     void runRenderOnLayersThatShouldUpdate(bool updateRendering);
 
 Q_SIGNALS:
@@ -212,6 +228,8 @@ Q_SIGNALS:
     void copyCleared();
     void previousSlide();
     void nextSlide();
+    void pauseLayerUpdateChanged();
+    void preLoadLayersChanged();
 
 private:
     QList<LayersModel *> m_slides;
@@ -225,6 +243,8 @@ private:
     int m_slideFadeTime = 0;
     int m_slideToPasteIdx = -1;
     bool m_slidesNeedsSave = false;
+    bool m_pauseLayerUpdate = false;
+    bool m_preloadLayers = false;
     bool m_needsSync;
     QString m_slidesName;
     QString m_slidesPath;

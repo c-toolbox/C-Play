@@ -36,10 +36,10 @@ void loadTracks(MpvLayer::mpvData& vd) {
 
 void loadAudioId(MpvLayer::mpvData& vd) {
     if (vd.audioId < 0) {
-        mpv::qt::set_property(vd.handle, QStringLiteral("aid"), QStringLiteral("auto"));
+        mpv::qt::set_property(vd.handle, QStringLiteral("aid"), QStringLiteral("auto"), vd.loggingOn);
     }
     else {
-        mpv::qt::set_property(vd.handle, QStringLiteral("aid"), vd.audioId);
+        mpv::qt::set_property(vd.handle, QStringLiteral("aid"), vd.audioId, vd.loggingOn);
     }
 }
 
@@ -97,7 +97,11 @@ void on_mpv_events(MpvLayer::mpvData &vd, BaseLayer::RenderParams &rp) {
                     // Normally, playback is syncronized, however looping depends on seek speed.
                     // Seek speeds (thus loop speed) is faster when no audio is present, thus nodes might be faster then master.
                     // Hence, we might need to correct things after a loop, between master and nodes.
-                    if (!SyncHelper::instance().variables.timeThresholdOnLoopOnly || (vd.eofMode > 1 && timeToSet < SyncHelper::instance().variables.timeThresholdOnLoopCheckTime) || (vd.eofMode > 1 && timeToSet > (vd.mediaDuration - SyncHelper::instance().variables.timeThresholdOnLoopCheckTime) && (vd.mediaDuration > 0)) || (SyncHelper::instance().variables.loopTimeEnabled && timeToSet < (SyncHelper::instance().variables.loopTimeA + SyncHelper::instance().variables.timeThresholdOnLoopCheckTime)) || (SyncHelper::instance().variables.loopTimeEnabled && SyncHelper::instance().variables.loopTimeB < (timeToSet + SyncHelper::instance().variables.timeThresholdOnLoopCheckTime))) {
+                    if (!SyncHelper::instance().variables.timeThresholdOnLoopOnly 
+                        || (vd.eofMode > 1 && timeToSet < SyncHelper::instance().variables.timeThresholdOnLoopCheckTime) 
+                        || (vd.eofMode > 1 && timeToSet > (vd.mediaDuration - SyncHelper::instance().variables.timeThresholdOnLoopCheckTime) && (vd.mediaDuration > 0)) 
+                        || (SyncHelper::instance().variables.loopTimeEnabled && timeToSet < (SyncHelper::instance().variables.loopTimeA + SyncHelper::instance().variables.timeThresholdOnLoopCheckTime)) 
+                        || (SyncHelper::instance().variables.loopTimeEnabled && SyncHelper::instance().variables.loopTimeB < (timeToSet + SyncHelper::instance().variables.timeThresholdOnLoopCheckTime))) {
                         if (prop->format == MPV_FORMAT_DOUBLE) {
                             double latestPosition = *reinterpret_cast<double *>(prop->data);
                             if (SyncHelper::instance().variables.timeThreshold > 0 && (abs(latestPosition - timeToSet) > SyncHelper::instance().variables.timeThreshold)) {
@@ -152,21 +156,21 @@ void initMPV(MpvLayer::mpvData& vd) {
         sgct::Log::Error("mpv init failed");
 
     // Set default settings
-    mpv::qt::set_property(vd.handle, QStringLiteral("keep-open"), QStringLiteral("yes"));
-    mpv::qt::set_property(vd.handle, QStringLiteral("loop-file"), QStringLiteral("inf"));
+    mpv::qt::set_property(vd.handle, QStringLiteral("keep-open"), QStringLiteral("yes"), vd.loggingOn);
+    mpv::qt::set_property(vd.handle, QStringLiteral("loop-file"), QStringLiteral("inf"), vd.loggingOn);
 
     // Set if we support video or not (enabled by default)
     if (!vd.supportVideo) {
-        mpv::qt::set_property(vd.handle, QStringLiteral("vid"), QStringLiteral("no"));
+        mpv::qt::set_property(vd.handle, QStringLiteral("vid"), QStringLiteral("no"), vd.loggingOn);
     }
 
     // Only audio on master for now
     if (vd.isMaster) {
-        mpv::qt::set_property(vd.handle, QStringLiteral("aid"), QStringLiteral("auto"));
-        mpv::qt::set_property(vd.handle, QStringLiteral("volume-max"), QStringLiteral("100"));
+        mpv::qt::set_property(vd.handle, QStringLiteral("aid"), QStringLiteral("auto"), vd.loggingOn);
+        mpv::qt::set_property(vd.handle, QStringLiteral("volume-max"), QStringLiteral("100"), vd.loggingOn);
     }
     else {
-        mpv::qt::set_property(vd.handle, QStringLiteral("aid"), QStringLiteral("no"));
+        mpv::qt::set_property(vd.handle, QStringLiteral("aid"), QStringLiteral("no"), vd.loggingOn);
     }
 
     // Load mpv configurations
@@ -192,11 +196,19 @@ void initMPV(MpvLayer::mpvData& vd) {
         }
         else {
             // Do not allow direct rendering (EVER).
-            mpv::qt::set_property(vd.handle, QStringLiteral("vd-lavc-dr"), QStringLiteral("no"));
+            mpv::qt::set_property(vd.handle, QStringLiteral("vd-lavc-dr"), QStringLiteral("no"), vd.loggingOn);
             vd.advancedControl = 0;
             vd.reconfigsBeforeUpdate = 0;
         }
     }
+
+    // Observe media parameters
+    if (vd.supportVideo) {
+        mpv_observe_property(vd.handle, 0, "video-params", MPV_FORMAT_NODE);
+    }
+    mpv_observe_property(vd.handle, 0, "pause", MPV_FORMAT_FLAG);
+    mpv_observe_property(vd.handle, 0, "time-pos", MPV_FORMAT_DOUBLE);
+    mpv_observe_property(vd.handle, 0, "duration", MPV_FORMAT_DOUBLE);
 }
 
 auto runMpvAsync = [](MpvLayer::mpvData& data, BaseLayer::RenderParams& rp) {
@@ -228,17 +240,9 @@ void MpvLayer::initialize() {
 
 void MpvLayer::initializeMpv() {
     // Run MPV on another thread
-    m_data.trd = std::make_unique<std::thread>(runMpvAsync, std::ref(m_data), std::ref(renderData));
-    while (!m_data.mpvInitialized) {
+    if (!m_data.threadRunning) {
+        m_data.trd = std::make_unique<std::thread>(runMpvAsync, std::ref(m_data), std::ref(renderData));
     }
-
-    // Observe media parameters
-    if (m_data.supportVideo) {
-        mpv_observe_property(m_data.handle, 0, "video-params", MPV_FORMAT_NODE);
-    }
-    mpv_observe_property(m_data.handle, 0, "pause", MPV_FORMAT_FLAG);
-    mpv_observe_property(m_data.handle, 0, "time-pos", MPV_FORMAT_DOUBLE);
-    mpv_observe_property(m_data.handle, 0, "duration", MPV_FORMAT_DOUBLE);
 }
 
 void MpvLayer::initializeGL() {
@@ -263,32 +267,49 @@ bool MpvLayer::ready() {
     return false;
 }
 
-void MpvLayer::update(bool updateRendering) {
+void MpvLayer::initializeAndLoad(std::string filePath) {
     if (!m_data.mpvInitialized) {
         initializeMpv();
+
+        //Wait for MPV to initialize
+        while (!m_data.mpvInitialized) {}
     }
 
     if (!m_data.mpvInitializedGL) {
         initializeGL();
     }
 
-    if (m_data.loadedFile != filepath()) {
-        loadFile(filepath());
-    }
+    loadFile(filePath);
+}
 
-    if (!isMaster()) {
-        setTimePause(m_data.mediaShouldPause, false);
-        setTimePosition(m_data.timeToSet, m_data.timeIsDirty);
-        m_data.timeIsDirty = false;
+void MpvLayer::update(bool updateRendering) {
+    if (!m_data.mpvInitialized) {
+        initializeMpv();
     }
+    else {
+        if (!m_data.mpvInitializedGL) {
+            initializeGL();
+        }
 
-    if (updateRendering) {
-        updateFrame();
+        if (m_data.loadedFile != filepath()) {
+            loadFile(filepath());
+        }
+
+        if (!isMaster()) {
+            setTimePause(m_data.mediaShouldPause, false);
+            setTimePosition(m_data.timeToSet, m_data.timeIsDirty);
+            m_data.timeIsDirty = false;
+        }
+
+        if (updateRendering) {
+            updateFrame();
+        }
     }
 }
 
 void MpvLayer::start() {
     if (ready() && m_data.mediaIsPaused) {
+        setPosition(0);
         setPause(false);
     }
 }
@@ -296,7 +317,6 @@ void MpvLayer::start() {
 void MpvLayer::stop() {
     if(ready() && !m_data.mediaIsPaused) {
         setPause(true);
-        setPosition(0);
     }
 }
 
@@ -377,10 +397,10 @@ void MpvLayer::updateAudioOutput() {
     if (m_data.mpvInitialized) {
         if (AudioSettings::useCustomAudioOutput()) {
             if (AudioSettings::useAudioDevice()) {
-                mpv::qt::set_property(m_data.handle, QStringLiteral("audio-device"), AudioSettings::preferredAudioOutputDevice());
+                mpv::qt::set_property(m_data.handle, QStringLiteral("audio-device"), AudioSettings::preferredAudioOutputDevice(), m_data.loggingOn);
             }
             else if (AudioSettings::useAudioDriver()) {
-                mpv::qt::set_property(m_data.handle, QStringLiteral("ao"), AudioSettings::preferredAudioOutputDriver());
+                mpv::qt::set_property(m_data.handle, QStringLiteral("ao"), AudioSettings::preferredAudioOutputDriver(), m_data.loggingOn);
             }
         }
     }
@@ -391,7 +411,7 @@ void MpvLayer::setVolume(int v, bool storeLevel) {
         m_volume = v;
     }
     if (m_data.mpvInitialized) {
-        mpv::qt::set_property(m_data.handle, QStringLiteral("volume"), v);
+        mpv::qt::set_property(m_data.handle, QStringLiteral("volume"), v, m_data.loggingOn);
     }
 }
 

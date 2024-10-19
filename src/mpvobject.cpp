@@ -1454,7 +1454,7 @@ void MpvObject::getYouTubePlaylist(const QString &) {
 }
 
 int MpvObject::setProperty(const QString &name, const QVariant &value, bool debug) {
-    auto result = mpv::qt::set_property(mpv, name, value);
+    auto result = mpv::qt::set_property(mpv, name, value, debug);
     if (debug) {
         DEBUG << mpv::qt::get_error(result);
     }

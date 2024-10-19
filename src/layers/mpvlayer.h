@@ -25,6 +25,7 @@ public:
         int audioId = -1;
         int fboWidth = 0;
         int fboHeight = 0;
+        bool fboCreated = false;
         unsigned int fboId = 0;
         int reconfigs = 0;
         int reconfigsBeforeUpdate = 0;
@@ -50,12 +51,12 @@ public:
 
     void initialize();
     void initializeMpv();
-
     virtual void initializeGL();
     virtual void cleanup();
     virtual void updateFrame();
     virtual bool ready();
 
+    void initializeAndLoad(std::string filePath);
     void update(bool updateRendering = true);
 
     void start();

@@ -24,7 +24,7 @@
 static void *get_proc_address_qopengl(void *ctx, const char *name) {
     Q_UNUSED(ctx)
 
-    QOpenGLContext *glctx = QOpenGLContext::currentContext();
+    QOpenGLContext *glctx = QOpenGLContext::globalShareContext();
     if (!glctx)
         return nullptr;
 
