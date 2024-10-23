@@ -30,9 +30,23 @@ NdiLayer::~NdiLayer() {
 
 void NdiLayer::initialize() {
     m_hasInitialized = true;
+    NDIreceiver.SetSenderName(filepath());
 }
 
 void NdiLayer::update(bool updateRendering) {
+    NDIreceiver.SetSenderName(filepath());
+
+    // Check for receiver creation
+    // And find sender
+    if (!OpenReceiver()) {
+        m_isReady = false;
+        return;
+    }
+    else {
+        m_isReady = true;
+    }
+
+    // Let's recieve image
     if(updateRendering)
         ReceiveImage();
 }
@@ -43,11 +57,6 @@ bool NdiLayer::ready() const {
 
 // Receive ofTexture
 bool NdiLayer::ReceiveImage() {
-    // Check for receiver creation
-    if (!OpenReceiver()) {
-        return false;
-    }
-
     // Receive a pixel image first
     unsigned int width = (unsigned int)renderData.width;
     unsigned int height = (unsigned int)renderData.height;
@@ -60,7 +69,6 @@ bool NdiLayer::ReceiveImage() {
 
             GenerateTexture(renderData.texId, width, height);
 
-            NDIreceiver.SetSenderName(filepath());
             renderData.width = (int)width;
             renderData.height = (int)height;
         }

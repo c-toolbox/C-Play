@@ -18,7 +18,6 @@ public:
 
 private:
     bool ReceiveImage();
-
     bool OpenReceiver();
 
     bool GetPixelData(GLuint TextureID, unsigned int width, unsigned int height);

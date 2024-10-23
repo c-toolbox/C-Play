@@ -479,7 +479,13 @@ void LayersModel::decodeFromJSON(QJsonObject &obj, const QStringList &forRelativ
                     QString title = o.value(QStringLiteral("title")).toString();
 
                     QString path = o.value(QStringLiteral("path")).toString();
+#ifdef NDI_SUPPORT
+                    if (type != BaseLayer::NDI) {
+                        path = checkAndCorrectPath(path, forRelativePaths);
+                    }
+#else
                     path = checkAndCorrectPath(path, forRelativePaths);
+#endif
 
                     int grid = PresentationSettings::defaultGridModeForLayers();
                     QString gridStr = o.value(QStringLiteral("grid")).toString();
@@ -617,8 +623,18 @@ void LayersModel::encodeToJSON(QJsonObject &obj, const QStringList &forRelativeP
 
         layerData.insert(QStringLiteral("title"), QJsonValue(QString::fromStdString(layer->title())));
 
+#ifdef NDI_SUPPORT
+        if (layer->type() == BaseLayer::NDI) {
+            layerData.insert(QStringLiteral("path"), QJsonValue(QString::fromStdString(layer->filepath())));
+        }
+        else {
+            QString checkedFilePath = makePathRelativeTo(QString::fromStdString(layer->filepath()), forRelativePaths);
+            layerData.insert(QStringLiteral("path"), QJsonValue(checkedFilePath));
+        }
+#else
         QString checkedFilePath = makePathRelativeTo(QString::fromStdString(layer->filepath()), forRelativePaths);
         layerData.insert(QStringLiteral("path"), QJsonValue(checkedFilePath));
+#endif
 #ifdef PDF_SUPPORT
         if (layer->type() == BaseLayer::PDF) {
             layerData.insert(QStringLiteral("page"), QJsonValue(layer->page()));
