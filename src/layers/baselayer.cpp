@@ -110,7 +110,7 @@ void BaseLayer::update(bool) {
     // Overwrite in derived class
 }
 
-bool BaseLayer::ready() {
+bool BaseLayer::ready() const {
     // Overwrite in derived class
     return false;
 }

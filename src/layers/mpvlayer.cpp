@@ -263,7 +263,7 @@ void MpvLayer::cleanup() {
 void MpvLayer::updateFrame() {
 }
 
-bool MpvLayer::ready() {
+bool MpvLayer::ready() const {
     return false;
 }
 

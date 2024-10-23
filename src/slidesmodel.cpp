@@ -332,6 +332,10 @@ QVariant SlidesModel::data(const QModelIndex &index, int role) const {
         return QVariant(slideItem->getLayersPath());
     case LayersRole:
         return QVariant(slideItem->numberOfLayers());
+    case LayerMinStatusRole:
+        return QVariant(slideItem->minLayerStatus());
+    case LayerMaxStatusRole:
+        return QVariant(slideItem->maxLayerStatus());
     case VisibilityRole:
         return QVariant(slideItem->getLayersVisibility());
     }
@@ -344,6 +348,8 @@ QHash<int, QByteArray> SlidesModel::roleNames() const {
     roles[NameRole] = "name";
     roles[PathRole] = "filepath";
     roles[LayersRole] = "layers";
+    roles[LayerMinStatusRole] = "layerminstatus";
+    roles[LayerMaxStatusRole] = "layermaxstatus";
     roles[VisibilityRole] = "visibility";
     return roles;
 }
@@ -841,17 +847,10 @@ void SlidesModel::setPauseLayerUpdate(bool value) {
 }
 
 void SlidesModel::runRenderOnLayersThatShouldUpdate(bool updateRendering) {
-    // Control start/stop with Visibility
     if (!pauseLayerUpdate()) {
         for (int i = -1; i < numberOfSlides(); i++) {
-            const Layers& slideLayers = slide(i)->getLayers();
-            for (auto layer : slideLayers) {
-                if (layer->shouldUpdate() || (preLoadLayers() && !layer->ready())) {
-                    if (!layer->hasInitialized()) {
-                        layer->initialize();
-                    }
-                    layer->update(updateRendering);
-                }
+            if (slide(i)->runRenderOnLayersThatShouldUpdate(updateRendering, preLoadLayers())) {
+                updateSlide(i);
             }
         }
     }

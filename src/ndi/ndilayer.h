@@ -14,7 +14,7 @@ public:
 
     void initialize();
     void update(bool updateRendering = true);
-    bool ready();
+    bool ready() const;
 
 private:
     bool ReceiveImage();

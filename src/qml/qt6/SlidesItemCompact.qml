@@ -112,6 +112,39 @@ ItemDelegate {
                     app.slides.updateSelectedSlide();
                 }
             }
+            Rectangle {
+                id: layerMinStatus
+                anchors.top: parent.top
+                anchors.right: layerMaxStatus.left
+                anchors.topMargin: 5
+                width: 10
+                height: 10
+                radius: 5
+                visible: model.layerminstatus !== model.layermaxstatus
+                color: (model.layerminstatus === 1 ? "orange" : "crimson")          
+            }
+            Rectangle {
+                id: layerMaxStatus
+                anchors.top: parent.top
+                anchors.right: parent.right
+                anchors.topMargin: 5
+                width: 10
+                height: 10
+                radius: 5
+                visible: model.layerminstatus !== model.layermaxstatus
+                color: (model.layermaxstatus === 2 ? "lime" : "orange")       
+            }
+            Rectangle {
+                id: layerStatus
+                anchors.top: parent.top
+                anchors.right: parent.right
+                anchors.topMargin: 5
+                width: 10
+                height: 10
+                radius: 5
+                visible: model.layerminstatus === model.layermaxstatus
+                color: (model.layerminstatus === 2 ? "lime" : model.layerminstatus === 1 ? "orange" : model.layerminstatus === 0 ? "crimson" : "black")         
+            }
             VisibilitySlider {
                 id: visibilitySlider
 

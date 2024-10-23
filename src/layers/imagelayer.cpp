@@ -31,7 +31,7 @@ void ImageLayer::update(bool updateRendering) {
         processImageUpload(filepath(), imageData.filename != filepath());
 }
 
-bool ImageLayer::ready() {
+bool ImageLayer::ready() const {
     return !imageData.filename.empty() && imageData.trd == nullptr;
 }
 

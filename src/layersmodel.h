@@ -71,6 +71,7 @@ public:
         PageRole,
         StereoRole,
         GridRole,
+        StatusRole,
         VisibilityRole
     };
 
@@ -89,6 +90,9 @@ public:
     void setHasSynced();
 
     Q_INVOKABLE BaseLayer *layer(int i);
+    Q_INVOKABLE int layerStatus(int i);
+    Q_INVOKABLE int minLayerStatus();
+    Q_INVOKABLE int maxLayerStatus();
 
     Q_INVOKABLE int addLayer(QString title, int type, QString filepath, int stereoMode, int gridMode);
     Q_INVOKABLE void removeLayer(int i);
@@ -160,6 +164,8 @@ public:
     void setNdiSendersModel(NDISendersModel *model);
 #endif
 
+    bool runRenderOnLayersThatShouldUpdate(bool updateRendering, bool preload);
+
 Q_SIGNALS:
     void layersModelChanged();
     void layersTypeModelChanged();
@@ -173,6 +179,7 @@ Q_SIGNALS:
 
 private:
     Layers m_layers;
+    QList<int> m_layersStatus;
     LayersTypeModel *m_layerTypeModel;
     BaseLayer::LayerHierarchy m_layerHierachy;
 #ifdef NDI_SUPPORT

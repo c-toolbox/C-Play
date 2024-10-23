@@ -22,7 +22,7 @@ public:
 
     void initialize();
     void update(bool updateRendering = true);
-    bool ready();
+    bool ready() const;
 
     bool processImageUpload(std::string filename, bool forceUpdate);
     std::string loadedFile();

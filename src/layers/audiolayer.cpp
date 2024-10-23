@@ -13,6 +13,6 @@ AudioLayer::~AudioLayer() {
     cleanup();
 }
 
-bool AudioLayer::ready() {
+bool AudioLayer::ready() const {
     return !m_data.loadedFile.empty();
 }

@@ -80,7 +80,7 @@ public:
 
     virtual void initialize();
     virtual void update(bool updateRendering = true);
-    virtual bool ready();
+    virtual bool ready() const;
 
     virtual void start();
     virtual void stop();

@@ -37,7 +37,7 @@ void NdiLayer::update(bool updateRendering) {
         ReceiveImage();
 }
 
-bool NdiLayer::ready() {
+bool NdiLayer::ready() const {
     return m_isReady;
 }
 

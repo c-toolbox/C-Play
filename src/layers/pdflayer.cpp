@@ -138,7 +138,7 @@ void PdfLayer::update(bool updateRendering) {
     }
 }
 
-bool PdfLayer::ready() {
+bool PdfLayer::ready() const {
     return m_pdfData.filepath == filepath() && m_pdfData.page == page() && m_pdfData.trd == nullptr;
 }
 

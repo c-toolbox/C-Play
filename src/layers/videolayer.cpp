@@ -103,7 +103,7 @@ void VideoLayer::updateFrame() {
     }
 }
 
-bool VideoLayer::ready() {
+bool VideoLayer::ready() const {
     return !m_data.loadedFile.empty() && m_data.updateRendering;
 }
 

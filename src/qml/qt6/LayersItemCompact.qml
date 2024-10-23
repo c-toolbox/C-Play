@@ -114,6 +114,15 @@ ItemDelegate {
                     layerView.layerItem.layerTitle = slideTitleField.text;
                 }
             }
+            Rectangle {
+                anchors.top: parent.top
+                anchors.right: parent.right
+                anchors.topMargin: 5
+                width: 10
+                height: 10
+                radius: 5
+                color: (model.status === 2 ? "lime" : model.status === 1 ? "orange" : model.status === 0 ? "crimson" : "black")
+            }
             VisibilitySlider {
                 id: visibilitySlider
 

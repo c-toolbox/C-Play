@@ -47,6 +47,7 @@ LayersModel::~LayersModel() {
     for (auto l : m_layers)
         delete l;
     m_layers.clear();
+    m_layersStatus.clear();
 }
 
 int LayersModel::rowCount(const QModelIndex &parent) const {
@@ -100,6 +101,8 @@ QVariant LayersModel::data(const QModelIndex &index, int role) const {
         } else {
             return QVariant(QStringLiteral(""));
         }
+    case StatusRole:
+        return QVariant(m_layersStatus.at(index.row()));
     case VisibilityRole:
         return QVariant(static_cast<int>(layerItem->alpha() * 100.f));
     }
@@ -115,6 +118,7 @@ QHash<int, QByteArray> LayersModel::roleNames() const {
     roles[PageRole] = "page";
     roles[StereoRole] = "stereoVideo";
     roles[GridRole] = "gridToMapOn";
+    roles[StatusRole] = "status";
     roles[VisibilityRole] = "visibility";
     return roles;
 }
@@ -161,6 +165,35 @@ BaseLayer *LayersModel::layer(int i) {
         return nullptr;
 }
 
+int LayersModel::layerStatus(int i) {
+    if (i >= 0 && m_layersStatus.size() > i)
+        return m_layersStatus[i];
+    else
+        return -1;
+}
+
+int LayersModel::minLayerStatus() {
+    if (m_layersStatus.isEmpty())
+        return -1;
+
+    int minStatus = 2;
+    for (int i = 0; i < m_layersStatus.size(); i++) {
+        minStatus = std::min(minStatus, m_layersStatus[i]);
+    }
+    return minStatus;
+}
+
+int LayersModel::maxLayerStatus() {
+    if (m_layersStatus.isEmpty())
+        return -1;
+
+    int maxStatus = 0;
+    for (int i = 0; i < m_layersStatus.size(); i++) {
+        maxStatus = std::max(maxStatus, m_layersStatus[i]);
+    }
+    return maxStatus;
+}
+
 int LayersModel::addLayer(QString title, int type, QString filepath, int stereoMode, int gridMode) {
     beginInsertRows(QModelIndex(), m_layers.size(), m_layers.size());
 
@@ -180,6 +213,7 @@ int LayersModel::addLayer(QString title, int type, QString filepath, int stereoM
             GridSettings::plane_Calculate_Size_Based_on_Video());
         newLayer->initialize();
         m_layers.push_back(newLayer);
+        m_layersStatus.push_back(0);
         setLayersNeedsSave(true);
         m_needsSync = true;
     }
@@ -198,6 +232,7 @@ void LayersModel::removeLayer(int i) {
     beginRemoveRows(QModelIndex(), i, i);
     delete m_layers[i];
     m_layers.removeAt(i);
+    m_layersStatus.removeAt(i);
     endRemoveRows();
     setLayersNeedsSave(true);
     m_needsSync = true;
@@ -210,6 +245,7 @@ void LayersModel::moveLayerTop(int i) {
         return;
     beginMoveRows(QModelIndex(), i, i, QModelIndex(), 0);
     m_layers.move(i, 0);
+    m_layersStatus.move(i, 0);
     endMoveRows();
     setLayersNeedsSave(true);
     m_needsSync = true;
@@ -222,6 +258,7 @@ void LayersModel::moveLayerUp(int i) {
         return;
     beginMoveRows(QModelIndex(), i, i, QModelIndex(), i - 1);
     m_layers.move(i, i - 1);
+    m_layersStatus.move(i, i - 1);
     endMoveRows();
     setLayersNeedsSave(true);
     m_needsSync = true;
@@ -246,6 +283,7 @@ void LayersModel::moveLayerBottom(int i) {
         return;
     beginMoveRows(QModelIndex(), m_layers.size() - 1, m_layers.size() - 1, QModelIndex(), i);
     m_layers.move(i, m_layers.size() - 1);
+    m_layersStatus.move(i, m_layers.size() - 1);
     endMoveRows();
     setLayersNeedsSave(true);
     m_needsSync = true;
@@ -263,6 +301,7 @@ void LayersModel::clearLayers() {
     for (auto l : m_layers)
         delete l;
     m_layers.clear();
+    m_layersStatus.clear();
     endRemoveRows();
     setLayersNeedsSave(false);
     m_needsSync = true;
@@ -332,6 +371,7 @@ void LayersModel::addCopyOfLayer(BaseLayer* srcLayer) {
         newLayer->setHierarchy(hierarchy());
         newLayer->initialize();
         m_layers.push_back(newLayer);
+        m_layersStatus.push_back(0);
         setLayersNeedsSave(true);
         m_needsSync = true;
     }
@@ -666,6 +706,41 @@ void LayersModel::setNdiSendersModel(NDISendersModel *model) {
     m_ndiSendersModel = model;
 }
 #endif
+
+bool LayersModel::runRenderOnLayersThatShouldUpdate(bool updateRendering, bool preload) {
+    bool statusHasUpdated = false;
+    for (int i = 0; i < m_layers.size(); i++) {
+        auto layer = m_layers[i];
+        if (layer->shouldUpdate() || (preload && !layer->ready())) {
+            if (!layer->hasInitialized()) {
+                layer->initialize();
+            }
+            layer->update(updateRendering);
+        }
+        if (layer->ready() && layer->alpha() > 0.f) {
+            if (m_layersStatus[i] != 2) {
+                m_layersStatus[i] = 2;
+                updateLayer(i);
+                statusHasUpdated = true;
+            }
+        }
+        else if (layer->ready()) {
+            if (m_layersStatus[i] != 1) {
+                m_layersStatus[i] = 1;
+                updateLayer(i);
+                statusHasUpdated = true;
+            }
+        }
+        else {
+            if (m_layersStatus[i] != 0) {
+                m_layersStatus[i] = 0;
+                updateLayer(i);
+                statusHasUpdated = true;
+            }
+        }
+    }
+    return statusHasUpdated;
+}
 
 LayersTypeModel::LayersTypeModel(QObject *parent)
     : QAbstractListModel(parent) {

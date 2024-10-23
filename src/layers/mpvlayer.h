@@ -54,7 +54,7 @@ public:
     virtual void initializeGL();
     virtual void cleanup();
     virtual void updateFrame();
-    virtual bool ready();
+    virtual bool ready() const;
 
     void initializeAndLoad(std::string filePath);
     void update(bool updateRendering = true);

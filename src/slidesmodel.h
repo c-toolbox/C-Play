@@ -77,6 +77,8 @@ public:
         NameRole = Qt::UserRole,
         PathRole,
         LayersRole,
+        LayerMinStatusRole,
+        LayerMaxStatusRole,
         VisibilityRole
     };
 

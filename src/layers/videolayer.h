@@ -14,7 +14,7 @@ public:
     void initializeGL();
     void cleanup();
     void updateFrame();
-    bool ready();
+    bool ready() const;
 
     void updateFbo();
 

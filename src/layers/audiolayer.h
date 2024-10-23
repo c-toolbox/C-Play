@@ -11,7 +11,7 @@ public:
         std::string logLevel = "info");
     ~AudioLayer();
 
-    bool ready();
+    bool ready() const;
 };
 
 #endif // AUDIOLAYER_H
