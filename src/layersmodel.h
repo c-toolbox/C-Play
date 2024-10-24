@@ -11,8 +11,6 @@
 #include <QAbstractListModel>
 #include <layers/baselayer.h>
 
-class ofxNDIreceive;
-
 using Layers = QList<BaseLayer *>;
 
 class LayersTypeModel : public QAbstractListModel {
@@ -53,7 +51,6 @@ public:
 
 private:
     QStringList m_NDIsenders;
-    ofxNDIreceive *m_NDIreceiver;
 };
 #endif
 

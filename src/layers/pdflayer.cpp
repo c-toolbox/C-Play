@@ -38,6 +38,13 @@ PdfDocumentManager::~PdfDocumentManager() {
     _instance = nullptr;
 }
 
+PdfDocumentManager& PdfDocumentManager::instance() {
+    if (!_instance) {
+        _instance = new PdfDocumentManager();
+    }
+    return *_instance;
+}
+
 poppler::document* PdfDocumentManager::getDocument(std::string filepath) {
     auto it = m_documents.find(filepath);
 
@@ -73,13 +80,6 @@ void PdfDocumentManager::trashDocument(std::string filepath) {
             m_documents.erase(it);
         }
     }
-}
-
-PdfDocumentManager& PdfDocumentManager::instance() {
-    if (!_instance) {
-        _instance = new PdfDocumentManager();
-    }
-    return *_instance;
 }
 
 PdfLayer::PdfLayer() {

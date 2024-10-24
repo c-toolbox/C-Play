@@ -7,6 +7,21 @@
 
 class ofxNDIreceive;
 
+class NdiFinder {
+public:
+    NdiFinder();
+    ~NdiFinder();
+    static NdiFinder& instance();
+
+    int findSenders();
+    std::vector<std::string> getSendersList();
+    bool senderExists(std::string senderName);
+
+private:
+    ofxNDIreceive* m_NDIreceiver;
+    static NdiFinder* _instance;
+};
+
 class NdiLayer : public BaseLayer {
 public:
     NdiLayer();

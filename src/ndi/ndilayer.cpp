@@ -1,5 +1,37 @@
 #include "ndilayer.h"
 
+NdiFinder* NdiFinder::_instance = nullptr;
+
+NdiFinder::NdiFinder() : m_NDIreceiver(new ofxNDIreceive()) {
+    m_NDIreceiver->CreateFinder();
+}
+
+NdiFinder::~NdiFinder() {
+    delete m_NDIreceiver;
+    delete _instance;
+    _instance = nullptr;
+}
+
+NdiFinder& NdiFinder::instance() {
+    if (!_instance) {
+        _instance = new NdiFinder();
+    }
+    return *_instance;
+}
+
+int NdiFinder::findSenders() {
+    return m_NDIreceiver->FindSenders();
+}
+
+std::vector<std::string> NdiFinder::getSendersList() {
+    return m_NDIreceiver->GetSenderList();
+}
+
+bool NdiFinder::senderExists(std::string senderName) {
+    int senderIdx;
+    return m_NDIreceiver->GetSenderIndex(senderName, senderIdx);
+}
+
 NdiLayer::NdiLayer() {
     setType(BaseLayer::LayerType::NDI);
     NDIreceiver.ResetFps(30.0);
@@ -34,6 +66,18 @@ void NdiLayer::initialize() {
 }
 
 void NdiLayer::update(bool updateRendering) {
+    // Check sender amount
+    int senders = NdiFinder::instance().findSenders();
+    if (senders < 1) {
+        m_isReady = false;
+        return;
+    }
+
+    // Check if our sender exists
+    m_isReady = NdiFinder::instance().senderExists(filepath());
+    if (!m_isReady)
+        return;
+
     NDIreceiver.SetSenderName(filepath());
 
     // Check for receiver creation
@@ -47,7 +91,7 @@ void NdiLayer::update(bool updateRendering) {
     }
 
     // Let's recieve image
-    if(updateRendering)
+    if(m_isReady && updateRendering)
         ReceiveImage();
 }
 

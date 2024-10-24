@@ -9,6 +9,9 @@
 #include "gridsettings.h"
 #include "locationsettings.h"
 #include "presentationsettings.h"
+#ifdef NDI_SUPPORT
+#include <ndi/ndilayer.h>
+#endif
 #include <QDir>
 #include <QFileInfo>
 #include <QJsonArray>
@@ -16,10 +19,6 @@
 #include <QJsonObject>
 #include <QOpenGLContext>
 #include <QQuickView>
-
-#ifdef NDI_SUPPORT
-#include <ndi/ofxNDI/ofxNDIreceive.h>
-#endif
 
 static void *get_proc_address_qopengl(void *ctx, const char *name) {
     Q_UNUSED(ctx)
@@ -793,13 +792,10 @@ QHash<int, QByteArray> LayersTypeModel::roleNames() const {
 
 #ifdef NDI_SUPPORT
 NDISendersModel::NDISendersModel(QObject *parent)
-    : QAbstractListModel(parent),
-      m_NDIreceiver(new ofxNDIreceive()) {
-    m_NDIreceiver->CreateFinder();
+    : QAbstractListModel(parent) {
 }
 
 NDISendersModel::~NDISendersModel() {
-    delete m_NDIreceiver;
 }
 
 int NDISendersModel::rowCount(const QModelIndex &parent) const {
@@ -829,8 +825,8 @@ QHash<int, QByteArray> NDISendersModel::roleNames() const {
 }
 
 int NDISendersModel::updateSendersList() {
-    int senders = m_NDIreceiver->FindSenders();
-    std::vector<std::string> sendersList = m_NDIreceiver->GetSenderList();
+    int senders = NdiFinder::instance().findSenders();
+    std::vector<std::string> sendersList = NdiFinder::instance().getSendersList();
 
     beginResetModel();
     m_NDIsenders.clear();
