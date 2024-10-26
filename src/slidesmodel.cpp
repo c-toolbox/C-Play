@@ -562,6 +562,11 @@ void SlidesModel::removeSlide(int i) {
         m_selectedSlideIdx = -1;
 
     endRemoveRows();
+
+    if (m_slides.isEmpty()) {
+        setSelectedSlideIdx(-1);
+    }
+
     setSlidesNeedsSave(true);
     m_needsSync = true;
 

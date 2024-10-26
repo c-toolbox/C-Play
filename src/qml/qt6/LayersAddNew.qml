@@ -58,58 +58,74 @@ Kirigami.ApplicationWindow {
 
     Platform.FileDialog {
         id: fileToLoadAsImageLayerDialog
+        property bool acceptedOnes: false
 
         fileMode: Platform.FileDialog.OpenFile
-        folder: LocationSettings.fileDialogLocation !== "" ? app.pathToUrl(LocationSettings.fileDialogLocation) : app.pathToUrl(LocationSettings.fileDialogLastLocation)
+        folder: fileToLoadAsImageLayerDialog.acceptedOnes ? app.pathToUrl(LocationSettings.imageFileDialogLastLocation) : app.pathToUrl(LocationSettings.imageFileDialogLocation)
         nameFilters: ["Image files (*.png *.jpg *.jpeg *.tga)"]
         title: "Choose image file"
 
         onAccepted: {
             fileForLayer.text = playerController.checkAndCorrectPath(fileToLoadAsImageLayerDialog.file);
             layerTitle.text = playerController.returnBaseName(fileForLayer.text);
+            LocationSettings.imageFileDialogLastLocation = app.parentUrl(fileToLoadAsImageLayerDialog.file);
+            LocationSettings.save();
+            fileToLoadAsImageLayerDialog.acceptedOnes = true;
             mpv.focus = true;
         }
         onRejected: mpv.focus = true
     }
     Platform.FileDialog {
         id: fileToLoadAsPdfLayerDialog
+        property bool acceptedOnes: false
 
         fileMode: Platform.FileDialog.OpenFile
-        folder: LocationSettings.fileDialogLocation !== "" ? app.pathToUrl(LocationSettings.fileDialogLocation) : app.pathToUrl(LocationSettings.fileDialogLastLocation)
+        folder: fileToLoadAsPdfLayerDialog.acceptedOnes ? app.pathToUrl(LocationSettings.pdfFileDialogLastLocation) : app.pathToUrl(LocationSettings.pdfFileDialogLocation)
         nameFilters: ["PDF files (*.pdf)"]
         title: "Choose pdf file"
 
         onAccepted: {
             fileForLayer.text = playerController.checkAndCorrectPath(fileToLoadAsPdfLayerDialog.file);
             layerTitle.text = playerController.returnBaseName(fileForLayer.text);
+            LocationSettings.pdfFileDialogLastLocation = app.parentUrl(fileToLoadAsPdfLayerDialog.file);
+            LocationSettings.save();
+            fileToLoadAsPdfLayerDialog.acceptedOnes = true;
             mpv.focus = true;
         }
         onRejected: mpv.focus = true
     }
     Platform.FileDialog {
         id: fileToLoadAsVideoLayerDialog
+        property bool acceptedOnes: false
 
         fileMode: Platform.FileDialog.OpenFile
-        folder: LocationSettings.fileDialogLocation !== "" ? app.pathToUrl(LocationSettings.fileDialogLocation) : app.pathToUrl(LocationSettings.fileDialogLastLocation)
+        folder: fileToLoadAsVideoLayerDialog.acceptedOnes ? app.pathToUrl(LocationSettings.videoFileDialogLastLocation) : app.pathToUrl(LocationSettings.videoFileDialogLocation)
         title: "Choose video file"
 
         onAccepted: {
             fileForLayer.text = playerController.checkAndCorrectPath(fileToLoadAsVideoLayerDialog.file);
             layerTitle.text = playerController.returnBaseName(fileForLayer.text);
+            LocationSettings.videoFileDialogLastLocation = app.parentUrl(fileToLoadAsVideoLayerDialog.file);
+            LocationSettings.save();
+            fileToLoadAsVideoLayerDialog.acceptedOnes = true;
             mpv.focus = true;
         }
         onRejected: mpv.focus = true
     }
     Platform.FileDialog {
         id: fileToLoadAsAudioLayerDialog
+        property bool acceptedOnes: false
 
         fileMode: Platform.FileDialog.OpenFile
-        folder: LocationSettings.fileDialogLocation !== "" ? app.pathToUrl(LocationSettings.fileDialogLocation) : app.pathToUrl(LocationSettings.fileDialogLastLocation)
+        folder: fileToLoadAsAudioLayerDialog.acceptedOnes ? app.pathToUrl(LocationSettings.audioFileDialogLastLocation) : app.pathToUrl(LocationSettings.audioFileDialogLocation)
         title: "Choose audio file"
 
         onAccepted: {
             fileForLayer.text = playerController.checkAndCorrectPath(fileToLoadAsAudioLayerDialog.file);
             layerTitle.text = playerController.returnBaseName(fileForLayer.text);
+            LocationSettings.audioFileDialogLastLocation = app.parentUrl(fileToLoadAsAudioLayerDialog.file);
+            LocationSettings.save();
+            fileToLoadAsAudioLayerDialog.acceptedOnes = true;
             mpv.focus = true;
         }
         onRejected: mpv.focus = true

@@ -86,7 +86,7 @@ public:
     QVariant data(const QModelIndex &index, int role = Qt::DisplayRole) const override;
     virtual QHash<int, QByteArray> roleNames() const override;
 
-    int numberOfSlides();
+    Q_INVOKABLE int numberOfSlides();
 
     Q_PROPERTY(bool needsSync
         READ needsSync

@@ -121,16 +121,16 @@ Kirigami.ApplicationWindow {
         id: viewPlaylistItemWindow
 
     }
-    Actions {
-        id: actions
-
-    }
     SlidesQtItem {
         id: slidesViewItem
 
         Component.onCompleted: {
-            slidesViewItem.slides = app.slides;
+            slidesViewItem.initializeWithControlWindow(window, app.slides);
         }
+    }
+    Actions {
+        id: actions
+
     }
     BackgroundImage {
         id: bgImage

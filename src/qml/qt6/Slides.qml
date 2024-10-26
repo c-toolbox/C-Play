@@ -233,6 +233,7 @@ Rectangle {
 
                     onClicked: {
                         app.slides.removeSlide(slidesView.currentIndex);
+                        app.slides.selectedSlideIdx = slidesView.currentIndex;
                     }
 
                     ToolTip {
@@ -394,6 +395,7 @@ Rectangle {
                 onClicked: {
                     slidesView.currentIndex = -1;
                     app.slides.slideToPaste = -1;
+                    app.slides.selectedSlideIdx = -1;
                     if (layers.state === "hidden") {
                         actions.toggleLayersAction.trigger();
                     }

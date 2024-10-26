@@ -27,8 +27,8 @@ SettingsBasePage {
             var filePath = openPrimaryFileDialogLocation.selectedFolder.toString();
             // remove prefixed "file:///"
             filePath = filePath.replace(/^(file:\/{3})/, "");
-            fileDialogLocation.text = filePath;
-            LocationSettings.fileDialogLocation = fileDialogLocation.text;
+            fileDialogLocationText.text = filePath;
+            LocationSettings.fileDialogLocation = fileDialogLocationText.text;
             LocationSettings.save();
             mpv.focus = true;
         }
@@ -44,8 +44,8 @@ SettingsBasePage {
             var filePath = openCPlayFileLocation.selectedFolder.toString();
             // remove prefixed "file:///"
             filePath = filePath.replace(/^(file:\/{3})/, "");
-            cPlayFileLocation.text = filePath;
-            LocationSettings.cPlayFileLocation = cPlayFileLocation.text;
+            cPlayFileLocationText.text = filePath;
+            LocationSettings.cPlayFileLocation = cPlayFileLocationText.text;
             LocationSettings.save();
             mpv.focus = true;
         }
@@ -61,8 +61,8 @@ SettingsBasePage {
             var filePath = openCPlayMediaLocation.selectedFolder.toString();
             // remove prefixed "file:///"
             filePath = filePath.replace(/^(file:\/{3})/, "");
-            cPlayMediaLocation.text = filePath;
-            LocationSettings.cPlayMediaLocation = cPlayMediaLocation.text;
+            cPlayMediaLocationText.text = filePath;
+            LocationSettings.cPlayMediaLocation = cPlayMediaLocationText.text;
             LocationSettings.save();
             mpv.focus = true;
         }
@@ -78,8 +78,76 @@ SettingsBasePage {
             var filePath = openUniviewVideoLocation.selectedFolder.toString();
             // remove prefixed "file:///"
             filePath = filePath.replace(/^(file:\/{3})/, "");
-            univiewVideoLocation.text = filePath;
-            LocationSettings.univiewVideoLocation = univiewVideoLocation.text;
+            univiewVideoLocationText.text = filePath;
+            LocationSettings.univiewVideoLocation = univiewVideoLocationText.text;
+            LocationSettings.save();
+            mpv.focus = true;
+        }
+        onRejected: mpv.focus = true
+    }
+    FolderDialog {
+        id: videoFileDialogLocation
+
+        currentFolder: LocationSettings.videoFileDialogLocation !== "" ? app.pathToUrl(LocationSettings.videoFileDialogLocation) : app.pathToUrl(LocationSettings.videoFileDialogLastLocation)
+        title: "Choose Common Media Location For Video Files"
+
+        onAccepted: {
+            var filePath = videoFileDialogLocation.selectedFolder.toString();
+            // remove prefixed "file:///"
+            filePath = filePath.replace(/^(file:\/{3})/, "");
+            videoFileDialogLocationText.text = filePath;
+            LocationSettings.videoFileDialogLocation = videoFileDialogLocationText.text;
+            LocationSettings.save();
+            mpv.focus = true;
+        }
+        onRejected: mpv.focus = true
+    }
+    FolderDialog {
+        id: imageFileDialogLocation
+
+        currentFolder: LocationSettings.imageFileDialogLocation !== "" ? app.pathToUrl(LocationSettings.imageFileDialogLocation) : app.pathToUrl(LocationSettings.imageFileDialogLastLocation)
+        title: "Choose Common Media Location For Image Files"
+
+        onAccepted: {
+            var filePath = imageFileDialogLocation.selectedFolder.toString();
+            // remove prefixed "file:///"
+            filePath = filePath.replace(/^(file:\/{3})/, "");
+            imageFileDialogLocationText.text = filePath;
+            LocationSettings.imageFileDialogLocation = imageFileDialogLocationText.text;
+            LocationSettings.save();
+            mpv.focus = true;
+        }
+        onRejected: mpv.focus = true
+    }
+    FolderDialog {
+        id: audioFileDialogLocation
+
+        currentFolder: LocationSettings.audioFileDialogLocation !== "" ? app.pathToUrl(LocationSettings.audioFileDialogLocation) : app.pathToUrl(LocationSettings.audioFileDialogLastLocation)
+        title: "Choose Common Media Location For Audio Files"
+
+        onAccepted: {
+            var filePath = audioFileDialogLocation.selectedFolder.toString();
+            // remove prefixed "file:///"
+            filePath = filePath.replace(/^(file:\/{3})/, "");
+            audioFileDialogLocationText.text = filePath;
+            LocationSettings.audioFileDialogLocation = audioFileDialogLocationText.text;
+            LocationSettings.save();
+            mpv.focus = true;
+        }
+        onRejected: mpv.focus = true
+    }
+    FolderDialog {
+        id: pdfFileDialogLocation
+
+        currentFolder: LocationSettings.pdfFileDialogLocation !== "" ? app.pathToUrl(LocationSettings.pdfFileDialogLocation) : app.pathToUrl(LocationSettings.pdfFileDialogLastLocation)
+        title: "Choose Common Media Location For PDF Files"
+
+        onAccepted: {
+            var filePath = pdfFileDialogLocation.selectedFolder.toString();
+            // remove prefixed "file:///"
+            filePath = filePath.replace(/^(file:\/{3})/, "");
+            pdfFileDialogLocationText.text = filePath;
+            LocationSettings.pdfFileDialogLocation = pdfFileDialogLocationText.text;
             LocationSettings.save();
             mpv.focus = true;
         }
@@ -105,13 +173,13 @@ SettingsBasePage {
             height: cPlayFileLocation.height
 
             TextField {
-                id: cPlayFileLocation
+                id: cPlayFileLocationText
 
                 placeholderText: qsTr("Set for relative cplayfile/list paths")
                 text: LocationSettings.cPlayFileLocation
 
                 onEditingFinished: {
-                    LocationSettings.cPlayFileLocation = cPlayFileLocation.text;
+                    LocationSettings.cPlayFileLocation = cPlayFileLocationText.text;
                     LocationSettings.save();
                 }
 
@@ -142,13 +210,13 @@ SettingsBasePage {
             height: cPlayMediaLocation.height
 
             TextField {
-                id: cPlayMediaLocation
+                id: cPlayMediaLocationText
 
                 placeholderText: qsTr("Set for relative media paths")
                 text: LocationSettings.cPlayMediaLocation
 
                 onEditingFinished: {
-                    LocationSettings.cPlayMediaLocation = cPlayMediaLocation.text;
+                    LocationSettings.cPlayMediaLocation = cPlayMediaLocationText.text;
                     LocationSettings.save();
                 }
 
@@ -179,13 +247,13 @@ SettingsBasePage {
             height: fileDialogLocation.height
 
             TextField {
-                id: fileDialogLocation
+                id: fileDialogLocationText
 
                 placeholderText: qsTr("Recommended empty...")
                 text: LocationSettings.fileDialogLocation
 
                 onEditingFinished: {
-                    LocationSettings.fileDialogLocation = fileDialogLocation.text;
+                    LocationSettings.fileDialogLocation = fileDialogLocationText.text;
                     LocationSettings.save();
                 }
 
@@ -208,6 +276,154 @@ SettingsBasePage {
         }
         Label {
             Layout.alignment: Qt.AlignRight
+            text: qsTr("Video file dialog location")
+        }
+        RowLayout {
+            Layout.columnSpan: 2
+            Layout.fillWidth: true
+            height: videoFileDialogLocation.height
+
+            TextField {
+                id: videoFileDialogLocationText
+
+                placeholderText: qsTr("Recommended empty...")
+                text: LocationSettings.videoFileDialogLocation
+
+                onEditingFinished: {
+                    LocationSettings.videoFileDialogLocation = videoFileDialogLocationText.text;
+                    LocationSettings.save();
+                }
+
+                ToolTip {
+                    text: qsTr("If empty a specific video file dialog will remember the last opened location.")
+                }
+            }
+            ToolButton {
+                id: videoFileDialogLocationLoadButton
+
+                focusPolicy: Qt.NoFocus
+                icon.height: 16
+                icon.name: "system-file-manager"
+                text: ""
+
+                onClicked: {
+                    videoFileDialogLocation.open();
+                }
+            }
+        }
+        Label {
+            Layout.alignment: Qt.AlignRight
+            text: qsTr("Image file dialog location")
+        }
+        RowLayout {
+            Layout.columnSpan: 2
+            Layout.fillWidth: true
+            height: imageFileDialogLocation.height
+
+            TextField {
+                id: imageFileDialogLocationText
+
+                placeholderText: qsTr("Recommended empty...")
+                text: LocationSettings.imageFileDialogLocation
+
+                onEditingFinished: {
+                    LocationSettings.imageFileDialogLocation = imageFileDialogLocationText.text;
+                    LocationSettings.save();
+                }
+
+                ToolTip {
+                    text: qsTr("If empty a specific image file dialog will remember the last opened location.")
+                }
+            }
+            ToolButton {
+                id: imageFileDialogLocationLoadButton
+
+                focusPolicy: Qt.NoFocus
+                icon.height: 16
+                icon.name: "system-file-manager"
+                text: ""
+
+                onClicked: {
+                    imageFileDialogLocation.open();
+                }
+            }
+        }
+        Label {
+            Layout.alignment: Qt.AlignRight
+            text: qsTr("Audio file dialog location")
+        }
+        RowLayout {
+            Layout.columnSpan: 2
+            Layout.fillWidth: true
+            height: audioFileDialogLocation.height
+
+            TextField {
+                id: audioFileDialogLocationText
+
+                placeholderText: qsTr("Recommended empty...")
+                text: LocationSettings.audioFileDialogLocation
+
+                onEditingFinished: {
+                    LocationSettings.audioFileDialogLocation = audioFileDialogLocationText.text;
+                    LocationSettings.save();
+                }
+
+                ToolTip {
+                    text: qsTr("If empty a specific audio file dialog will remember the last opened location.")
+                }
+            }
+            ToolButton {
+                id: audioFileDialogLocationLoadButton
+
+                focusPolicy: Qt.NoFocus
+                icon.height: 16
+                icon.name: "system-file-manager"
+                text: ""
+
+                onClicked: {
+                    audioFileDialogLocation.open();
+                }
+            }
+        }
+        Label {
+            Layout.alignment: Qt.AlignRight
+            text: qsTr("PDF file dialog location")
+        }
+        RowLayout {
+            Layout.columnSpan: 2
+            Layout.fillWidth: true
+            height: pdfFileDialogLocation.height
+
+            TextField {
+                id: pdfFileDialogLocationText
+
+                placeholderText: qsTr("Recommended empty...")
+                text: LocationSettings.pdfFileDialogLocation
+
+                onEditingFinished: {
+                    LocationSettings.pdfFileDialogLocation = pdfFileDialogLocationText.text;
+                    LocationSettings.save();
+                }
+
+                ToolTip {
+                    text: qsTr("If empty a specific pdf file dialog will remember the last opened location.")
+                }
+            }
+            ToolButton {
+                id: pdfFileDialogLocationLoadButton
+
+                focusPolicy: Qt.NoFocus
+                icon.height: 16
+                icon.name: "system-file-manager"
+                text: ""
+
+                onClicked: {
+                    pdfFileDialogLocation.open();
+                }
+            }
+        }
+        Label {
+            Layout.alignment: Qt.AlignRight
             text: qsTr("Uniview video location")
         }
         RowLayout {
@@ -216,13 +432,13 @@ SettingsBasePage {
             height: univiewVideoLocation.height
 
             TextField {
-                id: univiewVideoLocation
+                id: univiewVideoLocationText
 
                 placeholderText: qsTr("Only needed to load *.fdv files")
                 text: LocationSettings.univiewVideoLocation
 
                 onEditingFinished: {
-                    LocationSettings.univiewVideoLocation = univiewVideoLocation.text;
+                    LocationSettings.univiewVideoLocation = univiewVideoLocationText.text;
                     LocationSettings.save();
                 }
 

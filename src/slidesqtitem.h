@@ -10,8 +10,10 @@
 
 #include <QOpenGLFunctions>
 #include <QtQuick/QQuickItem>
-#include <QtQuick/QQuickWindow>
+#include <QTimer>
 
+class QQuickRenderControl;
+class QQuickWindow;
 class SlidesModel;
 
 class SlidesQtItemRenderer : public QObject, protected QOpenGLFunctions {
@@ -19,20 +21,17 @@ class SlidesQtItemRenderer : public QObject, protected QOpenGLFunctions {
 public:
     ~SlidesQtItemRenderer();
 
-    void setWindow(QQuickWindow *window);
-
-    SlidesModel* slidesModel() const;
-    void setSlidesModel(SlidesModel* sm);
+    void initializeRenderer(QQuickWindow* window, SlidesModel* sm);
 
     Q_INVOKABLE void init();
-    Q_INVOKABLE void paint();
-
-Q_SIGNALS:
-    void viewChanged();
+    Q_INVOKABLE void update();
 
 private:
+
     SlidesModel* m_slidesModel = nullptr;
     QQuickWindow *m_window = nullptr;
+    QQuickRenderControl* m_renderControl = nullptr;
+    QQuickWindow* m_quickPrivateWindow = nullptr;
 };
 
 class SlidesQtItem : public QQuickItem {
@@ -42,26 +41,19 @@ class SlidesQtItem : public QQuickItem {
 public:
     SlidesQtItem();
 
-    Q_PROPERTY(SlidesModel* slides 
-        READ slidesModel 
-        WRITE setSlidesModel 
-        NOTIFY slidesModelChanged)
+    Q_INVOKABLE void initializeWithControlWindow(QQuickWindow *win, SlidesModel* slides);
 
-    Q_INVOKABLE void sync();
     Q_INVOKABLE void cleanup();
 
 Q_SIGNALS:
     void slidesModelChanged();
 
 private:
-    SlidesModel* slidesModel() const;
-    void setSlidesModel(SlidesModel* sm);
-
     Q_INVOKABLE void handleWindowChanged(QQuickWindow *win);
     void releaseResources() override;
 
+    QQuickWindow* m_parentWindow = nullptr;
     SlidesQtItemRenderer *m_renderer = nullptr;
-    QTimer *m_timer = nullptr;
 };
 
 #endif // SLIDESQTITEM_H

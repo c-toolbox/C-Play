@@ -11,46 +11,9 @@
 #include <QOpenGLContext>
 #include <QTimer>
 #include <QtCore/QRunnable>
-#include <QtQuick/qquickwindow.h>
-
-SlidesQtItem::SlidesQtItem()
-    : m_renderer(nullptr) {
-    connect(this, &QQuickItem::windowChanged, this, &SlidesQtItem::handleWindowChanged);
-}
-
-void SlidesQtItem::handleWindowChanged(QQuickWindow *win) {
-    if (win) {
-        connect(win, &QQuickWindow::beforeSynchronizing, this, &SlidesQtItem::sync, Qt::DirectConnection);
-        connect(win, &QQuickWindow::sceneGraphInvalidated, this, &SlidesQtItem::cleanup, Qt::DirectConnection);
-        win->setColor(Qt::black);
-
-        if (m_timer == nullptr) {
-            m_timer = new QTimer();
-            m_timer->setInterval((1.0f / 60.0f) * 1000.0f);
-
-            connect(m_timer, &QTimer::timeout, win, &QQuickWindow::update);
-
-            m_timer->start();
-        }
-    }
-}
-
-void SlidesQtItem::cleanup() {
-    delete m_renderer;
-    m_renderer = nullptr;
-}
-
-SlidesModel* SlidesQtItem::slidesModel() const {
-    if (m_renderer)
-        return m_renderer->slidesModel();
-    else
-        return nullptr;
-}
-
-void SlidesQtItem::setSlidesModel(SlidesModel* sm) {
-    if (m_renderer)
-        m_renderer->setSlidesModel(sm);
-}
+#include <QtQuick/QQuickWindow>
+#include <QtQuick/QQuickRenderControl>
+#include <QQuickGraphicsDevice>
 
 class CleanupJob : public QRunnable {
 public:
@@ -67,38 +30,52 @@ void SlidesQtItem::releaseResources() {
 }
 
 SlidesQtItemRenderer::~SlidesQtItemRenderer() {
-}
-
-void SlidesQtItemRenderer::setWindow(QQuickWindow *window) {
-    m_window = window;
-}
-
-SlidesModel* SlidesQtItemRenderer::slidesModel() const {
-    return m_slidesModel;
-}
-
-void SlidesQtItemRenderer::setSlidesModel(SlidesModel* sm) {
-    m_slidesModel = sm;
-}
-
-void SlidesQtItem::sync() {
-    if (!m_renderer) {
-        m_renderer = new SlidesQtItemRenderer();
-        connect(window(), &QQuickWindow::beforeRendering, m_renderer, &SlidesQtItemRenderer::init, Qt::DirectConnection);
-        connect(window(), &QQuickWindow::beforeRenderPassRecording, m_renderer, &SlidesQtItemRenderer::paint, Qt::DirectConnection);
+    if (m_quickPrivateWindow) {
+        delete m_quickPrivateWindow;
+        m_quickPrivateWindow = nullptr;
     }
-    m_renderer->setWindow(window());
+    if (m_renderControl) {
+        delete m_renderControl;
+        m_renderControl = nullptr;
+    }
+}
+
+void SlidesQtItemRenderer::initializeRenderer(QQuickWindow* window, SlidesModel* sm) {
+    if (!m_window)
+        m_window = window;
+
+    if (!m_slidesModel)
+        m_slidesModel = sm;
+
+    if (!m_renderControl || !m_quickPrivateWindow) {
+        m_renderControl = new QQuickRenderControl(this);
+
+        // Create a QQuickWindow that is associated with out render control. Note that this
+        // window never gets created or shown, meaning that it will never get an underlying
+        // native (platform) window.
+        m_quickPrivateWindow = new QQuickWindow(m_renderControl);
+
+        // Now hook up the signals. For simplicy we don't differentiate between
+        // renderRequested (only render is needed, no sync) and sceneChanged (polish and sync
+        // is needed too).
+        connect(m_window, &QQuickWindow::sceneGraphInitialized, m_quickPrivateWindow, &QQuickWindow::sceneGraphInitialized);
+        connect(m_window, &QQuickWindow::sceneGraphInvalidated, m_quickPrivateWindow, &QQuickWindow::sceneGraphInvalidated);
+        connect(m_renderControl, &QQuickRenderControl::renderRequested, this, &SlidesQtItemRenderer::update);
+
+        m_quickPrivateWindow->setGraphicsDevice(m_window->graphicsDevice());
+        m_renderControl->initialize();
+    }
 }
 
 void SlidesQtItemRenderer::init() {
-    QSGRendererInterface *rif = m_window->rendererInterface();
+    QSGRendererInterface* rif = m_quickPrivateWindow->rendererInterface();
     Q_ASSERT(rif->graphicsApi() == QSGRendererInterface::OpenGL);
 
     initializeOpenGLFunctions();
 }
 
-void SlidesQtItemRenderer::paint() {
-    m_window->beginExternalCommands();
+void SlidesQtItemRenderer::update() {
+    m_quickPrivateWindow->beginExternalCommands();
 
     // Update all layers that need update
     // But avoid rendering, as this is a non-visible context window
@@ -106,9 +83,38 @@ void SlidesQtItemRenderer::paint() {
         m_slidesModel->runRenderOnLayersThatShouldUpdate(false);
     }
 
-    m_window->endExternalCommands();
+    m_quickPrivateWindow->endExternalCommands();
 
 #if QT_VERSION < QT_VERSION_CHECK(6, 0, 0)
     m_window->resetOpenGLState();
 #endif
+}
+
+SlidesQtItem::SlidesQtItem()
+    : m_renderer(nullptr) {
+    connect(this, &QQuickItem::windowChanged, this, &SlidesQtItem::handleWindowChanged);
+}
+
+void SlidesQtItem::handleWindowChanged(QQuickWindow* win) {
+    if (win) {
+        connect(win, &QQuickWindow::sceneGraphInvalidated, this, &SlidesQtItem::cleanup, Qt::DirectConnection);
+    }
+}
+
+void SlidesQtItem::cleanup() {
+    if (m_renderer) {
+        delete m_renderer;
+        m_renderer = nullptr;
+    }
+}
+
+void SlidesQtItem::initializeWithControlWindow(QQuickWindow* win, SlidesModel* sm) {
+    m_parentWindow = win;
+    if (!m_renderer) {
+        m_renderer = new SlidesQtItemRenderer();
+        m_renderer->initializeRenderer(m_parentWindow, sm);
+        connect(m_parentWindow, &QQuickWindow::sceneGraphInvalidated, this, &SlidesQtItem::cleanup, Qt::DirectConnection);
+        connect(m_parentWindow, &QQuickWindow::beforeRendering, m_renderer, &SlidesQtItemRenderer::init, Qt::DirectConnection);
+        connect(m_parentWindow, &QQuickWindow::beforeRenderPassRecording, m_renderer, &SlidesQtItemRenderer::update, Qt::DirectConnection);
+    }
 }

@@ -640,7 +640,7 @@ void LayersModel::encodeToJSON(QJsonObject &obj, const QStringList &forRelativeP
             layerData.insert(QStringLiteral("numPages"), QJsonValue(layer->numPages()));
         }
 #endif
-        if (layer->type() == BaseLayer::VIDEO) {
+        if (layer->type() == BaseLayer::VIDEO || layer->type() == BaseLayer::AUDIO) {
             if (layer->hasAudio()) {
                 layerData.insert(QStringLiteral("volume"), QJsonValue(layer->volume()));
                 layerData.insert(QStringLiteral("audioId"), QJsonValue(layer->audioId()));

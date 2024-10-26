@@ -32,9 +32,49 @@
     <entry name="FileDialogLastLocation" type="String">
       <label>File dialog last location</label>
       <code>
+        QString fileFolder = QStandardPaths::writableLocation(QStandardPaths::MoviesLocation);
+      </code>
+      <default code="true">fileFolder</default>
+    </entry>
+    <entry name="VideoFileDialogLocation" type="String">
+      <label>Video file default dialog location</label>
+    </entry>
+    <entry name="VideoFileDialogLastLocation" type="String">
+      <label>Video file dialog last location</label>
+      <code>
         QString videoFolder = QStandardPaths::writableLocation(QStandardPaths::MoviesLocation);
       </code>
       <default code="true">videoFolder</default>
+    </entry>
+    <entry name="ImageFileDialogLocation" type="String">
+      <label>Image file default dialog location</label>
+    </entry>
+    <entry name="ImageFileDialogLastLocation" type="String">
+      <label>Image file dialog last location</label>
+      <code>
+        QString imageFolder = QStandardPaths::writableLocation(QStandardPaths::PicturesLocation);
+      </code>
+      <default code="true">imageFolder</default>
+    </entry>
+    <entry name="AudioFileDialogLocation" type="String">
+      <label>Audio file default dialog location</label>
+    </entry>
+    <entry name="AudioFileDialogLastLocation" type="String">
+      <label>Audio file dialog last location</label>
+      <code>
+        QString audioFolder = QStandardPaths::writableLocation(QStandardPaths::MusicLocation);
+      </code>
+      <default code="true">audioFolder</default>
+    </entry>
+    <entry name="PdfFileDialogLocation" type="String">
+      <label>Pdf file default dialog location</label>
+    </entry>
+    <entry name="PdfFileDialogLastLocation" type="String">
+      <label>Pdf file dialog last location</label>
+      <code>
+        QString documentFolder = QStandardPaths::writableLocation(QStandardPaths::DocumentsLocation);
+      </code>
+      <default code="true">documentFolder</default>
     </entry>
     <entry name="LastPlayedFile" type="String">
       <label>Last played file</label>
