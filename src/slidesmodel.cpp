@@ -828,16 +828,32 @@ void SlidesModel::runUpdateAudioOutputOnLayers() {
     }
 }
 
+void SlidesModel::runUpdateVolumeOnLayers(int volume) {
+    for (int i = -1; i < numberOfSlides(); i++) {
+        const Layers& slideLayers = slide(i)->getLayers();
+        for (auto layer : slideLayers) {
+            float volLevelF = static_cast<float>(layer->volume()) * (static_cast<float>(volume) / 100.f);
+            layer->setVolume(static_cast<int>(volLevelF), false);
+        }
+    }
+}
+
 void SlidesModel::checkMasterLayersRunBasedOnMediaVisibility(int mediaVisibility) {
     // Start/stop master layers that are visible dependent on media visibility
     const Layers& slideLayers = masterSlide()->getLayers();
-    for (auto layer : slideLayers) {
-        if (layer->alpha() > 0.f) {
-            if (mediaVisibility < 100 && layer->pause()) {
-                layer->start();
-            }
-            else if (mediaVisibility == 100 && !layer->pause()) {
-                layer->stop();
+    for (int i = 0; i < slideLayers.size(); i++) {
+        if (PresentationSettings::mediaVisibilityControlMasterLayers()) {
+            slideLayers[i]->setAlpha(static_cast<float>(100 - mediaVisibility) / 100.f);
+            masterSlide()->updateLayer(i);
+        }
+        else {
+            if (slideLayers[i]->alpha() > 0.f) {
+                if (mediaVisibility < 100 && slideLayers[i]->pause()) {
+                    slideLayers[i]->start();
+                }
+                else if (mediaVisibility == 100 && !slideLayers[i]->pause()) {
+                    slideLayers[i]->stop();
+                }
             }
         }
     }

@@ -443,6 +443,11 @@ Rectangle {
                     app.slides.checkMasterLayersRunBasedOnMediaVisibility(mpv.visibility);
                 }
 
+                function onVolumeChanged() {
+                    if(PresentationSettings.masterVolumeControlLayersVolume)
+                        app.slides.runUpdateVolumeOnLayers(mpv.volume);
+                } 
+
                 function onAudioOutputChanged() {
                     app.slides.runUpdateAudioOutputOnLayers();
                 }

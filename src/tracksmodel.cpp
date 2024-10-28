@@ -17,9 +17,7 @@ TracksModel::TracksModel(QObject *parent)
 }
 
 int TracksModel::rowCount(const QModelIndex & /*parent*/) const {
-    if (m_tracks)
-        return m_tracks->size();
-    else return 0;
+    return countTracks();
 }
 
 QVariant TracksModel::data(const QModelIndex &index, int role) const {
@@ -89,10 +87,12 @@ void TracksModel::setTracks(std::vector<Track>* tracks) {
 }
 
 int TracksModel::countTracks() const {
-    if (m_tracks)
-        return m_tracks->size();
-    else
+    if (m_tracks) {
+        return static_cast<int>(m_tracks->size());
+    }
+    else {
         return 0;
+    }
 }
 
 std::string TracksModel::getListAsFormattedString(std::string removePrefix, int charsPerItem) const {

@@ -204,6 +204,7 @@ public:
 
     Q_INVOKABLE void runStartAfterPresentationLoad();
     Q_INVOKABLE void runUpdateAudioOutputOnLayers();
+    Q_INVOKABLE void runUpdateVolumeOnLayers(int volume);
     Q_INVOKABLE void checkMasterLayersRunBasedOnMediaVisibility(int mediaVisibility);
 
     Q_PROPERTY(bool pauseLayerUpdate

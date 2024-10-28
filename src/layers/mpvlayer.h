@@ -23,6 +23,7 @@ public:
         bool supportVideo = true;
         std::vector<Track> audioTracks;
         int audioId = -1;
+        int volume = 100;
         int fboWidth = 0;
         int fboHeight = 0;
         bool fboCreated = false;

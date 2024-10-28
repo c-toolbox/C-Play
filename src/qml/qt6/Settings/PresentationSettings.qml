@@ -193,6 +193,42 @@ SettingsBasePage {
             Layout.fillWidth: true
         }
 
+        Item {
+            height: 1
+            width: 1
+        }
+        CheckBox {
+            checked: PresentationSettings.mediaVisibilityControlMasterLayers
+            text: qsTr("Media visibility control master layer visibility.")
+
+            onCheckedChanged: {
+                PresentationSettings.mediaVisibilityControlMasterLayers = checked;
+                PresentationSettings.save();
+            }
+        }
+        Item {
+            // spacer item
+            Layout.fillWidth: true
+        }
+
+        Item {
+            height: 1
+            width: 1
+        }
+        CheckBox {
+            checked: PresentationSettings.masterVolumeControlLayersVolume
+            text: qsTr("Master volume control all layers volume.")
+
+            onCheckedChanged: {
+                PresentationSettings.masterVolumeControlLayersVolume = checked;
+                PresentationSettings.save();
+            }
+        }
+        Item {
+            // spacer item
+            Layout.fillWidth: true
+        }
+
         Label {
             Layout.alignment: Qt.AlignRight
             text: qsTr("Default visibility for new layer:")

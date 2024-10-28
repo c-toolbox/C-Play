@@ -286,7 +286,7 @@ SettingsBasePage {
             TextField {
                 id: videoFileDialogLocationText
 
-                placeholderText: qsTr("Recommended empty...")
+                placeholderText: qsTr("For first lookup...")
                 text: LocationSettings.videoFileDialogLocation
 
                 onEditingFinished: {
@@ -295,7 +295,7 @@ SettingsBasePage {
                 }
 
                 ToolTip {
-                    text: qsTr("If empty a specific video file dialog will remember the last opened location.")
+                    text: qsTr("Will be used first time after launch. Then last opened location will be used.")
                 }
             }
             ToolButton {
@@ -323,7 +323,7 @@ SettingsBasePage {
             TextField {
                 id: imageFileDialogLocationText
 
-                placeholderText: qsTr("Recommended empty...")
+                placeholderText: qsTr("For first lookup...")
                 text: LocationSettings.imageFileDialogLocation
 
                 onEditingFinished: {
@@ -332,7 +332,7 @@ SettingsBasePage {
                 }
 
                 ToolTip {
-                    text: qsTr("If empty a specific image file dialog will remember the last opened location.")
+                    text: qsTr("Will be used first time after launch. Then last opened location will be used.")
                 }
             }
             ToolButton {
@@ -360,7 +360,7 @@ SettingsBasePage {
             TextField {
                 id: audioFileDialogLocationText
 
-                placeholderText: qsTr("Recommended empty...")
+                placeholderText: qsTr("For first lookup...")
                 text: LocationSettings.audioFileDialogLocation
 
                 onEditingFinished: {
@@ -369,7 +369,7 @@ SettingsBasePage {
                 }
 
                 ToolTip {
-                    text: qsTr("If empty a specific audio file dialog will remember the last opened location.")
+                    text: qsTr("Will be used first time after launch. Then last opened location will be used.")
                 }
             }
             ToolButton {
@@ -397,7 +397,7 @@ SettingsBasePage {
             TextField {
                 id: pdfFileDialogLocationText
 
-                placeholderText: qsTr("Recommended empty...")
+                placeholderText: qsTr("For first lookup...")
                 text: LocationSettings.pdfFileDialogLocation
 
                 onEditingFinished: {
@@ -406,7 +406,7 @@ SettingsBasePage {
                 }
 
                 ToolTip {
-                    text: qsTr("If empty a specific pdf file dialog will remember the last opened location.")
+                    text: qsTr("Will be used first time after launch. Then last opened location will be used.")
                 }
             }
             ToolButton {

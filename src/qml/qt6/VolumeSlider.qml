@@ -17,7 +17,7 @@ import org.ctoolbox.cplay
 Slider {
     id: root
 
-    property string overlayLabel: qsTr("Media volume")
+    property string overlayLabel: qsTr("Master volume")
 
     from: 0
     implicitHeight: 25
