@@ -245,33 +245,30 @@ if(WIN32)
     set_target_properties(${TARGET_NAME} PROPERTIES WIN32_EXECUTABLE TRUE)
 endif()
 
+if(BUILD_WITH_VCPKG_SUPPORT)
+    message("Remember to run: vcpkg install minizip libpng")
+    option(SGCT_DEP_INCLUDE_LIBPNG "Include LibPNG library" OFF)
+    option(SGCT_DEP_INCLUDE_ZLIB "Include ZLIB library" OFF)
+else()
+    option(SGCT_DEP_INCLUDE_LIBPNG "Include LibPNG library" ON)
+    option(SGCT_DEP_INCLUDE_ZLIB "Include ZLIB library" ON)
+endif()
+
 if(BUILD_CPLAY_WITH_NDI)
     list(APPEND TARGET_LIBRARIES NDI::NDI)
     target_compile_definitions(${TARGET_NAME} PUBLIC NDI_SUPPORT)
+
+    list(APPEND TARGET_LIBRARIES portaudio)
+    get_target_property(PORTAUDIO_BIN_DLL portaudio IMPORTED_LOCATION_RELEASE)
+    set_target_properties(portaudio PROPERTIES IMPORTED_LOCATION ${PORTAUDIO_BIN_DLL})
 endif()
 
 if(BUILD_CPLAY_WITH_POPPLER)
-    if(WIN32)
-        set(VCPKG_LIBRARY_LINKAGE dynamic)
-        find_path(POPPLER_BIN_DIR
-            NAMES
-                poppler.dll
-                poppler-cpp.dll
-            PATHS "$ENV{POPPLER_BIN_DIR}"
-        )
-        find_file(POPPLER_DLL
-            NAMES "poppler.dll"
-            PATHS  "${POPPLER_BIN_DIR}"
-        )
-        find_file(POPPLER_CPP_DLL
-            NAMES "poppler-cpp.dll"
-            PATHS  "${POPPLER_BIN_DIR}"
-        )
-    endif()
-    list(APPEND TARGET_LIBRARIES ${Poppler_LIBRARIES})
-    target_compile_options(${TARGET_NAME} PRIVATE ${Poppler_DEFINITIONS})
+    list(APPEND TARGET_LIBRARIES unofficial::poppler::poppler-cpp)
     target_compile_definitions(${TARGET_NAME} PUBLIC PDF_SUPPORT)
-    target_include_directories(${TARGET_NAME} PRIVATE ${Poppler_INCLUDE_DIRS})
+
+    get_target_property(POPPLER_INCLUDE_DIRS unofficial::poppler::poppler-private INTERFACE_INCLUDE_DIRECTORIES)
+    target_include_directories(${TARGET_NAME} PRIVATE ${POPPLER_INCLUDE_DIRS})
 endif()
 
 option(SGCT_FREETYPE_SUPPORT "Build SGCT with Freetype2" OFF)
@@ -355,24 +352,6 @@ if(CPLAY_INSTALL_DEPENDENCIES)
                 file(INSTALL
                     DESTINATION "${CMAKE_INSTALL_PREFIX}/bin"
                     FILES "${_ndi_dll}"
-                )
-            ]])
-        endif()
-        if(BUILD_CPLAY_WITH_POPPLER)
-            install(CODE "set(_poppler_dll \"${POPPLER_DLL}\")")
-            install(CODE [[
-                message("Copying ${_poppler_dll}")
-                file(INSTALL
-                    DESTINATION "${CMAKE_INSTALL_PREFIX}/bin"
-                    FILES "${_poppler_dll}"
-                )
-            ]])
-            install(CODE "set(_poppler_cpp_dll \"${POPPLER_CPP_DLL}\")")
-            install(CODE [[
-                message("Copying ${_poppler_cpp_dll}")
-                file(INSTALL
-                    DESTINATION "${CMAKE_INSTALL_PREFIX}/bin"
-                    FILES "${_poppler_cpp_dll}"
                 )
             ]])
         endif()

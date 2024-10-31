@@ -2,8 +2,8 @@
 #include <presentationsettings.h>
 #include <sgct/sgct.h>
 #include <fmt/core.h>
-#include <poppler-page.h>
-#include <poppler-page-renderer.h>
+#include <cpp/poppler-page.h>
+#include <cpp/poppler-page-renderer.h>
 
 auto loadPageAsync = [](PdfLayer::PdfData& data) {
     data.threadRunning = true;

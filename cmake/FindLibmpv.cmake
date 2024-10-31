@@ -74,6 +74,7 @@ if (Libmpv_FOUND AND NOT TARGET Libmpv::Libmpv)
     add_library(Libmpv::Libmpv UNKNOWN IMPORTED)
     set_target_properties(Libmpv::Libmpv PROPERTIES
         IMPORTED_LOCATION "${Libmpv_LIBRARIES}"
+        IMPORTED_LOCATION_RELEASE "${Libmpv_LIBRARIES}"
         INTERFACE_INCLUDE_DIRECTORIES "${Libmpv_INCLUDE_DIRS}"
     )
 endif()

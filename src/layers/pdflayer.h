@@ -3,8 +3,8 @@
 
 #include <layers/baselayer.h>
 #include <sgct/opengl.h>
-#include <poppler-document.h>
-#include <poppler-image.h>
+#include <cpp/poppler-document.h>
+#include <cpp/poppler-image.h>
 #include <map>
 
 class PdfDocumentManager {
