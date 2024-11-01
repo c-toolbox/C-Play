@@ -4,6 +4,7 @@
 #include <layers/baselayer.h>
 #include <sgct/opengl.h>
 #include <ndi/ofxNDI/ofxNDIreceive.h>
+#include <portaudio.h>
 
 class ofxNDIreceive;
 
@@ -31,8 +32,11 @@ public:
     void update(bool updateRendering = true);
     bool ready() const;
 
+    void start();
+    void stop();
+
 private:
-    bool ReceiveImage();
+    bool ReceiveData(bool updateRendering);
     bool OpenReceiver();
 
     bool GetPixelData(GLuint TextureID, unsigned int width, unsigned int height);
@@ -40,9 +44,19 @@ private:
     void GenerateTexture(unsigned int &id, int width, int height);
 
     ofxNDIreceive NDIreceiver;
+
+    PaStreamParameters m_audioOutputParameters;
+    PaStream* m_audioStream;
+    PaError m_audioError;
+    bool m_audioStreamOpen = false;
+    bool m_audioStreamStarted = false;
+    bool m_recevieAudio = false;
+    bool m_recevieAudioThroughCallback = true;
+
     GLuint m_pbo[2] = {0, 0}; // PBOs used for asynchronous pixel load
     int PboIndex = 0;         // Index used for asynchronous pixel load
     int NextPboIndex = 0;
+    bool m_hasCapturedImage = false;
     bool m_isReady = false;
 };
 

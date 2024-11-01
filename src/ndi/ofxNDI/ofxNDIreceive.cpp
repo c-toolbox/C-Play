@@ -157,6 +157,9 @@
 	29.05.24 - Return to rolling average for received fps calculation with 0.02 update
 			   Add ResetFps to reset starting received frame rate
 	01.06.24 - UpdateFps - rolling average damping based on received frame time
+	01.11.24 - By: Erik Sundén
+			   Added ImageOnly and AudioOnly capture methods, with or without frame syncing
+			   Added convertion to interleaved audio 
 
 */
 
@@ -211,6 +214,7 @@ ofxNDIreceive::ofxNDIreceive()
 	no_sources = 0;
 	bNDIinitialized = false;
 	bReceiverCreated = false;
+	m_frameSyncOn = false;
 	m_FrameType = NDIlib_frame_type_none;
 	m_nSenders = 0;
 	m_Width = 0;
@@ -220,7 +224,9 @@ ofxNDIreceive::ofxNDIreceive()
 	m_senderName = "";
 	// Audio
 	m_AudioData = nullptr;
+	m_AudioDataInterleaved = nullptr;
 	m_bAudio = false;
+	m_bAudioConvertToInterleaved = false;
 	m_bAudioFrame = false;
 	m_nAudioSampleRate = 0;
 	m_nAudioSamples = 0;
@@ -258,6 +264,7 @@ ofxNDIreceive::ofxNDIreceive()
 ofxNDIreceive::~ofxNDIreceive()
 {
 	FreeAudioData();
+	if (m_frameSyncOn) NDIlib_framesync_destroy(pNDI_framesync);
 	if(p_NDILib && pNDI_recv) p_NDILib->recv_destroy(pNDI_recv);
 	if(p_NDILib && pNDI_find) p_NDILib->find_destroy(pNDI_find);
 	// Library is released in ofxNDIdynloader
@@ -663,9 +670,10 @@ int64_t ofxNDIreceive::GetVideoTimecode()
 }
 
 // Set to receive Audio
-void ofxNDIreceive::SetAudio(bool bAudio)
+void ofxNDIreceive::SetAudio(bool bAudio, bool bAudioConverToInterleaved)
 {
 	m_bAudio = bAudio;
+	m_bAudioConvertToInterleaved = bAudioConverToInterleaved;
 	if (!m_bAudio)
 		FreeAudioData();
 }
@@ -698,9 +706,13 @@ int ofxNDIreceive::GetAudioSampleRate()
 }
 
 // Get audio frame data pointer
-float * ofxNDIreceive::GetAudioData()
+float* ofxNDIreceive::GetAudioData()
 {
 	return m_AudioData;
+}
+
+int16_t* ofxNDIreceive::GetAudioInterleaved() {
+	return m_AudioDataInterleaved;
 }
 
 // Return audio frame data
@@ -952,7 +964,7 @@ void ofxNDIreceive::ReleaseReceiver()
 //
 // Receive RGBA image pixels to a buffer
 //
-bool ofxNDIreceive::ReceiveImage(unsigned char *pixels,
+bool ofxNDIreceive::ReceiveImageAndAudio(unsigned char *pixels,
 	unsigned int &width, unsigned int &height, bool bInvert)
 {
 	NDIlib_frame_type_e NDI_frame_type;
@@ -1025,19 +1037,33 @@ bool ofxNDIreceive::ReceiveImage(unsigned char *pixels,
 							|| m_nAudioSampleRate != audio_frame.sample_rate
 							|| m_nAudioChannels != audio_frame.no_channels) {
 							// printf("Creating audio buffer - %d samples, %d channels\n", audio_frame.no_samples, audio_frame.no_channels);
-							if (m_AudioData) free((void *)m_AudioData);
-							m_AudioData = (float *)malloc((size_t)audio_frame.no_samples * (size_t)audio_frame.no_channels * sizeof(float));
+							if (m_AudioData) free((void*)m_AudioData);
+							m_AudioData = (float*)malloc((size_t)audio_frame.no_samples * (size_t)audio_frame.no_channels * sizeof(float));
+
+							if (m_bAudioConvertToInterleaved) {
+								if (m_AudioDataInterleaved) free((void*)m_AudioDataInterleaved);
+								m_AudioDataInterleaved = (int16_t*)malloc((size_t)audio_frame.no_samples * (size_t)audio_frame.no_channels * sizeof(int16_t));
+							}
 						}
-						// printf("Audio data received data = %x, samples = %d\n", (unsigned int)audio_frame.p_data, audio_frame.no_samples);
 						m_nAudioChannels = audio_frame.no_channels;
 						m_nAudioSamples = audio_frame.no_samples;
 						m_nAudioSampleRate = audio_frame.sample_rate;
-						if (m_AudioData)
-							memcpy((void *)m_AudioData, (void *)audio_frame.p_data, ((size_t)m_nAudioSamples * (size_t)audio_frame.no_channels * sizeof(float)));
+						if (m_AudioData) {
+							memcpy((void*)m_AudioData, (void*)audio_frame.p_data, ((size_t)m_nAudioSamples * (size_t)m_nAudioChannels * sizeof(float)));
+
+							//SMPTE Audio levels - reference Level 20 dB headroom
+							if (m_bAudioConvertToInterleaved && m_AudioDataInterleaved) {
+								for (int i = 0; i < m_nAudioSamples * m_nAudioChannels; i += m_nAudioChannels) {
+									for (int c = 0; c < m_nAudioChannels; c++) {
+										m_AudioDataInterleaved[i + c] = std::max<int16_t>(-32768, std::min<int16_t>(32767, (int16_t)(3276.8f * m_AudioData[i / m_nAudioChannels + (m_nAudioSamples * c)])));
+									}
+								}
+							}
+						}
 						m_bAudioFrame = true;
 						// ReceiveImage will return false
 						// Use IsAudioFrame() to determine whether audio has been received
-						// and GetAudioData to retrieve the sample buffer
+						// and GetAudioData or GetAudioInterleaved to retrieve the sample buffer
 					}
 					// Vers 4.5
 					p_NDILib->recv_free_audio_v3(pNDI_recv, &audio_frame);
@@ -1144,7 +1170,7 @@ bool ofxNDIreceive::ReceiveImage(unsigned char *pixels,
 // (Used for receiving Openframeworks ofTexture, ofFbo, ofImage and ofPixels)
 // Use the video frame data pointer externally with GetVideoData()
 // For success, the video frame must be freed with FreeVideoData().
-bool ofxNDIreceive::ReceiveImage(unsigned int &width, unsigned int &height)
+bool ofxNDIreceive::ReceiveImageAndAudio(unsigned int &width, unsigned int &height)
 {
 	NDIlib_frame_type_e NDI_frame_type;
 	NDIlib_metadata_frame_t metadata_frame;
@@ -1213,26 +1239,40 @@ bool ofxNDIreceive::ReceiveImage(unsigned int &width, unsigned int &height)
 
 				if (audio_frame.p_data) {
 					if (m_bAudio) {
+						// printf("Audio data received (%d samples).\n", audio_frame.no_samples);
 						// Copy the audio data to a local audio buffer
 						// Allocate only for sample size change
 						if (m_nAudioSamples != audio_frame.no_samples
 							|| m_nAudioSampleRate != audio_frame.sample_rate
 							|| m_nAudioChannels != audio_frame.no_channels) {
 							// printf("Creating audio buffer - %d samples, %d channels\n", audio_frame.no_samples, audio_frame.no_channels);
-							if (m_AudioData) free((void *)m_AudioData);
-							m_AudioData = (float *)malloc((size_t)audio_frame.no_samples * (size_t)audio_frame.no_channels * sizeof(float));
+							if (m_AudioData) free((void*)m_AudioData);
+							m_AudioData = (float*)malloc((size_t)audio_frame.no_samples * (size_t)audio_frame.no_channels * sizeof(float));
+
+							if (m_bAudioConvertToInterleaved) {
+								if (m_AudioDataInterleaved) free((void*)m_AudioDataInterleaved);
+								m_AudioDataInterleaved = (int16_t*)malloc((size_t)audio_frame.no_samples * (size_t)audio_frame.no_channels * sizeof(int16_t));
+							}
 						}
 						m_nAudioChannels = audio_frame.no_channels;
 						m_nAudioSamples = audio_frame.no_samples;
 						m_nAudioSampleRate = audio_frame.sample_rate;
-						if (m_AudioData)
-							memcpy((void *)m_AudioData, (void *)audio_frame.p_data, ((size_t)m_nAudioSamples * (size_t)audio_frame.no_channels * sizeof(float)));
+						if (m_AudioData) {
+							memcpy((void*)m_AudioData, (void*)audio_frame.p_data, ((size_t)m_nAudioSamples * (size_t)m_nAudioChannels * sizeof(float)));
+
+							//SMPTE Audio levels - reference Level 20 dB headroom
+							if (m_bAudioConvertToInterleaved && m_AudioDataInterleaved) {
+								for (int i = 0; i < m_nAudioSamples * m_nAudioChannels; i += m_nAudioChannels) {
+									for (int c = 0; c < m_nAudioChannels; c++) {
+										m_AudioDataInterleaved[i + c] = std::max<int16_t>(-32768, std::min<int16_t>(32767, (int16_t)(3276.8f * m_AudioData[i / m_nAudioChannels + (m_nAudioSamples * c)])));
+									}
+								}
+							}
+						}
 						m_bAudioFrame = true;
-						//
-						// ReceiveImage will return false (no image received)
-						//
+						// ReceiveImage will return false
 						// Use IsAudioFrame() to determine whether audio has been received
-						// and GetAudioData to retrieve the sample buffer
+						// and GetAudioData or GetAudioInterleaved to retrieve the sample buffer
 					}
 					// Vers 4.5
 					p_NDILib->recv_free_audio_v3(pNDI_recv, &audio_frame);
@@ -1295,6 +1335,327 @@ bool ofxNDIreceive::ReceiveImage(unsigned int &width, unsigned int &height)
 	return bRet;
 }
 
+// Receive image pixels without a receiving buffer
+// The received video frame is then held in ofxReceive class.
+// (Used for receiving Openframeworks ofTexture, ofFbo, ofImage and ofPixels)
+// Use the video frame data pointer externally with GetVideoData()
+// For success, the video frame must be freed with FreeVideoData().
+bool ofxNDIreceive::ReceiveImageOnly(unsigned int& width, unsigned int& height)
+{
+	NDIlib_frame_type_e NDI_frame_type;
+	m_FrameType = NDIlib_frame_type_none;
+	bool bRet = false;
+
+	if (!bNDIinitialized) {
+		printf("ofxNDIreceive : ReceiveImageOnly not initialized\n");
+		return false;
+	}
+
+	// Create receiver if not initialized
+	// or a new sender has been selected
+	if (!OpenReceiver()) {
+		return false;
+	}
+
+	if (pNDI_recv) {
+
+		NDI_frame_type = p_NDILib->recv_capture_v3(pNDI_recv, &video_frame, NULL, NULL, 0);
+
+		// Set frame type for external access
+		m_FrameType = NDI_frame_type;
+
+		switch (NDI_frame_type) {
+
+		case NDIlib_frame_type_video:
+
+			if (video_frame.p_data) {
+
+				// The caller can check whether a frame has been received
+				bReceiverConnected = true;
+
+				if (m_Width != (unsigned int)video_frame.xres || m_Height != (unsigned int)video_frame.yres) {
+					m_Width = (unsigned int)video_frame.xres;
+					m_Height = (unsigned int)video_frame.yres;
+				}
+
+				// Retain the video frame pointer for external access.
+				// Buffers captured must then be freed using FreeVideoData.
+				// Update the caller dimensions and return received OK
+				// for the app to handle changed dimensions
+				width = m_Width;
+				height = m_Height;
+
+				// Get the current video frame timecode
+				// UTC time since the Unix Epoch (1/1/1970 00:00) with 100 ns precision.
+				m_VideoTimecode = video_frame.timecode;
+
+				// Get the current video frame timestamp
+				m_VideoTimestamp = video_frame.timestamp;
+
+				// Update received frame counter
+				UpdateFps();
+
+				// Only return true for video data
+				bRet = true;
+
+			}
+			else {
+				// No video data
+				bReceiverConnected = false;
+			}
+			break; // endif NDIlib_frame_type_video
+
+		default:
+			break;
+
+		} // end switch frame type
+	} // endif pNDI_recv
+	else {
+		// No video data - no sender
+		bReceiverConnected = false;
+	}
+
+	return bRet;
+}
+
+void* ofxNDIreceive::ReceiveAudioOnly() {
+	NDIlib_frame_type_e NDI_frame_type;
+	m_FrameType = NDIlib_frame_type_none;
+
+	if (!bNDIinitialized) {
+		printf("ofxNDIreceive : ReceiveAudioOnly not initialized\n");
+		return nullptr;
+	}
+
+	// Create receiver if not initialized
+	// or a new sender has been selected
+	if (!OpenReceiver()) {
+		return nullptr;
+	}
+
+	if (pNDI_recv) {
+		// NDIlib_audio_frame_v2_t audio_frame;
+		// NDI_frame_type = p_NDILib->recv_capture_v2(pNDI_recv, NULL, &audio_frame, NULL, 0);
+		// Vers 4.5
+		NDIlib_audio_frame_v3_t audio_frame;
+		NDI_frame_type = p_NDILib->recv_capture_v3(pNDI_recv, NULL, &audio_frame, NULL, 0);
+
+		// Set frame type for external access
+		m_FrameType = NDI_frame_type;
+
+		// Default is a video frame
+		// Retain any audio data that has been received
+		m_bAudioFrame = false;
+
+		switch (NDI_frame_type) {
+
+		case NDIlib_frame_type_audio:
+
+			if (audio_frame.p_data) {
+				if (m_bAudio) {
+					// Copy the audio data to a local audio buffer
+					// Allocate only for sample size change
+					if (m_nAudioSamples != audio_frame.no_samples
+						|| m_nAudioSampleRate != audio_frame.sample_rate
+						|| m_nAudioChannels != audio_frame.no_channels) {
+						if (m_AudioData) free((void*)m_AudioData);
+						m_AudioData = (float*)malloc((size_t)audio_frame.no_samples * (size_t)audio_frame.no_channels * sizeof(float));
+
+						if (m_bAudioConvertToInterleaved) {
+							if (m_AudioDataInterleaved) free((void*)m_AudioDataInterleaved);
+							m_AudioDataInterleaved = (int16_t*)malloc((size_t)audio_frame.no_samples * (size_t)audio_frame.no_channels * sizeof(int16_t));
+						}
+					}
+					m_nAudioChannels = audio_frame.no_channels;
+					m_nAudioSamples = audio_frame.no_samples;
+					m_nAudioSampleRate = audio_frame.sample_rate;
+					if (m_AudioData) {
+						memcpy((void*)m_AudioData, (void*)audio_frame.p_data, ((size_t)m_nAudioSamples * (size_t)m_nAudioChannels * sizeof(float)));
+
+						//SMPTE Audio levels - reference Level 20 dB headroom
+						if (m_bAudioConvertToInterleaved && m_AudioDataInterleaved) {
+							for (int i = 0; i < m_nAudioSamples * m_nAudioChannels; i += m_nAudioChannels) {
+								for (int c = 0; c < m_nAudioChannels; c++) {
+									m_AudioDataInterleaved[i + c] = std::max<int16_t>(-32768, std::min<int16_t>(32767, (int16_t)(3276.8f * m_AudioData[i / m_nAudioChannels + (m_nAudioSamples * c)])));
+								}
+							}
+						}
+					}
+					m_bAudioFrame = true;
+					// ReceiveImage will return false
+					// Use IsAudioFrame() to determine whether audio has been received
+					// and GetAudioData or GetAudioInterleaved to retrieve the sample buffer
+				}
+				// Vers 4.5
+				p_NDILib->recv_free_audio_v3(pNDI_recv, &audio_frame);
+
+				if (m_bAudioConvertToInterleaved) {
+					return m_AudioDataInterleaved;
+				}
+				else {
+					return m_AudioData;
+				}
+			}
+			break;
+
+		default:
+			break;
+
+		} // end switch frame type
+	} // endif pNDI_recv
+	else {
+		// No video data - no sender
+		bReceiverConnected = false;
+	}
+
+	return nullptr;
+}
+
+bool ofxNDIreceive::ReceiveImageOnlyFrameSync(unsigned int& width, unsigned int& height)
+{
+	bool bRet = false;
+
+	if (!bNDIinitialized) {
+		printf("ofxNDIreceive : ReceiveImageOnlyFrameSync not initialized\n");
+		return false;
+	}
+
+	// Create receiver if not initialized
+	// or a new sender has been selected
+	if (!OpenReceiver()) {
+		return false;
+	}
+
+	if (pNDI_recv) {
+		// We are now going to use a frame-synchronizer to ensure that the audio is dynamically
+		// resampled and time-based con
+		if (!m_frameSyncOn) {
+			pNDI_framesync = NDIlib_framesync_create(pNDI_recv);
+			m_frameSyncOn = true;
+		}
+		NDIlib_framesync_capture_video(pNDI_framesync, &video_frame);
+
+		if (video_frame.p_data) {
+			// The caller can check whether a frame has been received
+			bReceiverConnected = true;
+
+			if (m_Width != (unsigned int)video_frame.xres || m_Height != (unsigned int)video_frame.yres) {
+				m_Width = (unsigned int)video_frame.xres;
+				m_Height = (unsigned int)video_frame.yres;
+			}
+
+			// Retain the video frame pointer for external access.
+			// Buffers captured must then be freed using FreeVideoData.
+			// Update the caller dimensions and return received OK
+			// for the app to handle changed dimensions
+			width = m_Width;
+			height = m_Height;
+
+			// Get the current video frame timecode
+			// UTC time since the Unix Epoch (1/1/1970 00:00) with 100 ns precision.
+			m_VideoTimecode = video_frame.timecode;
+
+			// Get the current video frame timestamp
+			m_VideoTimestamp = video_frame.timestamp;
+
+			// Update received frame counter
+			UpdateFps();
+
+			// Only return true for video data
+			bRet = true;
+		}
+		else {
+			// Release the video. You could keep the frame if you want and release it later.
+			NDIlib_framesync_free_video(pNDI_framesync, &video_frame);
+			// No video data
+			bReceiverConnected = false;
+		}
+	} // endif pNDI_recv
+	else {
+		// No video data - no sender
+		bReceiverConnected = false;
+	}
+
+	return bRet;
+}
+
+void* ofxNDIreceive::ReceiveAudioOnlyFrameSync(int framesToCapture) {
+	if (!bNDIinitialized) {
+		printf("ofxNDIreceive : ReceiveAudioOnlyFrameSync not initialized\n");
+		return nullptr;
+	}
+
+	// Create receiver if not initialized
+	// or a new sender has been selected
+	if (!OpenReceiver()) {
+		return nullptr;
+	}
+
+	if (pNDI_recv) {
+		// We are now going to use a frame-synchronizer to ensure that the audio is dynamically
+		// resampled and time-based con
+		if (!m_frameSyncOn) {
+			pNDI_framesync = NDIlib_framesync_create(pNDI_recv);
+			m_frameSyncOn = true;
+		}
+
+		// Get audio samples
+		NDIlib_audio_frame_v3_t audio_frame;
+		NDIlib_framesync_capture_audio_v2(pNDI_framesync, &audio_frame, m_nAudioSampleRate, m_nAudioChannels, framesToCapture);
+
+		if (m_bAudio) {
+			// Copy the audio data to a local audio buffer
+			// Allocate only for sample size change
+			if (m_nAudioSamples != framesToCapture
+				|| m_nAudioSampleRate != audio_frame.sample_rate
+				|| m_nAudioChannels != audio_frame.no_channels) {
+				if (m_AudioData) free((void*)m_AudioData);
+				m_AudioData = (float*)malloc((size_t)framesToCapture * (size_t)audio_frame.no_channels * sizeof(float));
+
+				if (m_bAudioConvertToInterleaved) {
+					if (m_AudioDataInterleaved) free((void*)m_AudioDataInterleaved);
+					m_AudioDataInterleaved = (int16_t*)malloc((size_t)framesToCapture * (size_t)audio_frame.no_channels * sizeof(int16_t));
+				}
+			}
+			m_nAudioChannels = audio_frame.no_channels;
+			m_nAudioSamples = framesToCapture;
+			m_nAudioSampleRate = audio_frame.sample_rate;
+			if (m_AudioData) {
+				memcpy((void*)m_AudioData, (void*)audio_frame.p_data, ((size_t)m_nAudioSamples * (size_t)m_nAudioChannels * sizeof(float)));
+
+				//SMPTE Audio levels - reference Level 20 dB headroom
+				if (m_bAudioConvertToInterleaved && m_AudioDataInterleaved) {
+					for (int i = 0; i < m_nAudioSamples * m_nAudioChannels; i += m_nAudioChannels) {
+						for (int c = 0; c < m_nAudioChannels; c++) {
+							m_AudioDataInterleaved[i + c] = std::max<int16_t>(-32768, std::min<int16_t>(32767, (int16_t)(3276.8f * m_AudioData[i / m_nAudioChannels + (m_nAudioSamples * c)])));
+						}
+					}
+				}
+			}
+			m_bAudioFrame = true;
+			// ReceiveImage will return false
+			// Use IsAudioFrame() to determine whether audio has been received
+			// and GetAudioData or GetAudioInterleaved to retrieve the sample buffer
+		}
+		
+		// Release the video. You could keep the frame if you want and release it later.
+		NDIlib_framesync_free_audio_v2(pNDI_framesync, &audio_frame);
+
+		if (m_bAudioConvertToInterleaved) {
+			return m_AudioDataInterleaved;
+		}
+		else {
+			return m_AudioData;
+		}
+	}
+
+	return nullptr;
+}
+
+bool ofxNDIreceive::FrameSyncOn() {
+	return m_frameSyncOn;
+}
+
 // Get the video type received
 NDIlib_FourCC_video_type_e ofxNDIreceive::GetVideoType()
 {
@@ -1317,7 +1678,14 @@ unsigned char *ofxNDIreceive::GetVideoData()
 void ofxNDIreceive::FreeVideoData()
 {
 	if (p_NDILib && video_frame.p_data) {
-		p_NDILib->recv_free_video_v2(pNDI_recv, &video_frame);
+		if (m_frameSyncOn) {
+			// Release the video. You could keep the frame if you want and release it later.
+			NDIlib_framesync_free_video(pNDI_framesync, &video_frame);
+		}
+		else {
+			p_NDILib->recv_free_video_v2(pNDI_recv, &video_frame);
+		}
+
 		// Check that the video frame data pointer is null
 		// because the function may not reset the pointer
 		// and we return video_frame.p_data in GetVideoData().
@@ -1336,6 +1704,8 @@ void ofxNDIreceive::FreeAudioData()
 	// Free audio data
 	if (m_AudioData) free((void *)m_AudioData);
 	m_AudioData =nullptr;
+	if (m_AudioDataInterleaved) free((void*)m_AudioDataInterleaved);
+	m_AudioDataInterleaved = nullptr;
 	m_bAudioFrame = false;
 	m_nAudioSampleRate = 0;
 	m_nAudioSamples = 0;

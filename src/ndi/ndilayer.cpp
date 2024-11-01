@@ -1,5 +1,25 @@
 #include "ndilayer.h"
 
+/* This routine will be called by the PortAudio engine when audio is needed.
+** It may called at interrupt level on some machines so don't do anything
+** that could mess up the system like calling malloc() or free().
+*/
+static int paNDIAudioCallback(const void*, void* outputBuffer,
+    unsigned long framesPerBuffer,
+    const PaStreamCallbackTimeInfo*,
+    PaStreamCallbackFlags,
+    void* userData)
+{
+    ofxNDIreceive* reciever = (ofxNDIreceive*)userData;
+    void* receviedFrames = reciever->ReceiveAudioOnlyFrameSync((int)framesPerBuffer);
+    if (receviedFrames) {
+        int channels = reciever->GetAudioChannels();
+        memcpy(outputBuffer, receviedFrames, ((size_t)framesPerBuffer * (size_t)channels * sizeof(int16_t)));
+    }
+
+    return paContinue;
+}
+
 NdiFinder* NdiFinder::_instance = nullptr;
 
 NdiFinder::NdiFinder() : m_NDIreceiver(new ofxNDIreceive()) {
@@ -36,8 +56,13 @@ NdiLayer::NdiLayer() {
     setType(BaseLayer::LayerType::NDI);
     NDIreceiver.ResetFps(30.0);
 
-    // =======================================
-    NDIreceiver.SetAudio(false); // Set to receive no audio
+    // Only recevie audio on master
+    if (isMaster()) {
+        NDIreceiver.SetAudio(true, true);
+    }
+    else {
+        NDIreceiver.SetAudio(false);
+    }
 
     // =======================================
     // Set to prefer BGRA
@@ -49,6 +74,16 @@ NdiLayer::NdiLayer() {
 NdiLayer::~NdiLayer() {
     if (!OpenReceiver()) {
         NDIreceiver.ReleaseReceiver();
+    }
+
+    if (isMaster() && m_recevieAudio) {
+        if (m_audioStreamOpen) {
+            m_audioError = Pa_CloseStream(m_audioStream);
+            if (m_audioError == paNoError) {
+                m_audioStreamOpen = false;
+            }
+        }
+        Pa_Terminate();
     }
 
     if (m_pbo[0]) {
@@ -63,6 +98,22 @@ NdiLayer::~NdiLayer() {
 void NdiLayer::initialize() {
     m_hasInitialized = true;
     NDIreceiver.SetSenderName(filepath());
+
+    // Only recevie audio on master
+    if (isMaster()) {
+        m_audioError = Pa_Initialize();
+        if (m_audioError != paNoError) {
+            NDIreceiver.SetAudio(false);
+        }
+        else {
+            NDIreceiver.SetAudio(true, true);
+            m_recevieAudio = true;
+            m_audioOutputParameters.device = Pa_GetDefaultOutputDevice(); /* default output device */
+            if (m_audioOutputParameters.device == paNoDevice) {
+                fprintf(stderr, "Error: No default output device.\n");
+            }
+        }
+    }
 }
 
 void NdiLayer::update(bool updateRendering) {
@@ -90,34 +141,130 @@ void NdiLayer::update(bool updateRendering) {
         m_isReady = true;
     }
 
-    // Let's recieve image
-    if(m_isReady && updateRendering)
-        ReceiveImage();
+    // Let's recieve image or audio
+    if (m_isReady) {
+        ReceiveData(updateRendering);
+    }
 }
 
 bool NdiLayer::ready() const {
     return m_isReady;
 }
 
+void NdiLayer::start() {
+    if (isMaster() && m_audioStream && m_audioStreamOpen) {
+        m_audioError = Pa_StartStream(m_audioStream);
+        if (m_audioError == paNoError) {
+            m_audioStreamStarted = true;
+        }     
+    }
+}
+
+void NdiLayer::stop() {
+    if (isMaster() && m_audioStream && m_audioStreamOpen && m_audioStreamStarted) {
+        m_audioError = Pa_StopStream(m_audioStream);
+        if (m_audioError == paNoError) {
+            m_audioStreamStarted = false;
+        }
+    }
+}
+
 // Receive ofTexture
-bool NdiLayer::ReceiveImage() {
+bool NdiLayer::ReceiveData(bool updateRendering) {
     // Receive a pixel image first
     unsigned int width = (unsigned int)renderData.width;
     unsigned int height = (unsigned int)renderData.height;
 
-    if (NDIreceiver.ReceiveImage(width, height)) {
-        // Check for changed sender dimensions
-        if (width != (unsigned int)renderData.width || height != (unsigned int)renderData.height) {
-            if (renderData.width > 0)
-                glDeleteTextures(1, &renderData.texId);
+    // If we have opened an audio stream already, let's only capture image here
+    // Audio is captured in separate callback
+    // Or if we are a node, we do not need to capture audio anyway...
+    if (updateRendering && (!isMaster() || (m_audioStreamOpen && m_recevieAudioThroughCallback))) {
+        bool receviedImage = false;
 
-            GenerateTexture(renderData.texId, width, height);
-
-            renderData.width = (int)width;
-            renderData.height = (int)height;
+        if (m_hasCapturedImage || NDIreceiver.FrameSyncOn()) { // We can start using frame sync now
+            receviedImage = NDIreceiver.ReceiveImageOnlyFrameSync(width, height);
         }
-        // Get NDI pixel data from the video frame
-        return GetPixelData(renderData.texId, width, height);
+        else {
+            receviedImage = NDIreceiver.ReceiveImageOnly(width, height);
+        }
+
+        if (receviedImage) {
+            // Check for changed sender dimensions
+            if (width != (unsigned int)renderData.width || height != (unsigned int)renderData.height) {
+                if (renderData.width > 0)
+                    glDeleteTextures(1, &renderData.texId);
+
+                GenerateTexture(renderData.texId, width, height);
+
+                renderData.width = (int)width;
+                renderData.height = (int)height;
+            }
+            // Get NDI pixel data from the video frame
+            return GetPixelData(renderData.texId, width, height);
+        }
+    }
+    else if (isMaster()) { // Still want to run som passes here to start capturing of audio.
+        // If updateRendering is Off, and audio stream already open we do not need to continue here
+        if (!updateRendering && m_audioStreamOpen)
+            return false;
+
+        bool receviedImage = false;
+        bool receviedAudio = false;
+
+        if (updateRendering) {
+            //Receving both image and audio here
+            receviedImage = NDIreceiver.ReceiveImageAndAudio(width, height);
+            if (!receviedImage) {
+                receviedAudio = NDIreceiver.IsAudioFrame();
+            }
+        }
+        else if (isMaster()) {
+            receviedAudio = NDIreceiver.ReceiveAudioOnly();
+        }
+
+        if (receviedImage) {
+            // Check for changed sender dimensions
+            if (width != (unsigned int)renderData.width || height != (unsigned int)renderData.height) {
+                if (renderData.width > 0)
+                    glDeleteTextures(1, &renderData.texId);
+
+                GenerateTexture(renderData.texId, width, height);
+
+                renderData.width = (int)width;
+                renderData.height = (int)height;
+            }
+            // Get NDI pixel data from the video frame
+            return GetPixelData(renderData.texId, width, height);
+        }
+        else if (receviedAudio) {
+            if (!m_audioStreamOpen) {
+                m_audioOutputParameters.channelCount = NDIreceiver.GetAudioChannels();
+                m_audioOutputParameters.sampleFormat = paInt16; // 16 bit integer point output
+                m_audioOutputParameters.suggestedLatency = Pa_GetDeviceInfo(m_audioOutputParameters.device)->defaultLowOutputLatency;
+                m_audioOutputParameters.hostApiSpecificStreamInfo = NULL;
+
+                if (m_recevieAudioThroughCallback) {
+                    m_audioError = Pa_OpenStream(&m_audioStream, NULL, &m_audioOutputParameters, NDIreceiver.GetAudioSampleRate(), NDIreceiver.GetAudioSamples(), paClipOff, paNDIAudioCallback, &NDIreceiver);
+                }
+                else {
+                    m_audioError = Pa_OpenStream(&m_audioStream, NULL, &m_audioOutputParameters, NDIreceiver.GetAudioSampleRate(), NDIreceiver.GetAudioSamples(), paClipOff, NULL, NULL);
+                }
+
+                if (m_audioError == paNoError) {
+                    m_audioStreamOpen = true;
+                    start();
+                }
+            }
+
+            if (!m_recevieAudioThroughCallback && m_audioStreamOpen && m_audioStreamStarted) {
+                m_audioError = Pa_WriteStream(m_audioStream, NDIreceiver.GetAudioInterleaved(), NDIreceiver.GetAudioSamples());
+                if (m_audioError != paNoError) {
+                    printf("NDI audio stream error\n");
+                }
+            }
+
+            return true;
+        }
     }
 
     return false;
@@ -176,6 +323,8 @@ bool NdiLayer::GetPixelData(GLuint TextureID, unsigned int width, unsigned int h
 
     // Free the NDI video buffer
     NDIreceiver.FreeVideoData();
+
+    m_hasCapturedImage = true;
 
     m_isReady = true;
 

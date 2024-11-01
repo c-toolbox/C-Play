@@ -135,7 +135,7 @@ public:
 	// - width | received image width
 	// - height | received image height
 	// - bInvert | flip the image
-	bool ReceiveImage(unsigned char *pixels,
+	bool ReceiveImageAndAudio(unsigned char *pixels,
 		unsigned int &width, unsigned int &height,
 		bool bInvert = false);
 
@@ -145,7 +145,38 @@ public:
 	// For success, the video frame must be freed with FreeVideoData().
 	// - width | received image width
 	// - height | received image height
-	bool ReceiveImage(unsigned int &width, unsigned int &height);
+	bool ReceiveImageAndAudio(unsigned int &width, unsigned int &height);
+
+	// Receive image pixels without a receiving buffer
+	// The received video frame is held in ofxReceive class.
+	// Use the video frame data pointer externally with GetVideoData()
+	// For success, the video frame must be freed with FreeVideoData().
+	// - width | received image width
+	// - height | received image height
+	bool ReceiveImageOnly(unsigned int& width, unsigned int& height);
+
+	// Receive audio only
+	// The received audio frame is held in ofxReceive class.
+	// Use the audio frame data pointer externally with GetAudioData()
+	// For success, the audio frame must be freed with FreeAudioData().
+	void* ReceiveAudioOnly();
+
+	// Receive image pixels with a frame sync approach
+	// The received video frame is held in ofxReceive class.
+	// Use the video frame data pointer externally with GetVideoData()
+	// For success, the video frame must be freed with FreeVideoData().
+	// - width | received image width
+	// - height | received image height
+	bool ReceiveImageOnlyFrameSync(unsigned int& width, unsigned int& height);
+
+	// Receive audio only with a frame sync approach
+	// The received audio frame is held in ofxReceive class.
+	// Use the audio frame data pointer externally with GetAudioData()
+	// For success, the audio frame must be freed with FreeAudioData().
+	void* ReceiveAudioOnlyFrameSync(int framesToCapture);
+
+	// Return if frame sync is on or off currently
+	bool FrameSyncOn();
 	   
 	// Get the video type received
 	// The receiver should always receive RGBA.
@@ -248,7 +279,7 @@ public:
 	int64_t GetVideoTimecode();
 
 	// Set to receive Audio
-	void SetAudio(bool bAudio);
+	void SetAudio(bool bAudio, bool bAudioConverToInterleaved = false);
 
 	// Is the current frame Audio data ?
 	// Use when ReceiveImage fails
@@ -265,6 +296,9 @@ public:
 
 	// Get audio frame data pointer
 	float* GetAudioData();
+
+	// Get audio frame data pointer
+	int16_t* GetAudioInterleaved();
 
 	// Return audio frame data
 	void GetAudioData(float*& output, int& samplerate, int& samples, int& nChannels);
@@ -308,6 +342,8 @@ private:
 	bool bReceiverCreated; // Is the receiver created
 	bool bReceiverConnected; // Is the receiver connected and receiving frames
 	NDIlib_recv_bandwidth_e m_bandWidth; // Bandwidth receive option
+	bool m_frameSyncOn;
+	NDIlib_framesync_instance_t pNDI_framesync;
 
 	uint32_t dwStartTime; // For timing delay
 	uint32_t dwElapsedTime;
@@ -333,8 +369,10 @@ private:
 
 	// Audio frame received
 	bool m_bAudio;
+	bool m_bAudioConvertToInterleaved;
 	bool m_bAudioFrame;
 	float* m_AudioData;
+	int16_t* m_AudioDataInterleaved;
 	int m_nAudioSampleRate;
 	int m_nAudioSamples;
 	int m_nAudioChannels;
