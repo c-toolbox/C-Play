@@ -227,6 +227,7 @@ ofxNDIreceive::ofxNDIreceive()
 	m_AudioDataInterleaved = nullptr;
 	m_bAudio = false;
 	m_bAudioConvertToInterleaved = false;
+	m_bAudioVolume = 1.f;
 	m_bAudioFrame = false;
 	m_nAudioSampleRate = 0;
 	m_nAudioSamples = 0;
@@ -678,6 +679,10 @@ void ofxNDIreceive::SetAudio(bool bAudio, bool bAudioConverToInterleaved)
 		FreeAudioData();
 }
 
+void ofxNDIreceive::SetAudioVolume(float volume) {
+	m_bAudioVolume = volume;
+}
+
 // Is the current frame Audio ?
 bool ofxNDIreceive::IsAudioFrame()
 {
@@ -1055,7 +1060,7 @@ bool ofxNDIreceive::ReceiveImageAndAudio(unsigned char *pixels,
 							if (m_bAudioConvertToInterleaved && m_AudioDataInterleaved) {
 								for (int i = 0; i < m_nAudioSamples * m_nAudioChannels; i += m_nAudioChannels) {
 									for (int c = 0; c < m_nAudioChannels; c++) {
-										m_AudioDataInterleaved[i + c] = std::max<int16_t>(-32768, std::min<int16_t>(32767, (int16_t)(3276.8f * m_AudioData[i / m_nAudioChannels + (m_nAudioSamples * c)])));
+										m_AudioDataInterleaved[i + c] = std::max<int16_t>(-32768, std::min<int16_t>(32767, (int16_t)(3276.8f * (m_AudioData[i / m_nAudioChannels + (m_nAudioSamples * c)] * m_bAudioVolume))));
 									}
 								}
 							}
@@ -1264,7 +1269,7 @@ bool ofxNDIreceive::ReceiveImageAndAudio(unsigned int &width, unsigned int &heig
 							if (m_bAudioConvertToInterleaved && m_AudioDataInterleaved) {
 								for (int i = 0; i < m_nAudioSamples * m_nAudioChannels; i += m_nAudioChannels) {
 									for (int c = 0; c < m_nAudioChannels; c++) {
-										m_AudioDataInterleaved[i + c] = std::max<int16_t>(-32768, std::min<int16_t>(32767, (int16_t)(3276.8f * m_AudioData[i / m_nAudioChannels + (m_nAudioSamples * c)])));
+										m_AudioDataInterleaved[i + c] = std::max<int16_t>(-32768, std::min<int16_t>(32767, (int16_t)(3276.8f * (m_AudioData[i / m_nAudioChannels + (m_nAudioSamples * c)] * m_bAudioVolume))));
 									}
 								}
 							}
@@ -1476,7 +1481,7 @@ void* ofxNDIreceive::ReceiveAudioOnly() {
 						if (m_bAudioConvertToInterleaved && m_AudioDataInterleaved) {
 							for (int i = 0; i < m_nAudioSamples * m_nAudioChannels; i += m_nAudioChannels) {
 								for (int c = 0; c < m_nAudioChannels; c++) {
-									m_AudioDataInterleaved[i + c] = std::max<int16_t>(-32768, std::min<int16_t>(32767, (int16_t)(3276.8f * m_AudioData[i / m_nAudioChannels + (m_nAudioSamples * c)])));
+									m_AudioDataInterleaved[i + c] = std::max<int16_t>(-32768, std::min<int16_t>(32767, (int16_t)(3276.8f * (m_AudioData[i / m_nAudioChannels + (m_nAudioSamples * c)] * m_bAudioVolume))));
 								}
 							}
 						}
@@ -1627,7 +1632,7 @@ void* ofxNDIreceive::ReceiveAudioOnlyFrameSync(int framesToCapture) {
 				if (m_bAudioConvertToInterleaved && m_AudioDataInterleaved) {
 					for (int i = 0; i < m_nAudioSamples * m_nAudioChannels; i += m_nAudioChannels) {
 						for (int c = 0; c < m_nAudioChannels; c++) {
-							m_AudioDataInterleaved[i + c] = std::max<int16_t>(-32768, std::min<int16_t>(32767, (int16_t)(3276.8f * m_AudioData[i / m_nAudioChannels + (m_nAudioSamples * c)])));
+							m_AudioDataInterleaved[i + c] = std::max<int16_t>(-32768, std::min<int16_t>(32767, (int16_t)(3276.8f * (m_AudioData[i / m_nAudioChannels + (m_nAudioSamples * c)] * m_bAudioVolume))));
 						}
 					}
 				}

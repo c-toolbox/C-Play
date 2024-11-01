@@ -35,6 +35,10 @@ public:
     void start();
     void stop();
 
+    bool hasAudio();
+    void updateAudioOutput();
+    void setVolume(int v, bool storeLevel = true);
+
 private:
     bool ReceiveData(bool updateRendering);
     bool OpenReceiver();

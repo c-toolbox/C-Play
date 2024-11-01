@@ -281,6 +281,9 @@ public:
 	// Set to receive Audio
 	void SetAudio(bool bAudio, bool bAudioConverToInterleaved = false);
 
+	// Set audio volume
+	void SetAudioVolume(float volume);
+
 	// Is the current frame Audio data ?
 	// Use when ReceiveImage fails
 	bool IsAudioFrame();
@@ -370,6 +373,7 @@ private:
 	// Audio frame received
 	bool m_bAudio;
 	bool m_bAudioConvertToInterleaved;
+	float m_bAudioVolume;
 	bool m_bAudioFrame;
 	float* m_AudioData;
 	int16_t* m_AudioDataInterleaved;

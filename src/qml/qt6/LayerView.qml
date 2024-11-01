@@ -110,9 +110,13 @@ Kirigami.ApplicationWindow {
                 if (layerViewItem.layerTypeName === "PDF") {
                     createPageComponents();
                 }
-                else if (layerViewItem.layerTypeName === "Video" || layerViewItem.layerTypeName === "Audio") {
+                else if (layerViewItem.layerTypeName === "Video" 
+                        || layerViewItem.layerTypeName === "Audio") {
                     createAudioComponents();
                     createMediaComponents();
+                }
+                else if (layerViewItem.layerTypeName === "NDI") {
+                    createAudioComponents();
                 }
             }
             else {
@@ -356,13 +360,21 @@ Kirigami.ApplicationWindow {
                             destroyPageComponents();
                         }
 
-                        if (layerViewItem.layerTypeName === "Video" || layerViewItem.layerTypeName === "Audio") {
+                        if (layerViewItem.layerTypeName === "Video" 
+                            || layerViewItem.layerTypeName === "Audio") {
                             createAudioComponents();
                             createMediaComponents();
                         }
                         else {
                             destroyAudioComponents();
                             destroyMediaComponents();
+                        }
+
+                        if (layerViewItem.layerTypeName === "NDI") {
+                            createAudioComponents();
+                        }
+                        else {
+                            destroyAudioComponents();
                         }
                     }
                     else {
@@ -682,45 +694,55 @@ Kirigami.ApplicationWindow {
                 }
 
                 RowLayout {
-                    ToolButton {
-                        focusPolicy: Qt.NoFocus
-                        icon.color: layerViewItem.audioTracksModel.countTracks() > 0 ? "lime" : "crimson"
-                        icon.name: "new-audio-alarm"
-                        text: qsTr("Audio File")
+                    Rectangle {
+                        color: Kirigami.Theme.alternateBackgroundColor
+                        implicitHeight: 35
+                        implicitWidth: 100
+                        radius: 5
+                        visible: !layerViewItem.layerHasAudio || layerViewItem.audioTracksModel.countTracks() > 0
 
-                        onClicked: {
-                            if (audioMenuInstantiator.model === 0) {
-                                audioMenuInstantiator.model = layerViewItem.audioTracksModel;
-                                layerViewItem.layerValueChanged();
-                            }
-                            audioMenu.visible = !audioMenu.visible;
-                        }
+                        ToolButton {
+                            focusPolicy: Qt.NoFocus
+                            icon.color: layerViewItem.layerHasAudio ? "lime" : "crimson"
+                            icon.name: "new-audio-alarm"
+                            text: qsTr("Audio File")
 
-                        ToolTip {
-                            text: "Choose the audio track/file that was loaded with the media."
-                        }
-                        Menu {
-                            id: audioMenu
-
-                            y: parent.height
-
-                            Instantiator {
-                                id: audioMenuInstantiator
-
-                                model: 0
-
-                                delegate: MenuItem {
-                                    id: audioMenuItem
-
-                                    checkable: true
-                                    checked: model.id === layerViewItem.layerAudioId
-                                    text: model.text
-
-                                    onTriggered: layerViewItem.layerAudioId = model.id
+                            onClicked: {
+                                if(layerViewItem.audioTracksModel.countTracks() > 0) {
+                                    if (audioMenuInstantiator.model === 0) {
+                                        audioMenuInstantiator.model = layerViewItem.audioTracksModel;
+                                        layerViewItem.layerValueChanged();
+                                    }
+                                    audioMenu.visible = !audioMenu.visible;
                                 }
+                            }
 
-                                onObjectAdded: audioMenu.insertItem(index, object)
-                                onObjectRemoved: audioMenu.removeItem(object)
+                            ToolTip {
+                                text: "Choose the audio track/file that was loaded with the media."
+                            }
+                            Menu {
+                                id: audioMenu
+
+                                y: parent.height
+
+                                Instantiator {
+                                    id: audioMenuInstantiator
+
+                                    model: 0
+
+                                    delegate: MenuItem {
+                                        id: audioMenuItem
+
+                                        checkable: true
+                                        checked: model.id === layerViewItem.layerAudioId
+                                        text: model.text
+
+                                        onTriggered: layerViewItem.layerAudioId = model.id
+                                    }
+
+                                    onObjectAdded: audioMenu.insertItem(index, object)
+                                    onObjectRemoved: audioMenu.removeItem(object)
+                                }
                             }
                         }
                     }
@@ -786,30 +808,37 @@ Kirigami.ApplicationWindow {
                 bottomPadding: 20
 
                 RowLayout {
-                    ToolButton {
-                        id: playPauseButton
+                    Rectangle {
+                        color: Kirigami.Theme.alternateBackgroundColor
+                        implicitHeight: 35
+                        implicitWidth: 35
+                        radius: 5
 
-                        property string iconName: "media-playback-start"
-                        property string toolTipText: "Start Playback"
+                        ToolButton {
+                            id: playPauseButton
 
-                        focusPolicy: Qt.NoFocus
-                        icon.name: playPauseButton.iconName
-                        text: ""
+                            property string iconName: "media-playback-start"
+                            property string toolTipText: "Start Playback"
 
-                        onClicked: {
-                            if(layerViewItem.layerPause){
-                                layerViewItem.layerPause = false
+                            focusPolicy: Qt.NoFocus
+                            icon.name: playPauseButton.iconName
+                            text: ""
+
+                            onClicked: {
+                                if(layerViewItem.layerPause){
+                                    layerViewItem.layerPause = false
+                                }
+                                else{
+                                    layerViewItem.layerPause = true
+                                    layerViewItem.layerPosition = mediaSlider.value
+                                }
+                                app.slides.needsSync = true;
                             }
-                            else{
-                                layerViewItem.layerPause = true
-                                layerViewItem.layerPosition = mediaSlider.value
-                            }
-                            app.slides.needsSync = true;
-                        }
 
-                        ToolTip {
-                            id: playPauseButtonToolTip
-                            text: playPauseButton.toolTipText
+                            ToolTip {
+                                id: playPauseButtonToolTip
+                                text: playPauseButton.toolTipText
+                            }
                         }
                     }
                     Slider {
@@ -893,35 +922,60 @@ Kirigami.ApplicationWindow {
                             target: layerViewItem
                         }
                     }
-                    ToolButton {
-                        id: rewindButton
+                    Rectangle {
+                        color: Kirigami.Theme.alternateBackgroundColor
+                        implicitHeight: 35
+                        implicitWidth: 35
+                        radius: 5
 
-                        focusPolicy: Qt.NoFocus
-                        icon.name: "media-playback-stop"
-                        text: ""
+                        ToolButton {
+                            id: rewindButton
 
-                        onClicked: {
-                            layerViewItem.layerPause = true;
-                            layerViewItem.layerPosition = 0;
-                            app.slides.needsSync = true;
-                        }
+                            focusPolicy: Qt.NoFocus
+                            icon.name: "media-playback-stop"
+                            text: ""
 
-                        ToolTip {
-                            id: rewindButtonToolTip
+                            onClicked: {
+                                layerViewItem.layerPause = true;
+                                layerViewItem.layerPosition = 0;
+                                app.slides.needsSync = true;
+                            }
 
-                            text: PlaybackSettings.fadeDownBeforeRewind ? qsTr("Fade down then stop/rewind") : qsTr("Stop/rewind")
+                            ToolTip {
+                                id: rewindButtonToolTip
+
+                                text: PlaybackSettings.fadeDownBeforeRewind ? qsTr("Fade down then stop/rewind") : qsTr("Stop/rewind")
+                            }
                         }
                     }
-                    LabelWithTooltip {
-                        id: timeInfo
+                    Rectangle {
+                        color: Kirigami.Theme.alternateBackgroundColor
+                        implicitHeight: 35
+                        implicitWidth: 120
+                        radius: 5
 
-                        alwaysShowToolTip: true
-                        font.pointSize: 9
-                        fontSizeMode: Text.Fit
-                        horizontalAlignment: Qt.AlignHCenter
-                        text: app.formatTime(layerViewItem.layerPosition) + " / " + app.formatTime(layerViewItem.layerDuration)
-                        toolTipFontSize: timeInfo.font.pointSize + 2
-                        toolTipText: qsTr("Remaining: ") + app.formatTime(layerViewItem.layerRemaining)
+                        Row{
+                            anchors.fill: parent
+                            height: parent.height
+                            width: parent.width
+
+                            LabelWithTooltip {
+                                anchors.fill: parent
+                                anchors.horizontalCenter: parent.horizontalCenter
+                                anchors.verticalCenter: parent.verticalCenter
+                                topPadding: 8.5
+
+                                id: timeInfo
+
+                                alwaysShowToolTip: true
+                                font.pointSize: 9
+                                fontSizeMode: Text.Fit
+                                horizontalAlignment: Qt.AlignHCenter
+                                text: app.formatTime(layerViewItem.layerPosition) + " / " + app.formatTime(layerViewItem.layerDuration)
+                                toolTipFontSize: timeInfo.font.pointSize + 2
+                                toolTipText: qsTr("Remaining: ") + app.formatTime(layerViewItem.layerRemaining)
+                            }
+                        }
                     }
                 }
             }
@@ -935,9 +989,18 @@ Kirigami.ApplicationWindow {
                 bottomPadding: 20
 
                 RowLayout {
-                    Label {
-                        font.pointSize: 10
-                        text: "Page:"
+                    Rectangle {
+                        color: Kirigami.Theme.alternateBackgroundColor
+                        implicitHeight: 30
+                        implicitWidth: 50
+                        radius: 5
+
+                        Label {
+                            anchors.right: parent.right
+                            topPadding: 5
+                            font.pointSize: 10
+                            text: "Page:"
+                        }
                     }
                     SpinBox {
                         id: pageNum
@@ -956,10 +1019,19 @@ Kirigami.ApplicationWindow {
                             pageNum.to = layerViewItem.layerNumPages
                         }
                     }
-                    Label {
-                        id: labelNumPages
-                        font.pointSize: 10
-                        text: qsTr("of %1 pages.").arg(Number(layerViewItem.layerNumPages));
+                    Rectangle {
+                        color: Kirigami.Theme.alternateBackgroundColor
+                        implicitHeight: 30
+                        implicitWidth: 100
+                        radius: 5
+
+                        Label {
+                            anchors.left: parent.left
+                            topPadding: 5
+                            id: labelNumPages
+                            font.pointSize: 10
+                            text: qsTr("of %1 pages.").arg(Number(layerViewItem.layerNumPages));
+                        }
                     }
                 }
             }

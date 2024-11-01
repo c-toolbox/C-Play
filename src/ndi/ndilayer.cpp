@@ -1,4 +1,5 @@
 #include "ndilayer.h"
+#include "audiosettings.h"
 
 /* This routine will be called by the PortAudio engine when audio is needed.
 ** It may called at interrupt level on some machines so don't do anything
@@ -166,6 +167,31 @@ void NdiLayer::stop() {
         if (m_audioError == paNoError) {
             m_audioStreamStarted = false;
         }
+    }
+}
+
+bool NdiLayer::hasAudio() {
+    return isMaster();
+}
+
+void NdiLayer::updateAudioOutput() {
+    if (AudioSettings::useCustomAudioOutput()) {
+        if (AudioSettings::useAudioDevice()) {
+            //AudioSettings::preferredAudioOutputDevice()
+        }
+        else if (AudioSettings::useAudioDriver()) {
+            //AudioSettings::preferredAudioOutputDriver()
+        }
+    }
+}
+
+void NdiLayer::setVolume(int v, bool storeLevel) {
+    if (storeLevel) {
+        m_volume = v;
+    }
+
+    if (isMaster()) {
+        NDIreceiver.SetAudioVolume(static_cast<float>(v) / 100.f);
     }
 }
 
