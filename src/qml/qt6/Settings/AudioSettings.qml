@@ -16,6 +16,8 @@ import org.ctoolbox.cplay
 SettingsBasePage {
     id: root
 
+    ButtonGroup { id: useCustomAudioOutputGroup }
+
     GridLayout {
         id: content
 
@@ -24,12 +26,17 @@ SettingsBasePage {
         SettingsHeader {
             Layout.columnSpan: 3
             Layout.fillWidth: true
-            text: qsTr("Audio settings")
+            text: qsTr("Audio settings (for media files)")
         }
         Item {
             Layout.columnSpan: 3
             // spacer item
             Layout.fillWidth: true
+        }
+
+        Item {
+            height: 1
+            width: 1
         }
         CheckBox {
             id: audioOutputCheckBox
@@ -37,119 +44,128 @@ SettingsBasePage {
             Layout.alignment: Qt.AlignRight
             checked: AudioSettings.useCustomAudioOutput
             enabled: true
-            text: qsTr("Use custom audio output")
+            text: qsTr("Use custom audio output for video/audio playback")
 
             onCheckedChanged: {
                 AudioSettings.useCustomAudioOutput = checked;
                 AudioSettings.save();
             }
-        }
-        Item {
-            // spacer item
+
             Layout.columnSpan: 2
             Layout.fillWidth: true
         }
-        RadioButton {
-            id: audioOutputDeviceRadioButton
 
-            Layout.alignment: Qt.AlignRight
-            checked: AudioSettings.useAudioDevice
-            enabled: AudioSettings.useCustomAudioOutput
-            text: qsTr("Use audio device")
-
-            onCheckedChanged: {
-                AudioSettings.useAudioDevice = checked;
-                AudioSettings.save();
-                mpv.updateAudioOutput();
-            }
+        Item {
+            height: 1
+            width: 1
         }
-        ComboBox {
-            id: audioOutputDeviceComboBox
+        RowLayout {
+            RadioButton {
+                id: audioOutputDeviceRadioButton
 
-            enabled: (AudioSettings.useAudioDevice && AudioSettings.useCustomAudioOutput)
-            model: mpv.audioDevices
-            textRole: "description"
-            valueRole: "name"
+                Layout.alignment: Qt.AlignRight
+                checked: AudioSettings.useAudioDevice
+                enabled: AudioSettings.useCustomAudioOutput
+                text: qsTr("Use audio device")
+                ButtonGroup.group: useCustomAudioOutputGroup
 
-            Component.onCompleted: {
-                for (let i = 0; i < mpv.audioDevices.length; ++i) {
-                    if (mpv.audioDevices[i].name === AudioSettings.preferredAudioOutputDevice) {
-                        currentIndex = i;
-                        break;
+                onCheckedChanged: {
+                    AudioSettings.useAudioDevice = checked;
+                    AudioSettings.save();
+                    mpv.updateAudioOutput();
+                }
+            }
+            ComboBox {
+                id: audioOutputDeviceComboBox
+
+                enabled: (AudioSettings.useAudioDevice && AudioSettings.useCustomAudioOutput)
+                model: mpv.audioDevices
+                textRole: "description"
+                valueRole: "name"
+
+                Component.onCompleted: {
+                    for (let i = 0; i < mpv.audioDevices.length; ++i) {
+                        if (mpv.audioDevices[i].name === AudioSettings.preferredAudioOutputDevice) {
+                            currentIndex = i;
+                            break;
+                        }
                     }
                 }
+                onActivated: {
+                    AudioSettings.preferredAudioOutputDevice = mpv.audioDevices[index].name;
+                    AudioSettings.save();
+                    mpv.updateAudioOutput();
+                }
             }
-            onActivated: {
-                AudioSettings.preferredAudioOutputDevice = mpv.audioDevices[index].name;
-                AudioSettings.save();
-                mpv.updateAudioOutput();
-            }
+            Layout.columnSpan: 2
         }
+
         Item {
-            // spacer item
-            Layout.fillWidth: true
+            height: 1
+            width: 1
         }
-        RadioButton {
-            id: audioOutputDriverRadioButton
+        RowLayout {
+            RadioButton {
+                id: audioOutputDriverRadioButton
 
-            Layout.alignment: Qt.AlignRight
-            checked: AudioSettings.useAudioDriver
-            enabled: AudioSettings.useCustomAudioOutput
-            text: qsTr("Use audio driver")
+                Layout.alignment: Qt.AlignRight
+                checked: AudioSettings.useAudioDriver
+                enabled: AudioSettings.useCustomAudioOutput
+                text: qsTr("Use audio driver")
+                ButtonGroup.group: useCustomAudioOutputGroup
 
-            onCheckedChanged: {
-                AudioSettings.useAudioDriver = checked;
-                AudioSettings.save();
-                mpv.updateAudioOutput();
-            }
-        }
-        ComboBox {
-            id: audioOutputDriverComboBox
-
-            enabled: (AudioSettings.useAudioDriver && AudioSettings.useCustomAudioOutput)
-            textRole: "driver"
-
-            model: ListModel {
-                id: audioOutputDriver
-
-                ListElement {
-                    driver: "jack"
-                }
-                ListElement {
-                    driver: "openal"
-                }
-                ListElement {
-                    driver: "oss"
-                }
-                ListElement {
-                    driver: "pcm"
-                }
-                ListElement {
-                    driver: "pulse"
-                }
-                ListElement {
-                    driver: "wasapi"
+                onCheckedChanged: {
+                    AudioSettings.useAudioDriver = checked;
+                    AudioSettings.save();
+                    mpv.updateAudioOutput();
                 }
             }
+            ComboBox {
+                id: audioOutputDriverComboBox
 
-            Component.onCompleted: {
-                for (let i = 0; i < audioOutputDriver.count; ++i) {
-                    if (audioOutputDriver.get(i).driver === AudioSettings.preferredAudioOutputDriver) {
-                        currentIndex = i;
-                        break;
+                enabled: (AudioSettings.useAudioDriver && AudioSettings.useCustomAudioOutput)
+                textRole: "driver"
+
+                model: ListModel {
+                    id: audioOutputDriver
+
+                    ListElement {
+                        driver: "jack"
+                    }
+                    ListElement {
+                        driver: "openal"
+                    }
+                    ListElement {
+                        driver: "oss"
+                    }
+                    ListElement {
+                        driver: "pcm"
+                    }
+                    ListElement {
+                        driver: "pulse"
+                    }
+                    ListElement {
+                        driver: "wasapi"
                     }
                 }
+
+                Component.onCompleted: {
+                    for (let i = 0; i < audioOutputDriver.count; ++i) {
+                        if (audioOutputDriver.get(i).driver === AudioSettings.preferredAudioOutputDriver) {
+                            currentIndex = i;
+                            break;
+                        }
+                    }
+                }
+                onActivated: {
+                    AudioSettings.preferredAudioOutputDriver = model.get(index).driver;
+                    AudioSettings.save();
+                    mpv.updateAudioOutput();
+                }
             }
-            onActivated: {
-                AudioSettings.preferredAudioOutputDriver = model.get(index).driver;
-                AudioSettings.save();
-                mpv.updateAudioOutput();
-            }
+            Layout.columnSpan: 2
         }
-        Item {
-            // spacer item
-            Layout.fillWidth: true
-        }
+
         Item {
             Layout.columnSpan: 3
             Layout.fillWidth: true
@@ -280,6 +296,118 @@ SettingsBasePage {
         Item {
             // spacer item
             Layout.fillWidth: true
+        }
+
+        SettingsHeader {
+            visible: NDI_SUPPORT
+            Layout.columnSpan: 3
+            Layout.fillWidth: true
+            text: qsTr("Audio settings (for NDI)")
+        }
+        Item {
+            visible: NDI_SUPPORT
+            Layout.columnSpan: 3
+            // spacer item
+            Layout.fillWidth: true
+        }
+
+        Item {
+            visible: NDI_SUPPORT
+            height: 1
+            width: 1
+        }
+        CheckBox {
+            visible: NDI_SUPPORT
+            id: ndiAudioOutputCheckBox
+
+            Layout.alignment: Qt.AlignRight
+            checked: AudioSettings.portAudioCustomOutput
+            enabled: true
+            text: qsTr("Use custom audio output for NDI playback")
+
+            onCheckedChanged: {
+                AudioSettings.portAudioCustomOutput = checked;
+                if(!AudioSettings.portAudioCustomOutput){
+                    AudioSettings.portAudioOutputDevice = "";
+                    AudioSettings.portAudioOutpuApi = "";
+                }
+                AudioSettings.save();
+                app.portAudioModel.currentDevice = app.portAudioModel.indexOfCurrentDevice;
+                app.portAudioModel.updatePortAudioList();
+                app.slides.runUpdateAudioOutputOnLayers();
+            }
+
+            Layout.columnSpan: 2
+            Layout.fillWidth: true
+        }
+
+        Item {
+            visible: NDI_SUPPORT
+            height: 1
+            width: 1
+        }
+        RowLayout {
+            Label {
+                visible: NDI_SUPPORT
+                Layout.alignment: Qt.AlignRight
+                enabled: AudioSettings.portAudioCustomOutput
+                color: enabled ? Kirigami.Theme.textColor : Kirigami.Theme.disabledTextColor
+                text: qsTr("Use audio device")
+            }
+            ComboBox {
+                id: portAudioDeviceComboBox
+                visible: NDI_SUPPORT
+
+                enabled: AudioSettings.portAudioCustomOutput
+                model: app.portAudioModel
+                currentIndex: app.portAudioModel.indexOfCurrentDevice
+                textRole: "name"
+
+                Component.onCompleted: {
+                    app.portAudioModel.updatePortAudioList();
+                }
+                onActivated: {
+                    app.portAudioModel.currentDevice = portAudioDeviceComboBox.currentIndex;
+                    AudioSettings.portAudioOutputDevice = app.portAudioModel.deviceName;
+                    AudioSettings.portAudioOutpuApi = app.portAudioModel.apiName;
+                    portAudioDeviceInfo.text = app.portAudioModel.deviceInfo;
+                    AudioSettings.save();
+                    app.portAudioModel.updatePortAudioList();
+                    app.slides.runUpdateAudioOutputOnLayers();
+                }
+                onVisibleChanged: {
+                    if (visible) {
+                        app.portAudioModel.updatePortAudioList();
+                    }
+                }
+            }
+            ToolButton {
+                id: updatePortAudioListBox
+
+                focusPolicy: Qt.NoFocus
+                icon.height: 16
+                icon.name: "view-refresh"
+                text: ""
+
+                onClicked: {
+                    app.portAudioModel.updatePortAudioList();
+                }
+            }
+            Layout.columnSpan: 2
+        }
+
+        Item {
+            visible: NDI_SUPPORT
+            height: 1
+            width: 1
+        }
+        Label {
+            visible: NDI_SUPPORT
+            id: portAudioDeviceInfo
+            enabled: AudioSettings.portAudioCustomOutput
+            color: enabled ? Kirigami.Theme.textColor : Kirigami.Theme.disabledTextColor
+            text: app.portAudioModel.deviceInfo
+            Layout.columnSpan: 2
         }
     }
 }

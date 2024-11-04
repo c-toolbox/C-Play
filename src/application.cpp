@@ -18,6 +18,9 @@
 #include "slidesmodel.h"
 #include "slidesqtitem.h"
 #include "tracksmodel.h"
+#ifdef NDI_SUPPORT
+#include <ndi/ndimodel.h>
+#endif
 
 #include "audiosettings.h"
 #include "gridsettings.h"
@@ -98,6 +101,10 @@ Application::Application(int &argc, char **argv, const QString &applicationName)
     m_shortcuts = new KConfigGroup(m_config, QStringLiteral("Shortcuts"));
     m_schemes = new KColorSchemeManager(this);
     m_systemDefaultStyle = m_app->style()->objectName();
+#ifdef NDI_SUPPORT
+    m_ndiSendersModel = new NDISendersModel(this);
+    m_portAudioModel = new PortAudioModel(this);
+#endif
 
     if (UserInterfaceSettings::useBreezeIconTheme()) {
         QIcon::setThemeName(QStringLiteral("breeze"));
@@ -226,6 +233,7 @@ void Application::registerQmlTypes() {
     qRegisterMetaType<LayersTypeModel *>();
 #ifdef NDI_SUPPORT
     qRegisterMetaType<NDISendersModel *>();
+    qRegisterMetaType<PortAudioModel *>();
 #endif
     qRegisterMetaType<LayersModel *>();
     qRegisterMetaType<SlidesModel *>();
@@ -267,6 +275,18 @@ void Application::setupQmlContextProperties() {
                                             QStringLiteral("Application should not be created in QML"));
 
     m_engine->rootContext()->setContextProperty(QStringLiteral("playerController"), new PlayerController(this));
+
+#ifdef PDF_SUPPORT
+    m_engine->rootContext()->setContextProperty(QStringLiteral("PDF_SUPPORT"), QVariant(true));
+#else
+    m_engine->rootContext()->setContextProperty(QStringLiteral("PDF_SUPPORT"), QVariant(false));
+#endif
+
+#ifdef NDI_SUPPORT
+    m_engine->rootContext()->setContextProperty(QStringLiteral("NDI_SUPPORT"), QVariant(true));
+#else
+    m_engine->rootContext()->setContextProperty(QStringLiteral("NDI_SUPPORT"), QVariant(false));
+#endif
 }
 
 QUrl Application::configFilePath() {
@@ -361,6 +381,22 @@ void Application::setStartupFile(std::string filePath) {
 SlidesModel *Application::slidesModel() {
     return m_slidesModel;
 }
+
+#ifdef NDI_SUPPORT
+NDISendersModel* Application::ndiSendersModel() {
+    return m_ndiSendersModel;
+}
+
+void Application::setNdiSendersModel(NDISendersModel* model) {
+    m_ndiSendersModel = model;
+}
+PortAudioModel* Application::portAudioModel() {
+    return m_portAudioModel;
+}
+void Application::setPortAudioModel(PortAudioModel* model) {
+    m_portAudioModel = model;
+}
+#endif
 
 QString Application::argument(int key) {
     return m_args[key];

@@ -37,9 +37,6 @@ LayersModel::LayersModel(QObject *parent)
       m_layersName(QStringLiteral("Untitled")),
       m_layersPath(QStringLiteral("")),
       m_layerHierachy(BaseLayer::LayerHierarchy::FRONT) {
-#ifdef NDI_SUPPORT
-    m_ndiSendersModel = new NDISendersModel(this);
-#endif
 }
 
 LayersModel::~LayersModel() {
@@ -712,16 +709,6 @@ void LayersModel::encodeToJSON(QJsonObject &obj, const QStringList &forRelativeP
     setLayersNeedsSave(false);
 }
 
-#ifdef NDI_SUPPORT
-NDISendersModel *LayersModel::ndiSendersModel() {
-    return m_ndiSendersModel;
-}
-
-void LayersModel::setNdiSendersModel(NDISendersModel *model) {
-    m_ndiSendersModel = model;
-}
-#endif
-
 bool LayersModel::runRenderOnLayersThatShouldUpdate(bool updateRendering, bool preload) {
     bool statusHasUpdated = false;
     for (int i = 0; i < m_layers.size(); i++) {
@@ -789,55 +776,3 @@ QHash<int, QByteArray> LayersTypeModel::roleNames() const {
     roles[textRole] = "typeName";
     return roles;
 }
-
-#ifdef NDI_SUPPORT
-NDISendersModel::NDISendersModel(QObject *parent)
-    : QAbstractListModel(parent) {
-}
-
-NDISendersModel::~NDISendersModel() {
-}
-
-int NDISendersModel::rowCount(const QModelIndex &parent) const {
-    if (parent.isValid())
-        return 0;
-
-    return m_NDIsenders.size();
-}
-
-QVariant NDISendersModel::data(const QModelIndex &index, int role) const {
-    if (!index.isValid() || m_NDIsenders.empty())
-        return QVariant();
-
-    if (!checkIndex(index)) {
-        return QVariant();
-    }
-    if (role == textRole) {
-        return m_NDIsenders.at(index.row());
-    }
-    return QVariant();
-}
-
-QHash<int, QByteArray> NDISendersModel::roleNames() const {
-    QHash<int, QByteArray> roles;
-    roles[textRole] = "typeName";
-    return roles;
-}
-
-int NDISendersModel::updateSendersList() {
-    int senders = NdiFinder::instance().findSenders();
-    std::vector<std::string> sendersList = NdiFinder::instance().getSendersList();
-
-    beginResetModel();
-    m_NDIsenders.clear();
-    for (auto s : sendersList) {
-        m_NDIsenders.append(QString::fromStdString(s));
-    }
-    endResetModel();
-
-    if (senders > 0)
-        return 0;
-    else
-        return -1;
-}
-#endif

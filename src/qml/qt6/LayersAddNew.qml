@@ -168,7 +168,14 @@ Kirigami.ApplicationWindow {
             textRole: "typeName"
 
             onActivated: {
-                layerTitle.text = "";
+                if (typeComboBox.currentText === "NDI") {
+                    app.ndiSendersModel.updateSendersList();
+                    ndiSenderComboBox.currentIndex = app.ndiSendersModel.numberOfSenders - 1;
+                    layerTitle.text = ndiSenderComboBox.currentText;
+                }
+                else {
+                    layerTitle.text = "";
+                }
             }
         }
         Label {
@@ -228,17 +235,17 @@ Kirigami.ApplicationWindow {
                 id: ndiSenderComboBox
 
                 Layout.fillWidth: true
-                model: app.slides.selected.ndiSendersModel
+                model: app.ndiSendersModel
+                currentIndex: app.ndiSendersModel.numberOfSenders - 1
                 textRole: "typeName"
 
-                Component.onCompleted: {}
-                onActivated: {
+                Component.onCompleted: {
+                    app.ndiSendersModel.updateSendersList();
+                    ndiSenderComboBox.currentIndex = app.ndiSendersModel.numberOfSenders - 1;
                     layerTitle.text = ndiSenderComboBox.currentText;
                 }
-                onVisibleChanged: {
-                    if (visible) {
-                        updateSendersBox.clicked();
-                    }
+                onActivated: {
+                    layerTitle.text = ndiSenderComboBox.currentText;
                 }
             }
             ToolButton {
@@ -250,7 +257,8 @@ Kirigami.ApplicationWindow {
                 text: ""
 
                 onClicked: {
-                    ndiSenderComboBox.currentIndex = app.slides.selected.ndiSendersModel.updateSendersList();
+                    app.ndiSendersModel.updateSendersList();
+                    ndiSenderComboBox.currentIndex = app.ndiSendersModel.numberOfSenders - 1;
                     layerTitle.text = ndiSenderComboBox.currentText;
                 }
             }

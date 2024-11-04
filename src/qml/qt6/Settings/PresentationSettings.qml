@@ -250,10 +250,12 @@ SettingsBasePage {
         }
         
         Label {
+            visible: PDF_SUPPORT
             Layout.alignment: Qt.AlignRight
             text: qsTr("DPI (dots per inch) for rendering PDF pages:")
         }
         SpinBox {
+            visible: PDF_SUPPORT
             editable: true
             from: 0
             to: 1000
@@ -265,6 +267,7 @@ SettingsBasePage {
             }
         }
         Item {
+            visible: PDF_SUPPORT
             // spacer item
             Layout.fillWidth: true
         }

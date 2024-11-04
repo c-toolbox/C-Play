@@ -1,5 +1,7 @@
 #include "ndilayer.h"
 #include "audiosettings.h"
+#include <fmt/core.h>
+#include <sgct/sgct.h>
 
 /* This routine will be called by the PortAudio engine when audio is needed.
 ** It may called at interrupt level on some machines so don't do anything
@@ -111,7 +113,7 @@ void NdiLayer::initialize() {
             m_recevieAudio = true;
             m_audioOutputParameters.device = Pa_GetDefaultOutputDevice(); /* default output device */
             if (m_audioOutputParameters.device == paNoDevice) {
-                fprintf(stderr, "Error: No default output device.\n");
+                sgct::Log::Error("NdiLayer Error: No default audio output device.\n");
             }
         }
     }
@@ -175,12 +177,74 @@ bool NdiLayer::hasAudio() {
 }
 
 void NdiLayer::updateAudioOutput() {
-    if (AudioSettings::useCustomAudioOutput()) {
-        if (AudioSettings::useAudioDevice()) {
-            //AudioSettings::preferredAudioOutputDevice()
+    if (isMaster()) {
+        //See if device has changed
+        PaDeviceIndex currentDeviceIdx = m_audioOutputParameters.device;
+        PaDeviceIndex newDeviceIdx = Pa_GetDefaultOutputDevice(); /* default output device */
+        if (newDeviceIdx == paNoDevice) {
+            sgct::Log::Error("NdiLayer Error: No default audio output device.\n");
         }
-        else if (AudioSettings::useAudioDriver()) {
-            //AudioSettings::preferredAudioOutputDriver()
+        if (AudioSettings::portAudioCustomOutput()) {
+            if (!AudioSettings::portAudioOutputDevice().isEmpty()
+                && !AudioSettings::portAudioOutpuApi().isEmpty()) {
+                int numDevices = Pa_GetDeviceCount();
+                if (numDevices < 0) {
+                    return;
+                }
+                const PaDeviceInfo* deviceInfo;
+                const PaHostApiInfo* apiInfo;
+                sgct::Log::Info(fmt::format("NdiLayer: Trying to find audio device named \"{}\" using the \"{}\" api.",
+                    AudioSettings::portAudioOutputDevice().toStdString(), AudioSettings::portAudioOutpuApi().toStdString()));
+                bool foundDevice = false;
+                for (int i = 0; i < numDevices; i++) {
+                    deviceInfo = Pa_GetDeviceInfo(i);
+                    apiInfo = Pa_GetHostApiInfo(deviceInfo->hostApi);
+                    if (deviceInfo->maxOutputChannels > 1) {
+                        QString deviceName = QString::fromUtf8(deviceInfo->name);
+                        QString apiName = QString::fromUtf8(apiInfo->name);
+                        if (deviceName == AudioSettings::portAudioOutputDevice()
+                            && apiName == AudioSettings::portAudioOutpuApi()) {
+                            newDeviceIdx = i;
+                            foundDevice = true;
+                            sgct::Log::Info(fmt::format("NdiLayer: Found desired audio device."));
+                        }
+                    }
+                }
+                if (!foundDevice) {
+                    sgct::Log::Info(fmt::format("NdiLayer: Did not find desired audio device. Sticking with default device."));
+                }
+            }
+        }
+
+        //Change device index if we found a new one
+        if (newDeviceIdx != currentDeviceIdx) {
+            //Close stream to restart it
+            bool wasStarted = false;
+            bool wasOpen = false;
+            if (m_audioStream) {
+                if (m_audioStreamOpen) {
+                    wasOpen = true;
+                    if (m_audioStreamStarted) {
+                        wasStarted = true;
+                        stop();
+                    }
+                    if (!m_audioStreamStarted) {
+                        m_audioError = Pa_CloseStream(m_audioStream);
+                        if (m_audioError == paNoError) {
+                            m_audioStreamOpen = false;
+                        }
+                    }
+                }
+            }
+            //If stream is closed, let's switch device
+            if (!m_audioStreamOpen) {
+                m_audioOutputParameters.device = newDeviceIdx;
+
+                //Let's start again if started
+                if (wasStarted && wasOpen) {
+                    StartAudioStream();
+                }
+            }
         }
     }
 }
@@ -264,28 +328,13 @@ bool NdiLayer::ReceiveData(bool updateRendering) {
         }
         else if (receviedAudio) {
             if (!m_audioStreamOpen) {
-                m_audioOutputParameters.channelCount = NDIreceiver.GetAudioChannels();
-                m_audioOutputParameters.sampleFormat = paInt16; // 16 bit integer point output
-                m_audioOutputParameters.suggestedLatency = Pa_GetDeviceInfo(m_audioOutputParameters.device)->defaultLowOutputLatency;
-                m_audioOutputParameters.hostApiSpecificStreamInfo = NULL;
-
-                if (m_recevieAudioThroughCallback) {
-                    m_audioError = Pa_OpenStream(&m_audioStream, NULL, &m_audioOutputParameters, NDIreceiver.GetAudioSampleRate(), NDIreceiver.GetAudioSamples(), paClipOff, paNDIAudioCallback, &NDIreceiver);
-                }
-                else {
-                    m_audioError = Pa_OpenStream(&m_audioStream, NULL, &m_audioOutputParameters, NDIreceiver.GetAudioSampleRate(), NDIreceiver.GetAudioSamples(), paClipOff, NULL, NULL);
-                }
-
-                if (m_audioError == paNoError) {
-                    m_audioStreamOpen = true;
-                    start();
-                }
+                StartAudioStream();
             }
 
             if (!m_recevieAudioThroughCallback && m_audioStreamOpen && m_audioStreamStarted) {
                 m_audioError = Pa_WriteStream(m_audioStream, NDIreceiver.GetAudioInterleaved(), NDIreceiver.GetAudioSamples());
                 if (m_audioError != paNoError) {
-                    printf("NDI audio stream error\n");
+                    sgct::Log::Error("NdiLayer Error: audio stream error");
                 }
             }
 
@@ -306,6 +355,28 @@ bool NdiLayer::OpenReceiver() {
         }
         return true;
     }
+    return false;
+}
+
+bool NdiLayer::StartAudioStream() {
+    m_audioOutputParameters.channelCount = NDIreceiver.GetAudioChannels();
+    m_audioOutputParameters.sampleFormat = paInt16; // 16 bit integer point output
+    m_audioOutputParameters.suggestedLatency = Pa_GetDeviceInfo(m_audioOutputParameters.device)->defaultLowOutputLatency;
+    m_audioOutputParameters.hostApiSpecificStreamInfo = NULL;
+
+    if (m_recevieAudioThroughCallback) {
+        m_audioError = Pa_OpenStream(&m_audioStream, NULL, &m_audioOutputParameters, NDIreceiver.GetAudioSampleRate(), NDIreceiver.GetAudioSamples(), paClipOff, paNDIAudioCallback, &NDIreceiver);
+    }
+    else {
+        m_audioError = Pa_OpenStream(&m_audioStream, NULL, &m_audioOutputParameters, NDIreceiver.GetAudioSampleRate(), NDIreceiver.GetAudioSamples(), paClipOff, NULL, NULL);
+    }
+
+    if (m_audioError == paNoError) {
+        m_audioStreamOpen = true;
+        start();
+        return true;
+    }
+
     return false;
 }
 

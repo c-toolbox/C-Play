@@ -42,5 +42,14 @@
       <label>Volume</label>
       <default>100</default>
     </entry>
+    <entry name="PortAudioCustomOutput" type="bool">
+      <default>false</default>
+    </entry>
+    <entry name="PortAudioOutputDevice" type="String">
+      <label>Preferred portaudio output device used with NDI audio</label>
+    </entry>
+    <entry name="PortAudioOutpuApi" type="String">
+      <label>Preferred portaudio host api used with NDI audio</label>
+    </entry>
   </group>
 </kcfg>

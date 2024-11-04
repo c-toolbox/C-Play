@@ -88,6 +88,8 @@ source_group(${AUTO_SOURCE_NAME} FILES ${KCFCG_MOC_FILES})
 if(BUILD_CPLAY_WITH_NDI)
     list(APPEND SOURCE_FILES ndi/ndilayer.cpp)
     list(APPEND SOURCE_FILES ndi/ndilayer.h)
+    list(APPEND SOURCE_FILES ndi/ndimodel.cpp)
+    list(APPEND SOURCE_FILES ndi/ndimodel.h)
     set(OFX_NDI_FILES
         ndi/ofxNDI/ofxNDIdynloader.cpp
         ndi/ofxNDI/ofxNDIdynloader.h

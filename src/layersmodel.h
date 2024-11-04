@@ -31,29 +31,6 @@ private:
     QStringList m_layerTypes;
 };
 
-#ifdef NDI_SUPPORT
-class NDISendersModel : public QAbstractListModel {
-    Q_OBJECT
-
-public:
-    explicit NDISendersModel(QObject *parent = nullptr);
-    ~NDISendersModel();
-
-    enum {
-        textRole = Qt::UserRole
-    };
-
-    int rowCount(const QModelIndex &parent = QModelIndex()) const override;
-    QVariant data(const QModelIndex &index, int role = Qt::DisplayRole) const override;
-    virtual QHash<int, QByteArray> roleNames() const override;
-
-    Q_INVOKABLE int updateSendersList();
-
-private:
-    QStringList m_NDIsenders;
-};
-#endif
-
 class LayersModel : public QAbstractListModel {
     Q_OBJECT
 
@@ -151,16 +128,6 @@ public:
     Q_INVOKABLE void decodeFromJSON(QJsonObject &obj, const QStringList &forRelativePaths);
     Q_INVOKABLE void encodeToJSON(QJsonObject &obj, const QStringList &forRelativePaths);
 
-#ifdef NDI_SUPPORT
-    Q_PROPERTY(NDISendersModel *ndiSendersModel
-                   READ ndiSendersModel
-                       WRITE setNdiSendersModel
-                           NOTIFY ndiSendersModelChanged)
-
-    NDISendersModel *ndiSendersModel();
-    void setNdiSendersModel(NDISendersModel *model);
-#endif
-
     bool runRenderOnLayersThatShouldUpdate(bool updateRendering, bool preload);
 
 Q_SIGNALS:
@@ -170,18 +137,12 @@ Q_SIGNALS:
     void layersNeedsSaveChanged();
     void layersNameChanged();
     void layerToCopyIdxChanged();
-#ifdef NDI_SUPPORT
-    void ndiSendersModelChanged();
-#endif
 
 private:
     Layers m_layers;
     QList<int> m_layersStatus;
     LayersTypeModel *m_layerTypeModel;
     BaseLayer::LayerHierarchy m_layerHierachy;
-#ifdef NDI_SUPPORT
-    NDISendersModel *m_ndiSendersModel;
-#endif
     int m_layersVisibility = 0;
     int m_layerToCopyIdx = -1;
     bool m_layersNeedsSave = false;

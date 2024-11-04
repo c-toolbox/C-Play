@@ -27,10 +27,19 @@ class KColorSchemeManager;
 class QAction;
 class SlidesModel;
 
+#ifdef NDI_SUPPORT
+class NDISendersModel;
+class PortAudioModel;
+#endif
+
 #if QT_VERSION >= QT_VERSION_CHECK(6, 0, 0)
 #ifndef OPAQUE_PTR_SlidesModel
 #define OPAQUE_PTR_SlidesModel
 Q_DECLARE_OPAQUE_POINTER(SlidesModel *)
+#ifdef NDI_SUPPORT
+Q_DECLARE_OPAQUE_POINTER(NDISendersModel*)
+Q_DECLARE_OPAQUE_POINTER(PortAudioModel*)
+#endif
 #endif
 #endif
 
@@ -79,8 +88,30 @@ public:
                        NOTIFY slidesModelChanged)
     SlidesModel *slidesModel();
 
+#ifdef NDI_SUPPORT
+    Q_PROPERTY(NDISendersModel* ndiSendersModel
+        READ ndiSendersModel
+        WRITE setNdiSendersModel
+        NOTIFY ndiSendersModelChanged)
+
+    NDISendersModel* ndiSendersModel();
+    void setNdiSendersModel(NDISendersModel* model);
+
+    Q_PROPERTY(PortAudioModel* portAudioModel
+        READ portAudioModel
+        WRITE setPortAudioModel
+        NOTIFY portAudioModelChanged)
+
+    PortAudioModel* portAudioModel();
+    void setPortAudioModel(PortAudioModel* model);
+#endif
+
 Q_SIGNALS:
     void slidesModelChanged();
+#ifdef NDI_SUPPORT
+    void ndiSendersModelChanged();
+    void portAudioModelChanged();
+#endif
 
 private:
     void setupWorkerThread();
@@ -93,6 +124,10 @@ private:
     void setupActions(const QString &actionName);
 
     SlidesModel *m_slidesModel;
+#ifdef NDI_SUPPORT
+    NDISendersModel* m_ndiSendersModel;
+    PortAudioModel* m_portAudioModel;
+#endif
     QAbstractItemModel *colorSchemesModel();
     QApplication *m_app;
     QQmlApplicationEngine *m_engine;
