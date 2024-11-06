@@ -610,13 +610,13 @@ SettingsBasePage {
             Layout.fillWidth: true
 
             Button {
-                text: "Reset radius/fov/rotation settings to startup values"
+                text: "Reset grid settings to startup values"
 
                 onClicked: {
-                    mpv.planeWidth = GridSettings.planeWidth;
-                    mpv.planeHeight = GridSettings.planeHeight;
-                    mpv.planeElevation = GridSettings.planeElevation;
-                    mpv.planeDistance = GridSettings.planeDistance;
+                    mpv.planeWidth = GridSettings.plane_Width_CM;
+                    mpv.planeHeight = GridSettings.plane_Height_CM;
+                    mpv.planeElevation = GridSettings.plane_Elevation_Degrees;
+                    mpv.planeDistance = GridSettings.plane_Distance_CM;
                     mpv.planeConsiderAspectRatio = GridSettings.plane_Calculate_Size_Based_on_Video;
                     mpv.rotationSpeed = GridSettings.surfaceRotationSpeed;
                     mpv.radius = GridSettings.surfaceRadius;
@@ -662,13 +662,13 @@ SettingsBasePage {
             Layout.fillWidth: true
 
             Button {
-                text: "Save current radius/fov/rotation settings to load on startup"
+                text: "Save current grid settings to load on startup"
 
                 onClicked: {
-                    GridSettings.planeWidth = mpv.planeWidth;
-                    GridSettings.planeHeight = mpv.planeHeight;
-                    GridSettings.planeElevation = mpv.planeElevation;
-                    GridSettings.planeDistance = mpv.planeDistance;
+                    GridSettings.plane_Width_CM = mpv.planeWidth;
+                    GridSettings.plane_Height_CM = mpv.planeHeight;
+                    GridSettings.plane_Elevation_Degrees = mpv.planeElevation;
+                    GridSettings.plane_Distance_CM = mpv.planeDistance;
                     GridSettings.plane_Calculate_Size_Based_on_Video = mpv.planeConsiderAspectRatio;
                     GridSettings.surfaceRotationSpeed = mpv.rotationSpeed;
                     GridSettings.surfaceRadius = mpv.radius;
