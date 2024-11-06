@@ -333,6 +333,7 @@ SettingsBasePage {
                 }
                 AudioSettings.save();
                 app.portAudioModel.currentDevice = app.portAudioModel.indexOfCurrentDevice;
+                portAudioDeviceInfo.text = app.portAudioModel.deviceInfo;
                 app.portAudioModel.updatePortAudioList();
                 app.slides.runUpdateAudioOutputOnLayers();
             }

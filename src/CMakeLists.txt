@@ -260,9 +260,7 @@ if(BUILD_CPLAY_WITH_NDI)
     list(APPEND TARGET_LIBRARIES NDI::NDI)
     target_compile_definitions(${TARGET_NAME} PUBLIC NDI_SUPPORT)
 
-    list(APPEND TARGET_LIBRARIES portaudio)
-    get_target_property(PORTAUDIO_BIN_DLL portaudio IMPORTED_LOCATION_RELEASE)
-    set_target_properties(portaudio PROPERTIES IMPORTED_LOCATION ${PORTAUDIO_BIN_DLL})
+    list(APPEND TARGET_LIBRARIES PortAudio::PortAudio)
 endif()
 
 if(BUILD_CPLAY_WITH_POPPLER)
