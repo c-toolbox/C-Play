@@ -43,6 +43,7 @@ private:
     bool ReceiveData(bool updateRendering);
     bool OpenReceiver();
     bool StartAudioStream();
+    PaDeviceIndex GetChosenApplicationAudioDevice();
 
     bool GetPixelData(GLuint TextureID, unsigned int width, unsigned int height);
     bool LoadTexturePixels(GLuint TextureID, unsigned int width, unsigned int height, unsigned char *data, int GLformat);

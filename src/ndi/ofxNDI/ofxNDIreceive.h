@@ -50,6 +50,9 @@
 	06.12.19 - Add dynamic load class (https://github.com/IDArnhem/ofxNDI)
 	27.02.20 - Add std::chrono functions for fps timing
 	14.12.23 - Add m_VideoTimecode, GetVideoTimecode()
+	01.11.24 - By: Erik Sundén
+			   Added ImageOnly and AudioOnly capture methods, with or without frame syncing
+			   Added convertion to interleaved audio
 
 */
 #pragma once
@@ -277,6 +280,9 @@ public:
 
 	// Return the current video frame timecode
 	int64_t GetVideoTimecode();
+
+	// Check if we should receive audio
+	bool shouldReceiveAudio();
 
 	// Set to receive Audio
 	void SetAudio(bool bAudio, bool bAudioConverToInterleaved = false);

@@ -14,10 +14,14 @@ static int paNDIAudioCallback(const void*, void* outputBuffer,
     void* userData)
 {
     ofxNDIreceive* reciever = (ofxNDIreceive*)userData;
-    void* receviedFrames = reciever->ReceiveAudioOnlyFrameSync((int)framesPerBuffer);
-    if (receviedFrames) {
-        int channels = reciever->GetAudioChannels();
-        memcpy(outputBuffer, receviedFrames, ((size_t)framesPerBuffer * (size_t)channels * sizeof(int16_t)));
+    if(reciever) {
+        if (reciever->shouldReceiveAudio()) {
+            void* receviedFrames = reciever->ReceiveAudioOnlyFrameSync((int)framesPerBuffer);
+            if (receviedFrames) {
+                int channels = reciever->GetAudioChannels();
+                memcpy(outputBuffer, receviedFrames, ((size_t)framesPerBuffer * (size_t)channels * sizeof(int16_t)));
+            }
+        }
     }
 
     return paContinue;
@@ -75,11 +79,8 @@ NdiLayer::NdiLayer() {
 }
 
 NdiLayer::~NdiLayer() {
-    if (!OpenReceiver()) {
-        NDIreceiver.ReleaseReceiver();
-    }
-
     if (isMaster() && m_recevieAudio) {
+        NDIreceiver.SetAudio(false);
         if (m_audioStreamOpen) {
             m_audioError = Pa_CloseStream(m_audioStream);
             if (m_audioError == paNoError) {
@@ -87,6 +88,10 @@ NdiLayer::~NdiLayer() {
             }
         }
         Pa_Terminate();
+    }
+
+    if (!OpenReceiver()) {
+        NDIreceiver.ReleaseReceiver();
     }
 
     if (m_pbo[0]) {
@@ -111,7 +116,7 @@ void NdiLayer::initialize() {
         else {
             NDIreceiver.SetAudio(true, true);
             m_recevieAudio = true;
-            m_audioOutputParameters.device = Pa_GetDefaultOutputDevice(); /* default output device */
+            m_audioOutputParameters.device = GetChosenApplicationAudioDevice();
             if (m_audioOutputParameters.device == paNoDevice) {
                 sgct::Log::Error("NdiLayer Error: No default audio output device.\n");
             }
@@ -180,41 +185,7 @@ void NdiLayer::updateAudioOutput() {
     if (isMaster()) {
         //See if device has changed
         PaDeviceIndex currentDeviceIdx = m_audioOutputParameters.device;
-        PaDeviceIndex newDeviceIdx = Pa_GetDefaultOutputDevice(); /* default output device */
-        if (newDeviceIdx == paNoDevice) {
-            sgct::Log::Error("NdiLayer Error: No default audio output device.\n");
-        }
-        if (AudioSettings::portAudioCustomOutput()) {
-            if (!AudioSettings::portAudioOutputDevice().isEmpty()
-                && !AudioSettings::portAudioOutpuApi().isEmpty()) {
-                int numDevices = Pa_GetDeviceCount();
-                if (numDevices < 0) {
-                    return;
-                }
-                const PaDeviceInfo* deviceInfo;
-                const PaHostApiInfo* apiInfo;
-                sgct::Log::Info(fmt::format("NdiLayer: Trying to find audio device named \"{}\" using the \"{}\" api.",
-                    AudioSettings::portAudioOutputDevice().toStdString(), AudioSettings::portAudioOutpuApi().toStdString()));
-                bool foundDevice = false;
-                for (int i = 0; i < numDevices; i++) {
-                    deviceInfo = Pa_GetDeviceInfo(i);
-                    apiInfo = Pa_GetHostApiInfo(deviceInfo->hostApi);
-                    if (deviceInfo->maxOutputChannels > 1) {
-                        QString deviceName = QString::fromUtf8(deviceInfo->name);
-                        QString apiName = QString::fromUtf8(apiInfo->name);
-                        if (deviceName == AudioSettings::portAudioOutputDevice()
-                            && apiName == AudioSettings::portAudioOutpuApi()) {
-                            newDeviceIdx = i;
-                            foundDevice = true;
-                            sgct::Log::Info(fmt::format("NdiLayer: Found desired audio device."));
-                        }
-                    }
-                }
-                if (!foundDevice) {
-                    sgct::Log::Info(fmt::format("NdiLayer: Did not find desired audio device. Sticking with default device."));
-                }
-            }
-        }
+        PaDeviceIndex newDeviceIdx = GetChosenApplicationAudioDevice();
 
         //Change device index if we found a new one
         if (newDeviceIdx != currentDeviceIdx) {
@@ -378,6 +349,45 @@ bool NdiLayer::StartAudioStream() {
     }
 
     return false;
+}
+
+PaDeviceIndex NdiLayer::GetChosenApplicationAudioDevice() {
+    PaDeviceIndex choseDeviceIdx = Pa_GetDefaultOutputDevice(); /* default output device */
+    if (choseDeviceIdx == paNoDevice) {
+        sgct::Log::Error("NdiLayer Error: No default audio output device.\n");
+    }
+    if (AudioSettings::portAudioCustomOutput()) {
+        if (!AudioSettings::portAudioOutputDevice().isEmpty()
+            && !AudioSettings::portAudioOutpuApi().isEmpty()) {
+            int numDevices = Pa_GetDeviceCount();
+            if (numDevices < 0) {
+                return choseDeviceIdx;
+            }
+            const PaDeviceInfo* deviceInfo;
+            const PaHostApiInfo* apiInfo;
+            sgct::Log::Info(fmt::format("NdiLayer: Trying to find audio device named \"{}\" using the \"{}\" api.",
+                AudioSettings::portAudioOutputDevice().toStdString(), AudioSettings::portAudioOutpuApi().toStdString()));
+            bool foundDevice = false;
+            for (int i = 0; i < numDevices; i++) {
+                deviceInfo = Pa_GetDeviceInfo(i);
+                apiInfo = Pa_GetHostApiInfo(deviceInfo->hostApi);
+                if (deviceInfo->maxOutputChannels > 1) {
+                    QString deviceName = QString::fromUtf8(deviceInfo->name);
+                    QString apiName = QString::fromUtf8(apiInfo->name);
+                    if (deviceName == AudioSettings::portAudioOutputDevice()
+                        && apiName == AudioSettings::portAudioOutpuApi()) {
+                        choseDeviceIdx = i;
+                        foundDevice = true;
+                        sgct::Log::Info(fmt::format("NdiLayer: Found desired audio device."));
+                    }
+                }
+            }
+            if (!foundDevice) {
+                sgct::Log::Info(fmt::format("NdiLayer: Did not find desired audio device. Sticking with default device."));
+            }
+        }
+    }
+    return choseDeviceIdx;
 }
 
 // Get NDI pixel data from the video frame to ofTexture

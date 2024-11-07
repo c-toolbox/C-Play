@@ -670,6 +670,11 @@ int64_t ofxNDIreceive::GetVideoTimecode()
 	return m_VideoTimecode;
 }
 
+// Check if we should receive audio
+bool ofxNDIreceive::shouldReceiveAudio() {
+	return m_bAudio;
+}
+
 // Set to receive Audio
 void ofxNDIreceive::SetAudio(bool bAudio, bool bAudioConverToInterleaved)
 {
