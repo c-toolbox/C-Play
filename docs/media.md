@@ -32,3 +32,6 @@ You can save a media bundle, based on numerous content specified above, to make 
 
  Also, multiple cplayfiles can be ordered in a playlist, through this guide:
  - [CPlaylist](guides/media/cplaylist)
+
+  From C-Play v2.1, you can build slides with multiple media layers which can be viewed as an immersive presentation, through this guide:
+ - [CPlayPres](guides/media/cplaypres)
