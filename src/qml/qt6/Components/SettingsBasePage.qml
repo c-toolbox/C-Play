@@ -15,7 +15,7 @@ Kirigami.ScrollablePage {
     id: root
 
     property bool hasHelp: true
-    property string helpUrl: "https://c-toolbox.github.io/C-Play/versions/v_2_0.html"
+    property string helpUrl: "https://c-toolbox.github.io/C-Play/versions/v_2_1.html"
 
     actions: [
         Kirigami.Action {

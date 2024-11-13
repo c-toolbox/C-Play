@@ -20,3 +20,5 @@ In this settings dialog you can also alter the startup volume, and steps size fo
 
 Also, you could choose to indicate the preferred track language or ID, if the video files include tracks. However, this is a general setting that mostly should be ignored.
 
+From C-Play v2.1 and onwards, NDI is supported as a layer within a slide. There is a specific audio configuration for the NDI audio playback on master. By default it already used the default device of your PC, so you would only need to set this if you want to use another one.
+

@@ -98,8 +98,10 @@ Kirigami.Page {
             icon.name: iconName
             text: qsTr(name)
             width: settingsPagesList.width
-
+            highlighted: settingsPagesList.currentIndex === index
+ 
             onClicked: {
+                settingsPagesList.currentIndex = index
                 applicationWindow().pageStack.removePage(1);
                 applicationWindow().pageStack.push(`${settingsPagesModel.pagePath}/${model.page}`);
             }

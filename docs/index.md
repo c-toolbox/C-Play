@@ -4,7 +4,7 @@ layout: home
 nav_order: 1
 ---
 
-# C-Play : Cluster Video Player
+# C-Play : Cluster Media Player
 
 C-Play is a video/media player developed for cluster environments where you need multiple computers and/or displays to run your content on. The displays could be flat or curved in any setup that is supported by our underlying toolkit [SGCT](https://sgct.github.io/) and any media format supported by [MPV](https://mpv.io/).
 
@@ -20,6 +20,11 @@ C-Play is an open source cluster video player, based on these open source projec
 - [FFmpeg](https://github.com/FFmpeg/FFmpeg) - The one and only video decoder/encoder
 - [Haruna](https://github.com/g-fb/haruna) - Qt/QML UI for MPV
 
+Optional libraries in C-Play version 2.1 and above.
+
+- [NDI SDK](https://ndi.video/for-developers/ndi-sdk/) - Support frame-synced NDI streams, video and audio
+- [Poppler](https://poppler.freedesktop.org/) - For rendering PDF pages
+
 ## Version: 2.0
 
 ![Render v2 with Sections](assets/Cplay-v2-section.png)
@@ -27,7 +32,7 @@ C-Play is an open source cluster video player, based on these open source projec
 ### Current Features
 These are just some features that set C-Play apart from others media/video players:
 
-C-Play support videos that are:
+C-Play support media that is:
 
 - Stereoscopic (Side-by-side or Top-Bottom) and Monoscopic
 
@@ -35,7 +40,9 @@ C-Play support videos that are:
 
 - 360 equirectangular or equiangular cubemap (common on YouTube)
 
-- Any "flat" video arbitary aspect ratio
+- Any "flat" media arbitary aspect ratio
+
+- Media can be added as layers within slides, using numerous inputs, such as image, video, audio, NDI and PDF.
 
 Some technical features:
 

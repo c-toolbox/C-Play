@@ -11,7 +11,7 @@ Alongside the primary media (being video, audio or images) and optional overlay 
 
 These images are usually designed to be defined at startup, but can be changed during runtime without overriding the default value for next launch of C-Play.
 
-For changing the images runtime, this is made in the "Settings -> Configure -> Images", as seen [here](../settings/image.md).
+For changing the images runtime, this is made in the "Settings -> Configure -> Images", as seen [here](../settings/image).
 
 At runtime, you can choose to display or hide both the background and foreground in the UI header, as seen below.
 

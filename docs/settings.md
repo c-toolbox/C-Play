@@ -14,4 +14,5 @@ nav_order: 5
  - [Location settings](guides/settings/location)
  - [Playback settings](guides/settings/playback)
  - [Playlist settings](guides/settings/playlist)
+ - [Presentation settings](guides/settings/presentation)
 - [User Interface +  Mouse + Keyboard shortcuts](guides/settings/ui_mouse_keys)

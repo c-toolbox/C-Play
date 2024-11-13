@@ -25,6 +25,10 @@ The base location of where your media is stored. The benefit of setting this pat
 
 The file location path could be set to hold a preferred path for which C-Play will always open it dialog to when clicking "*Open File*". But as default, this is *empty*, and C-Play then opens the last path you loaded a file from.
 
-#### 4. Uniview video location (legacy)
+#### 4-7. Default file location for various *layer* types (from C-Play v2.1 and newer)
+
+There are specific file location settings for various file dialogs used with the *Layer* functionality introduced in C-Play v2.1. They are normally set to the file type specific path in Windows (for video, pictures, music and documents(for PDF:s)). However, please feel free to change this depending how you store files on your cluster.
+
+#### 8. Uniview video location (legacy)
 
 C-Play supports loading of Uniview "*.fdv*" files, for utilizing C-Play within an environment that has Sciss Uniview runnning alongside it, or that has been used before. Does path are relative by nature, so C-Play needs to now where Uniview looks for the video files, which should be this path. Though, it is highly recommend to start using only "*cplayfile*" and "*cplaylist*", which is very easy in C-Play, and also more powerful. 
