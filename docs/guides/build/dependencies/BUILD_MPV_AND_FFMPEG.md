@@ -4,7 +4,7 @@ C-Play depends on the great *mpv* media player library, which indeed depends on 
 
 ## Option 1: Build mpv and ffmpeg from MINGW-packages
 
-As of writing (2024-06-08) this is mpv 0.38 and ffmpeg 6.1.1.
+As of writing (2024-11-20) this is mpv 0.39 and ffmpeg 7.1.
 
 This is the recommend option, as it gives you latest libraries.
 
@@ -76,14 +76,16 @@ package() {
 }
 ```
 The run these commands to build and install jack2 + portaudio with the ASIO support configured.
+*Recommend using the UCRT64 environment instead of MINGW64*.
 
 ```
+pacman -S binutils base-devel mingw-w64-ucrt-x86_64-gcc
 updpkgsums
 makepkg-mingw -sCLf
 pacman -U mingw-w64-*-portaudio-*-any.pkg.tar.zst
 ```
 
-In MSYS64_INSTALL_ROOT\mingw64\bin you may find *libportaudio-2.dll* or similiar. Please copy and rename it to *libportaudio.dll*.
+In MSYS64_INSTALL_ROOT\ucrt64\bin you may find *libportaudio-2.dll* or similiar. Please copy and rename it to *libportaudio.dll*.
 
 ### 1.2 Build FFmpeg with custom options (supporting jack2, nvdec etc)
 
@@ -134,11 +136,11 @@ After packing, according to the same steps as for *ffmpeg* above, run:
 pacman -U mingw-w64-*-mpv-*-any.pkg.tar.zst
 ```
 
-Create an environmental variable called "PKG_CONFIG_PATH" and add the path "MSYS64_INSTALL_ROOT\mingw64\lib\pkgconfig". Also add the "MSYS64_INSTALL_ROOT\mingw64\bin to your environmental "Path".
+Create an environmental variable called "PKG_CONFIG_PATH" and add the path "MSYS64_INSTALL_ROOT\ucrt64\lib\pkgconfig". Also add the "MSYS64_INSTALL_ROOT\ucrt64\bin to your environmental "Path".
 
 ## Option 2: Build mpv and ffmpeg with *m-ab-s*
 
-As of writing (2024-06-20) this build setup includes mpv 0.36 and then option to specify and ffmpeg version under that.
+As of writing (2024-11-20) this build setup includes mpv 0.36 and then option to specify and ffmpeg version under that.
 
 This compilation takes much more time(as you are checking out all sources from git of ffmpeg dependencies), but has easier and more flexible configuration options.
 
@@ -180,7 +182,8 @@ If the build hasn't generated one (*normally it does not*), we need to generate 
 ```
 pacman -S mingw-w64-x86_64-tools
 
-gendef - MSYS64_INSTALL_ROOT/mingw64/bin/libmpv-2.dll > MSYS64_INSTALL_ROOT/mingw64/bin/libmpv.def
+cd MSYS64_INSTALL_ROOT/mingw64/bin/
+gendef - libmpv-2.dll > libmpv.def
 
 or
 

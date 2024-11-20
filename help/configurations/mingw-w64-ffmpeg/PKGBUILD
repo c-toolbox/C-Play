@@ -6,11 +6,11 @@
 _realname=ffmpeg
 pkgbase="mingw-w64-${_realname}"
 pkgname="${MINGW_PACKAGE_PREFIX}-${_realname}"
-pkgver=6.1.1
-pkgrel=10
+pkgver=7.1
+pkgrel=2
 pkgdesc="Complete solution to record, convert and stream audio and video (mingw-w64)"
 arch=('any')
-mingw_arch=('mingw32' 'mingw64' 'ucrt64' 'clang64' 'clang32' 'clangarm64')
+mingw_arch=('mingw32' 'mingw64' 'ucrt64' 'clang64' 'clangarm64')
 url="https://ffmpeg.org/"
 msys2_repository_url='https://git.ffmpeg.org/ffmpeg.git'
 msys2_references=(
@@ -19,10 +19,12 @@ msys2_references=(
 license=('spdx:GPL-3.0-or-later')
 depends=("${MINGW_PACKAGE_PREFIX}-aom"
          "${MINGW_PACKAGE_PREFIX}-bzip2"
-         "${MINGW_PACKAGE_PREFIX}-frei0r-plugins"
          "${MINGW_PACKAGE_PREFIX}-dav1d"
+         "${MINGW_PACKAGE_PREFIX}-freetype"
+         "${MINGW_PACKAGE_PREFIX}-frei0r-plugins"
          "${MINGW_PACKAGE_PREFIX}-gmp"
          "${MINGW_PACKAGE_PREFIX}-gsm"
+         "${MINGW_PACKAGE_PREFIX}-harfbuzz"
          "${MINGW_PACKAGE_PREFIX}-lame"
          "${MINGW_PACKAGE_PREFIX}-libass"
          "${MINGW_PACKAGE_PREFIX}-libexif"
@@ -39,10 +41,11 @@ depends=("${MINGW_PACKAGE_PREFIX}-aom"
          "${MINGW_PACKAGE_PREFIX}-opencore-amr"
          "${MINGW_PACKAGE_PREFIX}-openjpeg2"
          "${MINGW_PACKAGE_PREFIX}-opus"
-		 "${MINGW_PACKAGE_PREFIX}-jack2"
          "${MINGW_PACKAGE_PREFIX}-rav1e"
          "${MINGW_PACKAGE_PREFIX}-rtmpdump"
           $([[ "${CARCH}" == "i686" ]] || echo "${MINGW_PACKAGE_PREFIX}-svt-av1")
+          $([[ "${CARCH}" == "i686" ]] || echo "${MINGW_PACKAGE_PREFIX}-liblc3")
+         "${MINGW_PACKAGE_PREFIX}-snappy"
          "${MINGW_PACKAGE_PREFIX}-vulkan"
          "${MINGW_PACKAGE_PREFIX}-libx264"
          "${MINGW_PACKAGE_PREFIX}-x265"
@@ -60,21 +63,13 @@ makedepends=("${MINGW_PACKAGE_PREFIX}-cc"
 source=(https://ffmpeg.org/releases/${_realname}-${pkgver}.tar.xz{,.asc}
         "pathtools.c"
         "pathtools.h"
-        "0001-rename-the-bundled-Mesa-AV1-vulkan-video-headers.patch::https://git.ffmpeg.org/gitweb/ffmpeg.git/patch/fef22c87"
-        "0005-Win32-Add-path-relocation-to-frei0r-plugins-search.patch"
-        "0009-wrong-null-type.patch"
-        "https://github.com/FFmpeg/FFmpeg/commit/06c2a2c425f22e7dba5cad909737a631cc676e3f.patch"
-        "https://github.com/FFmpeg/FFmpeg/commit/43b417d516b0fabbec1f02120d948f636b8a018e.patch")
+        "0005-Win32-Add-path-relocation-to-frei0r-plugins-search.patch")
 validpgpkeys=('FCF986EA15E6E293A5644F10B4322F04D67658D8')
-sha256sums=('8684f4b00f94b85461884c3719382f1261f0d9eb3d59640a1f4ac0873616f968'
+sha256sums=('40973d44970dbc83ef302b0609f2e74982be2d85916dd2ee7472d30678a7abe6'
             'SKIP'
             'ebf471173f5ee9c4416c10a78760cea8afaf1a4a6e653977321e8547ce7bf3c0'
             '1585ef1b61cf53a2ca27049c11d49e0834683dfda798f03547761375df482a90'
-            'c2ef9c35082ed2e5989428d086b7bfef1dfe9e0a85e6d259daf46f369f115483'
-            '8c74e9b5800dbb41c33a60114712726ec768ad6de8f147c2eb30656fd4c899cc'
-            'f76048e6e1944e15f646a52b75e75bc8906ca80f2a3124fba6a2050722750447'
-            'd72cf07b112d50e346df490fdfc374d3746e8224ad139858d559bd04bc7def51'
-            'bb144ba747f494cbb386f0032d45df5657a8017b5812f4868f78f263ddb98ac9')
+            '8c74e9b5800dbb41c33a60114712726ec768ad6de8f147c2eb30656fd4c899cc')
 
 # Helper macros to help make tasks easier #
 apply_patch_with_msg() {
@@ -95,14 +90,7 @@ prepare() {
   cp -fHv "${srcdir}"/pathtools.[ch] libavfilter/
 
   apply_patch_with_msg \
-    0001-rename-the-bundled-Mesa-AV1-vulkan-video-headers.patch \
     0005-Win32-Add-path-relocation-to-frei0r-plugins-search.patch
-
-  apply_patch_with_msg 0009-wrong-null-type.patch
-
-  apply_patch_with_msg \
-    06c2a2c425f22e7dba5cad909737a631cc676e3f.patch \
-    43b417d516b0fabbec1f02120d948f636b8a018e.patch
 }
 
 build() {
@@ -111,9 +99,10 @@ build() {
     --disable-debug
     --disable-stripping
     --disable-doc
-	--disable-sdl2
+    --disable-sdl2
     --enable-dxva2
     --enable-d3d11va
+    --enable-d3d12va
     --enable-frei0r
     --enable-gmp
     --enable-gpl
@@ -121,7 +110,9 @@ build() {
     --enable-libaom
     --enable-libass
     --enable-libdav1d
+    --enable-libfontconfig
     --enable-libgsm
+    --enable-libharfbuzz
     --enable-libjxl
     --enable-libmp3lame
     --enable-libopencore_amrnb
@@ -137,10 +128,11 @@ build() {
     --enable-libxvid
     --enable-libvpx
     --enable-libwebp
-	--enable-libjack
+    --enable-libjack
     --enable-libzimg
+    --enable-libsnappy
     --enable-openal
-	--enable-opengl
+    --enable-opengl
     --enable-pic
     --enable-postproc
     --enable-runtime-cpudetect
@@ -155,30 +147,29 @@ build() {
   if [[ "${CARCH}" != "i686" ]]; then
     common_config+=(
        --enable-libsvtav1
+       --enable-liblc3
     )
   fi
 
   if [[ "${MINGW_PACKAGE_PREFIX}" != *clang-aarch64* ]]; then
     common_config+=(
         --enable-amf
-		--enable-cuda
-		--enable-cuvid
+        --enable-cuda
+        --enable-cuvid
         --enable-nvenc
-		--enable-nvdec
+        --enable-nvdec
     )
   fi
 
-  # https://github.com/msys2/MINGW-packages/pull/20930#issuecomment-2117626198
-  CFLAGS+=" -Wno-error=incompatible-pointer-types"
-
   for _variant in -static -shared; do
-    [[ -d "${srcdir}/build-${MSYSTEM}${_variant}" ]] && rm -rf "${srcdir}/build-${MSYSTEM}${_variant}"
     mkdir -p "${srcdir}/build-${MSYSTEM}${_variant}" && cd "${srcdir}/build-${MSYSTEM}${_variant}"
+
     if [[ ${_variant} == -static ]]; then
       ENABLE_VARIANT="--enable-static --pkg-config-flags=--static"
     else
       ENABLE_VARIANT=--enable-shared
     fi
+
     ../${_realname}-${pkgver}/configure \
       --prefix=${MINGW_PREFIX} \
       --target-os=mingw32 \

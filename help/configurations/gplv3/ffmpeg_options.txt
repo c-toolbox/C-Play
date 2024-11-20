@@ -15,31 +15,31 @@
 --enable-ffnvcodec # NVIDIA onwards
 --enable-cuda-llvm
 --enable-nvdec
---disable-nvenc # Failed to be found...
---enable-cuda
---enable-cuvid
+--disable-nvenc
+--disable-cuda
+--disable-cuvid
+--disable-vulkan
 
 # Common options
 --enable-gmp
 --enable-libmp3lame
---enable-libopus
 --enable-libvorbis
 --enable-libvpx
 --enable-libx264
 --enable-libx265
 --enable-libdav1d
 --enable-libaom
+#--enable-libplacebo
 --disable-debug
 
 # Enable JACK
 --enable-libjack
 
+# Enable HAP
+--enable-libsnappy
+
 # Zeranoe
 --enable-libass
 
-# Full
---enable-libglslang
-
 # Full plus options that add shared dependencies
 --enable-opengl
---enable-libopenh264
