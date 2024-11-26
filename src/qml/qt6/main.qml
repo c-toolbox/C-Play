@@ -61,6 +61,14 @@ Kirigami.ApplicationWindow {
         playList.scrollPositionTimer.start();
     }
 
+    Connections {
+        function onActionsUpdated() {
+            actions.updateShortcuts();
+            actionsAlternate.updateShortcuts();
+        }
+        target: app
+    }
+
     color: Kirigami.Theme.alternateBackgroundColor
     height: 880
     maximumHeight: 990
@@ -131,6 +139,10 @@ Kirigami.ApplicationWindow {
     Actions {
         id: actions
 
+    }
+    Actions {
+        id: actionsAlternate
+        isPrimary: false
     }
     BackgroundImage {
         id: bgImage

@@ -16,7 +16,9 @@ class HAction : public QAction {
 public:
     explicit HAction(QObject *parent = nullptr);
 
+    Q_INVOKABLE QString actionName();
     Q_INVOKABLE QString shortcutName();
+    Q_INVOKABLE QString alternateName();
     Q_INVOKABLE QString iconName();
 };
 

@@ -107,6 +107,7 @@ public:
 #endif
 
 Q_SIGNALS:
+    void actionsUpdated();
     void slidesModelChanged();
 #ifdef NDI_SUPPORT
     void ndiSendersModelChanged();

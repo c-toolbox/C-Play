@@ -455,10 +455,11 @@ void Application::configureShortcuts() {
     connect(&dlg, &KShortcutsDialog::accepted, this, [=]() {
         m_collection.writeSettings(m_shortcuts);
         m_config->sync();
+        Q_EMIT actionsUpdated();
     });
     dlg.setModal(true);
     dlg.addCollection(&m_collection);
-    dlg.configure(false);
+    dlg.configure(true);
 }
 
 void Application::updateAboutOtherText(const QString &mpvVersion, const QString &ffmpegVersion) {
@@ -708,14 +709,20 @@ void Application::setupActions(const QString &actionName) {
         auto action = new HAction();
         action->setText(QStringLiteral("Slide backwards/previous"));
         action->setIcon(QIcon::fromTheme(QStringLiteral("go-previous")));
-        m_collection.setDefaultShortcut(action, QKeySequence(QKeySequence::MoveToPreviousChar));
+        QList<QKeySequence> slidePrevShortcuts;
+        slidePrevShortcuts.push_back(QKeySequence(QStringLiteral("PgUp")));
+        slidePrevShortcuts.push_back(QKeySequence(QKeySequence::MoveToPreviousChar));
+        m_collection.setDefaultShortcuts(action, slidePrevShortcuts);
         m_collection.addAction(actionName, action);
     }
     if (actionName == QStringLiteral("slideNext")) {
         auto action = new HAction();
         action->setText(QStringLiteral("Slide forwards/next"));
         action->setIcon(QIcon::fromTheme(QStringLiteral("go-next")));
-        m_collection.setDefaultShortcut(action, QKeySequence(QKeySequence::MoveToNextChar));
+        QList<QKeySequence> slideNextShortcuts;
+        slideNextShortcuts.push_back(QKeySequence(QStringLiteral("PgDown")));
+        slideNextShortcuts.push_back(QKeySequence(QKeySequence::MoveToNextChar));
+        m_collection.setDefaultShortcuts(action, slideNextShortcuts);
         m_collection.addAction(actionName, action);
     }
     if (actionName == QStringLiteral("layerCopy")) {

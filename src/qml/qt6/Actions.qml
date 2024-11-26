@@ -14,21 +14,9 @@ import org.ctoolbox.cplay
 QtObject {
     id: root
 
-    property Action aboutCPlayAction: Action {
-        id: aboutCPlayAction
+    property bool isPrimary: true
+    property var list: ({})
 
-        property var qaction: app.action("aboutCPlay")
-
-        icon.name: qaction.iconName()
-        shortcut: qaction.shortcutName()
-        text: qaction.text
-
-        Component.onCompleted: list["aboutCPlayAction"] = aboutCPlayAction
-        onTriggered: {
-            app.updateAboutOtherText(mpv.getProperty("mpv-version"), mpv.getProperty("ffmpeg-version"));
-            qaction.trigger();
-        }
-    }
     property Action clearRecentMediaFilesAction: Action {
         id: clearRecentMediaFilesAction
 
@@ -47,16 +35,51 @@ QtObject {
             mpv.clearRecentPlaylist();
         }
     }
+    property Action syncAction: Action {
+        id: syncAction
+
+        icon.name: "im-user-online"
+        text: qsTr("Sync On")
+
+        onTriggered: {
+            mpv.syncVideo = !mpv.syncVideo;
+            if (mpv.syncVideo) {
+                text = qsTr("Sync On");
+                icon.name = "im-user-online";
+            } else {
+                text = qsTr("Sync Off");
+                icon.name = "im-user-offline";
+            }
+        }
+    }
+
+    property Action aboutCPlayAction: Action {
+        id: aboutCPlayAction
+
+        property var qaction: app.action("aboutCPlay")
+
+        icon.name: qaction.iconName()
+        shortcut: root.isPrimary ? qaction.shortcutName() : qaction.alternateName()
+        text: qaction.text
+
+        Component.onCompleted: list["aboutCPlayAction"] = aboutCPlayAction
+        function updateShortcuts() { shortcut = root.isPrimary ? qaction.shortcutName() : qaction.alternateName() }
+        onTriggered: {
+            app.updateAboutOtherText(mpv.getProperty("mpv-version"), mpv.getProperty("ffmpeg-version"));
+            qaction.trigger();
+        }
+    }
     property Action configureAction: Action {
         id: configureAction
 
         property var qaction: app.action("configure")
 
         icon.name: qaction.iconName()
-        shortcut: qaction.shortcutName()
+        shortcut: root.isPrimary ? qaction.shortcutName() : qaction.alternateName()
         text: qaction.text
 
         Component.onCompleted: list["configureAction"] = configureAction
+        function updateShortcuts() { shortcut = root.isPrimary ? qaction.shortcutName() : qaction.alternateName() }
         onTriggered: {
             settingsEditor.visible = true;
         }
@@ -67,23 +90,24 @@ QtObject {
         property var qaction: app.action("options_configure_keybinding")
 
         icon.name: qaction.iconName()
-        shortcut: qaction.shortcutName()
+        shortcut: root.isPrimary ? qaction.shortcutName() : qaction.alternateName()
         text: qaction.text
 
         Component.onCompleted: list["configureShortcutsAction"] = configureShortcutsAction
+        function updateShortcuts() { shortcut = root.isPrimary ? qaction.shortcutName() : qaction.alternateName() }
         onTriggered: qaction.trigger()
     }
-    property var list: ({})
     property Action muteAction: Action {
         id: muteAction
 
         property var qaction: app.action("mute")
 
         icon.name: qaction.iconName()
-        shortcut: qaction.shortcutName()
+        shortcut: root.isPrimary ? qaction.shortcutName() : qaction.alternateName()
         text: qaction.text
 
         Component.onCompleted: list["muteAction"] = muteAction
+        function updateShortcuts() { shortcut = root.isPrimary ? qaction.shortcutName() : qaction.alternateName() }
         onTriggered: {
             mpv.setProperty("mute", !mpv.getProperty("mute"));
             if (mpv.getProperty("mute")) {
@@ -101,10 +125,11 @@ QtObject {
         property var qaction: app.action("openFile")
 
         icon.name: qaction.iconName()
-        shortcut: qaction.shortcutName()
+        shortcut: root.isPrimary ? qaction.shortcutName() : qaction.alternateName()
         text: qaction.text
 
         Component.onCompleted: list["openAction"] = openAction
+        function updateShortcuts() { shortcut = root.isPrimary ? qaction.shortcutName() : qaction.alternateName() }
         onTriggered: openFileDialog.open()
     }
     property Action playNextAction: Action {
@@ -113,10 +138,11 @@ QtObject {
         property var qaction: app.action("playNext")
 
         icon.name: qaction.iconName()
-        shortcut: qaction.shortcutName()
+        shortcut: root.isPrimary ? qaction.shortcutName() : qaction.alternateName()
         text: qaction.text
 
         Component.onCompleted: list["playNextAction"] = playNextAction
+        function updateShortcuts() { shortcut = root.isPrimary ? qaction.shortcutName() : qaction.alternateName() }
         onTriggered: {
             const nextFileRow = mpv.playlistModel.getPlayingVideo() + 1;
             const updateLastPlayedFile = !playList.isYouTubePlaylist;
@@ -142,10 +168,11 @@ QtObject {
         property var qaction: app.action("play_pause")
 
         icon.name: qaction.iconName()
-        shortcut: qaction.shortcutName()
+        shortcut: root.isPrimary ? qaction.shortcutName() : qaction.alternateName()
         text: qaction.text
 
         Component.onCompleted: list["playPauseAction"] = playPauseAction
+        function updateShortcuts() { shortcut = root.isPrimary ? qaction.shortcutName() : qaction.alternateName() }
         onTriggered: mpv.togglePlayPause()
     }
     property Action playPreviousAction: Action {
@@ -154,10 +181,11 @@ QtObject {
         property var qaction: app.action("playPrevious")
 
         icon.name: qaction.iconName()
-        shortcut: qaction.shortcutName()
+        shortcut: root.isPrimary ? qaction.shortcutName() : qaction.alternateName()
         text: qaction.text
 
         Component.onCompleted: list["playPreviousAction"] = playPreviousAction
+        function updateShortcuts() { shortcut = root.isPrimary ? qaction.shortcutName() : qaction.alternateName() }
         onTriggered: {
             if (mpv.playlistModel.getPlayingVideo() !== 0) {
                 const previousFileRow = mpv.playlistModel.getPlayingVideo() - 1;
@@ -175,12 +203,11 @@ QtObject {
         property var qaction: app.action("file_quit")
 
         icon.name: qaction.iconName()
-        shortcut: qaction.shortcutName()
+        shortcut: root.isPrimary ? qaction.shortcutName() : qaction.alternateName()
         text: qaction.text
 
-        Component.onCompleted: {
-            list["quitApplicationAction"] = quitApplicationAction;
-        }
+        Component.onCompleted: list["quitApplicationAction"] = quitApplicationAction;
+        function updateShortcuts() { shortcut = root.isPrimary ? qaction.shortcutName() : qaction.alternateName() }
         onTriggered: {
             mpv.handleTimePosition();
             qaction.trigger();
@@ -194,10 +221,11 @@ QtObject {
         enabled: false
         icon.color: mpv.playSectionsModel.currentEditItemIsEdited ? "orange" : "lime"
         icon.name: qaction.iconName()
-        shortcut: qaction.shortcutName()
+        shortcut: root.isPrimary ? qaction.shortcutName() : qaction.alternateName()
         text: qaction.text
 
         Component.onCompleted: list["saveAsCPlayFileAction"] = saveAsCPlayFileAction
+        function updateShortcuts() { shortcut = root.isPrimary ? qaction.shortcutName() : qaction.alternateName() }
         onTriggered: {
             saveCPlayFileDialog.currentFile = mpv.playSectionsModel.getSuggestedFileURL();
             mpv.setLoadedAsCurrentEditItem();
@@ -211,10 +239,11 @@ QtObject {
         property var qaction: app.action("seekBackwardBig")
 
         icon.name: qaction.iconName()
-        shortcut: qaction.shortcutName()
+        shortcut: root.isPrimary ? qaction.shortcutName() : qaction.alternateName()
         text: qaction.text
 
         Component.onCompleted: list["seekBackwardBigAction"] = seekBackwardBigAction
+        function updateShortcuts() { shortcut = root.isPrimary ? qaction.shortcutName() : qaction.alternateName() }
         onTriggered: mpv.seek(-PlaybackSettings.seekBigStep)
     }
     property Action seekBackwardMediumAction: Action {
@@ -223,10 +252,11 @@ QtObject {
         property var qaction: app.action("seekBackwardMedium")
 
         icon.name: qaction.iconName()
-        shortcut: qaction.shortcutName()
+        shortcut: root.isPrimary ? qaction.shortcutName() : qaction.alternateName()
         text: qaction.text
 
         Component.onCompleted: list["seekBackwardMediumAction"] = seekBackwardMediumAction
+        function updateShortcuts() { shortcut = root.isPrimary ? qaction.shortcutName() : qaction.alternateName() }
         onTriggered: mpv.seek(-PlaybackSettings.seekMediumStep)
     }
     property Action seekBackwardSmallAction: Action {
@@ -235,10 +265,11 @@ QtObject {
         property var qaction: app.action("seekBackwardSmall")
 
         icon.name: qaction.iconName()
-        shortcut: qaction.shortcutName()
+        shortcut: root.isPrimary ? qaction.shortcutName() : qaction.alternateName()
         text: qaction.text
 
         Component.onCompleted: list["seekBackwardSmallAction"] = seekBackwardSmallAction
+        function updateShortcuts() { shortcut = root.isPrimary ? qaction.shortcutName() : qaction.alternateName() }
         onTriggered: mpv.seek(-PlaybackSettings.seekSmallStep)
     }
     property Action seekForwardBigAction: Action {
@@ -247,10 +278,11 @@ QtObject {
         property var qaction: app.action("seekForwardBig")
 
         icon.name: qaction.iconName()
-        shortcut: qaction.shortcutName()
+        shortcut: root.isPrimary ? qaction.shortcutName() : qaction.alternateName()
         text: qaction.text
 
         Component.onCompleted: list["seekForwardBigAction"] = seekForwardBigAction
+        function updateShortcuts() { shortcut = root.isPrimary ? qaction.shortcutName() : qaction.alternateName() }
         onTriggered: mpv.seek(PlaybackSettings.seekBigStep)
     }
     property Action seekForwardMediumAction: Action {
@@ -259,10 +291,11 @@ QtObject {
         property var qaction: app.action("seekForwardMedium")
 
         icon.name: qaction.iconName()
-        shortcut: qaction.shortcutName()
+        shortcut: root.isPrimary ? qaction.shortcutName() : qaction.alternateName()
         text: qaction.text
 
         Component.onCompleted: list["seekForwardMediumAction"] = seekForwardMediumAction
+        function updateShortcuts() { shortcut = root.isPrimary ? qaction.shortcutName() : qaction.alternateName() }
         onTriggered: mpv.seek(PlaybackSettings.seekMediumStep)
     }
     property Action seekForwardSmallAction: Action {
@@ -271,10 +304,11 @@ QtObject {
         property var qaction: app.action("seekForwardSmall")
 
         icon.name: qaction.iconName()
-        shortcut: qaction.shortcutName()
+        shortcut: root.isPrimary ? qaction.shortcutName() : qaction.alternateName()
         text: qaction.text
 
         Component.onCompleted: list["seekForwardSmallAction"] = seekForwardSmallAction
+        function updateShortcuts() { shortcut = root.isPrimary ? qaction.shortcutName() : qaction.alternateName() }
         onTriggered: mpv.seek(PlaybackSettings.seekSmallStep)
     }
     property Action stopRewindAction: Action {
@@ -283,28 +317,12 @@ QtObject {
         property var qaction: app.action("stop_rewind")
 
         icon.name: qaction.iconName()
-        shortcut: qaction.shortcutName()
+        shortcut: root.isPrimary ? qaction.shortcutName() : qaction.alternateName()
         text: qaction.text
 
         Component.onCompleted: list["stopRewindAction"] = stopRewindAction
+        function updateShortcuts() { shortcut = root.isPrimary ? qaction.shortcutName() : qaction.alternateName() }
         onTriggered: mpv.performRewind()
-    }
-    property Action syncAction: Action {
-        id: syncAction
-
-        icon.name: "im-user-online"
-        text: qsTr("Sync On")
-
-        onTriggered: {
-            mpv.syncVideo = !mpv.syncVideo;
-            if (mpv.syncVideo) {
-                text = qsTr("Sync On");
-                icon.name = "im-user-online";
-            } else {
-                text = qsTr("Sync Off");
-                icon.name = "im-user-offline";
-            }
-        }
     }
     property Action toggleHeaderAction: Action {
         id: toggleHeaderAction
@@ -312,10 +330,11 @@ QtObject {
         property var qaction: app.action("toggleHeader")
 
         icon.name: qaction.iconName()
-        shortcut: qaction.shortcutName()
+        shortcut: root.isPrimary ? qaction.shortcutName() : qaction.alternateName()
         text: qaction.text
 
         Component.onCompleted: list["toggleHeaderAction"] = toggleHeaderAction
+        function updateShortcuts() { shortcut = root.isPrimary ? qaction.shortcutName() : qaction.alternateName() }
         onTriggered: UserInterfaceSettings.showHeader = !header.visible
     }
     property Action toggleLayersAction: Action {
@@ -324,10 +343,11 @@ QtObject {
         property var qaction: app.action("toggleLayers")
 
         icon.name: qaction.iconName()
-        shortcut: qaction.shortcutName()
+        shortcut: root.isPrimary ? qaction.shortcutName() : qaction.alternateName()
         text: qaction.text
 
         Component.onCompleted: list["toggleLayersAction"] = toggleLayersAction
+        function updateShortcuts() { shortcut = root.isPrimary ? qaction.shortcutName() : qaction.alternateName() }
         onTriggered: {
             if (layers.state === "hidden" && slides.state === "hidden") {
                 layers.state = "visible-without-partner";
@@ -348,10 +368,11 @@ QtObject {
         property var qaction: app.action("toggleMenuBar")
 
         icon.name: qaction.iconName()
-        shortcut: qaction.shortcutName()
+        shortcut: root.isPrimary ? qaction.shortcutName() : qaction.alternateName()
         text: qaction.text
 
         Component.onCompleted: list["toggleMenuBarAction"] = toggleMenuBarAction
+        function updateShortcuts() { shortcut = root.isPrimary ? qaction.shortcutName() : qaction.alternateName() }
         onTriggered: UserInterfaceSettings.showMenuBar = !menuBar.visible
     }
     property Action togglePlaylistAction: Action {
@@ -360,10 +381,11 @@ QtObject {
         property var qaction: app.action("togglePlaylist")
 
         icon.name: qaction.iconName()
-        shortcut: qaction.shortcutName()
+        shortcut: root.isPrimary ? qaction.shortcutName() : qaction.alternateName()
         text: qaction.text
 
         Component.onCompleted: list["togglePlaylistAction"] = togglePlaylistAction
+        function updateShortcuts() { shortcut = root.isPrimary ? qaction.shortcutName() : qaction.alternateName() }
         onTriggered: {
             if (playList.state === "hidden" && playSections.state === "hidden") {
                 playList.state = "visible-without-partner";
@@ -384,10 +406,11 @@ QtObject {
         property var qaction: app.action("toggleSections")
 
         icon.name: qaction.iconName()
-        shortcut: qaction.shortcutName()
+        shortcut: root.isPrimary ? qaction.shortcutName() : qaction.alternateName()
         text: qaction.text
 
         Component.onCompleted: list["toggleSectionsAction"] = toggleSectionsAction
+        function updateShortcuts() { shortcut = root.isPrimary ? qaction.shortcutName() : qaction.alternateName() }
         onTriggered: {
             if (playSections.state === "hidden" && playList.state === "hidden") {
                 playSections.state = "visible-without-partner";
@@ -408,10 +431,11 @@ QtObject {
         property var qaction: app.action("toggleSlides")
 
         icon.name: qaction.iconName()
-        shortcut: qaction.shortcutName()
+        shortcut: root.isPrimary ? qaction.shortcutName() : qaction.alternateName()
         text: qaction.text
 
         Component.onCompleted: list["toggleSlidesAction"] = toggleSlidesAction
+        function updateShortcuts() { shortcut = root.isPrimary ? qaction.shortcutName() : qaction.alternateName() }
         onTriggered: {
             if (slides.state === "hidden" && layers.state === "hidden") {
                 slides.state = "visible-without-partner";
@@ -433,10 +457,11 @@ QtObject {
 
         enabled: qaction.enabled
         icon.name: qaction.iconName()
-        shortcut: qaction.shortcutName()
+        shortcut: root.isPrimary ? qaction.shortcutName() : qaction.alternateName()
         text: qaction.text
 
         Component.onCompleted: list["layerCopyAction"] = layerCopyAction
+        function updateShortcuts() { shortcut = root.isPrimary ? qaction.shortcutName() : qaction.alternateName() }
         onTriggered: {
             if(enabled){
                 app.slides.copyLayer();
@@ -452,10 +477,11 @@ QtObject {
 
         enabled: qaction.enabled
         icon.name: qaction.iconName()
-        shortcut: qaction.shortcutName()
+        shortcut: root.isPrimary ? qaction.shortcutName() : qaction.alternateName()
         text: qaction.text
 
         Component.onCompleted: list["layerPasteAction"] = layerPasteAction
+        function updateShortcuts() { shortcut = root.isPrimary ? qaction.shortcutName() : qaction.alternateName() }
         onTriggered: {
             if(enabled){
                 app.slides.pasteLayer();
@@ -469,10 +495,11 @@ QtObject {
 
         enabled: qaction.enabled
         icon.name: qaction.iconName()
-        shortcut: qaction.shortcutName()
+        shortcut: root.isPrimary ? qaction.shortcutName() : qaction.alternateName()
         text: qaction.text
 
         Component.onCompleted: list["layerPastePropertiesAction"] = layerPastePropertiesAction
+        function updateShortcuts() { shortcut = root.isPrimary ? qaction.shortcutName() : qaction.alternateName() }
         onTriggered: {
             if(enabled){
                 app.slides.pasteLayerAsProperties(app.slides.selected.layerToCopy);
@@ -486,10 +513,11 @@ QtObject {
 
         enabled: qaction.enabled
         icon.name: qaction.iconName()
-        shortcut: qaction.shortcutName()
+        shortcut: root.isPrimary ? qaction.shortcutName() : qaction.alternateName()
         text: qaction.text
 
         Component.onCompleted: list["slidePreviousAction"] = slidePreviousAction
+        function updateShortcuts() { shortcut = root.isPrimary ? qaction.shortcutName() : qaction.alternateName() }
         onTriggered: {
             if(enabled){
                 layers.layersView.currentIndex = -1;
@@ -512,10 +540,11 @@ QtObject {
 
         enabled: qaction.enabled
         icon.name: qaction.iconName()
-        shortcut: qaction.shortcutName()
+        shortcut: root.isPrimary ? qaction.shortcutName() : qaction.alternateName()
         text: qaction.text
 
         Component.onCompleted: list["slideNextAction"] = slideNextAction
+        function updateShortcuts() { shortcut = root.isPrimary ? qaction.shortcutName() : qaction.alternateName() }
         onTriggered: {
             if(enabled){
                 layers.layersView.currentIndex = -1;
@@ -537,10 +566,11 @@ QtObject {
         property var qaction: app.action("visibilityFadeDown")
 
         icon.name: qaction.iconName()
-        shortcut: qaction.shortcutName()
+        shortcut: root.isPrimary ? qaction.shortcutName() : qaction.alternateName()
         text: qaction.text
 
         Component.onCompleted: list["visibilityFadeDownAction"] = visibilityFadeDownAction
+        function updateShortcuts() { shortcut = root.isPrimary ? qaction.shortcutName() : qaction.alternateName() }
         onTriggered: {
             mpv.fadeImageDown();
         }
@@ -551,10 +581,11 @@ QtObject {
         property var qaction: app.action("visibilityFadeUp")
 
         icon.name: qaction.iconName()
-        shortcut: qaction.shortcutName()
+        shortcut: root.isPrimary ? qaction.shortcutName() : qaction.alternateName()
         text: qaction.text
 
         Component.onCompleted: list["visibilityFadeUpAction"] = visibilityFadeUpAction
+        function updateShortcuts() { shortcut = root.isPrimary ? qaction.shortcutName() : qaction.alternateName() }
         onTriggered: {
             mpv.fadeImageUp();
         }
@@ -565,10 +596,11 @@ QtObject {
         property var qaction: app.action("volumeDown")
 
         icon.name: qaction.iconName()
-        shortcut: qaction.shortcutName()
+        shortcut: root.isPrimary ? qaction.shortcutName() : qaction.alternateName()
         text: qaction.text
 
         Component.onCompleted: list["volumeDownAction"] = volumeDownAction
+        function updateShortcuts() { shortcut = root.isPrimary ? qaction.shortcutName() : qaction.alternateName() }
         onTriggered: {
             mpv.command(["add", "volume", -AudioSettings.volumeStep]);
             osd.message(`Volume: ${parseInt(mpv.getProperty("volume"))}`);
@@ -580,10 +612,11 @@ QtObject {
         property var qaction: app.action("volumeFadeDown")
 
         icon.name: qaction.iconName()
-        shortcut: qaction.shortcutName()
+        shortcut: root.isPrimary ? qaction.shortcutName() : qaction.alternateName()
         text: qaction.text
 
         Component.onCompleted: list["volumeFadeDownAction"] = volumeFadeDownAction
+        function updateShortcuts() { shortcut = root.isPrimary ? qaction.shortcutName() : qaction.alternateName() }
         onTriggered: {
             mpv.fadeVolumeDown();
         }
@@ -594,10 +627,11 @@ QtObject {
         property var qaction: app.action("volumeFadeUp")
 
         icon.name: qaction.iconName()
-        shortcut: qaction.shortcutName()
+        shortcut: root.isPrimary ? qaction.shortcutName() : qaction.alternateName()
         text: qaction.text
 
         Component.onCompleted: list["volumeFadeUpAction"] = volumeFadeUpAction
+        function updateShortcuts() { shortcut = root.isPrimary ? qaction.shortcutName() : qaction.alternateName() }
         onTriggered: {
             mpv.fadeVolumeUp();
         }
@@ -608,13 +642,51 @@ QtObject {
         property var qaction: app.action("volumeUp")
 
         icon.name: qaction.iconName()
-        shortcut: qaction.shortcutName()
+        shortcut: root.isPrimary ? qaction.shortcutName() : qaction.alternateName()
         text: qaction.text
 
         Component.onCompleted: list["volumeUpAction"] = volumeUpAction
+        function updateShortcuts() { shortcut = root.isPrimary ? qaction.shortcutName() : qaction.alternateName() }
         onTriggered: {
             mpv.command(["add", "volume", AudioSettings.volumeStep]);
             osd.message(`Volume: ${parseInt(mpv.getProperty("volume"))}`);
         }
+    }
+
+    function updateShortcuts() {
+        aboutCPlayAction.updateShortcuts();
+        configureAction.updateShortcuts();
+        configureShortcutsAction.updateShortcuts();
+        muteAction.updateShortcuts();
+        openAction.updateShortcuts();
+        playNextAction.updateShortcuts();
+        playPauseAction.updateShortcuts();
+        playPreviousAction.updateShortcuts();
+        quitApplicationAction.updateShortcuts();
+        saveAsCPlayFileAction.updateShortcuts();
+        seekBackwardBigAction.updateShortcuts();
+        seekBackwardMediumAction.updateShortcuts();
+        seekBackwardSmallAction.updateShortcuts();
+        seekForwardBigAction.updateShortcuts();
+        seekForwardMediumAction.updateShortcuts();
+        seekForwardSmallAction.updateShortcuts();
+        stopRewindAction.updateShortcuts();
+        toggleHeaderAction.updateShortcuts();
+        toggleLayersAction.updateShortcuts();
+        toggleMenuBarAction.updateShortcuts();
+        togglePlaylistAction.updateShortcuts();
+        toggleSectionsAction.updateShortcuts();
+        toggleSlidesAction.updateShortcuts();
+        layerCopyAction.updateShortcuts();
+        layerPasteAction.updateShortcuts();
+        layerPastePropertiesAction.updateShortcuts();
+        slidePreviousAction.updateShortcuts();
+        slideNextAction.updateShortcuts();
+        visibilityFadeDownAction.updateShortcuts();
+        visibilityFadeUpAction.updateShortcuts();
+        volumeDownAction.updateShortcuts();
+        volumeFadeDownAction.updateShortcuts();
+        volumeFadeUpAction.updateShortcuts();
+        volumeUpAction.updateShortcuts();
     }
 }

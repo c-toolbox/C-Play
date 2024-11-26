@@ -13,8 +13,19 @@
 HAction::HAction(QObject *parent) : QAction(parent) {
 }
 
+QString HAction::actionName() {
+    return objectName();
+}
+
 QString HAction::shortcutName() {
     return shortcut().toString(QKeySequence::NativeText);
+}
+
+QString HAction::alternateName() {
+    if (shortcuts().size() > 1)
+        return shortcuts()[1].toString(QKeySequence::NativeText);
+    else
+        return QStringLiteral("");
 }
 
 QString HAction::iconName() {
