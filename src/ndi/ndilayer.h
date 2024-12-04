@@ -18,6 +18,8 @@ public:
     std::vector<std::string> getSendersList();
     bool senderExists(std::string senderName);
 
+    std::string getNDIVersionString();
+
 private:
     ofxNDIreceive* m_NDIreceiver;
     static NdiFinder* _instance;

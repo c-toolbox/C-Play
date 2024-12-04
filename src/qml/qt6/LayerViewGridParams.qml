@@ -60,6 +60,12 @@ Kirigami.ApplicationWindow {
             resetValues();
         }
 
+        function onLayerValueChanged() {
+            planeGridLayout.visible = (layerView.layerItem.layerGridMode === 1);
+            domeGridLayout.visible = (layerView.layerItem.layerGridMode === 2);
+            sphereGridLayout.visible = (layerView.layerItem.layerGridMode > 2);
+        }
+
         target: layerView.layerItem
     }
 

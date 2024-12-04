@@ -256,6 +256,11 @@ else()
     option(SGCT_DEP_INCLUDE_ZLIB "Include ZLIB library" ON)
 endif()
 
+if(BUILD_CPLAY_WITH_JACK)
+    list(APPEND TARGET_LIBRARIES Jack2::Jack)
+    target_compile_definitions(${TARGET_NAME} PUBLIC JACK_SUPPORT)
+endif()
+
 if(BUILD_CPLAY_WITH_NDI)
     list(APPEND TARGET_LIBRARIES NDI::NDI)
     target_compile_definitions(${TARGET_NAME} PUBLIC NDI_SUPPORT)

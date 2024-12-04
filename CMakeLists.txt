@@ -118,6 +118,17 @@ find_package(Libmpv)
 set_package_properties(Libmpv PROPERTIES TYPE REQUIRED
     URL "https://mpv.io")
 
+option(BUILD_CPLAY_WITH_JACK "Global On/Off for JACK support" ON)
+if(BUILD_CPLAY_WITH_JACK)
+    find_package(Jack2 REQUIRED)
+
+    if(NOT JACK2_FOUND)
+        message("Remember to install Jack2 from jackaudio.org")
+    endif()
+    set_package_properties(JACK2 PROPERTIES TYPE REQUIRED
+        URL "https://jackaudio.org/")
+endif()
+
 option(BUILD_CPLAY_WITH_NDI "Global On/Off for NDI support" OFF)
 if(BUILD_CPLAY_WITH_NDI)
     find_package(NDI)
@@ -148,4 +159,3 @@ option(CPLAY_INSTALL_DEPENDENCIES "Global On/Off for all CPLAY_INSTALL_* depende
 add_subdirectory(data)
 add_subdirectory(help)
 add_subdirectory(src)
-add_subdirectory(help/jack)

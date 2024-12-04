@@ -59,6 +59,10 @@ bool NdiFinder::senderExists(std::string senderName) {
     return m_NDIreceiver->GetSenderIndex(senderName, senderIdx);
 }
 
+std::string NdiFinder::getNDIVersionString() {
+    return m_NDIreceiver->GetNDIversion();
+}
+
 NdiLayer::NdiLayer() {
     setType(BaseLayer::LayerType::NDI);
     NDIreceiver.ResetFps(30.0);

@@ -30,6 +30,8 @@ public:
     Q_PROPERTY(int numberOfSenders READ getNumberOfSenders NOTIFY sendersListChanged)
     int getNumberOfSenders();
 
+    Q_INVOKABLE QString getNDIVersionString();
+
 Q_SIGNALS:
     void sendersListChanged();
 

@@ -5,9 +5,9 @@
 #
 
 if(CPLAY_INSTALL_DEPENDENCIES)
-	set(CPLAY_INSTALL_PREDEFINED_DLL_NAME "qt6_ffmpeg6_dlls" CACHE STRING "qt6_ffmpeg6_dlls.txt chosen as predefined dll list")
+	set(CPLAY_INSTALL_PREDEFINED_DLL_NAME "qt6_ffmpeg5_dlls" CACHE STRING "qt6_ffmpeg5_dlls.txt chosen as predefined dll list")
 	get_target_property(_qmake_executable Qt6::qmake IMPORTED_LOCATION)
-	set_property(CACHE CPLAY_INSTALL_PREDEFINED_DLL_NAME PROPERTY STRINGS qt6_ffmpeg6_dlls qt6_ffmpeg5_dlls qt5_ffmpeg5_dlls)
+	set_property(CACHE CPLAY_INSTALL_PREDEFINED_DLL_NAME PROPERTY STRINGS qt6_ffmpeg5_dlls qt6_ffmpeg6_dlls qt6_ffmpeg7_dlls)
 	
 	get_filename_component(_qt_bin_dir "${_qmake_executable}" DIRECTORY)
 	install(CODE "set(QT_BIN_DIR \"${_qt_bin_dir}\")")
@@ -41,7 +41,7 @@ if(CPLAY_INSTALL_DEPENDENCIES)
 	]])
 	install(DIRECTORY "${PROJECT_SOURCE_DIR}/help/sgct/" DESTINATION "${CMAKE_INSTALL_PREFIX}/bin")
 	
-	option(CPLAY_INSTALL_PREDEFINED_DLL_LIST "Shared dlls and delayed load is hard to detect. Copy predefined list" ON)
+	option(CPLAY_INSTALL_PREDEFINED_DLL_LIST "Shared dlls and delayed load is hard to detect. Copy predefined list" OFF)
     if(CPLAY_INSTALL_PREDEFINED_DLL_LIST)
         install(CODE [[
             message("Copying predefined DLL:s (${PROJECT_SOURCE_DIR}/help/dll_lists/${CPLAY_INSTALL_PREDEFINED_DLL_NAME}.txt) to install folder")

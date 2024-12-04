@@ -18,8 +18,15 @@
 #include "slidesmodel.h"
 #include "slidesqtitem.h"
 #include "tracksmodel.h"
+
+#ifdef JACK_SUPPORT
+#include <jack/jack.h>
+#endif
 #ifdef NDI_SUPPORT
 #include <ndi/ndimodel.h>
+#endif
+#ifdef PDF_SUPPORT
+#include <cpp/poppler-version.h>
 #endif
 
 #include "audiosettings.h"
@@ -36,7 +43,6 @@
 #include <iostream>
 #include <sgct/sgct.h>
 #include <sgct/version.h>
-
 #include <QApplication>
 #include <QCommandLineParser>
 #include <QCoreApplication>
@@ -478,9 +484,21 @@ void Application::updateAboutOtherText(const QString &mpvVersion, const QString 
         }
     }
     QString otherText;
-    otherText += QStringLiteral("Using media playback engine MPV ") + mpv_version_clean + QStringLiteral(" with FFmpeg ") + ffmpeg_version_clean + QStringLiteral(".\n");
+
+    otherText += QStringLiteral("Media playback with MPV ") + mpv_version_clean + QStringLiteral(" + FFmpeg ") + ffmpeg_version_clean;
+#ifdef JACK_SUPPORT
+    otherText += QStringLiteral(" + Jack ") + QString::fromStdString(jack_get_version_string()) + QStringLiteral(".\n");
+#else
+    otherText += QStringLiteral(".\n");
+#endif
     otherText += QStringLiteral("Master UI compiled with Qt ") + QStringLiteral(QT_VERSION_STR) + QStringLiteral(" and based on Haruna project.\n");
-    otherText += QStringLiteral("SGCT ") + QString::fromStdString(std::string(sgct::Version)) + QStringLiteral(" for cluster environment and client rendering.");
+    otherText += QStringLiteral("SGCT ") + QString::fromStdString(std::string(sgct::Version)) + QStringLiteral(" for cluster environment and client rendering.\n");
+#ifdef NDI_SUPPORT
+    otherText += QStringLiteral("NDI ") + m_ndiSendersModel->getNDIVersionString() + QStringLiteral(" for network streams of video and audio.\n");
+#endif
+#ifdef PDF_SUPPORT
+    otherText += QStringLiteral("Poppler ") + QString::fromStdString(poppler::version_string()) + QStringLiteral(" for rendering PDF documents.\n");
+#endif
     m_aboutData.setOtherText(otherText);
     KAboutData::setApplicationData(m_aboutData);
 }

@@ -8,6 +8,7 @@
 #include "ndimodel.h"
 #include "ndilayer.h"
 #include "audiosettings.h"
+#include <QRegularExpression>
 
 NDISendersModel::NDISendersModel(QObject *parent)
     : QAbstractListModel(parent) {
@@ -58,6 +59,16 @@ void NDISendersModel::updateSendersList() {
 
 int NDISendersModel::getNumberOfSenders() {
     return m_NDIsenders.size();
+}
+
+QString NDISendersModel::getNDIVersionString() {
+    QString ndiVersion = QString::fromStdString(NdiFinder::instance().getNDIVersionString());
+    QRegularExpression regExp(QStringLiteral("\\d*\\.\\d*\\.\\d*"));
+    QRegularExpressionMatch match = regExp.match(ndiVersion);
+    if (match.hasMatch()) {
+        return match.captured(0);
+    }
+    return ndiVersion;
 }
 
 PortAudioModel::PortAudioModel(QObject* parent)
