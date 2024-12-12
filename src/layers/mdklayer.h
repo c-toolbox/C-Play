@@ -1,57 +1,43 @@
-#ifndef MPVLAYER_H
-#define MPVLAYER_H
+#ifndef MDKLAYER_H
+#define MDKLAYER_H
 
-#include <client.h>
 #include <layers/baselayer.h>
-#include <mutex>
-#include <render_gl.h>
+#include <mdk/RenderAPI.h>
 
-class MpvLayer : public BaseLayer {
+namespace mdk {
+    class Player;
+}
+#ifndef Q_MDK_API
+#define Q_MDK_API Q_DECL_IMPORT
+#endif
+
+class MdkLayer : public BaseLayer {
 public:
-    struct mpvData {
-        mpv_handle *handle;
-        mpv_render_context *renderContext;
-        std::unique_ptr<std::thread> trd;
+    struct mdkData {
         bool loggingOn = false;
+        bool mdkInitializedGL = false;
         bool mediaIsPaused = true;
         bool mediaShouldPause = true;
+        bool updateRendering = true;
+        int eofMode = -1;
         std::string logLevel = "info";
         std::string loadedFile = "";
-        bool updateRendering = true;
-        bool allowDirectRendering = false;
-        bool isMaster = false;
-        bool supportVideo = true;
-        std::vector<Track> audioTracks;
-        int audioId = -1;
-        int volume = 100;
         int fboWidth = 0;
         int fboHeight = 0;
         bool fboCreated = false;
         unsigned int fboId = 0;
-        int reconfigs = 0;
-        int reconfigsBeforeUpdate = 0;
-        int advancedControl = 0;
-        int eofMode = -1;
-        double mediaDuration = 0.0;
         double timePos = 0;
         double timeToSet = 0;
         bool timeIsDirty = false;
-        std::atomic_bool threadRunning = false;
-        std::atomic_bool mpvInitialized = false;
-        std::atomic_bool mpvInitializedGL = false;
-        std::atomic_bool threadDone = false;
-        std::atomic_bool terminate = false;
     };
 
-    MpvLayer(gl_adress_func_v1 opa,
-             bool allowDirectRendering = false,
+    MdkLayer(gl_adress_func_v2 opa,
              bool loggingOn = false,
              std::string logLevel = "info");
 
-    virtual ~MpvLayer() = 0; //This is an abstract class
+    ~MdkLayer();
 
     void initialize();
-    void initializeMpv();
     virtual void initializeGL();
     virtual void cleanup();
     virtual void updateFrame();
@@ -93,9 +79,17 @@ public:
     void setLoopTime(double A, double B, bool enabled);
     void setValue(std::string param, int val);
 
-protected:
-    mpvData m_data;
-    gl_adress_func_v1 m_openglProcAdr;
+    void updateFbo();
+
+private:
+    void checkNeededMdkFboResize();
+    void createMdkFBO(int width, int height);
+    void generateTexture(unsigned int& id, int width, int height);
+
+    mdkData m_data;
+    mdk::GLRenderAPI m_renderAPI;
+    std::unique_ptr<mdk::Player> m_player;
+    gl_adress_func_v2 m_openglProcAdr;
 };
 
-#endif // MPVLAYER_H
+#endif // MDKLAYER_H

@@ -125,22 +125,41 @@ if(BUILD_CPLAY_WITH_JACK)
     if(NOT JACK2_FOUND)
         message("Remember to install Jack2 from jackaudio.org")
     endif()
-    set_package_properties(JACK2 PROPERTIES TYPE REQUIRED
-        URL "https://jackaudio.org/")
+    set_package_properties(Jack2 PROPERTIES TYPE REQUIRED
+        URL "https://jackaudio.org/" DESCRIPTION "Jack2 Audio Connection Kit")
+endif()
+
+option(BUILD_CPLAY_WITH_MDK "Global On/Off for MDK support" OFF)
+if(BUILD_CPLAY_WITH_MDK)
+    find_path(MDK_CMAKE_MODULE NAMES FindMDK.cmake PATHS $ENV{MDK_SDK_ROOT}/lib/cmake)
+    list(APPEND CMAKE_MODULE_PATH "${MDK_CMAKE_MODULE}")
+
+    find_package(mdk REQUIRED)
+    set_package_properties(mdk PROPERTIES TYPE REQUIRED
+        URL "https://github.com/wang-bin/mdk-sdk/" DESCRIPTION "multimedia development kit")
+
+    set_target_properties(mdk PROPERTIES
+        IMPORTED_LOCATION "${MDK_RUNTIME}"
+        IMPORTED_LOCATION_RELEASE "${MDK_RUNTIME}"
+        IMPORTED_IMPLIB "${MDK_LIBRARY}"
+        IMPORTED_IMPLIB_RELEASE "${MDK_LIBRARY}"
+        INTERFACE_INCLUDE_DIRECTORIES "${MDK_INCLUDE_DIRS}"
+    )
 endif()
 
 option(BUILD_CPLAY_WITH_NDI "Global On/Off for NDI support" OFF)
 if(BUILD_CPLAY_WITH_NDI)
     find_package(NDI)
     set_package_properties(NDI PROPERTIES TYPE REQUIRED
-        URL "https://ndi.video/for-developers/ndi-sdk/download/")
+        URL "https://ndi.video/for-developers/ndi-sdk/download/" DESCRIPTION "video and audio over network")
 
     # Install portaudio with vcpkg
     find_package(portaudio CONFIG REQUIRED)
     if(NOT portaudio_FOUND)
         message("Remember to run: vcpkg install portaudio")
     endif()
-    set_package_properties(portaudio PROPERTIES TYPE REQUIRED PURPOSE "For NDI audio output support.")
+    set_package_properties(portaudio PROPERTIES TYPE REQUIRED 
+        URL "https://www.portaudio.com/" DESCRIPTION "for NDI audio output support.")
 endif()
 
 option(BUILD_CPLAY_WITH_POPPLER "Global On/Off for PDF support via Poppler library" OFF)
@@ -149,7 +168,8 @@ if(BUILD_CPLAY_WITH_POPPLER)
     if(NOT unofficial-poppler_FOUND)
         message("Remember to run: vcpkg install poppler")
     endif()
-    set_package_properties(unofficial-poppler PROPERTIES TYPE REQUIRED PURPOSE "Support for PDF page rendering.")
+    set_package_properties(unofficial-poppler PROPERTIES TYPE REQUIRED 
+        URL "https://poppler.freedesktop.org/" DESCRIPTION "Support for PDF page rendering.")
 endif()
 
 feature_summary(WHAT ALL FATAL_ON_MISSING_REQUIRED_PACKAGES)

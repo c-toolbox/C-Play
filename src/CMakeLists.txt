@@ -103,6 +103,11 @@ if(BUILD_CPLAY_WITH_NDI)
     list(APPEND SOURCE_FILES ${OFX_NDI_FILES})
 endif()
 
+if(BUILD_CPLAY_WITH_MDK)
+    list(APPEND SOURCE_FILES layers/mdklayer.cpp)
+    list(APPEND SOURCE_FILES layers/mdklayer.h)
+endif()
+
 if(BUILD_CPLAY_WITH_POPPLER)
     list(APPEND SOURCE_FILES layers/pdflayer.cpp)
     list(APPEND SOURCE_FILES layers/pdflayer.h)
@@ -261,6 +266,11 @@ if(BUILD_CPLAY_WITH_JACK)
     target_compile_definitions(${TARGET_NAME} PUBLIC JACK_SUPPORT)
 endif()
 
+if(BUILD_CPLAY_WITH_MDK)
+    list(APPEND TARGET_LIBRARIES mdk)
+    target_compile_definitions(${TARGET_NAME} PUBLIC MDK_SUPPORT)
+endif()
+
 if(BUILD_CPLAY_WITH_NDI)
     list(APPEND TARGET_LIBRARIES NDI::NDI)
     target_compile_definitions(${TARGET_NAME} PUBLIC NDI_SUPPORT)
@@ -323,6 +333,13 @@ if(CPLAY_INSTALL_DEPENDENCIES)
         # Transfer the values into the install script
         install(CODE "set(MY_DEPENDENCY_PATHS \"${MY_DEPENDENCY_PATHS}\")")
         install(CODE "set(target \"$<TARGET_FILE:${TARGET_NAME}>\")")
+        if(BUILD_CPLAY_WITH_MDK)
+            install(CODE "set(_mdk_dll \"${MDK_RUNTIME}\")")
+            install(CODE "set(_mdk_dlls \"${MDK_RUNTIMES}\")")
+        endif()
+        if(BUILD_CPLAY_WITH_NDI)
+            install(CODE "set(_ndi_dll \"${NDI_BINARY_DIR}/${NDI_LIBS}.dll\")")
+        endif()
         # Install dependencies
         install(CODE [[
             message("Looking for direct dependencies for C-Play.exe (In Qt and MPV build directories)")
@@ -335,13 +352,10 @@ if(CPLAY_INSTALL_DEPENDENCIES)
                 UNRESOLVED_DEPENDENCIES_VAR UNRESOLVED_DEPENDENCIES
                 DIRECTORIES ${MY_DEPENDENCY_PATHS}
             )
-            foreach(DEPENDENCY ${UNRESOLVED_DEPENDENCIES})
-                message(WARNING "Unable to resolve dependency ${DEPENDENCY}")
-            endforeach()
             foreach(DEPENDENCY ${CONFLICTING_DEPENDENCIES})
                 message(WARNING "Conflicting dependency ${DEPENDENCY}")
             endforeach()
-            message("Copying dependencies")
+            message("Copying detected dependencies")
             foreach(DEPENDENCY ${RESOLVED_DEPENDENCIES})
                 message("Copying ${DEPENDENCY}")
                 file(INSTALL
@@ -349,16 +363,26 @@ if(CPLAY_INSTALL_DEPENDENCIES)
                     FILES "${DEPENDENCY}"
                 )
             endforeach()
+            message("Trying to fix unresolved dependencies")
+            foreach(DEPENDENCY ${UNRESOLVED_DEPENDENCIES})
+                if(DEFINED _mdk_dll AND ${_mdk_dll} MATCHES "${DEPENDENCY}$")
+                    foreach(_mdk_dep_dll ${_mdk_dlls})
+                        message("Copying ${_mdk_dep_dll}")
+                        file(INSTALL
+                            DESTINATION "${CMAKE_INSTALL_PREFIX}/bin"
+                            FILES "${_mdk_dep_dll}"
+                        )
+                    endforeach()
+                elseif(DEFINED _ndi_dll AND ${_ndi_dll} MATCHES "${DEPENDENCY}$")
+                    message("Copying ${_ndi_dll}")
+                    file(INSTALL
+                        DESTINATION "${CMAKE_INSTALL_PREFIX}/bin"
+                        FILES "${_ndi_dll}"
+                    )
+                else()
+                    message(WARNING "Unable to resolve dependency ${DEPENDENCY}")
+                endif()
+            endforeach()
         ]])
-        if(BUILD_CPLAY_WITH_NDI)
-            install(CODE "set(_ndi_dll \"${NDI_BINARY_DIR}/${NDI_LIBS}.dll\")")
-            install(CODE [[
-                message("Copying ${_ndi_dll}")
-                file(INSTALL
-                    DESTINATION "${CMAKE_INSTALL_PREFIX}/bin"
-                    FILES "${_ndi_dll}"
-                )
-            ]])
-        endif()
     endif()
 endif()

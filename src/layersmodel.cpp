@@ -20,7 +20,7 @@
 #include <QOpenGLContext>
 #include <QQuickView>
 
-static void *get_proc_address_qopengl(void *ctx, const char *name) {
+static void *get_proc_address_qopengl_v1(void* ctx, const char *name) {
     Q_UNUSED(ctx)
 
     QOpenGLContext *glctx = QOpenGLContext::globalShareContext();
@@ -28,6 +28,16 @@ static void *get_proc_address_qopengl(void *ctx, const char *name) {
         return nullptr;
 
     return reinterpret_cast<void *>(glctx->getProcAddress(QByteArray(name)));
+}
+
+static void* get_proc_address_qopengl_v2(const char* name, void* ctx) {
+    Q_UNUSED(ctx)
+
+        QOpenGLContext* glctx = QOpenGLContext::globalShareContext();
+    if (!glctx)
+        return nullptr;
+
+    return reinterpret_cast<void*>(glctx->getProcAddress(QByteArray(name)));
 }
 
 LayersModel::LayersModel(QObject *parent)
@@ -194,7 +204,7 @@ int LayersModel::addLayer(QString title, int type, QString filepath, int stereoM
     beginInsertRows(QModelIndex(), m_layers.size(), m_layers.size());
 
     // Create new layer
-    BaseLayer *newLayer = BaseLayer::createLayer(true, type, get_proc_address_qopengl, title.toStdString());
+    BaseLayer *newLayer = BaseLayer::createLayer(true, type, get_proc_address_qopengl_v1, get_proc_address_qopengl_v2, title.toStdString());
 
     if (newLayer) {
         newLayer->setHierarchy(hierarchy());
@@ -353,7 +363,7 @@ void LayersModel::addCopyOfLayer(BaseLayer* srcLayer) {
     beginInsertRows(QModelIndex(), m_layers.size(), m_layers.size());
 
     // Create new layer
-    BaseLayer* newLayer = BaseLayer::createLayer(true, srcLayer->type(), get_proc_address_qopengl, srcLayer->title());
+    BaseLayer* newLayer = BaseLayer::createLayer(true, srcLayer->type(), get_proc_address_qopengl_v1, get_proc_address_qopengl_v2, srcLayer->title());
 
     if (newLayer) {
         newLayer->setTitle(srcLayer->title());

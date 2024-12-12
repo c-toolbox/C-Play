@@ -43,9 +43,10 @@ public:
         Sphere_EAC
     };
 
-    typedef void *(*opengl_func_adress_ptr)(void *ctx, const char *name);
+    typedef void* (*gl_adress_func_v1)(void* ctx, const char* name);
+    typedef void* (*gl_adress_func_v2)(const char* name, void* ctx);
     static std::string typeDescription(BaseLayer::LayerType e);
-    static BaseLayer *createLayer(bool isMaster, int layerType, opengl_func_adress_ptr opa, std::string strId = "", uint32_t numID = 0);
+    static BaseLayer *createLayer(bool isMaster, int layerType, gl_adress_func_v1 opa1, gl_adress_func_v2 opa2, std::string strId = "", uint32_t numID = 0);
 
     struct RenderParams {
         unsigned int texId = 0;
@@ -239,7 +240,6 @@ protected:
     RenderParams renderData;
     PlaneParams planeData;
 
-    opengl_func_adress_ptr m_openglProcAdr;
     uint32_t m_identifier;
     static std::atomic_uint32_t m_id_gen;
 };

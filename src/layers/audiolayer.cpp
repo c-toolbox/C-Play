@@ -1,6 +1,6 @@
 #include "audiolayer.h"
 
-AudioLayer::AudioLayer(opengl_func_adress_ptr opa,
+AudioLayer::AudioLayer(gl_adress_func_v1 opa,
     bool allowDirectRendering,
     bool loggingOn,
     std::string logLevel) : MpvLayer(opa, allowDirectRendering, loggingOn, logLevel) {

@@ -5,7 +5,7 @@
 
 class VideoLayer : public MpvLayer {
 public:
-    VideoLayer(opengl_func_adress_ptr opa,
+    VideoLayer(gl_adress_func_v1 opa,
              bool allowDirectRendering = false,
              bool loggingOn = false,
              std::string logLevel = "info");

@@ -12,7 +12,7 @@ void on_mpv_render_update(void* ctx) {
     videoLayer->updateFbo();
 }
 
-VideoLayer::VideoLayer(opengl_func_adress_ptr opa,
+VideoLayer::VideoLayer(gl_adress_func_v1 opa,
     bool allowDirectRendering,
     bool loggingOn,
     std::string logLevel) : MpvLayer(opa, allowDirectRendering, loggingOn, logLevel) {

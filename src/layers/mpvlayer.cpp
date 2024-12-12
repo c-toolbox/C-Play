@@ -223,7 +223,7 @@ auto runMpvAsync = [](MpvLayer::mpvData& data, BaseLayer::RenderParams& rp) {
     data.threadDone = true;
 };
 
-MpvLayer::MpvLayer(opengl_func_adress_ptr opa,
+MpvLayer::MpvLayer(gl_adress_func_v1 opa,
     bool allowDirectRendering,
     bool loggingOn,
     std::string logLevel) {

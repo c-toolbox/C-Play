@@ -20,6 +20,11 @@
 #include <mutex>
 #include <slidesmodel.h>
 
+#ifdef MDK_SUPPORT
+#include <mdk/global.h>
+#include <layers/mdklayer.h>
+#endif
+
 // #define SGCT_ONLY
 
 namespace {
@@ -36,7 +41,12 @@ std::vector<BaseLayer *> primaryLayers;
 ImageLayer *backgroundImageLayer;
 ImageLayer *foregroundImageLayer;
 ImageLayer *overlayImageLayer;
-MpvLayer *mainVideoLayer;
+#ifdef MDK_SUPPORT
+    MdkLayer* mainVideoLayer;
+#else
+    MpvLayer *mainVideoLayer;
+#endif
+
 
 bool updateLayers = false;
 bool preLoadLayers = false;
@@ -49,8 +59,11 @@ LayerRenderer *layerRender;
 
 using namespace sgct;
 
-static void *get_proc_address_glfw(void *, const char *name) {
+static void *get_proc_address_glfw_v1(void*, const char *name) {
     return reinterpret_cast<void *>(glfwGetProcAddress(name));
+}
+static void* get_proc_address_glfw_v2(const char* name, void*) {
+    return reinterpret_cast<void*>(glfwGetProcAddress(name));
 }
 
 void initOGL(GLFWwindow *) {
@@ -63,7 +76,12 @@ void initOGL(GLFWwindow *) {
     backgroundImageLayer = new ImageLayer("background");
     primaryLayers.push_back(backgroundImageLayer);
 
-    mainVideoLayer = new VideoLayer(get_proc_address_glfw, allowDirectRendering, !logFilePath.empty() || !logLevel.empty(), logLevel);
+#ifdef MDK_SUPPORT
+    mainVideoLayer = new MdkLayer(get_proc_address_glfw_v2, !logFilePath.empty() || !logLevel.empty(), logLevel);
+#else
+    mainVideoLayer = new VideoLayer(get_proc_address_glfw_v1, allowDirectRendering, !logFilePath.empty() || !logLevel.empty(), logLevel);
+#endif
+    
     mainVideoLayer->initializeAndLoad(SyncHelper::instance().variables.loadedFile);
     primaryLayers.push_back(mainVideoLayer);
 
@@ -340,7 +358,7 @@ void decode(const std::vector<std::byte> &data) {
                         }
                         secondaryLayersToKeep.push_back(*it);
                     } else if (layerSync) { // Did not exist. Let's create it
-                        BaseLayer *newLayer = BaseLayer::createLayer(false, layerType, get_proc_address_glfw, std::to_string(id), id);
+                        BaseLayer *newLayer = BaseLayer::createLayer(false, layerType, get_proc_address_glfw_v1, get_proc_address_glfw_v2, std::to_string(id), id);
                         if (newLayer) {
                             if (layerSync) {
                                 newLayer->decodeFull(data, pos);
@@ -724,6 +742,11 @@ int main(int argc, char *argv[]) {
         Engine::destroy();
         return EXIT_FAILURE;
     }
+
+#ifdef MDK_SUPPORT
+    //Unique for C-Play
+    mdk::SetGlobalOption("MDK_KEY", "12BAA3C8BD1AEF74F0FAD1DFDE693AA49BCEB95A7E518F74D43C6A5A4D225882D44A101B825B82DA6F43EFCCD6D0B12148AC64B0DF4CCF37AF7720E1D743520FED455C3742E5108B0F052E202196C55B9BCEBF195301E315AD5789DF2AC4E297D3E645BAA12123255B87840EAC02FE103A3CFADFDCFFCE24BAE3B935C543520F");
+#endif
 
 #ifndef SGCT_ONLY
     if (Engine::instance().isMaster()) {

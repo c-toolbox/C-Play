@@ -5,7 +5,7 @@
 
 class AudioLayer : public MpvLayer {
 public:
-    AudioLayer(opengl_func_adress_ptr opa,
+    AudioLayer(gl_adress_func_v1 opa,
         bool allowDirectRendering = false,
         bool loggingOn = false,
         std::string logLevel = "info");

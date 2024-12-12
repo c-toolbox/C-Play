@@ -36,7 +36,7 @@ std::string BaseLayer::typeDescription(BaseLayer::LayerType e) {
     }
 }
 
-BaseLayer *BaseLayer::createLayer(bool isMaster, int layerType, opengl_func_adress_ptr opa, std::string strId, uint32_t numID) {
+BaseLayer *BaseLayer::createLayer(bool isMaster, int layerType, gl_adress_func_v1 opa1, gl_adress_func_v2, std::string strId, uint32_t numID) {
     BaseLayer *newLayer = nullptr;
     switch (layerType) {
     case static_cast<int>(BaseLayer::LayerType::IMAGE): {
@@ -45,12 +45,12 @@ BaseLayer *BaseLayer::createLayer(bool isMaster, int layerType, opengl_func_adre
         break;
     }
     case static_cast<int>(BaseLayer::LayerType::VIDEO): {
-        VideoLayer* newVideo = new VideoLayer(opa);
+        VideoLayer* newVideo = new VideoLayer(opa1);
         newLayer = newVideo;
         break;
     }
     case static_cast<int>(BaseLayer::LayerType::AUDIO): {
-        AudioLayer* newAudio = new AudioLayer(opa);
+        AudioLayer* newAudio = new AudioLayer(opa1);
         newLayer = newAudio;
         break;
     }
