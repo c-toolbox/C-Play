@@ -3,6 +3,7 @@
 
 #include <layers/baselayer.h>
 #include <mdk/RenderAPI.h>
+#include <functional>
 
 namespace mdk {
     class Player;
@@ -13,6 +14,8 @@ namespace mdk {
 
 class MdkLayer : public BaseLayer {
 public:
+
+    typedef std::function<void(std::string codecName)> onFileLoadedCallback;
     struct mdkData {
         bool loggingOn = false;
         bool mdkInitializedGL = false;
@@ -29,11 +32,13 @@ public:
         double timePos = 0;
         double timeToSet = 0;
         bool timeIsDirty = false;
+        onFileLoadedCallback fileLoadedCallback = nullptr;
     };
 
     MdkLayer(gl_adress_func_v2 opa,
              bool loggingOn = false,
-             std::string logLevel = "info");
+             std::string logLevel = "info",
+             onFileLoadedCallback flc = nullptr);
 
     ~MdkLayer();
 
@@ -71,7 +76,7 @@ public:
     void loadFile(std::string filePath, bool reload = false);
     std::string loadedFile();
 
-    bool renderingIsOn();
+    bool renderingIsOn() const;
 
     void setEOFMode(int eofMode);
     void setTimePause(bool paused, bool updateTime = true);

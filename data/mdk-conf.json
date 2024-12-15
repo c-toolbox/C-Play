@@ -1,0 +1,3 @@
+{
+	"video.decoders": "hap,MFT:d3d=12,NVDEC,CUDA,D3D11,DXVA,FFmpeg,dav1d"
+}

@@ -8,7 +8,8 @@ public:
     VideoLayer(gl_adress_func_v1 opa,
              bool allowDirectRendering = false,
              bool loggingOn = false,
-             std::string logLevel = "info");
+             std::string logLevel = "info",
+             MpvLayer::onFileLoadedCallback flc = nullptr);
     ~VideoLayer();
 
     void initializeGL();

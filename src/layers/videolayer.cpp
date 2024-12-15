@@ -15,7 +15,8 @@ void on_mpv_render_update(void* ctx) {
 VideoLayer::VideoLayer(gl_adress_func_v1 opa,
     bool allowDirectRendering,
     bool loggingOn,
-    std::string logLevel) : MpvLayer(opa, allowDirectRendering, loggingOn, logLevel) {
+    std::string logLevel,
+    MpvLayer::onFileLoadedCallback flc) : MpvLayer(opa, allowDirectRendering, loggingOn, logLevel, flc) {
     setType(BaseLayer::LayerType::VIDEO);
 }
 

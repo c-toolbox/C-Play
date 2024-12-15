@@ -4,6 +4,9 @@
 #include <layers/audiolayer.h>
 #include <sgct/opengl.h>
 #include <sgct/shareddata.h>
+#ifdef MDK_SUPPORT
+#include <layers/adaptivevideolayer.h>
+#endif
 #ifdef NDI_SUPPORT
 #include <ndi/ndilayer.h>
 #endif
@@ -36,7 +39,7 @@ std::string BaseLayer::typeDescription(BaseLayer::LayerType e) {
     }
 }
 
-BaseLayer *BaseLayer::createLayer(bool isMaster, int layerType, gl_adress_func_v1 opa1, gl_adress_func_v2, std::string strId, uint32_t numID) {
+BaseLayer *BaseLayer::createLayer(bool isMaster, int layerType, gl_adress_func_v1 opa1, gl_adress_func_v2 opa2, std::string strId, uint32_t numID) {
     BaseLayer *newLayer = nullptr;
     switch (layerType) {
     case static_cast<int>(BaseLayer::LayerType::IMAGE): {
@@ -45,8 +48,21 @@ BaseLayer *BaseLayer::createLayer(bool isMaster, int layerType, gl_adress_func_v
         break;
     }
     case static_cast<int>(BaseLayer::LayerType::VIDEO): {
+//Not supporting MDK in layers just yet...
+#undef MDK_SUPPORT
+#ifdef MDK_SUPPORT
+        if (!isMaster) {
+            AdaptiveVideoLayer* newVideo = new AdaptiveVideoLayer(opa1, opa2);
+            newLayer = newVideo;
+        }
+        else {
+            VideoLayer* newVideo = new VideoLayer(opa1);
+            newLayer = newVideo;
+        }
+#else
         VideoLayer* newVideo = new VideoLayer(opa1);
         newLayer = newVideo;
+#endif
         break;
     }
     case static_cast<int>(BaseLayer::LayerType::AUDIO): {
@@ -102,12 +118,33 @@ BaseLayer::BaseLayer() {
 BaseLayer::~BaseLayer() {
 }
 
+void BaseLayer::cleanup() {
+    // Overwrite in derived class
+}
+
 void BaseLayer::initialize() {
+    // Overwrite in derived class
+}
+
+void BaseLayer::initializeGL() {
+    // Overwrite in derived class
+}
+
+void BaseLayer::initializeAndLoad(std::string) {
     // Overwrite in derived class
 }
 
 void BaseLayer::update(bool) {
     // Overwrite in derived class
+}
+
+void BaseLayer::updateFrame() {
+    // Overwrite in derived class
+}
+
+bool BaseLayer::renderingIsOn() const {
+    // Overwrite in derived class
+    return false;
 }
 
 bool BaseLayer::ready() const {
@@ -173,6 +210,26 @@ void BaseLayer::updateAudioOutput() {
 }
 
 void BaseLayer::setVolume(int, bool) {
+    // Overwrite in derived class
+}
+
+void BaseLayer::setEOFMode(int) {
+    // Overwrite in derived class
+}
+
+void BaseLayer::setTimePause(bool, bool) {
+    // Overwrite in derived class
+}
+
+void BaseLayer::setTimePosition(double, bool) {
+    // Overwrite in derived class
+}
+
+void BaseLayer::setLoopTime(double, double, bool) {
+    // Overwrite in derived class
+}
+
+void BaseLayer::setValue(std::string, int) {
     // Overwrite in derived class
 }
 
@@ -666,6 +723,10 @@ void BaseLayer::updatePlane() {
         planeData.mesh = std::make_unique<sgct::utils::Plane>(calculatedPlaneSize.x / 100.f, calculatedPlaneSize.y / 100.f);
         m_needSync = true;
     }
+}
+
+BaseLayer* BaseLayer::get() {
+    return this;
 }
 
 void BaseLayer::setIsMaster(bool value) {

@@ -78,9 +78,15 @@ public:
     // Start of all virtual methods for derived classes
 
     virtual ~BaseLayer();
+    virtual void cleanup();
 
     virtual void initialize();
+    virtual void initializeGL();
+    virtual void initializeAndLoad(std::string filePath);
+
     virtual void update(bool updateRendering = true);
+    virtual void updateFrame();
+    virtual bool renderingIsOn() const;
     virtual bool ready() const;
 
     virtual void start();
@@ -101,6 +107,12 @@ public:
     virtual std::vector<Track>* audioTracks();
     virtual void updateAudioOutput();
     virtual void setVolume(int v, bool storeLevel = true);
+
+    virtual void setEOFMode(int eofMode);
+    virtual void setTimePause(bool paused, bool updateTime = true);
+    virtual void setTimePosition(double timePos, bool updateTime = true);
+    virtual void setLoopTime(double A, double B, bool enabled);
+    virtual void setValue(std::string param, int val);
 
     virtual void encodeTypeCore(std::vector<std::byte>& data);
     virtual void decodeTypeCore(const std::vector<std::byte>& data, unsigned int& pos);
@@ -218,11 +230,13 @@ public:
     void drawPlane();
     void updatePlane();
 
-protected:
+    virtual BaseLayer* get();
+
     void setIsMaster(bool value);
     void setIdentifier(uint32_t id);
     void updateIdentifierBasedOnCount();
 
+protected:
     LayerType m_type;
     LayerHierarchy m_hierachy;
     std::string m_title;

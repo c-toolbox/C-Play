@@ -5,9 +5,12 @@
 #include <layers/baselayer.h>
 #include <mutex>
 #include <render_gl.h>
+#include <functional>
 
 class MpvLayer : public BaseLayer {
 public:
+
+    typedef std::function<void(std::string codecName)> onFileLoadedCallback;
     struct mpvData {
         mpv_handle *handle;
         mpv_render_context *renderContext;
@@ -41,12 +44,14 @@ public:
         std::atomic_bool mpvInitializedGL = false;
         std::atomic_bool threadDone = false;
         std::atomic_bool terminate = false;
+        onFileLoadedCallback fileLoadedCallback = nullptr;
     };
 
     MpvLayer(gl_adress_func_v1 opa,
              bool allowDirectRendering = false,
              bool loggingOn = false,
-             std::string logLevel = "info");
+             std::string logLevel = "info",
+             onFileLoadedCallback flc = nullptr);
 
     virtual ~MpvLayer() = 0; //This is an abstract class
 
@@ -85,7 +90,7 @@ public:
     void loadFile(std::string filePath, bool reload = false);
     std::string loadedFile();
 
-    bool renderingIsOn();
+    bool renderingIsOn() const;
 
     void setEOFMode(int eofMode);
     void setTimePause(bool paused, bool updateTime = true);

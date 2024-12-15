@@ -5,14 +5,20 @@
 #include <mdk/MediaInfo.h>
 #include <mdk/RenderAPI.h>
 #include <mdk/Player.h>
+#include <QFile>
+#include <QJsonArray>
+#include <QJsonDocument>
+#include <QJsonObject>
 
 using namespace MDK_NS;
 
 MdkLayer::MdkLayer(gl_adress_func_v2 opa,
     bool loggingOn,
-    std::string logLevel) : m_player(new Player()) {
+    std::string logLevel,
+    onFileLoadedCallback flc) : m_player(new Player()) {
     m_openglProcAdr = opa;
     setType(BaseLayer::LayerType::VIDEO);
+    m_data.fileLoadedCallback = flc;
 
     if(loggingOn)
         mdk::SetGlobalOption("logLevel", "all");
@@ -21,7 +27,25 @@ MdkLayer::MdkLayer(gl_adress_func_v2 opa,
 MdkLayer::~MdkLayer() = default;
 
 void MdkLayer::initialize() {
-    m_player->setDecoders(MediaType::Video, { "MFT:d3d = 12", "NVDEC", "CUDA", "hap", "D3D11", "DXVA", "FFmpeg", "dav1d" });
+    QFile mdkConfFile(QStringLiteral("./data/mdk-conf.json"));
+
+    if (!mdkConfFile.open(QIODevice::ReadOnly)) {
+        sgct::Log::Warning(fmt::format("Couldn't open mdk configuration file: {}", mdkConfFile.fileName().toStdString()));
+    }
+    else {
+        sgct::Log::Info(fmt::format("Loading mdk configuration file: {}", mdkConfFile.fileName().toStdString()));
+    }
+
+    QByteArray mdkCommandsArray = mdkConfFile.readAll();
+    QJsonDocument mdkCommandsDoc(QJsonDocument::fromJson(mdkCommandsArray));
+    QJsonObject mdkCommands = mdkCommandsDoc.object();
+
+    // Set property values.
+    for (const QString& key : mdkCommands.keys()) {
+        QJsonValue value = mdkCommands.value(key);
+        m_player->setProperty(key.toStdString(), value.toString().toStdString());
+        sgct::Log::Info(fmt::format("MDK property {} with value {}", key.toStdString(), value.toString().toStdString()));
+    }
 
     m_hasInitialized = true;
 }
@@ -36,7 +60,9 @@ void MdkLayer::initializeGL() {
             renderData.width = c.width;
             renderData.height = c.height;
             m_data.updateRendering = true;
-            sgct::Log::Info(fmt::format("New file has codec: {}", c.codec));
+            if (m_data.fileLoadedCallback) {
+                m_data.fileLoadedCallback(c.codec);
+            }
         }
         return true;
     });
@@ -222,7 +248,7 @@ std::string MdkLayer::loadedFile() {
     return m_data.loadedFile;
 }
 
-bool MdkLayer::renderingIsOn() {
+bool MdkLayer::renderingIsOn() const {
     return m_data.updateRendering;
 }
 

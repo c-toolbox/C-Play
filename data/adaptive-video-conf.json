@@ -1,0 +1,11 @@
+{
+	"default_decoder_library": "mpv",
+	"_am_comment": "Valid method is: extension, codec.",
+	"adaptive_method": "extension",
+	"extension_priority_mpv": ["mp4", "hevc", "mkv"],
+	"extension_priority_mdk": ["mov", "avi", "braw"],
+	"codec_priority_mpv": ["h264", "h265", "hevc"],
+	"codec_priority_mdk": ["hap"],
+	"_lfcc_comment": "Valid codec check is: mpv, mdk, current(i.e. what ever is loading videos now)",
+	"lib_for_codec_check": "current"
+}

@@ -56,6 +56,9 @@ void on_mpv_events(MpvLayer::mpvData &vd, BaseLayer::RenderParams &rp) {
                 loadAudioId(vd);
                 mpv::qt::set_property(vd.handle, QStringLiteral("volume"), vd.volume, vd.loggingOn);
             }
+            if (vd.fileLoadedCallback) {
+                vd.fileLoadedCallback(mpv::qt::get_property(vd.handle, QStringLiteral("video-codec")).toString().toStdString());
+            }
             break;
         }
         case MPV_EVENT_VIDEO_RECONFIG: {
@@ -226,10 +229,12 @@ auto runMpvAsync = [](MpvLayer::mpvData& data, BaseLayer::RenderParams& rp) {
 MpvLayer::MpvLayer(gl_adress_func_v1 opa,
     bool allowDirectRendering,
     bool loggingOn,
-    std::string logLevel) {
+    std::string logLevel,
+    onFileLoadedCallback flc) {
     m_openglProcAdr = opa;
     m_data.allowDirectRendering = allowDirectRendering;
     m_data.loggingOn = loggingOn;
+    m_data.fileLoadedCallback = flc;
 }
 
 MpvLayer::~MpvLayer() = default;
@@ -452,7 +457,7 @@ std::string MpvLayer::loadedFile() {
     return m_data.loadedFile;
 }
 
-bool MpvLayer::renderingIsOn() {
+bool MpvLayer::renderingIsOn() const {
     return m_data.updateRendering;
 }
 

@@ -104,6 +104,8 @@ if(BUILD_CPLAY_WITH_NDI)
 endif()
 
 if(BUILD_CPLAY_WITH_MDK)
+    list(APPEND SOURCE_FILES layers/adaptivevideolayer.cpp)
+    list(APPEND SOURCE_FILES layers/adaptivevideolayer.h)
     list(APPEND SOURCE_FILES layers/mdklayer.cpp)
     list(APPEND SOURCE_FILES layers/mdklayer.h)
 endif()
