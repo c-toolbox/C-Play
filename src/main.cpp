@@ -157,6 +157,12 @@ std::vector<std::byte> encode() {
             serializeObject(data, SyncHelper::instance().variables.loopTimeB);
         }
 
+        // Speed
+        serializeObject(data, SyncHelper::instance().variables.speedDirty);
+        if (SyncHelper::instance().variables.speedDirty) {
+            serializeObject(data, SyncHelper::instance().variables.playbackSpeed);
+        }
+
         // As strings can be quiet long.
         // Saving connection load, to only send one URL at a time.
         if (SyncHelper::instance().variables.loadFile) { // ID: 0 = mpv media file
@@ -252,6 +258,7 @@ std::vector<std::byte> encode() {
         SyncHelper::instance().variables.timeDirty = false;
         SyncHelper::instance().variables.eqDirty = false;
         SyncHelper::instance().variables.loopTimeDirty = false;
+        SyncHelper::instance().variables.speedDirty = false;
     }
 
     return data;
@@ -308,6 +315,12 @@ void decode(const std::vector<std::byte> &data) {
             deserializeObject(data, pos, SyncHelper::instance().variables.loopTimeEnabled);
             deserializeObject(data, pos, SyncHelper::instance().variables.loopTimeA);
             deserializeObject(data, pos, SyncHelper::instance().variables.loopTimeB);
+        }
+
+        // Speed
+        deserializeObject(data, pos, SyncHelper::instance().variables.speedDirty);
+        if (SyncHelper::instance().variables.speedDirty) {
+            deserializeObject(data, pos, SyncHelper::instance().variables.playbackSpeed);
         }
 
         // Strings
@@ -606,6 +619,9 @@ void postSyncPreDraw() {
             videoLayer->setValue("brightness", SyncHelper::instance().variables.eqBrightness);
             videoLayer->setValue("gamma", SyncHelper::instance().variables.eqGamma);
             videoLayer->setValue("saturation", SyncHelper::instance().variables.eqSaturation);
+        }
+        if (SyncHelper::instance().variables.speedDirty) {
+            videoLayer->setValue("speed", SyncHelper::instance().variables.playbackSpeed);
         }
 
         // Set latest plane details for all primary layers

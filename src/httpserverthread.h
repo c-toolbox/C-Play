@@ -30,6 +30,7 @@ Q_SIGNALS:
     void setPosition(double position);
     void seekInMedia(int timeInSec);
     void setAutoPlay(bool value);
+    void setSpeed(double factor);
     void setVolume(int level);
     void setViewMode(int mode);
     void setSyncVolumeVisibilityFading(bool sync);
@@ -61,6 +62,7 @@ private:
     bool stringToDouble(std::string str, double &parsedDouble);
 
     void setPositionFromStr(std::string positionTimeStr);
+    void setSpeedFromStr(std::string speedFactorStr);
     void setVolumeFromStr(std::string volumeLevelStr);
     void setViewModeFromStr(std::string volumeLevelStr);
     void setSyncImageFadingFromStr(std::string valueStr);

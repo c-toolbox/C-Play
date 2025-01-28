@@ -62,6 +62,11 @@ To easier understand these commands, feel free to utilize a sample Medialon Mana
     Params:   Optional to supply a "on=1" or "on=0" to enable or disable the auto play feature.
     Returns:  When "on=" is added, a message indiciating success or an error. Otherwise returns 0 if auto play is disabled and 1 if it's enabled.
 
+    Endpoint: /speed
+    Purpose:  Which playback speed the media player has.
+    Params:   Optional to supply "factor=value", to set playback speed to specify value. The value should be between 0.01-100.
+    Returns:  The playback speed.
+
 ### Handle volume level and image visibility
     
     Endpoint: /volume

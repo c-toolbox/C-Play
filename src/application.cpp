@@ -22,6 +22,9 @@
 #ifdef JACK_SUPPORT
 #include <jack/jack.h>
 #endif
+#ifdef MDK_SUPPORT
+#include <mdk/global.h>
+#endif
 #ifdef NDI_SUPPORT
 #include <ndi/ndimodel.h>
 #endif
@@ -491,14 +494,18 @@ void Application::updateAboutOtherText(const QString &mpvVersion, const QString 
 #else
     otherText += QStringLiteral(".\n");
 #endif
-    otherText += QStringLiteral("Master UI compiled with Qt ") + QStringLiteral(QT_VERSION_STR) + QStringLiteral(" and based on Haruna project.\n");
-    otherText += QStringLiteral("SGCT ") + QString::fromStdString(std::string(sgct::Version)) + QStringLiteral(" for cluster environment and client rendering.\n");
+    
+#ifdef MDK_SUPPORT
+    otherText += QStringLiteral("MDK ") + QString::number(MDK_MAJOR) + QStringLiteral(".") + QString::number(MDK_MINOR) + QStringLiteral(".") + QString::number(MDK_MICRO) + QStringLiteral(" for extra GPU-powered playback for some codecs.\n");
+#endif
 #ifdef NDI_SUPPORT
     otherText += QStringLiteral("NDI ") + m_ndiSendersModel->getNDIVersionString() + QStringLiteral(" for network streams of video and audio.\n");
 #endif
 #ifdef PDF_SUPPORT
     otherText += QStringLiteral("Poppler ") + QString::fromStdString(poppler::version_string()) + QStringLiteral(" for rendering PDF documents.\n");
 #endif
+    otherText += QStringLiteral("Master UI compiled with Qt ") + QStringLiteral(QT_VERSION_STR) + QStringLiteral(" and based on Haruna project.\n");
+    otherText += QStringLiteral("SGCT ") + QString::fromStdString(std::string(sgct::Version)) + QStringLiteral(" for cluster environment and client rendering.\n");
     m_aboutData.setOtherText(otherText);
     KAboutData::setApplicationData(m_aboutData);
 }

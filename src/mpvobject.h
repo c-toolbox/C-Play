@@ -265,6 +265,9 @@ public:
     bool autoPlay();
     void setAutoPlay(bool value);
 
+    double speed();
+    void setSpeed(double factor);
+
     int volume();
     void setVolume(int value);
 
@@ -391,6 +394,7 @@ Q_SIGNALS:
     void positionChanged();
     void durationChanged();
     void remainingChanged();
+    void speedChanged();
     void volumeChanged();
     void volumeUpdate(int);
     void pauseChanged();

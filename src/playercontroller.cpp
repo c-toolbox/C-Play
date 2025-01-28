@@ -59,6 +59,7 @@ void PlayerController::setupHttpServer() {
     connect(httpServer, &HttpServerThread::seekInMedia, this, &PlayerController::Seek);
     connect(httpServer, &HttpServerThread::setAutoPlay, this, &PlayerController::SetAutoPlay);
     connect(httpServer, &HttpServerThread::setPosition, this, &PlayerController::SetPosition);
+    connect(httpServer, &HttpServerThread::setSpeed, this, &PlayerController::SetSpeed);
     connect(httpServer, &HttpServerThread::setVolume, this, &PlayerController::SetVolume);
     connect(httpServer, &HttpServerThread::setViewMode, this, &PlayerController::setViewModeOnClients);
     connect(httpServer, &HttpServerThread::setBackgroundVisibility, this, &PlayerController::setBackgroundVisibility);
@@ -144,6 +145,12 @@ void PlayerController::LoadFromSections(int idx) {
 void PlayerController::SetPosition(double pos) {
     if (m_mpv) {
         m_mpv->setPosition(pos);
+    }
+}
+
+void PlayerController::SetSpeed(double factor) {
+    if (m_mpv) {
+        m_mpv->setSpeed(factor);
     }
 }
 

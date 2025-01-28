@@ -194,6 +194,8 @@ public:
         int eqBrightness;
         int eqGamma;
         int eqSaturation;
+        bool speedDirty;
+        double playbackSpeed;
         bool loopTimeDirty;
         bool loopTimeEnabled;
         double loopTimeA;
@@ -258,10 +260,12 @@ public:
         /*eqBrightness*/ 0,
         /*eqGamma*/ 0,
         /*eqSaturation*/ 0,
+        /*speedDirty*/ false,
+        /*playbackSpeed*/ 1.0,
         /*loopTimeDirty*/ false,
         /*loopTimeEnabled*/ false,
         /*loopTimeA*/ 0,
-        /*loopTimeB*/ 0};
+        /*loopTimeB*/ 0 };
 
     ConfigurationVariables configuration = {
         /*confAll*/ "./data/mpv-conf/default/all.json",

@@ -181,6 +181,19 @@ void HttpServerThread::setupHttpServer() {
             }
         });
 
+        svr.Post("/speed", [this](const httplib::Request& req, httplib::Response& res) {
+            if (req.has_param("factor")) {
+                setSpeedFromStr(req.get_param_value("factor"));
+            }
+
+            if (m_mpv) {
+                res.set_content(std::to_string(m_mpv->speed()), "text/plain");
+            }
+            else {
+                res.set_content("1", "text/plain");
+            }
+        });
+
         svr.Post("/volume", [this](const httplib::Request &req, httplib::Response &res) {
             if (req.has_param("level")) {
                 setVolumeFromStr(req.get_param_value("level"));
@@ -765,6 +778,15 @@ void HttpServerThread::setPositionFromStr(std::string positionTimeStr) {
     if (stringToDouble(positionTimeStr, pos)) {
         if (pos >= 0) {
             Q_EMIT setPosition(pos);
+        }
+    }
+}
+
+void HttpServerThread::setSpeedFromStr(std::string speedFactorStr) {
+    double factor = 1;
+    if (stringToDouble(speedFactorStr, factor)) {
+        if (factor >= 0.01 && factor <= 100) {
+            Q_EMIT setSpeed(factor);
         }
     }
 }

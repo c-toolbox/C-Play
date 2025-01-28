@@ -437,6 +437,20 @@ void MpvObject::setSaturation(int value) {
     Q_EMIT saturationChanged();
 }
 
+double MpvObject::speed() {
+    return getProperty(QStringLiteral("speed")).toDouble();
+}
+
+void MpvObject::setSpeed(double factor) {
+    SyncHelper::instance().variables.playbackSpeed = factor;
+    SyncHelper::instance().variables.speedDirty = true;
+    if (factor == speed()) {
+        return;
+    }
+    setProperty(QStringLiteral("speed"), factor);
+    Q_EMIT speedChanged();
+}
+
 bool MpvObject::hwDecoding() {
     if (getProperty(QStringLiteral("hwdec")) == QStringLiteral("yes")) {
         return true;
@@ -805,7 +819,18 @@ void MpvObject::loadFile(const QString &file, bool updateLastPlayedFile) {
     } else {
         m_loadedFileStructure = fileToLoad;
         m_separateAudioFile = QStringLiteral("");
-        SyncHelper::instance().variables.loadedFile = fileToLoad.toStdString();
+
+        QFileInfo mediaFileInfo(fileToLoad);
+        QString nodeSeparateMediaFile = fileToLoad;
+        nodeSeparateMediaFile.replace(mediaFileInfo.fileName(), mediaFileInfo.baseName() + QStringLiteral("_NODE.") + mediaFileInfo.completeSuffix());
+        QFileInfo nodeMediaFileInfo(nodeSeparateMediaFile);
+        if (nodeMediaFileInfo.exists())
+        {
+            SyncHelper::instance().variables.loadedFile = nodeSeparateMediaFile.toStdString();
+        }
+        else {
+            SyncHelper::instance().variables.loadedFile = fileToLoad.toStdString();
+        }
         SyncHelper::instance().variables.overlayFile = "";
         SyncHelper::instance().variables.loadFile = true;
         SyncHelper::instance().variables.overlayFileDirty = true;
@@ -966,7 +991,18 @@ void MpvObject::loadItem(PlayListItemData itemData, bool updateLastPlayedFile, Q
 
         command(newCommand, true);
 
-        SyncHelper::instance().variables.loadedFile = itemData.mediaFile().toStdString();
+        QFileInfo mediaFileInfo(itemData.mediaFile());
+        QString nodeSeparateMediaFile = itemData.mediaFile();
+        nodeSeparateMediaFile.replace(mediaFileInfo.fileName(), mediaFileInfo.baseName() + QStringLiteral("_NODE.") + mediaFileInfo.completeSuffix());
+        QFileInfo nodeMediaFileInfo(nodeSeparateMediaFile);
+        if (nodeMediaFileInfo.exists())
+        {
+            SyncHelper::instance().variables.loadedFile = nodeSeparateMediaFile.toStdString();
+        }
+        else {
+            SyncHelper::instance().variables.loadedFile = itemData.mediaFile().toStdString();
+        }
+
         SyncHelper::instance().variables.overlayFile = itemData.separateOverlayFile().toStdString();
         SyncHelper::instance().variables.loadFile = true;
         SyncHelper::instance().variables.overlayFileDirty = true;
