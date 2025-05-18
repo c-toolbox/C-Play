@@ -32,6 +32,7 @@ ToolBar {
         ToolButton {
             action: actions.openAction
             focusPolicy: Qt.NoFocus
+            display: Window.width < 1600 ? AbstractButton.IconOnly : AbstractButton.TextBesideIcon
 
             ToolTip {
                 text: "Open a any media file, as well as *.cplayfile or *.cplaylist."
@@ -43,6 +44,7 @@ ToolBar {
             action: actions.saveAsCPlayFileAction
             enabled: false
             focusPolicy: Qt.NoFocus
+            display: Window.width < 1600 ? AbstractButton.IconOnly : AbstractButton.TextBesideIcon
 
             ToolTip {
                 text: "Save current media and settings as a *.cplayfile"
@@ -61,6 +63,7 @@ ToolBar {
             icon.color: mpv.audioTracksModel.countTracks() > 0 ? "lime" : "crimson"
             icon.name: "new-audio-alarm"
             text: qsTr("Audio File")
+            display: Window.width < 1600 ? AbstractButton.IconOnly : AbstractButton.TextBesideIcon
 
             onClicked: {
                 if (audioMenuInstantiator.model === 0) {
@@ -329,6 +332,7 @@ ToolBar {
             focusPolicy: Qt.NoFocus
             icon.name: "layer-visible-off"
             text: qsTr("Bg/Fg images")
+            display: Window.width < 1600 ? AbstractButton.IconOnly : AbstractButton.TextBesideIcon
 
             onClicked: {
                 imageMenu.visible = !imageMenu.visible;
@@ -537,8 +541,9 @@ ToolBar {
 
             focusPolicy: Qt.NoFocus
             icon.name: playerController.rewindMediaOnEOF() ? "media-playback-stop" : "media-playback-pause"
-            implicitWidth: 100
+            implicitWidth: Window.width < 1600 ? 40 : 100
             text: playerController.rewindMediaOnEOF() ? qsTr("EOF: Stop") : qsTr("EOF: Pause")
+            display: Window.width < 1600 ? AbstractButton.IconOnly : AbstractButton.TextBesideIcon
 
             onClicked: {
                 eofMenu.visible = !eofMenu.visible;
@@ -715,7 +720,7 @@ ToolBar {
             id: stereoscopicMenuButton
 
             focusPolicy: Qt.NoFocus
-            implicitWidth: 100
+            implicitWidth: Window.width < 1600 ? 40 : 100 
             text: {
                 if (mpv.stereoscopicMode === 0) {
                     stereoscopicMenuButton.text = qsTr("2D (Mono)");
@@ -731,6 +736,7 @@ ToolBar {
                     stereoscopicMenuButton.icon.name = "visibility";
                 }
             }
+            display: Window.width < 1600 ? AbstractButton.IconOnly : AbstractButton.TextBesideIcon
 
             onClicked: {
                 stereoscopicMenu.visible = !stereoscopicMenu.visible;
@@ -913,7 +919,7 @@ ToolBar {
 
             focusPolicy: Qt.NoFocus
             icon.name: "kstars_hgrid"
-            implicitWidth: 130
+            implicitWidth: Window.width < 1600 ? 40 : 130
             text: {
                 if (mpv.gridToMapOn === 0)
                     gridMenuButton.text = qsTr("Grid (None)");
@@ -926,6 +932,7 @@ ToolBar {
                 else if (mpv.gridToMapOn === 4)
                     gridMenuButton.text = qsTr("Grid (Sphere EAC)");
             }
+            display: Window.width < 1600 ? AbstractButton.IconOnly : AbstractButton.TextBesideIcon
 
             onClicked: {
                 gridMenu.visible = !gridMenu.visible;
@@ -1071,6 +1078,7 @@ ToolBar {
             text: {
                 qsTr("Spin && Move");
             }
+            display: Window.width < 1600 ? AbstractButton.IconOnly : AbstractButton.TextBesideIcon
 
             onClicked: {
                 spinMenu.visible = !spinMenu.visible;
@@ -1556,6 +1564,7 @@ ToolBar {
             focusPolicy: Qt.NoFocus
             icon.color: mpv.autoPlay ? "lime" : "crimson"
             text: actions.syncAction.text
+            display: Window.width < 1600 ? AbstractButton.IconOnly : AbstractButton.TextBesideIcon
 
             ToolTip {
                 text: "ON/OFF to sync state from master to clients."

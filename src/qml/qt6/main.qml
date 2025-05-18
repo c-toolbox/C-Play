@@ -69,15 +69,15 @@ Kirigami.ApplicationWindow {
         target: app
     }
 
-    color: Kirigami.Theme.alternateBackgroundColor
-    height: 880
-    maximumHeight: 990
-    maximumWidth: 1728
-    minimumHeight: 660
-    minimumWidth: 1152
     title: mpv.mediaTitle || qsTr("C-Play")
     visible: true
-    width: 1610
+    color: Kirigami.Theme.alternateBackgroundColor
+    maximumHeight: 990 > Screen.height ? Screen.height : 990
+    maximumWidth: 1728 > Screen.width ? Screen.width : 1728
+    minimumHeight: 660 > Screen.height / 2 ? Screen.height / 2 : 660
+    minimumWidth: 1152 > Screen.width / 2 ? Screen.width / 2 : 1152
+    height: 880 > Screen.height ? Screen.height - 60 : 880
+    width: 1610 > Screen.width ? Screen.width - 20 : 1610
 
     header: Header {
         id: header
