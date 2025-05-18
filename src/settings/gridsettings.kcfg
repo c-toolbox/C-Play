@@ -71,11 +71,17 @@
     <entry name="Plane_Height_CM" type="double">
       <default>740</default>
     </entry>
+    <entry name="Plane_Elevation_Degrees" type="double">
+      <default>39</default>
+    </entry>
     <entry name="Plane_Distance_CM" type="double">
       <default>740</default>
     </entry>
-    <entry name="Plane_Elevation_Degrees" type="double">
-      <default>39</default>
+    <entry name="Plane_Horizontal_Range_CM" type="double">
+      <default>5000</default>
+    </entry>
+    <entry name="Plane_Vertical_Range_CM" type="double">
+      <default>5000</default>
     </entry>
   </group>
 </kcfg>

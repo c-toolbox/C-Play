@@ -653,7 +653,7 @@ void LayerRenderer::renderLayers(const sgct::RenderData &data, int viewMode, flo
             planeTransform = glm::rotate(planeTransform, glm::radians(float(layer->planeAzimuth())), glm::vec3(0.0f, -1.0f, 0.0f));  // azimuth
             planeTransform = glm::rotate(planeTransform, glm::radians(float(layer->planeElevation())), glm::vec3(1.0f, 0.0f, 0.0f)); // elevation
             planeTransform = glm::rotate(planeTransform, glm::radians(float(layer->planeRoll())), glm::vec3(0.0f, 0.0f, 1.0f));      // roll
-            planeTransform = glm::translate(planeTransform, glm::vec3(0.0f, 0.0f, float(-layer->planeDistance()) / 100.f));          // distance
+            planeTransform = glm::translate(planeTransform, glm::vec3(float(layer->planeHorizontal()) / 100.f, float(layer->planeVertical()) / 100.f, float(-layer->planeDistance()) / 100.f));
             
             planeTransform = glm::make_mat4(mvp.values) * planeTransform;
             glUniformMatrix4fv(meshMatrixLoc, 1, GL_FALSE, &planeTransform[0][0]);

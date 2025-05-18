@@ -76,8 +76,6 @@ SettingsBasePage {
             text: qsTr("Plane width:")
         }
         RowLayout {
-            Layout.columnSpan: 2
-
             SpinBox {
                 id: planeWidthBox
 
@@ -97,12 +95,17 @@ SettingsBasePage {
                 }
             }
         }
+        RowLayout {
+            Layout.alignment: Qt.AlignRight
+
+            Label {
+                text: qsTr("Plane slider ranges:")
+            }
+        }
         Label {
             text: qsTr("Plane height:")
         }
         RowLayout {
-            Layout.columnSpan: 2
-
             SpinBox {
                 id: planeHeightBox
 
@@ -122,12 +125,25 @@ SettingsBasePage {
                 }
             }
         }
+        RowLayout {
+            Layout.alignment: Qt.AlignRight
+
+            Label {
+                text: qsTr("Horizontal:")
+            }
+            SpinBox {
+                id: planeHorizontalRangeBox
+
+                from: -1000000
+                to: 1000000
+                value: GridSettings.plane_Horizontal_Range_CM;
+            }
+        }
+
         Label {
             text: qsTr("Plane elevation:")
         }
         RowLayout {
-            Layout.columnSpan: 2
-
             SpinBox {
                 id: planeElevationBox
 
@@ -145,6 +161,21 @@ SettingsBasePage {
                 }
             }
         }
+        RowLayout {
+            Layout.alignment: Qt.AlignRight
+
+            Label {
+                text: qsTr("Vertical:")
+            }
+            SpinBox {
+                id: planeVerticalRangeBox
+
+                from: -1000000;
+                to: 1000000;
+                value: GridSettings.plane_Vertical_Range_CM;
+            }
+        }
+
         Label {
             text: qsTr("Plane distance:")
         }
@@ -617,6 +648,8 @@ SettingsBasePage {
                     mpv.planeHeight = GridSettings.plane_Height_CM;
                     mpv.planeElevation = GridSettings.plane_Elevation_Degrees;
                     mpv.planeDistance = GridSettings.plane_Distance_CM;
+                    planeHorizontalRangeBox.value = GridSettings.plane_Horizontal_Range_CM;
+                    planeVerticalRangeBox.value = GridSettings.plane_Vertical_Range_CM;
                     mpv.planeConsiderAspectRatio = GridSettings.plane_Calculate_Size_Based_on_Video;
                     mpv.rotationSpeed = GridSettings.surfaceRotationSpeed;
                     mpv.radius = GridSettings.surfaceRadius;
@@ -669,6 +702,8 @@ SettingsBasePage {
                     GridSettings.plane_Height_CM = mpv.planeHeight;
                     GridSettings.plane_Elevation_Degrees = mpv.planeElevation;
                     GridSettings.plane_Distance_CM = mpv.planeDistance;
+                    GridSettings.plane_Horizontal_Range_CM = planeHorizontalRangeBox.value;
+                    GridSettings.plane_Vertical_Range_CM = planeVerticalRangeBox.value;
                     GridSettings.plane_Calculate_Size_Based_on_Video = mpv.planeConsiderAspectRatio;
                     GridSettings.surfaceRotationSpeed = mpv.rotationSpeed;
                     GridSettings.surfaceRadius = mpv.radius;

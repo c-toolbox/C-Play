@@ -308,6 +308,20 @@ void LayerQtItem::setLayerPlaneElevation(double pE) {
     }
 }
 
+double LayerQtItem::layerPlaneRoll() const {
+    if (m_layer)
+        return m_layer->planeRoll();
+    else
+        return 0.0;
+}
+
+void LayerQtItem::setLayerPlaneRoll(double pR) {
+    if (m_layer) {
+        m_layer->setPlaneRoll(pR);
+        Q_EMIT layerValueChanged();
+    }
+}
+
 double LayerQtItem::layerPlaneDistance() const {
     if (m_layer)
         return m_layer->planeDistance();
@@ -322,16 +336,30 @@ void LayerQtItem::setLayerPlaneDistance(double pD) {
     }
 }
 
-double LayerQtItem::layerPlaneRoll() const {
+double LayerQtItem::layerPlaneHorizontal() const {
     if (m_layer)
-        return m_layer->planeRoll();
+        return m_layer->planeHorizontal();
     else
         return 0.0;
 }
 
-void LayerQtItem::setLayerPlaneRoll(double pR) {
+void LayerQtItem::setLayerPlaneHorizontal(double pH) {
     if (m_layer) {
-        m_layer->setPlaneRoll(pR);
+        m_layer->setPlaneHorizontal(pH);
+        Q_EMIT layerValueChanged();
+    }
+}
+
+double LayerQtItem::layerPlaneVertical() const {
+    if (m_layer)
+        return m_layer->planeVertical();
+    else
+        return 0.0;
+}
+
+void LayerQtItem::setLayerPlaneVertical(double pV) {
+    if (m_layer) {
+        m_layer->setPlaneVertical(pV);
         Q_EMIT layerValueChanged();
     }
 }

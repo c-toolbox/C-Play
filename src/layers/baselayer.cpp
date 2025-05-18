@@ -299,8 +299,10 @@ void BaseLayer::encodeBaseProperties(std::vector<std::byte>& data) {
     if (renderData.gridMode == BaseLayer::GridMode::Plane) {
         sgct::serializeObject(data, planeData.azimuth);
         sgct::serializeObject(data, planeData.elevation);
-        sgct::serializeObject(data, planeData.distance);
         sgct::serializeObject(data, planeData.roll);
+        sgct::serializeObject(data, planeData.distance);
+        sgct::serializeObject(data, planeData.horizontal);
+        sgct::serializeObject(data, planeData.vertical);
         sgct::serializeObject(data, planeData.specifiedSize.x);
         sgct::serializeObject(data, planeData.specifiedSize.y);
         sgct::serializeObject(data, planeData.aspectRatioConsideration);
@@ -327,8 +329,10 @@ void BaseLayer::decodeBaseProperties(const std::vector<std::byte>& data, unsigne
     if (renderData.gridMode == BaseLayer::GridMode::Plane) {
         sgct::deserializeObject(data, pos, planeData.azimuth);
         sgct::deserializeObject(data, pos, planeData.elevation);
-        sgct::deserializeObject(data, pos, planeData.distance);
         sgct::deserializeObject(data, pos, planeData.roll);
+        sgct::deserializeObject(data, pos, planeData.distance);
+        sgct::deserializeObject(data, pos, planeData.horizontal);
+        sgct::deserializeObject(data, pos, planeData.vertical);
         sgct::deserializeObject(data, pos, planeData.specifiedSize.x);
         sgct::deserializeObject(data, pos, planeData.specifiedSize.y);
         sgct::deserializeObject(data, pos, planeData.aspectRatioConsideration);
@@ -611,6 +615,15 @@ void BaseLayer::setPlaneElevation(double pE) {
     m_needSync = true;
 }
 
+double BaseLayer::planeRoll() const {
+    return planeData.roll;
+}
+
+void BaseLayer::setPlaneRoll(double pR) {
+    planeData.roll = pR;
+    m_needSync = true;
+}
+
 double BaseLayer::planeDistance() const {
     return planeData.distance;
 }
@@ -620,12 +633,21 @@ void BaseLayer::setPlaneDistance(double pD) {
     m_needSync = true;
 }
 
-double BaseLayer::planeRoll() const {
-    return planeData.roll;
+double BaseLayer::planeHorizontal() const {
+    return planeData.horizontal;
 }
 
-void BaseLayer::setPlaneRoll(double pR) {
-    planeData.roll = pR;
+void BaseLayer::setPlaneHorizontal(double pH) {
+    planeData.horizontal = pH;
+    m_needSync = true;
+}
+
+double BaseLayer::planeVertical() const {
+    return planeData.vertical;
+}
+
+void BaseLayer::setPlaneVertical(double pV) {
+    planeData.vertical = pV;
     m_needSync = true;
 }
 

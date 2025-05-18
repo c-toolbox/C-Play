@@ -22,6 +22,8 @@ Kirigami.ApplicationWindow {
         planeWidthBox.value = layerView.layerItem.layerPlaneWidth;
         planeHeightBox.value = layerView.layerItem.layerPlaneHeight;
         planeDistanceBox.value = layerView.layerItem.layerPlaneDistance;
+        planeHorizontalMoveBox.value = layerView.layerItem.layerPlaneHorizontal;
+        planeVerticalMoveBox.value = layerView.layerItem.layerPlaneVertical;
         planeElevationSpinBox.value = layerView.layerItem.layerPlaneElevation*100;
         planeAzimuthSpinBox.value = layerView.layerItem.layerPlaneAzimuth*100;
         planeRollSpinBox.value = layerView.layerItem.layerPlaneRoll*100;
@@ -35,7 +37,7 @@ Kirigami.ApplicationWindow {
     }
 
     color: Kirigami.Theme.alternateBackgroundColor
-    height: 370
+    height: 450
     title: qsTr("Layer Grid Parameters")
     visible: false
     width: 500
@@ -500,6 +502,122 @@ Kirigami.ApplicationWindow {
                     target: layerView.layerItem
                 }
             }
+
+            Label {
+                text: qsTr("Plane horizontal move:")
+                Layout.alignment: Qt.AlignRight
+            }
+            RowLayout {
+                Layout.columnSpan: 2
+
+                SpinBox {
+                    id: planeHorizontalMoveBox
+
+                    from: -GridSettings.plane_Horizontal_Range_CM
+                    stepSize: 1
+                    to: GridSettings.plane_Horizontal_Range_CM
+
+                    onValueChanged: layerView.layerItem.layerPlaneHorizontal = value
+                }
+                Label {
+                    Layout.alignment: Qt.AlignLeft
+                    Layout.fillWidth: true
+                    elide: Text.ElideLeft
+                    text: {
+                        qsTr("cm");
+                    }
+                }
+                Slider {
+                    id: planeHorizontalSlider
+
+                    Layout.topMargin: Kirigami.Units.largeSpacing
+
+                    implicitWidth: 180
+                    from: -GridSettings.plane_Horizontal_Range_CM
+                    to: GridSettings.plane_Horizontal_Range_CM
+                    value: layerView.layerItem.layerPlaneHorizontal
+
+                    onMoved: {
+                        planeHorizontalMoveBox.value = value;
+                        layerView.layerItem.layerPlaneHorizontal = planeHorizontalMoveBox.realValue;
+                    }
+
+                    MouseArea {
+                        acceptedButtons: Qt.MiddleButton
+                        anchors.fill: parent
+
+                        onClicked: layerView.layerItem.layerPlaneHorizontal = 0
+                    }
+
+                    Layout.fillWidth: true
+                }
+                Connections {
+                    function onLayerValueChanged() {
+                        if (planeHorizontalMoveBox.realValue !== layerView.layerItem.layerPlaneHorizontal)
+                            planeHorizontalMoveBox.value = layerView.layerItem.layerPlaneHorizontal;
+                    }
+
+                    target: layerView.layerItem
+                }
+            }
+            Label {
+                text: qsTr("Plane vertical move:")
+                Layout.alignment: Qt.AlignRight
+            }
+            RowLayout {
+                Layout.columnSpan: 2
+
+                SpinBox {
+                    id: planeVerticalMoveBox
+
+                    from: -GridSettings.plane_Vertical_Range_CM
+                    stepSize: 1
+                    to: GridSettings.plane_Vertical_Range_CM
+
+                    onValueChanged: layerView.layerItem.layerPlaneVertical = value
+                }
+                Label {
+                    Layout.alignment: Qt.AlignLeft
+                    Layout.fillWidth: true
+                    elide: Text.ElideLeft
+                    text: {
+                        qsTr("cm");
+                    }
+                }
+                Slider {
+                    id: planeVerticalSlider
+
+                    Layout.topMargin: Kirigami.Units.largeSpacing
+
+                    implicitWidth: 180
+                    from: -GridSettings.plane_Vertical_Range_CM
+                    to: GridSettings.plane_Vertical_Range_CM
+                    value: layerView.layerItem.layerPlaneVertical
+
+                    onMoved: {
+                        planeVerticalMoveBox.value = value;
+                        layerView.layerItem.layerPlaneVertical = planeVerticalMoveBox.realValue;
+                    }
+
+                    MouseArea {
+                        acceptedButtons: Qt.MiddleButton
+                        anchors.fill: parent
+
+                        onClicked: layerView.layerItem.layerPlaneVertical = 0
+                    }
+
+                    Layout.fillWidth: true
+                }
+                Connections {
+                    function onLayerValueChanged() {
+                        if (planeVerticalMoveBox.realValue !== layerView.layerItem.layerPlaneVertical)
+                            planeVerticalMoveBox.value = layerView.layerItem.layerPlaneVertical;
+                    }
+
+                    target: layerView.layerItem
+                }
+            }
+
             Item {
                 height: 1
                 width: 1

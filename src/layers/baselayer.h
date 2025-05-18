@@ -65,8 +65,10 @@ public:
     struct PlaneParams {
         double azimuth = 0.0;
         double elevation = 0.0;
-        double distance = 0.0;
         double roll = 0.0;
+        double distance = 0.0;
+        double horizontal = 0.0;
+        double vertical = 0.0;
         uint8_t aspectRatioConsideration = 1;
         glm::vec2 specifiedSize = glm::vec2(0);
         glm::vec2 actualSize = glm::vec2(0);
@@ -210,11 +212,17 @@ public:
     double planeElevation() const;
     void setPlaneElevation(double pE);
 
+    double planeRoll() const;
+    void setPlaneRoll(double pR);
+
     double planeDistance() const;
     void setPlaneDistance(double pD);
 
-    double planeRoll() const;
-    void setPlaneRoll(double pR);
+    double planeHorizontal() const;
+    void setPlaneHorizontal(double pH);
+
+    double planeVertical() const;
+    void setPlaneVertical(double pV);
 
     double planeWidth() const;
     void setPlaneWidth(double pW);

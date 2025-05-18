@@ -77,8 +77,10 @@ class LayerQtItem : public QQuickItem {
     Q_PROPERTY(int layerPlaneAspectRatio READ layerPlaneAspectRatio WRITE setLayerPlaneAspectRatio NOTIFY layerValueChanged)
     Q_PROPERTY(double layerPlaneAzimuth READ layerPlaneAzimuth WRITE setLayerPlaneAzimuth NOTIFY layerValueChanged)
     Q_PROPERTY(double layerPlaneElevation READ layerPlaneElevation WRITE setLayerPlaneElevation NOTIFY layerValueChanged)
-    Q_PROPERTY(double layerPlaneDistance READ layerPlaneDistance WRITE setLayerPlaneDistance NOTIFY layerValueChanged)
     Q_PROPERTY(double layerPlaneRoll READ layerPlaneRoll WRITE setLayerPlaneRoll NOTIFY layerValueChanged)
+    Q_PROPERTY(double layerPlaneDistance READ layerPlaneDistance WRITE setLayerPlaneDistance NOTIFY layerValueChanged)
+    Q_PROPERTY(double layerPlaneHorizontal READ layerPlaneHorizontal WRITE setLayerPlaneHorizontal NOTIFY layerValueChanged)
+    Q_PROPERTY(double layerPlaneVertical READ layerPlaneVertical WRITE setLayerPlaneVertical NOTIFY layerValueChanged)
     Q_PROPERTY(bool layerRoiEnabled READ layerRoiEnabled WRITE setLayerRoiEnabled NOTIFY layerValueChanged)
     Q_PROPERTY(QString layerTypeName READ layerTypeName NOTIFY layerValueChanged)
     Q_PROPERTY(QString layerTitle READ layerTitle WRITE setLayerTitle NOTIFY layerValueChanged)
@@ -152,11 +154,17 @@ public:
     double layerPlaneElevation() const;
     void setLayerPlaneElevation(double pE);
 
+    double layerPlaneRoll() const;
+    void setLayerPlaneRoll(double pR);
+
     double layerPlaneDistance() const;
     void setLayerPlaneDistance(double pD);
 
-    double layerPlaneRoll() const;
-    void setLayerPlaneRoll(double pR);
+    double layerPlaneHorizontal() const;
+    void setLayerPlaneHorizontal(double pH);
+
+    double layerPlaneVertical() const;
+    void setLayerPlaneVertical(double pV);
 
     bool layerRoiEnabled();
     void setLayerRoiEnabled(bool value);

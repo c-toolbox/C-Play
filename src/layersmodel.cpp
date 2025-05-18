@@ -568,10 +568,6 @@ void LayersModel::decodeFromJSON(QJsonObject &obj, const QStringList &forRelativ
                                 double planeH = po.value(QStringLiteral("height")).toDouble();
                                 m_layers[idx]->setPlaneHeight(planeH);
                             }
-                            if (po.contains(QStringLiteral("distance"))) {
-                                double planeD = po.value(QStringLiteral("distance")).toDouble();
-                                m_layers[idx]->setPlaneDistance(planeD);
-                            }
                             if (po.contains(QStringLiteral("elevation"))) {
                                 double planeE = po.value(QStringLiteral("elevation")).toDouble();
                                 m_layers[idx]->setPlaneElevation(planeE);
@@ -583,6 +579,18 @@ void LayersModel::decodeFromJSON(QJsonObject &obj, const QStringList &forRelativ
                             if (po.contains(QStringLiteral("roll"))) {
                                 double planeR = po.value(QStringLiteral("roll")).toDouble();
                                 m_layers[idx]->setPlaneRoll(planeR);
+                            }
+                            if (po.contains(QStringLiteral("distance"))) {
+                                double planeD = po.value(QStringLiteral("distance")).toDouble();
+                                m_layers[idx]->setPlaneDistance(planeD);
+                            }
+                            if (po.contains(QStringLiteral("horizontal"))) {
+                                double planeHM = po.value(QStringLiteral("horizontal")).toDouble();
+                                m_layers[idx]->setPlaneHorizontal(planeHM);
+                            }
+                            if (po.contains(QStringLiteral("vertical"))) {
+                                double planeVM = po.value(QStringLiteral("vertical")).toDouble();
+                                m_layers[idx]->setPlaneVertical(planeVM);
                             }
                         }
                     }
@@ -692,10 +700,12 @@ void LayersModel::encodeToJSON(QJsonObject &obj, const QStringList &forRelativeP
             planeData.insert(QStringLiteral("aspectRatio"), QJsonValue(layer->planeAspectRatio()));
             planeData.insert(QStringLiteral("width"), QJsonValue(layer->planeWidth()));
             planeData.insert(QStringLiteral("height"), QJsonValue(layer->planeHeight()));
-            planeData.insert(QStringLiteral("distance"), QJsonValue(layer->planeDistance()));
             planeData.insert(QStringLiteral("elevation"), QJsonValue(layer->planeElevation()));
             planeData.insert(QStringLiteral("azimuth"), QJsonValue(layer->planeAzimuth()));
             planeData.insert(QStringLiteral("roll"), QJsonValue(layer->planeRoll()));
+            planeData.insert(QStringLiteral("distance"), QJsonValue(layer->planeDistance()));
+            planeData.insert(QStringLiteral("horizontal"), QJsonValue(layer->planeHorizontal()));
+            planeData.insert(QStringLiteral("vertical"), QJsonValue(layer->planeVertical()));
             planeArray.push_back(QJsonValue(planeData));
             layerData.insert(QString(QStringLiteral("plane")), QJsonValue(planeArray));
         }
