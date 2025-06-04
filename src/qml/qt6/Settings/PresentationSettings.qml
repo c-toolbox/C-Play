@@ -391,5 +391,32 @@ SettingsBasePage {
             // spacer item
             Layout.fillWidth: true
         }
+
+        Label {
+            Layout.alignment: Qt.AlignRight
+            text: qsTr("Presentation change sync iterations:")
+        }
+        RowLayout {
+            SpinBox {
+                editable: true
+                from: 0
+                to: 20000
+                value: PresentationSettings.networkSyncIterations
+
+                onValueChanged: {
+                    PresentationSettings.networkSyncIterations = value.toFixed(0);
+                    PresentationSettings.save();
+                }
+            }
+            Label {
+                Layout.alignment: Qt.AlignLeft
+                Layout.fillWidth: true
+                text: qsTr("(To compensate for network packet loss)")
+            }
+        }
+        Item {
+            // spacer item
+            Layout.fillWidth: true
+        }
     }
 }

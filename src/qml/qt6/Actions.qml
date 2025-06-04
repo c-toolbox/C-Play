@@ -519,7 +519,7 @@ QtObject {
         Component.onCompleted: list["slidePreviousAction"] = slidePreviousAction
         function updateShortcuts() { shortcut = root.isPrimary ? qaction.shortcutName() : qaction.alternateName() }
         onTriggered: {
-            if(enabled){
+            if(enabled && (app.slides.selectedSlideIdx > -2)){
                 layers.layersView.currentIndex = -1;
                 if(app.slides.selectedSlideIdx === app.slides.triggeredSlideIdx){
                     app.slides.slideFadeTime = PresentationSettings.fadeDurationToPreviousSlide;
@@ -546,7 +546,7 @@ QtObject {
         Component.onCompleted: list["slideNextAction"] = slideNextAction
         function updateShortcuts() { shortcut = root.isPrimary ? qaction.shortcutName() : qaction.alternateName() }
         onTriggered: {
-            if(enabled){
+            if(enabled && (app.slides.selectedSlideIdx < app.slides.numberOfSlides() - 1)){
                 layers.layersView.currentIndex = -1;
                 if(app.slides.selectedSlideIdx === app.slides.triggeredSlideIdx){
                     app.slides.slideFadeTime = PresentationSettings.fadeDurationToNextSlide;

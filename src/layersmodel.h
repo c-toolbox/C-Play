@@ -139,6 +139,8 @@ Q_SIGNALS:
     void layerToCopyIdxChanged();
 
 private:
+    void setNeedSync();
+
     Layers m_layers;
     QList<int> m_layersStatus;
     LayersTypeModel *m_layerTypeModel;
@@ -146,7 +148,8 @@ private:
     int m_layersVisibility = 0;
     int m_layerToCopyIdx = -1;
     bool m_layersNeedsSave = false;
-    bool m_needsSync;
+    bool m_needSync;
+    int m_syncIteration;
     QString m_layersName;
     QString m_layersPath;
 };

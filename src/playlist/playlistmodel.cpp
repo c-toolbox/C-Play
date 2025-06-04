@@ -576,7 +576,7 @@ void PlayListModel::removeItem(int i) {
 }
 
 void PlayListModel::moveItemUp(int i) {
-    if (i == 0)
+    if (i < 1)
         return;
     beginMoveRows(QModelIndex(), i, i, QModelIndex(), i - 1);
     m_playList.move(i, i - 1);
@@ -589,7 +589,7 @@ void PlayListModel::moveItemUp(int i) {
 }
 
 void PlayListModel::moveItemDown(int i) {
-    if (i == (m_playList.size() - 1))
+    if (i < 0 || i == (m_playList.size() - 1))
         return;
     beginMoveRows(QModelIndex(), i + 1, i + 1, QModelIndex(), i);
     m_playList.move(i, i + 1);

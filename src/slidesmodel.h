@@ -235,6 +235,8 @@ Q_SIGNALS:
     void preLoadLayersChanged();
 
 private:
+    void setNeedSync();
+
     QList<LayersModel *> m_slides;
     LayersModel *m_masterSlide;
     SlideVisibilityModel* m_visibilityModel;
@@ -248,7 +250,8 @@ private:
     bool m_slidesNeedsSave = false;
     bool m_pauseLayerUpdate = false;
     bool m_preloadLayers = false;
-    bool m_needsSync;
+    bool m_needSync;
+    int m_syncIteration;
     QString m_slidesName;
     QString m_slidesPath;
     QTimer* m_clearCopyTimer;

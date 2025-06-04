@@ -237,9 +237,10 @@ std::vector<std::byte> encode() {
                         BaseLayer *nextLayer = Application::instance().slidesModel()->slide(s)->layer(l);
                         if(!nextLayer->existOnMasterOnly()) {
                             serializeObject(data, nextLayer->identifier()); // ID
-                            serializeObject(data, nextLayer->needSync());   // Check needs sync
+                            bool needSync = nextLayer->needSync();
+                            serializeObject(data, needSync);   // Check needs sync
                             serializeObject(data, static_cast<int>(nextLayer->type())); // Type
-                            if (nextLayer->needSync()) {
+                            if (needSync) {
                                 nextLayer->encodeFull(data);
                                 nextLayer->setHasSynced();
                             }
@@ -359,7 +360,7 @@ void decode(const std::vector<std::byte> &data) {
                 auto it_up = find_if(secondaryLayersToKeep.begin(), secondaryLayersToKeep.end(),
                                      [&id](const BaseLayer *t1) { return t1->identifier() == id; });
                 if (it_up == secondaryLayersToKeep.end()) {
-                    // Find if layer exists is all previously created layers
+                    // Find if layer exists in all previously created layers
                     auto it = find_if(secondaryLayers.begin(), secondaryLayers.end(),
                                       [&id](const BaseLayer *t1) { return t1->identifier() == id; });
                     if (it != secondaryLayers.end()) { // If exist, add to new pos and remove from old container
@@ -380,6 +381,14 @@ void decode(const std::vector<std::byte> &data) {
                             }
                             secondaryLayersToKeep.push_back(newLayer);
                         }
+                    }
+                }
+                else {
+                    if (layerSync) {
+                        (*it_up)->get()->decodeFull(data, pos);
+                    }
+                    else {
+                        (*it_up)->get()->decodeAlways(data, pos);
                     }
                 }
             }
@@ -482,7 +491,7 @@ void postSyncPreDraw() {
                         layerRender->addLayer(layer);
                     }
                 }
-                else if (preLoadLayers && !layer->ready()) {
+                else if ((preLoadLayers || layer->shouldPreLoad()) && !layer->ready()) {
                     if (!layer->hasInitialized()) {
                         layer->initialize();
                     }
@@ -585,7 +594,7 @@ void postSyncPreDraw() {
                         layerRender->addLayer(layer->get());
                     }
                 }
-                else if (preLoadLayers && !layer->ready()) {
+                else if ((preLoadLayers || layer->shouldPreLoad()) && !layer->ready()) {
                     if (!layer->hasInitialized()) {
                         layer->initialize();
                     }

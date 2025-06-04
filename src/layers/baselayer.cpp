@@ -4,6 +4,7 @@
 #include <layers/audiolayer.h>
 #include <sgct/opengl.h>
 #include <sgct/shareddata.h>
+#include "presentationsettings.h"
 #ifdef MDK_SUPPORT
 #include <layers/adaptivevideolayer.h>
 #endif
@@ -112,7 +113,7 @@ BaseLayer::BaseLayer() {
     m_hasInitialized = false;
     m_keepVisibilityForNumSlides = 0;
     m_identifier = 0;
-    m_needSync = true;
+    setNeedSync();
 }
 
 BaseLayer::~BaseLayer() {
@@ -270,17 +271,19 @@ void BaseLayer::decodeBaseCore(const std::vector<std::byte>& data, unsigned int&
     sgct::deserializeObject(data, pos, m_page);
     sgct::deserializeObject(data, pos, renderData.flipY);
 
-    // Marking as needSync means we need know update has occured, which we need to clear
+    // Marking as needSync means we know update has occured, which we need to clear
     m_needSync = true;
 }
 
 void BaseLayer::encodeBaseAlways(std::vector<std::byte>& data) {
     sgct::serializeObject(data, m_shouldUpdate);
+    sgct::serializeObject(data, m_shouldPreLoad);
     sgct::serializeObject(data, renderData.alpha);
 }
 
 void BaseLayer::decodeBaseAlways(const std::vector<std::byte>& data, unsigned int& pos) {
     sgct::deserializeObject(data, pos, m_shouldUpdate);
+    sgct::deserializeObject(data, pos, m_shouldPreLoad);
     sgct::deserializeObject(data, pos, renderData.alpha);
 }
 
@@ -392,7 +395,12 @@ bool BaseLayer::needSync() const {
 }
 
 void BaseLayer::setHasSynced() {
-    m_needSync = false;
+    if (m_syncIteration > 0) {
+        m_syncIteration--;
+    }
+    else {
+        m_needSync = false;
+    }
 }
 
 BaseLayer::LayerType BaseLayer::type() const {
@@ -401,7 +409,7 @@ BaseLayer::LayerType BaseLayer::type() const {
 
 void BaseLayer::setType(LayerType t) {
     m_type = t;
-    m_needSync = true;
+    setNeedSync();
 }
 
 BaseLayer::LayerHierarchy BaseLayer::hierarchy() const {
@@ -410,7 +418,7 @@ BaseLayer::LayerHierarchy BaseLayer::hierarchy() const {
 
 void BaseLayer::setHierarchy(LayerHierarchy h) {
     m_hierachy = h;
-    m_needSync = true;
+    setNeedSync();
 }
 
 std::string BaseLayer::typeName() const {
@@ -431,7 +439,7 @@ std::string BaseLayer::filepath() const {
 
 void BaseLayer::setFilePath(std::string p) {
     m_filepath = p;
-    m_needSync = true;
+    setNeedSync();
 }
 
 int BaseLayer::page() const {
@@ -448,7 +456,7 @@ void BaseLayer::setPage(int p) {
     else {
         m_page = p;
     }
-    m_needSync = true;
+    setNeedSync();
 }
 
 int BaseLayer::numPages() const {
@@ -462,7 +470,7 @@ void BaseLayer::setNumPages(int np) {
     }
 
     m_numPages = np;
-    m_needSync = true;
+    setNeedSync();
 }
 
 int BaseLayer::volume() const {
@@ -519,7 +527,7 @@ void BaseLayer::setAlpha(float a) {
 
     // Is handled always right now anyway.
     // If slideModel or layerModel changed
-    // m_needSync = true;
+    // setNeedSync();
 }
 
 bool BaseLayer::shouldUpdate() const {
@@ -528,6 +536,14 @@ bool BaseLayer::shouldUpdate() const {
 
 void BaseLayer::setShouldUpdate(bool value) {
     m_shouldUpdate = value;
+}
+
+bool BaseLayer::shouldPreLoad() const {
+    return m_shouldPreLoad;
+}
+
+void BaseLayer::setShouldPreLoad(bool value) {
+    m_shouldPreLoad = value;
 }
 
 bool BaseLayer::flipY() const {
@@ -540,7 +556,7 @@ uint8_t BaseLayer::gridMode() const {
 
 void BaseLayer::setGridMode(uint8_t g) {
     renderData.gridMode = g;
-    m_needSync = true;
+    setNeedSync();
 }
 
 uint8_t BaseLayer::stereoMode() const {
@@ -550,7 +566,7 @@ uint8_t BaseLayer::stereoMode() const {
 void BaseLayer::setStereoMode(uint8_t s) {
     renderData.stereoMode = s;
     updatePlane();
-    m_needSync = true;
+    setNeedSync();
 }
 
 const glm::vec3 &BaseLayer::rotate() const {
@@ -559,7 +575,7 @@ const glm::vec3 &BaseLayer::rotate() const {
 
 void BaseLayer::setRotate(glm::vec3 &r) {
     renderData.rotate = r;
-    m_needSync = true;
+    setNeedSync();
 }
 
 const glm::vec3 &BaseLayer::translate() const {
@@ -568,7 +584,7 @@ const glm::vec3 &BaseLayer::translate() const {
 
 void BaseLayer::setTranslate(glm::vec3 &t) {
     renderData.translate = t;
-    m_needSync = true;
+    setNeedSync();
 }
 
 bool BaseLayer::roiEnabled() const {
@@ -577,7 +593,7 @@ bool BaseLayer::roiEnabled() const {
 
 void BaseLayer::setRoiEnabled(bool value) {
     renderData.roiEnabled = value;
-    m_needSync = true;
+    setNeedSync();
 }
 
 const glm::vec4 &BaseLayer::roi() const {
@@ -586,7 +602,7 @@ const glm::vec4 &BaseLayer::roi() const {
 
 void BaseLayer::setRoi(glm::vec4 &r) {
     renderData.roi = r;
-    m_needSync = true;
+    setNeedSync();
 }
 
 void BaseLayer::setRoi(float x, float y, float width, float height) {
@@ -594,7 +610,7 @@ void BaseLayer::setRoi(float x, float y, float width, float height) {
     renderData.roi.y = y;
     renderData.roi.z = width;
     renderData.roi.w = height;
-    m_needSync = true;
+    setNeedSync();
 }
 
 double BaseLayer::planeAzimuth() const {
@@ -603,7 +619,7 @@ double BaseLayer::planeAzimuth() const {
 
 void BaseLayer::setPlaneAzimuth(double pA) {
     planeData.azimuth = pA;
-    m_needSync = true;
+    setNeedSync();
 }
 
 double BaseLayer::planeElevation() const {
@@ -612,7 +628,7 @@ double BaseLayer::planeElevation() const {
 
 void BaseLayer::setPlaneElevation(double pE) {
     planeData.elevation = pE;
-    m_needSync = true;
+    setNeedSync();
 }
 
 double BaseLayer::planeRoll() const {
@@ -621,7 +637,7 @@ double BaseLayer::planeRoll() const {
 
 void BaseLayer::setPlaneRoll(double pR) {
     planeData.roll = pR;
-    m_needSync = true;
+    setNeedSync();
 }
 
 double BaseLayer::planeDistance() const {
@@ -630,7 +646,7 @@ double BaseLayer::planeDistance() const {
 
 void BaseLayer::setPlaneDistance(double pD) {
     planeData.distance = pD;
-    m_needSync = true;
+    setNeedSync();
 }
 
 double BaseLayer::planeHorizontal() const {
@@ -639,7 +655,7 @@ double BaseLayer::planeHorizontal() const {
 
 void BaseLayer::setPlaneHorizontal(double pH) {
     planeData.horizontal = pH;
-    m_needSync = true;
+    setNeedSync();
 }
 
 double BaseLayer::planeVertical() const {
@@ -648,7 +664,7 @@ double BaseLayer::planeVertical() const {
 
 void BaseLayer::setPlaneVertical(double pV) {
     planeData.vertical = pV;
-    m_needSync = true;
+    setNeedSync();
 }
 
 double BaseLayer::planeWidth() const {
@@ -658,7 +674,7 @@ double BaseLayer::planeWidth() const {
 void BaseLayer::setPlaneWidth(double pW) {
     planeData.specifiedSize.x = static_cast<float>(pW);
     updatePlane();
-    m_needSync = true;
+    setNeedSync();
 }
 
 double BaseLayer::planeHeight() const {
@@ -668,7 +684,7 @@ double BaseLayer::planeHeight() const {
 void BaseLayer::setPlaneHeight(double pH) {
     planeData.specifiedSize.y = static_cast<float>(pH);
     updatePlane();
-    m_needSync = true;
+    setNeedSync();
 }
 
 uint8_t BaseLayer::planeAspectRatio() const {
@@ -678,14 +694,14 @@ uint8_t BaseLayer::planeAspectRatio() const {
 void BaseLayer::setPlaneAspectRatio(uint8_t parc) {
     planeData.aspectRatioConsideration = parc;
     updatePlane();
-    m_needSync = true;
+    setNeedSync();
 }
 
 void BaseLayer::setPlaneSize(glm::vec2 pS, uint8_t parc) {
     planeData.specifiedSize = pS;
     planeData.aspectRatioConsideration = parc;
     updatePlane();
-    m_needSync = true;
+    setNeedSync();
 }
 
 void BaseLayer::drawPlane() {
@@ -743,7 +759,7 @@ void BaseLayer::updatePlane() {
         planeData.mesh = nullptr;
         planeData.actualSize = calculatedPlaneSize;
         planeData.mesh = std::make_unique<sgct::utils::Plane>(calculatedPlaneSize.x / 100.f, calculatedPlaneSize.y / 100.f);
-        m_needSync = true;
+        setNeedSync();
     }
 }
 
@@ -761,4 +777,9 @@ void BaseLayer::setIdentifier(uint32_t id) {
 
 void BaseLayer::updateIdentifierBasedOnCount() {
     m_identifier = m_id_gen++;
+}
+
+void BaseLayer::setNeedSync() {
+    m_needSync = true;
+    m_syncIteration = PresentationSettings::networkSyncIterations();
 }

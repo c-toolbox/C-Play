@@ -41,6 +41,7 @@ void LayerQtItem::setLayerIdx(int idx) {
     }
     if (nl != m_layer) {
         m_layer = nl;
+        m_layer->setShouldPreLoad(true);
         Q_EMIT layerChanged();
         Q_EMIT layerValueChanged();
         if (window()) {

@@ -42,11 +42,12 @@ static void* get_proc_address_qopengl_v2(const char* name, void* ctx) {
 
 LayersModel::LayersModel(QObject *parent)
     : QAbstractListModel(parent),
-      m_layerTypeModel(new LayersTypeModel(this)),
-      m_needsSync(false),
-      m_layersName(QStringLiteral("Untitled")),
-      m_layersPath(QStringLiteral("")),
-      m_layerHierachy(BaseLayer::LayerHierarchy::FRONT) {
+    m_layerTypeModel(new LayersTypeModel(this)),
+    m_needSync(false),
+    m_syncIteration(0),
+    m_layersName(QStringLiteral("Untitled")),
+    m_layersPath(QStringLiteral("")),
+    m_layerHierachy(BaseLayer::LayerHierarchy::FRONT) {
 }
 
 LayersModel::~LayersModel() {
@@ -149,7 +150,7 @@ void LayersModel::setHierarchy(BaseLayer::LayerHierarchy h) {
     for (auto l : m_layers)
         l->setHierarchy(h);
 
-    m_needsSync = true;
+    setNeedSync();
 }
 
 int LayersModel::numberOfLayers() {
@@ -157,11 +158,16 @@ int LayersModel::numberOfLayers() {
 }
 
 bool LayersModel::needsSync() {
-    return m_needsSync;
+    return m_needSync;
 }
 
 void LayersModel::setHasSynced() {
-    m_needsSync = false;
+    if (m_syncIteration > 0) {
+        m_syncIteration--;
+    }
+    else {
+        m_needSync = false;
+    }
 }
 
 BaseLayer *LayersModel::layer(int i) {
@@ -221,7 +227,7 @@ int LayersModel::addLayer(QString title, int type, QString filepath, int stereoM
         m_layers.push_back(newLayer);
         m_layersStatus.push_back(0);
         setLayersNeedsSave(true);
-        m_needsSync = true;
+        setNeedSync();
     }
 
     endInsertRows();
@@ -241,58 +247,58 @@ void LayersModel::removeLayer(int i) {
     m_layersStatus.removeAt(i);
     endRemoveRows();
     setLayersNeedsSave(true);
-    m_needsSync = true;
+    setNeedSync();
 
     Q_EMIT layersModelChanged();
 }
 
 void LayersModel::moveLayerTop(int i) {
-    if (i == 0)
+    if (i < 1)
         return;
     beginMoveRows(QModelIndex(), i, i, QModelIndex(), 0);
     m_layers.move(i, 0);
     m_layersStatus.move(i, 0);
     endMoveRows();
     setLayersNeedsSave(true);
-    m_needsSync = true;
+    setNeedSync();
 
     Q_EMIT layersModelChanged();
 }
 
 void LayersModel::moveLayerUp(int i) {
-    if (i == 0)
+    if (i < 1)
         return;
     beginMoveRows(QModelIndex(), i, i, QModelIndex(), i - 1);
     m_layers.move(i, i - 1);
     m_layersStatus.move(i, i - 1);
     endMoveRows();
     setLayersNeedsSave(true);
-    m_needsSync = true;
+    setNeedSync();
 
     Q_EMIT layersModelChanged();
 }
 
 void LayersModel::moveLayerDown(int i) {
-    if (i == (m_layers.size() - 1))
+    if (i < 0 || i == (m_layers.size() - 1))
         return;
     beginMoveRows(QModelIndex(), i + 1, i + 1, QModelIndex(), i);
     m_layers.move(i, i + 1);
     endMoveRows();
     setLayersNeedsSave(true);
-    m_needsSync = true;
+    setNeedSync();
 
     Q_EMIT layersModelChanged();
 }
 
 void LayersModel::moveLayerBottom(int i) {
-    if (i == (m_layers.size() - 1))
+    if (i < 0 || i == (m_layers.size() - 1))
         return;
     beginMoveRows(QModelIndex(), m_layers.size() - 1, m_layers.size() - 1, QModelIndex(), i);
     m_layers.move(i, m_layers.size() - 1);
     m_layersStatus.move(i, m_layers.size() - 1);
     endMoveRows();
     setLayersNeedsSave(true);
-    m_needsSync = true;
+    setNeedSync();
 
     Q_EMIT layersModelChanged();
 }
@@ -310,7 +316,7 @@ void LayersModel::clearLayers() {
     m_layersStatus.clear();
     endRemoveRows();
     setLayersNeedsSave(false);
-    m_needsSync = true;
+    setNeedSync();
 
     Q_EMIT layersModelChanged();
 }
@@ -325,7 +331,7 @@ void LayersModel::setLayersVisibility(int value, bool propagateDown) {
     }
     Q_EMIT layersVisibilityChanged();
     setLayersNeedsSave(true);
-    m_needsSync = true;
+    setNeedSync();
 }
 
 int LayersModel::getLayersVisibility() {
@@ -379,7 +385,7 @@ void LayersModel::addCopyOfLayer(BaseLayer* srcLayer) {
         m_layers.push_back(newLayer);
         m_layersStatus.push_back(0);
         setLayersNeedsSave(true);
-        m_needsSync = true;
+        setNeedSync();
     }
 
     endInsertRows();
@@ -623,7 +629,7 @@ void LayersModel::decodeFromJSON(QJsonObject &obj, const QStringList &forRelativ
             }
         }
     }
-    m_needsSync = true;
+    setNeedSync();
 }
 
 void LayersModel::encodeToJSON(QJsonObject &obj, const QStringList &forRelativePaths) {
@@ -733,33 +739,25 @@ bool LayersModel::runRenderOnLayersThatShouldUpdate(bool updateRendering, bool p
     bool statusHasUpdated = false;
     for (int i = 0; i < m_layers.size(); i++) {
         auto layer = m_layers[i];
-        if (layer->shouldUpdate() || (preload && !layer->ready())) {
+        if (layer->shouldUpdate() || (preload && !layer->ready()) || (layer->shouldPreLoad() && !layer->ready())) {
             if (!layer->hasInitialized()) {
                 layer->initialize();
             }
-            layer->update(updateRendering);
+            layer->update(layer->shouldUpdate() && updateRendering);
         }
-        if (layer->ready() && layer->alpha() > 0.f) {
-            if (m_layersStatus[i] != 2) {
+        if (m_layersStatus.size() > i) {
+            if (layer->ready() && layer->alpha() > 0.f) {
                 m_layersStatus[i] = 2;
-                updateLayer(i);
-                statusHasUpdated = true;
             }
-        }
-        else if (layer->ready()) {
-            if (m_layersStatus[i] != 1) {
+            else if (layer->ready()) {
                 m_layersStatus[i] = 1;
-                updateLayer(i);
-                statusHasUpdated = true;
             }
-        }
-        else {
-            if (m_layersStatus[i] != 0) {
+            else {
                 m_layersStatus[i] = 0;
-                updateLayer(i);
-                statusHasUpdated = true;
             }
         }
+        updateLayer(i);
+        statusHasUpdated = true;
     }
     return statusHasUpdated;
 }
@@ -795,4 +793,9 @@ QHash<int, QByteArray> LayersTypeModel::roleNames() const {
     QHash<int, QByteArray> roles;
     roles[textRole] = "typeName";
     return roles;
+}
+
+void LayersModel::setNeedSync() {
+    m_needSync = true;
+    m_syncIteration = PresentationSettings::networkSyncIterations();
 }

@@ -185,6 +185,9 @@ public:
     bool shouldUpdate() const;
     void setShouldUpdate(bool value);
 
+    bool shouldPreLoad() const;
+    void setShouldPreLoad(bool value);
+
     bool flipY() const;
 
     uint8_t gridMode() const;
@@ -245,6 +248,8 @@ public:
     void updateIdentifierBasedOnCount();
 
 protected:
+    void setNeedSync();
+
     LayerType m_type;
     LayerHierarchy m_hierachy;
     std::string m_title;
@@ -256,8 +261,10 @@ protected:
     bool m_isMaster;
     bool m_existOnMasterOnly;
     bool m_shouldUpdate;
+    bool m_shouldPreLoad;
     bool m_hasInitialized;
     bool m_needSync;
+    int m_syncIteration;
 
     RenderParams renderData;
     PlaneParams planeData;

@@ -289,12 +289,13 @@ QString SlideVisibilityModel::cellText(int column, int row) const {
 
 SlidesModel::SlidesModel(QObject *parent)
     : QAbstractListModel(parent),
-      m_masterSlide(new LayersModel(this)),
-      m_visibilityModel(new SlideVisibilityModel(&m_slides, this)),
-      m_needsSync(false),
-      m_slideFadeTime(0),
-      m_slidesName(QStringLiteral("")),
-      m_slidesPath(QStringLiteral("")) {
+    m_masterSlide(new LayersModel(this)),
+    m_visibilityModel(new SlideVisibilityModel(&m_slides, this)),
+    m_needSync(false),
+    m_syncIteration(0),
+    m_slideFadeTime(0),
+    m_slidesName(QStringLiteral("")),
+    m_slidesPath(QStringLiteral("")) {
     m_masterSlide->setLayersName(QStringLiteral("Master"));
     m_masterSlide->setHierarchy(BaseLayer::LayerHierarchy::BACK);
     m_clearCopyTimer = new QTimer(this);
@@ -359,16 +360,26 @@ int SlidesModel::numberOfSlides() {
 }
 
 bool SlidesModel::needsSync() {
-    return m_needsSync;
+    return m_needSync;
 }
 
 void SlidesModel::setNeedsSync(bool value) {
-    m_needsSync = value;
+    if (value) {
+        setNeedSync();
+    }
+    else {
+        m_needSync = false;
+    }
     Q_EMIT needsSyncChanged();
 }
 
 void SlidesModel::setHasSynced() {
-    setNeedsSync(false);
+    if (m_syncIteration > 0) {
+        m_syncIteration--;
+    }
+    else {
+        m_needSync = false;
+    }
 }
 
 bool SlidesModel::preLoadLayers() {
@@ -377,7 +388,7 @@ bool SlidesModel::preLoadLayers() {
 
 void SlidesModel::setPreLoadLayers(bool value) {
     m_preloadLayers = value;
-    m_needsSync = true;
+    setNeedSync();
     Q_EMIT preLoadLayersChanged();
 }
 
@@ -445,7 +456,7 @@ void SlidesModel::setTriggeredSlideVisibility(int value) {
 
                 //Let's start updating certain number of upcoming slides
                 if (-localIdx <= PresentationSettings::updateUpcomingSlideCount()) {
-                    layers[i].first->setShouldUpdate(true);
+                    layers[i].first->setShouldPreLoad(true);
                 }
                 continue;
             }
@@ -527,7 +538,7 @@ int SlidesModel::addSlide() {
     beginInsertRows(QModelIndex(), m_slides.size(), m_slides.size());
     m_slides.push_back(new LayersModel(this));
     setSlidesNeedsSave(true);
-    m_needsSync = true;
+    setNeedSync();
     endInsertRows();
 
     connect(m_slides[m_slides.size() - 1], &LayersModel::layersModelChanged, this, &SlidesModel::slideContentChanged);
@@ -568,33 +579,33 @@ void SlidesModel::removeSlide(int i) {
     }
 
     setSlidesNeedsSave(true);
-    m_needsSync = true;
+    setNeedSync();
 
     Q_EMIT slideModelChanged();
 }
 
 void SlidesModel::moveSlideUp(int i) {
-    if (i == 0)
+    if (i < 1)
         return;
     beginMoveRows(QModelIndex(), i, i, QModelIndex(), i - 1);
     m_slides.move(i, i - 1);
     m_previousSelectedSlideIdx = i - 1;
     endMoveRows();
     setSlidesNeedsSave(true);
-    m_needsSync = true;
+    setNeedSync();
 
     Q_EMIT slideModelChanged();
 }
 
 void SlidesModel::moveSlideDown(int i) {
-    if (i == (m_slides.size() - 1))
+    if (i < 0 || i == (m_slides.size() - 1))
         return;
     beginMoveRows(QModelIndex(), i + 1, i + 1, QModelIndex(), i);
     m_slides.move(i, i + 1);
     m_previousSelectedSlideIdx = i + 1;
     endMoveRows();
     setSlidesNeedsSave(true);
-    m_needsSync = true;
+    setNeedSync();
 
     Q_EMIT slideModelChanged();
 }
@@ -619,7 +630,7 @@ void SlidesModel::clearSlides() {
     setSlidesName(QStringLiteral(""));
     setSlidesPath(QStringLiteral(""));
     setSlidesNeedsSave(false);
-    m_needsSync = true;
+    setNeedSync();
 
     Q_EMIT slideModelChanged();
 }
@@ -762,7 +773,7 @@ void SlidesModel::loadFromJSONFile(const QString &path) {
     setSlidesPath(jsonFileInfo.absoluteFilePath());
     setSlidesName(jsonFileInfo.baseName());
     setSlidesNeedsSave(false);
-    m_needsSync = true;
+    setNeedSync();
 
     Q_EMIT presentationHasLoaded();
 }
@@ -816,7 +827,7 @@ void SlidesModel::runStartAfterPresentationLoad() {
             }
         }
     }
-    m_needsSync = true;
+    setNeedSync();
 }
 
 void SlidesModel::runUpdateAudioOutputOnLayers() {
@@ -875,4 +886,9 @@ void SlidesModel::runRenderOnLayersThatShouldUpdate(bool updateRendering) {
             }
         }
     }
+}
+
+void SlidesModel::setNeedSync() {
+    m_needSync = true;
+    m_syncIteration = PresentationSettings::networkSyncIterations();
 }

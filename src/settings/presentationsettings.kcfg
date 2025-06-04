@@ -47,6 +47,10 @@
       <label>Update certain number of upcoming slides after triggered slide.</label>
       <default>2</default>
     </entry>
+    <entry name="NetworkSyncIterations" type="int">
+      <label>Sync layers fully this many times when things changes to account for network packet loss.</label>
+      <default>30</default>
+    </entry>
     <entry name="MediaVisibilityControlMasterLayers" type="bool">
       <default>true</default>
     </entry>
