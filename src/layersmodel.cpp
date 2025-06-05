@@ -22,6 +22,7 @@
 #include <QJsonObject>
 #include <QOpenGLContext>
 #include <QQuickView>
+#include <QMutexLocker>
 
 static void *get_proc_address_qopengl_v1(void* ctx, const char *name) {
     Q_UNUSED(ctx)
@@ -243,8 +244,9 @@ void LayersModel::removeLayer(int i) {
         return;
 
     beginRemoveRows(QModelIndex(), i, i);
-    m_layers.removeAt(i);
+    QMutexLocker lock(&m_layerMutex);
     m_layersStatus.removeAt(i);
+    m_layers.removeAt(i);
     endRemoveRows();
     setLayersNeedsSave(true);
     setNeedSync();
@@ -759,20 +761,23 @@ void LayersModel::encodeToJSON(QJsonObject &obj, const QStringList &forRelativeP
 
 bool LayersModel::runRenderOnLayersThatShouldUpdate(bool updateRendering, bool preload) {
     bool statusHasUpdated = false;
+    QMutexLocker lock(&m_layerMutex);
     for (int i = 0; i < m_layers.size(); i++) {
-        auto layer = m_layers[i];
+        auto layer = m_layers[i].toWeakRef();
         if (layer) {
-            if (layer->shouldUpdate() || (preload && !layer->ready()) || (layer->shouldPreLoad() && !layer->ready())) {
-                if (!layer->hasInitialized()) {
-                    layer->initialize();
+            if (layer.lock()->shouldUpdate() 
+                || (preload && !layer.lock()->ready()) 
+                || (layer.lock()->shouldPreLoad() && !layer.lock()->ready())) {
+                if (!layer.lock()->hasInitialized()) {
+                    layer.lock()->initialize();
                 }
-                layer->update(layer->shouldUpdate() && updateRendering);
+                layer.lock()->update(layer.lock()->shouldUpdate() && updateRendering);
             }
             if (m_layersStatus.size() > i) {
-                if (layer->ready() && layer->alpha() > 0.f) {
+                if (layer.lock()->ready() && layer.lock()->alpha() > 0.f) {
                     m_layersStatus[i] = 2;
                 }
-                else if (layer->ready()) {
+                else if (layer.lock()->ready()) {
                     m_layersStatus[i] = 1;
                 }
                 else {
