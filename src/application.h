@@ -31,6 +31,9 @@ class SlidesModel;
 class NDISendersModel;
 class PortAudioModel;
 #endif
+#ifdef SPOUT_SUPPORT
+class SpoutSendersModel;
+#endif
 
 #if QT_VERSION >= QT_VERSION_CHECK(6, 0, 0)
 #ifndef OPAQUE_PTR_SlidesModel
@@ -39,6 +42,9 @@ Q_DECLARE_OPAQUE_POINTER(SlidesModel *)
 #ifdef NDI_SUPPORT
 Q_DECLARE_OPAQUE_POINTER(NDISendersModel*)
 Q_DECLARE_OPAQUE_POINTER(PortAudioModel*)
+#endif
+#ifdef SPOUT_SUPPORT
+Q_DECLARE_OPAQUE_POINTER(SpoutSendersModel*)
 #endif
 #endif
 #endif
@@ -106,12 +112,25 @@ public:
     void setPortAudioModel(PortAudioModel* model);
 #endif
 
+#ifdef SPOUT_SUPPORT
+    Q_PROPERTY(SpoutSendersModel* spoutSendersModel
+        READ spoutSendersModel
+        WRITE setSpoutSendersModel
+        NOTIFY spoutSendersModelChanged)
+
+    SpoutSendersModel* spoutSendersModel();
+    void setSpoutSendersModel(SpoutSendersModel* model);
+#endif
+
 Q_SIGNALS:
     void actionsUpdated();
     void slidesModelChanged();
 #ifdef NDI_SUPPORT
     void ndiSendersModelChanged();
     void portAudioModelChanged();
+#endif
+#ifdef SPOUT_SUPPORT
+    void spoutSendersModelChanged();
 #endif
 
 private:
@@ -128,6 +147,9 @@ private:
 #ifdef NDI_SUPPORT
     NDISendersModel* m_ndiSendersModel;
     PortAudioModel* m_portAudioModel;
+#endif
+#ifdef SPOUT_SUPPORT
+    SpoutSendersModel* m_spoutSendersModel;
 #endif
     QAbstractItemModel *colorSchemesModel();
     QApplication *m_app;

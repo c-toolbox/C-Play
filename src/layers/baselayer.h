@@ -20,6 +20,9 @@ public:
 #ifdef NDI_SUPPORT
         NDI,
 #endif
+#ifdef SPOUT_SUPPORT
+        SPOUT,
+#endif
         INVALID
     };
 

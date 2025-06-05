@@ -173,6 +173,11 @@ Kirigami.ApplicationWindow {
                     ndiSenderComboBox.currentIndex = app.ndiSendersModel.numberOfSenders - 1;
                     layerTitle.text = ndiSenderComboBox.currentText;
                 }
+                else if (typeComboBox.currentText === "SPOUT") {
+                    app.spoutSendersModel.updateSendersList();
+                    spoutSenderComboBox.currentIndex = app.spoutSendersModel.numberOfSenders - 1;
+                    layerTitle.text = spoutSenderComboBox.currentText;
+                }
                 else {
                     layerTitle.text = "";
                 }
@@ -182,11 +187,11 @@ Kirigami.ApplicationWindow {
             Layout.alignment: Qt.AlignRight
             font.pointSize: 9
             text: qsTr("File:")
-            visible: typeComboBox.currentText != "NDI"
+            visible: typeComboBox.currentText != "NDI" && typeComboBox.currentText != "SPOUT"
         }
         RowLayout {
             Layout.fillWidth: true
-            visible: typeComboBox.currentText != "NDI"
+            visible: typeComboBox.currentText != "NDI" && typeComboBox.currentText != "SPOUT"
 
             TextField {
                 id: fileForLayer
@@ -225,7 +230,7 @@ Kirigami.ApplicationWindow {
         Label {
             Layout.alignment: Qt.AlignRight
             text: qsTr("Name:")
-            visible: typeComboBox.currentText === "NDI"
+            visible: typeComboBox.currentText === "NDI" || typeComboBox.currentText === "SPOUT"
         }
         RowLayout {
             Layout.fillWidth: true
@@ -249,7 +254,7 @@ Kirigami.ApplicationWindow {
                 }
             }
             ToolButton {
-                id: updateSendersBox
+                id: updateNdiSendersBox
 
                 focusPolicy: Qt.NoFocus
                 icon.height: 16
@@ -260,6 +265,42 @@ Kirigami.ApplicationWindow {
                     app.ndiSendersModel.updateSendersList();
                     ndiSenderComboBox.currentIndex = app.ndiSendersModel.numberOfSenders - 1;
                     layerTitle.text = ndiSenderComboBox.currentText;
+                }
+            }
+        }
+        RowLayout {
+            Layout.fillWidth: true
+            visible: typeComboBox.currentText === "SPOUT"
+
+            ComboBox {
+                id: spoutSenderComboBox
+
+                Layout.fillWidth: true
+                model: app.spoutSendersModel
+                currentIndex: app.spoutSendersModel.numberOfSenders - 1
+                textRole: "typeName"
+
+                Component.onCompleted: {
+                    app.spoutSendersModel.updateSendersList();
+                    spoutSenderComboBox.currentIndex = app.spoutSendersModel.numberOfSenders - 1;
+                    layerTitle.text = spoutSenderComboBox.currentText;
+                }
+                onActivated: {
+                    layerTitle.text = spoutSenderComboBox.currentText;
+                }
+            }
+            ToolButton {
+                id: updateSpoutSendersBox
+
+                focusPolicy: Qt.NoFocus
+                icon.height: 16
+                icon.name: "view-refresh"
+                text: ""
+
+                onClicked: {
+                    app.spoutSendersModel.updateSendersList();
+                    spoutSenderComboBox.currentIndex = app.spoutSendersModel.numberOfSenders - 1;
+                    layerTitle.text = spoutSenderComboBox.currentText;
                 }
             }
         }
@@ -374,6 +415,11 @@ Kirigami.ApplicationWindow {
                     if (layerTitle.text !== "") {
                         if (typeComboBox.currentText === "NDI") {
                             layerView.layerItem.layerIdx = app.slides.selected.addLayer(layerTitle.text, typeComboBox.currentIndex + 1, ndiSenderComboBox.currentText, stereoscopicModeForLayer.currentIndex, gridModeForLayer.currentIndex);
+                            layersAddNew.visible = false;
+                            app.slides.updateSelectedSlide();
+                            mpv.focus = true;
+                        } else if (typeComboBox.currentText === "SPOUT") {
+                            layerView.layerItem.layerIdx = app.slides.selected.addLayer(layerTitle.text, typeComboBox.currentIndex + 1, spoutSenderComboBox.currentText, stereoscopicModeForLayer.currentIndex, gridModeForLayer.currentIndex);
                             layersAddNew.visible = false;
                             app.slides.updateSelectedSlide();
                             mpv.focus = true;

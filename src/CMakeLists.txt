@@ -103,6 +103,13 @@ if(BUILD_CPLAY_WITH_NDI)
     list(APPEND SOURCE_FILES ${OFX_NDI_FILES})
 endif()
 
+if(BUILD_CPLAY_WITH_SPOUT)
+    list(APPEND SOURCE_FILES layers/spoutlayer.cpp)
+    list(APPEND SOURCE_FILES layers/spoutlayer.h)
+    list(APPEND SOURCE_FILES layers/spoutmodel.cpp)
+    list(APPEND SOURCE_FILES layers/spoutmodel.h)
+endif()
+
 if(BUILD_CPLAY_WITH_MDK)
     list(APPEND SOURCE_FILES layers/adaptivevideolayer.cpp)
     list(APPEND SOURCE_FILES layers/adaptivevideolayer.h)
@@ -280,6 +287,14 @@ if(BUILD_CPLAY_WITH_NDI)
     list(APPEND TARGET_LIBRARIES PortAudio::PortAudio)
 endif()
 
+if(BUILD_CPLAY_WITH_SPOUT)
+    list(APPEND TARGET_LIBRARIES Spout2::SpoutLibrary)
+    target_compile_definitions(${TARGET_NAME} PUBLIC SPOUT_SUPPORT)
+
+    get_target_property(SPOUT_INCLUDE_DIRS Spout2::SpoutLibrary INTERFACE_INCLUDE_DIRECTORIES)
+    target_include_directories(${TARGET_NAME} PRIVATE ${SPOUT_INCLUDE_DIRS})
+endif()
+
 if(BUILD_CPLAY_WITH_POPPLER)
     list(APPEND TARGET_LIBRARIES unofficial::poppler::poppler-cpp)
     target_compile_definitions(${TARGET_NAME} PUBLIC PDF_SUPPORT)
@@ -367,7 +382,13 @@ if(CPLAY_INSTALL_DEPENDENCIES)
             endforeach()
             message("Trying to fix unresolved dependencies")
             foreach(DEPENDENCY ${UNRESOLVED_DEPENDENCIES})
-                if(DEFINED _mdk_dll AND ${_mdk_dll} MATCHES "${DEPENDENCY}$")
+                if(DEFINED _ndi_dll AND ${_ndi_dll} MATCHES "${DEPENDENCY}$")
+                    message("Copying ${_ndi_dll}")
+                    file(INSTALL
+                        DESTINATION "${CMAKE_INSTALL_PREFIX}/bin"
+                        FILES "${_ndi_dll}"
+                    )
+                elseif(DEFINED _mdk_dll AND ${_mdk_dll} MATCHES "${DEPENDENCY}$")
                     foreach(_mdk_dep_dll ${_mdk_dlls})
                         message("Copying ${_mdk_dep_dll}")
                         file(INSTALL
@@ -375,12 +396,14 @@ if(CPLAY_INSTALL_DEPENDENCIES)
                             FILES "${_mdk_dep_dll}"
                         )
                     endforeach()
-                elseif(DEFINED _ndi_dll AND ${_ndi_dll} MATCHES "${DEPENDENCY}$")
-                    message("Copying ${_ndi_dll}")
-                    file(INSTALL
-                        DESTINATION "${CMAKE_INSTALL_PREFIX}/bin"
-                        FILES "${_ndi_dll}"
-                    )
+                elseif(DEFINED _mdk_dll AND ${_mdk_dll} MATCHES "${DEPENDENCY}$")
+                    foreach(_mdk_dep_dll ${_mdk_dlls})
+                        message("Copying ${_mdk_dep_dll}")
+                        file(INSTALL
+                            DESTINATION "${CMAKE_INSTALL_PREFIX}/bin"
+                            FILES "${_mdk_dep_dll}"
+                        )
+                    endforeach()
                 else()
                     message(WARNING "Unable to resolve dependency ${DEPENDENCY}")
                 endif()

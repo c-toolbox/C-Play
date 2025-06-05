@@ -11,7 +11,7 @@
 #include <QAbstractListModel>
 #include <layers/baselayer.h>
 
-using Layers = QList<BaseLayer *>;
+using Layers = QList<QSharedPointer<BaseLayer>>;
 
 class LayersTypeModel : public QAbstractListModel {
     Q_OBJECT

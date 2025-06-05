@@ -1,3 +1,10 @@
+/*
+ * SPDX-FileCopyrightText:
+ * 2025 Erik Sundén <eriksunden85@gmail.com>
+ *
+ * SPDX-License-Identifier: GPL-3.0-or-later
+ */
+
 #ifndef NDILAYER_H
 #define NDILAYER_H
 

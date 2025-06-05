@@ -1,3 +1,10 @@
+/*
+ * SPDX-FileCopyrightText:
+ * 2025 Erik Sundén <eriksunden85@gmail.com>
+ *
+ * SPDX-License-Identifier: GPL-3.0-or-later
+ */
+
 #include "ndilayer.h"
 #include "audiosettings.h"
 #include <fmt/core.h>

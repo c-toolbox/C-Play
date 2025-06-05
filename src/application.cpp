@@ -28,6 +28,9 @@
 #ifdef NDI_SUPPORT
 #include <ndi/ndimodel.h>
 #endif
+#ifdef SPOUT_SUPPORT
+#include <layers/spoutmodel.h>
+#endif
 #ifdef PDF_SUPPORT
 #include <cpp/poppler-version.h>
 #endif
@@ -113,6 +116,9 @@ Application::Application(int &argc, char **argv, const QString &applicationName)
 #ifdef NDI_SUPPORT
     m_ndiSendersModel = new NDISendersModel(this);
     m_portAudioModel = new PortAudioModel(this);
+#endif
+#ifdef SPOUT_SUPPORT
+    m_spoutSendersModel = new SpoutSendersModel(this);
 #endif
 
     if (UserInterfaceSettings::useBreezeIconTheme()) {
@@ -244,6 +250,9 @@ void Application::registerQmlTypes() {
     qRegisterMetaType<NDISendersModel *>();
     qRegisterMetaType<PortAudioModel *>();
 #endif
+#ifdef SPOUT_SUPPORT
+    qRegisterMetaType<SpoutSendersModel*>();
+#endif
     qRegisterMetaType<LayersModel *>();
     qRegisterMetaType<SlidesModel *>();
     qRegisterMetaType<KFileMetaData::PropertyMultiMap>("KFileMetaData::PropertyMultiMap");
@@ -295,6 +304,12 @@ void Application::setupQmlContextProperties() {
     m_engine->rootContext()->setContextProperty(QStringLiteral("NDI_SUPPORT"), QVariant(true));
 #else
     m_engine->rootContext()->setContextProperty(QStringLiteral("NDI_SUPPORT"), QVariant(false));
+#endif
+
+#ifdef SPOUT_SUPPORT
+    m_engine->rootContext()->setContextProperty(QStringLiteral("SPOUT_SUPPORT"), QVariant(true));
+#else
+    m_engine->rootContext()->setContextProperty(QStringLiteral("SPOUT_SUPPORT"), QVariant(false));
 #endif
 }
 
@@ -407,6 +422,16 @@ void Application::setPortAudioModel(PortAudioModel* model) {
 }
 #endif
 
+#ifdef SPOUT_SUPPORT
+SpoutSendersModel* Application::spoutSendersModel() {
+    return m_spoutSendersModel;
+}
+
+void Application::setSpoutSendersModel(SpoutSendersModel* model) {
+    m_spoutSendersModel = model;
+}
+#endif
+
 QString Application::argument(int key) {
     return m_args[key];
 }
@@ -500,6 +525,9 @@ void Application::updateAboutOtherText(const QString &mpvVersion, const QString 
 #endif
 #ifdef NDI_SUPPORT
     otherText += QStringLiteral("NDI ") + m_ndiSendersModel->getNDIVersionString() + QStringLiteral(" for network streams of video and audio.\n");
+#endif
+#ifdef SPOUT_SUPPORT
+    otherText += QStringLiteral("Spout ") + m_spoutSendersModel->getSpoutVersionString() + QStringLiteral(" for sharing video across Windows apps.\n");
 #endif
 #ifdef PDF_SUPPORT
     otherText += QStringLiteral("Poppler ") + QString::fromStdString(poppler::version_string()) + QStringLiteral(" for rendering PDF documents.\n");

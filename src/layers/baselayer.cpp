@@ -14,6 +14,9 @@
 #ifdef PDF_SUPPORT
 #include <layers/pdflayer.h>
 #endif
+#ifdef SPOUT_SUPPORT
+#include <layers/spoutlayer.h>
+#endif
 
 std::atomic_uint32_t BaseLayer::m_id_gen = 1;
 
@@ -34,6 +37,10 @@ std::string BaseLayer::typeDescription(BaseLayer::LayerType e) {
 #ifdef NDI_SUPPORT
     case NDI:
         return "NDI";
+#endif
+#ifdef SPOUT_SUPPORT
+    case SPOUT:
+        return "SPOUT";
 #endif
     default:
         return "";
@@ -82,6 +89,13 @@ BaseLayer *BaseLayer::createLayer(bool isMaster, int layerType, gl_adress_func_v
     case static_cast<int>(BaseLayer::LayerType::NDI): {
         NdiLayer *newNDI = new NdiLayer();
         newLayer = newNDI;
+        break;
+    }
+#endif
+#ifdef SPOUT_SUPPORT
+    case static_cast<int>(BaseLayer::LayerType::SPOUT): {
+        SpoutLayer* newSpout = new SpoutLayer();
+        newLayer = newSpout;
         break;
     }
 #endif

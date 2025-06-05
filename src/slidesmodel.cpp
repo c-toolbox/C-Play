@@ -152,7 +152,7 @@ void SlideVisibilityModel::resetTable() {
     for (auto s : *m_slideList) {
         const Layers& slideLayers = s->getLayers();
         for (auto layer : slideLayers) {
-            newVisibilityLayers.push_back(layer);
+            newVisibilityLayers.push_back(layer.get());
         }
     }
     int rows = static_cast<int>(newVisibilityLayers.size());
@@ -195,7 +195,7 @@ BaseLayer* SlideVisibilityModel::findLayer(int row) {
         const Layers& slideLayers = s->getLayers();
         for (auto layer : slideLayers) {
             if (row == layerNum) {
-                return layer;
+                return layer.get();
             }
             layerNum++;
         }

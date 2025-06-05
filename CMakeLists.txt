@@ -162,6 +162,17 @@ if(BUILD_CPLAY_WITH_NDI)
         URL "https://www.portaudio.com/" DESCRIPTION "for NDI audio output support.")
 endif()
 
+option(BUILD_CPLAY_WITH_SPOUT "Global On/Off for SPOUT support" OFF)
+if(BUILD_CPLAY_WITH_SPOUT)
+    find_package(Spout2)
+    # Install portaudio with vcpkg
+    if(NOT Spout2_FOUND)
+        message("Remember to run: vcpkg install spout2")
+    endif()
+    set_package_properties(Spout2 PROPERTIES TYPE REQUIRED
+        URL "https://spout.zeal.co/" DESCRIPTION "video sharing on windows")
+endif()
+
 option(BUILD_CPLAY_WITH_POPPLER "Global On/Off for PDF support via Poppler library" OFF)
 if(BUILD_CPLAY_WITH_POPPLER)
     find_package(unofficial-poppler REQUIRED)

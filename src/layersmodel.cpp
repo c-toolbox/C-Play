@@ -12,6 +12,9 @@
 #ifdef NDI_SUPPORT
 #include <ndi/ndilayer.h>
 #endif
+#ifdef SPOUT_SUPPORT
+#include <layers/spoutlayer.h>
+#endif
 #include <QDir>
 #include <QFileInfo>
 #include <QJsonArray>
@@ -51,8 +54,6 @@ LayersModel::LayersModel(QObject *parent)
 }
 
 LayersModel::~LayersModel() {
-    for (auto l : m_layers)
-        delete l;
     m_layers.clear();
     m_layersStatus.clear();
 }
@@ -68,7 +69,7 @@ QVariant LayersModel::data(const QModelIndex &index, int role) const {
     if (!index.isValid() || m_layers.empty())
         return QVariant();
 
-    const BaseLayer *layerItem = m_layers.at(index.row());
+    const BaseLayer *layerItem = m_layers.at(index.row()).get();
 
     int stereoVideo = layerItem->stereoMode();
     int gridToMapOn = layerItem->gridMode();
@@ -172,7 +173,7 @@ void LayersModel::setHasSynced() {
 
 BaseLayer *LayersModel::layer(int i) {
     if (i >= 0 && m_layers.size() > i)
-        return m_layers[i];
+        return m_layers[i].get();
     else
         return nullptr;
 }
@@ -224,7 +225,7 @@ int LayersModel::addLayer(QString title, int type, QString filepath, int stereoM
         newLayer->setPlaneSize(glm::vec2(GridSettings::plane_Width_CM(), GridSettings::plane_Height_CM()), 
             GridSettings::plane_Calculate_Size_Based_on_Video());
         newLayer->initialize();
-        m_layers.push_back(newLayer);
+        m_layers.push_back(QSharedPointer<BaseLayer>(newLayer));
         m_layersStatus.push_back(0);
         setLayersNeedsSave(true);
         setNeedSync();
@@ -242,7 +243,6 @@ void LayersModel::removeLayer(int i) {
         return;
 
     beginRemoveRows(QModelIndex(), i, i);
-    delete m_layers[i];
     m_layers.removeAt(i);
     m_layersStatus.removeAt(i);
     endRemoveRows();
@@ -310,8 +310,6 @@ void LayersModel::updateLayer(int i) {
 
 void LayersModel::clearLayers() {
     beginRemoveRows(QModelIndex(), 0, m_layers.size() - 1);
-    for (auto l : m_layers)
-        delete l;
     m_layers.clear();
     m_layersStatus.clear();
     endRemoveRows();
@@ -357,7 +355,7 @@ int LayersModel::getLayerToCopyIdx() {
 
 BaseLayer* LayersModel::getLayerToCopy() {
     if (m_layerToCopyIdx >= 0 && m_layerToCopyIdx < m_layers.size())
-        return m_layers[m_layerToCopyIdx];
+        return m_layers[m_layerToCopyIdx].get();
 
     return nullptr;
 }
@@ -382,7 +380,7 @@ void LayersModel::addCopyOfLayer(BaseLayer* srcLayer) {
 
         newLayer->setHierarchy(hierarchy());
         newLayer->initialize();
-        m_layers.push_back(newLayer);
+        m_layers.push_back(QSharedPointer<BaseLayer>(newLayer));
         m_layersStatus.push_back(0);
         setLayersNeedsSave(true);
         setNeedSync();
@@ -491,8 +489,16 @@ void LayersModel::decodeFromJSON(QJsonObject &obj, const QStringList &forRelativ
                     QString title = o.value(QStringLiteral("title")).toString();
 
                     QString path = o.value(QStringLiteral("path")).toString();
-#ifdef NDI_SUPPORT
+#ifdef NDI_SUPPORT && SPOUT_SUPPORT
+                    if (type != BaseLayer::NDI && type != BaseLayer::SPOUT) {
+                        path = checkAndCorrectPath(path, forRelativePaths);
+                    }
+#elif NDI_SUPPORT
                     if (type != BaseLayer::NDI) {
+                        path = checkAndCorrectPath(path, forRelativePaths);
+                    }
+#elif SPOUT_SUPPORT
+                    if (type != BaseLayer::SPOUT) {
                         path = checkAndCorrectPath(path, forRelativePaths);
                     }
 #else
@@ -643,10 +649,26 @@ void LayersModel::encodeToJSON(QJsonObject &obj, const QStringList &forRelativeP
 
         layerData.insert(QStringLiteral("title"), QJsonValue(QString::fromStdString(layer->title())));
 
-#ifdef NDI_SUPPORT
+#ifdef NDI_SUPPORT && SPOUT_SUPPORT
+        if (layer->type() == BaseLayer::NDI || layer->type() == BaseLayer::SPOUT) {
+            layerData.insert(QStringLiteral("path"), QJsonValue(QString::fromStdString(layer->filepath())));
+        }
+        else {
+            QString checkedFilePath = makePathRelativeTo(QString::fromStdString(layer->filepath()), forRelativePaths);
+            layerData.insert(QStringLiteral("path"), QJsonValue(checkedFilePath));
+        }
+#elif NDI_SUPPORT
         if (layer->type() == BaseLayer::NDI) {
             layerData.insert(QStringLiteral("path"), QJsonValue(QString::fromStdString(layer->filepath())));
         }
+        else {
+            QString checkedFilePath = makePathRelativeTo(QString::fromStdString(layer->filepath()), forRelativePaths);
+            layerData.insert(QStringLiteral("path"), QJsonValue(checkedFilePath));
+        }
+#elif SPOUT_SUPPORT
+        if (layer->type() == BaseLayer::SPOUT) {
+            layerData.insert(QStringLiteral("path"), QJsonValue(QString::fromStdString(layer->filepath())));
+    }
         else {
             QString checkedFilePath = makePathRelativeTo(QString::fromStdString(layer->filepath()), forRelativePaths);
             layerData.insert(QStringLiteral("path"), QJsonValue(checkedFilePath));
@@ -739,25 +761,27 @@ bool LayersModel::runRenderOnLayersThatShouldUpdate(bool updateRendering, bool p
     bool statusHasUpdated = false;
     for (int i = 0; i < m_layers.size(); i++) {
         auto layer = m_layers[i];
-        if (layer->shouldUpdate() || (preload && !layer->ready()) || (layer->shouldPreLoad() && !layer->ready())) {
-            if (!layer->hasInitialized()) {
-                layer->initialize();
+        if (layer) {
+            if (layer->shouldUpdate() || (preload && !layer->ready()) || (layer->shouldPreLoad() && !layer->ready())) {
+                if (!layer->hasInitialized()) {
+                    layer->initialize();
+                }
+                layer->update(layer->shouldUpdate() && updateRendering);
             }
-            layer->update(layer->shouldUpdate() && updateRendering);
+            if (m_layersStatus.size() > i) {
+                if (layer->ready() && layer->alpha() > 0.f) {
+                    m_layersStatus[i] = 2;
+                }
+                else if (layer->ready()) {
+                    m_layersStatus[i] = 1;
+                }
+                else {
+                    m_layersStatus[i] = 0;
+                }
+            }
+            updateLayer(i);
+            statusHasUpdated = true;
         }
-        if (m_layersStatus.size() > i) {
-            if (layer->ready() && layer->alpha() > 0.f) {
-                m_layersStatus[i] = 2;
-            }
-            else if (layer->ready()) {
-                m_layersStatus[i] = 1;
-            }
-            else {
-                m_layersStatus[i] = 0;
-            }
-        }
-        updateLayer(i);
-        statusHasUpdated = true;
     }
     return statusHasUpdated;
 }
