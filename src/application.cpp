@@ -34,6 +34,7 @@
 #ifdef PDF_SUPPORT
 #include <cpp/poppler-version.h>
 #endif
+#include <layers/streammodel.h>
 
 #include "audiosettings.h"
 #include "gridsettings.h"
@@ -113,6 +114,7 @@ Application::Application(int &argc, char **argv, const QString &applicationName)
     m_shortcuts = new KConfigGroup(m_config, QStringLiteral("Shortcuts"));
     m_schemes = new KColorSchemeManager(this);
     m_systemDefaultStyle = m_app->style()->objectName();
+    m_streamsModel = new StreamModel(this);
 #ifdef NDI_SUPPORT
     m_ndiSendersModel = new NDISendersModel(this);
     m_portAudioModel = new PortAudioModel(this);
@@ -246,6 +248,7 @@ void Application::registerQmlTypes() {
     qRegisterMetaType<QAction *>();
     qRegisterMetaType<TracksModel *>();
     qRegisterMetaType<LayersTypeModel *>();
+    qRegisterMetaType<StreamModel*>();
 #ifdef NDI_SUPPORT
     qRegisterMetaType<NDISendersModel *>();
     qRegisterMetaType<PortAudioModel *>();
@@ -253,8 +256,8 @@ void Application::registerQmlTypes() {
 #ifdef SPOUT_SUPPORT
     qRegisterMetaType<SpoutSendersModel*>();
 #endif
-    qRegisterMetaType<LayersModel *>();
-    qRegisterMetaType<SlidesModel *>();
+    qRegisterMetaType<LayersModel*>();
+    qRegisterMetaType<SlidesModel*>();
     qRegisterMetaType<KFileMetaData::PropertyMultiMap>("KFileMetaData::PropertyMultiMap");
 }
 
@@ -404,6 +407,14 @@ void Application::setStartupFile(std::string filePath) {
 
 SlidesModel *Application::slidesModel() {
     return m_slidesModel;
+}
+
+StreamModel* Application::streamsModel() {
+    return m_streamsModel;
+}
+
+void Application::setStreamsModel(StreamModel* model) {
+    m_streamsModel = model;
 }
 
 #ifdef NDI_SUPPORT

@@ -26,7 +26,7 @@ class KConfigDialog;
 class KColorSchemeManager;
 class QAction;
 class SlidesModel;
-
+class StreamModel;
 #ifdef NDI_SUPPORT
 class NDISendersModel;
 class PortAudioModel;
@@ -38,12 +38,22 @@ class SpoutSendersModel;
 #if QT_VERSION >= QT_VERSION_CHECK(6, 0, 0)
 #ifndef OPAQUE_PTR_SlidesModel
 #define OPAQUE_PTR_SlidesModel
-Q_DECLARE_OPAQUE_POINTER(SlidesModel *)
+Q_DECLARE_OPAQUE_POINTER(SlidesModel*)
+#endif
+#ifndef OPAQUE_PTR_StreamModel
+#define OPAQUE_PTR_StreamModel
+Q_DECLARE_OPAQUE_POINTER(StreamModel*)
+#endif
 #ifdef NDI_SUPPORT
+#ifndef OPAQUE_PTR_NDIModels
+#define OPAQUE_PTR_NDIModels
 Q_DECLARE_OPAQUE_POINTER(NDISendersModel*)
 Q_DECLARE_OPAQUE_POINTER(PortAudioModel*)
 #endif
+#endif
 #ifdef SPOUT_SUPPORT
+#ifndef OPAQUE_PTR_SpoutSendersModel
+#define OPAQUE_PTR_SpoutSendersModel
 Q_DECLARE_OPAQUE_POINTER(SpoutSendersModel*)
 #endif
 #endif
@@ -91,8 +101,16 @@ public:
 
     Q_PROPERTY(SlidesModel *slides
                    READ slidesModel
-                       NOTIFY slidesModelChanged)
+                   NOTIFY slidesModelChanged)
     SlidesModel *slidesModel();
+
+    Q_PROPERTY(StreamModel* streamsModel
+        READ streamsModel
+        WRITE setStreamsModel
+        NOTIFY streamsModelChanged)
+
+    StreamModel* streamsModel();
+    void setStreamsModel(StreamModel* model);
 
 #ifdef NDI_SUPPORT
     Q_PROPERTY(NDISendersModel* ndiSendersModel
@@ -125,6 +143,7 @@ public:
 Q_SIGNALS:
     void actionsUpdated();
     void slidesModelChanged();
+    void streamsModelChanged();
 #ifdef NDI_SUPPORT
     void ndiSendersModelChanged();
     void portAudioModelChanged();
@@ -144,6 +163,7 @@ private:
     void setupActions(const QString &actionName);
 
     SlidesModel *m_slidesModel;
+    StreamModel* m_streamsModel;
 #ifdef NDI_SUPPORT
     NDISendersModel* m_ndiSendersModel;
     PortAudioModel* m_portAudioModel;

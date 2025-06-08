@@ -173,10 +173,17 @@ Kirigami.ApplicationWindow {
                     ndiSenderComboBox.currentIndex = app.ndiSendersModel.numberOfSenders - 1;
                     layerTitle.text = ndiSenderComboBox.currentText;
                 }
-                else if (typeComboBox.currentText === "SPOUT") {
+                else if (typeComboBox.currentText === "Spout") {
                     app.spoutSendersModel.updateSendersList();
                     spoutSenderComboBox.currentIndex = app.spoutSendersModel.numberOfSenders - 1;
                     layerTitle.text = spoutSenderComboBox.currentText;
+                }
+                else if (typeComboBox.currentText === "Stream") {
+                    app.streamsModel.updateStreamsList();
+                    streamsLayout.customEntry = false;
+                    streamsComboBox.currentIndex = 0;
+                    streamCustomEntryField.text = "";
+                    layerTitle.text = streamsComboBox.currentText;
                 }
                 else {
                     layerTitle.text = "";
@@ -187,11 +194,11 @@ Kirigami.ApplicationWindow {
             Layout.alignment: Qt.AlignRight
             font.pointSize: 9
             text: qsTr("File:")
-            visible: typeComboBox.currentText != "NDI" && typeComboBox.currentText != "SPOUT"
+            visible: typeComboBox.currentText != "Stream" && typeComboBox.currentText != "NDI" && typeComboBox.currentText != "Spout"
         }
         RowLayout {
             Layout.fillWidth: true
-            visible: typeComboBox.currentText != "NDI" && typeComboBox.currentText != "SPOUT"
+            visible: typeComboBox.currentText != "Stream" && typeComboBox.currentText != "NDI" && typeComboBox.currentText != "Spout"
 
             TextField {
                 id: fileForLayer
@@ -227,10 +234,85 @@ Kirigami.ApplicationWindow {
                 }
             }
         }
+
+        Label {
+            Layout.alignment: Qt.AlignRight
+            text: qsTr("Path:")
+            visible: typeComboBox.currentText === "Stream"
+        }
+        RowLayout {
+            id: streamsLayout
+            Layout.fillWidth: true
+            visible: typeComboBox.currentText === "Stream"
+            property bool customEntry: false
+
+            ComboBox {
+                id: streamsComboBox
+
+                Layout.fillWidth: true
+                model: app.streamsModel
+                currentIndex: 0
+                textRole: "title"
+                valueRole: "path"
+                visible: streamsLayout.customEntry === false
+
+                Component.onCompleted: {
+                    app.streamsModel.updateStreamsList();
+                    streamsLayout.customEntry = false;
+                    streamsComboBox.currentIndex = 0;
+                    layerTitle.text = streamsComboBox.currentText;
+                }
+                onActivated: {
+                    layerTitle.text = streamsComboBox.currentText;
+                }
+            }
+            TextField {
+                id: streamCustomEntryField
+
+                Layout.fillWidth: true
+                Layout.preferredWidth: font.pointSize * 17
+                placeholderText: "Stream path (see mpv docs).."
+                text: ""
+                visible: streamsLayout.customEntry === true
+
+                onEditingFinished: {}
+
+                ToolTip {
+                    text: qsTr("Stream path (see mpv docs)..")
+                }
+            }
+            ToolButton {
+                id: streamComboOrFieldButton
+
+                focusPolicy: Qt.NoFocus
+                icon.height: 16
+                icon.name: streamsLayout.customEntry ? "gnumeric-object-combo" : "text-field"
+                text: ""
+
+                onClicked: {
+                    if(streamsLayout.customEntry) {
+                        app.streamsModel.updateStreamsList();
+                        streamsComboBox.currentIndex = 0;
+                        streamsLayout.customEntry = false;
+                        layerTitle.text = streamsComboBox.currentText;
+                    }
+                    else {
+                        streamsLayout.customEntry = true;
+                        layerTitle.text = ""
+                    }
+
+                }
+
+                ToolTip {
+                    text: streamsLayout.customEntry ? qsTr("Use predefined stream list") : qsTr("Use custom stream path")
+                }
+            }
+        }
+
         Label {
             Layout.alignment: Qt.AlignRight
             text: qsTr("Name:")
-            visible: typeComboBox.currentText === "NDI" || typeComboBox.currentText === "SPOUT"
+            visible: typeComboBox.currentText === "NDI" || typeComboBox.currentText === "Spout"
         }
         RowLayout {
             Layout.fillWidth: true
@@ -270,7 +352,7 @@ Kirigami.ApplicationWindow {
         }
         RowLayout {
             Layout.fillWidth: true
-            visible: typeComboBox.currentText === "SPOUT"
+            visible: typeComboBox.currentText === "Spout"
 
             ComboBox {
                 id: spoutSenderComboBox
@@ -418,8 +500,18 @@ Kirigami.ApplicationWindow {
                             layersAddNew.visible = false;
                             app.slides.updateSelectedSlide();
                             mpv.focus = true;
-                        } else if (typeComboBox.currentText === "SPOUT") {
+                        } else if (typeComboBox.currentText === "Spout") {
                             layerView.layerItem.layerIdx = app.slides.selected.addLayer(layerTitle.text, typeComboBox.currentIndex + 1, spoutSenderComboBox.currentText, stereoscopicModeForLayer.currentIndex, gridModeForLayer.currentIndex);
+                            layersAddNew.visible = false;
+                            app.slides.updateSelectedSlide();
+                            mpv.focus = true;
+                        } else if (typeComboBox.currentText === "Stream") {
+                            if(streamsLayout.customEntry){
+                                layerView.layerItem.layerIdx = app.slides.selected.addLayer(layerTitle.text, typeComboBox.currentIndex + 1, streamCustomEntryField.text, stereoscopicModeForLayer.currentIndex, gridModeForLayer.currentIndex);
+                            }
+                            else {
+                                layerView.layerItem.layerIdx = app.slides.selected.addLayer(layerTitle.text, typeComboBox.currentIndex + 1, streamsComboBox.currentValue, stereoscopicModeForLayer.currentIndex, gridModeForLayer.currentIndex);
+                            }
                             layersAddNew.visible = false;
                             app.slides.updateSelectedSlide();
                             mpv.focus = true;

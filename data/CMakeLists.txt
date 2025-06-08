@@ -40,6 +40,14 @@ if(CPLAY_INSTALL_DEPENDENCIES)
             else()
                 message("${PROJECT_SOURCE_DIR}/data/http-server-conf.json was not found")
             endif()
+            if(EXISTS "${PROJECT_SOURCE_DIR}/data/predefined-streams.json")
+                file(INSTALL
+                    DESTINATION "${CMAKE_INSTALL_PREFIX}/bin/data"
+                    FILES "${PROJECT_SOURCE_DIR}/data/predefined-streams.json"
+                )
+            else()
+                message("${PROJECT_SOURCE_DIR}/data/predefined-streams.json was not found")
+            endif()
             if(EXISTS "${QT_BIN_DIR}/data/icontheme.rcc")
                 file(INSTALL
                     DESTINATION "${CMAKE_INSTALL_PREFIX}/bin/data"

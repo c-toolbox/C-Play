@@ -14,6 +14,7 @@
 #ifdef PDF_SUPPORT
 #include <layers/pdflayer.h>
 #endif
+#include <layers/streamlayer.h>
 #ifdef SPOUT_SUPPORT
 #include <layers/spoutlayer.h>
 #endif
@@ -38,9 +39,11 @@ std::string BaseLayer::typeDescription(BaseLayer::LayerType e) {
     case NDI:
         return "NDI";
 #endif
+    case STREAM:
+        return "Stream";
 #ifdef SPOUT_SUPPORT
     case SPOUT:
-        return "SPOUT";
+        return "Spout";
 #endif
     default:
         return "";
@@ -92,6 +95,11 @@ BaseLayer *BaseLayer::createLayer(bool isMaster, int layerType, gl_adress_func_v
         break;
     }
 #endif
+    case static_cast<int>(BaseLayer::LayerType::STREAM): {
+        StreamLayer* newStream = new StreamLayer(opa1);
+        newLayer = newStream;
+        break;
+    }
 #ifdef SPOUT_SUPPORT
     case static_cast<int>(BaseLayer::LayerType::SPOUT): {
         SpoutLayer* newSpout = new SpoutLayer();

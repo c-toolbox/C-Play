@@ -6,6 +6,8 @@
 #include <fmt/core.h>
 #include <sgct/sgct.h>
 
+//#define TEST_STREAM_NODE_ONLY
+
 void loadTracks(MpvLayer::mpvData& vd) {
     if (vd.handle && !vd.loadedFile.empty()) {
         vd.audioTracks.clear();
@@ -95,7 +97,7 @@ void on_mpv_events(MpvLayer::mpvData &vd, BaseLayer::RenderParams &rp) {
                     vd.mediaDuration = *reinterpret_cast<double *>(prop->data);
                 }
             } else if (strcmp(prop->name, "time-pos") == 0) {
-                if (SyncHelper::instance().variables.timeThresholdEnabled) {
+                if (SyncHelper::instance().variables.timeThresholdEnabled && !vd.isStream) {
                     double timeToSet = vd.timePos;
                     // We do not want to "over-force" seeks, as this will slow down and might cause continued stutter.
                     // Normally, playback is syncronized, however looping depends on seek speed.
@@ -166,6 +168,12 @@ void initMPV(MpvLayer::mpvData& vd) {
     // Set if we support video or not (enabled by default)
     if (!vd.supportVideo) {
         mpv::qt::set_property(vd.handle, QStringLiteral("vid"), QStringLiteral("no"), vd.loggingOn);
+    }
+
+    // Set specific values if stream
+    if (vd.isStream) {
+        mpv::qt::set_property(vd.handle, QStringLiteral("profile"), QStringLiteral("low-latency"), vd.loggingOn);
+        mpv::qt::set_property(vd.handle, QStringLiteral("untimed"), QStringLiteral(""), vd.loggingOn);
     }
 
     // Only audio on master for now
@@ -345,7 +353,7 @@ double MpvLayer::position() {
 }
 
 void MpvLayer::setPosition(double value) {
-    if (isMaster()) {
+    if (isMaster() && !m_data.isStream) {
         setTimePosition(value, isMaster());
         m_data.timeToSet = value;
         m_data.timeIsDirty = true;
@@ -449,7 +457,12 @@ void MpvLayer::loadFile(std::string filePath, bool reload) {
         m_data.updateRendering = false;
         m_data.loadedFile = filePath;
         m_data.audioTracks.clear();
-        mpv::qt::command_async(m_data.handle, QStringList() << QStringLiteral("loadfile") << QString::fromStdString(filePath));
+#ifdef TEST_STREAM_NODE_ONLY
+        if(m_data.isStream && m_data.isMaster)
+            mpv::qt::command_async(m_data.handle, QStringList() << QStringLiteral("loadfile") << QString::fromStdString(filePath + "testfile"));
+        else
+#endif
+            mpv::qt::command_async(m_data.handle, QStringList() << QStringLiteral("loadfile") << QString::fromStdString(filePath));
     }
 }
 
@@ -484,7 +497,7 @@ void MpvLayer::setTimePause(bool paused, bool updateTime) {
         mpv::qt::set_property_async(m_data.handle, QStringLiteral("pause"), m_data.mediaIsPaused);
         if (m_data.mediaIsPaused) {
             sgct::Log::Info("Media paused.");
-            if(updateTime)
+            if(updateTime && !m_data.isStream)
                 mpv::qt::set_property_async(m_data.handle, QStringLiteral("time-pos"), m_data.timePos);
         }
         else {

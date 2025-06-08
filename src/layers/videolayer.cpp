@@ -24,6 +24,10 @@ VideoLayer::~VideoLayer() {
     cleanup();
 }
 
+void VideoLayer::initialize() {
+    MpvLayer::initialize();
+}
+
 void VideoLayer::initializeGL() {
     // Setup OpenGL MPV settings
     mpv_opengl_init_params gl_init_params[1] = {m_openglProcAdr, nullptr};

@@ -26,6 +26,7 @@ Kirigami.ApplicationWindow {
     property var pdfPage: undefined
     property var mediaControls: undefined
     property var audioControls: undefined
+    property var streamControls: undefined
 
     function createRoiComponents() {
         if (!selection) {
@@ -69,6 +70,17 @@ Kirigami.ApplicationWindow {
         }
     }
 
+    function createStreamComponents() {
+        if (!streamControls) {
+            streamControls = streamComponent.createObject(layerViewItem);
+        }
+    }
+    function destroyStreamComponents() {
+        if (streamControls) {
+            streamControls.destroy();
+        }
+    }
+
     function createAudioComponents() {
         if (!audioControls) {
             audioControls = audioComponent.createObject(layerViewItem);
@@ -100,6 +112,7 @@ Kirigami.ApplicationWindow {
         destroyPageComponents();
         destroyAudioComponents();
         destroyMediaComponents();
+        destroyStreamComponents();
     }
     onVisibilityChanged: {
         if (visibility) {
@@ -115,6 +128,9 @@ Kirigami.ApplicationWindow {
                     createAudioComponents();
                     createMediaComponents();
                 }
+                else if (layerViewItem.layerTypeName === "Stream") {
+                    createStreamComponents();
+                }
                 else if (layerViewItem.layerTypeName === "NDI") {
                     createAudioComponents();
                 }
@@ -124,6 +140,7 @@ Kirigami.ApplicationWindow {
                 destroyPageComponents();
                 destroyAudioComponents();
                 destroyMediaComponents();
+                destroyStreamComponents();
             }
         }
     }
@@ -370,6 +387,13 @@ Kirigami.ApplicationWindow {
                             destroyMediaComponents();
                         }
 
+                        if (layerViewItem.layerTypeName === "Stream") {
+                            createStreamComponents();
+                        }
+                        else {
+                            destroyStreamComponents();
+                        }
+
                         if (layerViewItem.layerTypeName === "NDI") {
                             createAudioComponents();
                         }
@@ -382,6 +406,7 @@ Kirigami.ApplicationWindow {
                         destroyPageComponents();
                         destroyAudioComponents();
                         destroyMediaComponents();
+                        destroyStreamComponents();
                     }
                 }
                 function onLayerValueChanged() {
@@ -975,6 +1000,61 @@ Kirigami.ApplicationWindow {
                                 toolTipFontSize: timeInfo.font.pointSize + 2
                                 toolTipText: qsTr("Remaining: ") + app.formatTime(layerViewItem.layerRemaining)
                             }
+                        }
+                    }
+                }
+            }
+        }
+        Component {
+            id: streamComponent
+
+            Row {
+                anchors.horizontalCenter: parent.horizontalCenter
+                anchors.bottom: parent.bottom
+                bottomPadding: 20
+
+                RowLayout {
+                    Rectangle {
+                        color: Kirigami.Theme.alternateBackgroundColor
+                        implicitHeight: 35
+                        implicitWidth: 35
+                        radius: 5
+
+                        ToolButton {
+                            id: streamPlayPauseButton
+
+                            focusPolicy: Qt.NoFocus
+                            icon.name: layerViewItem.layerPause ? "media-playback-start" : "media-playback-pause"
+                            text: ""
+
+                            onClicked: {
+                                if(layerViewItem.layerPause){
+                                    layerViewItem.layerPause = false
+                                }
+                                else{
+                                    layerViewItem.layerPause = true
+                                }
+                                app.slides.needsSync = true;
+                            }
+
+                            ToolTip {
+                                id: streamPlayPauseButtonToolTip
+                                text: layerViewItem.layerPause ? qsTr("Play Stream") : qsTr("Pause Stream");
+                            }
+                        }
+
+                        Connections {
+                            function onLayerPositionChanged() {
+                                if (layerViewItem.layerPause) {
+                                    streamPlayPauseButton.iconName = "media-playback-start";
+                                    streamPlayPauseButtonToolTip.toolTipText = "Play Stream";
+                                } else {
+                                    streamPlayPauseButton.iconName = "media-playback-pause";
+                                    streamPlayPauseButtonToolTip.toolTipText = "Pause Stream";
+                                }
+                            }
+
+                            target: layerViewItem
                         }
                     }
                 }

@@ -1,0 +1,29 @@
+{
+	"streams": [
+            {
+                "path": "av://dshow:video=DELTA-hmi Video Source (card0 RX0)",
+                "title": "HDMI Capture 1",
+                "enabled": true
+            },
+			{
+                "path": "av://dshow:video=DELTA-hmi Video Source (card0 RX1)",
+                "title": "HDMI Capture 2",
+                "enabled": true
+            },
+            {
+                "path": "av://dshow:video=Datapath VisionSC-DP2 Video 01",
+                "title": "Displayport Capture 1",
+                "enabled": true
+            },
+			{
+                "path": "av://dshow:video=Datapath VisionSC-DP2 Video 02",
+                "title": "Displayport Capture 2",
+                "enabled": true
+            },
+			{
+                "path": "av://dshow:video=OBS Virtual Camera",
+                "title": "OBS Virtual Camera",
+                "enabled": false
+            }
+		]
+}

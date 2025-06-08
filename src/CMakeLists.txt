@@ -31,6 +31,10 @@ set(SOURCE_FILES
     layers/imagelayer.h
     layers/mpvlayer.cpp
     layers/mpvlayer.h
+    layers/streamlayer.cpp
+    layers/streamlayer.h
+    layers/streammodel.cpp
+    layers/streammodel.h
     layers/videolayer.cpp
     layers/videolayer.h
     layerqtitem.cpp

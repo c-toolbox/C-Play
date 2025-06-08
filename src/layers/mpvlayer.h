@@ -23,6 +23,7 @@ public:
         bool updateRendering = true;
         bool allowDirectRendering = false;
         bool isMaster = false;
+        bool isStream = false;
         bool supportVideo = true;
         std::vector<Track> audioTracks;
         int audioId = -1;
@@ -55,7 +56,7 @@ public:
 
     virtual ~MpvLayer() = 0; //This is an abstract class
 
-    void initialize();
+    virtual void initialize();
     void initializeMpv();
     virtual void initializeGL();
     virtual void cleanup();

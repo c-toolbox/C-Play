@@ -210,6 +210,7 @@ int LayersModel::maxLayerStatus() {
 
 int LayersModel::addLayer(QString title, int type, QString filepath, int stereoMode, int gridMode) {
     beginInsertRows(QModelIndex(), m_layers.size(), m_layers.size());
+    QMutexLocker lock(&m_layerMutex);
 
     // Create new layer
     BaseLayer *newLayer = BaseLayer::createLayer(true, type, get_proc_address_qopengl_v1, get_proc_address_qopengl_v2, title.toStdString());
@@ -491,21 +492,12 @@ void LayersModel::decodeFromJSON(QJsonObject &obj, const QStringList &forRelativ
                     QString title = o.value(QStringLiteral("title")).toString();
 
                     QString path = o.value(QStringLiteral("path")).toString();
-#ifdef NDI_SUPPORT && SPOUT_SUPPORT
-                    if (type != BaseLayer::NDI && type != BaseLayer::SPOUT) {
+                    if (type == BaseLayer::IMAGE 
+                        || type == BaseLayer::VIDEO 
+                        || type == BaseLayer::AUDIO 
+                        || type == BaseLayer::PDF) {
                         path = checkAndCorrectPath(path, forRelativePaths);
                     }
-#elif NDI_SUPPORT
-                    if (type != BaseLayer::NDI) {
-                        path = checkAndCorrectPath(path, forRelativePaths);
-                    }
-#elif SPOUT_SUPPORT
-                    if (type != BaseLayer::SPOUT) {
-                        path = checkAndCorrectPath(path, forRelativePaths);
-                    }
-#else
-                    path = checkAndCorrectPath(path, forRelativePaths);
-#endif
 
                     int grid = PresentationSettings::defaultGridModeForLayers();
                     QString gridStr = o.value(QStringLiteral("grid")).toString();
@@ -651,34 +643,18 @@ void LayersModel::encodeToJSON(QJsonObject &obj, const QStringList &forRelativeP
 
         layerData.insert(QStringLiteral("title"), QJsonValue(QString::fromStdString(layer->title())));
 
-#ifdef NDI_SUPPORT && SPOUT_SUPPORT
-        if (layer->type() == BaseLayer::NDI || layer->type() == BaseLayer::SPOUT) {
-            layerData.insert(QStringLiteral("path"), QJsonValue(QString::fromStdString(layer->filepath())));
-        }
-        else {
+        if (layer->type() == BaseLayer::IMAGE
+            || layer->type() == BaseLayer::VIDEO
+            || layer->type() == BaseLayer::AUDIO
+            || layer->type() == BaseLayer::PDF) {
             QString checkedFilePath = makePathRelativeTo(QString::fromStdString(layer->filepath()), forRelativePaths);
             layerData.insert(QStringLiteral("path"), QJsonValue(checkedFilePath));
         }
-#elif NDI_SUPPORT
-        if (layer->type() == BaseLayer::NDI) {
+        else {
             layerData.insert(QStringLiteral("path"), QJsonValue(QString::fromStdString(layer->filepath())));
         }
-        else {
-            QString checkedFilePath = makePathRelativeTo(QString::fromStdString(layer->filepath()), forRelativePaths);
-            layerData.insert(QStringLiteral("path"), QJsonValue(checkedFilePath));
-        }
-#elif SPOUT_SUPPORT
-        if (layer->type() == BaseLayer::SPOUT) {
-            layerData.insert(QStringLiteral("path"), QJsonValue(QString::fromStdString(layer->filepath())));
-    }
-        else {
-            QString checkedFilePath = makePathRelativeTo(QString::fromStdString(layer->filepath()), forRelativePaths);
-            layerData.insert(QStringLiteral("path"), QJsonValue(checkedFilePath));
-        }
-#else
-        QString checkedFilePath = makePathRelativeTo(QString::fromStdString(layer->filepath()), forRelativePaths);
-        layerData.insert(QStringLiteral("path"), QJsonValue(checkedFilePath));
-#endif
+
+       
 #ifdef PDF_SUPPORT
         if (layer->type() == BaseLayer::PDF) {
             layerData.insert(QStringLiteral("page"), QJsonValue(layer->page()));
@@ -774,6 +750,7 @@ bool LayersModel::runRenderOnLayersThatShouldUpdate(bool updateRendering, bool p
                 layer.lock()->update(layer.lock()->shouldUpdate() && updateRendering);
             }
             if (m_layersStatus.size() > i) {
+                int currentStatus = m_layersStatus[i];
                 if (layer.lock()->ready() && layer.lock()->alpha() > 0.f) {
                     m_layersStatus[i] = 2;
                 }
@@ -783,8 +760,10 @@ bool LayersModel::runRenderOnLayersThatShouldUpdate(bool updateRendering, bool p
                 else {
                     m_layersStatus[i] = 0;
                 }
+                if (currentStatus != m_layersStatus[i]) {
+                    updateLayer(i);
+                }
             }
-            updateLayer(i);
             statusHasUpdated = true;
         }
     }

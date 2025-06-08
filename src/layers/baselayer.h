@@ -20,6 +20,7 @@ public:
 #ifdef NDI_SUPPORT
         NDI,
 #endif
+        STREAM,
 #ifdef SPOUT_SUPPORT
         SPOUT,
 #endif

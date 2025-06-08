@@ -12,10 +12,11 @@ public:
              MpvLayer::onFileLoadedCallback flc = nullptr);
     ~VideoLayer();
 
+    virtual void initialize();
     void initializeGL();
     void cleanup();
     void updateFrame();
-    bool ready() const;
+    virtual bool ready() const;
 
     void updateFbo();
 
