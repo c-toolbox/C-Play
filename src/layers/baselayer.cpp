@@ -785,10 +785,6 @@ void BaseLayer::updatePlane() {
     }
 }
 
-BaseLayer* BaseLayer::get() {
-    return this;
-}
-
 void BaseLayer::setIsMaster(bool value) {
     m_isMaster = value;
 }

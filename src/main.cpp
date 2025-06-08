@@ -37,23 +37,23 @@ std::string logFilePath = "";
 std::string logLevel = "";
 std::string startupFile = "";
 
-std::vector<BaseLayer *> primaryLayers;
-ImageLayer *backgroundImageLayer;
-ImageLayer *foregroundImageLayer;
-ImageLayer *overlayImageLayer;
+std::vector<std::shared_ptr<BaseLayer>> primaryLayers;
+std::shared_ptr<ImageLayer> backgroundImageLayer;
+std::shared_ptr<ImageLayer> foregroundImageLayer;
+std::shared_ptr<ImageLayer> overlayImageLayer;
 #ifdef MDK_SUPPORT
-    AdaptiveVideoLayer* mainVideoLayer;
+std::shared_ptr < AdaptiveVideoLayer> mainVideoLayer;
 #else
-    MpvLayer *mainVideoLayer;
+std::shared_ptr<MpvLayer> mainVideoLayer;
 #endif
 
 
 bool updateLayers = false;
 bool preLoadLayers = false;
-std::vector<BaseLayer *> secondaryLayers;
-std::vector<BaseLayer *> secondaryLayersToKeep;
+std::vector<std::shared_ptr<BaseLayer>> secondaryLayers;
+std::vector<std::shared_ptr<BaseLayer>> secondaryLayersToKeep;
 
-LayerRenderer *layerRender;
+std::shared_ptr<LayerRenderer> layerRender;
 
 } // namespace
 
@@ -73,25 +73,25 @@ void initOGL(GLFWwindow *) {
 #endif
 
     // Create standard layers
-    backgroundImageLayer = new ImageLayer("background");
+    backgroundImageLayer = std::make_shared<ImageLayer>("background");
     primaryLayers.push_back(backgroundImageLayer);
 
 #ifdef MDK_SUPPORT
-    mainVideoLayer = new AdaptiveVideoLayer(get_proc_address_glfw_v1, get_proc_address_glfw_v2, allowDirectRendering, !logFilePath.empty() || !logLevel.empty(), logLevel);
+    mainVideoLayer = std::make_shared<AdaptiveVideoLayer>(get_proc_address_glfw_v1, get_proc_address_glfw_v2, allowDirectRendering, !logFilePath.empty() || !logLevel.empty(), logLevel);
 #else
-    mainVideoLayer = new VideoLayer(get_proc_address_glfw_v1, allowDirectRendering, !logFilePath.empty() || !logLevel.empty(), logLevel);
+    mainVideoLayer = std::make_shared<VideoLayer>(get_proc_address_glfw_v1, allowDirectRendering, !logFilePath.empty() || !logLevel.empty(), logLevel);
 #endif
     
     mainVideoLayer->initializeAndLoad(SyncHelper::instance().variables.loadedFile);
     primaryLayers.push_back(mainVideoLayer);
 
-    overlayImageLayer = new ImageLayer("overlay");
+    overlayImageLayer = std::make_shared<ImageLayer>("overlay");
     primaryLayers.push_back(overlayImageLayer);
 
-    foregroundImageLayer = new ImageLayer("foreground");
+    foregroundImageLayer = std::make_shared<ImageLayer>("foreground");
     primaryLayers.push_back(foregroundImageLayer);
 
-    layerRender = new LayerRenderer();
+    layerRender = std::make_shared<LayerRenderer>();
     layerRender->initializeGL(SyncHelper::instance().variables.radius, SyncHelper::instance().variables.fov);
 
     // Set up backface culling
@@ -358,37 +358,37 @@ void decode(const std::vector<std::byte> &data) {
                 deserializeObject(data, pos, layerType);
                 // Check if already updated this layer before a draw has been made
                 auto it_up = find_if(secondaryLayersToKeep.begin(), secondaryLayersToKeep.end(),
-                                     [&id](const BaseLayer *t1) { return t1->identifier() == id; });
+                                     [&id](const std::shared_ptr<BaseLayer>t1) { return t1->identifier() == id; });
                 if (it_up == secondaryLayersToKeep.end()) {
                     // Find if layer exists in all previously created layers
                     auto it = find_if(secondaryLayers.begin(), secondaryLayers.end(),
-                                      [&id](const BaseLayer *t1) { return t1->identifier() == id; });
+                                      [&id](const std::shared_ptr<BaseLayer>t1) { return t1->identifier() == id; });
                     if (it != secondaryLayers.end()) { // If exist, add to new pos and remove from old container
                         // If exist, sync if needed
                         if (layerSync) {
-                            (*it)->get()->decodeFull(data, pos);
+                            (*it)->decodeFull(data, pos);
                         } else {
-                            (*it)->get()->decodeAlways(data, pos);
+                            (*it)->decodeAlways(data, pos);
                         }
                         secondaryLayersToKeep.push_back(*it);
                     } else if (layerSync) { // Did not exist. Let's create it
                         BaseLayer *newLayer = BaseLayer::createLayer(false, layerType, get_proc_address_glfw_v1, get_proc_address_glfw_v2, std::to_string(id), id);
                         if (newLayer) {
                             if (layerSync) {
-                                newLayer->get()->decodeFull(data, pos);
+                                newLayer->decodeFull(data, pos);
                             } else {
-                                newLayer->get()->decodeAlways(data, pos);
+                                newLayer->decodeAlways(data, pos);
                             }
-                            secondaryLayersToKeep.push_back(newLayer);
+                            secondaryLayersToKeep.push_back(std::shared_ptr<BaseLayer>(newLayer));
                         }
                     }
                 }
                 else {
                     if (layerSync) {
-                        (*it_up)->get()->decodeFull(data, pos);
+                        (*it_up)->decodeFull(data, pos);
                     }
                     else {
-                        (*it_up)->get()->decodeAlways(data, pos);
+                        (*it_up)->decodeAlways(data, pos);
                     }
                 }
             }
@@ -407,11 +407,9 @@ void postSyncPreDraw() {
             auto it = secondaryLayers.begin();
             for (; it != secondaryLayers.end();) {
                 if (std::find(secondaryLayersToKeep.begin(), secondaryLayersToKeep.end(), (*it)) == secondaryLayersToKeep.end()) {
-                    auto ptr_to_delete = (*it);
                     it = secondaryLayers.erase(it);
-                    delete ptr_to_delete;
                 } else {
-                    auto layer = (*it)->get();
+                    auto layer = (*it);
                     if (layer->needSync()) {
                         if (layer->gridMode() == BaseLayer::GridMode::Plane) {
                             layer->updatePlane();
@@ -461,12 +459,11 @@ void postSyncPreDraw() {
             mainVideoLayer->loadFile(SyncHelper::instance().variables.loadedFile, SyncHelper::instance().variables.loadFile);
             SyncHelper::instance().variables.loadFile = false;
         }
-        auto videoLayer = mainVideoLayer->get();
 
         layerRender->clearLayers();
 
         // Background image layer
-        if ((!videoLayer->renderingIsOn() || videoLayer->ready() ||
+        if ((!mainVideoLayer->renderingIsOn() || mainVideoLayer->ready() ||
              (SyncHelper::instance().variables.alpha < 1.f || SyncHelper::instance().variables.gridToMapOn == 1)) &&
             backgroundImageLayer->ready() && SyncHelper::instance().variables.alphaBg > 0.f) {
             backgroundImageLayer->setAlpha(SyncHelper::instance().variables.alphaBg);
@@ -479,7 +476,7 @@ void postSyncPreDraw() {
         // Should stop if mainVideoLayer is full visible
         // Rendered top to bottom, so need to add them the other way around...
         for (auto it = secondaryLayers.rbegin(); it != secondaryLayers.rend(); ++it) {
-            auto layer = (*it)->get();
+            auto layer = (*it);
             if (layer->hierarchy() == BaseLayer::LayerHierarchy::BACK) {
                 if (layer->shouldUpdate()) {
                     if (!layer->hasInitialized()) {
@@ -502,14 +499,14 @@ void postSyncPreDraw() {
 
 
         // Main video/media layer
-        if (videoLayer->renderingIsOn()) {
-            if (videoLayer->ready() && SyncHelper::instance().variables.alpha > 0.f) {
-                videoLayer->setAlpha(SyncHelper::instance().variables.alpha);
-                videoLayer->setGridMode(SyncHelper::instance().variables.gridToMapOn);
-                videoLayer->setStereoMode(SyncHelper::instance().variables.stereoscopicMode);
-                videoLayer->setRotate(rotXYZ);
-                videoLayer->setTranslate(translateXYZ);
-                layerRender->addLayer(videoLayer);
+        if (mainVideoLayer->renderingIsOn()) {
+            if (mainVideoLayer->ready() && SyncHelper::instance().variables.alpha > 0.f) {
+                mainVideoLayer->setAlpha(SyncHelper::instance().variables.alpha);
+                mainVideoLayer->setGridMode(SyncHelper::instance().variables.gridToMapOn);
+                mainVideoLayer->setStereoMode(SyncHelper::instance().variables.stereoscopicMode);
+                mainVideoLayer->setRotate(rotXYZ);
+                mainVideoLayer->setTranslate(translateXYZ);
+                layerRender->addLayer(mainVideoLayer);
             }
 
             if (overlayImageLayer->ready() && SyncHelper::instance().variables.alpha > 0.f) {
@@ -582,7 +579,7 @@ void postSyncPreDraw() {
         // Custom layers with hierarchy FRONT
         // Rendered top to bottom, so need to add them the other way around...
         for (auto it = secondaryLayers.rbegin(); it != secondaryLayers.rend(); ++it) {
-            auto layer = (*it)->get();
+            auto layer = (*it);
             if (layer->hierarchy() == BaseLayer::LayerHierarchy::FRONT) {
                 if (layer->shouldUpdate()) {
                     if (!layer->hasInitialized()) {
@@ -590,8 +587,8 @@ void postSyncPreDraw() {
                     }
                     layer->update();
                     if (layer->ready() && (layer->alpha() > 0.f)) {
-                        layer->get()->setTranslate(translateXYZ);
-                        layerRender->addLayer(layer->get());
+                        layer->setTranslate(translateXYZ);
+                        layerRender->addLayer(layer);
                     }
                 }
                 else if ((preLoadLayers || layer->shouldPreLoad()) && !layer->ready()) {
@@ -612,33 +609,33 @@ void postSyncPreDraw() {
         }
 
         // Set properties of main mpv layer
-        videoLayer->setTimePause(SyncHelper::instance().variables.paused);
-        videoLayer->setEOFMode(SyncHelper::instance().variables.eofMode);
-        videoLayer->setTimePosition(
+        mainVideoLayer->setTimePause(SyncHelper::instance().variables.paused);
+        mainVideoLayer->setEOFMode(SyncHelper::instance().variables.eofMode);
+        mainVideoLayer->setTimePosition(
             SyncHelper::instance().variables.timePosition,
             SyncHelper::instance().variables.timeDirty);
         if (SyncHelper::instance().variables.loopTimeDirty) {
-            videoLayer->setLoopTime(
+            mainVideoLayer->setLoopTime(
                 SyncHelper::instance().variables.loopTimeA,
                 SyncHelper::instance().variables.loopTimeB,
                 SyncHelper::instance().variables.loopTimeEnabled);
         }
         if (SyncHelper::instance().variables.eqDirty) {
-            videoLayer->setValue("contrast", SyncHelper::instance().variables.eqContrast);
-            videoLayer->setValue("brightness", SyncHelper::instance().variables.eqBrightness);
-            videoLayer->setValue("gamma", SyncHelper::instance().variables.eqGamma);
-            videoLayer->setValue("saturation", SyncHelper::instance().variables.eqSaturation);
+            mainVideoLayer->setValue("contrast", SyncHelper::instance().variables.eqContrast);
+            mainVideoLayer->setValue("brightness", SyncHelper::instance().variables.eqBrightness);
+            mainVideoLayer->setValue("gamma", SyncHelper::instance().variables.eqGamma);
+            mainVideoLayer->setValue("saturation", SyncHelper::instance().variables.eqSaturation);
         }
         if (SyncHelper::instance().variables.speedDirty) {
-            videoLayer->setValue("speed", SyncHelper::instance().variables.playbackSpeed);
+            mainVideoLayer->setValue("speed", SyncHelper::instance().variables.playbackSpeed);
         }
 
         // Set latest plane details for all primary layers
         glm::vec2 planeSize = glm::vec2(float(SyncHelper::instance().variables.planeWidth), float(SyncHelper::instance().variables.planeHeight));
         for (auto &layer : primaryLayers) {
-            layer->get()->setPlaneDistance(SyncHelper::instance().variables.planeDistance);
-            layer->get()->setPlaneElevation(SyncHelper::instance().variables.planeElevation);
-            layer->get()->setPlaneSize(planeSize, SyncHelper::instance().variables.planeConsiderAspectRatio);
+            layer->setPlaneDistance(SyncHelper::instance().variables.planeDistance);
+            layer->setPlaneElevation(SyncHelper::instance().variables.planeElevation);
+            layer->setPlaneSize(planeSize, SyncHelper::instance().variables.planeConsiderAspectRatio);
         }
 
         // Set new general dome/sphere details
@@ -651,7 +648,7 @@ void postSyncPreDraw() {
 #endif
 
     // Update/render the frame from MPV pipeline
-    mainVideoLayer->get()->updateFrame();
+    mainVideoLayer->updateFrame();
 }
 
 void draw(const RenderData &data) {
@@ -681,16 +678,6 @@ void cleanup() {
     if (Engine::instance().isMaster())
         return;
 #endif
-
-    // Cleanup mainVideoLayer
-    delete mainVideoLayer;
-    mainVideoLayer = nullptr;
-
-    delete backgroundImageLayer;
-    delete foregroundImageLayer;
-    delete overlayImageLayer;
-
-    delete layerRender;
 }
 
 void logging(Log::Level, std::string_view message) {

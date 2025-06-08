@@ -245,8 +245,6 @@ public:
     void drawPlane();
     void updatePlane();
 
-    virtual BaseLayer* get();
-
     void setIsMaster(bool value);
     void setIdentifier(uint32_t id);
     void updateIdentifierBasedOnCount();

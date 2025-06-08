@@ -313,6 +313,7 @@ void LayersModel::updateLayer(int i) {
 
 void LayersModel::clearLayers() {
     beginRemoveRows(QModelIndex(), 0, m_layers.size() - 1);
+    QMutexLocker lock(&m_layerMutex);
     m_layers.clear();
     m_layersStatus.clear();
     endRemoveRows();
@@ -739,22 +740,22 @@ bool LayersModel::runRenderOnLayersThatShouldUpdate(bool updateRendering, bool p
     bool statusHasUpdated = false;
     QMutexLocker lock(&m_layerMutex);
     for (int i = 0; i < m_layers.size(); i++) {
-        auto layer = m_layers[i].toWeakRef();
+        auto layer = &m_layers[i];
         if (layer) {
-            if (layer.lock()->shouldUpdate() 
-                || (preload && !layer.lock()->ready()) 
-                || (layer.lock()->shouldPreLoad() && !layer.lock()->ready())) {
-                if (!layer.lock()->hasInitialized()) {
-                    layer.lock()->initialize();
+            if (layer->data()->shouldUpdate()
+                || (preload && !layer->data()->ready()) 
+                || (layer->data()->shouldPreLoad() && !layer->data()->ready())) {
+                if (!layer->data()->hasInitialized()) {
+                    layer->data()->initialize();
                 }
-                layer.lock()->update(layer.lock()->shouldUpdate() && updateRendering);
+                layer->data()->update(layer->data()->shouldUpdate() && updateRendering);
             }
             if (m_layersStatus.size() > i) {
                 int currentStatus = m_layersStatus[i];
-                if (layer.lock()->ready() && layer.lock()->alpha() > 0.f) {
+                if (layer->data()->ready() && layer->data()->alpha() > 0.f) {
                     m_layersStatus[i] = 2;
                 }
-                else if (layer.lock()->ready()) {
+                else if (layer->data()->ready()) {
                     m_layersStatus[i] = 1;
                 }
                 else {

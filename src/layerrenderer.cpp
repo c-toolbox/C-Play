@@ -447,7 +447,7 @@ void LayerRenderer::updateMeshes(double radius, double fov) {
     }
 }
 
-void LayerRenderer::addLayer(BaseLayer *layer) {
+void LayerRenderer::addLayer(std::shared_ptr<BaseLayer> layer) {
     layers2render.push_back(layer);
 }
 
@@ -455,7 +455,7 @@ void LayerRenderer::clearLayers() {
     layers2render.clear();
 }
 
-const std::vector<BaseLayer *> &LayerRenderer::getLayers() {
+const std::vector<std::shared_ptr<BaseLayer>> &LayerRenderer::getLayers() {
     return layers2render;
 }
 

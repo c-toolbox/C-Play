@@ -146,7 +146,7 @@ void NdiLayer::update(bool updateRendering) {
     // Check if our sender exists
     m_isReady = NdiFinder::instance().senderExists(filepath());
     if (!m_isReady) {
-        NDIreceiver.RefreshSenders(1);
+        NDIreceiver.RefreshSenders();
         return;
     }
 

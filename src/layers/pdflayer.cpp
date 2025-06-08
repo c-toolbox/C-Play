@@ -45,7 +45,7 @@ PdfDocumentManager& PdfDocumentManager::instance() {
     return *_instance;
 }
 
-poppler::document* PdfDocumentManager::getDocument(std::string filepath) {
+std::shared_ptr<poppler::document> PdfDocumentManager::getDocument(std::string filepath) {
     auto it = m_documents.find(filepath);
 
     if (it == m_documents.end()) {
@@ -59,7 +59,7 @@ poppler::document* PdfDocumentManager::getDocument(std::string filepath) {
             // Loaded OK,let's store and return it
             PDFDocument newDoc;
             newDoc.retrievals = 1;
-            newDoc.document = docPtr;
+            newDoc.document = std::shared_ptr<poppler::document>(docPtr);
             it = m_documents.insert(std::make_pair(filepath, newDoc)).first;
             return it->second.document;
         }
@@ -76,7 +76,6 @@ void PdfDocumentManager::trashDocument(std::string filepath) {
     if (it != m_documents.end()) {
         it->second.retrievals -= 1;
         if (it->second.retrievals == 0) {
-            delete it->second.document;
             m_documents.erase(it);
         }
     }

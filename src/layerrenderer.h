@@ -22,16 +22,16 @@ public:
     void initializeGL(double radius, double fov);
     void updateMeshes(double radius, double fov);
 
-    void addLayer(BaseLayer *layer);
+    void addLayer(std::shared_ptr<BaseLayer> layer);
 
     void clearLayers();
 
-    const std::vector<BaseLayer *> &getLayers();
+    const std::vector<std::shared_ptr<BaseLayer>> &getLayers();
 
     void renderLayers(const sgct::RenderData &data, int viewMode, float angle);
 
 private:
-    std::vector<BaseLayer *> layers2render;
+    std::vector<std::shared_ptr<BaseLayer>> layers2render;
 
     double meshRadius;
     double meshFov;
