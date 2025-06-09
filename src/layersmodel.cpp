@@ -55,8 +55,10 @@ LayersModel::LayersModel(QObject *parent)
 }
 
 LayersModel::~LayersModel() {
+    m_layerMutex.lock();
     m_layers.clear();
     m_layersStatus.clear();
+    m_layerMutex.unlock();
 }
 
 int LayersModel::rowCount(const QModelIndex &parent) const {

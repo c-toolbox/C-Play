@@ -358,11 +358,11 @@ void decode(const std::vector<std::byte> &data) {
                 deserializeObject(data, pos, layerType);
                 // Check if already updated this layer before a draw has been made
                 auto it_up = find_if(secondaryLayersToKeep.begin(), secondaryLayersToKeep.end(),
-                                     [&id](const std::shared_ptr<BaseLayer>t1) { return t1->identifier() == id; });
+                                     [&id](const std::shared_ptr<BaseLayer>&t1) { return (t1 ? t1->identifier() == id : false); });
                 if (it_up == secondaryLayersToKeep.end()) {
                     // Find if layer exists in all previously created layers
                     auto it = find_if(secondaryLayers.begin(), secondaryLayers.end(),
-                                      [&id](const std::shared_ptr<BaseLayer>t1) { return t1->identifier() == id; });
+                                      [&id](const std::shared_ptr<BaseLayer>&t1) { return (t1 ? t1->identifier() == id : false); });
                     if (it != secondaryLayers.end()) { // If exist, add to new pos and remove from old container
                         // If exist, sync if needed
                         if (layerSync) {

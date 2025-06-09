@@ -30,10 +30,13 @@ Here you can choose to add layers of the following types:
 * Audio
 * PDF
 * NDI
+* Stream (capture cards etc)
 
 The four first ones all are local or network files that are chosen through file dialogs. The default dialog locations of each of these types can be changed in "Settings -> Configure -> Location", as seen [here](../settings/location).
 
-When choosing NDI (Network Device Interface) a combobox becomes visible instead of the file dialog field. The combobox contains all of the discovered NDI sources on the network which can be received. Both image and audio is supported through NDI.
+When choosing *"NDI (Network Device Interface)*" a combobox becomes visible instead of the file dialog field. The combobox contains all of the discovered NDI sources on the network which can be received. Both image and audio is supported through NDI.
+
+When choosing *"Stream*" you can choose between pre-defined streams for your system in a combobox (loaded from editable file *"data/predefined-streams.json*") or to add a custom entry in a text field. The stream is handled as video/audio with the MPV library, so explore possibilities through the MPV docs.
 
 After you've added a new layer, you can specify the parameters of the layer in more detail through the *"Layer View*". Here you control grid/stereo parameters, the volume level (if applicable), as well as check how the output looks like.
 
