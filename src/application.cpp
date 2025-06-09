@@ -1,6 +1,6 @@
 /*
  * SPDX-FileCopyrightText:
- * 2021-2024 Erik Sundén <eriksunden85@gmail.com>
+ * 2021-2025 Erik Sundén <eriksunden85@gmail.com>
  * 2020 George Florea Bănuș <georgefb899@gmail.com>
  *
  * SPDX-License-Identifier: GPL-3.0-or-later
@@ -213,7 +213,7 @@ void Application::setupAboutData() {
                              Application::version());
     m_aboutData.setShortDescription(QStringLiteral("A media player for immersive content and cluster environments."));
     m_aboutData.setLicense(KAboutLicense::GPL_V3);
-    m_aboutData.setCopyrightStatement(QString::fromUtf8("(c) Erik Sundén 2021-2024"));
+    m_aboutData.setCopyrightStatement(QString::fromUtf8("(c) Erik Sundén 2021-2025"));
 
     m_aboutData.setHomepage(QStringLiteral("https://c-toolbox.github.io/C-Play/"));
     m_aboutData.setBugAddress(QStringLiteral("https://github.com/c-toolbox/C-Play/issues").toUtf8());

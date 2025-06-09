@@ -10,7 +10,7 @@ favicon_ico: "/assets/C_play_transparent.ico"
 
 search_tokenizer_separator: /[\s/]+/
 #heading_anchors: true
-footer_content: "Copyright &copy; 2021-2024 Erik Sundén. Distributed by an <a href=\"https://github.com/c-toolbox/C-Play/tree/master/LICENSE.txt\">GNU General Public License v3.0.</a>"
+footer_content: "Copyright &copy; 2021-2025 Erik Sundén. Distributed by an <a href=\"https://github.com/c-toolbox/C-Play/tree/master/LICENSE.txt\">GNU General Public License v3.0.</a>"
 color_scheme: "dark"
 
 aux_links:
