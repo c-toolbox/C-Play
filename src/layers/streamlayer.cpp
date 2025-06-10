@@ -1,5 +1,11 @@
-#include "streamlayer.h"
+/*
+ * SPDX-FileCopyrightText:
+ * 2025 Erik Sunden <eriksunden85@gmail.com>
+ *
+ * SPDX-License-Identifier: GPL-3.0-or-later
+ */
 
+#include "streamlayer.h"
 
 StreamLayer::StreamLayer(gl_adress_func_v1 opa,
     bool allowDirectRendering,

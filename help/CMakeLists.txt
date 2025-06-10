@@ -1,5 +1,5 @@
 #
-# Copyright: 2024 Erik Sunden <eriksunden85@gmail.com>
+# Copyright: 2024-2025 Erik Sunden <eriksunden85@gmail.com>
 #
 # SPDX-License-Identifier: GPL-3.0-or-later
 #

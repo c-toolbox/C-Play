@@ -1,3 +1,10 @@
+/*
+ * SPDX-FileCopyrightText:
+ * 2024-2025 Erik Sunden <eriksunden85@gmail.com>
+ *
+ * SPDX-License-Identifier: GPL-3.0-or-later
+ */
+
 #ifndef PDFLAYER_H
 #define PDFLAYER_H
 
