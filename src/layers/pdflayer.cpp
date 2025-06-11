@@ -97,6 +97,14 @@ PdfLayer::PdfLayer() {
 }
 
 PdfLayer::~PdfLayer() {
+    if (m_pdfData.trd) {
+        m_pdfData.uploadDone = true;
+        while (!m_pdfData.threadDone) {
+        }
+        m_pdfData.trd->join();
+        m_pdfData.trd = nullptr;
+    }
+
     if (renderData.texId > 0) {
         glDeleteTextures(1, &renderData.texId);
     }

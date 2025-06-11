@@ -25,6 +25,14 @@ ImageLayer::ImageLayer(std::string identifier) {
 }
 
 ImageLayer::~ImageLayer() {
+    if (imageData.trd) {
+        imageData.uploadDone = true;
+        while (!imageData.threadDone) {
+        }
+        imageData.trd->join();
+        imageData.trd = nullptr;
+    }
+
     if (renderData.texId > 0)
         sgct::TextureManager::instance().removeTexture(renderData.texId);
 }

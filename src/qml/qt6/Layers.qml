@@ -22,6 +22,7 @@ Rectangle {
     property string position: PlaylistSettings.position
     property int rowHeight: PlaylistSettings.rowHeight
     property alias scrollPositionTimer: scrollPositionTimer
+    property bool busyIndicator: false
 
     color: Kirigami.Theme.backgroundColor
     height: mpv.height
@@ -173,6 +174,20 @@ Rectangle {
         }
     ]
 
+    function clearAllLayers() {
+        app.slides.selected.clearLayers();
+        app.slides.updateSelectedSlide();
+        app.slides.pauseLayerUpdate = false;
+        busyIndicator = false;
+    }
+
+    function removeLayer(idx) {
+        app.slides.selected.removeLayer(idx);
+        app.slides.updateSelectedSlide();
+        app.slides.pauseLayerUpdate = false;
+        busyIndicator = false;
+    }
+
     Menu {
         id: pasteLayerMenu
         MenuItem { 
@@ -183,6 +198,7 @@ Rectangle {
 
     ColumnLayout {
         id: layersHeader
+        enabled: !slides.busyIndicator && !busyIndicator
 
         spacing: 10
 
@@ -211,8 +227,9 @@ Rectangle {
                     icon.name: "layer-delete"
 
                     onClicked: {
-                        app.slides.selected.removeLayer(layersView.currentIndex);
-                        app.slides.updateSelectedSlide();
+                        busyIndicator = true;
+                        app.slides.pauseLayerUpdate = true;
+                        Qt.callLater(removeLayer, layersView.currentIndex);
                     }
 
                     ToolTip {
@@ -284,8 +301,9 @@ Rectangle {
 
                         Component.onCompleted: visible = false
                         onAccepted: {
-                            app.slides.selected.clearLayers();
-                            app.slides.updateSelectedSlide();
+                            busyIndicator = true;
+                            app.slides.pauseLayerUpdate = true;
+                            Qt.callLater(clearAllLayers);
                         }
                     }
                 }
@@ -332,6 +350,17 @@ Rectangle {
             }
         }
     }
+
+    WorkingIndicator {
+        id: layerLoadingIndicator
+        running: slides.busyIndicator || busyIndicator
+        visible: slides.busyIndicator || busyIndicator
+        Layout.preferredWidth: parent.width
+        Layout.preferredHeight: parent.height
+        anchors.fill: parent
+        z: 30
+    }
+
     ScrollView {
         id: layersScrollView
 

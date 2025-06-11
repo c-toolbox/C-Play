@@ -182,6 +182,7 @@ set(QML_SRC_FILES
     qml/qt6/ForegroundImage.qml
     qml/qt6/SaveAsCPlayFile.qml
     qml/qt6/ViewPlaylistItem.qml
+    qml/qt6/WorkingIndicator.qml
 )
 
 option(CPLAY_FAST_QML_BUILD "Skip QmlLint and QmlCacheGen. Should be ON for release build." OFF)   

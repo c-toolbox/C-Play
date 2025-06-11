@@ -22,6 +22,7 @@ Rectangle {
     property int rowHeight: PlaylistSettings.rowHeight
     property alias scrollPositionTimer: scrollPositionTimer
     property alias slidesView: slidesView
+    property bool busyIndicator: false
 
     color: Kirigami.Theme.backgroundColor
     height: mpv.height
@@ -172,6 +173,24 @@ Rectangle {
             }
         }
     ]
+    
+    function clearAndLoadPresentation() {
+        app.slides.clearSlides();
+        loadPresentation.start();
+    }
+
+    function clearSlides() {
+        app.slides.clearSlides();
+        app.slides.pauseLayerUpdate = false;
+        busyIndicator = false;
+    }
+
+    function removeSlide(idx) {
+        app.slides.removeSlide(idx);
+        app.slides.selectedSlideIdx = idx;
+        app.slides.pauseLayerUpdate = false;
+        busyIndicator = false;
+    }
 
     Platform.FileDialog {
         id: openCPlayPresentationDialog
@@ -182,8 +201,9 @@ Rectangle {
         title: "Open C-Play Presentation"
 
         onAccepted: {
-            app.slides.clearSlides();
-            loadPresentation.start();
+            busyIndicator = true;
+            app.slides.pauseLayerUpdate = true;
+            Qt.callLater(clearAndLoadPresentation);
             mpv.focus = true;
         }
         onRejected: mpv.focus = true
@@ -204,6 +224,7 @@ Rectangle {
     }
     ColumnLayout {
         id: slidesHeader
+        enabled: !busyIndicator
 
         spacing: 10
 
@@ -232,8 +253,9 @@ Rectangle {
                     icon.name: "list-remove"
 
                     onClicked: {
-                        app.slides.removeSlide(slidesView.currentIndex);
-                        app.slides.selectedSlideIdx = slidesView.currentIndex;
+                        busyIndicator = true;
+                        app.slides.pauseLayerUpdate = true;
+                        Qt.callLater(removeSlide, slidesView.currentIndex);
                     }
 
                     ToolTip {
@@ -306,7 +328,9 @@ Rectangle {
 
                         Component.onCompleted: visible = false
                         onAccepted: {
-                            app.slides.clearSlides();
+                            app.slides.pauseLayerUpdate = true;
+                            busyIndicator = true;
+                            Qt.callLater(clearSlides);
                         }
                     }
                 }
@@ -407,6 +431,17 @@ Rectangle {
             }
         }
     }
+
+    WorkingIndicator {
+        id: layerLoadingIndicator
+        running: slides.busyIndicator
+        visible: slides.busyIndicator
+        Layout.preferredWidth: parent.width
+        Layout.preferredHeight: parent.height
+        anchors.fill: parent
+        z: 30
+    }
+
     ScrollView {
         id: slidesScrollView
 
@@ -425,6 +460,8 @@ Rectangle {
 
             Component.onCompleted: {
                 if (PresentationSettings.presentationToLoadOnStartup !== "") {
+                    busyIndicator = true;
+                    app.slides.pauseLayerUpdate = true;
                     app.slides.loadFromJSONFile(PresentationSettings.presentationToLoadOnStartup);
                 }
 
@@ -463,6 +500,7 @@ Rectangle {
                     if (layers.layersView.count > 0 && layers.state === "hidden") {
                         actions.toggleLayersAction.trigger();
                     }
+                    app.slides.pauseLayerUpdate = false;
                     syncAfterLoad.start();
                     startAfterLoad.start();
                 }
@@ -545,6 +583,7 @@ Rectangle {
         interval: PresentationSettings.startAfterLoadDelay
 
         onTriggered: {
+            busyIndicator = false;
             app.slides.runStartAfterPresentationLoad();
         }
     }

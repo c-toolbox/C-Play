@@ -881,6 +881,9 @@ void SlidesModel::setPauseLayerUpdate(bool value) {
 void SlidesModel::runRenderOnLayersThatShouldUpdate(bool updateRendering) {
     if (!pauseLayerUpdate()) {
         for (int i = -1; i < numberOfSlides(); i++) {
+            if (pauseLayerUpdate()) {
+                break;
+            }
             if (slide(i)->runRenderOnLayersThatShouldUpdate(updateRendering, preLoadLayers())) {
                 updateSlide(i);
             }

@@ -274,11 +274,13 @@ void MpvLayer::cleanup() {
         return;
 
     // End Mpv running on separate thread
-    m_data.terminate = true;
-    while (!m_data.threadDone) {
+    if (m_data.trd) {
+        m_data.terminate = true;
+        while (!m_data.threadDone) {
+        }
+        m_data.trd->join();
+        m_data.trd = nullptr;
     }
-    m_data.trd->join();
-    m_data.trd = nullptr;
 }
 
 void MpvLayer::updateFrame() {

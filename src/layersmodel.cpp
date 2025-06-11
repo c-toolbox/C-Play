@@ -22,7 +22,6 @@
 #include <QJsonObject>
 #include <QOpenGLContext>
 #include <QQuickView>
-#include <QMutexLocker>
 
 static void *get_proc_address_qopengl_v1(void* ctx, const char *name) {
     Q_UNUSED(ctx)
@@ -55,10 +54,8 @@ LayersModel::LayersModel(QObject *parent)
 }
 
 LayersModel::~LayersModel() {
-    m_layerMutex.lock();
     m_layers.clear();
     m_layersStatus.clear();
-    m_layerMutex.unlock();
 }
 
 int LayersModel::rowCount(const QModelIndex &parent) const {
@@ -212,7 +209,6 @@ int LayersModel::maxLayerStatus() {
 
 int LayersModel::addLayer(QString title, int type, QString filepath, int stereoMode, int gridMode) {
     beginInsertRows(QModelIndex(), m_layers.size(), m_layers.size());
-    QMutexLocker lock(&m_layerMutex);
 
     // Create new layer
     BaseLayer *newLayer = BaseLayer::createLayer(true, type, get_proc_address_qopengl_v1, get_proc_address_qopengl_v2, title.toStdString());
@@ -247,7 +243,6 @@ void LayersModel::removeLayer(int i) {
         return;
 
     beginRemoveRows(QModelIndex(), i, i);
-    QMutexLocker lock(&m_layerMutex);
     m_layersStatus.removeAt(i);
     m_layers.removeAt(i);
     endRemoveRows();
@@ -315,7 +310,6 @@ void LayersModel::updateLayer(int i) {
 
 void LayersModel::clearLayers() {
     beginRemoveRows(QModelIndex(), 0, m_layers.size() - 1);
-    QMutexLocker lock(&m_layerMutex);
     m_layers.clear();
     m_layersStatus.clear();
     endRemoveRows();
@@ -740,7 +734,7 @@ void LayersModel::encodeToJSON(QJsonObject &obj, const QStringList &forRelativeP
 
 bool LayersModel::runRenderOnLayersThatShouldUpdate(bool updateRendering, bool preload) {
     bool statusHasUpdated = false;
-    QMutexLocker lock(&m_layerMutex);
+    //QMutexLocker lock(&m_layerMutex);
     for (int i = 0; i < m_layers.size(); i++) {
         auto layer = &m_layers[i];
         if (layer) {

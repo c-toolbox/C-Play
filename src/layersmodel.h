@@ -9,7 +9,6 @@
 #define LAYERSMODEL_H
 
 #include <QAbstractListModel>
-#include <QMutex>
 #include <layers/baselayer.h>
 
 using Layers = QList<QSharedPointer<BaseLayer>>;
@@ -143,7 +142,6 @@ private:
     void setNeedSync();
 
     Layers m_layers;
-    QMutex m_layerMutex;
     QList<int> m_layersStatus;
     LayersTypeModel *m_layerTypeModel;
     BaseLayer::LayerHierarchy m_layerHierachy;
