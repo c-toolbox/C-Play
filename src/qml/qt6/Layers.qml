@@ -175,17 +175,11 @@ Rectangle {
     ]
 
     function clearAllLayers() {
-        app.slides.selected.clearLayers();
-        app.slides.updateSelectedSlide();
-        app.slides.pauseLayerUpdate = false;
-        busyIndicator = false;
+        clearAllLayersTimer.start();
     }
 
-    function removeLayer(idx) {
-        app.slides.selected.removeLayer(idx);
-        app.slides.updateSelectedSlide();
-        app.slides.pauseLayerUpdate = false;
-        busyIndicator = false;
+    function removeLayer() {
+        removeLayerTimer.start();
     }
 
     Menu {
@@ -229,7 +223,7 @@ Rectangle {
                     onClicked: {
                         busyIndicator = true;
                         app.slides.pauseLayerUpdate = true;
-                        Qt.callLater(removeLayer, layersView.currentIndex);
+                        Qt.callLater(removeLayer);
                     }
 
                     ToolTip {
@@ -427,6 +421,31 @@ Rectangle {
 
         onTriggered: {
             scrollPositionTimer.stop();
+        }
+    }
+
+    Timer {
+        id: clearAllLayersTimer
+
+        interval: 500
+
+        onTriggered: {
+            app.slides.selected.clearLayers();
+            app.slides.updateSelectedSlide();
+            app.slides.pauseLayerUpdate = false;
+            busyIndicator = false;
+        }
+    }
+    Timer {
+        id: removeLayerTimer
+
+        interval: 500
+
+        onTriggered: {
+            app.slides.selected.removeLayer(layersView.currentIndex);
+            app.slides.updateSelectedSlide();
+            app.slides.pauseLayerUpdate = false;
+            busyIndicator = false;
         }
     }
 }

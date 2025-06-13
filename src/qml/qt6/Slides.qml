@@ -175,21 +175,15 @@ Rectangle {
     ]
     
     function clearAndLoadPresentation() {
-        app.slides.clearSlides();
-        loadPresentation.start();
+        clearAndLoadPresentationTimer.start();
     }
 
     function clearSlides() {
-        app.slides.clearSlides();
-        app.slides.pauseLayerUpdate = false;
-        busyIndicator = false;
+        clearSlidesTimer.start();
     }
 
-    function removeSlide(idx) {
-        app.slides.removeSlide(idx);
-        app.slides.selectedSlideIdx = idx;
-        app.slides.pauseLayerUpdate = false;
-        busyIndicator = false;
+    function removeSlide() {
+        removeSlideTimer.start();
     }
 
     Platform.FileDialog {
@@ -203,8 +197,8 @@ Rectangle {
         onAccepted: {
             busyIndicator = true;
             app.slides.pauseLayerUpdate = true;
+            mpv.focus = true
             Qt.callLater(clearAndLoadPresentation);
-            mpv.focus = true;
         }
         onRejected: mpv.focus = true
     }
@@ -255,7 +249,7 @@ Rectangle {
                     onClicked: {
                         busyIndicator = true;
                         app.slides.pauseLayerUpdate = true;
-                        Qt.callLater(removeSlide, slidesView.currentIndex);
+                        Qt.callLater(removeSlide);
                     }
 
                     ToolTip {
@@ -585,6 +579,44 @@ Rectangle {
         onTriggered: {
             busyIndicator = false;
             app.slides.runStartAfterPresentationLoad();
+        }
+    }
+
+    Timer {
+        id: clearAndLoadPresentationTimer
+
+        interval: 500
+
+        onTriggered: {
+            app.slides.clearSlides();
+            loadPresentation.start();
+        }
+    }
+    Timer {
+        id: clearSlidesTimer
+
+        interval: 500
+
+        onTriggered: {
+            app.slides.clearSlides();
+            app.slides.pauseLayerUpdate = false;
+            busyIndicator = false;
+            masterSlideButton.clicked();
+        }
+    }
+    Timer {
+        id: removeSlideTimer
+
+        interval: 500
+
+        onTriggered: {
+            app.slides.removeSlide(slidesView.currentIndex);
+            app.slides.selectedSlideIdx = slidesView.currentIndex;
+            app.slides.pauseLayerUpdate = false;
+            busyIndicator = false;
+            if(slidesView.count === 0) {
+                masterSlideButton.clicked();
+            }
         }
     }
 }
