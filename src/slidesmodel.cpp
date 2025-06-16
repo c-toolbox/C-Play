@@ -17,7 +17,7 @@
 #include <QJsonObject>
 #include <QTimer>
 
-SlideVisibilityModel::SlideVisibilityModel(QList<LayersModel*>* slideList, QObject* parent)
+SlideVisibilityModel::SlideVisibilityModel(QList<QSharedPointer<LayersModel>>* slideList, QObject* parent)
     : QAbstractTableModel(parent), m_slideList(slideList){
     resetTable();
 }
@@ -306,8 +306,6 @@ SlidesModel::SlidesModel(QObject *parent)
 }
 
 SlidesModel::~SlidesModel() {
-    for (auto s : m_slides)
-        delete s;
     m_slides.clear();
     delete m_masterSlide;
     delete m_visibilityModel;
@@ -324,7 +322,7 @@ QVariant SlidesModel::data(const QModelIndex &index, int role) const {
     if (!index.isValid() || m_slides.empty())
         return QVariant();
 
-    LayersModel *slideItem = m_slides.at(index.row());
+    auto slideItem = m_slides.at(index.row());
 
     switch (role) {
     case NameRole:
@@ -521,7 +519,7 @@ LayersModel *SlidesModel::slide(int i) {
     if (i == -1)
         return masterSlide();
     else if (i >= 0 && m_slides.size() > i)
-        return m_slides[i];
+        return m_slides[i].get();
     else
         return nullptr;
 }
@@ -536,12 +534,12 @@ SlideVisibilityModel* SlidesModel::visibilityModel() {
 
 int SlidesModel::addSlide() {
     beginInsertRows(QModelIndex(), m_slides.size(), m_slides.size());
-    m_slides.push_back(new LayersModel(this));
+    m_slides.push_back(QSharedPointer<LayersModel>(new LayersModel(this)));
     setSlidesNeedsSave(true);
     setNeedSync();
     endInsertRows();
 
-    connect(m_slides[m_slides.size() - 1], &LayersModel::layersModelChanged, this, &SlidesModel::slideContentChanged);
+    connect(m_slides[m_slides.size() - 1].get(), &LayersModel::layersModelChanged, this, &SlidesModel::slideContentChanged);
     Q_EMIT slideModelChanged();
 
     return m_slides.size() - 1;

@@ -34,7 +34,7 @@ class SlideVisibilityModel : public QAbstractTableModel
 #endif
 
 public:
-    explicit SlideVisibilityModel(QList<LayersModel*> *slideList, QObject* parent = nullptr);
+    explicit SlideVisibilityModel(QList<QSharedPointer<LayersModel>> *slideList, QObject* parent = nullptr);
     ~SlideVisibilityModel();
 
     enum {
@@ -60,7 +60,7 @@ private:
     QString cellColor(int column, int row) const;
     QString cellText(int column, int row) const;
 
-    QList<LayersModel*>* m_slideList;
+    QList<QSharedPointer<LayersModel>>* m_slideList;
 
     std::vector<int> m_keepVisibilityMatrix;
     std::vector<BaseLayer*> m_visibilityLayers;
@@ -238,7 +238,7 @@ Q_SIGNALS:
 private:
     void setNeedSync();
 
-    QList<LayersModel *> m_slides;
+    QList<QSharedPointer<LayersModel>> m_slides;
     LayersModel *m_masterSlide;
     SlideVisibilityModel* m_visibilityModel;
     BaseLayer *m_layerToCopyFrom;
