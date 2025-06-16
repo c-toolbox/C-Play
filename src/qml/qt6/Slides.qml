@@ -500,6 +500,7 @@ Rectangle {
                 }
 
                 function onSelectedSlideChanged() {
+                    layers.layersView.currentIndex = -1;
                     slidesView.currentIndex = app.slides.selectedSlideIdx;
                 }
 
@@ -509,25 +510,11 @@ Rectangle {
                 }
 
                 function onPreviousSlide() {
-                    layers.layersView.currentIndex = -1;
-                    if(app.slides.selectedSlideIdx === app.slides.triggeredSlideIdx){
-                        app.slides.selectedSlideIdx = app.slides.selectedSlideIdx - 1;
-                        app.slides.triggeredSlideIdx = app.slides.triggeredSlideIdx - 1;
-                    }
-                    else {
-                        app.slides.triggeredSlideIdx = app.slides.selectedSlideIdx;
-                    }   
+                    actions.slidePreviousAction.trigger();
                 }
 
                 function onNextSlide() {
-                    layers.layersView.currentIndex = -1;
-                    if(app.slides.selectedSlideIdx === app.slides.triggeredSlideIdx){
-                        app.slides.selectedSlideIdx = app.slides.selectedSlideIdx + 1;
-                        app.slides.triggeredSlideIdx = app.slides.triggeredSlideIdx + 1;
-                    }
-                    else {
-                        app.slides.triggeredSlideIdx = app.slides.selectedSlideIdx;
-                    }
+                    actions.slideNextAction.trigger();
                 }
 
                 target: app.slides

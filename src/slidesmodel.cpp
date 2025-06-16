@@ -705,6 +705,30 @@ QUrl SlidesModel::getSlidesPathAsURL() const {
     return QUrl(QStringLiteral("file:///") + m_slidesPath);
 }
 
+std::string SlidesModel::getSlidesAsFormattedString(size_t charsPerItem) const {
+    std::string fullItemList = "";
+    for (int i = 0; i < m_slides.size(); i++) {
+        std::string title = std::to_string(i + 1) + ". ";
+
+        title += m_slides[i]->getLayersName().toStdString();
+
+        size_t countChars = title.size();
+        if (countChars < charsPerItem) {
+            title.insert(title.end(), charsPerItem - countChars, ' ');
+        }
+        else if (countChars >= charsPerItem) {
+            title.erase(title.end() - (countChars - charsPerItem + 4), title.end());
+            title.insert(title.end(), 3, '.');
+            title.insert(title.end(), 1, ' ');
+        }
+
+        fullItemList += title;
+        if (i < m_slides.size() - 1)
+            fullItemList += "\n";
+    }
+    return fullItemList;
+}
+
 QString SlidesModel::makePathRelativeTo(const QString &filePath, const QStringList &pathsToConsider) {
     // Assuming filePath is absolute
     for (int i = 0; i < pathsToConsider.size(); i++) {

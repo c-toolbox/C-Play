@@ -50,6 +50,7 @@ Q_SIGNALS:
     void loadFromAudioTracks(int idx);
     void loadFromPlaylist(int idx);
     void loadFromSections(int idx);
+    void loadFromSlides(int idx);
     void spinPitchUp(bool run);
     void spinPitchDown(bool run);
     void spinYawLeft(bool run);
@@ -77,14 +78,17 @@ private:
     const std::string getAudioTracksItems(std::string charsPerItemStr = "", std::string removeLoadedFilePrefix = "");
     const std::string getPlayListItems(std::string charsPerItemStr = "");
     const std::string getSectionsItems(std::string charsPerItemStr = "");
+    const std::string getSlideItems(std::string charsPerItemStr = "");
 
     const std::string getPlaylingItemIndexFromAudioTracks();
     const std::string getPlaylingItemIndexFromPlaylist();
     const std::string getPlaylingItemIndexFromSections();
+    const std::string getPlaylingItemIndexFromSlides();
 
     const std::string LoadIndexFromAudioTracks(std::string indexStr);
     const std::string LoadIndexFromPlaylist(std::string indexStr);
     const std::string LoadIndexFromSections(std::string indexStr);
+    const std::string LoadIndexFromSlides(std::string indexStr);
 
     MpvObject *m_mpv;
     SlidesModel* m_slidesModel;

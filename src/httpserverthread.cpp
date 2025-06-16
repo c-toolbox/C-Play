@@ -724,6 +724,26 @@ void HttpServerThread::setupHttpServer() {
             res.set_content("Next slide", "text/plain");
         });
 
+        svr.Post("/slides", [this](const httplib::Request& req, httplib::Response& res) {
+            std::string charsPerItem = "";
+            if (req.has_param("charsPerItem")) {
+                charsPerItem = req.get_param_value("charsPerItem");
+            }
+            res.set_content(getSlideItems(charsPerItem), "text/plain");
+        });
+
+        svr.Post("/playing_in_slides", [this](const httplib::Request&, httplib::Response& res) {
+            res.set_content(getPlaylingItemIndexFromSlides(), "text/plain");
+        });
+
+        svr.Post("/load_from_slides", [this](const httplib::Request& req, httplib::Response& res) {
+            if (req.has_param("index")) {
+                std::string indexStr = req.get_param_value("index");
+                res.set_content(LoadIndexFromSlides(indexStr), "text/plain");
+            }
+            res.set_content("Missing index parameter", "text/plain");
+        });
+
         runServer = true;
         return;
     }
@@ -866,6 +886,18 @@ const std::string HttpServerThread::getSectionsItems(std::string charsPerItemStr
         return "";
 }
 
+const std::string HttpServerThread::getSlideItems(std::string charsPerItemStr) {
+    if (m_slidesModel) {
+        int charsPerItem = 0;
+        if (stringToInt(charsPerItemStr, charsPerItem))
+            return m_slidesModel->getSlidesAsFormattedString(charsPerItem);
+        else
+            return m_slidesModel->getSlidesAsFormattedString();
+    }
+    else
+        return "";
+}
+
 const std::string HttpServerThread::getPlaylingItemIndexFromAudioTracks() {
     if (m_mpv) {
         return std::to_string(m_mpv->audioId() - 1);
@@ -883,6 +915,13 @@ const std::string HttpServerThread::getPlaylingItemIndexFromPlaylist() {
 const std::string HttpServerThread::getPlaylingItemIndexFromSections() {
     if (m_mpv) {
         return std::to_string(m_mpv->getPlaySectionsModel()->getPlayingSection());
+    }
+    return "-1";
+}
+
+const std::string HttpServerThread::getPlaylingItemIndexFromSlides() {
+    if (m_slidesModel) {
+        return std::to_string(m_slidesModel->selectedSlideIdx());
     }
     return "-1";
 }
@@ -937,6 +976,27 @@ const std::string HttpServerThread::LoadIndexFromSections(std::string indexStr) 
             return "Could not find reference to MPV";
         }
     } else {
+        return "Could not interpret index parameter";
+    }
+}
+
+const std::string HttpServerThread::LoadIndexFromSlides(std::string indexStr) {
+    int index = -1;
+    if (stringToInt(indexStr, index)) {
+        if (m_slidesModel) {
+            if (index >= 0 && index < m_slidesModel->numberOfSlides()) {
+                Q_EMIT loadFromSlides(index);
+                return "Loading slide with index: " + indexStr;
+            }
+            else {
+                return "Index was out of bounds of slide list";
+            }
+        }
+        else {
+            return "Could not find reference to SlideModel";
+        }
+    }
+    else {
         return "Could not interpret index parameter";
     }
 }

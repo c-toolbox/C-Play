@@ -7,6 +7,7 @@
 #include "mpvobject.h"
 #include "playbacksettings.h"
 #include "slidesmodel.h"
+#include "presentationsettings.h"
 
 #include <QDir>
 #include <QFileInfo>
@@ -72,6 +73,7 @@ void PlayerController::setupHttpServer() {
     connect(httpServer, &HttpServerThread::loadFromAudioTracks, this, &PlayerController::LoadFromAudioTracks);
     connect(httpServer, &HttpServerThread::loadFromPlaylist, this, &PlayerController::LoadFromPlaylist);
     connect(httpServer, &HttpServerThread::loadFromSections, this, &PlayerController::LoadFromSections);
+    connect(httpServer, &HttpServerThread::loadFromSlides, this, &PlayerController::LoadFromSlides);
     connect(httpServer, &HttpServerThread::spinPitchUp, this, &PlayerController::SpinPitchUp);
     connect(httpServer, &HttpServerThread::spinPitchDown, this, &PlayerController::SpinPitchDown);
     connect(httpServer, &HttpServerThread::spinYawLeft, this, &PlayerController::SpinYawLeft);
@@ -140,6 +142,14 @@ void PlayerController::LoadFromPlaylist(int idx) {
 
 void PlayerController::LoadFromSections(int idx) {
     Q_EMIT loadFromSections(idx);
+}
+
+void PlayerController::LoadFromSlides(int idx) {
+    if (m_slidesModel != nullptr && idx < m_slidesModel->numberOfSlides() && idx >= 0) {
+        m_slidesModel->setSlideFadeTime(PresentationSettings::fadeDurationToNextSlide());
+        m_slidesModel->setSelectedSlideIdx(idx);
+        m_slidesModel->setTriggeredSlideIdx(idx);
+    }
 }
 
 void PlayerController::SetPosition(double pos) {

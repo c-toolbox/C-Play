@@ -197,6 +197,7 @@ public:
     Q_INVOKABLE void setSlidesPath(QString path);
     Q_INVOKABLE QString getSlidesPath() const;
     Q_INVOKABLE QUrl getSlidesPathAsURL() const;
+    std::string getSlidesAsFormattedString(size_t charsPerItem = 18) const;
 
     Q_INVOKABLE QString makePathRelativeTo(const QString &filePath, const QStringList &pathsToConsider);
     Q_INVOKABLE void loadFromJSONFile(const QString &path);
