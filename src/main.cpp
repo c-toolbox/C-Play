@@ -42,7 +42,7 @@ std::shared_ptr<ImageLayer> backgroundImageLayer;
 std::shared_ptr<ImageLayer> foregroundImageLayer;
 std::shared_ptr<ImageLayer> overlayImageLayer;
 #ifdef MDK_SUPPORT
-std::shared_ptr < AdaptiveVideoLayer> mainVideoLayer;
+std::shared_ptr <AdaptiveVideoLayer> mainVideoLayer;
 #else
 std::shared_ptr<MpvLayer> mainVideoLayer;
 #endif

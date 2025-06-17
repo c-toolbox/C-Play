@@ -144,6 +144,12 @@ void on_mpv_events(MpvLayer::mpvData &vd, BaseLayer::RenderParams &rp) {
             }
             break;
         }
+
+        case MPV_EVENT_SHUTDOWN: {
+            vd.terminate = true;
+            break;
+        }
+
         default: {
             // Ignore uninteresting or unknown events.
             break;
@@ -237,7 +243,6 @@ auto runMpvAsync = [](MpvLayer::mpvData& data, BaseLayer::RenderParams& rp) {
     while (!data.terminate) {
         on_mpv_events(data, rp);
     }
-    mpv_destroy(data.handle);
     data.threadDone = true;
 };
 
@@ -273,9 +278,11 @@ void MpvLayer::cleanup() {
     if (!m_data.mpvInitialized)
         return;
 
-    // End Mpv running on separate thread
+    // Async quit
+    mpv::qt::command_async(m_data.handle, QStringList() << QStringLiteral("quit"));
+
+    // Wait for Mpv to end (running on separate thread)
     if (m_data.trd) {
-        m_data.terminate = true;
         while (!m_data.threadDone) {
         }
         m_data.trd->join();

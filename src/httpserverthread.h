@@ -51,6 +51,7 @@ Q_SIGNALS:
     void loadFromPlaylist(int idx);
     void loadFromSections(int idx);
     void loadFromSlides(int idx);
+    void selectFromSlides(int idx);
     void spinPitchUp(bool run);
     void spinPitchDown(bool run);
     void spinYawLeft(bool run);
@@ -89,6 +90,7 @@ private:
     const std::string LoadIndexFromPlaylist(std::string indexStr);
     const std::string LoadIndexFromSections(std::string indexStr);
     const std::string LoadIndexFromSlides(std::string indexStr);
+    const std::string SelectIndexFromSlides(std::string indexStr);
 
     MpvObject *m_mpv;
     SlidesModel* m_slidesModel;

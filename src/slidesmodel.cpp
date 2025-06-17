@@ -397,6 +397,16 @@ int SlidesModel::selectedSlideIdx() {
 void SlidesModel::setSelectedSlideIdx(int value) {
     m_previousSelectedSlideIdx = m_selectedSlideIdx;
     m_selectedSlideIdx = std::max(value, -1);
+    if (m_selectedSlideIdx >= 0 && m_selectedSlideIdx < numberOfSlides()) {
+        for (auto layer : m_slides[m_selectedSlideIdx]->getLayers()) {
+            layer->setShouldPreLoad(true);
+        }
+    }
+    else if (m_selectedSlideIdx == -1) {
+        for (auto layer : m_masterSlide->getLayers()) {
+            layer->setShouldPreLoad(true);
+        }
+    }
     Q_EMIT selectedSlideChanged();
 }
 
@@ -588,6 +598,17 @@ void SlidesModel::moveSlideUp(int i) {
     beginMoveRows(QModelIndex(), i, i, QModelIndex(), i - 1);
     m_slides.move(i, i - 1);
     m_previousSelectedSlideIdx = i - 1;
+
+    if (m_triggeredSlideIdx == i)
+        m_triggeredSlideIdx = i - 1;
+    else if (m_triggeredSlideIdx == i-1)
+        m_triggeredSlideIdx = i;
+
+    if (m_previousTriggeredSlideIdx == i)
+        m_previousTriggeredSlideIdx = i - 1;
+    else if (m_previousTriggeredSlideIdx == i - 1)
+        m_previousTriggeredSlideIdx = i;
+
     endMoveRows();
     setSlidesNeedsSave(true);
     setNeedSync();
@@ -601,6 +622,17 @@ void SlidesModel::moveSlideDown(int i) {
     beginMoveRows(QModelIndex(), i + 1, i + 1, QModelIndex(), i);
     m_slides.move(i, i + 1);
     m_previousSelectedSlideIdx = i + 1;
+
+    if (m_triggeredSlideIdx == i)
+        m_triggeredSlideIdx = i + 1;
+    else if (m_triggeredSlideIdx == i + 1)
+        m_triggeredSlideIdx = i;
+
+    if (m_previousTriggeredSlideIdx == i)
+        m_previousTriggeredSlideIdx = i + 1;
+    else if (m_previousTriggeredSlideIdx == i + 1)
+        m_previousTriggeredSlideIdx = i;
+
     endMoveRows();
     setSlidesNeedsSave(true);
     setNeedSync();

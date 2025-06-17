@@ -74,6 +74,7 @@ void PlayerController::setupHttpServer() {
     connect(httpServer, &HttpServerThread::loadFromPlaylist, this, &PlayerController::LoadFromPlaylist);
     connect(httpServer, &HttpServerThread::loadFromSections, this, &PlayerController::LoadFromSections);
     connect(httpServer, &HttpServerThread::loadFromSlides, this, &PlayerController::LoadFromSlides);
+    connect(httpServer, &HttpServerThread::selectFromSlides, this, &PlayerController::SelectFromSlides);
     connect(httpServer, &HttpServerThread::spinPitchUp, this, &PlayerController::SpinPitchUp);
     connect(httpServer, &HttpServerThread::spinPitchDown, this, &PlayerController::SpinPitchDown);
     connect(httpServer, &HttpServerThread::spinYawLeft, this, &PlayerController::SpinYawLeft);
@@ -149,6 +150,12 @@ void PlayerController::LoadFromSlides(int idx) {
         m_slidesModel->setSlideFadeTime(PresentationSettings::fadeDurationToNextSlide());
         m_slidesModel->setSelectedSlideIdx(idx);
         m_slidesModel->setTriggeredSlideIdx(idx);
+    }
+}
+
+void PlayerController::SelectFromSlides(int idx) {
+    if (m_slidesModel != nullptr && idx < m_slidesModel->numberOfSlides() && idx >= 0) {
+        m_slidesModel->setSelectedSlideIdx(idx);
     }
 }
 

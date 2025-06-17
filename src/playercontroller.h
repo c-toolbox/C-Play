@@ -42,6 +42,7 @@ public Q_SLOTS:
     void LoadFromPlaylist(int idx);
     void LoadFromSections(int idx);
     void LoadFromSlides(int idx);
+    void SelectFromSlides(int idx);
     void SetSpeed(double factor);
     void SetVolume(int level);
     void SetSyncVolumeVisibilityFading(bool value);

@@ -734,7 +734,6 @@ void LayersModel::encodeToJSON(QJsonObject &obj, const QStringList &forRelativeP
 
 bool LayersModel::runRenderOnLayersThatShouldUpdate(bool updateRendering, bool preload) {
     bool statusHasUpdated = false;
-    //QMutexLocker lock(&m_layerMutex);
     for (int i = 0; i < m_layers.size(); i++) {
         auto layer = &m_layers[i];
         if (layer) {

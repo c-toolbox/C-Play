@@ -233,6 +233,25 @@ To easier understand these commands, feel free to utilize a sample Medialon Mana
     // 3 = Next
     // 4 = Loop
 
+    Endpoint: /slides
+    Purpose:  Retrieve a formatted string of the slides in the loaded C-play presentation.
+    Params:   Optional to "charsPerItem=33", or another value to limit the characters in the name (to for instance 33).
+    Returns:  A formatted text string that can be handled as a list.
+
+    Endpoint: /playing_in_slides
+    Purpose:  Return the index of the current loaded item in the slides.
+    Returns:  A value between 0 and number of items. -1 if nothing is selected, which indicates master slide (which cannot be externally controlled).
+
+    Endpoint: /select_from_slides
+    Purpose:  To select a specific slide in the slides list (which automatically makes it pre-loads all layers).
+    Params:   Mandatory to supply "index=", and a value of the index you want to load.
+    Returns:  A message to indicate success or an error.
+
+    Endpoint: /load_from_slides
+    Purpose:  To load a specific slide in the slides list.
+    Params:   Mandatory to supply "index=", and a value of the index you want to load.
+    Returns:  A message to indicate success or an error.
+
 ## Spin the grid
 
     Endpoint: /orientation_reset

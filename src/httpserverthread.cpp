@@ -735,6 +735,14 @@ void HttpServerThread::setupHttpServer() {
         svr.Post("/playing_in_slides", [this](const httplib::Request&, httplib::Response& res) {
             res.set_content(getPlaylingItemIndexFromSlides(), "text/plain");
         });
+        
+        svr.Post("/select_from_slides", [this](const httplib::Request& req, httplib::Response& res) {
+            if (req.has_param("index")) {
+                std::string indexStr = req.get_param_value("index");
+                res.set_content(SelectIndexFromSlides(indexStr), "text/plain");
+            }
+            res.set_content("Missing index parameter", "text/plain");
+        });
 
         svr.Post("/load_from_slides", [this](const httplib::Request& req, httplib::Response& res) {
             if (req.has_param("index")) {
@@ -987,6 +995,27 @@ const std::string HttpServerThread::LoadIndexFromSlides(std::string indexStr) {
             if (index >= 0 && index < m_slidesModel->numberOfSlides()) {
                 Q_EMIT loadFromSlides(index);
                 return "Loading slide with index: " + indexStr;
+            }
+            else {
+                return "Index was out of bounds of slide list";
+            }
+        }
+        else {
+            return "Could not find reference to SlideModel";
+        }
+    }
+    else {
+        return "Could not interpret index parameter";
+    }
+}
+
+const std::string HttpServerThread::SelectIndexFromSlides(std::string indexStr) {
+    int index = -1;
+    if (stringToInt(indexStr, index)) {
+        if (m_slidesModel) {
+            if (index >= 0 && index < m_slidesModel->numberOfSlides()) {
+                Q_EMIT selectFromSlides(index);
+                return "Selecting slide with index: " + indexStr;
             }
             else {
                 return "Index was out of bounds of slide list";
