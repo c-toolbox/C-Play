@@ -42,6 +42,9 @@ NdiFinder::NdiFinder() : m_NDIreceiver(new ofxNDIreceive()) {
 
 NdiFinder::~NdiFinder() {
     delete m_NDIreceiver;
+}
+
+void NdiFinder::destroy() {
     delete _instance;
     _instance = nullptr;
 }

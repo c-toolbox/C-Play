@@ -25,6 +25,9 @@
 #include <layers/adaptivevideolayer.h>
 #endif
 
+#ifdef NDI_SUPPORT
+#include <ndi/ndilayer.h>
+#endif
 // #define SGCT_ONLY
 
 namespace {
@@ -674,10 +677,23 @@ void cleanup() {
         logFile.close();
     }
 
+#ifdef NDI_SUPPORT
+    NdiFinder::destroy();
+#endif
+
 #ifndef SGCT_ONLY
     if (Engine::instance().isMaster())
         return;
 #endif
+
+    secondaryLayers.clear();
+    secondaryLayersToKeep.clear();
+    backgroundImageLayer = nullptr;
+    foregroundImageLayer = nullptr;
+    overlayImageLayer = nullptr;
+    mainVideoLayer = nullptr;
+    layerRender = nullptr;
+    primaryLayers.clear();
 }
 
 void logging(Log::Level, std::string_view message) {

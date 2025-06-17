@@ -19,6 +19,7 @@ class NdiFinder {
 public:
     NdiFinder();
     ~NdiFinder();
+    static void destroy();
     static NdiFinder& instance();
 
     int findSenders();

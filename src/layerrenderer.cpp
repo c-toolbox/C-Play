@@ -386,6 +386,7 @@ LayerRenderer::LayerRenderer() : meshRadius(0),
 }
 
 LayerRenderer::~LayerRenderer() {
+    layers2render.clear();
     domeMesh = nullptr;
     sphereMesh = nullptr;
 }
