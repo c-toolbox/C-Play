@@ -9,9 +9,11 @@
 #define SPOUTMODEL_H
 
 #include <QAbstractListModel>
+#include <QtQml/qqmlregistration.h>
 
 class SpoutSendersModel : public QAbstractListModel {
     Q_OBJECT
+    QML_NAMED_ELEMENT(SpoutSendersModel)
 
 public:
     explicit SpoutSendersModel(QObject *parent = nullptr);

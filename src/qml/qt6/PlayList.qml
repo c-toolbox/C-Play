@@ -25,6 +25,7 @@ Rectangle {
     property string position: PlaylistSettings.position
     property int rowHeight: PlaylistSettings.rowHeight
     property alias scrollPositionTimer: scrollPositionTimer
+    property bool shouldBeVisible: true
 
     function setPlayListScrollPosition() {
         playlistView.positionViewAtIndex(playlistView.model.playingVideo, ListView.Beginning);
@@ -37,6 +38,7 @@ Rectangle {
         eof_loop.checked = (eofMode === 2);
     }
 
+    visible: shouldBeVisible && !window.hideUI
     color: Kirigami.Theme.backgroundColor
     height: mpv.height
     state: "hidden"
@@ -58,7 +60,7 @@ Rectangle {
             }
             PropertyChanges {
                 target: root
-                visible: false
+                shouldBeVisible: false
             }
         },
         State {
@@ -70,7 +72,7 @@ Rectangle {
             }
             PropertyChanges {
                 target: root
-                visible: true
+                shouldBeVisible: true
             }
         },
         State {
@@ -82,7 +84,7 @@ Rectangle {
             }
             PropertyChanges {
                 target: root
-                visible: true
+                shouldBeVisible: true
             }
         }
     ]
@@ -99,7 +101,7 @@ Rectangle {
                     target: root
                 }
                 PropertyAction {
-                    property: "visible"
+                    property: "shouldBeVisible"
                     target: root
                     value: false
                 }
@@ -111,7 +113,7 @@ Rectangle {
 
             SequentialAnimation {
                 PropertyAction {
-                    property: "visible"
+                    property: "shouldBeVisible"
                     target: root
                     value: true
                 }
@@ -135,7 +137,7 @@ Rectangle {
                     target: root
                 }
                 PropertyAction {
-                    property: "visible"
+                    property: "shouldBeVisible"
                     target: root
                     value: false
                 }
@@ -147,7 +149,7 @@ Rectangle {
 
             SequentialAnimation {
                 PropertyAction {
-                    property: "visible"
+                    property: "shouldBeVisible"
                     target: root
                     value: true
                 }

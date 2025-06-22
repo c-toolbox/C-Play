@@ -19,13 +19,21 @@
       <label>Show osd on skip chapters</label>
       <default>true</default>
     </entry>
-    <entry name="ShowMenuBar" type="bool">
-      <label>Show menu bar</label>
-      <default>true</default>
-    </entry>
     <entry name="ShowHeader" type="bool">
       <label>Show header</label>
       <default>true</default>
+    </entry>
+    <entry name="ShowFooter" type="bool">
+      <label>Show footer</label>
+      <default>true</default>
+    </entry>
+    <entry name="IdleModeOn" type="bool">
+      <label>UI idle mode On/Off</label>
+      <default>false</default>
+    </entry>
+    <entry name="IdleModeTime" type="Int">
+      <label>UI idle mode time in seconds</label>
+      <default>60</default>
     </entry>
     <entry name="ColorScheme" type="String">
       <label>Color scheme</label>

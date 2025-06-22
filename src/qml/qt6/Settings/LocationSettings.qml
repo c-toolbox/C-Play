@@ -170,7 +170,6 @@ SettingsBasePage {
         RowLayout {
             Layout.columnSpan: 2
             Layout.fillWidth: true
-            height: cPlayFileLocation.height
 
             TextField {
                 id: cPlayFileLocationText
@@ -207,7 +206,6 @@ SettingsBasePage {
         RowLayout {
             Layout.columnSpan: 2
             Layout.fillWidth: true
-            height: cPlayMediaLocation.height
 
             TextField {
                 id: cPlayMediaLocationText
@@ -244,7 +242,6 @@ SettingsBasePage {
         RowLayout {
             Layout.columnSpan: 2
             Layout.fillWidth: true
-            height: fileDialogLocation.height
 
             TextField {
                 id: fileDialogLocationText
@@ -429,7 +426,6 @@ SettingsBasePage {
         RowLayout {
             Layout.columnSpan: 2
             Layout.fillWidth: true
-            height: univiewVideoLocation.height
 
             TextField {
                 id: univiewVideoLocationText

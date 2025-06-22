@@ -105,6 +105,7 @@ if(BUILD_CPLAY_WITH_NDI)
     )
     source_group(ofxNDI FILES ${OFX_NDI_FILES})
     list(APPEND SOURCE_FILES ${OFX_NDI_FILES})
+    target_include_directories(${TARGET_NAME} PRIVATE ndi)
 endif()
 
 if(BUILD_CPLAY_WITH_SPOUT)
@@ -249,17 +250,20 @@ if (MSVC)
     /wd26813 
     /wd4702 # unreachable code
     /experimental:external /external:anglebrackets /external:templates- /external:W0)
+
+    #set_target_properties(all_aotstats PROPERTIES FOLDER ${AUTO_TARGET_NAME})
+    #set_target_properties(${TARGET_NAME}_copy_qml PROPERTIES FOLDER ${AUTO_TARGET_NAME})
+    #set_target_properties(${TARGET_NAME}_copy_res PROPERTIES FOLDER ${AUTO_TARGET_NAME})
+    set_target_properties(all_qmltyperegistrations PROPERTIES FOLDER ${AUTO_TARGET_NAME})
+    set_target_properties(${TARGET_NAME}_automoc_json_extraction PROPERTIES FOLDER ${AUTO_TARGET_NAME})
+    set_target_properties(${TARGET_NAME}_other_files PROPERTIES FOLDER ${AUTO_TARGET_NAME})
+    set_target_properties(${TARGET_NAME}_qmltyperegistration PROPERTIES FOLDER ${AUTO_TARGET_NAME})
+    set_target_properties(${TARGET_NAME}_tooling PROPERTIES FOLDER ${AUTO_TARGET_NAME})
+    set_target_properties(fetch-translations PROPERTIES FOLDER "External")
 endif()
 
-set_target_properties(all_qmltyperegistrations PROPERTIES FOLDER ${AUTO_TARGET_NAME})
-set_target_properties(${TARGET_NAME}_automoc_json_extraction PROPERTIES FOLDER ${AUTO_TARGET_NAME})
-set_target_properties(${TARGET_NAME}_other_files PROPERTIES FOLDER ${AUTO_TARGET_NAME})
-set_target_properties(${TARGET_NAME}_qmltyperegistration PROPERTIES FOLDER ${AUTO_TARGET_NAME})
-set_target_properties(${TARGET_NAME}_tooling PROPERTIES FOLDER ${AUTO_TARGET_NAME})
-set_target_properties(fetch-translations PROPERTIES FOLDER "External")
-
+target_include_directories(${TARGET_NAME} PRIVATE layers)
 target_include_directories(${TARGET_NAME} PRIVATE playlist)
-
 target_compile_definitions(${TARGET_NAME} PRIVATE $<$<OR:$<CONFIG:Debug>,$<CONFIG:RelWithDebInfo>>:QT_QML_DEBUG>)
 
 if(WIN32)

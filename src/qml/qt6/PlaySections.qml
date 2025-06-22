@@ -22,7 +22,9 @@ Rectangle {
     property int rowHeight: PlaylistSettings.rowHeight
     property alias scrollPositionTimer: scrollPositionTimer
     property alias sectionsView: sectionsView
+    property bool shouldBeVisible: true
 
+    visible: shouldBeVisible && !window.hideUI
     color: Kirigami.Theme.backgroundColor
     height: mpv.height
     state: "hidden"
@@ -44,7 +46,7 @@ Rectangle {
             }
             PropertyChanges {
                 target: sectionsRoot
-                visible: false
+                shouldBeVisible: false
             }
         },
         State {
@@ -56,7 +58,7 @@ Rectangle {
             }
             PropertyChanges {
                 target: sectionsRoot
-                visible: true
+                shouldBeVisible: true
             }
         },
         State {
@@ -68,7 +70,7 @@ Rectangle {
             }
             PropertyChanges {
                 target: sectionsRoot
-                visible: true
+                shouldBeVisible: true
             }
         }
     ]
@@ -85,7 +87,7 @@ Rectangle {
                     target: sectionsRoot
                 }
                 PropertyAction {
-                    property: "visible"
+                    property: "shouldBeVisible"
                     target: sectionsRoot
                     value: false
                 }
@@ -97,7 +99,7 @@ Rectangle {
 
             SequentialAnimation {
                 PropertyAction {
-                    property: "visible"
+                    property: "shouldBeVisible"
                     target: sectionsRoot
                     value: true
                 }
@@ -121,7 +123,7 @@ Rectangle {
                     target: sectionsRoot
                 }
                 PropertyAction {
-                    property: "visible"
+                    property: "shouldBeVisible"
                     target: sectionsRoot
                     value: false
                 }
@@ -133,7 +135,7 @@ Rectangle {
 
             SequentialAnimation {
                 PropertyAction {
-                    property: "visible"
+                    property: "shouldBeVisible"
                     target: sectionsRoot
                     value: true
                 }

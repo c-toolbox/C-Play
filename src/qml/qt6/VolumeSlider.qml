@@ -25,7 +25,6 @@ Slider {
     leftPadding: 0
     rightPadding: 0
     to: 100
-    value: mpv.volume
     wheelEnabled: false
 
     background: Rectangle {

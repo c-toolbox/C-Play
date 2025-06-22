@@ -12,11 +12,14 @@
 #include <QAbstractListModel>
 #include <QObject>
 #include <vector>
+#include <QtQml/qqmlregistration.h>
 
 class Track;
 
 class TracksModel : public QAbstractListModel {
     Q_OBJECT
+    QML_NAMED_ELEMENT(TracksModel)
+
 public:
     explicit TracksModel(QObject *parent = nullptr);
     enum {

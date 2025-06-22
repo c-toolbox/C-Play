@@ -24,6 +24,7 @@ class Track;
 
 class MpvObject : public QQuickFramebufferObject {
     Q_OBJECT
+    QML_ELEMENT
 
 public:
     Q_PROPERTY(TracksModel *audioTracksModel READ audioTracksModel NOTIFY audioTracksModelChanged)

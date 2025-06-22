@@ -326,83 +326,6 @@ QString PlayListItem::makePathRelativeTo(const QString &filePath, const QStringL
     return filePath;
 }
 
-void PlayListItem::asJSON(QJsonObject &obj) {
-    obj.insert(QStringLiteral("video"), mediaFile());
-
-    if (!separateOverlayFile().isEmpty())
-        obj.insert(QStringLiteral("overlay"), separateOverlayFile());
-
-    if (!separateAudioFile().isEmpty())
-        obj.insert(QStringLiteral("audio"), separateAudioFile());
-
-    if (!mediaTitle().isEmpty())
-        obj.insert(QStringLiteral("title"), mediaTitle());
-
-    obj.insert(QStringLiteral("duration"), duration());
-
-    QString grid;
-    int gridIdx = gridToMapOn();
-    if (gridIdx == BaseLayer::GridMode::Plane) {
-        grid = QStringLiteral("plane");
-    } else if (gridIdx == BaseLayer::GridMode::Dome) {
-        grid = QStringLiteral("dome");
-    } else if (gridIdx == BaseLayer::GridMode::Sphere_EQR) {
-        grid = QStringLiteral("sphere-eqr");
-    } else if (gridIdx == BaseLayer::GridMode::Sphere_EAC) {
-        grid = QStringLiteral("sphere-eac");
-    } else { // 0
-        grid = QStringLiteral("pre-split");
-    }
-    obj.insert(QStringLiteral("grid"), grid);
-
-    QString sv;
-    int stereoVideoIdx = stereoVideo();
-    if (stereoVideoIdx == 1) {
-        sv = QStringLiteral("side-by-side");
-    } else if (stereoVideoIdx == 2) {
-        sv = QStringLiteral("top-bottom");
-    } else if (stereoVideoIdx == 3) {
-        sv = QStringLiteral("top-bottom-flip");
-    } else { // 0
-        sv = QStringLiteral("no");
-    }
-    obj.insert(QStringLiteral("stereoscopic"), sv);
-
-    QJsonArray sectionsArray;
-    for (int i = 0; i < m_data.m_sections.size(); i++) {
-        QJsonObject item_data;
-
-        int eosMode = m_data.m_sections[i].eosMode;
-        QString eosModeText;
-        switch (eosMode) {
-        case 1:
-            eosModeText = QStringLiteral("fade_out");
-            break;
-        case 2:
-            eosModeText = QStringLiteral("continue");
-            break;
-        case 3:
-            eosModeText = QStringLiteral("next");
-            break;
-        case 4:
-            eosModeText = QStringLiteral("loop");
-            break;
-        default:
-            eosModeText = QStringLiteral("pause");
-            break;
-        }
-
-        item_data.insert(QStringLiteral("section_title"), QJsonValue(m_data.m_sections[i].title));
-        item_data.insert(QStringLiteral("time_begin"), QJsonValue(m_data.m_sections[i].startTime));
-        item_data.insert(QStringLiteral("time_end"), QJsonValue(m_data.m_sections[i].endTime));
-        item_data.insert(QStringLiteral("transition_at_end"), QJsonValue(eosModeText));
-
-        sectionsArray.push_back(QJsonValue(item_data));
-    }
-    if (!sectionsArray.isEmpty())
-        obj.insert(QStringLiteral("video_sections"), QJsonValue(sectionsArray));
-}
-
 void PlayListItem::saveAsJSONPlayFile(const QString &path) const {
     QJsonDocument doc;
     QJsonObject obj = doc.object();
@@ -499,6 +422,90 @@ void PlayListItem::saveAsJSONPlayFile(const QString &path) const {
     jsonFile.open(QFile::WriteOnly);
     jsonFile.write(doc.toJson());
     jsonFile.close();
+}
+
+void PlayListItem::asJSON(QJsonObject& obj) {
+    obj.insert(QStringLiteral("video"), mediaFile());
+
+    if (!separateOverlayFile().isEmpty())
+        obj.insert(QStringLiteral("overlay"), separateOverlayFile());
+
+    if (!separateAudioFile().isEmpty())
+        obj.insert(QStringLiteral("audio"), separateAudioFile());
+
+    if (!mediaTitle().isEmpty())
+        obj.insert(QStringLiteral("title"), mediaTitle());
+
+    obj.insert(QStringLiteral("duration"), duration());
+
+    QString grid;
+    int gridIdx = gridToMapOn();
+    if (gridIdx == BaseLayer::GridMode::Plane) {
+        grid = QStringLiteral("plane");
+    }
+    else if (gridIdx == BaseLayer::GridMode::Dome) {
+        grid = QStringLiteral("dome");
+    }
+    else if (gridIdx == BaseLayer::GridMode::Sphere_EQR) {
+        grid = QStringLiteral("sphere-eqr");
+    }
+    else if (gridIdx == BaseLayer::GridMode::Sphere_EAC) {
+        grid = QStringLiteral("sphere-eac");
+    }
+    else { // 0
+        grid = QStringLiteral("pre-split");
+    }
+    obj.insert(QStringLiteral("grid"), grid);
+
+    QString sv;
+    int stereoVideoIdx = stereoVideo();
+    if (stereoVideoIdx == 1) {
+        sv = QStringLiteral("side-by-side");
+    }
+    else if (stereoVideoIdx == 2) {
+        sv = QStringLiteral("top-bottom");
+    }
+    else if (stereoVideoIdx == 3) {
+        sv = QStringLiteral("top-bottom-flip");
+    }
+    else { // 0
+        sv = QStringLiteral("no");
+    }
+    obj.insert(QStringLiteral("stereoscopic"), sv);
+
+    QJsonArray sectionsArray;
+    for (int i = 0; i < m_data.m_sections.size(); i++) {
+        QJsonObject item_data;
+
+        int eosMode = m_data.m_sections[i].eosMode;
+        QString eosModeText;
+        switch (eosMode) {
+        case 1:
+            eosModeText = QStringLiteral("fade_out");
+            break;
+        case 2:
+            eosModeText = QStringLiteral("continue");
+            break;
+        case 3:
+            eosModeText = QStringLiteral("next");
+            break;
+        case 4:
+            eosModeText = QStringLiteral("loop");
+            break;
+        default:
+            eosModeText = QStringLiteral("pause");
+            break;
+        }
+
+        item_data.insert(QStringLiteral("section_title"), QJsonValue(m_data.m_sections[i].title));
+        item_data.insert(QStringLiteral("time_begin"), QJsonValue(m_data.m_sections[i].startTime));
+        item_data.insert(QStringLiteral("time_end"), QJsonValue(m_data.m_sections[i].endTime));
+        item_data.insert(QStringLiteral("transition_at_end"), QJsonValue(eosModeText));
+
+        sectionsArray.push_back(QJsonValue(item_data));
+    }
+    if (!sectionsArray.isEmpty())
+        obj.insert(QStringLiteral("video_sections"), QJsonValue(sectionsArray));
 }
 
 PlayListItemData PlayListItem::data() const {

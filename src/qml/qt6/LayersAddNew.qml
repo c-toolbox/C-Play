@@ -323,13 +323,15 @@ Kirigami.ApplicationWindow {
 
                 Layout.fillWidth: true
                 model: app.ndiSendersModel
-                currentIndex: app.ndiSendersModel.numberOfSenders - 1
+                currentIndex: (app.ndiSendersModel ? app.ndiSendersModel.numberOfSenders - 1 : -1)
                 textRole: "typeName"
 
                 Component.onCompleted: {
-                    app.ndiSendersModel.updateSendersList();
-                    ndiSenderComboBox.currentIndex = app.ndiSendersModel.numberOfSenders - 1;
-                    layerTitle.text = ndiSenderComboBox.currentText;
+                    if(app.ndiSendersModel){
+                        app.ndiSendersModel.updateSendersList();
+                        ndiSenderComboBox.currentIndex = app.ndiSendersModel.numberOfSenders - 1;
+                        layerTitle.text = ndiSenderComboBox.currentText;
+                    }
                 }
                 onActivated: {
                     layerTitle.text = ndiSenderComboBox.currentText;
@@ -344,9 +346,11 @@ Kirigami.ApplicationWindow {
                 text: ""
 
                 onClicked: {
-                    app.ndiSendersModel.updateSendersList();
-                    ndiSenderComboBox.currentIndex = app.ndiSendersModel.numberOfSenders - 1;
-                    layerTitle.text = ndiSenderComboBox.currentText;
+                    if(app.ndiSendersModel){
+                        app.ndiSendersModel.updateSendersList();
+                        ndiSenderComboBox.currentIndex = app.ndiSendersModel.numberOfSenders - 1;
+                        layerTitle.text = ndiSenderComboBox.currentText;
+                    }
                 }
             }
         }
@@ -359,13 +363,15 @@ Kirigami.ApplicationWindow {
 
                 Layout.fillWidth: true
                 model: app.spoutSendersModel
-                currentIndex: app.spoutSendersModel.numberOfSenders - 1
+                currentIndex: (app.spoutSendersModel ? app.spoutSendersModel.numberOfSenders - 1 : -1)
                 textRole: "typeName"
 
                 Component.onCompleted: {
-                    app.spoutSendersModel.updateSendersList();
-                    spoutSenderComboBox.currentIndex = app.spoutSendersModel.numberOfSenders - 1;
-                    layerTitle.text = spoutSenderComboBox.currentText;
+                    if(app.spoutSendersModel){
+                        app.spoutSendersModel.updateSendersList();
+                        spoutSenderComboBox.currentIndex = app.spoutSendersModel.numberOfSenders - 1;
+                        layerTitle.text = spoutSenderComboBox.currentText;
+                    }
                 }
                 onActivated: {
                     layerTitle.text = spoutSenderComboBox.currentText;
@@ -380,9 +386,11 @@ Kirigami.ApplicationWindow {
                 text: ""
 
                 onClicked: {
-                    app.spoutSendersModel.updateSendersList();
-                    spoutSenderComboBox.currentIndex = app.spoutSendersModel.numberOfSenders - 1;
-                    layerTitle.text = spoutSenderComboBox.currentText;
+                    if(app.spoutSendersModel){
+                        app.spoutSendersModel.updateSendersList();
+                        spoutSenderComboBox.currentIndex = app.spoutSendersModel.numberOfSenders - 1;
+                        layerTitle.text = spoutSenderComboBox.currentText;
+                    }
                 }
             }
         }

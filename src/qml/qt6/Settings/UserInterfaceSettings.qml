@@ -27,29 +27,14 @@ SettingsBasePage {
             Layout.fillWidth: true
             text: qsTr("User Interface")
         }
-        Item {
-            height: 1
-            width: 1
-        }
-        CheckBox {
-            checked: UserInterfaceSettings.showMenuBar
-            text: qsTr("Show MenuBar")
 
-            onCheckedChanged: {
-                UserInterfaceSettings.showMenuBar = checked;
-                UserInterfaceSettings.save();
-            }
-        }
-        Item {
-            Layout.fillWidth: true
-        }
         Item {
             height: 1
             width: 1
         }
         CheckBox {
             checked: UserInterfaceSettings.showHeader
-            text: qsTr("Show Header")
+            text: qsTr("Show Top Bar / Header")
 
             onCheckedChanged: {
                 UserInterfaceSettings.showHeader = checked;
@@ -59,6 +44,70 @@ SettingsBasePage {
         Item {
             Layout.fillWidth: true
         }
+
+        Item {
+            height: 1
+            width: 1
+        }
+        CheckBox {
+            checked: UserInterfaceSettings.showFooter
+            text: qsTr("Show Bottom Bar / Footer")
+
+            onCheckedChanged: {
+                UserInterfaceSettings.showFooter = checked;
+                UserInterfaceSettings.save();
+            }
+        }
+        Item {
+            Layout.fillWidth: true
+        }
+
+        Item {
+            height: 1
+            width: 1
+        }
+        CheckBox {
+            id: idleModeCheckBox
+            checked: UserInterfaceSettings.idleModeOn
+            text: qsTr("Enable idle mode to hide UI after inactivity")
+
+            onCheckedChanged: {
+                UserInterfaceSettings.idleModeOn = checked;
+                UserInterfaceSettings.save();
+            }
+        }
+        Item {
+            Layout.fillWidth: true
+        }
+
+        Label {
+            Layout.alignment: Qt.AlignRight
+            text: qsTr("Idle mode time:")
+            enabled: UserInterfaceSettings.idleModeOn
+        }
+        RowLayout {
+            SpinBox {
+                editable: true
+                from: 1
+                to: 3600
+                value: UserInterfaceSettings.idleModeTime
+                enabled: UserInterfaceSettings.idleModeOn
+
+                onValueChanged: {
+                    UserInterfaceSettings.idleModeTime = value.toFixed(0);
+                    UserInterfaceSettings.save();
+                }
+            }
+            Label {
+                Layout.alignment: Qt.AlignLeft
+                text: qsTr("(seconds)")
+                enabled: UserInterfaceSettings.idleModeOn
+            }
+        }
+        Item {
+            Layout.fillWidth: true
+        }
+
         Label {
             Layout.alignment: Qt.AlignRight
             text: qsTr("Color scheme")

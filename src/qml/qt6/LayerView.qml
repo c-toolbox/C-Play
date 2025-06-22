@@ -115,7 +115,7 @@ Kirigami.ApplicationWindow {
         destroyStreamComponents();
     }
     onVisibilityChanged: {
-        if (visibility) {
+        if (visible) {
             if(layerViewItem.layerIdx !== -1){
                 if (layerViewItem.layerRoiEnabled) {
                     createRoiComponents();
@@ -297,6 +297,9 @@ Kirigami.ApplicationWindow {
                             app.slides.needsSync = true;
                         }
                     }
+                    Component.onCompleted: {
+                        visibilitySlider.value = layerViewItem.layerVisibility;
+                    }
                 }
                 PropertyAnimation {
                     id: visibility_fade_in_animation
@@ -343,78 +346,6 @@ Kirigami.ApplicationWindow {
                         text: qsTr("Region of interest")
                     }
                 }
-            }
-            Connections {
-                function onLayerChanged() {
-                    if(layerViewItem.layerIdx !== -1) {
-                        layerViewItem.loadTracks();
-                        layerWindow.title = layerViewItem.layerTitle;
-                        visibilitySlider.value = layerViewItem.layerVisibility;
-                        for (let sm = 0; sm < stereoscopicModeForLayerList.count; ++sm) {
-                            if (stereoscopicModeForLayerList.get(sm).value === layerViewItem.layerStereoMode) {
-                                stereoscopicModeForLayer.currentIndex = sm;
-                                break;
-                            }
-                        }
-                        for (let gm = 0; gm < gridModeForLayerList.count; ++gm) {
-                            if (gridModeForLayerList.get(gm).value === layerViewItem.layerGridMode) {
-                                gridModeForLayer.currentIndex = gm;
-                                break;
-                            }
-                        }
-                        roiButton.checked = layerViewItem.layerRoiEnabled;
-                        if (layerViewItem.layerRoiEnabled) {
-                            createRoiComponents();
-                        }
-                        else {
-                            destroyRoiComponents();
-                        }
-                        
-                        if (layerViewItem.layerTypeName === "PDF") {
-                            createPageComponents();
-                        }
-                        else {
-                            destroyPageComponents();
-                        }
-
-                        if (layerViewItem.layerTypeName === "Video" 
-                            || layerViewItem.layerTypeName === "Audio") {
-                            createAudioComponents();
-                            createMediaComponents();
-                        }
-                        else {
-                            destroyAudioComponents();
-                            destroyMediaComponents();
-                        }
-
-                        if (layerViewItem.layerTypeName === "Stream") {
-                            createStreamComponents();
-                        }
-                        else {
-                            destroyStreamComponents();
-                        }
-
-                        if (layerViewItem.layerTypeName === "NDI") {
-                            createAudioComponents();
-                        }
-                        else {
-                            destroyAudioComponents();
-                        }
-                    }
-                    else {
-                        destroyRoiComponents();
-                        destroyPageComponents();
-                        destroyAudioComponents();
-                        destroyMediaComponents();
-                        destroyStreamComponents();
-                    }
-                }
-                function onLayerValueChanged() {
-                    if (visibilitySlider.value !== layerViewItem.layerVisibility)
-                        visibilitySlider.value = layerViewItem.layerVisibility;
-                }
-
-                target: layerViewItem
             }
         }
     }
@@ -780,13 +711,15 @@ Kirigami.ApplicationWindow {
                         leftPadding: 0
                         rightPadding: 0
                         to: 100
-                        value: layerViewItem.layerVolume
                         wheelEnabled: false
 
                         onValueChanged: {
                             if (value.toFixed(0) !== layerViewItem.layerVolume) {
                                 layerViewItem.layerVolume = value.toFixed(0);
                             }
+                        }
+                        Component.onCompleted: {
+                            volumeSlider.value = layerViewItem.layerVolume;
                         }
 
                         background: Rectangle {
@@ -820,6 +753,23 @@ Kirigami.ApplicationWindow {
                                 verticalOffset: 1
                             }
                         }
+                    }
+                    Connections {
+                        function onLayerChanged() {
+                            if(layerViewItem.layerIdx !== -1) {
+                                if(volumeSlider)
+                                    volumeSlider.value = layerViewItem.layerVolume;
+                            }
+                        }
+                        function onLayerValueChanged() {
+                            if (volumeSlider !== undefined){
+                                if (volumeSlider.value !== layerViewItem.layerVolume) {
+                                    volumeSlider.value = layerViewItem.layerVolume;
+                                }
+                            }
+                        }
+
+                        target: layerViewItem
                     }
                 }
             }
@@ -985,9 +935,6 @@ Kirigami.ApplicationWindow {
                             width: parent.width
 
                             LabelWithTooltip {
-                                anchors.fill: parent
-                                anchors.horizontalCenter: parent.horizontalCenter
-                                anchors.verticalCenter: parent.verticalCenter
                                 topPadding: 8.5
 
                                 id: timeInfo
@@ -1115,6 +1062,82 @@ Kirigami.ApplicationWindow {
                     }
                 }
             }
+        }
+        Connections {
+            function onLayerChanged() {
+                if(layerViewItem.layerIdx !== -1) {
+                    layerViewItem.loadTracks();
+                    layerWindow.title = layerViewItem.layerTitle;
+                    if(visibilitySlider)
+                        visibilitySlider.value = layerViewItem.layerVisibility;
+                    for (let sm = 0; sm < stereoscopicModeForLayerList.count; ++sm) {
+                        if (stereoscopicModeForLayerList.get(sm).value === layerViewItem.layerStereoMode) {
+                            stereoscopicModeForLayer.currentIndex = sm;
+                            break;
+                        }
+                    }
+                    for (let gm = 0; gm < gridModeForLayerList.count; ++gm) {
+                        if (gridModeForLayerList.get(gm).value === layerViewItem.layerGridMode) {
+                            gridModeForLayer.currentIndex = gm;
+                            break;
+                        }
+                    }
+                    roiButton.checked = layerViewItem.layerRoiEnabled;
+                    if (layerViewItem.layerRoiEnabled) {
+                        createRoiComponents();
+                    }
+                    else {
+                        destroyRoiComponents();
+                    }
+                    
+                    if (layerViewItem.layerTypeName === "PDF") {
+                        createPageComponents();
+                    }
+                    else {
+                        destroyPageComponents();
+                    }
+
+                    if (layerViewItem.layerTypeName === "Video" 
+                        || layerViewItem.layerTypeName === "Audio") {
+                        createAudioComponents();
+                        createMediaComponents();
+                    }
+                    else {
+                        destroyAudioComponents();
+                        destroyMediaComponents();
+                    }
+
+                    if (layerViewItem.layerTypeName === "Stream") {
+                        createStreamComponents();
+                    }
+                    else {
+                        destroyStreamComponents();
+                    }
+
+                    if (layerViewItem.layerTypeName === "NDI") {
+                        createAudioComponents();
+                    }
+                    else {
+                        destroyAudioComponents();
+                    }
+                }
+                else {
+                    destroyRoiComponents();
+                    destroyPageComponents();
+                    destroyAudioComponents();
+                    destroyMediaComponents();
+                    destroyStreamComponents();
+                }
+            }
+            function onLayerValueChanged() {
+                if (visibilitySlider){
+                    if(visibilitySlider.value !== layerViewItem.layerVisibility){
+                        visibilitySlider.value = layerViewItem.layerVisibility;
+                    }
+                }
+            }
+
+            target: layerViewItem
         }
     }
 }

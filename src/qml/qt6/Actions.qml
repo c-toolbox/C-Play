@@ -324,6 +324,27 @@ QtObject {
         function updateShortcuts() { shortcut = root.isPrimary ? qaction.shortcutName() : qaction.alternateName() }
         onTriggered: mpv.performRewind()
     }
+    property Action toggleFullScreenAction: Action {
+        id: toggleFullScreenAction
+
+        property var qaction: app.action("toggleFullScreen")
+
+        icon.name: qaction.iconName()
+        shortcut: root.isPrimary ? qaction.shortcutName() : qaction.alternateName()
+        text: qaction.text
+
+        Component.onCompleted: list["toggleFullScreenAction"] = toggleFullScreenAction
+        function updateShortcuts() { shortcut = root.isPrimary ? qaction.shortcutName() : qaction.alternateName() }
+        onTriggered: {
+            if (!window.isFullScreenMode) {
+                window.isFullScreenMode = true;
+                app.hideCursor();
+            } else {
+                window.isFullScreenMode = false;
+                app.showCursor();
+            }
+        }
+    }
     property Action toggleHeaderAction: Action {
         id: toggleHeaderAction
 
@@ -336,6 +357,19 @@ QtObject {
         Component.onCompleted: list["toggleHeaderAction"] = toggleHeaderAction
         function updateShortcuts() { shortcut = root.isPrimary ? qaction.shortcutName() : qaction.alternateName() }
         onTriggered: UserInterfaceSettings.showHeader = !header.visible
+    }
+    property Action toggleFooterAction: Action {
+        id: toggleFooterAction
+
+        property var qaction: app.action("toggleFooter")
+
+        icon.name: qaction.iconName()
+        shortcut: root.isPrimary ? qaction.shortcutName() : qaction.alternateName()
+        text: qaction.text
+
+        Component.onCompleted: list["toggleFooterAction"] = toggleFooterAction
+        function updateShortcuts() { shortcut = root.isPrimary ? qaction.shortcutName() : qaction.alternateName() }
+        onTriggered: UserInterfaceSettings.showFooter = !footer.visible
     }
     property Action toggleLayersAction: Action {
         id: toggleLayersAction
@@ -373,7 +407,7 @@ QtObject {
 
         Component.onCompleted: list["toggleMenuBarAction"] = toggleMenuBarAction
         function updateShortcuts() { shortcut = root.isPrimary ? qaction.shortcutName() : qaction.alternateName() }
-        onTriggered: UserInterfaceSettings.showMenuBar = !menuBar.visible
+        onTriggered: menuBar.hide = !menuBar.hide
     }
     property Action togglePlaylistAction: Action {
         id: togglePlaylistAction

@@ -21,13 +21,13 @@ ToolBar {
     property alias progressBar: progressBar
     property alias timeInfo: timeInfo
 
-    anchors.bottom: isFullScreen() ? mpv.bottom : parent.bottom
+    anchors.bottom: parent.bottom
     anchors.left: parent.left
     anchors.right: parent.right
     hoverEnabled: true
     padding: 5
     position: ToolBar.Footer
-    visible: !window.isFullScreen() || mpv.mouseY > window.height - footer.height
+    visible: UserInterfaceSettings.showFooter && !window.hideUI
 
     Component {
         id: toggleSectionsButton

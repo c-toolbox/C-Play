@@ -11,6 +11,7 @@
 
 #include <QObject>
 #include <QString>
+#include <QtQml/qqmlregistration.h>
 
 class PlayListItemData {
 public:
@@ -67,6 +68,8 @@ public:
 
 class PlayListItem : public QObject {
     Q_OBJECT
+    QML_NAMED_ELEMENT(PlayListItem)
+
 public:
     explicit PlayListItem(const QString &path, int i = 0, QObject *parent = nullptr);
     PlayListItem(const PlayListItem &);
@@ -149,8 +152,9 @@ public:
     Q_INVOKABLE void setIndex(int index);
 
     Q_INVOKABLE QString makePathRelativeTo(const QString &filePath, const QStringList &pathsToConsider) const;
-    Q_INVOKABLE void asJSON(QJsonObject &obj);
     Q_INVOKABLE void saveAsJSONPlayFile(const QString &path) const;
+
+    void asJSON(QJsonObject& obj);
 
     PlayListItemData data() const;
     void setData(PlayListItemData d);

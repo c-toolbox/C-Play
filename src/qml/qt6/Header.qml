@@ -22,7 +22,7 @@ ToolBar {
     property var audioTracks
 
     position: ToolBar.Header
-    visible: !window.isFullScreen() && UserInterfaceSettings.showHeader
+    visible: UserInterfaceSettings.showHeader && !window.hideUI
 
     RowLayout {
         id: headerRow
@@ -148,6 +148,9 @@ ToolBar {
                     mpv.volume = value.toFixed(0);
                 }
             }
+            Component.onCompleted: {
+                volumeSlider.value = mpv.volume
+            }
         }
         PropertyAnimation {
             id: volume_fade_up_animation
@@ -212,14 +215,15 @@ ToolBar {
                     RadioButton {
                         id: fai_no_fade_sync
 
-                        checked: mpv.syncVolumeVisibilityFading === false
+                        Component.onCompleted: checked = !mpv.syncVolumeVisibilityFading
                         text: qsTr("Do not sync volume and visibility fading")
 
                         onCheckedChanged: {
                             if (checked) {
                                 faiMenuButton.icon.name = "media-repeat-none";
                                 faiToolTip.text = "Sync volume+visibility fading: No";
-                                mpv.syncVolumeVisibilityFading = false;
+                                if(mpv.syncVolumeVisibilityFading)
+                                    mpv.syncVolumeVisibilityFading = false;
                             }
                         }
                         onClicked: {}
@@ -227,7 +231,6 @@ ToolBar {
                     RadioButton {
                         id: fai_fade_sync
 
-                        checked: mpv.syncVolumeVisibilityFading
                         Component.onCompleted: checked = mpv.syncVolumeVisibilityFading
                         text: qsTr("Sync volume+visibility fading")
 
@@ -281,6 +284,9 @@ ToolBar {
                     mpv.visibility = value.toFixed(0);
                 }
             }
+            Component.onCompleted: {
+                visibilitySlider.value = mpv.visibility
+            }
         }
         PropertyAnimation {
             id: visibility_fade_in_animation
@@ -311,6 +317,24 @@ ToolBar {
             }
         }
         Connections {
+            function onVisibilityChanged() {
+                if (visibilitySlider.value.toFixed(0) !== mpv.visibility) {
+                    visibilitySlider.value = mpv.visibility;
+                }
+            }
+            function onVolumeChanged() {
+                if (volumeSlider.value.toFixed(0) !== mpv.volume) {
+                    volumeSlider.value = mpv.volume;
+                }
+            }
+            function onSyncVolumeVisibilityFadingChanged() {  
+                if (mpv.syncVolumeVisibilityFading && !fai_fade_sync.checked) {
+                    fai_fade_sync.checked = true;
+                } 
+                else if (!mpv.syncVolumeVisibilityFading && !fai_no_fade_sync.checked) {
+                    fai_no_fade_sync.checked = true;
+                }
+            }
             function onFadeImageDown() {
                 fade_image_out.clicked();
             }

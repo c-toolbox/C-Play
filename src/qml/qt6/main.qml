@@ -23,11 +23,10 @@ Kirigami.ApplicationWindow {
 
     property var appActions: actions.list
     property var configure: app.action("configure")
-    property int preFullScreenVisibility
+    property bool isFullScreenMode: false
+    property bool isIdleMode: false
+    property bool hideUI: (isFullScreenMode || isIdleMode)
 
-    function isFullScreen() {
-        return window.visibility === Window.FullScreen;
-    }
     function openFile(path, startPlayback, loadSiblings) {
         mpv.pause = true;
         mpv.position = 0;
@@ -45,33 +44,27 @@ Kirigami.ApplicationWindow {
         mpv.playlistModel.saveAsJSONPlaylist(path);
         mpv.playlistModelChanged();
     }
-    function toggleFullScreen() {
-        if (!isFullScreen()) {
-            window.showFullScreen();
-        } else {
-            if (window.preFullScreenVisibility === Window.Windowed) {
-                window.showNormal();
-            }
-            if (window.preFullScreenVisibility === Window.Maximized) {
-                window.show();
-                window.showMaximized();
-            }
-        }
-        app.showCursor();
-        playList.scrollPositionTimer.start();
-    }
 
     Connections {
         function onActionsUpdated() {
             actions.updateShortcuts();
             actionsAlternate.updateShortcuts();
         }
+        function onApplicationInteraction() {
+            if(window.isIdleMode) {
+                window.isIdleMode = false;
+            }
+            if(UserInterfaceSettings.idleModeOn){
+                idleModeTimer.restart();
+            }
+        }
         target: app
     }
 
     title: mpv.mediaTitle || qsTr("C-Play")
     visible: true
-    color: Kirigami.Theme.alternateBackgroundColor
+    visibility: window.isFullScreenMode ? Window.FullScreen : Window.Windowed
+    color: window.hideUI ? "black" : Kirigami.Theme.alternateBackgroundColor
     maximumHeight: 990 > Screen.height ? Screen.height : 990
     maximumWidth: 1728 > Screen.width ? Screen.width : 1728
     minimumHeight: 660 > Screen.height / 2 ? Screen.height / 2 : 660
@@ -85,9 +78,11 @@ Kirigami.ApplicationWindow {
     }
     menuBar: MenuBar {
         id: menuBar
+        property bool hide: false
+
+        visible: !window.hideUI && !menuBar.hide
 
         Kirigami.Theme.colorSet: Kirigami.Theme.Header
-        visible: UserInterfaceSettings.showMenuBar
 
         background: Rectangle {
             color: Kirigami.Theme.backgroundColor
@@ -106,11 +101,6 @@ Kirigami.ApplicationWindow {
     }
 
     Component.onCompleted: app.activateColorScheme(UserInterfaceSettings.colorScheme)
-    onVisibilityChanged: function (visibility) {
-        if (!window.isFullScreen()) {
-            preFullScreenVisibility = visibility;
-        }
-    }
 
     SystemPalette {
         id: systemPalette
@@ -313,6 +303,28 @@ Kirigami.ApplicationWindow {
                     openUrlTextField.clear();
                 }
             }
+        }
+    }
+    Timer {
+        id: garbageCollectionTimer
+
+        interval: 5000
+        repeat: false
+
+        onTriggered: {
+            gc();
+        }
+    }
+    Timer {
+        id: idleModeTimer
+
+        interval: UserInterfaceSettings.idleModeTime * 1000
+        running: UserInterfaceSettings.idleModeOn && !window.isIdleMode
+        repeat: false
+
+        onTriggered: {
+            window.isIdleMode = true;
+            garbageCollectionTimer.restart();
         }
     }
 }

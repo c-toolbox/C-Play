@@ -9,9 +9,11 @@
 #define NDIMODEL_H
 
 #include <QAbstractListModel>
+#include <QtQml/qqmlregistration.h>
 
 class NDISendersModel : public QAbstractListModel {
     Q_OBJECT
+    QML_NAMED_ELEMENT(NDISendersModel)
 
 public:
     explicit NDISendersModel(QObject *parent = nullptr);
@@ -41,6 +43,7 @@ private:
 
 class PortAudioModel : public QAbstractListModel {
     Q_OBJECT
+    QML_NAMED_ELEMENT(PortAudioModel)
 
 public:
     explicit PortAudioModel(QObject* parent = nullptr);

@@ -757,35 +757,6 @@ QString PlayListModel::makePathRelativeTo(const QString &filePath, const QString
     return filePath;
 }
 
-void PlayListModel::asJSON(QJsonObject &obj) {
-
-    QJsonArray playlistArray;
-    for (int i = 0; i < m_playList.size(); i++) {
-        QJsonObject item_data;
-
-        m_playList[i]->asJSON(item_data);
-
-        int eofMode = m_playList[i]->eofMode();
-        QString eofModeText;
-        switch (eofMode) {
-        case 1:
-            eofModeText = QStringLiteral("continue");
-            break;
-        case 2:
-            eofModeText = QStringLiteral("loop");
-            break;
-        default:
-            eofModeText = QStringLiteral("pause");
-            break;
-        }
-        item_data.insert(QStringLiteral("on_file_end"), QJsonValue(eofModeText));
-
-        playlistArray.push_back(QJsonValue(item_data));
-    }
-
-    obj.insert(QString(QStringLiteral("playlist")), QJsonValue(playlistArray));
-}
-
 void PlayListModel::saveAsJSONPlaylist(const QString &path) {
     QJsonDocument doc;
     QJsonObject obj = doc.object();
@@ -836,4 +807,33 @@ void PlayListModel::saveAsJSONPlaylist(const QString &path) {
     setPlayListName(fileInfo.baseName());
 
     setPlayListIsEdited(false);
+}
+
+void PlayListModel::asJSON(QJsonObject& obj) {
+
+    QJsonArray playlistArray;
+    for (int i = 0; i < m_playList.size(); i++) {
+        QJsonObject item_data;
+
+        m_playList[i]->asJSON(item_data);
+
+        int eofMode = m_playList[i]->eofMode();
+        QString eofModeText;
+        switch (eofMode) {
+        case 1:
+            eofModeText = QStringLiteral("continue");
+            break;
+        case 2:
+            eofModeText = QStringLiteral("loop");
+            break;
+        default:
+            eofModeText = QStringLiteral("pause");
+            break;
+        }
+        item_data.insert(QStringLiteral("on_file_end"), QJsonValue(eofModeText));
+
+        playlistArray.push_back(QJsonValue(item_data));
+    }
+
+    obj.insert(QString(QStringLiteral("playlist")), QJsonValue(playlistArray));
 }

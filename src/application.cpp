@@ -7,17 +7,12 @@
  */
 
 #include "application.h"
-#include "_debug.h"
 #include "haction.h"
 #include "layerqtitem.h"
-#include "layersmodel.h"
 #include "mpvobject.h"
 #include "playercontroller.h"
-#include "playlistitem.h"
-#include "playlistmodel.h"
 #include "slidesmodel.h"
 #include "slidesqtitem.h"
-#include "tracksmodel.h"
 
 #ifdef JACK_SUPPORT
 #include <jack/jack.h>
@@ -47,7 +42,6 @@
 #include "userinterfacesettings.h"
 
 #include "worker.h"
-#include <iostream>
 #include <sgct/sgct.h>
 #include <sgct/version.h>
 #include <QApplication>
@@ -82,6 +76,17 @@
 #include <KLocalizedString>
 #include <KShortcutsDialog>
 
+bool ApplicationEventFilter::eventFilter(QObject* obj, QEvent* event)
+{
+    if (event->type() == QEvent::MouseMove
+        || event->type() == QEvent::KeyPress
+        || event->type() == QEvent::KeyRelease
+        || event->type() == QEvent::FocusIn) {
+        Q_EMIT applicationInteraction();
+    }
+    return QObject::eventFilter(obj, event);
+}
+
 static QApplication *createApplication(int &argc, char **argv, const QString &applicationName) {
     Q_INIT_RESOURCE(images);
 
@@ -109,7 +114,11 @@ static QApplication *createApplication(int &argc, char **argv, const QString &ap
 }
 
 Application::Application(int &argc, char **argv, const QString &applicationName)
-    : m_app(createApplication(argc, argv, applicationName)), m_collection(this), m_slidesModel(new SlidesModel(this)) {
+    : m_app(createApplication(argc, argv, applicationName)), 
+    m_appEventFilter{ std::make_unique<ApplicationEventFilter>() },
+    m_slidesModel(new SlidesModel(this)), 
+    m_collection(this)
+{
     m_config = KSharedConfig::openConfig(QStringLiteral("C-Play/cplay.conf"));
     m_shortcuts = new KConfigGroup(m_config, QStringLiteral("Shortcuts"));
     m_schemes = new KColorSchemeManager(this);
@@ -142,8 +151,12 @@ Application::Application(int &argc, char **argv, const QString &applicationName)
     registerQmlTypes();
     setupQmlSettingsTypes();
 
-    m_engine = new QQmlApplicationEngine(this);
+    m_engine = new QQmlApplicationEngine(m_app);
     QObject::connect(m_engine, &QQmlApplicationEngine::quit, m_app, &QApplication::quit);
+    QQmlEngine::setObjectOwnership(m_app, QQmlEngine::CppOwnership);
+
+    m_app->installEventFilter(m_appEventFilter.get());
+    QObject::connect(m_appEventFilter.get(), &ApplicationEventFilter::applicationInteraction, this, &Application::applicationInteraction);
 
 #if QT_VERSION >= QT_VERSION_CHECK(6, 0, 0)
     setupQmlContextProperties();
@@ -242,52 +255,20 @@ void Application::registerQmlTypes() {
     qmlRegisterType<MpvObject>("org.ctoolbox.cplay", 1, 0, "MpvObject");
     qmlRegisterType<LayerQtItem>("org.ctoolbox.cplay", 1, 0, "LayerQtItem");
     qmlRegisterType<SlidesQtItem>("org.ctoolbox.cplay", 1, 0, "SlidesQtItem");
-
-    qRegisterMetaType<PlayListModel *>();
-    qRegisterMetaType<PlayListItem *>();
     qRegisterMetaType<QAction *>();
-    qRegisterMetaType<TracksModel *>();
-    qRegisterMetaType<LayersTypeModel *>();
-    qRegisterMetaType<StreamModel*>();
-#ifdef NDI_SUPPORT
-    qRegisterMetaType<NDISendersModel *>();
-    qRegisterMetaType<PortAudioModel *>();
-#endif
-#ifdef SPOUT_SUPPORT
-    qRegisterMetaType<SpoutSendersModel*>();
-#endif
-    qRegisterMetaType<LayersModel*>();
-    qRegisterMetaType<SlidesModel*>();
     qRegisterMetaType<KFileMetaData::PropertyMultiMap>("KFileMetaData::PropertyMultiMap");
 }
 
 void Application::setupQmlSettingsTypes() {
-    auto audioProvider = [](QQmlEngine *, QJSEngine *) -> QObject * { return AudioSettings::self(); };
-    qmlRegisterSingletonType<AudioSettings>("org.ctoolbox.cplay", 1, 0, "AudioSettings", audioProvider);
-
-    auto gridProvider = [](QQmlEngine *, QJSEngine *) -> QObject * { return GridSettings::self(); };
-    qmlRegisterSingletonType<GridSettings>("org.ctoolbox.cplay", 1, 0, "GridSettings", gridProvider);
-
-    auto imageProvider = [](QQmlEngine *, QJSEngine *) -> QObject * { return ImageSettings::self(); };
-    qmlRegisterSingletonType<ImageSettings>("org.ctoolbox.cplay", 1, 0, "ImageSettings", imageProvider);
-
-    auto layerProvider = [](QQmlEngine *, QJSEngine *) -> QObject * { return PresentationSettings::self(); };
-    qmlRegisterSingletonType<LocationSettings>("org.ctoolbox.cplay", 1, 0, "PresentationSettings", layerProvider);
-
-    auto locationProvider = [](QQmlEngine *, QJSEngine *) -> QObject * { return LocationSettings::self(); };
-    qmlRegisterSingletonType<LocationSettings>("org.ctoolbox.cplay", 1, 0, "LocationSettings", locationProvider);
-
-    auto mouseProvider = [](QQmlEngine *, QJSEngine *) -> QObject * { return MouseSettings::self(); };
-    qmlRegisterSingletonType<MouseSettings>("org.ctoolbox.cplay", 1, 0, "MouseSettings", mouseProvider);
-
-    auto playbackProvider = [](QQmlEngine *, QJSEngine *) -> QObject * { return PlaybackSettings::self(); };
-    qmlRegisterSingletonType<PlaybackSettings>("org.ctoolbox.cplay", 1, 0, "PlaybackSettings", playbackProvider);
-
-    auto playlistProvider = [](QQmlEngine *, QJSEngine *) -> QObject * { return PlaylistSettings::self(); };
-    qmlRegisterSingletonType<PlaylistSettings>("org.ctoolbox.cplay", 1, 0, "PlaylistSettings", playlistProvider);
-
-    auto uiProvider = [](QQmlEngine *, QJSEngine *) -> QObject * { return UserInterfaceSettings::self(); };
-    qmlRegisterSingletonType<UserInterfaceSettings>("org.ctoolbox.cplay", 1, 0, "UserInterfaceSettings", uiProvider);
+    qmlRegisterSingletonInstance("org.ctoolbox.cplay", 1, 0, "AudioSettings", AudioSettings::self());
+    qmlRegisterSingletonInstance("org.ctoolbox.cplay", 1, 0, "GridSettings", GridSettings::self());
+    qmlRegisterSingletonInstance("org.ctoolbox.cplay", 1, 0, "ImageSettings", ImageSettings::self());
+    qmlRegisterSingletonInstance("org.ctoolbox.cplay", 1, 0, "PresentationSettings", PresentationSettings::self());
+    qmlRegisterSingletonInstance("org.ctoolbox.cplay", 1, 0, "LocationSettings", LocationSettings::self());
+    qmlRegisterSingletonInstance("org.ctoolbox.cplay", 1, 0, "MouseSettings", MouseSettings::self());
+    qmlRegisterSingletonInstance("org.ctoolbox.cplay", 1, 0, "PlaybackSettings", PlaybackSettings::self());
+    qmlRegisterSingletonInstance("org.ctoolbox.cplay", 1, 0, "PlaylistSettings", PlaylistSettings::self());
+    qmlRegisterSingletonInstance("org.ctoolbox.cplay", 1, 0, "UserInterfaceSettings", UserInterfaceSettings::self());
 }
 
 void Application::setupQmlContextProperties() {
@@ -567,21 +548,21 @@ void Application::aboutApplication() {
 
 void Application::setupActions(const QString &actionName) {
     if (actionName == QStringLiteral("play_pause")) {
-        auto action = new HAction();
+        auto action = new HAction(this);
         action->setText(QStringLiteral("Play/Pause"));
         action->setIcon(QIcon::fromTheme(QStringLiteral("media-playback-pause")));
         m_collection.setDefaultShortcut(action, Qt::Key_Space);
         m_collection.addAction(actionName, action);
     }
     if (actionName == QStringLiteral("stop_rewind")) {
-        auto action = new HAction();
+        auto action = new HAction(this);
         action->setText(QStringLiteral("Stop/Rewind"));
         action->setIcon(QIcon::fromTheme(QStringLiteral("media-playback-stop")));
         m_collection.setDefaultShortcut(action, Qt::Key_Backspace);
         m_collection.addAction(actionName, action);
     }
     if (actionName == QStringLiteral("file_quit")) {
-        auto action = new HAction();
+        auto action = new HAction(this);
         action->setText(QStringLiteral("Quit"));
         action->setIcon(QIcon::fromTheme(QStringLiteral("application-exit")));
         connect(action, &QAction::triggered, m_engine, &QQmlApplicationEngine::quit);
@@ -589,7 +570,7 @@ void Application::setupActions(const QString &actionName) {
         m_collection.addAction(actionName, action);
     }
     if (actionName == QStringLiteral("options_configure_keybinding")) {
-        auto action = new HAction();
+        auto action = new HAction(this);
         action->setText(QStringLiteral("Configure Keyboard Shortcuts"));
         action->setIcon(QIcon::fromTheme(QStringLiteral("configure-shortcuts")));
         connect(action, &QAction::triggered, this, &Application::configureShortcuts);
@@ -597,180 +578,192 @@ void Application::setupActions(const QString &actionName) {
         m_collection.addAction(actionName, action);
     }
     if (actionName == QStringLiteral("configure")) {
-        auto action = new HAction();
+        auto action = new HAction(this);
         action->setText(QStringLiteral("Configure"));
         action->setIcon(QIcon::fromTheme(QStringLiteral("configure")));
         m_collection.setDefaultShortcut(action, QKeySequence(QStringLiteral("Ctrl+Shift+C")));
         m_collection.addAction(actionName, action);
     }
     if (actionName == QStringLiteral("togglePlaylist")) {
-        auto action = new HAction();
+        auto action = new HAction(this);
         action->setText(QStringLiteral("Playlist"));
         action->setIcon(QIcon::fromTheme(QStringLiteral("format-list-unordered")));
         m_collection.setDefaultShortcut(action, Qt::Key_P);
         m_collection.addAction(actionName, action);
     }
     if (actionName == QStringLiteral("toggleSections")) {
-        auto action = new HAction();
+        auto action = new HAction(this);
         action->setText(QStringLiteral("Sections"));
         action->setIcon(QIcon::fromTheme(QStringLiteral("drive-partition")));
         m_collection.setDefaultShortcut(action, Qt::Key_S);
         m_collection.addAction(actionName, action);
     }
     if (actionName == QStringLiteral("toggleSlides")) {
-        auto action = new HAction();
+        auto action = new HAction(this);
         action->setText(QStringLiteral("Slides"));
         action->setIcon(QIcon::fromTheme(QStringLiteral("view-list-details")));
         m_collection.setDefaultShortcut(action, QKeySequence(QStringLiteral("Shift+S")));
         m_collection.addAction(actionName, action);
     }
     if (actionName == QStringLiteral("toggleLayers")) {
-        auto action = new HAction();
+        auto action = new HAction(this);
         action->setText(QStringLiteral("Layers"));
         action->setIcon(QIcon::fromTheme(QStringLiteral("dialog-layers")));
         m_collection.setDefaultShortcut(action, QKeySequence(QStringLiteral("Shift+L")));
         m_collection.addAction(actionName, action);
     }
     if (actionName == QStringLiteral("openFile")) {
-        auto action = new HAction();
+        auto action = new HAction(this);
         action->setText(QStringLiteral("Open File"));
         action->setIcon(QIcon::fromTheme(QStringLiteral("folder-videos-symbolic")));
         m_collection.setDefaultShortcut(action, QKeySequence(QStringLiteral("Ctrl+O")));
         m_collection.addAction(actionName, action);
     }
     if (actionName == QStringLiteral("saveAsCPlayFile")) {
-        auto action = new HAction();
+        auto action = new HAction(this);
         action->setText(QStringLiteral("Save As C-Play file"));
         action->setIcon(QIcon::fromTheme(QStringLiteral("document-save-as")));
         m_collection.setDefaultShortcut(action, QKeySequence(QStringLiteral("Ctrl+S")));
         m_collection.addAction(actionName, action);
     }
     if (actionName == QStringLiteral("aboutCPlay")) {
-        auto action = new HAction();
+        auto action = new HAction(this);
         action->setText(QStringLiteral("About C-Play"));
         action->setIcon(QIcon::fromTheme(QStringLiteral("help-about-symbolic")));
         m_collection.addAction(actionName, action);
         connect(action, &QAction::triggered, this, &Application::aboutApplication);
     }
     if (actionName == QStringLiteral("playNext")) {
-        auto action = new HAction();
+        auto action = new HAction(this);
         action->setText(QStringLiteral("Play Next"));
         action->setIcon(QIcon::fromTheme(QStringLiteral("media-skip-forward")));
         m_collection.setDefaultShortcut(action, QKeySequence(QStringLiteral("Shift+N")));
         m_collection.addAction(actionName, action);
     }
     if (actionName == QStringLiteral("playPrevious")) {
-        auto action = new HAction();
+        auto action = new HAction(this);
         action->setText(QStringLiteral("Play Previous"));
         action->setIcon(QIcon::fromTheme(QStringLiteral("media-skip-backward")));
         m_collection.setDefaultShortcut(action, QKeySequence(QStringLiteral("Shift+B")));
         m_collection.addAction(actionName, action);
     }
     if (actionName == QStringLiteral("volumeUp")) {
-        auto action = new HAction();
+        auto action = new HAction(this);
         action->setText(QStringLiteral("Volume Up"));
         action->setIcon(QIcon::fromTheme(QStringLiteral("audio-volume-high")));
         m_collection.setDefaultShortcut(action, QKeySequence(QStringLiteral("Shift++")));
         m_collection.addAction(actionName, action);
     }
     if (actionName == QStringLiteral("volumeDown")) {
-        auto action = new HAction();
+        auto action = new HAction(this);
         action->setText(QStringLiteral("Volume Down"));
         action->setIcon(QIcon::fromTheme(QStringLiteral("audio-volume-low")));
         m_collection.setDefaultShortcut(action, QKeySequence(QStringLiteral("Shift+-")));
         m_collection.addAction(actionName, action);
     }
     if (actionName == QStringLiteral("volumeFadeUp")) {
-        auto action = new HAction();
+        auto action = new HAction(this);
         action->setText(QStringLiteral("Volume Fade Up"));
         action->setIcon(QIcon::fromTheme(QStringLiteral("audio-volume-high")));
         m_collection.setDefaultShortcut(action, QKeySequence(QStringLiteral("Shift+Up")));
         m_collection.addAction(actionName, action);
     }
     if (actionName == QStringLiteral("volumeFadeDown")) {
-        auto action = new HAction();
+        auto action = new HAction(this);
         action->setText(QStringLiteral("Volume Fade Down"));
         action->setIcon(QIcon::fromTheme(QStringLiteral("audio-volume-low")));
         m_collection.setDefaultShortcut(action, QKeySequence(QStringLiteral("Shift+Down")));
         m_collection.addAction(actionName, action);
     }
     if (actionName == QStringLiteral("mute")) {
-        auto action = new HAction();
+        auto action = new HAction(this);
         action->setText(QStringLiteral("Volume Mute"));
         action->setIcon(QIcon::fromTheme(QStringLiteral("audio-on")));
         m_collection.setDefaultShortcut(action, QKeySequence(QStringLiteral("Ctrl+M")));
         m_collection.addAction(actionName, action);
     }
     if (actionName == QStringLiteral("visibilityFadeUp")) {
-        auto action = new HAction();
+        auto action = new HAction(this);
         action->setText(QStringLiteral("Visibility Fade Up"));
         action->setIcon(QIcon::fromTheme(QStringLiteral("view-visible")));
         m_collection.setDefaultShortcut(action, QKeySequence(QStringLiteral("Shift+PgUp")));
         m_collection.addAction(actionName, action);
     }
     if (actionName == QStringLiteral("visibilityFadeDown")) {
-        auto action = new HAction();
+        auto action = new HAction(this);
         action->setText(QStringLiteral("Visibility Fade Down"));
         action->setIcon(QIcon::fromTheme(QStringLiteral("view-hidden")));
         m_collection.setDefaultShortcut(action, QKeySequence(QStringLiteral("Shift+PgDown")));
         m_collection.addAction(actionName, action);
     }
     if (actionName == QStringLiteral("seekForwardSmall")) {
-        auto action = new HAction();
+        auto action = new HAction(this);
         action->setText(QStringLiteral("Seek Small Step Forward"));
         action->setIcon(QIcon::fromTheme(QStringLiteral("media-seek-forward")));
         m_collection.setDefaultShortcut(action, QKeySequence(QStringLiteral("Shift+Right")));
         m_collection.addAction(actionName, action);
     }
     if (actionName == QStringLiteral("seekBackwardSmall")) {
-        auto action = new HAction();
+        auto action = new HAction(this);
         action->setText(QStringLiteral("Seek Small Step Backward"));
         action->setIcon(QIcon::fromTheme(QStringLiteral("media-seek-backward")));
         m_collection.setDefaultShortcut(action, QKeySequence(QStringLiteral("Shift+Left")));
         m_collection.addAction(actionName, action);
     }
     if (actionName == QStringLiteral("seekForwardMedium")) {
-        auto action = new HAction();
+        auto action = new HAction(this);
         action->setText(QStringLiteral("Seek Medium Step Forward"));
         action->setIcon(QIcon::fromTheme(QStringLiteral("media-seek-forward")));
         m_collection.setDefaultShortcut(action, QKeySequence(QStringLiteral("Ctrl+Right")));
         m_collection.addAction(actionName, action);
     }
     if (actionName == QStringLiteral("seekBackwardMedium")) {
-        auto action = new HAction();
+        auto action = new HAction(this);
         action->setText(QStringLiteral("Seek Medium Step Backward"));
         action->setIcon(QIcon::fromTheme(QStringLiteral("media-seek-backward")));
         m_collection.setDefaultShortcut(action, QKeySequence(QStringLiteral("Ctrl+Left")));
         m_collection.addAction(actionName, action);
     }
     if (actionName == QStringLiteral("seekForwardBig")) {
-        auto action = new HAction();
+        auto action = new HAction(this);
         action->setText(QStringLiteral("Seek Big Step Forward"));
         action->setIcon(QIcon::fromTheme(QStringLiteral("media-seek-forward")));
         m_collection.setDefaultShortcut(action, QKeySequence(QStringLiteral("Ctrl+Shift+Right")));
         m_collection.addAction(actionName, action);
     }
     if (actionName == QStringLiteral("seekBackwardBig")) {
-        auto action = new HAction();
+        auto action = new HAction(this);
         action->setText(QStringLiteral("Seek Big Step Backward"));
         action->setIcon(QIcon::fromTheme(QStringLiteral("media-seek-backward")));
         m_collection.setDefaultShortcut(action, QKeySequence(QStringLiteral("Ctrl+Shift+Left")));
         m_collection.addAction(actionName, action);
     }
+    if (actionName == QStringLiteral("toggleFullScreen")) {
+        auto action = new HAction(this);
+        action->setText(QStringLiteral("Toggle Full Screen"));
+        m_collection.setDefaultShortcut(action, QKeySequence(QStringLiteral("Ctrl+Shift+F")));
+        m_collection.addAction(actionName, action);
+    }
     if (actionName == QStringLiteral("toggleMenuBar")) {
-        auto action = new HAction();
+        auto action = new HAction(this);
         action->setText(QStringLiteral("Toggle Menu Bar"));
         m_collection.setDefaultShortcut(action, QKeySequence(QStringLiteral("Ctrl+Shift+M")));
         m_collection.addAction(actionName, action);
     }
     if (actionName == QStringLiteral("toggleHeader")) {
-        auto action = new HAction();
-        action->setText(QStringLiteral("Toggle Header"));
-        m_collection.setDefaultShortcut(action, QKeySequence(QStringLiteral("Ctrl+Shift+H")));
+        auto action = new HAction(this);
+        action->setText(QStringLiteral("Toggle Top Bar"));
+        m_collection.setDefaultShortcut(action, QKeySequence(QStringLiteral("Ctrl+Shift+T")));
+        m_collection.addAction(actionName, action);
+    }
+    if (actionName == QStringLiteral("toggleFooter")) {
+        auto action = new HAction(this);
+        action->setText(QStringLiteral("Toggle Bottom Bar"));
+        m_collection.setDefaultShortcut(action, QKeySequence(QStringLiteral("Ctrl+Shift+B")));
         m_collection.addAction(actionName, action);
     }
     if (actionName == QStringLiteral("slidePrevious")) {
-        auto action = new HAction();
+        auto action = new HAction(this);
         action->setText(QStringLiteral("Slide backwards/previous"));
         action->setIcon(QIcon::fromTheme(QStringLiteral("go-previous")));
         QList<QKeySequence> slidePrevShortcuts;
@@ -780,7 +773,7 @@ void Application::setupActions(const QString &actionName) {
         m_collection.addAction(actionName, action);
     }
     if (actionName == QStringLiteral("slideNext")) {
-        auto action = new HAction();
+        auto action = new HAction(this);
         action->setText(QStringLiteral("Slide forwards/next"));
         action->setIcon(QIcon::fromTheme(QStringLiteral("go-next")));
         QList<QKeySequence> slideNextShortcuts;
@@ -790,14 +783,14 @@ void Application::setupActions(const QString &actionName) {
         m_collection.addAction(actionName, action);
     }
     if (actionName == QStringLiteral("layerCopy")) {
-        auto action = new HAction();
+        auto action = new HAction(this);
         action->setText(QStringLiteral("Copy Layer"));
         action->setIcon(QIcon::fromTheme(QStringLiteral("edit-copy")));
         m_collection.setDefaultShortcut(action, QKeySequence(QStringLiteral("Ctrl+C")));
         m_collection.addAction(actionName, action);
     }
     if (actionName == QStringLiteral("layerPaste")) {
-        auto action = new HAction();
+        auto action = new HAction(this);
         action->setText(QStringLiteral("Paste Layer"));
         action->setIcon(QIcon::fromTheme(QStringLiteral("edit-paste")));
         action->setEnabled(false);
@@ -805,7 +798,7 @@ void Application::setupActions(const QString &actionName) {
         m_collection.addAction(actionName, action);
     }
     if (actionName == QStringLiteral("layerPasteProperties")) {
-        auto action = new HAction();
+        auto action = new HAction(this);
         action->setText(QStringLiteral("Paste Properties onto Layer"));
         action->setIcon(QIcon::fromTheme(QStringLiteral("edit-paste")));
         action->setEnabled(false);

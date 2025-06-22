@@ -16,7 +16,7 @@ Use Visual Studio 2022 as compiler. (However MSYS / MinGW will be installed late
 
 Run command
 ```
-craft libs/qt6 extra-cmake-modules kconfig kcoreaddons kfilemetadata ki18n kiconthemes kio kirigami kio-extras breeze breeze-icons qqc2-breeze-style qqc2-desktop-style
+craft libs/qt6 extra-cmake-modules kconfig kcoreaddons kfilemetadata ki18n kiconthemes kio kirigami kxmlgui kio-extras breeze breeze-icons qqc2-breeze-style qqc2-desktop-style
 ```
 These are the list of packages needed for this project
 - Qt6Core (within Base)

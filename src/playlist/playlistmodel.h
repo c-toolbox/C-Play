@@ -13,6 +13,7 @@
 #include <QAbstractTableModel>
 #include <map>
 #include <memory>
+#include <QtQml/qqmlregistration.h>
 
 class PlayListItem;
 
@@ -20,6 +21,7 @@ using Playlist = QList<QPointer<PlayListItem>>;
 
 class PlaySectionsModel : public QAbstractListModel {
     Q_OBJECT
+    QML_NAMED_ELEMENT(PlaySectionsModel)
 
 public:
     explicit PlaySectionsModel(QObject *parent = nullptr);
@@ -87,6 +89,8 @@ private:
 
 class PlayListModel : public QAbstractListModel {
     Q_OBJECT
+    QML_NAMED_ELEMENT(PlayListModel)
+
     Q_PROPERTY(int playingVideo
                    MEMBER m_playingVideo
                        READ getPlayingVideo
@@ -162,8 +166,9 @@ public:
     Q_INVOKABLE int stereoVideo(int i) const;
     Q_INVOKABLE int numberOfSections(int i) const;
     Q_INVOKABLE QString makePathRelativeTo(const QString &filePath, const QStringList &pathsToConsider);
-    Q_INVOKABLE void asJSON(QJsonObject &obj);
     Q_INVOKABLE void saveAsJSONPlaylist(const QString &path);
+
+    void asJSON(QJsonObject& obj);
 
 Q_SIGNALS:
     void videoAdded(int index, QString path);

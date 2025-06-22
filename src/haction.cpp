@@ -8,9 +8,11 @@
 
 #include "haction.h"
 
+#include <QQmlEngine>
 #include <QKeySequence>
 
 HAction::HAction(QObject *parent) : QAction(parent) {
+    QQmlEngine::setObjectOwnership(this, QQmlEngine::CppOwnership);
 }
 
 QString HAction::actionName() {

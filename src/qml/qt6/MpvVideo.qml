@@ -17,8 +17,6 @@ import org.kde.kirigami as Kirigami
 MpvObject {
     id: root
 
-    property int mouseX: mouseArea.mouseX
-    property int mouseY: mouseArea.mouseY
     property bool sphereGrid: false
 
     signal setAudio(int id)
@@ -31,10 +29,10 @@ MpvObject {
         }
     }
 
-    anchors.left: PlaylistSettings.position === "left" ? (playSections.visible ? playSections.right : playList.right) : (layers.visible ? layers.right : slides.right)
-    anchors.right: PlaylistSettings.position === "right" ? (playList.visible ? playList.left : playSections.left) : (slides.visible ? slides.left : layers.left)
+    anchors.left: (window.hideUI ? parent.left : PlaylistSettings.position === "left" ? (playSections.visible ? playSections.right : playList.right) : (layers.visible ? layers.right : slides.right))
+    anchors.right: (window.hideUI ? parent.right : PlaylistSettings.position === "right" ? (playList.visible ? playList.left : playSections.left) : (slides.visible ? slides.left : layers.left))
     anchors.top: parent.top
-    height: window.isFullScreen() ? parent.height : parent.height - footer.height
+    height: footer.visible ? parent.height - footer.height : parent.height
     volume: AudioSettings.volume
     width: parent.width
 
@@ -187,72 +185,6 @@ MpvObject {
         running: !mpv.pause
 
         onTriggered: handleTimePosition()
-    }
-    Timer {
-        id: hideCursorTimer
-
-        property int timeNotMoved: 0
-        property double tx: mouseArea.mouseX
-        property double ty: mouseArea.mouseY
-
-        interval: 50
-        repeat: true
-        running: window.isFullScreen() && mouseArea.containsMouse
-
-        onTriggered: {
-            if (mouseArea.mouseX === tx && mouseArea.mouseY === ty) {
-                if (timeNotMoved > 2000) {
-                    app.hideCursor();
-                }
-            } else {
-                app.showCursor();
-                timeNotMoved = 0;
-            }
-            tx = mouseArea.mouseX;
-            ty = mouseArea.mouseY;
-            timeNotMoved += interval;
-        }
-    }
-    MouseArea {
-        id: mouseArea
-
-        acceptedButtons: Qt.LeftButton | Qt.RightButton | Qt.MiddleButton
-        anchors.fill: parent
-        hoverEnabled: true
-
-        onDoubleClicked: {
-            if (mouse.button === Qt.LeftButton) {
-                if (MouseSettings.leftx2) {
-                    actions[MouseSettings.leftx2].trigger();
-                }
-            } else if (mouse.button === Qt.MiddleButton) {
-                if (MouseSettings.middlex2) {
-                    actions[MouseSettings.middlex2].trigger();
-                }
-            } else if (mouse.button === Qt.RightButton) {
-                if (MouseSettings.rightx2) {
-                    actions[MouseSettings.rightx2].trigger();
-                }
-            }
-        }
-        onPositionChanged: {}
-        onPressed: {
-            focus = true;
-            if (mouse.button === Qt.LeftButton) {
-                if (MouseSettings.left) {
-                    actions[MouseSettings.left].trigger();
-                }
-            } else if (mouse.button === Qt.MiddleButton) {
-                if (MouseSettings.middle) {
-                    actions[MouseSettings.middle].trigger();
-                }
-            } else if (mouse.button === Qt.RightButton) {
-                if (MouseSettings.right) {
-                    actions[MouseSettings.right].trigger();
-                }
-            }
-        }
-        onWheel: {}
     }
     DropArea {
         id: dropArea

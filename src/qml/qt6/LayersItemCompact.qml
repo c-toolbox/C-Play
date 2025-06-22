@@ -141,6 +141,9 @@ ItemDelegate {
                         }
                     }
                 }
+                Component.onCompleted: {
+                    visibilitySlider.value = layerView.layerItem.layerVisibility;
+                }
             }
             Item {
                 anchors.bottom: parent.bottom

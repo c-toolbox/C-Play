@@ -9,9 +9,11 @@
 #define STREAMMODEL_H
 
 #include <QAbstractListModel>
+#include <QtQml/qqmlregistration.h>
 
 class StreamModel : public QAbstractListModel {
     Q_OBJECT
+    QML_NAMED_ELEMENT(StreamModel)
 
 public:
     explicit StreamModel(QObject *parent = nullptr);

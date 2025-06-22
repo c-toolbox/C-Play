@@ -11,6 +11,7 @@
 #include <qqml.h>
 #include <QAbstractListModel>
 #include <QAbstractTableModel>
+#include <QtQml/qqmlregistration.h>
 
 class BaseLayer;
 class LayersModel;
@@ -68,6 +69,7 @@ private:
 
 class SlidesModel : public QAbstractListModel {
     Q_OBJECT
+    QML_NAMED_ELEMENT(LayersModel)
 
 public:
     explicit SlidesModel(QObject *parent = nullptr);

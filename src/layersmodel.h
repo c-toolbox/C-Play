@@ -10,11 +10,13 @@
 
 #include <QAbstractListModel>
 #include <layers/baselayer.h>
+#include <QtQml/qqmlregistration.h>
 
 using Layers = QList<QSharedPointer<BaseLayer>>;
 
 class LayersTypeModel : public QAbstractListModel {
     Q_OBJECT
+    QML_NAMED_ELEMENT(LayersTypeModel)
 
 public:
     explicit LayersTypeModel(QObject *parent = nullptr);
@@ -33,6 +35,7 @@ private:
 
 class LayersModel : public QAbstractListModel {
     Q_OBJECT
+    QML_NAMED_ELEMENT(LayersModel)
 
 public:
     explicit LayersModel(QObject *parent = nullptr);
@@ -125,8 +128,8 @@ public:
     Q_INVOKABLE QString checkAndCorrectPath(const QString &filePath, const QStringList &searchPaths);
     Q_INVOKABLE QString makePathRelativeTo(const QString &filePath, const QStringList &pathsToConsider);
 
-    Q_INVOKABLE void decodeFromJSON(QJsonObject &obj, const QStringList &forRelativePaths);
-    Q_INVOKABLE void encodeToJSON(QJsonObject &obj, const QStringList &forRelativePaths);
+    void decodeFromJSON(QJsonObject &obj, const QStringList &forRelativePaths);
+    void encodeToJSON(QJsonObject &obj, const QStringList &forRelativePaths);
 
     bool runRenderOnLayersThatShouldUpdate(bool updateRendering, bool preload);
 

@@ -56,6 +56,8 @@ private:
 
 class LayerQtItem : public QQuickItem {
     Q_OBJECT
+    QML_ELEMENT
+
     Q_PROPERTY(int layerIdx READ layerIdx WRITE setLayerIdx NOTIFY layerChanged)
     Q_PROPERTY(int layerStereoMode READ layerStereoMode WRITE setLayerStereoMode NOTIFY layerValueChanged)
     Q_PROPERTY(int layerGridMode READ layerGridMode WRITE setLayerGridMode NOTIFY layerValueChanged)

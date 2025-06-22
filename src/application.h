@@ -59,6 +59,16 @@ Q_DECLARE_OPAQUE_POINTER(SpoutSendersModel*)
 #endif
 #endif
 
+class ApplicationEventFilter : public QObject{
+    Q_OBJECT
+
+Q_SIGNALS:
+    void applicationInteraction();
+
+protected:
+    bool eventFilter(QObject* obj, QEvent* event) override;
+};
+
 class Application : public QObject {
     Q_OBJECT
     Q_PROPERTY(QAbstractItemModel *colorSchemesModel READ colorSchemesModel CONSTANT)
@@ -142,6 +152,7 @@ public:
 
 Q_SIGNALS:
     void actionsUpdated();
+    void applicationInteraction();
     void slidesModelChanged();
     void streamsModelChanged();
 #ifdef NDI_SUPPORT
@@ -162,7 +173,11 @@ private:
     void aboutApplication();
     void setupActions(const QString &actionName);
 
-    SlidesModel *m_slidesModel;
+    QAbstractItemModel *colorSchemesModel();
+    QApplication *m_app;
+    QQmlApplicationEngine *m_engine;
+    std::unique_ptr<ApplicationEventFilter> m_appEventFilter;
+    SlidesModel* m_slidesModel;
     StreamModel* m_streamsModel;
 #ifdef NDI_SUPPORT
     NDISendersModel* m_ndiSendersModel;
@@ -171,9 +186,6 @@ private:
 #ifdef SPOUT_SUPPORT
     SpoutSendersModel* m_spoutSendersModel;
 #endif
-    QAbstractItemModel *colorSchemesModel();
-    QApplication *m_app;
-    QQmlApplicationEngine *m_engine;
     KAboutData m_aboutData;
     KActionCollection m_collection;
     KSharedConfig::Ptr m_config;

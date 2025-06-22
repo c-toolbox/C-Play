@@ -45,8 +45,10 @@ NdiFinder::~NdiFinder() {
 }
 
 void NdiFinder::destroy() {
-    delete _instance;
-    _instance = nullptr;
+    if (_instance) {
+        delete _instance;
+        _instance = nullptr;
+    }
 }
 
 NdiFinder& NdiFinder::instance() {
@@ -149,7 +151,9 @@ void NdiLayer::update(bool updateRendering) {
     // Check if our sender exists
     m_isReady = NdiFinder::instance().senderExists(filepath());
     if (!m_isReady) {
-        NDIreceiver.RefreshSenders();
+        if (!isMaster()) {
+            NDIreceiver.RefreshSenders();
+        }
         return;
     }
 

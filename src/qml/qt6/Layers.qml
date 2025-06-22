@@ -23,7 +23,9 @@ Rectangle {
     property int rowHeight: PlaylistSettings.rowHeight
     property alias scrollPositionTimer: scrollPositionTimer
     property bool busyIndicator: false
+    property bool shouldBeVisible: true
 
+    visible: shouldBeVisible && !window.hideUI
     color: Kirigami.Theme.backgroundColor
     height: mpv.height
     state: "hidden"
@@ -45,7 +47,7 @@ Rectangle {
             }
             PropertyChanges {
                 target: layersRoot
-                visible: false
+                shouldBeVisible: false
             }
         },
         State {
@@ -57,7 +59,7 @@ Rectangle {
             }
             PropertyChanges {
                 target: layersRoot
-                visible: true
+                shouldBeVisible: true
             }
         },
         State {
@@ -69,7 +71,7 @@ Rectangle {
             }
             PropertyChanges {
                 target: layersRoot
-                visible: true
+                shouldBeVisible: true
             }
         }
     ]
@@ -86,7 +88,7 @@ Rectangle {
                     target: layersRoot
                 }
                 PropertyAction {
-                    property: "visible"
+                    property: "shouldBeVisible"
                     target: layersRoot
                     value: false
                 }
@@ -98,7 +100,7 @@ Rectangle {
 
             SequentialAnimation {
                 PropertyAction {
-                    property: "visible"
+                    property: "shouldBeVisible"
                     target: layersRoot
                     value: true
                 }
@@ -122,7 +124,7 @@ Rectangle {
                     target: layersRoot
                 }
                 PropertyAction {
-                    property: "visible"
+                    property: "shouldBeVisible"
                     target: layersRoot
                     value: false
                 }
@@ -134,7 +136,7 @@ Rectangle {
 
             SequentialAnimation {
                 PropertyAction {
-                    property: "visible"
+                    property: "shouldBeVisible"
                     target: layersRoot
                     value: true
                 }
