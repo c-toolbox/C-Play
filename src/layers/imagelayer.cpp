@@ -9,6 +9,7 @@
 #include <fmt/core.h>
 
 auto loadImageAsync = [](ImageLayer::ImageData &data) {
+    data.threadDone = false;
     data.threadRunning = true;
     data.img.load(data.filename);
     data.imageDone = true;
@@ -47,7 +48,7 @@ void ImageLayer::update(bool updateRendering) {
 }
 
 bool ImageLayer::ready() const {
-    return !imageData.filename.empty() && imageData.trd == nullptr;
+    return !imageData.filename.empty() && imageData.threadDone;
 }
 
 bool ImageLayer::processImageUpload(std::string filename, bool forceUpdate) {
@@ -117,7 +118,6 @@ void ImageLayer::handleAsyncImageUpload() {
             imageData.threadRunning = false;
             imageData.imageDone = false;
             imageData.uploadDone = false;
-            imageData.threadDone = false;
             imageData.trd->join();
             imageData.trd = nullptr;
         }

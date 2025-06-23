@@ -485,8 +485,11 @@ void postSyncPreDraw() {
                     if (!layer->hasInitialized()) {
                         layer->initialize();
                     }
-                    layer->update();
-                    if (layer->ready() && (layer->alpha() > 0.f) && SyncHelper::instance().variables.alpha < 1.f) {
+                    if (!layer->ready()) {
+                        layer->update(false);
+                    }
+                    else if (layer->ready() && (layer->alpha() > 0.f) && SyncHelper::instance().variables.alpha < 1.f) {
+                        layer->update();
                         layer->setTranslate(translateXYZ);
                         layerRender->addLayer(layer);
                     }
@@ -588,8 +591,11 @@ void postSyncPreDraw() {
                     if (!layer->hasInitialized()) {
                         layer->initialize();
                     }
-                    layer->update();
-                    if (layer->ready() && (layer->alpha() > 0.f)) {
+                    if (!layer->ready()) {
+                        layer->update(false);
+                    }
+                    else if (layer->ready() && (layer->alpha() > 0.f)) {
+                        layer->update();
                         layer->setTranslate(translateXYZ);
                         layerRender->addLayer(layer);
                     }
