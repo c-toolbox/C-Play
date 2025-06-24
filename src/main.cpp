@@ -217,9 +217,9 @@ std::vector<std::byte> encode() {
                     BaseLayer* layer = slide->layer(l);
                     if (!layer->existOnMasterOnly()) {
                         totalLayersToSync++;
-                    }
-                    if (layer->needSync()) {
-                        needLayerSync = true;
+                        if (layer->needSync()) {
+                            needLayerSync = true;
+                        }
                     }
                 }
             }
@@ -466,8 +466,8 @@ void postSyncPreDraw() {
         layerRender->clearLayers();
 
         // Background image layer
-        if ((!mainVideoLayer->renderingIsOn() || mainVideoLayer->ready() ||
-             (SyncHelper::instance().variables.alpha < 1.f || SyncHelper::instance().variables.gridToMapOn == 1)) &&
+        if ((!mainVideoLayer->renderingIsOn() || !mainVideoLayer->ready() ||
+             SyncHelper::instance().variables.alpha < 1.f || SyncHelper::instance().variables.gridToMapOn == 1) &&
             backgroundImageLayer->ready() && SyncHelper::instance().variables.alphaBg > 0.f) {
             backgroundImageLayer->setAlpha(SyncHelper::instance().variables.alphaBg);
             backgroundImageLayer->setGridMode(SyncHelper::instance().variables.gridToMapOnBg);
@@ -760,7 +760,6 @@ int main(int argc, char *argv[]) {
             startupFile = arg[i + 1];
             arg.erase(arg.begin() + i, arg.begin() + i + 2);
         } else {
-            // Ignore unknown commands
             i++;
         }
     }
@@ -801,13 +800,20 @@ int main(int argc, char *argv[]) {
         Engine::instance().thisNode().windows().at(0)->setRenderWhileHidden(true);
         Engine::instance().thisNode().windows().at(0)->setVisible(false);
 
-        // Do not support arguments to QApp, only SGCT
-        std::vector<char *> cargv;
-        cargv.push_back(argv[0]);
-        int cargv_size = static_cast<int>(cargv.size());
+        // Consider arguments not processed by C-Play or SGCT to be QApplication related
+        std::vector<char*> qapp_argv;
+        std::string app_path(argv[0]);
+        qapp_argv.reserve(arg.size() + app_path.size());
+        qapp_argv.push_back(argv[0]);
+        size_t q = 0;
+        while (q < arg.size()) {
+            qapp_argv.push_back(const_cast<char*>(arg[q].c_str()));
+            arg.erase(arg.begin() + q);
+        }
 
         // Launch master application (which calls Engine::render from thread)
-        Application::create(cargv_size, &cargv[0], QStringLiteral("C-Play"));
+        int qapp_argv_size = static_cast<int>(qapp_argv.size());
+        Application::create(qapp_argv_size, &qapp_argv[0], QStringLiteral("C-Play"));
         Application::instance().setStartupFile(startupFile);
         return Application::instance().run();
     } else {

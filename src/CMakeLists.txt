@@ -391,21 +391,13 @@ if(CPLAY_INSTALL_DEPENDENCIES)
             endforeach()
             message("Trying to fix unresolved dependencies")
             foreach(DEPENDENCY ${UNRESOLVED_DEPENDENCIES})
-                if(DEFINED _ndi_dll AND ${_ndi_dll} MATCHES "${DEPENDENCY}$")
+                if(DEFINED _ndi_dll AND "${_ndi_dll}" MATCHES "${DEPENDENCY}$")
                     message("Copying ${_ndi_dll}")
                     file(INSTALL
                         DESTINATION "${CMAKE_INSTALL_PREFIX}/bin"
                         FILES "${_ndi_dll}"
                     )
-                elseif(DEFINED _mdk_dll AND ${_mdk_dll} MATCHES "${DEPENDENCY}$")
-                    foreach(_mdk_dep_dll ${_mdk_dlls})
-                        message("Copying ${_mdk_dep_dll}")
-                        file(INSTALL
-                            DESTINATION "${CMAKE_INSTALL_PREFIX}/bin"
-                            FILES "${_mdk_dep_dll}"
-                        )
-                    endforeach()
-                elseif(DEFINED _mdk_dll AND ${_mdk_dll} MATCHES "${DEPENDENCY}$")
+                elseif(DEFINED _mdk_dll AND "${_mdk_dll}" MATCHES "${DEPENDENCY}$")
                     foreach(_mdk_dep_dll ${_mdk_dlls})
                         message("Copying ${_mdk_dep_dll}")
                         file(INSTALL

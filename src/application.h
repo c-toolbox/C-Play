@@ -166,7 +166,6 @@ Q_SIGNALS:
 private:
     void setupWorkerThread();
     void setupAboutData();
-    void setupCommandLineParser();
     void registerQmlTypes();
     void setupQmlSettingsTypes();
     void setupQmlContextProperties();

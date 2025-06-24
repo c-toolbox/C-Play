@@ -18,15 +18,15 @@ if(CPLAY_INSTALL_DEPENDENCIES)
         install(CODE [[
             message("Copying Color Schemes Icons")
         ]])
-        install(DIRECTORY "${PROJECT_SOURCE_DIR}/data/color-schemes" DESTINATION "${CMAKE_INSTALL_PREFIX}/bin/data")
+        install(DIRECTORY "${PROJECT_SOURCE_DIR}/data/color-schemes" DESTINATION "${CMAKE_INSTALL_PREFIX}/bin/data" OPTIONAL)
         install(CODE [[
             message("Copying Breeze Icons")
         ]])
-        install(DIRECTORY "${_qt_bin_dir}/data/icons" DESTINATION "${CMAKE_INSTALL_PREFIX}/bin/data")
+        install(DIRECTORY "${_qt_bin_dir}/data/icons" DESTINATION "${CMAKE_INSTALL_PREFIX}/bin/data" OPTIONAL)
         install(CODE [[
             message("Copying MPV Configs")
         ]])
-        install(DIRECTORY "${PROJECT_SOURCE_DIR}/data/mpv-conf" DESTINATION "${CMAKE_INSTALL_PREFIX}/bin/data")
+        install(DIRECTORY "${PROJECT_SOURCE_DIR}/data/mpv-conf" DESTINATION "${CMAKE_INSTALL_PREFIX}/bin/data" OPTIONAL)
         install(CODE [[
 			message("Copying Data Items")
 			file(INSTALL DESTINATION "${CMAKE_INSTALL_PREFIX}/bin/data/images" FILES "${PROJECT_SOURCE_DIR}/data/images/C_play_transparent.ico")

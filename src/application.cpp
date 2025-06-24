@@ -45,7 +45,6 @@
 #include <sgct/sgct.h>
 #include <sgct/version.h>
 #include <QApplication>
-#include <QCommandLineParser>
 #include <QCoreApplication>
 #include <QDir>
 #include <QFileInfo>
@@ -147,7 +146,6 @@ Application::Application(int &argc, char **argv, const QString &applicationName)
 
     setupWorkerThread();
     setupAboutData();
-    setupCommandLineParser();
     registerQmlTypes();
     setupQmlSettingsTypes();
 
@@ -237,18 +235,6 @@ void Application::setupAboutData() {
                           QStringLiteral("eriksunden85@gmail.com"));
 
     KAboutData::setApplicationData(m_aboutData);
-}
-
-void Application::setupCommandLineParser() {
-    QCommandLineParser parser;
-    m_aboutData.setupCommandLine(&parser);
-    parser.addPositionalArgument(QStringLiteral("file"), QStringLiteral("File to open"));
-    parser.process(*m_app);
-    m_aboutData.processCommandLine(&parser);
-
-    for (auto i = 0; i < parser.positionalArguments().size(); ++i) {
-        addArgument(i, parser.positionalArguments().at(i));
-    }
 }
 
 void Application::registerQmlTypes() {
