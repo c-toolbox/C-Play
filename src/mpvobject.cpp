@@ -1513,54 +1513,6 @@ QVariant MpvObject::command(const QVariant &params, bool debug) {
     return result;
 }
 
-void MpvObject::saveTimePosition() {
-    // saving position is disabled
-    if (PlaybackSettings::minDurationToSavePosition() == -1) {
-        return;
-    }
-    // position is saved only for files longer than PlaybackSettings::minDurationToSavePosition()
-    if (getProperty(QStringLiteral("duration")).toInt() < PlaybackSettings::minDurationToSavePosition() * 60) {
-        return;
-    }
-
-    auto hash = md5(getProperty(QStringLiteral("path")).toString());
-    auto timePosition = getProperty(QStringLiteral("time-pos"));
-    auto configPath = QStandardPaths::writableLocation(QStandardPaths::ConfigLocation);
-    KConfig *config = new KConfig(configPath.append(QStringLiteral("/cplay/watch-later/")).append(hash));
-    config->group(QStringLiteral("")).writeEntry("TimePosition", timePosition);
-    config->sync();
-}
-
-double MpvObject::loadTimePosition() {
-    // saving position is disabled
-    if (PlaybackSettings::minDurationToSavePosition() == -1) {
-        return 0;
-    }
-    // position is saved only for files longer than PlaybackSettings::minDurationToSavePosition()
-    // but there can be cases when there is a saved position for files lower than minDurationToSavePosition()
-    // when minDurationToSavePosition() was increased after position was already saved
-    if (getProperty(QStringLiteral("duration")).toInt() < PlaybackSettings::minDurationToSavePosition() * 60) {
-        return 0;
-    }
-
-    auto hash = md5(getProperty(QStringLiteral("path")).toString());
-    auto configPath = QStandardPaths::writableLocation(QStandardPaths::ConfigLocation);
-    KConfig *config = new KConfig(configPath.append(QStringLiteral("/cplay/watch-later/")).append(hash));
-    int position = config->group(QStringLiteral("")).readEntry("TimePosition", QString::number(0)).toDouble();
-
-    return position;
-}
-
-void MpvObject::resetTimePosition() {
-    auto hash = md5(getProperty(QStringLiteral("path")).toString());
-    auto configPath = QStandardPaths::writableLocation(QStandardPaths::ConfigLocation);
-    QFile f(configPath.append(QStringLiteral("/cplay/watch-later/")).append(hash));
-
-    if (f.exists()) {
-        f.remove();
-    }
-}
-
 QString MpvObject::md5(const QString &str) {
     auto md5 = QCryptographicHash::hash((str.toUtf8()), QCryptographicHash::Md5);
 

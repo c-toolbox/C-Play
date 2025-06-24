@@ -328,6 +328,11 @@ target_compile_definitions(${TARGET_NAME} PUBLIC CPLAY_VERSION_PATCH=${CPLAY_VER
 
 install(TARGETS ${TARGET_NAME} DESTINATION ${KDE_INSTALL_TARGETS_DEFAULT_ARGS})
 
+install(CODE [[
+    message("Copying C-Play qml folder")
+]])
+install(DIRECTORY "${PROJECT_BINARY_DIR}/src/org" DESTINATION "${CMAKE_INSTALL_PREFIX}/bin/qml")
+
 if(CPLAY_INSTALL_DEPENDENCIES)
     get_target_property(_qmake_executable Qt6::qmake IMPORTED_LOCATION)
 

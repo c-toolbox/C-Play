@@ -159,11 +159,12 @@ ItemDelegate {
                     if (!slidesView.enabled) {
                         if (value.toFixed(0) !== app.slides.triggeredSlideVisibility) {
                             app.slides.triggeredSlideVisibility = value.toFixed(0);
+                            app.slides.updateSelectedSlide();
                         }
                         if (value.toFixed(0) !== layerView.layerItem.layerVisibility) {
                             layerView.layerItem.layerVisibility = value.toFixed(0);
+                            app.slides.updateSelectedSlide();
                         }
-                        app.slides.updateSelectedSlide();
                     }
                 }
                 Component.onCompleted: {

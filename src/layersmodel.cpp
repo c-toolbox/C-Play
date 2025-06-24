@@ -758,9 +758,9 @@ bool LayersModel::runRenderOnLayersThatShouldUpdate(bool updateRendering, bool p
                 }
                 if (currentStatus != m_layersStatus[i]) {
                     updateLayer(i);
+                    statusHasUpdated = true;
                 }
             }
-            statusHasUpdated = true;
         }
     }
     return statusHasUpdated;

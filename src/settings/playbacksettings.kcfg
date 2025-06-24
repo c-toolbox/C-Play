@@ -10,9 +10,6 @@
                           http://www.kde.org/standards/kcfg/1.0/kcfg.xsd" >
   <kcfgfile name="C-Play/cplay.conf" />
   <group name="Playback">
-    <entry name="MinDurationToSavePosition" type="int">
-      <default>-1</default>
-    </entry>
     <entry name="UseThresholdToSyncTimePosition" type="bool">
       <label>Use functionality to sync time based on position threshold</label>
       <default>true</default>

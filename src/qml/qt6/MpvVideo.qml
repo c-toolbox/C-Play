@@ -21,14 +21,6 @@ MpvObject {
 
     signal setAudio(int id)
 
-    function handleTimePosition() {
-        if (mpv.position < mpv.duration - 10) {
-            saveTimePosition();
-        } else {
-            resetTimePosition();
-        }
-    }
-
     anchors.left: (window.hideUI ? parent.left : PlaylistSettings.position === "left" ? (playSections.visible ? playSections.right : playList.right) : (layers.visible ? layers.right : slides.right))
     anchors.right: (window.hideUI ? parent.right : PlaylistSettings.position === "right" ? (playList.visible ? playList.left : playSections.left) : (slides.visible ? slides.left : layers.left))
     anchors.top: parent.top
@@ -176,15 +168,6 @@ MpvObject {
         onTriggered: {
             mpv.pause = false;
         }
-    }
-    Timer {
-        id: saveWatchLaterFileTimer
-
-        interval: 1000
-        repeat: true
-        running: !mpv.pause
-
-        onTriggered: handleTimePosition()
     }
     DropArea {
         id: dropArea

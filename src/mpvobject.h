@@ -378,9 +378,6 @@ public:
     Q_INVOKABLE QVariant command(const QVariant &params, bool debug = false);
     Q_INVOKABLE QVariant getProperty(const QString &name, bool debug = false);
     Q_INVOKABLE int setProperty(const QString &name, const QVariant &value, bool debug = false);
-    Q_INVOKABLE void saveTimePosition();
-    Q_INVOKABLE double loadTimePosition();
-    Q_INVOKABLE void resetTimePosition();
     Q_INVOKABLE void togglePlayPause();
     Q_INVOKABLE void clearRecentMediaFilelist();
     Q_INVOKABLE void clearRecentPlaylist();

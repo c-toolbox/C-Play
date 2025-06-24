@@ -202,39 +202,6 @@ SettingsBasePage {
                 }
             }
         }
-        Label {
-            Layout.alignment: Qt.AlignRight
-            text: qsTr("Remember time position:")
-        }
-        RowLayout {
-            SpinBox {
-                id: timePositionSaving
-
-                from: -1
-                to: 9999
-                value: PlaybackSettings.minDurationToSavePosition
-
-                onValueChanged: {
-                    PlaybackSettings.minDurationToSavePosition = value;
-                    PlaybackSettings.save();
-                }
-            }
-            LabelWithTooltip {
-                Layout.fillWidth: true
-                elide: Text.ElideRight
-                text: {
-                    if (timePositionSaving.value === -1) {
-                        return qsTr("Disabled");
-                    } else if (timePositionSaving.value === 0) {
-                        return qsTr("For all files");
-                    } else if (timePositionSaving.value === 1) {
-                        return qsTr("For files longer than %1 minute").arg(timePositionSaving.value);
-                    } else {
-                        return qsTr("For files longer than %1 minutes").arg(timePositionSaving.value);
-                    }
-                }
-            }
-        }
 
         // Seek Small Step
         Label {
