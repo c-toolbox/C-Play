@@ -453,6 +453,7 @@ Rectangle {
             delegate: slidesItemCompact
             model: app.slides
             spacing: 1
+            enabled: !busyIndicator
 
             Component.onCompleted: {
                 if (PresentationSettings.presentationToLoadOnStartup !== "") {

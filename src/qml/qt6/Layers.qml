@@ -372,6 +372,7 @@ Rectangle {
             delegate: layersItemCompact
             model: app.slides.selected
             spacing: 1
+            enabled: !slides.busyIndicator && !busyIndicator
 
             onCurrentIndexChanged: {
                 layerView.layerItem.layerIdx = layersView.currentIndex;

@@ -209,7 +209,6 @@ QtObject {
         Component.onCompleted: list["quitApplicationAction"] = quitApplicationAction;
         function updateShortcuts() { shortcut = root.isPrimary ? qaction.shortcutName() : qaction.alternateName() }
         onTriggered: {
-            mpv.handleTimePosition();
             qaction.trigger();
         }
     }

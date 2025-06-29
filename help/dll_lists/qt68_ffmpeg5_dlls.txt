@@ -53,12 +53,8 @@ libintl-8.dll
 libjack64.dll
 liblzma.dll
 libpng16.dll
-libsharpyuv.dll
 libsystre-0.dll
 libtre-5.dll
-libwebp.dll
-libwebpdemux.dll
-libwebpmux.dll
 libwinpthread-1.dll
 minizip.dll
 mpv-2.dll
@@ -70,7 +66,6 @@ Qt6Gui.dll
 Qt6LabsPlatform.dll
 Qt6Network.dll
 Qt6OpenGL.dll
-Qt6Pdf.dll
 Qt6PrintSupport.dll
 Qt6Qml.dll
 Qt6QmlMeta.dll
@@ -79,6 +74,7 @@ Qt6QmlWorkerScript.dll
 Qt6Quick.dll
 Qt6QuickControls2.dll
 Qt6QuickControls2Basic.dll
+Qt6QuickControls2BasicStyleImpl.dll
 Qt6QuickControls2Fusion.dll
 Qt6QuickControls2FusionStyleImpl.dll
 Qt6QuickControls2Impl.dll

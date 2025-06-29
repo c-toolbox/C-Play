@@ -490,9 +490,11 @@ void LayersModel::decodeFromJSON(QJsonObject &obj, const QStringList &forRelativ
 
                     QString path = o.value(QStringLiteral("path")).toString();
                     if (type == BaseLayer::IMAGE 
-                        || type == BaseLayer::VIDEO 
-                        || type == BaseLayer::AUDIO 
-                        || type == BaseLayer::PDF) {
+                        || type == BaseLayer::VIDEO
+#ifdef  PDF_SUPPORT
+                        || type == BaseLayer::PDF
+#endif //  PDF_SUPPORT
+                        || type == BaseLayer::AUDIO) {
                         path = checkAndCorrectPath(path, forRelativePaths);
                     }
 
@@ -642,8 +644,10 @@ void LayersModel::encodeToJSON(QJsonObject &obj, const QStringList &forRelativeP
 
         if (layer->type() == BaseLayer::IMAGE
             || layer->type() == BaseLayer::VIDEO
-            || layer->type() == BaseLayer::AUDIO
-            || layer->type() == BaseLayer::PDF) {
+#ifdef  PDF_SUPPORT
+            || layer->type() == BaseLayer::PDF
+#endif //  PDF_SUPPORT
+            || layer->type() == BaseLayer::AUDIO) {
             QString checkedFilePath = makePathRelativeTo(QString::fromStdString(layer->filepath()), forRelativePaths);
             layerData.insert(QStringLiteral("path"), QJsonValue(checkedFilePath));
         }

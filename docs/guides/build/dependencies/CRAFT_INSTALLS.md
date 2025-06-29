@@ -17,13 +17,15 @@ Use Visual Studio 2022 as compiler. (However MSYS / MinGW will be installed late
 Run command
 ```
 craft libs/qt6 extra-cmake-modules kconfig kcoreaddons kfilemetadata ki18n kiconthemes kio kirigami kxmlgui kio-extras breeze breeze-icons qqc2-breeze-style qqc2-desktop-style
+craft libs/qt6/qtbase libs/qt6/qtdeclarative libs/qt6/qt5compat extra-cmake-modules kconfig kcoreaddons kfilemetadata ki18n kiconthemes kio kirigami kxmlgui kio-extras breeze breeze-icons qqc2-breeze-style qqc2-desktop-style zxing-cpp
 ```
 These are the list of packages needed for this project
 - Qt6Core (within Base)
 - Qt6DBus (within Base)
 - Qt6Qml (within Declarative)
 - Qt6Quick (within Declarative)
-- Qt6QuickControls2 (qtquickcontrols2)
+- Qt6QuickControls2 (within Declarative)
+- Qt6Core5Compat (within Core5Compat)
 - ExtraCmakeModules
 - KF6Config (kconfig)
 - KF6CoreAddons (kcoreaddons)
@@ -38,6 +40,9 @@ These are the list of packages needed for this project
 - Breeze icons (breeze-icons)
 - Breeze widgets style (qqc2-breeze-style)
 - QQC2-Desktop-Style
+
+Future optional ones:
+- ZXing-Cpp (for QR-code guided presentations)
 
 ## Option 2 (older, not available from C-Play version 2.1 and newer): Build Qt5/KF5 for C-Play Master UI
 

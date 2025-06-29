@@ -134,6 +134,10 @@ target_sources(${TARGET_NAME}
     ../data/images/icon.rc
 )
 
+find_package(QT NAMES Qt6)
+if(${QT_VERSION_MAJOR} GREATER_EQUAL 6 AND ${QT_VERSION_MINOR} GREATER_EQUAL 8)
+    qt_standard_project_setup(REQUIRES 6.8)
+endif()
 qt_policy(SET QTP0001 NEW)
 
 set(QML_SRC_FILES
@@ -251,9 +255,11 @@ if (MSVC)
     /wd4702 # unreachable code
     /experimental:external /external:anglebrackets /external:templates- /external:W0)
 
+if(${QT_VERSION_MAJOR} GREATER_EQUAL 6 AND ${QT_VERSION_MINOR} GREATER_EQUAL 8)
     #set_target_properties(all_aotstats PROPERTIES FOLDER ${AUTO_TARGET_NAME})
-    #set_target_properties(${TARGET_NAME}_copy_qml PROPERTIES FOLDER ${AUTO_TARGET_NAME})
-    #set_target_properties(${TARGET_NAME}_copy_res PROPERTIES FOLDER ${AUTO_TARGET_NAME})
+    set_target_properties(${TARGET_NAME}_copy_qml PROPERTIES FOLDER ${AUTO_TARGET_NAME})
+    set_target_properties(${TARGET_NAME}_copy_res PROPERTIES FOLDER ${AUTO_TARGET_NAME})
+endif()
     set_target_properties(all_qmltyperegistrations PROPERTIES FOLDER ${AUTO_TARGET_NAME})
     set_target_properties(${TARGET_NAME}_automoc_json_extraction PROPERTIES FOLDER ${AUTO_TARGET_NAME})
     set_target_properties(${TARGET_NAME}_other_files PROPERTIES FOLDER ${AUTO_TARGET_NAME})
