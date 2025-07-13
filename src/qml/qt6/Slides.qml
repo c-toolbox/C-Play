@@ -281,7 +281,7 @@ Rectangle {
                     }
                 }
                 Button {
-                    icon.name: "folder-open"
+                    icon.name: "document-open"
 
                     onClicked: {
                         openCPlayPresentationDialog.open();

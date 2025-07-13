@@ -37,7 +37,7 @@ Kirigami.ApplicationWindow {
     }
 
     color: Kirigami.Theme.alternateBackgroundColor
-    height: 320
+    height: 350
     title: qsTr("Add new layer")
     visible: false
     width: 400
@@ -219,7 +219,7 @@ Kirigami.ApplicationWindow {
 
                 focusPolicy: Qt.NoFocus
                 icon.height: 16
-                icon.name: "system-file-manager"
+                icon.name: "document-open"
                 text: ""
 
                 onClicked: {

@@ -42,7 +42,7 @@ Kirigami.ApplicationWindow {
         }
     }
 
-    height: 350
+    height: 380
     title: qsTr("Save As C-Play File")
     visible: false
     width: 600
@@ -322,7 +322,7 @@ Kirigami.ApplicationWindow {
 
                 focusPolicy: Qt.NoFocus
                 icon.height: 16
-                icon.name: "system-file-manager"
+                icon.name: "document-open"
                 text: ""
 
                 onClicked: {
@@ -384,7 +384,7 @@ Kirigami.ApplicationWindow {
 
                 focusPolicy: Qt.NoFocus
                 icon.height: 16
-                icon.name: "system-file-manager"
+                icon.name: "document-open"
                 text: ""
 
                 onClicked: {

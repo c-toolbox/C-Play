@@ -25,6 +25,7 @@ Menu {
         id: recentMediaFilesMenu
 
         title: qsTr("Open Recent Media Files")
+        icon.name: "document-open-recent"
 
         Instantiator {
             id: recentMediaFilesMenuInstantiator
@@ -61,6 +62,7 @@ Menu {
         id: recentPlaylistsMenu
 
         title: qsTr("Open Recent Playlists")
+        icon.name: "format-list-unordered"
 
         Instantiator {
             id: recentPlaylistsMenuInstantiator

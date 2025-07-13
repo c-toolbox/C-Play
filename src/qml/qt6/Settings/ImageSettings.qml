@@ -85,7 +85,7 @@ SettingsBasePage {
 
                 focusPolicy: Qt.NoFocus
                 icon.height: 16
-                icon.name: "system-file-manager"
+                icon.name: "document-open"
                 text: ""
 
                 onClicked: {
@@ -233,7 +233,7 @@ SettingsBasePage {
 
                 focusPolicy: Qt.NoFocus
                 icon.height: 16
-                icon.name: "system-file-manager"
+                icon.name: "document-open"
                 text: ""
 
                 onClicked: {
