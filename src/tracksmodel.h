@@ -18,7 +18,7 @@ class Track;
 
 class TracksModel : public QAbstractListModel {
     Q_OBJECT
-    QML_NAMED_ELEMENT(TracksModel)
+    QML_ELEMENT
 
 public:
     explicit TracksModel(QObject *parent = nullptr);

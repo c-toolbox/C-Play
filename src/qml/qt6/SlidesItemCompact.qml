@@ -9,6 +9,7 @@
 import QtQuick
 import QtQuick.Controls
 import QtQuick.Layouts
+import Qt5Compat.GraphicalEffects
 
 import org.kde.kirigami as Kirigami
 import org.ctoolbox.cplay
@@ -145,6 +146,38 @@ ItemDelegate {
                 visible: model.layerminstatus === model.layermaxstatus
                 color: (model.layerminstatus === 2 ? "lime" : model.layerminstatus === 1 ? "orange" : model.layerminstatus === 0 ? "crimson" : "black")         
             }
+            Item {
+                anchors.bottom: parent.bottom
+                anchors.right: its.right
+                implicitHeight: 25
+                implicitWidth: 100
+                visible: !visibilitySlider.visible
+
+                Rectangle {
+                    color: Kirigami.Theme.highlightColor
+                    height: parent.height
+                    radius: 0
+                    width: model.visibility * 0.01 * parent.width
+                }
+
+                Label {
+                    anchors.centerIn: parent
+                    anchors.fill: parent
+                    topPadding: 5
+                    horizontalAlignment: Text.AlignHCenter
+                    text: model.visibility + "%"
+                    color:"#fff"
+                    font.pointSize: 9
+                    layer.enabled: true
+                    layer.effect: DropShadow {
+                        color: "#111"
+                        radius: 5
+                        samples: 17
+                        spread: 0.3
+                        verticalOffset: 1
+                    }
+                }
+            }
             VisibilitySlider {
                 id: visibilitySlider
 
@@ -153,7 +186,7 @@ ItemDelegate {
                 enabled: false
                 implicitWidth: 100
                 overlayLabel: qsTr("")
-                visible: slidesView.currentIndex === index
+                visible: false
 
                 onValueChanged: {
                     if (!slidesView.enabled) {
@@ -169,19 +202,6 @@ ItemDelegate {
                 }
                 Component.onCompleted: {
                     visibilitySlider.value = layerView.layerItem.layerVisibility;
-                }
-            }
-            Item {
-                anchors.bottom: parent.bottom
-                anchors.right: its.right
-                implicitHeight: 20
-                implicitWidth: 100
-                visible: slidesView.currentIndex !== index
-
-                Label {
-                    anchors.fill: parent
-                    horizontalAlignment: Text.AlignHCenter
-                    text: model.visibility + "%"
                 }
             }
         }

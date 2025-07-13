@@ -13,7 +13,7 @@
 
 class SpoutSendersModel : public QAbstractListModel {
     Q_OBJECT
-    QML_NAMED_ELEMENT(SpoutSendersModel)
+    QML_ELEMENT
 
 public:
     explicit SpoutSendersModel(QObject *parent = nullptr);

@@ -13,7 +13,7 @@
 
 class StreamModel : public QAbstractListModel {
     Q_OBJECT
-    QML_NAMED_ELEMENT(StreamModel)
+    QML_ELEMENT
 
 public:
     explicit StreamModel(QObject *parent = nullptr);

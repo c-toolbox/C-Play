@@ -69,7 +69,7 @@ private:
 
 class SlidesModel : public QAbstractListModel {
     Q_OBJECT
-    QML_NAMED_ELEMENT(LayersModel)
+    QML_ELEMENT
 
 public:
     explicit SlidesModel(QObject *parent = nullptr);

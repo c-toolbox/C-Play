@@ -29,8 +29,8 @@ Rectangle {
     height: mpv.height
     state: "hidden"
     width: {
-        const w = Kirigami.Units.gridUnit * 17;
-        return (parent.width * 0.17) < w ? w : parent.width * 0.17;
+        const w = Kirigami.Units.gridUnit * 15;
+        return (parent.width * 0.15) < w ? w : parent.width * 0.15;
     }
     x: position !== "right" ? parent.width : -width
     y: 0

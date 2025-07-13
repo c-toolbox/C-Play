@@ -21,7 +21,7 @@ using Playlist = QList<QPointer<PlayListItem>>;
 
 class PlaySectionsModel : public QAbstractListModel {
     Q_OBJECT
-    QML_NAMED_ELEMENT(PlaySectionsModel)
+    QML_ELEMENT
 
 public:
     explicit PlaySectionsModel(QObject *parent = nullptr);
@@ -89,7 +89,7 @@ private:
 
 class PlayListModel : public QAbstractListModel {
     Q_OBJECT
-    QML_NAMED_ELEMENT(PlayListModel)
+    QML_ELEMENT
 
     Q_PROPERTY(int playingVideo
                    MEMBER m_playingVideo

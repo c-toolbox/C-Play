@@ -190,7 +190,7 @@ set(QML_SRC_FILES
     qml/qt6/WorkingIndicator.qml
 )
 
-option(CPLAY_FAST_QML_BUILD "Skip QmlLint and QmlCacheGen. Should be ON for release build." OFF)   
+option(CPLAY_FAST_QML_BUILD "Skip QmlLint and QmlCacheGen. Should be OFF for release build." OFF)   
 if(CPLAY_FAST_QML_BUILD)
     foreach(QML_FILE ${QML_SRC_FILES})
         set_source_files_properties(${QML_FILE} PROPERTIES

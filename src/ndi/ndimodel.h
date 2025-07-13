@@ -13,7 +13,7 @@
 
 class NDISendersModel : public QAbstractListModel {
     Q_OBJECT
-    QML_NAMED_ELEMENT(NDISendersModel)
+    QML_ELEMENT
 
 public:
     explicit NDISendersModel(QObject *parent = nullptr);
@@ -43,7 +43,7 @@ private:
 
 class PortAudioModel : public QAbstractListModel {
     Q_OBJECT
-    QML_NAMED_ELEMENT(PortAudioModel)
+    QML_ELEMENT
 
 public:
     explicit PortAudioModel(QObject* parent = nullptr);

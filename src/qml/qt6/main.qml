@@ -65,12 +65,12 @@ Kirigami.ApplicationWindow {
     visible: true
     visibility: window.isFullScreenMode ? Window.FullScreen : Window.Windowed
     color: window.hideUI ? "black" : Kirigami.Theme.alternateBackgroundColor
-    maximumHeight: 990 > Screen.height ? Screen.height : 990
-    maximumWidth: 1728 > Screen.width ? Screen.width : 1728
-    minimumHeight: 660 > Screen.height / 2 ? Screen.height / 2 : 660
-    minimumWidth: 1152 > Screen.width / 2 ? Screen.width / 2 : 1152
-    height: 880 > Screen.height ? Screen.height - 60 : 880
-    width: 1610 > Screen.width ? Screen.width - 20 : 1610
+    maximumHeight: 909 * Screen.devicePixelRatio > Screen.height ? 909 : Screen.height 
+    maximumWidth: 1616 * Screen.devicePixelRatio > Screen.width ? 1616 : Screen.width
+    minimumHeight: 621 > Screen.height / 2 ? Screen.height / 2 : 621
+    minimumWidth: 1104 > Screen.width / 2 ? Screen.width / 2 : 1104
+    height: 909 * Screen.devicePixelRatio > Screen.height ? Screen.height - 60 : 909
+    width: 1616 * Screen.devicePixelRatio > Screen.width ? Screen.width - 20 : 1616
 
     header: Header {
         id: header

@@ -16,7 +16,7 @@ using Layers = QList<QSharedPointer<BaseLayer>>;
 
 class LayersTypeModel : public QAbstractListModel {
     Q_OBJECT
-    QML_NAMED_ELEMENT(LayersTypeModel)
+    QML_ELEMENT
 
 public:
     explicit LayersTypeModel(QObject *parent = nullptr);
@@ -35,7 +35,7 @@ private:
 
 class LayersModel : public QAbstractListModel {
     Q_OBJECT
-    QML_NAMED_ELEMENT(LayersModel)
+    QML_ELEMENT
 
 public:
     explicit LayersModel(QObject *parent = nullptr);

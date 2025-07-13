@@ -46,7 +46,7 @@ Kirigami.ApplicationWindow {
         separateOverlayFileTextField.text = mpv.playlistModel.separateOverlayFile(selectedIndex);
     }
 
-    height: 300
+    height: 350
     title: qsTr("View Playlist Item")
     visible: false
     width: 600

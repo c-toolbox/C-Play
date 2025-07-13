@@ -68,7 +68,7 @@ public:
 
 class PlayListItem : public QObject {
     Q_OBJECT
-    QML_NAMED_ELEMENT(PlayListItem)
+    QML_ELEMENT
 
 public:
     explicit PlayListItem(const QString &path, int i = 0, QObject *parent = nullptr);
