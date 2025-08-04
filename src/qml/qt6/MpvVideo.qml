@@ -88,7 +88,6 @@ MpvObject {
         loadingIndicatorParent.visible = false;
         header.audioTracks = getProperty("track-list").filter(track => track["type"] === "audio");
         mpv.pause = true;
-        position = loadTimePosition();
         overlayImage.source = mpv.getOverlayFileUrl();
         overlayImage.opacity = (overlayImage.source !== "" ? 1 : 0);
     }
