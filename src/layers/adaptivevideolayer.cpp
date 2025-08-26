@@ -39,10 +39,10 @@ void AdaptiveVideoLayer::initialize() {
     QFile amConfFile(QStringLiteral("./data/adaptive-video-conf.json"));
 
     if (!amConfFile.open(QIODevice::ReadOnly)) {
-        sgct::Log::Warning(fmt::format("Couldn't open configuration file: {}", amConfFile.fileName().toStdString()));
+        sgct::Log::Warning(std::format("Couldn't open configuration file: {}", amConfFile.fileName().toStdString()));
     }
     else {
-        sgct::Log::Info(fmt::format("Loading adaptive method configuration file: {}", amConfFile.fileName().toStdString()));
+        sgct::Log::Info(std::format("Loading adaptive method configuration file: {}", amConfFile.fileName().toStdString()));
     }
 
     QByteArray amCommandsArray = amConfFile.readAll();
@@ -146,7 +146,7 @@ void AdaptiveVideoLayer::loadFile(std::string filePath, bool reload) {
                         mpvVideoLayer->encodeFull(data);
                         unsigned int pos = 0;
                         mdkVideoLayer->decodeFull(data, pos);
-                        sgct::Log::Info(fmt::format("Switching to mdk as file has extension: {}", videoPathExt.string().substr(1)));
+                        sgct::Log::Info(std::format("Switching to mdk as file has extension: {}", videoPathExt.string().substr(1)));
                     }
                     m_mpl = MediaPlayerLibrary::MDK;
                     mdkVideoLayer->loadFile(filePath, reload);
@@ -158,7 +158,7 @@ void AdaptiveVideoLayer::loadFile(std::string filePath, bool reload) {
                         mdkVideoLayer->encodeFull(data);
                         unsigned int pos = 0;
                         mpvVideoLayer->decodeFull(data, pos);
-                        sgct::Log::Info(fmt::format("Switching to mpv as file has extension: {}", videoPathExt.string().substr(1)));
+                        sgct::Log::Info(std::format("Switching to mpv as file has extension: {}", videoPathExt.string().substr(1)));
                     }
                     m_mpl = MediaPlayerLibrary::MPV;
                     mpvVideoLayer->loadFile(filePath, reload);
@@ -200,15 +200,15 @@ void AdaptiveVideoLayer::loadFile(std::string filePath, bool reload) {
                 }
             }
             else {
-                sgct::Log::Warning(fmt::format("Video file has no extension: {}", filePath));
+                sgct::Log::Warning(std::format("Video file has no extension: {}", filePath));
             }
         }
         else {
-            sgct::Log::Warning(fmt::format("Could not find video file: {}", filePath));
+            sgct::Log::Warning(std::format("Could not find video file: {}", filePath));
         }
     }
     else {
-        sgct::Log::Warning(fmt::format("Video file is empty: {}", filePath));
+        sgct::Log::Warning(std::format("Video file is empty: {}", filePath));
     }
 }
 
@@ -222,7 +222,7 @@ BaseLayer* AdaptiveVideoLayer::get() {
 }
 
 void AdaptiveVideoLayer::updateUsedMediaLibrary(std::string codecName) {
-    sgct::Log::Info(fmt::format("New file has codec: {}", codecName));
+    sgct::Log::Info(std::format("New file has codec: {}", codecName));
 
     if (m_am == AdaptiveMethod::USE_CODEC) {
         if (std::find(codecPrioMdk.begin(), codecPrioMdk.end(), codecName) != codecPrioMdk.end()) {
@@ -234,7 +234,7 @@ void AdaptiveVideoLayer::updateUsedMediaLibrary(std::string codecName) {
                 mdkVideoLayer->decodeFull(data, pos);
                 mdkVideoLayer->loadFile(mpvVideoLayer->loadedFile(), true);
                 m_mpl = MediaPlayerLibrary::MDK;
-                sgct::Log::Info(fmt::format("Switching to mdk as file has codec: {}", codecName));
+                sgct::Log::Info(std::format("Switching to mdk as file has codec: {}", codecName));
             }
         }
         else if (std::find(codecPrioMpv.begin(), codecPrioMpv.end(), codecName) != codecPrioMpv.end()) {
@@ -246,7 +246,7 @@ void AdaptiveVideoLayer::updateUsedMediaLibrary(std::string codecName) {
                 mpvVideoLayer->decodeFull(data, pos);
                 mpvVideoLayer->loadFile(mdkVideoLayer->loadedFile(), true);
                 m_mpl = MediaPlayerLibrary::MPV;
-                sgct::Log::Info(fmt::format("Switching to mpv as file has codec: {}", codecName));
+                sgct::Log::Info(std::format("Switching to mpv as file has codec: {}", codecName));
             }
         }
         else {
@@ -258,7 +258,7 @@ void AdaptiveVideoLayer::updateUsedMediaLibrary(std::string codecName) {
                 mdkVideoLayer->decodeFull(data, pos);
                 mdkVideoLayer->loadFile(mpvVideoLayer->loadedFile(), true);
                 m_mpl = MediaPlayerLibrary::MDK;
-                sgct::Log::Info(fmt::format("Switching to mdk (as default player) with file that has codec: {}", codecName));
+                sgct::Log::Info(std::format("Switching to mdk (as default player) with file that has codec: {}", codecName));
             }
             else if (m_mpl_default == MediaPlayerLibrary::MPV && m_mpl == MediaPlayerLibrary::MDK) {
                 mdkVideoLayer->stop();
@@ -268,7 +268,7 @@ void AdaptiveVideoLayer::updateUsedMediaLibrary(std::string codecName) {
                 mpvVideoLayer->decodeFull(data, pos);
                 mpvVideoLayer->loadFile(mdkVideoLayer->loadedFile(), true);
                 m_mpl = MediaPlayerLibrary::MPV;
-                sgct::Log::Info(fmt::format("Switching to mpv (as default player) with file that has codec: {}", codecName));
+                sgct::Log::Info(std::format("Switching to mpv (as default player) with file that has codec: {}", codecName));
             }
         }
     }

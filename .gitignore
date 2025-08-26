@@ -128,4 +128,5 @@ CMakeLists.txt.user*
 
 # Qt Creator backups
 
-# End of https://www.gitignore.io/api/qt,c++,qml,cmake,qtcreator
+# VS Code
+.vscode/*

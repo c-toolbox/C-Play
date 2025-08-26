@@ -443,8 +443,8 @@ void LayerRenderer::updateMeshes(double radius, double fov) {
         sphereMesh = nullptr;
         meshRadius = radius;
         meshFov = fov;
-        domeMesh = std::make_unique<sgct::utils::Dome>(float(meshRadius) / 100.f, float(meshFov), 256, 128);
-        sphereMesh = std::make_unique<sgct::utils::Sphere>(float(meshRadius) / 100.f, 256);
+        domeMesh = std::make_unique<DomeGrid>(float(meshRadius) / 100.f, float(meshFov), 256, 128);
+        sphereMesh = std::make_unique<SphereGrid>(float(meshRadius) / 100.f, 256);
     }
 }
 
@@ -461,11 +461,11 @@ const std::vector<std::shared_ptr<BaseLayer>> &LayerRenderer::getLayers() {
 }
 
 void LayerRenderer::renderLayers(const sgct::RenderData &data, int viewMode, float angle) {
-    sgct::Frustum::Mode currentEye = data.frustumMode;
+    sgct::FrustumMode currentEye = data.frustumMode;
 
     // Check if we force all viewports to 2D, meaning only show LeftEye if 3D
-    if (viewMode == 1 && currentEye == sgct::Frustum::Mode::StereoRightEye) {
-        currentEye = sgct::Frustum::Mode::StereoLeftEye;
+    if (viewMode == 1 && currentEye == sgct::FrustumMode::StereoRight) {
+        currentEye = sgct::FrustumMode::StereoLeft;
     }
 
     for (const auto &layer : layers2render) {
@@ -492,7 +492,7 @@ void LayerRenderer::renderLayers(const sgct::RenderData &data, int viewMode, flo
             }
 
             const sgct::mat4 mvp = data.modelViewProjectionMatrix;
-            glm::mat4 MVP_transformed = glm::translate(glm::make_mat4(mvp.values), layer->translate());
+            glm::mat4 MVP_transformed = glm::translate(glm::make_mat4(mvp.values.data()), layer->translate());
 
             glm::mat4 MVP_transformed_rot = MVP_transformed;
             MVP_transformed_rot = glm::rotate(MVP_transformed_rot, glm::radians(layer->rotate().z), glm::vec3(0.0f, 0.0f, 1.0f));        // roll
@@ -529,7 +529,7 @@ void LayerRenderer::renderLayers(const sgct::RenderData &data, int viewMode, flo
             glEnable(GL_CULL_FACE);
 
             const sgct::mat4 mvp = data.modelViewProjectionMatrix;
-            glm::mat4 MVP_transformed = glm::translate(glm::make_mat4(mvp.values), layer->translate());
+            glm::mat4 MVP_transformed = glm::translate(glm::make_mat4(mvp.values.data()), layer->translate());
 
             glm::mat4 MVP_transformed_rot = MVP_transformed;
             MVP_transformed_rot = glm::rotate(MVP_transformed_rot, glm::radians(layer->rotate().z), glm::vec3(0.0f, 0.0f, 1.0f)); // roll
@@ -607,7 +607,7 @@ void LayerRenderer::renderLayers(const sgct::RenderData &data, int viewMode, flo
             glUniform1i(meshFlipYLoc, (layer->flipY() ? 1 : 0));
 
             const sgct::mat4 mvp = data.modelViewProjectionMatrix;
-            glm::mat4 MVP_transformed_rot = glm::translate(glm::make_mat4(mvp.values), layer->translate());
+            glm::mat4 MVP_transformed_rot = glm::translate(glm::make_mat4(mvp.values.data()), layer->translate());
             MVP_transformed_rot = glm::rotate(MVP_transformed_rot, glm::radians(layer->rotate().z), glm::vec3(0.0f, 0.0f, 1.0f));         // roll
             MVP_transformed_rot = glm::rotate(MVP_transformed_rot, glm::radians(layer->rotate().x - angle), glm::vec3(1.0f, 0.0f, 0.0f)); // pitch
             MVP_transformed_rot = glm::rotate(MVP_transformed_rot, glm::radians(layer->rotate().y), glm::vec3(0.0f, 1.0f, 0.0f));         // yaw
@@ -656,7 +656,7 @@ void LayerRenderer::renderLayers(const sgct::RenderData &data, int viewMode, flo
             planeTransform = glm::rotate(planeTransform, glm::radians(float(layer->planeRoll())), glm::vec3(0.0f, 0.0f, 1.0f));      // roll
             planeTransform = glm::translate(planeTransform, glm::vec3(float(layer->planeHorizontal()) / 100.f, float(layer->planeVertical()) / 100.f, float(-layer->planeDistance()) / 100.f));
             
-            planeTransform = glm::make_mat4(mvp.values) * planeTransform;
+            planeTransform = glm::make_mat4(mvp.values.data()) * planeTransform;
             glUniformMatrix4fv(meshMatrixLoc, 1, GL_FALSE, &planeTransform[0][0]);
 
             layer->drawPlane();

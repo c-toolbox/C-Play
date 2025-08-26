@@ -787,7 +787,7 @@ void BaseLayer::updatePlane() {
     if (calculatedPlaneSize.x != planeData.actualSize.x || calculatedPlaneSize.y != planeData.actualSize.y) {
         planeData.mesh = nullptr;
         planeData.actualSize = calculatedPlaneSize;
-        planeData.mesh = std::make_unique<sgct::utils::Plane>(calculatedPlaneSize.x / 100.f, calculatedPlaneSize.y / 100.f);
+        planeData.mesh = std::make_unique<PlaneGrid>(calculatedPlaneSize.x / 100.f, calculatedPlaneSize.y / 100.f);
         setNeedSync();
     }
 }

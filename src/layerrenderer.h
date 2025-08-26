@@ -11,8 +11,8 @@
 #include <layers/baselayer.h>
 #include <mutex>
 #include <sgct/sgct.h>
-#include <sgct/utils/dome.h>
-#include <sgct/utils/sphere.h>
+#include <utils/domegrid.h>
+#include <utils/spheregrid.h>
 
 class LayerRenderer {
 public:
@@ -64,8 +64,8 @@ private:
     const sgct::ShaderProgram *meshPrg;
     const sgct::ShaderProgram *EACPrg;
 
-    std::unique_ptr<sgct::utils::Dome> domeMesh;
-    std::unique_ptr<sgct::utils::Sphere> sphereMesh;
+    std::unique_ptr<DomeGrid> domeMesh;
+    std::unique_ptr<SphereGrid> sphereMesh;
 };
 
 #endif // LAYERRENDERER_H

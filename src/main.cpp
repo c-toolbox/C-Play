@@ -561,18 +561,18 @@ void postSyncPreDraw() {
                 bool exist3Dviewports = false;
                 // Step 2
                 for (const std::unique_ptr<Viewport> &vp : win->viewports()) {
-                    if (vp->eye() == Frustum::Mode::MonoEye) {
+                    if (vp->eye() == FrustumMode::Mono) {
                         exist2Dviewports = true;
-                    } else if (vp->eye() == Frustum::Mode::StereoLeftEye || vp->eye() == Frustum::Mode::StereoRightEye) {
+                    } else if (vp->eye() == FrustumMode::StereoLeft || vp->eye() == FrustumMode::StereoRight) {
                         exist3Dviewports = true;
                     }
                 }
                 // Step 3
                 if (exist2Dviewports && exist3Dviewports) {
                     for (const std::unique_ptr<Viewport> &vp : win->viewports()) {
-                        if (show2Dcontent && (vp->eye() == Frustum::Mode::MonoEye)) {
+                        if (show2Dcontent && (vp->eye() == FrustumMode::Mono)) {
                             vp->setEnabled(true);
-                        } else if (show3Dcontent && (vp->eye() == Frustum::Mode::StereoLeftEye || vp->eye() == Frustum::Mode::StereoRightEye)) {
+                        } else if (show3Dcontent && (vp->eye() == FrustumMode::StereoLeft || vp->eye() == FrustumMode::StereoRight)) {
                             vp->setEnabled(true);
                         } else {
                             vp->setEnabled(false);

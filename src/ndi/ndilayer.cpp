@@ -7,7 +7,6 @@
 
 #include "ndilayer.h"
 #include "audiosettings.h"
-#include <fmt/core.h>
 #include <sgct/sgct.h>
 
 /* This routine will be called by the PortAudio engine when audio is needed.
@@ -385,7 +384,7 @@ PaDeviceIndex NdiLayer::GetChosenApplicationAudioDevice() {
             }
             const PaDeviceInfo* deviceInfo;
             const PaHostApiInfo* apiInfo;
-            sgct::Log::Info(fmt::format("NdiLayer: Trying to find audio device named \"{}\" using the \"{}\" api.",
+            sgct::Log::Info(std::format("NdiLayer: Trying to find audio device named \"{}\" using the \"{}\" api.",
                 AudioSettings::portAudioOutputDevice().toStdString(), AudioSettings::portAudioOutpuApi().toStdString()));
             bool foundDevice = false;
             for (int i = 0; i < numDevices; i++) {
@@ -398,12 +397,12 @@ PaDeviceIndex NdiLayer::GetChosenApplicationAudioDevice() {
                         && apiName == AudioSettings::portAudioOutpuApi()) {
                         choseDeviceIdx = i;
                         foundDevice = true;
-                        sgct::Log::Info(fmt::format("NdiLayer: Found desired audio device."));
+                        sgct::Log::Info(std::format("NdiLayer: Found desired audio device."));
                     }
                 }
             }
             if (!foundDevice) {
-                sgct::Log::Info(fmt::format("NdiLayer: Did not find desired audio device. Sticking with default device."));
+                sgct::Log::Info(std::format("NdiLayer: Did not find desired audio device. Sticking with default device."));
             }
         }
     }

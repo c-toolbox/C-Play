@@ -8,7 +8,6 @@
 #include "pdflayer.h"
 #include <presentationsettings.h>
 #include <sgct/sgct.h>
-#include <fmt/core.h>
 #include <cpp/poppler-page.h>
 #include <cpp/poppler-page-renderer.h>
 
@@ -17,7 +16,7 @@ auto loadPageAsync = [](PdfLayer::PdfData& data) {
 
     std::unique_ptr<poppler::page> p(data.document->create_page(data.page - 1));
     if (!p.get()) {
-        sgct::Log::Error(fmt::format("PDF creation of page {} in {} failed.", data.page, data.filepath));
+        sgct::Log::Error(std::format("PDF creation of page {} in {} failed.", data.page, data.filepath));
     }
 
     poppler::page_renderer pr;
@@ -26,7 +25,7 @@ auto loadPageAsync = [](PdfLayer::PdfData& data) {
 
     data.img = pr.render_page(p.get(), data.dpi, data.dpi);
     if (!data.img.is_valid()) {
-        sgct::Log::Error(fmt::format("PDF rendering of page {} in {} failed.", data.page, data.filepath));
+        sgct::Log::Error(std::format("PDF rendering of page {} in {} failed.", data.page, data.filepath));
     }
 
     data.pageDone = true;
@@ -147,7 +146,7 @@ void PdfLayer::update(bool updateRendering) {
 
     if ((updateRendering || !ready()) && loadPage && page() > 0) {
         m_pdfData.page = page();
-        sgct::Log::Info(fmt::format("Loading page {} in {} asynchronously.", m_pdfData.page, m_pdfData.filepath));
+        sgct::Log::Info(std::format("Loading page {} in {} asynchronously.", m_pdfData.page, m_pdfData.filepath));
         m_pdfData.trd = std::make_unique<std::thread>(loadPageAsync, std::ref(m_pdfData));
     }
 }
@@ -163,10 +162,10 @@ bool PdfLayer::loadDocument(std::string filepath) {
     }
 
     if (m_pdfData.document == nullptr) {
-        sgct::Log::Error(fmt::format("Loading error: PDF {} failed", filepath));
+        sgct::Log::Error(std::format("Loading error: PDF {} failed", filepath));
     }
     else if (m_pdfData.document->is_locked()) {
-        sgct::Log::Error(fmt::format("Loading error: PDF {} is encrypted.", filepath));
+        sgct::Log::Error(std::format("Loading error: PDF {} is encrypted.", filepath));
     }
     else { //Success
         setNumPages(m_pdfData.document->pages());
@@ -190,7 +189,7 @@ void PdfLayer::handleAsyncPageRender() {
             else {
                 loadPageAsTexture(renderData.texId, m_pdfData.img.width(), m_pdfData.img.height(), m_pdfData.img.format(), m_pdfData.img.const_data());
             }
-            sgct::Log::Info(fmt::format("Page {} in {} loaded with width {} and height {}.", m_pdfData.page, m_pdfData.filepath, renderData.width, renderData.height));
+            sgct::Log::Info(std::format("Page {} in {} loaded with width {} and height {}.", m_pdfData.page, m_pdfData.filepath, renderData.width, renderData.height));
             m_pdfData.uploadDone = true;
         }
         else if (m_pdfData.threadDone) {

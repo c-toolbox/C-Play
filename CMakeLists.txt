@@ -43,6 +43,11 @@ set_package_properties(ECM PROPERTIES TYPE REQUIRED
     DESCRIPTION "extra cmake modules")
 set(CMAKE_MODULE_PATH ${ECM_MODULE_PATH} ${ECM_KDE_MODULE_DIR} ${CMAKE_CURRENT_SOURCE_DIR}/cmake)
 
+if (MSVC)
+include(${PROJECT_SOURCE_DIR}/src/sgct/support/cmake/common-compile-settings/platforms/msvc.cmake)
+endif()
+
+include(${PROJECT_SOURCE_DIR}/src/sgct/support/cmake/common-compile-settings/common-compile-settings.cmake)
 include(${PROJECT_SOURCE_DIR}/src/sgct/support/cmake/set_compile_options.cmake)
 
 find_package(Qt6Core ${QT_MIN_VERSION})

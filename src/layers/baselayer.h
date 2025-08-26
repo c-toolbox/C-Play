@@ -10,9 +10,9 @@
 
 #include <glm/glm.hpp>
 #include <mutex>
-#include <sgct/utils/plane.h>
 #include <vector>
 #include "track.h"
+#include <utils/planegrid.h>
 
 class BaseLayer {
 public:
@@ -83,7 +83,7 @@ public:
         uint8_t aspectRatioConsideration = 1;
         glm::vec2 specifiedSize = glm::vec2(0);
         glm::vec2 actualSize = glm::vec2(0);
-        std::unique_ptr<sgct::utils::Plane> mesh = nullptr;
+        std::unique_ptr<PlaneGrid> mesh = nullptr;
     };
 
     BaseLayer();

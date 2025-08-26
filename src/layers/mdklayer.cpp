@@ -30,10 +30,10 @@ void MdkLayer::initialize() {
     QFile mdkConfFile(QStringLiteral("./data/mdk-conf.json"));
 
     if (!mdkConfFile.open(QIODevice::ReadOnly)) {
-        sgct::Log::Warning(fmt::format("Couldn't open mdk configuration file: {}", mdkConfFile.fileName().toStdString()));
+        sgct::Log::Warning(std::format("Couldn't open mdk configuration file: {}", mdkConfFile.fileName().toStdString()));
     }
     else {
-        sgct::Log::Info(fmt::format("Loading mdk configuration file: {}", mdkConfFile.fileName().toStdString()));
+        sgct::Log::Info(std::format("Loading mdk configuration file: {}", mdkConfFile.fileName().toStdString()));
     }
 
     QByteArray mdkCommandsArray = mdkConfFile.readAll();
@@ -44,7 +44,7 @@ void MdkLayer::initialize() {
     for (const QString& key : mdkCommands.keys()) {
         QJsonValue value = mdkCommands.value(key);
         m_player->setProperty(key.toStdString(), value.toString().toStdString());
-        sgct::Log::Info(fmt::format("MDK property {} with value {}", key.toStdString(), value.toString().toStdString()));
+        sgct::Log::Info(std::format("MDK property {} with value {}", key.toStdString(), value.toString().toStdString()));
     }
 
     m_hasInitialized = true;
@@ -234,7 +234,7 @@ void MdkLayer::decodeTypeAlways(const std::vector<std::byte>& data, unsigned int
 
 void MdkLayer::loadFile(std::string filePath, bool reload) {
     if (!filePath.empty() && (reload || m_data.loadedFile != filePath)) {
-        sgct::Log::Info(fmt::format("Loading new file with mdk: {}", filePath));
+        sgct::Log::Info(std::format("Loading new file with mdk: {}", filePath));
         m_data.loadedFile = filePath;
 
         m_player->setMedia(filePath.c_str());
@@ -328,7 +328,7 @@ void MdkLayer::checkNeededMdkFboResize() {
     if (renderData.width <= 0 || renderData.height <= 0 || renderData.width > maxTexSize || renderData.height > maxTexSize)
         return;
 
-    sgct::Log::Info(fmt::format("New MDK FBO width:{} and height:{}", renderData.width, renderData.height));
+    sgct::Log::Info(std::format("New MDK FBO width:{} and height:{}", renderData.width, renderData.height));
 
     createMdkFBO(renderData.width, renderData.height);
 }

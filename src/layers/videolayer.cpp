@@ -10,7 +10,6 @@
 #include "audiosettings.h"
 #include "track.h"
 #include "qthelper.h"
-#include <fmt/core.h>
 #include <sgct/opengl.h>
 #include <sgct/sgct.h>
 
@@ -132,7 +131,7 @@ void VideoLayer::checkNeededMpvFboResize() {
     if (renderData.width <= 0 || renderData.height <= 0 || renderData.width > maxTexSize || renderData.height > maxTexSize)
         return;
 
-    sgct::Log::Info(fmt::format("New MPV FBO width:{} and height:{}", renderData.width, renderData.height));
+    sgct::Log::Info(std::format("New MPV FBO width:{} and height:{}", renderData.width, renderData.height));
 
     createMpvFBO(renderData.width, renderData.height);
 }

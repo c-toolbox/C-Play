@@ -6,7 +6,6 @@
  */
 
 #include "imagelayer.h"
-#include <fmt/core.h>
 
 auto loadImageAsync = [](ImageLayer::ImageData &data) {
     data.threadDone = false;
@@ -62,7 +61,7 @@ bool ImageLayer::processImageUpload(std::string filename, bool forceUpdate) {
             if (fileIsImage(filename)) {
                 // Load background file
                 imageData.filename = filename;
-                sgct::Log::Info(fmt::format("Loading new {} image asynchronously: {}", imageData.identifier, imageData.filename));
+                sgct::Log::Info(std::format("Loading new {} image asynchronously: {}", imageData.identifier, imageData.filename));
                 imageData.trd = std::make_unique<std::thread>(loadImageAsync, std::ref(imageData));
 
                 return true;
@@ -92,16 +91,16 @@ bool ImageLayer::fileIsImage(std::string &filePath) {
                     bgPathExt == ".tga") {
                     return true;
                 } else {
-                    sgct::Log::Warning(fmt::format("Image file extension is not supported: {}", filePath));
+                    sgct::Log::Warning(std::format("Image file extension is not supported: {}", filePath));
                 }
             } else {
-                sgct::Log::Warning(fmt::format("Image file has no extension: {}", filePath));
+                sgct::Log::Warning(std::format("Image file has no extension: {}", filePath));
             }
         } else {
-            sgct::Log::Warning(fmt::format("Could not find image file: {}", filePath));
+            sgct::Log::Warning(std::format("Could not find image file: {}", filePath));
         }
     } else {
-        sgct::Log::Warning(fmt::format("Image file is empty: {}", filePath));
+        sgct::Log::Warning(std::format("Image file is empty: {}", filePath));
     }
 
     return false;

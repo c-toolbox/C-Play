@@ -13,8 +13,11 @@ set(CPLAY_VERSION_PATCH 0)
 
 add_executable(${TARGET_NAME})
 set_compile_options(${TARGET_NAME})
-add_compile_options("$<$<C_COMPILER_ID:MSVC>:/utf-8>")
-add_compile_options("$<$<CXX_COMPILER_ID:MSVC>:/utf-8>")
+
+if (MSVC)
+    add_compile_options("$<$<C_COMPILER_ID:MSVC>:/utf-8>")
+    add_compile_options("$<$<CXX_COMPILER_ID:MSVC>:/utf-8>")
+endif()
 
 set(SOURCE_FILES
     application.cpp
@@ -65,6 +68,12 @@ set(SOURCE_FILES
     tracksmodel.h
     worker.cpp
     worker.h
+    utils/domegrid.cpp
+    utils/domegrid.h
+    utils/planegrid.cpp
+    utils/planegrid.h
+    utils/spheregrid.cpp
+    utils/spheregrid.h
 )
 
 set(KCFCG_FILE_NAMES
@@ -366,7 +375,11 @@ if(CPLAY_INSTALL_DEPENDENCIES)
 
     option(CPLAY_INSTALL_GET_RUNTIME_DEPENDENCIES "When running INSTALL, look for dependencies with GET_RUNTIME_DEPENDENCIES and copy them" ON)
     if(CPLAY_INSTALL_GET_RUNTIME_DEPENDENCIES)
-        set(MY_DEPENDENCY_PATHS ${_mpv_bin_dir} ${_qt_bin_dir})
+        if(SGCT_DEP_INCLUDE_SCALABLE)
+            set(_scalable_dir ${CMAKE_CURRENT_SOURCE_DIR}/sgct/ext/scalable)
+        endif()
+
+        set(MY_DEPENDENCY_PATHS ${_mpv_bin_dir} ${_qt_bin_dir} ${_scalable_dir})
         # Transfer the values into the install script
         install(CODE "set(MY_DEPENDENCY_PATHS \"${MY_DEPENDENCY_PATHS}\")")
         install(CODE "set(target \"$<TARGET_FILE:${TARGET_NAME}>\")")

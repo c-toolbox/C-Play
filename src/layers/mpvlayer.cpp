@@ -10,7 +10,6 @@
 #include "audiosettings.h"
 #include "track.h"
 #include "qthelper.h"
-#include <fmt/core.h>
 #include <sgct/sgct.h>
 
 //#define TEST_STREAM_NODE_ONLY
@@ -130,7 +129,7 @@ void on_mpv_events(MpvLayer::mpvData &vd, BaseLayer::RenderParams &rp) {
         case MPV_EVENT_LOG_MESSAGE: {
             mpv_event_log_message *message = (mpv_event_log_message *)event->data;
             if (message->log_level == mpv_log_level::MPV_LOG_LEVEL_FATAL) {
-                sgct::Log::Error(fmt::format("FATAL: {}", message->text));
+                sgct::Log::Error(std::format("FATAL: {}", message->text));
             } else if (message->log_level == mpv_log_level::MPV_LOG_LEVEL_ERROR) {
                 sgct::Log::Error(message->text);
             } else if (message->log_level == mpv_log_level::MPV_LOG_LEVEL_WARN) {
@@ -468,7 +467,7 @@ void MpvLayer::decodeTypeAlways(const std::vector<std::byte>& data, unsigned int
 
 void MpvLayer::loadFile(std::string filePath, bool reload) {
     if (!filePath.empty() && (reload || m_data.loadedFile != filePath)) {
-        sgct::Log::Info(fmt::format("Loading new file with mpv: {}", filePath));
+        sgct::Log::Info(std::format("Loading new file with mpv: {}", filePath));
         m_data.reconfigs = 0;
         m_data.updateRendering = false;
         m_data.loadedFile = filePath;
