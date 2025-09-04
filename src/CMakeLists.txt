@@ -373,7 +373,21 @@ if(CPLAY_INSTALL_DEPENDENCIES)
         install(DIRECTORY "${_qt_dir}/qml" DESTINATION "${CMAKE_INSTALL_PREFIX}/bin")
     endif()
 
-    option(CPLAY_INSTALL_GET_RUNTIME_DEPENDENCIES "When running INSTALL, look for dependencies with GET_RUNTIME_DEPENDENCIES and copy them" ON)
+    # Check if we are on Windows 11 (Build number 22000 or higher) or Windows 10 (Build number 10240 or higher)
+    cmake_host_system_information(RESULT OS_VERSION QUERY OS_VERSION)
+    string(REGEX MATCH "[0-9]+" OS_BUILD_NUM "${OS_VERSION}")
+
+    if(${OS_BUILD_NUM} VERSION_GREATER_EQUAL 22000)
+        message("Windows 11 or above detected, recommended to copy all DLLS from path instead of using GET_RUNTIME_DEPENDENCIES")
+        set(INSTALL_GRP FALSE)
+        set(INSTALL_DFP TRUE)
+    else()
+        message("Windows 10 or below detected, recommended to use GET_RUNTIME_DEPENDENCIES instead of copying all DLLS from path")
+        set(INSTALL_GRP TRUE)
+        set(INSTALL_DFP FALSE)
+    endif()
+
+    option(CPLAY_INSTALL_GET_RUNTIME_DEPENDENCIES "When running INSTALL, look for dependencies with GET_RUNTIME_DEPENDENCIES and copy them" ${INSTALL_GRP})
     if(CPLAY_INSTALL_GET_RUNTIME_DEPENDENCIES)
         if(SGCT_DEP_INCLUDE_SCALABLE)
             set(_scalable_dir ${CMAKE_CURRENT_SOURCE_DIR}/sgct/ext/scalable)
@@ -435,4 +449,47 @@ if(CPLAY_INSTALL_DEPENDENCIES)
             endforeach()
         ]])
     endif()
+
+    option(CPLAY_INSTALL_DLLS_FROM_PATHS "When running INSTALL, copy all DLLS from CPLAY_INSTALL_DLLS_FROM_PATH_LIST to the INSTALL/bin folder" ${INSTALL_DFP})
+    if(CPLAY_INSTALL_DLLS_FROM_PATHS)
+        set(CIDFPL ${_qt_bin_dir} ${_mpv_bin_dir})
+
+        if(BUILD_WITH_VCPKG_SUPPORT)
+            list(APPEND CIDFPL "${VCPKG_INSTALLED_DIR}/${VCPKG_TARGET_TRIPLET}/bin")
+        endif()
+        if(BUILD_CPLAY_WITH_MDK)
+            list(APPEND CIDFPL ${MDK_SDK_ROOT})
+        endif()
+        if(BUILD_CPLAY_WITH_NDI)
+            list(APPEND CIDFPL ${NDI_BINARY_DIR})
+        endif()
+        if(SGCT_DEP_INCLUDE_SCALABLE)
+            list(APPEND CIDFPL ${CMAKE_CURRENT_SOURCE_DIR}/sgct/ext/scalable)
+        endif()
+
+        set(CPLAY_INSTALL_DLLS_FROM_PATH_LIST ${CIDFPL} CACHE STRING "The paths where to look for DLL:s")
+
+        # Install dependencies
+        install(CODE "set(_all_dll_copy_paths \"${CPLAY_INSTALL_DLLS_FROM_PATH_LIST}\")")
+        install(CODE [[
+                message("Copying all DLL:s from CPLAY_INSTALL_DLLS_FROM_PATH_LIST to install folder")
+                foreach(DLL_DIR ${_all_dll_copy_paths})
+                    message("Looking for DLL:s in ${DLL_DIR}")
+                    if(EXISTS "${DLL_DIR}")
+                        file(GLOB DLL_FILES "${DLL_DIR}/*.dll")
+                        foreach(DLL_FILE ${DLL_FILES})
+                            message("Copying ${DLL_FILE}")
+                            file(INSTALL
+                                DESTINATION "${CMAKE_INSTALL_PREFIX}/bin"
+                                FILES "${DLL_FILE}"
+                            )
+                        endforeach()
+                    else()
+                        message("Directory ${DLL_DIR} does not exist")
+                    endif()
+                endforeach()
+            ]])
+    endif()
+
+
 endif()

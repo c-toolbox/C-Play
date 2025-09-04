@@ -30,3 +30,6 @@
 # Full plus options that add shared dependencies
 --enable-opengl
 --disable-sdl2
+
+# License
+--enable-gpl

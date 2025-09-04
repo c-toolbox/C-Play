@@ -158,12 +158,8 @@ if(BUILD_CPLAY_WITH_NDI)
     set_package_properties(NDI PROPERTIES TYPE REQUIRED
         URL "https://ndi.video/for-developers/ndi-sdk/download/" DESCRIPTION "video and audio over network")
 
-    # Install portaudio with vcpkg
-    find_package(portaudio CONFIG REQUIRED)
-    if(NOT portaudio_FOUND)
-        message("Remember to run: vcpkg install portaudio")
-    endif()
-    set_package_properties(portaudio PROPERTIES TYPE REQUIRED 
+    find_package(PortAudio REQUIRED)
+    set_package_properties(PortAudio PROPERTIES TYPE REQUIRED 
         URL "https://www.portaudio.com/" DESCRIPTION "for NDI audio output support.")
 endif()
 

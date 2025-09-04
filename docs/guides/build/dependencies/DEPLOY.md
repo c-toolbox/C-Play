@@ -17,12 +17,25 @@ The following options become visible below (and executed in this order):
 
 * *CPLAY_INSTALL_QML_FROM_CRAFT* : Copy all qml files from Craft build
 
-* *CPLAY_INSTALL_PREDEFINED_DLL_LIST* : Will copy a predefined list of DLLs from Craft and MPV bin folders (made manually and then printed with *"dir /b *.dll > dll_list.txt*"). The easiest approach of generating your own (if this does not work), is coping all dlls from craft to the bin directory, launch C-Play and then try to delete all dlls. The ones that cannot be deleted is the ones to keep.
+* *CPLAY_INSTALL_PREDEFINED_DLL_LIST* : Will copy a predefined list of DLLs from Craft and MPV bin folders (made manually and then printed with *"dir /b *.dll > dll_list.txt*"). The easiest approach of generating your own (if this does not work), is coping all dlls from craft etc to the bin directory, launch C-Play and then try to delete all dlls. The ones that cannot be deleted is the ones to keep.
 
-* *CPLAY_INSTALL_GET_RUNTIME_DEPENDENCIES*: Runs a cmake command to look for any direct dependencies of C-Play, in the QMAKE/CRAFT and MPV build directories. To complete the pre-defined list (which only fetches from CRAFT/QMAKE directory).
+* *CPLAY_INSTALL_GET_RUNTIME_DEPENDENCIES*: Runs a cmake command to look for any direct dependencies of C-Play, in the QMAKE/CRAFT and MPV build directories. To complete the pre-defined list (which only fetches from CRAFT/QMAKE directory). 
+*NOTE*: On Windows 11, this seems to copy over many unnecessary DLLs that cause bad behavior and crashes (when in wrong position). So should not be used, use *CPLAY_INSTALL_DLLS_FROM_PATHS* below instead. 
+
+* *CPLAY_INSTALL_DLLS_FROM_PATHS*: This option copies all DLLs located in the *CPLAY_INSTALL_DLLS_FROM_PATH_LIST* variable to the INSTALL/bin folder. These are copied from first to last in the list. First time this variable is created, it will fill the list with paths based on the location of various dependencies. The protocol is then to launch C-Play and then try to delete all dlls. The ones that cannot be deleted is the ones to keep.
 
 Run *INSTALL* from Visual Studio to trigger a complete install/copy operation for each of the above options.
 Then your *CMAKE_INSTALL_PREFIX/bin* should include a working standalone solution of C-Play.
+
+* NOTE: Remember to remove the Visual Redist DLLs which might be present in the directory.
+
+```
+concrt*.dll	Concurrency Runtime Library for native code
+msvcp*.dll	C++ Standard Library for native code
+vcamp*.dll	AMP Library for native code
+vcomp*.dll	OpenMP Library for native code
+vcruntime*.dll	Runtime Library for native code
+```
 
 ## Build installer
 

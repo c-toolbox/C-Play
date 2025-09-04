@@ -43,3 +43,7 @@
 
 # Full plus options that add shared dependencies
 --enable-opengl
+
+# License
+--enable-version3
+--enable-gpl
