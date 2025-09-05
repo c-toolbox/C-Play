@@ -9,7 +9,6 @@
 import QtQuick
 import QtQuick.Layouts
 import QtQuick.Controls
-import QtQuick.Dialogs
 
 import org.kde.kirigami as Kirigami
 import org.ctoolbox.cplay

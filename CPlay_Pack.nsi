@@ -18,7 +18,7 @@ LicenseData "LICENSE.txt"
 # This will be in the installer/uninstaller's title bar
 Name "${APPNAME}"
 Icon "bin\data\images\C_play_transparent.ico"
-outFile "${APPNAME}_${VERSIONMAJOR}_${VERSIONMINOR}_${VERSIONBUILD}.exe"
+outFile "${APPNAME}_${VERSIONMAJOR}_${VERSIONMINOR}_${VERSIONBUILD}_Beta_1.exe"
  
 !include LogicLib.nsh
  

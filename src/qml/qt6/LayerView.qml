@@ -9,7 +9,6 @@ import QtQuick
 import QtQuick.Window
 import QtQuick.Layouts
 import QtQuick.Controls
-import QtQuick.Dialogs
 import QtQuick.Shapes
 import Qt5Compat.GraphicalEffects
 import Qt.labs.platform 1.0 as Platform

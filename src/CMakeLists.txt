@@ -11,7 +11,7 @@ set(CPLAY_VERSION_MAJOR 2)
 set(CPLAY_VERSION_MINOR 2)
 set(CPLAY_VERSION_PATCH 0)
 
-add_executable(${TARGET_NAME})
+qt_add_executable(${TARGET_NAME})
 set_compile_options(${TARGET_NAME})
 
 if (MSVC)
@@ -146,6 +146,8 @@ target_sources(${TARGET_NAME}
 find_package(QT NAMES Qt6)
 if(${QT_VERSION_MAJOR} GREATER_EQUAL 6 AND ${QT_VERSION_MINOR} GREATER_EQUAL 8)
     qt_standard_project_setup(REQUIRES 6.8)
+else()
+    qt_standard_project_setup(REQUIRES 6.5)
 endif()
 qt_policy(SET QTP0001 NEW)
 
@@ -214,6 +216,9 @@ qt_add_qml_module(${TARGET_NAME}
     QML_FILES
     ${QML_SRC_FILES}
 )
+qt_import_qml_plugins(${TARGET_NAME})
+ecm_find_qmlmodule(org.kde.kirigami REQUIRED)
+
 source_group(Qml FILES ${QML_SRC_FILES})
 
 set(RCC_FILE_DIR ${CMAKE_CURRENT_BINARY_DIR}/.rcc)
@@ -271,7 +276,7 @@ if(${QT_VERSION_MAJOR} GREATER_EQUAL 6 AND ${QT_VERSION_MINOR} GREATER_EQUAL 8)
 endif()
     set_target_properties(all_qmltyperegistrations PROPERTIES FOLDER ${AUTO_TARGET_NAME})
     set_target_properties(${TARGET_NAME}_automoc_json_extraction PROPERTIES FOLDER ${AUTO_TARGET_NAME})
-    set_target_properties(${TARGET_NAME}_other_files PROPERTIES FOLDER ${AUTO_TARGET_NAME})
+    #set_target_properties(${TARGET_NAME}_other_files PROPERTIES FOLDER ${AUTO_TARGET_NAME})
     set_target_properties(${TARGET_NAME}_qmltyperegistration PROPERTIES FOLDER ${AUTO_TARGET_NAME})
     set_target_properties(${TARGET_NAME}_tooling PROPERTIES FOLDER ${AUTO_TARGET_NAME})
     set_target_properties(fetch-translations PROPERTIES FOLDER "External")
@@ -335,18 +340,13 @@ set(BUILD_SHARED_LIBS OFF CACHE BOOL "Build shared libraries" FORCE)
 
 target_link_libraries(${TARGET_NAME} PRIVATE ${TARGET_LIBRARIES})
 
-target_compile_features(${TARGET_NAME} PRIVATE cxx_std_17)
-target_compile_definitions(${TARGET_NAME} PUBLIC CPLAY_VERSION="${CPLAY_VERSION_MAJOR}.${CPLAY_VERSION_MINOR}.${CPLAY_VERSION_PATCH}")
+target_compile_features(${TARGET_NAME} PRIVATE cxx_std_20)
+target_compile_definitions(${TARGET_NAME} PUBLIC CPLAY_VERSION="${CPLAY_VERSION_MAJOR}.${CPLAY_VERSION_MINOR}.${CPLAY_VERSION_PATCH} Beta 1")
 target_compile_definitions(${TARGET_NAME} PUBLIC CPLAY_VERSION_MAJOR=${CPLAY_VERSION_MAJOR})
 target_compile_definitions(${TARGET_NAME} PUBLIC CPLAY_VERSION_MINOR=${CPLAY_VERSION_MINOR})
 target_compile_definitions(${TARGET_NAME} PUBLIC CPLAY_VERSION_PATCH=${CPLAY_VERSION_PATCH})
 
 install(TARGETS ${TARGET_NAME} DESTINATION ${KDE_INSTALL_TARGETS_DEFAULT_ARGS})
-
-install(CODE [[
-    message("Copying C-Play qml folder")
-]])
-install(DIRECTORY "${PROJECT_BINARY_DIR}/src/org" DESTINATION "${CMAKE_INSTALL_PREFIX}/bin/qml")
 
 if(CPLAY_INSTALL_DEPENDENCIES)
     get_target_property(_qmake_executable Qt6::qmake IMPORTED_LOCATION)
@@ -362,15 +362,22 @@ if(CPLAY_INSTALL_DEPENDENCIES)
         install(CODE [[
             message("Copying Qt/KDE plugins folder")
         ]])
-        install(DIRECTORY "${_qt_dir}/plugins" DESTINATION "${CMAKE_INSTALL_PREFIX}/bin")
+        install(DIRECTORY "${_qt_dir}/plugins" DESTINATION "${CMAKE_INSTALL_PREFIX}/bin" FILES_MATCHING PATTERN "*.dll")
     endif()
 
     option(CPLAY_INSTALL_QML_FROM_CRAFT "Copy complete qml folder for Qt/KDE" ON)
     if(CPLAY_INSTALL_QML_FROM_CRAFT)
         install(CODE [[
-            message("Copying Qt/KDE qml folder")
+            message("Copying KDE qml folder")
         ]])
-        install(DIRECTORY "${_qt_dir}/qml" DESTINATION "${CMAKE_INSTALL_PREFIX}/bin")
+        #
+        install(DIRECTORY "${_qt_dir}/qml" DESTINATION "${CMAKE_INSTALL_PREFIX}/bin"
+            FILES_MATCHING PATTERN "*.dll")
+        install(DIRECTORY "${_qt_dir}/qml" DESTINATION "${CMAKE_INSTALL_PREFIX}/bin"
+            FILES_MATCHING PATTERN "*.qmltypes")
+        install(DIRECTORY "${_qt_dir}/qml" DESTINATION "${CMAKE_INSTALL_PREFIX}/bin"
+            FILES_MATCHING PATTERN "qmldir")
+        install(DIRECTORY "${_qt_dir}/qml/org" DESTINATION "${CMAKE_INSTALL_PREFIX}/bin/qml")
     endif()
 
     # Check if we are on Windows 11 (Build number 22000 or higher) or Windows 10 (Build number 10240 or higher)

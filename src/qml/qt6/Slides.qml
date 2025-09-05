@@ -9,7 +9,6 @@ import QtQuick
 import QtQuick.Controls
 import QtQuick.Layouts
 import Qt.labs.platform 1.0 as Platform
-import QtQuick.Dialogs
 
 import org.kde.kirigami as Kirigami
 import org.ctoolbox.cplay
@@ -315,14 +314,14 @@ Rectangle {
                     ToolTip {
                         text: qsTr("Clear slides list")
                     }
-                    MessageDialog {
+                    Dialog {
                         id: clearSlidesDialog
+                        standardButtons: Dialog.Ok | Dialog.Cancel
 
-                        buttons: MessageDialog.Yes | MessageDialog.No
-                        text: "Confirm clearing of all items in slides list."
-                        title: "Clear presentation/slides list"
+                        Label {
+                            text: "Confirm clearing of all items in slides list."
+                        }
 
-                        Component.onCompleted: visible = false
                         onAccepted: {
                             app.slides.pauseLayerUpdate = true;
                             busyIndicator = true;

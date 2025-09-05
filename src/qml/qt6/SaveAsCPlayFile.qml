@@ -10,7 +10,6 @@ import QtQuick.Window
 import QtQuick.Layouts
 import QtQuick.Controls
 
-import QtQuick.Dialogs
 import Qt.labs.platform 1.0 as Platform
 
 import org.kde.kirigami as Kirigami

@@ -10,7 +10,6 @@ import QtQuick
 import QtQuick.Controls
 import QtQuick.Layouts
 import Qt5Compat.GraphicalEffects
-import QtQuick.Dialogs
 
 import org.kde.kirigami as Kirigami
 import org.ctoolbox.cplay
@@ -352,14 +351,14 @@ Rectangle {
                 ToolTip {
                     text: qsTr("Clear playlist")
                 }
-                MessageDialog {
+                Dialog {
                     id: clearPlaylistDialog
+                    standardButtons: Dialog.Ok | Dialog.Cancel
 
-                    buttons: MessageDialog.Yes | MessageDialog.No
-                    text: "Confirm clearing of all items in playlist."
-                    title: "Clear playlist"
+                    Label {
+                        text: "Confirm clearing of all items in playlist"
+                    }
 
-                    Component.onCompleted: visible = false
                     onAccepted: {
                         mpv.clearPlaylist();
                     }
