@@ -16,7 +16,7 @@ Menu {
     Menu {
         id: audioMenu
 
-        title: qsTr("&Primary Track")
+        title: qsTr("&Audio Track")
         icon.name: "media-track-show-active"
 
         Instantiator {

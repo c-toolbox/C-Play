@@ -38,6 +38,8 @@ set(SOURCE_FILES
     layers/streamlayer.h
     layers/streammodel.cpp
     layers/streammodel.h
+    layers/textlayer.cpp
+    layers/textlayer.h
     layers/videolayer.cpp
     layers/videolayer.h
     layerqtitem.cpp
@@ -76,28 +78,6 @@ set(SOURCE_FILES
     utils/spheregrid.h
 )
 
-set(KCFCG_FILE_NAMES
-    audiosettings
-    gridsettings
-    imagesettings
-    locationsettings
-    mousesettings
-    playbacksettings
-    playlistsettings
-    presentationsettings
-    userinterfacesettings
-)
-set(KCFCG_MOC_FILES "")
-set(KCFCG_FILES "")
-foreach(KCFCG_NAME ${KCFCG_FILE_NAMES})
-    set(KCFCG_FILE settings/${KCFCG_NAME}.kcfgc)
-    kconfig_add_kcfg_files(${TARGET_NAME} GENERATE_MOC ${KCFCG_FILE})
-    list(APPEND KCFCG_FILES ${KCFCG_FILE})
-    list(APPEND KCFCG_MOC_FILES ${CMAKE_CURRENT_BINARY_DIR}/${KCFCG_NAME}.moc)
-endforeach()
-source_group(Kcfcg FILES ${KCFCG_FILES})
-source_group(${AUTO_SOURCE_NAME} FILES ${KCFCG_MOC_FILES})
-
 if(BUILD_CPLAY_WITH_NDI)
     list(APPEND SOURCE_FILES ndi/ndilayer.cpp)
     list(APPEND SOURCE_FILES ndi/ndilayer.h)
@@ -112,7 +92,6 @@ if(BUILD_CPLAY_WITH_NDI)
         ndi/ofxNDI/ofxNDIutils.cpp
         ndi/ofxNDI/ofxNDIutils.h
     )
-    source_group(ofxNDI FILES ${OFX_NDI_FILES})
     list(APPEND SOURCE_FILES ${OFX_NDI_FILES})
     target_include_directories(${TARGET_NAME} PRIVATE ndi)
 endif()
@@ -143,6 +122,8 @@ target_sources(${TARGET_NAME}
     ../data/images/icon.rc
 )
 
+source_group(TREE ${CMAKE_CURRENT_SOURCE_DIR} PREFIX "Cpp" FILES ${SOURCE_FILES}) 
+
 find_package(QT NAMES Qt6)
 if(${QT_VERSION_MAJOR} GREATER_EQUAL 6 AND ${QT_VERSION_MINOR} GREATER_EQUAL 8)
     qt_standard_project_setup(REQUIRES 6.8)
@@ -162,6 +143,7 @@ set(QML_SRC_FILES
     qml/qt6/Menus/HelpMenu.qml
     qml/qt6/Menus/PlaybackMenu.qml
     qml/qt6/Menus/SettingsMenu.qml
+    qml/qt6/Menus/SubtitleMenu.qml
     qml/qt6/Settings/AudioSettings.qml
     qml/qt6/Settings/GridSettings.qml
     qml/qt6/Settings/ImageSettings.qml
@@ -171,6 +153,7 @@ set(QML_SRC_FILES
     qml/qt6/Settings/PlaybackSettings.qml
     qml/qt6/Settings/PlaylistSettings.qml
     qml/qt6/Settings/PresentationSettings.qml
+    qml/qt6/Settings/SubtitleSettings.qml
     qml/qt6/Settings/UserInterfaceSettings.qml
     qml/qt6/Settings/SettingsEditor.qml
     qml/qt6/Actions.qml
@@ -220,6 +203,28 @@ qt_import_qml_plugins(${TARGET_NAME})
 ecm_find_qmlmodule(org.kde.kirigami REQUIRED)
 
 source_group(Qml FILES ${QML_SRC_FILES})
+
+set(KCFCG_FILE_NAMES
+    audiosettings
+    gridsettings
+    imagesettings
+    locationsettings
+    mousesettings
+    playbacksettings
+    playlistsettings
+    presentationsettings
+    subtitlesettings
+    userinterfacesettings
+)
+set(KCFCG_MOC_FILES "")
+set(KCFCG_FILES "")
+foreach(KCFCG_NAME ${KCFCG_FILE_NAMES})
+    set(KCFCG_FILE settings/${KCFCG_NAME}.kcfgc)
+    kconfig_add_kcfg_files(${TARGET_NAME} GENERATE_MOC ${KCFCG_FILE})
+    list(APPEND KCFCG_FILES ${KCFCG_FILE})
+    list(APPEND KCFCG_MOC_FILES ${CMAKE_CURRENT_BINARY_DIR}/${KCFCG_NAME}.moc)
+endforeach()
+source_group(${AUTO_SOURCE_NAME} FILES ${KCFCG_MOC_FILES})
 
 set(RCC_FILE_DIR ${CMAKE_CURRENT_BINARY_DIR}/.rcc)
 set(QMLCACHE_FILE_DIR ${RCC_FILE_DIR}/qmlcache)
@@ -291,11 +296,13 @@ if(WIN32)
 endif()
 
 if(BUILD_WITH_VCPKG_SUPPORT)
-    message("Remember to run: vcpkg install minizip libpng")
+    message("Remember to run: vcpkg install minizip libpng tinyxml2")
     option(SGCT_DEP_INCLUDE_LIBPNG "Include LibPNG library" OFF)
     option(SGCT_DEP_INCLUDE_ZLIB "Include ZLIB library" OFF)
+    option(SGCT_DEP_INCLUDE_TINYXML "Include TinyXML library" OFF)
 else()
     option(SGCT_DEP_INCLUDE_LIBPNG "Include LibPNG library" ON)
+    option(SGCT_DEP_INCLUDE_ZLIB "Include ZLIB library" ON)
     option(SGCT_DEP_INCLUDE_ZLIB "Include ZLIB library" ON)
 endif()
 

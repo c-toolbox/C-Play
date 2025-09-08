@@ -83,6 +83,11 @@ Kirigami.Page {
             page: "PresentationSettings.qml"
         }
         ListElement {
+            iconName: "media-view-subtitles-symbolic"
+            name: "Subtitles"
+            page: "SubtitleSettings.qml"
+        }
+        ListElement {
             iconName: "edit-paste-style"
             name: "User interface"
             page: "UserInterfaceSettings.qml"

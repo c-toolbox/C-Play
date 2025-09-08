@@ -18,6 +18,7 @@
 #include "playbacksettings.h"
 #include "playlistitem.h"
 #include "playlistsettings.h"
+#include "subtitlesettings.h"
 #include "track.h"
 #include "tracksmodel.h"
 #include <iostream>
@@ -91,7 +92,17 @@ QOpenGLFramebufferObject *MpvRenderer::createFramebufferObject(const QSize &size
 }
 
 MpvObject::MpvObject(QQuickItem *parent)
-    : QQuickFramebufferObject(parent), mpv{mpv_create()}, mpv_gl(nullptr), m_audioTracksModel(new TracksModel), m_playlistModel(new PlayListModel), m_playSectionsModel(new PlaySectionsModel), m_currentSectionsIndex(-1), m_currentSection(QStringLiteral(""), 0, 0, 0), m_loadedFileStructure(QStringLiteral("")) {
+    : QQuickFramebufferObject(parent), 
+    mpv{mpv_create()}, 
+    mpv_gl(nullptr), 
+    m_audioTracksModel(new TracksModel), 
+    m_subtitleTracksModel(new TracksModel),
+    m_playlistModel(new PlayListModel), 
+    m_playSectionsModel(new PlaySectionsModel), 
+    m_currentSectionsIndex(-1), 
+    m_currentSection(QStringLiteral(""), 0, 0, 0), 
+    m_loadedFileStructure(QStringLiteral("")) 
+{
     if (!mpv)
         throw std::runtime_error("could not create mpv context");
 
@@ -134,8 +145,11 @@ MpvObject::MpvObject(QQuickItem *parent)
 
     QString loadAudioInVidFolder = AudioSettings::loadAudioFileInVideoFolder() ? QStringLiteral("all") : QStringLiteral("no");
     setProperty(QStringLiteral("audio-file-auto"), loadAudioInVidFolder);
+   
+    QString loadSubtitleInVidFolder = SubtitleSettings::loadSubtitleFileInVideoFolder() ? QStringLiteral("all") : QStringLiteral("no");
+    setProperty(QStringLiteral("sub-auto"), loadSubtitleInVidFolder);
+    
     setProperty(QStringLiteral("screenshot-template"), LocationSettings::screenshotTemplate());
-    setProperty(QStringLiteral("sub-auto"), QStringLiteral("exact"));
     setProperty(QStringLiteral("volume-max"), QStringLiteral("100"));
     setProperty(QStringLiteral("keep-open"), QStringLiteral("yes"));
 
@@ -375,10 +389,30 @@ void MpvObject::setAudioId(int value) {
     }
     if (value < 0) {
         setProperty(QStringLiteral("aid"), QStringLiteral("auto"));
-    } else
+    }
+    else {
         setProperty(QStringLiteral("aid"), value);
+    }
 
     Q_EMIT audioIdChanged();
+}
+
+int MpvObject::subtitleId() {
+    return getProperty(QStringLiteral("sid")).toInt();
+}
+
+void MpvObject::setSubtitleId(int value) {
+    if (value == subtitleId()) {
+        return;
+    }
+    if (value < 0) {
+        setProperty(QStringLiteral("sid"), QStringLiteral("auto"));
+    }
+    else {
+        setProperty(QStringLiteral("sid"), value);
+    }
+
+    Q_EMIT subtitleIdChanged();
 }
 
 int MpvObject::contrast() {
@@ -1289,6 +1323,10 @@ void MpvObject::eventHandler() {
                 if (prop->format == MPV_FORMAT_INT64) {
                     Q_EMIT audioIdChanged();
                 }
+            } else if (strcmp(prop->name, "sid") == 0) {
+                if (prop->format == MPV_FORMAT_INT64) {
+                    Q_EMIT subtitleIdChanged();
+                }
             } else if (strcmp(prop->name, "contrast") == 0) {
                 if (prop->format == MPV_FORMAT_INT64) {
                     Q_EMIT contrastChanged();
@@ -1332,9 +1370,16 @@ void MpvObject::performSurfaceTransition() {
 
 void MpvObject::loadTracks() {
     m_audioTracks.clear();
+    m_subtitleTracks.clear();
+
+    auto none = Track();
+    none.setId(0);
+    none.setTitle("None");
+    m_subtitleTracks.push_back(none);
 
     const QList<QVariant> tracks = getProperty(QStringLiteral("track-list")).toList();
     int audioIndex = 0;
+    int subIndex = 1;
     for (const auto &track : tracks) {
         const auto t = track.toMap();
         if (track.toMap()[QStringLiteral("type")] == QStringLiteral("audio")) {
@@ -1354,10 +1399,29 @@ void MpvObject::loadTracks() {
             m_audioTracks.push_back(newTrack);
             audioIndex++;
         }
+        if (track.toMap()[QStringLiteral("type")] == QStringLiteral("sub")) {
+            auto newTrack = Track();
+            newTrack.setCodec(t[QStringLiteral("codec")].toString().toStdString());
+            newTrack.setType(t[QStringLiteral("type")].toString().toStdString());
+            newTrack.setDefaut(t[QStringLiteral("default")].toBool());
+            newTrack.setDependent(t[QStringLiteral("dependent")].toBool());
+            newTrack.setForced(t[QStringLiteral("forced")].toBool());
+            newTrack.setId(t[QStringLiteral("id")].toLongLong());
+            newTrack.setSrcId(t[QStringLiteral("src-id")].toLongLong());
+            newTrack.setFfIndex(t[QStringLiteral("ff-index")].toLongLong());
+            newTrack.setLang(t[QStringLiteral("lang")].toString().toStdString());
+            newTrack.setTitle(t[QStringLiteral("title")].toString().toStdString());
+            newTrack.setIndex(subIndex);
+
+            m_subtitleTracks.push_back(newTrack);
+            subIndex++;
+        }
     }
     m_audioTracksModel->setTracks(&m_audioTracks);
+    m_subtitleTracksModel->setTracks(&m_subtitleTracks);
 
     Q_EMIT audioTracksModelChanged();
+    Q_EMIT subtitleTracksModelChanged();
 }
 
 void MpvObject::updatePlane() {
@@ -1417,6 +1481,10 @@ void MpvObject::sectionPositionCheck(double position) {
 
 TracksModel *MpvObject::audioTracksModel() const {
     return m_audioTracksModel;
+}
+
+TracksModel *MpvObject::subtitleTracksModel() const {
+    return m_subtitleTracksModel;
 }
 
 QUrl MpvObject::getOverlayFileUrl() const {

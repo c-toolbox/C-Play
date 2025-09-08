@@ -25,6 +25,7 @@
 #ifdef SPOUT_SUPPORT
 #include <layers/spoutlayer.h>
 #endif
+#include <layers/textlayer.h>
 
 std::atomic_uint32_t BaseLayer::m_id_gen = 1;
 
@@ -52,6 +53,8 @@ std::string BaseLayer::typeDescription(BaseLayer::LayerType e) {
     case SPOUT:
         return "Spout";
 #endif
+    case TEXT:
+        return "Text";
     default:
         return "";
     }
@@ -114,6 +117,11 @@ BaseLayer *BaseLayer::createLayer(bool isMaster, int layerType, gl_adress_func_v
         break;
     }
 #endif
+    case static_cast<int>(BaseLayer::LayerType::TEXT): {
+        TextLayer* newText = new TextLayer();
+        newLayer = newText;
+        break;
+    }
     default:
         break;
     }

@@ -1,0 +1,23 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<!--
+ SPDX-FileCopyrightText: 2021-2025 Erik Sundén <eriksunden85@gmail.com>
+ SPDX-FileCopyrightText: 2020 George Florea Bănuș <georgefb899@gmail.com>
+ SPDX-License-Identifier: GPL-3.0-or-later
+ -->
+<kcfg xmlns="http://www.kde.org/standards/kcfg/1.0"
+      xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance"
+      xsi:schemaLocation="http://www.kde.org/standards/kcfg/1.0
+                          http://www.kde.org/standards/kcfg/1.0/kcfg.xsd" >
+  <kcfgfile name="C-Play/cplay.conf" />
+  <group name="Subtitle">
+    <entry name="PreferredLanguage" type="String">
+      <label>Preferred language</label>
+    </entry>
+    <entry name="PreferredTrack" type="Int">
+      <label>Preferred track</label>
+    </entry>
+    <entry name="LoadSubtitleFileInVideoFolder" type="bool">
+      <default>true</default>
+    </entry>
+  </group>
+</kcfg>

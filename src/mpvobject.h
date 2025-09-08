@@ -28,6 +28,7 @@ class MpvObject : public QQuickFramebufferObject {
 
 public:
     Q_PROPERTY(TracksModel *audioTracksModel READ audioTracksModel NOTIFY audioTracksModelChanged)
+    Q_PROPERTY(TracksModel *subtitleTracksModel READ subtitleTracksModel NOTIFY subtitleTracksModelChanged)
 
     Q_PROPERTY(QString mediaTitle
                    READ mediaTitle
@@ -70,6 +71,11 @@ public:
                    READ audioId
                        WRITE setAudioId
                            NOTIFY audioIdChanged)
+
+    Q_PROPERTY(int subtitleId
+                    READ subtitleId
+                        WRITE setSubtitleId
+                            NOTIFY subtitleIdChanged)
 
     Q_PROPERTY(int contrast
                    READ contrast
@@ -278,6 +284,9 @@ public:
     int audioId();
     void setAudioId(int value);
 
+    int subtitleId();
+    void setSubtitleId(int value);
+
     int contrast();
     void setContrast(int value);
 
@@ -361,6 +370,8 @@ public:
     Renderer *createRenderer() const override;
 
     TracksModel *audioTracksModel() const;
+    TracksModel* subtitleTracksModel() const;
+
     PlayListModel *getPlayListModel() const;
     PlaySectionsModel *getPlaySectionsModel() const;
 
@@ -399,6 +410,7 @@ Q_SIGNALS:
     void autoPlayChanged();
     void chapterChanged();
     void audioIdChanged();
+    void subtitleIdChanged();
     void contrastChanged();
     void brightnessChanged();
     void gammaChanged();
@@ -410,6 +422,7 @@ Q_SIGNALS:
     void watchPercentageChanged();
     void ready();
     void audioTracksModelChanged();
+    void subtitleTracksModelChanged();
     void hwDecodingChanged();
     void stereoscopicModeChanged();
     void syncVideoChanged();
@@ -455,8 +468,13 @@ private:
     friend class MpvRenderer;
 
     void sectionPositionCheck(double position);
+
     TracksModel *m_audioTracksModel;
     std::vector<Track> m_audioTracks;
+
+    TracksModel *m_subtitleTracksModel;
+    std::vector<Track> m_subtitleTracks;
+
     QList<int> m_secondsWatched;
     double m_watchPercentage;
     double m_rotationSpeed;

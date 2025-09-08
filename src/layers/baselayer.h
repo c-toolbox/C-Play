@@ -31,6 +31,7 @@ public:
 #ifdef SPOUT_SUPPORT
         SPOUT,
 #endif
+        TEXT,
         INVALID
     };
 
