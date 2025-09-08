@@ -224,6 +224,7 @@ private:
     int m_layerIdx;
     BaseLayer *m_layer = nullptr;
     LayerQtItemRenderer *m_renderer = nullptr;
+    TracksModel* m_audioTracksModel;
     QTimer *m_timer = nullptr;
 
     QPoint m_viewOffset;
@@ -231,8 +232,6 @@ private:
 
     QPoint m_roiOffset;
     QSize m_roiSize;
-
-    TracksModel* m_audioTracksModel;
 };
 
 #endif // LAYERQTITEM_H

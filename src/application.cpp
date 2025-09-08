@@ -77,12 +77,13 @@
 
 bool ApplicationEventFilter::eventFilter(QObject* obj, QEvent* event)
 {
-    if (UserInterfaceSettings::idleModeOn() && 
-        (event->type() == QEvent::MouseMove
+    if (event->type() == QEvent::MouseMove
         || event->type() == QEvent::KeyPress
         || event->type() == QEvent::KeyRelease
-        || event->type() == QEvent::FocusIn)) {
-        Q_EMIT applicationInteraction();
+        || event->type() == QEvent::FocusIn) {
+        if (UserInterfaceSettings::idleModeOn()) {
+            Q_EMIT applicationInteraction();
+        }
     }
     return QObject::eventFilter(obj, event);
 }

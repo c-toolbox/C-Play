@@ -470,8 +470,8 @@ void postSyncPreDraw() {
              SyncHelper::instance().variables.alpha < 1.f || SyncHelper::instance().variables.gridToMapOn == 1) &&
             backgroundImageLayer->ready() && SyncHelper::instance().variables.alphaBg > 0.f) {
             backgroundImageLayer->setAlpha(SyncHelper::instance().variables.alphaBg);
-            backgroundImageLayer->setGridMode(SyncHelper::instance().variables.gridToMapOnBg);
-            backgroundImageLayer->setStereoMode(SyncHelper::instance().variables.stereoscopicModeBg);
+            backgroundImageLayer->setGridMode(static_cast<uint8_t>(SyncHelper::instance().variables.gridToMapOnBg));
+            backgroundImageLayer->setStereoMode(static_cast<uint8_t>(SyncHelper::instance().variables.stereoscopicModeBg));
             layerRender->addLayer(backgroundImageLayer);
         }
 
@@ -508,8 +508,8 @@ void postSyncPreDraw() {
         if (mainVideoLayer->renderingIsOn()) {
             if (mainVideoLayer->ready() && SyncHelper::instance().variables.alpha > 0.f) {
                 mainVideoLayer->setAlpha(SyncHelper::instance().variables.alpha);
-                mainVideoLayer->setGridMode(SyncHelper::instance().variables.gridToMapOn);
-                mainVideoLayer->setStereoMode(SyncHelper::instance().variables.stereoscopicMode);
+                mainVideoLayer->setGridMode(static_cast<uint8_t>(SyncHelper::instance().variables.gridToMapOn));
+                mainVideoLayer->setStereoMode(static_cast<uint8_t>(SyncHelper::instance().variables.stereoscopicMode));
                 mainVideoLayer->setRotate(rotXYZ);
                 mainVideoLayer->setTranslate(translateXYZ);
                 layerRender->addLayer(mainVideoLayer);
@@ -517,8 +517,8 @@ void postSyncPreDraw() {
 
             if (overlayImageLayer->ready() && SyncHelper::instance().variables.alpha > 0.f) {
                 overlayImageLayer->setAlpha(SyncHelper::instance().variables.alpha);
-                overlayImageLayer->setGridMode(SyncHelper::instance().variables.gridToMapOn);
-                overlayImageLayer->setStereoMode(SyncHelper::instance().variables.stereoscopicMode);
+                overlayImageLayer->setGridMode(static_cast<uint8_t>(SyncHelper::instance().variables.gridToMapOn));
+                overlayImageLayer->setStereoMode(static_cast<uint8_t>(SyncHelper::instance().variables.stereoscopicMode));
                 overlayImageLayer->setRotate(rotXYZ);
                 overlayImageLayer->setTranslate(translateXYZ);
                 layerRender->addLayer(overlayImageLayer);
@@ -612,8 +612,8 @@ void postSyncPreDraw() {
         // Foreground image layer
         if (foregroundImageLayer->ready() && SyncHelper::instance().variables.alphaFg > 0.f) {
             foregroundImageLayer->setAlpha(SyncHelper::instance().variables.alphaFg);
-            foregroundImageLayer->setGridMode(SyncHelper::instance().variables.gridToMapOnFg);
-            foregroundImageLayer->setStereoMode(SyncHelper::instance().variables.stereoscopicModeFg);
+            foregroundImageLayer->setGridMode(static_cast<uint8_t>(SyncHelper::instance().variables.gridToMapOnFg));
+            foregroundImageLayer->setStereoMode(static_cast<uint8_t>(SyncHelper::instance().variables.stereoscopicModeFg));
             layerRender->addLayer(foregroundImageLayer);
         }
 
@@ -644,7 +644,7 @@ void postSyncPreDraw() {
         for (auto &layer : primaryLayers) {
             layer->setPlaneDistance(SyncHelper::instance().variables.planeDistance);
             layer->setPlaneElevation(SyncHelper::instance().variables.planeElevation);
-            layer->setPlaneSize(planeSize, SyncHelper::instance().variables.planeConsiderAspectRatio);
+            layer->setPlaneSize(planeSize, static_cast<uint8_t>(SyncHelper::instance().variables.planeConsiderAspectRatio));
         }
 
         // Set new general dome/sphere details

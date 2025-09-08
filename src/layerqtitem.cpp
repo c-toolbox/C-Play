@@ -59,7 +59,7 @@ int LayerQtItem::layerStereoMode() const{
 
 void LayerQtItem::setLayerStereoMode(int mode) {
     if (m_layer) {
-        m_layer->setStereoMode(mode);
+        m_layer->setStereoMode(static_cast<uint8_t>(mode));
         Q_EMIT layerValueChanged();
     }
 }
@@ -73,7 +73,7 @@ int LayerQtItem::layerGridMode() const{
 
 void LayerQtItem::setLayerGridMode(int mode) {
     if (m_layer) {
-        m_layer->setGridMode(mode);
+        m_layer->setGridMode(static_cast<uint8_t>(mode));
         Q_EMIT layerValueChanged();
     }
 }
@@ -276,7 +276,7 @@ int LayerQtItem::layerPlaneAspectRatio() const {
 
 void LayerQtItem::setLayerPlaneAspectRatio(int parc) {
     if (m_layer) {
-        m_layer->setPlaneAspectRatio(parc);
+        m_layer->setPlaneAspectRatio(static_cast<uint8_t>(parc));
         Q_EMIT layerValueChanged();
     }
 }

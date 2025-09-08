@@ -248,7 +248,7 @@ auto runMpvAsync = [](MpvLayer::mpvData& data, BaseLayer::RenderParams& rp) {
 MpvLayer::MpvLayer(gl_adress_func_v1 opa,
     bool allowDirectRendering,
     bool loggingOn,
-    std::string logLevel,
+    std::string,
     onFileLoadedCallback flc) {
     m_openglProcAdr = opa;
     m_data.allowDirectRendering = allowDirectRendering;

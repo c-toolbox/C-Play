@@ -46,11 +46,11 @@ static void* get_proc_address_qopengl_v2(const char* name, void* ctx) {
 LayersModel::LayersModel(QObject *parent)
     : QAbstractListModel(parent),
     m_layerTypeModel(new LayersTypeModel(this)),
+    m_layerHierachy(BaseLayer::LayerHierarchy::FRONT),
     m_needSync(false),
     m_syncIteration(0),
     m_layersName(QStringLiteral("Untitled")),
-    m_layersPath(QStringLiteral("")),
-    m_layerHierachy(BaseLayer::LayerHierarchy::FRONT) {
+    m_layersPath(QStringLiteral("")) {
 }
 
 LayersModel::~LayersModel() {
@@ -217,13 +217,13 @@ int LayersModel::addLayer(QString title, int type, QString filepath, int stereoM
         newLayer->setHierarchy(hierarchy());
         newLayer->setTitle(title.toStdString());
         newLayer->setFilePath(filepath.toStdString());
-        newLayer->setStereoMode(stereoMode);
-        newLayer->setGridMode(gridMode);
+        newLayer->setStereoMode(static_cast<uint8_t>(stereoMode));
+        newLayer->setGridMode(static_cast<uint8_t>(gridMode));
         newLayer->setAlpha(static_cast<float>(PresentationSettings::defaultLayerVisibility()) * 0.01f);
         newLayer->setPlaneElevation(GridSettings::plane_Elevation_Degrees());
         newLayer->setPlaneDistance(GridSettings::plane_Distance_CM());
         newLayer->setPlaneSize(glm::vec2(GridSettings::plane_Width_CM(), GridSettings::plane_Height_CM()), 
-            GridSettings::plane_Calculate_Size_Based_on_Video());
+            static_cast<uint8_t>(GridSettings::plane_Calculate_Size_Based_on_Video()));
         newLayer->initialize();
         m_layers.push_back(QSharedPointer<BaseLayer>(newLayer));
         m_layersStatus.push_back(0);
@@ -563,7 +563,7 @@ void LayersModel::decodeFromJSON(QJsonObject &obj, const QStringList &forRelativ
                             QJsonObject po = pa.toObject();
                             if (po.contains(QStringLiteral("aspectRatio"))) {
                                 int planeAR = po.value(QStringLiteral("aspectRatio")).toInt();
-                                m_layers[idx]->setPlaneAspectRatio(planeAR);
+                                m_layers[idx]->setPlaneAspectRatio(static_cast<uint8_t>(planeAR));
                             }
                             if (po.contains(QStringLiteral("width"))) {
                                 double planeW = po.value(QStringLiteral("width")).toDouble();

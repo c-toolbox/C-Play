@@ -244,6 +244,8 @@ private:
     LayersModel *m_masterSlide;
     SlideVisibilityModel* m_visibilityModel;
     BaseLayer *m_layerToCopyFrom;
+    bool m_needSync;
+    int m_syncIteration;
     int m_selectedSlideIdx = -1; // Means master
     int m_previousSelectedSlideIdx = -1;
     int m_triggeredSlideIdx = -1;
@@ -253,8 +255,6 @@ private:
     bool m_slidesNeedsSave = false;
     bool m_pauseLayerUpdate = false;
     bool m_preloadLayers = false;
-    bool m_needSync;
-    int m_syncIteration;
     QString m_slidesName;
     QString m_slidesPath;
     QTimer* m_clearCopyTimer;

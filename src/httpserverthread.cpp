@@ -27,10 +27,10 @@ std::string formatTime(double timeInSeconds, std::string format = "hh:mm:ss/zz")
 
 HttpServerThread::HttpServerThread(QObject *parent)
     : QThread(parent),
-      runServer(false),
-      portServer(7007),
-      m_mpv(nullptr),
-      m_slidesModel(nullptr) {
+        m_mpv(nullptr),
+        m_slidesModel(nullptr),
+        runServer(false),
+        portServer(7007) {
 }
 
 HttpServerThread::~HttpServerThread() {

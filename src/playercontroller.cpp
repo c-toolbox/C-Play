@@ -15,12 +15,13 @@
 #pragma warning(disable : 4996)
 
 PlayerController::PlayerController(QObject *parent)
-    : QObject(parent), httpServer(new HttpServerThread(this)), 
-    m_backgroundFile(QStringLiteral("")), 
-    m_foregroundFile(QStringLiteral("")), 
-    m_viewModeOnMaster(0),
+    : QObject(parent), 
     m_mpv(nullptr),
-    m_slidesModel(nullptr) 
+    m_slidesModel(nullptr),
+    httpServer(new HttpServerThread(this)),
+    m_backgroundFile(QStringLiteral("")),
+    m_foregroundFile(QStringLiteral("")),
+    m_viewModeOnMaster(0)
 {
     connect(this, &PlayerController::mpvChanged,
             this, &PlayerController::setupConnections);
