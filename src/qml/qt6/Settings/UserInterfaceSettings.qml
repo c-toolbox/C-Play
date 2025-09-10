@@ -32,6 +32,23 @@ SettingsBasePage {
             width: 1
         }
         CheckBox {
+            checked: UserInterfaceSettings.mappingModeOnOpenFile
+            text: qsTr("Specify mapping modes for \"Open File\" (if NOT a *.cplayfile).")
+
+            onCheckedChanged: {
+                UserInterfaceSettings.mappingModeOnOpenFile = checked;
+                UserInterfaceSettings.save();
+            }
+        }
+        Item {
+            Layout.fillWidth: true
+        }
+
+        Item {
+            height: 1
+            width: 1
+        }
+        CheckBox {
             checked: UserInterfaceSettings.showHeader
             text: qsTr("Show Top Bar / Header")
 

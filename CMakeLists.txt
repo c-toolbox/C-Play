@@ -130,7 +130,7 @@ if(BUILD_CPLAY_WITH_JACK)
     find_package(Jack2 REQUIRED)
 
     if(NOT JACK2_FOUND)
-        message("Remember to install Jack2 from jackaudio.org")
+        message(STATUS "Remember to install Jack2 from jackaudio.org")
     endif()
     set_package_properties(Jack2 PROPERTIES TYPE REQUIRED
         URL "https://jackaudio.org/" DESCRIPTION "Jack2 Audio Connection Kit")
@@ -170,7 +170,7 @@ if(BUILD_CPLAY_WITH_SPOUT)
     find_package(Spout2)
     # Install portaudio with vcpkg
     if(NOT Spout2_FOUND)
-        message("Remember to run: vcpkg install spout2")
+        message(STATUS "Remember to run: vcpkg install spout2")
     endif()
     set_package_properties(Spout2 PROPERTIES TYPE REQUIRED
         URL "https://spout.zeal.co/" DESCRIPTION "video sharing on windows")
@@ -180,15 +180,27 @@ option(BUILD_CPLAY_WITH_POPPLER "Global On/Off for PDF support via Poppler libra
 if(BUILD_CPLAY_WITH_POPPLER)
     find_package(unofficial-poppler REQUIRED)
     if(NOT unofficial-poppler_FOUND)
-        message("Remember to run: vcpkg install poppler")
+        message(STATUS "Remember to run: vcpkg install poppler")
     endif()
     set_package_properties(unofficial-poppler PROPERTIES TYPE REQUIRED 
         URL "https://poppler.freedesktop.org/" DESCRIPTION "Support for PDF page rendering.")
 endif()
 
+if(BUILD_WITH_VCPKG_SUPPORT)
+    message(STATUS "Using vcpkg toolchain from: ${CMAKE_TOOLCHAIN_FILE} to build C-Play")
+    message(STATUS "Remember to run/install this: vcpkg install minizip libpng tinyxml2\n")
+endif()
+
 feature_summary(WHAT ALL FATAL_ON_MISSING_REQUIRED_PACKAGES)
 
 option(CPLAY_INSTALL_DEPENDENCIES "Global On/Off for all CPLAY_INSTALL_* dependencies" OFF)
+
+option(CPLAY_INSTALL_BUILD_BY_DEFAULT "Include INSTALL during default build" ON)
+if(CPLAY_INSTALL_BUILD_BY_DEFAULT)
+    set(CMAKE_VS_INCLUDE_INSTALL_TO_DEFAULT_BUILD 1)
+else()
+    set(CMAKE_VS_INCLUDE_INSTALL_TO_DEFAULT_BUILD 0)
+endif()
 
 add_subdirectory(data)
 add_subdirectory(help)

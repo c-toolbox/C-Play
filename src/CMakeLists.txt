@@ -124,6 +124,16 @@ target_sources(${TARGET_NAME}
 
 source_group(TREE ${CMAKE_CURRENT_SOURCE_DIR} PREFIX "Cpp" FILES ${SOURCE_FILES}) 
 
+if(BUILD_WITH_VCPKG_SUPPORT)
+    option(SGCT_DEP_INCLUDE_LIBPNG "Include LibPNG library" OFF)
+    option(SGCT_DEP_INCLUDE_ZLIB "Include ZLIB library" OFF)
+    option(SGCT_DEP_INCLUDE_TINYXML "Include TinyXML library" OFF)
+else()
+    option(SGCT_DEP_INCLUDE_LIBPNG "Include LibPNG library" ON)
+    option(SGCT_DEP_INCLUDE_ZLIB "Include ZLIB library" ON)
+    option(SGCT_DEP_INCLUDE_ZLIB "Include ZLIB library" ON)
+endif()
+
 find_package(QT NAMES Qt6)
 if(${QT_VERSION_MAJOR} GREATER_EQUAL 6 AND ${QT_VERSION_MINOR} GREATER_EQUAL 8)
     qt_standard_project_setup(REQUIRES 6.8)
@@ -293,17 +303,6 @@ target_compile_definitions(${TARGET_NAME} PRIVATE $<$<OR:$<CONFIG:Debug>,$<CONFI
 
 if(WIN32)
     set_target_properties(${TARGET_NAME} PROPERTIES WIN32_EXECUTABLE TRUE)
-endif()
-
-if(BUILD_WITH_VCPKG_SUPPORT)
-    message("Remember to run: vcpkg install minizip libpng tinyxml2")
-    option(SGCT_DEP_INCLUDE_LIBPNG "Include LibPNG library" OFF)
-    option(SGCT_DEP_INCLUDE_ZLIB "Include ZLIB library" OFF)
-    option(SGCT_DEP_INCLUDE_TINYXML "Include TinyXML library" OFF)
-else()
-    option(SGCT_DEP_INCLUDE_LIBPNG "Include LibPNG library" ON)
-    option(SGCT_DEP_INCLUDE_ZLIB "Include ZLIB library" ON)
-    option(SGCT_DEP_INCLUDE_ZLIB "Include ZLIB library" ON)
 endif()
 
 if(BUILD_CPLAY_WITH_JACK)

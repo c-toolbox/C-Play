@@ -63,7 +63,9 @@ public Q_SLOTS:
 
     QString returnRelativeOrAbsolutePath(const QString &path);
     QString checkAndCorrectPath(const QString &path);
-    QString returnBaseName(const QString &path);
+    QString returnFileBaseName(const QString &path);
+    QString returnFileName(const QString& path);
+    QString returnFileExtension(const QString& path);
 
     float backgroundVisibility();
     void setBackgroundVisibility(float value);

@@ -298,9 +298,19 @@ QString PlayerController::checkAndCorrectPath(const QString &path) {
     return QStringLiteral("");
 }
 
-QString PlayerController::returnBaseName(const QString &path) {
+QString PlayerController::returnFileBaseName(const QString &path) {
     QFileInfo fileInfo(path);
     return fileInfo.baseName();
+}
+
+QString PlayerController::returnFileName(const QString& path) {
+    QFileInfo fileInfo(path);
+    return fileInfo.fileName();
+}
+
+QString PlayerController::returnFileExtension(const QString& path) {
+    QFileInfo fileInfo(path);
+    return fileInfo.suffix();
 }
 
 float PlayerController::backgroundVisibility() {

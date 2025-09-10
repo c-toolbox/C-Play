@@ -66,7 +66,7 @@ Kirigami.ApplicationWindow {
 
         onAccepted: {
             fileForLayer.text = playerController.checkAndCorrectPath(fileToLoadAsImageLayerDialog.file);
-            layerTitle.text = playerController.returnBaseName(fileForLayer.text);
+            layerTitle.text = playerController.returnFileBaseName(fileForLayer.text);
             LocationSettings.imageFileDialogLastLocation = app.parentUrl(fileToLoadAsImageLayerDialog.file);
             LocationSettings.save();
             fileToLoadAsImageLayerDialog.acceptedOnes = true;
@@ -85,7 +85,7 @@ Kirigami.ApplicationWindow {
 
         onAccepted: {
             fileForLayer.text = playerController.checkAndCorrectPath(fileToLoadAsPdfLayerDialog.file);
-            layerTitle.text = playerController.returnBaseName(fileForLayer.text);
+            layerTitle.text = playerController.returnFileBaseName(fileForLayer.text);
             LocationSettings.pdfFileDialogLastLocation = app.parentUrl(fileToLoadAsPdfLayerDialog.file);
             LocationSettings.save();
             fileToLoadAsPdfLayerDialog.acceptedOnes = true;
@@ -103,7 +103,7 @@ Kirigami.ApplicationWindow {
 
         onAccepted: {
             fileForLayer.text = playerController.checkAndCorrectPath(fileToLoadAsVideoLayerDialog.file);
-            layerTitle.text = playerController.returnBaseName(fileForLayer.text);
+            layerTitle.text = playerController.returnFileBaseName(fileForLayer.text);
             LocationSettings.videoFileDialogLastLocation = app.parentUrl(fileToLoadAsVideoLayerDialog.file);
             LocationSettings.save();
             fileToLoadAsVideoLayerDialog.acceptedOnes = true;
@@ -121,7 +121,7 @@ Kirigami.ApplicationWindow {
 
         onAccepted: {
             fileForLayer.text = playerController.checkAndCorrectPath(fileToLoadAsAudioLayerDialog.file);
-            layerTitle.text = playerController.returnBaseName(fileForLayer.text);
+            layerTitle.text = playerController.returnFileBaseName(fileForLayer.text);
             LocationSettings.audioFileDialogLastLocation = app.parentUrl(fileToLoadAsAudioLayerDialog.file);
             LocationSettings.save();
             fileToLoadAsAudioLayerDialog.acceptedOnes = true;

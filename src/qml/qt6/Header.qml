@@ -810,81 +810,52 @@ ToolBar {
                     RadioButton {
                         id: stereoscopic_2D
 
-                        checked: false
+                        checked: (mpv.stereoscopicMode === 0)
                         text: qsTr("2D Mono")
 
                         onClicked: {
                             mpv.stereoscopicMode = 0;
                             mpv.playSectionsModel.currentEditItemIsEdited = true;
                         }
-
-                        Connections {
-                            function onStereoscopicModeChanged() {
-                                stereoscopic_2D.checked = (mpv.stereoscopicMode === 0);
-                            }
-
-                            target: mpv
-                        }
                     }
                     RadioButton {
                         id: stereoscopic_3D_sbs
 
-                        checked: false
+                        checked: (mpv.stereoscopicMode === 1)
                         text: qsTr("3D Side-by-side")
 
                         onClicked: {
                             mpv.stereoscopicMode = 1;
                             mpv.playSectionsModel.currentEditItemIsEdited = true;
                         }
-
-                        Connections {
-                            function onStereoscopicModeChanged() {
-                                stereoscopic_3D_sbs.checked = (mpv.stereoscopicMode === 1);
-                            }
-
-                            target: mpv
-                        }
                     }
                     RadioButton {
                         id: stereoscopic_3D_tp
 
-                        checked: false
+                        checked: (mpv.stereoscopicMode === 2)
                         text: qsTr("3D Top/Bottom")
 
                         onClicked: {
                             mpv.stereoscopicMode = 2;
                             mpv.playSectionsModel.currentEditItemIsEdited = true;
                         }
-
-                        Connections {
-                            function onStereoscopicModeChanged() {
-                                stereoscopic_3D_tp.checked = (mpv.stereoscopicMode === 2);
-                            }
-
-                            target: mpv
-                        }
                     }
                     RadioButton {
                         id: stereoscopic_3D_tbf
 
-                        checked: false
+                        checked: (mpv.stereoscopicMode === 3)
                         text: qsTr("3D Top/Bottom+Flip")
 
                         onClicked: {
                             mpv.stereoscopicMode = 3;
                             mpv.playSectionsModel.currentEditItemIsEdited = true;
                         }
-
-                        Connections {
-                            function onStereoscopicModeChanged() {
-                                stereoscopic_3D_tbf.checked = (mpv.stereoscopicMode === 3);
-                            }
-
-                            target: mpv
-                        }
                     }
                 }
                 MenuSeparator {
+                }
+                ButtonGroup {
+                    buttons: columnViewOnClients.children
                 }
                 Column {
                     id: columnViewOnClients

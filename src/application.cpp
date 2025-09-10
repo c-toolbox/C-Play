@@ -122,7 +122,7 @@ Application::Application(int &argc, char **argv, const QString &applicationName)
 {
     m_config = KSharedConfig::openConfig(QStringLiteral("C-Play/cplay.conf"));
     m_shortcuts = new KConfigGroup(m_config, QStringLiteral("Shortcuts"));
-    m_schemes = new KColorSchemeManager(this);
+    m_schemes = KColorSchemeManager::instance();
     m_systemDefaultStyle = m_app->style()->objectName();
     m_streamsModel = new StreamModel(this);
 #ifdef NDI_SUPPORT

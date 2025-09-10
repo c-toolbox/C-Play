@@ -73,7 +73,7 @@ void HttpServerThread::setupHttpServer() {
     }
 
     if (runServerStr == QStringLiteral("yes")) {
-        svr.Post("/status", [this](const httplib::Request &, httplib::Response &res) {
+        svr.Post("/status", [](const httplib::Request &, httplib::Response &res) {
             res.set_content("OK", "text/plain");
         });
 
@@ -213,7 +213,7 @@ void HttpServerThread::setupHttpServer() {
             }
         });
 
-        svr.Post("/fade_duration", [this](const httplib::Request &req, httplib::Response &res) {
+        svr.Post("/fade_duration", [](const httplib::Request &req, httplib::Response &res) {
             double fadeDurationTime = double(PlaybackSettings::fadeDuration()) / 1000.0;
             if (req.has_param("format")) {
                 res.set_content(formatTime(fadeDurationTime, req.get_param_value("format")), "text/plain");

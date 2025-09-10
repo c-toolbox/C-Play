@@ -94,6 +94,8 @@ Kirigami.ApplicationWindow {
         }
         AudioMenu {
         }
+        SubtitleMenu {
+        }
         SettingsMenu {
         }
         HelpMenu {
@@ -193,14 +195,149 @@ Kirigami.ApplicationWindow {
         folder: LocationSettings.fileDialogLocation !== "" ? app.pathToUrl(LocationSettings.fileDialogLocation) : app.pathToUrl(LocationSettings.fileDialogLastLocation)
         title: "Open File"
 
+        Dialog {
+            id: openFileValuesDialog
+            standardButtons: Dialog.Ok | Dialog.Cancel
+            width: 250
+
+            GridLayout {
+                anchors.fill: parent
+                anchors.margins: 15
+                columnSpacing: 2
+                columns: 2
+                rowSpacing: 8
+
+                RowLayout {
+                    Label {
+                        text: qsTr("Mappings of ")
+                        font.bold: true
+                    }
+                    Label {
+                        id: openFileValuesDialogLabel
+                        text: "..."
+                        font.italic: true
+                        Layout.fillWidth: true
+                    }
+                    Layout.columnSpan: 2
+                    Layout.fillWidth: true
+                }
+
+                Label {
+                    Layout.alignment: Qt.AlignRight
+                    text: qsTr("Stereo:")
+                }
+                ComboBox {
+                    id: stereoscopicMode
+
+                    Layout.fillWidth: true
+                    focusPolicy: Qt.NoFocus
+                    textRole: "mode"
+
+                    model: ListModel {
+                        id: stereoscopicModeList
+
+                        ListElement {
+                            mode: "2D (mono)"
+                            value: 0
+                        }
+                        ListElement {
+                            mode: "3D (side-by-side)"
+                            value: 1
+                        }
+                        ListElement {
+                            mode: "3D (top-bottom)"
+                            value: 2
+                        }
+                        ListElement {
+                            mode: "3D (top-bottom+flip)"
+                            value: 3
+                        }
+                    }
+                }
+                Label {
+                    Layout.alignment: Qt.AlignRight
+                    text: qsTr("Grid:")
+                }
+                ComboBox {
+                    id: gridMode
+
+                    Layout.fillWidth: true
+                    focusPolicy: Qt.NoFocus
+                    textRole: "mode"
+
+                    model: ListModel {
+                        id: gridModeList
+
+                        ListElement {
+                            mode: "None/Pre-split"
+                            value: 0
+                        }
+                        ListElement {
+                            mode: "Plane"
+                            value: 1
+                        }
+                        ListElement {
+                            mode: "Dome"
+                            value: 2
+                        }
+                        ListElement {
+                            mode: "Sphere EQR"
+                            value: 3
+                        }
+                        ListElement {
+                            mode: "Sphere EAC"
+                            value: 4
+                        }
+                    }
+                }
+            }
+
+            onVisibleChanged: {
+                for (let i = 0; i < stereoscopicModeList.count; ++i) {
+                    if (stereoscopicModeList.get(i).value === playerController.backgroundStereoMode()) {
+                        stereoscopicMode.currentIndex = i;
+                        break;
+                    }
+                }
+                for (let i = 0; i < gridModeList.count; ++i) {
+                    if (gridModeList.get(i).value === playerController.backgroundGridMode()) {
+                        gridMode.currentIndex = i;
+                        break;
+                    }
+                }
+            }
+
+            onAccepted: {
+                openFile(openFileDialog.file.toString(), true, PlaylistSettings.loadSiblings);
+                mpv.stereoscopicMode = stereoscopicModeList.get(stereoscopicMode.currentIndex).value;
+                mpv.gridToMapOn = gridModeList.get(gridMode.currentIndex).value;
+                // the timer scrolls the playlist to the playing file
+                // once the table view rows are loaded
+                playList.scrollPositionTimer.start();
+                mpv.focus = true;
+                LocationSettings.fileDialogLastLocation = app.parentUrl(openFileDialog.file);
+                LocationSettings.save();
+            }
+        }
+
         onAccepted: {
-            openFile(openFileDialog.file.toString(), true, PlaylistSettings.loadSiblings);
-            // the timer scrolls the playlist to the playing file
-            // once the table view rows are loaded
-            playList.scrollPositionTimer.start();
-            mpv.focus = true;
-            LocationSettings.fileDialogLastLocation = app.parentUrl(openFileDialog.file);
-            LocationSettings.save();
+            var openFileExt = playerController.returnFileExtension(openFileDialog.file);
+            if(UserInterfaceSettings.mappingModeOnOpenFile 
+            && openFileExt != "cplayfile" && openFileExt != "cplaylist" 
+            && openFileExt != "cplay_file" && openFileExt != "cplay_list" 
+            && openFileExt != "fdv" && openFileExt != "playlist"){
+                openFileValuesDialogLabel.text = playerController.returnFileName(openFileDialog.file);
+                openFileValuesDialog.open();
+            }
+            else{
+                openFile(openFileDialog.file.toString(), true, PlaylistSettings.loadSiblings);
+                // the timer scrolls the playlist to the playing file
+                // once the table view rows are loaded
+                playList.scrollPositionTimer.start();
+                mpv.focus = true;
+                LocationSettings.fileDialogLastLocation = app.parentUrl(openFileDialog.file);
+                LocationSettings.save();
+            }
         }
         onRejected: mpv.focus = true
     }
