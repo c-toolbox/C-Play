@@ -24,7 +24,7 @@ SettingsBasePage {
         SettingsHeader {
             Layout.columnSpan: 3
             Layout.fillWidth: true
-            text: qsTr("User Interface")
+            text: qsTr("Window & UI")
         }
 
         Item {
@@ -37,6 +37,52 @@ SettingsBasePage {
 
             onCheckedChanged: {
                 UserInterfaceSettings.mappingModeOnOpenFile = checked;
+                UserInterfaceSettings.save();
+            }
+        }
+        Item {
+            Layout.fillWidth: true
+        }
+
+        Label {
+            Layout.alignment: Qt.AlignRight
+            text: qsTr("Window fade duration:")
+        }
+        RowLayout {
+            SpinBox {
+                id: winFadeDuration
+
+                from: 0
+                to: 20000
+                value: UserInterfaceSettings.windowFadeDuration
+
+                onValueChanged: {
+                    UserInterfaceSettings.windowFadeDuration = value;
+                    UserInterfaceSettings.save();
+                }
+            }
+            LabelWithTooltip {
+                Layout.fillWidth: true
+                elide: Text.ElideRight
+                text: {
+                    qsTr("ms = Fades out/in %1 seconds").arg(Number((winFadeDuration.value * 1.0) / 1000.0).toFixed(3));
+                }
+            }
+        }
+        Item {
+            Layout.fillWidth: true
+        }
+
+        Item {
+            height: 1
+            width: 1
+        }
+        CheckBox {
+            checked: UserInterfaceSettings.windowOnTopAtStartup
+            text: qsTr("Node windows always on top at startup")
+
+            onCheckedChanged: {
+                UserInterfaceSettings.windowOnTopAtStartup = checked;
                 UserInterfaceSettings.save();
             }
         }

@@ -515,15 +515,6 @@ void MpvObject::setWatchPercentage(double value) {
     Q_EMIT watchPercentageChanged();
 }
 
-bool MpvObject::syncVideo() {
-    return SyncHelper::instance().variables.syncOn;
-}
-
-void MpvObject::setSyncVideo(bool value) {
-    SyncHelper::instance().variables.syncOn = value;
-    Q_EMIT syncVideoChanged();
-}
-
 bool MpvObject::syncVolumeVisibilityFading() {
     return m_syncVolumeVisibilityFading;
 }

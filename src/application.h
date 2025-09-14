@@ -254,6 +254,8 @@ public:
         bool loopTimeEnabled;
         double loopTimeA;
         double loopTimeB;
+        bool windowOnTop;
+        float windowOpacity;
     };
 
     struct ConfigurationVariables {
@@ -320,7 +322,9 @@ public:
         /*loopTimeDirty*/ false,
         /*loopTimeEnabled*/ false,
         /*loopTimeA*/ 0,
-        /*loopTimeB*/ 0 };
+        /*loopTimeB*/ 0,
+        /*windowOnTop*/ false,
+        /*windowOpacity*/ 1.f };
 
     ConfigurationVariables configuration = {
         /*confAll*/ "./data/mpv-conf/default/all.json",

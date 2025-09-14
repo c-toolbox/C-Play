@@ -1553,14 +1553,21 @@ ToolBar {
             }
         }
         ToolButton {
+            id: windowOpacity
+
+            action: actions.windowOpacityAction
+            focusPolicy: Qt.NoFocus
+            display: AbstractButton.IconOnly
+            ToolTip {
+                text: "ON/OFF to have node windows visible."
+            }
+        }
+        ToolButton {
             id: sync
 
             action: actions.syncAction
             focusPolicy: Qt.NoFocus
-            icon.color: mpv.autoPlay ? "lime" : "crimson"
-            text: actions.syncAction.text
-            display: Window.width < 1600 ? AbstractButton.IconOnly : AbstractButton.TextBesideIcon
-
+            display: AbstractButton.IconOnly
             ToolTip {
                 text: "ON/OFF to sync state from master to clients."
             }

@@ -27,6 +27,21 @@ public:
 
     void setupConnections();
 
+    Q_PROPERTY(bool nodeWindowsOnTop
+        READ nodeWindowsOnTop
+        WRITE setNodeWindowsOnTop
+        NOTIFY nodeWindowOnTopChanged)
+
+    Q_PROPERTY(float nodeWindowsOpacity
+        READ nodeWindowsOpacity
+        WRITE setNodeWindowsOpacity
+        NOTIFY nodeWindowOpacityChanged)
+
+    Q_PROPERTY(bool syncProperties
+        READ syncProperties
+        WRITE setSyncProperties
+        NOTIFY syncPropertiesChanged)
+
 public Q_SLOTS:
     void Next();
     void Previous();
@@ -96,6 +111,15 @@ public Q_SLOTS:
     bool rewindMediaOnEOF();
     void setRewindMediaOnEOF(bool value);
 
+    bool nodeWindowsOnTop();
+    void setNodeWindowsOnTop(bool value);
+
+    float nodeWindowsOpacity();
+    void setNodeWindowsOpacity(float value);
+
+    bool syncProperties();
+    void setSyncProperties(bool value);
+
 Q_SIGNALS:
     void next();
     void previous();
@@ -122,6 +146,9 @@ Q_SIGNALS:
     void foregroundVisibilityChanged();
     void viewModeOnClientsChanged();
     void rewindMediaOnEOFChanged();
+    void nodeWindowOnTopChanged();
+    void nodeWindowOpacityChanged();
+    void syncPropertiesChanged();
 
 private:
     MpvObject *mpv() const;

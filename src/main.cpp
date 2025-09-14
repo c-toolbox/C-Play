@@ -48,7 +48,7 @@ std::shared_ptr<ImageLayer> overlayImageLayer;
 #ifdef MDK_SUPPORT
 std::shared_ptr <AdaptiveVideoLayer> mainVideoLayer;
 #else
-std::shared_ptr<MpvLayer> mainVideoLayer;
+std::shared_ptr<VideoLayer> mainVideoLayer;
 #endif
 std::shared_ptr<TextLayer> mainSubtitleLayer;
 
@@ -164,6 +164,10 @@ static std::vector<std::byte> encode() {
             serializeObject(data, SyncHelper::instance().variables.loopTimeA);
             serializeObject(data, SyncHelper::instance().variables.loopTimeB);
         }
+
+        // Window features
+        serializeObject(data, SyncHelper::instance().variables.windowOnTop);
+        serializeObject(data, SyncHelper::instance().variables.windowOpacity);
 
         // Speed
         serializeObject(data, SyncHelper::instance().variables.speedDirty);
@@ -326,6 +330,10 @@ static void decode(const std::vector<std::byte> &data) {
             deserializeObject(data, pos, SyncHelper::instance().variables.loopTimeA);
             deserializeObject(data, pos, SyncHelper::instance().variables.loopTimeB);
         }
+
+        // Window features
+        deserializeObject(data, pos, SyncHelper::instance().variables.windowOnTop);
+        deserializeObject(data, pos, SyncHelper::instance().variables.windowOpacity);
 
         // Speed
         deserializeObject(data, pos, SyncHelper::instance().variables.speedDirty);
@@ -569,10 +577,21 @@ static void postSyncPreDraw() {
                 show2Dcontent = true;
                 show3Dcontent = false;
             }
-
+            
             for (const std::unique_ptr<Window> &win : Engine::instance().thisNode().windows()) {
                 bool exist2Dviewports = false;
                 bool exist3Dviewports = false;
+
+                // Set window features
+                if (glfwGetWindowOpacity(win->windowHandle()) != SyncHelper::instance().variables.windowOpacity) {
+                    glfwSetWindowOpacity(win->windowHandle(), SyncHelper::instance().variables.windowOpacity);
+                }
+                int currentWinOnTop = glfwGetWindowAttrib(win->windowHandle(), GLFW_FLOATING);
+                int newWinOnTop = (SyncHelper::instance().variables.windowOnTop ? 1 : 0);
+                if (newWinOnTop != currentWinOnTop) {
+                    glfwSetWindowAttrib(win->windowHandle(), GLFW_FLOATING, newWinOnTop);
+                }
+
                 // Step 2
                 for (const std::unique_ptr<Viewport> &vp : win->viewports()) {
                     if (vp->eye() == FrustumMode::Mono) {

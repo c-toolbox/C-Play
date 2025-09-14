@@ -8,6 +8,7 @@
 #include "playbacksettings.h"
 #include "slidesmodel.h"
 #include "presentationsettings.h"
+#include "userinterfacesettings.h"
 
 #include <QDir>
 #include <QFileInfo>
@@ -37,6 +38,8 @@ PlayerController::PlayerController(QObject *parent)
     setForegroundStereoMode(ImageSettings::stereoModeForForeground());
 
     setRewindMediaOnEOF(PlaybackSettings::rewindOnEOFwhenPause());
+
+    setNodeWindowsOnTop(UserInterfaceSettings::windowOnTopAtStartup());
 }
 
 void PlayerController::setupConnections() {
@@ -516,6 +519,35 @@ void PlayerController::setRewindMediaOnEOF(bool value) {
     m_rewindMediaOnEOF = value;
 
     Q_EMIT rewindMediaOnEOFChanged();
+}
+
+bool PlayerController::nodeWindowsOnTop() {
+    return SyncHelper::instance().variables.windowOnTop;
+}
+
+void PlayerController::setNodeWindowsOnTop(bool value) {
+    SyncHelper::instance().variables.windowOnTop = value;
+
+    Q_EMIT nodeWindowOnTopChanged();
+}
+
+float PlayerController::nodeWindowsOpacity() {
+    return SyncHelper::instance().variables.windowOpacity;
+}
+
+void PlayerController::setNodeWindowsOpacity(float value) {
+    SyncHelper::instance().variables.windowOpacity = value;
+
+    Q_EMIT nodeWindowOpacityChanged();
+}
+
+bool PlayerController::syncProperties() {
+    return SyncHelper::instance().variables.syncOn;
+}
+
+void PlayerController::setSyncProperties(bool value) {
+    SyncHelper::instance().variables.syncOn = value;
+    Q_EMIT syncPropertiesChanged();
 }
 
 MpvObject *PlayerController::mpv() const {

@@ -15,6 +15,7 @@ QtObject {
     id: root
 
     property bool isPrimary: true
+    property real winOpacity: 1.0
     property var list: ({})
 
     property Action clearRecentMediaFilesAction: Action {
@@ -38,19 +39,76 @@ QtObject {
     property Action syncAction: Action {
         id: syncAction
 
-        icon.name: "im-user-online"
-        text: qsTr("Sync On")
+        icon.name: playerController.syncProperties ? "network-connect" : "network-disconnect"
+        icon.color: playerController.syncProperties ? "lime" : "crimson"
+        text: playerController.syncProperties ? qsTr("Sync properties between master and nodes is ON") : qsTr("Sync properties between master and nodes is OFF")
 
         onTriggered: {
-            mpv.syncVideo = !mpv.syncVideo;
-            if (mpv.syncVideo) {
-                text = qsTr("Sync On");
-                icon.name = "im-user-online";
-            } else {
-                text = qsTr("Sync Off");
-                icon.name = "im-user-offline";
+            playerController.syncProperties = !playerController.syncProperties;
+        }
+    }
+    property Action windowOnTopAction: Action {
+        id: windowOnTopAction
+
+        text: playerController.nodeWindowsOnTop ? qsTr("Node windows on-top feature is ON") : qsTr("Node windows on-top feature is OFF")
+        icon.name: playerController.nodeWindowsOnTop ? "window-restore-pip" : "window-minimize-pip"
+        icon.color: playerController.nodeWindowsOnTop ? "lime" : "crimson"
+
+        onTriggered: {
+            playerController.nodeWindowsOnTop = !playerController.nodeWindowsOnTop;
+        }
+    }
+    property Action windowOpacityAction: Action {
+        id: windowOpacityAction
+
+        text: qsTr("Node windows are VISIBLE")
+        icon.name: "view-visible"
+        icon.color: "lime"
+
+        onTriggered: {
+            if(playerController.nodeWindowsOpacity > 0.0){
+                window_fade_out_animation.start();
+            }
+            else {
+                window_fade_in_animation.start();
             }
         }
+    }
+
+    onWinOpacityChanged : { 
+        playerController.nodeWindowsOpacity = winOpacity;
+
+        if(winOpacity == 0.0){
+            windowOpacityAction.text = qsTr("Node windows are HIDDEN");
+            windowOpacityAction.icon.name = "view-hidden";
+            windowOpacityAction.icon.color = "crimson";
+        }
+        else if(winOpacity == 1.0){
+            windowOpacityAction.text = qsTr("Node windows are VISIBLE");
+            windowOpacityAction.icon.name = "view-visible";
+            windowOpacityAction.icon.color = "lime";
+        }
+        else {
+            windowOpacityAction.text = qsTr("Node windows are TRANSPARENT");
+            windowOpacityAction.icon.name = "view-visible";
+            windowOpacityAction.icon.color = "orange";
+        }
+    }
+
+    property PropertyAnimation winFadeIn: PropertyAnimation {
+        id: window_fade_in_animation
+        duration: UserInterfaceSettings.windowFadeDuration
+        property: "winOpacity"
+        target: root
+        to: 1.0
+    }
+
+    property PropertyAnimation winFadeOut: PropertyAnimation {
+        id: window_fade_out_animation
+        duration: UserInterfaceSettings.windowFadeDuration
+        property: "winOpacity"
+        target: root
+        to: 0.0
     }
 
     property Action aboutCPlayAction: Action {

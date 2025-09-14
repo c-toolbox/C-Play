@@ -559,17 +559,17 @@ void Application::setupActions(const QString &actionName) {
     }
     if (actionName == QStringLiteral("options_configure_keybinding")) {
         auto action = new HAction(this);
-        action->setText(QStringLiteral("Configure Keyboard Shortcuts"));
+        action->setText(QStringLiteral("Keyboard Shortcuts"));
         action->setIcon(QIcon::fromTheme(QStringLiteral("configure-shortcuts")));
         connect(action, &QAction::triggered, this, &Application::configureShortcuts);
-        m_collection.setDefaultShortcut(action, QKeySequence(QStringLiteral("Ctrl+Shift+K")));
+        m_collection.setDefaultShortcut(action, QKeySequence(QStringLiteral("Ctrl+K")));
         m_collection.addAction(actionName, action);
     }
     if (actionName == QStringLiteral("configure")) {
         auto action = new HAction(this);
-        action->setText(QStringLiteral("Configure"));
+        action->setText(QStringLiteral("Preferences"));
         action->setIcon(QIcon::fromTheme(QStringLiteral("configure")));
-        m_collection.setDefaultShortcut(action, QKeySequence(QStringLiteral("Ctrl+Shift+C")));
+        m_collection.setDefaultShortcut(action, QKeySequence(QStringLiteral("Ctrl+P")));
         m_collection.addAction(actionName, action);
     }
     if (actionName == QStringLiteral("togglePlaylist")) {

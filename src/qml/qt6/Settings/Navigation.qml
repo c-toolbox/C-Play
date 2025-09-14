@@ -18,20 +18,6 @@ Kirigami.Page {
     rightPadding: 0
     topPadding: 0
 
-    footer: ToolBar {
-        RowLayout {
-            anchors.fill: parent
-
-            ToolButton {
-                Layout.fillWidth: true
-                icon.name: "configure-shortcuts"
-                text: qsTr("Configure shortcuts")
-
-                onClicked: appActions.configureShortcutsAction.trigger()
-            }
-        }
-    }
-
     Component.onCompleted: applicationWindow().pageStack.columnView.columnWidth = 250
 
     Loader {
@@ -84,12 +70,12 @@ Kirigami.Page {
         }
         ListElement {
             iconName: "media-view-subtitles-symbolic"
-            name: "Subtitles"
+            name: "Text & subtitles"
             page: "SubtitleSettings.qml"
         }
         ListElement {
             iconName: "edit-paste-style"
-            name: "User interface"
+            name: "Window & UI"
             page: "UserInterfaceSettings.qml"
         }
     }

@@ -113,11 +113,6 @@ public:
                        WRITE setStereoscopicMode
                            NOTIFY stereoscopicModeChanged)
 
-    Q_PROPERTY(bool syncVideo
-                   READ syncVideo
-                       WRITE setSyncVideo
-                           NOTIFY syncVideoChanged)
-
     Q_PROPERTY(bool syncVolumeVisibilityFading
                    READ syncVolumeVisibilityFading
                        WRITE setSyncVolumeVisibilityFading
@@ -305,9 +300,6 @@ public:
     bool hwDecoding();
     void setHWDecoding(bool value);
 
-    bool syncVideo();
-    void setSyncVideo(bool value);
-
     bool syncVolumeVisibilityFading();
     void setSyncVolumeVisibilityFading(bool value);
 
@@ -425,7 +417,6 @@ Q_SIGNALS:
     void subtitleTracksModelChanged();
     void hwDecodingChanged();
     void stereoscopicModeChanged();
-    void syncVideoChanged();
     void syncVolumeVisibilityFadingChanged();
     void visibilityChanged();
     void eofModeChanged();

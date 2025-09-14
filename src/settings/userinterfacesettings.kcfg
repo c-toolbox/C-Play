@@ -49,5 +49,11 @@
     <entry name="GuiStyle" type="String">
         <default>Breeze</default>
     </entry>
+    <entry name="WindowOnTopAtStartup" type="bool">
+      <default>false</default>
+    </entry>
+    <entry name="WindowFadeDuration" type="int">
+      <default>2000</default>
+    </entry>
   </group>
 </kcfg>
