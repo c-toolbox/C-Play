@@ -16,6 +16,7 @@
 #include <layers/baselayer.h>
 #include <layers/imagelayer.h>
 #include <layers/videolayer.h>
+#include <layers/textlayer.h>
 #include <layersmodel.h>
 #include <mutex>
 #include <slidesmodel.h>
@@ -49,6 +50,7 @@ std::shared_ptr <AdaptiveVideoLayer> mainVideoLayer;
 #else
 std::shared_ptr<MpvLayer> mainVideoLayer;
 #endif
+std::shared_ptr<TextLayer> mainSubtitleLayer;
 
 
 bool updateLayers = false;
@@ -69,7 +71,7 @@ static void* get_proc_address_glfw_v2(const char* name, void*) {
     return reinterpret_cast<void*>(glfwGetProcAddress(name));
 }
 
-void initOGL(GLFWwindow *) {
+static void initOGL(GLFWwindow *) {
 #ifndef SGCT_ONLY
     if (Engine::instance().isMaster())
         return;
@@ -94,6 +96,9 @@ void initOGL(GLFWwindow *) {
     foregroundImageLayer = std::make_shared<ImageLayer>("foreground");
     primaryLayers.push_back(foregroundImageLayer);
 
+    mainSubtitleLayer = std::make_shared<TextLayer>();
+    primaryLayers.push_back(mainSubtitleLayer);
+
     layerRender = std::make_shared<LayerRenderer>();
     layerRender->initializeGL(SyncHelper::instance().variables.radius, SyncHelper::instance().variables.fov);
 
@@ -103,10 +108,10 @@ void initOGL(GLFWwindow *) {
     glFrontFace(GL_CW);
 }
 
-void preSync() {
+static void preSync() {
 }
 
-std::vector<std::byte> encode() {
+static std::vector<std::byte> encode() {
     std::vector<std::byte> data;
     serializeObject(data, SyncHelper::instance().variables.syncOn);
     serializeObject(data, SyncHelper::instance().variables.alpha);
@@ -191,6 +196,7 @@ std::vector<std::byte> encode() {
         } else { // Sending no URL
             serializeObject(data, -1);
         }
+        serializeObject(data, SyncHelper::instance().variables.subtitleText);
 
         // Always syncing master slide, selected slide and previous slide so fade-down can occur.
         // Ideally, should most likely sync slide after selected as well
@@ -268,7 +274,7 @@ std::vector<std::byte> encode() {
     return data;
 }
 
-void decode(const std::vector<std::byte> &data) {
+static void decode(const std::vector<std::byte> &data) {
     unsigned int pos = 0;
     deserializeObject(data, pos, SyncHelper::instance().variables.syncOn);
     deserializeObject(data, pos, SyncHelper::instance().variables.alpha);
@@ -344,6 +350,7 @@ void decode(const std::vector<std::byte> &data) {
             deserializeObject(data, pos, SyncHelper::instance().variables.fgImageFileDirty);
             deserializeObject(data, pos, SyncHelper::instance().variables.fgImageFile);
         }
+        deserializeObject(data, pos, SyncHelper::instance().variables.subtitleText);
 
         // Layers
         bool layerSync = false;
@@ -399,7 +406,7 @@ void decode(const std::vector<std::byte> &data) {
     }
 }
 
-void postSyncPreDraw() {
+static void postSyncPreDraw() {
 #ifndef SGCT_ONLY
     // Apply synced commands
     if (!Engine::instance().isMaster()) {
@@ -412,7 +419,7 @@ void postSyncPreDraw() {
                 if (std::find(secondaryLayersToKeep.begin(), secondaryLayersToKeep.end(), (*it)) == secondaryLayersToKeep.end()) {
                     it = secondaryLayers.erase(it);
                 } else {
-                    auto layer = (*it);
+                    std::shared_ptr<BaseLayer> layer = (*it);
                     if (layer->needSync()) {
                         if (layer->gridMode() == BaseLayer::GridMode::Plane) {
                             layer->updatePlane();
@@ -479,7 +486,7 @@ void postSyncPreDraw() {
         // Should stop if mainVideoLayer is full visible
         // Rendered top to bottom, so need to add them the other way around...
         for (auto it = secondaryLayers.rbegin(); it != secondaryLayers.rend(); ++it) {
-            auto layer = (*it);
+            std::shared_ptr<BaseLayer> layer = (*it);
             if (layer->hierarchy() == BaseLayer::LayerHierarchy::BACK) {
                 if (layer->shouldUpdate()) {
                     if (!layer->hasInitialized()) {
@@ -506,13 +513,20 @@ void postSyncPreDraw() {
 
         // Main video/media layer
         if (mainVideoLayer->renderingIsOn()) {
-            if (mainVideoLayer->ready() && SyncHelper::instance().variables.alpha > 0.f) {
+            if (mainVideoLayer->ready() && SyncHelper::instance().variables.alpha > 0.f) {                
                 mainVideoLayer->setAlpha(SyncHelper::instance().variables.alpha);
                 mainVideoLayer->setGridMode(static_cast<uint8_t>(SyncHelper::instance().variables.gridToMapOn));
                 mainVideoLayer->setStereoMode(static_cast<uint8_t>(SyncHelper::instance().variables.stereoscopicMode));
                 mainVideoLayer->setRotate(rotXYZ);
                 mainVideoLayer->setTranslate(translateXYZ);
                 layerRender->addLayer(mainVideoLayer);
+
+                //Add subtitle if exists
+                mainSubtitleLayer->setText(SyncHelper::instance().variables.subtitleText);
+                if (mainSubtitleLayer->hasText()) {
+                    layerRender->addLayer(mainSubtitleLayer);
+                    mainSubtitleLayer->update(true);
+                }
             }
 
             if (overlayImageLayer->ready() && SyncHelper::instance().variables.alpha > 0.f) {
@@ -585,7 +599,7 @@ void postSyncPreDraw() {
         // Custom layers with hierarchy FRONT
         // Rendered top to bottom, so need to add them the other way around...
         for (auto it = secondaryLayers.rbegin(); it != secondaryLayers.rend(); ++it) {
-            auto layer = (*it);
+            std::shared_ptr<BaseLayer> layer = (*it);
             if (layer->hierarchy() == BaseLayer::LayerHierarchy::FRONT) {
                 if (layer->shouldUpdate()) {
                     if (!layer->hasInitialized()) {
@@ -660,7 +674,7 @@ void postSyncPreDraw() {
     mainVideoLayer->updateFrame();
 }
 
-void draw(const RenderData &data) {
+static void draw(const RenderData &data) {
 #ifndef SGCT_ONLY
     if (Engine::instance().isMaster())
         return;
@@ -678,7 +692,7 @@ void draw(const RenderData &data) {
     glDisable(GL_BLEND);
 }
 
-void cleanup() {
+static void cleanup() {
     if (!logFilePath.empty()) {
         logFile.close();
     }
@@ -698,11 +712,12 @@ void cleanup() {
     foregroundImageLayer = nullptr;
     overlayImageLayer = nullptr;
     mainVideoLayer = nullptr;
+    mainSubtitleLayer = nullptr;
     layerRender = nullptr;
     primaryLayers.clear();
 }
 
-void logging(Log::Level, std::string_view message) {
+static void logging(Log::Level, std::string_view message) {
     std::lock_guard<std::mutex> lock(logMutex);
     logFile << message << std::endl;
 }

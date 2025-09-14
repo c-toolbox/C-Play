@@ -31,7 +31,9 @@ public:
 #ifdef SPOUT_SUPPORT
         SPOUT,
 #endif
+#ifdef SGCT_HAS_TEXT
         TEXT,
+#endif
         INVALID
     };
 
@@ -139,13 +141,13 @@ public:
 
     // End virtual methods to use in derived classes
 
-    void encodeBaseCore(std::vector<std::byte>& data);
+    void encodeBaseCore(std::vector<std::byte>& data) const;
     void decodeBaseCore(const std::vector<std::byte>& data, unsigned int& pos);
 
-    void encodeBaseAlways(std::vector<std::byte>& data);
+    void encodeBaseAlways(std::vector<std::byte>& data) const;
     void decodeBaseAlways(const std::vector<std::byte>& data, unsigned int& pos);
 
-    void encodeBaseProperties(std::vector<std::byte>& data);
+    void encodeBaseProperties(std::vector<std::byte>& data) const;
     void decodeBaseProperties(const std::vector<std::byte>& data, unsigned int& pos);
 
     void encodeFull(std::vector<std::byte>& data);
@@ -154,7 +156,7 @@ public:
     void encodeAlways(std::vector<std::byte>& data);
     void decodeAlways(const std::vector<std::byte>& data, unsigned int& pos);
 
-    bool hasInitialized();
+    bool hasInitialized() const;
 
     bool isMaster() const;
     bool existOnMasterOnly() const;
@@ -177,13 +179,16 @@ public:
     std::string filepath() const;
     void setFilePath(std::string p);
 
+    std::string text() const;
+    void setText(std::string t);
+
     int page() const;
     void setPage(int p);
 
     int numPages() const;
     void setNumPages(int np);
 
-    int keepVisibilityForNumSlides();
+    int keepVisibilityForNumSlides() const;
     void setKeepVisibilityForNumSlides(int k);
 
     int volume() const;
@@ -264,6 +269,7 @@ protected:
     LayerHierarchy m_hierachy;
     std::string m_title;
     std::string m_filepath;
+    std::string m_text;
     int m_page;
     int m_numPages;
     int m_volume;

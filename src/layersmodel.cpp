@@ -526,6 +526,11 @@ void LayersModel::decodeFromJSON(QJsonObject &obj, const QStringList &forRelativ
 
                     int idx = addLayer(title, type, path, stereo, grid);
 
+                    if (o.contains(QStringLiteral("text"))) {
+                        std::string text = o.value(QStringLiteral("text")).toString().toStdString();
+                        m_layers[idx]->setText(text);
+                    }
+
                     if (o.contains(QStringLiteral("numPages"))) {
                         int numPages = o.value(QStringLiteral("numPages")).toInt();
                         m_layers[idx]->setNumPages(numPages);
@@ -655,7 +660,12 @@ void LayersModel::encodeToJSON(QJsonObject &obj, const QStringList &forRelativeP
             layerData.insert(QStringLiteral("path"), QJsonValue(QString::fromStdString(layer->filepath())));
         }
 
-       
+#ifdef SGCT_HAS_TEXT
+        if (layer->type() == BaseLayer::TEXT) {
+            layerData.insert(QStringLiteral("text"), QJsonValue(QString::fromStdString(layer->text())));
+        }
+#endif
+
 #ifdef PDF_SUPPORT
         if (layer->type() == BaseLayer::PDF) {
             layerData.insert(QStringLiteral("page"), QJsonValue(layer->page()));

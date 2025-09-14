@@ -53,14 +53,24 @@ std::string BaseLayer::typeDescription(BaseLayer::LayerType e) {
     case SPOUT:
         return "Spout";
 #endif
+#ifdef SGCT_HAS_TEXT
     case TEXT:
         return "Text";
+#endif
     default:
         return "";
     }
 }
 
-BaseLayer *BaseLayer::createLayer(bool isMaster, int layerType, gl_adress_func_v1 opa1, gl_adress_func_v2 opa2, std::string strId, uint32_t numID) {
+//Not supporting MDK in layers just yet...
+#undef MDK_SUPPORT
+#ifdef MDK_SUPPORT
+#define FUNC_V2 gl_adress_func_v2 opa2
+#else
+#define FUNC_V2 gl_adress_func_v2
+#endif
+
+BaseLayer *BaseLayer::createLayer(bool isMaster, int layerType, gl_adress_func_v1 opa1, FUNC_V2, std::string strId, uint32_t numID) {
     BaseLayer *newLayer = nullptr;
     switch (layerType) {
     case static_cast<int>(BaseLayer::LayerType::IMAGE): {
@@ -69,8 +79,6 @@ BaseLayer *BaseLayer::createLayer(bool isMaster, int layerType, gl_adress_func_v
         break;
     }
     case static_cast<int>(BaseLayer::LayerType::VIDEO): {
-//Not supporting MDK in layers just yet...
-#undef MDK_SUPPORT
 #ifdef MDK_SUPPORT
         if (!isMaster) {
             AdaptiveVideoLayer* newVideo = new AdaptiveVideoLayer(opa1, opa2);
@@ -117,11 +125,13 @@ BaseLayer *BaseLayer::createLayer(bool isMaster, int layerType, gl_adress_func_v
         break;
     }
 #endif
+#ifdef SGCT_HAS_TEXT
     case static_cast<int>(BaseLayer::LayerType::TEXT): {
         TextLayer* newText = new TextLayer();
         newLayer = newText;
         break;
     }
+#endif
     default:
         break;
     }
@@ -138,9 +148,11 @@ BaseLayer *BaseLayer::createLayer(bool isMaster, int layerType, gl_adress_func_v
 }
 
 BaseLayer::BaseLayer() {
-    m_title = "";
     m_type = BASE;
     m_hierachy = FRONT;
+    m_title = "";
+    m_filepath = "";
+    m_text = "";
     m_page = 0;
     m_numPages = 0;
     m_volume = 100;
@@ -295,7 +307,7 @@ void BaseLayer::decodeTypeProperties(const std::vector<std::byte>&, unsigned int
     // Overwrite in derived class
 }
 
-void BaseLayer::encodeBaseCore(std::vector<std::byte>& data) {
+void BaseLayer::encodeBaseCore(std::vector<std::byte>& data) const {
     sgct::serializeObject(data, m_hierachy);
     sgct::serializeObject(data, m_filepath);
     sgct::serializeObject(data, m_page);
@@ -312,7 +324,7 @@ void BaseLayer::decodeBaseCore(const std::vector<std::byte>& data, unsigned int&
     m_needSync = true;
 }
 
-void BaseLayer::encodeBaseAlways(std::vector<std::byte>& data) {
+void BaseLayer::encodeBaseAlways(std::vector<std::byte>& data) const {
     sgct::serializeObject(data, m_shouldUpdate);
     sgct::serializeObject(data, m_shouldPreLoad);
     sgct::serializeObject(data, renderData.alpha);
@@ -324,7 +336,7 @@ void BaseLayer::decodeBaseAlways(const std::vector<std::byte>& data, unsigned in
     sgct::deserializeObject(data, pos, renderData.alpha);
 }
 
-void BaseLayer::encodeBaseProperties(std::vector<std::byte>& data) {
+void BaseLayer::encodeBaseProperties(std::vector<std::byte>& data) const {
     sgct::serializeObject(data, renderData.gridMode);
     sgct::serializeObject(data, renderData.stereoMode);
 
@@ -411,7 +423,7 @@ void BaseLayer::decodeAlways(const std::vector<std::byte>& data, unsigned int& p
     decodeTypeAlways(data, pos);
 }
 
-bool BaseLayer::hasInitialized() {
+bool BaseLayer::hasInitialized() const {
     return m_hasInitialized;
 }
 
@@ -479,6 +491,15 @@ void BaseLayer::setFilePath(std::string p) {
     setNeedSync();
 }
 
+std::string BaseLayer::text() const {
+    return m_text;
+}
+
+void BaseLayer::setText(std::string t) {
+    m_text = t;
+    setNeedSync();
+}
+
 int BaseLayer::page() const {
     return m_page;
 }
@@ -514,7 +535,7 @@ int BaseLayer::volume() const {
     return m_volume;
 }
 
-int BaseLayer::keepVisibilityForNumSlides() {
+int BaseLayer::keepVisibilityForNumSlides() const {
     return m_keepVisibilityForNumSlides;
 }
 

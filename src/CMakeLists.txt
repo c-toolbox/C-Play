@@ -331,10 +331,10 @@ if(BUILD_CPLAY_WITH_SPOUT)
 endif()
 
 if(BUILD_CPLAY_WITH_POPPLER)
-    list(APPEND TARGET_LIBRARIES unofficial::poppler::poppler-cpp)
+    list(APPEND TARGET_LIBRARIES Poppler::Cpp)
     target_compile_definitions(${TARGET_NAME} PUBLIC PDF_SUPPORT)
 
-    get_target_property(POPPLER_INCLUDE_DIRS unofficial::poppler::poppler-private INTERFACE_INCLUDE_DIRECTORIES)
+    get_target_property(POPPLER_INCLUDE_DIRS Poppler::Cpp INTERFACE_INCLUDE_DIRECTORIES)
     target_include_directories(${TARGET_NAME} PRIVATE ${POPPLER_INCLUDE_DIRS})
 endif()
 
@@ -347,7 +347,7 @@ set(BUILD_SHARED_LIBS OFF CACHE BOOL "Build shared libraries" FORCE)
 target_link_libraries(${TARGET_NAME} PRIVATE ${TARGET_LIBRARIES})
 
 target_compile_features(${TARGET_NAME} PRIVATE cxx_std_20)
-target_compile_definitions(${TARGET_NAME} PUBLIC CPLAY_VERSION="${CPLAY_VERSION_MAJOR}.${CPLAY_VERSION_MINOR}.${CPLAY_VERSION_PATCH} Beta 1")
+target_compile_definitions(${TARGET_NAME} PUBLIC CPLAY_VERSION="${CPLAY_VERSION_MAJOR}.${CPLAY_VERSION_MINOR}.${CPLAY_VERSION_PATCH} Beta 2")
 target_compile_definitions(${TARGET_NAME} PUBLIC CPLAY_VERSION_MAJOR=${CPLAY_VERSION_MAJOR})
 target_compile_definitions(${TARGET_NAME} PUBLIC CPLAY_VERSION_MINOR=${CPLAY_VERSION_MINOR})
 target_compile_definitions(${TARGET_NAME} PUBLIC CPLAY_VERSION_PATCH=${CPLAY_VERSION_PATCH})

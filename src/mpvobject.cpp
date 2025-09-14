@@ -178,6 +178,7 @@ MpvObject::MpvObject(QQuickItem *parent)
     mpv_observe_property(mpv, 0, "saturation", MPV_FORMAT_INT64);
     mpv_observe_property(mpv, 0, "track-list", MPV_FORMAT_NODE);
     mpv_observe_property(mpv, 0, "video-params", MPV_FORMAT_NODE);
+    mpv_observe_property(mpv, 0, "sub-text", MPV_FORMAT_STRING);
 
     if (mpv_initialize(mpv) < 0)
         throw std::runtime_error("could not initialize mpv context");
@@ -1355,7 +1356,19 @@ void MpvObject::eventHandler() {
                     m_videoHeight = vm[QStringLiteral("h")].toInt();
                     Q_EMIT planeChanged();
                 }
+            } else if (strcmp(prop->name, "sub-text") == 0) {
+                if (prop->format == MPV_FORMAT_STRING) {
+                    char* subtitleText = *reinterpret_cast<char**>(prop->data);
+                    if (subtitleText) {
+                        std::string newSub = std::string(subtitleText);
+                        SyncHelper::instance().variables.subtitleText = newSub;
+                    }
+                    else {
+                        SyncHelper::instance().variables.subtitleText = "";
+                    }
+                }
             }
+
             break;
         }
         default:;

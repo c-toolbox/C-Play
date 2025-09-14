@@ -205,6 +205,7 @@ public:
         std::string overlayFile;
         std::string bgImageFile;
         std::string fgImageFile;
+        std::string subtitleText;
         bool loadFile;
         bool overlayFileDirty;
         bool bgImageFileDirty;
@@ -271,6 +272,7 @@ public:
         /*overlayFile*/ "",
         /*bgImageFile*/ "",
         /*fgImageFile*/ "",
+        /*subtitleText*/ "",
         /*loadFile*/ false,
         /*overlayFileDirty*/ false,
         /*bgImageFileDirty*/ false,

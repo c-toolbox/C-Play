@@ -21,7 +21,7 @@ project(c-play LANGUAGES CXX)
 set(CMAKE_INCLUDE_CURRENT_DIR ON)
 set(CMAKE_AUTOMOC ON)
 set(CMAKE_AUTORCC ON)
-set(CMAKE_CXX_STANDARD 20)
+set(CMAKE_CXX_STANDARD 23)
 set(CMAKE_CXX_STANDARD_REQUIRED ON)
 set_property(GLOBAL PROPERTY USE_FOLDERS ON)
 set(AUTO_TARGET_NAME "Generated Targets")
@@ -178,12 +178,29 @@ endif()
 
 option(BUILD_CPLAY_WITH_POPPLER "Global On/Off for PDF support via Poppler library" OFF)
 if(BUILD_CPLAY_WITH_POPPLER)
-    find_package(unofficial-poppler REQUIRED)
-    if(NOT unofficial-poppler_FOUND)
+    find_package(Poppler COMPONENTS Cpp Core REQUIRED)
+    if(NOT Poppler_FOUND)
         message(STATUS "Remember to run: vcpkg install poppler")
     endif()
-    set_package_properties(unofficial-poppler PROPERTIES TYPE REQUIRED 
+    set_package_properties(Poppler PROPERTIES TYPE REQUIRED 
         URL "https://poppler.freedesktop.org/" DESCRIPTION "Support for PDF page rendering.")
+
+    list(GET Poppler_LIBRARIES 0 Poppler_Core_Lib)
+    list(GET Poppler_LIBRARIES 1 Poppler_Cpp_Lib)
+    set_target_properties(Poppler::Core PROPERTIES
+        IMPORTED_LOCATION "${Poppler_Core_Lib}"
+        IMPORTED_LOCATION_RELEASE "${Poppler_Core_Lib}"
+        IMPORTED_IMPLIB "${Poppler_Core_Lib}"
+        IMPORTED_IMPLIB_RELEASE "${Poppler_Core_Lib}"
+        INTERFACE_INCLUDE_DIRECTORIES "${Poppler_INCLUDE_DIRS}"
+    )
+    set_target_properties(Poppler::Cpp PROPERTIES
+        IMPORTED_LOCATION "${Poppler_Cpp_Lib}"
+        IMPORTED_LOCATION_RELEASE "${Poppler_Cpp_Lib}"
+        IMPORTED_IMPLIB "${Poppler_Cpp_Lib}"
+        IMPORTED_IMPLIB_RELEASE "${Poppler_Cpp_Lib}"
+        INTERFACE_INCLUDE_DIRECTORIES "${Poppler_INCLUDE_DIRS}"
+    )
 endif()
 
 if(BUILD_WITH_VCPKG_SUPPORT)
