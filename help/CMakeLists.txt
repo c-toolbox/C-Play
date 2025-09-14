@@ -4,6 +4,35 @@
 # SPDX-License-Identifier: GPL-3.0-or-later
 #
 
+install(CODE "set(PROJECT_SOURCE_DIR \"${PROJECT_SOURCE_DIR}\")")
+install(CODE "set(PROJECT_BINARY_DIR \"${PROJECT_BINARY_DIR}\")")
+install(CODE [[
+	if(EXISTS "${PROJECT_BINARY_DIR}/help/CPlay_Pack_Installer.nsi")
+		file(INSTALL
+			DESTINATION "${CMAKE_INSTALL_PREFIX}"
+			FILES "${PROJECT_BINARY_DIR}/help/CPlay_Pack_Installer.nsi"
+		)
+	else()
+		message("${PROJECT_SOURCE_DIR}/help/CPlay_Pack_Installer.nsi was not found")
+	endif()
+	if(EXISTS "${PROJECT_BINARY_DIR}/help/CPlay_Pack_Zip.bat")
+		file(INSTALL
+			DESTINATION "${CMAKE_INSTALL_PREFIX}"
+			FILES "${PROJECT_BINARY_DIR}/help/CPlay_Pack_Zip.bat"
+		)
+	else()
+		message("${PROJECT_SOURCE_DIR}/help/CPlay_Pack_Zip.bat was not found")
+	endif()
+	if(EXISTS "${PROJECT_SOURCE_DIR}/LICENSE.txt")
+		file(INSTALL
+			DESTINATION "${CMAKE_INSTALL_PREFIX}"
+			FILES "${PROJECT_SOURCE_DIR}/LICENSE.txt"
+		)
+	else()
+		message("${PROJECT_SOURCE_DIR}/LICENSE.txt was not found")
+	endif()
+]])  
+
 if(CPLAY_INSTALL_DEPENDENCIES)
 	find_package(QT NAMES Qt6)
 	if(${QT_VERSION_MAJOR} GREATER_EQUAL 6 AND ${QT_VERSION_MINOR} GREATER_EQUAL 8)
@@ -20,26 +49,7 @@ if(CPLAY_INSTALL_DEPENDENCIES)
 	get_filename_component(_mpv_bin_dir "${Libmpv_LIBRARIES}" DIRECTORY)
 	install(CODE "set(MPV_BIN_DIR \"${_mpv_bin_dir}\")")
 	
-	install(CODE "set(PROJECT_SOURCE_DIR \"${PROJECT_SOURCE_DIR}\")")
 	install(CODE "set(CPLAY_INSTALL_PREDEFINED_DLL_NAME \"${CPLAY_INSTALL_PREDEFINED_DLL_NAME}\")")
-	install(CODE [[
-		if(EXISTS "${PROJECT_SOURCE_DIR}/CPlay_Pack.nsi")
-			file(INSTALL
-				DESTINATION "${CMAKE_INSTALL_PREFIX}"
-				FILES "${PROJECT_SOURCE_DIR}/CPlay_Pack.nsi"
-			)
-		else()
-			message("${PROJECT_SOURCE_DIR}/CPlay_Pack.nsi was not found")
-		endif()
-		if(EXISTS "${PROJECT_SOURCE_DIR}/LICENSE.txt")
-			file(INSTALL
-				DESTINATION "${CMAKE_INSTALL_PREFIX}"
-				FILES "${PROJECT_SOURCE_DIR}/LICENSE.txt"
-			)
-		else()
-			message("${PROJECT_SOURCE_DIR}/LICENSE.txt was not found")
-		endif()
-	]])  
 	
 	install(CODE [[
 		message("Copying ${PROJECT_SOURCE_DIR}/help/sgct files to bin")

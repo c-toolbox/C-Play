@@ -1,8 +1,5 @@
 #
 # Copyright: 2021-2025 Erik Sunden <eriksunden85@gmail.com>
-#
-# SPDX-FileCopyrightText: 2020 George Florea Bănuș <georgefb899@gmail.com>
-#
 # SPDX-License-Identifier: GPL-3.0-or-later
 #
 
@@ -10,6 +7,8 @@ set(TARGET_NAME C-Play)
 set(CPLAY_VERSION_MAJOR 2)
 set(CPLAY_VERSION_MINOR 2)
 set(CPLAY_VERSION_PATCH 0)
+set(CPLAY_VERSION_PR_NAME "Beta")
+set(CPLAY_VERSION_PR_VERS 2)
 
 qt_add_executable(${TARGET_NAME})
 set_compile_options(${TARGET_NAME})
@@ -345,9 +344,18 @@ add_subdirectory(${CMAKE_CURRENT_SOURCE_DIR}/sgct)
 set(BUILD_SHARED_LIBS OFF CACHE BOOL "Build shared libraries" FORCE)
 
 target_link_libraries(${TARGET_NAME} PRIVATE ${TARGET_LIBRARIES})
+target_compile_features(${TARGET_NAME} PRIVATE cxx_std_23)
+if(DEFINED CPLAY_VERSION_PR_NAME AND DEFINED CPLAY_VERSION_PR_VERS)
+  target_compile_definitions(${TARGET_NAME} PUBLIC CPLAY_VERSION="${CPLAY_VERSION_MAJOR}.${CPLAY_VERSION_MINOR}.${CPLAY_VERSION_PATCH} ${CPLAY_VERSION_PR_NAME} ${CPLAY_VERSION_PR_VERS}")
+  set(CPLAY_PACKNAME "${TARGET_NAME}_${CPLAY_VERSION_MAJOR}_${CPLAY_VERSION_MINOR}_${CPLAY_VERSION_PATCH}_${CPLAY_VERSION_PR_NAME}_${CPLAY_VERSION_PR_VERS}")
+else()
+  target_compile_definitions(${TARGET_NAME} PUBLIC CPLAY_VERSION="${CPLAY_VERSION_MAJOR}.${CPLAY_VERSION_MINOR}.${CPLAY_VERSION_PATCH}")
+  set(CPLAY_PACKNAME "${TARGET_NAME}_${CPLAY_VERSION_MAJOR}_${CPLAY_VERSION_MINOR}_${CPLAY_VERSION_PATCH}")
+endif()
 
-target_compile_features(${TARGET_NAME} PRIVATE cxx_std_20)
-target_compile_definitions(${TARGET_NAME} PUBLIC CPLAY_VERSION="${CPLAY_VERSION_MAJOR}.${CPLAY_VERSION_MINOR}.${CPLAY_VERSION_PATCH} Beta 2")
+configure_file(../help/CPlay_Pack_Installer.nsi.in ../help/CPlay_Pack_Installer.nsi @ONLY)
+configure_file(../help/CPlay_Pack_Zip.bat.in ../help/CPlay_Pack_Zip.bat @ONLY)
+
 target_compile_definitions(${TARGET_NAME} PUBLIC CPLAY_VERSION_MAJOR=${CPLAY_VERSION_MAJOR})
 target_compile_definitions(${TARGET_NAME} PUBLIC CPLAY_VERSION_MINOR=${CPLAY_VERSION_MINOR})
 target_compile_definitions(${TARGET_NAME} PUBLIC CPLAY_VERSION_PATCH=${CPLAY_VERSION_PATCH})

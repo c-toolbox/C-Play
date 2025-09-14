@@ -1,12 +1,12 @@
-!define APPNAME "C-Play"
+!define APPNAME "@TARGET_NAME@"
 !define COMPANYNAME "Visualization Center C"
 !define DESCRIPTION "Cluster Video Player, (c-toolbox.github.io/C-Play/)"
 # These three must be integers
-!define VERSIONMAJOR 2
-!define VERSIONMINOR 2
-!define VERSIONBUILD 0
+!define VERSIONMAJOR @CPLAY_VERSION_MAJOR@
+!define VERSIONMINOR @CPLAY_VERSION_MINOR@
+!define VERSIONBUILD @CPLAY_VERSION_PATCH@
 # This is the size (in kB) of all the files copied into the folder
-!define INSTALLSIZE 400000
+!define INSTALLSIZE 500000
 
 RequestExecutionLevel user
  
@@ -18,7 +18,7 @@ LicenseData "LICENSE.txt"
 # This will be in the installer/uninstaller's title bar
 Name "${APPNAME}"
 Icon "bin\data\images\C_play_transparent.ico"
-outFile "${APPNAME}_${VERSIONMAJOR}_${VERSIONMINOR}_${VERSIONBUILD}_Beta_2.exe"
+outFile "@CPLAY_PACKNAME@.exe"
  
 !include LogicLib.nsh
  
