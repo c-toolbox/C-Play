@@ -84,7 +84,9 @@ bool ImageLayer::fileIsImage(std::string &filePath) {
         if (std::filesystem::exists(filePath)) {
             std::filesystem::path bgPath = std::filesystem::path(filePath);
             if (bgPath.has_extension()) {
-                std::filesystem::path bgPathExt = bgPath.extension();
+                std::string bgPathExt = bgPath.extension().generic_string();
+                std::transform(bgPathExt.begin(), bgPathExt.end(), bgPathExt.begin(),
+                    [](unsigned char c) { return std::tolower(c); });
                 if (bgPathExt == ".png" ||
                     bgPathExt == ".jpg" ||
                     bgPathExt == ".jpeg" ||
