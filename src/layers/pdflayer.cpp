@@ -8,6 +8,7 @@
 #include "pdflayer.h"
 #include <presentationsettings.h>
 #include <sgct/sgct.h>
+#include <sgct/opengl.h>
 #include <cpp/poppler-page.h>
 #include <cpp/poppler-page-renderer.h>
 
@@ -31,7 +32,6 @@ auto loadPageAsync = [](PdfLayer::PdfData& data) {
     data.pageDone = true;
     while (!data.uploadDone) {
     }
-    data.img = poppler::image(); // Assigning invalid image
     data.threadDone = true;
 };
 
@@ -147,12 +147,52 @@ void PdfLayer::update(bool updateRendering) {
     if ((updateRendering || !ready()) && loadPage && page() > 0) {
         m_pdfData.page = page();
         sgct::Log::Info(std::format("Loading page {} in {} asynchronously.", m_pdfData.page, m_pdfData.filepath));
+        m_pdfData.threadRunning = true;
         m_pdfData.trd = std::make_unique<std::thread>(loadPageAsync, std::ref(m_pdfData));
     }
 }
 
 bool PdfLayer::ready() const {
     return m_pdfData.filepath == filepath() && m_pdfData.page == page() && m_pdfData.trd == nullptr;
+}
+
+int PdfLayer::page() const {
+    return m_page;
+}
+
+void PdfLayer::setPage(int p) {
+    if (p < 1) {
+        m_page = 1;
+    }
+    else if (p >= numPages()) {
+        m_page = numPages();
+    }
+    else {
+        m_page = p;
+    }
+    setNeedSync();
+}
+
+int PdfLayer::numPages() const {
+    return m_numPages;
+}
+
+void PdfLayer::setNumPages(int np) {
+    if (m_page >= np) {
+        sgct::Log::Info("Page number out of page count, resetting to first page");
+        m_page = 1;
+    }
+
+    m_numPages = np;
+    setNeedSync();
+}
+
+void PdfLayer::encodeTypeCore(std::vector<std::byte>& data) {
+    sgct::serializeObject(data, m_page);
+}
+
+void PdfLayer::decodeTypeCore(const std::vector<std::byte>& data, unsigned int& pos) {
+    sgct::deserializeObject(data, pos, m_page);
 }
 
 bool PdfLayer::loadDocument(std::string filepath) {
@@ -203,7 +243,7 @@ void PdfLayer::handleAsyncPageRender() {
     }
 }
 
-void PdfLayer::loadPageAsTexture(GLuint TextureID, unsigned int width, unsigned int height, poppler::image::format_enum format, const char* data) {
+void PdfLayer::loadPageAsTexture(unsigned int TextureID, unsigned int width, unsigned int height, poppler::image::format_enum format, const char* data) {
     // Bind the texture and PBO
     glBindTexture(GL_TEXTURE_2D, TextureID);
 

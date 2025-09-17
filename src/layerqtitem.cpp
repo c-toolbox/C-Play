@@ -13,6 +13,10 @@
 #include "slidesmodel.h"
 #include "track.h"
 
+#ifdef PDF_SUPPORT
+#include <layers/pdflayer.h>
+#endif
+
 #include <QOpenGLContext>
 #include <QTimer>
 #include <QtCore/QRunnable>
@@ -170,24 +174,39 @@ double LayerQtItem::layerRemaining() const {
 }
 
 int LayerQtItem::layerPage() const {
-    if (m_layer)
-        return m_layer->page();
+#ifdef PDF_SUPPORT
+    if (m_layer && m_layer->type() == BaseLayer::PDF) {
+        PdfLayer* pdfLayer = static_cast<PdfLayer*>(m_layer);
+        return pdfLayer->page();
+    }
     else
         return -1;
+#else
+    return -1;
+#endif
 }
 
 void LayerQtItem::setLayerPage(int value) {
-    if (m_layer) {
-        m_layer->setPage(value);
+#ifdef PDF_SUPPORT
+    if (m_layer && m_layer->type() == BaseLayer::PDF) {
+        PdfLayer* pdfLayer = static_cast<PdfLayer*>(m_layer);
+        pdfLayer->setPage(value);
         Q_EMIT layerValueChanged();
     }
+#endif
 }
 
 int LayerQtItem::layerNumPages() const {
-    if (m_layer)
-        return m_layer->numPages();
+#ifdef PDF_SUPPORT
+    if (m_layer && m_layer->type() == BaseLayer::PDF) {
+        PdfLayer* pdfLayer = static_cast<PdfLayer*>(m_layer);
+        return pdfLayer->numPages();
+    }
     else
         return -1;
+#else
+    return -1;
+#endif
 }
 
 double LayerQtItem::layerRotatePitch() const {

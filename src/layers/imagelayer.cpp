@@ -16,6 +16,7 @@ auto loadImageAsync = [](ImageLayer::ImageData &data) {
     }
     data.img = sgct::Image();
     data.threadDone = true;
+    data.threadRunning = false;
 };
 
 ImageLayer::ImageLayer(std::string identifier) {
@@ -62,6 +63,7 @@ bool ImageLayer::processImageUpload(std::string filename, bool forceUpdate) {
                 // Load background file
                 imageData.filename = filename;
                 sgct::Log::Info(std::format("Loading new {} image asynchronously: {}", imageData.identifier, imageData.filename));
+                imageData.threadRunning = true;
                 imageData.trd = std::make_unique<std::thread>(loadImageAsync, std::ref(imageData));
 
                 return true;

@@ -153,8 +153,6 @@ BaseLayer::BaseLayer() {
     m_title = "";
     m_filepath = "";
     m_text = "";
-    m_page = 0;
-    m_numPages = 0;
     m_volume = 100;
     m_isMaster = false;
     m_existOnMasterOnly = false;
@@ -310,14 +308,12 @@ void BaseLayer::decodeTypeProperties(const std::vector<std::byte>&, unsigned int
 void BaseLayer::encodeBaseCore(std::vector<std::byte>& data) const {
     sgct::serializeObject(data, m_hierachy);
     sgct::serializeObject(data, m_filepath);
-    sgct::serializeObject(data, m_page);
     sgct::serializeObject(data, renderData.flipY);
 }
 
 void BaseLayer::decodeBaseCore(const std::vector<std::byte>& data, unsigned int& pos) {
     sgct::deserializeObject(data, pos, m_hierachy);
     sgct::deserializeObject(data, pos, m_filepath);
-    sgct::deserializeObject(data, pos, m_page);
     sgct::deserializeObject(data, pos, renderData.flipY);
 
     // Marking as needSync means we know update has occured, which we need to clear
@@ -506,37 +502,6 @@ std::string BaseLayer::font() const {
 
 void BaseLayer::setFont(std::string f) {
     m_font = f;
-    setNeedSync();
-}
-
-int BaseLayer::page() const {
-    return m_page;
-}
-
-void BaseLayer::setPage(int p) {
-    if (p < 1) {
-        m_page = 1;
-    }
-    else if (p >= numPages()) {
-        m_page = numPages();
-    }
-    else {
-        m_page = p;
-    }
-    setNeedSync();
-}
-
-int BaseLayer::numPages() const {
-    return m_numPages;
-}
-
-void BaseLayer::setNumPages(int np) {
-    if (m_page >= np) {
-        sgct::Log::Info("Page number out of page count, resetting to first page");
-        m_page = 1;
-    }
-
-    m_numPages = np;
     setNeedSync();
 }
 

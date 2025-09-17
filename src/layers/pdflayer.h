@@ -9,7 +9,6 @@
 #define PDFLAYER_H
 
 #include <layers/baselayer.h>
-#include <sgct/opengl.h>
 #include <cpp/poppler-document.h>
 #include <cpp/poppler-image.h>
 #include <map>
@@ -55,12 +54,23 @@ public:
     void update(bool updateRendering = true);
     bool ready() const;
 
+    int page() const;
+    void setPage(int p);
+
+    int numPages() const;
+    void setNumPages(int np);
+
+    void encodeTypeCore(std::vector<std::byte>&);
+    void decodeTypeCore(const std::vector<std::byte>&, unsigned int&);
+
 private:
+    int m_page;
+    int m_numPages;
     PdfData m_pdfData;
 
     bool loadDocument(std::string filepath);
     void handleAsyncPageRender();
-    void loadPageAsTexture(GLuint TextureID, unsigned int width, unsigned int height, poppler::image::format_enum format, const char* data);
+    void loadPageAsTexture(unsigned int TextureID, unsigned int width, unsigned int height, poppler::image::format_enum format, const char* data);
     void createPageAsTexture(unsigned int& id, int width, int height, poppler::image::format_enum format, const char* data = nullptr);
 };
 

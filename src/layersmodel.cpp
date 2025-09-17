@@ -12,6 +12,9 @@
 #ifdef NDI_SUPPORT
 #include <ndi/ndilayer.h>
 #endif
+#ifdef PDF_SUPPORT
+#include <layers/pdflayer.h>
+#endif
 #ifdef SPOUT_SUPPORT
 #include <layers/spoutlayer.h>
 #endif
@@ -84,8 +87,9 @@ QVariant LayersModel::data(const QModelIndex &index, int role) const {
     case PageRole:
 #ifdef PDF_SUPPORT
         if (layerItem->type() == BaseLayer::PDF){
-            return QVariant(QStringLiteral(" ") + QString::number(layerItem->page())
-                + QStringLiteral("/") + QString::number(layerItem->numPages())  + QStringLiteral(" "));
+            const PdfLayer* pdfLayer = static_cast<const PdfLayer*>(layerItem);
+            return QVariant(QStringLiteral(" ") + QString::number(pdfLayer->page())
+                + QStringLiteral("/") + QString::number(pdfLayer->numPages())  + QStringLiteral(" "));
         }
 #endif
         return QVariant(QStringLiteral(""));
@@ -489,7 +493,7 @@ void LayersModel::decodeFromJSON(QJsonObject &obj, const QStringList &forRelativ
                     QString title = o.value(QStringLiteral("title")).toString();
 
                     QString path = o.value(QStringLiteral("path")).toString();
-                    if (type == BaseLayer::IMAGE 
+                    if (type == BaseLayer::IMAGE
                         || type == BaseLayer::VIDEO
 #ifdef  PDF_SUPPORT
                         || type == BaseLayer::PDF
@@ -502,13 +506,17 @@ void LayersModel::decodeFromJSON(QJsonObject &obj, const QStringList &forRelativ
                     QString gridStr = o.value(QStringLiteral("grid")).toString();
                     if (gridStr == QStringLiteral("none") || gridStr == QStringLiteral("pre-split")) {
                         grid = BaseLayer::GridMode::None;
-                    } else if (gridStr == QStringLiteral("plane") || gridStr == QStringLiteral("flat")) {
+                    }
+                    else if (gridStr == QStringLiteral("plane") || gridStr == QStringLiteral("flat")) {
                         grid = BaseLayer::GridMode::Plane;
-                    } else if (gridStr == QStringLiteral("dome")) {
+                    }
+                    else if (gridStr == QStringLiteral("dome")) {
                         grid = BaseLayer::GridMode::Dome;
-                    } else if (gridStr == QStringLiteral("sphere") || gridStr == QStringLiteral("eqr") || gridStr == QStringLiteral("sphere-eqr")) {
+                    }
+                    else if (gridStr == QStringLiteral("sphere") || gridStr == QStringLiteral("eqr") || gridStr == QStringLiteral("sphere-eqr")) {
                         grid = BaseLayer::GridMode::Sphere_EQR;
-                    } else if (gridStr == QStringLiteral("eac") || gridStr == QStringLiteral("sphere-eac")) {
+                    }
+                    else if (gridStr == QStringLiteral("eac") || gridStr == QStringLiteral("sphere-eac")) {
                         grid = BaseLayer::GridMode::Sphere_EAC;
                     }
 
@@ -516,11 +524,14 @@ void LayersModel::decodeFromJSON(QJsonObject &obj, const QStringList &forRelativ
                     QString stereoStr = o.value(QStringLiteral("stereoscopic")).toString();
                     if (stereoStr == QStringLiteral("no") || stereoStr == QStringLiteral("mono")) {
                         stereo = BaseLayer::StereoMode::No_2D;
-                    } else if (stereoStr == QStringLiteral("yes") || stereoStr == QStringLiteral("sbs") || stereoStr == QStringLiteral("side-by-side")) {
+                    }
+                    else if (stereoStr == QStringLiteral("yes") || stereoStr == QStringLiteral("sbs") || stereoStr == QStringLiteral("side-by-side")) {
                         stereo = BaseLayer::StereoMode::SBS_3D;
-                    } else if (stereoStr == QStringLiteral("tb") || stereoStr == QStringLiteral("top-bottom")) {
+                    }
+                    else if (stereoStr == QStringLiteral("tb") || stereoStr == QStringLiteral("top-bottom")) {
                         stereo = BaseLayer::StereoMode::TB_3D;
-                    } else if (stereoStr == QStringLiteral("tbf") || stereoStr == QStringLiteral("top-bottom-flip")) {
+                    }
+                    else if (stereoStr == QStringLiteral("tbf") || stereoStr == QStringLiteral("top-bottom-flip")) {
                         stereo = BaseLayer::StereoMode::TBF_3D;
                     }
 
@@ -531,15 +542,20 @@ void LayersModel::decodeFromJSON(QJsonObject &obj, const QStringList &forRelativ
                         m_layers[idx]->setText(text);
                     }
 
-                    if (o.contains(QStringLiteral("numPages"))) {
-                        int numPages = o.value(QStringLiteral("numPages")).toInt();
-                        m_layers[idx]->setNumPages(numPages);
-                    }
+#ifdef PDF_SUPPORT
+                    if (type == BaseLayer::PDF) {
+                        QSharedPointer<PdfLayer> pdfLayer = qSharedPointerCast<PdfLayer, BaseLayer>(m_layers[idx]);
+                        if (o.contains(QStringLiteral("numPages"))) {
+                            int numPages = o.value(QStringLiteral("numPages")).toInt();
+                            pdfLayer->setNumPages(numPages);
+                        }
 
-                    if (o.contains(QStringLiteral("page"))) {
-                        int page = o.value(QStringLiteral("page")).toInt();
-                        m_layers[idx]->setPage(page);
-                    }
+                        if (o.contains(QStringLiteral("page"))) {
+                            int page = o.value(QStringLiteral("page")).toInt();
+                            pdfLayer->setPage(page);
+                        }
+                    }  
+#endif
 
                     if (o.contains(QStringLiteral("visibility"))) {
                         int visibility = o.value(QStringLiteral("visibility")).toInt();
@@ -668,8 +684,9 @@ void LayersModel::encodeToJSON(QJsonObject &obj, const QStringList &forRelativeP
 
 #ifdef PDF_SUPPORT
         if (layer->type() == BaseLayer::PDF) {
-            layerData.insert(QStringLiteral("page"), QJsonValue(layer->page()));
-            layerData.insert(QStringLiteral("numPages"), QJsonValue(layer->numPages()));
+            QSharedPointer<PdfLayer> pdfLayer = qSharedPointerCast<PdfLayer, BaseLayer>(layer);
+            layerData.insert(QStringLiteral("page"), QJsonValue(pdfLayer->page()));
+            layerData.insert(QStringLiteral("numPages"), QJsonValue(pdfLayer->numPages()));
         }
 #endif
         if (layer->type() == BaseLayer::VIDEO || layer->type() == BaseLayer::AUDIO) {

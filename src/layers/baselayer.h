@@ -185,12 +185,6 @@ public:
     std::string font() const;
     void setFont(std::string f);
 
-    int page() const;
-    void setPage(int p);
-
-    int numPages() const;
-    void setNumPages(int np);
-
     int keepVisibilityForNumSlides() const;
     void setKeepVisibilityForNumSlides(int k);
 
@@ -274,8 +268,6 @@ protected:
     std::string m_filepath;
     std::string m_text;
     std::string m_font;
-    int m_page;
-    int m_numPages;
     int m_volume;
     int m_keepVisibilityForNumSlides;
     bool m_isMaster;
