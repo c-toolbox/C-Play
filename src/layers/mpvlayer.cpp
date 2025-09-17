@@ -243,6 +243,7 @@ auto runMpvAsync = [](MpvLayer::mpvData& data, BaseLayer::RenderParams& rp) {
         on_mpv_events(data, rp);
     }
     data.threadDone = true;
+    data.threadRunning = false;
 };
 
 MpvLayer::MpvLayer(gl_adress_func_v1 opa,
@@ -266,6 +267,7 @@ void MpvLayer::initialize() {
 void MpvLayer::initializeMpv() {
     // Run MPV on another thread
     if (!m_data.threadRunning) {
+        m_data.threadRunning = true;
         m_data.trd = std::make_unique<std::thread>(runMpvAsync, std::ref(m_data), std::ref(renderData));
     }
 }

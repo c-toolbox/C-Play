@@ -201,6 +201,11 @@ static std::vector<std::byte> encode() {
             serializeObject(data, -1);
         }
         serializeObject(data, SyncHelper::instance().variables.subtitleText);
+        serializeObject(data, SyncHelper::instance().variables.subtitleFontDirty);
+        if (SyncHelper::instance().variables.subtitleFontDirty) {
+            serializeObject(data, SyncHelper::instance().variables.subtitleFontName);
+            serializeObject(data, SyncHelper::instance().variables.subtitleFontPath);
+        }
 
         // Always syncing master slide, selected slide and previous slide so fade-down can occur.
         // Ideally, should most likely sync slide after selected as well
@@ -273,6 +278,7 @@ static std::vector<std::byte> encode() {
         SyncHelper::instance().variables.eqDirty = false;
         SyncHelper::instance().variables.loopTimeDirty = false;
         SyncHelper::instance().variables.speedDirty = false;
+        SyncHelper::instance().variables.subtitleFontDirty = false;
     }
 
     return data;
@@ -358,7 +364,14 @@ static void decode(const std::vector<std::byte> &data) {
             deserializeObject(data, pos, SyncHelper::instance().variables.fgImageFileDirty);
             deserializeObject(data, pos, SyncHelper::instance().variables.fgImageFile);
         }
+
+        // Subs
         deserializeObject(data, pos, SyncHelper::instance().variables.subtitleText);
+        deserializeObject(data, pos, SyncHelper::instance().variables.subtitleFontDirty);
+        if (SyncHelper::instance().variables.subtitleFontDirty) {
+            deserializeObject(data, pos, SyncHelper::instance().variables.subtitleFontName);
+            deserializeObject(data, pos, SyncHelper::instance().variables.subtitleFontPath);
+        }
 
         // Layers
         bool layerSync = false;
@@ -518,6 +531,13 @@ static void postSyncPreDraw() {
             }
         }
 
+        // Subs
+        if (SyncHelper::instance().variables.subtitleFontDirty) {
+            if (!SyncHelper::instance().variables.subtitleFontName.empty()) {
+                sgct::text::FontManager::instance().addFont(SyncHelper::instance().variables.subtitleFontName, SyncHelper::instance().variables.subtitleFontPath, true);
+                mainSubtitleLayer->setFont(SyncHelper::instance().variables.subtitleFontName);
+            }
+        }
 
         // Main video/media layer
         if (mainVideoLayer->renderingIsOn()) {

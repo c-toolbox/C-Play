@@ -10,8 +10,16 @@
                           http://www.kde.org/standards/kcfg/1.0/kcfg.xsd" >
   <kcfgfile name="C-Play/cplay.conf" />
   <group name="Subtitle">
+    <entry name="SubtitleFontFamily" type="String">
+      <label>Selected font family for subtitles</label>
+      <default>Noto Sans</default>
+    </entry>
+    <entry name="LoadSystemFonts" type="bool">
+      <default>false</default>
+    </entry>
     <entry name="PreferredLanguage" type="String">
       <label>Preferred language</label>
+      <default>en</default>
     </entry>
     <entry name="PreferredTrack" type="Int">
       <label>Preferred track</label>

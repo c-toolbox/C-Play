@@ -15,6 +15,7 @@
 #include <QElapsedTimer>
 #include <QObject>
 #include <QQmlApplicationEngine>
+#include <QFontDatabase>
 
 #include "renderthread.h"
 #include <KAboutData>
@@ -105,9 +106,16 @@ public:
     Q_INVOKABLE static void showCursor();
     Q_INVOKABLE static QString mimeType(QUrl url);
 
+    bool getFontPath(const QString& inFontName, QString& outPath);
     int getFadeDurationCurrentTime(bool restart);
     int getFadeDurationSetting();
     void setStartupFile(std::string filePath);
+
+    Q_PROPERTY(QStringList fonts
+        READ fonts
+        NOTIFY fontsChanged)
+    QStringList fonts();
+    Q_INVOKABLE void updateFonts();
 
     Q_PROPERTY(SlidesModel *slides
                    READ slidesModel
@@ -153,6 +161,7 @@ public:
 Q_SIGNALS:
     void actionsUpdated();
     void applicationInteraction();
+    void fontsChanged();
     void slidesModelChanged();
     void streamsModelChanged();
 #ifdef NDI_SUPPORT
@@ -176,6 +185,17 @@ private:
     QApplication *m_app;
     QQmlApplicationEngine *m_engine;
     std::unique_ptr<ApplicationEventFilter> m_appEventFilter;
+
+    struct FontScanResult {
+        QList<QString> unloadable;
+        QMap<QString, QString> familyToPath;
+        QList<QPair<QString, QString>> accounted;
+        QStringList families;
+    };
+    FontScanResult m_fontScanResult;
+    QFontDatabase m_fontDatabase;
+    FontScanResult scanFonts(QFontDatabase& db);
+
     SlidesModel* m_slidesModel;
     StreamModel* m_streamsModel;
 #ifdef NDI_SUPPORT
@@ -206,6 +226,9 @@ public:
         std::string bgImageFile;
         std::string fgImageFile;
         std::string subtitleText;
+        bool subtitleFontDirty;
+        std::string subtitleFontName;
+        std::string subtitleFontPath;
         bool loadFile;
         bool overlayFileDirty;
         bool bgImageFileDirty;
@@ -275,6 +298,9 @@ public:
         /*bgImageFile*/ "",
         /*fgImageFile*/ "",
         /*subtitleText*/ "",
+        /*subtitleFontDirty*/ false,
+        /*subtitleFontName*/ "",
+        /*subtitleFontPath*/ "",
         /*loadFile*/ false,
         /*overlayFileDirty*/ false,
         /*bgImageFileDirty*/ false,

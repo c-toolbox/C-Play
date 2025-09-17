@@ -39,6 +39,7 @@
 #include "playbacksettings.h"
 #include "playlistsettings.h"
 #include "presentationsettings.h"
+#include "subtitlesettings.h"
 #include "userinterfacesettings.h"
 
 #include "worker.h"
@@ -46,7 +47,14 @@
 #include <sgct/version.h>
 #include <QApplication>
 #include <QCoreApplication>
+#include <QStandardPaths>
 #include <QDir>
+#include <QFontDatabase>
+#include <QMap>
+#include <QList>
+#include <QString>
+#include <QStringList>
+#include <QPair>
 #include <QFileInfo>
 #include <QGuiApplication>
 #include <QMimeDatabase>
@@ -58,7 +66,6 @@
 #include <QQuickStyle>
 #include <QQuickView>
 #include <QQuickWindow>
-#include <QStandardPaths>
 #include <QStyle>
 #include <QStyleFactory>
 #include <QThread>
@@ -72,7 +79,6 @@
 #include <KFileItem>
 #include <KFileMetaData/Properties>
 #include <KI18n/KLocalizedString>
-#include <KLocalizedString>
 #include <KShortcutsDialog>
 
 bool ApplicationEventFilter::eventFilter(QObject* obj, QEvent* event)
@@ -117,6 +123,7 @@ static QApplication *createApplication(int &argc, char **argv, const QString &ap
 Application::Application(int &argc, char **argv, const QString &applicationName)
     : m_app(createApplication(argc, argv, applicationName)), 
     m_appEventFilter{ std::make_unique<ApplicationEventFilter>() },
+    m_fontDatabase(),
     m_slidesModel(new SlidesModel(this)), 
     m_collection(this)
 {
@@ -150,6 +157,8 @@ Application::Application(int &argc, char **argv, const QString &applicationName)
     setupAboutData();
     registerQmlTypes();
     setupQmlSettingsTypes();
+
+    updateFonts();
 
     m_engine = new QQmlApplicationEngine(m_app);
     QObject::connect(m_engine, &QQmlApplicationEngine::quit, m_app, &QApplication::quit);
@@ -256,6 +265,7 @@ void Application::setupQmlSettingsTypes() {
     qmlRegisterSingletonInstance("org.ctoolbox.cplay", 1, 0, "MouseSettings", MouseSettings::self());
     qmlRegisterSingletonInstance("org.ctoolbox.cplay", 1, 0, "PlaybackSettings", PlaybackSettings::self());
     qmlRegisterSingletonInstance("org.ctoolbox.cplay", 1, 0, "PlaylistSettings", PlaylistSettings::self());
+    qmlRegisterSingletonInstance("org.ctoolbox.cplay", 1, 0, "SubtitleSettings", SubtitleSettings::self());
     qmlRegisterSingletonInstance("org.ctoolbox.cplay", 1, 0, "UserInterfaceSettings", UserInterfaceSettings::self());
 }
 
@@ -374,6 +384,16 @@ void Application::setStartupFile(std::string filePath) {
     m_startupFileFromCmd = QString::fromStdString(filePath);
 }
 
+QStringList Application::fonts() {
+    return m_fontScanResult.families;
+}
+
+void Application::updateFonts() {
+    m_fontDatabase.removeAllApplicationFonts();
+    m_fontScanResult = scanFonts(m_fontDatabase);
+    Q_EMIT fontsChanged();
+}
+
 SlidesModel *Application::slidesModel() {
     return m_slidesModel;
 }
@@ -442,6 +462,14 @@ QString Application::getFileContent(const QString &file) {
 QString Application::mimeType(QUrl url) {
     KFileItem fileItem(url, KFileItem::NormalMimeTypeDetermination);
     return fileItem.mimetype();
+}
+
+bool Application::getFontPath(const QString& inFontName, QString& outPath) {
+    if (m_fontScanResult.familyToPath.contains(inFontName)) {
+        outPath = m_fontScanResult.familyToPath[inFontName];
+        return true;
+    }
+    return false;
 }
 
 QStringList Application::availableGuiStyles() {
@@ -523,6 +551,42 @@ QString Application::getStartupFile() {
         return PlaylistSettings::playlistToLoadOnStartup();
     else
         return m_startupFileFromCmd;
+}
+
+Application::FontScanResult Application::scanFonts(QFontDatabase& db) {
+    Application::FontScanResult result;
+    QStringList fontPaths;
+    QDir cPlayFontPath(QStringLiteral("./data/fonts"));
+    fontPaths.append(cPlayFontPath.absolutePath());
+    if (SubtitleSettings::loadSystemFonts()) {
+        fontPaths.append(QStandardPaths::standardLocations(QStandardPaths::FontsLocation));
+    }
+
+    for (const QString& fpath : fontPaths) {
+        QDir dir(fpath);
+        QFileInfoList files = dir.entryInfoList(QDir::Files | QDir::NoDotAndDotDot);
+        for (const QFileInfo& fileInfo : files) {
+            QString path = fileInfo.absoluteFilePath();
+            int idx = db.addApplicationFont(path);
+
+            if (idx < 0) {
+                result.unloadable.append(path);
+            }
+            else {
+                QStringList names = db.applicationFontFamilies(idx);
+                for (const QString& n : names) {
+                    if (result.familyToPath.contains(n)) {
+                        result.accounted.append(qMakePair(n, path));
+                    }
+                    else {
+                        result.familyToPath[n] = path;
+                        result.families.append(n);
+                    }
+                }
+            }
+        }
+    }
+    return result;
 }
 
 void Application::aboutApplication() {

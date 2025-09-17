@@ -22,8 +22,8 @@ SettingsBasePage {
 
         fileMode: Platform.FileDialog.OpenFile
         folder: LocationSettings.cPlayFileLocation !== "" ? app.pathToUrl(LocationSettings.cPlayFileLocation) : app.pathToUrl(LocationSettings.fileDialogLastLocation)
-        nameFilters: ["C-Play playlist (*.cplaylist)", "Uniview playlist (*.playlist)"]
-        title: "Choose playlist to load on startup"
+        nameFilters: ["C-Play playlist (*.cplaylist)", "C-Play file (*.cplayfile)", "Uniview playlist (*.playlist)"]
+        title: "Choose playlist (or cplayfile) to load on startup"
 
         onAccepted: {
             var filePath = playerController.returnRelativeOrAbsolutePath(playlistToLoadOnStartupDialog.file.toString());

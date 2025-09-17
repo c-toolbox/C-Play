@@ -32,6 +32,93 @@ SettingsBasePage {
             Layout.fillWidth: true
         }
 
+        Label {
+            Layout.alignment: Qt.AlignRight
+            text: qsTr("Subtitle font family:")
+        }
+        RowLayout {
+            ComboBox {
+                id: subtitleFontFamily
+                model: app.fonts
+
+                delegate: ItemDelegate {
+                    Kirigami.Theme.colorSet: Kirigami.Theme.View
+                    width: subtitleFontFamily.width
+                    implicitHeight: 28
+
+                    contentItem: RowLayout {
+                        Text {
+                            font.family: modelData
+                            color: highlighted ? Kirigami.Theme.highlightedTextColor : Kirigami.Theme.textColor
+                            text: modelData;
+                        }
+                    }
+                }
+
+                Component.onCompleted: currentIndex = find(SubtitleSettings.subtitleFontFamily)
+                onActivated: {
+                    SubtitleSettings.subtitleFontFamily = subtitleFontFamily.textAt(currentIndex);
+                    SubtitleSettings.save();
+                    mpv.setSubtitleFont(SubtitleSettings.subtitleFontFamily);
+                }
+            }
+            ToolButton {
+                id: updateFontsButton
+
+                focusPolicy: Qt.NoFocus
+                icon.height: 16
+                icon.name: "view-refresh"
+                text: ""
+
+                onClicked: {
+                    updateFontsButton.enabled = false;
+                    app.updateFonts();
+                    updateFontsButton.enabled = true;
+                }
+
+                ToolTip {
+                    text: qsTr("Update font list")
+                }
+            }
+            Text {
+                text: qsTr("Example: ")
+                color: Kirigami.Theme.textColor
+            }
+            Text {
+                text: qsTr("This is how it will look like...")
+                font.family: subtitleFontFamily.textAt(subtitleFontFamily.currentIndex)
+                color: Kirigami.Theme.textColor
+            }
+        }
+        Item {
+            // spacer item
+            Layout.fillWidth: true
+        }
+
+        Item {
+            height: 1
+            width: 1
+        }
+        CheckBox {
+            id: loadSystemFontsCheckbox
+
+            checked: SubtitleSettings.loadSystemFonts
+            enabled: true
+            text: qsTr("Load system fonts (instead of not only in C-Play's data/fonts folder).")
+
+            onCheckedChanged: {
+                SubtitleSettings.loadSystemFonts = checked;
+                SubtitleSettings.save();
+                updateFontsButton.enabled = false;
+                app.updateFonts();
+                updateFontsButton.enabled = true;
+            }
+        }        
+        Item {
+            // spacer item
+            Layout.fillWidth: true
+        }
+
         Item {
             height: 1
             width: 1
@@ -57,22 +144,25 @@ SettingsBasePage {
             // spacer item
             Layout.fillWidth: true
         }
+
         Label {
             Layout.alignment: Qt.AlignRight
-            text: qsTr("Preferred language:")
+            text: qsTr("Preferred subtitle language:")
         }
-        TextField {
-            placeholderText: "eng,ger etc."
-            text: SubtitleSettings.preferredLanguage
+        RowLayout {
+            TextField {
+                placeholderText: "eng,ger etc."
+                text: SubtitleSettings.preferredLanguage
 
-            onTextEdited: {
-                SubtitleSettings.preferredLanguage = text;
-                SubtitleSettings.save();
-                mpv.setProperty("slang", text);
+                onTextEdited: {
+                    SubtitleSettings.preferredLanguage = text;
+                    SubtitleSettings.save();
+                    mpv.setProperty("slang", text);
+                }
             }
-
-            ToolTip {
-                text: qsTr("Do not use spaces.")
+            Text {
+                text: qsTr("IETF language tags (Two or three characters). Do not use spaces.")
+                color: Kirigami.Theme.textColor
             }
         }
         Item {

@@ -95,10 +95,10 @@ MpvObject::MpvObject(QQuickItem *parent)
     : QQuickFramebufferObject(parent), 
     mpv{mpv_create()}, 
     mpv_gl(nullptr), 
-    m_audioTracksModel(new TracksModel), 
-    m_subtitleTracksModel(new TracksModel),
-    m_playlistModel(new PlayListModel), 
-    m_playSectionsModel(new PlaySectionsModel), 
+    m_audioTracksModel(new TracksModel(this)), 
+    m_subtitleTracksModel(new TracksModel(this)),
+    m_playlistModel(new PlayListModel(this)), 
+    m_playSectionsModel(new PlaySectionsModel(this)), 
     m_currentSectionsIndex(-1), 
     m_currentSection(QStringLiteral(""), 0, 0, 0), 
     m_loadedFileStructure(QStringLiteral("")) 
@@ -148,6 +148,7 @@ MpvObject::MpvObject(QQuickItem *parent)
    
     QString loadSubtitleInVidFolder = SubtitleSettings::loadSubtitleFileInVideoFolder() ? QStringLiteral("all") : QStringLiteral("no");
     setProperty(QStringLiteral("sub-auto"), loadSubtitleInVidFolder);
+    setProperty(QStringLiteral("slang"), SubtitleSettings::preferredLanguage());
     
     setProperty(QStringLiteral("screenshot-template"), LocationSettings::screenshotTemplate());
     setProperty(QStringLiteral("volume-max"), QStringLiteral("100"));
@@ -1372,6 +1373,15 @@ void MpvObject::performSurfaceTransition() {
     Q_EMIT surfaceTransitionPerformed();
 }
 
+void MpvObject::setSubtitleFont(const QString& subFont) {
+    QString subPath;
+    if (Application::instance().getFontPath(subFont, subPath)) {
+        SyncHelper::instance().variables.subtitleFontPath = subPath.toStdString();
+        SyncHelper::instance().variables.subtitleFontName = subFont.toStdString();
+        SyncHelper::instance().variables.subtitleFontDirty = true;
+    }
+}
+
 void MpvObject::loadTracks() {
     m_audioTracks.clear();
     m_subtitleTracks.clear();
@@ -1423,6 +1433,7 @@ void MpvObject::loadTracks() {
     }
     m_audioTracksModel->setTracks(&m_audioTracks);
     m_subtitleTracksModel->setTracks(&m_subtitleTracks);
+    setSubtitleFont(SubtitleSettings::subtitleFontFamily());
 
     Q_EMIT audioTracksModelChanged();
     Q_EMIT subtitleTracksModelChanged();
@@ -1516,49 +1527,6 @@ QString MpvObject::getReadableExternalConfiguration() {
         }
     }
     return returnStr;
-}
-
-void MpvObject::getYouTubePlaylist(const QString &) {
-    /*m_playlistModel->clear();
-
-    // use youtube-dl to get the required playlist info as json
-    auto ytdlProcess = new QProcess();
-    ytdlProcess->setProgram("youtube-dl");
-    ytdlProcess->setArguments(QStringList() << "-J" << "--flat-playlist" << path);
-    ytdlProcess->start();
-
-    QObject::connect(ytdlProcess, (void (QProcess::*)(int,QProcess::ExitStatus))&QProcess::finished,
-                     this, [=](int, QProcess::ExitStatus) {
-        // use the json to populate the playlist model
-        using Playlist = QList<PlayListItem*>;
-        Playlist m_playList;
-
-        QString json = ytdlProcess->readAllStandardOutput();
-        QJsonObject obj;
-        QJsonValue entries = QJsonDocument::fromJson(json.toUtf8())["entries"];
-
-        QString playlistFileContent;
-
-        for (int i = 0; i < entries.toArray().size(); ++i) {
-            auto url = QString("https://youtu.be/%1").arg(entries[i]["id"].toString());
-            auto title = entries[i]["title"].toString();
-            auto duration = entries[i]["duration"].toDouble();
-
-            auto video = new PlayListItem(url, i, m_playlistModel);
-            video->setMediaTitle(!title.isEmpty() ? title : url);
-            video->setFileName(!title.isEmpty() ? title : url);
-
-            video->setDuration(Application::formatTime(duration));
-            m_playList.append(video);
-
-            playlistFileContent += QString("%1,%2,%3\n").arg(url, title, QString::number(duration));
-        }
-
-        // save playlist to disk
-        m_playlistModel->setPlayList(m_playList);
-
-        Q_EMIT youtubePlaylistLoaded();
-    });*/
 }
 
 int MpvObject::setProperty(const QString &name, const QVariant &value, bool debug) {

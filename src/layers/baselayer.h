@@ -182,6 +182,9 @@ public:
     std::string text() const;
     void setText(std::string t);
 
+    std::string font() const;
+    void setFont(std::string f);
+
     int page() const;
     void setPage(int p);
 
@@ -270,6 +273,7 @@ protected:
     std::string m_title;
     std::string m_filepath;
     std::string m_text;
+    std::string m_font;
     int m_page;
     int m_numPages;
     int m_volume;

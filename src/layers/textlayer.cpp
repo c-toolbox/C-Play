@@ -90,54 +90,69 @@ void TextLayer::updateFrame() {
         return;
     }
     m_data.text = text();
+    sgct::Log::Info(std::format("Subtitle: \"{}\".",m_data.text));
 
 #ifdef SGCT_HAS_TEXT
-    std::vector<std::string> lines = split(std::move(m_data.text), '\n');
+    sgct::Log::Info(std::format("Font: \"{}\".", this->font()));
+    if (this->font().empty())
+        return;
 
+    std::vector<std::string> lines = split(std::move(m_data.text), '\n');
     const glm::vec2 res = glm::vec2(m_data.fboWidth, m_data.fboHeight);
     const glm::mat4 orthoMatrix = glm::ortho(0.f, res.x, 0.f, res.y);
+    const sgct::vec4 color = sgct::vec4{ 1.f, 1.f, 1.f, 1.f };
+    sgct::text::Alignment mode = sgct::text::Alignment::TopCenter;
 
-    const float offsetX = res.x / 2.f - res.x / 7.f;
-    const float s1 = res.y / 8.f;
+    const float s1 = res.y / 16.f;
     const float offsetY = res.y / 2.f - s1;
-    const sgct::vec4 color = sgct::vec4{ 0.f, 0.f, 1.f, 1.f };
-
     const unsigned int fontSize1 = static_cast<unsigned int>(s1);
-    sgct::text::Font* font = sgct::text::FontManager::instance().font("SGCTFont", fontSize1);
-
-    sgct::text::Alignment mode = sgct::text::Alignment::TopLeft;
-
+    sgct::text::Font* font = sgct::text::FontManager::instance().font(this->font(), fontSize1);
+    if (font == nullptr) {
+        sgct::Log::Warning("Font not found");
+        return;
+    }
     const float h = font->height() * 1.59f;
 
     glBindFramebuffer(GL_FRAMEBUFFER, m_data.fboId);
 
+    GLint viewport[4];
+    glGetIntegerv(GL_VIEWPORT, viewport);
+    glViewport(0, 0, m_data.fboWidth, m_data.fboHeight);
+    glClearColor(0, 0, 0, 0);
+    glClear(GL_COLOR_BUFFER_BIT);
     glDisable(GL_DEPTH_TEST);
     glEnable(GL_BLEND);
     glBlendFunc(GL_SRC_ALPHA, GL_ONE_MINUS_SRC_ALPHA);
 
     glBindVertexArray(font->vao());
 
+    float offsetX = 0;
+    float marginX = res.x / 7.f;
     for (size_t i = 0; i < lines.size(); i++) {
         glm::vec3 offset(offsetX, offsetY - h * i, 0.f);
 
         if (mode == sgct::text::Alignment::TopCenter) {
-            offset.x -= getLineWidth(*font, lines[i]) / 2.f;
+            offset.x = (res.x / 2) - (getLineWidth(*font, lines[i]) / 2.f);
         }
         else if (mode == sgct::text::Alignment::TopRight) {
-            offset.x -= getLineWidth(*font, lines[i]);
+            offset.x = res.x - getLineWidth(*font, lines[i]);
+        }
+        else { //TopLeft
+            offset.x = marginX;
         }
 
         for (const char c : lines[i]) {
             const sgct::text::Font::FontFaceData& ffd = font->fontFaceData(c);
 
             glBindTexture(GL_TEXTURE_2D, ffd.texId);
-            glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_MAG_FILTER, GL_NEAREST);
-            glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_MIN_FILTER, GL_NEAREST);
+            glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_MAG_FILTER, GL_LINEAR);
+            glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_MIN_FILTER, GL_LINEAR);
 
             const glm::mat4 trans = glm::translate(
                 orthoMatrix,
                 glm::vec3(offset.x + ffd.pos.x, offset.y + ffd.pos.y, offset.z)
             );
+            sgct::Log::Info(std::format("Char {} at X:{} and Y:{}.", c, offset.x, offset.y));
             glm::mat4 scale = glm::scale(trans, glm::vec3(ffd.size.x, ffd.size.y, 1.f));
             sgct::mat4 s;
             std::memcpy(&s, glm::value_ptr(scale), sizeof(sgct::mat4));
@@ -154,6 +169,7 @@ void TextLayer::updateFrame() {
     glBindVertexArray(0);
     sgct::ShaderProgram::unbind();
     glBindFramebuffer(GL_FRAMEBUFFER, 0);
+    glViewport(viewport[0], viewport[1], viewport[2], viewport[3]);
 #endif
 }
 

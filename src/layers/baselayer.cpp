@@ -500,6 +500,15 @@ void BaseLayer::setText(std::string t) {
     setNeedSync();
 }
 
+std::string BaseLayer::font() const {
+    return m_font;
+}
+
+void BaseLayer::setFont(std::string f) {
+    m_font = f;
+    setNeedSync();
+}
+
 int BaseLayer::page() const {
     return m_page;
 }

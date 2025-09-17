@@ -377,7 +377,6 @@ public:
     Q_INVOKABLE void loadItem(int playListIndex, bool updateLastPlayedFile = true);
     Q_INVOKABLE QUrl getOverlayFileUrl() const;
     Q_INVOKABLE QString getReadableExternalConfiguration();
-    Q_INVOKABLE void getYouTubePlaylist(const QString &path);
     Q_INVOKABLE QVariant command(const QVariant &params, bool debug = false);
     Q_INVOKABLE QVariant getProperty(const QString &name, bool debug = false);
     Q_INVOKABLE int setProperty(const QString &name, const QVariant &value, bool debug = false);
@@ -389,6 +388,7 @@ public:
     Q_INVOKABLE static void mpvEvents(void *ctx);
     Q_INVOKABLE void eventHandler();
     Q_INVOKABLE void performSurfaceTransition();
+    Q_INVOKABLE void setSubtitleFont(const QString& subFont);
 
 Q_SIGNALS:
     void mediaTitleChanged();
