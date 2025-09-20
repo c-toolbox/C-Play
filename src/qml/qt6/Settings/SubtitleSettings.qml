@@ -9,12 +9,22 @@
 import QtQuick
 import QtQuick.Layouts
 import QtQuick.Controls
+import QtQuick.Dialogs
 
 import org.kde.kirigami as Kirigami
 import org.ctoolbox.cplay
 
 SettingsBasePage {
     id: root
+
+    ColorDialog {
+        id: textColorDialog
+        selectedColor: SubtitleSettings.subtitleColor
+        onAccepted: {
+            SubtitleSettings.subtitleColor = mpv.setSubtitleColor(selectedColor);
+            SubtitleSettings.save();
+        }
+    }
 
     GridLayout {
         id: content
@@ -119,6 +129,163 @@ SettingsBasePage {
             Layout.fillWidth: true
         }
 
+        Label {
+            Layout.alignment: Qt.AlignRight
+            text: qsTr("Subtitle font size:")
+        }
+        SpinBox {
+            editable: true
+            from: 0
+            to: 500
+            value: SubtitleSettings.subtitleFontSize
+
+            onValueChanged: {
+                SubtitleSettings.subtitleFontSize = value;
+                SubtitleSettings.save();
+                mpv.setSubtitleFontSize(SubtitleSettings.subtitleFontSize);
+            }
+        }
+        Item {
+            // spacer item
+            Layout.fillWidth: true
+        }
+
+        Label {
+            Layout.alignment: Qt.AlignRight
+            text: qsTr("Subtitle texture size:")
+        }
+        RowLayout {
+            SpinBox {
+                id: subtitleTextureWidth
+                editable: true
+                from: 32
+                to: 8192
+                value: SubtitleSettings.subtitleTextureWidth
+
+                onValueChanged: {
+                    updateTextTextureSize.enabled = true;
+                }
+            }
+            Label {
+                Layout.alignment: Qt.AlignCenter
+                text: qsTr("x")
+            }
+            SpinBox {
+                id: subtitleTextureHeight
+                editable: true
+                from: 32
+                to: 8192
+                value: SubtitleSettings.subtitleTextureHeight
+
+                onValueChanged: {
+                    updateTextTextureSize.enabled = true;
+                }
+            }
+            ToolButton {
+                id: updateTextTextureSize
+
+                focusPolicy: Qt.NoFocus
+                icon.height: 16
+                icon.name: "system-reboot-update"
+                text: ""
+
+                onClicked: {
+                    SubtitleSettings.subtitleTextureWidth = subtitleTextureWidth.value;
+                    SubtitleSettings.subtitleTextureHeight = subtitleTextureHeight.value;
+                    SubtitleSettings.save();
+                    mpv.setSubtitleTextureSize(SubtitleSettings.subtitleTextureWidth, SubtitleSettings.subtitleTextureHeight);
+                }
+            }
+        }
+        Item {
+            // spacer item
+            Layout.fillWidth: true
+        }
+
+        Label {
+            Layout.alignment: Qt.AlignRight
+            text: qsTr("Subtitle color:")
+        }
+        RowLayout {
+            Rectangle {
+                width: 64
+                height: 32
+                color: SubtitleSettings.subtitleColor
+                border.color: "black"
+                border.width: 5
+                radius: 10
+            }
+            ToolButton {
+                id: textColorButton
+
+                focusPolicy: Qt.NoFocus
+                icon.height: 32
+                icon.name: "color-management"
+                text: ""
+
+                onClicked: {
+                    textColorDialog.open();
+                }
+            }
+        }
+        Item {
+            // spacer item
+            Layout.fillWidth: true
+        }
+
+        Label {
+            Layout.alignment: Qt.AlignRight
+            text: qsTr("Subtitle alignment:")
+        }
+        RowLayout {
+            ComboBox {
+                id: subtitleAlignmentComboBox
+
+                enabled: true
+                textRole: "mode"
+
+                model: ListModel {
+                    id: subtitleAlignmentListModel
+
+                    ListElement {
+                        mode: "Left"
+                        value: 0
+                    }
+                    ListElement {
+                        mode: "Center"
+                        value: 1
+                    }
+                    ListElement {
+                        mode: "Right"
+                        value: 2
+                    }
+                }
+
+                Component.onCompleted: {
+                    for (let i = 0; i < subtitleAlignmentListModel.count; ++i) {
+                        if (subtitleAlignmentListModel.get(i).value === SubtitleSettings.subtitleAlignment) {
+                            currentIndex = i;
+                            break;
+                        }
+                    }
+                }
+                onActivated: {
+                    SubtitleSettings.subtitleAlignment = model.get(index).value;
+                    SubtitleSettings.save();
+                    mpv.setSubtitleAlignment(SubtitleSettings.subtitleAlignment);
+                }
+            }
+            Label {
+                Layout.alignment: Qt.AlignLeft
+                font.italic: true
+                text: qsTr("Also used as startup value.")
+            }
+        }
+        Item {
+            // spacer item
+            Layout.fillWidth: true
+        }
+
         Item {
             height: 1
             width: 1
@@ -169,6 +336,7 @@ SettingsBasePage {
             // spacer item
             Layout.fillWidth: true
         }
+
         Label {
             Layout.alignment: Qt.AlignRight
             text: qsTr("Preferred track:")

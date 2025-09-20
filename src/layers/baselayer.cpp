@@ -152,7 +152,6 @@ BaseLayer::BaseLayer() {
     m_hierachy = FRONT;
     m_title = "";
     m_filepath = "";
-    m_text = "";
     m_volume = 100;
     m_isMaster = false;
     m_existOnMasterOnly = false;
@@ -484,24 +483,6 @@ std::string BaseLayer::filepath() const {
 
 void BaseLayer::setFilePath(std::string p) {
     m_filepath = p;
-    setNeedSync();
-}
-
-std::string BaseLayer::text() const {
-    return m_text;
-}
-
-void BaseLayer::setText(std::string t) {
-    m_text = t;
-    setNeedSync();
-}
-
-std::string BaseLayer::font() const {
-    return m_font;
-}
-
-void BaseLayer::setFont(std::string f) {
-    m_font = f;
     setNeedSync();
 }
 

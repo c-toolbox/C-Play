@@ -389,6 +389,10 @@ public:
     Q_INVOKABLE void eventHandler();
     Q_INVOKABLE void performSurfaceTransition();
     Q_INVOKABLE void setSubtitleFont(const QString& subFont);
+    Q_INVOKABLE void setSubtitleFontSize(int subSize);
+    Q_INVOKABLE void setSubtitleTextureSize(int width, int height);
+    Q_INVOKABLE void setSubtitleAlignment(int alignment);
+    Q_INVOKABLE QString setSubtitleColor(const QColor& subColor);
 
 Q_SIGNALS:
     void mediaTitleChanged();

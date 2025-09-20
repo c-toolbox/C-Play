@@ -9,14 +9,15 @@
 #ifndef PLAYLISTMODEL_H
 #define PLAYLISTMODEL_H
 
-#include <KSharedConfig>
 #include <QAbstractTableModel>
+#include <QList>
+#include <QPointer>
+#include <QtQml/qqmlregistration.h>
+#include <KSharedConfig>
 #include <map>
 #include <memory>
-#include <QtQml/qqmlregistration.h>
 
 class PlayListItem;
-
 using Playlist = QList<QPointer<PlayListItem>>;
 
 class PlaySectionsModel : public QAbstractListModel {

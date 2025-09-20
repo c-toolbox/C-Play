@@ -21,10 +21,12 @@
 #include "subtitlesettings.h"
 #include "track.h"
 #include "tracksmodel.h"
+#include "layers/textlayer.h"
 #include <iostream>
 
 #include <QCryptographicHash>
 #include <QDir>
+#include <QColor>
 #include <QJsonArray>
 #include <QJsonDocument>
 #include <QJsonObject>
@@ -149,6 +151,7 @@ MpvObject::MpvObject(QQuickItem *parent)
     QString loadSubtitleInVidFolder = SubtitleSettings::loadSubtitleFileInVideoFolder() ? QStringLiteral("all") : QStringLiteral("no");
     setProperty(QStringLiteral("sub-auto"), loadSubtitleInVidFolder);
     setProperty(QStringLiteral("slang"), SubtitleSettings::preferredLanguage());
+    SyncHelper::instance().variables.subtitleText = new TextLayer();
     
     setProperty(QStringLiteral("screenshot-template"), LocationSettings::screenshotTemplate());
     setProperty(QStringLiteral("volume-max"), QStringLiteral("100"));
@@ -211,6 +214,9 @@ MpvObject::~MpvObject() {
         mpv_render_context_free(mpv_gl);
     }
     mpv_terminate_destroy(mpv);
+
+    if (SyncHelper::instance().variables.subtitleText)
+        delete SyncHelper::instance().variables.subtitleText;
 }
 
 PlayListModel *MpvObject::playlistModel() {
@@ -1349,14 +1355,14 @@ void MpvObject::eventHandler() {
                     Q_EMIT planeChanged();
                 }
             } else if (strcmp(prop->name, "sub-text") == 0) {
-                if (prop->format == MPV_FORMAT_STRING) {
+                if (prop->format == MPV_FORMAT_STRING && SyncHelper::instance().variables.subtitleText) {
                     char* subtitleText = *reinterpret_cast<char**>(prop->data);
                     if (subtitleText) {
                         std::string newSub = std::string(subtitleText);
-                        SyncHelper::instance().variables.subtitleText = newSub;
+                        static_cast<TextLayer*>(SyncHelper::instance().variables.subtitleText)->setText(newSub);
                     }
                     else {
-                        SyncHelper::instance().variables.subtitleText = "";
+                        static_cast<TextLayer*>(SyncHelper::instance().variables.subtitleText)->setText("");
                     }
                 }
             }
@@ -1374,12 +1380,39 @@ void MpvObject::performSurfaceTransition() {
 }
 
 void MpvObject::setSubtitleFont(const QString& subFont) {
-    QString subPath;
-    if (Application::instance().getFontPath(subFont, subPath)) {
-        SyncHelper::instance().variables.subtitleFontPath = subPath.toStdString();
-        SyncHelper::instance().variables.subtitleFontName = subFont.toStdString();
-        SyncHelper::instance().variables.subtitleFontDirty = true;
+    if (SyncHelper::instance().variables.subtitleText) {
+        TextLayer* subLayer = static_cast<TextLayer*>(SyncHelper::instance().variables.subtitleText);  
+        subLayer->setFont(subFont.toStdString());
     }
+}
+
+void MpvObject::setSubtitleFontSize(int subSize) {
+    if (SyncHelper::instance().variables.subtitleText) {
+        TextLayer* subLayer = static_cast<TextLayer*>(SyncHelper::instance().variables.subtitleText);
+        subLayer->setFontSize(subSize);
+    }
+}
+
+void MpvObject::setSubtitleTextureSize(int width, int height) {
+    if (SyncHelper::instance().variables.subtitleText) {
+        TextLayer* subLayer = static_cast<TextLayer*>(SyncHelper::instance().variables.subtitleText);
+        subLayer->setTextureSize(width, height);
+    }
+}
+
+void MpvObject::setSubtitleAlignment(int alignment) {
+    if (SyncHelper::instance().variables.subtitleText) {
+        TextLayer* subLayer = static_cast<TextLayer*>(SyncHelper::instance().variables.subtitleText);
+        subLayer->setAlignment(alignment);
+    }
+}
+
+QString MpvObject::setSubtitleColor(const QColor& subColor) {
+    if (SyncHelper::instance().variables.subtitleText) {
+        TextLayer* subLayer = static_cast<TextLayer*>(SyncHelper::instance().variables.subtitleText);
+        subLayer->setColor(subColor.name().toStdString(), subColor.redF(), subColor.greenF(), subColor.blueF());
+    }
+    return subColor.name();
 }
 
 void MpvObject::loadTracks() {
@@ -1434,6 +1467,10 @@ void MpvObject::loadTracks() {
     m_audioTracksModel->setTracks(&m_audioTracks);
     m_subtitleTracksModel->setTracks(&m_subtitleTracks);
     setSubtitleFont(SubtitleSettings::subtitleFontFamily());
+    setSubtitleFontSize(SubtitleSettings::subtitleFontSize());
+    setSubtitleTextureSize(SubtitleSettings::subtitleTextureWidth(), SubtitleSettings::subtitleTextureHeight());
+    setSubtitleAlignment(SubtitleSettings::subtitleAlignment());
+    setSubtitleColor(QColor(SubtitleSettings::subtitleColor()));
 
     Q_EMIT audioTracksModelChanged();
     Q_EMIT subtitleTracksModelChanged();

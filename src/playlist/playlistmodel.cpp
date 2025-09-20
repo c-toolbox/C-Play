@@ -21,6 +21,7 @@
 #include <QJsonObject>
 #include <QMimeDatabase>
 #include <QUrl>
+#include <KSharedConfig>
 
 PlaySectionsModel::PlaySectionsModel(QObject *parent)
     : QAbstractListModel(parent),

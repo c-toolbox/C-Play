@@ -9,23 +9,24 @@
 #ifndef APPLICATION_H
 #define APPLICATION_H
 
-#include <QAbstractItemModel>
-#include <QAction>
-#include <QApplication>
-#include <QElapsedTimer>
-#include <QObject>
-#include <QQmlApplicationEngine>
-#include <QFontDatabase>
-
 #include "renderthread.h"
-#include <KAboutData>
-#include <KActionCollection>
+#include <QMap>
+#include <QUrl>
 #include <KSharedConfig>
 
+class QAbstractItemModel;
+class QAction;
+class QApplication;
+class QElapsedTimer;
+class QObject;
+class QQmlApplicationEngine;
+class QFontDatabase;
+class KAboutData;
 class KActionCollection;
 class KConfigDialog;
+class KConfigGroup;
 class KColorSchemeManager;
-class QAction;
+class BaseLayer;
 class SlidesModel;
 class StreamModel;
 #ifdef NDI_SUPPORT
@@ -37,6 +38,14 @@ class SpoutSendersModel;
 #endif
 
 #if QT_VERSION >= QT_VERSION_CHECK(6, 0, 0)
+#ifndef OPAQUE_PTR_QAbstractItemModel
+#define OPAQUE_PTR_QAbstractItemModel
+Q_DECLARE_OPAQUE_POINTER(QAbstractItemModel*)
+#endif
+#ifndef OPAQUE_PTR_BaseLayer
+#define OPAQUE_PTR_BaseLayer
+Q_DECLARE_OPAQUE_POINTER(BaseLayer*)
+#endif
 #ifndef OPAQUE_PTR_SlidesModel
 #define OPAQUE_PTR_SlidesModel
 Q_DECLARE_OPAQUE_POINTER(SlidesModel*)
@@ -106,7 +115,7 @@ public:
     Q_INVOKABLE static void showCursor();
     Q_INVOKABLE static QString mimeType(QUrl url);
 
-    bool getFontPath(const QString& inFontName, QString& outPath);
+    bool getFontPath(const std::string& inFontName, std::string& outPath);
     int getFadeDurationCurrentTime(bool restart);
     int getFadeDurationSetting();
     void setStartupFile(std::string filePath);
@@ -187,14 +196,12 @@ private:
     std::unique_ptr<ApplicationEventFilter> m_appEventFilter;
 
     struct FontScanResult {
-        QList<QString> unloadable;
         QMap<QString, QString> familyToPath;
-        QList<QPair<QString, QString>> accounted;
         QStringList families;
     };
     FontScanResult m_fontScanResult;
-    QFontDatabase m_fontDatabase;
-    FontScanResult scanFonts(QFontDatabase& db);
+    QFontDatabase* m_fontDatabase;
+    FontScanResult scanFonts(QFontDatabase* db);
 
     SlidesModel* m_slidesModel;
     StreamModel* m_streamsModel;
@@ -205,12 +212,13 @@ private:
 #ifdef SPOUT_SUPPORT
     SpoutSendersModel* m_spoutSendersModel;
 #endif
-    KAboutData m_aboutData;
-    KActionCollection m_collection;
+    KAboutData* m_aboutData;
+    KActionCollection* m_collection;
     KSharedConfig::Ptr m_config;
-    KConfigGroup *m_shortcuts;
+    KConfigGroup* m_shortcuts;
+    KColorSchemeManager* m_schemes;
+
     QMap<int, QString> m_args;
-    KColorSchemeManager *m_schemes;
     QString m_systemDefaultStyle;
     QString m_startupFileFromCmd;
     RenderThread renderThread;
@@ -225,10 +233,7 @@ public:
         std::string overlayFile;
         std::string bgImageFile;
         std::string fgImageFile;
-        std::string subtitleText;
-        bool subtitleFontDirty;
-        std::string subtitleFontName;
-        std::string subtitleFontPath;
+        BaseLayer* subtitleText;
         bool loadFile;
         bool overlayFileDirty;
         bool bgImageFileDirty;
@@ -297,10 +302,7 @@ public:
         /*overlayFile*/ "",
         /*bgImageFile*/ "",
         /*fgImageFile*/ "",
-        /*subtitleText*/ "",
-        /*subtitleFontDirty*/ false,
-        /*subtitleFontName*/ "",
-        /*subtitleFontPath*/ "",
+        /*subtitleText*/ nullptr,
         /*loadFile*/ false,
         /*overlayFileDirty*/ false,
         /*bgImageFileDirty*/ false,

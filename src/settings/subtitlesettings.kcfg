@@ -17,6 +17,21 @@
     <entry name="LoadSystemFonts" type="bool">
       <default>false</default>
     </entry>
+    <entry name="SubtitleFontSize" type="int">
+      <default>64</default>
+    </entry>
+    <entry name="SubtitleColor" type="String">
+      <default>#FFFFFF</default>
+    </entry>
+    <entry name="SubtitleAlignment" type="int">
+      <default>1</default>
+    </entry>
+    <entry name="SubtitleTextureWidth" type="int">
+      <default>1280</default>
+    </entry>
+    <entry name="SubtitleTextureHeight" type="int">
+      <default>720</default>
+    </entry>
     <entry name="PreferredLanguage" type="String">
       <label>Preferred language</label>
       <default>en</default>

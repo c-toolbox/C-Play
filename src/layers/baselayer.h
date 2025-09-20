@@ -179,12 +179,6 @@ public:
     std::string filepath() const;
     void setFilePath(std::string p);
 
-    std::string text() const;
-    void setText(std::string t);
-
-    std::string font() const;
-    void setFont(std::string f);
-
     int keepVisibilityForNumSlides() const;
     void setKeepVisibilityForNumSlides(int k);
 
@@ -266,8 +260,6 @@ protected:
     LayerHierarchy m_hierachy;
     std::string m_title;
     std::string m_filepath;
-    std::string m_text;
-    std::string m_font;
     int m_volume;
     int m_keepVisibilityForNumSlides;
     bool m_isMaster;

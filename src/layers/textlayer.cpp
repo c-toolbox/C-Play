@@ -6,6 +6,7 @@
  */
 
 #include "textlayer.h"
+#include "application.h"
 #include <sgct/opengl.h>
 #include <sgct/sgct.h>
 #include <glm/glm.hpp>
@@ -50,10 +51,18 @@ TextLayer::TextLayer() {
 #ifdef SGCT_HAS_TEXT
     setType(BaseLayer::LayerType::TEXT);
 #endif
+    m_textIsChanged = false;
+    m_text = "";
+    m_fontName = "";
+    m_fontPath = "";
+    m_fontSize = 64;
+    m_alignment = 1; // Center
+    m_colorHex = "#FFFFFF";
+    m_color = sgct::vec4{ 1.f, 1.f, 1.f, 1.f };
+    renderData.width = 1280;
+    renderData.height = 720;
     setGridMode(BaseLayer::GridMode::Plane);
     setStereoMode(BaseLayer::StereoMode::No_2D);
-    renderData.width = 3840;
-    renderData.height = 2160;
 }
 
 TextLayer::~TextLayer() {
@@ -90,28 +99,33 @@ void TextLayer::updateFrame() {
         return;
     }
     m_data.text = text();
-    sgct::Log::Info(std::format("Subtitle: \"{}\".",m_data.text));
 
 #ifdef SGCT_HAS_TEXT
-    sgct::Log::Info(std::format("Font: \"{}\".", this->font()));
-    if (this->font().empty())
-        return;
-
-    std::vector<std::string> lines = split(std::move(m_data.text), '\n');
-    const glm::vec2 res = glm::vec2(m_data.fboWidth, m_data.fboHeight);
-    const glm::mat4 orthoMatrix = glm::ortho(0.f, res.x, 0.f, res.y);
-    const sgct::vec4 color = sgct::vec4{ 1.f, 1.f, 1.f, 1.f };
-    sgct::text::Alignment mode = sgct::text::Alignment::TopCenter;
-
-    const float s1 = res.y / 16.f;
-    const float offsetY = res.y / 2.f - s1;
-    const unsigned int fontSize1 = static_cast<unsigned int>(s1);
-    sgct::text::Font* font = sgct::text::FontManager::instance().font(this->font(), fontSize1);
-    if (font == nullptr) {
-        sgct::Log::Warning("Font not found");
+    if (m_fontName.empty()) {
+        sgct::Log::Warning("TextLayer: Font name is empty.");
         return;
     }
-    const float h = font->height() * 1.59f;
+    sgct::text::Font* font = sgct::text::FontManager::instance().font(m_fontName, m_fontSize);
+    if (font == nullptr) {
+        // Trying to add the font to the font manager
+        if (!m_fontPath.empty()) {
+            if (sgct::text::FontManager::instance().addFont(m_fontName, m_fontPath, true)) {
+                font = sgct::text::FontManager::instance().font(m_fontName, m_fontSize);
+                if (font == nullptr) {
+                    sgct::Log::Warning(std::format("TextLayer: Font {} with path {} could not be added.", m_fontName, m_fontPath));
+                    return;
+                }
+            }
+            else {
+                sgct::Log::Warning(std::format("TextLayer: Font {} with path {} was not found.", m_fontName, m_fontPath));
+                return;
+            }
+        }
+        else {
+            sgct::Log::Warning(std::format("TextLayer: Font path is empty for font {}", m_fontName));
+            return;
+        }
+    }
 
     glBindFramebuffer(GL_FRAMEBUFFER, m_data.fboId);
 
@@ -126,15 +140,21 @@ void TextLayer::updateFrame() {
 
     glBindVertexArray(font->vao());
 
-    float offsetX = 0;
-    float marginX = res.x / 7.f;
+    std::vector<std::string> lines = split(std::move(m_data.text), '\n');
+    const glm::vec2 res = glm::vec2(m_data.fboWidth, m_data.fboHeight);
+    const glm::mat4 orthoMatrix = glm::ortho(0.f, res.x, 0.f, res.y);
+    const float offsetX = 0;
+    const float offsetY = res.y / 2.f - m_fontSize;
+    const float marginX = res.x / 7.f;
+    const float h = font->height() * 1.59f;
+    sgct::text::Alignment alignment = static_cast<sgct::text::Alignment>(m_alignment);
     for (size_t i = 0; i < lines.size(); i++) {
         glm::vec3 offset(offsetX, offsetY - h * i, 0.f);
 
-        if (mode == sgct::text::Alignment::TopCenter) {
+        if (alignment == sgct::text::Alignment::TopCenter) {
             offset.x = (res.x / 2) - (getLineWidth(*font, lines[i]) / 2.f);
         }
-        else if (mode == sgct::text::Alignment::TopRight) {
+        else if (alignment == sgct::text::Alignment::TopRight) {
             offset.x = res.x - getLineWidth(*font, lines[i]);
         }
         else { //TopLeft
@@ -152,12 +172,11 @@ void TextLayer::updateFrame() {
                 orthoMatrix,
                 glm::vec3(offset.x + ffd.pos.x, offset.y + ffd.pos.y, offset.z)
             );
-            sgct::Log::Info(std::format("Char {} at X:{} and Y:{}.", c, offset.x, offset.y));
             glm::mat4 scale = glm::scale(trans, glm::vec3(ffd.size.x, ffd.size.y, 1.f));
             sgct::mat4 s;
             std::memcpy(&s, glm::value_ptr(scale), sizeof(sgct::mat4));
 
-            sgct::text::FontManager::instance().bindShader(s, color, 0);
+            sgct::text::FontManager::instance().bindShader(s, m_color, 0);
 
             glDrawArrays(GL_TRIANGLE_STRIP, 0, 4);
 
@@ -180,6 +199,141 @@ bool TextLayer::ready() const {
 
 bool TextLayer::hasText() const {
     return text() != "";
+}
+
+std::string TextLayer::text() const {
+    return m_text;
+}
+
+void TextLayer::setText(std::string t) {
+    m_text = t;
+    m_textIsChanged = true;
+}
+
+std::string TextLayer::fontName() const {
+    return m_fontName;
+}
+
+void TextLayer::setFont(std::string name) {
+    if (Application::instance().getFontPath(name, m_fontPath)) {
+        m_fontName = name;
+        setNeedSync();
+    }
+}
+
+int TextLayer::fontSize() const {
+    return m_fontSize;
+}
+
+void TextLayer::setFontSize(int s) {
+    m_fontSize = s;
+    setNeedSync();
+}
+
+int TextLayer::alignment() const {
+    return m_alignment;
+}
+
+std::string TextLayer::alignmentStr() const {
+    switch (static_cast<sgct::text::Alignment>(m_alignment)) {
+    case sgct::text::Alignment::TopLeft:
+        return "left";
+    case sgct::text::Alignment::TopRight:
+        return "right";
+    case sgct::text::Alignment::TopCenter:
+    default:
+        return "center";
+    }
+}
+
+void TextLayer::setAlignment(int a) {
+    m_alignment = a;
+    setNeedSync();
+}
+
+void TextLayer::setAlignmentFromStr(const std::string& str) {
+    std::string strToLower = str;
+    std::transform(strToLower.begin(), strToLower.end(), strToLower.begin(),
+        [](unsigned char c) { return std::tolower(c); });
+    if (strToLower == "left") {
+        setAlignment(static_cast<int>(sgct::text::Alignment::TopLeft));
+    }
+    else if(strToLower == "right"){
+        setAlignment(static_cast<int>(sgct::text::Alignment::TopRight));
+    }
+    else { // center
+        setAlignment(static_cast<int>(sgct::text::Alignment::TopCenter));
+    }
+}
+
+float TextLayer::colorR() const {
+    return m_color.x;
+}
+
+float TextLayer::colorG() const {
+    return m_color.y;
+}
+
+float TextLayer::colorB() const {
+    return m_color.z;
+}
+
+std::string TextLayer::colorHex() const {
+    return m_colorHex;
+}
+
+void TextLayer::setColor(std::string hex, float r, float g, float b) {
+    m_colorHex = hex;
+    m_color.x = r;
+    m_color.y = g;
+    m_color.z = b;
+    setNeedSync();
+}
+
+void TextLayer::setTextureSize(int w, int h) {
+    renderData.width = w;
+    renderData.height = h;
+    setNeedSync();
+}
+
+void TextLayer::encodeTypeAlways(std::vector<std::byte>& data) {
+    sgct::serializeObject(data, m_textIsChanged);
+    if (m_textIsChanged) {
+        sgct::serializeObject(data, m_text);
+        m_textIsChanged = false;
+    }
+}
+
+void TextLayer::decodeTypeAlways(const std::vector<std::byte>& data, unsigned int& pos) {
+    sgct::deserializeObject(data, pos, m_textIsChanged);
+    if (m_textIsChanged) {
+        sgct::deserializeObject(data, pos, m_text);
+        m_textIsChanged = false;
+    }
+}
+
+void TextLayer::encodeTypeProperties(std::vector<std::byte>& data) {
+    sgct::serializeObject(data, m_fontName);
+    sgct::serializeObject(data, m_fontPath);
+    sgct::serializeObject(data, m_fontSize);
+    sgct::serializeObject(data, m_alignment);
+    sgct::serializeObject(data, m_color.x);
+    sgct::serializeObject(data, m_color.y);
+    sgct::serializeObject(data, m_color.z);
+    sgct::serializeObject(data, renderData.width);
+    sgct::serializeObject(data, renderData.height);
+}
+
+void TextLayer::decodeTypeProperties(const std::vector<std::byte>& data, unsigned int& pos) {
+    sgct::deserializeObject(data, pos, m_fontName);
+    sgct::deserializeObject(data, pos, m_fontPath);
+    sgct::deserializeObject(data, pos, m_fontSize);
+    sgct::deserializeObject(data, pos, m_alignment);
+    sgct::deserializeObject(data, pos, m_color.x);
+    sgct::deserializeObject(data, pos, m_color.y);
+    sgct::deserializeObject(data, pos, m_color.z);
+    sgct::deserializeObject(data, pos, renderData.width);
+    sgct::deserializeObject(data, pos, renderData.height);
 }
 
 void TextLayer::checkNeededFboResize() {

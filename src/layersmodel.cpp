@@ -18,6 +18,7 @@
 #ifdef SPOUT_SUPPORT
 #include <layers/spoutlayer.h>
 #endif
+#include <layers/textlayer.h>
 #include <QDir>
 #include <QFileInfo>
 #include <QJsonArray>
@@ -537,11 +538,37 @@ void LayersModel::decodeFromJSON(QJsonObject &obj, const QStringList &forRelativ
 
                     int idx = addLayer(title, type, path, stereo, grid);
 
-                    if (o.contains(QStringLiteral("text"))) {
-                        std::string text = o.value(QStringLiteral("text")).toString().toStdString();
-                        m_layers[idx]->setText(text);
+#ifdef SGCT_HAS_TEXT
+                    if (type == BaseLayer::TEXT) {
+                        QSharedPointer<TextLayer> textLayer = qSharedPointerCast<TextLayer, BaseLayer>(m_layers[idx]);
+                        if (o.contains(QStringLiteral("text"))) {
+                            std::string text = o.value(QStringLiteral("text")).toString().toStdString();
+                            textLayer->setText(text);
+                        }
+                        if (o.contains(QStringLiteral("font"))) {
+                            std::string font = o.value(QStringLiteral("font")).toString().toStdString();
+                            textLayer->setFont(font);
+                        }
+                        if (o.contains(QStringLiteral("size"))) {
+                            int size = o.value(QStringLiteral("size")).toInt();
+                            textLayer->setFontSize(size);
+                        }
+                        if (o.contains(QStringLiteral("width")) && o.contains(QStringLiteral("height"))) {
+                            int w = o.value(QStringLiteral("width")).toInt();
+                            int h = o.value(QStringLiteral("height")).toInt();
+                            textLayer->setTextureSize(w, h);
+                        }
+                        if (o.contains(QStringLiteral("alignment"))) {
+                            std::string alignment = o.value(QStringLiteral("alignment")).toString().toStdString();
+                            textLayer->setAlignmentFromStr(alignment);
+                        }
+                        if (o.contains(QStringLiteral("color"))) {
+                            QString color = o.value(QStringLiteral("color")).toString();
+                            QColor textColor(color);
+                            textLayer->setColor(color.toStdString(), textColor.redF(), textColor.greenF(), textColor.blueF());
+                        }
                     }
-
+#endif
 #ifdef PDF_SUPPORT
                     if (type == BaseLayer::PDF) {
                         QSharedPointer<PdfLayer> pdfLayer = qSharedPointerCast<PdfLayer, BaseLayer>(m_layers[idx]);
@@ -678,7 +705,14 @@ void LayersModel::encodeToJSON(QJsonObject &obj, const QStringList &forRelativeP
 
 #ifdef SGCT_HAS_TEXT
         if (layer->type() == BaseLayer::TEXT) {
-            layerData.insert(QStringLiteral("text"), QJsonValue(QString::fromStdString(layer->text())));
+            QSharedPointer<TextLayer> textLayer = qSharedPointerCast<TextLayer, BaseLayer>(layer);
+            layerData.insert(QStringLiteral("text"), QJsonValue(QString::fromStdString(textLayer->text())));
+            layerData.insert(QStringLiteral("font"), QJsonValue(QString::fromStdString(textLayer->fontName())));
+            layerData.insert(QStringLiteral("size"), QJsonValue(textLayer->fontSize()));
+            layerData.insert(QStringLiteral("width"), QJsonValue(textLayer->width()));
+            layerData.insert(QStringLiteral("height"), QJsonValue(textLayer->height()));
+            layerData.insert(QStringLiteral("alignment"), QJsonValue(QString::fromStdString(textLayer->alignmentStr())));
+            layerData.insert(QStringLiteral("color"), QJsonValue(QString::fromStdString(textLayer->colorHex())));
         }
 #endif
 
