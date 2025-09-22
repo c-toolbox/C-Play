@@ -8,7 +8,7 @@
 import QtQuick
 import QtQuick.Layouts
 import QtQuick.Controls
-import Qt.labs.platform 1.0 as Platform
+import Qt.labs.platform as Platform
 
 import org.kde.kirigami as Kirigami
 import org.ctoolbox.cplay

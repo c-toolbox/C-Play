@@ -10,12 +10,14 @@
 #include "layersmodel.h"
 #include "presentationsettings.h"
 #include "gridsettings.h"
+#include "subtitlesettings.h"
 #include "slidesmodel.h"
 #include "track.h"
 
 #ifdef PDF_SUPPORT
 #include <layers/pdflayer.h>
 #endif
+#include <layers/textlayer.h>
 
 #include <QOpenGLContext>
 #include <QTimer>
@@ -596,6 +598,102 @@ void LayerQtItem::loadTracks() {
     }
 
     Q_EMIT audioTracksModelChanged();
+}
+
+QString LayerQtItem::layerText() const {
+    if (m_layer && m_layer->type() == BaseLayer::TEXT) {
+        TextLayer* textLayer = static_cast<TextLayer*>(m_layer);
+        return QString::fromStdString(textLayer->text());
+    }
+    return QStringLiteral("");
+}
+
+void LayerQtItem::setLayerText(QString text) {
+    if (m_layer && m_layer->type() == BaseLayer::TEXT) {
+        TextLayer* textLayer = static_cast<TextLayer*>(m_layer);
+        textLayer->setText(text.toStdString());
+        Q_EMIT layerValueChanged();
+    }
+}
+
+QString LayerQtItem::layerTextFontName() const {
+    if (m_layer && m_layer->type() == BaseLayer::TEXT) {
+        TextLayer* textLayer = static_cast<TextLayer*>(m_layer);
+        return QString::fromStdString(textLayer->fontName());
+    }
+    return SubtitleSettings::subtitleFontFamily();
+}
+
+void LayerQtItem::setLayerTextFontName(QString name) {
+    if (m_layer && m_layer->type() == BaseLayer::TEXT) {
+        TextLayer* textLayer = static_cast<TextLayer*>(m_layer);
+        textLayer->setFont(name.toStdString());
+        Q_EMIT layerValueChanged();
+    }
+}
+
+int LayerQtItem::layerTextFontSize() const {
+    if (m_layer && m_layer->type() == BaseLayer::TEXT) {
+        TextLayer* textLayer = static_cast<TextLayer*>(m_layer);
+        return textLayer->fontSize();
+    }
+    return SubtitleSettings::subtitleFontSize();
+}
+
+void LayerQtItem::setLayerTextFontSize(int size) {
+    if (m_layer && m_layer->type() == BaseLayer::TEXT) {
+        TextLayer* textLayer = static_cast<TextLayer*>(m_layer);
+        textLayer->setFontSize(size);
+        Q_EMIT layerValueChanged();
+    }
+}
+
+QColor LayerQtItem::layerTextFontColor() const {
+    if (m_layer && m_layer->type() == BaseLayer::TEXT) {
+        TextLayer* textLayer = static_cast<TextLayer*>(m_layer);
+        return QColor(QString::fromStdString(textLayer->colorHex()));
+    }
+    return QColor(SubtitleSettings::subtitleColor());
+}
+
+void LayerQtItem::setLayerTextFontColor(QColor color) {
+    if (m_layer && m_layer->type() == BaseLayer::TEXT) {
+        TextLayer* textLayer = static_cast<TextLayer*>(m_layer);
+        textLayer->setColor(color.name().toStdString(), color.redF(), color.greenF(), color.blueF());
+        Q_EMIT layerValueChanged();
+    }
+}
+
+int LayerQtItem::layerTextAlignment() const {
+    if (m_layer && m_layer->type() == BaseLayer::TEXT) {
+        TextLayer* textLayer = static_cast<TextLayer*>(m_layer);
+        return textLayer->alignment();
+    }
+    return SubtitleSettings::subtitleAlignment();
+}
+
+void LayerQtItem::setLayerTextAlignment(int align) {
+    if (m_layer && m_layer->type() == BaseLayer::TEXT) {
+        TextLayer* textLayer = static_cast<TextLayer*>(m_layer);
+        textLayer->setAlignment(align);
+        Q_EMIT layerValueChanged();
+    }
+}
+
+QSize LayerQtItem::layerTextRenderSize() const {
+    if (m_layer && m_layer->type() == BaseLayer::TEXT) {
+        TextLayer* textLayer = static_cast<TextLayer*>(m_layer);
+        return QSize(textLayer->width(), textLayer->height());
+    }
+    return QSize(SubtitleSettings::subtitleTextureWidth(), SubtitleSettings::subtitleTextureHeight());
+}
+
+void LayerQtItem::setLayerTextRenderSize(QSize size) {
+    if (m_layer && m_layer->type() == BaseLayer::TEXT) {
+        TextLayer* textLayer = static_cast<TextLayer*>(m_layer);
+        textLayer->setTextureSize(size.width(), size.height());
+        Q_EMIT layerValueChanged();
+    }
 }
 
 void LayerQtItem::handleWindowChanged(QQuickWindow *win) {

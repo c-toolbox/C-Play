@@ -689,6 +689,9 @@ double MpvObject::planeElevation() {
 
 void MpvObject::setPlaneElevation(double value) {
     SyncHelper::instance().variables.planeElevation = value;
+    if (SyncHelper::instance().variables.subtitleText) {
+        SyncHelper::instance().variables.subtitleText->setPlaneElevation(value + SubtitleSettings::subtitlePlaneElevationDegrees());
+    }
     m_planeElevation = value;
 }
 
@@ -698,6 +701,9 @@ double MpvObject::planeDistance() {
 
 void MpvObject::setPlaneDistance(double value) {
     SyncHelper::instance().variables.planeDistance = value;
+    if (SyncHelper::instance().variables.subtitleText) {
+        SyncHelper::instance().variables.subtitleText->setPlaneDistance(value + SubtitleSettings::subtitlePlaneDistanceCM());
+    }
     m_planeDistance = value;
 }
 
@@ -1413,6 +1419,18 @@ QString MpvObject::setSubtitleColor(const QColor& subColor) {
         subLayer->setColor(subColor.name().toStdString(), subColor.redF(), subColor.greenF(), subColor.blueF());
     }
     return subColor.name();
+}
+
+void MpvObject::setSubtitleRelativePlaneElevation(double value) {
+    if (SyncHelper::instance().variables.subtitleText) {
+        SyncHelper::instance().variables.subtitleText->setPlaneElevation(value + SyncHelper::instance().variables.planeElevation);
+    }
+}
+
+void MpvObject::setSubtitleRelativePlaneDistance(double value) {
+    if (SyncHelper::instance().variables.subtitleText) {
+        SyncHelper::instance().variables.subtitleText->setPlaneDistance(value + SyncHelper::instance().variables.planeDistance);
+    }
 }
 
 void MpvObject::loadTracks() {

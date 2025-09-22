@@ -10,8 +10,9 @@ import QtQuick.Window
 import QtQuick.Layouts
 import QtQuick.Controls
 import QtQuick.Shapes
+import QtQuick.Dialogs
 import Qt5Compat.GraphicalEffects
-import Qt.labs.platform 1.0 as Platform
+import Qt.labs.platform as Platform
 
 import org.kde.kirigami as Kirigami
 import org.ctoolbox.cplay
@@ -26,6 +27,7 @@ Kirigami.ApplicationWindow {
     property var mediaControls: undefined
     property var audioControls: undefined
     property var streamControls: undefined
+    property var textControls: undefined
 
     function createRoiComponents() {
         if (!selection) {
@@ -77,6 +79,17 @@ Kirigami.ApplicationWindow {
     function destroyStreamComponents() {
         if (streamControls) {
             streamControls.destroy();
+        }
+    }
+
+    function createTextComponents() {
+        if (!textControls) {
+            textControls = textComponent.createObject(layerViewItem);
+        }
+    }
+    function destroyTextComponents() {
+        if (textControls) {
+            textControls.destroy();
         }
     }
 
@@ -133,6 +146,9 @@ Kirigami.ApplicationWindow {
                 else if (layerViewItem.layerTypeName === "NDI") {
                     createAudioComponents();
                 }
+                else if (layerViewItem.layerTypeName === "Text") {
+                    createTextComponents();
+                }
             }
             else {
                 destroyRoiComponents();
@@ -140,7 +156,16 @@ Kirigami.ApplicationWindow {
                 destroyAudioComponents();
                 destroyMediaComponents();
                 destroyStreamComponents();
+                destroyTextComponents();
             }
+        }
+    }
+
+    Platform.ColorDialog {
+        id: textColorDialog
+        color: layerViewItem.layerTextFontColor
+        onAccepted: {
+            layerViewItem.layerTextFontColor = color;
         }
     }
 
@@ -1062,6 +1087,203 @@ Kirigami.ApplicationWindow {
                 }
             }
         }
+        Component {
+            id: textComponent
+
+            Row {
+                anchors.horizontalCenter: parent.horizontalCenter
+                anchors.top: parent.top
+                topPadding: 10
+
+                Rectangle {
+                    color: Kirigami.Theme.alternateBackgroundColor
+                    implicitHeight: 35
+                    implicitWidth: layerWindow.width - 40
+                    radius: 5
+
+                    GridLayout {
+                        id: grid
+                        columns: 2
+                        rows: 2
+                        anchors.fill: parent
+                        anchors.margins: 5
+
+                        RowLayout {
+                            Label {
+                                text: qsTr("Font:")
+                                font.pointSize: 10
+                            }
+                            ComboBox {
+                                id: textFontFamily
+                                model: app.fonts
+
+                                delegate: ItemDelegate {
+                                    Kirigami.Theme.colorSet: Kirigami.Theme.View
+                                    width: textFontFamily.width
+                                    implicitHeight: 28
+
+                                    contentItem: RowLayout {
+                                        Text {
+                                            font.family: modelData
+                                            color: highlighted ? Kirigami.Theme.highlightedTextColor : Kirigami.Theme.textColor
+                                            text: modelData;
+                                        }
+                                    }
+                                }
+
+                                Component.onCompleted: currentIndex = find(layerViewItem.layerTextFontName)
+                                onActivated: {
+                                    layerViewItem.layerTextFontName = textFontFamily.textAt(currentIndex);
+                                }
+                            }
+                            Label {
+                                Layout.alignment: Qt.AlignRight
+                                text: qsTr("Size:")
+                            }
+                            SpinBox {
+                                editable: true
+                                from: 0
+                                to: 500
+                                value: layerViewItem.layerTextFontSize
+
+                                onValueChanged: {
+                                    layerViewItem.layerTextFontSize = value;
+                                }
+                            }
+                            Label {
+                                Layout.alignment: Qt.AlignRight
+                                text: qsTr("Color:")
+                            }
+                            Rectangle {
+                                width: 64
+                                height: 32
+                                color: layerViewItem.layerTextFontColor
+                                border.color: "black"
+                                border.width: 5
+                                radius: 10
+                            }
+                            ToolButton {
+                                id: textColorButton
+
+                                focusPolicy: Qt.NoFocus
+                                icon.height: 32
+                                icon.name: "color-management"
+                                text: ""
+
+                                onClicked: {
+                                    textColorDialog.open();
+                                }
+                            }
+                        }
+                        ScrollView {
+                            id: view
+
+                            TextArea {
+                                id: textForLayer
+                                text: layerViewItem.layerText
+
+                                onTextChanged: {
+                                    if(text !== layerViewItem.layerText)
+                                        layerViewItem.layerText = textForLayer.text;
+                                }
+                            }
+
+                            Layout.fillHeight: true
+                            Layout.rowSpan: 2
+                            Layout.fillWidth: true
+                        }
+                        RowLayout {
+                            Label {
+                                Layout.alignment: Qt.AlignRight
+                                text: qsTr("Align:")
+                            }
+                            ComboBox {
+                                id: textAlignmentComboBox
+
+                                enabled: true
+                                textRole: "mode"
+
+                                model: ListModel {
+                                    id: textAlignmentListModel
+
+                                    ListElement {
+                                        mode: "Left"
+                                        value: 0
+                                    }
+                                    ListElement {
+                                        mode: "Center"
+                                        value: 1
+                                    }
+                                    ListElement {
+                                        mode: "Right"
+                                        value: 2
+                                    }
+                                }
+
+                                Component.onCompleted: {
+                                    for (let i = 0; i < textAlignmentListModel.count; ++i) {
+                                        if (textAlignmentListModel.get(i).value === layerViewItem.layerTextAlignment) {
+                                            currentIndex = i;
+                                            break;
+                                        }
+                                    }
+                                }
+                                onActivated: {
+                                    layerViewItem.layerTextAlignment = model.get(currentIndex).value;
+                                }
+                            }
+
+                            Label {
+                                Layout.alignment: Qt.AlignRight
+                                text: qsTr("Render:")
+                            }
+                            SpinBox {
+                                id: textTextureWidth
+                                editable: true
+                                from: 32
+                                to: 8192
+                                value: layerViewItem.layerTextRenderSize.width
+
+                                onValueChanged: {
+                                    updateTextTextureSize.enabled = true;
+                                }
+                            }
+                            Label {
+                                Layout.alignment: Qt.AlignCenter
+                                text: qsTr("x")
+                            }
+                            SpinBox {
+                                id: textTextureHeight
+                                editable: true
+                                from: 32
+                                to: 8192
+                                value: layerViewItem.layerTextRenderSize.height
+
+                                onValueChanged: {
+                                    updateTextTextureSize.enabled = true;
+                                }
+                            }
+                            ToolButton {
+                                id: updateTextTextureSize
+
+                                focusPolicy: Qt.NoFocus
+                                icon.height: 16
+                                icon.name: "system-reboot-update"
+                                text: ""
+
+                                onClicked: {
+                                    layerViewItem.layerTextRenderSize = Qt.size(textTextureWidth.value, textTextureHeight.value);
+                                }
+
+                                ToolTip {
+                                    text: qsTr("Update text texture/render size")
+                                }
+                            }
+                        }
+                    }
+                }
+            }
+        }
         Connections {
             function onLayerChanged() {
                 if(layerViewItem.layerIdx !== -1) {
@@ -1119,6 +1341,13 @@ Kirigami.ApplicationWindow {
                     else {
                         destroyAudioComponents();
                     }
+
+                    if (layerViewItem.layerTypeName === "Text") {
+                        createTextComponents();
+                    }
+                    else {
+                        destroyTextComponents();
+                    }
                 }
                 else {
                     destroyRoiComponents();
@@ -1126,6 +1355,7 @@ Kirigami.ApplicationWindow {
                     destroyAudioComponents();
                     destroyMediaComponents();
                     destroyStreamComponents();
+                    destroyTextComponents();
                 }
             }
             function onLayerValueChanged() {

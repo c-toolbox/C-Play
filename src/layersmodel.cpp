@@ -9,6 +9,7 @@
 #include "gridsettings.h"
 #include "locationsettings.h"
 #include "presentationsettings.h"
+#include "subtitlesettings.h"
 #ifdef NDI_SUPPORT
 #include <ndi/ndilayer.h>
 #endif
@@ -221,7 +222,19 @@ int LayersModel::addLayer(QString title, int type, QString filepath, int stereoM
     if (newLayer) {
         newLayer->setHierarchy(hierarchy());
         newLayer->setTitle(title.toStdString());
-        newLayer->setFilePath(filepath.toStdString());
+        if (type == BaseLayer::TEXT) {
+            TextLayer* newTextLayer = static_cast<TextLayer*>(newLayer);
+            newTextLayer->setFont(SubtitleSettings::subtitleFontFamily().toStdString());
+            newTextLayer->setFontSize(SubtitleSettings::subtitleFontSize());
+            newTextLayer->setTextureSize(SubtitleSettings::subtitleTextureWidth(), SubtitleSettings::subtitleTextureHeight());
+            newTextLayer->setAlignment(SubtitleSettings::subtitleAlignment());
+            QColor textColor(SubtitleSettings::subtitleColor());
+            newTextLayer->setColor(textColor.name().toStdString(), textColor.redF(), textColor.greenF(), textColor.blueF());
+            newTextLayer->setText(filepath.toStdString());
+        }
+        else {
+            newLayer->setFilePath(filepath.toStdString());
+        }
         newLayer->setStereoMode(static_cast<uint8_t>(stereoMode));
         newLayer->setGridMode(static_cast<uint8_t>(gridMode));
         newLayer->setAlpha(static_cast<float>(PresentationSettings::defaultLayerVisibility()) * 0.01f);

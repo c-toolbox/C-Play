@@ -97,7 +97,6 @@ static void initOGL(GLFWwindow *) {
     primaryLayers.push_back(foregroundImageLayer);
 
     mainSubtitleLayer = std::make_shared<TextLayer>();
-    primaryLayers.push_back(mainSubtitleLayer);
 
     layerRender = std::make_shared<LayerRenderer>();
     layerRender->initializeGL(SyncHelper::instance().variables.radius, SyncHelper::instance().variables.fov);
@@ -706,6 +705,8 @@ static void postSyncPreDraw() {
             layer->setPlaneElevation(SyncHelper::instance().variables.planeElevation);
             layer->setPlaneSize(planeSize, static_cast<uint8_t>(SyncHelper::instance().variables.planeConsiderAspectRatio));
         }
+        // Only plane consideration for subtitle layer (as other plane parameters are set individually)
+        mainSubtitleLayer->setPlaneSize(planeSize, static_cast<uint8_t>(SyncHelper::instance().variables.planeConsiderAspectRatio));
 
         // Set new general dome/sphere details
         layerRender->updateMeshes(SyncHelper::instance().variables.radius, SyncHelper::instance().variables.fov);

@@ -30,11 +30,11 @@ Then your *CMAKE_INSTALL_PREFIX/bin* should include a working standalone solutio
 * NOTE: Remember to remove the Visual Redist DLLs which might be present in the directory.
 
 ```
-concrt*.dll	Concurrency Runtime Library for native code
-msvcp*.dll	C++ Standard Library for native code
-vcamp*.dll	AMP Library for native code
-vcomp*.dll	OpenMP Library for native code
-vcruntime*.dll	Runtime Library for native code
+concrt*.dll     Concurrency Runtime Library for native code
+msvcp*.dll      C++ Standard Library for native code
+vcamp*.dll      AMP Library for native code
+vcomp*.dll      OpenMP Library for native code
+vcruntime*.dll  Runtime Library for native code
 ```
 
 ## Build installer

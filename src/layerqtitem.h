@@ -94,6 +94,12 @@ class LayerQtItem : public QQuickItem {
     Q_PROPERTY(QPoint roiTexOffset READ roiTexOffset WRITE setRoiTexOffset NOTIFY roiChanged)
     Q_PROPERTY(QSize roiTexSize READ roiTexSize WRITE setRoiTexSize NOTIFY roiChanged)
     Q_PROPERTY(TracksModel* audioTracksModel READ audioTracksModel NOTIFY audioTracksModelChanged)
+    Q_PROPERTY(QString layerText READ layerText WRITE setLayerText NOTIFY layerValueChanged)
+    Q_PROPERTY(QString layerTextFontName READ layerTextFontName WRITE setLayerTextFontName NOTIFY layerValueChanged)
+    Q_PROPERTY(int layerTextFontSize READ layerTextFontSize WRITE setLayerTextFontSize NOTIFY layerValueChanged)
+    Q_PROPERTY(QColor layerTextFontColor READ layerTextFontColor WRITE setLayerTextFontColor NOTIFY layerValueChanged)
+    Q_PROPERTY(int layerTextAlignment READ layerTextAlignment WRITE setLayerTextAlignment NOTIFY layerValueChanged)
+    Q_PROPERTY(QSize layerTextRenderSize READ layerTextRenderSize WRITE setLayerTextRenderSize NOTIFY layerValueChanged)
     QML_ELEMENT
 
 public:
@@ -208,6 +214,24 @@ public:
 
     TracksModel* audioTracksModel() const;
     Q_INVOKABLE void loadTracks();
+
+    QString layerText() const;
+    void setLayerText(QString name);
+
+    QString layerTextFontName() const;
+    void setLayerTextFontName(QString name);
+
+    int layerTextFontSize() const;
+    void setLayerTextFontSize(int size);
+
+    QColor layerTextFontColor() const;
+    void setLayerTextFontColor(QColor color);
+
+    int layerTextAlignment() const;
+    void setLayerTextAlignment(int align);
+
+    QSize layerTextRenderSize() const;
+    void setLayerTextRenderSize(QSize size);
 
 Q_SIGNALS:
     void layerChanged();

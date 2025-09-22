@@ -9,7 +9,7 @@ import QtQuick
 import QtQuick.Window
 import QtQuick.Layouts
 import QtQuick.Controls
-import Qt.labs.platform 1.0 as Platform
+import Qt.labs.platform as Platform
 
 import org.kde.kirigami as Kirigami
 import org.ctoolbox.cplay
@@ -193,11 +193,11 @@ Kirigami.ApplicationWindow {
             Layout.alignment: Qt.AlignRight
             font.pointSize: 9
             text: qsTr("File:")
-            visible: typeComboBox.currentText != "Stream" && typeComboBox.currentText != "NDI" && typeComboBox.currentText != "Spout"
+            visible: typeComboBox.currentText != "Stream" && typeComboBox.currentText != "NDI" && typeComboBox.currentText != "Spout" && typeComboBox.currentText != "Text"
         }
         RowLayout {
             Layout.fillWidth: true
-            visible: typeComboBox.currentText != "Stream" && typeComboBox.currentText != "NDI" && typeComboBox.currentText != "Spout"
+            visible: typeComboBox.currentText != "Stream" && typeComboBox.currentText != "NDI" && typeComboBox.currentText != "Spout" && typeComboBox.currentText != "Text"
 
             TextField {
                 id: fileForLayer
@@ -410,7 +410,7 @@ Kirigami.ApplicationWindow {
         Label {
             Layout.alignment: Qt.AlignRight
             text: qsTr("Stereo:")
-            enabled: typeComboBox.currentText !== "Audio"
+            visible: typeComboBox.currentText !== "Audio" && typeComboBox.currentText !== "Text"
         }
         ComboBox {
             id: stereoscopicModeForLayer
@@ -418,7 +418,7 @@ Kirigami.ApplicationWindow {
             Layout.fillWidth: true
             focusPolicy: Qt.NoFocus
             textRole: "mode"
-            enabled: typeComboBox.currentText !== "Audio"
+            visible: typeComboBox.currentText !== "Audio" && typeComboBox.currentText !== "Text"
 
             model: ListModel {
                 id: stereoscopicModeForLayerList
@@ -447,7 +447,7 @@ Kirigami.ApplicationWindow {
         Label {
             Layout.alignment: Qt.AlignRight
             text: qsTr("Grid:")
-            enabled: typeComboBox.currentText !== "Audio"
+            visible: typeComboBox.currentText !== "Audio" && typeComboBox.currentText !== "Text"
         }
         ComboBox {
             id: gridModeForLayer
@@ -455,7 +455,7 @@ Kirigami.ApplicationWindow {
             Layout.fillWidth: true
             focusPolicy: Qt.NoFocus
             textRole: "mode"
-            enabled: typeComboBox.currentText !== "Audio"
+            visible: typeComboBox.currentText !== "Audio" && typeComboBox.currentText !== "Text"
 
             model: ListModel {
                 id: gridModeForLayerList
@@ -485,7 +485,27 @@ Kirigami.ApplicationWindow {
             Component.onCompleted: {}
             onActivated: {}
         }
+        Label {
+            Layout.alignment: Qt.AlignRight | Qt.AlignTop
+            text: qsTr("Text:")
+            visible: typeComboBox.currentText == "Text"
+        }
+        ScrollView {
+            id: view
+            visible: typeComboBox.currentText == "Text"
+
+            TextArea {
+                id: textForLayer
+                visible: typeComboBox.currentText == "Text"
+                text: "Some text.\n...more text..."
+            }
+
+            Layout.fillHeight: true
+            // spacer item
+            Layout.fillWidth: true
+        }
         Item {
+            enabled: typeComboBox.currentText != "Text"
             Layout.columnSpan: 2
             Layout.fillHeight: true
             // spacer item
@@ -519,6 +539,11 @@ Kirigami.ApplicationWindow {
                             else {
                                 layerView.layerItem.layerIdx = app.slides.selected.addLayer(layerTitle.text, typeComboBox.currentIndex + 1, streamsComboBox.currentValue, stereoscopicModeForLayer.currentIndex, gridModeForLayer.currentIndex);
                             }
+                            layersAddNew.visible = false;
+                            app.slides.updateSelectedSlide();
+                            mpv.focus = true;
+                        } else if (typeComboBox.currentText === "Text") {
+                            layerView.layerItem.layerIdx = app.slides.selected.addLayer(layerTitle.text, typeComboBox.currentIndex + 1, textForLayer.text, stereoscopicModeForLayer.currentIndex, gridModeForLayer.currentIndex);
                             layersAddNew.visible = false;
                             app.slides.updateSelectedSlide();
                             mpv.focus = true;

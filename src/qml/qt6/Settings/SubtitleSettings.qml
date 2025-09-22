@@ -10,6 +10,7 @@ import QtQuick
 import QtQuick.Layouts
 import QtQuick.Controls
 import QtQuick.Dialogs
+import Qt.labs.platform as Platform
 
 import org.kde.kirigami as Kirigami
 import org.ctoolbox.cplay
@@ -17,11 +18,11 @@ import org.ctoolbox.cplay
 SettingsBasePage {
     id: root
 
-    ColorDialog {
+    Platform.ColorDialog {
         id: textColorDialog
-        selectedColor: SubtitleSettings.subtitleColor
+        color: SubtitleSettings.subtitleColor
         onAccepted: {
-            SubtitleSettings.subtitleColor = mpv.setSubtitleColor(selectedColor);
+            SubtitleSettings.subtitleColor = mpv.setSubtitleColor(color);
             SubtitleSettings.save();
         }
     }
@@ -38,6 +39,32 @@ SettingsBasePage {
         }
         Item {
             Layout.columnSpan: 3
+            // spacer item
+            Layout.fillWidth: true
+        }
+
+                Item {
+            height: 1
+            width: 1
+        }
+        CheckBox {
+            id: loadSubtitleFilesInVideoFolder
+
+            checked: SubtitleSettings.loadSubtitleFileInVideoFolder
+            enabled: true
+            text: qsTr("Load subtitle files in same folder as video file.")
+
+            onCheckedChanged: {
+                SubtitleSettings.loadSubtitleFileInVideoFolder = checked;
+                SubtitleSettings.save();
+                if (checked) {
+                    mpv.setProperty("sub-auto", "all");
+                } else {
+                    mpv.setProperty("sub-auto", "no");
+                }
+            }
+        }        
+        Item {
             // spacer item
             Layout.fillWidth: true
         }
@@ -195,6 +222,10 @@ SettingsBasePage {
                     SubtitleSettings.save();
                     mpv.setSubtitleTextureSize(SubtitleSettings.subtitleTextureWidth, SubtitleSettings.subtitleTextureHeight);
                 }
+
+                ToolTip {
+                    text: qsTr("Update text texture/render size")
+                }
             }
         }
         Item {
@@ -286,27 +317,64 @@ SettingsBasePage {
             Layout.fillWidth: true
         }
 
-        Item {
-            height: 1
-            width: 1
+        Label {
+            Layout.alignment: Qt.AlignRight
+            text: qsTr("Plane elevation:")
         }
-        CheckBox {
-            id: loadSubtitleFilesInVideoFolder
+        RowLayout {
+            SpinBox {
+                id: planeElevationBox
 
-            checked: SubtitleSettings.loadSubtitleFileInVideoFolder
-            enabled: true
-            text: qsTr("Load subtitle files in same folder as video file.")
+                from: -360
+                to: 360
+                value: SubtitleSettings.subtitlePlaneElevationDegrees
 
-            onCheckedChanged: {
-                SubtitleSettings.loadSubtitleFileInVideoFolder = checked;
-                SubtitleSettings.save();
-                if (checked) {
-                    mpv.setProperty("sub-auto", "all");
-                } else {
-                    mpv.setProperty("sub-auto", "no");
+                onValueChanged: {
+                    SubtitleSettings.subtitlePlaneElevationDegrees = value;
+                    SubtitleSettings.save();
+                    mpv.setSubtitleRelativePlaneElevation(value)
                 }
             }
-        }        
+            Label {
+                Layout.alignment: Qt.AlignLeft
+                Layout.fillWidth: true
+                text: {
+                    qsTr("degrees. Relative to the plane elevation in Grid settings.");
+                }
+            }
+        }
+        Item {
+            // spacer item
+            Layout.fillWidth: true
+        }
+
+        Label {
+            Layout.alignment: Qt.AlignRight
+            text: qsTr("Plane distance:")
+        }
+        RowLayout {
+            SpinBox {
+                id: planeDistanceBox
+
+                from: -20000
+                stepSize: 1
+                to: 20000
+                value: SubtitleSettings.subtitlePlaneDistanceCM 
+
+                onValueChanged: {
+                    SubtitleSettings.subtitlePlaneDistanceCM = value;
+                    SubtitleSettings.save();
+                    mpv.setSubtitleRelativePlaneDistance(value)
+                }
+            }
+            Label {
+                Layout.alignment: Qt.AlignLeft
+                Layout.fillWidth: true
+                text: {
+                    qsTr("cm. Relative to the plane distance in Grid settings.");
+                }
+            }
+        }
         Item {
             // spacer item
             Layout.fillWidth: true

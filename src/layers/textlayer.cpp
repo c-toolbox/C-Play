@@ -31,6 +31,9 @@ static std::vector<std::string> split(std::string str, char delimiter) {
 }
 
 static float getLineWidth(sgct::text::Font& font, const std::string& line) {
+    if (line.empty())
+        return 0;
+
     // figure out width
     float lineWidth = 0.f;
     for (size_t j = 0; j < line.length() - 1; j++) {
@@ -143,10 +146,10 @@ void TextLayer::updateFrame() {
     std::vector<std::string> lines = split(std::move(m_data.text), '\n');
     const glm::vec2 res = glm::vec2(m_data.fboWidth, m_data.fboHeight);
     const glm::mat4 orthoMatrix = glm::ortho(0.f, res.x, 0.f, res.y);
-    const float offsetX = 0;
-    const float offsetY = res.y / 2.f - m_fontSize;
-    const float marginX = res.x / 7.f;
     const float h = font->height() * 1.59f;
+    const float offsetX = 0;
+    const float offsetY = h * lines.size();
+    const float marginX = res.x / 7.f;
     sgct::text::Alignment alignment = static_cast<sgct::text::Alignment>(m_alignment);
     for (size_t i = 0; i < lines.size(); i++) {
         glm::vec3 offset(offsetX, offsetY - h * i, 0.f);
@@ -235,6 +238,7 @@ int TextLayer::alignment() const {
 }
 
 std::string TextLayer::alignmentStr() const {
+#ifdef SGCT_HAS_TEXT
     switch (static_cast<sgct::text::Alignment>(m_alignment)) {
     case sgct::text::Alignment::TopLeft:
         return "left";
@@ -244,6 +248,9 @@ std::string TextLayer::alignmentStr() const {
     default:
         return "center";
     }
+#else
+    return "center";
+#endif
 }
 
 void TextLayer::setAlignment(int a) {
@@ -252,6 +259,7 @@ void TextLayer::setAlignment(int a) {
 }
 
 void TextLayer::setAlignmentFromStr(const std::string& str) {
+#ifdef SGCT_HAS_TEXT
     std::string strToLower = str;
     std::transform(strToLower.begin(), strToLower.end(), strToLower.begin(),
         [](unsigned char c) { return std::tolower(c); });
@@ -264,6 +272,9 @@ void TextLayer::setAlignmentFromStr(const std::string& str) {
     else { // center
         setAlignment(static_cast<int>(sgct::text::Alignment::TopCenter));
     }
+#else
+    setAlignment(1);
+#endif
 }
 
 float TextLayer::colorR() const {

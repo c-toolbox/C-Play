@@ -393,6 +393,8 @@ public:
     Q_INVOKABLE void setSubtitleTextureSize(int width, int height);
     Q_INVOKABLE void setSubtitleAlignment(int alignment);
     Q_INVOKABLE QString setSubtitleColor(const QColor& subColor);
+    Q_INVOKABLE void setSubtitleRelativePlaneElevation(double value);
+    Q_INVOKABLE void setSubtitleRelativePlaneDistance(double value);
 
 Q_SIGNALS:
     void mediaTitleChanged();
