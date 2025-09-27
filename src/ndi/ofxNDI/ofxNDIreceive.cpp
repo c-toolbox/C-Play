@@ -265,9 +265,12 @@ ofxNDIreceive::ofxNDIreceive()
 ofxNDIreceive::~ofxNDIreceive()
 {
 	FreeAudioData();
-	if (m_frameSyncOn) NDIlib_framesync_destroy(pNDI_framesync);
-	if(p_NDILib && pNDI_recv) p_NDILib->recv_destroy(pNDI_recv);
-	if(p_NDILib && pNDI_find) p_NDILib->find_destroy(pNDI_find);
+	if(pNDI_framesync)
+		NDIlib_framesync_destroy(pNDI_framesync);
+	if(pNDI_recv)
+		NDIlib_recv_destroy(pNDI_recv);
+	if(pNDI_find)
+		NDIlib_find_destroy(pNDI_find);
 	// Library is released in ofxNDIdynloader
 }
 
@@ -277,7 +280,9 @@ void ofxNDIreceive::CreateFinder()
 {
 	if(!bNDIinitialized) return;
 
-	if (pNDI_find) p_NDILib->find_destroy(pNDI_find);
+	if(pNDI_find)
+		NDIlib_find_destroy(pNDI_find);
+
 	const NDIlib_find_create_t NDI_find_create_desc = { true, NULL, NULL }; // Version 2
 	pNDI_find = p_NDILib->find_create_v2(&NDI_find_create_desc);
 	p_sources = nullptr;
@@ -290,7 +295,9 @@ void ofxNDIreceive::ReleaseFinder()
 {
 	if(!bNDIinitialized) return;
 
-	if (pNDI_find) p_NDILib->find_destroy(pNDI_find);
+	if (pNDI_find)
+		NDIlib_find_destroy(pNDI_find);
+
 	pNDI_find = nullptr;
 	p_sources = nullptr;
 	no_sources = 0;
@@ -310,7 +317,7 @@ int ofxNDIreceive::FindSenders()
 // Find all current NDI senders
 // nSenders - number of senders
 // Return true for network change
-bool ofxNDIreceive::FindSenders(int &sendercount)
+bool ofxNDIreceive::FindSenders(int& sendercount)
 {
 	std::string name;
 	uint32_t nsources = 0; // New number of sources
@@ -323,67 +330,61 @@ bool ofxNDIreceive::FindSenders(int &sendercount)
 
 	// If a finder was created, use it to find senders on the network
 	if (pNDI_find) {
-
 		//
 		// This may be called for every frame so has to be fast.
 		//
-
-		// Specify a delay so that p_sources is returned only for a network change.
+		// Specify a delay (1 msec) so that p_sources is returned only for a network change.
 		// If there was no network change, p_sources is NULL and no_sources = 0 
 		// and can't be used for other functions, so the sender names as well as 
 		// the sender count need to be saved locally.
+		// 
 		p_sources = FindGetSources(pNDI_find, &nsources, 1);
-		// Check for a name change at the same index and update m_senderName
-		if (p_sources && nsources > 0 && !m_senderName.empty() && p_sources[m_senderIndex].p_ndi_name) {
-			if (strcmp(m_senderName.c_str(), p_sources[m_senderIndex].p_ndi_name) != 0) {
-				m_senderName = p_sources[m_senderIndex].p_ndi_name;
-			}
-		}
+		if (p_sources) {
 
-		// If there are new sources and the number of sources has changed
-		if (p_sources && nsources > 0 && nsources != no_sources) {
-			// Rebuild the sender name list
-			no_sources = nsources;
-			NDIsenders.clear();
-			if (no_sources > 0) {
-				for (int i = 0; i<(int)no_sources; i++) {
-					if (p_sources[i].p_ndi_name && p_sources[i].p_ndi_name[0]) {
-						NDIsenders.push_back(p_sources[i].p_ndi_name);
-					}
-				}
-			}
+			// If there are new sources and the number of sources has changed
+			if (nsources > 0 && nsources != no_sources) {
 
-			// Update the current sender index
-			// because it's position may have changed
-			if (!m_senderName.empty()) {
-
-				// If there are no senders left, close the current receiver
-				if (NDIsenders.size() == 0) {
-					ReleaseReceiver();
-					m_senderName.clear();
-					m_senderIndex = 0;
-					m_nSenders = 0;
-					sendercount = 0;
-					return true; // return true because the last one just closed
-				}
-
-				// Reset the current sender index for a changed name
-				if (NDIsenders.size() > 0) {
-					m_senderIndex = 0;
-					for (unsigned int i = 0; i < (int)NDIsenders.size(); i++) {
-						if (m_senderName == NDIsenders.at(i)) {
-							m_senderIndex = i;
+				// Rebuild the sender name list
+				no_sources = nsources;
+				NDIsenders.clear();
+				if (no_sources > 0) {
+					for (int i = 0; i < (int)no_sources; i++) {
+						if (p_sources[i].p_ndi_name && p_sources[i].p_ndi_name[0]) {
+							NDIsenders.push_back(p_sources[i].p_ndi_name);
 						}
 					}
 				}
+
+				// Update the current sender index because it's position may have changed
+				if (!m_senderName.empty()) {
+
+					// If there are no senders left, close the current receiver
+					if (NDIsenders.size() == 0) {
+						ReleaseReceiver();
+						m_senderName.clear();
+						m_senderIndex = 0;
+						m_nSenders = 0;
+						sendercount = 0;
+						return true; // return true because the last one just closed
+					}
+
+					// Reset the current sender index for a changed name
+					if (NDIsenders.size() > 0) {
+						m_senderIndex = 0;
+						for (unsigned int i = 0; i < (int)NDIsenders.size(); i++) {
+							if (m_senderName == NDIsenders.at(i)) {
+								m_senderIndex = i;
+							}
+						}
+					}
+				}
+
+				// Network change - return new number of senders
+				sendercount = (int)NDIsenders.size();
+				m_nSenders = sendercount;
+
+				return true;
 			}
-
-			// Network change - return new number of senders
-			sendercount = (int)NDIsenders.size();
-			m_nSenders = sendercount;
-
-			return true;
-
 		}
 	}
 	else {
@@ -951,8 +952,7 @@ void ofxNDIreceive::ReleaseReceiver()
 {
 	if(!bNDIinitialized) return;
 
-	if(pNDI_recv) 
-		p_NDILib->recv_destroy(pNDI_recv);
+	NDIlib_recv_destroy(pNDI_recv);
 
 	m_Width = 0;
 	m_Height = 0;
@@ -1609,53 +1609,61 @@ void* ofxNDIreceive::ReceiveAudioOnlyFrameSync(int framesToCapture) {
 			m_frameSyncOn = true;
 		}
 
-		// Get audio samples
+		// If framesToCapture is zero, let's check how many samples to capture
+		if (framesToCapture <= 0) {
+			framesToCapture = NDIlib_framesync_audio_queue_depth(pNDI_framesync);
+		}
+
 		NDIlib_audio_frame_v3_t audio_frame;
-		NDIlib_framesync_capture_audio_v2(pNDI_framesync, &audio_frame, m_nAudioSampleRate, m_nAudioChannels, framesToCapture);
+		// Get audio samples
+		if (framesToCapture > 0)
+		{
+			NDIlib_framesync_capture_audio_v2(pNDI_framesync, &audio_frame, m_nAudioSampleRate, m_nAudioChannels, framesToCapture);
 
-		if (m_bAudio) {
-			// Copy the audio data to a local audio buffer
-			// Allocate only for sample size change
-			if (m_nAudioSamples != framesToCapture
-				|| m_nAudioSampleRate != audio_frame.sample_rate
-				|| m_nAudioChannels != audio_frame.no_channels) {
-				if (m_AudioData) free((void*)m_AudioData);
-				m_AudioData = (float*)malloc((size_t)framesToCapture * (size_t)audio_frame.no_channels * sizeof(float));
+			if (m_bAudio) {
+				// Copy the audio data to a local audio buffer
+				// Allocate only for sample size change
+				if (m_nAudioSamples != framesToCapture
+					|| m_nAudioSampleRate != audio_frame.sample_rate
+					|| m_nAudioChannels != audio_frame.no_channels) {
+					if (m_AudioData) free((void*)m_AudioData);
+					m_AudioData = (float*)malloc((size_t)framesToCapture * (size_t)audio_frame.no_channels * sizeof(float));
 
-				if (m_bAudioConvertToInterleaved) {
-					if (m_AudioDataInterleaved) free((void*)m_AudioDataInterleaved);
-					m_AudioDataInterleaved = (int16_t*)malloc((size_t)framesToCapture * (size_t)audio_frame.no_channels * sizeof(int16_t));
+					if (m_bAudioConvertToInterleaved) {
+						if (m_AudioDataInterleaved) free((void*)m_AudioDataInterleaved);
+						m_AudioDataInterleaved = (int16_t*)malloc((size_t)framesToCapture * (size_t)audio_frame.no_channels * sizeof(int16_t));
+					}
 				}
-			}
-			m_nAudioChannels = audio_frame.no_channels;
-			m_nAudioSamples = framesToCapture;
-			m_nAudioSampleRate = audio_frame.sample_rate;
-			if (m_AudioData) {
-				memcpy((void*)m_AudioData, (void*)audio_frame.p_data, ((size_t)m_nAudioSamples * (size_t)m_nAudioChannels * sizeof(float)));
+				m_nAudioChannels = audio_frame.no_channels;
+				m_nAudioSamples = framesToCapture;
+				m_nAudioSampleRate = audio_frame.sample_rate;
+				if (m_AudioData) {
+					memcpy((void*)m_AudioData, (void*)audio_frame.p_data, ((size_t)m_nAudioSamples * (size_t)m_nAudioChannels * sizeof(float)));
 
-				//SMPTE Audio levels - reference Level 20 dB headroom
-				if (m_bAudioConvertToInterleaved && m_AudioDataInterleaved) {
-					for (int i = 0; i < m_nAudioSamples * m_nAudioChannels; i += m_nAudioChannels) {
-						for (int c = 0; c < m_nAudioChannels; c++) {
-							m_AudioDataInterleaved[i + c] = std::max<int16_t>(-32768, std::min<int16_t>(32767, (int16_t)(3276.8f * (m_AudioData[i / m_nAudioChannels + (m_nAudioSamples * c)] * m_bAudioVolume))));
+					//SMPTE Audio levels - reference Level 20 dB headroom
+					if (m_bAudioConvertToInterleaved && m_AudioDataInterleaved) {
+						for (int i = 0; i < m_nAudioSamples * m_nAudioChannels; i += m_nAudioChannels) {
+							for (int c = 0; c < m_nAudioChannels; c++) {
+								m_AudioDataInterleaved[i + c] = std::max<int16_t>(-32768, std::min<int16_t>(32767, (int16_t)(3276.8f * (m_AudioData[i / m_nAudioChannels + (m_nAudioSamples * c)] * m_bAudioVolume))));
+							}
 						}
 					}
 				}
+				m_bAudioFrame = true;
+				// ReceiveImage will return false
+				// Use IsAudioFrame() to determine whether audio has been received
+				// and GetAudioData or GetAudioInterleaved to retrieve the sample buffer
 			}
-			m_bAudioFrame = true;
-			// ReceiveImage will return false
-			// Use IsAudioFrame() to determine whether audio has been received
-			// and GetAudioData or GetAudioInterleaved to retrieve the sample buffer
-		}
-		
-		// Release the video. You could keep the frame if you want and release it later.
-		NDIlib_framesync_free_audio_v2(pNDI_framesync, &audio_frame);
 
-		if (m_bAudioConvertToInterleaved) {
-			return m_AudioDataInterleaved;
-		}
-		else {
-			return m_AudioData;
+			// Release the video. You could keep the frame if you want and release it later.
+			NDIlib_framesync_free_audio_v2(pNDI_framesync, &audio_frame);
+
+			if (m_bAudioConvertToInterleaved) {
+				return m_AudioDataInterleaved;
+			}
+			else {
+				return m_AudioData;
+			}
 		}
 	}
 

@@ -19,6 +19,7 @@ public:
     ~AudioLayer();
 
     bool ready() const;
+    bool existOnMasterOnly() const;
 };
 
 #endif // AUDIOLAYER_H

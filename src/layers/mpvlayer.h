@@ -33,8 +33,14 @@ public:
         bool isStream = false;
         bool supportVideo = true;
         std::vector<Track> audioTracks;
+        bool audioEnabled = false;
+        bool audioEnabled_Dec = false;
         int audioId = -1;
+        int audioId_Dec = -1;
         int volume = 100;
+        int volume_Dec = 100;
+        bool volumeMute = false;
+        bool volumeMute_Dec = false;
         int fboWidth = 0;
         int fboHeight = 0;
         bool fboCreated = false;
@@ -47,6 +53,7 @@ public:
         double timePos = 0;
         double timeToSet = 0;
         bool timeIsDirty = false;
+        bool typePropertiesDecode = false;
         std::atomic_bool threadRunning = false;
         std::atomic_bool mpvInitialized = false;
         std::atomic_bool mpvInitializedGL = false;
@@ -85,15 +92,20 @@ public:
     double duration();
     double remaining();
 
-    bool hasAudio();
+    bool hasAudio() const;
     int audioId();
     void setAudioId(int id);
+    void enableAudio(bool enabled = true);
     std::vector<Track>* audioTracks();
     void updateAudioOutput();
     void setVolume(int v, bool storeLevel = true);
+    void setVolumeMute(bool v);
 
     void encodeTypeAlways(std::vector<std::byte>& data);
     void decodeTypeAlways(const std::vector<std::byte>& data, unsigned int& pos);
+
+    void encodeTypeProperties(std::vector<std::byte>& data);
+    void decodeTypeProperties(const std::vector<std::byte>& data, unsigned int& pos);
 
     void loadFile(std::string filePath, bool reload = false);
     std::string loadedFile();

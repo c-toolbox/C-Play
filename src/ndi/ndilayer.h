@@ -29,7 +29,7 @@ public:
     std::string getNDIVersionString();
 
 private:
-    ofxNDIreceive* m_NDIreceiver;
+    ofxNDIreceive m_NDIreceiver;
     static NdiFinder* _instance;
 };
 
@@ -45,7 +45,9 @@ public:
     void start();
     void stop();
 
-    bool hasAudio();
+    bool hasAudio() const;
+    bool isAudioEnabled() const;
+    void enableAudio(bool enabled = true);
     void updateAudioOutput();
     void setVolume(int v, bool storeLevel = true);
 
@@ -74,6 +76,7 @@ private:
     int NextPboIndex = 0;
     bool m_hasCapturedImage = false;
     bool m_isReady = false;
+    bool m_isAudioEnabled = false;
 };
 
 #endif // NDILAYER_H

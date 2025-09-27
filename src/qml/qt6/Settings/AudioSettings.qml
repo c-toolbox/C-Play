@@ -197,6 +197,35 @@ SettingsBasePage {
             // spacer item
             Layout.fillWidth: true
         }
+
+        Item {
+            Layout.columnSpan: 3
+            Layout.fillWidth: true
+            // spacer item
+            height: 10
+        }
+        Item {
+            height: 1
+            width: 1
+        }
+        CheckBox {
+            id: enableAudioOnNodesCheckbox
+
+            checked: AudioSettings.enableAudioOnNodes
+            enabled: true
+            text: qsTr("Enable audio on nodes for playback.")
+
+            onCheckedChanged: {
+                AudioSettings.enableAudioOnNodes = checked;
+                AudioSettings.save();
+                mpv.enableAudioOnNodes(checked);
+            }
+        }
+        Item {
+            // spacer item
+            Layout.fillWidth: true
+        }
+
         Item {
             Layout.columnSpan: 3
             Layout.fillWidth: true

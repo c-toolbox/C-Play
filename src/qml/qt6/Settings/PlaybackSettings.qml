@@ -169,7 +169,7 @@ SettingsBasePage {
             Layout.fillWidth: true
             checked: PlaybackSettings.applyThresholdSyncOnLoopOnly
             enabled: useThresholdToSyncTimePositionCheckbox.checked
-            text: qsTr("Apply sync threshold when looping only")
+            text: qsTr("Apply sync threshold when looping(or beginning of video) only")
 
             onCheckedChanged: {
                 PlaybackSettings.applyThresholdSyncOnLoopOnly = checked;
@@ -198,7 +198,7 @@ SettingsBasePage {
                 Layout.fillWidth: true
                 elide: Text.ElideRight
                 text: {
-                    qsTr("ms = Stops checking threshold sync %1 seconds after loop").arg(Number((timeCheckThresholdOnLoopBox.value * 1.0) / 1000.0).toFixed(3));
+                    qsTr("ms = Stops checking threshold sync %1 seconds after video start").arg(Number((timeCheckThresholdOnLoopBox.value * 1.0) / 1000.0).toFixed(3));
                 }
             }
         }

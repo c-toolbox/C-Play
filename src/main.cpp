@@ -119,6 +119,12 @@ static std::vector<std::byte> encode() {
 
     if (SyncHelper::instance().variables.syncOn) {
         serializeObject(data, SyncHelper::instance().variables.paused);
+        serializeObject(data, SyncHelper::instance().variables.enableAudioOnNodes);
+        if (SyncHelper::instance().variables.enableAudioOnNodes) {
+            serializeObject(data, SyncHelper::instance().variables.audioId);
+            serializeObject(data, SyncHelper::instance().variables.volume);
+            serializeObject(data, SyncHelper::instance().variables.volumeMute);
+        }
         serializeObject(data, SyncHelper::instance().variables.timePosition);
         serializeObject(data, SyncHelper::instance().variables.timeThreshold);
         serializeObject(data, SyncHelper::instance().variables.timeThresholdEnabled);
@@ -301,6 +307,12 @@ static void decode(const std::vector<std::byte> &data) {
     deserializeObject(data, pos, SyncHelper::instance().variables.alphaFg);
     if (SyncHelper::instance().variables.syncOn) {
         deserializeObject(data, pos, SyncHelper::instance().variables.paused);
+        deserializeObject(data, pos, SyncHelper::instance().variables.enableAudioOnNodes);
+        if (SyncHelper::instance().variables.enableAudioOnNodes) {
+            deserializeObject(data, pos, SyncHelper::instance().variables.audioId);
+            deserializeObject(data, pos, SyncHelper::instance().variables.volume);
+            deserializeObject(data, pos, SyncHelper::instance().variables.volumeMute);
+        }
         deserializeObject(data, pos, SyncHelper::instance().variables.timePosition);
         deserializeObject(data, pos, SyncHelper::instance().variables.timeThreshold);
         deserializeObject(data, pos, SyncHelper::instance().variables.timeThresholdEnabled);
@@ -452,7 +464,10 @@ static void postSyncPreDraw() {
         if (updateLayers) {
             auto it = secondaryLayers.begin();
             for (; it != secondaryLayers.end();) {
-                if (std::find(secondaryLayersToKeep.begin(), secondaryLayersToKeep.end(), (*it)) == secondaryLayersToKeep.end()) {
+                auto it_found = std::find_if(secondaryLayersToKeep.begin(), secondaryLayersToKeep.end(), [&](std::shared_ptr<BaseLayer> const& p) {
+                    return p.get() == (*it).get();
+                });
+                if (it_found == secondaryLayersToKeep.end()) {
                     it = secondaryLayers.erase(it);
                 } else {
                     std::shared_ptr<BaseLayer> layer = (*it);
@@ -523,6 +538,7 @@ static void postSyncPreDraw() {
         // Rendered top to bottom, so need to add them the other way around...
         for (auto it = secondaryLayers.rbegin(); it != secondaryLayers.rend(); ++it) {
             std::shared_ptr<BaseLayer> layer = (*it);
+            layer->enableAudio(SyncHelper::instance().variables.enableAudioOnNodes);
             if (layer->hierarchy() == BaseLayer::LayerHierarchy::BACK) {
                 if (layer->shouldUpdate()) {
                     if (!layer->hasInitialized()) {
@@ -645,6 +661,7 @@ static void postSyncPreDraw() {
         // Rendered top to bottom, so need to add them the other way around...
         for (auto it = secondaryLayers.rbegin(); it != secondaryLayers.rend(); ++it) {
             std::shared_ptr<BaseLayer> layer = (*it);
+            layer->enableAudio(SyncHelper::instance().variables.enableAudioOnNodes);
             if (layer->hierarchy() == BaseLayer::LayerHierarchy::FRONT) {
                 if (layer->shouldUpdate()) {
                     if (!layer->hasInitialized()) {
@@ -679,6 +696,12 @@ static void postSyncPreDraw() {
         // Set properties of main mpv layer
         mainVideoLayer->setTimePause(SyncHelper::instance().variables.paused);
         mainVideoLayer->setEOFMode(SyncHelper::instance().variables.eofMode);
+        mainVideoLayer->enableAudio(SyncHelper::instance().variables.enableAudioOnNodes);
+        if (SyncHelper::instance().variables.enableAudioOnNodes) {
+            mainVideoLayer->setAudioId(SyncHelper::instance().variables.audioId);
+            mainVideoLayer->setVolume(SyncHelper::instance().variables.volume);
+            mainVideoLayer->setVolumeMute(SyncHelper::instance().variables.volumeMute);
+        }
         mainVideoLayer->setTimePosition(
             SyncHelper::instance().variables.timePosition,
             SyncHelper::instance().variables.timeDirty);
@@ -746,6 +769,7 @@ static void cleanup() {
 
 #ifdef NDI_SUPPORT
     NdiFinder::destroy();
+    NDIlib_destroy();
 #endif
 
 #ifndef SGCT_ONLY

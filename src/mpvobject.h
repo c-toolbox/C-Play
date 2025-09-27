@@ -62,6 +62,11 @@ public:
                        WRITE setVolume
                            NOTIFY volumeChanged)
 
+    Q_PROPERTY(bool mute
+                    READ mute
+                       WRITE setMute
+                            NOTIFY muteChanged)
+
     Q_PROPERTY(int chapter
                    READ chapter
                        WRITE setChapter
@@ -273,6 +278,9 @@ public:
     int volume();
     void setVolume(int value);
 
+    bool mute();
+    void setMute(bool value);
+
     int chapter();
     void setChapter(int value);
 
@@ -368,6 +376,7 @@ public:
     PlaySectionsModel *getPlaySectionsModel() const;
 
     Q_INVOKABLE void updateAudioOutput();
+    Q_INVOKABLE void enableAudioOnNodes(bool enabled);
     Q_INVOKABLE QString checkAndCorrectPath(const QString &filePath, const QStringList &searchPaths);
     Q_INVOKABLE void loadFile(const QString &file, bool updateLastPlayedFile = true);
     Q_INVOKABLE void addFileToPlaylist(const QString &file);
@@ -404,6 +413,7 @@ Q_SIGNALS:
     void speedChanged();
     void volumeChanged();
     void volumeUpdate(int);
+    void muteChanged();
     void pauseChanged();
     void autoPlayChanged();
     void chapterChanged();

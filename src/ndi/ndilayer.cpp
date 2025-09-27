@@ -35,12 +35,12 @@ static int paNDIAudioCallback(const void*, void* outputBuffer,
 
 NdiFinder* NdiFinder::_instance = nullptr;
 
-NdiFinder::NdiFinder() : m_NDIreceiver(new ofxNDIreceive()) {
-    m_NDIreceiver->CreateFinder();
+NdiFinder::NdiFinder() {
+    m_NDIreceiver.CreateFinder();
 }
 
 NdiFinder::~NdiFinder() {
-    delete m_NDIreceiver;
+    m_NDIreceiver.ReleaseFinder();
 }
 
 void NdiFinder::destroy() {
@@ -58,33 +58,25 @@ NdiFinder& NdiFinder::instance() {
 }
 
 int NdiFinder::findSenders() {
-    return m_NDIreceiver->FindSenders();
+    return m_NDIreceiver.FindSenders();
 }
 
 std::vector<std::string> NdiFinder::getSendersList() {
-    return m_NDIreceiver->GetSenderList();
+    return m_NDIreceiver.GetSenderList();
 }
 
 bool NdiFinder::senderExists(std::string senderName) {
     int senderIdx;
-    return m_NDIreceiver->GetSenderIndex(senderName, senderIdx);
+    return m_NDIreceiver.GetSenderIndex(senderName, senderIdx);
 }
 
 std::string NdiFinder::getNDIVersionString() {
-    return m_NDIreceiver->GetNDIversion();
+    return m_NDIreceiver.GetNDIversion();
 }
 
 NdiLayer::NdiLayer() {
     setType(BaseLayer::LayerType::NDI);
     NDIreceiver.ResetFps(30.0);
-
-    // Only recevie audio on master
-    if (isMaster()) {
-        NDIreceiver.SetAudio(true, true);
-    }
-    else {
-        NDIreceiver.SetAudio(false);
-    }
 
     // =======================================
     // Set to prefer BGRA
@@ -94,7 +86,7 @@ NdiLayer::NdiLayer() {
 }
 
 NdiLayer::~NdiLayer() {
-    if (isMaster() && m_recevieAudio) {
+    if (isAudioEnabled() && m_recevieAudio) {
         NDIreceiver.SetAudio(false);
         if (m_audioStreamOpen) {
             m_audioError = Pa_CloseStream(m_audioStream);
@@ -105,9 +97,7 @@ NdiLayer::~NdiLayer() {
         Pa_Terminate();
     }
 
-    if (!OpenReceiver()) {
-        NDIreceiver.ReleaseReceiver();
-    }
+    NDIreceiver.ReleaseReceiver();
 
     if (m_pbo[0]) {
         glDeleteBuffers(2, m_pbo);
@@ -123,7 +113,7 @@ void NdiLayer::initialize() {
     NDIreceiver.SetSenderName(filepath());
 
     // Only recevie audio on master
-    if (isMaster()) {
+    if (isAudioEnabled()) {
         m_audioError = Pa_Initialize();
         if (m_audioError != paNoError) {
             NDIreceiver.SetAudio(false);
@@ -168,6 +158,9 @@ void NdiLayer::update(bool updateRendering) {
         m_isReady = true;
     }
 
+    if (!updateRendering)
+        return;
+
     // Let's recieve image or audio
     if (m_isReady) {
         ReceiveData(updateRendering);
@@ -179,7 +172,7 @@ bool NdiLayer::ready() const {
 }
 
 void NdiLayer::start() {
-    if (isMaster() && m_audioStream && m_audioStreamOpen) {
+    if (isAudioEnabled() && m_audioStream && m_audioStreamOpen) {
         m_audioError = Pa_StartStream(m_audioStream);
         if (m_audioError == paNoError) {
             m_audioStreamStarted = true;
@@ -188,7 +181,7 @@ void NdiLayer::start() {
 }
 
 void NdiLayer::stop() {
-    if (isMaster() && m_audioStream && m_audioStreamOpen && m_audioStreamStarted) {
+    if (isAudioEnabled() && m_audioStream && m_audioStreamOpen && m_audioStreamStarted) {
         m_audioError = Pa_StopStream(m_audioStream);
         if (m_audioError == paNoError) {
             m_audioStreamStarted = false;
@@ -196,12 +189,20 @@ void NdiLayer::stop() {
     }
 }
 
-bool NdiLayer::hasAudio() {
-    return isMaster();
+bool NdiLayer::hasAudio() const {
+    return isAudioEnabled();
+}
+
+bool NdiLayer::isAudioEnabled() const {
+    return m_isAudioEnabled;
+}
+
+void NdiLayer::enableAudio(bool enabled) {
+    m_isAudioEnabled = enabled;
 }
 
 void NdiLayer::updateAudioOutput() {
-    if (isMaster()) {
+    if (isAudioEnabled()) {
         //See if device has changed
         PaDeviceIndex currentDeviceIdx = m_audioOutputParameters.device;
         PaDeviceIndex newDeviceIdx = GetChosenApplicationAudioDevice();
@@ -244,7 +245,7 @@ void NdiLayer::setVolume(int v, bool storeLevel) {
         m_volume = v;
     }
 
-    if (isMaster()) {
+    if (isAudioEnabled()) {
         NDIreceiver.SetAudioVolume(static_cast<float>(v) / 100.f);
     }
 }
@@ -257,39 +258,23 @@ bool NdiLayer::ReceiveData(bool updateRendering) {
 
     // If we have opened an audio stream already, let's only capture image here
     // Audio is captured in separate callback
-    // Or if we are a node, we do not need to capture audio anyway...
+    bool receviedAudio = false;
+    bool receviedImage = false;
     if (updateRendering && (!isMaster() || (m_audioStreamOpen && m_recevieAudioThroughCallback))) {
-        bool receviedImage = false;
-
         if (m_hasCapturedImage || NDIreceiver.FrameSyncOn()) { // We can start using frame sync now
             receviedImage = NDIreceiver.ReceiveImageOnlyFrameSync(width, height);
         }
         else {
             receviedImage = NDIreceiver.ReceiveImageOnly(width, height);
-        }
-
-        if (receviedImage) {
-            // Check for changed sender dimensions
-            if (width != (unsigned int)renderData.width || height != (unsigned int)renderData.height) {
-                if (renderData.width > 0)
-                    glDeleteTextures(1, &renderData.texId);
-
-                GenerateTexture(renderData.texId, width, height);
-
-                renderData.width = (int)width;
-                renderData.height = (int)height;
+            if (isAudioEnabled()) {
+                receviedAudio = NDIreceiver.ReceiveAudioOnly();
             }
-            // Get NDI pixel data from the video frame
-            return GetPixelData(renderData.texId, width, height);
         }
     }
     else if (isMaster()) { // Still want to run som passes here to start capturing of audio.
         // If updateRendering is Off, and audio stream already open we do not need to continue here
         if (!updateRendering && m_audioStreamOpen)
             return false;
-
-        bool receviedImage = false;
-        bool receviedAudio = false;
 
         if (updateRendering) {
             //Receving both image and audio here
@@ -301,35 +286,36 @@ bool NdiLayer::ReceiveData(bool updateRendering) {
         else if (isMaster()) {
             receviedAudio = NDIreceiver.ReceiveAudioOnly();
         }
+    }
 
-        if (receviedImage) {
-            // Check for changed sender dimensions
-            if (width != (unsigned int)renderData.width || height != (unsigned int)renderData.height) {
-                if (renderData.width > 0)
-                    glDeleteTextures(1, &renderData.texId);
+    if (receviedImage) {
+        // Check for changed sender dimensions
+        if (width != (unsigned int)renderData.width || height != (unsigned int)renderData.height) {
+            if (renderData.width > 0)
+                glDeleteTextures(1, &renderData.texId);
 
-                GenerateTexture(renderData.texId, width, height);
+            GenerateTexture(renderData.texId, width, height);
 
-                renderData.width = (int)width;
-                renderData.height = (int)height;
-            }
-            // Get NDI pixel data from the video frame
-            return GetPixelData(renderData.texId, width, height);
+            renderData.width = (int)width;
+            renderData.height = (int)height;
         }
-        else if (receviedAudio) {
-            if (!m_audioStreamOpen) {
-                StartAudioStream();
-            }
+        // Get NDI pixel data from the video frame
+        return GetPixelData(renderData.texId, width, height);
+    }
 
-            if (!m_recevieAudioThroughCallback && m_audioStreamOpen && m_audioStreamStarted) {
-                m_audioError = Pa_WriteStream(m_audioStream, NDIreceiver.GetAudioInterleaved(), NDIreceiver.GetAudioSamples());
-                if (m_audioError != paNoError) {
-                    sgct::Log::Error("NdiLayer Error: audio stream error");
-                }
-            }
-
-            return true;
+    if (receviedAudio || (!isMaster() && isAudioEnabled())) {
+        if (!m_audioStreamOpen) {
+            StartAudioStream();
         }
+
+        if (!m_recevieAudioThroughCallback && m_audioStreamOpen && m_audioStreamStarted) {
+            m_audioError = Pa_WriteStream(m_audioStream, NDIreceiver.GetAudioInterleaved(), NDIreceiver.GetAudioSamples());
+            if (m_audioError != paNoError) {
+                sgct::Log::Error("NdiLayer Error: audio stream error");
+            }
+        }
+
+        return true;
     }
 
     return false;

@@ -176,7 +176,7 @@ public:
 	// The received audio frame is held in ofxReceive class.
 	// Use the audio frame data pointer externally with GetAudioData()
 	// For success, the audio frame must be freed with FreeAudioData().
-	void* ReceiveAudioOnlyFrameSync(int framesToCapture);
+	void* ReceiveAudioOnlyFrameSync(int framesToCapture = 0);
 
 	// Return if frame sync is on or off currently
 	bool FrameSyncOn();

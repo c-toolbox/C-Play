@@ -59,7 +59,7 @@ void on_mpv_events(MpvLayer::mpvData &vd, BaseLayer::RenderParams &rp) {
         }
         switch (event->event_id) {
         case MPV_EVENT_FILE_LOADED: {
-            if (vd.isMaster) {
+            if (vd.audioEnabled) {
                 loadTracks(vd);
                 loadAudioId(vd);
                 mpv::qt::set_property(vd.handle, QStringLiteral("volume"), vd.volume, vd.loggingOn);
@@ -189,7 +189,7 @@ void initMPV(MpvLayer::mpvData& vd) {
     }
 
     // Only audio on master for now
-    if (vd.isMaster) {
+    if (vd.audioEnabled) {
         mpv::qt::set_property(vd.handle, QStringLiteral("aid"), QStringLiteral("auto"), vd.loggingOn);
         mpv::qt::set_property(vd.handle, QStringLiteral("volume-max"), QStringLiteral("100"), vd.loggingOn);
     }
@@ -330,6 +330,13 @@ void MpvLayer::update(bool updateRendering) {
             setTimePause(m_data.mediaShouldPause, false);
             setTimePosition(m_data.timeToSet, m_data.timeIsDirty);
             m_data.timeIsDirty = false;
+            if (m_data.typePropertiesDecode) {
+                enableAudio(m_data.audioEnabled_Dec);
+                setAudioId(m_data.audioId_Dec);
+                setVolume(m_data.volume_Dec);
+                setVolumeMute(m_data.volumeMute_Dec);
+                m_data.typePropertiesDecode = false;
+            }
         }
 
         if (updateRendering) {
@@ -391,7 +398,7 @@ double MpvLayer::remaining() {
         return 0.0;
 }
 
-bool MpvLayer::hasAudio() {
+bool MpvLayer::hasAudio() const {
     return !m_data.audioTracks.empty();
 }
 
@@ -410,6 +417,26 @@ void MpvLayer::setAudioId(int value) {
     m_data.audioId = value;
     if (m_data.handle && !m_data.loadedFile.empty()) {
         loadAudioId(m_data);
+    }
+
+    if (isMaster() && AudioSettings::enableAudioOnNodes())
+        setNeedSync();
+}
+
+void MpvLayer::enableAudio(bool enabled) {
+    if (m_data.audioEnabled == enabled)
+        return;
+    m_data.audioEnabled = enabled;
+
+    if (!m_data.mpvInitialized)
+        return;
+
+    if (enabled) {
+        mpv::qt::set_property(m_data.handle, QStringLiteral("aid"), QStringLiteral("auto"), m_data.loggingOn);
+        mpv::qt::set_property(m_data.handle, QStringLiteral("volume-max"), QStringLiteral("100"), m_data.loggingOn);
+    }
+    else {
+        mpv::qt::set_property(m_data.handle, QStringLiteral("aid"), QStringLiteral("no"), m_data.loggingOn);
     }
 }
 
@@ -442,11 +469,31 @@ void MpvLayer::setVolume(int v, bool storeLevel) {
         m_volume = v;
     }
 
+    if (m_data.volume == v)
+        return;
+
     m_data.volume = v;
 
-    if (isMaster() && m_data.mpvInitialized) {
+    if (m_data.mpvInitialized) {
         mpv::qt::set_property(m_data.handle, QStringLiteral("volume"), v, m_data.loggingOn);
     }
+
+    if (isMaster() && AudioSettings::enableAudioOnNodes())
+        setNeedSync();
+}
+
+void MpvLayer::setVolumeMute(bool v) {
+    if (m_data.volumeMute == v)
+        return;
+
+    m_data.volumeMute = v;
+
+    if (m_data.mpvInitialized) {
+        mpv::qt::set_property(m_data.handle, QStringLiteral("mute"), v, m_data.loggingOn);
+    }
+
+    if (isMaster() && AudioSettings::enableAudioOnNodes())
+        setNeedSync();
 }
 
 void MpvLayer::encodeTypeAlways(std::vector<std::byte>& data) {
@@ -465,6 +512,25 @@ void MpvLayer::decodeTypeAlways(const std::vector<std::byte>& data, unsigned int
     sgct::deserializeObject(data, pos, m_data.mediaShouldPause);
     sgct::deserializeObject(data, pos, m_data.timeToSet);
     sgct::deserializeObject(data, pos, m_data.timeIsDirty);
+}
+
+void MpvLayer::encodeTypeProperties(std::vector<std::byte>& data) {
+    sgct::serializeObject(data, AudioSettings::enableAudioOnNodes());
+    if (AudioSettings::enableAudioOnNodes()) {
+        sgct::serializeObject(data, m_data.audioId);
+        sgct::serializeObject(data, m_data.volume);
+        sgct::serializeObject(data, m_data.volumeMute);
+    }
+}
+
+void MpvLayer::decodeTypeProperties(const std::vector<std::byte>& data, unsigned int& pos) {
+    sgct::deserializeObject(data, pos, m_data.audioEnabled_Dec);
+    if (m_data.audioEnabled_Dec) {
+        sgct::deserializeObject(data, pos, m_data.audioId_Dec);
+        sgct::deserializeObject(data, pos, m_data.volume_Dec);
+        sgct::deserializeObject(data, pos, m_data.volumeMute_Dec);
+    }
+    m_data.typePropertiesDecode = true;
 }
 
 void MpvLayer::loadFile(std::string filePath, bool reload) {

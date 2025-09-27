@@ -19,6 +19,9 @@
     <entry name="LoadAudioFileInVideoFolder" type="bool">
       <default>true</default>
     </entry>
+    <entry name="EnableAudioOnNodes" type="bool">
+      <default>false</default>
+    </entry>
     <entry name="UseCustomAudioOutput" type="bool">
       <default>false</default>
     </entry>

@@ -117,12 +117,17 @@ public:
     virtual double duration();
     virtual double remaining();
 
-    virtual bool hasAudio();
+    virtual bool hasAudio() const;
     virtual int audioId();
     virtual void setAudioId(int id);
+    virtual bool isAudioEnabled() const;
+    virtual void enableAudio(bool enabled = true);
     virtual std::vector<Track>* audioTracks();
     virtual void updateAudioOutput();
     virtual void setVolume(int v, bool storeLevel = true);
+    virtual void setVolumeMute(bool v);
+
+    virtual bool existOnMasterOnly() const;
 
     virtual void setEOFMode(int eofMode);
     virtual void setTimePause(bool paused, bool updateTime = true);
@@ -159,7 +164,6 @@ public:
     bool hasInitialized() const;
 
     bool isMaster() const;
-    bool existOnMasterOnly() const;
     uint32_t identifier() const;
 
     bool needSync() const;

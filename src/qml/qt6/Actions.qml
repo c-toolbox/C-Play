@@ -167,8 +167,8 @@ QtObject {
         Component.onCompleted: list["muteAction"] = muteAction
         function updateShortcuts() { shortcut = root.isPrimary ? qaction.shortcutName() : qaction.alternateName() }
         onTriggered: {
-            mpv.setProperty("mute", !mpv.getProperty("mute"));
-            if (mpv.getProperty("mute")) {
+            mpv.mute = !mpv.mute;
+            if (mpv.mute) {
                 text = qsTr("Unmute");
                 icon.name = "player-volume-muted";
             } else {

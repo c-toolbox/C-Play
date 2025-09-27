@@ -11,6 +11,7 @@
 #include <layers/audiolayer.h>
 #include <sgct/opengl.h>
 #include <sgct/shareddata.h>
+#include "audiosettings.h"
 #include "presentationsettings.h"
 #ifdef MDK_SUPPORT
 #include <layers/adaptivevideolayer.h>
@@ -138,6 +139,9 @@ BaseLayer *BaseLayer::createLayer(bool isMaster, int layerType, gl_adress_func_v
 
     if (newLayer) {
         newLayer->setIsMaster(isMaster);
+        if (isMaster || AudioSettings::enableAudioOnNodes()) {
+            newLayer->enableAudio(true);
+        }
         if (numID != 0)
             newLayer->setIdentifier(numID);
         else
@@ -235,7 +239,7 @@ double BaseLayer::remaining() {
     // Overwrite in derived class
 }
 
-bool BaseLayer::hasAudio() {
+bool BaseLayer::hasAudio() const {
     return false;
 }
 
@@ -244,7 +248,16 @@ int BaseLayer::audioId() {
 }
 
 void BaseLayer::setAudioId(int) {
-    
+    // Overwrite in derived class
+}
+
+bool BaseLayer::isAudioEnabled() const {
+    // Overwrite in derived class
+    return isMaster(); // always support audio on master
+}
+
+void BaseLayer::enableAudio(bool) {
+    // Overwrite in derived class
 }
 
 std::vector<Track>* BaseLayer::audioTracks() {
@@ -258,6 +271,15 @@ void BaseLayer::updateAudioOutput() {
 
 void BaseLayer::setVolume(int, bool) {
     // Overwrite in derived class
+}
+
+void BaseLayer::setVolumeMute(bool) {
+    // Overwrite in derived class
+}
+
+bool BaseLayer::existOnMasterOnly() const {
+    // Overwrite in derived class
+    return m_existOnMasterOnly;
 }
 
 void BaseLayer::setEOFMode(int) {
@@ -424,10 +446,6 @@ bool BaseLayer::hasInitialized() const {
 
 bool BaseLayer::isMaster() const {
     return m_isMaster;
-}
-
-bool BaseLayer::existOnMasterOnly() const {
-    return m_existOnMasterOnly;
 }
 
 uint32_t BaseLayer::identifier() const {

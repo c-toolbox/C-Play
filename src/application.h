@@ -239,6 +239,10 @@ public:
         bool bgImageFileDirty;
         bool fgImageFileDirty;
         bool paused;
+        bool enableAudioOnNodes;
+        int audioId;
+        int volume;
+        bool volumeMute;
         double timePosition;
         double timeThreshold;
         bool timeThresholdEnabled;
@@ -308,6 +312,10 @@ public:
         /*bgImageFileDirty*/ false,
         /*fgImageFileDirty*/ false,
         /*paused*/ false,
+        /*enableAudioOnNodes*/ false,
+        /*audioId*/ -1,
+        /*volume*/ 0,
+        /*volumeMute*/ false,
         /*timePosition*/ 0.0,
         /*timeThreshold*/ 1.0,
         /*timeThresholdEnabled*/ false,
