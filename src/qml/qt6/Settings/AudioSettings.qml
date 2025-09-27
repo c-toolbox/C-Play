@@ -26,7 +26,7 @@ SettingsBasePage {
         SettingsHeader {
             Layout.columnSpan: 3
             Layout.fillWidth: true
-            text: qsTr("Audio settings (for media files)")
+            text: qsTr("Audio settings")
         }
         Item {
             Layout.columnSpan: 3
@@ -34,6 +34,166 @@ SettingsBasePage {
             Layout.fillWidth: true
         }
 
+        Label {
+            Layout.alignment: Qt.AlignRight
+            text: qsTr("Enable audio on:")
+        }
+        RowLayout{
+            Item {
+                height: 1
+                width: 10
+            }
+            CheckBox {
+                id: enableAudioOnMasterCheckbox
+
+                checked: AudioSettings.enableAudioOnMaster
+                enabled: true
+                text: qsTr("Master")
+
+                onCheckedChanged: {
+                    if(!checked){
+                        mpv.setProperty("mute", true);
+                    }
+                    AudioSettings.enableAudioOnMaster = checked;
+                    AudioSettings.save();
+                    app.slides.runUpdateAudioOutputOnLayers();
+                    if(checked){
+                        mpv.setProperty("mute", false);
+                    }
+                }
+            }
+            Item {
+                height: 1
+                width: 10
+            }
+            CheckBox {
+                id: enableAudioOnNodesCheckbox
+
+                checked: AudioSettings.enableAudioOnNodes
+                enabled: true
+                text: qsTr("Nodes / Clients")
+
+                onCheckedChanged: {
+                    AudioSettings.enableAudioOnNodes = checked;
+                    AudioSettings.save();
+                    mpv.enableAudioOnNodes(checked);
+                }
+            }
+            Item {
+                height: 1
+                width: 10
+            }
+            Label {
+                visible: NDI_SUPPORT
+                Layout.alignment: Qt.AlignLeft
+                font.italic: true
+                text: qsTr("Requires restart to work with NDI")
+            }
+        }
+        Item {
+            // spacer item
+            Layout.fillWidth: true
+        }
+
+        Item {
+            Layout.columnSpan: 3
+            Layout.fillWidth: true
+            // spacer item
+            height: 10
+        }
+        Label {
+            Layout.alignment: Qt.AlignRight
+            text: qsTr("Volume at startup:")
+        }
+        SpinBox {
+            editable: true
+            from: 0
+            to: 100
+            value: AudioSettings.volume
+
+            onValueChanged: {
+                AudioSettings.volume = value.toFixed(0);
+                AudioSettings.save();
+            }
+        }
+        Item {
+            // spacer item
+            Layout.fillWidth: true
+        }
+
+        // Volume Step
+        Label {
+            Layout.alignment: Qt.AlignRight
+            text: qsTr("Volume step:")
+        }
+        Item {
+            height: volumeStep.height
+
+            SpinBox {
+                id: volumeStep
+
+                editable: true
+                from: 0
+                to: 100
+                value: AudioSettings.volumeStep
+
+                onValueChanged: {
+                    if (root.visible) {
+                        AudioSettings.volumeStep = volumeStep.value;
+                        AudioSettings.save();
+                    }
+                }
+            }
+        }
+        Item {
+            // spacer item
+            Layout.fillWidth: true
+        }
+
+        SettingsHeader {
+            Layout.columnSpan: 3
+            Layout.fillWidth: true
+            text: qsTr("Audio settings for media files")
+            level: 4
+        }
+        Item {
+            Layout.columnSpan: 3
+            // spacer item
+            Layout.fillWidth: true
+        }
+
+        Item {
+            height: 1
+            width: 1
+        }
+        CheckBox {
+            id: loadAudioFilesInVideoFolder
+
+            checked: AudioSettings.loadAudioFileInVideoFolder
+            enabled: true
+            text: qsTr("Load audio files in same folder as video file.")
+
+            onCheckedChanged: {
+                AudioSettings.loadAudioFileInVideoFolder = checked;
+                AudioSettings.save();
+                if (checked) {
+                    mpv.setProperty("audio-file-auto", "all");
+                } else {
+                    mpv.setProperty("audio-file-auto", "no");
+                }
+            }
+        }
+        Item {
+            // spacer item
+            Layout.fillWidth: true
+        }
+
+        Item {
+            Layout.columnSpan: 3
+            Layout.fillWidth: true
+            // spacer item
+            height: 10
+        }
         Item {
             height: 1
             width: 1
@@ -165,120 +325,12 @@ SettingsBasePage {
             }
             Layout.columnSpan: 2
         }
-
+        
         Item {
             Layout.columnSpan: 3
             Layout.fillWidth: true
             // spacer item
             height: 10
-        }
-        Item {
-            height: 1
-            width: 1
-        }
-        CheckBox {
-            id: loadAudioFilesInVideoFolder
-
-            checked: AudioSettings.loadAudioFileInVideoFolder
-            enabled: true
-            text: qsTr("Load audio files in same folder as video file.")
-
-            onCheckedChanged: {
-                AudioSettings.loadAudioFileInVideoFolder = checked;
-                AudioSettings.save();
-                if (checked) {
-                    mpv.setProperty("audio-file-auto", "all");
-                } else {
-                    mpv.setProperty("audio-file-auto", "no");
-                }
-            }
-        }
-        Item {
-            // spacer item
-            Layout.fillWidth: true
-        }
-
-        Item {
-            Layout.columnSpan: 3
-            Layout.fillWidth: true
-            // spacer item
-            height: 10
-        }
-        Item {
-            height: 1
-            width: 1
-        }
-        CheckBox {
-            id: enableAudioOnNodesCheckbox
-
-            checked: AudioSettings.enableAudioOnNodes
-            enabled: true
-            text: qsTr("Enable audio on nodes for playback.")
-
-            onCheckedChanged: {
-                AudioSettings.enableAudioOnNodes = checked;
-                AudioSettings.save();
-                mpv.enableAudioOnNodes(checked);
-            }
-        }
-        Item {
-            // spacer item
-            Layout.fillWidth: true
-        }
-
-        Item {
-            Layout.columnSpan: 3
-            Layout.fillWidth: true
-            // spacer item
-            height: 10
-        }
-        Label {
-            Layout.alignment: Qt.AlignRight
-            text: qsTr("Volume at startup:")
-        }
-        SpinBox {
-            editable: true
-            from: 0
-            to: 100
-            value: AudioSettings.volume
-
-            onValueChanged: {
-                AudioSettings.volume = value.toFixed(0);
-                AudioSettings.save();
-            }
-        }
-        Item {
-            // spacer item
-            Layout.fillWidth: true
-        }
-
-        // Volume Step
-        Label {
-            Layout.alignment: Qt.AlignRight
-            text: qsTr("Volume step:")
-        }
-        Item {
-            height: volumeStep.height
-
-            SpinBox {
-                id: volumeStep
-
-                editable: true
-                from: 0
-                to: 100
-                value: AudioSettings.volumeStep
-
-                onValueChanged: {
-                    if (root.visible) {
-                        AudioSettings.volumeStep = volumeStep.value;
-                        AudioSettings.save();
-                    }
-                }
-            }
-        }
-        Item {
-            // spacer item
-            Layout.fillWidth: true
         }
         Label {
             Layout.alignment: Qt.AlignRight
@@ -331,7 +383,8 @@ SettingsBasePage {
             visible: NDI_SUPPORT
             Layout.columnSpan: 3
             Layout.fillWidth: true
-            text: qsTr("Audio settings (for NDI)")
+            text: qsTr("Audio settings for NDI playback")
+            level: 4
         }
         Item {
             visible: NDI_SUPPORT

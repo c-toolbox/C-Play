@@ -130,6 +130,11 @@ void NdiLayer::initialize() {
 }
 
 void NdiLayer::update(bool updateRendering) {
+    if (m_typePropertiesDecoded) {
+        m_typePropertiesDecoded = false;
+        setVolume(m_volume_Dec);
+    }
+
     // Check sender amount
     int senders = NdiFinder::instance().findSenders();
     if (senders < 1) {
@@ -190,7 +195,7 @@ void NdiLayer::stop() {
 }
 
 bool NdiLayer::hasAudio() const {
-    return isAudioEnabled();
+    return (isAudioEnabled() || (isMaster() && AudioSettings::enableAudioOnNodes()));
 }
 
 bool NdiLayer::isAudioEnabled() const {
@@ -202,6 +207,14 @@ void NdiLayer::enableAudio(bool enabled) {
 }
 
 void NdiLayer::updateAudioOutput() {
+    if (isMaster()) {
+        if (!m_isAudioEnabled && AudioSettings::enableAudioOnMaster()) {
+            enableAudio(true);
+        }
+        else if (m_isAudioEnabled && !AudioSettings::enableAudioOnMaster()) {
+            enableAudio(false);
+        }
+    }
     if (isAudioEnabled()) {
         //See if device has changed
         PaDeviceIndex currentDeviceIdx = m_audioOutputParameters.device;
@@ -246,8 +259,21 @@ void NdiLayer::setVolume(int v, bool storeLevel) {
     }
 
     if (isAudioEnabled()) {
+        m_volume_Dec = v;
         NDIreceiver.SetAudioVolume(static_cast<float>(v) / 100.f);
     }
+
+    if (isMaster() && AudioSettings::enableAudioOnNodes())
+        setNeedSync();
+}
+
+void NdiLayer::encodeTypeProperties(std::vector<std::byte>& data) {
+    sgct::serializeObject(data, m_volume_Dec);
+}
+
+void NdiLayer::decodeTypeProperties(const std::vector<std::byte>& data, unsigned int& pos) {
+    sgct::deserializeObject(data, pos, m_volume_Dec);
+    m_typePropertiesDecoded = true;
 }
 
 // Receive ofTexture

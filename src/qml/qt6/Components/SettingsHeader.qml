@@ -14,6 +14,7 @@ ColumnLayout {
     id: root
 
     property string text: ""
+    property int level: 1
     property int topMargin: Kirigami.Units.gridUnit
 
     spacing: 0
@@ -31,6 +32,7 @@ ColumnLayout {
         }
         Kirigami.Heading {
             text: root.text
+            level: root.level
         }
         Rectangle {
             Layout.fillWidth: true

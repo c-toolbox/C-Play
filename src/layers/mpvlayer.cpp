@@ -461,6 +461,14 @@ void MpvLayer::updateAudioOutput() {
                 mpv::qt::set_property(m_data.handle, QStringLiteral("ao"), AudioSettings::preferredAudioOutputDriver(), m_data.loggingOn);
             }
         }
+        if (isMaster()) {
+            if (m_data.audioEnabled && AudioSettings::enableAudioOnMaster()) {
+                mpv::qt::set_property(m_data.handle, QStringLiteral("mute"), false, m_data.loggingOn);
+            }
+            else if (m_data.audioEnabled && !AudioSettings::enableAudioOnMaster()) {
+                mpv::qt::set_property(m_data.handle, QStringLiteral("mute"), true, m_data.loggingOn);
+            }
+        }
     }
 }
 
@@ -489,7 +497,12 @@ void MpvLayer::setVolumeMute(bool v) {
     m_data.volumeMute = v;
 
     if (m_data.mpvInitialized) {
-        mpv::qt::set_property(m_data.handle, QStringLiteral("mute"), v, m_data.loggingOn);
+        if (isMaster() && AudioSettings::enableAudioOnMaster()) {
+            mpv::qt::set_property(m_data.handle, QStringLiteral("mute"), v, m_data.loggingOn);
+        }
+        if (!isMaster() && AudioSettings::enableAudioOnNodes()) {
+            mpv::qt::set_property(m_data.handle, QStringLiteral("mute"), v, m_data.loggingOn);
+        }
     }
 
     if (isMaster() && AudioSettings::enableAudioOnNodes())

@@ -139,7 +139,7 @@ BaseLayer *BaseLayer::createLayer(bool isMaster, int layerType, gl_adress_func_v
 
     if (newLayer) {
         newLayer->setIsMaster(isMaster);
-        if (isMaster || AudioSettings::enableAudioOnNodes()) {
+        if (AudioSettings::enableAudioOnMaster() || AudioSettings::enableAudioOnNodes()) {
             newLayer->enableAudio(true);
         }
         if (numID != 0)

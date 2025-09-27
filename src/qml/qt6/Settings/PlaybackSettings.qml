@@ -278,6 +278,7 @@ SettingsBasePage {
             Layout.columnSpan: 2
             Layout.fillWidth: true
             text: qsTr("Loaded MPV configuration")
+            level: 4
         }
         Label {
             text: qsTr("Configuration from external files:")

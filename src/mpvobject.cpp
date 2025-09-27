@@ -156,6 +156,9 @@ MpvObject::MpvObject(QQuickItem *parent)
     setProperty(QStringLiteral("screenshot-template"), LocationSettings::screenshotTemplate());
     setProperty(QStringLiteral("volume-max"), QStringLiteral("100"));
     setProperty(QStringLiteral("keep-open"), QStringLiteral("yes"));
+    if (!AudioSettings::enableAudioOnMaster()) {
+        setProperty(QStringLiteral("mute"), true);
+    }
     enableAudioOnNodes(AudioSettings::enableAudioOnNodes());
 
     setStereoscopicMode(ImageSettings::stereoModeForBackground());
@@ -378,16 +381,28 @@ void MpvObject::setVolume(int value) {
 }
 
 bool MpvObject::mute() {
-    return getProperty(QStringLiteral("mute")).toBool();
+    if (AudioSettings::enableAudioOnMaster()) {
+        return getProperty(QStringLiteral("mute")).toBool();
+    }
+    else if (AudioSettings::enableAudioOnNodes()) {
+        return SyncHelper::instance().variables.volumeMute;
+    }
+    return true;
 }
 
 void MpvObject::setMute(bool value) {
     if (value == mute()) {
         return;
     }
-    setProperty(QStringLiteral("mute"), value);
-    SyncHelper::instance().variables.volumeMute = value;
-    Q_EMIT muteChanged();
+    if (AudioSettings::enableAudioOnMaster()) {
+        setProperty(QStringLiteral("mute"), value);
+    }
+    if (AudioSettings::enableAudioOnNodes()) {
+        SyncHelper::instance().variables.volumeMute = value;
+    }
+    if (AudioSettings::enableAudioOnMaster() || AudioSettings::enableAudioOnNodes()) {
+        Q_EMIT muteChanged();
+    }
 }
 
 int MpvObject::chapter() {

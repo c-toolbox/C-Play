@@ -265,12 +265,9 @@ ofxNDIreceive::ofxNDIreceive()
 ofxNDIreceive::~ofxNDIreceive()
 {
 	FreeAudioData();
-	if(pNDI_framesync)
-		NDIlib_framesync_destroy(pNDI_framesync);
-	if(pNDI_recv)
-		NDIlib_recv_destroy(pNDI_recv);
-	if(pNDI_find)
-		NDIlib_find_destroy(pNDI_find);
+	if (m_frameSyncOn) NDIlib_framesync_destroy(pNDI_framesync);
+	if (p_NDILib && pNDI_recv) p_NDILib->recv_destroy(pNDI_recv);
+	if (p_NDILib && pNDI_find) p_NDILib->find_destroy(pNDI_find);
 	// Library is released in ofxNDIdynloader
 }
 
@@ -280,8 +277,7 @@ void ofxNDIreceive::CreateFinder()
 {
 	if(!bNDIinitialized) return;
 
-	if(pNDI_find)
-		NDIlib_find_destroy(pNDI_find);
+	if (pNDI_find) p_NDILib->find_destroy(pNDI_find);
 
 	const NDIlib_find_create_t NDI_find_create_desc = { true, NULL, NULL }; // Version 2
 	pNDI_find = p_NDILib->find_create_v2(&NDI_find_create_desc);
@@ -295,8 +291,7 @@ void ofxNDIreceive::ReleaseFinder()
 {
 	if(!bNDIinitialized) return;
 
-	if (pNDI_find)
-		NDIlib_find_destroy(pNDI_find);
+	if (pNDI_find) p_NDILib->find_destroy(pNDI_find);
 
 	pNDI_find = nullptr;
 	p_sources = nullptr;
@@ -952,7 +947,7 @@ void ofxNDIreceive::ReleaseReceiver()
 {
 	if(!bNDIinitialized) return;
 
-	NDIlib_recv_destroy(pNDI_recv);
+	if (pNDI_recv) p_NDILib->recv_destroy(pNDI_recv);
 
 	m_Width = 0;
 	m_Height = 0;

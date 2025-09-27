@@ -51,6 +51,9 @@ public:
     void updateAudioOutput();
     void setVolume(int v, bool storeLevel = true);
 
+    void encodeTypeProperties(std::vector<std::byte>& data);
+    void decodeTypeProperties(const std::vector<std::byte>& data, unsigned int& pos);
+
 private:
     bool ReceiveData(bool updateRendering);
     bool OpenReceiver();
@@ -77,6 +80,8 @@ private:
     bool m_hasCapturedImage = false;
     bool m_isReady = false;
     bool m_isAudioEnabled = false;
+    bool m_typePropertiesDecoded = false;
+    int m_volume_Dec = 100;
 };
 
 #endif // NDILAYER_H
