@@ -258,32 +258,41 @@ int LayersModel::addLayer(QString title, int type, QString filepath, int stereoM
     return m_layers.size() - 1;
 }
 
-int LayersModel::addLayerBasedOnExt(QUrl fileUrl) {
+int LayersModel::getLayerTypeBasedOnMime(QUrl fileUrl) {
     QMimeDatabase db;
     QMimeType type = db.mimeTypeForUrl(fileUrl);
     QString typeName = type.name();
-    QString filePath = fileUrl.toLocalFile();
-    if (filePath.isEmpty())
-        return -1;
-    QFileInfo fileInfo(filePath);
-    QString baseName = fileInfo.baseName();
+
     if (typeName.startsWith(QStringLiteral("video/"))) {
-        return addLayer(baseName, BaseLayer::LayerType::VIDEO, filePath, ImageSettings::stereoModeForBackground(), ImageSettings::gridToMapOnForBackground());
+        return BaseLayer::LayerType::VIDEO;
     }
     else if (typeName.startsWith(QStringLiteral("audio/"))) {
-        return addLayer(baseName, BaseLayer::LayerType::AUDIO, filePath, ImageSettings::stereoModeForBackground(), ImageSettings::gridToMapOnForBackground());
+        return BaseLayer::LayerType::AUDIO;
     }
-    else if (typeName == QStringLiteral("image/png") 
-        || typeName == QStringLiteral("image/jpeg") 
+    else if (typeName == QStringLiteral("image/png")
+        || typeName == QStringLiteral("image/jpeg")
         || typeName == QStringLiteral("image/tga")) {
-        return addLayer(baseName, BaseLayer::LayerType::IMAGE, filePath, ImageSettings::stereoModeForBackground(), ImageSettings::gridToMapOnForBackground());
+        return BaseLayer::LayerType::IMAGE;
     }
     else if (typeName == QStringLiteral("application/pdf")) {
 #ifdef PDF_SUPPORT
-        return addLayer(baseName, BaseLayer::LayerType::PDF, filePath, ImageSettings::stereoModeForBackground(), ImageSettings::gridToMapOnForBackground());
+        return BaseLayer::LayerType::PDF;
 #endif // PDF_SUPPORT
     }
-    return -1;
+    return BaseLayer::LayerType::INVALID;
+}
+
+int LayersModel::addLayerBasedOnMime(QUrl fileUrl) {
+    int type = getLayerTypeBasedOnMime(fileUrl);
+    if (type == BaseLayer::LayerType::INVALID)
+        return -1;
+
+    QString filePath = fileUrl.toLocalFile();
+    if (filePath.isEmpty())
+        return -1;
+
+    QFileInfo fileInfo(filePath);
+    return addLayer(fileInfo.baseName(), type, filePath, ImageSettings::stereoModeForBackground(), ImageSettings::gridToMapOnForBackground());
 }
 
 void LayersModel::removeLayer(int i) {

@@ -401,7 +401,7 @@ Rectangle {
 
                     onDropped: {
                         for(var i in drop.urls){
-                            layerView.layerItem.layerIdx = app.slides.selected.addLayerBasedOnExt(drop.urls[i]);          
+                            layerView.layerItem.layerIdx = app.slides.selected.addLayerBasedOnMime(drop.urls[i]);          
                         }
                         app.slides.updateSelectedSlide();
                         mpv.focus = true;

@@ -209,6 +209,26 @@ Kirigami.ApplicationWindow {
 
                 onEditingFinished: {}
 
+                DropArea {
+                    id: dropAreaFileForLayer
+
+                    property int layerType: -1
+
+                    anchors.fill: parent
+                    keys: ["text/uri-list"]
+
+                    onDropped: {
+                        layerType = app.slides.selected.getLayerTypeBasedOnMime(drop.urls[0]);
+                        if(layerType > 0 && layerType < typeComboBox.count) {
+                            if (layerType !== typeComboBox.currentIndex + 1) {
+                                typeComboBox.currentIndex = layerType - 1;
+                            }
+                            fileForLayer.text = playerController.checkAndCorrectPath(drop.urls[0]);
+                            layerTitle.text = playerController.returnFileBaseName(fileForLayer.text);
+                        }
+                    }
+                }
+
                 ToolTip {
                     text: qsTr("Path to file for layer")
                 }

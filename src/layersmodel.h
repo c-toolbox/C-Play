@@ -72,7 +72,8 @@ public:
     Q_INVOKABLE int maxLayerStatus();
 
     Q_INVOKABLE int addLayer(QString title, int type, QString filepath, int stereoMode, int gridMode);
-    Q_INVOKABLE int addLayerBasedOnExt(QUrl fileUrl);
+    Q_INVOKABLE int getLayerTypeBasedOnMime(QUrl fileUrl);
+    Q_INVOKABLE int addLayerBasedOnMime(QUrl fileUrl);
     Q_INVOKABLE void removeLayer(int i);
     Q_INVOKABLE void moveLayerTop(int i);
     Q_INVOKABLE void moveLayerUp(int i);
