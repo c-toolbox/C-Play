@@ -77,7 +77,6 @@
 #include <KColorSchemeManager>
 #include <KConfig>
 #include <KConfigGroup>
-#include <KFileItem>
 #include <KFileMetaData/Properties>
 #include <KI18n/KLocalizedString>
 #include <KShortcutsDialog>
@@ -319,10 +318,6 @@ QString Application::version() {
     return QStringLiteral(CPLAY_VERSION);
 }
 
-bool Application::hasYoutubeDl() {
-    return !QStandardPaths::findExecutable(QStringLiteral("youtube-dl")).isEmpty();
-}
-
 QUrl Application::parentUrl(const QString &path) {
     QUrl url(path);
     if (!url.isValid()) {
@@ -350,10 +345,6 @@ QUrl Application::pathToUrl(const QString &path) {
     url.setScheme(QStringLiteral("file"));
 
     return url;
-}
-
-bool Application::isYoutubePlaylist(const QString &path) {
-    return path.contains(QStringLiteral("youtube.com/playlist?list"));
 }
 
 QString Application::formatTime(const double time) {
@@ -463,8 +454,9 @@ QString Application::getFileContent(const QString &file) {
 }
 
 QString Application::mimeType(QUrl url) {
-    KFileItem fileItem(url, KFileItem::NormalMimeTypeDetermination);
-    return fileItem.mimetype();
+    QMimeDatabase db;
+    QMimeType type = db.mimeTypeForUrl(url);
+    return type.name();
 }
 
 bool Application::getFontPath(const std::string& inFontName, std::string& outPath) {

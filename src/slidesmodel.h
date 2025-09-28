@@ -217,6 +217,16 @@ public:
 
     bool pauseLayerUpdate();
     void setPauseLayerUpdate(bool value);
+
+    Q_PROPERTY(QStringList recentPresentations
+        READ recentPresentations
+        WRITE setRecentPresentations
+        NOTIFY recentPresentationsChanged)
+
+    QStringList recentPresentations() const;
+    void setRecentPresentations(QStringList list);
+    Q_INVOKABLE void clearRecentPresentations();
+
     void runRenderOnLayersThatShouldUpdate(bool updateRendering);
 
 Q_SIGNALS:
@@ -236,9 +246,11 @@ Q_SIGNALS:
     void nextSlide();
     void pauseLayerUpdateChanged();
     void preLoadLayersChanged();
+    void recentPresentationsChanged();
 
 private:
     void setNeedSync();
+    void updateRecentLoadedPresentations(QString path);
 
     QList<QSharedPointer<LayersModel>> m_slides;
     LayersModel *m_masterSlide;

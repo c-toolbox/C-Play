@@ -26,8 +26,9 @@ Kirigami.ApplicationWindow {
     property bool isFullScreenMode: false
     property bool isIdleMode: false
     property bool hideUI: (isFullScreenMode || isIdleMode)
+    property url newMediaFileToOpen: ""
 
-    function openFile(path, startPlayback, loadSiblings) {
+    function openMediaFile(path, startPlayback, loadSiblings) {
         mpv.pause = true;
         mpv.position = 0;
         if (loadSiblings) {
@@ -36,13 +37,40 @@ Kirigami.ApplicationWindow {
         }
         mpv.loadFile(path);
     }
+
     function saveCPlayFile(path) {
         mpv.playSectionsModel.currentEditItem.saveAsJSONPlayFile(path);
         mpv.playSectionsModel.setCurrentEditItemIsEdited(false);
     }
+
     function saveCPlayPlaylist(path) {
         mpv.playlistModel.saveAsJSONPlaylist(path);
         mpv.playlistModelChanged();
+    }
+
+    function openFile(path) {
+        var openFileExt = playerController.returnFileExtension(path);
+        if(openFileExt == "cplaypres"){
+            slides.presentationToLoad = path.toString();
+            slides.openCPlayPresentation();
+        }
+        else if(UserInterfaceSettings.mappingModeOnOpenFile 
+        && openFileExt != "cplayfile" && openFileExt != "cplaylist" 
+        && openFileExt != "cplay_file" && openFileExt != "cplay_list" 
+        && openFileExt != "fdv" && openFileExt != "playlist"){
+            openFileValuesDialogLabel.text = playerController.returnFileName(path);
+            newMediaFileToOpen = path;
+            openFileValuesDialog.open();
+        }
+        else{
+            openMediaFile(path.toString(), true, PlaylistSettings.loadSiblings);
+        }
+        // the timer scrolls the playlist to the playing file
+        // once the table view rows are loaded
+        playList.scrollPositionTimer.start();
+        mpv.focus = true;
+        LocationSettings.fileDialogLastLocation = app.parentUrl(path);
+        LocationSettings.save();
     }
 
     Connections {
@@ -147,6 +175,16 @@ Kirigami.ApplicationWindow {
             id: osd
 
         }
+        DropArea {
+            id: dropAreaMpv
+
+            anchors.fill: parent
+            keys: ["text/uri-list"]
+
+            onDropped: {
+                openFile(app.pathToUrl(drop.urls[0]))
+            }
+        }
     }
     ForegroundImage {
         id: fgImage
@@ -159,6 +197,19 @@ Kirigami.ApplicationWindow {
     PlayList {
         id: playList
 
+        DropArea {
+            id: dropAreaPlaylist
+
+            anchors.fill: parent
+            keys: ["text/uri-list"]
+
+            onDropped: {
+                for(var i in drop.urls){
+                    mpv.addFileToPlaylist(drop.urls[i].toString());      
+                }
+                mpv.focus = true;
+            }
+        }
     }
     Slides {
         id: slides
@@ -308,36 +359,20 @@ Kirigami.ApplicationWindow {
             }
 
             onAccepted: {
-                openFile(openFileDialog.file.toString(), true, PlaylistSettings.loadSiblings);
+                openMediaFile(newMediaFileToOpen.toString(), true, PlaylistSettings.loadSiblings);
                 mpv.stereoscopicMode = stereoscopicModeList.get(stereoscopicMode.currentIndex).value;
                 mpv.gridToMapOn = gridModeList.get(gridMode.currentIndex).value;
                 // the timer scrolls the playlist to the playing file
                 // once the table view rows are loaded
                 playList.scrollPositionTimer.start();
                 mpv.focus = true;
-                LocationSettings.fileDialogLastLocation = app.parentUrl(openFileDialog.file);
+                LocationSettings.fileDialogLastLocation = app.parentUrl(newMediaFileToOpen);
                 LocationSettings.save();
             }
         }
 
         onAccepted: {
-            var openFileExt = playerController.returnFileExtension(openFileDialog.file);
-            if(UserInterfaceSettings.mappingModeOnOpenFile 
-            && openFileExt != "cplayfile" && openFileExt != "cplaylist" 
-            && openFileExt != "cplay_file" && openFileExt != "cplay_list" 
-            && openFileExt != "fdv" && openFileExt != "playlist"){
-                openFileValuesDialogLabel.text = playerController.returnFileName(openFileDialog.file);
-                openFileValuesDialog.open();
-            }
-            else{
-                openFile(openFileDialog.file.toString(), true, PlaylistSettings.loadSiblings);
-                // the timer scrolls the playlist to the playing file
-                // once the table view rows are loaded
-                playList.scrollPositionTimer.start();
-                mpv.focus = true;
-                LocationSettings.fileDialogLastLocation = app.parentUrl(openFileDialog.file);
-                LocationSettings.save();
-            }
+            openFile(openFileDialog.file);
         }
         onRejected: mpv.focus = true
     }
@@ -387,60 +422,6 @@ Kirigami.ApplicationWindow {
             mpv.focus = true;
         }
         onRejected: mpv.focus = true
-    }
-    Popup {
-        id: openUrlPopup
-
-        x: 10
-        y: 10
-
-        onOpened: {
-            openUrlTextField.forceActiveFocus(Qt.MouseFocusReason);
-            openUrlTextField.selectAll();
-        }
-
-        RowLayout {
-            anchors.fill: parent
-
-            Label {
-                text: qsTr("<a href=\"https://youtube-dl.org\">Youtube-dl</a> was not found.")
-                visible: !app.hasYoutubeDl()
-
-                onLinkActivated: Qt.openUrlExternally(link)
-            }
-            TextField {
-                id: openUrlTextField
-
-                Layout.fillWidth: true
-                Layout.preferredWidth: 400
-                visible: app.hasYoutubeDl()
-
-                Component.onCompleted: text = LocationSettings.lastUrl
-                Keys.onPressed: {
-                    if (event.key === Qt.Key_Enter || event.key === Qt.Key_Return) {
-                        openUrlButton.clicked();
-                    }
-                    if (event.key === Qt.Key_Escape) {
-                        openUrlPopup.close();
-                    }
-                }
-            }
-            Button {
-                id: openUrlButton
-
-                text: qsTr("Open")
-                visible: app.hasYoutubeDl()
-
-                onClicked: {
-                    openFile(openUrlTextField.text, true, false);
-                    LocationSettings.lastUrl = openUrlTextField.text;
-                    // in case the url is a playList, it opens the first video
-                    PlaylistSettings.lastPlaylistIndex = 0;
-                    openUrlPopup.close();
-                    openUrlTextField.clear();
-                }
-            }
-        }
     }
     Timer {
         id: garbageCollectionTimer

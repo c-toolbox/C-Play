@@ -95,6 +95,48 @@ Menu {
             action: actions["clearRecentPlaylistsAction"]
         }
     }
+
+    Menu {
+        id: recentPresentationsMenu
+
+        title: qsTr("Open Recent Presentations")
+        icon.name: "document-open"
+
+        Instantiator {
+            id: recentPresentationsMenuInstantiator
+
+            model: 0
+
+            delegate: MenuItem {
+                text: modelData
+
+                onTriggered: {
+                    slides.presentationToLoad = modelData;
+                    slides.openCPlayPresentation();
+                }
+            }
+
+            onObjectAdded: function(index, object) {
+                recentPresentationsMenu.insertItem(index, object)
+            }
+            onObjectRemoved: function(index, object) {
+                recentPresentationsMenu.removeItem(object)
+            }
+        }
+        Connections {
+            function onRecentPresentationsChanged() {
+                recentPresentationsMenuInstantiator.model = app.slides.recentPresentations;
+            }
+
+            target: app.slides
+        }
+        MenuSeparator {
+        }
+        MenuItem {
+            action: actions["clearRecentPresentationsAction"]
+        }
+    }
+
     MenuSeparator {
     }
     MenuItem {

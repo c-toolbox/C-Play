@@ -392,6 +392,21 @@ Rectangle {
                         mouse.accepted = false
                     }
                 }
+
+                DropArea {
+                    id: dropAreaLayers
+
+                    anchors.fill: parent
+                    keys: ["text/uri-list"]
+
+                    onDropped: {
+                        for(var i in drop.urls){
+                            layerView.layerItem.layerIdx = app.slides.selected.addLayerBasedOnExt(drop.urls[i]);          
+                        }
+                        app.slides.updateSelectedSlide();
+                        mpv.focus = true;
+                    }
+                }
             }
         }
 

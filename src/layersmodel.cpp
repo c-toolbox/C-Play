@@ -7,6 +7,7 @@
 
 #include "layersmodel.h"
 #include "gridsettings.h"
+#include "imagesettings.h"
 #include "locationsettings.h"
 #include "presentationsettings.h"
 #include "subtitlesettings.h"
@@ -27,6 +28,7 @@
 #include <QJsonObject>
 #include <QOpenGLContext>
 #include <QQuickView>
+#include <QMimeDatabase>
 
 static void *get_proc_address_qopengl_v1(void* ctx, const char *name) {
     Q_UNUSED(ctx)
@@ -254,6 +256,34 @@ int LayersModel::addLayer(QString title, int type, QString filepath, int stereoM
     Q_EMIT layersModelChanged();
 
     return m_layers.size() - 1;
+}
+
+int LayersModel::addLayerBasedOnExt(QUrl fileUrl) {
+    QMimeDatabase db;
+    QMimeType type = db.mimeTypeForUrl(fileUrl);
+    QString typeName = type.name();
+    QString filePath = fileUrl.toLocalFile();
+    if (filePath.isEmpty())
+        return -1;
+    QFileInfo fileInfo(filePath);
+    QString baseName = fileInfo.baseName();
+    if (typeName.startsWith(QStringLiteral("video/"))) {
+        return addLayer(baseName, BaseLayer::LayerType::VIDEO, filePath, ImageSettings::stereoModeForBackground(), ImageSettings::gridToMapOnForBackground());
+    }
+    else if (typeName.startsWith(QStringLiteral("audio/"))) {
+        return addLayer(baseName, BaseLayer::LayerType::AUDIO, filePath, ImageSettings::stereoModeForBackground(), ImageSettings::gridToMapOnForBackground());
+    }
+    else if (typeName == QStringLiteral("image/png") 
+        || typeName == QStringLiteral("image/jpeg") 
+        || typeName == QStringLiteral("image/tga")) {
+        return addLayer(baseName, BaseLayer::LayerType::IMAGE, filePath, ImageSettings::stereoModeForBackground(), ImageSettings::gridToMapOnForBackground());
+    }
+    else if (typeName == QStringLiteral("application/pdf")) {
+#ifdef PDF_SUPPORT
+        return addLayer(baseName, BaseLayer::LayerType::PDF, filePath, ImageSettings::stereoModeForBackground(), ImageSettings::gridToMapOnForBackground());
+#endif // PDF_SUPPORT
+    }
+    return -1;
 }
 
 void LayersModel::removeLayer(int i) {

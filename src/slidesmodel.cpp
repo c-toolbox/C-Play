@@ -824,6 +824,7 @@ void SlidesModel::loadFromJSONFile(const QString &path) {
     }
 
     setSelectedSlideIdx(-1);
+    updateRecentLoadedPresentations(jsonFileInfo.absoluteFilePath());
     setSlidesPath(jsonFileInfo.absoluteFilePath());
     setSlidesName(jsonFileInfo.baseName());
     setSlidesNeedsSave(false);
@@ -867,6 +868,7 @@ void SlidesModel::saveAsJSONFile(const QString &path) {
     QFileInfo fileInfo(jsonFile);
     setSlidesName(fileInfo.baseName());
     setSlidesPath(fileToSave);
+    updateRecentLoadedPresentations(fileToSave);
 
     setSlidesNeedsSave(false);
 }
@@ -932,6 +934,23 @@ void SlidesModel::setPauseLayerUpdate(bool value) {
     Q_EMIT pauseLayerUpdateChanged();
 }
 
+QStringList SlidesModel::recentPresentations() const {
+    return PresentationSettings::recentLoadedPresentations();
+}
+
+void SlidesModel::setRecentPresentations(QStringList list) {
+    PresentationSettings::setRecentLoadedPresentations(list);
+    PresentationSettings::self()->save();
+    Q_EMIT recentPresentationsChanged();
+}
+
+void SlidesModel::clearRecentPresentations() {
+    QStringList empty;
+    PresentationSettings::setRecentLoadedPresentations(empty);
+    Q_EMIT recentPresentationsChanged();
+    PresentationSettings::self()->save();
+}
+
 void SlidesModel::runRenderOnLayersThatShouldUpdate(bool updateRendering) {
     if (!pauseLayerUpdate()) {
         for (int i = -1; i < numberOfSlides(); i++) {
@@ -948,4 +967,15 @@ void SlidesModel::runRenderOnLayersThatShouldUpdate(bool updateRendering) {
 void SlidesModel::setNeedSync() {
     m_needSync = true;
     m_syncIteration = PresentationSettings::networkSyncIterations();
+}
+
+void SlidesModel::updateRecentLoadedPresentations(QString path) {
+    QStringList recentPresentations = PresentationSettings::recentLoadedPresentations();
+    recentPresentations.push_front(path);
+    recentPresentations.removeDuplicates();
+    if (recentPresentations.size() > 8)
+        recentPresentations.pop_back();
+    PresentationSettings::setRecentLoadedPresentations(recentPresentations);
+    Q_EMIT recentPresentationsChanged();
+    PresentationSettings::self()->save();
 }

@@ -104,7 +104,7 @@ ItemDelegate {
                 anchors.topMargin: 3
                 color: Kirigami.Theme.textColor
                 font.pointSize: 9
-                maximumLength: 12
+                maximumLength: 24
                 text: model.name
                 visible: slidesView.currentIndex === index
 

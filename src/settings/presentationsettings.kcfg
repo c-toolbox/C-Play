@@ -12,6 +12,9 @@
     <entry name="PresentationToLoadOnStartup" type="String">
       <label>A presentation to load at startup</label>
     </entry>
+    <entry name="RecentLoadedPresentations" type="StringList">
+      <label>Recently loaded presentations</label>
+    </entry>
     <entry name="FadeDurationToPreviousSlide" type="int">
       <default>20</default>
     </entry>

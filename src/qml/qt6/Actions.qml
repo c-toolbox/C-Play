@@ -36,6 +36,15 @@ QtObject {
             mpv.clearRecentPlaylist();
         }
     }
+    property Action clearRecentPresentationsAction: Action {
+        id: clearRecentPresentationsAction
+
+        text: qsTr("Clear Recent Presentations")
+
+        onTriggered: {
+            app.slides.clearRecentPresentations();
+        }
+    }
     property Action syncAction: Action {
         id: syncAction
 

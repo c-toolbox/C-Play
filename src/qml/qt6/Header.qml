@@ -35,7 +35,7 @@ ToolBar {
             display: Window.width < 1600 ? AbstractButton.IconOnly : AbstractButton.TextBesideIcon
 
             ToolTip {
-                text: "Open a any media file, as well as *.cplayfile or *.cplaylist."
+                text: "Open a any media file, as well as C-Play specific files such as *.cplayfile, *.cplaylist or *.cplaypres."
             }
         }
         ToolButton {

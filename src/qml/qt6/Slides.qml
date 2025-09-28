@@ -23,6 +23,7 @@ Rectangle {
     property alias slidesView: slidesView
     property bool busyIndicator: false
     property bool shouldBeVisible: true
+    property string presentationToLoad: ""
 
     visible: shouldBeVisible && !window.hideUI
     color: Kirigami.Theme.backgroundColor
@@ -187,6 +188,13 @@ Rectangle {
         removeSlideTimer.start();
     }
 
+    function openCPlayPresentation() {
+        busyIndicator = true;
+        app.slides.pauseLayerUpdate = true;
+        mpv.focus = true
+        Qt.callLater(clearAndLoadPresentation);
+    }
+
     Platform.FileDialog {
         id: openCPlayPresentationDialog
 
@@ -196,10 +204,8 @@ Rectangle {
         title: "Open C-Play Presentation"
 
         onAccepted: {
-            busyIndicator = true;
-            app.slides.pauseLayerUpdate = true;
-            mpv.focus = true
-            Qt.callLater(clearAndLoadPresentation);
+            presentationToLoad = openCPlayPresentationDialog.file.toString();
+            openCPlayPresentation();
         }
         onRejected: mpv.focus = true
     }
@@ -546,7 +552,7 @@ Rectangle {
         interval: PresentationSettings.clearAndLoadDelay
 
         onTriggered: {
-            app.slides.loadFromJSONFile(openCPlayPresentationDialog.file.toString());
+            app.slides.loadFromJSONFile(presentationToLoad);
             slidesView.currentIndex = -1;
             layers.layersView.currentIndex = -1;
         }

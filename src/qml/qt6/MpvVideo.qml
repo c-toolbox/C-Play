@@ -168,18 +168,6 @@ MpvObject {
             mpv.pause = false;
         }
     }
-    DropArea {
-        id: dropArea
-
-        anchors.fill: parent
-        keys: ["text/uri-list"]
-
-        onDropped: {
-            if (app.mimeType(drop.urls[0]).startsWith("video/")) {
-                window.openFile(drop.urls[0], true, PlaylistSettings.loadSiblings);
-            }
-        }
-    }
     Connections {
         function onBackgroundVisibilityChanged() {
             root.opacity = 1 - playerController.backgroundVisibilityOnMaster();
