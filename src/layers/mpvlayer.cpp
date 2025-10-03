@@ -435,6 +435,7 @@ void MpvLayer::enableAudio(bool enabled) {
     if (enabled) {
         mpv::qt::set_property(m_data.handle, QStringLiteral("aid"), QStringLiteral("auto"), m_data.loggingOn);
         mpv::qt::set_property(m_data.handle, QStringLiteral("volume-max"), QStringLiteral("100"), m_data.loggingOn);
+        updateAudioOutput();
     }
     else {
         mpv::qt::set_property(m_data.handle, QStringLiteral("aid"), QStringLiteral("no"), m_data.loggingOn);
