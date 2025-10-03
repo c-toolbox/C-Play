@@ -241,6 +241,7 @@ public:
         int audioId;
         int volume;
         bool volumeMute;
+        bool loadAudioInVidFolder;
         double timePosition;
         double timeThreshold;
         bool timeThresholdEnabled;
@@ -314,6 +315,7 @@ public:
         /*audioId*/ -1,
         /*volume*/ 0,
         /*volumeMute*/ false,
+        /*loadAudioInVidFolder*/ false,
         /*timePosition*/ 0.0,
         /*timeThreshold*/ 1.0,
         /*timeThresholdEnabled*/ false,

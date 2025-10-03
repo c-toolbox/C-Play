@@ -41,6 +41,8 @@ public:
         int volume_Dec = 100;
         bool volumeMute = false;
         bool volumeMute_Dec = false;
+        bool loadAudioInVidFolder = false;
+        bool loadAudioInVidFolder_Dec = false;
         int fboWidth = 0;
         int fboHeight = 0;
         bool fboCreated = false;
@@ -100,6 +102,7 @@ public:
     void updateAudioOutput();
     void setVolume(int v, bool storeLevel = true);
     void setVolumeMute(bool v);
+    void setLoadAudioInVidFolder(bool v);
 
     void encodeTypeAlways(std::vector<std::byte>& data);
     void decodeTypeAlways(const std::vector<std::byte>& data, unsigned int& pos);

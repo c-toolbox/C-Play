@@ -121,6 +121,7 @@ static std::vector<std::byte> encode() {
         serializeObject(data, SyncHelper::instance().variables.paused);
         serializeObject(data, SyncHelper::instance().variables.enableAudioOnNodes);
         if (SyncHelper::instance().variables.enableAudioOnNodes) {
+            serializeObject(data, SyncHelper::instance().variables.loadAudioInVidFolder);
             serializeObject(data, SyncHelper::instance().variables.audioId);
             serializeObject(data, SyncHelper::instance().variables.volume);
             serializeObject(data, SyncHelper::instance().variables.volumeMute);
@@ -309,6 +310,7 @@ static void decode(const std::vector<std::byte> &data) {
         deserializeObject(data, pos, SyncHelper::instance().variables.paused);
         deserializeObject(data, pos, SyncHelper::instance().variables.enableAudioOnNodes);
         if (SyncHelper::instance().variables.enableAudioOnNodes) {
+            deserializeObject(data, pos, SyncHelper::instance().variables.loadAudioInVidFolder);
             deserializeObject(data, pos, SyncHelper::instance().variables.audioId);
             deserializeObject(data, pos, SyncHelper::instance().variables.volume);
             deserializeObject(data, pos, SyncHelper::instance().variables.volumeMute);
@@ -698,6 +700,7 @@ static void postSyncPreDraw() {
         mainVideoLayer->setEOFMode(SyncHelper::instance().variables.eofMode);
         mainVideoLayer->enableAudio(SyncHelper::instance().variables.enableAudioOnNodes);
         if (SyncHelper::instance().variables.enableAudioOnNodes) {
+            mainVideoLayer->setLoadAudioInVidFolder(SyncHelper::instance().variables.loadAudioInVidFolder);
             mainVideoLayer->setAudioId(SyncHelper::instance().variables.audioId);
             mainVideoLayer->setVolume(SyncHelper::instance().variables.volume);
             mainVideoLayer->setVolumeMute(SyncHelper::instance().variables.volumeMute);

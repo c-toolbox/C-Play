@@ -332,6 +332,7 @@ void MpvLayer::update(bool updateRendering) {
             m_data.timeIsDirty = false;
             if (m_data.typePropertiesDecode) {
                 enableAudio(m_data.audioEnabled_Dec);
+                setLoadAudioInVidFolder(m_data.loadAudioInVidFolder_Dec);
                 setAudioId(m_data.audioId_Dec);
                 setVolume(m_data.volume_Dec);
                 setVolumeMute(m_data.volumeMute_Dec);
@@ -410,7 +411,7 @@ int MpvLayer::audioId() {
 }
 
 void MpvLayer::setAudioId(int value) {
-    if (value == audioId()) {
+    if (value == audioId() || value < 0) {
         return;
     }
 
@@ -426,11 +427,11 @@ void MpvLayer::setAudioId(int value) {
 void MpvLayer::enableAudio(bool enabled) {
     if (m_data.audioEnabled == enabled)
         return;
-    m_data.audioEnabled = enabled;
 
     if (!m_data.mpvInitialized)
         return;
 
+    m_data.audioEnabled = enabled;
     if (enabled) {
         mpv::qt::set_property(m_data.handle, QStringLiteral("aid"), QStringLiteral("auto"), m_data.loggingOn);
         mpv::qt::set_property(m_data.handle, QStringLiteral("volume-max"), QStringLiteral("100"), m_data.loggingOn);
@@ -480,9 +481,8 @@ void MpvLayer::setVolume(int v, bool storeLevel) {
     if (m_data.volume == v)
         return;
 
-    m_data.volume = v;
-
     if (m_data.mpvInitialized) {
+        m_data.volume = v;
         mpv::qt::set_property(m_data.handle, QStringLiteral("volume"), v, m_data.loggingOn);
     }
 
@@ -494,15 +494,29 @@ void MpvLayer::setVolumeMute(bool v) {
     if (m_data.volumeMute == v)
         return;
 
-    m_data.volumeMute = v;
-
     if (m_data.mpvInitialized) {
         if (isMaster() && AudioSettings::enableAudioOnMaster()) {
+            m_data.volumeMute = v;
             mpv::qt::set_property(m_data.handle, QStringLiteral("mute"), v, m_data.loggingOn);
         }
-        if (!isMaster() && AudioSettings::enableAudioOnNodes()) {
+        if (!isMaster() && m_data.audioEnabled) {
+            m_data.volumeMute = v;
             mpv::qt::set_property(m_data.handle, QStringLiteral("mute"), v, m_data.loggingOn);
         }
+    }
+
+    if (isMaster() && AudioSettings::enableAudioOnNodes())
+        setNeedSync();
+}
+
+void MpvLayer::setLoadAudioInVidFolder(bool v) {
+    if (m_data.loadAudioInVidFolder == v)
+        return;
+
+    if (m_data.mpvInitialized) {
+        m_data.loadAudioInVidFolder = v;
+        QString loadAudioInVidFolder = m_data.loadAudioInVidFolder ? QStringLiteral("all") : QStringLiteral("no");
+        mpv::qt::set_property(m_data.handle, QStringLiteral("audio-file-auto"), loadAudioInVidFolder, m_data.loggingOn);
     }
 
     if (isMaster() && AudioSettings::enableAudioOnNodes())
@@ -530,6 +544,7 @@ void MpvLayer::decodeTypeAlways(const std::vector<std::byte>& data, unsigned int
 void MpvLayer::encodeTypeProperties(std::vector<std::byte>& data) {
     sgct::serializeObject(data, AudioSettings::enableAudioOnNodes());
     if (AudioSettings::enableAudioOnNodes()) {
+        sgct::serializeObject(data, m_data.loadAudioInVidFolder);
         sgct::serializeObject(data, m_data.audioId);
         sgct::serializeObject(data, m_data.volume);
         sgct::serializeObject(data, m_data.volumeMute);
@@ -539,6 +554,7 @@ void MpvLayer::encodeTypeProperties(std::vector<std::byte>& data) {
 void MpvLayer::decodeTypeProperties(const std::vector<std::byte>& data, unsigned int& pos) {
     sgct::deserializeObject(data, pos, m_data.audioEnabled_Dec);
     if (m_data.audioEnabled_Dec) {
+        sgct::deserializeObject(data, pos, m_data.loadAudioInVidFolder_Dec);
         sgct::deserializeObject(data, pos, m_data.audioId_Dec);
         sgct::deserializeObject(data, pos, m_data.volume_Dec);
         sgct::deserializeObject(data, pos, m_data.volumeMute_Dec);

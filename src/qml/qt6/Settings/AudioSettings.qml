@@ -176,11 +176,7 @@ SettingsBasePage {
             onCheckedChanged: {
                 AudioSettings.loadAudioFileInVideoFolder = checked;
                 AudioSettings.save();
-                if (checked) {
-                    mpv.setProperty("audio-file-auto", "all");
-                } else {
-                    mpv.setProperty("audio-file-auto", "no");
-                }
+                mpv.setLoadAudioInVidFolder(checked);
             }
         }
         Item {

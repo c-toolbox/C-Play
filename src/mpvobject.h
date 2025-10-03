@@ -377,6 +377,7 @@ public:
 
     Q_INVOKABLE void updateAudioOutput();
     Q_INVOKABLE void enableAudioOnNodes(bool enabled);
+    Q_INVOKABLE void setLoadAudioInVidFolder(bool enabled);
     Q_INVOKABLE QString checkAndCorrectPath(const QString &filePath, const QStringList &searchPaths);
     Q_INVOKABLE void loadFile(const QString &file, bool updateLastPlayedFile = true);
     Q_INVOKABLE void addFileToPlaylist(const QString &file);

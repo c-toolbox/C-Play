@@ -144,9 +144,6 @@ MpvObject::MpvObject(QQuickItem *parent)
     SyncHelper::instance().variables.planeElevation = m_planeElevation;
     SyncHelper::instance().variables.planeDistance = m_planeDistance;
     SyncHelper::instance().variables.alpha = float(PlaybackSettings::visibility()) / 100.f;
-
-    QString loadAudioInVidFolder = AudioSettings::loadAudioFileInVideoFolder() ? QStringLiteral("all") : QStringLiteral("no");
-    setProperty(QStringLiteral("audio-file-auto"), loadAudioInVidFolder);
    
     QString loadSubtitleInVidFolder = SubtitleSettings::loadSubtitleFileInVideoFolder() ? QStringLiteral("all") : QStringLiteral("no");
     setProperty(QStringLiteral("sub-auto"), loadSubtitleInVidFolder);
@@ -156,6 +153,7 @@ MpvObject::MpvObject(QQuickItem *parent)
     setProperty(QStringLiteral("screenshot-template"), LocationSettings::screenshotTemplate());
     setProperty(QStringLiteral("volume-max"), QStringLiteral("100"));
     setProperty(QStringLiteral("keep-open"), QStringLiteral("yes"));
+    setLoadAudioInVidFolder(AudioSettings::loadAudioFileInVideoFolder());
     if (!AudioSettings::enableAudioOnMaster()) {
         setProperty(QStringLiteral("mute"), true);
     }
@@ -836,6 +834,13 @@ void MpvObject::updateAudioOutput() {
 
 void MpvObject::enableAudioOnNodes(bool enabled) {
     SyncHelper::instance().variables.enableAudioOnNodes = enabled;
+}
+
+void MpvObject::setLoadAudioInVidFolder(bool enabled) {
+    SyncHelper::instance().variables.loadAudioInVidFolder = enabled;
+
+    QString loadAudioInVidFolder = enabled ? QStringLiteral("all") : QStringLiteral("no");
+    setProperty(QStringLiteral("audio-file-auto"), loadAudioInVidFolder);
 }
 
 QString MpvObject::checkAndCorrectPath(const QString &filePath, const QStringList &searchPaths) {
