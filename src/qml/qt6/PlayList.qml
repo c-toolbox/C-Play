@@ -232,6 +232,48 @@ Rectangle {
                 }
             }
             Button {
+                icon.name: "pan-up-symbolic"
+
+                onClicked: {
+                    mpv.playlistModel.moveItemUp(playlistView.currentIndex);
+                }
+
+                ToolTip {
+                    text: qsTr("Move selected upwards")
+                }
+            }
+            Button {
+                icon.name: "pan-down-symbolic"
+
+                onClicked: {
+                    mpv.playlistModel.moveItemDown(playlistView.currentIndex);
+                }
+
+                ToolTip {
+                    text: qsTr("Move selected downwards")
+                }
+            }
+            Button {
+                id: autoPlayButton
+
+                checkable: true
+                checked: mpv.autoPlay
+                icon.color: mpv.autoPlay ? "lime" : "crimson"
+                icon.name: "media-playlist-play"
+
+                onCheckedChanged: {
+                    mpv.autoPlay = autoPlayButton.checked;
+                }
+
+                ToolTip {
+                    id: autoPlayTooltip
+
+                    text: {
+                        mpv.autoPlay ? qsTr("Autoplay is ON") : qsTr("Autoplay is OFF");
+                    }
+                }
+            }
+            Button {
                 id: eofMenuButton
 
                 focusPolicy: Qt.NoFocus
@@ -306,41 +348,6 @@ Rectangle {
                 }
             }
             Button {
-                icon.name: "pan-up-symbolic"
-
-                onClicked: {
-                    mpv.playlistModel.moveItemUp(playlistView.currentIndex);
-                }
-
-                ToolTip {
-                    text: qsTr("Move selected upwards")
-                }
-            }
-            Button {
-                icon.name: "pan-down-symbolic"
-
-                onClicked: {
-                    mpv.playlistModel.moveItemDown(playlistView.currentIndex);
-                }
-
-                ToolTip {
-                    text: qsTr("Move selected downwards")
-                }
-            }
-            Button {
-                icon.color: mpv.playlistModel.playListIsEdited ? "orange" : "lime"
-                icon.name: "system-save-session"
-
-                onClicked: {
-                    saveCPlayPlaylistDialog.currentFile = mpv.playlistModel.getPlayListPathAsURL();
-                    saveCPlayPlaylistDialog.open();
-                }
-
-                ToolTip {
-                    text: qsTr("Save playlist")
-                }
-            }
-            Button {
                 icon.color: "crimson"
                 icon.name: "trash-empty"
 
@@ -388,30 +395,23 @@ Rectangle {
                 height: 1
                 width: Kirigami.Units.gridUnit + 10
             }
+            ToolButton {
+                icon.color: mpv.playlistModel.playListIsEdited ? "orange" : "lime"
+                icon.name: "system-save-session"
+
+                onClicked: {
+                    saveCPlayPlaylistDialog.currentFile = mpv.playlistModel.getPlayListPathAsURL();
+                    saveCPlayPlaylistDialog.open();
+                }
+
+                ToolTip {
+                    text: qsTr("Save playlist")
+                }
+            }
             Item {
                 Layout.fillHeight: true
                 // spacer item
                 Layout.fillWidth: true
-            }
-            Button {
-                id: autoPlayButton
-
-                checkable: true
-                checked: mpv.autoPlay
-                icon.color: mpv.autoPlay ? "lime" : "crimson"
-                icon.name: "media-playlist-play"
-
-                onCheckedChanged: {
-                    mpv.autoPlay = autoPlayButton.checked;
-                }
-
-                ToolTip {
-                    id: autoPlayTooltip
-
-                    text: {
-                        mpv.autoPlay ? qsTr("Autoplay is ON") : qsTr("Autoplay is OFF");
-                    }
-                }
             }
         }
     }

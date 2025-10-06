@@ -429,6 +429,18 @@ Rectangle {
                 height: 1
                 width: Kirigami.Units.gridUnit + 10
             }
+            ToolButton {
+                id: saveAsCPlayFileActionButton
+
+                action: actions.saveAsCPlayFileAction
+                enabled: false
+                focusPolicy: Qt.NoFocus
+                display: AbstractButton.IconOnly
+
+                ToolTip {
+                    text: "Save current media and settings as a *.cplayfile"
+                }
+            }
         }
     }
     Connections {

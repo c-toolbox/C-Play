@@ -157,6 +157,7 @@ MpvObject::MpvObject(QQuickItem *parent)
     if (!AudioSettings::enableAudioOnMaster()) {
         setProperty(QStringLiteral("mute"), true);
     }
+    setVolume(AudioSettings::volume());
     enableAudioOnNodes(AudioSettings::enableAudioOnNodes());
 
     setStereoscopicMode(ImageSettings::stereoModeForBackground());
