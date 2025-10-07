@@ -16,306 +16,480 @@ import org.ctoolbox.cplay
 SettingsBasePage {
     id: root
 
-    GridLayout {
-        id: content
+    ColumnLayout {
+        anchors.fill: parent
+        anchors.margins: Kirigami.Units.largeSpacing
+        spacing: Kirigami.Units.largeSpacing
 
-        columns: 3
+        GridLayout {
+            id: content
 
-        SettingsHeader {
-            Layout.columnSpan: 3
-            Layout.fillWidth: true
-            text: qsTr("Window & UI")
-        }
+            columns: 3
 
-        Item {
-            height: 1
-            width: 1
-        }
-        CheckBox {
-            checked: UserInterfaceSettings.mappingModeOnOpenFile
-            text: qsTr("Specify mapping modes for \"Open File\" (if NOT a *.cplayfile).")
-
-            onCheckedChanged: {
-                UserInterfaceSettings.mappingModeOnOpenFile = checked;
-                UserInterfaceSettings.save();
-            }
-        }
-        Item {
-            Layout.fillWidth: true
-        }
-
-        Label {
-            Layout.alignment: Qt.AlignRight
-            text: qsTr("Window fade duration:")
-        }
-        RowLayout {
-            SpinBox {
-                id: winFadeDuration
-
-                from: 0
-                to: 20000
-                value: UserInterfaceSettings.windowFadeDuration
-
-                onValueChanged: {
-                    UserInterfaceSettings.windowFadeDuration = value;
-                    UserInterfaceSettings.save();
-                }
-            }
-            LabelWithTooltip {
+            SettingsHeader {
+                Layout.columnSpan: 3
                 Layout.fillWidth: true
-                elide: Text.ElideRight
-                text: {
-                    qsTr("ms = Fades out/in %1 seconds").arg(Number((winFadeDuration.value * 1.0) / 1000.0).toFixed(3));
-                }
+                text: qsTr("Window & UI")
             }
-        }
-        Item {
-            Layout.fillWidth: true
-        }
 
-        Item {
-            height: 1
-            width: 1
-        }
-        CheckBox {
-            checked: UserInterfaceSettings.windowOnTopAtStartup
-            text: qsTr("Node windows always on top at startup")
-
-            onCheckedChanged: {
-                UserInterfaceSettings.windowOnTopAtStartup = checked;
-                UserInterfaceSettings.save();
+            Item {
+                height: 1
+                width: 1
             }
-        }
-        Item {
-            Layout.fillWidth: true
-        }
+            CheckBox {
+                checked: UserInterfaceSettings.mappingModeOnOpenFile
+                text: qsTr("Specify mapping modes for \"Open File\" (if NOT a *.cplayfile).")
 
-        Item {
-            height: 1
-            width: 1
-        }
-        CheckBox {
-            checked: UserInterfaceSettings.showHeader
-            text: qsTr("Show Top Bar / Header")
-
-            onCheckedChanged: {
-                UserInterfaceSettings.showHeader = checked;
-                UserInterfaceSettings.save();
-            }
-        }
-        Item {
-            Layout.fillWidth: true
-        }
-
-        Item {
-            height: 1
-            width: 1
-        }
-        CheckBox {
-            checked: UserInterfaceSettings.showFooter
-            text: qsTr("Show Bottom Bar / Footer")
-
-            onCheckedChanged: {
-                UserInterfaceSettings.showFooter = checked;
-                UserInterfaceSettings.save();
-            }
-        }
-        Item {
-            Layout.fillWidth: true
-        }
-
-        Item {
-            height: 1
-            width: 1
-        }
-        CheckBox {
-            id: idleModeCheckBox
-            checked: UserInterfaceSettings.idleModeOn
-            text: qsTr("Enable idle mode to hide UI after inactivity")
-
-            onCheckedChanged: {
-                UserInterfaceSettings.idleModeOn = checked;
-                UserInterfaceSettings.save();
-            }
-        }
-        Item {
-            Layout.fillWidth: true
-        }
-
-        Label {
-            Layout.alignment: Qt.AlignRight
-            text: qsTr("Idle mode time:")
-            enabled: UserInterfaceSettings.idleModeOn
-        }
-        RowLayout {
-            SpinBox {
-                editable: true
-                from: 1
-                to: 3600
-                value: UserInterfaceSettings.idleModeTime
-                enabled: UserInterfaceSettings.idleModeOn
-
-                onValueChanged: {
-                    UserInterfaceSettings.idleModeTime = value.toFixed(0);
+                onCheckedChanged: {
+                    UserInterfaceSettings.mappingModeOnOpenFile = checked;
                     UserInterfaceSettings.save();
                 }
             }
+            Item {
+                Layout.fillWidth: true
+            }
+
             Label {
-                Layout.alignment: Qt.AlignLeft
-                text: qsTr("(seconds)")
+                Layout.alignment: Qt.AlignRight
+                text: qsTr("Window fade duration:")
+            }
+            RowLayout {
+                SpinBox {
+                    id: winFadeDuration
+
+                    from: 0
+                    to: 20000
+                    value: UserInterfaceSettings.windowFadeDuration
+
+                    onValueChanged: {
+                        UserInterfaceSettings.windowFadeDuration = value;
+                        UserInterfaceSettings.save();
+                    }
+                }
+                LabelWithTooltip {
+                    Layout.fillWidth: true
+                    elide: Text.ElideRight
+                    text: {
+                        qsTr("ms = Fades out/in %1 seconds").arg(Number((winFadeDuration.value * 1.0) / 1000.0).toFixed(3));
+                    }
+                }
+            }
+            Item {
+                Layout.fillWidth: true
+            }
+
+            Item {
+                height: 1
+                width: 1
+            }
+            CheckBox {
+                checked: UserInterfaceSettings.windowOnTopAtStartup
+                text: qsTr("Node windows always on top at startup")
+
+                onCheckedChanged: {
+                    UserInterfaceSettings.windowOnTopAtStartup = checked;
+                    UserInterfaceSettings.save();
+                }
+            }
+            Item {
+                Layout.fillWidth: true
+            }
+
+            Item {
+                height: 1
+                width: 1
+            }
+            CheckBox {
+                checked: UserInterfaceSettings.showHeader
+                text: qsTr("Show Top Bar / Header")
+
+                onCheckedChanged: {
+                    UserInterfaceSettings.showHeader = checked;
+                    UserInterfaceSettings.save();
+                }
+            }
+            Item {
+                Layout.fillWidth: true
+            }
+
+            Item {
+                height: 1
+                width: 1
+            }
+            CheckBox {
+                checked: UserInterfaceSettings.showFooter
+                text: qsTr("Show Bottom Bar / Footer")
+
+                onCheckedChanged: {
+                    UserInterfaceSettings.showFooter = checked;
+                    UserInterfaceSettings.save();
+                }
+            }
+            Item {
+                Layout.fillWidth: true
+            }
+
+            Item {
+                height: 1
+                width: 1
+            }
+            CheckBox {
+                id: idleModeCheckBox
+                checked: UserInterfaceSettings.idleModeOn
+                text: qsTr("Enable idle mode to hide UI after inactivity")
+
+                onCheckedChanged: {
+                    UserInterfaceSettings.idleModeOn = checked;
+                    UserInterfaceSettings.save();
+                }
+            }
+            Item {
+                Layout.fillWidth: true
+            }
+
+            Label {
+                Layout.alignment: Qt.AlignRight
+                text: qsTr("Idle mode time:")
                 enabled: UserInterfaceSettings.idleModeOn
             }
-        }
-        Item {
-            Layout.fillWidth: true
-        }
+            RowLayout {
+                SpinBox {
+                    editable: true
+                    from: 1
+                    to: 3600
+                    value: UserInterfaceSettings.idleModeTime
+                    enabled: UserInterfaceSettings.idleModeOn
 
-        Label {
-            Layout.alignment: Qt.AlignRight
-            text: qsTr("Color scheme")
-        }
-        ComboBox {
-            id: colorThemeSwitcher
-
-            model: app.colorSchemesModel
-            textRole: "display"
-
-            delegate: ItemDelegate {
-                Kirigami.Theme.colorSet: Kirigami.Theme.View
-                highlighted: model.display === UserInterfaceSettings.colorScheme
-                width: colorThemeSwitcher.width
-
-                contentItem: RowLayout {
-                    Kirigami.Icon {
-                        Layout.preferredHeight: Kirigami.Units.iconSizes.small
-                        Layout.preferredWidth: Kirigami.Units.iconSizes.small
-                        source: model.decoration
-                    }
-                    Label {
-                        color: highlighted ? Kirigami.Theme.highlightedTextColor : Kirigami.Theme.textColor
-                        text: model.display
+                    onValueChanged: {
+                        UserInterfaceSettings.idleModeTime = value.toFixed(0);
+                        UserInterfaceSettings.save();
                     }
                 }
-            }
-
-            Component.onCompleted: currentIndex = find(UserInterfaceSettings.colorScheme)
-            onActivated: {
-                UserInterfaceSettings.colorScheme = colorThemeSwitcher.textAt(index);
-                UserInterfaceSettings.save();
-                app.activateColorScheme(UserInterfaceSettings.colorScheme);
-            }
-        }
-        Item {
-            Layout.fillWidth: true
-        }
-        Label {
-            Layout.alignment: Qt.AlignRight
-            text: qsTr("GUI Style")
-        }
-        ComboBox {
-            id: guiStyleComboBox
-
-            textRole: "key"
-
-            model: ListModel {
-                id: stylesModel
-
-                ListElement {
-                    key: "Breeeze Dark"
+                Label {
+                    Layout.alignment: Qt.AlignLeft
+                    text: qsTr("(seconds)")
+                    enabled: UserInterfaceSettings.idleModeOn
                 }
             }
+            Item {
+                Layout.fillWidth: true
+            }
 
-            Component.onCompleted: {
-                // populate the model with the available styles
-                for (let i = 0; i < app.availableGuiStyles().length; ++i) {
-                    stylesModel.append({
-                        key: app.availableGuiStyles()[i]
-                    });
+            Label {
+                Layout.alignment: Qt.AlignRight
+                text: qsTr("Color scheme")
+            }
+            ComboBox {
+                id: colorThemeSwitcher
+
+                model: app.colorSchemesModel
+                textRole: "display"
+
+                delegate: ItemDelegate {
+                    Kirigami.Theme.colorSet: Kirigami.Theme.View
+                    highlighted: model.display === UserInterfaceSettings.colorScheme
+                    width: colorThemeSwitcher.width
+
+                    contentItem: RowLayout {
+                        Kirigami.Icon {
+                            Layout.preferredHeight: Kirigami.Units.iconSizes.small
+                            Layout.preferredWidth: Kirigami.Units.iconSizes.small
+                            source: model.decoration
+                        }
+                        Label {
+                            color: highlighted ? Kirigami.Theme.highlightedTextColor : Kirigami.Theme.textColor
+                            text: model.display
+                        }
+                    }
                 }
 
-                // set the saved style as the current item in the combo box
-                for (let j = 0; j < stylesModel.count; ++j) {
-                    if (stylesModel.get(j).key === UserInterfaceSettings.guiStyle) {
-                        currentIndex = j;
-                        break;
+                Component.onCompleted: currentIndex = find(UserInterfaceSettings.colorScheme)
+                onActivated: {
+                    UserInterfaceSettings.colorScheme = colorThemeSwitcher.textAt(index);
+                    UserInterfaceSettings.save();
+                    app.activateColorScheme(UserInterfaceSettings.colorScheme);
+                }
+            }
+            Item {
+                Layout.fillWidth: true
+            }
+
+            Label {
+                Layout.alignment: Qt.AlignRight
+                text: qsTr("GUI Style")
+            }
+            ComboBox {
+                id: guiStyleComboBox
+
+                textRole: "key"
+
+                model: ListModel {
+                    id: stylesModel
+
+                    ListElement {
+                        key: "Breeeze Dark"
+                    }
+                }
+
+                Component.onCompleted: {
+                    // populate the model with the available styles
+                    for (let i = 0; i < app.availableGuiStyles().length; ++i) {
+                        stylesModel.append({
+                            key: app.availableGuiStyles()[i]
+                        });
+                    }
+
+                    // set the saved style as the current item in the combo box
+                    for (let j = 0; j < stylesModel.count; ++j) {
+                        if (stylesModel.get(j).key === UserInterfaceSettings.guiStyle) {
+                            currentIndex = j;
+                            break;
+                        }
+                    }
+                }
+                onActivated: {
+                    UserInterfaceSettings.guiStyle = model.get(index).key;
+                    app.setGuiStyle(UserInterfaceSettings.guiStyle);
+                    // some themes can cause a crash
+                    // the timer prevents saving the crashing theme,
+                    // which would cause the app to crash on startup
+                    saveGuiStyleTimer.start();
+                }
+
+                Timer {
+                    id: saveGuiStyleTimer
+
+                    interval: 1000
+                    repeat: false
+                    running: false
+
+                    onTriggered: UserInterfaceSettings.save()
+                }
+            }
+            Item {
+                Layout.fillWidth: true
+            }
+
+            Item {
+                height: 1
+                width: 1
+            }
+            CheckBox {
+                checked: UserInterfaceSettings.useBreezeIconTheme
+                text: qsTr("Use Breeze icon theme")
+
+                onCheckedChanged: {
+                    UserInterfaceSettings.useBreezeIconTheme = checked;
+                    UserInterfaceSettings.save();
+                }
+
+                ToolTip {
+                    text: qsTr("Sets the icon theme to breeze.\nRequires restart.")
+                }
+            }
+            Item {
+                Layout.fillWidth: true
+            }
+
+            // OSD Font Size
+            Label {
+                Layout.alignment: Qt.AlignRight
+                text: qsTr("Osd font size")
+            }
+            Item {
+                height: osdFontSize.height
+
+                SpinBox {
+                    id: osdFontSize
+
+                    // used to prevent osd showing when opening the page
+                    property bool completed: false
+
+                    editable: true
+                    from: 0
+                    to: 100
+                    value: UserInterfaceSettings.osdFontSize
+
+                    Component.onCompleted: completed = true
+                    onValueChanged: {
+                        if (completed) {
+                            osd.label.font.pointSize = osdFontSize.value;
+                            osd.message("Test osd font size");
+                            UserInterfaceSettings.osdFontSize = osdFontSize.value;
+                            UserInterfaceSettings.save();
+                        }
                     }
                 }
             }
-            onActivated: {
-                UserInterfaceSettings.guiStyle = model.get(index).key;
-                app.setGuiStyle(UserInterfaceSettings.guiStyle);
-                // some themes can cause a crash
-                // the timer prevents saving the crashing theme,
-                // which would cause the app to crash on startup
-                saveGuiStyleTimer.start();
-            }
-
-            Timer {
-                id: saveGuiStyleTimer
-
-                interval: 1000
-                repeat: false
-                running: false
-
-                onTriggered: UserInterfaceSettings.save()
+            Item {
+                Layout.fillWidth: true
             }
         }
-        Item {
-            Layout.fillWidth: true
-        }
-        Item {
-            height: 1
-            width: 1
-        }
-        CheckBox {
-            checked: UserInterfaceSettings.useBreezeIconTheme
-            text: qsTr("Use Breeze icon theme")
 
-            onCheckedChanged: {
-                UserInterfaceSettings.useBreezeIconTheme = checked;
-                UserInterfaceSettings.save();
+        GridLayout {
+            id: contentFloatingLayerWindow
+
+            columns: 3
+
+            SettingsHeader {
+                Layout.columnSpan: 3
+                Layout.fillWidth: true
+                text: qsTr("Floating layer settings")
+                level: 4
             }
+            
+            RowLayout {
+                Layout.columnSpan: 3
+                Layout.leftMargin: 100
+                Layout.rightMargin: 250
 
-            ToolTip {
-                text: qsTr("Sets the icon theme to breeze.\nRequires restart.")
-            }
-        }
-        Item {
-            Layout.fillWidth: true
-        }
+                Button {
+                    icon.name: "layer-new"
+                    text: qsTr("Save values below and create floating window layer")
 
-        // OSD Font Size
-        Label {
-            Layout.alignment: Qt.AlignRight
-            text: qsTr("Osd font size")
-        }
-        Item {
-            height: osdFontSize.height
+                    onClicked: {
+                        if (layerCoreProps.typeComboBox.currentIndex >= 0) {
+                            UserInterfaceSettings.floatingWindowLayerType = layerCoreProps.typeComboBox.currentIndex + 1;
+                        } else {
+                            UserInterfaceSettings.floatingWindowLayerType = -1;
+                        }
 
-            SpinBox {
-                id: osdFontSize
+                        UserInterfaceSettings.floatingWindowWidth = floatingWindowWidth.value;
+                        UserInterfaceSettings.floatingWindowHeight = floatingWindowHeight.value;
+                        UserInterfaceSettings.floatingWindowPosX = floatingWindowPosX.value;
+                        UserInterfaceSettings.floatingWindowPosY = floatingWindowPosY.value;
+                        UserInterfaceSettings.floatingWindowLayerPath = layerCoreProps.fileForLayer.text;
+                        UserInterfaceSettings.floatingWindowVisibleAtStartup = showFloatingWindowAtStartupCheckBox.checked;
+                        UserInterfaceSettings.floatingWindowVolume = floatingWindowVolume.value.toFixed(0);
 
-                // used to prevent osd showing when opening the page
-                property bool completed: false
+                        if(UserInterfaceSettings.floatingWindowLayerType >= 0 && UserInterfaceSettings.floatingWindowLayerPath !== ""){
+                            floatingLayerViewItem.createLayer(UserInterfaceSettings.floatingWindowLayerType, UserInterfaceSettings.floatingWindowLayerPath);
+                        }
 
-                editable: true
-                from: 0
-                to: 100
-                value: UserInterfaceSettings.osdFontSize
-
-                Component.onCompleted: completed = true
-                onValueChanged: {
-                    if (completed) {
-                        osd.label.font.pointSize = osdFontSize.value;
-                        osd.message("Test osd font size");
-                        UserInterfaceSettings.osdFontSize = osdFontSize.value;
                         UserInterfaceSettings.save();
                     }
                 }
             }
+            
+            Item {
+                height: 1
+                width: 1
+            }
+            CheckBox {
+                id: showFloatingWindowAtStartupCheckBox
+
+                checked: UserInterfaceSettings.floatingWindowVisibleAtStartup
+                enabled: true
+                text: qsTr("Show floating layer window at startup")
+            }
+            Item {
+                // spacer item
+                Layout.fillWidth: true
+            }
+
+            Label {
+                Layout.alignment: Qt.AlignRight
+                text: qsTr("Window size:")
+            }
+            RowLayout {
+                SpinBox {
+                    id: floatingWindowWidth
+                    editable: true
+                    from: 32
+                    to: 8192
+                    value: UserInterfaceSettings.floatingWindowWidth
+                }
+                Label {
+                    Layout.alignment: Qt.AlignCenter
+                    text: qsTr("x")
+                }
+                SpinBox {
+                    id: floatingWindowHeight
+                    editable: true
+                    from: 32
+                    to: 8192
+                    value: UserInterfaceSettings.floatingWindowHeight
+                }
+            }
+            Item {
+                // spacer item
+                Layout.fillWidth: true
+            }
+
+            Label {
+                Layout.alignment: Qt.AlignRight
+                text: qsTr("Window position:")
+            }
+            RowLayout {
+                SpinBox {
+                    id: floatingWindowPosX
+                    editable: true
+                    from: 32
+                    to: 8192
+                    value: UserInterfaceSettings.floatingWindowPosX
+                }
+                Label {
+                    Layout.alignment: Qt.AlignCenter
+                    text: qsTr("x")
+                }
+                SpinBox {
+                    id: floatingWindowPosY
+                    editable: true
+                    from: 32
+                    to: 8192
+                    value: UserInterfaceSettings.floatingWindowPosY
+                }
+            }
+            Item {
+                // spacer item
+                Layout.fillWidth: true
+            }
+
+            Label {
+                Layout.alignment: Qt.AlignRight
+                text: qsTr("Volume:")
+            }
+            SpinBox {
+                editable: true
+                from: 0
+                to: 100
+                value: UserInterfaceSettings.floatingWindowVolume
+
+                onValueChanged: {
+                    UserInterfaceSettings.floatingWindowVolume = value.toFixed(0);
+                    floatingLayerViewItem.layerVolume = UserInterfaceSettings.floatingWindowVolume;
+                }
+            }
+            Item {
+                // spacer item
+                Layout.fillWidth: true
+            }
         }
-        Item {
-            Layout.fillWidth: true
+            
+        LayerCoreProperties {
+            id: layerCoreProps
+            columns: 3
+            Layout.leftMargin: 50
+            Layout.rightMargin: 250
+
+            showSpacers: true
+            showTitleParams: false
+            showGridParams: false
+            showStereoParams: false
+
+            Component.onCompleted: {
+                // set the saved values
+                if (UserInterfaceSettings.floatingWindowLayerType > 0) {
+                    typeComboBox.currentIndex = UserInterfaceSettings.floatingWindowLayerType - 1;
+                } else {
+                    typeComboBox.currentIndex = -1;
+                }
+                if (UserInterfaceSettings.floatingWindowLayerPath !== "") {
+                    fileForLayer.text = UserInterfaceSettings.floatingWindowLayerPath;
+                } else {
+                    fileForLayer.text = "";
+                }
+            }
         }
     }
 }

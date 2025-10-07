@@ -8,6 +8,7 @@
 #include "layerqtitem.h"
 #include "application.h"
 #include "layersmodel.h"
+#include "audiosettings.h"
 #include "presentationsettings.h"
 #include "gridsettings.h"
 #include "subtitlesettings.h"
@@ -25,8 +26,28 @@
 #include <QtQuick/qquickwindow.h>
 #include <array>
 
+static void* get_proc_address_qopengl_v1(void* ctx, const char* name) {
+    Q_UNUSED(ctx)
+
+        QOpenGLContext* glctx = QOpenGLContext::globalShareContext();
+    if (!glctx)
+        return nullptr;
+
+    return reinterpret_cast<void*>(glctx->getProcAddress(QByteArray(name)));
+}
+
+static void* get_proc_address_qopengl_v2(const char* name, void* ctx) {
+    Q_UNUSED(ctx)
+
+        QOpenGLContext* glctx = QOpenGLContext::globalShareContext();
+    if (!glctx)
+        return nullptr;
+
+    return reinterpret_cast<void*>(glctx->getProcAddress(QByteArray(name)));
+}
+
 LayerQtItem::LayerQtItem()
-    : m_layerIdx(-1), m_layer(nullptr), m_renderer(nullptr), m_audioTracksModel(new TracksModel),
+    : m_layerIdx(-1), m_layer(nullptr), m_ownsLayer(false), m_renderer(nullptr), m_audioTracksModel(new TracksModel), m_timer(nullptr),
     m_viewOffset(0, 0), m_viewSize(0, 0), m_roiOffset(0, 0), m_roiSize(0, 0) {
     connect(this, &QQuickItem::windowChanged, this, &LayerQtItem::handleWindowChanged);
 }
@@ -716,6 +737,11 @@ void LayerQtItem::handleWindowChanged(QQuickWindow *win) {
 void LayerQtItem::cleanup() {
     delete m_renderer;
     m_renderer = nullptr;
+
+    if (m_layer && m_ownsLayer) {
+        delete m_layer;
+        m_layer = nullptr;
+    }
 }
 
 class CleanupJob : public QRunnable {
@@ -803,6 +829,33 @@ void LayerQtItemRenderer::calculateViewParameters() {
         m_viewSize.setWidth(viewW);
         m_viewSize.setHeight(viewH);
         Q_EMIT viewChanged();
+    }
+}
+
+void LayerQtItem::createLayer(int type, QString filepath){
+    BaseLayer* newLayer = BaseLayer::createLayer(true, type, get_proc_address_qopengl_v1, get_proc_address_qopengl_v2);
+    newLayer->setFilePath(filepath.toStdString());
+    newLayer->initialize();
+
+    if (m_layer && m_ownsLayer) {
+        delete m_layer;
+    }
+
+    m_layer = newLayer;
+    m_ownsLayer = true;
+}
+
+void LayerQtItem::start() {
+    if (m_layer && m_ownsLayer) {
+        m_layer->setShouldUpdate(true);
+        m_layer->start();
+    }
+}
+
+void LayerQtItem::stop() {
+    if (m_layer && m_ownsLayer) {
+        m_layer->setShouldUpdate(false);
+        m_layer->stop();
     }
 }
 
@@ -908,6 +961,14 @@ void LayerQtItemRenderer::paint() {
     if (!m_layer->ready()) {
         m_window->endExternalCommands();
         return;
+    }
+
+    if (m_layer->shouldUpdate() && m_layer->pause()) {
+        m_layer->enableAudio(AudioSettings::enableAudioOnMaster());
+        m_layer->start();
+    }
+    if (!m_layer->shouldUpdate() && !m_layer->pause()) {
+        m_layer->stop();
     }
 
     calculateViewParameters();

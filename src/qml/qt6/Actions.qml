@@ -56,6 +56,17 @@ QtObject {
             playerController.syncProperties = !playerController.syncProperties;
         }
     }
+    property Action floatingWindowAction: Action {
+        id: floatingWindowAction
+
+        icon.name: floatingTextureWindow.visible ? "view-task" : "view-close"
+        icon.color: floatingTextureWindow.visible ? "lime" : "crimson"
+        text: floatingTextureWindow.visible ? qsTr("Floating window is visible") : qsTr("Floating window is hidden")
+
+        onTriggered: {
+            floatingTextureWindow.visible = !floatingTextureWindow.visible;
+        }
+    }
     property Action windowOnTopAction: Action {
         id: windowOnTopAction
 

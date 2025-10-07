@@ -55,5 +55,29 @@
     <entry name="WindowFadeDuration" type="int">
       <default>2000</default>
     </entry>
+    <entry name="FloatingWindowLayerType" type="int">
+      <default>-1</default>
+    </entry>
+    <entry name="FloatingWindowLayerPath" type="String">
+        <default></default>
+    </entry>
+    <entry name="FloatingWindowWidth" type="int">
+      <default>640</default>
+    </entry>
+    <entry name="FloatingWindowHeight" type="int">
+      <default>360</default>
+    </entry>
+    <entry name="FloatingWindowPosX" type="int">
+      <default>80</default>
+    </entry>
+    <entry name="FloatingWindowPosY" type="int">
+      <default>140</default>
+    </entry>
+    <entry name="FloatingWindowVolume" type="Int">
+      <default>100</default>
+    </entry>
+    <entry name="FloatingWindowVisibleAtStartup" type="bool">
+      <default>false</default>
+    </entry>
   </group>
 </kcfg>

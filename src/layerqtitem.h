@@ -207,6 +207,9 @@ public:
     QSize roiTexSize();
     void setRoiTexSize(QSize s);
 
+    Q_INVOKABLE void createLayer(int type, QString filepath);
+    Q_INVOKABLE void start();
+    Q_INVOKABLE void stop();
     Q_INVOKABLE void sync();
     Q_INVOKABLE void cleanup();
     Q_INVOKABLE void updateView();
@@ -246,10 +249,11 @@ private:
     void releaseResources() override;
 
     int m_layerIdx;
-    BaseLayer *m_layer = nullptr;
-    LayerQtItemRenderer *m_renderer = nullptr;
+    BaseLayer *m_layer;
+    bool m_ownsLayer;
+    LayerQtItemRenderer *m_renderer;
     TracksModel* m_audioTracksModel;
-    QTimer *m_timer = nullptr;
+    QTimer *m_timer;
 
     QPoint m_viewOffset;
     QSize m_viewSize;

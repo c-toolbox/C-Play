@@ -239,6 +239,41 @@ Kirigami.ApplicationWindow {
         id: footer
 
     }
+
+    Window {
+        id: floatingTextureWindow
+        visible: false
+        flags: Qt.FramelessWindowHint | Qt.Window
+        x: UserInterfaceSettings.floatingWindowPosX; 
+        y: UserInterfaceSettings.floatingWindowPosY; 
+        width: UserInterfaceSettings.floatingWindowWidth;
+        height: UserInterfaceSettings.floatingWindowHeight;
+
+        LayerQtItem {
+            id: floatingLayerViewItem
+
+            height: parent.height
+            width: parent.width
+
+            Component.onCompleted: {
+                if(UserInterfaceSettings.floatingWindowLayerType >= 0 && UserInterfaceSettings.floatingWindowLayerPath !== ""){
+                    floatingLayerViewItem.createLayer(UserInterfaceSettings.floatingWindowLayerType, UserInterfaceSettings.floatingWindowLayerPath);
+                    floatingLayerViewItem.layerVolume = UserInterfaceSettings.floatingWindowVolume;
+                }
+                if(UserInterfaceSettings.floatingWindowVisibleAtStartup){
+                    floatingTextureWindow.visible = true;
+                }
+            }
+        }
+
+        onVisibleChanged: {
+                if (visible)
+                    floatingLayerViewItem.start()
+                else 
+                    floatingLayerViewItem.stop()
+        }
+    }
+
     Platform.FileDialog {
         id: openFileDialog
 

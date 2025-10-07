@@ -1563,13 +1563,13 @@ ToolBar {
             }
         }
         ToolButton {
-            id: sync
+            id: floatingWindow
 
-            action: actions.syncAction
+            action: actions.floatingWindowAction
             focusPolicy: Qt.NoFocus
             display: AbstractButton.IconOnly
             ToolTip {
-                text: "ON/OFF to sync state from master to clients."
+                text: "ON/OFF to show floating layer window."
             }
         }
         Item {

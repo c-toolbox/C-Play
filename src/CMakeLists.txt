@@ -8,7 +8,7 @@ set(CPLAY_VERSION_MAJOR 2)
 set(CPLAY_VERSION_MINOR 2)
 set(CPLAY_VERSION_PATCH 0)
 set(CPLAY_VERSION_PR_NAME "Beta")
-set(CPLAY_VERSION_PR_VERS 6)
+set(CPLAY_VERSION_PR_VERS 7)
 
 qt_add_executable(${TARGET_NAME})
 set_compile_options(${TARGET_NAME})
@@ -144,6 +144,7 @@ qt_policy(SET QTP0001 NEW)
 set(QML_SRC_FILES
     qml/qt6/Components/ImageAdjustmentSlider.qml
     qml/qt6/Components/LabelWithTooltip.qml
+    qml/qt6/Components/LayerCoreProperties.qml
     qml/qt6/Components/SelectActionPopup.qml
     qml/qt6/Components/SettingsBasePage.qml
     qml/qt6/Components/SettingsHeader.qml
