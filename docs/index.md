@@ -8,9 +8,9 @@ nav_order: 1
 
 C-Play is a video/media player developed for cluster environments where you need multiple computers and/or displays to run your content on. The displays could be flat or curved in any setup that is supported by our underlying toolkit [SGCT](https://sgct.github.io/) and any media format supported by [MPV](https://mpv.io/).
 
-## Latest Release Version: 2.2
+## Latest Release Version: 2.1
 
-![Render C-Play v2.2](assets/Cplay-v2-1.png)
+![Render C-Play v2.1](assets/Cplay-v2-1.png)
 
 ### Content features
 These are just some features that set C-Play apart from others media/video players:
@@ -47,7 +47,7 @@ Media can be added as layers within slides, using numerous inputs, such as
 
 - Sync playback, loading and other properties between master and clients.
 
-- Playing audio is only available on master. C-Play support change of audio output, and is pre-built with support for "JACK", which opens for multi-channel low-latency output to for instance ASIO devices.
+- Playing audio is only available on master *(Support for node audio is added in 2.2, currently in beta)*. Change of audio output is supported, and C-Play is pre-built with "JACK", which opens for multi-channel low-latency output to for instance ASIO devices.
 
 - Loading external audio files as multiple tracks.
 
