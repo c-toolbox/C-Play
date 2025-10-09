@@ -350,23 +350,38 @@ SettingsBasePage {
                     onClicked: {
                         if (layerCoreProps.typeComboBox.currentIndex >= 0) {
                             UserInterfaceSettings.floatingWindowLayerType = layerCoreProps.typeComboBox.currentIndex + 1;
+
+                            if (layerCoreProps.typeComboBox.currentText === "NDI") {
+                                UserInterfaceSettings.floatingWindowLayerPath = layerCoreProps.ndiSenderComboBox.currentText;
+                            } else if (layerCoreProps.typeComboBox.currentText === "Spout") {
+                                UserInterfaceSettings.floatingWindowLayerPath = layerCoreProps.spoutSenderComboBox.currentText;
+                            } else if (layerCoreProps.typeComboBox.currentText === "Stream") {
+                                if(layerCoreProps.streamsLayout.customEntry){
+                                    UserInterfaceSettings.floatingWindowLayerPath = layerCoreProps.streamCustomEntryField.text;
+                                } else {
+                                    UserInterfaceSettings.floatingWindowLayerPath = layerCoreProps.streamsComboBox.currentValue;
+                                }                            
+                            } else if (layerCoreProps.typeComboBox.currentText === "Text") {
+                                UserInterfaceSettings.floatingWindowLayerPath = layerCoreProps.textForLayer.text;
+                            } else {
+                                UserInterfaceSettings.floatingWindowLayerPath = layerCoreProps.fileForLayer.text;
+                            }
                         } else {
                             UserInterfaceSettings.floatingWindowLayerType = -1;
+                            UserInterfaceSettings.floatingWindowLayerPath = "";
                         }
 
                         UserInterfaceSettings.floatingWindowWidth = floatingWindowWidth.value;
                         UserInterfaceSettings.floatingWindowHeight = floatingWindowHeight.value;
                         UserInterfaceSettings.floatingWindowPosX = floatingWindowPosX.value;
                         UserInterfaceSettings.floatingWindowPosY = floatingWindowPosY.value;
-                        UserInterfaceSettings.floatingWindowLayerPath = layerCoreProps.fileForLayer.text;
                         UserInterfaceSettings.floatingWindowVisibleAtStartup = showFloatingWindowAtStartupCheckBox.checked;
                         UserInterfaceSettings.floatingWindowVolume = floatingWindowVolume.value.toFixed(0);
+                        UserInterfaceSettings.save();
 
                         if(UserInterfaceSettings.floatingWindowLayerType >= 0 && UserInterfaceSettings.floatingWindowLayerPath !== ""){
                             floatingLayerViewItem.createLayer(UserInterfaceSettings.floatingWindowLayerType, UserInterfaceSettings.floatingWindowLayerPath);
                         }
-
-                        UserInterfaceSettings.save();
                     }
                 }
             }
@@ -381,6 +396,10 @@ SettingsBasePage {
                 checked: UserInterfaceSettings.floatingWindowVisibleAtStartup
                 enabled: true
                 text: qsTr("Show floating layer window at startup")
+
+                Component.onCompleted: {
+                    checked = UserInterfaceSettings.floatingWindowVisibleAtStartup;
+                }
             }
             Item {
                 // spacer item
@@ -398,6 +417,10 @@ SettingsBasePage {
                     from: 32
                     to: 8192
                     value: UserInterfaceSettings.floatingWindowWidth
+
+                    Component.onCompleted: {
+                        floatingWindowWidth.value = UserInterfaceSettings.floatingWindowWidth;
+                    }
                 }
                 Label {
                     Layout.alignment: Qt.AlignCenter
@@ -409,6 +432,10 @@ SettingsBasePage {
                     from: 32
                     to: 8192
                     value: UserInterfaceSettings.floatingWindowHeight
+
+                    Component.onCompleted: {
+                        floatingWindowHeight.value = UserInterfaceSettings.floatingWindowHeight;
+                    }
                 }
             }
             Item {
@@ -427,6 +454,10 @@ SettingsBasePage {
                     from: 32
                     to: 8192
                     value: UserInterfaceSettings.floatingWindowPosX
+
+                    Component.onCompleted: {
+                        floatingWindowPosX.value = UserInterfaceSettings.floatingWindowPosX;
+                    }
                 }
                 Label {
                     Layout.alignment: Qt.AlignCenter
@@ -438,6 +469,10 @@ SettingsBasePage {
                     from: 32
                     to: 8192
                     value: UserInterfaceSettings.floatingWindowPosY
+
+                    Component.onCompleted: {
+                        floatingWindowPosY.value = UserInterfaceSettings.floatingWindowPosY;
+                    }
                 }
             }
             Item {
@@ -450,6 +485,7 @@ SettingsBasePage {
                 text: qsTr("Volume:")
             }
             SpinBox {
+                id: floatingWindowVolume
                 editable: true
                 from: 0
                 to: 100
@@ -457,6 +493,10 @@ SettingsBasePage {
 
                 onValueChanged: {
                     UserInterfaceSettings.floatingWindowVolume = value.toFixed(0);
+                    floatingLayerViewItem.layerVolume = UserInterfaceSettings.floatingWindowVolume;
+                }
+
+                Component.onCompleted: {
                     floatingLayerViewItem.layerVolume = UserInterfaceSettings.floatingWindowVolume;
                 }
             }
