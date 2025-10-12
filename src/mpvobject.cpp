@@ -39,7 +39,7 @@
 #include <QtGlobal>
 
 static void on_mpv_redraw(void *ctx) {
-    QMetaObject::invokeMethod(static_cast<MpvObject *>(ctx), "update", Qt::QueuedConnection);
+    QMetaObject::invokeMethod(static_cast<MpvView *>(ctx), "update", Qt::QueuedConnection);
 }
 
 static void *get_proc_address_mpv(void *ctx, const char *name) {
@@ -52,51 +52,11 @@ static void *get_proc_address_mpv(void *ctx, const char *name) {
     return reinterpret_cast<void *>(glctx->getProcAddress(QByteArray(name)));
 }
 
-MpvRenderer::MpvRenderer(MpvObject *new_obj)
-    : obj{new_obj} {}
-
-void MpvRenderer::render() {
-    QOpenGLFramebufferObject *fbo = framebufferObject();
-    mpv_opengl_fbo mpfbo;
-    mpfbo.fbo = static_cast<int>(fbo->handle());
-    mpfbo.w = fbo->width();
-    mpfbo.h = fbo->height();
-    mpfbo.internal_format = 0;
-
-    mpv_render_param params[] = {
-        // Specify the default framebuffer (0) as target. This will
-        // render onto the entire screen. If you want to show the video
-        // in a smaller rectangle or apply fancy transformations, you'll
-        // need to render into a separate FBO and draw it manually.
-        {MPV_RENDER_PARAM_OPENGL_FBO, &mpfbo},
-        {MPV_RENDER_PARAM_INVALID, nullptr}};
-    // See render_gl.h on what OpenGL environment mpv expects, and
-    // other API details.
-    mpv_render_context_render(obj->mpv_gl, params);
-}
-
-QOpenGLFramebufferObject *MpvRenderer::createFramebufferObject(const QSize &size) {
-    // init mpv_gl:
-    if (!obj->mpv_gl) {
-        mpv_opengl_init_params gl_init_params[1] = {get_proc_address_mpv, nullptr};
-        mpv_render_param params[]{
-            {MPV_RENDER_PARAM_API_TYPE, const_cast<char *>(MPV_RENDER_API_TYPE_OPENGL)},
-            {MPV_RENDER_PARAM_OPENGL_INIT_PARAMS, &gl_init_params},
-            {MPV_RENDER_PARAM_INVALID, nullptr}};
-
-        if (mpv_render_context_create(&obj->mpv_gl, obj->mpv, params) < 0)
-            throw std::runtime_error("failed to initialize mpv GL context");
-        mpv_render_context_set_update_callback(obj->mpv_gl, on_mpv_redraw, obj);
-        Q_EMIT obj->ready();
-    }
-
-    return QQuickFramebufferObject::Renderer::createFramebufferObject(size);
-}
-
 MpvObject::MpvObject(QQuickItem *parent)
-    : QQuickFramebufferObject(parent), 
+    : QQuickItem(parent), 
     mpv{mpv_create()}, 
-    mpv_gl(nullptr), 
+    mpv_gl(nullptr),
+    mpv_fbo(nullptr),
     m_audioTracksModel(new TracksModel(this)), 
     m_subtitleTracksModel(new TracksModel(this)),
     m_playlistModel(new PlayListModel(this)), 
@@ -217,6 +177,10 @@ MpvObject::~MpvObject() {
         mpv_render_context_free(mpv_gl);
     }
     mpv_terminate_destroy(mpv);
+
+    if (mpv_fbo) {
+        delete mpv_fbo;
+    }
 
     if (SyncHelper::instance().variables.subtitleText)
         delete SyncHelper::instance().variables.subtitleText;
@@ -781,11 +745,6 @@ void MpvObject::updateAudioDeviceList() {
     updateAudioOutput();
 
     Q_EMIT audioDevicesChanged();
-}
-
-QQuickFramebufferObject::Renderer *MpvObject::createRenderer() const {
-    window()->setPersistentSceneGraph(true);
-    return new MpvRenderer(const_cast<MpvObject *>(this));
 }
 
 PlayListModel *MpvObject::getPlayListModel() const {
@@ -1653,4 +1612,148 @@ QString MpvObject::md5(const QString &str) {
     auto md5 = QCryptographicHash::hash((str.toUtf8()), QCryptographicHash::Md5);
 
     return QString::fromUtf8(md5.toHex());
+}
+
+void MpvObject::addView(MpvView* view) {
+    mpv_views.push_back(view);
+    std::sort(mpv_views.begin(), mpv_views.end());
+    mpv_views.erase(std::unique(mpv_views.begin(), mpv_views.end()), mpv_views.end());
+}
+
+void MpvObject::removeView(MpvView* view) {
+    auto it = std::find(mpv_views.begin(), mpv_views.end(), view);
+    if (it != mpv_views.end()) { 
+        mpv_views.erase(it);
+    }
+}
+
+MpvView::MpvView(QQuickItem* parent)
+    : QQuickFramebufferObject(parent) {
+
+}
+
+QQuickFramebufferObject::Renderer* MpvView::createRenderer() const {
+    window()->setPersistentSceneGraph(true);
+    return new MpvRenderer(const_cast<MpvView*>(this));
+}
+
+MpvObject* MpvView::mpvObject() const {
+    return obj;
+}
+
+void MpvView::setMpvObject(MpvObject* mpv) {
+    obj = mpv;
+    obj->addView(this);
+    Q_EMIT mpvObjectChanged();
+}
+
+MpvRenderer::MpvRenderer(MpvView* new_view)
+    : view{ new_view } {
+}
+
+void MpvRenderer::render() {
+    if (!view->obj)
+        return;
+
+    if (!view->obj->mpv_gl) {
+        return;
+    }
+
+    view->fbo = framebufferObject();
+
+    mpv_opengl_fbo mpfbo;
+    if (view->obj->mpv_views.size() > 1) {
+        //More then one, we need to make sure we have a correct sized FBO
+        if (!view->obj->mpv_fbo
+            || view->obj->mpv_fbo->size().width() != view->obj->m_videoWidth
+            || view->obj->mpv_fbo->size().height() != view->obj->m_videoHeight) {
+            if (view->obj->mpv_fbo) {
+                delete view->obj->mpv_fbo;
+            }
+            view->obj->mpv_fbo = new QOpenGLFramebufferObject(QSize(view->obj->m_videoWidth, view->obj->m_videoHeight));
+        }
+
+        mpfbo.fbo = static_cast<int>(view->obj->mpv_fbo->handle());
+        mpfbo.w = view->obj->mpv_fbo->width();
+        mpfbo.h = view->obj->mpv_fbo->height();
+        mpfbo.internal_format = 0;
+    }
+    else { //As only one, let's render directly to the current view fbo
+        mpfbo.fbo = static_cast<int>(view->fbo->handle());
+        mpfbo.w = view->fbo->width();
+        mpfbo.h = view->fbo->height();
+        mpfbo.internal_format = 0;
+    }
+
+    mpv_render_param params[] = {
+        // Specify the default framebuffer (0) as target. This will
+        // render onto the entire screen. If you want to show the video
+        // in a smaller rectangle or apply fancy transformations, you'll
+        // need to render into a separate FBO and draw it manually.
+        {MPV_RENDER_PARAM_OPENGL_FBO, &mpfbo},
+        {MPV_RENDER_PARAM_INVALID, nullptr} };
+    // See render_gl.h on what OpenGL environment mpv expects, and
+    // other API details.
+    mpv_render_context_render(view->obj->mpv_gl, params);
+
+    // Copy Mpv FBO (with video dimensions) to all the views that want it
+    if (view->obj->mpv_views.size() > 1) {
+        QRect sourceRect(0, 0, view->obj->mpv_fbo->width(), view->obj->mpv_fbo->height());
+        float ratioSource = static_cast<float>(sourceRect.width()) / static_cast<float>(sourceRect.height());
+        for (auto it = view->obj->mpv_views.begin(); it != view->obj->mpv_views.end(); ++it) {
+            if ((*it)->fbo) {
+                int targetWidth = (*it)->fbo->width();
+                int targetHeight = (*it)->fbo->height();
+                int targetX = 0;
+                int targetY = 0;
+                float ratioTarget = static_cast<float>(targetWidth) / static_cast<float>(targetHeight);
+                if (ratioSource > ratioTarget) {
+                    // Use full width of viewport
+                    if (ratioSource > 1.f) {
+                        targetHeight = static_cast<int>(static_cast<float>(targetWidth) / ratioSource);
+                    }
+                    else {
+                        targetHeight = static_cast<int>(static_cast<float>(targetWidth) * ratioSource);
+                    }
+                    targetY = static_cast<int>(0.5f * (static_cast<float>((*it)->fbo->height() - targetHeight)));
+                }
+                else if (ratioSource < ratioTarget) {
+                    // Use full height of viewport
+                    if (ratioSource > 1.f) {
+                        targetWidth = static_cast<int>(static_cast<float>(targetHeight) * ratioSource);
+                    }
+                    else {
+                        targetWidth = static_cast<int>(static_cast<float>(targetHeight) / ratioSource);
+                    }
+                    targetX = static_cast<int>(0.5f * (static_cast<float>((*it)->fbo->width() - targetWidth)));
+                }
+
+                (*it)->fbo->bind();
+                glClearColor(0, 0, 0, 1);
+                glClear(GL_COLOR_BUFFER_BIT);
+                QRect targetRect(targetX, targetY, targetWidth, targetHeight);
+                QOpenGLFramebufferObject::blitFramebuffer((*it)->fbo, targetRect, view->obj->mpv_fbo, sourceRect);
+                (*it)->fbo->release();
+            }
+        }
+    }           
+}
+
+QOpenGLFramebufferObject* MpvRenderer::createFramebufferObject(const QSize& size) {
+    if (view->obj) {
+        if (!view->obj->mpv_gl) {
+            mpv_opengl_init_params gl_init_params[1] = { get_proc_address_mpv, nullptr };
+            mpv_render_param params[]{
+                {MPV_RENDER_PARAM_API_TYPE, const_cast<char*>(MPV_RENDER_API_TYPE_OPENGL)},
+                {MPV_RENDER_PARAM_OPENGL_INIT_PARAMS, &gl_init_params},
+                {MPV_RENDER_PARAM_INVALID, nullptr} };
+
+                if (mpv_render_context_create(&view->obj->mpv_gl, view->obj->mpv, params) < 0)
+                    throw std::runtime_error("failed to initialize mpv GL context");
+            mpv_render_context_set_update_callback(view->obj->mpv_gl, on_mpv_redraw, view);
+            Q_EMIT view->obj->ready();
+        }
+    }
+
+    return QQuickFramebufferObject::Renderer::createFramebufferObject(size);
 }

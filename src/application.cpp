@@ -252,6 +252,7 @@ void Application::setupAboutData() {
 
 void Application::registerQmlTypes() {
     qmlRegisterType<MpvObject>("org.ctoolbox.cplay", 1, 0, "MpvObject");
+    qmlRegisterType<MpvView>("org.ctoolbox.cplay", 1, 0, "MpvView");
     qmlRegisterType<LayerQtItem>("org.ctoolbox.cplay", 1, 0, "LayerQtItem");
     qmlRegisterType<SlidesQtItem>("org.ctoolbox.cplay", 1, 0, "SlidesQtItem");
     qRegisterMetaType<QAction *>();

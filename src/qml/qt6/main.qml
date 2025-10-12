@@ -171,6 +171,11 @@ Kirigami.ApplicationWindow {
     MpvVideo {
         id: mpv
 
+        onFileLoaded: {
+            floatingOverlayImage.source = mpv.getOverlayFileUrl();
+            floatingOverlayImage.opacity = (floatingOverlayImage.source !== "" ? 1 : 0);
+        }
+
         Osd {
             id: osd
 
@@ -251,6 +256,7 @@ Kirigami.ApplicationWindow {
 
         LayerQtItem {
             id: floatingLayerViewItem
+            visible: !UserInterfaceSettings.floatingWindowShowsMainVideoLayer
 
             height: parent.height
             width: parent.width
@@ -266,11 +272,30 @@ Kirigami.ApplicationWindow {
             }
         }
 
+        MpvView {
+            id: floatingMpvView
+            visible: UserInterfaceSettings.floatingWindowShowsMainVideoLayer
+            anchors.fill: parent
+            mpvObject: mpv
+        }
+
+        Image {
+            id: floatingOverlayImage
+            visible: UserInterfaceSettings.floatingWindowShowsMainVideoLayer
+            anchors.fill: parent
+            fillMode: Image.PreserveAspectFit
+            opacity: 1
+        }
+
         onVisibleChanged: {
-                if (visible)
+            if(!UserInterfaceSettings.floatingWindowShowsMainVideoLayer){
+                if (visible){
                     floatingLayerViewItem.start()
-                else 
+                }
+                else {
                     floatingLayerViewItem.stop()
+                }
+            }
         }
     }
 

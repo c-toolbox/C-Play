@@ -19,10 +19,11 @@
 #include <client.h>
 #include <render_gl.h>
 
+class MpvView;
 class MpvRenderer;
 class Track;
 
-class MpvObject : public QQuickFramebufferObject {
+class MpvObject : public QQuickItem {
     Q_OBJECT
     QML_ELEMENT
 
@@ -367,7 +368,6 @@ public:
 
     MpvObject(QQuickItem *parent = 0);
     virtual ~MpvObject();
-    Renderer *createRenderer() const override;
 
     TracksModel *audioTracksModel() const;
     TracksModel* subtitleTracksModel() const;
@@ -472,8 +472,14 @@ private:
 
     mpv_handle *mpv;
     mpv_render_context *mpv_gl;
+    QOpenGLFramebufferObject* mpv_fbo;
+    std::vector<MpvView*> mpv_views;
 
     friend class MpvRenderer;
+    friend class MpvView;
+
+    void addView(MpvView* view);
+    void removeView(MpvView* view);
 
     void sectionPositionCheck(double position);
 
@@ -520,16 +526,41 @@ private:
     QString md5(const QString &str);
 };
 
+class MpvView : public QQuickFramebufferObject {
+    Q_OBJECT
+    QML_ELEMENT
+
+    Q_PROPERTY(MpvObject* mpvObject READ mpvObject WRITE setMpvObject NOTIFY mpvObjectChanged)
+
+public:
+    MpvView(QQuickItem* parent = 0);
+    ~MpvView() = default;
+    Renderer* createRenderer() const override;
+
+    MpvObject* mpvObject() const;
+    void setMpvObject(MpvObject* mpv);
+
+Q_SIGNALS:
+    void mpvObjectChanged();
+
+private:
+    friend class MpvRenderer;
+
+    QOpenGLFramebufferObject* fbo;
+    MpvObject* obj;
+
+};
+
 class MpvRenderer : public QQuickFramebufferObject::Renderer {
 public:
-    MpvRenderer(MpvObject *new_obj);
+    MpvRenderer(MpvView* new_view);
     ~MpvRenderer() = default;
 
-    MpvObject *obj;
+    MpvView* view;
 
     // This function is called when a new FBO is needed.
     // This happens on the initial frame.
-    QOpenGLFramebufferObject *createFramebufferObject(const QSize &size);
+    QOpenGLFramebufferObject* createFramebufferObject(const QSize& size);
 
     void render();
 };

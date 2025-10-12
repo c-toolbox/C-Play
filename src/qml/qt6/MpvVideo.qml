@@ -18,6 +18,7 @@ MpvObject {
     id: root
 
     property bool sphereGrid: false
+    property MpvView view: view
 
     signal setAudio(int id)
 
@@ -27,11 +28,6 @@ MpvObject {
     height: footer.visible ? parent.height - footer.height : parent.height
     volume: AudioSettings.volume
     width: parent.width
-
-    /*Shortcut {
-        sequence: StandardKey.NextChild
-        onActivated: view.currentIndex++
-    }*/
 
     Component.onCompleted: {
         playerController.mpv = root;
@@ -242,9 +238,13 @@ MpvObject {
             }
         }
     }
+    MpvView {
+        id: view
+        anchors.fill: parent
+        mpvObject: root
+    }
     Image {
         id: overlayImage
-
         anchors.fill: parent
         fillMode: Image.PreserveAspectFit
         opacity: 1

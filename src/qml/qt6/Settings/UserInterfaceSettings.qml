@@ -377,6 +377,7 @@ SettingsBasePage {
                         UserInterfaceSettings.floatingWindowPosY = floatingWindowPosY.value;
                         UserInterfaceSettings.floatingWindowVisibleAtStartup = showFloatingWindowAtStartupCheckBox.checked;
                         UserInterfaceSettings.floatingWindowVolume = floatingWindowVolume.value.toFixed(0);
+                        UserInterfaceSettings.floatingWindowShowsMainVideoLayer = !showCustomLayerInFloatingWindowCheckBox.checked;
                         UserInterfaceSettings.save();
 
                         if(UserInterfaceSettings.floatingWindowLayerType >= 0 && UserInterfaceSettings.floatingWindowLayerPath !== ""){
@@ -395,7 +396,7 @@ SettingsBasePage {
 
                 checked: UserInterfaceSettings.floatingWindowVisibleAtStartup
                 enabled: true
-                text: qsTr("Show floating layer window at startup")
+                text: qsTr("Show floating window at startup")
 
                 Component.onCompleted: {
                     checked = UserInterfaceSettings.floatingWindowVisibleAtStartup;
@@ -480,13 +481,34 @@ SettingsBasePage {
                 Layout.fillWidth: true
             }
 
+            Item {
+                height: 1
+                width: 1
+            }
+            CheckBox {
+                id: showCustomLayerInFloatingWindowCheckBox
+
+                checked: !UserInterfaceSettings.floatingWindowShowsMainVideoLayer
+                enabled: true
+                text: qsTr("Show custom layer instead of main video layer")
+
+                Component.onCompleted: {
+                    checked = !UserInterfaceSettings.floatingWindowShowsMainVideoLayer;
+                }
+            }
+            Item {
+                // spacer item
+                Layout.fillWidth: true
+            }
+
             Label {
                 Layout.alignment: Qt.AlignRight
-                text: qsTr("Volume:")
+                text: qsTr("Layer Volume:")
             }
             SpinBox {
                 id: floatingWindowVolume
                 editable: true
+                enabled: showCustomLayerInFloatingWindowCheckBox.checked
                 from: 0
                 to: 100
                 value: UserInterfaceSettings.floatingWindowVolume
@@ -509,6 +531,7 @@ SettingsBasePage {
         LayerCoreProperties {
             id: layerCoreProps
             columns: 3
+            enabled: showCustomLayerInFloatingWindowCheckBox.checked
             Layout.leftMargin: 50
             Layout.rightMargin: 250
 
