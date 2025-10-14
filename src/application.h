@@ -27,6 +27,7 @@ class KConfigDialog;
 class KConfigGroup;
 class KColorSchemeManager;
 class BaseLayer;
+class ScreensModel;
 class SlidesModel;
 class StreamModel;
 #ifdef NDI_SUPPORT
@@ -45,6 +46,10 @@ Q_DECLARE_OPAQUE_POINTER(QAbstractItemModel*)
 #ifndef OPAQUE_PTR_BaseLayer
 #define OPAQUE_PTR_BaseLayer
 Q_DECLARE_OPAQUE_POINTER(BaseLayer*)
+#endif
+#ifndef OPAQUE_PTR_ScreensModel
+#define OPAQUE_PTR_ScreensModel
+Q_DECLARE_OPAQUE_POINTER(ScreensModel*)
 #endif
 #ifndef OPAQUE_PTR_SlidesModel
 #define OPAQUE_PTR_SlidesModel
@@ -124,6 +129,11 @@ public:
     QStringList fonts();
     Q_INVOKABLE void updateFonts();
 
+    Q_PROPERTY(ScreensModel* screensModel
+                   READ screensModel
+                   NOTIFY screensModelChanged)
+    ScreensModel *screensModel();
+
     Q_PROPERTY(SlidesModel *slides
                    READ slidesModel
                    NOTIFY slidesModelChanged)
@@ -169,6 +179,7 @@ Q_SIGNALS:
     void actionsUpdated();
     void applicationInteraction();
     void fontsChanged();
+    void screensModelChanged();
     void slidesModelChanged();
     void streamsModelChanged();
 #ifdef NDI_SUPPORT
@@ -201,6 +212,7 @@ private:
     QFontDatabase* m_fontDatabase;
     FontScanResult scanFonts(QFontDatabase* db);
 
+    ScreensModel* m_screensModel;
     SlidesModel* m_slidesModel;
     StreamModel* m_streamsModel;
 #ifdef NDI_SUPPORT

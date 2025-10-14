@@ -15,6 +15,7 @@ import org.ctoolbox.cplay
 
 SettingsBasePage {
     id: root
+    property bool floatingWindowValuesNeedsSave: false
 
     ColumnLayout {
         anchors.fill: parent
@@ -334,7 +335,7 @@ SettingsBasePage {
             SettingsHeader {
                 Layout.columnSpan: 3
                 Layout.fillWidth: true
-                text: qsTr("Floating layer settings")
+                text: qsTr("Floating window layer settings")
                 level: 4
             }
             
@@ -345,7 +346,8 @@ SettingsBasePage {
 
                 Button {
                     icon.name: "layer-new"
-                    text: qsTr("Save values below and create floating window layer")
+                    text: qsTr("Update changes and save values.")
+                    icon.color: floatingWindowValuesNeedsSave ? "orange" : "lime"
 
                     onClicked: {
                         if (layerCoreProps.typeComboBox.currentIndex >= 0) {
@@ -371,6 +373,8 @@ SettingsBasePage {
                             UserInterfaceSettings.floatingWindowLayerPath = "";
                         }
 
+                        UserInterfaceSettings.floatingWindowShownInScreen = defineWindowParametersFromScreenCheckBox.checked;
+                        UserInterfaceSettings.floatingWindowScreenName = screensComboBox.currentText;
                         UserInterfaceSettings.floatingWindowWidth = floatingWindowWidth.value;
                         UserInterfaceSettings.floatingWindowHeight = floatingWindowHeight.value;
                         UserInterfaceSettings.floatingWindowPosX = floatingWindowPosX.value;
@@ -379,10 +383,15 @@ SettingsBasePage {
                         UserInterfaceSettings.floatingWindowVolume = floatingWindowVolume.value.toFixed(0);
                         UserInterfaceSettings.floatingWindowShowsMainVideoLayer = !showCustomLayerInFloatingWindowCheckBox.checked;
                         UserInterfaceSettings.save();
+                        floatingWindowValuesNeedsSave = false;
 
                         if(UserInterfaceSettings.floatingWindowLayerType >= 0 && UserInterfaceSettings.floatingWindowLayerPath !== ""){
                             floatingLayerViewItem.createLayer(UserInterfaceSettings.floatingWindowLayerType, UserInterfaceSettings.floatingWindowLayerPath);
                         }
+                    }
+
+                    Component.onCompleted: {
+                        floatingWindowValuesNeedsSave = false;
                     }
                 }
             }
@@ -398,8 +407,59 @@ SettingsBasePage {
                 enabled: true
                 text: qsTr("Show floating window at startup")
 
+                onCheckedChanged: {
+                    floatingWindowValuesNeedsSave = true;
+                }
+
                 Component.onCompleted: {
                     checked = UserInterfaceSettings.floatingWindowVisibleAtStartup;
+                }
+            }
+            Item {
+                // spacer item
+                Layout.fillWidth: true
+            }
+
+            Item {
+                height: 1
+                width: 1
+            }
+            RowLayout {
+                CheckBox {
+                    id: defineWindowParametersFromScreenCheckBox
+                    Layout.alignment: Qt.AlignRight
+
+                    checked: UserInterfaceSettings.floatingWindowShownInScreen
+                    text: qsTr("Use screen parameters: ")
+
+                    Component.onCompleted: {
+                        checked = UserInterfaceSettings.floatingWindowShownInScreen;
+                    }
+                }
+                ComboBox {
+                    id: screensComboBox
+
+                    enabled: defineWindowParametersFromScreenCheckBox.checked
+                    model: app.screensModel
+                    currentIndex: 0
+                    textRole: "name"
+                    valueRole: "geometry"
+
+                    Component.onCompleted: {
+                        app.screensModel.updateScreensList();
+
+                        var floatingWindowScreenNameIdx = find(UserInterfaceSettings.floatingWindowScreenName)
+                        if(floatingWindowScreenNameIdx >= 0){
+                            screensComboBox.currentIndex = floatingWindowScreenNameIdx;
+                        }
+                    }
+                    onActivated: {
+                        floatingWindowValuesNeedsSave = true;
+                        floatingWindowWidth.value = screensComboBox.currentValue.width;
+                        floatingWindowHeight.value = screensComboBox.currentValue.height;
+                        floatingWindowPosX.value = screensComboBox.currentValue.x;
+                        floatingWindowPosY.value = screensComboBox.currentValue.y;
+                    }
                 }
             }
             Item {
@@ -412,12 +472,16 @@ SettingsBasePage {
                 text: qsTr("Window size:")
             }
             RowLayout {
+                enabled: !defineWindowParametersFromScreenCheckBox.checked
                 SpinBox {
                     id: floatingWindowWidth
                     editable: true
                     from: 32
                     to: 8192
-                    value: UserInterfaceSettings.floatingWindowWidth
+
+                    onValueChanged: {
+                        floatingWindowValuesNeedsSave = true;
+                    }
 
                     Component.onCompleted: {
                         floatingWindowWidth.value = UserInterfaceSettings.floatingWindowWidth;
@@ -432,7 +496,10 @@ SettingsBasePage {
                     editable: true
                     from: 32
                     to: 8192
-                    value: UserInterfaceSettings.floatingWindowHeight
+
+                    onValueChanged: {
+                        floatingWindowValuesNeedsSave = true;
+                    }
 
                     Component.onCompleted: {
                         floatingWindowHeight.value = UserInterfaceSettings.floatingWindowHeight;
@@ -449,12 +516,16 @@ SettingsBasePage {
                 text: qsTr("Window position:")
             }
             RowLayout {
+                enabled: !defineWindowParametersFromScreenCheckBox.checked
                 SpinBox {
                     id: floatingWindowPosX
                     editable: true
-                    from: 32
+                    from: -8192
                     to: 8192
-                    value: UserInterfaceSettings.floatingWindowPosX
+
+                    onValueChanged: {
+                        floatingWindowValuesNeedsSave = true;
+                    }
 
                     Component.onCompleted: {
                         floatingWindowPosX.value = UserInterfaceSettings.floatingWindowPosX;
@@ -467,9 +538,12 @@ SettingsBasePage {
                 SpinBox {
                     id: floatingWindowPosY
                     editable: true
-                    from: 32
+                    from: -8192
                     to: 8192
-                    value: UserInterfaceSettings.floatingWindowPosY
+
+                    onValueChanged: {
+                        floatingWindowValuesNeedsSave = true;
+                    }
 
                     Component.onCompleted: {
                         floatingWindowPosY.value = UserInterfaceSettings.floatingWindowPosY;
@@ -491,6 +565,10 @@ SettingsBasePage {
                 checked: !UserInterfaceSettings.floatingWindowShowsMainVideoLayer
                 enabled: true
                 text: qsTr("Show custom layer instead of main video layer")
+
+                onCheckedChanged: {
+                    floatingWindowValuesNeedsSave = true;
+                }
 
                 Component.onCompleted: {
                     checked = !UserInterfaceSettings.floatingWindowShowsMainVideoLayer;
@@ -514,6 +592,7 @@ SettingsBasePage {
                 value: UserInterfaceSettings.floatingWindowVolume
 
                 onValueChanged: {
+                    floatingWindowValuesNeedsSave = true;
                     UserInterfaceSettings.floatingWindowVolume = value.toFixed(0);
                     floatingLayerViewItem.layerVolume = UserInterfaceSettings.floatingWindowVolume;
                 }

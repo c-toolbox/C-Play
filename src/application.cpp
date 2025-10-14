@@ -11,6 +11,7 @@
 #include "layerqtitem.h"
 #include "mpvobject.h"
 #include "playercontroller.h"
+#include "screensmodel.h"
 #include "slidesmodel.h"
 #include "slidesqtitem.h"
 
@@ -124,6 +125,7 @@ Application::Application(int &argc, char **argv, const QString &applicationName)
     : m_app(createApplication(argc, argv, applicationName)), 
     m_appEventFilter{ std::make_unique<ApplicationEventFilter>() },
     m_fontDatabase(new QFontDatabase()),
+    m_screensModel(new ScreensModel(this)),
     m_slidesModel(new SlidesModel(this)), 
     m_collection(new KActionCollection(this))
 {
@@ -146,6 +148,28 @@ Application::Application(int &argc, char **argv, const QString &applicationName)
 
     if (UserInterfaceSettings::guiStyle() != QStringLiteral("System")) {
         QApplication::setStyle(UserInterfaceSettings::guiStyle());
+    }
+
+    if (UserInterfaceSettings::floatingWindowShownInScreen()) {
+        QList<QScreen*> screens = QGuiApplication::screens();
+        bool geometrySet = false;
+        for (auto screen : screens) {
+            if (screen != QGuiApplication::primaryScreen()) {
+                if (screen->name() == UserInterfaceSettings::floatingWindowScreenName()
+                    || UserInterfaceSettings::floatingWindowScreenName().isEmpty()) {
+                    QRect geometry = screen->geometry();
+                    UserInterfaceSettings::setFloatingWindowWidth(geometry.width());
+                    UserInterfaceSettings::setFloatingWindowHeight(geometry.height());
+                    UserInterfaceSettings::setFloatingWindowPosX(geometry.x());
+                    UserInterfaceSettings::setFloatingWindowPosY(geometry.y());
+                    geometrySet = true;
+                    break;
+                }
+            }
+        }
+        if (!geometrySet) {
+            UserInterfaceSettings::setFloatingWindowShownInScreen(false);
+        }
     }
 
     // Qt sets the locale in the QGuiApplication constructor, but libmpv
@@ -387,6 +411,10 @@ void Application::updateFonts() {
     m_fontDatabase->removeAllApplicationFonts();
     m_fontScanResult = scanFonts(m_fontDatabase);
     Q_EMIT fontsChanged();
+}
+
+ScreensModel* Application::screensModel() {
+    return m_screensModel;
 }
 
 SlidesModel *Application::slidesModel() {

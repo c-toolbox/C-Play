@@ -64,6 +64,12 @@
     <entry name="FloatingWindowLayerPath" type="String">
         <default></default>
     </entry>
+    <entry name="FloatingWindowShownInScreen" type="bool">
+        <default>true</default>
+    </entry>
+    <entry name="FloatingWindowScreenName" type="String">
+        <default></default>
+    </entry>
     <entry name="FloatingWindowWidth" type="int">
       <default>640</default>
     </entry>
