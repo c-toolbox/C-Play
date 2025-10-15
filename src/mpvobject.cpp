@@ -1248,6 +1248,9 @@ void MpvObject::eventHandler() {
             break;
         }
         case MPV_EVENT_FILE_LOADED: {
+            if (SyncHelper::instance().variables.subtitleText) {
+                static_cast<TextLayer*>(SyncHelper::instance().variables.subtitleText)->setText("");
+            }
             setLoadedAsCurrentEditItem();
             Q_EMIT fileLoaded();
             break;
