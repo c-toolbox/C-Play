@@ -252,6 +252,7 @@ Rectangle {
                 }
                 Button {
                     icon.name: "list-remove"
+                    enabled: !layerView.visible
 
                     onClicked: {
                         busyIndicator = true;
@@ -265,6 +266,7 @@ Rectangle {
                 }
                 Button {
                     icon.name: "pan-up-symbolic"
+                    enabled: !layerView.visible
 
                     onClicked: {
                         app.slides.moveSlideUp(slidesView.currentIndex);
@@ -276,6 +278,7 @@ Rectangle {
                 }
                 Button {
                     icon.name: "pan-down-symbolic"
+                    enabled: !layerView.visible
 
                     onClicked: {
                         app.slides.moveSlideDown(slidesView.currentIndex);
@@ -287,6 +290,7 @@ Rectangle {
                 }
                 Button {
                     icon.name: "document-open"
+                    enabled: !layerView.visible
 
                     onClicked: {
                         openCPlayPresentationDialog.open();
@@ -312,6 +316,7 @@ Rectangle {
                 Button {
                     icon.color: "crimson"
                     icon.name: "trash-empty"
+                    enabled: !layerView.visible
 
                     onClicked: {
                         clearSlidesDialog.open();

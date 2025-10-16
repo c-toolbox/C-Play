@@ -220,6 +220,7 @@ Rectangle {
                 }
                 Button {
                     icon.name: "layer-delete"
+                    enabled: !layerView.visible
 
                     onClicked: {
                         busyIndicator = true;
@@ -233,6 +234,7 @@ Rectangle {
                 }
                 Button {
                     icon.name: "layer-top"
+                    enabled: !layerView.visible
 
                     onClicked: {
                         app.slides.selected.moveLayerTop(layersView.currentIndex);
@@ -244,6 +246,7 @@ Rectangle {
                 }
                 Button {
                     icon.name: "layer-raise"
+                    enabled: !layerView.visible
 
                     onClicked: {
                         app.slides.selected.moveLayerUp(layersView.currentIndex);
@@ -255,6 +258,7 @@ Rectangle {
                 }
                 Button {
                     icon.name: "layer-lower"
+                    enabled: !layerView.visible
 
                     onClicked: {
                         app.slides.selected.moveLayerDown(layersView.currentIndex);
@@ -266,6 +270,7 @@ Rectangle {
                 }
                 Button {
                     icon.name: "layer-bottom"
+                    enabled: !layerView.visible
 
                     onClicked: {
                         app.slides.selected.moveLayerBottom(layersView.currentIndex);
@@ -279,6 +284,7 @@ Rectangle {
                 Button {
                     icon.color: "crimson"
                     icon.name: "trash-empty"
+                    enabled: !layerView.visible
 
                     onClicked: {
                         clearLayersDialog.open();
@@ -373,10 +379,6 @@ Rectangle {
             model: app.slides.selected
             spacing: 1
             enabled: !slides.busyIndicator && !busyIndicator
-
-            onCurrentIndexChanged: {
-                layerView.layerItem.layerIdx = layersView.currentIndex;
-            }
 
             MouseArea {
                 id: layers_MA
