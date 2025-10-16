@@ -467,7 +467,7 @@ Rectangle {
                     app.slides.loadFromJSONFile(PresentationSettings.presentationToLoadOnStartup);
                 }
 
-                slidesView.currentIndex = -1;
+                slidesView.currentIndex = app.slides.selectedSlideIdx;
                 layers.layersView.currentIndex = -1;
             }
             onCurrentIndexChanged: {
@@ -553,7 +553,7 @@ Rectangle {
 
         onTriggered: {
             app.slides.loadFromJSONFile(presentationToLoad);
-            slidesView.currentIndex = -1;
+            slidesView.currentIndex = app.slides.selectedSlideIdx;
             layers.layersView.currentIndex = -1;
         }
     }

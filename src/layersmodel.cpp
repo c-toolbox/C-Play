@@ -483,6 +483,19 @@ QString LayersModel::getLayersName() const {
     return m_layersName;
 }
 
+QString LayersModel::getLayersNameShort(int maxChars) const {
+    size_t countChars = m_layersName.size();
+    if (countChars < maxChars) {
+        return m_layersName;
+    }
+    else {
+        QString shortendLayersName = m_layersName;
+        shortendLayersName.erase(shortendLayersName.end() - (countChars - maxChars + 4), shortendLayersName.end());
+        shortendLayersName.push_back(QStringLiteral("... "));
+        return shortendLayersName;
+    }
+}
+
 void LayersModel::setLayersPath(QString path) {
     m_layersPath = path;
 }
@@ -525,6 +538,11 @@ void LayersModel::decodeFromJSON(QJsonObject &obj, const QStringList &forRelativ
     if (obj.contains(QStringLiteral("name"))) {
         QString name = obj.value(QStringLiteral("name")).toString();
         setLayersName(name);
+    }
+
+    if (obj.contains(QStringLiteral("visibility"))) {
+        int vis = obj.value(QStringLiteral("visibility")).toInt();
+        setLayersVisibility(vis);
     }
 
     if (obj.contains(QStringLiteral("layers"))) {
@@ -733,6 +751,7 @@ void LayersModel::decodeFromJSON(QJsonObject &obj, const QStringList &forRelativ
 
 void LayersModel::encodeToJSON(QJsonObject &obj, const QStringList &forRelativePaths) {
     obj.insert(QStringLiteral("name"), QJsonValue(getLayersName()));
+    obj.insert(QStringLiteral("visibility"), QJsonValue(getLayersVisibility()));
 
     QJsonArray layersArray;
     for (auto layer : m_layers) {

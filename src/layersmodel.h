@@ -122,6 +122,7 @@ public:
 
     Q_INVOKABLE void setLayersName(QString name);
     Q_INVOKABLE QString getLayersName() const;
+    Q_INVOKABLE QString getLayersNameShort(int maxChars) const;
 
     Q_INVOKABLE void setLayersPath(QString path);
     Q_INVOKABLE QString getLayersPath() const;

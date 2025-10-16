@@ -813,6 +813,7 @@ void SlidesModel::loadFromJSONFile(const QString &path) {
         m_masterSlide->setLayersName(QStringLiteral("Master"));
     }
 
+    bool slideVisible = false;
     if (obj.contains(QStringLiteral("slides"))) {
         QJsonValue value = obj.value(QStringLiteral("slides"));
         QJsonArray array = value.toArray();
@@ -820,10 +821,20 @@ void SlidesModel::loadFromJSONFile(const QString &path) {
             QJsonObject o = v.toObject();
             int idx = addSlide();
             m_slides[idx]->decodeFromJSON(o, fileSearchPaths);
+            if (!slideVisible && m_slides[idx]->getLayersVisibility() > 0) {
+                slideVisible = true;
+                m_previousTriggeredSlideIdx = idx - 1;
+                m_selectedSlideIdx = idx;
+                m_triggeredSlideIdx = idx;
+            }
         }
     }
 
-    setSelectedSlideIdx(-1);
+    if (!slideVisible)
+        setSelectedSlideIdx(-1);
+    else
+        setSelectedSlideIdx(m_selectedSlideIdx);
+
     updateRecentLoadedPresentations(jsonFileInfo.absoluteFilePath());
     setSlidesPath(jsonFileInfo.absoluteFilePath());
     setSlidesName(jsonFileInfo.baseName());

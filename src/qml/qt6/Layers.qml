@@ -315,13 +315,14 @@ Rectangle {
             Rectangle {
                 color: Kirigami.Theme.alternateBackgroundColor
                 height: 1
-                width: Kirigami.Units.gridUnit + 10
+                width: Kirigami.Units.gridUnit * 0.5
             }
             Label {
                 id: layersTitle
 
                 font.pointSize: 9
-                text: app.slides.selected.layersName + qsTr(" Layers")
+                text: app.slides.selected.getLayersNameShort(14) + qsTr(" Layers")
+                wrapMode: Text.Wrap
             }
             Rectangle {
                 Layout.fillWidth: true

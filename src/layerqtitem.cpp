@@ -58,7 +58,11 @@ int LayerQtItem::layerIdx() const{
 
 void LayerQtItem::setLayerIdx(int idx) {
     m_layerIdx = idx;
-    BaseLayer *nl = Application::instance().slidesModel()->selectedSlide()->layer(m_layerIdx);
+
+    BaseLayer* nl = nullptr;
+    if (m_layerIdx >= 0)
+        nl = Application::instance().slidesModel()->selectedSlide()->layer(m_layerIdx);
+
     if (nl == nullptr) {
         m_layerIdx = -1;
         m_layer = nullptr;
