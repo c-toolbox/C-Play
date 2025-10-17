@@ -794,6 +794,11 @@ void LayersModel::encodeToJSON(QJsonObject &obj, const QStringList &forRelativeP
             layerData.insert(QStringLiteral("numPages"), QJsonValue(pdfLayer->numPages()));
         }
 #endif
+#ifdef NDI_SUPPORT
+        if (layer->type() == BaseLayer::NDI) {
+            layerData.insert(QStringLiteral("volume"), QJsonValue(layer->volume()));
+        }
+#endif
         if (layer->type() == BaseLayer::VIDEO || layer->type() == BaseLayer::AUDIO) {
             if (layer->hasAudio()) {
                 layerData.insert(QStringLiteral("volume"), QJsonValue(layer->volume()));

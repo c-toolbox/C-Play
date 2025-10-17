@@ -387,6 +387,7 @@ SettingsBasePage {
 
                         if(UserInterfaceSettings.floatingWindowLayerType >= 0 && UserInterfaceSettings.floatingWindowLayerPath !== ""){
                             floatingLayerViewItem.createLayer(UserInterfaceSettings.floatingWindowLayerType, UserInterfaceSettings.floatingWindowLayerPath);
+                            floatingLayerViewItem.layerVolume = UserInterfaceSettings.floatingWindowVolume;
                         }
                     }
 

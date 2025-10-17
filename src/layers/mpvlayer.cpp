@@ -348,6 +348,9 @@ void MpvLayer::update(bool updateRendering) {
 
 void MpvLayer::start() {
     if (ready() && m_data.mediaIsPaused) {
+        if (isAudioEnabled()) {
+            setAudioId(m_data.audioId);
+        }
         setPosition(0);
         setPause(false);
     }

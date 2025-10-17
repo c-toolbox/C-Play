@@ -163,9 +163,6 @@ void NdiLayer::update(bool updateRendering) {
         m_isReady = true;
     }
 
-    if (!updateRendering)
-        return;
-
     // Let's recieve image or audio
     if (m_isReady) {
         ReceiveData(updateRendering);
@@ -177,7 +174,8 @@ bool NdiLayer::ready() const {
 }
 
 void NdiLayer::start() {
-    if (isAudioEnabled() && m_audioStream && m_audioStreamOpen) {
+    if (!m_audioStreamStarted && isAudioEnabled() && m_audioStream && m_audioStreamOpen) {
+        setVolume(m_volume);
         m_audioError = Pa_StartStream(m_audioStream);
         if (m_audioError == paNoError) {
             m_audioStreamStarted = true;
