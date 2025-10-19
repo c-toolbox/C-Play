@@ -166,6 +166,9 @@ public:
     bool isMaster() const;
     uint32_t identifier() const;
 
+    bool isLocked() const;
+    void setIsLocked(bool locked);
+
     bool needSync() const;
     void setHasSynced();
 
@@ -266,6 +269,7 @@ protected:
     std::string m_filepath;
     int m_volume;
     int m_keepVisibilityForNumSlides;
+    bool m_isLocked;
     bool m_isMaster;
     bool m_existOnMasterOnly;
     bool m_shouldUpdate;

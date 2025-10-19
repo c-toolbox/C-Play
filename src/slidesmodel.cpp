@@ -76,7 +76,7 @@ QVariant SlideVisibilityModel::headerData(int section, Qt::Orientation orientati
             const Layers& slideLayers = s->getLayers();
             for (auto layer : slideLayers) {
                 if (section == layerNum) {
-                    return QString(QStringLiteral("%1")).arg(QString::fromStdString(layer->title()));
+                    return QString(QStringLiteral("%1")).arg(QString::fromStdString(layer.first->title()));
                 }
                 layerNum++;
             }
@@ -152,7 +152,7 @@ void SlideVisibilityModel::resetTable() {
     for (auto s : *m_slideList) {
         const Layers& slideLayers = s->getLayers();
         for (auto layer : slideLayers) {
-            newVisibilityLayers.push_back(layer.get());
+            newVisibilityLayers.push_back(layer.first.get());
         }
     }
     int rows = static_cast<int>(newVisibilityLayers.size());
@@ -195,7 +195,7 @@ BaseLayer* SlideVisibilityModel::findLayer(int row) {
         const Layers& slideLayers = s->getLayers();
         for (auto layer : slideLayers) {
             if (row == layerNum) {
-                return layer.get();
+                return layer.first.get();
             }
             layerNum++;
         }
@@ -217,7 +217,7 @@ int SlideVisibilityModel::calculateLocalIndex(int column, int row, bool ignoreKe
                 if(ignoreKeepValue)
                     return column - slideNum;
                 else
-                    return column - slideNum - layer->keepVisibilityForNumSlides();
+                    return column - slideNum - layer.first->keepVisibilityForNumSlides();
             }
             layerNum++;
         }
@@ -298,6 +298,7 @@ SlidesModel::SlidesModel(QObject *parent)
     m_slidesPath(QStringLiteral("")) {
     m_masterSlide->setLayersName(QStringLiteral("Master"));
     m_masterSlide->setHierarchy(BaseLayer::LayerHierarchy::BACK);
+    m_masterSlide->setLayersCanBeLocked(true);
     m_clearCopyTimer = new QTimer(this);
     m_clearCopyTimer->setInterval(30000);
     m_clearCopyTimer->setSingleShot(true);
@@ -335,6 +336,10 @@ QVariant SlidesModel::data(const QModelIndex &index, int role) const {
         return QVariant(slideItem->minLayerStatus());
     case LayerMaxStatusRole:
         return QVariant(slideItem->maxLayerStatus());
+    case LockedRole:
+        return QVariant(slideItem->getLayersCanBeLocked());
+    case LockedCountRole:
+        return QVariant(slideItem->getLockedLayerCount());
     case VisibilityRole:
         return QVariant(slideItem->getLayersVisibility());
     }
@@ -349,6 +354,8 @@ QHash<int, QByteArray> SlidesModel::roleNames() const {
     roles[LayersRole] = "layers";
     roles[LayerMinStatusRole] = "layerminstatus";
     roles[LayerMaxStatusRole] = "layermaxstatus";
+    roles[LockedRole] = "locked";
+    roles[LockedCountRole] = "countlocked";
     roles[VisibilityRole] = "visibility";
     return roles;
 }
@@ -399,12 +406,12 @@ void SlidesModel::setSelectedSlideIdx(int value) {
     m_selectedSlideIdx = std::max(value, -1);
     if (m_selectedSlideIdx >= 0 && m_selectedSlideIdx < numberOfSlides()) {
         for (auto layer : m_slides[m_selectedSlideIdx]->getLayers()) {
-            layer->setShouldPreLoad(true);
+            layer.first->setShouldPreLoad(true);
         }
     }
     else if (m_selectedSlideIdx == -1) {
         for (auto layer : m_masterSlide->getLayers()) {
-            layer->setShouldPreLoad(true);
+            layer.first->setShouldPreLoad(true);
         }
     }
     Q_EMIT selectedSlideChanged();
@@ -556,7 +563,7 @@ int SlidesModel::addSlide() {
 }
 
 void SlidesModel::removeSlide(int i) {
-    if (i < 0 || i >= m_slides.size())
+    if(i < 0 || i >= m_slides.size() || m_slides[i]->getLayersCanBeLocked())
         return;
 
     beginRemoveRows(QModelIndex(), i, i);
@@ -653,10 +660,32 @@ void SlidesModel::updateSelectedSlide() {
 }
 
 void SlidesModel::clearSlides() {
-    beginRemoveRows(QModelIndex(), 0, m_slides.size() - 1);
-    m_slides.clear();
+    //Move all locked slides above unlocked ones
+    //Remove unlocked slides
+    int unlockedSlides = 0;
+    int lockedSlides = 0;
+    for (int i = 0; i < m_slides.size(); i++) {
+        if (m_slides[i]->getLayersCanBeLocked()) {
+            if (unlockedSlides > 0) {
+                beginMoveRows(QModelIndex(), i, i, QModelIndex(), lockedSlides);
+                m_slides.move(i, lockedSlides);
+                endMoveRows();
+            }
+            lockedSlides++;
+        }
+        else {
+            unlockedSlides++;
+        }
+    }
+    beginRemoveRows(QModelIndex(), lockedSlides, m_slides.size() - 1);
+    for (int i = 0; i < lockedSlides; i++) {
+        m_slides[i]->clearLayers();
+        updateSlide(i);
+    }
+    m_slides.erase(m_slides.begin() + lockedSlides, m_slides.end());
     m_masterSlide->clearLayers();
     endRemoveRows();
+
     setSlidesName(QStringLiteral(""));
     setSlidesPath(QStringLiteral(""));
     setSlidesNeedsSave(false);
@@ -889,8 +918,8 @@ void SlidesModel::runStartAfterPresentationLoad() {
     for (int i = -1; i < numberOfSlides(); i++) {
         const Layers& slideLayers = slide(i)->getLayers();
         for (auto layer : slideLayers) {
-            if (layer->alpha() > 0.f) {
-                layer->start();
+            if (layer.first->alpha() > 0.f) {
+                layer.first->start();
             }
         }
     }
@@ -901,7 +930,7 @@ void SlidesModel::runUpdateAudioOutputOnLayers() {
     for (int i = -1; i < numberOfSlides(); i++) {
         const Layers& slideLayers = slide(i)->getLayers();
         for (auto layer : slideLayers) {
-            layer->updateAudioOutput();
+            layer.first->updateAudioOutput();
         }
     }
 }
@@ -910,8 +939,8 @@ void SlidesModel::runUpdateVolumeOnLayers(int volume) {
     for (int i = -1; i < numberOfSlides(); i++) {
         const Layers& slideLayers = slide(i)->getLayers();
         for (auto layer : slideLayers) {
-            float volLevelF = static_cast<float>(layer->volume()) * (static_cast<float>(volume) / 100.f);
-            layer->setVolume(static_cast<int>(volLevelF), false);
+            float volLevelF = static_cast<float>(layer.first->volume()) * (static_cast<float>(volume) / 100.f);
+            layer.first->setVolume(static_cast<int>(volLevelF), false);
         }
     }
 }
@@ -921,16 +950,16 @@ void SlidesModel::checkMasterLayersRunBasedOnMediaVisibility(int mediaVisibility
     const Layers& slideLayers = masterSlide()->getLayers();
     for (int i = 0; i < slideLayers.size(); i++) {
         if (PresentationSettings::mediaVisibilityControlMasterLayers()) {
-            slideLayers[i]->setAlpha(static_cast<float>(100 - mediaVisibility) / 100.f);
+            slideLayers[i].first->setAlpha(static_cast<float>(100 - mediaVisibility) / 100.f);
             masterSlide()->updateLayer(i);
         }
         else {
-            if (slideLayers[i]->alpha() > 0.f) {
-                if (mediaVisibility < 100 && slideLayers[i]->pause()) {
-                    slideLayers[i]->start();
+            if (slideLayers[i].first->alpha() > 0.f) {
+                if (mediaVisibility < 100 && slideLayers[i].first->pause()) {
+                    slideLayers[i].first->start();
                 }
-                else if (mediaVisibility == 100 && !slideLayers[i]->pause()) {
-                    slideLayers[i]->stop();
+                else if (mediaVisibility == 100 && !slideLayers[i].first->pause()) {
+                    slideLayers[i].first->stop();
                 }
             }
         }

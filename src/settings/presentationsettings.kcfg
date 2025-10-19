@@ -60,5 +60,11 @@
     <entry name="MasterVolumeControlLayersVolume" type="bool">
       <default>true</default>
     </entry>
+    <entry name="MasterSlideCanHaveLockableLayers" type="bool">
+      <default>false</default>
+    </entry>
+    <entry name="CustomSlidesCanHaveLockableLayers" type="bool">
+      <default>false</default>
+    </entry>
   </group>
 </kcfg>

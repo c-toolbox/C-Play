@@ -229,6 +229,42 @@ SettingsBasePage {
             Layout.fillWidth: true
         }
 
+        Item {
+            height: 1
+            width: 1
+        }
+        CheckBox {
+            checked: PresentationSettings.masterSlideCanHaveLockableLayers
+            text: qsTr("Master slide can have lockable layers.")
+
+            onCheckedChanged: {
+                PresentationSettings.masterSlideCanHaveLockableLayers = checked;
+                PresentationSettings.save();
+            }
+        }
+        Item {
+            // spacer item
+            Layout.fillWidth: true
+        }
+
+        Item {
+            height: 1
+            width: 1
+        }
+        CheckBox {
+            checked: PresentationSettings.customSlidesCanHaveLockableLayers
+            text: qsTr("Custom slides can have lockable layers.")
+
+            onCheckedChanged: {
+                PresentationSettings.customSlidesCanHaveLockableLayers = checked;
+                PresentationSettings.save();
+            }
+        }
+        Item {
+            // spacer item
+            Layout.fillWidth: true
+        }
+
         Label {
             Layout.alignment: Qt.AlignRight
             text: qsTr("Default visibility for new layer:")

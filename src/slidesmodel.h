@@ -81,6 +81,8 @@ public:
         LayersRole,
         LayerMinStatusRole,
         LayerMaxStatusRole,
+        LockedRole,
+        LockedCountRole,
         VisibilityRole
     };
 

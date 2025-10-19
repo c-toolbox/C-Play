@@ -157,6 +157,7 @@ BaseLayer::BaseLayer() {
     m_title = "";
     m_filepath = "";
     m_volume = 100;
+    m_isLocked = false;
     m_isMaster = false;
     m_existOnMasterOnly = false;
     m_shouldUpdate = false;
@@ -450,6 +451,14 @@ bool BaseLayer::isMaster() const {
 
 uint32_t BaseLayer::identifier() const {
     return m_identifier;
+}
+
+bool BaseLayer::isLocked() const {
+    return m_isLocked;
+}
+
+void BaseLayer::setIsLocked(bool locked) {
+    m_isLocked = locked;
 }
 
 bool BaseLayer::needSync() const {

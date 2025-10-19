@@ -62,7 +62,6 @@ LayersModel::LayersModel(QObject *parent)
 
 LayersModel::~LayersModel() {
     m_layers.clear();
-    m_layersStatus.clear();
 }
 
 int LayersModel::rowCount(const QModelIndex &parent) const {
@@ -76,7 +75,7 @@ QVariant LayersModel::data(const QModelIndex &index, int role) const {
     if (!index.isValid() || m_layers.empty())
         return QVariant();
 
-    const BaseLayer *layerItem = m_layers.at(index.row()).get();
+    const BaseLayer *layerItem = m_layers.at(index.row()).first.get();
 
     int stereoVideo = layerItem->stereoMode();
     int gridToMapOn = layerItem->gridMode();
@@ -88,6 +87,8 @@ QVariant LayersModel::data(const QModelIndex &index, int role) const {
         return QVariant(QString::fromStdString(layerItem->filepath()));
     case TypeRole:
         return QVariant(QString::fromStdString(layerItem->typeName()));
+    case LockedRole:
+        return QVariant(layerItem->isLocked());
     case PageRole:
 #ifdef PDF_SUPPORT
         if (layerItem->type() == BaseLayer::PDF){
@@ -118,7 +119,7 @@ QVariant LayersModel::data(const QModelIndex &index, int role) const {
             return QVariant(QStringLiteral(""));
         }
     case StatusRole:
-        return QVariant(m_layersStatus.at(index.row()));
+        return QVariant(m_layers.at(index.row()).second);
     case VisibilityRole:
         return QVariant(static_cast<int>(layerItem->alpha() * 100.f));
     }
@@ -131,6 +132,7 @@ QHash<int, QByteArray> LayersModel::roleNames() const {
     roles[TitleRole] = "title";
     roles[PathRole] = "filepath";
     roles[TypeRole] = "type";
+    roles[LockedRole] = "locked";
     roles[PageRole] = "page";
     roles[StereoRole] = "stereoVideo";
     roles[GridRole] = "gridToMapOn";
@@ -157,7 +159,7 @@ void LayersModel::setHierarchy(BaseLayer::LayerHierarchy h) {
     m_layerHierachy = h;
 
     for (auto l : m_layers)
-        l->setHierarchy(h);
+        l.first->setHierarchy(h);
 
     setNeedSync();
 }
@@ -181,36 +183,36 @@ void LayersModel::setHasSynced() {
 
 BaseLayer *LayersModel::layer(int i) {
     if (i >= 0 && m_layers.size() > i)
-        return m_layers[i].get();
+        return m_layers[i].first.get();
     else
         return nullptr;
 }
 
 int LayersModel::layerStatus(int i) {
-    if (i >= 0 && m_layersStatus.size() > i)
-        return m_layersStatus[i];
+    if (i >= 0 && m_layers.size() > i)
+        return m_layers[i].second;
     else
         return -1;
 }
 
 int LayersModel::minLayerStatus() {
-    if (m_layersStatus.isEmpty())
+    if (m_layers.isEmpty())
         return -1;
 
     int minStatus = 2;
-    for (int i = 0; i < m_layersStatus.size(); i++) {
-        minStatus = std::min(minStatus, m_layersStatus[i]);
+    for (int i = 0; i < m_layers.size(); i++) {
+        minStatus = std::min(minStatus, m_layers[i].second);
     }
     return minStatus;
 }
 
 int LayersModel::maxLayerStatus() {
-    if (m_layersStatus.isEmpty())
+    if (m_layers.isEmpty())
         return -1;
 
     int maxStatus = 0;
-    for (int i = 0; i < m_layersStatus.size(); i++) {
-        maxStatus = std::max(maxStatus, m_layersStatus[i]);
+    for (int i = 0; i < m_layers.size(); i++) {
+        maxStatus = std::max(maxStatus, m_layers[i].second);
     }
     return maxStatus;
 }
@@ -245,8 +247,7 @@ int LayersModel::addLayer(QString title, int type, QString filepath, int stereoM
         newLayer->setPlaneSize(glm::vec2(GridSettings::plane_Width_CM(), GridSettings::plane_Height_CM()), 
             static_cast<uint8_t>(GridSettings::plane_Calculate_Size_Based_on_Video()));
         newLayer->initialize();
-        m_layers.push_back(QSharedPointer<BaseLayer>(newLayer));
-        m_layersStatus.push_back(0);
+        m_layers.push_back(QPair(QSharedPointer<BaseLayer>(newLayer), 0));
         setLayersNeedsSave(true);
         setNeedSync();
     }
@@ -299,8 +300,10 @@ void LayersModel::removeLayer(int i) {
     if (i < 0 || i >= m_layers.size())
         return;
 
+    if (getLayersCanBeLocked() && m_layers.at(i).first->isLocked())
+        return;
+
     beginRemoveRows(QModelIndex(), i, i);
-    m_layersStatus.removeAt(i);
     m_layers.removeAt(i);
     endRemoveRows();
     setLayersNeedsSave(true);
@@ -314,8 +317,9 @@ void LayersModel::moveLayerTop(int i) {
         return;
     beginMoveRows(QModelIndex(), i, i, QModelIndex(), 0);
     m_layers.move(i, 0);
-    m_layersStatus.move(i, 0);
     endMoveRows();
+    for (int j = 0; j < i; j++)
+        updateLayer(j);
     setLayersNeedsSave(true);
     setNeedSync();
 
@@ -327,7 +331,6 @@ void LayersModel::moveLayerUp(int i) {
         return;
     beginMoveRows(QModelIndex(), i, i, QModelIndex(), i - 1);
     m_layers.move(i, i - 1);
-    m_layersStatus.move(i, i - 1);
     endMoveRows();
     setLayersNeedsSave(true);
     setNeedSync();
@@ -352,8 +355,9 @@ void LayersModel::moveLayerBottom(int i) {
         return;
     beginMoveRows(QModelIndex(), m_layers.size() - 1, m_layers.size() - 1, QModelIndex(), i);
     m_layers.move(i, m_layers.size() - 1);
-    m_layersStatus.move(i, m_layers.size() - 1);
     endMoveRows();
+    for (int j = i; j < m_layers.size(); j++)
+        updateLayer(j);
     setLayersNeedsSave(true);
     setNeedSync();
 
@@ -365,12 +369,64 @@ void LayersModel::updateLayer(int i) {
     setLayersNeedsSave(true);
 }
 
+void LayersModel::lockLayer(int i) {
+    if (i < 0 || i >= m_layers.size())
+        return;
+
+    m_layers[i].first->setIsLocked(true);
+    updateLayer(i);
+}
+
+void LayersModel::unlockLayer(int i) {
+    if (i < 0 || i >= m_layers.size())
+        return;
+
+    m_layers[i].first->setIsLocked(false);
+    updateLayer(i);
+}
+
+bool LayersModel::isLocked(int i) {
+    if (!getLayersCanBeLocked() || i < 0 || i >= m_layers.size())
+        return false;
+
+    return m_layers[i].first->isLocked();
+}
+
 void LayersModel::clearLayers() {
-    beginRemoveRows(QModelIndex(), 0, m_layers.size() - 1);
-    m_layers.clear();
-    m_layersStatus.clear();
-    endRemoveRows();
-    setLayersNeedsSave(false);
+    if (getLayersCanBeLocked()) {
+        //Move all locked layers above unlocked ones
+        //Remove unlocked layers
+        int unlockedLayers = 0;
+        int lockedLayers = 0;
+        for (int i = 0; i < m_layers.size(); i++) {
+            if (m_layers[i].first->isLocked()) {
+                if (unlockedLayers > 0) {
+                    beginMoveRows(QModelIndex(), i, i, QModelIndex(), lockedLayers);
+                    m_layers.move(i, lockedLayers);
+                    endMoveRows();
+                }
+                lockedLayers++;
+            }
+            else {
+                unlockedLayers++;
+            }
+        }
+        beginRemoveRows(QModelIndex(), lockedLayers, m_layers.size() - 1);
+        m_layers.erase(m_layers.begin() + lockedLayers, m_layers.end());
+        endRemoveRows();
+
+        if (m_layers.isEmpty())
+            setLayersNeedsSave(false);
+        else
+            setLayersNeedsSave(true);
+    }
+    else {
+        beginRemoveRows(QModelIndex(), 0, m_layers.size() - 1);
+        m_layers.clear();
+        endRemoveRows();
+        setLayersNeedsSave(false);
+    }
+
     setNeedSync();
 
     Q_EMIT layersModelChanged();
@@ -380,7 +436,7 @@ void LayersModel::setLayersVisibility(int value, bool propagateDown) {
     m_layersVisibility = value;
     for (int i = 0; i < m_layers.size(); i++) {
         if (propagateDown) {
-            m_layers[i]->setAlpha(static_cast<float>(value) * 0.01f);
+            m_layers[i].first->setAlpha(static_cast<float>(value) * 0.01f);
         }
         updateLayer(i);
     }
@@ -412,7 +468,7 @@ int LayersModel::getLayerToCopyIdx() {
 
 BaseLayer* LayersModel::getLayerToCopy() {
     if (m_layerToCopyIdx >= 0 && m_layerToCopyIdx < m_layers.size())
-        return m_layers[m_layerToCopyIdx].get();
+        return m_layers[m_layerToCopyIdx].first.get();
 
     return nullptr;
 }
@@ -437,8 +493,7 @@ void LayersModel::addCopyOfLayer(BaseLayer* srcLayer) {
 
         newLayer->setHierarchy(hierarchy());
         newLayer->initialize();
-        m_layers.push_back(QSharedPointer<BaseLayer>(newLayer));
-        m_layersStatus.push_back(0);
+        m_layers.push_back(QPair(QSharedPointer<BaseLayer>(newLayer), 0));
         setLayersNeedsSave(true);
         setNeedSync();
     }
@@ -458,14 +513,14 @@ void LayersModel::overwriteLayerProperties(BaseLayer* srcLayer, int dstLayerIdx)
     std::vector<std::byte> data;
     srcLayer->encodeBaseProperties(data);
 
-    if(m_layers[dstLayerIdx]->type() == srcLayer->type())
+    if(m_layers[dstLayerIdx].first->type() == srcLayer->type())
         srcLayer->encodeTypeProperties(data);
 
     unsigned int pos = 0;
-    m_layers[dstLayerIdx]->decodeBaseProperties(data, pos);
+    m_layers[dstLayerIdx].first->decodeBaseProperties(data, pos);
 
-    if (m_layers[dstLayerIdx]->type() == srcLayer->type())
-        m_layers[dstLayerIdx]->decodeTypeProperties(data, pos);
+    if (m_layers[dstLayerIdx].first->type() == srcLayer->type())
+        m_layers[dstLayerIdx].first->decodeTypeProperties(data, pos);
 
     updateLayer(dstLayerIdx);
 }
@@ -494,6 +549,33 @@ QString LayersModel::getLayersNameShort(int maxChars) const {
         shortendLayersName.push_back(QStringLiteral("... "));
         return shortendLayersName;
     }
+}
+
+void LayersModel::setLayersCanBeLocked(bool locked) {
+    m_layersCanBeLocked = locked;
+    Q_EMIT layersCanBeLockedChanged();
+}
+
+bool LayersModel::getLayersCanBeLocked() const {
+    if ((m_layerHierachy == BaseLayer::LayerHierarchy::BACK
+        && PresentationSettings::masterSlideCanHaveLockableLayers())
+        ||  (m_layerHierachy == BaseLayer::LayerHierarchy::FRONT
+        && PresentationSettings::customSlidesCanHaveLockableLayers())) {
+        return m_layersCanBeLocked;
+    }
+    else {
+        return false;
+    }
+}
+
+int LayersModel::getLockedLayerCount() const {
+    int count = 0;
+    for (int i = 0; i < m_layers.size(); i++) {
+        if (m_layers[i].first->isLocked()) {
+            count++;
+        }
+    }
+    return count;
 }
 
 void LayersModel::setLayersPath(QString path) {
@@ -543,6 +625,11 @@ void LayersModel::decodeFromJSON(QJsonObject &obj, const QStringList &forRelativ
     if (obj.contains(QStringLiteral("visibility"))) {
         int vis = obj.value(QStringLiteral("visibility")).toInt();
         setLayersVisibility(vis);
+    }
+
+    if (obj.contains(QStringLiteral("lockableLayers"))) {
+        bool lockable = obj.value(QStringLiteral("lockableLayers")).toBool();
+        setLayersCanBeLocked(lockable);
     }
 
     if (obj.contains(QStringLiteral("layers"))) {
@@ -610,7 +697,7 @@ void LayersModel::decodeFromJSON(QJsonObject &obj, const QStringList &forRelativ
 
 #ifdef SGCT_HAS_TEXT
                     if (type == BaseLayer::TEXT) {
-                        QSharedPointer<TextLayer> textLayer = qSharedPointerCast<TextLayer, BaseLayer>(m_layers[idx]);
+                        QSharedPointer<TextLayer> textLayer = qSharedPointerCast<TextLayer, BaseLayer>(m_layers[idx].first);
                         if (o.contains(QStringLiteral("text"))) {
                             std::string text = o.value(QStringLiteral("text")).toString().toStdString();
                             textLayer->setText(text);
@@ -641,7 +728,7 @@ void LayersModel::decodeFromJSON(QJsonObject &obj, const QStringList &forRelativ
 #endif
 #ifdef PDF_SUPPORT
                     if (type == BaseLayer::PDF) {
-                        QSharedPointer<PdfLayer> pdfLayer = qSharedPointerCast<PdfLayer, BaseLayer>(m_layers[idx]);
+                        QSharedPointer<PdfLayer> pdfLayer = qSharedPointerCast<PdfLayer, BaseLayer>(m_layers[idx].first);
                         if (o.contains(QStringLiteral("numPages"))) {
                             int numPages = o.value(QStringLiteral("numPages")).toInt();
                             pdfLayer->setNumPages(numPages);
@@ -654,24 +741,29 @@ void LayersModel::decodeFromJSON(QJsonObject &obj, const QStringList &forRelativ
                     }  
 #endif
 
+                    if (getLayersCanBeLocked() && o.contains(QStringLiteral("locked"))) {
+                        bool locked = o.value(QStringLiteral("locked")).toBool();
+                        m_layers[idx].first->setIsLocked(locked);
+                    }
+
                     if (o.contains(QStringLiteral("visibility"))) {
                         int visibility = o.value(QStringLiteral("visibility")).toInt();
-                        m_layers[idx]->setAlpha(static_cast<float>(visibility) * 0.01f);
+                        m_layers[idx].first->setAlpha(static_cast<float>(visibility) * 0.01f);
                     }
 
                     if (o.contains(QStringLiteral("volume"))) {
                         int volume = o.value(QStringLiteral("volume")).toInt();
-                        m_layers[idx]->setVolume(volume);
+                        m_layers[idx].first->setVolume(volume);
                     }
 
                     if (o.contains(QStringLiteral("audioId"))) {
                         int audioId = o.value(QStringLiteral("audioId")).toInt();
-                        m_layers[idx]->setAudioId(audioId);
+                        m_layers[idx].first->setAudioId(audioId);
                     }
 
                     if (o.contains(QStringLiteral("keepVisibilityForNumSlides"))) {
                         int keepVisibilityForNumSlides = o.value(QStringLiteral("keepVisibilityForNumSlides")).toInt();
-                        m_layers[idx]->setKeepVisibilityForNumSlides(keepVisibilityForNumSlides);
+                        m_layers[idx].first->setKeepVisibilityForNumSlides(keepVisibilityForNumSlides);
                     }
 
                     if (grid == BaseLayer::GridMode::Plane && o.contains(QStringLiteral("plane"))) {
@@ -681,39 +773,39 @@ void LayersModel::decodeFromJSON(QJsonObject &obj, const QStringList &forRelativ
                             QJsonObject po = pa.toObject();
                             if (po.contains(QStringLiteral("aspectRatio"))) {
                                 int planeAR = po.value(QStringLiteral("aspectRatio")).toInt();
-                                m_layers[idx]->setPlaneAspectRatio(static_cast<uint8_t>(planeAR));
+                                m_layers[idx].first->setPlaneAspectRatio(static_cast<uint8_t>(planeAR));
                             }
                             if (po.contains(QStringLiteral("width"))) {
                                 double planeW = po.value(QStringLiteral("width")).toDouble();
-                                m_layers[idx]->setPlaneWidth(planeW);
+                                m_layers[idx].first->setPlaneWidth(planeW);
                             }
                             if (po.contains(QStringLiteral("height"))) {
                                 double planeH = po.value(QStringLiteral("height")).toDouble();
-                                m_layers[idx]->setPlaneHeight(planeH);
+                                m_layers[idx].first->setPlaneHeight(planeH);
                             }
                             if (po.contains(QStringLiteral("elevation"))) {
                                 double planeE = po.value(QStringLiteral("elevation")).toDouble();
-                                m_layers[idx]->setPlaneElevation(planeE);
+                                m_layers[idx].first->setPlaneElevation(planeE);
                             }
                             if (po.contains(QStringLiteral("azimuth"))) {
                                 double planeA = po.value(QStringLiteral("azimuth")).toDouble();
-                                m_layers[idx]->setPlaneAzimuth(planeA);
+                                m_layers[idx].first->setPlaneAzimuth(planeA);
                             }
                             if (po.contains(QStringLiteral("roll"))) {
                                 double planeR = po.value(QStringLiteral("roll")).toDouble();
-                                m_layers[idx]->setPlaneRoll(planeR);
+                                m_layers[idx].first->setPlaneRoll(planeR);
                             }
                             if (po.contains(QStringLiteral("distance"))) {
                                 double planeD = po.value(QStringLiteral("distance")).toDouble();
-                                m_layers[idx]->setPlaneDistance(planeD);
+                                m_layers[idx].first->setPlaneDistance(planeD);
                             }
                             if (po.contains(QStringLiteral("horizontal"))) {
                                 double planeHM = po.value(QStringLiteral("horizontal")).toDouble();
-                                m_layers[idx]->setPlaneHorizontal(planeHM);
+                                m_layers[idx].first->setPlaneHorizontal(planeHM);
                             }
                             if (po.contains(QStringLiteral("vertical"))) {
                                 double planeVM = po.value(QStringLiteral("vertical")).toDouble();
-                                m_layers[idx]->setPlaneVertical(planeVM);
+                                m_layers[idx].first->setPlaneVertical(planeVM);
                             }
                         }
                     }
@@ -724,7 +816,7 @@ void LayersModel::decodeFromJSON(QJsonObject &obj, const QStringList &forRelativ
                             QJsonObject pa = ra.toObject();
                             if (pa.contains(QStringLiteral("enabled"))) {
                                 bool roiEnabled = pa.value(QStringLiteral("enabled")).toBool();
-                                m_layers[idx]->setRoiEnabled(roiEnabled);
+                                m_layers[idx].first->setRoiEnabled(roiEnabled);
                             }
                             glm::vec4 roi = glm::vec4(0.f, 0.f, 1.f, 1.f);
                             if (pa.contains(QStringLiteral("xpos"))) {
@@ -739,7 +831,7 @@ void LayersModel::decodeFromJSON(QJsonObject &obj, const QStringList &forRelativ
                             if (pa.contains(QStringLiteral("height"))) {
                                 roi.w = static_cast<float>(pa.value(QStringLiteral("height")).toDouble());
                             }
-                            m_layers[idx]->setRoi(roi);
+                            m_layers[idx].first->setRoi(roi);
                         }
                     }
                 }
@@ -753,13 +845,22 @@ void LayersModel::encodeToJSON(QJsonObject &obj, const QStringList &forRelativeP
     obj.insert(QStringLiteral("name"), QJsonValue(getLayersName()));
     obj.insert(QStringLiteral("visibility"), QJsonValue(getLayersVisibility()));
 
+    if (getLayersCanBeLocked()) {
+        obj.insert(QStringLiteral("lockableLayers"), QJsonValue(getLayersCanBeLocked()));
+    }
+
     QJsonArray layersArray;
-    for (auto layer : m_layers) {
+    for (auto layerPair : m_layers) {
+        auto layer = layerPair.first;
         QJsonObject layerData;
 
         layerData.insert(QStringLiteral("type"), QJsonValue(QString::fromStdString(layer->typeName())));
 
         layerData.insert(QStringLiteral("title"), QJsonValue(QString::fromStdString(layer->title())));
+
+        if (getLayersCanBeLocked() && layer->isLocked()) {
+            obj.insert(QStringLiteral("locked"), QJsonValue(layer->isLocked()));
+        }
 
         if (layer->type() == BaseLayer::IMAGE
             || layer->type() == BaseLayer::VIDEO
@@ -876,8 +977,8 @@ void LayersModel::encodeToJSON(QJsonObject &obj, const QStringList &forRelativeP
 bool LayersModel::runRenderOnLayersThatShouldUpdate(bool updateRendering, bool preload) {
     bool statusHasUpdated = false;
     for (int i = 0; i < m_layers.size(); i++) {
-        auto layer = &m_layers[i];
-        if (layer) {
+        auto layer = &m_layers[i].first;
+        if (layer && layer->data()) {
             if (layer->data()->shouldUpdate()
                 || (preload && !layer->data()->ready()) 
                 || (layer->data()->shouldPreLoad() && !layer->data()->ready())) {
@@ -886,18 +987,18 @@ bool LayersModel::runRenderOnLayersThatShouldUpdate(bool updateRendering, bool p
                 }
                 layer->data()->update(layer->data()->shouldUpdate() && updateRendering);
             }
-            if (m_layersStatus.size() > i) {
-                int currentStatus = m_layersStatus[i];
+            if (m_layers.size() > i) {
+                int currentStatus = m_layers[i].second;
                 if (layer->data()->ready() && layer->data()->alpha() > 0.f) {
-                    m_layersStatus[i] = 2;
+                    m_layers[i].second = 2;
                 }
                 else if (layer->data()->ready()) {
-                    m_layersStatus[i] = 1;
+                    m_layers[i].second = 1;
                 }
                 else {
-                    m_layersStatus[i] = 0;
+                    m_layers[i].second = 0;
                 }
-                if (currentStatus != m_layersStatus[i]) {
+                if (currentStatus != m_layers[i].second) {
                     updateLayer(i);
                     statusHasUpdated = true;
                 }

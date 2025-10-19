@@ -12,7 +12,7 @@
 #include <layers/baselayer.h>
 #include <QtQml/qqmlregistration.h>
 
-using Layers = QList<QSharedPointer<BaseLayer>>;
+using Layers = QList<QPair<QSharedPointer<BaseLayer>, int>>;
 
 class LayersTypeModel : public QAbstractListModel {
     Q_OBJECT
@@ -45,6 +45,7 @@ public:
         TitleRole = Qt::UserRole,
         PathRole,
         TypeRole,
+        LockedRole,
         PageRole,
         StereoRole,
         GridRole,
@@ -80,24 +81,27 @@ public:
     Q_INVOKABLE void moveLayerDown(int i);
     Q_INVOKABLE void moveLayerBottom(int i);
     Q_INVOKABLE void updateLayer(int i);
+    Q_INVOKABLE void lockLayer(int i);
+    Q_INVOKABLE void unlockLayer(int i);
+    Q_INVOKABLE bool isLocked(int i);
     Q_INVOKABLE void clearLayers();
 
     Q_PROPERTY(LayersTypeModel *layersTypeModel
-                   READ layersTypeModel
-                       NOTIFY layersTypeModelChanged)
+        READ layersTypeModel
+        NOTIFY layersTypeModelChanged)
 
     Q_PROPERTY(int layersVisibility
-                   READ getLayersVisibility
-                       WRITE setLayersVisibility
-                           NOTIFY layersVisibilityChanged)
+        READ getLayersVisibility
+        WRITE setLayersVisibility
+        NOTIFY layersVisibilityChanged)
 
     Q_INVOKABLE void setLayersVisibility(int value, bool propagateDown = true);
     Q_INVOKABLE int getLayersVisibility();
 
     Q_PROPERTY(bool layersNeedsSave
-                   READ getLayersNeedsSave
-                       WRITE setLayersNeedsSave
-                           NOTIFY layersNeedsSaveChanged)
+        READ getLayersNeedsSave
+        WRITE setLayersNeedsSave
+        NOTIFY layersNeedsSaveChanged)
 
     Q_INVOKABLE void setLayersNeedsSave(bool value);
     Q_INVOKABLE bool getLayersNeedsSave();
@@ -116,13 +120,25 @@ public:
     LayersTypeModel *layersTypeModel();
 
     Q_PROPERTY(QString layersName
-                   READ getLayersName
-                       WRITE setLayersName
-                           NOTIFY layersNameChanged)
+        READ getLayersName
+        WRITE setLayersName
+        NOTIFY layersNameChanged)
 
     Q_INVOKABLE void setLayersName(QString name);
     Q_INVOKABLE QString getLayersName() const;
     Q_INVOKABLE QString getLayersNameShort(int maxChars) const;
+
+    Q_PROPERTY(bool layersCanBeLocked
+        READ getLayersCanBeLocked
+        WRITE setLayersCanBeLocked
+        NOTIFY layersCanBeLockedChanged)
+    Q_INVOKABLE void setLayersCanBeLocked(bool locked);
+    Q_INVOKABLE bool getLayersCanBeLocked() const;
+
+    Q_PROPERTY(int layersLockedCount
+        READ getLockedLayerCount
+        NOTIFY layersModelChanged)
+    Q_INVOKABLE int getLockedLayerCount() const;
 
     Q_INVOKABLE void setLayersPath(QString path);
     Q_INVOKABLE QString getLayersPath() const;
@@ -142,17 +158,18 @@ Q_SIGNALS:
     void layersVisibilityChanged();
     void layersNeedsSaveChanged();
     void layersNameChanged();
+    void layersCanBeLockedChanged();
     void layerToCopyIdxChanged();
 
 private:
     void setNeedSync();
 
     Layers m_layers;
-    QList<int> m_layersStatus;
     LayersTypeModel *m_layerTypeModel;
     BaseLayer::LayerHierarchy m_layerHierachy;
     int m_layersVisibility = 0;
     int m_layerToCopyIdx = -1;
+    bool m_layersCanBeLocked = false;
     bool m_layersNeedsSave = false;
     bool m_needSync;
     int m_syncIteration;

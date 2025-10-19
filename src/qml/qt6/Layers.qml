@@ -219,8 +219,9 @@ Rectangle {
                     }
                 }
                 Button {
+                    id: layerDeleteButton
                     icon.name: "layer-delete"
-                    enabled: !layerView.visible
+                    enabled: !layerView.visible && (!app.slides.selected.isLocked(layersView.currentIndex) || !app.slides.selected.layersCanBeLocked)
 
                     onClicked: {
                         busyIndicator = true;

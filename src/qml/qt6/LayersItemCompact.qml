@@ -115,6 +115,33 @@ ItemDelegate {
                     layerView.layerItem.layerTitle = slideTitleField.text;
                 }
             }
+            Button  {
+                flat: true
+                visible: app.slides.selected.layersCanBeLocked
+                hoverEnabled: false
+                anchors.leftMargin: 93
+                anchors.bottomMargin: -3
+                anchors.bottom: parent.bottom
+                anchors.left: parent.left
+                icon.name: model.locked ? "object-locked" : "object-unlocked"
+                icon.color: model.locked ? "darkred" : "gray"
+                icon.width: 20
+                icon.height: 20
+
+                onClicked: {
+                    if(model.locked) {
+                        app.slides.selected.unlockLayer(index);
+                    }
+                    else {
+                        app.slides.selected.lockLayer(index)
+                    }
+                    if(layersView.currentIndex === index) {
+                        layersView.currentIndex = -1;
+                    }
+                    layersView.currentIndex = index;
+                    app.slides.updateSelectedSlide();
+                }
+            }
             Rectangle {
                 anchors.top: parent.top
                 anchors.right: parent.right

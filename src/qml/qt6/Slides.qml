@@ -252,7 +252,7 @@ Rectangle {
                 }
                 Button {
                     icon.name: "list-remove"
-                    enabled: !layerView.visible
+                    enabled: !layerView.visible && !app.slides.selected.layersCanBeLocked
 
                     onClicked: {
                         busyIndicator = true;

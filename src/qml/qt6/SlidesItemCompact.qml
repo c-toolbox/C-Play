@@ -113,6 +113,34 @@ ItemDelegate {
                     app.slides.updateSelectedSlide();
                 }
             }
+            Label {
+                anchors.leftMargin: 93
+                anchors.bottomMargin: 5
+                anchors.bottom: parent.bottom
+                anchors.left: parent.left
+                font.pointSize: 9
+                visible: model.locked && PresentationSettings.customSlidesCanHaveLockableLayers
+                text: model.countlocked
+                color: "gray"
+            }
+            Button  {
+                flat: true
+                hoverEnabled: false
+                visible: PresentationSettings.customSlidesCanHaveLockableLayers
+                anchors.leftMargin: 93
+                anchors.bottomMargin: -3
+                anchors.bottom: parent.bottom
+                anchors.left: parent.left
+                icon.name: model.locked ? "object-locked" : "object-unlocked"
+                icon.color: model.locked ? "darkred" : "gray"
+                icon.width: 20
+                icon.height: 20
+
+                onClicked: {
+                    app.slides.slide(index).layersCanBeLocked = !app.slides.slide(index).layersCanBeLocked;
+                    app.slides.updateSlide(index);
+                }
+            }
             Rectangle {
                 id: layerMinStatus
                 anchors.top: parent.top
