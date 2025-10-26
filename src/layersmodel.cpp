@@ -1013,7 +1013,7 @@ bool LayersModel::runRenderOnLayersThatShouldUpdate(bool updateRendering, bool p
     bool statusHasUpdated = false;
     for (int i = 0; i < m_layers.size(); i++) {
         auto layer = &m_layers[i].first;
-        if (layer && layer->data()) {
+        if (layer && !layer->isNull() && layer->data()) {
             if (layer->data()->shouldUpdate()
                 || (preload && !layer->data()->ready()) 
                 || (layer->data()->shouldPreLoad() && !layer->data()->ready())) {
@@ -1024,10 +1024,10 @@ bool LayersModel::runRenderOnLayersThatShouldUpdate(bool updateRendering, bool p
             }
             if (m_layers.size() > i) {
                 int currentStatus = m_layers[i].second;
-                if (layer->data()->ready() && layer->data()->alpha() > 0.f) {
+                if (layer && !layer->isNull() && layer->data()->ready() && layer->data()->alpha() > 0.f) {
                     m_layers[i].second = 2;
                 }
-                else if (layer->data()->ready()) {
+                else if (layer && !layer->isNull() && layer->data()->ready()) {
                     m_layers[i].second = 1;
                 }
                 else {

@@ -188,10 +188,26 @@ void initMPV(MpvLayer::mpvData& vd) {
         mpv::qt::set_property(vd.handle, QStringLiteral("untimed"), QStringLiteral(""), vd.loggingOn);
     }
 
-    // Only audio on master for now
     if (vd.audioEnabled) {
         mpv::qt::set_property(vd.handle, QStringLiteral("aid"), QStringLiteral("auto"), vd.loggingOn);
         mpv::qt::set_property(vd.handle, QStringLiteral("volume-max"), QStringLiteral("100"), vd.loggingOn);
+
+        if (AudioSettings::useCustomAudioOutput()) {
+            if (AudioSettings::useAudioDevice()) {
+                mpv::qt::set_property(vd.handle, QStringLiteral("audio-device"), AudioSettings::preferredAudioOutputDevice(), vd.loggingOn);
+            }
+            else if (AudioSettings::useAudioDriver()) {
+                mpv::qt::set_property(vd.handle, QStringLiteral("ao"), AudioSettings::preferredAudioOutputDriver(), vd.loggingOn);
+            }
+        }
+        if (vd.isMaster) {
+            if (vd.audioEnabled && AudioSettings::enableAudioOnMaster()) {
+                mpv::qt::set_property(vd.handle, QStringLiteral("mute"), false, vd.loggingOn);
+            }
+            else if (vd.audioEnabled && !AudioSettings::enableAudioOnMaster()) {
+                mpv::qt::set_property(vd.handle, QStringLiteral("mute"), true, vd.loggingOn);
+            }
+        }
     }
     else {
         mpv::qt::set_property(vd.handle, QStringLiteral("aid"), QStringLiteral("no"), vd.loggingOn);
@@ -431,10 +447,12 @@ void MpvLayer::enableAudio(bool enabled) {
     if (m_data.audioEnabled == enabled)
         return;
 
+    m_data.audioEnabled = enabled;
+
     if (!m_data.mpvInitialized)
         return;
 
-    m_data.audioEnabled = enabled;
+    // This will also be triggered on mpv initialization
     if (enabled) {
         mpv::qt::set_property(m_data.handle, QStringLiteral("aid"), QStringLiteral("auto"), m_data.loggingOn);
         mpv::qt::set_property(m_data.handle, QStringLiteral("volume-max"), QStringLiteral("100"), m_data.loggingOn);
