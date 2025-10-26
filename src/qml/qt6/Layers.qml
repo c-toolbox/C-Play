@@ -195,7 +195,7 @@ Rectangle {
         id: layersHeader
         enabled: !slides.busyIndicator && !busyIndicator
 
-        spacing: 10
+        spacing: 5
 
         ColumnLayout {
             id: slidesMenu
@@ -208,6 +208,7 @@ Rectangle {
                 spacing: 1
 
                 Button {
+                    id: layerAddButton
                     icon.name: "layer-new"
 
                     onClicked: {
@@ -246,30 +247,6 @@ Rectangle {
                     }
                 }
                 Button {
-                    icon.name: "layer-raise"
-                    enabled: !layerView.visible
-
-                    onClicked: {
-                        app.slides.selected.moveLayerUp(layersView.currentIndex);
-                    }
-
-                    ToolTip {
-                        text: qsTr("Move selected layer upwards")
-                    }
-                }
-                Button {
-                    icon.name: "layer-lower"
-                    enabled: !layerView.visible
-
-                    onClicked: {
-                        app.slides.selected.moveLayerDown(layersView.currentIndex);
-                    }
-
-                    ToolTip {
-                        text: qsTr("Move selected layer downwards")
-                    }
-                }
-                Button {
                     icon.name: "layer-bottom"
                     enabled: !layerView.visible
 
@@ -280,6 +257,30 @@ Rectangle {
 
                     ToolTip {
                         text: qsTr("Move selected layer to bottom")
+                    }
+                }
+                Button {
+                    icon.name: "document-open"
+                    enabled: !layerView.visible
+
+                    onClicked: {
+                        slides.openPresentationButton.clicked();
+                    }
+
+                    ToolTip {
+                        text: qsTr("Open presentation")
+                    }
+                }
+                Button {
+                    icon.color: app.slides.slidesNeedsSave ? "orange" : "lime"
+                    icon.name: "system-save-session"
+
+                    onClicked: {
+                        slides.savePresentationButton.clicked();
+                    }
+
+                    ToolTip {
+                        text: qsTr("Save presentation")
                     }
                 }
                 Button {
@@ -310,6 +311,58 @@ Rectangle {
                     }
                 }
             }
+            RowLayout {
+                Layout.preferredWidth: parent.width
+                anchors.rightMargin: Kirigami.Units.largeSpacing
+                spacing: 1
+
+                Item {
+                    implicitWidth: (layerAddButton.width * 2) + 5
+                }
+                Button {
+                    id: layerRaiseButton
+                    icon.name: "layer-raise"
+                    enabled: !layerView.visible
+
+                    onClicked: {
+                        app.slides.selected.moveLayerUp(layersView.currentIndex);
+                    }
+
+                    ToolTip {
+                        text: qsTr("Move selected layer upwards")
+                    }
+                }
+                Button {
+                    icon.name: "layer-lower"
+                    enabled: !layerView.visible
+
+                    onClicked: {
+                        app.slides.selected.moveLayerDown(layersView.currentIndex);
+                    }
+
+                    ToolTip {
+                        text: qsTr("Move selected layer downwards")
+                    }
+                }
+                Button {
+                    checkable: true
+                    checked: layerView.visible
+                    icon.name: "document-edit-decrypt-verify"
+                    text: qsTr("Layer View")
+
+                    onClicked: {
+                        layerView.visible = checked;
+                    }
+
+                    ToolTip {
+                        text: qsTr("Layer View (showing the selected layer)")
+                    }
+                }
+                Item {
+                    // spacer item
+                    Layout.fillWidth: true
+                }
+            }
         }
         Item {
             Layout.fillHeight: true
@@ -328,7 +381,7 @@ Rectangle {
                 id: layersTitle
 
                 font.pointSize: 9
-                text: app.slides.selected.getLayersNameShort(14) + qsTr(" Layers")
+                text: app.slides.selected.getLayersNameShort(25) + qsTr(" Layers")
                 wrapMode: Text.Wrap
             }
             Rectangle {
@@ -336,20 +389,6 @@ Rectangle {
                 color: Kirigami.Theme.alternateBackgroundColor
                 height: 1
                 width: Kirigami.Units.gridUnit + 10
-            }
-            Button {
-                checkable: true
-                checked: layerView.visible
-                icon.name: "document-edit-decrypt-verify"
-                text: qsTr("Layer View")
-
-                onClicked: {
-                    layerView.visible = checked;
-                }
-
-                ToolTip {
-                    text: qsTr("Layer View (showing the selected layer)")
-                }
             }
         }
     }

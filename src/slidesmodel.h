@@ -190,6 +190,7 @@ public:
 
     Q_INVOKABLE void setSlidesNeedsSave(bool value);
     Q_INVOKABLE bool getSlidesNeedsSave();
+    Q_INVOKABLE void setLayersNeedsSave(bool value);
 
     Q_PROPERTY(QString slidesName
         READ getSlidesName

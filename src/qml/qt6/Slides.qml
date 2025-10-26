@@ -24,6 +24,8 @@ Rectangle {
     property bool busyIndicator: false
     property bool shouldBeVisible: true
     property string presentationToLoad: ""
+    property Button openPresentationButton: openPresentationButton
+    property Button savePresentationButton: savePresentationButton
 
     visible: shouldBeVisible && !window.hideUI
     color: Kirigami.Theme.backgroundColor
@@ -227,7 +229,7 @@ Rectangle {
         id: slidesHeader
         enabled: !busyIndicator
 
-        spacing: 10
+        spacing: 5
 
         ColumnLayout {
             id: slidesMenu
@@ -289,6 +291,7 @@ Rectangle {
                     }
                 }
                 Button {
+                    id: openPresentationButton
                     icon.name: "document-open"
                     enabled: !layerView.visible
 
@@ -301,6 +304,7 @@ Rectangle {
                     }
                 }
                 Button {
+                    id: savePresentationButton
                     icon.color: app.slides.slidesNeedsSave ? "orange" : "lime"
                     icon.name: "system-save-session"
 
@@ -341,99 +345,97 @@ Rectangle {
                     }
                 }
             }
+            RowLayout {
+                Layout.preferredWidth: parent.width
+                anchors.rightMargin: Kirigami.Units.largeSpacing
+                spacing: 1
+
+                Item {
+                    // spacer item
+                    Layout.fillWidth: true
+                }
+                Button {
+                    id: preLoadLayersButton
+
+                    checkable: true
+                    checked: app.slides.preLoadLayers
+                    icon.color: app.slides.preLoadLayers ? "lime" : "crimson"
+                    icon.name: app.slides.preLoadLayers ? "task-complete" : "address-book-new"
+
+                    onCheckedChanged: {
+                        app.slides.preLoadLayers = preLoadLayersButton.checked;
+                    }
+
+                    ToolTip {
+                        id: preLoadLayersTooltip
+
+                        text: {
+                            app.slides.preLoadLayers ? qsTr("Preload Layers is ON") : qsTr("Preload Layers is OFF");
+                        }
+                    }
+                }
+                Button {
+                    id: visibilityViewButton
+
+                    checkable: true
+                    checked: slidesVisView.visible
+                    icon.name: "table"
+                    text: qsTr("Visibility")
+
+                    onClicked: {
+                        slidesVisView.visible = checked;
+                    }
+
+                    ToolTip {
+                        text: qsTr("Slide Visibility Table View")
+                    }
+                }
+                Button {
+                    id: masterSlideButton
+
+                    checkable: true
+                    checked: slidesView.currentIndex === -1
+                    icon.name: "backgroundtool"
+                    text: qsTr("Master")
+
+                    onClicked: {
+                        slidesView.currentIndex = -1;
+                        app.slides.slideToPaste = -1;
+                        app.slides.selectedSlideIdx = -1;
+                        if (layers.state === "hidden") {
+                            actions.toggleLayersAction.trigger();
+                        }
+                    }
+
+                    ToolTip {
+                        text: qsTr("Master slide with perminent background layers")
+                    }
+                }
+            }
         }
         Item {
             Layout.fillHeight: true
             // spacer item
             Layout.fillWidth: true
-            Layout.leftMargin: 5
-            Layout.margins: 2
-
-            Label {
-                id: sliderName
-
-                color: Kirigami.Theme.disabledTextColor
-                font.italic: true
-                font.pointSize: 7
-                text: app.slides.slidesName
-            }
         }
         RowLayout {
             Layout.preferredWidth: slidesRoot.width
             spacing: 1
 
             Rectangle {
-                Layout.fillWidth: true
                 color: Kirigami.Theme.alternateBackgroundColor
                 height: 1
-                width: 10
+                width: Kirigami.Units.gridUnit * 0.5
             }
             Label {
                 font.pointSize: 9
-                text: qsTr("Slides")
+                text: qsTr("Presentation: ") + app.slides.slidesName
             }
             Rectangle {
                 Layout.fillWidth: true
                 color: Kirigami.Theme.alternateBackgroundColor
                 height: 1
                 width: Kirigami.Units.gridUnit
-            }
-            Button {
-                id: preLoadLayersButton
-
-                checkable: true
-                checked: app.slides.preLoadLayers
-                icon.color: app.slides.preLoadLayers ? "lime" : "crimson"
-                icon.name: app.slides.preLoadLayers ? "task-complete" : "address-book-new"
-
-                onCheckedChanged: {
-                    app.slides.preLoadLayers = preLoadLayersButton.checked;
-                }
-
-                ToolTip {
-                    id: preLoadLayersTooltip
-
-                    text: {
-                        app.slides.preLoadLayers ? qsTr("Preload Layers is ON") : qsTr("Preload Layers is OFF");
-                    }
-                }
-            }
-            Button {
-                id: visibilityViewButton
-
-                checkable: true
-                checked: slidesVisView.visible
-                icon.name: "table"
-                text: qsTr("Visibility")
-
-                onClicked: {
-                    slidesVisView.visible = checked;
-                }
-
-                ToolTip {
-                    text: qsTr("Slide Visibility Table View")
-                }
-            }
-            Button {
-                id: masterSlideButton
-
-                checkable: true
-                checked: slidesView.currentIndex === -1
-                icon.name: "backgroundtool"
-                text: qsTr("Master")
-
-                onClicked: {
-                    slidesView.currentIndex = -1;
-                    app.slides.slideToPaste = -1;
-                    app.slides.selectedSlideIdx = -1;
-                    if (layers.state === "hidden") {
-                        actions.toggleLayersAction.trigger();
-                    }
-                }
-
-                ToolTip {
-                    text: qsTr("Master slide with perminent background layers")
-                }
             }
         }
     }

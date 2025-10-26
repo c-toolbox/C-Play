@@ -304,6 +304,7 @@ SlidesModel::SlidesModel(QObject *parent)
     m_clearCopyTimer->setSingleShot(true);
     connect(m_clearCopyTimer, &QTimer::timeout, this, &SlidesModel::clearCopyLayer);
     connect(this, &SlidesModel::slideModelChanged, m_visibilityModel, &SlideVisibilityModel::resetTable);
+    connect(m_masterSlide, &LayersModel::layersNeedsSaveChanged, this, &SlidesModel::setLayersNeedsSave);
 }
 
 SlidesModel::~SlidesModel() {
@@ -571,6 +572,7 @@ int SlidesModel::addSlide() {
     endInsertRows();
 
     connect(m_slides[m_slides.size() - 1].get(), &LayersModel::layersModelChanged, this, &SlidesModel::slideContentChanged);
+    connect(m_slides[m_slides.size() - 1].get(), &LayersModel::layersNeedsSaveChanged, this, &SlidesModel::setLayersNeedsSave);
     Q_EMIT slideModelChanged();
 
     return m_slides.size() - 1;
@@ -757,6 +759,11 @@ bool SlidesModel::getSlidesNeedsSave() {
     return m_slidesNeedsSave;
 }
 
+void SlidesModel::setLayersNeedsSave(bool value) {
+    if (value)
+        setSlidesNeedsSave(true);
+}
+
 void SlidesModel::setSlidesName(QString name) {
     m_slidesName = name;
     Q_EMIT slidesNameChanged();
@@ -939,6 +946,7 @@ void SlidesModel::runStartAfterPresentationLoad() {
         }
     }
     setNeedSync();
+    setSlidesNeedsSave(false);
 }
 
 void SlidesModel::runUpdateAudioOutputOnLayers() {

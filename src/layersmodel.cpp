@@ -377,7 +377,6 @@ void LayersModel::moveLayerBottom(int i) {
 
 void LayersModel::updateLayer(int i) {
     Q_EMIT dataChanged(index(i, 0), index(i, 0));
-    setLayersNeedsSave(true);
 }
 
 void LayersModel::lockLayer(int i) {
@@ -386,6 +385,7 @@ void LayersModel::lockLayer(int i) {
 
     m_layers[i].first->setIsLocked(true);
     updateLayer(i);
+    setLayersNeedsSave(true);
 }
 
 void LayersModel::unlockLayer(int i) {
@@ -394,6 +394,7 @@ void LayersModel::unlockLayer(int i) {
 
     m_layers[i].first->setIsLocked(false);
     updateLayer(i);
+    setLayersNeedsSave(true);
 }
 
 bool LayersModel::isLocked(int i) {
@@ -462,7 +463,7 @@ int LayersModel::getLayersVisibility() {
 
 void LayersModel::setLayersNeedsSave(bool value) {
     m_layersNeedsSave = value;
-    Q_EMIT layersNeedsSaveChanged();
+    Q_EMIT layersNeedsSaveChanged(value);
 }
 
 bool LayersModel::getLayersNeedsSave() {
@@ -534,6 +535,7 @@ void LayersModel::overwriteLayerProperties(BaseLayer* srcLayer, int dstLayerIdx)
         m_layers[dstLayerIdx].first->decodeTypeProperties(data, pos);
 
     updateLayer(dstLayerIdx);
+    setLayersNeedsSave(true);
 }
 
 LayersTypeModel *LayersModel::layersTypeModel() {

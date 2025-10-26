@@ -158,7 +158,7 @@ Q_SIGNALS:
     void layersModelChanged();
     void layersTypeModelChanged();
     void layersVisibilityChanged();
-    void layersNeedsSaveChanged();
+    void layersNeedsSaveChanged(bool);
     void layersNameChanged();
     void layersCanBeLockedChanged();
     void layerToCopyIdxChanged();
