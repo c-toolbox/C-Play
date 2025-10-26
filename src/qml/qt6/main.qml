@@ -89,6 +89,14 @@ Kirigami.ApplicationWindow {
         target: app
     }
 
+    Connections {
+        function onQuitCPlay() {
+            actions.quitApplicationAction.trigger();
+        }
+
+        target: playerController
+    }
+
     title: mpv.mediaTitle || qsTr("C-Play")
     visible: true
     visibility: window.isFullScreenMode ? Window.FullScreen : Window.Windowed

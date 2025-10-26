@@ -11,6 +11,7 @@
 #include "playercontroller.h"
 #include "slidesmodel.h"
 #include "layersmodel.h"
+#include "layers/baselayer.h"
 
 #include <QFile>
 #include <QJsonDocument>
@@ -75,6 +76,11 @@ void HttpServerThread::setupHttpServer() {
     if (runServerStr == QStringLiteral("yes")) {
         svr.Post("/status", [](const httplib::Request &, httplib::Response &res) {
             res.set_content("OK", "text/plain");
+        });
+
+        svr.Post("/quit", [this](const httplib::Request&, httplib::Response& res) {
+            res.set_content("Quitting C-Play", "text/plain");
+            Q_EMIT quitCPlay();
         });
 
         svr.Post("/play", [this](const httplib::Request &, httplib::Response &res) {
@@ -741,7 +747,9 @@ void HttpServerThread::setupHttpServer() {
                 std::string indexStr = req.get_param_value("index");
                 res.set_content(SelectIndexFromSlides(indexStr), "text/plain");
             }
-            res.set_content("Missing index parameter", "text/plain");
+            else {
+                res.set_content("Missing index parameter", "text/plain");
+            }
         });
 
         svr.Post("/load_from_slides", [this](const httplib::Request& req, httplib::Response& res) {
@@ -749,7 +757,160 @@ void HttpServerThread::setupHttpServer() {
                 std::string indexStr = req.get_param_value("index");
                 res.set_content(LoadIndexFromSlides(indexStr), "text/plain");
             }
-            res.set_content("Missing index parameter", "text/plain");
+            else {
+                res.set_content("Missing index parameter", "text/plain");
+            }
+        });
+
+        svr.Post("/layers", [this](const httplib::Request& req, httplib::Response& res) {
+            std::string charsPerItem = "";
+            if (req.has_param("charsPerItem")) {
+                charsPerItem = req.get_param_value("charsPerItem");
+            }
+            if (req.has_param("slide_name")) {
+                std::string slideName = req.get_param_value("slide_name");
+                res.set_content(getLayerItems(slideName, charsPerItem), "text/plain");
+            }
+            else if (req.has_param("slide_idx")) {
+                std::string slideIdx = req.get_param_value("slide_idx");
+                int index;
+                if (stringToInt(slideIdx, index)) {
+                    res.set_content(getLayerItems(index, charsPerItem), "text/plain");
+                }
+                else {
+                    res.set_content("Could not interpret index parameter", "text/plain");
+                }
+            }
+            else {
+                res.set_content("Missing slide_name or slide_idx parameter", "text/plain");
+            }
+        });
+
+        svr.Post("/layer_volume", [this](const httplib::Request& req, httplib::Response& res) {
+            LayersModel* layerModel = nullptr;
+            int layerIdx = -1;
+            res.set_content(getLayerFromRequest(req, layerModel, layerIdx), "text/plain");
+            if (layerModel) {
+                BaseLayer* layer = layerModel->layer(layerIdx);
+                if (layer) {
+                    if (req.has_param("level")) {
+                        int volumeLevel = 0;
+                        if (stringToInt(req.get_param_value("level"), volumeLevel)) {
+                            if (volumeLevel >= 0 && volumeLevel <= 100) {
+                                layer->setVolume(volumeLevel);
+                                layerModel->updateLayer(layerIdx);
+                            }
+                        }
+                    }
+                    res.set_content(std::to_string(layer->volume()), "text/plain");
+                }
+            }
+        });
+
+        svr.Post("/layer_visibility", [this](const httplib::Request& req, httplib::Response& res) {
+            LayersModel* layerModel = nullptr;
+            int layerIdx = -1;
+            res.set_content(getLayerFromRequest(req, layerModel, layerIdx), "text/plain");
+            if (layerModel) {
+                BaseLayer* layer = layerModel->layer(layerIdx);
+                if (layer) {
+                    if (req.has_param("value")) {
+                        int value = 0;
+                        if (stringToInt(req.get_param_value("value"), value)) {
+                            if (value >= 0 && value <= 100) {
+                                layer->setAlpha(static_cast<float>(value) * 0.01f);
+                                layerModel->updateLayer(layerIdx);
+                            }
+                        }
+                    }
+                    res.set_content(std::to_string(static_cast<int>(layer->alpha()*100.f)), "text/plain");
+                }
+            }
+        });
+
+        svr.Post("/layer_plane", [this](const httplib::Request& req, httplib::Response& res) {
+            LayersModel* layerModel = nullptr;
+            int layerIdx = -1;
+            res.set_content(getLayerFromRequest(req, layerModel, layerIdx), "text/plain");
+            if (layerModel) {
+                BaseLayer* layer = layerModel->layer(layerIdx);
+                if (layer) {
+                    bool updateLayer = false;
+                    std::string returnString = "";
+                    size_t countParams = req.params.size() - 2;
+                    size_t count = 0;
+                    if (req.has_param("azimuth")) {
+                        int value = 0;
+                        if (stringToInt(req.get_param_value("azimuth"), value)) {
+                            layer->setPlaneAzimuth(static_cast<double>(value));
+                            updateLayer = true;
+                        }
+                        returnString += std::to_string(static_cast<int>(layer->planeAzimuth()));
+                        count++;
+                        if (count < countParams)
+                            returnString += "\n";
+                    }
+                    if (req.has_param("elevation")) {
+                        int value = 0;
+                        if (stringToInt(req.get_param_value("elevation"), value)) {
+                            layer->setPlaneElevation(static_cast<double>(value));
+                            updateLayer = true;
+                        }
+                        returnString += std::to_string(static_cast<int>(layer->planeElevation()));
+                        count++;
+                        if (count < countParams)
+                            returnString += "\n";
+                    }
+                    if (req.has_param("roll")) {
+                        int value = 0;
+                        if (stringToInt(req.get_param_value("roll"), value)) {
+                            layer->setPlaneRoll(static_cast<double>(value));
+                            updateLayer = true;
+                        }
+                        returnString += std::to_string(static_cast<int>(layer->planeRoll()));
+                        count++;
+                        if (count < countParams)
+                            returnString += "\n";
+                    }
+                    if (req.has_param("distance")) {
+                        int value = 0;
+                        if (stringToInt(req.get_param_value("distance"), value)) {
+                            layer->setPlaneDistance(static_cast<double>(value));
+                            updateLayer = true;
+                        }
+                        returnString += std::to_string(static_cast<int>(layer->planeDistance()));
+                        count++;
+                        if (count < countParams)
+                            returnString += "\n";
+                    }
+                    if (req.has_param("horizontal")) {
+                        int value = 0;
+                        if (stringToInt(req.get_param_value("horizontal"), value)) {
+                            layer->setPlaneHorizontal(static_cast<double>(value));
+                            updateLayer = true;
+                        }
+                        returnString += std::to_string(static_cast<int>(layer->planeHorizontal()));
+                        count++;
+                        if (count < countParams)
+                            returnString += "\n";
+                    }
+                    if (req.has_param("vertical")) {
+                        int value = 0;
+                        if (stringToInt(req.get_param_value("vertical"), value)) {
+                            layer->setPlaneVertical(static_cast<double>(value));
+                            updateLayer = true;
+                        }
+                        returnString += std::to_string(static_cast<int>(layer->planeVertical()));
+                        count++;
+                        if (count < countParams)
+                            returnString += "\n";
+                    }
+                    if (updateLayer) {
+                        layerModel->updateLayer(layerIdx);
+                    }
+                    res.set_content(returnString, "text/plain");
+                }
+            }
         });
 
         runServer = true;
@@ -906,6 +1067,38 @@ const std::string HttpServerThread::getSlideItems(std::string charsPerItemStr) {
         return "";
 }
 
+const std::string HttpServerThread::getLayerItems(std::string slideName, std::string charsPerItemStr) {
+    if (m_slidesModel && !slideName.empty()) {
+        LayersModel* lm = m_slidesModel->slide(slideName);
+        if (!lm) {
+            return "Could not find slide with name : " + slideName;
+        }
+        int charsPerItem = 0;
+        if (stringToInt(charsPerItemStr, charsPerItem))
+            return lm->getLayersAsFormattedString(charsPerItem);
+        else
+            return lm->getLayersAsFormattedString();
+    }
+    else
+        return "";
+}
+
+const std::string HttpServerThread::getLayerItems(int slideIdx, std::string charsPerItemStr) {
+    if (m_slidesModel) {
+        LayersModel* lm = m_slidesModel->slide(slideIdx);
+        if (!lm) {
+            return "Could not find slide with idx : " + slideIdx;
+        }
+        int charsPerItem = 0;
+        if (stringToInt(charsPerItemStr, charsPerItem))
+            return lm->getLayersAsFormattedString(charsPerItem);
+        else
+            return lm->getLayersAsFormattedString();
+    }
+    else
+        return "";
+}
+
 const std::string HttpServerThread::getPlaylingItemIndexFromAudioTracks() {
     if (m_mpv) {
         return std::to_string(m_mpv->audioId() - 1);
@@ -1027,6 +1220,72 @@ const std::string HttpServerThread::SelectIndexFromSlides(std::string indexStr) 
     }
     else {
         return "Could not interpret index parameter";
+    }
+}
+
+const std::string HttpServerThread::getLayerFromRequest(const httplib::Request& req, LayersModel*& lm, int& layerIdx) {
+    lm = nullptr;
+    layerIdx = -1;
+    if (m_slidesModel) {
+        if (req.has_param("layer_title")) {
+            lm = m_slidesModel->masterSlide();
+            if (req.has_param("slide_name")) {
+                std::string slideNameStr = req.get_param_value("slide_name");
+                lm = m_slidesModel->slide(slideNameStr);
+                if (!lm) {
+                    return "Could not find slide with name : " + slideNameStr;
+                }
+            }
+            if (lm) {
+                std::string layerTitleStr = req.get_param_value("layer_title");
+                layerIdx = lm->layerIdx(layerTitleStr);
+                BaseLayer* layer = lm->layer(layerIdx);
+                if (!layer) {
+                    return "Could not find layer with title: " + layerTitleStr;
+                }
+                return "Found layer with title: " + layerTitleStr;
+            }
+            else {
+                return "Master slide missing";
+            }
+        }
+        else if (req.has_param("layer_idx")) {
+            lm = m_slidesModel->masterSlide();
+            if (req.has_param("slide_idx")) {
+                std::string slideIdx = req.get_param_value("slide_idx");
+                int index;
+                if (stringToInt(slideIdx, index)) {
+                    lm = m_slidesModel->slide(index);
+                    if (!lm) {
+                        return "Could not find slide with idx : " + slideIdx;
+                    }
+                }
+                else {
+                    return "Could not interpret slide_idx as integer.";
+                }
+            }
+
+            if (lm) {
+                std::string layerIdxStr = req.get_param_value("layer_idx");
+                if (stringToInt(layerIdxStr, layerIdx)) {
+                    BaseLayer* layer = lm->layer(layerIdx);
+                    if (!layer) {
+                        return "Could not find layer with idx : " + layerIdxStr;
+                    }
+                    return "Found layer with idx: " + layerIdxStr;
+                }
+                else {
+                    return "Could not interpret layer_idx as integer.";
+                }
+            }
+            else {
+                return "Master slide missing";
+            }
+        }
+        return "Missing layer title or index parameter";
+    }
+    else {
+        return "No slides model found";
     }
 }
 

@@ -43,6 +43,7 @@ public:
         NOTIFY syncPropertiesChanged)
 
 public Q_SLOTS:
+    void QuitCPlay();
     void Next();
     void Previous();
     void Pause();
@@ -121,6 +122,7 @@ public Q_SLOTS:
     void setSyncProperties(bool value);
 
 Q_SIGNALS:
+    void quitCPlay();
     void next();
     void previous();
     void pause();

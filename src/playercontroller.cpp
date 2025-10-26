@@ -58,6 +58,7 @@ void PlayerController::setupHttpServer() {
     httpServer->setupHttpServer();
 
     connect(httpServer, &HttpServerThread::finished, httpServer, &QObject::deleteLater);
+    connect(httpServer, &HttpServerThread::quitCPlay, this, &PlayerController::QuitCPlay);
     connect(httpServer, &HttpServerThread::pauseMedia, this, &PlayerController::Pause);
     connect(httpServer, &HttpServerThread::playMedia, this, &PlayerController::Play);
     connect(httpServer, &HttpServerThread::rewindMedia, this, &PlayerController::Rewind);
@@ -91,6 +92,10 @@ void PlayerController::setupHttpServer() {
     connect(httpServer, &HttpServerThread::slideNext, this, &PlayerController::SlideNext);
 
     httpServer->start();
+}
+
+void PlayerController::QuitCPlay() {
+    Q_EMIT quitCPlay();
 }
 
 void PlayerController::Next() {

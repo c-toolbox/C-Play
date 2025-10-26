@@ -68,6 +68,7 @@ public:
     void setHasSynced();
 
     Q_INVOKABLE BaseLayer *layer(int i);
+    Q_INVOKABLE int layerIdx(std::string title);
     Q_INVOKABLE int layerStatus(int i);
     Q_INVOKABLE int minLayerStatus();
     Q_INVOKABLE int maxLayerStatus();
@@ -143,6 +144,7 @@ public:
     Q_INVOKABLE void setLayersPath(QString path);
     Q_INVOKABLE QString getLayersPath() const;
     Q_INVOKABLE QUrl getLayersPathAsURL() const;
+    std::string getLayersAsFormattedString(size_t charsPerItem = 33) const;
 
     Q_INVOKABLE QString checkAndCorrectPath(const QString &filePath, const QStringList &searchPaths);
     Q_INVOKABLE QString makePathRelativeTo(const QString &filePath, const QStringList &pathsToConsider);

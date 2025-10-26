@@ -188,6 +188,17 @@ BaseLayer *LayersModel::layer(int i) {
         return nullptr;
 }
 
+int LayersModel::layerIdx(std::string title) {
+    // Returning first with correct name
+    QString titleLowCase = QString::fromStdString(title).toLower();
+    for (int i = 0; i < m_layers.size(); i++) {
+        if (QString::fromStdString(m_layers[i].first->title()).toLower() == titleLowCase) {
+            return i;
+        }
+    }
+    return -1;
+}
+
 int LayersModel::layerStatus(int i) {
     if (i >= 0 && m_layers.size() > i)
         return m_layers[i].second;
@@ -588,6 +599,30 @@ QString LayersModel::getLayersPath() const {
 
 QUrl LayersModel::getLayersPathAsURL() const {
     return QUrl(QStringLiteral("file:///") + m_layersPath);
+}
+
+std::string LayersModel::getLayersAsFormattedString(size_t charsPerItem) const {
+    std::string fullItemList = "";
+    for (int i = 0; i < m_layers.size(); i++) {
+        std::string title = std::to_string(i + 1) + ". ";
+
+        title += m_layers[i].first->title();
+
+        size_t countChars = title.size();
+        if (countChars < charsPerItem) {
+            title.insert(title.end(), charsPerItem - countChars, ' ');
+        }
+        else if (countChars >= charsPerItem) {
+            title.erase(title.end() - (countChars - charsPerItem + 4), title.end());
+            title.insert(title.end(), 3, '.');
+            title.insert(title.end(), 1, ' ');
+        }
+
+        fullItemList += title;
+        if (i < m_layers.size() - 1)
+            fullItemList += "\n";
+    }
+    return fullItemList;
 }
 
 QString LayersModel::checkAndCorrectPath(const QString &filePath, const QStringList &searchPaths) {

@@ -16,6 +16,7 @@
 
 class MpvObject;
 class SlidesModel;
+class LayersModel;
 
 class HttpServerThread : public QThread {
     Q_OBJECT
@@ -31,6 +32,7 @@ public:
     Q_INVOKABLE void terminate();
 
 Q_SIGNALS:
+    void quitCPlay();
     void pauseMedia();
     void playMedia();
     void rewindMedia();
@@ -80,6 +82,8 @@ private:
     const std::string getPlayListItems(std::string charsPerItemStr = "");
     const std::string getSectionsItems(std::string charsPerItemStr = "");
     const std::string getSlideItems(std::string charsPerItemStr = "");
+    const std::string getLayerItems(std::string slideName = "Master", std::string charsPerItemStr = "");
+    const std::string getLayerItems(int slideIdx = -1, std::string charsPerItemStr = "");
 
     const std::string getPlaylingItemIndexFromAudioTracks();
     const std::string getPlaylingItemIndexFromPlaylist();
@@ -91,6 +95,8 @@ private:
     const std::string LoadIndexFromSections(std::string indexStr);
     const std::string LoadIndexFromSlides(std::string indexStr);
     const std::string SelectIndexFromSlides(std::string indexStr);
+
+    const std::string getLayerFromRequest(const httplib::Request& req, LayersModel* &lm, int &layerIdx);
 
     MpvObject *m_mpv;
     SlidesModel* m_slidesModel;

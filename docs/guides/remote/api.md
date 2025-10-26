@@ -21,18 +21,25 @@ To easier understand these commands, feel free to utilize a sample Medialon Mana
     Purpose:  To check connection.
     Returns:  "OK"
 
+    Endpoint: /quit
+    Purpose:  Ask C-play to quit/exit.
+    Returns:  "Quitting C-Play"
+
     Endpoint: /media_title
     Purpose:  To retrieve the media title of current media.
     Returns:  The title as text/string
 
     Endpoint: /position
     Purpose:  Which position in time the current media has.
-    Params:   Optional to supply "format=hh:mm:ss/zz", or similiar to get a format time string. Or supply "set=" to actually set a time position.
+    Params:   Optional to supply "format=hh:mm:ss/zz", or similiar to get a format time string. 
+               Or supply "set=" to actually set a time position.
     Returns:  The time (in seconds) or as formatted time string.
 
     Endpoint: /seek
     Purpose:  Seek relative time, backward or forward
-    Params:   Required to supply "time=value", where value is in seconds. A negative integer is for backward seek and positive integer for forward seek. Optional to supply "format=hh:mm:ss/zz", or similiar to get a format time string.
+    Params:   Required to supply "time=value", where value is in seconds. 
+              A negative integer is for backward seek and positive integer for forward seek. 
+              Optional to supply "format=hh:mm:ss/zz", or similiar to get a format time string.
     Returns:  The time (in seconds) or as formatted time string.
 
     Endpoint: /remaining
@@ -60,11 +67,13 @@ To easier understand these commands, feel free to utilize a sample Medialon Mana
     Endpoint: /auto_play
     Purpose:  Enable or disables the use of auto play in the playlist.
     Params:   Optional to supply a "on=1" or "on=0" to enable or disable the auto play feature.
-    Returns:  When "on=" is added, a message indiciating success or an error. Otherwise returns 0 if auto play is disabled and 1 if it's enabled.
+    Returns:  When "on=" is added, a message indiciating success or an error. 
+              Otherwise returns 0 if auto play is disabled and 1 if it's enabled.
 
     Endpoint: /speed
     Purpose:  Which playback speed the media player has.
-    Params:   Optional to supply "factor=value", to set playback speed to specify value. The value should be between 0.01-100.
+    Params:   Optional to supply "factor=value", to set playback speed to specify value. 
+              The value should be between 0.01-100.
     Returns:  The playback speed.
 
 ### Handle volume level and image visibility
@@ -84,21 +93,22 @@ To easier understand these commands, feel free to utilize a sample Medialon Mana
     Returns:  "Fading volume down"
 
     Endpoint: /fade_volume_up
-    Purpose:  Ask C-play to increase volume to previous chosen level during a certain "fade" time period.
+    Purpose:  Increase volume to previous chosen level during a certain "fade" time period.
     Returns:  "Fading volume up"
 
     Endpoint: /fade_image_down
-    Purpose:  Ask C-play to decrease the visibility of the video/image to 0% during a certain "fade" time period.
+    Purpose:  Decrease the visibility of the video/image to 0% during a certain "fade" time period.
     Returns:  "Fading image down"
 
     Endpoint: /fade_image_up
-    Purpose:  Ask C-play to increase the visibility of the image/video to 100% during a certain "fade" time period.
+    Purpose:  Increase the visibility of the image/video to 100% during a certain "fade" time period.
     Returns:  "Fading image up"
 
     Endpoint: /sync_image_volume_fade
-    Purpose:  Ask C-play to increase the image/video view to 100% during a certain "fade" time period.
+    Purpose:  Increase the image/video view to 100% during a certain "fade" time period.
     Params:   Either supply "value=1" or "value=0" to set if sync between fade is enabled or not
-    Returns: 0 or 1 depending on if sync is disabled or enabled. Returns "Setting syncImageVolumeFade to *" when the value parameter is supplied.
+    Returns:  0 or 1 depending on if sync is disabled or enabled. 
+              Returns "Setting syncImageVolumeFade to *" when the value parameter is supplied.
 
     Endpoint: /visibility
     Purpose:  Return the visibility of the image/video.
@@ -146,7 +156,8 @@ To easier understand these commands, feel free to utilize a sample Medialon Mana
     Endpoint: /background_image
     Purpose:  Enable or disables the use of background.
     Params:   Optional to supply a "on=1" or "on=0" to enable or disable the background image.
-    Returns:  When "on=" is added, a message indiciating success or an error. Otherwise return 0 if background is disabled and 1 if enabled.
+    Returns:  When "on=" is added, a message indiciating success or an error. 
+              Otherwise return 0 if background is disabled and 1 if enabled.
 
     Endpoint: /background_image_stereo_mode
     Purpose:  Return the stereoscopic mode for the background image.
@@ -159,7 +170,8 @@ To easier understand these commands, feel free to utilize a sample Medialon Mana
     Endpoint: /foreground_image
     Purpose:  Enable or disables the use of foreground.
     Params:   Optional to supply a "on=1" or "on=0" to enable or disable the foreground image.
-    Returns:  When "on=" is added, a message indiciating success or an error. Otherwise returns 0 if foreground is disabled and 1 if enabled.
+    Returns:  When "on=" is added, a message indiciating success or an error. 
+              Otherwise returns 0 if foreground is disabled and 1 if enabled.
 
     Endpoint: /foreground_image_stereo_mode
     Purpose:  Return the stereoscopic mode for the foreground image.
@@ -173,7 +185,7 @@ To easier understand these commands, feel free to utilize a sample Medialon Mana
 
     Endpoint: /playlist
     Purpose:  Retrieve a formatted string of the playlist in C-play.
-    Params:   Optional to "charsPerItem=33", or another value to limit the characters in the name (to for instance 33).
+    Params:   Optional to "charsPerItem=33", or another value to limit the characters in the name.
     Returns:  A formatted text string that can be handled as a list.
 
     Endpoint: /playing_in_playlist
@@ -187,7 +199,9 @@ To easier understand these commands, feel free to utilize a sample Medialon Mana
 
     Endpoint: /audiotracks
     Purpose:  Retrieve a formatted string of all audio tracks current loaded media has.
-    Params:   Optional to "charsPerItem=33", or another value to limit the characters in the name (to for instance 33). Also optionally to supply "removeLoadedFilePrefix=1" to remove the matching characters from start between video and audio, to shorten the string further.
+    Params:   Optional to "charsPerItem=33", or another value to limit the characters in the name. 
+              Also optionally to supply "removeLoadedFilePrefix=1" to remove the matching characters 
+              from start between video and audio, to shorten the string further.
     Returns:  A formatted text string that can be handled as a list.
 
     Endpoint: /playing_in_audiotracks
@@ -201,7 +215,7 @@ To easier understand these commands, feel free to utilize a sample Medialon Mana
 
     Endpoint: /sections
     Purpose:  Retrieve a formatted string of the sections the current loaded media has.
-    Params:   Optional to "charsPerItem=33", or another value to limit the characters in the name (to for instance 33).
+    Params:   Optional to "charsPerItem=33", or another value to limit the characters in the name.
     Returns:  A formatted text string that can be handled as a list.
 
     Endpoint: /playing_in_sections
@@ -235,12 +249,12 @@ To easier understand these commands, feel free to utilize a sample Medialon Mana
 
     Endpoint: /slides
     Purpose:  Retrieve a formatted string of the slides in the loaded C-play presentation.
-    Params:   Optional to "charsPerItem=33", or another value to limit the characters in the name (to for instance 33).
+    Params:   Optional to "charsPerItem=33", or another value to limit the characters in the name.
     Returns:  A formatted text string that can be handled as a list.
 
     Endpoint: /playing_in_slides
     Purpose:  Return the index of the current loaded item in the slides.
-    Returns:  A value between 0 and number of items. -1 if nothing is selected, which indicates master slide (which cannot be externally controlled).
+    Returns:  A value between 0 and number of items. -1 if nothing is selected, which indicates master slide.
 
     Endpoint: /select_from_slides
     Purpose:  To select a specific slide in the slides list (which automatically makes it pre-loads all layers).
@@ -252,6 +266,44 @@ To easier understand these commands, feel free to utilize a sample Medialon Mana
     Params:   Mandatory to supply "index=", and a value of the index you want to load.
     Returns:  A message to indicate success or an error.
 
+    Endpoint: /layers
+    Purpose:  Retrieve a formatted string of the layers in the specific slide.
+    Params:   Either supply parameter "slide_name=" with the slide name, for instance "Master".
+              Or supply parameter "slide_idx=" with the slide index, -1 for master slide.
+              Optional to "charsPerItem=33", or another value to limit the characters in the name.
+    Returns:  A formatted text string that can be handled as a list.
+
+## Handle layer parameters
+    
+    Overall for all layer controls.
+    Supply parameter "layer_title=" with the title of the layer
+    Or supply parameter "layer_idx" with the index of the layer
+    Optional parameter is "slide_name=" with the slide name.
+    Or supply parameter "slide_idx=" with the slide index.
+    If no slide name or slide idx is added, we assume the master slide.
+
+    Endpoint: /layer_volume
+    Purpose:  To handle layer audio volume.
+    Params:   Required: see "Overall" above
+              Optional to supply "level=" and a value between 0 and 100.
+    Returns:  The volume level (0 to 100)
+
+    Endpoint: /layer_visibility
+    Purpose:  To handle layer visibility/transparency.
+    Params:   Required: see "Overall" above
+              Optional to supply "value=" and a value between 0 and 100.
+    Returns:  The visibility value (0 to 100)
+
+    Endpoint: /layer_plane
+    Purpose:  To handle layer parameters.
+    Params:   Required: see "Overall" above
+              Optional to supply one or multiple of below params:
+              "azimuth", "elevation", "roll", "distance",
+              "horizontal", "vertical".
+              Send the param with an empty value to just receive current value.
+    Returns:  The value of the plane parameter, 
+              or list of values (pne per line) if multiple parameters where used.
+
 ## Spin the grid
 
     Endpoint: /orientation_reset
@@ -260,14 +312,15 @@ To easier understand these commands, feel free to utilize a sample Medialon Mana
 
     Endpoint: /surface_transition
     Purpose:  Launch a transition to a secondary set of values, configured in the settings.
-    Params:   Optional to supply "format=hh:mm:ss/zz", or similiar to get a format time string on how long the transisition runs.
-    Returns:  The transisiton time (in seconds) or as formatted time string.
+    Params:   Optional to supply "format=hh:mm:ss/zz", or similar, 
+              to get a format time string on how long the transition runs.
+    Returns:  The transition time (in seconds) or as formatted time string.
 
     The remaining spin endpoints below follow this scheme:
 
     Purpose:  Enable or disable the spin controls.
     Params:   Mandatory to supply a "on=1" or "on=0" to enable or disable this spin.
-    Returns:  A message indiciating success or an error.
+    Returns:  A message indicating success or an error.
 
     Endpoints that follow these schemes:
 

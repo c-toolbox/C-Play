@@ -541,6 +541,20 @@ LayersModel *SlidesModel::slide(int i) {
         return nullptr;
 }
 
+LayersModel* SlidesModel::slide(std::string name) {
+    // Returning first with correct name
+    QString nameLowCase = QString::fromStdString(name).toLower();
+    if (nameLowCase == QStringLiteral("master")) {
+        return masterSlide();
+    }
+    for (int i = 0; i < m_slides.size(); i++) {
+        if (m_slides[i]->getLayersName().toLower() == nameLowCase) {
+            return slide(i);
+        }
+    }
+    return nullptr;
+}
+
 LayersModel *SlidesModel::selectedSlide() {
     return slide(m_selectedSlideIdx);
 }

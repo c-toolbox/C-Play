@@ -152,6 +152,7 @@ public:
 
     Q_INVOKABLE LayersModel *masterSlide();
     Q_INVOKABLE LayersModel *slide(int i);
+    Q_INVOKABLE LayersModel* slide(std::string name);
     Q_INVOKABLE LayersModel *selectedSlide();
 
     Q_PROPERTY(SlideVisibilityModel *visibilityModel
