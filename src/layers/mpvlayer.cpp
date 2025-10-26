@@ -503,8 +503,8 @@ void MpvLayer::setVolume(int v, bool storeLevel) {
     if (m_data.volume == v)
         return;
 
+    m_data.volume = v;
     if (m_data.mpvInitialized) {
-        m_data.volume = v;
         mpv::qt::set_property(m_data.handle, QStringLiteral("volume"), v, m_data.loggingOn);
     }
 

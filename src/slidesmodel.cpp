@@ -935,6 +935,7 @@ void SlidesModel::runStartAfterPresentationLoad() {
             if (layer.first->alpha() > 0.f) {
                 layer.first->start();
             }
+
         }
     }
     setNeedSync();
@@ -950,10 +951,12 @@ void SlidesModel::runUpdateAudioOutputOnLayers() {
 }
 
 void SlidesModel::runUpdateVolumeOnLayers(int volume) {
+    m_volumeScaling = static_cast<float>(volume) / 100.f;
     for (int i = -1; i < numberOfSlides(); i++) {
         const Layers& slideLayers = slide(i)->getLayers();
         for (auto layer : slideLayers) {
-            float volLevelF = static_cast<float>(layer.first->volume()) * (static_cast<float>(volume) / 100.f);
+            layer.first->setVolumeScaling(m_volumeScaling);
+            float volLevelF = static_cast<float>(layer.first->volume()) * m_volumeScaling;
             layer.first->setVolume(static_cast<int>(volLevelF), false);
         }
     }

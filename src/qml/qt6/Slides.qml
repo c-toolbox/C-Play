@@ -579,6 +579,8 @@ Rectangle {
         onTriggered: {
             busyIndicator = false;
             app.slides.runStartAfterPresentationLoad();
+            if(PresentationSettings.masterVolumeControlLayersVolume)
+                app.slides.runUpdateVolumeOnLayers(mpv.volume);
         }
     }
 

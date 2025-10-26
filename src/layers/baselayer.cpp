@@ -157,6 +157,7 @@ BaseLayer::BaseLayer() {
     m_title = "";
     m_filepath = "";
     m_volume = 100;
+    m_volumeScaling = 1.f;
     m_isLocked = false;
     m_isMaster = false;
     m_existOnMasterOnly = false;
@@ -272,6 +273,10 @@ void BaseLayer::updateAudioOutput() {
 
 void BaseLayer::setVolume(int, bool) {
     // Overwrite in derived class
+}
+
+void BaseLayer::setVolumeScaling(float vScale) {
+    m_volumeScaling = vScale;
 }
 
 void BaseLayer::setVolumeMute(bool) {
@@ -559,7 +564,7 @@ void BaseLayer::setAlpha(float a) {
         }
 
        //Alpha controls volume level as well, from 0 to desired value (100%)
-       float volLevelF = static_cast<float>(volume()) * a;
+       float volLevelF = static_cast<float>(volume()) * m_volumeScaling * a;
        setVolume(static_cast<int>(volLevelF), false);
     }
 

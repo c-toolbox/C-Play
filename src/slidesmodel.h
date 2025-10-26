@@ -266,6 +266,7 @@ private:
     int m_triggeredSlideIdx = -1;
     int m_previousTriggeredSlideIdx = -1;
     int m_slideFadeTime = 0;
+    float m_volumeScaling = 1.f;
     int m_slideToPasteIdx = -1;
     bool m_slidesNeedsSave = false;
     bool m_pauseLayerUpdate = false;

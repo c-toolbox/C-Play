@@ -125,6 +125,7 @@ public:
     virtual std::vector<Track>* audioTracks();
     virtual void updateAudioOutput();
     virtual void setVolume(int v, bool storeLevel = true);
+    virtual void setVolumeScaling(float vScale);
     virtual void setVolumeMute(bool v);
 
     virtual bool existOnMasterOnly() const;
@@ -268,6 +269,7 @@ protected:
     std::string m_title;
     std::string m_filepath;
     int m_volume;
+    float m_volumeScaling;
     int m_keepVisibilityForNumSlides;
     bool m_isLocked;
     bool m_isMaster;
