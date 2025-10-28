@@ -20,6 +20,7 @@
 #include <layersmodel.h>
 #include <mutex>
 #include <slidesmodel.h>
+#include "playbacksettings.h"
 
 #ifdef MDK_SUPPORT
 #include <mdk/global.h>
@@ -126,8 +127,16 @@ static std::vector<std::byte> encode() {
             serializeObject(data, SyncHelper::instance().variables.volume);
             serializeObject(data, SyncHelper::instance().variables.volumeMute);
         }
+
+        SyncHelper::instance().variables.timeThreshold = double(PlaybackSettings::thresholdToSyncTimePosition()) / 1000.0;
+        SyncHelper::instance().variables.timeThresholdSetSkips = PlaybackSettings::thresholdToSyncTimeSkipSets() - 1;
+        SyncHelper::instance().variables.timeThresholdEnabled = PlaybackSettings::useThresholdToSyncTimePosition();
+        SyncHelper::instance().variables.timeThresholdOnLoopOnly = PlaybackSettings::applyThresholdSyncOnLoopOnly();
+        SyncHelper::instance().variables.timeThresholdOnLoopCheckTime = PlaybackSettings::timeToCheckThresholdSyncAfterLoop() / 1000.0;
+
         serializeObject(data, SyncHelper::instance().variables.timePosition);
         serializeObject(data, SyncHelper::instance().variables.timeThreshold);
+        serializeObject(data, SyncHelper::instance().variables.timeThresholdSetSkips);
         serializeObject(data, SyncHelper::instance().variables.timeThresholdEnabled);
         serializeObject(data, SyncHelper::instance().variables.timeThresholdOnLoopOnly);
         serializeObject(data, SyncHelper::instance().variables.timeDirty);
@@ -242,16 +251,11 @@ static std::vector<std::byte> encode() {
             if (s < Application::instance().slidesModel()->numberOfSlides()) {
                 LayersModel* slide = Application::instance().slidesModel()->slide(s);
                 int numLayers = slide->numberOfLayers();
-                if (slide->needsSync()) {
-                    needLayerSync = true;
-                }
+                needLayerSync = true;
                 for (int l = 0; l < numLayers; l++) {
                     BaseLayer* layer = slide->layer(l);
                     if (!layer->existOnMasterOnly()) {
                         totalLayersToSync++;
-                        if (layer->needSync()) {
-                            needLayerSync = true;
-                        }
                     }
                 }
             }
@@ -317,6 +321,7 @@ static void decode(const std::vector<std::byte> &data) {
         }
         deserializeObject(data, pos, SyncHelper::instance().variables.timePosition);
         deserializeObject(data, pos, SyncHelper::instance().variables.timeThreshold);
+        deserializeObject(data, pos, SyncHelper::instance().variables.timeThresholdSetSkips);
         deserializeObject(data, pos, SyncHelper::instance().variables.timeThresholdEnabled);
         deserializeObject(data, pos, SyncHelper::instance().variables.timeThresholdOnLoopOnly);
         deserializeObject(data, pos, SyncHelper::instance().variables.timeDirty);

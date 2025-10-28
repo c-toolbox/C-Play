@@ -17,12 +17,15 @@
     <entry name="ThresholdToSyncTimePosition" type="int">
       <default>100</default>
     </entry>
+    <entry name="ThresholdToSyncTimeSkipSets" type="int">
+      <default>10</default>
+    </entry>
     <entry name="ApplyThresholdSyncOnLoopOnly" type="bool">
       <label>Sync time based on threshold for looping only</label>
       <default>true</default>
     </entry>
     <entry name="TimeToCheckThresholdSyncAfterLoop" type="int">
-      <default>3000</default>
+      <default>500</default>
     </entry>
     <entry name="SyncVolumeVisibilityFading" type="bool">
       <label>Sync volume+visibility fading</label>

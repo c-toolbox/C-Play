@@ -256,6 +256,7 @@ public:
         bool loadAudioInVidFolder;
         double timePosition;
         double timeThreshold;
+        int timeThresholdSetSkips;
         bool timeThresholdEnabled;
         bool timeThresholdOnLoopOnly;
         double timeThresholdOnLoopCheckTime;
@@ -330,6 +331,7 @@ public:
         /*loadAudioInVidFolder*/ false,
         /*timePosition*/ 0.0,
         /*timeThreshold*/ 1.0,
+        /*timeThresholdSetSkips*/ 0,
         /*timeThresholdEnabled*/ false,
         /*timeThresholdOnLoopOnly*/ false,
         /*timeThresholdOnLoopCheckTime*/ 1.0,

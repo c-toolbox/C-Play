@@ -188,7 +188,7 @@ ItemDelegate {
 
                 anchors.bottom: parent.bottom
                 anchors.right: its.right
-                visible: app.slides.selectedSlideIdx === -1 && layersView.currentIndex === index
+                visible: layersView.currentIndex === index
                 implicitWidth: 100
                 overlayLabel: qsTr("")
 

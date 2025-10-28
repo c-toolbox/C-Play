@@ -93,10 +93,12 @@ BaseLayer *BaseLayer::createLayer(bool isMaster, int layerType, gl_adress_func_v
         VideoLayer* newVideo = new VideoLayer(opa1);
         newLayer = newVideo;
 #endif
+        newVideo->setEOFMode(2);
         break;
     }
     case static_cast<int>(BaseLayer::LayerType::AUDIO): {
         AudioLayer* newAudio = new AudioLayer(opa1);
+        newAudio->setEOFMode(2);
         newLayer = newAudio;
         break;
     }

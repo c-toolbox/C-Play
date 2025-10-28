@@ -54,6 +54,7 @@ public:
         double mediaDuration = 0.0;
         double timePos = 0;
         double timeToSet = 0;
+        int timeThresholdSetSkips = 0;
         bool timeIsDirty = false;
         bool typePropertiesDecode = false;
         std::atomic_bool threadRunning = false;

@@ -462,6 +462,23 @@ SettingsBasePage {
                         floatingWindowPosY.value = screensComboBox.currentValue.y;
                     }
                 }
+                ToolButton {
+                    id: updateScreens
+
+                    focusPolicy: Qt.NoFocus
+                    icon.height: 16
+                    icon.name: "view-refresh"
+                    text: ""
+
+                    onClicked: {
+                        app.screensModel.updateScreensList();
+
+                        var floatingWindowScreenNameIdx = find(UserInterfaceSettings.floatingWindowScreenName)
+                        if(floatingWindowScreenNameIdx >= 0){
+                            screensComboBox.currentIndex = floatingWindowScreenNameIdx;
+                        }
+                    }
+                }
             }
             Item {
                 // spacer item

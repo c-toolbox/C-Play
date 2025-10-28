@@ -15,7 +15,7 @@
 //#define TEST_STREAM_NODE_ONLY
 
 void loadTracks(MpvLayer::mpvData& vd) {
-    if (vd.handle && !vd.loadedFile.empty()) {
+    if (vd.handle && vd.mpvInitialized && !vd.loadedFile.empty()) {
         vd.audioTracks.clear();
         const QList<QVariant> tracks = mpv::qt::get_property(vd.handle, QStringLiteral("track-list")).toList();
         int audioIndex = 0;
@@ -43,11 +43,13 @@ void loadTracks(MpvLayer::mpvData& vd) {
 }
 
 void loadAudioId(MpvLayer::mpvData& vd) {
-    if (vd.audioId < 0) {
-        mpv::qt::set_property(vd.handle, QStringLiteral("aid"), QStringLiteral("auto"), vd.loggingOn);
-    }
-    else {
-        mpv::qt::set_property(vd.handle, QStringLiteral("aid"), vd.audioId, vd.loggingOn);
+    if (vd.handle && vd.mpvInitialized) {
+        if (vd.audioId < 0) {
+            mpv::qt::set_property(vd.handle, QStringLiteral("aid"), QStringLiteral("auto"), vd.loggingOn);
+        }
+        else {
+            mpv::qt::set_property(vd.handle, QStringLiteral("aid"), vd.audioId, vd.loggingOn);
+        }
     }
 }
 
@@ -103,23 +105,27 @@ void on_mpv_events(MpvLayer::mpvData &vd, BaseLayer::RenderParams &rp) {
                     vd.mediaDuration = *reinterpret_cast<double *>(prop->data);
                 }
             } else if (strcmp(prop->name, "time-pos") == 0) {
-                if (SyncHelper::instance().variables.timeThresholdEnabled && !vd.isStream) {
+                if (!vd.isMaster && SyncHelper::instance().variables.timeThresholdEnabled && !vd.isStream) {
                     double timeToSet = vd.timePos;
                     // We do not want to "over-force" seeks, as this will slow down and might cause continued stutter.
                     // Normally, playback is syncronized, however looping depends on seek speed.
                     // Seek speeds (thus loop speed) is faster when no audio is present, thus nodes might be faster then master.
                     // Hence, we might need to correct things after a loop, between master and nodes.
-                    if (!SyncHelper::instance().variables.timeThresholdOnLoopOnly 
+                    if (vd.timeThresholdSetSkips <= 0 && (!SyncHelper::instance().variables.timeThresholdOnLoopOnly
                         || (vd.eofMode > 1 && timeToSet < SyncHelper::instance().variables.timeThresholdOnLoopCheckTime) 
                         || (vd.eofMode > 1 && timeToSet > (vd.mediaDuration - SyncHelper::instance().variables.timeThresholdOnLoopCheckTime) && (vd.mediaDuration > 0)) 
                         || (SyncHelper::instance().variables.loopTimeEnabled && timeToSet < (SyncHelper::instance().variables.loopTimeA + SyncHelper::instance().variables.timeThresholdOnLoopCheckTime)) 
-                        || (SyncHelper::instance().variables.loopTimeEnabled && SyncHelper::instance().variables.loopTimeB < (timeToSet + SyncHelper::instance().variables.timeThresholdOnLoopCheckTime))) {
+                        || (SyncHelper::instance().variables.loopTimeEnabled && SyncHelper::instance().variables.loopTimeB < (timeToSet + SyncHelper::instance().variables.timeThresholdOnLoopCheckTime)))) {
                         if (prop->format == MPV_FORMAT_DOUBLE) {
                             double latestPosition = *reinterpret_cast<double *>(prop->data);
                             if (SyncHelper::instance().variables.timeThreshold > 0 && (abs(latestPosition - timeToSet) > SyncHelper::instance().variables.timeThreshold)) {
                                 mpv::qt::set_property_async(vd.handle, QStringLiteral("time-pos"), timeToSet);
+                                vd.timeThresholdSetSkips = SyncHelper::instance().variables.timeThresholdSetSkips;
                             }
                         }
+                    }
+                    else if (vd.timeThresholdSetSkips > 0) {
+                        vd.timeThresholdSetSkips -= 1;
                     }
                 }
             }
@@ -173,9 +179,19 @@ void initMPV(MpvLayer::mpvData& vd) {
     if (mpv_initialize(vd.handle) < 0)
         sgct::Log::Error("mpv init failed");
 
-    // Set default settings
-    mpv::qt::set_property(vd.handle, QStringLiteral("keep-open"), QStringLiteral("yes"), vd.loggingOn);
-    mpv::qt::set_property(vd.handle, QStringLiteral("loop-file"), QStringLiteral("inf"), vd.loggingOn);
+    // Set EOF mode
+    if (vd.eofMode == 0) { // Pause
+        mpv::qt::set_property_async(vd.handle, QStringLiteral("keep-open"), QStringLiteral("yes"));
+        mpv::qt::set_property_async(vd.handle, QStringLiteral("loop-file"), QStringLiteral("no"));
+    }
+    else if (vd.eofMode == 1) { // Continue
+        mpv::qt::set_property_async(vd.handle, QStringLiteral("keep-open"), QStringLiteral("no"));
+        mpv::qt::set_property_async(vd.handle, QStringLiteral("loop-file"), QStringLiteral("no"));
+    }
+    else { // Loop
+        mpv::qt::set_property_async(vd.handle, QStringLiteral("keep-open"), QStringLiteral("yes"));
+        mpv::qt::set_property_async(vd.handle, QStringLiteral("loop-file"), QStringLiteral("inf"));
+    }
 
     // Set if we support video or not (enabled by default)
     if (!vd.supportVideo) {
@@ -188,6 +204,7 @@ void initMPV(MpvLayer::mpvData& vd) {
         mpv::qt::set_property(vd.handle, QStringLiteral("untimed"), QStringLiteral(""), vd.loggingOn);
     }
 
+    // Set audio properties
     if (vd.audioEnabled) {
         mpv::qt::set_property(vd.handle, QStringLiteral("aid"), QStringLiteral("auto"), vd.loggingOn);
         mpv::qt::set_property(vd.handle, QStringLiteral("volume-max"), QStringLiteral("100"), vd.loggingOn);
@@ -423,7 +440,7 @@ bool MpvLayer::hasAudio() const {
 }
 
 int MpvLayer::audioId() {
-    if (m_data.handle && !m_data.loadedFile.empty())
+    if (m_data.mpvInitialized && m_data.handle && !m_data.loadedFile.empty())
         return mpv::qt::get_property(m_data.handle, QStringLiteral("aid")).toInt();
     else
         return m_data.audioId;
@@ -585,7 +602,7 @@ void MpvLayer::decodeTypeProperties(const std::vector<std::byte>& data, unsigned
 }
 
 void MpvLayer::loadFile(std::string filePath, bool reload) {
-    if (!filePath.empty() && (reload || m_data.loadedFile != filePath)) {
+    if (m_data.mpvInitialized && !filePath.empty() && (reload || m_data.loadedFile != filePath)) {
         sgct::Log::Info(std::format("Loading new file with mpv: {}", filePath));
         m_data.reconfigs = 0;
         m_data.updateRendering = false;
@@ -612,15 +629,19 @@ void MpvLayer::setEOFMode(int eofMode) {
     if (eofMode != m_data.eofMode) {
         m_data.eofMode = eofMode;
 
-        if (m_data.eofMode == 0) { // Pause
-            mpv::qt::set_property_async(m_data.handle, QStringLiteral("keep-open"), QStringLiteral("yes"));
-            mpv::qt::set_property_async(m_data.handle, QStringLiteral("loop-file"), QStringLiteral("no"));
-        } else if (m_data.eofMode == 1) { // Continue
-            mpv::qt::set_property_async(m_data.handle, QStringLiteral("keep-open"), QStringLiteral("no"));
-            mpv::qt::set_property_async(m_data.handle, QStringLiteral("loop-file"), QStringLiteral("no"));
-        } else { // Loop
-            mpv::qt::set_property_async(m_data.handle, QStringLiteral("keep-open"), QStringLiteral("yes"));
-            mpv::qt::set_property_async(m_data.handle, QStringLiteral("loop-file"), QStringLiteral("inf"));
+        if (m_data.mpvInitialized) {
+            if (m_data.eofMode == 0) { // Pause
+                mpv::qt::set_property_async(m_data.handle, QStringLiteral("keep-open"), QStringLiteral("yes"));
+                mpv::qt::set_property_async(m_data.handle, QStringLiteral("loop-file"), QStringLiteral("no"));
+            }
+            else if (m_data.eofMode == 1) { // Continue
+                mpv::qt::set_property_async(m_data.handle, QStringLiteral("keep-open"), QStringLiteral("no"));
+                mpv::qt::set_property_async(m_data.handle, QStringLiteral("loop-file"), QStringLiteral("no"));
+            }
+            else { // Loop
+                mpv::qt::set_property_async(m_data.handle, QStringLiteral("keep-open"), QStringLiteral("yes"));
+                mpv::qt::set_property_async(m_data.handle, QStringLiteral("loop-file"), QStringLiteral("inf"));
+            }
         }
     }
 }
@@ -628,14 +649,16 @@ void MpvLayer::setEOFMode(int eofMode) {
 void MpvLayer::setTimePause(bool paused, bool updateTime) {
     if (paused != m_data.mediaIsPaused) {
         m_data.mediaIsPaused = paused;
-        mpv::qt::set_property_async(m_data.handle, QStringLiteral("pause"), m_data.mediaIsPaused);
-        if (m_data.mediaIsPaused) {
-            sgct::Log::Info("Media paused.");
-            if(updateTime && !m_data.isStream)
-                mpv::qt::set_property_async(m_data.handle, QStringLiteral("time-pos"), m_data.timePos);
-        }
-        else {
-            sgct::Log::Info("Media playing...");
+        if (m_data.mpvInitialized) {
+            mpv::qt::set_property_async(m_data.handle, QStringLiteral("pause"), m_data.mediaIsPaused);
+            if (m_data.mediaIsPaused) {
+                sgct::Log::Info("Media paused.");
+                if (updateTime && !m_data.isStream)
+                    mpv::qt::set_property_async(m_data.handle, QStringLiteral("time-pos"), m_data.timePos);
+            }
+            else {
+                sgct::Log::Info("Media playing...");
+            }
         }
     }
 }
@@ -643,20 +666,25 @@ void MpvLayer::setTimePause(bool paused, bool updateTime) {
 void MpvLayer::setTimePosition(double timePos, bool updateTime) {
     m_data.timePos = timePos;
 
-    if (updateTime)
+    if (updateTime && m_data.mpvInitialized)
         mpv::qt::set_property_async(m_data.handle, QStringLiteral("time-pos"), timePos);
 }
 
 void MpvLayer::setLoopTime(double A, double B, bool enabled) {
-    if (enabled) {
-        mpv::qt::set_property_async(m_data.handle, QStringLiteral("ab-loop-a"), A);
-        mpv::qt::set_property_async(m_data.handle, QStringLiteral("ab-loop-b"), B);
-    } else {
-        mpv::qt::set_property_async(m_data.handle, QStringLiteral("ab-loop-a"), QStringLiteral("no"));
-        mpv::qt::set_property_async(m_data.handle, QStringLiteral("ab-loop-b"), QStringLiteral("no"));
+    if (m_data.mpvInitialized) {
+        if (enabled) {
+            mpv::qt::set_property_async(m_data.handle, QStringLiteral("ab-loop-a"), A);
+            mpv::qt::set_property_async(m_data.handle, QStringLiteral("ab-loop-b"), B);
+        }
+        else {
+            mpv::qt::set_property_async(m_data.handle, QStringLiteral("ab-loop-a"), QStringLiteral("no"));
+            mpv::qt::set_property_async(m_data.handle, QStringLiteral("ab-loop-b"), QStringLiteral("no"));
+        }
     }
 }
 
 void MpvLayer::setValue(std::string param, int val) {
-    mpv::qt::set_property_async(m_data.handle, QString::fromStdString(param), val);
+    if (m_data.mpvInitialized) {
+        mpv::qt::set_property_async(m_data.handle, QString::fromStdString(param), val);
+    }
 }

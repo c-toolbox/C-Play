@@ -159,6 +159,32 @@ SettingsBasePage {
                 }
             }
         }
+        Label {
+            Layout.alignment: Qt.AlignRight
+            text: qsTr("Time position skip iterations:")
+        }
+        RowLayout {
+            SpinBox {
+                id: timeSkipIterations
+
+                enabled: useThresholdToSyncTimePositionCheckbox.checked
+                from: 1
+                to: 500
+                value: PlaybackSettings.thresholdToSyncTimeSkipSets
+
+                onValueChanged: {
+                    PlaybackSettings.thresholdToSyncTimeSkipSets = value;
+                    PlaybackSettings.save();
+                }
+            }
+            LabelWithTooltip {
+                Layout.fillWidth: true
+                elide: Text.ElideRight
+                text: {
+                    timeSkipIterations.value > 1 ? qsTr("Performing time correction every %1th time.").arg(Number((timeSkipIterations.value))) : qsTr("Performing time correction every time.");
+                }
+            }
+        }
         Item {
             height: Kirigami.Units.gridUnit
             width: Kirigami.Units.gridUnit
