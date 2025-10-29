@@ -28,111 +28,38 @@ C-Play would make sure that only the FIRST two viewports below, or the LAST two 
 
 This makes it possible to apply different calibrations for 3D vs 2D content, which in some scenarios can make a noticeable difference, and are then needed to show both 3D or 2D content correctly.
 
-* *Version 2.2 and above*
+* JSON : *Version 2.2 and above*
 ```json
 "viewports": [
     {
         "eye": "left",
-        "pos": {
-        "x": 0,
-        "y": 0
-        },
-        "size": {
-        "x": 0.5,
-        "y": 1
-        },
-        "projection": {
-        "type": "PlanarProjection",
-        "fov": {
-            "left": 61.3407,
-            "right": 61.4876,
-            "up": 70.238,
-            "down": -7.701
-        },
-        "orientation": {
-            "pitch": 0,
-            "roll": 0,
-            "yaw": -45
-        }
-        }
+        "pos": { "x": 0, "y": 0 },
+        "size": { "x": 0.5, "y": 1 },
+        "projection": { "type": "PlanarProjection", }
     },
     {
         "eye": "right",
-        "pos": {
-        "x": 0.5,
-        "y": 0
-        },
-        "size": {
-        "x": 0.5,
-        "y": 1
-        },
-        "projection": {
-        "type": "PlanarProjection",
-        "fov": {
-            "left": 61.2299,
-            "right": 61.0821,
-            "up": 70.238,
-            "down": -7.701
-        },
-        "orientation": {
-            "pitch": 0,
-            "roll": 0,
-            "yaw": -45
-        }
-        }
+        "pos": { "x": 0.5, "y": 0 },
+        "size": { "x": 0.5, "y": 1 },
+        "projection": { "type": "PlanarProjection", }
     },
     {
         "eye": "center",
-        "pos": {
-        "x": 0,
-        "y": 0
-        },
-        "size": {
-        "x": 0.5,
-        "y": 1
-        },
-        "projection": {
-        "type": "PlanarProjection",
-        "fov": {
-            "up": 70.238,
-            "down": -7.701,
-            "hfov": 117.73
-        },
-        "orientation": {
-            "pitch": 0,
-            "roll": 0,
-            "yaw": -45
-        }
-        }
+        "pos": { "x": 0, "y": 0 },
+        "size": { "x": 0.5, "y": 1 },
+        "projection": { "type": "PlanarProjection", }
     },
     {
         "eye": "center",
-        "pos": {
-        "x": 0.5,
-        "y": 0
-        },
-        "size": {
-        "x": 0.5,
-        "y": 1
-        },
-        "projection": {
-        "type": "PlanarProjection",
-        "fov": {
-            "up": 70.238,
-            "down": -7.701,
-            "hfov": 117.73
-        },
-        "orientation": {
-            "pitch": 0,
-            "roll": 0,
-            "yaw": -45
-        }
-        }
+        "pos": { "x": 0.5, "y": 0 },
+        "size": { "x": 0.5, "y": 1 },
+        "projection": { "type": "PlanarProjection", }
     }
 ]
 ```
 
-* *Version 2.1 and below*
+* XML : *Version 2.1 and below*
+
 ```xml
 <Viewport eye="left">
     <Pos x="0.0" y="0.0" />

@@ -19,6 +19,11 @@ For simplicity, you can chose to sync the fading of volume and visibility, such 
 
 ### Master to client(s) syncing
 
+*In C-Play v2.2 and newer*
+![States](../../assets/ui/header_taskbar/states.png)
+
+*In C-Play v2.1 and below*
+
 ![Sync On](../../assets/ui/header_taskbar/sync_on.png){:width="20%"} &nbsp; ![Sync Off](../../assets/ui/header_taskbar/sync_off.png){:width="20%"}
 
 The button to the far right of the header is for the overall sync between master and the clients/nodes. Normally, this should always be *On*, but if you want to load, seek and alter many settings at ones, it can be useful to set *"Sync Off"*, and then turn it on when all things are done.

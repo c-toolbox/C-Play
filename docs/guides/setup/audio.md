@@ -39,7 +39,7 @@ When C-Play loads a audio file, you should see how many channels it has by how m
 
 ## Naming of external files
 
-In a show environment, is benefical to not have different video files for every movie, and as C-Play support loading of audio files that sit next to the video file (i.e. "*side-loading*"), it is very beneficial to use that capability to always add additional tracks as new files, the sits next to the video file on the master machine.
+In a show environment, is beneficial to not have different video files for every movie, and as C-Play support loading of audio files that sit next to the video file (i.e. "*side-loading*"), it is very beneficial to use that capability to always add additional tracks as new files, the sits next to the video file on the master machine *(or the node if C-Play is configured to run audio from nodes)*.
 
 C-Play also has [Web API](../remote/api.md) that support retrieval of the audio track that are embedded or ar "*side-loaded*", such that the user could trigger the change of a different audio track, if desired. To not mix-up different audio files for different video files, it is good practice to name the audio file with at least the start of the same filename, and an end of the specific language or track name.
 

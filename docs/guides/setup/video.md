@@ -11,7 +11,7 @@ This is the configuration guide for installers, how to get maximum performance o
 
 C-Play has embedded [mpv](https://mpv.io/), which is highly capable free and open-source media player. MPV can be configured in many ways to maximize performance based on your system.
 
-For reference, at the moment, the latest C-Play comes shipped with compiliation of the mpv 0.36 library, and a backend of the latest ffmpeg 5.1 version.
+For reference, at the moment, the latest C-Play comes shipped with compilation of the mpv 0.36 library, and a backend of the latest ffmpeg 5.1 version.
 
 ## MPV configuration files
 
@@ -19,7 +19,7 @@ C-Play ships with a bunch of different pre-configured mpv configuration files, l
 
 If nothing is specified, C-Play will load the configuration in the *default* folder.
 
-But, by supplying a command-line parameter "*--mpvconf decoding_gpu_nvdec*" you would be loading the specifc configuration files in that folder when C-Play starts.
+But, by supplying a command-line parameter "*--mpvconf decoding_gpu_nvdec*" you would be loading the specific configuration files in that folder when C-Play starts.
 
 Each configuration folder can contain up to three different JSON files:
 
@@ -27,7 +27,7 @@ Each configuration folder can contain up to three different JSON files:
 * master-only.json
 * nodes-only.json
 
-The *all.json* should include option you would like C-Play to utilize on both master and clients/nodes. An respectivly, you can set settings for only the master or only the clients/nodes in the other two files.
+The *all.json* should include option you would like C-Play to utilize on both master and clients/nodes. An respectively, you can set settings for only the master or only the clients/nodes in the other two files.
 
 The various configuration that C-Play ship with can be found [here](https://github.com/c-toolbox/C-Play/tree/master/data/mpv-conf), for reference.
 
@@ -55,7 +55,7 @@ This line tells MPV to resample the audio to match the display rate, opposite of
 
 2) *"display-fps-override": "59.94"*
 
-As usually the nodes are frame-synced, but not the master. Does, we want to tell all instances to use the refresh-rate of the syncronized displays, even the master, such that the timing between master and nodes is the same. You could override only on the master, and let the nodes use a detected value, if desired, but in the included example we override all.
+As usually the nodes are frame-synced, but not the master. Does, we want to tell all instances to use the refresh-rate of the synchronized displays, even the master, such that the timing between master and nodes is the same. You could override only on the master, and let the nodes use a detected value, if desired, but in the included example we override all.
  
 ## H264 vs H265
 

@@ -8,9 +8,9 @@ nav_order: 1
 
 C-Play is a video/media player developed for cluster environments where you need multiple computers and/or displays to run your content on. The displays could be flat or curved in any setup that is supported by our underlying toolkit [SGCT](https://sgct.github.io/) and any media format supported by [MPV](https://mpv.io/).
 
-## Latest Release Version: 2.1
+## Latest Release Version: 2.2
 
-![Render C-Play v2.1](assets/Cplay-v2-1.png)
+![Render C-Play v2.2](assets/Cplay-v2-2.png)
 
 ### Content features
 These are just some features that set C-Play apart from others media/video players:
@@ -25,7 +25,8 @@ C-Play support media that is:
 
 - Any "flat" media arbitary aspect ratio
 
-Media can be added as layers within slides, using numerous inputs, such as 
+Primary media (video and images) is easily opened and configured(through playfiles) and added to playlist for a standard media player setup.
+An additional powerful feature in C-Play is the presentation tool, where you can be add arbitrary amount of layers within slides, using numerous inputs, such as
 
 - *Images* (JPG and PNGs)
 
@@ -39,15 +40,17 @@ Media can be added as layers within slides, using numerous inputs, such as
 
 - *Streams* (Youtube etc supported through FFmpeg)
 
+- *Text* (With custom font, also used for subtitles.) 
+
  With above layers, you can  make it as easy as using powerpoint to create an immersive presentation.
 
-### Technical features:
+### Technical features
 
-- Runs a QT/QML UI application on master computer and small none-UI GLFW/SGCT application on clients.
+- Runs a QT/QML UI application on master computer and small none-UI GLFW/SGCT application on nodes/clients.
 
 - Sync playback, loading and other properties between master and clients.
 
-- Playing audio is only available on master *(Support for node audio is added in 2.2, currently in beta)*. Change of audio output is supported, and C-Play is pre-built with "JACK", which opens for multi-channel low-latency output to for instance ASIO devices.
+- Playing audio is usually performed on master *(Support for node audio is added in 2.2)*. Change of audio output is supported, and C-Play is pre-built with "JACK", which opens for multi-channel low-latency output to for instance ASIO devices.
 
 - Loading external audio files as multiple tracks.
 
@@ -55,11 +58,11 @@ Media can be added as layers within slides, using numerous inputs, such as
 
 - Configure "sections" in a editor to create bookmarks to jump between clips inside a larger movie.
 
-- Sync video+audio fade in/out
+- C-Play nodes can run on-top other application. For master, viewing your video (or layer) on secondary monitor is also simple and requires no extra decoding resources.
 
-- HTTP Web API
+- HTTP Web API (Such that you can include control in custom system.)
 
-- Tested and used on primarily Windows 10, in domes and other big arenas.
+- Tested and used on Windows 10/11, in domes and other big arenas.
 
 ## Guides
 1. [Install C-Play](install)

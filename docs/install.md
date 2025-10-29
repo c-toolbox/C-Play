@@ -8,7 +8,7 @@ nav_order: 2
 
 Please download the latest release from [Github](https://github.com/c-toolbox/C-Play/releases).
 
-From 2.0 and on-wards there is a installer available for Windows.
+From 2.0 and on-wards there is a installer and/or zip available for Windows.
 Please install that in the exact same paths on all systems, master and clients.
 
 To launch application on master+nodes, we normally use an own developed application called [C-Troll](https://github.com/c-toolbox/C-Troll).
