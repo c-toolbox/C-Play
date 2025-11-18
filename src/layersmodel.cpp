@@ -896,7 +896,7 @@ void LayersModel::encodeToJSON(QJsonObject &obj, const QStringList &forRelativeP
         layerData.insert(QStringLiteral("title"), QJsonValue(QString::fromStdString(layer->title())));
 
         if (getLayersCanBeLocked() && layer->isLocked()) {
-            obj.insert(QStringLiteral("locked"), QJsonValue(layer->isLocked()));
+            layerData.insert(QStringLiteral("locked"), QJsonValue(layer->isLocked()));
         }
 
         if (layer->type() == BaseLayer::IMAGE

@@ -1684,16 +1684,22 @@ void MpvRenderer::render() {
         mpfbo.internal_format = 0;
     }
 
-    mpv_render_param params[] = {
-        // Specify the default framebuffer (0) as target. This will
-        // render onto the entire screen. If you want to show the video
-        // in a smaller rectangle or apply fancy transformations, you'll
-        // need to render into a separate FBO and draw it manually.
-        {MPV_RENDER_PARAM_OPENGL_FBO, &mpfbo},
-        {MPV_RENDER_PARAM_INVALID, nullptr} };
-    // See render_gl.h on what OpenGL environment mpv expects, and
-    // other API details.
-    mpv_render_context_render(view->obj->mpv_gl, params);
+    // Render only for the first view
+    if (view == view->obj->mpv_views.at(0)) {
+        mpv_render_param params[] = {
+            // Specify the default framebuffer (0) as target. This will
+            // render onto the entire screen. If you want to show the video
+            // in a smaller rectangle or apply fancy transformations, you'll
+            // need to render into a separate FBO and draw it manually.
+            {MPV_RENDER_PARAM_OPENGL_FBO, &mpfbo},
+            {MPV_RENDER_PARAM_INVALID, nullptr} };
+        // See render_gl.h on what OpenGL environment mpv expects, and
+        // other API details.
+        mpv_render_context_render(view->obj->mpv_gl, params);
+    }
+    else {
+        return;
+    }
 
     // Copy Mpv FBO (with video dimensions) to all the views that want it
     if (view->obj->mpv_views.size() > 1) {

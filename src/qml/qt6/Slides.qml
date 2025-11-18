@@ -482,6 +482,7 @@ Rectangle {
                     app.slides.selectedSlideIdx = slidesView.currentIndex;
 
                 layers.layersView.currentIndex = -1;
+                layers.busyIndicator = false;
             }
 
             Connections {
