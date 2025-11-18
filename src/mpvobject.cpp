@@ -1684,8 +1684,17 @@ void MpvRenderer::render() {
         mpfbo.internal_format = 0;
     }
 
-    // Render only for the first view
-    if (view == view->obj->mpv_views.at(0)) {
+    // Find first visible view in view vector
+    MpvView* firstVisibleView = nullptr;
+    for (auto it = view->obj->mpv_views.begin(); it != view->obj->mpv_views.end(); ++it) {
+        if ((*it)->isVisible()) {
+            firstVisibleView = (*it);
+            break;
+        }
+    }
+
+    // Render only for the first visible view
+    if (view == firstVisibleView) {
         mpv_render_param params[] = {
             // Specify the default framebuffer (0) as target. This will
             // render onto the entire screen. If you want to show the video
@@ -1706,7 +1715,7 @@ void MpvRenderer::render() {
         QRect sourceRect(0, 0, view->obj->mpv_fbo->width(), view->obj->mpv_fbo->height());
         float ratioSource = static_cast<float>(sourceRect.width()) / static_cast<float>(sourceRect.height());
         for (auto it = view->obj->mpv_views.begin(); it != view->obj->mpv_views.end(); ++it) {
-            if ((*it)->fbo) {
+            if ((*it)->fbo && (*it)->isVisible()) {
                 int targetWidth = (*it)->fbo->width();
                 int targetHeight = (*it)->fbo->height();
                 int targetX = 0;
