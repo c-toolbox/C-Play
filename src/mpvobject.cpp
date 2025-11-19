@@ -19,6 +19,7 @@
 #include "playlistitem.h"
 #include "playlistsettings.h"
 #include "subtitlesettings.h"
+#include "userinterfacesettings.h"
 #include "track.h"
 #include "tracksmodel.h"
 #include "layers/textlayer.h"
@@ -33,6 +34,7 @@
 #include <QObject>
 #include <QOpenGLContext>
 #include <QOpenGLFramebufferObject>
+#include <QOpenGLExtraFunctions>
 #include <QProcess>
 #include <QQuickWindow>
 #include <QStandardPaths>
@@ -1627,7 +1629,7 @@ void MpvObject::removeView(MpvView* view) {
 }
 
 MpvView::MpvView(QQuickItem* parent)
-    : QQuickFramebufferObject(parent) {
+    : QQuickFramebufferObject(parent), m_renderingPriority(1000) {
 
 }
 
@@ -1646,13 +1648,23 @@ void MpvView::setMpvObject(MpvObject* mpv) {
     Q_EMIT mpvObjectChanged();
 }
 
+int MpvView::renderingPriority() const {
+    return m_renderingPriority;
+}
+
+void MpvView::setRenderingPriority(int rp) {
+    m_renderingPriority = rp;
+    Q_EMIT renderingPriorityChanged();
+}
+
 MpvRenderer::MpvRenderer(MpvView* new_view)
     : view{ new_view } {
 }
 
 void MpvRenderer::render() {
-    if (!view->obj)
+    if (!view->obj) {
         return;
+    }
 
     if (!view->obj->mpv_gl) {
         return;
@@ -1660,16 +1672,39 @@ void MpvRenderer::render() {
 
     view->fbo = framebufferObject();
 
+    // Count visible views in view vector
+    // And assign renderView to view with highest priority (i.e. lowest value).
+    MpvView* renderView = nullptr;
+    int visibleViews = 0;
+    int renderingPriority = 10000;
+    for (auto it = view->obj->mpv_views.begin(); it != view->obj->mpv_views.end(); ++it) {
+        if ((*it)->isVisible()) {
+            if ((*it)->renderingPriority() < renderingPriority) {
+                renderView = (*it);
+                renderingPriority = (*it)->renderingPriority();
+            }
+            visibleViews++;
+        }
+    }
+
+    if (!renderView) {
+        return;
+    }
+
+    if (!renderView->fbo) {
+        return;
+    }
+
     mpv_opengl_fbo mpfbo;
-    if (view->obj->mpv_views.size() > 1) {
-        //More then one, we need to make sure we have a correct sized FBO
+    if (visibleViews > 1) {
+        //More then one, let's use the largest one
         if (!view->obj->mpv_fbo
-            || view->obj->mpv_fbo->size().width() != view->obj->m_videoWidth
-            || view->obj->mpv_fbo->size().height() != view->obj->m_videoHeight) {
+            || view->obj->mpv_fbo->size().width() != renderView->fbo->width()
+            || view->obj->mpv_fbo->size().height() != renderView->fbo->height()) {
             if (view->obj->mpv_fbo) {
                 delete view->obj->mpv_fbo;
             }
-            view->obj->mpv_fbo = new QOpenGLFramebufferObject(QSize(view->obj->m_videoWidth, view->obj->m_videoHeight));
+            view->obj->mpv_fbo = new QOpenGLFramebufferObject(QSize(renderView->fbo->width(), renderView->fbo->height()));
         }
 
         mpfbo.fbo = static_cast<int>(view->obj->mpv_fbo->handle());
@@ -1684,38 +1719,24 @@ void MpvRenderer::render() {
         mpfbo.internal_format = 0;
     }
 
-    // Find first visible view in view vector
-    MpvView* firstVisibleView = nullptr;
-    for (auto it = view->obj->mpv_views.begin(); it != view->obj->mpv_views.end(); ++it) {
-        if ((*it)->isVisible()) {
-            firstVisibleView = (*it);
-            break;
-        }
-    }
-
     // Render only for the first visible view
-    if (view == firstVisibleView) {
-        mpv_render_param params[] = {
-            // Specify the default framebuffer (0) as target. This will
-            // render onto the entire screen. If you want to show the video
-            // in a smaller rectangle or apply fancy transformations, you'll
-            // need to render into a separate FBO and draw it manually.
-            {MPV_RENDER_PARAM_OPENGL_FBO, &mpfbo},
-            {MPV_RENDER_PARAM_INVALID, nullptr} };
-        // See render_gl.h on what OpenGL environment mpv expects, and
-        // other API details.
-        mpv_render_context_render(view->obj->mpv_gl, params);
-    }
-    else {
-        return;
-    }
+    mpv_render_param params[] = {
+        // Specify the default framebuffer (0) as target. This will
+        // render onto the entire screen. If you want to show the video
+        // in a smaller rectangle or apply fancy transformations, you'll
+        // need to render into a separate FBO and draw it manually.
+        {MPV_RENDER_PARAM_OPENGL_FBO, &mpfbo},
+        {MPV_RENDER_PARAM_INVALID, nullptr} };
+    // See render_gl.h on what OpenGL environment mpv expects, and
+    // other API details.
+    mpv_render_context_render(view->obj->mpv_gl, params);
 
     // Copy Mpv FBO (with video dimensions) to all the views that want it
-    if (view->obj->mpv_views.size() > 1) {
-        QRect sourceRect(0, 0, view->obj->mpv_fbo->width(), view->obj->mpv_fbo->height());
+    if (visibleViews > 1) {
+        QRect sourceRect(0, 0, renderView->fbo->width(), renderView->fbo->height());
         float ratioSource = static_cast<float>(sourceRect.width()) / static_cast<float>(sourceRect.height());
         for (auto it = view->obj->mpv_views.begin(); it != view->obj->mpv_views.end(); ++it) {
-            if ((*it)->fbo && (*it)->isVisible()) {
+            if ((*it)->fbo && (*it)->isVisible() && ((*it) == renderView || !UserInterfaceSettings::floatingWindowShowOnlyMainVideoInLayer())) {
                 int targetWidth = (*it)->fbo->width();
                 int targetHeight = (*it)->fbo->height();
                 int targetX = 0;
@@ -1742,12 +1763,25 @@ void MpvRenderer::render() {
                     targetX = static_cast<int>(0.5f * (static_cast<float>((*it)->fbo->width() - targetWidth)));
                 }
 
-                (*it)->fbo->bind();
-                glClearColor(0, 0, 0, 1);
-                glClear(GL_COLOR_BUFFER_BIT);
                 QRect targetRect(targetX, targetY, targetWidth, targetHeight);
-                QOpenGLFramebufferObject::blitFramebuffer((*it)->fbo, targetRect, view->obj->mpv_fbo, sourceRect);
-                (*it)->fbo->release();
+
+                if ((sourceRect == targetRect)) {
+                    QOpenGLContext::currentContext()->extraFunctions()->glCopyImageSubData(
+                        view->obj->mpv_fbo->texture(),
+                        view->obj->mpv_fbo->format().textureTarget(),
+                        0, 0, 0, 0,
+                        (*it)->fbo->texture(),
+                        (*it)->fbo->format().textureTarget(),
+                        0, 0, 0, 0,
+                        renderView->fbo->width(), renderView->fbo->height(), 1);
+                }
+                else {
+                    (*it)->fbo->bind();
+                    glClearColor(0, 0, 0, 1);
+                    glClear(GL_COLOR_BUFFER_BIT);
+                    QOpenGLFramebufferObject::blitFramebuffer((*it)->fbo, targetRect, view->obj->mpv_fbo, sourceRect);
+                    (*it)->fbo->release();
+                }
             }
         }
     }           

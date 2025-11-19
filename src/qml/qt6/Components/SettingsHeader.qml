@@ -15,15 +15,9 @@ ColumnLayout {
 
     property string text: ""
     property int level: 1
-    property int topMargin: Kirigami.Units.gridUnit
 
     spacing: 0
 
-    Item {
-        height: root.topMargin
-        visible: root.topMargin > 0
-        width: 1
-    }
     RowLayout {
         Rectangle {
             color: Kirigami.Theme.alternateBackgroundColor

@@ -58,6 +58,9 @@
     <entry name="FloatingWindowShowsMainVideoLayer" type="bool">
       <default>true</default>
     </entry>
+    <entry name="FloatingWindowShowOnlyMainVideoInLayer" type="bool">
+      <default>true</default>
+    </entry>
     <entry name="FloatingWindowLayerType" type="int">
       <default>-1</default>
     </entry>

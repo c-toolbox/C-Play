@@ -531,6 +531,7 @@ class MpvView : public QQuickFramebufferObject {
     QML_ELEMENT
 
     Q_PROPERTY(MpvObject* mpvObject READ mpvObject WRITE setMpvObject NOTIFY mpvObjectChanged)
+    Q_PROPERTY(int renderingPriority READ renderingPriority WRITE setRenderingPriority NOTIFY renderingPriorityChanged)
 
 public:
     MpvView(QQuickItem* parent = 0);
@@ -540,14 +541,19 @@ public:
     MpvObject* mpvObject() const;
     void setMpvObject(MpvObject* mpv);
 
+    int renderingPriority() const;
+    void setRenderingPriority(int rp);
+
 Q_SIGNALS:
     void mpvObjectChanged();
+    void renderingPriorityChanged();
 
 private:
     friend class MpvRenderer;
 
     QOpenGLFramebufferObject* fbo;
     MpvObject* obj;
+    int m_renderingPriority;
 
 };
 

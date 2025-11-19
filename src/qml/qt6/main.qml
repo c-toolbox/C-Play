@@ -264,7 +264,7 @@ Kirigami.ApplicationWindow {
 
         LayerQtItem {
             id: floatingLayerViewItem
-            visible: !UserInterfaceSettings.floatingWindowShowsMainVideoLayer
+            visible: !UserInterfaceSettings.floatingWindowShowsMainVideoLayer && floatingTextureWindow.visible
 
             height: parent.height
             width: parent.width
@@ -282,14 +282,15 @@ Kirigami.ApplicationWindow {
 
         MpvView {
             id: floatingMpvView
-            visible: UserInterfaceSettings.floatingWindowShowsMainVideoLayer
+            visible: UserInterfaceSettings.floatingWindowShowsMainVideoLayer && floatingTextureWindow.visible
             anchors.fill: parent
             mpvObject: mpv
+            renderingPriority: 1
         }
 
         Image {
             id: floatingOverlayImage
-            visible: UserInterfaceSettings.floatingWindowShowsMainVideoLayer
+            visible: UserInterfaceSettings.floatingWindowShowsMainVideoLayer && floatingTextureWindow.visible
             anchors.fill: parent
             fillMode: Image.PreserveAspectFit
             opacity: 1

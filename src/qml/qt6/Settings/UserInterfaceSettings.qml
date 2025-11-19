@@ -382,6 +382,7 @@ SettingsBasePage {
                         UserInterfaceSettings.floatingWindowVisibleAtStartup = showFloatingWindowAtStartupCheckBox.checked;
                         UserInterfaceSettings.floatingWindowVolume = floatingWindowVolume.value.toFixed(0);
                         UserInterfaceSettings.floatingWindowShowsMainVideoLayer = !showCustomLayerInFloatingWindowCheckBox.checked;
+                        UserInterfaceSettings.floatingWindowShowOnlyMainVideoInLayer = showFloatingWindowShowOnlyMainVideoInLayer.checked;
                         UserInterfaceSettings.save();
                         floatingWindowValuesNeedsSave = false;
 
@@ -590,6 +591,30 @@ SettingsBasePage {
 
                 Component.onCompleted: {
                     checked = !UserInterfaceSettings.floatingWindowShowsMainVideoLayer;
+                }
+            }
+            Item {
+                // spacer item
+                Layout.fillWidth: true
+            }
+
+            Item {
+                height: 1
+                width: 1
+            }
+            CheckBox {
+                id: showFloatingWindowShowOnlyMainVideoInLayer
+
+                checked: UserInterfaceSettings.floatingWindowShowOnlyMainVideoInLayer
+                enabled: !showCustomLayerInFloatingWindowCheckBox.checked
+                text: qsTr("Show only main video layer in floating window.")
+
+                onCheckedChanged: {
+                    floatingWindowValuesNeedsSave = true;
+                }
+
+                Component.onCompleted: {
+                    checked = UserInterfaceSettings.floatingWindowShowOnlyMainVideoInLayer;
                 }
             }
             Item {

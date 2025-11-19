@@ -242,11 +242,26 @@ MpvObject {
         id: view
         anchors.fill: parent
         mpvObject: root
+        renderingPriority: 2
     }
     Image {
         id: overlayImage
         anchors.fill: parent
         fillMode: Image.PreserveAspectFit
         opacity: 1
+    }
+    Label {
+        id: label
+        anchors.fill: parent
+        color: Kirigami.Theme.textColor
+        visible: floatingTextureWindow.visible && UserInterfaceSettings.floatingWindowShowsMainVideoLayer && UserInterfaceSettings.floatingWindowShowOnlyMainVideoInLayer
+        font.pointSize: parseInt(UserInterfaceSettings.osdFontSize)
+        horizontalAlignment: Text.AlignHCenter
+        verticalAlignment: Text.AlignVCenter
+        text: "Main video playing in floating window"
+        background: Rectangle {
+            color: Kirigami.Theme.backgroundColor
+            opacity: 0.5
+        }
     }
 }
