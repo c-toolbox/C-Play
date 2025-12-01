@@ -297,6 +297,11 @@ public:
 	// Number of audio channels
 	int GetAudioChannels();
 
+	// Number of audio channels to target for output
+	// -1, means same as input
+	void SetAudioTargetOutputChannels(int channels);
+	int GetAudioTargetOutputChannels();
+
 	// Number of audio samples
 	int GetAudioSamples();
 
@@ -386,6 +391,7 @@ private:
 	int m_nAudioSampleRate;
 	int m_nAudioSamples;
 	int m_nAudioChannels;
+	int m_nAudioChannelsTargetToOutput;
 
 	// Replacement function for deprecated NDIlib_find_get_sources
 	// If no timeout specified, return the sources that exist right now

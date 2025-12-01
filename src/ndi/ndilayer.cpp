@@ -8,6 +8,184 @@
 #include "ndilayer.h"
 #include "audiosettings.h"
 #include <sgct/sgct.h>
+#include <cstdint>
+#include <cstddef>
+#include <cstring>
+#include <climits>
+#include <cmath>
+
+// simple clamp for 16-bit samples
+static inline int16_t clamp16(int32_t v) noexcept {
+    if (v > INT16_MAX) return INT16_MAX;
+    if (v < INT16_MIN) return INT16_MIN;
+    return static_cast<int16_t>(v);
+}
+
+static inline void zeroOutput(int16_t* out, int outChannels, std::size_t frames) noexcept {
+    if (!out) return;
+    std::memset(out, 0, frames * static_cast<std::size_t>(outChannels) * sizeof(int16_t));
+}
+
+// Real-time safe upmix/downmix helper (no allocations).
+// Supports only: 2.0, 2.1, 5.0, 5.1, 7.0, 7.1. Other mappings are ignored (zeros).
+// If in and out are the same, simple copy applies
+// in: pointer to input interleaved int16 samples (frames * inChannels)
+// out: pointer to output interleaved int16 samples (frames * outChannels)
+// frames: number of frames to process
+static void mixToOutputChannels(const int16_t* in, int inChannels,
+                       int16_t* out, int outChannels,
+                       std::size_t frames) noexcept
+{
+    if (!in || !out || frames == 0 || inChannels <= 0 || outChannels <= 0)
+        return;
+
+    // identical layout -> fast memcpy
+    if (inChannels == outChannels) {
+        std::size_t samples = frames * static_cast<std::size_t>(inChannels);
+        std::memcpy(out, in, samples * sizeof(int16_t));
+        return;
+    }
+
+    // Allowed system channel counts
+    const auto allowed = [](int c)->bool {
+        return c == 2 || c == 3 || c == 5 || c == 6 || c == 7 || c == 8;
+    };
+    // If either in or out channel count is not one of the supported systems, ignore mapping -> zero output.
+    if (!allowed(outChannels) || !allowed(inChannels)) {
+        zeroOutput(out, outChannels, frames);
+        return;
+    }
+
+    // Helper: stereo -> generic 5.1-like mapping (used as base for several targets)
+    auto stereoToSurround = [&](int targetChannels, const int16_t* inF, int16_t* outF) noexcept {
+        int32_t L = inF[0];
+        int32_t R = inF[1];
+
+        int32_t FL = L;
+        int32_t FR = R;
+        float center_f = 0.35355339f * static_cast<float>(L + R);
+        int32_t C = static_cast<int32_t>(center_f > 0 ? center_f + 0.5f : center_f - 0.5f);
+        int32_t LFE = (L + R) / 4;
+        int32_t SL = static_cast<int32_t>(L * 0.5f);
+        int32_t SR = static_cast<int32_t>(R * 0.5f);
+        int32_t RL = static_cast<int32_t>(L * 0.25f);
+        int32_t RR = static_cast<int32_t>(R * 0.25f);
+
+        // map according to targetChannels:
+        // 3 (2.1): FL, FR, LFE
+        // 5 (5.0): FL, FR, C, SL, SR
+        // 6 (5.1): FL, FR, C, LFE, SL, SR
+        // 7 (7.0): FL, FR, C, SL, SR, RL, RR
+        // 8 (7.1): FL, FR, C, LFE, SL, SR, RL, RR
+        switch (targetChannels) {
+            case 3:
+                outF[0] = clamp16(FL);
+                outF[1] = clamp16(FR);
+                outF[2] = clamp16(LFE);
+                break;
+            case 5:
+                outF[0] = clamp16(FL);
+                outF[1] = clamp16(FR);
+                outF[2] = clamp16(C);
+                outF[3] = clamp16(SL);
+                outF[4] = clamp16(SR);
+                break;
+            case 6:
+                outF[0] = clamp16(FL);
+                outF[1] = clamp16(FR);
+                outF[2] = clamp16(C);
+                outF[3] = clamp16(LFE);
+                outF[4] = clamp16(SL);
+                outF[5] = clamp16(SR);
+                break;
+            case 7:
+                outF[0] = clamp16(FL);
+                outF[1] = clamp16(FR);
+                outF[2] = clamp16(C);
+                outF[3] = clamp16(SL);
+                outF[4] = clamp16(SR);
+                outF[5] = clamp16(RL);
+                outF[6] = clamp16(RR);
+                break;
+            case 8:
+                outF[0] = clamp16(FL);
+                outF[1] = clamp16(FR);
+                outF[2] = clamp16(C);
+                outF[3] = clamp16(LFE);
+                outF[4] = clamp16(SL);
+                outF[5] = clamp16(SR);
+                outF[6] = clamp16(RL);
+                outF[7] = clamp16(RR);
+                break;
+            default:
+                // unsupported target inside allowed set (should not happen)
+                break;
+        }
+    };
+
+    // Special-case: stereo input -> supported surround outputs
+    if (inChannels == 2 && (outChannels == 3 || outChannels == 5 || outChannels == 6 || outChannels == 7 || outChannels == 8)) {
+        for (std::size_t f = 0; f < frames; ++f) {
+            const int16_t* inF = in + f * 2;
+            int16_t* outF = out + f * static_cast<std::size_t>(outChannels);
+            stereoToSurround(outChannels, inF, outF);
+        }
+        return;
+    }
+
+    // Downmix to stereo (2.0) from supported multi-channel sources (3,5,6,7,8)
+    if (outChannels == 2 && (inChannels == 3 || inChannels == 5 || inChannels == 6 || inChannels == 7 || inChannels == 8)) {
+        for (std::size_t f = 0; f < frames; ++f) {
+            const int16_t* inF = in + f * static_cast<std::size_t>(inChannels);
+            int16_t* outF = out + f * 2;
+            int32_t sumL = 0, sumR = 0;
+
+            // assign based on common channel layouts:
+            // for 3: FL, FR, LFE (map LFE evenly)
+            // for 5: FL, FR, C, SL, SR  -> C to both, SL->L, SR->R
+            // for 6: FL, FR, C, LFE, SL, SR
+            // for 7/8 approximate by assigning FL->L, FR->R, surrounds alternating
+            sumL += inF[0]; // FL
+            sumR += (inChannels > 1) ? inF[1] : inF[0]; // FR or FL fallback
+
+            if (inChannels >= 3) { // C or LFE depending on spec
+                // treat channel 2 as center/LFE contribution to both
+                sumL += inF[2];
+                sumR += inF[2];
+            }
+            // remaining channels: distribute alternately to L/R
+            for (int ic = 3; ic < inChannels; ++ic) {
+                if ((ic & 1) == 1) sumL += inF[ic];
+                else sumR += inF[ic];
+            }
+
+            // compute per-side divisor
+            int32_t leftCount = (inChannels + 1) / 2;
+            int32_t rightCount = inChannels / 2;
+            if (rightCount == 0) rightCount = 1;
+
+            outF[0] = clamp16(sumL / leftCount);
+            outF[1] = clamp16(sumR / rightCount);
+        }
+        return;
+    }
+
+    // If both in/out are allowed but mapping not explicitly implemented, do a conservative replicate/distribute.
+    if (inChannels < outChannels) {
+        for (std::size_t f = 0; f < frames; ++f) {
+            const int16_t* inF = in + f * static_cast<std::size_t>(inChannels);
+            int16_t* outF = out + f * static_cast<std::size_t>(outChannels);
+            for (int oc = 0; oc < outChannels; ++oc) {
+                int ic = (oc < inChannels) ? oc : (oc % inChannels);
+                outF[oc] = inF[ic];
+            }
+        }
+        return;
+    }
+
+    // If we reach here mapping is not supported for the requested variant -> zero output.
+    zeroOutput(out, outChannels, frames);
+}
 
 /* This routine will be called by the PortAudio engine when audio is needed.
 ** It may called at interrupt level on some machines so don't do anything
@@ -24,8 +202,18 @@ static int paNDIAudioCallback(const void*, void* outputBuffer,
         if (reciever->shouldReceiveAudio()) {
             void* receviedFrames = reciever->ReceiveAudioOnlyFrameSync((int)framesPerBuffer);
             if (receviedFrames) {
-                int channels = reciever->GetAudioChannels();
-                memcpy(outputBuffer, receviedFrames, ((size_t)framesPerBuffer * (size_t)channels * sizeof(int16_t)));
+                int inChannels = reciever->GetAudioChannels();
+                int outChannels = reciever->GetAudioTargetOutputChannels();
+                if (inChannels == outChannels) {
+                    memcpy(outputBuffer, receviedFrames, ((size_t)framesPerBuffer * (size_t)inChannels * sizeof(int16_t)));
+                }
+                else {
+                    mixToOutputChannels(reinterpret_cast<const int16_t*>(receviedFrames),
+                        inChannels,
+                        reinterpret_cast<int16_t*>(outputBuffer),
+                        outChannels,
+                        static_cast<std::size_t>(framesPerBuffer));
+                }
             }
         }
     }
@@ -87,14 +275,14 @@ NdiLayer::NdiLayer() {
 
 NdiLayer::~NdiLayer() {
     if (isAudioEnabled() && m_recevieAudio) {
-        NDIreceiver.SetAudio(false);
-        if (m_audioStreamOpen) {
+        if (m_audioStreamOpen && m_audioStreamStarted) {
             m_audioError = Pa_CloseStream(m_audioStream);
             if (m_audioError == paNoError) {
                 m_audioStreamOpen = false;
             }
         }
         Pa_Terminate();
+        NDIreceiver.SetAudio(false);
     }
 
     NDIreceiver.ReleaseReceiver();
@@ -121,7 +309,7 @@ void NdiLayer::initialize() {
         else {
             NDIreceiver.SetAudio(true, true);
             m_recevieAudio = true;
-            m_audioOutputParameters.device = GetChosenApplicationAudioDevice();
+            m_audioOutputParameters.device = Pa_GetDefaultOutputDevice();
             if (m_audioOutputParameters.device == paNoDevice) {
                 sgct::Log::Error("NdiLayer Error: No default audio output device.\n");
             }
@@ -218,8 +406,24 @@ void NdiLayer::updateAudioOutput() {
         PaDeviceIndex currentDeviceIdx = m_audioOutputParameters.device;
         PaDeviceIndex newDeviceIdx = GetChosenApplicationAudioDevice();
 
-        //Change device index if we found a new one
+        int channelCount = 0;
+        if (AudioSettings::portAudioMixInputToOutput()) {
+            channelCount = std::min(AudioSettings::portAudioOutputChannels(), Pa_GetDeviceInfo(newDeviceIdx)->maxOutputChannels);
+        }
+        else {
+            channelCount = NDIreceiver.GetAudioChannels();
+        }
+
+        bool restartStream = false;
         if (newDeviceIdx != currentDeviceIdx) {
+            restartStream = true;
+        }
+        else if(m_audioOutputParameters.channelCount != channelCount){
+            restartStream = true;
+        }
+
+        //Change device index if we found a new one
+        if (restartStream) {
             //Close stream to restart it
             bool wasStarted = false;
             bool wasOpen = false;
@@ -359,7 +563,15 @@ bool NdiLayer::OpenReceiver() {
 }
 
 bool NdiLayer::StartAudioStream() {
-    m_audioOutputParameters.channelCount = NDIreceiver.GetAudioChannels();
+    if (AudioSettings::portAudioMixInputToOutput()) {
+        m_audioOutputParameters.channelCount = std::min(AudioSettings::portAudioOutputChannels(), Pa_GetDeviceInfo(m_audioOutputParameters.device)->maxOutputChannels);
+        NDIreceiver.SetAudioTargetOutputChannels(m_audioOutputParameters.channelCount);
+    }
+    else {
+        m_audioOutputParameters.channelCount = NDIreceiver.GetAudioChannels();
+        NDIreceiver.SetAudioTargetOutputChannels(-1);
+    }
+    
     m_audioOutputParameters.sampleFormat = paInt16; // 16 bit integer point output
     m_audioOutputParameters.suggestedLatency = Pa_GetDeviceInfo(m_audioOutputParameters.device)->defaultLowOutputLatency;
     m_audioOutputParameters.hostApiSpecificStreamInfo = NULL;
@@ -387,7 +599,7 @@ PaDeviceIndex NdiLayer::GetChosenApplicationAudioDevice() {
     }
     if (AudioSettings::portAudioCustomOutput()) {
         if (!AudioSettings::portAudioOutputDevice().isEmpty()
-            && !AudioSettings::portAudioOutpuApi().isEmpty()) {
+            && !AudioSettings::portAudioOutputApi().isEmpty()) {
             int numDevices = Pa_GetDeviceCount();
             if (numDevices < 0) {
                 return choseDeviceIdx;
@@ -395,7 +607,7 @@ PaDeviceIndex NdiLayer::GetChosenApplicationAudioDevice() {
             const PaDeviceInfo* deviceInfo;
             const PaHostApiInfo* apiInfo;
             sgct::Log::Info(std::format("NdiLayer: Trying to find audio device named \"{}\" using the \"{}\" api.",
-                AudioSettings::portAudioOutputDevice().toStdString(), AudioSettings::portAudioOutpuApi().toStdString()));
+                AudioSettings::portAudioOutputDevice().toStdString(), AudioSettings::portAudioOutputApi().toStdString()));
             bool foundDevice = false;
             for (int i = 0; i < numDevices; i++) {
                 deviceInfo = Pa_GetDeviceInfo(i);
@@ -404,7 +616,7 @@ PaDeviceIndex NdiLayer::GetChosenApplicationAudioDevice() {
                     QString deviceName = QString::fromUtf8(deviceInfo->name);
                     QString apiName = QString::fromUtf8(apiInfo->name);
                     if (deviceName == AudioSettings::portAudioOutputDevice()
-                        && apiName == AudioSettings::portAudioOutpuApi()) {
+                        && apiName == AudioSettings::portAudioOutputApi()) {
                         choseDeviceIdx = i;
                         foundDevice = true;
                         sgct::Log::Info(std::format("NdiLayer: Found desired audio device."));

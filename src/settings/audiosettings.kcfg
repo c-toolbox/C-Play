@@ -54,8 +54,15 @@
     <entry name="PortAudioOutputDevice" type="String">
       <label>Preferred portaudio output device used with NDI audio</label>
     </entry>
-    <entry name="PortAudioOutpuApi" type="String">
+    <entry name="PortAudioOutputApi" type="String">
       <label>Preferred portaudio host api used with NDI audio</label>
+    </entry>
+    <entry name="PortAudioMixInputToOutput" type="bool">
+      <default>false</default>
+    </entry>
+    <entry name="PortAudioOutputChannels" type="Int">
+      <label>Assuming even channels have LFE</label>
+      <default>6</default>
     </entry>
   </group>
 </kcfg>

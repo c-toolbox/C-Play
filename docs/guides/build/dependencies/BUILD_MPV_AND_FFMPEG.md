@@ -56,7 +56,7 @@ edit the PKGBUILD file, to make sure the cmake configuration part has this:
 The run these commands to build and install jack2 + portaudio with the ASIO support configured.
 
 ```
-pacman -S binutils base-devel mingw-w64-x86_64-gcc
+pacman -S binutils base-devel mingw-w64-x86_64-gcc mingw-w64-x86_64-ccache mingw-w64-x86_64-meson mingw-w64-x86_64-toolchain
 updpkgsums
 makepkg-mingw -sCLf
 pacman -U mingw-w64-*-portaudio-*-any.pkg.tar.zst
@@ -144,7 +144,7 @@ pacman -S mingw-w64-x86_64-jack2
 
 - Change the MPV git path from master to release 0.38 (latest one with bootstrap.py), by opening the file build\media-suite_deps.sh and replace in line 73 "https://github.com/mpv-player/mpv.git" with "https://github.com/mpv-player/mpv.git#release/0.38".
 
-- My setup: Just copy over these [FFmpeg Options](https://raw.githubusercontent.com/c-toolbox/C-Play/master/help/configurations/gplv3/ffmpeg_options.txt), [MPV Options](https://raw.githubusercontent.com/c-toolbox/C-Play/master/help/configurations/gplv3/mpv_options.txt) and [Media Build Suite Configuration](https://raw.githubusercontent.com/c-toolbox/C-Play/master/help/configurations/gplv3/media-autobuild_suite.ini) to the build folder. The latest FFmpeg 5.1 will be used in this configuration.
+- My setup: Just copy over these [FFmpeg Options](https://raw.githubusercontent.com/c-toolbox/C-Play/master/help/configurations/gplv3/ffmpeg_options.txt), [MPV Options](https://raw.githubusercontent.com/c-toolbox/C-Play/master/help/configurations/gplv3/mpv_options_new.txt) and [Media Build Suite Configuration](https://raw.githubusercontent.com/c-toolbox/C-Play/master/help/configurations/gplv3/media-autobuild_suite.ini) to the build folder. The latest FFmpeg 5.1 will be used in this configuration.
     - Alternatively, do not copy over these files, but during configuration, disable as many encoder as possible, as we want focus on decoding for the player. Also, choose to build ffmpeg with shared libs only, do not strip build files. When asked to edit the FFmpeg options file, add 'jack' to the configuration file.
 ```
 # Enable JACK

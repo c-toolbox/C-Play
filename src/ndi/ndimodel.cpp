@@ -151,17 +151,17 @@ void PortAudioModel::updatePortAudioList() {
 }
 
 int PortAudioModel::getIndexOfCurrentDevice(){
-    if (!m_paIsInitialized) {
+    if (!m_paIsInitialized || m_audioOutputs.empty()) {
         updatePortAudioList();
     }
 
     // Finding current audio output
     if (AudioSettings::portAudioCustomOutput() 
         && !AudioSettings::portAudioOutputDevice().isEmpty()
-        && !AudioSettings::portAudioOutpuApi().isEmpty()) {
+        && !AudioSettings::portAudioOutputApi().isEmpty()) {
         for (int i = 0; i < m_audioOutputs.size(); i++) {
             if (m_audioOutputs[i].deviceName == AudioSettings::portAudioOutputDevice()
-                && m_audioOutputs[i].apiName == AudioSettings::portAudioOutpuApi())
+                && m_audioOutputs[i].apiName == AudioSettings::portAudioOutputApi())
                 return i;
         }
     }
@@ -181,7 +181,7 @@ int PortAudioModel::getIndexOfCurrentDevice(){
 }
 
 QString PortAudioModel::getDeviceInfo() {
-    if (!m_paIsInitialized) {
+    if (!m_paIsInitialized || m_audioOutputs.empty()) {
         updatePortAudioList();
     }
 
@@ -222,7 +222,7 @@ QString PortAudioModel::getDeviceInfo() {
 }
 
 QString PortAudioModel::getDeviceName() {
-    if (!m_paIsInitialized) {
+    if (!m_paIsInitialized || m_audioOutputs.empty()) {
         updatePortAudioList();
     }
 
@@ -235,7 +235,7 @@ QString PortAudioModel::getDeviceName() {
 }
 
 QString PortAudioModel::getApiName() {
-    if (!m_paIsInitialized) {
+    if (!m_paIsInitialized || m_audioOutputs.empty()) {
         updatePortAudioList();
     }
 

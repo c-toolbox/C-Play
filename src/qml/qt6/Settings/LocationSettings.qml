@@ -469,7 +469,6 @@ SettingsBasePage {
             Layout.columnSpan: 3
             Layout.fillWidth: true
             text: qsTr("Screenshots")
-            topMargin: 0
         }
         Label {
             Layout.alignment: Qt.AlignRight

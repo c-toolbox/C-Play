@@ -232,6 +232,8 @@ ofxNDIreceive::ofxNDIreceive()
 	m_nAudioSampleRate = 0;
 	m_nAudioSamples = 0;
 	m_nAudioChannels = 0;
+	// -1, means same as input
+	m_nAudioChannelsTargetToOutput = -1;
 
 	// Intialize global video frame data pointer
 	video_frame.p_data = nullptr;
@@ -696,6 +698,21 @@ int ofxNDIreceive::GetAudioChannels()
 	return m_nAudioChannels;
 }
 
+void ofxNDIreceive::SetAudioTargetOutputChannels(int channels) {
+	m_nAudioChannelsTargetToOutput = channels;
+}
+
+// Number of audio channels to target for output
+int ofxNDIreceive::GetAudioTargetOutputChannels()
+{
+	if (m_nAudioChannelsTargetToOutput >= 0) {
+		return m_nAudioChannelsTargetToOutput;
+	}
+	else {
+		return m_nAudioChannels;
+	}
+}
+
 // Number of audio samples
 int ofxNDIreceive::GetAudioSamples()
 {
@@ -1053,22 +1070,28 @@ bool ofxNDIreceive::ReceiveImageAndAudio(unsigned char *pixels,
 						m_nAudioChannels = audio_frame.no_channels;
 						m_nAudioSamples = audio_frame.no_samples;
 						m_nAudioSampleRate = audio_frame.sample_rate;
-						if (m_AudioData) {
-							memcpy((void*)m_AudioData, (void*)audio_frame.p_data, ((size_t)m_nAudioSamples * (size_t)m_nAudioChannels * sizeof(float)));
 
-							//SMPTE Audio levels - reference Level 20 dB headroom
-							if (m_bAudioConvertToInterleaved && m_AudioDataInterleaved) {
-								for (int i = 0; i < m_nAudioSamples * m_nAudioChannels; i += m_nAudioChannels) {
-									for (int c = 0; c < m_nAudioChannels; c++) {
-										m_AudioDataInterleaved[i + c] = std::max<int16_t>(-32768, std::min<int16_t>(32767, (int16_t)(3276.8f * (m_AudioData[i / m_nAudioChannels + (m_nAudioSamples * c)] * m_bAudioVolume))));
+						if (m_bAudioVolume == 0.f) {
+							m_bAudioFrame = false;
+						}
+						else {
+							if (m_AudioData) {
+								memcpy((void*)m_AudioData, (void*)audio_frame.p_data, ((size_t)m_nAudioSamples * (size_t)m_nAudioChannels * sizeof(float)));
+
+								//SMPTE Audio levels - reference Level 20 dB headroom
+								if (m_bAudioConvertToInterleaved && m_AudioDataInterleaved) {
+									for (int i = 0; i < m_nAudioSamples * m_nAudioChannels; i += m_nAudioChannels) {
+										for (int c = 0; c < m_nAudioChannels; c++) {
+											m_AudioDataInterleaved[i + c] = std::max<int16_t>(-32768, std::min<int16_t>(32767, (int16_t)(3276.8f * (m_AudioData[i / m_nAudioChannels + (m_nAudioSamples * c)] * m_bAudioVolume))));
+										}
 									}
 								}
 							}
+							m_bAudioFrame = true;
+							// ReceiveImage will return false
+							// Use IsAudioFrame() to determine whether audio has been received
+							// and GetAudioData or GetAudioInterleaved to retrieve the sample buffer
 						}
-						m_bAudioFrame = true;
-						// ReceiveImage will return false
-						// Use IsAudioFrame() to determine whether audio has been received
-						// and GetAudioData or GetAudioInterleaved to retrieve the sample buffer
 					}
 					// Vers 4.5
 					p_NDILib->recv_free_audio_v3(pNDI_recv, &audio_frame);

@@ -581,9 +581,11 @@ Rectangle {
 
         onTriggered: {
             busyIndicator = false;
+            app.slides.runUpdateAudioOutputOnLayers();
             app.slides.runStartAfterPresentationLoad();
-            if(PresentationSettings.masterVolumeControlLayersVolume)
+            if(PresentationSettings.masterVolumeControlLayersVolume){
                 app.slides.runUpdateVolumeOnLayers(mpv.volume);
+            }
         }
     }
 

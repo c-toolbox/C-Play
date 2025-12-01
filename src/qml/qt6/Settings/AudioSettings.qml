@@ -407,7 +407,7 @@ SettingsBasePage {
                 AudioSettings.portAudioCustomOutput = checked;
                 if(!AudioSettings.portAudioCustomOutput){
                     AudioSettings.portAudioOutputDevice = "";
-                    AudioSettings.portAudioOutpuApi = "";
+                    AudioSettings.portAudioOutputApi = "";
                 }
                 AudioSettings.save();
                 app.portAudioModel.currentDevice = app.portAudioModel.indexOfCurrentDevice;
@@ -448,7 +448,7 @@ SettingsBasePage {
                 onActivated: {
                     app.portAudioModel.currentDevice = portAudioDeviceComboBox.currentIndex;
                     AudioSettings.portAudioOutputDevice = app.portAudioModel.deviceName;
-                    AudioSettings.portAudioOutpuApi = app.portAudioModel.apiName;
+                    AudioSettings.portAudioOutputApi = app.portAudioModel.apiName;
                     portAudioDeviceInfo.text = app.portAudioModel.deviceInfo;
                     AudioSettings.save();
                     app.portAudioModel.updatePortAudioList();
@@ -486,6 +486,98 @@ SettingsBasePage {
             enabled: AudioSettings.portAudioCustomOutput
             color: enabled ? Kirigami.Theme.textColor : Kirigami.Theme.disabledTextColor
             text: app.portAudioModel.deviceInfo
+            Layout.columnSpan: 2
+        }
+
+        Item {
+            visible: NDI_SUPPORT
+            height: 1
+            width: 1
+        }
+        CheckBox {
+            visible: NDI_SUPPORT
+            id: ndiAudioMixOutputCheckBox
+
+            Layout.alignment: Qt.AlignRight
+            checked: AudioSettings.portAudioMixInputToOutput
+            enabled: true
+            text: qsTr("Perform audio mixing (up/down) to output device")
+
+            onCheckedChanged: {
+                AudioSettings.portAudioMixInputToOutput = checked;
+                AudioSettings.save();
+                app.portAudioModel.updatePortAudioList();
+                app.slides.runUpdateAudioOutputOnLayers();
+            }
+
+            Layout.columnSpan: 2
+            Layout.fillWidth: true
+        }
+
+        Item {
+            visible: NDI_SUPPORT
+            height: 1
+            width: 1
+        }
+        RowLayout {
+            Label {
+                visible: NDI_SUPPORT
+                Layout.alignment: Qt.AlignRight
+                enabled: AudioSettings.portAudioMixInputToOutput
+                color: enabled ? Kirigami.Theme.textColor : Kirigami.Theme.disabledTextColor
+                text: qsTr("Output channels:")
+            }
+            ComboBox {
+                visible: NDI_SUPPORT
+                id: ndiAudioTargetChannelsComboBox
+
+                enabled: AudioSettings.portAudioMixInputToOutput
+                textRole: "mode"
+
+                model: ListModel {
+                    id: ndiAudioTargetChannelsModel
+
+                    ListElement {
+                        mode: "2.0 : Stereo"
+                        value: 2
+                    }
+                    ListElement {
+                        mode: "2.1 : Stereo + LFE"
+                        value: 3
+                    }
+                    ListElement {
+                        mode: "5.0 : Surround"
+                        value: 5
+                    }
+                    ListElement {
+                        mode: "5.1 : Surround + LFE"
+                        value: 6
+                    }
+                    ListElement {
+                        mode: "7.0 : Surround"
+                        value: 7
+                    }
+                    ListElement {
+                        mode: "7.1 : Surround + LFE"
+                        value: 8
+                    }
+                }
+
+                Component.onCompleted: {
+                    for (let i = 0; i < ndiAudioTargetChannelsModel.count; ++i) {
+                        if (ndiAudioTargetChannelsModel.get(i).value === AudioSettings.portAudioOutputChannels) {
+                            currentIndex = i;
+                            break;
+                        }
+                    }
+                }
+                onActivated: {
+                    AudioSettings.portAudioOutputChannels = model.get(index).value;
+                    AudioSettings.save();
+                    app.portAudioModel.updatePortAudioList();
+                    app.slides.runUpdateAudioOutputOnLayers();
+                }
+            }
             Layout.columnSpan: 2
         }
     }

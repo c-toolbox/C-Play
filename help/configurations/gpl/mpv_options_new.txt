@@ -1,0 +1,40 @@
+# Lines starting with this character are ignored
+
+# Built-in options, use =disabled to disable them
+#-Dcplayer=true
+#-Dmanpage-build=enabled
+#-Dlua=enabled
+#-Djavascript=enabled
+-Dlibbluray=disabled
+#-Duchardet=enabled
+#-Drubberband=enabled
+#-Dlcms2=enabled
+#-Dlibarchive=enabled
+#-Dlibavdevice=enabled
+#-Dshaderc=enabled
+#-Dspirv-cross=enabled
+#-Dd3d11=enabled
+#-Djpeg=enabled
+-Dvapoursynth=disabled
+-Dvulkan=disabled
+
+# Build libmpv
+-Dlibmpv=true
+--default-library=both
+
+# DX9 disabled
+-Dgl-dxinterop=disabled
+
+# Common options or overriden defaults
+#-Dlua=luajit
+
+# Full
+#-Ddvdnav=enabled
+#-Dcdda=enabled
+#-Degl-angle=enabled
+#-Dhtml-build=enabled
+#-Dpdf-build=enabled
+#-Dopenal=enabled
+#-Dsdl2-gamepad=enabled
+#-Dsdl2-audio=enabled
+#-Dsdl2-video=enabled

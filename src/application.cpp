@@ -240,6 +240,7 @@ int Application::run() {
     int returnCode = m_app->exec();
     sgct::Log::Info("Qt Application exited");
     renderThread.terminate();
+    delete m_slidesModel;
     loop.exec();
     return returnCode;
 }
