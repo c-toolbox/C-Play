@@ -837,6 +837,7 @@ int main(int argc, char *argv[]) {
                 Log::instance().setNotifyLevel(Log::Level::Debug);
                 logLevel = level;
             }
+            SyncHelper::instance().configuration.logLevel = level;
             arg.erase(arg.begin() + i, arg.begin() + i + 2);
         } else if (arg[i] == "--logfile") {
             std::string logFileName = arg[i + 1]; // for instance, either "log_master.txt" or "log_client.txt"
@@ -845,10 +846,12 @@ int main(int argc, char *argv[]) {
             if (logLevel.empty()) { // Set log level to info if we specfied a log file
                 Log::instance().setNotifyLevel(Log::Level::Info);
                 logLevel = "info";
+                SyncHelper::instance().configuration.logLevel = logLevel;
             }
             Log::instance().setShowLogLevel(true);
             Log::instance().setShowTime(true);
             Log::instance().setLogCallback(logging);
+            SyncHelper::instance().configuration.logFile = logFilePath;
             arg.erase(arg.begin() + i, arg.begin() + i + 2);
         } else if (arg[i] == "--loadfile") {
             startupFile = arg[i + 1];

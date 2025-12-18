@@ -306,6 +306,8 @@ public:
         std::string confAll;
         std::string confMasterOnly;
         std::string confNodesOnly;
+        std::string logLevel;
+        std::string logFile;
     };
 
     SyncHelper();
@@ -379,7 +381,9 @@ public:
     ConfigurationVariables configuration = {
         /*confAll*/ "./data/mpv-conf/default/all.json",
         /*confMasterOnly*/ "./data/mpv-conf/default/master-only.json",
-        /*confNodesOnly*/ "./data/mpv-conf/default/nodes-only.json"};
+        /*confNodesOnly*/ "./data/mpv-conf/default/nodes-only.json",
+        /*logLevel*/ "",
+        /*logFile*/ ""};
 
 private:
     static SyncHelper *_instance;

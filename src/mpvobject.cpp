@@ -71,8 +71,13 @@ MpvObject::MpvObject(QQuickItem *parent)
         throw std::runtime_error("could not create mpv context");
 
     mpv_set_option_string(mpv, "vo", "libmpv");
-    // mpv_set_option_string(mpv, "terminal", "yes");
-    // mpv_set_option_string(mpv, "msg-level", "all=v");
+
+    if (!SyncHelper::instance().configuration.logFile.empty()
+        || !SyncHelper::instance().configuration.logLevel.empty()) {
+        mpv_set_option_string(mpv, "terminal", "yes");
+        mpv_set_option_string(mpv, "msg-level", "all=v");
+        mpv_request_log_messages(mpv, SyncHelper::instance().configuration.logLevel.c_str());
+    }
 
     m_rotationSpeed = GridSettings::surfaceRotationSpeed();
     m_radius = GridSettings::surfaceRadius();
@@ -1241,6 +1246,28 @@ void MpvObject::eventHandler() {
             break;
         }
         switch (event->event_id) {
+        case MPV_EVENT_LOG_MESSAGE: {
+            mpv_event_log_message* message = (mpv_event_log_message*)event->data;
+            if (message->log_level == mpv_log_level::MPV_LOG_LEVEL_FATAL) {
+                sgct::Log::Error(std::format("FATAL: {}", message->text));
+            }
+            else if (message->log_level == mpv_log_level::MPV_LOG_LEVEL_ERROR) {
+                sgct::Log::Error(message->text);
+            }
+            else if (message->log_level == mpv_log_level::MPV_LOG_LEVEL_WARN) {
+                sgct::Log::Warning(message->text);
+            }
+            else if (message->log_level == mpv_log_level::MPV_LOG_LEVEL_INFO) {
+                sgct::Log::Info(message->text);
+            }
+            else if (message->log_level == mpv_log_level::MPV_LOG_LEVEL_V) {
+                sgct::Log::Info(message->text);
+            }
+            else if (message->log_level == mpv_log_level::MPV_LOG_LEVEL_DEBUG) {
+                sgct::Log::Debug(message->text);
+            }
+            break;
+        }
         case MPV_EVENT_START_FILE: {
             Q_EMIT fileStarted();
             break;
