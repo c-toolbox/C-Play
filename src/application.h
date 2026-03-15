@@ -13,6 +13,7 @@
 #include <QMap>
 #include <QUrl>
 #include <KSharedConfig>
+#include <QElapsedTimer>
 
 class QAbstractItemModel;
 class QAction;

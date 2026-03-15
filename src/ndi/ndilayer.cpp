@@ -490,12 +490,30 @@ bool NdiLayer::ReceiveData(bool updateRendering) {
     bool receviedImage = false;
     if (updateRendering && (!isMaster() || (m_audioStreamOpen && m_recevieAudioThroughCallback))) {
         if (m_hasCapturedImage || NDIreceiver.FrameSyncOn()) { // We can start using frame sync now
-            receviedImage = NDIreceiver.ReceiveImageOnlyFrameSync(width, height);
+            try {
+                receviedImage = NDIreceiver.ReceiveImageOnlyFrameSync(width, height);
+            }
+            catch (const std::exception& e) {
+                sgct::Log::Error(std::format("NdiLayer Error in ReceiveImageOnlyFrameSync: {}", e.what()));
+                return false;
+            }
         }
         else {
-            receviedImage = NDIreceiver.ReceiveImageOnly(width, height);
+            try {
+                receviedImage = NDIreceiver.ReceiveImageOnly(width, height);
+            }
+            catch (const std::exception& e) {
+                sgct::Log::Error(std::format("NdiLayer Error in ReceiveImageOnly: {}", e.what()));
+                return false;
+            }
             if (isAudioEnabled()) {
-                receviedAudio = NDIreceiver.ReceiveAudioOnly();
+                try {
+                    receviedAudio = NDIreceiver.ReceiveAudioOnly();
+                }
+                catch (const std::exception& e) {
+                    sgct::Log::Error(std::format("NdiLayer Error in ReceiveAudioOnly: {}", e.what()));
+                    return false;
+                }
             }
         }
     }
@@ -506,13 +524,26 @@ bool NdiLayer::ReceiveData(bool updateRendering) {
 
         if (updateRendering) {
             //Receving both image and audio here
-            receviedImage = NDIreceiver.ReceiveImageAndAudio(width, height);
+
+            try {
+                receviedImage = NDIreceiver.ReceiveImageAndAudio(width, height);
+            }
+            catch (const std::exception& e) {
+                sgct::Log::Error(std::format("NdiLayer Error in ReceiveImageAndAudio: {}", e.what()));
+                return false;
+            }
             if (!receviedImage) {
                 receviedAudio = NDIreceiver.IsAudioFrame();
             }
         }
         else if (isMaster()) {
-            receviedAudio = NDIreceiver.ReceiveAudioOnly();
+            try {
+                receviedAudio = NDIreceiver.ReceiveAudioOnly();
+            }
+            catch (const std::exception& e) {
+                sgct::Log::Error(std::format("NdiLayer Error in ReceiveAudioOnly: {}", e.what()));
+                return false;
+            }
         }
     }
 
@@ -528,7 +559,13 @@ bool NdiLayer::ReceiveData(bool updateRendering) {
             renderData.height = (int)height;
         }
         // Get NDI pixel data from the video frame
-        return GetPixelData(renderData.texId, width, height);
+        try {
+            return GetPixelData(renderData.texId, width, height);
+        }
+        catch (const std::exception& e) {
+            sgct::Log::Error(std::format("NdiLayer Error in GetPixelData: {}", e.what()));
+            return false;
+        }
     }
 
     if (receviedAudio || (!isMaster() && isAudioEnabled())) {

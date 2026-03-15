@@ -302,6 +302,13 @@ QString PlayerController::checkAndCorrectPath(const QString &path) {
             if (newFilePathInfo.exists())
                 return newFilePath;
         }
+
+        // Maybe from network share?
+        filePath = path;
+        filePath.replace(QStringLiteral("file://"), QStringLiteral("\\\\"));
+        fileInfo = QFileInfo(filePath);
+        if (fileInfo.exists())
+            return filePath;
     }
     return QStringLiteral("");
 }

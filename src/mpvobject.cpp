@@ -817,6 +817,13 @@ QString MpvObject::checkAndCorrectPath(const QString &filePath, const QStringLis
             if (newFilePathInfo.exists())
                 return newFilePath;
         }
+
+        // Maybe from network share?
+        QString sharefilePath = filePath;
+        sharefilePath.replace(QStringLiteral("file://"), QStringLiteral("\\\\"));
+        fileInfo = QFileInfo(sharefilePath);
+        if (fileInfo.exists())
+            return sharefilePath;
     }
     return QStringLiteral("");
 }
@@ -1091,7 +1098,9 @@ void MpvObject::loadJSONPlayList(const QString &file, bool updateLastPlayedFile)
         return;
 
     QFile f(fileToLoad);
-    f.open(QIODevice::ReadOnly);
+    if (!f.open(QIODevice::ReadOnly)) {
+        return;
+    }
     QByteArray fileContent = f.readAll();
     f.close();
 
@@ -1171,7 +1180,9 @@ void MpvObject::loadUniviewPlaylist(const QString &file, bool updateLastPlayedFi
         return;
 
     QFile f(fileToLoad);
-    f.open(QIODevice::ReadOnly);
+    if (!f.open(QIODevice::ReadOnly)) {
+        return;
+    }
     QString fileContent = QString::fromUtf8(f.readAll());
     f.close();
 
@@ -1602,7 +1613,9 @@ QString MpvObject::getReadableExternalConfiguration() {
         QFileInfo confFileInfo(conf);
         if (confFileInfo.exists()) {
             QFile f(conf);
-            f.open(QIODevice::ReadOnly);
+            if (!f.open(QIODevice::ReadOnly)) {
+                returnStr.append(QStringLiteral("Configuration file could not be opened\n"));
+            }
             returnStr.append(QString::fromUtf8(f.readAll()) + QStringLiteral("\n"));
             f.close();
         } else {

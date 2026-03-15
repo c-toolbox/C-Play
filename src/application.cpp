@@ -477,7 +477,9 @@ QAction *Application::action(const QString &name) {
 
 QString Application::getFileContent(const QString &file) {
     QFile f(file);
-    f.open(QIODevice::ReadOnly);
+    if (!f.open(QIODevice::ReadOnly)) {
+        return QStringLiteral("");
+    }
     QString content = QString::fromUtf8(f.readAll());
     f.close();
     return content;

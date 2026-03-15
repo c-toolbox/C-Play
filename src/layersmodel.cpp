@@ -638,6 +638,13 @@ QString LayersModel::checkAndCorrectPath(const QString &filePath, const QStringL
             if (newFilePathInfo.exists())
                 return newFilePath;
         }
+
+        // Maybe from network share?
+        QString sharefilePath = filePath;
+        sharefilePath.replace(QStringLiteral("file://"), QStringLiteral("\\\\"));
+        fileInfo = QFileInfo(sharefilePath);
+        if (fileInfo.exists())
+            return sharefilePath;
     }
     return QStringLiteral("");
 }
