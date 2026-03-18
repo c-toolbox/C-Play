@@ -99,6 +99,14 @@ public:
     Q_INVOKABLE void setLayersVisibility(int value, bool propagateDown = true);
     Q_INVOKABLE int getLayersVisibility();
 
+    Q_PROPERTY(bool layersEnabled
+        READ getLayersEnabled
+        WRITE setLayersEnabled
+        NOTIFY layersEnabledChanged)
+
+    Q_INVOKABLE void setLayersEnabled(bool value);
+    Q_INVOKABLE bool getLayersEnabled();
+
     Q_PROPERTY(bool layersNeedsSave
         READ getLayersNeedsSave
         WRITE setLayersNeedsSave
@@ -158,6 +166,7 @@ Q_SIGNALS:
     void layersModelChanged();
     void layersTypeModelChanged();
     void layersVisibilityChanged();
+    void layersEnabledChanged(bool);
     void layersNeedsSaveChanged(bool);
     void layersNameChanged();
     void layersCanBeLockedChanged();
@@ -170,6 +179,7 @@ private:
     LayersTypeModel *m_layerTypeModel;
     BaseLayer::LayerHierarchy m_layerHierachy;
     int m_layersVisibility = 0;
+    bool m_layersEnabled = true;
     int m_layerToCopyIdx = -1;
     bool m_layersCanBeLocked = false;
     bool m_layersNeedsSave = false;

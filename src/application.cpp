@@ -210,6 +210,8 @@ Application::Application(int &argc, char **argv, const QString &applicationName)
 
     m_engine->load(url);
 #endif
+
+    LocationSettings::self()->setFileDialogLastLocation(LocationSettings::cPlayFileLocation());
 }
 
 Application *Application::_instance = nullptr;
@@ -223,6 +225,10 @@ Application &Application::instance() {
         throw std::logic_error("Using the instance before it was created or set");
     }
     return *_instance;
+}
+
+bool Application::isCreated() {
+    return _instance != nullptr;
 }
 
 Application::~Application() {

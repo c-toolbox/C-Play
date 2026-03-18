@@ -254,7 +254,7 @@ static std::vector<std::byte> encode() {
                 needLayerSync = true;
                 for (int l = 0; l < numLayers; l++) {
                     BaseLayer* layer = slide->layer(l);
-                    if (!layer->existOnMasterOnly()) {
+                    if (layer && !layer->existOnMasterOnly()) {
                         totalLayersToSync++;
                     }
                 }
@@ -274,7 +274,7 @@ static std::vector<std::byte> encode() {
                     int numLayers = Application::instance().slidesModel()->slide(s)->numberOfLayers();
                     for (int l = 0; l < numLayers; l++) {
                         BaseLayer *nextLayer = Application::instance().slidesModel()->slide(s)->layer(l);
-                        if(!nextLayer->existOnMasterOnly()) {
+                        if(nextLayer && !nextLayer->existOnMasterOnly()) {
                             serializeObject(data, nextLayer->identifier()); // ID
                             bool needSync = nextLayer->needSync();
                             serializeObject(data, needSync);   // Check needs sync

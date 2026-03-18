@@ -290,6 +290,7 @@ QString SlideVisibilityModel::cellText(int column, int row) const {
 SlidesModel::SlidesModel(QObject *parent)
     : QAbstractListModel(parent),
     m_masterSlide(new LayersModel(this)),
+    m_dummySlide(new LayersModel(this)),
     m_visibilityModel(new SlideVisibilityModel(&m_slides, this)),
     m_needSync(false),
     m_syncIteration(0),
@@ -299,6 +300,7 @@ SlidesModel::SlidesModel(QObject *parent)
     m_masterSlide->setLayersName(QStringLiteral("Master"));
     m_masterSlide->setHierarchy(BaseLayer::LayerHierarchy::BACK);
     m_masterSlide->setLayersCanBeLocked(true);
+    m_dummySlide->setLayersEnabled(false);
     m_clearCopyTimer = new QTimer(this);
     m_clearCopyTimer->setInterval(30000);
     m_clearCopyTimer->setSingleShot(true);
@@ -310,6 +312,7 @@ SlidesModel::SlidesModel(QObject *parent)
 SlidesModel::~SlidesModel() {
     m_slides.clear();
     delete m_masterSlide;
+    delete m_dummySlide;
     delete m_visibilityModel;
 }
 
@@ -539,7 +542,7 @@ LayersModel *SlidesModel::slide(int i) {
     else if (i >= 0 && m_slides.size() > i)
         return m_slides[i].get();
     else
-        return nullptr;
+        return m_dummySlide;
 }
 
 LayersModel* SlidesModel::slide(std::string name) {

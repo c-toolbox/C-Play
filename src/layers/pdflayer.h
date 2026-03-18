@@ -19,13 +19,13 @@ public:
     ~PdfDocumentManager();
 
     static PdfDocumentManager& instance();
-    std::shared_ptr<poppler::document> getDocument(std::string filepath);
+    poppler::document* getDocument(std::string filepath);
     void trashDocument(std::string filepath);
 
 private:
     struct PDFDocument {
         int retrievals = 0;
-        std::shared_ptr<poppler::document> document = nullptr;
+        poppler::document* document = nullptr;
     };
 
     static PdfDocumentManager* _instance;
@@ -36,7 +36,7 @@ class PdfLayer : public BaseLayer {
 public:
     struct PdfData {
         std::string filepath = "";
-        std::shared_ptr<poppler::document> document = nullptr;
+        poppler::document* document = nullptr;
         int page = 0;
         double dpi = 72.0;
         poppler::image img;

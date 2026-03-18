@@ -30,7 +30,7 @@ Menu {
         Instantiator {
             id: recentMediaFilesMenuInstantiator
 
-            model: 0
+            model: mpv.recentMediaFiles;
 
             delegate: MenuItem {
                 text: modelData
@@ -67,7 +67,7 @@ Menu {
         Instantiator {
             id: recentPlaylistsMenuInstantiator
 
-            model: 0
+            model: mpv.recentPlaylists;
 
             delegate: MenuItem {
                 text: modelData
@@ -105,7 +105,7 @@ Menu {
         Instantiator {
             id: recentPresentationsMenuInstantiator
 
-            model: 0
+            model: app.slides.recentPresentations;
 
             delegate: MenuItem {
                 text: modelData

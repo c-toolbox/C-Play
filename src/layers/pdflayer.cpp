@@ -15,16 +15,16 @@
 auto loadPageAsync = [](PdfLayer::PdfData& data) {
     data.threadRunning = true;
 
-    std::unique_ptr<poppler::page> p(data.document->create_page(data.page - 1));
-    if (!p.get()) {
+    poppler::page* p = data.document->create_page(data.page - 1);
+    if (!p) {
         sgct::Log::Error(std::format("PDF creation of page {} in {} failed.", data.page, data.filepath));
     }
 
-    poppler::page_renderer pr;
-    pr.set_render_hint(poppler::page_renderer::antialiasing, true);
-    pr.set_render_hint(poppler::page_renderer::text_antialiasing, true);
+    poppler::page_renderer* pr = new poppler::page_renderer();
+    pr->set_render_hint(poppler::page_renderer::antialiasing, true);
+    pr->set_render_hint(poppler::page_renderer::text_antialiasing, true);
 
-    data.img = pr.render_page(p.get(), data.dpi, data.dpi);
+    data.img = pr->render_page(p, data.dpi, data.dpi);
     if (!data.img.is_valid()) {
         sgct::Log::Error(std::format("PDF rendering of page {} in {} failed.", data.page, data.filepath));
     }
@@ -32,6 +32,8 @@ auto loadPageAsync = [](PdfLayer::PdfData& data) {
     data.pageDone = true;
     while (!data.uploadDone) {
     }
+    delete pr;
+    delete p;
     data.threadDone = true;
 };
 
@@ -51,7 +53,7 @@ PdfDocumentManager& PdfDocumentManager::instance() {
     return *_instance;
 }
 
-std::shared_ptr<poppler::document> PdfDocumentManager::getDocument(std::string filepath) {
+poppler::document* PdfDocumentManager::getDocument(std::string filepath) {
     auto it = m_documents.find(filepath);
 
     if (it == m_documents.end()) {
@@ -65,7 +67,7 @@ std::shared_ptr<poppler::document> PdfDocumentManager::getDocument(std::string f
             // Loaded OK,let's store and return it
             PDFDocument newDoc;
             newDoc.retrievals = 1;
-            newDoc.document = std::shared_ptr<poppler::document>(docPtr);
+            newDoc.document = docPtr;
             it = m_documents.insert(std::make_pair(filepath, newDoc)).first;
             return it->second.document;
         }
@@ -82,6 +84,7 @@ void PdfDocumentManager::trashDocument(std::string filepath) {
     if (it != m_documents.end()) {
         it->second.retrievals -= 1;
         if (it->second.retrievals == 0) {
+            delete it->second.document;
             m_documents.erase(it);
         }
     }

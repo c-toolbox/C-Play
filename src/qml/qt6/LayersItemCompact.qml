@@ -81,7 +81,9 @@ ItemDelegate {
             acceptedButtons: Qt.RightButton
             onClicked: {
                 copyLayerMenu.popup();
-                app.slides.selected.layerToCopy = index;
+                if(app.slides.selected.layersEnabled){
+                    app.slides.selected.layerToCopy = index;
+                }
             }
 
             Kirigami.IconTitleSubtitle {
@@ -129,11 +131,13 @@ ItemDelegate {
                 icon.height: 20
 
                 onClicked: {
-                    if(model.locked) {
-                        app.slides.selected.unlockLayer(index);
-                    }
-                    else {
-                        app.slides.selected.lockLayer(index)
+                    if(app.slides.selected.layersEnabled){
+                        if(model.locked) {
+                            app.slides.selected.unlockLayer(index);
+                        }
+                        else {
+                            app.slides.selected.lockLayer(index)
+                        }
                     }
                     if(layersView.currentIndex === index) {
                         layersView.currentIndex = -1;
@@ -224,7 +228,9 @@ ItemDelegate {
         layersView.currentIndex = index;
         slideTitleField.text = model.title;
         layerView.layerItem.layerIdx = index;
-        app.slides.selected.layerToCopy = index;
+        if(app.slides.selected.layersEnabled){
+            app.slides.selected.layerToCopy = index;
+        }
     }
     onDoubleClicked: {
         layerView.layerItem.layerIdx = index;

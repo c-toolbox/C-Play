@@ -258,6 +258,7 @@ private:
 
     QList<QSharedPointer<LayersModel>> m_slides;
     LayersModel *m_masterSlide;
+    LayersModel *m_dummySlide;
     SlideVisibilityModel* m_visibilityModel;
     BaseLayer *m_layerToCopyFrom;
     bool m_needSync;

@@ -517,7 +517,8 @@ Rectangle {
 
                 function onSelectedSlideChanged() {
                     layers.layersView.currentIndex = -1;
-                    slidesView.currentIndex = app.slides.selectedSlideIdx;
+                    if(slidesView.currentIndex != app.slides.selectedSlideIdx)
+                        slidesView.currentIndex = app.slides.selectedSlideIdx;
                 }
 
                 function onCopyCleared() {
@@ -558,6 +559,7 @@ Rectangle {
         id: loadPresentation
 
         interval: PresentationSettings.clearAndLoadDelay
+        repeat: false
 
         onTriggered: {
             app.slides.loadFromJSONFile(presentationToLoad);
@@ -569,6 +571,7 @@ Rectangle {
         id: syncAfterLoad
 
         interval: PresentationSettings.syncAfterLoadDelay
+        repeat: false
 
         onTriggered: {
             app.slides.needsSync = true;
@@ -578,6 +581,7 @@ Rectangle {
         id: startAfterLoad
 
         interval: PresentationSettings.startAfterLoadDelay
+        repeat: false
 
         onTriggered: {
             busyIndicator = false;
@@ -593,6 +597,7 @@ Rectangle {
         id: clearAndLoadPresentationTimer
 
         interval: 500
+        repeat: false
 
         onTriggered: {
             app.slides.clearSlides();
@@ -603,27 +608,39 @@ Rectangle {
         id: clearSlidesTimer
 
         interval: 500
+        repeat: false
 
         onTriggered: {
             app.slides.clearSlides();
-            app.slides.pauseLayerUpdate = false;
-            busyIndicator = false;
-            masterSlideButton.clicked();
+            restoreUpdateAfterRemove.start();
         }
     }
     Timer {
         id: removeSlideTimer
 
         interval: 500
+        repeat: false
 
         onTriggered: {
             app.slides.removeSlide(slidesView.currentIndex);
-            app.slides.selectedSlideIdx = slidesView.currentIndex;
-            app.slides.pauseLayerUpdate = false;
-            busyIndicator = false;
+            restoreUpdateAfterRemove.start();
+        }
+    }
+    Timer {
+        id: restoreUpdateAfterRemove
+
+        interval: 500
+        repeat: false
+
+        onTriggered: {
             if(slidesView.count === 0) {
                 masterSlideButton.clicked();
             }
+            else {
+                app.slides.selectedSlideIdx = slidesView.currentIndex;
+            }
+            app.slides.pauseLayerUpdate = false;
+            busyIndicator = false;
         }
     }
 }

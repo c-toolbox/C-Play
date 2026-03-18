@@ -95,6 +95,7 @@ public:
     explicit Application(int &argc, char **argv, const QString &applicationName);
     static void create(int &argc, char **argv, const QString &applicationName);
     static Application &instance();
+    static bool isCreated();
     ~Application();
 
     int run();

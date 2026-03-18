@@ -239,7 +239,9 @@ Rectangle {
                     enabled: !layerView.visible
 
                     onClicked: {
-                        app.slides.selected.moveLayerTop(layersView.currentIndex);
+                        if(app.slides.selected.layersEnabled){
+                            app.slides.selected.moveLayerTop(layersView.currentIndex);
+                        }
                     }
 
                     ToolTip {
@@ -251,8 +253,10 @@ Rectangle {
                     enabled: !layerView.visible
 
                     onClicked: {
-                        app.slides.selected.moveLayerBottom(layersView.currentIndex);
-                        layersView.currentIndex = layersView.count - 1;
+                        if(app.slides.selected.layersEnabled){
+                            app.slides.selected.moveLayerBottom(layersView.currentIndex);
+                            layersView.currentIndex = layersView.count - 1;
+                        }
                     }
 
                     ToolTip {
@@ -325,7 +329,9 @@ Rectangle {
                     enabled: !layerView.visible
 
                     onClicked: {
-                        app.slides.selected.moveLayerUp(layersView.currentIndex);
+                        if(app.slides.selected.layersEnabled){
+                            app.slides.selected.moveLayerUp(layersView.currentIndex);
+                        }
                     }
 
                     ToolTip {
@@ -337,7 +343,9 @@ Rectangle {
                     enabled: !layerView.visible
 
                     onClicked: {
-                        app.slides.selected.moveLayerDown(layersView.currentIndex);
+                        if(app.slides.selected.layersEnabled){
+                            app.slides.selected.moveLayerDown(layersView.currentIndex);
+                        }
                     }
 
                     ToolTip {
@@ -443,12 +451,20 @@ Rectangle {
                     keys: ["text/uri-list"]
 
                     onDropped: {
-                        for(var i in drop.urls){
-                            layerView.layerItem.layerIdx = app.slides.selected.addLayerBasedOnMime(drop.urls[i]);          
+                        if(app.slides.selected.layersEnabled){
+                            for(var i in drop.urls){
+                                layerView.layerItem.layerIdx = app.slides.selected.addLayerBasedOnMime(drop.urls[i]);          
+                            }
+                            app.slides.updateSelectedSlide();
+                            mpv.focus = true;
                         }
-                        app.slides.updateSelectedSlide();
-                        mpv.focus = true;
                     }
+                }
+            }
+
+            onCurrentIndexChanged: {
+                if (layerView.layerItem.layerIdx !== layersView.currentIndex) {
+                    layerView.layerItem.layerIdx = layersView.currentIndex;
                 }
             }
         }
@@ -460,7 +476,9 @@ Rectangle {
                 }
             }
             function onLayerValueChanged() {
-                app.slides.selected.updateLayer(layerView.layerItem.layerIdx);
+                if(app.slides.selected.layersEnabled){
+                    app.slides.selected.updateLayer(layerView.layerItem.layerIdx);
+                }
             }
 
             target: layerView.layerItem
@@ -488,9 +506,12 @@ Rectangle {
         id: clearAllLayersTimer
 
         interval: 500
+        repeat: false
 
         onTriggered: {
-            app.slides.selected.clearLayers();
+            if(app.slides.selected.layersEnabled){
+                app.slides.selected.clearLayers();
+            }
             app.slides.updateSelectedSlide();
             app.slides.pauseLayerUpdate = false;
             busyIndicator = false;
@@ -500,9 +521,12 @@ Rectangle {
         id: removeLayerTimer
 
         interval: 500
+        repeat: false
 
         onTriggered: {
-            app.slides.selected.removeLayer(layersView.currentIndex);
+            if(app.slides.selected.layersEnabled){
+                app.slides.selected.removeLayer(layersView.currentIndex);
+            }
             app.slides.updateSelectedSlide();
             app.slides.pauseLayerUpdate = false;
             busyIndicator = false;

@@ -194,13 +194,15 @@ GridLayout {
                 keys: ["text/uri-list"]
 
                 onDropped: {
-                    layerType = app.slides.selected.getLayerTypeBasedOnMime(drop.urls[0]);
-                    if(layerType > 0 && layerType < typeComboBox.count) {
-                        if (layerType !== typeComboBox.currentIndex + 1) {
-                            typeComboBox.currentIndex = layerType - 1;
+                    if(app.slides.selected.layersEnabled){
+                        layerType = app.slides.selected.getLayerTypeBasedOnMime(drop.urls[0]);
+                        if(layerType > 0 && layerType < typeComboBox.count) {
+                            if (layerType !== typeComboBox.currentIndex + 1) {
+                                typeComboBox.currentIndex = layerType - 1;
+                            }
+                            fileForLayer.text = playerController.checkAndCorrectPath(drop.urls[0]);
+                            layerTitle.text = playerController.returnFileBaseName(fileForLayer.text);
                         }
-                        fileForLayer.text = playerController.checkAndCorrectPath(drop.urls[0]);
-                        layerTitle.text = playerController.returnFileBaseName(fileForLayer.text);
                     }
                 }
             }

@@ -109,7 +109,9 @@ ItemDelegate {
                 visible: slidesView.currentIndex === index
 
                 onEditingFinished: {
-                    app.slides.selected.layersName = slideNameField.text;
+                    if(app.slides.selected.layersEnabled){
+                        app.slides.selected.layersName = slideNameField.text;
+                    }
                     app.slides.updateSelectedSlide();
                 }
             }
@@ -289,13 +291,13 @@ ItemDelegate {
     }
     Connections {
         function onSelectedSlideChanged() {
-            if(app.slides.selected) {
+            if(app.slides.selected.layersEnabled) {
                 visibilitySlider.value = app.slides.selected.layersVisibility;
             }
         }
 
         function onTriggeredSlideChanged() {
-            if(app.slides.selected) {
+            if(app.slides.selected.layersEnabled) {
                 if (app.slides.selected.layersVisibility === 100 && !visibility_fade_out_animation.running) {
                     visibility_fade_out_animation.duration = app.slides.slideFadeTime / 2;
                     visibility_fade_out_animation.start();

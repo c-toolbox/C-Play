@@ -461,6 +461,15 @@ int LayersModel::getLayersVisibility() {
     return m_layersVisibility;
 }
 
+void LayersModel::setLayersEnabled(bool value) {
+    m_layersEnabled = value;
+    Q_EMIT layersEnabledChanged(value);
+}
+
+bool LayersModel::getLayersEnabled() {
+    return m_layersNeedsSave;
+}
+
 void LayersModel::setLayersNeedsSave(bool value) {
     m_layersNeedsSave = value;
     Q_EMIT layersNeedsSaveChanged(value);

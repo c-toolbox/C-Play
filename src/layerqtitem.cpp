@@ -60,7 +60,7 @@ void LayerQtItem::setLayerIdx(int idx) {
     m_layerIdx = idx;
 
     BaseLayer* nl = nullptr;
-    if (m_layerIdx >= 0)
+    if (Application::isCreated() && m_layerIdx >= 0)
         nl = Application::instance().slidesModel()->selectedSlide()->layer(m_layerIdx);
 
     if (nl == nullptr) {

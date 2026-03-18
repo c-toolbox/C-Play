@@ -612,7 +612,7 @@ QtObject {
         Component.onCompleted: list["layerPastePropertiesAction"] = layerPastePropertiesAction
         function updateShortcuts() { shortcut = root.isPrimary ? qaction.shortcutName() : qaction.alternateName() }
         onTriggered: {
-            if(enabled){
+            if(enabled && app.slides.selected.layersEnabled){
                 app.slides.pasteLayerAsProperties(app.slides.selected.layerToCopy);
             }
         }
