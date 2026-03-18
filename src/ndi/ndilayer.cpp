@@ -13,6 +13,10 @@
 #include <cstring>
 #include <climits>
 #include <cmath>
+#ifdef ZXING_SUPPORT
+#include <ZXing/ZXingCpp.h>
+ZXing::ReaderOptions ZxingOptions;
+#endif
 
 // simple clamp for 16-bit samples
 static inline int16_t clamp16(int32_t v) noexcept {
@@ -269,6 +273,19 @@ NdiLayer::NdiLayer() {
     // =======================================
     // Set to prefer BGRA
     NDIreceiver.SetFormat(NDIlib_recv_color_format_BGRX_BGRA);
+
+#ifdef ZXING_SUPPORT
+    ZxingOptions = ZXing::ReaderOptions();
+    ZxingOptions.setFormats(ZXing::BarcodeFormat::QRCode);
+    //ZxingOptions.setTryHarder(false);
+    ZxingOptions.setTryRotate(false);
+    ZxingOptions.setTryInvert(false);
+    ZxingOptions.setTryDownscale(false);
+    //ZxingOptions.setMaxNumberOfSymbols(1);
+    //ZxingOptions.setIsPure(true);
+    //ZxingOptions.setBinarizer(ZXing::Binarizer::FixedThreshold);
+    ZxingOptions.setTextMode(ZXing::TextMode::Plain);
+#endif
 
     OpenReceiver();
 }
@@ -668,6 +685,30 @@ PaDeviceIndex NdiLayer::GetChosenApplicationAudioDevice() {
     return choseDeviceIdx;
 }
 
+
+//Find barcodes in the received frame data
+bool NdiLayer::FindCodes(unsigned char* data, unsigned int width, unsigned int height, int GLformat) {
+    if(GLformat != GL_BGRA && GLformat != GL_RGBA) {
+        return false; //Unsupported format
+    }
+#ifdef ZXING_SUPPORT
+    ZXing::ImageFormat imageFormat = (GLformat == GL_BGRA) ? ZXing::ImageFormat::BGRA : ZXing::ImageFormat::RGBA;
+
+    auto image = ZXing::ImageView(data, width, height, imageFormat);
+    auto codes = ZXing::ReadBarcodes(image, ZxingOptions);
+
+    for (const auto& b : codes) {
+        if (b.text().length() > 0) {
+            sgct::Log::Info(std::format("NdiLayer ZXing QR codes: {}\n", b.text()));
+        }
+    }
+
+    return codes.empty();
+#else
+    return false;
+#endif
+}
+
 // Get NDI pixel data from the video frame to ofTexture
 bool NdiLayer::GetPixelData(GLuint TextureID, unsigned int width, unsigned int height) {
     // Get the video frame buffer pointer
@@ -698,11 +739,17 @@ bool NdiLayer::GetPixelData(GLuint TextureID, unsigned int width, unsigned int h
     case NDIlib_FourCC_type_RGBX: // RGBX
     case NDIlib_FourCC_type_RGBA: // RGBA
         LoadTexturePixels(TextureID, width, height, videoData, GL_RGBA);
+        if (isMaster()) {
+            FindCodes(videoData, width, height, GL_RGBA);
+        }
         break;
     case NDIlib_FourCC_type_BGRX: // BGRX
     case NDIlib_FourCC_type_BGRA: // BGRA
     default:                      // BGRA
         LoadTexturePixels(TextureID, width, height, videoData, GL_BGRA);
+        if (isMaster()) {
+            FindCodes(videoData, width, height, GL_BGRA);
+        }
         break;
     } // end switch received format
 

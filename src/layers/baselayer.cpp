@@ -334,6 +334,15 @@ void BaseLayer::decodeTypeProperties(const std::vector<std::byte>&, unsigned int
     // Overwrite in derived class
 }
 
+bool BaseLayer::hasSubLayers() const {
+    return false;
+}
+
+std::vector<std::shared_ptr<BaseLayer>>& BaseLayer::getSubLayers() const {
+    static std::vector<std::shared_ptr<BaseLayer>> empty;
+    return empty;
+}
+
 void BaseLayer::encodeBaseCore(std::vector<std::byte>& data) const {
     sgct::serializeObject(data, m_hierachy);
     sgct::serializeObject(data, m_filepath);

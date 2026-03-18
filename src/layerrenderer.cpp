@@ -460,6 +460,241 @@ const std::vector<std::shared_ptr<BaseLayer>> &LayerRenderer::getLayers() {
     return layers2render;
 }
 
+void LayerRenderer::renderLayer(const sgct::RenderData& data, const std::shared_ptr<BaseLayer>& layer, sgct::FrustumMode currentEye, float angle) {
+    glActiveTexture(GL_TEXTURE0);
+    glBindTexture(GL_TEXTURE_2D, layer->textureId());
+    glEnable(GL_BLEND);
+
+    if (layer->gridMode() == 4) {
+        glEnable(GL_CULL_FACE);
+
+        EACPrg->bind();
+
+        glUniform1f(EACAlphaLoc, layer->alpha());
+        glUniform1i(EACOutsideLoc, 0);
+        glUniform1i(EACVideoWidthLoc, layer->width());
+        glUniform1i(EACVideoHeightLoc, layer->height());
+
+        if (layer->stereoMode() > 0) {
+            glUniform1i(EACEyeModeLoc, (GLint)currentEye);
+            glUniform1i(EACStereoscopicModeLoc, (GLint)layer->stereoMode());
+        }
+        else {
+            glUniform1i(EACEyeModeLoc, 0);
+            glUniform1i(EACStereoscopicModeLoc, 0);
+        }
+
+        const sgct::mat4 mvp = data.modelViewProjectionMatrix;
+        glm::mat4 MVP_transformed = glm::translate(glm::make_mat4(mvp.values.data()), layer->translate());
+
+        glm::mat4 MVP_transformed_rot = MVP_transformed;
+        MVP_transformed_rot = glm::rotate(MVP_transformed_rot, glm::radians(layer->rotate().z), glm::vec3(0.0f, 0.0f, 1.0f));        // roll
+        MVP_transformed_rot = glm::rotate(MVP_transformed_rot, glm::radians(layer->rotate().x), glm::vec3(1.0f, 0.0f, 0.0f));        // pitch
+        MVP_transformed_rot = glm::rotate(MVP_transformed_rot, glm::radians(layer->rotate().y + 90.f), glm::vec3(0.0f, 1.0f, 0.0f)); // yaw
+        MVP_transformed_rot = glm::rotate(MVP_transformed_rot, glm::radians(90.f), glm::vec3(0.0f, 0.0f, 1.0f));                     // roll
+        glUniformMatrix4fv(EACMatrixLoc, 1, GL_FALSE, &MVP_transformed_rot[0][0]);
+
+        sphereMesh->draw();
+
+        // Set up frontface culling
+        glCullFace(GL_FRONT);
+
+        // Compensate for the angle of the dome
+        glm::mat4 MVP_transformed_rot2 = MVP_transformed;
+        MVP_transformed_rot2 = glm::rotate(MVP_transformed_rot2, glm::radians(360.f - layer->rotate().z), glm::vec3(0.0f, 0.0f, 1.0f));         // roll
+        MVP_transformed_rot2 = glm::rotate(MVP_transformed_rot2, glm::radians(360.f - layer->rotate().x + angle), glm::vec3(1.0f, 0.0f, 0.0f)); // pitch
+        MVP_transformed_rot2 = glm::rotate(MVP_transformed_rot2, glm::radians(360.f - layer->rotate().y - 90.f), glm::vec3(0.0f, 1.0f, 0.0f));  // yaw
+        MVP_transformed_rot2 = glm::rotate(MVP_transformed_rot2, glm::radians(360.f - 90.f), glm::vec3(0.0f, 0.0f, 1.0f));                      // roll
+
+        glUniformMatrix4fv(EACMatrixLoc, 1, GL_FALSE, &MVP_transformed_rot2[0][0]);
+        // render outside sphere
+        glUniform1i(EACOutsideLoc, 1);
+        sphereMesh->draw();
+
+        // Set up backface culling again
+        glCullFace(GL_BACK);
+        glUniform1i(EACOutsideLoc, 0);
+
+        EACPrg->unbind();
+
+        glDisable(GL_CULL_FACE);
+    }
+    else if (layer->gridMode() == 3) {
+        glEnable(GL_CULL_FACE);
+
+        const sgct::mat4 mvp = data.modelViewProjectionMatrix;
+        glm::mat4 MVP_transformed = glm::translate(glm::make_mat4(mvp.values.data()), layer->translate());
+
+        glm::mat4 MVP_transformed_rot = MVP_transformed;
+        MVP_transformed_rot = glm::rotate(MVP_transformed_rot, glm::radians(layer->rotate().z), glm::vec3(0.0f, 0.0f, 1.0f)); // roll
+        MVP_transformed_rot = glm::rotate(MVP_transformed_rot, glm::radians(layer->rotate().x), glm::vec3(1.0f, 0.0f, 0.0f)); // pitch
+        MVP_transformed_rot = glm::rotate(MVP_transformed_rot, glm::radians(layer->rotate().y), glm::vec3(0.0f, 1.0f, 0.0f)); // yaw
+
+        meshPrg->bind();
+
+        if (layer->stereoMode() > 0) {
+            glUniform1i(meshEyeModeLoc, (GLint)currentEye);
+            glUniform1i(meshStereoscopicModeLoc, (GLint)layer->stereoMode());
+        }
+        else {
+            glUniform1i(meshEyeModeLoc, 0);
+            glUniform1i(meshStereoscopicModeLoc, 0);
+        }
+
+        if (layer->roiEnabled()) {
+            glUniform4fv(meshRoi, 1, glm::value_ptr(layer->roi()));
+        }
+        else {
+            glUniform4f(meshRoi, 0.f, 0.f, 1.f, 1.f);
+        }
+
+        glUniform1f(meshAlphaLoc, layer->alpha());
+        glUniform1i(meshFlipYLoc, (layer->flipY() ? 1 : 0));
+
+        glUniformMatrix4fv(meshMatrixLoc, 1, GL_FALSE, &MVP_transformed_rot[0][0]);
+
+        // render inside sphere
+        glUniform1i(meshOutsideLoc, 0);
+        sphereMesh->draw();
+
+        // Set up frontface culling
+        glCullFace(GL_FRONT);
+
+        // Compensate for the angle of the dome
+        glm::mat4 MVP_transformed_rot2 = MVP_transformed;
+        MVP_transformed_rot2 = glm::rotate(MVP_transformed_rot2, glm::radians(360.f - layer->rotate().z), glm::vec3(0.0f, 0.0f, 1.0f));         // roll
+        MVP_transformed_rot2 = glm::rotate(MVP_transformed_rot2, glm::radians(360.f - layer->rotate().x + angle), glm::vec3(1.0f, 0.0f, 0.0f)); // pitch
+        MVP_transformed_rot2 = glm::rotate(MVP_transformed_rot2, glm::radians(360.f - layer->rotate().y), glm::vec3(0.0f, 1.0f, 0.0f));         // yaw
+
+        glUniformMatrix4fv(meshMatrixLoc, 1, GL_FALSE, &MVP_transformed_rot2[0][0]);
+        // render outside sphere
+        glUniform1i(meshOutsideLoc, 1);
+        sphereMesh->draw();
+
+        // Set up backface culling again
+        glCullFace(GL_BACK);
+        glUniform1i(meshOutsideLoc, 0);
+
+        meshPrg->unbind();
+
+        glDisable(GL_CULL_FACE);
+    }
+    else if (layer->gridMode() == 2) {
+        glEnable(GL_CULL_FACE);
+
+        meshPrg->bind();
+
+        if (layer->stereoMode() > 0) {
+            glUniform1i(meshEyeModeLoc, (GLint)currentEye);
+            glUniform1i(meshStereoscopicModeLoc, (GLint)layer->stereoMode());
+        }
+        else {
+            glUniform1i(meshEyeModeLoc, 0);
+            glUniform1i(meshStereoscopicModeLoc, 0);
+        }
+
+        if (layer->roiEnabled()) {
+            glUniform4fv(meshRoi, 1, glm::value_ptr(layer->roi()));
+        }
+        else {
+            glUniform4f(meshRoi, 0.f, 0.f, 1.f, 1.f);
+        }
+
+        glUniform1f(meshAlphaLoc, layer->alpha());
+        glUniform1i(meshFlipYLoc, (layer->flipY() ? 1 : 0));
+
+        const sgct::mat4 mvp = data.modelViewProjectionMatrix;
+        glm::mat4 MVP_transformed_rot = glm::translate(glm::make_mat4(mvp.values.data()), layer->translate());
+        MVP_transformed_rot = glm::rotate(MVP_transformed_rot, glm::radians(layer->rotate().z), glm::vec3(0.0f, 0.0f, 1.0f));         // roll
+        MVP_transformed_rot = glm::rotate(MVP_transformed_rot, glm::radians(layer->rotate().x - angle), glm::vec3(1.0f, 0.0f, 0.0f)); // pitch
+        MVP_transformed_rot = glm::rotate(MVP_transformed_rot, glm::radians(layer->rotate().y), glm::vec3(0.0f, 1.0f, 0.0f));         // yaw
+        glUniformMatrix4fv(meshMatrixLoc, 1, GL_FALSE, &MVP_transformed_rot[0][0]);
+
+        domeMesh->draw();
+
+        meshPrg->unbind();
+
+        glDisable(GL_CULL_FACE);
+    }
+    else if (layer->gridMode() == 1) {
+        glEnable(GL_CULL_FACE);
+        // Set up frontface culling
+        glCullFace(GL_FRONT);
+
+        meshPrg->bind();
+
+        if (layer->stereoMode() > 0) {
+            glUniform1i(meshEyeModeLoc, (GLint)currentEye);
+            glUniform1i(meshStereoscopicModeLoc, (GLint)layer->stereoMode());
+        }
+        else {
+            glUniform1i(meshEyeModeLoc, 0);
+            glUniform1i(meshStereoscopicModeLoc, 0);
+        }
+
+        if (layer->roiEnabled()) {
+            glUniform4fv(meshRoi, 1, glm::value_ptr(layer->roi()));
+        }
+        else {
+            glUniform4f(meshRoi, 0.f, 0.f, 1.f, 1.f);
+        }
+
+        glUniform1f(meshAlphaLoc, layer->alpha());
+        glUniform1i(meshFlipYLoc, (layer->flipY() ? 1 : 0));
+
+        const sgct::mat4 mvp = data.projectionMatrix * data.viewMatrix;
+
+        glm::mat4 planeTransform = glm::mat4(1.0f);
+
+        //Respect the dome angle
+        planeTransform = glm::rotate(planeTransform, glm::radians(-angle), glm::vec3(1.0f, 0.0f, 0.0f));
+
+        //Specifc plane parameters
+        planeTransform = glm::rotate(planeTransform, glm::radians(float(layer->planeAzimuth())), glm::vec3(0.0f, -1.0f, 0.0f));  // azimuth
+        planeTransform = glm::rotate(planeTransform, glm::radians(float(layer->planeElevation())), glm::vec3(1.0f, 0.0f, 0.0f)); // elevation
+        planeTransform = glm::rotate(planeTransform, glm::radians(float(layer->planeRoll())), glm::vec3(0.0f, 0.0f, 1.0f));      // roll
+        planeTransform = glm::translate(planeTransform, glm::vec3(float(layer->planeHorizontal()) / 100.f, float(layer->planeVertical()) / 100.f, float(-layer->planeDistance()) / 100.f));
+
+        planeTransform = glm::make_mat4(mvp.values.data()) * planeTransform;
+        glUniformMatrix4fv(meshMatrixLoc, 1, GL_FALSE, &planeTransform[0][0]);
+
+        layer->drawPlane();
+
+        meshPrg->unbind();
+
+        // Set up backface culling again
+        glCullFace(GL_BACK);
+
+        glDisable(GL_CULL_FACE);
+    }
+    else {
+        videoPrg->bind();
+
+        if (layer->stereoMode() > 0) {
+            glUniform1i(videoEyeModeLoc, (GLint)currentEye);
+            glUniform1i(videoStereoscopicModeLoc, (GLint)layer->stereoMode());
+        }
+        else {
+            glUniform1i(videoEyeModeLoc, 0);
+            glUniform1i(videoStereoscopicModeLoc, 0);
+        }
+
+        if (layer->roiEnabled()) {
+            glUniform4fv(videoRoi, 1, glm::value_ptr(layer->roi()));
+        }
+        else {
+            glUniform4f(videoRoi, 0.f, 0.f, 1.f, 1.f);
+        }
+
+        glUniform1f(videoAlphaLoc, layer->alpha());
+        glUniform1i(videoFlipYLoc, (layer->flipY() ? 1 : 0));
+
+        data.window.renderScreenQuad();
+
+        videoPrg->unbind();
+    }
+}
+
 void LayerRenderer::renderLayers(const sgct::RenderData &data, int viewMode, float angle) {
     sgct::FrustumMode currentEye = data.frustumMode;
 
@@ -469,228 +704,12 @@ void LayerRenderer::renderLayers(const sgct::RenderData &data, int viewMode, flo
     }
 
     for (const auto &layer : layers2render) {
-        glActiveTexture(GL_TEXTURE0);
-        glBindTexture(GL_TEXTURE_2D, layer->textureId());
-        glEnable(GL_BLEND);
+        renderLayer(data, layer, currentEye, angle);
 
-        if (layer->gridMode() == 4) {
-            glEnable(GL_CULL_FACE);
-
-            EACPrg->bind();
-
-            glUniform1f(EACAlphaLoc, layer->alpha());
-            glUniform1i(EACOutsideLoc, 0);
-            glUniform1i(EACVideoWidthLoc, layer->width());
-            glUniform1i(EACVideoHeightLoc, layer->height());
-
-            if (layer->stereoMode() > 0) {
-                glUniform1i(EACEyeModeLoc, (GLint)currentEye);
-                glUniform1i(EACStereoscopicModeLoc, (GLint)layer->stereoMode());
-            } else {
-                glUniform1i(EACEyeModeLoc, 0);
-                glUniform1i(EACStereoscopicModeLoc, 0);
+        if (layer->hasSubLayers()) {
+            for (const auto& sublayer : layer->getSubLayers()) {
+                renderLayer(data, sublayer, currentEye, angle);
             }
-
-            const sgct::mat4 mvp = data.modelViewProjectionMatrix;
-            glm::mat4 MVP_transformed = glm::translate(glm::make_mat4(mvp.values.data()), layer->translate());
-
-            glm::mat4 MVP_transformed_rot = MVP_transformed;
-            MVP_transformed_rot = glm::rotate(MVP_transformed_rot, glm::radians(layer->rotate().z), glm::vec3(0.0f, 0.0f, 1.0f));        // roll
-            MVP_transformed_rot = glm::rotate(MVP_transformed_rot, glm::radians(layer->rotate().x), glm::vec3(1.0f, 0.0f, 0.0f));        // pitch
-            MVP_transformed_rot = glm::rotate(MVP_transformed_rot, glm::radians(layer->rotate().y + 90.f), glm::vec3(0.0f, 1.0f, 0.0f)); // yaw
-            MVP_transformed_rot = glm::rotate(MVP_transformed_rot, glm::radians(90.f), glm::vec3(0.0f, 0.0f, 1.0f));                     // roll
-            glUniformMatrix4fv(EACMatrixLoc, 1, GL_FALSE, &MVP_transformed_rot[0][0]);
-
-            sphereMesh->draw();
-
-            // Set up frontface culling
-            glCullFace(GL_FRONT);
-
-            // Compensate for the angle of the dome
-            glm::mat4 MVP_transformed_rot2 = MVP_transformed;
-            MVP_transformed_rot2 = glm::rotate(MVP_transformed_rot2, glm::radians(360.f - layer->rotate().z), glm::vec3(0.0f, 0.0f, 1.0f));         // roll
-            MVP_transformed_rot2 = glm::rotate(MVP_transformed_rot2, glm::radians(360.f - layer->rotate().x + angle), glm::vec3(1.0f, 0.0f, 0.0f)); // pitch
-            MVP_transformed_rot2 = glm::rotate(MVP_transformed_rot2, glm::radians(360.f - layer->rotate().y - 90.f), glm::vec3(0.0f, 1.0f, 0.0f));  // yaw
-            MVP_transformed_rot2 = glm::rotate(MVP_transformed_rot2, glm::radians(360.f - 90.f), glm::vec3(0.0f, 0.0f, 1.0f));                      // roll
-
-            glUniformMatrix4fv(EACMatrixLoc, 1, GL_FALSE, &MVP_transformed_rot2[0][0]);
-            // render outside sphere
-            glUniform1i(EACOutsideLoc, 1);
-            sphereMesh->draw();
-
-            // Set up backface culling again
-            glCullFace(GL_BACK);
-            glUniform1i(EACOutsideLoc, 0);
-
-            EACPrg->unbind();
-
-            glDisable(GL_CULL_FACE);
-        } else if (layer->gridMode() == 3) {
-            glEnable(GL_CULL_FACE);
-
-            const sgct::mat4 mvp = data.modelViewProjectionMatrix;
-            glm::mat4 MVP_transformed = glm::translate(glm::make_mat4(mvp.values.data()), layer->translate());
-
-            glm::mat4 MVP_transformed_rot = MVP_transformed;
-            MVP_transformed_rot = glm::rotate(MVP_transformed_rot, glm::radians(layer->rotate().z), glm::vec3(0.0f, 0.0f, 1.0f)); // roll
-            MVP_transformed_rot = glm::rotate(MVP_transformed_rot, glm::radians(layer->rotate().x), glm::vec3(1.0f, 0.0f, 0.0f)); // pitch
-            MVP_transformed_rot = glm::rotate(MVP_transformed_rot, glm::radians(layer->rotate().y), glm::vec3(0.0f, 1.0f, 0.0f)); // yaw
-
-            meshPrg->bind();
-
-            if (layer->stereoMode() > 0) {
-                glUniform1i(meshEyeModeLoc, (GLint)currentEye);
-                glUniform1i(meshStereoscopicModeLoc, (GLint)layer->stereoMode());
-            } else {
-                glUniform1i(meshEyeModeLoc, 0);
-                glUniform1i(meshStereoscopicModeLoc, 0);
-            }
-
-            if (layer->roiEnabled()) {
-                glUniform4fv(meshRoi, 1, glm::value_ptr(layer->roi()));
-            }
-            else {
-                glUniform4f(meshRoi, 0.f, 0.f, 1.f, 1.f);
-            }
-
-            glUniform1f(meshAlphaLoc, layer->alpha());
-            glUniform1i(meshFlipYLoc, (layer->flipY() ? 1 : 0));
-
-            glUniformMatrix4fv(meshMatrixLoc, 1, GL_FALSE, &MVP_transformed_rot[0][0]);
-
-            // render inside sphere
-            glUniform1i(meshOutsideLoc, 0);
-            sphereMesh->draw();
-
-            // Set up frontface culling
-            glCullFace(GL_FRONT);
-
-            // Compensate for the angle of the dome
-            glm::mat4 MVP_transformed_rot2 = MVP_transformed;
-            MVP_transformed_rot2 = glm::rotate(MVP_transformed_rot2, glm::radians(360.f - layer->rotate().z), glm::vec3(0.0f, 0.0f, 1.0f));         // roll
-            MVP_transformed_rot2 = glm::rotate(MVP_transformed_rot2, glm::radians(360.f - layer->rotate().x + angle), glm::vec3(1.0f, 0.0f, 0.0f)); // pitch
-            MVP_transformed_rot2 = glm::rotate(MVP_transformed_rot2, glm::radians(360.f - layer->rotate().y), glm::vec3(0.0f, 1.0f, 0.0f));         // yaw
-
-            glUniformMatrix4fv(meshMatrixLoc, 1, GL_FALSE, &MVP_transformed_rot2[0][0]);
-            // render outside sphere
-            glUniform1i(meshOutsideLoc, 1);
-            sphereMesh->draw();
-
-            // Set up backface culling again
-            glCullFace(GL_BACK);
-            glUniform1i(meshOutsideLoc, 0);
-
-            meshPrg->unbind();
-
-            glDisable(GL_CULL_FACE);
-        } else if (layer->gridMode() == 2) {
-            glEnable(GL_CULL_FACE);
-
-            meshPrg->bind();
-
-            if (layer->stereoMode() > 0) {
-                glUniform1i(meshEyeModeLoc, (GLint)currentEye);
-                glUniform1i(meshStereoscopicModeLoc, (GLint)layer->stereoMode());
-            } else {
-                glUniform1i(meshEyeModeLoc, 0);
-                glUniform1i(meshStereoscopicModeLoc, 0);
-            }
-
-            if (layer->roiEnabled()) {
-                glUniform4fv(meshRoi, 1, glm::value_ptr(layer->roi()));
-            }
-            else {
-                glUniform4f(meshRoi, 0.f, 0.f, 1.f, 1.f);
-            }
-
-            glUniform1f(meshAlphaLoc, layer->alpha());
-            glUniform1i(meshFlipYLoc, (layer->flipY() ? 1 : 0));
-
-            const sgct::mat4 mvp = data.modelViewProjectionMatrix;
-            glm::mat4 MVP_transformed_rot = glm::translate(glm::make_mat4(mvp.values.data()), layer->translate());
-            MVP_transformed_rot = glm::rotate(MVP_transformed_rot, glm::radians(layer->rotate().z), glm::vec3(0.0f, 0.0f, 1.0f));         // roll
-            MVP_transformed_rot = glm::rotate(MVP_transformed_rot, glm::radians(layer->rotate().x - angle), glm::vec3(1.0f, 0.0f, 0.0f)); // pitch
-            MVP_transformed_rot = glm::rotate(MVP_transformed_rot, glm::radians(layer->rotate().y), glm::vec3(0.0f, 1.0f, 0.0f));         // yaw
-            glUniformMatrix4fv(meshMatrixLoc, 1, GL_FALSE, &MVP_transformed_rot[0][0]);
-
-            domeMesh->draw();
-
-            meshPrg->unbind();
-
-            glDisable(GL_CULL_FACE);
-        } else if (layer->gridMode() == 1) {
-            glEnable(GL_CULL_FACE);
-            // Set up frontface culling
-            glCullFace(GL_FRONT);
-
-            meshPrg->bind();
-
-            if (layer->stereoMode() > 0) {
-                glUniform1i(meshEyeModeLoc, (GLint)currentEye);
-                glUniform1i(meshStereoscopicModeLoc, (GLint)layer->stereoMode());
-            } else {
-                glUniform1i(meshEyeModeLoc, 0);
-                glUniform1i(meshStereoscopicModeLoc, 0);
-            }
-
-            if (layer->roiEnabled()) {
-                glUniform4fv(meshRoi, 1, glm::value_ptr(layer->roi()));
-            }
-            else {
-                glUniform4f(meshRoi, 0.f, 0.f, 1.f, 1.f);
-            }
-
-            glUniform1f(meshAlphaLoc, layer->alpha());
-            glUniform1i(meshFlipYLoc, (layer->flipY() ? 1 : 0));
-
-            const sgct::mat4 mvp = data.projectionMatrix * data.viewMatrix;
-
-            glm::mat4 planeTransform = glm::mat4(1.0f);
-
-            //Respect the dome angle
-            planeTransform = glm::rotate(planeTransform, glm::radians(-angle), glm::vec3(1.0f, 0.0f, 0.0f));
-
-            //Specifc plane parameters
-            planeTransform = glm::rotate(planeTransform, glm::radians(float(layer->planeAzimuth())), glm::vec3(0.0f, -1.0f, 0.0f));  // azimuth
-            planeTransform = glm::rotate(planeTransform, glm::radians(float(layer->planeElevation())), glm::vec3(1.0f, 0.0f, 0.0f)); // elevation
-            planeTransform = glm::rotate(planeTransform, glm::radians(float(layer->planeRoll())), glm::vec3(0.0f, 0.0f, 1.0f));      // roll
-            planeTransform = glm::translate(planeTransform, glm::vec3(float(layer->planeHorizontal()) / 100.f, float(layer->planeVertical()) / 100.f, float(-layer->planeDistance()) / 100.f));
-            
-            planeTransform = glm::make_mat4(mvp.values.data()) * planeTransform;
-            glUniformMatrix4fv(meshMatrixLoc, 1, GL_FALSE, &planeTransform[0][0]);
-
-            layer->drawPlane();
-
-            meshPrg->unbind();
-
-            // Set up backface culling again
-            glCullFace(GL_BACK);
-
-            glDisable(GL_CULL_FACE);
-        } else {
-            videoPrg->bind();
-
-            if (layer->stereoMode() > 0) {
-                glUniform1i(videoEyeModeLoc, (GLint)currentEye);
-                glUniform1i(videoStereoscopicModeLoc, (GLint)layer->stereoMode());
-            } else {
-                glUniform1i(videoEyeModeLoc, 0);
-                glUniform1i(videoStereoscopicModeLoc, 0);
-            }
-
-            if (layer->roiEnabled()) {
-                glUniform4fv(videoRoi, 1, glm::value_ptr(layer->roi()));
-            }
-            else {
-                glUniform4f(videoRoi, 0.f, 0.f, 1.f, 1.f);
-            }
-
-            glUniform1f(videoAlphaLoc, layer->alpha());
-            glUniform1i(videoFlipYLoc, (layer->flipY() ? 1 : 0));
-
-            data.window.renderScreenQuad();
-
-            videoPrg->unbind();
         }
     }
 }

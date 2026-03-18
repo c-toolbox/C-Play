@@ -5,10 +5,10 @@
 
 set(TARGET_NAME C-Play)
 set(CPLAY_VERSION_MAJOR 2)
-set(CPLAY_VERSION_MINOR 2)
-set(CPLAY_VERSION_PATCH 1)
-#set(CPLAY_VERSION_PR_NAME "Beta")
-#set(CPLAY_VERSION_PR_VERS 10)
+set(CPLAY_VERSION_MINOR 3)
+set(CPLAY_VERSION_PATCH 0)
+set(CPLAY_VERSION_PR_NAME "Beta")
+set(CPLAY_VERSION_PR_VERS 1)
 
 qt_add_executable(${TARGET_NAME})
 set_compile_options(${TARGET_NAME})
@@ -322,6 +322,11 @@ if(BUILD_CPLAY_WITH_NDI)
     target_compile_definitions(${TARGET_NAME} PUBLIC NDI_SUPPORT)
 
     list(APPEND TARGET_LIBRARIES PortAudio::PortAudio)
+endif()
+
+if(BUILD_CPLAY_WITH_ZXING)
+    list(APPEND TARGET_LIBRARIES ZXing::ZXing)
+    target_compile_definitions(${TARGET_NAME} PUBLIC ZXING_SUPPORT)
 endif()
 
 if(BUILD_CPLAY_WITH_SPOUT)
