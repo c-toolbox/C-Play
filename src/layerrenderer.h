@@ -28,7 +28,8 @@ public:
 
     const std::vector<std::shared_ptr<BaseLayer>> &getLayers();
 
-    void renderLayers(const sgct::RenderData &data, int viewMode, float angle);
+    void renderLayer(const sgct::RenderData& data, const std::shared_ptr<BaseLayer>& layer, sgct::FrustumMode currentEye, float angle);
+    void renderLayers(const sgct::RenderData& data, int viewMode, float angle);
 
 private:
     std::vector<std::shared_ptr<BaseLayer>> layers2render;

@@ -145,6 +145,9 @@ public:
     virtual void encodeTypeProperties(std::vector<std::byte>& data);
     virtual void decodeTypeProperties(const std::vector<std::byte>& data, unsigned int& pos);
 
+    virtual bool hasSubLayers() const;
+    virtual std::vector<std::shared_ptr<BaseLayer>>& getSubLayers() const;
+
     // End virtual methods to use in derived classes
 
     void encodeBaseCore(std::vector<std::byte>& data) const;

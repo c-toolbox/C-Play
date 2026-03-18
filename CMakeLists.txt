@@ -163,6 +163,13 @@ if(BUILD_CPLAY_WITH_NDI)
     find_package(PortAudio REQUIRED)
     set_package_properties(PortAudio PROPERTIES TYPE REQUIRED 
         URL "https://www.portaudio.com/" DESCRIPTION "for NDI audio output support.")
+
+    option(BUILD_CPLAY_WITH_ZXING "Global On/Off for Barcode support" OFF)
+    if(BUILD_CPLAY_WITH_ZXING)
+        find_package(ZXing CONFIG REQUIRED)
+        set_package_properties(ZXing PROPERTIES TYPE REQUIRED 
+            URL "https://github.com/zxing-cpp/zxing-cpp" DESCRIPTION "for Barcode scanning support.")
+    endif()
 endif()
 
 option(BUILD_CPLAY_WITH_SPOUT "Global On/Off for SPOUT support" OFF)
