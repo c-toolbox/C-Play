@@ -264,30 +264,6 @@ Rectangle {
                     }
                 }
                 Button {
-                    icon.name: "document-open"
-                    enabled: !layerView.visible
-
-                    onClicked: {
-                        slides.openPresentationButton.clicked();
-                    }
-
-                    ToolTip {
-                        text: qsTr("Open presentation")
-                    }
-                }
-                Button {
-                    icon.color: app.slides.slidesNeedsSave ? "orange" : "lime"
-                    icon.name: "system-save-session"
-
-                    onClicked: {
-                        slides.savePresentationButton.clicked();
-                    }
-
-                    ToolTip {
-                        text: qsTr("Save presentation")
-                    }
-                }
-                Button {
                     icon.color: "crimson"
                     icon.name: "trash-empty"
                     enabled: !layerView.visible
@@ -312,6 +288,30 @@ Rectangle {
                             app.slides.pauseLayerUpdate = true;
                             Qt.callLater(clearAllLayers);
                         }
+                    }
+                }
+                Button {
+                    icon.name: "document-open"
+                    enabled: !layerView.visible
+
+                    onClicked: {
+                        slides.openPresentationButton.clicked();
+                    }
+
+                    ToolTip {
+                        text: qsTr("Open presentation")
+                    }
+                }
+                Button {
+                    icon.color: app.slides.slidesNeedsSave ? "orange" : "lime"
+                    icon.name: "system-save-session"
+
+                    onClicked: {
+                        slides.savePresentationButton.clicked();
+                    }
+
+                    ToolTip {
+                        text: qsTr("Save presentation")
                     }
                 }
             }

@@ -77,6 +77,7 @@ public:
     Q_INVOKABLE int getLayerTypeBasedOnMime(QUrl fileUrl);
     Q_INVOKABLE int addLayerBasedOnMime(QUrl fileUrl);
     Q_INVOKABLE void removeLayer(int i);
+    Q_INVOKABLE void moveLayer(int i, int t);
     Q_INVOKABLE void moveLayerTop(int i);
     Q_INVOKABLE void moveLayerUp(int i);
     Q_INVOKABLE void moveLayerDown(int i);

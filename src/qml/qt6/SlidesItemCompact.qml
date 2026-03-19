@@ -21,6 +21,13 @@ ItemDelegate {
     property int iconWidth: 0
     property string rowNumber: (index + 1).toString()
 
+    // Drag state for visual feedback
+    property bool dragging: false
+    property real originalY: 0
+
+    // transient insertion indicator instance (created on drag start)
+    property var insertionIndicator: null
+
     function pad(number, length) {
         while (number.length < length)
             number = "0" + number;
@@ -232,6 +239,151 @@ ItemDelegate {
                 }
                 Component.onCompleted: {
                     visibilitySlider.value = layerView.layerItem.layerVisibility;
+                }
+            }
+        }
+    }
+
+    // Drag handle area: small left-side handle to avoid blocking interactive controls.
+    Rectangle {
+        id: dragHandleRect
+        anchors.left: parent.left
+        anchors.top: parent.top
+        anchors.bottom: parent.bottom
+        width: 12
+        color: "transparent"
+
+        Kirigami.Icon {
+            anchors.bottom: parent.bottom
+            source: "drag-surface"
+            width: 12
+            height: 12
+            opacity: 0.6
+            visible: !root.dragging
+        }
+
+        // Template for transient insertion indicator (created at drag start)
+        Component {
+            id: insertionLineComp
+            Rectangle {
+                color: Kirigami.Theme.highlightColor
+                height: 4
+                width: parent ? parent.width : slidesView.width
+                radius: 2
+                opacity: 0.95
+                z: 10000
+            }
+        }
+
+        MouseArea {
+            id: dragHandleMA
+            anchors.fill: parent
+            hoverEnabled: true
+            acceptedButtons: Qt.LeftButton
+            drag.target: root
+            drag.axis: Drag.YAxis
+            cursorShape: Qt.DragCopyCursor
+
+            // Keep the item inside the view content while dragging
+            onPressed: {
+                root.dragging = true;
+                root.originalY = root.y;
+                root.z = 9999; // bring to front while dragging
+                root.opacity = 0.85;
+                // ensure current index follows selection while dragging
+                slidesView.currentIndex = index;
+
+                // create insertion indicator (shared transient visual between rows)
+                if (slidesView && slidesView.contentItem && !root.insertionIndicator) {
+                    // create indicator initially at current center position
+                    root.insertionIndicator = insertionLineComp.createObject(slidesView.contentItem, { x: 0, y: root.y + root.height/2 - 2, width: slidesView.width });
+                }
+            }
+            onPositionChanged: {
+                // Boundaries relative to ListView content
+                var minY = -root.y;
+                var maxY = slidesView.contentHeight - root.y - root.height;
+                if (drag.y < minY) drag.y = minY;
+                if (drag.y > maxY) drag.y = maxY;
+
+                // Optional: auto-scroll the list when dragging near edges
+                var edgeThreshold = 20;
+                var localY = root.y;
+                if (localY < slidesView.contentY + edgeThreshold && slidesView.contentY > 0) {
+                    slidesView.contentY = Math.max(0, slidesView.contentY - 8);
+                }
+                var bottomEdge = slidesView.contentHeight - edgeThreshold - root.height;
+                if (localY > bottomEdge && (slidesView.contentY < slidesView.contentHeight - slidesView.height)) {
+                    slidesView.contentY = Math.min(slidesView.contentHeight - slidesView.height, slidesView.contentY + 8);
+                }
+
+                // update insertion indicator position to show where the item will land
+                if (root.insertionIndicator) {
+                    // compute index based on delegate center
+                    var centerY = root.y + root.height / 2;
+                    var destIndex = Math.floor(centerY / root.height);
+                    if (destIndex < 0) destIndex = 0;
+                    if (destIndex > slidesView.count - 1) destIndex = slidesView.count - 1;
+
+                    var halfIndicator = root.insertionIndicator.height / 2;
+                    var indicatorY;
+
+                    // When dragging down, show the indicator at the BOTTOM of the target item
+                    // (i.e. after that item). When dragging up, show it at the TOP of the target item.
+                    if (root.y > root.originalY) {
+                        // place after destIndex
+                        indicatorY = (destIndex + 1) * root.height - halfIndicator;
+                    } else {
+                        // place before destIndex
+                        indicatorY = destIndex * root.height - halfIndicator;
+                    }
+
+                    // clamp indicator to content area
+                    if (indicatorY < 0) indicatorY = 0;
+                    var maxIndicatorY = slidesView.contentHeight - root.insertionIndicator.height;
+                    if (indicatorY > maxIndicatorY) indicatorY = maxIndicatorY;
+
+                    root.insertionIndicator.y = indicatorY;
+                    // ensure width follows view width (in case of resize while dragging)
+                    root.insertionIndicator.width = slidesView.width;
+                }
+            }
+            onCanceled: {
+                // cleanup transient indicator
+                if (root.insertionIndicator) {
+                    root.insertionIndicator.destroy();
+                    root.insertionIndicator = null;
+                }
+                root.dragging = false;
+                root.z = 0;
+                root.opacity = 1.0;
+                // restore original position
+                root.y = root.originalY;
+            }
+            onReleased: {
+                root.dragging = false;
+                root.z = 0;
+                root.opacity = 1.0;
+
+                // Compute destination index based on the delegate center and drag direction.
+                var centerY = root.y + root.height / 2;
+                var destIndex = Math.floor(centerY / root.height);
+                if (destIndex < 0) destIndex = 0;
+                if (destIndex > slidesView.count - 1) destIndex = slidesView.count - 1;
+
+                // If dragged down, insert AFTER destIndex; if up, insert BEFORE destIndex.
+                var finalDest = (root.y > root.originalY) ? (destIndex) : destIndex;
+
+                // clamp finalDest to valid range (last valid index is count-1)
+                if (finalDest < 0) finalDest = 0;
+                if (finalDest > slidesView.count - 1) finalDest = slidesView.count - 1;
+
+                app.slides.moveSlide(index, finalDest);
+
+                // remove transient indicator after move
+                if (root.insertionIndicator) {
+                    root.insertionIndicator.destroy();
+                    root.insertionIndicator = null;
                 }
             }
         }

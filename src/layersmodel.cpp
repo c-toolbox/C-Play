@@ -323,10 +323,36 @@ void LayersModel::removeLayer(int i) {
     Q_EMIT layersModelChanged();
 }
 
+void LayersModel::moveLayer(int i, int t) {
+    if (i < 0 || t < 0 || i >= m_layers.size() || t >= m_layers.size() || i == t) {
+        Q_EMIT dataChanged(index(i, 0), index(t, 0));
+        Q_EMIT layersModelChanged();
+        return;
+    }
+
+    int destinationRow = (t > i) ? (t + 1) : t;
+
+    if (!beginMoveRows(QModelIndex(), i, i, QModelIndex(), destinationRow)) {
+        Q_EMIT dataChanged(index(i, 0), index(t, 0));
+        Q_EMIT layersModelChanged();
+        return;
+    }
+
+    m_layers.move(i, t);
+    endMoveRows();
+
+    Q_EMIT dataChanged(index(t, 0), index(t, 0));
+    setLayersNeedsSave(true);
+    setNeedSync();
+
+    Q_EMIT layersModelChanged();
+}
+
 void LayersModel::moveLayerTop(int i) {
     if (i < 1)
         return;
-    beginMoveRows(QModelIndex(), i, i, QModelIndex(), 0);
+    if (!beginMoveRows(QModelIndex(), i, i, QModelIndex(), 0))
+        return;
     m_layers.move(i, 0);
     endMoveRows();
     for (int j = 0; j < i; j++)
@@ -340,7 +366,8 @@ void LayersModel::moveLayerTop(int i) {
 void LayersModel::moveLayerUp(int i) {
     if (i < 1)
         return;
-    beginMoveRows(QModelIndex(), i, i, QModelIndex(), i - 1);
+    if (!beginMoveRows(QModelIndex(), i, i, QModelIndex(), i - 1))
+        return;
     m_layers.move(i, i - 1);
     endMoveRows();
     setLayersNeedsSave(true);
@@ -352,7 +379,8 @@ void LayersModel::moveLayerUp(int i) {
 void LayersModel::moveLayerDown(int i) {
     if (i < 0 || i == (m_layers.size() - 1))
         return;
-    beginMoveRows(QModelIndex(), i + 1, i + 1, QModelIndex(), i);
+    if (!beginMoveRows(QModelIndex(), i + 1, i + 1, QModelIndex(), i))
+        return;
     m_layers.move(i, i + 1);
     endMoveRows();
     setLayersNeedsSave(true);
@@ -364,7 +392,8 @@ void LayersModel::moveLayerDown(int i) {
 void LayersModel::moveLayerBottom(int i) {
     if (i < 0 || i == (m_layers.size() - 1))
         return;
-    beginMoveRows(QModelIndex(), m_layers.size() - 1, m_layers.size() - 1, QModelIndex(), i);
+    if (!beginMoveRows(QModelIndex(), m_layers.size() - 1, m_layers.size() - 1, QModelIndex(), i))
+        return;
     m_layers.move(i, m_layers.size() - 1);
     endMoveRows();
     for (int j = i; j < m_layers.size(); j++)

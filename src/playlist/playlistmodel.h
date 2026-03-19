@@ -68,6 +68,7 @@ public:
     Q_INVOKABLE void addSection(QString name, QString startTime, QString endTime, int eosMode);
     Q_INVOKABLE void removeSection(int i);
     Q_INVOKABLE void replaceSection(int i, QString name, QString startTime, QString endTime, int eosMode);
+    Q_INVOKABLE void moveSection(int i, int t);
     Q_INVOKABLE void moveSectionUp(int i);
     Q_INVOKABLE void moveSectionDown(int i);
     Q_INVOKABLE QString sectionTitle(int i) const;
@@ -141,6 +142,7 @@ public:
     Q_INVOKABLE QPointer<PlayListItem> getItem(int i);
     Q_INVOKABLE void addItem(PlayListItem *item);
     Q_INVOKABLE void removeItem(int i);
+    Q_INVOKABLE void moveItem(int i, int t);
     Q_INVOKABLE void moveItemUp(int i);
     Q_INVOKABLE void moveItemDown(int i);
     Q_INVOKABLE void updateItem(int i);

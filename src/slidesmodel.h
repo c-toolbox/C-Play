@@ -162,6 +162,7 @@ public:
 
     Q_INVOKABLE int addSlide();
     Q_INVOKABLE void removeSlide(int i);
+    Q_INVOKABLE void moveSlide(int i, int t);
     Q_INVOKABLE void moveSlideUp(int i);
     Q_INVOKABLE void moveSlideDown(int i);
     Q_INVOKABLE void updateSlide(int i);

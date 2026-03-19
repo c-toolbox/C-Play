@@ -345,7 +345,7 @@ Rectangle {
                         }
                     }
                     Button {
-                        icon.name: "document-replace"
+                        icon.name: "edit-paste-in-place"
 
                         onClicked: {
                             mpv.playSectionsModel.replaceSection(sectionsView.currentIndex, sectionTitle.text, startTimeTextField.text, endTimeTextField.text, eosComboBox.currentIndex);

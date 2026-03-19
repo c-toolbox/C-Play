@@ -249,7 +249,7 @@ Rectangle {
                     }
 
                     ToolTip {
-                        text: qsTr("Add slider to bottom of list")
+                        text: qsTr("Add slide to bottom of list")
                     }
                 }
                 Button {
@@ -263,7 +263,7 @@ Rectangle {
                     }
 
                     ToolTip {
-                        text: qsTr("Remove selected slider")
+                        text: qsTr("Remove selected slide")
                     }
                 }
                 Button {
@@ -275,7 +275,7 @@ Rectangle {
                     }
 
                     ToolTip {
-                        text: qsTr("Move selected slider upwards")
+                        text: qsTr("Move selected slide upwards")
                     }
                 }
                 Button {
@@ -287,7 +287,33 @@ Rectangle {
                     }
 
                     ToolTip {
-                        text: qsTr("Move selected slider downwards")
+                        text: qsTr("Move selected slide downwards")
+                    }
+                }
+                Button {
+                    icon.name: "document-replace"
+                    enabled: !layerView.visible
+
+                    onClicked: {
+                        clearSlidesDialog.open();
+                    }
+
+                    ToolTip {
+                        text: qsTr("New presentation")
+                    }
+                    Dialog {
+                        id: clearSlidesDialog
+                        standardButtons: Dialog.Ok | Dialog.Cancel
+
+                        Label {
+                            text: "Confirm clearing of all slides and start new presentation."
+                        }
+
+                        onAccepted: {
+                            app.slides.pauseLayerUpdate = true;
+                            busyIndicator = true;
+                            Qt.callLater(clearSlides);
+                        }
                     }
                 }
                 Button {
@@ -315,33 +341,6 @@ Rectangle {
 
                     ToolTip {
                         text: qsTr("Save presentation")
-                    }
-                }
-                Button {
-                    icon.color: "crimson"
-                    icon.name: "trash-empty"
-                    enabled: !layerView.visible
-
-                    onClicked: {
-                        clearSlidesDialog.open();
-                    }
-
-                    ToolTip {
-                        text: qsTr("Clear slides list")
-                    }
-                    Dialog {
-                        id: clearSlidesDialog
-                        standardButtons: Dialog.Ok | Dialog.Cancel
-
-                        Label {
-                            text: "Confirm clearing of all items in slides list."
-                        }
-
-                        onAccepted: {
-                            app.slides.pauseLayerUpdate = true;
-                            busyIndicator = true;
-                            Qt.callLater(clearSlides);
-                        }
                     }
                 }
             }

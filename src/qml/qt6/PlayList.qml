@@ -348,22 +348,21 @@ Rectangle {
                 }
             }
             Button {
-                icon.color: "crimson"
-                icon.name: "trash-empty"
+                icon.name: "document-replace"
 
                 onClicked: {
                     clearPlaylistDialog.open();
                 }
 
                 ToolTip {
-                    text: qsTr("Clear playlist")
+                    text: qsTr("New playlist")
                 }
                 Dialog {
                     id: clearPlaylistDialog
                     standardButtons: Dialog.Ok | Dialog.Cancel
 
                     Label {
-                        text: "Confirm clearing of all items in playlist"
+                        text: "Confirm clearing of all items and start a new playlist."
                     }
 
                     onAccepted: {

@@ -224,6 +224,25 @@ void PlaySectionsModel::replaceSection(int i, QString name, QString startTime, Q
     setCurrentEditItemIsEdited(true);
 }
 
+void PlaySectionsModel::moveSection(int i, int t) {
+    if (!m_currentEditItem)
+        return;
+
+    if (i < 0 || t < 0 || i >= m_currentEditItem->numberOfSections() || t >= m_currentEditItem->numberOfSections() || i == t) {
+        return;
+    }
+
+    int destinationRow = (t > i) ? (t + 1) : t;
+
+    if (!beginMoveRows(QModelIndex(), i, i, QModelIndex(), destinationRow)) {
+        return;
+    }
+
+    m_currentEditItem->moveSection(i, t);
+    endMoveRows();
+    setCurrentEditItemIsEdited(true);
+}
+
 void PlaySectionsModel::moveSectionUp(int i) {
     if (!m_currentEditItem)
         return;
@@ -231,7 +250,9 @@ void PlaySectionsModel::moveSectionUp(int i) {
     if (i == 0)
         return;
 
-    beginMoveRows(QModelIndex(), i, i, QModelIndex(), i - 1);
+    if (!beginMoveRows(QModelIndex(), i, i, QModelIndex(), i - 1))
+        return;
+
     m_currentEditItem->moveSection(i, i - 1);
     endMoveRows();
     setCurrentEditItemIsEdited(true);
@@ -244,7 +265,9 @@ void PlaySectionsModel::moveSectionDown(int i) {
     if (i == (m_currentEditItem->numberOfSections() - 1))
         return;
 
-    beginMoveRows(QModelIndex(), i + 1, i + 1, QModelIndex(), i);
+    if (!beginMoveRows(QModelIndex(), i + 1, i + 1, QModelIndex(), i))
+        return;
+
     m_currentEditItem->moveSection(i, i + 1);
     endMoveRows();
     setCurrentEditItemIsEdited(true);
@@ -576,10 +599,31 @@ void PlayListModel::removeItem(int i) {
     setPlayListIsEdited(true);
 }
 
+void PlayListModel::moveItem(int i, int t) {
+    if (i < 0 || t < 0 || i >= m_playList.size() || t >= m_playList.size() || i == t) {
+        return;
+    }
+
+    int destinationRow = (t > i) ? (t + 1) : t;
+
+    if (!beginMoveRows(QModelIndex(), i, i, QModelIndex(), destinationRow)) {
+        return;
+    }
+
+    m_playList.move(i, t);
+    if (m_playingVideo == i)
+        m_playingVideo = t;
+    else if (m_playingVideo == t)
+        m_playingVideo = i;
+    endMoveRows();
+    setPlayListIsEdited(true);
+}
+
 void PlayListModel::moveItemUp(int i) {
     if (i < 1)
         return;
-    beginMoveRows(QModelIndex(), i, i, QModelIndex(), i - 1);
+    if (!beginMoveRows(QModelIndex(), i, i, QModelIndex(), i - 1))
+        return;
     m_playList.move(i, i - 1);
     if (m_playingVideo == i)
         m_playingVideo -= 1;
@@ -592,7 +636,8 @@ void PlayListModel::moveItemUp(int i) {
 void PlayListModel::moveItemDown(int i) {
     if (i < 0 || i == (m_playList.size() - 1))
         return;
-    beginMoveRows(QModelIndex(), i + 1, i + 1, QModelIndex(), i);
+    if (!beginMoveRows(QModelIndex(), i + 1, i + 1, QModelIndex(), i))
+        return;
     m_playList.move(i, i + 1);
     if (m_playingVideo == i)
         m_playingVideo += 1;

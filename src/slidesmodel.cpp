@@ -618,10 +618,48 @@ void SlidesModel::removeSlide(int i) {
     Q_EMIT slideModelChanged();
 }
 
+void SlidesModel::moveSlide(int i, int t) {
+    if (i < 0 || t < 0 || i >= m_slides.size() || t >= m_slides.size() || i == t) {
+        Q_EMIT dataChanged(index(i, 0), index(t, 0));
+        Q_EMIT slideModelChanged();
+        return;
+    }
+
+    int destinationRow = (t > i) ? (t + 1) : t;
+
+    if (!beginMoveRows(QModelIndex(), i, i, QModelIndex(), destinationRow)) {
+        Q_EMIT dataChanged(index(i, 0), index(t, 0));
+        Q_EMIT slideModelChanged();
+        return;
+    }
+
+    m_slides.move(i, t);
+    m_previousSelectedSlideIdx = t;
+
+    if (m_triggeredSlideIdx == i)
+        m_triggeredSlideIdx = t;
+    else if (m_triggeredSlideIdx == t)
+        m_triggeredSlideIdx = i;
+
+    if (m_previousTriggeredSlideIdx == i)
+        m_previousTriggeredSlideIdx = t;
+    else if (m_previousTriggeredSlideIdx == t)
+        m_previousTriggeredSlideIdx = i;
+
+    endMoveRows();
+
+    Q_EMIT dataChanged(index(t, 0), index(t, 0));
+    setSlidesNeedsSave(true);
+    setNeedSync();
+
+    Q_EMIT slideModelChanged();
+}
+
 void SlidesModel::moveSlideUp(int i) {
     if (i < 1)
         return;
-    beginMoveRows(QModelIndex(), i, i, QModelIndex(), i - 1);
+    if (!beginMoveRows(QModelIndex(), i, i, QModelIndex(), i - 1))
+        return;
     m_slides.move(i, i - 1);
     m_previousSelectedSlideIdx = i - 1;
 
@@ -645,7 +683,8 @@ void SlidesModel::moveSlideUp(int i) {
 void SlidesModel::moveSlideDown(int i) {
     if (i < 0 || i == (m_slides.size() - 1))
         return;
-    beginMoveRows(QModelIndex(), i + 1, i + 1, QModelIndex(), i);
+    if (!beginMoveRows(QModelIndex(), i + 1, i + 1, QModelIndex(), i))
+        return;
     m_slides.move(i, i + 1);
     m_previousSelectedSlideIdx = i + 1;
 
@@ -686,9 +725,10 @@ void SlidesModel::clearSlides() {
     for (int i = 0; i < m_slides.size(); i++) {
         if (m_slides[i]->getLayersCanBeLocked()) {
             if (unlockedSlides > 0) {
-                beginMoveRows(QModelIndex(), i, i, QModelIndex(), lockedSlides);
-                m_slides.move(i, lockedSlides);
-                endMoveRows();
+                if (beginMoveRows(QModelIndex(), i, i, QModelIndex(), lockedSlides)) {
+                    m_slides.move(i, lockedSlides);
+                    endMoveRows();
+                }
             }
             lockedSlides++;
         }
