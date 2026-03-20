@@ -30,7 +30,7 @@ Rectangle {
     state: "hidden"
     width: {
         const w = Kirigami.Units.gridUnit * 13.25;
-        return (parent.width * 0.1125) < w ? w : parent.width * 0.1125;
+        return w;
     }
     x: position !== "left" ? parent.width : -width
     y: 0
