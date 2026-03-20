@@ -477,6 +477,19 @@ Kirigami.ApplicationWindow {
         onRejected: mpv.focus = true
     }
     Platform.FileDialog {
+        id: openCPlayPlaylistDialog
+
+        fileMode: Platform.FileDialog.OpenFile
+        folder: LocationSettings.cPlayFileLocation !== "" ? app.pathToUrl(LocationSettings.cPlayFileLocation) : app.pathToUrl(LocationSettings.fileDialogLastLocation)
+        nameFilters: ["C-Play playlist (*.cplaylist)"]
+        title: "Open C-Playlist"
+
+        onAccepted: {
+            mpv.loadFile(openCPlayPlaylistDialog.file.toString());
+        }
+        onRejected: mpv.focus = true
+    }
+    Platform.FileDialog {
         id: saveCPlayPlaylistDialog
 
         fileMode: Platform.FileDialog.SaveFile

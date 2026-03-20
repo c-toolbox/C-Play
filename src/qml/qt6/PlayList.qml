@@ -197,6 +197,42 @@ Rectangle {
             anchors.rightMargin: Kirigami.Units.largeSpacing
             spacing: 1
 
+            
+            Button {
+                id: openPlaylistButton
+                icon.name: "document-open"
+
+                onClicked: {
+                    openCPlayPlaylistDialog.open();
+                }
+
+                ToolTip {
+                    text: qsTr("Open playlist")
+                }
+            }
+            Button {
+                icon.name: "document-replace"
+
+                onClicked: {
+                    clearPlaylistDialog.open();
+                }
+
+                ToolTip {
+                    text: qsTr("New playlist")
+                }
+                Dialog {
+                    id: clearPlaylistDialog
+                    standardButtons: Dialog.Ok | Dialog.Cancel
+
+                    Label {
+                        text: "Confirm clearing of all items and start a new playlist."
+                    }
+
+                    onAccepted: {
+                        mpv.clearPlaylist();
+                    }
+                }
+            }
             Button {
                 icon.name: "list-add"
 
@@ -251,26 +287,6 @@ Rectangle {
 
                 ToolTip {
                     text: qsTr("Move selected downwards")
-                }
-            }
-            Button {
-                id: autoPlayButton
-
-                checkable: true
-                checked: mpv.autoPlay
-                icon.color: mpv.autoPlay ? "lime" : "crimson"
-                icon.name: "media-playlist-play"
-
-                onCheckedChanged: {
-                    mpv.autoPlay = autoPlayButton.checked;
-                }
-
-                ToolTip {
-                    id: autoPlayTooltip
-
-                    text: {
-                        mpv.autoPlay ? qsTr("Autoplay is ON") : qsTr("Autoplay is OFF");
-                    }
                 }
             }
             Button {
@@ -347,29 +363,6 @@ Rectangle {
                     }
                 }
             }
-            Button {
-                icon.name: "document-replace"
-
-                onClicked: {
-                    clearPlaylistDialog.open();
-                }
-
-                ToolTip {
-                    text: qsTr("New playlist")
-                }
-                Dialog {
-                    id: clearPlaylistDialog
-                    standardButtons: Dialog.Ok | Dialog.Cancel
-
-                    Label {
-                        text: "Confirm clearing of all items and start a new playlist."
-                    }
-
-                    onAccepted: {
-                        mpv.clearPlaylist();
-                    }
-                }
-            }
             Item {
                 Layout.fillHeight: true
                 // spacer item
@@ -377,10 +370,25 @@ Rectangle {
             }
         }
         RowLayout {
-            Rectangle {
-                color: Kirigami.Theme.alternateBackgroundColor
-                height: 1
-                width: Kirigami.Units.gridUnit + 10
+            ToolButton {
+                id: autoPlayButton
+
+                checkable: true
+                checked: mpv.autoPlay
+                icon.color: mpv.autoPlay ? "lime" : "crimson"
+                icon.name: "media-playlist-play"
+
+                onCheckedChanged: {
+                    mpv.autoPlay = autoPlayButton.checked;
+                }
+
+                ToolTip {
+                    id: autoPlayTooltip
+
+                    text: {
+                        mpv.autoPlay ? qsTr("Autoplay is ON") : qsTr("Autoplay is OFF");
+                    }
+                }
             }
             Label {
                 id: playlistName

@@ -242,52 +242,16 @@ Rectangle {
                 spacing: 1
 
                 Button {
-                    icon.name: "list-add"
-
-                    onClicked: {
-                        app.slides.addSlide();
-                    }
-
-                    ToolTip {
-                        text: qsTr("Add slide to bottom of list")
-                    }
-                }
-                Button {
-                    icon.name: "list-remove"
-                    enabled: !layerView.visible && !app.slides.selected.layersCanBeLocked
-
-                    onClicked: {
-                        busyIndicator = true;
-                        app.slides.pauseLayerUpdate = true;
-                        Qt.callLater(removeSlide);
-                    }
-
-                    ToolTip {
-                        text: qsTr("Remove selected slide")
-                    }
-                }
-                Button {
-                    icon.name: "pan-up-symbolic"
+                    id: openPresentationButton
+                    icon.name: "document-open"
                     enabled: !layerView.visible
 
                     onClicked: {
-                        app.slides.moveSlideUp(slidesView.currentIndex);
+                        openCPlayPresentationDialog.open();
                     }
 
                     ToolTip {
-                        text: qsTr("Move selected slide upwards")
-                    }
-                }
-                Button {
-                    icon.name: "pan-down-symbolic"
-                    enabled: !layerView.visible
-
-                    onClicked: {
-                        app.slides.moveSlideDown(slidesView.currentIndex);
-                    }
-
-                    ToolTip {
-                        text: qsTr("Move selected slide downwards")
+                        text: qsTr("Open presentation")
                     }
                 }
                 Button {
@@ -317,19 +281,6 @@ Rectangle {
                     }
                 }
                 Button {
-                    id: openPresentationButton
-                    icon.name: "document-open"
-                    enabled: !layerView.visible
-
-                    onClicked: {
-                        openCPlayPresentationDialog.open();
-                    }
-
-                    ToolTip {
-                        text: qsTr("Open presentation")
-                    }
-                }
-                Button {
                     id: savePresentationButton
                     icon.color: app.slides.slidesNeedsSave ? "orange" : "lime"
                     icon.name: "system-save-session"
@@ -342,16 +293,6 @@ Rectangle {
                     ToolTip {
                         text: qsTr("Save presentation")
                     }
-                }
-            }
-            RowLayout {
-                Layout.preferredWidth: parent.width
-                anchors.rightMargin: Kirigami.Units.largeSpacing
-                spacing: 1
-
-                Item {
-                    // spacer item
-                    Layout.fillWidth: true
                 }
                 Button {
                     id: preLoadLayersButton
@@ -389,6 +330,79 @@ Rectangle {
                         text: qsTr("Slide Visibility Table View")
                     }
                 }
+                Item {
+                    // spacer item
+                    Layout.fillWidth: true
+                }
+            }
+            RowLayout {
+                Layout.preferredWidth: parent.width
+                anchors.rightMargin: Kirigami.Units.largeSpacing
+                spacing: 1
+
+                Button {
+                    icon.name: "list-add"
+
+                    onClicked: {
+                        app.slides.addSlide();
+                    }
+
+                    ToolTip {
+                        text: qsTr("Add slide to bottom of list")
+                    }
+                }
+                Button {
+                    icon.name: "list-remove"
+                    enabled: !layerView.visible && !app.slides.selected.layersCanBeLocked
+
+                    onClicked: {
+                        removeSlideDialog.open();
+                    }
+
+                    ToolTip {
+                        text: qsTr("Remove selected slide")
+                    }
+
+                    Dialog {
+                        id: removeSlideDialog
+                        standardButtons: Dialog.Ok | Dialog.Cancel
+
+                        Label {
+                            text: "Confirm removing of slide named <b><font color='red'>" + app.slides.selected.layersName + "</font></b>. This cannot be undone."
+                            textFormat: Text.RichText
+                        }
+
+                        onAccepted: {
+                            busyIndicator = true;
+                            app.slides.pauseLayerUpdate = true;
+                            Qt.callLater(removeSlide);
+                        }
+                    }
+                }
+                Button {
+                    icon.name: "pan-up-symbolic"
+                    enabled: !layerView.visible
+
+                    onClicked: {
+                        app.slides.moveSlideUp(slidesView.currentIndex);
+                    }
+
+                    ToolTip {
+                        text: qsTr("Move selected slide upwards")
+                    }
+                }
+                Button {
+                    icon.name: "pan-down-symbolic"
+                    enabled: !layerView.visible
+
+                    onClicked: {
+                        app.slides.moveSlideDown(slidesView.currentIndex);
+                    }
+
+                    ToolTip {
+                        text: qsTr("Move selected slide downwards")
+                    }
+                }
                 Button {
                     id: masterSlideButton
 
@@ -409,6 +423,10 @@ Rectangle {
                     ToolTip {
                         text: qsTr("Master slide with perminent background layers")
                     }
+                }
+                Item {
+                    // spacer item
+                    Layout.fillWidth: true
                 }
             }
         }

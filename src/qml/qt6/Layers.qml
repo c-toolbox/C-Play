@@ -208,30 +208,27 @@ Rectangle {
                 spacing: 1
 
                 Button {
-                    id: layerAddButton
-                    icon.name: "layer-new"
+                    icon.name: "document-open"
+                    enabled: !layerView.visible
 
                     onClicked: {
-                        layersAddNew.visible = true;
+                        slides.openPresentationButton.clicked();
                     }
 
                     ToolTip {
-                        text: qsTr("Add layer to bottom of list")
+                        text: qsTr("Open presentation")
                     }
                 }
                 Button {
-                    id: layerDeleteButton
-                    icon.name: "layer-delete"
-                    enabled: !layerView.visible && (!app.slides.selected.isLocked(layersView.currentIndex) || !app.slides.selected.layersCanBeLocked)
+                    icon.color: app.slides.slidesNeedsSave ? "orange" : "lime"
+                    icon.name: "system-save-session"
 
                     onClicked: {
-                        busyIndicator = true;
-                        app.slides.pauseLayerUpdate = true;
-                        Qt.callLater(removeLayer);
+                        slides.savePresentationButton.clicked();
                     }
 
                     ToolTip {
-                        text: qsTr("Remove selected layer")
+                        text: qsTr("Save presentation")
                     }
                 }
                 Button {
@@ -290,29 +287,9 @@ Rectangle {
                         }
                     }
                 }
-                Button {
-                    icon.name: "document-open"
-                    enabled: !layerView.visible
-
-                    onClicked: {
-                        slides.openPresentationButton.clicked();
-                    }
-
-                    ToolTip {
-                        text: qsTr("Open presentation")
-                    }
-                }
-                Button {
-                    icon.color: app.slides.slidesNeedsSave ? "orange" : "lime"
-                    icon.name: "system-save-session"
-
-                    onClicked: {
-                        slides.savePresentationButton.clicked();
-                    }
-
-                    ToolTip {
-                        text: qsTr("Save presentation")
-                    }
+                Item {
+                    // spacer item
+                    Layout.fillWidth: true
                 }
             }
             RowLayout {
@@ -320,8 +297,32 @@ Rectangle {
                 anchors.rightMargin: Kirigami.Units.largeSpacing
                 spacing: 1
 
-                Item {
-                    implicitWidth: (layerAddButton.width * 2) + 5
+                Button {
+                    id: layerAddButton
+                    icon.name: "layer-new"
+
+                    onClicked: {
+                        layersAddNew.visible = true;
+                    }
+
+                    ToolTip {
+                        text: qsTr("Add layer to bottom of list")
+                    }
+                }
+                Button {
+                    id: layerDeleteButton
+                    icon.name: "layer-delete"
+                    enabled: !layerView.visible && (!app.slides.selected.isLocked(layersView.currentIndex) || !app.slides.selected.layersCanBeLocked)
+
+                    onClicked: {
+                        busyIndicator = true;
+                        app.slides.pauseLayerUpdate = true;
+                        Qt.callLater(removeLayer);
+                    }
+
+                    ToolTip {
+                        text: qsTr("Remove selected layer")
+                    }
                 }
                 Button {
                     id: layerRaiseButton
