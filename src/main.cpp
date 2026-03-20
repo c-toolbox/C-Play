@@ -30,7 +30,6 @@
 #ifdef NDI_SUPPORT
 #include <ndi/ndilayer.h>
 #endif
-// #define SGCT_ONLY
 
 namespace {
 
@@ -73,10 +72,8 @@ static void* get_proc_address_glfw_v2(const char* name, void*) {
 }
 
 static void initOGL(GLFWwindow *) {
-#ifndef SGCT_ONLY
     if (Engine::instance().isMaster())
         return;
-#endif
 
     // Create standard layers
     backgroundImageLayer = std::make_shared<ImageLayer>("background");
@@ -233,13 +230,12 @@ static std::vector<std::byte> encode() {
             serializeObject(data, false);
         }
 
-        // Always syncing master slide, selected slide and previous slide so fade-down can occur.
-        // Ideally, should most likely sync slide after selected as well
-        // Currently syncing master slide and selected slide
-        // Need figure out other scheme
-        std::vector<int> slideIdxToSync;
+        // Sync scheme
+        // 1. Check if slides needs sync, if yes, sync all slides and layers (except layers with "existOnMasterOnly" flag) with full information
+        // 2. If sync is needed, only sync those layers with full information, and for the rest of the layers, perform a simpler "always" sync which contains update only
+        // 3. If sync is not needed, perform a simpler "always" sync for all layers which contains update only
 
-        // Sync all slides and layers for now... if not layer set as "existOnMasterOnly"
+        std::vector<int> slideIdxToSync;
         for (int i = Application::instance().slidesModel()->numberOfSlides() - 1; i >= -1; i--) {
             slideIdxToSync.push_back(i);
         }
@@ -251,24 +247,25 @@ static std::vector<std::byte> encode() {
             if (s < Application::instance().slidesModel()->numberOfSlides()) {
                 LayersModel* slide = Application::instance().slidesModel()->slide(s);
                 int numLayers = slide->numberOfLayers();
-                needLayerSync = true;
                 for (int l = 0; l < numLayers; l++) {
                     BaseLayer* layer = slide->layer(l);
                     if (layer && !layer->existOnMasterOnly()) {
                         totalLayersToSync++;
+                        if(layer->needSync()) {
+                            needLayerSync = true;
+                        }
                     }
                 }
             }
         }
 
-        // Sync if layer sync is needed
         serializeObject(data, needLayerSync);
+        serializeObject(data, Application::instance().slidesModel()->preLoadLayers());
+        // Layers sync...
+        // Orders is top to bottom in the list = (first to last in the vector)
+        // Sync only complete layer information when needed
+        serializeObject(data, totalLayersToSync);
         if (needLayerSync) {
-            serializeObject(data, Application::instance().slidesModel()->preLoadLayers());
-            // Layers sync...
-            // Orders is top to bottom in the list = (first to last in the vector)
-            // Sync only complete layer information when needed
-            serializeObject(data, totalLayersToSync);
             for (auto s : slideIdxToSync) {
                 if (s < Application::instance().slidesModel()->numberOfSlides()) {
                     int numLayers = Application::instance().slidesModel()->slide(s)->numberOfLayers();
@@ -292,6 +289,22 @@ static std::vector<std::byte> encode() {
                 }
             }
             Application::instance().slidesModel()->setHasSynced();
+        }
+        else {
+            // Perform a simpler "always" sync which contains update only
+            // Should never remove layers, but only update existing ones, so no need to send layer count or ID
+            for (auto s : slideIdxToSync) {
+                if (s < Application::instance().slidesModel()->numberOfSlides()) {
+                    int numLayers = Application::instance().slidesModel()->slide(s)->numberOfLayers();
+                    for (int l = 0; l < numLayers; l++) {
+                        BaseLayer *nextLayer = Application::instance().slidesModel()->slide(s)->layer(l);
+                        if(nextLayer && !nextLayer->existOnMasterOnly()) {
+                            serializeObject(data, nextLayer->identifier()); // ID
+                            nextLayer->encodeAlways(data);
+                        }
+                    }
+                }
+            }
         }
 
         // Reset flags every frame cycle
@@ -410,10 +423,10 @@ static void decode(const std::vector<std::byte> &data) {
         // Layers
         bool layerSync = false;
         deserializeObject(data, pos, layerSync);
+        deserializeObject(data, pos, preLoadLayers);
+        int numLayers = -1;
+        deserializeObject(data, pos, numLayers);
         if (layerSync) {
-            deserializeObject(data, pos, preLoadLayers);
-            int numLayers = -1;
-            deserializeObject(data, pos, numLayers);
             uint32_t id;
             updateLayers = true;
             for (int i = 0; i < numLayers; i++) {
@@ -458,11 +471,22 @@ static void decode(const std::vector<std::byte> &data) {
                 }
             }
         }
+        else {
+            // Just perform "always" sync which contains update only
+            uint32_t id;
+            for (int i = 0; i < numLayers; i++) {
+                deserializeObject(data, pos, id);
+                auto it = find_if(secondaryLayers.begin(), secondaryLayers.end(),
+                                  [&id](const std::shared_ptr<BaseLayer>&t1) { return (t1 ? t1->identifier() == id : false); });
+                if (it != secondaryLayers.end()) {
+                    (*it)->decodeAlways(data, pos);
+                }
+            }
+        }
     }
 }
 
 static void postSyncPreDraw() {
-#ifndef SGCT_ONLY
     // Apply synced commands
     if (!Engine::instance().isMaster()) {
 
@@ -746,17 +770,15 @@ static void postSyncPreDraw() {
     if (Engine::instance().isMaster()) {
         return;
     }
-#endif
 
     // Update/render the frame from MPV pipeline
     mainVideoLayer->updateFrame();
 }
 
 static void draw(const RenderData &data) {
-#ifndef SGCT_ONLY
     if (Engine::instance().isMaster())
         return;
-#endif
+
     glDisable(GL_DEPTH_TEST);
     glDepthMask(false);
 
@@ -780,10 +802,8 @@ static void cleanup() {
     NDIlib_destroy();
 #endif
 
-#ifndef SGCT_ONLY
     if (Engine::instance().isMaster())
         return;
-#endif
 
     secondaryLayers.clear();
     secondaryLayersToKeep.clear();
@@ -882,7 +902,6 @@ int main(int argc, char *argv[]) {
     mdk::SetGlobalOption("MDK_KEY", "12BAA3C8BD1AEF74F0FAD1DFDE693AA49BCEB95A7E518F74D43C6A5A4D225882D44A101B825B82DA6F43EFCCD6D0B12148AC64B0DF4CCF37AF7720E1D743520FED455C3742E5108B0F052E202196C55B9BCEBF195301E315AD5789DF2AC4E297D3E645BAA12123255B87840EAC02FE103A3CFADFDCFFCE24BAE3B935C543520F");
 #endif
 
-#ifndef SGCT_ONLY
     if (Engine::instance().isMaster()) {
         if (!ClusterManager::instance().ignoreSync() || ClusterManager::instance().numberOfNodes() > 1) {
             if (!NetworkManager::instance().areAllNodesConnected()) {
@@ -914,13 +933,10 @@ int main(int argc, char *argv[]) {
         Application::instance().setStartupFile(startupFile);
         return Application::instance().run();
     } else {
-#endif
         Log::Info("Start Client");
 
         Engine::instance().exec();
         Engine::destroy();
         return EXIT_SUCCESS;
-#ifndef SGCT_ONLY
     }
-#endif
 }
