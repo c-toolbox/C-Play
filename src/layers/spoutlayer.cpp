@@ -1,6 +1,6 @@
 /*
  * SPDX-FileCopyrightText:
- * 2025 Erik Sundén <eriksunden85@gmail.com>
+ * 2026 Erik Sundï¿½n <eriksunden85@gmail.com>
  *
  * SPDX-License-Identifier: GPL-3.0-or-later
  */
