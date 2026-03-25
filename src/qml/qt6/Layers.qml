@@ -481,6 +481,11 @@ Rectangle {
                     app.slides.selected.updateLayer(layerView.layerItem.layerIdx);
                 }
             }
+            function onLayerNeedsSave() {
+                if(app.slides.selected.layersEnabled){
+                    app.slides.selected.setLayersNeedsSave(true);
+                }
+            }
 
             target: layerView.layerItem
         }

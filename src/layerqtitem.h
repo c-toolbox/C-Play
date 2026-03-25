@@ -1,6 +1,6 @@
 /*
  * SPDX-FileCopyrightText:
- * 2024-2025 Erik Sunden <eriksunden85@gmail.com>
+ * 2024-2026 Erik Sunden <eriksunden85@gmail.com>
  *
  * SPDX-License-Identifier: GPL-3.0-or-later
  */
@@ -240,6 +240,7 @@ Q_SIGNALS:
     void layerChanged();
     void layerPositionChanged();
     void layerValueChanged();
+    void layerNeedsSave();
     void viewChanged();
     void roiChanged();
     void audioTracksModelChanged();

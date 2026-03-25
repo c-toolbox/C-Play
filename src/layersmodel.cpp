@@ -1,6 +1,6 @@
 /*
  * SPDX-FileCopyrightText:
- * 2024-2025 Erik Sunden <eriksunden85@gmail.com>
+ * 2024-2026 Erik Sunden <eriksunden85@gmail.com>
  *
  * SPDX-License-Identifier: GPL-3.0-or-later
  */
@@ -496,7 +496,7 @@ void LayersModel::setLayersEnabled(bool value) {
 }
 
 bool LayersModel::getLayersEnabled() {
-    return m_layersNeedsSave;
+    return m_layersEnabled;
 }
 
 void LayersModel::setLayersNeedsSave(bool value) {
@@ -891,6 +891,48 @@ void LayersModel::decodeFromJSON(QJsonObject &obj, const QStringList &forRelativ
                             }
                         }
                     }
+                    else if (grid == BaseLayer::GridMode::Dome && o.contains(QStringLiteral("dome"))) {
+                        QJsonValue domeValues = o.value(QStringLiteral("dome"));
+                        QJsonArray domeArray = domeValues.toArray();
+                        for (auto pa : domeArray) {
+                            QJsonObject po = pa.toObject();
+                            glm::vec3 domeRotation = glm::vec3(0.f);
+                            if (po.contains(QStringLiteral("yaw"))) {
+                                double domeYaw = po.value(QStringLiteral("yaw")).toDouble();
+                                domeRotation.y = static_cast<float>(domeYaw);
+                                m_layers[idx].first->setRotate(domeRotation);
+                            }
+                        }
+                    }
+                    else if ((grid == BaseLayer::GridMode::Sphere_EQR || grid == BaseLayer::GridMode::Sphere_EAC) 
+                        && o.contains(QStringLiteral("sphere"))) {
+                        QJsonValue sphereValues = o.value(QStringLiteral("sphere"));
+                        QJsonArray sphereArray = sphereValues.toArray();
+                        for (auto pa : sphereArray) {
+                            QJsonObject po = pa.toObject();
+                            glm::vec3 sphereRotation = glm::vec3(0.f);
+                            bool hasRotation = false;
+                            if (po.contains(QStringLiteral("pitch"))) {
+                                double spherePitch = po.value(QStringLiteral("pitch")).toDouble();
+                                sphereRotation.x = static_cast<float>(spherePitch);
+                                hasRotation = true;
+                            }
+                            if (po.contains(QStringLiteral("yaw"))) {
+                                double sphereYaw = po.value(QStringLiteral("yaw")).toDouble();
+                                sphereRotation.y = static_cast<float>(sphereYaw);
+                                hasRotation = true;
+                            }
+                            if (po.contains(QStringLiteral("roll"))) {
+                                double sphereRoll = po.value(QStringLiteral("yaw")).toDouble();
+                                sphereRotation.z = static_cast<float>(sphereRoll);
+                                hasRotation = true;
+                            }
+                            if (hasRotation) {
+                                m_layers[idx].first->setRotate(sphereRotation);
+                            }
+                        }
+                    }
+
                     if (o.contains(QStringLiteral("roi"))) {
                         QJsonValue roiValues = o.value(QStringLiteral("roi"));
                         QJsonArray roiArray = roiValues.toArray();
@@ -1035,6 +1077,22 @@ void LayersModel::encodeToJSON(QJsonObject &obj, const QStringList &forRelativeP
             planeData.insert(QStringLiteral("vertical"), QJsonValue(layer->planeVertical()));
             planeArray.push_back(QJsonValue(planeData));
             layerData.insert(QString(QStringLiteral("plane")), QJsonValue(planeArray));
+        }
+        else if (gridIdx == BaseLayer::GridMode::Dome) {
+            QJsonArray domeArray;
+            QJsonObject domeData;
+            domeData.insert(QStringLiteral("yaw"), QJsonValue(layer->rotate().y));
+            domeArray.push_back(QJsonValue(domeData));
+            layerData.insert(QString(QStringLiteral("dome")), QJsonValue(domeArray));
+        }
+        else if (gridIdx == BaseLayer::GridMode::Sphere_EQR || gridIdx == BaseLayer::GridMode::Sphere_EAC) {
+            QJsonArray sphereArray;
+            QJsonObject sphereData;
+            sphereData.insert(QStringLiteral("pitch"), QJsonValue(layer->rotate().x));
+            sphereData.insert(QStringLiteral("yaw"), QJsonValue(layer->rotate().y));
+            sphereData.insert(QStringLiteral("roll"), QJsonValue(layer->rotate().z));
+            sphereArray.push_back(QJsonValue(sphereData));
+            layerData.insert(QString(QStringLiteral("sphere")), QJsonValue(sphereArray));
         }
 
         // ROI details
