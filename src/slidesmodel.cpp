@@ -514,8 +514,6 @@ void SlidesModel::setTriggeredSlideVisibility(int value) {
         updateSlide(m_selectedSlideIdx);
     }
 
-    setSlidesNeedsSave(true);
-
     Q_EMIT triggeredSlideVisibilityChanged();
 }
 
@@ -708,7 +706,6 @@ void SlidesModel::moveSlideDown(int i) {
 void SlidesModel::updateSlide(int i) {
     if (i >= 0 && i < m_slides.size()) {
         Q_EMIT dataChanged(index(i, 0), index(i, 0));
-        setSlidesNeedsSave(true);
     }
 }
 

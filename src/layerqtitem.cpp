@@ -91,10 +91,10 @@ int LayerQtItem::layerStereoMode() const{
 void LayerQtItem::setLayerStereoMode(int mode) {
     if (m_layer) {
         if (m_layer->stereoMode() != static_cast<uint8_t>(mode)) {
-            m_layer->setStereoMode(static_cast<uint8_t>(mode));
-            Q_EMIT layerValueChanged();
             Q_EMIT layerNeedsSave();
         }
+        m_layer->setStereoMode(static_cast<uint8_t>(mode));
+        Q_EMIT layerValueChanged();
     }
 }
 
@@ -108,10 +108,10 @@ int LayerQtItem::layerGridMode() const{
 void LayerQtItem::setLayerGridMode(int mode) {
     if (m_layer) {
         if (m_layer->gridMode() != static_cast<uint8_t>(mode)) {
-            m_layer->setGridMode(static_cast<uint8_t>(mode));
-            Q_EMIT layerValueChanged();
             Q_EMIT layerNeedsSave();
         }
+        m_layer->setGridMode(static_cast<uint8_t>(mode));
+        Q_EMIT layerValueChanged();
     }
 }
 
@@ -124,11 +124,8 @@ int LayerQtItem::layerVisibility() const{
 
 void LayerQtItem::setLayerVisibility(int value) {
     if (m_layer) {
-        int currentValue = static_cast<int>(m_layer->alpha() * 100.f);
-        if (currentValue != value) {
-            m_layer->setAlpha(static_cast<float>(value) * 0.01f);
-            Q_EMIT layerValueChanged();
-        }
+        m_layer->setAlpha(static_cast<float>(value) * 0.01f);
+        Q_EMIT layerValueChanged();
     }
 }
 
@@ -165,10 +162,10 @@ int LayerQtItem::layerVolume() const {
 void LayerQtItem::setLayerVolume(int value) {
     if (m_layer) {
         if (m_layer->volume() != value) {
-            m_layer->setVolume(value);
-            Q_EMIT layerValueChanged();
             Q_EMIT layerNeedsSave();
         }
+        m_layer->setVolume(value);
+        Q_EMIT layerValueChanged();
     }
 }
 
@@ -181,11 +178,8 @@ bool LayerQtItem::layerPause() const {
 
 void LayerQtItem::setLayerPause(bool value) {
     if (m_layer) {
-        if (m_layer->pause() != value) {
-            m_layer->setPause(value);
-            Q_EMIT layerPositionChanged();
-            Q_EMIT layerNeedsSave();
-        }
+        m_layer->setPause(value);
+        Q_EMIT layerPositionChanged();
     }
 }
 
@@ -198,11 +192,8 @@ double LayerQtItem::layerPosition() const {
 
 void LayerQtItem::setLayerPosition(double value) {
     if (m_layer) {
-        if (m_layer->position() != value) {
-            m_layer->setPosition(value);
-            Q_EMIT layerPositionChanged();
-            Q_EMIT layerNeedsSave();
-        }
+        m_layer->setPosition(value);
+        Q_EMIT layerPositionChanged();
     }
 }
 
@@ -238,10 +229,10 @@ void LayerQtItem::setLayerPage(int value) {
     if (m_layer && m_layer->type() == BaseLayer::PDF) {
         PdfLayer* pdfLayer = static_cast<PdfLayer*>(m_layer);
         if (pdfLayer->page() != value) {
-            pdfLayer->setPage(value);
-            Q_EMIT layerValueChanged();
             Q_EMIT layerNeedsSave();
         }
+        pdfLayer->setPage(value);
+        Q_EMIT layerValueChanged();
     }
 #endif
 }
@@ -270,11 +261,10 @@ void LayerQtItem::setLayerRotatePitch(double x) {
     if (m_layer) {
         glm::vec3 rot = m_layer->rotate();
         if (rot.x != x) {
-            rot.x = x;
-            m_layer->setRotate(rot);
-            Q_EMIT layerValueChanged();
             Q_EMIT layerNeedsSave();
         }
+        m_layer->setRotate(rot);
+        Q_EMIT layerValueChanged();
     }
 }
 
@@ -290,11 +280,10 @@ void LayerQtItem::setLayerRotateYaw(double y)
     if (m_layer) {
         glm::vec3 rot = m_layer->rotate();
         if (rot.y != y) {
-            rot.y = y;
-            m_layer->setRotate(rot);
-            Q_EMIT layerValueChanged();
             Q_EMIT layerNeedsSave();
         }
+        m_layer->setRotate(rot);
+        Q_EMIT layerValueChanged();
     }
 }
 
@@ -309,11 +298,10 @@ void LayerQtItem::setLayerRotateRoll(double z) {
     if (m_layer) {
         glm::vec3 rot = m_layer->rotate();
         if (rot.z != z) {
-            rot.z = z;
-            m_layer->setRotate(rot);
-            Q_EMIT layerValueChanged();
             Q_EMIT layerNeedsSave();
         }
+        m_layer->setRotate(rot);
+        Q_EMIT layerValueChanged();
     }
 }
 
@@ -327,10 +315,10 @@ double LayerQtItem::layerPlaneWidth() const {
 void LayerQtItem::setLayerPlaneWidth(double pW) {
     if (m_layer) {
         if (m_layer->planeWidth() != pW) {
-            m_layer->setPlaneWidth(pW);
-            Q_EMIT layerValueChanged();
             Q_EMIT layerNeedsSave();
         }
+        m_layer->setPlaneWidth(pW);
+        Q_EMIT layerValueChanged();
     }
 }
 
@@ -344,10 +332,10 @@ double LayerQtItem::layerPlaneHeight() const {
 void LayerQtItem::setLayerPlaneHeight(double pH) {
     if (m_layer) {
         if (m_layer->planeHeight() != pH) {
-            m_layer->setPlaneHeight(pH);
-            Q_EMIT layerValueChanged();
             Q_EMIT layerNeedsSave();
         }
+        m_layer->setPlaneHeight(pH);
+        Q_EMIT layerValueChanged();
     }
 }
 
@@ -361,10 +349,10 @@ int LayerQtItem::layerPlaneAspectRatio() const {
 void LayerQtItem::setLayerPlaneAspectRatio(int parc) {
     if (m_layer) {
         if (m_layer->planeAspectRatio() != static_cast<uint8_t>(parc)) {
-            m_layer->setPlaneAspectRatio(static_cast<uint8_t>(parc));
-            Q_EMIT layerValueChanged();
             Q_EMIT layerNeedsSave();
         }
+        m_layer->setPlaneAspectRatio(static_cast<uint8_t>(parc));
+        Q_EMIT layerValueChanged();
     }
 }
 
@@ -378,10 +366,10 @@ double LayerQtItem::layerPlaneAzimuth() const {
 void LayerQtItem::setLayerPlaneAzimuth(double pA) {
     if (m_layer) {
         if (m_layer->planeAzimuth() != pA) {
-            m_layer->setPlaneAzimuth(pA);
-            Q_EMIT layerValueChanged();
             Q_EMIT layerNeedsSave();
         }
+        m_layer->setPlaneAzimuth(pA);
+        Q_EMIT layerValueChanged();
     }
 }
 
@@ -395,10 +383,10 @@ double LayerQtItem::layerPlaneElevation() const {
 void LayerQtItem::setLayerPlaneElevation(double pE) {
     if (m_layer) {
         if (m_layer->planeElevation() != pE) {
-            m_layer->setPlaneElevation(pE);
-            Q_EMIT layerValueChanged();
             Q_EMIT layerNeedsSave();
         }
+        m_layer->setPlaneElevation(pE);
+        Q_EMIT layerValueChanged();
     }
 }
 
@@ -412,10 +400,10 @@ double LayerQtItem::layerPlaneRoll() const {
 void LayerQtItem::setLayerPlaneRoll(double pR) {
     if (m_layer) {
         if (m_layer->planeRoll() != pR) {
-            m_layer->setPlaneRoll(pR);
-            Q_EMIT layerValueChanged();
             Q_EMIT layerNeedsSave();
         }
+        m_layer->setPlaneRoll(pR);
+        Q_EMIT layerValueChanged();
     }
 }
 
@@ -429,10 +417,10 @@ double LayerQtItem::layerPlaneDistance() const {
 void LayerQtItem::setLayerPlaneDistance(double pD) {
     if (m_layer) {
         if (m_layer->planeDistance() != pD) {
-            m_layer->setPlaneDistance(pD);
-            Q_EMIT layerValueChanged();
             Q_EMIT layerNeedsSave();
         }
+        m_layer->setPlaneDistance(pD);
+        Q_EMIT layerValueChanged();
     }
 }
 
@@ -446,10 +434,10 @@ double LayerQtItem::layerPlaneHorizontal() const {
 void LayerQtItem::setLayerPlaneHorizontal(double pH) {
     if (m_layer) {
         if (m_layer->planeHorizontal() != pH) {
-            m_layer->setPlaneHorizontal(pH);
-            Q_EMIT layerValueChanged();
             Q_EMIT layerNeedsSave();
         }
+        m_layer->setPlaneHorizontal(pH);
+        Q_EMIT layerValueChanged();
     }
 }
 
@@ -463,10 +451,10 @@ double LayerQtItem::layerPlaneVertical() const {
 void LayerQtItem::setLayerPlaneVertical(double pV) {
     if (m_layer) {
         if (m_layer->planeVertical() != pV) {
-            m_layer->setPlaneVertical(pV);
-            Q_EMIT layerValueChanged();
             Q_EMIT layerNeedsSave();
         }
+        m_layer->setPlaneVertical(pV);
+        Q_EMIT layerValueChanged();
     }
 }
 
@@ -480,12 +468,12 @@ bool LayerQtItem::layerRoiEnabled() {
 void LayerQtItem::setLayerRoiEnabled(bool value) {
     if (m_layer) {
         if (m_layer->roiEnabled() != value) {
-            m_layer->setRoiEnabled(value);
-            Q_EMIT layerValueChanged();
             Q_EMIT layerNeedsSave();
-            if (value)
-                updateRoi();
         }
+        m_layer->setRoiEnabled(value);
+        Q_EMIT layerValueChanged();
+        if (value)
+            updateRoi();
     }
 }
 

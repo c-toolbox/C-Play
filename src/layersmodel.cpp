@@ -482,7 +482,6 @@ void LayersModel::setLayersVisibility(int value, bool propagateDown) {
         updateLayer(i);
     }
     Q_EMIT layersVisibilityChanged();
-    setLayersNeedsSave(true);
     setNeedSync();
 }
 
