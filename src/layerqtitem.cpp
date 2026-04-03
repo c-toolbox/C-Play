@@ -260,9 +260,10 @@ double LayerQtItem::layerRotatePitch() const {
 void LayerQtItem::setLayerRotatePitch(double x) {
     if (m_layer) {
         glm::vec3 rot = m_layer->rotate();
-        if (rot.x != x) {
+        if (!qFuzzyCompare((double)rot.x, x)) {
             Q_EMIT layerNeedsSave();
         }
+        rot.x = x;
         m_layer->setRotate(rot);
         Q_EMIT layerValueChanged();
     }
@@ -279,9 +280,10 @@ void LayerQtItem::setLayerRotateYaw(double y)
 {
     if (m_layer) {
         glm::vec3 rot = m_layer->rotate();
-        if (rot.y != y) {
+        if (!qFuzzyCompare((double)rot.y, y)) {
             Q_EMIT layerNeedsSave();
         }
+        rot.y = y;
         m_layer->setRotate(rot);
         Q_EMIT layerValueChanged();
     }
@@ -297,9 +299,10 @@ double LayerQtItem::layerRotateRoll() const {
 void LayerQtItem::setLayerRotateRoll(double z) {
     if (m_layer) {
         glm::vec3 rot = m_layer->rotate();
-        if (rot.z != z) {
+        if (!qFuzzyCompare((double)rot.z, z)) {
             Q_EMIT layerNeedsSave();
         }
+        rot.z = z;
         m_layer->setRotate(rot);
         Q_EMIT layerValueChanged();
     }
