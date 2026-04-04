@@ -5,7 +5,7 @@
  * SPDX-License-Identifier: GPL-3.0-or-later
  */
 
-#include "layerrenderer.h"
+#include "layersrenderer.h"
 #include <glm/glm.hpp>
 #include <glm/gtc/matrix_transform.hpp>
 #include <glm/gtc/type_ptr.hpp>
@@ -360,7 +360,7 @@ constexpr std::string_view EACVideoFrag = R"(
   }
 )";
 
-LayerRenderer::LayerRenderer() : meshRadius(0),
+LayersRenderer::LayersRenderer() : meshRadius(0),
                                  meshFov(0),
                                  videoAlphaLoc(-1),
                                  videoEyeModeLoc(-1),
@@ -385,62 +385,69 @@ LayerRenderer::LayerRenderer() : meshRadius(0),
                                  EACPrg(nullptr) {
 }
 
-LayerRenderer::~LayerRenderer() {
+LayersRenderer::~LayersRenderer() {
     layers2render.clear();
-    domeMesh = nullptr;
-    sphereMesh = nullptr;
+    domeMesh.reset();
+    sphereMesh.reset();
 }
 
-void LayerRenderer::initializeGL(double radius, double fov) {
+void LayersRenderer::initializeGL(double radius, double fov) {
     // Create shaders
-    sgct::ShaderManager::instance().addShaderProgram("mesh", MeshVert, VideoFrag);
-    sgct::ShaderManager::instance().addShaderProgram("EAC", EACMeshVert, EACVideoFrag);
-    sgct::ShaderManager::instance().addShaderProgram("video", VideoVert, VideoFrag);
+    if(!sgct::ShaderManager::instance().shaderProgramExists("mesh"))
+        sgct::ShaderManager::instance().addShaderProgram("mesh", MeshVert, VideoFrag);
+    if (!sgct::ShaderManager::instance().shaderProgramExists("EAC"))
+        sgct::ShaderManager::instance().addShaderProgram("EAC", EACMeshVert, EACVideoFrag);
+    if (!sgct::ShaderManager::instance().shaderProgramExists("video"))
+        sgct::ShaderManager::instance().addShaderProgram("video", VideoVert, VideoFrag);
 
     // OBS: Need to create all shaders befor using any of them. Bug?
     meshPrg = &sgct::ShaderManager::instance().shaderProgram("mesh");
-    meshPrg->bind();
-    glUniform1i(glGetUniformLocation(meshPrg->id(), "tex"), 0);
-    meshMatrixLoc = glGetUniformLocation(meshPrg->id(), "mvp");
-    meshEyeModeLoc = glGetUniformLocation(meshPrg->id(), "eye");
-    meshFlipYLoc = glGetUniformLocation(meshPrg->id(), "flipY");
-    meshStereoscopicModeLoc = glGetUniformLocation(meshPrg->id(), "stereoscopicMode");
-    meshRoi = glGetUniformLocation(meshPrg->id(), "roi");
-    meshAlphaLoc = glGetUniformLocation(meshPrg->id(), "alpha");
-    meshOutsideLoc = glGetUniformLocation(meshPrg->id(), "outside");
-    meshPrg->unbind();
+    if (meshPrg) {
+        meshPrg->bind();
+        glUniform1i(glGetUniformLocation(meshPrg->id(), "tex"), 0);
+        meshMatrixLoc = glGetUniformLocation(meshPrg->id(), "mvp");
+        meshEyeModeLoc = glGetUniformLocation(meshPrg->id(), "eye");
+        meshFlipYLoc = glGetUniformLocation(meshPrg->id(), "flipY");
+        meshStereoscopicModeLoc = glGetUniformLocation(meshPrg->id(), "stereoscopicMode");
+        meshRoi = glGetUniformLocation(meshPrg->id(), "roi");
+        meshAlphaLoc = glGetUniformLocation(meshPrg->id(), "alpha");
+        meshOutsideLoc = glGetUniformLocation(meshPrg->id(), "outside");
+        meshPrg->unbind();
+    }
 
     EACPrg = &sgct::ShaderManager::instance().shaderProgram("EAC");
-    EACPrg->bind();
-    glUniform1i(glGetUniformLocation(EACPrg->id(), "tex"), 0);
-    EACMatrixLoc = glGetUniformLocation(EACPrg->id(), "mvp");
-    EACEyeModeLoc = glGetUniformLocation(EACPrg->id(), "eye");
-    EACStereoscopicModeLoc = glGetUniformLocation(EACPrg->id(), "stereoscopicMode");
-    EACAlphaLoc = glGetUniformLocation(EACPrg->id(), "alpha");
-    EACOutsideLoc = glGetUniformLocation(meshPrg->id(), "outside");
-    EACScaleLoc = glGetUniformLocation(EACPrg->id(), "scaleToUnitCube");
-    EACVideoWidthLoc = glGetUniformLocation(EACPrg->id(), "videoWidth");
-    EACVideoHeightLoc = glGetUniformLocation(EACPrg->id(), "videoHeight");
-    EACPrg->unbind();
+    if (EACPrg) {
+        EACPrg->bind();
+        glUniform1i(glGetUniformLocation(EACPrg->id(), "tex"), 0);
+        EACMatrixLoc = glGetUniformLocation(EACPrg->id(), "mvp");
+        EACEyeModeLoc = glGetUniformLocation(EACPrg->id(), "eye");
+        EACStereoscopicModeLoc = glGetUniformLocation(EACPrg->id(), "stereoscopicMode");
+        EACAlphaLoc = glGetUniformLocation(EACPrg->id(), "alpha");
+        EACOutsideLoc = glGetUniformLocation(meshPrg->id(), "outside");
+        EACScaleLoc = glGetUniformLocation(EACPrg->id(), "scaleToUnitCube");
+        EACVideoWidthLoc = glGetUniformLocation(EACPrg->id(), "videoWidth");
+        EACVideoHeightLoc = glGetUniformLocation(EACPrg->id(), "videoHeight");
+        EACPrg->unbind();
+    }
 
-    videoPrg = &sgct::ShaderManager::instance().shaderProgram("video");
-    videoPrg->bind();
-    glUniform1i(glGetUniformLocation(videoPrg->id(), "tex"), 0);
-    videoEyeModeLoc = glGetUniformLocation(videoPrg->id(), "eye");
-    videoFlipYLoc = glGetUniformLocation(videoPrg->id(), "flipY");
-    videoStereoscopicModeLoc = glGetUniformLocation(videoPrg->id(), "stereoscopicMode");
-    videoRoi = glGetUniformLocation(videoPrg->id(), "roi");
-    videoAlphaLoc = glGetUniformLocation(videoPrg->id(), "alpha");
-    videoPrg->unbind();
+    if (videoPrg) {
+        videoPrg = &sgct::ShaderManager::instance().shaderProgram("video");
+        videoPrg->bind();
+        glUniform1i(glGetUniformLocation(videoPrg->id(), "tex"), 0);
+        videoEyeModeLoc = glGetUniformLocation(videoPrg->id(), "eye");
+        videoFlipYLoc = glGetUniformLocation(videoPrg->id(), "flipY");
+        videoStereoscopicModeLoc = glGetUniformLocation(videoPrg->id(), "stereoscopicMode");
+        videoRoi = glGetUniformLocation(videoPrg->id(), "roi");
+        videoAlphaLoc = glGetUniformLocation(videoPrg->id(), "alpha");
+        videoPrg->unbind();
+    }
 
     updateMeshes(radius, fov);
 }
 
-void LayerRenderer::updateMeshes(double radius, double fov) {
+void LayersRenderer::updateMeshes(double radius, double fov) {
     // Set new general dome/sphere details
     if (meshRadius != radius || meshFov != fov) {
-        domeMesh = nullptr;
-        sphereMesh = nullptr;
         meshRadius = radius;
         meshFov = fov;
         domeMesh = std::make_unique<DomeGrid>(float(meshRadius) / 100.f, float(meshFov), 256, 128);
@@ -448,19 +455,19 @@ void LayerRenderer::updateMeshes(double radius, double fov) {
     }
 }
 
-void LayerRenderer::addLayer(std::shared_ptr<BaseLayer> layer) {
+void LayersRenderer::addLayer(std::shared_ptr<BaseLayer> layer) {
     layers2render.push_back(layer);
 }
 
-void LayerRenderer::clearLayers() {
+void LayersRenderer::clearLayers() {
     layers2render.clear();
 }
 
-const std::vector<std::shared_ptr<BaseLayer>> &LayerRenderer::getLayers() {
+const std::vector<std::shared_ptr<BaseLayer>> &LayersRenderer::getLayers() {
     return layers2render;
 }
 
-void LayerRenderer::renderLayer(const sgct::RenderData& data, const std::shared_ptr<BaseLayer>& layer, sgct::FrustumMode currentEye, float angle) {
+void LayersRenderer::renderLayer(const sgct::RenderData& data, const BaseLayer* layer, sgct::FrustumMode currentEye, float angle) {
     glActiveTexture(GL_TEXTURE0);
     glBindTexture(GL_TEXTURE_2D, layer->textureId());
     glEnable(GL_BLEND);
@@ -695,7 +702,7 @@ void LayerRenderer::renderLayer(const sgct::RenderData& data, const std::shared_
     }
 }
 
-void LayerRenderer::renderLayers(const sgct::RenderData &data, int viewMode, float angle) {
+void LayersRenderer::renderLayers(const sgct::RenderData &data, int viewMode, float angle) {
     sgct::FrustumMode currentEye = data.frustumMode;
 
     // Check if we force all viewports to 2D, meaning only show LeftEye if 3D
@@ -704,11 +711,11 @@ void LayerRenderer::renderLayers(const sgct::RenderData &data, int viewMode, flo
     }
 
     for (const auto &layer : layers2render) {
-        renderLayer(data, layer, currentEye, angle);
+        renderLayer(data, layer.get(), currentEye, angle);
 
         if (layer->hasSubLayers()) {
             for (const auto& sublayer : layer->getSubLayers()) {
-                renderLayer(data, sublayer, currentEye, angle);
+                renderLayer(data, sublayer.get(), currentEye, angle);
             }
         }
     }

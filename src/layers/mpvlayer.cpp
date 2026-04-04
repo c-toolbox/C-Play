@@ -320,7 +320,7 @@ void MpvLayer::cleanup() {
         while (!m_data.threadDone) {
         }
         m_data.trd->join();
-        m_data.trd = nullptr;
+        m_data.trd.reset();
     }
 }
 
@@ -347,6 +347,8 @@ void MpvLayer::initializeAndLoad(std::string filePath) {
 }
 
 void MpvLayer::update(bool updateRendering) {
+    std::lock_guard<std::mutex> lock(m_updateMutex);
+
     if (!m_data.mpvInitialized) {
         initializeMpv();
     }

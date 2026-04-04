@@ -104,7 +104,7 @@ PdfLayer::~PdfLayer() {
         while (!m_pdfData.threadDone) {
         }
         m_pdfData.trd->join();
-        m_pdfData.trd = nullptr;
+        m_pdfData.trd.reset();
     }
 
     if (renderData.texId > 0) {
@@ -121,6 +121,8 @@ void PdfLayer::initialize() {
 }
 
 void PdfLayer::update(bool updateRendering) {
+    std::lock_guard<std::mutex> lock(m_updateMutex);
+
     if(updateRendering || !ready())
         handleAsyncPageRender();
 
@@ -241,7 +243,7 @@ void PdfLayer::handleAsyncPageRender() {
             m_pdfData.uploadDone = false;
             m_pdfData.threadDone = false;
             m_pdfData.trd->join();
-            m_pdfData.trd = nullptr;
+            m_pdfData.trd.reset();
         }
     }
 }

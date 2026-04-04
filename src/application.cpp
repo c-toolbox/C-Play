@@ -9,6 +9,7 @@
 #include "application.h"
 #include "haction.h"
 #include "layerqtitem.h"
+#include "layersrendererqtitem.h"
 #include "mpvobject.h"
 #include "playercontroller.h"
 #include "screensmodel.h"
@@ -285,6 +286,7 @@ void Application::registerQmlTypes() {
     qmlRegisterType<MpvObject>("org.ctoolbox.cplay", 1, 0, "MpvObject");
     qmlRegisterType<MpvView>("org.ctoolbox.cplay", 1, 0, "MpvView");
     qmlRegisterType<LayerQtItem>("org.ctoolbox.cplay", 1, 0, "LayerQtItem");
+    qmlRegisterType<LayersRendererQtItem>("org.ctoolbox.cplay", 1, 0, "LayersRendererQtItem");
     qmlRegisterType<SlidesQtItem>("org.ctoolbox.cplay", 1, 0, "SlidesQtItem");
     qRegisterMetaType<QAction *>();
     qRegisterMetaType<KFileMetaData::PropertyMultiMap>("KFileMetaData::PropertyMultiMap");

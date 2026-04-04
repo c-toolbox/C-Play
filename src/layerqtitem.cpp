@@ -21,6 +21,7 @@
 #include <layers/textlayer.h>
 
 #include <QOpenGLContext>
+#include <QQuickGraphicsDevice>
 #include <QTimer>
 #include <QtCore/QRunnable>
 #include <QtQuick/qquickwindow.h>
@@ -29,25 +30,25 @@
 static void* get_proc_address_qopengl_v1(void* ctx, const char* name) {
     Q_UNUSED(ctx)
 
-        QOpenGLContext* glctx = QOpenGLContext::globalShareContext();
-    if (!glctx)
+    QOpenGLContext* oglCtx = QOpenGLContext::globalShareContext();
+    if (!oglCtx)
         return nullptr;
 
-    return reinterpret_cast<void*>(glctx->getProcAddress(QByteArray(name)));
+    return reinterpret_cast<void*>(oglCtx->getProcAddress(QByteArray(name)));
 }
 
 static void* get_proc_address_qopengl_v2(const char* name, void* ctx) {
     Q_UNUSED(ctx)
 
-        QOpenGLContext* glctx = QOpenGLContext::globalShareContext();
-    if (!glctx)
+   QOpenGLContext* oglCtx = QOpenGLContext::globalShareContext();
+    if (!oglCtx)
         return nullptr;
 
-    return reinterpret_cast<void*>(glctx->getProcAddress(QByteArray(name)));
+    return reinterpret_cast<void*>(oglCtx->getProcAddress(QByteArray(name)));
 }
 
 LayerQtItem::LayerQtItem()
-    : m_layerIdx(-1), m_layer(nullptr), m_ownsLayer(false), m_renderer(nullptr), m_audioTracksModel(new TracksModel), m_timer(nullptr),
+    : m_layerIdx(-1), m_layer(nullptr), m_ownsLayer(false), m_updatingLayer(true), m_renderer(nullptr), m_audioTracksModel(new TracksModel), m_timer(nullptr),
     m_viewOffset(0, 0), m_viewSize(0, 0), m_roiOffset(0, 0), m_roiSize(0, 0) {
     connect(this, &QQuickItem::windowChanged, this, &LayerQtItem::handleWindowChanged);
 }
@@ -665,6 +666,10 @@ void LayerQtItem::updateRoi() {
     }
 }
 
+void LayerQtItem::updateEnabled(bool value) {
+    m_updatingLayer = value;
+}
+
 TracksModel* LayerQtItem::audioTracksModel() const {
     return m_audioTracksModel;
 }
@@ -823,11 +828,11 @@ void LayerQtItem::cleanup() {
 
 class CleanupJob : public QRunnable {
 public:
-    CleanupJob(LayerQtItemRenderer *renderer) : m_renderer(renderer) {}
+    CleanupJob(LayerQtOpenGLObject *renderer) : m_renderer(renderer) {}
     void run() override { delete m_renderer; }
 
 private:
-    LayerQtItemRenderer *m_renderer;
+    LayerQtOpenGLObject *m_renderer;
 };
 
 void LayerQtItem::releaseResources() {
@@ -835,43 +840,51 @@ void LayerQtItem::releaseResources() {
     m_renderer = nullptr;
 }
 
-LayerQtItemRenderer::~LayerQtItemRenderer() {
+LayerQtOpenGLObject::~LayerQtOpenGLObject() {
     delete m_program;
 }
 
-void LayerQtItemRenderer::setWindowSize(const QSize &size) {
+void LayerQtOpenGLObject::setWindowSize(const QSize &size) {
     m_windowSize = size;
 }
 
-void LayerQtItemRenderer::setViewportSize(const QSize &size) {
+void LayerQtOpenGLObject::setViewportSize(const QSize &size) {
     m_viewportSize = size;
 }
 
-void LayerQtItemRenderer::setPosition(const QPoint &position) {
+void LayerQtOpenGLObject::setPosition(const QPoint &position) {
     m_position = position;
 }
 
-void LayerQtItemRenderer::setWindow(QQuickWindow *window) {
+void LayerQtOpenGLObject::setWindow(QQuickWindow *window) {
     m_window = window;
 }
 
-BaseLayer *LayerQtItemRenderer::layer() {
+void LayerQtOpenGLObject::setUpdateLayer(bool value) {
+    m_updateLayer = value;
+}
+
+void LayerQtOpenGLObject::setItemVisible(bool visible) {
+    m_itemVisible = visible;
+}
+
+BaseLayer *LayerQtOpenGLObject::layer() {
     return m_layer;
 }
 
-void LayerQtItemRenderer::setLayer(BaseLayer *l) {
+void LayerQtOpenGLObject::setLayer(BaseLayer *l) {
     m_layer = l;
 }
 
-QPoint LayerQtItemRenderer::viewOffset() {
+QPoint LayerQtOpenGLObject::viewOffset() {
     return m_viewOffset;
 }
 
-QSize LayerQtItemRenderer::viewSize() {
+QSize LayerQtOpenGLObject::viewSize() {
     return m_viewSize;
 }
 
-void LayerQtItemRenderer::calculateViewParameters() {
+void LayerQtOpenGLObject::calculateViewParameters() {
     int viewW = m_viewportSize.width();
     int viewH = m_viewportSize.height();
     int offsetX = 0;
@@ -938,16 +951,18 @@ void LayerQtItem::stop() {
 
 void LayerQtItem::sync() {
     if (!m_renderer) {
-        m_renderer = new LayerQtItemRenderer();
-        connect(window(), &QQuickWindow::beforeRendering, m_renderer, &LayerQtItemRenderer::init, Qt::DirectConnection);
-        connect(window(), &QQuickWindow::beforeRenderPassRecording, m_renderer, &LayerQtItemRenderer::paint, Qt::DirectConnection);
-        connect(m_renderer, &LayerQtItemRenderer::viewChanged, this, &LayerQtItem::updateView);
+        m_renderer = new LayerQtOpenGLObject();
+        connect(window(), &QQuickWindow::beforeRendering, m_renderer, &LayerQtOpenGLObject::init, Qt::DirectConnection);
+        connect(window(), &QQuickWindow::beforeRenderPassRecording, m_renderer, &LayerQtOpenGLObject::paint, Qt::DirectConnection);
+        connect(m_renderer, &LayerQtOpenGLObject::viewChanged, this, &LayerQtItem::updateView);
     }
     m_renderer->setLayer(m_layer);
     m_renderer->setWindowSize(window()->size() * window()->devicePixelRatio());
     m_renderer->setViewportSize(this->size().toSize() * window()->devicePixelRatio());
     m_renderer->setPosition(this->position().toPoint());
     m_renderer->setWindow(window());
+    m_renderer->setUpdateLayer(m_updatingLayer);
+    m_renderer->setItemVisible(isVisible());
 
     if (m_layer) {
         if (m_layer->type() == BaseLayer::LayerType::VIDEO || m_layer->type() == BaseLayer::LayerType::AUDIO) {
@@ -956,10 +971,21 @@ void LayerQtItem::sync() {
     }
 }
 
-void LayerQtItemRenderer::init() {
+void LayerQtOpenGLObject::init() {
     if (!m_program) {
         QSGRendererInterface *rif = m_window->rendererInterface();
         Q_ASSERT(rif->graphicsApi() == QSGRendererInterface::OpenGL);
+
+        QOpenGLContext* ctx = QOpenGLContext::currentContext();
+        if (!ctx)
+            return;
+
+        // Point the private window at the same OpenGL context that is current on
+        // the parent window's render thread. This guarantees that any GL objects
+        // (textures, FBOs) created inside update() share the same namespace as
+        // LayerQtOpenGLObject and LayersRendererQtOpenGLObject, which are also
+        // driven by beforeRendering of the same parent window.
+        m_window->setGraphicsDevice(QQuickGraphicsDevice::fromOpenGLContext(ctx));
 
         initializeOpenGLFunctions();
 
@@ -1026,18 +1052,20 @@ void LayerQtItemRenderer::init() {
     }
 }
 
-void LayerQtItemRenderer::paint() {
-    if (!m_layer) {
+void LayerQtOpenGLObject::paint() {
+    if (!m_layer || !m_itemVisible) {
         return;
     }
 
     m_window->beginExternalCommands();
 
-    m_layer->update();
-
     if (!m_layer->ready()) {
         m_window->endExternalCommands();
         return;
+    }
+
+    if (m_updateLayer || m_layer->alpha() == 0) {
+        m_layer->updateFrame();
     }
 
     if (m_layer->shouldUpdate() && m_layer->pause()) {

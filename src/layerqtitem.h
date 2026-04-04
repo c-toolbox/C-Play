@@ -17,15 +17,17 @@
 #include <layers/baselayer.h>
 #include "tracksmodel.h"
 
-class LayerQtItemRenderer : public QObject, protected QOpenGLFunctions {
+class LayerQtOpenGLObject : public QObject, protected QOpenGLFunctions {
     Q_OBJECT
 public:
-    ~LayerQtItemRenderer();
+    ~LayerQtOpenGLObject();
 
     void setWindowSize(const QSize &size);
     void setViewportSize(const QSize &size);
     void setPosition(const QPoint &position);
     void setWindow(QQuickWindow *window);
+    void setUpdateLayer(bool value);
+    void setItemVisible(bool visible);
 
     BaseLayer *layer();
     void setLayer(BaseLayer *l);
@@ -41,6 +43,8 @@ Q_SIGNALS:
     void viewChanged();
 
 private:
+    bool m_updateLayer = false;
+    bool m_itemVisible = false;
     QSize m_windowSize;
     QSize m_viewportSize;
     QPoint m_position;
@@ -214,6 +218,7 @@ public:
     Q_INVOKABLE void cleanup();
     Q_INVOKABLE void updateView();
     Q_INVOKABLE void updateRoi();
+    Q_INVOKABLE void updateEnabled(bool);
 
     TracksModel* audioTracksModel() const;
     Q_INVOKABLE void loadTracks();
@@ -252,7 +257,8 @@ private:
     int m_layerIdx;
     BaseLayer *m_layer;
     bool m_ownsLayer;
-    LayerQtItemRenderer *m_renderer;
+    bool m_updatingLayer;
+    LayerQtOpenGLObject *m_renderer;
     TracksModel* m_audioTracksModel;
     QTimer *m_timer;
 

@@ -335,6 +335,8 @@ void NdiLayer::initialize() {
 }
 
 void NdiLayer::update(bool updateRendering) {
+    std::lock_guard<std::mutex> lock(m_updateMutex);
+
     if (m_typePropertiesDecoded) {
         m_typePropertiesDecoded = false;
         setVolume(m_volume_Dec);
@@ -371,6 +373,13 @@ void NdiLayer::update(bool updateRendering) {
     // Let's recieve image or audio
     if (m_isReady) {
         ReceiveData(updateRendering);
+    }
+}
+
+void NdiLayer::updateFrame() {
+    // Let's recieve image or audio
+    if (m_isReady) {
+        ReceiveData(true);
     }
 }
 

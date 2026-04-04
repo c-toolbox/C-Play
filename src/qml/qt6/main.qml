@@ -11,6 +11,8 @@ import QtQuick.Layouts
 import QtQuick
 import QtQuick.Controls
 import Qt.labs.platform as Platform
+import QtQuick3D
+import QtQuick3D.Helpers
 
 import org.kde.kirigami as Kirigami
 import org.ctoolbox.cplay
@@ -172,10 +174,12 @@ Kirigami.ApplicationWindow {
     }
     BackgroundImage {
         id: bgImage
+        visible: !viewLayersIn3DRenderItem.visible
 
     }
     MpvVideo {
         id: mpv
+        visible: !viewLayersIn3DRenderItem.visible
 
         onFileLoaded: {
             floatingOverlayImage.source = mpv.getOverlayFileUrl();
@@ -199,8 +203,63 @@ Kirigami.ApplicationWindow {
     }
     ForegroundImage {
         id: fgImage
+        visible: !viewLayersIn3DRenderItem.visible
 
     }
+
+    LayersRendererQtItem {
+        id: viewLayersIn3DRenderItem
+        visible: false
+
+        anchors.left: (window.hideUI ? parent.left : PlaylistSettings.position === "left" ? (playSections.visible ? playSections.right : playList.right) : (layers.visible ? layers.right : slides.right))
+        anchors.right: (window.hideUI ? parent.right : PlaylistSettings.position === "right" ? (playList.visible ? playList.left : playSections.left) : (slides.visible ? slides.left : layers.left))
+        anchors.top: parent.top
+        height: footer.visible ? parent.height - footer.height : parent.height
+        width: parent.width
+
+        // Drive the OpenGL renderer from the live PerspectiveCamera state
+        fieldOfView: originCamera.fieldOfView
+        cameraPosition: originCamera.scenePosition
+        cameraEulerRotation: originCamera.sceneRotation.toEulerAngles()
+
+        meshRadius: mpv.radius
+        meshFov: mpv.fov
+        meshAngle: mpv.angle
+
+        onVisibleChanged: {
+            layerView.layerItem.updateEnabled(!visible);
+        }
+
+        View3D {
+            id: cameraView
+            anchors.fill: parent
+
+            environment: SceneEnvironment {
+                backgroundMode: SceneEnvironment.Transparent
+            }
+
+            Node {
+                id: originNode
+                position: Qt.vector3d(0, 0, 0)
+
+                PerspectiveCamera {
+                    id: originCamera
+                    fieldOfView: 60
+                    clipNear: 0.1
+                    clipFar: 1000.0
+                    position: Qt.vector3d(0, 0, 0)
+                }
+            }
+
+            OrbitCameraController {
+                anchors.fill: parent
+                camera: originCamera
+                origin: originNode
+                panEnabled: false
+            }
+        }
+    }
+
     PlaySections {
         id: playSections
 
@@ -240,6 +299,10 @@ Kirigami.ApplicationWindow {
     }
     LayerView {
         id: layerView
+
+        onVisibleChanged: {
+            layerView.layerItem.updateEnabled(!floatingLayerLayersRendererItem.visible);
+        }
 
     }
     LayerViewGridParams {

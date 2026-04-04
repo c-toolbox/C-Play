@@ -62,7 +62,6 @@ void SlidesQtItemRenderer::initializeRenderer(QQuickWindow* window, SlidesModel*
         connect(m_window, &QQuickWindow::sceneGraphInvalidated, m_quickPrivateWindow, &QQuickWindow::sceneGraphInvalidated);
         connect(m_renderControl, &QQuickRenderControl::renderRequested, this, &SlidesQtItemRenderer::update);
 
-        m_quickPrivateWindow->setGraphicsDevice(m_window->graphicsDevice());
         m_renderControl->initialize();
     }
 }
@@ -70,6 +69,17 @@ void SlidesQtItemRenderer::initializeRenderer(QQuickWindow* window, SlidesModel*
 void SlidesQtItemRenderer::init() {
     QSGRendererInterface* rif = m_quickPrivateWindow->rendererInterface();
     Q_ASSERT(rif->graphicsApi() == QSGRendererInterface::OpenGL);
+
+    QOpenGLContext* ctx = QOpenGLContext::currentContext();
+    if (!ctx)
+        return;
+
+    // Point the private window at the same OpenGL context that is current on
+    // the parent window's render thread. This guarantees that any GL objects
+    // (textures, FBOs) created inside update() share the same namespace as
+    // LayerQtOpenGLObject and LayersRendererQtOpenGLObject, which are also
+    // driven by beforeRendering of the same parent window.
+    m_window->setGraphicsDevice(QQuickGraphicsDevice::fromOpenGLContext(ctx));
 
     initializeOpenGLFunctions();
 }

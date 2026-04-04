@@ -43,10 +43,12 @@ set(SOURCE_FILES
     layers/videolayer.h
     layerqtitem.cpp
     layerqtitem.h
-    layerrenderer.cpp
-    layerrenderer.h
     layersmodel.cpp
     layersmodel.h
+    layersrenderer.cpp
+    layersrenderer.h
+    layersrendererqtitem.cpp
+    layersrendererqtitem.h
     main.cpp    
     mpvobject.cpp
     mpvobject.h
@@ -259,6 +261,7 @@ set(TARGET_LIBRARIES
     Qt6::Qml
     Qt6::Quick
     Qt6::QuickControls2
+    Qt6::Quick3D
 
     KF6::ColorScheme
     KF6::ConfigCore

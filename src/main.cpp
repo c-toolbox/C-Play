@@ -12,7 +12,7 @@
 #include <GLFW/glfw3.h>
 #include <fstream>
 #include <glm/glm.hpp>
-#include <layerrenderer.h>
+#include <layersrenderer.h>
 #include <layers/baselayer.h>
 #include <layers/imagelayer.h>
 #include <layers/videolayer.h>
@@ -58,7 +58,7 @@ bool preLoadLayers = false;
 std::vector<std::shared_ptr<BaseLayer>> secondaryLayers;
 std::vector<std::shared_ptr<BaseLayer>> secondaryLayersToKeep;
 
-std::shared_ptr<LayerRenderer> layerRender;
+std::shared_ptr<LayersRenderer> layerRender;
 
 } // namespace
 
@@ -96,7 +96,7 @@ static void initOGL(GLFWwindow *) {
 
     mainSubtitleLayer = std::make_shared<TextLayer>();
 
-    layerRender = std::make_shared<LayerRenderer>();
+    layerRender = std::make_shared<LayersRenderer>();
     layerRender->initializeGL(SyncHelper::instance().variables.radius, SyncHelper::instance().variables.fov);
 
     // Set up backface culling
@@ -319,19 +319,36 @@ static std::vector<std::byte> encode() {
 
 static void decode(const std::vector<std::byte> &data) {
     unsigned int pos = 0;
+
+    // Helper to check if there's enough data remaining before deserializing.
+    // Returns false and logs an error if the buffer is exhausted.
+    auto safeToRead = [&data, &pos](size_t minBytesNeeded = 1) -> bool {
+        if (pos + minBytesNeeded > data.size()) {
+            Log::Error("Decode: buffer exhausted at pos " + std::to_string(pos) +
+                       " (need " + std::to_string(minBytesNeeded) +
+                       ", have " + std::to_string(data.size()) + ")");
+            return false;
+        }
+        return true;
+    };
+
+    if (!safeToRead(sizeof(bool) + 3 * sizeof(float))) return;
     deserializeObject(data, pos, SyncHelper::instance().variables.syncOn);
     deserializeObject(data, pos, SyncHelper::instance().variables.alpha);
     deserializeObject(data, pos, SyncHelper::instance().variables.alphaBg);
     deserializeObject(data, pos, SyncHelper::instance().variables.alphaFg);
     if (SyncHelper::instance().variables.syncOn) {
+        if (!safeToRead()) return;
         deserializeObject(data, pos, SyncHelper::instance().variables.paused);
         deserializeObject(data, pos, SyncHelper::instance().variables.enableAudioOnNodes);
         if (SyncHelper::instance().variables.enableAudioOnNodes) {
+            if (!safeToRead()) return;
             deserializeObject(data, pos, SyncHelper::instance().variables.loadAudioInVidFolder);
             deserializeObject(data, pos, SyncHelper::instance().variables.audioId);
             deserializeObject(data, pos, SyncHelper::instance().variables.volume);
             deserializeObject(data, pos, SyncHelper::instance().variables.volumeMute);
         }
+        if (!safeToRead()) return;
         deserializeObject(data, pos, SyncHelper::instance().variables.timePosition);
         deserializeObject(data, pos, SyncHelper::instance().variables.timeThreshold);
         deserializeObject(data, pos, SyncHelper::instance().variables.timeThresholdSetSkips);
@@ -362,8 +379,10 @@ static void decode(const std::vector<std::byte> &data) {
         deserializeObject(data, pos, SyncHelper::instance().variables.planeConsiderAspectRatio);
 
         // Eq
+        if (!safeToRead()) return;
         deserializeObject(data, pos, SyncHelper::instance().variables.eqDirty);
         if (SyncHelper::instance().variables.eqDirty) {
+            if (!safeToRead()) return;
             deserializeObject(data, pos, SyncHelper::instance().variables.eqContrast);
             deserializeObject(data, pos, SyncHelper::instance().variables.eqBrightness);
             deserializeObject(data, pos, SyncHelper::instance().variables.eqGamma);
@@ -371,45 +390,57 @@ static void decode(const std::vector<std::byte> &data) {
         }
 
         // Looptime
+        if (!safeToRead()) return;
         deserializeObject(data, pos, SyncHelper::instance().variables.loopTimeDirty);
         if (SyncHelper::instance().variables.loopTimeDirty) {
+            if (!safeToRead()) return;
             deserializeObject(data, pos, SyncHelper::instance().variables.loopTimeEnabled);
             deserializeObject(data, pos, SyncHelper::instance().variables.loopTimeA);
             deserializeObject(data, pos, SyncHelper::instance().variables.loopTimeB);
         }
 
         // Window features
+        if (!safeToRead()) return;
         deserializeObject(data, pos, SyncHelper::instance().variables.windowOnTop);
         deserializeObject(data, pos, SyncHelper::instance().variables.windowOpacity);
 
         // Speed
+        if (!safeToRead()) return;
         deserializeObject(data, pos, SyncHelper::instance().variables.speedDirty);
         if (SyncHelper::instance().variables.speedDirty) {
+            if (!safeToRead()) return;
             deserializeObject(data, pos, SyncHelper::instance().variables.playbackSpeed);
         }
 
         // Strings
+        if (!safeToRead()) return;
         int transferedImageId = -1;
         deserializeObject(data, pos, transferedImageId);
 
         if (transferedImageId == 0) {
+            if (!safeToRead()) return;
             deserializeObject(data, pos, SyncHelper::instance().variables.loadFile);
             deserializeObject(data, pos, SyncHelper::instance().variables.loadedFile);
         } else if (transferedImageId == 1) {
+            if (!safeToRead()) return;
             deserializeObject(data, pos, SyncHelper::instance().variables.overlayFileDirty);
             deserializeObject(data, pos, SyncHelper::instance().variables.overlayFile);
         } else if (transferedImageId == 2) {
+            if (!safeToRead()) return;
             deserializeObject(data, pos, SyncHelper::instance().variables.bgImageFileDirty);
             deserializeObject(data, pos, SyncHelper::instance().variables.bgImageFile);
         } else if (transferedImageId == 3) {
+            if (!safeToRead()) return;
             deserializeObject(data, pos, SyncHelper::instance().variables.fgImageFileDirty);
             deserializeObject(data, pos, SyncHelper::instance().variables.fgImageFile);
         }
 
         // Subtitle sync
+        if (!safeToRead()) return;
         bool subTitleIsSyncing = false;
         deserializeObject(data, pos, subTitleIsSyncing);
         if (subTitleIsSyncing && mainSubtitleLayer) {
+            if (!safeToRead()) return;
             bool subTitleFullSync = false;
             deserializeObject(data, pos, subTitleFullSync);
             if (subTitleFullSync) {
@@ -421,15 +452,18 @@ static void decode(const std::vector<std::byte> &data) {
         }
 
         // Layers
+        if (!safeToRead()) return;
         bool layerSync = false;
         deserializeObject(data, pos, layerSync);
         deserializeObject(data, pos, preLoadLayers);
         int numLayers = -1;
         deserializeObject(data, pos, numLayers);
+
         if (layerSync) {
             uint32_t id;
             updateLayers = true;
             for (int i = 0; i < numLayers; i++) {
+                if (!safeToRead()) return;
                 deserializeObject(data, pos, id);
                 deserializeObject(data, pos, layerSync);
                 int layerType = -1;
@@ -452,11 +486,7 @@ static void decode(const std::vector<std::byte> &data) {
                     } else if (layerSync) { // Did not exist. Let's create it
                         BaseLayer *newLayer = BaseLayer::createLayer(false, layerType, get_proc_address_glfw_v1, get_proc_address_glfw_v2, std::to_string(id), id);
                         if (newLayer) {
-                            if (layerSync) {
-                                newLayer->decodeFull(data, pos);
-                            } else {
-                                newLayer->decodeAlways(data, pos);
-                            }
+                            newLayer->decodeFull(data, pos);
                             secondaryLayersToKeep.push_back(std::shared_ptr<BaseLayer>(newLayer));
                         }
                     }
@@ -475,6 +505,7 @@ static void decode(const std::vector<std::byte> &data) {
             // Just perform "always" sync which contains update only
             uint32_t id;
             for (int i = 0; i < numLayers; i++) {
+                if (!safeToRead()) return;
                 deserializeObject(data, pos, id);
                 auto it = find_if(secondaryLayers.begin(), secondaryLayers.end(),
                                   [&id](const std::shared_ptr<BaseLayer>&t1) { return (t1 ? t1->identifier() == id : false); });

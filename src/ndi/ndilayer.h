@@ -40,6 +40,7 @@ public:
 
     void initialize();
     void update(bool updateRendering = true);
+    void updateFrame();
     bool ready() const;
 
     void start();

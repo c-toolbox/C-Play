@@ -1553,6 +1553,16 @@ ToolBar {
             }
         }
         ToolButton {
+            id: viewLayersIn3DRenderButton
+
+            action: actions.viewLayersIn3DAction
+            focusPolicy: Qt.NoFocus
+            display: AbstractButton.IconOnly
+            ToolTip {
+                text: "ON/OFF to show view with all layers rendered together."
+            }
+        }
+        ToolButton {
             id: windowOpacity
 
             action: actions.windowOpacityAction

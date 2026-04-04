@@ -15,6 +15,12 @@ Menu {
     Menu {
         title: "States"
         MenuItem {
+            action: actions.viewLayersIn3DAction
+            ToolTip {
+                text: "ON/OFF to have a 3D view of all layers."
+            }
+        }
+        MenuItem {
             action: actions.windowOpacityAction
             ToolTip {
                 text: "ON/OFF to have node windows visible."

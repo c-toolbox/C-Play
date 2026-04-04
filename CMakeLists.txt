@@ -62,6 +62,9 @@ set_package_properties(Qt6Qml PROPERTIES TYPE REQUIRED)
 find_package(Qt6Quick ${QT_MIN_VERSION})
 set_package_properties(Qt6Quick PROPERTIES TYPE REQUIRED)
 
+find_package(Qt6Quick3D ${QT_MIN_VERSION})
+set_package_properties(Qt6Quick3D PROPERTIES TYPE REQUIRED)
+
 find_package(Qt6QuickControls2 ${QT_MIN_VERSION})
 set_package_properties(Qt6QuickControls2 PROPERTIES TYPE REQUIRED)
 

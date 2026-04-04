@@ -31,7 +31,7 @@ ImageLayer::~ImageLayer() {
         while (!imageData.threadDone) {
         }
         imageData.trd->join();
-        imageData.trd = nullptr;
+        imageData.trd.reset();
     }
 
     if (renderData.texId > 0)
@@ -52,6 +52,7 @@ bool ImageLayer::ready() const {
 }
 
 bool ImageLayer::processImageUpload(std::string filename, bool forceUpdate) {
+    std::lock_guard<std::mutex> lock(m_updateMutex);
     handleAsyncImageUpload();
 
     if (!imageData.threadRunning && forceUpdate) {
@@ -122,7 +123,7 @@ void ImageLayer::handleAsyncImageUpload() {
             imageData.imageDone = false;
             imageData.uploadDone = false;
             imageData.trd->join();
-            imageData.trd = nullptr;
+            imageData.trd.reset();
         }
     }
 }

@@ -171,6 +171,7 @@ BaseLayer::BaseLayer() {
 }
 
 BaseLayer::~BaseLayer() {
+    planeData.mesh.reset();
 }
 
 void BaseLayer::cleanup() {
@@ -615,6 +616,9 @@ uint8_t BaseLayer::gridMode() const {
 
 void BaseLayer::setGridMode(uint8_t g) {
     renderData.gridMode = g;
+    if (!isMaster() && gridMode() == GridMode::Plane) {
+        updatePlane();
+    }
     setNeedSync();
 }
 
@@ -624,7 +628,9 @@ uint8_t BaseLayer::stereoMode() const {
 
 void BaseLayer::setStereoMode(uint8_t s) {
     renderData.stereoMode = s;
-    updatePlane();
+    if (!isMaster() && gridMode() == GridMode::Plane) {
+        updatePlane();
+    }
     setNeedSync();
 }
 
@@ -732,7 +738,9 @@ double BaseLayer::planeWidth() const {
 
 void BaseLayer::setPlaneWidth(double pW) {
     planeData.specifiedSize.x = static_cast<float>(pW);
-    updatePlane();
+    if (!isMaster() && gridMode() == GridMode::Plane) {
+        updatePlane();
+    }
     setNeedSync();
 }
 
@@ -742,7 +750,9 @@ double BaseLayer::planeHeight() const {
 
 void BaseLayer::setPlaneHeight(double pH) {
     planeData.specifiedSize.y = static_cast<float>(pH);
-    updatePlane();
+    if (!isMaster() && gridMode() == GridMode::Plane) {
+        updatePlane();
+    }
     setNeedSync();
 }
 
@@ -752,21 +762,29 @@ uint8_t BaseLayer::planeAspectRatio() const {
 
 void BaseLayer::setPlaneAspectRatio(uint8_t parc) {
     planeData.aspectRatioConsideration = parc;
-    updatePlane();
+    if (!isMaster() && gridMode() == GridMode::Plane) {
+        updatePlane();
+    }
     setNeedSync();
 }
 
 void BaseLayer::setPlaneSize(glm::vec2 pS, uint8_t parc) {
     planeData.specifiedSize = pS;
     planeData.aspectRatioConsideration = parc;
-    updatePlane();
+    if (!isMaster() && gridMode() == GridMode::Plane) {
+        updatePlane();
+    }
     setNeedSync();
 }
 
-void BaseLayer::drawPlane() {
+void BaseLayer::drawPlane() const {
     if (planeData.mesh) {
         planeData.mesh->draw();
     }
+}
+
+bool BaseLayer::hasPlane() const {
+    return planeData.mesh != nullptr;
 }
 
 void BaseLayer::updatePlane() {
@@ -814,8 +832,7 @@ void BaseLayer::updatePlane() {
     }
 
     // Re-create plane if it isn't correct size
-    if (calculatedPlaneSize.x != planeData.actualSize.x || calculatedPlaneSize.y != planeData.actualSize.y) {
-        planeData.mesh = nullptr;
+    if (planeData.mesh == nullptr || calculatedPlaneSize.x != planeData.actualSize.x || calculatedPlaneSize.y != planeData.actualSize.y) {
         planeData.actualSize = calculatedPlaneSize;
         planeData.mesh = std::make_unique<PlaneGrid>(calculatedPlaneSize.x / 100.f, calculatedPlaneSize.y / 100.f);
         setNeedSync();

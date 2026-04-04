@@ -5,8 +5,8 @@
  * SPDX-License-Identifier: GPL-3.0-or-later
  */
 
-#ifndef LAYERRENDERER_H
-#define LAYERRENDERER_H
+#ifndef LAYERSRENDERER_H
+#define LAYERSRENDERER_H
 
 #include <layers/baselayer.h>
 #include <mutex>
@@ -14,10 +14,10 @@
 #include <utils/domegrid.h>
 #include <utils/spheregrid.h>
 
-class LayerRenderer {
+class LayersRenderer {
 public:
-    LayerRenderer();
-    ~LayerRenderer();
+    LayersRenderer();
+    ~LayersRenderer();
 
     void initializeGL(double radius, double fov);
     void updateMeshes(double radius, double fov);
@@ -28,7 +28,7 @@ public:
 
     const std::vector<std::shared_ptr<BaseLayer>> &getLayers();
 
-    void renderLayer(const sgct::RenderData& data, const std::shared_ptr<BaseLayer>& layer, sgct::FrustumMode currentEye, float angle);
+    void renderLayer(const sgct::RenderData& data, const BaseLayer* layer, sgct::FrustumMode currentEye, float angle);
     void renderLayers(const sgct::RenderData& data, int viewMode, float angle);
 
 private:
@@ -69,4 +69,4 @@ private:
     std::unique_ptr<SphereGrid> sphereMesh;
 };
 
-#endif // LAYERRENDERER_H
+#endif // LAYERSRENDERER_H

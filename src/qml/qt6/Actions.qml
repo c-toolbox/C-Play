@@ -67,6 +67,17 @@ QtObject {
             floatingTextureWindow.visible = !floatingTextureWindow.visible;
         }
     }
+    property Action viewLayersIn3DAction: Action {
+        id: viewLayersIn3DAction
+
+        icon.name: viewLayersIn3DRenderItem.visible ? "map-globe" : "map-globe"
+        icon.color: viewLayersIn3DRenderItem.visible ? "lime" : "crimson"
+        text: viewLayersIn3DRenderItem.visible ? qsTr("3D view is visible") : qsTr("3D view is hidden")
+
+        onTriggered: {
+            viewLayersIn3DRenderItem.visible = !viewLayersIn3DRenderItem.visible;
+        }
+    }
     property Action windowOnTopAction: Action {
         id: windowOnTopAction
 

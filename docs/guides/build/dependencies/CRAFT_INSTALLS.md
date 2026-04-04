@@ -16,7 +16,7 @@ Use Visual Studio 2022 as compiler. (However MSYS / MinGW will be installed late
 
 Run command
 ```
-craft libs/qt6/qtbase libs/qt6/qtdeclarative libs/qt6/qt5compat extra-cmake-modules kconfig kcoreaddons kfilemetadata ki18n kiconthemes kio kirigami kxmlgui kio-extras breeze breeze-icons qqc2-breeze-style qqc2-desktop-style zxing-cpp
+craft libs/qt6/qtbase libs/qt6/qtdeclarative libs/qt6/qtquick3d libs/qt6/qt5compat extra-cmake-modules kconfig kcoreaddons kfilemetadata ki18n kiconthemes kio kirigami kxmlgui kio-extras breeze breeze-icons qqc2-breeze-style qqc2-desktop-style zxing-cpp
 ```
 These are the list of packages needed for this project
 - Qt6Core (within Base)
@@ -24,6 +24,7 @@ These are the list of packages needed for this project
 - Qt6Qml (within Declarative)
 - Qt6Quick (within Declarative)
 - Qt6QuickControls2 (within Declarative)
+- Qt6Quick3D (within Quick3D)
 - Qt6Core5Compat (within Core5Compat)
 - ExtraCmakeModules
 - KF6Config (kconfig)

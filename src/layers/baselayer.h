@@ -194,7 +194,7 @@ public:
     void setKeepVisibilityForNumSlides(int k);
 
     int volume() const;
-    unsigned int textureId() const;
+    virtual unsigned int textureId() const;
     int width() const;
     int height() const;
 
@@ -257,7 +257,8 @@ public:
 
     void setPlaneSize(glm::vec2 pS, uint8_t parc);
 
-    void drawPlane();
+    void drawPlane() const;
+    bool hasPlane() const;
     void updatePlane();
 
     void setIsMaster(bool value);
@@ -282,6 +283,9 @@ protected:
     bool m_hasInitialized;
     bool m_needSync;
     int m_syncIteration;
+
+    mutable std::mutex m_updateMutex;
+    mutable std::mutex m_updateFrameMutex;
 
     RenderParams renderData;
     PlaneParams planeData;

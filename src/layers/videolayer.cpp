@@ -89,6 +89,8 @@ void VideoLayer::cleanup() {
 }
 
 void VideoLayer::updateFrame() {
+    std::lock_guard<std::mutex> lock(m_updateFrameMutex);
+
     if (!m_data.mpvInitializedGL)
         return;
 
