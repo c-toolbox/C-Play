@@ -1118,37 +1118,64 @@ bool ofxNDIreceive::ReceiveImageAndAudio(unsigned char *pixels,
 					// Otherwise sizes are current - copy the received frame data to the local buffer
 					else if (video_frame.p_data && (uint8_t*)pixels) {
 
-						// Video frame type
+						// Video frame type - handle all FourCC formats
 						switch (video_frame.FourCC) {
 							// Note :
 							// If the receiver is set up to prefer BGRA or RGBA format,
 							// other formats are converted to by the API, and the
-							// slower YUV422_to_RGBA conversion function is not used.
-							case NDIlib_FourCC_type_UYVY: // YCbCr color space
-							// Alpha component of NDIlib_FourCC_type_UYVA not supported
-							case NDIlib_FourCC_type_UYVA: // With alpha (not used)
-								// CPU conversion
+							// slower conversions function is not used.
+							// 
+							// YUV 4:2:2 formats - 8-bit
+							case NDIlib_FourCC_type_UYVY: // YCbCr 4:2:2 8-bit
+								// CPU conversion required
 								ofxNDIutils::YUV422_to_RGBA((const unsigned char *)video_frame.p_data, pixels, m_Width, m_Height, (unsigned int)video_frame.line_stride_in_bytes);
 								break;
-							case NDIlib_FourCC_video_type_P216:	break;
-							case NDIlib_FourCC_video_type_PA16:	break;
-							case NDIlib_FourCC_type_RGBA: // RGBA
-							case NDIlib_FourCC_type_RGBX: // RGBX
-								// Do not swap red/green
+								
+							case NDIlib_FourCC_type_UYVA: // YCbCr 4:2:2:4 8-bit with alpha
+								// Alpha component not fully supported yet - treat as UYVY
+								ofxNDIutils::YUV422_to_RGBA((const unsigned char *)video_frame.p_data, pixels, m_Width, m_Height, (unsigned int)video_frame.line_stride_in_bytes);
+								break;
+							
+							// RGB/RGBA formats - 8-bit
+							case NDIlib_FourCC_type_RGBA: // RGBA 8-bit
+							case NDIlib_FourCC_type_RGBX: // RGBX 8-bit (no alpha)
+								// Direct copy, no swap needed
 								ofxNDIutils::CopyImage((const unsigned char *)video_frame.p_data, pixels, m_Width, m_Height, (unsigned int)video_frame.line_stride_in_bytes, false, bInvert);
 								break;
-							case NDIlib_FourCC_type_BGRA: // BGRA
-							case NDIlib_FourCC_type_BGRX: // BGRX
-								// Swap red/green : BGRA > RGBA
+								
+							case NDIlib_FourCC_type_BGRA: // BGRA 8-bit
+							case NDIlib_FourCC_type_BGRX: // BGRX 8-bit (no alpha)
+								// Swap red/blue channels: BGRA > RGBA
 								ofxNDIutils::CopyImage((const unsigned char *)video_frame.p_data, pixels, m_Width, m_Height, (unsigned int)video_frame.line_stride_in_bytes, true, bInvert);
 								break;
 							
-							// Unsupported formats
-							case NDIlib_FourCC_type_NV12:
-							case NDIlib_FourCC_type_I420:
-							case NDIlib_FourCC_type_YV12:
+							// YUV 4:2:0 planar formats - 8-bit
+							case NDIlib_FourCC_type_NV12: // YUV 4:2:0 (Y plane + interleaved UV)
+								// CPU conversion required
+								ofxNDIutils::NV12_to_RGBA((const unsigned char *)video_frame.p_data, pixels, m_Width, m_Height, (unsigned int)video_frame.line_stride_in_bytes);
+								break;
+								
+							case NDIlib_FourCC_type_I420: // YUV 4:2:0 planar (Y, U, V separate planes)
+							case NDIlib_FourCC_type_YV12: // YUV 4:2:0 planar (Y, V, U separate planes)
+								// CPU conversion required
+								ofxNDIutils::I420_to_RGBA((const unsigned char *)video_frame.p_data, pixels, m_Width, m_Height, video_frame.FourCC == NDIlib_FourCC_type_YV12);
+								break;
+							
+							// High bit-depth formats - 16-bit
+							case NDIlib_FourCC_video_type_P216: // YCbCr 4:2:2 16-bit
+								// CPU conversion required for 16-bit YUV
+								ofxNDIutils::P216_to_RGBA((const unsigned char *)video_frame.p_data, pixels, m_Width, m_Height, (unsigned int)video_frame.line_stride_in_bytes);
+								break;
+								
+							case NDIlib_FourCC_video_type_PA16: // YCbCr 4:2:2:4 16-bit with alpha
+								// CPU conversion required for 16-bit YUV with alpha
+								ofxNDIutils::PA16_to_RGBA((const unsigned char *)video_frame.p_data, pixels, m_Width, m_Height, (unsigned int)video_frame.line_stride_in_bytes);
+								break;
+							
+							// Unknown/unsupported format
 							case NDIlib_frame_type_max:
 							default:
+								printf("Unsupported video format: 0x%X\n", video_frame.FourCC);
 								break;
 
 						} // end switch received format

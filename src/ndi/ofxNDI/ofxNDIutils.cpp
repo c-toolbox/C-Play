@@ -58,6 +58,7 @@
 			   Remove extra #endif at file end
 	19.05.24 - Add GetVersion() - return addon version number string
 	30.05.24 - Revise YUV422_to_RGBA conversion equations
+	26.03.26 - Add NV12, I420, P216 and PA16 to RGBA conversion functions
 
 */
 #include "ofxNDIutils.h"
@@ -460,85 +461,96 @@ namespace ofxNDIutils {
 	}
 
 	//
+	// Lookup tables to avoid repeat calculations
+	// Initialized once only for repeats
+	//
+	static bool tablesInitialized = false;
+	static int YTable[256];
+	static int UToB[256];
+	static int UToG[256];
+	static int VToR[256];
+	static int VToG[256];
+
+	static void InitYUVTables(bool bt709)
+	{
+		for (int i = 0; i < 256; i++) {
+			int y = i - 16;
+			if (y < 0) y = 0;
+			YTable[i] = 297 * y;
+
+			int u = i - 128;
+			int v = i - 128;
+
+			if (bt709) {
+				VToR[i] =  457 * v;
+				VToG[i] = -136 * v;
+				UToG[i] =  -54 * u;
+				UToB[i] =  539 * u;
+			}
+			else {
+				VToR[i] =  407 * v;
+				VToG[i] = -207 * v;
+				UToG[i] = -100 * u;
+				UToB[i] =  514 * u;
+			}
+		}
+	}
+
+	inline unsigned char clamp8(int v) {
+		return (unsigned char)((v & ~255) ? (v < 0 ? 0 : 255) : v);
+	}
+
+	//
 	//        YUV422_to_RGBA
 	//
 	// Y sampled at every pixel
-	// U and V sampled at every second pixel 
-	// 2 pixels in 1 DWORD
+	// U and V sampled at every second pixel
+	// 2 pixels in 1 DWORD (UYVY packing)
 	//
-	// https://github.com/rzwm/YUVRGBFormulaGenerator
-	//
-	// BT.601 : 16-235 > 0-255
-	// R = 1.164384(Y - 16) + 1.596027(V - 128)
-	// G = 1.164384(Y - 16) - 0.391762(U - 128) - 0.812968(V - 128)
-	// B = 1.164384(Y - 16) + 2.017232(U - 128)
-	// R = (297(Y - 16) + 407(V - 128) + 127) / 255
-	// G = (297(Y - 16) - 100(U - 128) - 207(V - 128) + 127) / 255
-	// B = (297(Y - 16) + 514(U - 128) + 127) / 255
-	//
-	// BT.709 : 16-235 > 0-255
-	// R = 1.164384(Y - 16) + 1.792741(V - 128)
-	// G = 1.164384(Y - 16) - 0.213249(U - 128) - 0.532909(V - 128)
-	// B = 1.164384(Y - 16) + 2.112402(U - 128)
-	// R = (297(Y - 16) + 457(V - 128) + 127) / 255
-	// G = (297(Y - 16) - 54(U - 128) - 136(V - 128) + 127) / 255
-	// B = (297(Y - 16) + 539(U - 128) + 127) / 255
-	//
-	void YUV422_to_RGBA(const unsigned char * source, unsigned char * dest, unsigned int width, unsigned int height, unsigned int stride)
+	void YUV422_to_RGBA(const unsigned char* source, unsigned char* dest,
+		unsigned int width, unsigned int height, unsigned int stride)
 	{
-		// Clamp out of range values 0-255
-		#define CLAMPRGB(t) (((t)>255)?255:(((t)<0)?0:(t)))
+		// SD BT.601 for widths <= 720, HD BT.709 otherwise
+		bool b709 = (width > 720);
 
-		const unsigned char *yuv = source;
-		unsigned char *rgba = dest;
-		int r1 = 0 , g1 = 0 , b1 = 0; // , a1 = 0;
-		int r2 = 0 , g2 = 0 , b2 = 0; // a2 = 0;
-		int u0 = 0 , y0 = 0 , v0 = 0, y1 = 0;
-		unsigned int padding = stride - width*4;
-		bool b709 = true; // HD BT.709 default
-		if (width < 1920) b709 = false; // SD BT.601
+		if (!tablesInitialized) {
+			InitYUVTables(b709);
+			tablesInitialized = true;
+		}
 
-	    // Loop through 4 bytes at a time
-		// half width source data for yuv
-		for (unsigned int y = 0; y <height; y ++ ) {
-			for (unsigned int x = 0; x <width*2; x +=4 ) {
+		// UYVY source is half-width: each group of 4 bytes covers 2 pixels
+		unsigned int w = width / 2;
+		if (stride == 0) stride = w * 4;
 
-				u0  = (int)*yuv++;
-				y0  = (int)*yuv++;
-				v0  = (int)*yuv++;
-				y1  = (int)*yuv++;
-				// u and v are +/- 128 
+		const unsigned char* yuv = source;
+		unsigned char* rgba = dest;
+		unsigned int padding = stride - w * 4;
 
-				// Color space conversion for RGB
-				if (b709) {
-					// BT.709
-					r1 = CLAMPRGB((297*(y0 - 16) + 457*(v0 - 128) + 127)>>8);
-					g1 = CLAMPRGB((297*(y0 - 16) - 54*(u0 - 128) - 136*(v0 - 128) + 127)>>8);
-					b1 = CLAMPRGB((297*(y0 - 16) + 539*(u0 - 128) + 127)>>8);
-					r2 = CLAMPRGB((297*(y1 - 16) + 457*(v0 - 128) + 127)>>8);
-					g2 = CLAMPRGB((297*(y1 - 16) - 54*(u0 - 128) - 136*(v0 - 128) + 127)>>8);
-					b2 = CLAMPRGB((297*(y1 - 16) + 539*(u0 - 128) + 127)>>8);
-				}
-				else {
-					// BT.601
-					r1 = CLAMPRGB((297*(y0 - 16) + 407*(v0 - 128) + 127)>>8);
-					g1 = CLAMPRGB((297*(y0 - 16) - 100*(u0 - 128) - 207*(v0 - 128) + 127)>>8);
-					b1 = CLAMPRGB((297*(y0 - 16) + 514*(u0 - 128) + 127)>>8);
-					r2 = CLAMPRGB((297*(y1 - 16) + 407*(v0 - 128) + 127)>>8);
-					g2 = CLAMPRGB((297*(y1 - 16) - 100*(u0 - 128) - 207*(v0 - 128) + 127)>>8);
-					b2 = CLAMPRGB((297*(y1 - 16) + 514*(u0 - 128) + 127)>>8);
-				}
+		for (unsigned int y = 0; y < height; y++) {
+			const unsigned char* rowEnd = yuv + w * 4;
+			while (yuv < rowEnd) {
+				int u  = *yuv++;
+				int y0 = *yuv++;
+				int v  = *yuv++;
+				int y1 = *yuv++;
 
-				*rgba++ = (unsigned char)r1;
-				*rgba++ = (unsigned char)g1;
-				*rgba++ = (unsigned char)b1;
+				// Tables avoid repeat calculations
+				int y0v = YTable[y0];
+				int y1v = YTable[y1];
+
+				// RGBA pixel 1
+				*rgba++ = clamp8((y0v + VToR[v] + 127) >> 8);
+				*rgba++ = clamp8((y0v + UToG[u] + VToG[v] + 127) >> 8);
+				*rgba++ = clamp8((y0v + UToB[u] + 127) >> 8);
 				*rgba++ = 255;
-				*rgba++ = (unsigned char)r2;
-				*rgba++ = (unsigned char)g2;
-				*rgba++ = (unsigned char)b2;
+
+				// RGBA pixel 2
+				*rgba++ = clamp8((y1v + VToR[v] + 127) >> 8);
+				*rgba++ = clamp8((y1v + UToG[u] + VToG[v] + 127) >> 8);
+				*rgba++ = clamp8((y1v + UToB[u] + 127) >> 8);
 				*rgba++ = 255;
 			}
-			yuv += padding; // if any
+			yuv += padding; // skip any row padding
 		}
 	}  // end YUV422_to_RGBA
 
@@ -640,5 +652,323 @@ namespace ofxNDIutils {
 
 #endif
 
-} // end namespace
+	// NV12 (8-bit YCbCr 4:2:0 semi-planar) to RGBA conversion
+	// Memory layout (from NDI SDK):
+	//   Y  plane : stride * height     bytes (one byte per pixel)
+	//   UV plane : stride * (height/2) bytes (interleaved Cb Cr pairs, 4:2:0)
+	// stride is the row stride in bytes for both planes.
+	void NV12_to_RGBA(const unsigned char* source, unsigned char* dest,
+	                   unsigned int width, unsigned int height, unsigned int stride)
+	{
+	    const unsigned char* y_plane  = source;
+	    const unsigned char* uv_plane = source + static_cast<size_t>(stride) * height;
 
+	    const unsigned int width16 = width & ~15u;
+
+	    // SSE2 constants (no SSSE3 used)
+	    const __m128i c128  = _mm_set1_epi16(128);
+	    const __m128i c351  = _mm_set1_epi16(351);
+	    const __m128i c86   = _mm_set1_epi16(86);
+	    const __m128i c179  = _mm_set1_epi16(179);
+	    const __m128i c444  = _mm_set1_epi16(444);
+	    const __m128i alpha = _mm_set1_epi8(-1); // 255
+	    const __m128i zero  = _mm_setzero_si128();
+	    // Mask to extract even bytes (U values at positions 0,2,4,... of UV row)
+	    const __m128i mask_lo = _mm_set1_epi16(0x00FF);
+
+	    for (unsigned int y = 0; y < height; y++) {
+	        const unsigned char* y_row  = y_plane  + static_cast<size_t>(stride) * y;
+	        // UV row: vertical subsampling by 2 (4:2:0)
+	        const unsigned char* uv_row = uv_plane + static_cast<size_t>(stride) * (y / 2);
+
+	        unsigned int x = 0;
+
+	        for (; x < width16; x += 16) {
+	            // Load 16 Y values
+	            __m128i y_vec = _mm_loadu_si128(reinterpret_cast<const __m128i*>(y_row + x));
+
+	            // Load 16 bytes of UV (covers 8 U+V pairs = 16 pixels)
+	            __m128i uv_vec = _mm_loadu_si128(reinterpret_cast<const __m128i*>(uv_row + (x & ~1u)));
+
+	            // Separate U and V using SSE2 only (no SSSE3 shuffle_epi8)
+	            // uv_vec bytes: U0 V0 U1 V1 U2 V2 U3 V3 U4 V4 U5 V5 U6 V6 U7 V7
+	            // U values are at even byte positions, V at odd byte positions
+	            __m128i u_raw = _mm_and_si128(uv_vec, mask_lo);         // 0 U0 | 0 U1 | ... (16-bit words)
+	            __m128i v_raw = _mm_srli_epi16(uv_vec, 8);              // 0 V0 | 0 V1 | ...
+
+	            // Each UV pair covers 2 pixels; duplicate each value for the pair
+	            // u_raw / v_raw currently has 8 x 16-bit values, each used for 2 pixels
+	            // Pack back to 8-bit then unpacklo with itself to duplicate
+	            __m128i u_bytes = _mm_packus_epi16(u_raw, u_raw);       // 8 U bytes in low half
+	            __m128i v_bytes = _mm_packus_epi16(v_raw, v_raw);       // 8 V bytes in low half
+	            // Duplicate: 01234567 -> 0011223344556677
+	            __m128i u_vec = _mm_unpacklo_epi8(u_bytes, u_bytes);
+	            __m128i v_vec = _mm_unpacklo_epi8(v_bytes, v_bytes);
+
+	            // Widen Y, U, V to 16-bit
+	            __m128i y_lo = _mm_unpacklo_epi8(y_vec, zero);
+	            __m128i y_hi = _mm_unpackhi_epi8(y_vec, zero);
+	            __m128i u_lo = _mm_unpacklo_epi8(u_vec, zero);
+	            __m128i u_hi = _mm_unpackhi_epi8(u_vec, zero);
+	            __m128i v_lo = _mm_unpacklo_epi8(v_vec, zero);
+	            __m128i v_hi = _mm_unpackhi_epi8(v_vec, zero);
+
+	            // Subtract 128 from U and V
+	            u_lo = _mm_sub_epi16(u_lo, c128);
+	            u_hi = _mm_sub_epi16(u_hi, c128);
+	            v_lo = _mm_sub_epi16(v_lo, c128);
+	            v_hi = _mm_sub_epi16(v_hi, c128);
+
+	            // YUV -> RGB  (BT.601 integer approximation)
+	            __m128i r_lo = _mm_add_epi16(y_lo, _mm_srai_epi16(_mm_mullo_epi16(v_lo, c351), 8));
+	            __m128i g_lo = _mm_sub_epi16(y_lo, _mm_srai_epi16(_mm_add_epi16(_mm_mullo_epi16(u_lo, c86), _mm_mullo_epi16(v_lo, c179)), 8));
+	            __m128i b_lo = _mm_add_epi16(y_lo, _mm_srai_epi16(_mm_mullo_epi16(u_lo, c444), 8));
+
+	            __m128i r_hi = _mm_add_epi16(y_hi, _mm_srai_epi16(_mm_mullo_epi16(v_hi, c351), 8));
+	            __m128i g_hi = _mm_sub_epi16(y_hi, _mm_srai_epi16(_mm_add_epi16(_mm_mullo_epi16(u_hi, c86), _mm_mullo_epi16(v_hi, c179)), 8));
+	            __m128i b_hi = _mm_add_epi16(y_hi, _mm_srai_epi16(_mm_mullo_epi16(u_hi, c444), 8));
+
+	            __m128i r_packed = _mm_packus_epi16(r_lo, r_hi);
+	            __m128i g_packed = _mm_packus_epi16(g_lo, g_hi);
+	            __m128i b_packed = _mm_packus_epi16(b_lo, b_hi);
+
+	            // Interleave into RGBA
+	            __m128i rg_lo = _mm_unpacklo_epi8(r_packed, g_packed);
+	            __m128i rg_hi = _mm_unpackhi_epi8(r_packed, g_packed);
+	            __m128i ba_lo = _mm_unpacklo_epi8(b_packed, alpha);
+	            __m128i ba_hi = _mm_unpackhi_epi8(b_packed, alpha);
+
+	            unsigned char* d = dest + (static_cast<size_t>(y) * width + x) * 4;
+	            _mm_stream_si128(reinterpret_cast<__m128i*>(d),      _mm_unpacklo_epi16(rg_lo, ba_lo));
+	            _mm_stream_si128(reinterpret_cast<__m128i*>(d + 16), _mm_unpackhi_epi16(rg_lo, ba_lo));
+	            _mm_stream_si128(reinterpret_cast<__m128i*>(d + 32), _mm_unpacklo_epi16(rg_hi, ba_hi));
+	            _mm_stream_si128(reinterpret_cast<__m128i*>(d + 48), _mm_unpackhi_epi16(rg_hi, ba_hi));
+	        }
+
+	        // Scalar tail
+	        for (; x < width; x++) {
+	            int Y = y_row[x];
+	            int U = uv_row[(x & ~1u)]     - 128;
+	            int V = uv_row[(x & ~1u) + 1] - 128;
+
+	            int R = Y + ((351 * V) >> 8);
+	            int G = Y - ((86 * U + 179 * V) >> 8);
+	            int B = Y + ((444 * U) >> 8);
+
+	            R = (R < 0) ? 0 : ((R > 255) ? 255 : R);
+	            G = (G < 0) ? 0 : ((G > 255) ? 255 : G);
+	            B = (B < 0) ? 0 : ((B > 255) ? 255 : B);
+
+	            unsigned char* p = dest + (static_cast<size_t>(y) * width + x) * 4;
+	            p[0] = static_cast<unsigned char>(R);
+	            p[1] = static_cast<unsigned char>(G);
+	            p[2] = static_cast<unsigned char>(B);
+	            p[3] = 255;
+	        }
+	    }
+	    _mm_sfence();
+	}
+
+	// Optimized I420/YV12 to RGBA conversion using SSE2
+	void I420_to_RGBA(const unsigned char* source, unsigned char* dest,
+	                   unsigned int width, unsigned int height, bool swapUV)
+	{
+	    const unsigned char* y_plane = source;
+	    const unsigned char* u_plane = source + (width * height);
+	    const unsigned char* v_plane = u_plane + ((width * height) / 4);
+	    
+	    // Swap U and V for YV12
+	    if (swapUV) {
+	        const unsigned char* temp = u_plane;
+	        u_plane = v_plane;
+	        v_plane = temp;
+	    }
+	    
+	    const unsigned int width16 = width & ~15u;
+	    
+	    // Precompute constants
+	    const __m128i c128 = _mm_set1_epi16(128);
+	    const __m128i c351 = _mm_set1_epi16(351);
+	    const __m128i c86 = _mm_set1_epi16(86);
+	    const __m128i c179 = _mm_set1_epi16(179);
+	    const __m128i c444 = _mm_set1_epi16(444);
+	    const __m128i alpha = _mm_set1_epi8(-1);
+	    const __m128i zero = _mm_setzero_si128();
+	    
+	    for (unsigned int y = 0; y < height; y++) {
+	        unsigned int x = 0;
+	        
+	        for (; x < width16; x += 16) {
+	            __m128i y_vec = _mm_loadu_si128(reinterpret_cast<const __m128i*>(y_plane + y * width + x));
+	            
+	            // Load 8 U and 8 V values
+	            __m128i u_vec_half = _mm_loadl_epi64(reinterpret_cast<const __m128i*>(u_plane + (y/2) * (width/2) + x/2));
+	            __m128i v_vec_half = _mm_loadl_epi64(reinterpret_cast<const __m128i*>(v_plane + (y/2) * (width/2) + x/2));
+	            
+	            // Duplicate each UV value: 01234567 -> 0011223344556677
+	            __m128i u_vec = _mm_unpacklo_epi8(u_vec_half, u_vec_half);
+	            __m128i v_vec = _mm_unpacklo_epi8(v_vec_half, v_vec_half);
+	            
+	            // Convert to 16-bit
+	            __m128i y_lo = _mm_unpacklo_epi8(y_vec, zero);
+	            __m128i y_hi = _mm_unpackhi_epi8(y_vec, zero);
+	            __m128i u_lo = _mm_unpacklo_epi8(u_vec, zero);
+	            __m128i u_hi = _mm_unpackhi_epi8(u_vec, zero);
+	            __m128i v_lo = _mm_unpacklo_epi8(v_vec, zero);
+	            __m128i v_hi = _mm_unpackhi_epi8(v_vec, zero);
+	            
+	            // Subtract 128
+	            u_lo = _mm_sub_epi16(u_lo, c128);
+	            u_hi = _mm_sub_epi16(u_hi, c128);
+	            v_lo = _mm_sub_epi16(v_lo, c128);
+	            v_hi = _mm_sub_epi16(v_hi, c128);
+	            
+	            // YUV to RGB
+	            __m128i r_lo = _mm_add_epi16(y_lo, _mm_srai_epi16(_mm_mullo_epi16(v_lo, c351), 8));
+	            __m128i g_lo = _mm_sub_epi16(y_lo, _mm_srai_epi16(
+	                _mm_add_epi16(_mm_mullo_epi16(u_lo, c86),
+	                             _mm_mullo_epi16(v_lo, c179)), 8));
+	            __m128i b_lo = _mm_add_epi16(y_lo, _mm_srai_epi16(_mm_mullo_epi16(u_lo, c444), 8));
+	            
+	            __m128i r_hi = _mm_add_epi16(y_hi, _mm_srai_epi16(_mm_mullo_epi16(v_hi, c351), 8));
+	            __m128i g_hi = _mm_sub_epi16(y_hi, _mm_srai_epi16(
+	                _mm_add_epi16(_mm_mullo_epi16(u_hi, c86),
+	                             _mm_mullo_epi16(v_hi, c179)), 8));
+	            __m128i b_hi = _mm_add_epi16(y_hi, _mm_srai_epi16(_mm_mullo_epi16(u_hi, c444), 8));
+	            
+	            // Pack with automatic saturation/clamping
+	            __m128i r_packed = _mm_packus_epi16(r_lo, r_hi);
+	            __m128i g_packed = _mm_packus_epi16(g_lo, g_hi);
+	            __m128i b_packed = _mm_packus_epi16(b_lo, b_hi);
+	            
+	            // Interleave RGBA
+	            __m128i rg_lo = _mm_unpacklo_epi8(r_packed, g_packed);
+	            __m128i rg_hi = _mm_unpackhi_epi8(r_packed, g_packed);
+	            __m128i ba_lo = _mm_unpacklo_epi8(b_packed, alpha);
+	            __m128i ba_hi = _mm_unpackhi_epi8(b_packed, alpha);
+	            
+	            __m128i rgba_0 = _mm_unpacklo_epi16(rg_lo, ba_lo);
+	            __m128i rgba_1 = _mm_unpackhi_epi16(rg_lo, ba_lo);
+	            __m128i rgba_2 = _mm_unpacklo_epi16(rg_hi, ba_hi);
+	            __m128i rgba_3 = _mm_unpackhi_epi16(rg_hi, ba_hi);
+	            
+	            // Store 16 RGBA pixels with streaming stores
+	            _mm_stream_si128(reinterpret_cast<__m128i*>(dest + (y * width + x) * 4), rgba_0);
+	            _mm_stream_si128(reinterpret_cast<__m128i*>(dest + (y * width + x + 4) * 4), rgba_1);
+	            _mm_stream_si128(reinterpret_cast<__m128i*>(dest + (y * width + x + 8) * 4), rgba_2);
+	            _mm_stream_si128(reinterpret_cast<__m128i*>(dest + (y * width + x + 12) * 4), rgba_3);
+	        }
+	        
+			for (; x < width; x++) {
+				int Y = y_plane[y * width + x];
+				int U = u_plane[(y / 2) * (width / 2) + (x / 2)] - 128;
+				int V = v_plane[(y / 2) * (width / 2) + (x / 2)] - 128;
+
+				int R = Y + ((351 * V) >> 8);
+				int G = Y - ((86 * U + 179 * V) >> 8);
+				int B = Y + ((444 * U) >> 8);
+
+				R = (R < 0) ? 0 : ((R > 255) ? 255 : R);
+				G = (G < 0) ? 0 : ((G > 255) ? 255 : G);
+				B = (B < 0) ? 0 : ((B > 255) ? 255 : B);
+
+				dest[(y * width + x) * 4 + 0] = static_cast<unsigned char>(R);
+				dest[(y * width + x) * 4 + 1] = static_cast<unsigned char>(G);
+				dest[(y * width + x) * 4 + 2] = static_cast<unsigned char>(B);
+				dest[(y * width + x) * 4 + 3] = 255;
+			}
+		}
+
+		_mm_sfence();
+	}
+
+	// P216 (16-bit YCbCr 4:2:2 semi-planar, identical to NV16 at 16bpp) to RGBA conversion
+	// Memory layout:
+	//   Y  plane : width * height     uint16 values  (stride16 uint16 per row)
+	//   UV plane : width * height     uint16 values  (stride16 uint16 per row, interleaved Cb Cr pairs)
+	// stride is the row stride in BYTES for both planes.
+	void P216_to_RGBA(const unsigned char* source, unsigned char* dest,
+	                   unsigned int width, unsigned int height, unsigned int stride)
+	{
+	    const unsigned int stride16 = stride / 2; // stride in uint16 units
+
+	    const uint16_t* y_plane  = reinterpret_cast<const uint16_t*>(source);
+	    // UV plane starts immediately after Y plane (height rows of stride16 uint16 values)
+	    const uint16_t* uv_plane = y_plane + static_cast<size_t>(stride16) * height;
+
+	    for (unsigned int y = 0; y < height; y++) {
+	        const uint16_t* y_row  = y_plane  + static_cast<size_t>(stride16) * y;
+	        // 4:2:2: one UV pair per 2 horizontal pixels, same row (no vertical subsampling)
+	        const uint16_t* uv_row = uv_plane + static_cast<size_t>(stride16) * y;
+
+	        for (unsigned int x = 0; x < width; x++) {
+	            // Y value for this pixel (top 8 bits of 16-bit value)
+	            int Y = y_row[x] >> 8;
+
+	            // UV pair shared by pixels x and x^1 (even/odd pair)
+	            unsigned int uvBase = (x & ~1u); // round down to even
+	            int U = static_cast<int>(uv_row[uvBase]     >> 8) - 128; // Cb
+	            int V = static_cast<int>(uv_row[uvBase + 1] >> 8) - 128; // Cr
+
+	            int R = Y + ((351 * V) >> 8);
+	            int G = Y - ((86 * U + 179 * V) >> 8);
+	            int B = Y + ((444 * U) >> 8);
+
+	            R = (R < 0) ? 0 : ((R > 255) ? 255 : R);
+	            G = (G < 0) ? 0 : ((G > 255) ? 255 : G);
+	            B = (B < 0) ? 0 : ((B > 255) ? 255 : B);
+
+	            unsigned char* p = dest + (static_cast<size_t>(y) * width + x) * 4;
+	            p[0] = static_cast<unsigned char>(R);
+	            p[1] = static_cast<unsigned char>(G);
+	            p[2] = static_cast<unsigned char>(B);
+	            p[3] = 255;
+	        }
+	    }
+	}
+
+	// PA16 (16-bit YCbCr 4:2:2:4 semi-planar with alpha) to RGBA conversion
+	// Memory layout:
+	//   Y  plane : width * height     uint16 values
+	//   UV plane : width * height     uint16 values (interleaved Cb Cr pairs)
+	//   A  plane : width * height     uint16 values
+	// stride is the row stride in BYTES for all planes.
+	void PA16_to_RGBA(const unsigned char* source, unsigned char* dest,
+	                   unsigned int width, unsigned int height, unsigned int stride)
+	{
+	    const unsigned int stride16 = stride / 2;
+
+	    const uint16_t* y_plane  = reinterpret_cast<const uint16_t*>(source);
+	    const uint16_t* uv_plane = y_plane + static_cast<size_t>(stride16) * height;
+	    const uint16_t* a_plane  = uv_plane + static_cast<size_t>(stride16) * height;
+
+	    for (unsigned int y = 0; y < height; y++) {
+	        const uint16_t* y_row  = y_plane  + static_cast<size_t>(stride16) * y;
+	        const uint16_t* uv_row = uv_plane + static_cast<size_t>(stride16) * y;
+	        const uint16_t* a_row  = a_plane  + static_cast<size_t>(stride16) * y;
+
+	        for (unsigned int x = 0; x < width; x++) {
+	            int Y = y_row[x] >> 8;
+	            int A = a_row[x] >> 8;
+
+	            unsigned int uvBase = (x & ~1u);
+	            int U = static_cast<int>(uv_row[uvBase]     >> 8) - 128;
+	            int V = static_cast<int>(uv_row[uvBase + 1] >> 8) - 128;
+
+	            int R = Y + ((351 * V) >> 8);
+	            int G = Y - ((86 * U + 179 * V) >> 8);
+	            int B = Y + ((444 * U) >> 8);
+
+	            R = (R < 0) ? 0 : ((R > 255) ? 255 : R);
+	            G = (G < 0) ? 0 : ((G > 255) ? 255 : G);
+	            B = (B < 0) ? 0 : ((B > 255) ? 255 : B);
+
+	            unsigned char* p = dest + (static_cast<size_t>(y) * width + x) * 4;
+	            p[0] = static_cast<unsigned char>(R);
+	            p[1] = static_cast<unsigned char>(G);
+	            p[2] = static_cast<unsigned char>(B);
+	            p[3] = static_cast<unsigned char>(A);
+	        }
+	    }
+	}
+} // end namespace

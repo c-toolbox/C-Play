@@ -273,6 +273,10 @@ NdiLayer::NdiLayer() {
     // =======================================
     // Set to prefer BGRA
     NDIreceiver.SetFormat(NDIlib_recv_color_format_BGRX_BGRA);
+    // NDI SDK says we should ask for the format we want in the end, which is BGR or RGB in this case
+    // The SDK will most likely convert the video to the requested format using AXV2 instructions etc
+    // So while NDIlib_recv_color_format_fastest or NDIlib_recv_color_format_best will work with implemented conversion
+    // we better stick with the above formats for best performance.
 
 #ifdef ZXING_SUPPORT
     ZxingOptions = ZXing::ReaderOptions();
@@ -310,6 +314,12 @@ NdiLayer::~NdiLayer() {
 
     if (renderData.texId > 0) {
         glDeleteTextures(1, &renderData.texId);
+    }
+
+    // Free conversion buffer
+    if (m_conversionBuffer) {
+        free(m_conversionBuffer);
+        m_conversionBuffer = nullptr;
     }
 }
 
@@ -728,48 +738,131 @@ bool NdiLayer::GetPixelData(GLuint TextureID, unsigned int width, unsigned int h
         return false;
     }
 
-    // Get the NDI video frame pixel data into the texture
-    switch (NDIreceiver.GetVideoType()) {
-        // Note : the receiver is set up to prefer BGRA format by default
-        // If set to prefer NDIlib_recv_color_format_fastest, YUV data is received.
-        // YCbCr - Load texture with YUV data by way of PBO
-    case NDIlib_FourCC_type_UYVY: // YCbCr using 4:2:2
-        printf("GetPixelData - UYVY format not supported\n");
-        break;
-    case NDIlib_FourCC_type_UYVA: // YCbCr using 4:2:2:4
-        printf("GetPixelData - UYVA format not supported\n");
-        break;
-    case NDIlib_FourCC_type_P216: // YCbCr using 4:2:2 in 16bpp
-        printf("GetPixelData - P216 format not supported\n");
-        break;
-    case NDIlib_FourCC_type_PA16: // YCbCr using 4:2:2:4 in 16bpp
-        printf("GetPixelData - PA16 format not supported\n");
-        break;
-    case NDIlib_FourCC_type_RGBX: // RGBX
-    case NDIlib_FourCC_type_RGBA: // RGBA
-        LoadTexturePixels(TextureID, width, height, videoData, GL_RGBA);
-        if (isMaster()) {
-            FindCodes(videoData, width, height, GL_RGBA);
+    // Get the current video format
+    NDIlib_FourCC_video_type_e currentFormat = NDIreceiver.GetVideoType();
+    unsigned int stride = NDIreceiver.GetVideoStride();
+    
+    // Calculate required buffer size for RGBA conversion
+    size_t requiredBufferSize = static_cast<size_t>(width) * static_cast<size_t>(height) * 4;
+    
+    // Check if we need to reallocate the conversion buffer
+    // (size change or format change requiring conversion)
+    bool needsConversion = (currentFormat != NDIlib_FourCC_type_BGRA && 
+                           currentFormat != NDIlib_FourCC_type_BGRX &&
+                           currentFormat != NDIlib_FourCC_type_RGBA &&
+                           currentFormat != NDIlib_FourCC_type_RGBX);
+    
+    if (needsConversion) {
+        if (m_conversionBufferSize != requiredBufferSize || m_lastVideoFormat != currentFormat) {
+            // Reallocate conversion buffer
+            if (m_conversionBuffer) {
+                free(m_conversionBuffer);
+            }
+            m_conversionBuffer = static_cast<unsigned char*>(malloc(requiredBufferSize));
+            m_conversionBufferSize = requiredBufferSize;
+            m_lastVideoFormat = currentFormat;
+            
+            if (!m_conversionBuffer) {
+                sgct::Log::Error("NdiLayer: Failed to allocate conversion buffer");
+                NDIreceiver.FreeVideoData();
+                return false;
+            }
         }
-        break;
-    case NDIlib_FourCC_type_BGRX: // BGRX
-    case NDIlib_FourCC_type_BGRA: // BGRA
-    default:                      // BGRA
-        LoadTexturePixels(TextureID, width, height, videoData, GL_BGRA);
-        if (isMaster()) {
-            FindCodes(videoData, width, height, GL_BGRA);
+    }
+    else {
+        // No conversion needed, free conversion buffer if allocated
+        if (m_conversionBuffer) {
+            free(m_conversionBuffer);
+            m_conversionBuffer = nullptr;
+            m_conversionBufferSize = 0;
         }
-        break;
-    } // end switch received format
+        m_lastVideoFormat = currentFormat;
+    }
+
+    // Pointer to the data we'll upload to the texture
+    unsigned char* pixelData = videoData;
+    int GLformat = GL_BGRA; // Default format
+
+    // Convert based on NDI format
+    switch (currentFormat) {
+        // YUV 4:2:2 formats - 8-bit
+        case NDIlib_FourCC_type_UYVY: // YCbCr 4:2:2
+            ofxNDIutils::YUV422_to_RGBA(videoData, m_conversionBuffer, width, height, stride);
+            pixelData = m_conversionBuffer;
+            GLformat = GL_RGBA;
+            break;
+            
+        case NDIlib_FourCC_type_UYVA: // YCbCr 4:2:2:4 with alpha
+            // Treat as UYVY for now (alpha not fully supported)
+            ofxNDIutils::YUV422_to_RGBA(videoData, m_conversionBuffer, width, height, stride);
+            pixelData = m_conversionBuffer;
+            GLformat = GL_RGBA;
+            break;
+        
+        // YUV 4:2:0 planar formats
+        case NDIlib_FourCC_type_NV12: // YUV 4:2:0
+            ofxNDIutils::NV12_to_RGBA(videoData, m_conversionBuffer, width, height, stride);
+            pixelData = m_conversionBuffer;
+            GLformat = GL_RGBA;
+            break;
+            
+        case NDIlib_FourCC_type_I420: // YUV 4:2:0 planar
+            ofxNDIutils::I420_to_RGBA(videoData, m_conversionBuffer, width, height, false);
+            pixelData = m_conversionBuffer;
+            GLformat = GL_RGBA;
+            break;
+            
+        case NDIlib_FourCC_type_YV12: // YUV 4:2:0 planar (swapped UV)
+            ofxNDIutils::I420_to_RGBA(videoData, m_conversionBuffer, width, height, true);
+            pixelData = m_conversionBuffer;
+            GLformat = GL_RGBA;
+            break;
+        
+        // High bit-depth formats - 16-bit
+        case NDIlib_FourCC_type_P216: // YCbCr 4:2:2 16-bit
+            ofxNDIutils::P216_to_RGBA(videoData, m_conversionBuffer, width, height, stride);
+            pixelData = m_conversionBuffer;
+            GLformat = GL_RGBA;
+            break;
+            
+        case NDIlib_FourCC_type_PA16: // YCbCr 4:2:2:4 16-bit with alpha
+            ofxNDIutils::PA16_to_RGBA(videoData, m_conversionBuffer, width, height, stride);
+            pixelData = m_conversionBuffer;
+            GLformat = GL_RGBA;
+            break;
+        
+        // RGB formats - direct use
+        case NDIlib_FourCC_type_RGBA: // RGBA
+        case NDIlib_FourCC_type_RGBX: // RGBX
+            pixelData = videoData;
+            GLformat = GL_RGBA;
+            break;
+            
+        case NDIlib_FourCC_type_BGRA: // BGRA
+        case NDIlib_FourCC_type_BGRX: // BGRX
+        default:
+            pixelData = videoData;
+            GLformat = GL_BGRA;
+            break;
+    }
+
+    // Load the texture with the converted or original pixel data
+    bool success = LoadTexturePixels(TextureID, width, height, pixelData, GLformat);
+
+    // Find barcodes if on master
+    if (success && isMaster()) {
+        FindCodes(pixelData, width, height, GLformat);
+    }
 
     // Free the NDI video buffer
     NDIreceiver.FreeVideoData();
 
-    m_hasCapturedImage = true;
+    if (success) {
+        m_hasCapturedImage = true;
+        m_isReady = true;
+    }
 
-    m_isReady = true;
-
-    return true;
+    return success;
 }
 
 // Streaming texture pixel load
@@ -823,33 +916,31 @@ void NdiLayer::GenerateTexture(unsigned int &id, int width, int height) {
 
     glBindTexture(GL_TEXTURE_2D, id);
 
-    // Get the NDI video frame pixel data into the texture
-    switch (NDIreceiver.GetVideoType()) {
-        // Note : the receiver is set up to prefer BGRA format by default
-        // If set to prefer NDIlib_recv_color_format_fastest, YUV data is received.
-        // YCbCr - Load texture with YUV data by way of PBO
-    case NDIlib_FourCC_type_UYVY: // YCbCr using 4:2:2
-        printf("GetPixelData - UYVY format not supported\n");
-        break;
-    case NDIlib_FourCC_type_UYVA: // YCbCr using 4:2:2:4
-        printf("GetPixelData - UYVA format not supported\n");
-        break;
-    case NDIlib_FourCC_type_P216: // YCbCr using 4:2:2 in 16bpp
-        printf("GetPixelData - P216 format not supported\n");
-        break;
-    case NDIlib_FourCC_type_PA16: // YCbCr using 4:2:2:4 in 16bpp
-        printf("GetPixelData - PA16 format not supported\n");
-        break;
-    case NDIlib_FourCC_type_RGBX: // RGBX
-    case NDIlib_FourCC_type_RGBA: // RGBA
-        glTexImage2D(GL_TEXTURE_2D, 0, GL_RGBA8, width, height, 0, GL_RGBA, GL_UNSIGNED_BYTE, nullptr);
-        break;
-    case NDIlib_FourCC_type_BGRX: // BGRX
-    case NDIlib_FourCC_type_BGRA: // BGRA
-    default:                      // BGRA
-        glTexImage2D(GL_TEXTURE_2D, 0, GL_RGBA8, width, height, 0, GL_BGRA, GL_UNSIGNED_BYTE, nullptr);
-        break;
-    } // end switch received format
+    // All formats will be converted to RGBA8 for the texture
+    // The GetPixelData function handles the conversion
+    NDIlib_FourCC_video_type_e videoType = NDIreceiver.GetVideoType();
+    
+    switch (videoType) {
+        // Formats that get converted to RGBA
+        case NDIlib_FourCC_type_UYVY:
+        case NDIlib_FourCC_type_UYVA:
+        case NDIlib_FourCC_type_NV12:
+        case NDIlib_FourCC_type_I420:
+        case NDIlib_FourCC_type_YV12:
+        case NDIlib_FourCC_type_P216:
+        case NDIlib_FourCC_type_PA16:
+        case NDIlib_FourCC_type_RGBX:
+        case NDIlib_FourCC_type_RGBA:
+            glTexImage2D(GL_TEXTURE_2D, 0, GL_RGBA8, width, height, 0, GL_RGBA, GL_UNSIGNED_BYTE, nullptr);
+            break;
+            
+        // BGRA formats (native from NDI)
+        case NDIlib_FourCC_type_BGRX:
+        case NDIlib_FourCC_type_BGRA:
+        default:
+            glTexImage2D(GL_TEXTURE_2D, 0, GL_RGBA8, width, height, 0, GL_BGRA, GL_UNSIGNED_BYTE, nullptr);
+            break;
+    }
 
     // Disable mipmaps
     glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_BASE_LEVEL, 0);

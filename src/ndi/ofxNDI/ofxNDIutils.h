@@ -29,6 +29,8 @@
 	06.12.19 - Remove SSE functions for Linux
 	07.12.19 - remove includes emmintrin.h, xmmintrin.h, iostream, cstdint
 
+	26.03.26 - Add NV12, I420, P216 and PA16 to RGBA conversion functions
+
 */
 #pragma once
 #ifndef __ofxNDI_
@@ -113,6 +115,22 @@ namespace ofxNDIutils {
 	void rgba_bgra(const void *rgba_source, void *bgra_dest, unsigned int width, unsigned int height, bool bInvert = false);
 	void FlipBuffer(const unsigned char *src, unsigned char *dst, unsigned int width, unsigned int height);
 	void YUV422_to_RGBA(const unsigned char * source, unsigned char * dest, unsigned int width, unsigned int height, unsigned int stride);
+
+	// NV12 to RGBA conversion
+	void NV12_to_RGBA(const unsigned char* source, unsigned char* dest,
+		unsigned int width, unsigned int height, unsigned int stride);
+
+	// I420/YV12 to RGBA conversion
+	void I420_to_RGBA(const unsigned char* source, unsigned char* dest,
+		unsigned int width, unsigned int height, bool swapUV);
+
+	// P216 (16-bit YUV 4:2:2) to RGBA conversion
+	void P216_to_RGBA(const unsigned char* source, unsigned char* dest,
+		unsigned int width, unsigned int height, unsigned int stride);
+
+	// PA16 (16-bit YUV 4:2:2 with alpha) to RGBA conversion
+	void PA16_to_RGBA(const unsigned char* source, unsigned char* dest,
+		unsigned int width, unsigned int height, unsigned int stride);
 
 #ifdef USE_CHRONO
 

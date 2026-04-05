@@ -84,6 +84,11 @@ private:
     bool m_isAudioEnabled = false;
     bool m_typePropertiesDecoded = false;
     int m_volume_Dec = 100;
+
+    // Conversion buffer for YUV formats
+    unsigned char* m_conversionBuffer = nullptr;
+    size_t m_conversionBufferSize = 0;
+    NDIlib_FourCC_video_type_e m_lastVideoFormat = NDIlib_FourCC_type_BGRA;
 };
 
 #endif // NDILAYER_H
