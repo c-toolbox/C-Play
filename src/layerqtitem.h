@@ -20,6 +20,7 @@
 class LayerQtOpenGLObject : public QObject, protected QOpenGLFunctions {
     Q_OBJECT
 public:
+    LayerQtOpenGLObject(QObject* parent = nullptr);
     ~LayerQtOpenGLObject();
 
     void setWindowSize(const QSize &size);
@@ -28,6 +29,7 @@ public:
     void setWindow(QQuickWindow *window);
     void setUpdateLayer(bool value);
     void setItemVisible(bool visible);
+    void setOwnsLayer(bool owns);
 
     BaseLayer *layer();
     void setLayer(BaseLayer *l);
@@ -45,6 +47,7 @@ Q_SIGNALS:
 private:
     bool m_updateLayer = false;
     bool m_itemVisible = false;
+    bool m_ownsLayer = false;
     QSize m_windowSize;
     QSize m_viewportSize;
     QPoint m_position;

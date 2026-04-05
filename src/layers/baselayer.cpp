@@ -164,6 +164,7 @@ BaseLayer::BaseLayer() {
     m_isMaster = false;
     m_existOnMasterOnly = false;
     m_shouldUpdate = false;
+    m_shouldUpdateFrame = false;
     m_hasInitialized = false;
     m_keepVisibilityForNumSlides = 0;
     m_identifier = 0;
@@ -596,6 +597,14 @@ bool BaseLayer::shouldUpdate() const {
 
 void BaseLayer::setShouldUpdate(bool value) {
     m_shouldUpdate = value;
+}
+
+bool BaseLayer::shouldUpdateFrame() const {
+    return m_shouldUpdateFrame;
+}
+
+void BaseLayer::setShouldUpdateFrame(bool value) {
+    m_shouldUpdateFrame = value;
 }
 
 bool BaseLayer::shouldPreLoad() const {

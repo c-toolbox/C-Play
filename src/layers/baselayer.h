@@ -204,6 +204,9 @@ public:
     bool shouldUpdate() const;
     void setShouldUpdate(bool value);
 
+    bool shouldUpdateFrame() const;
+    void setShouldUpdateFrame(bool value);
+
     bool shouldPreLoad() const;
     void setShouldPreLoad(bool value);
 
@@ -279,6 +282,7 @@ protected:
     bool m_isMaster;
     bool m_existOnMasterOnly;
     bool m_shouldUpdate;
+    bool m_shouldUpdateFrame;
     bool m_shouldPreLoad;
     bool m_hasInitialized;
     bool m_needSync;

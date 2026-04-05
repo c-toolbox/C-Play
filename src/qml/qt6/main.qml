@@ -301,7 +301,7 @@ Kirigami.ApplicationWindow {
         id: layerView
 
         onVisibleChanged: {
-            layerView.layerItem.updateEnabled(!floatingLayerLayersRendererItem.visible);
+            layerView.layerItem.updateEnabled(!viewLayersIn3DRenderItem.visible);
         }
 
     }

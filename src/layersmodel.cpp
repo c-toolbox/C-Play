@@ -1126,6 +1126,10 @@ bool LayersModel::runRenderOnLayersThatShouldUpdate(bool updateRendering, bool p
                 }
                 layer->data()->update(layer->data()->shouldUpdate() && updateRendering);
             }
+            if (layer->data()->ready() && layer->data()->shouldUpdateFrame()) {
+                // Mostly here to handle update on layers in other windows
+                layer->data()->updateFrame();
+            }
             if (m_layers.size() > i) {
                 int currentStatus = m_layers[i].second;
                 if (layer && !layer->isNull() && layer->data()->ready() && layer->data()->alpha() > 0.f) {

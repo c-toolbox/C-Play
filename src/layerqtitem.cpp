@@ -30,7 +30,7 @@
 static void* get_proc_address_qopengl_v1(void* ctx, const char* name) {
     Q_UNUSED(ctx)
 
-    QOpenGLContext* oglCtx = QOpenGLContext::globalShareContext();
+    QOpenGLContext* oglCtx = QOpenGLContext::currentContext();
     if (!oglCtx)
         return nullptr;
 
@@ -40,7 +40,7 @@ static void* get_proc_address_qopengl_v1(void* ctx, const char* name) {
 static void* get_proc_address_qopengl_v2(const char* name, void* ctx) {
     Q_UNUSED(ctx)
 
-   QOpenGLContext* oglCtx = QOpenGLContext::globalShareContext();
+   QOpenGLContext* oglCtx = QOpenGLContext::currentContext();
     if (!oglCtx)
         return nullptr;
 
@@ -65,6 +65,9 @@ void LayerQtItem::setLayerIdx(int idx) {
         nl = Application::instance().slidesModel()->selectedSlide()->layer(m_layerIdx);
 
     if (nl == nullptr) {
+        if(m_layer) {
+            m_layer->setShouldUpdateFrame(false);
+        }
         m_layerIdx = -1;
         m_layer = nullptr;
         Q_EMIT layerChanged();
@@ -72,6 +75,9 @@ void LayerQtItem::setLayerIdx(int idx) {
         return;
     }
     if (nl != m_layer) {
+        if (m_layer) {
+            m_layer->setShouldUpdateFrame(false);
+        }
         m_layer = nl;
         m_layer->setShouldPreLoad(true);
         Q_EMIT layerChanged();
@@ -840,6 +846,10 @@ void LayerQtItem::releaseResources() {
     m_renderer = nullptr;
 }
 
+LayerQtOpenGLObject::LayerQtOpenGLObject(QObject* parent)
+    : QObject(parent), m_window(nullptr) {
+}
+
 LayerQtOpenGLObject::~LayerQtOpenGLObject() {
     delete m_program;
 }
@@ -866,6 +876,13 @@ void LayerQtOpenGLObject::setUpdateLayer(bool value) {
 
 void LayerQtOpenGLObject::setItemVisible(bool visible) {
     m_itemVisible = visible;
+    if (m_layer) {
+        m_layer->setShouldUpdateFrame(visible);
+    }
+}
+
+void LayerQtOpenGLObject::setOwnsLayer(bool ownsLayer) {
+    m_ownsLayer = ownsLayer;
 }
 
 BaseLayer *LayerQtOpenGLObject::layer() {
@@ -963,6 +980,7 @@ void LayerQtItem::sync() {
     m_renderer->setWindow(window());
     m_renderer->setUpdateLayer(m_updatingLayer);
     m_renderer->setItemVisible(isVisible());
+    m_renderer->setOwnsLayer(m_ownsLayer);
 
     if (m_layer) {
         if (m_layer->type() == BaseLayer::LayerType::VIDEO || m_layer->type() == BaseLayer::LayerType::AUDIO) {
@@ -1053,27 +1071,30 @@ void LayerQtOpenGLObject::init() {
 }
 
 void LayerQtOpenGLObject::paint() {
-    if (!m_layer || !m_itemVisible) {
+    if (!m_layer || !m_itemVisible || !m_program) {
         return;
     }
 
     m_window->beginExternalCommands();
+   
+    // If layered not own, update is handled in the layermodel by it's owner
+    if(m_ownsLayer) {
+        m_layer->update();
+    }
 
     if (!m_layer->ready()) {
         m_window->endExternalCommands();
         return;
     }
 
-    if (m_updateLayer || m_layer->alpha() == 0) {
-        m_layer->updateFrame();
-    }
-
-    if (m_layer->shouldUpdate() && m_layer->pause()) {
-        m_layer->enableAudio(AudioSettings::enableAudioOnMaster());
-        m_layer->start();
-    }
-    if (!m_layer->shouldUpdate() && !m_layer->pause()) {
-        m_layer->stop();
+    if (m_ownsLayer) {
+        if (m_layer->shouldUpdate() && m_layer->pause()) {
+            m_layer->enableAudio(AudioSettings::enableAudioOnMaster());
+            m_layer->start();
+        }
+        if (!m_layer->shouldUpdate() && !m_layer->pause()) {
+            m_layer->stop();
+        }
     }
 
     calculateViewParameters();

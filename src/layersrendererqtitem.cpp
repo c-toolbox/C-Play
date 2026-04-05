@@ -874,14 +874,19 @@ void LayersRendererQtOpenGLObject::updateLayers() {
         for (int l = numLayers - 1; l >= 0; l--) {
             BaseLayer* layer = slide->layer(l);
             if (layer) {
-                if (layer->ready() && (layer->alpha() > 0.f)) {
-                    if (layer->gridMode() == BaseLayer::GridMode::Plane) {
-                        if (!layer->hasPlane() || layer->needSync()) {
-                            layer->updatePlane();
+                if (layer->alpha() > 0.f) {
+                    if (layer->ready()) {
+                        if (layer->gridMode() == BaseLayer::GridMode::Plane) {
+                            if (!layer->hasPlane() || layer->needSync()) {
+                                layer->updatePlane();
+                            }
                         }
+                        //SlideModel updates continuously the layers, so all we should need to do is update the frame.
+                        layer->updateFrame();
                     }
-                    //SlideModel updates continuously the layers, so all we should need to do is update the frame.
-                    layer->updateFrame();
+                    else {
+                        layer->update();
+                    }
                 }
             }
         }
