@@ -86,6 +86,12 @@ void VideoLayer::cleanup() {
         glDeleteTextures(1, &renderData.texId);
         m_data.fboCreated = false;
     }
+
+    if (m_pingPongCreated) {
+        glDeleteFramebuffers(1, &m_pingPongFboId);
+        glDeleteTextures(1, &m_pingPongTexId);
+        m_pingPongCreated = false;
+    }
 }
 
 void VideoLayer::updateFrame() {
@@ -99,7 +105,14 @@ void VideoLayer::updateFrame() {
     // See render_gl.h on what OpenGL environment mpv expects, and
     // other API details.
     if (m_data.updateRendering) {
-        mpv_opengl_fbo mpfbo{static_cast<int>(m_data.fboId), m_data.fboWidth, m_data.fboHeight, GL_RGBA16F};
+        // On master with ping-pong enabled, render MPV into the back buffer and
+        // expose the previously completed front buffer for display.
+        unsigned int renderTargetFbo = m_data.fboId;
+        if (m_isMaster && m_pingPongCreated) {
+            renderTargetFbo = m_renderingToPingPong ? m_pingPongFboId : m_data.fboId;
+        }
+
+        mpv_opengl_fbo mpfbo{static_cast<int>(renderTargetFbo), m_data.fboWidth, m_data.fboHeight, GL_RGBA16F};
         int flip_y{1};
 
         mpv_render_param params[] = {
@@ -107,6 +120,17 @@ void VideoLayer::updateFrame() {
             {MPV_RENDER_PARAM_FLIP_Y, &flip_y},
             {MPV_RENDER_PARAM_INVALID, nullptr}};
         mpv_render_context_render(m_data.renderContext, params);
+
+        // Swap ping-pong buffers: the just-rendered buffer becomes the display
+        // buffer and the previously displayed buffer becomes the next render target.
+        if (m_isMaster && m_pingPongCreated) {
+            if (m_renderingToPingPong) {
+                renderData.texId = m_pingPongTexId;
+            } else {
+                // renderData.texId already points to the primary texture
+            }
+            m_renderingToPingPong = !m_renderingToPingPong;
+        }
     } else {
         int skip_rendering{1};
         mpv_render_param params[] = {
@@ -144,9 +168,17 @@ void VideoLayer::createMpvFBO(int width, int height) {
         glDeleteTextures(1, &renderData.texId);
     }
 
+    // Delete ping-pong resources if they exist (will be re-created below for master)
+    if (m_pingPongCreated) {
+        glDeleteFramebuffers(1, &m_pingPongFboId);
+        glDeleteTextures(1, &m_pingPongTexId);
+        m_pingPongCreated = false;
+    }
+
     m_data.fboWidth = width;
     m_data.fboHeight = height;
 
+    // Primary FBO
     glGenFramebuffers(1, &m_data.fboId);
     glBindFramebuffer(GL_FRAMEBUFFER, m_data.fboId);
 
@@ -162,6 +194,28 @@ void VideoLayer::createMpvFBO(int width, int height) {
     m_data.fboCreated = true;
 
     glBindFramebuffer(GL_FRAMEBUFFER, 0);
+
+    // Ping-pong FBO (master only)
+    if (m_isMaster) {
+        glGenFramebuffers(1, &m_pingPongFboId);
+        glBindFramebuffer(GL_FRAMEBUFFER, m_pingPongFboId);
+
+        generateTexture(m_pingPongTexId, width, height);
+
+        glFramebufferTexture2D(
+            GL_FRAMEBUFFER,
+            GL_COLOR_ATTACHMENT0,
+            GL_TEXTURE_2D,
+            m_pingPongTexId,
+            0);
+
+        m_pingPongCreated = true;
+        m_renderingToPingPong = false;
+
+        glBindFramebuffer(GL_FRAMEBUFFER, 0);
+
+        sgct::Log::Info("Ping-pong FBO created for master VideoLayer");
+    }
 }
 
 void VideoLayer::generateTexture(unsigned int &id, int width, int height) {

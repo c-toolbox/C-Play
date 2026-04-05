@@ -31,6 +31,12 @@ private:
     void checkNeededMpvFboResize();
     void createMpvFBO(int width, int height);
     void generateTexture(unsigned int &id, int width, int height);
+
+    // Ping-pong resources (master only)
+    unsigned int m_pingPongFboId = 0;
+    unsigned int m_pingPongTexId = 0;
+    bool m_pingPongCreated = false;
+    bool m_renderingToPingPong = false; // true => MPV renders to ping-pong FBO, display reads primary; false => vice-versa
 };
 
 #endif // VIDEOLAYER_H
