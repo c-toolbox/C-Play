@@ -728,7 +728,15 @@ void LayersRendererQtOpenGLObject::renderLayer(const BaseLayer* layer, int eyeMo
     glEnable(GL_BLEND);
     glBlendFunc(GL_SRC_ALPHA, GL_ONE_MINUS_SRC_ALPHA);
 
-    if (layer->gridMode() == 4) {
+    int gridMode = layer->gridMode();
+    int stereoMode = layer->stereoMode();
+    // Master UI specific: if grid is 0, we use the default values
+    if (gridMode == 0) {
+        gridMode = SyncHelper::instance().variables.gridToMapOnBg;
+        stereoMode = SyncHelper::instance().variables.stereoscopicModeBg;
+    }
+
+    if (gridMode == 4) {
         m_EACPrg->bind();
 
         m_EACPrg->setUniformValue(m_EACAlphaLoc, layer->alpha());
@@ -738,7 +746,7 @@ void LayersRendererQtOpenGLObject::renderLayer(const BaseLayer* layer, int eyeMo
 
         if (layer->stereoMode() > 0) {
             m_EACPrg->setUniformValue(m_EACEyeModeLoc, eyeMode);
-            m_EACPrg->setUniformValue(m_EACStereoscopicModeLoc, (int)layer->stereoMode());
+            m_EACPrg->setUniformValue(m_EACStereoscopicModeLoc, stereoMode);
         }
         else {
             m_EACPrg->setUniformValue(m_EACEyeModeLoc, 0);
@@ -763,7 +771,7 @@ void LayersRendererQtOpenGLObject::renderLayer(const BaseLayer* layer, int eyeMo
 
         m_EACPrg->release();
     }
-    else if (layer->gridMode() == 3) {
+    else if (gridMode == 3) {
         // EQR sphere rendering
         QMatrix4x4 mvp = projectionMatrix * viewMatrix;
         QVector3D translate(layer->translate().x, layer->translate().y, layer->translate().z);
@@ -776,9 +784,9 @@ void LayersRendererQtOpenGLObject::renderLayer(const BaseLayer* layer, int eyeMo
 
         m_meshPrg->bind();
 
-        if (layer->stereoMode() > 0) {
+        if (stereoMode > 0) {
             m_meshPrg->setUniformValue(m_meshEyeModeLoc, eyeMode);
-            m_meshPrg->setUniformValue(m_meshStereoscopicModeLoc, (int)layer->stereoMode());
+            m_meshPrg->setUniformValue(m_meshStereoscopicModeLoc, stereoMode);
         }
         else {
             m_meshPrg->setUniformValue(m_meshEyeModeLoc, 0);
@@ -806,13 +814,13 @@ void LayersRendererQtOpenGLObject::renderLayer(const BaseLayer* layer, int eyeMo
 
         m_meshPrg->release();
     }
-    else if (layer->gridMode() == 2) {
+    else if (gridMode == 2) {
         // Dome rendering
         m_meshPrg->bind();
 
-        if (layer->stereoMode() > 0) {
+        if (stereoMode > 0) {
             m_meshPrg->setUniformValue(m_meshEyeModeLoc, eyeMode);
-            m_meshPrg->setUniformValue(m_meshStereoscopicModeLoc, (int)layer->stereoMode());
+            m_meshPrg->setUniformValue(m_meshStereoscopicModeLoc, stereoMode);
         }
         else {
             m_meshPrg->setUniformValue(m_meshEyeModeLoc, 0);
@@ -845,13 +853,13 @@ void LayersRendererQtOpenGLObject::renderLayer(const BaseLayer* layer, int eyeMo
 
         m_meshPrg->release();
     }
-    else if (layer->gridMode() == 1) {
+    else if (gridMode == 1) {
         // Plane rendering
         m_meshPrg->bind();
 
-        if (layer->stereoMode() > 0) {
+        if (stereoMode > 0) {
             m_meshPrg->setUniformValue(m_meshEyeModeLoc, eyeMode);
-            m_meshPrg->setUniformValue(m_meshStereoscopicModeLoc, (int)layer->stereoMode());
+            m_meshPrg->setUniformValue(m_meshStereoscopicModeLoc, stereoMode);
         }
         else {
             m_meshPrg->setUniformValue(m_meshEyeModeLoc, 0);
@@ -896,9 +904,9 @@ void LayersRendererQtOpenGLObject::renderLayer(const BaseLayer* layer, int eyeMo
         // 2D rendering (gridMode == 0)
         m_videoPrg->bind();
 
-        if (layer->stereoMode() > 0) {
+        if (stereoMode > 0) {
             m_videoPrg->setUniformValue(m_videoEyeModeLoc, eyeMode);
-            m_videoPrg->setUniformValue(m_videoStereoscopicModeLoc, (int)layer->stereoMode());
+            m_videoPrg->setUniformValue(m_videoStereoscopicModeLoc, stereoMode);
         }
         else {
             m_videoPrg->setUniformValue(m_videoEyeModeLoc, 0);
@@ -937,8 +945,13 @@ void LayersRendererQtOpenGLObject::renderMpvObject(MpvObject* mpv, int eyeMode, 
     if (texId == 0 || alpha <= 0.f || texW <= 0 || texH <= 0)
         return;
 
-    const int gridMode = mpv->gridToMapOn();
-    const int stereoMode = mpv->stereoscopicMode();
+    int gridMode = mpv->gridToMapOn();
+    int stereoMode = mpv->stereoscopicMode();
+    // Master UI specific: if grid is 0, we use the default values
+    if (gridMode == 0) {
+        gridMode = SyncHelper::instance().variables.gridToMapOnBg;
+        stereoMode = SyncHelper::instance().variables.stereoscopicModeBg;
+    }
 
     const QVector3D translate(
         mpv->translate().x() / 100.f,
