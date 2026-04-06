@@ -10,6 +10,7 @@
 #include "layersmodel.h"
 #include "slidesmodel.h"
 #include "gridsettings.h"
+#include "mpvobject.h"
 #include <QOpenGLContext>
 #include <QQuickGraphicsDevice>
 #include <QTimer>
@@ -439,6 +440,39 @@ void LayersRendererQtItem::setMeshAngle(double value) {
     Q_EMIT meshAngleChanged();
 }
 
+MpvObject* LayersRendererQtItem::mpvObject() const {
+    return m_mpvObject;
+}
+
+void LayersRendererQtItem::setMpvObject(MpvObject* mpv) {
+    if (m_mpvObject == mpv)
+        return;
+    m_mpvObject = mpv;
+    Q_EMIT mpvObjectChanged();
+}
+
+QString LayersRendererQtItem::backgroundImageFile() const {
+    return m_backgroundImageFile;
+}
+
+void LayersRendererQtItem::setBackgroundImageFile(const QString& file) {
+    if (m_backgroundImageFile == file)
+        return;
+    m_backgroundImageFile = file;
+    Q_EMIT backgroundImageFileChanged();
+}
+
+QString LayersRendererQtItem::foregroundImageFile() const {
+    return m_foregroundImageFile;
+}
+
+void LayersRendererQtItem::setForegroundImageFile(const QString& file) {
+    if (m_foregroundImageFile == file)
+        return;
+    m_foregroundImageFile = file;
+    Q_EMIT foregroundImageFileChanged();
+}
+
 void LayersRendererQtItem::updateCameraMatrices() {
     // Use the item's own dimensions, not the full window, for correct aspect ratio
     const float w = static_cast<float>(width());
@@ -511,6 +545,9 @@ void LayersRendererQtItem::sync() {
     m_renderer->setWindow(window());
     m_renderer->setItemVisible(isVisible());
     m_renderer->updateMeshes(m_meshRadius, m_meshFov, m_meshAngle);
+    m_renderer->setMpvObject(m_mpvObject);
+    m_renderer->setBackgroundImageFile(m_backgroundImageFile);
+    m_renderer->setForegroundImageFile(m_foregroundImageFile);
 
     // Map item rect to physical pixels so paint() can set the correct viewport
     const qreal dpr = window()->devicePixelRatio();
@@ -553,6 +590,24 @@ void LayersRendererQtOpenGLObject::setWindow(QQuickWindow* window) {
 void LayersRendererQtOpenGLObject::setCameraParams(const QMatrix4x4& viewMatrix, const QMatrix4x4& projectionMatrix) {
     m_viewMatrix = viewMatrix;
     m_projectionMatrix = projectionMatrix;
+}
+
+void LayersRendererQtOpenGLObject::setMpvObject(MpvObject* mpv) {
+    m_mpvObject = mpv;
+}
+
+void LayersRendererQtOpenGLObject::setBackgroundImageFile(const QString& file) {
+    if (m_backgroundImageFile != file) {
+        m_backgroundImageFile = file;
+        m_backgroundImageDirty = true;
+    }
+}
+
+void LayersRendererQtOpenGLObject::setForegroundImageFile(const QString& file) {
+    if (m_foregroundImageFile != file) {
+        m_foregroundImageFile = file;
+        m_foregroundImageDirty = true;
+    }
 }
 
 void LayersRendererQtOpenGLObject::createShaders() {
@@ -609,6 +664,14 @@ void LayersRendererQtOpenGLObject::createShaders() {
 
 void LayersRendererQtOpenGLObject::initializeGL() {
     createShaders();
+
+    // Create image layers
+    m_backgroundImageLayer = std::make_shared<ImageLayer>("background");
+    m_backgroundImageLayer->initialize();
+    m_foregroundImageLayer = std::make_shared<ImageLayer>("foreground");
+    m_foregroundImageLayer->initialize();
+    m_overlayImageLayer = std::make_shared<ImageLayer>("overlay");
+    m_overlayImageLayer->initialize();
 
     // Setup quad for 2D rendering
     m_quadVAO.create();
@@ -861,7 +924,226 @@ void LayersRendererQtOpenGLObject::renderLayer(const BaseLayer* layer, int eyeMo
     glDisable(GL_BLEND);
 }
 
+void LayersRendererQtOpenGLObject::renderMpvObject(MpvObject* mpv, int eyeMode, float angle,
+    const QMatrix4x4& viewMatrix, const QMatrix4x4& projectionMatrix) {
+    if (!mpv)
+        return;
+
+    const unsigned int texId = mpv->fboTextureId();
+    const float alpha = static_cast<float>(mpv->visibility()) / 100.f;
+    const int texW = mpv->fboWidth();
+    const int texH = mpv->fboHeight();
+
+    if (texId == 0 || alpha <= 0.f || texW <= 0 || texH <= 0)
+        return;
+
+    const int gridMode = mpv->gridToMapOn();
+    const int stereoMode = mpv->stereoscopicMode();
+
+    const QVector3D translate(
+        mpv->translate().x() / 100.f,
+        mpv->translate().y() / 100.f,
+        mpv->translate().z() / 100.f);
+
+    const QVector3D rotateXYZ(
+        mpv->rotate().x(),
+        mpv->rotate().y(),
+        mpv->rotate().z());
+
+    glActiveTexture(GL_TEXTURE0);
+    glBindTexture(GL_TEXTURE_2D, texId);
+    glEnable(GL_BLEND);
+    glBlendFunc(GL_SRC_ALPHA, GL_ONE_MINUS_SRC_ALPHA);
+
+    if (gridMode == 4) {
+        // EAC sphere
+        m_EACPrg->bind();
+
+        m_EACPrg->setUniformValue(m_EACAlphaLoc, alpha);
+        m_EACPrg->setUniformValue(m_EACOutsideLoc, 0);
+        m_EACPrg->setUniformValue(m_EACVideoWidthLoc, texW);
+        m_EACPrg->setUniformValue(m_EACVideoHeightLoc, texH);
+
+        if (stereoMode > 0) {
+            m_EACPrg->setUniformValue(m_EACEyeModeLoc, eyeMode);
+            m_EACPrg->setUniformValue(m_EACStereoscopicModeLoc, stereoMode);
+        }
+        else {
+            m_EACPrg->setUniformValue(m_EACEyeModeLoc, 0);
+            m_EACPrg->setUniformValue(m_EACStereoscopicModeLoc, 0);
+        }
+
+        QMatrix4x4 mvp = projectionMatrix * viewMatrix;
+        mvp.translate(translate);
+
+        QMatrix4x4 mvpRot = mvp;
+        mvpRot.rotate(rotateXYZ.z(), 0, 0, 1);                      // roll
+        mvpRot.rotate(rotateXYZ.x(), 1, 0, 0);                      // pitch
+        mvpRot.rotate(rotateXYZ.y() + 90.f, 0, 1, 0);               // yaw
+        mvpRot.rotate(90.f, 0, 0, 1);                                // roll
+
+        m_EACPrg->setUniformValue(m_EACMatrixLoc, mvpRot);
+
+        if (m_sphereMesh)
+            m_sphereMesh->draw();
+
+        m_EACPrg->release();
+    }
+    else if (gridMode == 3) {
+        // EQR sphere
+        QMatrix4x4 mvp = projectionMatrix * viewMatrix;
+        mvp.translate(translate);
+
+        QMatrix4x4 mvpRot = mvp;
+        mvpRot.rotate(rotateXYZ.z(), 0, 0, 1);  // roll
+        mvpRot.rotate(rotateXYZ.x(), 1, 0, 0);  // pitch
+        mvpRot.rotate(rotateXYZ.y(), 0, 1, 0);  // yaw
+
+        m_meshPrg->bind();
+
+        if (stereoMode > 0) {
+            m_meshPrg->setUniformValue(m_meshEyeModeLoc, eyeMode);
+            m_meshPrg->setUniformValue(m_meshStereoscopicModeLoc, stereoMode);
+        }
+        else {
+            m_meshPrg->setUniformValue(m_meshEyeModeLoc, 0);
+            m_meshPrg->setUniformValue(m_meshStereoscopicModeLoc, 0);
+        }
+
+        m_meshPrg->setUniformValue(m_meshRoi, 0.f, 0.f, 1.f, 1.f);
+        m_meshPrg->setUniformValue(m_meshAlphaLoc, alpha);
+        m_meshPrg->setUniformValue(m_meshFlipYLoc, true);
+        m_meshPrg->setUniformValue(m_meshMatrixLoc, mvpRot);
+        m_meshPrg->setUniformValue(m_meshOutsideLoc, 0);
+
+        if (m_sphereMesh)
+            m_sphereMesh->draw();
+
+        m_meshPrg->release();
+    }
+    else if (gridMode == 2) {
+        // Dome
+        m_meshPrg->bind();
+
+        if (stereoMode > 0) {
+            m_meshPrg->setUniformValue(m_meshEyeModeLoc, eyeMode);
+            m_meshPrg->setUniformValue(m_meshStereoscopicModeLoc, stereoMode);
+        }
+        else {
+            m_meshPrg->setUniformValue(m_meshEyeModeLoc, 0);
+            m_meshPrg->setUniformValue(m_meshStereoscopicModeLoc, 0);
+        }
+
+        m_meshPrg->setUniformValue(m_meshRoi, 0.f, 0.f, 1.f, 1.f);
+        m_meshPrg->setUniformValue(m_meshAlphaLoc, alpha);
+        m_meshPrg->setUniformValue(m_meshFlipYLoc, true);
+
+        QMatrix4x4 mvpRot = projectionMatrix * viewMatrix;
+        mvpRot.translate(translate);
+        mvpRot.rotate(rotateXYZ.z(), 0, 0, 1);              // roll
+        mvpRot.rotate(rotateXYZ.x() - angle, 1, 0, 0);      // pitch
+        mvpRot.rotate(rotateXYZ.y(), 0, 1, 0);              // yaw
+
+        m_meshPrg->setUniformValue(m_meshMatrixLoc, mvpRot);
+
+        if (m_domeMesh)
+            m_domeMesh->draw();
+
+        m_meshPrg->release();
+    }
+    else if (gridMode == 1) {
+        // Plane
+        m_meshPrg->bind();
+
+        if (stereoMode > 0) {
+            m_meshPrg->setUniformValue(m_meshEyeModeLoc, eyeMode);
+            m_meshPrg->setUniformValue(m_meshStereoscopicModeLoc, stereoMode);
+        }
+        else {
+            m_meshPrg->setUniformValue(m_meshEyeModeLoc, 0);
+            m_meshPrg->setUniformValue(m_meshStereoscopicModeLoc, 0);
+        }
+
+        m_meshPrg->setUniformValue(m_meshRoi, 0.f, 0.f, 1.f, 1.f);
+        m_meshPrg->setUniformValue(m_meshAlphaLoc, alpha);
+        m_meshPrg->setUniformValue(m_meshFlipYLoc, true);
+
+        QMatrix4x4 planeTransform;
+        planeTransform.rotate(-angle, 1, 0, 0);                                          // dome angle
+        planeTransform.rotate(float(mpv->planeElevation()), 0, -1, 0);                   // azimuth (no azimuth on MpvObject, map elevation to it like BaseLayer)
+        planeTransform.rotate(float(mpv->planeElevation()), 1, 0, 0);                    // elevation
+        planeTransform.translate(0.f, 0.f, float(-mpv->planeDistance()) / 100.f);        // distance
+
+        QMatrix4x4 mvp = projectionMatrix * viewMatrix;
+        m_meshPrg->setUniformValue(m_meshMatrixLoc, mvp * planeTransform);
+
+        // MpvObject has no drawPlane(); render the quad as fallback for plane mode
+        renderQuad();
+
+        m_meshPrg->release();
+    }
+    else {
+        // 2D flat
+        m_videoPrg->bind();
+
+        if (stereoMode > 0) {
+            m_videoPrg->setUniformValue(m_videoEyeModeLoc, eyeMode);
+            m_videoPrg->setUniformValue(m_videoStereoscopicModeLoc, stereoMode);
+        }
+        else {
+            m_videoPrg->setUniformValue(m_videoEyeModeLoc, 0);
+            m_videoPrg->setUniformValue(m_videoStereoscopicModeLoc, 0);
+        }
+
+        m_videoPrg->setUniformValue(m_videoRoi, 0.f, 0.f, 1.f, 1.f);
+        m_videoPrg->setUniformValue(m_videoAlphaLoc, alpha);
+        m_videoPrg->setUniformValue(m_videoFlipYLoc, true);
+
+        renderQuad();
+
+        m_videoPrg->release();
+    }
+
+    glDisable(GL_BLEND);
+}
+
 void LayersRendererQtOpenGLObject::updateLayers() {
+    glm::vec3 rotXYZ = glm::vec3(0.f);
+    glm::vec3 translateXYZ = glm::vec3(0.f);
+    if (m_mpvObject) {
+        rotXYZ.x = m_mpvObject->rotate().x();
+        rotXYZ.y = m_mpvObject->rotate().y();
+        rotXYZ.z = m_mpvObject->rotate().z();
+        translateXYZ.x = m_mpvObject->translate().x() / 100.f;
+        translateXYZ.y = m_mpvObject->translate().y() / 100.f;
+        translateXYZ.z = m_mpvObject->translate().z() / 100.f;
+    }
+
+    // Process layer image uploads
+    if (m_backgroundImageLayer) {
+        m_backgroundImageLayer->processImageUpload(m_backgroundImageFile.toStdString(), m_backgroundImageDirty);
+        if (m_backgroundImageDirty) {
+            m_backgroundImageLayer->setRotate(rotXYZ);
+            m_backgroundImageLayer->setTranslate(translateXYZ);
+            m_backgroundImageDirty = false;
+        }
+    }
+    if (m_foregroundImageLayer) {
+        m_foregroundImageLayer->processImageUpload(m_foregroundImageFile.toStdString(), m_foregroundImageDirty);
+        if (m_foregroundImageDirty) {
+            m_foregroundImageLayer->setRotate(rotXYZ);
+            m_foregroundImageLayer->setTranslate(translateXYZ);
+            m_foregroundImageDirty = false;
+        }
+    }
+    if (m_mpvObject) {
+        bool overlayUpdated = false;
+        if(SyncHelper::instance().variables.overlayFile != m_overlayImageLayer.get()->loadedFile()) {
+            overlayUpdated = true;
+        }
+        m_overlayImageLayer->processImageUpload(SyncHelper::instance().variables.overlayFile, overlayUpdated);
+    }
+
     if (!Application::isCreated() || !Application::instance().slidesModel()) {
         return;
     }
@@ -897,23 +1179,83 @@ void LayersRendererQtOpenGLObject::renderLayers(float angle,
     const QMatrix4x4& viewMatrix, const QMatrix4x4& projectionMatrix) {
     int eyeMode = 1; // Default to left eye/mono
 
-    if (!Application::isCreated() || !Application::instance().slidesModel()) {
+    if (!Application::isCreated())
         return;
+
+    glm::vec3 rotXYZ = glm::vec3(0.f);
+    glm::vec3 translateXYZ = glm::vec3(0.f);
+    if (m_mpvObject) {
+        rotXYZ.x = m_mpvObject->rotate().x();
+        rotXYZ.y = m_mpvObject->rotate().y();
+        rotXYZ.z = m_mpvObject->rotate().z();
+        translateXYZ.x = m_mpvObject->translate().x() / 100.f;
+        translateXYZ.y = m_mpvObject->translate().y() / 100.f;
+        translateXYZ.z = m_mpvObject->translate().z() / 100.f;
     }
 
-    for (int s = -1; s < Application::instance().slidesModel()->numberOfSlides(); s++) {
-        auto* slide = Application::instance().slidesModel()->slide(s);
-        if (!slide) continue;
+    // Render background image layer
+    if (m_backgroundImageLayer && m_backgroundImageLayer->ready() && SyncHelper::instance().variables.alphaBg > 0.f) {
+        m_backgroundImageLayer->setAlpha(SyncHelper::instance().variables.alphaBg);
+        m_backgroundImageLayer->setGridMode(static_cast<uint8_t>(SyncHelper::instance().variables.gridToMapOnBg));
+        m_backgroundImageLayer->setStereoMode(static_cast<uint8_t>(SyncHelper::instance().variables.stereoscopicModeBg));
+        renderLayer(m_backgroundImageLayer.get(), eyeMode, angle, viewMatrix, projectionMatrix);
+    }
 
-        int numLayers = slide->numberOfLayers();
-        for (int l = numLayers - 1; l >= 0; l--) {
-            BaseLayer* layer = slide->layer(l);
-            if (layer) {
-                if (layer->ready() && (layer->alpha() > 0.f)) {
-                    renderLayer(layer, eyeMode, angle, viewMatrix, projectionMatrix);
+    // Render master slide
+    if (Application::instance().slidesModel()) {
+        auto* slide = Application::instance().slidesModel()->masterSlide();
+        if (slide) {
+            int numLayers = slide->numberOfLayers();
+            for (int l = numLayers - 1; l >= 0; l--) {
+                BaseLayer* layer = slide->layer(l);
+                if (layer) {
+                    if (layer->ready() && (layer->alpha() > 0.f)) {
+                        renderLayer(layer, eyeMode, angle, viewMatrix, projectionMatrix);
+                    }
                 }
             }
         }
+    }
+
+    // Render MPV video layer
+    if (m_mpvObject && SyncHelper::instance().variables.alpha) {
+        renderMpvObject(m_mpvObject, eyeMode, angle, viewMatrix, projectionMatrix);
+
+        // Render overlay image layer
+        if (m_overlayImageLayer && m_overlayImageLayer->ready()) {
+            m_overlayImageLayer->setRotate(rotXYZ);
+            m_overlayImageLayer->setTranslate(translateXYZ);
+            m_overlayImageLayer->setAlpha(SyncHelper::instance().variables.alpha);
+            m_overlayImageLayer->setGridMode(static_cast<uint8_t>(SyncHelper::instance().variables.gridToMapOn));
+            m_overlayImageLayer->setStereoMode(static_cast<uint8_t>(SyncHelper::instance().variables.stereoscopicMode));
+            renderLayer(m_overlayImageLayer.get(), eyeMode, angle, viewMatrix, projectionMatrix);
+        }
+    }
+
+    // Render slides layers
+    if (Application::instance().slidesModel()) {
+        for (int s = 0; s < Application::instance().slidesModel()->numberOfSlides(); s++) {
+            auto* slide = Application::instance().slidesModel()->slide(s);
+            if (!slide) continue;
+
+            int numLayers = slide->numberOfLayers();
+            for (int l = numLayers - 1; l >= 0; l--) {
+                BaseLayer* layer = slide->layer(l);
+                if (layer) {
+                    if (layer->ready() && (layer->alpha() > 0.f)) {
+                        renderLayer(layer, eyeMode, angle, viewMatrix, projectionMatrix);
+                    }
+                }
+            }
+        }
+    }
+
+    // Render foreground image layer
+    if (m_foregroundImageLayer && m_foregroundImageLayer->ready() && SyncHelper::instance().variables.alphaFg > 0.f) {
+        m_foregroundImageLayer->setAlpha(SyncHelper::instance().variables.alphaFg);
+        m_foregroundImageLayer->setGridMode(static_cast<uint8_t>(SyncHelper::instance().variables.gridToMapOnFg));
+        m_foregroundImageLayer->setStereoMode(static_cast<uint8_t>(SyncHelper::instance().variables.stereoscopicModeFg));
+        renderLayer(m_foregroundImageLayer.get(), eyeMode, angle, viewMatrix, projectionMatrix);
     }
 }
 

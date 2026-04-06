@@ -1472,6 +1472,30 @@ void MpvObject::setSubtitleRelativePlaneDistance(double value) {
     }
 }
 
+unsigned int MpvObject::fboTextureId() const {
+    if (mpv_fbo)
+        return static_cast<unsigned int>(mpv_fbo->texture());
+    else if(!mpv_views.empty() && mpv_views[0] && mpv_views[0]->fboObject())
+        return static_cast<unsigned int>(mpv_views[0]->fboObject()->texture());
+    return 0;
+}
+
+int MpvObject::fboWidth() const {
+    if (mpv_fbo)
+        return mpv_fbo->width();
+    else if (!mpv_views.empty() && mpv_views[0] && mpv_views[0]->fboObject())
+        return static_cast<unsigned int>(mpv_views[0]->fboObject()->width());
+    return 0;
+}
+
+int MpvObject::fboHeight() const {
+    if (mpv_fbo)
+        return mpv_fbo->height();
+    else if (!mpv_views.empty() && mpv_views[0] && mpv_views[0]->fboObject())
+        return static_cast<unsigned int>(mpv_views[0]->fboObject()->height());
+    return 0;
+}
+
 void MpvObject::loadTracks() {
     m_audioTracks.clear();
     m_subtitleTracks.clear();
@@ -1688,6 +1712,10 @@ void MpvView::setMpvObject(MpvObject* mpv) {
     Q_EMIT mpvObjectChanged();
 }
 
+QOpenGLFramebufferObject* MpvView::fboObject() const {
+    return fbo;
+}
+
 int MpvView::renderingPriority() const {
     return m_renderingPriority;
 }
@@ -1702,129 +1730,100 @@ MpvRenderer::MpvRenderer(MpvView* new_view)
 }
 
 void MpvRenderer::render() {
-    if (!view->obj) {
-        return;
-    }
-
-    if (!view->obj->mpv_gl) {
+    if (!view->obj || !view->obj->mpv_gl) {
         return;
     }
 
     view->fbo = framebufferObject();
 
-    // Count visible views in view vector
-    // And assign renderView to view with highest priority (i.e. lowest value).
-    MpvView* renderView = nullptr;
-    int visibleViews = 0;
-    int renderingPriority = 10000;
-    for (auto it = view->obj->mpv_views.begin(); it != view->obj->mpv_views.end(); ++it) {
-        if ((*it)->isVisible()) {
-            if ((*it)->renderingPriority() < renderingPriority) {
-                renderView = (*it);
-                renderingPriority = (*it)->renderingPriority();
-            }
-            visibleViews++;
+    // Determine the video's native size from the observed video-params.
+    // m_videoWidth/m_videoHeight are updated via MPV_EVENT_PROPERTY_CHANGE.
+    const int videoW = view->obj->m_videoWidth;
+    const int videoH = view->obj->m_videoHeight;
+
+    // Ensure the shared mpv_fbo always matches the native video dimensions.
+    // This is the single render target for mpv; views are blitted from it.
+    if (videoW > 0 && videoH > 0) {
+        if (!view->obj->mpv_fbo
+            || view->obj->mpv_fbo->width() != videoW
+            || view->obj->mpv_fbo->height() != videoH) {
+            delete view->obj->mpv_fbo;
+            view->obj->mpv_fbo = new QOpenGLFramebufferObject(QSize(videoW, videoH));
         }
     }
 
-    if (!renderView) {
-        return;
-    }
-
-    if (!renderView->fbo) {
-        return;
-    }
+    // If we still have no dedicated FBO (no video loaded yet), fall back to
+    // the view's own FBO so mpv can at least render something.
+    QOpenGLFramebufferObject* renderTarget = view->obj->mpv_fbo
+        ? view->obj->mpv_fbo
+        : view->fbo;
 
     mpv_opengl_fbo mpfbo;
-    if (visibleViews > 1) {
-        //More then one, let's use the largest one
-        if (!view->obj->mpv_fbo
-            || view->obj->mpv_fbo->size().width() != renderView->fbo->width()
-            || view->obj->mpv_fbo->size().height() != renderView->fbo->height()) {
-            if (view->obj->mpv_fbo) {
-                delete view->obj->mpv_fbo;
-            }
-            view->obj->mpv_fbo = new QOpenGLFramebufferObject(QSize(renderView->fbo->width(), renderView->fbo->height()));
-        }
+    mpfbo.fbo = static_cast<int>(renderTarget->handle());
+    mpfbo.w = renderTarget->width();
+    mpfbo.h = renderTarget->height();
+    mpfbo.internal_format = 0;
 
-        mpfbo.fbo = static_cast<int>(view->obj->mpv_fbo->handle());
-        mpfbo.w = view->obj->mpv_fbo->width();
-        mpfbo.h = view->obj->mpv_fbo->height();
-        mpfbo.internal_format = 0;
-    }
-    else { //As only one, let's render directly to the current view fbo
-        mpfbo.fbo = static_cast<int>(view->fbo->handle());
-        mpfbo.w = view->fbo->width();
-        mpfbo.h = view->fbo->height();
-        mpfbo.internal_format = 0;
-    }
-
-    // Render only for the first visible view
     mpv_render_param params[] = {
-        // Specify the default framebuffer (0) as target. This will
-        // render onto the entire screen. If you want to show the video
-        // in a smaller rectangle or apply fancy transformations, you'll
-        // need to render into a separate FBO and draw it manually.
         {MPV_RENDER_PARAM_OPENGL_FBO, &mpfbo},
-        {MPV_RENDER_PARAM_INVALID, nullptr} };
-    // See render_gl.h on what OpenGL environment mpv expects, and
-    // other API details.
+        {MPV_RENDER_PARAM_INVALID, nullptr}
+    };
     mpv_render_context_render(view->obj->mpv_gl, params);
 
-    // Copy Mpv FBO (with video dimensions) to all the views that want it
-    if (visibleViews > 1) {
-        QRect sourceRect(0, 0, renderView->fbo->width(), renderView->fbo->height());
-        float ratioSource = static_cast<float>(sourceRect.width()) / static_cast<float>(sourceRect.height());
-        for (auto it = view->obj->mpv_views.begin(); it != view->obj->mpv_views.end(); ++it) {
-            if ((*it)->fbo && (*it)->isVisible() && ((*it) == renderView || !UserInterfaceSettings::floatingWindowShowOnlyMainVideoInLayer())) {
-                int targetWidth = (*it)->fbo->width();
-                int targetHeight = (*it)->fbo->height();
-                int targetX = 0;
-                int targetY = 0;
-                float ratioTarget = static_cast<float>(targetWidth) / static_cast<float>(targetHeight);
-                if (ratioSource > ratioTarget) {
-                    // Use full width of viewport
-                    if (ratioSource > 1.f) {
-                        targetHeight = static_cast<int>(static_cast<float>(targetWidth) / ratioSource);
-                    }
-                    else {
-                        targetHeight = static_cast<int>(static_cast<float>(targetWidth) * ratioSource);
-                    }
-                    targetY = static_cast<int>(0.5f * (static_cast<float>((*it)->fbo->height() - targetHeight)));
-                }
-                else if (ratioSource < ratioTarget) {
-                    // Use full height of viewport
-                    if (ratioSource > 1.f) {
-                        targetWidth = static_cast<int>(static_cast<float>(targetHeight) * ratioSource);
-                    }
-                    else {
-                        targetWidth = static_cast<int>(static_cast<float>(targetHeight) / ratioSource);
-                    }
-                    targetX = static_cast<int>(0.5f * (static_cast<float>((*it)->fbo->width() - targetWidth)));
-                }
+    // Blit the shared mpv_fbo into every visible view's own FBO,
+    // letterboxed/pillarboxed to preserve the video aspect ratio.
+    if (view->obj->mpv_fbo) {
+        const int srcW = view->obj->mpv_fbo->width();
+        const int srcH = view->obj->mpv_fbo->height();
+        const QRect sourceRect(0, 0, srcW, srcH);
+        const float srcAspect = static_cast<float>(srcW) / static_cast<float>(srcH);
 
-                QRect targetRect(targetX, targetY, targetWidth, targetHeight);
+        for (MpvView* v : view->obj->mpv_views) {
+            if (!v->fbo || !v->isVisible())
+                continue;
 
-                if ((sourceRect == targetRect)) {
-                    QOpenGLContext::currentContext()->extraFunctions()->glCopyImageSubData(
-                        view->obj->mpv_fbo->texture(),
-                        view->obj->mpv_fbo->format().textureTarget(),
-                        0, 0, 0, 0,
-                        (*it)->fbo->texture(),
-                        (*it)->fbo->format().textureTarget(),
-                        0, 0, 0, 0,
-                        renderView->fbo->width(), renderView->fbo->height(), 1);
-                }
-                else {
-                    (*it)->fbo->bind();
-                    glClearColor(0, 0, 0, 1);
-                    glClear(GL_COLOR_BUFFER_BIT);
-                    QOpenGLFramebufferObject::blitFramebuffer((*it)->fbo, targetRect, view->obj->mpv_fbo, sourceRect);
-                    (*it)->fbo->release();
-                }
+            const int dstW = v->fbo->width();
+            const int dstH = v->fbo->height();
+            const float dstAspect = static_cast<float>(dstW) / static_cast<float>(dstH);
+
+            int targetW = dstW;
+            int targetH = dstH;
+            int targetX = 0;
+            int targetY = 0;
+
+            if (srcAspect > dstAspect) {
+                // Letterbox: fit width, add bars top/bottom
+                targetH = static_cast<int>(static_cast<float>(dstW) / srcAspect);
+                targetY = (dstH - targetH) / 2;
+            }
+            else if (srcAspect < dstAspect) {
+                // Pillarbox: fit height, add bars left/right
+                targetW = static_cast<int>(static_cast<float>(dstH) * srcAspect);
+                targetX = (dstW - targetW) / 2;
+            }
+
+            const QRect targetRect(targetX, targetY, targetW, targetH);
+
+            if (sourceRect == targetRect && v->fbo->size() == view->obj->mpv_fbo->size()) {
+                QOpenGLContext::currentContext()->extraFunctions()->glCopyImageSubData(
+                    view->obj->mpv_fbo->texture(),
+                    view->obj->mpv_fbo->format().textureTarget(),
+                    0, 0, 0, 0,
+                    v->fbo->texture(),
+                    v->fbo->format().textureTarget(),
+                    0, 0, 0, 0,
+                    srcW, srcH, 1);
+            }
+            else {
+                v->fbo->bind();
+                glClearColor(0.f, 0.f, 0.f, 1.f);
+                glClear(GL_COLOR_BUFFER_BIT);
+                QOpenGLFramebufferObject::blitFramebuffer(v->fbo, targetRect,
+                    view->obj->mpv_fbo, sourceRect);
+                v->fbo->release();
             }
         }
-    }           
+    }
 }
 
 QOpenGLFramebufferObject* MpvRenderer::createFramebufferObject(const QSize& size) {

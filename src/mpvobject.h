@@ -406,6 +406,11 @@ public:
     Q_INVOKABLE void setSubtitleRelativePlaneElevation(double value);
     Q_INVOKABLE void setSubtitleRelativePlaneDistance(double value);
 
+    // FBO texture access for LayersRendererQtItem
+    unsigned int fboTextureId() const;
+    int fboWidth() const;
+    int fboHeight() const;
+
 Q_SIGNALS:
     void mediaTitleChanged();
     void positionChanged();
@@ -540,6 +545,8 @@ public:
 
     MpvObject* mpvObject() const;
     void setMpvObject(MpvObject* mpv);
+
+    QOpenGLFramebufferObject* fboObject() const;
 
     int renderingPriority() const;
     void setRenderingPriority(int rp);

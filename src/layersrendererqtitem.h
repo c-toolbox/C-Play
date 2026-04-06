@@ -20,8 +20,10 @@
 #include <memory>
 #include <vector>
 #include <layers/baselayer.h>
+#include <layers/imagelayer.h>
 #include <utils/domegrid.h>
 #include <utils/spheregrid.h>
+#include "mpvobject.h"
 
 class LayersRendererQtOpenGLObject : public QObject, protected QOpenGLFunctions {
     Q_OBJECT
@@ -40,8 +42,14 @@ public:
 
     void setCameraParams(const QMatrix4x4& viewMatrix, const QMatrix4x4& projectionMatrix);
 
+    void setMpvObject(MpvObject* mpv);
+    void setBackgroundImageFile(const QString& file);
+    void setForegroundImageFile(const QString& file);
+
     void renderLayer(const BaseLayer* layer, int eyeMode, float angle, const QMatrix4x4& viewMatrix, const QMatrix4x4& projectionMatrix);
-    
+    void renderMpvObject(MpvObject* mpv, int eyeMode, float angle, const QMatrix4x4& viewMatrix, const QMatrix4x4& projectionMatrix);
+
+
     void updateLayers();
     void renderLayers(float angle, const QMatrix4x4& viewMatrix, const QMatrix4x4& projectionMatrix);
 
@@ -69,6 +77,16 @@ private:
     double m_meshRadius;
     double m_meshFov;
     double m_meshAngle;
+
+    // Primary layers (background + foreground image, mpv video and overlay)
+    std::shared_ptr<ImageLayer> m_backgroundImageLayer;
+    std::shared_ptr<ImageLayer> m_foregroundImageLayer;
+    std::shared_ptr<ImageLayer> m_overlayImageLayer;
+    QString m_backgroundImageFile;
+    QString m_foregroundImageFile;
+    bool m_backgroundImageDirty = false;
+    bool m_foregroundImageDirty = false;
+    MpvObject* m_mpvObject = nullptr;
 
     // Shader programs (Qt equivalents)
     std::unique_ptr<QOpenGLShaderProgram> m_videoPrg;
@@ -123,6 +141,9 @@ class LayersRendererQtItem : public QQuickItem {
     Q_PROPERTY(double meshRadius MEMBER m_meshRadius READ meshRadius WRITE setMeshRadius NOTIFY meshRadiusChanged)
     Q_PROPERTY(double meshFov MEMBER m_meshFov READ meshFov WRITE setMeshFov NOTIFY meshFovChanged)
     Q_PROPERTY(double meshAngle MEMBER m_meshAngle READ meshAngle WRITE setMeshAngle NOTIFY meshAngleChanged)
+    Q_PROPERTY(MpvObject* mpvObject READ mpvObject WRITE setMpvObject NOTIFY mpvObjectChanged)
+    Q_PROPERTY(QString backgroundImageFile READ backgroundImageFile WRITE setBackgroundImageFile NOTIFY backgroundImageFileChanged)
+    Q_PROPERTY(QString foregroundImageFile READ foregroundImageFile WRITE setForegroundImageFile NOTIFY foregroundImageFileChanged)
 
 public:
     LayersRendererQtItem();
@@ -145,6 +166,15 @@ public:
     double meshAngle() const;
     void setMeshAngle(double value);
 
+    MpvObject* mpvObject() const;
+    void setMpvObject(MpvObject* mpv);
+
+    QString backgroundImageFile() const;
+    void setBackgroundImageFile(const QString& file);
+
+    QString foregroundImageFile() const;
+    void setForegroundImageFile(const QString& file);
+
     Q_INVOKABLE void sync();
     Q_INVOKABLE void cleanup();
 
@@ -154,6 +184,9 @@ Q_SIGNALS:
     void meshRadiusChanged();
     void meshFovChanged();
     void meshAngleChanged();
+    void mpvObjectChanged();
+    void backgroundImageFileChanged();
+    void foregroundImageFileChanged();
 
 private:
     Q_INVOKABLE void handleWindowChanged(QQuickWindow* win);
@@ -171,6 +204,10 @@ private:
     double m_meshRadius;
     double m_meshFov;
     double m_meshAngle;
+
+    MpvObject* m_mpvObject = nullptr;
+    QString m_backgroundImageFile;
+    QString m_foregroundImageFile;
 };
 
 #endif // LAYERSRENDERERQTITEM_H

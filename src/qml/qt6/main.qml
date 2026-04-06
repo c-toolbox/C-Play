@@ -226,6 +226,21 @@ Kirigami.ApplicationWindow {
         meshFov: mpv.fov
         meshAngle: mpv.angle
 
+        mpvObject: mpv
+        backgroundImageFile: playerController.checkAndCorrectPath(playerController.backgroundImageFileUrl())
+        foregroundImageFile: playerController.checkAndCorrectPath(playerController.foregroundImageFileUrl())
+
+        Connections {
+           function onBackgroundImageChanged() {
+                viewLayersIn3DRenderItem.backgroundImageFile = playerController.checkAndCorrectPath(playerController.backgroundImageFileUrl());
+           }
+           function onForegroundImageChanged() {
+                viewLayersIn3DRenderItem.foregroundImageFile = playerController.checkAndCorrectPath(playerController.foregroundImageFileUrl());
+           }
+
+            target: playerController
+        }
+
         onVisibleChanged: {
             layerView.layerItem.updateEnabled(!visible);
         }
