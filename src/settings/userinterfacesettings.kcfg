@@ -19,6 +19,10 @@
       <label>Show osd on skip chapters</label>
       <default>true</default>
     </entry>
+    <entry name="Show3DviewAtStartup" type="bool">
+      <label>Show 3D view at startup</label>
+      <default>false</default>
+    </entry>
     <entry name="ShowHeader" type="bool">
       <label>Show header</label>
       <default>true</default>

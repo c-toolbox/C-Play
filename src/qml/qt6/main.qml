@@ -230,6 +230,10 @@ Kirigami.ApplicationWindow {
         backgroundImageFile: playerController.checkAndCorrectPath(playerController.backgroundImageFileUrl())
         foregroundImageFile: playerController.checkAndCorrectPath(playerController.foregroundImageFileUrl())
 
+        onCameraChanged: {
+            afterCameraChangeTimer.restart();
+        }
+
         Connections {
            function onBackgroundImageChanged() {
                 viewLayersIn3DRenderItem.backgroundImageFile = playerController.checkAndCorrectPath(playerController.backgroundImageFileUrl());
@@ -267,10 +271,34 @@ Kirigami.ApplicationWindow {
             }
 
             OrbitCameraController {
-                anchors.fill: parent
                 camera: originCamera
                 origin: originNode
                 panEnabled: false
+            }
+        }
+
+        Component.onCompleted: {
+            if(UserInterfaceSettings.show3DviewAtStartup){
+                viewLayersIn3DRenderItem.visible = true;
+            }
+        }
+
+        MouseArea {
+            id: layerRenderMouseArea
+            property bool dragging: false
+            anchors.fill: parent
+            cursorShape: dragging ? Qt.ClosedHandCursor : Qt.OpenHandCursor
+            onPressed: dragging = true
+        }
+
+        Timer {
+            id: afterCameraChangeTimer
+
+            interval: 500
+            repeat: false
+
+            onTriggered: {
+                layerRenderMouseArea.dragging = false;
             }
         }
     }

@@ -101,6 +101,23 @@ SettingsBasePage {
                 width: 1
             }
             CheckBox {
+                checked: UserInterfaceSettings.show3DviewAtStartup
+                text: qsTr("Show 3D view at startup (instead of simple flat view)")
+
+                onCheckedChanged: {
+                    UserInterfaceSettings.show3DviewAtStartup = checked;
+                    UserInterfaceSettings.save();
+                }
+            }
+            Item {
+                Layout.fillWidth: true
+            }
+
+            Item {
+                height: 1
+                width: 1
+            }
+            CheckBox {
                 checked: UserInterfaceSettings.showHeader
                 text: qsTr("Show Top Bar / Header")
 
