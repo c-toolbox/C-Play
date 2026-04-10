@@ -387,6 +387,12 @@ QString Application::formatTime(const double time) {
     return formattedTime;
 }
 
+double Application::timeToSeconds(const QString &time) {
+    QTime t = QTime::fromString(time, QStringLiteral("hh:mm:ss"));
+    QTime zero(0, 0, 0);
+    return double(zero.msecsTo(t)) / 1000.0;
+}
+
 void Application::hideCursor() {
     QApplication::setOverrideCursor(Qt::BlankCursor);
 }

@@ -96,6 +96,40 @@ ToolBar {
             id: progressBar
 
             Layout.fillWidth: true
+            to: mpv.duration
+
+            onPressedChanged: {
+                if (pressed) {
+                    seekStarted = true;
+                } else {
+                    mpv.pause = true;
+                    mpv.position = value;
+                    seekStarted = false;
+                }
+            }
+            onToChanged: value = mpv.position
+
+            Connections {
+                function onFileLoaded() {
+                    progressBar.sectionIndicator.startPosition = -1;
+                    progressBar.sectionIndicator.endPosition = -1;
+                }
+                function onPositionChanged() {
+                    if (!progressBar.seekStarted) {
+                        progressBar.value = mpv.position;
+                    }
+                }
+                function onRewind() {
+                    progressBar.sectionIndicator.startPosition = -1;
+                    progressBar.sectionIndicator.endPosition = -1;
+                }
+                function onSectionLoaded(sectionIdx) {
+                    progressBar.sectionIndicator.startPosition = mpv.playSectionsModel.sectionStartTime(sectionIdx);
+                    progressBar.sectionIndicator.endPosition = mpv.playSectionsModel.sectionEndTime(sectionIdx);
+                }
+
+                target: mpv
+            }
         }
         ToolButton {
             id: rewindButton

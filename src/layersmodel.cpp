@@ -21,6 +21,8 @@
 #include <layers/spoutlayer.h>
 #endif
 #include <layers/textlayer.h>
+#include <layers/mpvlayer.h>
+
 #include <QDir>
 #include <QFileInfo>
 #include <QJsonArray>
@@ -842,6 +844,27 @@ void LayersModel::decodeFromJSON(QJsonObject &obj, const QStringList &forRelativ
                         m_layers[idx].first->setAudioId(audioId);
                     }
 
+                    if ((type == BaseLayer::VIDEO || type == BaseLayer::AUDIO)) {
+                        MpvLayer* mpvLayer = static_cast<MpvLayer*>(m_layers[idx].first.get());
+                        if (o.contains(QStringLiteral("end_of_file"))) {
+                            int eofMode = 2; // Loop by default
+                            QString eofModeText = o.value(QStringLiteral("end_of_file")).toString();
+                            if (eofModeText == QStringLiteral("pause")) {
+                                eofMode = 0;
+                            }
+                            else if (eofModeText == QStringLiteral("loop")) {
+                                eofMode = 2;
+                            }
+                            mpvLayer->setEOFMode(eofMode);
+                        }
+                        if (o.contains(QStringLiteral("section_enabled"))) {
+                            bool loopEnabled = o.value(QStringLiteral("section_enabled")).toBool();
+                            double loopA = o.contains(QStringLiteral("time_start")) ? o.value(QStringLiteral("time_start")).toDouble() : 0.0;
+                            double loopB = o.contains(QStringLiteral("time_end")) ? o.value(QStringLiteral("time_end")).toDouble() : 0.0;
+                            mpvLayer->setLoopTime(loopA, loopB, loopEnabled);
+                        }
+                    }
+
                     if (o.contains(QStringLiteral("keepVisibilityForNumSlides"))) {
                         int keepVisibilityForNumSlides = o.value(QStringLiteral("keepVisibilityForNumSlides")).toInt();
                         m_layers[idx].first->setKeepVisibilityForNumSlides(keepVisibilityForNumSlides);
@@ -1027,6 +1050,28 @@ void LayersModel::encodeToJSON(QJsonObject &obj, const QStringList &forRelativeP
             if (layer->hasAudio()) {
                 layerData.insert(QStringLiteral("volume"), QJsonValue(layer->volume()));
                 layerData.insert(QStringLiteral("audioId"), QJsonValue(layer->audioId()));
+            }
+            MpvLayer* mpvLayer = static_cast<MpvLayer*>(layer.get());
+            if (mpvLayer->eofMode() >= 0) {
+                int eofMode = mpvLayer->eofMode();
+                QString eofModeText;
+                switch (eofMode) {
+                case 0:
+                    eofModeText = QStringLiteral("pause");
+                    break;
+                case 2:
+                    eofModeText = QStringLiteral("loop");
+                    break;
+                default:
+                    eofModeText = QStringLiteral("loop");
+                    break;
+                }
+                layerData.insert(QStringLiteral("end_of_file"), QJsonValue(eofModeText));
+            }
+            if (mpvLayer->loopTimeEnabled()) {
+                layerData.insert(QStringLiteral("section_enabled"), QJsonValue(mpvLayer->loopTimeEnabled()));
+                layerData.insert(QStringLiteral("time_start"), QJsonValue(mpvLayer->loopTimeA()));
+                layerData.insert(QStringLiteral("time_end"), QJsonValue(mpvLayer->loopTimeB()));
             }
         }
 

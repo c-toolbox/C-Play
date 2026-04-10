@@ -76,6 +76,10 @@ class LayerQtItem : public QQuickItem {
     Q_PROPERTY(double layerPosition READ layerPosition WRITE setLayerPosition NOTIFY layerPositionChanged)
     Q_PROPERTY(double layerDuration READ layerDuration NOTIFY layerPositionChanged)
     Q_PROPERTY(double layerRemaining READ layerRemaining NOTIFY layerPositionChanged)
+    Q_PROPERTY(int layerEofMode READ layerEofMode WRITE setLayerEofMode NOTIFY layerValueChanged)
+    Q_PROPERTY(bool layerLoopTimeEnabled READ layerLoopTimeEnabled WRITE setLayerLoopTimeEnabled NOTIFY layerValueChanged)
+    Q_PROPERTY(double layerLoopTimeA READ layerLoopTimeA WRITE setLayerLoopTimeA NOTIFY layerValueChanged)
+    Q_PROPERTY(double layerLoopTimeB READ layerLoopTimeB WRITE setLayerLoopTimeB NOTIFY layerValueChanged)
     Q_PROPERTY(int layerPage READ layerPage WRITE setLayerPage NOTIFY layerValueChanged)
     Q_PROPERTY(int layerNumPages READ layerNumPages NOTIFY layerValueChanged)
     Q_PROPERTY(double layerRotatePitch READ layerRotatePitch WRITE setLayerRotatePitch NOTIFY layerValueChanged)
@@ -140,6 +144,18 @@ public:
 
     double layerDuration() const;
     double layerRemaining() const;
+
+    int layerEofMode() const;
+    void setLayerEofMode(int value);
+
+    bool layerLoopTimeEnabled() const;
+    void setLayerLoopTimeEnabled(bool value);
+
+    double layerLoopTimeA() const;
+    void setLayerLoopTimeA(double value);
+
+    double layerLoopTimeB() const;
+    void setLayerLoopTimeB(double value);
 
     int layerPage() const;
     void setLayerPage(int value);

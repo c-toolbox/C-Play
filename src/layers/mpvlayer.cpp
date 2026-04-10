@@ -105,27 +105,40 @@ void on_mpv_events(MpvLayer::mpvData &vd, BaseLayer::RenderParams &rp) {
                     vd.mediaDuration = *reinterpret_cast<double *>(prop->data);
                 }
             } else if (strcmp(prop->name, "time-pos") == 0) {
-                if (!vd.isMaster && SyncHelper::instance().variables.timeThresholdEnabled && !vd.isStream) {
-                    double timeToSet = vd.timePos;
-                    // We do not want to "over-force" seeks, as this will slow down and might cause continued stutter.
-                    // Normally, playback is syncronized, however looping depends on seek speed.
-                    // Seek speeds (thus loop speed) is faster when no audio is present, thus nodes might be faster then master.
-                    // Hence, we might need to correct things after a loop, between master and nodes.
-                    if (vd.timeThresholdSetSkips <= 0 && (!SyncHelper::instance().variables.timeThresholdOnLoopOnly
-                        || (vd.eofMode > 1 && timeToSet < SyncHelper::instance().variables.timeThresholdOnLoopCheckTime) 
-                        || (vd.eofMode > 1 && timeToSet > (vd.mediaDuration - SyncHelper::instance().variables.timeThresholdOnLoopCheckTime) && (vd.mediaDuration > 0)) 
-                        || (SyncHelper::instance().variables.loopTimeEnabled && timeToSet < (SyncHelper::instance().variables.loopTimeA + SyncHelper::instance().variables.timeThresholdOnLoopCheckTime)) 
-                        || (SyncHelper::instance().variables.loopTimeEnabled && SyncHelper::instance().variables.loopTimeB < (timeToSet + SyncHelper::instance().variables.timeThresholdOnLoopCheckTime)))) {
-                        if (prop->format == MPV_FORMAT_DOUBLE) {
-                            double latestPosition = *reinterpret_cast<double *>(prop->data);
+                if (vd.mediaIsPaused)
+                    return;
+
+                if (prop->format == MPV_FORMAT_DOUBLE) {
+                    if(vd.loopTimeEnabled && vd.eofMode == 0) { // Pause on loop
+                        double latestPosition = *reinterpret_cast<double*>(prop->data);
+                        if (latestPosition >= vd.loopTimeB) {
+                            vd.mediaShouldPause = true;
+                            vd.mediaIsPaused = true;
+                            mpv::qt::set_property_async(vd.handle, QStringLiteral("pause"), true);
+                            mpv::qt::set_property_async(vd.handle, QStringLiteral("time-pos"), vd.loopTimeB);
+                            return;
+                        }
+                    }
+                    if (!vd.isMaster && SyncHelper::instance().variables.timeThresholdEnabled && !vd.isStream) {
+                        double timeToSet = vd.timePos;
+                        double latestPosition = *reinterpret_cast<double*>(prop->data);
+                        // We do not want to "over-force" seeks, as this will slow down and might cause continued stutter.
+                        // Normally, playback is syncronized, however looping depends on seek speed.
+                        // Seek speeds (thus loop speed) is faster when no audio is present, thus nodes might be faster then master.
+                        // Hence, we might need to correct things after a loop, between master and nodes.
+                        if (vd.timeThresholdSetSkips <= 0 && (!SyncHelper::instance().variables.timeThresholdOnLoopOnly
+                            || (vd.eofMode > 1 && timeToSet < SyncHelper::instance().variables.timeThresholdOnLoopCheckTime)
+                            || (vd.eofMode > 1 && timeToSet > (vd.mediaDuration - SyncHelper::instance().variables.timeThresholdOnLoopCheckTime) && (vd.mediaDuration > 0))
+                            || (SyncHelper::instance().variables.loopTimeEnabled && timeToSet < (SyncHelper::instance().variables.loopTimeA + SyncHelper::instance().variables.timeThresholdOnLoopCheckTime))
+                            || (SyncHelper::instance().variables.loopTimeEnabled && SyncHelper::instance().variables.loopTimeB < (timeToSet + SyncHelper::instance().variables.timeThresholdOnLoopCheckTime)))) {
                             if (SyncHelper::instance().variables.timeThreshold > 0 && (abs(latestPosition - timeToSet) > SyncHelper::instance().variables.timeThreshold)) {
                                 mpv::qt::set_property_async(vd.handle, QStringLiteral("time-pos"), timeToSet);
                                 vd.timeThresholdSetSkips = SyncHelper::instance().variables.timeThresholdSetSkips;
                             }
                         }
-                    }
-                    else if (vd.timeThresholdSetSkips > 0) {
-                        vd.timeThresholdSetSkips -= 1;
+                        else if (vd.timeThresholdSetSkips > 0) {
+                            vd.timeThresholdSetSkips -= 1;
+                        }
                     }
                 }
             }
@@ -191,6 +204,16 @@ void initMPV(MpvLayer::mpvData& vd) {
     else { // Loop
         mpv::qt::set_property_async(vd.handle, QStringLiteral("keep-open"), QStringLiteral("yes"));
         mpv::qt::set_property_async(vd.handle, QStringLiteral("loop-file"), QStringLiteral("inf"));
+    }
+
+    //Set Loop time
+    if (vd.loopTimeEnabled && vd.eofMode == 2) {
+        mpv::qt::set_property_async(vd.handle, QStringLiteral("ab-loop-a"), vd.loopTimeA);
+        mpv::qt::set_property_async(vd.handle, QStringLiteral("ab-loop-b"), vd.loopTimeB);
+    }
+    else {
+        mpv::qt::set_property_async(vd.handle, QStringLiteral("ab-loop-a"), QStringLiteral("no"));
+        mpv::qt::set_property_async(vd.handle, QStringLiteral("ab-loop-b"), QStringLiteral("no"));
     }
 
     // Set if we support video or not (enabled by default)
@@ -371,6 +394,8 @@ void MpvLayer::update(bool updateRendering) {
                 setAudioId(m_data.audioId_Dec);
                 setVolume(m_data.volume_Dec);
                 setVolumeMute(m_data.volumeMute_Dec);
+                setEOFMode(m_data.eofMode_Dec);
+                setLoopTime(m_data.loopTimeA_Dec, m_data.loopTimeB_Dec, m_data.loopTimeEnabled_Dec);
                 m_data.typePropertiesDecode = false;
             }
         }
@@ -386,7 +411,12 @@ void MpvLayer::start() {
         if (isAudioEnabled()) {
             setAudioId(m_data.audioId);
         }
-        setPosition(0);
+        if (m_data.loopTimeEnabled) {
+            setPosition(m_data.loopTimeA);
+        }
+        else {
+            setPosition(0);
+        }
         setPause(false);
     }
 }
@@ -590,6 +620,10 @@ void MpvLayer::encodeTypeProperties(std::vector<std::byte>& data) {
         sgct::serializeObject(data, m_data.volume);
         sgct::serializeObject(data, m_data.volumeMute);
     }
+    sgct::serializeObject(data, m_data.eofMode);
+    sgct::serializeObject(data, m_data.loopTimeEnabled);
+    sgct::serializeObject(data, m_data.loopTimeA);
+    sgct::serializeObject(data, m_data.loopTimeB);
 }
 
 void MpvLayer::decodeTypeProperties(const std::vector<std::byte>& data, unsigned int& pos) {
@@ -600,6 +634,10 @@ void MpvLayer::decodeTypeProperties(const std::vector<std::byte>& data, unsigned
         sgct::deserializeObject(data, pos, m_data.volume_Dec);
         sgct::deserializeObject(data, pos, m_data.volumeMute_Dec);
     }
+    sgct::deserializeObject(data, pos, m_data.eofMode_Dec);
+    sgct::deserializeObject(data, pos, m_data.loopTimeEnabled_Dec);
+    sgct::deserializeObject(data, pos, m_data.loopTimeA_Dec);
+    sgct::deserializeObject(data, pos, m_data.loopTimeB_Dec);
     m_data.typePropertiesDecode = true;
 }
 
@@ -627,6 +665,10 @@ bool MpvLayer::renderingIsOn() const {
     return m_data.updateRendering;
 }
 
+int MpvLayer::eofMode() const {
+    return m_data.eofMode;
+}
+
 void MpvLayer::setEOFMode(int eofMode) {
     if (eofMode != m_data.eofMode) {
         m_data.eofMode = eofMode;
@@ -644,7 +686,12 @@ void MpvLayer::setEOFMode(int eofMode) {
                 mpv::qt::set_property_async(m_data.handle, QStringLiteral("keep-open"), QStringLiteral("yes"));
                 mpv::qt::set_property_async(m_data.handle, QStringLiteral("loop-file"), QStringLiteral("inf"));
             }
+            if (loopTimeEnabled())
+                setLoopTime(loopTimeA(), loopTimeB(), loopTimeEnabled());
         }
+
+        if (isMaster())
+            setNeedSync();
     }
 }
 
@@ -673,8 +720,12 @@ void MpvLayer::setTimePosition(double timePos, bool updateTime) {
 }
 
 void MpvLayer::setLoopTime(double A, double B, bool enabled) {
+    m_data.loopTimeEnabled = enabled;
+    m_data.loopTimeA = A;
+    m_data.loopTimeB = B;
+
     if (m_data.mpvInitialized) {
-        if (enabled) {
+        if (enabled && m_data.eofMode == 2) {
             mpv::qt::set_property_async(m_data.handle, QStringLiteral("ab-loop-a"), A);
             mpv::qt::set_property_async(m_data.handle, QStringLiteral("ab-loop-b"), B);
         }
@@ -683,6 +734,21 @@ void MpvLayer::setLoopTime(double A, double B, bool enabled) {
             mpv::qt::set_property_async(m_data.handle, QStringLiteral("ab-loop-b"), QStringLiteral("no"));
         }
     }
+
+    if (isMaster())
+        setNeedSync();
+}
+
+bool MpvLayer::loopTimeEnabled() const {
+    return m_data.loopTimeEnabled;
+}
+
+double MpvLayer::loopTimeA() const {
+    return m_data.loopTimeA;
+}
+
+double MpvLayer::loopTimeB() const {
+    return m_data.loopTimeB;
 }
 
 void MpvLayer::setValue(std::string param, int val) {

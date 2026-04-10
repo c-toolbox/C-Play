@@ -116,6 +116,7 @@ public:
 
     static QString version();
     Q_INVOKABLE static QString formatTime(const double time);
+    Q_INVOKABLE static double timeToSeconds(const QString &time);
     Q_INVOKABLE static void hideCursor();
     Q_INVOKABLE static void showCursor();
     Q_INVOKABLE static QString mimeType(QUrl url);

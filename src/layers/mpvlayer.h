@@ -51,6 +51,13 @@ public:
         int reconfigsBeforeUpdate = 0;
         int advancedControl = 0;
         int eofMode = -1;
+        int eofMode_Dec = -1;
+        bool loopTimeEnabled = false;
+        bool loopTimeEnabled_Dec = false;
+        double loopTimeA = 0.0;
+        double loopTimeA_Dec = 0.0;
+        double loopTimeB = 0.0;
+        double loopTimeB_Dec = 0.0;
         double mediaDuration = 0.0;
         double timePos = 0;
         double timeToSet = 0;
@@ -116,9 +123,13 @@ public:
 
     bool renderingIsOn() const;
 
+    int eofMode() const;
     void setEOFMode(int eofMode);
     void setTimePause(bool paused, bool updateTime = true);
     void setTimePosition(double timePos, bool updateTime = true);
+    bool loopTimeEnabled() const;
+    double loopTimeA() const;
+    double loopTimeB() const;
     void setLoopTime(double A, double B, bool enabled);
     void setValue(std::string param, int val);
 

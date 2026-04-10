@@ -806,172 +806,351 @@ Kirigami.ApplicationWindow {
                 anchors.bottom: parent.bottom
                 bottomPadding: 20
 
-                RowLayout {
-                    Rectangle {
-                        color: Kirigami.Theme.alternateBackgroundColor
-                        implicitHeight: 35
-                        implicitWidth: 35
-                        radius: 5
-
-                        ToolButton {
-                            id: playPauseButton
-
-                            property string iconName: "media-playback-start"
-                            property string toolTipText: "Start Playback"
-
-                            focusPolicy: Qt.NoFocus
-                            icon.name: playPauseButton.iconName
-                            text: ""
-
-                            onClicked: {
-                                if(layerViewItem.layerPause){
-                                    layerViewItem.layerPause = false
-                                }
-                                else{
-                                    layerViewItem.layerPause = true
-                                    layerViewItem.layerPosition = mediaSlider.value
-                                }
-                                app.slides.needsSync = true;
-                            }
-
-                            ToolTip {
-                                id: playPauseButtonToolTip
-                                text: playPauseButton.toolTipText
-                            }
-                        }
-                    }
-                    Slider {
-                        id: mediaSlider
-
-                        property bool seekStarted: false
-
-                        from: 0
-                        implicitHeight: 25
-                        implicitWidth: 200
-                        leftPadding: 0
-                        rightPadding: 0
-                        to: layerViewItem.layerDuration
-
-                        background: Rectangle {
-                            id: progressBarBackground
-
+                ColumnLayout {
+                    RowLayout {
+                        Rectangle {
                             color: Kirigami.Theme.alternateBackgroundColor
+                            implicitHeight: 35
+                            implicitWidth: 150
+                            radius: 5
 
-                            Rectangle {
-                                color: Kirigami.Theme.highlightColor
-                                height: parent.height
-                                width: mediaSlider.visualPosition * parent.width
-                            }
-                            ToolTip {
-                                id: progressBarToolTip
-
-                                delay: 0
-                                timeout: -1
-                                visible: progressBarMouseArea.containsMouse
-                            }
-                            MouseArea {
-                                id: progressBarMouseArea
-
-                                acceptedButtons: Qt.MiddleButton | Qt.RightButton
+                            RowLayout {
                                 anchors.fill: parent
-                                hoverEnabled: true
+                                anchors.leftMargin: 4
 
-                                onClicked: {}
-                                onEntered: {
-                                    progressBarToolTip.x = mouseX - (progressBarToolTip.width * 0.5);
-                                    progressBarToolTip.y = mediaSlider.height;
+                                Label {
+                                    font.pointSize: 9
+                                    text: layerViewItem.layerLoopTimeEnabled ? qsTr("End of section:") : qsTr("End of file:")
                                 }
-                                onMouseXChanged: {
-                                    progressBarToolTip.x = mouseX - (progressBarToolTip.width * 0.5);
-                                    const time = mouseX * 100 / progressBarBackground.width * mediaSlider.to / 100;
-                                    progressBarToolTip.text = app.formatTime(time);
+                                ComboBox {
+                                    id: eofModeComboBox
+
+                                    Layout.fillWidth: true
+                                    focusPolicy: Qt.NoFocus
+                                    textRole: "mode"
+
+                                    model: ListModel {
+                                        id: eofModeListModel
+
+                                        ListElement {
+                                            mode: "Pause"
+                                            value: 0
+                                        }
+                                        ListElement {
+                                            mode: "Loop"
+                                            value: 2
+                                        }
+                                    }
+
+                                    Component.onCompleted: {
+                                        for (let i = 0; i < eofModeListModel.count; ++i) {
+                                            if (eofModeListModel.get(i).value === layerViewItem.layerEofMode) {
+                                                currentIndex = i;
+                                                break;
+                                            }
+                                        }
+                                    }
+                                    onActivated: {
+                                        layerViewItem.layerEofMode = model.get(index).value;
+                                        app.slides.needsSync = true;
+                                    }
                                 }
                             }
                         }
-                        handle: Item {
-                            visible: false
-                        }
+                        Rectangle {
+                            color: Kirigami.Theme.alternateBackgroundColor
+                            implicitHeight: 35
+                            implicitWidth: 480
+                            radius: 5
 
-                        onPressedChanged: {
-                            if (pressed) {
-                                mediaSlider.seekStarted = true;
-                            } else {
-                                layerViewItem.layerPause = true;
-                                layerViewItem.layerPosition = value;
-                                app.slides.needsSync = true;
-                                mediaSlider.seekStarted = false;
+                            RowLayout {
+                                anchors.fill: parent
+                                anchors.leftMargin: 4
+
+                                CheckBox {
+                                    id: loopTimeEnabledCheckBox
+
+                                    focusPolicy: Qt.NoFocus
+                                    text: qsTr("Section")
+                                    checked: layerViewItem.layerLoopTimeEnabled
+
+                                    onToggled: {
+                                        layerViewItem.layerLoopTimeEnabled = checked;
+                                        app.slides.needsSync = true;
+                                    }
+                                }
+                                Label {
+                                    font.pointSize: 9
+                                    text: qsTr("Start:")
+                                    enabled: loopTimeEnabledCheckBox.checked
+                                }
+                                TextField {
+                                    id: loopTimeATextField
+
+                                    enabled: loopTimeEnabledCheckBox.checked
+                                    font.pointSize: 9
+                                    implicitWidth: 70
+                                    inputMask: "99:99:99"
+                                    maximumLength: 8
+                                    text: app.formatTime(layerViewItem.layerLoopTimeA)
+
+                                    validator: RegularExpressionValidator {
+                                        regularExpression: /^([0-1\s]?[0-9\s]|2[0-3\s]):([0-5\s][0-9\s]):([0-5\s][0-9\s])$/
+                                    }
+
+                                    onEditingFinished: {
+                                        layerViewItem.layerLoopTimeA = app.timeToSeconds(text);
+                                        app.slides.needsSync = true;
+                                    }
+                                }
+                                ToolButton {
+                                    enabled: loopTimeEnabledCheckBox.checked
+                                    focusPolicy: Qt.NoFocus
+                                    font.pointSize: 9
+                                    icon.height: 16
+                                    icon.name: "go-previous-skip"
+
+                                    onClicked: {
+                                        loopTimeATextField.text = app.formatTime(layerViewItem.layerPosition);
+                                        layerViewItem.layerLoopTimeA = app.timeToSeconds(loopTimeATextField.text);
+                                        app.slides.needsSync = true;
+                                    }
+
+                                    ToolTip {
+                                        text: qsTr("Copy current time")
+                                    }
+                                }
+                                Label {
+                                    font.pointSize: 9
+                                    text: qsTr("End:")
+                                    enabled: loopTimeEnabledCheckBox.checked
+                                }
+                                TextField {
+                                    id: loopTimeBTextField
+
+                                    enabled: loopTimeEnabledCheckBox.checked
+                                    font.pointSize: 9
+                                    implicitWidth: 70
+                                    inputMask: "99:99:99"
+                                    maximumLength: 8
+                                    text: app.formatTime(layerViewItem.layerLoopTimeB)
+
+                                    validator: RegularExpressionValidator {
+                                        regularExpression: /^([0-1\s]?[0-9\s]|2[0-3\s]):([0-5\s][0-9\s]):([0-5\s][0-9\s])$/
+                                    }
+
+                                    onEditingFinished: {
+                                        layerViewItem.layerLoopTimeB = app.timeToSeconds(text);
+                                        app.slides.needsSync = true;
+                                    }
+                                }
+                                ToolButton {
+                                    enabled: loopTimeEnabledCheckBox.checked
+                                    focusPolicy: Qt.NoFocus
+                                    font.pointSize: 9
+                                    icon.height: 16
+                                    icon.name: "go-previous-skip"
+
+                                    onClicked: {
+                                        loopTimeBTextField.text = app.formatTime(layerViewItem.layerPosition);
+                                        layerViewItem.layerLoopTimeB = app.timeToSeconds(loopTimeBTextField.text);
+                                        app.slides.needsSync = true;
+                                    }
+
+                                    ToolTip {
+                                        text: qsTr("Copy current time")
+                                    }
+                                }
+                                Label {
+                                    enabled: loopTimeEnabledCheckBox.checked
+                                    leftPadding: 10
+                                    font.pointSize: 9
+                                    fontSizeMode: Text.Fit
+                                    horizontalAlignment: Qt.AlignHCenter
+                                    text: "Duration: " + app.formatTime(layerViewItem.layerLoopTimeB - layerViewItem.layerLoopTimeA)
+                                }
                             }
                         }
-                        onToChanged: value = layerViewItem.layerPosition
+                    }
+                    RowLayout {
+                        Rectangle {
+                            color: Kirigami.Theme.alternateBackgroundColor
+                            implicitHeight: 35
+                            implicitWidth: 35
+                            radius: 5
 
-                        Connections {
-                            function onLayerPositionChanged() {
-                                if (!mediaSlider.seekStarted) {
-                                    mediaSlider.value = layerViewItem.layerPosition;
+                            ToolButton {
+                                id: playPauseButton
+
+                                property string iconName: "media-playback-start"
+                                property string toolTipText: "Start Playback"
+
+                                focusPolicy: Qt.NoFocus
+                                icon.name: playPauseButton.iconName
+                                text: ""
+
+                                onClicked: {
+                                    if(layerViewItem.layerPause){
+                                        if(layerViewItem.layerLoopTimeEnabled && layerViewItem.layerPosition < layerViewItem.layerLoopTimeA) {
+                                            layerViewItem.layerPosition = layerViewItem.layerLoopTimeA;
+                                        }
+                                        layerViewItem.layerPause = false
+                                    }
+                                    else{
+                                        layerViewItem.layerPause = true
+                                        layerViewItem.layerPosition = mediaSlider.value
+                                    }
+                                    app.slides.needsSync = true;
                                 }
-                                if (layerViewItem.layerPause) {
-                                    playPauseButton.iconName = "media-playback-start";
-                                    playPauseButton.toolTipText = "Start Playback";
+
+                                ToolTip {
+                                    id: playPauseButtonToolTip
+                                    text: playPauseButton.toolTipText
+                                }
+                            }
+                        }
+                        HProgressBar {
+                            id: mediaSlider
+
+                            implicitWidth: 400
+
+                            from: 0
+                            to: layerViewItem.layerDuration
+
+                            onPressedChanged: {
+                                if (pressed) {
+                                    mediaSlider.seekStarted = true;
                                 } else {
-                                    playPauseButton.iconName = "media-playback-pause";
-                                    playPauseButton.toolTipText = "Pause Playback";
+                                    layerViewItem.layerPause = true;
+                                    layerViewItem.layerPosition = value;
+                                    app.slides.needsSync = true;
+                                    mediaSlider.seekStarted = false;
                                 }
                             }
+                            onFromChanged: value = layerViewItem.layerPosition
+                            onToChanged: value = layerViewItem.layerPosition
 
-                            target: layerViewItem
+                            Connections {
+                                function onLayerPositionChanged() {
+                                    if (!mediaSlider.seekStarted) {
+                                        mediaSlider.value = layerViewItem.layerPosition;
+                                    }
+                                    if (layerViewItem.layerPause) {
+                                        playPauseButton.iconName = "media-playback-start";
+                                        playPauseButton.toolTipText = "Start Playback";
+                                    } else {
+                                        playPauseButton.iconName = "media-playback-pause";
+                                        playPauseButton.toolTipText = "Pause Playback";
+                                    }
+                                }
+                                function onLayerValueChanged() {
+                                    mediaSlider.sectionIndicator.startPosition = layerViewItem.layerLoopTimeEnabled ? layerViewItem.layerLoopTimeA : -1;
+                                    mediaSlider.sectionIndicator.endPosition = layerViewItem.layerLoopTimeEnabled ? layerViewItem.layerLoopTimeB : -1;
+                                }
+                                function onLayerChanged() {
+                                    mediaSlider.sectionIndicator.startPosition = layerViewItem.layerLoopTimeEnabled ? layerViewItem.layerLoopTimeA : -1;
+                                    mediaSlider.sectionIndicator.endPosition = layerViewItem.layerLoopTimeEnabled ? layerViewItem.layerLoopTimeB : -1;
+                                }
+
+                                target: layerViewItem
+                            }
+                            Layout.fillWidth: true
+                        }
+                        Rectangle {
+                            color: Kirigami.Theme.alternateBackgroundColor
+                            implicitHeight: 35
+                            implicitWidth: 35
+                            radius: 5
+
+                            ToolButton {
+                                id: rewindButton
+
+                                focusPolicy: Qt.NoFocus
+                                icon.name: "media-playback-stop"
+                                text: ""
+
+                                onClicked: {
+                                    layerViewItem.layerPause = true;
+                                    layerViewItem.layerPosition = layerViewItem.layerLoopTimeEnabled ? layerViewItem.layerLoopTimeA : 0;
+                                    app.slides.needsSync = true;
+                                }
+
+                                ToolTip {
+                                    id: rewindButtonToolTip
+
+                                    text: PlaybackSettings.fadeDownBeforeRewind ? qsTr("Fade down then stop/rewind") : qsTr("Stop/rewind")
+                                }
+                            }
+                        }
+                        Rectangle {
+                            color: Kirigami.Theme.alternateBackgroundColor
+                            implicitHeight: 35
+                            implicitWidth: 120
+                            radius: 5
+
+                            Row{
+                                anchors.fill: parent
+                                height: parent.height
+                                width: parent.width
+
+                                LabelWithTooltip {
+                                    topPadding: 8.5
+                                    leftPadding: 10
+
+                                    id: timeInfo
+
+                                    alwaysShowToolTip: true
+                                    font.pointSize: 9
+                                    fontSizeMode: Text.Fit
+                                    horizontalAlignment: Qt.AlignHCenter
+                                    text: app.formatTime(layerViewItem.layerPosition) + " / " + app.formatTime(layerViewItem.layerDuration)
+                                    toolTipFontSize: timeInfo.font.pointSize + 2
+                                    toolTipText: layerViewItem.layerLoopTimeEnabled
+                                                 ? qsTr("Remaining: ") + app.formatTime(Math.max(0, layerViewItem.layerLoopTimeB - layerViewItem.layerPosition))
+                                                 : qsTr("Remaining: ") + app.formatTime(layerViewItem.layerRemaining)
+                                }
+                            }
                         }
                     }
-                    Rectangle {
-                        color: Kirigami.Theme.alternateBackgroundColor
-                        implicitHeight: 35
-                        implicitWidth: 35
-                        radius: 5
-
-                        ToolButton {
-                            id: rewindButton
-
-                            focusPolicy: Qt.NoFocus
-                            icon.name: "media-playback-stop"
-                            text: ""
-
-                            onClicked: {
-                                layerViewItem.layerPause = true;
-                                layerViewItem.layerPosition = 0;
-                                app.slides.needsSync = true;
-                            }
-
-                            ToolTip {
-                                id: rewindButtonToolTip
-
-                                text: PlaybackSettings.fadeDownBeforeRewind ? qsTr("Fade down then stop/rewind") : qsTr("Stop/rewind")
+                    Connections {
+                        function onLayerChanged() {
+                            if(layerViewItem.layerIdx !== -1) {
+                                if(volumeSlider)
+                                    volumeSlider.value = layerViewItem.layerVolume;
+                                for (let i = 0; i < eofModeListModel.count; ++i) {
+                                    if (eofModeListModel.get(i).value === layerViewItem.layerEofMode) {
+                                        eofModeComboBox.currentIndex = i;
+                                        break;
+                                    }
+                                }
+                                loopTimeEnabledCheckBox.checked = layerViewItem.layerLoopTimeEnabled;
+                                loopTimeATextField.text = app.formatTime(layerViewItem.layerLoopTimeA);
+                                loopTimeBTextField.text = app.formatTime(layerViewItem.layerLoopTimeB);
+                                mediaSlider.value = layerViewItem.layerPosition;
                             }
                         }
-                    }
-                    Rectangle {
-                        color: Kirigami.Theme.alternateBackgroundColor
-                        implicitHeight: 35
-                        implicitWidth: 120
-                        radius: 5
-
-                        Row{
-                            anchors.fill: parent
-                            height: parent.height
-                            width: parent.width
-
-                            LabelWithTooltip {
-                                topPadding: 8.5
-
-                                id: timeInfo
-
-                                alwaysShowToolTip: true
-                                font.pointSize: 9
-                                fontSizeMode: Text.Fit
-                                horizontalAlignment: Qt.AlignHCenter
-                                text: app.formatTime(layerViewItem.layerPosition) + " / " + app.formatTime(layerViewItem.layerDuration)
-                                toolTipFontSize: timeInfo.font.pointSize + 2
-                                toolTipText: qsTr("Remaining: ") + app.formatTime(layerViewItem.layerRemaining)
+                        function onLayerValueChanged() {
+                            if (volumeSlider !== undefined){
+                                if (volumeSlider.value !== layerViewItem.layerVolume) {
+                                    volumeSlider.value = layerViewItem.layerVolume;
+                                }
                             }
+                            for (let i = 0; i < eofModeListModel.count; ++i) {
+                                if (eofModeListModel.get(i).value === layerViewItem.layerEofMode) {
+                                    eofModeComboBox.currentIndex = i;
+                                    break;
+                                }
+                            }
+                            loopTimeEnabledCheckBox.checked = layerViewItem.layerLoopTimeEnabled;
+                            if (!loopTimeATextField.activeFocus)
+                                loopTimeATextField.text = app.formatTime(layerViewItem.layerLoopTimeA);
+                            if (!loopTimeBTextField.activeFocus)
+                                loopTimeBTextField.text = app.formatTime(layerViewItem.layerLoopTimeB);
+                            if (!mediaSlider.seekStarted)
+                                mediaSlider.value = layerViewItem.layerPosition;
                         }
+
+                        target: layerViewItem
                     }
                 }
             }

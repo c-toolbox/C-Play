@@ -18,14 +18,13 @@ Slider {
 
     property alias sectionIndicator: sectionIndicator
     property bool seekStarted: false
-    property bool videoWasPaused: false
 
     from: 0
     implicitHeight: 25
     implicitWidth: 200
     leftPadding: 0
     rightPadding: 0
-    to: mpv.duration
+    to: 0
 
     background: Rectangle {
         id: progressBarBackground
@@ -41,8 +40,8 @@ Slider {
             color: Qt.hsla(0, 0, 0, 0.4)
             height: parent.height
             visible: startPosition !== -1
-            width: endPosition === -1 ? 1 : (endPosition / mpv.duration * progressBarBackground.width) - x
-            x: startPosition / mpv.duration * progressBarBackground.width
+            width: endPosition === -1 ? 1 : ((endPosition - root.from) / (root.to - root.from) * progressBarBackground.width) - x
+            x: (startPosition - root.from) / (root.to - root.from) * progressBarBackground.width
             z: 110
         }
         Rectangle {
@@ -71,48 +70,12 @@ Slider {
             }
             onMouseXChanged: {
                 progressBarToolTip.x = mouseX - (progressBarToolTip.width * 0.5);
-                const time = mouseX * 100 / progressBarBackground.width * root.to / 100;
+                const time = root.from + mouseX * (root.to - root.from) / progressBarBackground.width;
                 progressBarToolTip.text = app.formatTime(time);
             }
         }
     }
     handle: Item {
         visible: false
-    }
-
-    onPressedChanged: {
-        if (pressed) {
-            //videoWasPaused = mpv.pause
-            //mpv.pause = true
-            seekStarted = true;
-        } else {
-            mpv.pause = true;
-            mpv.position = value;
-            //mpv.pause = videoWasPaused
-            seekStarted = false;
-        }
-    }
-    onToChanged: value = mpv.position
-
-    Connections {
-        function onFileLoaded() {
-            sectionIndicator.startPosition = -1;
-            sectionIndicator.endPosition = -1;
-        }
-        function onPositionChanged() {
-            if (!root.seekStarted) {
-                root.value = mpv.position;
-            }
-        }
-        function onRewind() {
-            sectionIndicator.startPosition = -1;
-            sectionIndicator.endPosition = -1;
-        }
-        function onSectionLoaded(sectionIdx) {
-            sectionIndicator.startPosition = mpv.playSectionsModel.sectionStartTime(sectionIdx);
-            sectionIndicator.endPosition = mpv.playSectionsModel.sectionEndTime(sectionIdx);
-        }
-
-        target: mpv
     }
 }

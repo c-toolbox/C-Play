@@ -19,6 +19,7 @@
 #include <layers/pdflayer.h>
 #endif
 #include <layers/textlayer.h>
+#include <layers/mpvlayer.h>
 
 #include <QOpenGLContext>
 #include <QQuickGraphicsDevice>
@@ -216,6 +217,82 @@ double LayerQtItem::layerRemaining() const {
         return m_layer->remaining();
     else
         return 0.0;
+}
+
+int LayerQtItem::layerEofMode() const {
+    if (m_layer && (m_layer->type() == BaseLayer::LayerType::VIDEO || m_layer->type() == BaseLayer::LayerType::AUDIO)) {
+        MpvLayer* mpvLayer = static_cast<MpvLayer*>(m_layer);
+        return mpvLayer->eofMode();
+    }
+    return -1;
+}
+
+void LayerQtItem::setLayerEofMode(int value) {
+    if (m_layer && (m_layer->type() == BaseLayer::LayerType::VIDEO || m_layer->type() == BaseLayer::LayerType::AUDIO)) {
+        MpvLayer* mpvLayer = static_cast<MpvLayer*>(m_layer);
+        if (mpvLayer->eofMode() != value) {
+            mpvLayer->setEOFMode(value);
+            Q_EMIT layerNeedsSave();
+        }
+        Q_EMIT layerValueChanged();
+    }
+}
+
+bool LayerQtItem::layerLoopTimeEnabled() const {
+    if (m_layer && (m_layer->type() == BaseLayer::LayerType::VIDEO || m_layer->type() == BaseLayer::LayerType::AUDIO)) {
+        MpvLayer* mpvLayer = static_cast<MpvLayer*>(m_layer);
+        return mpvLayer->loopTimeEnabled();
+    }
+    return false;
+}
+
+void LayerQtItem::setLayerLoopTimeEnabled(bool value) {
+    if (m_layer && (m_layer->type() == BaseLayer::LayerType::VIDEO || m_layer->type() == BaseLayer::LayerType::AUDIO)) {
+        MpvLayer* mpvLayer = static_cast<MpvLayer*>(m_layer);
+        if (mpvLayer->loopTimeEnabled() != value) {
+            mpvLayer->setLoopTime(mpvLayer->loopTimeA(), mpvLayer->loopTimeB(), value);
+            Q_EMIT layerNeedsSave();
+        }
+        Q_EMIT layerValueChanged();
+    }
+}
+
+double LayerQtItem::layerLoopTimeA() const {
+    if (m_layer && (m_layer->type() == BaseLayer::LayerType::VIDEO || m_layer->type() == BaseLayer::LayerType::AUDIO)) {
+        MpvLayer* mpvLayer = static_cast<MpvLayer*>(m_layer);
+        return mpvLayer->loopTimeA();
+    }
+    return 0.0;
+}
+
+void LayerQtItem::setLayerLoopTimeA(double value) {
+    if (m_layer && (m_layer->type() == BaseLayer::LayerType::VIDEO || m_layer->type() == BaseLayer::LayerType::AUDIO)) {
+        MpvLayer* mpvLayer = static_cast<MpvLayer*>(m_layer);
+        if (mpvLayer->loopTimeA() != value) {
+            mpvLayer->setLoopTime(value, mpvLayer->loopTimeB(), mpvLayer->loopTimeEnabled());
+            Q_EMIT layerNeedsSave();
+        }
+        Q_EMIT layerValueChanged();
+    }
+}
+
+double LayerQtItem::layerLoopTimeB() const {
+    if (m_layer && (m_layer->type() == BaseLayer::LayerType::VIDEO || m_layer->type() == BaseLayer::LayerType::AUDIO)) {
+        MpvLayer* mpvLayer = static_cast<MpvLayer*>(m_layer);
+        return mpvLayer->loopTimeB();
+    }
+    return 0.0;
+}
+
+void LayerQtItem::setLayerLoopTimeB(double value) {
+    if (m_layer && (m_layer->type() == BaseLayer::LayerType::VIDEO || m_layer->type() == BaseLayer::LayerType::AUDIO)) {
+        MpvLayer* mpvLayer = static_cast<MpvLayer*>(m_layer);
+        if (mpvLayer->loopTimeB() != value) {
+            mpvLayer->setLoopTime(mpvLayer->loopTimeA(), value, mpvLayer->loopTimeEnabled());
+            Q_EMIT layerNeedsSave();
+        }
+        Q_EMIT layerValueChanged();
+    }
 }
 
 int LayerQtItem::layerPage() const {
