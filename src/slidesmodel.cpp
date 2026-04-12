@@ -51,6 +51,8 @@ QVariant SlideVisibilityModel::data(const QModelIndex& index, int role) const {
         return cellColor(index.column(), index.row());
     case TextRole:
         return cellText(index.column(), index.row());
+    case TimelineRole:
+        return cellHasTimeline(index.row());
     default:
         break;
     }
@@ -92,6 +94,7 @@ QHash<int, QByteArray> SlideVisibilityModel::roleNames() const {
     roles[DisplayRole] = "display";
     roles[ColorRole] = "color";
     roles[TextRole] = "text";
+    roles[TimelineRole] = "timeline";
     return roles;
 }
 
@@ -110,6 +113,10 @@ std::vector<std::pair<BaseLayer*, int>> SlideVisibilityModel::getLayersVisibilit
 void SlideVisibilityModel::cellClicked(int column, int row) {
     BaseLayer* foundLayer = findLayer(row);
     if (foundLayer) {
+        // Layers owned by slides with timeline keyframes cannot span multiple slides
+        if (cellHasTimeline(row))
+            return;
+
         // Calculate local index
         int localIndex = calculateLocalIndex(column, row, true);
         if (localIndex >= 0) {
@@ -141,6 +148,9 @@ void SlideVisibilityModel::resetTable() {
     // Below vector contains all layers, in order from first to last slide.
     std::vector<BaseLayer*> newVisibilityLayers;
 
+    // Track which slide index owns each layer row
+    std::vector<int> newLayerOwnerSlide;
+
     // Negative number if column number is before the layer owner (the slide it is own by)
     // 0 if the column number equals the layer owner
     // Positive number for large then the layer owner
@@ -149,11 +159,14 @@ void SlideVisibilityModel::resetTable() {
     int columns = m_slideList->size();
 
     //Rows = Layers
+    int slideIdx = 0;
     for (auto s : *m_slideList) {
         const Layers& slideLayers = s->getLayers();
         for (auto layer : slideLayers) {
             newVisibilityLayers.push_back(layer.first.get());
+            newLayerOwnerSlide.push_back(slideIdx);
         }
+        slideIdx++;
     }
     int rows = static_cast<int>(newVisibilityLayers.size());
 
@@ -185,6 +198,7 @@ void SlideVisibilityModel::resetTable() {
 
     m_keepVisibilityMatrix = newKeepVisibilityMatrix;
     m_visibilityLayers = newVisibilityLayers;
+    m_layerOwnerSlide = newLayerOwnerSlide;
 
     endResetModel();
 }
@@ -229,7 +243,7 @@ int SlideVisibilityModel::calculateLocalIndex(int column, int row, bool ignoreKe
 
 QString SlideVisibilityModel::cellColor(int column, int row) const {
     // Negative number = grey
-    // First zero, where visibility starts = green
+    // First zero, where visibility starts = green (or cyan if timeline keyframes)
     // Other zeros, still visible = white
     // One, where layer fade = red
     // Positive value above one = black
@@ -242,10 +256,17 @@ QString SlideVisibilityModel::cellColor(int column, int row) const {
     int val = m_keepVisibilityMatrix[keepIdx];
 
     if (val == 0) {
+        if (cellHasTimeline(row))
+            return QStringLiteral("cyan");
         return QStringLiteral("green");
     }
     else if (val < 0) {
         return QStringLiteral("grey");
+    }
+
+    // Layers owned by slides with timeline keyframes cannot span multiple slides
+    if (cellHasTimeline(row)) {
+        return QStringLiteral("black");
     }
 
     val -= m_visibilityLayers[row]->keepVisibilityForNumSlides();
@@ -267,14 +288,22 @@ QString SlideVisibilityModel::cellText(int column, int row) const {
         return QStringLiteral("");
 
     int val = m_keepVisibilityMatrix[keepIdx];
-
-    if (val == 0) {
+    if(val == 0) {
+        if (cellHasTimeline(row))
+            return QStringLiteral("Timeline Intro");
         return QStringLiteral("0% -> 100%");
     }
-    else if (val < 0) {
+    else if (val < 0)
+        return QStringLiteral("");
+
+    // Layers owned by slides with timeline keyframes cannot span multiple slides
+    if (cellHasTimeline(row)) {
+        if (val == 1) {
+            return QStringLiteral("Timeline Outro");
+        }
         return QStringLiteral("");
     }
-
+    
     val -= m_visibilityLayers[row]->keepVisibilityForNumSlides();
     if (val <= 0) {
         return QStringLiteral("100%");
@@ -287,16 +316,27 @@ QString SlideVisibilityModel::cellText(int column, int row) const {
     }
 }
 
+bool SlideVisibilityModel::cellHasTimeline(int row) const {
+    if (row < 0 || row >= static_cast<int>(m_layerOwnerSlide.size()))
+        return false;
+
+    int ownerSlide = m_layerOwnerSlide[row];
+    if (ownerSlide < 0 || ownerSlide >= m_slideList->size())
+        return false;
+
+    return m_slideList->at(ownerSlide)->hasTimelineKeyframes();
+}
+
 SlidesModel::SlidesModel(QObject *parent)
     : QAbstractListModel(parent),
     m_masterSlide(new LayersModel(this)),
-    m_dummySlide(new LayersModel(this)),
-    m_visibilityModel(new SlideVisibilityModel(&m_slides, this)),
-    m_needSync(false),
-    m_syncIteration(0),
-    m_slideFadeTime(0),
-    m_slidesName(QStringLiteral("")),
-    m_slidesPath(QStringLiteral("")) {
+    m_dummySlide(new LayersModel(this))
+    , m_visibilityModel(new SlideVisibilityModel(&m_slides, this))
+    , m_needSync(false)
+    , m_syncIteration(0)
+    , m_slideFadeTime(0)
+    , m_slidesName(QStringLiteral(""))
+    , m_slidesPath(QStringLiteral("")) {
     m_masterSlide->setLayersName(QStringLiteral("Master"));
     m_masterSlide->setHierarchy(BaseLayer::LayerHierarchy::BACK);
     m_masterSlide->setLayersCanBeLocked(true);
@@ -344,8 +384,12 @@ QVariant SlidesModel::data(const QModelIndex &index, int role) const {
         return QVariant(slideItem->getLayersCanBeLocked());
     case LockedCountRole:
         return QVariant(slideItem->getLockedLayerCount());
-    case VisibilityRole:
+    case VisibilityRole: {
+        int tlVis = slideTimelineVisibility(index.row());
+        if (tlVis >= 0)
+            return QVariant(tlVis);
         return QVariant(slideItem->getLayersVisibility());
+    }
     }
 
     return QVariant();
@@ -441,6 +485,7 @@ int SlidesModel::triggeredSlideIdx() {
 void SlidesModel::setTriggeredSlideIdx(int value) {
     m_previousTriggeredSlideIdx = m_triggeredSlideIdx;
     m_triggeredSlideIdx = std::max(value, -1);
+
     Q_EMIT triggeredSlideChanged();
 }
 
@@ -486,7 +531,8 @@ void SlidesModel::setTriggeredSlideVisibility(int value) {
                 continue;
             }
             else if (localIdx == 1) {
-                layers[i].first->setAlpha(1.f - valF); //100%->0%
+                if(layers[i].first->alpha() > 0.f)
+                    layers[i].first->setAlpha(1.f - valF); //100%->0%
                 continue;
             }
             else {
@@ -499,19 +545,13 @@ void SlidesModel::setTriggeredSlideVisibility(int value) {
 
         slide(m_triggeredSlideIdx)->setLayersVisibility(value, false);
         updateSlide(m_triggeredSlideIdx);
-    }
 
-    // Need to update UI for all layers that changed
-    // Let's just update selected, triggered and previous slide
-    if (m_previousTriggeredSlideIdx != m_triggeredSlideIdx 
-        && m_previousTriggeredSlideIdx >= 0 && m_previousTriggeredSlideIdx < m_slides.size()) {
-        slide(m_previousTriggeredSlideIdx)->setLayersVisibility(100 - value, false);
-        updateSlide(m_previousTriggeredSlideIdx);
-    }
-    if (m_selectedSlideIdx != m_triggeredSlideIdx && m_selectedSlideIdx != m_previousTriggeredSlideIdx
-        && m_selectedSlideIdx >= 0 && m_selectedSlideIdx < m_slides.size()) {
-        slide(m_selectedSlideIdx)->setLayersVisibility(100 - value, false);
-        updateSlide(m_selectedSlideIdx);
+        if (m_previousTriggeredSlideIdx != m_triggeredSlideIdx
+            && m_previousTriggeredSlideIdx >= 0 && m_previousTriggeredSlideIdx < m_slides.size()
+            && slide(m_previousTriggeredSlideIdx)->getLayersVisibility() > 0){
+            slide(m_previousTriggeredSlideIdx)->setLayersVisibility(100 - value, false);
+            updateSlide(m_previousTriggeredSlideIdx);
+        }
     }
 
     Q_EMIT triggeredSlideVisibilityChanged();
@@ -574,6 +614,18 @@ int SlidesModel::addSlide() {
 
     connect(m_slides[m_slides.size() - 1].get(), &LayersModel::layersModelChanged, this, &SlidesModel::slideContentChanged);
     connect(m_slides[m_slides.size() - 1].get(), &LayersModel::layersNeedsSaveChanged, this, &SlidesModel::setLayersNeedsSave);
+
+    LayersModel *lm = m_slides[m_slides.size() - 1].get();
+    connect(lm, &LayersModel::layersVisibilityChanged, this, [this, lm]() {
+        for (int i = 0; i < m_slides.size(); ++i) {
+            if (m_slides[i].get() == lm) {
+                updateSlide(i);
+                onSlideVisibilityChanged(i);
+                break;
+            }
+        }
+    });
+
     Q_EMIT slideModelChanged();
 
     return m_slides.size() - 1;
@@ -878,9 +930,12 @@ void SlidesModel::loadFromJSONFile(const QString &path) {
     }
 
     QFile f(fileToOpen);
-    f.open(QIODevice::ReadOnly);
+    if (!f.open(QIODevice::ReadOnly)) {
+        qDebug() << QStringLiteral("Failed to open C-play presentation: ") << fileToOpen;
+        return;
+    }
     QByteArray fileContent = f.readAll();
-    f.close();
+    f.close();  
 
     QJsonDocument doc = QJsonDocument::fromJson(fileContent);
     if (doc.isNull()) {
@@ -962,7 +1017,10 @@ void SlidesModel::saveAsJSONFile(const QString &path) {
 
     doc.setObject(obj);
     QFile jsonFile(fileToSave);
-    jsonFile.open(QFile::WriteOnly);
+    if(!jsonFile.open(QFile::WriteOnly)) {
+        qDebug() << QStringLiteral("Failed to open C-play presentation for writing: ") << fileToSave;
+        return;
+    }
     jsonFile.write(doc.toJson());
     jsonFile.close();
 
@@ -1083,4 +1141,164 @@ void SlidesModel::updateRecentLoadedPresentations(QString path) {
     PresentationSettings::setRecentLoadedPresentations(recentPresentations);
     Q_EMIT recentPresentationsChanged();
     PresentationSettings::self()->save();
+}
+
+void SlidesModel::onSlideVisibilityChanged(int slideIdx) {
+    if (slideIdx != m_triggeredSlideIdx)
+        return;
+    if (!slideHasTimelineKeyframes(slideIdx))
+        return;
+
+    int value = slide(slideIdx)->getLayersVisibility();
+    float valF = static_cast<float>(value) * 0.01f;
+
+    std::vector<std::pair<BaseLayer*, int>> layers = m_visibilityModel->getLayersVisibility(slideIdx);
+    for (int i = 0; i < static_cast<int>(layers.size()); i++) {
+        int localIdx = layers[i].second;
+
+        if (localIdx == 0) {
+            // This layer belongs to the triggered slide; the timeline handles its
+            // alpha via keyframes, so we apply the visibility envelope here as well
+            // to keep the cross-slide scheme in sync.
+            layers[i].first->setAlpha(valF);
+            continue;
+        }
+        else if (localIdx < 0) {  // Upcoming
+            layers[i].first->setAlpha(0.f);
+            if (-localIdx <= PresentationSettings::updateUpcomingSlideCount()) {
+                layers[i].first->setShouldPreLoad(true);
+            }
+            continue;
+        }
+
+        localIdx -= layers[i].first->keepVisibilityForNumSlides();
+        if (localIdx <= 0) {
+            layers[i].first->setAlpha(1.f); // 100%
+            continue;
+        }
+        else if (localIdx == 1) {
+            if (layers[i].first->alpha() > 0.f)
+                layers[i].first->setAlpha(1.f - valF); // 100%->0%
+            continue;
+        }
+        else {
+            layers[i].first->setAlpha(0.f); // 0%
+            layers[i].first->setShouldUpdate(false);
+            continue;
+        }
+    }
+
+    if (m_previousTriggeredSlideIdx != m_triggeredSlideIdx
+        && m_previousTriggeredSlideIdx >= 0 && m_previousTriggeredSlideIdx < m_slides.size()
+        && slide(m_previousTriggeredSlideIdx)->getLayersVisibility() > 0
+        && !slideHasTimelineKeyframes(m_previousTriggeredSlideIdx)) {
+        slide(m_previousTriggeredSlideIdx)->setLayersVisibility(100 - value, false);
+        updateSlide(m_previousTriggeredSlideIdx);
+    }
+}
+
+void SlidesModel::startTimeline(int slideIdx) {
+    if (slideIdx < 0 || slideIdx >= m_slides.size())
+        return;
+    m_slides[slideIdx]->startTimeline();
+}
+
+void SlidesModel::startTimelineFrom(int slideIdx, int startMs) {
+    if (slideIdx < 0 || slideIdx >= m_slides.size())
+        return;
+    m_slides[slideIdx]->startTimelineFrom(startMs);
+}
+
+void SlidesModel::startTimelineReverse(int slideIdx) {
+    if (slideIdx < 0 || slideIdx >= m_slides.size())
+        return;
+    m_slides[slideIdx]->startTimelineReverse();
+}
+
+void SlidesModel::startTimelineIntro(int slideIdx) {
+    if (slideIdx < 0 || slideIdx >= m_slides.size())
+        return;
+    m_slides[slideIdx]->startTimelineIntro();
+}
+
+void SlidesModel::startTimelineOutro(int slideIdx) {
+    if (slideIdx < 0 || slideIdx >= m_slides.size())
+        return;
+    m_slides[slideIdx]->startTimelineOutro();
+}
+
+void SlidesModel::stopTimeline(int slideIdx) {
+    if (slideIdx < 0 || slideIdx >= m_slides.size())
+        return;
+    m_slides[slideIdx]->stopTimeline();
+}
+
+void SlidesModel::stopOutro(int slideIdx) {
+    if (slideIdx < 0 || slideIdx >= m_slides.size())
+        return;
+    m_slides[slideIdx]->stopOutro();
+}
+
+void SlidesModel::stopAllTimelines() {
+    for (int i = 0; i < m_slides.size(); ++i)
+        m_slides[i]->stopAllTimelines();
+}
+
+bool SlidesModel::timelineRunning(int slideIdx) const {
+    if (slideIdx < 0 || slideIdx >= m_slides.size())
+        return false;
+    return m_slides.at(slideIdx)->timelineRunning();
+}
+
+bool SlidesModel::timelineReversed(int slideIdx) const {
+    if (slideIdx < 0 || slideIdx >= m_slides.size())
+        return false;
+    return m_slides.at(slideIdx)->timelineReversed();
+}
+
+int SlidesModel::timelineSlideIdx() const {
+    // For backward compatibility: return first slide with running timeline
+    for (int i = 0; i < m_slides.size(); ++i) {
+        if (m_slides.at(i)->timelineRunning())
+            return i;
+    }
+    return -1;
+}
+
+int SlidesModel::timelinePositionMs(int slideIdx) const {
+    if (slideIdx < 0 || slideIdx >= m_slides.size())
+        return 0;
+    return m_slides.at(slideIdx)->timelinePositionMs();
+}
+
+bool SlidesModel::outroRunning(int slideIdx) const {
+    if (slideIdx < 0 || slideIdx >= m_slides.size())
+        return false;
+    return m_slides.at(slideIdx)->outroRunning();
+}
+
+bool SlidesModel::slideHasTimelineKeyframes(int slideIdx) const {
+    if (slideIdx < 0 || slideIdx >= m_slides.size())
+        return false;
+    return m_slides.at(slideIdx)->hasTimelineKeyframes();
+}
+
+void SlidesModel::jumpToIntroStart(int slideIdx) {
+    if (slideIdx < 0 || slideIdx >= m_slides.size())
+        return;
+    m_slides[slideIdx]->jumpToIntroStart();
+    updateSlide(slideIdx);
+}
+
+void SlidesModel::jumpToOutroStart(int slideIdx) {
+    if (slideIdx < 0 || slideIdx >= m_slides.size())
+        return;
+    m_slides[slideIdx]->jumpToOutroStart();
+    updateSlide(slideIdx);
+}
+
+int SlidesModel::slideTimelineVisibility(int slideIdx) const {
+    if (slideIdx < 0 || slideIdx >= m_slides.size())
+        return -1;
+    return m_slides.at(slideIdx)->timelineVisibility();
 }

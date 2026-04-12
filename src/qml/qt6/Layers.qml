@@ -17,6 +17,7 @@ Rectangle {
     id: layersRoot
 
     property int bigFont: PlaylistSettings.bigFontFullscreen
+    property alias layersScrollView: layersScrollView
     property alias layersView: layersView
     property string position: PlaylistSettings.position
     property int rowHeight: PlaylistSettings.rowHeight

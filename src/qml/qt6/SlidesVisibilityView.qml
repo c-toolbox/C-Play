@@ -67,7 +67,7 @@ Kirigami.ApplicationWindow {
             Text {
                 anchors.fill: parent
                 text: model.text
-                color: model.color === "white" ? "black" : "white"
+                color: (model.color === "white" || model.color === "cyan") ? "black" : "white"
                 font.pointSize: 8
                 horizontalAlignment: Text.AlignHCenter
                 verticalAlignment: Text.AlignVCenter

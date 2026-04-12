@@ -647,6 +647,9 @@ QtObject {
                     app.slides.slideFadeTime = PresentationSettings.fadeDurationToPreviousSlide;
                     app.slides.selectedSlideIdx = app.slides.selectedSlideIdx - 1;
                     app.slides.triggeredSlideIdx = app.slides.triggeredSlideIdx - 1;
+                    if(app.slides.slideHasTimelineKeyframes(app.slides.selectedSlideIdx)){
+                        app.slides.jumpToOutroStart(app.slides.selectedSlideIdx);
+                    }
                 }
                 else {
                     app.slides.slideFadeTime = PresentationSettings.fadeDurationToNextSlide;

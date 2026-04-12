@@ -191,6 +191,7 @@ set(QML_SRC_FILES
     qml/qt6/Slides.qml
     qml/qt6/SlidesItemCompact.qml
     qml/qt6/SlidesVisibilityView.qml
+    qml/qt6/SlideTimeline.qml
     qml/qt6/BackgroundImage.qml
     qml/qt6/ForegroundImage.qml
     qml/qt6/SaveAsCPlayFile.qml

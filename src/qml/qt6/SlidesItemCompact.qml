@@ -106,7 +106,7 @@ ItemDelegate {
                 id: slideNameField
 
                 anchors.left: its.left
-                anchors.leftMargin: 12
+                anchors.leftMargin: slidesScrollView.effectiveScrollBarWidth  > 0 ? 19 : 12
                 anchors.top: parent.top
                 anchors.topMargin: 3
                 color: Kirigami.Theme.textColor
@@ -227,9 +227,12 @@ ItemDelegate {
 
                 onValueChanged: {
                     if (!slidesView.enabled) {
-                        if (value.toFixed(0) !== app.slides.triggeredSlideVisibility) {
-                            app.slides.triggeredSlideVisibility = value.toFixed(0);
-                            app.slides.updateSelectedSlide();
+                        var isTriggered = (app.slides.triggeredSlideIdx === index);
+                        if (isTriggered) {
+                            if (value.toFixed(0) !== app.slides.triggeredSlideVisibility) {
+                                app.slides.triggeredSlideVisibility = value.toFixed(0);
+                                app.slides.updateSelectedSlide();
+                            }
                         }
                         if (value.toFixed(0) !== layerView.layerItem.layerVisibility) {
                             layerView.layerItem.layerVisibility = value.toFixed(0);
@@ -399,6 +402,37 @@ ItemDelegate {
         app.slides.triggeredSlideIdx = index;
     }
 
+    // Per-slide timeline window (created lazily)
+    SlideTimeline {
+        id: slideTimelineWindow
+        slideIndex: index
+    }
+
+    // Timeline toggle button — shown bottom-left when slide is selected
+    Button {
+        flat: true
+        hoverEnabled: false
+        visible: (app.slides.slide(index).hasTimeline || slidesView.currentIndex === index) && app.slides.slide(index) !== null
+                 && app.slides.slide(index).hasTimeline !== undefined
+        anchors.leftMargin: slidesScrollView.effectiveScrollBarWidth  > 0 ? 90 : 110
+        anchors.bottomMargin: -3
+        anchors.bottom: parent.bottom
+        anchors.left: parent.left
+        icon.name: "chronometer"
+        icon.color: (app.slides.slide(index) && app.slides.slide(index).hasTimeline) ? "lime" : "gray"
+        icon.width: 20
+        icon.height: 20
+
+        onClicked: {
+            slideTimelineWindow.show();
+            slideTimelineWindow.raise();
+        }
+
+        ToolTip {
+            text: qsTr("Open slide timeline")
+        }
+    }
+
     PropertyAnimation {
         id: visibility_fade_out_animation
 
@@ -408,6 +442,10 @@ ItemDelegate {
         to: 0
 
         onFinished: {
+            visibilitySlider.value = 0;
+            if (app.slides.triggeredSlideIdx === index) {
+                app.slides.triggeredSlideVisibility = 0;
+            }
             slidesView.enabled = true;
             app.slides.pauseLayerUpdate = false;
             app.action("slidePrevious").enabled = true;
@@ -429,6 +467,10 @@ ItemDelegate {
         to: 100
 
         onFinished: {
+            visibilitySlider.value = 100;
+            if (app.slides.triggeredSlideIdx === index) {
+                app.slides.triggeredSlideVisibility = 100;
+            }
             slidesView.enabled = true;
             app.slides.pauseLayerUpdate = false;
             app.action("slidePrevious").enabled = true;
@@ -449,14 +491,69 @@ ItemDelegate {
         }
 
         function onTriggeredSlideChanged() {
-            if(app.slides.selected.layersEnabled) {
-                if (app.slides.selected.layersVisibility === 100 && !visibility_fade_out_animation.running) {
-                    visibility_fade_out_animation.duration = app.slides.slideFadeTime / 2;
-                    visibility_fade_out_animation.start();
+            if (!app.slides.selected.layersEnabled)
+                return;
+
+            var triggeredIdx = app.slides.triggeredSlideIdx;
+            var prevIdx      = app.slides.previousTriggeredIdx();
+
+            // ---- Incoming slide (fade-in equivalent) ----
+            if (triggeredIdx === index) {
+                // Same slide triggered again while already visible or mid-timeline:
+                // treat it as a fade-out request.
+                if (model.visibility > 0) {
+                    app.slides.stopAllTimelines();
+                    if (app.slides.slideHasTimelineKeyframes(index)) {
+                        app.slides.startTimelineOutro(index);
+                        return;
+                    }
+                    if (!visibility_fade_out_animation.running) {
+                        visibility_fade_out_animation.duration = app.slides.slideFadeTime;
+                        visibility_fade_out_animation.start();
+                    }
+                    return;
                 }
-                if (app.slides.selected.layersVisibility === 0 && !visibility_fade_in_animation.running) {
-                    visibility_fade_in_animation.duration = app.slides.slideFadeTime / 2;
+                if (app.slides.slideHasTimelineKeyframes(index)) {
+                    app.slides.startTimeline(index);
+                    return;
+                }
+                if (!visibility_fade_in_animation.running) {
+                    visibility_fade_in_animation.duration = app.slides.slideFadeTime;
                     visibility_fade_in_animation.start();
+                }
+                return;
+            }
+
+            // ---- Outgoing slide (fade-out equivalent) ----
+            if (prevIdx === index) {
+                if (model.visibility > 0) {
+                    if (app.slides.slideHasTimelineKeyframes(index)) {
+                        if(app.slides.slideFadeTime == PresentationSettings.fadeDurationToPreviousSlide) {
+                            app.slides.jumpToIntroStart(index);
+                            return;
+                        }
+                        app.slides.startTimelineOutro(index);
+                        return;
+                    }
+                    if(!visibility_fade_out_animation.running) {
+                        visibility_fade_out_animation.duration = app.slides.slideFadeTime;
+                        visibility_fade_out_animation.start();
+                    }
+                }
+                return;
+            }
+
+            // ---- Any other slide: ensure it is at 0% ----
+            if (model.visibility > 0) {
+                if (visibility_fade_in_animation.running)
+                    visibility_fade_in_animation.stop();
+                if (visibility_fade_out_animation.running)
+                    visibility_fade_out_animation.stop();
+                if (app.slides.slideHasTimelineKeyframes(index)) {
+                    app.slides.jumpToIntroStart(index);
+                } else {
+                    app.slides.slide(index).layersVisibility = 0;
+                    app.slides.updateSlide(index);
                 }
             }
         }

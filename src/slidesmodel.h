@@ -12,6 +12,7 @@
 #include <QAbstractListModel>
 #include <QAbstractTableModel>
 #include <QtQml/qqmlregistration.h>
+#include <QElapsedTimer>
 
 class BaseLayer;
 class LayersModel;
@@ -41,7 +42,8 @@ public:
     enum {
         DisplayRole = Qt::DisplayRole,
         ColorRole,
-        TextRole
+        TextRole,
+        TimelineRole
     };
 
     int rowCount(const QModelIndex &parent = QModelIndex()) const override;
@@ -60,11 +62,13 @@ private:
     int calculateLocalIndex(int column, int row, bool ignoreKeepValue = false) const;
     QString cellColor(int column, int row) const;
     QString cellText(int column, int row) const;
+    bool cellHasTimeline(int row) const;
 
     QList<QSharedPointer<LayersModel>>* m_slideList;
 
     std::vector<int> m_keepVisibilityMatrix;
     std::vector<BaseLayer*> m_visibilityLayers;
+    std::vector<int> m_layerOwnerSlide;
 };
 
 class SlidesModel : public QAbstractListModel {
@@ -119,6 +123,7 @@ public:
 
     Q_INVOKABLE int previousSlideIdx();
     Q_INVOKABLE int nextSlideIdx();
+    Q_INVOKABLE int previousTriggeredIdx();
 
     Q_PROPERTY(int triggeredSlideIdx
         READ triggeredSlideIdx
@@ -127,8 +132,6 @@ public:
 
     Q_INVOKABLE int triggeredSlideIdx();
     Q_INVOKABLE void setTriggeredSlideIdx(int value);
-
-    int previousTriggeredIdx();
 
     Q_PROPERTY(int triggeredSlideVisibility
         READ triggeredSlideVisibility
@@ -152,7 +155,7 @@ public:
 
     Q_INVOKABLE LayersModel *masterSlide();
     Q_INVOKABLE LayersModel *slide(int i);
-    Q_INVOKABLE LayersModel* slide(std::string name);
+    Q_INVOKABLE LayersModel *slide(std::string name);
     Q_INVOKABLE LayersModel *selectedSlide();
 
     Q_PROPERTY(SlideVisibilityModel *visibilityModel
@@ -234,6 +237,39 @@ public:
 
     void runRenderOnLayersThatShouldUpdate(bool updateRendering);
 
+    Q_INVOKABLE void startTimeline(int slideIdx);
+    Q_INVOKABLE void startTimelineFrom(int slideIdx, int startMs);
+    Q_INVOKABLE void startTimelineReverse(int slideIdx);
+    Q_INVOKABLE void startTimelineIntro(int slideIdx);
+    Q_INVOKABLE void startTimelineOutro(int slideIdx);
+    Q_INVOKABLE void stopTimeline(int slideIdx);
+    Q_INVOKABLE void stopOutro(int slideIdx);
+    Q_INVOKABLE void stopAllTimelines();
+    Q_INVOKABLE bool timelineRunning(int slideIdx) const;
+    Q_INVOKABLE bool timelineReversed(int slideIdx) const;
+    Q_INVOKABLE int  timelineSlideIdx() const;
+    Q_INVOKABLE int  timelinePositionMs(int slideIdx) const;
+    Q_INVOKABLE bool outroRunning(int slideIdx) const;
+
+    // Returns true if slideIdx has a timeline enabled and at least one layer
+    // with at least one keyframe — used by QML to decide whether to play the
+    // timeline instead of the normal fade animations.
+    Q_INVOKABLE bool slideHasTimelineKeyframes(int slideIdx) const;
+
+    // Jump a slide's layers to the intro start position (time 0) or the outro
+    // start position, applying the timeline state without starting playback.
+    Q_INVOKABLE void jumpToIntroStart(int slideIdx);
+    Q_INVOKABLE void jumpToOutroStart(int slideIdx);
+
+    // Returns the timeline progress [0,100] for slideIdx if it has timeline
+    // keyframes, or -1 if not applicable.
+    Q_INVOKABLE int slideTimelineVisibility(int slideIdx) const;
+
+private:
+    void setNeedSync();
+    void updateRecentLoadedPresentations(QString path);
+    void onSlideVisibilityChanged(int slideIdx);
+
 Q_SIGNALS:
     void slideModelChanged();
     void presentationHasLoaded();
@@ -254,9 +290,6 @@ Q_SIGNALS:
     void recentPresentationsChanged();
 
 private:
-    void setNeedSync();
-    void updateRecentLoadedPresentations(QString path);
-
     QList<QSharedPointer<LayersModel>> m_slides;
     LayersModel *m_masterSlide;
     LayersModel *m_dummySlide;

@@ -20,6 +20,7 @@ Rectangle {
     property string position: PlaylistSettings.position
     property int rowHeight: PlaylistSettings.rowHeight
     property alias scrollPositionTimer: scrollPositionTimer
+    property alias slidesScrollView: slidesScrollView
     property alias slidesView: slidesView
     property bool busyIndicator: false
     property bool shouldBeVisible: true
