@@ -43,10 +43,14 @@ Kirigami.ApplicationWindow {
         }
     }
     function destroyRoiComponents() {
-        if (selection)
+        if (selection) {
             selection.destroy();
-        if (roiEdit)
+            selection = undefined;
+        }
+        if (roiEdit) {
             roiEdit.destroy();
+            roiEdit = undefined;
+        }
     }
 
     function createPageComponents() {
@@ -57,6 +61,7 @@ Kirigami.ApplicationWindow {
     function destroyPageComponents() {
         if (pdfPage) {
             pdfPage.destroy();
+            pdfPage = undefined;
         }
     }
 
@@ -68,6 +73,7 @@ Kirigami.ApplicationWindow {
     function destroyMediaComponents() {
         if (mediaControls) {
             mediaControls.destroy();
+            mediaControls = undefined;
         }
     }
 
@@ -79,6 +85,7 @@ Kirigami.ApplicationWindow {
     function destroyStreamComponents() {
         if (streamControls) {
             streamControls.destroy();
+            streamControls = undefined;
         }
     }
 
@@ -90,6 +97,7 @@ Kirigami.ApplicationWindow {
     function destroyTextComponents() {
         if (textControls) {
             textControls.destroy();
+            textControls = undefined;
         }
     }
 
@@ -101,6 +109,7 @@ Kirigami.ApplicationWindow {
     function destroyAudioComponents() {
         if (audioControls) {
             audioControls.destroy();
+            audioControls = undefined;
         }
     }
 
@@ -786,7 +795,7 @@ Kirigami.ApplicationWindow {
                             }
                         }
                         function onLayerValueChanged() {
-                            if (volumeSlider !== undefined){
+                            if (volumeSlider){
                                 if (volumeSlider.value !== layerViewItem.layerVolume) {
                                     volumeSlider.value = layerViewItem.layerVolume;
                                 }
@@ -1115,8 +1124,6 @@ Kirigami.ApplicationWindow {
                     Connections {
                         function onLayerChanged() {
                             if(layerViewItem.layerIdx !== -1) {
-                                if(volumeSlider)
-                                    volumeSlider.value = layerViewItem.layerVolume;
                                 for (let i = 0; i < eofModeListModel.count; ++i) {
                                     if (eofModeListModel.get(i).value === layerViewItem.layerEofMode) {
                                         eofModeComboBox.currentIndex = i;
@@ -1130,11 +1137,6 @@ Kirigami.ApplicationWindow {
                             }
                         }
                         function onLayerValueChanged() {
-                            if (volumeSlider !== undefined){
-                                if (volumeSlider.value !== layerViewItem.layerVolume) {
-                                    volumeSlider.value = layerViewItem.layerVolume;
-                                }
-                            }
                             for (let i = 0; i < eofModeListModel.count; ++i) {
                                 if (eofModeListModel.get(i).value === layerViewItem.layerEofMode) {
                                     eofModeComboBox.currentIndex = i;
@@ -1492,39 +1494,45 @@ Kirigami.ApplicationWindow {
                     
                     if (layerViewItem.layerTypeName === "PDF") {
                         createPageComponents();
-                    }
-                    else {
-                        destroyPageComponents();
-                    }
-
-                    if (layerViewItem.layerTypeName === "Video" 
-                        || layerViewItem.layerTypeName === "Audio") {
-                        createAudioComponents();
-                        createMediaComponents();
-                    }
-                    else {
                         destroyAudioComponents();
                         destroyMediaComponents();
-                    }
-
-                    if (layerViewItem.layerTypeName === "Stream") {
-                        createStreamComponents();
-                    }
-                    else {
                         destroyStreamComponents();
+                        destroyTextComponents();
                     }
-
-                    if (layerViewItem.layerTypeName === "NDI") {
+                    else if (layerViewItem.layerTypeName === "Video" 
+                        || layerViewItem.layerTypeName === "Audio") {
+                        destroyPageComponents();
                         createAudioComponents();
+                        createMediaComponents();
+                        destroyStreamComponents();
+                        destroyTextComponents();
                     }
-                    else {
+                    else if (layerViewItem.layerTypeName === "Stream") {
+                        destroyPageComponents();
                         destroyAudioComponents();
+                        destroyMediaComponents();
+                        createStreamComponents();
+                        destroyTextComponents();
                     }
-
-                    if (layerViewItem.layerTypeName === "Text") {
+                    else if (layerViewItem.layerTypeName === "NDI") {
+                        destroyPageComponents();
+                        createAudioComponents();
+                        destroyMediaComponents();
+                        destroyStreamComponents();
+                        destroyTextComponents();
+                    }
+                    else if (layerViewItem.layerTypeName === "Text") {
+                        destroyPageComponents();
+                        destroyAudioComponents();
+                        destroyMediaComponents();
+                        destroyStreamComponents();
                         createTextComponents();
                     }
                     else {
+                        destroyPageComponents();
+                        destroyAudioComponents();
+                        destroyMediaComponents();
+                        destroyStreamComponents();
                         destroyTextComponents();
                     }
                 }
