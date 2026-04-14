@@ -136,6 +136,9 @@ public:
     virtual void setLoopTime(double A, double B, bool enabled);
     virtual void setValue(std::string param, int val);
 
+    virtual bool isQRCodeDetectionEnabled() const;
+    virtual void setQRCodeDetectionEnabled(bool enabled);
+
     virtual void encodeTypeCore(std::vector<std::byte>& data);
     virtual void decodeTypeCore(const std::vector<std::byte>& data, unsigned int& pos);
 

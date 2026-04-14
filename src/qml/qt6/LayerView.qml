@@ -28,6 +28,7 @@ Kirigami.ApplicationWindow {
     property var audioControls: undefined
     property var streamControls: undefined
     property var textControls: undefined
+    property var qrCodeControls: undefined
 
     function createRoiComponents() {
         if (!selection) {
@@ -113,6 +114,18 @@ Kirigami.ApplicationWindow {
         }
     }
 
+    function createQRCodeComponents() {
+        if (!qrCodeControls) {
+            qrCodeControls = qrCodeComponent.createObject(layerViewItem);
+        }
+    }
+    function destroyQRCodeComponents() {
+        if (qrCodeControls) {
+            qrCodeControls.destroy();
+            qrCodeControls = undefined;
+        }
+    }
+
     color: Kirigami.Theme.alternateBackgroundColor
     height: 630
     minimumWidth: 690
@@ -134,6 +147,7 @@ Kirigami.ApplicationWindow {
         destroyAudioComponents();
         destroyMediaComponents();
         destroyStreamComponents();
+        destroyQRCodeComponents();
     }
     onVisibilityChanged: {
         if (visible) {
@@ -151,9 +165,11 @@ Kirigami.ApplicationWindow {
                 }
                 else if (layerViewItem.layerTypeName === "Stream") {
                     createStreamComponents();
+                    createQRCodeComponents();
                 }
                 else if (layerViewItem.layerTypeName === "NDI") {
                     createAudioComponents();
+                    createQRCodeComponents();
                 }
                 else if (layerViewItem.layerTypeName === "Text") {
                     createTextComponents();
@@ -166,6 +182,7 @@ Kirigami.ApplicationWindow {
                 destroyMediaComponents();
                 destroyStreamComponents();
                 destroyTextComponents();
+                destroyQRCodeComponents();
             }
         }
     }
@@ -1163,14 +1180,13 @@ Kirigami.ApplicationWindow {
             Row {
                 anchors.horizontalCenter: parent.horizontalCenter
                 anchors.bottom: parent.bottom
-                bottomPadding: 20
+                bottomPadding: 60
 
                 RowLayout {
                     Rectangle {
                         color: Kirigami.Theme.alternateBackgroundColor
                         implicitHeight: 35
                         implicitWidth: 35
-                        radius: 5
 
                         ToolButton {
                             id: streamPlayPauseButton
@@ -1465,6 +1481,53 @@ Kirigami.ApplicationWindow {
                 }
             }
         }
+        Component {
+            id: qrCodeComponent
+
+            Row {
+                anchors.horizontalCenter: parent.horizontalCenter
+                anchors.bottom: parent.bottom
+                bottomPadding: 20
+
+                RowLayout {
+                    Rectangle {
+                        color: Kirigami.Theme.alternateBackgroundColor
+                        implicitHeight: 35
+                        implicitWidth: 220
+                        radius: 5
+
+                        RowLayout {
+                            anchors.fill: parent
+                            anchors.leftMargin: 8
+
+                            CheckBox {
+                                id: qrCodeDetectionCheckBox
+
+                                focusPolicy: Qt.NoFocus
+                                text: qsTr("ImPres Mode (QR Code Detection)")
+                                checked: layerViewItem.layerQRCodeDetectionEnabled
+
+                                onToggled: {
+                                    layerViewItem.layerQRCodeDetectionEnabled = checked;
+                                }
+                            }
+                        }
+                    }
+                }
+                Connections {
+                    function onLayerChanged() {
+                        if (layerViewItem.layerIdx !== -1) {
+                            qrCodeDetectionCheckBox.checked = layerViewItem.layerQRCodeDetectionEnabled;
+                        }
+                    }
+                    function onLayerValueChanged() {
+                        qrCodeDetectionCheckBox.checked = layerViewItem.layerQRCodeDetectionEnabled;
+                    }
+
+                    target: layerViewItem
+                }
+            }
+        }
         Connections {
             function onLayerChanged() {
                 if(layerViewItem.layerIdx !== -1) {
@@ -1498,6 +1561,7 @@ Kirigami.ApplicationWindow {
                         destroyMediaComponents();
                         destroyStreamComponents();
                         destroyTextComponents();
+                        destroyQRCodeComponents();
                     }
                     else if (layerViewItem.layerTypeName === "Video" 
                         || layerViewItem.layerTypeName === "Audio") {
@@ -1506,6 +1570,7 @@ Kirigami.ApplicationWindow {
                         createMediaComponents();
                         destroyStreamComponents();
                         destroyTextComponents();
+                        destroyQRCodeComponents();
                     }
                     else if (layerViewItem.layerTypeName === "Stream") {
                         destroyPageComponents();
@@ -1513,6 +1578,7 @@ Kirigami.ApplicationWindow {
                         destroyMediaComponents();
                         createStreamComponents();
                         destroyTextComponents();
+                        createQRCodeComponents();
                     }
                     else if (layerViewItem.layerTypeName === "NDI") {
                         destroyPageComponents();
@@ -1520,6 +1586,7 @@ Kirigami.ApplicationWindow {
                         destroyMediaComponents();
                         destroyStreamComponents();
                         destroyTextComponents();
+                        createQRCodeComponents();
                     }
                     else if (layerViewItem.layerTypeName === "Text") {
                         destroyPageComponents();
@@ -1527,6 +1594,7 @@ Kirigami.ApplicationWindow {
                         destroyMediaComponents();
                         destroyStreamComponents();
                         createTextComponents();
+                        destroyQRCodeComponents();
                     }
                     else {
                         destroyPageComponents();
@@ -1534,6 +1602,7 @@ Kirigami.ApplicationWindow {
                         destroyMediaComponents();
                         destroyStreamComponents();
                         destroyTextComponents();
+                        destroyQRCodeComponents();
                     }
                 }
                 else {
@@ -1543,6 +1612,7 @@ Kirigami.ApplicationWindow {
                     destroyMediaComponents();
                     destroyStreamComponents();
                     destroyTextComponents();
+                    destroyQRCodeComponents();
                 }
             }
             function onLayerValueChanged() {

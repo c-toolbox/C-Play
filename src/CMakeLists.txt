@@ -39,6 +39,8 @@ set(SOURCE_FILES
     layers/streammodel.h
     layers/textlayer.cpp
     layers/textlayer.h
+    layers/texturelayer.cpp
+    layers/texturelayer.h
     layers/videolayer.cpp
     layers/videolayer.h
     layerqtitem.cpp
@@ -77,6 +79,14 @@ set(SOURCE_FILES
     utils/domegrid.h
     utils/planegrid.cpp
     utils/planegrid.h
+    utils/qrcodereader.cpp
+    utils/qrcodereader.h
+    utils/qrcommandprocessor.cpp
+    utils/qrcommandprocessor.h
+    utils/qroperationconfig.cpp
+    utils/qroperationconfig.h
+    utils/qroperationhandler.cpp
+    utils/qroperationhandler.h
     utils/spheregrid.cpp
     utils/spheregrid.h
 )

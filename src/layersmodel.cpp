@@ -864,6 +864,11 @@ void LayersModel::decodeFromJSON(QJsonObject &obj, const QStringList &forRelativ
                         m_layers[idx].first->setAudioId(audioId);
                     }
 
+                    if (o.contains(QStringLiteral("qrCodeDetection"))) {
+                        bool qrEnabled = o.value(QStringLiteral("qrCodeDetection")).toBool();
+                        m_layers[idx].first->setQRCodeDetectionEnabled(qrEnabled);
+                    }
+
                     if ((type == BaseLayer::VIDEO || type == BaseLayer::AUDIO)) {
                         MpvLayer* mpvLayer = static_cast<MpvLayer*>(m_layers[idx].first.get());
                         if (o.contains(QStringLiteral("end_of_file"))) {
@@ -1096,8 +1101,16 @@ void LayersModel::encodeToJSON(QJsonObject &obj, const QStringList &forRelativeP
 #ifdef NDI_SUPPORT
         if (layer->type() == BaseLayer::NDI) {
             layerData.insert(QStringLiteral("volume"), QJsonValue(layer->volume()));
+            if (layer->isQRCodeDetectionEnabled()) {
+                layerData.insert(QStringLiteral("qrCodeDetection"), QJsonValue(true));
+            }
         }
 #endif
+        if (layer->type() == BaseLayer::STREAM) {
+            if (layer->isQRCodeDetectionEnabled()) {
+                layerData.insert(QStringLiteral("qrCodeDetection"), QJsonValue(true));
+            }
+        }
         if (layer->type() == BaseLayer::VIDEO || layer->type() == BaseLayer::AUDIO) {
             if (layer->hasAudio()) {
                 layerData.insert(QStringLiteral("volume"), QJsonValue(layer->volume()));

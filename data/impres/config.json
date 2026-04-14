@@ -1,0 +1,8 @@
+{
+  "planes": [
+    { "name": "FrontCapture" },
+    { "name": "LeftCapture", "azimuth": -45 },
+    { "name": "RightCapture", "azimuth": 45 },
+    { "name": "TopCapture", "elevation": 65 }
+  ]
+}

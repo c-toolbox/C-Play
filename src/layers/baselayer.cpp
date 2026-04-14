@@ -312,6 +312,14 @@ void BaseLayer::setValue(std::string, int) {
     // Overwrite in derived class
 }
 
+bool BaseLayer::isQRCodeDetectionEnabled() const {
+    return false;
+}
+
+void BaseLayer::setQRCodeDetectionEnabled(bool) {
+    // Overwrite in derived class
+}
+
 void BaseLayer::encodeTypeCore(std::vector<std::byte>&) {
     // Overwrite in derived class
 }
@@ -560,6 +568,10 @@ float BaseLayer::alpha() const {
 }
 
 void BaseLayer::setAlpha(float a) {
+    if(a == alpha()) {
+        return;
+    }
+
     if (a > 0.f) {
         // Always set as should update if visible.
         // However might still be update if not visible.
@@ -585,6 +597,13 @@ void BaseLayer::setAlpha(float a) {
     }
 
     renderData.alpha = a;
+
+    // Apply alpha on sublayers as well, so they don't have to handle it themselves.
+    if (hasSubLayers()) {
+        for (const auto& sublayer : getSubLayers()) {
+            sublayer.get()->setAlpha(a);
+        }
+    }
 
     // Is handled always right now anyway.
     // If slideModel or layerModel changed

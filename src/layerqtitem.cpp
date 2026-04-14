@@ -882,6 +882,22 @@ void LayerQtItem::setLayerTextRenderSize(QSize size) {
     }
 }
 
+bool LayerQtItem::layerQRCodeDetectionEnabled() const {
+    if (m_layer)
+        return m_layer->isQRCodeDetectionEnabled();
+    return false;
+}
+
+void LayerQtItem::setLayerQRCodeDetectionEnabled(bool enabled) {
+    if (m_layer) {
+        if (m_layer->isQRCodeDetectionEnabled() != enabled) {
+            m_layer->setQRCodeDetectionEnabled(enabled);
+            Q_EMIT layerValueChanged();
+            Q_EMIT layerNeedsSave();
+        }
+    }
+}
+
 void LayerQtItem::handleWindowChanged(QQuickWindow *win) {
     if (win) {
         connect(win, &QQuickWindow::beforeSynchronizing, this, &LayerQtItem::sync, Qt::DirectConnection);

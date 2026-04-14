@@ -719,7 +719,7 @@ void LayersRendererQtOpenGLObject::renderQuad() {
 
 void LayersRendererQtOpenGLObject::renderLayer(const BaseLayer* layer, int eyeMode, float angle,
     const QMatrix4x4& viewMatrix, const QMatrix4x4& projectionMatrix) {
-    if (!layer || !layer->ready() || layer->alpha() <= 0.0f) {
+    if (!layer || !layer->ready()) {
         return;
     }
 
@@ -1223,7 +1223,14 @@ void LayersRendererQtOpenGLObject::renderLayers(float angle,
                 BaseLayer* layer = slide->layer(l);
                 if (layer) {
                     if (layer->ready() && (layer->alpha() > 0.f)) {
-                        renderLayer(layer, eyeMode, angle, viewMatrix, projectionMatrix);
+                        if (layer->hasSubLayers()) {
+                            for (const auto& sublayer : layer->getSubLayers()) {
+                                renderLayer(sublayer.get(), eyeMode, angle, viewMatrix, projectionMatrix);
+                            }
+                        }
+                        else if(!layer->isQRCodeDetectionEnabled() || layer->isQRCodeDetectionEnabled() && !layer->hasSubLayers()){
+                            renderLayer(layer, eyeMode, angle, viewMatrix, projectionMatrix);
+                        }
                     }
                 }
             }
@@ -1256,7 +1263,15 @@ void LayersRendererQtOpenGLObject::renderLayers(float angle,
                 BaseLayer* layer = slide->layer(l);
                 if (layer) {
                     if (layer->ready() && (layer->alpha() > 0.f)) {
-                        renderLayer(layer, eyeMode, angle, viewMatrix, projectionMatrix);
+                        if (layer->hasSubLayers()) {
+                            // QR operations active: skip the parent, only render sublayers
+                            for (const auto& sublayer : layer->getSubLayers()) {
+                                renderLayer(sublayer.get(), eyeMode, angle, viewMatrix, projectionMatrix);
+                            }
+                        }
+                        else {
+                            renderLayer(layer, eyeMode, angle, viewMatrix, projectionMatrix);
+                        }
                     }
                 }
             }

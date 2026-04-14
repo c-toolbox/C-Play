@@ -14,6 +14,10 @@
 #include <portaudio.h>
 
 class ofxNDIreceive;
+class QRCommandProcessor;
+class QROperationHandler;
+class QROperationConfig;
+struct QRPlaneDefinition;
 
 class NdiFinder {
 public:
@@ -55,6 +59,21 @@ public:
     void encodeTypeProperties(std::vector<std::byte>& data);
     void decodeTypeProperties(const std::vector<std::byte>& data, unsigned int& pos);
 
+    bool isQRCodeDetectionEnabled() const override;
+    void setQRCodeDetectionEnabled(bool enabled) override;
+
+    // Load QR operation plane configuration from a JSON file.
+    bool loadQROperationConfig(const std::string& filePath);
+
+    // Access the QR operation configuration.
+    const QROperationConfig* qrOperationConfig() const;
+
+    // Get the name of the currently active (live) plane, or empty if none.
+    std::string activePlaneName() const;
+
+    bool hasSubLayers() const override;
+    std::vector<std::shared_ptr<BaseLayer>>& getSubLayers() const override;
+
 private:
     bool ReceiveData(bool updateRendering);
     bool OpenReceiver();
@@ -65,6 +84,8 @@ private:
     bool GetPixelData(GLuint TextureID, unsigned int width, unsigned int height);
     bool LoadTexturePixels(GLuint TextureID, unsigned int width, unsigned int height, unsigned char *data, int GLformat);
     void GenerateTexture(unsigned int &id, int width, int height);
+
+    void onQRCommand(const struct QRCommand& command);
 
     ofxNDIreceive NDIreceiver;
 
@@ -84,11 +105,18 @@ private:
     bool m_isAudioEnabled = false;
     bool m_typePropertiesDecoded = false;
     int m_volume_Dec = 100;
+    bool m_qrCodeDetectionEnabled_Dec = false;
 
     // Conversion buffer for YUV formats
     unsigned char* m_conversionBuffer = nullptr;
     size_t m_conversionBufferSize = 0;
     NDIlib_FourCC_video_type_e m_lastVideoFormat = NDIlib_FourCC_type_BGRA;
+
+    // QR command processing
+    QRCommandProcessor* m_qrProcessor = nullptr;
+
+    // QR operation handler (sublayers, config, SetActive/Clear/Freeze)
+    QROperationHandler* m_qrOpHandler = nullptr;
 };
 
 #endif // NDILAYER_H

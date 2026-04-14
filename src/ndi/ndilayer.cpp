@@ -1,4 +1,5 @@
 /*
+/*
  * SPDX-FileCopyrightText:
  * 2024-2026 Erik Sunden <eriksunden85@gmail.com>
  *
@@ -13,10 +14,10 @@
 #include <cstring>
 #include <climits>
 #include <cmath>
-#ifdef ZXING_SUPPORT
-#include <ZXing/ZXingCpp.h>
-ZXing::ReaderOptions ZxingOptions;
-#endif
+#include <utils/qrcommandprocessor.h>
+#include <utils/qroperationhandler.h>
+#include <utils/qroperationconfig.h>
+#include <layers/texturelayer.h>
 
 // simple clamp for 16-bit samples
 static inline int16_t clamp16(int32_t v) noexcept {
@@ -278,18 +279,12 @@ NdiLayer::NdiLayer() {
     // So while NDIlib_recv_color_format_fastest or NDIlib_recv_color_format_best will work with implemented conversion
     // we better stick with the above formats for best performance.
 
-#ifdef ZXING_SUPPORT
-    ZxingOptions = ZXing::ReaderOptions();
-    ZxingOptions.setFormats(ZXing::BarcodeFormat::QRCode);
-    //ZxingOptions.setTryHarder(false);
-    ZxingOptions.setTryRotate(false);
-    ZxingOptions.setTryInvert(false);
-    ZxingOptions.setTryDownscale(false);
-    //ZxingOptions.setMaxNumberOfSymbols(1);
-    //ZxingOptions.setIsPure(true);
-    //ZxingOptions.setBinarizer(ZXing::Binarizer::FixedThreshold);
-    ZxingOptions.setTextMode(ZXing::TextMode::Plain);
-#endif
+    m_qrProcessor = new QRCommandProcessor();
+    m_qrProcessor->setCommandCallback([this](const QRCommand& cmd) {
+        onQRCommand(cmd);
+    });
+
+    m_qrOpHandler = new QROperationHandler();
 
     OpenReceiver();
 }
@@ -321,6 +316,9 @@ NdiLayer::~NdiLayer() {
         free(m_conversionBuffer);
         m_conversionBuffer = nullptr;
     }
+
+    delete m_qrProcessor;
+    delete m_qrOpHandler;
 }
 
 void NdiLayer::initialize() {
@@ -350,6 +348,7 @@ void NdiLayer::update(bool updateRendering) {
     if (m_typePropertiesDecoded) {
         m_typePropertiesDecoded = false;
         setVolume(m_volume_Dec);
+        setQRCodeDetectionEnabled(m_qrCodeDetectionEnabled_Dec);
     }
 
     // Check sender amount
@@ -507,11 +506,53 @@ void NdiLayer::setVolume(int v, bool storeLevel) {
 
 void NdiLayer::encodeTypeProperties(std::vector<std::byte>& data) {
     sgct::serializeObject(data, m_volume_Dec);
+    sgct::serializeObject(data, isQRCodeDetectionEnabled());
 }
 
 void NdiLayer::decodeTypeProperties(const std::vector<std::byte>& data, unsigned int& pos) {
     sgct::deserializeObject(data, pos, m_volume_Dec);
+    sgct::deserializeObject(data, pos, m_qrCodeDetectionEnabled_Dec);
     m_typePropertiesDecoded = true;
+}
+
+bool NdiLayer::isQRCodeDetectionEnabled() const {
+    if (m_qrProcessor) {
+        return m_qrProcessor->isEnabled();
+    }
+    return false;
+}
+
+void NdiLayer::setQRCodeDetectionEnabled(bool enabled) {
+    if (m_qrProcessor) {
+        m_qrProcessor->setEnabled(enabled);
+    }
+    if (!enabled && m_qrOpHandler) {
+        m_qrOpHandler->clearAll();
+    }
+
+    if (isMaster())
+        setNeedSync();
+}
+
+bool NdiLayer::loadQROperationConfig(const std::string& filePath) {
+    if (m_qrOpHandler) {
+        return m_qrOpHandler->loadConfig(filePath);
+    }
+    return false;
+}
+
+const QROperationConfig* NdiLayer::qrOperationConfig() const {
+    if (m_qrOpHandler) {
+        return m_qrOpHandler->config();
+    }
+    return nullptr;
+}
+
+std::string NdiLayer::activePlaneName() const {
+    if (m_qrOpHandler) {
+        return m_qrOpHandler->activePlaneName();
+    }
+    return std::string();
 }
 
 // Receive ofTexture
@@ -705,29 +746,32 @@ PaDeviceIndex NdiLayer::GetChosenApplicationAudioDevice() {
 }
 
 
-//Find barcodes in the received frame data
+//Find barcodes in the received frame data using two-phase QR command scheme
 bool NdiLayer::FindCodes(unsigned char* data, unsigned int width, unsigned int height, int GLformat) {
-    if(GLformat != GL_BGRA && GLformat != GL_RGBA) {
-        return false; //Unsupported format
+    if (!m_qrProcessor || !m_qrProcessor->isEnabled()) {
+        return true;
     }
-#ifdef ZXING_SUPPORT
-    ZXing::ImageFormat imageFormat = (GLformat == GL_BGRA) ? ZXing::ImageFormat::BGRA : ZXing::ImageFormat::RGBA;
-
-    auto image = ZXing::ImageView(data, width, height, imageFormat);
-    auto codes = ZXing::ReadBarcodes(image, ZxingOptions);
-
-    for (const auto& b : codes) {
-        if (b.text().length() > 0) {
-            sgct::Log::Info(std::format("NdiLayer ZXing QR codes: {}\n", b.text()));
-        }
-    }
-
-    return codes.empty();
-#else
-    return false;
-#endif
+    return m_qrProcessor->processFrame(data, width, height, GLformat);
 }
 
+void NdiLayer::onQRCommand(const QRCommand& command) {
+    if (m_qrOpHandler) {
+        m_qrOpHandler->handleCommand(command, this, renderData.texId, renderData.width, renderData.height);
+    }
+}
+
+bool NdiLayer::hasSubLayers() const {
+    return m_qrOpHandler ? m_qrOpHandler->hasSubLayers() : false;
+}
+
+std::vector<std::shared_ptr<BaseLayer>>& NdiLayer::getSubLayers() const {
+    if (m_qrOpHandler) {
+        return m_qrOpHandler->subLayers();
+    }
+    static std::vector<std::shared_ptr<BaseLayer>> empty;
+    return empty;
+}
+    
 // Get NDI pixel data from the video frame to ofTexture
 bool NdiLayer::GetPixelData(GLuint TextureID, unsigned int width, unsigned int height) {
     // Get the video frame buffer pointer
@@ -846,13 +890,16 @@ bool NdiLayer::GetPixelData(GLuint TextureID, unsigned int width, unsigned int h
             break;
     }
 
+    // Check for QR commands before uploading texture (two-phase scheme).
+    bool shouldUpload = FindCodes(pixelData, width, height, GLformat);
+
+    if (!shouldUpload) {
+        NDIreceiver.FreeVideoData();
+        return false;
+    }
+
     // Load the texture with the converted or original pixel data
     bool success = LoadTexturePixels(TextureID, width, height, pixelData, GLformat);
-
-    // Find barcodes if on master
-    if (success && isMaster()) {
-        FindCodes(pixelData, width, height, GLformat);
-    }
 
     // Free the NDI video buffer
     NDIreceiver.FreeVideoData();
@@ -860,13 +907,17 @@ bool NdiLayer::GetPixelData(GLuint TextureID, unsigned int width, unsigned int h
     if (success) {
         m_hasCapturedImage = true;
         m_isReady = true;
+
+        // Update the active sublayer with the new frame
+        if (m_qrOpHandler && m_qrOpHandler->isActive()) {
+            m_qrOpHandler->updateActiveSubLayer(this, renderData.texId, renderData.width, renderData.height);
+        }
     }
 
     return success;
 }
 
 // Streaming texture pixel load
-// From : http://www.songho.ca/opengl/gl_pbo.html
 // Approximately 20% faster than using glTexSubImage2D alone
 // GLformat can be default GL_BGRA or GL_RGBA
 bool NdiLayer::LoadTexturePixels(GLuint TextureID, unsigned int width, unsigned int height, unsigned char *data, int GLformat) {
