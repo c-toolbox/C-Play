@@ -185,8 +185,12 @@ MpvObject::~MpvObject() {
     }
     mpv_terminate_destroy(mpv);
 
-    if (mpv_fbo) {
-        delete mpv_fbo;
+    {
+        std::lock_guard<std::mutex> lock(m_renderMutex);
+        if (mpv_fbo) {
+            delete mpv_fbo;
+            mpv_fbo = nullptr;
+        }
     }
 
     if (SyncHelper::instance().variables.subtitleText)
@@ -846,6 +850,10 @@ void MpvObject::loadFile(const QString &file, bool updateLastPlayedFile) {
 
     m_playlistModel->setPlayingVideo(-1);
 
+    // Reset list file start/end times when loading a standalone file
+    m_startTime = -1.0;
+    m_endTime = -1.0;
+
     QString ext = fileInfo.suffix();
     if (ext == QStringLiteral("cplayfile") || ext == QStringLiteral("cplay_file") || ext == QStringLiteral("fdv")) {
         PlayListItem *videoFile = loadMediaFileDescription(fileToLoad);
@@ -995,6 +1003,18 @@ void MpvObject::loadItem(int playListIndex, bool updateLastPlayedFile) {
         }
         item->loadDetailsFromDisk();
         PlayListItemData pld = item->data();
+
+        // List overrides take priority over cplayfile values
+        if (pld.m_useListStereoMode)
+            pld.m_stereoVideo = pld.m_listStereoMode;
+
+        if (pld.m_useListGridMode)
+            pld.m_gridToMapOn = pld.m_listGridMode;
+
+        // Store list file start/end times for position checks
+        m_startTime = pld.m_useListFileStartTime ? pld.m_listFileStartTime : -1.0;
+        m_endTime = pld.m_useListFileEndTime ? pld.m_listFileEndTime : -1.0;
+
         loadItem(pld, updateLastPlayedFile);
         m_playSectionsModel->updateCurrentEditItem(*item);
         Q_EMIT playSectionsModelChanged();
@@ -1151,6 +1171,32 @@ void MpvObject::loadJSONPlayList(const QString &file, bool updateLastPlayedFile)
                         }
                     }
 
+                    if (o.contains(QStringLiteral("list_title"))) {
+                        QString title = o.value(QStringLiteral("list_title")).toString();
+                        filePtr->setListTitle(title);
+                        filePtr->setUseListTitle(!title.isEmpty());
+                    }
+
+                    if (o.contains(QStringLiteral("list_file_start"))) {
+                        filePtr->setListFileStartTime(o.value(QStringLiteral("list_file_start")).toDouble());
+                        filePtr->setUseListFileStartTime(true);
+                    }
+
+                    if (o.contains(QStringLiteral("list_file_end"))) {
+                        filePtr->setListFileEndTime(o.value(QStringLiteral("list_file_end")).toDouble());
+                        filePtr->setUseListFileEndTime(true);
+                    }
+
+                    if (o.contains(QStringLiteral("list_stereo_mode"))) {
+                        filePtr->setListStereoMode(o.value(QStringLiteral("list_stereo_mode")).toInt());
+                        filePtr->setUseListStereoMode(true);
+                    }
+
+                    if (o.contains(QStringLiteral("list_grid_mode"))) {
+                        filePtr->setListGridMode(o.value(QStringLiteral("list_grid_mode")).toInt());
+                        filePtr->setUseListGridMode(true);
+                    }
+
                     m_playList.append(QPointer<PlayListItem>(filePtr));
                 } else
                     qDebug() << QStringLiteral("Parsing file failed: ") << checkedFilePath;
@@ -1188,7 +1234,7 @@ void MpvObject::loadUniviewPlaylist(const QString &file, bool updateLastPlayedFi
 
     QStringList playListEntries = fileContent.split(QRegularExpression(QStringLiteral("[\r\n]")), Qt::SkipEmptyParts);
 
-    int videoItems = playListEntries.at(1).mid(14).toInt(); //"NumberOfItems="
+    int videoItems = playListEntries.at(1).mid(14).toInt(); //"NumberOfItems=C-Play"
 
     m_playlistModel->clear();
     Playlist m_playList;
@@ -1201,7 +1247,7 @@ void MpvObject::loadUniviewPlaylist(const QString &file, bool updateLastPlayedFi
         double startTime = playListEntries.at(itemStart + 3).mid(10).toDouble(); //"Starttime="
         double endTime = playListEntries.at(itemStart + 4).mid(8).toDouble();    //"Endtime="
         int eofMode = playListEntries.at(itemStart + 5).mid(9).toInt();          //"Loopmode="
-        int transitionMode = playListEntries.at(itemStart + 6).mid(15).toInt();  //"Transitionmode="
+        int transitionMode = playListEntries.at(itemStart + 6).mid(15).toInt();  //"Transitionmode="_
 
         QFileInfo videoFileInfo(path);
         QString videoFileExt = videoFileInfo.suffix();
@@ -1280,6 +1326,7 @@ void MpvObject::eventHandler() {
             break;
         }
         case MPV_EVENT_START_FILE: {
+            m_fboReady = false;
             Q_EMIT fileStarted();
             break;
         }
@@ -1288,6 +1335,9 @@ void MpvObject::eventHandler() {
                 static_cast<TextLayer*>(SyncHelper::instance().variables.subtitleText)->setText("");
             }
             setLoadedAsCurrentEditItem();
+            if (m_startTime >= 0.0) {
+                setPosition(m_startTime);
+            }
             Q_EMIT fileLoaded();
             break;
         }
@@ -1306,8 +1356,12 @@ void MpvObject::eventHandler() {
             if (mpv_get_property(mpv, "dwidth", MPV_FORMAT_INT64, &w) >= 0 &&
                 mpv_get_property(mpv, "dheight", MPV_FORMAT_INT64, &h) >= 0 &&
                 w > 0 && h > 0) {
-                m_videoWidth = (int)w;
-                m_videoHeight = (int)h;
+                {
+                    std::lock_guard<std::mutex> lock(m_renderMutex);
+                    m_pendingVideoWidth = (int)w;
+                    m_pendingVideoHeight = (int)h;
+                }
+                m_fboReady = false;
                 Q_EMIT planeChanged();
             }
             break;
@@ -1395,8 +1449,16 @@ void MpvObject::eventHandler() {
                 if (prop->format == MPV_FORMAT_NODE) {
                     const QVariant videoParams = mpv::qt::get_property(mpv, QStringLiteral("video-params"));
                     auto vm = videoParams.toMap();
-                    m_videoWidth = vm[QStringLiteral("w")].toInt();
-                    m_videoHeight = vm[QStringLiteral("h")].toInt();
+                    int newW = vm[QStringLiteral("w")].toInt();
+                    int newH = vm[QStringLiteral("h")].toInt();
+                    {
+                        std::lock_guard<std::mutex> lock(m_renderMutex);
+                        m_pendingVideoWidth = newW;
+                        m_pendingVideoHeight = newH;
+                    }
+                    if (newW != m_videoWidth || newH != m_videoHeight) {
+                        m_fboReady = false;
+                    }
                     Q_EMIT planeChanged();
                 }
             } else if (strcmp(prop->name, "sub-text") == 0) {
@@ -1561,6 +1623,51 @@ void MpvObject::updatePlane() {
     SyncHelper::instance().variables.planeWidth = m_planeWidth;
     SyncHelper::instance().variables.planeHeight = m_planeHeight;
     SyncHelper::instance().variables.planeConsiderAspectRatio = m_planeConsiderAspectRatio;
+
+    int texW = fboWidth();
+    int texH = fboHeight();
+    if (texW <= 0 || texH <= 0)
+        return;
+
+    if (m_planeWidth <= 0 || m_planeHeight <= 0)
+        return;
+
+    float vidWidth = static_cast<float>(texW);
+    float vidHeight = static_cast<float>(texH);
+
+    float calcWidth = static_cast<float>(m_planeWidth);
+    float calcHeight = static_cast<float>(m_planeHeight);
+
+    int sm = stereoscopicMode();
+    if (m_planeConsiderAspectRatio == 1) {
+        float ratio = vidWidth / vidHeight;
+        if (sm == 1) ratio *= 0.5f;
+        else if (sm == 2) ratio *= 2.0f;
+        else if (sm == 3) { ratio = vidHeight / vidWidth; ratio *= 2.0f; }
+        calcWidth = ratio * calcHeight;
+    } else if (m_planeConsiderAspectRatio == 2) {
+        float ratio = vidHeight / vidWidth;
+        if (sm == 1) ratio *= 0.5f;
+        else if (sm == 2) ratio *= 2.0f;
+        else if (sm == 3) { ratio = vidWidth / vidHeight; ratio *= 2.0f; }
+        calcHeight = ratio * calcWidth;
+    }
+
+    if (m_planeGrid == nullptr || calcWidth != m_planeGridWidth || calcHeight != m_planeGridHeight) {
+        m_planeGridWidth = calcWidth;
+        m_planeGridHeight = calcHeight;
+        m_planeGrid = std::make_unique<PlaneGrid>(calcWidth / 100.f, calcHeight / 100.f);
+    }
+}
+
+void MpvObject::drawPlane() const {
+    if (m_planeGrid) {
+        m_planeGrid->draw();
+    }
+}
+
+bool MpvObject::hasPlane() const {
+    return m_planeGrid != nullptr;
 }
 
 void MpvObject::updateRecentLoadedMediaFiles(QString path) {
@@ -1607,6 +1714,25 @@ void MpvObject::sectionPositionCheck(double position) {
                 } else {
                     loadSection(0);
                 }
+            }
+        }
+    } else if (m_endTime >= 0.0 && m_endTime <= position) {
+        int eofMode = this->eofMode();
+        if (eofMode == 0) { // Pause
+            setPause(true);
+        } else if (eofMode == 1) { // Continue to next
+            int playingVideo = m_playlistModel->getPlayingVideo();
+            if (playingVideo + 1 < m_playlistModel->getPlayListSize()) {
+                loadItem(playingVideo + 1, false);
+                m_playlistModel->setPlayingVideo(playingVideo + 1);
+            } else {
+                setPause(true);
+            }
+        } else if (eofMode == 2) { // Loop
+            if (m_startTime >= 0.0) {
+                setPosition(m_startTime);
+            } else {
+                setPosition(0);
             }
         }
     }
@@ -1734,7 +1860,17 @@ void MpvRenderer::render() {
         return;
     }
 
+    std::lock_guard<std::mutex> lock(view->obj->m_renderMutex);
+
     view->fbo = framebufferObject();
+
+    // Pick up any pending video size change safely under the lock.
+    if (view->obj->m_pendingVideoWidth > 0 && view->obj->m_pendingVideoHeight > 0) {
+        view->obj->m_videoWidth = view->obj->m_pendingVideoWidth;
+        view->obj->m_videoHeight = view->obj->m_pendingVideoHeight;
+        view->obj->m_pendingVideoWidth = 0;
+        view->obj->m_pendingVideoHeight = 0;
+    }
 
     // Determine the video's native size from the observed video-params.
     // m_videoWidth/m_videoHeight are updated via MPV_EVENT_PROPERTY_CHANGE.
@@ -1769,6 +1905,8 @@ void MpvRenderer::render() {
         {MPV_RENDER_PARAM_INVALID, nullptr}
     };
     mpv_render_context_render(view->obj->mpv_gl, params);
+
+    view->obj->m_fboReady = (view->obj->mpv_fbo != nullptr);
 
     // Blit the shared mpv_fbo into every visible view's own FBO,
     // letterboxed/pillarboxed to preserve the video aspect ratio.

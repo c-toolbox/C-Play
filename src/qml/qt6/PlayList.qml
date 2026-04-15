@@ -259,7 +259,15 @@ Rectangle {
                 icon.name: "view-form"
 
                 onClicked: {
-                    viewPlaylistItemWindow.updateValues(playlistView.currentIndex);
+                    var idx = playlistView.currentIndex;
+                    if (idx < 0) {
+                        idx = mpv.playlistModel.getPlayingVideo();
+                        if (idx < 0) idx = 0;
+                    }
+                    if (idx >= 0 && idx < mpv.playlistModel.getPlayListSize()) {
+                        playlistView.currentIndex = idx;
+                        viewPlaylistItemWindow.updateValues(idx);
+                    }
                     viewPlaylistItemWindow.visible = true;
                 }
 

@@ -40,7 +40,7 @@ ItemDelegate {
         return number;
     }
     function subText() {
-        if (model.hasDescriptionFile) {
+        if (model.hasDescriptionFile || model.stereoVideo !== "" || model.gridToMapOn !== "") {
             return model.duration + " : " + model.stereoVideo + " " + model.gridToMapOn + " : (" + model.eofMode + ")";
         }
         return model.duration + " : (" + model.eofMode + ")";

@@ -937,6 +937,11 @@ void LayersRendererQtOpenGLObject::renderMpvObject(MpvObject* mpv, int eyeMode, 
     if (!mpv)
         return;
 
+    if (!mpv->m_fboReady)
+        return;
+
+    std::lock_guard<std::mutex> lock(mpv->m_renderMutex);
+
     const unsigned int texId = mpv->fboTextureId();
     const float alpha = static_cast<float>(mpv->visibility()) / 100.f;
     const int texW = mpv->fboWidth();
@@ -1083,20 +1088,18 @@ void LayersRendererQtOpenGLObject::renderMpvObject(MpvObject* mpv, int eyeMode, 
 
         QMatrix4x4 planeTransform;
         planeTransform.rotate(-angle, 1, 0, 0);                                          // dome angle
-        planeTransform.rotate(float(mpv->planeElevation()), 0, -1, 0);                   // azimuth (no azimuth on MpvObject, map elevation to it like BaseLayer)
         planeTransform.rotate(float(mpv->planeElevation()), 1, 0, 0);                    // elevation
         planeTransform.translate(0.f, 0.f, float(-mpv->planeDistance()) / 100.f);        // distance
 
         QMatrix4x4 mvp = projectionMatrix * viewMatrix;
         m_meshPrg->setUniformValue(m_meshMatrixLoc, mvp * planeTransform);
 
-        // MpvObject has no drawPlane(); render the quad as fallback for plane mode
-        renderQuad();
+        mpv->drawPlane();
 
         m_meshPrg->release();
     }
     else {
-        // 2D flat
+        // 2D rendering (gridMode == 0)
         m_videoPrg->bind();
 
         if (stereoMode > 0) {
@@ -1130,6 +1133,15 @@ void LayersRendererQtOpenGLObject::updateLayers() {
         translateXYZ.x = m_mpvObject->translate().x() / 100.f;
         translateXYZ.y = m_mpvObject->translate().y() / 100.f;
         translateXYZ.z = m_mpvObject->translate().z() / 100.f;
+
+        // Update MpvObject plane grid when in plane mode
+        int gridMode = m_mpvObject->gridToMapOn();
+        if (gridMode == 0) {
+            gridMode = SyncHelper::instance().variables.gridToMapOnBg;
+        }
+        if (gridMode == 1) {
+            m_mpvObject->updatePlane();
+        }
     }
 
     // Process layer image uploads

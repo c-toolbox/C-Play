@@ -17,10 +17,13 @@
 #include "qthelper.h"
 #include "tracksmodel.h"
 #include <client.h>
+#include <mutex>
 #include <render_gl.h>
+#include <utils/planegrid.h>
 
 class MpvView;
 class MpvRenderer;
+class LayersRendererQtOpenGLObject;
 class Track;
 
 class MpvObject : public QQuickItem {
@@ -411,6 +414,11 @@ public:
     int fboWidth() const;
     int fboHeight() const;
 
+    // PlaneGrid for flat/plane rendering in LayersRendererQtOpenGLObject
+    void drawPlane() const;
+    bool hasPlane() const;
+    void updatePlane();
+
 Q_SIGNALS:
     void mediaTitleChanged();
     void positionChanged();
@@ -479,9 +487,12 @@ private:
     mpv_render_context *mpv_gl;
     QOpenGLFramebufferObject* mpv_fbo;
     std::vector<MpvView*> mpv_views;
+    std::mutex m_renderMutex;
+    bool m_fboReady = false;
 
     friend class MpvRenderer;
     friend class MpvView;
+    friend class LayersRendererQtOpenGLObject;
 
     void addView(MpvView* view);
     void removeView(MpvView* view);
@@ -521,11 +532,16 @@ private:
     QVariantList m_audioDevices;
     int m_videoWidth;
     int m_videoHeight;
+    int m_pendingVideoWidth = 0;
+    int m_pendingVideoHeight = 0;
     bool m_syncVolumeVisibilityFading;
     bool m_autoPlay;
 
+    std::unique_ptr<PlaneGrid> m_planeGrid;
+    float m_planeGridWidth = 0.f;
+    float m_planeGridHeight = 0.f;
+
     void loadTracks();
-    void updatePlane();
     void updateRecentLoadedMediaFiles(QString path);
     void updateRecentLoadedPlaylists(QString path);
     QString md5(const QString &str);

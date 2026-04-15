@@ -41,8 +41,48 @@ QString PlayListItemData::mediaTitle() const {
     return m_mediaTitle;
 }
 
+QString PlayListItemData::listTitle() const {
+    return m_listTitle;
+}
+
+bool PlayListItemData::useListTitle() const {
+    return m_useListTitle;
+}
+
 double PlayListItemData::duration() const {
     return m_duration;
+}
+
+double PlayListItemData::listFileStartTime() const {
+    return m_listFileStartTime;
+}
+
+bool PlayListItemData::useListFileStartTime() const {
+    return m_useListFileStartTime;
+}
+
+double PlayListItemData::listFileEndTime() const {
+    return m_listFileEndTime;
+}
+
+bool PlayListItemData::useListFileEndTime() const {
+    return m_useListFileEndTime;
+}
+
+int PlayListItemData::listStereoMode() const {
+    return m_listStereoMode;
+}
+
+bool PlayListItemData::useListStereoMode() const {
+    return m_useListStereoMode;
+}
+
+int PlayListItemData::listGridMode() const {
+    return m_listGridMode;
+}
+
+bool PlayListItemData::useListGridMode() const {
+    return m_useListGridMode;
 }
 
 QString PlayListItemData::separateOverlayFile() const {
@@ -140,6 +180,22 @@ void PlayListItem::setMediaTitle(const QString &title) {
     m_data.m_mediaTitle = title;
 }
 
+QString PlayListItem::listTitle() const {
+    return m_data.m_listTitle;
+}
+
+void PlayListItem::setListTitle(const QString &title) {
+    m_data.m_listTitle = title;
+}
+
+bool PlayListItem::useListTitle() const {
+    return m_data.m_useListTitle;
+}
+
+void PlayListItem::setUseListTitle(bool use) {
+    m_data.m_useListTitle = use;
+}
+
 QString PlayListItem::durationFormatted() const {
     QTime t(0, 0, 0);
     QString formattedTime = t.addSecs(static_cast<qint64>(m_data.m_duration)).toString(QStringLiteral("hh:mm:ss"));
@@ -152,6 +208,70 @@ double PlayListItem::duration() const {
 
 void PlayListItem::setDuration(double duration) {
     m_data.m_duration = duration;
+}
+
+double PlayListItem::listFileStartTime() const {
+    return m_data.m_listFileStartTime;
+}
+
+void PlayListItem::setListFileStartTime(double startTime) {
+    m_data.m_listFileStartTime = startTime;
+}
+
+bool PlayListItem::useListFileStartTime() const {
+    return m_data.m_useListFileStartTime;
+}
+
+void PlayListItem::setUseListFileStartTime(bool use) {
+    m_data.m_useListFileStartTime = use;
+}
+
+double PlayListItem::listFileEndTime() const {
+    return m_data.m_listFileEndTime;
+}
+
+void PlayListItem::setListFileEndTime(double endTime) {
+    m_data.m_listFileEndTime = endTime;
+}
+
+bool PlayListItem::useListFileEndTime() const {
+    return m_data.m_useListFileEndTime;
+}
+
+void PlayListItem::setUseListFileEndTime(bool use) {
+    m_data.m_useListFileEndTime = use;
+}
+
+int PlayListItem::listStereoMode() const {
+    return m_data.m_listStereoMode;
+}
+
+void PlayListItem::setListStereoMode(int stereoMode) {
+    m_data.m_listStereoMode = stereoMode;
+}
+
+bool PlayListItem::useListStereoMode() const {
+    return m_data.m_useListStereoMode;
+}
+
+void PlayListItem::setUseListStereoMode(bool use) {
+    m_data.m_useListStereoMode = use;
+}
+
+int PlayListItem::listGridMode() const {
+    return m_data.m_listGridMode;
+}
+
+void PlayListItem::setListGridMode(int gridMode) {
+    m_data.m_listGridMode = gridMode;
+}
+
+bool PlayListItem::useListGridMode() const {
+    return m_data.m_useListGridMode;
+}
+
+void PlayListItem::setUseListGridMode(bool use) {
+    m_data.m_useListGridMode = use;
 }
 
 QString PlayListItem::separateOverlayFile() const {

@@ -430,8 +430,8 @@ void LayersRenderer::initializeGL(double radius, double fov) {
         EACPrg->unbind();
     }
 
+    videoPrg = &sgct::ShaderManager::instance().shaderProgram("video");
     if (videoPrg) {
-        videoPrg = &sgct::ShaderManager::instance().shaderProgram("video");
         videoPrg->bind();
         glUniform1i(glGetUniformLocation(videoPrg->id(), "tex"), 0);
         videoEyeModeLoc = glGetUniformLocation(videoPrg->id(), "eye");

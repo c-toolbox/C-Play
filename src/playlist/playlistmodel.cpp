@@ -369,21 +369,38 @@ QVariant PlayListModel::data(const QModelIndex &index, int role) const {
         return QVariant();
     }
 
-    int stereoVideo = playListItem->stereoVideo();
-    int gridToMapOn = playListItem->gridToMapOn();
+    int stereoVideo = playListItem->useListStereoMode()
+                          ? playListItem->listStereoMode()
+                          : playListItem->stereoVideo();
+    int gridToMapOn = playListItem->useListGridMode()
+                          ? playListItem->listGridMode()
+                          : playListItem->gridToMapOn();
     int eofMode = playListItem->eofMode();
 
     switch (role) {
     case NameRole:
         return QVariant(playListItem->fileName());
     case TitleRole:
+        if (!playListItem->listTitle().isEmpty())
+            return QVariant(playListItem->listTitle());
         return playListItem->mediaTitle().isEmpty()
                    ? QVariant(playListItem->fileName())
                    : QVariant(playListItem->mediaTitle());
     case PathRole:
         return QVariant(playListItem->mediaFile());
-    case DurationRole:
+    case DurationRole: {
+        bool useStart = playListItem->useListFileStartTime();
+        bool useEnd = playListItem->useListFileEndTime();
+        if (useStart || useEnd) {
+            double startTime = useStart ? playListItem->listFileStartTime() : 0.0;
+            double endTime = useEnd ? playListItem->listFileEndTime() : playListItem->duration();
+            double effectiveDuration = endTime - startTime;
+            if (effectiveDuration < 0.0)
+                effectiveDuration = 0.0;
+            return QVariant(Application::formatTime(effectiveDuration));
+        }
         return QVariant(Application::formatTime(playListItem->duration()));
+    }
     case PlayingRole:
         return QVariant(playListItem->isPlaying());
     case FolderPathRole:
@@ -500,10 +517,12 @@ std::string PlayListModel::getListAsFormattedString(int charsPerItem) const {
     std::string fullItemList = "";
     for (int i = 0; i < m_playList.size(); i++) {
         std::string title = std::to_string(i + 1) + ". ";
-        if (m_playList[i]->mediaTitle().isEmpty()) {
-            title += m_playList[i]->fileName().toStdString();
-        } else {
+        if (!m_playList[i]->listTitle().isEmpty()) {
+            title += m_playList[i]->listTitle().toStdString();
+        } else if (!m_playList[i]->mediaTitle().isEmpty()) {
             title += m_playList[i]->mediaTitle().toStdString();
+        } else {
+            title += m_playList[i]->fileName().toStdString();
         }
         std::string duration = Application::formatTime(m_playList[i]->duration()).toStdString();
 
@@ -792,6 +811,179 @@ int PlayListModel::numberOfSections(int i) const {
         return 0;
 }
 
+bool PlayListModel::hasDescriptionFile(int i) const {
+    if (i >= 0 && m_playList.size() > i && m_playList[i])
+        return m_playList[i].data()->hasDescriptionFile();
+    else
+        return false;
+}
+
+double PlayListModel::listFileStartTime(int i) const {
+    if (i >= 0 && m_playList.size() > i && m_playList[i])
+        return m_playList[i].data()->listFileStartTime();
+    else
+        return 0.0;
+}
+
+double PlayListModel::listFileEndTime(int i) const {
+    if (i >= 0 && m_playList.size() > i && m_playList[i])
+        return m_playList[i].data()->listFileEndTime();
+    else
+        return 0.0;
+}
+
+QString PlayListModel::listFileStartTimeFormatted(int i) const {
+    return Application::formatTime(listFileStartTime(i));
+}
+
+QString PlayListModel::listFileEndTimeFormatted(int i) const {
+    return Application::formatTime(listFileEndTime(i));
+}
+
+int PlayListModel::listStereoMode(int i) const {
+    if (i >= 0 && m_playList.size() > i && m_playList[i])
+        return m_playList[i].data()->listStereoMode();
+    else
+        return -1;
+}
+
+void PlayListModel::setListStereoMode(int i, int stereoMode) {
+    if (i >= 0 && m_playList.size() > i && m_playList[i]) {
+        m_playList[i]->setListStereoMode(stereoMode);
+        Q_EMIT dataChanged(index(i, 0), index(i, 0));
+        setPlayListIsEdited(true);
+    }
+}
+
+int PlayListModel::listGridMode(int i) const {
+    if (i >= 0 && m_playList.size() > i && m_playList[i])
+        return m_playList[i].data()->listGridMode();
+    else
+        return -1;
+}
+
+void PlayListModel::setListGridMode(int i, int gridMode) {
+    if (i >= 0 && m_playList.size() > i && m_playList[i]) {
+        m_playList[i]->setListGridMode(gridMode);
+        Q_EMIT dataChanged(index(i, 0), index(i, 0));
+        setPlayListIsEdited(true);
+    }
+}
+
+QString PlayListModel::listTitle(int i) const {
+    if (i >= 0 && m_playList.size() > i && m_playList[i])
+        return m_playList[i].data()->listTitle();
+    else
+        return QStringLiteral("");
+}
+
+void PlayListModel::setListTitle(int i, const QString &title) {
+    if (i >= 0 && m_playList.size() > i && m_playList[i]) {
+        m_playList[i]->setListTitle(title);
+        Q_EMIT dataChanged(index(i, 0), index(i, 0));
+        setPlayListIsEdited(true);
+    }
+}
+
+bool PlayListModel::useListTitle(int i) const {
+    if (i >= 0 && m_playList.size() > i && m_playList[i])
+        return m_playList[i].data()->useListTitle();
+    else
+        return false;
+}
+
+void PlayListModel::setUseListTitle(int i, bool use) {
+    if (i >= 0 && m_playList.size() > i && m_playList[i]) {
+        m_playList[i]->setUseListTitle(use);
+        Q_EMIT dataChanged(index(i, 0), index(i, 0));
+        setPlayListIsEdited(true);
+    }
+}
+
+bool PlayListModel::useListFileStartTime(int i) const {
+    if (i >= 0 && m_playList.size() > i && m_playList[i])
+        return m_playList[i].data()->useListFileStartTime();
+    else
+        return false;
+}
+
+void PlayListModel::setUseListFileStartTime(int i, bool use) {
+    if (i >= 0 && m_playList.size() > i && m_playList[i]) {
+        m_playList[i]->setUseListFileStartTime(use);
+        Q_EMIT dataChanged(index(i, 0), index(i, 0));
+        setPlayListIsEdited(true);
+    }
+}
+
+bool PlayListModel::useListFileEndTime(int i) const {
+    if (i >= 0 && m_playList.size() > i && m_playList[i])
+        return m_playList[i].data()->useListFileEndTime();
+    else
+        return false;
+}
+
+void PlayListModel::setUseListFileEndTime(int i, bool use) {
+    if (i >= 0 && m_playList.size() > i && m_playList[i]) {
+        m_playList[i]->setUseListFileEndTime(use);
+        Q_EMIT dataChanged(index(i, 0), index(i, 0));
+        setPlayListIsEdited(true);
+    }
+}
+
+bool PlayListModel::useListStereoMode(int i) const {
+    if (i >= 0 && m_playList.size() > i && m_playList[i])
+        return m_playList[i].data()->useListStereoMode();
+    else
+        return false;
+}
+
+void PlayListModel::setUseListStereoMode(int i, bool use) {
+    if (i >= 0 && m_playList.size() > i && m_playList[i]) {
+        m_playList[i]->setUseListStereoMode(use);
+        Q_EMIT dataChanged(index(i, 0), index(i, 0));
+        setPlayListIsEdited(true);
+    }
+}
+
+bool PlayListModel::useListGridMode(int i) const {
+    if (i >= 0 && m_playList.size() > i && m_playList[i])
+        return m_playList[i].data()->useListGridMode();
+    else
+        return false;
+}
+
+void PlayListModel::setUseListGridMode(int i, bool use) {
+    if (i >= 0 && m_playList.size() > i && m_playList[i]) {
+        m_playList[i]->setUseListGridMode(use);
+        Q_EMIT dataChanged(index(i, 0), index(i, 0));
+        setPlayListIsEdited(true);
+    }
+}
+
+void PlayListModel::setListFileStartTime(int i, double startTime) {
+    if (i >= 0 && m_playList.size() > i && m_playList[i]) {
+        m_playList[i]->setListFileStartTime(startTime);
+        Q_EMIT dataChanged(index(i, 0), index(i, 0));
+        setPlayListIsEdited(true);
+    }
+}
+
+void PlayListModel::setListFileEndTime(int i, double endTime) {
+    if (i >= 0 && m_playList.size() > i && m_playList[i]) {
+        m_playList[i]->setListFileEndTime(endTime);
+        Q_EMIT dataChanged(index(i, 0), index(i, 0));
+        setPlayListIsEdited(true);
+    }
+}
+
+void PlayListModel::setListFileStartTimeFromString(int i, const QString &startTime) {
+    setListFileStartTime(i, Application::timeToSeconds(startTime));
+}
+
+void PlayListModel::setListFileEndTimeFromString(int i, const QString &endTime) {
+    setListFileEndTime(i, Application::timeToSeconds(endTime));
+}
+
 QString PlayListModel::makePathRelativeTo(const QString &filePath, const QStringList &pathsToConsider) {
     // Assuming filePath is absolute
     for (int i = 0; i < pathsToConsider.size(); i++) {
@@ -837,6 +1029,21 @@ void PlayListModel::saveAsJSONPlaylist(const QString &path) {
 
         item_data.insert(QStringLiteral("file"), QJsonValue(checkedFilePath));
         item_data.insert(QStringLiteral("on_file_end"), QJsonValue(eofModeText));
+
+        if (!m_playList[i]->listTitle().isEmpty())
+            item_data.insert(QStringLiteral("list_title"), QJsonValue(m_playList[i]->listTitle()));
+
+        if (m_playList[i]->useListFileStartTime())
+            item_data.insert(QStringLiteral("list_file_start"), QJsonValue(m_playList[i]->listFileStartTime()));
+
+        if (m_playList[i]->useListFileEndTime())
+            item_data.insert(QStringLiteral("list_file_end"), QJsonValue(m_playList[i]->listFileEndTime()));
+
+        if (m_playList[i]->useListStereoMode())
+            item_data.insert(QStringLiteral("list_stereo_mode"), QJsonValue(m_playList[i]->listStereoMode()));
+
+        if (m_playList[i]->useListGridMode())
+            item_data.insert(QStringLiteral("list_grid_mode"), QJsonValue(m_playList[i]->listGridMode()));
 
         playlistArray.push_back(QJsonValue(item_data));
     }

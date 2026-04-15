@@ -113,6 +113,16 @@ ToolBar {
                 function onFileLoaded() {
                     progressBar.sectionIndicator.startPosition = -1;
                     progressBar.sectionIndicator.endPosition = -1;
+
+                    var idx = mpv.playlistModel.getPlayingVideo();
+                    if (idx >= 0) {
+                        var useStart = mpv.playlistModel.useListFileStartTime(idx);
+                        var useEnd = mpv.playlistModel.useListFileEndTime(idx);
+                        if (useStart || useEnd) {
+                            progressBar.sectionIndicator.startPosition = useStart ? mpv.playlistModel.listFileStartTime(idx) : 0;
+                            progressBar.sectionIndicator.endPosition = useEnd ? mpv.playlistModel.listFileEndTime(idx) : -1;
+                        }
+                    }
                 }
                 function onPositionChanged() {
                     if (!progressBar.seekStarted) {
@@ -122,6 +132,16 @@ ToolBar {
                 function onRewind() {
                     progressBar.sectionIndicator.startPosition = -1;
                     progressBar.sectionIndicator.endPosition = -1;
+
+                    var idx = mpv.playlistModel.getPlayingVideo();
+                    if (idx >= 0) {
+                        var useStart = mpv.playlistModel.useListFileStartTime(idx);
+                        var useEnd = mpv.playlistModel.useListFileEndTime(idx);
+                        if (useStart || useEnd) {
+                            progressBar.sectionIndicator.startPosition = useStart ? mpv.playlistModel.listFileStartTime(idx) : 0;
+                            progressBar.sectionIndicator.endPosition = useEnd ? mpv.playlistModel.listFileEndTime(idx) : -1;
+                        }
+                    }
                 }
                 function onSectionLoaded(sectionIdx) {
                     progressBar.sectionIndicator.startPosition = mpv.playSectionsModel.sectionStartTime(sectionIdx);

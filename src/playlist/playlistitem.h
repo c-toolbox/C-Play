@@ -35,7 +35,17 @@ public:
     QString fileFolderPath() const;
     QString mediaFile() const;
     QString mediaTitle() const;
+    QString listTitle() const;
+    bool useListTitle() const;
     double duration() const;
+    double listFileStartTime() const;
+    bool useListFileStartTime() const;
+    double listFileEndTime() const;
+    bool useListFileEndTime() const;
+    int listStereoMode() const;
+    bool useListStereoMode() const;
+    int listGridMode() const;
+    bool useListGridMode() const;
     QString separateOverlayFile() const;
     QString separateAudioFile() const;
     int eofMode() const;
@@ -52,13 +62,23 @@ public:
     QString m_fileFolderPath;
     QString m_mediaFile;
     QString m_mediaTitle;
+    QString m_listTitle;
+    bool m_useListTitle{false};
     double m_duration;
+    double m_listFileStartTime{0.0};
+    bool m_useListFileStartTime{false};
+    double m_listFileEndTime{0.0};
+    bool m_useListFileEndTime{false};
     QString m_separateOverlayFile{QStringLiteral("")};
     QString m_separateAudioFile{QStringLiteral("")};
     int m_eofMode{0};
     int m_transitionMode{0};
     int m_gridToMapOn{-1};
     int m_stereoVideo{-1};
+    int m_listStereoMode{0};
+    bool m_useListStereoMode{false};
+    int m_listGridMode{0};
+    bool m_useListGridMode{false};
     QList<Section> m_sections;
 
     bool m_isHovered{false};
@@ -92,9 +112,34 @@ public:
     Q_INVOKABLE QString mediaTitle() const;
     Q_INVOKABLE void setMediaTitle(const QString &title);
 
+    Q_INVOKABLE QString listTitle() const;
+    Q_INVOKABLE void setListTitle(const QString &title);
+    Q_INVOKABLE bool useListTitle() const;
+    Q_INVOKABLE void setUseListTitle(bool use);
+
     Q_INVOKABLE QString durationFormatted() const;
     Q_INVOKABLE double duration() const;
     Q_INVOKABLE void setDuration(double duration);
+
+    Q_INVOKABLE double listFileStartTime() const;
+    Q_INVOKABLE void setListFileStartTime(double startTime);
+    Q_INVOKABLE bool useListFileStartTime() const;
+    Q_INVOKABLE void setUseListFileStartTime(bool use);
+
+    Q_INVOKABLE double listFileEndTime() const;
+    Q_INVOKABLE void setListFileEndTime(double endTime);
+    Q_INVOKABLE bool useListFileEndTime() const;
+    Q_INVOKABLE void setUseListFileEndTime(bool use);
+
+    Q_INVOKABLE int listStereoMode() const;
+    Q_INVOKABLE void setListStereoMode(int stereoMode);
+    Q_INVOKABLE bool useListStereoMode() const;
+    Q_INVOKABLE void setUseListStereoMode(bool use);
+
+    Q_INVOKABLE int listGridMode() const;
+    Q_INVOKABLE void setListGridMode(int gridMode);
+    Q_INVOKABLE bool useListGridMode() const;
+    Q_INVOKABLE void setUseListGridMode(bool use);
 
     Q_INVOKABLE QString separateOverlayFile() const;
     Q_INVOKABLE void setSeparateOverlayFile(const QString &audioFile);
