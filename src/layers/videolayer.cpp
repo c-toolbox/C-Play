@@ -100,6 +100,14 @@ void VideoLayer::updateFrame() {
     if (!m_data.mpvInitializedGL)
         return;
 
+    // Pick up any pending video size change safely under the lock.
+    if (m_data.pendingWidth > 0 && m_data.pendingHeight > 0) {
+        renderData.width = m_data.pendingWidth;
+        renderData.height = m_data.pendingHeight;
+        m_data.pendingWidth = 0;
+        m_data.pendingHeight = 0;
+    }
+
     updateFbo();
 
     // See render_gl.h on what OpenGL environment mpv expects, and

@@ -22,6 +22,7 @@ public:
         std::atomic_bool imageDone = false;
         std::atomic_bool uploadDone = false;
         std::atomic_bool threadDone = false;
+        std::atomic_bool abortRequested = false;
     };
 
     ImageLayer(std::string identifier);
@@ -39,6 +40,7 @@ public:
 private:
     ImageData imageData;
 
+    void joinThread();
     void handleAsyncImageUpload();
 };
 

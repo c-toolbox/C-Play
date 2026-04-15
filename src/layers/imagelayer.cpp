@@ -11,8 +11,17 @@ auto loadImageAsync = [](ImageLayer::ImageData &data) {
     data.threadDone = false;
     data.threadRunning = true;
     data.img.load(data.filename);
+
+    if (data.abortRequested) {
+        data.img = sgct::Image();
+        data.threadDone = true;
+        data.threadRunning = false;
+        return;
+    }
+
     data.imageDone = true;
-    while (!data.uploadDone) {
+    while (!data.uploadDone && !data.abortRequested) {
+        std::this_thread::yield();
     }
     data.img = sgct::Image();
     data.threadDone = true;
@@ -26,13 +35,9 @@ ImageLayer::ImageLayer(std::string identifier) {
 }
 
 ImageLayer::~ImageLayer() {
-    if (imageData.trd) {
-        imageData.uploadDone = true;
-        while (!imageData.threadDone) {
-        }
-        imageData.trd->join();
-        imageData.trd.reset();
-    }
+    imageData.abortRequested = true;
+    imageData.uploadDone = true;
+    joinThread();
 
     if (renderData.texId > 0)
         sgct::TextureManager::instance().removeTexture(renderData.texId);
@@ -61,8 +66,15 @@ bool ImageLayer::processImageUpload(std::string filename, bool forceUpdate) {
             imageData.filename = "";
         } else {
             if (fileIsImage(filename)) {
-                // Load background file
+                // Join any previous thread before starting a new one
+                joinThread();
+
+                // Store filename before launching thread to avoid race on the string
                 imageData.filename = filename;
+                imageData.abortRequested = false;
+                imageData.imageDone = false;
+                imageData.uploadDone = false;
+                imageData.threadDone = false;
                 sgct::Log::Info(std::format("Loading new {} image asynchronously: {}", imageData.identifier, imageData.filename));
                 imageData.threadRunning = true;
                 imageData.trd = std::make_unique<std::thread>(loadImageAsync, std::ref(imageData));
@@ -111,19 +123,30 @@ bool ImageLayer::fileIsImage(std::string &filePath) {
     return false;
 }
 
+void ImageLayer::joinThread() {
+    if (imageData.trd) {
+        if (imageData.trd->joinable()) {
+            imageData.trd->join();
+        }
+        imageData.trd.reset();
+    }
+}
+
 void ImageLayer::handleAsyncImageUpload() {
     if (imageData.threadRunning) {
         if (imageData.imageDone && !imageData.uploadDone) {
+            // Save dimensions before moving the image
+            int imgWidth = imageData.img.size().x;
+            int imgHeight = imageData.img.size().y;
             renderData.texId = sgct::TextureManager::instance().loadTexture(std::move(imageData.img));
-            renderData.width = imageData.img.size().x;
-            renderData.height = imageData.img.size().y;
+            renderData.width = imgWidth;
+            renderData.height = imgHeight;
             imageData.uploadDone = true;
         } else if (imageData.threadDone) {
             imageData.threadRunning = false;
             imageData.imageDone = false;
             imageData.uploadDone = false;
-            imageData.trd->join();
-            imageData.trd.reset();
+            joinThread();
         }
     }
 }

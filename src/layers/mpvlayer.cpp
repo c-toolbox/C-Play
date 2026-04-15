@@ -77,8 +77,8 @@ void on_mpv_events(MpvLayer::mpvData &vd, BaseLayer::RenderParams &rp) {
             if (mpv_get_property(vd.handle, "dwidth", MPV_FORMAT_INT64, &w) >= 0 &&
                 mpv_get_property(vd.handle, "dheight", MPV_FORMAT_INT64, &h) >= 0 &&
                 w > 0 && h > 0) {
-                rp.width = w;
-                rp.height = h;
+                vd.pendingWidth = static_cast<int>(w);
+                vd.pendingHeight = static_cast<int>(h);
                 vd.reconfigs++;
                 vd.updateRendering = (vd.reconfigs > vd.reconfigsBeforeUpdate);
                 mpv::qt::set_property_async(vd.handle, QStringLiteral("time-pos"), vd.timePos);
@@ -91,8 +91,8 @@ void on_mpv_events(MpvLayer::mpvData &vd, BaseLayer::RenderParams &rp) {
                 if (prop->format == MPV_FORMAT_NODE) {
                     const QVariant videoParams = mpv::qt::node_to_variant(reinterpret_cast<mpv_node *>(prop->data));
                     auto vm = videoParams.toMap();
-                    rp.width = vm[QStringLiteral("w")].toInt();
-                    rp.height = vm[QStringLiteral("h")].toInt();
+                    vd.pendingWidth = vm[QStringLiteral("w")].toInt();
+                    vd.pendingHeight = vm[QStringLiteral("h")].toInt();
                 }
             } else if (strcmp(prop->name, "pause") == 0) {
                 if (prop->format == MPV_FORMAT_FLAG) {

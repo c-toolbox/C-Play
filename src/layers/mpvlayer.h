@@ -45,6 +45,8 @@ public:
         bool loadAudioInVidFolder_Dec = false;
         int fboWidth = 0;
         int fboHeight = 0;
+        int pendingWidth = 0;
+        int pendingHeight = 0;
         bool fboCreated = false;
         unsigned int fboId = 0;
         int reconfigs = 0;
