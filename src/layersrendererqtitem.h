@@ -122,6 +122,7 @@ private:
     // Meshes
     std::unique_ptr<DomeGrid> m_domeMesh;
     std::unique_ptr<SphereGrid> m_sphereMesh;
+    bool m_meshesDirty = false;
 
     // Quad rendering
     QOpenGLVertexArrayObject m_quadVAO;

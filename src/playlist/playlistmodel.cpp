@@ -671,6 +671,12 @@ void PlayListModel::updateItem(int i) {
     setPlayListIsEdited(true);
 }
 
+void PlayListModel::refreshItem(int i) {
+    if (i >= 0 && i < m_playList.size()) {
+        Q_EMIT dataChanged(index(i, 0), index(i, 0));
+    }
+}
+
 void PlayListModel::setPlayListIsEdited(bool value) {
     m_playListEdited = value;
     Q_EMIT playListIsEditedChanged();
@@ -684,7 +690,7 @@ void PlayListModel::setPlayingVideo(int playingVideo) {
     // unset current playing video
     if (m_playingVideo >= 0 && m_playingVideo < m_playList.size()) {
         m_playList[m_playingVideo]->setIsPlaying(false);
-        Q_EMIT dataChanged(index(m_playingVideo, 0), index(m_playingVideo, 0));
+        Q_EMIT dataChanged(index(m_playingVideo, 0), index(m_playingVideo, 0), {PlayingRole});
     }
 
     if (playingVideo < 0 || playingVideo >= m_playList.size()) {
@@ -695,7 +701,7 @@ void PlayListModel::setPlayingVideo(int playingVideo) {
 
     // set new playing video
     m_playList[playingVideo]->setIsPlaying(true);
-    Q_EMIT dataChanged(index(playingVideo, 0), index(playingVideo, 0));
+    Q_EMIT dataChanged(index(playingVideo, 0), index(playingVideo, 0), {PlayingRole});
 
     m_playingVideo = playingVideo;
     Q_EMIT playingVideoChanged();

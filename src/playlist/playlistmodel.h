@@ -146,6 +146,7 @@ public:
     Q_INVOKABLE void moveItemUp(int i);
     Q_INVOKABLE void moveItemDown(int i);
     Q_INVOKABLE void updateItem(int i);
+    Q_INVOKABLE void refreshItem(int i);
     Q_INVOKABLE void setPlayListIsEdited(bool value);
     Q_INVOKABLE bool getPlayListIsEdited();
     Q_INVOKABLE void setPlayingVideo(int playingVideo);

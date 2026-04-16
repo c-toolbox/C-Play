@@ -701,12 +701,9 @@ void LayersRendererQtOpenGLObject::initializeGL() {
 
 void LayersRendererQtOpenGLObject::updateMeshes(double radius, double fov, double angle) {
     if (m_meshRadius != radius || m_meshFov != fov) {
-        m_domeMesh.reset();
-        m_sphereMesh.reset();
         m_meshRadius = radius;
         m_meshFov = fov;
-        m_domeMesh = std::make_unique<DomeGrid>(float(m_meshRadius) / 100.f, float(m_meshFov), 256, 128);
-        m_sphereMesh = std::make_unique<SphereGrid>(float(m_meshRadius) / 100.f, 256);
+        m_meshesDirty = true;
     }
     m_meshAngle = angle;
 }
@@ -1340,6 +1337,15 @@ void LayersRendererQtOpenGLObject::paint() {
     }
 
     m_window->beginExternalCommands();
+
+    // Recreate meshes here where GL context is guaranteed to be current
+    if (m_meshesDirty) {
+        m_domeMesh.reset();
+        m_sphereMesh.reset();
+        m_domeMesh = std::make_unique<DomeGrid>(float(m_meshRadius) / 100.f, float(m_meshFov), 256, 128);
+        m_sphereMesh = std::make_unique<SphereGrid>(float(m_meshRadius) / 100.f, 256);
+        m_meshesDirty = false;
+    }
 
     updateLayers();
 

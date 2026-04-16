@@ -1002,6 +1002,12 @@ void MpvObject::loadItem(int playListIndex, bool updateLastPlayedFile) {
             return;
         }
         item->loadDetailsFromDisk();
+
+        // Notify the view of any data changes from loading the description file
+        // (e.g. stereoVideo, gridToMapOn, duration, etc.) before setPlayingVideo
+        // which only emits PlayingRole.
+        m_playlistModel->refreshItem(playListIndex);
+
         PlayListItemData pld = item->data();
 
         // List overrides take priority over cplayfile values
@@ -1247,7 +1253,7 @@ void MpvObject::loadUniviewPlaylist(const QString &file, bool updateLastPlayedFi
         double startTime = playListEntries.at(itemStart + 3).mid(10).toDouble(); //"Starttime="
         double endTime = playListEntries.at(itemStart + 4).mid(8).toDouble();    //"Endtime="
         int eofMode = playListEntries.at(itemStart + 5).mid(9).toInt();          //"Loopmode="
-        int transitionMode = playListEntries.at(itemStart + 6).mid(15).toInt();  //"Transitionmode="_
+        int transitionMode = playListEntries.at(itemStart + 6).mid(15).toInt();  //"Transitionmode"_
 
         QFileInfo videoFileInfo(path);
         QString videoFileExt = videoFileInfo.suffix();
