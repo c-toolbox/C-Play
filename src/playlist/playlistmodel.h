@@ -190,6 +190,11 @@ public:
     Q_INVOKABLE void setUseListStereoMode(int i, bool use);
     Q_INVOKABLE bool useListGridMode(int i) const;
     Q_INVOKABLE void setUseListGridMode(int i, bool use);
+    Q_INVOKABLE QString listAudioFile(int i) const;
+    Q_INVOKABLE void setListAudioFile(int i, const QString &audioFile);
+    Q_INVOKABLE bool useListAudioFile(int i) const;
+    Q_INVOKABLE void setUseListAudioFile(int i, bool use);
+    Q_INVOKABLE QString mediaFileFolderPath(int i) const;
     Q_INVOKABLE void setListFileStartTime(int i, double startTime);
     Q_INVOKABLE void setListFileEndTime(int i, double endTime);
     Q_INVOKABLE void setListFileStartTimeFromString(int i, const QString &startTime);

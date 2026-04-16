@@ -46,6 +46,8 @@ public:
     bool useListStereoMode() const;
     int listGridMode() const;
     bool useListGridMode() const;
+    QString listAudioFile() const;
+    bool useListAudioFile() const;
     QString separateOverlayFile() const;
     QString separateAudioFile() const;
     int eofMode() const;
@@ -79,6 +81,8 @@ public:
     bool m_useListStereoMode{false};
     int m_listGridMode{0};
     bool m_useListGridMode{false};
+    QString m_listAudioFile{QStringLiteral("")};
+    bool m_useListAudioFile{false};
     QList<Section> m_sections;
 
     bool m_isHovered{false};
@@ -140,6 +144,11 @@ public:
     Q_INVOKABLE void setListGridMode(int gridMode);
     Q_INVOKABLE bool useListGridMode() const;
     Q_INVOKABLE void setUseListGridMode(bool use);
+
+    Q_INVOKABLE QString listAudioFile() const;
+    Q_INVOKABLE void setListAudioFile(const QString &audioFile);
+    Q_INVOKABLE bool useListAudioFile() const;
+    Q_INVOKABLE void setUseListAudioFile(bool use);
 
     Q_INVOKABLE QString separateOverlayFile() const;
     Q_INVOKABLE void setSeparateOverlayFile(const QString &audioFile);

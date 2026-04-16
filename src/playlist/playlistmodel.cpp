@@ -275,7 +275,7 @@ void PlaySectionsModel::moveSectionDown(int i) {
 
 QString PlaySectionsModel::sectionTitle(int i) const {
     if (!m_currentEditItem)
-        return QStringLiteral("");
+        return QStringLiteral(">");
 
     return m_currentEditItem->sectionTitle(i);
 }
@@ -577,8 +577,6 @@ void PlayListModel::clear() {
 }
 
 QString PlayListModel::getPath(int i) {
-    // when restoring a youtube playlist
-    // ensure the requested path is valid
     if (m_playList.size() <= i) {
         return m_playList[0]->mediaFile();
     }
@@ -600,14 +598,12 @@ QPointer<PlayListItem> PlayListModel::getItem(int i) {
     if (i < 0 || i >= getPlayListSize()) {
         return nullptr;
     }
-
     return m_playList[i];
 }
 
 void PlayListModel::removeItem(int i) {
     if (i < 0 || i >= m_playList.size())
         return;
-
     beginRemoveRows(QModelIndex(), i, i);
     m_playList.removeAt(i);
     if (m_playingVideo == i)
@@ -619,16 +615,11 @@ void PlayListModel::removeItem(int i) {
 }
 
 void PlayListModel::moveItem(int i, int t) {
-    if (i < 0 || t < 0 || i >= m_playList.size() || t >= m_playList.size() || i == t) {
+    if (i < 0 || t < 0 || i >= m_playList.size() || t >= m_playList.size() || i == t)
         return;
-    }
-
     int destinationRow = (t > i) ? (t + 1) : t;
-
-    if (!beginMoveRows(QModelIndex(), i, i, QModelIndex(), destinationRow)) {
+    if (!beginMoveRows(QModelIndex(), i, i, QModelIndex(), destinationRow))
         return;
-    }
-
     m_playList.move(i, t);
     if (m_playingVideo == i)
         m_playingVideo = t;
@@ -687,22 +678,17 @@ bool PlayListModel::getPlayListIsEdited() {
 }
 
 void PlayListModel::setPlayingVideo(int playingVideo) {
-    // unset current playing video
     if (m_playingVideo >= 0 && m_playingVideo < m_playList.size()) {
         m_playList[m_playingVideo]->setIsPlaying(false);
         Q_EMIT dataChanged(index(m_playingVideo, 0), index(m_playingVideo, 0), {PlayingRole});
     }
-
     if (playingVideo < 0 || playingVideo >= m_playList.size()) {
         m_playingVideo = -1;
         Q_EMIT playingVideoChanged();
         return;
     }
-
-    // set new playing video
     m_playList[playingVideo]->setIsPlaying(true);
     Q_EMIT dataChanged(index(playingVideo, 0), index(playingVideo, 0), {PlayingRole});
-
     m_playingVideo = playingVideo;
     Q_EMIT playingVideoChanged();
 }
@@ -710,78 +696,67 @@ void PlayListModel::setPlayingVideo(int playingVideo) {
 QString PlayListModel::filePath(int i) const {
     if (i >= 0 && m_playList.size() > i && m_playList[i])
         return m_playList[i].data()->filePath();
-    else
-        return QStringLiteral("");
+    return QStringLiteral("");
 }
 
 QUrl PlayListModel::filePathAsURL(int i) const {
     if (i >= 0 && m_playList.size() > i && m_playList[i])
         return QUrl(QStringLiteral("file:///") + m_playList[i].data()->filePath());
-    else
-        return QUrl();
+    return QUrl();
 }
 
 QString PlayListModel::fileName(int i) const {
     if (i >= 0 && m_playList.size() > i && m_playList[i])
         return m_playList[i].data()->fileName();
-    else
-        return QStringLiteral("");
+    return QStringLiteral("");
 }
 
 QString PlayListModel::fileFolderPath(int i) const {
     if (i >= 0 && m_playList.size() > i && m_playList[i])
         return m_playList[i].data()->fileFolderPath();
-    else
-        return QStringLiteral("");
+    return QStringLiteral("");
 }
 
 QUrl PlayListModel::fileFolderPathAsURL(int i) const {
     if (i >= 0 && m_playList.size() > i && m_playList[i])
         return QUrl(QStringLiteral("file:///") + m_playList[i].data()->fileFolderPath());
-    else
-        return QUrl();
+    return QUrl();
 }
 
 QString PlayListModel::mediaFile(int i) const {
     if (i >= 0 && m_playList.size() > i && m_playList[i])
         return m_playList[i].data()->mediaFile();
-    else
-        return QStringLiteral("");
+    return QStringLiteral("");
 }
 
 QString PlayListModel::mediaTitle(int i) const {
     if (i >= 0 && m_playList.size() > i && m_playList[i])
         return m_playList[i].data()->mediaTitle();
-    else
-        return QStringLiteral("");
+    return QStringLiteral("");
 }
 
 QString PlayListModel::duration(int i) const {
     if (i >= 0 && m_playList.size() > i && m_playList[i])
         return m_playList[i].data()->durationFormatted();
-    else
-        return QStringLiteral("");
+    return QStringLiteral("");
 }
 
 QString PlayListModel::separateAudioFile(int i) const {
     if (i >= 0 && m_playList.size() > i && m_playList[i])
         return m_playList[i].data()->separateAudioFile();
-    else
-        return QStringLiteral("");
+    return QStringLiteral("");
 }
 
 QString PlayListModel::separateOverlayFile(int i) const {
     if (i >= 0 && m_playList.size() > i && m_playList[i])
         return m_playList[i].data()->separateOverlayFile();
-    else
-        return QStringLiteral("");
+    return QStringLiteral("");
 }
 
 int PlayListModel::eofMode(int i) const {
     if (i >= 0 && m_playList.size() > i && m_playList[i])
         return m_playList[i].data()->eofMode();
-    else
-        return m_defaultEofMode;
+    return m_defaultEofMode;
 }
 
 void PlayListModel::setEofMode(int i, int eofMode) {
@@ -792,50 +767,43 @@ void PlayListModel::setEofMode(int i, int eofMode) {
 int PlayListModel::transitionMode(int i) const {
     if (i >= 0 && m_playList.size() > i && m_playList[i])
         return m_playList[i].data()->transitionMode();
-    else
-        return 0;
+    return 0;
 }
 
 int PlayListModel::gridToMapOn(int i) const {
     if (i >= 0 && m_playList.size() > i && m_playList[i])
         return m_playList[i].data()->gridToMapOn();
-    else
-        return 0;
+    return 0;
 }
 
 int PlayListModel::stereoVideo(int i) const {
     if (i >= 0 && m_playList.size() > i && m_playList[i])
         return m_playList[i].data()->stereoVideo();
-    else
-        return 0;
+    return 0;
 }
 
 int PlayListModel::numberOfSections(int i) const {
     if (i >= 0 && m_playList.size() > i && m_playList[i])
         return m_playList[i].data()->numberOfSections();
-    else
-        return 0;
+    return 0;
 }
 
 bool PlayListModel::hasDescriptionFile(int i) const {
     if (i >= 0 && m_playList.size() > i && m_playList[i])
         return m_playList[i].data()->hasDescriptionFile();
-    else
-        return false;
+    return false;
 }
 
 double PlayListModel::listFileStartTime(int i) const {
     if (i >= 0 && m_playList.size() > i && m_playList[i])
         return m_playList[i].data()->listFileStartTime();
-    else
-        return 0.0;
+    return 0.0;
 }
 
 double PlayListModel::listFileEndTime(int i) const {
     if (i >= 0 && m_playList.size() > i && m_playList[i])
         return m_playList[i].data()->listFileEndTime();
-    else
-        return 0.0;
+    return 0.0;
 }
 
 QString PlayListModel::listFileStartTimeFormatted(int i) const {
@@ -849,8 +817,7 @@ QString PlayListModel::listFileEndTimeFormatted(int i) const {
 int PlayListModel::listStereoMode(int i) const {
     if (i >= 0 && m_playList.size() > i && m_playList[i])
         return m_playList[i].data()->listStereoMode();
-    else
-        return -1;
+    return -1;
 }
 
 void PlayListModel::setListStereoMode(int i, int stereoMode) {
@@ -864,8 +831,7 @@ void PlayListModel::setListStereoMode(int i, int stereoMode) {
 int PlayListModel::listGridMode(int i) const {
     if (i >= 0 && m_playList.size() > i && m_playList[i])
         return m_playList[i].data()->listGridMode();
-    else
-        return -1;
+    return -1;
 }
 
 void PlayListModel::setListGridMode(int i, int gridMode) {
@@ -879,8 +845,7 @@ void PlayListModel::setListGridMode(int i, int gridMode) {
 QString PlayListModel::listTitle(int i) const {
     if (i >= 0 && m_playList.size() > i && m_playList[i])
         return m_playList[i].data()->listTitle();
-    else
-        return QStringLiteral("");
+    return QStringLiteral("");
 }
 
 void PlayListModel::setListTitle(int i, const QString &title) {
@@ -894,8 +859,7 @@ void PlayListModel::setListTitle(int i, const QString &title) {
 bool PlayListModel::useListTitle(int i) const {
     if (i >= 0 && m_playList.size() > i && m_playList[i])
         return m_playList[i].data()->useListTitle();
-    else
-        return false;
+    return false;
 }
 
 void PlayListModel::setUseListTitle(int i, bool use) {
@@ -909,8 +873,7 @@ void PlayListModel::setUseListTitle(int i, bool use) {
 bool PlayListModel::useListFileStartTime(int i) const {
     if (i >= 0 && m_playList.size() > i && m_playList[i])
         return m_playList[i].data()->useListFileStartTime();
-    else
-        return false;
+    return false;
 }
 
 void PlayListModel::setUseListFileStartTime(int i, bool use) {
@@ -924,8 +887,7 @@ void PlayListModel::setUseListFileStartTime(int i, bool use) {
 bool PlayListModel::useListFileEndTime(int i) const {
     if (i >= 0 && m_playList.size() > i && m_playList[i])
         return m_playList[i].data()->useListFileEndTime();
-    else
-        return false;
+    return false;
 }
 
 void PlayListModel::setUseListFileEndTime(int i, bool use) {
@@ -939,8 +901,7 @@ void PlayListModel::setUseListFileEndTime(int i, bool use) {
 bool PlayListModel::useListStereoMode(int i) const {
     if (i >= 0 && m_playList.size() > i && m_playList[i])
         return m_playList[i].data()->useListStereoMode();
-    else
-        return false;
+    return false;
 }
 
 void PlayListModel::setUseListStereoMode(int i, bool use) {
@@ -954,8 +915,7 @@ void PlayListModel::setUseListStereoMode(int i, bool use) {
 bool PlayListModel::useListGridMode(int i) const {
     if (i >= 0 && m_playList.size() > i && m_playList[i])
         return m_playList[i].data()->useListGridMode();
-    else
-        return false;
+    return false;
 }
 
 void PlayListModel::setUseListGridMode(int i, bool use) {
@@ -964,6 +924,44 @@ void PlayListModel::setUseListGridMode(int i, bool use) {
         Q_EMIT dataChanged(index(i, 0), index(i, 0));
         setPlayListIsEdited(true);
     }
+}
+
+QString PlayListModel::listAudioFile(int i) const {
+    if (i >= 0 && m_playList.size() > i && m_playList[i])
+        return m_playList[i].data()->listAudioFile();
+    else
+        return QStringLiteral("");
+}
+
+void PlayListModel::setListAudioFile(int i, const QString &audioFile) {
+    if (i >= 0 && m_playList.size() > i && m_playList[i]) {
+        m_playList[i]->setListAudioFile(audioFile);
+        Q_EMIT dataChanged(index(i, 0), index(i, 0));
+        setPlayListIsEdited(true);
+    }
+}
+
+bool PlayListModel::useListAudioFile(int i) const {
+    if (i >= 0 && m_playList.size() > i && m_playList[i])
+        return m_playList[i].data()->useListAudioFile();
+    else
+        return false;
+}
+
+void PlayListModel::setUseListAudioFile(int i, bool use) {
+    if (i >= 0 && m_playList.size() > i && m_playList[i]) {
+        m_playList[i]->setUseListAudioFile(use);
+        Q_EMIT dataChanged(index(i, 0), index(i, 0));
+        setPlayListIsEdited(true);
+    }
+}
+
+QString PlayListModel::mediaFileFolderPath(int i) const {
+    if (i >= 0 && m_playList.size() > i && m_playList[i]) {
+        QFileInfo fi(m_playList[i].data()->mediaFile());
+        return fi.absolutePath();
+    }
+    return QStringLiteral("");
 }
 
 void PlayListModel::setListFileStartTime(int i, double startTime) {
@@ -1050,6 +1048,9 @@ void PlayListModel::saveAsJSONPlaylist(const QString &path) {
 
         if (m_playList[i]->useListGridMode())
             item_data.insert(QStringLiteral("list_grid_mode"), QJsonValue(m_playList[i]->listGridMode()));
+
+        if (m_playList[i]->useListAudioFile() && !m_playList[i]->listAudioFile().isEmpty())
+            item_data.insert(QStringLiteral("list_audio_file"), QJsonValue(m_playList[i]->listAudioFile()));
 
         playlistArray.push_back(QJsonValue(item_data));
     }

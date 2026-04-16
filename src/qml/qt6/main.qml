@@ -106,7 +106,7 @@ Kirigami.ApplicationWindow {
     minimumHeight: 621 > Screen.height / 2 ? Screen.height / 2 : 621
     minimumWidth: 1104 > Screen.width / 2 ? Screen.width / 2 : 1104
     height: 909 * Screen.devicePixelRatio > Screen.height ? Screen.height - 60 : 909
-    width: 1616 * Screen.devicePixelRatio > Screen.width ? Screen.width - 20 : 1616
+    width: 1640 * Screen.devicePixelRatio > Screen.width ? Screen.width - 20 : 1640
 
     header: Header {
         id: header

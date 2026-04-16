@@ -69,6 +69,9 @@ Kirigami.ApplicationWindow {
         listTitleCheckBox.checked = mpv.playlistModel.useListTitle(idx);
         listTitleTextField.text = mpv.playlistModel.listTitle(idx);
 
+        listAudioCheckBox.checked = mpv.playlistModel.useListAudioFile(idx);
+        listAudioTextField.text = mpv.playlistModel.listAudioFile(idx);
+
         listFileStartCheckBox.checked = mpv.playlistModel.useListFileStartTime(idx);
         listFileStartTimeTextField.text = mpv.playlistModel.listFileStartTimeFormatted(idx);
 
@@ -399,6 +402,77 @@ Kirigami.ApplicationWindow {
 
             ToolTip {
                 text: qsTr("Override grid mode for this playlist entry")
+            }
+        }
+        CheckBox {
+            id: listAudioCheckBox
+
+            text: qsTr("List audio file:")
+
+            onToggled: {
+                if (viewPlaylistItemWindow.selectedIndex >= 0) {
+                    mpv.playlistModel.setUseListAudioFile(viewPlaylistItemWindow.selectedIndex, checked);
+                    mpv.playlistModel.updateItem(viewPlaylistItemWindow.selectedIndex);
+                }
+            }
+
+            ToolTip {
+                text: qsTr("Enable to override the audio file for this entry (optional)")
+            }
+        }
+        RowLayout {
+            Layout.fillWidth: true
+
+            TextField {
+                id: listAudioTextField
+
+                Layout.fillWidth: true
+                enabled: listAudioCheckBox.checked
+                readOnly: true
+                placeholderText: qsTr("No audio file selected")
+
+                ToolTip {
+                    text: qsTr("Override audio file for this playlist entry")
+                }
+            }
+            Button {
+                enabled: listAudioCheckBox.checked
+                focusPolicy: Qt.NoFocus
+                icon.name: "document-open"
+                icon.height: 16
+
+                onClicked: {
+                    listAudioFileDialog.startFolder = mpv.playlistModel.mediaFileFolderPath(viewPlaylistItemWindow.selectedIndex);
+                    listAudioFileDialog.open();
+                }
+
+                ToolTip {
+                    text: qsTr("Browse for audio file")
+                }
+            }
+
+            Platform.FileDialog {
+                id: listAudioFileDialog
+
+                property string startFolder: ""
+
+                title: qsTr("Select Audio File")
+                fileMode: Platform.FileDialog.OpenFile
+                folder: startFolder.length > 0 ? "file:///" + startFolder : ""
+                nameFilters: [qsTr("Audio files") + " (*.wav *.mp3 *.flac *.ogg *.aac *.wma *.m4a *.opus *.aiff *.ac3 *.dts *.pcm)"]
+
+                onAccepted: {
+                    var filePath = file.toString().replace("file:///", "");
+                    listAudioTextField.text = filePath;
+                    if (viewPlaylistItemWindow.selectedIndex >= 0) {
+                        mpv.playlistModel.setListAudioFile(viewPlaylistItemWindow.selectedIndex, filePath);
+                        if (!listAudioCheckBox.checked) {
+                            listAudioCheckBox.checked = true;
+                            mpv.playlistModel.setUseListAudioFile(viewPlaylistItemWindow.selectedIndex, true);
+                        }
+                        mpv.playlistModel.updateItem(viewPlaylistItemWindow.selectedIndex);
+                    }
+                }
             }
         }
         CheckBox {

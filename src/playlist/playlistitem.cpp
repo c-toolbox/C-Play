@@ -85,6 +85,14 @@ bool PlayListItemData::useListGridMode() const {
     return m_useListGridMode;
 }
 
+QString PlayListItemData::listAudioFile() const {
+    return m_listAudioFile;
+}
+
+bool PlayListItemData::useListAudioFile() const {
+    return m_useListAudioFile;
+}
+
 QString PlayListItemData::separateOverlayFile() const {
     return m_separateOverlayFile;
 }
@@ -272,6 +280,22 @@ bool PlayListItem::useListGridMode() const {
 
 void PlayListItem::setUseListGridMode(bool use) {
     m_data.m_useListGridMode = use;
+}
+
+QString PlayListItem::listAudioFile() const {
+    return m_data.m_listAudioFile;
+}
+
+void PlayListItem::setListAudioFile(const QString &audioFile) {
+    m_data.m_listAudioFile = audioFile;
+}
+
+bool PlayListItem::useListAudioFile() const {
+    return m_data.m_useListAudioFile;
+}
+
+void PlayListItem::setUseListAudioFile(bool use) {
+    m_data.m_useListAudioFile = use;
 }
 
 QString PlayListItem::separateOverlayFile() const {

@@ -1017,6 +1017,9 @@ void MpvObject::loadItem(int playListIndex, bool updateLastPlayedFile) {
         if (pld.m_useListGridMode)
             pld.m_gridToMapOn = pld.m_listGridMode;
 
+        if (pld.m_useListAudioFile && !pld.m_listAudioFile.isEmpty())
+            pld.m_separateAudioFile = pld.m_listAudioFile;
+
         // Store list file start/end times for position checks
         m_startTime = pld.m_useListFileStartTime ? pld.m_listFileStartTime : -1.0;
         m_endTime = pld.m_useListFileEndTime ? pld.m_listFileEndTime : -1.0;
@@ -1033,14 +1036,19 @@ void MpvObject::loadItem(PlayListItemData itemData, bool updateLastPlayedFile, Q
     try {
         setAudioId(-1);
 
+        // Apply list audio file override if enabled
+        QString audioFile = (itemData.useListAudioFile() && !itemData.listAudioFile().isEmpty())
+            ? itemData.listAudioFile()
+            : itemData.separateAudioFile();
+
         QStringList optionsList;
 
         if (itemData.separateOverlayFile() != QStringLiteral("")) {
             optionsList << QStringLiteral("external-file=") + itemData.separateOverlayFile();
         }
 
-        if (itemData.separateAudioFile() != QStringLiteral("")) {
-            optionsList << QStringLiteral("audio-file=") + itemData.separateAudioFile();
+        if (!audioFile.isEmpty()) {
+            optionsList << QStringLiteral("audio-file=") + audioFile;
         }
 
         if (itemData.mediaTitle() != QStringLiteral("")) {
@@ -1081,7 +1089,7 @@ void MpvObject::loadItem(PlayListItemData itemData, bool updateLastPlayedFile, Q
         SyncHelper::instance().variables.overlayFile = itemData.separateOverlayFile().toStdString();
         SyncHelper::instance().variables.loadFile = true;
         SyncHelper::instance().variables.overlayFileDirty = true;
-        m_separateAudioFile = itemData.separateAudioFile();
+        m_separateAudioFile = audioFile;
 
         if (itemData.gridToMapOn() >= 0)
             setGridToMapOn(itemData.gridToMapOn());
@@ -1201,6 +1209,11 @@ void MpvObject::loadJSONPlayList(const QString &file, bool updateLastPlayedFile)
                     if (o.contains(QStringLiteral("list_grid_mode"))) {
                         filePtr->setListGridMode(o.value(QStringLiteral("list_grid_mode")).toInt());
                         filePtr->setUseListGridMode(true);
+                    }
+
+                    if (o.contains(QStringLiteral("list_audio_file"))) {
+                        filePtr->setListAudioFile(o.value(QStringLiteral("list_audio_file")).toString());
+                        filePtr->setUseListAudioFile(true);
                     }
 
                     m_playList.append(QPointer<PlayListItem>(filePtr));
