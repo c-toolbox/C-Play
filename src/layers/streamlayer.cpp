@@ -36,6 +36,11 @@ StreamLayer::~StreamLayer() {
         free(m_readbackBuffer);
         m_readbackBuffer = nullptr;
     }
+
+    if (m_backupTexId > 0) {
+        glDeleteTextures(1, &m_backupTexId);
+        m_backupTexId = 0;
+    }
 }
 
 void StreamLayer::initialize() {
@@ -50,14 +55,40 @@ void StreamLayer::updateFrame() {
 
     VideoLayer::updateFrame();
 
-    // Scan for QR codes in the rendered frame (two-phase scheme)
-    if (renderData.texId > 0 && renderData.width > 0 && renderData.height > 0) {
-        FindCodes(renderData.texId, static_cast<unsigned int>(renderData.width), static_cast<unsigned int>(renderData.height));
-    }
+    // After VideoLayer::updateFrame(), renderData.texId holds the just-rendered
+    // frame (either the primary or ping-pong texture). We save this as the
+    // "current render texture" before potentially swapping to the backup.
+    unsigned int currentRenderTexId = renderData.texId;
 
-    // Update the active sublayer with the new frame
-    if (m_qrOpHandler && m_qrOpHandler->isActive()) {
-        m_qrOpHandler->updateActiveSubLayer(this, renderData.texId, renderData.width, renderData.height);
+    // Scan for QR codes in the rendered frame (two-phase scheme)
+    if (isQRCodeDetectionEnabled() && currentRenderTexId > 0 && renderData.width > 0 && renderData.height > 0) {
+        bool codesFound = FindCodes(renderData.texId,
+            static_cast<unsigned int>(renderData.width),
+            static_cast<unsigned int>(renderData.height));
+
+        if (!codesFound) {
+            // Clean frame: copy current texture to the backup so we have a
+            // known-good frame to show when a QR code appears later.
+            copyToBackupTexture(currentRenderTexId, renderData.width, renderData.height);
+            // Display the current render texture (already set by VideoLayer)
+        } else {
+            // QR code detected in this frame (control frame).
+            // Switch renderData.texId to the backup texture so the control
+            // frame is not displayed. The rendered texture stays untouched
+            // in its FBO for the next frame's ping-pong cycle.
+            if (m_backupTexId > 0
+                && m_backupTexWidth == renderData.width
+                && m_backupTexHeight == renderData.height) {
+                renderData.texId = m_backupTexId;
+            }
+            // If no backup exists yet we have no choice but to show the
+            // current frame (first frame ever was a QR code).
+        }
+
+        // Update the active sublayer with the displayed frame
+        if (m_qrOpHandler && m_qrOpHandler->isActive()) {
+            m_qrOpHandler->updateActiveSubLayer(this, renderData.texId, renderData.width, renderData.height);
+        }
     }
 }
 
@@ -147,6 +178,39 @@ bool StreamLayer::FindCodes(unsigned int texId, unsigned int width, unsigned int
 
     // Process frame through two-phase QR command scheme
     return m_qrProcessor->processFrame(m_readbackBuffer, width, height, GL_RGBA);
+}
+
+void StreamLayer::copyToBackupTexture(unsigned int srcTexId, int width, int height) {
+    if (srcTexId == 0 || width <= 0 || height <= 0) {
+        return;
+    }
+
+    // (Re-)create the backup texture if the dimensions changed
+    if (m_backupTexId == 0 || m_backupTexWidth != width || m_backupTexHeight != height) {
+        if (m_backupTexId > 0) {
+            glDeleteTextures(1, &m_backupTexId);
+        }
+
+        glGenTextures(1, &m_backupTexId);
+        glBindTexture(GL_TEXTURE_2D, m_backupTexId);
+        glTexImage2D(GL_TEXTURE_2D, 0, GL_RGBA16F, width, height, 0, GL_RGBA, GL_FLOAT, nullptr);
+        glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_BASE_LEVEL, 0);
+        glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_MAX_LEVEL, 0);
+        glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_MIN_FILTER, GL_LINEAR);
+        glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_MAG_FILTER, GL_LINEAR);
+        glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_WRAP_S, GL_CLAMP_TO_EDGE);
+        glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_WRAP_T, GL_CLAMP_TO_EDGE);
+        glBindTexture(GL_TEXTURE_2D, 0);
+
+        m_backupTexWidth = width;
+        m_backupTexHeight = height;
+    }
+
+    // GPU-to-GPU copy of the clean frame into the backup texture
+    glCopyImageSubData(
+        srcTexId, GL_TEXTURE_2D, 0, 0, 0, 0,
+        m_backupTexId, GL_TEXTURE_2D, 0, 0, 0, 0,
+        width, height, 1);
 }
 
 void StreamLayer::onQRCommand(const QRCommand& command) {

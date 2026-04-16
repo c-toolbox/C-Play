@@ -198,6 +198,7 @@ public:
 
     int volume() const;
     virtual unsigned int textureId() const;
+    virtual unsigned int textureInternalFormat() const;
     int width() const;
     int height() const;
 

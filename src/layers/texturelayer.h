@@ -33,7 +33,8 @@ public:
     bool ready() const override;
 
     // Capture a snapshot by copying pixel data from an existing GL texture.
-    bool captureFromTexture(GLuint srcTexId, int width, int height);
+    // internalFormat must match the source texture's internal format (e.g. GL_RGBA8, GL_RGBA16F).
+    bool captureFromTexture(GLuint srcTexId, int width, int height, GLenum internalFormat = GL_RGBA8);
 
     // Capture a snapshot from raw RGBA/BGRA pixel data.
     bool captureFromPixels(const unsigned char* pixelData, int width, int height, int GLformat);
@@ -63,10 +64,11 @@ public:
     bool isFading() const;
 
 private:
-    void allocateTexture(int width, int height, int GLformat);
+    void allocateTexture(int width, int height, GLenum internalFormat, GLenum pixelFormat);
 
     bool m_frozen = false;
     bool m_hasTexture = false;
+    GLenum m_internalFormat = 0;
 
     // Fade state
     bool m_fading = false;

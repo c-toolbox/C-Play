@@ -26,16 +26,17 @@ bool TextureLayer::ready() const {
     return m_hasTexture && renderData.texId > 0;
 }
 
-bool TextureLayer::captureFromTexture(GLuint srcTexId, int width, int height) {
+bool TextureLayer::captureFromTexture(GLuint srcTexId, int width, int height, GLenum internalFormat) {
     if (srcTexId == 0 || width <= 0 || height <= 0) {
         return false;
     }
 
-    // Allocate destination texture if needed
+    // Allocate destination texture if needed (size or format changed)
     bool reallocated = false;
-    if (renderData.texId == 0 || renderData.width != width || renderData.height != height) {
+    if (renderData.texId == 0 || renderData.width != width || renderData.height != height || m_internalFormat != internalFormat) {
         releaseTexture();
-        allocateTexture(width, height, GL_RGBA);
+        GLenum pixelFormat = (internalFormat == GL_RGBA16F) ? GL_RGBA : GL_RGBA;
+        allocateTexture(width, height, internalFormat, pixelFormat);
         reallocated = true;
     }
 
@@ -45,12 +46,11 @@ bool TextureLayer::captureFromTexture(GLuint srcTexId, int width, int height) {
         renderData.texId, GL_TEXTURE_2D, 0, 0, 0, 0,
         width, height, 1
     );
-    glFlush();
 
     m_hasTexture = true;
     if (reallocated) {
-        sgct::Log::Info(std::format("TextureLayer '{}': Captured texture ({}x{}) from texture {}",
-            title(), width, height, srcTexId));
+        sgct::Log::Info(std::format("TextureLayer '{}': Captured texture ({}x{}, fmt={}) from texture {}",
+            title(), width, height, internalFormat, srcTexId));
     }
     return true;
 }
@@ -65,9 +65,9 @@ bool TextureLayer::captureFromPixels(const unsigned char* pixelData, int width, 
     }
 
     // Allocate destination texture if needed
-    if (renderData.texId == 0 || renderData.width != width || renderData.height != height) {
+    if (renderData.texId == 0 || renderData.width != width || renderData.height != height || m_internalFormat != GL_RGBA8) {
         releaseTexture();
-        allocateTexture(width, height, GLformat);
+        allocateTexture(width, height, GL_RGBA8, GLformat);
     }
 
     glBindTexture(GL_TEXTURE_2D, renderData.texId);
@@ -89,6 +89,7 @@ void TextureLayer::releaseTexture() {
     renderData.height = 0;
     m_hasTexture = false;
     m_frozen = false;
+    m_internalFormat = 0;
 }
 
 bool TextureLayer::isFrozen() const {
@@ -140,7 +141,7 @@ bool TextureLayer::isFading() const {
     return m_fading;
 }
 
-void TextureLayer::allocateTexture(int width, int height, int GLformat) {
+void TextureLayer::allocateTexture(int width, int height, GLenum internalFormat, GLenum pixelFormat) {
     GLuint texId = 0;
     glGenTextures(1, &texId);
     glBindTexture(GL_TEXTURE_2D, texId);
@@ -148,7 +149,9 @@ void TextureLayer::allocateTexture(int width, int height, int GLformat) {
     glPixelStorei(GL_PACK_ALIGNMENT, 1);
     glPixelStorei(GL_UNPACK_ALIGNMENT, 1);
 
-    glTexImage2D(GL_TEXTURE_2D, 0, GL_RGBA8, width, height, 0, GLformat, GL_UNSIGNED_BYTE, nullptr);
+    // Use the caller-specified internal format (e.g. GL_RGBA8 for NDI, GL_RGBA16F for streams)
+    GLenum type = (internalFormat == GL_RGBA16F) ? GL_FLOAT : GL_UNSIGNED_BYTE;
+    glTexImage2D(GL_TEXTURE_2D, 0, internalFormat, width, height, 0, pixelFormat, type, nullptr);
 
     glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_BASE_LEVEL, 0);
     glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_MAX_LEVEL, 0);
@@ -162,4 +165,5 @@ void TextureLayer::allocateTexture(int width, int height, int GLformat) {
     renderData.texId = texId;
     renderData.width = width;
     renderData.height = height;
+    m_internalFormat = internalFormat;
 }

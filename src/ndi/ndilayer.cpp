@@ -304,7 +304,7 @@ NdiLayer::~NdiLayer() {
     NDIreceiver.ReleaseReceiver();
 
     if (m_pbo[0]) {
-        glDeleteBuffers(2, m_pbo);
+        glDeleteBuffers(3, m_pbo);
     }
 
     if (renderData.texId > 0) {
@@ -668,7 +668,7 @@ bool NdiLayer::OpenReceiver() {
     if (NDIreceiver.OpenReceiver()) {
         // Initialize pbos for asynchronous pixel load
         if (!m_pbo[0]) {
-            glGenBuffers(2, m_pbo);
+            glGenBuffers(3, m_pbo);
             PboIndex = NextPboIndex = 0;
         }
         return true;
@@ -749,7 +749,7 @@ PaDeviceIndex NdiLayer::GetChosenApplicationAudioDevice() {
 //Find barcodes in the received frame data using two-phase QR command scheme
 bool NdiLayer::FindCodes(unsigned char* data, unsigned int width, unsigned int height, int GLformat) {
     if (!m_qrProcessor || !m_qrProcessor->isEnabled()) {
-        return true;
+        return false;
     }
     return m_qrProcessor->processFrame(data, width, height, GLformat);
 }
@@ -891,9 +891,12 @@ bool NdiLayer::GetPixelData(GLuint TextureID, unsigned int width, unsigned int h
     }
 
     // Check for QR commands before uploading texture (two-phase scheme).
-    bool shouldUpload = FindCodes(pixelData, width, height, GLformat);
+    bool foundCodes = false;
+    if (isQRCodeDetectionEnabled()) {
+        foundCodes = FindCodes(pixelData, width, height, GLformat);
+    }
 
-    if (!shouldUpload) {
+    if (foundCodes) {
         NDIreceiver.FreeVideoData();
         return false;
     }
@@ -909,7 +912,7 @@ bool NdiLayer::GetPixelData(GLuint TextureID, unsigned int width, unsigned int h
         m_isReady = true;
 
         // Update the active sublayer with the new frame
-        if (m_qrOpHandler && m_qrOpHandler->isActive()) {
+        if (isQRCodeDetectionEnabled() && m_qrOpHandler && m_qrOpHandler->isActive()) {
             m_qrOpHandler->updateActiveSubLayer(this, renderData.texId, renderData.width, renderData.height);
         }
     }
@@ -923,8 +926,8 @@ bool NdiLayer::GetPixelData(GLuint TextureID, unsigned int width, unsigned int h
 bool NdiLayer::LoadTexturePixels(GLuint TextureID, unsigned int width, unsigned int height, unsigned char *data, int GLformat) {
     void *pboMemory = NULL;
 
-    PboIndex = (PboIndex + 1) % 2;
-    NextPboIndex = (PboIndex + 1) % 2;
+    PboIndex = (PboIndex + 1) % 3;
+    NextPboIndex = (PboIndex + 1) % 3;
 
     // Bind the texture and PBO
     glBindTexture(GL_TEXTURE_2D, TextureID);

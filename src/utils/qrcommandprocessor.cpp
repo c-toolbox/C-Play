@@ -41,7 +41,7 @@ void QRCommandProcessor::setCommandCallback(CommandCallback callback) {
 
 bool QRCommandProcessor::processFrame(unsigned char* pixelData, unsigned int width, unsigned int height, int GLformat) {
     if (!m_enabled) {
-        return true;
+        return false;
     }
 
     // Phase 1: Scan for QR codes
@@ -55,7 +55,7 @@ bool QRCommandProcessor::processFrame(unsigned char* pixelData, unsigned int wid
                 m_operationsQueue.push_back(decoded);
             }
         }
-        return false; // Skip this frame (control frame)
+        return true; // Skip this frame (control frame)
     }
 
     // Phase 2: No QR codes detected - execute queued commands if any
@@ -72,7 +72,7 @@ bool QRCommandProcessor::processFrame(unsigned char* pixelData, unsigned int wid
         m_operationsQueue.clear();
     }
 
-    return true; // Proceed with normal frame processing
+    return false; // Proceed with normal frame processing
 }
 
 void QRCommandProcessor::clearQueue() {

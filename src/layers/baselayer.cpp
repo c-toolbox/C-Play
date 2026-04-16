@@ -555,6 +555,10 @@ unsigned int BaseLayer::textureId() const {
     return renderData.texId;
 }
 
+unsigned int BaseLayer::textureInternalFormat() const {
+    return GL_RGBA8;
+}
+
 int BaseLayer::width() const {
     return renderData.width;
 }

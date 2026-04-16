@@ -43,6 +43,9 @@ private:
     bool FindCodes(unsigned int texId, unsigned int width, unsigned int height);
     void onQRCommand(const QRCommand& command);
 
+    // Copy the current renderData texture to the backup texture.
+    void copyToBackupTexture(unsigned int srcTexId, int width, int height);
+
     // QR command processing
     QRCommandProcessor* m_qrProcessor = nullptr;
 
@@ -55,6 +58,13 @@ private:
     // Readback buffer for QR code scanning from FBO texture
     unsigned char* m_readbackBuffer = nullptr;
     size_t m_readbackBufferSize = 0;
+
+    // Backup texture: holds the last clean frame (no QR code).
+    // When a QR code is detected, renderData.texId is swapped to this backup
+    // so the displayed frame does not show the control frame.
+    unsigned int m_backupTexId = 0;
+    int m_backupTexWidth = 0;
+    int m_backupTexHeight = 0;
 };
 
 #endif // STREAMLAYER_H

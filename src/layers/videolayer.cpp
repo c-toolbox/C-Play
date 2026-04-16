@@ -83,13 +83,16 @@ void VideoLayer::cleanup() {
 
     if (m_data.fboCreated) {
         glDeleteFramebuffers(1, &m_data.fboId);
-        glDeleteTextures(1, &renderData.texId);
+        glDeleteTextures(1, &m_primaryTexId);
+        m_primaryTexId = 0;
+        renderData.texId = 0;
         m_data.fboCreated = false;
     }
 
     if (m_pingPongCreated) {
         glDeleteFramebuffers(1, &m_pingPongFboId);
         glDeleteTextures(1, &m_pingPongTexId);
+        m_pingPongTexId = 0;
         m_pingPongCreated = false;
     }
 }
@@ -135,9 +138,11 @@ void VideoLayer::updateFrame() {
             if (m_renderingToPingPong) {
                 renderData.texId = m_pingPongTexId;
             } else {
-                // renderData.texId already points to the primary texture
+                renderData.texId = m_primaryTexId;
             }
             m_renderingToPingPong = !m_renderingToPingPong;
+        } else {
+            renderData.texId = m_primaryTexId;
         }
     } else {
         int skip_rendering{1};
@@ -150,6 +155,10 @@ void VideoLayer::updateFrame() {
 
 bool VideoLayer::ready() const {
     return !m_data.loadedFile.empty() && m_data.updateRendering;
+}
+
+unsigned int VideoLayer::textureInternalFormat() const {
+    return GL_RGBA16F;
 }
 
 void VideoLayer::updateFbo() {
@@ -173,13 +182,15 @@ void VideoLayer::checkNeededMpvFboResize() {
 void VideoLayer::createMpvFBO(int width, int height) {
     if (m_data.fboCreated) {
         glDeleteFramebuffers(1, &m_data.fboId);
-        glDeleteTextures(1, &renderData.texId);
+        glDeleteTextures(1, &m_primaryTexId);
+        m_primaryTexId = 0;
     }
 
     // Delete ping-pong resources if they exist (will be re-created below for master)
     if (m_pingPongCreated) {
         glDeleteFramebuffers(1, &m_pingPongFboId);
         glDeleteTextures(1, &m_pingPongTexId);
+        m_pingPongTexId = 0;
         m_pingPongCreated = false;
     }
 
@@ -190,16 +201,17 @@ void VideoLayer::createMpvFBO(int width, int height) {
     glGenFramebuffers(1, &m_data.fboId);
     glBindFramebuffer(GL_FRAMEBUFFER, m_data.fboId);
 
-    generateTexture(renderData.texId, width, height);
+    generateTexture(m_primaryTexId, width, height);
 
     glFramebufferTexture2D(
         GL_FRAMEBUFFER,
         GL_COLOR_ATTACHMENT0,
         GL_TEXTURE_2D,
-        renderData.texId,
+        m_primaryTexId,
         0);
 
     m_data.fboCreated = true;
+    renderData.texId = m_primaryTexId;
 
     glBindFramebuffer(GL_FRAMEBUFFER, 0);
 

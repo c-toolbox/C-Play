@@ -25,12 +25,17 @@ public:
     void updateFrame();
     virtual bool ready() const;
 
+    unsigned int textureInternalFormat() const override;
+
     void updateFbo();
 
 private:
     void checkNeededMpvFboResize();
     void createMpvFBO(int width, int height);
     void generateTexture(unsigned int &id, int width, int height);
+
+    // Primary FBO texture (always tracks the texture attached to m_data.fboId)
+    unsigned int m_primaryTexId = 0;
 
     // Ping-pong resources (master only)
     unsigned int m_pingPongFboId = 0;

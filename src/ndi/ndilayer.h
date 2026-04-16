@@ -97,7 +97,7 @@ private:
     bool m_recevieAudio = false;
     bool m_recevieAudioThroughCallback = true;
 
-    GLuint m_pbo[2] = {0, 0}; // PBOs used for asynchronous pixel load
+    GLuint m_pbo[3] = {0, 0, 0}; // PBOs used for asynchronous pixel load
     int PboIndex = 0;         // Index used for asynchronous pixel load
     int NextPboIndex = 0;
     bool m_hasCapturedImage = false;
