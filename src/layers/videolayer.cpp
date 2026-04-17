@@ -75,6 +75,7 @@ void VideoLayer::cleanup() {
     // Destroy the GL renderer and all of the GL objects it allocated. If video
     // is still running, the video track will be deselected.
     if (m_data.mpvInitializedGL) {
+        m_data.mpvInitializedGL = false;
         mpv_render_context_free(m_data.renderContext);
     }
 
@@ -82,18 +83,18 @@ void VideoLayer::cleanup() {
     MpvLayer::cleanup();
 
     if (m_data.fboCreated) {
+        m_data.fboCreated = false;
         glDeleteFramebuffers(1, &m_data.fboId);
         glDeleteTextures(1, &m_primaryTexId);
         m_primaryTexId = 0;
         renderData.texId = 0;
-        m_data.fboCreated = false;
     }
 
     if (m_pingPongCreated) {
+        m_pingPongCreated = false;
         glDeleteFramebuffers(1, &m_pingPongFboId);
         glDeleteTextures(1, &m_pingPongTexId);
         m_pingPongTexId = 0;
-        m_pingPongCreated = false;
     }
 }
 
