@@ -23,6 +23,14 @@
       <label>Show 3D view at startup</label>
       <default>false</default>
     </entry>
+    <entry name="HideDomeOverflowIn3DView" type="bool">
+      <label>Hide dome overflow in 3D view</label>
+      <default>false</default>
+    </entry>
+    <entry name="DomeOverflowOpacity" type="Double">
+      <label>Dome overflow mask opacity</label>
+      <default>0.7</default>
+    </entry>
     <entry name="ShowHeader" type="bool">
       <label>Show header</label>
       <default>true</default>

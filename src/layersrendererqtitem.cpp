@@ -11,6 +11,7 @@
 #include "slidesmodel.h"
 #include "gridsettings.h"
 #include "mpvobject.h"
+#include "userinterfacesettings.h"
 #include <QOpenGLContext>
 #include <QQuickGraphicsDevice>
 #include <QTimer>
@@ -580,7 +581,12 @@ LayersRendererQtOpenGLObject::~LayersRendererQtOpenGLObject() {
     m_meshPrg.reset();
     m_EACPrg.reset();
     m_domeMesh.reset();
+    m_domeMaskMesh.reset();
     m_sphereMesh.reset();
+    if (m_maskTexture) {
+        glDeleteTextures(1, &m_maskTexture);
+        m_maskTexture = 0;
+    }
 }
 
 void LayersRendererQtOpenGLObject::setWindow(QQuickWindow* window) {
@@ -664,6 +670,15 @@ void LayersRendererQtOpenGLObject::createShaders() {
 
 void LayersRendererQtOpenGLObject::initializeGL() {
     createShaders();
+
+    // Create a 1x1 black texture for the dome mask
+    unsigned char blackPixel[4] = { 0, 0, 0, 255 };
+    glGenTextures(1, &m_maskTexture);
+    glBindTexture(GL_TEXTURE_2D, m_maskTexture);
+    glTexImage2D(GL_TEXTURE_2D, 0, GL_RGBA, 1, 1, 0, GL_RGBA, GL_UNSIGNED_BYTE, blackPixel);
+    glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_MIN_FILTER, GL_NEAREST);
+    glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_MAG_FILTER, GL_NEAREST);
+    glBindTexture(GL_TEXTURE_2D, 0);
 
     // Create image layers
     m_backgroundImageLayer = std::make_shared<ImageLayer>("background");
@@ -1294,6 +1309,34 @@ void LayersRendererQtOpenGLObject::renderLayers(float angle,
         m_foregroundImageLayer->setStereoMode(static_cast<uint8_t>(SyncHelper::instance().variables.stereoscopicModeFg));
         renderLayer(m_foregroundImageLayer.get(), eyeMode, angle, viewMatrix, projectionMatrix);
     }
+
+    // Render black dome mask on top of everything (if enabled).
+    if (UserInterfaceSettings::hideDomeOverflowIn3DView() && m_domeMaskMesh && m_maskTexture != 0) {
+        glActiveTexture(GL_TEXTURE0);
+        glBindTexture(GL_TEXTURE_2D, m_maskTexture);
+        glEnable(GL_BLEND);
+        glBlendFunc(GL_SRC_ALPHA, GL_ONE_MINUS_SRC_ALPHA);
+
+        m_meshPrg->bind();
+
+        m_meshPrg->setUniformValue(m_meshEyeModeLoc, 0);
+        m_meshPrg->setUniformValue(m_meshStereoscopicModeLoc, 0);
+        m_meshPrg->setUniformValue(m_meshRoi, 0.f, 0.f, 1.f, 1.f);
+        m_meshPrg->setUniformValue(m_meshAlphaLoc, static_cast<float>(UserInterfaceSettings::domeOverflowOpacity()));
+        m_meshPrg->setUniformValue(m_meshFlipYLoc, false);
+        m_meshPrg->setUniformValue(m_meshOutsideLoc, 0);
+
+        QMatrix4x4 mvpRot = projectionMatrix * viewMatrix;
+        // Invert the tilt angle: 180 + angle
+        mvpRot.rotate(-(180.f + angle), 1, 0, 0);
+
+        m_meshPrg->setUniformValue(m_meshMatrixLoc, mvpRot);
+
+        m_domeMaskMesh->draw();
+
+        m_meshPrg->release();
+        glDisable(GL_BLEND);
+    }
 }
 
 void LayersRendererQtOpenGLObject::setViewportRect(const QRect& rect) {
@@ -1341,8 +1384,10 @@ void LayersRendererQtOpenGLObject::paint() {
     // Recreate meshes here where GL context is guaranteed to be current
     if (m_meshesDirty) {
         m_domeMesh.reset();
+        m_domeMaskMesh.reset();
         m_sphereMesh.reset();
         m_domeMesh = std::make_unique<DomeGrid>(float(m_meshRadius) / 100.f, float(m_meshFov), 256, 128);
+        m_domeMaskMesh = std::make_unique<DomeGrid>(float(m_meshRadius) / 100.f, 360.f - float(m_meshFov), 256, 128);
         m_sphereMesh = std::make_unique<SphereGrid>(float(m_meshRadius) / 100.f, 256);
         m_meshesDirty = false;
     }

@@ -118,6 +118,56 @@ SettingsBasePage {
                 width: 1
             }
             CheckBox {
+                id: hideDomeOverflowCheckBox
+                checked: UserInterfaceSettings.hideDomeOverflowIn3DView
+                text: qsTr("Hide dome overflow in 3D view")
+
+                onCheckedChanged: {
+                    UserInterfaceSettings.hideDomeOverflowIn3DView = checked;
+                    UserInterfaceSettings.save();
+                }
+            }
+            Item {
+                Layout.fillWidth: true
+            }
+
+            Label {
+                Layout.alignment: Qt.AlignRight
+                text: qsTr("Dome overflow opacity:")
+                enabled: hideDomeOverflowCheckBox.checked
+            }
+            RowLayout {
+                SpinBox {
+                    id: domeOverflowOpacity
+
+                    enabled: hideDomeOverflowCheckBox.checked
+                    from: 0
+                    to: 100
+                    value: UserInterfaceSettings.domeOverflowOpacity * 100
+
+                    onValueChanged: {
+                        UserInterfaceSettings.domeOverflowOpacity = value / 100.0;
+                        UserInterfaceSettings.save();
+                    }
+                }
+                LabelWithTooltip {
+                    Layout.fillWidth: true
+                    elide: Text.ElideRight
+                    enabled: hideDomeOverflowCheckBox.checked
+                    text: {
+                        qsTr("% (0 = transparent, 100 = fully opaque)");
+                    }
+                }
+            }
+            Item {
+                Layout.fillWidth: true
+            }
+
+            Item {
+                height: 1
+                width: 1
+            }
+            CheckBox {
                 checked: UserInterfaceSettings.showHeader
                 text: qsTr("Show Top Bar / Header")
 
