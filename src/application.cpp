@@ -212,7 +212,10 @@ Application::Application(int &argc, char **argv, const QString &applicationName)
     m_engine->load(url);
 #endif
 
-    LocationSettings::self()->setFileDialogLastLocation(LocationSettings::cPlayFileLocation());
+    QString cPlayFileLoc = LocationSettings::cPlayFileLocation();
+    if (!cPlayFileLoc.isEmpty()) {
+        LocationSettings::self()->setFileDialogLastLocation(cPlayFileLoc);
+    }
 }
 
 Application *Application::_instance = nullptr;

@@ -126,7 +126,7 @@ MpvObject {
         setProperty("aid", preferredAudioTrack === 0 ? "auto" : preferredAudioTrack);
         setProperty("alang", AudioSettings.preferredLanguage);
         if (app.getStartupFile() !== "") {
-            window.openFile(app.getStartupFile(), false, PlaylistSettings.loadSiblings);
+            openMediaFile(app.getStartupFile(), false, PlaylistSettings.loadSiblings);
         }
     }
     onResetOrientation: {
