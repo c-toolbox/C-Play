@@ -265,6 +265,46 @@ SettingsBasePage {
             Layout.fillWidth: true
         }
 
+        Item {
+            height: 1
+            width: 1
+        }
+        CheckBox {
+            checked: PresentationSettings.preLoadLayers
+            text: qsTr("Pre-load all layers at startup instead of on-demand.")
+
+            onCheckedChanged: {
+                PresentationSettings.preLoadLayers = checked;
+                PresentationSettings.save();
+                slidesModel.preLoadLayers = checked;
+            }
+        }
+        Item {
+            // spacer item
+            Layout.fillWidth: true
+        }
+
+        Label {
+            Layout.alignment: Qt.AlignRight
+            text: qsTr("Number of upcoming slides to preload:")
+        }
+        SpinBox {
+            editable: true
+            from: 0
+            to: 10
+            value: PresentationSettings.updateUpcomingSlideCount
+            enabled: !PresentationSettings.preLoadLayers
+
+            onValueChanged: {
+                PresentationSettings.updateUpcomingSlideCount = value.toFixed(0);
+                PresentationSettings.save();
+            }
+        }
+        Item {
+            // spacer item
+            Layout.fillWidth: true
+        }
+
         Label {
             Layout.alignment: Qt.AlignRight
             text: qsTr("Default visibility for new layer:")
@@ -304,26 +344,6 @@ SettingsBasePage {
         }
         Item {
             visible: PDF_SUPPORT
-            // spacer item
-            Layout.fillWidth: true
-        }
-
-        Label {
-            Layout.alignment: Qt.AlignRight
-            text: qsTr("Number of upcoming slides to preload:")
-        }
-        SpinBox {
-            editable: true
-            from: 0
-            to: 10
-            value: PresentationSettings.updateUpcomingSlideCount
-
-            onValueChanged: {
-                PresentationSettings.updateUpcomingSlideCount = value.toFixed(0);
-                PresentationSettings.save();
-            }
-        }
-        Item {
             // spacer item
             Layout.fillWidth: true
         }

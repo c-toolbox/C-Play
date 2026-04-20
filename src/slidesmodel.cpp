@@ -341,6 +341,7 @@ SlidesModel::SlidesModel(QObject *parent)
     m_masterSlide->setHierarchy(BaseLayer::LayerHierarchy::BACK);
     m_masterSlide->setLayersCanBeLocked(true);
     m_dummySlide->setLayersEnabled(false);
+    m_preloadLayers = PresentationSettings::preLoadLayers();
     m_clearCopyTimer = new QTimer(this);
     m_clearCopyTimer->setInterval(30000);
     m_clearCopyTimer->setSingleShot(true);

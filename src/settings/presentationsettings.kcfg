@@ -66,5 +66,9 @@
     <entry name="CustomSlidesCanHaveLockableLayers" type="bool">
       <default>false</default>
     </entry>
+    <entry name="PreLoadLayers" type="bool">
+      <label>Pre-load all layers at startup instead of on-demand</label>
+      <default>false</default>
+    </entry>
   </group>
 </kcfg>
