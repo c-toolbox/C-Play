@@ -1367,38 +1367,104 @@ ToolBar {
                             Layout.fillWidth: true
                         }
                     }
+                    Label {
+                        Layout.alignment: Qt.AlignRight
+                        text: qsTr("Pitch (X):")
+                        enabled: mpv.gridToMapOn >= 3
+                    }
                     SpinBox {
                         id: rotateXValue
 
-                        from: -20000
-                        stepSize: 1
-                        to: 20000
-                        value: 0
-                        visible: false
+                        Layout.fillWidth: true
+                        enabled: mpv.gridToMapOn >= 3
+                        from: -36000
+                        stepSize: 10
+                        to: 36000
+                        value: Math.round(mpv.rotate.x * 100)
 
-                        onValueModified: mpv.rotate.x = value / 100.0
+                        property int decimals: 2
+                        textFromValue: function (value, locale) {
+                            return Number(value / 100).toLocaleString(locale, 'f', rotateXValue.decimals);
+                        }
+                        valueFromText: function (text, locale) {
+                            return Math.round(Number.fromLocaleString(locale, text) * 100);
+                        }
+
+                        onValueModified: {
+                            mpv.rotate.x = value / 100.0;
+                            mpv.playSectionsModel.currentEditItemIsEdited = true;
+                        }
+
+                        validator: DoubleValidator {
+                            bottom: -360
+                            top: 360
+                        }
+                    }
+                    Label {
+                        Layout.alignment: Qt.AlignRight
+                        text: qsTr("Yaw (Y):")
+                        enabled: mpv.gridToMapOn >= 2
                     }
                     SpinBox {
                         id: rotateYValue
 
-                        from: -20000
-                        stepSize: 1
-                        to: 20000
-                        value: 0
-                        visible: false
+                        Layout.fillWidth: true
+                        enabled: mpv.gridToMapOn >= 2
+                        from: -36000
+                        stepSize: 10
+                        to: 36000
+                        value: Math.round(mpv.rotate.y * 100)
 
-                        onValueModified: mpv.rotate.y = value / 100.0
+                        property int decimals: 2
+                        textFromValue: function (value, locale) {
+                            return Number(value / 100).toLocaleString(locale, 'f', rotateYValue.decimals);
+                        }
+                        valueFromText: function (text, locale) {
+                            return Math.round(Number.fromLocaleString(locale, text) * 100);
+                        }
+
+                        onValueModified: {
+                            mpv.rotate.y = value / 100.0;
+                            mpv.playSectionsModel.currentEditItemIsEdited = true;
+                        }
+
+                        validator: DoubleValidator {
+                            bottom: -360
+                            top: 360
+                        }
+                    }
+                    Label {
+                        Layout.alignment: Qt.AlignRight
+                        text: qsTr("Roll (Z):")
+                        enabled: mpv.gridToMapOn >= 3
                     }
                     SpinBox {
                         id: rotateZValue
 
-                        from: -20000
-                        stepSize: 1
-                        to: 20000
-                        value: 0
-                        visible: false
+                        Layout.fillWidth: true
+                        enabled: mpv.gridToMapOn >= 3
+                        from: -36000
+                        stepSize: 10
+                        to: 36000
+                        value: Math.round(mpv.rotate.z * 100)
 
-                        onValueModified: mpv.rotate.z = value / 100.0
+                        property int decimals: 2
+                        textFromValue: function (value, locale) {
+                            return Number(value / 100).toLocaleString(locale, 'f', rotateZValue.decimals);
+                        }
+                        valueFromText: function (text, locale) {
+                            return Math.round(Number.fromLocaleString(locale, text) * 100);
+                        }
+
+                        onValueModified: {
+                            mpv.rotate.z = value / 100.0;
+                            mpv.playSectionsModel.currentEditItemIsEdited = true;
+                        }
+
+                        validator: DoubleValidator {
+                            bottom: -360
+                            top: 360
+                        }
                     }
                     Timer {
                         id: spinTimerPitch
@@ -1538,6 +1604,15 @@ ToolBar {
                     }
 
                     target: playerController
+                }
+                Connections {
+                    function onRotateChanged() {
+                        rotateXValue.value = Math.round(mpv.rotate.x * 100);
+                        rotateYValue.value = Math.round(mpv.rotate.y * 100);
+                        rotateZValue.value = Math.round(mpv.rotate.z * 100);
+                    }
+
+                    target: mpv
                 }
             }
         }

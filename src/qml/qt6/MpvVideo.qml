@@ -130,15 +130,11 @@ MpvObject {
         }
     }
     onResetOrientation: {
-        if (mpv.gridToMapOn < 3) {
-            mpv.angle = GridSettings.surfaceAngle;
-            mpv.radius = GridSettings.surfaceRadius;
-            mpv.fov = GridSettings.surfaceFov;
-            mpv.rotate = Qt.vector3d(GridSettings.surfaceRotateX, GridSettings.surfaceRotateY, GridSettings.surfaceRotateZ);
-            mpv.translate = Qt.vector3d(GridSettings.surfaceTranslateX, GridSettings.surfaceTranslateY, GridSettings.surfaceTranslateZ);
-        } else {
-            mpv.rotate = Qt.vector3d(0, -90, 0);
-        }
+        mpv.angle = GridSettings.surfaceAngle;
+        mpv.radius = GridSettings.surfaceRadius;
+        mpv.fov = GridSettings.surfaceFov;
+        mpv.rotate = Qt.vector3d(GridSettings.surfaceRotateX, GridSettings.surfaceRotateY, GridSettings.surfaceRotateZ);
+        mpv.translate = Qt.vector3d(GridSettings.surfaceTranslateX, GridSettings.surfaceTranslateY, GridSettings.surfaceTranslateZ);
     }
     onSetAudio: {
         setProperty("aid", id);

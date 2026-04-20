@@ -117,6 +117,22 @@ int PlayListItemData::stereoVideo() const {
     return m_stereoVideo;
 }
 
+double PlayListItemData::rotateX() const {
+    return m_rotateX;
+}
+
+double PlayListItemData::rotateY() const {
+    return m_rotateY;
+}
+
+double PlayListItemData::rotateZ() const {
+    return m_rotateZ;
+}
+
+bool PlayListItemData::saveOrientation() const {
+    return m_saveOrientation;
+}
+
 QList<PlayListItemData::Section> PlayListItemData::sections() const {
     return m_sections;
 }
@@ -346,6 +362,38 @@ void PlayListItem::setStereoVideo(int stereoVideo) {
     m_data.m_stereoVideo = stereoVideo;
 }
 
+double PlayListItem::rotateX() const {
+    return m_data.m_rotateX;
+}
+
+void PlayListItem::setRotateX(double value) {
+    m_data.m_rotateX = value;
+}
+
+double PlayListItem::rotateY() const {
+    return m_data.m_rotateY;
+}
+
+void PlayListItem::setRotateY(double value) {
+    m_data.m_rotateY = value;
+}
+
+double PlayListItem::rotateZ() const {
+    return m_data.m_rotateZ;
+}
+
+void PlayListItem::setRotateZ(double value) {
+    m_data.m_rotateZ = value;
+}
+
+bool PlayListItem::saveOrientation() const {
+    return m_data.m_saveOrientation;
+}
+
+void PlayListItem::setSaveOrientation(bool value) {
+    m_data.m_saveOrientation = value;
+}
+
 bool PlayListItem::isPlaying() const {
     return m_data.m_isPlaying;
 }
@@ -526,6 +574,16 @@ void PlayListItem::saveAsJSONPlayFile(const QString &path) const {
     }
     obj.insert(QStringLiteral("stereoscopic"), sv);
 
+    if (m_data.m_saveOrientation && gridIdx >= BaseLayer::GridMode::Dome) {
+        QJsonObject rotationObj;
+        rotationObj.insert(QStringLiteral("yaw"), m_data.m_rotateY);
+        if (gridIdx > BaseLayer::GridMode::Dome) {
+            rotationObj.insert(QStringLiteral("pitch"), m_data.m_rotateX);
+            rotationObj.insert(QStringLiteral("roll"), m_data.m_rotateZ);
+        }
+        obj.insert(QStringLiteral("orientation"), rotationObj);
+    }
+
     QJsonArray sectionsArray;
     for (int i = 0; i < m_data.m_sections.size(); i++) {
         QJsonObject item_data;
@@ -616,6 +674,14 @@ void PlayListItem::asJSON(QJsonObject& obj) {
         sv = QStringLiteral("no");
     }
     obj.insert(QStringLiteral("stereoscopic"), sv);
+
+    if (m_data.m_saveOrientation && gridIdx >= BaseLayer::GridMode::Dome) {
+        QJsonObject rotationObj;
+        rotationObj.insert(QStringLiteral("pitch"), m_data.m_rotateX);
+        rotationObj.insert(QStringLiteral("yaw"), m_data.m_rotateY);
+        rotationObj.insert(QStringLiteral("roll"), m_data.m_rotateZ);
+        obj.insert(QStringLiteral("orientation"), rotationObj);
+    }
 
     QJsonArray sectionsArray;
     for (int i = 0; i < m_data.m_sections.size(); i++) {
@@ -783,6 +849,17 @@ void PlayListItem::loadJSONPlayfile() {
         } else if (grid == QStringLiteral("sphere-eac")) {
             setGridToMapOn(BaseLayer::GridMode::Sphere_EAC);
         }
+    }
+
+    if (obj.contains(QStringLiteral("orientation"))) {
+        QJsonObject orientationObj = obj.value(QStringLiteral("orientation")).toObject();
+        if (orientationObj.contains(QStringLiteral("pitch")))
+            setRotateX(orientationObj.value(QStringLiteral("pitch")).toDouble());
+        if (orientationObj.contains(QStringLiteral("yaw")))
+            setRotateY(orientationObj.value(QStringLiteral("yaw")).toDouble());
+        if (orientationObj.contains(QStringLiteral("roll")))
+            setRotateZ(orientationObj.value(QStringLiteral("roll")).toDouble());
+        setSaveOrientation(true);
     }
 
     if (obj.contains(QStringLiteral("stereoscopic"))) {

@@ -173,6 +173,7 @@ uniform int stereoscopicMode;
 uniform float alpha;
 uniform int videoWidth;
 uniform int videoHeight;
+uniform bool flipUpDown;
 
 in vec3 tr_position;
 in vec3 tr_normal;
@@ -260,27 +261,44 @@ int xyz_to_direction(vec3 xyz)
     return direction;
 }
 
-vec2 xyz_to_eac(vec3 xyz, int width, int height)
+vec2 xyz_to_eac(vec3 xyz, int width, int height, bool flip)
 {
     float pixel_pad = 2;
     float u_pad = pixel_pad / width;
     float v_pad = pixel_pad / height;
 
     int in_cubemap_face_order[6];
-    in_cubemap_face_order[RIGHT] = TOP_RIGHT;
-    in_cubemap_face_order[LEFT]  = TOP_LEFT;
-    in_cubemap_face_order[UP]    = BOTTOM_RIGHT;
-    in_cubemap_face_order[DOWN]  = BOTTOM_LEFT;
+    int in_cubemap_face_rotation[6];
+
+    in_cubemap_face_order[RIGHT] = TOP_LEFT;
+    in_cubemap_face_order[LEFT]  = TOP_RIGHT;
+    in_cubemap_face_order[UP]    = BOTTOM_LEFT;
+    in_cubemap_face_order[DOWN]  = BOTTOM_RIGHT;
     in_cubemap_face_order[FRONT] = TOP_MIDDLE;
     in_cubemap_face_order[BACK]  = BOTTOM_MIDDLE;
 
-    int in_cubemap_face_rotation[6];
-    in_cubemap_face_rotation[TOP_LEFT]      = ROT_0;
-    in_cubemap_face_rotation[TOP_MIDDLE]    = ROT_0;
-    in_cubemap_face_rotation[TOP_RIGHT]     = ROT_0;
-    in_cubemap_face_rotation[BOTTOM_LEFT]   = ROT_270;
-    in_cubemap_face_rotation[BOTTOM_MIDDLE] = ROT_90;
-    in_cubemap_face_rotation[BOTTOM_RIGHT]  = ROT_270;
+    in_cubemap_face_rotation[TOP_LEFT]      = ROT_180;
+    in_cubemap_face_rotation[TOP_MIDDLE]    = ROT_180;
+    in_cubemap_face_rotation[TOP_RIGHT]     = ROT_180;
+    in_cubemap_face_rotation[BOTTOM_LEFT]   = ROT_90;
+    in_cubemap_face_rotation[BOTTOM_MIDDLE] = ROT_270;
+    in_cubemap_face_rotation[BOTTOM_RIGHT]  = ROT_90;
+
+    if(flip) {
+        in_cubemap_face_order[RIGHT] = TOP_RIGHT;
+        in_cubemap_face_order[LEFT]  = TOP_LEFT;
+        in_cubemap_face_order[UP] = BOTTOM_LEFT;
+        in_cubemap_face_order[DOWN] = BOTTOM_RIGHT;
+        in_cubemap_face_order[FRONT] = TOP_MIDDLE;
+        in_cubemap_face_order[BACK]  = BOTTOM_MIDDLE;
+
+        in_cubemap_face_rotation[TOP_LEFT]      = ROT_0;
+        in_cubemap_face_rotation[TOP_MIDDLE]    = ROT_0;
+        in_cubemap_face_rotation[TOP_RIGHT]     = ROT_0;
+        in_cubemap_face_rotation[BOTTOM_LEFT]   = ROT_90;
+        in_cubemap_face_rotation[BOTTOM_MIDDLE] = ROT_270;
+        in_cubemap_face_rotation[BOTTOM_RIGHT]  = ROT_90;
+    }
 
     int direction = xyz_to_direction(xyz);
 
@@ -327,7 +345,7 @@ vec2 xyz_to_eac(vec3 xyz, int width, int height)
 }
 
 void main() {
-    vec2 uv = xyz_to_eac(normalize(tr_normal), videoWidth, videoHeight);
+    vec2 uv = xyz_to_eac(normalize(tr_normal), videoWidth, videoHeight, flipUpDown);
 
     if(eye==2) { //Right Eye
         if(stereoscopicMode==1) { //Side-by-side
@@ -665,6 +683,7 @@ void LayersRendererQtOpenGLObject::createShaders() {
     m_EACScaleLoc = m_EACPrg->uniformLocation("scaleToUnitCube");
     m_EACVideoWidthLoc = m_EACPrg->uniformLocation("videoWidth");
     m_EACVideoHeightLoc = m_EACPrg->uniformLocation("videoHeight");
+    m_EACFlipUpDownLoc = m_EACPrg->uniformLocation("flipUpDown");
     m_EACPrg->release();
 }
 
@@ -755,6 +774,8 @@ void LayersRendererQtOpenGLObject::renderLayer(const BaseLayer* layer, int eyeMo
         m_EACPrg->setUniformValue(m_EACOutsideLoc, 0);
         m_EACPrg->setUniformValue(m_EACVideoWidthLoc, layer->width());
         m_EACPrg->setUniformValue(m_EACVideoHeightLoc, layer->height());
+        m_EACPrg->setUniformValue(m_EACFlipUpDownLoc, false);
+        m_EACPrg->setUniformValue(m_EACScaleLoc, static_cast<float>(100.0 / m_meshRadius));
 
         if (layer->stereoMode() > 0) {
             m_EACPrg->setUniformValue(m_EACEyeModeLoc, eyeMode);
@@ -772,14 +793,25 @@ void LayersRendererQtOpenGLObject::renderLayer(const BaseLayer* layer, int eyeMo
         QMatrix4x4 mvpRot = mvp;
         mvpRot.rotate(layer->rotate().z, 0, 0, 1);                      // roll
         mvpRot.rotate(layer->rotate().x, 1, 0, 0);                      // pitch
-        mvpRot.rotate(layer->rotate().y + 90.f, 0, 1, 0);               // yaw
-        mvpRot.rotate(90.f, 0, 0, 1);                                    // roll
+        mvpRot.rotate(layer->rotate().y, 0, 1, 0);                      // yaw
+        mvpRot.rotate(-90.f, 0, 0, 1);                                    // roll
 
         m_EACPrg->setUniformValue(m_EACMatrixLoc, mvpRot);
 
-        if (m_sphereMesh) {
+        glEnable(GL_CULL_FACE);
+
+        glCullFace(GL_BACK);
+        if (m_sphereMesh)
             m_sphereMesh->draw();
-        }
+
+        glCullFace(GL_FRONT);
+        if (m_sphereMesh)
+            m_sphereMesh->draw();
+
+        // Restore backface culling
+        glCullFace(GL_BACK);
+
+        glDisable(GL_CULL_FACE);
 
         m_EACPrg->release();
     }
@@ -792,7 +824,7 @@ void LayersRendererQtOpenGLObject::renderLayer(const BaseLayer* layer, int eyeMo
         QMatrix4x4 mvpRot = mvp;
         mvpRot.rotate(layer->rotate().z, 0, 0, 1);  // roll
         mvpRot.rotate(layer->rotate().x, 1, 0, 0);  // pitch
-        mvpRot.rotate(layer->rotate().y, 0, 1, 0);  // yaw
+        mvpRot.rotate(layer->rotate().y - 90.f, 0, 1, 0);  // yaw
 
         m_meshPrg->bind();
 
@@ -820,9 +852,17 @@ void LayersRendererQtOpenGLObject::renderLayer(const BaseLayer* layer, int eyeMo
         // Render inside sphere
         m_meshPrg->setUniformValue(m_meshOutsideLoc, 0);
 
-        if (m_sphereMesh) {
+        glEnable(GL_CULL_FACE);
+
+        glCullFace(GL_BACK);
+        if (m_sphereMesh)
             m_sphereMesh->draw();
-        }
+
+        glCullFace(GL_FRONT);
+        if (m_sphereMesh)
+            m_sphereMesh->draw();
+
+        glDisable(GL_CULL_FACE);
 
         m_meshPrg->release();
     }
@@ -990,9 +1030,10 @@ void LayersRendererQtOpenGLObject::renderMpvObject(MpvObject* mpv, int eyeMode, 
         m_EACPrg->bind();
 
         m_EACPrg->setUniformValue(m_EACAlphaLoc, alpha);
-        m_EACPrg->setUniformValue(m_EACOutsideLoc, 0);
         m_EACPrg->setUniformValue(m_EACVideoWidthLoc, texW);
         m_EACPrg->setUniformValue(m_EACVideoHeightLoc, texH);
+        m_EACPrg->setUniformValue(m_EACFlipUpDownLoc, true);
+        m_EACPrg->setUniformValue(m_EACScaleLoc, static_cast<float>(100.0 / m_meshRadius));
 
         if (stereoMode > 0) {
             m_EACPrg->setUniformValue(m_EACEyeModeLoc, eyeMode);
@@ -1007,15 +1048,34 @@ void LayersRendererQtOpenGLObject::renderMpvObject(MpvObject* mpv, int eyeMode, 
         mvp.translate(translate);
 
         QMatrix4x4 mvpRot = mvp;
-        mvpRot.rotate(rotateXYZ.z(), 0, 0, 1);                      // roll
-        mvpRot.rotate(rotateXYZ.x(), 1, 0, 0);                      // pitch
-        mvpRot.rotate(rotateXYZ.y() + 90.f, 0, 1, 0);               // yaw
-        mvpRot.rotate(90.f, 0, 0, 1);                                // roll
-
+        mvpRot.rotate(rotateXYZ.z(), 0, 0, 1);  // roll
+        mvpRot.rotate(rotateXYZ.x(), 1, 0, 0);  // pitch
+        mvpRot.rotate(rotateXYZ.y(), 0, 1, 0);  // yaw
+        if (stereoMode == 3) {
+            mvpRot.rotate(180, 0, 1, 0);  // yaw
+            mvpRot.rotate(90.f, 0, 0, 1); // roll
+        }
+        else {
+            mvpRot.rotate(180.f, 0, 0, 1); // roll
+        }
         m_EACPrg->setUniformValue(m_EACMatrixLoc, mvpRot);
 
+        m_EACPrg->setUniformValue(m_EACOutsideLoc, 1);
+        
+        glEnable(GL_CULL_FACE);
+
+        glCullFace(GL_BACK);
         if (m_sphereMesh)
             m_sphereMesh->draw();
+
+        glCullFace(GL_FRONT);
+        if (m_sphereMesh)
+            m_sphereMesh->draw();
+
+        // Restore backface culling
+        glCullFace(GL_BACK);
+
+        glDisable(GL_CULL_FACE);
 
         m_EACPrg->release();
     }
@@ -1027,7 +1087,7 @@ void LayersRendererQtOpenGLObject::renderMpvObject(MpvObject* mpv, int eyeMode, 
         QMatrix4x4 mvpRot = mvp;
         mvpRot.rotate(rotateXYZ.z(), 0, 0, 1);  // roll
         mvpRot.rotate(rotateXYZ.x(), 1, 0, 0);  // pitch
-        mvpRot.rotate(rotateXYZ.y(), 0, 1, 0);  // yaw
+        mvpRot.rotate(rotateXYZ.y() - 90.f, 0, 1, 0);  // yaw
 
         m_meshPrg->bind();
 
@@ -1046,9 +1106,18 @@ void LayersRendererQtOpenGLObject::renderMpvObject(MpvObject* mpv, int eyeMode, 
         m_meshPrg->setUniformValue(m_meshMatrixLoc, mvpRot);
         m_meshPrg->setUniformValue(m_meshOutsideLoc, 0);
 
+        // Render back faces first for correct blending
+        glEnable(GL_CULL_FACE);
+        
+        glCullFace(GL_BACK);
         if (m_sphereMesh)
             m_sphereMesh->draw();
 
+        glCullFace(GL_FRONT);
+        if (m_sphereMesh)
+            m_sphereMesh->draw();
+
+        glDisable(GL_CULL_FACE);
         m_meshPrg->release();
     }
     else if (gridMode == 2) {

@@ -497,7 +497,7 @@ void LayersRenderer::renderLayer(const sgct::RenderData& data, const BaseLayer* 
         glm::mat4 MVP_transformed_rot = MVP_transformed;
         MVP_transformed_rot = glm::rotate(MVP_transformed_rot, glm::radians(layer->rotate().z), glm::vec3(0.0f, 0.0f, 1.0f));        // roll
         MVP_transformed_rot = glm::rotate(MVP_transformed_rot, glm::radians(layer->rotate().x), glm::vec3(1.0f, 0.0f, 0.0f));        // pitch
-        MVP_transformed_rot = glm::rotate(MVP_transformed_rot, glm::radians(layer->rotate().y + 90.f), glm::vec3(0.0f, 1.0f, 0.0f)); // yaw
+        MVP_transformed_rot = glm::rotate(MVP_transformed_rot, glm::radians(layer->rotate().y), glm::vec3(0.0f, 1.0f, 0.0f));        // yaw
         MVP_transformed_rot = glm::rotate(MVP_transformed_rot, glm::radians(90.f), glm::vec3(0.0f, 0.0f, 1.0f));                     // roll
         glUniformMatrix4fv(EACMatrixLoc, 1, GL_FALSE, &MVP_transformed_rot[0][0]);
 
@@ -510,7 +510,7 @@ void LayersRenderer::renderLayer(const sgct::RenderData& data, const BaseLayer* 
         glm::mat4 MVP_transformed_rot2 = MVP_transformed;
         MVP_transformed_rot2 = glm::rotate(MVP_transformed_rot2, glm::radians(360.f - layer->rotate().z), glm::vec3(0.0f, 0.0f, 1.0f));         // roll
         MVP_transformed_rot2 = glm::rotate(MVP_transformed_rot2, glm::radians(360.f - layer->rotate().x + angle), glm::vec3(1.0f, 0.0f, 0.0f)); // pitch
-        MVP_transformed_rot2 = glm::rotate(MVP_transformed_rot2, glm::radians(360.f - layer->rotate().y - 90.f), glm::vec3(0.0f, 1.0f, 0.0f));  // yaw
+        MVP_transformed_rot2 = glm::rotate(MVP_transformed_rot2, glm::radians(360.f - layer->rotate().y), glm::vec3(0.0f, 1.0f, 0.0f));  // yaw
         MVP_transformed_rot2 = glm::rotate(MVP_transformed_rot2, glm::radians(360.f - 90.f), glm::vec3(0.0f, 0.0f, 1.0f));                      // roll
 
         glUniformMatrix4fv(EACMatrixLoc, 1, GL_FALSE, &MVP_transformed_rot2[0][0]);
@@ -535,7 +535,7 @@ void LayersRenderer::renderLayer(const sgct::RenderData& data, const BaseLayer* 
         glm::mat4 MVP_transformed_rot = MVP_transformed;
         MVP_transformed_rot = glm::rotate(MVP_transformed_rot, glm::radians(layer->rotate().z), glm::vec3(0.0f, 0.0f, 1.0f)); // roll
         MVP_transformed_rot = glm::rotate(MVP_transformed_rot, glm::radians(layer->rotate().x), glm::vec3(1.0f, 0.0f, 0.0f)); // pitch
-        MVP_transformed_rot = glm::rotate(MVP_transformed_rot, glm::radians(layer->rotate().y), glm::vec3(0.0f, 1.0f, 0.0f)); // yaw
+        MVP_transformed_rot = glm::rotate(MVP_transformed_rot, glm::radians(layer->rotate().y - 90.f), glm::vec3(0.0f, 1.0f, 0.0f)); // yaw
 
         meshPrg->bind();
 
@@ -571,7 +571,7 @@ void LayersRenderer::renderLayer(const sgct::RenderData& data, const BaseLayer* 
         glm::mat4 MVP_transformed_rot2 = MVP_transformed;
         MVP_transformed_rot2 = glm::rotate(MVP_transformed_rot2, glm::radians(360.f - layer->rotate().z), glm::vec3(0.0f, 0.0f, 1.0f));         // roll
         MVP_transformed_rot2 = glm::rotate(MVP_transformed_rot2, glm::radians(360.f - layer->rotate().x + angle), glm::vec3(1.0f, 0.0f, 0.0f)); // pitch
-        MVP_transformed_rot2 = glm::rotate(MVP_transformed_rot2, glm::radians(360.f - layer->rotate().y), glm::vec3(0.0f, 1.0f, 0.0f));         // yaw
+        MVP_transformed_rot2 = glm::rotate(MVP_transformed_rot2, glm::radians(360.f - layer->rotate().y + 90.f), glm::vec3(0.0f, 1.0f, 0.0f));         // yaw
 
         glUniformMatrix4fv(meshMatrixLoc, 1, GL_FALSE, &MVP_transformed_rot2[0][0]);
         // render outside sphere

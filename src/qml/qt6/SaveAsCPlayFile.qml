@@ -38,10 +38,47 @@ Kirigami.ApplicationWindow {
             separateAudioFileCheckBox.checked = (mpv.playSectionsModel.currentEditItem.separateAudioFile() !== "");
             separateOverlayFileTextField.text = mpv.playSectionsModel.currentEditItem.separateOverlayFile();
             separateOverlayFileCheckBox.checked = (mpv.playSectionsModel.currentEditItem.separateOverlayFile() !== "");
+            orientationCheckBox.checked = mpv.playSectionsModel.currentEditItem.saveOrientation();
+            updateOrientationDisplay();
         }
     }
 
-    height: 380
+    function updateOrientationDisplay() {
+        var gridMode = gridModeToSave.get(gridModeToSaveComboBox.currentIndex).value;
+        var defaultX = GridSettings.surfaceRotateX;
+        var defaultY = GridSettings.surfaceRotateY;
+        var defaultZ = GridSettings.surfaceRotateZ;
+        var currentX = mpv.rotate.x;
+        var currentY = mpv.rotate.y;
+        var currentZ = mpv.rotate.z;
+
+        var yawDiffers = (gridMode >= 2) && (Math.abs(currentY - defaultY) > 0.001);
+        var pitchDiffers = (gridMode > 2) && (Math.abs(currentX - defaultX) > 0.001);
+        var rollDiffers = (gridMode > 2) && (Math.abs(currentZ - defaultZ) > 0.001);
+        var anyDiffers = yawDiffers || pitchDiffers || rollDiffers;
+
+        orientationCheckBox.enabled = anyDiffers;
+        orientationYawLabel.visible = yawDiffers;
+        orientationYawValue.visible = yawDiffers;
+        orientationPitchLabel.visible = pitchDiffers;
+        orientationPitchValue.visible = pitchDiffers;
+        orientationRollLabel.visible = rollDiffers;
+        orientationRollValue.visible = rollDiffers;
+        if (yawDiffers) {
+            orientationYawValue.text = currentY.toFixed(2) + "\u00B0";
+        }
+        if (pitchDiffers) {
+            orientationPitchValue.text = currentX.toFixed(2) + "\u00B0";
+        }
+        if (rollDiffers) {
+            orientationRollValue.text = currentZ.toFixed(2) + "\u00B0";
+        }
+        if (!anyDiffers) {
+            orientationCheckBox.checked = false;
+        }
+    }
+
+    height: 440
     title: qsTr("Save As C-Play File")
     visible: false
     width: 600
@@ -271,6 +308,7 @@ Kirigami.ApplicationWindow {
                 if (!mpv.playSectionsModel.isEmpty()) {
                     mpv.playSectionsModel.currentEditItem.setGridToMapOn(model.get(index).value);
                 }
+                updateOrientationDisplay();
             }
         }
         CheckBox {
@@ -394,6 +432,61 @@ Kirigami.ApplicationWindow {
                     }
                     openSeparateOverlayFileDialog.open();
                 }
+            }
+        }
+        CheckBox {
+            id: orientationCheckBox
+
+            checked: false
+            enabled: false
+            text: qsTr("")
+
+            onCheckedChanged: {
+                if (!mpv.playSectionsModel.isEmpty()) {
+                    mpv.playSectionsModel.currentEditItem.setSaveOrientation(checked);
+                }
+            }
+
+            ToolTip {
+                text: qsTr("Save orientation values into the file")
+            }
+        }
+        Label {
+            text: qsTr("Save Orientation:")
+        }
+        RowLayout {
+            Layout.fillWidth: true
+            spacing: 10
+
+            Label {
+                id: orientationPitchLabel
+                visible: false
+                text: qsTr("Pitch:")
+            }
+            Label {
+                id: orientationPitchValue
+                visible: false
+            }
+            Label {
+                id: orientationYawLabel
+                visible: false
+                text: qsTr("Yaw:")
+            }
+            Label {
+                id: orientationYawValue
+                visible: false
+            }
+            Label {
+                id: orientationRollLabel
+                visible: false
+                text: qsTr("Roll:")
+            }
+            Label {
+                id: orientationRollValue
+                visible: false
+            }
+            Item {
+                Layout.fillWidth: true
             }
         }
         Item {

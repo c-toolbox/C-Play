@@ -945,6 +945,9 @@ void MpvObject::setLoadedAsCurrentEditItem() {
     newCurrentItem.setGridToMapOn(gridToMapOn());
     newCurrentItem.setStereoVideo(stereoscopicMode());
     newCurrentItem.setEofMode(eofMode());
+    newCurrentItem.setRotateX(m_rotate.x());
+    newCurrentItem.setRotateY(m_rotate.y());
+    newCurrentItem.setRotateZ(m_rotate.z());
     m_playSectionsModel->updateCurrentEditItem(newCurrentItem);
 }
 
@@ -1096,6 +1099,14 @@ void MpvObject::loadItem(PlayListItemData itemData, bool updateLastPlayedFile, Q
 
         if (itemData.stereoVideo() >= 0)
             setStereoscopicMode(itemData.stereoVideo());
+
+        if (itemData.saveOrientation() && itemData.gridToMapOn() >= 2) {
+            if (itemData.gridToMapOn() > 2) {
+                setRotate(QVector3D(itemData.rotateX(), itemData.rotateY(), itemData.rotateZ()));
+            } else {
+                setRotate(QVector3D(0.0, itemData.rotateY(), 0.0));
+            }
+        }
 
         if (itemData.eofMode() >= 0)
             setEofMode(itemData.eofMode());

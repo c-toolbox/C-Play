@@ -116,6 +116,7 @@ private:
     int m_EACOutsideLoc;
     int m_EACVideoWidthLoc;
     int m_EACVideoHeightLoc;
+    int m_EACFlipUpDownLoc;
     int m_EACEyeModeLoc;
     int m_EACStereoscopicModeLoc;
 

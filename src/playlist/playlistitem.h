@@ -54,6 +54,10 @@ public:
     int transitionMode() const;
     int gridToMapOn() const;
     int stereoVideo() const;
+    double rotateX() const;
+    double rotateY() const;
+    double rotateZ() const;
+    bool saveOrientation() const;
     QList<PlayListItemData::Section> sections() const;
 
     bool isPlaying() const;
@@ -77,6 +81,10 @@ public:
     int m_transitionMode{0};
     int m_gridToMapOn{-1};
     int m_stereoVideo{-1};
+    double m_rotateX{0.0};
+    double m_rotateY{0.0};
+    double m_rotateZ{0.0};
+    bool m_saveOrientation{false};
     int m_listStereoMode{0};
     bool m_useListStereoMode{false};
     int m_listGridMode{0};
@@ -181,6 +189,18 @@ public:
     // 3 = 3D (top-bottom-flip)
     Q_INVOKABLE int stereoVideo() const;
     Q_INVOKABLE void setStereoVideo(int stereoVideo);
+
+    Q_INVOKABLE double rotateX() const;
+    Q_INVOKABLE void setRotateX(double value);
+
+    Q_INVOKABLE double rotateY() const;
+    Q_INVOKABLE void setRotateY(double value);
+
+    Q_INVOKABLE double rotateZ() const;
+    Q_INVOKABLE void setRotateZ(double value);
+
+    Q_INVOKABLE bool saveOrientation() const;
+    Q_INVOKABLE void setSaveOrientation(bool value);
 
     Q_INVOKABLE bool isPlaying() const;
     Q_INVOKABLE void setIsPlaying(bool isPlaying);
