@@ -288,6 +288,23 @@ Rectangle {
                         }
                     }
                 }
+                Button {
+                    id: configureGridParameters
+
+                    checkable: true
+                    checked: layerViewGridParams.visible
+                    enabled: layerViewItem.layerTypeName !== "Audio"
+                    focusPolicy: Qt.NoFocus
+                    icon.name: "configure"
+
+                    onClicked: {
+                        layerViewGridParams.visible = checked;
+                    }
+
+                    ToolTip {
+                        text: qsTr("Configure Grid Parameters")
+                    }
+                }
                 Item {
                     // spacer item
                     Layout.fillWidth: true

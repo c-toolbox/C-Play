@@ -40,7 +40,7 @@ Kirigami.ApplicationWindow {
     height: 450
     title: qsTr("Layer Grid Parameters")
     visible: false
-    width: 500
+    width: 520
 
     Component.onCompleted: {
         if (window.x > width) {
@@ -155,7 +155,7 @@ Kirigami.ApplicationWindow {
             // Plane parameters
             // ------------------------------------
             Label {
-                text: qsTr("Determine plane size based on:")
+                text: qsTr("Plane size based on:")
                 Layout.alignment: Qt.AlignRight
             }
             ComboBox {
@@ -308,7 +308,7 @@ Kirigami.ApplicationWindow {
                     Layout.alignment: Qt.AlignLeft
                     Layout.fillWidth: true
                     text: {
-                        qsTr("degrees");
+                        qsTr("deg");
                     }
                 }
 
@@ -327,14 +327,12 @@ Kirigami.ApplicationWindow {
                         layerView.layerItem.layerPlaneElevation = planeElevationSpinBox.realValue;
                     }
 
-                    MouseArea {
-                        acceptedButtons: Qt.MiddleButton
-                        anchors.fill: parent
-
-                        onClicked: layerView.layerItem.layerPlaneElevation = 0
-                    }
-
                     Layout.fillWidth: true
+                }
+
+                Button {
+                    text: qsTr("Reset")
+                    onClicked: layerView.layerItem.layerPlaneElevation = GridSettings.defaultPlane_Elevation_DegreesValue
                 }
 
                 Connections {
@@ -386,7 +384,7 @@ Kirigami.ApplicationWindow {
                     Layout.alignment: Qt.AlignLeft
                     Layout.fillWidth: true
                     text: {
-                        qsTr("degrees");
+                        qsTr("deg");
                     }
                 }
 
@@ -405,14 +403,12 @@ Kirigami.ApplicationWindow {
                         layerView.layerItem.layerPlaneAzimuth = planeAzimuthSpinBox.realValue;
                     }
 
-                    MouseArea {
-                        acceptedButtons: Qt.MiddleButton
-                        anchors.fill: parent
-
-                        onClicked: layerView.layerItem.layerPlaneAzimuth = 0
-                    }
-
                     Layout.fillWidth: true
+                }
+
+                Button {
+                    text: qsTr("Reset")
+                    onClicked: layerView.layerItem.layerPlaneAzimuth = 0
                 }
 
                 Connections {
@@ -464,7 +460,7 @@ Kirigami.ApplicationWindow {
                     Layout.alignment: Qt.AlignLeft
                     Layout.fillWidth: true
                     text: {
-                        qsTr("degrees");
+                        qsTr("deg");
                     }
                 }
 
@@ -483,14 +479,12 @@ Kirigami.ApplicationWindow {
                         layerView.layerItem.layerPlaneRoll = planeRollSpinBox.realValue;
                     }
 
-                    MouseArea {
-                        acceptedButtons: Qt.MiddleButton
-                        anchors.fill: parent
-
-                        onClicked: layerView.layerItem.layerPlaneRoll = 0
-                    }
-
                     Layout.fillWidth: true
+                }
+
+                Button {
+                    text: qsTr("Reset")
+                    onClicked: layerView.layerItem.layerPlaneRoll = 0
                 }
 
                 Connections {
@@ -542,15 +536,14 @@ Kirigami.ApplicationWindow {
                         layerView.layerItem.layerPlaneHorizontal = planeHorizontalMoveBox.realValue;
                     }
 
-                    MouseArea {
-                        acceptedButtons: Qt.MiddleButton
-                        anchors.fill: parent
-
-                        onClicked: layerView.layerItem.layerPlaneHorizontal = 0
-                    }
-
                     Layout.fillWidth: true
                 }
+
+                Button {
+                    text: qsTr("Reset")
+                    onClicked: layerView.layerItem.layerPlaneHorizontal = 0
+                }
+
                 Connections {
                     function onLayerValueChanged() {
                         if (planeHorizontalMoveBox.realValue !== layerView.layerItem.layerPlaneHorizontal)
@@ -599,15 +592,14 @@ Kirigami.ApplicationWindow {
                         layerView.layerItem.layerPlaneVertical = planeVerticalMoveBox.realValue;
                     }
 
-                    MouseArea {
-                        acceptedButtons: Qt.MiddleButton
-                        anchors.fill: parent
-
-                        onClicked: layerView.layerItem.layerPlaneVertical = 0
-                    }
-
                     Layout.fillWidth: true
                 }
+
+                Button {
+                    text: qsTr("Reset")
+                    onClicked: layerView.layerItem.layerPlaneVertical = 0
+                }
+
                 Connections {
                     function onLayerValueChanged() {
                         if (planeVerticalMoveBox.realValue !== layerView.layerItem.layerPlaneVertical)
@@ -616,19 +608,6 @@ Kirigami.ApplicationWindow {
 
                     target: layerView.layerItem
                 }
-            }
-
-            Item {
-                height: 1
-                width: 1
-            }
-            Label {
-                Layout.topMargin: Kirigami.Units.largeSpacing
-                text: qsTr("Middle click on the sliders to reset them")
-                horizontalAlignment: Text.AlignHCenter
-                verticalAlignment: Text.AlignVCenter
-                Layout.fillWidth: true
-                Layout.columnSpan: 2
             }
         }
         GridLayout {
@@ -701,7 +680,7 @@ Kirigami.ApplicationWindow {
                     Layout.alignment: Qt.AlignLeft
                     Layout.fillWidth: true
                     text: {
-                        qsTr("degrees");
+                        qsTr("deg");
                     }
                 }
 
@@ -720,14 +699,12 @@ Kirigami.ApplicationWindow {
                         layerView.layerItem.layerRotateYaw = domeRotateYawSpinBox.realValue;
                     }
 
-                    MouseArea {
-                        acceptedButtons: Qt.MiddleButton
-                        anchors.fill: parent
-
-                        onClicked: layerView.layerItem.layerRotateYaw = 0
-                    }
-
                     Layout.fillWidth: true
+                }
+
+                Button {
+                    text: qsTr("Reset")
+                    onClicked: layerView.layerItem.layerRotateYaw = 0
                 }
 
                 Connections {
@@ -738,19 +715,6 @@ Kirigami.ApplicationWindow {
 
                     target: layerView.layerItem
                 }
-            }
-
-            Item {
-                height: 1
-                width: 1
-            }
-            Label {
-                Layout.topMargin: Kirigami.Units.largeSpacing
-                text: qsTr("Middle click on the sliders to reset them")
-                horizontalAlignment: Text.AlignHCenter
-                verticalAlignment: Text.AlignVCenter
-                Layout.fillWidth: true
-                Layout.columnSpan: 2
             }
         }
         GridLayout {
@@ -823,7 +787,7 @@ Kirigami.ApplicationWindow {
                     Layout.alignment: Qt.AlignLeft
                     Layout.fillWidth: true
                     text: {
-                        qsTr("degrees");
+                        qsTr("deg");
                     }
                 }
 
@@ -842,14 +806,12 @@ Kirigami.ApplicationWindow {
                         layerView.layerItem.layerRotatePitch = sphereRotatePitchSpinBox.realValue;
                     }
 
-                    MouseArea {
-                        acceptedButtons: Qt.MiddleButton
-                        anchors.fill: parent
-
-                        onClicked: layerView.layerItem.layerRotatePitch = 0
-                    }
-
                     Layout.fillWidth: true
+                }
+
+                Button {
+                    text: qsTr("Reset")
+                    onClicked: layerView.layerItem.layerRotatePitch = 0
                 }
 
                 Connections {
@@ -901,7 +863,7 @@ Kirigami.ApplicationWindow {
                     Layout.alignment: Qt.AlignLeft
                     Layout.fillWidth: true
                     text: {
-                        qsTr("degrees");
+                        qsTr("deg");
                     }
                 }
 
@@ -920,14 +882,12 @@ Kirigami.ApplicationWindow {
                         layerView.layerItem.layerRotateYaw = sphereRotateYawSpinBox.realValue;
                     }
 
-                    MouseArea {
-                        acceptedButtons: Qt.MiddleButton
-                        anchors.fill: parent
-
-                        onClicked: layerView.layerItem.layerRotateYaw = 0
-                    }
-
                     Layout.fillWidth: true
+                }
+
+                Button {
+                    text: qsTr("Reset")
+                    onClicked: layerView.layerItem.layerRotateYaw = 0
                 }
 
                 Connections {
@@ -979,7 +939,7 @@ Kirigami.ApplicationWindow {
                     Layout.alignment: Qt.AlignLeft
                     Layout.fillWidth: true
                     text: {
-                        qsTr("degrees");
+                        qsTr("deg");
                     }
                 }
 
@@ -998,14 +958,12 @@ Kirigami.ApplicationWindow {
                         layerView.layerItem.layerRotateRoll = sphereRotateRollSpinBox.realValue;
                     }
 
-                    MouseArea {
-                        acceptedButtons: Qt.MiddleButton
-                        anchors.fill: parent
-
-                        onClicked: layerView.layerItem.layerRotateRoll = 0
-                    }
-
                     Layout.fillWidth: true
+                }
+
+                Button {
+                    text: qsTr("Reset")
+                    onClicked: layerView.layerItem.layerRotateRoll = 0
                 }
 
                 Connections {
@@ -1016,19 +974,6 @@ Kirigami.ApplicationWindow {
 
                     target: layerView.layerItem
                 }
-            }
-
-            Item {
-                height: 1
-                width: 1
-            }
-            Label {
-                Layout.topMargin: Kirigami.Units.largeSpacing
-                text: qsTr("Middle click on the sliders to reset them")
-                horizontalAlignment: Text.AlignHCenter
-                verticalAlignment: Text.AlignVCenter
-                Layout.fillWidth: true
-                Layout.columnSpan: 2
             }
         }
     }
