@@ -276,7 +276,7 @@ Kirigami.ApplicationWindow {
                             value: 0
                         }
                         ListElement {
-                            mode: "Plane"
+                            mode: "Plane/Flat"
                             value: 1
                         }
                         ListElement {

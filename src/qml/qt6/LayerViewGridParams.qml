@@ -18,6 +18,19 @@ import org.ctoolbox.cplay
 Kirigami.ApplicationWindow {
     id: root
 
+    function resizeForGridMode() {
+        var mode = layerView.layerItem.layerGridMode;
+        if (mode === 1) {
+            root.height = 420;
+        } else if (mode === 2) {
+            root.height = 120;
+        } else if (mode > 2) {
+            root.height = 220;
+        } else {
+            root.height = 120;
+        }
+    }
+
     function resetValues() {
         planeWidthBox.value = layerView.layerItem.layerPlaneWidth;
         planeHeightBox.value = layerView.layerItem.layerPlaneHeight;
@@ -34,10 +47,11 @@ Kirigami.ApplicationWindow {
         planeGridLayout.visible = (layerView.layerItem.layerGridMode === 1);
         domeGridLayout.visible = (layerView.layerItem.layerGridMode === 2);
         sphereGridLayout.visible = (layerView.layerItem.layerGridMode > 2);
+        resizeForGridMode();
     }
 
     color: Kirigami.Theme.alternateBackgroundColor
-    height: 450
+    height: 420
     title: qsTr("Layer Grid Parameters")
     visible: false
     width: 520
@@ -66,6 +80,7 @@ Kirigami.ApplicationWindow {
             planeGridLayout.visible = (layerView.layerItem.layerGridMode === 1);
             domeGridLayout.visible = (layerView.layerItem.layerGridMode === 2);
             sphereGridLayout.visible = (layerView.layerItem.layerGridMode > 2);
+            resizeForGridMode();
         }
 
         target: layerView.layerItem

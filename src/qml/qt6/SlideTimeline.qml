@@ -60,6 +60,14 @@ Window {
     // Currently selected keyframe: { layerIdx, kfIdx }  or  null
     property var   selectedKf: null
 
+    // Bumped to force inspector spinboxes to re-read from the model
+    property int   inspectorRevision: 0
+
+    // Live drag state — updated every frame while dragging a keyframe
+    property bool  draggingKf: false
+    property int   dragLiveMs: 0
+    property real  dragLiveAlpha: 0.0
+
     // -----------------------------------------------------------------------
     // Helpers
     // -----------------------------------------------------------------------
@@ -71,6 +79,8 @@ Window {
 
     // Helper: read the currently selected keyframe data from the model
     function selectedKfData() {
+        // Touch inspectorRevision so bindings using this function re-evaluate when it changes
+        var _rev = root.inspectorRevision;
         if (!root.selectedKf || !root.slideModel) return null;
         var kfs = root.slideModel.getKeyframes(root.selectedKf.layerIdx);
         if (root.selectedKf.kfIdx < 0 || root.selectedKf.kfIdx >= kfs.length) return null;
@@ -88,6 +98,7 @@ Window {
             hasRotate, rx, ry, rz,
             hasTranslate, tx, ty, tz);
         root.rebuildTrack(root.selectedKf.layerIdx);
+        root.inspectorRevision++;
     }
 
     // layerCount: live count driven by the model so contentHeight updates correctly
@@ -310,7 +321,10 @@ Window {
                         id: kfTimeSpin
                         from: 0; to: root.duration; stepSize: 10
                         editable: true
-                        value: { var d = root.selectedKfData(); return d ? d.timeMs : 0; }
+                        value: {
+                            if (root.draggingKf) return root.dragLiveMs;
+                            var _r = root.inspectorRevision; var d = root.selectedKfData(); return d ? d.timeMs : 0;
+                        }
                         implicitWidth: 90
                         onValueModified: {
                             var d = root.selectedKfData(); if (!d) return;
@@ -325,7 +339,10 @@ Window {
                         id: kfAlphaSpin
                         from: 0; to: 100; stepSize: 1
                         editable: true
-                        value: { var d = root.selectedKfData(); return d ? Math.round(d.alpha * 100) : 0; }
+                        value: {
+                            if (root.draggingKf) return Math.round(root.dragLiveAlpha * 100);
+                            var _r = root.inspectorRevision; var d = root.selectedKfData(); return d ? Math.round(d.alpha * 100) : 0;
+                        }
                         implicitWidth: 72
                         onValueModified: {
                             var d = root.selectedKfData(); if (!d) return;
@@ -359,7 +376,7 @@ Window {
                         id: hasRotateCheck
                         text: qsTr("Rotation")
                         font.pointSize: 8
-                        checked: { var d = root.selectedKfData(); return d ? d.hasRotate : false; }
+                        checked: { var _r = root.inspectorRevision; var d = root.selectedKfData(); return d ? d.hasRotate : false; }
                         onCheckedChanged: {
                             var d = root.selectedKfData(); if (!d) return;
                             root.commitSelectedKf(d.timeMs, d.alpha,
@@ -373,7 +390,7 @@ Window {
                         from: -36000; to: 36000; stepSize: 10
                         editable: true
                         enabled: hasRotateCheck.checked
-                        value: { var d = root.selectedKfData(); return d ? Math.round(d.rotateX * 10) : 0; }
+                        value: { var _r = root.inspectorRevision; var d = root.selectedKfData(); return d ? Math.round(d.rotateX * 10) : 0; }
                         implicitWidth: 80
                         textFromValue: function(v) { return (v / 10.0).toFixed(1) + "\u00b0"; }
                         valueFromText: function(t) { return Math.round(parseFloat(t) * 10); }
@@ -390,7 +407,7 @@ Window {
                         from: -36000; to: 36000; stepSize: 10
                         editable: true
                         enabled: hasRotateCheck.checked
-                        value: { var d = root.selectedKfData(); return d ? Math.round(d.rotateY * 10) : 0; }
+                        value: { var _r = root.inspectorRevision; var d = root.selectedKfData(); return d ? Math.round(d.rotateY * 10) : 0; }
                         implicitWidth: 80
                         textFromValue: function(v) { return (v / 10.0).toFixed(1) + "\u00b0"; }
                         valueFromText: function(t) { return Math.round(parseFloat(t) * 10); }
@@ -407,7 +424,7 @@ Window {
                         from: -36000; to: 36000; stepSize: 10
                         editable: true
                         enabled: hasRotateCheck.checked
-                        value: { var d = root.selectedKfData(); return d ? Math.round(d.rotateZ * 10) : 0; }
+                        value: { var _r = root.inspectorRevision; var d = root.selectedKfData(); return d ? Math.round(d.rotateZ * 10) : 0; }
                         implicitWidth: 80
                         textFromValue: function(v) { return (v / 10.0).toFixed(1) + "\u00b0"; }
                         valueFromText: function(t) { return Math.round(parseFloat(t) * 10); }
@@ -431,7 +448,7 @@ Window {
                         id: hasTranslateCheck
                         text: qsTr("Translation")
                         font.pointSize: 8
-                        checked: { var d = root.selectedKfData(); return d ? d.hasTranslate : false; }
+                        checked: { var _r = root.inspectorRevision; var d = root.selectedKfData(); return d ? d.hasTranslate : false; }
                         onCheckedChanged: {
                             var d = root.selectedKfData(); if (!d) return;
                             root.commitSelectedKf(d.timeMs, d.alpha,
@@ -445,7 +462,7 @@ Window {
                         from: -100000; to: 100000; stepSize: 10
                         editable: true
                         enabled: hasTranslateCheck.checked
-                        value: { var d = root.selectedKfData(); return d ? Math.round(d.translateX * 100) : 0; }
+                        value: { var _r = root.inspectorRevision; var d = root.selectedKfData(); return d ? Math.round(d.translateX * 100) : 0; }
                         implicitWidth: 90
                         textFromValue: function(v) { return (v / 100.0).toFixed(2); }
                         valueFromText: function(t) { return Math.round(parseFloat(t) * 100); }
@@ -462,7 +479,7 @@ Window {
                         from: -100000; to: 100000; stepSize: 10
                         editable: true
                         enabled: hasTranslateCheck.checked
-                        value: { var d = root.selectedKfData(); return d ? Math.round(d.translateY * 100) : 0; }
+                        value: { var _r = root.inspectorRevision; var d = root.selectedKfData(); return d ? Math.round(d.translateY * 100) : 0; }
                         implicitWidth: 90
                         textFromValue: function(v) { return (v / 100.0).toFixed(2); }
                         valueFromText: function(t) { return Math.round(parseFloat(t) * 100); }
@@ -479,7 +496,7 @@ Window {
                         from: -100000; to: 100000; stepSize: 10
                         editable: true
                         enabled: hasTranslateCheck.checked
-                        value: { var d = root.selectedKfData(); return d ? Math.round(d.translateZ * 100) : 0; }
+                        value: { var _r = root.inspectorRevision; var d = root.selectedKfData(); return d ? Math.round(d.translateZ * 100) : 0; }
                         implicitWidth: 90
                         textFromValue: function(v) { return (v / 100.0).toFixed(2); }
                         valueFromText: function(t) { return Math.round(parseFloat(t) * 100); }
@@ -786,6 +803,9 @@ Window {
                                     if (!root.slideModel || !root.slideModel.hasTimeline) return;
                                     var ms    = root.clampMs(root.xToMs(mouse.x));
                                     var alpha = root.yToAlpha(mouse.y, trackRow.height);
+                                    // Snap alpha to 0 or 1 when near edges
+                                    if (alpha <= 0.08) alpha = 0.0;
+                                    else if (alpha >= 0.92) alpha = 1.0;
                                     root.slideModel.addKeyframe(trackRow.layerIdx, ms, alpha,
                                         false, 0, 0, 0,
                                         false, 0, 0, 0);
@@ -797,6 +817,7 @@ Window {
                                             break;
                                         }
                                     }
+                                    root.inspectorRevision++;
                                 }
                                 onClicked: function(mouse) {
                                     root.selectedKf = null;
@@ -864,31 +885,49 @@ Window {
                                         acceptedButtons: Qt.LeftButton | Qt.RightButton
                                         cursorShape: Qt.SizeAllCursor
 
-                                        property real pressX:    0
-                                        property real pressY:    0
+                                        // Snap threshold for alpha (values within this range of 0 or 1 snap)
+                                        readonly property real alphaSnapThreshold: 0.08
+
+                                        property real origTrackX: 0
+                                        property real origTrackY: 0
                                         property real origDragX: 0
                                         property real origDragY: 0
 
                                         onPressed: function(mouse) {
                                             if (mouse.button === Qt.LeftButton) {
                                                 root.selectedKf = { layerIdx: trackRow.layerIdx, kfIdx: kfItem.kfIndex };
-                                                pressX    = mouse.x;
-                                                pressY    = mouse.y;
-                                                origDragX = kfItem.dragX;
-                                                origDragY = kfItem.dragY;
+                                                var globalPos = kfMA.mapToGlobal(mouse.x, mouse.y);
+                                                var trackPos  = trackRow.mapFromGlobal(globalPos.x, globalPos.y);
+                                                origTrackX = trackPos.x;
+                                                origTrackY = trackPos.y;
+                                                origDragX  = kfItem.dragX;
+                                                origDragY  = kfItem.dragY;
+                                                root.draggingKf = true;
+                                                root.dragLiveMs = root.clampMs(root.xToMs(kfItem.dragX));
+                                                root.dragLiveAlpha = root.yToAlpha(kfItem.dragY, trackRow.height);
                                                 mouse.accepted = true;
                                             }
                                         }
                                         onPositionChanged: function(mouse) {
                                             if (pressed && (mouse.buttons & Qt.LeftButton)) {
-                                                kfItem.dragX = origDragX + (mouse.x - pressX);
-                                                kfItem.dragY = origDragY + (mouse.y - pressY);
+                                                var globalPos = kfMA.mapToGlobal(mouse.x, mouse.y);
+                                                var trackPos  = trackRow.mapFromGlobal(globalPos.x, globalPos.y);
+                                                kfItem.dragX = origDragX + (trackPos.x - origTrackX);
+                                                kfItem.dragY = origDragY + (trackPos.y - origTrackY);
+                                                root.dragLiveMs = root.clampMs(root.xToMs(kfItem.dragX));
+                                                var liveAlpha = root.yToAlpha(kfItem.dragY, trackRow.height);
+                                                if (liveAlpha <= alphaSnapThreshold) liveAlpha = 0.0;
+                                                else if (liveAlpha >= 1.0 - alphaSnapThreshold) liveAlpha = 1.0;
+                                                root.dragLiveAlpha = liveAlpha;
                                             }
                                         }
                                         onReleased: function(mouse) {
                                             if (mouse.button === Qt.LeftButton) {
                                                 var newMs    = root.clampMs(root.xToMs(kfItem.dragX));
-                                                var newAlpha = root.yToAlpha(kfItem.dragY + root.kfSize / 2, trackRow.height);
+                                                var newAlpha = root.yToAlpha(kfItem.dragY, trackRow.height);
+                                                // Snap alpha to 0 or 1 when near edges
+                                                if (newAlpha <= alphaSnapThreshold) newAlpha = 0.0;
+                                                else if (newAlpha >= 1.0 - alphaSnapThreshold) newAlpha = 1.0;
                                                 var d = root.selectedKfData();
                                                 root.slideModel.updateKeyframe(
                                                     trackRow.layerIdx, kfItem.kfIndex,
@@ -898,6 +937,8 @@ Window {
                                                     d ? d.hasTranslate : false,
                                                     d ? d.translateX   : 0, d ? d.translateY : 0, d ? d.translateZ : 0);
                                                 trackRow.reload();
+                                                // Force inspector refresh by nulling first
+                                                root.selectedKf = null;
                                                 var kfs = root.slideModel.getKeyframes(trackRow.layerIdx);
                                                 for (var i = 0; i < kfs.length; i++) {
                                                     if (kfs[i].timeMs === newMs) {
@@ -905,6 +946,9 @@ Window {
                                                         break;
                                                     }
                                                 }
+                                                root.inspectorRevision++;
+                                                // Stop live drag after model and inspector are updated
+                                                root.draggingKf = false;
                                             }
                                         }
                                         onClicked: function(mouse) {

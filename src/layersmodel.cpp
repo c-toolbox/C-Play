@@ -316,7 +316,7 @@ int LayersModel::addLayerBasedOnMime(QUrl fileUrl) {
         return -1;
 
     QFileInfo fileInfo(filePath);
-    return addLayer(fileInfo.baseName(), type, filePath, ImageSettings::stereoModeForBackground(), ImageSettings::gridToMapOnForBackground());
+    return addLayer(fileInfo.baseName(), type, filePath, PresentationSettings::defaultStereoModeForLayers(), PresentationSettings::defaultGridModeForLayers());
 }
 
 void LayersModel::removeLayer(int i) {

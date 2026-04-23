@@ -988,7 +988,7 @@ ToolBar {
                         id: plane_grid
 
                         checked: false
-                        text: qsTr("Plane")
+                        text: qsTr("Plane/Flat")
 
                         onClicked: {
                             mpv.gridToMapOn = 1;
@@ -1007,7 +1007,7 @@ ToolBar {
                         id: dome_grid
 
                         checked: false
-                        text: qsTr("Dome")
+                        text: qsTr("Dome/Fisheye")
 
                         onClicked: {
                             mpv.gridToMapOn = 2;
