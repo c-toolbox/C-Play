@@ -475,8 +475,7 @@ static void decode(const std::vector<std::byte> &data) {
                     // Find if layer exists in all previously created layers
                     auto it = find_if(secondaryLayers.begin(), secondaryLayers.end(),
                                       [&id](const std::shared_ptr<BaseLayer>&t1) { return (t1 ? t1->identifier() == id : false); });
-                    if (it != secondaryLayers.end()) { // If exist, add to new pos and remove from old container
-                        // If exist, sync if needed
+                    if (it != secondaryLayers.end()) { // If exist, sync if needed
                         if (layerSync) {
                             (*it)->decodeFull(data, pos);
                         } else {
@@ -524,25 +523,17 @@ static void postSyncPreDraw() {
         // Delete layers left in old container, and update to new
         // Needs to be done in this function, not in the deserialization.
         if (updateLayers) {
-            auto it = secondaryLayers.begin();
-            for (; it != secondaryLayers.end();) {
-                auto it_found = std::find_if(secondaryLayersToKeep.begin(), secondaryLayersToKeep.end(), [&](std::shared_ptr<BaseLayer> const& p) {
-                    return p.get() == (*it).get();
-                });
-                if (it_found == secondaryLayersToKeep.end()) {
-                    it = secondaryLayers.erase(it);
-                } else {
-                    std::shared_ptr<BaseLayer> layer = (*it);
-                    if (layer->needSync()) {
-                        if (layer->gridMode() == BaseLayer::GridMode::Plane) {
-                            layer->updatePlane();
-                        }
-                        layer->setHasSynced();
+            // Process all layers that will be kept (including newly created ones)
+            for (auto& layer : secondaryLayersToKeep) {
+                if (layer && layer->needSync()) {
+                    if (layer->gridMode() == BaseLayer::GridMode::Plane) {
+                        layer->updatePlane();
                     }
-                    ++it;
+                    layer->setHasSynced();
                 }
             }
-            secondaryLayers = secondaryLayersToKeep;
+            // Replace old with new; layers no longer referenced are destroyed via shared_ptr
+            secondaryLayers = std::move(secondaryLayersToKeep);
             secondaryLayersToKeep.clear();
             updateLayers = false;
         }
