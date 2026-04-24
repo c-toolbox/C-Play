@@ -9,6 +9,10 @@
 #include "slidesmodel.h"
 #include "presentationsettings.h"
 #include "userinterfacesettings.h"
+#include "layers/controllayer.h"
+#include "layersmodel.h"
+#include "playlist/playlistmodel.h"
+#include "tracksmodel.h"
 
 #include <QDir>
 #include <QFileInfo>
@@ -40,6 +44,11 @@ PlayerController::PlayerController(QObject *parent)
     setRewindMediaOnEOF(PlaybackSettings::rewindOnEOFwhenPause());
 
     setNodeWindowsOnTop(UserInterfaceSettings::windowOnTopAtStartup());
+
+    // Set up the Control layer dispatch callback
+    ControlLayer::setDispatchCallback([this](const std::string& operation, const std::string& parameter) {
+        DispatchControlOperation(QString::fromStdString(operation), QString::fromStdString(parameter));
+    });
 }
 
 void PlayerController::setupConnections() {
@@ -256,6 +265,137 @@ void PlayerController::SlidePrevious() {
 void PlayerController::SlideNext() {
     if (m_slidesModel != nullptr) {
         Q_EMIT m_slidesModel->nextSlide();
+    }
+}
+
+void PlayerController::DispatchControlOperation(const QString &operation, const QString &parameter) {
+    if (operation == QStringLiteral("Play")) {
+        Play();
+    } else if (operation == QStringLiteral("Pause")) {
+        Pause();
+    } else if (operation == QStringLiteral("Stop")) {
+        Stop();
+    } else if (operation == QStringLiteral("Rewind")) {
+        Rewind();
+    } else if (operation == QStringLiteral("Seek")) {
+        Seek(parameter.toInt());
+    } else if (operation == QStringLiteral("SetPosition")) {
+        SetPosition(parameter.toDouble());
+    } else if (operation == QStringLiteral("FadeVolumeDown")) {
+        FadeVolumeDown();
+    } else if (operation == QStringLiteral("FadeVolumeUp")) {
+        FadeVolumeUp();
+    } else if (operation == QStringLiteral("FadeImageDown")) {
+        FadeImageDown();
+    } else if (operation == QStringLiteral("FadeImageUp")) {
+        FadeImageUp();
+    } else if (operation == QStringLiteral("FadeVolumeDown")) {
+        FadeVolumeDown();
+    } else if (operation == QStringLiteral("FadeVolumeUp")) {
+        FadeVolumeUp();
+    } else if (operation == QStringLiteral("FadeImageDown")) {
+        FadeImageDown();
+    } else if (operation == QStringLiteral("FadeImageUp")) {
+        FadeImageUp();
+    } else if (operation == QStringLiteral("LoadFromAudioTracks")) {
+        // Parameter is audio track name; resolve to index
+        if (m_mpv) {
+            int idx = parameter.toInt();
+            // If parameter is not a number, try to find by name
+            bool isNumber = false;
+            parameter.toInt(&isNumber);
+            if (!isNumber) {
+                TracksModel* audioModel = m_mpv->audioTracksModel();
+                if (audioModel) {
+                    for (int i = 0; i < audioModel->rowCount(); ++i) {
+                        QModelIndex mi = audioModel->index(i, 0);
+                        QString title = audioModel->data(mi, Qt::DisplayRole).toString();
+                        if (title == parameter) {
+                            idx = i;
+                            break;
+                        }
+                    }
+                }
+            }
+            LoadFromAudioTracks(idx);
+        }
+    } else if (operation == QStringLiteral("LoadFromPlaylist")) {
+        // Parameter is playlist item title; resolve to index
+        if (m_mpv) {
+            PlayListModel* plModel = m_mpv->playlistModel();
+            if (plModel) {
+                bool isNumber = false;
+                int idx = parameter.toInt(&isNumber);
+                if (!isNumber) {
+                    for (int i = 0; i < plModel->getPlayListSize(); ++i) {
+                        QString title = plModel->mediaTitle(i);
+                        QString listTitle = plModel->listTitle(i);
+                        QString fileName = plModel->fileName(i);
+                        if (title == parameter || listTitle == parameter || fileName == parameter) {
+                            idx = i;
+                            break;
+                        }
+                    }
+                }
+                LoadFromPlaylist(idx);
+            }
+        }
+    } else if (operation == QStringLiteral("LoadFromSections")) {
+        // Parameter is section title; resolve to index
+        if (m_mpv) {
+            PlaySectionsModel* secModel = m_mpv->playSectionsModel();
+            if (secModel) {
+                bool isNumber = false;
+                int idx = parameter.toInt(&isNumber);
+                if (!isNumber) {
+                    for (int i = 0; i < secModel->getNumberOfSections(); ++i) {
+                        if (secModel->sectionTitle(i) == parameter) {
+                            idx = i;
+                            break;
+                        }
+                    }
+                }
+                LoadFromSections(idx);
+            }
+        }
+    } else if (operation == QStringLiteral("LoadFromSlides")) {
+        // Parameter is slide name; resolve to index
+        if (m_slidesModel) {
+            bool isNumber = false;
+            int idx = parameter.toInt(&isNumber);
+            if (!isNumber) {
+                for (int i = 0; i < m_slidesModel->numberOfSlides(); ++i) {
+                    LayersModel* s = m_slidesModel->slide(i);
+                    if (s && s->getLayersName() == parameter) {
+                        idx = i;
+                        break;
+                    }
+                }
+            }
+            LoadFromSlides(idx);
+        }
+    } else if (operation == QStringLiteral("SetSpeed")) {
+        SetSpeed(parameter.toDouble());
+    } else if (operation == QStringLiteral("SetVolume")) {
+        SetVolume(parameter.toInt());
+    } else if (operation == QStringLiteral("SetSyncVolumeVisibilityFading")) {
+        SetSyncVolumeVisibilityFading(parameter == QStringLiteral("true") || parameter == QStringLiteral("1"));
+    } else if (operation == QStringLiteral("SpinPitchUp")) {
+        SpinPitchUp(parameter != QStringLiteral("false") && parameter != QStringLiteral("0"));
+    } else if (operation == QStringLiteral("SpinPitchDown")) {
+        SpinPitchDown(parameter != QStringLiteral("false") && parameter != QStringLiteral("0"));
+    } else if (operation == QStringLiteral("SpinYawLeft")) {
+        SpinYawLeft(parameter != QStringLiteral("false") && parameter != QStringLiteral("0"));
+    } else if (operation == QStringLiteral("SpinYawRight")) {
+        SpinYawRight(parameter != QStringLiteral("false") && parameter != QStringLiteral("0"));
+    } else if (operation == QStringLiteral("SpinRollCW")) {
+        SpinRollCW(parameter != QStringLiteral("false") && parameter != QStringLiteral("0"));
+    } else if (operation == QStringLiteral("SpinRollCCW")) {
+        SpinRollCCW(parameter != QStringLiteral("false") && parameter != QStringLiteral("0"));
+    } else if (operation == QStringLiteral("OrientationAndSpinReset")) {
+        OrientationAndSpinReset();
+    } else if (operation == QStringLiteral("RunSurfaceTransition")) {
+        RunSurfaceTransition();
     }
 }
 

@@ -20,6 +20,7 @@
 #endif
 #include <layers/textlayer.h>
 #include <layers/mpvlayer.h>
+#include <layers/controllayer.h>
 
 #include <QOpenGLContext>
 #include <QQuickGraphicsDevice>
@@ -898,6 +899,44 @@ void LayerQtItem::setLayerQRCodeDetectionEnabled(bool enabled) {
     }
 }
 
+QString LayerQtItem::layerOperation() const {
+    if (m_layer && m_layer->type() == BaseLayer::CONTROL) {
+        ControlLayer* controlLayer = static_cast<ControlLayer*>(m_layer);
+        return QString::fromStdString(controlLayer->operation());
+    }
+    return QStringLiteral("");
+}
+
+void LayerQtItem::setLayerOperation(QString op) {
+    if (m_layer && m_layer->type() == BaseLayer::CONTROL) {
+        ControlLayer* controlLayer = static_cast<ControlLayer*>(m_layer);
+        if (QString::fromStdString(controlLayer->operation()) != op) {
+            controlLayer->setOperation(op.toStdString());
+            Q_EMIT layerValueChanged();
+            Q_EMIT layerNeedsSave();
+        }
+    }
+}
+
+QString LayerQtItem::layerParameter() const {
+    if (m_layer && m_layer->type() == BaseLayer::CONTROL) {
+        ControlLayer* controlLayer = static_cast<ControlLayer*>(m_layer);
+        return QString::fromStdString(controlLayer->parameter());
+    }
+    return QStringLiteral("");
+}
+
+void LayerQtItem::setLayerParameter(QString param) {
+    if (m_layer && m_layer->type() == BaseLayer::CONTROL) {
+        ControlLayer* controlLayer = static_cast<ControlLayer*>(m_layer);
+        if (QString::fromStdString(controlLayer->parameter()) != param) {
+            controlLayer->setParameter(param.toStdString());
+            Q_EMIT layerValueChanged();
+            Q_EMIT layerNeedsSave();
+        }
+    }
+}
+
 void LayerQtItem::handleWindowChanged(QQuickWindow *win) {
     if (win) {
         connect(win, &QQuickWindow::beforeSynchronizing, this, &LayerQtItem::sync, Qt::DirectConnection);
@@ -1046,16 +1085,24 @@ void LayerQtItem::createLayer(int type, QString filepath){
 }
 
 void LayerQtItem::start() {
-    if (m_layer && m_ownsLayer) {
-        m_layer->setShouldUpdate(true);
-        m_layer->start();
+    if (m_layer) {
+        if (m_layer->type() == BaseLayer::CONTROL) {
+            m_layer->start();
+        } else if (m_ownsLayer) {
+            m_layer->setShouldUpdate(true);
+            m_layer->start();
+        }
     }
 }
 
 void LayerQtItem::stop() {
-    if (m_layer && m_ownsLayer) {
-        m_layer->setShouldUpdate(false);
-        m_layer->stop();
+    if (m_layer) {
+        if (m_layer->type() == BaseLayer::CONTROL) {
+            m_layer->stop();
+        } else if (m_ownsLayer) {
+            m_layer->setShouldUpdate(false);
+            m_layer->stop();
+        }
     }
 }
 

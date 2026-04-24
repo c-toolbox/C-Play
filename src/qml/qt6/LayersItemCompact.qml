@@ -40,6 +40,8 @@ ItemDelegate {
     function subText() {
         if(model.type === "Audio")
             return model.type;
+        else if(model.type === "Control")
+            return model.type + " - " + model.filepath;
         else
             return model.type + model.page + " - " + model.stereoVideo + " " + model.gridToMapOn;
     }
@@ -160,14 +162,25 @@ ItemDelegate {
                 width: 10
                 height: 10
                 radius: 5
+                visible: model.type !== "Control"
                 color: (model.status === 2 ? "lime" : model.status === 1 ? "orange" : model.status === 0 ? "crimson" : "black")
+            }
+            Kirigami.Icon {
+                anchors.top: parent.top
+                anchors.right: parent.right
+                anchors.topMargin: 2
+                width: 14
+                height: 14
+                source: "media-playback-start"
+                visible: model.type === "Control"
+                color: Kirigami.Theme.textColor
             }
             Item {
                 anchors.bottom: parent.bottom
                 anchors.right: its.right
                 implicitHeight: 25
                 implicitWidth: 100
-                visible: !visibilitySlider.visible
+                visible: !visibilitySlider.visible && model.type !== "Control"
 
                 Rectangle {
                     color: Kirigami.Theme.highlightColor
@@ -199,7 +212,7 @@ ItemDelegate {
 
                 anchors.bottom: parent.bottom
                 anchors.right: its.right
-                visible: layersView.currentIndex === index
+                visible: layersView.currentIndex === index && model.type !== "Control"
                 implicitWidth: 100
                 overlayLabel: qsTr("")
 
@@ -220,7 +233,7 @@ ItemDelegate {
                 anchors.right: its.right
                 implicitHeight: 20
                 implicitWidth: 100
-                visible: layersView.currentIndex !== index
+                visible: layersView.currentIndex !== index && model.type !== "Control"
 
                 Label {
                     anchors.fill: parent
@@ -390,7 +403,9 @@ ItemDelegate {
     }
     onDoubleClicked: {
         layerView.layerItem.layerIdx = index;
-        if (layerView.layerItem.layerVisibility === 100 && !visibility_fade_out_animation.running) {
+        if (model.type === "Control") {
+            layerView.layerItem.start();
+        } else if (layerView.layerItem.layerVisibility === 100 && !visibility_fade_out_animation.running) {
             visibility_fade_out_animation.start();
         } else if (layerView.layerItem.layerVisibility < 100 && !visibility_fade_in_animation.running) {
             visibility_fade_in_animation.start();

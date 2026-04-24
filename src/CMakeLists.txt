@@ -29,6 +29,8 @@ set(SOURCE_FILES
     layers/audiolayer.h
     layers/baselayer.cpp
     layers/baselayer.h
+    layers/controllayer.cpp
+    layers/controllayer.h
     layers/imagelayer.cpp
     layers/imagelayer.h
     layers/mpvlayer.cpp

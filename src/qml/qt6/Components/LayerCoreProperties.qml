@@ -39,11 +39,15 @@ GridLayout {
     property alias stereoscopicModeForLayer: stereoscopicModeForLayer
     property alias gridModeForLayer: gridModeForLayer
     property alias textForLayer: textForLayer
+    property alias controlOperationComboBox: controlOperationComboBox
+    property alias controlParameterField: controlParameterField
 
     function resetValues() {
         typeComboBox.currentIndex = 0;
         fileForLayer.text = "";
         layerTitle.text = "";
+        controlOperationComboBox.currentIndex = 0;
+        controlParameterField.text = "";
         for (let sm = 0; sm < stereoscopicModeForLayerList.count; ++sm) {
             if (stereoscopicModeForLayerList.get(sm).value === PresentationSettings.defaultStereoModeForLayers) {
                 stereoscopicModeForLayer.currentIndex = sm;
@@ -169,11 +173,11 @@ GridLayout {
         Layout.alignment: Qt.AlignRight
         font.pointSize: 9
         text: qsTr("File:")
-        visible: typeComboBox.currentText != "Stream" && typeComboBox.currentText != "NDI" && typeComboBox.currentText != "Spout" && typeComboBox.currentText != "Text"
+        visible: typeComboBox.currentText != "Stream" && typeComboBox.currentText != "NDI" && typeComboBox.currentText != "Spout" && typeComboBox.currentText != "Text" && typeComboBox.currentText != "Control"
     }
     RowLayout {
         Layout.fillWidth: true
-        visible: typeComboBox.currentText != "Stream" && typeComboBox.currentText != "NDI" && typeComboBox.currentText != "Spout" && typeComboBox.currentText != "Text"
+        visible: typeComboBox.currentText != "Stream" && typeComboBox.currentText != "NDI" && typeComboBox.currentText != "Spout" && typeComboBox.currentText != "Text" && typeComboBox.currentText != "Control"
 
         TextField {
             id: fileForLayer
@@ -419,7 +423,7 @@ GridLayout {
     Label {
         Layout.alignment: Qt.AlignRight
         text: qsTr("Stereo:")
-        visible: showStereoParams && typeComboBox.currentText !== "Audio" && typeComboBox.currentText !== "Text"
+        visible: showStereoParams && typeComboBox.currentText !== "Audio" && typeComboBox.currentText !== "Text" && typeComboBox.currentText !== "Control"
     }
     ComboBox {
         id: stereoscopicModeForLayer
@@ -427,7 +431,7 @@ GridLayout {
         Layout.fillWidth: true
         focusPolicy: Qt.NoFocus
         textRole: "mode"
-        visible: showStereoParams && typeComboBox.currentText !== "Audio" && typeComboBox.currentText !== "Text"
+        visible: showStereoParams && typeComboBox.currentText !== "Audio" && typeComboBox.currentText !== "Text" && typeComboBox.currentText !== "Control"
 
         model: ListModel {
             id: stereoscopicModeForLayerList
@@ -455,14 +459,14 @@ GridLayout {
         onActivated: {}
     }
     Item {
-        visible: root.showSpacers && typeComboBox.currentText !== "Audio" && typeComboBox.currentText !== "Text"
+        visible: root.showSpacers && typeComboBox.currentText !== "Audio" && typeComboBox.currentText !== "Text" && typeComboBox.currentText !== "Control"
         Layout.fillWidth: true
     }
 
     Label {
         Layout.alignment: Qt.AlignRight
         text: qsTr("Grid:")
-        visible: showGridParams && typeComboBox.currentText !== "Audio" && typeComboBox.currentText !== "Text"
+        visible: showGridParams && typeComboBox.currentText !== "Audio" && typeComboBox.currentText !== "Text" && typeComboBox.currentText !== "Control"
     }
     ComboBox {
         id: gridModeForLayer
@@ -470,7 +474,7 @@ GridLayout {
         Layout.fillWidth: true
         focusPolicy: Qt.NoFocus
         textRole: "mode"
-        visible: showGridParams && typeComboBox.currentText !== "Audio" && typeComboBox.currentText !== "Text"
+        visible: showGridParams && typeComboBox.currentText !== "Audio" && typeComboBox.currentText !== "Text" && typeComboBox.currentText !== "Control"
 
         model: ListModel {
             id: gridModeForLayerList
@@ -501,10 +505,11 @@ GridLayout {
         onActivated: {}
     }
     Item {
-        visible: root.showSpacers && typeComboBox.currentText !== "Audio" && typeComboBox.currentText !== "Text"
+        visible: root.showSpacers && typeComboBox.currentText !== "Audio" && typeComboBox.currentText !== "Text" && typeComboBox.currentText !== "Control"
         Layout.fillWidth: true
     }
 
+    // --- Text layer section ---
     Label {
         Layout.alignment: Qt.AlignRight | Qt.AlignTop
         text: qsTr("Text:")
@@ -521,7 +526,6 @@ GridLayout {
         }
 
         Layout.fillHeight: true
-        // spacer item
         Layout.fillWidth: true
     }
     Item {
@@ -529,15 +533,95 @@ GridLayout {
         Layout.fillWidth: true
     }
 
+    // --- Control layer section ---
+    Label {
+        Layout.alignment: Qt.AlignRight
+        text: qsTr("Operation:")
+        visible: typeComboBox.currentText === "Control"
+    }
+    ComboBox {
+        id: controlOperationComboBox
+
+        Layout.fillWidth: true
+        visible: typeComboBox.currentText === "Control"
+
+        model: ["Play", "Pause", "Stop", "Rewind", "Seek", "SetPosition", 
+                "FadeVolumeDown", "FadeVolumeUp", "FadeImageDown", "FadeImageUp",
+                "LoadFromAudioTracks", "LoadFromPlaylist", "LoadFromSections", "LoadFromSlides", 
+                "SetSpeed", "SetVolume", "SetSyncVolumeVisibilityFading",  
+                "SpinPitchUp", "SpinPitchDown", "SpinYawLeft", "SpinYawRight",
+                "SpinRollCW", "SpinRollCCW", "OrientationAndSpinReset", "RunSurfaceTransition"]
+
+        onActivated: {
+            if (layerTitle.text === "" || layerTitle.text.startsWith("Ctrl:")) {
+                layerTitle.text = "Ctrl:" + controlOperationComboBox.currentText;
+            }
+        }
+    }
     Item {
-        enabled: typeComboBox.currentText != "Text"
+        visible: root.showSpacers && typeComboBox.currentText === "Control"
+        Layout.fillWidth: true
+    }
+
+    Label {
+        Layout.alignment: Qt.AlignRight
+        text: qsTr("Parameter:")
+        visible: typeComboBox.currentText === "Control" && controlNeedsParam()
+    }
+    TextField {
+        id: controlParameterField
+
+        Layout.fillWidth: true
+        Layout.preferredWidth: font.pointSize * 17
+        placeholderText: controlParamHint()
+        text: ""
+        visible: typeComboBox.currentText === "Control" && controlNeedsParam()
+
+        ToolTip {
+            text: qsTr("Parameter value (name/identifier for list items)")
+        }
+    }
+    Item {
+        visible: root.showSpacers && typeComboBox.currentText === "Control" && controlNeedsParam()
+        Layout.fillWidth: true
+    }
+
+    function controlNeedsParam() {
+        var op = controlOperationComboBox.currentText;
+        return op === "Seek" || op === "SetPosition"
+            || op === "LoadFromAudioTracks" || op === "LoadFromPlaylist"
+            || op === "LoadFromSections" || op === "LoadFromSlides"
+            || op === "SetSpeed" || op === "SetVolume"
+            || op === "SetSyncVolumeVisibilityFading"
+            || op === "SpinPitchUp" || op === "SpinPitchDown"
+            || op === "SpinYawLeft" || op === "SpinYawRight"
+            || op === "SpinRollCW" || op === "SpinRollCCW";
+    }
+
+    function controlParamHint() {
+        var op = controlOperationComboBox.currentText;
+        if (op === "Seek") return "Time in seconds";
+        if (op === "SetPosition") return "Position (0.0-1.0)";
+        if (op === "SetSpeed") return "Speed factor";
+        if (op === "SetVolume") return "Volume level (0-100)";
+        if (op === "SetSyncVolumeVisibilityFading") return "true/false";
+        if (op === "LoadFromAudioTracks") return "Audio track name";
+        if (op === "LoadFromPlaylist") return "Playlist item title/filename";
+        if (op === "LoadFromSections") return "Section title";
+        if (op === "LoadFromSlides") return "Slide name";
+        if (op.startsWith("Spin")) return "true/false (run)";
+        return "";
+    }
+
+    Item {
+        enabled: typeComboBox.currentText != "Text" && typeComboBox.currentText != "Control"
         Layout.columnSpan: 2
         Layout.fillHeight: true
         // spacer item
         Layout.fillWidth: true
     }
     Item {
-        visible: root.showSpacers && typeComboBox.currentText != "Text"
+        visible: root.showSpacers && typeComboBox.currentText != "Text" && typeComboBox.currentText != "Control"
         Layout.fillWidth: true
     }
 }

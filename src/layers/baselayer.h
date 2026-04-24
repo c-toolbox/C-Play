@@ -34,6 +34,7 @@ public:
 #ifdef SGCT_HAS_TEXT
         TEXT,
 #endif
+        CONTROL,
         INVALID
     };
 

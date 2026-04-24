@@ -76,6 +76,7 @@ public Q_SLOTS:
     void RunSurfaceTransition();
     void SlidePrevious();
     void SlideNext();
+    void DispatchControlOperation(const QString &operation, const QString &parameter);
 
     QString returnRelativeOrAbsolutePath(const QString &path);
     QString checkAndCorrectPath(const QString &path);

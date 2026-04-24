@@ -27,6 +27,7 @@
 #include <layers/spoutlayer.h>
 #endif
 #include <layers/textlayer.h>
+#include <layers/controllayer.h>
 
 std::atomic_uint32_t BaseLayer::m_id_gen = 1;
 
@@ -58,6 +59,8 @@ std::string BaseLayer::typeDescription(BaseLayer::LayerType e) {
     case TEXT:
         return "Text";
 #endif
+    case CONTROL:
+        return "Control";
     default:
         return "";
     }
@@ -135,6 +138,11 @@ BaseLayer *BaseLayer::createLayer(bool isMaster, int layerType, gl_adress_func_v
         break;
     }
 #endif
+    case static_cast<int>(BaseLayer::LayerType::CONTROL): {
+        ControlLayer* newControl = new ControlLayer();
+        newLayer = newControl;
+        break;
+    }
     default:
         break;
     }

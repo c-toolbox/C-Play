@@ -19,6 +19,10 @@ Kirigami.ApplicationWindow {
     id: root
 
     function resizeForGridMode() {
+        if (layerView.layerItem.layerTypeName === "Control") {
+            root.height = 180;
+            return;
+        }
         var mode = layerView.layerItem.layerGridMode;
         if (mode === 1) {
             root.height = 420;
@@ -32,6 +36,13 @@ Kirigami.ApplicationWindow {
     }
 
     function resetValues() {
+        controlGridLayout.visible = (layerView.layerItem.layerTypeName === "Control");
+        if (controlGridLayout.visible) {
+            controlOperationComboBox.currentIndex = controlOperationComboBox.find(layerView.layerItem.layerOperation);
+            controlParameterField.text = layerView.layerItem.layerParameter;
+            resizeForGridMode();
+            return;
+        }
         planeWidthBox.value = layerView.layerItem.layerPlaneWidth;
         planeHeightBox.value = layerView.layerItem.layerPlaneHeight;
         planeDistanceBox.value = layerView.layerItem.layerPlaneDistance;
@@ -77,9 +88,16 @@ Kirigami.ApplicationWindow {
         }
 
         function onLayerValueChanged() {
-            planeGridLayout.visible = (layerView.layerItem.layerGridMode === 1);
-            domeGridLayout.visible = (layerView.layerItem.layerGridMode === 2);
-            sphereGridLayout.visible = (layerView.layerItem.layerGridMode > 2);
+            controlGridLayout.visible = (layerView.layerItem.layerTypeName === "Control");
+            if (!controlGridLayout.visible) {
+                planeGridLayout.visible = (layerView.layerItem.layerGridMode === 1);
+                domeGridLayout.visible = (layerView.layerItem.layerGridMode === 2);
+                sphereGridLayout.visible = (layerView.layerItem.layerGridMode > 2);
+            } else {
+                planeGridLayout.visible = false;
+                domeGridLayout.visible = false;
+                sphereGridLayout.visible = false;
+            }
             resizeForGridMode();
         }
 
@@ -110,7 +128,7 @@ Kirigami.ApplicationWindow {
             columnSpacing: 2
             columns: 3
             rowSpacing: 8
-            visible: layerView.layerItem.layerGridMode === 0
+            visible: layerView.layerItem.layerGridMode === 0 && layerView.layerItem.layerTypeName !== "Control"
 
             RowLayout {
                 Layout.bottomMargin: 5
@@ -141,7 +159,7 @@ Kirigami.ApplicationWindow {
             columnSpacing: 2
             columns: 3
             rowSpacing: 8
-            visible: layerView.layerItem.layerGridMode === 1
+            visible: layerView.layerItem.layerGridMode === 1 && layerView.layerItem.layerTypeName !== "Control"
 
             RowLayout {
                 Layout.bottomMargin: 5
@@ -631,7 +649,7 @@ Kirigami.ApplicationWindow {
             columnSpacing: 2
             columns: 3
             rowSpacing: 8
-            visible: layerView.layerItem.layerGridMode === 2
+            visible: layerView.layerItem.layerGridMode === 2 && layerView.layerItem.layerTypeName !== "Control"
 
             RowLayout {
                 Layout.bottomMargin: 5
@@ -738,7 +756,7 @@ Kirigami.ApplicationWindow {
             columnSpacing: 2
             columns: 3
             rowSpacing: 8
-            visible: layerView.layerItem.layerGridMode > 2
+            visible: layerView.layerItem.layerGridMode > 2 && layerView.layerItem.layerTypeName !== "Control"
 
             RowLayout {
                 Layout.bottomMargin: 5
@@ -987,6 +1005,91 @@ Kirigami.ApplicationWindow {
                             sphereRotateRollSpinBox.value = layerView.layerItem.layerRotateRoll * 100;
                     }
 
+                    target: layerView.layerItem
+                }
+            }
+        }
+        GridLayout {
+            id: controlGridLayout
+            Layout.alignment: Qt.AlignHCenter | Qt.AlignTop
+            columnSpacing: 2
+            columns: 2
+            rowSpacing: 8
+            visible: layerView.layerItem.layerTypeName === "Control"
+
+            RowLayout {
+                Layout.bottomMargin: 5
+                Layout.columnSpan: 2
+
+                Rectangle {
+                    color: Kirigami.Theme.alternateBackgroundColor
+                    height: 1
+                    width: Kirigami.Units.gridUnit
+                }
+                Kirigami.Heading {
+                    text: qsTr("Control properties for the layer")
+                }
+                Rectangle {
+                    Layout.fillWidth: true
+                    color: Kirigami.Theme.alternateBackgroundColor
+                    height: 1
+                }
+                Item {
+                    Layout.fillWidth: true
+                }
+            }
+
+            Label {
+                text: qsTr("Operation:")
+                Layout.alignment: Qt.AlignRight
+            }
+            ComboBox {
+                id: controlOperationComboBox
+
+                Layout.fillWidth: true
+
+                model: ["QuitCPlay", "Next", "Previous", "Pause", "PlayPause", "Stop", "Play", "Rewind",
+                        "Seek", "SetAutoPlay", "SetPosition", "LoadFromAudioTracks", "LoadFromPlaylist",
+                        "LoadFromSections", "LoadFromSlides", "SelectFromSlides", "SetSpeed", "SetVolume",
+                        "SetSyncVolumeVisibilityFading", "FadeVolumeDown", "FadeVolumeUp", "FadeImageDown",
+                        "FadeImageUp", "SpinPitchUp", "SpinPitchDown", "SpinYawLeft", "SpinYawRight",
+                        "SpinRollCW", "SpinRollCCW", "OrientationAndSpinReset", "RunSurfaceTransition",
+                        "SlidePrevious", "SlideNext"]
+
+                Component.onCompleted: {
+                    currentIndex = find(layerView.layerItem.layerOperation);
+                }
+                onActivated: {
+                    layerView.layerItem.layerOperation = currentText;
+                }
+
+                Connections {
+                    function onLayerChanged() {
+                        controlOperationComboBox.currentIndex = controlOperationComboBox.find(layerView.layerItem.layerOperation);
+                    }
+                    target: layerView.layerItem
+                }
+            }
+
+            Label {
+                text: qsTr("Parameter:")
+                Layout.alignment: Qt.AlignRight
+            }
+            TextField {
+                id: controlParameterField
+
+                Layout.fillWidth: true
+                placeholderText: "Parameter value"
+                text: layerView.layerItem.layerParameter
+
+                onEditingFinished: {
+                    layerView.layerItem.layerParameter = text;
+                }
+
+                Connections {
+                    function onLayerChanged() {
+                        controlParameterField.text = layerView.layerItem.layerParameter;
+                    }
                     target: layerView.layerItem
                 }
             }

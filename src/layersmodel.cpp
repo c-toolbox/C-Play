@@ -22,6 +22,7 @@
 #endif
 #include <layers/textlayer.h>
 #include <layers/mpvlayer.h>
+#include <layers/controllayer.h>
 
 #include <QDir>
 #include <QFileInfo>
@@ -90,6 +91,10 @@ QVariant LayersModel::data(const QModelIndex &index, int role) const {
     case TitleRole:
         return QVariant(QString::fromStdString(layerItem->title()));
     case PathRole:
+        if (layerItem->type() == BaseLayer::CONTROL) {
+            const ControlLayer* controlLayer = static_cast<const ControlLayer*>(layerItem);
+            return QVariant(QString::fromStdString(controlLayer->operation()) + QStringLiteral(":") + QString::fromStdString(controlLayer->parameter()));
+        }
         return QVariant(QString::fromStdString(layerItem->filepath()));
     case TypeRole:
         return QVariant(QString::fromStdString(layerItem->typeName()));
@@ -258,6 +263,17 @@ int LayersModel::addLayer(QString title, int type, QString filepath, int stereoM
             QColor textColor(SubtitleSettings::subtitleColor());
             newTextLayer->setColor(textColor.name().toStdString(), textColor.redF(), textColor.greenF(), textColor.blueF());
             newTextLayer->setText(filepath.toStdString());
+        }
+        else if (type == BaseLayer::CONTROL) {
+            ControlLayer* newControlLayer = static_cast<ControlLayer*>(newLayer);
+            // filepath holds "operation:parameter"
+            int sepIdx = filepath.indexOf(QStringLiteral(":"));
+            if (sepIdx >= 0) {
+                newControlLayer->setOperation(filepath.left(sepIdx).toStdString());
+                newControlLayer->setParameter(filepath.mid(sepIdx + 1).toStdString());
+            } else {
+                newControlLayer->setOperation(filepath.toStdString());
+            }
         }
         else {
             newLayer->setFilePath(filepath.toStdString());
@@ -762,6 +778,15 @@ void LayersModel::decodeFromJSON(QJsonObject &obj, const QStringList &forRelativ
                         || type == BaseLayer::AUDIO) {
                         path = checkAndCorrectPath(path, forRelativePaths);
                     }
+                    else if (type == BaseLayer::CONTROL) {
+                        // For Control layers, path holds "operation:parameter"
+                        // Read operation and parameter from dedicated fields if present
+                        QString operation = o.value(QStringLiteral("operation")).toString();
+                        QString parameter = o.value(QStringLiteral("parameter")).toString();
+                        if (!operation.isEmpty()) {
+                            path = operation + QStringLiteral(":") + parameter;
+                        }
+                    }
 
                     int grid = PresentationSettings::defaultGridModeForLayers();
                     QString gridStr = o.value(QStringLiteral("grid")).toString();
@@ -1110,6 +1135,11 @@ void LayersModel::encodeToJSON(QJsonObject &obj, const QStringList &forRelativeP
             if (layer->isQRCodeDetectionEnabled()) {
                 layerData.insert(QStringLiteral("qrCodeDetection"), QJsonValue(true));
             }
+        }
+        if (layer->type() == BaseLayer::CONTROL) {
+            ControlLayer* controlLayer = static_cast<ControlLayer*>(layer.get());
+            layerData.insert(QStringLiteral("operation"), QJsonValue(QString::fromStdString(controlLayer->operation())));
+            layerData.insert(QStringLiteral("parameter"), QJsonValue(QString::fromStdString(controlLayer->parameter())));
         }
         if (layer->type() == BaseLayer::VIDEO || layer->type() == BaseLayer::AUDIO) {
             if (layer->hasAudio()) {
@@ -1576,23 +1606,23 @@ float LayersModel::evaluateAlphaAt(int layerIdx, int timeMs) const {
 bool LayersModel::evaluateRotateAt(int layerIdx, int timeMs, float &rx, float &ry, float &rz) const {
     if (layerIdx < 0 || layerIdx >= m_layerTimelines.size()) return false;
     const auto &kfs = m_layerTimelines[layerIdx].keyframes;
-    QVector<const LayerKeyframe *> rKfs;
+    QVector<const LayerKeyframe *> rKFs;
     for (const LayerKeyframe &kf : kfs)
-        if (kf.hasRotate) rKfs.append(&kf);
-    if (rKfs.isEmpty()) return false;
-    if (timeMs <= rKfs.first()->timeMs) { rx = rKfs.first()->rotateX; ry = rKfs.first()->rotateY; rz = rKfs.first()->rotateZ; return true; }
-    if (timeMs >= rKfs.last()->timeMs)  { rx = rKfs.last()->rotateX;  ry = rKfs.last()->rotateY;  rz = rKfs.last()->rotateZ;  return true; }
-    for (int i = 0; i < rKfs.size() - 1; ++i) {
-        if (timeMs >= rKfs[i]->timeMs && timeMs <= rKfs[i + 1]->timeMs) {
-            float t = static_cast<float>(timeMs - rKfs[i]->timeMs)
-                    / static_cast<float>(rKfs[i + 1]->timeMs - rKfs[i]->timeMs);
-            rx = rKfs[i]->rotateX + t * (rKfs[i + 1]->rotateX - rKfs[i]->rotateX);
-            ry = rKfs[i]->rotateY + t * (rKfs[i + 1]->rotateY - rKfs[i]->rotateY);
-            rz = rKfs[i]->rotateZ + t * (rKfs[i + 1]->rotateZ - rKfs[i]->rotateZ);
+        if (kf.hasRotate) rKFs.append(&kf);
+    if (rKFs.isEmpty()) return false;
+    if (timeMs <= rKFs.first()->timeMs) { rx = rKFs.first()->rotateX; ry = rKFs.first()->rotateY; rz = rKFs.first()->rotateZ; return true; }
+    if (timeMs >= rKFs.last()->timeMs)  { rx = rKFs.last()->rotateX;  ry = rKFs.last()->rotateY;  rz = rKFs.last()->rotateZ;  return true; }
+    for (int i = 0; i < rKFs.size() - 1; ++i) {
+        if (timeMs >= rKFs[i]->timeMs && timeMs <= rKFs[i + 1]->timeMs) {
+            float t = static_cast<float>(timeMs - rKFs[i]->timeMs)
+                    / static_cast<float>(rKFs[i + 1]->timeMs - rKFs[i]->timeMs);
+            rx = rKFs[i]->rotateX + t * (rKFs[i + 1]->rotateX - rKFs[i]->rotateX);
+            ry = rKFs[i]->rotateY + t * (rKFs[i + 1]->rotateY - rKFs[i]->rotateY);
+            rz = rKFs[i]->rotateZ + t * (rKFs[i + 1]->rotateZ - rKFs[i]->rotateZ);
             return true;
         }
     }
-    rx = rKfs.last()->rotateX; ry = rKfs.last()->rotateY; rz = rKfs.last()->rotateZ;
+    rx = rKFs.last()->rotateX; ry = rKFs.last()->rotateY; rz = rKFs.last()->rotateZ;
     return true;
 }
 
