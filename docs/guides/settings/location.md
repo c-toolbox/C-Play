@@ -32,3 +32,8 @@ There are specific file location settings for various file dialogs used with the
 #### 8. Uniview video location (legacy)
 
 C-Play supports loading of Uniview "*.fdv*" files, for utilizing C-Play within an environment that has Sciss Uniview runnning alongside it, or that has been used before. Does path are relative by nature, so C-Play needs to now where Uniview looks for the video files, which should be this path. Though, it is highly recommend to start using only "*cplayfile*" and "*cplaylist*", which is very easy in C-Play, and also more powerful. 
+
+#### Screenshots
+
+* **Screenshot format** — File format for saved screenshots: PNG, JPG, or WebP (default JPG).
+* **Screenshot template** — Path template for where screenshots are saved. Supports placeholders such as `%F` (filename) and `%n` (number). Default location is the system pictures folder under `C-play-screenshots/`.

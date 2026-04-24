@@ -9,10 +9,25 @@ parent: Settings
 
 ![Playlist settings](../../assets/ui/settings/playlist.png) 
 
-The playlist settings within C-Play let you choose a startup file playlist. In practice, this could even be a media file that is played as well, but that is not the intended use. *Note: Optionally you can specify a playlist or playfile (or any media file) at startup through the command line argument "--loadfile", which takes precedence over this setting.*
+The playlist settings within C-Play control startup behavior, layout, and auto-play options for the playlist.
 
-You can also decided on which side you want the playlist and section interface to located.
+### Startup
 
-*Auto-play* can be set as default in this setting (at startup), however it can also be controlled during runtime from the playlist interface. Also decide how many seconds after a file has been loaded that play should start. Depending on your system, the files might take some time to load on all nodes, so this time should (at least) reflect that time that you need to wait for loading to be complete.
+* **Playlist/file to load on startup** — Path to a *.cplaylist*, *.cplayfile*, or media file to load automatically when C-Play starts. Leave empty for none. *Note: The command line argument `--loadfile` takes precedence over this setting.*
 
-The *"Auto load vides from same folder"* is disabled by default, and should only be used in special cases. If enabled, it will load all media files in that folder, clear the current playlist and put all these new files into an ordered playlist.
+### Layout
+
+* **Position** — Which side of the screen the playlist and section interface appears on: *Left* or *Right* (default Right).
+* **Show media title** — Display the media title in playlist entries (default on).
+* **Show row number** — Display row numbers in the playlist (default on).
+
+### Auto-play
+
+* **Auto-play on load** — Automatically start playing when a file is loaded (default off). This can also be toggled at runtime from the playlist interface.
+* **Auto-play next** — Automatically advance to the next item when the current one finishes (default on).
+* **Auto-play after time** — Seconds to wait after a file has loaded before starting playback (0–10, default 3). Set this high enough to allow all nodes to finish loading.
+
+### Behavior
+
+* **Repeat** — Loop the playlist when the last item finishes (default off).
+* **Load siblings (auto load videos from same folder)** — When enabled, loading a media file will also load all other media files from the same folder into the playlist (default off). Use only in special cases.

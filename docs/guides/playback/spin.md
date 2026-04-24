@@ -17,7 +17,7 @@ When mapped on a sphere, alongside *Yaw*, *Pitch* and *Roll* is enabled as well 
 
 You clearly see in the icon coloring, both in the header taskbar, and in the drop-down UI, that a *spin operation* is enabled.
 
-![Spin Dome Off](../../assets/ui/header_taskbar/spin_dome.png){:width="28%"} &nbsp;&nbsp;&nbsp; ![Spin Sphere Off](../../assets/ui/header_taskbar/spin_sphere.png){:width="28%"} &nbsp;&nbsp;&nbsp; ![Spin Sphere On](../../assets/ui/header_taskbar/spin_sphere_on.png){:width="28%"}
+![Spin Dome Off](../../assets/ui/header_taskbar/spin_dome.png){:width="28.7%"} &nbsp;&nbsp;&nbsp; ![Spin Sphere Off](../../assets/ui/header_taskbar/spin_sphere.png){:width="28%"} &nbsp;&nbsp;&nbsp; ![Spin Sphere On](../../assets/ui/header_taskbar/spin_sphere_on.png){:width="26.3%"}
 
 The four additional controls and triggers are:
 
@@ -30,3 +30,9 @@ The four additional controls and triggers are:
 1. *Reset orientation*: Resets all operations above to the default values.
 
 *Note: A change in the Grid mode of a grid type triggers an automatic reset.*
+
+### Exact values and saving orientation (C-Play v2.3)
+
+From v2.3 you can set the yaw, pitch, and roll values exactly by entering numeric degrees directly, rather than only using the spin controls. This is useful when you need a precise orientation for a specific venue or content alignment.
+
+The current orientation can also be saved into a [*.cplayfile*](../media/cplayfile). When saving, enable the *"Save orientation"* checkbox in the save dialog. For dome mappings only the yaw is stored; for sphere mappings (EQR and EAC) all three axes are saved. On load, the saved orientation is restored automatically.

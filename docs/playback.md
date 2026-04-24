@@ -24,3 +24,5 @@ Here are further details on the available controls:
 
  - [Enable/disable sync](guides/playback/sync)
 
+ - [Views (3D view, node window, in-top)](guides/playback/views)
+

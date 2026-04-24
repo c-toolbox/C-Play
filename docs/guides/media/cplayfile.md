@@ -29,6 +29,8 @@ parent: Media file structure
      * C-Play supports incorporated audio tracks in the video, however, through this option a separate file can be loaded (on the master) as the default selected audio track.
 * Separate Overlay File
      * C-Play support the loading of an overlay image file (such as *.png or *.jpg) to be put on top of the video. This might be useful when mapping a static world map on top a video showing ocean flow, for instance. This overlay file needs to be loaded when the video is, thus can only be define in a *"*.cplayfile*".
+* Orientation *(new in v2.3)*
+     * When using dome or sphere grid modes, the current viewing orientation (yaw, pitch, roll) can be saved into the *.cplayfile*. For dome mappings only the yaw is stored; for sphere mappings (EQR and EAC) all three axes are saved. Enable the *"Save orientation"* checkbox in the save dialog when the current orientation differs from the default. On load, the saved orientation is restored automatically.
 
 ## Sections
 

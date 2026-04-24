@@ -9,10 +9,29 @@ parent: Settings
 
 ![Image settings](../../assets/ui/settings/image.png) 
 
-The image settings within C-Play revolve primarily in choosing the background and/or foreground image, which can be used behind and above the standard general media loading/playback, usually access through "*Open File*" or in a playlist.
+The image settings within C-Play control the background and foreground images that frame the standard media playback area. These are typically used to provide a persistent environment backdrop (e.g. a dome background) or an overlay.
 
-At startup, the background is loaded, while the foreground is hidden.
+### Background image
 
-As it is not normal to change background or foreground, as this it meant to be standardized use in your environment, you change these only in this setting. So remember do not save these if it not attended to be default at next startup.
+* **Image file** — Path to the image loaded behind the main media. At startup the background is loaded and visible.
+* **Stereoscopic mode** — Stereo format of the background image: 2D (mono), 3D side-by-side, 3D top-bottom, or 3D top-bottom+flip (default 2D).
+* **Grid mode** — Mapping mode for the background: None (pre-split), Plane, Dome, Sphere EQR, or Sphere EAC (default None).
 
-You can also change the image contrast, brightness, gamma and saturation. This is intended to be used for images/video loaded by the user, to find a system setting. These values will never be saved for use in next startup, as it's more intended to let you test content changes in your environment, more then to be an overall setting.
+### Foreground image
+
+* **Image file** — Path to the image loaded in front of the main media. At startup the foreground is hidden.
+* **Stereoscopic mode** — Stereo format of the foreground image (same options as background, default 2D).
+* **Grid mode** — Mapping mode for the foreground (same options as background, default None).
+
+As these images are meant to be standardized for your environment, only change them when you intend to update the default. Remember not to save if the change is unintended for the next startup.
+
+### Image adjustments
+
+These sliders let you adjust properties of the currently loaded media image for testing purposes:
+
+* **Contrast**
+* **Brightness**
+* **Gamma**
+* **Saturation**
+
+These values are **not saved** between sessions. They are intended for live testing of content in your environment rather than as persistent settings.

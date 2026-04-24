@@ -1048,13 +1048,12 @@ Kirigami.ApplicationWindow {
 
                 Layout.fillWidth: true
 
-                model: ["QuitCPlay", "Next", "Previous", "Pause", "PlayPause", "Stop", "Play", "Rewind",
-                        "Seek", "SetAutoPlay", "SetPosition", "LoadFromAudioTracks", "LoadFromPlaylist",
-                        "LoadFromSections", "LoadFromSlides", "SelectFromSlides", "SetSpeed", "SetVolume",
-                        "SetSyncVolumeVisibilityFading", "FadeVolumeDown", "FadeVolumeUp", "FadeImageDown",
-                        "FadeImageUp", "SpinPitchUp", "SpinPitchDown", "SpinYawLeft", "SpinYawRight",
-                        "SpinRollCW", "SpinRollCCW", "OrientationAndSpinReset", "RunSurfaceTransition",
-                        "SlidePrevious", "SlideNext"]
+                model: ["Play", "Pause", "Stop", "Rewind", "Seek", 
+                        "SetPosition", "SetSpeed", "SetVolume", "SetSyncVolumeVisibilityFading", 
+                        "LoadFromAudioTracks", "LoadFromPlaylist", "LoadFromSections", "LoadFromSlides", 
+                        "FadeVolumeDown", "FadeVolumeUp", "FadeImageDown", "FadeImageUp", 
+                        "SpinPitchUp", "SpinPitchDown", "SpinYawLeft", "SpinYawRight",
+                        "SpinRollCW", "SpinRollCCW", "OrientationAndSpinReset", "RunSurfaceTransition"]
 
                 Component.onCompleted: {
                     currentIndex = find(layerView.layerItem.layerOperation);
