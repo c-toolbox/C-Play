@@ -898,6 +898,7 @@ void MpvObject::loadFile(const QString &file, bool updateLastPlayedFile) {
         m_playSectionsModel->clear();
         m_playSectionsModel->setCurrentEditItemIsEdited(true);
         command(QStringList() << QStringLiteral("loadfile") << fileToLoad, true);
+        setRotate(QVector3D(GridSettings::surfaceRotateX(), GridSettings::surfaceRotateY(), GridSettings::surfaceRotateZ()));
 
         if (updateLastPlayedFile) {
             LocationSettings::setLastPlayedFile(file);
@@ -1104,8 +1105,11 @@ void MpvObject::loadItem(PlayListItemData itemData, bool updateLastPlayedFile, Q
             if (itemData.gridToMapOn() > 2) {
                 setRotate(QVector3D(itemData.rotateX(), itemData.rotateY(), itemData.rotateZ()));
             } else {
-                setRotate(QVector3D(0.0, itemData.rotateY(), 0.0));
+                setRotate(QVector3D(GridSettings::surfaceRotateX(), itemData.rotateY(), GridSettings::surfaceRotateZ()));
             }
+        }
+        else {
+            setRotate(QVector3D(GridSettings::surfaceRotateX(), GridSettings::surfaceRotateY(), GridSettings::surfaceRotateZ()));
         }
 
         if (itemData.eofMode() >= 0)
