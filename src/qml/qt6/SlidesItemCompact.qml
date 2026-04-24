@@ -106,7 +106,7 @@ ItemDelegate {
                 id: slideNameField
 
                 anchors.left: its.left
-                anchors.leftMargin: slidesScrollView.effectiveScrollBarWidth  > 0 ? 19 : 12
+                anchors.leftMargin: 19
                 anchors.top: parent.top
                 anchors.topMargin: 3
                 color: Kirigami.Theme.textColor

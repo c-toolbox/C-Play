@@ -249,7 +249,6 @@ ItemDelegate {
             anchors.left: parent.left
             anchors.top: parent.top
             anchors.bottom: parent.bottom
-            anchors.leftMargin: -6
             width: 12
             color: "transparent"
 

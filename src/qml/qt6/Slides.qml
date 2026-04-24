@@ -303,7 +303,7 @@ Rectangle {
                     icon.color: app.slides.preLoadLayers ? "lime" : "crimson"
                     icon.name: app.slides.preLoadLayers ? "task-complete" : "address-book-new"
 
-                    onCheckedChanged: {
+                    onClicked: {
                         app.slides.preLoadLayers = preLoadLayersButton.checked;
                     }
 

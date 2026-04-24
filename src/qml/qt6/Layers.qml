@@ -293,7 +293,7 @@ Rectangle {
 
                     checkable: true
                     checked: layerViewGridParams.visible
-                    enabled: layerViewItem.layerTypeName !== "Audio"
+                    enabled: layerView.layerItem.layerTypeName !== "Audio"
                     focusPolicy: Qt.NoFocus
                     icon.name: "configure"
 
