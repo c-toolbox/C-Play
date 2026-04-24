@@ -981,6 +981,14 @@ void SlidesModel::loadFromJSONFile(const QString &path) {
     else
         setSelectedSlideIdx(m_selectedSlideIdx);
 
+    // Always preload the first slide after loading a presentation,
+    // even if preLoadLayers is not enabled.
+    if (!m_slides.empty()) {
+        for (auto layer : m_slides[0]->getLayers()) {
+            layer.first->setShouldPreLoad(true);
+        }
+    }
+
     updateRecentLoadedPresentations(jsonFileInfo.absoluteFilePath());
     setSlidesPath(jsonFileInfo.absoluteFilePath());
     setSlidesName(jsonFileInfo.baseName());

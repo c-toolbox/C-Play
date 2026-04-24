@@ -85,7 +85,12 @@ SettingsBasePage {
                     Kirigami.IconTitleSubtitle {
                         Layout.fillWidth: true
                         icon.name: MouseSettings[model.key] ? "checkmark" : ""
-                        subtitle: MouseSettings[model.key] ? appActions[MouseSettings[model.key]].text : "No action set"
+                        subtitle: {
+                            var actionName = MouseSettings[model.key];
+                            if (actionName && appActions[actionName])
+                                return appActions[actionName].text;
+                            return "No action set";
+                        }
                         title: model.label
                     }
                     ToolButton {
