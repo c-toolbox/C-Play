@@ -17,9 +17,52 @@ When showing the slides and layers lists, the top of these list including the pr
 
 ![Slide and Layers building](../../assets/ui/slides_layers_top.png){:width="85%"}
 
-Even if you haven't created any slides, there is always a special slide called *Master* accessible to add layers too. The special thing with the master slide is that layers in this slide are always rendered in front of the background images, but behind and media you play from *"Open file"* or through the playlist. Hence the master layers essentially work a flexible background layers.
+#### Slides toolbar
 
-To add new layers, click the "+" button to the left in the layers list, and the *"Add new layer"* will become visible. 
+The slides panel toolbar (first and second row):
+
+| Icon | Action |
+|------|--------|
+| ![](../../assets/icons/document-open.svg) | Open a saved presentation |
+| ![](../../assets/icons/document-replace.svg) | New presentation (clear all slides) |
+| ![](../../assets/icons/system-save-session-lime.svg) / ![](../../assets/icons/system-save-session-orange.svg) | Save presentation (lime = saved, orange = unsaved changes) |
+| ![](../../assets/icons/task-complete-lime.svg) / ![](../../assets/icons/address-book-new-crimson.svg) | Pre-load layers toggle (lime = on, crimson = off) |
+| ![](../../assets/icons/table.svg) | Slide visibility table view |
+| ![](../../assets/icons/list-add.svg) | Add slide to bottom of list |
+| ![](../../assets/icons/list-remove.svg) | Remove selected slide |
+| ![](../../assets/icons/pan-up-symbolic.svg) | Move selected slide up |
+| ![](../../assets/icons/pan-down-symbolic.svg) | Move selected slide down |
+| ![](../../assets/icons/backgroundtool.svg) | Master slide (permanent background layers) |
+
+#### Layers toolbar
+
+The layers panel toolbar (first and second row):
+
+| Icon | Action |
+|------|--------|
+| ![](../../assets/icons/document-open.svg) | Open presentation |
+| ![](../../assets/icons/system-save-session-lime.svg) / ![](../../assets/icons/system-save-session-orange.svg) | Save presentation |
+| ![](../../assets/icons/layer-top.svg) | Move selected layer to top |
+| ![](../../assets/icons/layer-bottom.svg) | Move selected layer to bottom |
+| ![](../../assets/icons/trash-empty-crimson.svg) | Clear all layers |
+| ![](../../assets/icons/configure.svg) | Configure grid parameters |
+| ![](../../assets/icons/layer-new.svg) | Add a new layer |
+| ![](../../assets/icons/layer-delete.svg) | Remove selected layer |
+| ![](../../assets/icons/layer-raise.svg) | Move selected layer up |
+| ![](../../assets/icons/layer-lower.svg) | Move selected layer down |
+| ![](../../assets/icons/document-edit-decrypt-verify.svg) | Layer view (inspect selected layer) |
+
+Even if you haven't created any slides, there is always a special slide called *Master* accessible to add layers too. The special thing with the *master* slide is that layers in this slide are always rendered in front of the background image, but behind any media you play from *"Open file"* or through the playlist. Hence the master layers essentially work a flexible background layers. The layers in the other slide are in front of the media in the main player, and the foreground image is on-top.
+
+I.e., from top to bottom in render hierarchy:
+
+* ![](../../assets/icons/layer-top.svg) Foreground image
+* ![](../../assets/icons/layer-raise.svg) Slides in list
+* ![](../../assets/icons/media-playback-start.svg) Main media
+* ![](../../assets/icons/backgroundtool.svg) Master slide
+* ![](../../assets/icons/layer-bottom.svg) Background image
+
+To add new layers, click the ![](../../assets/icons/list-add.svg) "+" button to the left in the layers list, and the *"Add new layer"* will become visible. 
 
 ![Layer Add New](../../assets/ui/layer_add_new.png){:width="50%"}
 
@@ -55,15 +98,15 @@ After you've added a new layer, you can specify the parameters of the layer in m
 
 ![Layer View Video](../../assets/ui/layers_view_video.png){:width="40%"} &nbsp;&nbsp;&nbsp; ![Layer View Grid Parameters](../../assets/ui/layer_view_grid_parameters.png){:width="48%"}
 
-### Region of Interest
+### ![](../../assets/icons/trim-to-selection.svg) Region of Interest
 
-In the top right, there is *"Region of interest (ROI)"* button, that enables a feature below where you can specify a certain region of you layer that should be visible. This is useful for when you want to show only a part of the source.
+In the top right, there is *"Region of interest (ROI)"* ![](../../assets/icons/trim-to-selection-lime.svg) / ![](../../assets/icons/trim-to-selection-crimson.svg) button, that enables a feature below where you can specify a certain region of you layer that should be visible. This is useful for when you want to show only a part of the source.
 
 ![Layer Region of Interest](../../assets/ui/layers_view_roi.png){:width="80%"}
 
-### Layer visibility across slides.
+### ![](../../assets/icons/table.svg) Layer visibility across slides.
 
-In the slides menu there is a button named *"Visibility"*, which when clicked opens the window name *"Slide Visibility Table View"*. The window let's you control and overview how layer *live* across slides. This means that you can create layers that are visible across multiple slides, instead of only being shown during one specific slide. The meanings of the different cell colors are:
+In the slides menu there is a button named *"Visibility"* ![](../../assets/icons/table.svg), which when clicked opens the window name *"Slide Visibility Table View"*. The window let's you control and overview how layer *live* across slides. This means that you can create layers that are visible across multiple slides, instead of only being shown during one specific slide. The meanings of the different cell colors are:
 
 * A grey cell means layer not yet available.
 
@@ -79,7 +122,7 @@ Remember, master layers visibility is fade in/out usually depend on media visibi
 
 ![Slide Visibility Matrix](../../assets/ui/slide_visibility_matrix.png){:width="80%"}
 
-### Timeline (C-Play v2.3 and newer)
+### ![](../../assets/icons/chronometer.svg) Timeline (C-Play v2.3 and newer)
 
 The timeline is a per-slide animation system that lets you animate layer properties over time using keyframes. Each slide can have its own timeline with a configurable duration (default 5 seconds).
 

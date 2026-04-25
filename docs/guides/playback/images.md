@@ -13,7 +13,7 @@ These images are usually designed to be defined at startup, but can be changed d
 
 For changing the images runtime, this is made in the "Settings -> Configure -> Images", as seen [here](../settings/image).
 
-At runtime, you can choose to display or hide both the background and foreground in the UI header, as seen below.
+At runtime, you can choose to display or hide both the background and foreground in the UI header using the image visibility buttons: ![](../../assets/icons/view-visible-lime.svg) (show) and ![](../../assets/icons/view-hidden-crimson.svg) (hide). The combined states are indicated by ![](../../assets/icons/layer-top.svg) (foreground visible), ![](../../assets/icons/layer-bottom.svg) (background visible), and ![](../../assets/icons/layer-visible-off.svg) (both hidden).
 
 ![Image control](../../assets/ui/header_taskbar/image.png){:width="50%"}
 
@@ -21,7 +21,7 @@ The bottom of this user interface has a *"On master"* setting, which indicate wh
 
 ### Fading between background and media
 
-While both background and foreground image is either completely visible or hidden, the background is normally fade into view by decreasing the visibility (i.e. increasing the transparency) of the primary media. This is fading is controlled in the header UI, as seen below.
+While both background and foreground image is either completely visible or hidden, the background is normally fade into view by decreasing the visibility (i.e. increasing the transparency) of the primary media. This fading is controlled with ![](../../assets/icons/audio-volume-low.svg) (fade down) and ![](../../assets/icons/audio-volume-high.svg) (fade up) in the header UI, as seen below.
 
 ![Visibility fading](../../assets/ui/header_taskbar/visibility.png){:width="50%"}
 

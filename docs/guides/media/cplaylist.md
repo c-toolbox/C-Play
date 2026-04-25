@@ -7,27 +7,47 @@ parent: Media file structure
 
 # Build and save a playlist (*.cplaylist)
 
-Playlists in C-Play are essentially lists of [cplayfiles](cplayfile.md), which are descriptions (mapping, sections etc) of specific videos.
+Playlists in C-Play are essentially lists of [cplayfiles](cplayfile), which are descriptions (mapping, sections etc) of specific videos.
 
 C-Play requires you to save a *cplayfile* of your video to make sure that the mappings and other parameters are correct between loading of different files.
 
 The playlist view, where items are created and managed, is opened in the bottom right (or bottom left, depending on settings).
 
-It should be straight-forward to build a playlist from adding and removing *cplayfiles*, moving them around, and changing the settings for the selected one.
+The top toolbar provides the main controls for managing the playlist:
 
-Save the playlist by pressing the disk icon, in the middle of the top bar in the playlist view.
+| Icon | Action |
+|------|--------|
+| ![](../../assets/icons/document-open.svg) | Open a saved playlist |
+| ![](../../assets/icons/document-replace.svg) | New playlist (clear all items) |
+| ![](../../assets/icons/list-add.svg) | Add item to playlist |
+| ![](../../assets/icons/list-remove.svg) | Remove selected item |
+| ![](../../assets/icons/view-form.svg) | View / edit selected playlist entry |
+| ![](../../assets/icons/pan-up-symbolic.svg) | Move selected item up |
+| ![](../../assets/icons/pan-down-symbolic.svg) | Move selected item down |
+
+The end-of-file mode button and the second row are described below.
+
+### ![](../../assets/icons/media-playlist-play.svg) Auto-play
+
+The ![](../../assets/icons/media-playlist-play-lime.svg) / ![](../../assets/icons/media-playlist-play-crimson.svg) toggle controls whether the playlist starts playing automatically when a file is loaded. Lime means auto-play is on, crimson means off.
+
+### ![](../../assets/icons/system-save-session.svg) Save playlist
+
+Save the playlist by pressing the ![](../../assets/icons/system-save-session-lime.svg) / ![](../../assets/icons/system-save-session-orange.svg) disk icon. It is lime when the playlist is saved, and turns orange when unsaved changes exist.
 
 ### End-of-file mode
 
-Each item in the playlist has an end-of-file (EOF) mode that controls what happens when the media finishes playing:
+Each item in the playlist has an end-of-file (EOF) mode that controls what happens when the media finishes playing. The EOF button icon changes to reflect the current mode:
 
-* **Pause** — Playback stops at the end of the file.
-* **Continue** — Automatically advances to the next item in the playlist.
-* **Loop** — Repeats the current item indefinitely.
+* ![](../../assets/icons/media-playback-pause.svg) **Pause** — Playback stops at the end of the file.
+* ![](../../assets/icons/go-next.svg) **Continue** — Automatically advances to the next item in the playlist.
+* ![](../../assets/icons/media-playlist-repeat.svg) **Loop** — Repeats the current item indefinitely.
 
 ### Per-item overrides
 
 Starting from C-Play v2.3, the playlist supports per-item overrides that take priority over the values stored in the referenced *.cplayfile*. These let you customize how individual items behave without modifying the original media description.
+
+Per-item overrides are edited in the ![](../../assets/icons/view-form.svg) *"View / edit selected playlist entry"* window, opened from the playlist toolbar.
 
 #### Title override
 

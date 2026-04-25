@@ -15,6 +15,6 @@ To launch application on master+nodes, we normally use an own developed applicat
 
 It's recommended that you first go-through the [setup guide](setup), as well as to learn how C-Play [handles and structures media](media).
 
-When that is done, make sure you understand the application specific [settings](settings), for instance, the specifying the [locations](guides/settings/location.md) for C-Play to save and look for *cplaylists* and *cplayfiles*.
+When that is done, make sure you understand the application specific [settings](settings), for instance, the specifying the [locations](guides/settings/location) for C-Play to save and look for *cplaylists* and *cplayfiles*.
 
 Hopefully the [playback](playback) features should be clear after this.

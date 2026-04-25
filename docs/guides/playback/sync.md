@@ -19,14 +19,17 @@ For simplicity, you can chose to sync the fading of volume and visibility, such 
 
 ### Master to client(s) syncing
 
-*In C-Play v2.2 and newer*
+*In C-Play v2.3 and newer*
+![States](../../assets/ui/header_taskbar/states.png)
+
+*In C-Play v2.2*
 ![States](../../assets/ui/header_taskbar/states.png)
 
 *In C-Play v2.1 and below*
 
 ![Sync On](../../assets/ui/header_taskbar/sync_on.png){:width="20%"} &nbsp; ![Sync Off](../../assets/ui/header_taskbar/sync_off.png){:width="20%"}
 
-The button to the far right of the header is for the overall sync between master and the clients/nodes. Normally, this should always be *On*, but if you want to load, seek and alter many settings at ones, it can be useful to set *"Sync Off"*, and then turn it on when all things are done.
+The button to the far right of the header is for the overall sync between master and the clients/nodes: ![](../../assets/icons/network-connect-lime.svg) (sync on) or ![](../../assets/icons/network-disconnect-crimson.svg) (sync off). Normally, this should always be *On*, but if you want to load, seek and alter many settings at ones, it can be useful to set *"Sync Off"*, and then turn it on when all things are done.
 
 Keep in mind that audio playback is performed on the master, so if you wanted the media to keep playing on the nodes, while you load new media on the master, this will work with the video/image file, but not with the audio.
 

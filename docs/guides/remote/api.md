@@ -7,336 +7,190 @@ parent: Remote Control
 
 # HTTP Web API
 
-It's up to you if you want the HTTP Web API of C-Play to be enabled or not. Just change the configuration file in "*data/http-server-conf.json*" to enable/disable the service at runtime. Here you can also modify which port it should utilize.
-
-All api commands are in form of HTTP Post, regardless of what it does, for simplicity.
-
-Below are the various valid endpoints that C-Play responds to. If no specific format is mentioned, it is pure text, in and out.
-
-To easier understand these commands, feel free to utilize a sample Medialon Manager 7 project, that can be found [here](https://github.com/c-toolbox/C-Play/tree/master/help/http_server).
-
-### General ones.
-
-    Endpoint: /status
-    Purpose:  To check connection.
-    Returns:  "OK"
-
-    Endpoint: /quit
-    Purpose:  Ask C-play to quit/exit.
-    Returns:  "Quitting C-Play"
-
-    Endpoint: /media_title
-    Purpose:  To retrieve the media title of current media.
-    Returns:  The title as text/string
-
-    Endpoint: /position
-    Purpose:  Which position in time the current media has.
-    Params:   Optional to supply "format=hh:mm:ss/zz", or similiar to get a format time string. 
-               Or supply "set=" to actually set a time position.
-    Returns:  The time (in seconds) or as formatted time string.
-
-    Endpoint: /seek
-    Purpose:  Seek relative time, backward or forward
-    Params:   Required to supply "time=value", where value is in seconds. 
-              A negative integer is for backward seek and positive integer for forward seek. 
-              Optional to supply "format=hh:mm:ss/zz", or similiar to get a format time string.
-    Returns:  The time (in seconds) or as formatted time string.
-
-    Endpoint: /remaining
-    Purpose:  Which remaining time the current media has.
-    Params:   Optional to supply "format=hh:mm:ss/zz", or similiar to get a format time string.
-    Returns:  The time (in seconds) or as formatted time string.
-
-    Endpoint: /duration
-    Purpose:  Which total duration time the current media has.
-    Params:   Optional to supply "format=hh:mm:ss/zz", or similiar to get a format time string.
-    Returns:  The time (in seconds) or as formatted time string.
- 
-    Endpoint: /play
-    Purpose:  Ask C-play to play current media.
-    Returns:  "Play"
-    
-    Endpoint: /pause
-    Purpose:  Ask C-play to pause current media.
-    Returns:  "Pause"
-
-    Endpoint: /stop or /rewind
-    Purpose:  Ask C-play to stop/rewind current media to start position.
-    Returns:  "Stop/Rewind"
-
-    Endpoint: /auto_play
-    Purpose:  Enable or disables the use of auto play in the playlist.
-    Params:   Optional to supply a "on=1" or "on=0" to enable or disable the auto play feature.
-    Returns:  When "on=" is added, a message indiciating success or an error. 
-              Otherwise returns 0 if auto play is disabled and 1 if it's enabled.
-
-    Endpoint: /speed
-    Purpose:  Which playback speed the media player has.
-    Params:   Optional to supply "factor=value", to set playback speed to specify value. 
-              The value should be between 0.01-100.
-    Returns:  The playback speed.
-
-### Handle volume level and image visibility
-    
-    Endpoint: /volume
-    Purpose:  To handle audio volume.
-    Params:   Optional to supply "level=" and a value between 0 and 100.
-    Returns:  The volume level (0 to 100)
-
-    Endpoint: /fade_duration
-    Purpose:  Time value of how long a fade takes in C-Play.
-    Params:   Optional to supply "format=hh:mm:ss/zz", or similiar to get a format time string.
-    Returns:  The time (in seconds) or as formatted time string.
-
-    Endpoint: /fade_volume_down
-    Purpose:  Ask C-play to lower volume to zero during a certain "fade" time period.
-    Returns:  "Fading volume down"
-
-    Endpoint: /fade_volume_up
-    Purpose:  Increase volume to previous chosen level during a certain "fade" time period.
-    Returns:  "Fading volume up"
-
-    Endpoint: /fade_image_down
-    Purpose:  Decrease the visibility of the video/image to 0% during a certain "fade" time period.
-    Returns:  "Fading image down"
-
-    Endpoint: /fade_image_up
-    Purpose:  Increase the visibility of the image/video to 100% during a certain "fade" time period.
-    Returns:  "Fading image up"
-
-    Endpoint: /sync_image_volume_fade
-    Purpose:  Increase the image/video view to 100% during a certain "fade" time period.
-    Params:   Either supply "value=1" or "value=0" to set if sync between fade is enabled or not
-    Returns:  0 or 1 depending on if sync is disabled or enabled. 
-              Returns "Setting syncImageVolumeFade to *" when the value parameter is supplied.
-
-    Endpoint: /visibility
-    Purpose:  Return the visibility of the image/video.
-    Returns:  A value between 0 and 100
-
-## Varios media modes
-
-    Endpoint: /stereo_mode
-    Purpose:  Return the current stereoscopic mode in C-play.
-    Returns:  A value between 0 and 3
-
-    // 0 = 2D (mono)
-    // 1 = 3D (side-by-side)
-    // 2 = 3D (top-bottom)
-    // 3 = 3D (top-bottom-flip)
-
-    Endpoint: /grid_mode
-    Purpose:  Return the current set grid mode in C-play.
-    Returns:  A value between 0 and 4
-
-    // 0 = Pre-split
-    // 1 = Plane
-    // 2 = Dome
-    // 3 = Sphere EQR
-    // 4 = Sphere EAC
-
-    Endpoint: /loop_mode
-    Purpose:  Return the current loop/eof (end of file) mode in C-play.
-    Returns:  A value between 0 and 2
-
-    // 0 = Pause
-    // 1 = Continue to next
-    // 2 = Loop
-
-    Endpoint: /view_mode
-    Purpose:  Return or set the "view mode" in C-play, which means to force 2D or let content decide.
-    Params:   Optional to set it, using "mode=0" or "mode=1".
-    Returns:  A value between 0 and 1
-
-    //0 = Auto 2D/3D switch
-    //1 = Force 2D for all
-
-## Handle background and foreground image remotely
-
-    Endpoint: /background_image
-    Purpose:  Enable or disables the use of background.
-    Params:   Optional to supply a "on=1" or "on=0" to enable or disable the background image.
-    Returns:  When "on=" is added, a message indiciating success or an error. 
-              Otherwise return 0 if background is disabled and 1 if enabled.
-
-    Endpoint: /background_image_stereo_mode
-    Purpose:  Return the stereoscopic mode for the background image.
-    Returns:  A value between 0 and 3 (see /stereo_mode enpoint for logic)
-
-    Endpoint: /background_image_grid_mode
-    Purpose:  Return the grid mode for the background image.
-    Returns:  A value between 0 and 4 (see /grid_mode enpoint for logic)
-
-    Endpoint: /foreground_image
-    Purpose:  Enable or disables the use of foreground.
-    Params:   Optional to supply a "on=1" or "on=0" to enable or disable the foreground image.
-    Returns:  When "on=" is added, a message indiciating success or an error. 
-              Otherwise returns 0 if foreground is disabled and 1 if enabled.
-
-    Endpoint: /foreground_image_stereo_mode
-    Purpose:  Return the stereoscopic mode for the foreground image.
-    Returns:  A value between 0 and 3 (see /stereo_mode enpoint for logic)
-
-    Endpoint: /foreground_image_grid_mode
-    Purpose:  Return the grid mode for the foreground image.
-    Returns:  A value between 0 and 4 (see /grid_mode enpoint for logic)
-
-## Handle lists remotely
-
-    Endpoint: /playlist
-    Purpose:  Retrieve a formatted string of the playlist in C-play.
-    Params:   Optional to "charsPerItem=33", or another value to limit the characters in the name.
-    Returns:  A formatted text string that can be handled as a list.
-
-    Endpoint: /playing_in_playlist
-    Purpose:  Return the index of the current loaded item in the playlist.
-    Returns:  A value between 0 and number of items. -1 if nothing is selected.
-
-    Endpoint: /load_from_playlist
-    Purpose:  To load a specific item in the playlist.
-    Params:   Mandatory to supply "index=", and a value of the index you want to load.
-    Returns:  A message to indicate success or an error.
-
-    Endpoint: /audiotracks
-    Purpose:  Retrieve a formatted string of all audio tracks current loaded media has.
-    Params:   Optional to "charsPerItem=33", or another value to limit the characters in the name. 
-              Also optionally to supply "removeLoadedFilePrefix=1" to remove the matching characters 
-              from start between video and audio, to shorten the string further.
-    Returns:  A formatted text string that can be handled as a list.
-
-    Endpoint: /playing_in_audiotracks
-    Purpose:  Return the index of the current loaded audio track.
-    Returns:  A value between 0 and number of tracks. -1 if nothing is selected.
-
-    Endpoint: /load_from_audiotracks
-    Purpose:  To load a new audio track in the list of audio tracks.
-    Params:   Mandatory to supply "index=", and a value of the index you want to load.
-    Returns:  A message to indicate success or an error.
-
-    Endpoint: /sections
-    Purpose:  Retrieve a formatted string of the sections the current loaded media has.
-    Params:   Optional to "charsPerItem=33", or another value to limit the characters in the name.
-    Returns:  A formatted text string that can be handled as a list.
-
-    Endpoint: /playing_in_sections
-    Purpose:  Return the index of the current loaded section in the section list.
-    Returns:  A value between 0 and number of tracks. -1 if nothing is selected.
-
-    Endpoint: /load_from_sections
-    Purpose:  To load a specific section in the section list.
-    Params:   Mandatory to supply "index=", and a value of the index you want to load.
-    Returns:  A message to indicate success or an error.
-
-    Endpoint: /section_start_time
-    Purpose:  Time value of when current playing section starts.
-    Params:   Optional to supply "format=hh:mm:ss/zz", or similiar to get a format time string.
-    Returns:  The time (in seconds) or as formatted time string.
-
-    Endpoint: /section_end_time
-    Purpose:  Time value of when current playing section ends.
-    Params:   Optional to supply "format=hh:mm:ss/zz", or similiar to get a format time string.
-    Returns:  The time (in seconds) or as formatted time string.
-
-    Endpoint: /section_end_mode
-    Purpose:  The mode which handle what happend when the current loaded section ends.
-    Returns:  A value between 0 and 4 (see meaning below)
-
-    // 0 = Pause
-    // 1 = Fade out (then pause)
-    // 2 = Continue
-    // 3 = Next
-    // 4 = Loop
-
-    Endpoint: /slides
-    Purpose:  Retrieve a formatted string of the slides in the loaded C-play presentation.
-    Params:   Optional to "charsPerItem=33", or another value to limit the characters in the name.
-    Returns:  A formatted text string that can be handled as a list.
-
-    Endpoint: /playing_in_slides
-    Purpose:  Return the index of the current loaded item in the slides.
-    Returns:  A value between 0 and number of items. -1 if nothing is selected, which indicates master slide.
-
-    Endpoint: /select_from_slides
-    Purpose:  To select a specific slide in the slides list (which automatically makes it pre-loads all layers).
-    Params:   Mandatory to supply "index=", and a value of the index you want to load.
-    Returns:  A message to indicate success or an error.
-
-    Endpoint: /load_from_slides
-    Purpose:  To load a specific slide in the slides list.
-    Params:   Mandatory to supply "index=", and a value of the index you want to load.
-    Returns:  A message to indicate success or an error.
-
-    Endpoint: /layers
-    Purpose:  Retrieve a formatted string of the layers in the specific slide.
-    Params:   Either supply parameter "slide_name=" with the slide name, for instance "Master".
-              Or supply parameter "slide_idx=" with the slide index, -1 for master slide.
-              Optional to "charsPerItem=33", or another value to limit the characters in the name.
-    Returns:  A formatted text string that can be handled as a list.
-
-## Handle layer parameters
-    
-    Overall for all layer controls.
-    Supply parameter "layer_title=" with the title of the layer
-    Or supply parameter "layer_idx" with the index of the layer
-    Optional parameter is "slide_name=" with the slide name.
-    Or supply parameter "slide_idx=" with the slide index.
-    If no slide name or slide idx is added, we assume the master slide.
-
-    Endpoint: /layer_volume
-    Purpose:  To handle layer audio volume.
-    Params:   Required: see "Overall" above
-              Optional to supply "level=" and a value between 0 and 100.
-    Returns:  The volume level (0 to 100)
-
-    Endpoint: /layer_visibility
-    Purpose:  To handle layer visibility/transparency.
-    Params:   Required: see "Overall" above
-              Optional to supply "value=" and a value between 0 and 100.
-    Returns:  The visibility value (0 to 100)
-
-    Endpoint: /layer_plane
-    Purpose:  To handle layer parameters.
-    Params:   Required: see "Overall" above
-              Optional to supply one or multiple of below params:
-              "azimuth", "elevation", "roll", "distance",
-              "horizontal", "vertical".
-              Send the param with an empty value to just receive current value.
-    Returns:  The value of the plane parameter, 
-              or list of values (pne per line) if multiple parameters where used.
-
-## Spin the grid
-
-    Endpoint: /orientation_reset
-    Purpose:  Reset the orientation of the grid/mapping to default value.
-    Returns:  A success message
-
-    Endpoint: /surface_transition
-    Purpose:  Launch a transition to a secondary set of values, configured in the settings.
-    Params:   Optional to supply "format=hh:mm:ss/zz", or similar, 
-              to get a format time string on how long the transition runs.
-    Returns:  The transition time (in seconds) or as formatted time string.
-
-    The remaining spin endpoints below follow this scheme:
-
-    Purpose:  Enable or disable the spin controls.
-    Params:   Mandatory to supply a "on=1" or "on=0" to enable or disable this spin.
-    Returns:  A message indicating success or an error.
-
-    Endpoints that follow these schemes:
-
-    Endpoint: /spin_pitch_up
-    Endpoint: /spin_pitch_down
-    Endpoint: /spin_yaw_left
-    Endpoint: /spin_yaw_right
-    Endpoint: /spin_roll_ccw
-    Endpoint: /spin_roll_cw
-
-## JSON calls
-
-    Endpoint: /playfile_json
-    Purpose:  To return a JSON structure of the current media state, stored as cplayfile
-    Returns:  A json structure
-
-    Endpoint: /playlist_json
-    Purpose:  To return a JSON structure of the playlist.
-    Returns:  A json structure
+The HTTP Web API allows external systems to control C-Play remotely. Enable or disable it in `data/http-server-conf.json`, where you can also configure the port (default 7007).
+
+All endpoints accept **HTTP POST** requests. Unless noted otherwise, both request and response bodies are plain text.
+
+A sample Medialon Manager 7 project demonstrating these commands is available [here](https://github.com/c-toolbox/C-Play/tree/master/help/http_server).
+
+---
+
+## General
+
+| Endpoint | Params | Description | Returns |
+|----------|--------|-------------|---------|
+| `/status` | — | Check connection | `"OK"` |
+| `/quit` | — | Quit C-Play | `"Quitting C-Play"` |
+| `/media_title` | — | Get current media title | Title string |
+| `/play` | — | Play current media | `"Play"` |
+| `/pause` | — | Pause current media | `"Pause"` |
+| `/stop` | — | Stop/rewind to start | `"Stop/rewind"` |
+| `/rewind` | — | Same as `/stop` | `"Stop/rewind"` |
+
+## Time & position
+
+| Endpoint | Params | Description | Returns |
+|----------|--------|-------------|---------|
+| `/position` | `format=` *(optional)* — e.g. `hh:mm:ss/zz` | Get current position | Seconds or formatted string |
+|  | `set=` *(optional)* — seconds | Set position | (same) |
+| `/seek` | `time=` *(required)* — seconds (negative = backward) | Seek relative | New position |
+|  | `format=` *(optional)* | | Formatted string |
+| `/remaining` | `format=` *(optional)* | Remaining time | Seconds or formatted string |
+| `/duration` | `format=` *(optional)* | Total duration | Seconds or formatted string |
+| `/speed` | `factor=` *(optional)* — `0.01`–`100` | Get or set playback speed | Speed factor |
+| `/auto_play` | `on=` *(optional)* — `1` or `0` | Get or set auto-play | `0`/`1`, or confirmation message |
+
+## Volume & visibility
+
+| Endpoint | Params | Description | Returns |
+|----------|--------|-------------|---------|
+| `/volume` | `level=` *(optional)* — `0`–`100` | Get or set audio volume | Volume level (0–100) |
+| `/visibility` | — | Get media visibility | Value (0–100) |
+| `/fade_duration` | `format=` *(optional)* | Get fade duration | Seconds or formatted string |
+| `/fade_volume_down` | — | Fade volume to zero | `"Fading volume down"` |
+| `/fade_volume_up` | — | Fade volume back up | `"Fading volume up"` |
+| `/fade_image_down` | — | Fade media visibility to 0% | `"Fading image down"` |
+| `/fade_image_up` | — | Fade media visibility to 100% | `"Fading image up"` |
+| `/sync_image_volume_fade` | `value=` *(optional)* — `1` or `0` | Get or set sync between volume and visibility fading | `0`/`1`, or confirmation message |
+
+## Media modes
+
+| Endpoint | Params | Description | Returns |
+|----------|--------|-------------|---------|
+| `/stereo_mode` | — | Get stereoscopic mode | `0`–`3` (see below) |
+| `/grid_mode` | — | Get grid/mapping mode | `0`–`4` (see below) |
+| `/eof_mode` | — | Get end-of-file mode (alias: `/loop_mode`) | `0`–`2` (see below) |
+| `/loop_mode` | — | Get end-of-file mode | `0`–`2` (see below) |
+| `/view_mode` | `mode=` *(optional)* — `0` or `1` | Get or set 2D/3D view mode | `0`–`1` (see below) |
+
+**Stereo mode values:**
+
+| Value | Mode |
+|-------|------|
+| `0` | 2D (mono) |
+| `1` | 3D side-by-side |
+| `2` | 3D top-bottom |
+| `3` | 3D top-bottom-flip |
+
+**Grid mode values:**
+
+| Value | Mode |
+|-------|------|
+| `0` | Pre-split |
+| `1` | Plane |
+| `2` | Dome |
+| `3` | Sphere EQR |
+| `4` | Sphere EAC |
+
+**EOF mode values:**
+
+| Value | Mode |
+|-------|------|
+| `0` | Pause |
+| `1` | Continue to next |
+| `2` | Loop |
+
+**View mode values:**
+
+| Value | Mode |
+|-------|------|
+| `0` | Auto 2D/3D switch |
+| `1` | Force 2D for all |
+
+## Background & foreground images
+
+| Endpoint | Params | Description | Returns |
+|----------|--------|-------------|---------|
+| `/background_image` | `on=` *(optional)* — `1` or `0` | Get or set background visibility | `0`/`1`, or confirmation message |
+| `/background_image_stereo_mode` | — | Get background stereo mode | `0`–`3` |
+| `/background_image_grid_mode` | — | Get background grid mode | `0`–`4` |
+| `/foreground_image` | `on=` *(optional)* — `1` or `0` | Get or set foreground visibility | `0`/`1`, or confirmation message |
+| `/foreground_image_stereo_mode` | — | Get foreground stereo mode | `0`–`3` |
+| `/foreground_image_grid_mode` | — | Get foreground grid mode | `0`–`4` |
+
+## Playlist
+
+| Endpoint | Params | Description | Returns |
+|----------|--------|-------------|---------|
+| `/playlist` | `charsPerItem=` *(optional)* | Get formatted playlist | Text list |
+| `/playing_in_playlist` | — | Current playlist index | Index, or `-1` |
+| `/load_from_playlist` | `index=` *(required)* | Load playlist item | Confirmation or error |
+
+## Audio tracks
+
+| Endpoint | Params | Description | Returns |
+|----------|--------|-------------|---------|
+| `/audiotracks` | `charsPerItem=` *(optional)*, `removeLoadedFilePrefix=1` *(optional)* | Get formatted audio track list | Text list |
+| `/playing_in_audiotracks` | — | Current audio track index | Index, or `-1` |
+| `/load_from_audiotracks` | `index=` *(required)* | Load audio track | Confirmation or error |
+
+## Sections
+
+| Endpoint | Params | Description | Returns |
+|----------|--------|-------------|---------|
+| `/sections` | `charsPerItem=` *(optional)* | Get formatted section list | Text list |
+| `/playing_in_sections` | — | Current section index | Index, or `-1` |
+| `/load_from_sections` | `index=` *(required)* | Load section | Confirmation or error |
+| `/section_start_time` | `format=` *(optional)* | Current section start time | Seconds or formatted string |
+| `/section_end_time` | `format=` *(optional)* | Current section end time | Seconds or formatted string |
+| `/section_end_mode` | — | Current section end mode | `0`–`4` (see below) |
+
+**Section end mode values:**
+
+| Value | Mode |
+|-------|------|
+| `0` | Pause |
+| `1` | Fade out (then pause) |
+| `2` | Continue |
+| `3` | Next |
+| `4` | Loop |
+
+## Slides & layers
+
+| Endpoint | Params | Description | Returns |
+|----------|--------|-------------|---------|
+| `/slide_name` | — | Get current slide name | Slide name, or empty string |
+| `/slide_previous` | — | Go to previous slide | `"Previous slide"` |
+| `/slide_next` | — | Go to next slide | `"Next slide"` |
+| `/slides` | `charsPerItem=` *(optional)* | Get formatted slide list | Text list |
+| `/playing_in_slides` | — | Current slide index (`-1` = master) | Index |
+| `/select_from_slides` | `index=` *(required)* | Select slide (pre-loads layers) | Confirmation or error |
+| `/load_from_slides` | `index=` *(required)* | Load/trigger slide | Confirmation or error |
+| `/layers` | `slide_name=` or `slide_idx=` *(required)*, `charsPerItem=` *(optional)* | Get formatted layer list for a slide | Text list |
+
+### Layer control
+
+All layer endpoints require a layer identifier and an optional slide identifier:
+
+| Param | Description |
+|-------|-------------|
+| `layer_title=` | Layer title (name) |
+| `layer_idx=` | Layer index (alternative to title) |
+| `slide_name=` | Slide name *(optional — defaults to master slide)* |
+| `slide_idx=` | Slide index *(optional — alternative to name, `-1` for master)* |
+
+| Endpoint | Additional params | Description | Returns |
+|----------|-------------------|-------------|---------|
+| `/layer_volume` | `level=` *(optional)* — `0`–`100` | Get or set layer volume | Volume level (0–100) |
+| `/layer_visibility` | `value=` *(optional)* — `0`–`100` | Get or set layer visibility | Visibility (0–100) |
+| `/layer_plane` | `azimuth=`, `elevation=`, `roll=`, `distance=`, `horizontal=`, `vertical=` *(any combination)* | Get or set layer plane parameters. Send a param with no value to read. | One value per param, newline-separated |
+
+## Spin & orientation
+
+| Endpoint | Params | Description | Returns |
+|----------|--------|-------------|---------|
+| `/orientation_reset` | — | Reset grid orientation to defaults | `"Origin Reset"` |
+| `/surface_transition` | `format=` *(optional)* | Run transition to alternative values | Transition time |
+| `/spin_pitch_up` | `on=` — `1` or `0` | Enable/disable pitch up | Confirmation or error |
+| `/spin_pitch_down` | `on=` — `1` or `0` | Enable/disable pitch down | Confirmation or error |
+| `/spin_yaw_left` | `on=` — `1` or `0` | Enable/disable yaw left | Confirmation or error |
+| `/spin_yaw_right` | `on=` — `1` or `0` | Enable/disable yaw right | Confirmation or error |
+| `/spin_roll_ccw` | `on=` — `1` or `0` | Enable/disable roll counter-clockwise | Confirmation or error |
+| `/spin_roll_cw` | `on=` — `1` or `0` | Enable/disable roll clockwise | Confirmation or error |
+
+## JSON
+
+| Endpoint | Description | Returns |
+|----------|-------------|---------|
+| `/playfile_json` | Current media state as cplayfile | JSON |
+| `/playlist_json` | Full playlist | JSON |

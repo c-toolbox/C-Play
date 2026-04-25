@@ -5,9 +5,9 @@ nav_order: 4
 parent: Playback features
 ---
 
-# Spin & Move / 360 Control
+# ![](../../assets/icons/hand.svg){:height="24px"} Spin & Move / 360 Control
 
-C-Play has built in some controls to make static material feel a bot more alive, or alter the viewpoint of certain material at runtime. These are located in the UI header under the *"Spin & Move"* button.
+C-Play has built in some controls to make static material feel a bot more alive, or alter the viewpoint of certain material at runtime. These are located in the UI header under the *"Spin & Move"* ![](../../assets/icons/hand-lime.svg) / ![](../../assets/icons/hand-crimson.svg) button.
 
 This section is only enabled if you have chosen to map your content on either a dome or a sphere.
 
@@ -25,9 +25,9 @@ The four additional controls and triggers are:
 
 1. *Location*: Intuitive way the rotation corresponds to the control, either when your *inside* an object or *outside* an object (such as a sphere).
 
-1. *Move between scenarios*: Moves between the current values and the *"Alternative Transition Scenario”*, as further described in the [Grid & Mapping settings](../settings/grid.md).
+1. *Move between scenarios*: Moves between the current values and the *"Alternative Transition Scenario”*, as further described in the [Grid & Mapping settings](../settings/grid).
 
-1. *Reset orientation*: Resets all operations above to the default values.
+1. ![](../../assets/icons/edit-reset.svg) *Reset orientation*: Resets all operations above to the default values.
 
 *Note: A change in the Grid mode of a grid type triggers an automatic reset.*
 

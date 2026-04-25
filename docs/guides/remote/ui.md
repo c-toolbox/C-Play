@@ -53,7 +53,7 @@ This opens and closes the shutter of the presentation projector, but also, puts 
 
 ### 360 Spin
 
-C-Play support 360 movies and images (2D and 3D). However, in the dome, the content shown of that video is usually only half of that. To create a interactive moment of the 360 video, to show another side, there is a button to rotate the sphere around, and also transition the sphere to another defined state (see "*Settings -> Configure -> Mapping & Image*" do change this state.)
+C-Play support 360 movies and images (2D and 3D). However, in the dome, the content shown of that video is usually only half of that. To create a interactive moment of the 360 video, to show another side, there is a button to rotate the sphere around, and also transition the sphere to another defined state (see [Grid/mapping settings](../../guides/settings/grid) do change this state.)
 
 
 

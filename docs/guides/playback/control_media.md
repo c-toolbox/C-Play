@@ -9,7 +9,7 @@ parent: Playback features
 
 These are the runtime controls to use when a file has been loaded from either *"Open File"* or from the playlist.
 
-Start with selection of an audio track. You can switch the audio track even when the video is loaded and playing *(though it is recommended to pause first, to preserve good sync between audio and image.)*
+Start with selection of an audio track ![](../../assets/icons/new-audio-alarm.svg). You can switch the audio track even when the video is loaded and playing *(though it is recommended to pause first, to preserve good sync between audio and image.)*
 
 ![Audio](../../assets/ui/header_taskbar/audio.png){:width="70%"}
 
@@ -28,7 +28,9 @@ These are the grid mappings for specific content:
 1. *Sphere EQR* : 360 equi-rectangular content (2:1 aspect ratio).
 1. *Sphere EAC* : 360 equi-angular cubemap (preferred by Google/YouTube).
 
-![Stereoscopic Mode Control](../../assets/ui/header_taskbar/stereo_mode.png){:width="30%"} &nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp; ![Grid Mode Control](../../assets/ui/header_taskbar/grid_mode.png){:width="21.5%"}
+The grid mapping button ![](../../assets/icons/kstars_hgrid.svg) and stereoscopic mode button ![](../../assets/icons/redeyes.svg) (2D) / ![](../../assets/icons/visibility.svg) (3D) are shown in the header taskbar.
+
+![Stereoscopic Mode Control](../../assets/ui/header_taskbar/stereo_mode.png){:width="30%"} &nbsp;&nbsp;&nbsp; ![Stereoscopic Mode Force 2D](../../assets/ui/header_taskbar/stereo_mode_force_2d.png){:width="32%"} &nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp; ![Grid Mode Control](../../assets/ui/header_taskbar/grid_mode.png){:width="21.5%"}
 
 *Note: You can force 3D content to be displayed as 2D by forcing 2D, with the settting below in the stereoscopic mode drop-down menu.*
 
@@ -37,9 +39,9 @@ These are the grid mappings for specific content:
 When your video/audio has finished playing, you can set what happens at the "end of file".
 The different modes are:
 
-1. *EOF - Pause* : Just pause when the media has reached it's end.
-1. *EOF - Next* : Go to next file in the playlist automatically.
-1. *EOF - Loop* : Loop the media file (infinite).
+1. ![](../../assets/icons/media-playback-pause.svg) *EOF - Pause* : Just pause when the media has reached it's end.
+1. ![](../../assets/icons/go-next.svg) *EOF - Next* : Go to next file in the playlist automatically.
+1. ![](../../assets/icons/media-playlist-repeat.svg) *EOF - Loop* : Loop the media file (infinite).
 
 ![End of File Mode Control](../../assets/ui/header_taskbar/end_of_file_mode.png){:width="40%"} &nbsp;&nbsp;&nbsp; ![Stop instead of Pause](../../assets/ui/header_taskbar/end_of_file_mode_stop.png){:width="40%"}
 
