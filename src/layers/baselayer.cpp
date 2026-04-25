@@ -176,6 +176,7 @@ BaseLayer::BaseLayer() {
     m_hasInitialized = false;
     m_keepVisibilityForNumSlides = 0;
     m_identifier = 0;
+    m_pendingStart = false;
     setNeedSync();
 }
 
@@ -208,11 +209,6 @@ void BaseLayer::updateFrame() {
 }
 
 bool BaseLayer::renderingIsOn() const {
-    // Overwrite in derived class
-    return false;
-}
-
-bool BaseLayer::ready() const {
     // Overwrite in derived class
     return false;
 }
@@ -594,10 +590,21 @@ void BaseLayer::setAlpha(float a) {
     // Alpha starts/stop layer depending on visibility changes.
     if (isMaster()) {
         if (alpha() <= 0.f && a > 0.f) {
-            start();
+            if (ready()) {
+                start();
+            } else {
+                m_pendingStart = true;
+            }
         }
         else if (alpha() > 0.f && a <= 0.f) {
+            m_pendingStart = false;
             stop();
+        }
+
+        // Check if a deferred start can now be fulfilled
+        if (m_pendingStart && a > 0.f && ready()) {
+            m_pendingStart = false;
+            start();
         }
 
        //Alpha controls volume level as well, from 0 to desired value (100%)
@@ -628,6 +635,10 @@ bool BaseLayer::shouldUpdate() const {
 
 void BaseLayer::setShouldUpdate(bool value) {
     m_shouldUpdate = value;
+    if (value && m_pendingStart && isMaster() && ready()) {
+        m_pendingStart = false;
+        start();
+    }
 }
 
 bool BaseLayer::shouldUpdateFrame() const {

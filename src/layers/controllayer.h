@@ -20,6 +20,8 @@ public:
 
     void initialize() override;
     bool existOnMasterOnly() const override;
+    bool ready() const override;
+    bool hasTexture() const override;
 
     void start() override;
     void stop() override;

@@ -32,6 +32,7 @@ public:
     void update(bool updateRendering = true);
     void updateFrame();
     bool ready() const;
+    bool hasTexture() const override;
 
     bool hasText() const;
 

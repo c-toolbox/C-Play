@@ -84,6 +84,9 @@ QVariant LayersModel::data(const QModelIndex &index, int role) const {
 
     const BaseLayer *layerItem = m_layers.at(index.row()).first.get();
 
+    if(layerItem == nullptr)
+        return QVariant();
+
     int stereoVideo = layerItem->stereoMode();
     int gridToMapOn = layerItem->gridMode();
 
@@ -193,10 +196,17 @@ void LayersModel::setHasSynced() {
 }
 
 BaseLayer *LayersModel::layer(int i) {
-    if (i >= 0 && m_layers.size() > i)
+    if (i >= 0 && m_layers.size() > i && m_layers[i].first)
         return m_layers[i].first.get();
     else
         return nullptr;
+}
+
+std::shared_ptr<BaseLayer> LayersModel::layerShared(int i) {
+    if (i >= 0 && m_layers.size() > i)
+        return m_layers[i].first;
+    else
+        return std::shared_ptr<BaseLayer>();
 }
 
 QString LayersModel::layerTitle(int i) const {
@@ -227,9 +237,14 @@ int LayersModel::minLayerStatus() {
     if (m_layers.isEmpty())
         return -1;
 
-    int minStatus = 2;
+    int minStatus = -1;
     for (int i = 0; i < m_layers.size(); i++) {
-        minStatus = std::min(minStatus, m_layers[i].second);
+        if (m_layers[i].first->type() == BaseLayer::CONTROL)
+            continue;
+        if (minStatus == -1)
+            minStatus = m_layers[i].second;
+        else
+            minStatus = std::min(minStatus, m_layers[i].second);
     }
     return minStatus;
 }
@@ -238,9 +253,14 @@ int LayersModel::maxLayerStatus() {
     if (m_layers.isEmpty())
         return -1;
 
-    int maxStatus = 0;
+    int maxStatus = -1;
     for (int i = 0; i < m_layers.size(); i++) {
-        maxStatus = std::max(maxStatus, m_layers[i].second);
+        if (m_layers[i].first->type() == BaseLayer::CONTROL)
+            continue;
+        if (maxStatus == -1)
+            maxStatus = m_layers[i].second;
+        else
+            maxStatus = std::max(maxStatus, m_layers[i].second);
     }
     return maxStatus;
 }
@@ -286,7 +306,7 @@ int LayersModel::addLayer(QString title, int type, QString filepath, int stereoM
         newLayer->setPlaneSize(glm::vec2(GridSettings::plane_Width_CM(), GridSettings::plane_Height_CM()), 
             static_cast<uint8_t>(GridSettings::plane_Calculate_Size_Based_on_Video()));
         newLayer->initialize();
-        m_layers.push_back(QPair(QSharedPointer<BaseLayer>(newLayer), 0));
+        m_layers.push_back(QPair(std::shared_ptr<BaseLayer>(newLayer), 0));
         setLayersNeedsSave(true);
         setNeedSync();
     }
@@ -544,7 +564,7 @@ int LayersModel::getLayerToCopyIdx() {
 }
 
 BaseLayer* LayersModel::getLayerToCopy() {
-    if (m_layerToCopyIdx >= 0 && m_layerToCopyIdx < m_layers.size())
+    if (m_layerToCopyIdx >= 0 && m_layerToCopyIdx < m_layers.size() && m_layers[m_layerToCopyIdx].first)
         return m_layers[m_layerToCopyIdx].first.get();
 
     return nullptr;
@@ -570,7 +590,7 @@ void LayersModel::addCopyOfLayer(BaseLayer* srcLayer) {
 
         newLayer->setHierarchy(hierarchy());
         newLayer->initialize();
-        m_layers.push_back(QPair(QSharedPointer<BaseLayer>(newLayer), 0));
+        m_layers.push_back(QPair(std::shared_ptr<BaseLayer>(newLayer), 0));
         setLayersNeedsSave(true);
         setNeedSync();
     }
@@ -825,7 +845,7 @@ void LayersModel::decodeFromJSON(QJsonObject &obj, const QStringList &forRelativ
 
 #ifdef SGCT_HAS_TEXT
                     if (type == BaseLayer::TEXT) {
-                        QSharedPointer<TextLayer> textLayer = qSharedPointerCast<TextLayer, BaseLayer>(m_layers[idx].first);
+                        std::shared_ptr<TextLayer> textLayer = std::static_pointer_cast<TextLayer>(m_layers[idx].first);
                         if (o.contains(QStringLiteral("text"))) {
                             std::string text = o.value(QStringLiteral("text")).toString().toStdString();
                             textLayer->setText(text);
@@ -856,7 +876,7 @@ void LayersModel::decodeFromJSON(QJsonObject &obj, const QStringList &forRelativ
 #endif
 #ifdef PDF_SUPPORT
                     if (type == BaseLayer::PDF) {
-                        QSharedPointer<PdfLayer> pdfLayer = qSharedPointerCast<PdfLayer, BaseLayer>(m_layers[idx].first);
+                        std::shared_ptr<PdfLayer> pdfLayer = std::static_pointer_cast<PdfLayer>(m_layers[idx].first);
                         if (o.contains(QStringLiteral("numPages"))) {
                             int numPages = o.value(QStringLiteral("numPages")).toInt();
                             pdfLayer->setNumPages(numPages);
@@ -1105,7 +1125,7 @@ void LayersModel::encodeToJSON(QJsonObject &obj, const QStringList &forRelativeP
 
 #ifdef SGCT_HAS_TEXT
         if (layer->type() == BaseLayer::TEXT) {
-            QSharedPointer<TextLayer> textLayer = qSharedPointerCast<TextLayer, BaseLayer>(layer);
+            std::shared_ptr<TextLayer> textLayer = std::static_pointer_cast<TextLayer>(layer);
             layerData.insert(QStringLiteral("text"), QJsonValue(QString::fromStdString(textLayer->text())));
             layerData.insert(QStringLiteral("font"), QJsonValue(QString::fromStdString(textLayer->fontName())));
             layerData.insert(QStringLiteral("size"), QJsonValue(textLayer->fontSize()));
@@ -1118,7 +1138,7 @@ void LayersModel::encodeToJSON(QJsonObject &obj, const QStringList &forRelativeP
 
 #ifdef PDF_SUPPORT
         if (layer->type() == BaseLayer::PDF) {
-            QSharedPointer<PdfLayer> pdfLayer = qSharedPointerCast<PdfLayer, BaseLayer>(layer);
+            std::shared_ptr<PdfLayer> pdfLayer = std::static_pointer_cast<PdfLayer>(layer);
             layerData.insert(QStringLiteral("page"), QJsonValue(pdfLayer->page()));
             layerData.insert(QStringLiteral("numPages"), QJsonValue(pdfLayer->numPages()));
         }
@@ -1126,6 +1146,7 @@ void LayersModel::encodeToJSON(QJsonObject &obj, const QStringList &forRelativeP
 #ifdef NDI_SUPPORT
         if (layer->type() == BaseLayer::NDI) {
             layerData.insert(QStringLiteral("volume"), QJsonValue(layer->volume()));
+
             if (layer->isQRCodeDetectionEnabled()) {
                 layerData.insert(QStringLiteral("qrCodeDetection"), QJsonValue(true));
             }
@@ -1280,26 +1301,26 @@ void LayersModel::encodeToJSON(QJsonObject &obj, const QStringList &forRelativeP
 bool LayersModel::runRenderOnLayersThatShouldUpdate(bool updateRendering, bool preload) {
     bool statusHasUpdated = false;
     for (int i = 0; i < m_layers.size(); i++) {
-        auto layer = &m_layers[i].first;
-        if (layer && !layer->isNull() && layer->data()) {
-            if (layer->data()->shouldUpdate()
-                || (preload && !layer->data()->ready()) 
-                || (layer->data()->shouldPreLoad() && !layer->data()->ready())) {
-                if (!layer->data()->hasInitialized()) {
-                    layer->data()->initialize();
+        auto& layer = m_layers[i].first;
+        if (layer) {
+            if (layer->shouldUpdate()
+                || (preload && !layer->ready()) 
+                || (layer->shouldPreLoad() && !layer->ready())) {
+                if (!layer->hasInitialized()) {
+                    layer->initialize();
                 }
-                layer->data()->update(layer->data()->shouldUpdate() && updateRendering);
+                layer->update(layer->shouldUpdate() && updateRendering);
             }
-            if (layer->data()->ready() && layer->data()->shouldUpdateFrame()) {
+            if (layer->ready() && layer->shouldUpdateFrame()) {
                 // Mostly here to handle update on layers in other windows
-                layer->data()->updateFrame();
+                layer->updateFrame();
             }
             if (m_layers.size() > i) {
                 int currentStatus = m_layers[i].second;
-                if (layer && !layer->isNull() && layer->data()->ready() && layer->data()->alpha() > 0.f) {
+                if (layer && layer->ready() && layer->alpha() > 0.f) {
                     m_layers[i].second = 2;
                 }
-                else if (layer && !layer->isNull() && layer->data()->ready()) {
+                else if (layer && layer->ready()) {
                     m_layers[i].second = 1;
                 }
                 else {
@@ -1776,7 +1797,6 @@ void LayersModel::startTimelineOutro() {
 
     stopOutro();
 
-    // Snap layers to the outro-start state so target alphas are fully intro'd
     applyTimelineAt(getTimelineOutroStart());
 
     m_outroTargetAlpha.clear();

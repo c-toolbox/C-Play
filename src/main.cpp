@@ -235,25 +235,33 @@ static std::vector<std::byte> encode() {
         // 2. If sync is needed, only sync those layers with full information, and for the rest of the layers, perform a simpler "always" sync which contains update only
         // 3. If sync is not needed, perform a simpler "always" sync for all layers which contains update only
 
-        std::vector<int> slideIdxToSync;
-        for (int i = Application::instance().slidesModel()->numberOfSlides() - 1; i >= -1; i--) {
-            slideIdxToSync.push_back(i);
+        // Take a thread-safe snapshot of the slide list so we iterate over a stable copy
+        // even if the GUI thread modifies slides concurrently.
+        auto slidesSnapshot = Application::instance().slidesModel()->snapshotSlides();
+        LayersModel* masterSlidePtr = Application::instance().slidesModel()->masterSlide();
+
+        // Build the list of slides to sync: all snapshot slides (back to front) + master (-1)
+        std::vector<std::pair<int, LayersModel*>> slidesToSync;
+        for (int i = static_cast<int>(slidesSnapshot.size()) - 1; i >= 0; i--) {
+            if (slidesSnapshot[i])
+                slidesToSync.push_back(std::make_pair(i, slidesSnapshot[i].data()));
         }
+        if (masterSlidePtr)
+            slidesToSync.push_back(std::make_pair(-1, masterSlidePtr));
 
         // Check if model says sync needed
         int totalLayersToSync = 0;
         bool needLayerSync = Application::instance().slidesModel()->needsSync();
-        for (auto s : slideIdxToSync) {
-            if (s < Application::instance().slidesModel()->numberOfSlides()) {
-                LayersModel* slide = Application::instance().slidesModel()->slide(s);
-                int numLayers = slide->numberOfLayers();
-                for (int l = 0; l < numLayers; l++) {
-                    BaseLayer* layer = slide->layer(l);
-                    if (layer && !layer->existOnMasterOnly()) {
-                        totalLayersToSync++;
-                        if(layer->needSync()) {
-                            needLayerSync = true;
-                        }
+        for (auto& sp : slidesToSync) {
+            LayersModel* slide = sp.second;
+            int numLayers = slide->numberOfLayers();
+            for (int l = 0; l < numLayers; l++) {
+                std::shared_ptr<BaseLayer> layerPtr = slide->layerShared(l);
+                BaseLayer* layer = layerPtr.get();
+                if (layer && !layer->existOnMasterOnly()) {
+                    totalLayersToSync++;
+                    if(layer->needSync()) {
+                        needLayerSync = true;
                     }
                 }
             }
@@ -266,42 +274,42 @@ static std::vector<std::byte> encode() {
         // Sync only complete layer information when needed
         serializeObject(data, totalLayersToSync);
         if (needLayerSync) {
-            for (auto s : slideIdxToSync) {
-                if (s < Application::instance().slidesModel()->numberOfSlides()) {
-                    int numLayers = Application::instance().slidesModel()->slide(s)->numberOfLayers();
-                    for (int l = 0; l < numLayers; l++) {
-                        BaseLayer *nextLayer = Application::instance().slidesModel()->slide(s)->layer(l);
-                        if(nextLayer && !nextLayer->existOnMasterOnly()) {
-                            serializeObject(data, nextLayer->identifier()); // ID
-                            bool needSync = nextLayer->needSync();
-                            serializeObject(data, needSync);   // Check needs sync
-                            serializeObject(data, static_cast<int>(nextLayer->type())); // Type
-                            if (needSync) {
-                                nextLayer->encodeFull(data);
-                                nextLayer->setHasSynced();
-                            }
-                            else {
-                                nextLayer->encodeAlways(data);
-                            }
+            for (auto& sp : slidesToSync) {
+                LayersModel* slideRaw = sp.second;
+                int numLayers = slideRaw->numberOfLayers();
+                for (int l = 0; l < numLayers; l++) {
+                    std::shared_ptr<BaseLayer> layerPtr = slideRaw->layerShared(l);
+                    BaseLayer *nextLayer = layerPtr.get();
+                    if(nextLayer && !nextLayer->existOnMasterOnly()) {
+                        serializeObject(data, nextLayer->identifier()); // ID
+                        bool needSync = nextLayer->needSync();
+                        serializeObject(data, needSync);   // Check needs sync
+                        serializeObject(data, static_cast<int>(nextLayer->type())); // Type
+                        if (needSync) {
+                            nextLayer->encodeFull(data);
+                            nextLayer->setHasSynced();
+                        }
+                        else {
+                            nextLayer->encodeAlways(data);
                         }
                     }
-                    Application::instance().slidesModel()->slide(s)->setHasSynced();
                 }
+                slideRaw->setHasSynced();
             }
             Application::instance().slidesModel()->setHasSynced();
         }
         else {
             // Perform a simpler "always" sync which contains update only
             // Should never remove layers, but only update existing ones, so no need to send layer count or ID
-            for (auto s : slideIdxToSync) {
-                if (s < Application::instance().slidesModel()->numberOfSlides()) {
-                    int numLayers = Application::instance().slidesModel()->slide(s)->numberOfLayers();
-                    for (int l = 0; l < numLayers; l++) {
-                        BaseLayer *nextLayer = Application::instance().slidesModel()->slide(s)->layer(l);
-                        if(nextLayer && !nextLayer->existOnMasterOnly()) {
-                            serializeObject(data, nextLayer->identifier()); // ID
-                            nextLayer->encodeAlways(data);
-                        }
+            for (auto& sp : slidesToSync) {
+                LayersModel* slideRaw = sp.second;
+                int numLayers = slideRaw->numberOfLayers();
+                for (int l = 0; l < numLayers; l++) {
+                    std::shared_ptr<BaseLayer> layerPtr = slideRaw->layerShared(l);
+                    BaseLayer *nextLayer = layerPtr.get();
+                    if(nextLayer && !nextLayer->existOnMasterOnly()) {
+                        serializeObject(data, nextLayer->identifier()); // ID
+                        nextLayer->encodeAlways(data);
                     }
                 }
             }

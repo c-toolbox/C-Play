@@ -13,10 +13,11 @@
 #include <layers/baselayer.h>
 #include <QtQml/qqmlregistration.h>
 #include <QVector>
+#include <memory>
 
 class QTimer;
 
-using Layers = QList<QPair<QSharedPointer<BaseLayer>, int>>;
+using Layers = QList<QPair<std::shared_ptr<BaseLayer>, int>>;
 
 // A single keyframe: time in milliseconds [0, timelineDuration] and alpha [0.0, 1.0]
 // Rotation (X/Y/Z in degrees) and translation (X/Y/Z) are optional per-keyframe.
@@ -93,6 +94,8 @@ public:
     void setHasSynced();
 
     Q_INVOKABLE BaseLayer *layer(int i);
+    std::shared_ptr<BaseLayer> layerShared(int i);
+
     Q_INVOKABLE QString layerTitle(int i) const;
     Q_INVOKABLE int layerIdx(std::string title);
     Q_INVOKABLE int layerStatus(int i);

@@ -47,6 +47,7 @@ public:
     virtual void cleanup();
     virtual void updateFrame();
     virtual bool ready() const;
+    bool hasTexture() const override;
 
     void initializeAndLoad(std::string filePath);
     void update(bool updateRendering = true);

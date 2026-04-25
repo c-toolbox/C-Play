@@ -19,6 +19,7 @@ public:
     ~AudioLayer();
 
     bool ready() const;
+    bool hasTexture() const override;
     bool existOnMasterOnly() const;
 };
 

@@ -104,7 +104,8 @@ public:
     virtual void update(bool updateRendering = true);
     virtual void updateFrame();
     virtual bool renderingIsOn() const;
-    virtual bool ready() const;
+    virtual bool ready() const = 0;
+    virtual bool hasTexture() const = 0;
 
     virtual void start();
     virtual void stop();
@@ -291,6 +292,7 @@ protected:
     bool m_shouldPreLoad;
     bool m_hasInitialized;
     bool m_needSync;
+    bool m_pendingStart;
     int m_syncIteration;
 
     mutable std::mutex m_updateMutex;

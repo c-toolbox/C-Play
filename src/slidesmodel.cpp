@@ -208,7 +208,7 @@ BaseLayer* SlideVisibilityModel::findLayer(int row) {
     for (auto s : *m_slideList) {
         const Layers& slideLayers = s->getLayers();
         for (auto layer : slideLayers) {
-            if (row == layerNum) {
+            if (row == layerNum && layer.first) {
                 return layer.first.get();
             }
             layerNum++;
@@ -578,7 +578,7 @@ LayersModel *SlidesModel::masterSlide() {
 LayersModel *SlidesModel::slide(int i) {
     if (i == -1)
         return masterSlide();
-    else if (i >= 0 && m_slides.size() > i)
+    else if (i >= 0 && m_slides.size() > i && m_slides[i])
         return m_slides[i].get();
     else
         return m_dummySlide;
@@ -602,11 +602,25 @@ LayersModel *SlidesModel::selectedSlide() {
     return slide(m_selectedSlideIdx);
 }
 
+QSharedPointer<LayersModel> SlidesModel::slideShared(int i) {
+    std::lock_guard<std::recursive_mutex> lock(m_slidesMutex);
+    if (i >= 0 && m_slides.size() > i && m_slides[i])
+        return m_slides[i];
+    else
+        return QSharedPointer<LayersModel>();
+}
+
+QList<QSharedPointer<LayersModel>> SlidesModel::snapshotSlides() {
+    std::lock_guard<std::recursive_mutex> lock(m_slidesMutex);
+    return m_slides;
+}
+
 SlideVisibilityModel* SlidesModel::visibilityModel() {
     return m_visibilityModel;
 }
 
 int SlidesModel::addSlide() {
+    std::lock_guard<std::recursive_mutex> lock(m_slidesMutex);
     beginInsertRows(QModelIndex(), m_slides.size(), m_slides.size());
     m_slides.push_back(QSharedPointer<LayersModel>(new LayersModel(this)));
     setSlidesNeedsSave(true);
@@ -633,6 +647,7 @@ int SlidesModel::addSlide() {
 }
 
 void SlidesModel::removeSlide(int i) {
+    std::lock_guard<std::recursive_mutex> lock(m_slidesMutex);
     if(i < 0 || i >= m_slides.size() || m_slides[i]->getLayersCanBeLocked())
         return;
 
@@ -670,6 +685,7 @@ void SlidesModel::removeSlide(int i) {
 }
 
 void SlidesModel::moveSlide(int i, int t) {
+    std::lock_guard<std::recursive_mutex> lock(m_slidesMutex);
     if (i < 0 || t < 0 || i >= m_slides.size() || t >= m_slides.size() || i == t) {
         Q_EMIT dataChanged(index(i, 0), index(t, 0));
         Q_EMIT slideModelChanged();
@@ -707,6 +723,7 @@ void SlidesModel::moveSlide(int i, int t) {
 }
 
 void SlidesModel::moveSlideUp(int i) {
+    std::lock_guard<std::recursive_mutex> lock(m_slidesMutex);
     if (i < 1)
         return;
     if (!beginMoveRows(QModelIndex(), i, i, QModelIndex(), i - 1))
@@ -732,6 +749,7 @@ void SlidesModel::moveSlideUp(int i) {
 }
 
 void SlidesModel::moveSlideDown(int i) {
+    std::lock_guard<std::recursive_mutex> lock(m_slidesMutex);
     if (i < 0 || i == (m_slides.size() - 1))
         return;
     if (!beginMoveRows(QModelIndex(), i + 1, i + 1, QModelIndex(), i))
@@ -768,6 +786,7 @@ void SlidesModel::updateSelectedSlide() {
 }
 
 void SlidesModel::clearSlides() {
+    std::lock_guard<std::recursive_mutex> lock(m_slidesMutex);
     //Move all locked slides above unlocked ones
     //Remove unlocked slides
     int unlockedSlides = 0;

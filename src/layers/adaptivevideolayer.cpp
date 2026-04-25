@@ -212,6 +212,16 @@ void AdaptiveVideoLayer::loadFile(std::string filePath, bool reload) {
     }
 }
 
+bool AdaptiveVideoLayer::ready() const {
+    if (m_mpl == MPV && mpvVideoLayer) return mpvVideoLayer->ready();
+    if (m_mpl == MDK && mdkVideoLayer) return mdkVideoLayer->ready();
+    return false;
+}
+
+bool AdaptiveVideoLayer::hasTexture() const {
+    return true;
+}
+
 BaseLayer* AdaptiveVideoLayer::get() {
     if (m_mpl == AdaptiveVideoLayer::MediaPlayerLibrary::MDK) {
         return mdkVideoLayer;
@@ -273,3 +283,5 @@ void AdaptiveVideoLayer::updateUsedMediaLibrary(std::string codecName) {
         }
     }
 }
+
+

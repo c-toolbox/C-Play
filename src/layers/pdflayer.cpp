@@ -158,7 +158,11 @@ void PdfLayer::update(bool updateRendering) {
 }
 
 bool PdfLayer::ready() const {
-    return m_pdfData.filepath == filepath() && m_pdfData.page == page() && m_pdfData.trd == nullptr;
+    return !m_pdfData.filepath.empty() && m_pdfData.threadDone;
+}
+
+bool PdfLayer::hasTexture() const {
+    return true;
 }
 
 int PdfLayer::page() const {

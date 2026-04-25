@@ -28,3 +28,7 @@ bool AudioLayer::existOnMasterOnly() const {
 bool AudioLayer::ready() const {
     return !m_data.loadedFile.empty();
 }
+
+bool AudioLayer::hasTexture() const {
+    return false;
+}

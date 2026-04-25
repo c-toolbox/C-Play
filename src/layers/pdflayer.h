@@ -53,6 +53,7 @@ public:
     void initialize();
     void update(bool updateRendering = true);
     bool ready() const;
+    bool hasTexture() const override;
 
     int page() const;
     void setPage(int p);

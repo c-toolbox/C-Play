@@ -56,6 +56,10 @@ bool ImageLayer::ready() const {
     return !imageData.filename.empty() && imageData.threadDone;
 }
 
+bool ImageLayer::hasTexture() const {
+    return true;
+}
+
 bool ImageLayer::processImageUpload(std::string filename, bool forceUpdate) {
     std::lock_guard<std::mutex> lock(m_updateMutex);
     handleAsyncImageUpload();

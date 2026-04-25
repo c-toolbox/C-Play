@@ -354,6 +354,10 @@ bool MpvLayer::ready() const {
     return false;
 }
 
+bool MpvLayer::hasTexture() const {
+    return true;
+}
+
 void MpvLayer::initializeAndLoad(std::string filePath) {
     if (!m_data.mpvInitialized) {
         initializeMpv();

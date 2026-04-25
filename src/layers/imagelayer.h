@@ -31,6 +31,7 @@ public:
     void initialize();
     void update(bool updateRendering = true);
     bool ready() const;
+    bool hasTexture() const override;
 
     bool processImageUpload(std::string filename, bool forceUpdate);
     std::string loadedFile();

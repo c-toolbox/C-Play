@@ -396,6 +396,10 @@ bool NdiLayer::ready() const {
     return m_isReady;
 }
 
+bool NdiLayer::hasTexture() const {
+    return true;
+}
+
 void NdiLayer::start() {
     if (!m_audioStreamStarted && isAudioEnabled() && m_audioStream && m_audioStreamOpen) {
         setVolume(m_volume);

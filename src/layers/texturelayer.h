@@ -49,7 +49,7 @@ public:
     void setFrozen(bool frozen);
 
     // Whether this layer holds a valid texture (independent of frozen state).
-    bool hasTexture() const;
+    bool hasTexture() const override;
 
     // ---- Fade support ----
 

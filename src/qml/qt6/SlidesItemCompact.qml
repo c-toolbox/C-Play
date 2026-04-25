@@ -158,7 +158,7 @@ ItemDelegate {
                 width: 10
                 height: 10
                 radius: 5
-                visible: model.layerminstatus !== model.layermaxstatus
+                visible: model.layerminstatus >= 0 && model.layermaxstatus >= 0 && model.layerminstatus !== model.layermaxstatus
                 color: (model.layerminstatus === 1 ? "orange" : "crimson")          
             }
             Rectangle {
@@ -169,7 +169,7 @@ ItemDelegate {
                 width: 10
                 height: 10
                 radius: 5
-                visible: model.layerminstatus !== model.layermaxstatus
+                visible: model.layerminstatus >= 0 && model.layermaxstatus >= 0 && model.layerminstatus !== model.layermaxstatus
                 color: (model.layermaxstatus === 2 ? "lime" : "orange")       
             }
             Rectangle {
@@ -180,7 +180,7 @@ ItemDelegate {
                 width: 10
                 height: 10
                 radius: 5
-                visible: model.layerminstatus === model.layermaxstatus
+                visible: model.layerminstatus >= 0 && model.layermaxstatus >= 0 && model.layerminstatus === model.layermaxstatus
                 color: (model.layerminstatus === 2 ? "lime" : model.layerminstatus === 1 ? "orange" : model.layerminstatus === 0 ? "crimson" : "black")         
             }
             Item {

@@ -41,6 +41,9 @@ public:
 
     void loadFile(std::string filePath, bool reload = false);
 
+    bool ready() const override;
+    bool hasTexture() const override;
+
     BaseLayer* get();
 
     void updateUsedMediaLibrary(std::string codecName);

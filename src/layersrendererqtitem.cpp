@@ -1255,12 +1255,15 @@ void LayersRendererQtOpenGLObject::updateLayers() {
     }
 
     for (int s = -1; s < Application::instance().slidesModel()->numberOfSlides(); s++) {
-        auto* slide = Application::instance().slidesModel()->slide(s);
+        QSharedPointer<LayersModel> slidePtr = Application::instance().slidesModel()->slideShared(s);
+        auto* slide = slidePtr ? slidePtr.data() : Application::instance().slidesModel()->slide(s);
         if (!slide) continue;
 
         int numLayers = slide->numberOfLayers();
         for (int l = numLayers - 1; l >= 0; l--) {
-            BaseLayer* layer = slide->layer(l);
+            std::shared_ptr<BaseLayer> layerPtr = slide->layerShared(l);
+            BaseLayer* layer = layerPtr.get();
+
             if (layer) {
                 if (layer->alpha() > 0.f) {
                     if (layer->ready()) {
@@ -1313,9 +1316,11 @@ void LayersRendererQtOpenGLObject::renderLayers(float angle,
         if (slide) {
             int numLayers = slide->numberOfLayers();
             for (int l = numLayers - 1; l >= 0; l--) {
-                BaseLayer* layer = slide->layer(l);
+                std::shared_ptr<BaseLayer> layerPtr = slide->layerShared(l);
+                BaseLayer* layer = layerPtr.get();
+
                 if (layer) {
-                    if (layer->ready() && (layer->alpha() > 0.f)) {
+                    if (layer->ready() && layer->hasTexture() && (layer->alpha() > 0.f)) {
                         if (layer->hasSubLayers()) {
                             for (const auto& sublayer : layer->getSubLayers()) {
                                 renderLayer(sublayer.get(), eyeMode, angle, viewMatrix, projectionMatrix);
@@ -1348,14 +1353,16 @@ void LayersRendererQtOpenGLObject::renderLayers(float angle,
     // Render slides layers
     if (Application::instance().slidesModel()) {
         for (int s = 0; s < Application::instance().slidesModel()->numberOfSlides(); s++) {
-            auto* slide = Application::instance().slidesModel()->slide(s);
+            QSharedPointer<LayersModel> slidePtr = Application::instance().slidesModel()->slideShared(s);
+            auto* slide = slidePtr ? slidePtr.data() : Application::instance().slidesModel()->slide(s);
             if (!slide) continue;
 
             int numLayers = slide->numberOfLayers();
             for (int l = numLayers - 1; l >= 0; l--) {
-                BaseLayer* layer = slide->layer(l);
+                std::shared_ptr<BaseLayer> layerPtr = slide->layerShared(l);
+                BaseLayer* layer = layerPtr.get();
                 if (layer) {
-                    if (layer->ready() && (layer->alpha() > 0.f)) {
+                    if (layer->ready() && layer->hasTexture() && (layer->alpha() > 0.f)) {
                         if (layer->hasSubLayers()) {
                             // QR operations active: skip the parent, only render sublayers
                             for (const auto& sublayer : layer->getSubLayers()) {

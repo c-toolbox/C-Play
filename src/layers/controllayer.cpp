@@ -23,6 +23,14 @@ bool ControlLayer::existOnMasterOnly() const {
     return true;
 }
 
+bool ControlLayer::ready() const {
+    return true;
+}
+
+bool ControlLayer::hasTexture() const {
+    return false;
+}
+
 void ControlLayer::start() {
     if (s_dispatchCallback && !m_operation.empty()) {
         s_dispatchCallback(m_operation, m_parameter);

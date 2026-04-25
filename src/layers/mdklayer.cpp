@@ -109,6 +109,10 @@ bool MdkLayer::ready() const {
     return !m_data.loadedFile.empty() && m_data.updateRendering;
 }
 
+bool MdkLayer::hasTexture() const {
+    return true;
+}
+
 void MdkLayer::initializeAndLoad(std::string filePath) {
     if (!m_data.mdkInitializedGL) {
         initializeGL();
@@ -381,3 +385,4 @@ void MdkLayer::generateTexture(unsigned int& id, int width, int height) {
     glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_WRAP_S, GL_CLAMP_TO_EDGE);
     glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_WRAP_T, GL_CLAMP_TO_EDGE);
 }
+

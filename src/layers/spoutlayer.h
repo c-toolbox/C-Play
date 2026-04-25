@@ -36,6 +36,7 @@ public:
     void initialize();
     void update(bool updateRendering = true);
     bool ready() const;
+    bool hasTexture() const override;
 
 private:
     void GenerateTexture(unsigned int& id, int width, int height);

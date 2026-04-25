@@ -196,8 +196,11 @@ void TextLayer::updateFrame() {
 }
 
 bool TextLayer::ready() const {
-    // Overwrite in derived class
-    return hasText();
+    return m_data.fboCreated && !m_text.empty();
+}
+
+bool TextLayer::hasTexture() const {
+    return true;
 }
 
 bool TextLayer::hasText() const {

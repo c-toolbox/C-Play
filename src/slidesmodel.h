@@ -13,6 +13,7 @@
 #include <QAbstractTableModel>
 #include <QtQml/qqmlregistration.h>
 #include <QElapsedTimer>
+#include <mutex>
 
 class BaseLayer;
 class LayersModel;
@@ -157,6 +158,8 @@ public:
     Q_INVOKABLE LayersModel *slide(int i);
     Q_INVOKABLE LayersModel *slide(std::string name);
     Q_INVOKABLE LayersModel *selectedSlide();
+    QSharedPointer<LayersModel> slideShared(int i);
+    QList<QSharedPointer<LayersModel>> snapshotSlides();
 
     Q_PROPERTY(SlideVisibilityModel *visibilityModel
         READ visibilityModel
@@ -291,6 +294,7 @@ Q_SIGNALS:
 
 private:
     QList<QSharedPointer<LayersModel>> m_slides;
+    mutable std::recursive_mutex m_slidesMutex;
     LayersModel *m_masterSlide;
     LayersModel *m_dummySlide;
     SlideVisibilityModel* m_visibilityModel;
