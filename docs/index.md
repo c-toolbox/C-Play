@@ -36,7 +36,7 @@ An additional powerful feature in C-Play is the presentation tool, where you can
 
 - *Audio* (WAV, AAC etc)
 
-- *NDI* (Live streams form local network)
+- *NDI* or *Spout* (Video over network or applications.)
 
 - *Streams* (Youtube etc supported through FFmpeg)
 

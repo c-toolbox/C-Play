@@ -28,15 +28,14 @@ class KConfigDialog;
 class KConfigGroup;
 class KColorSchemeManager;
 class BaseLayer;
-class ScreensModel;
-class SlidesModel;
-class StreamModel;
+#include "screensmodel.h"
+#include "slidesmodel.h"
+#include <layers/streammodel.h>
 #ifdef NDI_SUPPORT
-class NDISendersModel;
-class PortAudioModel;
+#include <ndi/ndimodel.h>
 #endif
 #ifdef SPOUT_SUPPORT
-class SpoutSendersModel;
+#include <layers/spoutmodel.h>
 #endif
 
 #if QT_VERSION >= QT_VERSION_CHECK(6, 0, 0)
@@ -48,29 +47,29 @@ Q_DECLARE_OPAQUE_POINTER(QAbstractItemModel*)
 #define OPAQUE_PTR_BaseLayer
 Q_DECLARE_OPAQUE_POINTER(BaseLayer*)
 #endif
-#ifndef OPAQUE_PTR_ScreensModel
-#define OPAQUE_PTR_ScreensModel
-Q_DECLARE_OPAQUE_POINTER(ScreensModel*)
+#ifndef METATYPE_ScreensModel
+#define METATYPE_ScreensModel
+Q_DECLARE_METATYPE(ScreensModel*)
 #endif
-#ifndef OPAQUE_PTR_SlidesModel
-#define OPAQUE_PTR_SlidesModel
-Q_DECLARE_OPAQUE_POINTER(SlidesModel*)
+#ifndef METATYPE_SlidesModel
+#define METATYPE_SlidesModel
+Q_DECLARE_METATYPE(SlidesModel*)
 #endif
-#ifndef OPAQUE_PTR_StreamModel
-#define OPAQUE_PTR_StreamModel
-Q_DECLARE_OPAQUE_POINTER(StreamModel*)
+#ifndef METATYPE_StreamModel
+#define METATYPE_StreamModel
+Q_DECLARE_METATYPE(StreamModel*)
 #endif
 #ifdef NDI_SUPPORT
-#ifndef OPAQUE_PTR_NDIModels
-#define OPAQUE_PTR_NDIModels
-Q_DECLARE_OPAQUE_POINTER(NDISendersModel*)
-Q_DECLARE_OPAQUE_POINTER(PortAudioModel*)
+#ifndef METATYPE_NDIModels
+#define METATYPE_NDIModels
+Q_DECLARE_METATYPE(NDISendersModel*)
+Q_DECLARE_METATYPE(PortAudioModel*)
 #endif
 #endif
 #ifdef SPOUT_SUPPORT
-#ifndef OPAQUE_PTR_SpoutSendersModel
-#define OPAQUE_PTR_SpoutSendersModel
-Q_DECLARE_OPAQUE_POINTER(SpoutSendersModel*)
+#ifndef METATYPE_SpoutSendersModel
+#define METATYPE_SpoutSendersModel
+Q_DECLARE_METATYPE(SpoutSendersModel*)
 #endif
 #endif
 #endif

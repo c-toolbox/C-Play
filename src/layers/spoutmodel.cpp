@@ -7,7 +7,6 @@
 
 #include "spoutmodel.h"
 #include "spoutlayer.h"
-//#include <QRegularExpression>
 
 SpoutSendersModel::SpoutSendersModel(QObject *parent)
     : QAbstractListModel(parent) {
@@ -61,10 +60,5 @@ int SpoutSendersModel::getNumberOfSenders() {
 
 QString SpoutSendersModel::getSpoutVersionString() {
     QString spoutVersion = QString::fromStdString(SpoutFinder::instance().getSpoutVersionString());
-    //QRegularExpression regExp(QStringLiteral("\\d*\\.\\d*\\.\\d*"));
-    //QRegularExpressionMatch match = regExp.match(spoutVersion);
-    //if (match.hasMatch()) {
-        //return match.captured(0);
-    //}
     return spoutVersion;
 }

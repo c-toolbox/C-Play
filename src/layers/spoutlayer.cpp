@@ -1,6 +1,6 @@
 /*
  * SPDX-FileCopyrightText:
- * 2026 Erik Sund�n <eriksunden85@gmail.com>
+ * 2026 Erik Sundén <eriksunden85@gmail.com>
  *
  * SPDX-License-Identifier: GPL-3.0-or-later
  */
@@ -20,11 +20,10 @@ SpoutFinder::SpoutFinder() {
 }
 
 SpoutFinder::~SpoutFinder() {
-	if (!m_spoutlibrary) {
+	if (m_spoutlibrary) {
 		// Release the library on exit
 		m_spoutlibrary->Release();
 	}
-	delete _instance;
 	_instance = nullptr;
 }
 
@@ -36,11 +35,15 @@ SpoutFinder& SpoutFinder::instance() {
 }
 
 int SpoutFinder::senderCount() {
+	if (!m_spoutlibrary)
+		return 0;
 	return m_spoutlibrary->GetSenderCount();
 }
 
 std::vector<std::string> SpoutFinder::getSendersList() {
 	std::vector<std::string> sendersList;
+	if (!m_spoutlibrary)
+		return sendersList;
 	int nSenders = m_spoutlibrary->GetSenderCount();
 	if (nSenders > 0) {
 		char SenderName[256];
@@ -53,10 +56,14 @@ std::vector<std::string> SpoutFinder::getSendersList() {
 }
 
 bool SpoutFinder::senderExists(std::string senderName) {
+	if (!m_spoutlibrary)
+		return false;
 	return m_spoutlibrary->FindSenderName(senderName.c_str());
 }
 
 std::string SpoutFinder::getSpoutVersionString() {
+	if (!m_spoutlibrary)
+		return std::string();
 	return m_spoutlibrary->GetSDKversion();
 }
 
@@ -81,47 +88,36 @@ SpoutLayer::~SpoutLayer() {
 void SpoutLayer::initialize() {
     m_hasInitialized = true;
 
-	// Specify the sender to connect to.
-	// The application will not connect to any other unless the user selects one.
-	// If that sender closes, the application will wait for the nominated sender to open.
-	m_receiver->SetReceiverName(filepath().c_str());
+	if (!m_receiver)
+		return;
 
 	// Set as active
-	//m_receiver->SetActiveSender(filepath().c_str());
-	// Change to the active sender
-	//m_receiver->SetReceiverName();
+	m_receiver->SetActiveSender(filepath().c_str());
 }
 
 void SpoutLayer::update(bool updateRendering) {
-	//
-	// ReceiveTexture or ReceiveImage connect to and receive from a sender
-	// Optionally include the ID of an fbo if one is currently bound
-	//
-	// For successful receive, sender details can be retrieved with
-	//		const char * GetSenderName();
-	//		unsigned int GetSenderWidth();
-	//		unsigned int GetSenderHeight();
-	//		DWORD GetSenderFormat();
-	//		double GetSenderFps();
-	//		long GetSenderFrame();
-	//
-	// If receive fails, the sender has closed
-	// Connection can be tested at any time with 
-	//		bool IsConnected();
-	//
+	if (!ready()) {
+		return;
+	}
 
+	if (updateRendering) {
+		updateFrame();
+	}
+}
+
+void SpoutLayer::updateFrame() {
 	// Let's recieve image or audio
-	if (ready() && updateRendering) {
+	if (m_receiver && ready()) {
 		unsigned int width = m_receiver->GetSenderWidth();
 		unsigned int height = m_receiver->GetSenderHeight();
 		// If IsUpdated() returns true, the sender size has changed
 		// and the receiving texture or pixel buffer must be re-sized.
-		if (m_receiver->IsUpdated() 
-			|| width != (unsigned int)renderData.width 
+		if (m_receiver->IsUpdated()
+			|| width != (unsigned int)renderData.width
 			|| height != (unsigned int)renderData.height) {
 			width = m_receiver->GetSenderWidth();
 			height = m_receiver->GetSenderHeight();
-			
+
 			// Check for changed sender dimensions
 			if (width != (unsigned int)renderData.width || height != (unsigned int)renderData.height) {
 				if (renderData.width > 0)
@@ -135,23 +131,19 @@ void SpoutLayer::update(bool updateRendering) {
 		}
 
 		// Receive texture
-		if(m_receiver->IsConnected())
-			m_receiver->ReceiveTexture(renderData.texId, GL_TEXTURE_2D);
+		m_receiver->ReceiveTexture(renderData.texId, GL_TEXTURE_2D, true);
 	}
 }
 
 bool SpoutLayer::ready() const {
-	int nSenders = m_receiver->GetSenderCount();
-
-	if (nSenders < 1)
+	if (!m_receiver)
 		return false;
 
-	if (m_receiver->FindSenderName(filepath().c_str())) {
-		if (strcmp(m_receiver->GetSenderName(), filepath().c_str()) != 0) {
-			m_receiver->SetReceiverName(filepath().c_str());
-		}
+	if(m_receiver->IsConnected())
+        return true;
+
+	if (m_receiver->GetActiveSender(filepath().data()))
 		return true;
-	}
 
     return false;
 }

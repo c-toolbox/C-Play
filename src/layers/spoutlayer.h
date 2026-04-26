@@ -1,6 +1,6 @@
 /*
  * SPDX-FileCopyrightText:
- * 2026 Erik Sund�n <eriksunden85@gmail.com>
+ * 2026 Erik Sundén <eriksunden85@gmail.com>
  *
  * SPDX-License-Identifier: GPL-3.0-or-later
  */
@@ -35,6 +35,7 @@ public:
 
     void initialize();
     void update(bool updateRendering = true);
+    void updateFrame();
     bool ready() const;
     bool hasTexture() const override;
 

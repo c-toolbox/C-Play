@@ -66,21 +66,26 @@ To add new layers, click the ![](../../assets/icons/list-add.svg) "+" button to 
 
 ![Layer Add New](../../assets/ui/layer_add_new.png){:width="50%"}
 
-Here you can choose to add layers of the following types:
+Here you can choose from the following layer types:
 
-* Image
-* Video
-* Audio
-* PDF
-* NDI
-* Stream (capture cards etc)
-* Control (C-Play v2.3 and newer)
+| Layer type | Best used for |
+|------------|---------------|
+| **Image** | Supported extensions: *.png*, *.jpg*, *.jpeg*, *.tga*. |
+| **Video** | Common supported extensions: *.mp4*, *.mkv*, *.mov*, *.webm*, *.mpeg*. |
+| **Audio** | Common supported extensions: *.mp3*, *.wav*, *.flac*, *.ogg*, *.m4a*. |
+| **PDF** | Document pages, slides, or signage content imported from a PDF file. |
+| **NDI** | Live video and audio received from an NDI sender on the network. |
+| **Spout** | Live video shared from another Windows application on the same machine. |
+| **Stream** | Capture cards, camera feeds, URLs, or other MPV-compatible live inputs. |
+| **Control** | Non-visual automation commands for playback, fades, loading, and timing control. |
 
-The four first ones all are local or network files that are chosen through file dialogs. The default dialog locations of each of these types can be changed in "Settings -> Configure -> Location", as seen [here](../settings/location).
+The file-based layer types *Image*, *Video*, *Audio*, and *PDF* are chosen through file dialogs. The default dialog locations of each of these types can be changed in "Settings -> Configure -> Location", as seen [here](../settings/location).
 
-When choosing *"NDI (Network Device Interface)*" a combobox becomes visible instead of the file dialog field. The combobox contains all of the discovered NDI sources on the network which can be received. Both image and audio is supported through NDI.
+When choosing *"NDI (Network Device Interface)"*, a combobox becomes visible instead of the file dialog field. The combobox contains the discovered NDI sources on the network that can be received. Both image and audio are supported through NDI.
 
-When choosing *"Stream*" you can choose between pre-defined streams for your system in a combobox (loaded from editable file *"data/predefined-streams.json*") or to add a custom entry in a text field. The stream is handled as video/audio with the MPV library, so explore possibilities through the MPV docs.
+When choosing *"Spout"*, a combobox becomes visible instead of the file dialog field. The combobox lists the currently available Spout senders from other Windows applications on the same machine, and the refresh button can be used to rescan the sender list. This makes it practical to bring live rendered content such as graphics, real-time engines, or capture tools directly into a slide as a video layer. Spout layers are available by default in C-Play v2.3 Windows builds.
+
+When choosing *"Stream"*, you can choose between pre-defined streams for your system in a combobox, loaded from the editable file *"data/predefined-streams.json"*, or add a custom entry in a text field. The stream is handled as video/audio with the MPV library, so explore the possibilities further through the MPV documentation.
 
 When choosing *"Control"*, the layer does not display any visual content. Instead, it dispatches a player control operation when activated through the slide timeline. Control layers exist only on the master node and are useful for automating playback actions within a presentation.
 

@@ -2,7 +2,7 @@
 
 C-Play is an open source cluster media player, useful for video playback and presentations in immersive environments (such as domes, powerwalls etc).
 
-![Render C-Play v2.2](docs/assets/Cplay-v2-2.png)
+![Render C-Play v2.3](docs/assets/Cplay-v2-3.png)
 
 # Documentation
 
@@ -32,11 +32,11 @@ An additional powerful feature in C-Play is the presentation tool, where you can
 
 - *Audio* (WAV, AAC etc)
 
-- *NDI* (Live streams form local network)
+- *NDI* or *Spout* (Network video and/or across local apps)
 
 - *Streams* (Youtube etc supported through FFmpeg)
 
-- *Text* (With custom font, also used for subtitles.) 
+- *Text* (With custom font, also used for subtitles) 
 
  With above layers, you can  make it as easy as using powerpoint to create an immersive presentation.
 

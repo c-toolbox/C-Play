@@ -175,7 +175,7 @@ if(BUILD_CPLAY_WITH_NDI)
     endif()
 endif()
 
-option(BUILD_CPLAY_WITH_SPOUT "Global On/Off for SPOUT support" OFF)
+option(BUILD_CPLAY_WITH_SPOUT "Global On/Off for SPOUT support" ON)
 if(BUILD_CPLAY_WITH_SPOUT)
     find_package(Spout2)
     # Install portaudio with vcpkg
