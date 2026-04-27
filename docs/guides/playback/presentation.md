@@ -9,13 +9,13 @@ parent: Playback features
 
 A presentation can be built according to the guide seen [here](../media/cplaypres).
 
-For playing a presentation, you can use the left/right arrow of the keyboard (if you haven't changed the default keyboard shortcuts), to move forwards and backwards in the slide deck. At startup, when a presentation is loaded, no slides other then master layers should ideally be visible (good practice before saving the presentation), as seen in the left image below. Notice that the *"pre-load icon"* ![](../../assets/icons/address-book-new-crimson.svg) to the right of *"Slides:"*, always is red at startup. This is so pre-loading does not occur if the presentation is not suppose to be used, even if loaded at startup.
+To play a presentation, you can use the left and right arrow keys on the keyboard, if you have not changed the default shortcuts, to move forwards and backwards through the slide deck. At startup, when a presentation is loaded, no slides other than master layers should ideally be visible. This is good practice before saving the presentation, as seen in the left image below. Notice that the *"pre-load icon"* ![](../../assets/icons/address-book-new-crimson.svg) to the right of *"Slides:"* is always red at startup. This prevents pre-loading from occurring if the presentation is not supposed to be used, even if it is loaded at startup.
 
 As seen in the middle image, when pressing the *"Pre-Load"* button ![](../../assets/icons/task-complete-lime.svg), it turns green and all slides shift from *Red* to *Orange*, which means that the slides, and i.e. the layers are loaded, but not yet visible. When a slide is triggered and the layers become visible, they turn *Green*. If a slide contains both visible and non-visible layers, two colors might show in the slide, as indicated in the image below to the right.
 
 ![Master Layer](../../assets/ui/slides_layers_master.png){:width="29%"} &nbsp;&nbsp;&nbsp; ![PreLoad Layers](../../assets/ui/slides_layers_preload.png){:width="29%"} &nbsp;&nbsp;&nbsp; ![Triggering Slides](../../assets/ui/slides_layers.png){:width="29%"}
 
-In the *"Visibility"* ![](../../assets/icons/table.svg) window, you can ask layers to be visible during multiple slides, which may come handy, if you want a background media to be visible during a set number of slides, to fade in layers one-by-one onto your screen.
+In the *"Visibility"* ![](../../assets/icons/table.svg) window, you can set layers to be visible during multiple slides, which may come in handy if you want background media to stay visible during a set of slides while fading in layers one by one.
 
 ![Slide Visibility Matrix](../../assets/ui/slide_visibility_matrix.png){:width="80%"}
 
@@ -32,7 +32,7 @@ NDI and Stream layers support a QR code-driven presentation mode called **ImPres
 In the layer view for an NDI or Stream layer, check *"ImPres Mode (QR Code Detection)"*. This setting is saved with the presentation.
 
 ### Example
-You can open an example powerpoint from `data/impres/ImPres_PPT_Template.ppt` that showcases how the QR codes could be displayed in proper way, which is being visible directly when new slide becomes visible and then disappears quiet fast.
+You can open the example PowerPoint at `data/impres/ImPres_PPT_Template.ppt`, which shows one practical way to display the QR codes so they are visible immediately when a new slide appears and then disappear quite quickly.
 
 ### How it works
 
@@ -57,7 +57,7 @@ Commands are encoded as text in the QR code using semicolons as delimiters:
 
 | Action | Description |
 |--------|-------------|
-| `SetActive` | Switch to this plane — freeze all other sublayers and start displaying live video in the target plane. If the plane does not exist yet it is created. |
+| `SetActive` | Switch to this plane — freeze all other sublayers and start displaying live video in the target plane. If the plane does not exist yet, it is created. |
 | `Clear` | Fade all sublayers to transparent (use with target `All`). |
 
 Multiple actions can be chained: `FrontCapture;SetActive;Freeze`.

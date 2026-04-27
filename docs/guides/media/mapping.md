@@ -7,13 +7,13 @@ parent: Media file structure
 
 # Video & image mapping modes
 
-In C-Play, this aspects is controlled by different "Grid modes", which can be paired with different "Stereo modes" for stereoscopic content.
+In C-Play, this aspect is controlled by different "Grid modes", which can be paired with different "Stereo modes" for stereoscopic content.
 
 ### Grid mode
 
 This is to indicate that you want to map your video on a physical object, or not.
 
-A "pre-splitted" movie normally has the grid mode "None", as it is assumed to be already mapped correctly.
+A "pre-split" movie normally has the grid mode "None", as it is assumed to be already mapped correctly.
 
 But "flat" movies are normally mapped onto a plane grid, fulldome/fisheye onto dome grid and 360 on a sphere.
 

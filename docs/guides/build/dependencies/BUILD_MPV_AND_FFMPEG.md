@@ -4,7 +4,7 @@ C-Play depends on the great *mpv* media player library, which indeed depends on 
 
 ## Pre-setup: Install JACK + portaudio (needed NDI audio) with vcpkg
 
-In the options below, we will be compiling FFMPEG and MPV with MINGW64, which is a standard (and easiest) practise to build a customized library on Windows. But MINGW64 headers are extensive and the include folder is making compiliation fail (often at least). As we are also using the great 'vcpkg' functionality for many packages, we can utilize this as well to install packages that we can include when building C-Play.
+In the options below, we will be compiling FFMPEG and MPV with MINGW64, which is a standard and usually the easiest practice for building a customized library on Windows. But MINGW64 headers are extensive and the include folder often makes compilation fail. As we are also using the excellent 'vcpkg' functionality for many packages, we can use that as well to install packages that can be included when building C-Play.
 
 Install the [ASIO SDK](https://www.steinberg.net/asiosdk) through 'vcpkg', and then install portaudio with the asio feature enabled. In the C-Play repository, there is some [portaudio vcpkg files](https://raw.githubusercontent.com/c-toolbox/C-Play/master/help/portaudio) to make the 'portaudio' compile with 'asio', which is not in the standard package included in 'vcpkg'. At last, install 'jack2' as well.
 
@@ -18,12 +18,12 @@ vcpkg install jack2
 
 As of writing (2025-09-01) this is mpv 0.40 and ffmpeg 7.1.1.
 
-This is easiest if you want the latest libraries. However, Option 2 has more control, and a such can maximize performance in C-Play for specific configurations.
+This is easiest if you want the latest libraries. However, Option 2 gives you more control and can therefore maximize performance in C-Play for specific configurations.
 
 Here are the steps:
 
 Download MSYS from [official website](https://www.msys2.org/).
-Install and the run *mingw64.exe*.
+Install it and then run *mingw64.exe*.
 
 Then clone "https://github.com/msys2/MINGW-packages" into your mingw64 home folder.
 
@@ -33,9 +33,9 @@ git clone "https://github.com/msys2/MINGW-packages"
 
 ### 1.1 (Optional) Build JACK PortAudio with ASIO support for the MINGW64 environment
 
-Install the [ASIO SDK](https://www.steinberg.net/asiosdk) through 'vcpkg' or download it (se pre-setup).
+Install the [ASIO SDK](https://www.steinberg.net/asiosdk) through 'vcpkg' or download it directly, as described in the pre-setup section.
 
-- Create an environmental variable called "ASIOSDK_ROOT_DIR" and add the path "C:\vcpkg\installed\x64-windows\include\asiosdk" if located in standard vcpk paths.
+- Create an environmental variable called "ASIOSDK_ROOT_DIR" and add the path "C:\vcpkg\installed\x64-windows\include\asiosdk" if located in standard vcpkg paths.
 
 * Notice: If you running the "Media Build Suite", all the packages in that MSYS64 environment can cause this option to fail the build. Recommended to close the MSYS2/MINGW64 environment at first launch after pressing 'media-autobuild_suite.bat' so you can run this option with fresh environment. The continue on the "Media Build Suite" setup after this option is completed, but do not remove the installed packages that you built/installed in this setup.
 
@@ -53,7 +53,7 @@ edit the PKGBUILD file, to make sure the cmake configuration part has this:
   -DASIOSDK_ROOT_DIR=${ASIOSDK_ROOT_DIR} \
   -DASIOSDK_INCLUDE_DIR=${ASIOSDK_ROOT_DIR} \
 ```
-The run these commands to build and install jack2 + portaudio with the ASIO support configured.
+Then run these commands to build and install jack2 and portaudio with ASIO support configured.
 
 ```
 pacman -S binutils base-devel mingw-w64-x86_64-gcc mingw-w64-x86_64-ccache mingw-w64-x86_64-meson mingw-w64-x86_64-toolchain
@@ -79,7 +79,7 @@ FFmpeg is highly customizable, but here are the preferred settings for using it 
 cd MINGW-packages/mingw-w64-ffmpeg
 ```
 
-Edit the PKGBUILD file to include *${MINGW_PACKAGE_PREFIX}-jack2* and *--enable-libjack*. Also preferred to include missing *--enable-nvdec* after *--enable-nvenc*.
+Edit the PKGBUILD file to include *${MINGW_PACKAGE_PREFIX}-jack2* and *--enable-libjack*. It is also preferable to include the missing *--enable-nvdec* after *--enable-nvenc*.
 Here are my [mingw-w64-ffmpeg-pkgbuild](https://raw.githubusercontent.com/c-toolbox/C-Play/master/help/configurations/mingw-w64-ffmpeg/PKGBUILD) configuration file.
 
 Then install dependencies for packing and perform the new packing:
@@ -105,7 +105,7 @@ pacman -U mingw-w64-*-ffmpeg-*-any.pkg.tar.zst
 
 ### 1.3 Build MPV with custom options.
 
-When your happy with the ffmpeg build, let's do the mpv build.
+When you are happy with the ffmpeg build, continue with the mpv build.
 We want *shared* library so you need to change the PKGBUILD here as well.
 CD to *mingw-w64-mpv*, then add the line below (before *-Dlibmpv=true*).
 
@@ -128,7 +128,7 @@ Go to point 3 (last section) below to create library for compiling.
 
 As of writing (2025-09-01) this build setup includes mpv 0.38 and then option to specify and ffmpeg version under that.
 
-This compilation takes much more time(as you are checking out all sources from git of ffmpeg dependencies), but has easier and more flexible configuration options.
+This compilation takes much more time, since you are checking out all dependency sources for ffmpeg from git, but it offers easier and more flexible configuration options.
 
 This guide assumes you use [Media Build Suite](https://github.com/m-ab-s/media-autobuild_suite) to get a free setup of dependencies to build ffmpeg and mpv.
 
@@ -159,7 +159,7 @@ pacman -S mingw-w64-x86_64-jack2
 
 - Run "Media Build Suite" batch script again, and do not remove the JACK package when asked. Continue and compile everything.
 
-- Notice: If ffmpeg build fails it most likely because there are new packages of dependicies that has changed and made the build fail. If you are lucky, you can download an old one and try again. Below is an example: 
+- Notice: If the ffmpeg build fails, it is most likely because newer dependency packages have changed and caused the build to fail. If you are lucky, you can download an older one and try again. Below is an example:
 
 ```
 wget https://repo.msys2.org/mingw/mingw64/mingw-w64-x86_64-texinfo-7.1.1-2-any.pkg.tar.zst
@@ -168,7 +168,7 @@ pacman -U mingw-w64-x86_64-texinfo-7.1.1-2-any.pkg.tar.zst
 
 - Create an environmental variable called "PKG_CONFIG_PATH" and add the path "(Media Build Suite location)\local64\lib\pkgconfig". Also add the "(Media Build Suite location)\local64\bin-video" to your environmental "Path".
 
-## 3. After MPV compiliation, linking mpv with MSVC programs
+## 3. After MPV compilation, linking mpv with MSVC programs
 
 As according to the [Native compilation with MSYS2](https://github.com/mpv-player/mpv/blob/master/DOCS/compile-windows.md#native-compilation-with-msys2) you need to create a import library for the mpv DLL. Launch a Visual Studio command prompt (latest 2022 or later), and cd to the bin directory where *mpv-2.dll* is located. Then create the library with you need a definition file (*.def*). 
 

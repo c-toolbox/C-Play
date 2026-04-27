@@ -1,6 +1,6 @@
 # C-Play : Cluster Media Player
 
-C-Play is an open source cluster media player, useful for video playback and presentations in immersive environments (such as domes, powerwalls etc).
+C-Play is an open source cluster media player, useful for video playback and presentations in immersive environments, such as domes and powerwalls.
 
 ![Render C-Play v2.3](docs/assets/Cplay-v2-3.png)
 
@@ -9,7 +9,7 @@ C-Play is an open source cluster media player, useful for video playback and pre
 https://c-toolbox.github.io/C-Play/
 
 # Content features
-These are just some features that set C-Play apart from others media/video players:
+These are just some features that set C-Play apart from other media and video players:
 
 C-Play support media that is:
 
@@ -19,10 +19,10 @@ C-Play support media that is:
 
 - 360 equirectangular or equiangular cubemap (common on YouTube)
 
-- Any "flat" media arbitary aspect ratio
+- Any "flat" media with arbitrary aspect ratio
 
-Primary media (video and images) is easily opened and configured(through playfiles) and added to playlist for a standard media player setup.
-An additional powerful feature in C-Play is the presentation tool, where you can be add arbitrary amount of layers within slides, using numerous inputs, such as 
+Primary media, such as video and images, is easily opened and configured through playfiles and added to playlists for a standard media player setup.
+An additional powerful feature in C-Play is the presentation tool, where you can add an arbitrary number of layers within slides using numerous inputs, such as:
 
 - *Images* (JPG and PNGs)
 
@@ -32,17 +32,17 @@ An additional powerful feature in C-Play is the presentation tool, where you can
 
 - *Audio* (WAV, AAC etc)
 
-- *NDI* or *Spout* (Network video and/or across local apps)
+- *NDI* or *Spout* (Network video or live sharing across local apps)
 
-- *Streams* (Youtube etc supported through FFmpeg)
+- *Streams* (YouTube and similar inputs supported through FFmpeg)
 
-- *Text* (With custom font, also used for subtitles) 
+- *Text* (With custom fonts, also used for subtitles)
 
- With above layers, you can  make it as easy as using powerpoint to create an immersive presentation.
+With the layer types above, you can make it almost as easy as using PowerPoint to create an immersive presentation.
 
 # Technical features
 
-- Runs a QT/QML UI application on master computer and small none-UI GLFW/SGCT application on nodes/clients.
+- Runs a Qt/QML UI application on the master computer and a small non-UI GLFW/SGCT application on the nodes/clients.
 
 - Sync playback, loading and other properties between master and clients.
 
@@ -50,13 +50,13 @@ An additional powerful feature in C-Play is the presentation tool, where you can
 
 - Loading external audio files as multiple tracks.
 
-- Editing and saving playlist and playfiles including all necassary parameters.
+- Editing and saving playlists and playfiles including all necessary parameters.
 
-- Configure "sections" in a editor to create bookmarks to jump between clips inside a larger movie.
+- Configure "sections" in an editor to create bookmarks for jumping between clips inside a larger movie.
 
-- C-Play nodes can run on-top other application. For master, viewing your video (or layer) on secondary monitor is also simple and requires no extra decoding resources.
+- C-Play nodes can run on top of other applications. On the master, viewing your video or a layer on a secondary monitor is also simple and requires no extra decoding resources.
 
-- HTTP Web API (Such that you can include control in custom system.)
+- HTTP Web API, so you can integrate control into a custom system.
 
 - Tested and used on Windows 10/11, in domes and other big arenas.
 
@@ -75,14 +75,14 @@ Optional libraries in C-Play version 2.1 and above.
 
 # Build on Windows
 
-- Use [Craft Guide](./docs/guides/build/dependencies/CRAFT_INSTALLS.md) to install all dependencies for the UI, from Qt and KDE Frameworks libs.
+- Use the [Craft Guide](./docs/guides/build/dependencies/CRAFT_INSTALLS.md) to install all dependencies for the UI, including Qt and KDE Frameworks libraries.
 
 - Use the [Build FFMPEG and MPV Guide](./docs/guides/build/dependencies/BUILD_MPV_AND_FFMPEG.md) guide to build FFmpeg and MPV with JACK+portaudio support.
 
-- Install optional libraries through such as NDI and Poppler (for PDF support), either through installers or using vcpkg.
+- Install optional libraries such as NDI and Poppler, for PDF support, either through installers or using vcpkg.
 
 - Configure C-Play with CMake.
 
-- Good practice to follow [Deploy Guide](./docs/guides/build/dependencies/DEPLOY.md) as well, to copy the build with it's dependencies to single binary folder.
+- It is also good practice to follow the [Deploy Guide](./docs/guides/build/dependencies/DEPLOY.md) to copy the build and its dependencies into a single binary folder.
 
-- Build in Visual Studio 2022 (or what viewer you prefer).
+- Build in Visual Studio 2022, or whichever IDE you prefer.

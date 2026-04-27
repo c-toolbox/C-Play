@@ -7,9 +7,9 @@ parent: Setup C-Play
 
 # Audio configuration
 
-As C-Play has embedded [MPV](https://mpv.io/) as it media player backend, C-Play support whatever MPV support in terms of audio files.
+C-Play embeds [MPV](https://mpv.io/) as its media player backend, so it supports the audio formats that MPV supports.
 
-And a MPV has it's own unique and features rich configuration, for both video and audio processing, several configuration for the audio can also be made in the MPV configuration files, which are outlined more extensively in the [Video configuration guide](video#mpv-configuration-files), while providing settings, as [*audio-spdif*](https://mpv.io/manual/master/#options-audio-spdif) for passthrough of certain audio files to be directly handled by own audio system.
+MPV also has its own feature-rich configuration system for both video and audio processing. Several audio-related settings can be made in the MPV configuration files, which are described more extensively in the [Video configuration guide](video#mpv-configuration-files). This includes settings such as [*audio-spdif*](https://mpv.io/manual/master/#options-audio-spdif) for passthrough of certain audio formats directly to your audio system.
 
 ## Audio output in C-Play
 
@@ -19,30 +19,30 @@ You can choose to either use a custom audio device that MPV has detected, or to 
 
 ### Native, up to 8 channels
 
-C-Play is a "*Windows only*" application, and as such, is partially limited by the native capabilities of Windows when it comes to audio output. You should expect C-Play to find any device output you have connected. However, native Windows audio support up to 8 channels of output (such as 7.1) without the use of any additional third-party solution.
+C-Play is a "*Windows only*" application, and as such, is partially limited by the native capabilities of Windows when it comes to audio output. You should expect C-Play to find any device output you have connected. However, native Windows audio support is normally limited to up to 8 channels of output, such as 7.1, without the use of any additional third-party solution.
 
-However, C-Play was designed with the intention of supporting much more audio channels, and a such C-Play is capable of using the "*JACK*" if you need above eight channels.
+However, C-Play was designed with the intention of supporting many more audio channels, and as such it is capable of using *JACK* if you need more than eight channels.
 
 ### JACK, low latency up to 64 or 128 channels
 
-In C-Play, the MPV and ffmpeg library, that are utilzied as the backend for video and audio decoding, is compilied together with the cross-platform audio API named [JACK](https://jackaudio.org/).
+In C-Play, the MPV and FFmpeg libraries used as the backend for video and audio decoding are compiled together with the cross-platform audio API [JACK](https://jackaudio.org/).
 
 As C-Play is a Windows only application, please follow this [guide](https://jackaudio.org/faq/jack_on_windows.html) on how to install it and set it up on the Windows machine that you want to use as C-Play master.
 
-The application "*QJackCtl*" that should run in the background/tray (this configuration can be made in the program) and prefarably at startup of the computer, is the one that will act as a bridge between C-Play (through mpv) and your capable audio device (which might have up to 128 channels). 
+The application *QJackCtl*, which should run in the background or tray and preferably at startup, acts as the bridge between C-Play, through MPV, and your audio device, which might have up to 128 channels.
 
-In "*QJackCtl*", you can configure it to a specifc driver, such as the competent low-latency ASIO driver (if your audio device supports that), as well how many channels you want it to show in the "*graph*". For instance, if you specifed 12 channels, you should see 12 channels in the graph, named "playback_**".
+In *QJackCtl*, you can configure a specific driver, such as the low-latency ASIO driver if your audio device supports it, as well as how many channels you want it to show in the *graph*. For instance, if you specify 12 channels, you should see 12 channels in the graph, named "playback_**".
 
-When C-Play loads a audio file, you should see how many channels it has by how many channels that are connect in the graph, as seen below.
+When C-Play loads an audio file, you should see how many channels it has by how many channels are connected in the graph, as seen below.
 
  ![Jack](../../assets/jack/12_channels.png)
 
 ## Naming of external files
 
-In a show environment, is beneficial to not have different video files for every movie, and as C-Play support loading of audio files that sit next to the video file (i.e. "*side-loading*"), it is very beneficial to use that capability to always add additional tracks as new files, the sits next to the video file on the master machine *(or the node if C-Play is configured to run audio from nodes)*.
+In a show environment, it is beneficial not to have different video files for every movie. Since C-Play supports loading audio files that sit next to the video file, that is, *side-loading*, it is useful to add additional tracks as separate files next to the main video file on the master machine, or on the node if C-Play is configured to run audio from nodes.
 
-C-Play also has [Web API](../remote/api) that support retrieval of the audio track that are embedded or ar "*side-loaded*", such that the user could trigger the change of a different audio track, if desired. To not mix-up different audio files for different video files, it is good practice to name the audio file with at least the start of the same filename, and an end of the specific language or track name.
+C-Play also has a [Web API](../remote/api) that supports retrieval of the audio tracks that are embedded or *side-loaded*, so the user can trigger a change to a different audio track if desired. To avoid mixing up audio files for different video files, it is good practice to name the audio file with at least the start of the same filename, followed by the specific language or track name.
 
-So, if your video would be named "*Awesome_4K_3D_H265_video.mp4*", you should for instance name your english and swedish tracks "*Awesome_English.wav*" and "*Awesome_Swedish.wav*".
+So, if your video is named "*Awesome_4K_3D_H265_video.mp4*", you could name your English and Swedish tracks "*Awesome_English.wav*" and "*Awesome_Swedish.wav*".
 
-While the C-Play GUI itself will show the complete name, to make it very clear which file is loaded, the [Web API](../remote/api) can be configured to omit the first name such that you playback UI for host or operators with a tablet or a phone, just see the tracks named "*English*" or "*Swedish*", without the prefix video name.
+While the C-Play GUI itself will show the complete name, the [Web API](../remote/api) can be configured to omit the filename prefix so a playback UI for hosts or operators on a tablet or phone can simply show tracks named "*English*" or "*Swedish*".

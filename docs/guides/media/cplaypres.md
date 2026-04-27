@@ -7,13 +7,13 @@ parent: Media file structure
 
 # Build and save a presentation (*.cplaypres)
 
-Presentations in C-Play essentially a list of *slides* consisting, where each slide is a list of *layers*. These list can be saved/loaded as "*.cplaypres" files.
+Presentations in C-Play are essentially a list of *slides*, where each slide contains a list of *layers*. These lists can be saved and loaded as "*.cplaypres" files.
 
-These list are shown/hidden through the buttons on either the left or right side in the *footer* taskbar (depending on your preference for the playlist).
+These lists are shown or hidden through the buttons on either the left or right side of the *footer* taskbar, depending on your playlist preference.
 
 ![Slide and Layers show and hide](../../assets/ui/slides_layers_show_hide.png){:width="30%"}
 
-When showing the slides and layers lists, the top of these list including the primary controls for building slides with layers.
+When showing the slides and layers lists, the top of these lists includes the primary controls for building slides with layers.
 
 ![Slide and Layers building](../../assets/ui/slides_layers_top.png){:width="85%"}
 
@@ -52,7 +52,7 @@ The layers panel toolbar (first and second row):
 | ![](../../assets/icons/layer-lower.svg) | Move selected layer down |
 | ![](../../assets/icons/document-edit-decrypt-verify.svg) | Layer view (inspect selected layer) |
 
-Even if you haven't created any slides, there is always a special slide called *Master* accessible to add layers too. The special thing with the *master* slide is that layers in this slide are always rendered in front of the background image, but behind any media you play from *"Open file"* or through the playlist. Hence the master layers essentially work a flexible background layers. The layers in the other slide are in front of the media in the main player, and the foreground image is on-top.
+Even if you have not created any slides, there is always a special slide called *Master* that you can add layers to. The special thing about the *master* slide is that layers in this slide are always rendered in front of the background image, but behind any media you play from *"Open file"* or through the playlist. Hence, the master layers essentially work as flexible background layers. Layers in the other slides are rendered in front of the media in the main player, and the foreground image is on top.
 
 I.e., from top to bottom in render hierarchy:
 
@@ -99,31 +99,31 @@ In the layer view for a control layer, two fields are shown instead of the usual
 
 * **Parameter** — An operation-specific value. For example, a volume level for SetVolume, a millisecond position for Seek, a slide name or index for LoadFromSlides, or `true`/`false` for boolean operations. Parameters that reference playlist items, slides, or audio tracks can be specified by name or numeric index.
 
-After you've added a new layer, you can specify the parameters of the layer in more detail through the *"Layer View*". Here you control grid/stereo parameters, the volume level (if applicable), as well as check how the output looks like.
+After you have added a new layer, you can specify its parameters in more detail through the *"Layer View"*. Here you control grid and stereo parameters, the volume level if applicable, and inspect how the output looks.
 
 ![Layer View Video](../../assets/ui/layers_view_video.png){:width="40%"} &nbsp;&nbsp;&nbsp; ![Layer View Grid Parameters](../../assets/ui/layer_view_grid_parameters.png){:width="48%"}
 
 ### ![](../../assets/icons/trim-to-selection.svg) Region of Interest
 
-In the top right, there is *"Region of interest (ROI)"* ![](../../assets/icons/trim-to-selection-lime.svg) / ![](../../assets/icons/trim-to-selection-crimson.svg) button, that enables a feature below where you can specify a certain region of you layer that should be visible. This is useful for when you want to show only a part of the source.
+In the top right, there is a *"Region of interest (ROI)"* ![](../../assets/icons/trim-to-selection-lime.svg) / ![](../../assets/icons/trim-to-selection-crimson.svg) button that enables the feature below, where you can specify a certain region of your layer that should be visible. This is useful when you want to show only part of the source.
 
 ![Layer Region of Interest](../../assets/ui/layers_view_roi.png){:width="80%"}
 
 ### ![](../../assets/icons/table.svg) Layer visibility across slides.
 
-In the slides menu there is a button named *"Visibility"* ![](../../assets/icons/table.svg), which when clicked opens the window name *"Slide Visibility Table View"*. The window let's you control and overview how layer *live* across slides. This means that you can create layers that are visible across multiple slides, instead of only being shown during one specific slide. The meanings of the different cell colors are:
+In the slides menu there is a button named *"Visibility"* ![](../../assets/icons/table.svg), which opens the window named *"Slide Visibility Table View"* when clicked. The window lets you control and review how layers behave across slides. This means that you can create layers that are visible across multiple slides, instead of only being shown during one specific slide. The meanings of the different cell colors are:
 
 * A grey cell means layer not yet available.
 
 * A red cell (100 -> 0%) means the layer fades out.
 
-* A green cell titled (0 -> 100%) means this layer fades in when the slide is triggered. Click this cell to make the next cell red.
+* A green cell labeled (0 -> 100%) means this layer fades in when the slide is triggered. Click this cell to make the next cell red.
 
-* A white cell (100%) means they layer stays visible. Click this cell to make the next cell red.
+* A white cell (100%) means the layer stays visible. Click this cell to make the next cell red.
 
-* A black cell can be altered to a white cell, if pressed.
+* A black cell can be changed to a white cell by clicking it.
 
-Remember, master layers visibility is fade in/out usually depend on media visibility (See [presentation settings](../settings/presentation)).
+Remember, master layer visibility usually fades in and out depending on media visibility. See [presentation settings](../settings/presentation).
 
 ![Slide Visibility Matrix](../../assets/ui/slide_visibility_matrix.png){:width="80%"}
 

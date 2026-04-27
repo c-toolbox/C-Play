@@ -12,21 +12,21 @@ The documentation can be found here:
 
  - [SGCT Docs](https://sgct.github.io)
 
-If you are an installer and user of C-Play, you primarily need be familiar with the configuration file syntax, which can be found here: 
+If you are an installer or user of C-Play, you primarily need to be familiar with the configuration file syntax, which can be found here:
 
 - [SGCT Configuration Files](https://sgct.readthedocs.io/en/latest/users/configuration/index.html)
 
 ## Auto 2D vs 3D switch
 
-Based on the assumption, that you do not mix 3D viewports with 2D viewports, meaing a window could cover a 3D projector/screen, that would show (Left + Right Eye), or for 2D projector/screen, but a window would not cover both at the same time.
+This is based on the assumption that you do not mix 3D viewports with 2D viewports, meaning a window could cover a 3D projector or screen that would show left and right eye, or a 2D projector or screen, but a window would not cover both at the same time.
 
-As such, C-Play will check what kind of viewports that are available, and in the special case that it finds both 3D and 2D viewports, it will enable and/or disable them based on the content (and application settings) that C-Play has loaded.
+As such, C-Play will check what kinds of viewports are available, and in the special case where it finds both 3D and 2D viewports, it will enable or disable them based on the content and application settings currently loaded.
 
-Basically, in the below configuration, there is two viewports for a 3D content (where eye is either "left" och "right"), and there is viewports for 2D content only (which have eye "center").
+Basically, in the configuration below, there are two viewports for 3D content, where the eye is either "left" or "right", and there are two viewports for 2D content only, which have the eye set to "center".
 
 C-Play would make sure that only the FIRST two viewports below, or the LAST two viewports, are enabled, but not all four at once.
 
-This makes it possible to apply different calibrations for 3D vs 2D content, which in some scenarios can make a noticeable difference, and are then needed to show both 3D or 2D content correctly.
+This makes it possible to apply different calibrations for 3D and 2D content, which in some scenarios can make a noticeable difference and may be necessary to show both 3D and 2D content correctly.
 
 * JSON : *Version 2.2 and above*
 ```json
@@ -87,4 +87,4 @@ This makes it possible to apply different calibrations for 3D vs 2D content, whi
 </Viewport>
 ```
 
-Bare in mind, that you can also run a "active 3D" configuraton or any configuration when left and right eye has the same viewport parameters. In most cases this works correctly. Then C-Play will show 3D and 2D correctly without additional viewports, as this is built in in C-Play to adapt the rendering based on mono vs stereographic material.
+Bear in mind that you can also run an "active 3D" configuration, or any configuration where left and right eye have the same viewport parameters. In most cases this works correctly. Then C-Play will show both 3D and 2D correctly without additional viewports, as this is built into C-Play to adapt the rendering based on mono versus stereoscopic material.

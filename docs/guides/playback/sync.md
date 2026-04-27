@@ -11,11 +11,11 @@ There are multiple settings that allow operations to be synced between each othe
 
 ### Sync volume and media visibility
 
-For simplicity, you can chose to sync the fading of volume and visibility, such that they are both faded down or up when one of them is triggered. You can notice by the icon if syncing is *Off* (left image below) or *On* (right image below). 
+For simplicity, you can choose to sync the fading of volume and visibility, so they are both faded down or up when one of them is triggered. You can see from the icon whether syncing is *Off* (left image below) or *On* (right image below).
 
 ![Sync Vol+Vis Fading OFF](../../assets/ui/header_taskbar/sync_vol_image_off.png){:width="47%"} &nbsp;&nbsp;&nbsp; ![Sync Vol+Vis Fading On](../../assets/ui/header_taskbar/sync_vol_image_on.png){:width="47%"}
 
-*Note: When pressing "Play" in C-Play the media visibility fades up automatically. So if syncing is on, then volume will do the same. In the settings, you can chose to fade down on Stop/rewind, which then fades down the media visibility, and then volume if this syncing is on.*
+*Note: When pressing "Play" in C-Play, media visibility fades up automatically. If syncing is on, the volume will do the same. In the settings, you can choose to fade down on Stop/Rewind, which then fades down media visibility and, if syncing is enabled, the volume as well.*
 
 ### Master to client(s) syncing
 
@@ -29,8 +29,8 @@ For simplicity, you can chose to sync the fading of volume and visibility, such 
 
 ![Sync On](../../assets/ui/header_taskbar/sync_on.png){:width="20%"} &nbsp; ![Sync Off](../../assets/ui/header_taskbar/sync_off.png){:width="20%"}
 
-The button to the far right of the header is for the overall sync between master and the clients/nodes: ![](../../assets/icons/network-connect-lime.svg) (sync on) or ![](../../assets/icons/network-disconnect-crimson.svg) (sync off). Normally, this should always be *On*, but if you want to load, seek and alter many settings at ones, it can be useful to set *"Sync Off"*, and then turn it on when all things are done.
+The button at the far right of the header controls the overall sync between the master and the clients/nodes: ![](../../assets/icons/network-connect-lime.svg) (sync on) or ![](../../assets/icons/network-disconnect-crimson.svg) (sync off). Normally, this should always be *On*, but if you want to load, seek, and alter many settings at once, it can be useful to set *"Sync Off"* and then turn it back on when everything is ready.
 
 Keep in mind that audio playback is performed on the master, so if you wanted the media to keep playing on the nodes, while you load new media on the master, this will work with the video/image file, but not with the audio.
 
-Also, the media visibility is the only property not effected by this state. That is always synced, no matter what.
+Also, media visibility is the only property not affected by this state. It is always synced, no matter what.
