@@ -8,7 +8,7 @@ set(CPLAY_VERSION_MAJOR 2)
 set(CPLAY_VERSION_MINOR 3)
 set(CPLAY_VERSION_PATCH 0)
 set(CPLAY_VERSION_PR_NAME "Beta")
-set(CPLAY_VERSION_PR_VERS 2)
+set(CPLAY_VERSION_PR_VERS 3)
 
 qt_add_executable(${TARGET_NAME})
 set_compile_options(${TARGET_NAME})
@@ -116,6 +116,14 @@ if(BUILD_CPLAY_WITH_SPOUT)
     list(APPEND SOURCE_FILES layers/spoutlayer.h)
     list(APPEND SOURCE_FILES layers/spoutmodel.cpp)
     list(APPEND SOURCE_FILES layers/spoutmodel.h)
+endif()
+
+if(BUILD_CPLAY_WITH_OMT)
+    list(APPEND SOURCE_FILES omt/omtlayer.cpp)
+    list(APPEND SOURCE_FILES omt/omtlayer.h)
+    list(APPEND SOURCE_FILES omt/omtmodel.cpp)
+    list(APPEND SOURCE_FILES omt/omtmodel.h)
+    target_include_directories(${TARGET_NAME} PRIVATE omt)
 endif()
 
 if(BUILD_CPLAY_WITH_MDK)
@@ -300,6 +308,7 @@ if (MSVC)
     /wd26495
     /wd26813 
     /wd4702 # unreachable code
+    /wd4828 # illegal character
     /experimental:external /external:anglebrackets /external:templates- /external:W0)
 
 if(${QT_VERSION_MAJOR} GREATER_EQUAL 6 AND ${QT_VERSION_MINOR} GREATER_EQUAL 8)
@@ -351,6 +360,12 @@ if(BUILD_CPLAY_WITH_SPOUT)
 
     get_target_property(SPOUT_INCLUDE_DIRS Spout2::SpoutLibrary INTERFACE_INCLUDE_DIRECTORIES)
     target_include_directories(${TARGET_NAME} PRIVATE ${SPOUT_INCLUDE_DIRS})
+endif()
+
+if(BUILD_CPLAY_WITH_OMT)
+    list(APPEND TARGET_LIBRARIES OMT::OMT)
+    target_compile_definitions(${TARGET_NAME} PUBLIC OMT_SUPPORT)
+    target_include_directories(${TARGET_NAME} PRIVATE ${OMT_INCLUDE_DIRS})
 endif()
 
 if(BUILD_CPLAY_WITH_POPPLER)
@@ -449,6 +464,9 @@ if(CPLAY_INSTALL_DEPENDENCIES)
         if(BUILD_CPLAY_WITH_NDI)
             install(CODE "set(_ndi_dll \"${NDI_BINARY_DIR}/${NDI_LIBS}.dll\")")
         endif()
+        if(BUILD_CPLAY_WITH_OMT)
+            install(CODE "set(_omt_dlls \"${OMT_BINARY_DIR}/libomt.dll;${OMT_BINARY_DIR}/libvmx.dll\")")
+        endif()
         # Install dependencies
         install(CODE [[
             message("Looking for direct dependencies for C-Play.exe (In Qt and MPV build directories)")
@@ -488,6 +506,16 @@ if(CPLAY_INSTALL_DEPENDENCIES)
                             FILES "${_mdk_dep_dll}"
                         )
                     endforeach()
+                elseif(DEFINED _omt_dlls)
+                    foreach(_omt_dep_dll ${_omt_dlls})
+                        if("${_omt_dep_dll}" MATCHES "${DEPENDENCY}$")
+                            message("Copying ${_omt_dep_dll}")
+                            file(INSTALL
+                                DESTINATION "${CMAKE_INSTALL_PREFIX}/bin"
+                                FILES "${_omt_dep_dll}"
+                            )
+                        endif()
+                    endforeach()
                 else()
                     message(WARNING "Unable to resolve dependency ${DEPENDENCY}")
                 endif()
@@ -507,6 +535,9 @@ if(CPLAY_INSTALL_DEPENDENCIES)
         endif()
         if(BUILD_CPLAY_WITH_NDI)
             list(APPEND CIDFPL ${NDI_BINARY_DIR})
+        endif()
+        if(BUILD_CPLAY_WITH_OMT)
+            list(APPEND CIDFPL ${OMT_BINARY_DIR})
         endif()
         if(SGCT_DEP_INCLUDE_SCALABLE)
             list(APPEND CIDFPL ${CMAKE_CURRENT_SOURCE_DIR}/sgct/ext/scalable)

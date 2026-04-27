@@ -27,10 +27,13 @@ public:
 #ifdef NDI_SUPPORT
         NDI,
 #endif
-        STREAM,
+#ifdef OMT_SUPPORT
+        OMT,
+#endif
 #ifdef SPOUT_SUPPORT
         SPOUT,
 #endif
+        STREAM,
 #ifdef SGCT_HAS_TEXT
         TEXT,
 #endif

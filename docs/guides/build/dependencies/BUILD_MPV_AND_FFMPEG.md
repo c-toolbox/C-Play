@@ -4,6 +4,8 @@ C-Play depends on the great *mpv* media player library, which indeed depends on 
 
 ## Pre-setup: Install JACK + portaudio (needed NDI audio) with vcpkg
 
+This pre-setup is relevant for NDI audio support. OMT support in C-Play is currently limited to video frames, so it does not use this audio path.
+
 In the options below, we will be compiling FFMPEG and MPV with MINGW64, which is a standard and usually the easiest practice for building a customized library on Windows. But MINGW64 headers are extensive and the include folder often makes compilation fail. As we are also using the excellent 'vcpkg' functionality for many packages, we can use that as well to install packages that can be included when building C-Play.
 
 Install the [ASIO SDK](https://www.steinberg.net/asiosdk) through 'vcpkg', and then install portaudio with the asio feature enabled. In the C-Play repository, there is some [portaudio vcpkg files](https://raw.githubusercontent.com/c-toolbox/C-Play/master/help/portaudio) to make the 'portaudio' compile with 'asio', which is not in the standard package included in 'vcpkg'. At last, install 'jack2' as well.

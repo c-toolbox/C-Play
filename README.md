@@ -32,7 +32,7 @@ An additional powerful feature in C-Play is the presentation tool, where you can
 
 - *Audio* (WAV, AAC etc)
 
-- *NDI* or *Spout* (Network video or live sharing across local apps)
+- *NDI*, *OMT* or *Spout* (Network video or live sharing across local apps. OMT currently supports video frames only.)
 
 - *Streams* (YouTube and similar inputs supported through FFmpeg)
 
@@ -68,9 +68,10 @@ C-Play is an open source cluster video player, based on these open source projec
 - [FFmpeg](https://github.com/FFmpeg/FFmpeg) - The one and only video decoder/encoder
 - [Haruna](https://github.com/g-fb/haruna) - Qt/QML UI for MPV
 
-Optional libraries in C-Play version 2.1 and above.
+Optional libraries in current C-Play builds include:
 
-- [NDI SDK](https://ndi.video/for-developers/ndi-sdk/) - Support frame-synced NDI streams, video and audio
+- [NDI](https://ndi.video/for-developers/ndi-sdk/) - Support frame-synced NDI streams, video and audio
+- [OMT](https://openmediatransport.org/) (Open Media Transport) - Support OMT video streams
 - [Poppler](https://poppler.freedesktop.org/) - For rendering PDF pages
 
 # Build on Windows
@@ -79,7 +80,7 @@ Optional libraries in C-Play version 2.1 and above.
 
 - Use the [Build FFMPEG and MPV Guide](./docs/guides/build/dependencies/BUILD_MPV_AND_FFMPEG.md) guide to build FFmpeg and MPV with JACK+portaudio support.
 
-- Install optional libraries such as NDI and Poppler, for PDF support, either through installers or using vcpkg.
+- Install optional libraries such as NDI, OMT, and Poppler, for network video/audio and PDF support, either through installers or using vcpkg where available.
 
 - Configure C-Play with CMake.
 

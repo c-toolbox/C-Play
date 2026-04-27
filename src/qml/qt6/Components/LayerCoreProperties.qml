@@ -36,6 +36,7 @@ GridLayout {
     property alias streamCustomEntryField: streamCustomEntryField
     property alias ndiSenderComboBox: ndiSenderComboBox
     property alias spoutSenderComboBox: spoutSenderComboBox
+    property alias omtSenderComboBox: omtSenderComboBox
     property alias stereoscopicModeForLayer: stereoscopicModeForLayer
     property alias gridModeForLayer: gridModeForLayer
     property alias textForLayer: textForLayer
@@ -152,6 +153,11 @@ GridLayout {
                 spoutSenderComboBox.currentIndex = app.spoutSendersModel.numberOfSenders - 1;
                 layerTitle.text = spoutSenderComboBox.currentText;
             }
+            else if (typeComboBox.currentText === "OMT") {
+                app.omtSendersModel.updateSendersList();
+                omtSenderComboBox.currentIndex = app.omtSendersModel.numberOfSenders - 1;
+                layerTitle.text = omtSenderComboBox.currentText;
+            }
             else if (typeComboBox.currentText === "Stream") {
                 app.streamsModel.updateStreamsList();
                 streamsLayout.customEntry = false;
@@ -173,11 +179,11 @@ GridLayout {
         Layout.alignment: Qt.AlignRight
         font.pointSize: 9
         text: qsTr("File:")
-        visible: typeComboBox.currentText != "Stream" && typeComboBox.currentText != "NDI" && typeComboBox.currentText != "Spout" && typeComboBox.currentText != "Text" && typeComboBox.currentText != "Control"
+        visible: typeComboBox.currentText != "Stream" && typeComboBox.currentText != "NDI" && typeComboBox.currentText != "Spout" && typeComboBox.currentText != "OMT" && typeComboBox.currentText != "Text" && typeComboBox.currentText != "Control"
     }
     RowLayout {
         Layout.fillWidth: true
-        visible: typeComboBox.currentText != "Stream" && typeComboBox.currentText != "NDI" && typeComboBox.currentText != "Spout" && typeComboBox.currentText != "Text" && typeComboBox.currentText != "Control"
+        visible: typeComboBox.currentText != "Stream" && typeComboBox.currentText != "NDI" && typeComboBox.currentText != "Spout" && typeComboBox.currentText != "OMT" && typeComboBox.currentText != "Text" && typeComboBox.currentText != "Control"
 
         TextField {
             id: fileForLayer
@@ -313,7 +319,7 @@ GridLayout {
     Label {
         Layout.alignment: Qt.AlignRight
         text: qsTr("Name:")
-        visible: typeComboBox.currentText === "NDI" || typeComboBox.currentText === "Spout"
+        visible: typeComboBox.currentText === "NDI" || typeComboBox.currentText === "Spout" || typeComboBox.currentText === "OMT"
     }
     RowLayout {
         Layout.fillWidth: true
@@ -397,6 +403,50 @@ GridLayout {
     }
     Item {
         visible: root.showSpacers && typeComboBox.currentText === "Spout"
+        Layout.fillWidth: true
+    }
+    RowLayout {
+        Layout.fillWidth: true
+        visible: typeComboBox.currentText === "OMT"
+
+        ComboBox {
+            id: omtSenderComboBox
+
+            Layout.fillWidth: true
+            model: app.omtSendersModel
+            currentIndex: (app.omtSendersModel ? app.omtSendersModel.numberOfSenders - 1 : -1)
+            textRole: "typeName"
+
+            Component.onCompleted: {
+                if(app.omtSendersModel){
+                    app.omtSendersModel.updateSendersList();
+                    omtSenderComboBox.currentIndex = app.omtSendersModel.numberOfSenders - 1;
+                    layerTitle.text = omtSenderComboBox.currentText;
+                }
+            }
+            onActivated: {
+                layerTitle.text = omtSenderComboBox.currentText;
+            }
+        }
+        ToolButton {
+            id: updateOmtSendersBox
+
+            focusPolicy: Qt.NoFocus
+            icon.height: 16
+            icon.name: "view-refresh"
+            text: ""
+
+            onClicked: {
+                if(app.omtSendersModel){
+                    app.omtSendersModel.updateSendersList();
+                    omtSenderComboBox.currentIndex = app.omtSendersModel.numberOfSenders - 1;
+                    layerTitle.text = omtSenderComboBox.currentText;
+                }
+            }
+        }
+    }
+    Item {
+        visible: root.showSpacers && typeComboBox.currentText === "OMT"
         Layout.fillWidth: true
     }
 

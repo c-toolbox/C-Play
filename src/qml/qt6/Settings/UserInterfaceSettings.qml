@@ -424,6 +424,8 @@ SettingsBasePage {
                                 UserInterfaceSettings.floatingWindowLayerPath = layerCoreProps.ndiSenderComboBox.currentText;
                             } else if (layerCoreProps.typeComboBox.currentText === "Spout") {
                                 UserInterfaceSettings.floatingWindowLayerPath = layerCoreProps.spoutSenderComboBox.currentText;
+                            } else if (layerCoreProps.typeComboBox.currentText === "OMT") {
+                                UserInterfaceSettings.floatingWindowLayerPath = layerCoreProps.omtSenderComboBox.currentText;
                             } else if (layerCoreProps.typeComboBox.currentText === "Stream") {
                                 if(layerCoreProps.streamsLayout.customEntry){
                                     UserInterfaceSettings.floatingWindowLayerPath = layerCoreProps.streamCustomEntryField.text;

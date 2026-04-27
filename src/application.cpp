@@ -28,6 +28,9 @@
 #ifdef SPOUT_SUPPORT
 #include <layers/spoutmodel.h>
 #endif
+#ifdef OMT_SUPPORT
+#include <omt/omtmodel.h>
+#endif
 #ifdef PDF_SUPPORT
 #include <cpp/poppler-version.h>
 #endif
@@ -141,6 +144,9 @@ Application::Application(int &argc, char **argv, const QString &applicationName)
 #endif
 #ifdef SPOUT_SUPPORT
     m_spoutSendersModel = new SpoutSendersModel(this);
+#endif
+#ifdef OMT_SUPPORT
+    m_omtSendersModel = new OMTSendersModel(this);
 #endif
 
     if (UserInterfaceSettings::useBreezeIconTheme()) {
@@ -332,6 +338,12 @@ void Application::setupQmlContextProperties() {
 #else
     m_engine->rootContext()->setContextProperty(QStringLiteral("SPOUT_SUPPORT"), QVariant(false));
 #endif
+
+#ifdef OMT_SUPPORT
+    m_engine->rootContext()->setContextProperty(QStringLiteral("OMT_SUPPORT"), QVariant(true));
+#else
+    m_engine->rootContext()->setContextProperty(QStringLiteral("OMT_SUPPORT"), QVariant(false));
+#endif
 }
 
 QUrl Application::configFilePath() {
@@ -473,6 +485,16 @@ void Application::setSpoutSendersModel(SpoutSendersModel* model) {
 }
 #endif
 
+#ifdef OMT_SUPPORT
+OMTSendersModel* Application::omtSendersModel() {
+    return m_omtSendersModel;
+}
+
+void Application::setOmtSendersModel(OMTSendersModel* model) {
+    m_omtSendersModel = model;
+}
+#endif
+
 QString Application::argument(int key) {
     return m_args[key];
 }
@@ -581,6 +603,9 @@ void Application::updateAboutOtherText(const QString &mpvVersion, const QString 
 #endif
 #ifdef SPOUT_SUPPORT
     otherText += QStringLiteral("Spout ") + m_spoutSendersModel->getSpoutVersionString() + QStringLiteral(" for sharing video across Windows apps.\n");
+#endif
+#ifdef OMT_SUPPORT
+    otherText += QStringLiteral("OMT ") + m_omtSendersModel->getOMTVersionString() + QStringLiteral(" for open media transport over network.\n");
 #endif
 #ifdef PDF_SUPPORT
     otherText += QStringLiteral("Poppler ") + QString::fromStdString(poppler::version_string()) + QStringLiteral(" for rendering PDF documents.\n");

@@ -89,6 +89,11 @@ Kirigami.ApplicationWindow {
                             layersAddNew.visible = false;
                             app.slides.updateSelectedSlide();
                             mpv.focus = true;
+                        } else if (layerCoreProps.typeComboBox.currentText === "OMT") {
+                            layerView.layerItem.layerIdx = app.slides.selected.addLayer(layerCoreProps.layerTitle.text, layerCoreProps.typeComboBox.currentIndex + 1, layerCoreProps.omtSenderComboBox.currentText, layerCoreProps.stereoscopicModeForLayer.currentIndex, layerCoreProps.gridModeForLayer.currentIndex);
+                            layersAddNew.visible = false;
+                            app.slides.updateSelectedSlide();
+                            mpv.focus = true;
                         } else if (layerCoreProps.typeComboBox.currentText === "Stream") {
                             if(layerCoreProps.streamsLayout.customEntry){
                                 layerView.layerItem.layerIdx = app.slides.selected.addLayer(layerCoreProps.layerTitle.text, layerCoreProps.typeComboBox.currentIndex + 1, layerCoreProps.streamCustomEntryField.text, layerCoreProps.stereoscopicModeForLayer.currentIndex, layerCoreProps.gridModeForLayer.currentIndex);

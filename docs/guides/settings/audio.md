@@ -40,6 +40,8 @@ For multi-channel audio setups such as JACK, see the [Audio configuration guide]
 
 From C-Play v2.1 and onwards, NDI is supported as a layer within a slide. There is a specific audio configuration for NDI audio playback on master.
 
+OMT layers do not use these settings. In the current C-Play implementation, OMT support is limited to video frames and no audio is received yet.
+
 * **PortAudio custom output** — Enable a custom PortAudio device for NDI audio (default off).
 * **PortAudio output device** — Select the PortAudio output device.
 * **PortAudio output API** — Select the PortAudio host API.

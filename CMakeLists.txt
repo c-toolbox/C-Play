@@ -186,6 +186,13 @@ if(BUILD_CPLAY_WITH_SPOUT)
         URL "https://spout.zeal.co/" DESCRIPTION "video sharing on windows")
 endif()
 
+option(BUILD_CPLAY_WITH_OMT "Global On/Off for OMT support" OFF)
+if(BUILD_CPLAY_WITH_OMT)
+    find_package(OMT REQUIRED)
+    set_package_properties(OMT PROPERTIES TYPE REQUIRED
+        URL "https://github.com/openmediatransport" DESCRIPTION "open media transport over network")
+endif()
+
 option(BUILD_CPLAY_WITH_POPPLER "Global On/Off for PDF support via Poppler library" OFF)
 if(BUILD_CPLAY_WITH_POPPLER)
     find_package(Poppler COMPONENTS Cpp Core REQUIRED)

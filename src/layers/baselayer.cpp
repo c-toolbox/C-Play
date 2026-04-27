@@ -26,6 +26,9 @@
 #ifdef SPOUT_SUPPORT
 #include <layers/spoutlayer.h>
 #endif
+#ifdef OMT_SUPPORT
+#include <omt/omtlayer.h>
+#endif
 #include <layers/textlayer.h>
 #include <layers/controllayer.h>
 
@@ -54,6 +57,10 @@ std::string BaseLayer::typeDescription(BaseLayer::LayerType e) {
 #ifdef SPOUT_SUPPORT
     case SPOUT:
         return "Spout";
+#endif
+#ifdef OMT_SUPPORT
+    case OMT:
+        return "OMT";
 #endif
 #ifdef SGCT_HAS_TEXT
     case TEXT:
@@ -119,11 +126,13 @@ BaseLayer *BaseLayer::createLayer(bool isMaster, int layerType, gl_adress_func_v
         break;
     }
 #endif
-    case static_cast<int>(BaseLayer::LayerType::STREAM): {
-        StreamLayer* newStream = new StreamLayer(opa1);
-        newLayer = newStream;
+#ifdef OMT_SUPPORT
+    case static_cast<int>(BaseLayer::LayerType::OMT): {
+        OmtLayer* newOmt = new OmtLayer();
+        newLayer = newOmt;
         break;
     }
+#endif
 #ifdef SPOUT_SUPPORT
     case static_cast<int>(BaseLayer::LayerType::SPOUT): {
         SpoutLayer* newSpout = new SpoutLayer();
@@ -131,6 +140,11 @@ BaseLayer *BaseLayer::createLayer(bool isMaster, int layerType, gl_adress_func_v
         break;
     }
 #endif
+    case static_cast<int>(BaseLayer::LayerType::STREAM): {
+        StreamLayer* newStream = new StreamLayer(opa1);
+        newLayer = newStream;
+        break;
+    }
 #ifdef SGCT_HAS_TEXT
     case static_cast<int>(BaseLayer::LayerType::TEXT): {
         TextLayer* newText = new TextLayer();

@@ -37,6 +37,9 @@ class BaseLayer;
 #ifdef SPOUT_SUPPORT
 #include <layers/spoutmodel.h>
 #endif
+#ifdef OMT_SUPPORT
+#include <omt/omtmodel.h>
+#endif
 
 #if QT_VERSION >= QT_VERSION_CHECK(6, 0, 0)
 #ifndef OPAQUE_PTR_QAbstractItemModel
@@ -70,6 +73,12 @@ Q_DECLARE_METATYPE(PortAudioModel*)
 #ifndef METATYPE_SpoutSendersModel
 #define METATYPE_SpoutSendersModel
 Q_DECLARE_METATYPE(SpoutSendersModel*)
+#endif
+#endif
+#ifdef OMT_SUPPORT
+#ifndef METATYPE_OMTSendersModel
+#define METATYPE_OMTSendersModel
+Q_DECLARE_METATYPE(OMTSendersModel*)
 #endif
 #endif
 #endif
@@ -177,6 +186,16 @@ public:
     void setSpoutSendersModel(SpoutSendersModel* model);
 #endif
 
+#ifdef OMT_SUPPORT
+    Q_PROPERTY(OMTSendersModel* omtSendersModel
+        READ omtSendersModel
+        WRITE setOmtSendersModel
+        NOTIFY omtSendersModelChanged)
+
+    OMTSendersModel* omtSendersModel();
+    void setOmtSendersModel(OMTSendersModel* model);
+#endif
+
 Q_SIGNALS:
     void actionsUpdated();
     void applicationInteraction();
@@ -190,6 +209,9 @@ Q_SIGNALS:
 #endif
 #ifdef SPOUT_SUPPORT
     void spoutSendersModelChanged();
+#endif
+#ifdef OMT_SUPPORT
+    void omtSendersModelChanged();
 #endif
 
 private:
@@ -223,6 +245,9 @@ private:
 #endif
 #ifdef SPOUT_SUPPORT
     SpoutSendersModel* m_spoutSendersModel;
+#endif
+#ifdef OMT_SUPPORT
+    OMTSendersModel* m_omtSendersModel;
 #endif
     KAboutData* m_aboutData;
     KActionCollection* m_collection;
