@@ -22,7 +22,7 @@ SettingsBasePage {
 
         fileMode: Platform.FileDialog.OpenFile
         folder: LocationSettings.cPlayMediaLocation !== "" ? app.pathToUrl(LocationSettings.cPlayMediaLocation) : app.pathToUrl(LocationSettings.fileDialogLastLocation)
-        nameFilters: ["Image files (*.png *.jpg *.jpeg *.tga)"]
+        nameFilters: [playerController.supportedImageNameFilters()]
         title: "Choose file to load on startup"
 
         onAccepted: {
@@ -37,7 +37,7 @@ SettingsBasePage {
 
         fileMode: Platform.FileDialog.OpenFile
         folder: LocationSettings.cPlayMediaLocation !== "" ? app.pathToUrl(LocationSettings.cPlayMediaLocation) : app.pathToUrl(LocationSettings.fileDialogLastLocation)
-        nameFilters: ["Image files (*.png *.jpg *.jpeg *.tga)"]
+        nameFilters: [playerController.supportedImageNameFilters()]
         title: "Choose file to load on startup"
 
         onAccepted: {

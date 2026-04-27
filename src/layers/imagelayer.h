@@ -10,6 +10,7 @@
 
 #include <layers/baselayer.h>
 #include <sgct/sgct.h>
+#include <vector>
 
 class ImageLayer : public BaseLayer {
 public:
@@ -17,6 +18,14 @@ public:
         std::string filename = "";
         std::string identifier = "";
         sgct::Image img;
+#ifdef SAIL_SUPPORT
+        // When SAIL is used, decoded pixels are stored here instead of sgct::Image
+        std::vector<unsigned char> sailPixels;
+        int sailWidth = 0;
+        int sailHeight = 0;
+        int sailChannels = 0;
+        bool usedSail = false;
+#endif
         std::unique_ptr<std::thread> trd;
         std::atomic_bool threadRunning = false;
         std::atomic_bool imageDone = false;

@@ -42,6 +42,8 @@ public:
         WRITE setSyncProperties
         NOTIFY syncPropertiesChanged)
 
+    Q_INVOKABLE QString supportedImageNameFilters() const;
+
 public Q_SLOTS:
     void QuitCPlay();
     void Next();

@@ -34,6 +34,9 @@
 #ifdef PDF_SUPPORT
 #include <cpp/poppler-version.h>
 #endif
+#ifdef SAIL_SUPPORT
+#include <sail-common/config.h>
+#endif
 #include <layers/streammodel.h>
 
 #include "audiosettings.h"
@@ -586,13 +589,15 @@ void Application::updateAboutOtherText(const QString &mpvVersion, const QString 
             mpv_version_clean.append(c);
         }
     }
-    QString otherText;
+    QString otherText = QStringLiteral("Using the following external libraries:\n\n");
 
-    otherText += QStringLiteral("Media playback with MPV ") + mpv_version_clean + QStringLiteral(" + FFmpeg ") + ffmpeg_version_clean;
+    otherText += QStringLiteral("Qt ") + QStringLiteral(QT_VERSION_STR) + QStringLiteral(" for master QML-based user interface.\n");
+    otherText += QStringLiteral("SGCT ") + QString::fromStdString(std::string(sgct::Version)) + QStringLiteral(" for cluster environment and client rendering.\n");
+    otherText += QStringLiteral("MPV ") + mpv_version_clean + QStringLiteral(" + FFmpeg ") + ffmpeg_version_clean;
 #ifdef JACK_SUPPORT
-    otherText += QStringLiteral(" + Jack ") + QString::fromStdString(jack_get_version_string()) + QStringLiteral(".\n");
+    otherText += QStringLiteral(" + Jack ") + QString::fromStdString(jack_get_version_string()) + QStringLiteral(" for media playback.\n");
 #else
-    otherText += QStringLiteral(".\n");
+    otherText += QStringLiteral(" for media playback.\n");
 #endif
     
 #ifdef MDK_SUPPORT
@@ -601,17 +606,18 @@ void Application::updateAboutOtherText(const QString &mpvVersion, const QString 
 #ifdef NDI_SUPPORT
     otherText += QStringLiteral("NDI ") + m_ndiSendersModel->getNDIVersionString() + QStringLiteral(" for network streams of video and audio.\n");
 #endif
+#ifdef OMT_SUPPORT
+    otherText += QStringLiteral("OMT ") + m_omtSendersModel->getOMTVersionString() + QStringLiteral(" for open media transport over network.\n");
+#endif
 #ifdef SPOUT_SUPPORT
     otherText += QStringLiteral("Spout ") + m_spoutSendersModel->getSpoutVersionString() + QStringLiteral(" for sharing video across Windows apps.\n");
 #endif
-#ifdef OMT_SUPPORT
-    otherText += QStringLiteral("OMT ") + m_omtSendersModel->getOMTVersionString() + QStringLiteral(" for open media transport over network.\n");
+#ifdef SAIL_SUPPORT
+    otherText += QStringLiteral("SAIL ") + QStringLiteral(SAIL_VERSION_STRING) + QStringLiteral(" for extended image format decoding.\n");
 #endif
 #ifdef PDF_SUPPORT
     otherText += QStringLiteral("Poppler ") + QString::fromStdString(poppler::version_string()) + QStringLiteral(" for rendering PDF documents.\n");
 #endif
-    otherText += QStringLiteral("Master UI compiled with Qt ") + QStringLiteral(QT_VERSION_STR) + QStringLiteral(" and based on Haruna project.\n");
-    otherText += QStringLiteral("SGCT ") + QString::fromStdString(std::string(sgct::Version)) + QStringLiteral(" for cluster environment and client rendering.\n");
     m_aboutData->setOtherText(otherText);
     KAboutData::setApplicationData(*m_aboutData);
 }

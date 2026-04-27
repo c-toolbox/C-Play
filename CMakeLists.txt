@@ -226,6 +226,16 @@ if(BUILD_CPLAY_WITH_POPPLER)
     )
 endif()
 
+option(BUILD_CPLAY_WITH_SAIL "Global On/Off for SAIL image decoding support" OFF)
+if(BUILD_CPLAY_WITH_SAIL)
+    find_package(SailC++ CONFIG REQUIRED)
+    if(NOT Sail_FOUND)
+        message(STATUS "Remember to run: vcpkg install sail")
+    endif()
+    set_package_properties(SailC++ PROPERTIES TYPE REQUIRED
+        URL "https://github.com/HappySeaFox/sail" DESCRIPTION "Support for additional image formats.")
+endif()
+
 if(BUILD_WITH_VCPKG_SUPPORT)
     message(STATUS "Using vcpkg toolchain from: ${CMAKE_TOOLCHAIN_FILE} to build C-Play")
     message(STATUS "Remember to run/install this: vcpkg install minizip libpng tinyxml2\n")

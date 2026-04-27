@@ -8,7 +8,7 @@ set(CPLAY_VERSION_MAJOR 2)
 set(CPLAY_VERSION_MINOR 3)
 set(CPLAY_VERSION_PATCH 0)
 set(CPLAY_VERSION_PR_NAME "Beta")
-set(CPLAY_VERSION_PR_VERS 3)
+set(CPLAY_VERSION_PR_VERS 4)
 
 qt_add_executable(${TARGET_NAME})
 set_compile_options(${TARGET_NAME})
@@ -375,6 +375,11 @@ if(BUILD_CPLAY_WITH_POPPLER)
 
     get_target_property(POPPLER_INCLUDE_DIRS Poppler::Cpp INTERFACE_INCLUDE_DIRECTORIES)
     target_include_directories(${TARGET_NAME} PRIVATE ${POPPLER_INCLUDE_DIRS})
+endif()
+
+if(BUILD_CPLAY_WITH_SAIL)
+    list(APPEND TARGET_LIBRARIES SAIL::sail-c++)
+    target_compile_definitions(${TARGET_NAME} PUBLIC SAIL_SUPPORT)
 endif()
 
 option(SGCT_FREETYPE_SUPPORT "Build SGCT with Freetype2" ON)

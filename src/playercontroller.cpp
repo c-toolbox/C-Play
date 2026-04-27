@@ -16,6 +16,11 @@
 
 #include <QDir>
 #include <QFileInfo>
+#include <QSet>
+
+#ifdef SAIL_SUPPORT
+#include <sail-c++/sail-c++.h>
+#endif
 
 #pragma warning(disable : 4996)
 
@@ -700,6 +705,37 @@ bool PlayerController::syncProperties() {
 void PlayerController::setSyncProperties(bool value) {
     SyncHelper::instance().variables.syncOn = value;
     Q_EMIT syncPropertiesChanged();
+}
+
+QString PlayerController::supportedImageNameFilters() const {
+    // Base extensions always supported (via stb_image / sgct::Image)
+    QStringList exts;
+    exts << QStringLiteral("*.png") << QStringLiteral("*.jpg")
+         << QStringLiteral("*.jpeg") << QStringLiteral("*.tga");
+
+#ifdef SAIL_SUPPORT
+    // Query SAIL for all supported file extensions at runtime
+    QSet<QString> extSet;
+    for (const auto &baseExt : exts) {
+        extSet.insert(baseExt);
+    }
+    try {
+        std::vector<sail::codec_info> codecs = sail::codec_info::list();
+        for (const auto &codec : codecs) {
+            for (const auto &ext : codec.extensions()) {
+                QString qExt = QStringLiteral("*.") + QString::fromStdString(ext).toLower();
+                if (!extSet.contains(qExt)) {
+                    extSet.insert(qExt);
+                    exts << qExt;
+                }
+            }
+        }
+    } catch (...) {
+        // If SAIL enumeration fails, just use the base extensions
+    }
+#endif
+
+    return QStringLiteral("Image files (") + exts.join(QStringLiteral(" ")) + QStringLiteral(")");
 }
 
 MpvObject *PlayerController::mpv() const {

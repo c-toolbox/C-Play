@@ -69,7 +69,7 @@ GridLayout {
 
         fileMode: Platform.FileDialog.OpenFile
         folder: fileToLoadAsImageLayerDialog.acceptedOnes ? app.pathToUrl(LocationSettings.imageFileDialogLastLocation) : app.pathToUrl(LocationSettings.imageFileDialogLocation)
-        nameFilters: ["Image files (*.png *.jpg *.jpeg *.tga)"]
+        nameFilters: [playerController.supportedImageNameFilters()]
         title: "Choose image file"
 
         onAccepted: {
