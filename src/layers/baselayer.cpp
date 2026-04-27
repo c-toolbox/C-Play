@@ -675,6 +675,11 @@ bool BaseLayer::flipY() const {
     return renderData.flipY;
 }
 
+void BaseLayer::setFlipY(bool f) {
+    renderData.flipY = f;
+    setNeedSync();
+}
+
 uint8_t BaseLayer::gridMode() const {
     return renderData.gridMode;
 }

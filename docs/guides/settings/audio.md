@@ -36,14 +36,14 @@ For multi-channel audio setups such as JACK, see the [Audio configuration guide]
 * **Preferred language** — IETF language tag for preferred audio track language (e.g. `eng`, `ger`).
 * **Preferred track** — Preferred audio track number. Leave at 0 for automatic selection.
 
-### NDI audio output (requires NDI support)
+### NDI/OMT audio output (requires NDI and/or OMT support)
 
-From C-Play v2.1 and onwards, NDI is supported as a layer within a slide. There is a specific audio configuration for NDI audio playback on master.
+Video and/or audio over network is supported through NDI and/or OMT as a layer within a slide.
 
-OMT layers do not use these settings. In the current C-Play implementation, OMT support is limited to video frames and no audio is received yet.
+These settings are specific to NDI and/or OMT audio output.
 
-* **PortAudio custom output** — Enable a custom PortAudio device for NDI audio (default off).
+* **PortAudio custom output** — Enable a custom PortAudio device for NDI and/or OMT audio (default off).
 * **PortAudio output device** — Select the PortAudio output device.
 * **PortAudio output API** — Select the PortAudio host API.
-* **Mix input to output** — Mix NDI audio input directly to the selected output (default off).
+* **Mix input to output** — Mix NDI and/or OMT audio input directly to the selected output (default off).
 * **Output channels** — Number of audio output channels: 2.0, 2.1, 5.0, 5.1, 7.0, or 7.1 (default 6 / 5.1).

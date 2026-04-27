@@ -220,6 +220,7 @@ public:
     void setShouldPreLoad(bool value);
 
     bool flipY() const;
+    void setFlipY(bool f);
 
     uint8_t gridMode() const;
     void setGridMode(uint8_t g);

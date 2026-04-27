@@ -84,7 +84,7 @@ SettingsBasePage {
                 width: 10
             }
             Label {
-                visible: NDI_SUPPORT
+                visible: NDI_SUPPORT || OMT_SUPPORT
                 Layout.alignment: Qt.AlignLeft
                 font.italic: true
                 text: qsTr("Requires restart to work with NDI")
@@ -376,32 +376,33 @@ SettingsBasePage {
         }
 
         SettingsHeader {
-            visible: NDI_SUPPORT
+            visible: NDI_SUPPORT || OMT_SUPPORT
             Layout.columnSpan: 3
+            Layout.topMargin: 20
             Layout.fillWidth: true
-            text: qsTr("Audio settings for NDI playback")
+            text: qsTr("Audio settings for NDI/OMT playback")
             level: 4
         }
         Item {
-            visible: NDI_SUPPORT
+            visible: NDI_SUPPORT || OMT_SUPPORT
             Layout.columnSpan: 3
             // spacer item
             Layout.fillWidth: true
         }
 
         Item {
-            visible: NDI_SUPPORT
+            visible: NDI_SUPPORT || OMT_SUPPORT
             height: 1
             width: 1
         }
         CheckBox {
-            visible: NDI_SUPPORT
+            visible: NDI_SUPPORT || OMT_SUPPORT
             id: ndiAudioOutputCheckBox
 
             Layout.alignment: Qt.AlignRight
             checked: AudioSettings.portAudioCustomOutput
             enabled: true
-            text: qsTr("Use custom audio output for NDI playback")
+            text: qsTr("Use custom audio output for NDI/OMT playback")
 
             onCheckedChanged: {
                 AudioSettings.portAudioCustomOutput = checked;
@@ -421,13 +422,13 @@ SettingsBasePage {
         }
 
         Item {
-            visible: NDI_SUPPORT
+            visible: NDI_SUPPORT || OMT_SUPPORT
             height: 1
             width: 1
         }
         RowLayout {
             Label {
-                visible: NDI_SUPPORT
+                visible: NDI_SUPPORT || OMT_SUPPORT
                 Layout.alignment: Qt.AlignRight
                 enabled: AudioSettings.portAudioCustomOutput
                 color: enabled ? Kirigami.Theme.textColor : Kirigami.Theme.disabledTextColor
@@ -435,7 +436,7 @@ SettingsBasePage {
             }
             ComboBox {
                 id: portAudioDeviceComboBox
-                visible: NDI_SUPPORT
+                visible: NDI_SUPPORT || OMT_SUPPORT
 
                 enabled: AudioSettings.portAudioCustomOutput
                 model: app.portAudioModel
@@ -476,12 +477,12 @@ SettingsBasePage {
         }
 
         Item {
-            visible: NDI_SUPPORT
+            visible: NDI_SUPPORT || OMT_SUPPORT
             height: 1
             width: 1
         }
         Label {
-            visible: NDI_SUPPORT
+            visible: NDI_SUPPORT || OMT_SUPPORT
             id: portAudioDeviceInfo
             enabled: AudioSettings.portAudioCustomOutput
             color: enabled ? Kirigami.Theme.textColor : Kirigami.Theme.disabledTextColor
@@ -490,12 +491,12 @@ SettingsBasePage {
         }
 
         Item {
-            visible: NDI_SUPPORT
+            visible: NDI_SUPPORT || OMT_SUPPORT
             height: 1
             width: 1
         }
         CheckBox {
-            visible: NDI_SUPPORT
+            visible: NDI_SUPPORT || OMT_SUPPORT
             id: ndiAudioMixOutputCheckBox
 
             Layout.alignment: Qt.AlignRight
@@ -515,20 +516,20 @@ SettingsBasePage {
         }
 
         Item {
-            visible: NDI_SUPPORT
+            visible: NDI_SUPPORT || OMT_SUPPORT
             height: 1
             width: 1
         }
         RowLayout {
             Label {
-                visible: NDI_SUPPORT
+                visible: NDI_SUPPORT || OMT_SUPPORT
                 Layout.alignment: Qt.AlignRight
                 enabled: AudioSettings.portAudioMixInputToOutput
                 color: enabled ? Kirigami.Theme.textColor : Kirigami.Theme.disabledTextColor
                 text: qsTr("Output channels:")
             }
             ComboBox {
-                visible: NDI_SUPPORT
+                visible: NDI_SUPPORT || OMT_SUPPORT
                 id: ndiAudioTargetChannelsComboBox
 
                 enabled: AudioSettings.portAudioMixInputToOutput

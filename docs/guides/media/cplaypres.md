@@ -75,7 +75,7 @@ Here you can choose from the following layer types:
 | **Audio** | Common supported extensions: *.mp3*, *.wav*, *.flac*, *.ogg*, *.m4a*. |
 | **PDF** | Document pages, slides, or signage content imported from a PDF file. |
 | **NDI** | Live video and audio received from an NDI sender on the network. |
-| **OMT** | Live video frames received from an OMT sender on the network. Audio is not currently supported in C-Play. |
+| **OMT** | Live video and audio received from an OMT sender on the network. |
 | **Spout** | Live video shared from another Windows application on the same machine. |
 | **Stream** | Capture cards, camera feeds, URLs, or other MPV-compatible live inputs. |
 | **Control** | Non-visual automation commands for playback, fades, loading, and timing control. |
@@ -84,7 +84,7 @@ The file-based layer types *Image*, *Video*, *Audio*, and *PDF* are chosen throu
 
 When choosing *"NDI (Network Device Interface)"*, a combobox becomes visible instead of the file dialog field. The combobox contains the discovered NDI sources on the network that can be received. Both image and audio are supported through NDI.
 
-When choosing *"OMT (Open Media Transport)"*, a combobox becomes visible instead of the file dialog field. The combobox contains the discovered OMT sources on the network that can be received. In the current C-Play implementation, OMT support is limited to video frames and does not include audio.
+When choosing *"OMT (Open Media Transport)"*, a combobox becomes visible instead of the file dialog field. The combobox contains the discovered OMT sources on the network that can be received.
 
 When choosing *"Spout"*, a combobox becomes visible instead of the file dialog field. The combobox lists the currently available Spout senders from other Windows applications on the same machine, and the refresh button can be used to rescan the sender list. This makes it practical to bring live rendered content such as graphics, real-time engines, or capture tools directly into a slide as a video layer. Spout layers are available by default in C-Play v2.3 Windows builds.
 

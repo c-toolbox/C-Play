@@ -191,6 +191,12 @@ if(BUILD_CPLAY_WITH_OMT)
     find_package(OMT REQUIRED)
     set_package_properties(OMT PROPERTIES TYPE REQUIRED
         URL "https://github.com/openmediatransport" DESCRIPTION "open media transport over network")
+
+    if(NOT TARGET PortAudio::PortAudio)
+        find_package(PortAudio REQUIRED)
+        set_package_properties(PortAudio PROPERTIES TYPE REQUIRED
+            URL "https://www.portaudio.com/" DESCRIPTION "for OMT audio output support.")
+    endif()
 endif()
 
 option(BUILD_CPLAY_WITH_POPPLER "Global On/Off for PDF support via Poppler library" OFF)

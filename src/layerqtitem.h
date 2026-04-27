@@ -112,6 +112,7 @@ class LayerQtItem : public QQuickItem {
     Q_PROPERTY(int layerTextAlignment READ layerTextAlignment WRITE setLayerTextAlignment NOTIFY layerValueChanged)
     Q_PROPERTY(QSize layerTextRenderSize READ layerTextRenderSize WRITE setLayerTextRenderSize NOTIFY layerValueChanged)
     Q_PROPERTY(bool layerQRCodeDetectionEnabled READ layerQRCodeDetectionEnabled WRITE setLayerQRCodeDetectionEnabled NOTIFY layerValueChanged)
+    Q_PROPERTY(bool layerFlipY READ layerFlipY WRITE setLayerFlipY NOTIFY layerValueChanged)
     Q_PROPERTY(QString layerOperation READ layerOperation WRITE setLayerOperation NOTIFY layerValueChanged)
     Q_PROPERTY(QString layerParameter READ layerParameter WRITE setLayerParameter NOTIFY layerValueChanged)
     QML_ELEMENT
@@ -265,6 +266,9 @@ public:
 
     bool layerQRCodeDetectionEnabled() const;
     void setLayerQRCodeDetectionEnabled(bool enabled);
+
+    bool layerFlipY() const;
+    void setLayerFlipY(bool flip);
 
     QString layerOperation() const;
     void setLayerOperation(QString op);

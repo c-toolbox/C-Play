@@ -29,6 +29,7 @@ Kirigami.ApplicationWindow {
     property var streamControls: undefined
     property var textControls: undefined
     property var qrCodeControls: undefined
+    property var flipYControls: undefined
 
     function createRoiComponents() {
         if (!selection) {
@@ -125,6 +126,17 @@ Kirigami.ApplicationWindow {
             qrCodeControls = undefined;
         }
     }
+    function createFlipYComponents() {
+        if (!flipYControls) {
+            flipYControls = flipYComponent.createObject(layerViewItem);
+        }
+    }
+    function destroyFlipYComponents() {
+        if (flipYControls) {
+            flipYControls.destroy();
+            flipYControls = undefined;
+        }
+    }
 
     color: Kirigami.Theme.alternateBackgroundColor
     height: 630
@@ -148,6 +160,7 @@ Kirigami.ApplicationWindow {
         destroyMediaComponents();
         destroyStreamComponents();
         destroyQRCodeComponents();
+        destroyFlipYComponents();
     }
     onVisibilityChanged: {
         if (visible) {
@@ -166,10 +179,19 @@ Kirigami.ApplicationWindow {
                 else if (layerViewItem.layerTypeName === "Stream") {
                     createStreamComponents();
                     createQRCodeComponents();
+                    createFlipYComponents();
                 }
                 else if (layerViewItem.layerTypeName === "NDI") {
                     createAudioComponents();
                     createQRCodeComponents();
+                    createFlipYComponents();
+                }
+                else if (layerViewItem.layerTypeName === "OMT") {
+                    createAudioComponents();
+                    createFlipYComponents();
+                }
+                else if (layerViewItem.layerTypeName === "Spout") {
+                    createFlipYComponents();
                 }
                 else if (layerViewItem.layerTypeName === "Text") {
                     createTextComponents();
@@ -183,6 +205,7 @@ Kirigami.ApplicationWindow {
                 destroyStreamComponents();
                 destroyTextComponents();
                 destroyQRCodeComponents();
+                destroyFlipYComponents();
             }
         }
     }
@@ -1482,6 +1505,53 @@ Kirigami.ApplicationWindow {
             }
         }
         Component {
+            id: flipYComponent
+
+            Row {
+                anchors.horizontalCenter: parent.horizontalCenter
+                anchors.bottom: parent.bottom
+                bottomPadding: 60
+
+                RowLayout {
+                    Rectangle {
+                        color: Kirigami.Theme.alternateBackgroundColor
+                        implicitHeight: 35
+                        implicitWidth: 160
+                        radius: 5
+
+                        RowLayout {
+                            anchors.fill: parent
+                            anchors.leftMargin: 8
+
+                            CheckBox {
+                                id: flipYCheckBox
+
+                                focusPolicy: Qt.NoFocus
+                                text: qsTr("Flip Vertically")
+                                checked: layerViewItem.layerFlipY
+
+                                onToggled: {
+                                    layerViewItem.layerFlipY = checked;
+                                }
+                            }
+                        }
+                    }
+                }
+                Connections {
+                    function onLayerChanged() {
+                        if (layerViewItem.layerIdx !== -1) {
+                            flipYCheckBox.checked = layerViewItem.layerFlipY;
+                        }
+                    }
+                    function onLayerValueChanged() {
+                        flipYCheckBox.checked = layerViewItem.layerFlipY;
+                    }
+
+                    target: layerViewItem
+                }
+            }
+        }
+        Component {
             id: qrCodeComponent
 
             Row {
@@ -1562,6 +1632,7 @@ Kirigami.ApplicationWindow {
                         destroyStreamComponents();
                         destroyTextComponents();
                         destroyQRCodeComponents();
+                        destroyFlipYComponents();
                     }
                     else if (layerViewItem.layerTypeName === "Video" 
                         || layerViewItem.layerTypeName === "Audio") {
@@ -1571,6 +1642,7 @@ Kirigami.ApplicationWindow {
                         destroyStreamComponents();
                         destroyTextComponents();
                         destroyQRCodeComponents();
+                        destroyFlipYComponents();
                     }
                     else if (layerViewItem.layerTypeName === "Stream") {
                         destroyPageComponents();
@@ -1579,6 +1651,7 @@ Kirigami.ApplicationWindow {
                         createStreamComponents();
                         destroyTextComponents();
                         createQRCodeComponents();
+                        createFlipYComponents();
                     }
                     else if (layerViewItem.layerTypeName === "NDI") {
                         destroyPageComponents();
@@ -1587,6 +1660,25 @@ Kirigami.ApplicationWindow {
                         destroyStreamComponents();
                         destroyTextComponents();
                         createQRCodeComponents();
+                        createFlipYComponents();
+                    }
+                    else if (layerViewItem.layerTypeName === "OMT") {
+                        destroyPageComponents();
+                        createAudioComponents();
+                        destroyMediaComponents();
+                        destroyStreamComponents();
+                        destroyTextComponents();
+                        destroyQRCodeComponents();
+                        createFlipYComponents();
+                    }
+                    else if (layerViewItem.layerTypeName === "Spout") {
+                        destroyPageComponents();
+                        destroyAudioComponents();
+                        destroyMediaComponents();
+                        destroyStreamComponents();
+                        destroyTextComponents();
+                        destroyQRCodeComponents();
+                        createFlipYComponents();
                     }
                     else if (layerViewItem.layerTypeName === "Text") {
                         destroyPageComponents();
@@ -1595,6 +1687,7 @@ Kirigami.ApplicationWindow {
                         destroyStreamComponents();
                         createTextComponents();
                         destroyQRCodeComponents();
+                        destroyFlipYComponents();
                     }
                     else {
                         destroyPageComponents();
@@ -1603,6 +1696,7 @@ Kirigami.ApplicationWindow {
                         destroyStreamComponents();
                         destroyTextComponents();
                         destroyQRCodeComponents();
+                        destroyFlipYComponents();
                     }
                 }
                 else {
@@ -1613,6 +1707,7 @@ Kirigami.ApplicationWindow {
                     destroyStreamComponents();
                     destroyTextComponents();
                     destroyQRCodeComponents();
+                    destroyFlipYComponents();
                 }
             }
             function onLayerValueChanged() {

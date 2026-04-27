@@ -899,6 +899,22 @@ void LayerQtItem::setLayerQRCodeDetectionEnabled(bool enabled) {
     }
 }
 
+bool LayerQtItem::layerFlipY() const {
+    if (m_layer)
+        return m_layer->flipY();
+    return false;
+}
+
+void LayerQtItem::setLayerFlipY(bool flip) {
+    if (m_layer) {
+        if (m_layer->flipY() != flip) {
+            m_layer->setFlipY(flip);
+            Q_EMIT layerValueChanged();
+            Q_EMIT layerNeedsSave();
+        }
+    }
+}
+
 QString LayerQtItem::layerOperation() const {
     if (m_layer && m_layer->type() == BaseLayer::CONTROL) {
         ControlLayer* controlLayer = static_cast<ControlLayer*>(m_layer);

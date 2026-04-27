@@ -32,7 +32,7 @@ An additional powerful feature in C-Play is the presentation tool, where you can
 
 - *Audio* (WAV, AAC etc)
 
-- *NDI*, *OMT* or *Spout* (Network video or live sharing across local apps. OMT currently supports video frames only.)
+- *NDI*, *OMT* or *Spout* (Network video/audio or live sharing across local apps.)
 
 - *Streams* (YouTube and similar inputs supported through FFmpeg)
 
@@ -71,7 +71,7 @@ C-Play is an open source cluster video player, based on these open source projec
 Optional libraries in current C-Play builds include:
 
 - [NDI](https://ndi.video/for-developers/ndi-sdk/) - Support frame-synced NDI streams, video and audio
-- [OMT](https://openmediatransport.org/) (Open Media Transport) - Support OMT video streams
+- [OMT](https://openmediatransport.org/) (Open Media Transport) - Support OMT video and audio streams
 - [Poppler](https://poppler.freedesktop.org/) - For rendering PDF pages
 
 # Build on Windows

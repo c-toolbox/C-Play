@@ -59,7 +59,7 @@ The floating window is a frameless secondary window for displaying content in a 
 * **Show only main video in layer** — When showing the main video, display only the video without additional layer compositing (default on).
 * **Custom layer type** — Choose a layer source type: *File*, *NDI*, *OMT*, *Spout*, *Stream*, or *Text*.
 * **Custom layer path** — The file path, NDI sender name, OMT sender name, Spout sender, stream URL, or text content for the custom layer.
-* **Volume** — Audio volume for the custom layer (0–100%, default 100). This applies only to sources that provide audio; OMT is currently video-only.
+* **Volume** — Audio volume for the custom layer (0–100%, default 100).
 
 #### Position and size
 

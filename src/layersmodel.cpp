@@ -940,6 +940,11 @@ void LayersModel::decodeFromJSON(QJsonObject &obj, const QStringList &forRelativ
                         m_layers[idx].first->setKeepVisibilityForNumSlides(keepVisibilityForNumSlides);
                     }
 
+                    if (o.contains(QStringLiteral("flipY"))) {
+                        bool flipY = o.value(QStringLiteral("flipY")).toBool();
+                        m_layers[idx].first->setFlipY(flipY);
+                    }
+
                     if (grid == BaseLayer::GridMode::Plane && o.contains(QStringLiteral("plane"))) {
                         QJsonValue planeValues = o.value(QStringLiteral("plane"));
                         QJsonArray planeArray = planeValues.toArray();
@@ -1221,6 +1226,10 @@ void LayersModel::encodeToJSON(QJsonObject &obj, const QStringList &forRelativeP
 
         layerData.insert(QStringLiteral("visibility"), QJsonValue(static_cast<int>(layer->alpha() * 100.f)));
         layerData.insert(QStringLiteral("keepVisibilityForNumSlides"), QJsonValue(layer->keepVisibilityForNumSlides()));
+
+        if (layer->flipY()) {
+            layerData.insert(QStringLiteral("flipY"), QJsonValue(true));
+        }
 
         // Plane properties
         if (gridIdx == BaseLayer::GridMode::Plane) {

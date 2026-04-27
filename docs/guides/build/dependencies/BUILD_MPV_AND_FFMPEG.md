@@ -2,9 +2,9 @@
 
 C-Play depends on the great *mpv* media player library, which indeed depends on the great *ffmpeg* library. It is usually straight-forward to build in many ways, but normally we want to modify the standard build by including JACK, to go from maximum 8-channel audio support, to support ASIO and other low-latency audio frameworks. Choose one of the two below options (after the pre-setup). After building, check further below for creating a linkable library.
 
-## Pre-setup: Install JACK + portaudio (needed NDI audio) with vcpkg
+## Pre-setup: Install JACK + portaudio (also for NDI audio) with vcpkg
 
-This pre-setup is relevant for NDI audio support. OMT support in C-Play is currently limited to video frames, so it does not use this audio path.
+This pre-setup is relevant for NDI and/or OMT audio support.
 
 In the options below, we will be compiling FFMPEG and MPV with MINGW64, which is a standard and usually the easiest practice for building a customized library on Windows. But MINGW64 headers are extensive and the include folder often makes compilation fail. As we are also using the excellent 'vcpkg' functionality for many packages, we can use that as well to install packages that can be included when building C-Play.
 

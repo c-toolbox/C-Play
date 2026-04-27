@@ -6,8 +6,15 @@
  */
 
 #include "omtlayer.h"
+#include "audiosettings.h"
 #include <sgct/sgct.h>
+#include <cstring>
+#include <cmath>
+#include <algorithm>
 
+// ============================================================
+// OmtFinder
+// ============================================================
 OmtFinder* OmtFinder::_instance = nullptr;
 
 OmtFinder::OmtFinder() {
@@ -51,11 +58,24 @@ std::string OmtFinder::getOMTVersionString() {
     return "1.0";
 }
 
+// ============================================================
+// OmtLayer
+// ============================================================
 OmtLayer::OmtLayer() {
     setType(BaseLayer::LayerType::OMT);
 }
 
 OmtLayer::~OmtLayer() {
+    if (isAudioEnabled() && m_receiveAudio) {
+        if (m_audioStreamOpen && m_audioStreamStarted) {
+            m_audioError = Pa_CloseStream(m_audioStream);
+            if (m_audioError == paNoError) {
+                m_audioStreamOpen = false;
+            }
+        }
+        Pa_Terminate();
+    }
+
     if (m_receiver) {
         omt_receive_destroy(m_receiver);
         m_receiver = nullptr;
@@ -68,9 +88,29 @@ OmtLayer::~OmtLayer() {
 
 void OmtLayer::initialize() {
     m_hasInitialized = true;
+
+    // Only receive audio on master
+    if (isAudioEnabled()) {
+        m_audioError = Pa_Initialize();
+        if (m_audioError != paNoError) {
+            sgct::Log::Error("OmtLayer Error: PortAudio initialization failed.\n");
+        }
+        else {
+            m_receiveAudio = true;
+            m_audioOutputParameters.device = Pa_GetDefaultOutputDevice();
+            if (m_audioOutputParameters.device == paNoDevice) {
+                sgct::Log::Error("OmtLayer Error: No default audio output device.\n");
+            }
+        }
+    }
 }
 
 void OmtLayer::update(bool updateRendering) {
+    if (m_typePropertiesDecoded) {
+        m_typePropertiesDecoded = false;
+        setVolume(m_volume_Dec);
+    }
+
     // Check if sender exists
     if (!OmtFinder::instance().senderExists(filepath())) {
         m_isReady = false;
@@ -81,11 +121,15 @@ void OmtLayer::update(bool updateRendering) {
         return;
     }
 
-    // Create receiver if needed
+    // Create receiver if needed — request both video and audio if audio is enabled
     if (!m_receiver) {
+        OMTFrameType frameTypes = OMTFrameType_Video;
+        if (m_receiveAudio) {
+            frameTypes = static_cast<OMTFrameType>(OMTFrameType_Video | OMTFrameType_Audio);
+        }
         m_receiver = omt_receive_create(
             filepath().c_str(),
-            OMTFrameType_Video,
+            frameTypes,
             OMTPreferredVideoFormat_BGRA,
             OMTReceiveFlags_None
         );
@@ -100,9 +144,24 @@ void OmtLayer::update(bool updateRendering) {
         m_isReady = true;
     }
 
-    // Receive a video frame
+    // Receive video frame
     if (updateRendering) {
         updateFrame();
+    }
+
+    // Receive audio frame (non-blocking)
+    if (m_receiveAudio && m_receiver) {
+        OMTMediaFrame* audioFrame = omt_receive(m_receiver, OMTFrameType_Audio, 0);
+        if (audioFrame && audioFrame->Type == OMTFrameType_Audio && audioFrame->Data && audioFrame->DataLength > 0) {
+            // Start audio stream on first audio frame if not yet started
+            if (!m_audioStreamOpen) {
+                m_audioSampleRate = audioFrame->SampleRate;
+                m_audioChannels = audioFrame->Channels;
+                StartAudioStream();
+            }
+
+            ProcessAudioFrame(audioFrame);
+        }
     }
 }
 
@@ -113,7 +172,6 @@ void OmtLayer::updateFrame() {
 
     OMTMediaFrame* frame = omt_receive(m_receiver, OMTFrameType_Video, 0);
     if (!frame || frame->Type != OMTFrameType_Video || !frame->Data || frame->DataLength <= 0) {
-        // No frame available yet, but receiver is created
         return;
     }
 
@@ -137,12 +195,252 @@ void OmtLayer::updateFrame() {
         GL_BGRA, GL_UNSIGNED_BYTE, frame->Data);
 }
 
+void OmtLayer::ProcessAudioFrame(OMTMediaFrame* frame) {
+    if (!frame || !frame->Data || frame->DataLength <= 0)
+        return;
+
+    if (!m_audioStreamOpen || !m_audioStreamStarted)
+        return;
+
+    int channels = frame->Channels;
+    int samplesPerChannel = frame->SamplesPerChannel;
+
+    if (channels <= 0 || samplesPerChannel <= 0)
+        return;
+
+    // Determine output channel count
+    int outChannels = m_audioOutputChannels;
+
+    // OMT audio is planar 32-bit float: [ch0_sample0..ch0_sampleN][ch1_sample0..ch1_sampleN]...
+    // PortAudio with paFloat32 expects interleaved float: [s0_ch0, s0_ch1, ..., s1_ch0, s1_ch1, ...]
+    // We interleave and apply volume — no format conversion needed.
+    const float* srcData = static_cast<const float*>(frame->Data);
+    float vol = m_audioVolume;
+
+    size_t totalSamples = static_cast<size_t>(samplesPerChannel) * static_cast<size_t>(outChannels);
+    if (m_interleavedAudioBuf.size() < totalSamples) {
+        m_interleavedAudioBuf.resize(totalSamples);
+    }
+
+    for (int s = 0; s < samplesPerChannel; ++s) {
+        for (int oc = 0; oc < outChannels; ++oc) {
+            // Map output channel to input channel (simple wrap for down/upmix)
+            int ic = (oc < channels) ? oc : (oc % channels);
+            float sample = srcData[static_cast<size_t>(ic) * static_cast<size_t>(samplesPerChannel) + static_cast<size_t>(s)];
+            m_interleavedAudioBuf[static_cast<size_t>(s) * static_cast<size_t>(outChannels) + static_cast<size_t>(oc)] = sample * vol;
+        }
+    }
+
+    // Write directly to the PortAudio stream (blocking)
+    m_audioError = Pa_WriteStream(m_audioStream, m_interleavedAudioBuf.data(), static_cast<unsigned long>(samplesPerChannel));
+    if (m_audioError != paNoError && m_audioError != paOutputUnderflowed) {
+        sgct::Log::Error("OmtLayer Error: Pa_WriteStream failed.\n");
+    }
+}
+
+bool OmtLayer::StartAudioStream() {
+    if (!m_receiveAudio)
+        return false;
+
+    // Determine output channel count
+    if (AudioSettings::portAudioMixInputToOutput()) {
+        const PaDeviceInfo* devInfo = Pa_GetDeviceInfo(m_audioOutputParameters.device);
+        if (devInfo) {
+            m_audioOutputChannels = std::min(AudioSettings::portAudioOutputChannels(), devInfo->maxOutputChannels);
+        }
+    }
+    else {
+        m_audioOutputChannels = m_audioChannels;
+    }
+
+    m_audioOutputParameters.channelCount = m_audioOutputChannels;
+    m_audioOutputParameters.sampleFormat = paFloat32;
+    const PaDeviceInfo* devInfo = Pa_GetDeviceInfo(m_audioOutputParameters.device);
+    if (devInfo) {
+        m_audioOutputParameters.suggestedLatency = devInfo->defaultLowOutputLatency;
+    }
+    else {
+        m_audioOutputParameters.suggestedLatency = 0.05;
+    }
+    m_audioOutputParameters.hostApiSpecificStreamInfo = NULL;
+
+    // Open stream without callback — we use Pa_WriteStream instead
+    m_audioError = Pa_OpenStream(
+        &m_audioStream,
+        NULL,
+        &m_audioOutputParameters,
+        m_audioSampleRate,
+        paFramesPerBufferUnspecified,
+        paClipOff,
+        NULL,   // no callback
+        NULL    // no userData
+    );
+
+    if (m_audioError == paNoError) {
+        m_audioStreamOpen = true;
+        start();
+        return true;
+    }
+    else {
+        sgct::Log::Error("OmtLayer Error: Failed to open PortAudio stream.\n");
+    }
+
+    return false;
+}
+
+PaDeviceIndex OmtLayer::GetChosenApplicationAudioDevice() {
+    PaDeviceIndex choseDeviceIdx = Pa_GetDefaultOutputDevice();
+    if (choseDeviceIdx == paNoDevice) {
+        sgct::Log::Error("OmtLayer Error: No default audio output device.\n");
+    }
+    if (AudioSettings::portAudioCustomOutput()) {
+        if (!AudioSettings::portAudioOutputDevice().isEmpty()
+            && !AudioSettings::portAudioOutputApi().isEmpty()) {
+            int numDevices = Pa_GetDeviceCount();
+            if (numDevices < 0) {
+                return choseDeviceIdx;
+            }
+            const PaDeviceInfo* deviceInfo;
+            const PaHostApiInfo* apiInfo;
+            bool foundDevice = false;
+            for (int i = 0; i < numDevices; i++) {
+                deviceInfo = Pa_GetDeviceInfo(i);
+                apiInfo = Pa_GetHostApiInfo(deviceInfo->hostApi);
+                if (deviceInfo->maxOutputChannels > 1) {
+                    QString deviceName = QString::fromUtf8(deviceInfo->name);
+                    QString apiName = QString::fromUtf8(apiInfo->name);
+                    if (deviceName == AudioSettings::portAudioOutputDevice()
+                        && apiName == AudioSettings::portAudioOutputApi()) {
+                        choseDeviceIdx = i;
+                        foundDevice = true;
+                    }
+                }
+            }
+            if (!foundDevice) {
+                sgct::Log::Info("OmtLayer: Did not find desired audio device. Sticking with default device.");
+            }
+        }
+    }
+    return choseDeviceIdx;
+}
+
 bool OmtLayer::ready() const {
     return m_isReady;
 }
 
 bool OmtLayer::hasTexture() const {
     return true;
+}
+
+void OmtLayer::start() {
+    if (!m_audioStreamStarted && isAudioEnabled() && m_audioStream && m_audioStreamOpen) {
+        setVolume(m_volume);
+        m_audioError = Pa_StartStream(m_audioStream);
+        if (m_audioError == paNoError) {
+            m_audioStreamStarted = true;
+        }
+    }
+}
+
+void OmtLayer::stop() {
+    if (isAudioEnabled() && m_audioStream && m_audioStreamOpen && m_audioStreamStarted) {
+        m_audioError = Pa_StopStream(m_audioStream);
+        if (m_audioError == paNoError) {
+            m_audioStreamStarted = false;
+        }
+    }
+}
+
+bool OmtLayer::hasAudio() const {
+    return (isAudioEnabled() || (isMaster() && AudioSettings::enableAudioOnNodes()));
+}
+
+bool OmtLayer::isAudioEnabled() const {
+    return m_isAudioEnabled;
+}
+
+void OmtLayer::enableAudio(bool enabled) {
+    m_isAudioEnabled = enabled;
+}
+
+void OmtLayer::updateAudioOutput() {
+    if (isMaster()) {
+        if (!m_isAudioEnabled && AudioSettings::enableAudioOnMaster()) {
+            enableAudio(true);
+        }
+        else if (m_isAudioEnabled && !AudioSettings::enableAudioOnMaster()) {
+            enableAudio(false);
+        }
+    }
+    if (isAudioEnabled()) {
+        PaDeviceIndex currentDeviceIdx = m_audioOutputParameters.device;
+        PaDeviceIndex newDeviceIdx = GetChosenApplicationAudioDevice();
+
+        int channelCount = m_audioOutputChannels;
+        if (AudioSettings::portAudioMixInputToOutput()) {
+            const PaDeviceInfo* devInfo = Pa_GetDeviceInfo(newDeviceIdx);
+            if (devInfo) {
+                channelCount = std::min(AudioSettings::portAudioOutputChannels(), devInfo->maxOutputChannels);
+            }
+        }
+
+        bool restartStream = false;
+        if (newDeviceIdx != currentDeviceIdx) {
+            restartStream = true;
+        }
+        else if (m_audioOutputParameters.channelCount != channelCount) {
+            restartStream = true;
+        }
+
+        if (restartStream) {
+            bool wasStarted = false;
+            bool wasOpen = false;
+            if (m_audioStream) {
+                if (m_audioStreamOpen) {
+                    wasOpen = true;
+                    if (m_audioStreamStarted) {
+                        wasStarted = true;
+                        stop();
+                    }
+                    if (!m_audioStreamStarted) {
+                        m_audioError = Pa_CloseStream(m_audioStream);
+                        if (m_audioError == paNoError) {
+                            m_audioStreamOpen = false;
+                        }
+                    }
+                }
+            }
+            if (!m_audioStreamOpen) {
+                m_audioOutputParameters.device = newDeviceIdx;
+                m_audioOutputChannels = channelCount;
+
+                if (wasStarted && wasOpen) {
+                    StartAudioStream();
+                }
+            }
+        }
+    }
+}
+
+void OmtLayer::setVolume(int v, bool storeLevel) {
+    if (storeLevel) {
+        m_volume = v;
+    }
+
+    m_volume_Dec = v;
+    m_audioVolume = static_cast<float>(v) / 100.0f;
+
+    if (isMaster() && AudioSettings::enableAudioOnNodes())
+        setNeedSync();
+}
+
+void OmtLayer::encodeTypeProperties(std::vector<std::byte>& data) {
+    sgct::serializeObject(data, m_volume_Dec);
+}
+
+void OmtLayer::decodeTypeProperties(const std::vector<std::byte>& data, unsigned int& pos) {
+    sgct::deserializeObject(data, pos, m_volume_Dec);
+    m_typePropertiesDecoded = true;
 }
 
 void OmtLayer::GenerateTexture(unsigned int& id, int width, int height) {

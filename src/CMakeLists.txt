@@ -364,6 +364,7 @@ endif()
 
 if(BUILD_CPLAY_WITH_OMT)
     list(APPEND TARGET_LIBRARIES OMT::OMT)
+    list(APPEND TARGET_LIBRARIES PortAudio::PortAudio)
     target_compile_definitions(${TARGET_NAME} PUBLIC OMT_SUPPORT)
     target_include_directories(${TARGET_NAME} PRIVATE ${OMT_INCLUDE_DIRS})
 endif()
