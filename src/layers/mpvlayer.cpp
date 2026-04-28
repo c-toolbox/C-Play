@@ -344,6 +344,8 @@ void MpvLayer::cleanup() {
         }
         m_data.trd->join();
         m_data.trd.reset();
+        mpv_destroy(m_data.handle);
+        m_data.handle = nullptr;
     }
 }
 
