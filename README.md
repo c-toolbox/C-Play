@@ -24,13 +24,13 @@ C-Play support media that is:
 Primary media, such as video and images, is easily opened and configured through playfiles and added to playlists for a standard media player setup.
 An additional powerful feature in C-Play is the presentation tool, where you can add an arbitrary number of layers within slides using numerous inputs, such as:
 
-- *Images* (JPG and PNGs)
+- *Images* (PNG, JPG, TIFF, WEBP etc)
 
 - *PDF* (Common export format from PPT)
 
 - *Videos* (H264, HEVC/H265, AV1/H266, VP9 etc) 
 
-- *Audio* (WAV, AAC etc)
+- *Audio* (WAV, AAC, MP3 etc)
 
 - *NDI*, *OMT* or *Spout* (Network video/audio or live sharing across local apps.)
 
@@ -73,7 +73,7 @@ Optional libraries in current C-Play builds include:
 - [NDI](https://ndi.video/for-developers/ndi-sdk/) - Support frame-synced NDI streams, video and audio
 - [OMT](https://openmediatransport.org/) (Open Media Transport) - Support OMT video and audio streams
 - [Poppler](https://poppler.freedesktop.org/) - For rendering PDF pages
-
+- [SAIL](https://sail.software/) - For more extensive image decoding
 # Build on Windows
 
 - Use the [Craft Guide](./docs/guides/build/dependencies/CRAFT_INSTALLS.md) to install all dependencies for the UI, including Qt and KDE Frameworks libraries.

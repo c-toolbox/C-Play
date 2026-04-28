@@ -70,9 +70,9 @@ Here you can choose from the following layer types:
 
 | Layer type | Best used for |
 |------------|---------------|
-| **Image** | Supported extensions: *.png*, *.jpg*, *.jpeg*, *.tga*. |
+| **Image** | Supported extensions: *.png*, *.jpg*, *.jpeg*, *.tga*., *.tiff*., *.webp*. |
 | **Video** | Common supported extensions: *.mp4*, *.mkv*, *.mov*, *.webm*, *.mpeg*. |
-| **Audio** | Common supported extensions: *.mp3*, *.wav*, *.flac*, *.ogg*, *.m4a*. |
+| **Audio** | Common supported extensions: *.wav*, *.mp3*, *.flac*, *.ogg*, *.m4a*. |
 | **PDF** | Document pages, slides, or signage content imported from a PDF file. |
 | **NDI** | Live video and audio received from an NDI sender on the network. |
 | **OMT** | Live video and audio received from an OMT sender on the network. |
