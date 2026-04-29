@@ -490,15 +490,13 @@ Rectangle {
                     presentationToLoad = PresentationSettings.presentationToLoadOnStartup;
                     openCPlayPresentation();
                 }
-
-                slidesView.currentIndex = app.slides.selectedSlideIdx;
                 layers.layersView.currentIndex = -1;
+                slidesView.currentIndex = app.slides.selectedSlideIdx;
             }
             onCurrentIndexChanged: {
+                layers.layersView.currentIndex = -1;
                 if(app.slides.selectedSlideIdx !== slidesView.currentIndex)
                     app.slides.selectedSlideIdx = slidesView.currentIndex;
-
-                layers.layersView.currentIndex = -1;
                 layers.busyIndicator = false;
             }
 
@@ -521,6 +519,8 @@ Rectangle {
 
             Connections {
                 function onPresentationHasLoaded() {
+                    app.slides.selectedSlideIdx = app.slides.selectedSlideIdx;
+
                     if (slidesView.count > 0 && slides.state === "hidden") {
                         actions.toggleSlidesAction.trigger();
                     }

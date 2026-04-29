@@ -191,6 +191,7 @@ BaseLayer::BaseLayer() {
     m_volume = 100;
     m_volumeScaling = 1.f;
     m_isLocked = false;
+    m_isEnabled = true;
     m_isMaster = false;
     m_existOnMasterOnly = false;
     m_shouldUpdate = false;
@@ -511,6 +512,14 @@ bool BaseLayer::isLocked() const {
 
 void BaseLayer::setIsLocked(bool locked) {
     m_isLocked = locked;
+}
+
+bool BaseLayer::isEnabled() const {
+    return m_isEnabled;
+}
+
+void BaseLayer::setEnabled(bool enabled) {
+    m_isEnabled = enabled;
 }
 
 bool BaseLayer::needSync() const {

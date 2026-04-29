@@ -99,7 +99,7 @@ int LayerQtItem::layerStereoMode() const{
 }
 
 void LayerQtItem::setLayerStereoMode(int mode) {
-    if (m_layer) {
+    if (m_layer && m_layer->isEnabled()) {
         if (m_layer->stereoMode() != static_cast<uint8_t>(mode)) {
             Q_EMIT layerNeedsSave();
         }
@@ -116,7 +116,7 @@ int LayerQtItem::layerGridMode() const{
 }
 
 void LayerQtItem::setLayerGridMode(int mode) {
-    if (m_layer) {
+    if (m_layer && m_layer->isEnabled()) {
         if (m_layer->gridMode() != static_cast<uint8_t>(mode)) {
             Q_EMIT layerNeedsSave();
         }
@@ -133,7 +133,7 @@ int LayerQtItem::layerVisibility() const{
 }
 
 void LayerQtItem::setLayerVisibility(int value) {
-    if (m_layer) {
+    if (m_layer && m_layer->isEnabled()) {
         m_layer->setAlpha(static_cast<float>(value) * 0.01f);
         Q_EMIT layerValueChanged();
     }
@@ -154,7 +154,7 @@ int LayerQtItem::layerAudioId() const {
 }
 
 void LayerQtItem::setLayerAudioId(int value) {
-    if (m_layer) {
+    if (m_layer && m_layer->isEnabled()) {
         if (m_layer->audioId() != value) {
             m_layer->setAudioId(value);
             Q_EMIT layerValueChanged();
@@ -170,7 +170,7 @@ int LayerQtItem::layerVolume() const {
 }
 
 void LayerQtItem::setLayerVolume(int value) {
-    if (m_layer) {
+    if (m_layer && m_layer->isEnabled()) {
         if (m_layer->volume() != value) {
             Q_EMIT layerNeedsSave();
         }
@@ -187,7 +187,7 @@ bool LayerQtItem::layerPause() const {
 }
 
 void LayerQtItem::setLayerPause(bool value) {
-    if (m_layer) {
+    if (m_layer && m_layer->isEnabled()) {
         m_layer->setPause(value);
         Q_EMIT layerPositionChanged();
     }
@@ -201,7 +201,7 @@ double LayerQtItem::layerPosition() const {
 }
 
 void LayerQtItem::setLayerPosition(double value) {
-    if (m_layer) {
+    if (m_layer && m_layer->isEnabled()) {
         m_layer->setPosition(value);
         Q_EMIT layerPositionChanged();
     }
@@ -230,7 +230,7 @@ int LayerQtItem::layerEofMode() const {
 }
 
 void LayerQtItem::setLayerEofMode(int value) {
-    if (m_layer && (m_layer->type() == BaseLayer::LayerType::VIDEO || m_layer->type() == BaseLayer::LayerType::AUDIO)) {
+    if (m_layer && m_layer->isEnabled() && (m_layer->type() == BaseLayer::LayerType::VIDEO || m_layer->type() == BaseLayer::LayerType::AUDIO)) {
         MpvLayer* mpvLayer = static_cast<MpvLayer*>(m_layer);
         if (mpvLayer->eofMode() != value) {
             mpvLayer->setEOFMode(value);
@@ -249,7 +249,7 @@ bool LayerQtItem::layerLoopTimeEnabled() const {
 }
 
 void LayerQtItem::setLayerLoopTimeEnabled(bool value) {
-    if (m_layer && (m_layer->type() == BaseLayer::LayerType::VIDEO || m_layer->type() == BaseLayer::LayerType::AUDIO)) {
+    if (m_layer && m_layer->isEnabled() && (m_layer->type() == BaseLayer::LayerType::VIDEO || m_layer->type() == BaseLayer::LayerType::AUDIO)) {
         MpvLayer* mpvLayer = static_cast<MpvLayer*>(m_layer);
         if (mpvLayer->loopTimeEnabled() != value) {
             mpvLayer->setLoopTime(mpvLayer->loopTimeA(), mpvLayer->loopTimeB(), value);
@@ -268,7 +268,7 @@ double LayerQtItem::layerLoopTimeA() const {
 }
 
 void LayerQtItem::setLayerLoopTimeA(double value) {
-    if (m_layer && (m_layer->type() == BaseLayer::LayerType::VIDEO || m_layer->type() == BaseLayer::LayerType::AUDIO)) {
+    if (m_layer && m_layer->isEnabled() && (m_layer->type() == BaseLayer::LayerType::VIDEO || m_layer->type() == BaseLayer::LayerType::AUDIO)) {
         MpvLayer* mpvLayer = static_cast<MpvLayer*>(m_layer);
         if (mpvLayer->loopTimeA() != value) {
             mpvLayer->setLoopTime(value, mpvLayer->loopTimeB(), mpvLayer->loopTimeEnabled());
@@ -287,7 +287,7 @@ double LayerQtItem::layerLoopTimeB() const {
 }
 
 void LayerQtItem::setLayerLoopTimeB(double value) {
-    if (m_layer && (m_layer->type() == BaseLayer::LayerType::VIDEO || m_layer->type() == BaseLayer::LayerType::AUDIO)) {
+    if (m_layer && m_layer->isEnabled() && (m_layer->type() == BaseLayer::LayerType::VIDEO || m_layer->type() == BaseLayer::LayerType::AUDIO)) {
         MpvLayer* mpvLayer = static_cast<MpvLayer*>(m_layer);
         if (mpvLayer->loopTimeB() != value) {
             mpvLayer->setLoopTime(mpvLayer->loopTimeA(), value, mpvLayer->loopTimeEnabled());
@@ -312,7 +312,7 @@ int LayerQtItem::layerPage() const {
 
 void LayerQtItem::setLayerPage(int value) {
 #ifdef PDF_SUPPORT
-    if (m_layer && m_layer->type() == BaseLayer::PDF) {
+    if (m_layer && m_layer->isEnabled() && m_layer->type() == BaseLayer::PDF) {
         PdfLayer* pdfLayer = static_cast<PdfLayer*>(m_layer);
         if (pdfLayer->page() != value) {
             Q_EMIT layerNeedsSave();
@@ -344,7 +344,7 @@ double LayerQtItem::layerRotatePitch() const {
 }
 
 void LayerQtItem::setLayerRotatePitch(double x) {
-    if (m_layer) {
+    if (m_layer && m_layer->isEnabled()) {
         glm::vec3 rot = m_layer->rotate();
         if (!qFuzzyCompare((double)rot.x, x)) {
             Q_EMIT layerNeedsSave();
@@ -364,7 +364,7 @@ double LayerQtItem::layerRotateYaw() const {
 
 void LayerQtItem::setLayerRotateYaw(double y)
 {
-    if (m_layer) {
+    if (m_layer && m_layer->isEnabled()) {
         glm::vec3 rot = m_layer->rotate();
         if (!qFuzzyCompare((double)rot.y, y)) {
             Q_EMIT layerNeedsSave();
@@ -383,7 +383,7 @@ double LayerQtItem::layerRotateRoll() const {
 }
 
 void LayerQtItem::setLayerRotateRoll(double z) {
-    if (m_layer) {
+    if (m_layer && m_layer->isEnabled()) {
         glm::vec3 rot = m_layer->rotate();
         if (!qFuzzyCompare((double)rot.z, z)) {
             Q_EMIT layerNeedsSave();
@@ -402,7 +402,7 @@ double LayerQtItem::layerPlaneWidth() const {
 }
 
 void LayerQtItem::setLayerPlaneWidth(double pW) {
-    if (m_layer) {
+    if (m_layer && m_layer->isEnabled()) {
         if (m_layer->planeWidth() != pW) {
             Q_EMIT layerNeedsSave();
         }
@@ -419,7 +419,7 @@ double LayerQtItem::layerPlaneHeight() const {
 }
 
 void LayerQtItem::setLayerPlaneHeight(double pH) {
-    if (m_layer) {
+    if (m_layer && m_layer->isEnabled()) {
         if (m_layer->planeHeight() != pH) {
             Q_EMIT layerNeedsSave();
         }
@@ -436,7 +436,7 @@ int LayerQtItem::layerPlaneAspectRatio() const {
 }
 
 void LayerQtItem::setLayerPlaneAspectRatio(int parc) {
-    if (m_layer) {
+    if (m_layer && m_layer->isEnabled()) {
         if (m_layer->planeAspectRatio() != static_cast<uint8_t>(parc)) {
             Q_EMIT layerNeedsSave();
         }
@@ -453,7 +453,7 @@ double LayerQtItem::layerPlaneAzimuth() const {
 }
 
 void LayerQtItem::setLayerPlaneAzimuth(double pA) {
-    if (m_layer) {
+    if (m_layer && m_layer->isEnabled()) {
         if (m_layer->planeAzimuth() != pA) {
             Q_EMIT layerNeedsSave();
         }
@@ -470,7 +470,7 @@ double LayerQtItem::layerPlaneElevation() const {
 }
 
 void LayerQtItem::setLayerPlaneElevation(double pE) {
-    if (m_layer) {
+    if (m_layer && m_layer->isEnabled()) {
         if (m_layer->planeElevation() != pE) {
             Q_EMIT layerNeedsSave();
         }
@@ -487,7 +487,7 @@ double LayerQtItem::layerPlaneRoll() const {
 }
 
 void LayerQtItem::setLayerPlaneRoll(double pR) {
-    if (m_layer) {
+    if (m_layer && m_layer->isEnabled()) {
         if (m_layer->planeRoll() != pR) {
             Q_EMIT layerNeedsSave();
         }
@@ -504,7 +504,7 @@ double LayerQtItem::layerPlaneDistance() const {
 }
 
 void LayerQtItem::setLayerPlaneDistance(double pD) {
-    if (m_layer) {
+    if (m_layer && m_layer->isEnabled()) {
         if (m_layer->planeDistance() != pD) {
             Q_EMIT layerNeedsSave();
         }
@@ -521,7 +521,7 @@ double LayerQtItem::layerPlaneHorizontal() const {
 }
 
 void LayerQtItem::setLayerPlaneHorizontal(double pH) {
-    if (m_layer) {
+    if (m_layer && m_layer->isEnabled()) {
         if (m_layer->planeHorizontal() != pH) {
             Q_EMIT layerNeedsSave();
         }
@@ -538,7 +538,7 @@ double LayerQtItem::layerPlaneVertical() const {
 }
 
 void LayerQtItem::setLayerPlaneVertical(double pV) {
-    if (m_layer) {
+    if (m_layer && m_layer->isEnabled()) {
         if (m_layer->planeVertical() != pV) {
             Q_EMIT layerNeedsSave();
         }
@@ -555,7 +555,7 @@ bool LayerQtItem::layerRoiEnabled() {
 }
 
 void LayerQtItem::setLayerRoiEnabled(bool value) {
-    if (m_layer) {
+    if (m_layer && m_layer->isEnabled()) {
         if (m_layer->roiEnabled() != value) {
             Q_EMIT layerNeedsSave();
         }
@@ -581,7 +581,7 @@ QString LayerQtItem::layerTitle() {
 }
 
 void LayerQtItem::setLayerTitle(QString value) {
-    if (m_layer) {
+    if (m_layer && m_layer->isEnabled()) {
         if (QString::fromStdString(m_layer->title()) != value) {
             m_layer->setTitle(value.toStdString());
             Q_EMIT layerValueChanged();
@@ -621,7 +621,7 @@ QPoint LayerQtItem::roiOffset() {
 }
 
 void LayerQtItem::setRoiOffset(QPoint p) {
-    if (m_layer) {
+    if (m_layer && m_layer->isEnabled()) {
         glm::vec4 currentRoi = m_layer->roi();
         currentRoi.x = glm::max(static_cast<float>(p.x() - m_viewOffset.x()) / static_cast<float>(m_viewSize.width()), 0.f);
         
@@ -640,7 +640,7 @@ QSize LayerQtItem::roiSize() {
 }
 
 void LayerQtItem::setRoiSize(QSize s) {
-    if (m_layer) {
+    if (m_layer && m_layer->isEnabled()) {
         glm::vec4 currentRoi = m_layer->roi();
         //UI uses Top-Left coordinate system, while we store in Bottom-Left
         float yFromTop = 1.f - currentRoi.w - currentRoi.y;
@@ -652,7 +652,7 @@ void LayerQtItem::setRoiSize(QSize s) {
 }
 
 void LayerQtItem::setRoi(QPoint offset, QSize size) {
-    if (m_layer) {
+    if (m_layer && m_layer->isEnabled()) {
         glm::vec4 currentRoi = m_layer->roi();
         currentRoi.x = glm::max(static_cast<float>(offset.x() - m_viewOffset.x()) / static_cast<float>(m_viewSize.width()), 0.f);
         //UI uses Top-Left coordinate system, while we want to store in Bottom-Left
@@ -694,7 +694,7 @@ QPoint LayerQtItem::roiTexOffset() {
 }
 
 void LayerQtItem::setRoiTexOffset(QPoint p) {
-    if (m_layer) {
+    if (m_layer && m_layer->isEnabled()) {
         glm::vec4 currentRoi = m_layer->roi();
         currentRoi.x = glm::max(static_cast<float>(p.x()) / static_cast<float>(m_layer->width()), 0.f);
         //This value should already be Bottom-Left
@@ -717,7 +717,7 @@ QSize LayerQtItem::roiTexSize() {
 }
 
 void LayerQtItem::setRoiTexSize(QSize s) {
-    if (m_layer) {
+    if (m_layer && m_layer->isEnabled()) {
         glm::vec4 currentRoi = m_layer->roi();
         currentRoi.z = glm::min(static_cast<float>(s.width()) / static_cast<float>(m_layer->width()), 1.f);
         currentRoi.w = glm::min(static_cast<float>(s.height()) / static_cast<float>(m_layer->height()), 1.f);
@@ -779,7 +779,7 @@ QString LayerQtItem::layerText() const {
 }
 
 void LayerQtItem::setLayerText(QString text) {
-    if (m_layer && m_layer->type() == BaseLayer::TEXT) {
+    if (m_layer && m_layer->isEnabled() && m_layer->type() == BaseLayer::TEXT) {
         TextLayer* textLayer = static_cast<TextLayer*>(m_layer);
         if (QString::fromStdString(textLayer->text()) != text) {
             textLayer->setText(text.toStdString());
@@ -797,7 +797,7 @@ QString LayerQtItem::layerTextFontName() const {
 }
 
 void LayerQtItem::setLayerTextFontName(QString name) {
-    if (m_layer && m_layer->type() == BaseLayer::TEXT) {
+    if (m_layer && m_layer->isEnabled() && m_layer->type() == BaseLayer::TEXT) {
         TextLayer* textLayer = static_cast<TextLayer*>(m_layer);
         if (QString::fromStdString(textLayer->fontName()) != name) {
             textLayer->setFont(name.toStdString());
@@ -816,7 +816,7 @@ int LayerQtItem::layerTextFontSize() const {
 }
 
 void LayerQtItem::setLayerTextFontSize(int size) {
-    if (m_layer && m_layer->type() == BaseLayer::TEXT) {
+    if (m_layer && m_layer->isEnabled() && m_layer->type() == BaseLayer::TEXT) {
         TextLayer* textLayer = static_cast<TextLayer*>(m_layer);
         if (textLayer->fontSize() != size) {
             textLayer->setFontSize(size);
@@ -835,7 +835,7 @@ QColor LayerQtItem::layerTextFontColor() const {
 }
 
 void LayerQtItem::setLayerTextFontColor(QColor color) {
-    if (m_layer && m_layer->type() == BaseLayer::TEXT) {
+    if (m_layer && m_layer->isEnabled() && m_layer->type() == BaseLayer::TEXT) {
         TextLayer* textLayer = static_cast<TextLayer*>(m_layer);
         if (QColor(QString::fromStdString(textLayer->colorHex())) != color) {
             textLayer->setColor(color.name().toStdString(), color.redF(), color.greenF(), color.blueF());
@@ -854,7 +854,7 @@ int LayerQtItem::layerTextAlignment() const {
 }
 
 void LayerQtItem::setLayerTextAlignment(int align) {
-    if (m_layer && m_layer->type() == BaseLayer::TEXT) {
+    if (m_layer && m_layer->isEnabled() && m_layer->type() == BaseLayer::TEXT) {
         TextLayer* textLayer = static_cast<TextLayer*>(m_layer);
         if (textLayer->alignment() != align) {
             textLayer->setAlignment(align);
@@ -873,7 +873,7 @@ QSize LayerQtItem::layerTextRenderSize() const {
 }
 
 void LayerQtItem::setLayerTextRenderSize(QSize size) {
-    if (m_layer && m_layer->type() == BaseLayer::TEXT) {
+    if (m_layer && m_layer->isEnabled() && m_layer->type() == BaseLayer::TEXT) {
         TextLayer* textLayer = static_cast<TextLayer*>(m_layer);
         QSize currentSize(textLayer->width(), textLayer->height());
         if (currentSize != size) {
@@ -891,7 +891,7 @@ bool LayerQtItem::layerQRCodeDetectionEnabled() const {
 }
 
 void LayerQtItem::setLayerQRCodeDetectionEnabled(bool enabled) {
-    if (m_layer) {
+    if (m_layer && m_layer->isEnabled()) {
         if (m_layer->isQRCodeDetectionEnabled() != enabled) {
             m_layer->setQRCodeDetectionEnabled(enabled);
             Q_EMIT layerValueChanged();
@@ -907,7 +907,7 @@ bool LayerQtItem::layerFlipY() const {
 }
 
 void LayerQtItem::setLayerFlipY(bool flip) {
-    if (m_layer) {
+    if (m_layer && m_layer->isEnabled()) {
         if (m_layer->flipY() != flip) {
             m_layer->setFlipY(flip);
             Q_EMIT layerValueChanged();
@@ -925,7 +925,7 @@ QString LayerQtItem::layerOperation() const {
 }
 
 void LayerQtItem::setLayerOperation(QString op) {
-    if (m_layer && m_layer->type() == BaseLayer::CONTROL) {
+    if (m_layer && m_layer->isEnabled() && m_layer->type() == BaseLayer::CONTROL) {
         ControlLayer* controlLayer = static_cast<ControlLayer*>(m_layer);
         if (QString::fromStdString(controlLayer->operation()) != op) {
             controlLayer->setOperation(op.toStdString());
@@ -944,7 +944,7 @@ QString LayerQtItem::layerParameter() const {
 }
 
 void LayerQtItem::setLayerParameter(QString param) {
-    if (m_layer && m_layer->type() == BaseLayer::CONTROL) {
+    if (m_layer && m_layer->isEnabled() && m_layer->type() == BaseLayer::CONTROL) {
         ControlLayer* controlLayer = static_cast<ControlLayer*>(m_layer);
         if (QString::fromStdString(controlLayer->parameter()) != param) {
             controlLayer->setParameter(param.toStdString());
@@ -963,7 +963,7 @@ QString LayerQtItem::layerRestUrl() const {
 }
 
 void LayerQtItem::setLayerRestUrl(QString url) {
-    if (m_layer && m_layer->type() == BaseLayer::REST) {
+    if (m_layer && m_layer->isEnabled() && m_layer->type() == BaseLayer::REST) {
         RestLayer* restLayer = static_cast<RestLayer*>(m_layer);
         if (QString::fromStdString(restLayer->url()) != url) {
             restLayer->setUrl(url.toStdString());
@@ -982,7 +982,7 @@ int LayerQtItem::layerRestMethod() const {
 }
 
 void LayerQtItem::setLayerRestMethod(int method) {
-    if (m_layer && m_layer->type() == BaseLayer::REST) {
+    if (m_layer && m_layer->isEnabled() && m_layer->type() == BaseLayer::REST) {
         RestLayer* restLayer = static_cast<RestLayer*>(m_layer);
         if (restLayer->method() != method) {
             restLayer->setMethod(method);
@@ -1001,7 +1001,7 @@ QString LayerQtItem::layerRestBody() const {
 }
 
 void LayerQtItem::setLayerRestBody(QString body) {
-    if (m_layer && m_layer->type() == BaseLayer::REST) {
+    if (m_layer && m_layer->isEnabled() && m_layer->type() == BaseLayer::REST) {
         RestLayer* restLayer = static_cast<RestLayer*>(m_layer);
         if (QString::fromStdString(restLayer->requestBody()) != body) {
             restLayer->setRequestBody(body.toStdString());
@@ -1020,7 +1020,7 @@ QString LayerQtItem::layerRestContentType() const {
 }
 
 void LayerQtItem::setLayerRestContentType(QString ct) {
-    if (m_layer && m_layer->type() == BaseLayer::REST) {
+    if (m_layer && m_layer->isEnabled() && m_layer->type() == BaseLayer::REST) {
         RestLayer* restLayer = static_cast<RestLayer*>(m_layer);
         if (QString::fromStdString(restLayer->contentType()) != ct) {
             restLayer->setContentType(ct.toStdString());
@@ -1304,7 +1304,7 @@ void LayerQtOpenGLObject::init() {
 }
 
 void LayerQtOpenGLObject::paint() {
-    if (!m_layer || !m_itemVisible || !m_program) {
+    if (!m_layer || !m_layer->isEnabled() || !m_itemVisible || !m_program) {
         return;
     }
 

@@ -375,6 +375,8 @@ void LayersModel::removeLayer(int i) {
     if (getLayersCanBeLocked() && m_layers.at(i).first->isLocked())
         return;
 
+    m_layers[i].first->setEnabled(false);
+
     beginRemoveRows(QModelIndex(), i, i);
     m_layers.removeAt(i);
     endRemoveRows();
@@ -515,6 +517,9 @@ void LayersModel::clearLayers() {
             }
         }
         beginRemoveRows(QModelIndex(), lockedLayers, m_layers.size() - 1);
+        for (int i = lockedLayers; i < m_layers.size(); i++) {
+            m_layers[i].first->setEnabled(false);
+        }
         m_layers.erase(m_layers.begin() + lockedLayers, m_layers.end());
         endRemoveRows();
 
@@ -526,6 +531,9 @@ void LayersModel::clearLayers() {
     else {
         if (!m_layers.isEmpty()) {
             beginRemoveRows(QModelIndex(), 0, m_layers.size() - 1);
+            for (int i = 0; i < m_layers.size(); i++) {
+                m_layers[i].first->setEnabled(false);
+            }
             m_layers.clear();
             endRemoveRows();
         }
@@ -789,6 +797,7 @@ void LayersModel::decodeFromJSON(QJsonObject &obj, const QStringList &forRelativ
 
     if (obj.contains(QStringLiteral("layers"))) {
         clearLayers();
+        int numLockedLayersLeft = m_layers.size();
         QJsonValue value = obj.value(QStringLiteral("layers"));
         QJsonArray array = value.toArray();
         for (auto v : array) {
@@ -1123,7 +1132,33 @@ void LayersModel::decodeFromJSON(QJsonObject &obj, const QStringList &forRelativ
                 }
             }
         }
+
+        // Remove locked layers that have an identical (same type and title) locked layer
+        // This handles the case where a locked layer persists from a previous presentation
+        // but the newly loaded presentation contains the same layer.
+        if (getLayersCanBeLocked() && numLockedLayersLeft > 0) {
+            for (int i = m_layers.size() - 1; i >= numLockedLayersLeft; --i) {
+                if (!m_layers[i].first->isLocked())
+                    continue;
+                int lockedType = static_cast<int>(m_layers[i].first->type());
+                std::string lockedTitle = m_layers[i].first->title();
+                for (int j = 0; j < numLockedLayersLeft; ++j) {
+                    if (j == i || !m_layers[j].first->isLocked())
+                        continue;
+                    if (static_cast<int>(m_layers[j].first->type()) == lockedType
+                        && m_layers[j].first->title() == lockedTitle) {
+                        m_layers[j].first->setEnabled(false);
+                        beginRemoveRows(QModelIndex(), j, j);
+                        m_layers.removeAt(j);
+                        endRemoveRows();
+                        numLockedLayersLeft--;
+                        break;
+                    }
+                }
+            }
+        }
     }
+
     setNeedSync();
 }
 
@@ -1359,7 +1394,7 @@ bool LayersModel::runRenderOnLayersThatShouldUpdate(bool updateRendering, bool p
     bool statusHasUpdated = false;
     for (int i = 0; i < m_layers.size(); i++) {
         auto& layer = m_layers[i].first;
-        if (layer) {
+        if (layer && layer->isEnabled()) {
             if (layer->shouldUpdate()
                 || (preload && !layer->ready()) 
                 || (layer->shouldPreLoad() && !layer->ready())) {
@@ -1671,7 +1706,7 @@ float LayersModel::evaluateAlphaAt(int layerIdx, int timeMs) const {
         return 0.f;
     if (timeMs <= kfs.first().timeMs) return kfs.first().alpha;
     if (timeMs >= kfs.last().timeMs)  return kfs.last().alpha;
-    for (int i = 0; i < kfs.size() - 1; ++i) {
+    for (int i = 0; i < kfs.size() - 1; i++) {
         if (timeMs >= kfs[i].timeMs && timeMs <= kfs[i + 1].timeMs) {
             float t = static_cast<float>(timeMs - kfs[i].timeMs)
                     / static_cast<float>(kfs[i + 1].timeMs - kfs[i].timeMs);
@@ -1707,23 +1742,23 @@ bool LayersModel::evaluateRotateAt(int layerIdx, int timeMs, float &rx, float &r
 bool LayersModel::evaluateTranslateAt(int layerIdx, int timeMs, float &tx, float &ty, float &tz) const {
     if (layerIdx < 0 || layerIdx >= m_layerTimelines.size()) return false;
     const auto &kfs = m_layerTimelines[layerIdx].keyframes;
-    QVector<const LayerKeyframe *> tKfs;
+    QVector<const LayerKeyframe *> tKFs;
     for (const LayerKeyframe &kf : kfs)
-        if (kf.hasTranslate) tKfs.append(&kf);
-    if (tKfs.isEmpty()) return false;
-    if (timeMs <= tKfs.first()->timeMs) { tx = tKfs.first()->translateX; ty = tKfs.first()->translateY; tz = tKfs.first()->translateZ; return true; }
-    if (timeMs >= tKfs.last()->timeMs)  { tx = tKfs.last()->translateX;  ty = tKfs.last()->translateY;  tz = tKfs.last()->translateZ;  return true; }
-    for (int i = 0; i < tKfs.size() - 1; ++i) {
-        if (timeMs >= tKfs[i]->timeMs && timeMs <= tKfs[i + 1]->timeMs) {
-            float t = static_cast<float>(timeMs - tKfs[i]->timeMs)
-                    / static_cast<float>(tKfs[i + 1]->timeMs - tKfs[i]->timeMs);
-            tx = tKfs[i]->translateX + t * (tKfs[i + 1]->translateX - tKfs[i]->translateX);
-            ty = tKfs[i]->translateY + t * (tKfs[i + 1]->translateY - tKfs[i]->translateY);
-            tz = tKfs[i]->translateZ + t * (tKfs[i + 1]->translateZ - tKfs[i]->translateZ);
+        if (kf.hasTranslate) tKFs.append(&kf);
+    if (tKFs.isEmpty()) return false;
+    if (timeMs <= tKFs.first()->timeMs) { tx = tKFs.first()->translateX; ty = tKFs.first()->translateY; tz = tKFs.first()->translateZ; return true; }
+    if (timeMs >= tKFs.last()->timeMs)  { tx = tKFs.last()->translateX;  ty = tKFs.last()->translateY;  tz = tKFs.last()->translateZ;  return true; }
+    for (int i = 0; i < tKFs.size() - 1; ++i) {
+        if (timeMs >= tKFs[i]->timeMs && timeMs <= tKFs[i + 1]->timeMs) {
+            float t = static_cast<float>(timeMs - tKFs[i]->timeMs)
+                    / static_cast<float>(tKFs[i + 1]->timeMs - tKFs[i]->timeMs);
+            tx = tKFs[i]->translateX + t * (tKFs[i + 1]->translateX - tKFs[i]->translateX);
+            ty = tKFs[i]->translateY + t * (tKFs[i + 1]->translateY - tKFs[i]->translateY);
+            tz = tKFs[i]->translateZ + t * (tKFs[i + 1]->translateZ - tKFs[i]->translateZ);
             return true;
         }
     }
-    tx = tKfs.last()->translateX; ty = tKfs.last()->translateY; tz = tKfs.last()->translateZ;
+    tx = tKFs.last()->translateX; ty = tKFs.last()->translateY; tz = tKFs.last()->translateZ;
     return true;
 }
 

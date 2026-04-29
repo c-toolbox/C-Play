@@ -182,6 +182,9 @@ public:
     bool isLocked() const;
     void setIsLocked(bool locked);
 
+    bool isEnabled() const;
+    void setEnabled(bool enabled);
+
     bool needSync() const;
     void setHasSynced();
 
@@ -290,6 +293,7 @@ protected:
     float m_volumeScaling;
     int m_keepVisibilityForNumSlides;
     bool m_isLocked;
+    bool m_isEnabled;
     bool m_isMaster;
     bool m_existOnMasterOnly;
     bool m_shouldUpdate;

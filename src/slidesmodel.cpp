@@ -996,9 +996,7 @@ void SlidesModel::loadFromJSONFile(const QString &path) {
     }
 
     if (!slideVisible)
-        setSelectedSlideIdx(-1);
-    else
-        setSelectedSlideIdx(m_selectedSlideIdx);
+        m_selectedSlideIdx = -1;
 
     // Always preload the first slide after loading a presentation,
     // even if preLoadLayers is not enabled.
