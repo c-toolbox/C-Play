@@ -338,8 +338,11 @@ Kirigami.ApplicationWindow {
     }
     LayersAddNew {
         id: layersAddNew
-
     }
+    RestCommandsEditor {
+        id: restCommandsEditor
+    }
+
     LayerView {
         id: layerView
 

@@ -42,6 +42,12 @@ GridLayout {
     property alias textForLayer: textForLayer
     property alias controlOperationComboBox: controlOperationComboBox
     property alias controlParameterField: controlParameterField
+    property alias restCommandsLayout: restCommandsLayout
+    property alias restCommandsComboBox: restCommandsComboBox
+    property alias restCustomUrlField: restCustomUrlField
+    property alias restMethodComboBox: restMethodComboBox
+    property alias restBodyField: restBodyField
+    property alias restContentTypeField: restContentTypeField
 
     function resetValues() {
         typeComboBox.currentIndex = 0;
@@ -49,6 +55,12 @@ GridLayout {
         layerTitle.text = "";
         controlOperationComboBox.currentIndex = 0;
         controlParameterField.text = "";
+        restCommandsLayout.customEntry = false;
+        restCommandsComboBox.currentIndex = 0;
+        restCustomUrlField.text = "";
+        restMethodComboBox.currentIndex = 0;
+        restBodyField.text = "";
+        restContentTypeField.text = "application/json";
         for (let sm = 0; sm < stereoscopicModeForLayerList.count; ++sm) {
             if (stereoscopicModeForLayerList.get(sm).value === PresentationSettings.defaultStereoModeForLayers) {
                 stereoscopicModeForLayer.currentIndex = sm;
@@ -165,6 +177,16 @@ GridLayout {
                 streamCustomEntryField.text = "";
                 layerTitle.text = streamsComboBox.currentText;
             }
+            else if (typeComboBox.currentText === "REST") {
+                app.httpClientModel.updateCommandsList();
+                restCommandsLayout.customEntry = false;
+                restCommandsComboBox.currentIndex = 0;
+                restCustomUrlField.text = "";
+                restMethodComboBox.currentIndex = 0;
+                restBodyField.text = "";
+                restContentTypeField.text = "application/json";
+                layerTitle.text = restCommandsComboBox.currentText;
+            }
             else {
                 layerTitle.text = "";
             }
@@ -179,11 +201,11 @@ GridLayout {
         Layout.alignment: Qt.AlignRight
         font.pointSize: 9
         text: qsTr("File:")
-        visible: typeComboBox.currentText != "Stream" && typeComboBox.currentText != "NDI" && typeComboBox.currentText != "Spout" && typeComboBox.currentText != "OMT" && typeComboBox.currentText != "Text" && typeComboBox.currentText != "Control"
+        visible: typeComboBox.currentText != "Stream" && typeComboBox.currentText != "NDI" && typeComboBox.currentText != "Spout" && typeComboBox.currentText != "OMT" && typeComboBox.currentText != "Text" && typeComboBox.currentText != "Control" && typeComboBox.currentText != "REST"
     }
     RowLayout {
         Layout.fillWidth: true
-        visible: typeComboBox.currentText != "Stream" && typeComboBox.currentText != "NDI" && typeComboBox.currentText != "Spout" && typeComboBox.currentText != "OMT" && typeComboBox.currentText != "Text" && typeComboBox.currentText != "Control"
+        visible: typeComboBox.currentText != "Stream" && typeComboBox.currentText != "NDI" && typeComboBox.currentText != "Spout" && typeComboBox.currentText != "OMT" && typeComboBox.currentText != "Text" && typeComboBox.currentText != "Control" && typeComboBox.currentText != "REST"
 
         TextField {
             id: fileForLayer
@@ -473,7 +495,7 @@ GridLayout {
     Label {
         Layout.alignment: Qt.AlignRight
         text: qsTr("Stereo:")
-        visible: showStereoParams && typeComboBox.currentText !== "Audio" && typeComboBox.currentText !== "Text" && typeComboBox.currentText !== "Control"
+        visible: showStereoParams && typeComboBox.currentText !== "Audio" && typeComboBox.currentText !== "Text" && typeComboBox.currentText !== "Control" && typeComboBox.currentText !== "REST"
     }
     ComboBox {
         id: stereoscopicModeForLayer
@@ -481,7 +503,7 @@ GridLayout {
         Layout.fillWidth: true
         focusPolicy: Qt.NoFocus
         textRole: "mode"
-        visible: showStereoParams && typeComboBox.currentText !== "Audio" && typeComboBox.currentText !== "Text" && typeComboBox.currentText !== "Control"
+        visible: showStereoParams && typeComboBox.currentText !== "Audio" && typeComboBox.currentText !== "Text" && typeComboBox.currentText !== "Control" && typeComboBox.currentText !== "REST"
 
         model: ListModel {
             id: stereoscopicModeForLayerList
@@ -509,14 +531,14 @@ GridLayout {
         onActivated: {}
     }
     Item {
-        visible: root.showSpacers && typeComboBox.currentText !== "Audio" && typeComboBox.currentText !== "Text" && typeComboBox.currentText !== "Control"
+        visible: root.showSpacers && typeComboBox.currentText !== "Audio" && typeComboBox.currentText !== "Text" && typeComboBox.currentText !== "Control" && typeComboBox.currentText !== "REST"
         Layout.fillWidth: true
     }
 
     Label {
         Layout.alignment: Qt.AlignRight
         text: qsTr("Grid:")
-        visible: showGridParams && typeComboBox.currentText !== "Audio" && typeComboBox.currentText !== "Text" && typeComboBox.currentText !== "Control"
+        visible: showGridParams && typeComboBox.currentText !== "Audio" && typeComboBox.currentText !== "Text" && typeComboBox.currentText !== "Control" && typeComboBox.currentText !== "REST"
     }
     ComboBox {
         id: gridModeForLayer
@@ -524,7 +546,7 @@ GridLayout {
         Layout.fillWidth: true
         focusPolicy: Qt.NoFocus
         textRole: "mode"
-        visible: showGridParams && typeComboBox.currentText !== "Audio" && typeComboBox.currentText !== "Text" && typeComboBox.currentText !== "Control"
+        visible: showGridParams && typeComboBox.currentText !== "Audio" && typeComboBox.currentText !== "Text" && typeComboBox.currentText !== "Control" && typeComboBox.currentText !== "REST"
 
         model: ListModel {
             id: gridModeForLayerList
@@ -555,7 +577,7 @@ GridLayout {
         onActivated: {}
     }
     Item {
-        visible: root.showSpacers && typeComboBox.currentText !== "Audio" && typeComboBox.currentText !== "Text" && typeComboBox.currentText !== "Control"
+        visible: root.showSpacers && typeComboBox.currentText !== "Audio" && typeComboBox.currentText !== "Text" && typeComboBox.currentText !== "Control" && typeComboBox.currentText !== "REST"
         Layout.fillWidth: true
     }
 
@@ -636,6 +658,149 @@ GridLayout {
         Layout.fillWidth: true
     }
 
+    // --- REST layer section ---
+    Label {
+        Layout.alignment: Qt.AlignRight
+        text: qsTr("Command:")
+        visible: typeComboBox.currentText === "REST"
+    }
+    RowLayout {
+        id: restCommandsLayout
+        Layout.fillWidth: true
+        visible: typeComboBox.currentText === "REST"
+        property bool customEntry: false
+
+        ComboBox {
+            id: restCommandsComboBox
+
+            Layout.fillWidth: true
+            model: app.httpClientModel
+            currentIndex: 0
+            textRole: "title"
+            valueRole: "url"
+            visible: restCommandsLayout.customEntry === false
+
+            Component.onCompleted: {
+                app.httpClientModel.updateCommandsList();
+                restCommandsLayout.customEntry = false;
+                restCommandsComboBox.currentIndex = 0;
+            }
+            onActivated: {
+                layerTitle.text = restCommandsComboBox.currentText;
+                var idx = restCommandsComboBox.currentIndex;
+                restMethodComboBox.currentIndex = app.httpClientModel.data(app.httpClientModel.index(idx, 0), Qt.UserRole + 2);
+                restBodyField.text = app.httpClientModel.data(app.httpClientModel.index(idx, 0), Qt.UserRole + 3);
+                restContentTypeField.text = app.httpClientModel.data(app.httpClientModel.index(idx, 0), Qt.UserRole + 4);
+            }
+        }
+        TextField {
+            id: restCustomUrlField
+
+            Layout.fillWidth: true
+            Layout.preferredWidth: font.pointSize * 17
+            placeholderText: "http://host:port/path"
+            text: ""
+            visible: restCommandsLayout.customEntry === true
+
+            ToolTip {
+                text: qsTr("Custom REST API URL")
+            }
+        }
+        ToolButton {
+            id: restComboOrFieldButton
+
+            focusPolicy: Qt.NoFocus
+            icon.height: 16
+            icon.name: restCommandsLayout.customEntry ? "gnumeric-object-combo" : "text-field"
+            text: ""
+
+            onClicked: {
+                if(restCommandsLayout.customEntry) {
+                    app.httpClientModel.updateCommandsList();
+                    restCommandsComboBox.currentIndex = 0;
+                    restCommandsLayout.customEntry = false;
+                    layerTitle.text = restCommandsComboBox.currentText;
+                }
+                else {
+                    restCommandsLayout.customEntry = true;
+                    layerTitle.text = ""
+                }
+            }
+
+            ToolTip {
+                text: restCommandsLayout.customEntry ? qsTr("Use predefined command list") : qsTr("Use custom REST command")
+            }
+        }
+    }
+    Item {
+        visible: root.showSpacers && typeComboBox.currentText === "REST"
+        Layout.fillWidth: true
+    }
+
+    Label {
+        Layout.alignment: Qt.AlignRight
+        text: qsTr("Method:")
+        visible: typeComboBox.currentText === "REST"
+    }
+    ComboBox {
+        id: restMethodComboBox
+
+        Layout.fillWidth: true
+        visible: typeComboBox.currentText === "REST"
+        model: ["GET", "POST", "PUT", "DELETE"]
+        currentIndex: 0
+    }
+    Item {
+        visible: root.showSpacers && typeComboBox.currentText === "REST"
+        Layout.fillWidth: true
+    }
+
+    Label {
+        Layout.alignment: Qt.AlignRight
+        text: qsTr("Body:")
+        visible: typeComboBox.currentText === "REST" && restMethodComboBox.currentIndex > 0
+    }
+    TextField {
+        id: restBodyField
+
+        Layout.fillWidth: true
+        Layout.preferredWidth: font.pointSize * 17
+        placeholderText: "Request body (JSON, etc.)"
+        text: ""
+        visible: typeComboBox.currentText === "REST" && restMethodComboBox.currentIndex > 0
+
+        ToolTip {
+            text: qsTr("HTTP request body")
+        }
+    }
+    Item {
+        visible: root.showSpacers && typeComboBox.currentText === "REST" && restMethodComboBox.currentIndex > 0
+        Layout.fillWidth: true
+    }
+
+    Label {
+        Layout.alignment: Qt.AlignRight
+        text: qsTr("Content-Type:")
+        visible: typeComboBox.currentText === "REST" && restMethodComboBox.currentIndex > 0
+    }
+    TextField {
+        id: restContentTypeField
+
+        Layout.fillWidth: true
+        Layout.preferredWidth: font.pointSize * 17
+        placeholderText: "application/json"
+        text: "application/json"
+        visible: typeComboBox.currentText === "REST" && restMethodComboBox.currentIndex > 0
+
+        ToolTip {
+            text: qsTr("Content-Type header for the request")
+        }
+    }
+    Item {
+        visible: root.showSpacers && typeComboBox.currentText === "REST" && restMethodComboBox.currentIndex > 0
+        Layout.fillWidth: true
+    }
+
     function controlNeedsParam() {
         var op = controlOperationComboBox.currentText;
         return op === "Seek" || op === "SetPosition"
@@ -664,14 +829,14 @@ GridLayout {
     }
 
     Item {
-        enabled: typeComboBox.currentText != "Text" && typeComboBox.currentText != "Control"
+        enabled: typeComboBox.currentText != "Text" && typeComboBox.currentText != "Control" && typeComboBox.currentText != "REST"
         Layout.columnSpan: 2
         Layout.fillHeight: true
         // spacer item
         Layout.fillWidth: true
     }
     Item {
-        visible: root.showSpacers && typeComboBox.currentText != "Text" && typeComboBox.currentText != "Control"
+        visible: root.showSpacers && typeComboBox.currentText != "Text" && typeComboBox.currentText != "Control" && typeComboBox.currentText != "REST"
         Layout.fillWidth: true
     }
 }

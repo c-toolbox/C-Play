@@ -115,6 +115,21 @@ Kirigami.ApplicationWindow {
                             layersAddNew.visible = false;
                             app.slides.updateSelectedSlide();
                             mpv.focus = true;
+                        } else if (layerCoreProps.typeComboBox.currentText === "REST") {
+                            var restUrl;
+                            if(layerCoreProps.restCommandsLayout.customEntry) {
+                                restUrl = layerCoreProps.restCustomUrlField.text;
+                            } else {
+                                restUrl = layerCoreProps.restCommandsComboBox.currentValue;
+                            }
+                            layerView.layerItem.layerIdx = app.slides.selected.addLayer(layerCoreProps.layerTitle.text, layerCoreProps.typeComboBox.currentIndex + 1, restUrl, 0, 0);
+                            // Set method, body, contentType after creation
+                            layerView.layerItem.layerRestMethod = layerCoreProps.restMethodComboBox.currentIndex;
+                            layerView.layerItem.layerRestBody = layerCoreProps.restBodyField.text;
+                            layerView.layerItem.layerRestContentType = layerCoreProps.restContentTypeField.text;
+                            layersAddNew.visible = false;
+                            app.slides.updateSelectedSlide();
+                            mpv.focus = true;
                         } else if (layerCoreProps.fileForLayer.text !== "") {
                             layerView.layerItem.layerIdx = app.slides.selected.addLayer(layerCoreProps.layerTitle.text, layerCoreProps.typeComboBox.currentIndex + 1, layerCoreProps.fileForLayer.text, layerCoreProps.stereoscopicModeForLayer.currentIndex, layerCoreProps.gridModeForLayer.currentIndex);
                             layersAddNew.visible = false;

@@ -23,6 +23,10 @@ Kirigami.ApplicationWindow {
             root.height = 180;
             return;
         }
+        if (layerView.layerItem.layerTypeName === "REST") {
+            root.height = 280;
+            return;
+        }
         var mode = layerView.layerItem.layerGridMode;
         if (mode === 1) {
             root.height = 420;
@@ -37,9 +41,18 @@ Kirigami.ApplicationWindow {
 
     function resetValues() {
         controlGridLayout.visible = (layerView.layerItem.layerTypeName === "Control");
+        restGridLayout.visible = (layerView.layerItem.layerTypeName === "REST");
         if (controlGridLayout.visible) {
             controlOperationComboBox.currentIndex = controlOperationComboBox.find(layerView.layerItem.layerOperation);
             controlParameterField.text = layerView.layerItem.layerParameter;
+            resizeForGridMode();
+            return;
+        }
+        if (restGridLayout.visible) {
+            restUrlField.text = layerView.layerItem.layerRestUrl;
+            restGridMethodComboBox.currentIndex = layerView.layerItem.layerRestMethod;
+            restGridBodyField.text = layerView.layerItem.layerRestBody;
+            restGridContentTypeField.text = layerView.layerItem.layerRestContentType;
             resizeForGridMode();
             return;
         }
@@ -89,7 +102,8 @@ Kirigami.ApplicationWindow {
 
         function onLayerValueChanged() {
             controlGridLayout.visible = (layerView.layerItem.layerTypeName === "Control");
-            if (!controlGridLayout.visible) {
+            restGridLayout.visible = (layerView.layerItem.layerTypeName === "REST");
+            if (!controlGridLayout.visible && !restGridLayout.visible) {
                 planeGridLayout.visible = (layerView.layerItem.layerGridMode === 1);
                 domeGridLayout.visible = (layerView.layerItem.layerGridMode === 2);
                 sphereGridLayout.visible = (layerView.layerItem.layerGridMode > 2);
@@ -128,7 +142,7 @@ Kirigami.ApplicationWindow {
             columnSpacing: 2
             columns: 3
             rowSpacing: 8
-            visible: layerView.layerItem.layerGridMode === 0 && layerView.layerItem.layerTypeName !== "Control"
+            visible: layerView.layerItem.layerGridMode === 0 && layerView.layerItem.layerTypeName !== "Control" && layerView.layerItem.layerTypeName !== "REST"
 
             RowLayout {
                 Layout.bottomMargin: 5
@@ -159,7 +173,7 @@ Kirigami.ApplicationWindow {
             columnSpacing: 2
             columns: 3
             rowSpacing: 8
-            visible: layerView.layerItem.layerGridMode === 1 && layerView.layerItem.layerTypeName !== "Control"
+            visible: layerView.layerItem.layerGridMode === 1 && layerView.layerItem.layerTypeName !== "Control" && layerView.layerItem.layerTypeName !== "REST"
 
             RowLayout {
                 Layout.bottomMargin: 5
@@ -649,7 +663,7 @@ Kirigami.ApplicationWindow {
             columnSpacing: 2
             columns: 3
             rowSpacing: 8
-            visible: layerView.layerItem.layerGridMode === 2 && layerView.layerItem.layerTypeName !== "Control"
+            visible: layerView.layerItem.layerGridMode === 2 && layerView.layerItem.layerTypeName !== "Control" && layerView.layerItem.layerTypeName !== "REST"
 
             RowLayout {
                 Layout.bottomMargin: 5
@@ -756,7 +770,7 @@ Kirigami.ApplicationWindow {
             columnSpacing: 2
             columns: 3
             rowSpacing: 8
-            visible: layerView.layerItem.layerGridMode > 2 && layerView.layerItem.layerTypeName !== "Control"
+            visible: layerView.layerItem.layerGridMode > 2 && layerView.layerItem.layerTypeName !== "Control" && layerView.layerItem.layerTypeName !== "REST"
 
             RowLayout {
                 Layout.bottomMargin: 5
@@ -1088,6 +1102,132 @@ Kirigami.ApplicationWindow {
                 Connections {
                     function onLayerChanged() {
                         controlParameterField.text = layerView.layerItem.layerParameter;
+                    }
+                    target: layerView.layerItem
+                }
+            }
+        }
+        GridLayout {
+            id: restGridLayout
+            Layout.alignment: Qt.AlignHCenter | Qt.AlignTop
+            columnSpacing: 2
+            columns: 2
+            rowSpacing: 8
+            visible: layerView.layerItem.layerTypeName === "REST"
+
+            RowLayout {
+                Layout.bottomMargin: 5
+                Layout.columnSpan: 2
+
+                Rectangle {
+                    color: Kirigami.Theme.alternateBackgroundColor
+                    height: 1
+                    width: Kirigami.Units.gridUnit
+                }
+                Kirigami.Heading {
+                    text: qsTr("REST properties for the layer")
+                }
+                Rectangle {
+                    Layout.fillWidth: true
+                    color: Kirigami.Theme.alternateBackgroundColor
+                    height: 1
+                }
+                Item {
+                    Layout.fillWidth: true
+                }
+            }
+
+            Label {
+                text: qsTr("URL:")
+                Layout.alignment: Qt.AlignRight
+            }
+            TextField {
+                id: restUrlField
+
+                Layout.fillWidth: true
+                placeholderText: "http://host:port/path"
+                text: layerView.layerItem.layerRestUrl
+
+                onEditingFinished: {
+                    layerView.layerItem.layerRestUrl = text;
+                }
+
+                Connections {
+                    function onLayerChanged() {
+                        restUrlField.text = layerView.layerItem.layerRestUrl;
+                    }
+                    target: layerView.layerItem
+                }
+            }
+
+            Label {
+                text: qsTr("Method:")
+                Layout.alignment: Qt.AlignRight
+            }
+            ComboBox {
+                id: restGridMethodComboBox
+
+                Layout.fillWidth: true
+                model: ["GET", "POST", "PUT", "DELETE"]
+                currentIndex: layerView.layerItem.layerRestMethod
+
+                onActivated: {
+                    layerView.layerItem.layerRestMethod = currentIndex;
+                }
+
+                Connections {
+                    function onLayerChanged() {
+                        restGridMethodComboBox.currentIndex = layerView.layerItem.layerRestMethod;
+                    }
+                    target: layerView.layerItem
+                }
+            }
+
+            Label {
+                text: qsTr("Body:")
+                Layout.alignment: Qt.AlignRight
+                visible: restGridMethodComboBox.currentIndex > 0
+            }
+            TextField {
+                id: restGridBodyField
+
+                Layout.fillWidth: true
+                placeholderText: "Request body"
+                text: layerView.layerItem.layerRestBody
+                visible: restGridMethodComboBox.currentIndex > 0
+
+                onEditingFinished: {
+                    layerView.layerItem.layerRestBody = text;
+                }
+
+                Connections {
+                    function onLayerChanged() {
+                        restGridBodyField.text = layerView.layerItem.layerRestBody;
+                    }
+                    target: layerView.layerItem
+                }
+            }
+
+            Label {
+                text: qsTr("Content-Type:")
+                Layout.alignment: Qt.AlignRight
+                visible: restGridMethodComboBox.currentIndex > 0
+            }
+            TextField {
+                id: restGridContentTypeField
+
+                Layout.fillWidth: true
+                placeholderText: "application/json"
+                text: layerView.layerItem.layerRestContentType
+                visible: restGridMethodComboBox.currentIndex > 0
+
+                onEditingFinished: {
+                    layerView.layerItem.layerRestContentType = text;
+                }
+
+                Connections {
+                    function onLayerChanged() {
+                        restGridContentTypeField.text = layerView.layerItem.layerRestContentType;
                     }
                     target: layerView.layerItem
                 }

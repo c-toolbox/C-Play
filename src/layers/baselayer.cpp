@@ -31,6 +31,7 @@
 #endif
 #include <layers/textlayer.h>
 #include <layers/controllayer.h>
+#include <layers/restlayer.h>
 
 std::atomic_uint32_t BaseLayer::m_id_gen = 1;
 
@@ -68,6 +69,8 @@ std::string BaseLayer::typeDescription(BaseLayer::LayerType e) {
 #endif
     case CONTROL:
         return "Control";
+    case REST:
+        return "REST";
     default:
         return "";
     }
@@ -155,6 +158,11 @@ BaseLayer *BaseLayer::createLayer(bool isMaster, int layerType, gl_adress_func_v
     case static_cast<int>(BaseLayer::LayerType::CONTROL): {
         ControlLayer* newControl = new ControlLayer();
         newLayer = newControl;
+        break;
+    }
+    case static_cast<int>(BaseLayer::LayerType::REST): {
+        RestLayer* newRest = new RestLayer();
+        newLayer = newRest;
         break;
     }
     default:

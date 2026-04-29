@@ -42,6 +42,14 @@ Menu {
     MenuSeparator {
     }
     MenuItem {
+        text: qsTr("REST Commands Editor...")
+        onTriggered: {
+            restCommandsEditor.visible = true;
+        }
+    }
+    MenuSeparator {
+    }
+    MenuItem {
         action: actions["configureShortcutsAction"]
     }
     MenuSeparator {

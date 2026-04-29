@@ -115,6 +115,10 @@ class LayerQtItem : public QQuickItem {
     Q_PROPERTY(bool layerFlipY READ layerFlipY WRITE setLayerFlipY NOTIFY layerValueChanged)
     Q_PROPERTY(QString layerOperation READ layerOperation WRITE setLayerOperation NOTIFY layerValueChanged)
     Q_PROPERTY(QString layerParameter READ layerParameter WRITE setLayerParameter NOTIFY layerValueChanged)
+    Q_PROPERTY(QString layerRestUrl READ layerRestUrl WRITE setLayerRestUrl NOTIFY layerValueChanged)
+    Q_PROPERTY(int layerRestMethod READ layerRestMethod WRITE setLayerRestMethod NOTIFY layerValueChanged)
+    Q_PROPERTY(QString layerRestBody READ layerRestBody WRITE setLayerRestBody NOTIFY layerValueChanged)
+    Q_PROPERTY(QString layerRestContentType READ layerRestContentType WRITE setLayerRestContentType NOTIFY layerValueChanged)
     QML_ELEMENT
 
 public:
@@ -275,6 +279,18 @@ public:
 
     QString layerParameter() const;
     void setLayerParameter(QString param);
+
+    QString layerRestUrl() const;
+    void setLayerRestUrl(QString url);
+
+    int layerRestMethod() const;
+    void setLayerRestMethod(int method);
+
+    QString layerRestBody() const;
+    void setLayerRestBody(QString body);
+
+    QString layerRestContentType() const;
+    void setLayerRestContentType(QString ct);
 
 Q_SIGNALS:
     void layerChanged();

@@ -21,6 +21,7 @@
 #include <layers/textlayer.h>
 #include <layers/mpvlayer.h>
 #include <layers/controllayer.h>
+#include <layers/restlayer.h>
 
 #include <QOpenGLContext>
 #include <QQuickGraphicsDevice>
@@ -953,6 +954,82 @@ void LayerQtItem::setLayerParameter(QString param) {
     }
 }
 
+QString LayerQtItem::layerRestUrl() const {
+    if (m_layer && m_layer->type() == BaseLayer::REST) {
+        RestLayer* restLayer = static_cast<RestLayer*>(m_layer);
+        return QString::fromStdString(restLayer->url());
+    }
+    return QStringLiteral("");
+}
+
+void LayerQtItem::setLayerRestUrl(QString url) {
+    if (m_layer && m_layer->type() == BaseLayer::REST) {
+        RestLayer* restLayer = static_cast<RestLayer*>(m_layer);
+        if (QString::fromStdString(restLayer->url()) != url) {
+            restLayer->setUrl(url.toStdString());
+            Q_EMIT layerValueChanged();
+            Q_EMIT layerNeedsSave();
+        }
+    }
+}
+
+int LayerQtItem::layerRestMethod() const {
+    if (m_layer && m_layer->type() == BaseLayer::REST) {
+        RestLayer* restLayer = static_cast<RestLayer*>(m_layer);
+        return restLayer->method();
+    }
+    return 0;
+}
+
+void LayerQtItem::setLayerRestMethod(int method) {
+    if (m_layer && m_layer->type() == BaseLayer::REST) {
+        RestLayer* restLayer = static_cast<RestLayer*>(m_layer);
+        if (restLayer->method() != method) {
+            restLayer->setMethod(method);
+            Q_EMIT layerValueChanged();
+            Q_EMIT layerNeedsSave();
+        }
+    }
+}
+
+QString LayerQtItem::layerRestBody() const {
+    if (m_layer && m_layer->type() == BaseLayer::REST) {
+        RestLayer* restLayer = static_cast<RestLayer*>(m_layer);
+        return QString::fromStdString(restLayer->requestBody());
+    }
+    return QStringLiteral("");
+}
+
+void LayerQtItem::setLayerRestBody(QString body) {
+    if (m_layer && m_layer->type() == BaseLayer::REST) {
+        RestLayer* restLayer = static_cast<RestLayer*>(m_layer);
+        if (QString::fromStdString(restLayer->requestBody()) != body) {
+            restLayer->setRequestBody(body.toStdString());
+            Q_EMIT layerValueChanged();
+            Q_EMIT layerNeedsSave();
+        }
+    }
+}
+
+QString LayerQtItem::layerRestContentType() const {
+    if (m_layer && m_layer->type() == BaseLayer::REST) {
+        RestLayer* restLayer = static_cast<RestLayer*>(m_layer);
+        return QString::fromStdString(restLayer->contentType());
+    }
+    return QStringLiteral("application/json");
+}
+
+void LayerQtItem::setLayerRestContentType(QString ct) {
+    if (m_layer && m_layer->type() == BaseLayer::REST) {
+        RestLayer* restLayer = static_cast<RestLayer*>(m_layer);
+        if (QString::fromStdString(restLayer->contentType()) != ct) {
+            restLayer->setContentType(ct.toStdString());
+            Q_EMIT layerValueChanged();
+            Q_EMIT layerNeedsSave();
+        }
+    }
+}
+
 void LayerQtItem::handleWindowChanged(QQuickWindow *win) {
     if (win) {
         connect(win, &QQuickWindow::beforeSynchronizing, this, &LayerQtItem::sync, Qt::DirectConnection);
@@ -1102,7 +1179,7 @@ void LayerQtItem::createLayer(int type, QString filepath){
 
 void LayerQtItem::start() {
     if (m_layer) {
-        if (m_layer->type() == BaseLayer::CONTROL) {
+        if (m_layer->type() == BaseLayer::CONTROL || m_layer->type() == BaseLayer::REST) {
             m_layer->start();
         } else if (m_ownsLayer) {
             m_layer->setShouldUpdate(true);
@@ -1113,7 +1190,7 @@ void LayerQtItem::start() {
 
 void LayerQtItem::stop() {
     if (m_layer) {
-        if (m_layer->type() == BaseLayer::CONTROL) {
+        if (m_layer->type() == BaseLayer::CONTROL || m_layer->type() == BaseLayer::REST) {
             m_layer->stop();
         } else if (m_ownsLayer) {
             m_layer->setShouldUpdate(false);

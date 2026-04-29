@@ -38,6 +38,7 @@ public:
         TEXT,
 #endif
         CONTROL,
+        REST,
         INVALID
     };
 

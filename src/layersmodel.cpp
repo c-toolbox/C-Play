@@ -23,6 +23,9 @@
 #include <layers/textlayer.h>
 #include <layers/mpvlayer.h>
 #include <layers/controllayer.h>
+#include <layers/restlayer.h>
+#include "httpclientmodel.h"
+#include "application.h"
 
 #include <QDir>
 #include <QFileInfo>
@@ -97,6 +100,10 @@ QVariant LayersModel::data(const QModelIndex &index, int role) const {
         if (layerItem->type() == BaseLayer::CONTROL) {
             const ControlLayer* controlLayer = static_cast<const ControlLayer*>(layerItem);
             return QVariant(QString::fromStdString(controlLayer->operation()) + QStringLiteral(":") + QString::fromStdString(controlLayer->parameter()));
+        }
+        if (layerItem->type() == BaseLayer::REST) {
+            const RestLayer* restLayer = static_cast<const RestLayer*>(layerItem);
+            return QVariant(QString::fromStdString(restLayer->url()));
         }
         return QVariant(QString::fromStdString(layerItem->filepath()));
     case TypeRole:
@@ -239,7 +246,7 @@ int LayersModel::minLayerStatus() {
 
     int minStatus = -1;
     for (int i = 0; i < m_layers.size(); i++) {
-        if (m_layers[i].first->type() == BaseLayer::CONTROL)
+        if (m_layers[i].first->type() == BaseLayer::CONTROL || m_layers[i].first->type() == BaseLayer::REST)
             continue;
         if (minStatus == -1)
             minStatus = m_layers[i].second;
@@ -255,7 +262,7 @@ int LayersModel::maxLayerStatus() {
 
     int maxStatus = -1;
     for (int i = 0; i < m_layers.size(); i++) {
-        if (m_layers[i].first->type() == BaseLayer::CONTROL)
+        if (m_layers[i].first->type() == BaseLayer::CONTROL || m_layers[i].first->type() == BaseLayer::REST)
             continue;
         if (maxStatus == -1)
             maxStatus = m_layers[i].second;
@@ -294,6 +301,10 @@ int LayersModel::addLayer(QString title, int type, QString filepath, int stereoM
             } else {
                 newControlLayer->setOperation(filepath.toStdString());
             }
+        }
+        else if (newLayer->type() == BaseLayer::REST && Application::isCreated()) {
+            RestLayer* newRestLayer = static_cast<RestLayer*>(newLayer);
+            newRestLayer->setHttpClientModel(Application::instance().httpClientModel());
         }
         else {
             newLayer->setFilePath(filepath.toStdString());
@@ -807,6 +818,12 @@ void LayersModel::decodeFromJSON(QJsonObject &obj, const QStringList &forRelativ
                             path = operation + QStringLiteral(":") + parameter;
                         }
                     }
+                    else if (type == BaseLayer::REST) {
+                        // For REST layers, read url from dedicated field if present
+                        if (o.contains(QStringLiteral("url"))) {
+                            path = o.value(QStringLiteral("url")).toString();
+                        }
+                    }
 
                     int grid = PresentationSettings::defaultGridModeForLayers();
                     QString gridStr = o.value(QStringLiteral("grid")).toString();
@@ -888,6 +905,22 @@ void LayersModel::decodeFromJSON(QJsonObject &obj, const QStringList &forRelativ
                         }
                     }  
 #endif
+
+                    if (type == BaseLayer::REST) {
+                        RestLayer* restLayer = static_cast<RestLayer*>(m_layers[idx].first.get());
+                        if (o.contains(QStringLiteral("method"))) {
+                            int method = o.value(QStringLiteral("method")).toInt();
+                            restLayer->setMethod(method);
+                        }
+                        if (o.contains(QStringLiteral("requestBody"))) {
+                            std::string body = o.value(QStringLiteral("requestBody")).toString().toStdString();
+                            restLayer->setRequestBody(body);
+                        }
+                        if (o.contains(QStringLiteral("contentType"))) {
+                            std::string ct = o.value(QStringLiteral("contentType")).toString().toStdString();
+                            restLayer->setContentType(ct);
+                        }
+                    }
 
                     if (getLayersCanBeLocked() && o.contains(QStringLiteral("locked"))) {
                         bool locked = o.value(QStringLiteral("locked")).toBool();
@@ -1166,6 +1199,13 @@ void LayersModel::encodeToJSON(QJsonObject &obj, const QStringList &forRelativeP
             ControlLayer* controlLayer = static_cast<ControlLayer*>(layer.get());
             layerData.insert(QStringLiteral("operation"), QJsonValue(QString::fromStdString(controlLayer->operation())));
             layerData.insert(QStringLiteral("parameter"), QJsonValue(QString::fromStdString(controlLayer->parameter())));
+        }
+        if (layer->type() == BaseLayer::REST) {
+            RestLayer* restLayer = static_cast<RestLayer*>(layer.get());
+            layerData.insert(QStringLiteral("url"), QJsonValue(QString::fromStdString(restLayer->url())));
+            layerData.insert(QStringLiteral("method"), QJsonValue(restLayer->method()));
+            layerData.insert(QStringLiteral("requestBody"), QJsonValue(QString::fromStdString(restLayer->requestBody())));
+            layerData.insert(QStringLiteral("contentType"), QJsonValue(QString::fromStdString(restLayer->contentType())));
         }
         if (layer->type() == BaseLayer::VIDEO || layer->type() == BaseLayer::AUDIO) {
             if (layer->hasAudio()) {

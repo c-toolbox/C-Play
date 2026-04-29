@@ -1,0 +1,20 @@
+{
+    "commands": [
+        {
+            "title": "Example GET request",
+            "url": "http://localhost:8080/api/status",
+            "method": "GET",
+            "body": "",
+            "contentType": "application/json",
+            "enabled": true
+        },
+        {
+            "title": "Example POST request",
+            "url": "http://localhost:8080/api/action",
+            "method": "POST",
+            "body": "{\"action\": \"start\"}",
+            "contentType": "application/json",
+            "enabled": true
+        }
+    ]
+}

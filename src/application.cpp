@@ -38,6 +38,7 @@
 #include <sail-common/config.h>
 #endif
 #include <layers/streammodel.h>
+#include "httpclientmodel.h"
 
 #include "audiosettings.h"
 #include "gridsettings.h"
@@ -141,6 +142,7 @@ Application::Application(int &argc, char **argv, const QString &applicationName)
     m_schemes = KColorSchemeManager::instance();
     m_systemDefaultStyle = m_app->style()->objectName();
     m_streamsModel = new StreamModel(this);
+    m_httpClientModel = new HttpClientModel(this);
 #ifdef NDI_SUPPORT
     m_ndiSendersModel = new NDISendersModel(this);
     m_portAudioModel = new PortAudioModel(this);
@@ -462,7 +464,16 @@ void Application::setStreamsModel(StreamModel* model) {
     m_streamsModel = model;
 }
 
+HttpClientModel* Application::httpClientModel() {
+    return m_httpClientModel;
+}
+
+void Application::setHttpClientModel(HttpClientModel* model) {
+    m_httpClientModel = model;
+}
+
 #ifdef NDI_SUPPORT
+
 NDISendersModel* Application::ndiSendersModel() {
     return m_ndiSendersModel;
 }
