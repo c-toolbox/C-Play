@@ -42,6 +42,8 @@ ItemDelegate {
             return model.type;
         else if(model.type === "Control")
             return model.type + " - " + model.filepath;
+        else if(model.type === "REST")
+            return model.type + " - " + model.filepath;
         else
             return model.type + model.page + " - " + model.stereoVideo + " " + model.gridToMapOn;
     }
@@ -162,7 +164,7 @@ ItemDelegate {
                 width: 10
                 height: 10
                 radius: 5
-                visible: model.type !== "Control"
+                visible: model.type !== "Control" && model.type !== "REST"
                 color: (model.status === 2 ? "lime" : model.status === 1 ? "orange" : model.status === 0 ? "crimson" : "black")
             }
             Kirigami.Icon {
@@ -172,7 +174,7 @@ ItemDelegate {
                 width: 14
                 height: 14
                 source: "media-playback-start"
-                visible: model.type === "Control"
+                visible: model.type === "Control" || model.type === "REST"
                 color: Kirigami.Theme.textColor
             }
             Item {
@@ -180,7 +182,7 @@ ItemDelegate {
                 anchors.right: its.right
                 implicitHeight: 25
                 implicitWidth: 100
-                visible: !visibilitySlider.visible && model.type !== "Control"
+                visible: !visibilitySlider.visible && model.type !== "Control" && model.type !== "REST"
 
                 Rectangle {
                     color: Kirigami.Theme.highlightColor
@@ -212,7 +214,7 @@ ItemDelegate {
 
                 anchors.bottom: parent.bottom
                 anchors.right: its.right
-                visible: layersView.currentIndex === index && model.type !== "Control"
+                visible: layersView.currentIndex === index && model.type !== "Control" && model.type !== "REST"
                 implicitWidth: 100
                 overlayLabel: qsTr("")
 
@@ -233,7 +235,7 @@ ItemDelegate {
                 anchors.right: its.right
                 implicitHeight: 20
                 implicitWidth: 100
-                visible: layersView.currentIndex !== index && model.type !== "Control"
+                visible: layersView.currentIndex !== index && model.type !== "Control" && model.type !== "REST"
 
                 Label {
                     anchors.fill: parent
@@ -408,7 +410,7 @@ ItemDelegate {
     }
     onDoubleClicked: {
         layerView.layerItem.layerIdx = index;
-        if (model.type === "Control") {
+        if (model.type === "Control" || model.type === "REST") {
             layerView.layerItem.start();
         } else if (layerView.layerItem.layerVisibility === 100 && !visibility_fade_out_animation.running) {
             visibility_fade_out_animation.start();

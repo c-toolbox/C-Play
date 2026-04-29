@@ -12,6 +12,9 @@
 #include <QSize>
 #include <QThread>
 #include <QWaitCondition>
+#ifdef OPENSSL_SUPPORT
+#define CPPHTTPLIB_OPENSSL_SUPPORT
+#endif
 #include <cpp-httplib/httplib.h>
 
 class MpvObject;

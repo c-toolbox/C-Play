@@ -6,6 +6,9 @@
  */
 
 #include "httpclientmodel.h"
+#ifdef OPENSSL_SUPPORT
+#define CPPHTTPLIB_OPENSSL_SUPPORT
+#endif
 #include <cpp-httplib/httplib.h>
 
 #include <QFile>
@@ -113,67 +116,92 @@ int HttpClientModel::getNumberOfCommands() {
 
 int HttpClientModel::sendRequest(const QString &url, int method,
                                  const QString &body, const QString &contentType) {
-    std::string urlStr = url.toStdString();
-    if (urlStr.empty()) {
+    try {
+        std::string urlStr = url.toStdString();
+        if (urlStr.empty()) {
+            m_lastStatusCode = 0;
+            m_lastResponseBody.clear();
+            m_lastError = QStringLiteral("Empty URL");
+            Q_EMIT responseChanged();
+            return 0;
+        }
+
+#ifndef OPENSSL_SUPPORT
+        // Check for HTTPS - not supported without OpenSSL
+        if (urlStr.find("https://") == 0) {
+            m_lastStatusCode = 0;
+            m_lastResponseBody.clear();
+            m_lastError = QStringLiteral("HTTPS is not supported (OpenSSL not available). Use HTTP instead.");
+            Q_EMIT responseChanged();
+            return 0;
+        }
+#endif
+
+        // Parse host:port and path
+        std::string hostPort;
+        std::string path = "/";
+
+        size_t schemeEnd = urlStr.find("://");
+        if (schemeEnd != std::string::npos) {
+            size_t hostStart = schemeEnd + 3;
+            size_t pathStart = urlStr.find('/', hostStart);
+            if (pathStart != std::string::npos) {
+                hostPort = urlStr.substr(0, pathStart);
+                path = urlStr.substr(pathStart);
+            } else {
+                hostPort = urlStr;
+            }
+        } else {
+            size_t pathStart = urlStr.find('/');
+            if (pathStart != std::string::npos) {
+                hostPort = "http://" + urlStr.substr(0, pathStart);
+                path = urlStr.substr(pathStart);
+            } else {
+                hostPort = "http://" + urlStr;
+            }
+        }
+
+        httplib::Client cli(hostPort);
+        cli.set_connection_timeout(10, 0);
+        cli.set_read_timeout(30, 0);
+
+        std::string bodyStr = body.toStdString();
+        std::string ctStr = contentType.toStdString();
+
+        httplib::Result res;
+        switch (method) {
+        case 0: res = cli.Get(path); break;
+        case 1: res = cli.Post(path, bodyStr, ctStr); break;
+        case 2: res = cli.Put(path, bodyStr, ctStr); break;
+        case 3: res = cli.Delete(path); break;
+        default: res = cli.Get(path); break;
+        }
+
+        if (res) {
+            m_lastStatusCode = res->status;
+            m_lastResponseBody = QString::fromStdString(res->body);
+            m_lastError.clear();
+        } else {
+            m_lastStatusCode = 0;
+            m_lastResponseBody.clear();
+            m_lastError = QString::fromStdString(httplib::to_string(res.error()));
+        }
+
+        Q_EMIT responseChanged();
+        return m_lastStatusCode;
+    } catch (const std::exception &e) {
         m_lastStatusCode = 0;
         m_lastResponseBody.clear();
-        m_lastError = QStringLiteral("Empty URL");
+        m_lastError = QString::fromStdString(std::string("Exception: ") + e.what());
+        Q_EMIT responseChanged();
+        return 0;
+    } catch (...) {
+        m_lastStatusCode = 0;
+        m_lastResponseBody.clear();
+        m_lastError = QStringLiteral("Unknown exception occurred during request");
         Q_EMIT responseChanged();
         return 0;
     }
-
-    // Parse host:port and path
-    std::string hostPort;
-    std::string path = "/";
-
-    size_t schemeEnd = urlStr.find("://");
-    if (schemeEnd != std::string::npos) {
-        size_t hostStart = schemeEnd + 3;
-        size_t pathStart = urlStr.find('/', hostStart);
-        if (pathStart != std::string::npos) {
-            hostPort = urlStr.substr(0, pathStart);
-            path = urlStr.substr(pathStart);
-        } else {
-            hostPort = urlStr;
-        }
-    } else {
-        size_t pathStart = urlStr.find('/');
-        if (pathStart != std::string::npos) {
-            hostPort = "http://" + urlStr.substr(0, pathStart);
-            path = urlStr.substr(pathStart);
-        } else {
-            hostPort = "http://" + urlStr;
-        }
-    }
-
-    httplib::Client cli(hostPort);
-    cli.set_connection_timeout(10, 0);
-    cli.set_read_timeout(30, 0);
-
-    std::string bodyStr = body.toStdString();
-    std::string ctStr = contentType.toStdString();
-
-    httplib::Result res;
-    switch (method) {
-    case 0: res = cli.Get(path); break;
-    case 1: res = cli.Post(path, bodyStr, ctStr); break;
-    case 2: res = cli.Put(path, bodyStr, ctStr); break;
-    case 3: res = cli.Delete(path); break;
-    default: res = cli.Get(path); break;
-    }
-
-    if (res) {
-        m_lastStatusCode = res->status;
-        m_lastResponseBody = QString::fromStdString(res->body);
-        m_lastError.clear();
-    } else {
-        m_lastStatusCode = 0;
-        m_lastResponseBody.clear();
-        m_lastError = QString::fromStdString(httplib::to_string(res.error()));
-    }
-
-    Q_EMIT responseChanged();
-    return m_lastStatusCode;
 }
 
 int HttpClientModel::triggerCommand(int index) {

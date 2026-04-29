@@ -387,6 +387,11 @@ if(BUILD_CPLAY_WITH_SAIL)
     target_compile_definitions(${TARGET_NAME} PUBLIC SAIL_SUPPORT)
 endif()
 
+if(BUILD_CPLAY_WITH_OPENSSL)
+    list(APPEND TARGET_LIBRARIES OpenSSL::SSL OpenSSL::Crypto)
+    target_compile_definitions(${TARGET_NAME} PUBLIC OPENSSL_SUPPORT)
+endif()
+
 option(SGCT_FREETYPE_SUPPORT "Build SGCT with Freetype2" ON)
 option(SGCT_DEP_INCLUDE_FREETYPE "Include FreeType library" OFF)
 option(SGCT_BUILD_TESTS "Build SGCT tests" OFF)

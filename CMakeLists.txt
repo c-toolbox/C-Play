@@ -236,6 +236,16 @@ if(BUILD_CPLAY_WITH_SAIL)
         URL "https://github.com/HappySeaFox/sail" DESCRIPTION "Support for additional image formats.")
 endif()
 
+option(BUILD_CPLAY_WITH_OPENSSL "Global On/Off for OpenSSL support (HTTPS)" OFF)
+if(BUILD_CPLAY_WITH_OPENSSL)
+    find_package(OpenSSL REQUIRED)
+    if(NOT OpenSSL_FOUND)
+        message(STATUS "Remember to run: vcpkg install openssl")
+    endif()
+    set_package_properties(OpenSSL PROPERTIES TYPE REQUIRED
+        URL "https://www.openssl.org/" DESCRIPTION "Support for HTTPS in HTTP client and server.")
+endif()
+
 if(BUILD_WITH_VCPKG_SUPPORT)
     message(STATUS "Using vcpkg toolchain from: ${CMAKE_TOOLCHAIN_FILE} to build C-Play")
     message(STATUS "Remember to run/install this: vcpkg install minizip libpng tinyxml2\n")

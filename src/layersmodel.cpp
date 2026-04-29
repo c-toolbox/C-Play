@@ -305,6 +305,7 @@ int LayersModel::addLayer(QString title, int type, QString filepath, int stereoM
         else if (newLayer->type() == BaseLayer::REST && Application::isCreated()) {
             RestLayer* newRestLayer = static_cast<RestLayer*>(newLayer);
             newRestLayer->setHttpClientModel(Application::instance().httpClientModel());
+            newRestLayer->setUrl(filepath.toStdString());
         }
         else {
             newLayer->setFilePath(filepath.toStdString());
