@@ -392,6 +392,12 @@ ItemDelegate {
         }
     }
 
+    onHighlightedChanged: {
+        if (highlighted) {
+            visibilitySlider.value = model.visibility;
+        }
+    }
+
     onClicked: {
         layersView.currentIndex = index;
         slideTitleField.text = model.title;
