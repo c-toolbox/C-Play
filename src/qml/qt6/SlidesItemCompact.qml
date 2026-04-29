@@ -104,9 +104,8 @@ ItemDelegate {
             }
             TextInput {
                 id: slideNameField
-
-                anchors.left: its.left
-                anchors.leftMargin: 19
+                anchors.left: parent.left
+                anchors.leftMargin: slidesView.count  > 9 ? 19 : 12
                 anchors.top: parent.top
                 anchors.topMargin: 3
                 color: Kirigami.Theme.textColor

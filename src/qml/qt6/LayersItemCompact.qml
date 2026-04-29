@@ -112,8 +112,8 @@ ItemDelegate {
             TextInput {
                 id: slideTitleField
 
-                anchors.left: its.left
-                anchors.leftMargin: layersScrollView.effectiveScrollBarWidth  > 0 ? 19 : 12
+                anchors.left: parent.left
+                anchors.leftMargin: layersView.count  > 9 ? 19 : 12
                 anchors.top: parent.top
                 anchors.topMargin: 3
                 color: Kirigami.Theme.textColor

@@ -273,12 +273,12 @@ int LayersModel::maxLayerStatus() {
 }
 
 int LayersModel::addLayer(QString title, int type, QString filepath, int stereoMode, int gridMode) {
-    beginInsertRows(QModelIndex(), m_layers.size(), m_layers.size());
-
     // Create new layer
     BaseLayer *newLayer = BaseLayer::createLayer(true, type, get_proc_address_qopengl_v1, get_proc_address_qopengl_v2, title.toStdString());
 
     if (newLayer) {
+        beginInsertRows(QModelIndex(), m_layers.size(), m_layers.size());
+
         newLayer->setHierarchy(hierarchy());
         newLayer->setTitle(title.toStdString());
         if (type == BaseLayer::TEXT) {
@@ -320,13 +320,15 @@ int LayersModel::addLayer(QString title, int type, QString filepath, int stereoM
         m_layers.push_back(QPair(std::shared_ptr<BaseLayer>(newLayer), 0));
         setLayersNeedsSave(true);
         setNeedSync();
+
+        endInsertRows();
+
+        Q_EMIT layersModelChanged();
+
+        return m_layers.size() - 1;
     }
 
-    endInsertRows();
-
-    Q_EMIT layersModelChanged();
-
-    return m_layers.size() - 1;
+    return -1;
 }
 
 int LayersModel::getLayerTypeBasedOnMime(QUrl fileUrl) {
@@ -501,9 +503,10 @@ void LayersModel::clearLayers() {
         for (int i = 0; i < m_layers.size(); i++) {
             if (m_layers[i].first->isLocked()) {
                 if (unlockedLayers > 0) {
-                    beginMoveRows(QModelIndex(), i, i, QModelIndex(), lockedLayers);
-                    m_layers.move(i, lockedLayers);
-                    endMoveRows();
+                    if (beginMoveRows(QModelIndex(), i, i, QModelIndex(), lockedLayers)) {
+                        m_layers.move(i, lockedLayers);
+                        endMoveRows();
+                    }
                 }
                 lockedLayers++;
             }
@@ -521,9 +524,11 @@ void LayersModel::clearLayers() {
             setLayersNeedsSave(true);
     }
     else {
-        beginRemoveRows(QModelIndex(), 0, m_layers.size() - 1);
-        m_layers.clear();
-        endRemoveRows();
+        if (!m_layers.isEmpty()) {
+            beginRemoveRows(QModelIndex(), 0, m_layers.size() - 1);
+            m_layers.clear();
+            endRemoveRows();
+        }
         setLayersNeedsSave(false);
     }
 
@@ -585,12 +590,12 @@ void LayersModel::addCopyOfLayer(BaseLayer* srcLayer) {
     if (srcLayer == nullptr)
         return;
 
-    beginInsertRows(QModelIndex(), m_layers.size(), m_layers.size());
-
     // Create new layer
     BaseLayer* newLayer = BaseLayer::createLayer(true, srcLayer->type(), get_proc_address_qopengl_v1, get_proc_address_qopengl_v2, srcLayer->title());
 
     if (newLayer) {
+        beginInsertRows(QModelIndex(), m_layers.size(), m_layers.size());
+
         newLayer->setTitle(srcLayer->title());
 
         std::vector<std::byte> data;
@@ -604,11 +609,11 @@ void LayersModel::addCopyOfLayer(BaseLayer* srcLayer) {
         m_layers.push_back(QPair(std::shared_ptr<BaseLayer>(newLayer), 0));
         setLayersNeedsSave(true);
         setNeedSync();
+
+        endInsertRows();
+
+        Q_EMIT layersModelChanged();
     }
-
-    endInsertRows();
-
-    Q_EMIT layersModelChanged();
 }
 
 void LayersModel::overwriteLayerProperties(BaseLayer* srcLayer, int dstLayerIdx) {
@@ -859,6 +864,9 @@ void LayersModel::decodeFromJSON(QJsonObject &obj, const QStringList &forRelativ
                     }
 
                     int idx = addLayer(title, type, path, stereo, grid);
+
+                    if (idx < 0)
+                        continue;
 
 #ifdef SGCT_HAS_TEXT
                     if (type == BaseLayer::TEXT) {

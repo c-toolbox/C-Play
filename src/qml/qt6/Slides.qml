@@ -487,9 +487,8 @@ Rectangle {
 
             Component.onCompleted: {
                 if (PresentationSettings.presentationToLoadOnStartup !== "") {
-                    busyIndicator = true;
-                    app.slides.pauseLayerUpdate = true;
-                    app.slides.loadFromJSONFile(PresentationSettings.presentationToLoadOnStartup);
+                    presentationToLoad = PresentationSettings.presentationToLoadOnStartup;
+                    openCPlayPresentation();
                 }
 
                 slidesView.currentIndex = app.slides.selectedSlideIdx;
