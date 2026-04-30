@@ -1027,13 +1027,14 @@ Kirigami.ApplicationWindow {
             id: controlGridLayout
             Layout.alignment: Qt.AlignHCenter | Qt.AlignTop
             columnSpacing: 2
-            columns: 2
+            columns: 3
             rowSpacing: 8
+            width: parent.width
             visible: layerView.layerItem.layerTypeName === "Control"
 
             RowLayout {
                 Layout.bottomMargin: 5
-                Layout.columnSpan: 2
+                Layout.columnSpan: 3
 
                 Rectangle {
                     color: Kirigami.Theme.alternateBackgroundColor
@@ -1061,6 +1062,7 @@ Kirigami.ApplicationWindow {
                 id: controlOperationComboBox
 
                 Layout.fillWidth: true
+                Layout.columnSpan: 2
 
                 model: ["Play", "Pause", "Stop", "Rewind", "Seek", 
                         "SetPosition", "SetSpeed", "SetVolume", "SetSyncVolumeVisibilityFading", 
@@ -1092,6 +1094,7 @@ Kirigami.ApplicationWindow {
                 id: controlParameterField
 
                 Layout.fillWidth: true
+                Layout.columnSpan: 2
                 placeholderText: "Parameter value"
                 text: layerView.layerItem.layerParameter
 
@@ -1111,13 +1114,14 @@ Kirigami.ApplicationWindow {
             id: restGridLayout
             Layout.alignment: Qt.AlignHCenter | Qt.AlignTop
             columnSpacing: 2
-            columns: 2
+            columns: 3
             rowSpacing: 8
+            width: parent.width
             visible: layerView.layerItem.layerTypeName === "REST"
 
             RowLayout {
                 Layout.bottomMargin: 5
-                Layout.columnSpan: 2
+                Layout.columnSpan: 3
 
                 Rectangle {
                     color: Kirigami.Theme.alternateBackgroundColor
@@ -1145,6 +1149,7 @@ Kirigami.ApplicationWindow {
                 id: restUrlField
 
                 Layout.fillWidth: true
+                Layout.columnSpan: 2
                 placeholderText: "http://host:port/path"
                 text: layerView.layerItem.layerRestUrl
 
@@ -1168,6 +1173,7 @@ Kirigami.ApplicationWindow {
                 id: restGridMethodComboBox
 
                 Layout.fillWidth: true
+                Layout.columnSpan: 2
                 model: ["GET", "POST", "PUT", "DELETE"]
                 currentIndex: layerView.layerItem.layerRestMethod
 
@@ -1186,15 +1192,16 @@ Kirigami.ApplicationWindow {
             Label {
                 text: qsTr("Body:")
                 Layout.alignment: Qt.AlignRight
-                visible: restGridMethodComboBox.currentIndex > 0
+                visible: restGridMethodComboBox.currentIndex === 1 || restGridMethodComboBox.currentIndex === 2
             }
             TextField {
                 id: restGridBodyField
 
                 Layout.fillWidth: true
+                Layout.columnSpan: 2
                 placeholderText: "Request body"
                 text: layerView.layerItem.layerRestBody
-                visible: restGridMethodComboBox.currentIndex > 0
+                visible: restGridMethodComboBox.currentIndex === 1 || restGridMethodComboBox.currentIndex === 2
 
                 onEditingFinished: {
                     layerView.layerItem.layerRestBody = text;
@@ -1211,15 +1218,16 @@ Kirigami.ApplicationWindow {
             Label {
                 text: qsTr("Content-Type:")
                 Layout.alignment: Qt.AlignRight
-                visible: restGridMethodComboBox.currentIndex > 0
+                visible: restGridMethodComboBox.currentIndex === 1 || restGridMethodComboBox.currentIndex === 2
             }
             TextField {
                 id: restGridContentTypeField
 
                 Layout.fillWidth: true
+                Layout.columnSpan: 2
                 placeholderText: "application/json"
                 text: layerView.layerItem.layerRestContentType
-                visible: restGridMethodComboBox.currentIndex > 0
+                visible: restGridMethodComboBox.currentIndex === 1 || restGridMethodComboBox.currentIndex === 2
 
                 onEditingFinished: {
                     layerView.layerItem.layerRestContentType = text;
