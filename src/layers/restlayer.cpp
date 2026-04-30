@@ -65,7 +65,8 @@ void RestLayer::start() {
     QMetaObject::invokeMethod(m_worker, "doRequest", Qt::QueuedConnection,
         Q_ARG(QString, QString::fromStdString(m_url)),
         Q_ARG(int, m_method),
-        Q_ARG(QString, QString::fromStdString(m_parameters)));
+        Q_ARG(QString, QString::fromStdString(m_parameters)),
+        Q_ARG(bool, m_ignoreStatus));
 }
 
 void RestLayer::stop() {
@@ -111,6 +112,15 @@ void RestLayer::setParameters(const std::string& params) {
     setNeedSync();
 }
 
+bool RestLayer::ignoreStatus() const {
+    return m_ignoreStatus;
+}
+
+void RestLayer::setIgnoreStatus(bool ignore) {
+    m_ignoreStatus = ignore;
+    setNeedSync();
+}
+
 void RestLayer::setHttpClientModel(HttpClientModel* model) {
     m_httpClientModel = model;
 }
@@ -123,10 +133,12 @@ void RestLayer::encodeTypeCore(std::vector<std::byte>& data) {
     sgct::serializeObject(data, m_url);
     sgct::serializeObject(data, m_method);
     sgct::serializeObject(data, m_parameters);
+    sgct::serializeObject(data, m_ignoreStatus);
 }
 
 void RestLayer::decodeTypeCore(const std::vector<std::byte>& data, unsigned int& pos) {
     sgct::deserializeObject(data, pos, m_url);
     sgct::deserializeObject(data, pos, m_method);
     sgct::deserializeObject(data, pos, m_parameters);
+    sgct::deserializeObject(data, pos, m_ignoreStatus);
 }

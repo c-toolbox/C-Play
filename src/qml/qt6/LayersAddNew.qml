@@ -18,7 +18,7 @@ Kirigami.ApplicationWindow {
     id: root
 
     color: Kirigami.Theme.alternateBackgroundColor
-    height: 350
+    height: 430
     title: qsTr("Add new layer")
     visible: false
     width: 400
@@ -123,10 +123,10 @@ Kirigami.ApplicationWindow {
                                 restUrl = layerCoreProps.restCommandsComboBox.currentValue;
                             }
                             layerView.layerItem.layerIdx = app.slides.selected.addLayer(layerCoreProps.layerTitle.text, layerCoreProps.typeComboBox.currentIndex + 1, restUrl, 0, 0);
-                            // Set method, body, contentType after creation
+                            // Set method, parameters, ignoreStatus after creation
                             layerView.layerItem.layerRestMethod = layerCoreProps.restMethodComboBox.currentIndex;
-                            layerView.layerItem.layerRestBody = layerCoreProps.restBodyField.text;
-                            layerView.layerItem.layerRestContentType = layerCoreProps.restContentTypeField.text;
+                            layerView.layerItem.layerRestParameters = layerCoreProps.getRestParametersJson();
+                            layerView.layerItem.layerRestIgnoreStatus = layerCoreProps.restIgnoreStatusCheckBox.checked;
                             layersAddNew.visible = false;
                             app.slides.updateSelectedSlide();
                             mpv.focus = true;

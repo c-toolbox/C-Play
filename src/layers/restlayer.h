@@ -46,6 +46,9 @@ public:
     std::string parameters() const;
     void setParameters(const std::string& params);
 
+    bool ignoreStatus() const;
+    void setIgnoreStatus(bool ignore);
+
     void setHttpClientModel(HttpClientModel* model);
 
     // Callback invoked on the main thread when the request finishes.
@@ -62,6 +65,7 @@ private:
     std::string m_url;
     int m_method = GET;
     std::string m_parameters;
+    bool m_ignoreStatus = false;
 
     HttpClientModel* m_httpClientModel = nullptr;
     StatusCallback m_statusCallback;

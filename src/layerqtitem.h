@@ -118,7 +118,7 @@ class LayerQtItem : public QQuickItem {
     Q_PROPERTY(QString layerRestUrl READ layerRestUrl WRITE setLayerRestUrl NOTIFY layerValueChanged)
     Q_PROPERTY(int layerRestMethod READ layerRestMethod WRITE setLayerRestMethod NOTIFY layerValueChanged)
     Q_PROPERTY(QString layerRestParameters READ layerRestParameters WRITE setLayerRestParameters NOTIFY layerValueChanged)
-    QML_ELEMENT
+    Q_PROPERTY(bool layerRestIgnoreStatus READ layerRestIgnoreStatus WRITE setLayerRestIgnoreStatus NOTIFY layerValueChanged)
 
 public:
     LayerQtItem();
@@ -287,6 +287,9 @@ public:
 
     QString layerRestParameters() const;
     void setLayerRestParameters(QString params);
+
+    bool layerRestIgnoreStatus() const;
+    void setLayerRestIgnoreStatus(bool ignore);
 
 Q_SIGNALS:
     void layerChanged();

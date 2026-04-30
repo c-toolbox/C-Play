@@ -61,6 +61,7 @@ Kirigami.ApplicationWindow {
         editTitle.text = "";
         editUrl.text = "";
         editMethod.currentIndex = 0;
+        editIgnoreStatus.checked = false;
         paramsModel.clear();
         responseArea.text = "";
         statusLabel.text = "";
@@ -74,6 +75,7 @@ Kirigami.ApplicationWindow {
         editUrl.text = m.data(m.index(index, 0), Qt.UserRole + 1);
         editMethod.currentIndex = m.data(m.index(index, 0), Qt.UserRole + 2);
         loadParametersFromJson(m.data(m.index(index, 0), Qt.UserRole + 3));
+        editIgnoreStatus.checked = m.data(m.index(index, 0), Qt.UserRole + 4);
         responseArea.text = "";
         statusLabel.text = "";
     }
@@ -231,6 +233,13 @@ Kirigami.ApplicationWindow {
                 currentIndex: 0
             }
 
+            Label { text: qsTr("Ignore Status:"); Layout.alignment: Qt.AlignRight }
+            CheckBox {
+                id: editIgnoreStatus
+                checked: false
+                text: qsTr("Do not wait for response (assume OK)")
+            }
+
             Label {
                 text: qsTr("Parameters:")
                 Layout.alignment: Qt.AlignRight | Qt.AlignTop
@@ -285,7 +294,8 @@ Kirigami.ApplicationWindow {
                 enabled: editTitle.text !== "" && editUrl.text !== ""
                 onClicked: {
                     app.httpClientModel.addCommand(editTitle.text, editUrl.text,
-                        editMethod.currentIndex, getParametersAsJson());
+                        editMethod.currentIndex, getParametersAsJson(),
+                        editIgnoreStatus.checked);
                     root.selectedCommandIndex = app.httpClientModel.numberOfCommands - 1;
                 }
             }
@@ -296,7 +306,8 @@ Kirigami.ApplicationWindow {
                 onClicked: {
                     app.httpClientModel.updateCommand(root.selectedCommandIndex,
                         editTitle.text, editUrl.text,
-                        editMethod.currentIndex, getParametersAsJson());
+                        editMethod.currentIndex, getParametersAsJson(),
+                        editIgnoreStatus.checked);
                 }
             }
             Button {
@@ -319,7 +330,8 @@ Kirigami.ApplicationWindow {
                     statusLabel.color = Kirigami.Theme.disabledTextColor;
                     responseArea.text = "";
                     app.httpClientModel.sendRequest(editUrl.text,
-                        editMethod.currentIndex, getParametersAsJson());
+                        editMethod.currentIndex, getParametersAsJson(),
+                        editIgnoreStatus.checked);
                 }
             }
         }

@@ -25,7 +25,7 @@ HttpRequestWorker::HttpRequestWorker(QObject *parent)
 }
 
 void HttpRequestWorker::doRequest(const QString &url, int method,
-                                  const QString &parameters) {
+                                  const QString &parameters, bool ignoreStatus) {
     int statusCode = 0;
     QString responseBody;
     QString error;
@@ -71,8 +71,16 @@ void HttpRequestWorker::doRequest(const QString &url, int method,
         }
 
         httplib::Client cli(hostPort);
-        cli.set_connection_timeout(10, 0);
-        cli.set_read_timeout(30, 0);
+        cli.set_connection_timeout(3, 0);
+        cli.set_read_timeout(5, 0);
+        cli.set_write_timeout(5, 0);
+        cli.set_keep_alive(true);
+        cli.set_follow_location(true);
+        cli.set_address_family(AF_INET);
+        cli.set_default_headers({
+            {"User-Agent", "C-Play/2.3"},
+            {"Accept", "*/*"}
+        });
 
         // Build httplib::Params from the parameters string.
         // Parameters are stored as a JSON array: [{"name":"key","value":"val"}, ...]
@@ -102,6 +110,58 @@ void HttpRequestWorker::doRequest(const QString &url, int method,
                     }
                 }
             }
+        }
+
+        if (ignoreStatus) {
+            // Fire-and-forget: only verify connection works, assume 200 OK
+            cli.set_connection_timeout(2, 0);
+            cli.set_read_timeout(1, 0);
+            cli.set_write_timeout(1, 0);
+
+            httplib::Result res;
+            switch (method) {
+            case 0: // GET
+                if (!params.empty()) {
+                    std::string queryPath = path + "?" + httplib::detail::params_to_query_str(params);
+                    res = cli.Get(queryPath);
+                } else {
+                    res = cli.Get(path);
+                }
+                break;
+            case 1: // POST
+                res = cli.Post(path, params);
+                break;
+            case 2: // PUT
+                res = cli.Put(path, httplib::detail::params_to_query_str(params), "application/x-www-form-urlencoded");
+                break;
+            case 3: // DELETE
+                if (!params.empty()) {
+                    std::string queryPath = path + "?" + httplib::detail::params_to_query_str(params);
+                    res = cli.Delete(queryPath);
+                } else {
+                    res = cli.Delete(path);
+                }
+                break;
+            default:
+                res = cli.Get(path);
+                break;
+            }
+
+            // If we got any response or a connection error that is not "Connection" related, assume OK
+            if (res) {
+                statusCode = 200;
+            } else {
+                auto err = res.error();
+                if (err == httplib::Error::Connection) {
+                    error = QStringLiteral("Connection failed");
+                } else {
+                    // Message was likely sent, assume OK
+                    statusCode = 200;
+                }
+            }
+
+            Q_EMIT requestFinished(statusCode, QString(), error);
+            return;
         }
 
         httplib::Result res;
@@ -188,6 +248,8 @@ QVariant HttpClientModel::data(const QModelIndex &index, int role) const {
         return m_methods.at(index.row());
     case parametersRole:
         return m_parameters.at(index.row());
+    case ignoreStatusRole:
+        return m_ignoreStatus.at(index.row());
     }
     return QVariant();
 }
@@ -198,6 +260,7 @@ QHash<int, QByteArray> HttpClientModel::roleNames() const {
     roles[urlRole] = "url";
     roles[methodRole] = "method";
     roles[parametersRole] = "parameters";
+    roles[ignoreStatusRole] = "ignoreStatus";
     return roles;
 }
 
@@ -219,6 +282,7 @@ void HttpClientModel::updateCommandsList() {
         m_urls.clear();
         m_methods.clear();
         m_parameters.clear();
+        m_ignoreStatus.clear();
 
         QJsonArray arr = obj.value(QStringLiteral("commands")).toArray();
         for (auto v : arr) {
@@ -253,6 +317,13 @@ void HttpClientModel::updateCommandsList() {
                 } else {
                     m_parameters.append(QStringLiteral(""));
                 }
+
+                // Check for ignoreStatus field
+                if (o.contains(QStringLiteral("ignoreStatus"))) {
+                    m_ignoreStatus.append(o.value(QStringLiteral("ignoreStatus")).toBool());
+                } else {
+                    m_ignoreStatus.append(false); // Default to false if not present
+                }
             }
         }
         endResetModel();
@@ -265,10 +336,11 @@ int HttpClientModel::getNumberOfCommands() {
 }
 
 void HttpClientModel::sendRequest(const QString &url, int method,
-                                  const QString &parameters) {
+                                  const QString &parameters,
+                                  bool ignoreStatus) {
     m_requestInProgress = true;
     Q_EMIT requestInProgressChanged();
-    Q_EMIT startRequest(url, method, parameters);
+    Q_EMIT startRequest(url, method, parameters, ignoreStatus);
 }
 
 void HttpClientModel::onRequestFinished(int statusCode, const QString &responseBody, const QString &error) {
@@ -284,29 +356,31 @@ void HttpClientModel::triggerCommand(int index) {
     if (index < 0 || index >= m_titles.size())
         return;
     sendRequest(m_urls.at(index), m_methods.at(index),
-                m_parameters.at(index));
+                m_parameters.at(index), m_ignoreStatus.at(index));
 }
 
 void HttpClientModel::addCommand(const QString &title, const QString &url, int method,
-                                 const QString &parameters) {
+                                 const QString &parameters, bool ignoreStatus) {
     beginInsertRows(QModelIndex(), m_titles.size(), m_titles.size());
     m_titles.append(title);
     m_urls.append(url);
     m_methods.append(method);
     m_parameters.append(parameters);
+    m_ignoreStatus.append(ignoreStatus);
     endInsertRows();
     saveCommandsToFile();
     Q_EMIT commandsListChanged();
 }
 
 void HttpClientModel::updateCommand(int index, const QString &title, const QString &url, int method,
-                                    const QString &parameters) {
+                                    const QString &parameters, bool ignoreStatus) {
     if (index < 0 || index >= m_titles.size())
         return;
     m_titles[index] = title;
     m_urls[index] = url;
     m_methods[index] = method;
     m_parameters[index] = parameters;
+    m_ignoreStatus[index] = ignoreStatus;
     Q_EMIT dataChanged(this->index(index, 0), this->index(index, 0));
     saveCommandsToFile();
     Q_EMIT commandsListChanged();
@@ -320,6 +394,7 @@ void HttpClientModel::removeCommand(int index) {
     m_urls.removeAt(index);
     m_methods.removeAt(index);
     m_parameters.removeAt(index);
+    m_ignoreStatus.removeAt(index);
     endRemoveRows();
     saveCommandsToFile();
     Q_EMIT commandsListChanged();
@@ -365,6 +440,7 @@ void HttpClientModel::saveCommandsToFile() {
         }
 
         o.insert(QStringLiteral("enabled"), true);
+        o.insert(QStringLiteral("ignoreStatus"), m_ignoreStatus.at(i));
         arr.append(o);
     }
 

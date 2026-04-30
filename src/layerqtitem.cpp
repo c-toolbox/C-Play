@@ -1011,6 +1011,25 @@ void LayerQtItem::setLayerRestParameters(QString params) {
     }
 }
 
+bool LayerQtItem::layerRestIgnoreStatus() const {
+    if (m_layer && m_layer->type() == BaseLayer::REST) {
+        RestLayer* restLayer = static_cast<RestLayer*>(m_layer);
+        return restLayer->ignoreStatus();
+    }
+    return false;
+}
+
+void LayerQtItem::setLayerRestIgnoreStatus(bool ignore) {
+    if (m_layer && m_layer->isEnabled() && m_layer->type() == BaseLayer::REST) {
+        RestLayer* restLayer = static_cast<RestLayer*>(m_layer);
+        if (restLayer->ignoreStatus() != ignore) {
+            restLayer->setIgnoreStatus(ignore);
+            Q_EMIT layerValueChanged();
+            Q_EMIT layerNeedsSave();
+        }
+    }
+}
+
 void LayerQtItem::handleWindowChanged(QQuickWindow *win) {
     if (win) {
         connect(win, &QQuickWindow::beforeSynchronizing, this, &LayerQtItem::sync, Qt::DirectConnection);

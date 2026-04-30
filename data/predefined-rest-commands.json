@@ -2,6 +2,7 @@
     "commands": [
         {
             "enabled": true,
+            "ignoreStatus": true,
             "method": "GET",
             "parameters": [
                 {
@@ -22,7 +23,8 @@
         },
         {
             "enabled": true,
-            "method": "GET",
+            "ignoreStatus": true,
+            "method": "POST",
             "parameters": [
                 {
                     "name": "program",
@@ -42,6 +44,7 @@
         },
         {
             "enabled": true,
+            "ignoreStatus": false,
             "method": "GET",
             "parameters": [
             ],
@@ -50,10 +53,11 @@
         },
         {
             "enabled": true,
+            "ignoreStatus": false,
             "method": "POST",
             "parameters": [
                 {
-                    "name": "node",
+                    "name": "mode",
                     "value": "1"
                 }
             ],
@@ -62,6 +66,7 @@
         },
         {
             "enabled": true,
+            "ignoreStatus": false,
             "method": "POST",
             "parameters": [
                 {

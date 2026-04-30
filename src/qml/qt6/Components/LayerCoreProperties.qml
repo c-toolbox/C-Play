@@ -46,6 +46,7 @@ GridLayout {
     property alias restCommandsComboBox: restCommandsComboBox
     property alias restCustomUrlField: restCustomUrlField
     property alias restMethodComboBox: restMethodComboBox
+    property alias restIgnoreStatusCheckBox: restIgnoreStatusCheckBox
 
     property string restParametersJson: ""
 
@@ -225,6 +226,7 @@ GridLayout {
                 restCustomUrlField.text = app.httpClientModel.data(app.httpClientModel.index(idx, 0), Qt.UserRole + 1);
                 restMethodComboBox.currentIndex = app.httpClientModel.data(app.httpClientModel.index(idx, 0), Qt.UserRole + 2);
                 loadRestParametersFromJson(app.httpClientModel.data(app.httpClientModel.index(idx, 0), Qt.UserRole + 3));
+                restIgnoreStatusCheckBox.checked = app.httpClientModel.data(app.httpClientModel.index(idx, 0), Qt.UserRole + 4) || false;
             }
             else {
                 layerTitle.text = "";
@@ -729,6 +731,7 @@ GridLayout {
                 restCustomUrlField.text = app.httpClientModel.data(app.httpClientModel.index(idx, 0), Qt.UserRole + 1);
                 restMethodComboBox.currentIndex = app.httpClientModel.data(app.httpClientModel.index(idx, 0), Qt.UserRole + 2);
                 loadRestParametersFromJson(app.httpClientModel.data(app.httpClientModel.index(idx, 0), Qt.UserRole + 3));
+                restIgnoreStatusCheckBox.checked = app.httpClientModel.data(app.httpClientModel.index(idx, 0), Qt.UserRole + 4) || false;
             }
             onActivated: {
                 layerTitle.text = restCommandsComboBox.currentText;
@@ -736,6 +739,7 @@ GridLayout {
                 restCustomUrlField.text = app.httpClientModel.data(app.httpClientModel.index(idx, 0), Qt.UserRole + 1);
                 restMethodComboBox.currentIndex = app.httpClientModel.data(app.httpClientModel.index(idx, 0), Qt.UserRole + 2);
                 loadRestParametersFromJson(app.httpClientModel.data(app.httpClientModel.index(idx, 0), Qt.UserRole + 3));
+                restIgnoreStatusCheckBox.checked = app.httpClientModel.data(app.httpClientModel.index(idx, 0), Qt.UserRole + 4) || false;
             }
         }
         TextField {
@@ -791,6 +795,24 @@ GridLayout {
         visible: typeComboBox.currentText === "REST" && restCommandsLayout.customEntry === true
         model: ["GET", "POST", "PUT", "DELETE"]
         currentIndex: 0
+    }
+    Item {
+        visible: root.showSpacers && typeComboBox.currentText === "REST"
+        Layout.fillWidth: true
+    }
+
+    Label {
+        Layout.alignment: Qt.AlignRight
+        text: qsTr("Ignore Status:")
+        visible: typeComboBox.currentText === "REST" && restCommandsLayout.customEntry === true
+    }
+    CheckBox {
+        id: restIgnoreStatusCheckBox
+
+        Layout.fillWidth: true
+        visible: typeComboBox.currentText === "REST" && restCommandsLayout.customEntry === true
+        checked: false
+        text: qsTr("Do not wait for response")
     }
     Item {
         visible: root.showSpacers && typeComboBox.currentText === "REST"

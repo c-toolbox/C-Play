@@ -24,7 +24,7 @@ Kirigami.ApplicationWindow {
             return;
         }
         if (layerView.layerItem.layerTypeName === "REST") {
-            root.height = 280;
+            root.height = 320;
             return;
         }
         var mode = layerView.layerItem.layerGridMode;
@@ -51,6 +51,7 @@ Kirigami.ApplicationWindow {
         if (restGridLayout.visible) {
             restUrlField.text = layerView.layerItem.layerRestUrl;
             restGridMethodComboBox.currentIndex = layerView.layerItem.layerRestMethod;
+            restGridIgnoreStatusCheckBox.checked = layerView.layerItem.layerRestIgnoreStatus;
             restGridLayout.loadParametersFromJson(layerView.layerItem.layerRestParameters);
             resizeForGridMode();
             return;
@@ -1224,6 +1225,29 @@ Kirigami.ApplicationWindow {
                 Connections {
                     function onLayerChanged() {
                         restGridMethodComboBox.currentIndex = layerView.layerItem.layerRestMethod;
+                    }
+                    target: layerView.layerItem
+                }
+            }
+
+            Label {
+                text: qsTr("Ignore Status:")
+                Layout.alignment: Qt.AlignRight
+            }
+            CheckBox {
+                id: restGridIgnoreStatusCheckBox
+
+                Layout.columnSpan: 2
+                checked: layerView.layerItem.layerRestIgnoreStatus
+                text: qsTr("Do not wait for response")
+
+                onToggled: {
+                    layerView.layerItem.layerRestIgnoreStatus = checked;
+                }
+
+                Connections {
+                    function onLayerChanged() {
+                        restGridIgnoreStatusCheckBox.checked = layerView.layerItem.layerRestIgnoreStatus;
                     }
                     target: layerView.layerItem
                 }
