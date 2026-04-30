@@ -96,10 +96,11 @@ When choosing *"Control"*, the layer does not display any visual content. Instea
 In the layer view for a control layer, two fields are shown instead of the usual grid/stereo parameters:
 
 * **Operation** — The command to execute. Available operations include:
-  * **Playback**: Play, Pause, Stop, Rewind, Seek, SetPosition, SetSpeed, SetVolume
-  * **Fading**: FadeVolumeDown, FadeVolumeUp, FadeImageDown, FadeImageUp, SetSyncVolumeVisibilityFading
+  * **Playback**: Play, Pause, Stop, Rewind, Seek, SetPosition, SetSpeed
+  * **Volume & Fading**: SetVolume, FadeVolumeDown, FadeVolumeUp, FadeImageDown, FadeImageUp, SetSyncVolumeVisibilityFading
   * **Loading**: LoadFromPlaylist, LoadFromSlides, LoadFromSections, LoadFromAudioTracks
   * **Orientation**: SpinPitchUp, SpinPitchDown, SpinYawLeft, SpinYawRight, SpinRollCW, SpinRollCCW, OrientationAndSpinReset, RunSurfaceTransition
+  * **Surface & Visibility**: SetBackgroundVisibility, SetForegroundVisibility, SetNodeWindowsOpacity
 
 * **Parameter** — An operation-specific value. For example, a volume level for SetVolume, a millisecond position for Seek, a slide name or index for LoadFromSlides, or `true`/`false` for boolean operations. Parameters that reference playlist items, slides, or audio tracks can be specified by name or numeric index.
 

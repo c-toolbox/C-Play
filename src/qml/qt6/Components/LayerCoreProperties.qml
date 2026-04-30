@@ -662,7 +662,8 @@ GridLayout {
         model: ["Play", "Pause", "Stop", "Rewind", "Seek", "SetPosition", 
                 "FadeVolumeDown", "FadeVolumeUp", "FadeImageDown", "FadeImageUp",
                 "LoadFromAudioTracks", "LoadFromPlaylist", "LoadFromSections", "LoadFromSlides", 
-                "SetSpeed", "SetVolume", "SetSyncVolumeVisibilityFading",  
+                "SetSpeed", "SetVolume", "SetSyncVolumeVisibilityFading",
+                "SetBackgroundVisibility", "SetForegroundVisibility", "SetNodeWindowsOpacity",
                 "SpinPitchUp", "SpinPitchDown", "SpinYawLeft", "SpinYawRight",
                 "SpinRollCW", "SpinRollCCW", "OrientationAndSpinReset", "RunSurfaceTransition"]
         
@@ -874,6 +875,8 @@ GridLayout {
             || op === "LoadFromSections" || op === "LoadFromSlides"
             || op === "SetSpeed" || op === "SetVolume"
             || op === "SetSyncVolumeVisibilityFading"
+            || op === "SetBackgroundVisibility" || op === "SetForegroundVisibility"
+            || op === "SetNodeWindowsOpacity"
             || op === "SpinPitchUp" || op === "SpinPitchDown"
             || op === "SpinYawLeft" || op === "SpinYawRight"
             || op === "SpinRollCW" || op === "SpinRollCCW";
@@ -886,6 +889,9 @@ GridLayout {
         if (op === "SetSpeed") return "Speed factor";
         if (op === "SetVolume") return "Volume level (0-100)";
         if (op === "SetSyncVolumeVisibilityFading") return "true/false";
+        if (op === "SetBackgroundVisibility") return "Visibility (0.0-1.0)";
+        if (op === "SetForegroundVisibility") return "Visibility (0.0-1.0)";
+        if (op === "SetNodeWindowsOpacity") return "Opacity (0.0-1.0)";
         if (op === "LoadFromAudioTracks") return "Audio track name";
         if (op === "LoadFromPlaylist") return "Playlist item title/filename";
         if (op === "LoadFromSections") return "Section title";

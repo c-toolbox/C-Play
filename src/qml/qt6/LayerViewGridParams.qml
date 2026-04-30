@@ -1065,7 +1065,8 @@ Kirigami.ApplicationWindow {
                 Layout.columnSpan: 2
 
                 model: ["Play", "Pause", "Stop", "Rewind", "Seek", 
-                        "SetPosition", "SetSpeed", "SetVolume", "SetSyncVolumeVisibilityFading", 
+                        "SetPosition", "SetSpeed", "SetVolume", "SetSyncVolumeVisibilityFading",
+                        "SetBackgroundVisibility", "SetForegroundVisibility", "SetNodeWindowsOpacity",
                         "LoadFromAudioTracks", "LoadFromPlaylist", "LoadFromSections", "LoadFromSlides", 
                         "FadeVolumeDown", "FadeVolumeUp", "FadeImageDown", "FadeImageUp", 
                         "SpinPitchUp", "SpinPitchDown", "SpinYawLeft", "SpinYawRight",

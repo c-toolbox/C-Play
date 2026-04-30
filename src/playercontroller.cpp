@@ -401,6 +401,12 @@ void PlayerController::DispatchControlOperation(const QString &operation, const 
         OrientationAndSpinReset();
     } else if (operation == QStringLiteral("RunSurfaceTransition")) {
         RunSurfaceTransition();
+    } else if (operation == QStringLiteral("SetBackgroundVisibility")) {
+        setBackgroundVisibility(parameter.toFloat());
+    } else if (operation == QStringLiteral("SetForegroundVisibility")) {
+        setForegroundVisibility(parameter.toFloat());
+    } else if (operation == QStringLiteral("SetNodeWindowsOpacity")) {
+        setNodeWindowsOpacity(parameter.toFloat());
     }
 }
 
