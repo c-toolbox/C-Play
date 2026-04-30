@@ -79,6 +79,7 @@ Here you can choose from the following layer types:
 | **Spout** | Live video shared from another Windows application on the same machine. |
 | **Stream** | Capture cards, camera feeds, URLs, or other MPV-compatible live inputs. |
 | **Control** | Non-visual automation commands for playback, fades, loading, and timing control. |
+| **REST** | Non-visual HTTP request fired when the slide is triggered (e.g. control lighting, projectors, or other applications). |
 
 The file-based layer types *Image*, *Video*, *Audio*, and *PDF* are chosen through file dialogs. The default dialog locations of each of these types can be changed in "Settings -> Configure -> Location", as seen [here](../settings/location).
 
@@ -101,6 +102,18 @@ In the layer view for a control layer, two fields are shown instead of the usual
   * **Orientation**: SpinPitchUp, SpinPitchDown, SpinYawLeft, SpinYawRight, SpinRollCW, SpinRollCCW, OrientationAndSpinReset, RunSurfaceTransition
 
 * **Parameter** — An operation-specific value. For example, a volume level for SetVolume, a millisecond position for Seek, a slide name or index for LoadFromSlides, or `true`/`false` for boolean operations. Parameters that reference playlist items, slides, or audio tracks can be specified by name or numeric index.
+
+When choosing *"REST"*, the layer sends an HTTP request when its slide is triggered. Like Control layers, REST layers are non-visual and exist only on the master node. They are useful for integrating external systems — such as lighting controllers, projectors, or other networked applications — into your presentation workflow.
+
+In the layer view for a REST layer, three fields are shown:
+
+* **URL** — The target HTTP endpoint. You can either select a predefined command from the dropdown (populated by the REST Commands Editor) or toggle to custom mode and enter a URL manually.
+* **Method** — The HTTP method: `GET`, `POST`, `PUT`, or `DELETE` (visible in custom mode).
+* **Parameters** — A list of name/value pairs, each with individual UI fields that can be added or removed as needed (visible in custom mode). This format supports values with spaces and special characters. For POST/PUT these are sent as the request body; for GET/DELETE they are appended as query parameters.
+
+When the slide is loaded, the REST layer fires the configured request on a background thread and reports success (HTTP 2xx) or failure.
+
+For more details on the REST layer and the REST Commands Editor, see the [HTTP Web API documentation](../remote/api#rest-layer).
 
 After you have added a new layer, you can specify its parameters in more detail through the *"Layer View"*. Here you control grid and stereo parameters, the volume level if applicable, and inspect how the output looks.
 

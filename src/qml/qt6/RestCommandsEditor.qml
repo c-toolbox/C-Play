@@ -17,7 +17,7 @@ Kirigami.ApplicationWindow {
     id: root
 
     color: Kirigami.Theme.alternateBackgroundColor
-    height: 600
+    height: 700
     title: qsTr("REST Commands Editor")
     visible: false
     width: 700
@@ -61,8 +61,7 @@ Kirigami.ApplicationWindow {
         editTitle.text = "";
         editUrl.text = "";
         editMethod.currentIndex = 0;
-        editBody.text = "";
-        editContentType.text = "application/json";
+        paramsModel.clear();
         responseArea.text = "";
         statusLabel.text = "";
     }
@@ -74,10 +73,51 @@ Kirigami.ApplicationWindow {
         editTitle.text = m.data(m.index(index, 0), Qt.UserRole);
         editUrl.text = m.data(m.index(index, 0), Qt.UserRole + 1);
         editMethod.currentIndex = m.data(m.index(index, 0), Qt.UserRole + 2);
-        editBody.text = m.data(m.index(index, 0), Qt.UserRole + 3);
-        editContentType.text = m.data(m.index(index, 0), Qt.UserRole + 4);
+        loadParametersFromJson(m.data(m.index(index, 0), Qt.UserRole + 3));
         responseArea.text = "";
         statusLabel.text = "";
+    }
+
+    function loadParametersFromJson(jsonStr) {
+        paramsModel.clear();
+        if (!jsonStr || jsonStr === "")
+            return;
+        try {
+            var arr = JSON.parse(jsonStr);
+            if (Array.isArray(arr)) {
+                for (var i = 0; i < arr.length; i++) {
+                    paramsModel.append({"paramName": arr[i].name || "", "paramValue": arr[i].value || ""});
+                }
+            }
+        } catch(e) {
+            // Backward compatibility: try old format
+            var pairs = jsonStr.split("&");
+            for (var j = 0; j < pairs.length; j++) {
+                var eqIdx = pairs[j].indexOf("=");
+                if (eqIdx >= 0) {
+                    paramsModel.append({"paramName": pairs[j].substring(0, eqIdx), "paramValue": pairs[j].substring(eqIdx + 1)});
+                } else if (pairs[j] !== "") {
+                    paramsModel.append({"paramName": pairs[j], "paramValue": ""});
+                }
+            }
+        }
+    }
+
+    function getParametersAsJson() {
+        var arr = [];
+        for (var i = 0; i < paramsModel.count; i++) {
+            var item = paramsModel.get(i);
+            if (item.paramName !== "") {
+                arr.push({"name": item.paramName, "value": item.paramValue});
+            }
+        }
+        if (arr.length === 0)
+            return "";
+        return JSON.stringify(arr);
+    }
+
+    ListModel {
+        id: paramsModel
     }
 
     ColumnLayout {
@@ -107,7 +147,8 @@ Kirigami.ApplicationWindow {
         ListView {
             id: commandsList
             Layout.fillWidth: true
-            Layout.preferredHeight: 150
+            Layout.preferredHeight: 170
+            Layout.bottomMargin: 10
             clip: true
             model: app.httpClientModel
             currentIndex: root.selectedCommandIndex
@@ -191,28 +232,45 @@ Kirigami.ApplicationWindow {
             }
 
             Label {
-                text: qsTr("Body:")
-                Layout.alignment: Qt.AlignRight
-                visible: editMethod.currentIndex === 1 || editMethod.currentIndex === 2
+                text: qsTr("Parameters:")
+                Layout.alignment: Qt.AlignRight | Qt.AlignTop
             }
-            TextField {
-                id: editBody
+            ColumnLayout {
                 Layout.fillWidth: true
-                placeholderText: "Request body (JSON, etc.)"
-                visible: editMethod.currentIndex === 1 || editMethod.currentIndex === 2
-            }
+                spacing: 4
 
-            Label {
-                text: qsTr("Content-Type:")
-                Layout.alignment: Qt.AlignRight
-                visible: editMethod.currentIndex === 1 || editMethod.currentIndex === 2
-            }
-            TextField {
-                id: editContentType
-                Layout.fillWidth: true
-                placeholderText: "application/json"
-                text: "application/json"
-                visible: editMethod.currentIndex === 1 || editMethod.currentIndex === 2
+                Repeater {
+                    model: paramsModel
+                    delegate: RowLayout {
+                        Layout.fillWidth: true
+                        spacing: 4
+
+                        TextField {
+                            Layout.preferredWidth: 150
+                            placeholderText: "Name"
+                            text: paramName
+                            onTextChanged: paramsModel.setProperty(index, "paramName", text)
+                        }
+                        Label { text: "=" }
+                        TextField {
+                            Layout.fillWidth: true
+                            placeholderText: "Value"
+                            text: paramValue
+                            onTextChanged: paramsModel.setProperty(index, "paramValue", text)
+                        }
+                        ToolButton {
+                            icon.name: "list-remove"
+                            icon.height: 16
+                            onClicked: paramsModel.remove(index)
+                        }
+                    }
+                }
+
+                Button {
+                    text: qsTr("+ Add Parameter")
+                    icon.name: "list-add"
+                    onClicked: paramsModel.append({"paramName": "", "paramValue": ""})
+                }
             }
         }
 
@@ -227,7 +285,7 @@ Kirigami.ApplicationWindow {
                 enabled: editTitle.text !== "" && editUrl.text !== ""
                 onClicked: {
                     app.httpClientModel.addCommand(editTitle.text, editUrl.text,
-                        editMethod.currentIndex, editBody.text, editContentType.text);
+                        editMethod.currentIndex, getParametersAsJson());
                     root.selectedCommandIndex = app.httpClientModel.numberOfCommands - 1;
                 }
             }
@@ -238,7 +296,7 @@ Kirigami.ApplicationWindow {
                 onClicked: {
                     app.httpClientModel.updateCommand(root.selectedCommandIndex,
                         editTitle.text, editUrl.text,
-                        editMethod.currentIndex, editBody.text, editContentType.text);
+                        editMethod.currentIndex, getParametersAsJson());
                 }
             }
             Button {
@@ -261,7 +319,7 @@ Kirigami.ApplicationWindow {
                     statusLabel.color = Kirigami.Theme.disabledTextColor;
                     responseArea.text = "";
                     app.httpClientModel.sendRequest(editUrl.text,
-                        editMethod.currentIndex, editBody.text, editContentType.text);
+                        editMethod.currentIndex, getParametersAsJson());
                 }
             }
         }

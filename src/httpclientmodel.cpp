@@ -25,7 +25,7 @@ HttpRequestWorker::HttpRequestWorker(QObject *parent)
 }
 
 void HttpRequestWorker::doRequest(const QString &url, int method,
-                                  const QString &body, const QString &contentType) {
+                                  const QString &parameters) {
     int statusCode = 0;
     QString responseBody;
     QString error;
@@ -74,16 +74,63 @@ void HttpRequestWorker::doRequest(const QString &url, int method,
         cli.set_connection_timeout(10, 0);
         cli.set_read_timeout(30, 0);
 
-        std::string bodyStr = body.toStdString();
-        std::string ctStr = contentType.toStdString();
+        // Build httplib::Params from the parameters string.
+        // Parameters are stored as a JSON array: [{"name":"key","value":"val"}, ...]
+        // For backward compatibility, also support the old "name=value&name=value" format.
+        httplib::Params params;
+        if (!parameters.isEmpty()) {
+            QJsonDocument paramDoc = QJsonDocument::fromJson(parameters.toUtf8());
+            if (paramDoc.isArray()) {
+                QJsonArray paramArr = paramDoc.array();
+                for (auto v : paramArr) {
+                    QJsonObject p = v.toObject();
+                    QString name = p.value(QStringLiteral("name")).toString();
+                    QString value = p.value(QStringLiteral("value")).toString();
+                    if (!name.isEmpty()) {
+                        params.emplace(name.toStdString(), value.toStdString());
+                    }
+                }
+            } else {
+                // Backward compatibility: parse "name=value&name=value" format
+                QStringList pairs = parameters.split(QStringLiteral("&"), Qt::SkipEmptyParts);
+                for (const QString &pair : pairs) {
+                    int eqIdx = pair.indexOf(QLatin1Char('='));
+                    if (eqIdx >= 0) {
+                        params.emplace(pair.left(eqIdx).toStdString(), pair.mid(eqIdx + 1).toStdString());
+                    } else {
+                        params.emplace(pair.toStdString(), std::string());
+                    }
+                }
+            }
+        }
 
         httplib::Result res;
         switch (method) {
-        case 0: res = cli.Get(path); break;
-        case 1: res = cli.Post(path, bodyStr, ctStr); break;
-        case 2: res = cli.Put(path, bodyStr, ctStr); break;
-        case 3: res = cli.Delete(path); break;
-        default: res = cli.Get(path); break;
+        case 0: // GET
+            if (!params.empty()) {
+                std::string queryPath = path + "?" + httplib::detail::params_to_query_str(params);
+                res = cli.Get(queryPath);
+            } else {
+                res = cli.Get(path);
+            }
+            break;
+        case 1: // POST
+            res = cli.Post(path, params);
+            break;
+        case 2: // PUT
+            res = cli.Put(path, httplib::detail::params_to_query_str(params), "application/x-www-form-urlencoded");
+            break;
+        case 3: // DELETE
+            if (!params.empty()) {
+                std::string queryPath = path + "?" + httplib::detail::params_to_query_str(params);
+                res = cli.Delete(queryPath);
+            } else {
+                res = cli.Delete(path);
+            }
+            break;
+        default:
+            res = cli.Get(path);
+            break;
         }
 
         if (res) {
@@ -139,10 +186,8 @@ QVariant HttpClientModel::data(const QModelIndex &index, int role) const {
         return m_urls.at(index.row());
     case methodRole:
         return m_methods.at(index.row());
-    case bodyRole:
-        return m_bodies.at(index.row());
-    case contentTypeRole:
-        return m_contentTypes.at(index.row());
+    case parametersRole:
+        return m_parameters.at(index.row());
     }
     return QVariant();
 }
@@ -152,8 +197,7 @@ QHash<int, QByteArray> HttpClientModel::roleNames() const {
     roles[titleRole] = "title";
     roles[urlRole] = "url";
     roles[methodRole] = "method";
-    roles[bodyRole] = "body";
-    roles[contentTypeRole] = "contentType";
+    roles[parametersRole] = "parameters";
     return roles;
 }
 
@@ -174,8 +218,7 @@ void HttpClientModel::updateCommandsList() {
         m_titles.clear();
         m_urls.clear();
         m_methods.clear();
-        m_bodies.clear();
-        m_contentTypes.clear();
+        m_parameters.clear();
 
         QJsonArray arr = obj.value(QStringLiteral("commands")).toArray();
         for (auto v : arr) {
@@ -196,8 +239,20 @@ void HttpClientModel::updateCommandsList() {
                     else if (methodStr == QStringLiteral("DELETE")) method = 3;
                 }
                 m_methods.append(method);
-                m_bodies.append(o.contains(QStringLiteral("body")) ? o.value(QStringLiteral("body")).toString() : QStringLiteral(""));
-                m_contentTypes.append(o.contains(QStringLiteral("contentType")) ? o.value(QStringLiteral("contentType")).toString() : QStringLiteral("application/json"));
+
+                // Parameters are stored as a JSON array of {name, value} objects
+                if (o.contains(QStringLiteral("parameters"))) {
+                    QJsonValue paramVal = o.value(QStringLiteral("parameters"));
+                    if (paramVal.isArray()) {
+                        QJsonDocument paramDoc(paramVal.toArray());
+                        m_parameters.append(QString::fromUtf8(paramDoc.toJson(QJsonDocument::Compact)));
+                    } else {
+                        // Backward compatibility: string format
+                        m_parameters.append(paramVal.toString());
+                    }
+                } else {
+                    m_parameters.append(QStringLiteral(""));
+                }
             }
         }
         endResetModel();
@@ -210,10 +265,10 @@ int HttpClientModel::getNumberOfCommands() {
 }
 
 void HttpClientModel::sendRequest(const QString &url, int method,
-                                  const QString &body, const QString &contentType) {
+                                  const QString &parameters) {
     m_requestInProgress = true;
     Q_EMIT requestInProgressChanged();
-    Q_EMIT startRequest(url, method, body, contentType);
+    Q_EMIT startRequest(url, method, parameters);
 }
 
 void HttpClientModel::onRequestFinished(int statusCode, const QString &responseBody, const QString &error) {
@@ -229,31 +284,29 @@ void HttpClientModel::triggerCommand(int index) {
     if (index < 0 || index >= m_titles.size())
         return;
     sendRequest(m_urls.at(index), m_methods.at(index),
-                m_bodies.at(index), m_contentTypes.at(index));
+                m_parameters.at(index));
 }
 
 void HttpClientModel::addCommand(const QString &title, const QString &url, int method,
-                                 const QString &body, const QString &contentType) {
+                                 const QString &parameters) {
     beginInsertRows(QModelIndex(), m_titles.size(), m_titles.size());
     m_titles.append(title);
     m_urls.append(url);
     m_methods.append(method);
-    m_bodies.append(body);
-    m_contentTypes.append(contentType);
+    m_parameters.append(parameters);
     endInsertRows();
     saveCommandsToFile();
     Q_EMIT commandsListChanged();
 }
 
 void HttpClientModel::updateCommand(int index, const QString &title, const QString &url, int method,
-                                    const QString &body, const QString &contentType) {
+                                    const QString &parameters) {
     if (index < 0 || index >= m_titles.size())
         return;
     m_titles[index] = title;
     m_urls[index] = url;
     m_methods[index] = method;
-    m_bodies[index] = body;
-    m_contentTypes[index] = contentType;
+    m_parameters[index] = parameters;
     Q_EMIT dataChanged(this->index(index, 0), this->index(index, 0));
     saveCommandsToFile();
     Q_EMIT commandsListChanged();
@@ -266,8 +319,7 @@ void HttpClientModel::removeCommand(int index) {
     m_titles.removeAt(index);
     m_urls.removeAt(index);
     m_methods.removeAt(index);
-    m_bodies.removeAt(index);
-    m_contentTypes.removeAt(index);
+    m_parameters.removeAt(index);
     endRemoveRows();
     saveCommandsToFile();
     Q_EMIT commandsListChanged();
@@ -303,8 +355,15 @@ void HttpClientModel::saveCommandsToFile() {
         default: methodStr = QStringLiteral("GET"); break;
         }
         o.insert(QStringLiteral("method"), methodStr);
-        o.insert(QStringLiteral("body"), m_bodies.at(i));
-        o.insert(QStringLiteral("contentType"), m_contentTypes.at(i));
+
+        // Save parameters as a JSON array
+        QJsonDocument paramDoc = QJsonDocument::fromJson(m_parameters.at(i).toUtf8());
+        if (paramDoc.isArray()) {
+            o.insert(QStringLiteral("parameters"), paramDoc.array());
+        } else {
+            o.insert(QStringLiteral("parameters"), QJsonArray());
+        }
+
         o.insert(QStringLiteral("enabled"), true);
         arr.append(o);
     }

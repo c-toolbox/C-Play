@@ -1,20 +1,80 @@
 {
     "commands": [
         {
-            "title": "Example GET request",
-            "url": "http://localhost:8080/api/status",
+            "enabled": true,
             "method": "GET",
-            "body": "",
-            "contentType": "application/json",
-            "enabled": true
+            "parameters": [
+                {
+                    "name": "program",
+                    "value": "C-Play"
+                },
+                {
+                    "name": "cluster",
+                    "value": "LOCAL"
+                },
+                {
+                    "name": "configuration",
+                    "value": "Master"
+                }
+            ],
+            "title": "Start C-Play through C-Troll",
+            "url": "http://localhost:7001/program/start"
         },
         {
-            "title": "Example POST request",
-            "url": "http://localhost:8080/api/action",
+            "enabled": true,
+            "method": "GET",
+            "parameters": [
+                {
+                    "name": "program",
+                    "value": "C-Play"
+                },
+                {
+                    "name": "cluster",
+                    "value": "LOCAL"
+                },
+                {
+                    "name": "configuration",
+                    "value": "Master"
+                }
+            ],
+            "title": "Stop C-Play through C-Troll",
+            "url": "http://localhost:7001/program/stop"
+        },
+        {
+            "enabled": true,
+            "method": "GET",
+            "parameters": [
+            ],
+            "title": "Get C-Play playlist",
+            "url": "http://localhost:7007/playlist"
+        },
+        {
+            "enabled": true,
             "method": "POST",
-            "body": "{\"action\": \"start\"}",
-            "contentType": "application/json",
-            "enabled": true
+            "parameters": [
+                {
+                    "name": "node",
+                    "value": "1"
+                }
+            ],
+            "title": "Force 2D in C-Play",
+            "url": "http://localhost:7007/view_mode"
+        },
+        {
+            "enabled": true,
+            "method": "POST",
+            "parameters": [
+                {
+                    "name": "format",
+                    "value": "hh:mm:ss"
+                },
+                {
+                    "name": "time",
+                    "value": "10"
+                }
+            ],
+            "title": "Seek 10 seconds in C-Play",
+            "url": "http://localhost:7007/seek"
         }
     ]
 }

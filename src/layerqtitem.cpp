@@ -992,38 +992,19 @@ void LayerQtItem::setLayerRestMethod(int method) {
     }
 }
 
-QString LayerQtItem::layerRestBody() const {
+QString LayerQtItem::layerRestParameters() const {
     if (m_layer && m_layer->type() == BaseLayer::REST) {
         RestLayer* restLayer = static_cast<RestLayer*>(m_layer);
-        return QString::fromStdString(restLayer->requestBody());
+        return QString::fromStdString(restLayer->parameters());
     }
     return QStringLiteral("");
 }
 
-void LayerQtItem::setLayerRestBody(QString body) {
+void LayerQtItem::setLayerRestParameters(QString params) {
     if (m_layer && m_layer->isEnabled() && m_layer->type() == BaseLayer::REST) {
         RestLayer* restLayer = static_cast<RestLayer*>(m_layer);
-        if (QString::fromStdString(restLayer->requestBody()) != body) {
-            restLayer->setRequestBody(body.toStdString());
-            Q_EMIT layerValueChanged();
-            Q_EMIT layerNeedsSave();
-        }
-    }
-}
-
-QString LayerQtItem::layerRestContentType() const {
-    if (m_layer && m_layer->type() == BaseLayer::REST) {
-        RestLayer* restLayer = static_cast<RestLayer*>(m_layer);
-        return QString::fromStdString(restLayer->contentType());
-    }
-    return QStringLiteral("application/json");
-}
-
-void LayerQtItem::setLayerRestContentType(QString ct) {
-    if (m_layer && m_layer->isEnabled() && m_layer->type() == BaseLayer::REST) {
-        RestLayer* restLayer = static_cast<RestLayer*>(m_layer);
-        if (QString::fromStdString(restLayer->contentType()) != ct) {
-            restLayer->setContentType(ct.toStdString());
+        if (QString::fromStdString(restLayer->parameters()) != params) {
+            restLayer->setParameters(params.toStdString());
             Q_EMIT layerValueChanged();
             Q_EMIT layerNeedsSave();
         }

@@ -51,8 +51,7 @@ Kirigami.ApplicationWindow {
         if (restGridLayout.visible) {
             restUrlField.text = layerView.layerItem.layerRestUrl;
             restGridMethodComboBox.currentIndex = layerView.layerItem.layerRestMethod;
-            restGridBodyField.text = layerView.layerItem.layerRestBody;
-            restGridContentTypeField.text = layerView.layerItem.layerRestContentType;
+            restGridLayout.loadParametersFromJson(layerView.layerItem.layerRestParameters);
             resizeForGridMode();
             return;
         }
@@ -1119,6 +1118,47 @@ Kirigami.ApplicationWindow {
             width: parent.width
             visible: layerView.layerItem.layerTypeName === "REST"
 
+            function loadParametersFromJson(jsonStr) {
+                restParamsModel.clear();
+                if (!jsonStr || jsonStr === "")
+                    return;
+                try {
+                    var arr = JSON.parse(jsonStr);
+                    if (Array.isArray(arr)) {
+                        for (var i = 0; i < arr.length; i++) {
+                            restParamsModel.append({"paramName": arr[i].name || "", "paramValue": arr[i].value || ""});
+                        }
+                    }
+                } catch(e) {
+                    var pairs = jsonStr.split("&");
+                    for (var j = 0; j < pairs.length; j++) {
+                        var eqIdx = pairs[j].indexOf("=");
+                        if (eqIdx >= 0) {
+                            restParamsModel.append({"paramName": pairs[j].substring(0, eqIdx), "paramValue": pairs[j].substring(eqIdx + 1)});
+                        } else if (pairs[j] !== "") {
+                            restParamsModel.append({"paramName": pairs[j], "paramValue": ""});
+                        }
+                    }
+                }
+            }
+
+            function getParametersAsJson() {
+                var arr = [];
+                for (var i = 0; i < restParamsModel.count; i++) {
+                    var item = restParamsModel.get(i);
+                    if (item.paramName !== "") {
+                        arr.push({"name": item.paramName, "value": item.paramValue});
+                    }
+                }
+                if (arr.length === 0)
+                    return "";
+                return JSON.stringify(arr);
+            }
+
+            ListModel {
+                id: restParamsModel
+            }
+
             RowLayout {
                 Layout.bottomMargin: 5
                 Layout.columnSpan: 3
@@ -1190,55 +1230,65 @@ Kirigami.ApplicationWindow {
             }
 
             Label {
-                text: qsTr("Body:")
-                Layout.alignment: Qt.AlignRight
-                visible: restGridMethodComboBox.currentIndex === 1 || restGridMethodComboBox.currentIndex === 2
+                text: qsTr("Parameters:")
+                Layout.alignment: Qt.AlignRight | Qt.AlignTop
             }
-            TextField {
-                id: restGridBodyField
-
+            ColumnLayout {
                 Layout.fillWidth: true
                 Layout.columnSpan: 2
-                placeholderText: "Request body"
-                text: layerView.layerItem.layerRestBody
-                visible: restGridMethodComboBox.currentIndex === 1 || restGridMethodComboBox.currentIndex === 2
+                spacing: 4
 
-                onEditingFinished: {
-                    layerView.layerItem.layerRestBody = text;
+                Repeater {
+                    model: restParamsModel
+                    delegate: RowLayout {
+                        Layout.fillWidth: true
+                        spacing: 4
+
+                        TextField {
+                            Layout.preferredWidth: 120
+                            placeholderText: "Name"
+                            text: paramName
+                            onTextChanged: restParamsModel.setProperty(index, "paramName", text)
+                        }
+                        Label { text: "=" }
+                        TextField {
+                            Layout.fillWidth: true
+                            placeholderText: "Value"
+                            text: paramValue
+                            onTextChanged: restParamsModel.setProperty(index, "paramValue", text)
+                        }
+                        ToolButton {
+                            icon.name: "list-remove"
+                            icon.height: 16
+                            onClicked: {
+                                restParamsModel.remove(index);
+                                layerView.layerItem.layerRestParameters = restGridLayout.getParametersAsJson();
+                            }
+                        }
+                    }
                 }
 
-                Connections {
-                    function onLayerChanged() {
-                        restGridBodyField.text = layerView.layerItem.layerRestBody;
+                RowLayout {
+                    Button {
+                        text: qsTr("+ Add")
+                        icon.name: "list-add"
+                        onClicked: restParamsModel.append({"paramName": "", "paramValue": ""})
                     }
-                    target: layerView.layerItem
+                    Button {
+                        text: qsTr("Apply")
+                        icon.name: "document-save"
+                        onClicked: {
+                            layerView.layerItem.layerRestParameters = restGridLayout.getParametersAsJson();
+                        }
+                    }
                 }
             }
 
-            Label {
-                text: qsTr("Content-Type:")
-                Layout.alignment: Qt.AlignRight
-                visible: restGridMethodComboBox.currentIndex === 1 || restGridMethodComboBox.currentIndex === 2
-            }
-            TextField {
-                id: restGridContentTypeField
-
-                Layout.fillWidth: true
-                Layout.columnSpan: 2
-                placeholderText: "application/json"
-                text: layerView.layerItem.layerRestContentType
-                visible: restGridMethodComboBox.currentIndex === 1 || restGridMethodComboBox.currentIndex === 2
-
-                onEditingFinished: {
-                    layerView.layerItem.layerRestContentType = text;
+            Connections {
+                function onLayerChanged() {
+                    restGridLayout.loadParametersFromJson(layerView.layerItem.layerRestParameters);
                 }
-
-                Connections {
-                    function onLayerChanged() {
-                        restGridContentTypeField.text = layerView.layerItem.layerRestContentType;
-                    }
-                    target: layerView.layerItem
-                }
+                target: layerView.layerItem
             }
         }
     }

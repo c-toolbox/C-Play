@@ -46,21 +46,13 @@ GridLayout {
     property alias restCommandsComboBox: restCommandsComboBox
     property alias restCustomUrlField: restCustomUrlField
     property alias restMethodComboBox: restMethodComboBox
-    property alias restBodyField: restBodyField
-    property alias restContentTypeField: restContentTypeField
+
+    property string restParametersJson: ""
 
     function resetValues() {
         typeComboBox.currentIndex = 0;
         fileForLayer.text = "";
         layerTitle.text = "";
-        controlOperationComboBox.currentIndex = 0;
-        controlParameterField.text = "";
-        restCommandsLayout.customEntry = false;
-        restCommandsComboBox.currentIndex = 0;
-        restCustomUrlField.text = "";
-        restMethodComboBox.currentIndex = 0;
-        restBodyField.text = "";
-        restContentTypeField.text = "application/json";
         for (let sm = 0; sm < stereoscopicModeForLayerList.count; ++sm) {
             if (stereoscopicModeForLayerList.get(sm).value === PresentationSettings.defaultStereoModeForLayers) {
                 stereoscopicModeForLayer.currentIndex = sm;
@@ -73,6 +65,49 @@ GridLayout {
                 break;
             }
         }
+    }
+
+    function getRestParametersJson() {
+        var arr = [];
+        for (var i = 0; i < restCoreParamsModel.count; i++) {
+            var item = restCoreParamsModel.get(i);
+            if (item.paramName !== "") {
+                arr.push({"name": item.paramName, "value": item.paramValue});
+            }
+        }
+        if (arr.length === 0)
+            return "";
+        return JSON.stringify(arr);
+    }
+
+    function loadRestParametersFromJson(jsonStr) {
+        restCoreParamsModel.clear();
+        if (!jsonStr || jsonStr === "")
+            return;
+        try {
+            var arr = JSON.parse(jsonStr);
+            if (Array.isArray(arr)) {
+                for (var i = 0; i < arr.length; i++) {
+                    restCoreParamsModel.append({"paramName": arr[i].name || "", "paramValue": arr[i].value || ""});
+                }
+            }
+        } catch(e) {
+            var pairs = jsonStr.split("&");
+            for (var j = 0; j < pairs.length; j++) {
+                var eqIdx = pairs[j].indexOf("=");
+                if (eqIdx >= 0) {
+                    restCoreParamsModel.append({"paramName": pairs[j].substring(0, eqIdx), "paramValue": pairs[j].substring(eqIdx + 1)});
+                } else if (pairs[j] !== "") {
+                    restCoreParamsModel.append({"paramName": pairs[j], "paramValue": ""});
+                }
+            }
+        }
+    }
+
+    
+
+    ListModel {
+        id: restCoreParamsModel
     }
 
     Platform.FileDialog {
@@ -185,14 +220,15 @@ GridLayout {
                 app.httpClientModel.updateCommandsList();
                 restCommandsLayout.customEntry = false;
                 restCommandsComboBox.currentIndex = 0;
-                restCustomUrlField.text = "";
-                restMethodComboBox.currentIndex = 0;
-                restBodyField.text = "";
-                restContentTypeField.text = "application/json";
                 layerTitle.text = restCommandsComboBox.currentText;
+                var idx = restCommandsComboBox.currentIndex;
+                restCustomUrlField.text = app.httpClientModel.data(app.httpClientModel.index(idx, 0), Qt.UserRole + 1);
+                restMethodComboBox.currentIndex = app.httpClientModel.data(app.httpClientModel.index(idx, 0), Qt.UserRole + 2);
+                loadRestParametersFromJson(app.httpClientModel.data(app.httpClientModel.index(idx, 0), Qt.UserRole + 3));
             }
             else {
                 layerTitle.text = "";
+                fileForLayer.text = "";
             }
         }
     }
@@ -692,16 +728,14 @@ GridLayout {
                 var idx = restCommandsComboBox.currentIndex;
                 restCustomUrlField.text = app.httpClientModel.data(app.httpClientModel.index(idx, 0), Qt.UserRole + 1);
                 restMethodComboBox.currentIndex = app.httpClientModel.data(app.httpClientModel.index(idx, 0), Qt.UserRole + 2);
-                restBodyField.text = app.httpClientModel.data(app.httpClientModel.index(idx, 0), Qt.UserRole + 3);
-                restContentTypeField.text = app.httpClientModel.data(app.httpClientModel.index(idx, 0), Qt.UserRole + 4);
+                loadRestParametersFromJson(app.httpClientModel.data(app.httpClientModel.index(idx, 0), Qt.UserRole + 3));
             }
             onActivated: {
                 layerTitle.text = restCommandsComboBox.currentText;
                 var idx = restCommandsComboBox.currentIndex;
                 restCustomUrlField.text = app.httpClientModel.data(app.httpClientModel.index(idx, 0), Qt.UserRole + 1);
                 restMethodComboBox.currentIndex = app.httpClientModel.data(app.httpClientModel.index(idx, 0), Qt.UserRole + 2);
-                restBodyField.text = app.httpClientModel.data(app.httpClientModel.index(idx, 0), Qt.UserRole + 3);
-                restContentTypeField.text = app.httpClientModel.data(app.httpClientModel.index(idx, 0), Qt.UserRole + 4);
+                loadRestParametersFromJson(app.httpClientModel.data(app.httpClientModel.index(idx, 0), Qt.UserRole + 3));
             }
         }
         TextField {
@@ -765,47 +799,49 @@ GridLayout {
 
     Label {
         Layout.alignment: Qt.AlignRight
-        text: qsTr("Body:")
-        visible: typeComboBox.currentText === "REST" && (restMethodComboBox.currentIndex === 1 || restMethodComboBox.currentIndex === 2) && restCommandsLayout.customEntry === true
+        text: qsTr("Parameters:")
+        visible: typeComboBox.currentText === "REST" && restCommandsLayout.customEntry === true
     }
-    TextField {
-        id: restBodyField
-
+    ColumnLayout {
         Layout.fillWidth: true
-        Layout.preferredWidth: font.pointSize * 17
-        placeholderText: "Request body (JSON, etc.)"
-        text: ""
-        visible: typeComboBox.currentText === "REST" && (restMethodComboBox.currentIndex === 1 || restMethodComboBox.currentIndex === 2) && restCommandsLayout.customEntry === true
+        visible: typeComboBox.currentText === "REST" && restCommandsLayout.customEntry === true
+        spacing: 4
 
-        ToolTip {
-            text: qsTr("HTTP request body")
+        Repeater {
+            model: restCoreParamsModel
+            delegate: RowLayout {
+                Layout.fillWidth: true
+                spacing: 4
+
+                TextField {
+                    Layout.preferredWidth: 120
+                    placeholderText: "Name"
+                    text: paramName
+                    onTextChanged: restCoreParamsModel.setProperty(index, "paramName", text)
+                }
+                Label { text: "=" }
+                TextField {
+                    Layout.fillWidth: true
+                    placeholderText: "Value"
+                    text: paramValue
+                    onTextChanged: restCoreParamsModel.setProperty(index, "paramValue", text)
+                }
+                ToolButton {
+                    icon.name: "list-remove"
+                    icon.height: 16
+                    onClicked: restCoreParamsModel.remove(index)
+                }
+            }
+        }
+
+        Button {
+            text: qsTr("+ Add Parameter")
+            icon.name: "list-add"
+            onClicked: restCoreParamsModel.append({"paramName": "", "paramValue": ""})
         }
     }
     Item {
-        visible: root.showSpacers && typeComboBox.currentText === "REST" && (restMethodComboBox.currentIndex === 1 || restMethodComboBox.currentIndex === 2) && restCommandsLayout.customEntry === true
-        Layout.fillWidth: true
-    }
-
-    Label {
-        Layout.alignment: Qt.AlignRight
-        text: qsTr("Content-Type:")
-        visible: typeComboBox.currentText === "REST" && (restMethodComboBox.currentIndex === 1 || restMethodComboBox.currentIndex === 2) && restCommandsLayout.customEntry === true
-    }
-    TextField {
-        id: restContentTypeField
-
-        Layout.fillWidth: true
-        Layout.preferredWidth: font.pointSize * 17
-        placeholderText: "application/json"
-        text: "application/json"
-        visible: typeComboBox.currentText === "REST" && (restMethodComboBox.currentIndex === 1 || restMethodComboBox.currentIndex === 2) && restCommandsLayout.customEntry === true
-
-        ToolTip {
-            text: qsTr("Content-Type header for the request")
-        }
-    }
-    Item {
-        visible: root.showSpacers && typeComboBox.currentText === "REST" && (restMethodComboBox.currentIndex === 1 || restMethodComboBox.currentIndex === 2) && restCommandsLayout.customEntry === true
+        visible: root.showSpacers && typeComboBox.currentText === "REST" && restCommandsLayout.customEntry === true
         Layout.fillWidth: true
     }
 

@@ -117,8 +117,7 @@ class LayerQtItem : public QQuickItem {
     Q_PROPERTY(QString layerParameter READ layerParameter WRITE setLayerParameter NOTIFY layerValueChanged)
     Q_PROPERTY(QString layerRestUrl READ layerRestUrl WRITE setLayerRestUrl NOTIFY layerValueChanged)
     Q_PROPERTY(int layerRestMethod READ layerRestMethod WRITE setLayerRestMethod NOTIFY layerValueChanged)
-    Q_PROPERTY(QString layerRestBody READ layerRestBody WRITE setLayerRestBody NOTIFY layerValueChanged)
-    Q_PROPERTY(QString layerRestContentType READ layerRestContentType WRITE setLayerRestContentType NOTIFY layerValueChanged)
+    Q_PROPERTY(QString layerRestParameters READ layerRestParameters WRITE setLayerRestParameters NOTIFY layerValueChanged)
     QML_ELEMENT
 
 public:
@@ -286,11 +285,8 @@ public:
     int layerRestMethod() const;
     void setLayerRestMethod(int method);
 
-    QString layerRestBody() const;
-    void setLayerRestBody(QString body);
-
-    QString layerRestContentType() const;
-    void setLayerRestContentType(QString ct);
+    QString layerRestParameters() const;
+    void setLayerRestParameters(QString params);
 
 Q_SIGNALS:
     void layerChanged();

@@ -951,13 +951,14 @@ void LayersModel::decodeFromJSON(QJsonObject &obj, const QStringList &forRelativ
                             int method = o.value(QStringLiteral("method")).toInt();
                             restLayer->setMethod(method);
                         }
-                        if (o.contains(QStringLiteral("requestBody"))) {
-                            std::string body = o.value(QStringLiteral("requestBody")).toString().toStdString();
-                            restLayer->setRequestBody(body);
+                        if (o.contains(QStringLiteral("parameters"))) {
+                            std::string params = o.value(QStringLiteral("parameters")).toString().toStdString();
+                            restLayer->setParameters(params);
                         }
-                        if (o.contains(QStringLiteral("contentType"))) {
-                            std::string ct = o.value(QStringLiteral("contentType")).toString().toStdString();
-                            restLayer->setContentType(ct);
+                        // Backward compatibility: read old body+contentType as parameters
+                        if (!o.contains(QStringLiteral("parameters")) && o.contains(QStringLiteral("requestBody"))) {
+                            std::string body = o.value(QStringLiteral("requestBody")).toString().toStdString();
+                            restLayer->setParameters(body);
                         }
                     }
 
@@ -1269,8 +1270,7 @@ void LayersModel::encodeToJSON(QJsonObject &obj, const QStringList &forRelativeP
             RestLayer* restLayer = static_cast<RestLayer*>(layer.get());
             layerData.insert(QStringLiteral("url"), QJsonValue(QString::fromStdString(restLayer->url())));
             layerData.insert(QStringLiteral("method"), QJsonValue(restLayer->method()));
-            layerData.insert(QStringLiteral("requestBody"), QJsonValue(QString::fromStdString(restLayer->requestBody())));
-            layerData.insert(QStringLiteral("contentType"), QJsonValue(QString::fromStdString(restLayer->contentType())));
+            layerData.insert(QStringLiteral("parameters"), QJsonValue(QString::fromStdString(restLayer->parameters())));
         }
         if (layer->type() == BaseLayer::VIDEO || layer->type() == BaseLayer::AUDIO) {
             if (layer->hasAudio()) {

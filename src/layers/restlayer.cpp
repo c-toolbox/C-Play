@@ -65,8 +65,7 @@ void RestLayer::start() {
     QMetaObject::invokeMethod(m_worker, "doRequest", Qt::QueuedConnection,
         Q_ARG(QString, QString::fromStdString(m_url)),
         Q_ARG(int, m_method),
-        Q_ARG(QString, QString::fromStdString(m_requestBody)),
-        Q_ARG(QString, QString::fromStdString(m_contentType)));
+        Q_ARG(QString, QString::fromStdString(m_parameters)));
 }
 
 void RestLayer::stop() {
@@ -103,21 +102,12 @@ void RestLayer::setMethod(int m) {
     setNeedSync();
 }
 
-std::string RestLayer::requestBody() const {
-    return m_requestBody;
+std::string RestLayer::parameters() const {
+    return m_parameters;
 }
 
-void RestLayer::setRequestBody(const std::string& body) {
-    m_requestBody = body;
-    setNeedSync();
-}
-
-std::string RestLayer::contentType() const {
-    return m_contentType;
-}
-
-void RestLayer::setContentType(const std::string& ct) {
-    m_contentType = ct;
+void RestLayer::setParameters(const std::string& params) {
+    m_parameters = params;
     setNeedSync();
 }
 
@@ -132,13 +122,11 @@ void RestLayer::setStatusCallback(StatusCallback cb) {
 void RestLayer::encodeTypeCore(std::vector<std::byte>& data) {
     sgct::serializeObject(data, m_url);
     sgct::serializeObject(data, m_method);
-    sgct::serializeObject(data, m_requestBody);
-    sgct::serializeObject(data, m_contentType);
+    sgct::serializeObject(data, m_parameters);
 }
 
 void RestLayer::decodeTypeCore(const std::vector<std::byte>& data, unsigned int& pos) {
     sgct::deserializeObject(data, pos, m_url);
     sgct::deserializeObject(data, pos, m_method);
-    sgct::deserializeObject(data, pos, m_requestBody);
-    sgct::deserializeObject(data, pos, m_contentType);
+    sgct::deserializeObject(data, pos, m_parameters);
 }

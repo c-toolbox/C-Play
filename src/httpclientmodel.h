@@ -20,7 +20,7 @@ public:
 
 public Q_SLOTS:
     void doRequest(const QString &url, int method,
-                   const QString &body, const QString &contentType);
+                   const QString &parameters);
 
 Q_SIGNALS:
     void requestFinished(int statusCode, const QString &responseBody, const QString &error);
@@ -38,8 +38,7 @@ public:
         titleRole = Qt::UserRole,
         urlRole,
         methodRole,
-        bodyRole,
-        contentTypeRole
+        parametersRole
     };
 
     int rowCount(const QModelIndex &parent = QModelIndex()) const override;
@@ -54,19 +53,18 @@ public:
     // Send a request asynchronously on a worker thread.
     // Returns immediately. Results are delivered via responseChanged signal.
     Q_INVOKABLE void sendRequest(const QString &url, int method = 0,
-                                 const QString &body = QString(),
-                                 const QString &contentType = QStringLiteral("application/json"));
+                                 const QString &parameters = QString());
 
     // Trigger a predefined command by index
     Q_INVOKABLE void triggerCommand(int index);
 
     // Add a new command to the list and save to file
     Q_INVOKABLE void addCommand(const QString &title, const QString &url, int method,
-                                const QString &body, const QString &contentType);
+                                const QString &parameters);
 
     // Update an existing command and save to file
     Q_INVOKABLE void updateCommand(int index, const QString &title, const QString &url, int method,
-                                   const QString &body, const QString &contentType);
+                                   const QString &parameters);
 
     // Remove a command and save to file
     Q_INVOKABLE void removeCommand(int index);
@@ -88,7 +86,7 @@ Q_SIGNALS:
     void responseChanged();
     void requestInProgressChanged();
     void startRequest(const QString &url, int method,
-                      const QString &body, const QString &contentType);
+                      const QString &parameters);
 
 private Q_SLOTS:
     void onRequestFinished(int statusCode, const QString &responseBody, const QString &error);
@@ -99,8 +97,7 @@ private:
     QStringList m_titles;
     QStringList m_urls;
     QList<int> m_methods;
-    QStringList m_bodies;
-    QStringList m_contentTypes;
+    QStringList m_parameters;
 
     QString m_lastResponseBody;
     int m_lastStatusCode = 0;

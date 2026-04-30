@@ -43,11 +43,8 @@ public:
     int method() const;
     void setMethod(int m);
 
-    std::string requestBody() const;
-    void setRequestBody(const std::string& body);
-
-    std::string contentType() const;
-    void setContentType(const std::string& ct);
+    std::string parameters() const;
+    void setParameters(const std::string& params);
 
     void setHttpClientModel(HttpClientModel* model);
 
@@ -64,8 +61,7 @@ private:
 
     std::string m_url;
     int m_method = GET;
-    std::string m_requestBody;
-    std::string m_contentType = "application/json";
+    std::string m_parameters;
 
     HttpClientModel* m_httpClientModel = nullptr;
     StatusCallback m_statusCallback;
