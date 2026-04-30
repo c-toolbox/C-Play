@@ -9,7 +9,22 @@
 #define HTTPCLIENTMODEL_H
 
 #include <QAbstractListModel>
+#include <QThread>
 #include <QtQml/qqmlregistration.h>
+
+class HttpRequestWorker : public QObject {
+    Q_OBJECT
+
+public:
+    explicit HttpRequestWorker(QObject *parent = nullptr);
+
+public Q_SLOTS:
+    void doRequest(const QString &url, int method,
+                   const QString &body, const QString &contentType);
+
+Q_SIGNALS:
+    void requestFinished(int statusCode, const QString &responseBody, const QString &error);
+};
 
 class HttpClientModel : public QAbstractListModel {
     Q_OBJECT
@@ -36,14 +51,14 @@ public:
     Q_PROPERTY(int numberOfCommands READ getNumberOfCommands NOTIFY commandsListChanged)
     int getNumberOfCommands();
 
-    // Send a request and return synchronously (blocking).
-    // Returns status code (0 on error). Response body and error available via properties.
-    Q_INVOKABLE int sendRequest(const QString &url, int method = 0,
-                                const QString &body = QString(),
-                                const QString &contentType = QStringLiteral("application/json"));
+    // Send a request asynchronously on a worker thread.
+    // Returns immediately. Results are delivered via responseChanged signal.
+    Q_INVOKABLE void sendRequest(const QString &url, int method = 0,
+                                 const QString &body = QString(),
+                                 const QString &contentType = QStringLiteral("application/json"));
 
     // Trigger a predefined command by index
-    Q_INVOKABLE int triggerCommand(int index);
+    Q_INVOKABLE void triggerCommand(int index);
 
     // Add a new command to the list and save to file
     Q_INVOKABLE void addCommand(const QString &title, const QString &url, int method,
@@ -65,9 +80,18 @@ public:
     Q_PROPERTY(QString lastError READ lastError NOTIFY responseChanged)
     QString lastError() const;
 
+    Q_PROPERTY(bool requestInProgress READ requestInProgress NOTIFY requestInProgressChanged)
+    bool requestInProgress() const;
+
 Q_SIGNALS:
     void commandsListChanged();
     void responseChanged();
+    void requestInProgressChanged();
+    void startRequest(const QString &url, int method,
+                      const QString &body, const QString &contentType);
+
+private Q_SLOTS:
+    void onRequestFinished(int statusCode, const QString &responseBody, const QString &error);
 
 private:
     void saveCommandsToFile();
@@ -81,6 +105,10 @@ private:
     QString m_lastResponseBody;
     int m_lastStatusCode = 0;
     QString m_lastError;
+    bool m_requestInProgress = false;
+
+    QThread m_workerThread;
+    HttpRequestWorker *m_worker = nullptr;
 };
 
 #endif // HTTPCLIENTMODEL_H

@@ -177,6 +177,10 @@ GridLayout {
                 streamCustomEntryField.text = "";
                 layerTitle.text = streamsComboBox.currentText;
             }
+            else if (typeComboBox.currentText === "Control") {
+                controlOperationComboBox.currentIndex = 0;
+                layerTitle.text = "Ctrl:" + controlOperationComboBox.currentText;
+            }
             else if (typeComboBox.currentText === "REST") {
                 app.httpClientModel.updateCommandsList();
                 restCommandsLayout.customEntry = false;
@@ -623,7 +627,7 @@ GridLayout {
                 "SetSpeed", "SetVolume", "SetSyncVolumeVisibilityFading",  
                 "SpinPitchUp", "SpinPitchDown", "SpinYawLeft", "SpinYawRight",
                 "SpinRollCW", "SpinRollCCW", "OrientationAndSpinReset", "RunSurfaceTransition"]
-
+        
         onActivated: {
             if (layerTitle.text === "" || layerTitle.text.startsWith("Ctrl:")) {
                 layerTitle.text = "Ctrl:" + controlOperationComboBox.currentText;
@@ -684,10 +688,17 @@ GridLayout {
                 app.httpClientModel.updateCommandsList();
                 restCommandsLayout.customEntry = false;
                 restCommandsComboBox.currentIndex = 0;
+                layerTitle.text = restCommandsComboBox.currentText;
+                var idx = restCommandsComboBox.currentIndex;
+                restCustomUrlField.text = app.httpClientModel.data(app.httpClientModel.index(idx, 0), Qt.UserRole + 1);
+                restMethodComboBox.currentIndex = app.httpClientModel.data(app.httpClientModel.index(idx, 0), Qt.UserRole + 2);
+                restBodyField.text = app.httpClientModel.data(app.httpClientModel.index(idx, 0), Qt.UserRole + 3);
+                restContentTypeField.text = app.httpClientModel.data(app.httpClientModel.index(idx, 0), Qt.UserRole + 4);
             }
             onActivated: {
                 layerTitle.text = restCommandsComboBox.currentText;
                 var idx = restCommandsComboBox.currentIndex;
+                restCustomUrlField.text = app.httpClientModel.data(app.httpClientModel.index(idx, 0), Qt.UserRole + 1);
                 restMethodComboBox.currentIndex = app.httpClientModel.data(app.httpClientModel.index(idx, 0), Qt.UserRole + 2);
                 restBodyField.text = app.httpClientModel.data(app.httpClientModel.index(idx, 0), Qt.UserRole + 3);
                 restContentTypeField.text = app.httpClientModel.data(app.httpClientModel.index(idx, 0), Qt.UserRole + 4);
@@ -716,14 +727,11 @@ GridLayout {
 
             onClicked: {
                 if(restCommandsLayout.customEntry) {
-                    app.httpClientModel.updateCommandsList();
-                    restCommandsComboBox.currentIndex = 0;
+                    restCommandsComboBox.currentIndex = restCommandsComboBox.currentIndex;
                     restCommandsLayout.customEntry = false;
-                    layerTitle.text = restCommandsComboBox.currentText;
                 }
                 else {
                     restCommandsLayout.customEntry = true;
-                    layerTitle.text = ""
                 }
             }
 
@@ -740,13 +748,13 @@ GridLayout {
     Label {
         Layout.alignment: Qt.AlignRight
         text: qsTr("Method:")
-        visible: typeComboBox.currentText === "REST"
+        visible: typeComboBox.currentText === "REST" && restCommandsLayout.customEntry === true
     }
     ComboBox {
         id: restMethodComboBox
 
         Layout.fillWidth: true
-        visible: typeComboBox.currentText === "REST"
+        visible: typeComboBox.currentText === "REST" && restCommandsLayout.customEntry === true
         model: ["GET", "POST", "PUT", "DELETE"]
         currentIndex: 0
     }
@@ -758,7 +766,7 @@ GridLayout {
     Label {
         Layout.alignment: Qt.AlignRight
         text: qsTr("Body:")
-        visible: typeComboBox.currentText === "REST" && restMethodComboBox.currentIndex > 0
+        visible: typeComboBox.currentText === "REST" && (restMethodComboBox.currentIndex === 1 || restMethodComboBox.currentIndex === 2) && restCommandsLayout.customEntry === true
     }
     TextField {
         id: restBodyField
@@ -767,21 +775,21 @@ GridLayout {
         Layout.preferredWidth: font.pointSize * 17
         placeholderText: "Request body (JSON, etc.)"
         text: ""
-        visible: typeComboBox.currentText === "REST" && restMethodComboBox.currentIndex > 0
+        visible: typeComboBox.currentText === "REST" && (restMethodComboBox.currentIndex === 1 || restMethodComboBox.currentIndex === 2) && restCommandsLayout.customEntry === true
 
         ToolTip {
             text: qsTr("HTTP request body")
         }
     }
     Item {
-        visible: root.showSpacers && typeComboBox.currentText === "REST" && restMethodComboBox.currentIndex > 0
+        visible: root.showSpacers && typeComboBox.currentText === "REST" && (restMethodComboBox.currentIndex === 1 || restMethodComboBox.currentIndex === 2) && restCommandsLayout.customEntry === true
         Layout.fillWidth: true
     }
 
     Label {
         Layout.alignment: Qt.AlignRight
         text: qsTr("Content-Type:")
-        visible: typeComboBox.currentText === "REST" && restMethodComboBox.currentIndex > 0
+        visible: typeComboBox.currentText === "REST" && (restMethodComboBox.currentIndex === 1 || restMethodComboBox.currentIndex === 2) && restCommandsLayout.customEntry === true
     }
     TextField {
         id: restContentTypeField
@@ -790,14 +798,14 @@ GridLayout {
         Layout.preferredWidth: font.pointSize * 17
         placeholderText: "application/json"
         text: "application/json"
-        visible: typeComboBox.currentText === "REST" && restMethodComboBox.currentIndex > 0
+        visible: typeComboBox.currentText === "REST" && (restMethodComboBox.currentIndex === 1 || restMethodComboBox.currentIndex === 2) && restCommandsLayout.customEntry === true
 
         ToolTip {
             text: qsTr("Content-Type header for the request")
         }
     }
     Item {
-        visible: root.showSpacers && typeComboBox.currentText === "REST" && restMethodComboBox.currentIndex > 0
+        visible: root.showSpacers && typeComboBox.currentText === "REST" && (restMethodComboBox.currentIndex === 1 || restMethodComboBox.currentIndex === 2) && restCommandsLayout.customEntry === true
         Layout.fillWidth: true
     }
 

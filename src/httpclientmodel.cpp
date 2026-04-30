@@ -18,11 +18,106 @@
 
 #pragma warning(disable : 4996)
 
+// --- HttpRequestWorker implementation ---
+
+HttpRequestWorker::HttpRequestWorker(QObject *parent)
+    : QObject(parent) {
+}
+
+void HttpRequestWorker::doRequest(const QString &url, int method,
+                                  const QString &body, const QString &contentType) {
+    int statusCode = 0;
+    QString responseBody;
+    QString error;
+
+    try {
+        std::string urlStr = url.toStdString();
+        if (urlStr.empty()) {
+            error = QStringLiteral("Empty URL");
+            Q_EMIT requestFinished(0, QString(), error);
+            return;
+        }
+
+#ifndef OPENSSL_SUPPORT
+        if (urlStr.find("https://") == 0) {
+            error = QStringLiteral("HTTPS is not supported (OpenSSL not available). Use HTTP instead.");
+            Q_EMIT requestFinished(0, QString(), error);
+            return;
+        }
+#endif
+
+        // Parse host:port and path
+        std::string hostPort;
+        std::string path = "/";
+
+        size_t schemeEnd = urlStr.find("://");
+        if (schemeEnd != std::string::npos) {
+            size_t hostStart = schemeEnd + 3;
+            size_t pathStart = urlStr.find('/', hostStart);
+            if (pathStart != std::string::npos) {
+                hostPort = urlStr.substr(0, pathStart);
+                path = urlStr.substr(pathStart);
+            } else {
+                hostPort = urlStr;
+            }
+        } else {
+            size_t pathStart = urlStr.find('/');
+            if (pathStart != std::string::npos) {
+                hostPort = "http://" + urlStr.substr(0, pathStart);
+                path = urlStr.substr(pathStart);
+            } else {
+                hostPort = "http://" + urlStr;
+            }
+        }
+
+        httplib::Client cli(hostPort);
+        cli.set_connection_timeout(10, 0);
+        cli.set_read_timeout(30, 0);
+
+        std::string bodyStr = body.toStdString();
+        std::string ctStr = contentType.toStdString();
+
+        httplib::Result res;
+        switch (method) {
+        case 0: res = cli.Get(path); break;
+        case 1: res = cli.Post(path, bodyStr, ctStr); break;
+        case 2: res = cli.Put(path, bodyStr, ctStr); break;
+        case 3: res = cli.Delete(path); break;
+        default: res = cli.Get(path); break;
+        }
+
+        if (res) {
+            statusCode = res->status;
+            responseBody = QString::fromStdString(res->body);
+        } else {
+            error = QString::fromStdString(httplib::to_string(res.error()));
+        }
+    } catch (const std::exception &e) {
+        error = QString::fromStdString(std::string("Exception: ") + e.what());
+    } catch (...) {
+        error = QStringLiteral("Unknown exception occurred during request");
+    }
+
+    Q_EMIT requestFinished(statusCode, responseBody, error);
+}
+
+// --- HttpClientModel implementation ---
+
 HttpClientModel::HttpClientModel(QObject *parent)
     : QAbstractListModel(parent) {
+    m_worker = new HttpRequestWorker();
+    m_worker->moveToThread(&m_workerThread);
+
+    connect(&m_workerThread, &QThread::finished, m_worker, &QObject::deleteLater);
+    connect(this, &HttpClientModel::startRequest, m_worker, &HttpRequestWorker::doRequest);
+    connect(m_worker, &HttpRequestWorker::requestFinished, this, &HttpClientModel::onRequestFinished);
+
+    m_workerThread.start();
 }
 
 HttpClientModel::~HttpClientModel() {
+    m_workerThread.quit();
+    m_workerThread.wait();
 }
 
 int HttpClientModel::rowCount(const QModelIndex &parent) const {
@@ -114,101 +209,27 @@ int HttpClientModel::getNumberOfCommands() {
     return m_titles.size();
 }
 
-int HttpClientModel::sendRequest(const QString &url, int method,
-                                 const QString &body, const QString &contentType) {
-    try {
-        std::string urlStr = url.toStdString();
-        if (urlStr.empty()) {
-            m_lastStatusCode = 0;
-            m_lastResponseBody.clear();
-            m_lastError = QStringLiteral("Empty URL");
-            Q_EMIT responseChanged();
-            return 0;
-        }
-
-#ifndef OPENSSL_SUPPORT
-        // Check for HTTPS - not supported without OpenSSL
-        if (urlStr.find("https://") == 0) {
-            m_lastStatusCode = 0;
-            m_lastResponseBody.clear();
-            m_lastError = QStringLiteral("HTTPS is not supported (OpenSSL not available). Use HTTP instead.");
-            Q_EMIT responseChanged();
-            return 0;
-        }
-#endif
-
-        // Parse host:port and path
-        std::string hostPort;
-        std::string path = "/";
-
-        size_t schemeEnd = urlStr.find("://");
-        if (schemeEnd != std::string::npos) {
-            size_t hostStart = schemeEnd + 3;
-            size_t pathStart = urlStr.find('/', hostStart);
-            if (pathStart != std::string::npos) {
-                hostPort = urlStr.substr(0, pathStart);
-                path = urlStr.substr(pathStart);
-            } else {
-                hostPort = urlStr;
-            }
-        } else {
-            size_t pathStart = urlStr.find('/');
-            if (pathStart != std::string::npos) {
-                hostPort = "http://" + urlStr.substr(0, pathStart);
-                path = urlStr.substr(pathStart);
-            } else {
-                hostPort = "http://" + urlStr;
-            }
-        }
-
-        httplib::Client cli(hostPort);
-        cli.set_connection_timeout(10, 0);
-        cli.set_read_timeout(30, 0);
-
-        std::string bodyStr = body.toStdString();
-        std::string ctStr = contentType.toStdString();
-
-        httplib::Result res;
-        switch (method) {
-        case 0: res = cli.Get(path); break;
-        case 1: res = cli.Post(path, bodyStr, ctStr); break;
-        case 2: res = cli.Put(path, bodyStr, ctStr); break;
-        case 3: res = cli.Delete(path); break;
-        default: res = cli.Get(path); break;
-        }
-
-        if (res) {
-            m_lastStatusCode = res->status;
-            m_lastResponseBody = QString::fromStdString(res->body);
-            m_lastError.clear();
-        } else {
-            m_lastStatusCode = 0;
-            m_lastResponseBody.clear();
-            m_lastError = QString::fromStdString(httplib::to_string(res.error()));
-        }
-
-        Q_EMIT responseChanged();
-        return m_lastStatusCode;
-    } catch (const std::exception &e) {
-        m_lastStatusCode = 0;
-        m_lastResponseBody.clear();
-        m_lastError = QString::fromStdString(std::string("Exception: ") + e.what());
-        Q_EMIT responseChanged();
-        return 0;
-    } catch (...) {
-        m_lastStatusCode = 0;
-        m_lastResponseBody.clear();
-        m_lastError = QStringLiteral("Unknown exception occurred during request");
-        Q_EMIT responseChanged();
-        return 0;
-    }
+void HttpClientModel::sendRequest(const QString &url, int method,
+                                  const QString &body, const QString &contentType) {
+    m_requestInProgress = true;
+    Q_EMIT requestInProgressChanged();
+    Q_EMIT startRequest(url, method, body, contentType);
 }
 
-int HttpClientModel::triggerCommand(int index) {
+void HttpClientModel::onRequestFinished(int statusCode, const QString &responseBody, const QString &error) {
+    m_lastStatusCode = statusCode;
+    m_lastResponseBody = responseBody;
+    m_lastError = error;
+    m_requestInProgress = false;
+    Q_EMIT requestInProgressChanged();
+    Q_EMIT responseChanged();
+}
+
+void HttpClientModel::triggerCommand(int index) {
     if (index < 0 || index >= m_titles.size())
-        return 0;
-    return sendRequest(m_urls.at(index), m_methods.at(index),
-                       m_bodies.at(index), m_contentTypes.at(index));
+        return;
+    sendRequest(m_urls.at(index), m_methods.at(index),
+                m_bodies.at(index), m_contentTypes.at(index));
 }
 
 void HttpClientModel::addCommand(const QString &title, const QString &url, int method,
@@ -250,6 +271,10 @@ void HttpClientModel::removeCommand(int index) {
     endRemoveRows();
     saveCommandsToFile();
     Q_EMIT commandsListChanged();
+}
+
+bool HttpClientModel::requestInProgress() const {
+    return m_requestInProgress;
 }
 
 QString HttpClientModel::lastResponseBody() const {

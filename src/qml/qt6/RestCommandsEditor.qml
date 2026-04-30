@@ -41,6 +41,22 @@ Kirigami.ApplicationWindow {
         }
     }
 
+    Connections {
+        target: app.httpClientModel
+        function onResponseChanged() {
+            var status = app.httpClientModel.lastStatusCode;
+            if (status > 0) {
+                statusLabel.text = "Status: " + status;
+                statusLabel.color = (status >= 200 && status < 300) ? "green" : "orange";
+                responseArea.text = app.httpClientModel.lastResponseBody;
+            } else {
+                statusLabel.text = "Error: " + app.httpClientModel.lastError;
+                statusLabel.color = "red";
+                responseArea.text = "";
+            }
+        }
+    }
+
     function clearEditFields() {
         editTitle.text = "";
         editUrl.text = "";
@@ -177,26 +193,26 @@ Kirigami.ApplicationWindow {
             Label {
                 text: qsTr("Body:")
                 Layout.alignment: Qt.AlignRight
-                visible: editMethod.currentIndex > 0
+                visible: editMethod.currentIndex === 1 || editMethod.currentIndex === 2
             }
             TextField {
                 id: editBody
                 Layout.fillWidth: true
                 placeholderText: "Request body (JSON, etc.)"
-                visible: editMethod.currentIndex > 0
+                visible: editMethod.currentIndex === 1 || editMethod.currentIndex === 2
             }
 
             Label {
                 text: qsTr("Content-Type:")
                 Layout.alignment: Qt.AlignRight
-                visible: editMethod.currentIndex > 0
+                visible: editMethod.currentIndex === 1 || editMethod.currentIndex === 2
             }
             TextField {
                 id: editContentType
                 Layout.fillWidth: true
                 placeholderText: "application/json"
                 text: "application/json"
-                visible: editMethod.currentIndex > 0
+                visible: editMethod.currentIndex === 1 || editMethod.currentIndex === 2
             }
         }
 
@@ -237,21 +253,15 @@ Kirigami.ApplicationWindow {
             }
             Item { Layout.fillWidth: true }
             Button {
-                text: qsTr("Trigger")
+                text: app.httpClientModel.requestInProgress ? qsTr("Sending...") : qsTr("Trigger")
                 icon.name: "media-playback-start"
-                enabled: editUrl.text !== ""
+                enabled: editUrl.text !== "" && !app.httpClientModel.requestInProgress
                 onClicked: {
-                    var status = app.httpClientModel.sendRequest(editUrl.text,
+                    statusLabel.text = "Sending...";
+                    statusLabel.color = Kirigami.Theme.disabledTextColor;
+                    responseArea.text = "";
+                    app.httpClientModel.sendRequest(editUrl.text,
                         editMethod.currentIndex, editBody.text, editContentType.text);
-                    if (status > 0) {
-                        statusLabel.text = "Status: " + status;
-                        statusLabel.color = (status >= 200 && status < 300) ? "green" : "orange";
-                        responseArea.text = app.httpClientModel.lastResponseBody;
-                    } else {
-                        statusLabel.text = "Error: " + app.httpClientModel.lastError;
-                        statusLabel.color = "red";
-                        responseArea.text = "";
-                    }
                 }
             }
         }

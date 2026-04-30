@@ -140,7 +140,7 @@ QVariant LayersModel::data(const QModelIndex &index, int role) const {
             return QVariant(QStringLiteral(""));
         }
     case StatusRole:
-        return QVariant(m_layers.at(index.row()).second);
+        return QVariant(layerStatus(index.row()));
     case VisibilityRole:
         return QVariant(static_cast<int>(layerItem->alpha() * 100.f));
     }
@@ -233,11 +233,18 @@ int LayersModel::layerIdx(std::string title) {
     return -1;
 }
 
-int LayersModel::layerStatus(int i) {
+int LayersModel::layerStatus(int i) const {
     if (i >= 0 && m_layers.size() > i)
         return m_layers[i].second;
     else
         return -1;
+}
+
+void LayersModel::setLayerStatus(int i, int status) {
+    if (i >= 0 && i < m_layers.size()) {
+        m_layers[i].second = status;
+        Q_EMIT dataChanged(index(i, 0), index(i, 0));
+    }
 }
 
 int LayersModel::minLayerStatus() {
@@ -318,7 +325,21 @@ int LayersModel::addLayer(QString title, int type, QString filepath, int stereoM
         newLayer->setPlaneSize(glm::vec2(GridSettings::plane_Width_CM(), GridSettings::plane_Height_CM()), 
             static_cast<uint8_t>(GridSettings::plane_Calculate_Size_Based_on_Video()));
         newLayer->initialize();
-        m_layers.push_back(QPair(std::shared_ptr<BaseLayer>(newLayer), 0));
+
+        int initialStatus = (newLayer->type() == BaseLayer::REST) ? -1 : 0;
+        m_layers.push_back(QPair(std::shared_ptr<BaseLayer>(newLayer), initialStatus));
+
+        // Set up status callback for REST layers
+        if (newLayer->type() == BaseLayer::REST) {
+            int layerIdx = m_layers.size() - 1;
+            RestLayer* restLayer = static_cast<RestLayer*>(newLayer);
+            restLayer->setStatusCallback([this, layerIdx](int status) {
+                QMetaObject::invokeMethod(this, [this, layerIdx, status]() {
+                    setLayerStatus(layerIdx, status);
+                }, Qt::QueuedConnection);
+            });
+        }
+
         setLayersNeedsSave(true);
         setNeedSync();
 
@@ -1408,7 +1429,7 @@ bool LayersModel::runRenderOnLayersThatShouldUpdate(bool updateRendering, bool p
                 // Mostly here to handle update on layers in other windows
                 layer->updateFrame();
             }
-            if (m_layers.size() > i) {
+            if (m_layers.size() > i && m_layers[i].first->type() != BaseLayer::REST) {
                 int currentStatus = m_layers[i].second;
                 if (layer && layer->ready() && layer->alpha() > 0.f) {
                     m_layers[i].second = 2;

@@ -164,7 +164,7 @@ ItemDelegate {
                 width: 10
                 height: 10
                 radius: 5
-                visible: model.type !== "Control" && model.type !== "REST"
+                visible: model.type !== "Control"
                 color: (model.status === 2 ? "lime" : model.status === 1 ? "orange" : model.status === 0 ? "crimson" : "black")
             }
             Kirigami.Icon {
@@ -174,7 +174,7 @@ ItemDelegate {
                 width: 14
                 height: 14
                 source: "media-playback-start"
-                visible: model.type === "Control" || model.type === "REST"
+                visible: model.type === "Control"
                 color: Kirigami.Theme.textColor
             }
             Item {

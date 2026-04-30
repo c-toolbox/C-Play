@@ -10,8 +10,12 @@
 
 #include <layers/baselayer.h>
 #include <string>
+#include <functional>
+#include <QObject>
+#include <QThread>
 
 class HttpClientModel;
+class HttpRequestWorker;
 
 class RestLayer : public BaseLayer {
 public:
@@ -23,7 +27,7 @@ public:
     };
 
     RestLayer();
-    ~RestLayer() = default;
+    ~RestLayer();
 
     void initialize() override;
     bool existOnMasterOnly() const override;
@@ -47,16 +51,27 @@ public:
 
     void setHttpClientModel(HttpClientModel* model);
 
+    // Callback invoked on the main thread when the request finishes.
+    // The int parameter is the layer status: 2=success, 0=failure.
+    using StatusCallback = std::function<void(int)>;
+    void setStatusCallback(StatusCallback cb);
+
     void encodeTypeCore(std::vector<std::byte>& data) override;
     void decodeTypeCore(const std::vector<std::byte>& data, unsigned int& pos) override;
 
 private:
+    void onRequestFinished(int statusCode, const QString &responseBody, const QString &error);
+
     std::string m_url;
     int m_method = GET;
     std::string m_requestBody;
     std::string m_contentType = "application/json";
 
     HttpClientModel* m_httpClientModel = nullptr;
+    StatusCallback m_statusCallback;
+
+    QThread* m_workerThread = nullptr;
+    HttpRequestWorker* m_worker = nullptr;
 };
 
 #endif // RESTLAYER_H

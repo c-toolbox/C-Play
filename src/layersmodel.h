@@ -98,7 +98,8 @@ public:
 
     Q_INVOKABLE QString layerTitle(int i) const;
     Q_INVOKABLE int layerIdx(std::string title);
-    Q_INVOKABLE int layerStatus(int i);
+    Q_INVOKABLE int layerStatus(int i) const;
+    Q_INVOKABLE void setLayerStatus(int i, int status);
     Q_INVOKABLE int minLayerStatus();
     Q_INVOKABLE int maxLayerStatus();
 

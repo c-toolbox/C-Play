@@ -43,6 +43,7 @@ Menu {
     }
     MenuItem {
         text: qsTr("REST Commands Editor...")
+        icon.name: "document-send"
         onTriggered: {
             restCommandsEditor.visible = true;
         }

@@ -14,6 +14,14 @@ RestLayer::RestLayer() {
     m_existOnMasterOnly = true;
 }
 
+RestLayer::~RestLayer() {
+    if (m_workerThread) {
+        m_workerThread->quit();
+        m_workerThread->wait();
+        delete m_workerThread;
+    }
+}
+
 void RestLayer::initialize() {
     m_hasInitialized = true;
 }
@@ -31,18 +39,50 @@ bool RestLayer::hasTexture() const {
 }
 
 void RestLayer::start() {
-    if (m_url.empty() || !m_httpClientModel) {
+    if (m_url.empty()) {
         return;
     }
-    m_httpClientModel->sendRequest(
-        QString::fromStdString(m_url),
-        m_method,
-        QString::fromStdString(m_requestBody),
-        QString::fromStdString(m_contentType));
+
+    // Lazily create the worker thread on first use
+    if (!m_workerThread) {
+        m_workerThread = new QThread();
+        m_worker = new HttpRequestWorker();
+        m_worker->moveToThread(m_workerThread);
+        QObject::connect(m_workerThread, &QThread::finished, m_worker, &QObject::deleteLater);
+        QObject::connect(m_worker, &HttpRequestWorker::requestFinished,
+            [this](int statusCode, const QString &responseBody, const QString &error) {
+                onRequestFinished(statusCode, responseBody, error);
+            });
+        m_workerThread->start();
+    }
+
+    // Set status to "in progress" (1)
+    if (m_statusCallback) {
+        m_statusCallback(1);
+    }
+
+    // Dispatch request to the worker thread
+    QMetaObject::invokeMethod(m_worker, "doRequest", Qt::QueuedConnection,
+        Q_ARG(QString, QString::fromStdString(m_url)),
+        Q_ARG(int, m_method),
+        Q_ARG(QString, QString::fromStdString(m_requestBody)),
+        Q_ARG(QString, QString::fromStdString(m_contentType)));
 }
 
 void RestLayer::stop() {
-    // Nothing to stop for a synchronous request
+    // Nothing to stop for an async request
+}
+
+void RestLayer::onRequestFinished(int statusCode, const QString &responseBody, const QString &error) {
+    Q_UNUSED(responseBody)
+    Q_UNUSED(error)
+
+    // status: 2=success (HTTP 2xx), 0=failure
+    int layerStatus = (statusCode >= 200 && statusCode < 300) ? 2 : 0;
+
+    if (m_statusCallback) {
+        m_statusCallback(layerStatus);
+    }
 }
 
 std::string RestLayer::url() const {
@@ -83,6 +123,10 @@ void RestLayer::setContentType(const std::string& ct) {
 
 void RestLayer::setHttpClientModel(HttpClientModel* model) {
     m_httpClientModel = model;
+}
+
+void RestLayer::setStatusCallback(StatusCallback cb) {
+    m_statusCallback = cb;
 }
 
 void RestLayer::encodeTypeCore(std::vector<std::byte>& data) {
