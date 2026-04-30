@@ -153,6 +153,23 @@ SettingsBasePage {
         }
         onRejected: mpv.focus = true
     }
+    FolderDialog {
+        id: screenshotLocationDialog
+
+        currentFolder: LocationSettings.screenshotPath !== "" ? app.pathToUrl(LocationSettings.screenshotPath) : app.pathToUrl(LocationSettings.fileDialogLastLocation)
+        title: "Choose Screenshot Location"
+
+        onAccepted: {
+            var filePath = screenshotLocationDialog.selectedFolder.toString();
+            // remove prefixed "file:///"
+            filePath = filePath.replace(/^(file:\/{3})/, "");
+            screenshotPath.text = filePath;
+            LocationSettings.screenshotPath = screenshotPath.text;
+            LocationSettings.save();
+            mpv.focus = true;
+        }
+        onRejected: mpv.focus = true
+    }
     GridLayout {
         id: content
 
@@ -470,42 +487,42 @@ SettingsBasePage {
             Layout.fillWidth: true
             text: qsTr("Screenshots")
         }
+
+        // ------------------------------------
+        // Screenshot path
+        // ------------------------------------
         Label {
             Layout.alignment: Qt.AlignRight
-            text: qsTr("Format")
+            text: qsTr("Path")
         }
-        ComboBox {
-            id: screenshotFormat
+        RowLayout {
+            Layout.fillWidth: true
 
-            textRole: "key"
+            TextField {
+                id: screenshotPath
 
-            model: ListModel {
-                ListElement {
-                    key: "PNG"
+                text: LocationSettings.screenshotPath
+
+                onEditingFinished: {
+                    LocationSettings.screenshotPath = text;
+                    LocationSettings.save();
                 }
-                ListElement {
-                    key: "JPG"
-                }
-                ListElement {
-                    key: "WebP"
+
+                ToolTip {
+                    text: qsTr("Path for screenshots on all nodes.")
                 }
             }
+            ToolButton {
+                id: screenshotLocationLoadButton
 
-            Component.onCompleted: {
-                if (LocationSettings.screenshotFormat === "PNG") {
-                    currentIndex = 0;
+                focusPolicy: Qt.NoFocus
+                icon.height: 16
+                icon.name: "system-file-manager"
+                text: ""
+
+                onClicked: {
+                    screenshotLocationDialog.open();
                 }
-                if (LocationSettings.screenshotFormat === "JPG") {
-                    currentIndex = 1;
-                }
-                if (LocationSettings.screenshotFormat === "WebP") {
-                    currentIndex = 2;
-                }
-            }
-            onActivated: {
-                LocationSettings.screenshotFormat = model.get(index).key;
-                LocationSettings.save();
-                mpv.setProperty("screenshot-format", LocationSettings.screenshotFormat);
             }
         }
         Item {
@@ -513,21 +530,58 @@ SettingsBasePage {
         }
 
         // ------------------------------------
-        // Screenshot template
+        // Capture Buffer Source
         // ------------------------------------
         Label {
             Layout.alignment: Qt.AlignRight
-            text: qsTr("Template")
+            text: qsTr("Buffer source")
         }
-        TextField {
-            id: screenshotTemplate
+        ComboBox {
+            id: captureBufferSource
 
-            text: LocationSettings.screenshotTemplate
+            textRole: "key"
 
-            onEditingFinished: {
-                LocationSettings.screenshotTemplate = text;
-                LocationSettings.save();
-                mpv.setProperty("screenshot-template", LocationSettings.screenshotTemplate);
+            model: ListModel {
+                ListElement {
+                    key: "Before Warping and Blending"
+                    value: false
+                }
+                ListElement {
+                    key: "After Warping and Blending"
+                    value: true
+                }
+            }
+
+            Component.onCompleted: {
+                currentIndex = 0;
+            }
+            onActivated: {
+                app.setCaptureBackBuffer(model.get(index).value);
+            }
+        }
+        Item {
+            Layout.fillWidth: true
+        }
+
+        // ------------------------------------
+        // Capture Screenshot Button
+        // ------------------------------------
+        Label {
+            Layout.alignment: Qt.AlignRight
+            text: qsTr("Capture")
+        }
+        Button {
+            id: captureScreenshotButton
+
+            icon.name: "view-preview"
+            text: qsTr("Take Screenshot")
+
+            onClicked: {
+                app.takeNodeScreenshot(LocationSettings.screenshotPath);
+            }
+
+            ToolTip {
+                text: qsTr("Capture a screenshot of all nodes.")
             }
         }
         Item {

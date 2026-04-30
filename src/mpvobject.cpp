@@ -117,7 +117,6 @@ MpvObject::MpvObject(QQuickItem *parent)
     setProperty(QStringLiteral("slang"), SubtitleSettings::preferredLanguage());
     SyncHelper::instance().variables.subtitleText = new TextLayer();
     
-    setProperty(QStringLiteral("screenshot-template"), LocationSettings::screenshotTemplate());
     setProperty(QStringLiteral("volume-max"), QStringLiteral("100"));
     setProperty(QStringLiteral("keep-open"), QStringLiteral("yes"));
     setLoadAudioInVidFolder(AudioSettings::loadAudioFileInVideoFolder());

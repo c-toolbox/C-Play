@@ -82,15 +82,11 @@
     <entry name="LastUrl" type="String">
       <label>Last url</label>
     </entry>
-    <entry name="ScreenshotFormat" type="String">
-      <label>Screenshot format</label>
-      <default>jpg</default>
-    </entry>
-    <entry name="ScreenshotTemplate" type="String">
-      <label>Screenshot template</label>
+    <entry name="ScreenshotPath" type="String">
+      <label>Screenshot path</label>
       <code>
         QString screenshotsFolder = QStandardPaths::writableLocation(QStandardPaths::PicturesLocation);
-        screenshotsFolder.append(QStringLiteral("/C-play-screenshots/%F-%n"));
+        screenshotsFolder.append(QStringLiteral("/C-play-screenshots"));
       </code>
       <default code="true">screenshotsFolder</default>
     </entry>

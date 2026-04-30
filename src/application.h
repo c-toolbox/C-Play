@@ -126,6 +126,8 @@ public:
     Q_INVOKABLE void configureShortcuts();
     Q_INVOKABLE void updateAboutOtherText(const QString &mpvVersion, const QString &ffmpegVersion);
     Q_INVOKABLE QString getStartupFile();
+    Q_INVOKABLE void takeNodeScreenshot(const QString &screenshotPath);
+    Q_INVOKABLE void setCaptureBackBuffer(bool backBuffer);
 
     static QString version();
     Q_INVOKABLE static QString formatTime(const double time);
@@ -342,6 +344,9 @@ public:
         double loopTimeB;
         bool windowOnTop;
         float windowOpacity;
+        bool takeScreenshot;
+        std::string screenshotPath;
+        bool captureBackBuffer;
     };
 
     struct ConfigurationVariables {
@@ -418,7 +423,10 @@ public:
         /*loopTimeA*/ 0,
         /*loopTimeB*/ 0,
         /*windowOnTop*/ false,
-        /*windowOpacity*/ 1.f };
+        /*windowOpacity*/ 1.f,
+        /*takeScreenshot*/ false,
+        /*screenshotPath*/ "",
+        /*captureBackBuffer*/ false };
 
     ConfigurationVariables configuration = {
         /*confAll*/ "./data/mpv-conf/default/all.json",

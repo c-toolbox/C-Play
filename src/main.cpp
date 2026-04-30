@@ -181,6 +181,14 @@ static std::vector<std::byte> encode() {
         serializeObject(data, SyncHelper::instance().variables.windowOnTop);
         serializeObject(data, SyncHelper::instance().variables.windowOpacity);
 
+        // Screenshot
+        serializeObject(data, SyncHelper::instance().variables.takeScreenshot);
+        if (SyncHelper::instance().variables.takeScreenshot) {
+            serializeObject(data, SyncHelper::instance().variables.screenshotPath);
+            serializeObject(data, SyncHelper::instance().variables.captureBackBuffer);
+            SyncHelper::instance().variables.takeScreenshot = false;
+        }
+
         // Speed
         serializeObject(data, SyncHelper::instance().variables.speedDirty);
         if (SyncHelper::instance().variables.speedDirty) {
@@ -412,6 +420,17 @@ static void decode(const std::vector<std::byte> &data) {
         deserializeObject(data, pos, SyncHelper::instance().variables.windowOnTop);
         deserializeObject(data, pos, SyncHelper::instance().variables.windowOpacity);
 
+        // Screenshot
+        if (!safeToRead()) return;
+        bool screenshotIsRequested = false;
+        deserializeObject(data, pos, screenshotIsRequested);
+        SyncHelper::instance().variables.takeScreenshot = screenshotIsRequested;
+        if (screenshotIsRequested) {
+            if (!safeToRead()) return;
+            deserializeObject(data, pos, SyncHelper::instance().variables.screenshotPath);
+            deserializeObject(data, pos, SyncHelper::instance().variables.captureBackBuffer);
+        }
+
         // Speed
         if (!safeToRead()) return;
         deserializeObject(data, pos, SyncHelper::instance().variables.speedDirty);
@@ -527,6 +546,16 @@ static void decode(const std::vector<std::byte> &data) {
 static void postSyncPreDraw() {
     // Apply synced commands
     if (!Engine::instance().isMaster()) {
+
+        // Handle screenshot request from master
+        if (SyncHelper::instance().variables.takeScreenshot) {
+            if (!SyncHelper::instance().variables.screenshotPath.empty()) {
+                Engine::instance().setCapturePath(SyncHelper::instance().variables.screenshotPath);
+            }
+            Engine::instance().setCaptureFromBackBuffer(SyncHelper::instance().variables.captureBackBuffer);
+            Engine::instance().takeScreenshot();
+            SyncHelper::instance().variables.takeScreenshot = false;
+        }
 
         // Delete layers left in old container, and update to new
         // Needs to be done in this function, not in the deserialization.

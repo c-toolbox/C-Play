@@ -35,5 +35,8 @@ C-Play supports loading Uniview "*.fdv*" files for use in an environment where S
 
 #### Screenshots
 
-* **Screenshot format** — File format for saved screenshots: PNG, JPG, or WebP (default JPG).
-* **Screenshot template** — Path template for where screenshots are saved. Supports placeholders such as `%F` (filename) and `%n` (number). Default location is the system pictures folder under `C-play-screenshots/`.
+* **Screenshot path** — The folder where screenshots are saved. Default is the system pictures folder under `C-play-screenshots/`.
+* **Buffer source** — Choose which rendering stage to capture:
+  * *Before Warping and Blending* — captures the undistorted frame (front buffer).
+  * *After Warping and Blending* — captures the final output as displayed (back buffer).
+* **Take Screenshot** — Captures a screenshot on all cluster nodes and saves it to the configured path.
