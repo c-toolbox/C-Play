@@ -175,6 +175,21 @@ MpvObject::MpvObject(QQuickItem *parent)
             setWatchPercentage(m_secondsWatched.count() * 100 / duration);
         }
     });
+
+    // Update sync threshold settings when PlaybackSettings change
+    connect(PlaybackSettings::self(), &PlaybackSettings::UseThresholdToSyncTimePositionChanged,
+            this, &MpvObject::updatePlaybackThresholdSettings);
+    connect(PlaybackSettings::self(), &PlaybackSettings::ThresholdToSyncTimePositionChanged,
+            this, &MpvObject::updatePlaybackThresholdSettings);
+    connect(PlaybackSettings::self(), &PlaybackSettings::ThresholdToSyncTimeSkipSetsChanged,
+            this, &MpvObject::updatePlaybackThresholdSettings);
+    connect(PlaybackSettings::self(), &PlaybackSettings::ApplyThresholdSyncOnLoopOnlyChanged,
+            this, &MpvObject::updatePlaybackThresholdSettings);
+    connect(PlaybackSettings::self(), &PlaybackSettings::TimeToCheckThresholdSyncAfterLoopChanged,
+            this, &MpvObject::updatePlaybackThresholdSettings);
+
+    // Initialize threshold settings
+    updatePlaybackThresholdSettings();
 }
 
 MpvObject::~MpvObject() {
@@ -345,6 +360,7 @@ void MpvObject::setVolume(int value) {
     }
     setProperty(QStringLiteral("volume"), value);
     SyncHelper::instance().variables.volume = value;
+    SyncHelper::instance().variables.mpvNeedSync = true;
     Q_EMIT volumeChanged();
     Q_EMIT volumeUpdate(value);
 }
@@ -368,6 +384,7 @@ void MpvObject::setMute(bool value) {
     }
     if (AudioSettings::enableAudioOnNodes()) {
         SyncHelper::instance().variables.volumeMute = value;
+        SyncHelper::instance().variables.mpvNeedSync = true;
     }
     if (AudioSettings::enableAudioOnMaster() || AudioSettings::enableAudioOnNodes()) {
         Q_EMIT muteChanged();
@@ -402,6 +419,7 @@ void MpvObject::setAudioId(int value) {
     }
 
     SyncHelper::instance().variables.audioId = value;
+    SyncHelper::instance().variables.mpvNeedSync = true;
     Q_EMIT audioIdChanged();
 }
 
@@ -430,6 +448,7 @@ int MpvObject::contrast() {
 void MpvObject::setContrast(int value) {
     SyncHelper::instance().variables.eqContrast = value;
     SyncHelper::instance().variables.eqDirty = true;
+    SyncHelper::instance().variables.mpvNeedSync = true;
     if (value == contrast()) {
         return;
     }
@@ -444,6 +463,7 @@ int MpvObject::brightness() {
 void MpvObject::setBrightness(int value) {
     SyncHelper::instance().variables.eqBrightness = value;
     SyncHelper::instance().variables.eqDirty = true;
+    SyncHelper::instance().variables.mpvNeedSync = true;
     if (value == brightness()) {
         return;
     }
@@ -458,6 +478,7 @@ int MpvObject::gamma() {
 void MpvObject::setGamma(int value) {
     SyncHelper::instance().variables.eqGamma = value;
     SyncHelper::instance().variables.eqDirty = true;
+    SyncHelper::instance().variables.mpvNeedSync = true;
     if (value == gamma()) {
         return;
     }
@@ -472,6 +493,7 @@ int MpvObject::saturation() {
 void MpvObject::setSaturation(int value) {
     SyncHelper::instance().variables.eqSaturation = value;
     SyncHelper::instance().variables.eqDirty = true;
+    SyncHelper::instance().variables.mpvNeedSync = true;
     if (value == saturation()) {
         return;
     }
@@ -486,6 +508,7 @@ double MpvObject::speed() {
 void MpvObject::setSpeed(double factor) {
     SyncHelper::instance().variables.playbackSpeed = factor;
     SyncHelper::instance().variables.speedDirty = true;
+    SyncHelper::instance().variables.mpvNeedSync = true;
     if (factor == speed()) {
         return;
     }
@@ -546,6 +569,7 @@ int MpvObject::eofMode() {
 
 void MpvObject::setEofMode(int value) {
     SyncHelper::instance().variables.eofMode = value;
+    SyncHelper::instance().variables.mpvNeedSync = true;
 
     if (value == 0) { // Pause
         setProperty(QStringLiteral("loop-file"), QStringLiteral("no"));
@@ -566,6 +590,7 @@ int MpvObject::stereoscopicMode() {
 
 void MpvObject::setStereoscopicMode(int value) {
     SyncHelper::instance().variables.stereoscopicMode = value;
+    SyncHelper::instance().variables.mpvNeedSync = true;
     Q_EMIT stereoscopicModeChanged();
 }
 
@@ -576,6 +601,7 @@ int MpvObject::gridToMapOn() {
 void MpvObject::setGridToMapOn(int value) {
     if (SyncHelper::instance().variables.gridToMapOn != value) {
         SyncHelper::instance().variables.gridToMapOn = value;
+        SyncHelper::instance().variables.mpvNeedSync = true;
         Q_EMIT gridToMapOnChanged();
     }
 }
@@ -598,6 +624,7 @@ double MpvObject::radius() {
 
 void MpvObject::setRadius(double value) {
     SyncHelper::instance().variables.radius = value;
+    SyncHelper::instance().variables.mpvNeedSync = true;
     if (m_radius == value) {
         return;
     }
@@ -611,6 +638,7 @@ double MpvObject::fov() {
 
 void MpvObject::setFov(double value) {
     SyncHelper::instance().variables.fov = value;
+    SyncHelper::instance().variables.mpvNeedSync = true;
     if (m_fov == value) {
         return;
     }
@@ -627,6 +655,7 @@ void MpvObject::setAngle(double value) {
         return;
     }
     SyncHelper::instance().variables.angle = value;
+    SyncHelper::instance().variables.mpvNeedSync = true;
     m_angle = value;
     Q_EMIT angleChanged();
 }
@@ -643,6 +672,7 @@ void MpvObject::setRotate(QVector3D value) {
     SyncHelper::instance().variables.rotateX = value.x();
     SyncHelper::instance().variables.rotateY = value.y();
     SyncHelper::instance().variables.rotateZ = value.z();
+    SyncHelper::instance().variables.mpvNeedSync = true;
     Q_EMIT rotateChanged();
 }
 
@@ -658,6 +688,7 @@ void MpvObject::setTranslate(QVector3D value) {
     SyncHelper::instance().variables.translateX = value.x();
     SyncHelper::instance().variables.translateY = value.y();
     SyncHelper::instance().variables.translateZ = value.z();
+    SyncHelper::instance().variables.mpvNeedSync = true;
     Q_EMIT translateChanged();
 }
 
@@ -689,6 +720,7 @@ double MpvObject::planeElevation() {
 
 void MpvObject::setPlaneElevation(double value) {
     SyncHelper::instance().variables.planeElevation = value;
+    SyncHelper::instance().variables.mpvNeedSync = true;
     if (SyncHelper::instance().variables.subtitleText) {
         SyncHelper::instance().variables.subtitleText->setPlaneElevation(value + SubtitleSettings::subtitlePlaneElevationDegrees());
     }
@@ -701,6 +733,7 @@ double MpvObject::planeDistance() {
 
 void MpvObject::setPlaneDistance(double value) {
     SyncHelper::instance().variables.planeDistance = value;
+    SyncHelper::instance().variables.mpvNeedSync = true;
     if (SyncHelper::instance().variables.subtitleText) {
         SyncHelper::instance().variables.subtitleText->setPlaneDistance(value + SubtitleSettings::subtitlePlaneDistanceCM());
     }
@@ -800,10 +833,12 @@ void MpvObject::updateAudioOutput() {
 
 void MpvObject::enableAudioOnNodes(bool enabled) {
     SyncHelper::instance().variables.enableAudioOnNodes = enabled;
+    SyncHelper::instance().variables.mpvNeedSync = true;
 }
 
 void MpvObject::setLoadAudioInVidFolder(bool enabled) {
     SyncHelper::instance().variables.loadAudioInVidFolder = enabled;
+    SyncHelper::instance().variables.mpvNeedSync = true;
 
     QString loadAudioInVidFolder = enabled ? QStringLiteral("all") : QStringLiteral("no");
     setProperty(QStringLiteral("audio-file-auto"), loadAudioInVidFolder);
@@ -962,6 +997,7 @@ void MpvObject::loadSection(int playSectionsIndex) {
                 SyncHelper::instance().variables.loopTimeB = 0;
                 SyncHelper::instance().variables.loopTimeEnabled = false;
                 SyncHelper::instance().variables.loopTimeDirty = true;
+                SyncHelper::instance().variables.mpvNeedSync = true;
                 setProperty(QStringLiteral("ab-loop-a"), QStringLiteral("no"));
                 setProperty(QStringLiteral("ab-loop-b"), QStringLiteral("no"));
             }
@@ -977,6 +1013,7 @@ void MpvObject::loadSection(int playSectionsIndex) {
             SyncHelper::instance().variables.loopTimeB = m_currentSection.endTime;
             SyncHelper::instance().variables.loopTimeEnabled = true;
             SyncHelper::instance().variables.loopTimeDirty = true;
+            SyncHelper::instance().variables.mpvNeedSync = true;
             setProperty(QStringLiteral("ab-loop-a"), m_currentSection.startTime);
             setProperty(QStringLiteral("ab-loop-b"), m_currentSection.endTime);
         } else if (SyncHelper::instance().variables.loopTimeEnabled) {
@@ -984,6 +1021,7 @@ void MpvObject::loadSection(int playSectionsIndex) {
             SyncHelper::instance().variables.loopTimeB = 0;
             SyncHelper::instance().variables.loopTimeEnabled = false;
             SyncHelper::instance().variables.loopTimeDirty = true;
+            SyncHelper::instance().variables.mpvNeedSync = true;
             setProperty(QStringLiteral("ab-loop-a"), QStringLiteral("no"));
             setProperty(QStringLiteral("ab-loop-b"), QStringLiteral("no"));
         }
@@ -1567,6 +1605,15 @@ void MpvObject::setSubtitleRelativePlaneDistance(double value) {
     }
 }
 
+void MpvObject::updatePlaybackThresholdSettings() {
+    SyncHelper::instance().variables.timeThreshold = double(PlaybackSettings::thresholdToSyncTimePosition()) / 1000.0;
+    SyncHelper::instance().variables.timeThresholdSetSkips = PlaybackSettings::thresholdToSyncTimeSkipSets() - 1;
+    SyncHelper::instance().variables.timeThresholdEnabled = PlaybackSettings::useThresholdToSyncTimePosition();
+    SyncHelper::instance().variables.timeThresholdOnLoopOnly = PlaybackSettings::applyThresholdSyncOnLoopOnly();
+    SyncHelper::instance().variables.timeThresholdOnLoopCheckTime = PlaybackSettings::timeToCheckThresholdSyncAfterLoop() / 1000.0;
+    SyncHelper::instance().variables.mpvNeedSync = true;
+}
+
 unsigned int MpvObject::fboTextureId() const {
     if (mpv_fbo)
         return static_cast<unsigned int>(mpv_fbo->texture());
@@ -1656,6 +1703,7 @@ void MpvObject::updatePlane() {
     SyncHelper::instance().variables.planeWidth = m_planeWidth;
     SyncHelper::instance().variables.planeHeight = m_planeHeight;
     SyncHelper::instance().variables.planeConsiderAspectRatio = m_planeConsiderAspectRatio;
+    SyncHelper::instance().variables.mpvNeedSync = true;
 
     int texW = fboWidth();
     int texH = fboHeight();

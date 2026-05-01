@@ -546,6 +546,7 @@ int PlayerController::backgroundGridMode() {
 
 void PlayerController::setBackgroundGridMode(int value) {
     SyncHelper::instance().variables.gridToMapOnBg = value;
+    SyncHelper::instance().variables.playerControllerNeedSync = true;
 }
 
 int PlayerController::backgroundStereoMode() {
@@ -554,6 +555,7 @@ int PlayerController::backgroundStereoMode() {
 
 void PlayerController::setBackgroundStereoMode(int value) {
     SyncHelper::instance().variables.stereoscopicModeBg = value;
+    SyncHelper::instance().variables.playerControllerNeedSync = true;
 }
 
 float PlayerController::foregroundVisibility() {
@@ -621,6 +623,7 @@ int PlayerController::foregroundGridMode() {
 
 void PlayerController::setForegroundGridMode(int value) {
     SyncHelper::instance().variables.gridToMapOnFg = value;
+    SyncHelper::instance().variables.playerControllerNeedSync = true;
 }
 
 int PlayerController::foregroundStereoMode() {
@@ -629,6 +632,7 @@ int PlayerController::foregroundStereoMode() {
 
 void PlayerController::setForegroundStereoMode(int value) {
     SyncHelper::instance().variables.stereoscopicModeFg = value;
+    SyncHelper::instance().variables.playerControllerNeedSync = true;
 }
 
 float PlayerController::backgroundVisibilityOnMaster() {
@@ -666,6 +670,7 @@ void PlayerController::setViewModeOnClients(int value) {
     // 0 = Auto 2D/3D switch
     // 1 = Force 2D for all
     SyncHelper::instance().variables.viewMode = value;
+    SyncHelper::instance().variables.playerControllerNeedSync = true;
 
     Q_EMIT viewModeOnClientsChanged();
 }
@@ -690,6 +695,7 @@ bool PlayerController::nodeWindowsOnTop() {
 
 void PlayerController::setNodeWindowsOnTop(bool value) {
     SyncHelper::instance().variables.windowOnTop = value;
+    SyncHelper::instance().variables.playerControllerNeedSync = true;
 
     Q_EMIT nodeWindowOnTopChanged();
 }
@@ -700,6 +706,7 @@ float PlayerController::nodeWindowsOpacity() {
 
 void PlayerController::setNodeWindowsOpacity(float value) {
     SyncHelper::instance().variables.windowOpacity = value;
+    SyncHelper::instance().variables.playerControllerNeedSync = true;
 
     Q_EMIT nodeWindowOpacityChanged();
 }
@@ -711,6 +718,16 @@ bool PlayerController::syncProperties() {
 void PlayerController::setSyncProperties(bool value) {
     SyncHelper::instance().variables.syncOn = value;
     Q_EMIT syncPropertiesChanged();
+}
+
+void PlayerController::takeNodeScreenshot(const QString& screenshotPath) {
+    SyncHelper::instance().variables.screenshotPath = screenshotPath.toStdString();
+    SyncHelper::instance().variables.takeScreenshot = true;
+    SyncHelper::instance().variables.playerControllerNeedSync = true;
+}
+
+void PlayerController::setCaptureBackBuffer(bool backBuffer) {
+    SyncHelper::instance().variables.captureBackBuffer = backBuffer;
 }
 
 QString PlayerController::supportedImageNameFilters() const {

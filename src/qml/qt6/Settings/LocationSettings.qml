@@ -524,6 +524,12 @@ SettingsBasePage {
                     screenshotLocationDialog.open();
                 }
             }
+            Label {
+                Layout.alignment: Qt.AlignLeft
+                text: qsTr("Note: Folder should be available on all nodes.")
+                font.italic: true
+                font.weight: Font.Light
+            }
         }
         Item {
             Layout.fillWidth: true
@@ -536,27 +542,36 @@ SettingsBasePage {
             Layout.alignment: Qt.AlignRight
             text: qsTr("Buffer source")
         }
-        ComboBox {
-            id: captureBufferSource
+        RowLayout {
+            ComboBox {
+                id: captureBufferSource
 
-            textRole: "key"
+                textRole: "key"
 
-            model: ListModel {
-                ListElement {
-                    key: "Before Warping and Blending"
-                    value: false
+                model: ListModel {
+                    ListElement {
+                        key: "Before Warping and Blending"
+                        value: false
+                    }
+                    ListElement {
+                        key: "After Warping and Blending"
+                        value: true
+                    }
                 }
-                ListElement {
-                    key: "After Warping and Blending"
-                    value: true
+
+                Component.onCompleted: {
+                    currentIndex = 0;
+                }
+                onActivated: {
+                    playerController.setCaptureBackBuffer(model.get(index).value);
                 }
             }
-
-            Component.onCompleted: {
-                currentIndex = 0;
-            }
-            onActivated: {
-                app.setCaptureBackBuffer(model.get(index).value);
+            Label {
+                Layout.alignment: Qt.AlignLeft
+                text: qsTr("Will look the same as \"Before..\" if no mesh and/or mask file is loaded.")
+                font.italic: true
+                font.weight: Font.Light
+                visible: captureBufferSource.currentIndex === 1
             }
         }
         Item {
@@ -570,18 +585,26 @@ SettingsBasePage {
             Layout.alignment: Qt.AlignRight
             text: qsTr("Capture")
         }
-        Button {
-            id: captureScreenshotButton
+        RowLayout {
+            Button {
+                id: captureScreenshotButton
 
-            icon.name: "view-preview"
-            text: qsTr("Take Screenshot")
+                icon.name: "view-preview"
+                text: qsTr("Take Screenshot")
 
-            onClicked: {
-                app.takeNodeScreenshot(LocationSettings.screenshotPath);
+                onClicked: {
+                    playerController.takeNodeScreenshot(LocationSettings.screenshotPath);
+                }
+
+                ToolTip {
+                    text: qsTr("Capture a screenshot of all nodes.")
+                }
             }
-
-            ToolTip {
-                text: qsTr("Capture a screenshot of all nodes.")
+            Label {
+                Layout.alignment: Qt.AlignLeft
+                text: qsTr("Note: Remove old screenshots, as new ones will NOT overwrite old.")
+                font.italic: true
+                font.weight: Font.Light
             }
         }
         Item {

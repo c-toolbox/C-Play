@@ -409,6 +409,8 @@ public:
     Q_INVOKABLE void setSubtitleRelativePlaneElevation(double value);
     Q_INVOKABLE void setSubtitleRelativePlaneDistance(double value);
 
+    void updatePlaybackThresholdSettings();
+
     // FBO texture access for LayersRendererQtItem
     unsigned int fboTextureId() const;
     int fboWidth() const;

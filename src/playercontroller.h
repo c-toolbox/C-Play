@@ -124,6 +124,9 @@ public Q_SLOTS:
     bool syncProperties();
     void setSyncProperties(bool value);
 
+    void takeNodeScreenshot(const QString& screenshotPath);
+    void setCaptureBackBuffer(bool backBuffer);
+
 Q_SIGNALS:
     void quitCPlay();
     void next();

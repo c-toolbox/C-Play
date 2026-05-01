@@ -640,15 +640,6 @@ QString Application::getStartupFile() {
         return m_startupFileFromCmd;
 }
 
-void Application::takeNodeScreenshot(const QString &screenshotPath) {
-    SyncHelper::instance().variables.screenshotPath = screenshotPath.toStdString();
-    SyncHelper::instance().variables.takeScreenshot = true;
-}
-
-void Application::setCaptureBackBuffer(bool backBuffer) {
-    SyncHelper::instance().variables.captureBackBuffer = backBuffer;
-}
-
 Application::FontScanResult Application::scanFonts(QFontDatabase* db) {
     Application::FontScanResult result;
     QStringList fontPaths;

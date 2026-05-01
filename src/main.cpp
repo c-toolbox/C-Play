@@ -20,7 +20,6 @@
 #include <layersmodel.h>
 #include <mutex>
 #include <slidesmodel.h>
-#include "playbacksettings.h"
 
 #ifdef MDK_SUPPORT
 #include <mdk/global.h>
@@ -116,83 +115,96 @@ static std::vector<std::byte> encode() {
     serializeObject(data, SyncHelper::instance().variables.alphaFg);
 
     if (SyncHelper::instance().variables.syncOn) {
-        serializeObject(data, SyncHelper::instance().variables.paused);
-        serializeObject(data, SyncHelper::instance().variables.enableAudioOnNodes);
-        if (SyncHelper::instance().variables.enableAudioOnNodes) {
-            serializeObject(data, SyncHelper::instance().variables.loadAudioInVidFolder);
-            serializeObject(data, SyncHelper::instance().variables.audioId);
-            serializeObject(data, SyncHelper::instance().variables.volume);
-            serializeObject(data, SyncHelper::instance().variables.volumeMute);
-        }
-
-        SyncHelper::instance().variables.timeThreshold = double(PlaybackSettings::thresholdToSyncTimePosition()) / 1000.0;
-        SyncHelper::instance().variables.timeThresholdSetSkips = PlaybackSettings::thresholdToSyncTimeSkipSets() - 1;
-        SyncHelper::instance().variables.timeThresholdEnabled = PlaybackSettings::useThresholdToSyncTimePosition();
-        SyncHelper::instance().variables.timeThresholdOnLoopOnly = PlaybackSettings::applyThresholdSyncOnLoopOnly();
-        SyncHelper::instance().variables.timeThresholdOnLoopCheckTime = PlaybackSettings::timeToCheckThresholdSyncAfterLoop() / 1000.0;
-
+        // Always sync time-related variables
         serializeObject(data, SyncHelper::instance().variables.timePosition);
-        serializeObject(data, SyncHelper::instance().variables.timeThreshold);
-        serializeObject(data, SyncHelper::instance().variables.timeThresholdSetSkips);
-        serializeObject(data, SyncHelper::instance().variables.timeThresholdEnabled);
-        serializeObject(data, SyncHelper::instance().variables.timeThresholdOnLoopOnly);
         serializeObject(data, SyncHelper::instance().variables.timeDirty);
-        serializeObject(data, SyncHelper::instance().variables.gridToMapOn);
-        serializeObject(data, SyncHelper::instance().variables.gridToMapOnBg);
-        serializeObject(data, SyncHelper::instance().variables.gridToMapOnFg);
-        serializeObject(data, SyncHelper::instance().variables.stereoscopicMode);
-        serializeObject(data, SyncHelper::instance().variables.stereoscopicModeBg);
-        serializeObject(data, SyncHelper::instance().variables.stereoscopicModeFg);
-        serializeObject(data, SyncHelper::instance().variables.eofMode);
-        serializeObject(data, SyncHelper::instance().variables.viewMode);
-        serializeObject(data, SyncHelper::instance().variables.radius);
-        serializeObject(data, SyncHelper::instance().variables.fov);
-        serializeObject(data, SyncHelper::instance().variables.angle);
-        serializeObject(data, SyncHelper::instance().variables.rotateX);
-        serializeObject(data, SyncHelper::instance().variables.rotateY);
-        serializeObject(data, SyncHelper::instance().variables.rotateZ);
-        serializeObject(data, SyncHelper::instance().variables.translateX);
-        serializeObject(data, SyncHelper::instance().variables.translateY);
-        serializeObject(data, SyncHelper::instance().variables.translateZ);
-        serializeObject(data, SyncHelper::instance().variables.planeWidth);
-        serializeObject(data, SyncHelper::instance().variables.planeHeight);
-        serializeObject(data, SyncHelper::instance().variables.planeElevation);
-        serializeObject(data, SyncHelper::instance().variables.planeDistance);
-        serializeObject(data, SyncHelper::instance().variables.planeConsiderAspectRatio);
+        SyncHelper::instance().variables.timeDirty = false;
+        serializeObject(data, SyncHelper::instance().variables.timeThreshold);
+        serializeObject(data, SyncHelper::instance().variables.paused);
 
-        // Eq
-        serializeObject(data, SyncHelper::instance().variables.eqDirty);
-        if (SyncHelper::instance().variables.eqDirty) {
-            serializeObject(data, SyncHelper::instance().variables.eqContrast);
-            serializeObject(data, SyncHelper::instance().variables.eqBrightness);
-            serializeObject(data, SyncHelper::instance().variables.eqGamma);
-            serializeObject(data, SyncHelper::instance().variables.eqSaturation);
+        // MpvObject variables - only sync when dirty
+        bool mpvSync = SyncHelper::instance().variables.mpvNeedSync;
+        serializeObject(data, mpvSync);
+        if (mpvSync) {
+            serializeObject(data, SyncHelper::instance().variables.timeThresholdSetSkips);
+            serializeObject(data, SyncHelper::instance().variables.timeThresholdEnabled);
+            serializeObject(data, SyncHelper::instance().variables.timeThresholdOnLoopOnly);
+            serializeObject(data, SyncHelper::instance().variables.enableAudioOnNodes);
+            if (SyncHelper::instance().variables.enableAudioOnNodes) {
+                serializeObject(data, SyncHelper::instance().variables.loadAudioInVidFolder);
+                serializeObject(data, SyncHelper::instance().variables.audioId);
+                serializeObject(data, SyncHelper::instance().variables.volume);
+                serializeObject(data, SyncHelper::instance().variables.volumeMute);
+            }
+            serializeObject(data, SyncHelper::instance().variables.gridToMapOn);
+            serializeObject(data, SyncHelper::instance().variables.stereoscopicMode);
+            serializeObject(data, SyncHelper::instance().variables.eofMode);
+            serializeObject(data, SyncHelper::instance().variables.radius);
+            serializeObject(data, SyncHelper::instance().variables.fov);
+            serializeObject(data, SyncHelper::instance().variables.angle);
+            serializeObject(data, SyncHelper::instance().variables.rotateX);
+            serializeObject(data, SyncHelper::instance().variables.rotateY);
+            serializeObject(data, SyncHelper::instance().variables.rotateZ);
+            serializeObject(data, SyncHelper::instance().variables.translateX);
+            serializeObject(data, SyncHelper::instance().variables.translateY);
+            serializeObject(data, SyncHelper::instance().variables.translateZ);
+            serializeObject(data, SyncHelper::instance().variables.planeWidth);
+            serializeObject(data, SyncHelper::instance().variables.planeHeight);
+            serializeObject(data, SyncHelper::instance().variables.planeElevation);
+            serializeObject(data, SyncHelper::instance().variables.planeDistance);
+            serializeObject(data, SyncHelper::instance().variables.planeConsiderAspectRatio);
+
+            // Looptime
+            serializeObject(data, SyncHelper::instance().variables.loopTimeDirty);
+            if (SyncHelper::instance().variables.loopTimeDirty) {
+                serializeObject(data, SyncHelper::instance().variables.loopTimeEnabled);
+                serializeObject(data, SyncHelper::instance().variables.loopTimeA);
+                serializeObject(data, SyncHelper::instance().variables.loopTimeB);
+            }
+
+            // Speed
+            serializeObject(data, SyncHelper::instance().variables.speedDirty);
+            if (SyncHelper::instance().variables.speedDirty) {
+                serializeObject(data, SyncHelper::instance().variables.playbackSpeed);
+            }
+
+            // Eq
+            serializeObject(data, SyncHelper::instance().variables.eqDirty);
+            if (SyncHelper::instance().variables.eqDirty) {
+                serializeObject(data, SyncHelper::instance().variables.eqContrast);
+                serializeObject(data, SyncHelper::instance().variables.eqBrightness);
+                serializeObject(data, SyncHelper::instance().variables.eqGamma);
+                serializeObject(data, SyncHelper::instance().variables.eqSaturation);
+            }
+
+            // Reset flags every frame cycle
+            SyncHelper::instance().variables.mpvNeedSync = false;
+            SyncHelper::instance().variables.eqDirty = false;
+            SyncHelper::instance().variables.loopTimeDirty = false;
+            SyncHelper::instance().variables.speedDirty = false;
         }
 
-        // Looptime
-        serializeObject(data, SyncHelper::instance().variables.loopTimeDirty);
-        if (SyncHelper::instance().variables.loopTimeDirty) {
-            serializeObject(data, SyncHelper::instance().variables.loopTimeEnabled);
-            serializeObject(data, SyncHelper::instance().variables.loopTimeA);
-            serializeObject(data, SyncHelper::instance().variables.loopTimeB);
-        }
+        // PlayerController variables - only sync when dirty
+        bool pcSync = SyncHelper::instance().variables.playerControllerNeedSync;
+        serializeObject(data, pcSync);
+        if (pcSync) {
+            serializeObject(data, SyncHelper::instance().variables.gridToMapOnBg);
+            serializeObject(data, SyncHelper::instance().variables.gridToMapOnFg);
+            serializeObject(data, SyncHelper::instance().variables.stereoscopicModeBg);
+            serializeObject(data, SyncHelper::instance().variables.stereoscopicModeFg);
+            serializeObject(data, SyncHelper::instance().variables.viewMode);
+            serializeObject(data, SyncHelper::instance().variables.windowOnTop);
+            serializeObject(data, SyncHelper::instance().variables.windowOpacity);
+            
+            // Screenshot
+            serializeObject(data, SyncHelper::instance().variables.takeScreenshot);
+            if (SyncHelper::instance().variables.takeScreenshot) {
+                serializeObject(data, SyncHelper::instance().variables.screenshotPath);
+                serializeObject(data, SyncHelper::instance().variables.captureBackBuffer);
+                SyncHelper::instance().variables.takeScreenshot = false;
+            }
 
-        // Window features
-        serializeObject(data, SyncHelper::instance().variables.windowOnTop);
-        serializeObject(data, SyncHelper::instance().variables.windowOpacity);
-
-        // Screenshot
-        serializeObject(data, SyncHelper::instance().variables.takeScreenshot);
-        if (SyncHelper::instance().variables.takeScreenshot) {
-            serializeObject(data, SyncHelper::instance().variables.screenshotPath);
-            serializeObject(data, SyncHelper::instance().variables.captureBackBuffer);
-            SyncHelper::instance().variables.takeScreenshot = false;
-        }
-
-        // Speed
-        serializeObject(data, SyncHelper::instance().variables.speedDirty);
-        if (SyncHelper::instance().variables.speedDirty) {
-            serializeObject(data, SyncHelper::instance().variables.playbackSpeed);
+            SyncHelper::instance().variables.playerControllerNeedSync = false;
         }
 
         // As strings can be quiet long.
@@ -322,12 +334,6 @@ static std::vector<std::byte> encode() {
                 }
             }
         }
-
-        // Reset flags every frame cycle
-        SyncHelper::instance().variables.timeDirty = false;
-        SyncHelper::instance().variables.eqDirty = false;
-        SyncHelper::instance().variables.loopTimeDirty = false;
-        SyncHelper::instance().variables.speedDirty = false;
     }
 
     return data;
@@ -354,89 +360,103 @@ static void decode(const std::vector<std::byte> &data) {
     deserializeObject(data, pos, SyncHelper::instance().variables.alphaBg);
     deserializeObject(data, pos, SyncHelper::instance().variables.alphaFg);
     if (SyncHelper::instance().variables.syncOn) {
-        if (!safeToRead()) return;
-        deserializeObject(data, pos, SyncHelper::instance().variables.paused);
-        deserializeObject(data, pos, SyncHelper::instance().variables.enableAudioOnNodes);
-        if (SyncHelper::instance().variables.enableAudioOnNodes) {
-            if (!safeToRead()) return;
-            deserializeObject(data, pos, SyncHelper::instance().variables.loadAudioInVidFolder);
-            deserializeObject(data, pos, SyncHelper::instance().variables.audioId);
-            deserializeObject(data, pos, SyncHelper::instance().variables.volume);
-            deserializeObject(data, pos, SyncHelper::instance().variables.volumeMute);
-        }
-        if (!safeToRead()) return;
+        // Always synced time-related variables
         deserializeObject(data, pos, SyncHelper::instance().variables.timePosition);
-        deserializeObject(data, pos, SyncHelper::instance().variables.timeThreshold);
-        deserializeObject(data, pos, SyncHelper::instance().variables.timeThresholdSetSkips);
-        deserializeObject(data, pos, SyncHelper::instance().variables.timeThresholdEnabled);
-        deserializeObject(data, pos, SyncHelper::instance().variables.timeThresholdOnLoopOnly);
         deserializeObject(data, pos, SyncHelper::instance().variables.timeDirty);
-        deserializeObject(data, pos, SyncHelper::instance().variables.gridToMapOn);
-        deserializeObject(data, pos, SyncHelper::instance().variables.gridToMapOnBg);
-        deserializeObject(data, pos, SyncHelper::instance().variables.gridToMapOnFg);
-        deserializeObject(data, pos, SyncHelper::instance().variables.stereoscopicMode);
-        deserializeObject(data, pos, SyncHelper::instance().variables.stereoscopicModeBg);
-        deserializeObject(data, pos, SyncHelper::instance().variables.stereoscopicModeFg);
-        deserializeObject(data, pos, SyncHelper::instance().variables.eofMode);
-        deserializeObject(data, pos, SyncHelper::instance().variables.viewMode);
-        deserializeObject(data, pos, SyncHelper::instance().variables.radius);
-        deserializeObject(data, pos, SyncHelper::instance().variables.fov);
-        deserializeObject(data, pos, SyncHelper::instance().variables.angle);
-        deserializeObject(data, pos, SyncHelper::instance().variables.rotateX);
-        deserializeObject(data, pos, SyncHelper::instance().variables.rotateY);
-        deserializeObject(data, pos, SyncHelper::instance().variables.rotateZ);
-        deserializeObject(data, pos, SyncHelper::instance().variables.translateX);
-        deserializeObject(data, pos, SyncHelper::instance().variables.translateY);
-        deserializeObject(data, pos, SyncHelper::instance().variables.translateZ);
-        deserializeObject(data, pos, SyncHelper::instance().variables.planeWidth);
-        deserializeObject(data, pos, SyncHelper::instance().variables.planeHeight);
-        deserializeObject(data, pos, SyncHelper::instance().variables.planeElevation);
-        deserializeObject(data, pos, SyncHelper::instance().variables.planeDistance);
-        deserializeObject(data, pos, SyncHelper::instance().variables.planeConsiderAspectRatio);
+        deserializeObject(data, pos, SyncHelper::instance().variables.timeThreshold);
+        deserializeObject(data, pos, SyncHelper::instance().variables.paused);
 
-        // Eq
-        if (!safeToRead()) return;
-        deserializeObject(data, pos, SyncHelper::instance().variables.eqDirty);
-        if (SyncHelper::instance().variables.eqDirty) {
+        // MpvObject variables - conditionally synced
+        bool mpvSync = false;
+        deserializeObject(data, pos, mpvSync);
+        if (mpvSync) {
             if (!safeToRead()) return;
-            deserializeObject(data, pos, SyncHelper::instance().variables.eqContrast);
-            deserializeObject(data, pos, SyncHelper::instance().variables.eqBrightness);
-            deserializeObject(data, pos, SyncHelper::instance().variables.eqGamma);
-            deserializeObject(data, pos, SyncHelper::instance().variables.eqSaturation);
+            deserializeObject(data, pos, SyncHelper::instance().variables.timeThresholdSetSkips);
+            deserializeObject(data, pos, SyncHelper::instance().variables.timeThresholdEnabled);
+            deserializeObject(data, pos, SyncHelper::instance().variables.timeThresholdOnLoopOnly);
+            deserializeObject(data, pos, SyncHelper::instance().variables.enableAudioOnNodes);
+
+            if (SyncHelper::instance().variables.enableAudioOnNodes) {
+                if (!safeToRead()) return;
+                deserializeObject(data, pos, SyncHelper::instance().variables.loadAudioInVidFolder);
+                deserializeObject(data, pos, SyncHelper::instance().variables.audioId);
+                deserializeObject(data, pos, SyncHelper::instance().variables.volume);
+                deserializeObject(data, pos, SyncHelper::instance().variables.volumeMute);
+            }
+
+            if (!safeToRead()) return;
+            deserializeObject(data, pos, SyncHelper::instance().variables.gridToMapOn);
+            deserializeObject(data, pos, SyncHelper::instance().variables.stereoscopicMode);
+            deserializeObject(data, pos, SyncHelper::instance().variables.eofMode);
+            deserializeObject(data, pos, SyncHelper::instance().variables.radius);
+            deserializeObject(data, pos, SyncHelper::instance().variables.fov);
+            deserializeObject(data, pos, SyncHelper::instance().variables.angle);
+            deserializeObject(data, pos, SyncHelper::instance().variables.rotateX);
+            deserializeObject(data, pos, SyncHelper::instance().variables.rotateY);
+            deserializeObject(data, pos, SyncHelper::instance().variables.rotateZ);
+            deserializeObject(data, pos, SyncHelper::instance().variables.translateX);
+            deserializeObject(data, pos, SyncHelper::instance().variables.translateY);
+            deserializeObject(data, pos, SyncHelper::instance().variables.translateZ);
+            deserializeObject(data, pos, SyncHelper::instance().variables.planeWidth);
+            deserializeObject(data, pos, SyncHelper::instance().variables.planeHeight);
+            deserializeObject(data, pos, SyncHelper::instance().variables.planeElevation);
+            deserializeObject(data, pos, SyncHelper::instance().variables.planeDistance);
+            deserializeObject(data, pos, SyncHelper::instance().variables.planeConsiderAspectRatio);
+
+            // Looptime
+            if (!safeToRead()) return;
+            deserializeObject(data, pos, SyncHelper::instance().variables.loopTimeDirty);
+            if (SyncHelper::instance().variables.loopTimeDirty) {
+                if (!safeToRead()) return;
+                deserializeObject(data, pos, SyncHelper::instance().variables.loopTimeEnabled);
+                deserializeObject(data, pos, SyncHelper::instance().variables.loopTimeA);
+                deserializeObject(data, pos, SyncHelper::instance().variables.loopTimeB);
+            }
+
+            // Speed
+            if (!safeToRead()) return;
+            deserializeObject(data, pos, SyncHelper::instance().variables.speedDirty);
+            if (SyncHelper::instance().variables.speedDirty) {
+                if (!safeToRead()) return;
+                deserializeObject(data, pos, SyncHelper::instance().variables.playbackSpeed);
+            }
+
+            // Eq
+            if (!safeToRead()) return;
+            deserializeObject(data, pos, SyncHelper::instance().variables.eqDirty);
+            if (SyncHelper::instance().variables.eqDirty) {
+                if (!safeToRead()) return;
+                deserializeObject(data, pos, SyncHelper::instance().variables.eqContrast);
+                deserializeObject(data, pos, SyncHelper::instance().variables.eqBrightness);
+                deserializeObject(data, pos, SyncHelper::instance().variables.eqGamma);
+                deserializeObject(data, pos, SyncHelper::instance().variables.eqSaturation);
+            }
         }
 
-        // Looptime
+        // PlayerController variables - conditionally synced
         if (!safeToRead()) return;
-        deserializeObject(data, pos, SyncHelper::instance().variables.loopTimeDirty);
-        if (SyncHelper::instance().variables.loopTimeDirty) {
+        bool pcSync = false;
+        deserializeObject(data, pos, pcSync);
+        if (pcSync) {
             if (!safeToRead()) return;
-            deserializeObject(data, pos, SyncHelper::instance().variables.loopTimeEnabled);
-            deserializeObject(data, pos, SyncHelper::instance().variables.loopTimeA);
-            deserializeObject(data, pos, SyncHelper::instance().variables.loopTimeB);
-        }
+            deserializeObject(data, pos, SyncHelper::instance().variables.gridToMapOnBg);
+            deserializeObject(data, pos, SyncHelper::instance().variables.gridToMapOnFg);
+            deserializeObject(data, pos, SyncHelper::instance().variables.stereoscopicModeBg);
+            deserializeObject(data, pos, SyncHelper::instance().variables.stereoscopicModeFg);
+            deserializeObject(data, pos, SyncHelper::instance().variables.viewMode);
+            deserializeObject(data, pos, SyncHelper::instance().variables.windowOnTop);
+            deserializeObject(data, pos, SyncHelper::instance().variables.windowOpacity);
 
-        // Window features
-        if (!safeToRead()) return;
-        deserializeObject(data, pos, SyncHelper::instance().variables.windowOnTop);
-        deserializeObject(data, pos, SyncHelper::instance().variables.windowOpacity);
-
-        // Screenshot
-        if (!safeToRead()) return;
-        bool screenshotIsRequested = false;
-        deserializeObject(data, pos, screenshotIsRequested);
-        SyncHelper::instance().variables.takeScreenshot = screenshotIsRequested;
-        if (screenshotIsRequested) {
+            // Screenshot
             if (!safeToRead()) return;
-            deserializeObject(data, pos, SyncHelper::instance().variables.screenshotPath);
-            deserializeObject(data, pos, SyncHelper::instance().variables.captureBackBuffer);
-        }
-
-        // Speed
-        if (!safeToRead()) return;
-        deserializeObject(data, pos, SyncHelper::instance().variables.speedDirty);
-        if (SyncHelper::instance().variables.speedDirty) {
-            if (!safeToRead()) return;
-            deserializeObject(data, pos, SyncHelper::instance().variables.playbackSpeed);
+            bool screenshotIsRequested = false;
+            deserializeObject(data, pos, screenshotIsRequested);
+            SyncHelper::instance().variables.takeScreenshot = screenshotIsRequested;
+            if (screenshotIsRequested) {
+                if (!safeToRead()) return;
+                deserializeObject(data, pos, SyncHelper::instance().variables.screenshotPath);
+                deserializeObject(data, pos, SyncHelper::instance().variables.captureBackBuffer);
+            }
         }
 
         // Strings
