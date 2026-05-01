@@ -10,6 +10,7 @@
                           http://www.kde.org/standards/kcfg/1.0/kcfg.xsd" >
   <kcfgfile name="C-Play/cplay.conf" />
   <include>QStandardPaths</include>
+  <include>QDir</include>
   <group name="Location">
     <entry name="RecentLoadedMediaFiles" type="StringList">
       <label>Recently loaded media files</label>
@@ -85,8 +86,8 @@
     <entry name="ScreenshotPath" type="String">
       <label>Screenshot path</label>
       <code>
-        QString screenshotsFolder = QStandardPaths::writableLocation(QStandardPaths::PicturesLocation);
-        screenshotsFolder.append(QStringLiteral("/C-play-screenshots"));
+        QString screenshotsFolder = QDir::currentPath();
+        screenshotsFolder.append(QStringLiteral("/data/images"));
       </code>
       <default code="true">screenshotsFolder</default>
     </entry>
