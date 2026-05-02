@@ -36,6 +36,11 @@ public:
     // internalFormat must match the source texture's internal format (e.g. GL_RGBA8, GL_RGBA16F).
     bool captureFromTexture(GLuint srcTexId, int width, int height, GLenum internalFormat = GL_RGBA8);
 
+    // Point to an external texture without copying. The TextureLayer does NOT own
+    // the texture and will not delete it. Call releaseTexture() or pointToTexture(0,...)
+    // to stop referencing the external texture.
+    void pointToTexture(GLuint texId, int width, int height);
+
     // Capture a snapshot from raw RGBA/BGRA pixel data.
     bool captureFromPixels(const unsigned char* pixelData, int width, int height, int GLformat);
 
@@ -68,6 +73,7 @@ private:
 
     bool m_frozen = false;
     bool m_hasTexture = false;
+    bool m_pointingToExternal = false;
     GLenum m_internalFormat = 0;
 
     // Fade state

@@ -145,6 +145,14 @@ public:
     virtual bool isQRCodeDetectionEnabled() const;
     virtual void setQRCodeDetectionEnabled(bool enabled);
 
+    // Texture division mode: 0=None, 1=ImPres(QR), 2=Division
+    virtual int textureDivisionMode() const;
+    virtual void setTextureDivisionMode(int mode);
+
+    // Texture division grid index: 0=1x1, 1=1x2, 2=2x1, 3=2x2, 4=2x3, 5=3x2, 6=3x3
+    virtual int textureDivisionGrid() const;
+    virtual void setTextureDivisionGrid(int grid);
+    
     virtual void encodeTypeCore(std::vector<std::byte>& data);
     virtual void decodeTypeCore(const std::vector<std::byte>& data, unsigned int& pos);
 

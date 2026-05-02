@@ -27,6 +27,12 @@ public:
     bool isQRCodeDetectionEnabled() const override;
     void setQRCodeDetectionEnabled(bool enabled) override;
 
+    int textureDivisionMode() const override;
+    void setTextureDivisionMode(int mode) override;
+
+    int textureDivisionGrid() const override;
+    void setTextureDivisionGrid(int grid) override;
+
     // Load QR operation plane configuration from a JSON file.
     bool loadQROperationConfig(const std::string& filePath);
 
@@ -51,6 +57,11 @@ private:
 
     // QR operation handler (sublayers, config, SetActive/Clear/Freeze)
     QROperationHandler* m_qrOpHandler = nullptr;
+
+    // Texture division handler (alternative to QR operation)
+    class DivideTextureHandler* m_divideTexHandler = nullptr;
+    int m_textureDivisionMode = 0;  // 0=None, 1=ImPres(QR), 2=Division
+    int m_textureDivisionGrid = 0;  // grid index
 
     bool m_qrCodeDetectionEnabled_Dec = false;
     bool m_typePropertiesDecoded = false;

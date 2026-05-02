@@ -222,6 +222,12 @@ QString LayersModel::layerTitle(int i) const {
     return QString();
 }
 
+int LayersModel::layerVisibility(int i) const {
+    if (i >= 0 && m_layers.size() > i)
+        return static_cast<int>(m_layers[i].first->alpha() * 100.f);
+    return 0;
+}
+
 int LayersModel::layerIdx(std::string title) {
     // Returning first with correct name
     QString titleLowCase = QString::fromStdString(title).toLower();
@@ -987,6 +993,67 @@ void LayersModel::decodeFromJSON(QJsonObject &obj, const QStringList &forRelativ
                         m_layers[idx].first->setQRCodeDetectionEnabled(qrEnabled);
                     }
 
+                    if (o.contains(QStringLiteral("textureDivisionMode"))) {
+                        int divMode = o.value(QStringLiteral("textureDivisionMode")).toInt();
+                        m_layers[idx].first->setTextureDivisionMode(divMode);
+                    }
+
+                    if (o.contains(QStringLiteral("textureDivisionGrid"))) {
+                        int divGrid = o.value(QStringLiteral("textureDivisionGrid")).toInt();
+                        m_layers[idx].first->setTextureDivisionGrid(divGrid);
+                    }
+
+                    // Restore sublayer properties for division mode
+                    if (o.contains(QStringLiteral("divisionSubLayers")) && m_layers[idx].first->textureDivisionMode() == 2) {
+                        if (m_layers[idx].first->hasSubLayers()) {
+                            QJsonArray subArray = o.value(QStringLiteral("divisionSubLayers")).toArray();
+                            auto& subs = m_layers[idx].first->getSubLayers();
+                            for (int si = 0; si < subArray.size() && si < static_cast<int>(subs.size()); ++si) {
+                                QJsonObject subObj = subArray[si].toObject();
+                                auto& sub = subs[si];
+                                if (!sub) continue;
+                                if (subObj.contains(QStringLiteral("visibility")))
+                                    sub->setAlpha(static_cast<float>(subObj.value(QStringLiteral("visibility")).toInt()) * 0.01f);
+                                if (subObj.contains(QStringLiteral("grid")))
+                                    sub->setGridMode(static_cast<uint8_t>(subObj.value(QStringLiteral("grid")).toInt()));
+                                if (subObj.contains(QStringLiteral("stereo")))
+                                    sub->setStereoMode(static_cast<uint8_t>(subObj.value(QStringLiteral("stereo")).toInt()));
+                                if (subObj.contains(QStringLiteral("plane"))) {
+                                    QJsonObject po = subObj.value(QStringLiteral("plane")).toObject();
+                                    if (po.contains(QStringLiteral("aspectRatio")))
+                                        sub->setPlaneAspectRatio(static_cast<uint8_t>(po.value(QStringLiteral("aspectRatio")).toInt()));
+                                    if (po.contains(QStringLiteral("width")))
+                                        sub->setPlaneWidth(po.value(QStringLiteral("width")).toDouble());
+                                    if (po.contains(QStringLiteral("height")))
+                                        sub->setPlaneHeight(po.value(QStringLiteral("height")).toDouble());
+                                    if (po.contains(QStringLiteral("elevation")))
+                                        sub->setPlaneElevation(po.value(QStringLiteral("elevation")).toDouble());
+                                    if (po.contains(QStringLiteral("azimuth")))
+                                        sub->setPlaneAzimuth(po.value(QStringLiteral("azimuth")).toDouble());
+                                    if (po.contains(QStringLiteral("roll")))
+                                        sub->setPlaneRoll(po.value(QStringLiteral("roll")).toDouble());
+                                    if (po.contains(QStringLiteral("distance")))
+                                        sub->setPlaneDistance(po.value(QStringLiteral("distance")).toDouble());
+                                    if (po.contains(QStringLiteral("horizontal")))
+                                        sub->setPlaneHorizontal(po.value(QStringLiteral("horizontal")).toDouble());
+                                    if (po.contains(QStringLiteral("vertical")))
+                                        sub->setPlaneVertical(po.value(QStringLiteral("vertical")).toDouble());
+                                }
+                                if (subObj.contains(QStringLiteral("rotate"))) {
+                                    QJsonObject ro = subObj.value(QStringLiteral("rotate")).toObject();
+                                    glm::vec3 rot(0.f);
+                                    if (ro.contains(QStringLiteral("pitch")))
+                                        rot.x = static_cast<float>(ro.value(QStringLiteral("pitch")).toDouble());
+                                    if (ro.contains(QStringLiteral("yaw")))
+                                        rot.y = static_cast<float>(ro.value(QStringLiteral("yaw")).toDouble());
+                                    if (ro.contains(QStringLiteral("roll")))
+                                        rot.z = static_cast<float>(ro.value(QStringLiteral("roll")).toDouble());
+                                    sub->setRotate(rot);
+                                }
+                            }
+                        }
+                    }
+
                     if ((type == BaseLayer::VIDEO || type == BaseLayer::AUDIO)) {
                         MpvLayer* mpvLayer = static_cast<MpvLayer*>(m_layers[idx].first.get());
                         if (o.contains(QStringLiteral("end_of_file"))) {
@@ -1254,11 +1321,91 @@ void LayersModel::encodeToJSON(QJsonObject &obj, const QStringList &forRelativeP
             if (layer->isQRCodeDetectionEnabled()) {
                 layerData.insert(QStringLiteral("qrCodeDetection"), QJsonValue(true));
             }
+            if (layer->textureDivisionMode() != 0) {
+                layerData.insert(QStringLiteral("textureDivisionMode"), QJsonValue(layer->textureDivisionMode()));
+            }
+            if (layer->textureDivisionGrid() != 0) {
+                layerData.insert(QStringLiteral("textureDivisionGrid"), QJsonValue(layer->textureDivisionGrid()));
+            }
+            if (layer->textureDivisionMode() == 2 && layer->hasSubLayers()) {
+                QJsonArray subLayersArray;
+                auto& subs = layer->getSubLayers();
+                for (int si = 0; si < static_cast<int>(subs.size()); ++si) {
+                    auto& sub = subs[si];
+                    if (!sub) continue;
+                    QJsonObject subData;
+                    subData.insert(QStringLiteral("title"), QJsonValue(QString::fromStdString(sub->title())));
+                    subData.insert(QStringLiteral("visibility"), QJsonValue(static_cast<int>(sub->alpha() * 100.f)));
+                    subData.insert(QStringLiteral("grid"), QJsonValue(static_cast<int>(sub->gridMode())));
+                    subData.insert(QStringLiteral("stereo"), QJsonValue(static_cast<int>(sub->stereoMode())));
+                    if (sub->gridMode() == BaseLayer::GridMode::Plane) {
+                        QJsonObject planeObj;
+                        planeObj.insert(QStringLiteral("aspectRatio"), QJsonValue(sub->planeAspectRatio()));
+                        planeObj.insert(QStringLiteral("width"), QJsonValue(sub->planeWidth()));
+                        planeObj.insert(QStringLiteral("height"), QJsonValue(sub->planeHeight()));
+                        planeObj.insert(QStringLiteral("elevation"), QJsonValue(sub->planeElevation()));
+                        planeObj.insert(QStringLiteral("azimuth"), QJsonValue(sub->planeAzimuth()));
+                        planeObj.insert(QStringLiteral("roll"), QJsonValue(sub->planeRoll()));
+                        planeObj.insert(QStringLiteral("distance"), QJsonValue(sub->planeDistance()));
+                        planeObj.insert(QStringLiteral("horizontal"), QJsonValue(sub->planeHorizontal()));
+                        planeObj.insert(QStringLiteral("vertical"), QJsonValue(sub->planeVertical()));
+                        subData.insert(QStringLiteral("plane"), planeObj);
+                    } else {
+                        QJsonObject rotObj;
+                        rotObj.insert(QStringLiteral("pitch"), QJsonValue(static_cast<double>(sub->rotate().x)));
+                        rotObj.insert(QStringLiteral("yaw"), QJsonValue(static_cast<double>(sub->rotate().y)));
+                        rotObj.insert(QStringLiteral("roll"), QJsonValue(static_cast<double>(sub->rotate().z)));
+                        subData.insert(QStringLiteral("rotate"), rotObj);
+                    }
+                    subLayersArray.push_back(subData);
+                }
+                layerData.insert(QStringLiteral("divisionSubLayers"), subLayersArray);
+            }
         }
 #endif
         if (layer->type() == BaseLayer::STREAM) {
             if (layer->isQRCodeDetectionEnabled()) {
                 layerData.insert(QStringLiteral("qrCodeDetection"), QJsonValue(true));
+            }
+            if (layer->textureDivisionMode() != 0) {
+                layerData.insert(QStringLiteral("textureDivisionMode"), QJsonValue(layer->textureDivisionMode()));
+            }
+            if (layer->textureDivisionGrid() != 0) {
+                layerData.insert(QStringLiteral("textureDivisionGrid"), QJsonValue(layer->textureDivisionGrid()));
+            }
+            if (layer->textureDivisionMode() == 2 && layer->hasSubLayers()) {
+                QJsonArray subLayersArray;
+                auto& subs = layer->getSubLayers();
+                for (int si = 0; si < static_cast<int>(subs.size()); ++si) {
+                    auto& sub = subs[si];
+                    if (!sub) continue;
+                    QJsonObject subData;
+                    subData.insert(QStringLiteral("title"), QJsonValue(QString::fromStdString(sub->title())));
+                    subData.insert(QStringLiteral("visibility"), QJsonValue(static_cast<int>(sub->alpha() * 100.f)));
+                    subData.insert(QStringLiteral("grid"), QJsonValue(static_cast<int>(sub->gridMode())));
+                    subData.insert(QStringLiteral("stereo"), QJsonValue(static_cast<int>(sub->stereoMode())));
+                    if (sub->gridMode() == BaseLayer::GridMode::Plane) {
+                        QJsonObject planeObj;
+                        planeObj.insert(QStringLiteral("aspectRatio"), QJsonValue(sub->planeAspectRatio()));
+                        planeObj.insert(QStringLiteral("width"), QJsonValue(sub->planeWidth()));
+                        planeObj.insert(QStringLiteral("height"), QJsonValue(sub->planeHeight()));
+                        planeObj.insert(QStringLiteral("elevation"), QJsonValue(sub->planeElevation()));
+                        planeObj.insert(QStringLiteral("azimuth"), QJsonValue(sub->planeAzimuth()));
+                        planeObj.insert(QStringLiteral("roll"), QJsonValue(sub->planeRoll()));
+                        planeObj.insert(QStringLiteral("distance"), QJsonValue(sub->planeDistance()));
+                        planeObj.insert(QStringLiteral("horizontal"), QJsonValue(sub->planeHorizontal()));
+                        planeObj.insert(QStringLiteral("vertical"), QJsonValue(sub->planeVertical()));
+                        subData.insert(QStringLiteral("plane"), planeObj);
+                    } else {
+                        QJsonObject rotObj;
+                        rotObj.insert(QStringLiteral("pitch"), QJsonValue(static_cast<double>(sub->rotate().x)));
+                        rotObj.insert(QStringLiteral("yaw"), QJsonValue(static_cast<double>(sub->rotate().y)));
+                        rotObj.insert(QStringLiteral("roll"), QJsonValue(static_cast<double>(sub->rotate().z)));
+                        subData.insert(QStringLiteral("rotate"), rotObj);
+                    }
+                    subLayersArray.push_back(subData);
+                }
+                layerData.insert(QStringLiteral("divisionSubLayers"), subLayersArray);
             }
         }
         if (layer->type() == BaseLayer::CONTROL) {

@@ -347,6 +347,22 @@ void BaseLayer::setQRCodeDetectionEnabled(bool) {
     // Overwrite in derived class
 }
 
+int BaseLayer::textureDivisionMode() const {
+    return 0;
+}
+
+void BaseLayer::setTextureDivisionMode(int) {
+    // Overwrite in derived class
+}
+
+int BaseLayer::textureDivisionGrid() const {
+    return 0;
+}
+
+void BaseLayer::setTextureDivisionGrid(int) {
+    // Overwrite in derived class
+}
+
 void BaseLayer::encodeTypeCore(std::vector<std::byte>&) {
     // Overwrite in derived class
 }
@@ -523,7 +539,16 @@ void BaseLayer::setEnabled(bool enabled) {
 }
 
 bool BaseLayer::needSync() const {
-    return m_needSync;
+    if (m_needSync)
+        return true;
+    // Check if any sublayer needs sync (division mode)
+    if (hasSubLayers()) {
+        for (const auto& sublayer : getSubLayers()) {
+            if (sublayer && sublayer->needSync())
+                return true;
+        }
+    }
+    return false;
 }
 
 void BaseLayer::setHasSynced() {
@@ -532,6 +557,13 @@ void BaseLayer::setHasSynced() {
     }
     else {
         m_needSync = false;
+    }
+    // Also mark sublayers as synced
+    if (hasSubLayers()) {
+        for (const auto& sublayer : getSubLayers()) {
+            if (sublayer)
+                sublayer->setHasSynced();
+        }
     }
 }
 

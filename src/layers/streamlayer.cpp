@@ -9,6 +9,7 @@
 #include <utils/qrcommandprocessor.h>
 #include <utils/qroperationhandler.h>
 #include <utils/qroperationconfig.h>
+#include <utils/dividetexturehandler.h>
 #include <sgct/opengl.h>
 #include <sgct/sgct.h>
 
@@ -31,6 +32,7 @@ StreamLayer::StreamLayer(gl_adress_func_v1 opa,
 StreamLayer::~StreamLayer() {
     delete m_qrProcessor;
     delete m_qrOpHandler;
+    delete m_divideTexHandler;
 
     if (m_readbackBuffer) {
         free(m_readbackBuffer);
@@ -90,20 +92,178 @@ void StreamLayer::updateFrame() {
             m_qrOpHandler->updateActiveSubLayer(this, renderData.texId, renderData.width, renderData.height);
         }
     }
+
+    // Update divide texture sublayers if division mode is active
+    if (m_textureDivisionMode == 2 && m_divideTexHandler && m_divideTexHandler->isActive()
+        && renderData.texId > 0 && renderData.width > 0 && renderData.height > 0) {
+        m_divideTexHandler->updateSubLayers(this, renderData.texId, renderData.width, renderData.height);
+    }
 }
 
 bool StreamLayer::ready() const {
     return !m_data.loadedFile.empty();
 }
 
+static void streamGridIndexToColsRows(int grid, int& cols, int& rows) {
+    switch (grid) {
+    case 1: cols = 1; rows = 2; break;
+    case 2: cols = 2; rows = 1; break;
+    case 3: cols = 2; rows = 2; break;
+    case 4: cols = 2; rows = 3; break;
+    case 5: cols = 3; rows = 2; break;
+    case 6: cols = 3; rows = 3; break;
+    default: cols = 1; rows = 1; break;
+    }
+}
+
 void StreamLayer::encodeTypeProperties(std::vector<std::byte>& data) {
     MpvLayer::encodeTypeProperties(data);
     sgct::serializeObject(data, isQRCodeDetectionEnabled());
+    sgct::serializeObject(data, m_textureDivisionMode);
+    sgct::serializeObject(data, m_textureDivisionGrid);
+
+    // Serialize sublayer properties for division mode
+    if (m_textureDivisionMode == 2 && m_divideTexHandler) {
+        int numSubs = m_divideTexHandler->cellCount();
+        sgct::serializeObject(data, numSubs);
+        // Sublayers may not exist yet (lazy creation), but we still encode
+        // the ones that do exist with their user-modified properties.
+        bool hasSubs = m_divideTexHandler->hasSubLayers();
+        sgct::serializeObject(data, hasSubs);
+        if (hasSubs) {
+            auto& subs = m_divideTexHandler->subLayers();
+            int actualCount = static_cast<int>(subs.size());
+            sgct::serializeObject(data, actualCount);
+            for (int i = 0; i < actualCount; ++i) {
+                auto& sub = subs[i];
+                if (sub) {
+                    sub->encodeBaseAlways(data);
+                    sub->encodeBaseProperties(data);
+                }
+            }
+        }
+    }
 }
 
 void StreamLayer::decodeTypeProperties(const std::vector<std::byte>& data, unsigned int& pos) {
     MpvLayer::decodeTypeProperties(data, pos);
     sgct::deserializeObject(data, pos, m_qrCodeDetectionEnabled_Dec);
+
+    int divMode = 0;
+    sgct::deserializeObject(data, pos, divMode);
+    int divGrid = 0;
+    sgct::deserializeObject(data, pos, divGrid);
+
+    m_textureDivisionMode = divMode;
+    m_textureDivisionGrid = divGrid;
+
+    // Deserialize sublayer properties for division mode
+    if (m_textureDivisionMode == 2) {
+        int numSubs = 0;
+        sgct::deserializeObject(data, pos, numSubs);
+        bool hasSubs = false;
+        sgct::deserializeObject(data, pos, hasSubs);
+        if (hasSubs) {
+            int actualCount = 0;
+            sgct::deserializeObject(data, pos, actualCount);
+
+            // Ensure DivideTextureHandler exists and has proper division set
+            if (!m_divideTexHandler) {
+                m_divideTexHandler = new DivideTextureHandler();
+            }
+            int cols = 1, rows = 1;
+            streamGridIndexToColsRows(m_textureDivisionGrid, cols, rows);
+            m_divideTexHandler->setDivision(cols, rows, this);
+
+            // If sublayers exist, decode into them; otherwise just advance pos
+            if (m_divideTexHandler->hasSubLayers()) {
+                auto& subs = m_divideTexHandler->subLayers();
+                for (int i = 0; i < actualCount; ++i) {
+                    if (i < static_cast<int>(subs.size()) && subs[i]) {
+                        subs[i]->decodeBaseAlways(data, pos);
+                        subs[i]->decodeBaseProperties(data, pos);
+                    } else {
+                        // Skip data for this sublayer
+                        BaseLayer::RenderParams tmpRender;
+                        BaseLayer::PlaneParams tmpPlane;
+                        // decodeBaseAlways: shouldUpdate, shouldPreLoad, alpha
+                        bool tmpBool; float tmpFloat;
+                        sgct::deserializeObject(data, pos, tmpBool);
+                        sgct::deserializeObject(data, pos, tmpBool);
+                        sgct::deserializeObject(data, pos, tmpFloat);
+                        // decodeBaseProperties: gridMode, stereoMode, roiEnabled, [roi], [plane or rotate]
+                        uint8_t gm, sm;
+                        sgct::deserializeObject(data, pos, gm);
+                        sgct::deserializeObject(data, pos, sm);
+                        bool roiEn;
+                        sgct::deserializeObject(data, pos, roiEn);
+                        if (roiEn) {
+                            float rx, ry, rz, rw;
+                            sgct::deserializeObject(data, pos, rx);
+                            sgct::deserializeObject(data, pos, ry);
+                            sgct::deserializeObject(data, pos, rz);
+                            sgct::deserializeObject(data, pos, rw);
+                        }
+                        if (gm == BaseLayer::GridMode::Plane) {
+                            double d; float f; uint8_t u;
+                            sgct::deserializeObject(data, pos, d); // azimuth
+                            sgct::deserializeObject(data, pos, d); // elevation
+                            sgct::deserializeObject(data, pos, d); // roll
+                            sgct::deserializeObject(data, pos, d); // distance
+                            sgct::deserializeObject(data, pos, d); // horizontal
+                            sgct::deserializeObject(data, pos, d); // vertical
+                            sgct::deserializeObject(data, pos, f); // specifiedSize.x
+                            sgct::deserializeObject(data, pos, f); // specifiedSize.y
+                            sgct::deserializeObject(data, pos, u); // aspectRatio
+                        } else {
+                            float rx, ry, rz;
+                            sgct::deserializeObject(data, pos, rx);
+                            sgct::deserializeObject(data, pos, ry);
+                            sgct::deserializeObject(data, pos, rz);
+                        }
+                    }
+                }
+            } else {
+                // Sublayers don't exist yet on this node, skip their data
+                for (int i = 0; i < actualCount; ++i) {
+                    bool tmpBool; float tmpFloat;
+                    sgct::deserializeObject(data, pos, tmpBool);
+                    sgct::deserializeObject(data, pos, tmpBool);
+                    sgct::deserializeObject(data, pos, tmpFloat);
+                    uint8_t gm, sm;
+                    sgct::deserializeObject(data, pos, gm);
+                    sgct::deserializeObject(data, pos, sm);
+                    bool roiEn;
+                    sgct::deserializeObject(data, pos, roiEn);
+                    if (roiEn) {
+                        float rx, ry, rz, rw;
+                        sgct::deserializeObject(data, pos, rx);
+                        sgct::deserializeObject(data, pos, ry);
+                        sgct::deserializeObject(data, pos, rz);
+                        sgct::deserializeObject(data, pos, rw);
+                    }
+                    if (gm == BaseLayer::GridMode::Plane) {
+                        double d; float f; uint8_t u;
+                        sgct::deserializeObject(data, pos, d);
+                        sgct::deserializeObject(data, pos, d);
+                        sgct::deserializeObject(data, pos, d);
+                        sgct::deserializeObject(data, pos, d);
+                        sgct::deserializeObject(data, pos, d);
+                        sgct::deserializeObject(data, pos, d);
+                        sgct::deserializeObject(data, pos, f);
+                        sgct::deserializeObject(data, pos, f);
+                        sgct::deserializeObject(data, pos, u);
+                    } else {
+                        float rx, ry, rz;
+                        sgct::deserializeObject(data, pos, rx);
+                        sgct::deserializeObject(data, pos, ry);
+                        sgct::deserializeObject(data, pos, rz);
+                    }
+                }
+            }
+        }
+    }
+
     m_typePropertiesDecoded = true;
 }
 
@@ -126,25 +286,64 @@ void StreamLayer::setQRCodeDetectionEnabled(bool enabled) {
         setNeedSync();
 }
 
-bool StreamLayer::loadQROperationConfig(const std::string& filePath) {
-    if (m_qrOpHandler) {
-        return m_qrOpHandler->loadConfig(filePath);
-    }
-    return false;
+int StreamLayer::textureDivisionMode() const {
+    return m_textureDivisionMode;
 }
 
-const QROperationConfig* StreamLayer::qrOperationConfig() const {
-    if (m_qrOpHandler) {
-        return m_qrOpHandler->config();
+void StreamLayer::setTextureDivisionMode(int mode) {
+    if (m_textureDivisionMode == mode)
+        return;
+
+    m_textureDivisionMode = mode;
+
+    if (mode == 1) {
+        // ImPres/QR mode
+        setQRCodeDetectionEnabled(true);
+        if (m_divideTexHandler) {
+            m_divideTexHandler->clearAll();
+        }
+    } else if (mode == 2) {
+        // Division mode
+        setQRCodeDetectionEnabled(false);
+        if (!m_divideTexHandler) {
+            m_divideTexHandler = new DivideTextureHandler();
+        }
+        int cols = 1, rows = 1;
+        streamGridIndexToColsRows(m_textureDivisionGrid, cols, rows);
+        m_divideTexHandler->setDivision(cols, rows, this);
+    } else {
+        // None
+        setQRCodeDetectionEnabled(false);
+        if (m_divideTexHandler) {
+            m_divideTexHandler->clearAll();
+        }
     }
-    return nullptr;
+
+    if (isMaster())
+        setNeedSync();
 }
 
-std::string StreamLayer::activePlaneName() const {
-    if (m_qrOpHandler) {
-        return m_qrOpHandler->activePlaneName();
+int StreamLayer::textureDivisionGrid() const {
+    return m_textureDivisionGrid;
+}
+
+void StreamLayer::setTextureDivisionGrid(int grid) {
+    if (m_textureDivisionGrid == grid)
+        return;
+
+    m_textureDivisionGrid = grid;
+
+    if (m_textureDivisionMode == 2) {
+        if (!m_divideTexHandler) {
+            m_divideTexHandler = new DivideTextureHandler();
+        }
+        int cols = 1, rows = 1;
+        streamGridIndexToColsRows(grid, cols, rows);
+        m_divideTexHandler->setDivision(cols, rows, this);
     }
-    return std::string();
+
+    if (isMaster())
+        setNeedSync();
 }
 
 bool StreamLayer::FindCodes(unsigned int texId, unsigned int width, unsigned int height) {
@@ -220,10 +419,14 @@ void StreamLayer::onQRCommand(const QRCommand& command) {
 }
 
 bool StreamLayer::hasSubLayers() const {
+    if (m_textureDivisionMode == 2 && m_divideTexHandler)
+        return m_divideTexHandler->hasSubLayers();
     return m_qrOpHandler ? m_qrOpHandler->hasSubLayers() : false;
 }
 
 std::vector<std::shared_ptr<BaseLayer>>& StreamLayer::getSubLayers() const {
+    if (m_textureDivisionMode == 2 && m_divideTexHandler && m_divideTexHandler->hasSubLayers())
+        return m_divideTexHandler->subLayers();
     if (m_qrOpHandler) {
         return m_qrOpHandler->subLayers();
     }

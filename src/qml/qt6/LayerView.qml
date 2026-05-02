@@ -188,6 +188,7 @@ Kirigami.ApplicationWindow {
                 }
                 else if (layerViewItem.layerTypeName === "OMT") {
                     createAudioComponents();
+                    createQRCodeComponents();
                     createFlipYComponents();
                 }
                 else if (layerViewItem.layerTypeName === "Spout") {
@@ -453,6 +454,35 @@ Kirigami.ApplicationWindow {
             visible: layerViewItem.layerIdx !== -1
 
             onClicked: {}
+        }
+        // Sublayer ROI highlight rectangle
+        Rectangle {
+            id: subLayerRoiHighlight
+            visible: layerViewItem.layerSelectedSubLayer > 0
+                     && layerViewItem.layerTextureDivisionMode !== 0
+                     && layerViewItem.viewSize.width > 0
+                     && layerViewItem.viewSize.height > 0
+
+            color: "#30FFD700"
+            border.color: "#CCFFD700"
+            border.width: 2
+
+            x: layerViewItem.viewOffset.x + layerViewItem.layerSelectedSubLayerRoi.x * layerViewItem.viewSize.width
+            y: layerViewItem.viewOffset.y + layerViewItem.layerSelectedSubLayerRoi.y * layerViewItem.viewSize.height
+            width: layerViewItem.layerSelectedSubLayerRoi.width * layerViewItem.viewSize.width
+            height: layerViewItem.layerSelectedSubLayerRoi.height * layerViewItem.viewSize.height
+
+            Label {
+                anchors.centerIn: parent
+                text: layerViewItem.layerSubLayerNames.length > layerViewItem.layerSelectedSubLayer
+                      ? layerViewItem.layerSubLayerNames[layerViewItem.layerSelectedSubLayer]
+                      : ""
+                color: "white"
+                font.pointSize: 12
+                font.bold: true
+                style: Text.Outline
+                styleColor: "black"
+            }
         }
         Component {
             id: roiEditComponent
@@ -1563,22 +1593,142 @@ Kirigami.ApplicationWindow {
                     Rectangle {
                         color: Kirigami.Theme.alternateBackgroundColor
                         implicitHeight: 35
-                        implicitWidth: 220
+                        implicitWidth: 550
                         radius: 5
 
                         RowLayout {
                             anchors.fill: parent
                             anchors.leftMargin: 8
 
-                            CheckBox {
-                                id: qrCodeDetectionCheckBox
+                            Label {
+                                font.pointSize: 9
+                                text: qsTr("Layer Operation:")
+                            }
+                            ComboBox {
+                                id: textureDivisionModeComboBox
 
+                                Layout.fillWidth: true
                                 focusPolicy: Qt.NoFocus
-                                text: qsTr("ImPres Mode (QR Code Detection)")
-                                checked: layerViewItem.layerQRCodeDetectionEnabled
+                                textRole: "mode"
+                                implicitWidth: 330
 
-                                onToggled: {
-                                    layerViewItem.layerQRCodeDetectionEnabled = checked;
+                                model: ListModel {
+                                    id: textureDivisionModeList
+
+                                    ListElement {
+                                        mode: "None"
+                                        value: 0
+                                    }
+                                    ListElement {
+                                        mode: "ImPres Mode (QR)"
+                                        value: 1
+                                    }
+                                    ListElement {
+                                        mode: "Division Mode"
+                                        value: 2
+                                    }
+                                }
+
+                                delegate: ItemDelegate {
+                                    width: textureDivisionModeComboBox.width
+                                    text: model.mode
+                                    visible: !(model.value === 1 && layerViewItem.layerTypeName === "OMT")
+                                    height: visible ? implicitHeight : 0
+                                    highlighted: textureDivisionModeComboBox.highlightedIndex === index
+                                }
+
+                                Component.onCompleted: {
+                                    for (let i = 0; i < textureDivisionModeList.count; ++i) {
+                                        if (textureDivisionModeList.get(i).value === layerViewItem.layerTextureDivisionMode) {
+                                            currentIndex = i;
+                                            break;
+                                        }
+                                    }
+                                }
+                                onActivated: {
+                                    var selectedValue = model.get(index).value;
+                                    layerViewItem.layerTextureDivisionMode = selectedValue;
+                                    // Sync QR detection enabled state with mode
+                                    layerViewItem.layerQRCodeDetectionEnabled = (selectedValue === 1);
+                                    // Reset sublayer selection when mode changes
+                                    layerViewItem.layerSelectedSubLayer = 0;
+                                }
+                            }
+                            Label {
+                                font.pointSize: 9
+                                text: qsTr("Division:")
+                                enabled: textureDivisionModeComboBox.currentIndex === 2
+                            }
+                            ComboBox {
+                                id: divisionGridComboBox
+
+                                Layout.fillWidth: true
+                                focusPolicy: Qt.NoFocus
+                                textRole: "mode"
+                                enabled: textureDivisionModeComboBox.currentIndex === 2
+
+                                model: ListModel {
+                                    id: divisionGridList
+
+                                    ListElement {
+                                        mode: "1x1"
+                                        value: 0
+                                    }
+                                    ListElement {
+                                        mode: "1x2"
+                                        value: 1
+                                    }
+                                    ListElement {
+                                        mode: "2x1"
+                                        value: 2
+                                    }
+                                    ListElement {
+                                        mode: "2x2"
+                                        value: 3
+                                    }
+                                    ListElement {
+                                        mode: "2x3"
+                                        value: 4
+                                    }
+                                    ListElement {
+                                        mode: "3x2"
+                                        value: 5
+                                    }
+                                    ListElement {
+                                        mode: "3x3"
+                                        value: 6
+                                    }
+                                }
+
+                                Component.onCompleted: {
+                                    for (let i = 0; i < divisionGridList.count; ++i) {
+                                        if (divisionGridList.get(i).value === layerViewItem.layerDivisionGrid) {
+                                            currentIndex = i;
+                                            break;
+                                        }
+                                    }
+                                }
+                                onActivated: {
+                                    layerViewItem.layerDivisionGrid = model.get(index).value;
+                                }
+                            }
+                            Label {
+                                font.pointSize: 9
+                                text: qsTr("Sub-Layer:")
+                                enabled: textureDivisionModeComboBox.currentIndex !== 0
+                            }
+                            ComboBox {
+                                id: subLayerComboBox
+
+                                Layout.fillWidth: true
+                                implicitWidth: 300
+                                focusPolicy: Qt.NoFocus
+                                enabled: textureDivisionModeComboBox.currentIndex !== 0
+                                model: layerViewItem.layerSubLayerNames
+                                currentIndex: layerViewItem.layerSelectedSubLayer
+
+                                onActivated: {
+                                    layerViewItem.layerSelectedSubLayer = index;
                                 }
                             }
                         }
@@ -1587,11 +1737,35 @@ Kirigami.ApplicationWindow {
                 Connections {
                     function onLayerChanged() {
                         if (layerViewItem.layerIdx !== -1) {
-                            qrCodeDetectionCheckBox.checked = layerViewItem.layerQRCodeDetectionEnabled;
+                            for (let i = 0; i < textureDivisionModeList.count; ++i) {
+                                if (textureDivisionModeList.get(i).value === layerViewItem.layerTextureDivisionMode) {
+                                    textureDivisionModeComboBox.currentIndex = i;
+                                    break;
+                                }
+                            }
+                            for (let j = 0; j < divisionGridList.count; ++j) {
+                                if (divisionGridList.get(j).value === layerViewItem.layerDivisionGrid) {
+                                    divisionGridComboBox.currentIndex = j;
+                                    break;
+                                }
+                            }
+                            subLayerComboBox.currentIndex = layerViewItem.layerSelectedSubLayer;
                         }
                     }
                     function onLayerValueChanged() {
-                        qrCodeDetectionCheckBox.checked = layerViewItem.layerQRCodeDetectionEnabled;
+                        for (let i = 0; i < textureDivisionModeList.count; ++i) {
+                            if (textureDivisionModeList.get(i).value === layerViewItem.layerTextureDivisionMode) {
+                                textureDivisionModeComboBox.currentIndex = i;
+                                break;
+                            }
+                        }
+                        for (let j = 0; j < divisionGridList.count; ++j) {
+                            if (divisionGridList.get(j).value === layerViewItem.layerDivisionGrid) {
+                                divisionGridComboBox.currentIndex = j;
+                                break;
+                            }
+                        }
+                        subLayerComboBox.currentIndex = layerViewItem.layerSelectedSubLayer;
                     }
 
                     target: layerViewItem
@@ -1668,7 +1842,7 @@ Kirigami.ApplicationWindow {
                         destroyMediaComponents();
                         destroyStreamComponents();
                         destroyTextComponents();
-                        destroyQRCodeComponents();
+                        createQRCodeComponents();
                         createFlipYComponents();
                     }
                     else if (layerViewItem.layerTypeName === "Spout") {

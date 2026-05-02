@@ -109,6 +109,9 @@ void LayerQtItem::setLayerStereoMode(int mode) {
 }
 
 int LayerQtItem::layerGridMode() const{
+    BaseLayer* sub = selectedSubLayerPtr();
+    if (sub)
+        return sub->gridMode();
     if (m_layer)
         return m_layer->gridMode();
     else
@@ -116,16 +119,21 @@ int LayerQtItem::layerGridMode() const{
 }
 
 void LayerQtItem::setLayerGridMode(int mode) {
-    if (m_layer && m_layer->isEnabled()) {
-        if (m_layer->gridMode() != static_cast<uint8_t>(mode)) {
+    BaseLayer* target = selectedSubLayerPtr();
+    if (!target) target = m_layer;
+    if (target && target->isEnabled()) {
+        if (target->gridMode() != static_cast<uint8_t>(mode)) {
             Q_EMIT layerNeedsSave();
         }
-        m_layer->setGridMode(static_cast<uint8_t>(mode));
+        target->setGridMode(static_cast<uint8_t>(mode));
         Q_EMIT layerValueChanged();
     }
 }
 
 int LayerQtItem::layerVisibility() const{
+    BaseLayer* sub = selectedSubLayerPtr();
+    if (sub)
+        return static_cast<int>(sub->alpha() * 100.f);
     if (m_layer)
         return static_cast<int>(m_layer->alpha() * 100.f);
     else
@@ -133,8 +141,10 @@ int LayerQtItem::layerVisibility() const{
 }
 
 void LayerQtItem::setLayerVisibility(int value) {
-    if (m_layer && m_layer->isEnabled()) {
-        m_layer->setAlpha(static_cast<float>(value) * 0.01f);
+    BaseLayer* target = selectedSubLayerPtr();
+    if (!target) target = m_layer;
+    if (target && target->isEnabled()) {
+        target->setAlpha(static_cast<float>(value) * 0.01f);
         Q_EMIT layerValueChanged();
     }
 }
@@ -337,6 +347,9 @@ int LayerQtItem::layerNumPages() const {
 }
 
 double LayerQtItem::layerRotatePitch() const {
+    BaseLayer* sub = selectedSubLayerPtr();
+    if (sub)
+        return sub->rotate().x;
     if (m_layer)
         return m_layer->rotate().x;
     else
@@ -344,18 +357,23 @@ double LayerQtItem::layerRotatePitch() const {
 }
 
 void LayerQtItem::setLayerRotatePitch(double x) {
-    if (m_layer && m_layer->isEnabled()) {
-        glm::vec3 rot = m_layer->rotate();
+    BaseLayer* target = selectedSubLayerPtr();
+    if (!target) target = m_layer;
+    if (target && target->isEnabled()) {
+        glm::vec3 rot = target->rotate();
         if (!qFuzzyCompare((double)rot.x, x)) {
             Q_EMIT layerNeedsSave();
         }
         rot.x = x;
-        m_layer->setRotate(rot);
+        target->setRotate(rot);
         Q_EMIT layerValueChanged();
     }
 }
 
 double LayerQtItem::layerRotateYaw() const {
+    BaseLayer* sub = selectedSubLayerPtr();
+    if (sub)
+        return sub->rotate().y;
     if (m_layer)
         return m_layer->rotate().y;
     else
@@ -364,18 +382,23 @@ double LayerQtItem::layerRotateYaw() const {
 
 void LayerQtItem::setLayerRotateYaw(double y)
 {
-    if (m_layer && m_layer->isEnabled()) {
-        glm::vec3 rot = m_layer->rotate();
+    BaseLayer* target = selectedSubLayerPtr();
+    if (!target) target = m_layer;
+    if (target && target->isEnabled()) {
+        glm::vec3 rot = target->rotate();
         if (!qFuzzyCompare((double)rot.y, y)) {
             Q_EMIT layerNeedsSave();
         }
         rot.y = y;
-        m_layer->setRotate(rot);
+        target->setRotate(rot);
         Q_EMIT layerValueChanged();
     }
 }
 
 double LayerQtItem::layerRotateRoll() const {
+    BaseLayer* sub = selectedSubLayerPtr();
+    if (sub)
+        return sub->rotate().z;
     if (m_layer)
         return m_layer->rotate().z;
     else
@@ -383,18 +406,23 @@ double LayerQtItem::layerRotateRoll() const {
 }
 
 void LayerQtItem::setLayerRotateRoll(double z) {
-    if (m_layer && m_layer->isEnabled()) {
-        glm::vec3 rot = m_layer->rotate();
+    BaseLayer* target = selectedSubLayerPtr();
+    if (!target) target = m_layer;
+    if (target && target->isEnabled()) {
+        glm::vec3 rot = target->rotate();
         if (!qFuzzyCompare((double)rot.z, z)) {
             Q_EMIT layerNeedsSave();
         }
         rot.z = z;
-        m_layer->setRotate(rot);
+        target->setRotate(rot);
         Q_EMIT layerValueChanged();
     }
 }
 
 double LayerQtItem::layerPlaneWidth() const {
+    BaseLayer* sub = selectedSubLayerPtr();
+    if (sub)
+        return sub->planeWidth();
     if (m_layer)
         return m_layer->planeWidth();
     else
@@ -402,16 +430,21 @@ double LayerQtItem::layerPlaneWidth() const {
 }
 
 void LayerQtItem::setLayerPlaneWidth(double pW) {
-    if (m_layer && m_layer->isEnabled()) {
-        if (m_layer->planeWidth() != pW) {
+    BaseLayer* target = selectedSubLayerPtr();
+    if (!target) target = m_layer;
+    if (target && target->isEnabled()) {
+        if (target->planeWidth() != pW) {
             Q_EMIT layerNeedsSave();
         }
-        m_layer->setPlaneWidth(pW);
+        target->setPlaneWidth(pW);
         Q_EMIT layerValueChanged();
     }
 }
 
 double LayerQtItem::layerPlaneHeight() const {
+    BaseLayer* sub = selectedSubLayerPtr();
+    if (sub)
+        return sub->planeHeight();
     if (m_layer)
         return m_layer->planeHeight();
     else
@@ -419,16 +452,21 @@ double LayerQtItem::layerPlaneHeight() const {
 }
 
 void LayerQtItem::setLayerPlaneHeight(double pH) {
-    if (m_layer && m_layer->isEnabled()) {
-        if (m_layer->planeHeight() != pH) {
+    BaseLayer* target = selectedSubLayerPtr();
+    if (!target) target = m_layer;
+    if (target && target->isEnabled()) {
+        if (target->planeHeight() != pH) {
             Q_EMIT layerNeedsSave();
         }
-        m_layer->setPlaneHeight(pH);
+        target->setPlaneHeight(pH);
         Q_EMIT layerValueChanged();
     }
 }
 
 int LayerQtItem::layerPlaneAspectRatio() const {
+    BaseLayer* sub = selectedSubLayerPtr();
+    if (sub)
+        return sub->planeAspectRatio();
     if (m_layer)
         return m_layer->planeAspectRatio();
     else
@@ -436,16 +474,21 @@ int LayerQtItem::layerPlaneAspectRatio() const {
 }
 
 void LayerQtItem::setLayerPlaneAspectRatio(int parc) {
-    if (m_layer && m_layer->isEnabled()) {
-        if (m_layer->planeAspectRatio() != static_cast<uint8_t>(parc)) {
+    BaseLayer* target = selectedSubLayerPtr();
+    if (!target) target = m_layer;
+    if (target && target->isEnabled()) {
+        if (target->planeAspectRatio() != static_cast<uint8_t>(parc)) {
             Q_EMIT layerNeedsSave();
         }
-        m_layer->setPlaneAspectRatio(static_cast<uint8_t>(parc));
+        target->setPlaneAspectRatio(static_cast<uint8_t>(parc));
         Q_EMIT layerValueChanged();
     }
 }
 
 double LayerQtItem::layerPlaneAzimuth() const {
+    BaseLayer* sub = selectedSubLayerPtr();
+    if (sub)
+        return sub->planeAzimuth();
     if (m_layer)
         return m_layer->planeAzimuth();
     else
@@ -453,16 +496,21 @@ double LayerQtItem::layerPlaneAzimuth() const {
 }
 
 void LayerQtItem::setLayerPlaneAzimuth(double pA) {
-    if (m_layer && m_layer->isEnabled()) {
-        if (m_layer->planeAzimuth() != pA) {
+    BaseLayer* target = selectedSubLayerPtr();
+    if (!target) target = m_layer;
+    if (target && target->isEnabled()) {
+        if (target->planeAzimuth() != pA) {
             Q_EMIT layerNeedsSave();
         }
-        m_layer->setPlaneAzimuth(pA);
+        target->setPlaneAzimuth(pA);
         Q_EMIT layerValueChanged();
     }
 }
 
 double LayerQtItem::layerPlaneElevation() const {
+    BaseLayer* sub = selectedSubLayerPtr();
+    if (sub)
+        return sub->planeElevation();
     if (m_layer)
         return m_layer->planeElevation();
     else
@@ -470,16 +518,21 @@ double LayerQtItem::layerPlaneElevation() const {
 }
 
 void LayerQtItem::setLayerPlaneElevation(double pE) {
-    if (m_layer && m_layer->isEnabled()) {
-        if (m_layer->planeElevation() != pE) {
+    BaseLayer* target = selectedSubLayerPtr();
+    if (!target) target = m_layer;
+    if (target && target->isEnabled()) {
+        if (target->planeElevation() != pE) {
             Q_EMIT layerNeedsSave();
         }
-        m_layer->setPlaneElevation(pE);
+        target->setPlaneElevation(pE);
         Q_EMIT layerValueChanged();
     }
 }
 
 double LayerQtItem::layerPlaneRoll() const {
+    BaseLayer* sub = selectedSubLayerPtr();
+    if (sub)
+        return sub->planeRoll();
     if (m_layer)
         return m_layer->planeRoll();
     else
@@ -487,16 +540,21 @@ double LayerQtItem::layerPlaneRoll() const {
 }
 
 void LayerQtItem::setLayerPlaneRoll(double pR) {
-    if (m_layer && m_layer->isEnabled()) {
-        if (m_layer->planeRoll() != pR) {
+    BaseLayer* target = selectedSubLayerPtr();
+    if (!target) target = m_layer;
+    if (target && target->isEnabled()) {
+        if (target->planeRoll() != pR) {
             Q_EMIT layerNeedsSave();
         }
-        m_layer->setPlaneRoll(pR);
+        target->setPlaneRoll(pR);
         Q_EMIT layerValueChanged();
     }
 }
 
 double LayerQtItem::layerPlaneDistance() const {
+    BaseLayer* sub = selectedSubLayerPtr();
+    if (sub)
+        return sub->planeDistance();
     if (m_layer)
         return m_layer->planeDistance();
     else
@@ -504,16 +562,21 @@ double LayerQtItem::layerPlaneDistance() const {
 }
 
 void LayerQtItem::setLayerPlaneDistance(double pD) {
-    if (m_layer && m_layer->isEnabled()) {
-        if (m_layer->planeDistance() != pD) {
+    BaseLayer* target = selectedSubLayerPtr();
+    if (!target) target = m_layer;
+    if (target && target->isEnabled()) {
+        if (target->planeDistance() != pD) {
             Q_EMIT layerNeedsSave();
         }
-        m_layer->setPlaneDistance(pD);
+        target->setPlaneDistance(pD);
         Q_EMIT layerValueChanged();
     }
 }
 
 double LayerQtItem::layerPlaneHorizontal() const {
+    BaseLayer* sub = selectedSubLayerPtr();
+    if (sub)
+        return sub->planeHorizontal();
     if (m_layer)
         return m_layer->planeHorizontal();
     else
@@ -521,16 +584,21 @@ double LayerQtItem::layerPlaneHorizontal() const {
 }
 
 void LayerQtItem::setLayerPlaneHorizontal(double pH) {
-    if (m_layer && m_layer->isEnabled()) {
-        if (m_layer->planeHorizontal() != pH) {
+    BaseLayer* target = selectedSubLayerPtr();
+    if (!target) target = m_layer;
+    if (target && target->isEnabled()) {
+        if (target->planeHorizontal() != pH) {
             Q_EMIT layerNeedsSave();
         }
-        m_layer->setPlaneHorizontal(pH);
+        target->setPlaneHorizontal(pH);
         Q_EMIT layerValueChanged();
     }
 }
 
 double LayerQtItem::layerPlaneVertical() const {
+    BaseLayer* sub = selectedSubLayerPtr();
+    if (sub)
+        return sub->planeVertical();
     if (m_layer)
         return m_layer->planeVertical();
     else
@@ -538,11 +606,13 @@ double LayerQtItem::layerPlaneVertical() const {
 }
 
 void LayerQtItem::setLayerPlaneVertical(double pV) {
-    if (m_layer && m_layer->isEnabled()) {
-        if (m_layer->planeVertical() != pV) {
+    BaseLayer* target = selectedSubLayerPtr();
+    if (!target) target = m_layer;
+    if (target && target->isEnabled()) {
+        if (target->planeVertical() != pV) {
             Q_EMIT layerNeedsSave();
         }
-        m_layer->setPlaneVertical(pV);
+        target->setPlaneVertical(pV);
         Q_EMIT layerValueChanged();
     }
 }
@@ -898,6 +968,167 @@ void LayerQtItem::setLayerQRCodeDetectionEnabled(bool enabled) {
             Q_EMIT layerNeedsSave();
         }
     }
+}
+
+int LayerQtItem::layerTextureDivisionMode() const {
+    if (m_layer)
+        return m_layer->textureDivisionMode();
+    return 0;
+}
+
+void LayerQtItem::setLayerTextureDivisionMode(int mode) {
+    if (m_layer && m_layer->isEnabled()) {
+        if (m_layer->textureDivisionMode() != mode) {
+            m_layer->setTextureDivisionMode(mode);
+            Q_EMIT layerValueChanged();
+            Q_EMIT layerNeedsSave();
+        }
+    }
+}
+
+int LayerQtItem::layerDivisionGrid() const {
+    if (m_layer)
+        return m_layer->textureDivisionGrid();
+    return 0;
+}
+
+void LayerQtItem::setLayerDivisionGrid(int grid) {
+    if (m_layer && m_layer->isEnabled()) {
+        if (m_layer->textureDivisionGrid() != grid) {
+            m_layer->setTextureDivisionGrid(grid);
+            m_selectedSubLayer = 0; // Reset selection when grid changes
+            Q_EMIT layerValueChanged();
+            Q_EMIT layerNeedsSave();
+        }
+    }
+}
+
+QStringList LayerQtItem::layerSubLayerNames() const {
+    QStringList names;
+    names.append(QStringLiteral("Original"));
+    if (!m_layer)
+        return names;
+
+    int mode = m_layer->textureDivisionMode();
+    if (mode == 2) {
+        // Division mode: generate names from grid dimensions even before sublayers are created
+        int grid = m_layer->textureDivisionGrid();
+        if(grid <= 0 || grid > 6)
+            return names; // Invalid grid index, return default name
+        int cols = 1, rows = 1;
+        switch (grid) {
+        case 1: cols = 1; rows = 2; break;
+        case 2: cols = 2; rows = 1; break;
+        case 3: cols = 2; rows = 2; break;
+        case 4: cols = 2; rows = 3; break;
+        case 5: cols = 3; rows = 2; break;
+        case 6: cols = 3; rows = 3; break;
+        default: break;
+        }
+        for (int row = 0; row < rows; ++row) {
+            for (int col = 0; col < cols; ++col) {
+                names.append(QStringLiteral("Div_%1_%2").arg(col).arg(row));
+            }
+        }
+    } else if (mode == 1 && m_layer->hasSubLayers()) {
+        // QR/ImPres mode: use actual sublayer names
+        auto& subLayers = m_layer->getSubLayers();
+        for (const auto& sub : subLayers) {
+            if (sub) {
+                names.append(QString::fromStdString(sub->title()));
+            }
+        }
+    }
+    return names;
+}
+
+int LayerQtItem::layerSelectedSubLayer() const {
+    return m_selectedSubLayer;
+}
+
+void LayerQtItem::setLayerSelectedSubLayer(int index) {
+    if (m_selectedSubLayer != index) {
+        m_selectedSubLayer = index;
+        Q_EMIT layerValueChanged();
+    }
+}
+
+int LayerQtItem::layerSubLayerCount() const {
+    // Return the expected sublayer count based on the division grid index,
+    // even before sublayers are lazily created by the render thread.
+    if (!m_layer)
+        return 0;
+    int mode = m_layer->textureDivisionMode();
+    if (mode == 2) {
+        // Division mode: count from grid index
+        int grid = m_layer->textureDivisionGrid();
+        switch (grid) {
+        case 0: return 1;  // 1x1
+        case 1: return 2;  // 1x2
+        case 2: return 2;  // 2x1
+        case 3: return 4;  // 2x2
+        case 4: return 6;  // 2x3
+        case 5: return 6;  // 3x2
+        case 6: return 9;  // 3x3
+        default: return 1;
+        }
+    } else if (mode == 1) {
+        // QR/ImPres mode: count from actual sublayers
+        if (m_layer->hasSubLayers())
+            return static_cast<int>(m_layer->getSubLayers().size());
+    }
+    return 0;
+}
+
+QRectF LayerQtItem::layerSelectedSubLayerRoi() const {
+    if (!m_layer || m_selectedSubLayer <= 0)
+        return QRectF();
+
+    int mode = m_layer->textureDivisionMode();
+    if (mode == 2) {
+        // Division mode: compute ROI from grid index even if sublayers don't exist yet
+        int grid = m_layer->textureDivisionGrid();
+        int cols = 1, rows = 1;
+        switch (grid) {
+        case 1: cols = 1; rows = 2; break;
+        case 2: cols = 2; rows = 1; break;
+        case 3: cols = 2; rows = 2; break;
+        case 4: cols = 2; rows = 3; break;
+        case 5: cols = 3; rows = 2; break;
+        case 6: cols = 3; rows = 3; break;
+        default: cols = 1; rows = 1; break;
+        }
+        int subIdx = m_selectedSubLayer - 1; // 0-based sublayer index
+        if (subIdx < 0 || subIdx >= cols * rows)
+            return QRectF();
+        int col = subIdx % cols;
+        int row = subIdx / cols;
+        double cellW = 1.0 / static_cast<double>(cols);
+        double cellH = 1.0 / static_cast<double>(rows);
+        return QRectF(col * cellW, row * cellH, cellW, cellH);
+    } else if (mode == 1 && m_layer->hasSubLayers()) {
+        // QR mode: read ROI from the actual sublayer
+        int subIdx = m_selectedSubLayer - 1;
+        auto& subs = m_layer->getSubLayers();
+        if (subIdx >= 0 && subIdx < static_cast<int>(subs.size())) {
+            auto& sub = subs[subIdx];
+            if (sub && sub->roiEnabled()) {
+                glm::vec4 r = sub->roi();
+                return QRectF(r.x, r.y, r.z, r.w);
+            }
+        }
+    }
+    return QRectF();
+}
+
+BaseLayer* LayerQtItem::selectedSubLayerPtr() const {
+    if (!m_layer || m_selectedSubLayer <= 0 || !m_layer->hasSubLayers())
+        return nullptr;
+    int subIdx = m_selectedSubLayer - 1;
+    auto& subs = m_layer->getSubLayers();
+    if (subIdx >= 0 && subIdx < static_cast<int>(subs.size()))
+        return subs[subIdx].get();
+    return nullptr;
 }
 
 bool LayerQtItem::layerFlipY() const {

@@ -97,6 +97,7 @@ public:
     std::shared_ptr<BaseLayer> layerShared(int i);
 
     Q_INVOKABLE QString layerTitle(int i) const;
+    Q_INVOKABLE int layerVisibility(int i) const;
     Q_INVOKABLE int layerIdx(std::string title);
     Q_INVOKABLE int layerStatus(int i) const;
     Q_INVOKABLE void setLayerStatus(int i, int status);

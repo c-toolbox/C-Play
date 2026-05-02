@@ -112,6 +112,12 @@ class LayerQtItem : public QQuickItem {
     Q_PROPERTY(int layerTextAlignment READ layerTextAlignment WRITE setLayerTextAlignment NOTIFY layerValueChanged)
     Q_PROPERTY(QSize layerTextRenderSize READ layerTextRenderSize WRITE setLayerTextRenderSize NOTIFY layerValueChanged)
     Q_PROPERTY(bool layerQRCodeDetectionEnabled READ layerQRCodeDetectionEnabled WRITE setLayerQRCodeDetectionEnabled NOTIFY layerValueChanged)
+    Q_PROPERTY(int layerTextureDivisionMode READ layerTextureDivisionMode WRITE setLayerTextureDivisionMode NOTIFY layerValueChanged)
+    Q_PROPERTY(int layerDivisionGrid READ layerDivisionGrid WRITE setLayerDivisionGrid NOTIFY layerValueChanged)
+    Q_PROPERTY(QStringList layerSubLayerNames READ layerSubLayerNames NOTIFY layerValueChanged)
+    Q_PROPERTY(int layerSelectedSubLayer READ layerSelectedSubLayer WRITE setLayerSelectedSubLayer NOTIFY layerValueChanged)
+    Q_PROPERTY(int layerSubLayerCount READ layerSubLayerCount NOTIFY layerValueChanged)
+    Q_PROPERTY(QRectF layerSelectedSubLayerRoi READ layerSelectedSubLayerRoi NOTIFY layerValueChanged)
     Q_PROPERTY(bool layerFlipY READ layerFlipY WRITE setLayerFlipY NOTIFY layerValueChanged)
     Q_PROPERTY(QString layerOperation READ layerOperation WRITE setLayerOperation NOTIFY layerValueChanged)
     Q_PROPERTY(QString layerParameter READ layerParameter WRITE setLayerParameter NOTIFY layerValueChanged)
@@ -270,6 +276,23 @@ public:
     bool layerQRCodeDetectionEnabled() const;
     void setLayerQRCodeDetectionEnabled(bool enabled);
 
+    int layerTextureDivisionMode() const;
+    void setLayerTextureDivisionMode(int mode);
+
+    int layerDivisionGrid() const;
+    void setLayerDivisionGrid(int grid);
+
+    QStringList layerSubLayerNames() const;
+    int layerSelectedSubLayer() const;
+    void setLayerSelectedSubLayer(int index);
+
+    int layerSubLayerCount() const;
+
+    QRectF layerSelectedSubLayerRoi() const;
+
+    // Get the BaseLayer* for the currently selected sublayer (nullptr if Original/index 0)
+    BaseLayer* selectedSubLayerPtr() const;
+
     bool layerFlipY() const;
     void setLayerFlipY(bool flip);
 
@@ -317,6 +340,7 @@ private:
 
     QPoint m_roiOffset;
     QSize m_roiSize;
+    int m_selectedSubLayer = 0;
 };
 
 #endif // LAYERQTITEM_H

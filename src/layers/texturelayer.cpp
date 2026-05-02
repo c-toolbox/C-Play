@@ -31,6 +31,15 @@ bool TextureLayer::captureFromTexture(GLuint srcTexId, int width, int height, GL
         return false;
     }
 
+    // If we were pointing to an external texture, clear that state first
+    if (m_pointingToExternal) {
+        renderData.texId = 0;
+        renderData.width = 0;
+        renderData.height = 0;
+        m_hasTexture = false;
+        m_pointingToExternal = false;
+    }
+
     // Allocate destination texture if needed (size or format changed)
     bool reallocated = false;
     if (renderData.texId == 0 || renderData.width != width || renderData.height != height || m_internalFormat != internalFormat) {
@@ -80,15 +89,29 @@ bool TextureLayer::captureFromPixels(const unsigned char* pixelData, int width, 
     return true;
 }
 
-void TextureLayer::releaseTexture() {
-    if (renderData.texId > 0) {
+void TextureLayer::pointToTexture(GLuint texId, int width, int height) {
+    // If we own a texture, release it first
+    if (!m_pointingToExternal && renderData.texId > 0) {
         glDeleteTextures(1, &renderData.texId);
-        renderData.texId = 0;
     }
+
+    renderData.texId = texId;
+    renderData.width = width;
+    renderData.height = height;
+    m_pointingToExternal = true;
+    m_hasTexture = (texId > 0 && width > 0 && height > 0);
+}
+
+void TextureLayer::releaseTexture() {
+    if (!m_pointingToExternal && renderData.texId > 0) {
+        glDeleteTextures(1, &renderData.texId);
+    }
+    renderData.texId = 0;
     renderData.width = 0;
     renderData.height = 0;
     m_hasTexture = false;
     m_frozen = false;
+    m_pointingToExternal = false;
     m_internalFormat = 0;
 }
 

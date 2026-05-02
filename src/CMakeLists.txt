@@ -8,7 +8,7 @@ set(CPLAY_VERSION_MAJOR 2)
 set(CPLAY_VERSION_MINOR 3)
 set(CPLAY_VERSION_PATCH 0)
 set(CPLAY_VERSION_PR_NAME "Beta")
-set(CPLAY_VERSION_PR_VERS 7)
+set(CPLAY_VERSION_PR_VERS 8)
 
 qt_add_executable(${TARGET_NAME})
 set_compile_options(${TARGET_NAME})
@@ -83,6 +83,8 @@ set(SOURCE_FILES
     worker.h
     utils/domegrid.cpp
     utils/domegrid.h
+    utils/dividetexturehandler.cpp
+    utils/dividetexturehandler.h
     utils/planegrid.cpp
     utils/planegrid.h
     utils/qrcodereader.cpp

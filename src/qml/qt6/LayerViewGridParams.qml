@@ -29,13 +29,13 @@ Kirigami.ApplicationWindow {
         }
         var mode = layerView.layerItem.layerGridMode;
         if (mode === 1) {
-            root.height = 420;
+            root.height = 450;
         } else if (mode === 2) {
-            root.height = 120;
+            root.height = 150;
         } else if (mode > 2) {
-            root.height = 220;
+            root.height = 250;
         } else {
-            root.height = 120;
+            root.height = 150;
         }
     }
 
@@ -136,546 +136,602 @@ Kirigami.ApplicationWindow {
         anchors.fill: parent
         anchors.margins: 15
 
-        GridLayout {
-            id: splitGridLayout
-            Layout.alignment: Qt.AlignHCenter | Qt.AlignTop
-            columnSpacing: 2
-            columns: 3
-            rowSpacing: 8
-            visible: layerView.layerItem.layerGridMode === 0 && layerView.layerItem.layerTypeName !== "Control" && layerView.layerItem.layerTypeName !== "REST"
+        ColumnLayout {
+            width: parent.width
+            spacing: 10
 
+            // Sub-layer selection combobox (visible only in division mode)
             RowLayout {
-                Layout.bottomMargin: 5
-                Layout.columnSpan: 3
+                Layout.fillWidth: true
+                visible: layerView.layerItem.layerTextureDivisionMode === 2
+                         && layerView.layerItem.layerSubLayerCount > 0
 
-                Rectangle {
-                    color: Kirigami.Theme.alternateBackgroundColor
-                    height: 1
-                    width: Kirigami.Units.gridUnit
+                Label {
+                    text: qsTr("Editing Sub-Layer:")
+                    font.pointSize: 9
                 }
-                Kirigami.Heading {
-                    text: qsTr("Pre-split properties for the layer")
-                }
-                Rectangle {
+                ComboBox {
+                    id: gridParamsSubLayerComboBox
+
                     Layout.fillWidth: true
-                    color: Kirigami.Theme.alternateBackgroundColor
-                    height: 1
-                }
-                Item {
-                    // spacer item
-                    Layout.fillWidth: true
-                }
-            }
-        }
-        GridLayout {
-            id: planeGridLayout
-            Layout.alignment: Qt.AlignHCenter | Qt.AlignTop
-            columnSpacing: 2
-            columns: 3
-            rowSpacing: 8
-            visible: layerView.layerItem.layerGridMode === 1 && layerView.layerItem.layerTypeName !== "Control" && layerView.layerItem.layerTypeName !== "REST"
+                    focusPolicy: Qt.NoFocus
+                    model: layerView.layerItem.layerSubLayerNames
+                    currentIndex: layerView.layerItem.layerSelectedSubLayer
 
-            RowLayout {
-                Layout.bottomMargin: 5
-                Layout.columnSpan: 3
-
-                Rectangle {
-                    color: Kirigami.Theme.alternateBackgroundColor
-                    height: 1
-                    width: Kirigami.Units.gridUnit
-                }
-                Kirigami.Heading {
-                    text: qsTr("Plane properties for the layer")
-                }
-                Rectangle {
-                    Layout.fillWidth: true
-                    color: Kirigami.Theme.alternateBackgroundColor
-                    height: 1
-                }
-                Item {
-                    // spacer item
-                    Layout.fillWidth: true
-                }
-            }
-
-            // ------------------------------------
-            // Plane parameters
-            // ------------------------------------
-            Label {
-                text: qsTr("Plane size based on:")
-                Layout.alignment: Qt.AlignRight
-            }
-            ComboBox {
-                id: planeSizeBasedOnComboBox
-
-                Layout.columnSpan: 2
-                enabled: true
-                textRole: "mode"
-
-                model: ListModel {
-                    id: planeSizeBasedOnMode
-
-                    ListElement {
-                        mode: "Values below"
-                        value: 0
-                    }
-                    ListElement {
-                        mode: "Height below and video aspect ratio"
-                        value: 1
-                    }
-                    ListElement {
-                        mode: "Width below and video aspect ratio"
-                        value: 2
+                    onActivated: {
+                        layerView.layerItem.layerSelectedSubLayer = index;
                     }
                 }
 
-                Component.onCompleted: {
-                    for (let i = 0; i < planeSizeBasedOnMode.count; ++i) {
-                        if (planeSizeBasedOnMode.get(i).value === layerView.layerItem.layerPlaneAspectRatio) {
-                            currentIndex = i;
-                            break;
+                Connections {
+                    function onLayerValueChanged() {
+                        gridParamsSubLayerComboBox.currentIndex = layerView.layerItem.layerSelectedSubLayer;
+                    }
+                    function onLayerChanged() {
+                        gridParamsSubLayerComboBox.currentIndex = layerView.layerItem.layerSelectedSubLayer;
+                    }
+
+                    target: layerView.layerItem
+                }
+            }
+
+            // Grid layouts below
+            GridLayout {
+                id: splitGridLayout
+                Layout.alignment: Qt.AlignHCenter | Qt.AlignTop
+                columnSpacing: 2
+                columns: 3
+                rowSpacing: 8
+                visible: layerView.layerItem.layerGridMode === 0 && layerView.layerItem.layerTypeName !== "Control" && layerView.layerItem.layerTypeName !== "REST"
+
+                RowLayout {
+                    Layout.bottomMargin: 5
+                    Layout.columnSpan: 3
+
+                    Rectangle {
+                        color: Kirigami.Theme.alternateBackgroundColor
+                        height: 1
+                        width: Kirigami.Units.gridUnit
+                    }
+                    Kirigami.Heading {
+                        text: qsTr("Pre-split properties for the layer")
+                    }
+                    Rectangle {
+                        Layout.fillWidth: true
+                        color: Kirigami.Theme.alternateBackgroundColor
+                        height: 1
+                    }
+                    Item {
+                        // spacer item
+                        Layout.fillWidth: true
+                    }
+                }
+            }
+            GridLayout {
+                id: planeGridLayout
+                Layout.alignment: Qt.AlignHCenter | Qt.AlignTop
+                columnSpacing: 2
+                columns: 3
+                rowSpacing: 8
+                visible: layerView.layerItem.layerGridMode === 1 && layerView.layerItem.layerTypeName !== "Control" && layerView.layerItem.layerTypeName !== "REST"
+
+                RowLayout {
+                    Layout.bottomMargin: 5
+                    Layout.columnSpan: 3
+
+                    Rectangle {
+                        color: Kirigami.Theme.alternateBackgroundColor
+                        height: 1
+                        width: Kirigami.Units.gridUnit
+                    }
+                    Kirigami.Heading {
+                        text: {
+                            if (layerView.layerItem.layerSelectedSubLayer > 0) {
+                                var names = layerView.layerItem.layerSubLayerNames;
+                                var idx = layerView.layerItem.layerSelectedSubLayer;
+                                var name = (idx >= 0 && idx < names.length) ? names[idx] : "";
+                                return qsTr("Plane properties for sub-layer: %1").arg(name);
+                            }
+                            return qsTr("Plane properties for the layer");
+                        }
+                    }
+                    Rectangle {
+                        Layout.fillWidth: true
+                        color: Kirigami.Theme.alternateBackgroundColor
+                        height: 1
+                    }
+                    Item {
+                        // spacer item
+                        Layout.fillWidth: true
+                    }
+                }
+
+                // ------------------------------------
+                // Plane parameters
+                // ------------------------------------
+                Label {
+                    text: qsTr("Plane size based on:")
+                    Layout.alignment: Qt.AlignRight
+                }
+                ComboBox {
+                    id: planeSizeBasedOnComboBox
+
+                    Layout.columnSpan: 2
+                    enabled: true
+                    textRole: "mode"
+
+                    model: ListModel {
+                        id: planeSizeBasedOnMode
+
+                        ListElement {
+                            mode: "Values below"
+                            value: 0
+                        }
+                        ListElement {
+                            mode: "Height below and video aspect ratio"
+                            value: 1
+                        }
+                        ListElement {
+                            mode: "Width below and video aspect ratio"
+                            value: 2
+                        }
+                    }
+
+                    Component.onCompleted: {
+                        for (let i = 0; i < planeSizeBasedOnMode.count; ++i) {
+                            if (planeSizeBasedOnMode.get(i).value === layerView.layerItem.layerPlaneAspectRatio) {
+                                currentIndex = i;
+                                break;
+                            }
+                        }
+                    }
+                    onActivated: {
+                        layerView.layerItem.layerPlaneAspectRatio = model.get(index).value;
+                    }
+                }
+                Label {
+                    text: qsTr("Plane width:")
+                    Layout.alignment: Qt.AlignRight
+                }
+                RowLayout {
+                    Layout.columnSpan: 2
+
+                    SpinBox {
+                        id: planeWidthBox
+
+                        enabled: layerView.layerItem.layerPlaneAspectRatio !== 1
+                        from: 0
+                        stepSize: 1
+                        to: 2000
+
+                        onValueChanged: layerView.layerItem.layerPlaneWidth = value
+                    }
+                    Label {
+                        Layout.fillWidth: true
+                        elide: Text.ElideRight
+                        text: {
+                            qsTr("cm");
                         }
                     }
                 }
-                onActivated: {
-                    layerView.layerItem.layerPlaneAspectRatio = model.get(index).value;
+                Label {
+                    text: qsTr("Plane height:")
+                    Layout.alignment: Qt.AlignRight
                 }
-            }
-            Label {
-                text: qsTr("Plane width:")
-                Layout.alignment: Qt.AlignRight
-            }
-            RowLayout {
-                Layout.columnSpan: 2
+                RowLayout {
+                    Layout.columnSpan: 2
 
-                SpinBox {
-                    id: planeWidthBox
+                    SpinBox {
+                        id: planeHeightBox
 
-                    enabled: layerView.layerItem.layerPlaneAspectRatio !== 1
-                    from: 0
-                    stepSize: 1
-                    to: 2000
+                        enabled: layerView.layerItem.layerPlaneAspectRatio !== 2
+                        from: 0
+                        stepSize: 1
+                        to: 2000
 
-                    onValueChanged: layerView.layerItem.layerPlaneWidth = value
+                        onValueChanged: layerView.layerItem.layerPlaneHeight = value
+                    }
+                    Label {
+                        Layout.alignment: Qt.AlignLeft
+                        Layout.fillWidth: true
+                        text: {
+                            qsTr("cm");
+                        }
+                    }
                 }
                 Label {
-                    Layout.fillWidth: true
-                    elide: Text.ElideRight
-                    text: {
-                        qsTr("cm");
+                    text: qsTr("Plane distance:")
+                    Layout.alignment: Qt.AlignRight
+                }
+                RowLayout {
+                    Layout.columnSpan: 2
+
+                    SpinBox {
+                        id: planeDistanceBox
+
+                        from: 0
+                        stepSize: 1
+                        to: 2000
+
+                        onValueChanged: layerView.layerItem.layerPlaneDistance = value
                     }
-                }
-            }
-            Label {
-                text: qsTr("Plane height:")
-                Layout.alignment: Qt.AlignRight
-            }
-            RowLayout {
-                Layout.columnSpan: 2
-
-                SpinBox {
-                    id: planeHeightBox
-
-                    enabled: layerView.layerItem.layerPlaneAspectRatio !== 2
-                    from: 0
-                    stepSize: 1
-                    to: 2000
-
-                    onValueChanged: layerView.layerItem.layerPlaneHeight = value
-                }
-                Label {
-                    Layout.alignment: Qt.AlignLeft
-                    Layout.fillWidth: true
-                    text: {
-                        qsTr("cm");
+                    Label {
+                        Layout.alignment: Qt.AlignLeft
+                        Layout.fillWidth: true
+                        elide: Text.ElideLeft
+                        text: {
+                            qsTr("cm");
+                        }
                     }
-                }
-            }
-            Label {
-                text: qsTr("Plane distance:")
-                Layout.alignment: Qt.AlignRight
-            }
-            RowLayout {
-                Layout.columnSpan: 2
-
-                SpinBox {
-                    id: planeDistanceBox
-
-                    from: 0
-                    stepSize: 1
-                    to: 2000
-
-                    onValueChanged: layerView.layerItem.layerPlaneDistance = value
                 }
                 Label {
-                    Layout.alignment: Qt.AlignLeft
-                    Layout.fillWidth: true
-                    elide: Text.ElideLeft
-                    text: {
-                        qsTr("cm");
-                    }
+                    text: qsTr("Plane elevation:")
+                    Layout.alignment: Qt.AlignRight
                 }
-            }
-            Label {
-                text: qsTr("Plane elevation:")
-                Layout.alignment: Qt.AlignRight
-            }
-            RowLayout {
-                Layout.columnSpan: 2
+                RowLayout {
+                    Layout.columnSpan: 2
 
-                SpinBox {
-                    id: planeElevationSpinBox
+                    SpinBox {
+                        id: planeElevationSpinBox
 
-                    property int decimals: 2
-                    property real realValue: value / 100
+                        property int decimals: 2
+                        property real realValue: value / 100
 
-                    from: -18000
-                    stepSize: 10
-                    textFromValue: function (value, locale) {
-                        return Number(value / 100).toLocaleString(locale, 'f', planeElevationSpinBox.decimals);
-                    }
-                    to: 18000
-                    value: layerView.layerItem.layerPlaneElevation * 100
-                    valueFromText: function (text, locale) {
-                        return Number.fromLocaleString(locale, text) * 100;
-                    }
+                        from: -18000
+                        stepSize: 10
+                        textFromValue: function (value, locale) {
+                            return Number(value / 100).toLocaleString(locale, 'f', planeElevationSpinBox.decimals);
+                        }
+                        to: 18000
+                        value: layerView.layerItem.layerPlaneElevation * 100
+                        valueFromText: function (text, locale) {
+                            return Number.fromLocaleString(locale, text) * 100;
+                        }
 
-                    validator: DoubleValidator {
-                        bottom: Math.min(planeElevationSpinBox.from, planeElevationSpinBox.to)
-                        top: Math.max(planeElevationSpinBox.from, planeElevationSpinBox.to)
-                    }
+                        validator: DoubleValidator {
+                            bottom: Math.min(planeElevationSpinBox.from, planeElevationSpinBox.to)
+                            top: Math.max(planeElevationSpinBox.from, planeElevationSpinBox.to)
+                        }
 
-                    onValueModified: {
-                        layerView.layerItem.layerPlaneElevation = realValue;
-                        planeElevationSlider.value = value;
-                    }
-                }
-
-                Label {
-                    Layout.alignment: Qt.AlignLeft
-                    Layout.fillWidth: true
-                    text: {
-                        qsTr("deg");
-                    }
-                }
-
-                Slider {
-                    id: planeElevationSlider
-
-                    Layout.topMargin: Kirigami.Units.largeSpacing
-
-                    implicitWidth: 180
-                    from: -18000
-                    to: 18000
-                    value: layerView.layerItem.layerPlaneElevation * 100
-
-                    onMoved: {
-                        planeElevationSpinBox.value = value.toFixed(0);
-                        layerView.layerItem.layerPlaneElevation = planeElevationSpinBox.realValue;
+                        onValueModified: {
+                            layerView.layerItem.layerPlaneElevation = realValue;
+                            planeElevationSlider.value = value;
+                        }
                     }
 
-                    Layout.fillWidth: true
-                }
-
-                Button {
-                    text: qsTr("Reset")
-                    onClicked: layerView.layerItem.layerPlaneElevation = GridSettings.defaultPlane_Elevation_DegreesValue
-                }
-
-                Connections {
-                    function onLayerValueChanged() {
-                        if (planeElevationSpinBox.realValue !== layerView.layerItem.layerPlaneElevation)
-                            planeElevationSpinBox.value = layerView.layerItem.layerPlaneElevation * 100;
+                    Label {
+                        Layout.alignment: Qt.AlignLeft
+                        Layout.fillWidth: true
+                        text: {
+                            qsTr("deg");
+                        }
                     }
 
-                    target: layerView.layerItem
-                }
-            }
+                    Slider {
+                        id: planeElevationSlider
 
-            Label {
-                text: qsTr("Plane azimuth:")
-                Layout.alignment: Qt.AlignRight
-            }
-            RowLayout {
-                Layout.columnSpan: 2
+                        Layout.topMargin: Kirigami.Units.largeSpacing
 
-                SpinBox {
-                    id: planeAzimuthSpinBox
+                        implicitWidth: 180
+                        from: -18000
+                        to: 18000
+                        value: layerView.layerItem.layerPlaneElevation * 100
 
-                    property int decimals: 2
-                    property real realValue: value / 100
+                        onMoved: {
+                            planeElevationSpinBox.value = value.toFixed(0);
+                            layerView.layerItem.layerPlaneElevation = planeElevationSpinBox.realValue;
+                        }
 
-                    from: -18000
-                    stepSize: 10
-                    textFromValue: function (value, locale) {
-                        return Number(value / 100).toLocaleString(locale, 'f', planeAzimuthSpinBox.decimals);
-                    }
-                    to: 18000
-                    value: layerView.layerItem.layerPlaneAzimuth * 100
-                    valueFromText: function (text, locale) {
-                        return Number.fromLocaleString(locale, text) * 100;
+                        Layout.fillWidth: true
                     }
 
-                    validator: DoubleValidator {
-                        bottom: Math.min(planeAzimuthSpinBox.from, planeAzimuthSpinBox.to)
-                        top: Math.max(planeAzimuthSpinBox.from, planeAzimuthSpinBox.to)
+                    Button {
+                        text: qsTr("Reset")
+                        onClicked: layerView.layerItem.layerPlaneElevation = GridSettings.defaultPlane_Elevation_DegreesValue
                     }
 
-                    onValueModified: {
-                        layerView.layerItem.layerPlaneAzimuth = realValue;
-                        planeAzimuthSlider.value = value;
+                    Connections {
+                        function onLayerValueChanged() {
+                            if (planeElevationSpinBox.realValue !== layerView.layerItem.layerPlaneElevation)
+                                planeElevationSpinBox.value = layerView.layerItem.layerPlaneElevation * 100;
+                        }
+
+                        target: layerView.layerItem
                     }
                 }
 
                 Label {
-                    Layout.alignment: Qt.AlignLeft
-                    Layout.fillWidth: true
-                    text: {
-                        qsTr("deg");
-                    }
+                    text: qsTr("Plane azimuth:")
+                    Layout.alignment: Qt.AlignRight
                 }
+                RowLayout {
+                    Layout.columnSpan: 2
 
-                Slider {
-                    id: planeAzimuthSlider
+                    SpinBox {
+                        id: planeAzimuthSpinBox
 
-                    Layout.topMargin: Kirigami.Units.largeSpacing
+                        property int decimals: 2
+                        property real realValue: value / 100
 
-                    implicitWidth: 180
-                    from: -18000
-                    to: 18000
-                    value: layerView.layerItem.layerPlaneAzimuth * 100
+                        from: -18000
+                        stepSize: 10
+                        textFromValue: function (value, locale) {
+                            return Number(value / 100).toLocaleString(locale, 'f', planeAzimuthSpinBox.decimals);
+                        }
+                        to: 18000
+                        value: layerView.layerItem.layerPlaneAzimuth * 100
+                        valueFromText: function (text, locale) {
+                            return Number.fromLocaleString(locale, text) * 100;
+                        }
 
-                    onMoved: {
-                        planeAzimuthSpinBox.value = value.toFixed(0);
-                        layerView.layerItem.layerPlaneAzimuth = planeAzimuthSpinBox.realValue;
+                        validator: DoubleValidator {
+                            bottom: Math.min(planeAzimuthSpinBox.from, planeAzimuthSpinBox.to)
+                            top: Math.max(planeAzimuthSpinBox.from, planeAzimuthSpinBox.to)
+                        }
+
+                        onValueModified: {
+                            layerView.layerItem.layerPlaneAzimuth = realValue;
+                            planeAzimuthSlider.value = value;
+                        }
                     }
 
-                    Layout.fillWidth: true
-                }
-
-                Button {
-                    text: qsTr("Reset")
-                    onClicked: layerView.layerItem.layerPlaneAzimuth = 0
-                }
-
-                Connections {
-                    function onLayerValueChanged() {
-                        if (planeAzimuthSpinBox.realValue !== layerView.layerItem.layerPlaneAzimuth)
-                            planeAzimuthSpinBox.value = layerView.layerItem.layerPlaneAzimuth * 100;
+                    Label {
+                        Layout.alignment: Qt.AlignLeft
+                        Layout.fillWidth: true
+                        text: {
+                            qsTr("deg");
+                        }
                     }
 
-                    target: layerView.layerItem
-                }
-            }
+                    Slider {
+                        id: planeAzimuthSlider
 
-            Label {
-                text: qsTr("Plane roll:")
-                Layout.alignment: Qt.AlignRight
-            }
-            RowLayout {
-                Layout.columnSpan: 2
+                        Layout.topMargin: Kirigami.Units.largeSpacing
 
-                SpinBox {
-                    id: planeRollSpinBox
+                        implicitWidth: 180
+                        from: -18000
+                        to: 18000
+                        value: layerView.layerItem.layerPlaneAzimuth * 100
 
-                    property int decimals: 2
-                    property real realValue: value / 100
+                        onMoved: {
+                            planeAzimuthSpinBox.value = value.toFixed(0);
+                            layerView.layerItem.layerPlaneAzimuth = planeAzimuthSpinBox.realValue;
+                        }
 
-                    from: -18000
-                    stepSize: 10
-                    textFromValue: function (value, locale) {
-                        return Number(value / 100).toLocaleString(locale, 'f', planeRollSpinBox.decimals);
-                    }
-                    to: 18000
-                    value: layerView.layerItem.layerPlaneRoll * 100
-                    valueFromText: function (text, locale) {
-                        return Number.fromLocaleString(locale, text) * 100;
+                        Layout.fillWidth: true
                     }
 
-                    validator: DoubleValidator {
-                        bottom: Math.min(planeRollSpinBox.from, planeRollSpinBox.to)
-                        top: Math.max(planeRollSpinBox.from, planeRollSpinBox.to)
+                    Button {
+                        text: qsTr("Reset")
+                        onClicked: layerView.layerItem.layerPlaneAzimuth = 0
                     }
 
-                    onValueModified: {
-                        layerView.layerItem.layerPlaneRoll = realValue;
-                        planeRollSlider.value = value;
+                    Connections {
+                        function onLayerValueChanged() {
+                            if (planeAzimuthSpinBox.realValue !== layerView.layerItem.layerPlaneAzimuth)
+                                planeAzimuthSpinBox.value = layerView.layerItem.layerPlaneAzimuth * 100;
+                        }
+
+                        target: layerView.layerItem
                     }
                 }
 
                 Label {
-                    Layout.alignment: Qt.AlignLeft
-                    Layout.fillWidth: true
-                    text: {
-                        qsTr("deg");
+                    text: qsTr("Plane roll:")
+                    Layout.alignment: Qt.AlignRight
+                }
+                RowLayout {
+                    Layout.columnSpan: 2
+
+                    SpinBox {
+                        id: planeRollSpinBox
+
+                        property int decimals: 2
+                        property real realValue: value / 100
+
+                        from: -18000
+                        stepSize: 10
+                        textFromValue: function (value, locale) {
+                            return Number(value / 100).toLocaleString(locale, 'f', planeRollSpinBox.decimals);
+                        }
+                        to: 18000
+                        value: layerView.layerItem.layerPlaneRoll * 100
+                        valueFromText: function (text, locale) {
+                            return Number.fromLocaleString(locale, text) * 100;
+                        }
+
+                        validator: DoubleValidator {
+                            bottom: Math.min(planeRollSpinBox.from, planeRollSpinBox.to)
+                            top: Math.max(planeRollSpinBox.from, planeRollSpinBox.to)
+                        }
+
+                        onValueModified: {
+                            layerView.layerItem.layerPlaneRoll = realValue;
+                            planeRollSlider.value = value;
+                        }
+                    }
+
+                    Label {
+                        Layout.alignment: Qt.AlignLeft
+                        Layout.fillWidth: true
+                        text: {
+                            qsTr("deg");
+                        }
+                    }
+
+                    Slider {
+                        id: planeRollSlider
+
+                        Layout.topMargin: Kirigami.Units.largeSpacing
+
+                        implicitWidth: 180
+                        from: -18000
+                        to: 18000
+                        value: layerView.layerItem.layerPlaneRoll * 100
+
+                        onMoved: {
+                            planeRollSpinBox.value = value.toFixed(0);
+                            layerView.layerItem.layerPlaneRoll = planeRollSpinBox.realValue;
+                        }
+
+                        Layout.fillWidth: true
+                    }
+
+                    Button {
+                        text: qsTr("Reset")
+                        onClicked: layerView.layerItem.layerPlaneRoll = 0
+                    }
+
+                    Connections {
+                        function onLayerValueChanged() {
+                            if (planeRollSpinBox.realValue !== layerView.layerItem.layerPlaneRoll)
+                                planeRollSpinBox.value = layerView.layerItem.layerPlaneRoll * 100;
+                        }
+
+                        target: layerView.layerItem
                     }
                 }
 
-                Slider {
-                    id: planeRollSlider
+                Label {
+                    text: qsTr("Plane horizontal move:")
+                    Layout.alignment: Qt.AlignRight
+                }
+                RowLayout {
+                    Layout.columnSpan: 2
 
-                    Layout.topMargin: Kirigami.Units.largeSpacing
+                    SpinBox {
+                        id: planeHorizontalMoveBox
 
-                    implicitWidth: 180
-                    from: -18000
-                    to: 18000
-                    value: layerView.layerItem.layerPlaneRoll * 100
+                        from: -GridSettings.plane_Horizontal_Range_CM
+                        stepSize: 1
+                        to: GridSettings.plane_Horizontal_Range_CM
 
-                    onMoved: {
-                        planeRollSpinBox.value = value.toFixed(0);
-                        layerView.layerItem.layerPlaneRoll = planeRollSpinBox.realValue;
+                        onValueChanged: layerView.layerItem.layerPlaneHorizontal = value
+                    }
+                    Label {
+                        Layout.alignment: Qt.AlignLeft
+                        Layout.fillWidth: true
+                        elide: Text.ElideLeft
+                        text: {
+                            qsTr("cm");
+                        }
+                    }
+                    Slider {
+                        id: planeHorizontalSlider
+
+                        Layout.topMargin: Kirigami.Units.largeSpacing
+
+                        implicitWidth: 180
+                        from: -GridSettings.plane_Horizontal_Range_CM
+                        to: GridSettings.plane_Horizontal_Range_CM
+                        value: layerView.layerItem.layerPlaneHorizontal
+
+                        onMoved: {
+                            planeHorizontalMoveBox.value = value;
+                            layerView.layerItem.layerPlaneHorizontal = planeHorizontalMoveBox.realValue;
+                        }
+
+                        Layout.fillWidth: true
                     }
 
-                    Layout.fillWidth: true
-                }
-
-                Button {
-                    text: qsTr("Reset")
-                    onClicked: layerView.layerItem.layerPlaneRoll = 0
-                }
-
-                Connections {
-                    function onLayerValueChanged() {
-                        if (planeRollSpinBox.realValue !== layerView.layerItem.layerPlaneRoll)
-                            planeRollSpinBox.value = layerView.layerItem.layerPlaneRoll * 100;
+                    Button {
+                        text: qsTr("Reset")
+                        onClicked: layerView.layerItem.layerPlaneHorizontal = 0
                     }
 
-                    target: layerView.layerItem
-                }
-            }
+                    Connections {
+                        function onLayerValueChanged() {
+                            if (planeHorizontalMoveBox.realValue !== layerView.layerItem.layerPlaneHorizontal)
+                                planeHorizontalMoveBox.value = layerView.layerItem.layerPlaneHorizontal;
+                        }
 
-            Label {
-                text: qsTr("Plane horizontal move:")
-                Layout.alignment: Qt.AlignRight
-            }
-            RowLayout {
-                Layout.columnSpan: 2
-
-                SpinBox {
-                    id: planeHorizontalMoveBox
-
-                    from: -GridSettings.plane_Horizontal_Range_CM
-                    stepSize: 1
-                    to: GridSettings.plane_Horizontal_Range_CM
-
-                    onValueChanged: layerView.layerItem.layerPlaneHorizontal = value
+                        target: layerView.layerItem
+                    }
                 }
                 Label {
-                    Layout.alignment: Qt.AlignLeft
-                    Layout.fillWidth: true
-                    elide: Text.ElideLeft
-                    text: {
-                        qsTr("cm");
-                    }
+                    text: qsTr("Plane vertical move:")
+                    Layout.alignment: Qt.AlignRight
                 }
-                Slider {
-                    id: planeHorizontalSlider
+                RowLayout {
+                    Layout.columnSpan: 2
 
-                    Layout.topMargin: Kirigami.Units.largeSpacing
+                    SpinBox {
+                        id: planeVerticalMoveBox
 
-                    implicitWidth: 180
-                    from: -GridSettings.plane_Horizontal_Range_CM
-                    to: GridSettings.plane_Horizontal_Range_CM
-                    value: layerView.layerItem.layerPlaneHorizontal
+                        from: -GridSettings.plane_Vertical_Range_CM
+                        stepSize: 1
+                        to: GridSettings.plane_Vertical_Range_CM
 
-                    onMoved: {
-                        planeHorizontalMoveBox.value = value;
-                        layerView.layerItem.layerPlaneHorizontal = planeHorizontalMoveBox.realValue;
+                        onValueChanged: layerView.layerItem.layerPlaneVertical = value
+                    }
+                    Label {
+                        Layout.alignment: Qt.AlignLeft
+                        Layout.fillWidth: true
+                        elide: Text.ElideLeft
+                        text: {
+                            qsTr("cm");
+                        }
+                    }
+                    Slider {
+                        id: planeVerticalSlider
+
+                        Layout.topMargin: Kirigami.Units.largeSpacing
+
+                        implicitWidth: 180
+                        from: -GridSettings.plane_Vertical_Range_CM
+                        to: GridSettings.plane_Vertical_Range_CM
+                        value: layerView.layerItem.layerPlaneVertical
+
+                        onMoved: {
+                            planeVerticalMoveBox.value = value;
+                            layerView.layerItem.layerPlaneVertical = planeVerticalMoveBox.realValue;
+                        }
+
+                        Layout.fillWidth: true
                     }
 
-                    Layout.fillWidth: true
-                }
-
-                Button {
-                    text: qsTr("Reset")
-                    onClicked: layerView.layerItem.layerPlaneHorizontal = 0
-                }
-
-                Connections {
-                    function onLayerValueChanged() {
-                        if (planeHorizontalMoveBox.realValue !== layerView.layerItem.layerPlaneHorizontal)
-                            planeHorizontalMoveBox.value = layerView.layerItem.layerPlaneHorizontal;
+                    Button {
+                        text: qsTr("Reset")
+                        onClicked: layerView.layerItem.layerPlaneVertical = 0
                     }
 
-                    target: layerView.layerItem
+                    Connections {
+                        function onLayerValueChanged() {
+                            if (planeVerticalMoveBox.realValue !== layerView.layerItem.layerPlaneVertical)
+                                planeVerticalMoveBox.value = layerView.layerItem.layerPlaneVertical;
+                        }
+
+                        target: layerView.layerItem
+                    }
                 }
             }
-            Label {
-                text: qsTr("Plane vertical move:")
-                Layout.alignment: Qt.AlignRight
-            }
-            RowLayout {
-                Layout.columnSpan: 2
+            GridLayout {
+                id: domeGridLayout
+                Layout.alignment: Qt.AlignHCenter | Qt.AlignTop
+                columnSpacing: 2
+                columns: 3
+                rowSpacing: 8
+                visible: layerView.layerItem.layerGridMode === 2 && layerView.layerItem.layerTypeName !== "Control" && layerView.layerItem.layerTypeName !== "REST"
 
-                SpinBox {
-                    id: planeVerticalMoveBox
+                RowLayout {
+                    Layout.bottomMargin: 5
+                    Layout.columnSpan: 3
 
-                    from: -GridSettings.plane_Vertical_Range_CM
-                    stepSize: 1
-                    to: GridSettings.plane_Vertical_Range_CM
-
-                    onValueChanged: layerView.layerItem.layerPlaneVertical = value
-                }
-                Label {
-                    Layout.alignment: Qt.AlignLeft
-                    Layout.fillWidth: true
-                    elide: Text.ElideLeft
-                    text: {
-                        qsTr("cm");
+                    Rectangle {
+                        color: Kirigami.Theme.alternateBackgroundColor
+                        height: 1
+                        width: Kirigami.Units.gridUnit
                     }
-                }
-                Slider {
-                    id: planeVerticalSlider
-
-                    Layout.topMargin: Kirigami.Units.largeSpacing
-
-                    implicitWidth: 180
-                    from: -GridSettings.plane_Vertical_Range_CM
-                    to: GridSettings.plane_Vertical_Range_CM
-                    value: layerView.layerItem.layerPlaneVertical
-
-                    onMoved: {
-                        planeVerticalMoveBox.value = value;
-                        layerView.layerItem.layerPlaneVertical = planeVerticalMoveBox.realValue;
+                    Kirigami.Heading {
+                        text: {
+                            if (layerView.layerItem.layerSelectedSubLayer > 0) {
+                                var names = layerView.layerItem.layerSubLayerNames;
+                                var idx = layerView.layerItem.layerSelectedSubLayer;
+                                var name = (idx >= 0 && idx < names.length) ? names[idx] : "";
+                                return qsTr("Dome properties for sub-layer: %1").arg(name);
+                        }
+                        return qsTr("Dome properties for the layer");
                     }
-
-                    Layout.fillWidth: true
-                }
-
-                Button {
-                    text: qsTr("Reset")
-                    onClicked: layerView.layerItem.layerPlaneVertical = 0
-                }
-
-                Connections {
-                    function onLayerValueChanged() {
-                        if (planeVerticalMoveBox.realValue !== layerView.layerItem.layerPlaneVertical)
-                            planeVerticalMoveBox.value = layerView.layerItem.layerPlaneVertical;
-                    }
-
-                    target: layerView.layerItem
-                }
-            }
-        }
-        GridLayout {
-            id: domeGridLayout
-            Layout.alignment: Qt.AlignHCenter | Qt.AlignTop
-            columnSpacing: 2
-            columns: 3
-            rowSpacing: 8
-            visible: layerView.layerItem.layerGridMode === 2 && layerView.layerItem.layerTypeName !== "Control" && layerView.layerItem.layerTypeName !== "REST"
-
-            RowLayout {
-                Layout.bottomMargin: 5
-                Layout.columnSpan: 3
-
-                Rectangle {
-                    color: Kirigami.Theme.alternateBackgroundColor
-                    height: 1
-                    width: Kirigami.Units.gridUnit
-                }
-                Kirigami.Heading {
-                    text: qsTr("Dome properties for the layer")
                 }
                 Rectangle {
                     Layout.fillWidth: true
@@ -782,7 +838,15 @@ Kirigami.ApplicationWindow {
                     width: Kirigami.Units.gridUnit
                 }
                 Kirigami.Heading {
-                    text: qsTr("Sphere properties for the layer")
+                    text: {
+                        if (layerView.layerItem.layerSelectedSubLayer > 0) {
+                            var names = layerView.layerItem.layerSubLayerNames;
+                            var idx = layerView.layerItem.layerSelectedSubLayer;
+                            var name = (idx >= 0 && idx < names.length) ? names[idx] : "";
+                            return qsTr("Sphere properties for sub-layer: %1").arg(name);
+                        }
+                        return qsTr("Sphere properties for the layer");
+                    }
                 }
                 Rectangle {
                     Layout.fillWidth: true
@@ -1316,5 +1380,6 @@ Kirigami.ApplicationWindow {
                 target: layerView.layerItem
             }
         }
+        } // ColumnLayout
     }
 }

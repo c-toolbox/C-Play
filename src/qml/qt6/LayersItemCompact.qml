@@ -218,16 +218,21 @@ ItemDelegate {
                 implicitWidth: 100
                 overlayLabel: qsTr("")
 
+                onVisibleChanged: {
+                    if (visible) {
+                        visibilitySlider.value = app.slides.selected.layerVisibility(index);
+                    }
+                }
                 onValueChanged: {
                     if (!layersView.enabled || visibilitySlider.enabled) {
-                        if (value.toFixed(0) !== layerView.layerItem.layerVisibility) {
+                        if (visibilitySlider.visible && (value.toFixed(0) !== layerView.layerItem.layerVisibility)) {
                             layerView.layerItem.layerVisibility = value.toFixed(0);
                             app.slides.needsSync = true;
                         }
                     }
                 }
                 Component.onCompleted: {
-                    visibilitySlider.value = layerView.layerItem.layerVisibility;
+                    visibilitySlider.value = app.slides.selected.layerVisibility(index);
                 }
             }
             Item {
@@ -451,12 +456,12 @@ ItemDelegate {
     }
     Connections {
         function onLayerChanged() {
-            if (visibilitySlider.value !== layerView.layerItem.layerVisibility)
-                visibilitySlider.value = layerView.layerItem.layerVisibility;
+            if (visibilitySlider.value !== app.slides.selected.layerVisibility(index))
+                visibilitySlider.value = app.slides.selected.layerVisibility(index);
         }
         function onLayerValueChanged() {
-            if (visibilitySlider.value !== layerView.layerItem.layerVisibility)
-                visibilitySlider.value = layerView.layerItem.layerVisibility;
+            if (visibilitySlider.value !== app.slides.selected.layerVisibility(index))
+                visibilitySlider.value = app.slides.selected.layerVisibility(index);
         }
 
         target: layerView.layerItem

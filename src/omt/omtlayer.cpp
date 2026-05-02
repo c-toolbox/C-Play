@@ -8,6 +8,7 @@
 #include "omtlayer.h"
 #include "audiosettings.h"
 #include <sgct/sgct.h>
+#include <utils/dividetexturehandler.h>
 #include <cstring>
 #include <cmath>
 #include <algorithm>
@@ -84,6 +85,8 @@ OmtLayer::~OmtLayer() {
     if (renderData.texId > 0) {
         glDeleteTextures(1, &renderData.texId);
     }
+
+    delete m_divideTexHandler;
 }
 
 void OmtLayer::initialize() {
@@ -193,6 +196,12 @@ void OmtLayer::updateFrame() {
     glBindTexture(GL_TEXTURE_2D, renderData.texId);
     glTexSubImage2D(GL_TEXTURE_2D, 0, 0, 0, width, height,
         GL_BGRA, GL_UNSIGNED_BYTE, frame->Data);
+
+    // Update divide texture sublayers if division mode is active
+    if (m_textureDivisionMode == 2 && m_divideTexHandler && m_divideTexHandler->isActive()
+        && renderData.texId > 0 && renderData.width > 0 && renderData.height > 0) {
+        m_divideTexHandler->updateSubLayers(this, renderData.texId, renderData.width, renderData.height);
+    }
 }
 
 void OmtLayer::ProcessAudioFrame(OMTMediaFrame* frame) {
@@ -434,13 +443,220 @@ void OmtLayer::setVolume(int v, bool storeLevel) {
         setNeedSync();
 }
 
+// Helper to convert grid index to cols/rows
+static void omtGridIndexToColsRows(int grid, int& cols, int& rows) {
+    switch (grid) {
+    case 1: cols = 1; rows = 2; break;
+    case 2: cols = 2; rows = 1; break;
+    case 3: cols = 2; rows = 2; break;
+    case 4: cols = 2; rows = 3; break;
+    case 5: cols = 3; rows = 2; break;
+    case 6: cols = 3; rows = 3; break;
+    default: cols = 1; rows = 1; break;
+    }
+}
+
 void OmtLayer::encodeTypeProperties(std::vector<std::byte>& data) {
     sgct::serializeObject(data, m_volume_Dec);
+    sgct::serializeObject(data, m_textureDivisionMode);
+    sgct::serializeObject(data, m_textureDivisionGrid);
+
+    // Serialize sublayer properties for division mode
+    if (m_textureDivisionMode == 2 && m_divideTexHandler) {
+        int numSubs = m_divideTexHandler->cellCount();
+        sgct::serializeObject(data, numSubs);
+        bool hasSubs = m_divideTexHandler->hasSubLayers();
+        sgct::serializeObject(data, hasSubs);
+        if (hasSubs) {
+            auto& subs = m_divideTexHandler->subLayers();
+            int actualCount = static_cast<int>(subs.size());
+            sgct::serializeObject(data, actualCount);
+            for (int i = 0; i < actualCount; ++i) {
+                auto& sub = subs[i];
+                if (sub) {
+                    sub->encodeBaseAlways(data);
+                    sub->encodeBaseProperties(data);
+                }
+            }
+        }
+    }
 }
 
 void OmtLayer::decodeTypeProperties(const std::vector<std::byte>& data, unsigned int& pos) {
     sgct::deserializeObject(data, pos, m_volume_Dec);
+
+    int divMode = 0;
+    sgct::deserializeObject(data, pos, divMode);
+    int divGrid = 0;
+    sgct::deserializeObject(data, pos, divGrid);
+
+    m_textureDivisionMode = divMode;
+    m_textureDivisionGrid = divGrid;
+
+    // Deserialize sublayer properties for division mode
+    if (m_textureDivisionMode == 2) {
+        int numSubs = 0;
+        sgct::deserializeObject(data, pos, numSubs);
+        bool hasSubs = false;
+        sgct::deserializeObject(data, pos, hasSubs);
+        if (hasSubs) {
+            int actualCount = 0;
+            sgct::deserializeObject(data, pos, actualCount);
+
+            if (!m_divideTexHandler) {
+                m_divideTexHandler = new DivideTextureHandler();
+            }
+            int cols = 1, rows = 1;
+            omtGridIndexToColsRows(m_textureDivisionGrid, cols, rows);
+            m_divideTexHandler->setDivision(cols, rows, this);
+
+            if (m_divideTexHandler->hasSubLayers()) {
+                auto& subs = m_divideTexHandler->subLayers();
+                for (int i = 0; i < actualCount; ++i) {
+                    if (i < static_cast<int>(subs.size()) && subs[i]) {
+                        subs[i]->decodeBaseAlways(data, pos);
+                        subs[i]->decodeBaseProperties(data, pos);
+                    } else {
+                        // Skip data for this sublayer
+                        bool tmpBool; float tmpFloat;
+                        sgct::deserializeObject(data, pos, tmpBool);
+                        sgct::deserializeObject(data, pos, tmpBool);
+                        sgct::deserializeObject(data, pos, tmpFloat);
+                        uint8_t gm, sm;
+                        sgct::deserializeObject(data, pos, gm);
+                        sgct::deserializeObject(data, pos, sm);
+                        bool roiEn;
+                        sgct::deserializeObject(data, pos, roiEn);
+                        if (roiEn) {
+                            float rx, ry, rz, rw;
+                            sgct::deserializeObject(data, pos, rx);
+                            sgct::deserializeObject(data, pos, ry);
+                            sgct::deserializeObject(data, pos, rz);
+                            sgct::deserializeObject(data, pos, rw);
+                        }
+                        if (gm == BaseLayer::GridMode::Plane) {
+                            double d; float f; uint8_t u;
+                            sgct::deserializeObject(data, pos, d);
+                            sgct::deserializeObject(data, pos, d);
+                            sgct::deserializeObject(data, pos, d);
+                            sgct::deserializeObject(data, pos, d);
+                            sgct::deserializeObject(data, pos, d);
+                            sgct::deserializeObject(data, pos, d);
+                            sgct::deserializeObject(data, pos, f);
+                            sgct::deserializeObject(data, pos, f);
+                            sgct::deserializeObject(data, pos, u);
+                        } else {
+                            float rx, ry, rz;
+                            sgct::deserializeObject(data, pos, rx);
+                            sgct::deserializeObject(data, pos, ry);
+                            sgct::deserializeObject(data, pos, rz);
+                        }
+                    }
+                }
+            } else {
+                for (int i = 0; i < actualCount; ++i) {
+                    bool tmpBool; float tmpFloat;
+                    sgct::deserializeObject(data, pos, tmpBool);
+                    sgct::deserializeObject(data, pos, tmpBool);
+                    sgct::deserializeObject(data, pos, tmpFloat);
+                    uint8_t gm, sm;
+                    sgct::deserializeObject(data, pos, gm);
+                    sgct::deserializeObject(data, pos, sm);
+                    bool roiEn;
+                    sgct::deserializeObject(data, pos, roiEn);
+                    if (roiEn) {
+                        float rx, ry, rz, rw;
+                        sgct::deserializeObject(data, pos, rx);
+                        sgct::deserializeObject(data, pos, ry);
+                        sgct::deserializeObject(data, pos, rz);
+                        sgct::deserializeObject(data, pos, rw);
+                    }
+                    if (gm == BaseLayer::GridMode::Plane) {
+                        double d; float f; uint8_t u;
+                        sgct::deserializeObject(data, pos, d);
+                        sgct::deserializeObject(data, pos, d);
+                        sgct::deserializeObject(data, pos, d);
+                        sgct::deserializeObject(data, pos, d);
+                        sgct::deserializeObject(data, pos, d);
+                        sgct::deserializeObject(data, pos, d);
+                        sgct::deserializeObject(data, pos, f);
+                        sgct::deserializeObject(data, pos, f);
+                        sgct::deserializeObject(data, pos, u);
+                    } else {
+                        float rx, ry, rz;
+                        sgct::deserializeObject(data, pos, rx);
+                        sgct::deserializeObject(data, pos, ry);
+                        sgct::deserializeObject(data, pos, rz);
+                    }
+                }
+            }
+        }
+    }
+
     m_typePropertiesDecoded = true;
+}
+
+int OmtLayer::textureDivisionMode() const {
+    return m_textureDivisionMode;
+}
+
+void OmtLayer::setTextureDivisionMode(int mode) {
+    if (m_textureDivisionMode == mode)
+        return;
+
+    m_textureDivisionMode = mode;
+
+    if (mode == 2) {
+        if (!m_divideTexHandler) {
+            m_divideTexHandler = new DivideTextureHandler();
+        }
+        int cols = 1, rows = 1;
+        omtGridIndexToColsRows(m_textureDivisionGrid, cols, rows);
+        m_divideTexHandler->setDivision(cols, rows, this);
+    } else {
+        if (m_divideTexHandler) {
+            m_divideTexHandler->clearAll();
+        }
+    }
+
+    if (isMaster())
+        setNeedSync();
+}
+
+int OmtLayer::textureDivisionGrid() const {
+    return m_textureDivisionGrid;
+}
+
+void OmtLayer::setTextureDivisionGrid(int grid) {
+    if (m_textureDivisionGrid == grid)
+        return;
+
+    m_textureDivisionGrid = grid;
+
+    if (m_textureDivisionMode == 2) {
+        if (!m_divideTexHandler) {
+            m_divideTexHandler = new DivideTextureHandler();
+        }
+        int cols = 1, rows = 1;
+        omtGridIndexToColsRows(grid, cols, rows);
+        m_divideTexHandler->setDivision(cols, rows, this);
+    }
+
+    if (isMaster())
+        setNeedSync();
+}
+
+bool OmtLayer::hasSubLayers() const {
+    if (m_textureDivisionMode == 2 && m_divideTexHandler)
+        return m_divideTexHandler->hasSubLayers();
+    return false;
+}
+
+std::vector<std::shared_ptr<BaseLayer>>& OmtLayer::getSubLayers() const {
+    if (m_textureDivisionMode == 2 && m_divideTexHandler && m_divideTexHandler->hasSubLayers())
+        return m_divideTexHandler->subLayers();
+    static std::vector<std::shared_ptr<BaseLayer>> empty;
+    return empty;
 }
 
 void OmtLayer::GenerateTexture(unsigned int& id, int width, int height) {
