@@ -248,7 +248,6 @@ bool Application::isCreated() {
 
 Application::~Application() {
     delete m_engine;
-    delete _instance;
     _instance = nullptr;
     delete m_aboutData;
     delete m_fontDatabase;
@@ -957,7 +956,6 @@ SyncHelper *SyncHelper::_instance = nullptr;
 SyncHelper::SyncHelper() {}
 
 SyncHelper::~SyncHelper() {
-    delete _instance;
     _instance = nullptr;
 }
 

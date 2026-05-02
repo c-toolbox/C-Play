@@ -1305,6 +1305,11 @@ void MpvObject::loadUniviewPlaylist(const QString &file, bool updateLastPlayedFi
 
     QStringList playListEntries = fileContent.split(QRegularExpression(QStringLiteral("[\r\n]")), Qt::SkipEmptyParts);
 
+    if (playListEntries.size() < 2) {
+        qDebug() << QStringLiteral("Uniview playlist too short: ") << fileToLoad;
+        return;
+    }
+
     int videoItems = playListEntries.at(1).mid(14).toInt(); //"NumberOfItems=C-Play"
 
     m_playlistModel->clear();
@@ -1312,6 +1317,11 @@ void MpvObject::loadUniviewPlaylist(const QString &file, bool updateLastPlayedFi
 
     for (int i = 0; i < videoItems; ++i) {
         int itemStart = (i * 7) + 2;
+
+        if (itemStart + 6 >= playListEntries.size()) {
+            qDebug() << QStringLiteral("Uniview playlist entry out of bounds at item ") << i;
+            break;
+        }
 
         QString title = playListEntries.at(itemStart + 1).mid(5);                //"Name="
         QString path = playListEntries.at(itemStart + 2).mid(5);                 //"Path="

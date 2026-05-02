@@ -58,6 +58,9 @@ public:
     void updateAudioOutput();
     void setVolume(int v, bool storeLevel = true);
 
+    void encodeTypeAlways(std::vector<std::byte>& data);
+    void decodeTypeAlways(const std::vector<std::byte>& data, unsigned int& pos);
+
     void encodeTypeProperties(std::vector<std::byte>& data);
     void decodeTypeProperties(const std::vector<std::byte>& data, unsigned int& pos);
 

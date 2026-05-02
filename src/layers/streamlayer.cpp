@@ -116,6 +116,67 @@ static void streamGridIndexToColsRows(int grid, int& cols, int& rows) {
     }
 }
 
+void StreamLayer::encodeTypeAlways(std::vector<std::byte>& data) {
+    MpvLayer::encodeTypeAlways(data);
+
+    // Always write whether division-mode sublayer data follows
+    bool divisionActive = (m_textureDivisionMode == 2 && m_divideTexHandler);
+    sgct::serializeObject(data, divisionActive);
+    if (divisionActive) {
+        bool hasSubs = m_divideTexHandler->hasSubLayers();
+        sgct::serializeObject(data, hasSubs);
+        if (hasSubs) {
+            auto& subs = m_divideTexHandler->subLayers();
+            int actualCount = static_cast<int>(subs.size());
+            sgct::serializeObject(data, actualCount);
+            for (int i = 0; i < actualCount; ++i) {
+                auto& sub = subs[i];
+                if (sub) {
+                    sub->encodeBaseAlways(data);
+                    sub->encodeTypeAlways(data);
+                }
+            }
+        }
+    }
+}
+
+void StreamLayer::decodeTypeAlways(const std::vector<std::byte>& data, unsigned int& pos) {
+    MpvLayer::decodeTypeAlways(data, pos);
+
+    bool divisionActive = false;
+    sgct::deserializeObject(data, pos, divisionActive);
+    if (divisionActive) {
+        bool hasSubs = false;
+        sgct::deserializeObject(data, pos, hasSubs);
+        if (hasSubs) {
+            int actualCount = 0;
+            sgct::deserializeObject(data, pos, actualCount);
+
+            if (m_divideTexHandler && m_divideTexHandler->hasSubLayers()) {
+                auto& subs = m_divideTexHandler->subLayers();
+                for (int i = 0; i < actualCount; ++i) {
+                    if (i < static_cast<int>(subs.size()) && subs[i]) {
+                        subs[i]->decodeBaseAlways(data, pos);
+                        subs[i]->decodeTypeAlways(data, pos);
+                    } else {
+                        bool tmpBool; float tmpFloat;
+                        sgct::deserializeObject(data, pos, tmpBool);
+                        sgct::deserializeObject(data, pos, tmpBool);
+                        sgct::deserializeObject(data, pos, tmpFloat);
+                    }
+                }
+            } else {
+                for (int i = 0; i < actualCount; ++i) {
+                    bool tmpBool; float tmpFloat;
+                    sgct::deserializeObject(data, pos, tmpBool);
+                    sgct::deserializeObject(data, pos, tmpBool);
+                    sgct::deserializeObject(data, pos, tmpFloat);
+                }
+            }
+        }
+    }
+}
+
 void StreamLayer::encodeTypeProperties(std::vector<std::byte>& data) {
     MpvLayer::encodeTypeProperties(data);
     sgct::serializeObject(data, isQRCodeDetectionEnabled());
@@ -137,8 +198,8 @@ void StreamLayer::encodeTypeProperties(std::vector<std::byte>& data) {
             for (int i = 0; i < actualCount; ++i) {
                 auto& sub = subs[i];
                 if (sub) {
-                    sub->encodeBaseAlways(data);
                     sub->encodeBaseProperties(data);
+                    sub->encodeTypeProperties(data);
                 }
             }
         }
@@ -180,18 +241,10 @@ void StreamLayer::decodeTypeProperties(const std::vector<std::byte>& data, unsig
                 auto& subs = m_divideTexHandler->subLayers();
                 for (int i = 0; i < actualCount; ++i) {
                     if (i < static_cast<int>(subs.size()) && subs[i]) {
-                        subs[i]->decodeBaseAlways(data, pos);
                         subs[i]->decodeBaseProperties(data, pos);
+                        subs[i]->decodeTypeProperties(data, pos);
                     } else {
-                        // Skip data for this sublayer
-                        BaseLayer::RenderParams tmpRender;
-                        BaseLayer::PlaneParams tmpPlane;
-                        // decodeBaseAlways: shouldUpdate, shouldPreLoad, alpha
-                        bool tmpBool; float tmpFloat;
-                        sgct::deserializeObject(data, pos, tmpBool);
-                        sgct::deserializeObject(data, pos, tmpBool);
-                        sgct::deserializeObject(data, pos, tmpFloat);
-                        // decodeBaseProperties: gridMode, stereoMode, roiEnabled, [roi], [plane or rotate]
+                        // Skip data for this sublayer (decodeBaseProperties format)
                         uint8_t gm, sm;
                         sgct::deserializeObject(data, pos, gm);
                         sgct::deserializeObject(data, pos, sm);
@@ -206,15 +259,15 @@ void StreamLayer::decodeTypeProperties(const std::vector<std::byte>& data, unsig
                         }
                         if (gm == BaseLayer::GridMode::Plane) {
                             double d; float f; uint8_t u;
-                            sgct::deserializeObject(data, pos, d); // azimuth
-                            sgct::deserializeObject(data, pos, d); // elevation
-                            sgct::deserializeObject(data, pos, d); // roll
-                            sgct::deserializeObject(data, pos, d); // distance
-                            sgct::deserializeObject(data, pos, d); // horizontal
-                            sgct::deserializeObject(data, pos, d); // vertical
-                            sgct::deserializeObject(data, pos, f); // specifiedSize.x
-                            sgct::deserializeObject(data, pos, f); // specifiedSize.y
-                            sgct::deserializeObject(data, pos, u); // aspectRatio
+                            sgct::deserializeObject(data, pos, d);
+                            sgct::deserializeObject(data, pos, d);
+                            sgct::deserializeObject(data, pos, d);
+                            sgct::deserializeObject(data, pos, d);
+                            sgct::deserializeObject(data, pos, d);
+                            sgct::deserializeObject(data, pos, d);
+                            sgct::deserializeObject(data, pos, f);
+                            sgct::deserializeObject(data, pos, f);
+                            sgct::deserializeObject(data, pos, u);
                         } else {
                             float rx, ry, rz;
                             sgct::deserializeObject(data, pos, rx);
@@ -226,10 +279,6 @@ void StreamLayer::decodeTypeProperties(const std::vector<std::byte>& data, unsig
             } else {
                 // Sublayers don't exist yet on this node, skip their data
                 for (int i = 0; i < actualCount; ++i) {
-                    bool tmpBool; float tmpFloat;
-                    sgct::deserializeObject(data, pos, tmpBool);
-                    sgct::deserializeObject(data, pos, tmpBool);
-                    sgct::deserializeObject(data, pos, tmpFloat);
                     uint8_t gm, sm;
                     sgct::deserializeObject(data, pos, gm);
                     sgct::deserializeObject(data, pos, sm);

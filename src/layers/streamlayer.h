@@ -21,6 +21,9 @@ public:
     void updateFrame();
     bool ready() const;
 
+    void encodeTypeAlways(std::vector<std::byte>& data);
+    void decodeTypeAlways(const std::vector<std::byte>& data, unsigned int& pos);
+
     void encodeTypeProperties(std::vector<std::byte>& data);
     void decodeTypeProperties(const std::vector<std::byte>& data, unsigned int& pos);
 

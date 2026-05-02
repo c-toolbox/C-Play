@@ -118,7 +118,6 @@ static std::vector<std::byte> encode() {
         // Always sync time-related variables
         serializeObject(data, SyncHelper::instance().variables.timePosition);
         serializeObject(data, SyncHelper::instance().variables.timeDirty);
-        SyncHelper::instance().variables.timeDirty = false;
         serializeObject(data, SyncHelper::instance().variables.timeThreshold);
         serializeObject(data, SyncHelper::instance().variables.paused);
 
@@ -310,7 +309,12 @@ static std::vector<std::byte> encode() {
                             nextLayer->setHasSynced();
                         }
                         else {
-                            nextLayer->encodeAlways(data);
+                            // Encode always data with a size prefix so clients can skip if layer not found
+                            std::vector<std::byte> alwaysData;
+                            nextLayer->encodeAlways(alwaysData);
+                            int alwaysSize = static_cast<int>(alwaysData.size());
+                            serializeObject(data, alwaysSize);
+                            data.insert(data.end(), alwaysData.begin(), alwaysData.end());
                         }
                     }
                 }
@@ -329,7 +333,12 @@ static std::vector<std::byte> encode() {
                     BaseLayer *nextLayer = layerPtr.get();
                     if(nextLayer && !nextLayer->existOnMasterOnly()) {
                         serializeObject(data, nextLayer->identifier()); // ID
-                        nextLayer->encodeAlways(data);
+                        // Encode always data with a size prefix so clients can skip if layer not found
+                        std::vector<std::byte> alwaysData;
+                        nextLayer->encodeAlways(alwaysData);
+                        int alwaysSize = static_cast<int>(alwaysData.size());
+                        serializeObject(data, alwaysSize);
+                        data.insert(data.end(), alwaysData.begin(), alwaysData.end());
                     }
                 }
             }
@@ -512,7 +521,8 @@ static void decode(const std::vector<std::byte> &data) {
             for (int i = 0; i < numLayers; i++) {
                 if (!safeToRead()) return;
                 deserializeObject(data, pos, id);
-                deserializeObject(data, pos, layerSync);
+                bool perLayerSync = false;
+                deserializeObject(data, pos, perLayerSync);
                 int layerType = -1;
                 deserializeObject(data, pos, layerType);
                 // Check if already updated this layer before a draw has been made
@@ -523,25 +533,34 @@ static void decode(const std::vector<std::byte> &data) {
                     auto it = find_if(secondaryLayers.begin(), secondaryLayers.end(),
                                       [&id](const std::shared_ptr<BaseLayer>&t1) { return (t1 ? t1->identifier() == id : false); });
                     if (it != secondaryLayers.end()) { // If exist, sync if needed
-                        if (layerSync) {
+                        if (perLayerSync) {
                             (*it)->decodeFull(data, pos);
                         } else {
+                            int alwaysSize = 0;
+                            deserializeObject(data, pos, alwaysSize);
                             (*it)->decodeAlways(data, pos);
                         }
                         secondaryLayersToKeep.push_back(*it);
-                    } else if (layerSync) { // Did not exist. Let's create it
+                    } else if (perLayerSync) { // Did not exist. Let's create it
                         BaseLayer *newLayer = BaseLayer::createLayer(false, layerType, get_proc_address_glfw_v1, get_proc_address_glfw_v2, std::to_string(id), id);
                         if (newLayer) {
                             newLayer->decodeFull(data, pos);
                             secondaryLayersToKeep.push_back(std::shared_ptr<BaseLayer>(newLayer));
                         }
+                    } else {
+                        // Layer not found and not a full sync; skip always data using size prefix
+                        int alwaysSize = 0;
+                        deserializeObject(data, pos, alwaysSize);
+                        pos += static_cast<unsigned int>(alwaysSize);
                     }
                 }
                 else {
-                    if (layerSync) {
+                    if (perLayerSync) {
                         (*it_up)->decodeFull(data, pos);
                     }
                     else {
+                        int alwaysSize = 0;
+                        deserializeObject(data, pos, alwaysSize);
                         (*it_up)->decodeAlways(data, pos);
                     }
                 }
@@ -549,14 +568,20 @@ static void decode(const std::vector<std::byte> &data) {
         }
         else {
             // Just perform "always" sync which contains update only
+            // Should never remove layers, but only update existing ones, so no need to send layer count or ID
             uint32_t id;
             for (int i = 0; i < numLayers; i++) {
                 if (!safeToRead()) return;
                 deserializeObject(data, pos, id);
+                int alwaysSize = 0;
+                deserializeObject(data, pos, alwaysSize);
                 auto it = find_if(secondaryLayers.begin(), secondaryLayers.end(),
                                   [&id](const std::shared_ptr<BaseLayer>&t1) { return (t1 ? t1->identifier() == id : false); });
                 if (it != secondaryLayers.end()) {
                     (*it)->decodeAlways(data, pos);
+                } else {
+                    // Layer not found; skip the entire always block using the size prefix
+                    pos += static_cast<unsigned int>(alwaysSize);
                 }
             }
         }
@@ -912,6 +937,7 @@ int main(int argc, char *argv[]) {
     size_t i = 0;
     while (i < arg.size()) {
         if (arg[i] == "--mpvconf") {
+            if (i + 1 >= arg.size()) { i++; continue; }
             std::string mpvConfFolder = arg[i + 1]; // for instance, either "decoding_cpu" or "decoding_cpu"
             SyncHelper::instance().configuration.confAll = "./data/mpv-conf/" + mpvConfFolder + "/all.json";
             SyncHelper::instance().configuration.confMasterOnly = "./data/mpv-conf/" + mpvConfFolder + "/master-only.json";
@@ -921,6 +947,7 @@ int main(int argc, char *argv[]) {
             allowDirectRendering = true;
             arg.erase(arg.begin() + i);
         } else if (arg[i] == "--loglevel") {
+            if (i + 1 >= arg.size()) { i++; continue; }
             // Valid log levels: error warn info debug
             std::string level = arg[i + 1];
             if (level == "error") {
@@ -939,6 +966,7 @@ int main(int argc, char *argv[]) {
             SyncHelper::instance().configuration.logLevel = level;
             arg.erase(arg.begin() + i, arg.begin() + i + 2);
         } else if (arg[i] == "--logfile") {
+            if (i + 1 >= arg.size()) { i++; continue; }
             std::string logFileName = arg[i + 1]; // for instance, either "log_master.txt" or "log_client.txt"
             logFilePath = "./data/log/" + logFileName;
             logFile.open(logFilePath, std::ofstream::out | std::ofstream::trunc);
@@ -953,6 +981,7 @@ int main(int argc, char *argv[]) {
             SyncHelper::instance().configuration.logFile = logFilePath;
             arg.erase(arg.begin() + i, arg.begin() + i + 2);
         } else if (arg[i] == "--loadfile") {
+            if (i + 1 >= arg.size()) { i++; continue; }
             startupFile = arg[i + 1];
             arg.erase(arg.begin() + i, arg.begin() + i + 2);
         } else {

@@ -20,6 +20,7 @@
 class MpvObject;
 class SlidesModel;
 class LayersModel;
+class BaseLayer;
 
 class HttpServerThread : public QThread {
     Q_OBJECT
@@ -99,7 +100,7 @@ private:
     const std::string LoadIndexFromSlides(std::string indexStr);
     const std::string SelectIndexFromSlides(std::string indexStr);
 
-    const std::string getLayerFromRequest(const httplib::Request& req, LayersModel* &lm, int &layerIdx);
+    const std::string getLayerFromRequest(const httplib::Request& req, LayersModel* &lm, int &layerIdx, BaseLayer* &resolvedLayer);
 
     MpvObject *m_mpv;
     SlidesModel* m_slidesModel;

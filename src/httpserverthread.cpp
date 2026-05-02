@@ -875,76 +875,67 @@ void HttpServerThread::setupHttpServer() {
         auto layerVolumeGetHandler = [this](const httplib::Request& req, httplib::Response& res) {
             LayersModel* layerModel = nullptr;
             int layerIdx = -1;
-            res.set_content(getLayerFromRequest(req, layerModel, layerIdx), "text/plain");
-            if (layerModel) {
-                BaseLayer* layer = layerModel->layer(layerIdx);
-                if (layer) {
-                    res.set_content(std::to_string(layer->volume()), "text/plain");
-                }
+            BaseLayer* layer = nullptr;
+            res.set_content(getLayerFromRequest(req, layerModel, layerIdx, layer), "text/plain");
+            if (layer) {
+                res.set_content(std::to_string(layer->volume()), "text/plain");
             }
         };
         svr.Get("/layer_volume", layerVolumeGetHandler);
         svr.Post("/layer_volume", [this](const httplib::Request& req, httplib::Response& res) {
             LayersModel* layerModel = nullptr;
             int layerIdx = -1;
-            res.set_content(getLayerFromRequest(req, layerModel, layerIdx), "text/plain");
-            if (layerModel) {
-                BaseLayer* layer = layerModel->layer(layerIdx);
-                if (layer) {
-                    if (req.has_param("level")) {
-                        int volumeLevel = 0;
-                        if (stringToInt(req.get_param_value("level"), volumeLevel)) {
-                            if (volumeLevel >= 0 && volumeLevel <= 100) {
-                                layer->setVolume(volumeLevel);
-                                layerModel->updateLayer(layerIdx);
-                            }
+            BaseLayer* layer = nullptr;
+            res.set_content(getLayerFromRequest(req, layerModel, layerIdx, layer), "text/plain");
+            if (layer) {
+                if (req.has_param("level")) {
+                    int volumeLevel = 0;
+                    if (stringToInt(req.get_param_value("level"), volumeLevel)) {
+                        if (volumeLevel >= 0 && volumeLevel <= 100) {
+                            layer->setVolume(volumeLevel);
+                            if (layerModel) layerModel->updateLayer(layerIdx);
                         }
                     }
-                    res.set_content(std::to_string(layer->volume()), "text/plain");
                 }
+                res.set_content(std::to_string(layer->volume()), "text/plain");
             }
         });
 
         auto layerVisibilityGetHandler = [this](const httplib::Request& req, httplib::Response& res) {
             LayersModel* layerModel = nullptr;
             int layerIdx = -1;
-            res.set_content(getLayerFromRequest(req, layerModel, layerIdx), "text/plain");
-            if (layerModel) {
-                BaseLayer* layer = layerModel->layer(layerIdx);
-                if (layer) {
-                    res.set_content(std::to_string(static_cast<int>(layer->alpha()*100.f)), "text/plain");
-                }
+            BaseLayer* layer = nullptr;
+            res.set_content(getLayerFromRequest(req, layerModel, layerIdx, layer), "text/plain");
+            if (layer) {
+                res.set_content(std::to_string(static_cast<int>(layer->alpha()*100.f)), "text/plain");
             }
         };
         svr.Get("/layer_visibility", layerVisibilityGetHandler);
         svr.Post("/layer_visibility", [this](const httplib::Request& req, httplib::Response& res) {
             LayersModel* layerModel = nullptr;
             int layerIdx = -1;
-            res.set_content(getLayerFromRequest(req, layerModel, layerIdx), "text/plain");
-            if (layerModel) {
-                BaseLayer* layer = layerModel->layer(layerIdx);
-                if (layer) {
-                    if (req.has_param("value")) {
-                        int value = 0;
-                        if (stringToInt(req.get_param_value("value"), value)) {
-                            if (value >= 0 && value <= 100) {
-                                layer->setAlpha(static_cast<float>(value) * 0.01f);
-                                layerModel->updateLayer(layerIdx);
-                            }
+            BaseLayer* layer = nullptr;
+            res.set_content(getLayerFromRequest(req, layerModel, layerIdx, layer), "text/plain");
+            if (layer) {
+                if (req.has_param("value")) {
+                    int value = 0;
+                    if (stringToInt(req.get_param_value("value"), value)) {
+                        if (value >= 0 && value <= 100) {
+                            layer->setAlpha(static_cast<float>(value) * 0.01f);
+                            if (layerModel) layerModel->updateLayer(layerIdx);
                         }
                     }
-                    res.set_content(std::to_string(static_cast<int>(layer->alpha()*100.f)), "text/plain");
                 }
+                res.set_content(std::to_string(static_cast<int>(layer->alpha()*100.f)), "text/plain");
             }
         });
 
         auto layerPlaneGetHandler = [this](const httplib::Request& req, httplib::Response& res) {
             LayersModel* layerModel = nullptr;
             int layerIdx = -1;
-            res.set_content(getLayerFromRequest(req, layerModel, layerIdx), "text/plain");
-            if (layerModel) {
-                BaseLayer* layer = layerModel->layer(layerIdx);
-                if (layer) {
+            BaseLayer* layer = nullptr;
+            res.set_content(getLayerFromRequest(req, layerModel, layerIdx, layer), "text/plain");
+            if (layer) {
                     std::string returnString = "";
                     size_t countParams = req.params.size() - 2;
                     size_t count = 0;
@@ -979,17 +970,15 @@ void HttpServerThread::setupHttpServer() {
                         if (count < countParams) returnString += "\n";
                     }
                     res.set_content(returnString, "text/plain");
-                }
             }
         };
         svr.Get("/layer_plane", layerPlaneGetHandler);
         svr.Post("/layer_plane", [this](const httplib::Request& req, httplib::Response& res) {
             LayersModel* layerModel = nullptr;
             int layerIdx = -1;
-            res.set_content(getLayerFromRequest(req, layerModel, layerIdx), "text/plain");
-            if (layerModel) {
-                BaseLayer* layer = layerModel->layer(layerIdx);
-                if (layer) {
+            BaseLayer* layer = nullptr;
+            res.set_content(getLayerFromRequest(req, layerModel, layerIdx, layer), "text/plain");
+            if (layer) {
                     bool updateLayer = false;
                     std::string returnString = "";
                     size_t countParams = req.params.size() - 2;
@@ -1061,10 +1050,9 @@ void HttpServerThread::setupHttpServer() {
                             returnString += "\n";
                     }
                     if (updateLayer) {
-                        layerModel->updateLayer(layerIdx);
+                        if (layerModel) layerModel->updateLayer(layerIdx);
                     }
                     res.set_content(returnString, "text/plain");
-                }
             }
         });
 
@@ -1242,7 +1230,7 @@ const std::string HttpServerThread::getLayerItems(int slideIdx, std::string char
     if (m_slidesModel) {
         LayersModel* lm = m_slidesModel->slide(slideIdx);
         if (!lm) {
-            return "Could not find slide with idx : " + slideIdx;
+            return "Could not find slide with idx : " + std::to_string(slideIdx);
         }
         int charsPerItem = 0;
         if (stringToInt(charsPerItemStr, charsPerItem))
@@ -1378,9 +1366,10 @@ const std::string HttpServerThread::SelectIndexFromSlides(std::string indexStr) 
     }
 }
 
-const std::string HttpServerThread::getLayerFromRequest(const httplib::Request& req, LayersModel*& lm, int& layerIdx) {
+const std::string HttpServerThread::getLayerFromRequest(const httplib::Request& req, LayersModel*& lm, int& layerIdx, BaseLayer*& resolvedLayer) {
     lm = nullptr;
     layerIdx = -1;
+    resolvedLayer = nullptr;
     if (m_slidesModel) {
         if (req.has_param("layer_title")) {
             lm = m_slidesModel->masterSlide();
@@ -1398,7 +1387,7 @@ const std::string HttpServerThread::getLayerFromRequest(const httplib::Request& 
                 if (!layer) {
                     return "Could not find layer with title: " + layerTitleStr;
                 }
-                return "Found layer with title: " + layerTitleStr;
+                resolvedLayer = layer;
             }
             else {
                 return "Master slide missing";
@@ -1427,7 +1416,7 @@ const std::string HttpServerThread::getLayerFromRequest(const httplib::Request& 
                     if (!layer) {
                         return "Could not find layer with idx : " + layerIdxStr;
                     }
-                    return "Found layer with idx: " + layerIdxStr;
+                    resolvedLayer = layer;
                 }
                 else {
                     return "Could not interpret layer_idx as integer.";
@@ -1436,6 +1425,50 @@ const std::string HttpServerThread::getLayerFromRequest(const httplib::Request& 
             else {
                 return "Master slide missing";
             }
+        }
+        else {
+            return "Missing layer title or index parameter";
+        }
+
+        // Resolve sublayer if requested
+        if (resolvedLayer && resolvedLayer->hasSubLayers()) {
+            auto& subLayers = resolvedLayer->getSubLayers();
+            if (req.has_param("sub_layer_title")) {
+                std::string subTitle = req.get_param_value("sub_layer_title");
+                bool found = false;
+                for (auto& sub : subLayers) {
+                    if (sub && sub->title() == subTitle) {
+                        resolvedLayer = sub.get();
+                        found = true;
+                        break;
+                    }
+                }
+                if (!found) {
+                    return "Could not find sub-layer with title: " + subTitle;
+                }
+            }
+            else if (req.has_param("sub_layer_idx")) {
+                int subIdx = -1;
+                std::string subIdxStr = req.get_param_value("sub_layer_idx");
+                if (stringToInt(subIdxStr, subIdx)) {
+                    if (subIdx >= 0 && subIdx < static_cast<int>(subLayers.size())) {
+                        resolvedLayer = subLayers[subIdx].get();
+                    }
+                    else {
+                        return "Sub-layer index out of bounds: " + subIdxStr;
+                    }
+                }
+                else {
+                    return "Could not interpret sub_layer_idx as integer.";
+                }
+            }
+        }
+        else if (req.has_param("sub_layer_title") || req.has_param("sub_layer_idx")) {
+            return "Layer has no sub-layers";
+        }
+
+        if (resolvedLayer) {
+            return "Found layer: " + resolvedLayer->title();
         }
         return "Missing layer title or index parameter";
     }

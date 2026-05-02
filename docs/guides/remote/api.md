@@ -212,6 +212,15 @@ All layer endpoints require a layer identifier and an optional slide identifier:
 | `slide_name=` | Slide name *(optional — defaults to master slide)* |
 | `slide_idx=` | Slide index *(optional — alternative to name, `-1` for master)* |
 
+To target a **sublayer** (e.g. a Division Mode cell), add one of:
+
+| Param | Description |
+|-------|-------------|
+| `sub_layer_title=` | Sublayer title (e.g. `Div_0_0`) |
+| `sub_layer_idx=` | Sublayer index (0-based) |
+
+If neither sublayer param is provided, the parent layer is used. If the parent layer has no sublayers and a sublayer param is given, an error is returned.
+
 | Endpoint | Method | Additional params | Description | Returns |
 |----------|--------|-------------------|-------------|---------|
 | `/layer_volume` | GET, POST | `level=` *(optional)* — `0`–`100` | Get or set layer volume | Volume level (0–100) |

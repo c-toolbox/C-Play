@@ -21,15 +21,49 @@ In the *"Visibility"* ![](../../assets/icons/table.svg) window, you can set laye
 
 For changing the presentation timings, this is made in the "Settings -> Configure ![](../../assets/icons/configure.svg) -> Presentation", as seen [here](../settings/presentation).
 
-## QR code presentation mode  (C-Play v2.3 and newer)
+## Layer operation modes (C-Play v2.3 and newer)
 
-NDI and Stream layers support a QR code-driven presentation mode called **ImPres**. When enabled, C-Play scans incoming video frames for QR codes and uses them to control frozen video sublayers — useful for interactive multi-angle presentations where a camera feed carries embedded QR commands.
+NDI, Stream, and OMT layers support a **Layer Operation** mode that controls how the layer's texture is subdivided into sublayers. The mode is selected via a combo box in the layer view:
+
+| Mode | Description | Supported by |
+|------|-------------|--------------|
+| **None** | No subdivision — the layer displays normally. | All layers |
+| **ImPres Mode (QR)** | QR code-driven sublayer control (see below). | NDI, Stream |
+| **Division Mode** | Static grid-based texture division (see below). | NDI, Stream, OMT |
+
+When a sublayer mode is active, the layer view shows a **Sub-Layer** selector and highlights the selected sublayer's region in yellow on the preview.
+
+---
+
+### Division Mode
+
+Division Mode splits the layer's live video texture into a configurable grid of sublayers. This is useful for displaying multiple views or regions from a single video source across different positions in the dome or sphere.
+
+When Division Mode is selected, a **Division** combo box appears with the following grid options:
+
+| Grid | Layout |
+|:-:|--------|
+| 1×1 | Single (no split) |
+| 1×2 | 1 column, 2 rows |
+| 2×1 | 2 columns, 1 row |
+| 2×2 | 2 columns, 2 rows |
+| 2×3 | 2 columns, 3 rows |
+| 3×2 | 3 columns, 2 rows |
+| 3×3 | 3 columns, 3 rows |
+
+Each sublayer points to a region of the parent texture (no copy) and can have **independent** alpha, grid mode, plane parameters, rotation, and translation — all editable via the grid parameters panel.
+
+---
+
+### QR code presentation mode (ImPres)
+
+ImPres is a QR code-driven presentation mode. When enabled, C-Play scans incoming video frames for QR codes and uses them to control frozen video sublayers — useful for interactive multi-angle presentations where a camera feed carries embedded QR commands.
 
 ![ImPres QR Concept](../../assets/impres/impres-icons-concept.png){:width="80%"}
 
-### Enabling the mode
+### Enabling ImPres
 
-In the layer view for an NDI or Stream layer, check *"ImPres Mode (QR Code Detection)"*. This setting is saved with the presentation.
+In the layer view for an NDI or Stream layer, select *"ImPres Mode (QR)"* from the **Layer Operation** combo box. This setting is saved with the presentation. OMT layers do not support ImPres mode.
 
 ### Example
 You can open the example PowerPoint at `data/impres/ImPres_PPT_Template.ppt`, which shows one practical way to display the QR codes so they are visible immediately when a new slide appears and then disappear quite quickly.

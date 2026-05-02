@@ -529,6 +529,64 @@ static void ndiGridIndexToColsRows(int grid, int& cols, int& rows) {
     }
 }
 
+void NdiLayer::encodeTypeAlways(std::vector<std::byte>& data) {
+    // Always write whether division-mode sublayer data follows
+    bool divisionActive = (m_textureDivisionMode == 2 && m_divideTexHandler);
+    sgct::serializeObject(data, divisionActive);
+    if (divisionActive) {
+        bool hasSubs = m_divideTexHandler->hasSubLayers();
+        sgct::serializeObject(data, hasSubs);
+        if (hasSubs) {
+            auto& subs = m_divideTexHandler->subLayers();
+            int actualCount = static_cast<int>(subs.size());
+            sgct::serializeObject(data, actualCount);
+            for (int i = 0; i < actualCount; ++i) {
+                auto& sub = subs[i];
+                if (sub) {
+                    sub->encodeBaseAlways(data);
+                    sub->encodeTypeAlways(data);
+                }
+            }
+        }
+    }
+}
+
+void NdiLayer::decodeTypeAlways(const std::vector<std::byte>& data, unsigned int& pos) {
+    bool divisionActive = false;
+    sgct::deserializeObject(data, pos, divisionActive);
+    if (divisionActive) {
+        bool hasSubs = false;
+        sgct::deserializeObject(data, pos, hasSubs);
+        if (hasSubs) {
+            int actualCount = 0;
+            sgct::deserializeObject(data, pos, actualCount);
+
+            if (m_divideTexHandler && m_divideTexHandler->hasSubLayers()) {
+                auto& subs = m_divideTexHandler->subLayers();
+                for (int i = 0; i < actualCount; ++i) {
+                    if (i < static_cast<int>(subs.size()) && subs[i]) {
+                        subs[i]->decodeBaseAlways(data, pos);
+                        subs[i]->decodeTypeAlways(data, pos);
+                    } else {
+                        // Skip: shouldUpdate, shouldPreLoad, alpha
+                        bool tmpBool; float tmpFloat;
+                        sgct::deserializeObject(data, pos, tmpBool);
+                        sgct::deserializeObject(data, pos, tmpBool);
+                        sgct::deserializeObject(data, pos, tmpFloat);
+                    }
+                }
+            } else {
+                for (int i = 0; i < actualCount; ++i) {
+                    bool tmpBool; float tmpFloat;
+                    sgct::deserializeObject(data, pos, tmpBool);
+                    sgct::deserializeObject(data, pos, tmpBool);
+                    sgct::deserializeObject(data, pos, tmpFloat);
+                }
+            }
+        }
+    }
+}
+
 void NdiLayer::encodeTypeProperties(std::vector<std::byte>& data) {
     sgct::serializeObject(data, m_volume_Dec);
     sgct::serializeObject(data, isQRCodeDetectionEnabled());
@@ -548,8 +606,8 @@ void NdiLayer::encodeTypeProperties(std::vector<std::byte>& data) {
             for (int i = 0; i < actualCount; ++i) {
                 auto& sub = subs[i];
                 if (sub) {
-                    sub->encodeBaseAlways(data);
                     sub->encodeBaseProperties(data);
+                    sub->encodeTypeProperties(data);
                 }
             }
         }
@@ -591,14 +649,10 @@ void NdiLayer::decodeTypeProperties(const std::vector<std::byte>& data, unsigned
                 auto& subs = m_divideTexHandler->subLayers();
                 for (int i = 0; i < actualCount; ++i) {
                     if (i < static_cast<int>(subs.size()) && subs[i]) {
-                        subs[i]->decodeBaseAlways(data, pos);
                         subs[i]->decodeBaseProperties(data, pos);
+                        subs[i]->decodeTypeProperties(data, pos);
                     } else {
                         // Skip data for this sublayer
-                        bool tmpBool; float tmpFloat;
-                        sgct::deserializeObject(data, pos, tmpBool);
-                        sgct::deserializeObject(data, pos, tmpBool);
-                        sgct::deserializeObject(data, pos, tmpFloat);
                         uint8_t gm, sm;
                         sgct::deserializeObject(data, pos, gm);
                         sgct::deserializeObject(data, pos, sm);
@@ -633,10 +687,6 @@ void NdiLayer::decodeTypeProperties(const std::vector<std::byte>& data, unsigned
             } else {
                 // Sublayers don't exist yet on this node, skip their data
                 for (int i = 0; i < actualCount; ++i) {
-                    bool tmpBool; float tmpFloat;
-                    sgct::deserializeObject(data, pos, tmpBool);
-                    sgct::deserializeObject(data, pos, tmpBool);
-                    sgct::deserializeObject(data, pos, tmpFloat);
                     uint8_t gm, sm;
                     sgct::deserializeObject(data, pos, gm);
                     sgct::deserializeObject(data, pos, sm);
