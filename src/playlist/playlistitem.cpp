@@ -621,7 +621,10 @@ void PlayListItem::saveAsJSONPlayFile(const QString &path) const {
     doc.setObject(obj);
 
     QFile jsonFile(fileToSave);
-    jsonFile.open(QFile::WriteOnly);
+    if(!jsonFile.open(QFile::WriteOnly)) {
+        qDebug() << QStringLiteral("Failed to open C-play file ") << fileToSave;
+        return;
+    }
     jsonFile.write(doc.toJson());
     jsonFile.close();
 }
@@ -771,7 +774,10 @@ void PlayListItem::loadJSONPlayfile() {
     }
 
     QFile f(filePath());
-    f.open(QIODevice::ReadOnly);
+    if(!f.open(QIODevice::ReadOnly)) {
+        qDebug() << QStringLiteral("Failed to open C-play file ") << filePath();
+        return;
+    }
     QByteArray fileContent = f.readAll();
     f.close();
 
@@ -926,7 +932,10 @@ void PlayListItem::loadUniviewFDV() {
     }
 
     QFile f(filePath());
-    f.open(QIODevice::ReadOnly);
+    if(!f.open(QIODevice::ReadOnly)) {
+        qDebug() << QStringLiteral("Failed to open FDV file ") << filePath();
+        return;
+    }
     QString fileContent = QString::fromUtf8(f.readAll());
     f.close();
 

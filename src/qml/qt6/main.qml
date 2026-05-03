@@ -198,7 +198,7 @@ Kirigami.ApplicationWindow {
             anchors.fill: parent
             keys: ["text/uri-list"]
 
-            onDropped: {
+            onDropped: function(drop) {
                 if (!drop.urls || drop.urls.length === 0)
                     return;
                 openFile(app.pathToUrl(drop.urls[0]))
@@ -301,7 +301,7 @@ Kirigami.ApplicationWindow {
                 anchors.fill: parent
                 keys: ["text/uri-list"]
 
-                onDropped: {
+                onDropped: function(drop) {
                     if (!drop.urls || drop.urls.length === 0)
                         return;
                     openFile(app.pathToUrl(drop.urls[0]))
@@ -334,7 +334,7 @@ Kirigami.ApplicationWindow {
             anchors.fill: parent
             keys: ["text/uri-list"]
 
-            onDropped: {
+            onDropped: function(drop) {
                 if (!drop.urls || drop.urls.length === 0)
                     return;
                 for(var i in drop.urls){

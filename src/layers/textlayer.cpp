@@ -265,7 +265,7 @@ void TextLayer::setAlignmentFromStr(const std::string& str) {
 #ifdef SGCT_HAS_TEXT
     std::string strToLower = str;
     std::transform(strToLower.begin(), strToLower.end(), strToLower.begin(),
-        [](unsigned char c) { return std::tolower(c); });
+        [](unsigned char c) { return static_cast<unsigned char>(std::tolower(c)); });
     if (strToLower == "left") {
         setAlignment(static_cast<int>(sgct::text::Alignment::TopLeft));
     }

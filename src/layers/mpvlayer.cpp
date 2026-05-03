@@ -53,7 +53,7 @@ void loadAudioId(MpvLayer::mpvData& vd) {
     }
 }
 
-void on_mpv_events(MpvLayer::mpvData &vd, BaseLayer::RenderParams &rp) {
+void on_mpv_events(MpvLayer::mpvData &vd, BaseLayer::RenderParams) {
     while (vd.handle) {
         mpv_event *event = mpv_wait_event(vd.handle, 0);
         if (event->event_id == MPV_EVENT_NONE) {

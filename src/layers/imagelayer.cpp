@@ -158,20 +158,21 @@ bool ImageLayer::fileIsImage(std::string &filePath) {
             std::filesystem::path bgPath = std::filesystem::path(filePath);
             if (bgPath.has_extension()) {
                 std::string bgPathExt = bgPath.extension().generic_string();
-                std::transform(bgPathExt.begin(), bgPathExt.end(), bgPathExt.begin(),
-                    [](unsigned char c) { return std::tolower(c); });
-                if (bgPathExt == ".png" ||
-                    bgPathExt == ".jpg" ||
-                    bgPathExt == ".jpeg" ||
-                    bgPathExt == ".tga") {
-                    return true;
-                }
 #ifdef SAIL_SUPPORT
                 // Query SAIL to check if the extension is supported
                 // Extension without the leading dot
                 std::string extNoDot = bgPathExt.substr(1);
                 sail::codec_info ci = sail::codec_info::from_extension(extNoDot);
                 if (ci.is_valid()) {
+                    return true;
+                }
+#else
+                std::transform(bgPathExt.begin(), bgPathExt.end(), bgPathExt.begin(),
+                    [](unsigned char c) { return static_cast<unsigned char>(std::tolower(c)); });
+                if (bgPathExt == ".png" ||
+                    bgPathExt == ".jpg" ||
+                    bgPathExt == ".jpeg" ||
+                    bgPathExt == ".tga") {
                     return true;
                 }
 #endif

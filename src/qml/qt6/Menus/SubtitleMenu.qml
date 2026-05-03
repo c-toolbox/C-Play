@@ -34,8 +34,8 @@ Menu {
                 onTriggered: mpv.subtitleId = model.id
             }
 
-            onObjectAdded: subtitleMenu.insertItem(index, object)
-            onObjectRemoved: subtitleMenu.removeItem(object)
+            onObjectAdded: function(index, object) { subtitleMenu.insertItem(index, object) }
+            onObjectRemoved: function(index, object) { subtitleMenu.removeItem(object) }
         }
         Connections {
             function onFileLoaded() {

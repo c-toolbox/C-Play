@@ -469,7 +469,7 @@ Rectangle {
                     anchors.fill: parent
                     keys: ["text/uri-list"]
 
-                    onDropped: {
+                    onDropped: function(drop) {
                         if(app.slides.selected.layersEnabled){
                             for(var i in drop.urls){
                                 layerView.layerItem.layerIdx = app.slides.selected.addLayerBasedOnMime(drop.urls[i]);          

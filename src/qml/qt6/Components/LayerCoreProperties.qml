@@ -267,7 +267,7 @@ GridLayout {
                 anchors.fill: parent
                 keys: ["text/uri-list"]
 
-                onDropped: {
+                onDropped: function(drop) {
                     if(app.slides.selected.layersEnabled){
                         layerType = app.slides.selected.getLayerTypeBasedOnMime(drop.urls[0]);
                         if(layerType > 0 && layerType < typeComboBox.count) {

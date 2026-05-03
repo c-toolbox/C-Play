@@ -95,8 +95,8 @@ ToolBar {
                         onTriggered: mpv.audioId = model.id
                     }
 
-                    onObjectAdded: audioMenu.insertItem(index, object)
-                    onObjectRemoved: audioMenu.removeItem(object)
+                    onObjectAdded: function(index, object) { audioMenu.insertItem(index, object) }
+                    onObjectRemoved: function(index, object) { audioMenu.removeItem(object) }
                 }
             }
         }

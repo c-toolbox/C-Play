@@ -1081,12 +1081,15 @@ void PlayListModel::saveAsJSONPlaylist(const QString &path) {
     doc.setObject(obj);
 
     QFile jsonFile(fileToSave);
-    jsonFile.open(QFile::WriteOnly);
-    jsonFile.write(doc.toJson());
-    jsonFile.close();
+    if(jsonFile.open(QFile::WriteOnly)) {
+        jsonFile.write(doc.toJson());
+        jsonFile.close();
 
-    QFileInfo fileInfo(jsonFile);
-    setPlayListName(fileInfo.baseName());
+        QFileInfo fileInfo(jsonFile);
+        setPlayListName(fileInfo.baseName());
+    } else {
+        qDebug() << QStringLiteral("Failed to open C-play file ") << fileToSave;
+    }
 
     setPlayListIsEdited(false);
 }
