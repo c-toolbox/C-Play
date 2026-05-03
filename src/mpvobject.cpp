@@ -41,11 +41,16 @@
 #include <QtGlobal>
 
 static void on_mpv_redraw(void *ctx) {
+    if (!ctx)
+        return;
     QMetaObject::invokeMethod(static_cast<MpvView *>(ctx), "update", Qt::QueuedConnection);
 }
 
 static void *get_proc_address_mpv(void *ctx, const char *name) {
     Q_UNUSED(ctx)
+
+    if (!name)
+        return nullptr;
 
     QOpenGLContext *glctx = QOpenGLContext::currentContext();
     if (!glctx)
@@ -170,6 +175,9 @@ MpvObject::MpvObject(QQuickItem *parent)
     connect(this, &MpvObject::positionChanged, this, [this]() {
         int pos = getProperty(QStringLiteral("time-pos")).toInt();
         double duration = getProperty(QStringLiteral("duration")).toDouble();
+        if (duration <= 0.0) {
+            return;
+        }
         if (!m_secondsWatched.contains(pos)) {
             m_secondsWatched << pos;
             setWatchPercentage(m_secondsWatched.count() * 100 / duration);
@@ -1341,6 +1349,11 @@ void MpvObject::loadUniviewPlaylist(const QString &file, bool updateLastPlayedFi
             video->setDuration(endTime - startTime);
         }
 
+        if (!video) {
+            qDebug() << QStringLiteral("Parsing file failed: ") << path;
+            continue;
+        }
+
         video->setMediaTitle(title);
 
         if (title.contains(QStringLiteral("3D"))) // Assume 3D side-by-side stereo
@@ -1374,6 +1387,8 @@ void MpvObject::loadUniviewPlaylist(const QString &file, bool updateLastPlayedFi
 }
 
 void MpvObject::mpvEvents(void *ctx) {
+    if (!ctx)
+        return;
     QMetaObject::invokeMethod(static_cast<MpvObject *>(ctx), "eventHandler", Qt::QueuedConnection);
 }
 
@@ -1478,8 +1493,9 @@ void MpvObject::eventHandler() {
                     Q_EMIT durationChanged();
                 }
             } else if (strcmp(prop->name, "volume") == 0) {
-                if (prop->format == MPV_FORMAT_INT64) {
-                    int volumeLevel = *reinterpret_cast<int*>(prop->data);
+                if (prop->format == MPV_FORMAT_INT64 && prop->data) {
+                    int64_t volumeLevel64 = *reinterpret_cast<int64_t*>(prop->data);
+                    int volumeLevel = static_cast<int>(std::max<int64_t>(0, std::min<int64_t>(volumeLevel64, 100)));
                     Q_EMIT volumeChanged();
                     Q_EMIT volumeUpdate(volumeLevel);
                 }
@@ -1897,6 +1913,8 @@ QString MpvObject::md5(const QString &str) {
 }
 
 void MpvObject::addView(MpvView* view) {
+    if (!view)
+        return;
     mpv_views.push_back(view);
     std::sort(mpv_views.begin(), mpv_views.end());
     mpv_views.erase(std::unique(mpv_views.begin(), mpv_views.end()), mpv_views.end());
@@ -1910,12 +1928,18 @@ void MpvObject::removeView(MpvView* view) {
 }
 
 MpvView::MpvView(QQuickItem* parent)
-    : QQuickFramebufferObject(parent), m_renderingPriority(1000) {
+    : QQuickFramebufferObject(parent), fbo(nullptr), obj(nullptr), m_renderingPriority(1000) {
 
 }
 
+MpvView::~MpvView() {
+    if (obj)
+        obj->removeView(this);
+}
+
 QQuickFramebufferObject::Renderer* MpvView::createRenderer() const {
-    window()->setPersistentSceneGraph(true);
+    if (window())
+        window()->setPersistentSceneGraph(true);
     return new MpvRenderer(const_cast<MpvView*>(this));
 }
 
@@ -1924,8 +1948,13 @@ MpvObject* MpvView::mpvObject() const {
 }
 
 void MpvView::setMpvObject(MpvObject* mpv) {
+    if (obj == mpv)
+        return;
+    if (obj)
+        obj->removeView(this);
     obj = mpv;
-    obj->addView(this);
+    if (obj)
+        obj->addView(this);
     Q_EMIT mpvObjectChanged();
 }
 
@@ -1947,7 +1976,7 @@ MpvRenderer::MpvRenderer(MpvView* new_view)
 }
 
 void MpvRenderer::render() {
-    if (!view->obj || !view->obj->mpv_gl) {
+    if (!view || !view->obj || !view->obj->mpv_gl) {
         return;
     }
 
@@ -1985,6 +2014,9 @@ void MpvRenderer::render() {
         ? view->obj->mpv_fbo
         : view->fbo;
 
+    if (!renderTarget)
+        return;
+
     mpv_opengl_fbo mpfbo;
     mpfbo.fbo = static_cast<int>(renderTarget->handle());
     mpfbo.w = renderTarget->width();
@@ -2013,6 +2045,8 @@ void MpvRenderer::render() {
 
             const int dstW = v->fbo->width();
             const int dstH = v->fbo->height();
+            if (dstW <= 0 || dstH <= 0 || srcW <= 0 || srcH <= 0)
+                continue;
             const float dstAspect = static_cast<float>(dstW) / static_cast<float>(dstH);
 
             int targetW = dstW;
@@ -2034,14 +2068,17 @@ void MpvRenderer::render() {
             const QRect targetRect(targetX, targetY, targetW, targetH);
 
             if (sourceRect == targetRect && v->fbo->size() == view->obj->mpv_fbo->size()) {
-                QOpenGLContext::currentContext()->extraFunctions()->glCopyImageSubData(
-                    view->obj->mpv_fbo->texture(),
-                    view->obj->mpv_fbo->format().textureTarget(),
-                    0, 0, 0, 0,
-                    v->fbo->texture(),
-                    v->fbo->format().textureTarget(),
-                    0, 0, 0, 0,
-                    srcW, srcH, 1);
+                QOpenGLContext* currentContext = QOpenGLContext::currentContext();
+                if (currentContext && currentContext->extraFunctions()) {
+                    currentContext->extraFunctions()->glCopyImageSubData(
+                        view->obj->mpv_fbo->texture(),
+                        view->obj->mpv_fbo->format().textureTarget(),
+                        0, 0, 0, 0,
+                        v->fbo->texture(),
+                        v->fbo->format().textureTarget(),
+                        0, 0, 0, 0,
+                        srcW, srcH, 1);
+                }
             }
             else {
                 v->fbo->bind();
@@ -2056,7 +2093,7 @@ void MpvRenderer::render() {
 }
 
 QOpenGLFramebufferObject* MpvRenderer::createFramebufferObject(const QSize& size) {
-    if (view->obj) {
+    if (view && view->obj) {
         if (!view->obj->mpv_gl) {
             mpv_opengl_init_params gl_init_params[1] = { get_proc_address_mpv, nullptr };
             mpv_render_param params[]{

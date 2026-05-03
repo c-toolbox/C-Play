@@ -85,7 +85,11 @@ QVariant LayersModel::data(const QModelIndex &index, int role) const {
     if (!index.isValid() || m_layers.empty())
         return QVariant();
 
-    const BaseLayer *layerItem = m_layers.at(index.row()).first.get();
+    const int row = index.row();
+    if (row < 0 || row >= m_layers.size())
+        return QVariant();
+
+    const BaseLayer *layerItem = m_layers.at(row).first.get();
 
     if(layerItem == nullptr)
         return QVariant();
@@ -405,7 +409,7 @@ int LayersModel::addLayerBasedOnMime(QUrl fileUrl) {
 }
 
 void LayersModel::removeLayer(int i) {
-    if (i < 0 || i >= m_layers.size())
+    if (i < 0 || i >= m_layers.size() || !m_layers.at(i).first)
         return;
 
     if (getLayersCanBeLocked() && m_layers.at(i).first->isLocked())
@@ -504,11 +508,13 @@ void LayersModel::moveLayerBottom(int i) {
 }
 
 void LayersModel::updateLayer(int i) {
+    if (i < 0 || i >= m_layers.size())
+        return;
     Q_EMIT dataChanged(index(i, 0), index(i, 0));
 }
 
 void LayersModel::lockLayer(int i) {
-    if (i < 0 || i >= m_layers.size())
+    if (i < 0 || i >= m_layers.size() || !m_layers[i].first)
         return;
 
     m_layers[i].first->setIsLocked(true);
@@ -517,7 +523,7 @@ void LayersModel::lockLayer(int i) {
 }
 
 void LayersModel::unlockLayer(int i) {
-    if (i < 0 || i >= m_layers.size())
+    if (i < 0 || i >= m_layers.size() || !m_layers[i].first)
         return;
 
     m_layers[i].first->setIsLocked(false);
@@ -526,7 +532,7 @@ void LayersModel::unlockLayer(int i) {
 }
 
 bool LayersModel::isLocked(int i) {
-    if (!getLayersCanBeLocked() || i < 0 || i >= m_layers.size())
+    if (!getLayersCanBeLocked() || i < 0 || i >= m_layers.size() || !m_layers[i].first)
         return false;
 
     return m_layers[i].first->isLocked();
@@ -554,10 +560,21 @@ void LayersModel::clearLayers() {
         }
         beginRemoveRows(QModelIndex(), lockedLayers, m_layers.size() - 1);
         for (int i = lockedLayers; i < m_layers.size(); i++) {
-            m_layers[i].first->setEnabled(false);
+            if (m_layers[i].first)
+                m_layers[i].first->setEnabled(false);
         }
         m_layers.erase(m_layers.begin() + lockedLayers, m_layers.end());
         endRemoveRows();
+
+        if (lockedLayers < m_layers.size()) {
+            beginRemoveRows(QModelIndex(), lockedLayers, m_layers.size() - 1);
+            for (int i = lockedLayers; i < m_layers.size(); i++) {
+                if (m_layers[i].first)
+                    m_layers[i].first->setEnabled(false);
+            }
+            m_layers.erase(m_layers.begin() + lockedLayers, m_layers.end());
+            endRemoveRows();
+        }
 
         if (m_layers.isEmpty())
             setLayersNeedsSave(false);
@@ -584,6 +601,8 @@ void LayersModel::clearLayers() {
 void LayersModel::setLayersVisibility(int value, bool propagateDown) {
     m_layersVisibility = value;
     for (int i = 0; i < m_layers.size(); i++) {
+        if (!m_layers[i].first)
+            continue;
         if (propagateDown) {
             m_layers[i].first->setAlpha(static_cast<float>(value) * 0.01f);
         }
@@ -697,9 +716,15 @@ QString LayersModel::getLayersName() const {
 }
 
 QString LayersModel::getLayersNameShort(int maxChars) const {
-    size_t countChars = m_layersName.size();
-    if (countChars < maxChars) {
+    if (maxChars <= 0)
+        return QString();
+
+    const int countChars = m_layersName.size();
+    if (countChars <= maxChars) {
         return m_layersName;
+    }
+    else if (maxChars <= 4) {
+        return m_layersName.left(maxChars);
     }
     else {
         QString shortendLayersName = m_layersName;
@@ -760,7 +785,7 @@ std::string LayersModel::getLayersAsFormattedString(size_t charsPerItem) const {
         if (countChars < charsPerItem) {
             title.insert(title.end(), charsPerItem - countChars, ' ');
         }
-        else if (countChars >= charsPerItem) {
+        else if (charsPerItem > 4 && countChars >= charsPerItem) {
             title.erase(title.end() - (countChars - charsPerItem + 4), title.end());
             title.insert(title.end(), 3, '.');
             title.insert(title.end(), 1, ' ');
@@ -1280,6 +1305,8 @@ void LayersModel::encodeToJSON(QJsonObject &obj, const QStringList &forRelativeP
     QJsonArray layersArray;
     for (int li = 0; li < m_layers.size(); ++li) {
         auto layer = m_layers[li].first;
+        if (!layer)
+            continue;
         QJsonObject layerData;
 
         layerData.insert(QStringLiteral("type"), QJsonValue(QString::fromStdString(layer->typeName())));
@@ -1948,6 +1975,8 @@ bool LayersModel::layerHasKeyframes(int layerIdx) const {
 
 void LayersModel::applyTimelineAt(int timeMs) {
     for (int l = 0; l < m_layers.size(); ++l) {
+        if (!m_layers[l].first)
+            continue;
         if (l < m_layerTimelines.size() && !m_layerTimelines[l].keyframes.isEmpty()) {
             m_layers[l].first->setAlpha(evaluateAlphaAt(l, timeMs));
             float rx = 0.f, ry = 0.f, rz = 0.f;
@@ -1979,6 +2008,8 @@ void LayersModel::applyTimelineOutroAt(int outroTimeMs, const QVector<float> &ta
         return;
     int absTimeMs = std::max(m_timelineOutroStart, std::min(m_timelineOutroStart + outroTimeMs, m_timelineDuration));
     for (int l = 0; l < m_layers.size(); ++l) {
+        if (!m_layers[l].first)
+            continue;
         if (l < m_layerTimelines.size() && !m_layerTimelines[l].keyframes.isEmpty()) {
             float targetAlpha = (l < targetAlphaPerLayer.size()) ? targetAlphaPerLayer[l] : m_layers[l].first->alpha();
             m_layers[l].first->setAlpha(evaluateAlphaAt(l, absTimeMs) * targetAlpha);
@@ -2071,7 +2102,7 @@ void LayersModel::startTimelineOutro() {
 
     m_outroTargetAlpha.clear();
     for (int l = 0; l < m_layers.size(); ++l)
-        m_outroTargetAlpha.append(m_layers[l].first->alpha());
+        m_outroTargetAlpha.append(m_layers[l].first ? m_layers[l].first->alpha() : 0.f);
 
     m_outroRunning = true;
     m_timelinePositionMs = getTimelineOutroStart();

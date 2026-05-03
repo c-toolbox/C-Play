@@ -30,14 +30,15 @@ QVariant ScreensModel::data(const QModelIndex &index, int role) const {
     if (!index.isValid() || m_screenNames.empty())
         return QVariant();
 
-    if (!checkIndex(index)) {
+    const int row = index.row();
+    if (row < 0 || row >= m_screenNames.size() || row >= m_screenGeometry.size()) {
         return QVariant();
     }
     if (role == nameRole) {
-        return m_screenNames.at(index.row());
+        return m_screenNames.at(row);
     }
     if (role == geometryRole) {
-        return m_screenGeometry.at(index.row());
+        return m_screenGeometry.at(row);
     }
     return QVariant();
 }
@@ -50,7 +51,7 @@ QHash<int, QByteArray> ScreensModel::roleNames() const {
 }
 
 QRect ScreensModel::geometry(int idx) const {
-    if (idx >= m_screenGeometry.size())
+    if (idx < 0 || idx >= m_screenGeometry.size())
         return QRect(0, 0, -1, -1);
 
     return m_screenGeometry[idx];

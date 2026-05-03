@@ -118,6 +118,7 @@ static std::vector<std::byte> encode() {
         // Always sync time-related variables
         serializeObject(data, SyncHelper::instance().variables.timePosition);
         serializeObject(data, SyncHelper::instance().variables.timeDirty);
+        SyncHelper::instance().variables.timeDirty = false;
         serializeObject(data, SyncHelper::instance().variables.timeThreshold);
         serializeObject(data, SyncHelper::instance().variables.paused);
 
@@ -551,6 +552,7 @@ static void decode(const std::vector<std::byte> &data) {
                         // Layer not found and not a full sync; skip always data using size prefix
                         int alwaysSize = 0;
                         deserializeObject(data, pos, alwaysSize);
+                        if (alwaysSize < 0 || pos + static_cast<unsigned int>(alwaysSize) > data.size()) return;
                         pos += static_cast<unsigned int>(alwaysSize);
                     }
                 }
@@ -581,6 +583,7 @@ static void decode(const std::vector<std::byte> &data) {
                     (*it)->decodeAlways(data, pos);
                 } else {
                     // Layer not found; skip the entire always block using the size prefix
+                    if (alwaysSize < 0 || pos + static_cast<unsigned int>(alwaysSize) > data.size()) return;
                     pos += static_cast<unsigned int>(alwaysSize);
                 }
             }
@@ -591,6 +594,10 @@ static void decode(const std::vector<std::byte> &data) {
 static void postSyncPreDraw() {
     // Apply synced commands
     if (!Engine::instance().isMaster()) {
+        if (!backgroundImageLayer || !foregroundImageLayer || !overlayImageLayer
+            || !mainVideoLayer || !mainSubtitleLayer || !layerRender) {
+            return;
+        }
 
         // Handle screenshot request from master
         if (SyncHelper::instance().variables.takeScreenshot) {
@@ -673,6 +680,8 @@ static void postSyncPreDraw() {
         // Rendered top to bottom, so need to add them the other way around...
         for (auto it = secondaryLayers.rbegin(); it != secondaryLayers.rend(); ++it) {
             std::shared_ptr<BaseLayer> layer = (*it);
+            if (!layer)
+                continue;
             layer->enableAudio(SyncHelper::instance().variables.enableAudioOnNodes);
             if (layer->hierarchy() == BaseLayer::LayerHierarchy::BACK) {
                 if (layer->shouldUpdate()) {
@@ -796,6 +805,8 @@ static void postSyncPreDraw() {
         // Rendered top to bottom, so need to add them the other way around...
         for (auto it = secondaryLayers.rbegin(); it != secondaryLayers.rend(); ++it) {
             std::shared_ptr<BaseLayer> layer = (*it);
+            if (!layer)
+                continue;
             layer->enableAudio(SyncHelper::instance().variables.enableAudioOnNodes);
             if (layer->hierarchy() == BaseLayer::LayerHierarchy::FRONT) {
                 if (layer->shouldUpdate()) {
@@ -860,6 +871,8 @@ static void postSyncPreDraw() {
         // Set latest plane details for all primary layers
         glm::vec2 planeSize = glm::vec2(float(SyncHelper::instance().variables.planeWidth), float(SyncHelper::instance().variables.planeHeight));
         for (auto &layer : primaryLayers) {
+            if (!layer)
+                continue;
             layer->setPlaneDistance(SyncHelper::instance().variables.planeDistance);
             layer->setPlaneElevation(SyncHelper::instance().variables.planeElevation);
             layer->setPlaneSize(planeSize, static_cast<uint8_t>(SyncHelper::instance().variables.planeConsiderAspectRatio));
@@ -880,7 +893,7 @@ static void postSyncPreDraw() {
 }
 
 static void draw(const RenderData &data) {
-    if (Engine::instance().isMaster())
+    if (Engine::instance().isMaster() || !layerRender)
         return;
 
     glDisable(GL_DEPTH_TEST);
@@ -1021,8 +1034,11 @@ int main(int argc, char *argv[]) {
         Log::Info("Start Master");
 
         // Hide window (as we are not using it on master)
-        Engine::instance().thisNode().windows().at(0)->setRenderWhileHidden(true);
-        Engine::instance().thisNode().windows().at(0)->setVisible(false);
+        auto& windows = Engine::instance().thisNode().windows();
+        if (!windows.empty() && windows[0]) {
+            windows[0]->setRenderWhileHidden(true);
+            windows[0]->setVisible(false);
+        }
 
         // Consider arguments not processed by C-Play or SGCT to be QApplication related
         std::vector<char*> qapp_argv;
@@ -1037,7 +1053,9 @@ int main(int argc, char *argv[]) {
 
         // Launch master application (which calls Engine::render from thread)
         int qapp_argv_size = static_cast<int>(qapp_argv.size());
-        Application::create(qapp_argv_size, &qapp_argv[0], QStringLiteral("C-Play"));
+        if (qapp_argv.empty())
+            return EXIT_FAILURE;
+        Application::create(qapp_argv_size, qapp_argv.data(), QStringLiteral("C-Play"));
         Application::instance().setStartupFile(startupFile);
         return Application::instance().run();
     } else {

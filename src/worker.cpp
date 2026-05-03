@@ -34,7 +34,7 @@ void Worker::getMetaData(int index, const QString &path) {
     KFileMetaData::ExtractorCollection exCol;
     QList<KFileMetaData::Extractor *> extractors = exCol.fetchExtractors(mimeType);
     KFileMetaData::SimpleExtractionResult result(url.toLocalFile(), mimeType, KFileMetaData::ExtractionResult::ExtractMetaData);
-    if (extractors.size() == 0) {
+    if (extractors.isEmpty() || !extractors.first()) {
         return;
     }
     KFileMetaData::Extractor *ex = extractors.first();

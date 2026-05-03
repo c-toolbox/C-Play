@@ -558,7 +558,7 @@ class MpvView : public QQuickFramebufferObject {
 
 public:
     MpvView(QQuickItem* parent = 0);
-    ~MpvView() = default;
+    ~MpvView() override;
     Renderer* createRenderer() const override;
 
     MpvObject* mpvObject() const;

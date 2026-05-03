@@ -39,7 +39,11 @@ QVariant PlaySectionsModel::data(const QModelIndex &index, int role) const {
     if (!index.isValid() || !m_currentEditItem || m_currentEditItem->numberOfSections() == 0)
         return QVariant();
 
-    auto playListItemSection = m_currentEditItem->getSection(index.row());
+    const int row = index.row();
+    if (row < 0 || row >= m_currentEditItem->numberOfSections())
+        return QVariant();
+
+    auto playListItemSection = m_currentEditItem->getSection(row);
 
     switch (role) {
     case TitleRole:
@@ -202,7 +206,7 @@ void PlaySectionsModel::addSection(QString name, QString startTime, QString endT
 }
 
 void PlaySectionsModel::removeSection(int i) {
-    if (!m_currentEditItem)
+    if (!m_currentEditItem || i < 0 || i >= m_currentEditItem->numberOfSections())
         return;
 
     beginRemoveRows(QModelIndex(), i, i);
@@ -215,7 +219,7 @@ void PlaySectionsModel::removeSection(int i) {
 }
 
 void PlaySectionsModel::replaceSection(int i, QString name, QString startTime, QString endTime, int eosMode) {
-    if (!m_currentEditItem)
+    if (!m_currentEditItem || i < 0 || i >= m_currentEditItem->numberOfSections())
         return;
 
     beginResetModel();
@@ -247,7 +251,7 @@ void PlaySectionsModel::moveSectionUp(int i) {
     if (!m_currentEditItem)
         return;
 
-    if (i == 0)
+    if (i <= 0 || i >= m_currentEditItem->numberOfSections())
         return;
 
     if (!beginMoveRows(QModelIndex(), i, i, QModelIndex(), i - 1))
@@ -262,7 +266,7 @@ void PlaySectionsModel::moveSectionDown(int i) {
     if (!m_currentEditItem)
         return;
 
-    if (i == (m_currentEditItem->numberOfSections() - 1))
+    if (i < 0 || i >= (m_currentEditItem->numberOfSections() - 1))
         return;
 
     if (!beginMoveRows(QModelIndex(), i + 1, i + 1, QModelIndex(), i))
@@ -338,6 +342,10 @@ PlayListModel::PlayListModel(QObject *parent)
             Worker::instance(), &Worker::getMetaData);
 
     connect(Worker::instance(), &Worker::metaDataReady, this, [=](int i, KFileMetaData::PropertyMultiMap metaData) {
+        if (i < 0 || i >= m_playList.size() || !m_playList[i]) {
+            return;
+        }
+
         auto duration = metaData.value(KFileMetaData::Property::Duration).toInt();
         auto title = metaData.value(KFileMetaData::Property::Title).toString();
 
@@ -362,7 +370,11 @@ QVariant PlayListModel::data(const QModelIndex &index, int role) const {
     if (!index.isValid() || m_playList.empty())
         return QVariant();
 
-    auto playListItem = m_playList.at(index.row());
+    const int row = index.row();
+    if (row < 0 || row >= m_playList.size())
+        return QVariant();
+
+    auto playListItem = m_playList.at(row);
 
     if (!playListItem) {
         qWarning() << "PlayListItem pointer was null";
@@ -476,6 +488,10 @@ void PlayListModel::getVideos(QString path) {
     collator.setNumericMode(true);
     std::sort(videoFiles.begin(), videoFiles.end(), collator);
 
+    if (videoFiles.isEmpty()) {
+        return;
+    }
+
     beginInsertRows(QModelIndex(), 0, videoFiles.count() - 1);
 
     for (int i = 0; i < videoFiles.count(); ++i) {
@@ -507,9 +523,9 @@ Playlist PlayListModel::getPlayList() const {
 }
 
 void PlayListModel::setPlayList(const Playlist &playList) {
-    beginInsertRows(QModelIndex(), 0, playList.size() - 1);
+    beginResetModel();
     m_playList = playList;
-    endInsertRows();
+    endResetModel();
     setPlayListIsEdited(false);
 }
 
@@ -660,6 +676,8 @@ void PlayListModel::moveItemDown(int i) {
 }
 
 void PlayListModel::updateItem(int i) {
+    if (i < 0 || i >= m_playList.size())
+        return;
     Q_EMIT dataChanged(index(i, 0), index(i, 0));
     setPlayListIsEdited(true);
 }
@@ -680,11 +698,11 @@ bool PlayListModel::getPlayListIsEdited() {
 }
 
 void PlayListModel::setPlayingVideo(int playingVideo) {
-    if (m_playingVideo >= 0 && m_playingVideo < m_playList.size()) {
+    if (m_playingVideo >= 0 && m_playingVideo < m_playList.size() && m_playList[m_playingVideo]) {
         m_playList[m_playingVideo]->setIsPlaying(false);
         Q_EMIT dataChanged(index(m_playingVideo, 0), index(m_playingVideo, 0), {PlayingRole});
     }
-    if (playingVideo < 0 || playingVideo >= m_playList.size()) {
+    if (playingVideo < 0 || playingVideo >= m_playList.size() || !m_playList[playingVideo]) {
         m_playingVideo = -1;
         Q_EMIT playingVideoChanged();
         return;
