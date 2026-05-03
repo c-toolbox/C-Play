@@ -225,7 +225,7 @@ ItemDelegate {
                 visible: false
 
                 onValueChanged: {
-                    if (!slidesView.enabled) {
+                    if (!slidesView.enabled && layerView.layerItem) {
                         var isTriggered = (app.slides.triggeredSlideIdx === index);
                         if (isTriggered) {
                             if (value.toFixed(0) !== app.slides.triggeredSlideVisibility) {
@@ -240,7 +240,8 @@ ItemDelegate {
                     }
                 }
                 Component.onCompleted: {
-                    visibilitySlider.value = layerView.layerItem.layerVisibility;
+                    if (layerView.layerItem)
+                        visibilitySlider.value = layerView.layerItem.layerVisibility;
                 }
             }
         }

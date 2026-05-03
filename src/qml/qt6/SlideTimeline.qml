@@ -27,7 +27,7 @@ Window {
     // Window chrome
     // -----------------------------------------------------------------------
     function slideText() {
-        return (slideIndex+1).toString() + ". " + slideModel.layersName;
+        return root.slideModel ? (slideIndex+1).toString() + ". " + root.slideModel.layersName : "";
     }
 
     title: slideModel ? qsTr("Timeline: ") + slideText() : qsTr("Timeline")
@@ -92,6 +92,7 @@ Window {
                                hasRotate, rx, ry, rz,
                                hasTranslate, tx, ty, tz) {
         if (!root.selectedKf || !root.slideModel) return;
+        if (root.selectedKf.layerIdx < 0 || root.selectedKf.kfIdx < 0) return;
         root.slideModel.updateKeyframe(
             root.selectedKf.layerIdx, root.selectedKf.kfIdx,
             timeMs, alpha,
@@ -356,7 +357,7 @@ Window {
                         text: qsTr("Delete")
                         icon.name: "edit-delete"
                         onClicked: {
-                            if (root.selectedKf) {
+                            if (root.selectedKf && root.slideModel) {
                                 root.slideModel.removeKeyframe(root.selectedKf.layerIdx, root.selectedKf.kfIdx);
                                 root.rebuildTrack(root.selectedKf.layerIdx);
                                 root.selectedKf = null;
@@ -393,11 +394,14 @@ Window {
                         value: { var _r = root.inspectorRevision; var d = root.selectedKfData(); return d ? Math.round(d.rotateX * 10) : 0; }
                         implicitWidth: 80
                         textFromValue: function(v) { return (v / 10.0).toFixed(1) + "\u00b0"; }
-                        valueFromText: function(t) { return Math.round(parseFloat(t) * 10); }
+                        valueFromText: function(t) {
+                            var parsed = parseFloat(t);
+                            return isNaN(parsed) ? value : Math.round(parsed * 10);
+                        }
                         onValueModified: {
                             var d = root.selectedKfData(); if (!d) return;
                             root.commitSelectedKf(d.timeMs, d.alpha,
-                                checked, value / 10.0, d.rotateY, d.rotateZ,
+                                hasRotateCheck.checked, value / 10.0, d.rotateY, d.rotateZ,
                                 d.hasTranslate, d.translateX, d.translateY, d.translateZ);
                         }
                     }
@@ -410,11 +414,14 @@ Window {
                         value: { var _r = root.inspectorRevision; var d = root.selectedKfData(); return d ? Math.round(d.rotateY * 10) : 0; }
                         implicitWidth: 80
                         textFromValue: function(v) { return (v / 10.0).toFixed(1) + "\u00b0"; }
-                        valueFromText: function(t) { return Math.round(parseFloat(t) * 10); }
+                        valueFromText: function(t) {
+                            var parsed = parseFloat(t);
+                            return isNaN(parsed) ? value : Math.round(parsed * 10);
+                        }
                         onValueModified: {
                             var d = root.selectedKfData(); if (!d) return;
                             root.commitSelectedKf(d.timeMs, d.alpha,
-                                d.rotateX, value / 10.0, d.rotateZ,
+                                hasRotateCheck.checked, d.rotateX, value / 10.0, d.rotateZ,
                                 d.hasTranslate, d.translateX, d.translateY, d.translateZ);
                         }
                     }
@@ -427,11 +434,14 @@ Window {
                         value: { var _r = root.inspectorRevision; var d = root.selectedKfData(); return d ? Math.round(d.rotateZ * 10) : 0; }
                         implicitWidth: 80
                         textFromValue: function(v) { return (v / 10.0).toFixed(1) + "\u00b0"; }
-                        valueFromText: function(t) { return Math.round(parseFloat(t) * 10); }
+                        valueFromText: function(t) {
+                            var parsed = parseFloat(t);
+                            return isNaN(parsed) ? value : Math.round(parsed * 10);
+                        }
                         onValueModified: {
                             var d = root.selectedKfData(); if (!d) return;
                             root.commitSelectedKf(d.timeMs, d.alpha,
-                                d.rotateX, d.rotateY, value / 10.0,
+                                hasRotateCheck.checked, d.rotateX, d.rotateY, value / 10.0,
                                 d.hasTranslate, d.translateX, d.translateY, d.translateZ);
                         }
                     }
@@ -465,7 +475,10 @@ Window {
                         value: { var _r = root.inspectorRevision; var d = root.selectedKfData(); return d ? Math.round(d.translateX * 100) : 0; }
                         implicitWidth: 90
                         textFromValue: function(v) { return (v / 100.0).toFixed(2); }
-                        valueFromText: function(t) { return Math.round(parseFloat(t) * 100); }
+                        valueFromText: function(t) {
+                            var parsed = parseFloat(t);
+                            return isNaN(parsed) ? value : Math.round(parsed * 100);
+                        }
                         onValueModified: {
                             var d = root.selectedKfData(); if (!d) return;
                             root.commitSelectedKf(d.timeMs, d.alpha,
@@ -482,7 +495,10 @@ Window {
                         value: { var _r = root.inspectorRevision; var d = root.selectedKfData(); return d ? Math.round(d.translateY * 100) : 0; }
                         implicitWidth: 90
                         textFromValue: function(v) { return (v / 100.0).toFixed(2); }
-                        valueFromText: function(t) { return Math.round(parseFloat(t) * 100); }
+                        valueFromText: function(t) {
+                            var parsed = parseFloat(t);
+                            return isNaN(parsed) ? value : Math.round(parsed * 100);
+                        }
                         onValueModified: {
                             var d = root.selectedKfData(); if (!d) return;
                             root.commitSelectedKf(d.timeMs, d.alpha,
@@ -499,7 +515,10 @@ Window {
                         value: { var _r = root.inspectorRevision; var d = root.selectedKfData(); return d ? Math.round(d.translateZ * 100) : 0; }
                         implicitWidth: 90
                         textFromValue: function(v) { return (v / 100.0).toFixed(2); }
-                        valueFromText: function(t) { return Math.round(parseFloat(t) * 100); }
+                        valueFromText: function(t) {
+                            var parsed = parseFloat(t);
+                            return isNaN(parsed) ? value : Math.round(parsed * 100);
+                        }
                         onValueModified: {
                             var d = root.selectedKfData(); if (!d) return;
                             root.commitSelectedKf(d.timeMs, d.alpha,
@@ -922,7 +941,7 @@ Window {
                                             }
                                         }
                                         onReleased: function(mouse) {
-                                            if (mouse.button === Qt.LeftButton) {
+                                            if (mouse.button === Qt.LeftButton && root.slideModel) {
                                                 var newMs    = root.clampMs(root.xToMs(kfItem.dragX));
                                                 var newAlpha = root.yToAlpha(kfItem.dragY, trackRow.height);
                                                 // Snap alpha to 0 or 1 when near edges
@@ -952,7 +971,7 @@ Window {
                                             }
                                         }
                                         onClicked: function(mouse) {
-                                            if (mouse.button === Qt.RightButton) {
+                                            if (mouse.button === Qt.RightButton && root.slideModel) {
                                                 root.slideModel.removeKeyframe(trackRow.layerIdx, kfItem.kfIndex);
                                                 trackRow.reload();
                                                 if (root.selectedKf

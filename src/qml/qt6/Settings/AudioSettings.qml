@@ -248,6 +248,8 @@ SettingsBasePage {
                     }
                 }
                 onActivated: {
+                    if (index < 0 || index >= mpv.audioDevices.length || !mpv.audioDevices[index])
+                        return;
                     AudioSettings.preferredAudioOutputDevice = mpv.audioDevices[index].name;
                     AudioSettings.save();
                     mpv.updateAudioOutput();

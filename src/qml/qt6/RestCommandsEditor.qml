@@ -73,7 +73,7 @@ Kirigami.ApplicationWindow {
         var m = app.httpClientModel;
         editTitle.text = m.data(m.index(index, 0), Qt.UserRole);
         editUrl.text = m.data(m.index(index, 0), Qt.UserRole + 1);
-        editMethod.currentIndex = m.data(m.index(index, 0), Qt.UserRole + 2);
+        editMethod.currentIndex = Math.max(0, Math.min(m.data(m.index(index, 0), Qt.UserRole + 2), root.methodNames.length - 1));
         loadParametersFromJson(m.data(m.index(index, 0), Qt.UserRole + 3));
         editIgnoreStatus.checked = m.data(m.index(index, 0), Qt.UserRole + 4);
         responseArea.text = "";
@@ -116,6 +116,10 @@ Kirigami.ApplicationWindow {
         if (arr.length === 0)
             return "";
         return JSON.stringify(arr);
+    }
+
+    function methodName(method) {
+        return (method >= 0 && method < root.methodNames.length) ? root.methodNames[method] : "";
     }
 
     ListModel {
@@ -165,7 +169,7 @@ Kirigami.ApplicationWindow {
                         elide: Text.ElideRight
                     }
                     Label {
-                        text: root.methodNames[model.method] + " "
+                        text: root.methodName(model.method) + " "
                         font.bold: true
                         color: Kirigami.Theme.disabledTextColor
                     }

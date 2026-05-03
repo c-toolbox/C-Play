@@ -16,8 +16,12 @@ import org.kde.kirigami as Kirigami
 import org.ctoolbox.cplay
 
 Kirigami.ApplicationWindow {
+    function hasCurrentEditItem() {
+        return !mpv.playSectionsModel.isEmpty() && mpv.playSectionsModel.currentEditItem;
+    }
+
     function updateValues() {
-        if (!mpv.playSectionsModel.isEmpty()) {
+        if (hasCurrentEditItem()) {
             mediaFileLabel.text = mpv.playSectionsModel.currentEditItem.mediaFile();
             durationLabel.text = mpv.playSectionsModel.currentEditItem.durationFormatted();
             sectionsLabel.text = qsTr("%1").arg(Number(mpv.playSectionsModel.rowCount()));
@@ -44,6 +48,8 @@ Kirigami.ApplicationWindow {
     }
 
     function updateOrientationDisplay() {
+        if (gridModeToSaveComboBox.currentIndex < 0 || gridModeToSaveComboBox.currentIndex >= gridModeToSave.count)
+            return;
         var gridMode = gridModeToSave.get(gridModeToSaveComboBox.currentIndex).value;
         var defaultX = GridSettings.surfaceRotateX;
         var defaultY = GridSettings.surfaceRotateY;
@@ -217,7 +223,7 @@ Kirigami.ApplicationWindow {
             placeholderText: "A title for playlists etc"
 
             onEditingFinished: {
-                if (!mpv.playSectionsModel.isEmpty()) {
+                if (hasCurrentEditItem()) {
                     mpv.playSectionsModel.currentEditItem.setMediaTitle(text);
                 }
             }
@@ -261,7 +267,7 @@ Kirigami.ApplicationWindow {
             }
 
             onActivated: {
-                if (!mpv.playSectionsModel.isEmpty()) {
+                if (hasCurrentEditItem() && index >= 0 && index < model.count) {
                     mpv.playSectionsModel.currentEditItem.setStereoVideo(model.get(index).value);
                 }
             }
@@ -305,7 +311,7 @@ Kirigami.ApplicationWindow {
             }
 
             onActivated: {
-                if (!mpv.playSectionsModel.isEmpty()) {
+                if (hasCurrentEditItem() && index >= 0 && index < model.count) {
                     mpv.playSectionsModel.currentEditItem.setGridToMapOn(model.get(index).value);
                 }
                 updateOrientationDisplay();
@@ -338,7 +344,7 @@ Kirigami.ApplicationWindow {
                 readOnly: true
 
                 onEnabledChanged: {
-                    if (!mpv.playSectionsModel.isEmpty()) {
+                    if (hasCurrentEditItem()) {
                         if (enabled) {
                             mpv.playSectionsModel.currentEditItem.setSeparateAudioFile(text);
                         } else {
@@ -347,7 +353,7 @@ Kirigami.ApplicationWindow {
                     }
                 }
                 onTextChanged: {
-                    if (!mpv.playSectionsModel.isEmpty()) {
+                    if (hasCurrentEditItem()) {
                         if (enabled) {
                             mpv.playSectionsModel.currentEditItem.setSeparateAudioFile(text);
                         }
@@ -363,6 +369,8 @@ Kirigami.ApplicationWindow {
                 text: ""
 
                 onClicked: {
+                    if (!hasCurrentEditItem())
+                        return;
                     if (separateAudioFileTextField.text !== "") {
                         openSeparateAudioFileDialog.folder = app.parentUrl(separateAudioFileTextField.text);
                     } else {
@@ -399,7 +407,7 @@ Kirigami.ApplicationWindow {
                 readOnly: true
 
                 onEnabledChanged: {
-                    if (!mpv.playSectionsModel.isEmpty()) {
+                    if (hasCurrentEditItem()) {
                         if (enabled) {
                             mpv.playSectionsModel.currentEditItem.setSeparateOverlayFile(text);
                         } else {
@@ -408,7 +416,7 @@ Kirigami.ApplicationWindow {
                     }
                 }
                 onTextChanged: {
-                    if (!mpv.playSectionsModel.isEmpty()) {
+                    if (hasCurrentEditItem()) {
                         if (enabled) {
                             separateOverlayFileCheckBox.checked = true;
                             mpv.playSectionsModel.currentEditItem.setSeparateOverlayFile(text);
@@ -425,6 +433,8 @@ Kirigami.ApplicationWindow {
                 text: ""
 
                 onClicked: {
+                    if (!hasCurrentEditItem())
+                        return;
                     if (separateOverlayFileTextField.text !== "") {
                         openSeparateOverlayFileDialog.folder = app.parentUrl(separateOverlayFileTextField.text);
                     } else {
@@ -442,7 +452,7 @@ Kirigami.ApplicationWindow {
             text: qsTr("")
 
             onCheckedChanged: {
-                if (!mpv.playSectionsModel.isEmpty()) {
+                if (hasCurrentEditItem()) {
                     mpv.playSectionsModel.currentEditItem.setSaveOrientation(checked);
                 }
             }
@@ -503,6 +513,7 @@ Kirigami.ApplicationWindow {
                 Layout.fillWidth: true
                 icon.name: "document-save"
                 text: qsTr("Save C-Play file")
+                enabled: hasCurrentEditItem()
 
                 onClicked: saveCPlayFileDialog.open()
             }

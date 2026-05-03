@@ -41,6 +41,8 @@ Kirigami.ApplicationWindow {
     }
 
     function saveCPlayFile(path) {
+        if (mpv.playSectionsModel.isEmpty() || !mpv.playSectionsModel.currentEditItem)
+            return;
         mpv.playSectionsModel.currentEditItem.saveAsJSONPlayFile(path);
         mpv.playSectionsModel.setCurrentEditItemIsEdited(false);
     }
@@ -197,6 +199,8 @@ Kirigami.ApplicationWindow {
             keys: ["text/uri-list"]
 
             onDropped: {
+                if (!drop.urls || drop.urls.length === 0)
+                    return;
                 openFile(app.pathToUrl(drop.urls[0]))
             }
         }
@@ -246,7 +250,8 @@ Kirigami.ApplicationWindow {
         }
 
         onVisibleChanged: {
-            layerView.layerItem.updateEnabled(!visible);
+            if (layerView.layerItem)
+                layerView.layerItem.updateEnabled(!visible);
         }
 
         View3D {
@@ -289,6 +294,19 @@ Kirigami.ApplicationWindow {
             anchors.fill: parent
             cursorShape: dragging ? Qt.ClosedHandCursor : Qt.OpenHandCursor
             onPressed: dragging = true
+
+            DropArea {
+                id: dropAreaMpv2
+
+                anchors.fill: parent
+                keys: ["text/uri-list"]
+
+                onDropped: {
+                    if (!drop.urls || drop.urls.length === 0)
+                        return;
+                    openFile(app.pathToUrl(drop.urls[0]))
+                }
+            }
         }
 
         Timer {
@@ -317,6 +335,8 @@ Kirigami.ApplicationWindow {
             keys: ["text/uri-list"]
 
             onDropped: {
+                if (!drop.urls || drop.urls.length === 0)
+                    return;
                 for(var i in drop.urls){
                     mpv.addFileToPlaylist(drop.urls[i].toString());      
                 }
@@ -347,7 +367,8 @@ Kirigami.ApplicationWindow {
         id: layerView
 
         onVisibleChanged: {
-            layerView.layerItem.updateEnabled(!viewLayersIn3DRenderItem.visible);
+            if (layerView.layerItem)
+                layerView.layerItem.updateEnabled(!viewLayersIn3DRenderItem.visible);
         }
 
     }
@@ -535,6 +556,8 @@ Kirigami.ApplicationWindow {
             }
 
             onAccepted: {
+                if (stereoscopicMode.currentIndex < 0 || gridMode.currentIndex < 0)
+                    return;
                 openMediaFile(newMediaFileToOpen.toString(), true, PlaylistSettings.loadSiblings);
                 mpv.stereoscopicMode = stereoscopicModeList.get(stereoscopicMode.currentIndex).value;
                 mpv.gridToMapOn = gridModeList.get(gridMode.currentIndex).value;
