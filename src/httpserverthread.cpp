@@ -137,7 +137,7 @@ void HttpServerThread::setupHttpServer() {
                             res.set_content(std::to_string(m_mpv->position() + timeInSec), "text/plain");
                         }
                     } else {
-                        res.set_content("Seeking " + req.get_param_value("time") + " s", "text / plain");
+                        res.set_content("Seeking " + req.get_param_value("time") + " s", "text/plain");
                     }
                 } else {
                     res.set_content("Supply parameter time with a positive or negative value (in seconds)", "text/plain");
@@ -500,7 +500,9 @@ void HttpServerThread::setupHttpServer() {
                 std::string indexStr = req.get_param_value("index");
                 res.set_content(LoadIndexFromAudioTracks(indexStr), "text/plain");
             }
-            res.set_content("Missing index parameter", "text/plain");
+            else {
+                res.set_content("Missing index parameter", "text/plain");
+            }
         });
 
         auto playlistHandler = [this](const httplib::Request &req, httplib::Response &res) {
@@ -524,7 +526,9 @@ void HttpServerThread::setupHttpServer() {
                 std::string indexStr = req.get_param_value("index");
                 res.set_content(LoadIndexFromPlaylist(indexStr), "text/plain");
             }
-            res.set_content("Missing index parameter", "text/plain");
+            else {
+                res.set_content("Missing index parameter", "text/plain");
+            }
         });
 
         auto sectionsHandler = [this](const httplib::Request &req, httplib::Response &res) {
@@ -548,7 +552,9 @@ void HttpServerThread::setupHttpServer() {
                 std::string indexStr = req.get_param_value("index");
                 res.set_content(LoadIndexFromSections(indexStr), "text/plain");
             }
-            res.set_content("Missing index parameter", "text/plain");
+            else {
+                res.set_content("Missing index parameter", "text/plain");
+            }
         });
 
         auto sectionStartTimeHandler = [this](const httplib::Request &req, httplib::Response &res) {
@@ -937,7 +943,8 @@ void HttpServerThread::setupHttpServer() {
             res.set_content(getLayerFromRequest(req, layerModel, layerIdx, layer), "text/plain");
             if (layer) {
                     std::string returnString = "";
-                    size_t countParams = req.params.size() - 2;
+                    // Guard against unsigned underflow when fewer than 2 params provided
+                    size_t countParams = req.params.size() > 2 ? req.params.size() - 2 : 0;
                     size_t count = 0;
                     if (req.has_param("azimuth")) {
                         returnString += std::to_string(static_cast<int>(layer->planeAzimuth()));
@@ -981,7 +988,8 @@ void HttpServerThread::setupHttpServer() {
             if (layer) {
                     bool updateLayer = false;
                     std::string returnString = "";
-                    size_t countParams = req.params.size() - 2;
+                    // Guard against unsigned underflow when fewer than 2 params provided
+                    size_t countParams = req.params.size() > 2 ? req.params.size() - 2 : 0;
                     size_t count = 0;
                     if (req.has_param("azimuth")) {
                         int value = 0;
@@ -1274,7 +1282,11 @@ const std::string HttpServerThread::LoadIndexFromAudioTracks(std::string indexSt
     int index = -1;
     if (stringToInt(indexStr, index)) {
         if (m_mpv) {
-            if (index >= 0 && index < m_mpv->audioTracksModel()->countTracks()) {
+            TracksModel* tracks = m_mpv->audioTracksModel();
+            if (!tracks) {
+                return "Audio tracks model unavailable";
+            }
+            if (index >= 0 && index < tracks->countTracks()) {
                 Q_EMIT loadFromAudioTracks(index);
                 return "Loading audio track with index: " + indexStr;
             } else {
@@ -1292,7 +1304,11 @@ const std::string HttpServerThread::LoadIndexFromPlaylist(std::string indexStr) 
     int index = -1;
     if (stringToInt(indexStr, index)) {
         if (m_mpv) {
-            if (index >= 0 && index < m_mpv->getPlayListModel()->getPlayListSize()) {
+            PlayListModel* pl = m_mpv->getPlayListModel();
+            if (!pl) {
+                return "Playlist model unavailable";
+            }
+            if (index >= 0 && index < pl->getPlayListSize()) {
                 Q_EMIT loadFromPlaylist(index);
                 return "Loading media with index: " + indexStr;
             } else {
@@ -1310,7 +1326,11 @@ const std::string HttpServerThread::LoadIndexFromSections(std::string indexStr) 
     int index = -1;
     if (stringToInt(indexStr, index)) {
         if (m_mpv) {
-            if (index >= 0 && index < m_mpv->getPlaySectionsModel()->getNumberOfSections()) {
+            PlaySectionsModel* sm = m_mpv->getPlaySectionsModel();
+            if (!sm) {
+                return "Sections model unavailable";
+            }
+            if (index >= 0 && index < sm->getNumberOfSections()) {
                 Q_EMIT loadFromSections(index);
                 return "Loading section with index: " + indexStr;
             } else {

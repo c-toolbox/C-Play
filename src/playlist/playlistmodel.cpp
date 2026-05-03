@@ -516,6 +516,8 @@ void PlayListModel::setPlayList(const Playlist &playList) {
 std::string PlayListModel::getListAsFormattedString(int charsPerItem) const {
     std::string fullItemList = "";
     for (int i = 0; i < m_playList.size(); i++) {
+        if (!m_playList[i])
+            continue;
         std::string title = std::to_string(i + 1) + ". ";
         if (!m_playList[i]->listTitle().isEmpty()) {
             title += m_playList[i]->listTitle().toStdString();
@@ -577,8 +579,8 @@ void PlayListModel::clear() {
 }
 
 QString PlayListModel::getPath(int i) {
-    if (m_playList.size() <= i) {
-        return m_playList[0]->mediaFile();
+    if (i < 0 || i >= m_playList.size() || !m_playList[i]) {
+        return QString();
     }
     return m_playList[i]->mediaFile();
 }
@@ -1013,6 +1015,8 @@ void PlayListModel::saveAsJSONPlaylist(const QString &path) {
 
     QJsonArray playlistArray;
     for (int i = 0; i < m_playList.size(); i++) {
+        if (!m_playList[i])
+            continue;
         QJsonObject item_data;
 
         int eofMode = m_playList[i]->eofMode();
@@ -1073,6 +1077,8 @@ void PlayListModel::asJSON(QJsonObject& obj) {
 
     QJsonArray playlistArray;
     for (int i = 0; i < m_playList.size(); i++) {
+        if (!m_playList[i])
+            continue;
         QJsonObject item_data;
 
         m_playList[i]->asJSON(item_data);

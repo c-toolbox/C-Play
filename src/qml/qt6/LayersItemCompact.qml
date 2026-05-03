@@ -299,19 +299,17 @@ ItemDelegate {
                     // ensure current index follows selection while dragging
                     layersView.currentIndex = index;
 
+                    // Constrain the drag to the visible content area
+                    drag.minimumY = 0;
+                    drag.maximumY = Math.max(0, layersView.contentHeight);
+
                     // create insertion indicator (shared transient visual between rows)
                     if (layersView && layersView.contentItem && !root.insertionIndicator) {
                         // create indicator initially at current center position
                         root.insertionIndicator = insertionLineComp.createObject(layersView.contentItem, { x: 0, y: root.y + root.height/2 - 2, width: layersView.width });
                     }
                 }
-                                onPositionChanged: {
-                    // Boundaries relative to ListView content
-                    var minY = -root.y;
-                    var maxY = layersView.contentHeight - root.y - root.height;
-                    if (drag.y < minY) drag.y = minY;
-                    if (drag.y > maxY) drag.y = maxY;
-
+                onPositionChanged: {
                     // Optional: auto-scroll the list when dragging near edges
                     var edgeThreshold = 20;
                     var localY = root.y;

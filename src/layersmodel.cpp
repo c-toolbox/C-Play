@@ -179,8 +179,10 @@ BaseLayer::LayerHierarchy LayersModel::hierarchy() const {
 void LayersModel::setHierarchy(BaseLayer::LayerHierarchy h) {
     m_layerHierachy = h;
 
-    for (auto l : m_layers)
-        l.first->setHierarchy(h);
+    for (auto l : m_layers) {
+        if (l.first)
+            l.first->setHierarchy(h);
+    }
 
     setNeedSync();
 }
@@ -217,13 +219,13 @@ std::shared_ptr<BaseLayer> LayersModel::layerShared(int i) {
 }
 
 QString LayersModel::layerTitle(int i) const {
-    if (i >= 0 && m_layers.size() > i)
+    if (i >= 0 && m_layers.size() > i && m_layers[i].first)
         return QString::fromStdString(m_layers[i].first->title());
     return QString();
 }
 
 int LayersModel::layerVisibility(int i) const {
-    if (i >= 0 && m_layers.size() > i)
+    if (i >= 0 && m_layers.size() > i && m_layers[i].first)
         return static_cast<int>(m_layers[i].first->alpha() * 100.f);
     return 0;
 }
@@ -232,6 +234,8 @@ int LayersModel::layerIdx(std::string title) {
     // Returning first with correct name
     QString titleLowCase = QString::fromStdString(title).toLower();
     for (int i = 0; i < m_layers.size(); i++) {
+        if (!m_layers[i].first)
+            continue;
         if (QString::fromStdString(m_layers[i].first->title()).toLower() == titleLowCase) {
             return i;
         }
@@ -259,6 +263,8 @@ int LayersModel::minLayerStatus() {
 
     int minStatus = -1;
     for (int i = 0; i < m_layers.size(); i++) {
+        if (!m_layers[i].first)
+            continue;
         if (m_layers[i].first->type() == BaseLayer::CONTROL || m_layers[i].first->type() == BaseLayer::REST)
             continue;
         if (minStatus == -1)
@@ -275,6 +281,8 @@ int LayersModel::maxLayerStatus() {
 
     int maxStatus = -1;
     for (int i = 0; i < m_layers.size(); i++) {
+        if (!m_layers[i].first)
+            continue;
         if (m_layers[i].first->type() == BaseLayer::CONTROL || m_layers[i].first->type() == BaseLayer::REST)
             continue;
         if (maxStatus == -1)
@@ -721,7 +729,7 @@ bool LayersModel::getLayersCanBeLocked() const {
 int LayersModel::getLockedLayerCount() const {
     int count = 0;
     for (int i = 0; i < m_layers.size(); i++) {
-        if (m_layers[i].first->isLocked()) {
+        if (m_layers[i].first && m_layers[i].first->isLocked()) {
             count++;
         }
     }
@@ -745,7 +753,8 @@ std::string LayersModel::getLayersAsFormattedString(size_t charsPerItem) const {
     for (int i = 0; i < m_layers.size(); i++) {
         std::string title = std::to_string(i + 1) + ". ";
 
-        title += m_layers[i].first->title();
+        if (m_layers[i].first)
+            title += m_layers[i].first->title();
 
         size_t countChars = title.size();
         if (countChars < charsPerItem) {

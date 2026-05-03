@@ -24,7 +24,11 @@ QVariant TracksModel::data(const QModelIndex &index, int role) const {
     if (!index.isValid() || m_tracks == nullptr ||  m_tracks->empty())
         return QVariant();
 
-    Track track = m_tracks->at(index.row());
+    const int row = index.row();
+    if (row < 0 || static_cast<size_t>(row) >= m_tracks->size())
+        return QVariant();
+
+    Track track = m_tracks->at(row);
 
     switch (role) {
     case TextRole: {
@@ -120,7 +124,10 @@ std::string TracksModel::getListAsFormattedString(std::string removePrefix, int 
 
         if (!removePrefix.empty()) {
             int mc = 0;
-            for (int c = 0; c < title.length(); c++) {
+            const int prefixLen = static_cast<int>(removePrefix.length());
+            const int titleLen = static_cast<int>(title.length());
+            const int maxLen = std::min(prefixLen, titleLen);
+            for (int c = 0; c < maxLen; c++) {
                 if (removePrefix[c] == title[c])
                     mc++;
                 else
@@ -133,9 +140,9 @@ std::string TracksModel::getListAsFormattedString(std::string removePrefix, int 
         std::replace(title.begin(), title.end(), '_', ' ');
 
         size_t countChars = title.size();
-        if (countChars < charsPerItem) {
+        if (countChars < static_cast<size_t>(charsPerItem)) {
             title.insert(title.end(), charsPerItem - countChars, ' ');
-        } else if (countChars >= charsPerItem) {
+        } else if (charsPerItem > 4 && countChars >= static_cast<size_t>(charsPerItem)) {
             title.erase(title.end() - (countChars - charsPerItem + 4), title.end());
             title.insert(title.end(), 3, '.');
             title.insert(title.end(), 1, ' ');

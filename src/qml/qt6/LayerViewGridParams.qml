@@ -628,7 +628,7 @@ Kirigami.ApplicationWindow {
 
                         onMoved: {
                             planeHorizontalMoveBox.value = value;
-                            layerView.layerItem.layerPlaneHorizontal = planeHorizontalMoveBox.realValue;
+                            layerView.layerItem.layerPlaneHorizontal = planeHorizontalMoveBox.value;
                         }
 
                         Layout.fillWidth: true
@@ -641,7 +641,7 @@ Kirigami.ApplicationWindow {
 
                     Connections {
                         function onLayerValueChanged() {
-                            if (planeHorizontalMoveBox.realValue !== layerView.layerItem.layerPlaneHorizontal)
+                            if (planeHorizontalMoveBox.value !== layerView.layerItem.layerPlaneHorizontal)
                                 planeHorizontalMoveBox.value = layerView.layerItem.layerPlaneHorizontal;
                         }
 
@@ -684,7 +684,7 @@ Kirigami.ApplicationWindow {
 
                         onMoved: {
                             planeVerticalMoveBox.value = value;
-                            layerView.layerItem.layerPlaneVertical = planeVerticalMoveBox.realValue;
+                            layerView.layerItem.layerPlaneVertical = planeVerticalMoveBox.value;
                         }
 
                         Layout.fillWidth: true
@@ -697,7 +697,7 @@ Kirigami.ApplicationWindow {
 
                     Connections {
                         function onLayerValueChanged() {
-                            if (planeVerticalMoveBox.realValue !== layerView.layerItem.layerPlaneVertical)
+                            if (planeVerticalMoveBox.value !== layerView.layerItem.layerPlaneVertical)
                                 planeVerticalMoveBox.value = layerView.layerItem.layerPlaneVertical;
                         }
 

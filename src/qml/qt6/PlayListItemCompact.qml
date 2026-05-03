@@ -126,6 +126,10 @@ ItemDelegate {
                 // ensure current index follows selection while dragging
                 playlistView.currentIndex = index;
 
+                // Constrain the drag to the visible content area
+                drag.minimumY = 0;
+                drag.maximumY = Math.max(0, playlistView.contentHeight);
+
                 // create insertion indicator (shared transient visual between rows)
                 if (playlistView && playlistView.contentItem && !root.insertionIndicator) {
                     // create indicator initially at current center position
@@ -133,12 +137,6 @@ ItemDelegate {
                 }
             }
             onPositionChanged: {
-                // Boundaries relative to ListView content
-                var minY = -root.y;
-                var maxY = playlistView.contentHeight - root.y - root.height;
-                if (drag.y < minY) drag.y = minY;
-                if (drag.y > maxY) drag.y = maxY;
-
                 // Optional: auto-scroll the list when dragging near edges
                 var edgeThreshold = 20;
                 var localY = root.y;

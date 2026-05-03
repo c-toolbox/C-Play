@@ -106,7 +106,9 @@ BaseLayer *BaseLayer::createLayer(bool isMaster, int layerType, gl_adress_func_v
         VideoLayer* newVideo = new VideoLayer(opa1);
         newLayer = newVideo;
 #endif
-        newVideo->setEOFMode(2);
+        if (newLayer) {
+            newLayer->setEOFMode(2);
+        }
         break;
     }
     case static_cast<int>(BaseLayer::LayerType::AUDIO): {
@@ -683,7 +685,9 @@ void BaseLayer::setAlpha(float a) {
     // Apply alpha on sublayers as well, so they don't have to handle it themselves.
     if (hasSubLayers()) {
         for (const auto& sublayer : getSubLayers()) {
-            sublayer.get()->setAlpha(a);
+            if (sublayer) {
+                sublayer->setAlpha(a);
+            }
         }
     }
 
