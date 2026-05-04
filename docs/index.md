@@ -15,7 +15,7 @@ C-Play is a video/media player developed for cluster environments where you need
 ### Content features
 These are just some features that set C-Play apart from other media and video players:
 
-C-Play support media that is:
+C-Play supports media that is:
 
 - Stereoscopic (Side-by-side or Top-Bottom) and Monoscopic
 
@@ -38,7 +38,7 @@ An additional powerful feature in C-Play is the presentation tool, where you can
 
 - *NDI*, *OMT* or *Spout* (Video/audio over network or applications.)
 
-- *Streams* (Youtube etc supported through FFmpeg)
+- *Streams* (YouTube etc supported through FFmpeg)
 
 - *Text* (With custom font, also used for subtitles.) 
 
@@ -74,7 +74,7 @@ With the layer types above, you can make it almost as easy as using PowerPoint t
 1. [Build from code](build)
 
 ## Launcher
-To launch application on master+nodes, we use an own developed application called [C-Troll](https://github.com/c-toolbox/C-Troll).
+To launch the application on master+nodes, we use our own application called [C-Troll](https://github.com/c-toolbox/C-Troll).
 
 ## Backend
 C-Play is an open source cluster video player, based on these open source projects:

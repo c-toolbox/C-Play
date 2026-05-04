@@ -9,11 +9,11 @@ parent: Playback features
 
 These are the runtime controls to use when a file has been loaded from either *"Open File"* or from the playlist.
 
-Start with selection of an audio track ![](../../assets/icons/new-audio-alarm.svg). You can switch the audio track even when the video is loaded and playing *(though it is recommended to pause first, to preserve good sync between audio and image.)*
+Start by selecting an audio track ![](../../assets/icons/new-audio-alarm.svg). You can switch the audio track even when the video is loaded and playing *(though it is recommended to pause first, to preserve good sync between audio and image.)*
 
 ![Audio](../../assets/ui/header_taskbar/audio.png){:width="70%"}
 
-*"Note: You can in the Audio Settings set to load all external audio tracks alongside the video file. Embedded tracks are always loaded"*
+*"Note: In the Audio Settings, you can enable loading all external audio tracks alongside the video file. Embedded tracks are always loaded."*
 
 ### Video/image mapping
 

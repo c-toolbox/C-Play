@@ -7,7 +7,7 @@ parent: Remote Control
 
 # C-Play iPad Control Interface
 
-This UI, currently used in the Visualization Center C, is an example on how C-Play can be used with a remote UI. This exact one is specific to this site, but feel free to utilize a generic one, that can be found [here](https://github.com/c-toolbox/C-Play/tree/master/help/http_server).
+This UI, currently used in the Visualization Center C, is an example of how C-Play can be used with a remote UI. This exact one is specific to this site, but feel free to use the generic one that can be found [here](https://github.com/c-toolbox/C-Play/tree/master/help/http_server).
 
 
 ### Guide to this "C-Play Dome Control" UI
@@ -18,11 +18,11 @@ This UI, currently used in the Visualization Center C, is an example on how C-Pl
 
 1. Select the cluster that C-Play runs on, for instance *Atlas* (as image above). When you press that button, the UI will check the connection to the master PC of that cluster, and fetch all data (current playlists, media file, volume level etc) from that master UI.
 
-1. When the update/fetch is complete, feel free to chose any item in the playlist. When you have selected one, press the button named "*Load selected in Playlist*". You will notice the fields below and the lists named "*Audio*" and "*Sections*" will update after a few seconds.
+1. When the update/fetch is complete, feel free to choose any item in the playlist. When you have selected one, press the button named "*Load selected in Playlist*". You will notice the fields below and the lists named "*Audio*" and "*Sections*" will update after a few seconds.
 
-1. If you want to change the language, do so in the "*Audio*" lists and if you want to jump to a certain part of a movie, do so in the "*Sections*" list. Select first, the press the *load* button below the list.
+1. If you want to change the language, do so in the "*Audio*" list and if you want to jump to a certain part of a movie, do so in the "*Sections*" list. Select first, then press the *load* button below the list.
 
-1. The press just press "*Play*" to start the playing the media.
+1. Then just press "*Play*" to start playing the media.
 
 * Optionally: You can choose to fade out both image and volume (or either of them), and then fade in them just before you play. There is also a button (top right) named "*Show Play*", that dims lights in the dome, fades up the video image and starts playing, all in one button press.
 
@@ -41,19 +41,19 @@ This button effectively is a shortcut to switch the current selected C-Play stat
 
 ### 3D -> 2D
 
-The button named "*3D -> 2D*", FORCES even 3D content to show as 2D content. This is the button you want to use, when you want show a 3D movie in the dome, without the use of 3D glasses. *You want to disable this one to make it 3D correct again.*
+The button named "*3D -> 2D*", FORCES even 3D content to show as 2D content. This is the button you want to use, when you want to show a 3D movie in the dome, without the use of 3D glasses. *You want to disable this one to make it 3D correct again.*
 
 ### Background
 
-This button enabled and disables the background, if you would like the dome to fade to black or the background image, when you want to hide the video.
+This button enables and disables the background, if you would like the dome to fade to black or the background image, when you want to hide the video.
 
 ### Presentation Projector
 
-This opens and closes the shutter of the presentation projector, but also, puts a black mask on-top of the c-play content, that corresponds to the projected footprint on the dome of the presentation projector. Such that you could have a powerpoint in the middle of the dome from a laptop, while also having content around which is shown by the dome projectors.
+This opens and closes the shutter of the presentation projector, but also puts a black mask on top of the C-Play content that corresponds to the projected footprint on the dome of the presentation projector. This allows you to have a PowerPoint in the middle of the dome from a laptop, while also having surrounding content shown by the dome projectors.
 
 ### 360 Spin
 
-C-Play support 360 movies and images (2D and 3D). However, in the dome, the content shown of that video is usually only half of that. To create a interactive moment of the 360 video, to show another side, there is a button to rotate the sphere around, and also transition the sphere to another defined state (see [Grid/mapping settings](../../guides/settings/grid) do change this state.)
+C-Play supports 360 movies and images (2D and 3D). However, in the dome, the content shown from that video is usually only half of it. To create an interactive moment in the 360 video, or to show another side, there is a button to rotate the sphere around and also transition the sphere to another defined state (see [Grid/mapping settings](../../guides/settings/grid) to change this state).
 
 
 

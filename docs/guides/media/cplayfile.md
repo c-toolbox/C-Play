@@ -7,9 +7,9 @@ parent: Media file structure
 
 # Build and save video description files (*.cplayfile)
 
- C-Play can open any format that MPV support, which is basically any that the included FFmpeg libraries support.
+ C-Play can open any format that MPV supports, which is basically any format that the included FFmpeg libraries support.
 
- However, there is good practice to build a ".cplayfile" of any your video files, to store all of the descriptive settings, which C-Play get from MPV or which can be user-defined.
+ However, it is good practice to build a ".cplayfile" for all your video files, to store all of the descriptive settings, which C-Play gets from MPV or which can be user-defined.
  
  These user defined settings are:
 
@@ -26,15 +26,15 @@ parent: Media file structure
      * Sphere EQR (360 equirectangular projection)
      * Sphere EAC (360 equi-angular cubemap projection)
 * Separate Audio File
-     * C-Play supports incorporated audio tracks in the video, however, through this option a separate file can be loaded (on the master) as the default selected audio track.
+     * C-Play supports embedded audio tracks in the video; however, through this option a separate file can be loaded (on the master) as the default selected audio track.
 * Separate Overlay File
-     * C-Play support the loading of an overlay image file (such as *.png or *.jpg) to be put on top of the video. This might be useful when mapping a static world map on top a video showing ocean flow, for instance. This overlay file needs to be loaded when the video is, thus can only be define in a *"*.cplayfile*".
+     * C-Play supports loading an overlay image file (such as *.png or *.jpg) to be put on top of the video. This might be useful when mapping a static world map on top of a video showing ocean flow, for instance. This overlay file needs to be loaded with the video and can only be defined in a *"*.cplayfile*".
 * Orientation *(new in v2.3)*
      * When using dome or sphere grid modes, the current viewing orientation (yaw, pitch, roll) can be saved into the *.cplayfile*. For dome mappings only the yaw is stored; for sphere mappings (EQR and EAC) all three axes are saved. Enable the *"Save orientation"* checkbox in the save dialog when the current orientation differs from the default. On load, the saved orientation is restored automatically.
 
 ## Sections
 
-Sections is a concept similar but more powerful then bookmarks or chapters in a video. Every section has a title, start time, end time and eos(*end of section*) mode.
+Sections are a concept similar to, but more powerful than, bookmarks or chapters in a video. Every section has a title, start time, end time and eos(*end of section*) mode.
 
 Basically, a section is a piece of the video that can be triggered easily, with various *end behaviors* depending on eos mode. The different eos modes are:
 
@@ -46,7 +46,7 @@ Basically, a section is a piece of the video that can be triggered easily, with 
 
 The sections view, where sections are created and managed, is opened in the bottom right (or bottom left, depending on settings). 
 
-It should be straight-forward to build sections, and while you can edit start and stop time manually, you can easily grab then from the current time in the video.
+It should be straight-forward to build sections, and while you can edit start and stop time manually, you can easily grab them from the current time in the video.
 
 ## Workflow for *.cplayfile creation
 
@@ -57,10 +57,10 @@ If the setting *"Load audio files in same folder as video file"* in the audio co
 
 1. In the header menu, select correct *"Audio File"*, *"Stereo (2D or 3D) mode"* and *"Grid Mode"*, such that your video is combined with desired audio track and looks correct in your environment (arena, dome etc).
 
-1. Optionally, define "*Sections*" for you movie/video if you want to have users jump to certain pre-defined locations.
+1. Optionally, define "*Sections*" for your movie/video if you want to have users jump to certain pre-defined locations.
 
 1. Click the button *"Save As C-Play File"* in the header menu, which will open the dialog below.
  ![Save As CPlayfile](../../assets/ui/saveAsCplayfile.png)
  The dialog will already be pre-defined with the current user defined values currently chosen in C-Play. You can change any value here before you save as well, and optionally add an overlay image as well.
 
- 1. Click "*Save C-Play File*" do save it, preferably in the folder you defined in the "*General settings*" as "*Common C-play file location*", which if set, is the start location when this dialog opens.
+ 1. Click "*Save C-Play File*" to save it, preferably in the folder you defined in the "*General settings*" as "*Common C-play file location*", which if set, is the start location when this dialog opens.

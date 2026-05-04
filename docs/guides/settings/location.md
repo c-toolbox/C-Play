@@ -13,11 +13,11 @@ There are several optional file locations you can set that simplify file managem
 
 These are found in "Settings -> Configure -> General".
 
-#### 1. Common C-play file location (recommend to set)
+#### 1. Common C-play file location (recommended to set)
 
 This is the folder that you preferably store all saved "*.cplayfile*" and "*.cplaylist*" files. When this folder is set it will be used as the default folder for saving of these files, as well as when adding already saved "*cplayfile(s)*" to the playlist. A "*.cplaylist*" will also use relative path to "*.cplayfile(s)*" when this is set.
 
-#### 2. Common C-play media location (recommend to set)
+#### 2. Common C-play media location (recommended to set)
 
 The base location where your media is stored. The benefit of setting this path is that when you save a "*cplayfile*", the paths to media, audio, overlays, and so on will be relative. This simplifies moving content across drives if necessary.
 
@@ -27,7 +27,7 @@ The file dialog location can be set to a preferred path that C-Play will always 
 
 #### 4-7. Default file location for various *layer* types (from C-Play v2.1 and newer)
 
-There are specific file location settings for various file dialogs used with the *Layer* functionality introduced in C-Play v2.1. They are normally set to the file type specific path in Windows (for video, pictures, music and documents(for PDF:s)). However, please feel free to change this depending how you store files on your cluster.
+There are specific file location settings for various file dialogs used with the *Layer* functionality introduced in C-Play v2.1. They are normally set to the file type-specific path in Windows (for video, pictures, music and documents (for PDFs)). However, please feel free to change this depending on how you store files on your cluster.
 
 #### 8. Uniview video location (legacy)
 
@@ -35,8 +35,8 @@ C-Play supports loading Uniview "*.fdv*" files for use in an environment where S
 
 #### Screenshots
 
-* **Screenshot path** — The folder where screenshots are saved. Default is C-Play:s "data/images" folder.
+* **Screenshot path** — The folder where screenshots are saved. Default is C-Play's "data/images" folder.
 * **Buffer source** — Choose which rendering stage to capture:
-  * *Before Warping and Blending* — captures frame before digital warping and/or masking.
+  * *Before Warping and Blending* — captures the frame before digital warping and/or masking.
   * *After Warping and Blending* — captures the final output as displayed.
 * **Take Screenshot** — Captures a screenshot on all cluster nodes and saves it to the configured path.

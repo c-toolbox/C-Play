@@ -6,9 +6,9 @@ C-Play depends on the great *mpv* media player library, which indeed depends on 
 
 This pre-setup is relevant for NDI and/or OMT audio support.
 
-In the options below, we will be compiling FFMPEG and MPV with MINGW64, which is a standard and usually the easiest practice for building a customized library on Windows. But MINGW64 headers are extensive and the include folder often makes compilation fail. As we are also using the excellent 'vcpkg' functionality for many packages, we can use that as well to install packages that can be included when building C-Play.
+In the options below, we will compile FFmpeg and MPV with MINGW64, which is standard and usually the easiest practice for building a customized library on Windows. However, MINGW64 headers are extensive and the include folder often makes compilation fail. As we are also using the excellent 'vcpkg' functionality for many packages, we can use that as well to install packages that can be included when building C-Play.
 
-Install the [ASIO SDK](https://www.steinberg.net/asiosdk) through 'vcpkg', and then install portaudio with the asio feature enabled. In the C-Play repository, there is some [portaudio vcpkg files](https://raw.githubusercontent.com/c-toolbox/C-Play/master/help/portaudio) to make the 'portaudio' compile with 'asio', which is not in the standard package included in 'vcpkg'. At last, install 'jack2' as well.
+Install the [ASIO SDK](https://www.steinberg.net/asiosdk) through 'vcpkg', and then install portaudio with the asio feature enabled. In the C-Play repository, there are some [portaudio vcpkg files](https://raw.githubusercontent.com/c-toolbox/C-Play/master/help/portaudio) to make 'portaudio' compile with 'asio', which is not in the standard package included in 'vcpkg'. Finally, install 'jack2' as well.
 
 ```
 vcpkg install asiosdk
@@ -172,7 +172,7 @@ pacman -U mingw-w64-x86_64-texinfo-7.1.1-2-any.pkg.tar.zst
 
 ## 3. After MPV compilation, linking mpv with MSVC programs
 
-As according to the [Native compilation with MSYS2](https://github.com/mpv-player/mpv/blob/master/DOCS/compile-windows.md#native-compilation-with-msys2) you need to create a import library for the mpv DLL. Launch a Visual Studio command prompt (latest 2022 or later), and cd to the bin directory where *mpv-2.dll* is located. Then create the library with you need a definition file (*.def*). 
+According to the [Native compilation with MSYS2](https://github.com/mpv-player/mpv/blob/master/DOCS/compile-windows.md#native-compilation-with-msys2), you need to create an import library for the mpv DLL. Launch a Visual Studio command prompt (latest 2022 or later), and cd to the bin directory where *mpv-2.dll* is located. To create the library, you need a definition file (*.def*).
 
 If you have a mpv.def file(*Option 2 normally gives that*), you can already do this:
 

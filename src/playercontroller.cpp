@@ -733,9 +733,6 @@ void PlayerController::setCaptureBackBuffer(bool backBuffer) {
 QString PlayerController::supportedImageNameFilters() const {
     // Base extensions always supported (via stb_image / sgct::Image)
     QStringList exts;
-    exts << QStringLiteral("*.png") << QStringLiteral("*.jpg")
-         << QStringLiteral("*.jpeg") << QStringLiteral("*.tga");
-
 #ifdef SAIL_SUPPORT
     // Query SAIL for all supported file extensions at runtime
     QSet<QString> extSet;
@@ -756,6 +753,9 @@ QString PlayerController::supportedImageNameFilters() const {
     } catch (...) {
         // If SAIL enumeration fails, just use the base extensions
     }
+#else
+    exts << QStringLiteral("*.png") << QStringLiteral("*.jpg")
+        << QStringLiteral("*.jpeg") << QStringLiteral("*.tga");
 #endif
 
     return QStringLiteral("Image files (") + exts.join(QStringLiteral(" ")) + QStringLiteral(")");

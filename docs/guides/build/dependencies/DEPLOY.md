@@ -39,11 +39,11 @@ vcruntime*.dll  Runtime Library for native code
 
 ## Build installer
 
-After INSTALL has been run in Visual Studio, it is time to make an installer following this steps:
+After INSTALL has been run in Visual Studio, it is time to make an installer by following these steps:
 
-1. Download latest [Visual Studio Re-dist](https://aka.ms/vs/17/release/vc_redist.x64.exe) to the */bin* folder to be launched during installation of C-Play.
+1. Download the latest [Visual Studio redistributable](https://aka.ms/vs/17/release/vc_redist.x64.exe) to the */bin* folder to be launched during installation of C-Play.
 
-1. Run the "CPlay_Pack.nsi* script, now present in the install directory to make an installer.
+1. Run the *CPlay_Pack.nsi* script, now present in the install directory, to make an installer.
 
 1. The installer is now ready...
 
