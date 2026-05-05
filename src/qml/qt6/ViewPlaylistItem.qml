@@ -9,7 +9,7 @@ import QtQuick
 import QtQuick.Window
 import QtQuick.Layouts
 import QtQuick.Controls
-import Qt.labs.platform as Platform
+import QtQuick.Dialogs
 
 import org.kde.kirigami as Kirigami
 import org.ctoolbox.cplay
@@ -451,18 +451,19 @@ Kirigami.ApplicationWindow {
                 }
             }
 
-            Platform.FileDialog {
+            FileDialog {
                 id: listAudioFileDialog
 
                 property string startFolder: ""
 
+                parentWindow: viewPlaylistItemWindow
                 title: qsTr("Select Audio File")
-                fileMode: Platform.FileDialog.OpenFile
-                folder: startFolder.length > 0 ? "file:///" + startFolder : ""
+                fileMode: FileDialog.OpenFile
+                currentFolder: startFolder.length > 0 ? "file:///" + startFolder : ""
                 nameFilters: [qsTr("Audio files") + " (*.wav *.mp3 *.flac *.ogg *.aac *.wma *.m4a *.opus *.aiff *.ac3 *.dts *.pcm)"]
 
                 onAccepted: {
-                    var filePath = file.toString().replace("file:///", "");
+                    var filePath = selectedFile.toString().replace("file:///", "");
                     listAudioTextField.text = filePath;
                     if (viewPlaylistItemWindow.selectedIndex >= 0) {
                         mpv.playlistModel.setListAudioFile(viewPlaylistItemWindow.selectedIndex, filePath);

@@ -160,6 +160,7 @@ public:
     Q_INVOKABLE LayersModel *selectedSlide();
     QSharedPointer<LayersModel> slideShared(int i);
     QList<QSharedPointer<LayersModel>> snapshotSlides();
+    bool trySnapshotSlides(QList<QSharedPointer<LayersModel>>& out);
 
     Q_PROPERTY(SlideVisibilityModel *visibilityModel
         READ visibilityModel

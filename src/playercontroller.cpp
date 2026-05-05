@@ -13,6 +13,7 @@
 #include "layersmodel.h"
 #include "playlist/playlistmodel.h"
 #include "tracksmodel.h"
+#include "layers/imagelayer.h"
 
 #include <QDir>
 #include <QFileInfo>
@@ -759,6 +760,24 @@ QString PlayerController::supportedImageNameFilters() const {
 #endif
 
     return QStringLiteral("Image files (") + exts.join(QStringLiteral(" ")) + QStringLiteral(")");
+}
+
+QString PlayerController::imageRingBufferGpuMemoryText(int percent) const {
+    const int gpuMemoryKB = ImageLayer::lastKnownGpuMemoryKB();
+    if (gpuMemoryKB <= 0) {
+        return tr("GPU memory not detected yet");
+    }
+
+    if (percent < 1) percent = 1;
+    if (percent > 90) percent = 90;
+
+    const double budgetGB = (static_cast<double>(gpuMemoryKB) * 1024.0 * percent / 100.0) / (1024.0 * 1024.0 * 1024.0);
+    if (budgetGB >= 1.0) {
+        return tr("%1 GB").arg(budgetGB, 0, 'f', 2);
+    }
+
+    const double budgetMB = budgetGB * 1024.0;
+    return tr("%1 MB").arg(budgetMB, 0, 'f', 0);
 }
 
 MpvObject *PlayerController::mpv() const {

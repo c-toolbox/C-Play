@@ -1,16 +1,8 @@
-/*
- * SPDX-FileCopyrightText:
- * 2021-2026 Erik Sunden <eriksunden85@gmail.com>
- *
- * SPDX-License-Identifier: GPL-3.0-or-later
- */
-
 import QtQuick
 import QtQuick.Window
 import QtQuick.Layouts
 import QtQuick.Controls
-
-import Qt.labs.platform as Platform
+import QtQuick.Dialogs
 
 import org.kde.kirigami as Kirigami
 import org.ctoolbox.cplay
@@ -102,34 +94,34 @@ Kirigami.ApplicationWindow {
 
         target: mpv.playSectionsModel
     }
-    Platform.FileDialog {
+    FileDialog {
         id: openSeparateAudioFileDialog
 
-        fileMode: Platform.FileDialog.OpenFile
+        parentWindow: saveAsCPlayFileWindow
+        fileMode: FileDialog.OpenFile
         title: "Choose Separate Audio File"
 
         onAccepted: {
             separateAudioFileCheckBox.checked = true;
-            var filePath = openSeparateAudioFileDialog.file.toString();
-            // remove prefixed "file:///"
+            var filePath = openSeparateAudioFileDialog.selectedFile.toString();
             filePath = filePath.replace(/^(file:\/{3})/, "");
             separateAudioFileTextField.text = filePath;
             mpv.focus = true;
         }
         onRejected: mpv.focus = true
     }
-    Platform.FileDialog {
+    FileDialog {
         id: openSeparateOverlayFileDialog
 
-        fileMode: Platform.FileDialog.OpenFile
-        folder: LocationSettings.cPlayMediaLocation !== "" ? app.pathToUrl(LocationSettings.cPlayMediaLocation) : app.pathToUrl(LocationSettings.fileDialogLastLocation)
+        parentWindow: saveAsCPlayFileWindow
+        fileMode: FileDialog.OpenFile
+        currentFolder: LocationSettings.cPlayMediaLocation !== "" ? app.pathToUrl(LocationSettings.cPlayMediaLocation) : app.pathToUrl(LocationSettings.fileDialogLastLocation)
         nameFilters: ["Image files (*.png *.jpg *.jpeg *.tga)"]
         title: "Choose Separate Overlay File"
 
         onAccepted: {
             separateOverlayFileCheckBox.checked = true;
-            var filePath = openSeparateOverlayFileDialog.file.toString();
-            // remove prefixed "file:///"
+            var filePath = openSeparateOverlayFileDialog.selectedFile.toString();
             filePath = filePath.replace(/^(file:\/{3})/, "");
             separateOverlayFileTextField.text = filePath;
             mpv.focus = true;
@@ -372,9 +364,9 @@ Kirigami.ApplicationWindow {
                     if (!hasCurrentEditItem())
                         return;
                     if (separateAudioFileTextField.text !== "") {
-                        openSeparateAudioFileDialog.folder = app.parentUrl(separateAudioFileTextField.text);
+                        openSeparateAudioFileDialog.currentFolder = app.parentUrl(separateAudioFileTextField.text);
                     } else {
-                        openSeparateAudioFileDialog.folder = app.parentUrl(mpv.playSectionsModel.currentEditItem.mediaFile());
+                        openSeparateAudioFileDialog.currentFolder = app.parentUrl(mpv.playSectionsModel.currentEditItem.mediaFile());
                     }
                     openSeparateAudioFileDialog.open();
                 }
@@ -436,9 +428,9 @@ Kirigami.ApplicationWindow {
                     if (!hasCurrentEditItem())
                         return;
                     if (separateOverlayFileTextField.text !== "") {
-                        openSeparateOverlayFileDialog.folder = app.parentUrl(separateOverlayFileTextField.text);
+                        openSeparateOverlayFileDialog.currentFolder = app.parentUrl(separateOverlayFileTextField.text);
                     } else {
-                        openSeparateOverlayFileDialog.folder = app.parentUrl(mpv.playSectionsModel.currentEditItem.mediaFile());
+                        openSeparateOverlayFileDialog.currentFolder = app.parentUrl(mpv.playSectionsModel.currentEditItem.mediaFile());
                     }
                     openSeparateOverlayFileDialog.open();
                 }

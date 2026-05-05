@@ -1262,14 +1262,46 @@ void LayersRendererQtOpenGLObject::updateLayers() {
         return;
     }
 
-    for (int s = -1; s < Application::instance().slidesModel()->numberOfSlides(); s++) {
-        QSharedPointer<LayersModel> slidePtr = Application::instance().slidesModel()->slideShared(s);
-        auto* slide = slidePtr ? slidePtr.data() : Application::instance().slidesModel()->slide(s);
-        if (!slide) continue;
+    // Use try-lock snapshot to avoid deadlocking with the UI thread
+    QList<QSharedPointer<LayersModel>> slidesSnapshot;
+    if (!Application::instance().slidesModel()->trySnapshotSlides(slidesSnapshot)) {
+        return; // Skip this frame if we can't acquire the lock
+    }
 
-        int numLayers = slide->numberOfLayers();
+    // Update master slide
+    {
+        auto* master = Application::instance().slidesModel()->masterSlide();
+        if (master) {
+            int numLayers = master->numberOfLayers();
+            for (int l = numLayers - 1; l >= 0; l--) {
+                std::shared_ptr<BaseLayer> layerPtr = master->layerShared(l);
+                BaseLayer* layer = layerPtr.get();
+                if (layer) {
+                    if (layer->alpha() > 0.f) {
+                        if (layer->ready()) {
+                            if (layer->gridMode() == BaseLayer::GridMode::Plane) {
+                                if (!layer->hasPlane() || layer->needSync()) {
+                                    layer->updatePlane();
+                                }
+                            }
+                            layer->updateFrame();
+                        }
+                        else {
+                            layer->update();
+                        }
+                    }
+                }
+            }
+        }
+    }
+
+    for (int s = 0; s < slidesSnapshot.size(); s++) {
+        auto& slidePtr = slidesSnapshot[s];
+        if (!slidePtr) continue;
+
+        int numLayers = slidePtr->numberOfLayers();
         for (int l = numLayers - 1; l >= 0; l--) {
-            std::shared_ptr<BaseLayer> layerPtr = slide->layerShared(l);
+            std::shared_ptr<BaseLayer> layerPtr = slidePtr->layerShared(l);
             BaseLayer* layer = layerPtr.get();
 
             if (layer) {
@@ -1358,27 +1390,29 @@ void LayersRendererQtOpenGLObject::renderLayers(float angle,
         }
     }
 
-    // Render slides layers
+    // Render slides layers - use try-lock snapshot to avoid deadlocking with UI thread
     if (Application::instance().slidesModel()) {
-        for (int s = 0; s < Application::instance().slidesModel()->numberOfSlides(); s++) {
-            QSharedPointer<LayersModel> slidePtr = Application::instance().slidesModel()->slideShared(s);
-            auto* slide = slidePtr ? slidePtr.data() : Application::instance().slidesModel()->slide(s);
-            if (!slide) continue;
+        QList<QSharedPointer<LayersModel>> slidesSnapshot;
+        if (Application::instance().slidesModel()->trySnapshotSlides(slidesSnapshot)) {
+            for (int s = 0; s < slidesSnapshot.size(); s++) {
+                auto& slidePtr = slidesSnapshot[s];
+                if (!slidePtr) continue;
 
-            int numLayers = slide->numberOfLayers();
-            for (int l = numLayers - 1; l >= 0; l--) {
-                std::shared_ptr<BaseLayer> layerPtr = slide->layerShared(l);
-                BaseLayer* layer = layerPtr.get();
-                if (layer) {
-                    if (layer->ready() && layer->hasTexture() && (layer->alpha() > 0.f)) {
-                        if (layer->hasSubLayers()) {
-                            // QR operations active: skip the parent, only render sublayers
-                            for (const auto& sublayer : layer->getSubLayers()) {
-                                renderLayer(sublayer.get(), eyeMode, angle, viewMatrix, projectionMatrix);
+                int numLayers = slidePtr->numberOfLayers();
+                for (int l = numLayers - 1; l >= 0; l--) {
+                    std::shared_ptr<BaseLayer> layerPtr = slidePtr->layerShared(l);
+                    BaseLayer* layer = layerPtr.get();
+                    if (layer) {
+                        if (layer->ready() && layer->hasTexture() && (layer->alpha() > 0.f)) {
+                            if (layer->hasSubLayers()) {
+                                // QR operations active: skip the parent, only render sublayers
+                                for (const auto& sublayer : layer->getSubLayers()) {
+                                    renderLayer(sublayer.get(), eyeMode, angle, viewMatrix, projectionMatrix);
+                                }
                             }
-                        }
-                        else {
-                            renderLayer(layer, eyeMode, angle, viewMatrix, projectionMatrix);
+                            else {
+                                renderLayer(layer, eyeMode, angle, viewMatrix, projectionMatrix);
+                            }
                         }
                     }
                 }

@@ -12,7 +12,6 @@ import QtQuick.Controls
 import QtQuick.Shapes
 import QtQuick.Dialogs
 import Qt5Compat.GraphicalEffects
-import Qt.labs.platform as Platform
 
 import org.kde.kirigami as Kirigami
 import org.ctoolbox.cplay
@@ -111,68 +110,72 @@ GridLayout {
         id: restCoreParamsModel
     }
 
-    Platform.FileDialog {
+    FileDialog {
         id: fileToLoadAsImageLayerDialog
         property bool acceptedOnes: false
 
-        fileMode: Platform.FileDialog.OpenFile
-        folder: fileToLoadAsImageLayerDialog.acceptedOnes ? app.pathToUrl(LocationSettings.imageFileDialogLastLocation) : app.pathToUrl(LocationSettings.imageFileDialogLocation)
+        parentWindow: root.Window.window
+        fileMode: FileDialog.OpenFile
+        currentFolder: fileToLoadAsImageLayerDialog.acceptedOnes ? app.pathToUrl(LocationSettings.imageFileDialogLastLocation) : app.pathToUrl(LocationSettings.imageFileDialogLocation)
         nameFilters: [playerController.supportedImageNameFilters()]
         title: "Choose image file"
 
         onAccepted: {
-            fileForLayer.text = playerController.checkAndCorrectPath(fileToLoadAsImageLayerDialog.file);
+            fileForLayer.text = playerController.checkAndCorrectPath(fileToLoadAsImageLayerDialog.selectedFile);
             layerTitle.text = playerController.returnFileBaseName(fileForLayer.text);
-            LocationSettings.imageFileDialogLastLocation = app.parentUrl(fileToLoadAsImageLayerDialog.file);
+            LocationSettings.imageFileDialogLastLocation = app.parentUrl(fileToLoadAsImageLayerDialog.selectedFile);
             LocationSettings.save();
             fileToLoadAsImageLayerDialog.acceptedOnes = true;
         }
     }
-    Platform.FileDialog {
+    FileDialog {
         id: fileToLoadAsPdfLayerDialog
         property bool acceptedOnes: false
 
-        fileMode: Platform.FileDialog.OpenFile
-        folder: fileToLoadAsPdfLayerDialog.acceptedOnes ? app.pathToUrl(LocationSettings.pdfFileDialogLastLocation) : app.pathToUrl(LocationSettings.pdfFileDialogLocation)
+        parentWindow: root.Window.window
+        fileMode: FileDialog.OpenFile
+        currentFolder: fileToLoadAsPdfLayerDialog.acceptedOnes ? app.pathToUrl(LocationSettings.pdfFileDialogLastLocation) : app.pathToUrl(LocationSettings.pdfFileDialogLocation)
         nameFilters: ["PDF files (*.pdf)"]
         title: "Choose pdf file"
 
         onAccepted: {
-            fileForLayer.text = playerController.checkAndCorrectPath(fileToLoadAsPdfLayerDialog.file);
+            fileForLayer.text = playerController.checkAndCorrectPath(fileToLoadAsPdfLayerDialog.selectedFile);
             layerTitle.text = playerController.returnFileBaseName(fileForLayer.text);
-            LocationSettings.pdfFileDialogLastLocation = app.parentUrl(fileToLoadAsPdfLayerDialog.file);
+            LocationSettings.pdfFileDialogLastLocation = app.parentUrl(fileToLoadAsPdfLayerDialog.selectedFile);
             LocationSettings.save();
             fileToLoadAsPdfLayerDialog.acceptedOnes = true;
         }
     }
-    Platform.FileDialog {
+    FileDialog {
         id: fileToLoadAsVideoLayerDialog
         property bool acceptedOnes: false
 
-        fileMode: Platform.FileDialog.OpenFile
-        folder: fileToLoadAsVideoLayerDialog.acceptedOnes ? app.pathToUrl(LocationSettings.videoFileDialogLastLocation) : app.pathToUrl(LocationSettings.videoFileDialogLocation)
+        parentWindow: root.Window.window
+        fileMode: FileDialog.OpenFile
+        currentFolder: fileToLoadAsVideoLayerDialog.acceptedOnes ? app.pathToUrl(LocationSettings.videoFileDialogLastLocation) : app.pathToUrl(LocationSettings.videoFileDialogLocation)
         title: "Choose video file"
 
         onAccepted: {
-            fileForLayer.text = playerController.checkAndCorrectPath(fileToLoadAsVideoLayerDialog.file);
+            fileForLayer.text = playerController.checkAndCorrectPath(fileToLoadAsVideoLayerDialog.selectedFile);
             layerTitle.text = playerController.returnFileBaseName(fileForLayer.text);
-            LocationSettings.videoFileDialogLastLocation = app.parentUrl(fileToLoadAsVideoLayerDialog.file);
+            LocationSettings.videoFileDialogLastLocation = app.parentUrl(fileToLoadAsVideoLayerDialog.selectedFile);
             LocationSettings.save();
             fileToLoadAsVideoLayerDialog.acceptedOnes = true;
         }
     }
-    Platform.FileDialog {
+    FileDialog {
         id: fileToLoadAsAudioLayerDialog
         property bool acceptedOnes: false
 
-        fileMode: Platform.FileDialog.OpenFile
-        folder: fileToLoadAsAudioLayerDialog.acceptedOnes ? app.pathToUrl(LocationSettings.audioFileDialogLastLocation) : app.pathToUrl(LocationSettings.audioFileDialogLocation)
+        parentWindow: root.Window.window
+        fileMode: FileDialog.OpenFile
+        currentFolder: fileToLoadAsAudioLayerDialog.acceptedOnes ? app.pathToUrl(LocationSettings.audioFileDialogLastLocation) : app.pathToUrl(LocationSettings.audioFileDialogLocation)
         title: "Choose audio file"
 
         onAccepted: {
-            fileForLayer.text = playerController.checkAndCorrectPath(fileToLoadAsAudioLayerDialog.file);
+            fileForLayer.text = playerController.checkAndCorrectPath(fileToLoadAsAudioLayerDialog.selectedFile);
             layerTitle.text = playerController.returnFileBaseName(fileForLayer.text);
-            LocationSettings.audioFileDialogLastLocation = app.parentUrl(fileToLoadAsAudioLayerDialog.file);
+            LocationSettings.audioFileDialogLastLocation = app.parentUrl(fileToLoadAsAudioLayerDialog.selectedFile);
             LocationSettings.save();
             fileToLoadAsAudioLayerDialog.acceptedOnes = true;
         }

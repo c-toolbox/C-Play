@@ -8,7 +8,7 @@
 import QtQuick
 import QtQuick.Layouts
 import QtQuick.Controls
-import Qt.labs.platform as Platform
+import QtQuick.Dialogs
 
 import org.kde.kirigami as Kirigami
 import org.ctoolbox.cplay
@@ -16,16 +16,17 @@ import org.ctoolbox.cplay
 SettingsBasePage {
     id: root
 
-    Platform.FileDialog {
+    FileDialog {
         id: presentationToLoadOnStartupDialog
 
-        fileMode: Platform.FileDialog.OpenFile
-        folder: LocationSettings.cPlayFileLocation !== "" ? app.pathToUrl(LocationSettings.cPlayFileLocation) : app.pathToUrl(LocationSettings.fileDialogLastLocation)
+        parentWindow: root.Window.window
+        fileMode: FileDialog.OpenFile
+        currentFolder: LocationSettings.cPlayFileLocation !== "" ? app.pathToUrl(LocationSettings.cPlayFileLocation) : app.pathToUrl(LocationSettings.fileDialogLastLocation)
         nameFilters: ["C-Play presentation (*.cplaypres)"]
         title: "Choose presentation to load on startup"
 
         onAccepted: {
-            var filePath = playerController.returnRelativeOrAbsolutePath(presentationToLoadOnStartupDialog.file.toString());
+            var filePath = playerController.returnRelativeOrAbsolutePath(presentationToLoadOnStartupDialog.selectedFile.toString());
             PresentationSettings.presentationToLoadOnStartup = filePath;
             PresentationSettings.save();
             mpv.focus = true;

@@ -33,5 +33,11 @@
       <label>The grid that foreground image uses</label>
       <default>0</default>
     </entry>
+    <entry name="GpuMemoryForImageBuffering" type="int">
+      <label>Percentage of GPU memory to use for image ring buffer (used for animated/multi-frame images)</label>
+      <default>10</default>
+      <min>1</min>
+      <max>90</max>
+    </entry>
   </group>
 </kcfg>

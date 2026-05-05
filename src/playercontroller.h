@@ -43,6 +43,7 @@ public:
         NOTIFY syncPropertiesChanged)
 
     Q_INVOKABLE QString supportedImageNameFilters() const;
+    Q_INVOKABLE QString imageRingBufferGpuMemoryText(int percent) const;
 
 public Q_SLOTS:
     void QuitCPlay();

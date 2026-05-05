@@ -10,7 +10,7 @@ import QtQuick.Window
 import QtQuick.Layouts
 import QtQuick
 import QtQuick.Controls
-import Qt.labs.platform as Platform
+import QtQuick.Dialogs
 import QtQuick3D
 import QtQuick3D.Helpers
 
@@ -436,11 +436,12 @@ Kirigami.ApplicationWindow {
         }
     }
 
-    Platform.FileDialog {
+    FileDialog {
         id: openFileDialog
 
-        fileMode: Platform.FileDialog.OpenFile
-        folder: LocationSettings.fileDialogLocation !== "" ? app.pathToUrl(LocationSettings.fileDialogLocation) : app.pathToUrl(LocationSettings.fileDialogLastLocation)
+        parentWindow: window
+        fileMode: FileDialog.OpenFile
+        currentFolder: LocationSettings.fileDialogLocation !== "" ? app.pathToUrl(LocationSettings.fileDialogLocation) : app.pathToUrl(LocationSettings.fileDialogLastLocation)
         title: "Open File"
 
         Dialog {
@@ -565,40 +566,42 @@ Kirigami.ApplicationWindow {
                 // once the table view rows are loaded
                 playList.scrollPositionTimer.start();
                 mpv.focus = true;
-                LocationSettings.fileDialogLastLocation = app.parentUrl(newMediaFileToOpen);
+                LocationSettings.fileDialogLastLocation = app.pathToUrl(newMediaFileToOpen);
                 LocationSettings.save();
             }
         }
 
         onAccepted: {
-            openFile(openFileDialog.file);
+            openFile(openFileDialog.selectedFile);
         }
         onRejected: mpv.focus = true
     }
-    Platform.FileDialog {
+    FileDialog {
         id: addToPlaylistDialog
 
-        fileMode: Platform.FileDialog.OpenFile
-        folder: LocationSettings.cPlayFileLocation !== "" ? app.pathToUrl(LocationSettings.cPlayFileLocation) : app.pathToUrl(LocationSettings.fileDialogLastLocation)
+        parentWindow: window
+        fileMode: FileDialog.OpenFile
+        currentFolder: LocationSettings.cPlayFileLocation !== "" ? app.pathToUrl(LocationSettings.cPlayFileLocation) : app.pathToUrl(LocationSettings.fileDialogLastLocation)
         nameFilters: ["C-Play file (*.cplayfile)", "Uniview file (*.fdv)", "All files (*)"]
         title: "Add file to playlist"
 
         onAccepted: {
-            mpv.addFileToPlaylist(addToPlaylistDialog.file.toString());
+            mpv.addFileToPlaylist(addToPlaylistDialog.selectedFile.toString());
             mpv.focus = true;
         }
         onRejected: mpv.focus = true
     }
-    Platform.FileDialog {
+    FileDialog {
         id: saveCPlayFileDialog
 
-        fileMode: Platform.FileDialog.SaveFile
-        folder: LocationSettings.cPlayFileLocation !== "" ? app.pathToUrl(LocationSettings.cPlayFileLocation) : app.pathToUrl(LocationSettings.fileDialogLastLocation)
+        parentWindow: window
+        fileMode: FileDialog.SaveFile
+        currentFolder: LocationSettings.cPlayFileLocation !== "" ? app.pathToUrl(LocationSettings.cPlayFileLocation) : app.pathToUrl(LocationSettings.fileDialogLastLocation)
         nameFilters: ["C-Play file (*.cplayfile)"]
         title: "Save C-Play File Config"
 
         onAccepted: {
-            saveCPlayFile(saveCPlayFileDialog.file.toString());
+            saveCPlayFile(saveCPlayFileDialog.selectedFile.toString());
             mpv.focus = true;
             saveCPlayFileDialog.visible = false;
             if (saveCPlayFileDialog.visible) {
@@ -608,29 +611,31 @@ Kirigami.ApplicationWindow {
         }
         onRejected: mpv.focus = true
     }
-    Platform.FileDialog {
+    FileDialog {
         id: openCPlayPlaylistDialog
 
-        fileMode: Platform.FileDialog.OpenFile
-        folder: LocationSettings.cPlayFileLocation !== "" ? app.pathToUrl(LocationSettings.cPlayFileLocation) : app.pathToUrl(LocationSettings.fileDialogLastLocation)
+        parentWindow: window
+        fileMode: FileDialog.OpenFile
+        currentFolder: LocationSettings.cPlayFileLocation !== "" ? app.pathToUrl(LocationSettings.cPlayFileLocation) : app.pathToUrl(LocationSettings.fileDialogLastLocation)
         nameFilters: ["C-Play playlist (*.cplaylist)"]
         title: "Open C-Playlist"
 
         onAccepted: {
-            mpv.loadFile(openCPlayPlaylistDialog.file.toString());
+            mpv.loadFile(openCPlayPlaylistDialog.selectedFile.toString());
         }
         onRejected: mpv.focus = true
     }
-    Platform.FileDialog {
+    FileDialog {
         id: saveCPlayPlaylistDialog
 
-        fileMode: Platform.FileDialog.SaveFile
-        folder: LocationSettings.cPlayFileLocation !== "" ? app.pathToUrl(LocationSettings.cPlayFileLocation) : app.pathToUrl(LocationSettings.fileDialogLastLocation)
+        parentWindow: window
+        fileMode: FileDialog.SaveFile
+        currentFolder: LocationSettings.cPlayFileLocation !== "" ? app.pathToUrl(LocationSettings.cPlayFileLocation) : app.pathToUrl(LocationSettings.fileDialogLastLocation)
         nameFilters: ["C-Play playlist (*.cplaylist)"]
         title: "Save C-Playlist"
 
         onAccepted: {
-            saveCPlayPlaylist(saveCPlayPlaylistDialog.file.toString());
+            saveCPlayPlaylist(saveCPlayPlaylistDialog.selectedFile.toString());
             mpv.focus = true;
         }
         onRejected: mpv.focus = true

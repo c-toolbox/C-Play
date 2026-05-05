@@ -8,7 +8,7 @@
 import QtQuick
 import QtQuick.Controls
 import QtQuick.Layouts
-import Qt.labs.platform as Platform
+import QtQuick.Dialogs
 
 import org.kde.kirigami as Kirigami
 import org.ctoolbox.cplay
@@ -198,30 +198,32 @@ Rectangle {
         Qt.callLater(clearAndLoadPresentation);
     }
 
-    Platform.FileDialog {
+    FileDialog {
         id: openCPlayPresentationDialog
 
-        fileMode: Platform.FileDialog.OpenFile
-        folder: LocationSettings.cPlayFileLocation !== "" ? app.pathToUrl(LocationSettings.cPlayFileLocation) : app.pathToUrl(LocationSettings.fileDialogLastLocation)
+        parentWindow: slidesRoot.Window.window
+        fileMode: FileDialog.OpenFile
+        currentFolder: LocationSettings.cPlayFileLocation !== "" ? app.pathToUrl(LocationSettings.cPlayFileLocation) : app.pathToUrl(LocationSettings.fileDialogLastLocation)
         nameFilters: ["C-Play Presentation (*.cplaypres)"]
         title: "Open C-Play Presentation"
 
         onAccepted: {
-            presentationToLoad = openCPlayPresentationDialog.file.toString();
+            presentationToLoad = openCPlayPresentationDialog.selectedFile.toString();
             openCPlayPresentation();
         }
         onRejected: mpv.focus = true
     }
-    Platform.FileDialog {
+    FileDialog {
         id: saveCPlayPresentationDialog
 
-        fileMode: Platform.FileDialog.SaveFile
-        folder: LocationSettings.cPlayFileLocation !== "" ? app.pathToUrl(LocationSettings.cPlayFileLocation) : app.pathToUrl(LocationSettings.fileDialogLastLocation)
+        parentWindow: slidesRoot.Window.window
+        fileMode: FileDialog.SaveFile
+        currentFolder: LocationSettings.cPlayFileLocation !== "" ? app.pathToUrl(LocationSettings.cPlayFileLocation) : app.pathToUrl(LocationSettings.fileDialogLastLocation)
         nameFilters: ["C-Play Presentation (*.cplaypres)"]
         title: "Save C-Play Presentation"
 
         onAccepted: {
-            app.slides.saveAsJSONFile(saveCPlayPresentationDialog.file.toString());
+            app.slides.saveAsJSONFile(saveCPlayPresentationDialog.selectedFile.toString());
             mpv.focus = true;
         }
         onRejected: mpv.focus = true
@@ -287,7 +289,7 @@ Rectangle {
                     icon.name: "system-save-session"
 
                     onClicked: {
-                        saveCPlayPresentationDialog.currentFile = app.slides.getSlidesPathAsURL();
+                        saveCPlayPresentationDialog.currentFolder = app.slides.getSlidesPathAsURL();
                         saveCPlayPresentationDialog.open();
                     }
 

@@ -9,7 +9,7 @@
 import QtQuick
 import QtQuick.Layouts
 import QtQuick.Controls
-import Qt.labs.platform as Platform
+import QtQuick.Dialogs
 
 import org.kde.kirigami as Kirigami
 import org.ctoolbox.cplay
@@ -17,31 +17,33 @@ import org.ctoolbox.cplay
 SettingsBasePage {
     id: root
 
-    Platform.FileDialog {
+    FileDialog {
         id: fileToLoadAsBackgroundDialog
 
-        fileMode: Platform.FileDialog.OpenFile
-        folder: LocationSettings.cPlayMediaLocation !== "" ? app.pathToUrl(LocationSettings.cPlayMediaLocation) : app.pathToUrl(LocationSettings.fileDialogLastLocation)
+        parentWindow: root.Window.window
+        fileMode: FileDialog.OpenFile
+        currentFolder: LocationSettings.cPlayMediaLocation !== "" ? app.pathToUrl(LocationSettings.cPlayMediaLocation) : app.pathToUrl(LocationSettings.fileDialogLastLocation)
         nameFilters: [playerController.supportedImageNameFilters()]
         title: "Choose file to load on startup"
 
         onAccepted: {
-            playerController.setBackgroundImageFile(fileToLoadAsBackgroundDialog.file.toString());
+            playerController.setBackgroundImageFile(fileToLoadAsBackgroundDialog.selectedFile.toString());
             fileForBackgroundImageText.text = playerController.backgroundImageFile();
             mpv.focus = true;
         }
         onRejected: mpv.focus = true
     }
-    Platform.FileDialog {
+    FileDialog {
         id: fileToLoadAsForegroundDialog
 
-        fileMode: Platform.FileDialog.OpenFile
-        folder: LocationSettings.cPlayMediaLocation !== "" ? app.pathToUrl(LocationSettings.cPlayMediaLocation) : app.pathToUrl(LocationSettings.fileDialogLastLocation)
+        parentWindow: root.Window.window
+        fileMode: FileDialog.OpenFile
+        currentFolder: LocationSettings.cPlayMediaLocation !== "" ? app.pathToUrl(LocationSettings.cPlayMediaLocation) : app.pathToUrl(LocationSettings.fileDialogLastLocation)
         nameFilters: [playerController.supportedImageNameFilters()]
         title: "Choose file to load on startup"
 
         onAccepted: {
-            playerController.setForegroundImageFile(fileToLoadAsForegroundDialog.file.toString());
+            playerController.setForegroundImageFile(fileToLoadAsForegroundDialog.selectedFile.toString());
             fileForForegroundImageText.text = playerController.foregroundImageFile();
             mpv.focus = true;
         }
@@ -407,9 +409,62 @@ SettingsBasePage {
             }
         }
         Item {
-            // spacer item
+            Layout.columnSpan: 3
             Layout.fillWidth: true
+            // spacer item
+            height: 20
         }
+
+        // ------------------------------------
+        // IMAGE BUFFERING
+        // ------------------------------------
+        SettingsHeader {
+            Layout.columnSpan: 3
+            Layout.fillWidth: true
+            text: qsTr("Image buffering")
+        }
+        Label {
+            Layout.alignment: Qt.AlignRight
+            text: qsTr("GPU memory for image ring buffer:")
+        }
+        RowLayout {
+            SpinBox {
+                id: gpuMemorySpinBox
+
+                from: 1
+                to: 90
+                stepSize: 1
+                value: ImageSettings.gpuMemoryForImageBuffering
+
+                textFromValue: function(value, locale) {
+                    return value + "%";
+                }
+                valueFromText: function(text, locale) {
+                    return parseInt(text);
+                }
+
+                onValueModified: {
+                    ImageSettings.gpuMemoryForImageBuffering = value;
+                    ImageSettings.save();
+                }
+
+                ToolTip {
+                    text: qsTr("Percentage of GPU VRAM allocated for the image ring buffer used by animated and multi-frame images. Applied on next image load.")
+                }
+            }
+            Label {
+                Layout.alignment: Qt.AlignLeft
+                font.italic: true
+                text: qsTr("%1 available for buffering. Default: 10%. Applied on next image load.").arg(playerController.imageRingBufferGpuMemoryText(gpuMemorySpinBox.value))
+            }
+        }
+        Item {
+            Layout.columnSpan: 3
+            Layout.fillWidth: true
+            // spacer item
+            height: 20
+        }
+
         SettingsHeader {
             Layout.columnSpan: 3
             Layout.fillWidth: true

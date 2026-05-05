@@ -9,7 +9,7 @@
 import QtQuick
 import QtQuick.Layouts
 import QtQuick.Controls
-import Qt.labs.platform as Platform
+import QtQuick.Dialogs
 
 import org.kde.kirigami as Kirigami
 import org.ctoolbox.cplay
@@ -17,16 +17,17 @@ import org.ctoolbox.cplay
 SettingsBasePage {
     id: root
 
-    Platform.FileDialog {
+    FileDialog {
         id: playlistToLoadOnStartupDialog
 
-        fileMode: Platform.FileDialog.OpenFile
-        folder: LocationSettings.cPlayFileLocation !== "" ? app.pathToUrl(LocationSettings.cPlayFileLocation) : app.pathToUrl(LocationSettings.fileDialogLastLocation)
+        parentWindow: root.Window.window
+        fileMode: FileDialog.OpenFile
+        currentFolder: LocationSettings.cPlayFileLocation !== "" ? app.pathToUrl(LocationSettings.cPlayFileLocation) : app.pathToUrl(LocationSettings.fileDialogLastLocation)
         nameFilters: ["C-Play playlist (*.cplaylist)", "C-Play file (*.cplayfile)", "Uniview playlist (*.playlist)"]
         title: "Choose playlist (or cplayfile) to load on startup"
 
         onAccepted: {
-            var filePath = playerController.returnRelativeOrAbsolutePath(playlistToLoadOnStartupDialog.file.toString());
+            var filePath = playerController.returnRelativeOrAbsolutePath(playlistToLoadOnStartupDialog.selectedFile.toString());
             PlaylistSettings.playlistToLoadOnStartup = filePath;
             PlaylistSettings.save();
             mpv.focus = true;
