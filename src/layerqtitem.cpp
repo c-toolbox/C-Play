@@ -22,6 +22,7 @@
 #include <layers/mpvlayer.h>
 #include <layers/controllayer.h>
 #include <layers/restlayer.h>
+#include <layers/imagelayer.h>
 
 #include <QOpenGLContext>
 #include <QQuickGraphicsDevice>
@@ -1258,6 +1259,28 @@ void LayerQtItem::setLayerRestIgnoreStatus(bool ignore) {
             Q_EMIT layerValueChanged();
             Q_EMIT layerNeedsSave();
         }
+    }
+}
+
+void LayerQtItem::setLayerImageSequence(const QString &directory, const QString &prefix,
+                                        int digitCount, const QString &suffix,
+                                        int startIndex, int stopIndex, int step,
+                                        int delayMs, bool loop) {
+    if (m_layer && m_layer->isEnabled() && m_layer->type() == BaseLayer::IMAGE) {
+        ImageLayer* imageLayer = static_cast<ImageLayer*>(m_layer);
+        ImageLayer::SequenceParams params;
+        params.directory = directory.toStdString();
+        params.prefix = prefix.toStdString();
+        params.suffix = suffix.toStdString();
+        params.digitCount = digitCount;
+        params.startIndex = startIndex;
+        params.stopIndex = stopIndex;
+        params.step = step;
+        params.delayMs = delayMs;
+        params.loop = loop;
+        imageLayer->setSequenceParams(params);
+        Q_EMIT layerValueChanged();
+        Q_EMIT layerNeedsSave();
     }
 }
 

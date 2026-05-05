@@ -8,6 +8,7 @@
 #include "imagelayer.h"
 #include "imagesettings.h"
 #include <sgct/opengl.h>
+#include <filesystem>
 
 #ifdef SAIL_SUPPORT
 #include <sail-c++/sail-c++.h>
@@ -169,6 +170,134 @@ auto loadImageAsync = [](std::shared_ptr<ImageLayer::ThreadContext> ctx, int max
     ctx->threadRunning = false;
 };
 
+// Background sequence loader. Loads individual image files from a numbered sequence.
+auto loadImageSequenceAsync = [](std::shared_ptr<ImageLayer::ThreadContext> ctx,
+                                 ImageLayer::SequenceParams seqParams, int maxBuffered) {
+    ctx->threadDone = false;
+    ctx->threadRunning = true;
+    ctx->totalFrameCount = 0;
+    ctx->allFramesLoaded = false;
+    ctx->multiFrame = true;
+    ctx->animated = false; // sequence is not self-timed like GIF
+    ctx->usingFrameQueue = true;
+#ifdef SAIL_SUPPORT
+    ctx->usedSail = true;
+#endif
+
+    const int step = std::max(1, seqParams.step);
+    const int first = std::min(seqParams.startIndex, seqParams.stopIndex);
+    const int last = std::max(seqParams.startIndex, seqParams.stopIndex);
+    const int totalFrames = ((last - first) / step) + 1;
+    ctx->totalFrameCount = totalFrames;
+
+    auto buildPath = [&](int frameIndex) -> std::string {
+        // Build zero-padded filename: directory/prefix + digits + .suffix
+        std::string digits = std::to_string(frameIndex);
+        while (static_cast<int>(digits.size()) < seqParams.digitCount) {
+            digits = "0" + digits;
+        }
+        std::string filename = seqParams.prefix + digits;
+        if (!seqParams.suffix.empty()) {
+            filename += "." + seqParams.suffix;
+        }
+        std::filesystem::path p = std::filesystem::path(seqParams.directory) / filename;
+        return p.string();
+    };
+
+    bool looping = seqParams.loop;
+    bool firstPass = true;
+
+    while (!ctx->abortRequested) {
+        for (int frameIndex = first; frameIndex <= last && !ctx->abortRequested; frameIndex += step) {
+            std::string framePath = buildPath(frameIndex);
+
+            if (!std::filesystem::exists(framePath)) {
+                continue; // skip missing frames
+            }
+
+            ImageLayer::FrameData frame;
+            frame.delayMs = seqParams.delayMs;
+            bool loaded = false;
+
+#ifdef SAIL_SUPPORT
+            try {
+                sail::image sailImg(framePath);
+                GLenum glFormat = GL_RGBA, glInternalFormat = GL_RGBA8;
+                int pixelSize = 4;
+                resolveGLFormats(sailImg, glFormat, glInternalFormat, pixelSize);
+
+                int w = sailImg.width(), h = sailImg.height();
+                unsigned int bytesPerLine = sailImg.bytes_per_line();
+                size_t rowBytes = static_cast<size_t>(w) * pixelSize;
+                size_t dataSize = rowBytes * h;
+
+                frame.width = w; frame.height = h;
+                frame.bytesPerLine = static_cast<unsigned int>(rowBytes);
+                frame.glFormat = static_cast<unsigned int>(glFormat);
+                frame.glInternalFormat = static_cast<unsigned int>(glInternalFormat);
+                frame.pixels.resize(dataSize);
+
+                const unsigned char* src = reinterpret_cast<const unsigned char*>(sailImg.pixels());
+                if (bytesPerLine == static_cast<unsigned int>(rowBytes)) {
+                    std::memcpy(frame.pixels.data(), src, dataSize);
+                } else {
+                    for (int y = 0; y < h; y++)
+                        std::memcpy(frame.pixels.data() + static_cast<size_t>(y) * rowBytes,
+                                    src + static_cast<size_t>(y) * bytesPerLine, rowBytes);
+                }
+                loaded = true;
+            } catch (...) {
+                // SAIL failed, try sgct::Image fallback
+            }
+#endif
+            if (!loaded) {
+                try {
+                    sgct::Image img;
+                    img.load(framePath);
+                    int w = img.size().x, h = img.size().y;
+                    int channels = img.channels();
+                    size_t dataSize = static_cast<size_t>(w) * h * channels;
+
+                    frame.width = w; frame.height = h;
+                    frame.bytesPerLine = static_cast<unsigned int>(w * channels);
+                    frame.glFormat = (channels == 4) ? GL_RGBA : GL_RGB;
+                    frame.glInternalFormat = (channels == 4) ? GL_RGBA8 : GL_RGB8;
+                    frame.pixels.resize(dataSize);
+                    std::memcpy(frame.pixels.data(), img.data(), dataSize);
+                    loaded = true;
+                } catch (...) {
+                    sgct::Log::Warning(std::format("ImageLayer '{}': Failed to load sequence frame: {}",
+                        ctx->identifier, framePath));
+                    continue;
+                }
+            }
+
+            if (loaded) {
+                sgct::Log::Info(std::format("ImageLayer '{}': Loaded sequence frame {} ({}x{}) from: {}",
+                    ctx->identifier, frameIndex, frame.width, frame.height, framePath));
+                std::unique_lock<std::mutex> lock(ctx->queueMutex);
+                ctx->queueNotFull.wait(lock, [&]() {
+                    return static_cast<int>(ctx->frameQueue.size()) < maxBuffered || ctx->abortRequested;
+                });
+                if (ctx->abortRequested) break;
+                ctx->frameQueue.push_back(std::move(frame));
+            }
+        }
+
+        if (firstPass) {
+            firstPass = false;
+            if (!looping) break;
+            sgct::Log::Info(std::format("ImageLayer '{}': Sequence pass complete ({} frames), looping.",
+                ctx->identifier, totalFrames));
+        }
+        if (!looping) break;
+    }
+
+    ctx->allFramesLoaded = true;
+    ctx->threadDone = true;
+    ctx->threadRunning = false;
+};
+
 // ---------------------------------------------------------------------------
 
 ImageLayer::ImageLayer(std::string identifier)
@@ -196,6 +325,17 @@ void ImageLayer::initialize() {
 }
 
 void ImageLayer::update(bool updateRendering) {
+    if (m_isSequence) {
+        // In sequence mode, check if we need to start loading
+        if (updateRendering || !ready()) {
+            const bool needsStart = !m_ctx || !m_ctx->threadRunning;
+            processSequenceUpload(needsStart && !ready());
+        }
+        if (updateRendering && ready())
+            updateFrame();
+        return;
+    }
+
     const std::string currentPath = filepath();
     const bool fileChanged = m_ctx ? (m_ctx->filename != currentPath) : !currentPath.empty();
     if (updateRendering || !ready())
@@ -208,7 +348,8 @@ void ImageLayer::updateFrame() {
     if (!m_ctx || !m_ctx->multiFrame || !ready())
         return;
 
-    if (m_ctx->animated && m_currentDelayMs > 0) {
+    // Respect frame delay for both animated images and sequences
+    if (m_currentDelayMs > 0) {
         auto now = std::chrono::steady_clock::now();
         int elapsedMs = static_cast<int>(
             std::chrono::duration_cast<std::chrono::milliseconds>(now - m_lastFrameTime).count());
@@ -254,10 +395,9 @@ void ImageLayer::updateFrame() {
 bool ImageLayer::ready() const {
     if (!m_ctx) return false;
     if (m_ctx->usingFrameQueue) {
-        if (renderData.texId == 0) return false;
-        if (m_ctx->allFramesLoaded) return true;
-        std::lock_guard<std::mutex> lock(m_ctx->queueMutex);
-        return static_cast<int>(m_ctx->frameQueue.size()) >= kMaxBufferedFrames;
+        // Once the first frame is uploaded, the layer is ready for rendering.
+        // Subsequent frames will be pulled from the queue by updateFrame().
+        return renderData.texId != 0;
     }
     return !m_ctx->filename.empty() && m_ctx->threadDone && renderData.texId > 0;
 }
@@ -383,7 +523,7 @@ void ImageLayer::handleAsyncImageUpload() {
     if (!m_ctx->threadRunning && !hasQueuedFrames && !m_ctx->imageDone)
         return;
 
-#ifdef SAIL_SUPPORT
+    // Handle frame-queue based loading (image sequences and multi-frame images)
     if (m_ctx->usingFrameQueue || hasQueuedFrames) {
         if (renderData.texId == 0) {
             FrameData frame; bool gotFrame = false;
@@ -402,7 +542,11 @@ void ImageLayer::handleAsyncImageUpload() {
                 m_lastFrameTime = std::chrono::steady_clock::now();
                 m_currentFrameIndex = 1;
                 if (!m_hasFirstFrame) { m_firstFrame = frame; m_hasFirstFrame = true; }
-                setFlipY(true);
+#ifdef SAIL_SUPPORT
+                if (m_ctx->usedSail) {
+                    setFlipY(true);
+                }
+#endif
                 sgct::Log::Info(std::format("ImageLayer '{}': First frame uploaded ({}x{}, frames so far: {})",
                     m_identifier, frame.width, frame.height, m_ctx->totalFrameCount.load()));
             }
@@ -410,10 +554,9 @@ void ImageLayer::handleAsyncImageUpload() {
         if (m_ctx->allFramesLoaded && m_ctx->threadDone) m_ctx->threadRunning = false;
         return;
     }
-#endif
 
-    if (m_ctx->imageDone && !m_ctx->uploadDone) {
 #ifdef SAIL_SUPPORT
+    if (m_ctx->imageDone && !m_ctx->uploadDone) {
         if (m_ctx->usedSail && m_ctx->sailImage) {
             GLuint texId = 0;
             glGenTextures(1, &texId);
@@ -539,4 +682,54 @@ void ImageLayer::uploadFrameToGPU(const FrameData& frame) {
     renderData.texId = texId;
     renderData.width = frame.width;
     renderData.height = frame.height;
+}
+
+void ImageLayer::setSequenceParams(const SequenceParams &params) {
+    m_seqParams = params;
+    m_isSequence = (params.digitCount > 0 && !params.directory.empty() &&
+                    !params.prefix.empty() && params.startIndex <= params.stopIndex);
+}
+
+ImageLayer::SequenceParams ImageLayer::sequenceParams() const {
+    return m_seqParams;
+}
+
+bool ImageLayer::isSequence() const {
+    return m_isSequence;
+}
+
+bool ImageLayer::processSequenceUpload(bool forceUpdate) {
+    processPendingGLCleanup();
+    std::lock_guard<std::mutex> lock(m_updateMutex);
+    handleAsyncImageUpload();
+
+    if (forceUpdate && m_isSequence) {
+        signalAndDetachThread();
+
+        m_hasFirstFrame = false;
+        m_firstFrame = FrameData();
+        m_currentDelayMs = 0;
+        m_currentFrameIndex = 0;
+        renderData.texId = 0; renderData.width = 0; renderData.height = 0;
+        releaseTexRing();
+
+        m_ctx = std::make_shared<ThreadContext>();
+        // Use first frame path as the context filename for identification
+        std::string digits = std::to_string(m_seqParams.startIndex);
+        while (static_cast<int>(digits.size()) < m_seqParams.digitCount) {
+            digits = "0" + digits;
+        }
+        std::string firstFile = m_seqParams.prefix + digits;
+        if (!m_seqParams.suffix.empty()) firstFile += "." + m_seqParams.suffix;
+        m_ctx->filename = (std::filesystem::path(m_seqParams.directory) / firstFile).string();
+        m_ctx->identifier = m_identifier;
+
+        sgct::Log::Info(std::format("ImageLayer '{}': Loading image sequence from {}, frames {}-{} step {}",
+            m_identifier, m_seqParams.directory,
+            m_seqParams.startIndex, m_seqParams.stopIndex, m_seqParams.step));
+
+        m_thread = std::make_unique<std::thread>(loadImageSequenceAsync, m_ctx, m_seqParams, kMaxBufferedFrames);
+        return true;
+    }
+    return false;
 }

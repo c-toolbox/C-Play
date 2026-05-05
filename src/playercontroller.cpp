@@ -14,6 +14,7 @@
 #include "playlist/playlistmodel.h"
 #include "tracksmodel.h"
 #include "layers/imagelayer.h"
+#include "utils/imagesequenceutils.h"
 
 #include <QDir>
 #include <QFileInfo>
@@ -778,6 +779,25 @@ QString PlayerController::imageRingBufferGpuMemoryText(int percent) const {
 
     const double budgetMB = budgetGB * 1024.0;
     return tr("%1 MB").arg(budgetMB, 0, 'f', 0);
+}
+
+QVariantMap PlayerController::scanImageSequence(const QString &path) const {
+    QVariantMap result;
+    QString filePath = path;
+    filePath.replace(QStringLiteral("file:///"), QStringLiteral(""));
+
+    ImageSequenceScanResult scan = ImageSequenceUtils::scanImageSequence(filePath);
+    result.insert(QStringLiteral("ok"), scan.ok);
+    result.insert(QStringLiteral("count"), scan.count);
+    result.insert(QStringLiteral("firstIndex"), scan.firstIndex);
+    result.insert(QStringLiteral("lastIndex"), scan.lastIndex);
+    result.insert(QStringLiteral("selectedIndex"), scan.selectedIndex);
+    result.insert(QStringLiteral("missingFrames"), scan.missingFrames);
+    result.insert(QStringLiteral("prefix"), scan.prefix);
+    result.insert(QStringLiteral("suffix"), scan.suffix);
+    result.insert(QStringLiteral("digitCount"), scan.digitCount);
+    result.insert(QStringLiteral("message"), scan.message);
+    return result;
 }
 
 MpvObject *PlayerController::mpv() const {

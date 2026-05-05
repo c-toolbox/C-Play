@@ -314,6 +314,11 @@ public:
     bool layerRestIgnoreStatus() const;
     void setLayerRestIgnoreStatus(bool ignore);
 
+    Q_INVOKABLE void setLayerImageSequence(const QString &directory, const QString &prefix,
+                                           int digitCount, const QString &suffix,
+                                           int startIndex, int stopIndex, int step,
+                                           int delayMs, bool loop);
+
 Q_SIGNALS:
     void layerChanged();
     void layerPositionChanged();

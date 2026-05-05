@@ -68,6 +68,19 @@ public:
     // Legacy alias kept so call sites outside this file need no changes
     using ImageData = ThreadContext;
 
+    // Image sequence configuration
+    struct SequenceParams {
+        std::string directory;
+        std::string prefix;
+        std::string suffix;
+        int digitCount = 0;
+        int startIndex = 0;
+        int stopIndex = 0;
+        int step = 1;
+        int delayMs = 33; // ~30fps default playback rate
+        bool loop = true;
+    };
+
     ImageLayer(std::string identifier);
     ~ImageLayer();
 
@@ -85,6 +98,12 @@ public:
     int currentFrameIndex() const;
     bool isAnimated() const;
 
+    // Image sequence support
+    void setSequenceParams(const SequenceParams &params);
+    SequenceParams sequenceParams() const;
+    bool isSequence() const;
+    bool processSequenceUpload(bool forceUpdate);
+
     // Must be called from the render thread every frame to flush deferred GL deletions.
     static void processPendingGLCleanup();
 
@@ -98,6 +117,10 @@ private:
     std::shared_ptr<ThreadContext> m_ctx; // Shared with the decode thread
     std::unique_ptr<std::thread> m_thread;
     std::mutex m_updateMutex;
+
+    // Image sequence state
+    SequenceParams m_seqParams;
+    bool m_isSequence = false;
 
     // GPU texture ring buffer
     std::vector<unsigned int> m_texRing;

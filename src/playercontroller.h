@@ -9,6 +9,7 @@
 #define PLAYERCONTROLLER_H
 
 #include <QObject>
+#include <QVariantMap>
 
 class MpvObject;
 class HttpServerThread;
@@ -44,6 +45,7 @@ public:
 
     Q_INVOKABLE QString supportedImageNameFilters() const;
     Q_INVOKABLE QString imageRingBufferGpuMemoryText(int percent) const;
+    Q_INVOKABLE QVariantMap scanImageSequence(const QString &path) const;
 
 public Q_SLOTS:
     void QuitCPlay();

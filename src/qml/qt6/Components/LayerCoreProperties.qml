@@ -49,10 +49,30 @@ GridLayout {
 
     property string restParametersJson: ""
 
+    // Image sequence properties
+    property bool imageSequenceDetected: false
+    property bool imageSequenceLoadOnlyThis: false
+    property int imageSequenceFirstIndex: 0
+    property int imageSequenceLastIndex: 0
+    property int imageSequenceStartIndex: 0
+    property int imageSequenceStopIndex: 0
+    property int imageSequenceStep: 1
+    property int imageSequenceCount: 0
+    property string imageSequenceStatus: ""
+
     function resetValues() {
         typeComboBox.currentIndex = 0;
         fileForLayer.text = "";
         layerTitle.text = "";
+        imageSequenceDetected = false;
+        imageSequenceLoadOnlyThis = false;
+        imageSequenceFirstIndex = 0;
+        imageSequenceLastIndex = 0;
+        imageSequenceStartIndex = 0;
+        imageSequenceStopIndex = 0;
+        imageSequenceStep = 1;
+        imageSequenceCount = 0;
+        imageSequenceStatus = "";
         for (let sm = 0; sm < stereoscopicModeForLayerList.count; ++sm) {
             if (stereoscopicModeForLayerList.get(sm).value === PresentationSettings.defaultStereoModeForLayers) {
                 stereoscopicModeForLayer.currentIndex = sm;
@@ -64,6 +84,35 @@ GridLayout {
                 gridModeForLayer.currentIndex = gm;
                 break;
             }
+        }
+    }
+
+    function analyzeImageSequence(filePath) {
+        var result = playerController.scanImageSequence(filePath);
+        if (result.ok) {
+            imageSequenceDetected = true;
+            imageSequenceLoadOnlyThis = false;
+            imageSequenceFirstIndex = result.firstIndex;
+            imageSequenceLastIndex = result.lastIndex;
+            imageSequenceStartIndex = result.firstIndex;
+            imageSequenceStopIndex = result.lastIndex;
+            imageSequenceStep = 1;
+            imageSequenceCount = result.count;
+            imageSequenceStatus = qsTr("Sequence: %1 files, frames %2-%3")
+                .arg(result.count).arg(result.firstIndex).arg(result.lastIndex);
+            if (result.missingFrames) {
+                imageSequenceStatus += qsTr(" (missing frames detected)");
+            }
+        } else {
+            imageSequenceDetected = false;
+            imageSequenceLoadOnlyThis = false;
+            imageSequenceFirstIndex = 0;
+            imageSequenceLastIndex = 0;
+            imageSequenceStartIndex = 0;
+            imageSequenceStopIndex = 0;
+            imageSequenceStep = 1;
+            imageSequenceCount = result.count;
+            imageSequenceStatus = "";
         }
     }
 
@@ -104,8 +153,6 @@ GridLayout {
         }
     }
 
-    
-
     ListModel {
         id: restCoreParamsModel
     }
@@ -126,6 +173,9 @@ GridLayout {
             LocationSettings.imageFileDialogLastLocation = app.parentUrl(fileToLoadAsImageLayerDialog.selectedFile);
             LocationSettings.save();
             fileToLoadAsImageLayerDialog.acceptedOnes = true;
+            if (typeComboBox.currentText === "Image") {
+                analyzeImageSequence(fileForLayer.text);
+            }
         }
     }
     FileDialog {
@@ -515,6 +565,83 @@ GridLayout {
     Item {
         visible: root.showSpacers && typeComboBox.currentText === "OMT"
         Layout.fillWidth: true
+    }
+
+    // --- Image sequence section ---
+    Label {
+        Layout.alignment: Qt.AlignRight
+        font.pointSize: 9
+        text: qsTr("Sequence:")
+        visible: typeComboBox.currentText === "Image" && imageSequenceDetected
+    }
+    ColumnLayout {
+        Layout.fillWidth: true
+        visible: typeComboBox.currentText === "Image" && imageSequenceDetected
+        spacing: 2
+
+        Label {
+            font.pointSize: 8
+            text: imageSequenceStatus
+            wrapMode: Text.WordWrap
+            Layout.fillWidth: true
+        }
+        CheckBox {
+            id: imageSeqLoadOnlyCheckBox
+            text: qsTr("Load only this image")
+            checked: imageSequenceLoadOnlyThis
+            onCheckedChanged: imageSequenceLoadOnlyThis = checked
+        }
+    }
+
+    Label {
+        Layout.alignment: Qt.AlignRight
+        font.pointSize: 9
+        text: qsTr("Start:")
+        visible: typeComboBox.currentText === "Image" && imageSequenceDetected && !imageSequenceLoadOnlyThis
+    }
+    RowLayout {
+        Layout.fillWidth: true
+        visible: typeComboBox.currentText === "Image" && imageSequenceDetected && !imageSequenceLoadOnlyThis
+        spacing: 4
+
+        SpinBox {
+            id: imageSeqStartSpinBox
+            Layout.fillWidth: true
+            editable: true
+            from: imageSequenceFirstIndex
+            to: imageSequenceLastIndex
+            value: imageSequenceStartIndex
+            onValueModified: imageSequenceStartIndex = value
+            ToolTip { text: qsTr("Start frame index") }
+        }
+        Label {
+            text: qsTr("Stop:")
+            font.pointSize: 9
+        }
+        SpinBox {
+            id: imageSeqStopSpinBox
+            Layout.fillWidth: true
+            editable: true
+            from: imageSequenceFirstIndex
+            to: imageSequenceLastIndex
+            value: imageSequenceStopIndex
+            onValueModified: imageSequenceStopIndex = value
+            ToolTip { text: qsTr("Stop frame index") }
+        }
+        Label {
+            text: qsTr("Step:")
+            font.pointSize: 9
+        }
+        SpinBox {
+            id: imageSeqStepSpinBox
+            Layout.preferredWidth: implicitWidth * 0.75
+            editable: true
+            from: 1
+            to: 10
+            value: imageSequenceStep
+            onValueModified: imageSequenceStep = value
+            ToolTip { text: qsTr("Step between frames") }
+        }
     }
 
     Label {

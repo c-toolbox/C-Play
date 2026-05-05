@@ -130,6 +130,27 @@ Kirigami.ApplicationWindow {
                             mpv.focus = true;
                         } else if (layerCoreProps.fileForLayer.text !== "") {
                             layerView.layerItem.layerIdx = app.slides.selected.addLayer(layerCoreProps.layerTitle.text, layerCoreProps.typeComboBox.currentIndex + 1, layerCoreProps.fileForLayer.text, layerCoreProps.stereoscopicModeForLayer.currentIndex, layerCoreProps.gridModeForLayer.currentIndex);
+                            // If an image sequence was detected and user did not opt to load only this image
+                            if (layerCoreProps.typeComboBox.currentText === "Image" && layerCoreProps.imageSequenceDetected && !layerCoreProps.imageSequenceLoadOnlyThis) {
+                                var scanResult = playerController.scanImageSequence(layerCoreProps.fileForLayer.text);
+                                if (scanResult.ok) {
+                                    var dir = layerCoreProps.fileForLayer.text;
+                                    var lastSep = dir.lastIndexOf("/");
+                                    if (lastSep < 0) lastSep = dir.lastIndexOf("\\");
+                                    if (lastSep >= 0) dir = dir.substring(0, lastSep);
+                                    layerView.layerItem.setLayerImageSequence(
+                                        dir,
+                                        scanResult.prefix,
+                                        scanResult.digitCount,
+                                        scanResult.suffix,
+                                        layerCoreProps.imageSequenceStartIndex,
+                                        layerCoreProps.imageSequenceStopIndex,
+                                        layerCoreProps.imageSequenceStep,
+                                        33,
+                                        true
+                                    );
+                                }
+                            }
                             layersAddNew.visible = false;
                             app.slides.updateSelectedSlide();
                             mpv.focus = true;
