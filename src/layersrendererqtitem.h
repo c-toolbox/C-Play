@@ -111,6 +111,7 @@ private:
 
     // Shader uniform locations - EAC
     int m_EACAlphaLoc;
+    int m_EACFlipYLoc;
     int m_EACMatrixLoc;
     int m_EACScaleLoc;
     int m_EACOutsideLoc;

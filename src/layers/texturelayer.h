@@ -18,7 +18,7 @@
 // a copy of a live capture frame at a specific point in time.
 //
 // The texture is created by copying pixel data from the parent's current
-// frame via captureFromTexture() or captureFromPixels().
+// frame via copyFromTexture() or upload().
 // Once captured, the TextureLayer is fully self-contained and renders
 // the static image until released.
 //
@@ -32,17 +32,17 @@ public:
     void initialize() override;
     bool ready() const override;
 
-    // Capture a snapshot by copying pixel data from an existing GL texture.
+    // Copy a snapshot from an existing GL texture into this layer's owned texture.
     // internalFormat must match the source texture's internal format (e.g. GL_RGBA8, GL_RGBA16F).
-    bool captureFromTexture(GLuint srcTexId, int width, int height, GLenum internalFormat = GL_RGBA8);
+    bool copyFromTexture(GLuint srcTexId, int width, int height, GLenum internalFormat = GL_RGBA8);
 
     // Point to an external texture without copying. The TextureLayer does NOT own
     // the texture and will not delete it. Call releaseTexture() or pointToTexture(0,...)
     // to stop referencing the external texture.
     void pointToTexture(GLuint texId, int width, int height);
 
-    // Capture a snapshot from raw RGBA/BGRA pixel data.
-    bool captureFromPixels(const unsigned char* pixelData, int width, int height, int GLformat);
+    // Upload a snapshot from raw RGBA/BGRA pixel data.
+    bool upload(const unsigned char* pixelData, int width, int height, int GLformat, GLenum internalFormat = GL_RGBA8);
 
     // Release the owned texture and mark as not ready.
     void releaseTexture();

@@ -26,7 +26,7 @@ bool TextureLayer::ready() const {
     return m_hasTexture && renderData.texId > 0;
 }
 
-bool TextureLayer::captureFromTexture(GLuint srcTexId, int width, int height, GLenum internalFormat) {
+bool TextureLayer::copyFromTexture(GLuint srcTexId, int width, int height, GLenum internalFormat) {
     if (srcTexId == 0 || width <= 0 || height <= 0) {
         return false;
     }
@@ -58,13 +58,13 @@ bool TextureLayer::captureFromTexture(GLuint srcTexId, int width, int height, GL
 
     m_hasTexture = true;
     if (reallocated) {
-        sgct::Log::Info(std::format("TextureLayer '{}': Captured texture ({}x{}, fmt={}) from texture {}",
+        sgct::Log::Info(std::format("TextureLayer '{}': Copied texture ({}x{}, fmt={}) from texture {}",
             title(), width, height, internalFormat, srcTexId));
     }
     return true;
 }
 
-bool TextureLayer::captureFromPixels(const unsigned char* pixelData, int width, int height, int GLformat) {
+bool TextureLayer::upload(const unsigned char* pixelData, int width, int height, int GLformat, GLenum internalFormat) {
     if (!pixelData || width <= 0 || height <= 0) {
         return false;
     }
@@ -74,18 +74,17 @@ bool TextureLayer::captureFromPixels(const unsigned char* pixelData, int width, 
     }
 
     // Allocate destination texture if needed
-    if (renderData.texId == 0 || renderData.width != width || renderData.height != height || m_internalFormat != GL_RGBA8) {
+    if (renderData.texId == 0 || renderData.width != width || renderData.height != height || m_internalFormat != internalFormat) {
         releaseTexture();
-        allocateTexture(width, height, GL_RGBA8, GLformat);
+        allocateTexture(width, height, internalFormat, GLformat);
     }
 
     glBindTexture(GL_TEXTURE_2D, renderData.texId);
-    glTexSubImage2D(GL_TEXTURE_2D, 0, 0, 0, width, height, GLformat, GL_UNSIGNED_BYTE, pixelData);
+    GLenum type = (internalFormat == GL_RGBA16F) ? GL_FLOAT : GL_UNSIGNED_BYTE;
+    glTexSubImage2D(GL_TEXTURE_2D, 0, 0, 0, width, height, GLformat, type, pixelData);
     glBindTexture(GL_TEXTURE_2D, 0);
 
     m_hasTexture = true;
-    sgct::Log::Info(std::format("TextureLayer '{}': Captured frozen texture ({}x{}) from pixel data",
-        title(), width, height));
     return true;
 }
 

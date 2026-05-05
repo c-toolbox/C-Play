@@ -53,6 +53,7 @@ private:
     int meshRoi;
     // EAC
     int EACAlphaLoc;
+    int EACFlipYLoc;
     int EACMatrixLoc;
     int EACScaleLoc;
     int EACOutsideLoc;

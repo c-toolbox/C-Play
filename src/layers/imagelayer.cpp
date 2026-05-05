@@ -20,33 +20,52 @@ auto loadImageAsync = [](ImageLayer::ImageData &data) {
     data.usedSail = false;
     // Try SAIL first for broader format support
     try {
-        sail::image_input input(data.filename);
-        sail::image sailImg = input.next_frame();
-
-        // Convert to RGBA for consistent GL upload
-        sailImg.convert(SAIL_PIXEL_FORMAT_BPP32_RGBA);
-
-        data.sailWidth = sailImg.width();
-        data.sailHeight = sailImg.height();
-        data.sailChannels = 4; // RGBA
-
-        size_t dataSize = static_cast<size_t>(data.sailWidth) * data.sailHeight * data.sailChannels;
-        const unsigned char* pixels = reinterpret_cast<const unsigned char*>(sailImg.pixels());
-
-        // Flip vertically to match OpenGL convention (bottom-to-top)
-        data.sailPixels.resize(dataSize);
-        size_t rowBytes = static_cast<size_t>(data.sailWidth) * data.sailChannels;
-        for (int y = 0; y < data.sailHeight; y++) {
-            const unsigned char* srcRow = pixels + static_cast<size_t>(y) * sailImg.bytes_per_line();
-            unsigned char* dstRow = data.sailPixels.data() + static_cast<size_t>(data.sailHeight - 1 - y) * rowBytes;
-            std::memcpy(dstRow, srcRow, rowBytes);
+        auto sailImg = std::make_shared<sail::image>();
+        {
+            sail::image_input input(data.filename);
+            *sailImg = input.next_frame();
         }
 
+        // Determine native pixel format and map to GL formats
+        SailPixelFormat fmt = sailImg->pixel_format();
+        GLenum glFormat = GL_RGBA;
+        GLenum glInternalFormat = GL_RGBA8;
+
+        switch (fmt) {
+            case SAIL_PIXEL_FORMAT_BPP24_RGB:
+                glFormat = GL_RGB;
+                glInternalFormat = GL_RGB8;
+                break;
+            case SAIL_PIXEL_FORMAT_BPP24_BGR:
+                glFormat = GL_BGR;
+                glInternalFormat = GL_RGB8;
+                break;
+            case SAIL_PIXEL_FORMAT_BPP32_RGBA:
+                glFormat = GL_RGBA;
+                glInternalFormat = GL_RGBA8;
+                break;
+            case SAIL_PIXEL_FORMAT_BPP32_BGRA:
+                glFormat = GL_BGRA;
+                glInternalFormat = GL_RGBA8;
+                break;
+            default:
+                // Convert unsupported formats to RGBA
+                sailImg->convert(SAIL_PIXEL_FORMAT_BPP32_RGBA);
+                glFormat = GL_RGBA;
+                glInternalFormat = GL_RGBA8;
+                break;
+        }
+
+        data.sailWidth = sailImg->width();
+        data.sailHeight = sailImg->height();
+        data.sailGLFormat = static_cast<unsigned int>(glFormat);
+        data.sailGLInternalFormat = static_cast<unsigned int>(glInternalFormat);
+        data.sailImage = sailImg;
         data.usedSail = true;
     } catch (...) {
         // SAIL failed, fall back to sgct::Image (stb_image)
         data.usedSail = false;
-        data.sailPixels.clear();
+        data.sailImage.reset();
         try {
             data.img.load(data.filename);
         } catch (...) {
@@ -62,7 +81,7 @@ auto loadImageAsync = [](ImageLayer::ImageData &data) {
 
     if (data.abortRequested) {
 #ifdef SAIL_SUPPORT
-        data.sailPixels.clear();
+        data.sailImage.reset();
 #endif
         data.img = sgct::Image();
         data.threadDone = true;
@@ -75,8 +94,7 @@ auto loadImageAsync = [](ImageLayer::ImageData &data) {
         std::this_thread::yield();
     }
 #ifdef SAIL_SUPPORT
-    data.sailPixels.clear();
-    data.sailPixels.shrink_to_fit();
+    data.sailImage.reset();
 #endif
     data.img = sgct::Image();
     data.threadDone = true;
@@ -105,6 +123,9 @@ void ImageLayer::initialize() {
 void ImageLayer::update(bool updateRendering) {
     if(updateRendering || !ready())
         processImageUpload(filepath(), imageData.filename != filepath());
+}
+
+void ImageLayer::updateFrame() {
 }
 
 bool ImageLayer::ready() const {
@@ -203,19 +224,32 @@ void ImageLayer::handleAsyncImageUpload() {
     if (imageData.threadRunning) {
         if (imageData.imageDone && !imageData.uploadDone) {
 #ifdef SAIL_SUPPORT
-            if (imageData.usedSail) {
-                // Upload SAIL-decoded pixels directly to OpenGL
+            if (imageData.usedSail && imageData.sailImage) {
+                // Upload directly from SAIL image pixel buffer (zero-copy)
                 GLuint texId = 0;
                 glGenTextures(1, &texId);
                 glBindTexture(GL_TEXTURE_2D, texId);
                 glPixelStorei(GL_PACK_ALIGNMENT, 1);
                 glPixelStorei(GL_UNPACK_ALIGNMENT, 1);
+
+                // Handle stride/padding via GL_UNPACK_ROW_LENGTH
+                GLenum glFormat = static_cast<GLenum>(imageData.sailGLFormat);
+                int pixelSize = (glFormat == GL_RGB || glFormat == GL_BGR) ? 3 : 4;
+                unsigned int bytesPerLine = imageData.sailImage->bytes_per_line();
+                int rowLengthPixels = static_cast<int>(bytesPerLine) / pixelSize;
+                glPixelStorei(GL_UNPACK_ROW_LENGTH, rowLengthPixels);
+
                 glTexImage2D(
-                    GL_TEXTURE_2D, 0, GL_RGBA8,
+                    GL_TEXTURE_2D, 0,
+                    static_cast<GLenum>(imageData.sailGLInternalFormat),
                     imageData.sailWidth, imageData.sailHeight, 0,
-                    GL_RGBA, GL_UNSIGNED_BYTE,
-                    imageData.sailPixels.data()
+                    glFormat,
+                    GL_UNSIGNED_BYTE,
+                    imageData.sailImage->pixels()
                 );
+
+                glPixelStorei(GL_UNPACK_ROW_LENGTH, 0);
+
                 glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_MIN_FILTER, GL_LINEAR);
                 glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_MAG_FILTER, GL_LINEAR);
                 glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_WRAP_S, GL_CLAMP_TO_EDGE);
@@ -225,6 +259,10 @@ void ImageLayer::handleAsyncImageUpload() {
                 renderData.texId = texId;
                 renderData.width = imageData.sailWidth;
                 renderData.height = imageData.sailHeight;
+
+                // SAIL images are top-to-bottom; use flipY for correct rendering
+                setFlipY(true);
+
                 imageData.uploadDone = true;
             } else
 #endif

@@ -161,6 +161,7 @@ constexpr std::string_view EACVideoFrag = R"(
   uniform float alpha;
   uniform int videoWidth;
   uniform int videoHeight;
+  uniform bool flipY;
 
   in vec3 tr_position;
   in vec3 tr_normal;
@@ -331,6 +332,10 @@ constexpr std::string_view EACVideoFrag = R"(
   void main() {
     vec2 uv = xyz_to_eac(normalize(tr_normal), videoWidth, videoHeight);
 
+    if(flipY) {
+        uv.y = 1.0 - uv.y;
+    }
+
     if(eye==2) { //Right Eye
         if(stereoscopicMode==1) { //Side-by-side
             uv = (uv * vec2(0.5, 1.0)) + vec2(0.5, 0.0);
@@ -373,6 +378,7 @@ LayersRenderer::LayersRenderer() : meshRadius(0),
                                  meshStereoscopicModeLoc(-1),
                                  meshRoi(-1),
                                  EACAlphaLoc(-1),
+                                 EACFlipYLoc(-1),
                                  EACMatrixLoc(-1),
                                  EACScaleLoc(-1),
                                  EACOutsideLoc(-1),
@@ -421,9 +427,10 @@ void LayersRenderer::initializeGL(double radius, double fov) {
         glUniform1i(glGetUniformLocation(EACPrg->id(), "tex"), 0);
         EACMatrixLoc = glGetUniformLocation(EACPrg->id(), "mvp");
         EACEyeModeLoc = glGetUniformLocation(EACPrg->id(), "eye");
+        EACFlipYLoc = glGetUniformLocation(EACPrg->id(), "flipY");
         EACStereoscopicModeLoc = glGetUniformLocation(EACPrg->id(), "stereoscopicMode");
         EACAlphaLoc = glGetUniformLocation(EACPrg->id(), "alpha");
-        EACOutsideLoc = glGetUniformLocation(meshPrg->id(), "outside");
+        EACOutsideLoc = glGetUniformLocation(EACPrg->id(), "outside");
         EACScaleLoc = glGetUniformLocation(EACPrg->id(), "scaleToUnitCube");
         EACVideoWidthLoc = glGetUniformLocation(EACPrg->id(), "videoWidth");
         EACVideoHeightLoc = glGetUniformLocation(EACPrg->id(), "videoHeight");
@@ -478,6 +485,7 @@ void LayersRenderer::renderLayer(const sgct::RenderData& data, const BaseLayer* 
         EACPrg->bind();
 
         glUniform1f(EACAlphaLoc, layer->alpha());
+        glUniform1i(EACFlipYLoc, (layer->flipY() ? 1 : 0));
         glUniform1i(EACOutsideLoc, 0);
         glUniform1i(EACVideoWidthLoc, layer->width());
         glUniform1i(EACVideoHeightLoc, layer->height());

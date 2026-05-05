@@ -11,6 +11,11 @@
 #include <layers/baselayer.h>
 #include <sgct/sgct.h>
 #include <vector>
+#include <memory>
+
+#ifdef SAIL_SUPPORT
+namespace sail { class image; }
+#endif
 
 class ImageLayer : public BaseLayer {
 public:
@@ -19,11 +24,12 @@ public:
         std::string identifier = "";
         sgct::Image img;
 #ifdef SAIL_SUPPORT
-        // When SAIL is used, decoded pixels are stored here instead of sgct::Image
-        std::vector<unsigned char> sailPixels;
+        // When SAIL is used, the decoded image is kept alive until GPU upload completes
+        std::shared_ptr<sail::image> sailImage;
         int sailWidth = 0;
         int sailHeight = 0;
-        int sailChannels = 0;
+        unsigned int sailGLFormat = 0x1908; // GL_RGBA
+        unsigned int sailGLInternalFormat = 0x8058; // GL_RGBA8
         bool usedSail = false;
 #endif
         std::unique_ptr<std::thread> trd;
@@ -39,6 +45,7 @@ public:
 
     void initialize();
     void update(bool updateRendering = true);
+    void updateFrame();
     bool ready() const;
     bool hasTexture() const override;
 

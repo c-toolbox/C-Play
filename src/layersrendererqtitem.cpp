@@ -174,6 +174,7 @@ uniform float alpha;
 uniform int videoWidth;
 uniform int videoHeight;
 uniform bool flipUpDown;
+uniform bool flipY;
 
 in vec3 tr_position;
 in vec3 tr_normal;
@@ -346,6 +347,10 @@ vec2 xyz_to_eac(vec3 xyz, int width, int height, bool flip)
 
 void main() {
     vec2 uv = xyz_to_eac(normalize(tr_normal), videoWidth, videoHeight, flipUpDown);
+
+    if(flipY) {
+        uv.y = 1.0 - uv.y;
+    }
 
     if(eye==2) { //Right Eye
         if(stereoscopicMode==1) { //Side-by-side
@@ -677,6 +682,7 @@ void LayersRendererQtOpenGLObject::createShaders() {
     m_EACPrg->setUniformValue("tex", 0);
     m_EACMatrixLoc = m_EACPrg->uniformLocation("mvp");
     m_EACEyeModeLoc = m_EACPrg->uniformLocation("eye");
+    m_EACFlipYLoc = m_EACPrg->uniformLocation("flipY");
     m_EACStereoscopicModeLoc = m_EACPrg->uniformLocation("stereoscopicMode");
     m_EACAlphaLoc = m_EACPrg->uniformLocation("alpha");
     m_EACOutsideLoc = m_EACPrg->uniformLocation("outside");
@@ -771,6 +777,7 @@ void LayersRendererQtOpenGLObject::renderLayer(const BaseLayer* layer, int eyeMo
         m_EACPrg->bind();
 
         m_EACPrg->setUniformValue(m_EACAlphaLoc, layer->alpha());
+        m_EACPrg->setUniformValue(m_EACFlipYLoc, layer->flipY());
         m_EACPrg->setUniformValue(m_EACOutsideLoc, 0);
         m_EACPrg->setUniformValue(m_EACVideoWidthLoc, layer->width());
         m_EACPrg->setUniformValue(m_EACVideoHeightLoc, layer->height());
@@ -1030,6 +1037,7 @@ void LayersRendererQtOpenGLObject::renderMpvObject(MpvObject* mpv, int eyeMode, 
         m_EACPrg->bind();
 
         m_EACPrg->setUniformValue(m_EACAlphaLoc, alpha);
+        m_EACPrg->setUniformValue(m_EACFlipYLoc, false);
         m_EACPrg->setUniformValue(m_EACVideoWidthLoc, texW);
         m_EACPrg->setUniformValue(m_EACVideoHeightLoc, texH);
         m_EACPrg->setUniformValue(m_EACFlipUpDownLoc, true);

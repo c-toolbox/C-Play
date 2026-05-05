@@ -56,7 +56,7 @@ void QROperationHandler::handleCommand(const QRCommand& command,
             for (auto& sub : m_subLayers) {
                 auto texSub = std::dynamic_pointer_cast<TextureLayer>(sub);
                 if (texSub && !texSub->isFrozen()) {
-                    texSub->captureFromTexture(liveTex, liveW, liveH, parentFormat);
+                    texSub->copyFromTexture(liveTex, liveW, liveH, parentFormat);
                     texSub->setFrozen(true);
                 }
             }
@@ -171,7 +171,7 @@ void QROperationHandler::updateActiveSubLayer(BaseLayer* parentLayer,
             auto texSub = std::dynamic_pointer_cast<TextureLayer>(sub);
             if (texSub && !texSub->isFrozen()) {
                 // Copy the parent's live texture into the active sublayer every frame
-                texSub->captureFromTexture(liveTex, liveW, liveH, parentFormat);
+                texSub->copyFromTexture(liveTex, liveW, liveH, parentFormat);
 
                 // Only set alpha directly if no fade is in progress
                 if (!texSub->isFading()) {
@@ -228,7 +228,7 @@ bool QROperationHandler::freezeToSubLayer(const std::string& name,
     }
 
     if (existing) {
-        existing->captureFromTexture(liveTex, liveW, liveH, parentFormat);
+        existing->copyFromTexture(liveTex, liveW, liveH, parentFormat);
         existing->setFrozen(true);
         existing->setAlpha(parentLayer->alpha());
         sgct::Log::Info(std::format("QROperationHandler::freezeToSubLayer: Re-frozen '{}'", name));
@@ -254,7 +254,7 @@ bool QROperationHandler::freezeToSubLayer(const std::string& name,
             frozen->setRoi(const_cast<glm::vec4&>(parentLayer->roi()));
         }
 
-        if (!frozen->captureFromTexture(liveTex, liveW, liveH, parentFormat)) {
+        if (!frozen->copyFromTexture(liveTex, liveW, liveH, parentFormat)) {
             sgct::Log::Error(std::format("QROperationHandler::freezeToSubLayer: Failed capture for '{}'", name));
             return false;
         }
