@@ -39,5 +39,17 @@
       <min>1</min>
       <max>90</max>
     </entry>
+    <entry name="CpuMemoryForImageBuffering" type="int">
+      <label>Percentage of CPU RAM to use for decoded image buffering before upload to GPU</label>
+      <default>10</default>
+      <min>1</min>
+      <max>90</max>
+    </entry>
+    <entry name="ImageBufferingThreadCount" type="int">
+      <label>Number of worker threads used to decode image frames into the CPU buffer</label>
+      <default>4</default>
+      <min>1</min>
+      <max>64</max>
+    </entry>
   </group>
 </kcfg>

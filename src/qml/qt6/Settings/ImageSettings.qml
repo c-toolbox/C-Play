@@ -449,15 +449,93 @@ SettingsBasePage {
                 }
 
                 ToolTip {
-                    text: qsTr("Percentage of GPU VRAM allocated for the image ring buffer used by animated and multi-frame images. Applied on next image load.")
+                    text: qsTr("Percentage of GPU VRAM allocated for the image ring buffer used by animated and multi-frame images.")
                 }
             }
             Label {
                 Layout.alignment: Qt.AlignLeft
                 font.italic: true
-                text: qsTr("%1 available for buffering. Default: 10%. Applied on next image load.").arg(playerController.imageRingBufferGpuMemoryText(gpuMemorySpinBox.value))
+                text: qsTr("%1 available for buffering. Default: 10%.").arg(playerController.imageRingBufferGpuMemoryText(gpuMemorySpinBox.value))
             }
         }
+        Item {
+            // spacer item
+            Layout.fillWidth: true
+        }
+
+        Label {
+            Layout.alignment: Qt.AlignRight
+            text: qsTr("CPU RAM for decoded image buffer:")
+        }
+        RowLayout {
+            SpinBox {
+                id: cpuMemorySpinBox
+
+                from: 1
+                to: 90
+                stepSize: 1
+                value: ImageSettings.cpuMemoryForImageBuffering
+
+                textFromValue: function(value, locale) {
+                    return value + "%";
+                }
+                valueFromText: function(text, locale) {
+                    return parseInt(text);
+                }
+
+                onValueModified: {
+                    ImageSettings.cpuMemoryForImageBuffering = value;
+                    ImageSettings.save();
+                }
+
+                ToolTip {
+                    text: qsTr("Percentage of CPU RAM allocated for decoded image frames waiting to be uploaded to the GPU.")
+                }
+            }
+            Label {
+                Layout.alignment: Qt.AlignLeft
+                font.italic: true
+                text: qsTr("%1 available for buffering. Default: 10%.").arg(playerController.imageRingBufferCpuMemoryText(cpuMemorySpinBox.value))
+            }
+        }
+        Item {
+            // spacer item
+            Layout.fillWidth: true
+        }
+
+        Label {
+            Layout.alignment: Qt.AlignRight
+            text: qsTr("CPU image loading threads:")
+        }
+        RowLayout {
+            SpinBox {
+                id: imageBufferingThreadSpinBox
+
+                from: 1
+                to: 64
+                stepSize: 1
+                value: ImageSettings.imageBufferingThreadCount
+
+                onValueModified: {
+                    ImageSettings.imageBufferingThreadCount = value;
+                    ImageSettings.save();
+                }
+
+                ToolTip {
+                    text: qsTr("Worker threads used to decode sequence frames into the CPU image buffer.")
+                }
+            }
+            Label {
+                Layout.alignment: Qt.AlignLeft
+                font.italic: true
+                text: playerController.imageBufferingThreadRecommendationText()
+            }
+        }
+        Item {
+            // spacer item
+            Layout.fillWidth: true
+        }
+
         Item {
             Layout.columnSpan: 3
             Layout.fillWidth: true

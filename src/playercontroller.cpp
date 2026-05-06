@@ -24,6 +24,22 @@
 #include <sail-c++/sail-c++.h>
 #endif
 
+#include <thread>
+
+namespace {
+QString formatMemoryBudgetText(std::uint64_t bytes) {
+    const double bytesPerMb = 1024.0 * 1024.0;
+    const double bytesPerGb = bytesPerMb * 1024.0;
+    const double budgetGb = static_cast<double>(bytes) / bytesPerGb;
+    if (budgetGb >= 1.0) {
+        return QObject::tr("%1 GB").arg(budgetGb, 0, 'f', 2);
+    }
+
+    const double budgetMb = static_cast<double>(bytes) / bytesPerMb;
+    return QObject::tr("%1 MB").arg(budgetMb, 0, 'f', 0);
+}
+}
+
 #pragma warning(disable : 4996)
 
 PlayerController::PlayerController(QObject *parent)
@@ -772,13 +788,32 @@ QString PlayerController::imageRingBufferGpuMemoryText(int percent) const {
     if (percent < 1) percent = 1;
     if (percent > 90) percent = 90;
 
-    const double budgetGB = (static_cast<double>(gpuMemoryKB) * 1024.0 * percent / 100.0) / (1024.0 * 1024.0 * 1024.0);
-    if (budgetGB >= 1.0) {
-        return tr("%1 GB").arg(budgetGB, 0, 'f', 2);
+    const std::uint64_t budgetBytes =
+        (static_cast<std::uint64_t>(gpuMemoryKB) * 1024ULL * static_cast<std::uint64_t>(percent)) / 100ULL;
+    return formatMemoryBudgetText(budgetBytes);
+}
+
+QString PlayerController::imageRingBufferCpuMemoryText(int percent) const {
+    const std::uint64_t totalSystemMemoryBytes = ImageLayer::totalSystemMemoryBytes();
+    if (totalSystemMemoryBytes == 0) {
+        return tr("System memory not detected");
     }
 
-    const double budgetMB = budgetGB * 1024.0;
-    return tr("%1 MB").arg(budgetMB, 0, 'f', 0);
+    if (percent < 1) percent = 1;
+    if (percent > 90) percent = 90;
+
+    const std::uint64_t budgetBytes =
+        (totalSystemMemoryBytes * static_cast<std::uint64_t>(percent)) / 100ULL;
+    return formatMemoryBudgetText(budgetBytes);
+}
+
+QString PlayerController::imageBufferingThreadRecommendationText() const {
+    const unsigned int concurrency = std::thread::hardware_concurrency();
+    if (concurrency == 0) {
+        return tr("Recommended: use your CPU thread count if known. Applied on next image load.");
+    }
+
+    return tr("Recommended concurrent threads: %1. Applied on next image load.").arg(concurrency);
 }
 
 QVariantMap PlayerController::scanImageSequence(const QString &path) const {

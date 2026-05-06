@@ -634,7 +634,7 @@ GridLayout {
         }
         SpinBox {
             id: imageSeqStepSpinBox
-            Layout.preferredWidth: implicitWidth * 0.75
+            Layout.preferredWidth: implicitWidth
             editable: true
             from: 1
             to: 10

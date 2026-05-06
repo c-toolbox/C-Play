@@ -45,6 +45,8 @@ public:
 
     Q_INVOKABLE QString supportedImageNameFilters() const;
     Q_INVOKABLE QString imageRingBufferGpuMemoryText(int percent) const;
+    Q_INVOKABLE QString imageRingBufferCpuMemoryText(int percent) const;
+    Q_INVOKABLE QString imageBufferingThreadRecommendationText() const;
     Q_INVOKABLE QVariantMap scanImageSequence(const QString &path) const;
 
 public Q_SLOTS:
