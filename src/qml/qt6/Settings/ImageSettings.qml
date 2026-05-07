@@ -425,6 +425,52 @@ SettingsBasePage {
         }
         Label {
             Layout.alignment: Qt.AlignRight
+            text: qsTr("Image decoder:")
+        }
+        RowLayout {
+            ComboBox {
+                id: imageDecoderComboBox
+
+                model: playerController.supportedImageDecoderNames()
+
+                function decoderIndex(name) {
+                    for (let i = 0; i < count; ++i) {
+                        if (textAt(i) === name) {
+                            return i;
+                        }
+                    }
+                    return -1;
+                }
+
+                Component.onCompleted: {
+                    const savedIndex = decoderIndex(ImageSettings.imageDecoder);
+                    currentIndex = savedIndex >= 0 ? savedIndex : 0;
+                    if (savedIndex < 0 && count > 0) {
+                        ImageSettings.imageDecoder = currentText;
+                        ImageSettings.save();
+                    }
+                }
+
+                onActivated: {
+                    ImageSettings.imageDecoder = currentText;
+                    ImageSettings.save();
+                }
+
+                ToolTip {
+                    text: qsTr("Decoder used for ImageLayer background, foreground and overlay images.")
+                }
+            }
+            Label {
+                Layout.alignment: Qt.AlignLeft
+                font.italic: true
+                text: qsTr("Auto = Uses best one for each image format")
+            }
+        }
+        Item {
+            Layout.fillWidth: true
+        }
+        Label {
+            Layout.alignment: Qt.AlignRight
             text: qsTr("GPU memory for image ring buffer:")
         }
         RowLayout {

@@ -8,7 +8,7 @@ set(CPLAY_VERSION_MAJOR 2)
 set(CPLAY_VERSION_MINOR 3)
 set(CPLAY_VERSION_PATCH 0)
 set(CPLAY_VERSION_PR_NAME "Beta")
-set(CPLAY_VERSION_PR_VERS 16)
+set(CPLAY_VERSION_PR_VERS 17)
 
 qt_add_executable(${TARGET_NAME})
 set_compile_options(${TARGET_NAME})
@@ -100,6 +100,13 @@ set(SOURCE_FILES
     utils/imagesequenceutils.cpp
     utils/imagesequenceutils.h
 )
+
+if(BUILD_CPLAY_WITH_WUFFS)
+    list(APPEND SOURCE_FILES
+        utils/wuffsimage.cpp
+        utils/wuffsimage.h
+    )
+endif()
 
 if(BUILD_CPLAY_WITH_NDI)
     list(APPEND SOURCE_FILES ndi/ndilayer.cpp)
@@ -412,6 +419,11 @@ endif()
 if(BUILD_CPLAY_WITH_SAIL)
     list(APPEND TARGET_LIBRARIES SAIL::sail-c++)
     target_compile_definitions(${TARGET_NAME} PUBLIC SAIL_SUPPORT)
+endif()
+
+if(BUILD_CPLAY_WITH_WUFFS)
+    target_include_directories(${TARGET_NAME} PRIVATE ${CPLAY_WUFFS_RELEASE_DIR})
+    target_compile_definitions(${TARGET_NAME} PUBLIC WUFFS_SUPPORT)
 endif()
 
 if(BUILD_CPLAY_WITH_OPENSSL)

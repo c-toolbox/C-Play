@@ -7,11 +7,23 @@
 
 #include "imagelayer.h"
 #include "imagesettings.h"
+#include <QString>
 #include <sgct/opengl.h>
+
+#ifdef WUFFS_SUPPORT
+#include "../utils/wuffsimage.h"
+#endif
 
 #ifdef SAIL_SUPPORT
 #include <sail-c++/sail-c++.h>
 #endif
+
+#include <algorithm>
+#include <cctype>
+#include <cstring>
+#include <filesystem>
+#include <format>
+#include <utility>
 
 std::atomic_int ImageLayer::s_lastKnownGpuMemoryKB{0};
 std::mutex ImageLayer::s_pendingTexDeleteMutex;
@@ -52,6 +64,89 @@ static void resolveGLFormats(sail::image& img, GLenum& glFormat, GLenum& glInter
 }
 #endif
 
+static ImageLayer::ImageDecoder configuredImageDecoder() {
+    const QString decoder = ImageSettings::imageDecoder().trimmed();
+    if (decoder.compare(QStringLiteral("Auto"), Qt::CaseInsensitive) == 0)
+        return ImageLayer::ImageDecoder::Auto;
+#ifdef WUFFS_SUPPORT
+    if (decoder.compare(QStringLiteral("Wuffs"), Qt::CaseInsensitive) == 0)
+        return ImageLayer::ImageDecoder::Wuffs;
+#endif
+#ifdef SAIL_SUPPORT
+    if (decoder.compare(QStringLiteral("Sail"), Qt::CaseInsensitive) == 0)
+        return ImageLayer::ImageDecoder::Sail;
+#endif
+    if (decoder.compare(QStringLiteral("Auto"), Qt::CaseInsensitive) == 0)
+        return ImageLayer::ImageDecoder::Sgct;
+
+#ifdef WUFFS_SUPPORT
+    return ImageLayer::ImageDecoder::Wuffs;
+#else
+    return ImageLayer::ImageDecoder::Sgct;
+#endif
+}
+
+static const char* decoderName(ImageLayer::ImageDecoder decoder) {
+    switch (decoder) {
+        case ImageLayer::ImageDecoder::Wuffs: return "Wuffs";
+        case ImageLayer::ImageDecoder::Sail: return "SAIL";
+        case ImageLayer::ImageDecoder::Sgct:
+        default: return "SGCT";
+    }
+}
+
+static bool sgctSupportedExtension(const std::filesystem::path& path) {
+    std::string extension = path.extension().generic_string();
+    std::ranges::transform(extension, extension.begin(), [](unsigned char character) {
+        return static_cast<char>(std::tolower(character));
+    });
+    return extension == ".png" || extension == ".jpg" || extension == ".jpeg" || extension == ".tga";
+}
+
+static bool enqueueDecodedFrame(const std::shared_ptr<ImageLayer::ThreadContext>& ctx,
+                                ImageLayer::FrameData frame,
+                                int maxBuffered) {
+    std::unique_lock<std::mutex> lock(ctx->queueMutex);
+    ctx->queueNotFull.wait(lock, [&]() {
+        return static_cast<int>(ctx->frameQueue.size()) < maxBuffered || ctx->abortRequested;
+    });
+    if (ctx->abortRequested)
+        return false;
+    ctx->frameQueue.push_back(std::move(frame));
+    ctx->usingFrameQueue = true;
+    return true;
+}
+
+#ifdef WUFFS_SUPPORT
+static bool loadWuffsImage(const std::shared_ptr<ImageLayer::ThreadContext>& ctx, int maxBuffered) {
+    WuffsImage::Image image;
+    std::string error;
+    if (!WuffsImage::decodeRgbaFile(ctx->filename, image, &error)) {
+        sgct::Log::Warning(std::format("ImageLayer '{}': Wuffs decode failed for '{}': {}",
+            ctx->identifier, ctx->filename, error));
+        return false;
+    }
+
+    ImageLayer::FrameData frame;
+    frame.width = image.width;
+    frame.height = image.height;
+    frame.bytesPerLine = static_cast<unsigned int>(static_cast<std::size_t>(image.width) * 4u);
+    frame.glFormat = GL_RGBA;
+    frame.glInternalFormat = GL_RGBA8;
+    frame.delayMs = -1;
+    frame.pixels = std::move(image.rgba);
+
+    if (!enqueueDecodedFrame(ctx, std::move(frame), maxBuffered))
+        return false;
+
+    ctx->totalFrameCount = 1;
+    ctx->allFramesLoaded = true;
+    ctx->usedWuffs = true;
+    sgct::Log::Info(std::format("ImageLayer '{}': Loaded image with Wuffs: {}", ctx->identifier, ctx->filename));
+    return true;
+}
+#endif
+
 // Background loader. Captures ThreadContext via shared_ptr so it safely outlives ImageLayer.
 auto loadImageAsync = [](std::shared_ptr<ImageLayer::ThreadContext> ctx, int maxBuffered) {
     ctx->threadDone = false;
@@ -61,10 +156,26 @@ auto loadImageAsync = [](std::shared_ptr<ImageLayer::ThreadContext> ctx, int max
     ctx->multiFrame = false;
     ctx->animated = false;
     ctx->usingFrameQueue = false;
+    ctx->imageDone = false;
+    ctx->uploadDone = false;
+
+    bool loadedWithSelectedDecoder = false;
+
+#ifdef WUFFS_SUPPORT
+    ctx->usedWuffs = false;
+    if (ctx->decoder == ImageLayer::ImageDecoder::Wuffs && !ctx->abortRequested) {
+        loadedWithSelectedDecoder = loadWuffsImage(ctx, maxBuffered);
+    }
+#else
+    if (ctx->decoder == ImageLayer::ImageDecoder::Wuffs) {
+        sgct::Log::Warning(std::format("ImageLayer '{}': Wuffs decoder was selected but C-Play was built without Wuffs support", ctx->identifier));
+    }
+#endif
 
 #ifdef SAIL_SUPPORT
     ctx->usedSail = false;
-    try {
+    if (ctx->decoder == ImageLayer::ImageDecoder::Sail && !ctx->abortRequested) {
+        try {
         bool firstPass = true;
         int firstPassFrameCount = 0;
         int firstPassAnimatedFrames = 0;
@@ -110,16 +221,8 @@ auto loadImageAsync = [](std::shared_ptr<ImageLayer::ThreadContext> ctx, int max
                                     src + static_cast<size_t>(y) * bytesPerLine, rowBytes);
                 }
 
-                {
-                    std::unique_lock<std::mutex> lock(ctx->queueMutex);
-                    ctx->queueNotFull.wait(lock, [&]() {
-                        return static_cast<int>(ctx->frameQueue.size()) < maxBuffered || ctx->abortRequested;
-                    });
-                    if (ctx->abortRequested) break;
-                    ctx->frameQueue.push_back(std::move(frame));
-                    ctx->usingFrameQueue = true;
-                    ctx->usedSail = true;
-                }
+                if (!enqueueDecodedFrame(ctx, std::move(frame), maxBuffered)) break;
+                ctx->usedSail = true;
 
                 ++passFrameIndex;
                 if (firstPass) {
@@ -142,22 +245,28 @@ auto loadImageAsync = [](std::shared_ptr<ImageLayer::ThreadContext> ctx, int max
             }
             if (firstPassFrameCount <= 1) break;
         }
-    } catch (...) {
-        ctx->usedSail = false;
+        loadedWithSelectedDecoder = ctx->usedSail;
+        } catch (...) {
+            ctx->usedSail = false;
+        }
     }
+#else
+    if (ctx->decoder == ImageLayer::ImageDecoder::Sail) {
+        sgct::Log::Warning(std::format("ImageLayer '{}': SAIL decoder was selected but C-Play was built without SAIL support", ctx->identifier));
+    }
+#endif
 
-    if (!ctx->usedSail) {
+    if (!loadedWithSelectedDecoder && !ctx->abortRequested) {
+        if (ctx->decoder != ImageLayer::ImageDecoder::Sgct) {
+            sgct::Log::Warning(std::format("ImageLayer '{}': Falling back to SGCT image loading for '{}'", ctx->identifier, ctx->filename));
+        }
         try { ctx->img.load(ctx->filename); ctx->imageDone = true; }
         catch (...) { ctx->img = sgct::Image(); }
     }
-#else
-    try { ctx->img.load(ctx->filename); ctx->imageDone = true; }
-    catch (...) { ctx->img = sgct::Image(); }
-#endif
 
     ctx->allFramesLoaded = true;
 
-    if (!ctx->usedSail || ctx->totalFrameCount == 0) {
+    if (!ctx->usingFrameQueue || ctx->totalFrameCount == 0) {
         if (ctx->imageDone) {
             while (!ctx->uploadDone && !ctx->abortRequested)
                 std::this_thread::yield();
@@ -286,7 +395,7 @@ int ImageLayer::lastKnownGpuMemoryKB() { return s_lastKnownGpuMemoryKB; }
 }
 
 bool ImageLayer::processImageUpload(std::string filename, bool forceUpdate) {
-    processPendingGLCleanup(); // called from render thread – safe to delete textures here
+    processPendingGLCleanup(); // called from render thread ï¿½ safe to delete textures here
     std::lock_guard<std::mutex> lock(m_updateMutex);
     handleAsyncImageUpload();
 
@@ -298,7 +407,8 @@ bool ImageLayer::processImageUpload(std::string filename, bool forceUpdate) {
             renderData.texId = 0; renderData.width = 0; renderData.height = 0;
             releaseTexRing();
         } else {
-            if (fileIsImage(filename)) {
+            ImageLayer::ImageDecoder decoderToUse;
+            if (fileIsImage(filename, decoderToUse)) {
                 signalAndDetachThread();
 
                 m_hasFirstFrame = false;
@@ -311,8 +421,10 @@ bool ImageLayer::processImageUpload(std::string filename, bool forceUpdate) {
                 m_ctx = std::make_shared<ThreadContext>();
                 m_ctx->filename = filename;
                 m_ctx->identifier = m_identifier;
+                m_ctx->decoder = decoderToUse;
 
-                sgct::Log::Info(std::format("Loading new {} image asynchronously: {}", m_identifier, filename));
+                sgct::Log::Info(std::format("Loading new {} image asynchronously with {}: {}",
+                    m_identifier, decoderName(m_ctx->decoder), filename));
                 m_thread = std::make_unique<std::thread>(loadImageAsync, m_ctx, kMaxBufferedFrames);
                 return true;
             } else {
@@ -327,23 +439,36 @@ std::string ImageLayer::loadedFile() {
     return m_ctx ? m_ctx->filename : "";
 }
 
-bool ImageLayer::fileIsImage(std::string &filePath) {
+bool ImageLayer::fileIsImage(std::string &filePath, ImageLayer::ImageDecoder& decoder) {
     if (!filePath.empty()) {
         if (std::filesystem::exists(filePath)) {
             std::filesystem::path bgPath = std::filesystem::path(filePath);
             if (bgPath.has_extension()) {
                 std::string bgPathExt = bgPath.extension().generic_string();
-#ifdef SAIL_SUPPORT
-                std::string extNoDot = bgPathExt.substr(1);
-                sail::codec_info ci = sail::codec_info::from_extension(extNoDot);
-                if (ci.is_valid()) return true;
-#else
-                std::transform(bgPathExt.begin(), bgPathExt.end(), bgPathExt.begin(),
-                    [](unsigned char c) { return static_cast<unsigned char>(std::tolower(c)); });
-                if (bgPathExt == ".png" || bgPathExt == ".jpg" ||
-                    bgPathExt == ".jpeg" || bgPathExt == ".tga") return true;
+                const ImageDecoder dec = configuredImageDecoder();
+#ifdef WUFFS_SUPPORT
+                if ((dec == ImageDecoder::Auto || dec == ImageDecoder::Wuffs) && WuffsImage::isSupportedExtension(bgPath)) {
+                    decoder = ImageDecoder::Wuffs;
+                    return true;
+                }
 #endif
-                sgct::Log::Warning(std::format("Image file extension is not supported: {}", filePath));
+#ifdef SAIL_SUPPORT
+                if (dec == ImageDecoder::Auto || dec == ImageDecoder::Sail) {
+                    std::string extNoDot = bgPathExt.substr(1);
+                    sail::codec_info ci = sail::codec_info::from_extension(extNoDot);
+                    if (ci.is_valid()) {
+                        decoder = ImageDecoder::Sail;
+                        return true;
+                    }
+                }
+#endif
+                if (sgctSupportedExtension(bgPath)) {
+                    decoder = ImageDecoder::Sgct;
+                    return true;
+                }
+
+                sgct::Log::Warning(std::format("Image file extension is not supported by selected {} decoder: {}",
+                    decoderName(dec), filePath));
             } else {
                 sgct::Log::Warning(std::format("Image file has no extension: {}", filePath));
             }
@@ -383,7 +508,6 @@ void ImageLayer::handleAsyncImageUpload() {
     if (!m_ctx->threadRunning && !hasQueuedFrames && !m_ctx->imageDone)
         return;
 
-#ifdef SAIL_SUPPORT
     if (m_ctx->usingFrameQueue || hasQueuedFrames) {
         if (renderData.texId == 0) {
             FrameData frame; bool gotFrame = false;
@@ -410,7 +534,6 @@ void ImageLayer::handleAsyncImageUpload() {
         if (m_ctx->allFramesLoaded && m_ctx->threadDone) m_ctx->threadRunning = false;
         return;
     }
-#endif
 
     if (m_ctx->imageDone && !m_ctx->uploadDone) {
 #ifdef SAIL_SUPPORT

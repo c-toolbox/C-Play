@@ -9,6 +9,7 @@
 #define PLAYERCONTROLLER_H
 
 #include <QObject>
+#include <QStringList>
 #include <QVariantMap>
 
 class MpvObject;
@@ -44,6 +45,7 @@ public:
         NOTIFY syncPropertiesChanged)
 
     Q_INVOKABLE QString supportedImageNameFilters() const;
+    Q_INVOKABLE QStringList supportedImageDecoderNames() const;
     Q_INVOKABLE QString imageRingBufferGpuMemoryText(int percent) const;
 
 public Q_SLOTS:

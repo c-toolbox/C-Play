@@ -39,5 +39,9 @@
       <min>1</min>
       <max>90</max>
     </entry>
+    <entry name="ImageDecoder" type="String">
+      <label>Image decoder used by ImageLayer.</label>
+      <default>Auto</default>
+    </entry>
   </group>
 </kcfg>

@@ -622,8 +622,12 @@ void Application::updateAboutOtherText(const QString &mpvVersion, const QString 
 #ifdef SPOUT_SUPPORT
     otherText += QStringLiteral("Spout ") + m_spoutSendersModel->getSpoutVersionString() + QStringLiteral(" for sharing video across Windows apps.\n");
 #endif
-#ifdef SAIL_SUPPORT
-    otherText += QStringLiteral("SAIL ") + QStringLiteral(SAIL_VERSION_STRING) + QStringLiteral(" for extended image format decoding.\n");
+#if defined(WUFFS_SUPPORT) && defined(SAIL_SUPPORT)
+    otherText += QStringLiteral("Wuffs and Sail ") + QStringLiteral(SAIL_VERSION_STRING) + QStringLiteral(" for extended image format decoding.\n");
+#elif WUFFS_SUPPORT
+    otherText += QStringLiteral("Wuffs for extended image format decoding.\n");
+#elif SAIL_SUPPORT
+    otherText += QStringLiteral("Sail ") + QStringLiteral(SAIL_VERSION_STRING) + QStringLiteral(" for extended image format decoding.\n");
 #endif
 #ifdef PDF_SUPPORT
     otherText += QStringLiteral("Poppler ") + QString::fromStdString(poppler::version_string()) + QStringLiteral(" for rendering PDF documents.\n");

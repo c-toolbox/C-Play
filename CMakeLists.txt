@@ -237,6 +237,13 @@ if(BUILD_CPLAY_WITH_SAIL)
         URL "https://github.com/HappySeaFox/sail" DESCRIPTION "Support for additional image formats.")
 endif()
 
+option(BUILD_CPLAY_WITH_WUFFS "Global On/Off for Wuffs image decoding support" OFF)
+set(CPLAY_WUFFS_ROOT "D:/Google/wuffs" CACHE PATH "Path to the Wuffs source checkout used by C-Play ImageLayer")
+set(CPLAY_WUFFS_RELEASE_DIR "${CPLAY_WUFFS_ROOT}/release/c")
+if(BUILD_CPLAY_WITH_WUFFS AND NOT EXISTS "${CPLAY_WUFFS_RELEASE_DIR}/wuffs-unsupported-snapshot.c")
+    message(FATAL_ERROR "C-Play ImageLayer Wuffs support requires CPLAY_WUFFS_ROOT; expected ${CPLAY_WUFFS_RELEASE_DIR}/wuffs-unsupported-snapshot.c")
+endif()
+
 option(BUILD_CPLAY_WITH_OPENSSL "Global On/Off for OpenSSL support (HTTPS)" OFF)
 if(BUILD_CPLAY_WITH_OPENSSL)
     find_package(OpenSSL REQUIRED)

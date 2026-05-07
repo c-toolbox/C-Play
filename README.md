@@ -73,7 +73,7 @@ Optional libraries in current C-Play builds include:
 - [NDI](https://ndi.video/for-developers/ndi-sdk/) - Support frame-synced NDI streams, video and audio
 - [OMT](https://openmediatransport.org/) (Open Media Transport) - Support OMT video and audio streams
 - [Poppler](https://poppler.freedesktop.org/) - For rendering PDF pages
-- [SAIL](https://sail.software/) - For more extensive image decoding
+- [Wuffs](https://github.com/google/wuffs) & [Sail](https://sail.software/) - For more extensive image decoding
 # Build on Windows
 
 - Use the [Craft Guide](./docs/guides/build/dependencies/CRAFT_INSTALLS.md) to install all dependencies for the UI, including Qt and KDE Frameworks libraries.

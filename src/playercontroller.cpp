@@ -749,14 +749,19 @@ void PlayerController::setCaptureBackBuffer(bool backBuffer) {
 }
 
 QString PlayerController::supportedImageNameFilters() const {
-    // Base extensions always supported (via stb_image / sgct::Image)
-    QStringList exts;
+    QStringList exts = {
+        QStringLiteral("*.bmp"),
+        QStringLiteral("*.png"),
+        QStringLiteral("*.jpg"),
+        QStringLiteral("*.jpeg"),
+        QStringLiteral("*.tga"),
+    };
+    QSet<QString> extSet;
+    for (const QString &extension : exts) {
+        extSet.insert(extension);
+    }
 #ifdef SAIL_SUPPORT
     // Query SAIL for all supported file extensions at runtime
-    QSet<QString> extSet;
-    for (const auto &baseExt : exts) {
-        extSet.insert(baseExt);
-    }
     try {
         std::vector<sail::codec_info> codecs = sail::codec_info::list();
         for (const auto &codec : codecs) {
@@ -771,12 +776,22 @@ QString PlayerController::supportedImageNameFilters() const {
     } catch (...) {
         // If SAIL enumeration fails, just use the base extensions
     }
-#else
-    exts << QStringLiteral("*.png") << QStringLiteral("*.jpg")
-        << QStringLiteral("*.jpeg") << QStringLiteral("*.tga");
 #endif
 
     return QStringLiteral("Image files (") + exts.join(QStringLiteral(" ")) + QStringLiteral(")");
+}
+
+QStringList PlayerController::supportedImageDecoderNames() const {
+    QStringList decoders;
+    decoders << QStringLiteral("Auto");
+#ifdef WUFFS_SUPPORT
+    decoders << QStringLiteral("Wuffs");
+#endif
+#ifdef SAIL_SUPPORT
+    decoders << QStringLiteral("Sail");
+#endif
+    decoders << QStringLiteral("Sgct");
+    return decoders;
 }
 
 QString PlayerController::imageRingBufferGpuMemoryText(int percent) const {

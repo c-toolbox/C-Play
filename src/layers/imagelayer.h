@@ -14,6 +14,7 @@
 #include <deque>
 #include <mutex>
 #include <memory>
+#include <thread>
 #include <atomic>
 #include <condition_variable>
 #include <chrono>
@@ -24,6 +25,13 @@ namespace sail { class image; }
 
 class ImageLayer : public BaseLayer {
 public:
+    enum class ImageDecoder {
+        Auto,
+        Wuffs,
+        Sail,
+        Sgct
+    };
+
     struct FrameData {
         std::vector<unsigned char> pixels;
         int width = 0;
@@ -39,7 +47,11 @@ public:
     struct ThreadContext {
         std::string filename;
         std::string identifier;
+        ImageDecoder decoder = ImageDecoder::Wuffs;
         sgct::Image img;
+#ifdef WUFFS_SUPPORT
+        bool usedWuffs = false;
+#endif
 #ifdef SAIL_SUPPORT
         std::shared_ptr<sail::image> sailImage;
         int sailWidth = 0;
@@ -79,7 +91,7 @@ public:
 
     bool processImageUpload(std::string filename, bool forceUpdate);
     std::string loadedFile();
-    bool fileIsImage(std::string &filePath);
+    bool fileIsImage(std::string &filePath, ImageLayer::ImageDecoder &decoder);
 
     int frameCount() const;
     int currentFrameIndex() const;
