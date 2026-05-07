@@ -51,7 +51,7 @@ static float getLineWidth(sgct::text::Font& font, const std::string& line) {
 #endif
 
 TextLayer::TextLayer() {
-#ifdef SGCT_HAS_TEXT
+#ifdef TEXT_LAYER
     setType(BaseLayer::LayerType::TEXT);
 #endif
     m_textIsChanged = false;

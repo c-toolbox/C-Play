@@ -7,31 +7,47 @@
 
 #include "baselayer.h"
 #include <layers/imagelayer.h>
+#ifdef VIDEO_LAYER
 #include <layers/videolayer.h>
+#endif
+#ifdef AUDIO_LAYER
 #include <layers/audiolayer.h>
+#endif
 #include <sgct/opengl.h>
 #include <sgct/shareddata.h>
+#ifdef AUDIO_LAYER
 #include "audiosettings.h"
+#endif
+#ifdef NETWORK_SYNC_SETTINGS
 #include "presentationsettings.h"
-#ifdef MDK_SUPPORT
+#endif
+#if defined(MDK_SUPPORT) && defined(VIDEO_LAYER)
 #include <layers/adaptivevideolayer.h>
 #endif
-#ifdef NDI_SUPPORT
+#if defined(NDI_LAYER)
 #include <ndi/ndilayer.h>
 #endif
-#ifdef PDF_SUPPORT
+#if defined(PDF_LAYER)
 #include <layers/pdflayer.h>
 #endif
+#ifdef STREAM_LAYER
 #include <layers/streamlayer.h>
-#ifdef SPOUT_SUPPORT
+#endif
+#if defined(SPOUT_LAYER)
 #include <layers/spoutlayer.h>
 #endif
-#ifdef OMT_SUPPORT
+#if defined(OMT_LAYER)
 #include <omt/omtlayer.h>
 #endif
+#ifdef TEXT_LAYER
 #include <layers/textlayer.h>
+#endif
+#ifdef CONTROL_LAYER
 #include <layers/controllayer.h>
+#endif
+#ifdef REST_LAYER
 #include <layers/restlayer.h>
+#endif
 
 std::atomic_uint32_t BaseLayer::m_id_gen = 1;
 
@@ -39,38 +55,50 @@ std::string BaseLayer::typeDescription(BaseLayer::LayerType e) {
     switch (e) {
     case BASE:
         return "Base";
+#ifdef IMAGE_LAYER
     case IMAGE:
         return "Image";
+#endif
+#ifdef VIDEO_LAYER
     case VIDEO:
         return "Video";
+#endif
+#ifdef AUDIO_LAYER
     case AUDIO:
         return "Audio";
-#ifdef PDF_SUPPORT
+#endif
+#ifdef PDF_LAYER
     case PDF:
         return "PDF";
 #endif
-#ifdef NDI_SUPPORT
+#ifdef NDI_LAYER
     case NDI:
         return "NDI";
 #endif
+#ifdef STREAM_LAYER
     case STREAM:
         return "Stream";
-#ifdef SPOUT_SUPPORT
+#endif
+#ifdef SPOUT_LAYER
     case SPOUT:
         return "Spout";
 #endif
-#ifdef OMT_SUPPORT
+#ifdef OMT_LAYER
     case OMT:
         return "OMT";
 #endif
-#ifdef SGCT_HAS_TEXT
+#ifdef TEXT_LAYER
     case TEXT:
         return "Text";
 #endif
+#ifdef CONTROL_LAYER
     case CONTROL:
         return "Control";
+#endif
+#ifdef REST_LAYER
     case REST:
         return "REST";
+#endif
     default:
         return "";
     }
@@ -84,14 +112,23 @@ std::string BaseLayer::typeDescription(BaseLayer::LayerType e) {
 #define FUNC_V2 gl_adress_func_v2
 #endif
 
-BaseLayer *BaseLayer::createLayer(bool isMaster, int layerType, gl_adress_func_v1 opa1, FUNC_V2, std::string strId, uint32_t numID) {
+#ifdef VIDEO_LAYER
+#define FUNC_V1 gl_adress_func_v1 opa1
+#else
+#define FUNC_V1 gl_adress_func_v1
+#endif
+
+BaseLayer *BaseLayer::createLayer(bool isMaster, int layerType, FUNC_V1, FUNC_V2, std::string strId, uint32_t numID) {
     BaseLayer *newLayer = nullptr;
     switch (layerType) {
+#ifdef IMAGE_LAYER
     case static_cast<int>(BaseLayer::LayerType::IMAGE): {
         ImageLayer *newImg = new ImageLayer(strId);
         newLayer = newImg;
         break;
     }
+#endif
+#ifdef VIDEO_LAYER
     case static_cast<int>(BaseLayer::LayerType::VIDEO): {
 #ifdef MDK_SUPPORT
         if (!isMaster) {
@@ -111,71 +148,82 @@ BaseLayer *BaseLayer::createLayer(bool isMaster, int layerType, gl_adress_func_v
         }
         break;
     }
+#endif
+#ifdef AUDIO_LAYER
     case static_cast<int>(BaseLayer::LayerType::AUDIO): {
         AudioLayer* newAudio = new AudioLayer(opa1);
         newAudio->setEOFMode(2);
         newLayer = newAudio;
         break;
     }
-#ifdef PDF_SUPPORT
+#endif
+#ifdef PDF_LAYER
     case static_cast<int>(BaseLayer::LayerType::PDF): {
         PdfLayer* newPDF = new PdfLayer();
         newLayer = newPDF;
         break;
     }
 #endif
-#ifdef NDI_SUPPORT
+#ifdef NDI_LAYER
     case static_cast<int>(BaseLayer::LayerType::NDI): {
         NdiLayer *newNDI = new NdiLayer();
         newLayer = newNDI;
         break;
     }
 #endif
-#ifdef OMT_SUPPORT
+#ifdef OMT_LAYER
     case static_cast<int>(BaseLayer::LayerType::OMT): {
         OmtLayer* newOmt = new OmtLayer();
         newLayer = newOmt;
         break;
     }
 #endif
-#ifdef SPOUT_SUPPORT
+#ifdef SPOUT_LAYER
     case static_cast<int>(BaseLayer::LayerType::SPOUT): {
         SpoutLayer* newSpout = new SpoutLayer();
         newLayer = newSpout;
         break;
     }
 #endif
+#ifdef STREAM_LAYER
     case static_cast<int>(BaseLayer::LayerType::STREAM): {
         StreamLayer* newStream = new StreamLayer(opa1);
         newLayer = newStream;
         break;
     }
-#ifdef SGCT_HAS_TEXT
+#endif
+#ifdef TEXT_LAYER
     case static_cast<int>(BaseLayer::LayerType::TEXT): {
         TextLayer* newText = new TextLayer();
         newLayer = newText;
         break;
     }
 #endif
+#ifdef CONTROL_LAYER
     case static_cast<int>(BaseLayer::LayerType::CONTROL): {
         ControlLayer* newControl = new ControlLayer();
         newLayer = newControl;
         break;
     }
+#endif
+#ifdef REST_LAYER
     case static_cast<int>(BaseLayer::LayerType::REST): {
         RestLayer* newRest = new RestLayer();
         newLayer = newRest;
         break;
     }
+#endif
     default:
         break;
     }
 
     if (newLayer) {
         newLayer->setIsMaster(isMaster);
+#ifdef AUDIO_LAYER
         if (AudioSettings::enableAudioOnMaster() || AudioSettings::enableAudioOnNodes()) {
             newLayer->enableAudio(true);
         }
+#endif
         if (numID != 0)
             newLayer->setIdentifier(numID);
         else
@@ -1007,5 +1055,9 @@ void BaseLayer::updateIdentifierBasedOnCount() {
 
 void BaseLayer::setNeedSync() {
     m_needSync = true;
+#ifdef NETWORK_SYNC_SETTINGS
     m_syncIteration = PresentationSettings::networkSyncIterations();
+#else
+    m_syncIteration = 1;
+#endif
 }

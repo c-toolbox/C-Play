@@ -8,7 +8,7 @@ set(CPLAY_VERSION_MAJOR 2)
 set(CPLAY_VERSION_MINOR 3)
 set(CPLAY_VERSION_PATCH 0)
 set(CPLAY_VERSION_PR_NAME "Beta")
-set(CPLAY_VERSION_PR_VERS 15)
+set(CPLAY_VERSION_PR_VERS 16)
 
 qt_add_executable(${TARGET_NAME})
 set_compile_options(${TARGET_NAME})
@@ -344,6 +344,21 @@ endif()
 target_include_directories(${TARGET_NAME} PRIVATE layers)
 target_include_directories(${TARGET_NAME} PRIVATE playlist)
 target_compile_definitions(${TARGET_NAME} PRIVATE $<$<OR:$<CONFIG:Debug>,$<CONFIG:RelWithDebInfo>>:QT_QML_DEBUG>)
+target_compile_definitions(${TARGET_NAME} PRIVATE
+    IMAGE_LAYER
+    VIDEO_LAYER
+    AUDIO_LAYER
+    STREAM_LAYER
+    CONTROL_LAYER
+    TEXT_LAYER
+    REST_LAYER
+    NETWORK_SYNC_SETTINGS
+    IMAGE_SETTINGS
+)
+set(TARGET_NAME "C-Play" CACHE STRING "Target name")
+set(CMAKE_CXX_STANDARD 23 CACHE STRING "C++ standard")
+set(CMAKE_C_STANDARD 11 CACHE STRING "C standard")
+set(CMAKE_CXX_EXTENSIONS OFF CACHE BOOL "Disable compiler extensions")
 
 if(WIN32)
     set_target_properties(${TARGET_NAME} PROPERTIES WIN32_EXECUTABLE TRUE)
@@ -361,7 +376,7 @@ endif()
 
 if(BUILD_CPLAY_WITH_NDI)
     list(APPEND TARGET_LIBRARIES NDI::NDI)
-    target_compile_definitions(${TARGET_NAME} PUBLIC NDI_SUPPORT)
+    target_compile_definitions(${TARGET_NAME} PUBLIC NDI_SUPPORT NDI_LAYER)
 
     list(APPEND TARGET_LIBRARIES PortAudio::PortAudio)
 endif()
@@ -373,7 +388,7 @@ endif()
 
 if(BUILD_CPLAY_WITH_SPOUT)
     list(APPEND TARGET_LIBRARIES Spout2::SpoutLibrary)
-    target_compile_definitions(${TARGET_NAME} PUBLIC SPOUT_SUPPORT)
+    target_compile_definitions(${TARGET_NAME} PUBLIC SPOUT_SUPPORT SPOUT_LAYER)
 
     get_target_property(SPOUT_INCLUDE_DIRS Spout2::SpoutLibrary INTERFACE_INCLUDE_DIRECTORIES)
     target_include_directories(${TARGET_NAME} PRIVATE ${SPOUT_INCLUDE_DIRS})
@@ -382,13 +397,13 @@ endif()
 if(BUILD_CPLAY_WITH_OMT)
     list(APPEND TARGET_LIBRARIES OMT::OMT)
     list(APPEND TARGET_LIBRARIES PortAudio::PortAudio)
-    target_compile_definitions(${TARGET_NAME} PUBLIC OMT_SUPPORT)
+    target_compile_definitions(${TARGET_NAME} PUBLIC OMT_SUPPORT OMT_LAYER)
     target_include_directories(${TARGET_NAME} PRIVATE ${OMT_INCLUDE_DIRS})
 endif()
 
 if(BUILD_CPLAY_WITH_POPPLER)
     list(APPEND TARGET_LIBRARIES Poppler::Cpp)
-    target_compile_definitions(${TARGET_NAME} PUBLIC PDF_SUPPORT)
+    target_compile_definitions(${TARGET_NAME} PUBLIC PDF_SUPPORT PDF_LAYER)
 
     get_target_property(POPPLER_INCLUDE_DIRS Poppler::Cpp INTERFACE_INCLUDE_DIRECTORIES)
     target_include_directories(${TARGET_NAME} PRIVATE ${POPPLER_INCLUDE_DIRS})

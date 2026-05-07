@@ -45,6 +45,7 @@ public:
         std::atomic_bool pageDone = false;
         std::atomic_bool uploadDone = false;
         std::atomic_bool threadDone = false;
+        std::atomic_bool textureReady = false;
     };
 
     PdfLayer();

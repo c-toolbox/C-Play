@@ -18,9 +18,15 @@ class BaseLayer {
 public:
     enum LayerType {
         BASE,
+#ifdef IMAGE_LAYER
         IMAGE,
+#endif
+#ifdef VIDEO_LAYER
         VIDEO,
+#endif
+#ifdef AUDIO_LAYER
         AUDIO,
+#endif
 #ifdef PDF_SUPPORT
         PDF,
 #endif
@@ -33,12 +39,18 @@ public:
 #ifdef SPOUT_SUPPORT
         SPOUT,
 #endif
+#ifdef STREAM_LAYER
         STREAM,
-#ifdef SGCT_HAS_TEXT
+#endif
+#ifdef TEXT_LAYER
         TEXT,
 #endif
+#ifdef CONTROL_LAYER
         CONTROL,
+#endif
+#ifdef REST_LAYER
         REST,
+#endif
         INVALID
     };
 

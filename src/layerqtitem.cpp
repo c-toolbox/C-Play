@@ -859,13 +859,16 @@ void LayerQtItem::loadTracks() {
 }
 
 QString LayerQtItem::layerText() const {
+#ifdef TEXT_LAYER
     if (m_layer && m_layer->type() == BaseLayer::TEXT) {
         TextLayer* textLayer = static_cast<TextLayer*>(m_layer);
         return QString::fromStdString(textLayer->text());
     }
+#endif
     return QStringLiteral("");
 }
 
+#ifdef TEXT_LAYER
 void LayerQtItem::setLayerText(QString text) {
     if (m_layer && m_layer->isEnabled() && m_layer->type() == BaseLayer::TEXT) {
         TextLayer* textLayer = static_cast<TextLayer*>(m_layer);
@@ -874,16 +877,22 @@ void LayerQtItem::setLayerText(QString text) {
             Q_EMIT layerValueChanged();
         }
     }
+#else
+void LayerQtItem::setLayerText(QString) {
+#endif
 }
 
 QString LayerQtItem::layerTextFontName() const {
+#ifdef TEXT_LAYER
     if (m_layer && m_layer->type() == BaseLayer::TEXT) {
         TextLayer* textLayer = static_cast<TextLayer*>(m_layer);
         return QString::fromStdString(textLayer->fontName());
     }
+#endif
     return SubtitleSettings::subtitleFontFamily();
 }
 
+#ifdef TEXT_LAYER
 void LayerQtItem::setLayerTextFontName(QString name) {
     if (m_layer && m_layer->isEnabled() && m_layer->type() == BaseLayer::TEXT) {
         TextLayer* textLayer = static_cast<TextLayer*>(m_layer);
@@ -893,16 +902,22 @@ void LayerQtItem::setLayerTextFontName(QString name) {
             Q_EMIT layerNeedsSave();
         }
     }
+#else
+void LayerQtItem::setLayerTextFontName(QString) {
+#endif
 }
 
 int LayerQtItem::layerTextFontSize() const {
+#ifdef TEXT_LAYER
     if (m_layer && m_layer->type() == BaseLayer::TEXT) {
         TextLayer* textLayer = static_cast<TextLayer*>(m_layer);
         return textLayer->fontSize();
     }
+#endif
     return SubtitleSettings::subtitleFontSize();
 }
 
+#ifdef TEXT_LAYER
 void LayerQtItem::setLayerTextFontSize(int size) {
     if (m_layer && m_layer->isEnabled() && m_layer->type() == BaseLayer::TEXT) {
         TextLayer* textLayer = static_cast<TextLayer*>(m_layer);
@@ -912,16 +927,22 @@ void LayerQtItem::setLayerTextFontSize(int size) {
             Q_EMIT layerNeedsSave();
         }
     }
+#else
+void LayerQtItem::setLayerTextFontSize(int) {
+#endif
 }
 
 QColor LayerQtItem::layerTextFontColor() const {
+#ifdef TEXT_LAYER
     if (m_layer && m_layer->type() == BaseLayer::TEXT) {
         TextLayer* textLayer = static_cast<TextLayer*>(m_layer);
         return QColor(QString::fromStdString(textLayer->colorHex()));
     }
+#endif
     return QColor(SubtitleSettings::subtitleColor());
 }
 
+#ifdef TEXT_LAYER
 void LayerQtItem::setLayerTextFontColor(QColor color) {
     if (m_layer && m_layer->isEnabled() && m_layer->type() == BaseLayer::TEXT) {
         TextLayer* textLayer = static_cast<TextLayer*>(m_layer);
@@ -931,16 +952,22 @@ void LayerQtItem::setLayerTextFontColor(QColor color) {
             Q_EMIT layerNeedsSave();
         }
     }
+#else
+void LayerQtItem::setLayerTextFontColor(QColor) {
+#endif
 }
 
 int LayerQtItem::layerTextAlignment() const {
+#ifdef TEXT_LAYER
     if (m_layer && m_layer->type() == BaseLayer::TEXT) {
         TextLayer* textLayer = static_cast<TextLayer*>(m_layer);
         return textLayer->alignment();
     }
+#endif
     return SubtitleSettings::subtitleAlignment();
 }
 
+#ifdef TEXT_LAYER
 void LayerQtItem::setLayerTextAlignment(int align) {
     if (m_layer && m_layer->isEnabled() && m_layer->type() == BaseLayer::TEXT) {
         TextLayer* textLayer = static_cast<TextLayer*>(m_layer);
@@ -950,16 +977,22 @@ void LayerQtItem::setLayerTextAlignment(int align) {
             Q_EMIT layerNeedsSave();
         }
     }
+#else
+void LayerQtItem::setLayerTextAlignment(int) {
+#endif
 }
 
 QSize LayerQtItem::layerTextRenderSize() const {
+#ifdef TEXT_LAYER
     if (m_layer && m_layer->type() == BaseLayer::TEXT) {
         TextLayer* textLayer = static_cast<TextLayer*>(m_layer);
         return QSize(textLayer->width(), textLayer->height());
     }
+#endif
     return QSize(SubtitleSettings::subtitleTextureWidth(), SubtitleSettings::subtitleTextureHeight());
 }
 
+#ifdef TEXT_LAYER
 void LayerQtItem::setLayerTextRenderSize(QSize size) {
     if (m_layer && m_layer->isEnabled() && m_layer->type() == BaseLayer::TEXT) {
         TextLayer* textLayer = static_cast<TextLayer*>(m_layer);
@@ -970,6 +1003,9 @@ void LayerQtItem::setLayerTextRenderSize(QSize size) {
             Q_EMIT layerNeedsSave();
         }
     }
+#else
+void LayerQtItem::setLayerTextRenderSize(QSize) {
+#endif
 }
 
 bool LayerQtItem::layerQRCodeDetectionEnabled() const {
@@ -1276,28 +1312,6 @@ void LayerQtItem::setLayerRestIgnoreStatus(bool ignore) {
             Q_EMIT layerValueChanged();
             Q_EMIT layerNeedsSave();
         }
-    }
-}
-
-void LayerQtItem::setLayerImageSequence(const QString &directory, const QString &prefix,
-                                        int digitCount, const QString &suffix,
-                                        int startIndex, int stopIndex, int step,
-                                        int delayMs, bool loop) {
-    if (m_layer && m_layer->isEnabled() && m_layer->type() == BaseLayer::IMAGE) {
-        ImageLayer* imageLayer = static_cast<ImageLayer*>(m_layer);
-        ImageLayer::SequenceParams params;
-        params.directory = directory.toStdString();
-        params.prefix = prefix.toStdString();
-        params.suffix = suffix.toStdString();
-        params.digitCount = digitCount;
-        params.startIndex = startIndex;
-        params.stopIndex = stopIndex;
-        params.step = step;
-        params.delayMs = delayMs;
-        params.loop = loop;
-        imageLayer->setSequenceParams(params);
-        Q_EMIT layerValueChanged();
-        Q_EMIT layerNeedsSave();
     }
 }
 

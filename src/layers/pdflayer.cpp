@@ -151,6 +151,7 @@ void PdfLayer::update(bool updateRendering) {
 
     if ((updateRendering || !ready()) && loadPage && page() > 0) {
         m_pdfData.page = page();
+        m_pdfData.textureReady = false;
         sgct::Log::Info(std::format("Loading page {} in {} asynchronously.", m_pdfData.page, m_pdfData.filepath));
         m_pdfData.threadRunning = true;
         m_pdfData.trd = std::make_unique<std::thread>(loadPageAsync, std::ref(m_pdfData));
@@ -158,7 +159,7 @@ void PdfLayer::update(bool updateRendering) {
 }
 
 bool PdfLayer::ready() const {
-    return !m_pdfData.filepath.empty() && m_pdfData.threadDone;
+    return !m_pdfData.filepath.empty() && m_pdfData.textureReady && (m_pdfData.page == page());
 }
 
 bool PdfLayer::hasTexture() const {
@@ -239,6 +240,7 @@ void PdfLayer::handleAsyncPageRender() {
                 loadPageAsTexture(renderData.texId, m_pdfData.img.width(), m_pdfData.img.height(), m_pdfData.img.format(), m_pdfData.img.const_data());
             }
             sgct::Log::Info(std::format("Page {} in {} loaded with width {} and height {}.", m_pdfData.page, m_pdfData.filepath, renderData.width, renderData.height));
+            m_pdfData.textureReady = true;
             m_pdfData.uploadDone = true;
         }
         else if (m_pdfData.threadDone) {

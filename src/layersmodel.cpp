@@ -306,7 +306,20 @@ int LayersModel::addLayer(QString title, int type, QString filepath, int stereoM
 
         newLayer->setHierarchy(hierarchy());
         newLayer->setTitle(title.toStdString());
-        if (type == BaseLayer::TEXT) {
+        if (type == BaseLayer::CONTROL) {
+            ControlLayer* newControlLayer = static_cast<ControlLayer*>(newLayer);
+            // filepath holds "operation:parameter"
+            int sepIdx = filepath.indexOf(QStringLiteral(":"));
+            if (sepIdx >= 0) {
+                newControlLayer->setOperation(filepath.left(sepIdx).toStdString());
+                newControlLayer->setParameter(filepath.mid(sepIdx + 1).toStdString());
+            }
+            else {
+                newControlLayer->setOperation(filepath.toStdString());
+            }
+        }
+#ifdef TEXT_LAYER
+        else if (type == BaseLayer::TEXT) {
             TextLayer* newTextLayer = static_cast<TextLayer*>(newLayer);
             newTextLayer->setFont(SubtitleSettings::subtitleFontFamily().toStdString());
             newTextLayer->setFontSize(SubtitleSettings::subtitleFontSize());
@@ -316,17 +329,7 @@ int LayersModel::addLayer(QString title, int type, QString filepath, int stereoM
             newTextLayer->setColor(textColor.name().toStdString(), textColor.redF(), textColor.greenF(), textColor.blueF());
             newTextLayer->setText(filepath.toStdString());
         }
-        else if (type == BaseLayer::CONTROL) {
-            ControlLayer* newControlLayer = static_cast<ControlLayer*>(newLayer);
-            // filepath holds "operation:parameter"
-            int sepIdx = filepath.indexOf(QStringLiteral(":"));
-            if (sepIdx >= 0) {
-                newControlLayer->setOperation(filepath.left(sepIdx).toStdString());
-                newControlLayer->setParameter(filepath.mid(sepIdx + 1).toStdString());
-            } else {
-                newControlLayer->setOperation(filepath.toStdString());
-            }
-        }
+#endif
         else if (newLayer->type() == BaseLayer::REST && Application::isCreated()) {
             RestLayer* newRestLayer = static_cast<RestLayer*>(newLayer);
             newRestLayer->setHttpClientModel(Application::instance().httpClientModel());
@@ -939,7 +942,7 @@ void LayersModel::decodeFromJSON(QJsonObject &obj, const QStringList &forRelativ
                     if (idx < 0)
                         continue;
 
-#ifdef SGCT_HAS_TEXT
+#ifdef TEXT_LAYER
                     if (type == BaseLayer::TEXT) {
                         std::shared_ptr<TextLayer> textLayer = std::static_pointer_cast<TextLayer>(m_layers[idx].first);
                         if (o.contains(QStringLiteral("text"))) {
@@ -1340,7 +1343,7 @@ void LayersModel::encodeToJSON(QJsonObject &obj, const QStringList &forRelativeP
             layerData.insert(QStringLiteral("path"), QJsonValue(QString::fromStdString(layer->filepath())));
         }
 
-#ifdef SGCT_HAS_TEXT
+#ifdef TEXT_LAYER
         if (layer->type() == BaseLayer::TEXT) {
             std::shared_ptr<TextLayer> textLayer = std::static_pointer_cast<TextLayer>(layer);
             layerData.insert(QStringLiteral("text"), QJsonValue(QString::fromStdString(textLayer->text())));

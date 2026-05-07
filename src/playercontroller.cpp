@@ -793,48 +793,6 @@ QString PlayerController::imageRingBufferGpuMemoryText(int percent) const {
     return formatMemoryBudgetText(budgetBytes);
 }
 
-QString PlayerController::imageRingBufferCpuMemoryText(int percent) const {
-    const std::uint64_t totalSystemMemoryBytes = ImageLayer::totalSystemMemoryBytes();
-    if (totalSystemMemoryBytes == 0) {
-        return tr("System memory not detected");
-    }
-
-    if (percent < 1) percent = 1;
-    if (percent > 90) percent = 90;
-
-    const std::uint64_t budgetBytes =
-        (totalSystemMemoryBytes * static_cast<std::uint64_t>(percent)) / 100ULL;
-    return formatMemoryBudgetText(budgetBytes);
-}
-
-QString PlayerController::imageBufferingThreadRecommendationText() const {
-    const unsigned int concurrency = std::thread::hardware_concurrency();
-    if (concurrency == 0) {
-        return tr("Recommended: use your CPU thread count if known. Applied on next image load.");
-    }
-
-    return tr("Recommended concurrent threads: %1. Applied on next image load.").arg(concurrency);
-}
-
-QVariantMap PlayerController::scanImageSequence(const QString &path) const {
-    QVariantMap result;
-    QString filePath = path;
-    filePath.replace(QStringLiteral("file:///"), QStringLiteral(""));
-
-    ImageSequenceScanResult scan = ImageSequenceUtils::scanImageSequence(filePath);
-    result.insert(QStringLiteral("ok"), scan.ok);
-    result.insert(QStringLiteral("count"), scan.count);
-    result.insert(QStringLiteral("firstIndex"), scan.firstIndex);
-    result.insert(QStringLiteral("lastIndex"), scan.lastIndex);
-    result.insert(QStringLiteral("selectedIndex"), scan.selectedIndex);
-    result.insert(QStringLiteral("missingFrames"), scan.missingFrames);
-    result.insert(QStringLiteral("prefix"), scan.prefix);
-    result.insert(QStringLiteral("suffix"), scan.suffix);
-    result.insert(QStringLiteral("digitCount"), scan.digitCount);
-    result.insert(QStringLiteral("message"), scan.message);
-    return result;
-}
-
 MpvObject *PlayerController::mpv() const {
     return m_mpv;
 }
