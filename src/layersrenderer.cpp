@@ -718,14 +718,18 @@ void LayersRenderer::renderLayers(const sgct::RenderData &data, int viewMode, fl
         currentEye = sgct::FrustumMode::StereoLeft;
     }
 
+    const int currentEyeInt = static_cast<int>(currentEye);
+
     for (const auto &layer : layers2render) {
         if (layer->hasSubLayers()) {
             for (const auto& sublayer : layer->getSubLayers()) {
-                renderLayer(data, sublayer.get(), currentEye, angle);
+                if (sublayer->shouldRenderForEye(currentEyeInt))
+                    renderLayer(data, sublayer.get(), currentEye, angle);
             }
         }
         else if (!layer->isQRCodeDetectionEnabled() || layer->isQRCodeDetectionEnabled() && !layer->hasSubLayers()) {
-            renderLayer(data, layer.get(), currentEye, angle);
+            if (layer->shouldRenderForEye(currentEyeInt))
+                renderLayer(data, layer.get(), currentEye, angle);
         }
     }
 }

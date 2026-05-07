@@ -539,9 +539,12 @@ private:
     bool m_syncVolumeVisibilityFading;
     bool m_autoPlay;
 
-    std::unique_ptr<PlaneGrid> m_planeGrid;
-    float m_planeGridWidth = 0.f;
-    float m_planeGridHeight = 0.f;
+    mutable std::unique_ptr<PlaneGrid> m_planeGrid;
+    mutable float m_planeGridWidth = 0.f;
+    mutable float m_planeGridHeight = 0.f;
+    float m_planeGridPendingWidth = 0.f;
+    float m_planeGridPendingHeight = 0.f;
+    mutable bool m_planeGridDirty = true;
 
     void loadTracks();
     void updateRecentLoadedMediaFiles(QString path);

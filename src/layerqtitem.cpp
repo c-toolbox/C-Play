@@ -109,6 +109,23 @@ void LayerQtItem::setLayerStereoMode(int mode) {
     }
 }
 
+int LayerQtItem::layerEyeMode() const {
+    if (m_layer)
+        return m_layer->eyeMode();
+    else
+        return static_cast<int>(BaseLayer::EyeMode::Both);
+}
+
+void LayerQtItem::setLayerEyeMode(int mode) {
+    if (m_layer && m_layer->isEnabled()) {
+        if (m_layer->eyeMode() != static_cast<uint8_t>(mode)) {
+            m_layer->setEyeMode(static_cast<uint8_t>(mode));
+            Q_EMIT layerNeedsSave();
+        }
+        Q_EMIT layerValueChanged();
+    }
+}
+
 int LayerQtItem::layerGridMode() const{
     BaseLayer* sub = selectedSubLayerPtr();
     if (sub)

@@ -54,6 +54,12 @@ public:
         TBF_3D
     };
 
+    enum EyeMode {
+        Both,
+        Left,
+        Right
+    };
+
     enum GridMode {
         None,
         Plane,
@@ -75,6 +81,7 @@ public:
         bool flipY = false;
         uint8_t gridMode = 0;
         uint8_t stereoMode = 0;
+        uint8_t eyeMode = 0;
         bool roiEnabled = false;
         glm::vec3 rotate = glm::vec3(0);
         glm::vec3 translate = glm::vec3(0);
@@ -240,6 +247,10 @@ public:
     uint8_t stereoMode() const;
     void setStereoMode(uint8_t s);
 
+    uint8_t eyeMode() const;
+    void setEyeMode(uint8_t e);
+    bool shouldRenderForEye(int frustumEye) const;
+
     const glm::vec3 &rotate() const;
     void setRotate(glm::vec3 &r);
 
@@ -289,6 +300,8 @@ public:
     void setIsMaster(bool value);
     void setIdentifier(uint32_t id);
     void updateIdentifierBasedOnCount();
+
+    bool shouldRenderForEye() const;
 
 protected:
     void setNeedSync();

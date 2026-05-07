@@ -428,6 +428,7 @@ void BaseLayer::decodeBaseAlways(const std::vector<std::byte>& data, unsigned in
 void BaseLayer::encodeBaseProperties(std::vector<std::byte>& data) const {
     sgct::serializeObject(data, renderData.gridMode);
     sgct::serializeObject(data, renderData.stereoMode);
+    sgct::serializeObject(data, renderData.eyeMode);
 
     sgct::serializeObject(data, renderData.roiEnabled);
     if (renderData.roiEnabled) {
@@ -458,6 +459,7 @@ void BaseLayer::encodeBaseProperties(std::vector<std::byte>& data) const {
 void BaseLayer::decodeBaseProperties(const std::vector<std::byte>& data, unsigned int& pos) {
     sgct::deserializeObject(data, pos, renderData.gridMode);
     sgct::deserializeObject(data, pos, renderData.stereoMode);
+    sgct::deserializeObject(data, pos, renderData.eyeMode);
 
     sgct::deserializeObject(data, pos, renderData.roiEnabled);
     if (renderData.roiEnabled) {
@@ -757,6 +759,25 @@ void BaseLayer::setStereoMode(uint8_t s) {
     setNeedSync();
 }
 
+uint8_t BaseLayer::eyeMode() const {
+    return renderData.eyeMode;
+}
+
+void BaseLayer::setEyeMode(uint8_t e) {
+    renderData.eyeMode = e;
+    setNeedSync();
+}
+
+// Returns false if this layer should be skipped for the given frustum eye
+ // (frustumEye: 0=Mono, 1=StereoLeft, 2=StereoRight - matches sgct::FrustumMode)
+bool BaseLayer::shouldRenderForEye(int frustumEye) const {
+    if (renderData.eyeMode == static_cast<uint8_t>(EyeMode::Left))
+        return frustumEye != 2;
+    if (renderData.eyeMode == static_cast<uint8_t>(EyeMode::Right))
+        return frustumEye == 2;
+    return true;
+}
+
 const glm::vec3 &BaseLayer::rotate() const {
     return renderData.rotate;
 }
@@ -926,30 +947,40 @@ void BaseLayer::updatePlane() {
 
     glm::vec2 calculatedPlaneSize = planeData.specifiedSize;
     int sm = renderData.stereoMode;
+
+    float ratioMultiplier = 1.0f;
+    if (sm == 1) { // Side-by-side
+        //Check if we would should do FullSBS or HalfSBS based on aspect ratio
+        if (width / height >= 2.f) {
+            ratioMultiplier = 0.5f;
+        }
+    }
+    else if (sm == 2) { // Top-bottom
+        //Check if we would should do FullTP or HalfTP based on aspect ratio
+        if (height / width >= 1.f) {
+            ratioMultiplier = 2.0f;
+        }
+    }
+    else if (sm == 3) { // Top-bottom-flip
+        ratioMultiplier = 2.0f;
+    }
+
     if (planeData.aspectRatioConsideration == 1) { // Calculate width from video
         float ratio = width / height;
 
-        if (sm == 1) { // Side-by-side
-            ratio *= 0.5f;
-        } else if (sm == 2) { // Top-bottom
-            ratio *= 2.0f;
-        } else if (sm == 3) { // Top-bottom-flip
+        if (sm == 3) { // Top-bottom-flip
             ratio = height / width;
-            ratio *= 2.0f;
         }
+        ratio *= ratioMultiplier;
 
         calculatedPlaneSize.x = ratio * planeData.specifiedSize.y;
     } else if (planeData.aspectRatioConsideration == 2) { // Calculate height from video
         float ratio = height / width;
 
-        if (sm == 1) { // Side-by-side
-            ratio *= 0.5f;
-        } else if (sm == 2) { // Top-bottom
-            ratio *= 2.0f;
-        } else if (sm == 3) { // Top-bottom-flip
+        if (sm == 3) { // Top-bottom-flip
             ratio = width / height;
-            ratio *= 2.0f;
         }
+        ratio *= ratioMultiplier;
 
         calculatedPlaneSize.y = ratio * planeData.specifiedSize.x;
     }

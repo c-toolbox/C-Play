@@ -67,6 +67,7 @@ class LayerQtItem : public QQuickItem {
 
     Q_PROPERTY(int layerIdx READ layerIdx WRITE setLayerIdx NOTIFY layerChanged)
     Q_PROPERTY(int layerStereoMode READ layerStereoMode WRITE setLayerStereoMode NOTIFY layerValueChanged)
+    Q_PROPERTY(int layerEyeMode READ layerEyeMode WRITE setLayerEyeMode NOTIFY layerValueChanged)
     Q_PROPERTY(int layerGridMode READ layerGridMode WRITE setLayerGridMode NOTIFY layerValueChanged)
     Q_PROPERTY(int layerVisibility READ layerVisibility WRITE setLayerVisibility NOTIFY layerValueChanged)
     Q_PROPERTY(bool layerHasAudio READ layerHasAudio NOTIFY layerPositionChanged)
@@ -134,6 +135,9 @@ public:
 
     int layerStereoMode() const;
     void setLayerStereoMode(int mode);
+
+    int layerEyeMode() const;
+    void setLayerEyeMode(int mode);
 
     int layerGridMode() const;
     void setLayerGridMode(int mode);

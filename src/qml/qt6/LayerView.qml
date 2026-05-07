@@ -140,18 +140,18 @@ Kirigami.ApplicationWindow {
 
     color: Kirigami.Theme.alternateBackgroundColor
     height: 630
-    minimumWidth: 690
+    minimumWidth: 820
     title: qsTr("")
     visible: false
-    width: 690
+    width: 820
 
     Component.onCompleted: {
         if (window.x > width) {
             x = window.x - width;
         } else {
-            x = Screen.width / 2 - width;
+            x = Screen.width / 2 - (width / 2);
         }
-        y = Screen.height / 2 - height / 2;
+        y = Screen.height / 2 - (height / 2);
     }
     onClosing: {
         destroyRoiComponents();
@@ -248,7 +248,6 @@ Kirigami.ApplicationWindow {
                 ComboBox {
                     id: stereoscopicModeForLayer
 
-                    Layout.fillWidth: true
                     focusPolicy: Qt.NoFocus
                     textRole: "mode"
                     enabled: layerViewItem.layerTypeName !== "Audio"
@@ -277,6 +276,40 @@ Kirigami.ApplicationWindow {
                     Component.onCompleted: {}
                     onActivated: {
                         layerViewItem.layerStereoMode = model.get(index).value;
+                    }
+                }
+                Label {
+                    Layout.alignment: Qt.AlignRight
+                    text: qsTr("Eyes:")
+                    enabled: layerViewItem.layerTypeName !== "Audio"
+                }   
+                ComboBox {
+                    id: eyeModeForLayer
+
+                    focusPolicy: Qt.NoFocus
+                    textRole: "mode"
+                    enabled: layerViewItem.layerTypeName !== "Audio"
+
+                    model: ListModel {
+                        id: eyeModeForLayerList
+
+                        ListElement {
+                            mode: "Both"
+                            value: 0
+                        }
+                        ListElement {
+                            mode: "Left Only"
+                            value: 1
+                        }
+                        ListElement {
+                            mode: "Right Only"
+                            value: 2
+                        }
+                    }
+
+                    Component.onCompleted: {}
+                    onActivated: {
+                        layerViewItem.layerEyeMode = model.get(index).value;
                     }
                 }
                 Label {
@@ -1782,6 +1815,12 @@ Kirigami.ApplicationWindow {
                     for (let sm = 0; sm < stereoscopicModeForLayerList.count; ++sm) {
                         if (stereoscopicModeForLayerList.get(sm).value === layerViewItem.layerStereoMode) {
                             stereoscopicModeForLayer.currentIndex = sm;
+                            break;
+                        }
+                    }
+                    for (let em = 0; em < eyeModeForLayerList.count; ++em) {
+                        if (eyeModeForLayerList.get(em).value === layerViewItem.layerEyeMode) {
+                            eyeModeForLayer.currentIndex = em;
                             break;
                         }
                     }

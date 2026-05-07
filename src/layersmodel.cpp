@@ -1119,6 +1119,16 @@ void LayersModel::decodeFromJSON(QJsonObject &obj, const QStringList &forRelativ
                         m_layers[idx].first->setFlipY(flipY);
                     }
 
+                    if (o.contains(QStringLiteral("eye_mode"))) {
+                        QString em = o.value(QStringLiteral("eye_mode")).toString();
+                        if (em == QStringLiteral("left"))
+                            m_layers[idx].first->setEyeMode(static_cast<uint8_t>(BaseLayer::EyeMode::Left));
+                        else if (em == QStringLiteral("right"))
+                            m_layers[idx].first->setEyeMode(static_cast<uint8_t>(BaseLayer::EyeMode::Right));
+                        else
+                            m_layers[idx].first->setEyeMode(static_cast<uint8_t>(BaseLayer::EyeMode::Both));
+                    }
+
                     if (grid == BaseLayer::GridMode::Plane && o.contains(QStringLiteral("plane"))) {
                         QJsonValue planeValues = o.value(QStringLiteral("plane"));
                         QJsonArray planeArray = planeValues.toArray();
@@ -1517,6 +1527,15 @@ void LayersModel::encodeToJSON(QJsonObject &obj, const QStringList &forRelativeP
 
         if (layer->flipY()) {
             layerData.insert(QStringLiteral("flipY"), QJsonValue(true));
+        }
+
+        if (layer->eyeMode() != static_cast<uint8_t>(BaseLayer::EyeMode::Both)) {
+            QString em;
+            if (layer->eyeMode() == static_cast<uint8_t>(BaseLayer::EyeMode::Left))
+                em = QStringLiteral("left");
+            else
+                em = QStringLiteral("right");
+            layerData.insert(QStringLiteral("eye_mode"), QJsonValue(em));
         }
 
         // Plane properties

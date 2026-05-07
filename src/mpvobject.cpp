@@ -1760,14 +1760,21 @@ void MpvObject::updatePlane() {
         calcHeight = ratio * calcWidth;
     }
 
-    if (m_planeGrid == nullptr || calcWidth != m_planeGridWidth || calcHeight != m_planeGridHeight) {
-        m_planeGridWidth = calcWidth;
-        m_planeGridHeight = calcHeight;
-        m_planeGrid = std::make_unique<PlaneGrid>(calcWidth / 100.f, calcHeight / 100.f);
+    if (calcWidth != m_planeGridPendingWidth || calcHeight != m_planeGridPendingHeight) {
+        m_planeGridPendingWidth = calcWidth;
+        m_planeGridPendingHeight = calcHeight;
+        m_planeGridDirty = true;
     }
 }
 
 void MpvObject::drawPlane() const {
+    // Create/recreate the PlaneGrid on the render thread (where GL context is current)
+    if (m_planeGridDirty) {
+        m_planeGridWidth = m_planeGridPendingWidth;
+        m_planeGridHeight = m_planeGridPendingHeight;
+        m_planeGrid = std::make_unique<PlaneGrid>(m_planeGridWidth / 100.f, m_planeGridHeight / 100.f);
+        m_planeGridDirty = false;
+    }
     if (m_planeGrid) {
         m_planeGrid->draw();
     }
