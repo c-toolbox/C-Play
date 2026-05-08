@@ -40,6 +40,19 @@ std::string logFilePath = "";
 std::string logLevel = "";
 std::string startupFile = "";
 
+struct PendingLayerPacket {
+    uint32_t id = 0;
+    bool fullSync = false;
+    int layerType = -1;
+    std::vector<std::byte> payload;
+};
+
+std::mutex pendingLayerPacketsMutex;
+std::vector<PendingLayerPacket> pendingLayerPackets;
+bool pendingLayerPacketsAvailable = false;
+bool pendingLayerPacketsFullSync = false;
+bool pendingPreLoadLayers = false;
+
 std::vector<std::shared_ptr<BaseLayer>> primaryLayers;
 std::shared_ptr<ImageLayer> backgroundImageLayer;
 std::shared_ptr<ImageLayer> foregroundImageLayer;
@@ -313,18 +326,18 @@ static std::vector<std::byte> encode() {
                             bool needSync = nextLayer->needSync();
                             serializeObject(data, needSync);   // Check needs sync
                             serializeObject(data, static_cast<int>(nextLayer->type())); // Type
+
+                            std::vector<std::byte> layerData;
                             if (needSync) {
-                                nextLayer->encodeFull(data);
+                                nextLayer->encodeFull(layerData);
                                 nextLayer->setHasSynced();
                             }
                             else {
-                                // Encode always data with a size prefix so clients can skip if layer not found
-                                std::vector<std::byte> alwaysData;
-                                nextLayer->encodeAlways(alwaysData);
-                                int alwaysSize = static_cast<int>(alwaysData.size());
-                                serializeObject(data, alwaysSize);
-                                data.insert(data.end(), alwaysData.begin(), alwaysData.end());
+                                nextLayer->encodeAlways(layerData);
                             }
+                            int layerDataSize = static_cast<int>(layerData.size());
+                            serializeObject(data, layerDataSize);
+                            data.insert(data.end(), layerData.begin(), layerData.end());
                         }
                     }
                     slideRaw->setHasSynced();
@@ -521,7 +534,8 @@ static void decode(const std::vector<std::byte> &data) {
         if (!safeToRead()) return;
         bool layerSync = false;
         deserializeObject(data, pos, layerSync);
-        deserializeObject(data, pos, preLoadLayers);
+        bool decodedPreLoadLayers = false;
+        deserializeObject(data, pos, decodedPreLoadLayers);
         int numLayers = -1;
         deserializeObject(data, pos, numLayers);
 
@@ -531,110 +545,56 @@ static void decode(const std::vector<std::byte> &data) {
             return;
         }
 
+        std::vector<PendingLayerPacket> decodedLayerPackets;
+        decodedLayerPackets.reserve(static_cast<size_t>(numLayers));
+
         if (layerSync) {
-            uint32_t id;
-            updateLayers = true;
             for (int i = 0; i < numLayers; i++) {
-                if (!safeToRead(sizeof(uint32_t) + sizeof(bool) + sizeof(int))) return;
-                deserializeObject(data, pos, id);
-                bool perLayerSync = false;
-                deserializeObject(data, pos, perLayerSync);
-                int layerType = -1;
-                deserializeObject(data, pos, layerType);
-                // Check if already updated this layer before a draw has been made
-                auto it_up = find_if(secondaryLayersToKeep.begin(), secondaryLayersToKeep.end(),
-                                     [&id](const std::shared_ptr<BaseLayer>&t1) { return (t1 ? t1->identifier() == id : false); });
-                if (it_up == secondaryLayersToKeep.end()) {
-                    // Find if layer exists in all previously created layers
-                    auto it = find_if(secondaryLayers.begin(), secondaryLayers.end(),
-                                      [&id](const std::shared_ptr<BaseLayer>&t1) { return (t1 ? t1->identifier() == id : false); });
-                    if (it != secondaryLayers.end()) { // If exist, sync if needed
-                        if (perLayerSync) {
-                            unsigned int posBefore = pos;
-                            (*it)->decodeFull(data, pos);
-                            if (pos < posBefore || pos > data.size()) {
-                                Log::Warning("Decode: decodeFull overran buffer for layer " + std::to_string(id));
-                                return;
-                            }
-                        } else {
-                            if (!safeToRead(sizeof(int))) return;
-                            int alwaysSize = 0;
-                            deserializeObject(data, pos, alwaysSize);
-                            if (alwaysSize < 0 || pos + static_cast<unsigned int>(alwaysSize) > data.size()) {
-                                Log::Warning("Decode: invalid alwaysSize for existing layer " + std::to_string(id));
-                                return;
-                            }
-                            (*it)->decodeAlways(data, pos);
-                        }
-                        secondaryLayersToKeep.push_back(*it);
-                    } else if (perLayerSync) { // Did not exist. Let's create it
-                        BaseLayer *newLayer = BaseLayer::createLayer(false, layerType, get_proc_address_glfw_v1, get_proc_address_glfw_v2, std::to_string(id), id);
-                        if (newLayer) {
-                            unsigned int posBefore = pos;
-                            newLayer->decodeFull(data, pos);
-                            if (pos < posBefore || pos > data.size()) {
-                                Log::Warning("Decode: decodeFull overran buffer for new layer " + std::to_string(id));
-                                delete newLayer;
-                                return;
-                            }
-                            secondaryLayersToKeep.push_back(std::shared_ptr<BaseLayer>(newLayer));
-                        } else {
-                            Log::Warning("Decode: failed to create layer type=" + std::to_string(layerType) + " id=" + std::to_string(id));
-                            return;
-                        }
-                    } else {
-                        // Layer not found and not a full sync; skip always data using size prefix
-                        if (!safeToRead(sizeof(int))) return;
-                        int alwaysSize = 0;
-                        deserializeObject(data, pos, alwaysSize);
-                        if (alwaysSize < 0 || pos + static_cast<unsigned int>(alwaysSize) > data.size()) return;
-                        pos += static_cast<unsigned int>(alwaysSize);
-                    }
+                if (!safeToRead(sizeof(uint32_t) + sizeof(bool) + sizeof(int) + sizeof(int))) return;
+
+                PendingLayerPacket packet;
+                deserializeObject(data, pos, packet.id);
+                deserializeObject(data, pos, packet.fullSync);
+                deserializeObject(data, pos, packet.layerType);
+
+                int payloadSize = 0;
+                deserializeObject(data, pos, payloadSize);
+                if (payloadSize < 0 || pos + static_cast<unsigned int>(payloadSize) > data.size()) {
+                    Log::Warning("Decode: invalid layer payload size for layer " + std::to_string(packet.id));
+                    return;
                 }
-                else {
-                    if (perLayerSync) {
-                        unsigned int posBefore = pos;
-                        (*it_up)->decodeFull(data, pos);
-                        if (pos < posBefore || pos > data.size()) {
-                            Log::Warning("Decode: decodeFull overran buffer for kept layer " + std::to_string(id));
-                            return;
-                        }
-                    }
-                    else {
-                        if (!safeToRead(sizeof(int))) return;
-                        int alwaysSize = 0;
-                        deserializeObject(data, pos, alwaysSize);
-                        if (alwaysSize < 0 || pos + static_cast<unsigned int>(alwaysSize) > data.size()) {
-                            Log::Warning("Decode: invalid alwaysSize for kept layer " + std::to_string(id));
-                            return;
-                        }
-                        (*it_up)->decodeAlways(data, pos);
-                    }
-                }
+
+                packet.payload.insert(packet.payload.end(), data.begin() + pos, data.begin() + pos + payloadSize);
+                pos += static_cast<unsigned int>(payloadSize);
+                decodedLayerPackets.push_back(std::move(packet));
             }
         }
         else {
-            // Just perform "always" sync which contains update only
-            // Should never remove layers, but only update existing ones, so no need to send layer count or ID
-            uint32_t id;
             for (int i = 0; i < numLayers; i++) {
                 if (!safeToRead(sizeof(uint32_t) + sizeof(int))) return;
-                deserializeObject(data, pos, id);
-                int alwaysSize = 0;
-                deserializeObject(data, pos, alwaysSize);
-                if (alwaysSize < 0 || pos + static_cast<unsigned int>(alwaysSize) > data.size()) {
-                    Log::Warning("Decode: invalid alwaysSize in always-sync for layer " + std::to_string(id));
+
+                PendingLayerPacket packet;
+                deserializeObject(data, pos, packet.id);
+
+                int payloadSize = 0;
+                deserializeObject(data, pos, payloadSize);
+                if (payloadSize < 0 || pos + static_cast<unsigned int>(payloadSize) > data.size()) {
+                    Log::Warning("Decode: invalid alwaysSize in always-sync for layer " + std::to_string(packet.id));
                     return;
                 }
-                auto it = find_if(secondaryLayers.begin(), secondaryLayers.end(),
-                                  [&id](const std::shared_ptr<BaseLayer>&t1) { return (t1 ? t1->identifier() == id : false); });
-                if (it != secondaryLayers.end()) {
-                    (*it)->decodeAlways(data, pos);
-                } else {
-                    // Layer not found; skip the entire always block using the size prefix
-                    pos += static_cast<unsigned int>(alwaysSize);
-                }
+
+                packet.payload.insert(packet.payload.end(), data.begin() + pos, data.begin() + pos + payloadSize);
+                pos += static_cast<unsigned int>(payloadSize);
+                decodedLayerPackets.push_back(std::move(packet));
             }
+        }
+
+        {
+            std::lock_guard<std::mutex> lock(pendingLayerPacketsMutex);
+            pendingLayerPackets = std::move(decodedLayerPackets);
+            pendingLayerPacketsFullSync = layerSync;
+            pendingPreLoadLayers = decodedPreLoadLayers;
+            pendingLayerPacketsAvailable = true;
         }
     }
 }
@@ -645,6 +605,97 @@ static void postSyncPreDraw() {
         if (!backgroundImageLayer || !foregroundImageLayer || !overlayImageLayer
             || !mainVideoLayer || !mainSubtitleLayer || !layerRender) {
             return;
+        }
+
+        std::vector<PendingLayerPacket> layerPackets;
+        bool hasPendingLayerPackets = false;
+        bool hasFullLayerSync = false;
+        bool newPreLoadLayers = false;
+        {
+            std::lock_guard<std::mutex> lock(pendingLayerPacketsMutex);
+            if (pendingLayerPacketsAvailable) {
+                layerPackets = std::move(pendingLayerPackets);
+                hasPendingLayerPackets = true;
+                hasFullLayerSync = pendingLayerPacketsFullSync;
+                newPreLoadLayers = pendingPreLoadLayers;
+                pendingLayerPacketsAvailable = false;
+                pendingLayerPacketsFullSync = false;
+                pendingPreLoadLayers = false;
+            }
+        }
+
+        if (hasPendingLayerPackets) {
+            preLoadLayers = newPreLoadLayers;
+
+            if (hasFullLayerSync) {
+                std::vector<std::shared_ptr<BaseLayer>> layersToKeep;
+                layersToKeep.reserve(layerPackets.size());
+
+                for (const PendingLayerPacket& packet : layerPackets) {
+                    auto kept = find_if(layersToKeep.begin(), layersToKeep.end(),
+                                        [&packet](const std::shared_ptr<BaseLayer>& layer) { return layer && layer->identifier() == packet.id; });
+
+                    std::shared_ptr<BaseLayer> layer;
+                    if (kept != layersToKeep.end()) {
+                        layer = *kept;
+                    }
+                    else {
+                        auto existing = find_if(secondaryLayers.begin(), secondaryLayers.end(),
+                                                [&packet](const std::shared_ptr<BaseLayer>& layer) { return layer && layer->identifier() == packet.id; });
+                        if (existing != secondaryLayers.end()) {
+                            layer = *existing;
+                        }
+                        else if (packet.fullSync) {
+                            BaseLayer* newLayer = BaseLayer::createLayer(false, packet.layerType, get_proc_address_glfw_v1, get_proc_address_glfw_v2, std::to_string(packet.id), packet.id);
+                            if (newLayer) {
+                                layer = std::shared_ptr<BaseLayer>(newLayer);
+                            }
+                            else {
+                                Log::Warning("Decode: failed to create layer type=" + std::to_string(packet.layerType) + " id=" + std::to_string(packet.id));
+                                continue;
+                            }
+                        }
+                    }
+
+                    if (!layer) {
+                        continue;
+                    }
+
+                    unsigned int packetPos = 0;
+                    if (packet.fullSync) {
+                        layer->decodeFull(packet.payload, packetPos);
+                    }
+                    else {
+                        layer->decodeAlways(packet.payload, packetPos);
+                    }
+                    if (packetPos > packet.payload.size()) {
+                        Log::Warning("Decode: layer payload overrun for layer " + std::to_string(packet.id));
+                        continue;
+                    }
+
+                    if (kept == layersToKeep.end()) {
+                        layersToKeep.push_back(layer);
+                    }
+                }
+
+                secondaryLayersToKeep = std::move(layersToKeep);
+                updateLayers = true;
+            }
+            else {
+                for (const PendingLayerPacket& packet : layerPackets) {
+                    auto existing = find_if(secondaryLayers.begin(), secondaryLayers.end(),
+                                            [&packet](const std::shared_ptr<BaseLayer>& layer) { return layer && layer->identifier() == packet.id; });
+                    if (existing == secondaryLayers.end()) {
+                        continue;
+                    }
+
+                    unsigned int packetPos = 0;
+                    (*existing)->decodeAlways(packet.payload, packetPos);
+                    if (packetPos > packet.payload.size()) {
+                        Log::Warning("Decode: always payload overrun for layer " + std::to_string(packet.id));
+                    }
+                }
+            }
         }
 
         // Handle screenshot request from master
