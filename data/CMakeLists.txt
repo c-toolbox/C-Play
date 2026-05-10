@@ -24,6 +24,10 @@ if(CPLAY_INSTALL_DEPENDENCIES)
         ]])
         install(DIRECTORY "${_qt_bin_dir}/data/icons" DESTINATION "${CMAKE_INSTALL_PREFIX}/bin/data" OPTIONAL)
         install(CODE [[
+            message("Copying ImPres")
+        ]])
+        install(DIRECTORY "${PROJECT_SOURCE_DIR}/data/impres" DESTINATION "${CMAKE_INSTALL_PREFIX}/bin/data" OPTIONAL)
+        install(CODE [[
             message("Copying MPV Configs")
         ]])
         install(DIRECTORY "${PROJECT_SOURCE_DIR}/data/mpv-conf" DESTINATION "${CMAKE_INSTALL_PREFIX}/bin/data" OPTIONAL)
@@ -51,6 +55,14 @@ if(CPLAY_INSTALL_DEPENDENCIES)
                 )
             else()
                 message("${PROJECT_SOURCE_DIR}/data/predefined-streams.json was not found")
+            endif()
+            if(EXISTS "${PROJECT_SOURCE_DIR}/data/predefined-rest-commands.json")
+                file(INSTALL
+                    DESTINATION "${CMAKE_INSTALL_PREFIX}/bin/data"
+                    FILES "${PROJECT_SOURCE_DIR}/data/predefined-rest-commands.json"
+                )
+            else()
+                message("${PROJECT_SOURCE_DIR}/data/predefined-rest-commands.json was not found")
             endif()
             if(EXISTS "${QT_BIN_DIR}/data/icontheme.rcc")
                 file(INSTALL

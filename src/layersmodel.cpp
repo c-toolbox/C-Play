@@ -1529,7 +1529,25 @@ void LayersModel::encodeToJSON(QJsonObject &obj, const QStringList &forRelativeP
         layerData.insert(QStringLiteral("keepVisibilityForNumSlides"), QJsonValue(layer->keepVisibilityForNumSlides()));
 
         if (layer->flipY()) {
-            layerData.insert(QStringLiteral("flipY"), QJsonValue(true));
+            switch (layer->type()) {
+#ifdef NDI_LAYER
+            case BaseLayer::NDI:
+#endif
+#ifdef OMT_LAYER
+            case BaseLayer::OMT:
+#endif
+#ifdef STREAM_LAYER
+            case BaseLayer::STREAM:
+#endif
+#ifdef SPOUT_LAYER
+            case BaseLayer::SPOUT:
+#endif
+                // For NDI layers, we want to preserve the flipY setting in the JSON for accurate restoration later
+                layerData.insert(QStringLiteral("flipY"), QJsonValue(true));
+                break;
+            default:
+                break;
+            }
         }
 
         if (layer->eyeMode() != static_cast<uint8_t>(BaseLayer::EyeMode::Both)) {

@@ -526,7 +526,9 @@ void ImageLayer::handleAsyncImageUpload() {
                 m_lastFrameTime = std::chrono::steady_clock::now();
                 m_currentFrameIndex = 1;
                 if (!m_hasFirstFrame) { m_firstFrame = frame; m_hasFirstFrame = true; }
-                setFlipY(true);
+                if (m_ctx->decoder != ImageDecoder::Sgct) {
+                    setFlipY(true);
+                }
                 sgct::Log::Info(std::format("ImageLayer '{}': First frame uploaded ({}x{}, frames so far: {})",
                     m_identifier, frame.width, frame.height, m_ctx->totalFrameCount.load()));
             }
