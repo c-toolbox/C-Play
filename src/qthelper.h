@@ -119,8 +119,11 @@ private:
     char *dup_qstring(const QString &s) {
         QByteArray b = s.toUtf8();
         char *r = new char[b.size() + 1];
-        if (r)
+        if (r) {
             std::memcpy(r, b.data(), b.size() + 1);
+        } else {
+            // Handle allocation failure - return null
+        }
         return r;
     }
     bool test_type(const QVariant &v, QMetaType::Type t) {
@@ -184,22 +187,24 @@ private:
         case MPV_FORMAT_STRING:
             delete[] dst->u.string;
             break;
-        case MPV_FORMAT_NODE_ARRAY:
-        case MPV_FORMAT_NODE_MAP: {
-            mpv_node_list *list = dst->u.list;
-            if (list) {
-                for (int n = 0; n < list->num; n++) {
-                    if (list->keys)
-                        delete[] list->keys[n];
-                    if (list->values)
-                        free_node(&list->values[n]);
-                }
-                delete[] list->keys;
-                delete[] list->values;
-            }
-            delete list;
-            break;
-        }
+         case MPV_FORMAT_NODE_ARRAY:
+         case MPV_FORMAT_NODE_MAP: {
+             mpv_node_list *list = dst->u.list;
+             if (list) {
+                 for (int n = 0; n < list->num; n++) {
+                     if (list->keys && list->keys[n])
+                         delete[] list->keys[n];
+                     if (list->values)
+                         free_node(&list->values[n]);
+                 }
+                 if (list->keys)
+                     delete[] list->keys;
+                 if (list->values)
+                     delete[] list->values;
+             }
+             delete list;
+             break;
+         }
         default:
             break;
         }

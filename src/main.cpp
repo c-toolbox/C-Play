@@ -20,7 +20,6 @@
 #include <layersmodel.h>
 #include <mutex>
 #include <slidesmodel.h>
-#include <type_traits>
 
 #ifdef MDK_SUPPORT
 #include <mdk/global.h>
@@ -49,8 +48,6 @@ struct PendingLayerPacket {
 };
 
 std::mutex pendingLayerPacketsMutex;
-std::vector<std::byte> pendingSyncStatePayload;
-bool pendingSyncStatePayloadAvailable = false;
 std::vector<PendingLayerPacket> pendingLayerPackets;
 bool pendingLayerPacketsAvailable = false;
 bool pendingLayerPacketsFullSync = false;
@@ -252,21 +249,15 @@ static std::vector<std::byte> encode() {
         // Subtitle sync
         if (SyncHelper::instance().variables.subtitleText) {
             serializeObject(data, true);
-            const bool fullSync = SyncHelper::instance().variables.subtitleText->needSync();
-            serializeObject(data, fullSync);
-
-            std::vector<std::byte> subtitleData;
-            if (fullSync) {
-                SyncHelper::instance().variables.subtitleText->encodeFull(subtitleData);
+            if (SyncHelper::instance().variables.subtitleText->needSync()) {
+                serializeObject(data, true); // Full sync
+                SyncHelper::instance().variables.subtitleText->encodeFull(data);
                 SyncHelper::instance().variables.subtitleText->setHasSynced();
             }
             else {
-                SyncHelper::instance().variables.subtitleText->encodeAlways(subtitleData);
+                serializeObject(data, false); // Just always
+                SyncHelper::instance().variables.subtitleText->encodeAlways(data);
             }
-
-            int subtitleDataSize = static_cast<int>(subtitleData.size());
-            serializeObject(data, subtitleDataSize);
-            data.insert(data.end(), subtitleData.begin(), subtitleData.end());
         }
         else { // No subtitle layer to sync
             serializeObject(data, false);
@@ -395,374 +386,215 @@ static void decode(const std::vector<std::byte> &data) {
         return true;
     };
 
-    std::decay_t<decltype(SyncHelper::instance().variables)> decodedVariables{};
-
     if (!safeToRead(sizeof(bool) + 3 * sizeof(float))) return;
-    deserializeObject(data, pos, decodedVariables.syncOn);
-    deserializeObject(data, pos, decodedVariables.alpha);
-    deserializeObject(data, pos, decodedVariables.alphaBg);
-    deserializeObject(data, pos, decodedVariables.alphaFg);
+    deserializeObject(data, pos, SyncHelper::instance().variables.syncOn);
+    deserializeObject(data, pos, SyncHelper::instance().variables.alpha);
+    deserializeObject(data, pos, SyncHelper::instance().variables.alphaBg);
+    deserializeObject(data, pos, SyncHelper::instance().variables.alphaFg);
+    if (SyncHelper::instance().variables.syncOn) {
+        // Always synced time-related variables
+        deserializeObject(data, pos, SyncHelper::instance().variables.timePosition);
+        deserializeObject(data, pos, SyncHelper::instance().variables.timeDirty);
+        deserializeObject(data, pos, SyncHelper::instance().variables.timeThreshold);
+        deserializeObject(data, pos, SyncHelper::instance().variables.paused);
 
-    if (!decodedVariables.syncOn) {
-        std::lock_guard<std::mutex> lock(pendingLayerPacketsMutex);
-        pendingSyncStatePayload.assign(data.begin(), data.begin() + pos);
-        pendingSyncStatePayloadAvailable = true;
-        pendingLayerPackets.clear();
-        pendingLayerPacketsAvailable = false;
-        pendingLayerPacketsFullSync = false;
-        pendingPreLoadLayers = false;
-        return;
-    }
-
-    // Always synced time-related variables
-    if (!safeToRead()) return;
-    deserializeObject(data, pos, decodedVariables.timePosition);
-    deserializeObject(data, pos, decodedVariables.timeDirty);
-    deserializeObject(data, pos, decodedVariables.timeThreshold);
-    deserializeObject(data, pos, decodedVariables.paused);
-
-    // MpvObject variables - conditionally synced
-    if (!safeToRead()) return;
-    bool mpvSync = false;
-    deserializeObject(data, pos, mpvSync);
-    if (mpvSync) {
-        if (!safeToRead()) return;
-        deserializeObject(data, pos, decodedVariables.timeThresholdSetSkips);
-        deserializeObject(data, pos, decodedVariables.timeThresholdEnabled);
-        deserializeObject(data, pos, decodedVariables.timeThresholdOnLoopOnly);
-        deserializeObject(data, pos, decodedVariables.enableAudioOnNodes);
-
-        if (decodedVariables.enableAudioOnNodes) {
+        // MpvObject variables - conditionally synced
+        bool mpvSync = false;
+        deserializeObject(data, pos, mpvSync);
+        if (mpvSync) {
             if (!safeToRead()) return;
-            deserializeObject(data, pos, decodedVariables.loadAudioInVidFolder);
-            deserializeObject(data, pos, decodedVariables.audioId);
-            deserializeObject(data, pos, decodedVariables.volume);
-            deserializeObject(data, pos, decodedVariables.volumeMute);
-        }
+            deserializeObject(data, pos, SyncHelper::instance().variables.timeThresholdSetSkips);
+            deserializeObject(data, pos, SyncHelper::instance().variables.timeThresholdEnabled);
+            deserializeObject(data, pos, SyncHelper::instance().variables.timeThresholdOnLoopOnly);
+            deserializeObject(data, pos, SyncHelper::instance().variables.enableAudioOnNodes);
 
-        if (!safeToRead()) return;
-        deserializeObject(data, pos, decodedVariables.gridToMapOn);
-        deserializeObject(data, pos, decodedVariables.stereoscopicMode);
-        deserializeObject(data, pos, decodedVariables.eofMode);
-        deserializeObject(data, pos, decodedVariables.radius);
-        deserializeObject(data, pos, decodedVariables.fov);
-        deserializeObject(data, pos, decodedVariables.angle);
-        deserializeObject(data, pos, decodedVariables.rotateX);
-        deserializeObject(data, pos, decodedVariables.rotateY);
-        deserializeObject(data, pos, decodedVariables.rotateZ);
-        deserializeObject(data, pos, decodedVariables.translateX);
-        deserializeObject(data, pos, decodedVariables.translateY);
-        deserializeObject(data, pos, decodedVariables.translateZ);
-        deserializeObject(data, pos, decodedVariables.planeWidth);
-        deserializeObject(data, pos, decodedVariables.planeHeight);
-        deserializeObject(data, pos, decodedVariables.planeElevation);
-        deserializeObject(data, pos, decodedVariables.planeDistance);
-        deserializeObject(data, pos, decodedVariables.planeConsiderAspectRatio);
-
-        if (!safeToRead()) return;
-        deserializeObject(data, pos, decodedVariables.loopTimeDirty);
-        if (decodedVariables.loopTimeDirty) {
-            if (!safeToRead()) return;
-            deserializeObject(data, pos, decodedVariables.loopTimeEnabled);
-            deserializeObject(data, pos, decodedVariables.loopTimeA);
-            deserializeObject(data, pos, decodedVariables.loopTimeB);
-        }
-
-        if (!safeToRead()) return;
-        deserializeObject(data, pos, decodedVariables.speedDirty);
-        if (decodedVariables.speedDirty) {
-            if (!safeToRead()) return;
-            deserializeObject(data, pos, decodedVariables.playbackSpeed);
-        }
-
-        if (!safeToRead()) return;
-        deserializeObject(data, pos, decodedVariables.eqDirty);
-        if (decodedVariables.eqDirty) {
-            if (!safeToRead()) return;
-            deserializeObject(data, pos, decodedVariables.eqContrast);
-            deserializeObject(data, pos, decodedVariables.eqBrightness);
-            deserializeObject(data, pos, decodedVariables.eqGamma);
-            deserializeObject(data, pos, decodedVariables.eqSaturation);
-        }
-    }
-
-    // PlayerController variables - conditionally synced
-    if (!safeToRead()) return;
-    bool pcSync = false;
-    deserializeObject(data, pos, pcSync);
-    if (pcSync) {
-        if (!safeToRead()) return;
-        deserializeObject(data, pos, decodedVariables.gridToMapOnBg);
-        deserializeObject(data, pos, decodedVariables.gridToMapOnFg);
-        deserializeObject(data, pos, decodedVariables.stereoscopicModeBg);
-        deserializeObject(data, pos, decodedVariables.stereoscopicModeFg);
-        deserializeObject(data, pos, decodedVariables.viewMode);
-        deserializeObject(data, pos, decodedVariables.windowOnTop);
-        deserializeObject(data, pos, decodedVariables.windowOpacity);
-
-        if (!safeToRead()) return;
-        bool screenshotIsRequested = false;
-        deserializeObject(data, pos, screenshotIsRequested);
-        decodedVariables.takeScreenshot = screenshotIsRequested;
-        if (screenshotIsRequested) {
-            if (!safeToRead()) return;
-            deserializeObject(data, pos, decodedVariables.screenshotPath);
-            deserializeObject(data, pos, decodedVariables.captureBackBuffer);
-        }
-    }
-
-    if (!safeToRead()) return;
-    int transferedImageId = -1;
-    deserializeObject(data, pos, transferedImageId);
-
-    if (transferedImageId == 0) {
-        if (!safeToRead()) return;
-        deserializeObject(data, pos, decodedVariables.loadFile);
-        deserializeObject(data, pos, decodedVariables.loadedFile);
-    } else if (transferedImageId == 1) {
-        if (!safeToRead()) return;
-        deserializeObject(data, pos, decodedVariables.overlayFileDirty);
-        deserializeObject(data, pos, decodedVariables.overlayFile);
-    } else if (transferedImageId == 2) {
-        if (!safeToRead()) return;
-        deserializeObject(data, pos, decodedVariables.bgImageFileDirty);
-        deserializeObject(data, pos, decodedVariables.bgImageFile);
-    } else if (transferedImageId == 3) {
-        if (!safeToRead()) return;
-        deserializeObject(data, pos, decodedVariables.fgImageFileDirty);
-        deserializeObject(data, pos, decodedVariables.fgImageFile);
-    }
-
-    if (!safeToRead()) return;
-    bool subTitleIsSyncing = false;
-    deserializeObject(data, pos, subTitleIsSyncing);
-    if (subTitleIsSyncing) {
-        if (!safeToRead(sizeof(bool) + sizeof(int))) return;
-        bool subTitleFullSync = false;
-        deserializeObject(data, pos, subTitleFullSync);
-        int subtitlePayloadSize = 0;
-        deserializeObject(data, pos, subtitlePayloadSize);
-        if (subtitlePayloadSize < 0 || pos + static_cast<unsigned int>(subtitlePayloadSize) > data.size()) {
-            Log::Warning("Decode: invalid subtitle payload size");
-            return;
-        }
-        pos += static_cast<unsigned int>(subtitlePayloadSize);
-    }
-
-    const unsigned int syncStatePayloadEnd = pos;
-
-    // Layers
-    if (!safeToRead()) return;
-    bool layerSync = false;
-    deserializeObject(data, pos, layerSync);
-    bool decodedPreLoadLayers = false;
-    deserializeObject(data, pos, decodedPreLoadLayers);
-    int numLayers = -1;
-    deserializeObject(data, pos, numLayers);
-
-    if (numLayers < 0 || numLayers > 10000) {
-        Log::Warning("Decode: invalid numLayers=" + std::to_string(numLayers) + ", aborting layer sync");
-        return;
-    }
-
-    std::vector<PendingLayerPacket> decodedLayerPackets;
-    decodedLayerPackets.reserve(static_cast<size_t>(numLayers));
-
-    if (layerSync) {
-        for (int i = 0; i < numLayers; i++) {
-            if (!safeToRead(sizeof(uint32_t) + sizeof(bool) + sizeof(int) + sizeof(int))) return;
-
-            PendingLayerPacket packet;
-            deserializeObject(data, pos, packet.id);
-            deserializeObject(data, pos, packet.fullSync);
-            deserializeObject(data, pos, packet.layerType);
-
-            int payloadSize = 0;
-            deserializeObject(data, pos, payloadSize);
-            if (payloadSize < 0 || pos + static_cast<unsigned int>(payloadSize) > data.size()) {
-                Log::Warning("Decode: invalid layer payload size for layer " + std::to_string(packet.id));
-                return;
+            if (SyncHelper::instance().variables.enableAudioOnNodes) {
+                if (!safeToRead()) return;
+                deserializeObject(data, pos, SyncHelper::instance().variables.loadAudioInVidFolder);
+                deserializeObject(data, pos, SyncHelper::instance().variables.audioId);
+                deserializeObject(data, pos, SyncHelper::instance().variables.volume);
+                deserializeObject(data, pos, SyncHelper::instance().variables.volumeMute);
             }
 
-            packet.payload.insert(packet.payload.end(), data.begin() + pos, data.begin() + pos + payloadSize);
-            pos += static_cast<unsigned int>(payloadSize);
-            decodedLayerPackets.push_back(std::move(packet));
-        }
-    }
-    else {
-        for (int i = 0; i < numLayers; i++) {
-            if (!safeToRead(sizeof(uint32_t) + sizeof(int))) return;
+            if (!safeToRead()) return;
+            deserializeObject(data, pos, SyncHelper::instance().variables.gridToMapOn);
+            deserializeObject(data, pos, SyncHelper::instance().variables.stereoscopicMode);
+            deserializeObject(data, pos, SyncHelper::instance().variables.eofMode);
+            deserializeObject(data, pos, SyncHelper::instance().variables.radius);
+            deserializeObject(data, pos, SyncHelper::instance().variables.fov);
+            deserializeObject(data, pos, SyncHelper::instance().variables.angle);
+            deserializeObject(data, pos, SyncHelper::instance().variables.rotateX);
+            deserializeObject(data, pos, SyncHelper::instance().variables.rotateY);
+            deserializeObject(data, pos, SyncHelper::instance().variables.rotateZ);
+            deserializeObject(data, pos, SyncHelper::instance().variables.translateX);
+            deserializeObject(data, pos, SyncHelper::instance().variables.translateY);
+            deserializeObject(data, pos, SyncHelper::instance().variables.translateZ);
+            deserializeObject(data, pos, SyncHelper::instance().variables.planeWidth);
+            deserializeObject(data, pos, SyncHelper::instance().variables.planeHeight);
+            deserializeObject(data, pos, SyncHelper::instance().variables.planeElevation);
+            deserializeObject(data, pos, SyncHelper::instance().variables.planeDistance);
+            deserializeObject(data, pos, SyncHelper::instance().variables.planeConsiderAspectRatio);
 
-            PendingLayerPacket packet;
-            deserializeObject(data, pos, packet.id);
-
-            int payloadSize = 0;
-            deserializeObject(data, pos, payloadSize);
-            if (payloadSize < 0 || pos + static_cast<unsigned int>(payloadSize) > data.size()) {
-                Log::Warning("Decode: invalid alwaysSize in always-sync for layer " + std::to_string(packet.id));
-                return;
+            // Looptime
+            if (!safeToRead()) return;
+            deserializeObject(data, pos, SyncHelper::instance().variables.loopTimeDirty);
+            if (SyncHelper::instance().variables.loopTimeDirty) {
+                if (!safeToRead()) return;
+                deserializeObject(data, pos, SyncHelper::instance().variables.loopTimeEnabled);
+                deserializeObject(data, pos, SyncHelper::instance().variables.loopTimeA);
+                deserializeObject(data, pos, SyncHelper::instance().variables.loopTimeB);
             }
 
-            packet.payload.insert(packet.payload.end(), data.begin() + pos, data.begin() + pos + payloadSize);
-            pos += static_cast<unsigned int>(payloadSize);
-            decodedLayerPackets.push_back(std::move(packet));
-        }
-    }
+            // Speed
+            if (!safeToRead()) return;
+            deserializeObject(data, pos, SyncHelper::instance().variables.speedDirty);
+            if (SyncHelper::instance().variables.speedDirty) {
+                if (!safeToRead()) return;
+                deserializeObject(data, pos, SyncHelper::instance().variables.playbackSpeed);
+            }
 
-    {
-        std::lock_guard<std::mutex> lock(pendingLayerPacketsMutex);
-        pendingSyncStatePayload.assign(data.begin(), data.begin() + syncStatePayloadEnd);
-        pendingSyncStatePayloadAvailable = true;
-        pendingLayerPackets = std::move(decodedLayerPackets);
-        pendingLayerPacketsFullSync = layerSync;
-        pendingPreLoadLayers = decodedPreLoadLayers;
-        pendingLayerPacketsAvailable = true;
-    }
-}
-
-static void applySyncStatePayload(const std::vector<std::byte>& data) {
-    unsigned int pos = 0;
-
-    auto safeToRead = [&data, &pos](size_t minBytesNeeded = 1) -> bool {
-        if (pos + minBytesNeeded > data.size()) {
-            Log::Error("Apply sync state: buffer exhausted at pos " + std::to_string(pos) +
-                       " (need " + std::to_string(minBytesNeeded) +
-                       ", have " + std::to_string(data.size()) + ")");
-            return false;
-        }
-        return true;
-    };
-
-    auto& variables = SyncHelper::instance().variables;
-
-    if (!safeToRead(sizeof(bool) + 3 * sizeof(float))) return;
-    deserializeObject(data, pos, variables.syncOn);
-    deserializeObject(data, pos, variables.alpha);
-    deserializeObject(data, pos, variables.alphaBg);
-    deserializeObject(data, pos, variables.alphaFg);
-    if (!variables.syncOn) {
-        return;
-    }
-
-    deserializeObject(data, pos, variables.timePosition);
-    deserializeObject(data, pos, variables.timeDirty);
-    deserializeObject(data, pos, variables.timeThreshold);
-    deserializeObject(data, pos, variables.paused);
-
-    bool mpvSync = false;
-    deserializeObject(data, pos, mpvSync);
-    if (mpvSync) {
-        deserializeObject(data, pos, variables.timeThresholdSetSkips);
-        deserializeObject(data, pos, variables.timeThresholdEnabled);
-        deserializeObject(data, pos, variables.timeThresholdOnLoopOnly);
-        deserializeObject(data, pos, variables.enableAudioOnNodes);
-
-        if (variables.enableAudioOnNodes) {
-            deserializeObject(data, pos, variables.loadAudioInVidFolder);
-            deserializeObject(data, pos, variables.audioId);
-            deserializeObject(data, pos, variables.volume);
-            deserializeObject(data, pos, variables.volumeMute);
+            // Eq
+            if (!safeToRead()) return;
+            deserializeObject(data, pos, SyncHelper::instance().variables.eqDirty);
+            if (SyncHelper::instance().variables.eqDirty) {
+                if (!safeToRead()) return;
+                deserializeObject(data, pos, SyncHelper::instance().variables.eqContrast);
+                deserializeObject(data, pos, SyncHelper::instance().variables.eqBrightness);
+                deserializeObject(data, pos, SyncHelper::instance().variables.eqGamma);
+                deserializeObject(data, pos, SyncHelper::instance().variables.eqSaturation);
+            }
         }
 
-        deserializeObject(data, pos, variables.gridToMapOn);
-        deserializeObject(data, pos, variables.stereoscopicMode);
-        deserializeObject(data, pos, variables.eofMode);
-        deserializeObject(data, pos, variables.radius);
-        deserializeObject(data, pos, variables.fov);
-        deserializeObject(data, pos, variables.angle);
-        deserializeObject(data, pos, variables.rotateX);
-        deserializeObject(data, pos, variables.rotateY);
-        deserializeObject(data, pos, variables.rotateZ);
-        deserializeObject(data, pos, variables.translateX);
-        deserializeObject(data, pos, variables.translateY);
-        deserializeObject(data, pos, variables.translateZ);
-        deserializeObject(data, pos, variables.planeWidth);
-        deserializeObject(data, pos, variables.planeHeight);
-        deserializeObject(data, pos, variables.planeElevation);
-        deserializeObject(data, pos, variables.planeDistance);
-        deserializeObject(data, pos, variables.planeConsiderAspectRatio);
+        // PlayerController variables - conditionally synced
+        if (!safeToRead()) return;
+        bool pcSync = false;
+        deserializeObject(data, pos, pcSync);
+        if (pcSync) {
+            if (!safeToRead()) return;
+            deserializeObject(data, pos, SyncHelper::instance().variables.gridToMapOnBg);
+            deserializeObject(data, pos, SyncHelper::instance().variables.gridToMapOnFg);
+            deserializeObject(data, pos, SyncHelper::instance().variables.stereoscopicModeBg);
+            deserializeObject(data, pos, SyncHelper::instance().variables.stereoscopicModeFg);
+            deserializeObject(data, pos, SyncHelper::instance().variables.viewMode);
+            deserializeObject(data, pos, SyncHelper::instance().variables.windowOnTop);
+            deserializeObject(data, pos, SyncHelper::instance().variables.windowOpacity);
 
-        deserializeObject(data, pos, variables.loopTimeDirty);
-        if (variables.loopTimeDirty) {
-            deserializeObject(data, pos, variables.loopTimeEnabled);
-            deserializeObject(data, pos, variables.loopTimeA);
-            deserializeObject(data, pos, variables.loopTimeB);
+            // Screenshot
+            if (!safeToRead()) return;
+            bool screenshotIsRequested = false;
+            deserializeObject(data, pos, screenshotIsRequested);
+            SyncHelper::instance().variables.takeScreenshot = screenshotIsRequested;
+            if (screenshotIsRequested) {
+                if (!safeToRead()) return;
+                deserializeObject(data, pos, SyncHelper::instance().variables.screenshotPath);
+                deserializeObject(data, pos, SyncHelper::instance().variables.captureBackBuffer);
+            }
         }
 
-        deserializeObject(data, pos, variables.speedDirty);
-        if (variables.speedDirty) {
-            deserializeObject(data, pos, variables.playbackSpeed);
+        // Strings
+        if (!safeToRead()) return;
+        int transferedImageId = -1;
+        deserializeObject(data, pos, transferedImageId);
+
+        if (transferedImageId == 0) {
+            if (!safeToRead()) return;
+            deserializeObject(data, pos, SyncHelper::instance().variables.loadFile);
+            deserializeObject(data, pos, SyncHelper::instance().variables.loadedFile);
+        } else if (transferedImageId == 1) {
+            if (!safeToRead()) return;
+            deserializeObject(data, pos, SyncHelper::instance().variables.overlayFileDirty);
+            deserializeObject(data, pos, SyncHelper::instance().variables.overlayFile);
+        } else if (transferedImageId == 2) {
+            if (!safeToRead()) return;
+            deserializeObject(data, pos, SyncHelper::instance().variables.bgImageFileDirty);
+            deserializeObject(data, pos, SyncHelper::instance().variables.bgImageFile);
+        } else if (transferedImageId == 3) {
+            if (!safeToRead()) return;
+            deserializeObject(data, pos, SyncHelper::instance().variables.fgImageFileDirty);
+            deserializeObject(data, pos, SyncHelper::instance().variables.fgImageFile);
         }
 
-        deserializeObject(data, pos, variables.eqDirty);
-        if (variables.eqDirty) {
-            deserializeObject(data, pos, variables.eqContrast);
-            deserializeObject(data, pos, variables.eqBrightness);
-            deserializeObject(data, pos, variables.eqGamma);
-            deserializeObject(data, pos, variables.eqSaturation);
-        }
-    }
-
-    bool pcSync = false;
-    deserializeObject(data, pos, pcSync);
-    if (pcSync) {
-        deserializeObject(data, pos, variables.gridToMapOnBg);
-        deserializeObject(data, pos, variables.gridToMapOnFg);
-        deserializeObject(data, pos, variables.stereoscopicModeBg);
-        deserializeObject(data, pos, variables.stereoscopicModeFg);
-        deserializeObject(data, pos, variables.viewMode);
-        deserializeObject(data, pos, variables.windowOnTop);
-        deserializeObject(data, pos, variables.windowOpacity);
-
-        bool screenshotIsRequested = false;
-        deserializeObject(data, pos, screenshotIsRequested);
-        variables.takeScreenshot = screenshotIsRequested;
-        if (screenshotIsRequested) {
-            deserializeObject(data, pos, variables.screenshotPath);
-            deserializeObject(data, pos, variables.captureBackBuffer);
-        }
-    }
-
-    int transferedImageId = -1;
-    deserializeObject(data, pos, transferedImageId);
-    if (transferedImageId == 0) {
-        deserializeObject(data, pos, variables.loadFile);
-        deserializeObject(data, pos, variables.loadedFile);
-    } else if (transferedImageId == 1) {
-        deserializeObject(data, pos, variables.overlayFileDirty);
-        deserializeObject(data, pos, variables.overlayFile);
-    } else if (transferedImageId == 2) {
-        deserializeObject(data, pos, variables.bgImageFileDirty);
-        deserializeObject(data, pos, variables.bgImageFile);
-    } else if (transferedImageId == 3) {
-        deserializeObject(data, pos, variables.fgImageFileDirty);
-        deserializeObject(data, pos, variables.fgImageFile);
-    }
-
-    bool subTitleIsSyncing = false;
-    deserializeObject(data, pos, subTitleIsSyncing);
-    if (subTitleIsSyncing) {
-        bool subTitleFullSync = false;
-        deserializeObject(data, pos, subTitleFullSync);
-        int subtitlePayloadSize = 0;
-        deserializeObject(data, pos, subtitlePayloadSize);
-        if (subtitlePayloadSize < 0 || pos + static_cast<unsigned int>(subtitlePayloadSize) > data.size()) {
-            Log::Warning("Apply sync state: invalid subtitle payload size");
-            return;
-        }
-
-        if (mainSubtitleLayer) {
-            std::vector<std::byte> subtitlePayload(data.begin() + pos, data.begin() + pos + subtitlePayloadSize);
-            unsigned int subtitlePos = 0;
+        // Subtitle sync
+        if (!safeToRead()) return;
+        bool subTitleIsSyncing = false;
+        deserializeObject(data, pos, subTitleIsSyncing);
+        if (subTitleIsSyncing && mainSubtitleLayer) {
+            if (!safeToRead()) return;
+            bool subTitleFullSync = false;
+            deserializeObject(data, pos, subTitleFullSync);
             if (subTitleFullSync) {
-                mainSubtitleLayer->decodeFull(subtitlePayload, subtitlePos);
+                mainSubtitleLayer->decodeFull(data, pos);
             }
             else {
-                mainSubtitleLayer->decodeAlways(subtitlePayload, subtitlePos);
+                mainSubtitleLayer->decodeAlways(data, pos);
             }
-            if (subtitlePos > subtitlePayload.size()) {
-                Log::Warning("Apply sync state: subtitle payload overrun");
+        }
+
+        // Layers
+        if (!safeToRead()) return;
+        bool layerSync = false;
+        deserializeObject(data, pos, layerSync);
+        bool decodedPreLoadLayers = false;
+        deserializeObject(data, pos, decodedPreLoadLayers);
+        int numLayers = -1;
+        deserializeObject(data, pos, numLayers);
+
+        // Validate numLayers to prevent runaway loops or negative indexing
+        if (numLayers < 0 || numLayers > 10000) {
+            Log::Warning("Decode: invalid numLayers=" + std::to_string(numLayers) + ", aborting layer sync");
+            return;
+        }
+
+        std::vector<PendingLayerPacket> decodedLayerPackets;
+        decodedLayerPackets.reserve(static_cast<size_t>(numLayers));
+
+        if (layerSync) {
+            for (int i = 0; i < numLayers; i++) {
+                if (!safeToRead(sizeof(uint32_t) + sizeof(bool) + sizeof(int) + sizeof(int))) return;
+
+                PendingLayerPacket packet;
+                deserializeObject(data, pos, packet.id);
+                deserializeObject(data, pos, packet.fullSync);
+                deserializeObject(data, pos, packet.layerType);
+
+                int payloadSize = 0;
+                deserializeObject(data, pos, payloadSize);
+                if (payloadSize < 0 || pos + static_cast<unsigned int>(payloadSize) > data.size()) {
+                    Log::Warning("Decode: invalid layer payload size for layer " + std::to_string(packet.id));
+                    return;
+                }
+
+                packet.payload.insert(packet.payload.end(), data.begin() + pos, data.begin() + pos + payloadSize);
+                pos += static_cast<unsigned int>(payloadSize);
+                decodedLayerPackets.push_back(std::move(packet));
             }
+        }
+        else {
+            for (int i = 0; i < numLayers; i++) {
+                if (!safeToRead(sizeof(uint32_t) + sizeof(int))) return;
+
+                PendingLayerPacket packet;
+                deserializeObject(data, pos, packet.id);
+
+                int payloadSize = 0;
+                deserializeObject(data, pos, payloadSize);
+                if (payloadSize < 0 || pos + static_cast<unsigned int>(payloadSize) > data.size()) {
+                    Log::Warning("Decode: invalid alwaysSize in always-sync for layer " + std::to_string(packet.id));
+                    return;
+                }
+
+                packet.payload.insert(packet.payload.end(), data.begin() + pos, data.begin() + pos + payloadSize);
+                pos += static_cast<unsigned int>(payloadSize);
+                decodedLayerPackets.push_back(std::move(packet));
+            }
+        }
+
+        {
+            std::lock_guard<std::mutex> lock(pendingLayerPacketsMutex);
+            pendingLayerPackets = std::move(decodedLayerPackets);
+            pendingLayerPacketsFullSync = layerSync;
+            pendingPreLoadLayers = decodedPreLoadLayers;
+            pendingLayerPacketsAvailable = true;
         }
     }
 }
@@ -775,19 +607,12 @@ static void postSyncPreDraw() {
             return;
         }
 
-        std::vector<std::byte> syncStatePayload;
-        bool hasPendingSyncStatePayload = false;
         std::vector<PendingLayerPacket> layerPackets;
         bool hasPendingLayerPackets = false;
         bool hasFullLayerSync = false;
         bool newPreLoadLayers = false;
         {
             std::lock_guard<std::mutex> lock(pendingLayerPacketsMutex);
-            if (pendingSyncStatePayloadAvailable) {
-                syncStatePayload = std::move(pendingSyncStatePayload);
-                hasPendingSyncStatePayload = true;
-                pendingSyncStatePayloadAvailable = false;
-            }
             if (pendingLayerPacketsAvailable) {
                 layerPackets = std::move(pendingLayerPackets);
                 hasPendingLayerPackets = true;
@@ -797,10 +622,6 @@ static void postSyncPreDraw() {
                 pendingLayerPacketsFullSync = false;
                 pendingPreLoadLayers = false;
             }
-        }
-
-        if (hasPendingSyncStatePayload) {
-            applySyncStatePayload(syncStatePayload);
         }
 
         if (hasPendingLayerPackets) {
