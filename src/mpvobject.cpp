@@ -1746,17 +1746,42 @@ void MpvObject::updatePlane() {
     float calcHeight = static_cast<float>(m_planeHeight);
 
     int sm = stereoscopicMode();
-    if (m_planeConsiderAspectRatio == 1) {
+
+    float ratioMultiplier = 1.0f;
+    if (sm == 1) { // Side-by-side
+        //Check if we would should do FullSBS or HalfSBS based on aspect ratio
+        if (vidWidth / vidHeight >= 2.f) {
+            ratioMultiplier = 0.5f;
+        }
+    }
+    else if (sm == 2) { // Top-bottom
+        //Check if we would should do FullTP or HalfTP based on aspect ratio
+        if (vidHeight / vidWidth >= 1.f) {
+            ratioMultiplier = 2.0f;
+        }
+    }
+    else if (sm == 3) { // Top-bottom-flip
+        ratioMultiplier = 2.0f;
+    }
+
+    if (m_planeConsiderAspectRatio == 1) { // Calculate width from video
         float ratio = vidWidth / vidHeight;
-        if (sm == 1) ratio *= 0.5f;
-        else if (sm == 2) ratio *= 2.0f;
-        else if (sm == 3) { ratio = vidHeight / vidWidth; ratio *= 2.0f; }
+
+        if (sm == 3) { // Top-bottom-flip
+            ratio = vidHeight / vidWidth;
+        }
+        ratio *= ratioMultiplier;
+
         calcWidth = ratio * calcHeight;
-    } else if (m_planeConsiderAspectRatio == 2) {
+    }
+    else if (m_planeConsiderAspectRatio == 2) { // Calculate height from video
         float ratio = vidHeight / vidWidth;
-        if (sm == 1) ratio *= 0.5f;
-        else if (sm == 2) ratio *= 2.0f;
-        else if (sm == 3) { ratio = vidWidth / vidHeight; ratio *= 2.0f; }
+
+        if (sm == 3) { // Top-bottom-flip
+            ratio = vidWidth / vidHeight;
+        }
+        ratio *= ratioMultiplier;
+
         calcHeight = ratio * calcWidth;
     }
 

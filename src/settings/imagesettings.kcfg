@@ -20,7 +20,7 @@
     </entry>
     <entry name="GridToMapOnForBackground" type="int">
       <label>The grid that background image uses</label>
-      <default>0</default>
+      <default>2</default>
     </entry>
     <entry name="ImageToLoadAsForeground" type="String">
       <label>An image file (with transparency) that will be shown ontop of everything</label>
@@ -31,7 +31,7 @@
     </entry>
     <entry name="GridToMapOnForForeground" type="int">
       <label>The grid that foreground image uses</label>
-      <default>0</default>
+      <default>2</default>
     </entry>
     <entry name="GpuMemoryForImageBuffering" type="int">
       <label>Percentage of GPU memory to use for image ring buffer (used for animated/multi-frame images)</label>
