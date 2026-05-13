@@ -127,6 +127,11 @@ static std::vector<std::byte> encode() {
 
     serializeObject(data, SyncHelper::instance().variables.syncOn);
     serializeObject(data, SyncHelper::instance().variables.terminateNodes);
+
+    if (SyncHelper::instance().variables.terminateNodes) {
+        return data;
+    }
+
     serializeObject(data, SyncHelper::instance().variables.alpha);
     serializeObject(data, SyncHelper::instance().variables.alphaBg);
     serializeObject(data, SyncHelper::instance().variables.alphaFg);
@@ -390,9 +395,15 @@ static void decode(const std::vector<std::byte> &data) {
         return true;
     };
 
-    if (!safeToRead(sizeof(bool) + 3 * sizeof(float))) return;
+    if (!safeToRead(2 * sizeof(bool))) return;
     deserializeObject(data, pos, SyncHelper::instance().variables.syncOn);
     deserializeObject(data, pos, SyncHelper::instance().variables.terminateNodes);
+
+    if (SyncHelper::instance().variables.terminateNodes) {
+        return;
+    }
+
+    if (!safeToRead(3 * sizeof(float))) return;
     deserializeObject(data, pos, SyncHelper::instance().variables.alpha);
     deserializeObject(data, pos, SyncHelper::instance().variables.alphaBg);
     deserializeObject(data, pos, SyncHelper::instance().variables.alphaFg);

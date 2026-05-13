@@ -30,6 +30,10 @@ Kirigami.ApplicationWindow {
     property bool hideUI: (isFullScreenMode || isIdleMode)
     property url newMediaFileToOpen: ""
 
+    onClosing: {
+        app.sendQuitToNodes();
+    }
+
     function openMediaFile(path, startPlayback, loadSiblings) {
         mpv.pause = true;
         mpv.position = 0;

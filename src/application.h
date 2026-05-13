@@ -116,6 +116,8 @@ public:
     int run();
     QUrl configFilePath();
     QUrl configFolderPath();
+    Q_INVOKABLE void sendQuitToNodes();
+    Q_INVOKABLE void quitApp();
     Q_INVOKABLE QUrl parentUrl(const QString &path);
     Q_INVOKABLE QUrl pathToUrl(const QString &path);
     Q_INVOKABLE QString argument(int key);

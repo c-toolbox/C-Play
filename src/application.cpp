@@ -56,6 +56,8 @@
 #include "worker.h"
 #include <sgct/sgct.h>
 #include <sgct/version.h>
+#include <sgct/networkmanager.h>
+
 #include <QApplication>
 #include <QCoreApplication>
 #include <QStandardPaths>
@@ -199,7 +201,7 @@ Application::Application(int &argc, char **argv, const QString &applicationName)
     updateFonts();
 
     m_engine = new QQmlApplicationEngine(m_app);
-    QObject::connect(m_engine, &QQmlApplicationEngine::quit, m_app, &QApplication::quit);
+    QObject::connect(m_engine, &QQmlApplicationEngine::quit, this, &Application::quitApp);
     QQmlEngine::setObjectOwnership(m_app, QQmlEngine::CppOwnership);
 
     m_app->installEventFilter(m_appEventFilter.get());
@@ -263,9 +265,6 @@ int Application::run() {
     renderThread.render();
     int returnCode = m_app->exec();
     sgct::Log::Info("Qt Application exited");
-    if (sgct::Engine::instance().isMaster()) {
-        SyncHelper::instance().variables.terminateNodes = true;
-    }
     shutdownLayers();
     shutdownWorkerThread();
     renderThread.terminate();
@@ -403,6 +402,20 @@ QUrl Application::configFolderPath() {
 
 QString Application::version() {
     return QStringLiteral(CPLAY_VERSION);
+}
+
+void Application::sendQuitToNodes() {
+    if (sgct::Engine::instance().isMaster()) {
+        SyncHelper::instance().variables.terminateNodes = true;
+        while (sgct::NetworkManager::instance().activeConnectionsCount() > 0) {
+            std::this_thread::sleep_for(std::chrono::milliseconds(1000));
+        }
+    }
+}
+
+void Application::quitApp() {
+    sendQuitToNodes();
+    m_app->quit();
 }
 
 QUrl Application::parentUrl(const QString &path) {
