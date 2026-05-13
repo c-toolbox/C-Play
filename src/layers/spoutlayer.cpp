@@ -77,11 +77,22 @@ SpoutLayer::SpoutLayer() {
 }
 
 SpoutLayer::~SpoutLayer() {
+   cleanup();
+}
+
+void SpoutLayer::cleanup() {
 	if (m_receiver) {
+     if (renderData.texId > 0) {
+			glDeleteTextures(1, &renderData.texId);
+			renderData.texId = 0;
+		}
+		renderData.width = 0;
+		renderData.height = 0;
 		// Release the receiver
 		m_receiver->ReleaseReceiver();
 		// Release the library on exit
 		m_receiver->Release();
+       m_receiver = nullptr;
 	}
 }
 

@@ -18,6 +18,7 @@
 #include <layers/videolayer.h>
 #include <layers/textlayer.h>
 #include <layersmodel.h>
+#include <atomic>
 #include <mutex>
 #include <slidesmodel.h>
 
@@ -52,6 +53,7 @@ std::vector<PendingLayerPacket> pendingLayerPackets;
 bool pendingLayerPacketsAvailable = false;
 bool pendingLayerPacketsFullSync = false;
 bool pendingPreLoadLayers = false;
+std::atomic_bool shuttingDown = false;
 
 std::vector<std::shared_ptr<BaseLayer>> primaryLayers;
 std::shared_ptr<ImageLayer> backgroundImageLayer;
@@ -122,7 +124,9 @@ static void preSync() {
 
 static std::vector<std::byte> encode() {
     std::vector<std::byte> data;
+
     serializeObject(data, SyncHelper::instance().variables.syncOn);
+    serializeObject(data, SyncHelper::instance().variables.terminateNodes);
     serializeObject(data, SyncHelper::instance().variables.alpha);
     serializeObject(data, SyncHelper::instance().variables.alphaBg);
     serializeObject(data, SyncHelper::instance().variables.alphaFg);
@@ -388,6 +392,7 @@ static void decode(const std::vector<std::byte> &data) {
 
     if (!safeToRead(sizeof(bool) + 3 * sizeof(float))) return;
     deserializeObject(data, pos, SyncHelper::instance().variables.syncOn);
+    deserializeObject(data, pos, SyncHelper::instance().variables.terminateNodes);
     deserializeObject(data, pos, SyncHelper::instance().variables.alpha);
     deserializeObject(data, pos, SyncHelper::instance().variables.alphaBg);
     deserializeObject(data, pos, SyncHelper::instance().variables.alphaFg);
@@ -600,6 +605,16 @@ static void decode(const std::vector<std::byte> &data) {
 }
 
 static void postSyncPreDraw() {
+    if (SyncHelper::instance().variables.terminateNodes) {
+        if (!Engine::instance().isMaster()) {
+            Engine::instance().terminate();
+        }
+        return;
+    }
+
+    if (shuttingDown)
+        return;
+
     // Apply synced commands
     if (!Engine::instance().isMaster()) {
         if (!backgroundImageLayer || !foregroundImageLayer || !overlayImageLayer
@@ -992,7 +1007,7 @@ static void postSyncPreDraw() {
 }
 
 static void draw(const RenderData &data) {
-    if (Engine::instance().isMaster() || !layerRender)
+    if (shuttingDown || Engine::instance().isMaster() || !layerRender)
         return;
 
     glDisable(GL_DEPTH_TEST);
@@ -1009,8 +1024,28 @@ static void draw(const RenderData &data) {
 }
 
 static void cleanup() {
-    if (!logFilePath.empty()) {
-        logFile.close();
+    shuttingDown = true;
+
+    if (Engine::instance().isMaster()) {
+        SyncHelper::instance().variables.terminateNodes = true;
+    }
+
+    if (!Engine::instance().isMaster()) {
+        if (layerRender)
+            layerRender->clearLayers();
+
+        secondaryLayersToKeep.clear();
+        secondaryLayers.clear();
+        primaryLayers.clear();
+
+        backgroundImageLayer.reset();
+        foregroundImageLayer.reset();
+        overlayImageLayer.reset();
+        mainVideoLayer.reset();
+        mainSubtitleLayer.reset();
+        layerRender.reset();
+
+        ImageLayer::processPendingGLCleanup();
     }
 
 #ifdef NDI_SUPPORT
@@ -1018,18 +1053,9 @@ static void cleanup() {
     NDIlib_destroy();
 #endif
 
-    if (Engine::instance().isMaster())
-        return;
-
-    secondaryLayers.clear();
-    secondaryLayersToKeep.clear();
-    backgroundImageLayer = nullptr;
-    foregroundImageLayer = nullptr;
-    overlayImageLayer = nullptr;
-    mainVideoLayer = nullptr;
-    mainSubtitleLayer = nullptr;
-    layerRender = nullptr;
-    primaryLayers.clear();
+    if (!logFilePath.empty()) {
+        logFile.close();
+    }
 }
 
 static void logging(Log::Level, std::string_view message) {

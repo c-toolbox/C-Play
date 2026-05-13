@@ -26,6 +26,7 @@ public:
     TextLayer();
     ~TextLayer();
 
+    void cleanup() override;
     void initialize();
     void initializeGL();
 

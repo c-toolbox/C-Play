@@ -51,6 +51,7 @@
 #include "subtitlesettings.h"
 #include "userinterfacesettings.h"
 
+#include "layersrendererqtitem.h"
 #include "worker.h"
 #include <sgct/sgct.h>
 #include <sgct/version.h>
@@ -247,6 +248,8 @@ bool Application::isCreated() {
 }
 
 Application::~Application() {
+    shutdownLayers();
+    shutdownWorkerThread();
     delete m_engine;
     _instance = nullptr;
     delete m_aboutData;
@@ -259,21 +262,50 @@ int Application::run() {
     renderThread.render();
     int returnCode = m_app->exec();
     sgct::Log::Info("Qt Application exited");
+    if (sgct::Engine::instance().isMaster()) {
+        SyncHelper::instance().variables.terminateNodes = true;
+    }
+    shutdownLayers();
+    shutdownWorkerThread();
     renderThread.terminate();
     delete m_slidesModel;
+    m_slidesModel = nullptr;
     loop.exec();
     return returnCode;
 }
 
+void Application::shutdownLayers() {
+    LayersRendererQtItem::beginShutdown();
+
+    std::lock_guard<std::mutex> layerAccessLock(LayersRendererQtItem::layerAccessMutex());
+
+    if (m_slidesModel)
+        m_slidesModel->clearAllForShutdown();
+}
+
+void Application::shutdownWorkerThread() {
+    if (!m_workerThread)
+        return;
+
+    if (m_workerThread->isRunning()) {
+        m_workerThread->quit();
+        m_workerThread->wait();
+    }
+
+    if (m_worker) {
+        Worker::destroy();
+        m_worker = nullptr;
+    }
+
+    delete m_workerThread;
+    m_workerThread = nullptr;
+}
+
 void Application::setupWorkerThread() {
-    auto worker = Worker::instance();
-    auto thread = new QThread();
-    worker->moveToThread(thread);
-    QObject::connect(thread, &QThread::finished,
-                     worker, &Worker::deleteLater);
-    QObject::connect(thread, &QThread::finished,
-                     thread, &QThread::deleteLater);
-    thread->start();
+    m_worker = Worker::instance();
+    m_workerThread = new QThread();
+    m_worker->moveToThread(m_workerThread);
+    m_workerThread->start();
 }
 
 void Application::setupAboutData() {

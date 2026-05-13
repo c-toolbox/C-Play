@@ -385,6 +385,9 @@ void main() {
 // LayersRendererQtItem
 // -------------------------------------------------------------------------
 
+std::atomic_bool LayersRendererQtItem::s_shuttingDown = false;
+std::mutex LayersRendererQtItem::s_layerAccessMutex;
+
 LayersRendererQtItem::LayersRendererQtItem()
     : m_renderer(nullptr), 
     m_timer(nullptr), 
@@ -540,7 +543,21 @@ void LayersRendererQtItem::handleWindowChanged(QQuickWindow* win) {
 }
 
 void LayersRendererQtItem::cleanup() {
+    beginShutdown();
+
+    if (m_timer) {
+        m_timer->stop();
+        m_timer->deleteLater();
+        m_timer = nullptr;
+    }
+
+    if (window()) {
+        disconnect(window(), &QQuickWindow::beforeSynchronizing, this, &LayersRendererQtItem::sync);
+        disconnect(window(), &QQuickWindow::sceneGraphInvalidated, this, &LayersRendererQtItem::cleanup);
+    }
+
     if (m_renderer) {
+        m_renderer->shutdown();
         delete m_renderer;
         m_renderer = nullptr;
     }
@@ -556,11 +573,29 @@ private:
 };
 
 void LayersRendererQtItem::releaseResources() {
-    window()->scheduleRenderJob(new CleanupJob(m_renderer), QQuickWindow::BeforeSynchronizingStage);
-    m_renderer = nullptr;
+    beginShutdown();
+    if (m_timer) {
+        m_timer->stop();
+        m_timer->deleteLater();
+        m_timer = nullptr;
+    }
+
+    if (m_renderer) {
+        m_renderer->shutdown();
+        if (window()) {
+            window()->scheduleRenderJob(new CleanupJob(m_renderer), QQuickWindow::BeforeSynchronizingStage);
+        }
+        else {
+            delete m_renderer;
+        }
+        m_renderer = nullptr;
+    }
 }
 
 void LayersRendererQtItem::sync() {
+    if (s_shuttingDown)
+        return;
+
     if (!m_renderer) {
         m_renderer = new LayersRendererQtOpenGLObject(this);
         connect(window(), &QQuickWindow::beforeRendering, m_renderer, &LayersRendererQtOpenGLObject::init, Qt::DirectConnection);
@@ -585,6 +620,18 @@ void LayersRendererQtItem::sync() {
     m_renderer->setViewportRect(itemRect.toRect());
 
     updateCameraMatrices();
+}
+
+void LayersRendererQtItem::beginShutdown() {
+    s_shuttingDown = true;
+}
+
+bool LayersRendererQtItem::isShuttingDown() {
+    return s_shuttingDown;
+}
+
+std::mutex& LayersRendererQtItem::layerAccessMutex() {
+    return s_layerAccessMutex;
 }
 
 // -------------------------------------------------------------------------
@@ -746,6 +793,19 @@ void LayersRendererQtOpenGLObject::updateMeshes(double radius, double fov, doubl
         m_meshesDirty = true;
     }
     m_meshAngle = angle;
+}
+
+void LayersRendererQtOpenGLObject::addLayer(std::shared_ptr<BaseLayer> layer) {
+    if (layer)
+        m_layers.push_back(layer);
+}
+
+void LayersRendererQtOpenGLObject::clearLayers() {
+    m_layers.clear();
+}
+
+const std::vector<std::shared_ptr<BaseLayer>>& LayersRendererQtOpenGLObject::getLayers() {
+    return m_layers;
 }
 
 void LayersRendererQtOpenGLObject::renderQuad() {
@@ -1213,6 +1273,14 @@ void LayersRendererQtOpenGLObject::renderMpvObject(MpvObject* mpv, int eyeMode, 
 }
 
 void LayersRendererQtOpenGLObject::updateLayers() {
+    if (m_shuttingDown || LayersRendererQtItem::isShuttingDown())
+        return;
+
+    std::lock_guard<std::mutex> layerAccessLock(LayersRendererQtItem::layerAccessMutex());
+
+    if (m_shuttingDown || LayersRendererQtItem::isShuttingDown())
+        return;
+
     glm::vec3 rotXYZ = glm::vec3(0.f);
     glm::vec3 translateXYZ = glm::vec3(0.f);
     if (m_mpvObject) {
@@ -1250,15 +1318,15 @@ void LayersRendererQtOpenGLObject::updateLayers() {
             m_foregroundImageDirty = false;
         }
     }
-    if (m_mpvObject) {
+    if (m_mpvObject && m_overlayImageLayer) {
         bool overlayUpdated = false;
-        if(SyncHelper::instance().variables.overlayFile != m_overlayImageLayer.get()->loadedFile()) {
+        if(SyncHelper::instance().variables.overlayFile != m_overlayImageLayer->loadedFile()) {
             overlayUpdated = true;
         }
         m_overlayImageLayer->processImageUpload(SyncHelper::instance().variables.overlayFile, overlayUpdated);
     }
 
-    if (!Application::isCreated() || !Application::instance().slidesModel()) {
+    if (m_shuttingDown || LayersRendererQtItem::isShuttingDown() || !Application::isCreated() || !Application::instance().slidesModel()) {
         return;
     }
 
@@ -1326,6 +1394,14 @@ void LayersRendererQtOpenGLObject::updateLayers() {
 
 void LayersRendererQtOpenGLObject::renderLayers(float angle,
     const QMatrix4x4& viewMatrix, const QMatrix4x4& projectionMatrix) {
+    if (m_shuttingDown || LayersRendererQtItem::isShuttingDown())
+        return;
+
+    std::lock_guard<std::mutex> layerAccessLock(LayersRendererQtItem::layerAccessMutex());
+
+    if (m_shuttingDown || LayersRendererQtItem::isShuttingDown())
+        return;
+
     int eyeMode = 1; // Default to left eye/mono
 
     if (!Application::isCreated())
@@ -1465,8 +1541,15 @@ void LayersRendererQtOpenGLObject::setItemVisible(bool visible) {
     m_itemVisible = visible;
 }
 
+void LayersRendererQtOpenGLObject::shutdown() {
+    m_shuttingDown = true;
+    m_itemVisible = false;
+    m_mpvObject = nullptr;
+    clearLayers();
+}
+
 void LayersRendererQtOpenGLObject::init() {
-    if (m_initialized)
+    if (m_shuttingDown || LayersRendererQtItem::isShuttingDown() || m_initialized)
         return;
 
     QSGRendererInterface* rif = m_window->rendererInterface();
@@ -1493,7 +1576,7 @@ void LayersRendererQtOpenGLObject::init() {
 }
         
 void LayersRendererQtOpenGLObject::paint() {
-    if (!m_initialized || !m_itemVisible) {
+    if (m_shuttingDown || LayersRendererQtItem::isShuttingDown() || !m_initialized || !m_itemVisible) {
         return;
     }
 

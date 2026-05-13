@@ -29,6 +29,7 @@ public:
     RestLayer();
     ~RestLayer();
 
+    void cleanup() override;
     void initialize() override;
     bool existOnMasterOnly() const override;
     bool ready() const override;

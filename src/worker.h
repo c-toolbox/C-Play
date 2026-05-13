@@ -19,6 +19,7 @@ public:
     ~Worker() = default;
 
     static Worker *instance();
+    static void destroy();
 
     Q_INVOKABLE void getMetaData(int index, const QString &path);
 

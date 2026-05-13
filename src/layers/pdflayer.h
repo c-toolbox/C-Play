@@ -51,6 +51,7 @@ public:
     PdfLayer();
     ~PdfLayer();
 
+    void cleanup() override;
     void initialize();
     void update(bool updateRendering = true);
     bool ready() const;

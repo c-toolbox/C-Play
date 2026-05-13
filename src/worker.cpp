@@ -25,6 +25,13 @@ Worker *Worker::instance() {
     return sm_worker;
 }
 
+void Worker::destroy() {
+    if (sm_worker) {
+        delete sm_worker;
+        sm_worker = nullptr;
+    }
+}
+
 void Worker::getMetaData(int index, const QString &path) {
     auto url = QUrl::fromUserInput(path);
     if (url.scheme() != QStringLiteral("file")) {

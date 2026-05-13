@@ -33,6 +33,7 @@ public:
     SpoutLayer();
     ~SpoutLayer();
 
+    void cleanup() override;
     void initialize();
     void update(bool updateRendering = true);
     void updateFrame();

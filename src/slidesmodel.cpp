@@ -383,6 +383,7 @@ SlidesModel::SlidesModel(QObject *parent)
 }
 
 SlidesModel::~SlidesModel() {
+    clearAllForShutdown();
     m_slides.clear();
     delete m_masterSlide;
     delete m_dummySlide;
@@ -894,6 +895,20 @@ void SlidesModel::clearSlides() {
     Q_EMIT selectedSlideChanged();
     Q_EMIT triggeredSlideChanged();
     Q_EMIT slideModelChanged();
+}
+
+void SlidesModel::clearAllForShutdown() {
+    std::lock_guard<std::recursive_mutex> lock(m_slidesMutex);
+
+    if (m_masterSlide)
+        m_masterSlide->clearLayers();
+
+    for (auto& slide : m_slides) {
+        if (slide)
+            slide->clearLayers();
+    }
+
+    m_layerToCopyFrom = nullptr;
 }
 
 void SlidesModel::slideContentChanged() {

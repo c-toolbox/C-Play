@@ -291,15 +291,41 @@ NdiLayer::NdiLayer() {
 }
 
 NdiLayer::~NdiLayer() {
-    if (isAudioEnabled() && m_recevieAudio) {
-        if (m_audioStreamOpen && m_audioStreamStarted) {
-            m_audioError = Pa_CloseStream(m_audioStream);
-            if (m_audioError == paNoError) {
-                m_audioStreamOpen = false;
-            }
+    cleanup();
+
+    delete m_qrProcessor;
+    delete m_qrOpHandler;
+    delete m_divideTexHandler;
+}
+
+void NdiLayer::cleanup() {
+    std::lock_guard<std::mutex> lock(m_updateMutex);
+
+    NDIreceiver.SetAudio(false);
+
+    if (m_audioStream) {
+        if (m_audioStreamStarted) {
+            m_audioError = Pa_StopStream(m_audioStream);
+            if (m_audioError == paNoError || m_audioError == paStreamIsStopped)
+                m_audioStreamStarted = false;
+            else
+                Pa_AbortStream(m_audioStream);
         }
+
+        if (m_audioStreamOpen) {
+            m_audioError = Pa_CloseStream(m_audioStream);
+            if (m_audioError == paNoError)
+                m_audioStreamOpen = false;
+        }
+
+        m_audioStream = nullptr;
+        m_audioStreamStarted = false;
+        m_audioStreamOpen = false;
+    }
+
+    if (m_portAudioInitialized) {
         Pa_Terminate();
-        NDIreceiver.SetAudio(false);
+        m_portAudioInitialized = false;
     }
 
     NDIreceiver.ReleaseReceiver();
@@ -317,10 +343,6 @@ NdiLayer::~NdiLayer() {
         free(m_conversionBuffer);
         m_conversionBuffer = nullptr;
     }
-
-    delete m_qrProcessor;
-    delete m_qrOpHandler;
-    delete m_divideTexHandler;
 }
 
 void NdiLayer::initialize() {
@@ -334,6 +356,7 @@ void NdiLayer::initialize() {
             NDIreceiver.SetAudio(false);
         }
         else {
+            m_portAudioInitialized = true;
             NDIreceiver.SetAudio(true, true);
             m_recevieAudio = true;
             m_audioOutputParameters.device = Pa_GetDefaultOutputDevice();

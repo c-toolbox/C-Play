@@ -17,7 +17,9 @@
 #include <QTimer>
 #include <QVector3D>
 #include <QMatrix4x4>
+#include <atomic>
 #include <memory>
+#include <mutex>
 #include <vector>
 #include <layers/baselayer.h>
 #include <layers/imagelayer.h>
@@ -58,6 +60,7 @@ public:
 
     void setViewportRect(const QRect& rect);
     void setItemVisible(bool visible);
+    void shutdown();
 
 Q_SIGNALS:
     void initialized();
@@ -82,6 +85,7 @@ private:
     std::shared_ptr<ImageLayer> m_backgroundImageLayer;
     std::shared_ptr<ImageLayer> m_foregroundImageLayer;
     std::shared_ptr<ImageLayer> m_overlayImageLayer;
+    std::vector<std::shared_ptr<BaseLayer>> m_layers;
     QString m_backgroundImageFile;
     QString m_foregroundImageFile;
     bool m_backgroundImageDirty = false;
@@ -134,6 +138,7 @@ private:
 
     QRect m_viewportRect;
     bool m_itemVisible = false;
+    bool m_shuttingDown = false;
 };
 
 class LayersRendererQtItem : public QQuickItem {
@@ -182,6 +187,9 @@ public:
 
     Q_INVOKABLE void sync();
     Q_INVOKABLE void cleanup();
+    static void beginShutdown();
+    static bool isShuttingDown();
+    static std::mutex& layerAccessMutex();
 
 Q_SIGNALS:
     void layerChanged();
@@ -213,6 +221,9 @@ private:
     MpvObject* m_mpvObject = nullptr;
     QString m_backgroundImageFile;
     QString m_foregroundImageFile;
+
+    static std::atomic_bool s_shuttingDown;
+    static std::mutex s_layerAccessMutex;
 };
 
 #endif // LAYERSRENDERERQTITEM_H

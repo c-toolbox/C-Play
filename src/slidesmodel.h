@@ -175,6 +175,7 @@ public:
     Q_INVOKABLE void updateSlide(int i);
     Q_INVOKABLE void updateSelectedSlide();
     Q_INVOKABLE void clearSlides();
+    void clearAllForShutdown();
     Q_INVOKABLE void slideContentChanged();
 
     Q_INVOKABLE void copyLayer();

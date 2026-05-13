@@ -69,9 +69,15 @@ TextLayer::TextLayer() {
 }
 
 TextLayer::~TextLayer() {
+    cleanup();
+}
+
+void TextLayer::cleanup() {
     if (m_data.fboCreated) {
         glDeleteFramebuffers(1, &m_data.fboId);
         glDeleteTextures(1, &renderData.texId);
+        m_data.fboId = 0;
+        renderData.texId = 0;
         m_data.fboCreated = false;
     }
 }

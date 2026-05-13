@@ -398,7 +398,7 @@ ItemDelegate {
     }
 
     onHighlightedChanged: {
-        if (highlighted) {
+        if (highlighted && model.visibility) {
             visibilitySlider.value = model.visibility;
         }
     }

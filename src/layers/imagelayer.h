@@ -133,7 +133,7 @@ private:
     static std::mutex s_pendingTexDeleteMutex;
     static std::vector<unsigned int> s_pendingTexToDelete;
 
-    void signalAndDetachThread();
+    void signalAndDetachThread(bool waitForExit = false);
     void handleAsyncImageUpload();
     void releaseTexRing();
     void ensureTexRing(int width, int height, unsigned int glInternalFormat, unsigned int glFormat);

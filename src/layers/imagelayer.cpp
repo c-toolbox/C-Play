@@ -286,9 +286,7 @@ ImageLayer::ImageLayer(std::string identifier)
 }
 
 ImageLayer::~ImageLayer() {
-    // Non-blocking: signal the decode thread and detach it. It holds its own
-    // shared_ptr<ThreadContext> and will release resources when it exits.
-    signalAndDetachThread();
+    signalAndDetachThread(true);
     m_ctx.reset();
 
     // Defer GL resource deletion to the next render-thread processPendingGLCleanup() call.
@@ -481,7 +479,7 @@ bool ImageLayer::fileIsImage(std::string &filePath, ImageLayer::ImageDecoder& de
     return false;
 }
 
-void ImageLayer::signalAndDetachThread() {
+void ImageLayer::signalAndDetachThread(bool waitForExit) {
     if (m_ctx) {
         m_ctx->abortRequested = true;
         m_ctx->uploadDone = true;
@@ -492,7 +490,12 @@ void ImageLayer::signalAndDetachThread() {
         m_ctx->queueNotFull.notify_all();
     }
     if (m_thread) {
-        if (m_thread->joinable()) m_thread->detach();
+        if (m_thread->joinable()) {
+            if (waitForExit)
+                m_thread->join();
+            else
+                m_thread->detach();
+        }
         m_thread.reset();
     }
 }

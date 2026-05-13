@@ -43,6 +43,7 @@ public:
     NdiLayer();
     ~NdiLayer();
 
+    void cleanup() override;
     void initialize();
     void update(bool updateRendering = true);
     void updateFrame();
@@ -101,8 +102,9 @@ private:
     ofxNDIreceive NDIreceiver;
 
     PaStreamParameters m_audioOutputParameters;
-    PaStream* m_audioStream;
-    PaError m_audioError;
+    PaStream* m_audioStream = nullptr;
+    PaError m_audioError = paNoError;
+    bool m_portAudioInitialized = false;
     bool m_audioStreamOpen = false;
     bool m_audioStreamStarted = false;
     bool m_recevieAudio = false;

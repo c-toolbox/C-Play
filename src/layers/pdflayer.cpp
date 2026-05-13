@@ -99,6 +99,10 @@ PdfLayer::PdfLayer() {
 }
 
 PdfLayer::~PdfLayer() {
+    cleanup();
+}
+
+void PdfLayer::cleanup() {
     if (m_pdfData.trd) {
         m_pdfData.uploadDone = true;
         while (!m_pdfData.threadDone) {
@@ -109,9 +113,11 @@ PdfLayer::~PdfLayer() {
 
     if (renderData.texId > 0) {
         glDeleteTextures(1, &renderData.texId);
+        renderData.texId = 0;
     }
     if (m_pdfData.document != nullptr) {
         PdfDocumentManager::instance().trashDocument(m_pdfData.filepath);
+        m_pdfData.document = nullptr;
     }
 }
 

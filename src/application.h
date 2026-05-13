@@ -22,6 +22,8 @@ class QElapsedTimer;
 class QObject;
 class QQmlApplicationEngine;
 class QFontDatabase;
+class QThread;
+class Worker;
 class KAboutData;
 class KActionCollection;
 class KConfigDialog;
@@ -229,6 +231,8 @@ Q_SIGNALS:
 #endif
 
 private:
+    void shutdownLayers();
+    void shutdownWorkerThread();
     void setupWorkerThread();
     void setupAboutData();
     void registerQmlTypes();
@@ -241,6 +245,8 @@ private:
     QApplication *m_app;
     QQmlApplicationEngine *m_engine;
     std::unique_ptr<ApplicationEventFilter> m_appEventFilter;
+    QThread* m_workerThread = nullptr;
+    Worker* m_worker = nullptr;
 
     struct FontScanResult {
         QMap<QString, QString> familyToPath;
@@ -304,6 +310,7 @@ public:
         double timeThresholdOnLoopCheckTime;
         bool timeDirty;
         bool syncOn;
+        bool terminateNodes;
         float alpha;
         float alphaBg;
         float alphaFg;
@@ -386,6 +393,7 @@ public:
         /*timeThresholdOnLoopCheckTime*/ 1.0,
         /*timeDirty*/ false,
         /*syncOn*/ true,
+        /*terminateNodes*/ false,
         /*alpha*/ 1.f,
         /*alphaBg*/ 1.f,
         /*alphaFg*/ 0.f,

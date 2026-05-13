@@ -15,10 +15,17 @@ RestLayer::RestLayer() {
 }
 
 RestLayer::~RestLayer() {
+    cleanup();
+}
+
+void RestLayer::cleanup() {
+    m_statusCallback = nullptr;
     if (m_workerThread) {
         m_workerThread->quit();
         m_workerThread->wait();
         delete m_workerThread;
+        m_workerThread = nullptr;
+        m_worker = nullptr;
     }
 }
 
