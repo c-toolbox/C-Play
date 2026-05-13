@@ -12,6 +12,12 @@ Kirigami.ApplicationWindow {
         return !mpv.playSectionsModel.isEmpty() && mpv.playSectionsModel.currentEditItem;
     }
 
+    function openFileDialog(dialog) {
+        Qt.callLater(function() {
+            dialog.open();
+        });
+    }
+
     function updateValues() {
         if (hasCurrentEditItem()) {
             mediaFileLabel.text = mpv.playSectionsModel.currentEditItem.mediaFile();
@@ -94,11 +100,11 @@ Kirigami.ApplicationWindow {
 
         target: mpv.playSectionsModel
     }
-    FileDialog {
+    CPlayFileDialog {
         id: openSeparateAudioFileDialog
 
         parentWindow: saveAsCPlayFileWindow
-        fileMode: FileDialog.OpenFile
+        fileMode: CPlayFileDialog.OpenFile
         title: "Choose Separate Audio File"
 
         onAccepted: {
@@ -110,11 +116,11 @@ Kirigami.ApplicationWindow {
         }
         onRejected: mpv.focus = true
     }
-    FileDialog {
+    CPlayFileDialog {
         id: openSeparateOverlayFileDialog
 
         parentWindow: saveAsCPlayFileWindow
-        fileMode: FileDialog.OpenFile
+        fileMode: CPlayFileDialog.OpenFile
         currentFolder: LocationSettings.cPlayMediaLocation !== "" ? app.pathToUrl(LocationSettings.cPlayMediaLocation) : app.pathToUrl(LocationSettings.fileDialogLastLocation)
         nameFilters: ["Image files (*.png *.jpg *.jpeg *.tga)"]
         title: "Choose Separate Overlay File"
@@ -368,7 +374,7 @@ Kirigami.ApplicationWindow {
                     } else {
                         openSeparateAudioFileDialog.currentFolder = app.parentUrl(mpv.playSectionsModel.currentEditItem.mediaFile());
                     }
-                    openSeparateAudioFileDialog.open();
+                    openFileDialog(openSeparateAudioFileDialog);
                 }
             }
         }
@@ -432,7 +438,7 @@ Kirigami.ApplicationWindow {
                     } else {
                         openSeparateOverlayFileDialog.currentFolder = app.parentUrl(mpv.playSectionsModel.currentEditItem.mediaFile());
                     }
-                    openSeparateOverlayFileDialog.open();
+                    openFileDialog(openSeparateOverlayFileDialog);
                 }
             }
         }
@@ -507,7 +513,7 @@ Kirigami.ApplicationWindow {
                 text: qsTr("Save C-Play file")
                 enabled: hasCurrentEditItem()
 
-                onClicked: saveCPlayFileDialog.open()
+                onClicked: openFileDialog(saveCPlayFileDialog)
             }
             Item {
                 Layout.columnSpan: 2

@@ -443,7 +443,9 @@ Kirigami.ApplicationWindow {
 
                 onClicked: {
                     listAudioFileDialog.startFolder = mpv.playlistModel.mediaFileFolderPath(viewPlaylistItemWindow.selectedIndex);
-                    listAudioFileDialog.open();
+                    Qt.callLater(function() {
+                        listAudioFileDialog.open();
+                    });
                 }
 
                 ToolTip {
@@ -451,14 +453,14 @@ Kirigami.ApplicationWindow {
                 }
             }
 
-            FileDialog {
+            CPlayFileDialog {
                 id: listAudioFileDialog
 
                 property string startFolder: ""
 
                 parentWindow: viewPlaylistItemWindow
                 title: qsTr("Select Audio File")
-                fileMode: FileDialog.OpenFile
+                fileMode: CPlayFileDialog.OpenFile
                 currentFolder: startFolder.length > 0 ? "file:///" + startFolder : ""
                 nameFilters: [qsTr("Audio files") + " (*.wav *.mp3 *.flac *.ogg *.aac *.wma *.m4a *.opus *.aiff *.ac3 *.dts *.pcm)"]
 

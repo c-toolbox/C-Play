@@ -50,6 +50,23 @@ SettingsBasePage {
                 Layout.fillWidth: true
             }
 
+            Item {
+                height: 1
+                width: 1
+            }
+            CheckBox {
+                checked: UserInterfaceSettings.useNativeFileDialogs
+                text: qsTr("Use native file/folder dialogs when available")
+
+                onCheckedChanged: {
+                    UserInterfaceSettings.useNativeFileDialogs = checked;
+                    UserInterfaceSettings.save();
+                }
+            }
+            Item {
+                Layout.fillWidth: true
+            }
+
             Label {
                 Layout.alignment: Qt.AlignRight
                 text: qsTr("Window fade duration:")

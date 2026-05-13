@@ -561,13 +561,6 @@ void LayersModel::clearLayers() {
                 unlockedLayers++;
             }
         }
-        beginRemoveRows(QModelIndex(), lockedLayers, m_layers.size() - 1);
-        for (int i = lockedLayers; i < m_layers.size(); i++) {
-            if (m_layers[i].first)
-                m_layers[i].first->setEnabled(false);
-        }
-        m_layers.erase(m_layers.begin() + lockedLayers, m_layers.end());
-        endRemoveRows();
 
         if (lockedLayers < m_layers.size()) {
             beginRemoveRows(QModelIndex(), lockedLayers, m_layers.size() - 1);

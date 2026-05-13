@@ -16,11 +16,11 @@ import org.ctoolbox.cplay
 SettingsBasePage {
     id: root
 
-    FileDialog {
+    CPlayFileDialog {
         id: presentationToLoadOnStartupDialog
 
         parentWindow: root.Window.window
-        fileMode: FileDialog.OpenFile
+        fileMode: CPlayFileDialog.OpenFile
         currentFolder: LocationSettings.cPlayFileLocation !== "" ? app.pathToUrl(LocationSettings.cPlayFileLocation) : app.pathToUrl(LocationSettings.fileDialogLastLocation)
         nameFilters: ["C-Play presentation (*.cplaypres)"]
         title: "Choose presentation to load on startup"

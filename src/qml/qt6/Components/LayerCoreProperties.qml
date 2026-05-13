@@ -108,12 +108,12 @@ GridLayout {
         id: restCoreParamsModel
     }
 
-    FileDialog {
+    CPlayFileDialog {
         id: fileToLoadAsImageLayerDialog
         property bool acceptedOnes: false
 
         parentWindow: root.Window.window
-        fileMode: FileDialog.OpenFile
+        fileMode: CPlayFileDialog.OpenFile
         currentFolder: fileToLoadAsImageLayerDialog.acceptedOnes ? app.pathToUrl(LocationSettings.imageFileDialogLastLocation) : app.pathToUrl(LocationSettings.imageFileDialogLocation)
         nameFilters: [playerController.supportedImageNameFilters()]
         title: "Choose image file"
@@ -129,12 +129,12 @@ GridLayout {
             }
         }
     }
-    FileDialog {
+    CPlayFileDialog {
         id: fileToLoadAsPdfLayerDialog
         property bool acceptedOnes: false
 
         parentWindow: root.Window.window
-        fileMode: FileDialog.OpenFile
+        fileMode: CPlayFileDialog.OpenFile
         currentFolder: fileToLoadAsPdfLayerDialog.acceptedOnes ? app.pathToUrl(LocationSettings.pdfFileDialogLastLocation) : app.pathToUrl(LocationSettings.pdfFileDialogLocation)
         nameFilters: ["PDF files (*.pdf)"]
         title: "Choose pdf file"
@@ -147,12 +147,12 @@ GridLayout {
             fileToLoadAsPdfLayerDialog.acceptedOnes = true;
         }
     }
-    FileDialog {
+    CPlayFileDialog {
         id: fileToLoadAsVideoLayerDialog
         property bool acceptedOnes: false
 
         parentWindow: root.Window.window
-        fileMode: FileDialog.OpenFile
+        fileMode: CPlayFileDialog.OpenFile
         currentFolder: fileToLoadAsVideoLayerDialog.acceptedOnes ? app.pathToUrl(LocationSettings.videoFileDialogLastLocation) : app.pathToUrl(LocationSettings.videoFileDialogLocation)
         title: "Choose video file"
 
@@ -164,12 +164,12 @@ GridLayout {
             fileToLoadAsVideoLayerDialog.acceptedOnes = true;
         }
     }
-    FileDialog {
+    CPlayFileDialog {
         id: fileToLoadAsAudioLayerDialog
         property bool acceptedOnes: false
 
         parentWindow: root.Window.window
-        fileMode: FileDialog.OpenFile
+        fileMode: CPlayFileDialog.OpenFile
         currentFolder: fileToLoadAsAudioLayerDialog.acceptedOnes ? app.pathToUrl(LocationSettings.audioFileDialogLastLocation) : app.pathToUrl(LocationSettings.audioFileDialogLocation)
         title: "Choose audio file"
 

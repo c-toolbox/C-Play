@@ -17,11 +17,11 @@ import org.ctoolbox.cplay
 SettingsBasePage {
     id: root
 
-    FileDialog {
+    CPlayFileDialog {
         id: fileToLoadAsBackgroundDialog
 
         parentWindow: root.Window.window
-        fileMode: FileDialog.OpenFile
+        fileMode: CPlayFileDialog.OpenFile
         currentFolder: LocationSettings.cPlayMediaLocation !== "" ? app.pathToUrl(LocationSettings.cPlayMediaLocation) : app.pathToUrl(LocationSettings.fileDialogLastLocation)
         nameFilters: [playerController.supportedImageNameFilters()]
         title: "Choose file to load on startup"
@@ -33,11 +33,11 @@ SettingsBasePage {
         }
         onRejected: mpv.focus = true
     }
-    FileDialog {
+    CPlayFileDialog {
         id: fileToLoadAsForegroundDialog
 
         parentWindow: root.Window.window
-        fileMode: FileDialog.OpenFile
+        fileMode: CPlayFileDialog.OpenFile
         currentFolder: LocationSettings.cPlayMediaLocation !== "" ? app.pathToUrl(LocationSettings.cPlayMediaLocation) : app.pathToUrl(LocationSettings.fileDialogLastLocation)
         nameFilters: [playerController.supportedImageNameFilters()]
         title: "Choose file to load on startup"

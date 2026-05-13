@@ -43,6 +43,10 @@
       <label>Specify mapping modes for dialog if NOT a cplayfile.</label>
       <default>true</default>
     </entry>
+    <entry name="UseNativeFileDialogs" type="bool">
+      <label>Use native file dialogs when available.</label>
+      <default>true</default>
+    </entry>
     <entry name="IdleModeOn" type="bool">
       <label>UI idle mode On/Off</label>
       <default>false</default>

@@ -7,6 +7,7 @@
  */
 
 #include "application.h"
+#include "cplayfiledialog.h"
 #include "haction.h"
 #include "layerqtitem.h"
 #include "layersrendererqtitem.h"
@@ -333,6 +334,7 @@ void Application::registerQmlTypes() {
     qmlRegisterType<LayerQtItem>("org.ctoolbox.cplay", 1, 0, "LayerQtItem");
     qmlRegisterType<LayersRendererQtItem>("org.ctoolbox.cplay", 1, 0, "LayersRendererQtItem");
     qmlRegisterType<SlidesQtItem>("org.ctoolbox.cplay", 1, 0, "SlidesQtItem");
+    qmlRegisterType<CPlayFileDialog>("org.ctoolbox.cplay", 1, 0, "CPlayFileDialog");
     qRegisterMetaType<QAction *>();
     qRegisterMetaType<KFileMetaData::PropertyMultiMap>("KFileMetaData::PropertyMultiMap");
 }

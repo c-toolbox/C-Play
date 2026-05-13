@@ -17,9 +17,10 @@ import org.ctoolbox.cplay
 SettingsBasePage {
     id: root
 
-    FolderDialog {
+    CPlayFileDialog {
         id: openPrimaryFileDialogLocation
 
+        useFolder: true
         currentFolder: LocationSettings.fileDialogLocation !== "" ? app.pathToUrl(LocationSettings.fileDialogLocation) : app.pathToUrl(LocationSettings.fileDialogLastLocation)
         title: "Choose Primary File Dialog Location"
 
@@ -34,9 +35,10 @@ SettingsBasePage {
         }
         onRejected: mpv.focus = true
     }
-    FolderDialog {
+    CPlayFileDialog {
         id: openCPlayFileLocation
 
+        useFolder: true
         currentFolder: LocationSettings.cPlayFileLocation !== "" ? app.pathToUrl(LocationSettings.cPlayFileLocation) : app.pathToUrl(LocationSettings.fileDialogLastLocation)
         title: "Choose Common C-Play File Location"
 
@@ -51,9 +53,10 @@ SettingsBasePage {
         }
         onRejected: mpv.focus = true
     }
-    FolderDialog {
+    CPlayFileDialog {
         id: openCPlayMediaLocation
 
+        useFolder: true
         currentFolder: LocationSettings.cPlayMediaLocation !== "" ? app.pathToUrl(LocationSettings.cPlayMediaLocation) : app.pathToUrl(LocationSettings.fileDialogLastLocation)
         title: "Choose Common C-Play Media Location"
 
@@ -68,9 +71,10 @@ SettingsBasePage {
         }
         onRejected: mpv.focus = true
     }
-    FolderDialog {
+    CPlayFileDialog {
         id: openUniviewVideoLocation
 
+        useFolder: true
         currentFolder: LocationSettings.univiewVideoLocation !== "" ? app.pathToUrl(LocationSettings.univiewVideoLocation) : app.pathToUrl(LocationSettings.fileDialogLastLocation)
         title: "Choose Common Uniview Media Location"
 
@@ -85,9 +89,10 @@ SettingsBasePage {
         }
         onRejected: mpv.focus = true
     }
-    FolderDialog {
+    CPlayFileDialog {
         id: videoFileDialogLocation
 
+        useFolder: true
         currentFolder: LocationSettings.videoFileDialogLocation !== "" ? app.pathToUrl(LocationSettings.videoFileDialogLocation) : app.pathToUrl(LocationSettings.videoFileDialogLastLocation)
         title: "Choose Common Media Location For Video Files"
 
@@ -102,9 +107,10 @@ SettingsBasePage {
         }
         onRejected: mpv.focus = true
     }
-    FolderDialog {
+    CPlayFileDialog {
         id: imageFileDialogLocation
 
+        useFolder: true
         currentFolder: LocationSettings.imageFileDialogLocation !== "" ? app.pathToUrl(LocationSettings.imageFileDialogLocation) : app.pathToUrl(LocationSettings.imageFileDialogLastLocation)
         title: "Choose Common Media Location For Image Files"
 
@@ -119,9 +125,10 @@ SettingsBasePage {
         }
         onRejected: mpv.focus = true
     }
-    FolderDialog {
+    CPlayFileDialog {
         id: audioFileDialogLocation
 
+        useFolder: true
         currentFolder: LocationSettings.audioFileDialogLocation !== "" ? app.pathToUrl(LocationSettings.audioFileDialogLocation) : app.pathToUrl(LocationSettings.audioFileDialogLastLocation)
         title: "Choose Common Media Location For Audio Files"
 
@@ -136,9 +143,10 @@ SettingsBasePage {
         }
         onRejected: mpv.focus = true
     }
-    FolderDialog {
+    CPlayFileDialog {
         id: pdfFileDialogLocation
 
+        useFolder: true
         currentFolder: LocationSettings.pdfFileDialogLocation !== "" ? app.pathToUrl(LocationSettings.pdfFileDialogLocation) : app.pathToUrl(LocationSettings.pdfFileDialogLastLocation)
         title: "Choose Common Media Location For PDF Files"
 
@@ -153,9 +161,10 @@ SettingsBasePage {
         }
         onRejected: mpv.focus = true
     }
-    FolderDialog {
+    CPlayFileDialog {
         id: screenshotLocationDialog
 
+        useFolder: true
         currentFolder: LocationSettings.screenshotPath !== "" ? app.pathToUrl(LocationSettings.screenshotPath) : app.pathToUrl(LocationSettings.fileDialogLastLocation)
         title: "Choose Screenshot Location"
 

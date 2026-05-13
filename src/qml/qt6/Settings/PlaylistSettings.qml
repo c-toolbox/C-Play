@@ -17,11 +17,11 @@ import org.ctoolbox.cplay
 SettingsBasePage {
     id: root
 
-    FileDialog {
+    CPlayFileDialog {
         id: playlistToLoadOnStartupDialog
 
         parentWindow: root.Window.window
-        fileMode: FileDialog.OpenFile
+        fileMode: CPlayFileDialog.OpenFile
         currentFolder: LocationSettings.cPlayFileLocation !== "" ? app.pathToUrl(LocationSettings.cPlayFileLocation) : app.pathToUrl(LocationSettings.fileDialogLastLocation)
         nameFilters: ["C-Play playlist (*.cplaylist)", "C-Play file (*.cplayfile)", "Uniview playlist (*.playlist)"]
         title: "Choose playlist (or cplayfile) to load on startup"

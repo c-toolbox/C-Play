@@ -191,6 +191,12 @@ Rectangle {
         removeSlideTimer.start();
     }
 
+    function openFileDialog(dialog) {
+        Qt.callLater(function() {
+            dialog.open();
+        });
+    }
+
     function openCPlayPresentation() {
         busyIndicator = true;
         app.slides.pauseLayerUpdate = true;
@@ -198,11 +204,11 @@ Rectangle {
         Qt.callLater(clearAndLoadPresentation);
     }
 
-    FileDialog {
+    CPlayFileDialog {
         id: openCPlayPresentationDialog
 
         parentWindow: slidesRoot.Window.window
-        fileMode: FileDialog.OpenFile
+        fileMode: CPlayFileDialog.OpenFile
         currentFolder: LocationSettings.cPlayFileLocation !== "" ? app.pathToUrl(LocationSettings.cPlayFileLocation) : app.pathToUrl(LocationSettings.fileDialogLastLocation)
         nameFilters: ["C-Play Presentation (*.cplaypres)"]
         title: "Open C-Play Presentation"
@@ -213,11 +219,11 @@ Rectangle {
         }
         onRejected: mpv.focus = true
     }
-    FileDialog {
+    CPlayFileDialog {
         id: saveCPlayPresentationDialog
 
         parentWindow: slidesRoot.Window.window
-        fileMode: FileDialog.SaveFile
+        fileMode: CPlayFileDialog.SaveFile
         currentFolder: LocationSettings.cPlayFileLocation !== "" ? app.pathToUrl(LocationSettings.cPlayFileLocation) : app.pathToUrl(LocationSettings.fileDialogLastLocation)
         nameFilters: ["C-Play Presentation (*.cplaypres)"]
         title: "Save C-Play Presentation"
@@ -250,7 +256,7 @@ Rectangle {
                     enabled: !layerView.visible
 
                     onClicked: {
-                        openCPlayPresentationDialog.open();
+                        openFileDialog(openCPlayPresentationDialog);
                     }
 
                     ToolTip {
@@ -290,7 +296,7 @@ Rectangle {
 
                     onClicked: {
                         saveCPlayPresentationDialog.currentFolder = app.slides.getSlidesPathAsURL();
-                        saveCPlayPresentationDialog.open();
+                        openFileDialog(saveCPlayPresentationDialog);
                     }
 
                     ToolTip {
