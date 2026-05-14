@@ -31,6 +31,7 @@ When idle mode is enabled, the UI automatically hides after a period of inactivi
 ### 3D view
 
 * **Show 3D view at startup** — Automatically open the 3D visualization mode when C-Play launches (default off).
+* **3D view FOV** — The FOV (field of view) of the 3D view, minimum 30 and maximum 150 degrees. Default 90 degrees.
 * **Hide dome overflow in 3D view** — Mask content that falls outside the dome projection area (default off).
 * **Dome overflow opacity** — Opacity of the dome overflow mask, from 0% (transparent) to 100% (fully opaque). Default 70%.
 
@@ -42,6 +43,7 @@ When idle mode is enabled, the UI automatically hides after a period of inactivi
 ### Open file behavior
 
 * **Show mapping mode on open file** — When opening non-`.cplayfile` files, prompt for the grid mapping mode to use (default on).
+* **Use native file/folder dialogs when available** — When opening file or folder dialog, the default is to use Windows native dialogs, but they can sometimes fail. C-Play handles this and launches the Qt/QML version if this happens. But turning of this checkbox makes us always show the Qt/QML version.
 
 ### Theme and appearance
 

@@ -272,7 +272,7 @@ Kirigami.ApplicationWindow {
 
                 PerspectiveCamera {
                     id: originCamera
-                    fieldOfView: 60
+                    fieldOfView: UserInterfaceSettings.fov3Dview
                     clipNear: 0.1
                     clipFar: 1000.0
                     position: Qt.vector3d(0, 0, 0)

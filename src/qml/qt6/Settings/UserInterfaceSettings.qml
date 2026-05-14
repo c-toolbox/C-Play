@@ -130,6 +130,35 @@ SettingsBasePage {
                 Layout.fillWidth: true
             }
 
+            Label {
+                Layout.alignment: Qt.AlignRight
+                text: qsTr("3D View FOV:")
+            }
+            RowLayout {
+                SpinBox {
+                    id: fov3Dview
+
+                    from: 30
+                    to: 150
+                    value: UserInterfaceSettings.fov3Dview
+
+                    onValueChanged: {
+                        UserInterfaceSettings.fov3Dview = value;
+                        UserInterfaceSettings.save();
+                    }
+                }
+                LabelWithTooltip {
+                    Layout.fillWidth: true
+                    elide: Text.ElideRight
+                    text: {
+                        qsTr("degrees");
+                    }
+                }
+            }
+            Item {
+                Layout.fillWidth: true
+            }
+
             Item {
                 height: 1
                 width: 1
