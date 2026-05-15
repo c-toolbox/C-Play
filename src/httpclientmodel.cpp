@@ -374,6 +374,26 @@ void HttpClientModel::addCommand(const QString &title, const QString &url, int m
     Q_EMIT commandsListChanged();
 }
 
+void HttpClientModel::moveCommand(int from, int to) {
+    if (from < 0 || from >= m_titles.size() || to < 0 || to >= m_titles.size() || from == to)
+        return;
+
+    int destinationRow = to;
+    if (to > from)
+        destinationRow += 1;
+
+    beginMoveRows(QModelIndex(), from, from, QModelIndex(), destinationRow);
+    m_titles.move(from, to);
+    m_urls.move(from, to);
+    m_methods.move(from, to);
+    m_parameters.move(from, to);
+    m_ignoreStatus.move(from, to);
+    endMoveRows();
+
+    saveCommandsToFile();
+    Q_EMIT commandsListChanged();
+}
+
 void HttpClientModel::updateCommand(int index, const QString &title, const QString &url, int method,
                                     const QString &parameters, bool ignoreStatus) {
     if (index < 0 || index >= m_titles.size())

@@ -271,43 +271,86 @@ Kirigami.ApplicationWindow {
         }
 
         // Command list
-        ListView {
-            id: commandsList
+        RowLayout {
             Layout.fillWidth: true
             Layout.preferredHeight: 170
             Layout.bottomMargin: 10
-            clip: true
-            model: app.httpClientModel
-            currentIndex: root.selectedCommandIndex
+            spacing: 8
 
-            delegate: ItemDelegate {
-                width: commandsList.width
-                highlighted: index === root.selectedCommandIndex
-                contentItem: RowLayout {
-                    Label {
-                        Layout.fillWidth: true
-                        text: model.title
-                        elide: Text.ElideRight
-                    }
-                    Label {
-                        text: root.methodName(model.method) + " "
-                        font.bold: true
-                        color: Kirigami.Theme.disabledTextColor
-                    }
-                    Label {
-                        text: model.url
-                        elide: Text.ElideMiddle
-                        Layout.preferredWidth: 250
-                        color: Kirigami.Theme.disabledTextColor
+            ColumnLayout {
+                Layout.alignment: Qt.AlignTop
+                Layout.preferredWidth: moveUpButton.implicitWidth
+                Layout.preferredHeight: parent.height
+                Layout.maximumWidth: Layout.preferredWidth
+                spacing: 4
+
+                ToolButton {
+                    id: moveUpButton
+                    icon.name: "go-up"
+                    visible: true
+                    enabled: root.selectedCommandIndex > 0
+                    ToolTip.visible: hovered
+                    ToolTip.text: qsTr("Move up")
+                    onClicked: {
+                        app.httpClientModel.moveCommand(root.selectedCommandIndex, root.selectedCommandIndex - 1);
+                        root.selectedCommandIndex = root.selectedCommandIndex - 1;
+                        commandsList.currentIndex = root.selectedCommandIndex;
+                        root.loadCommand(root.selectedCommandIndex);
                     }
                 }
-                onClicked: {
-                    root.selectedCommandIndex = index;
-                    root.loadCommand(index);
+                ToolButton {
+                    id: moveDownButton
+                    icon.name: "go-down"
+                    visible: true
+                    enabled: root.selectedCommandIndex >= 0 && root.selectedCommandIndex < app.httpClientModel.numberOfCommands - 1
+                    ToolTip.visible: hovered
+                    ToolTip.text: qsTr("Move down")
+                    onClicked: {
+                        app.httpClientModel.moveCommand(root.selectedCommandIndex, root.selectedCommandIndex + 1);
+                        root.selectedCommandIndex = root.selectedCommandIndex + 1;
+                        commandsList.currentIndex = root.selectedCommandIndex;
+                        root.loadCommand(root.selectedCommandIndex);
+                    }
                 }
             }
 
-            ScrollBar.vertical: ScrollBar {}
+            ListView {
+                id: commandsList
+                Layout.fillWidth: true
+                Layout.preferredHeight: parent.height
+                clip: true
+                model: app.httpClientModel
+                currentIndex: root.selectedCommandIndex
+
+                delegate: ItemDelegate {
+                    width: commandsList.width
+                    highlighted: index === root.selectedCommandIndex
+                    contentItem: RowLayout {
+                        Label {
+                            Layout.fillWidth: true
+                            text: model.title
+                            elide: Text.ElideRight
+                        }
+                        Label {
+                            text: root.methodName(model.method) + " "
+                            font.bold: true
+                            color: Kirigami.Theme.disabledTextColor
+                        }
+                        Label {
+                            text: model.url
+                            elide: Text.ElideMiddle
+                            Layout.preferredWidth: 250
+                            color: Kirigami.Theme.disabledTextColor
+                        }
+                    }
+                    onClicked: {
+                        root.selectedCommandIndex = index;
+                        root.loadCommand(index);
+                    }
+                }
+
+                ScrollBar.vertical: ScrollBar {}
+            }
         }
 
         // Edit area

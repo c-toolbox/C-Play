@@ -71,6 +71,9 @@ public:
     // Remove a command and save to file
     Q_INVOKABLE void removeCommand(int index);
 
+    // Move a command to a new position and save to file
+    Q_INVOKABLE void moveCommand(int from, int to);
+
     Q_PROPERTY(QString lastResponseBody READ lastResponseBody NOTIFY responseChanged)
     QString lastResponseBody() const;
 

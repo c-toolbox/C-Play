@@ -17,6 +17,8 @@ import org.ctoolbox.cplay
 Kirigami.ApplicationWindow {
     id: root
 
+    property var restObsActionNames: [qsTr("Set Profile"), qsTr("Set Scene"), qsTr("Set Scene Collection"), qsTr("Custom")]
+
     function resizeForGridMode() {
         if (layerView.layerItem.layerTypeName === "Control") {
             root.height = 180;
@@ -52,6 +54,7 @@ Kirigami.ApplicationWindow {
             restGridMethodComboBox.currentIndex = layerView.layerItem.layerRestMethod;
             restGridIgnoreStatusCheckBox.checked = layerView.layerItem.layerRestIgnoreStatus;
             restGridLayout.loadParametersFromJson(layerView.layerItem.layerRestParameters);
+            restGridLayout.updateObsOptions();
             resizeForGridMode();
             return;
         }
@@ -1192,11 +1195,70 @@ Kirigami.ApplicationWindow {
             width: parent.width
             visible: layerView.layerItem.layerTypeName === "REST"
 
+            function isObsCommand() {
+                return restGridObsConnectCheckBox.checked && restGridMethodComboBox.currentIndex === 4;
+            }
+
+            function obsRequestType() {
+                if (!isObsCommand())
+                    return "";
+                if (restGridObsActionComboBox.currentIndex === 0)
+                    return "SetCurrentProfile";
+                if (restGridObsActionComboBox.currentIndex === 1)
+                    return "SetCurrentProgramScene";
+                if (restGridObsActionComboBox.currentIndex === 2)
+                    return "SetCurrentSceneCollection";
+                return restGridObsCustomRequestType.text;
+            }
+
+            function obsOptionParameterName() {
+                if (restGridObsActionComboBox.currentIndex === 0)
+                    return "profileName";
+                if (restGridObsActionComboBox.currentIndex === 1)
+                    return "sceneName";
+                if (restGridObsActionComboBox.currentIndex === 2)
+                    return "sceneCollectionName";
+                return "";
+            }
+
+            function ensureCustomObsExample() {
+                if (!isObsCommand() || restGridObsActionComboBox.currentIndex !== 3)
+                    return;
+                if (restGridObsCustomRequestType.text === "")
+                    restGridObsCustomRequestType.text = "SetCurrentProgramScene";
+                for (var i = 0; i < restParamsModel.count; i++) {
+                    if (restParamsModel.get(i).paramName === "sceneName")
+                        return;
+                }
+                restParamsModel.append({"paramName": "sceneName", "paramValue": "Scene"});
+            }
+
+            function setObsActionFromRequestType(requestType) {
+                if (requestType === "SetCurrentProfile") {
+                    restGridObsActionComboBox.currentIndex = 0;
+                } else if (requestType === "SetCurrentProgramScene") {
+                    restGridObsActionComboBox.currentIndex = 1;
+                } else if (requestType === "SetCurrentSceneCollection") {
+                    restGridObsActionComboBox.currentIndex = 2;
+                } else {
+                    restGridObsActionComboBox.currentIndex = 3;
+                    restGridObsCustomRequestType.text = requestType;
+                    ensureCustomObsExample();
+                }
+            }
+
+            function updateObsOptions() {
+                if (!isObsCommand() || restGridObsActionComboBox.currentIndex === 3 || restUrlField.text === "")
+                    return;
+                app.wwsClientModel.updateObsOptions(restUrlField.text, restGridObsActionComboBox.currentIndex);
+            }
+
             function loadParametersFromJson(jsonStr) {
                 restParamsModel.clear();
-                    restObsRequestType.text = "";
-                    restObsPassword.text = "";
-                    restObsEventSubscriptions.text = "0";
+                restGridObsConnectCheckBox.checked = false;
+                restGridObsActionComboBox.currentIndex = 0;
+                restGridObsOptionComboBox.currentIndex = -1;
+                restGridObsCustomRequestType.text = "SetCurrentProgramScene";
                 if (!jsonStr || jsonStr === "")
                     return;
                 try {
@@ -1206,13 +1268,15 @@ Kirigami.ApplicationWindow {
                                 var name = arr[i].name || "";
                                 var value = arr[i].value || "";
                                 if (name === "requestType") {
-                                    restObsRequestType.text = value;
-                                } else if (name === "password") {
-                                    restObsPassword.text = value;
-                                } else if (name === "eventSubscriptions") {
-                                    restObsEventSubscriptions.text = value;
+                                    restGridObsConnectCheckBox.checked = true;
+                                    setObsActionFromRequestType(value);
                                 } else if (name.indexOf("requestData.") === 0) {
-                                    restParamsModel.append({"paramName": name.substring(12), "paramValue": value});
+                                    var dataName = name.substring(12);
+                                    if (dataName === "profileName" || dataName === "sceneName" || dataName === "sceneCollectionName") {
+                                        restGridObsOptionComboBox.editText = value;
+                                    } else {
+                                        restParamsModel.append({"paramName": dataName, "paramValue": value});
+                                    }
                                 } else {
                                     restParamsModel.append({"paramName": name, "paramValue": value});
                                 }
@@ -1233,18 +1297,21 @@ Kirigami.ApplicationWindow {
 
             function getParametersAsJson() {
                 var arr = [];
-                    if (isObsCommand() && restObsRequestType.text !== "") {
-                        arr.push({"name": "requestType", "value": restObsRequestType.text});
-                        if (restObsPassword.text !== "")
-                            arr.push({"name": "password", "value": restObsPassword.text});
-                        if (restObsEventSubscriptions.text !== "" && restObsEventSubscriptions.text !== "0")
-                            arr.push({"name": "eventSubscriptions", "value": restObsEventSubscriptions.text});
+                if (isObsCommand()) {
+                    var requestType = obsRequestType();
+                    if (requestType !== "") {
+                        arr.push({"name": "requestType", "value": requestType});
+                        var optionParameterName = obsOptionParameterName();
+                        if (optionParameterName !== "" && restGridObsOptionComboBox.currentText !== "") {
+                            arr.push({"name": "requestData." + optionParameterName, "value": restGridObsOptionComboBox.currentText});
+                        }
                     }
+                }
                 for (var i = 0; i < restParamsModel.count; i++) {
                     var item = restParamsModel.get(i);
                     if (item.paramName !== "") {
-                            var paramName = isObsCommand() && restObsRequestType.text !== "" ? "requestData." + item.paramName : item.paramName;
-                            arr.push({"name": paramName, "value": item.paramValue});
+                        var paramName = isObsCommand() && obsRequestType() !== "" ? "requestData." + item.paramName : item.paramName;
+                        arr.push({"name": paramName, "value": item.paramValue});
                     }
                 }
                 if (arr.length === 0)
@@ -1316,6 +1383,7 @@ Kirigami.ApplicationWindow {
 
                 onActivated: {
                     layerView.layerItem.layerRestMethod = currentIndex;
+                    restGridLayout.updateObsOptions();
                     root.resizeForGridMode();
                 }
 
@@ -1325,6 +1393,84 @@ Kirigami.ApplicationWindow {
                     }
                     target: layerView.layerItem
                 }
+            }
+
+            Label {
+                text: qsTr("OBS:")
+                Layout.alignment: Qt.AlignRight
+                visible: restGridMethodComboBox.currentIndex === 4
+            }
+            CheckBox {
+                id: restGridObsConnectCheckBox
+
+                Layout.columnSpan: 2
+                visible: restGridMethodComboBox.currentIndex === 4
+                text: qsTr("Connecting to OBS")
+
+                onToggled: {
+                    restGridLayout.updateObsOptions();
+                    root.resizeForGridMode();
+                }
+            }
+
+            Label {
+                text: qsTr("OBS command:")
+                Layout.alignment: Qt.AlignRight
+                visible: restGridLayout.isObsCommand()
+            }
+            ComboBox {
+                id: restGridObsActionComboBox
+                Layout.fillWidth: true
+                Layout.columnSpan: 2
+                visible: restGridLayout.isObsCommand()
+                model: root.restObsActionNames
+                onActivated: {
+                    restGridObsOptionComboBox.currentIndex = -1;
+                    restGridObsOptionComboBox.editText = "";
+                    if (restGridObsActionComboBox.currentIndex === 3)
+                        restGridLayout.ensureCustomObsExample();
+                    restGridLayout.updateObsOptions();
+                    root.resizeForGridMode();
+                }
+            }
+
+            Label {
+                text: qsTr("OBS target:")
+                Layout.alignment: Qt.AlignRight
+                visible: restGridLayout.isObsCommand() && restGridObsActionComboBox.currentIndex !== 3
+            }
+            RowLayout {
+                Layout.fillWidth: true
+                Layout.columnSpan: 2
+                visible: restGridLayout.isObsCommand() && restGridObsActionComboBox.currentIndex !== 3
+
+                ComboBox {
+                    id: restGridObsOptionComboBox
+                    Layout.fillWidth: true
+                    editable: true
+                    model: app.wwsClientModel.obsOptions
+                    enabled: !app.wwsClientModel.obsOptionsInProgress
+                }
+                ToolButton {
+                    icon.name: "view-refresh"
+                    icon.height: 16
+                    enabled: restUrlField.text !== "" && !app.wwsClientModel.obsOptionsInProgress
+                    onClicked: restGridLayout.updateObsOptions()
+                }
+            }
+
+            Label {
+                text: qsTr("OBS request:")
+                Layout.alignment: Qt.AlignRight
+                visible: restGridLayout.isObsCommand() && restGridObsActionComboBox.currentIndex === 3
+            }
+            TextField {
+                id: restGridObsCustomRequestType
+
+                Layout.fillWidth: true
+                Layout.columnSpan: 2
+                visible: restGridLayout.isObsCommand() && restGridObsActionComboBox.currentIndex === 3
+                text: "SetCurrentProgramScene"
             }
 
             Label {
@@ -1351,52 +1497,7 @@ Kirigami.ApplicationWindow {
             }
 
             Label {
-                text: qsTr("OBS request:")
-                Layout.alignment: Qt.AlignRight
-                visible: restGridLayout.isObsCommand()
-            }
-            TextField {
-                id: restObsRequestType
-
-                Layout.fillWidth: true
-                Layout.columnSpan: 2
-                visible: restGridLayout.isObsCommand()
-                placeholderText: "SetCurrentProgramScene"
-            }
-
-            Label {
-                text: qsTr("OBS password:")
-                Layout.alignment: Qt.AlignRight
-                visible: restGridLayout.isObsCommand()
-            }
-            TextField {
-                id: restObsPassword
-
-                Layout.fillWidth: true
-                Layout.columnSpan: 2
-                visible: restGridLayout.isObsCommand()
-                echoMode: TextInput.Password
-                placeholderText: qsTr("Optional OBS WebSocket password")
-            }
-
-            Label {
-                text: qsTr("OBS events:")
-                Layout.alignment: Qt.AlignRight
-                visible: restGridLayout.isObsCommand()
-            }
-            TextField {
-                id: restObsEventSubscriptions
-
-                Layout.fillWidth: true
-                Layout.columnSpan: 2
-                visible: restGridLayout.isObsCommand()
-                placeholderText: "0"
-                text: "0"
-                validator: IntValidator { bottom: 0 }
-            }
-
-            Label {
-                text: restGridLayout.isObsCommand() && restObsRequestType.text !== "" ? qsTr("Request data:") : qsTr("Parameters:")
+                text: restGridLayout.isObsCommand() && restGridLayout.obsRequestType() !== "" ? qsTr("Request data:") : qsTr("Parameters:")
                 Layout.alignment: Qt.AlignRight | Qt.AlignTop
             }
             ColumnLayout {
@@ -1412,7 +1513,7 @@ Kirigami.ApplicationWindow {
 
                         TextField {
                             Layout.preferredWidth: 120
-                            placeholderText: restGridLayout.isObsCommand() && restObsRequestType.text !== "" ? "sceneName" : "Name"
+                            placeholderText: "Name"
                             text: paramName
                             onTextChanged: restParamsModel.setProperty(index, "paramName", text)
                         }

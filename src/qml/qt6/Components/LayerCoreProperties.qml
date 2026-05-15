@@ -48,11 +48,17 @@ GridLayout {
     property alias restIgnoreStatusCheckBox: restIgnoreStatusCheckBox
 
     property string restParametersJson: ""
+    property var restObsActionNames: [qsTr("Set Profile"), qsTr("Set Scene"), qsTr("Set Scene Collection"), qsTr("Custom")]
 
     function resetValues() {
         typeComboBox.currentIndex = 0;
         fileForLayer.text = "";
         layerTitle.text = "";
+        restObsConnectCheckBox.checked = false;
+        restObsActionComboBox.currentIndex = 0;
+        restObsOptionComboBox.currentIndex = -1;
+        restObsCustomRequestType.text = "SetCurrentProgramScene";
+        restCoreParamsModel.clear();
         for (let sm = 0; sm < stereoscopicModeForLayerList.count; ++sm) {
             if (stereoscopicModeForLayerList.get(sm).value === PresentationSettings.defaultStereoModeForLayers) {
                 stereoscopicModeForLayer.currentIndex = sm;
@@ -69,17 +75,20 @@ GridLayout {
 
     function getRestParametersJson() {
         var arr = [];
-        if (isRestObsCommand() && restObsRequestType.text !== "") {
-            arr.push({"name": "requestType", "value": restObsRequestType.text});
-            if (restObsPassword.text !== "")
-                arr.push({"name": "password", "value": restObsPassword.text});
-            if (restObsEventSubscriptions.text !== "" && restObsEventSubscriptions.text !== "0")
-                arr.push({"name": "eventSubscriptions", "value": restObsEventSubscriptions.text});
+        if (isRestObsCommand()) {
+            var requestType = restObsRequestType();
+            if (requestType !== "") {
+                arr.push({"name": "requestType", "value": requestType});
+                var optionParameterName = restObsOptionParameterName();
+                if (optionParameterName !== "" && restObsOptionComboBox.currentText !== "") {
+                    arr.push({"name": "requestData." + optionParameterName, "value": restObsOptionComboBox.currentText});
+                }
+            }
         }
         for (var i = 0; i < restCoreParamsModel.count; i++) {
             var item = restCoreParamsModel.get(i);
             if (item.paramName !== "") {
-                var paramName = isRestObsCommand() && restObsRequestType.text !== "" ? "requestData." + item.paramName : item.paramName;
+                var paramName = isRestObsCommand() && restObsRequestType() !== "" ? "requestData." + item.paramName : item.paramName;
                 arr.push({"name": paramName, "value": item.paramValue});
             }
         }
@@ -90,9 +99,10 @@ GridLayout {
 
     function loadRestParametersFromJson(jsonStr) {
         restCoreParamsModel.clear();
-        restObsRequestType.text = "";
-        restObsPassword.text = "";
-        restObsEventSubscriptions.text = "0";
+        restObsConnectCheckBox.checked = false;
+        restObsActionComboBox.currentIndex = 0;
+        restObsOptionComboBox.currentIndex = -1;
+        restObsCustomRequestType.text = "SetCurrentProgramScene";
         if (!jsonStr || jsonStr === "")
             return;
         try {
@@ -102,13 +112,15 @@ GridLayout {
                     var name = arr[i].name || "";
                     var value = arr[i].value || "";
                     if (name === "requestType") {
-                        restObsRequestType.text = value;
-                    } else if (name === "password") {
-                        restObsPassword.text = value;
-                    } else if (name === "eventSubscriptions") {
-                        restObsEventSubscriptions.text = value;
+                        restObsConnectCheckBox.checked = true;
+                        setRestObsActionFromRequestType(value);
                     } else if (name.indexOf("requestData.") === 0) {
-                        restCoreParamsModel.append({"paramName": name.substring(12), "paramValue": value});
+                        var dataName = name.substring(12);
+                        if (dataName === "profileName" || dataName === "sceneName" || dataName === "sceneCollectionName") {
+                            restObsOptionComboBox.editText = value;
+                        } else {
+                            restCoreParamsModel.append({"paramName": dataName, "paramValue": value});
+                        }
                     } else {
                         restCoreParamsModel.append({"paramName": name, "paramValue": value});
                     }
@@ -132,8 +144,62 @@ GridLayout {
     }
 
     function isRestObsCommand() {
-        return typeComboBox.currentText === "REST" && (restMethodComboBox.currentIndex === 4 || restMethodComboBox.currentIndex === 5
-            || restCustomUrlField.text.indexOf("ws://") === 0 || restCustomUrlField.text.indexOf("wss://") === 0);
+        return typeComboBox.currentText === "REST" && restCommandsLayout.customEntry === true
+            && restObsConnectCheckBox.checked && restMethodComboBox.currentIndex === 4;
+    }
+
+    function restObsRequestType() {
+        if (!isRestObsCommand())
+            return "";
+        if (restObsActionComboBox.currentIndex === 0)
+            return "SetCurrentProfile";
+        if (restObsActionComboBox.currentIndex === 1)
+            return "SetCurrentProgramScene";
+        if (restObsActionComboBox.currentIndex === 2)
+            return "SetCurrentSceneCollection";
+        return restObsCustomRequestType.text;
+    }
+
+    function restObsOptionParameterName() {
+        if (restObsActionComboBox.currentIndex === 0)
+            return "profileName";
+        if (restObsActionComboBox.currentIndex === 1)
+            return "sceneName";
+        if (restObsActionComboBox.currentIndex === 2)
+            return "sceneCollectionName";
+        return "";
+    }
+
+    function ensureRestCustomObsExample() {
+        if (!isRestObsCommand() || restObsActionComboBox.currentIndex !== 3)
+            return;
+        if (restObsCustomRequestType.text === "")
+            restObsCustomRequestType.text = "SetCurrentProgramScene";
+        for (var i = 0; i < restCoreParamsModel.count; i++) {
+            if (restCoreParamsModel.get(i).paramName === "sceneName")
+                return;
+        }
+        restCoreParamsModel.append({"paramName": "sceneName", "paramValue": "Scene"});
+    }
+
+    function setRestObsActionFromRequestType(requestType) {
+        if (requestType === "SetCurrentProfile") {
+            restObsActionComboBox.currentIndex = 0;
+        } else if (requestType === "SetCurrentProgramScene") {
+            restObsActionComboBox.currentIndex = 1;
+        } else if (requestType === "SetCurrentSceneCollection") {
+            restObsActionComboBox.currentIndex = 2;
+        } else {
+            restObsActionComboBox.currentIndex = 3;
+            restObsCustomRequestType.text = requestType;
+            ensureRestCustomObsExample();
+        }
+    }
+
+    function updateRestObsOptions() {
+        if (!isRestObsCommand() || restObsActionComboBox.currentIndex === 3 || restCustomUrlField.text === "")
+            return;
+        app.wwsClientModel.updateObsOptions(restCustomUrlField.text, restObsActionComboBox.currentIndex);
     }
 
     CPlayFileDialog {
@@ -836,6 +902,93 @@ GridLayout {
 
     Label {
         Layout.alignment: Qt.AlignRight
+        text: qsTr("OBS:")
+        visible: typeComboBox.currentText === "REST" && restCommandsLayout.customEntry === true && restMethodComboBox.currentIndex === 4
+    }
+    CheckBox {
+        id: restObsConnectCheckBox
+
+        Layout.fillWidth: true
+        visible: typeComboBox.currentText === "REST" && restCommandsLayout.customEntry === true && restMethodComboBox.currentIndex === 4
+        text: qsTr("Connecting to OBS")
+        onToggled: updateRestObsOptions()
+    }
+    Item {
+        visible: root.showSpacers && typeComboBox.currentText === "REST" && restCommandsLayout.customEntry === true && restMethodComboBox.currentIndex === 4
+        Layout.fillWidth: true
+    }
+
+    Label {
+        Layout.alignment: Qt.AlignRight
+        text: qsTr("OBS command:")
+        visible: isRestObsCommand()
+    }
+    ComboBox {
+        id: restObsActionComboBox
+
+        Layout.fillWidth: true
+        visible: isRestObsCommand()
+        model: root.restObsActionNames
+        onActivated: {
+            restObsOptionComboBox.currentIndex = -1;
+            restObsOptionComboBox.editText = "";
+            if (restObsActionComboBox.currentIndex === 3)
+                ensureRestCustomObsExample();
+            updateRestObsOptions();
+        }
+    }
+    Item {
+        visible: root.showSpacers && isRestObsCommand()
+        Layout.fillWidth: true
+    }
+
+    Label {
+        Layout.alignment: Qt.AlignRight
+        text: qsTr("OBS target:")
+        visible: isRestObsCommand() && restObsActionComboBox.currentIndex !== 3
+    }
+    RowLayout {
+        Layout.fillWidth: true
+        visible: isRestObsCommand() && restObsActionComboBox.currentIndex !== 3
+
+        ComboBox {
+            id: restObsOptionComboBox
+            Layout.fillWidth: true
+            editable: true
+            model: app.wwsClientModel.obsOptions
+            enabled: !app.wwsClientModel.obsOptionsInProgress
+        }
+        ToolButton {
+            icon.name: "view-refresh"
+            icon.height: 16
+            enabled: restCustomUrlField.text !== "" && !app.wwsClientModel.obsOptionsInProgress
+            onClicked: updateRestObsOptions()
+        }
+    }
+    Item {
+        visible: root.showSpacers && isRestObsCommand() && restObsActionComboBox.currentIndex !== 3
+        Layout.fillWidth: true
+    }
+
+    Label {
+        Layout.alignment: Qt.AlignRight
+        text: qsTr("OBS request:")
+        visible: isRestObsCommand() && restObsActionComboBox.currentIndex === 3
+    }
+    TextField {
+        id: restObsCustomRequestType
+
+        Layout.fillWidth: true
+        visible: isRestObsCommand() && restObsActionComboBox.currentIndex === 3
+        text: "SetCurrentProgramScene"
+    }
+    Item {
+        visible: root.showSpacers && isRestObsCommand() && restObsActionComboBox.currentIndex === 3
+        Layout.fillWidth: true
+    }
+
+    Label {
+        Layout.alignment: Qt.AlignRight
         text: qsTr("Ignore Status:")
         visible: typeComboBox.currentText === "REST" && restCommandsLayout.customEntry === true
     }
@@ -854,7 +1007,7 @@ GridLayout {
 
     Label {
         Layout.alignment: Qt.AlignRight
-        text: qsTr("Parameters:")
+        text: isRestObsCommand() && restObsRequestType() !== "" ? qsTr("Request data:") : qsTr("Parameters:")
         visible: typeComboBox.currentText === "REST" && restCommandsLayout.customEntry === true
     }
     ColumnLayout {
@@ -870,7 +1023,7 @@ GridLayout {
 
                 TextField {
                     Layout.preferredWidth: 120
-                    placeholderText: isRestObsCommand() && restObsRequestType.text !== "" ? "sceneName" : "Name"
+                    placeholderText: "Name"
                     text: paramName
                     onTextChanged: restCoreParamsModel.setProperty(index, "paramName", text)
                 }
