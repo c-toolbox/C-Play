@@ -23,7 +23,8 @@ Kirigami.ApplicationWindow {
     width: 700
 
     property int selectedCommandIndex: -1
-    property var methodNames: ["GET", "POST", "PUT", "DELETE"]
+    property var methodNames: ["GET", "POST", "PUT", "DELETE", "WS", "WSS"]
+    property var obsActionNames: [qsTr("Set Profile"), qsTr("Set Scene"), qsTr("Set Scene Collection"), qsTr("Custom")]
 
     Component.onCompleted: {
         if (window.x > width) {
@@ -57,11 +58,43 @@ Kirigami.ApplicationWindow {
         }
     }
 
+    Connections {
+        target: app.wwsClientModel
+        function onResponseChanged() {
+            var status = app.wwsClientModel.lastStatusCode;
+            if (status > 0) {
+                statusLabel.text = "Status: " + status;
+                statusLabel.color = (status >= 200 && status < 300) ? "green" : "orange";
+                responseArea.text = app.wwsClientModel.lastResponseBody;
+            } else {
+                statusLabel.text = "Error: " + app.wwsClientModel.lastError;
+                statusLabel.color = "red";
+                responseArea.text = "";
+            }
+        }
+    }
+
+    function requestInProgress() {
+        return app.httpClientModel.requestInProgress || app.wwsClientModel.requestInProgress;
+    }
+
+    function sendCommand(url, method, parameters, ignoreStatus) {
+        if (method === 4 || method === 5 || url.indexOf("ws://") === 0 || url.indexOf("wss://") === 0) {
+            app.wwsClientModel.sendRequest(url, parameters, ignoreStatus);
+        } else {
+            app.httpClientModel.sendRequest(url, method, parameters, ignoreStatus);
+        }
+    }
+
     function clearEditFields() {
         editTitle.text = "";
         editUrl.text = "";
         editMethod.currentIndex = 0;
         editIgnoreStatus.checked = false;
+        obsConnectCheckBox.checked = false;
+        obsActionComboBox.currentIndex = 0;
+        obsOptionComboBox.currentIndex = -1;
+        obsCustomRequestType.text = "SetCurrentProgramScene";
         paramsModel.clear();
         responseArea.text = "";
         statusLabel.text = "";
@@ -76,19 +109,38 @@ Kirigami.ApplicationWindow {
         editMethod.currentIndex = Math.max(0, Math.min(m.data(m.index(index, 0), Qt.UserRole + 2), root.methodNames.length - 1));
         loadParametersFromJson(m.data(m.index(index, 0), Qt.UserRole + 3));
         editIgnoreStatus.checked = m.data(m.index(index, 0), Qt.UserRole + 4);
+        updateObsOptions();
         responseArea.text = "";
         statusLabel.text = "";
     }
 
     function loadParametersFromJson(jsonStr) {
         paramsModel.clear();
+        obsConnectCheckBox.checked = false;
+        obsActionComboBox.currentIndex = 0;
+        obsOptionComboBox.currentIndex = -1;
+        obsCustomRequestType.text = "SetCurrentProgramScene";
         if (!jsonStr || jsonStr === "")
             return;
         try {
             var arr = JSON.parse(jsonStr);
             if (Array.isArray(arr)) {
                 for (var i = 0; i < arr.length; i++) {
-                    paramsModel.append({"paramName": arr[i].name || "", "paramValue": arr[i].value || ""});
+                    var name = arr[i].name || "";
+                    var value = arr[i].value || "";
+                    if (name === "requestType") {
+                        obsConnectCheckBox.checked = true;
+                        setObsActionFromRequestType(value);
+                    } else if (name.indexOf("requestData.") === 0) {
+                        var dataName = name.substring(12);
+                        if (dataName === "profileName" || dataName === "sceneName" || dataName === "sceneCollectionName") {
+                            obsOptionComboBox.editText = value;
+                        } else {
+                            paramsModel.append({"paramName": dataName, "paramValue": value});
+                        }
+                    } else {
+                        paramsModel.append({"paramName": name, "paramValue": value});
+                    }
                 }
             }
         } catch(e) {
@@ -107,10 +159,21 @@ Kirigami.ApplicationWindow {
 
     function getParametersAsJson() {
         var arr = [];
+        if (isObsCommand()) {
+            var requestType = obsRequestType();
+            if (requestType !== "") {
+                arr.push({"name": "requestType", "value": requestType});
+                var optionParameterName = obsOptionParameterName();
+                if (optionParameterName !== "" && obsOptionComboBox.currentText !== "") {
+                    arr.push({"name": "requestData." + optionParameterName, "value": obsOptionComboBox.currentText});
+                }
+            }
+        }
         for (var i = 0; i < paramsModel.count; i++) {
             var item = paramsModel.get(i);
             if (item.paramName !== "") {
-                arr.push({"name": item.paramName, "value": item.paramValue});
+                var paramName = isObsCommand() && obsRequestType() !== "" ? "requestData." + item.paramName : item.paramName;
+                arr.push({"name": paramName, "value": item.paramValue});
             }
         }
         if (arr.length === 0)
@@ -120,6 +183,64 @@ Kirigami.ApplicationWindow {
 
     function methodName(method) {
         return (method >= 0 && method < root.methodNames.length) ? root.methodNames[method] : "";
+    }
+
+    function isObsCommand() {
+        return obsConnectCheckBox.checked && editMethod.currentIndex === 4;
+    }
+
+    function obsRequestType() {
+        if (!isObsCommand())
+            return "";
+        if (obsActionComboBox.currentIndex === 0)
+            return "SetCurrentProfile";
+        if (obsActionComboBox.currentIndex === 1)
+            return "SetCurrentProgramScene";
+        if (obsActionComboBox.currentIndex === 2)
+            return "SetCurrentSceneCollection";
+        return obsCustomRequestType.text;
+    }
+
+    function obsOptionParameterName() {
+        if (obsActionComboBox.currentIndex === 0)
+            return "profileName";
+        if (obsActionComboBox.currentIndex === 1)
+            return "sceneName";
+        if (obsActionComboBox.currentIndex === 2)
+            return "sceneCollectionName";
+        return "";
+    }
+
+    function ensureCustomObsExample() {
+        if (!isObsCommand() || obsActionComboBox.currentIndex !== 3)
+            return;
+        if (obsCustomRequestType.text === "")
+            obsCustomRequestType.text = "SetCurrentProgramScene";
+        for (var i = 0; i < paramsModel.count; i++) {
+            if (paramsModel.get(i).paramName === "sceneName")
+                return;
+        }
+        paramsModel.append({"paramName": "sceneName", "paramValue": "Scene"});
+    }
+
+    function setObsActionFromRequestType(requestType) {
+        if (requestType === "SetCurrentProfile") {
+            obsActionComboBox.currentIndex = 0;
+        } else if (requestType === "SetCurrentProgramScene") {
+            obsActionComboBox.currentIndex = 1;
+        } else if (requestType === "SetCurrentSceneCollection") {
+            obsActionComboBox.currentIndex = 2;
+        } else {
+            obsActionComboBox.currentIndex = 3;
+            obsCustomRequestType.text = requestType;
+            ensureCustomObsExample();
+        }
+    }
+
+    function updateObsOptions() {
+        if (!isObsCommand() || obsActionComboBox.currentIndex === 3 || editUrl.text === "")
+            return;
+        app.wwsClientModel.updateObsOptions(editUrl.text, obsActionComboBox.currentIndex);
     }
 
     ListModel {
@@ -226,7 +347,7 @@ Kirigami.ApplicationWindow {
             TextField {
                 id: editUrl
                 Layout.fillWidth: true
-                placeholderText: "http://host:port/path"
+                placeholderText: "http://host:port/path or ws://host:port/path"
             }
 
             Label { text: qsTr("Method:"); Layout.alignment: Qt.AlignRight }
@@ -237,6 +358,74 @@ Kirigami.ApplicationWindow {
                 currentIndex: 0
             }
 
+            Label {
+                text: qsTr("OBS:")
+                Layout.alignment: Qt.AlignRight
+                visible: editMethod.currentIndex === 4
+            }
+            CheckBox {
+                id: obsConnectCheckBox
+                Layout.fillWidth: true
+                text: qsTr("Connecting to OBS")
+                visible: editMethod.currentIndex === 4
+                onToggled: root.updateObsOptions()
+            }
+
+            Label {
+                text: qsTr("OBS command:")
+                Layout.alignment: Qt.AlignRight
+                visible: root.isObsCommand()
+            }
+            ComboBox {
+                id: obsActionComboBox
+                Layout.fillWidth: true
+                model: root.obsActionNames
+                visible: root.isObsCommand()
+                onActivated: {
+                    obsOptionComboBox.currentIndex = -1;
+                    obsOptionComboBox.editText = "";
+                    if (obsActionComboBox.currentIndex === 3)
+                        root.ensureCustomObsExample();
+                    root.updateObsOptions();
+                }
+            }
+
+            Label {
+                text: qsTr("OBS target:")
+                Layout.alignment: Qt.AlignRight
+                visible: root.isObsCommand() && obsActionComboBox.currentIndex !== 3
+            }
+            RowLayout {
+                Layout.fillWidth: true
+                visible: root.isObsCommand() && obsActionComboBox.currentIndex !== 3
+
+                ComboBox {
+                    id: obsOptionComboBox
+                    Layout.fillWidth: true
+                    editable: true
+                    model: app.wwsClientModel.obsOptions
+                    enabled: !app.wwsClientModel.obsOptionsInProgress
+                }
+                ToolButton {
+                    icon.name: "view-refresh"
+                    icon.height: 16
+                    enabled: editUrl.text !== "" && !app.wwsClientModel.obsOptionsInProgress
+                    onClicked: root.updateObsOptions()
+                }
+            }
+
+            Label {
+                text: qsTr("OBS request:")
+                Layout.alignment: Qt.AlignRight
+                visible: root.isObsCommand() && obsActionComboBox.currentIndex === 3
+            }
+            TextField {
+                id: obsCustomRequestType
+                Layout.fillWidth: true
+                text: "SetCurrentProgramScene"
+                visible: root.isObsCommand() && obsActionComboBox.currentIndex === 3
+            }
+
             Label { text: qsTr("Ignore Status:"); Layout.alignment: Qt.AlignRight }
             CheckBox {
                 id: editIgnoreStatus
@@ -245,7 +434,7 @@ Kirigami.ApplicationWindow {
             }
 
             Label {
-                text: qsTr("Parameters:")
+                text: root.isObsCommand() && root.obsRequestType() !== "" ? qsTr("Request data:") : qsTr("Parameters:")
                 Layout.alignment: Qt.AlignRight | Qt.AlignTop
             }
             ColumnLayout {
@@ -260,7 +449,7 @@ Kirigami.ApplicationWindow {
 
                         TextField {
                             Layout.preferredWidth: 150
-                            placeholderText: "Name"
+                            placeholderText: root.isObsCommand() && root.obsRequestType() !== "" ? "Name" : "Name"
                             text: paramName
                             onTextChanged: paramsModel.setProperty(index, "paramName", text)
                         }
@@ -326,16 +515,15 @@ Kirigami.ApplicationWindow {
             }
             Item { Layout.fillWidth: true }
             Button {
-                text: app.httpClientModel.requestInProgress ? qsTr("Sending...") : qsTr("Trigger")
+                text: root.requestInProgress() ? qsTr("Sending...") : qsTr("Trigger")
                 icon.name: "media-playback-start"
-                enabled: editUrl.text !== "" && !app.httpClientModel.requestInProgress
+                enabled: editUrl.text !== "" && !root.requestInProgress()
                 onClicked: {
                     statusLabel.text = "Sending...";
                     statusLabel.color = Kirigami.Theme.disabledTextColor;
                     responseArea.text = "";
-                    app.httpClientModel.sendRequest(editUrl.text,
-                        editMethod.currentIndex, getParametersAsJson(),
-                        editIgnoreStatus.checked);
+                    root.sendCommand(editUrl.text, editMethod.currentIndex,
+                        getParametersAsJson(), editIgnoreStatus.checked);
                 }
             }
         }

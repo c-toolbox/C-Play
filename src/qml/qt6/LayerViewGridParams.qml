@@ -23,7 +23,7 @@ Kirigami.ApplicationWindow {
             return;
         }
         if (layerView.layerItem.layerTypeName === "REST") {
-            root.height = 320;
+            root.height = restGridLayout.isObsCommand() ? 500 : 320;
             return;
         }
         var mode = layerView.layerItem.layerGridMode;
@@ -77,6 +77,15 @@ Kirigami.ApplicationWindow {
     height: 420
     title: qsTr("Layer Grid Parameters")
     visible: false
+
+                function isObsCommand() {
+                    return restGridMethodComboBox.currentIndex === 4 || restGridMethodComboBox.currentIndex === 5
+                        || restUrlField.text.indexOf("ws://") === 0 || restUrlField.text.indexOf("wss://") === 0;
+                }
+
+                function updateLayerParameters() {
+                    layerView.layerItem.layerRestParameters = getParametersAsJson();
+                }
     width: 520
 
     Component.onCompleted: {
@@ -1185,13 +1194,28 @@ Kirigami.ApplicationWindow {
 
             function loadParametersFromJson(jsonStr) {
                 restParamsModel.clear();
+                    restObsRequestType.text = "";
+                    restObsPassword.text = "";
+                    restObsEventSubscriptions.text = "0";
                 if (!jsonStr || jsonStr === "")
                     return;
                 try {
                     var arr = JSON.parse(jsonStr);
                     if (Array.isArray(arr)) {
                         for (var i = 0; i < arr.length; i++) {
-                            restParamsModel.append({"paramName": arr[i].name || "", "paramValue": arr[i].value || ""});
+                                var name = arr[i].name || "";
+                                var value = arr[i].value || "";
+                                if (name === "requestType") {
+                                    restObsRequestType.text = value;
+                                } else if (name === "password") {
+                                    restObsPassword.text = value;
+                                } else if (name === "eventSubscriptions") {
+                                    restObsEventSubscriptions.text = value;
+                                } else if (name.indexOf("requestData.") === 0) {
+                                    restParamsModel.append({"paramName": name.substring(12), "paramValue": value});
+                                } else {
+                                    restParamsModel.append({"paramName": name, "paramValue": value});
+                                }
                         }
                     }
                 } catch(e) {
@@ -1209,10 +1233,18 @@ Kirigami.ApplicationWindow {
 
             function getParametersAsJson() {
                 var arr = [];
+                    if (isObsCommand() && restObsRequestType.text !== "") {
+                        arr.push({"name": "requestType", "value": restObsRequestType.text});
+                        if (restObsPassword.text !== "")
+                            arr.push({"name": "password", "value": restObsPassword.text});
+                        if (restObsEventSubscriptions.text !== "" && restObsEventSubscriptions.text !== "0")
+                            arr.push({"name": "eventSubscriptions", "value": restObsEventSubscriptions.text});
+                    }
                 for (var i = 0; i < restParamsModel.count; i++) {
                     var item = restParamsModel.get(i);
                     if (item.paramName !== "") {
-                        arr.push({"name": item.paramName, "value": item.paramValue});
+                            var paramName = isObsCommand() && restObsRequestType.text !== "" ? "requestData." + item.paramName : item.paramName;
+                            arr.push({"name": paramName, "value": item.paramValue});
                     }
                 }
                 if (arr.length === 0)
@@ -1255,7 +1287,7 @@ Kirigami.ApplicationWindow {
 
                 Layout.fillWidth: true
                 Layout.columnSpan: 2
-                placeholderText: "http://host:port/path"
+                placeholderText: "http://host:port/path or ws://host:port/path"
                 text: layerView.layerItem.layerRestUrl
 
                 onEditingFinished: {
@@ -1279,11 +1311,12 @@ Kirigami.ApplicationWindow {
 
                 Layout.fillWidth: true
                 Layout.columnSpan: 2
-                model: ["GET", "POST", "PUT", "DELETE"]
+                model: ["GET", "POST", "PUT", "DELETE", "WS", "WSS"]
                 currentIndex: layerView.layerItem.layerRestMethod
 
                 onActivated: {
                     layerView.layerItem.layerRestMethod = currentIndex;
+                    root.resizeForGridMode();
                 }
 
                 Connections {
@@ -1318,7 +1351,52 @@ Kirigami.ApplicationWindow {
             }
 
             Label {
-                text: qsTr("Parameters:")
+                text: qsTr("OBS request:")
+                Layout.alignment: Qt.AlignRight
+                visible: restGridLayout.isObsCommand()
+            }
+            TextField {
+                id: restObsRequestType
+
+                Layout.fillWidth: true
+                Layout.columnSpan: 2
+                visible: restGridLayout.isObsCommand()
+                placeholderText: "SetCurrentProgramScene"
+            }
+
+            Label {
+                text: qsTr("OBS password:")
+                Layout.alignment: Qt.AlignRight
+                visible: restGridLayout.isObsCommand()
+            }
+            TextField {
+                id: restObsPassword
+
+                Layout.fillWidth: true
+                Layout.columnSpan: 2
+                visible: restGridLayout.isObsCommand()
+                echoMode: TextInput.Password
+                placeholderText: qsTr("Optional OBS WebSocket password")
+            }
+
+            Label {
+                text: qsTr("OBS events:")
+                Layout.alignment: Qt.AlignRight
+                visible: restGridLayout.isObsCommand()
+            }
+            TextField {
+                id: restObsEventSubscriptions
+
+                Layout.fillWidth: true
+                Layout.columnSpan: 2
+                visible: restGridLayout.isObsCommand()
+                placeholderText: "0"
+                text: "0"
+                validator: IntValidator { bottom: 0 }
+            }
+
+            Label {
+                text: restGridLayout.isObsCommand() && restObsRequestType.text !== "" ? qsTr("Request data:") : qsTr("Parameters:")
                 Layout.alignment: Qt.AlignRight | Qt.AlignTop
             }
             ColumnLayout {
@@ -1334,7 +1412,7 @@ Kirigami.ApplicationWindow {
 
                         TextField {
                             Layout.preferredWidth: 120
-                            placeholderText: "Name"
+                            placeholderText: restGridLayout.isObsCommand() && restObsRequestType.text !== "" ? "sceneName" : "Name"
                             text: paramName
                             onTextChanged: restParamsModel.setProperty(index, "paramName", text)
                         }
@@ -1350,7 +1428,7 @@ Kirigami.ApplicationWindow {
                             icon.height: 16
                             onClicked: {
                                 restParamsModel.remove(index);
-                                layerView.layerItem.layerRestParameters = restGridLayout.getParametersAsJson();
+                                restGridLayout.updateLayerParameters();
                             }
                         }
                     }
@@ -1366,7 +1444,7 @@ Kirigami.ApplicationWindow {
                         text: qsTr("Apply")
                         icon.name: "document-save"
                         onClicked: {
-                            layerView.layerItem.layerRestParameters = restGridLayout.getParametersAsJson();
+                            restGridLayout.updateLayerParameters();
                         }
                     }
                 }

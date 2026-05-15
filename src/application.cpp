@@ -40,6 +40,7 @@
 #endif
 #include <layers/streammodel.h>
 #include "httpclientmodel.h"
+#include "wwsclientmodel.h"
 
 #include "audiosettings.h"
 #include "gridsettings.h"
@@ -147,6 +148,7 @@ Application::Application(int &argc, char **argv, const QString &applicationName)
     m_systemDefaultStyle = m_app->style()->objectName();
     m_streamsModel = new StreamModel(this);
     m_httpClientModel = new HttpClientModel(this);
+    m_wwsClientModel = new WwsClientModel(this);
 #ifdef NDI_SUPPORT
     m_ndiSendersModel = new NDISendersModel(this);
     m_portAudioModel = new PortAudioModel(this);
@@ -516,6 +518,14 @@ HttpClientModel* Application::httpClientModel() {
 
 void Application::setHttpClientModel(HttpClientModel* model) {
     m_httpClientModel = model;
+}
+
+WwsClientModel* Application::wwsClientModel() {
+    return m_wwsClientModel;
+}
+
+void Application::setWwsClientModel(WwsClientModel* model) {
+    m_wwsClientModel = model;
 }
 
 #ifdef NDI_SUPPORT

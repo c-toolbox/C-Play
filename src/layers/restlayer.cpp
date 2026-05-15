@@ -7,6 +7,7 @@
 
 #include "restlayer.h"
 #include "httpclientmodel.h"
+#include "wwsclientmodel.h"
 #include <sgct/shareddata.h>
 
 RestLayer::RestLayer() {
@@ -26,6 +27,7 @@ void RestLayer::cleanup() {
         delete m_workerThread;
         m_workerThread = nullptr;
         m_worker = nullptr;
+        m_wwsWorker = nullptr;
     }
 }
 
@@ -50,16 +52,37 @@ void RestLayer::start() {
         return;
     }
 
+    const bool isWebSocket = useWebSocket();
+
+    if ((isWebSocket && m_worker) || (!isWebSocket && m_wwsWorker)) {
+        m_workerThread->quit();
+        m_workerThread->wait();
+        delete m_workerThread;
+        m_workerThread = nullptr;
+        m_worker = nullptr;
+        m_wwsWorker = nullptr;
+    }
+
     // Lazily create the worker thread on first use
     if (!m_workerThread) {
         m_workerThread = new QThread();
-        m_worker = new HttpRequestWorker();
-        m_worker->moveToThread(m_workerThread);
-        QObject::connect(m_workerThread, &QThread::finished, m_worker, &QObject::deleteLater);
-        QObject::connect(m_worker, &HttpRequestWorker::requestFinished,
-            [this](int statusCode, const QString &responseBody, const QString &error) {
-                onRequestFinished(statusCode, responseBody, error);
-            });
+        if (isWebSocket) {
+            m_wwsWorker = new WwsRequestWorker();
+            m_wwsWorker->moveToThread(m_workerThread);
+            QObject::connect(m_workerThread, &QThread::finished, m_wwsWorker, &QObject::deleteLater);
+            QObject::connect(m_wwsWorker, &WwsRequestWorker::requestFinished,
+                [this](int statusCode, const QString &responseBody, const QString &error) {
+                    onRequestFinished(statusCode, responseBody, error);
+                });
+        } else {
+            m_worker = new HttpRequestWorker();
+            m_worker->moveToThread(m_workerThread);
+            QObject::connect(m_workerThread, &QThread::finished, m_worker, &QObject::deleteLater);
+            QObject::connect(m_worker, &HttpRequestWorker::requestFinished,
+                [this](int statusCode, const QString &responseBody, const QString &error) {
+                    onRequestFinished(statusCode, responseBody, error);
+                });
+        }
         m_workerThread->start();
     }
 
@@ -69,11 +92,18 @@ void RestLayer::start() {
     }
 
     // Dispatch request to the worker thread
-    QMetaObject::invokeMethod(m_worker, "doRequest", Qt::QueuedConnection,
-        Q_ARG(QString, QString::fromStdString(m_url)),
-        Q_ARG(int, m_method),
-        Q_ARG(QString, QString::fromStdString(m_parameters)),
-        Q_ARG(bool, m_ignoreStatus));
+    if (isWebSocket && m_wwsWorker) {
+        QMetaObject::invokeMethod(m_wwsWorker, "doRequest", Qt::QueuedConnection,
+            Q_ARG(QString, QString::fromStdString(m_url)),
+            Q_ARG(QString, QString::fromStdString(m_parameters)),
+            Q_ARG(bool, m_ignoreStatus));
+    } else if (m_worker) {
+        QMetaObject::invokeMethod(m_worker, "doRequest", Qt::QueuedConnection,
+            Q_ARG(QString, QString::fromStdString(m_url)),
+            Q_ARG(int, m_method),
+            Q_ARG(QString, QString::fromStdString(m_parameters)),
+            Q_ARG(bool, m_ignoreStatus));
+    }
 }
 
 void RestLayer::stop() {
@@ -134,6 +164,12 @@ void RestLayer::setHttpClientModel(HttpClientModel* model) {
 
 void RestLayer::setStatusCallback(StatusCallback cb) {
     m_statusCallback = cb;
+}
+
+bool RestLayer::useWebSocket() const {
+    return m_method == WS || m_method == WSS
+        || m_url.rfind("ws://", 0) == 0
+        || m_url.rfind("wss://", 0) == 0;
 }
 
 void RestLayer::encodeTypeCore(std::vector<std::byte>& data) {

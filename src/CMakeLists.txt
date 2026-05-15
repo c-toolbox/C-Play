@@ -29,6 +29,8 @@ set(SOURCE_FILES
     httpserverthread.h
     httpclientmodel.cpp
     httpclientmodel.h
+    wwsclientmodel.cpp
+    wwsclientmodel.h
     layers/audiolayer.cpp
     layers/audiolayer.h
     layers/baselayer.cpp
@@ -309,6 +311,7 @@ set(TARGET_LIBRARIES
     Qt6::Quick
     Qt6::QuickControls2
     Qt6::Quick3D
+    Qt6::WebSockets
 
     KF6::ColorScheme
     KF6::ConfigCore

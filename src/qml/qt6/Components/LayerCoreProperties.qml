@@ -69,10 +69,18 @@ GridLayout {
 
     function getRestParametersJson() {
         var arr = [];
+        if (isRestObsCommand() && restObsRequestType.text !== "") {
+            arr.push({"name": "requestType", "value": restObsRequestType.text});
+            if (restObsPassword.text !== "")
+                arr.push({"name": "password", "value": restObsPassword.text});
+            if (restObsEventSubscriptions.text !== "" && restObsEventSubscriptions.text !== "0")
+                arr.push({"name": "eventSubscriptions", "value": restObsEventSubscriptions.text});
+        }
         for (var i = 0; i < restCoreParamsModel.count; i++) {
             var item = restCoreParamsModel.get(i);
             if (item.paramName !== "") {
-                arr.push({"name": item.paramName, "value": item.paramValue});
+                var paramName = isRestObsCommand() && restObsRequestType.text !== "" ? "requestData." + item.paramName : item.paramName;
+                arr.push({"name": paramName, "value": item.paramValue});
             }
         }
         if (arr.length === 0)
@@ -82,13 +90,28 @@ GridLayout {
 
     function loadRestParametersFromJson(jsonStr) {
         restCoreParamsModel.clear();
+        restObsRequestType.text = "";
+        restObsPassword.text = "";
+        restObsEventSubscriptions.text = "0";
         if (!jsonStr || jsonStr === "")
             return;
         try {
             var arr = JSON.parse(jsonStr);
             if (Array.isArray(arr)) {
                 for (var i = 0; i < arr.length; i++) {
-                    restCoreParamsModel.append({"paramName": arr[i].name || "", "paramValue": arr[i].value || ""});
+                    var name = arr[i].name || "";
+                    var value = arr[i].value || "";
+                    if (name === "requestType") {
+                        restObsRequestType.text = value;
+                    } else if (name === "password") {
+                        restObsPassword.text = value;
+                    } else if (name === "eventSubscriptions") {
+                        restObsEventSubscriptions.text = value;
+                    } else if (name.indexOf("requestData.") === 0) {
+                        restCoreParamsModel.append({"paramName": name.substring(12), "paramValue": value});
+                    } else {
+                        restCoreParamsModel.append({"paramName": name, "paramValue": value});
+                    }
                 }
             }
         } catch(e) {
@@ -106,6 +129,11 @@ GridLayout {
 
     ListModel {
         id: restCoreParamsModel
+    }
+
+    function isRestObsCommand() {
+        return typeComboBox.currentText === "REST" && (restMethodComboBox.currentIndex === 4 || restMethodComboBox.currentIndex === 5
+            || restCustomUrlField.text.indexOf("ws://") === 0 || restCustomUrlField.text.indexOf("wss://") === 0);
     }
 
     CPlayFileDialog {
@@ -752,7 +780,7 @@ GridLayout {
 
             Layout.fillWidth: true
             Layout.preferredWidth: font.pointSize * 17
-            placeholderText: "http://host:port/path"
+            placeholderText: "http://host:port/path or ws://host:port/path"
             text: ""
             visible: restCommandsLayout.customEntry === true
 
@@ -798,7 +826,7 @@ GridLayout {
 
         Layout.fillWidth: true
         visible: typeComboBox.currentText === "REST" && restCommandsLayout.customEntry === true
-        model: ["GET", "POST", "PUT", "DELETE"]
+        model: ["GET", "POST", "PUT", "DELETE", "WS", "WSS"]
         currentIndex: 0
     }
     Item {
@@ -842,7 +870,7 @@ GridLayout {
 
                 TextField {
                     Layout.preferredWidth: 120
-                    placeholderText: "Name"
+                    placeholderText: isRestObsCommand() && restObsRequestType.text !== "" ? "sceneName" : "Name"
                     text: paramName
                     onTextChanged: restCoreParamsModel.setProperty(index, "paramName", text)
                 }

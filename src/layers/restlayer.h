@@ -16,6 +16,7 @@
 
 class HttpClientModel;
 class HttpRequestWorker;
+class WwsRequestWorker;
 
 class RestLayer : public BaseLayer {
 public:
@@ -23,7 +24,9 @@ public:
         GET = 0,
         POST,
         PUT,
-        DELETE_METHOD
+        DELETE_METHOD,
+        WS,
+        WSS
     };
 
     RestLayer();
@@ -62,6 +65,7 @@ public:
 
 private:
     void onRequestFinished(int statusCode, const QString &responseBody, const QString &error);
+    bool useWebSocket() const;
 
     std::string m_url;
     int m_method = GET;
@@ -73,6 +77,7 @@ private:
 
     QThread* m_workerThread = nullptr;
     HttpRequestWorker* m_worker = nullptr;
+    WwsRequestWorker* m_wwsWorker = nullptr;
 };
 
 #endif // RESTLAYER_H

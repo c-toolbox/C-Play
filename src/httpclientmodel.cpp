@@ -301,6 +301,8 @@ void HttpClientModel::updateCommandsList() {
                     if (methodStr == QStringLiteral("POST")) method = 1;
                     else if (methodStr == QStringLiteral("PUT")) method = 2;
                     else if (methodStr == QStringLiteral("DELETE")) method = 3;
+                    else if (methodStr == QStringLiteral("WS")) method = 4;
+                    else if (methodStr == QStringLiteral("WSS")) method = 5;
                 }
                 m_methods.append(method);
 
@@ -427,6 +429,8 @@ void HttpClientModel::saveCommandsToFile() {
         case 1: methodStr = QStringLiteral("POST"); break;
         case 2: methodStr = QStringLiteral("PUT"); break;
         case 3: methodStr = QStringLiteral("DELETE"); break;
+        case 4: methodStr = QStringLiteral("WS"); break;
+        case 5: methodStr = QStringLiteral("WSS"); break;
         default: methodStr = QStringLiteral("GET"); break;
         }
         o.insert(QStringLiteral("method"), methodStr);

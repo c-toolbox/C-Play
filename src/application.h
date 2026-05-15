@@ -34,6 +34,7 @@ class BaseLayer;
 #include "slidesmodel.h"
 #include <layers/streammodel.h>
 #include "httpclientmodel.h"
+#include "wwsclientmodel.h"
 #ifdef NDI_SUPPORT
 #include <ndi/ndimodel.h>
 #endif
@@ -68,6 +69,10 @@ Q_DECLARE_METATYPE(StreamModel*)
 #ifndef METATYPE_HttpClientModel
 #define METATYPE_HttpClientModel
 Q_DECLARE_METATYPE(HttpClientModel*)
+#endif
+#ifndef METATYPE_WwsClientModel
+#define METATYPE_WwsClientModel
+Q_DECLARE_METATYPE(WwsClientModel*)
 #endif
 #ifdef NDI_SUPPORT
 #ifndef METATYPE_NDIModels
@@ -175,6 +180,14 @@ public:
     HttpClientModel* httpClientModel();
     void setHttpClientModel(HttpClientModel* model);
 
+    Q_PROPERTY(WwsClientModel* wwsClientModel
+        READ wwsClientModel
+        WRITE setWwsClientModel
+        NOTIFY wwsClientModelChanged)
+
+    WwsClientModel* wwsClientModel();
+    void setWwsClientModel(WwsClientModel* model);
+
 #ifdef NDI_SUPPORT
     Q_PROPERTY(NDISendersModel* ndiSendersModel
         READ ndiSendersModel
@@ -221,6 +234,7 @@ Q_SIGNALS:
     void slidesModelChanged();
     void streamsModelChanged();
     void httpClientModelChanged();
+    void wwsClientModelChanged();
 #ifdef NDI_SUPPORT
     void ndiSendersModelChanged();
     void portAudioModelChanged();
@@ -262,6 +276,7 @@ private:
     SlidesModel* m_slidesModel;
     StreamModel* m_streamsModel;
     HttpClientModel* m_httpClientModel;
+    WwsClientModel* m_wwsClientModel;
 #ifdef NDI_SUPPORT
     NDISendersModel* m_ndiSendersModel;
     PortAudioModel* m_portAudioModel;
