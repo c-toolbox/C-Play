@@ -337,20 +337,19 @@ bool ofxNDIreceive::FindSenders(int& sendercount)
 		// 
 		p_sources = FindGetSources(pNDI_find, &nsources, 1);
 		if (p_sources) {
+			std::vector<std::string> updatedSenders;
+			for (int i = 0; i < (int)nsources; i++) {
+				if (p_sources[i].p_ndi_name && p_sources[i].p_ndi_name[0]) {
+					updatedSenders.push_back(p_sources[i].p_ndi_name);
+				}
+			}
 
-			// If there are new sources and the number of sources has changed
-			if (nsources > 0 && nsources != no_sources) {
+			// If there are new sources and the number of sources or names have changed
+			if (nsources != no_sources || updatedSenders != NDIsenders) {
 
 				// Rebuild the sender name list
 				no_sources = nsources;
-				NDIsenders.clear();
-				if (no_sources > 0) {
-					for (int i = 0; i < (int)no_sources; i++) {
-						if (p_sources[i].p_ndi_name && p_sources[i].p_ndi_name[0]) {
-							NDIsenders.push_back(p_sources[i].p_ndi_name);
-						}
-					}
-				}
+				NDIsenders = updatedSenders;
 
 				// Update the current sender index because it's position may have changed
 				if (!m_senderName.empty()) {

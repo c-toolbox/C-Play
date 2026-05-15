@@ -24,7 +24,7 @@ Kirigami.ApplicationWindow {
 
     property int selectedCommandIndex: -1
     property var methodNames: ["GET", "POST", "PUT", "DELETE", "WS", "WSS"]
-    property var obsActionNames: [qsTr("Set Profile"), qsTr("Set Scene"), qsTr("Set Scene Collection"), qsTr("Custom")]
+    property var obsActionNames: [qsTr("Set Profile"), qsTr("Set Scene"), qsTr("Set Scene Collection")]
 
     Component.onCompleted: {
         if (window.x > width) {
@@ -117,7 +117,7 @@ Kirigami.ApplicationWindow {
     function loadParametersFromJson(jsonStr) {
         paramsModel.clear();
         obsConnectCheckBox.checked = false;
-        obsActionComboBox.currentIndex = 0;
+        obsActionComboBox.currentIndex = -1;
         obsOptionComboBox.currentIndex = -1;
         obsCustomRequestType.text = "SetCurrentProgramScene";
         if (!jsonStr || jsonStr === "")
@@ -130,13 +130,13 @@ Kirigami.ApplicationWindow {
                     var value = arr[i].value || "";
                     if (name === "requestType") {
                         obsConnectCheckBox.checked = true;
-                        setObsActionFromRequestType(value);
+                        obsCustomRequestType.text = value;
+                        setObsHelperFromRequestType(value);
                     } else if (name.indexOf("requestData.") === 0) {
                         var dataName = name.substring(12);
-                        if (dataName === "profileName" || dataName === "sceneName" || dataName === "sceneCollectionName") {
+                        paramsModel.append({"paramName": dataName, "paramValue": value});
+                        if (dataName === obsOptionParameterName()) {
                             obsOptionComboBox.editText = value;
-                        } else {
-                            paramsModel.append({"paramName": dataName, "paramValue": value});
                         }
                     } else {
                         paramsModel.append({"paramName": name, "paramValue": value});
@@ -160,19 +160,15 @@ Kirigami.ApplicationWindow {
     function getParametersAsJson() {
         var arr = [];
         if (isObsCommand()) {
-            var requestType = obsRequestType();
+            var requestType = obsCustomRequestType.text;
             if (requestType !== "") {
                 arr.push({"name": "requestType", "value": requestType});
-                var optionParameterName = obsOptionParameterName();
-                if (optionParameterName !== "" && obsOptionComboBox.currentText !== "") {
-                    arr.push({"name": "requestData." + optionParameterName, "value": obsOptionComboBox.currentText});
-                }
             }
         }
         for (var i = 0; i < paramsModel.count; i++) {
             var item = paramsModel.get(i);
             if (item.paramName !== "") {
-                var paramName = isObsCommand() && obsRequestType() !== "" ? "requestData." + item.paramName : item.paramName;
+                var paramName = isObsCommand() && obsCustomRequestType.text !== "" ? "requestData." + item.paramName : item.paramName;
                 arr.push({"name": paramName, "value": item.paramValue});
             }
         }
@@ -192,38 +188,71 @@ Kirigami.ApplicationWindow {
     function obsRequestType() {
         if (!isObsCommand())
             return "";
-        if (obsActionComboBox.currentIndex === 0)
-            return "SetCurrentProfile";
-        if (obsActionComboBox.currentIndex === 1)
-            return "SetCurrentProgramScene";
-        if (obsActionComboBox.currentIndex === 2)
-            return "SetCurrentSceneCollection";
         return obsCustomRequestType.text;
     }
 
+    function obsRequestTypeForAction(actionIndex) {
+        if (actionIndex === 0)
+            return "SetCurrentProfile";
+        if (actionIndex === 1)
+            return "SetCurrentProgramScene";
+        if (actionIndex === 2)
+            return "SetCurrentSceneCollection";
+        return "";
+    }
+
     function obsOptionParameterName() {
-        if (obsActionComboBox.currentIndex === 0)
+        return obsOptionParameterNameForAction(obsActionComboBox.currentIndex);
+    }
+
+    function obsOptionParameterNameForAction(actionIndex) {
+        if (actionIndex === 0)
             return "profileName";
-        if (obsActionComboBox.currentIndex === 1)
+        if (actionIndex === 1)
             return "sceneName";
-        if (obsActionComboBox.currentIndex === 2)
+        if (actionIndex === 2)
             return "sceneCollectionName";
         return "";
     }
 
-    function ensureCustomObsExample() {
-        if (!isObsCommand() || obsActionComboBox.currentIndex !== 3)
+    function setOrAppendParameter(paramName, paramValue) {
+        if (paramName === "")
             return;
-        if (obsCustomRequestType.text === "")
-            obsCustomRequestType.text = "SetCurrentProgramScene";
         for (var i = 0; i < paramsModel.count; i++) {
-            if (paramsModel.get(i).paramName === "sceneName")
+            if (paramsModel.get(i).paramName === paramName) {
+                paramsModel.setProperty(i, "paramValue", paramValue);
                 return;
+            }
         }
-        paramsModel.append({"paramName": "sceneName", "paramValue": "Scene"});
+        paramsModel.append({"paramName": paramName, "paramValue": paramValue});
     }
 
-    function setObsActionFromRequestType(requestType) {
+    function removeObsHelperParametersExcept(paramNameToKeep) {
+        for (var i = paramsModel.count - 1; i >= 0; i--) {
+            var paramName = paramsModel.get(i).paramName;
+            if (paramName !== paramNameToKeep && (paramName === "profileName" || paramName === "sceneName" || paramName === "sceneCollectionName")) {
+                paramsModel.remove(i);
+            }
+        }
+    }
+
+    function applyObsHelperAction() {
+        if (!isObsCommand() || obsActionComboBox.currentIndex < 0)
+            return;
+        obsCustomRequestType.text = obsRequestTypeForAction(obsActionComboBox.currentIndex);
+        var optionParameterName = obsOptionParameterName();
+        removeObsHelperParametersExcept(optionParameterName);
+        setOrAppendParameter(optionParameterName, obsOptionComboBox.currentText);
+        updateObsOptions();
+    }
+
+    function applyObsHelperTarget() {
+        if (!isObsCommand() || obsActionComboBox.currentIndex < 0)
+            return;
+        setOrAppendParameter(obsOptionParameterName(), obsOptionComboBox.currentText);
+    }
+
+    function setObsHelperFromRequestType(requestType) {
         if (requestType === "SetCurrentProfile") {
             obsActionComboBox.currentIndex = 0;
         } else if (requestType === "SetCurrentProgramScene") {
@@ -231,14 +260,12 @@ Kirigami.ApplicationWindow {
         } else if (requestType === "SetCurrentSceneCollection") {
             obsActionComboBox.currentIndex = 2;
         } else {
-            obsActionComboBox.currentIndex = 3;
-            obsCustomRequestType.text = requestType;
-            ensureCustomObsExample();
+            obsActionComboBox.currentIndex = -1;
         }
     }
 
     function updateObsOptions() {
-        if (!isObsCommand() || obsActionComboBox.currentIndex === 3 || editUrl.text === "")
+        if (!isObsCommand() || obsActionComboBox.currentIndex < 0 || editUrl.text === "")
             return;
         app.wwsClientModel.updateObsOptions(editUrl.text, obsActionComboBox.currentIndex);
     }
@@ -411,11 +438,16 @@ Kirigami.ApplicationWindow {
                 Layout.fillWidth: true
                 text: qsTr("Connecting to OBS")
                 visible: editMethod.currentIndex === 4
-                onToggled: root.updateObsOptions()
+                onToggled: {
+                    if (checked && obsCustomRequestType.text === "") {
+                        obsCustomRequestType.text = "SetCurrentProgramScene";
+                    }
+                    root.updateObsOptions();
+                }
             }
 
             Label {
-                text: qsTr("OBS command:")
+                text: qsTr("OBS helper:")
                 Layout.alignment: Qt.AlignRight
                 visible: root.isObsCommand()
             }
@@ -427,20 +459,30 @@ Kirigami.ApplicationWindow {
                 onActivated: {
                     obsOptionComboBox.currentIndex = -1;
                     obsOptionComboBox.editText = "";
-                    if (obsActionComboBox.currentIndex === 3)
-                        root.ensureCustomObsExample();
-                    root.updateObsOptions();
+                    root.applyObsHelperAction();
                 }
             }
 
             Label {
-                text: qsTr("OBS target:")
+                text: ""
+                visible: root.isObsCommand()
+            }
+            Label {
+                Layout.fillWidth: true
+                text: qsTr("Helper only: choosing a preset fills the request and data fields below. Only those fields are saved and loaded.")
+                wrapMode: Text.WordWrap
+                color: Kirigami.Theme.disabledTextColor
+                visible: root.isObsCommand()
+            }
+
+            Label {
+                text: qsTr("OBS target helper:")
                 Layout.alignment: Qt.AlignRight
-                visible: root.isObsCommand() && obsActionComboBox.currentIndex !== 3
+                visible: root.isObsCommand() && obsActionComboBox.currentIndex >= 0
             }
             RowLayout {
                 Layout.fillWidth: true
-                visible: root.isObsCommand() && obsActionComboBox.currentIndex !== 3
+                visible: root.isObsCommand() && obsActionComboBox.currentIndex >= 0
 
                 ComboBox {
                     id: obsOptionComboBox
@@ -448,6 +490,9 @@ Kirigami.ApplicationWindow {
                     editable: true
                     model: app.wwsClientModel.obsOptions
                     enabled: !app.wwsClientModel.obsOptionsInProgress
+                    onActivated: root.applyObsHelperTarget()
+                    onAccepted: root.applyObsHelperTarget()
+                    onEditTextChanged: root.applyObsHelperTarget()
                 }
                 ToolButton {
                     icon.name: "view-refresh"
@@ -460,13 +505,13 @@ Kirigami.ApplicationWindow {
             Label {
                 text: qsTr("OBS request:")
                 Layout.alignment: Qt.AlignRight
-                visible: root.isObsCommand() && obsActionComboBox.currentIndex === 3
+                visible: root.isObsCommand()
             }
             TextField {
                 id: obsCustomRequestType
                 Layout.fillWidth: true
                 text: "SetCurrentProgramScene"
-                visible: root.isObsCommand() && obsActionComboBox.currentIndex === 3
+                visible: root.isObsCommand()
             }
 
             Label { text: qsTr("Ignore Status:"); Layout.alignment: Qt.AlignRight }
