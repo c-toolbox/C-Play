@@ -2,7 +2,7 @@
 title: iPad (Web) UI
 layout: home
 nav_order: 2
-parent: Remote Control
+parent: Remote control
 ---
 
 # C-Play iPad Control Interface

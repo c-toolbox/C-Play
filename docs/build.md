@@ -3,7 +3,7 @@ title: Build from code
 layout: home
 has_children: true
 has_toc: false
-nav_order: 8
+nav_order: 9
 ---
 
 # Build C-Play from source code

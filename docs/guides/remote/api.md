@@ -1,17 +1,17 @@
 ---
-title: HTTP Web API
+title: HTTP API + WebSockets
 layout: home
 nav_order: 1
-parent: Remote Control
+parent: Remote control
 ---
 
-# HTTP Web API
+# HTTP API and HTTP/WebSockets Commands
 
 This page covers three topics:
 
 1. [HTTP API for C-Play](#http-api-for-c-play) — endpoints for controlling C-Play remotely
-2. [REST Commands Editor](#rest-commands-editor) — built-in client for managing and testing HTTP commands
-3. [REST Layer](#rest-layer) — non-visual layer type that fires HTTP requests from slides
+2. [REST (HTTP and WebSockets) Commands Editor](#rest-commands-editor) — built-in client for managing and testing HTTP and WebSocket commands
+3. [REST Layer](#rest-layer) — non-visual layer type that fires HTTP or WebSocket requests from slides
 
 ---
 
@@ -251,36 +251,38 @@ If neither sublayer param is provided, the parent layer is used. If the parent l
 
 ## REST Layer
 
-The **REST Layer** is a non-visual layer type that fires an HTTP request when triggered as part of the slide/layer system. It exists on the master only and can be used to integrate external systems (lighting, projectors, other applications) into your slide workflow.
+The **REST Layer** is a non-visual layer type that fires an HTTP or WebSocket request when triggered as part of the slide/layer system. It exists on the master only and can be used to integrate external systems (lighting, projectors, other applications) into your slide workflow.
 
 ### Properties
 
 | Property | Description |
 |----------|-------------|
 | URL | Target endpoint |
-| Method | `GET`, `POST`, `PUT`, or `DELETE` |
+| Method | `GET`, `POST`, `PUT`, `DELETE`, `WS`, or `WSS` |
 | Parameters | A list of name/value pairs, each with individual UI fields that can be added or removed as needed |
+| Ignore Status | Optional fire-and-forget behavior; C-Play assumes success after the request is sent or the connection opens |
 
-When a slide containing a REST layer is loaded, the layer sends the configured HTTP request on a background thread. Status is reported as: in-progress, success (HTTP 2xx), or failure.
+When a slide containing a REST layer is loaded, the layer sends the configured HTTP or WebSocket request on a background thread. Status is reported as: in-progress, success, or failure.
 
 ### Configuring a REST layer
 
 In the layer editor, a REST layer can be configured in two ways:
 
 1. **From predefined commands** — Select a command from the dropdown populated by the REST Commands Editor (see below). This auto-fills URL, method, and parameters.
-2. **Custom** — Toggle to custom mode to manually enter URL, method, and parameters.
+2. **Custom** — Toggle to custom mode to manually enter URL, method, parameters, and ignore-status behavior.
 
 ---
 
 ## REST Commands Editor
 
-The **REST Commands Editor** is a standalone window accessible from **Settings → REST Commands Editor**. It manages a list of predefined HTTP commands that can be used both for manual testing and as presets when configuring REST layers.
+The **REST Commands Editor** is a standalone window accessible from **Settings → REST Commands Editor**. It manages a list of predefined HTTP and WebSocket commands that can be used both for manual testing and as presets when configuring REST layers.
 
 ### Features
 
 - Browse all predefined commands (title, method, URL)
 - Add, update, or remove commands
 - Trigger a command immediately and inspect the response (status code + body)
+- Use `WS`/`WSS` for WebSocket targets, including OBS WebSocket v5 commands
 
 ### Command fields
 
@@ -288,8 +290,24 @@ The **REST Commands Editor** is a standalone window accessible from **Settings �
 |-------|-------------|
 | Title | Display name for the command |
 | URL | Full endpoint URL |
-| Method | `GET`, `POST`, `PUT`, or `DELETE` |
+| Method | `GET`, `POST`, `PUT`, `DELETE`, `WS`, or `WSS` |
 | Parameters | A list of name/value pairs with individual fields for each entry (supports values with spaces and special characters) |
+| Ignore Status | Do not wait for the full response; useful for fire-and-forget launch/control commands |
+
+### WebSocket and OBS commands
+
+For `WS` and `WSS`, C-Play opens the WebSocket URL and sends the configured parameters as a JSON text message. If the command is an OBS WebSocket v5 command, C-Play negotiates the `obswebsocket.json` subprotocol, sends the required Identify message, and then sends the OBS request.
+
+OBS commands use these parameter names:
+
+| Parameter style | Description |
+|-----------------|-------------|
+| `requestType` | OBS request name, for example `SetCurrentProgramScene` |
+| `requestData.name` | Adds `name` to the OBS `requestData` object, for example `requestData.sceneName = Browser` |
+| `password` | OBS WebSocket password, if authentication is enabled |
+| `eventSubscriptions` | Optional OBS event subscription bitmask used during Identify |
+
+The editor includes an OBS helper for switching profile, current program scene, and scene collection. Those helpers fill `requestType` and the correct `requestData.*` field for you.
 
 ### Storage
 
@@ -300,6 +318,7 @@ Commands are stored in `data/predefined-rest-commands.json` relative to the appl
     "commands": [
         {
             "enabled": true,
+            "ignoreStatus": false,
             "method": "GET",
             "title": "Get C-Play playlist",
             "url": "http://localhost:7007/playlist",
@@ -307,13 +326,25 @@ Commands are stored in `data/predefined-rest-commands.json` relative to the appl
         },
         {
             "enabled": true,
+            "ignoreStatus": false,
             "method": "POST",
             "title": "Force 2D in C-Play",
             "url": "http://localhost:7007/view_mode",
             "parameters": [{"name": "mode", "value": "1"}]
+        },
+        {
+            "enabled": true,
+            "ignoreStatus": false,
+            "method": "WS",
+            "title": "OBS - Set scene Browser",
+            "url": "ws://localhost:4455",
+            "parameters": [
+                {"name": "requestType", "value": "SetCurrentProgramScene"},
+                {"name": "requestData.sceneName", "value": "Browser"}
+            ]
         }
     ]
 }
 ```
 
-Commands with `"enabled": false` are skipped when loading. Parameters are stored as a JSON array of `{"name": ..., "value": ...}` objects, which allows values containing spaces and special characters. For POST/PUT requests parameters are sent as the request body; for GET/DELETE they are appended as query parameters.
+Commands with `"enabled": false` are skipped when loading. Parameters are stored as a JSON array of `{"name": ..., "value": ...}` objects, which allows values containing spaces and special characters. For `POST`/`PUT` requests parameters are sent as the request body; for `GET`/`DELETE` they are appended as query parameters; for `WS`/`WSS` they are converted to a JSON WebSocket message or an OBS WebSocket request.

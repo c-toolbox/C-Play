@@ -1,12 +1,12 @@
 ---
-title: Remote Control
+title: Remote control
 layout: home
 has_children: true
 has_toc: false
 nav_order: 7
 ---
 
-# Remote Control
+# Remote control
 
 C-Play has integrated a REST API library to enable external control against the master UI, to enable control from an external application, which could be a more portable web UI.
 Below you find links to the API as well as an example UI.

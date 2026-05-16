@@ -56,7 +56,9 @@ With the layer types above, you can make it almost as easy as using PowerPoint t
 
 - C-Play nodes can run on top of other applications. On the master, viewing your video or a layer on a secondary monitor is also simple and requires no extra decoding resources.
 
-- HTTP Web API, so you can integrate control into a custom system.
+- HTTP Web API, so you can integrate C-Play control into a custom system.
+
+- REST Commands (HTTP and WebSockets) to control other application, such as OBS Studio which C-Play then can receive content from.
 
 - Tested and used on Windows 10/11, in domes and other big arenas.
 

@@ -8,7 +8,7 @@ This pre-setup is relevant for NDI and/or OMT audio support.
 
 In the options below, we will compile FFmpeg and MPV with MINGW64, which is standard and usually the easiest practice for building a customized library on Windows. However, MINGW64 headers are extensive and the include folder often makes compilation fail. As we are also using the excellent 'vcpkg' functionality for many packages, we can use that as well to install packages that can be included when building C-Play.
 
-Install the [ASIO SDK](https://www.steinberg.net/asiosdk) through 'vcpkg', and then install portaudio with the asio feature enabled. In the C-Play repository, there are some [portaudio vcpkg files](https://raw.githubusercontent.com/c-toolbox/C-Play/master/help/portaudio) to make 'portaudio' compile with 'asio', which is not in the standard package included in 'vcpkg'. Finally, install 'jack2' as well.
+Install the [ASIO SDK](https://www.steinberg.net/asiosdk) through 'vcpkg', and then install portaudio with the asio feature enabled. In the C-Play repository, there are some [portaudio vcpkg files](https://github.com/c-toolbox/C-Play/tree/master/help/portaudio) to make 'portaudio' compile with 'asio', which is not in the standard package included in 'vcpkg'. Finally, install 'jack2' as well.
 
 ```
 vcpkg install asiosdk
