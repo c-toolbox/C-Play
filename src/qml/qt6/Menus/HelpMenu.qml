@@ -13,6 +13,14 @@ Menu {
     title: qsTr("&Help")
 
     MenuItem {
+        text: qsTr("Documentation")
+        icon.name: "help-browser"
+
+        onTriggered: Qt.openUrlExternally("https://c-toolbox.github.io/C-Play/")
+    }
+    MenuSeparator {
+    }
+    MenuItem {
         action: actions["aboutCPlayAction"]
     }
 }

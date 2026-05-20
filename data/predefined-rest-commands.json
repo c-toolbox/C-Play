@@ -45,6 +45,23 @@
         {
             "enabled": true,
             "ignoreStatus": false,
+            "method": "WS",
+            "parameters": [
+                {
+                    "name": "requestType",
+                    "value": "SetCurrentProgramScene"
+                },
+                {
+                    "name": "requestData.sceneName",
+                    "value": "Scene"
+                }
+            ],
+            "title": "OBS Set Scene",
+            "url": "localhost:4455"
+        },
+        {
+            "enabled": true,
+            "ignoreStatus": false,
             "method": "GET",
             "parameters": [
             ],
