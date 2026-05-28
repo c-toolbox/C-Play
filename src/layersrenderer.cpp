@@ -12,7 +12,7 @@
 #include <sgct/opengl.h>
 
 constexpr std::string_view VideoVert = R"(
-  #version 410 core
+  #version 460 core
 
   layout (location = 0) in vec2 in_position;
   layout (location = 1) in vec2 in_texCoord;
@@ -57,7 +57,7 @@ constexpr std::string_view VideoVert = R"(
 )";
 
 constexpr std::string_view MeshVert = R"(
-  #version 410 core
+  #version 460 core
 
   layout (location = 0) in vec2 in_texCoord;
   layout (location = 1) in vec3 in_normal;
@@ -106,7 +106,7 @@ constexpr std::string_view MeshVert = R"(
 )";
 
 constexpr std::string_view VideoFrag = R"(
-  #version 410 core
+  #version 460 core
 
   uniform sampler2D tex;
   uniform float alpha;
@@ -127,7 +127,7 @@ constexpr std::string_view VideoFrag = R"(
 )";
 
 constexpr std::string_view EACMeshVert = R"(
-  #version 410 core
+  #version 460 core
 
   layout (location = 0) in vec2 in_texCoord;
   layout (location = 1) in vec3 in_normal;
@@ -153,7 +153,7 @@ constexpr std::string_view EACMeshVert = R"(
 )";
 
 constexpr std::string_view EACVideoFrag = R"(
-  #version 410 core
+  #version 460 core
 
   uniform sampler2D tex;
   uniform int eye;

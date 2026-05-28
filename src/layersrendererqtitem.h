@@ -9,7 +9,7 @@
 #define LAYERSRENDERERQTITEM_H
 
 #include <QOpenGLBuffer>
-#include <QOpenGLFunctions>
+#include <QOpenGLFunctions_4_5_Core>
 #include <QOpenGLShaderProgram>
 #include <QOpenGLVertexArrayObject>
 #include <QtQuick/QQuickItem>
@@ -27,7 +27,7 @@
 #include <utils/spheregrid.h>
 #include "mpvobject.h"
 
-class LayersRendererQtOpenGLObject : public QObject, protected QOpenGLFunctions {
+class LayersRendererQtOpenGLObject : public QObject, protected QOpenGLFunctions_4_5_Core {
     Q_OBJECT
 public:
     LayersRendererQtOpenGLObject(QObject* parent = nullptr);

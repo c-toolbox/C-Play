@@ -80,6 +80,7 @@
 #include <QQuickStyle>
 #include <QQuickView>
 #include <QQuickWindow>
+#include <QSurfaceFormat>
 #include <QStyle>
 #include <QStyleFactory>
 #include <QThread>
@@ -118,6 +119,13 @@ static QApplication *createApplication(int &argc, char **argv, const QString &ap
     QApplication::setApplicationDisplayName(QStringLiteral("C-Play"));
     QApplication::setApplicationVersion(Application::version());
     QCoreApplication::setAttribute(Qt::AA_ShareOpenGLContexts);
+
+    QSurfaceFormat format;
+    format.setVersion(4, 6);
+    format.setProfile(QSurfaceFormat::CoreProfile);
+    format.setDepthBufferSize(24);
+    format.setStencilBufferSize(8);
+    QSurfaceFormat::setDefaultFormat(format);
 
     QQuickStyle::setStyle(QStringLiteral("org.kde.desktop"));
     QQuickStyle::setFallbackStyle(QStringLiteral("Fusion"));
