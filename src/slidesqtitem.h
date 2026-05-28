@@ -8,7 +8,7 @@
 #ifndef SLIDESQTITEM_H
 #define SLIDESQTITEM_H
 
-#include <QOpenGLFunctions>
+#include <QOpenGLFunctions_4_5_Core>
 #include <QtQuick/QQuickItem>
 #include <QTimer>
 
@@ -16,7 +16,7 @@ class QQuickRenderControl;
 class QQuickWindow;
 class SlidesModel;
 
-class SlidesQtItemRenderer : public QObject, protected QOpenGLFunctions {
+class SlidesQtItemRenderer : public QObject, protected QOpenGLFunctions_4_5_Core {
     Q_OBJECT
 public:
     ~SlidesQtItemRenderer();

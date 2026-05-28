@@ -24,7 +24,7 @@
 
  // Shader sources (same as LayersRenderer but compatible with QOpenGLShaderProgram)
 constexpr const char* VideoVert = R"(
-#version 330 core
+#version 460 core
 
 layout (location = 0) in vec2 in_position;
 layout (location = 1) in vec2 in_texCoord;
@@ -69,7 +69,7 @@ void main() {
 )";
 
 constexpr const char* MeshVert = R"(
-#version 330 core
+#version 460 core
 
 layout (location = 0) in vec2 in_texCoord;
 layout (location = 1) in vec3 in_normal;
@@ -118,7 +118,7 @@ void main() {
 )";
 
 constexpr const char* VideoFrag = R"(
-#version 330 core
+#version 460 core
 
 uniform sampler2D tex;
 uniform float alpha;
@@ -139,7 +139,7 @@ void main() {
 )";
 
 constexpr const char* EACMeshVert = R"(
-#version 330 core
+#version 460 core
 
 layout (location = 0) in vec2 in_texCoord;
 layout (location = 1) in vec3 in_normal;
@@ -165,7 +165,7 @@ void main() {
 )";
 
 constexpr const char* EACVideoFrag = R"(
-#version 330 core
+#version 460 core
 
 uniform sampler2D tex;
 uniform int eye;
