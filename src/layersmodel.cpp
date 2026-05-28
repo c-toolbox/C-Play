@@ -302,8 +302,6 @@ int LayersModel::addLayer(QString title, int type, QString filepath, int stereoM
     BaseLayer *newLayer = BaseLayer::createLayer(true, type, get_proc_address_qopengl_v1, get_proc_address_qopengl_v2, title.toStdString());
 
     if (newLayer) {
-        beginInsertRows(QModelIndex(), m_layers.size(), m_layers.size());
-
         newLayer->setHierarchy(hierarchy());
         newLayer->setTitle(title.toStdString());
         if (type == BaseLayer::CONTROL) {
@@ -347,12 +345,15 @@ int LayersModel::addLayer(QString title, int type, QString filepath, int stereoM
             static_cast<uint8_t>(GridSettings::plane_Calculate_Size_Based_on_Video()));
         newLayer->initialize();
 
+        const int layerIdx = m_layers.size();
         int initialStatus = (newLayer->type() == BaseLayer::REST) ? -1 : 0;
+        beginInsertRows(QModelIndex(), layerIdx, layerIdx);
         m_layers.push_back(QPair(std::shared_ptr<BaseLayer>(newLayer), initialStatus));
+        ensureTimelineSizeMatchesLayers();
+        endInsertRows();
 
         // Set up status callback for REST layers
         if (newLayer->type() == BaseLayer::REST) {
-            int layerIdx = m_layers.size() - 1;
             RestLayer* restLayer = static_cast<RestLayer*>(newLayer);
             restLayer->setStatusCallback([this, layerIdx](int status) {
                 QMetaObject::invokeMethod(this, [this, layerIdx, status]() {
@@ -364,11 +365,9 @@ int LayersModel::addLayer(QString title, int type, QString filepath, int stereoM
         setLayersNeedsSave(true);
         setNeedSync();
 
-        endInsertRows();
-
         Q_EMIT layersModelChanged();
 
-        return m_layers.size() - 1;
+        return layerIdx;
     }
 
     return -1;
@@ -653,8 +652,6 @@ void LayersModel::addCopyOfLayer(BaseLayer* srcLayer) {
     BaseLayer* newLayer = BaseLayer::createLayer(true, srcLayer->type(), get_proc_address_qopengl_v1, get_proc_address_qopengl_v2, srcLayer->title());
 
     if (newLayer) {
-        beginInsertRows(QModelIndex(), m_layers.size(), m_layers.size());
-
         newLayer->setTitle(srcLayer->title());
 
         std::vector<std::byte> data;
@@ -665,11 +662,15 @@ void LayersModel::addCopyOfLayer(BaseLayer* srcLayer) {
 
         newLayer->setHierarchy(hierarchy());
         newLayer->initialize();
+
+        const int layerIdx = m_layers.size();
+        beginInsertRows(QModelIndex(), layerIdx, layerIdx);
         m_layers.push_back(QPair(std::shared_ptr<BaseLayer>(newLayer), 0));
+        ensureTimelineSizeMatchesLayers();
+        endInsertRows();
+
         setLayersNeedsSave(true);
         setNeedSync();
-
-        endInsertRows();
 
         Q_EMIT layersModelChanged();
     }
