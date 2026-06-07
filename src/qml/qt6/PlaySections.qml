@@ -415,7 +415,27 @@ Rectangle {
             Rectangle {
                 color: Kirigami.Theme.alternateBackgroundColor
                 height: 1
-                width: Kirigami.Units.gridUnit + 10
+                width: Kirigami.Units.gridUnit + 5
+            }
+            ToolButton {
+                id: unloadSection
+                focusPolicy: Qt.NoFocus
+                hoverEnabled: sectionsView.currentIndex !== -1
+                icon.height: 24
+                icon.name: sectionsView.currentIndex !== -1 ? "drive-partition-symbolic" : "drive-multipartition-symbolic"
+                icon.color: sectionsView.currentIndex !== -1 ? "lime" : "red"
+                text: ""
+
+                onClicked: {
+                    if(sectionsView.currentIndex !== -1) {
+                        mpv.loadSection(-1);
+                        sectionsView.currentIndex = -1;
+                    }
+                }
+
+                ToolTip {
+                    text: sectionsView.currentIndex !== -1 ? "Unload current selected section. Will not impact current playback." : ""
+                }
             }
             Label {
                 id: mediaTitle

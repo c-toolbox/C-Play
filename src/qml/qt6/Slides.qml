@@ -463,6 +463,28 @@ Rectangle {
                 height: 1
                 width: Kirigami.Units.gridUnit
             }
+            Button {
+                focusPolicy: Qt.NoFocus
+                icon.height: 16
+                icon.name: "edit-reset"
+                text: ""
+
+                onClicked: {
+                    layers.layersView.currentIndex = -1;
+                    app.slides.slideFadeTime = PresentationSettings.fadeDurationToPreviousSlide;
+                    app.slides.selectedSlideIdx = -1;
+                    app.slides.triggeredSlideIdx = -1;
+                }
+
+                ToolTip {
+                    text: "Reset start position to beginning of presentation."
+                }
+            }
+            Rectangle {
+                color: Kirigami.Theme.alternateBackgroundColor
+                height: 1
+                width: Kirigami.Units.gridUnit
+            }
         }
     }
 

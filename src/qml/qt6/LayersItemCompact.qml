@@ -47,6 +47,15 @@ ItemDelegate {
         else
             return model.type + model.page + " - " + model.stereoVideo + " " + model.gridToMapOn;
     }
+    function statusToolTipText(status) {
+        if (status === 2)
+            return qsTr("Layer status: Loaded and visible.");
+        if (status === 1)
+            return qsTr("Layer status: Loaded but not visible.");
+        if (status === 0)
+            return qsTr("Layer status: Not Loaded.");
+        return qsTr("Layer status: Not available.");
+    }
 
     font.pointSize: 9
     highlighted: layersView.currentIndex === index
@@ -131,7 +140,7 @@ ItemDelegate {
             Button  {
                 flat: true
                 visible: app.slides.selected.layersCanBeLocked
-                hoverEnabled: false
+                hoverEnabled: true
                 anchors.leftMargin: 93
                 anchors.bottomMargin: -3
                 anchors.bottom: parent.bottom
@@ -156,6 +165,10 @@ ItemDelegate {
                     layersView.currentIndex = index;
                     app.slides.updateSelectedSlide();
                 }
+
+                ToolTip {
+                    text: model.locked ? qsTr("Layer is locked. Click to unlock it for editing.") : qsTr("Layer is unlocked. Click to lock it against editing.")
+                }
             }
             Rectangle {
                 anchors.top: parent.top
@@ -166,6 +179,15 @@ ItemDelegate {
                 radius: 5
                 visible: model.type !== "Control"
                 color: (model.status === 2 ? "lime" : model.status === 1 ? "orange" : model.status === 0 ? "crimson" : "black")
+
+                MouseArea {
+                    id: layerStatusMA
+                    anchors.fill: parent
+                    hoverEnabled: true
+                }
+
+                ToolTip.visible: layerStatusMA.containsMouse
+                ToolTip.text: statusToolTipText(model.status)
             }
             Kirigami.Icon {
                 anchors.top: parent.top
@@ -183,6 +205,15 @@ ItemDelegate {
                 implicitHeight: 25
                 implicitWidth: 100
                 visible: !visibilitySlider.visible && model.type !== "Control" && model.type !== "REST"
+
+                ToolTip.visible: visibilityPreviewMA.containsMouse
+                ToolTip.text: qsTr("Layer visibility: %1%. Select the layer to adjust its opacity.").arg(model.visibility)
+
+                MouseArea {
+                    id: visibilityPreviewMA
+                    anchors.fill: parent
+                    hoverEnabled: true
+                }
 
                 Rectangle {
                     color: Kirigami.Theme.highlightColor
@@ -218,6 +249,10 @@ ItemDelegate {
                 implicitWidth: 100
                 overlayLabel: qsTr("")
 
+                ToolTip {
+                    text: qsTr("Layer visibility: drag to adjust this layer's opacity from 0% to 100%.")
+                }
+
                 onVisibleChanged: {
                     if (visible) {
                         visibilitySlider.value = app.slides.selected.layerVisibility(index);
@@ -241,6 +276,15 @@ ItemDelegate {
                 implicitHeight: 20
                 implicitWidth: 100
                 visible: layersView.currentIndex !== index && model.type !== "Control" && model.type !== "REST"
+
+                ToolTip.visible: visibilityTextMA.containsMouse
+                ToolTip.text: qsTr("Layer visibility: %1%. Select the layer to adjust its opacity.").arg(model.visibility)
+
+                MouseArea {
+                    id: visibilityTextMA
+                    anchors.fill: parent
+                    hoverEnabled: true
+                }
 
                 Label {
                     anchors.fill: parent

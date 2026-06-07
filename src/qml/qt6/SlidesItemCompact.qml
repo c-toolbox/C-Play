@@ -40,6 +40,22 @@ ItemDelegate {
     function subText() {
         return model.layers + (model.layers === 1 ? " layer" : " layers");
     }
+    function statusToolTipText(status) {
+        if (status === 2)
+            return qsTr("Layer status: Loaded and visible.");
+        if (status === 1)
+            return qsTr("Layer status: Loaded but not visible.");
+        if (status === 0)
+            return qsTr("Layer status: Not Loaded.");
+        return qsTr("Layer status: Not available.");
+    }
+    function slideStatusToolTipText() {
+        if (model.layerminstatus < 0 || model.layermaxstatus < 0)
+            return qsTr("Slide layer status: Not available.");
+        if (model.layerminstatus === model.layermaxstatus)
+            return qsTr("Slide layer status: all layers are %1").arg(statusToolTipText(model.layerminstatus).replace(qsTr("Layer status: "), "").replace(".", ""));
+        return qsTr("Slide layer status: mixed, from %1 to %2").arg(statusToolTipText(model.layerminstatus).replace(qsTr("Layer status: "), "").replace(".", "")).arg(statusToolTipText(model.layermaxstatus).replace(qsTr("Layer status: "), "").replace(".", ""));
+    }
 
     down: app.slides.triggeredSlideIdx === index
     font.pointSize: 9
@@ -133,7 +149,7 @@ ItemDelegate {
             }
             Button  {
                 flat: true
-                hoverEnabled: false
+                hoverEnabled: true
                 visible: PresentationSettings.customSlidesCanHaveLockableLayers
                 anchors.leftMargin: 93
                 anchors.bottomMargin: -3
@@ -148,6 +164,10 @@ ItemDelegate {
                     app.slides.slide(index).layersCanBeLocked = !app.slides.slide(index).layersCanBeLocked;
                     app.slides.updateSlide(index);
                 }
+
+                ToolTip {
+                    text: model.locked ? qsTr("This slide has locked layers. Click to disable layer locking for this slide.") : qsTr("Layer locking is disabled for this slide. Click to allow layers on this slide to be locked.")
+                }
             }
             Rectangle {
                 id: layerMinStatus
@@ -159,6 +179,15 @@ ItemDelegate {
                 radius: 5
                 visible: model.layerminstatus >= 0 && model.layermaxstatus >= 0 && model.layerminstatus !== model.layermaxstatus
                 color: (model.layerminstatus === 1 ? "orange" : "crimson")          
+
+                MouseArea {
+                    id: layerMinStatusMA
+                    anchors.fill: parent
+                    hoverEnabled: true
+                }
+
+                ToolTip.visible: layerMinStatusMA.containsMouse
+                ToolTip.text: qsTr("Lowest slide layer status: %1").arg(statusToolTipText(model.layerminstatus).replace(qsTr("Layer status: "), ""))
             }
             Rectangle {
                 id: layerMaxStatus
@@ -170,6 +199,15 @@ ItemDelegate {
                 radius: 5
                 visible: model.layerminstatus >= 0 && model.layermaxstatus >= 0 && model.layerminstatus !== model.layermaxstatus
                 color: (model.layermaxstatus === 2 ? "lime" : "orange")       
+
+                MouseArea {
+                    id: layerMaxStatusMA
+                    anchors.fill: parent
+                    hoverEnabled: true
+                }
+
+                ToolTip.visible: layerMaxStatusMA.containsMouse
+                ToolTip.text: qsTr("Highest slide layer status: %1").arg(statusToolTipText(model.layermaxstatus).replace(qsTr("Layer status: "), ""))
             }
             Rectangle {
                 id: layerStatus
@@ -181,6 +219,15 @@ ItemDelegate {
                 radius: 5
                 visible: model.layerminstatus >= 0 && model.layermaxstatus >= 0 && model.layerminstatus === model.layermaxstatus
                 color: (model.layerminstatus === 2 ? "lime" : model.layerminstatus === 1 ? "orange" : model.layerminstatus === 0 ? "crimson" : "black")         
+
+                MouseArea {
+                    id: layerStatusMA
+                    anchors.fill: parent
+                    hoverEnabled: true
+                }
+
+                ToolTip.visible: layerStatusMA.containsMouse
+                ToolTip.text: slideStatusToolTipText()
             }
             Item {
                 anchors.bottom: parent.bottom
@@ -188,6 +235,15 @@ ItemDelegate {
                 implicitHeight: 25
                 implicitWidth: 100
                 visible: !visibilitySlider.visible
+
+                ToolTip.visible: visibilityPreviewMA.containsMouse
+                ToolTip.text: qsTr("Slide visibility: %1%. This controls the opacity of the slide's layers during playback.").arg(model.visibility)
+
+                MouseArea {
+                    id: visibilityPreviewMA
+                    anchors.fill: parent
+                    hoverEnabled: true
+                }
 
                 Rectangle {
                     color: Kirigami.Theme.highlightColor
@@ -223,6 +279,10 @@ ItemDelegate {
                 implicitWidth: 100
                 overlayLabel: qsTr("")
                 visible: false
+
+                ToolTip {
+                    text: qsTr("Slide visibility: controls the opacity of this slide's layers from 0% to 100% during fade animations.")
+                }
 
                 onValueChanged: {
                     if (!slidesView.enabled && layerView.layerItem) {

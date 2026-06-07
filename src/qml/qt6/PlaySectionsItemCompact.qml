@@ -62,7 +62,7 @@ ItemDelegate {
     contentItem: Kirigami.IconTitleSubtitle {
         color: root.hovered || root.highlighted ? Kirigami.Theme.highlightedTextColor : Kirigami.Theme.textColor
         icon.color: color
-        icon.name: "drive-partition"
+        icon.name: "drive-partition-symbolic"
         icon.width: model.isPlaying ? root.height * 0.8 : 0
         subtitle: subText()
         title: mainText()
