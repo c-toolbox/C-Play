@@ -396,7 +396,6 @@ Rectangle {
 
                         onClicked: {
                             mpv.loadSection(-1);
-                            sectionsView.currentIndex = -1;
                         }
 
                         ToolTip {
@@ -429,7 +428,6 @@ Rectangle {
                 onClicked: {
                     if(sectionsView.currentIndex !== -1) {
                         mpv.loadSection(-1);
-                        sectionsView.currentIndex = -1;
                     }
                 }
 
@@ -470,6 +468,9 @@ Rectangle {
         function onRewind() {
             mpv.loadSection(-1);
             sectionsView.currentIndex = -1;
+        }
+        function onSectionLoaded(index) {
+            sectionsView.currentIndex = index;
         }
 
         target: mpv

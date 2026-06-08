@@ -1330,7 +1330,7 @@ const std::string HttpServerThread::LoadIndexFromSections(std::string indexStr) 
             if (!sm) {
                 return "Sections model unavailable";
             }
-            if (index >= 0 && index < sm->getNumberOfSections()) {
+            if (index >= -1 && index < sm->getNumberOfSections()) {
                 Q_EMIT loadFromSections(index);
                 return "Loading section with index: " + indexStr;
             } else {

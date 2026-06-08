@@ -173,7 +173,9 @@ MpvObject {
                 playItem.start();
         }
         function onLoadFromSections(index) {
-            root.pause = true;
+            if(index >= 0){
+                root.pause = true;
+            }
             root.loadSection(index);
         }
         function onNext() {
