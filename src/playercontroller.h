@@ -82,6 +82,7 @@ public Q_SLOTS:
     void RunSurfaceTransition();
     void SlidePrevious();
     void SlideNext();
+    void ResetSlidesToStart();
     void DispatchControlOperation(const QString &operation, const QString &parameter);
 
     QString returnRelativeOrAbsolutePath(const QString &path);
@@ -150,6 +151,7 @@ Q_SIGNALS:
     void spinRollCW(bool run);
     void orientationAndSpinReset();
     void runSurfaceTransition();
+    void resetSlidesToStart();
     void mpvChanged();
     void slidesModelChanged();
     void backgroundImageChanged();

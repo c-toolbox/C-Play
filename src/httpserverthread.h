@@ -68,6 +68,7 @@ Q_SIGNALS:
     void runSurfaceTransition();
     void slidePrevious();
     void slideNext();
+    void resetSlidesToStart();
 
 protected:
     void run() override;

@@ -470,10 +470,7 @@ Rectangle {
                 text: ""
 
                 onClicked: {
-                    layers.layersView.currentIndex = -1;
-                    app.slides.slideFadeTime = PresentationSettings.fadeDurationToPreviousSlide;
-                    app.slides.selectedSlideIdx = -1;
-                    app.slides.triggeredSlideIdx = -1;
+                    resetPresentationTimer.start();
                 }
 
                 ToolTip {
@@ -545,6 +542,14 @@ Rectangle {
                 }
 
                 target: mpv
+            }
+
+            Connections {
+                function onResetSlidesToStart() {
+                    resetPresentationTimer.start();
+                }
+
+                target: playerController
             }
 
             Connections {
@@ -688,6 +693,28 @@ Rectangle {
             }
             app.slides.pauseLayerUpdate = false;
             busyIndicator = false;
+        }
+    }
+    Timer {
+        id: resetPresentationTimer
+
+        property int resetCount: 0
+        interval: 50
+        repeat: false
+
+        onTriggered: {
+            layers.layersView.currentIndex = -1;
+            slidesView.currentIndex = -1;
+            app.slides.slideFadeTime = PresentationSettings.fadeDurationToPreviousSlide;
+            app.slides.selectedSlideIdx = -1;
+            app.slides.triggeredSlideIdx = -1;
+
+            resetCount++;
+            if (resetCount < 2) {
+                resetPresentationTimer.start();
+            } else {
+                resetCount = 0;
+            }
         }
     }
 }

@@ -831,6 +831,13 @@ void HttpServerThread::setupHttpServer() {
         };
         svr.Get("/playing_in_slides", playingInSlidesHandler);
         svr.Post("/playing_in_slides", playingInSlidesHandler);
+
+        auto resetSlidesToStartHandler = [this](const httplib::Request&, httplib::Response& res) {
+            Q_EMIT resetSlidesToStart();
+            res.set_content("Reset slides to start position", "text/plain");
+        };
+        svr.Get("/slides_reset_to_start", resetSlidesToStartHandler);
+        svr.Post("/slides_reset_to_start", resetSlidesToStartHandler);
         
         svr.Post("/select_from_slides", [this](const httplib::Request& req, httplib::Response& res) {
             if (req.has_param("index")) {

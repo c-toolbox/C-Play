@@ -122,6 +122,7 @@ void PlayerController::setupHttpServer() {
     connect(httpServer, &HttpServerThread::runSurfaceTransition, this, &PlayerController::RunSurfaceTransition);
     connect(httpServer, &HttpServerThread::slidePrevious, this, &PlayerController::SlidePrevious);
     connect(httpServer, &HttpServerThread::slideNext, this, &PlayerController::SlideNext);
+    connect(httpServer, &HttpServerThread::resetSlidesToStart, this, &PlayerController::ResetSlidesToStart);
 
     httpServer->start();
 }
@@ -289,6 +290,10 @@ void PlayerController::SlideNext() {
     if (m_slidesModel != nullptr) {
         Q_EMIT m_slidesModel->nextSlide();
     }
+}
+
+void PlayerController::ResetSlidesToStart() {
+    Q_EMIT resetSlidesToStart();
 }
 
 void PlayerController::DispatchControlOperation(const QString &operation, const QString &parameter) {
