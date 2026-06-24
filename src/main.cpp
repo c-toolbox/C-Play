@@ -27,6 +27,10 @@
 #include <layers/adaptivevideolayer.h>
 #endif
 
+#ifdef MULTI_VIDEO_LAYER
+#include <layers/multivideolayer.h>
+#endif
+
 #ifdef NDI_SUPPORT
 #include <ndi/ndilayer.h>
 #endif
@@ -61,6 +65,8 @@ std::shared_ptr<ImageLayer> foregroundImageLayer;
 std::shared_ptr<ImageLayer> overlayImageLayer;
 #ifdef MDK_SUPPORT
 std::shared_ptr <AdaptiveVideoLayer> mainVideoLayer;
+#elif defined(MULTI_VIDEO_LAYER)
+std::shared_ptr<MultiVideoLayer> mainVideoLayer;
 #else
 std::shared_ptr<VideoLayer> mainVideoLayer;
 #endif
@@ -95,6 +101,8 @@ static void initOGL(GLFWwindow *) {
 
 #ifdef MDK_SUPPORT
     mainVideoLayer = std::make_shared<AdaptiveVideoLayer>(get_proc_address_glfw_v1, get_proc_address_glfw_v2, allowDirectRendering, !logFilePath.empty() || !logLevel.empty(), logLevel);
+#elif defined(MULTI_VIDEO_LAYER)
+    mainVideoLayer = std::make_shared<MultiVideoLayer>(get_proc_address_glfw_v1, allowDirectRendering, !logFilePath.empty() || !logLevel.empty(), logLevel);
 #else
     mainVideoLayer = std::make_shared<VideoLayer>(get_proc_address_glfw_v1, allowDirectRendering, !logFilePath.empty() || !logLevel.empty(), logLevel);
 #endif
@@ -251,6 +259,13 @@ static std::vector<std::byte> encode() {
             serializeObject(data, SyncHelper::instance().variables.fgImageFileDirty);
             serializeObject(data, SyncHelper::instance().variables.fgImageFile);
             SyncHelper::instance().variables.fgImageFileDirty = false;
+#ifdef MULTI_VIDEO_LAYER
+        } else if (SyncHelper::instance().variables.multiVideoConfigDirty) { // ID: 4 = multi-video composition JSON
+            serializeObject(data, 4);
+            serializeObject(data, SyncHelper::instance().variables.multiVideoEnabled);
+            serializeObject(data, SyncHelper::instance().variables.multiVideoConfig);
+            SyncHelper::instance().variables.multiVideoConfigDirty = false;
+#endif
         } else { // Sending no URL
             serializeObject(data, -1);
         }
@@ -516,6 +531,9 @@ static void decode(const std::vector<std::byte> &data) {
             if (!safeToRead()) return;
             deserializeObject(data, pos, SyncHelper::instance().variables.loadFile);
             deserializeObject(data, pos, SyncHelper::instance().variables.loadedFile);
+#ifdef MULTI_VIDEO_LAYER
+            SyncHelper::instance().variables.multiVideoEnabled = false;
+#endif
         } else if (transferedImageId == 1) {
             if (!safeToRead()) return;
             deserializeObject(data, pos, SyncHelper::instance().variables.overlayFileDirty);
@@ -528,6 +546,13 @@ static void decode(const std::vector<std::byte> &data) {
             if (!safeToRead()) return;
             deserializeObject(data, pos, SyncHelper::instance().variables.fgImageFileDirty);
             deserializeObject(data, pos, SyncHelper::instance().variables.fgImageFile);
+#ifdef MULTI_VIDEO_LAYER
+        } else if (transferedImageId == 4) {
+            if (!safeToRead()) return;
+            deserializeObject(data, pos, SyncHelper::instance().variables.multiVideoEnabled);
+            deserializeObject(data, pos, SyncHelper::instance().variables.multiVideoConfig);
+            SyncHelper::instance().variables.multiVideoConfigDirty = true;
+#endif
         }
 
         // Subtitle sync
@@ -782,11 +807,34 @@ static void postSyncPreDraw() {
         newImage = overlayImageLayer->processImageUpload(SyncHelper::instance().variables.overlayFile, SyncHelper::instance().variables.overlayFileDirty);
         SyncHelper::instance().variables.overlayFileDirty = false;
 
+        // If multi-video is being disabled on master, clear sub-players on node first.
+        // This must happen BEFORE loading the new file so the parent mpv instance
+        // can take over without old sub-players interfering.
+#ifdef MULTI_VIDEO_LAYER
+        if (!SyncHelper::instance().variables.multiVideoEnabled && mainVideoLayer && mainVideoLayer->hasSubLayers()) {
+            mainVideoLayer->disableMultiVideo();
+        }
+#endif
+
         if (!SyncHelper::instance().variables.loadedFile.empty()) {
-            // Load new MPV file
+            // Load new MPV file (sub-players already cleared if multi-video was active)
             mainVideoLayer->loadFile(SyncHelper::instance().variables.loadedFile, SyncHelper::instance().variables.loadFile);
             SyncHelper::instance().variables.loadFile = false;
         }
+
+#ifdef MULTI_VIDEO_LAYER
+        // Apply multi-video composition on node when config has changed
+        if (SyncHelper::instance().variables.multiVideoConfigDirty) {
+            SyncHelper::instance().variables.multiVideoConfigDirty = false;
+            if (SyncHelper::instance().variables.multiVideoEnabled &&
+                !SyncHelper::instance().variables.multiVideoConfig.empty()) {
+                mainVideoLayer->setCompositionJson(SyncHelper::instance().variables.multiVideoConfig);
+                mainVideoLayer->applyCompositionOnNode();
+            } else {
+                mainVideoLayer->disableMultiVideo();
+            }
+        }
+#endif
 
         layerRender->clearLayers();
 
@@ -866,15 +914,54 @@ static void postSyncPreDraw() {
             bool show2Dcontent = false;
             bool show3Dcontent = false;
             bool has3Dplane = false;
+            bool hasLeftEye = false;
+            bool hasRightEye = false;
+
             for (const auto &layer : layerRender->getLayers()) {
+                // Check main layer
                 if (layer->stereoMode() > 0) {
                     show3Dcontent = true;
                     if (layer->gridMode() == 1) {
                         has3Dplane = true;
                     }
                 } else {
-                    show2Dcontent = true;
+                    // Check eye mode for split-eye 3D detection
+                    if (layer->eyeMode() == BaseLayer::Left) {
+                        hasLeftEye = true;
+                    } else if (layer->eyeMode() == BaseLayer::Right) {
+                        hasRightEye = true;
+                    } else {
+                        show2Dcontent = true;
+                    }
                 }
+
+                // Check sublayers if present
+                if (layer->hasSubLayers()) {
+                    for (const auto &sublayer : layer->getSubLayers()) {
+                        if (sublayer->stereoMode() > 0) {
+                            show3Dcontent = true;
+                            if (sublayer->gridMode() == 1) {
+                                has3Dplane = true;
+                            }
+                        } else {
+                            if (sublayer->eyeMode() == BaseLayer::Left) {
+                                hasLeftEye = true;
+                            } else if (sublayer->eyeMode() == BaseLayer::Right) {
+                                hasRightEye = true;
+                            } else {
+                                show2Dcontent = true;
+                            }
+                        }
+                    }
+                }
+            }
+
+            // Enable 3D if direct stereo mode found OR both left and right eyes detected
+            if ((hasLeftEye && hasRightEye) || show3Dcontent) {
+                show3Dcontent = true;
+                show2Dcontent = false;
+            } else {
+                show2Dcontent = true;
             }
             // If we have one 3D renderParam visible, it takes president
             if (show3Dcontent) {

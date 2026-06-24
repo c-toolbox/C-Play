@@ -91,6 +91,8 @@ public:
     bool m_useListGridMode{false};
     QString m_listAudioFile{QStringLiteral("")};
     bool m_useListAudioFile{false};
+    QString m_multivideoConfigFile{QStringLiteral("")};
+    bool m_useMultivideoConfig{false};
     QList<Section> m_sections;
 
     bool m_isHovered{false};
@@ -157,6 +159,11 @@ public:
     Q_INVOKABLE void setListAudioFile(const QString &audioFile);
     Q_INVOKABLE bool useListAudioFile() const;
     Q_INVOKABLE void setUseListAudioFile(bool use);
+
+    Q_INVOKABLE QString multivideoConfigFile() const;
+    Q_INVOKABLE void setMultivideoConfigFile(const QString &multivideoConfigFile);
+    Q_INVOKABLE bool useMultivideoConfig() const;
+    Q_INVOKABLE void setUseMultivideoConfig(bool use);
 
     Q_INVOKABLE QString separateOverlayFile() const;
     Q_INVOKABLE void setSeparateOverlayFile(const QString &audioFile);

@@ -8,7 +8,7 @@ set(CPLAY_VERSION_MAJOR 2)
 set(CPLAY_VERSION_MINOR 3)
 set(CPLAY_VERSION_PATCH 1)
 set(CPLAY_VERSION_PR_NAME "Beta")
-set(CPLAY_VERSION_PR_VERS 2)
+set(CPLAY_VERSION_PR_VERS 3)
 
 qt_add_executable(${TARGET_NAME})
 set_compile_options(${TARGET_NAME})
@@ -53,6 +53,8 @@ set(SOURCE_FILES
     layers/texturelayer.h
     layers/videolayer.cpp
     layers/videolayer.h
+    layers/multivideolayer.cpp
+    layers/multivideolayer.h
     layerqtitem.cpp
     layerqtitem.h
     layersmodel.cpp
@@ -103,6 +105,12 @@ set(SOURCE_FILES
     utils/spheregrid.h
     utils/imagesequenceutils.cpp
     utils/imagesequenceutils.h
+    utils/multivideoconfig.cpp
+    utils/multivideoconfig.h
+    utils/nodeidentityconfig.cpp
+    utils/nodeidentityconfig.h
+    utils/multivideohandler.cpp
+    utils/multivideohandler.h
 )
 
 if(BUILD_CPLAY_WITH_WUFFS)
@@ -359,6 +367,7 @@ target_compile_definitions(${TARGET_NAME} PRIVATE $<$<OR:$<CONFIG:Debug>,$<CONFI
 target_compile_definitions(${TARGET_NAME} PRIVATE
     IMAGE_LAYER
     VIDEO_LAYER
+    MULTI_VIDEO_LAYER
     AUDIO_LAYER
     STREAM_LAYER
     CONTROL_LAYER

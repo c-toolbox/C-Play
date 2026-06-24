@@ -1,0 +1,31 @@
+{
+  "master": {
+    "file": "D:/C-Play/_data/Media/Domtest_8K_30_H265/Domtest_Sliced/GUI/DomeTest.mp4",
+    "gridMode": "Dome",
+    "stereoMode": "No_2D",
+    "audio": true,
+    "audioFile": "D:/C-Play/_data/Media/Domtest_8K_30_H265/Domtest_English_2ch.wav"
+  },
+  "videos": [
+    {
+      "name": "leftEye",
+      "eyeMode": "left",
+      "gridMode": "None",
+      "stereoMode": "No_2D",
+      "audio": false,
+      "paths": {
+        "Node1": "D:/C-Play/_data/Media/Domtest_8K_30_H265/Domtest_Sliced/Node1/Domtest_LEFT.mp4"
+      }
+    },
+    {
+      "name": "rightEye",
+      "eyeMode": "right",
+      "gridMode": "None",
+      "stereoMode": "No_2D",
+      "audio": false,
+      "paths": {
+        "Node1": "D:/C-Play/_data/Media/Domtest_8K_30_H265/Domtest_Sliced/Node1/Domtest_RIGHT.mp4"
+      }
+    }
+  ]
+}

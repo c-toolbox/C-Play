@@ -12,8 +12,6 @@
 #include "qthelper.h"
 #include <sgct/sgct.h>
 
-//#define TEST_STREAM_NODE_ONLY
-
 void loadTracks(MpvLayer::mpvData& vd) {
     if (vd.handle && vd.mpvInitialized && !vd.loadedFile.empty()) {
         vd.audioTracks.clear();
@@ -654,12 +652,26 @@ void MpvLayer::loadFile(std::string filePath, bool reload) {
         m_data.updateRendering = false;
         m_data.loadedFile = filePath;
         m_data.audioTracks.clear();
-#ifdef TEST_STREAM_NODE_ONLY
-        if(m_data.isStream && m_data.isMaster)
-            mpv::qt::command_async(m_data.handle, QStringList() << QStringLiteral("loadfile") << QString::fromStdString(filePath + "testfile"));
-        else
+
+        // Build command options list (mirrors MpvObject::loadItem behavior)
+        QStringList optionsList;
+
+        // Apply optional separate audio file via loadfile command
+        if (!m_data.audioFile.empty()) {
+            optionsList << QStringLiteral("audio-file=") + QString::fromStdString(m_data.audioFile);
+        }
+
+        QString options = optionsList.join(QStringLiteral(","));
+
+        QStringList newCommand = QStringList() << QStringLiteral("loadfile")
+                                                   << QString::fromStdString(filePath);
+#if MPV_CLIENT_API_VERSION >= MPV_MAKE_VERSION(2, 3)
+        newCommand << QStringLiteral("0");
 #endif
-            mpv::qt::command_async(m_data.handle, QStringList() << QStringLiteral("loadfile") << QString::fromStdString(filePath));
+        if (!options.isEmpty()) {
+            newCommand << options;
+        }
+        mpv::qt::command_async(m_data.handle, newCommand);
     }
 }
 
@@ -761,4 +773,8 @@ void MpvLayer::setValue(std::string param, int val) {
     if (m_data.mpvInitialized) {
         mpv::qt::set_property_async(m_data.handle, QString::fromStdString(param), val);
     }
+}
+
+void MpvLayer::setAudioFile(const std::string &audioFile) {
+    m_data.audioFile = audioFile;
 }

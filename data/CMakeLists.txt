@@ -28,6 +28,10 @@ if(CPLAY_INSTALL_DEPENDENCIES)
         ]])
         install(DIRECTORY "${PROJECT_SOURCE_DIR}/data/impres" DESTINATION "${CMAKE_INSTALL_PREFIX}/bin/data" OPTIONAL)
         install(CODE [[
+            message("Copying MultiVideo")
+        ]])
+        install(DIRECTORY "${PROJECT_SOURCE_DIR}/data/multivideo" DESTINATION "${CMAKE_INSTALL_PREFIX}/bin/data" OPTIONAL)
+        install(CODE [[
             message("Copying MPV Configs")
         ]])
         install(DIRECTORY "${PROJECT_SOURCE_DIR}/data/mpv-conf" DESTINATION "${CMAKE_INSTALL_PREFIX}/bin/data" OPTIONAL)

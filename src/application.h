@@ -371,6 +371,9 @@ public:
         bool captureBackBuffer;
         bool mpvNeedSync;
         bool playerControllerNeedSync;
+        std::string multiVideoConfig;
+        bool multiVideoConfigDirty;
+        bool multiVideoEnabled;
     };
 
     struct ConfigurationVariables {
@@ -453,7 +456,10 @@ public:
         /*screenshotPath*/ "",
         /*captureBackBuffer*/ false,
         /*mpvNeedSync*/ true,
-        /*playerControllerNeedSync*/ true };
+        /*playerControllerNeedSync*/ true,
+        /*multiVideoConfig*/ "",
+        /*multiVideoConfigDirty*/ false,
+        /*multiVideoEnabled*/ false };
 
     ConfigurationVariables configuration = {
         /*confAll*/ "./data/mpv-conf/default/all.json",

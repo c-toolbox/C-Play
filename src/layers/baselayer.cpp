@@ -33,6 +33,9 @@
 #ifdef STREAM_LAYER
 #include <layers/streamlayer.h>
 #endif
+#ifdef MULTI_VIDEO_LAYER
+#include <layers/multivideolayer.h>
+#endif
 #if defined(SPOUT_LAYER)
 #include <layers/spoutlayer.h>
 #endif
@@ -62,6 +65,10 @@ std::string BaseLayer::typeDescription(BaseLayer::LayerType e) {
 #ifdef VIDEO_LAYER
     case VIDEO:
         return "Video";
+#endif
+#ifdef MULTI_VIDEO_LAYER
+    case MULTIVIDEO:
+        return "MultiVideo";
 #endif
 #ifdef AUDIO_LAYER
     case AUDIO:
@@ -146,6 +153,14 @@ BaseLayer *BaseLayer::createLayer(bool isMaster, int layerType, FUNC_V1, FUNC_V2
         if (newLayer) {
             newLayer->setEOFMode(2);
         }
+        break;
+    }
+#endif
+#ifdef MULTI_VIDEO_LAYER
+    case static_cast<int>(BaseLayer::LayerType::MULTIVIDEO): {
+        MultiVideoLayer* newMultiVideo = new MultiVideoLayer(opa1);
+        newMultiVideo->setEOFMode(2);
+        newLayer = newMultiVideo;
         break;
     }
 #endif
@@ -830,7 +845,7 @@ const glm::vec3 &BaseLayer::rotate() const {
     return renderData.rotate;
 }
 
-void BaseLayer::setRotate(glm::vec3 &r) {
+void BaseLayer::setRotate(const glm::vec3 &r) {
     renderData.rotate = r;
     setNeedSync();
 }
@@ -839,7 +854,7 @@ const glm::vec3 &BaseLayer::translate() const {
     return renderData.translate;
 }
 
-void BaseLayer::setTranslate(glm::vec3 &t) {
+void BaseLayer::setTranslate(const glm::vec3 &t) {
     renderData.translate = t;
     setNeedSync();
 }
@@ -857,7 +872,7 @@ const glm::vec4 &BaseLayer::roi() const {
     return renderData.roi;
 }
 
-void BaseLayer::setRoi(glm::vec4 &r) {
+void BaseLayer::setRoi(const glm::vec4 &r) {
     renderData.roi = r;
     setNeedSync();
 }

@@ -1,0 +1,41 @@
+{
+  "master": {
+    "file": "D:/C-Play/_data/Media/Domtest_8K_30_H265/Domtest_Sliced/GUI/DomeTest.mp4",
+    "gridMode": "Dome",
+    "stereoMode": "No_2D",
+    "audio": true,
+    "audioFile": "D:/C-Play/_data/Media/Domtest_8K_30_H265/Domtest_English_2ch.wav"
+  },
+  "videos": [
+    {
+      "name": "leftEye",
+      "eyeMode": "left",
+      "stereoMode": "No_2D",
+      "gridMode": "None",
+      "audio": false,
+      "paths": {
+        "Node1": "D:/C-Play/_data/Media/Domtest_8K_30_H265/Domtest_Sliced/Node1/Domtest_LEFT.mp4",
+        "Node2": "D:/C-Play/_data/Media/Domtest_8K_30_H265/Domtest_Sliced/Node2/Domtest_LEFT.mp4",
+        "Node3": "D:/C-Play/_data/Media/Domtest_8K_30_H265/Domtest_Sliced/Node3/Domtest_LEFT.mp4",
+        "Node4": "D:/C-Play/_data/Media/Domtest_8K_30_H265/Domtest_Sliced/Node4/Domtest_LEFT.mp4",
+        "Node5": "D:/C-Play/_data/Media/Domtest_8K_30_H265/Domtest_Sliced/Node5/Domtest_LEFT.mp4",
+        "Node6": "D:/C-Play/_data/Media/Domtest_8K_30_H265/Domtest_Sliced/Node6/Domtest_LEFT.mp4"
+      }
+    },
+    {
+      "name": "rightEye",
+      "eyeMode": "right",
+      "stereoMode": "No_2D",
+      "gridMode": "None",
+      "audio": false,
+      "paths": {
+        "Node1": "D:/C-Play/_data/Media/Domtest_8K_30_H265/Domtest_Sliced/Node1/Domtest_RIGHT.mp4",
+        "Node2": "D:/C-Play/_data/Media/Domtest_8K_30_H265/Domtest_Sliced/Node2/Domtest_RIGHT.mp4",
+        "Node3": "D:/C-Play/_data/Media/Domtest_8K_30_H265/Domtest_Sliced/Node3/Domtest_RIGHT.mp4",
+        "Node4": "D:/C-Play/_data/Media/Domtest_8K_30_H265/Domtest_Sliced/Node4/Domtest_RIGHT.mp4",
+        "Node5": "D:/C-Play/_data/Media/Domtest_8K_30_H265/Domtest_Sliced/Node5/Domtest_RIGHT.mp4",
+        "Node6": "D:/C-Play/_data/Media/Domtest_8K_30_H265/Domtest_Sliced/Node6/Domtest_RIGHT.mp4"
+      }
+    }
+  ]
+}

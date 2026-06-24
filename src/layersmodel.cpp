@@ -24,6 +24,10 @@
 #include <layers/mpvlayer.h>
 #include <layers/controllayer.h>
 #include <layers/restlayer.h>
+#ifdef MULTI_VIDEO_LAYER
+#include <layers/multivideolayer.h>
+#include <QFile>
+#endif
 #include "httpclientmodel.h"
 #include "application.h"
 
@@ -333,6 +337,19 @@ int LayersModel::addLayer(QString title, int type, QString filepath, int stereoM
             newRestLayer->setHttpClientModel(Application::instance().httpClientModel());
             newRestLayer->setUrl(filepath.toStdString());
         }
+#ifdef MULTI_VIDEO_LAYER
+        else if (newLayer->type() == BaseLayer::MULTIVIDEO) {
+            // filepath is the path to the composition JSON
+            newLayer->setFilePath(filepath.toStdString());
+            // Read JSON content and store it for sync to nodes
+            QFile f(filepath);
+            if (f.open(QIODevice::ReadOnly | QIODevice::Text)) {
+                const std::string jsonContent = f.readAll().toStdString();
+                f.close();
+                static_cast<MultiVideoLayer*>(newLayer)->setCompositionJson(jsonContent);
+            }
+        }
+#endif
         else {
             newLayer->setFilePath(filepath.toStdString());
         }

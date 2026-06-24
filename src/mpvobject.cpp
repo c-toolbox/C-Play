@@ -24,6 +24,11 @@
 #include "tracksmodel.h"
 #include "layers/textlayer.h"
 #include <iostream>
+#ifdef MULTI_VIDEO_LAYER
+#include <nlohmann/json.hpp>
+#include <QFile>
+#include <sgct/sgct.h>
+#endif
 
 #include <QCryptographicHash>
 #include <QDir>
@@ -891,10 +896,16 @@ void MpvObject::loadFile(const QString &file, bool updateLastPlayedFile) {
     }
 
     m_playlistModel->setPlayingVideo(-1);
+    m_currentSectionsIndex = -1;
+    m_playSectionsModel->clear();
 
     // Reset list file start/end times when loading a standalone file
     m_startTime = -1.0;
     m_endTime = -1.0;
+
+    if (SyncHelper::instance().variables.multiVideoEnabled) {
+        SyncHelper::instance().variables.multiVideoEnabled = false;
+    }
 
     QString ext = fileInfo.suffix();
     if (ext == QStringLiteral("cplayfile") || ext == QStringLiteral("cplay_file") || ext == QStringLiteral("fdv")) {
@@ -915,6 +926,9 @@ void MpvObject::loadFile(const QString &file, bool updateLastPlayedFile) {
         loadUniviewPlaylist(fileToLoad);
     } else if (ext == QStringLiteral("cplaylist") || ext == QStringLiteral("cplay_playlist")) {
         loadJSONPlayList(fileToLoad);
+    }
+      else if (ext == QStringLiteral("cplaymulti")) {
+        loadMultiVideo(fileToLoad, updateLastPlayedFile);
     } else {
         m_loadedFileStructure = fileToLoad;
         m_separateAudioFile = QStringLiteral("");
@@ -936,8 +950,6 @@ void MpvObject::loadFile(const QString &file, bool updateLastPlayedFile) {
 
         // setProperty("lavfi-complex", "");
         setAudioId(-1);
-        m_currentSectionsIndex = -1;
-        m_playSectionsModel->clear();
         m_playSectionsModel->setCurrentEditItemIsEdited(true);
         command(QStringList() << QStringLiteral("loadfile") << fileToLoad, true);
         setRotate(QVector3D(GridSettings::surfaceRotateX(), GridSettings::surfaceRotateY(), GridSettings::surfaceRotateZ()));
@@ -951,6 +963,146 @@ void MpvObject::loadFile(const QString &file, bool updateLastPlayedFile) {
             PlaylistSettings::self()->save();
         }
     }
+}
+
+void MpvObject::loadMultiVideo(const QString &jsonPath, bool updateLastPlayedFile) {
+#ifdef MULTI_VIDEO_LAYER
+    QString path = jsonPath;
+    path.replace(QStringLiteral("file:///"), QStringLiteral(""));
+
+    // Store the cplaymulti file path for SaveAsCPlayFile dialog
+    m_multiVideoConfigPath = jsonPath;
+
+    // Read the JSON content from the file
+    QFile f(path);
+    if (!f.open(QIODevice::ReadOnly | QIODevice::Text)) {
+        sgct::Log::Warning(std::format("MpvObject::loadMultiVideo: cannot open '{}'",
+                                        path.toStdString()));
+        return;
+    }
+    const std::string jsonContent = f.readAll().toStdString();
+    f.close();
+
+    // Parse to find master.file and optional parameters for the master preview playback
+    try {
+        nlohmann::json doc = nlohmann::json::parse(jsonContent);
+        if (doc.contains("master") && doc["master"].contains("file")) {
+            QString masterFile = QString::fromStdString(doc["master"]["file"].get<std::string>());
+
+            // Parse optional master parameters BEFORE loading the file
+            int gridVal = 0;
+            int stereoVal = 0;
+            QString masterAudioFile;
+            bool hasGridMode = false;
+            bool hasStereoMode = false;
+
+            try {
+                if (doc["master"].contains("gridMode") && doc["master"]["gridMode"].is_string()) {
+                    std::string gm = doc["master"]["gridMode"].get<std::string>();
+                    if (gm == "Plane")      gridVal = 1;
+                    else if (gm == "Dome")  gridVal = 2;
+                    else if (gm == "Sphere_EQR") gridVal = 3;
+                    else if (gm == "Sphere_EAC") gridVal = 4;
+                    hasGridMode = true;
+                }
+                if (doc["master"].contains("stereoMode") && doc["master"]["stereoMode"].is_string()) {
+                    std::string sm = doc["master"]["stereoMode"].get<std::string>();
+                    if (sm == "SBS_3D")  stereoVal = 1;
+                    else if (sm == "TB_3D")   stereoVal = 2;
+                    else if (sm == "TBF_3D")  stereoVal = 3;
+                    hasStereoMode = true;
+                }
+                // Parse optional separate audio file for the master reference video
+                if (doc["master"].contains("audioFile") && doc["master"]["audioFile"].is_string()) {
+                    masterAudioFile = QString::fromStdString(doc["master"]["audioFile"].get<std::string>());
+                }
+            } catch (...) {
+                sgct::Log::Warning("MpvObject::loadMultiVideo: failed to parse master parameters");
+            }
+
+            if (!masterFile.isEmpty()) {
+                QString fileToLoad = masterFile;
+                fileToLoad.replace(QStringLiteral("file:///"), QStringLiteral(""));
+
+                QFileInfo jsonFileInfo(path);
+                QStringList fileSearchPaths;
+                fileSearchPaths.append(jsonFileInfo.absoluteDir().absolutePath());
+                fileSearchPaths.append(LocationSettings::cPlayFileLocation());
+                fileSearchPaths.append(LocationSettings::cPlayMediaLocation());
+                fileSearchPaths.append(LocationSettings::univiewVideoLocation());
+
+                QFileInfo fileInfo(fileToLoad);
+                if (!fileInfo.exists()) {
+                    fileToLoad = checkAndCorrectPath(fileToLoad, fileSearchPaths);
+                    if (fileToLoad.isEmpty()) {
+                        return;
+                    }
+                }
+
+                // Build loadfile command with audio-file option (mirrors MpvObject::loadItem behavior)
+                QStringList optionsList;
+                if (!masterAudioFile.isEmpty()) {
+                    QString audioFileToLoad = masterAudioFile;
+                    audioFileToLoad.replace(QStringLiteral("file:///"), QStringLiteral(""));
+                    QFileInfo audioFileInfo(audioFileToLoad);
+                    if (!audioFileInfo.exists()) {
+                        audioFileToLoad = checkAndCorrectPath(audioFileToLoad, fileSearchPaths);
+                    }
+
+                    if(!audioFileToLoad.isEmpty())
+                        optionsList << QStringLiteral("audio-file=") + audioFileToLoad;
+                }
+
+                QString options = optionsList.join(QStringLiteral(","));
+
+                QStringList newCommand = QStringList() << QStringLiteral("loadfile") 
+                                                       << fileToLoad 
+                                                       << QStringLiteral("replace");
+#if MPV_CLIENT_API_VERSION >= MPV_MAKE_VERSION(2, 3)
+                newCommand << QStringLiteral("0");
+#endif
+                if (!options.isEmpty()) {
+                    newCommand << options;
+                }
+
+                qInfo() << newCommand;
+                command(newCommand, true);
+
+                // Store the audio file for reference (used by separateAudioFile() getter)
+                m_separateAudioFile = masterAudioFile;
+
+                // Apply optional master parameters AFTER loading (gridMode, stereoMode)
+                if (hasGridMode) {
+                    setGridToMapOn(gridVal);
+                }
+                if (hasStereoMode) {
+                    setStereoscopicMode(stereoVal);
+                }
+            }
+        }
+
+        m_playSectionsModel->setCurrentEditItemIsEdited(true);
+
+        if (updateLastPlayedFile) {
+            LocationSettings::setLastPlayedFile(path);
+            updateRecentLoadedMediaFiles(path);
+        }
+        else {
+            PlaylistSettings::setLastPlaylistIndex(m_playlistModel->getPlayingVideo());
+            PlaylistSettings::self()->save();
+        }
+    } catch (const std::exception& e) {
+        sgct::Log::Error(std::format("MpvObject::loadMultiVideo: JSON parse error: {}", e.what()));
+    }
+
+    // Broadcast the composition JSON to nodes via SyncHelper
+    SyncHelper::instance().variables.multiVideoConfig       = jsonContent;
+    SyncHelper::instance().variables.multiVideoConfigDirty  = true;
+    SyncHelper::instance().variables.multiVideoEnabled      = true;
+    SyncHelper::instance().variables.mpvNeedSync            = true;
+#else
+    (void)jsonPath;
+#endif
 }
 
 void MpvObject::addFileToPlaylist(const QString &file) {
@@ -991,6 +1143,13 @@ void MpvObject::setLoadedAsCurrentEditItem() {
     newCurrentItem.setRotateX(m_rotate.x());
     newCurrentItem.setRotateY(m_rotate.y());
     newCurrentItem.setRotateZ(m_rotate.z());
+
+    // Set multi-video config file if we're in multi-video mode
+    if (SyncHelper::instance().variables.multiVideoEnabled && !m_multiVideoConfigPath.isEmpty()) {
+        newCurrentItem.setMultivideoConfigFile(m_multiVideoConfigPath);
+        newCurrentItem.setUseMultivideoConfig(true);
+    }
+
     m_playSectionsModel->updateCurrentEditItem(newCurrentItem);
 }
 
@@ -1180,6 +1339,11 @@ PlayListItem *MpvObject::loadMediaFileDescription(const QString &file) {
 
     auto item = new PlayListItem(fileToLoad);
     item->loadDetailsFromDisk();
+
+    // If the .cplayfile specifies a multivideo composition JSON, load it.
+    if (item->useMultivideoConfig() && !item->multivideoConfigFile().isEmpty()) {
+        loadMultiVideo(item->multivideoConfigFile());
+    }
 
     return item;
 }

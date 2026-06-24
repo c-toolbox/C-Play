@@ -40,6 +40,9 @@ Kirigami.ApplicationWindow {
             separateAudioFileCheckBox.checked = (mpv.playSectionsModel.currentEditItem.separateAudioFile() !== "");
             separateOverlayFileTextField.text = mpv.playSectionsModel.currentEditItem.separateOverlayFile();
             separateOverlayFileCheckBox.checked = (mpv.playSectionsModel.currentEditItem.separateOverlayFile() !== "");
+            multivideoJsonTextField.text = mpv.playSectionsModel.currentEditItem.multivideoConfigFile();
+            multivideoJsonCheckBox.checked = mpv.playSectionsModel.currentEditItem.useMultivideoConfig();
+            multivideoJsonTextField.enabled = multivideoJsonCheckBox.checked;
             orientationCheckBox.checked = mpv.playSectionsModel.currentEditItem.saveOrientation();
             updateOrientationDisplay();
         }
@@ -130,6 +133,24 @@ Kirigami.ApplicationWindow {
             var filePath = openSeparateOverlayFileDialog.selectedFile.toString();
             filePath = filePath.replace(/^(file:\/{3})/, "");
             separateOverlayFileTextField.text = filePath;
+            mpv.focus = true;
+        }
+        onRejected: mpv.focus = true
+    }
+    CPlayFileDialog {
+        id: openMultivideoJsonDialog
+
+        parentWindow: saveAsCPlayFileWindow
+        fileMode: CPlayFileDialog.OpenFile
+        currentFolder: LocationSettings.cPlayMediaLocation !== "" ? app.pathToUrl(LocationSettings.cPlayMediaLocation) : app.pathToUrl(LocationSettings.fileDialogLastLocation)
+        nameFilters: ["Multi-Video composition files (*.json)", "All files (*)"]
+        title: "Choose Multi-Video Composition JSON"
+
+        onAccepted: {
+            multivideoJsonCheckBox.checked = true;
+            var filePath = openMultivideoJsonDialog.selectedFile.toString();
+            filePath = filePath.replace(/^(file:\/{3})/, "");
+            multivideoJsonTextField.text = filePath;
             mpv.focus = true;
         }
         onRejected: mpv.focus = true
@@ -439,6 +460,73 @@ Kirigami.ApplicationWindow {
                         openSeparateOverlayFileDialog.currentFolder = app.parentUrl(mpv.playSectionsModel.currentEditItem.mediaFile());
                     }
                     openFileDialog(openSeparateOverlayFileDialog);
+                }
+            }
+        }
+        CheckBox {
+            id: multivideoJsonCheckBox
+
+            checked: false
+            enabled: true
+            text: qsTr("")
+
+            onCheckedChanged: multivideoJsonTextField.enabled = checked
+
+            ToolTip {
+                text: qsTr("Save with multi-video composition JSON:")
+            }
+        }
+        Label {
+            text: qsTr("Multi-Video Composition:")
+        }
+        RowLayout {
+            Layout.fillWidth: true
+
+            TextField {
+                id: multivideoJsonTextField
+
+                Layout.fillWidth: true
+                enabled: multivideoJsonCheckBox.checked
+                readOnly: true
+
+                onEnabledChanged: {
+                    if (hasCurrentEditItem()) {
+                        if (enabled) {
+                            mpv.playSectionsModel.currentEditItem.setMultivideoConfigFile(text);
+                            mpv.playSectionsModel.currentEditItem.setUseMultivideoConfig(true);
+                        } else {
+                            mpv.playSectionsModel.currentEditItem.setMultivideoConfigFile("");
+                            mpv.playSectionsModel.currentEditItem.setUseMultivideoConfig(false);
+                        }
+                    }
+                }
+                onTextChanged: {
+                    if (hasCurrentEditItem()) {
+                        if (enabled) {
+                            multivideoJsonCheckBox.checked = true;
+                            mpv.playSectionsModel.currentEditItem.setMultivideoConfigFile(text);
+                            mpv.playSectionsModel.currentEditItem.setUseMultivideoConfig(true);
+                        }
+                    }
+                }
+            }
+            ToolButton {
+                id: multivideoJsonLoadButton
+
+                focusPolicy: Qt.NoFocus
+                icon.height: 16
+                icon.name: "document-open"
+                text: ""
+
+                onClicked: {
+                    if (!hasCurrentEditItem())
+                        return;
+                    if (multivideoJsonTextField.text !== "") {
+                        openMultivideoJsonDialog.currentFolder = app.parentUrl(multivideoJsonTextField.text);
+                    } else {
+                        openMultivideoJsonDialog.currentFolder = app.pathToUrl(LocationSettings.cPlayMediaLocation);
+                    }
+                    openFileDialog(openMultivideoJsonDialog);
                 }
             }
         }

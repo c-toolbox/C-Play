@@ -44,6 +44,8 @@ ItemDelegate {
             return model.type + " - " + model.filepath;
         else if(model.type === "REST")
             return model.type + " - " + model.filepath;
+        else if(model.type === "MultiVideo")
+            return model.type + " - " + model.filepath.split(/[\\/]/).pop();
         else
             return model.type + model.page + " - " + model.stereoVideo + " " + model.gridToMapOn;
     }

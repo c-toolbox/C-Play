@@ -383,6 +383,7 @@ public:
     Q_INVOKABLE void setLoadAudioInVidFolder(bool enabled);
     Q_INVOKABLE QString checkAndCorrectPath(const QString &filePath, const QStringList &searchPaths);
     Q_INVOKABLE void loadFile(const QString &file, bool updateLastPlayedFile = true);
+    Q_INVOKABLE void loadMultiVideo(const QString &jsonPath, bool updateLastPlayedFile = true);
     Q_INVOKABLE void addFileToPlaylist(const QString &file);
     Q_INVOKABLE void clearPlaylist();
     Q_INVOKABLE void setLoadedAsCurrentEditItem();
@@ -529,6 +530,7 @@ private:
     PlayListItemData::Section m_currentSection;
     QString m_loadedFileStructure;
     QString m_separateAudioFile;
+    QString m_multiVideoConfigPath;  // Stores cplaymulti file path for SaveAsCPlayFile dialog
     double m_startTime;
     double m_endTime;
     QVariantList m_audioDevices;

@@ -43,6 +43,9 @@ public:
         bool volumeMute_Dec = false;
         bool loadAudioInVidFolder = false;
         bool loadAudioInVidFolder_Dec = false;
+
+        // Optional separate audio file to pass via loadfile command (mirrors MpvObject behavior)
+        std::string audioFile;
         int fboWidth = 0;
         int fboHeight = 0;
         int pendingWidth = 0;
@@ -114,6 +117,7 @@ public:
     void setVolume(int v, bool storeLevel = true);
     void setVolumeMute(bool v);
     void setLoadAudioInVidFolder(bool v);
+    void setAudioFile(const std::string &audioFile);
 
     void encodeTypeAlways(std::vector<std::byte>& data);
     void decodeTypeAlways(const std::vector<std::byte>& data, unsigned int& pos);

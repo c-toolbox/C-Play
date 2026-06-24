@@ -314,6 +314,22 @@ void PlayListItem::setUseListAudioFile(bool use) {
     m_data.m_useListAudioFile = use;
 }
 
+QString PlayListItem::multivideoConfigFile() const {
+    return m_data.m_multivideoConfigFile;
+}
+
+void PlayListItem::setMultivideoConfigFile(const QString &multivideoConfigFile) {
+    m_data.m_multivideoConfigFile = multivideoConfigFile;
+}
+
+bool PlayListItem::useMultivideoConfig() const {
+    return m_data.m_useMultivideoConfig;
+}
+
+void PlayListItem::setUseMultivideoConfig(bool use) {
+    m_data.m_useMultivideoConfig = use;
+}
+
 QString PlayListItem::separateOverlayFile() const {
     return m_data.m_separateOverlayFile;
 }
@@ -538,6 +554,10 @@ void PlayListItem::saveAsJSONPlayFile(const QString &path) const {
     if (!separateAudioFile().isEmpty())
         obj.insert(QStringLiteral("audio"), makePathRelativeTo(separateAudioFile(), pathsToConsider));
 
+    if (useMultivideoConfig() && !multivideoConfigFile().isEmpty()) {
+        obj.insert(QStringLiteral("multivideo"), makePathRelativeTo(multivideoConfigFile(), pathsToConsider));
+    }
+
     if (!mediaTitle().isEmpty())
         obj.insert(QStringLiteral("title"), mediaTitle());
 
@@ -637,6 +657,10 @@ void PlayListItem::asJSON(QJsonObject& obj) {
 
     if (!separateAudioFile().isEmpty())
         obj.insert(QStringLiteral("audio"), separateAudioFile());
+
+    if (useMultivideoConfig() && !multivideoConfigFile().isEmpty()) {
+        obj.insert(QStringLiteral("multivideo"), multivideoConfigFile());
+    }
 
     if (!mediaTitle().isEmpty())
         obj.insert(QStringLiteral("title"), mediaTitle());
@@ -918,6 +942,16 @@ void PlayListItem::loadJSONPlayfile() {
                 }
                 addSection(title, startTime, endTime, eosMode);
             }
+        }
+    }
+
+    // Parse multivideo composition JSON path
+    if (obj.contains(QStringLiteral("multivideo"))) {
+        QString multivideoFile = obj.value(QStringLiteral("multivideo")).toString();
+        QString multivideoFilePath = checkAndCorrectPath(multivideoFile, fileSearchPaths);
+        if (!multivideoFilePath.isEmpty()) {
+            setMultivideoConfigFile(multivideoFilePath);
+            setUseMultivideoConfig(true);
         }
     }
 

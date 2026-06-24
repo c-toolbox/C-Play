@@ -276,6 +276,25 @@ GridLayout {
         }
     }
 
+    CPlayFileDialog {
+        id: fileToLoadAsMultiVideoLayerDialog
+        property bool acceptedOnes: false
+
+        parentWindow: root.Window.window
+        fileMode: CPlayFileDialog.OpenFile
+        currentFolder: fileToLoadAsMultiVideoLayerDialog.acceptedOnes ? app.pathToUrl(LocationSettings.videoFileDialogLastLocation) : app.pathToUrl(LocationSettings.videoFileDialogLocation)
+        nameFilters: ["Multi-Video composition files (*.json)", "All files (*)"]
+        title: "Choose multi-video composition JSON"
+
+        onAccepted: {
+            fileForLayer.text = playerController.checkAndCorrectPath(fileToLoadAsMultiVideoLayerDialog.selectedFile);
+            layerTitle.text = playerController.returnFileBaseName(fileForLayer.text);
+            LocationSettings.videoFileDialogLastLocation = app.parentUrl(fileToLoadAsMultiVideoLayerDialog.selectedFile);
+            LocationSettings.save();
+            fileToLoadAsMultiVideoLayerDialog.acceptedOnes = true;
+        }
+    }
+
     Label {
         Layout.alignment: Qt.AlignRight
         font.pointSize: 9
@@ -400,6 +419,8 @@ GridLayout {
                     fileToLoadAsVideoLayerDialog.open();
                 else if (typeComboBox.currentText === "Audio")
                     fileToLoadAsAudioLayerDialog.open();
+                else if (typeComboBox.currentText === "MultiVideo")
+                    fileToLoadAsMultiVideoLayerDialog.open();
             }
         }
     }

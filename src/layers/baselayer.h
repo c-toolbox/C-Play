@@ -24,6 +24,9 @@ public:
 #ifdef VIDEO_LAYER
         VIDEO,
 #endif
+#ifdef MULTI_VIDEO_LAYER
+        MULTIVIDEO,
+#endif
 #ifdef AUDIO_LAYER
         AUDIO,
 #endif
@@ -264,16 +267,16 @@ public:
     bool shouldRenderForEye(int frustumEye) const;
 
     const glm::vec3 &rotate() const;
-    void setRotate(glm::vec3 &r);
+    void setRotate(const glm::vec3 &r);
 
     const glm::vec3 &translate() const;
-    void setTranslate(glm::vec3 &t);
+    void setTranslate(const glm::vec3 &t);
 
     bool roiEnabled() const;
     void setRoiEnabled(bool value);
 
     const glm::vec4 &roi() const;
-    void setRoi(glm::vec4 &r);
+    void setRoi(const glm::vec4 &r);
     void setRoi(float x, float y, float width, float height);
 
     double planeAzimuth() const;
