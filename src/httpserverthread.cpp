@@ -35,11 +35,7 @@ HttpServerThread::HttpServerThread(QObject *parent)
 }
 
 HttpServerThread::~HttpServerThread() {
-    mutex.lock();
-    abort = true;
-    condition.wakeOne();
-    mutex.unlock();
-
+    terminate();
     wait();
 }
 
@@ -1080,9 +1076,12 @@ void HttpServerThread::setupHttpServer() {
 }
 
 void HttpServerThread::terminate() {
-    mutex.lock();
-    abort = true;
-    mutex.unlock();
+    {
+        QMutexLocker lock(&mutex);
+        abort = true;
+        runServer = false;
+    }
+    svr.stop();
 }
 
 void HttpServerThread::run() {
@@ -1107,7 +1106,7 @@ bool HttpServerThread::stringToInt(std::string str, int &parsedInt) {
         } catch (std::invalid_argument const &) {
             return false;
         } catch (std::out_of_range const &) {
-            return true;
+            return false;
         }
     }
     return false;

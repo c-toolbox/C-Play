@@ -90,7 +90,7 @@ private:
                               BaseLayer* parentLayer,
                               std::shared_ptr<TextureLayer>& sub);
 
-    QROperationConfig* m_config = nullptr;
+    std::unique_ptr<QROperationConfig> m_config;
     std::string m_activePlaneName;
     mutable std::vector<std::shared_ptr<BaseLayer>> m_subLayers;
 };

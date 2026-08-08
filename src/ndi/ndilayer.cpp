@@ -280,12 +280,12 @@ NdiLayer::NdiLayer() {
     // So while NDIlib_recv_color_format_fastest or NDIlib_recv_color_format_best will work with implemented conversion
     // we better stick with the above formats for best performance.
 
-    m_qrProcessor = new QRCommandProcessor();
+    m_qrProcessor = std::make_unique<QRCommandProcessor>();
     m_qrProcessor->setCommandCallback([this](const QRCommand& cmd) {
         onQRCommand(cmd);
     });
 
-    m_qrOpHandler = new QROperationHandler();
+    m_qrOpHandler = std::make_unique<QROperationHandler>();
 
     OpenReceiver();
 }
@@ -293,9 +293,6 @@ NdiLayer::NdiLayer() {
 NdiLayer::~NdiLayer() {
     cleanup();
 
-    delete m_qrProcessor;
-    delete m_qrOpHandler;
-    delete m_divideTexHandler;
 }
 
 void NdiLayer::cleanup() {
@@ -661,7 +658,7 @@ void NdiLayer::decodeTypeProperties(const std::vector<std::byte>& data, unsigned
 
             // Ensure DivideTextureHandler exists and has proper division set
             if (!m_divideTexHandler) {
-                m_divideTexHandler = new DivideTextureHandler();
+                m_divideTexHandler = std::make_unique<DivideTextureHandler>();
             }
             int cols = 1, rows = 1;
             ndiGridIndexToColsRows(m_textureDivisionGrid, cols, rows);
@@ -805,7 +802,7 @@ void NdiLayer::setTextureDivisionMode(int mode) {
     } else if (mode == 2) {
         setQRCodeDetectionEnabled(false);
         if (!m_divideTexHandler) {
-            m_divideTexHandler = new DivideTextureHandler();
+            m_divideTexHandler = std::make_unique<DivideTextureHandler>();
         }
         int cols = 1, rows = 1;
         ndiGridIndexToColsRows(m_textureDivisionGrid, cols, rows);
@@ -833,7 +830,7 @@ void NdiLayer::setTextureDivisionGrid(int grid) {
 
     if (m_textureDivisionMode == 2) {
         if (!m_divideTexHandler) {
-            m_divideTexHandler = new DivideTextureHandler();
+            m_divideTexHandler = std::make_unique<DivideTextureHandler>();
         }
         int cols = 1, rows = 1;
         ndiGridIndexToColsRows(grid, cols, rows);

@@ -20,19 +20,17 @@ MultiVideoLayer::MultiVideoLayer(gl_adress_func_v1 opa,
     , m_logLevel(logLevel)
 {
     setType(BaseLayer::LayerType::MULTIVIDEO);
-    m_handler = new MultiVideoHandler();
+    m_handler = std::make_unique<MultiVideoHandler>();
 }
 
-MultiVideoLayer::~MultiVideoLayer() {
-    delete m_handler;
-    m_handler = nullptr;
-}
+MultiVideoLayer::~MultiVideoLayer() = default;
 
 // ─── Master-side API ─────────────────────────────────────────────────────────
 
 void MultiVideoLayer::setCompositionJson(const std::string& json) {
     if (m_compositionJson != json) {
         m_compositionJson = json;
+        m_compositionNeedsMasterApply = true;
         setNeedSync(); // triggers a full sync to nodes
     }
 }
@@ -45,12 +43,16 @@ const std::string& MultiVideoLayer::compositionJson() const {
 
 void MultiVideoLayer::applyCompositionOnNode() {
     if (m_compositionJson.empty()) {
+        m_handler->clearAll();
+        m_compositionPendingApply = false;
         sgct::Log::Warning("MultiVideoLayer::applyCompositionOnNode: empty JSON, nothing to do");
         return;
     }
 
     MultiVideoConfig config;
     if (!config.loadFromString(m_compositionJson)) {
+        m_handler->clearAll();
+        m_compositionPendingApply = false;
         sgct::Log::Error("MultiVideoLayer::applyCompositionOnNode: failed to parse composition JSON");
         return;
     }
@@ -165,7 +167,7 @@ void MultiVideoLayer::update(bool updateRendering) {
 
     // On master side (no sub-players active), parse the composition JSON to apply
     // masterFile parameters for correct preview rendering.
-    if (!hasSubLayers() && !m_compositionJson.empty()) {
+    if (!hasSubLayers() && m_compositionNeedsMasterApply && !m_compositionJson.empty()) {
         MultiVideoConfig config;
         if (config.loadFromString(m_compositionJson)) {
             const auto& mp = config.masterParams();
@@ -177,6 +179,7 @@ void MultiVideoLayer::update(bool updateRendering) {
                 enableAudio(mp.audio);
             }
         }
+        m_compositionNeedsMasterApply = false;
     }
 
     if (m_handler && m_handler->isActive()) {
@@ -237,9 +240,13 @@ void MultiVideoLayer::decodeTypeCore(const std::vector<std::byte>& data, unsigne
     sgct::deserializeObject(data, pos, newJson);
     if (newJson != m_compositionJson) {
         m_compositionJson = newJson;
+        m_compositionNeedsMasterApply = true;
         // Request sub-player rebuild on the next updateFrame() call
         if (!m_compositionJson.empty()) {
             m_compositionPendingApply = true;
+        } else {
+            disableMultiVideo();
+            m_compositionPendingApply = false;
         }
     }
 }
@@ -248,20 +255,10 @@ void MultiVideoLayer::encodeTypeAlways(std::vector<std::byte>& data) {
     // Call base (MpvLayer) always encode (pause state + time position)
     MpvLayer::encodeTypeAlways(data);
 
-    // Encode sub-layer always data if sub-players are active
-    bool hasSubs = (m_handler && m_handler->hasSubLayers());
+    // Sub-players are node-local projections of the composition. Their playback
+    // state is derived from the parent state above and must not affect packet layout.
+    bool hasSubs = false;
     sgct::serializeObject(data, hasSubs);
-    if (hasSubs) {
-        auto& subs = m_handler->subLayers();
-        int count = static_cast<int>(subs.size());
-        sgct::serializeObject(data, count);
-        for (auto& sub : subs) {
-            if (sub) {
-                sub->encodeBaseAlways(data);
-                sub->encodeTypeAlways(data);
-            }
-        }
-    }
 }
 
 void MultiVideoLayer::decodeTypeAlways(const std::vector<std::byte>& data, unsigned int& pos) {
@@ -270,39 +267,7 @@ void MultiVideoLayer::decodeTypeAlways(const std::vector<std::byte>& data, unsig
     bool hasSubs = false;
     sgct::deserializeObject(data, pos, hasSubs);
     if (hasSubs) {
-        int count = 0;
-        sgct::deserializeObject(data, pos, count);
-
-        if (m_handler && m_handler->hasSubLayers()) {
-            auto& subs = m_handler->subLayers();
-            for (int i = 0; i < count; ++i) {
-                if (i < static_cast<int>(subs.size()) && subs[i]) {
-                    subs[i]->decodeBaseAlways(data, pos);
-                    subs[i]->decodeTypeAlways(data, pos);
-                } else {
-                    // Consume data for missing sub-layer (encodeBaseAlways = 2xbool + float)
-                    bool tmpBool; float tmpFloat;
-                    sgct::deserializeObject(data, pos, tmpBool);
-                    sgct::deserializeObject(data, pos, tmpBool);
-                    sgct::deserializeObject(data, pos, tmpFloat);
-                    // MpvLayer::encodeTypeAlways = bool + double + bool
-                    double tmpDouble;
-                    sgct::deserializeObject(data, pos, tmpBool);
-                    sgct::deserializeObject(data, pos, tmpDouble);
-                    sgct::deserializeObject(data, pos, tmpBool);
-                }
-            }
-        } else {
-            // Sub-players not yet ready; consume data to keep stream aligned
-            for (int i = 0; i < count; ++i) {
-                bool tmpBool; float tmpFloat; double tmpDouble;
-                sgct::deserializeObject(data, pos, tmpBool);
-                sgct::deserializeObject(data, pos, tmpBool);
-                sgct::deserializeObject(data, pos, tmpFloat);
-                sgct::deserializeObject(data, pos, tmpBool);
-                sgct::deserializeObject(data, pos, tmpDouble);
-                sgct::deserializeObject(data, pos, tmpBool);
-            }
-        }
+        sgct::Log::Warning("MultiVideoLayer: ignoring unsupported serialized sub-layer state");
+        pos = static_cast<unsigned int>(data.size());
     }
 }

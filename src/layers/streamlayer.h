@@ -2,6 +2,7 @@
 #define STREAMLAYER_H
 
 #include <layers/videolayer.h>
+#include <memory>
 
 class QRCommandProcessor;
 class QROperationHandler;
@@ -56,13 +57,13 @@ private:
     void copyToBackupTexture(unsigned int srcTexId, int width, int height);
 
     // QR command processing
-    QRCommandProcessor* m_qrProcessor = nullptr;
+    std::unique_ptr<QRCommandProcessor> m_qrProcessor;
 
     // QR operation handler (sublayers, config, SetActive/Clear/Freeze)
-    QROperationHandler* m_qrOpHandler = nullptr;
+    std::unique_ptr<QROperationHandler> m_qrOpHandler;
 
     // Texture division handler (alternative to QR operation)
-    class DivideTextureHandler* m_divideTexHandler = nullptr;
+    std::unique_ptr<class DivideTextureHandler> m_divideTexHandler;
     int m_textureDivisionMode = 0;  // 0=None, 1=ImPres(QR), 2=Division
     int m_textureDivisionGrid = 0;  // grid index
 

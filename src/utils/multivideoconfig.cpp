@@ -62,7 +62,16 @@ bool MultiVideoConfig::loadFromString(const std::string& jsonStr) {
             return false;
         }
 
+        constexpr std::size_t MaxVideoEntries = 256;
+        if (doc["videos"].size() > MaxVideoEntries) {
+            sgct::Log::Error(std::format("MultiVideoConfig: video count exceeds limit of {}", MaxVideoEntries));
+            return false;
+        }
+
         for (const auto& v : doc["videos"]) {
+            if (!v.is_object()) {
+                continue;
+            }
             MultiVideoEntry entry;
 
             if (v.contains("name") && v["name"].is_string())
@@ -98,7 +107,8 @@ bool MultiVideoConfig::loadFromString(const std::string& jsonStr) {
             }
 
             // Rotate
-            if (v.contains("rotate") && v["rotate"].is_array() && v["rotate"].size() >= 3) {
+            if (v.contains("rotate") && v["rotate"].is_array() && v["rotate"].size() >= 3
+                && v["rotate"][0].is_number() && v["rotate"][1].is_number() && v["rotate"][2].is_number()) {
                 entry.rotate = glm::vec3(
                     v["rotate"][0].get<float>(),
                     v["rotate"][1].get<float>(),
@@ -106,7 +116,8 @@ bool MultiVideoConfig::loadFromString(const std::string& jsonStr) {
             }
 
             // Translate
-            if (v.contains("translate") && v["translate"].is_array() && v["translate"].size() >= 3) {
+            if (v.contains("translate") && v["translate"].is_array() && v["translate"].size() >= 3
+                && v["translate"][0].is_number() && v["translate"][1].is_number() && v["translate"][2].is_number()) {
                 entry.translate = glm::vec3(
                     v["translate"][0].get<float>(),
                     v["translate"][1].get<float>(),

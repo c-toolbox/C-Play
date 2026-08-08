@@ -76,14 +76,13 @@ void VideoLayer::initializeGL() {
 }
 
 void VideoLayer::cleanup() {
-    if (!m_data.mpvInitialized)
-        return;
-
     // Destroy the GL renderer and all of the GL objects it allocated. If video
     // is still running, the video track will be deselected.
     if (m_data.mpvInitializedGL) {
         m_data.mpvInitializedGL = false;
+        mpv_render_context_set_update_callback(m_data.renderContext, nullptr, nullptr);
         mpv_render_context_free(m_data.renderContext);
+        m_data.renderContext = nullptr;
     }
 
     // End Mpv running on separate thread

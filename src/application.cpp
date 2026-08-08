@@ -264,9 +264,16 @@ Application::~Application() {
     shutdownLayers();
     shutdownWorkerThread();
     delete m_engine;
+    m_engine = nullptr;
     _instance = nullptr;
     delete m_aboutData;
+    m_aboutData = nullptr;
+    delete m_shortcuts;
+    m_shortcuts = nullptr;
     delete m_fontDatabase;
+    m_fontDatabase = nullptr;
+    delete m_app;
+    m_app = nullptr;
 }
 
 int Application::run() {
@@ -278,8 +285,6 @@ int Application::run() {
     shutdownLayers();
     shutdownWorkerThread();
     renderThread.terminate();
-    delete m_slidesModel;
-    m_slidesModel = nullptr;
     loop.exec();
     return returnCode;
 }
@@ -517,7 +522,14 @@ StreamModel* Application::streamsModel() {
 }
 
 void Application::setStreamsModel(StreamModel* model) {
+    if (m_streamsModel == model) {
+        return;
+    }
+    if (model && !model->parent()) {
+        model->setParent(this);
+    }
     m_streamsModel = model;
+    Q_EMIT streamsModelChanged();
 }
 
 HttpClientModel* Application::httpClientModel() {
@@ -525,7 +537,14 @@ HttpClientModel* Application::httpClientModel() {
 }
 
 void Application::setHttpClientModel(HttpClientModel* model) {
+    if (m_httpClientModel == model) {
+        return;
+    }
+    if (model && !model->parent()) {
+        model->setParent(this);
+    }
     m_httpClientModel = model;
+    Q_EMIT httpClientModelChanged();
 }
 
 WwsClientModel* Application::wwsClientModel() {
@@ -533,7 +552,14 @@ WwsClientModel* Application::wwsClientModel() {
 }
 
 void Application::setWwsClientModel(WwsClientModel* model) {
+    if (m_wwsClientModel == model) {
+        return;
+    }
+    if (model && !model->parent()) {
+        model->setParent(this);
+    }
     m_wwsClientModel = model;
+    Q_EMIT wwsClientModelChanged();
 }
 
 #ifdef NDI_SUPPORT
@@ -543,13 +569,27 @@ NDISendersModel* Application::ndiSendersModel() {
 }
 
 void Application::setNdiSendersModel(NDISendersModel* model) {
+    if (m_ndiSendersModel == model) {
+        return;
+    }
+    if (model && !model->parent()) {
+        model->setParent(this);
+    }
     m_ndiSendersModel = model;
+    Q_EMIT ndiSendersModelChanged();
 }
 PortAudioModel* Application::portAudioModel() {
     return m_portAudioModel;
 }
 void Application::setPortAudioModel(PortAudioModel* model) {
+    if (m_portAudioModel == model) {
+        return;
+    }
+    if (model && !model->parent()) {
+        model->setParent(this);
+    }
     m_portAudioModel = model;
+    Q_EMIT portAudioModelChanged();
 }
 #endif
 
@@ -559,7 +599,14 @@ SpoutSendersModel* Application::spoutSendersModel() {
 }
 
 void Application::setSpoutSendersModel(SpoutSendersModel* model) {
+    if (m_spoutSendersModel == model) {
+        return;
+    }
+    if (model && !model->parent()) {
+        model->setParent(this);
+    }
     m_spoutSendersModel = model;
+    Q_EMIT spoutSendersModelChanged();
 }
 #endif
 
@@ -569,7 +616,14 @@ OMTSendersModel* Application::omtSendersModel() {
 }
 
 void Application::setOmtSendersModel(OMTSendersModel* model) {
+    if (m_omtSendersModel == model) {
+        return;
+    }
+    if (model && !model->parent()) {
+        model->setParent(this);
+    }
     m_omtSendersModel = model;
+    Q_EMIT omtSendersModelChanged();
 }
 #endif
 

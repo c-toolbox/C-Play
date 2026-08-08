@@ -96,8 +96,9 @@ public:
 private:
     std::string m_compositionJson;
     bool m_compositionPendingApply = false; // node side: JSON received, sub-players not yet built
+    bool m_compositionNeedsMasterApply = false;
 
-    MultiVideoHandler* m_handler = nullptr;
+    std::unique_ptr<MultiVideoHandler> m_handler;
 
     // Stored for passing to handler.setConfig()
     bool m_allowDirectRendering = false;

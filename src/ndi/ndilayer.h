@@ -13,6 +13,7 @@
 #include <ndi/ofxNDI/ofxNDIreceive.h>
 #include <portaudio.h>
 #include <chrono>
+#include <memory>
 
 class ofxNDIreceive;
 class QRCommandProcessor;
@@ -126,13 +127,13 @@ private:
     NDIlib_FourCC_video_type_e m_lastVideoFormat = NDIlib_FourCC_type_BGRA;
 
     // QR command processing
-    QRCommandProcessor* m_qrProcessor = nullptr;
+    std::unique_ptr<QRCommandProcessor> m_qrProcessor;
 
     // QR operation handler (sublayers, config, SetActive/Clear/Freeze)
-    QROperationHandler* m_qrOpHandler = nullptr;
+    std::unique_ptr<QROperationHandler> m_qrOpHandler;
 
     // Texture division handler (alternative to QR operation)
-    class DivideTextureHandler* m_divideTexHandler = nullptr;
+    std::unique_ptr<class DivideTextureHandler> m_divideTexHandler;
     int m_textureDivisionMode = 0;  // 0=None, 1=ImPres(QR), 2=Division
     int m_textureDivisionGrid = 0;  // grid index
 

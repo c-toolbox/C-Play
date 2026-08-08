@@ -86,7 +86,6 @@ OmtLayer::~OmtLayer() {
         glDeleteTextures(1, &renderData.texId);
     }
 
-    delete m_divideTexHandler;
 }
 
 void OmtLayer::initialize() {
@@ -564,7 +563,7 @@ void OmtLayer::decodeTypeProperties(const std::vector<std::byte>& data, unsigned
             sgct::deserializeObject(data, pos, actualCount);
 
             if (!m_divideTexHandler) {
-                m_divideTexHandler = new DivideTextureHandler();
+                m_divideTexHandler = std::make_unique<DivideTextureHandler>();
             }
             int cols = 1, rows = 1;
             omtGridIndexToColsRows(m_textureDivisionGrid, cols, rows);
@@ -660,7 +659,7 @@ void OmtLayer::setTextureDivisionMode(int mode) {
 
     if (mode == 2) {
         if (!m_divideTexHandler) {
-            m_divideTexHandler = new DivideTextureHandler();
+            m_divideTexHandler = std::make_unique<DivideTextureHandler>();
         }
         int cols = 1, rows = 1;
         omtGridIndexToColsRows(m_textureDivisionGrid, cols, rows);
@@ -687,7 +686,7 @@ void OmtLayer::setTextureDivisionGrid(int grid) {
 
     if (m_textureDivisionMode == 2) {
         if (!m_divideTexHandler) {
-            m_divideTexHandler = new DivideTextureHandler();
+            m_divideTexHandler = std::make_unique<DivideTextureHandler>();
         }
         int cols = 1, rows = 1;
         omtGridIndexToColsRows(grid, cols, rows);

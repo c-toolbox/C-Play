@@ -14,13 +14,10 @@
 #include <sgct/sgct.h>
 
 QROperationHandler::QROperationHandler() {
-    m_config = new QROperationConfig();
+    m_config = std::make_unique<QROperationConfig>();
 }
 
-QROperationHandler::~QROperationHandler() {
-    m_subLayers.clear();
-    delete m_config;
-}
+QROperationHandler::~QROperationHandler() = default;
 
 bool QROperationHandler::loadConfig(const std::string& filePath) {
     if (m_config) {
@@ -30,7 +27,7 @@ bool QROperationHandler::loadConfig(const std::string& filePath) {
 }
 
 const QROperationConfig* QROperationHandler::config() const {
-    return m_config;
+    return m_config.get();
 }
 
 void QROperationHandler::handleCommand(const QRCommand& command,

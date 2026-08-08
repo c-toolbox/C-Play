@@ -10,6 +10,7 @@
 
 #include <client.h>
 #include <layers/baselayer.h>
+#include <condition_variable>
 #include <mutex>
 #include <render_gl.h>
 #include <functional>
@@ -19,9 +20,11 @@ public:
 
     typedef std::function<void(std::string codecName)> onFileLoadedCallback;
     struct mpvData {
-        mpv_handle *handle;
-        mpv_render_context *renderContext;
+        mpv_handle *handle = nullptr;
+        mpv_render_context *renderContext = nullptr;
         std::unique_ptr<std::thread> trd;
+        std::mutex initializationMutex;
+        std::condition_variable initializationCondition;
         bool loggingOn = false;
         bool mediaIsPaused = true;
         bool mediaShouldPause = true;
@@ -70,6 +73,7 @@ public:
         bool timeIsDirty = false;
         bool typePropertiesDecode = false;
         std::atomic_bool threadRunning = false;
+        std::atomic_bool initializationDone = false;
         std::atomic_bool mpvInitialized = false;
         std::atomic_bool mpvInitializedGL = false;
         std::atomic_bool threadDone = false;

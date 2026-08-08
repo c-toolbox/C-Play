@@ -21,19 +21,15 @@ StreamLayer::StreamLayer(gl_adress_func_v1 opa,
     m_data.isStream = true;
     setType(BaseLayer::LayerType::STREAM);
 
-    m_qrProcessor = new QRCommandProcessor();
+    m_qrProcessor = std::make_unique<QRCommandProcessor>();
     m_qrProcessor->setCommandCallback([this](const QRCommand& cmd) {
         onQRCommand(cmd);
     });
 
-    m_qrOpHandler = new QROperationHandler();
+    m_qrOpHandler = std::make_unique<QROperationHandler>();
 }
 
 StreamLayer::~StreamLayer() {
-    delete m_qrProcessor;
-    delete m_qrOpHandler;
-    delete m_divideTexHandler;
-
     if (m_readbackBuffer) {
         free(m_readbackBuffer);
         m_readbackBuffer = nullptr;
@@ -230,7 +226,7 @@ void StreamLayer::decodeTypeProperties(const std::vector<std::byte>& data, unsig
 
             // Ensure DivideTextureHandler exists and has proper division set
             if (!m_divideTexHandler) {
-                m_divideTexHandler = new DivideTextureHandler();
+                m_divideTexHandler = std::make_unique<DivideTextureHandler>();
             }
             int cols = 1, rows = 1;
             streamGridIndexToColsRows(m_textureDivisionGrid, cols, rows);
@@ -355,7 +351,7 @@ void StreamLayer::setTextureDivisionMode(int mode) {
         // Division mode
         setQRCodeDetectionEnabled(false);
         if (!m_divideTexHandler) {
-            m_divideTexHandler = new DivideTextureHandler();
+            m_divideTexHandler = std::make_unique<DivideTextureHandler>();
         }
         int cols = 1, rows = 1;
         streamGridIndexToColsRows(m_textureDivisionGrid, cols, rows);
@@ -384,7 +380,7 @@ void StreamLayer::setTextureDivisionGrid(int grid) {
 
     if (m_textureDivisionMode == 2) {
         if (!m_divideTexHandler) {
-            m_divideTexHandler = new DivideTextureHandler();
+            m_divideTexHandler = std::make_unique<DivideTextureHandler>();
         }
         int cols = 1, rows = 1;
         streamGridIndexToColsRows(grid, cols, rows);

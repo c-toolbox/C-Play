@@ -53,7 +53,7 @@ void loadAudioId(MpvLayer::mpvData& vd) {
 
 void on_mpv_events(MpvLayer::mpvData &vd, BaseLayer::RenderParams) {
     while (vd.handle) {
-        mpv_event *event = mpv_wait_event(vd.handle, 0);
+        mpv_event *event = mpv_wait_event(vd.handle, 0.1);
         if (event->event_id == MPV_EVENT_NONE) {
             break;
         }
@@ -174,10 +174,12 @@ void on_mpv_events(MpvLayer::mpvData &vd, BaseLayer::RenderParams) {
     }
 }
 
-void initMPV(MpvLayer::mpvData& vd) {
+bool initMPV(MpvLayer::mpvData& vd) {
     vd.handle = mpv_create();
-    if (!vd.handle)
+    if (!vd.handle) {
         sgct::Log::Error("mpv context init failed");
+        return false;
+    }
 
     mpv_set_option_string(vd.handle, "vo", "libmpv");
     if (vd.loggingOn) {
@@ -187,8 +189,12 @@ void initMPV(MpvLayer::mpvData& vd) {
     }
 
     // Some minor options can only be set before mpv_initialize().
-    if (mpv_initialize(vd.handle) < 0)
+    if (mpv_initialize(vd.handle) < 0) {
         sgct::Log::Error("mpv init failed");
+        mpv_destroy(vd.handle);
+        vd.handle = nullptr;
+        return false;
+    }
 
     // Set EOF mode
     if (vd.eofMode == 0) { // Pause
@@ -287,27 +293,34 @@ void initMPV(MpvLayer::mpvData& vd) {
     mpv_observe_property(vd.handle, 0, "pause", MPV_FORMAT_FLAG);
     mpv_observe_property(vd.handle, 0, "time-pos", MPV_FORMAT_DOUBLE);
     mpv_observe_property(vd.handle, 0, "duration", MPV_FORMAT_DOUBLE);
+    return true;
 }
 
 auto runMpvAsync = [](MpvLayer::mpvData& data, BaseLayer::RenderParams& rp) {
     data.threadRunning = true;
-    initMPV(data);
-    data.mpvInitialized = true;
-    while (!data.terminate) {
-        on_mpv_events(data, rp);
+    const bool initialized = initMPV(data);
+    data.mpvInitialized = initialized;
+    data.initializationDone = true;
+    data.initializationCondition.notify_all();
+    if (initialized) {
+        while (!data.terminate) {
+            on_mpv_events(data, rp);
+        }
     }
     data.threadDone = true;
     data.threadRunning = false;
+    data.initializationCondition.notify_all();
 };
 
 MpvLayer::MpvLayer(gl_adress_func_v1 opa,
     bool allowDirectRendering,
     bool loggingOn,
-    std::string,
+    std::string logLevel,
     onFileLoadedCallback flc) {
     m_openglProcAdr = opa;
     m_data.allowDirectRendering = allowDirectRendering;
     m_data.loggingOn = loggingOn;
+    m_data.logLevel = std::move(logLevel);
     m_data.fileLoadedCallback = flc;
 }
 
@@ -320,7 +333,11 @@ void MpvLayer::initialize() {
 
 void MpvLayer::initializeMpv() {
     // Run MPV on another thread
-    if (!m_data.threadRunning) {
+    if (!m_data.threadRunning && !m_data.trd) {
+        m_data.initializationDone = false;
+        m_data.mpvInitialized = false;
+        m_data.threadDone = false;
+        m_data.terminate = false;
         m_data.threadRunning = true;
         m_data.trd = std::make_unique<std::thread>(runMpvAsync, std::ref(m_data), std::ref(renderData));
     }
@@ -330,21 +347,26 @@ void MpvLayer::initializeGL() {
 }
 
 void MpvLayer::cleanup() {
-    if (!m_data.mpvInitialized)
-        return;
+    m_data.terminate = true;
+    if (m_data.mpvInitialized && m_data.handle) {
+        mpv::qt::command_async(m_data.handle, QStringList() << QStringLiteral("quit"));
+        mpv_wakeup(m_data.handle);
+    }
 
-    // Async quit
-    mpv::qt::command_async(m_data.handle, QStringList() << QStringLiteral("quit"));
-
-    // Wait for Mpv to end (running on separate thread)
     if (m_data.trd) {
-        while (!m_data.threadDone) {
+        if (m_data.trd->joinable()) {
+            m_data.trd->join();
         }
-        m_data.trd->join();
         m_data.trd.reset();
+    }
+
+    if (m_data.handle) {
         mpv_destroy(m_data.handle);
         m_data.handle = nullptr;
     }
+    m_data.mpvInitialized = false;
+    m_data.threadRunning = false;
+    m_data.threadDone = true;
 }
 
 void MpvLayer::updateFrame() {
@@ -362,8 +384,13 @@ void MpvLayer::initializeAndLoad(std::string filePath) {
     if (!m_data.mpvInitialized) {
         initializeMpv();
 
-        //Wait for MPV to initialize
-        while (!m_data.mpvInitialized) {}
+        std::unique_lock<std::mutex> lock(m_data.initializationMutex);
+        m_data.initializationCondition.wait(lock, [this]() {
+            return m_data.initializationDone.load();
+        });
+        if (!m_data.mpvInitialized) {
+            return;
+        }
     }
 
     if (!m_data.mpvInitializedGL) {

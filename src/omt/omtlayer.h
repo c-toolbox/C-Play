@@ -12,6 +12,7 @@
 #include <sgct/opengl.h>
 #include <libomt.h>
 #include <portaudio.h>
+#include <memory>
 #include <vector>
 
 class OmtFinder {
@@ -76,7 +77,7 @@ private:
     bool m_isReady = false;
 
     // Texture division handler
-    DivideTextureHandler* m_divideTexHandler = nullptr;
+    std::unique_ptr<DivideTextureHandler> m_divideTexHandler;
     int m_textureDivisionMode = 0;  // 0=None, 2=Division
     int m_textureDivisionGrid = 0;  // grid index
 
