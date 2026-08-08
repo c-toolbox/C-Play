@@ -74,6 +74,14 @@ void MultiVideoLayer::applyCompositionOnNode() {
     m_handler->setConfig(config, myNodeId, m_openglProcAdr,
                           m_allowDirectRendering, m_loggingOn, m_logLevel);
 
+    // Seed the freshly-created sub-players with the current playback mode/loop
+    // state. eofMode must be applied before loopTime: MpvLayer::setLoopTime only
+    // programs ab-loop when eofMode == 2, so ordering matters here.
+    if (m_handler->isActive()) {
+        m_handler->applyEofMode(eofMode());
+        m_handler->applyLoopTime(loopTimeA(), loopTimeB(), loopTimeEnabled());
+    }
+
     m_compositionPendingApply = false;
 }
 
@@ -123,8 +131,14 @@ void MultiVideoLayer::setTimePause(bool paused, bool updateTime) {
 }
 
 void MultiVideoLayer::setEOFMode(int eofMode) {
-    // Only apply to base (parent) mpv instance; sub-players keep their JSON eofMode.
+    // Apply to base (parent) mpv instance for the master preview playback...
     MpvLayer::setEOFMode(eofMode);
+    // ...and forward to all sub-players on nodes so they share the same loop/eof
+    // behaviour. Forwarded unconditionally (not gated by a value change) so that
+    // sub-players created after the last change still receive the current eofMode.
+    if (m_handler && m_handler->isActive()) {
+        m_handler->applyEofMode(eofMode);
+    }
 }
 
 void MultiVideoLayer::setLoopTime(double A, double B, bool enabled) {

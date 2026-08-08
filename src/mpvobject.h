@@ -408,6 +408,7 @@ public:
     Q_INVOKABLE void setSubtitleAlignment(int alignment);
     Q_INVOKABLE QString setSubtitleColor(const QColor& subColor);
     Q_INVOKABLE void setSubtitleRelativePlaneElevation(double value);
+    Q_INVOKABLE bool renderApiOpenglNextSupported() const;
     Q_INVOKABLE void setSubtitleRelativePlaneDistance(double value);
 
     void updatePlaybackThresholdSettings();

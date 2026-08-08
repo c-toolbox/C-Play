@@ -33,44 +33,12 @@ Then clone "https://github.com/msys2/MINGW-packages" into your mingw64 home fold
 git clone "https://github.com/msys2/MINGW-packages"
 ```
 
-### 1.1 (Optional) Build JACK PortAudio with ASIO support for the MINGW64 environment
+### 1.1 (Optional) Install JACK with PortAudio + ASIO support for the MINGW64 environment
 
-Install the [ASIO SDK](https://www.steinberg.net/asiosdk) through 'vcpkg' or download it directly, as described in the pre-setup section.
-
-- Create an environmental variable called "ASIOSDK_ROOT_DIR" and add the path "C:\vcpkg\installed\x64-windows\include\asiosdk" if located in standard vcpkg paths.
-
-* Notice: If you running the "Media Build Suite", all the packages in that MSYS64 environment can cause this option to fail the build. Recommended to close the MSYS2/MINGW64 environment at first launch after pressing 'media-autobuild_suite.bat' so you can run this option with fresh environment. The continue on the "Media Build Suite" setup after this option is completed, but do not remove the installed packages that you built/installed in this setup.
-
-Then clone "https://github.com/msys2/MINGW-packages" into your mingw64 home folder.
-Launch 'MINGW64' environment and go the the portaudio package.
+The MINGW64 package of [jack2](https://packages.msys2.org/packages/mingw-w64-x86_64-jack2) should contain the dependency of portaudio. And [portaudio](https://packages.msys2.org/packages/mingw-w64-x86_64-portaudio) should be dependent on asiosdk.
 
 ```
-cd MINGW-packages/mingw-w64-portaudio
-```
-
-edit the PKGBUILD file, to make sure the cmake configuration part has this:
-
-```
-  -DCMAKE_POLICY_VERSION_MINIMUM=3.5 \
-  -DASIOSDK_ROOT_DIR=${ASIOSDK_ROOT_DIR} \
-  -DASIOSDK_INCLUDE_DIR=${ASIOSDK_ROOT_DIR} \
-```
-Then run these commands to build and install jack2 and portaudio with ASIO support configured.
-
-```
-pacman -S binutils base-devel mingw-w64-x86_64-gcc mingw-w64-x86_64-ccache mingw-w64-x86_64-meson mingw-w64-x86_64-toolchain
-updpkgsums
-makepkg-mingw -sCLf
-pacman -U mingw-w64-*-portaudio-*-any.pkg.tar.zst
-```
-
-Then let's update the jack2 package to use our custom portaudio package.
-
-```
-cd MINGW-packages/mingw-w64-jack2
-updpkgsums
-makepkg-mingw -sCLf
-pacman -U mingw-w64-*-jack2-*-any.pkg.tar.zst
+pacman -S mingw-w64-x86_64-jack2 mingw-w64-ucrt-x86_64-jack2
 ```
 
 ### 1.2 Build FFmpeg with custom options (supporting jack2, nvdec etc)
@@ -128,23 +96,19 @@ Go to point 3 (last section) below to create library for compiling.
 
 ## Option 2: Build custom mpv and ffmpeg with *m-ab-s*
 
-As of writing (2025-09-01) this build setup includes mpv 0.38 and then option to specify and ffmpeg version under that.
-
 This compilation takes much more time, since you are checking out all dependency sources for ffmpeg from git, but it offers easier and more flexible configuration options.
 
 This guide assumes you use [Media Build Suite](https://github.com/m-ab-s/media-autobuild_suite) to get a free setup of dependencies to build ffmpeg and mpv.
 
 Run the batch script after unzipping it in a short path, but quit after MSYS has been setup (i.e. do not run the configure yet).
 
-* Option: Perform step 1.1 above to include ASIO into portaudio, and build Jack2*
-
-If not doing option 1.1, simply install jack2 (see below), after MINGW64 has installed other packages during "Media Build Suite" setup.
+Install jack2 (see below), after MINGW64 has installed other packages during "Media Build Suite" setup.
 
 ```
-pacman -S mingw-w64-x86_64-jack2
+pacman -S mingw-w64-x86_64-jack2 mingw-w64-ucrt-x86_64-jack2
 ```
 
-- Change the MPV git path from master to release 0.38 (latest one with bootstrap.py), by opening the file build\media-suite_deps.sh and replace in line 73 "https://github.com/mpv-player/mpv.git" with "https://github.com/mpv-player/mpv.git#release/0.38".
+- Change the MPV git path from master to release if you want, by opening the file build\media-suite_deps.sh and replace in line 73 "https://github.com/mpv-player/mpv.git" with "https://github.com/mpv-player/mpv.git#release/0.36".
 
 - My setup: Just copy over these [FFmpeg Options](https://raw.githubusercontent.com/c-toolbox/C-Play/master/help/configurations/gplv3/ffmpeg_options.txt), [MPV Options](https://raw.githubusercontent.com/c-toolbox/C-Play/master/help/configurations/gplv3/mpv_options_new.txt) and [Media Build Suite Configuration](https://raw.githubusercontent.com/c-toolbox/C-Play/master/help/configurations/gplv3/media-autobuild_suite.ini) to the build folder. The latest FFmpeg 5.1 will be used in this configuration.
     - Alternatively, do not copy over these files, but during configuration, disable as many encoder as possible, as we want focus on decoding for the player. Also, choose to build ffmpeg with shared libs only, do not strip build files. When asked to edit the FFmpeg options file, add 'jack' to the configuration file.
@@ -184,18 +148,20 @@ or
 lib /def:libmpv.def /name:libmpv-2.dll /out:mpv.lib /MACHINE:X64
 ```
 
-If the build hasn't generated one (*normally it does not*), we need to generate one. Install *gendef*, as part of *-tools* and then generate the definition file (From the VS prompt).
+If the build hasn't generated one (*normally it does not*), we need to generate one. Install *gendef*, as part of *-tools* in your MINGW64 environment and then generate the definition file (From the VS prompt).
 
 ```
 pacman -S mingw-w64-x86_64-tools
+```
 
+```
 cd M-AB-S/local64/bin-video
-gendef - mpv-2.dll > mpv.def
+gendef.exe - mpv-2.dll > mpv.def
 
 or
 
 cd MSYS64_INSTALL_ROOT/mingw64/bin/
-gendef - libmpv-2.dll > libmpv.def
+gendef.exe - libmpv-2.dll > libmpv.def
 ```
 With the new *libmpv.def* file, generate the lib by running the command below in a Visual Studio 2022 Developer Command Prompt:
 

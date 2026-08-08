@@ -8,6 +8,7 @@
 #include "videolayer.h"
 #include "application.h"
 #include "audiosettings.h"
+#include "playbacksettings.h"
 #include "track.h"
 #include "qthelper.h"
 #include <sgct/opengl.h>
@@ -37,8 +38,14 @@ void VideoLayer::initialize() {
 void VideoLayer::initializeGL() {
     // Setup OpenGL MPV settings
     mpv_opengl_init_params gl_init_params[1] = {m_openglProcAdr, nullptr};
+    const char* renderApiType = MPV_RENDER_API_TYPE_OPENGL;
+#ifdef MPV_RENDER_API_TYPE_OPENGL_NEXT
+    if (PlaybackSettings::renderApiType() == 1) {
+        renderApiType = MPV_RENDER_API_TYPE_OPENGL_NEXT;
+    }
+#endif
     mpv_render_param params[]{
-        {MPV_RENDER_PARAM_API_TYPE, const_cast<char *>(MPV_RENDER_API_TYPE_OPENGL)},
+        {MPV_RENDER_PARAM_API_TYPE, const_cast<char *>(renderApiType)},
         {MPV_RENDER_PARAM_OPENGL_INIT_PARAMS, &gl_init_params},
         // Tell libmpv that you will call mpv_render_context_update() on render
         // context update callbacks, and that you will _not_ block on the core

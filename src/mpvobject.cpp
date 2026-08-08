@@ -970,6 +970,11 @@ void MpvObject::loadMultiVideo(const QString &jsonPath, bool updateLastPlayedFil
     QString path = jsonPath;
     path.replace(QStringLiteral("file:///"), QStringLiteral(""));
 
+    // Set m_loadedFileStructure so setLoadedAsCurrentEditItem() (called from
+    // MPV_EVENT_FILE_LOADED after the master file loads) creates the PlayListItem
+    // with the cplaymulti file as filePath(), enabling correct "Save as cplayfile" behaviour.
+    m_loadedFileStructure = path;
+
     // Store the cplaymulti file path for SaveAsCPlayFile dialog
     m_multiVideoConfigPath = jsonPath;
 
@@ -1795,6 +1800,14 @@ void MpvObject::setSubtitleRelativePlaneDistance(double value) {
     }
 }
 
+bool MpvObject::renderApiOpenglNextSupported() const {
+#ifdef MPV_RENDER_API_TYPE_OPENGL_NEXT
+    return true;
+#else
+    return false;
+#endif
+}
+
 void MpvObject::updatePlaybackThresholdSettings() {
     SyncHelper::instance().variables.timeThreshold = double(PlaybackSettings::thresholdToSyncTimePosition()) / 1000.0;
     SyncHelper::instance().variables.timeThresholdSetSkips = PlaybackSettings::thresholdToSyncTimeSkipSets() - 1;
@@ -2292,8 +2305,14 @@ QOpenGLFramebufferObject* MpvRenderer::createFramebufferObject(const QSize& size
     if (view && view->obj) {
         if (!view->obj->mpv_gl) {
             mpv_opengl_init_params gl_init_params[1] = { get_proc_address_mpv, nullptr };
+            const char* renderApiType = MPV_RENDER_API_TYPE_OPENGL;
+#ifdef MPV_RENDER_API_TYPE_OPENGL_NEXT
+            if (PlaybackSettings::renderApiType() == 1) {
+                renderApiType = MPV_RENDER_API_TYPE_OPENGL_NEXT;
+            }
+#endif
             mpv_render_param params[]{
-                {MPV_RENDER_PARAM_API_TYPE, const_cast<char*>(MPV_RENDER_API_TYPE_OPENGL)},
+                {MPV_RENDER_PARAM_API_TYPE, const_cast<char*>(renderApiType)},
                 {MPV_RENDER_PARAM_OPENGL_INIT_PARAMS, &gl_init_params},
                 {MPV_RENDER_PARAM_INVALID, nullptr} };
 

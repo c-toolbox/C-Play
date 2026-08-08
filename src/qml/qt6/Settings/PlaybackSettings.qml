@@ -300,6 +300,51 @@ SettingsBasePage {
                 }
             }
         }
+        Label {
+            visible: mpv.renderApiOpenglNextSupported()
+            Layout.alignment: Qt.AlignRight
+            text: qsTr("Render API:")
+        }
+        RowLayout {
+            visible: mpv.renderApiOpenglNextSupported()
+
+            ComboBox {
+                id: renderApiComboBox
+
+                textRole: "label"
+
+                model: ListModel {
+                    id: renderApiModel
+
+                    ListElement {
+                        label: "OpenGL"
+                        value: 0
+                    }
+                    ListElement {
+                        label: "OpenGL Next"
+                        value: 1
+                    }
+                }
+
+                Component.onCompleted: {
+                    for (let i = 0; i < renderApiModel.count; ++i) {
+                        if (renderApiModel.get(i).value === PlaybackSettings.renderApiType) {
+                            currentIndex = i;
+                            break;
+                        }
+                    }
+                }
+                onActivated: {
+                    PlaybackSettings.renderApiType = model.get(index).value;
+                    PlaybackSettings.save();
+                }
+            }
+            LabelWithTooltip {
+                Layout.fillWidth: true
+                font.italic: true
+                text: qsTr("Requires restart to take effect.")
+            }
+        }
         SettingsHeader {
             Layout.columnSpan: 2
             Layout.fillWidth: true

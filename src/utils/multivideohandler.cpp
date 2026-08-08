@@ -185,11 +185,17 @@ void MultiVideoHandler::applyPause(bool paused) {
 }
 
 void MultiVideoHandler::applyEofMode(int eofMode) {
-    // Each sub-player has its own eofMode from the JSON config.
-    // We only propagate a "loop" mode from the master if sub-players
-    // are in default/loop mode; otherwise keep per-entry eofMode.
-    // Currently we forward to all sub-players for simplicity.
-    (void)eofMode; // Intentionally not overriding per-entry eofMode
+    // Forward the master's eofMode to every sub-player so they share the same
+    // end-of-file behaviour (pause/continue/loop). This is required for looping:
+    // the loop-boundary time re-sync in MpvLayer's mpv event loop only triggers
+    // when the sub-player's eofMode > 1, and ab-loop is only applied when
+    // eofMode == 2. Without this, sub-players kept their default eofMode (-1)
+    // and drifted out of sync with the master after each loop.
+    for (auto& sub : m_subLayers) {
+        if (sub) {
+            sub->setEOFMode(eofMode);
+        }
+    }
 }
 
 void MultiVideoHandler::applyLoopTime(double A, double B, bool enabled) {
