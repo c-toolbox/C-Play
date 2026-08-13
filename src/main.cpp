@@ -1121,6 +1121,18 @@ static void draw(const RenderData &data) {
     glDisable(GL_BLEND);
 }
 
+static void postDraw() {
+    if (shuttingDown || Engine::instance().isMaster() || !layerRender)
+        return;
+
+    // Report swap to all enabled layers for MPV frame sync
+    for (auto &layer : layerRender->getLayers()) {
+        if (layer && layer->isEnabled()) {
+            layer->reportSwap();
+        }
+    }
+}
+
 static void cleanup() {
     shuttingDown = true;
 
@@ -1174,10 +1186,21 @@ int main(int argc, char *argv[]) {
     while (i < arg.size()) {
         if (arg[i] == "--mpvconf") {
             if (i + 1 >= arg.size()) { i++; continue; }
-            std::string mpvConfFolder = arg[i + 1]; // for instance, either "decoding_cpu" or "decoding_cpu"
+            std::string mpvConfFolder = arg[i + 1]; // for instance, either "decoding_cpu" or "decoding_gpu_nvdec"
             SyncHelper::instance().configuration.confAll = "./data/mpv-conf/" + mpvConfFolder + "/all.json";
             SyncHelper::instance().configuration.confMasterOnly = "./data/mpv-conf/" + mpvConfFolder + "/master-only.json";
             SyncHelper::instance().configuration.confNodesOnly = "./data/mpv-conf/" + mpvConfFolder + "/nodes-only.json";
+            arg.erase(arg.begin() + i, arg.begin() + i + 2);
+        } else if (arg[i] == "--mpvapi") {
+            if (i + 1 >= arg.size()) { i++; continue; }
+            // Store mpvapi for later use - will be passed to MpvObject via Application
+            // For now, set it as an environment-like variable in configuration
+            std::string apiType = arg[i + 1];
+            if (apiType == "opengl" || apiType == "opengl-next") {
+                SyncHelper::instance().configuration.mpvApiOverride = apiType;
+            } else {
+                Log::Warning(std::format("--mpvapi: Invalid API type '{}'. Valid values: 'opengl', 'opengl-next'", apiType));
+            }
             arg.erase(arg.begin() + i, arg.begin() + i + 2);
         } else if (arg[i] == "--allowDirectRendering") {
             allowDirectRendering = true;
@@ -1232,6 +1255,7 @@ int main(int argc, char *argv[]) {
     callbacks.decode = decode;
     callbacks.postSyncPreDraw = postSyncPreDraw;
     callbacks.draw = draw;
+    callbacks.postDraw = postDraw;
     callbacks.cleanup = cleanup;
     try {
         Engine::create(cluster, callbacks, config);

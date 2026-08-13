@@ -203,6 +203,22 @@ MpvObject::MpvObject(QQuickItem *parent)
 
     // Initialize threshold settings
     updatePlaybackThresholdSettings();
+
+    // Apply command-line API override if set
+    if (!SyncHelper::instance().configuration.mpvApiOverride.empty()) {
+        setRenderApiFromCommandLine(QString::fromStdString(SyncHelper::instance().configuration.mpvApiOverride));
+    }
+
+    // Set up frame swapped handler for MPV swap reporting in Qt Quick master path
+    if (window()) {
+        connect(window(), &QQuickWindow::frameSwapped, this, &MpvObject::onFrameSwapped);
+    }
+    connect(this, &QQuickItem::windowChanged, this, [this](QQuickWindow *win) {
+        if (win) {
+            disconnect(win, &QQuickWindow::frameSwapped, this, &MpvObject::onFrameSwapped);
+            connect(win, &QQuickWindow::frameSwapped, this, &MpvObject::onFrameSwapped);
+        }
+    });
 }
 
 MpvObject::~MpvObject() {
@@ -1808,6 +1824,30 @@ bool MpvObject::renderApiOpenglNextSupported() const {
 #endif
 }
 
+void MpvObject::setRenderApiFromCommandLine(const QString &apiType) {
+    // Parse the API type from command line: "opengl" or "opengl-next"
+    if (apiType == QStringLiteral("opengl-next")) {
+        m_apiOverrideFromCommandLine = true;
+        m_commandLineApiType = 1;
+        qInfo() << QStringLiteral("MpvObject: Render API overridden to OpenGL-Next via --mpvapi");
+    } else if (apiType == QStringLiteral("opengl")) {
+        m_apiOverrideFromCommandLine = true;
+        m_commandLineApiType = 0;
+        qInfo() << QStringLiteral("MpvObject: Render API overridden to OpenGL via --mpvapi");
+    } else {
+        qWarning() << QStringLiteral("MpvObject::setRenderApiFromCommandLine: Invalid API type:") << apiType;
+        qWarning() << QStringLiteral("Valid values: 'opengl', 'opengl-next'");
+    }
+}
+
+bool MpvObject::commandLineApiOverride() const {
+    return m_apiOverrideFromCommandLine;
+}
+
+int MpvObject::commandLineApiType() const {
+    return m_commandLineApiType;
+}
+
 void MpvObject::updatePlaybackThresholdSettings() {
     SyncHelper::instance().variables.timeThreshold = double(PlaybackSettings::thresholdToSyncTimePosition()) / 1000.0;
     SyncHelper::instance().variables.timeThresholdSetSkips = PlaybackSettings::thresholdToSyncTimeSkipSets() - 1;
@@ -1900,6 +1940,19 @@ void MpvObject::loadTracks() {
 
     Q_EMIT audioTracksModelChanged();
     Q_EMIT subtitleTracksModelChanged();
+}
+
+void MpvObject::onFrameSwapped() {
+    if (!mpv || !mpv_gl)
+        return;
+    mpv_render_context_report_swap(mpv_gl);
+
+    // Also report for all attached MpvView instances
+    for (MpvView* view : mpv_views) {
+        if (view && view->obj && view->obj->mpv_gl) {
+            mpv_render_context_report_swap(view->obj->mpv_gl);
+        }
+    }
 }
 
 void MpvObject::updatePlane() {
@@ -2307,7 +2360,12 @@ QOpenGLFramebufferObject* MpvRenderer::createFramebufferObject(const QSize& size
             mpv_opengl_init_params gl_init_params[1] = { get_proc_address_mpv, nullptr };
             const char* renderApiType = MPV_RENDER_API_TYPE_OPENGL;
 #ifdef MPV_RENDER_API_TYPE_OPENGL_NEXT
-            if (PlaybackSettings::renderApiType() == 1) {
+            // Command-line override takes priority, then fall back to PlaybackSettings
+            if (view->obj->commandLineApiOverride()) {
+                if (view->obj->commandLineApiType() == 1) {
+                    renderApiType = MPV_RENDER_API_TYPE_OPENGL_NEXT;
+                }
+            } else if (PlaybackSettings::renderApiType() == 1) {
                 renderApiType = MPV_RENDER_API_TYPE_OPENGL_NEXT;
             }
 #endif

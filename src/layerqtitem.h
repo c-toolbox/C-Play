@@ -38,6 +38,8 @@ public:
     QSize viewSize();
     void calculateViewParameters();
 
+    void reportSwap();
+
     Q_INVOKABLE void init();
     Q_INVOKABLE void paint();
 

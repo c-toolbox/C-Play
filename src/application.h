@@ -382,6 +382,7 @@ public:
         std::string confNodesOnly;
         std::string logLevel;
         std::string logFile;
+        std::string mpvApiOverride;  // "opengl" or "opengl-next" from --mpvapi command line
     };
 
     SyncHelper();

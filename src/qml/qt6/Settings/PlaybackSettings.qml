@@ -300,13 +300,14 @@ SettingsBasePage {
                 }
             }
         }
+        // Render API ComboBox - only visible when --mpvapi is NOT set
         Label {
-            visible: mpv.renderApiOpenglNextSupported()
+            visible: mpv.renderApiOpenglNextSupported() && !mpv.commandLineApiOverride()
             Layout.alignment: Qt.AlignRight
             text: qsTr("Render API:")
         }
         RowLayout {
-            visible: mpv.renderApiOpenglNextSupported()
+            visible: mpv.renderApiOpenglNextSupported() && !mpv.commandLineApiOverride()
 
             ComboBox {
                 id: renderApiComboBox
@@ -344,6 +345,18 @@ SettingsBasePage {
                 font.italic: true
                 text: qsTr("Requires restart to take effect.")
             }
+        }
+        // Command-line API override status label - shown when --mpvapi IS set
+        Item {
+            visible: mpv.commandLineApiOverride() && mpv.renderApiOpenglNextSupported()
+            Layout.fillWidth: true
+        }
+        Label {
+            visible: mpv.commandLineApiOverride() && mpv.renderApiOpenglNextSupported()
+            Layout.fillWidth: true
+            font.italic: true
+            color: "darkorange"
+            text: qsTr("Render API overridden by --mpvapi command-line option") + ": " + (mpv.commandLineApiType() === 0 ? "OpenGL" : "OpenGL Next")
         }
         SettingsHeader {
             Layout.columnSpan: 2

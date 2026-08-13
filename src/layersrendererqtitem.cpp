@@ -600,6 +600,7 @@ void LayersRendererQtItem::sync() {
         m_renderer = new LayersRendererQtOpenGLObject(this);
         connect(window(), &QQuickWindow::beforeRendering, m_renderer, &LayersRendererQtOpenGLObject::init, Qt::DirectConnection);
         connect(window(), &QQuickWindow::beforeRenderPassRecording, m_renderer, &LayersRendererQtOpenGLObject::paint, Qt::DirectConnection);
+        connect(window(), &QQuickWindow::frameSwapped, m_renderer, &LayersRendererQtOpenGLObject::reportSwap, Qt::DirectConnection);
     }
     m_renderer->setWindow(window());
     m_renderer->setItemVisible(isVisible());
@@ -1539,6 +1540,52 @@ void LayersRendererQtOpenGLObject::setViewportRect(const QRect& rect) {
 
 void LayersRendererQtOpenGLObject::setItemVisible(bool visible) {
     m_itemVisible = visible;
+}
+
+void LayersRendererQtOpenGLObject::reportSwap() {
+    if (m_shuttingDown || LayersRendererQtItem::isShuttingDown())
+        return;
+
+    // Report swap on all video layers after the frame has been presented to screen.
+    // mpv video layers need report_swap after present for correct frame pacing;
+    // the BaseLayer default is a safe no-op for non-video layers.
+    std::lock_guard<std::mutex> layerAccessLock(LayersRendererQtItem::layerAccessMutex());
+
+    if (m_shuttingDown || LayersRendererQtItem::isShuttingDown())
+        return;
+
+    if (Application::isCreated() && Application::instance().slidesModel()) {
+        // Master slide layers
+        auto* master = Application::instance().slidesModel()->masterSlide();
+        if (master) {
+            int numLayers = master->numberOfLayers();
+            for (int l = numLayers - 1; l >= 0; l--) {
+                std::shared_ptr<BaseLayer> layerPtr = master->layerShared(l);
+                BaseLayer* layer = layerPtr.get();
+                if (layer && layer->isEnabled()) {
+                    layer->reportSwap();
+                }
+            }
+        }
+
+        // Slides layers
+        QList<QSharedPointer<LayersModel>> slidesSnapshot;
+        if (Application::instance().slidesModel()->trySnapshotSlides(slidesSnapshot)) {
+            for (int s = 0; s < slidesSnapshot.size(); s++) {
+                auto& slidePtr = slidesSnapshot[s];
+                if (!slidePtr) continue;
+
+                int numLayers = slidePtr->numberOfLayers();
+                for (int l = numLayers - 1; l >= 0; l--) {
+                    std::shared_ptr<BaseLayer> layerPtr = slidePtr->layerShared(l);
+                    BaseLayer* layer = layerPtr.get();
+                    if (layer && layer->isEnabled()) {
+                        layer->reportSwap();
+                    }
+                }
+            }
+        }
+    }
 }
 
 void LayersRendererQtOpenGLObject::shutdown() {

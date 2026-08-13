@@ -301,6 +301,10 @@ bool BaseLayer::renderingIsOn() const {
     return false;
 }
 
+void BaseLayer::reportSwap() {
+    // Default no-op. Override in derived classes (e.g., MpvLayer) to report swap to the underlying renderer.
+}
+
 void BaseLayer::start() {
     // Overwrite in derived class
 }

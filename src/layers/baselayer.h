@@ -131,6 +131,10 @@ public:
     virtual void updateFrame();
     virtual bool renderingIsOn() const;
     virtual bool ready() const = 0;
+
+    // Called after a frame has been presented to inform the layer about swap.
+    // Override in derived classes (e.g. MpvLayer) to report swap to the underlying renderer.
+    virtual void reportSwap();
     virtual bool hasTexture() const = 0;
 
     virtual void start();

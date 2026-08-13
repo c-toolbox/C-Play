@@ -5,6 +5,7 @@
  * SPDX-License-Identifier: GPL-3.0-or-later
  */
 
+#ifdef MULTI_VIDEO_LAYER
 #include "multivideolayer.h"
 #include <sgct/sgct.h>
 #include <utils/multivideoconfig.h>
@@ -271,3 +272,4 @@ void MultiVideoLayer::decodeTypeAlways(const std::vector<std::byte>& data, unsig
         pos = static_cast<unsigned int>(data.size());
     }
 }
+#endif

@@ -97,6 +97,9 @@ public:
     virtual bool ready() const;
     bool hasTexture() const override;
 
+    // Called after a frame has been presented to report swap to MPV.
+    void reportSwap() override;
+
     void initializeAndLoad(std::string filePath);
     void update(bool updateRendering = true);
 

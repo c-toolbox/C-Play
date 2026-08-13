@@ -54,6 +54,7 @@ public:
 
     void updateLayers();
     void renderLayers(float angle, const QMatrix4x4& viewMatrix, const QMatrix4x4& projectionMatrix);
+    void reportSwap();
 
     Q_INVOKABLE void init();
     Q_INVOKABLE void paint();

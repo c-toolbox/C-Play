@@ -410,6 +410,12 @@ public:
     Q_INVOKABLE void setSubtitleRelativePlaneElevation(double value);
     Q_INVOKABLE bool renderApiOpenglNextSupported() const;
     Q_INVOKABLE void setSubtitleRelativePlaneDistance(double value);
+    Q_INVOKABLE void onFrameSwapped();
+
+    // Set the render API type from command line (--mpvapi)
+    Q_INVOKABLE void setRenderApiFromCommandLine(const QString &apiType);
+    Q_INVOKABLE bool commandLineApiOverride() const;
+    Q_INVOKABLE int commandLineApiType() const;
 
     void updatePlaybackThresholdSettings();
 
@@ -422,7 +428,7 @@ public:
     void drawPlane() const;
     bool hasPlane() const;
     void updatePlane();
-
+    
 Q_SIGNALS:
     void mediaTitleChanged();
     void positionChanged();
@@ -542,6 +548,10 @@ private:
     bool m_syncVolumeVisibilityFading;
     bool m_autoPlay;
 
+    // Command-line API override
+    bool m_apiOverrideFromCommandLine = false;
+    int m_commandLineApiType = -1;  // -1 = not set, 0 = OpenGL, 1 = OpenGL-NexT
+
     mutable std::unique_ptr<PlaneGrid> m_planeGrid;
     mutable float m_planeGridWidth = 0.f;
     mutable float m_planeGridHeight = 0.f;
@@ -581,6 +591,7 @@ Q_SIGNALS:
 
 private:
     friend class MpvRenderer;
+    friend class MpvObject;  // Allow MpvObject to access obj for onFrameSwapped
 
     QOpenGLFramebufferObject* fbo;
     MpvObject* obj;

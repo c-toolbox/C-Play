@@ -692,7 +692,7 @@ void MpvLayer::loadFile(std::string filePath, bool reload) {
 
         QStringList newCommand = QStringList() << QStringLiteral("loadfile")
                                                    << QString::fromStdString(filePath);
-#if MPV_CLIENT_API_VERSION >= MPV_MAKE_VERSION(2, 3)
+#if MPV_CLIENT_API_VERSION >= MPV_MAKE_VERSION(2, 3) && MPV_CLIENT_API_VERSION < MPV_MAKE_VERSION(2, 4)
         newCommand << QStringLiteral("0");
 #endif
         if (!options.isEmpty()) {
@@ -804,4 +804,10 @@ void MpvLayer::setValue(std::string param, int val) {
 
 void MpvLayer::setAudioFile(const std::string &audioFile) {
     m_data.audioFile = audioFile;
+}
+
+void MpvLayer::reportSwap() {
+    if (m_data.renderContext) {
+        mpv_render_context_report_swap(m_data.renderContext);
+    }
 }

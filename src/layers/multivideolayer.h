@@ -5,6 +5,7 @@
  * SPDX-License-Identifier: GPL-3.0-or-later
  */
 
+#ifdef MULTI_VIDEO_LAYER
 #ifndef MULTIVIDEOLAYER_H
 #define MULTIVIDEOLAYER_H
 
@@ -107,3 +108,4 @@ private:
 };
 
 #endif // MULTIVIDEOLAYER_H
+#endif

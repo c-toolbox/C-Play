@@ -1395,6 +1395,12 @@ void LayerQtOpenGLObject::setOwnsLayer(bool ownsLayer) {
     m_ownsLayer = ownsLayer;
 }
 
+void LayerQtOpenGLObject::reportSwap() {
+    if (m_layer && m_layer->isEnabled()) {
+        m_layer->reportSwap();
+    }
+}
+
 BaseLayer *LayerQtOpenGLObject::layer() {
     return m_layer;
 }
@@ -1489,6 +1495,7 @@ void LayerQtItem::sync() {
         m_renderer = new LayerQtOpenGLObject();
         connect(window(), &QQuickWindow::beforeRendering, m_renderer, &LayerQtOpenGLObject::init, Qt::DirectConnection);
         connect(window(), &QQuickWindow::beforeRenderPassRecording, m_renderer, &LayerQtOpenGLObject::paint, Qt::DirectConnection);
+        connect(window(), &QQuickWindow::frameSwapped, m_renderer, &LayerQtOpenGLObject::reportSwap, Qt::DirectConnection);
         connect(m_renderer, &LayerQtOpenGLObject::viewChanged, this, &LayerQtItem::updateView);
     }
     m_renderer->setLayer(m_layer);
