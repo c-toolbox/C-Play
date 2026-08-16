@@ -15,6 +15,7 @@ import org.kde.kirigami as Kirigami
 import org.ctoolbox.cplay
 
 import "Menus"
+import "Components/MenuHelpers.js" as MenuHelpers
 
 ToolBar {
     id: root
@@ -79,6 +80,8 @@ ToolBar {
                 id: audioMenu
 
                 y: parent.height
+                onOpened: MenuHelpers.handleMenuOpen()
+                onClosed: MenuHelpers.handleMenuClose()
 
                 Instantiator {
                     id: audioMenuInstantiator
@@ -203,6 +206,8 @@ ToolBar {
                 id: faiMenu
 
                 y: parent.height
+                onOpened: MenuHelpers.handleMenuOpen()
+                onClosed: MenuHelpers.handleMenuClose()
 
                 MenuSeparator {
                 }
@@ -371,6 +376,8 @@ ToolBar {
                 id: imageMenu
 
                 y: parent.height
+                onOpened: MenuHelpers.handleMenuOpen()
+                onClosed: MenuHelpers.handleMenuClose()
 
                 MenuSeparator {
                 }
@@ -608,6 +615,8 @@ ToolBar {
                 id: eofMenu
 
                 y: parent.height
+                onOpened: MenuHelpers.handleMenuOpen()
+                onClosed: MenuHelpers.handleMenuClose()
 
                 MenuSeparator {
                 }
@@ -798,6 +807,8 @@ ToolBar {
                 id: stereoscopicMenu
 
                 y: parent.height
+                onOpened: MenuHelpers.handleMenuOpen()
+                onClosed: MenuHelpers.handleMenuClose()
 
                 MenuSeparator {
                 }
@@ -956,6 +967,8 @@ ToolBar {
                 id: gridMenu
 
                 y: parent.height
+                onOpened: MenuHelpers.handleMenuOpen()
+                onClosed: MenuHelpers.handleMenuClose()
 
                 MenuSeparator {
                 }
@@ -1086,6 +1099,9 @@ ToolBar {
                 id: spinMenu
 
                 y: parent.height
+
+                onOpened: MenuHelpers.handleMenuOpen()
+                onClosed: MenuHelpers.handleMenuClose()
 
                 MenuSeparator {
                 }

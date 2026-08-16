@@ -7,6 +7,7 @@
 import QtQml.Models
 import QtQuick
 import QtQuick.Controls
+import "../Components/MenuHelpers.js" as MenuHelpers
 
 Menu {
     id: root
@@ -14,8 +15,13 @@ Menu {
     title: qsTr("&File")
 
     onOpened: {
+        MenuHelpers.handleMenuOpen();
         recentMediaFilesMenuInstantiator.model = mpv.recentMediaFiles;
         recentPlaylistsMenuInstantiator.model = mpv.recentPlaylists;
+    }
+
+    onClosed: {
+        MenuHelpers.handleMenuClose();
     }
 
     MenuItem {

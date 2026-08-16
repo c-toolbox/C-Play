@@ -7,11 +7,15 @@
 import QtQml.Models
 import QtQuick
 import QtQuick.Controls
+import "../Components/MenuHelpers.js" as MenuHelpers
 
 Menu {
     id: root
 
     title: qsTr("&Subtitle")
+
+    onOpened: MenuHelpers.handleMenuOpen()
+    onClosed: MenuHelpers.handleMenuClose()
 
     Menu {
         id: subtitleMenu

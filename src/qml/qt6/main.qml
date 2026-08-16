@@ -29,6 +29,7 @@ Kirigami.ApplicationWindow {
     property bool isIdleMode: false
     property bool hideUI: (isFullScreenMode || isIdleMode)
     property url newMediaFileToOpen: ""
+    property bool uiDropdownOpen: false  // True when any ComboBox/Menu dropdown is open in this ApplicationWindow
 
     onClosing: {
         app.sendQuitToNodes();
@@ -81,6 +82,16 @@ Kirigami.ApplicationWindow {
         LocationSettings.save();
     }
 
+    function handleMenuOpen() {
+        window.uiDropdownOpen = true;
+        viewLayersIn3DRenderItem.uiDropdownOpen = true;
+    }
+
+    function handleMenuClose() {
+        window.uiDropdownOpen = false;
+        viewLayersIn3DRenderItem.uiDropdownOpen = false;
+    }
+
     Connections {
         function onActionsUpdated() {
             actions.updateShortcuts();
@@ -131,16 +142,28 @@ Kirigami.ApplicationWindow {
         }
 
         FileMenu {
+            onOpened: handleMenuOpen()
+            onClosed: handleMenuClose()
         }
         PlaybackMenu {
+            onOpened: handleMenuOpen()
+            onClosed: handleMenuClose()
         }
         AudioMenu {
+            onOpened: handleMenuOpen()
+            onClosed: handleMenuClose()
         }
         SubtitleMenu {
+            onOpened: handleMenuOpen()
+            onClosed: handleMenuClose()
         }
         SettingsMenu {
+            onOpened: handleMenuOpen()
+            onClosed: handleMenuClose()
         }
         HelpMenu {
+            onOpened: handleMenuOpen()
+            onClosed: handleMenuClose()
         }
     }
 
@@ -498,6 +521,14 @@ Kirigami.ApplicationWindow {
                         value: 3
                     }
                 }
+
+                onActiveFocusChanged: {
+                    if (activeFocus) {
+                        handleMenuOpen();
+                    } else {
+                        handleMenuClose();  
+                    }
+                }
             }
             Label {
                 Layout.alignment: Qt.AlignRight
@@ -532,6 +563,14 @@ Kirigami.ApplicationWindow {
                     ListElement {
                         mode: "Sphere EAC"
                         value: 4
+                    }
+                }
+
+                onActiveFocusChanged: {
+                    if (activeFocus) {
+                        handleMenuOpen();
+                    } else {
+                        handleMenuClose();  
                     }
                 }
             }

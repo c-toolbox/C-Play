@@ -57,10 +57,12 @@ public:
     void reportSwap();
 
     Q_INVOKABLE void init();
-    Q_INVOKABLE void paint();
+    Q_INVOKABLE void firstPass();
+    Q_INVOKABLE void secondPass();
 
     void setViewportRect(const QRect& rect);
     void setItemVisible(bool visible);
+    void setDivideUpdateAndRender(bool divide);
     void shutdown();
 
 Q_SIGNALS:
@@ -139,6 +141,7 @@ private:
 
     QRect m_viewportRect;
     bool m_itemVisible = false;
+    bool m_divideUpdateAndRender = false;
     bool m_shuttingDown = false;
 };
 
@@ -155,6 +158,7 @@ class LayersRendererQtItem : public QQuickItem {
     Q_PROPERTY(MpvObject* mpvObject READ mpvObject WRITE setMpvObject NOTIFY mpvObjectChanged)
     Q_PROPERTY(QString backgroundImageFile READ backgroundImageFile WRITE setBackgroundImageFile NOTIFY backgroundImageFileChanged)
     Q_PROPERTY(QString foregroundImageFile READ foregroundImageFile WRITE setForegroundImageFile NOTIFY foregroundImageFileChanged)
+    Q_PROPERTY(bool uiDropdownOpen READ isUiDropdownOpen WRITE setUiDropdownOpen NOTIFY uiDropdownOpenChanged)
 
 public:
     LayersRendererQtItem();
@@ -186,6 +190,9 @@ public:
     QString foregroundImageFile() const;
     void setForegroundImageFile(const QString& file);
 
+    bool isUiDropdownOpen() const;
+    void setUiDropdownOpen(bool open);
+
     Q_INVOKABLE void sync();
     Q_INVOKABLE void cleanup();
     static void beginShutdown();
@@ -201,6 +208,7 @@ Q_SIGNALS:
     void mpvObjectChanged();
     void backgroundImageFileChanged();
     void foregroundImageFileChanged();
+    void uiDropdownOpenChanged();
 
 private:
     Q_INVOKABLE void handleWindowChanged(QQuickWindow* win);
@@ -222,6 +230,7 @@ private:
     MpvObject* m_mpvObject = nullptr;
     QString m_backgroundImageFile;
     QString m_foregroundImageFile;
+    bool m_uiDropdownOpen = false;
 
     static std::atomic_bool s_shuttingDown;
     static std::mutex s_layerAccessMutex;

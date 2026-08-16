@@ -6,11 +6,15 @@
 
 import QtQuick
 import QtQuick.Controls
+import "../Components/MenuHelpers.js" as MenuHelpers
 
 Menu {
     id: root
 
     title: qsTr("&Playback")
+
+    onOpened: MenuHelpers.handleMenuOpen()
+    onClosed: MenuHelpers.handleMenuClose()
 
     MenuItem {
         action: actions["playPauseAction"]

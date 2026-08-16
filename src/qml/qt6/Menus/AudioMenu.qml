@@ -7,11 +7,15 @@
 import QtQml.Models
 import QtQuick
 import QtQuick.Controls
+import "../Components/MenuHelpers.js" as MenuHelpers
 
 Menu {
     id: root
 
     title: qsTr("&Audio")
+
+    onOpened: MenuHelpers.handleMenuOpen()
+    onClosed: MenuHelpers.handleMenuClose()
 
     Menu {
         id: audioMenu

@@ -313,6 +313,9 @@ Rectangle {
                 Menu {
                     id: eofMenu
 
+                    onOpened: MenuHelpers.handleMenuOpen()
+                    onClosed: MenuHelpers.handleMenuClose()
+
                     y: parent.height
 
                     MenuSeparator {

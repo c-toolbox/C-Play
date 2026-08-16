@@ -500,6 +500,17 @@ void LayersRendererQtItem::setForegroundImageFile(const QString& file) {
     Q_EMIT foregroundImageFileChanged();
 }
 
+bool LayersRendererQtItem::isUiDropdownOpen() const {
+    return m_uiDropdownOpen;
+}
+
+void LayersRendererQtItem::setUiDropdownOpen(bool open) {
+    if (m_uiDropdownOpen == open)
+        return;
+    m_uiDropdownOpen = open;
+    Q_EMIT uiDropdownOpenChanged();
+}
+
 void LayersRendererQtItem::updateCameraMatrices() {
     // Use the item's own dimensions, not the full window, for correct aspect ratio
     const float w = static_cast<float>(width());
@@ -599,7 +610,8 @@ void LayersRendererQtItem::sync() {
     if (!m_renderer) {
         m_renderer = new LayersRendererQtOpenGLObject(this);
         connect(window(), &QQuickWindow::beforeRendering, m_renderer, &LayersRendererQtOpenGLObject::init, Qt::DirectConnection);
-        connect(window(), &QQuickWindow::beforeRenderPassRecording, m_renderer, &LayersRendererQtOpenGLObject::paint, Qt::DirectConnection);
+        connect(window(), &QQuickWindow::beforeRenderPassRecording, m_renderer, &LayersRendererQtOpenGLObject::firstPass, Qt::DirectConnection);
+        connect(window(), &QQuickWindow::afterRenderPassRecording, m_renderer, &LayersRendererQtOpenGLObject::secondPass, Qt::DirectConnection);
         connect(window(), &QQuickWindow::frameSwapped, m_renderer, &LayersRendererQtOpenGLObject::reportSwap, Qt::DirectConnection);
     }
     m_renderer->setWindow(window());
@@ -608,6 +620,10 @@ void LayersRendererQtItem::sync() {
     m_renderer->setMpvObject(m_mpvObject);
     m_renderer->setBackgroundImageFile(m_backgroundImageFile);
     m_renderer->setForegroundImageFile(m_foregroundImageFile);
+
+#if MPV_CLIENT_API_VERSION >= MPV_MAKE_VERSION(2, 3)
+    m_renderer->setDivideUpdateAndRender(!m_uiDropdownOpen);
+#endif
 
     // Map item rect to physical pixels so paint() can set the correct viewport
     const qreal dpr = window()->devicePixelRatio();
@@ -1542,6 +1558,10 @@ void LayersRendererQtOpenGLObject::setItemVisible(bool visible) {
     m_itemVisible = visible;
 }
 
+void LayersRendererQtOpenGLObject::setDivideUpdateAndRender(bool divide) {
+    m_divideUpdateAndRender = divide;
+}
+
 void LayersRendererQtOpenGLObject::reportSwap() {
     if (m_shuttingDown || LayersRendererQtItem::isShuttingDown())
         return;
@@ -1596,8 +1616,26 @@ void LayersRendererQtOpenGLObject::shutdown() {
 }
 
 void LayersRendererQtOpenGLObject::init() {
-    if (m_shuttingDown || LayersRendererQtItem::isShuttingDown() || m_initialized)
+    if (m_shuttingDown || LayersRendererQtItem::isShuttingDown())
         return;
+
+    if (m_initialized) {
+        // Recreate meshes here where GL context is guaranteed to be current
+        if (m_meshesDirty) {
+            m_domeMesh.reset();
+            m_domeMaskMesh.reset();
+            m_sphereMesh.reset();
+            m_domeMesh = std::make_unique<DomeGrid>(float(m_meshRadius) / 100.f, float(m_meshFov), 256, 128);
+            m_domeMaskMesh = std::make_unique<DomeGrid>(float(m_meshRadius) / 100.f, 360.f - float(m_meshFov), 256, 128);
+            m_sphereMesh = std::make_unique<SphereGrid>(float(m_meshRadius) / 100.f, 256);
+            m_meshesDirty = false;
+        }
+
+        updateLayers();
+
+        return;
+    }
+
 
     QSGRendererInterface* rif = m_window->rendererInterface();
     Q_ASSERT(rif->graphicsApi() == QSGRendererInterface::OpenGL);
@@ -1621,36 +1659,51 @@ void LayersRendererQtOpenGLObject::init() {
     m_initialized = true;
     Q_EMIT initialized();
 }
-        
-void LayersRendererQtOpenGLObject::paint() {
+
+void LayersRendererQtOpenGLObject::firstPass() {
     if (m_shuttingDown || LayersRendererQtItem::isShuttingDown() || !m_initialized || !m_itemVisible) {
         return;
     }
-
+    
     m_window->beginExternalCommands();
-
-    // Recreate meshes here where GL context is guaranteed to be current
-    if (m_meshesDirty) {
-        m_domeMesh.reset();
-        m_domeMaskMesh.reset();
-        m_sphereMesh.reset();
-        m_domeMesh = std::make_unique<DomeGrid>(float(m_meshRadius) / 100.f, float(m_meshFov), 256, 128);
-        m_domeMaskMesh = std::make_unique<DomeGrid>(float(m_meshRadius) / 100.f, 360.f - float(m_meshFov), 256, 128);
-        m_sphereMesh = std::make_unique<SphereGrid>(float(m_meshRadius) / 100.f, 256);
-        m_meshesDirty = false;
-    }
-
-    updateLayers();
-
-    // Use the anchored item rect instead of the full window size
-    glViewport(m_viewportRect.x(), m_viewportRect.y(),
-               m_viewportRect.width(), m_viewportRect.height());
 
     glDisable(GL_DEPTH_TEST);
     glDepthMask(false);
 
     glClearColor(0.0f, 0.0f, 0.0f, 1.0f);
     glClear(GL_COLOR_BUFFER_BIT);
+
+    if (!m_divideUpdateAndRender) {
+        // Use the anchored item rect instead of the full window size
+        glViewport(m_viewportRect.x(), m_viewportRect.y(),
+            m_viewportRect.width(), m_viewportRect.height());
+
+        renderLayers(m_meshAngle, m_viewMatrix, m_projectionMatrix);
+    }
+
+    m_window->endExternalCommands();
+
+#if QT_VERSION < QT_VERSION_CHECK(6, 0, 0)
+    if (!m_divideUpdateAndRender) {
+        m_window->resetOpenGLState();
+    }
+#endif
+}
+        
+void LayersRendererQtOpenGLObject::secondPass() {
+    if (m_shuttingDown || LayersRendererQtItem::isShuttingDown() || !m_initialized || !m_itemVisible) {
+        return;
+    }
+
+    if (!m_divideUpdateAndRender) {
+        return;
+    }
+
+    m_window->beginExternalCommands();
+
+    // Use the anchored item rect instead of the full window size
+    glViewport(m_viewportRect.x(), m_viewportRect.y(),
+               m_viewportRect.width(), m_viewportRect.height());
 
     renderLayers(m_meshAngle, m_viewMatrix, m_projectionMatrix);
 

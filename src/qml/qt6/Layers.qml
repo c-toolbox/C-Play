@@ -185,6 +185,10 @@ Rectangle {
 
     Menu {
         id: pasteLayerMenu
+
+        onOpened: MenuHelpers.handleMenuOpen()
+        onClosed: MenuHelpers.handleMenuClose()
+
         MenuItem { 
             action: actions.layerPasteAction 
             visible: actions.layerPasteAction.enabled
