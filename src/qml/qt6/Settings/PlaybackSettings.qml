@@ -118,6 +118,86 @@ SettingsBasePage {
                 PlaybackSettings.save();
             }
         }
+
+               // Seek Small Step
+        Label {
+            Layout.alignment: Qt.AlignRight
+            text: qsTr("Seek small step:")
+        }
+        Item {
+            Layout.fillWidth: true
+            height: seekSmallStep.height
+
+            SpinBox {
+                id: seekSmallStep
+
+                editable: true
+                from: 0
+                to: 100
+                value: PlaybackSettings.seekSmallStep
+
+                onValueChanged: {
+                    PlaybackSettings.seekSmallStep = seekSmallStep.value;
+                    PlaybackSettings.save();
+                }
+            }
+        }
+
+        // Seek Medium Step
+        Label {
+            Layout.alignment: Qt.AlignRight
+            text: qsTr("Seek medium step:")
+        }
+        Item {
+            Layout.fillWidth: true
+            height: seekMediumStep.height
+
+            SpinBox {
+                id: seekMediumStep
+
+                editable: true
+                from: 0
+                to: 100
+                value: PlaybackSettings.seekMediumStep
+
+                onValueChanged: {
+                    PlaybackSettings.seekMediumStep = seekMediumStep.value;
+                    PlaybackSettings.save();
+                }
+            }
+        }
+
+        // Seek Big Step
+        Label {
+            Layout.alignment: Qt.AlignRight
+            text: qsTr("Seek big step:")
+        }
+        Item {
+            Layout.fillWidth: true
+            height: seekBigStep.height
+
+            SpinBox {
+                id: seekBigStep
+
+                editable: true
+                from: 0
+                to: 100
+                value: PlaybackSettings.seekBigStep
+
+                onValueChanged: {
+                    PlaybackSettings.seekBigStep = seekBigStep.value;
+                    PlaybackSettings.save();
+                }
+            }
+        }
+
+        SettingsHeader {
+            Layout.columnSpan: 2
+            Layout.fillWidth: true
+            text: qsTr("Sync correction")
+            level: 4
+        }
+
         Item {
             height: 1
             width: 1
@@ -229,76 +309,131 @@ SettingsBasePage {
             }
         }
 
-        // Seek Small Step
+        Item {
+            height: 1
+            width: 1
+        }
+        CheckBox {
+            id: useFrameSyncCorrectionCheckbox
+
+            checked: PlaybackSettings.useFrameSyncCorrection
+            text: qsTr("Use frame sync correction (progressive speed adjustment + hard seek)")
+
+            onCheckedChanged: {
+                PlaybackSettings.useFrameSyncCorrection = checked;
+                PlaybackSettings.save();
+            }
+        }
         Label {
             Layout.alignment: Qt.AlignRight
-            text: qsTr("Seek small step:")
+            text: qsTr("Frame sync seek threshold:")
         }
-        Item {
-            Layout.fillWidth: true
-            height: seekSmallStep.height
-
+        RowLayout {
             SpinBox {
-                id: seekSmallStep
+                id: frameSyncSeekThresholdBox
 
-                editable: true
-                from: 0
-                to: 100
-                value: PlaybackSettings.seekSmallStep
+                enabled: useFrameSyncCorrectionCheckbox.checked
+                from: 1
+                to: 60
+                value: PlaybackSettings.frameSyncSeekThreshold
 
                 onValueChanged: {
-                    PlaybackSettings.seekSmallStep = seekSmallStep.value;
+                    PlaybackSettings.frameSyncSeekThreshold = value;
                     PlaybackSettings.save();
+                }
+            }
+            LabelWithTooltip {
+                Layout.fillWidth: true
+                elide: Text.ElideRight
+                text: {
+                    qsTr("s = Hard seek if time difference is more than %1 seconds").arg(Number((frameSyncSeekThresholdBox.value * 1.0)).toFixed(1));
+                }
+            }
+        }
+        Label {
+            Layout.alignment: Qt.AlignRight
+            text: qsTr("Frame sync in-sync threshold:")
+        }
+        RowLayout {
+            SpinBox {
+                id: frameSyncSpeedAdjustThresholdBox
+
+                enabled: useFrameSyncCorrectionCheckbox.checked
+                from: 10
+                to: 500
+                value: PlaybackSettings.frameSyncSpeedAdjustThreshold * 1000
+
+                onValueChanged: {
+                    PlaybackSettings.frameSyncSpeedAdjustThreshold = frameSyncSpeedAdjustThresholdBox.value / 1000.0;
+                    PlaybackSettings.save();
+                }
+            }
+            LabelWithTooltip {
+                Layout.fillWidth: true
+                elide: Text.ElideRight
+                text: {
+                    qsTr("ms = Considered in sync if time difference is below %1 ms").arg(Number((frameSyncSpeedAdjustThresholdBox.value * 1.0)).toFixed(0));
+                }
+            }
+        }
+        Label {
+            Layout.alignment: Qt.AlignRight
+            text: qsTr("Frame sync max speed adjustment:")
+        }
+        RowLayout {
+            SpinBox {
+                id: frameSyncMaxSpeedAdjustBox
+
+                enabled: useFrameSyncCorrectionCheckbox.checked
+                from: 1
+                to: 100
+                value: PlaybackSettings.frameSyncMaxSpeedAdjust * 100
+
+                onValueChanged: {
+                    PlaybackSettings.frameSyncMaxSpeedAdjust = frameSyncMaxSpeedAdjustBox.value / 100.0;
+                    PlaybackSettings.save();
+                }
+            }
+            LabelWithTooltip {
+                Layout.fillWidth: true
+                elide: Text.ElideRight
+                text: {
+                    qsTr("% = Maximum speed change (e.g. 50 = 50%% faster/slower)");
+                }
+            }
+        }
+        Label {
+            Layout.alignment: Qt.AlignRight
+            text: qsTr("Frame sync initial offset:")
+        }
+        RowLayout {
+            SpinBox {
+                id: frameSyncInitialOffsetBox
+
+                enabled: useFrameSyncCorrectionCheckbox.checked
+                from: 0
+                to: 1000
+                value: PlaybackSettings.frameSyncInitialOffset * 1000
+
+                onValueChanged: {
+                    PlaybackSettings.frameSyncInitialOffset = frameSyncInitialOffsetBox.value / 1000.0;
+                    PlaybackSettings.save();
+                }
+            }
+            LabelWithTooltip {
+                Layout.fillWidth: true
+                elide: Text.ElideRight
+                text: {
+                    qsTr("ms = Initial offset applied to target position on slaves");
                 }
             }
         }
 
-        // Seek Medium Step
-        Label {
-            Layout.alignment: Qt.AlignRight
-            text: qsTr("Seek medium step:")
-        }
-        Item {
+        SettingsHeader {
+            Layout.columnSpan: 2
             Layout.fillWidth: true
-            height: seekMediumStep.height
-
-            SpinBox {
-                id: seekMediumStep
-
-                editable: true
-                from: 0
-                to: 100
-                value: PlaybackSettings.seekMediumStep
-
-                onValueChanged: {
-                    PlaybackSettings.seekMediumStep = seekMediumStep.value;
-                    PlaybackSettings.save();
-                }
-            }
-        }
-
-        // Seek Big Step
-        Label {
-            Layout.alignment: Qt.AlignRight
-            text: qsTr("Seek big step:")
-        }
-        Item {
-            Layout.fillWidth: true
-            height: seekBigStep.height
-
-            SpinBox {
-                id: seekBigStep
-
-                editable: true
-                from: 0
-                to: 100
-                value: PlaybackSettings.seekBigStep
-
-                onValueChanged: {
-                    PlaybackSettings.seekBigStep = seekBigStep.value;
-                    PlaybackSettings.save();
-                }
-            }
+            text: qsTr("Loaded MPV configuration")
+            level: 4
         }
         // Render API ComboBox - only visible when --mpvapi is NOT set
         Label {
@@ -357,12 +492,6 @@ SettingsBasePage {
             font.italic: true
             color: "darkorange"
             text: qsTr("Render API overridden by --mpvapi command-line option") + ": " + (mpv.commandLineApiType() === 0 ? "OpenGL" : "OpenGL Next")
-        }
-        SettingsHeader {
-            Layout.columnSpan: 2
-            Layout.fillWidth: true
-            text: qsTr("Loaded MPV configuration")
-            level: 4
         }
         Label {
             text: qsTr("Configuration from external files:")

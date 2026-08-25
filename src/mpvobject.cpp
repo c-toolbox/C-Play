@@ -200,9 +200,20 @@ MpvObject::MpvObject(QQuickItem *parent)
             this, &MpvObject::updatePlaybackThresholdSettings);
     connect(PlaybackSettings::self(), &PlaybackSettings::TimeToCheckThresholdSyncAfterLoopChanged,
             this, &MpvObject::updatePlaybackThresholdSettings);
+    connect(PlaybackSettings::self(), &PlaybackSettings::UseFrameSyncCorrectionChanged,
+            this, &MpvObject::updateFrameSyncSettings);
+    connect(PlaybackSettings::self(), &PlaybackSettings::FrameSyncSeekThresholdChanged,
+            this, &MpvObject::updateFrameSyncSettings);
+    connect(PlaybackSettings::self(), &PlaybackSettings::FrameSyncSpeedAdjustThresholdChanged,
+            this, &MpvObject::updateFrameSyncSettings);
+    connect(PlaybackSettings::self(), &PlaybackSettings::FrameSyncMaxSpeedAdjustChanged,
+            this, &MpvObject::updateFrameSyncSettings);
+    connect(PlaybackSettings::self(), &PlaybackSettings::FrameSyncInitialOffsetChanged,
+            this, &MpvObject::updateFrameSyncSettings);
 
-    // Initialize threshold settings
+    // Initialize threshold + frame sync settings
     updatePlaybackThresholdSettings();
+    updateFrameSyncSettings();
 
     // Apply command-line API override if set
     if (!SyncHelper::instance().configuration.mpvApiOverride.empty()) {
@@ -927,7 +938,17 @@ void MpvObject::loadFile(const QString &file, bool updateLastPlayedFile) {
     if (ext == QStringLiteral("cplayfile") || ext == QStringLiteral("cplay_file") || ext == QStringLiteral("fdv")) {
         PlayListItem *videoFile = loadMediaFileDescription(fileToLoad);
         if (videoFile) {
-            loadItem(videoFile->data(), updateLastPlayedFile);
+            // For multivideo compositions, loadMultiVideo() (invoked from
+            // loadMediaFileDescription()) has already loaded the master reference
+            // video into mpv and broadcast the composition JSON to the nodes.
+            // Calling loadItem() here would issue a competing "loadfile" command;
+            // for multivideo-only cplayfiles there is no "video" key so mediaFile()
+            // is empty, which clobbers the just-loaded master preview. Skip it, but
+            // still refresh the play-sections UI for this item.
+            const bool isMultiVideo = videoFile->useMultivideoConfig() && !videoFile->multivideoConfigFile().isEmpty();
+            if (!isMultiVideo) {
+                loadItem(videoFile->data(), updateLastPlayedFile);
+            }
             m_playSectionsModel->updateCurrentEditItem(*videoFile);
             Q_EMIT playSectionsModelChanged();
         }
@@ -1055,9 +1076,6 @@ void MpvObject::loadMultiVideo(const QString &jsonPath, bool updateLastPlayedFil
                 QFileInfo fileInfo(fileToLoad);
                 if (!fileInfo.exists()) {
                     fileToLoad = checkAndCorrectPath(fileToLoad, fileSearchPaths);
-                    if (fileToLoad.isEmpty()) {
-                        return;
-                    }
                 }
 
                 // Build loadfile command with audio-file option (mirrors MpvObject::loadItem behavior)
@@ -1076,21 +1094,25 @@ void MpvObject::loadMultiVideo(const QString &jsonPath, bool updateLastPlayedFil
 
                 QString options = optionsList.join(QStringLiteral(","));
 
-                QStringList newCommand = QStringList() << QStringLiteral("loadfile") 
-                                                       << fileToLoad 
-                                                       << QStringLiteral("replace");
+                if (!fileToLoad.isEmpty()) {
+                    QStringList newCommand = QStringList() << QStringLiteral("loadfile") 
+                                                           << fileToLoad 
+                                                           << QStringLiteral("replace");
 #if MPV_CLIENT_API_VERSION >= MPV_MAKE_VERSION(2, 3)
-                newCommand << QStringLiteral("0");
+                    newCommand << QStringLiteral("0");
 #endif
-                if (!options.isEmpty()) {
-                    newCommand << options;
+                    if (!options.isEmpty()) {
+                        newCommand << options;
+                    }
+
+                    qInfo() << newCommand;
+                    command(newCommand, true);
+
+                    // Store the audio file for reference (used by separateAudioFile() getter)
+                    m_separateAudioFile = masterAudioFile;
+                } else {
+                    sgct::Log::Warning(std::format("MpvObject::loadMultiVideo: could not resolve master preview file '{}'; nodes will still receive the composition", masterFile.toStdString()));
                 }
-
-                qInfo() << newCommand;
-                command(newCommand, true);
-
-                // Store the audio file for reference (used by separateAudioFile() getter)
-                m_separateAudioFile = masterAudioFile;
 
                 // Apply optional master parameters AFTER loading (gridMode, stereoMode)
                 if (hasGridMode) {
@@ -1115,6 +1137,14 @@ void MpvObject::loadMultiVideo(const QString &jsonPath, bool updateLastPlayedFil
     } catch (const std::exception& e) {
         sgct::Log::Error(std::format("MpvObject::loadMultiVideo: JSON parse error: {}", e.what()));
     }
+
+    // In multivideo mode the nodes render per-node sub-players, so they must NOT
+    // load any file into their main mpv instance. Clear the regular-file load state
+    // (which may be stale from a previously played video) to avoid loading an
+    // unrelated file and leaking its audio on the nodes.
+    SyncHelper::instance().variables.loadedFile  = "";
+    SyncHelper::instance().variables.overlayFile = "";
+    SyncHelper::instance().variables.loadFile    = false;
 
     // Broadcast the composition JSON to nodes via SyncHelper
     SyncHelper::instance().variables.multiVideoConfig       = jsonContent;
@@ -1850,11 +1880,45 @@ int MpvObject::commandLineApiType() const {
 
 void MpvObject::updatePlaybackThresholdSettings() {
     SyncHelper::instance().variables.timeThreshold = double(PlaybackSettings::thresholdToSyncTimePosition()) / 1000.0;
+    SyncHelper::instance().variables.timeThresholdDirty = true;
     SyncHelper::instance().variables.timeThresholdSetSkips = PlaybackSettings::thresholdToSyncTimeSkipSets() - 1;
     SyncHelper::instance().variables.timeThresholdEnabled = PlaybackSettings::useThresholdToSyncTimePosition();
     SyncHelper::instance().variables.timeThresholdOnLoopOnly = PlaybackSettings::applyThresholdSyncOnLoopOnly();
     SyncHelper::instance().variables.timeThresholdOnLoopCheckTime = PlaybackSettings::timeToCheckThresholdSyncAfterLoop() / 1000.0;
     SyncHelper::instance().variables.mpvNeedSync = true;
+}
+
+void MpvObject::updateFrameSyncSettings() {
+    SyncHelper::instance().variables.frameSyncEnabled = PlaybackSettings::useFrameSyncCorrection();
+    SyncHelper::instance().variables.frameSyncDirty = true;
+    SyncHelper::instance().variables.frameSyncSeekThreshold = PlaybackSettings::frameSyncSeekThreshold();
+    SyncHelper::instance().variables.frameSyncSpeedAdjustThreshold = PlaybackSettings::frameSyncSpeedAdjustThreshold();
+    SyncHelper::instance().variables.frameSyncMaxSpeedAdjust = PlaybackSettings::frameSyncMaxSpeedAdjust();
+    SyncHelper::instance().variables.frameSyncInitialOffset = PlaybackSettings::frameSyncInitialOffset();
+    SyncHelper::instance().variables.mpvNeedSync = true;
+
+    m_frameSyncController.configure(
+        SyncHelper::instance().variables.frameSyncSeekThreshold,
+        SyncHelper::instance().variables.frameSyncSpeedAdjustThreshold,
+        SyncHelper::instance().variables.frameSyncMaxSpeedAdjust,
+        SyncHelper::instance().variables.frameSyncInitialOffset);
+}
+
+void MpvObject::applyFrameSyncCorrection(double masterPos, double slavePos, double baseSpeed) {
+    FrameSyncController::Decision d = m_frameSyncController.decide(masterPos, slavePos, baseSpeed);
+    switch (d.action) {
+    case FrameSyncController::Action::None:
+        if (baseSpeed != speed()) {
+            setSpeed(baseSpeed);
+        }
+        break;
+    case FrameSyncController::Action::SpeedAdjust:
+        setSpeed(d.speed);
+        break;
+    case FrameSyncController::Action::HardSeek:
+        setPosition(d.seekTarget);
+        break;
+    }
 }
 
 unsigned int MpvObject::fboTextureId() const {

@@ -10,6 +10,8 @@
 #include <sgct/sgct.h>
 #include <utils/multivideoconfig.h>
 
+#include <filesystem>
+
 MultiVideoLayer::MultiVideoLayer(gl_adress_func_v1 opa,
                                    bool allowDirectRendering,
                                    bool loggingOn,
@@ -42,6 +44,58 @@ const std::string& MultiVideoLayer::compositionJson() const {
 
 // ─── Node-side API ────────────────────────────────────────────────────────────
 
+namespace {
+// Try to locate nodes.json in a set of candidate locations. The default path is
+// CWD-relative ("./data/multivideo/nodes.json"), which only works when the app is
+// launched from its install directory. To be robust against other working
+// directories, also walk up from the current directory looking for
+// <dir>/data/multivideo/nodes.json (covers e.g. running from a build/ subfolder).
+std::string findNodesJsonPath() {
+    std::vector<std::string> candidates;
+    candidates.push_back(NodeIdentityConfig::kDefaultFilePath);
+
+    try {
+        namespace fs = std::filesystem;
+        auto cur = fs::current_path();
+        for (int i = 0; i < 6 && !cur.empty(); ++i) {
+            candidates.push_back((cur / "data" / "multivideo" / "nodes.json").string());
+            if (!cur.has_parent_path() || cur.parent_path() == cur)
+                break;
+            cur = cur.parent_path();
+        }
+    } catch (...) {}
+
+    for (const auto& c : candidates) {
+        try {
+            if (std::filesystem::exists(c))
+                return c;
+        } catch (...) {}
+    }
+    return "";
+}
+
+// If every entry in the composition targets exactly one logical node and they all
+// agree on that single key, return it. This is the common "one video per eye on a
+// single node" case (e.g. both eyes keyed under "Node1"). Used as a fallback when
+// this node's identity cannot be resolved from nodes.json, so the videos still
+// render instead of silently failing. Returns "" otherwise.
+std::string singleTargetNodeId(const MultiVideoConfig& config) {
+    const auto& entries = config.entries();
+    if (entries.empty())
+        return "";
+    std::string key;
+    for (const auto& e : entries) {
+        if (e.paths.size() != 1)
+            return "";
+        const auto& k = e.paths.begin()->first;
+        if (!key.empty() && key != k)
+            return "";
+        key = k;
+    }
+    return key;
+}
+} // namespace
+
 void MultiVideoLayer::applyCompositionOnNode() {
     if (m_compositionJson.empty()) {
         m_handler->clearAll();
@@ -58,20 +112,58 @@ void MultiVideoLayer::applyCompositionOnNode() {
         return;
     }
 
-    // Resolve node identity
+    // Resolve this node's identity. The composition keys per-node video paths by a
+    // logical node id (e.g. "Node1"); we must map this machine to that id via
+    // nodes.json. This is the most common source of intermittent failure: if the
+    // file isn't found at CWD-relative ./data/multivideo/nodes.json, or this node's
+    // IP isn't listed in it, identity resolution fails and no sub-layers are created.
+    std::string myAddress;
+    try {
+        myAddress = sgct::Engine::instance().thisNode().address();
+    } catch (...) {}
+
+    const std::string nodesPath = findNodesJsonPath();
     NodeIdentityConfig nodeId;
-    nodeId.loadFromFile(); // loads ./data/multivideo/nodes.json
+    if (!nodesPath.empty()) {
+        nodeId.loadFromFile(nodesPath);
+    } else {
+        // Last resort: try the default CWD-relative path (may still exist).
+        nodeId.loadFromFile();
+    }
 
     std::string myNodeId = nodeId.thisNodeId();
-    if (myNodeId.empty()) {
-        // Fallback: use SGCT address as the nodeId key directly
-        try {
-            myNodeId = sgct::Engine::instance().thisNode().address();
-        } catch (...) {
-            myNodeId = "";
+    if (!myNodeId.empty()) {
+        sgct::Log::Info(std::format(
+            "MultiVideoLayer: node identity resolved to '{}' (address '{}', nodes.json '{}')",
+            myNodeId, myAddress, nodesPath));
+    } else {
+        // Identity could not be resolved from nodes.json. Fall back to the raw SGCT
+        // address as the key; if that still doesn't match any entry's paths and the
+        // composition targets a single logical node (the common one-video-per-eye-on-
+        // one-node case), use that node id so the videos render instead of failing.
+        myNodeId = myAddress;
+        const std::string fallbackId = (!isMaster()) ? singleTargetNodeId(config) : "";
+        if (!fallbackId.empty() && !config.entries().empty()) {
+            bool anyMatch = false;
+            for (const auto& e : config.entries()) {
+                if (e.paths.count(myNodeId)) { anyMatch = true; break; }
+            }
+            if (!anyMatch) {
+                myNodeId = fallbackId;
+                sgct::Log::Warning(std::format(
+                    "MultiVideoLayer: could not resolve node identity from nodes.json "
+                    "(address '{}', file '{}'). Composition targets a single node '{}'; "
+                    "using it as fallback. Add this node's IP to data/multivideo/nodes.json "
+                    "for correct multi-node routing.",
+                    myAddress, nodesPath.empty() ? std::string("<not found>") : nodesPath, fallbackId));
+            } else {
+                sgct::Log::Warning(std::format(
+                    "MultiVideoLayer: no nodeId mapping for address '{}'; using address as key", myNodeId));
+            }
+        } else if (fallbackId.empty()) {
+            sgct::Log::Warning(std::format(
+                "MultiVideoLayer: no nodeId mapping found; using address '{}' as fallback", myNodeId));
         }
-        sgct::Log::Warning(std::format(
-            "MultiVideoLayer: no nodeId mapping found; using address '{}' as fallback", myNodeId));
     }
 
     m_handler->setConfig(config, myNodeId, m_openglProcAdr,
@@ -191,6 +283,17 @@ void MultiVideoLayer::update(bool updateRendering) {
             setTimePause(m_data.mediaShouldPause, false);
             setTimePosition(m_data.timeToSet, m_data.timeIsDirty);
             m_data.timeIsDirty = false;
+
+            // Mirror the node-side handling in MpvLayer::update(): apply decoded type
+            // properties (eofMode / loopTime) so that changes made on the master after
+            // initial load reach the per-eye sub-players. Our setEOFMode / setLoopTime
+            // overrides forward to the handler, and the base MpvLayer setters are no-ops
+            // here because this node's parent mpv instance is never initialized.
+            if (m_data.typePropertiesDecode) {
+                setEOFMode(m_data.eofMode_Dec);
+                setLoopTime(m_data.loopTimeA_Dec, m_data.loopTimeB_Dec, m_data.loopTimeEnabled_Dec);
+                m_data.typePropertiesDecode = false;
+            }
         }
         if (updateRendering) {
             m_handler->updateSubLayers();

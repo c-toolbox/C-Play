@@ -326,6 +326,15 @@ public:
         bool timeThresholdOnLoopOnly;
         double timeThresholdOnLoopCheckTime;
         bool timeDirty;
+        bool timeThresholdDirty;
+        // Frame sync correction (ported decision logic from mpv-udp-framesync).
+        bool frameSyncEnabled;
+        double frameSyncSeekThreshold;
+        double frameSyncSpeedAdjustThreshold;
+        double frameSyncMaxSpeedAdjust;
+        double frameSyncInitialOffset;
+        bool frameSyncDirty;
+        double frameSyncSyncInterval;
         bool syncOn;
         bool terminateNodes;
         float alpha;
@@ -413,6 +422,14 @@ public:
         /*timeThresholdOnLoopOnly*/ false,
         /*timeThresholdOnLoopCheckTime*/ 1.0,
         /*timeDirty*/ false,
+        /*timeThresholdDirty*/ false,
+        /*frameSyncEnabled*/ false,
+        /*frameSyncSeekThreshold*/ 5.0,
+        /*frameSyncSpeedAdjustThreshold*/ 0.02,
+        /*frameSyncMaxSpeedAdjust*/ 0.5,
+        /*frameSyncInitialOffset*/ 0.015,
+        /*frameSyncDirty*/ false,
+        /*frameSyncSyncInterval*/ 0.5,
         /*syncOn*/ true,
         /*terminateNodes*/ false,
         /*alpha*/ 1.f,

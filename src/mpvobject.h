@@ -16,6 +16,7 @@
 #include "playlistmodel.h"
 #include "qthelper.h"
 #include "tracksmodel.h"
+#include "utils/framesynccontroller.h"
 #include <client.h>
 #include <mutex>
 #include <render_gl.h>
@@ -418,6 +419,8 @@ public:
     Q_INVOKABLE int commandLineApiType() const;
 
     void updatePlaybackThresholdSettings();
+    void updateFrameSyncSettings();
+    void applyFrameSyncCorrection(double masterPos, double slavePos, double baseSpeed);
 
     // FBO texture access for LayersRendererQtItem
     unsigned int fboTextureId() const;
@@ -531,6 +534,7 @@ private:
     int m_surfaceTransitionTime;
     bool m_surfaceTransitionOnGoing;
     double m_lastSetPosition;
+    FrameSyncController m_frameSyncController;
     PlayListModel *m_playlistModel;
     PlaySectionsModel *m_playSectionsModel;
     int m_currentSectionsIndex;

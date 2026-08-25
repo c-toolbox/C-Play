@@ -24,7 +24,6 @@
 
 #ifdef MDK_SUPPORT
 #include <mdk/global.h>
-#include <layers/adaptivevideolayer.h>
 #endif
 
 #ifdef MULTI_VIDEO_LAYER
@@ -63,9 +62,7 @@ std::vector<std::shared_ptr<BaseLayer>> primaryLayers;
 std::shared_ptr<ImageLayer> backgroundImageLayer;
 std::shared_ptr<ImageLayer> foregroundImageLayer;
 std::shared_ptr<ImageLayer> overlayImageLayer;
-#ifdef MDK_SUPPORT
-std::shared_ptr <AdaptiveVideoLayer> mainVideoLayer;
-#elif defined(MULTI_VIDEO_LAYER)
+#ifdef MULTI_VIDEO_LAYER
 std::shared_ptr<MultiVideoLayer> mainVideoLayer;
 #else
 std::shared_ptr<VideoLayer> mainVideoLayer;
@@ -99,9 +96,7 @@ static void initOGL(GLFWwindow *) {
     backgroundImageLayer = std::make_shared<ImageLayer>("background");
     primaryLayers.push_back(backgroundImageLayer);
 
-#ifdef MDK_SUPPORT
-    mainVideoLayer = std::make_shared<AdaptiveVideoLayer>(get_proc_address_glfw_v1, get_proc_address_glfw_v2, allowDirectRendering, !logFilePath.empty() || !logLevel.empty(), logLevel);
-#elif defined(MULTI_VIDEO_LAYER)
+#ifdef MULTI_VIDEO_LAYER
     mainVideoLayer = std::make_shared<MultiVideoLayer>(get_proc_address_glfw_v1, allowDirectRendering, !logFilePath.empty() || !logLevel.empty(), logLevel);
 #else
     mainVideoLayer = std::make_shared<VideoLayer>(get_proc_address_glfw_v1, allowDirectRendering, !logFilePath.empty() || !logLevel.empty(), logLevel);
@@ -149,7 +144,14 @@ static std::vector<std::byte> encode() {
         serializeObject(data, SyncHelper::instance().variables.timePosition);
         serializeObject(data, SyncHelper::instance().variables.timeDirty);
         SyncHelper::instance().variables.timeDirty = false;
-        serializeObject(data, SyncHelper::instance().variables.timeThreshold);
+
+        // Time threshold - only sync when dirty to save bandwidth
+        serializeObject(data, SyncHelper::instance().variables.timeThresholdDirty);
+        if (SyncHelper::instance().variables.timeThresholdDirty) {
+            serializeObject(data, SyncHelper::instance().variables.timeThreshold);
+            SyncHelper::instance().variables.timeThresholdDirty = false;
+        }
+
         serializeObject(data, SyncHelper::instance().variables.paused);
 
         // MpvObject variables - only sync when dirty
@@ -159,6 +161,17 @@ static std::vector<std::byte> encode() {
             serializeObject(data, SyncHelper::instance().variables.timeThresholdSetSkips);
             serializeObject(data, SyncHelper::instance().variables.timeThresholdEnabled);
             serializeObject(data, SyncHelper::instance().variables.timeThresholdOnLoopOnly);
+
+            // Frame sync - only sync when dirty to save bandwidth
+            serializeObject(data, SyncHelper::instance().variables.frameSyncDirty);
+            if (SyncHelper::instance().variables.frameSyncDirty) {
+                serializeObject(data, SyncHelper::instance().variables.frameSyncEnabled);
+                serializeObject(data, SyncHelper::instance().variables.frameSyncSeekThreshold);
+                serializeObject(data, SyncHelper::instance().variables.frameSyncSpeedAdjustThreshold);
+                serializeObject(data, SyncHelper::instance().variables.frameSyncMaxSpeedAdjust);
+                serializeObject(data, SyncHelper::instance().variables.frameSyncInitialOffset);
+                SyncHelper::instance().variables.frameSyncDirty = false;
+            }
             serializeObject(data, SyncHelper::instance().variables.enableAudioOnNodes);
             if (SyncHelper::instance().variables.enableAudioOnNodes) {
                 serializeObject(data, SyncHelper::instance().variables.loadAudioInVidFolder);
@@ -426,7 +439,16 @@ static void decode(const std::vector<std::byte> &data) {
         // Always synced time-related variables
         deserializeObject(data, pos, SyncHelper::instance().variables.timePosition);
         deserializeObject(data, pos, SyncHelper::instance().variables.timeDirty);
-        deserializeObject(data, pos, SyncHelper::instance().variables.timeThreshold);
+
+        // Time threshold - only sync when dirty to save bandwidth
+        if (!safeToRead()) return;
+        bool currentTimeThresholdDirty = false;
+        deserializeObject(data, pos, currentTimeThresholdDirty);
+        if (currentTimeThresholdDirty) {
+            if (!safeToRead()) return;
+            deserializeObject(data, pos, SyncHelper::instance().variables.timeThreshold);
+        }
+
         deserializeObject(data, pos, SyncHelper::instance().variables.paused);
 
         // MpvObject variables - conditionally synced
@@ -437,6 +459,19 @@ static void decode(const std::vector<std::byte> &data) {
             deserializeObject(data, pos, SyncHelper::instance().variables.timeThresholdSetSkips);
             deserializeObject(data, pos, SyncHelper::instance().variables.timeThresholdEnabled);
             deserializeObject(data, pos, SyncHelper::instance().variables.timeThresholdOnLoopOnly);
+
+            // Frame sync - only sync when dirty to save bandwidth
+            if (!safeToRead()) return;
+            bool cFrameSyncDirty = false;
+            deserializeObject(data, pos, cFrameSyncDirty);
+            if (cFrameSyncDirty) {
+                if (!safeToRead()) return;
+                deserializeObject(data, pos, SyncHelper::instance().variables.frameSyncEnabled);
+                deserializeObject(data, pos, SyncHelper::instance().variables.frameSyncSeekThreshold);
+                deserializeObject(data, pos, SyncHelper::instance().variables.frameSyncSpeedAdjustThreshold);
+                deserializeObject(data, pos, SyncHelper::instance().variables.frameSyncMaxSpeedAdjust);
+                deserializeObject(data, pos, SyncHelper::instance().variables.frameSyncInitialOffset);
+            }
             deserializeObject(data, pos, SyncHelper::instance().variables.enableAudioOnNodes);
 
             if (SyncHelper::instance().variables.enableAudioOnNodes) {

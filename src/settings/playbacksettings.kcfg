@@ -62,5 +62,29 @@
       <label>MPV render API type used for video rendering (0 = OpenGL, 1 = OpenGL Next)</label>
       <default>0</default>
     </entry>
+    <entry name="UseFrameSyncCorrection" type="bool">
+      <label>Use frame sync correction (progressive speed adjustment + hard seek to stay in sync)</label>
+      <default>false</default>
+    </entry>
+    <entry name="FrameSyncSeekThreshold" type="double">
+      <label>Frame sync: time difference (seconds) before performing a hard seek</label>
+      <default>5.0</default>
+    </entry>
+    <entry name="FrameSyncSpeedAdjustThreshold" type="double">
+      <label>Frame sync: time difference (seconds) below which playback is considered in sync</label>
+      <default>0.02</default>
+    </entry>
+    <entry name="FrameSyncMaxSpeedAdjust" type="double">
+      <label>Frame sync: maximum playback speed adjustment (fraction, e.g. 0.5 = 50% faster/slower)</label>
+      <default>0.5</default>
+    </entry>
+    <entry name="FrameSyncInitialOffset" type="double">
+      <label>Frame sync: initial offset (seconds) applied to the target position on slaves</label>
+      <default>0.015</default>
+    </entry>
+    <entry name="FrameSyncSyncInterval" type="double">
+      <label>Frame sync: seconds between position sync updates</label>
+      <default>0.5</default>
+    </entry>
   </group>
 </kcfg>

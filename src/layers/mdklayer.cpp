@@ -194,7 +194,7 @@ double MdkLayer::remaining() {
         return 0.0;
 }
 
-bool MdkLayer::hasAudio() {
+bool MdkLayer::hasAudio() const {
     return false;
 }
 
@@ -256,6 +256,10 @@ bool MdkLayer::renderingIsOn() const {
     return m_data.updateRendering;
 }
 
+int MdkLayer::eofMode() const {
+    return m_data.eofMode;
+}
+
 void MdkLayer::setEOFMode(int eofMode) {
     if (eofMode != m_data.eofMode) {
         m_data.eofMode = eofMode;
@@ -307,11 +311,29 @@ void MdkLayer::setTimePosition(double timePos, bool updateTime) {
     }
 }
 
+bool MdkLayer::loopTimeEnabled() const {
+    return m_data.loopTimeEnabled;
+}
+
+double MdkLayer::loopTimeA() const {
+    return m_data.loopTimeA;
+}
+
+double MdkLayer::loopTimeB() const {
+    return m_data.loopTimeB;
+}
+
 void MdkLayer::setLoopTime(double A, double B, bool enabled) {
-    if (enabled) {
-        m_player->setRange(A, B);
-    } else {
-        m_player->setLoop(0);
+    if (enabled != m_data.loopTimeEnabled || A != m_data.loopTimeA || B != m_data.loopTimeB) {
+        m_data.loopTimeEnabled = enabled;
+        m_data.loopTimeA = A;
+        m_data.loopTimeB = B;
+
+        if (enabled) {
+            m_player->setRange(A, B);
+        } else {
+            m_player->setLoop(0);
+        }
     }
 }
 

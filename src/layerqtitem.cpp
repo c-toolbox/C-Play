@@ -251,17 +251,15 @@ double LayerQtItem::layerRemaining() const {
 
 int LayerQtItem::layerEofMode() const {
     if (m_layer && (m_layer->type() == BaseLayer::LayerType::VIDEO || m_layer->type() == BaseLayer::LayerType::AUDIO)) {
-        MpvLayer* mpvLayer = static_cast<MpvLayer*>(m_layer);
-        return mpvLayer->eofMode();
+        return m_layer->eofMode();
     }
     return -1;
 }
 
 void LayerQtItem::setLayerEofMode(int value) {
     if (m_layer && m_layer->isEnabled() && (m_layer->type() == BaseLayer::LayerType::VIDEO || m_layer->type() == BaseLayer::LayerType::AUDIO)) {
-        MpvLayer* mpvLayer = static_cast<MpvLayer*>(m_layer);
-        if (mpvLayer->eofMode() != value) {
-            mpvLayer->setEOFMode(value);
+        if (m_layer->eofMode() != value) {
+            m_layer->setEOFMode(value);
             Q_EMIT layerNeedsSave();
         }
         Q_EMIT layerValueChanged();
@@ -270,17 +268,15 @@ void LayerQtItem::setLayerEofMode(int value) {
 
 bool LayerQtItem::layerLoopTimeEnabled() const {
     if (m_layer && (m_layer->type() == BaseLayer::LayerType::VIDEO || m_layer->type() == BaseLayer::LayerType::AUDIO)) {
-        MpvLayer* mpvLayer = static_cast<MpvLayer*>(m_layer);
-        return mpvLayer->loopTimeEnabled();
+        return m_layer->loopTimeEnabled();
     }
     return false;
 }
 
 void LayerQtItem::setLayerLoopTimeEnabled(bool value) {
     if (m_layer && m_layer->isEnabled() && (m_layer->type() == BaseLayer::LayerType::VIDEO || m_layer->type() == BaseLayer::LayerType::AUDIO)) {
-        MpvLayer* mpvLayer = static_cast<MpvLayer*>(m_layer);
-        if (mpvLayer->loopTimeEnabled() != value) {
-            mpvLayer->setLoopTime(mpvLayer->loopTimeA(), mpvLayer->loopTimeB(), value);
+        if (m_layer->loopTimeEnabled() != value) {
+            m_layer->setLoopTime(m_layer->loopTimeA(), m_layer->loopTimeB(), value);
             Q_EMIT layerNeedsSave();
         }
         Q_EMIT layerValueChanged();
@@ -289,17 +285,15 @@ void LayerQtItem::setLayerLoopTimeEnabled(bool value) {
 
 double LayerQtItem::layerLoopTimeA() const {
     if (m_layer && (m_layer->type() == BaseLayer::LayerType::VIDEO || m_layer->type() == BaseLayer::LayerType::AUDIO)) {
-        MpvLayer* mpvLayer = static_cast<MpvLayer*>(m_layer);
-        return mpvLayer->loopTimeA();
+        return m_layer->loopTimeA();
     }
     return 0.0;
 }
 
 void LayerQtItem::setLayerLoopTimeA(double value) {
     if (m_layer && m_layer->isEnabled() && (m_layer->type() == BaseLayer::LayerType::VIDEO || m_layer->type() == BaseLayer::LayerType::AUDIO)) {
-        MpvLayer* mpvLayer = static_cast<MpvLayer*>(m_layer);
-        if (mpvLayer->loopTimeA() != value) {
-            mpvLayer->setLoopTime(value, mpvLayer->loopTimeB(), mpvLayer->loopTimeEnabled());
+        if (m_layer->loopTimeA() != value) {
+            m_layer->setLoopTime(value, m_layer->loopTimeB(), m_layer->loopTimeEnabled());
             Q_EMIT layerNeedsSave();
         }
         Q_EMIT layerValueChanged();
@@ -308,17 +302,15 @@ void LayerQtItem::setLayerLoopTimeA(double value) {
 
 double LayerQtItem::layerLoopTimeB() const {
     if (m_layer && (m_layer->type() == BaseLayer::LayerType::VIDEO || m_layer->type() == BaseLayer::LayerType::AUDIO)) {
-        MpvLayer* mpvLayer = static_cast<MpvLayer*>(m_layer);
-        return mpvLayer->loopTimeB();
+        return m_layer->loopTimeB();
     }
     return 0.0;
 }
 
 void LayerQtItem::setLayerLoopTimeB(double value) {
     if (m_layer && m_layer->isEnabled() && (m_layer->type() == BaseLayer::LayerType::VIDEO || m_layer->type() == BaseLayer::LayerType::AUDIO)) {
-        MpvLayer* mpvLayer = static_cast<MpvLayer*>(m_layer);
-        if (mpvLayer->loopTimeB() != value) {
-            mpvLayer->setLoopTime(mpvLayer->loopTimeA(), value, mpvLayer->loopTimeEnabled());
+        if (m_layer->loopTimeB() != value) {
+            m_layer->setLoopTime(m_layer->loopTimeA(), value, m_layer->loopTimeEnabled());
             Q_EMIT layerNeedsSave();
         }
         Q_EMIT layerValueChanged();

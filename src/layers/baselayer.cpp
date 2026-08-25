@@ -111,8 +111,6 @@ std::string BaseLayer::typeDescription(BaseLayer::LayerType e) {
     }
 }
 
-//Not supporting MDK in layers just yet...
-#undef MDK_SUPPORT
 #ifdef MDK_SUPPORT
 #define FUNC_V2 gl_adress_func_v2 opa2
 #else
@@ -138,14 +136,10 @@ BaseLayer *BaseLayer::createLayer(bool isMaster, int layerType, FUNC_V1, FUNC_V2
 #ifdef VIDEO_LAYER
     case static_cast<int>(BaseLayer::LayerType::VIDEO): {
 #ifdef MDK_SUPPORT
-        if (!isMaster) {
-            AdaptiveVideoLayer* newVideo = new AdaptiveVideoLayer(opa1, opa2);
-            newLayer = newVideo;
-        }
-        else {
-            VideoLayer* newVideo = new VideoLayer(opa1);
-            newLayer = newVideo;
-        }
+        // AdaptiveVideoLayer is used for slide layers on both master and nodes.
+        // The main video layer (main.cpp) always uses MPV directly.
+        AdaptiveVideoLayer* newVideo = new AdaptiveVideoLayer(opa1, opa2);
+        newLayer = newVideo;
 #else
         VideoLayer* newVideo = new VideoLayer(opa1);
         newLayer = newVideo;
@@ -388,6 +382,10 @@ bool BaseLayer::existOnMasterOnly() const {
     return m_existOnMasterOnly;
 }
 
+int BaseLayer::eofMode() const {
+    return -1;
+}
+
 void BaseLayer::setEOFMode(int) {
     // Overwrite in derived class
 }
@@ -402,6 +400,18 @@ void BaseLayer::setTimePosition(double, bool) {
 
 void BaseLayer::setLoopTime(double, double, bool) {
     // Overwrite in derived class
+}
+
+bool BaseLayer::loopTimeEnabled() const {
+    return false;
+}
+
+double BaseLayer::loopTimeA() const {
+    return 0.0;
+}
+
+double BaseLayer::loopTimeB() const {
+    return 0.0;
 }
 
 void BaseLayer::setValue(std::string, int) {

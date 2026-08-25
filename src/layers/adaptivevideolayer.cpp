@@ -222,12 +222,221 @@ bool AdaptiveVideoLayer::hasTexture() const {
     return true;
 }
 
+void AdaptiveVideoLayer::update(bool updateRendering) {
+    BaseLayer* sub = activeSubLayer();
+    if (!sub)
+        return;
+
+    // Propagate the file path to the active sub-layer so its own update() cycle
+    // (which compares loadedFile against filepath()) triggers loading. The base
+    // layer's m_filepath is set by decodeBaseCore/setFilePath on this composite.
+    if (sub->filepath() != filepath()) {
+        sub->setFilePath(filepath());
+    }
+
+    sub->update(updateRendering);
+}
+
+void AdaptiveVideoLayer::updateFrame() {
+    if (BaseLayer* sub = activeSubLayer())
+        sub->updateFrame();
+}
+
+bool AdaptiveVideoLayer::renderingIsOn() const {
+    BaseLayer* sub = m_mpl == MDK ? static_cast<BaseLayer*>(mdkVideoLayer.get()) : static_cast<BaseLayer*>(mpvVideoLayer.get());
+    return sub ? sub->renderingIsOn() : false;
+}
+
+void AdaptiveVideoLayer::reportSwap() {
+    if (BaseLayer* sub = activeSubLayer())
+        sub->reportSwap();
+}
+
+void AdaptiveVideoLayer::start() {
+    if (BaseLayer* sub = activeSubLayer())
+        sub->start();
+}
+
+void AdaptiveVideoLayer::stop() {
+    if (BaseLayer* sub = activeSubLayer())
+        sub->stop();
+}
+
+bool AdaptiveVideoLayer::pause() {
+    BaseLayer* sub = activeSubLayer();
+    return sub ? sub->pause() : true;
+}
+
+void AdaptiveVideoLayer::setPause(bool paused) {
+    if (BaseLayer* sub = activeSubLayer())
+        sub->setPause(paused);
+}
+
+double AdaptiveVideoLayer::position() {
+    BaseLayer* sub = activeSubLayer();
+    return sub ? sub->position() : 0.0;
+}
+
+void AdaptiveVideoLayer::setPosition(double pos) {
+    if (BaseLayer* sub = activeSubLayer())
+        sub->setPosition(pos);
+}
+
+double AdaptiveVideoLayer::duration() {
+    BaseLayer* sub = activeSubLayer();
+    return sub ? sub->duration() : 0.0;
+}
+
+double AdaptiveVideoLayer::remaining() {
+    BaseLayer* sub = activeSubLayer();
+    return sub ? sub->remaining() : 0.0;
+}
+
+bool AdaptiveVideoLayer::hasAudio() const {
+    BaseLayer* sub = m_mpl == MDK ? static_cast<BaseLayer*>(mdkVideoLayer.get()) : static_cast<BaseLayer*>(mpvVideoLayer.get());
+    return sub ? sub->hasAudio() : false;
+}
+
+int AdaptiveVideoLayer::audioId() {
+    BaseLayer* sub = activeSubLayer();
+    return sub ? sub->audioId() : -1;
+}
+
+void AdaptiveVideoLayer::setAudioId(int id) {
+    if (BaseLayer* sub = activeSubLayer())
+        sub->setAudioId(id);
+}
+
+bool AdaptiveVideoLayer::isAudioEnabled() const {
+    BaseLayer* sub = m_mpl == MDK ? static_cast<BaseLayer*>(mdkVideoLayer.get()) : static_cast<BaseLayer*>(mpvVideoLayer.get());
+    return sub ? sub->isAudioEnabled() : isMaster();
+}
+
+void AdaptiveVideoLayer::enableAudio(bool enabled) {
+    // Enable on both sub-layers so the active one is always in sync,
+    // regardless of which library ends up playing the file.
+    mpvVideoLayer->enableAudio(enabled);
+    mdkVideoLayer->enableAudio(enabled);
+}
+
+std::vector<Track>* AdaptiveVideoLayer::audioTracks() {
+    BaseLayer* sub = activeSubLayer();
+    return sub ? sub->audioTracks() : nullptr;
+}
+
+void AdaptiveVideoLayer::updateAudioOutput() {
+    if (BaseLayer* sub = activeSubLayer())
+        sub->updateAudioOutput();
+}
+
+void AdaptiveVideoLayer::setVolume(int v, bool storeLevel) {
+    BaseLayer::setVolume(v, storeLevel); // keep own volume level for alpha-based scaling
+    mpvVideoLayer->setVolume(v, false);
+    mdkVideoLayer->setVolume(v, false);
+}
+
+void AdaptiveVideoLayer::setVolumeMute(bool v) {
+    if (BaseLayer* sub = activeSubLayer())
+        sub->setVolumeMute(v);
+}
+
+void AdaptiveVideoLayer::setEOFMode(int eofMode) {
+    mpvVideoLayer->setEOFMode(eofMode);
+    mdkVideoLayer->setEOFMode(eofMode);
+}
+
+void AdaptiveVideoLayer::setTimePause(bool paused, bool updateTime) {
+    if (BaseLayer* sub = activeSubLayer())
+        sub->setTimePause(paused, updateTime);
+}
+
+void AdaptiveVideoLayer::setTimePosition(double timePos, bool updateTime) {
+    if (BaseLayer* sub = activeSubLayer())
+        sub->setTimePosition(timePos, updateTime);
+}
+
+void AdaptiveVideoLayer::setLoopTime(double A, double B, bool enabled) {
+    if (BaseLayer* sub = activeSubLayer())
+        sub->setLoopTime(A, B, enabled);
+}
+
+int AdaptiveVideoLayer::eofMode() const {
+    BaseLayer* sub = m_mpl == MDK ? static_cast<BaseLayer*>(mdkVideoLayer.get()) : static_cast<BaseLayer*>(mpvVideoLayer.get());
+    return sub ? sub->eofMode() : -1;
+}
+
+bool AdaptiveVideoLayer::loopTimeEnabled() const {
+    BaseLayer* sub = m_mpl == MDK ? static_cast<BaseLayer*>(mdkVideoLayer.get()) : static_cast<BaseLayer*>(mpvVideoLayer.get());
+    return sub ? sub->loopTimeEnabled() : false;
+}
+
+double AdaptiveVideoLayer::loopTimeA() const {
+    BaseLayer* sub = m_mpl == MDK ? static_cast<BaseLayer*>(mdkVideoLayer.get()) : static_cast<BaseLayer*>(mpvVideoLayer.get());
+    return sub ? sub->loopTimeA() : 0.0;
+}
+
+double AdaptiveVideoLayer::loopTimeB() const {
+    BaseLayer* sub = m_mpl == MDK ? static_cast<BaseLayer*>(mdkVideoLayer.get()) : static_cast<BaseLayer*>(mpvVideoLayer.get());
+    return sub ? sub->loopTimeB() : 0.0;
+}
+
+void AdaptiveVideoLayer::setValue(std::string param, int val) {
+    // MPV-specific property; only forward to the mpv sub-layer when it is active.
+    if (m_mpl == MPV && mpvVideoLayer)
+        mpvVideoLayer->setValue(param, val);
+}
+
+unsigned int AdaptiveVideoLayer::textureId() const {
+    BaseLayer* sub = m_mpl == MDK ? static_cast<BaseLayer*>(mdkVideoLayer.get()) : static_cast<BaseLayer*>(mpvVideoLayer.get());
+    return sub ? sub->textureId() : 0;
+}
+
+int AdaptiveVideoLayer::width() const {
+    BaseLayer* sub = m_mpl == MDK ? static_cast<BaseLayer*>(mdkVideoLayer.get()) : static_cast<BaseLayer*>(mpvVideoLayer.get());
+    return sub ? sub->width() : 0;
+}
+
+int AdaptiveVideoLayer::height() const {
+    BaseLayer* sub = m_mpl == MDK ? static_cast<BaseLayer*>(mdkVideoLayer.get()) : static_cast<BaseLayer*>(mpvVideoLayer.get());
+    return sub ? sub->height() : 0;
+}
+
+void AdaptiveVideoLayer::encodeTypeAlways(std::vector<std::byte>& data) {
+    // Same wire format as MpvLayer/MdkLayer (mediaShouldPause, timeToSet/position, timeIsDirty).
+    if (BaseLayer* sub = activeSubLayer())
+        sub->encodeTypeAlways(data);
+}
+
+void AdaptiveVideoLayer::decodeTypeAlways(const std::vector<std::byte>& data, unsigned int& pos) {
+    // Same wire format as MpvLayer/MdkLayer (mediaShouldPause, timeToSet/position, timeIsDirty).
+    bool mediaShouldPause = false;
+    double timeToSet = 0.0;
+    bool timeIsDirty = false;
+
+    sgct::deserializeObject(data, pos, mediaShouldPause);
+    sgct::deserializeObject(data, pos, timeToSet);
+    sgct::deserializeObject(data, pos, timeIsDirty);
+
+    // Apply to both sub-layers so the active one (whichever library ends up playing)
+    // has correct state. Both implementations are safe no-ops when uninitialized.
+    mpvVideoLayer->setTimePause(mediaShouldPause, false);
+    mpvVideoLayer->setTimePosition(timeToSet, timeIsDirty);
+    mdkVideoLayer->setTimePause(mediaShouldPause, false);
+    mdkVideoLayer->setTimePosition(timeToSet, timeIsDirty);
+}
+
+BaseLayer* AdaptiveVideoLayer::activeSubLayer() const {
+    if (m_mpl == MDK)
+        return mdkVideoLayer.get();
+    return mpvVideoLayer.get();
+}
+
 BaseLayer* AdaptiveVideoLayer::get() {
     if (m_mpl == AdaptiveVideoLayer::MediaPlayerLibrary::MDK) {
-        return mdkVideoLayer;
+        return mdkVideoLayer.get();
     }
     else {
-        return mpvVideoLayer;
+        return mpvVideoLayer.get();
     }
 }
 

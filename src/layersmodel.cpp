@@ -1103,7 +1103,7 @@ void LayersModel::decodeFromJSON(QJsonObject &obj, const QStringList &forRelativ
                     }
 
                     if ((type == BaseLayer::VIDEO || type == BaseLayer::AUDIO)) {
-                        MpvLayer* mpvLayer = static_cast<MpvLayer*>(m_layers[idx].first.get());
+                        BaseLayer* baseLayer = m_layers[idx].first.get();
                         if (o.contains(QStringLiteral("end_of_file"))) {
                             int eofMode = 2; // Loop by default
                             QString eofModeText = o.value(QStringLiteral("end_of_file")).toString();
@@ -1113,13 +1113,13 @@ void LayersModel::decodeFromJSON(QJsonObject &obj, const QStringList &forRelativ
                             else if (eofModeText == QStringLiteral("loop")) {
                                 eofMode = 2;
                             }
-                            mpvLayer->setEOFMode(eofMode);
+                            baseLayer->setEOFMode(eofMode);
                         }
                         if (o.contains(QStringLiteral("section_enabled"))) {
                             bool loopEnabled = o.value(QStringLiteral("section_enabled")).toBool();
                             double loopA = o.contains(QStringLiteral("time_start")) ? o.value(QStringLiteral("time_start")).toDouble() : 0.0;
                             double loopB = o.contains(QStringLiteral("time_end")) ? o.value(QStringLiteral("time_end")).toDouble() : 0.0;
-                            mpvLayer->setLoopTime(loopA, loopB, loopEnabled);
+                            baseLayer->setLoopTime(loopA, loopB, loopEnabled);
                         }
                     }
 
@@ -1484,9 +1484,8 @@ void LayersModel::encodeToJSON(QJsonObject &obj, const QStringList &forRelativeP
                 layerData.insert(QStringLiteral("volume"), QJsonValue(layer->volume()));
                 layerData.insert(QStringLiteral("audioId"), QJsonValue(layer->audioId()));
             }
-            MpvLayer* mpvLayer = static_cast<MpvLayer*>(layer.get());
-            if (mpvLayer->eofMode() >= 0) {
-                int eofMode = mpvLayer->eofMode();
+            if (layer->eofMode() >= 0) {
+                int eofMode = layer->eofMode();
                 QString eofModeText;
                 switch (eofMode) {
                 case 0:
@@ -1501,10 +1500,10 @@ void LayersModel::encodeToJSON(QJsonObject &obj, const QStringList &forRelativeP
                 }
                 layerData.insert(QStringLiteral("end_of_file"), QJsonValue(eofModeText));
             }
-            if (mpvLayer->loopTimeEnabled()) {
-                layerData.insert(QStringLiteral("section_enabled"), QJsonValue(mpvLayer->loopTimeEnabled()));
-                layerData.insert(QStringLiteral("time_start"), QJsonValue(mpvLayer->loopTimeA()));
-                layerData.insert(QStringLiteral("time_end"), QJsonValue(mpvLayer->loopTimeB()));
+            if (layer->loopTimeEnabled()) {
+                layerData.insert(QStringLiteral("section_enabled"), QJsonValue(layer->loopTimeEnabled()));
+                layerData.insert(QStringLiteral("time_start"), QJsonValue(layer->loopTimeA()));
+                layerData.insert(QStringLiteral("time_end"), QJsonValue(layer->loopTimeB()));
             }
         }
 

@@ -32,6 +32,9 @@ public:
         double timePos = 0;
         double timeToSet = 0;
         bool timeIsDirty = false;
+        bool loopTimeEnabled = false;
+        double loopTimeA = 0.0;
+        double loopTimeB = 0.0;
         onFileLoadedCallback fileLoadedCallback = nullptr;
     };
 
@@ -64,7 +67,7 @@ public:
     double duration();
     double remaining();
 
-    bool hasAudio();
+    bool hasAudio() const override;
     int audioId();
     void setAudioId(int id);
     std::vector<Track>* audioTracks();
@@ -79,10 +82,14 @@ public:
 
     bool renderingIsOn() const;
 
-    void setEOFMode(int eofMode);
-    void setTimePause(bool paused, bool updateTime = true);
-    void setTimePosition(double timePos, bool updateTime = true);
-    void setLoopTime(double A, double B, bool enabled);
+    int eofMode() const override;
+    void setEOFMode(int eofMode) override;
+    void setTimePause(bool paused, bool updateTime = true) override;
+    void setTimePosition(double timePos, bool updateTime = true) override;
+    bool loopTimeEnabled() const override;
+    double loopTimeA() const override;
+    double loopTimeB() const override;
+    void setLoopTime(double A, double B, bool enabled) override;
     void setValue(std::string param, int val);
 
     void updateFbo();

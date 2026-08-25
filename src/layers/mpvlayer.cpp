@@ -10,6 +10,7 @@
 #include "audiosettings.h"
 #include "track.h"
 #include "qthelper.h"
+#include "utils/framesynccontroller.h"
 #include <sgct/sgct.h>
 
 void loadTracks(MpvLayer::mpvData& vd) {
@@ -417,7 +418,13 @@ void MpvLayer::update(bool updateRendering) {
 
         if (!isMaster()) {
             setTimePause(m_data.mediaShouldPause, false);
-            setTimePosition(m_data.timeToSet, m_data.timeIsDirty);
+            const SyncHelper::SyncVariables& v = SyncHelper::instance().variables;
+            if (v.frameSyncEnabled) {
+                updateFrameSyncSettings();
+                applyFrameSyncCorrection(m_data.timeToSet, position(), v.playbackSpeed);
+            } else {
+                setTimePosition(m_data.timeToSet, m_data.timeIsDirty);
+            }
             m_data.timeIsDirty = false;
             if (m_data.typePropertiesDecode) {
                 enableAudio(m_data.audioEnabled_Dec);
@@ -799,6 +806,47 @@ double MpvLayer::loopTimeB() const {
 void MpvLayer::setValue(std::string param, int val) {
     if (m_data.mpvInitialized) {
         mpv::qt::set_property_async(m_data.handle, QString::fromStdString(param), val);
+    }
+}
+
+void MpvLayer::setSpeed(double speed) {
+    if (m_data.mpvInitialized) {
+        mpv::qt::set_property_async(m_data.handle, QStringLiteral("speed"), speed);
+    }
+}
+
+double MpvLayer::speed() {
+    if (m_data.handle && m_data.mpvInitialized) {
+        return mpv::qt::get_property(m_data.handle, QStringLiteral("speed")).toDouble();
+    }
+    return 1.0;
+}
+
+void MpvLayer::updateFrameSyncSettings() {
+    // Frame sync tunables are mirrored from the master into SyncVariables
+    // (see MpvObject::updateFrameSyncSettings), so slaves read the synced values.
+    const SyncHelper::SyncVariables& v = SyncHelper::instance().variables;
+    m_frameSyncController.configure(
+        v.frameSyncSeekThreshold,
+        v.frameSyncSpeedAdjustThreshold,
+        v.frameSyncMaxSpeedAdjust,
+        v.frameSyncInitialOffset);
+}
+
+void MpvLayer::applyFrameSyncCorrection(double masterPos, double slavePos, double baseSpeed) {
+    FrameSyncController::Decision d = m_frameSyncController.decide(masterPos, slavePos, baseSpeed);
+    switch (d.action) {
+    case FrameSyncController::Action::None:
+        if (baseSpeed != speed()) {
+            setSpeed(baseSpeed);
+        }
+        break;
+    case FrameSyncController::Action::SpeedAdjust:
+        setSpeed(d.speed);
+        break;
+    case FrameSyncController::Action::HardSeek:
+        setTimePosition(d.seekTarget, true);
+        break;
     }
 }
 

@@ -162,9 +162,13 @@ public:
 
     virtual bool existOnMasterOnly() const;
 
+    virtual int eofMode() const;
     virtual void setEOFMode(int eofMode);
     virtual void setTimePause(bool paused, bool updateTime = true);
     virtual void setTimePosition(double timePos, bool updateTime = true);
+    virtual bool loopTimeEnabled() const;
+    virtual double loopTimeA() const;
+    virtual double loopTimeB() const;
     virtual void setLoopTime(double A, double B, bool enabled);
     virtual void setValue(std::string param, int val);
 
@@ -242,8 +246,8 @@ public:
     int volume() const;
     virtual unsigned int textureId() const;
     virtual unsigned int textureInternalFormat() const;
-    int width() const;
-    int height() const;
+    virtual int width() const;
+    virtual int height() const;
 
     float alpha() const;
     void setAlpha(float a);

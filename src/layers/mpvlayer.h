@@ -14,6 +14,7 @@
 #include <mutex>
 #include <render_gl.h>
 #include <functional>
+#include "utils/framesynccontroller.h"
 
 class MpvLayer : public BaseLayer {
 public:
@@ -137,19 +138,24 @@ public:
 
     bool renderingIsOn() const;
 
-    int eofMode() const;
-    void setEOFMode(int eofMode);
-    void setTimePause(bool paused, bool updateTime = true);
-    void setTimePosition(double timePos, bool updateTime = true);
-    bool loopTimeEnabled() const;
-    double loopTimeA() const;
-    double loopTimeB() const;
+    int eofMode() const override;
+    void setEOFMode(int eofMode) override;
+    void setTimePause(bool paused, bool updateTime = true) override;
+    void setTimePosition(double timePos, bool updateTime = true) override;
+    bool loopTimeEnabled() const override;
+    double loopTimeA() const override;
+    double loopTimeB() const override;
     void setLoopTime(double A, double B, bool enabled);
     void setValue(std::string param, int val);
+    void setSpeed(double speed);
+    double speed();
+    void updateFrameSyncSettings();
+    void applyFrameSyncCorrection(double masterPos, double slavePos, double baseSpeed);
 
 protected:
     mpvData m_data;
     gl_adress_func_v1 m_openglProcAdr;
+    FrameSyncController m_frameSyncController;
 };
 
 #endif // MPVLAYER_H
