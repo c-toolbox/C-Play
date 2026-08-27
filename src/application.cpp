@@ -155,6 +155,7 @@ Application::Application(int &argc, char **argv, const QString &applicationName)
     m_schemes = KColorSchemeManager::instance();
     m_systemDefaultStyle = m_app->style()->objectName();
     m_streamsModel = new StreamModel(this);
+    m_mpvOptionsModel = new MpvOptionsModel(this);
     m_httpClientModel = new HttpClientModel(this);
     m_wwsClientModel = new WwsClientModel(this);
 #ifdef NDI_SUPPORT
@@ -532,6 +533,21 @@ void Application::setStreamsModel(StreamModel* model) {
     Q_EMIT streamsModelChanged();
 }
 
+MpvOptionsModel* Application::mpvOptionsModel() {
+    return m_mpvOptionsModel;
+}
+
+void Application::setMpvOptionsModel(MpvOptionsModel* model) {
+    if (m_mpvOptionsModel == model) {
+        return;
+    }
+    if (model && !model->parent()) {
+        model->setParent(this);
+    }
+    m_mpvOptionsModel = model;
+    Q_EMIT mpvOptionsModelChanged();
+}
+
 HttpClientModel* Application::httpClientModel() {
     return m_httpClientModel;
 }
@@ -669,6 +685,35 @@ bool Application::getFontPath(const std::string& inFontName, std::string& outPat
         return true;
     }
     return false;
+}
+
+static QString mpvConfRootPath() {
+    // Derive the mpv-conf root (e.g. ./data/mpv-conf/) from the configured
+    // global config file path (e.g. ./data/mpv-conf/<folder>/all.json),
+    // i.e. the parent of the parent directory. Fallback to ./data/mpv-conf/.
+    QString confAll = QString::fromStdString(SyncHelper::instance().configuration.confAll);
+    QFileInfo confAllInfo(confAll);
+    QDir folderDir = confAllInfo.absoluteDir();
+    if (folderDir.cdUp()) {
+        QString root = folderDir.absolutePath();
+        if (QDir(root).exists()) {
+            return root;
+        }
+    }
+
+    // Fallback: data is installed next to the executable under bin/data.
+    QString appDirRoot = QCoreApplication::applicationDirPath() + QStringLiteral("/data/mpv-conf");
+    if (QDir(appDirRoot).exists()) {
+        return appDirRoot;
+    }
+
+    return QStringLiteral("./data/mpv-conf");
+}
+
+QString Application::mpvOptionsPath(const QString &name, const QString &suffix) {
+    if (name.isEmpty())
+        return QStringLiteral("");
+    return mpvConfRootPath() + QStringLiteral("/") + name + suffix + QStringLiteral(".json");
 }
 
 QStringList Application::availableGuiStyles() {

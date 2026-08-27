@@ -1,0 +1,5 @@
+{
+	"hwdec": "no",
+	"alpha": "yes",
+	"vd": "libvpx-vp9,libvpx"
+}

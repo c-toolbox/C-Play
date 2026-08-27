@@ -266,6 +266,41 @@ void LayerQtItem::setLayerEofMode(int value) {
     }
 }
 
+QString LayerQtItem::layerMpvOptions() const {
+    if (m_layer && (m_layer->type() == BaseLayer::LayerType::VIDEO || m_layer->type() == BaseLayer::LayerType::AUDIO || m_layer->type() == BaseLayer::LayerType::STREAM)) {
+        const MpvLayer* mpvLayer = static_cast<const MpvLayer*>(m_layer);
+        return QString::fromStdString(mpvLayer->mpvOptionsName());
+    }
+    return QStringLiteral("");
+}
+
+void LayerQtItem::setLayerMpvOptions(QString value) {
+    if (m_layer && m_layer->isEnabled() && (m_layer->type() == BaseLayer::LayerType::VIDEO || m_layer->type() == BaseLayer::LayerType::AUDIO || m_layer->type() == BaseLayer::LayerType::STREAM)) {
+        MpvLayer* mpvLayer = static_cast<MpvLayer*>(m_layer);
+        if (QString::fromStdString(mpvLayer->mpvOptionsName()) != value) {
+            mpvLayer->setMpvOptionsName(value.toStdString());
+            Q_EMIT layerNeedsSave();
+        }
+        Q_EMIT layerValueChanged();
+    }
+}
+
+QString LayerQtItem::layerMpvOptionsSuffix() const {
+    if (m_layer) {
+        switch (m_layer->type()) {
+        case BaseLayer::LayerType::VIDEO:
+            return QStringLiteral("_video");
+        case BaseLayer::LayerType::AUDIO:
+            return QStringLiteral("_audio");
+        case BaseLayer::LayerType::STREAM:
+            return QStringLiteral("_stream");
+        default:
+            break;
+        }
+    }
+    return QStringLiteral("");
+}
+
 bool LayerQtItem::layerLoopTimeEnabled() const {
     if (m_layer && (m_layer->type() == BaseLayer::LayerType::VIDEO || m_layer->type() == BaseLayer::LayerType::AUDIO)) {
         return m_layer->loopTimeEnabled();

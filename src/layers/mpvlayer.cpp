@@ -12,6 +12,9 @@
 #include "qthelper.h"
 #include "utils/framesynccontroller.h"
 #include <sgct/sgct.h>
+#include <QCoreApplication>
+#include <QDir>
+#include <QFileInfo>
 
 void loadTracks(MpvLayer::mpvData& vd) {
     if (vd.handle && vd.mpvInitialized && !vd.loadedFile.empty()) {
@@ -50,6 +53,55 @@ void loadAudioId(MpvLayer::mpvData& vd) {
             mpv::qt::set_property(vd.handle, QStringLiteral("aid"), vd.audioId, vd.loggingOn);
         }
     }
+}
+
+// Resolve the root folder containing the per-layer mpv options files.
+// Mirrors the logic used by MpvOptionsModel so the UI and the loader agree.
+static std::string mpvConfRootFolder() {
+    const QString confAll = QString::fromStdString(SyncHelper::instance().configuration.confAll);
+    if (!confAll.isEmpty()) {
+        QDir dir = QFileInfo(confAll).absoluteDir();
+        if (dir.cdUp() && dir.exists())
+            return dir.absolutePath().toStdString();
+    }
+
+    const QString nextToApp = QCoreApplication::applicationDirPath() + QStringLiteral("/data/mpv-conf");
+    if (QDir(nextToApp).exists())
+        return nextToApp.toStdString();
+
+    return "./data/mpv-conf";
+}
+
+// Build the per-layer mpv options file path based on the layer type suffix.
+// Returns an empty string if no options should be applied, or if the file
+// does not exist (a missing options file is not an error, we simply keep the
+// global configuration).
+std::string mpvOptionsFilePath(const MpvLayer::mpvData& vd) {
+    if (vd.mpvOptionsName.empty())
+        return "";
+
+    std::string suffix;
+    switch (static_cast<BaseLayer::LayerType>(vd.layerType)) {
+    case BaseLayer::VIDEO:
+        suffix = "_video";
+        break;
+    case BaseLayer::AUDIO:
+        suffix = "_audio";
+        break;
+    case BaseLayer::STREAM:
+        suffix = "_stream";
+        break;
+    default:
+        return "";
+    }
+
+    const std::string path = mpvConfRootFolder() + "/" + vd.mpvOptionsName + suffix + ".json";
+    if (!QFileInfo::exists(QString::fromStdString(path))) {
+        sgct::Log::Warning(std::format("Could not find mpv options file: {}. Using global settings only.", path));
+        return "";
+    }
+
+    return path;
 }
 
 void on_mpv_events(MpvLayer::mpvData &vd, BaseLayer::RenderParams) {
@@ -267,6 +319,14 @@ bool initMPV(MpvLayer::mpvData& vd) {
         mpv::qt::load_configurations(vd.handle, QString::fromStdString(SyncHelper::instance().configuration.confNodesOnly));
     }
 
+    // Apply per-layer options (after global settings so they take precedence)
+    std::string layerOptionsPath = mpvOptionsFilePath(vd);
+    if (!layerOptionsPath.empty()) {
+        mpv::qt::load_configurations(vd.handle, QString::fromStdString(layerOptionsPath));
+    }
+    vd.mpvOptionsNameApplied = vd.mpvOptionsName;
+    vd.mpvOptionsApplied = true;
+
     if (vd.supportVideo) {
         if (vd.allowDirectRendering) {
             // Run with direct rendering if requested
@@ -330,6 +390,7 @@ MpvLayer::~MpvLayer() = default;
 void MpvLayer::initialize() {
     m_hasInitialized = true;
     m_data.isMaster = isMaster();
+    m_data.layerType = static_cast<int>(type());
 }
 
 void MpvLayer::initializeMpv() {
@@ -434,6 +495,7 @@ void MpvLayer::update(bool updateRendering) {
                 setVolumeMute(m_data.volumeMute_Dec);
                 setEOFMode(m_data.eofMode_Dec);
                 setLoopTime(m_data.loopTimeA_Dec, m_data.loopTimeB_Dec, m_data.loopTimeEnabled_Dec);
+                setMpvOptionsName(m_data.mpvOptionsName_Dec);
                 m_data.typePropertiesDecode = false;
             }
         }
@@ -662,6 +724,7 @@ void MpvLayer::encodeTypeProperties(std::vector<std::byte>& data) {
     sgct::serializeObject(data, m_data.loopTimeEnabled);
     sgct::serializeObject(data, m_data.loopTimeA);
     sgct::serializeObject(data, m_data.loopTimeB);
+    sgct::serializeObject(data, m_data.mpvOptionsName);
 }
 
 void MpvLayer::decodeTypeProperties(const std::vector<std::byte>& data, unsigned int& pos) {
@@ -676,6 +739,7 @@ void MpvLayer::decodeTypeProperties(const std::vector<std::byte>& data, unsigned
     sgct::deserializeObject(data, pos, m_data.loopTimeEnabled_Dec);
     sgct::deserializeObject(data, pos, m_data.loopTimeA_Dec);
     sgct::deserializeObject(data, pos, m_data.loopTimeB_Dec);
+    sgct::deserializeObject(data, pos, m_data.mpvOptionsName_Dec);
     m_data.typePropertiesDecode = true;
 }
 
@@ -686,6 +750,11 @@ void MpvLayer::loadFile(std::string filePath, bool reload) {
         m_data.updateRendering = false;
         m_data.loadedFile = filePath;
         m_data.audioTracks.clear();
+
+        // Re-apply global settings first, then the layer-specific options,
+        // so options persist across file loads (mpv may reset them per file).
+        m_data.mpvOptionsApplied = false;
+        applyMpvOptions();
 
         // Build command options list (mirrors MpvObject::loadItem behavior)
         QStringList optionsList;
@@ -852,6 +921,51 @@ void MpvLayer::applyFrameSyncCorrection(double masterPos, double slavePos, doubl
 
 void MpvLayer::setAudioFile(const std::string &audioFile) {
     m_data.audioFile = audioFile;
+}
+
+std::string MpvLayer::mpvOptionsName() const {
+    return m_data.mpvOptionsName;
+}
+
+void MpvLayer::setMpvOptionsName(const std::string &name) {
+    if (m_data.mpvOptionsName == name)
+        return;
+
+    m_data.mpvOptionsName = name;
+    // The selection changed, so the currently loaded configuration is stale.
+    m_data.mpvOptionsApplied = false;
+
+    applyMpvOptions();
+
+    if (isMaster())
+        setNeedSync();
+}
+
+void MpvLayer::applyMpvOptions() {
+    if (!m_data.mpvInitialized)
+        return;
+
+    // Only push configuration to mpv when it has not been applied yet for the
+    // current options identifier. This keeps repeated sync updates cheap.
+    if (m_data.mpvOptionsApplied && m_data.mpvOptionsNameApplied == m_data.mpvOptionsName)
+        return;
+
+    // Re-apply global settings first, then the layer-specific options
+    mpv::qt::load_configurations(m_data.handle, QString::fromStdString(SyncHelper::instance().configuration.confAll));
+    if (isMaster()) {
+        mpv::qt::load_configurations(m_data.handle, QString::fromStdString(SyncHelper::instance().configuration.confMasterOnly));
+    }
+    else {
+        mpv::qt::load_configurations(m_data.handle, QString::fromStdString(SyncHelper::instance().configuration.confNodesOnly));
+    }
+
+    std::string optionsPath = mpvOptionsFilePath(m_data);
+    if (!optionsPath.empty()) {
+        mpv::qt::load_configurations(m_data.handle, QString::fromStdString(optionsPath));
+    }
+
+    m_data.mpvOptionsNameApplied = m_data.mpvOptionsName;
+    m_data.mpvOptionsApplied = true;
 }
 
 void MpvLayer::reportSwap() {

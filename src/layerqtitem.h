@@ -80,6 +80,8 @@ class LayerQtItem : public QQuickItem {
     Q_PROPERTY(double layerDuration READ layerDuration NOTIFY layerPositionChanged)
     Q_PROPERTY(double layerRemaining READ layerRemaining NOTIFY layerPositionChanged)
     Q_PROPERTY(int layerEofMode READ layerEofMode WRITE setLayerEofMode NOTIFY layerValueChanged)
+    Q_PROPERTY(QString layerMpvOptions READ layerMpvOptions WRITE setLayerMpvOptions NOTIFY layerValueChanged)
+    Q_PROPERTY(QString layerMpvOptionsSuffix READ layerMpvOptionsSuffix NOTIFY layerValueChanged)
     Q_PROPERTY(bool layerLoopTimeEnabled READ layerLoopTimeEnabled WRITE setLayerLoopTimeEnabled NOTIFY layerValueChanged)
     Q_PROPERTY(double layerLoopTimeA READ layerLoopTimeA WRITE setLayerLoopTimeA NOTIFY layerValueChanged)
     Q_PROPERTY(double layerLoopTimeB READ layerLoopTimeB WRITE setLayerLoopTimeB NOTIFY layerValueChanged)
@@ -166,6 +168,10 @@ public:
 
     int layerEofMode() const;
     void setLayerEofMode(int value);
+
+    QString layerMpvOptions() const;
+    void setLayerMpvOptions(QString value);
+    QString layerMpvOptionsSuffix() const;
 
     bool layerLoopTimeEnabled() const;
     void setLayerLoopTimeEnabled(bool value);

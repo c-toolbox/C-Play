@@ -772,123 +772,207 @@ Kirigami.ApplicationWindow {
             }
         }
         Component {
+            id: mpvOptionsComponent
+
+            RowLayout {
+                id: mpvOptionsRow
+
+                // Nothing to choose from besides "Use global settings", so hide it entirely.
+                visible: app.mpvOptionsModel.numberOfOptions > 1
+
+                function optionsLabel() {
+                    if (layerViewItem.layerMpvOptionsSuffix === "_audio")
+                        return qsTr("Audio Options:");
+                    if (layerViewItem.layerMpvOptionsSuffix === "_stream")
+                        return qsTr("Stream Options:");
+                    return qsTr("Video Options:");
+                }
+
+                function refreshOptions() {
+                    app.mpvOptionsModel.updateOptionsList(layerViewItem.layerMpvOptionsSuffix);
+                    mpvOptionsLabel.text = optionsLabel();
+                    mpvOptionsComboBox.currentIndex = app.mpvOptionsModel.indexOfOption(layerViewItem.layerMpvOptions);
+                }
+
+                Component.onCompleted: {
+                    refreshOptions();
+                }
+
+                Connections {
+                    function onLayerValueChanged() {
+                        mpvOptionsRow.refreshOptions();
+                    }
+
+                    target: layerViewItem
+                }
+
+                Rectangle {
+                    color: Kirigami.Theme.alternateBackgroundColor
+                    implicitHeight: 35
+                    implicitWidth: mpvOptionsInnerRow.implicitWidth + 8
+                    radius: 5
+
+                    RowLayout {
+                        id: mpvOptionsInnerRow
+
+                        anchors.fill: parent
+                        anchors.leftMargin: 4
+
+                        Label {
+                            id: mpvOptionsLabel
+
+                            font.pointSize: 9
+                            text: mpvOptionsRow.optionsLabel()
+                        }
+                        ComboBox {
+                            id: mpvOptionsComboBox
+
+                            Layout.fillWidth: true
+                            focusPolicy: Qt.NoFocus
+                            implicitContentWidthPolicy: ComboBox.WidestText
+                            model: app.mpvOptionsModel
+                            textRole: "title"
+
+                            onActivated: {
+                                layerViewItem.layerMpvOptions = app.mpvOptionsModel.optionNameAt(index);
+                                app.slides.needsSync = true;
+                            }
+
+                            ToolTip {
+                                text: qsTr("Per-layer mpv options loaded from data/mpv-conf.")
+                            }
+                        }
+                    }
+                }
+            }
+        }
+        Component {
             id: audioComponent
             Row {
                 anchors.horizontalCenter: parent.horizontalCenter
                 anchors.top: parent.top
                 topPadding: 20
-                enabled: layerViewItem.layerHasAudio
-
-                onEnabledChanged: {
-                    if (enabled){
-                        layerViewItem.loadTracks();
-                    }
-                }
 
                 RowLayout {
-                    Rectangle {
-                        color: Kirigami.Theme.alternateBackgroundColor
-                        implicitHeight: 35
-                        implicitWidth: 100
-                        radius: 5
-                        visible: !layerViewItem.layerHasAudio || layerViewItem.audioTracksModel.countTracks() > 0
+                    RowLayout {
+                        id: audioControls
 
-                        ToolButton {
-                            focusPolicy: Qt.NoFocus
-                            icon.color: layerViewItem.layerHasAudio ? "lime" : "crimson"
-                            icon.name: "new-audio-alarm"
-                            text: qsTr("Audio File")
+                        enabled: layerViewItem.layerHasAudio
 
-                            onClicked: {
-                                if(layerViewItem.audioTracksModel.countTracks() > 0) {
-                                    if (audioMenuInstantiator.model === 0) {
-                                        audioMenuInstantiator.model = layerViewItem.audioTracksModel;
-                                        layerViewItem.layerValueChanged();
+                        onEnabledChanged: {
+                            if (enabled){
+                                layerViewItem.loadTracks();
+                            }
+                        }
+
+                        Rectangle {
+                            color: Kirigami.Theme.alternateBackgroundColor
+                            implicitHeight: 35
+                            implicitWidth: 100
+                            radius: 5
+                            visible: !layerViewItem.layerHasAudio || layerViewItem.audioTracksModel.countTracks() > 0
+
+                            ToolButton {
+                                focusPolicy: Qt.NoFocus
+                                icon.color: layerViewItem.layerHasAudio ? "lime" : "crimson"
+                                icon.name: "new-audio-alarm"
+                                text: qsTr("Audio File")
+
+                                onClicked: {
+                                    if(layerViewItem.audioTracksModel.countTracks() > 0) {
+                                        if (audioMenuInstantiator.model === 0) {
+                                            audioMenuInstantiator.model = layerViewItem.audioTracksModel;
+                                            layerViewItem.layerValueChanged();
+                                        }
+                                        audioMenu.visible = !audioMenu.visible;
                                     }
-                                    audioMenu.visible = !audioMenu.visible;
+                                }
+
+                                ToolTip {
+                                    text: "Choose the audio track/file that was loaded with the media."
+                                }
+                                Menu {
+                                    id: audioMenu
+
+                                    y: parent.height
+
+                                    Instantiator {
+                                        id: audioMenuInstantiator
+
+                                        model: 0
+
+                                        delegate: MenuItem {
+                                            id: audioMenuItem
+
+                                            checkable: true
+                                            checked: model.id === layerViewItem.layerAudioId
+                                            text: model.text
+
+                                            onTriggered: layerViewItem.layerAudioId = model.id
+                                        }
+
+                                        onObjectAdded: function(index, object) { audioMenu.insertItem(index, object) }
+                                        onObjectRemoved: function(index, object) { audioMenu.removeItem(object) }
+                                    }
                                 }
                             }
+                        }
+                        Slider {
+                            id: volumeSlider
 
-                            ToolTip {
-                                text: "Choose the audio track/file that was loaded with the media."
+                            from: 0
+                            implicitHeight: 25
+                            implicitWidth: 130
+                            leftPadding: 0
+                            rightPadding: 0
+                            to: 100
+                            wheelEnabled: false
+
+                            onValueChanged: {
+                                if (value.toFixed(0) !== layerViewItem.layerVolume) {
+                                    layerViewItem.layerVolume = value.toFixed(0);
+                                }
                             }
-                            Menu {
-                                id: audioMenu
+                            Component.onCompleted: {
+                                volumeSlider.value = layerViewItem.layerVolume;
+                            }
 
-                                y: parent.height
+                            background: Rectangle {
+                                color: Kirigami.Theme.alternateBackgroundColor
 
-                                Instantiator {
-                                    id: audioMenuInstantiator
+                                Rectangle {
+                                    color: Kirigami.Theme.highlightColor
+                                    height: parent.height
+                                    radius: 0
+                                    width: volumeSlider.visualPosition * parent.width
+                                }
+                            }
+                            handle: Item {
+                                visible: false
+                            }
 
-                                    model: 0
+                            Label {
+                                id: progressBarToolTip
 
-                                    delegate: MenuItem {
-                                        id: audioMenuItem
+                                anchors.centerIn: volumeSlider
+                                color: enabled ? "white" : "grey"
+                                font.pointSize: 9
+                                layer.enabled: true
+                                text: qsTr("Volume: %1\%").arg(Number(volumeSlider.value.toFixed(0)))
 
-                                        checkable: true
-                                        checked: model.id === layerViewItem.layerAudioId
-                                        text: model.text
-
-                                        onTriggered: layerViewItem.layerAudioId = model.id
-                                    }
-
-                                    onObjectAdded: function(index, object) { audioMenu.insertItem(index, object) }
-                                    onObjectRemoved: function(index, object) { audioMenu.removeItem(object) }
+                                layer.effect: DropShadow {
+                                    color: "#111"
+                                    radius: 5
+                                    samples: 17
+                                    spread: 0.3
+                                    verticalOffset: 1
                                 }
                             }
                         }
                     }
-                    Slider {
-                        id: volumeSlider
-
-                        from: 0
-                        implicitHeight: 25
-                        implicitWidth: 130
-                        leftPadding: 0
-                        rightPadding: 0
-                        to: 100
-                        wheelEnabled: false
-
-                        onValueChanged: {
-                            if (value.toFixed(0) !== layerViewItem.layerVolume) {
-                                layerViewItem.layerVolume = value.toFixed(0);
-                            }
-                        }
-                        Component.onCompleted: {
-                            volumeSlider.value = layerViewItem.layerVolume;
-                        }
-
-                        background: Rectangle {
-                            color: Kirigami.Theme.alternateBackgroundColor
-
-                            Rectangle {
-                                color: Kirigami.Theme.highlightColor
-                                height: parent.height
-                                radius: 0
-                                width: volumeSlider.visualPosition * parent.width
-                            }
-                        }
-                        handle: Item {
-                            visible: false
-                        }
-
-                        Label {
-                            id: progressBarToolTip
-
-                            anchors.centerIn: volumeSlider
-                            color: enabled ? "white" : "grey"
-                            font.pointSize: 9
-                            layer.enabled: true
-                            text: qsTr("Volume: %1\%").arg(Number(volumeSlider.value.toFixed(0)))
-
-                            layer.effect: DropShadow {
-                                color: "#111"
-                                radius: 5
-                                samples: 17
-                                spread: 0.3
-                                verticalOffset: 1
-                            }
-                        }
+                    Loader {
+                        sourceComponent: mpvOptionsComponent
+                        visible: app.mpvOptionsModel.numberOfOptions > 1
                     }
                     Connections {
                         function onLayerChanged() {
@@ -1310,6 +1394,10 @@ Kirigami.ApplicationWindow {
 
                             target: layerViewItem
                         }
+                    }
+                    Loader {
+                        sourceComponent: mpvOptionsComponent
+                        visible: app.mpvOptionsModel.numberOfOptions > 1
                     }
                 }
             }

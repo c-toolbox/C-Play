@@ -73,3 +73,51 @@ C-Play will load and play this video. However, even if you specified the use of 
 H265 is a newer format and a premier choice for streaming 4K content and beyond. While it takes longer to encode, it produces higher quality at smaller bitrates and results in smaller files than H264 at the same quality.
 
 However, H265 is much more complex to decode, and you might notice that if you try to play H265 files on the CPU with C-Play, it struggles a bit. However, the structure of H265 makes it much more suitable to be better decoded on the GPU. And the resolution specification of H265 goes up to 8K, meaning that a GPU decoding library (such as nvdec) will allow a 4K 3D side-by-side video (8K x 2K) in H265 to be decoded on the GPU.
+
+## Per-file MPV options
+
+In addition to the global MPV configuration folders described above, C-Play can apply extra MPV options to individual layers. This makes it possible to use special decoding settings for a single file (for instance a transparent video) without affecting any other layer.
+
+### Option files
+
+Per-file options are defined in JSON files placed directly in the *data/mpv-conf* directory (next to the global configuration folders, not inside them). The file name determines which layer type the options apply to:
+
+* *\<name\>_video.json* — video layers
+* *\<name\>_audio.json* — audio layers
+* *\<name\>_stream.json* — stream layers
+
+The *\<name\>* part is what identifies the option set in the user interface, so a file named *transparent_video.json* shows up as *transparent* for video layers. You can create as many option sets as you need, and the same name can be used with different suffixes to cover several layer types.
+
+C-Play ships with one such file, *transparent_video.json*, described below. The available files are scanned at runtime, so new files added to *data/mpv-conf* appear in the UI without restarting.
+
+### Selecting options for a layer
+
+Open the layer's view from the master UI. Video and audio layers have a **"Video Options"** dropdown next to the audio controls at the top of the window, and stream layers have the same dropdown in their stream controls. It lists *"Use global settings"* (the default) plus every option file found for that layer type.
+
+When an option set is selected, C-Play first applies the global configuration (*all.json* and *master-only.json* / *nodes-only.json*) and then loads the per-file options, so the per-file values take precedence over the global ones. Changing the selection re-applies the options to the layer's already running MPV instance.
+
+The selection is stored as part of the layer, so it is saved in *.cplayfile* files and synced to the nodes in a cluster setup (master and nodes must run the same C-Play version, and the option file must exist in *data/mpv-conf* on all computers).
+
+### Example: transparent videos
+
+C-Play supports playing back transparent videos, which have been tested with both VP9 and HAP formats. This is implemented as the shipped *data/mpv-conf/transparent_video.json* option file, which contains:
+
+```json
+	"hwdec": "no",
+	"alpha": "yes",
+	"vd": "libvpx-vp9,libvpx"
+```
+
+To use it, open the layer view of the video layer and select *transparent* in the **"Video Options"** dropdown.
+
+1) *"hwdec": "no"*
+
+This disables hardware decoding for the layer, since GPU decoders do not support alpha channel output. The video is decoded on the CPU instead.
+
+2) *"alpha": "yes"*
+
+This option tells MPV to enable alpha channel rendering, so the transparent parts of the video are displayed as transparent. HAP encoded files (and other formats) with alpha support should now playback with transparency.
+
+3) *"vd": "libvpx-vp9,libvpx"*
+
+This forces MPV to use the libvpx VP8 & VP9 decoders for these video formats, which support alpha channel decoding compared to the default VP8 & VP9 decoders.

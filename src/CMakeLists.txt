@@ -43,6 +43,8 @@ set(SOURCE_FILES
     layers/imagelayer.h
     layers/mpvlayer.cpp
     layers/mpvlayer.h
+    layers/mpvoptionsmodel.cpp
+    layers/mpvoptionsmodel.h
     layers/streamlayer.cpp
     layers/streamlayer.h
     layers/streammodel.cpp

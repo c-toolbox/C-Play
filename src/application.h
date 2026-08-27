@@ -33,6 +33,7 @@ class BaseLayer;
 #include "screensmodel.h"
 #include "slidesmodel.h"
 #include <layers/streammodel.h>
+#include <layers/mpvoptionsmodel.h>
 #include "httpclientmodel.h"
 #include "wwsclientmodel.h"
 #ifdef NDI_SUPPORT
@@ -65,6 +66,10 @@ Q_DECLARE_METATYPE(SlidesModel*)
 #ifndef METATYPE_StreamModel
 #define METATYPE_StreamModel
 Q_DECLARE_METATYPE(StreamModel*)
+#endif
+#ifndef METATYPE_MpvOptionsModel
+#define METATYPE_MpvOptionsModel
+Q_DECLARE_METATYPE(MpvOptionsModel*)
 #endif
 #ifndef METATYPE_HttpClientModel
 #define METATYPE_HttpClientModel
@@ -135,6 +140,7 @@ public:
     Q_INVOKABLE void configureShortcuts();
     Q_INVOKABLE void updateAboutOtherText(const QString &mpvVersion, const QString &ffmpegVersion);
     Q_INVOKABLE QString getStartupFile();
+    Q_INVOKABLE QString mpvOptionsPath(const QString &name, const QString &suffix);
 
     static QString version();
     Q_INVOKABLE static QString formatTime(const double time);
@@ -171,6 +177,14 @@ public:
 
     StreamModel* streamsModel();
     void setStreamsModel(StreamModel* model);
+
+    Q_PROPERTY(MpvOptionsModel* mpvOptionsModel
+        READ mpvOptionsModel
+        WRITE setMpvOptionsModel
+        NOTIFY mpvOptionsModelChanged)
+
+    MpvOptionsModel* mpvOptionsModel();
+    void setMpvOptionsModel(MpvOptionsModel* model);
 
     Q_PROPERTY(HttpClientModel* httpClientModel
         READ httpClientModel
@@ -233,6 +247,7 @@ Q_SIGNALS:
     void screensModelChanged();
     void slidesModelChanged();
     void streamsModelChanged();
+    void mpvOptionsModelChanged();
     void httpClientModelChanged();
     void wwsClientModelChanged();
 #ifdef NDI_SUPPORT
@@ -275,6 +290,7 @@ private:
     ScreensModel* m_screensModel;
     SlidesModel* m_slidesModel;
     StreamModel* m_streamsModel;
+    MpvOptionsModel* m_mpvOptionsModel;
     HttpClientModel* m_httpClientModel;
     WwsClientModel* m_wwsClientModel;
 #ifdef NDI_SUPPORT

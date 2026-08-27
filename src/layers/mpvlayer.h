@@ -50,6 +50,13 @@ public:
 
         // Optional separate audio file to pass via loadfile command (mirrors MpvObject behavior)
         std::string audioFile;
+        // Optional per-layer mpv options identifier (base name of <id>_<suffix>.json in data/mpv-conf)
+        std::string mpvOptionsName;
+        std::string mpvOptionsName_Dec = "";
+        // Last options identifier actually pushed to mpv, to avoid redundant re-loads
+        std::string mpvOptionsNameApplied = "";
+        bool mpvOptionsApplied = false;
+        int layerType = 0;
         int fboWidth = 0;
         int fboHeight = 0;
         int pendingWidth = 0;
@@ -126,6 +133,10 @@ public:
     void setVolumeMute(bool v);
     void setLoadAudioInVidFolder(bool v);
     void setAudioFile(const std::string &audioFile);
+
+    std::string mpvOptionsName() const;
+    void setMpvOptionsName(const std::string &name);
+    void applyMpvOptions();
 
     void encodeTypeAlways(std::vector<std::byte>& data);
     void decodeTypeAlways(const std::vector<std::byte>& data, unsigned int& pos);
