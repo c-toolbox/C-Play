@@ -19,6 +19,7 @@ import org.ctoolbox.cplay
 
 import "Menus"
 import "Settings"
+import "Components/PopupHelpers.js" as PopupHelpers
 
 Kirigami.ApplicationWindow {
     id: window
@@ -29,7 +30,7 @@ Kirigami.ApplicationWindow {
     property bool isIdleMode: false
     property bool hideUI: (isFullScreenMode || isIdleMode)
     property url newMediaFileToOpen: ""
-    property bool uiDropdownOpen: false  // True when any ComboBox/Menu dropdown is open in this ApplicationWindow
+    property bool uiPopupOpen: false  // True when any popup (Menu, ComboBox dropdown or Dialog) is open in this ApplicationWindow
 
     onClosing: {
         app.sendQuitToNodes();
@@ -82,16 +83,6 @@ Kirigami.ApplicationWindow {
         LocationSettings.save();
     }
 
-    function handleMenuOpen() {
-        window.uiDropdownOpen = true;
-        viewLayersIn3DRenderItem.uiDropdownOpen = true;
-    }
-
-    function handleMenuClose() {
-        window.uiDropdownOpen = false;
-        viewLayersIn3DRenderItem.uiDropdownOpen = false;
-    }
-
     Connections {
         function onActionsUpdated() {
             actions.updateShortcuts();
@@ -142,28 +133,28 @@ Kirigami.ApplicationWindow {
         }
 
         FileMenu {
-            onOpened: handleMenuOpen()
-            onClosed: handleMenuClose()
+            onOpened: PopupHelpers.handlePopupOpen()
+            onClosed: PopupHelpers.handlePopupClose()
         }
         PlaybackMenu {
-            onOpened: handleMenuOpen()
-            onClosed: handleMenuClose()
+            onOpened: PopupHelpers.handlePopupOpen()
+            onClosed: PopupHelpers.handlePopupClose()
         }
         AudioMenu {
-            onOpened: handleMenuOpen()
-            onClosed: handleMenuClose()
+            onOpened: PopupHelpers.handlePopupOpen()
+            onClosed: PopupHelpers.handlePopupClose()
         }
         SubtitleMenu {
-            onOpened: handleMenuOpen()
-            onClosed: handleMenuClose()
+            onOpened: PopupHelpers.handlePopupOpen()
+            onClosed: PopupHelpers.handlePopupClose()
         }
         SettingsMenu {
-            onOpened: handleMenuOpen()
-            onClosed: handleMenuClose()
+            onOpened: PopupHelpers.handlePopupOpen()
+            onClosed: PopupHelpers.handlePopupClose()
         }
         HelpMenu {
-            onOpened: handleMenuOpen()
-            onClosed: handleMenuClose()
+            onOpened: PopupHelpers.handlePopupOpen()
+            onClosed: PopupHelpers.handlePopupClose()
         }
     }
 
@@ -468,6 +459,9 @@ Kirigami.ApplicationWindow {
         standardButtons: Dialog.Ok | Dialog.Cancel
         width: 250
 
+        onOpened: PopupHelpers.handlePopupOpen()
+        onClosed: PopupHelpers.handlePopupClose()
+
         GridLayout {
             anchors.fill: parent
             anchors.margins: 15
@@ -524,9 +518,9 @@ Kirigami.ApplicationWindow {
 
                 onActiveFocusChanged: {
                     if (activeFocus) {
-                        handleMenuOpen();
+                        PopupHelpers.handlePopupOpen();
                     } else {
-                        handleMenuClose();  
+                        PopupHelpers.handlePopupClose();  
                     }
                 }
             }
@@ -568,9 +562,9 @@ Kirigami.ApplicationWindow {
 
                 onActiveFocusChanged: {
                     if (activeFocus) {
-                        handleMenuOpen();
+                        PopupHelpers.handlePopupOpen();
                     } else {
-                        handleMenuClose();  
+                        PopupHelpers.handlePopupClose();  
                     }
                 }
             }

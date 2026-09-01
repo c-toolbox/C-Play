@@ -12,6 +12,8 @@ import QtQuick.Layouts
 import org.kde.kirigami as Kirigami
 import org.ctoolbox.cplay
 
+import "Components/PopupHelpers.js" as PopupHelpers
+
 Rectangle {
     id: layersRoot
 
@@ -186,8 +188,8 @@ Rectangle {
     Menu {
         id: pasteLayerMenu
 
-        onOpened: MenuHelpers.handleMenuOpen()
-        onClosed: MenuHelpers.handleMenuClose()
+        onOpened: PopupHelpers.handlePopupOpen()
+        onClosed: PopupHelpers.handlePopupClose()
 
         MenuItem { 
             action: actions.layerPasteAction 
@@ -279,6 +281,9 @@ Rectangle {
                     Dialog {
                         id: clearLayersDialog
                         standardButtons: Dialog.Ok | Dialog.Cancel
+
+                        onOpened: PopupHelpers.handlePopupOpen()
+                        onClosed: PopupHelpers.handlePopupClose()
 
                         Label {
                             text: "Confirm clearing of all items in layers list."

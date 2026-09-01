@@ -15,7 +15,7 @@ import org.kde.kirigami as Kirigami
 import org.ctoolbox.cplay
 
 import "Menus"
-import "Components/MenuHelpers.js" as MenuHelpers
+import "Components/PopupHelpers.js" as PopupHelpers
 
 ToolBar {
     id: root
@@ -80,8 +80,8 @@ ToolBar {
                 id: audioMenu
 
                 y: parent.height
-                onOpened: MenuHelpers.handleMenuOpen()
-                onClosed: MenuHelpers.handleMenuClose()
+                onOpened: PopupHelpers.handlePopupOpen()
+                onClosed: PopupHelpers.handlePopupClose()
 
                 Instantiator {
                     id: audioMenuInstantiator
@@ -206,8 +206,8 @@ ToolBar {
                 id: faiMenu
 
                 y: parent.height
-                onOpened: MenuHelpers.handleMenuOpen()
-                onClosed: MenuHelpers.handleMenuClose()
+                onOpened: PopupHelpers.handlePopupOpen()
+                onClosed: PopupHelpers.handlePopupClose()
 
                 MenuSeparator {
                 }
@@ -376,8 +376,8 @@ ToolBar {
                 id: imageMenu
 
                 y: parent.height
-                onOpened: MenuHelpers.handleMenuOpen()
-                onClosed: MenuHelpers.handleMenuClose()
+                onOpened: PopupHelpers.handlePopupOpen()
+                onClosed: PopupHelpers.handlePopupClose()
 
                 MenuSeparator {
                 }
@@ -615,8 +615,8 @@ ToolBar {
                 id: eofMenu
 
                 y: parent.height
-                onOpened: MenuHelpers.handleMenuOpen()
-                onClosed: MenuHelpers.handleMenuClose()
+                onOpened: PopupHelpers.handlePopupOpen()
+                onClosed: PopupHelpers.handlePopupClose()
 
                 MenuSeparator {
                 }
@@ -807,8 +807,8 @@ ToolBar {
                 id: stereoscopicMenu
 
                 y: parent.height
-                onOpened: MenuHelpers.handleMenuOpen()
-                onClosed: MenuHelpers.handleMenuClose()
+                onOpened: PopupHelpers.handlePopupOpen()
+                onClosed: PopupHelpers.handlePopupClose()
 
                 MenuSeparator {
                 }
@@ -967,8 +967,8 @@ ToolBar {
                 id: gridMenu
 
                 y: parent.height
-                onOpened: MenuHelpers.handleMenuOpen()
-                onClosed: MenuHelpers.handleMenuClose()
+                onOpened: PopupHelpers.handlePopupOpen()
+                onClosed: PopupHelpers.handlePopupClose()
 
                 MenuSeparator {
                 }
@@ -1100,8 +1100,8 @@ ToolBar {
 
                 y: parent.height
 
-                onOpened: MenuHelpers.handleMenuOpen()
-                onClosed: MenuHelpers.handleMenuClose()
+                onOpened: PopupHelpers.handlePopupOpen()
+                onClosed: PopupHelpers.handlePopupClose()
 
                 MenuSeparator {
                 }

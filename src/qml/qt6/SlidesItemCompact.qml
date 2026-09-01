@@ -14,6 +14,8 @@ import Qt5Compat.GraphicalEffects
 import org.kde.kirigami as Kirigami
 import org.ctoolbox.cplay
 
+import "Components/PopupHelpers.js" as PopupHelpers
+
 ItemDelegate {
     id: root
 
@@ -82,8 +84,8 @@ ItemDelegate {
     Menu {
         id: pasteLayerMenu
 
-        onOpened: MenuHelpers.handleMenuOpen()
-        onClosed: MenuHelpers.handleMenuClose()
+        onOpened: PopupHelpers.handlePopupOpen()
+        onClosed: PopupHelpers.handlePopupClose()
         
         MenuItem { 
             action: actions.layerPasteAction 

@@ -500,15 +500,15 @@ void LayersRendererQtItem::setForegroundImageFile(const QString& file) {
     Q_EMIT foregroundImageFileChanged();
 }
 
-bool LayersRendererQtItem::isUiDropdownOpen() const {
-    return m_uiDropdownOpen;
+bool LayersRendererQtItem::isUiPopupOpen() const {
+    return m_uiPopupOpen;
 }
 
-void LayersRendererQtItem::setUiDropdownOpen(bool open) {
-    if (m_uiDropdownOpen == open)
+void LayersRendererQtItem::setUiPopupOpen(bool open) {
+    if (m_uiPopupOpen == open)
         return;
-    m_uiDropdownOpen = open;
-    Q_EMIT uiDropdownOpenChanged();
+    m_uiPopupOpen = open;
+    Q_EMIT uiPopupOpenChanged();
 }
 
 void LayersRendererQtItem::updateCameraMatrices() {
@@ -622,7 +622,7 @@ void LayersRendererQtItem::sync() {
     m_renderer->setForegroundImageFile(m_foregroundImageFile);
 
 #if MPV_CLIENT_API_VERSION >= MPV_MAKE_VERSION(2, 3)
-    m_renderer->setDivideUpdateAndRender(!m_uiDropdownOpen);
+    m_renderer->setDivideUpdateAndRender(!m_uiPopupOpen);
 #endif
 
     // Map item rect to physical pixels so paint() can set the correct viewport

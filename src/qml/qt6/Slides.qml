@@ -13,6 +13,8 @@ import QtQuick.Dialogs
 import org.kde.kirigami as Kirigami
 import org.ctoolbox.cplay
 
+import "Components/PopupHelpers.js" as PopupHelpers
+
 Rectangle {
     id: slidesRoot
 
@@ -278,6 +280,9 @@ Rectangle {
                         id: clearSlidesDialog
                         standardButtons: Dialog.Ok | Dialog.Cancel
 
+                        onOpened: PopupHelpers.handlePopupOpen()
+                        onClosed: PopupHelpers.handlePopupClose()
+
                         Label {
                             text: "Confirm clearing of all slides and start new presentation."
                         }
@@ -375,6 +380,9 @@ Rectangle {
                     Dialog {
                         id: removeSlideDialog
                         standardButtons: Dialog.Ok | Dialog.Cancel
+
+                        onOpened: PopupHelpers.handlePopupOpen()
+                        onClosed: PopupHelpers.handlePopupClose()
 
                         Label {
                             text: "Confirm removing of slide named <b><font color='red'>" + app.slides.selected.layersName + "</font></b>. This cannot be undone."

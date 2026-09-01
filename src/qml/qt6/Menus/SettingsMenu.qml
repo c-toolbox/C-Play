@@ -6,15 +6,15 @@
 
 import QtQuick
 import QtQuick.Controls
-import "../Components/MenuHelpers.js" as MenuHelpers
+import "../Components/PopupHelpers.js" as PopupHelpers
 
 Menu {
     id: root
 
     title: qsTr("&Settings")
 
-    onOpened: MenuHelpers.handleMenuOpen()
-    onClosed: MenuHelpers.handleMenuClose()
+    onOpened: PopupHelpers.handlePopupOpen()
+    onClosed: PopupHelpers.handlePopupClose()
 
     Menu {
         title: "States"

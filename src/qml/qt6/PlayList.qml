@@ -14,6 +14,8 @@ import Qt5Compat.GraphicalEffects
 import org.kde.kirigami as Kirigami
 import org.ctoolbox.cplay
 
+import "Components/PopupHelpers.js" as PopupHelpers
+
 Rectangle {
     id: root
 
@@ -224,6 +226,9 @@ Rectangle {
                     id: clearPlaylistDialog
                     standardButtons: Dialog.Ok | Dialog.Cancel
 
+                    onOpened: PopupHelpers.handlePopupOpen()
+                    onClosed: PopupHelpers.handlePopupClose()
+
                     Label {
                         text: "Confirm clearing of all items and start a new playlist."
                     }
@@ -313,8 +318,8 @@ Rectangle {
                 Menu {
                     id: eofMenu
 
-                    onOpened: MenuHelpers.handleMenuOpen()
-                    onClosed: MenuHelpers.handleMenuClose()
+                    onOpened: PopupHelpers.handlePopupOpen()
+                    onClosed: PopupHelpers.handlePopupClose()
 
                     y: parent.height
 

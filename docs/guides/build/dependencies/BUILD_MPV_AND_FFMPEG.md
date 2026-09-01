@@ -18,16 +18,21 @@ vcpkg install jack2
 
 ## Option 1: Build mpv and ffmpeg from MINGW-packages
 
-As of writing (2025-09-01) this is mpv 0.40 and ffmpeg 7.1.1.
+As of writing (2026-09-01) this is mpv 0.41 and ffmpeg 9.0.1.
 
 This is easiest if you want the latest libraries. However, Option 2 gives you more control and can therefore maximize performance in C-Play for specific configurations.
 
 Here are the steps:
 
 Download MSYS from [official website](https://www.msys2.org/).
-Install it and then run *mingw64.exe*.
+Install it and then run *ucrt64.exe*.
 
-Then clone "https://github.com/msys2/MINGW-packages" into your mingw64 home folder.
+Install development packages.
+```
+pacman -S base-devel git mingw-w64-ucrt-x86_64-toolchain
+```
+
+Then clone "https://github.com/msys2/MINGW-packages" into your home folder.
 
 ```
 git clone "https://github.com/msys2/MINGW-packages"
@@ -35,10 +40,10 @@ git clone "https://github.com/msys2/MINGW-packages"
 
 ### 1.1 (Optional) Install JACK with PortAudio + ASIO support for the MINGW64 environment
 
-The MINGW64 package of [jack2](https://packages.msys2.org/packages/mingw-w64-x86_64-jack2) should contain the dependency of portaudio. And [portaudio](https://packages.msys2.org/packages/mingw-w64-x86_64-portaudio) should be dependent on asiosdk.
+The UCRT64 package of [jack2](https://packages.msys2.org/packages/mingw-w64-ucrt-x86_64-jack2) should contain the dependency of portaudio. And [portaudio](https://packages.msys2.org/packages/mingw-w64-ucrt-x86_64-portaudio) should be dependent on asiosdk.
 
 ```
-pacman -S mingw-w64-x86_64-jack2 mingw-w64-ucrt-x86_64-jack2
+pacman -S mingw-w64-ucrt-x86_64-jack2
 ```
 
 ### 1.2 Build FFmpeg with custom options (supporting jack2, nvdec etc)
@@ -55,7 +60,7 @@ Here are my [mingw-w64-ffmpeg-pkgbuild](https://raw.githubusercontent.com/c-tool
 Then install dependencies for packing and perform the new packing:
 
 ```
-pacman -S binutils base-devel mingw-w64-x86_64-gcc
+pacman -S binutils base-devel mingw-w64-ucrt-x86_64-gcc
 updpkgsums
 makepkg-mingw -sCLf
 ```
@@ -105,7 +110,7 @@ Run the batch script after unzipping it in a short path, but quit after MSYS has
 Install jack2 (see below), after MINGW64 has installed other packages during "Media Build Suite" setup.
 
 ```
-pacman -S mingw-w64-x86_64-jack2 mingw-w64-ucrt-x86_64-jack2
+pacman -S mingw-w64-ucrt-x86_64-jack2
 ```
 
 - Change the MPV git path from master to release if you want, by opening the file build\media-suite_deps.sh and replace in line 73 "https://github.com/mpv-player/mpv.git" with "https://github.com/mpv-player/mpv.git#release/0.36".

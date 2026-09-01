@@ -7,7 +7,7 @@
 import QtQml.Models
 import QtQuick
 import QtQuick.Controls
-import "../Components/MenuHelpers.js" as MenuHelpers
+import "../Components/PopupHelpers.js" as PopupHelpers
 
 Menu {
     id: root
@@ -15,13 +15,13 @@ Menu {
     title: qsTr("&File")
 
     onOpened: {
-        MenuHelpers.handleMenuOpen();
+        PopupHelpers.handlePopupOpen();
         recentMediaFilesMenuInstantiator.model = mpv.recentMediaFiles;
         recentPlaylistsMenuInstantiator.model = mpv.recentPlaylists;
     }
 
     onClosed: {
-        MenuHelpers.handleMenuClose();
+        PopupHelpers.handlePopupClose();
     }
 
     MenuItem {

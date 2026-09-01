@@ -203,7 +203,7 @@ set(QML_SRC_FILES
     qml/qt6/Components/ImageAdjustmentSlider.qml
     qml/qt6/Components/LabelWithTooltip.qml
     qml/qt6/Components/LayerCoreProperties.qml
-    qml/qt6/Components/MenuHelpers.js
+    qml/qt6/Components/PopupHelpers.js
     qml/qt6/Components/SelectActionPopup.qml
     qml/qt6/Components/SettingsBasePage.qml
     qml/qt6/Components/SettingsHeader.qml
@@ -254,7 +254,7 @@ set(QML_SRC_FILES
     qml/qt6/ViewPlaylistItem.qml
     qml/qt6/WorkingIndicator.qml
 )
-set_source_files_properties(qml/qt6/Components/MenuHelpers.js PROPERTIES QT_QML_SKIP_QMLDIR_ENTRY TRUE)
+set_source_files_properties(qml/qt6/Components/PopupHelpers.js PROPERTIES QT_QML_SKIP_QMLDIR_ENTRY TRUE)
 
 option(CPLAY_FAST_QML_BUILD "Skip QmlLint and QmlCacheGen. Should be OFF for release build." OFF)   
 if(CPLAY_FAST_QML_BUILD)
