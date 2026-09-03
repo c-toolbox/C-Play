@@ -297,6 +297,13 @@ Kirigami.ApplicationWindow {
                 camera: originCamera
                 origin: originNode
                 panEnabled: false
+
+                // The built-in wheel/pinch zoom scales with the camera's distance from the
+                // origin, which is 0 here (camera at sphere center), so it would do nothing;
+                // zoom is handled by layerRenderMouseArea instead. automaticClipping must be
+                // off because it forces camera.z to clipNear when z is 0 and shrinks clipFar
+                // below the content radius.
+                automaticClipping: false
             }
         }
 
@@ -312,6 +319,27 @@ Kirigami.ApplicationWindow {
             anchors.fill: parent
             cursorShape: dragging ? Qt.ClosedHandCursor : Qt.OpenHandCursor
             onPressed: dragging = true
+
+            // Dolly zoom along the camera's view axis (mouse wheel / touchpad scroll).
+            // Scroll up moves the camera forward into the scene (zoom in), scroll down back.
+            onWheel: (wheel) => {
+                // The renderer builds its sphere at meshRadius / 100 in world units, so all
+                // zoom distances and limits are based on that actual radius.
+                const radius = viewLayersIn3DRenderItem.meshRadius / 100;
+                const step = radius * 0.001 * wheel.angleDelta.y;
+                const limit = radius * 0.95;   // keep the camera inside the rendered sphere
+                originCamera.z = Math.max(-limit, Math.min(limit, originCamera.z - step));
+                wheel.accepted = true;
+            }
+
+            // Double-click restores the original camera position and orientation.
+            // fieldOfView is left alone: it stays bound to UserInterfaceSettings.fov3Dview
+            // and nothing in this view modifies it.
+            onDoubleClicked: {
+                originNode.setEulerRotation(Qt.vector3d(0, 0, 0));
+                originCamera.position = Qt.vector3d(0, 0, 0);
+                dragging = false;
+            }
 
             DropArea {
                 id: dropAreaMpv2
