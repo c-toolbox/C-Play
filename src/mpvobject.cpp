@@ -1905,18 +1905,18 @@ void MpvObject::updateFrameSyncSettings() {
 }
 
 void MpvObject::applyFrameSyncCorrection(double masterPos, double slavePos, double baseSpeed) {
-    FrameSyncController::Decision d = m_frameSyncController.decide(masterPos, slavePos, baseSpeed);
-    switch (d.action) {
+    FrameSyncController::Decision dec = m_frameSyncController.decide(masterPos, slavePos, baseSpeed);
+    switch (dec.action) {
     case FrameSyncController::Action::None:
         if (baseSpeed != speed()) {
             setSpeed(baseSpeed);
         }
         break;
     case FrameSyncController::Action::SpeedAdjust:
-        setSpeed(d.speed);
+        setSpeed(dec.speed);
         break;
     case FrameSyncController::Action::HardSeek:
-        setPosition(d.seekTarget);
+        setPosition(dec.seekTarget);
         break;
     }
 }
