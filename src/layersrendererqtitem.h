@@ -159,6 +159,7 @@ class LayersRendererQtItem : public QQuickItem {
     Q_PROPERTY(QString backgroundImageFile READ backgroundImageFile WRITE setBackgroundImageFile NOTIFY backgroundImageFileChanged)
     Q_PROPERTY(QString foregroundImageFile READ foregroundImageFile WRITE setForegroundImageFile NOTIFY foregroundImageFileChanged)
     Q_PROPERTY(bool uiPopupOpen READ isUiPopupOpen WRITE setUiPopupOpen NOTIFY uiPopupOpenChanged)
+    Q_PROPERTY(int selectedPlaneLayerIndex READ selectedPlaneLayerIndex NOTIFY planeSelectionChanged)
 
 public:
     LayersRendererQtItem();
@@ -193,6 +194,18 @@ public:
     bool isUiPopupOpen() const;
     void setUiPopupOpen(bool open);
 
+    int selectedPlaneLayerIndex() const;
+
+    // Moving of 3D-grid layers in the view. The selected layer comes from the Layers panel
+    // (setPlaneSelectionByIndex); no hit testing is done in the 3D view.
+    // Flat layers (GridMode::Plane) are aimed at the pointer via azimuth/elevation; spheres
+    // rotate with the pointer delta since press (X -> yaw, Y -> pitch), domes in yaw only (X).
+    // Coordinates are logical pixels in this item's space, origin top-left, y pointing down.
+    Q_INVOKABLE void setPlaneSelectionByIndex(int index);    // sync selection from the Layers panel; -1 clears (2D rows clear too)
+    Q_INVOKABLE bool beginPlaneDrag(float x, float y);       // true if a 3D-grid layer is selected and can be moved from this point
+    Q_INVOKABLE bool dragPlaneTo(float x, float y);          // move the selected layer while dragging; returns true when parameters changed
+    Q_INVOKABLE void endPlaneDrag();                         // finish an active plane drag
+
     Q_INVOKABLE void sync();
     Q_INVOKABLE void cleanup();
     static void beginShutdown();
@@ -209,12 +222,29 @@ Q_SIGNALS:
     void backgroundImageFileChanged();
     void foregroundImageFileChanged();
     void uiPopupOpenChanged();
+    void planeSelectionChanged();
 
 private:
     Q_INVOKABLE void handleWindowChanged(QQuickWindow* win);
     void releaseResources() override;
 
     void updateCameraMatrices();
+
+    // Dragging helpers (GUI thread, pure CPU math on the live camera state).
+    bool rayFromScreenPoint(float x, float y, QVector3D& origin, QVector3D& direction) const;
+    bool aimAtScreenPointLocked(const BaseLayer* layer, float x, float y, double& azimuthDeg, double& elevationDeg) const;
+    void setSelectedPlaneLayer(std::shared_ptr<BaseLayer> layer, int index);
+
+    // 3D-grid layer selection and drag state (GUI thread only).
+    std::shared_ptr<BaseLayer> m_selectedPlaneLayer;
+    int m_selectedPlaneIndex = -1;
+    bool m_planeDragActive = false;
+    double m_grabAzimuthOffsetDeg = 0.0;
+    double m_grabElevationOffsetDeg = 0.0;
+    // Sphere/dome drag state: rotation is mapped from the pointer delta since press.
+    float m_dragStartX = 0.0f, m_dragStartY = 0.0f;
+    double m_dragStartPitchDeg = 0.0;   // rotate().x at press time
+    double m_dragStartYawDeg = 0.0;     // rotate().y at press time
 
     LayersRendererQtOpenGLObject* m_renderer;
     QTimer* m_timer;

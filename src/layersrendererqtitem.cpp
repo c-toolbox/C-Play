@@ -21,6 +21,7 @@
 #include <glm/gtc/matrix_transform.hpp>
 #include <glm/gtc/type_ptr.hpp>
 #include <array>
+#include <cmath>
 
  // Shader sources (same as LayersRenderer but compatible with QOpenGLShaderProgram)
 constexpr const char* VideoVert = R"(
@@ -511,29 +512,276 @@ void LayersRendererQtItem::setUiPopupOpen(bool open) {
     Q_EMIT uiPopupOpenChanged();
 }
 
-void LayersRendererQtItem::updateCameraMatrices() {
-    // Use the item's own dimensions, not the full window, for correct aspect ratio
-    const float w = static_cast<float>(width());
-    const float h = static_cast<float>(height());
-    const float aspectRatio = (h > 0.0f) ? w / h : 1.0f;
+namespace {
+// Build the camera's view/projection matrices from raw camera state. Shared by the render
+// path (updateCameraMatrices) and CPU-side picking (rayFromScreenPoint) so both always use
+// exactly the same transform, even before the first rendered frame has run.
+void buildCameraMatrices(const QVector3D& position, const QVector3D& eulerRotation, float fieldOfViewDeg,
+                         float widthPx, float heightPx, QMatrix4x4& viewMatrix, QMatrix4x4& projectionMatrix) {
+    // Use the item's own dimensions, not the full window, for correct aspect ratio.
+    const float aspectRatio = (heightPx > 0.0f) ? widthPx / heightPx : 1.0f;
 
     QMatrix4x4 rotMatrix;
-    rotMatrix.rotate(m_cameraEulerRotation.y(), 0.0f, 1.0f, 0.0f);
-    rotMatrix.rotate(m_cameraEulerRotation.x(), 1.0f, 0.0f, 0.0f);
-    rotMatrix.rotate(m_cameraEulerRotation.z(), 0.0f, 0.0f, 1.0f);
+    rotMatrix.rotate(eulerRotation.y(), 0.0f, 1.0f, 0.0f);
+    rotMatrix.rotate(eulerRotation.x(), 1.0f, 0.0f, 0.0f);
+    rotMatrix.rotate(eulerRotation.z(), 0.0f, 0.0f, 1.0f);
 
-    QVector3D forward = rotMatrix.map(QVector3D(0.0f, 0.0f, -1.0f)).normalized();
-    QVector3D up = rotMatrix.map(QVector3D(0.0f, 1.0f, 0.0f)).normalized();
+    const QVector3D forward = rotMatrix.map(QVector3D(0.0f, 0.0f, -1.0f)).normalized();
+    const QVector3D up = rotMatrix.map(QVector3D(0.0f, 1.0f, 0.0f)).normalized();
 
+    viewMatrix.lookAt(position, position + forward, up);
+
+    // Guard against a degenerate field of view (e.g. before the QML binding has been evaluated).
+    const float fov = (fieldOfViewDeg > 1.0f && fieldOfViewDeg < 179.0f) ? fieldOfViewDeg : 90.0f;
+    projectionMatrix.perspective(fov, aspectRatio, 0.1f, 1000.0f);
+}
+} // namespace
+
+void LayersRendererQtItem::updateCameraMatrices() {
     QMatrix4x4 viewMatrix;
-    viewMatrix.lookAt(m_cameraPosition, m_cameraPosition + forward, up);
-
     QMatrix4x4 projectionMatrix;
-    projectionMatrix.perspective(m_fieldOfView, aspectRatio, 0.1f, 1000.0f);
+    buildCameraMatrices(m_cameraPosition, m_cameraEulerRotation, m_fieldOfView,
+                        static_cast<float>(width()), static_cast<float>(height()),
+                        viewMatrix, projectionMatrix);
 
     if (m_renderer) {
         m_renderer->setCameraParams(viewMatrix, projectionMatrix);
     }
+}
+
+namespace {
+constexpr double kPi = 3.14159265358979323846;
+// Sphere/dome drag sensitivity in degrees per pixel (matches the QML camera orbitSpeed).
+constexpr double kDragDegreesPerPixel = 0.25;
+
+// Wrap an angle in degrees to (-180, 180].
+double normalizeAngleDegrees(double a) {
+    while (a <= -180.0)
+        a += 360.0;
+    while (a > 180.0)
+        a -= 360.0;
+    return a;
+}
+} // namespace
+
+int LayersRendererQtItem::selectedPlaneLayerIndex() const {
+    return m_selectedPlaneIndex;
+}
+
+bool LayersRendererQtItem::rayFromScreenPoint(float x, float y, QVector3D& origin, QVector3D& direction) const {
+    if (width() <= 0.0 || height() <= 0.0)
+        return false;
+
+    // Map logical pixel coordinates to NDC (QML's y axis points down -> flip).
+    const float ndcX = 2.0f * x / static_cast<float>(width()) - 1.0f;
+    const float ndcY = 1.0f - 2.0f * y / static_cast<float>(height());
+
+    // Build the matrices from the live camera state instead of using a per-frame cache: the
+    // cache is only refreshed while frames render, so before the first frame (or if rendering
+    // is paused) it can still be identity and every screen point would unproject to the same
+    // ray. The QML-bound camera properties are always current on the GUI thread.
+    QMatrix4x4 viewMatrix;
+    QMatrix4x4 projectionMatrix;
+    buildCameraMatrices(m_cameraPosition, m_cameraEulerRotation, m_fieldOfView,
+                        static_cast<float>(width()), static_cast<float>(height()),
+                        viewMatrix, projectionMatrix);
+
+    bool invertible = false;
+    const QMatrix4x4 invVP = (projectionMatrix * viewMatrix).inverted(&invertible);
+    if (!invertible)
+        return false;
+
+    // Unproject near/far points of the view frustum to obtain a world space ray.
+    // map(QVector3D) treats the input as (x, y, z, w=1) and performs the perspective divide;
+    // map(QVector4D) would return raw homogeneous coordinates whose x/y/z parts are identical
+    // for both depths (only w differs), which collapses the ray direction to zero.
+    const QVector3D pNear = invVP.map(QVector3D(ndcX, ndcY, -1.0f));
+    const QVector3D pFar = invVP.map(QVector3D(ndcX, ndcY, 1.0f));
+
+    origin = m_cameraPosition;
+    direction = (pFar - pNear).normalized();
+    if (direction.length() < 1e-9f)
+        return false;   // degenerate ray: cannot aim from this point
+    return true;
+}
+
+bool LayersRendererQtItem::aimAtScreenPointLocked(const BaseLayer* layer, float x, float y, double& azimuthDeg, double& elevationDeg) const {
+    QVector3D rayOrigin, rayDir;
+    if (!rayFromScreenPoint(x, y, rayOrigin, rayDir))
+        return false;
+
+    // World -> dome frame: the plane transform starts with R_x(-meshAngle).
+    QMatrix4x4 toDome;
+    toDome.rotate(float(m_meshAngle), 1.0f, 0.0f, 0.0f);
+    const QVector3D o = toDome.map(rayOrigin);
+    const QVector3D dirDome = toDome.mapVector(rayDir).normalized();   // direction: linear part only
+
+    // Intersect the ray with a sphere of radius distance/100 centered at the origin; fall back
+    // to the closest approach point when it misses so aiming always works.
+    const double r = layer->planeDistance() / 100.0;
+    QVector3D p;
+    bool found = false;
+    if (r > 1e-6) {
+        const double b = QVector3D::dotProduct(o, dirDome);
+        const double c = QVector3D::dotProduct(o, o) - r * r;
+        const double disc = b * b - c;
+        if (disc >= 0.0) {
+            const double sq = std::sqrt(disc);
+            const double t1 = -b - sq;
+            const double t2 = -b + sq;
+            if (t1 > 1e-6) {
+                p = o + dirDome * t1;
+                found = true;
+            } else if (t2 > 1e-6) {
+                p = o + dirDome * t2;
+                found = true;
+            }
+        }
+    }
+    if (!found) {
+        const double tc = -QVector3D::dotProduct(o, dirDome);
+        p = o + dirDome * tc;
+        if (p.length() < 1e-6)
+            p = dirDome * (r > 1e-3 ? r : 1e-3);   // ray through the center: aim along the view direction
+    }
+
+    azimuthDeg = std::atan2(p.x(), -p.z()) * 180.0 / kPi;
+    elevationDeg = std::atan2(p.y(), std::hypot(p.x(), p.z())) * 180.0 / kPi;
+    return true;
+}
+
+void LayersRendererQtItem::setSelectedPlaneLayer(std::shared_ptr<BaseLayer> layer, int index) {
+    if (m_selectedPlaneLayer == layer && m_selectedPlaneIndex == index)
+        return;
+    m_selectedPlaneLayer = std::move(layer);
+    m_selectedPlaneIndex = index;
+    Q_EMIT planeSelectionChanged();
+}
+
+void LayersRendererQtItem::setPlaneSelectionByIndex(int index) {
+    std::shared_ptr<BaseLayer> layer;
+    int resolved = -1;
+    {
+        std::lock_guard<std::mutex> lock(LayersRendererQtItem::layerAccessMutex());
+        if (!LayersRendererQtItem::isShuttingDown()) {
+            auto* slides = Application::isCreated() ? Application::instance().slidesModel() : nullptr;
+            LayersModel* slide = slides ? slides->selectedSlide() : nullptr;
+            if (slide && index >= 0 && index < slide->numberOfLayers()) {
+                std::shared_ptr<BaseLayer> candidate = slide->layerShared(index);
+                if (candidate && candidate->gridMode() != static_cast<uint8_t>(BaseLayer::None)) {
+                    layer = std::move(candidate);
+                    resolved = index;
+                }
+            }
+        }
+    }
+    setSelectedPlaneLayer(std::move(layer), resolved);
+}
+
+bool LayersRendererQtItem::beginPlaneDrag(float x, float y) {
+    bool ok = false;
+    double hitAz = 0.0, hitEl = 0.0;
+    bool selectionValid = true;
+    uint8_t mode = 0;
+    glm::vec3 startRotate{};
+    {
+        std::lock_guard<std::mutex> lock(LayersRendererQtItem::layerAccessMutex());
+        if (!LayersRendererQtItem::isShuttingDown() && m_selectedPlaneLayer) {
+            // The layer may have been removed or the slide switched since it was selected.
+            auto* slides = Application::isCreated() ? Application::instance().slidesModel() : nullptr;
+            LayersModel* slide = slides ? slides->selectedSlide() : nullptr;
+            selectionValid = false;
+            if (slide) {
+                for (int l = 0; l < slide->numberOfLayers(); ++l) {
+                    if (slide->layerShared(l) == m_selectedPlaneLayer) {
+                        selectionValid = true;
+                        break;
+                    }
+                }
+            }
+            if (selectionValid) {
+                mode = m_selectedPlaneLayer->gridMode();
+                startRotate = m_selectedPlaneLayer->rotate();
+                if (mode == static_cast<uint8_t>(BaseLayer::GridMode::Plane)) {
+                    // Flat layer: no hit testing, wherever the pointer is it aims at the layer.
+                    ok = aimAtScreenPointLocked(m_selectedPlaneLayer.get(), x, y, hitAz, hitEl);
+                } else {
+                    // Sphere/dome layer: rotation follows the pointer delta from this point.
+                    ok = true;
+                }
+            }
+        }
+    }
+
+    m_planeDragActive = false;
+    if (!ok) {
+        const bool hadSelection = (m_selectedPlaneLayer != nullptr);
+        if (hadSelection && !selectionValid)
+            setSelectedPlaneLayer(nullptr, -1);   // stale selection: clear it
+        return false;
+    }
+
+    if (mode == static_cast<uint8_t>(BaseLayer::GridMode::Plane)) {
+        // Store the grab offset so the layer does not jump to the cursor on press.
+        m_grabAzimuthOffsetDeg = normalizeAngleDegrees(m_selectedPlaneLayer->planeAzimuth() - hitAz);
+        m_grabElevationOffsetDeg = m_selectedPlaneLayer->planeElevation() - hitEl;
+    } else {
+        // Sphere/dome: remember the press point and current rotation as the drag baseline.
+        m_dragStartX = x;
+        m_dragStartY = y;
+        m_dragStartPitchDeg = startRotate.x;
+        m_dragStartYawDeg = startRotate.y;
+    }
+    m_planeDragActive = true;
+    return true;
+}
+
+bool LayersRendererQtItem::dragPlaneTo(float x, float y) {
+    if (!m_planeDragActive || !m_selectedPlaneLayer)
+        return false;
+
+    bool changed = false;
+    std::lock_guard<std::mutex> lock(LayersRendererQtItem::layerAccessMutex());
+    if (LayersRendererQtItem::isShuttingDown())
+        return false;
+
+    if (m_selectedPlaneLayer->gridMode() == static_cast<uint8_t>(BaseLayer::GridMode::Plane)) {
+        double targetAz = 0.0, targetEl = 0.0;
+        if (!aimAtScreenPointLocked(m_selectedPlaneLayer.get(), x, y, targetAz, targetEl))
+            return false;
+
+        const double newAz = normalizeAngleDegrees(targetAz + m_grabAzimuthOffsetDeg);
+        const double newEl = targetEl + m_grabElevationOffsetDeg;
+
+        if (std::abs(newAz - m_selectedPlaneLayer->planeAzimuth()) > 1e-4 ||
+            std::abs(newEl - m_selectedPlaneLayer->planeElevation()) > 1e-4) {
+            m_selectedPlaneLayer->setPlaneAzimuth(newAz);
+            m_selectedPlaneLayer->setPlaneElevation(newEl);
+            changed = true;
+        }
+    } else {
+        // Sphere/dome: X drag -> yaw; Y drag -> pitch as well for spheres. Domes keep their
+        // pitch and rotate in yaw only. The content follows the pointer (a rightward/upward
+        // drag moves the layer's front right/up on screen).
+        const bool domeYawOnly = (m_selectedPlaneLayer->gridMode() == static_cast<uint8_t>(BaseLayer::GridMode::Dome));
+        const double newYaw   = m_dragStartYawDeg   - (x - m_dragStartX) * kDragDegreesPerPixel;
+        const double newPitch = domeYawOnly ? m_dragStartPitchDeg
+                                            : m_dragStartPitchDeg - (y - m_dragStartY) * kDragDegreesPerPixel;
+
+        glm::vec3 rot = m_selectedPlaneLayer->rotate();
+        if (std::abs(newYaw - static_cast<double>(rot.y)) > 1e-4 ||
+            std::abs(newPitch - static_cast<double>(rot.x)) > 1e-4) {
+            rot.x = static_cast<float>(newPitch);
+            rot.y = static_cast<float>(newYaw);
+            m_selectedPlaneLayer->setRotate(rot);
+            changed = true;
+        }
+    }
+    return changed;
+}
+
+void LayersRendererQtItem::endPlaneDrag() {
+    m_planeDragActive = false;
 }
 
 void LayersRendererQtItem::handleWindowChanged(QQuickWindow* win) {

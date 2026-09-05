@@ -438,12 +438,48 @@ Rectangle {
         z: 30
     }
 
+    RowLayout {
+        id: moveLayerTip
+
+        anchors.left: parent.left
+        anchors.right: parent.right
+        anchors.bottom: parent.bottom
+        anchors.leftMargin: 5
+        anchors.rightMargin: 5
+        anchors.bottomMargin: 5
+        spacing: 5
+
+        Kirigami.Icon {
+            id: moveLayerTipIcon
+
+            source: "map-globe"   // same icon as the 3D view toggle in the header taskbar
+            color: Kirigami.Theme.disabledTextColor
+            Layout.preferredWidth: Kirigami.Units.iconSizes.small
+            Layout.preferredHeight: Kirigami.Units.iconSizes.small
+            Layout.alignment: Qt.AlignTop
+
+            ToolTip {
+                text: qsTr("3D view")
+            }
+        }
+        Label {
+            id: moveLayerTipLabel
+
+            color: Kirigami.Theme.disabledTextColor
+            font.pointSize: 9
+            wrapMode: Text.Wrap
+            Layout.fillWidth: true
+            text: qsTr("Tip: You can move selected layer in the 3D view by using Ctrl + Left mouse.")
+        }
+    }
+
     ScrollView {
         id: layersScrollView
 
         ScrollBar.horizontal.policy: ScrollBar.AlwaysOff
         anchors.fill: parent
         anchors.topMargin: layersHeader.height + 5
+        anchors.bottomMargin: moveLayerTip.height + 5
         clip: true
         z: 20
 

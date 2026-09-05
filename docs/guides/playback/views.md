@@ -17,6 +17,37 @@ Toggle the 3D view on or off using the ![](../../assets/icons/map-globe-lime.svg
 
 The 3D view supports an interactive camera with orbit controls, letting you rotate around the scene to inspect your content from different angles.
 
+#### Navigating the 3D view
+
+The camera starts at the centre of the rendered sphere/dome, looking straight forward. All navigation is done with the mouse directly in the 3D view:
+
+| Input | Action |
+|:---|:---|
+| **Left- or right-click + drag** | *Orbit* the camera. Dragging right/left turns the view horizontally, dragging up/down tilts it vertically. |
+| **Mouse wheel / touchpad scroll** | *Zoom* (dolly) along the view axis. Scrolling up moves the camera forward into the scene, scrolling down moves it back. The camera is kept inside the rendered sphere, so it cannot pass through the content surface. |
+| **Ctrl + left-click + drag** | *Move the selected layer*. Drags the layer currently selected in the [Layers](presentation) panel: flat layers are aimed across the sphere (azimuth/elevation), spheres rotate with the pointer (horizontal → yaw, vertical → pitch), and domes rotate horizontally only (yaw). |
+| **Double-click** | *Reset the camera* back to its original position and orientation (centre of the scene, no rotation). Zoom level and orbit rotation are both restored. |
+
+A press only becomes a drag after the pointer has moved a few pixels, so a double-click never accidentally rotates the view or moves a layer.
+
+#### Moving layers in the 3D view
+
+Ctrl + left-drag moves **flat (plane), dome, and sphere layers**. The [Layers](presentation) panel is the single source of truth for which layer is moved: select the layer row there first, then Ctrl-drag it in the 3D view. If a plain 2D layer is selected — or no layer at all — the Ctrl-drag falls back to orbiting the camera instead.
+
+How the drag maps onto the layer depends on its grid mode:
+
+* **Flat layers** are aimed at the pointer wherever it is, updating *plane azimuth* and *plane elevation*.
+* **Sphere layers** rotate with the pointer movement since press: horizontal dragging controls *yaw*, vertical dragging controls *pitch*. The content follows the cursor — dragging right spins the sphere to the right, dragging up tilts it upward.
+* **Dome layers** rotate in *yaw* only (horizontal dragging); their pitch is left unchanged.
+
+While dragging, the values are updated live and mirrored back to the grid parameters dialog and the Layers list. When you release the mouse, the change is marked for saving with the current slide.
+
+The mouse cursor indicates the current mode: an open hand while orbiting, a closed hand while moving a layer.
+
+#### Field of view
+
+The camera's field of view is set by *"3D View FOV"* in the [Window & UI settings](../settings/window_and_ui) (30–150 degrees, default is a wide-angle view). It is not changed by mouse input — use the wheel to zoom and the setting to change the lens angle.
+
 #### Dome overflow masking
 
 When working with dome-mapped content, you can hide the area that falls outside the dome projection. Enable *"Hide dome overflow in 3D view"* in the Window & UI settings. An opacity slider (0–100%) controls how strongly the overflow area is masked, allowing you to see a faint outline of the full content or hide it completely.

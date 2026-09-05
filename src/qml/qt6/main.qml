@@ -252,10 +252,6 @@ Kirigami.ApplicationWindow {
         backgroundImageFile: playerController.checkAndCorrectPath(playerController.backgroundImageFileUrl())
         foregroundImageFile: playerController.checkAndCorrectPath(playerController.foregroundImageFileUrl())
 
-        onCameraChanged: {
-            afterCameraChangeTimer.restart();
-        }
-
         Connections {
            function onBackgroundImageChanged() {
                 viewLayersIn3DRenderItem.backgroundImageFile = playerController.checkAndCorrectPath(playerController.backgroundImageFileUrl());
@@ -298,6 +294,11 @@ Kirigami.ApplicationWindow {
                 origin: originNode
                 panEnabled: false
 
+                // Mouse input is handled by layerRenderMouseArea below (drag orbits the scene,
+                // Ctrl+left-drag moves the flat layer selected in the Layers panel), so the
+                // controller's own input handlers are disabled.
+                mouseEnabled: false
+
                 // The built-in wheel/pinch zoom scales with the camera's distance from the
                 // origin, which is 0 here (camera at sphere center), so it would do nothing;
                 // zoom is handled by layerRenderMouseArea instead. automaticClipping must be
@@ -315,10 +316,118 @@ Kirigami.ApplicationWindow {
 
         MouseArea {
             id: layerRenderMouseArea
-            property bool dragging: false
             anchors.fill: parent
-            cursorShape: dragging ? Qt.ClosedHandCursor : Qt.OpenHandCursor
-            onPressed: dragging = true
+
+            // Interaction state machine:
+            //  0 = idle, 1 = pressed (waiting to see if it becomes a drag),
+            //  2 = orbiting the camera, 3 = moving the selected flat layer.
+            property int dragMode: 0
+            property real pressX: 0
+            property real pressY: 0
+            property real lastX: 0
+            property real lastY: 0
+            property bool layerDragChanged: false
+            // Whether Ctrl was held when the current press started; decides between orbiting
+            // and moving the selected flat layer once the drag is committed.
+            property bool ctrlHeldAtPress: false
+
+            // A press only becomes a drag after this much movement so that double-clicks
+            // (camera reset) never trigger an orbit or a layer move.
+            readonly property real dragThreshold: 4
+            // Orbit speed in degrees per pixel, tuned to feel like the old OrbitCameraController.
+            readonly property real orbitSpeed: 0.25
+
+            cursorShape: {
+                if (dragMode === 3)
+                    return Qt.ClosedHandCursor;
+                if (dragMode !== 0)
+                    return Qt.OpenHandCursor;
+                return Qt.ArrowCursor;
+            }
+
+            function orbitCamera(dx, dy) {
+                // Same sign conventions as the old OrbitCameraController: dragging right
+                // decreases yaw and dragging down decreases pitch.
+                var rot = originNode.eulerRotation;
+                rot.y -= dx * layerRenderMouseArea.orbitSpeed;
+                rot.x -= dy * layerRenderMouseArea.orbitSpeed;
+                originNode.setEulerRotation(rot);
+            }
+
+            function commitDragMode() {
+                if (dragMode !== 1)
+                    return;
+                // Ctrl+left-drag moves the flat layer selected in the Layers panel; with no
+                // plane layer selected it falls back to orbiting. Any other drag orbits too.
+                if ((pressedButtons & Qt.LeftButton) && !(pressedButtons & Qt.RightButton) && ctrlHeldAtPress) {
+                    const started = viewLayersIn3DRenderItem.beginPlaneDrag(pressX, pressY);
+                    dragMode = started ? 3 : 2;
+                } else if (pressedButtons & (Qt.LeftButton | Qt.RightButton)) {
+                    dragMode = 2;
+                } else {
+                    dragMode = 0;
+                }
+            }
+
+            function refreshGridParamsDialog() {
+                // Re-read the dragged values from BaseLayer so the Grid Parameters dialog and
+                // the Layers list row reflect them (the no-op setter emits layerValueChanged).
+                var li = layerView.layerItem;
+                if (li && li.layerIdx === viewLayersIn3DRenderItem.selectedPlaneLayerIndex) {
+                    li.layerPlaneAzimuth = li.layerPlaneAzimuth;   // flat layers
+                    li.layerRotatePitch = li.layerRotatePitch;     // sphere/dome layers
+                    li.layerRotateYaw = li.layerRotateYaw;         // sphere/dome layers
+                }
+            }
+
+            onPressed: (mouse) => {
+                if (mouse.button !== Qt.LeftButton && mouse.button !== Qt.RightButton)
+                    return;
+                dragMode = 1;
+                pressX = lastX = mouse.x;
+                pressY = lastY = mouse.y;
+                layerDragChanged = false;
+                ctrlHeldAtPress = (mouse.modifiers & Qt.ControlModifier) !== 0;
+            }
+
+            onPositionChanged: (mouse) => {
+                if (dragMode === 0)
+                    return;
+
+                if (dragMode === 1) {
+                    // Not a drag until the pointer has moved far enough from the press point.
+                    if (Math.hypot(mouse.x - pressX, mouse.y - pressY) < layerRenderMouseArea.dragThreshold)
+                        return;
+                    commitDragMode();
+                    lastX = mouse.x;   // start orbiting/dragging from here
+                    lastY = mouse.y;
+                    return;            // no camera/layer movement on the committing event itself
+                }
+
+                const dx = mouse.x - lastX;
+                const dy = mouse.y - lastY;
+                lastX = mouse.x;
+                lastY = mouse.y;
+
+                if (dragMode === 2) {
+                    orbitCamera(dx, dy);
+                } else if (dragMode === 3) {
+                    if (viewLayersIn3DRenderItem.dragPlaneTo(mouse.x, mouse.y))
+                        layerDragChanged = true;
+                    refreshGridParamsDialog();
+                }
+            }
+
+            onReleased: (mouse) => {
+                const wasLayerDrag = dragMode === 3;
+                if (wasLayerDrag)
+                    viewLayersIn3DRenderItem.endPlaneDrag();
+                dragMode = 0;
+                if (wasLayerDrag && layerDragChanged) {
+                    app.slides.selected.setLayersNeedsSave(true);
+                    refreshGridParamsDialog();
+                }
+            }
 
             // Dolly zoom along the camera's view axis (mouse wheel / touchpad scroll).
             // Scroll up moves the camera forward into the scene (zoom in), scroll down back.
@@ -355,15 +464,16 @@ Kirigami.ApplicationWindow {
             }
         }
 
-        Timer {
-            id: afterCameraChangeTimer
+    }
 
-            interval: 500
-            repeat: false
+    // The Layers panel is the single source of truth for which flat layer the 3D view can
+    // move with Ctrl+left-drag. The C++ side validates the index against the current slide
+    // and clears it for non-plane rows, so selecting a dome/sphere row disables the movement.
+    Connections {
+        target: layers.layersView
 
-            onTriggered: {
-                layerRenderMouseArea.dragging = false;
-            }
+        function onCurrentIndexChanged() {
+            viewLayersIn3DRenderItem.setPlaneSelectionByIndex(layers.layersView.currentIndex);
         }
     }
 
