@@ -27,6 +27,30 @@
       <label>Field of view for 3D view</label>
       <default>90</default>
     </entry>
+    <entry name="CameraPosition3DviewX" type="Double">
+      <label>Camera position X for 3D view</label>
+      <default>0</default>
+    </entry>
+    <entry name="CameraPosition3DviewY" type="Double">
+      <label>Camera position Y for 3D view</label>
+      <default>0</default>
+    </entry>
+    <entry name="CameraPosition3DviewZ" type="Double">
+      <label>Camera position Z for 3D view</label>
+      <default>0</default>
+    </entry>
+    <entry name="CameraRotation3DviewX" type="Double">
+      <label>Camera rotation X for 3D view</label>
+      <default>23</default>
+    </entry>
+    <entry name="CameraRotation3DviewY" type="Double">
+      <label>Camera rotation Y for 3D view</label>
+      <default>0</default>
+    </entry>
+    <entry name="CameraRotation3DviewZ" type="Double">
+      <label>Camera rotation Z for 3D view</label>
+      <default>0</default>
+    </entry>
     <entry name="HideDomeOverflowIn3DView" type="bool">
       <label>Hide dome overflow in 3D view</label>
       <default>false</default>

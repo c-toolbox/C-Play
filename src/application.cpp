@@ -463,6 +463,22 @@ QUrl Application::pathToUrl(const QString &path) {
     return url;
 }
 
+void Application::setLayersRenderer(LayersRendererQtItem* item) {
+    m_layersRenderer = item;
+}
+
+QVector3D Application::layersCameraPosition() const {
+    if (!m_layersRenderer)
+        return QVector3D(0.0f, 0.0f, 0.0f);
+    return m_layersRenderer->cameraPosition();
+}
+
+QVector3D Application::layersCameraRotation() const {
+    if (!m_layersRenderer)
+        return QVector3D(0.0f, 0.0f, 0.0f);
+    return m_layersRenderer->cameraEulerRotation();
+}
+
 QString Application::formatTime(const double time) {
     QTime t(0, 0, 0);
     QString formattedTime = t.addSecs(static_cast<qint64>(time)).toString(QStringLiteral("hh:mm:ss"));

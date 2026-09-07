@@ -14,6 +14,7 @@
 #include <QUrl>
 #include <KSharedConfig>
 #include <QElapsedTimer>
+#include <QVector3D>
 
 class QAbstractItemModel;
 class QAction;
@@ -30,6 +31,7 @@ class KConfigDialog;
 class KConfigGroup;
 class KColorSchemeManager;
 class BaseLayer;
+class LayersRendererQtItem;
 #include "screensmodel.h"
 #include "slidesmodel.h"
 #include <layers/streammodel.h>
@@ -141,6 +143,12 @@ public:
     Q_INVOKABLE void updateAboutOtherText(const QString &mpvVersion, const QString &ffmpegVersion);
     Q_INVOKABLE QString getStartupFile();
     Q_INVOKABLE QString mpvOptionsPath(const QString &name, const QString &suffix);
+
+    // 3D view camera state bridge: main.qml registers the LayersRendererQtItem here so that
+    // the settings dialog (a separate QML document) can read the live camera pose.
+    Q_INVOKABLE void setLayersRenderer(LayersRendererQtItem* item);
+    Q_INVOKABLE QVector3D layersCameraPosition() const;
+    Q_INVOKABLE QVector3D layersCameraRotation() const;
 
     static QString version();
     Q_INVOKABLE static QString formatTime(const double time);
@@ -308,6 +316,7 @@ private:
     KSharedConfig::Ptr m_config;
     KConfigGroup* m_shortcuts;
     KColorSchemeManager* m_schemes;
+    LayersRendererQtItem* m_layersRenderer = nullptr;
 
     QMap<int, QString> m_args;
     QString m_systemDefaultStyle;

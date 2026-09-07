@@ -58,6 +58,30 @@ Kirigami.ApplicationWindow {
         mpv.playlistModelChanged();
     }
 
+    // Builds a camera rotation quaternion from Euler angles (degrees around the X, Y and Z
+    // axes). Qt 6.10's QML "Qt" object only provides Qt.quaternion(scalar, x, y, z) - there is
+    // no Qt.quaternionFromEulerAngles() - so this mirrors QQuaternion::fromEulerAngles() from
+    // qtbase/src/gui/math3d/qquaternion.cpp exactly. It is the inverse of toEulerAngles(),
+    // which is what the "Get current position & rotation" button saves, so a captured pose
+    // round-trips through save/restore unchanged.
+    function cameraRotationFromEuler(xDeg, yDeg, zDeg) {
+        const r = Math.PI / 180;
+        const p = xDeg * r * 0.5;   // half angle around X (pitch)
+        const y = yDeg * r * 0.5;   // half angle around Y (yaw)
+        const z = zDeg * r * 0.5;   // half angle around Z (roll)
+
+        const c1 = Math.cos(y), s1 = Math.sin(y);
+        const c2 = Math.cos(z), s2 = Math.sin(z);
+        const c3 = Math.cos(p), s3 = Math.sin(p);
+
+        return Qt.quaternion(
+            c1 * c2 * c3 + s1 * s2 * s3,   // scalar (w)
+            c1 * c2 * s3 + s1 * s2 * c3,   // x
+            s1 * c2 * c3 - c1 * s2 * s3,   // y
+            c1 * s2 * c3 - s1 * c2 * s3    // z
+        );
+    }
+
     function openFile(path) {
         var openFileExt = playerController.returnFileExtension(path);
         if(openFileExt == "cplaypres"){
@@ -285,7 +309,16 @@ Kirigami.ApplicationWindow {
                     fieldOfView: UserInterfaceSettings.fov3Dview
                     clipNear: 0.1
                     clipFar: 1000.0
-                    position: Qt.vector3d(0, 0, 0)
+
+                    // Startup camera pose from the settings (Window & UI). The bindings are
+                    // evaluated when the view is created; once the user orbits/zooms, the
+                    // assignments break them and the camera moves freely until restart.
+                    position: Qt.vector3d(UserInterfaceSettings.cameraPosition3DviewX,
+                                          UserInterfaceSettings.cameraPosition3DviewY,
+                                          UserInterfaceSettings.cameraPosition3DviewZ)
+                    rotation: cameraRotationFromEuler(UserInterfaceSettings.cameraRotation3DviewX,
+                                                      UserInterfaceSettings.cameraRotation3DviewY,
+                                                      UserInterfaceSettings.cameraRotation3DviewZ)
                 }
             }
 
@@ -309,6 +342,9 @@ Kirigami.ApplicationWindow {
         }
 
         Component.onCompleted: {
+            // Register with the Application so the settings dialog can read the live camera pose.
+            app.setLayersRenderer(viewLayersIn3DRenderItem);
+
             if(UserInterfaceSettings.show3DviewAtStartup){
                 viewLayersIn3DRenderItem.visible = true;
             }
@@ -441,12 +477,17 @@ Kirigami.ApplicationWindow {
                 wheel.accepted = true;
             }
 
-            // Double-click restores the original camera position and orientation.
-            // fieldOfView is left alone: it stays bound to UserInterfaceSettings.fov3Dview
-            // and nothing in this view modifies it.
+            // Double-click restores the original camera position and orientation (the saved
+            // startup pose from the settings). fieldOfView is left alone: it stays bound to
+            // UserInterfaceSettings.fov3Dview and nothing in this view modifies it.
             onDoubleClicked: {
                 originNode.setEulerRotation(Qt.vector3d(0, 0, 0));
-                originCamera.position = Qt.vector3d(0, 0, 0);
+                originCamera.position = Qt.vector3d(UserInterfaceSettings.cameraPosition3DviewX,
+                                                    UserInterfaceSettings.cameraPosition3DviewY,
+                                                    UserInterfaceSettings.cameraPosition3DviewZ);
+                originCamera.rotation = cameraRotationFromEuler(UserInterfaceSettings.cameraRotation3DviewX,
+                                                                UserInterfaceSettings.cameraRotation3DviewY,
+                                                                UserInterfaceSettings.cameraRotation3DviewZ);
                 dragging = false;
             }
 

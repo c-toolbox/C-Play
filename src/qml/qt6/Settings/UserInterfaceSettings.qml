@@ -118,102 +118,6 @@ SettingsBasePage {
                 width: 1
             }
             CheckBox {
-                checked: UserInterfaceSettings.show3DviewAtStartup
-                text: qsTr("Show 3D view at startup (instead of simple flat view)")
-
-                onCheckedChanged: {
-                    UserInterfaceSettings.show3DviewAtStartup = checked;
-                    UserInterfaceSettings.save();
-                }
-            }
-            Item {
-                Layout.fillWidth: true
-            }
-
-            Label {
-                Layout.alignment: Qt.AlignRight
-                text: qsTr("3D View FOV:")
-            }
-            RowLayout {
-                SpinBox {
-                    id: fov3Dview
-
-                    from: 30
-                    to: 150
-                    value: UserInterfaceSettings.fov3Dview
-
-                    onValueChanged: {
-                        UserInterfaceSettings.fov3Dview = value;
-                        UserInterfaceSettings.save();
-                    }
-                }
-                LabelWithTooltip {
-                    Layout.fillWidth: true
-                    elide: Text.ElideRight
-                    text: {
-                        qsTr("degrees");
-                    }
-                }
-            }
-            Item {
-                Layout.fillWidth: true
-            }
-
-            Item {
-                height: 1
-                width: 1
-            }
-            CheckBox {
-                id: hideDomeOverflowCheckBox
-                checked: UserInterfaceSettings.hideDomeOverflowIn3DView
-                text: qsTr("Hide dome overflow in 3D view")
-
-                onCheckedChanged: {
-                    UserInterfaceSettings.hideDomeOverflowIn3DView = checked;
-                    UserInterfaceSettings.save();
-                }
-            }
-            Item {
-                Layout.fillWidth: true
-            }
-
-            Label {
-                Layout.alignment: Qt.AlignRight
-                text: qsTr("Dome overflow opacity:")
-                enabled: hideDomeOverflowCheckBox.checked
-            }
-            RowLayout {
-                SpinBox {
-                    id: domeOverflowOpacity
-
-                    enabled: hideDomeOverflowCheckBox.checked
-                    from: 0
-                    to: 100
-                    value: UserInterfaceSettings.domeOverflowOpacity * 100
-
-                    onValueChanged: {
-                        UserInterfaceSettings.domeOverflowOpacity = value / 100.0;
-                        UserInterfaceSettings.save();
-                    }
-                }
-                LabelWithTooltip {
-                    Layout.fillWidth: true
-                    elide: Text.ElideRight
-                    enabled: hideDomeOverflowCheckBox.checked
-                    text: {
-                        qsTr("% (0 = transparent, 100 = fully opaque)");
-                    }
-                }
-            }
-            Item {
-                Layout.fillWidth: true
-            }
-
-            Item {
-                height: 1
-                width: 1
-            }
-            CheckBox {
                 checked: UserInterfaceSettings.showHeader
                 text: qsTr("Show Top Bar / Header")
 
@@ -432,6 +336,257 @@ SettingsBasePage {
                             UserInterfaceSettings.osdFontSize = osdFontSize.value;
                             UserInterfaceSettings.save();
                         }
+                    }
+                }
+            }
+            Item {
+                Layout.fillWidth: true
+            }
+
+            SettingsHeader {
+                Layout.columnSpan: 3
+                Layout.fillWidth: true
+                text: qsTr("3D view settings")
+                level: 4
+            }
+
+            Item {
+                height: 1
+                width: 1
+            }
+            CheckBox {
+                checked: UserInterfaceSettings.show3DviewAtStartup
+                text: qsTr("Show 3D view at startup (instead of simple flat view)")
+
+                onCheckedChanged: {
+                    UserInterfaceSettings.show3DviewAtStartup = checked;
+                    UserInterfaceSettings.save();
+                }
+            }
+            Item {
+                Layout.fillWidth: true
+            }
+
+            Label {
+                Layout.alignment: Qt.AlignRight
+                text: qsTr("3D View FOV:")
+            }
+            RowLayout {
+                SpinBox {
+                    id: fov3Dview
+
+                    from: 30
+                    to: 150
+                    value: UserInterfaceSettings.fov3Dview
+
+                    onValueChanged: {
+                        UserInterfaceSettings.fov3Dview = value;
+                        UserInterfaceSettings.save();
+                    }
+                }
+                LabelWithTooltip {
+                    Layout.fillWidth: true
+                    elide: Text.ElideRight
+                    text: {
+                        qsTr("degrees");
+                    }
+                }
+            }
+            Item {
+                Layout.fillWidth: true
+            }
+
+            Label {
+                Layout.alignment: Qt.AlignRight
+                text: qsTr("3D view camera position:")
+            }
+            RowLayout {
+                spacing: Kirigami.Units.smallSpacing
+
+                Label { text: "X" }
+                SpinBox {
+                    id: camPosSpinX
+
+                    editable: true
+                    from: -100
+                    to: 100
+                    stepSize: 1
+                    value: UserInterfaceSettings.cameraPosition3DviewX
+
+                    onValueChanged: {
+                        UserInterfaceSettings.cameraPosition3DviewX = value;
+                        UserInterfaceSettings.save();
+                    }
+                }
+                Label { text: "Y" }
+                SpinBox {
+                    id: camPosSpinY
+
+                    editable: true
+                    from: -100
+                    to: 100
+                    stepSize: 1
+                    value: UserInterfaceSettings.cameraPosition3DviewY
+
+                    onValueChanged: {
+                        UserInterfaceSettings.cameraPosition3DviewY = value;
+                        UserInterfaceSettings.save();
+                    }
+                }
+                Label { text: "Z" }
+                SpinBox {
+                    id: camPosSpinZ
+
+                    editable: true
+                    from: -100
+                    to: 100
+                    stepSize: 1
+                    value: UserInterfaceSettings.cameraPosition3DviewZ
+
+                    onValueChanged: {
+                        UserInterfaceSettings.cameraPosition3DviewZ = value;
+                        UserInterfaceSettings.save();
+                    }
+                }
+            }
+            Item {
+                Layout.fillWidth: true
+            }
+
+            Label {
+                Layout.alignment: Qt.AlignRight
+                text: qsTr("3D view camera rotation:")
+            }
+            RowLayout {
+                spacing: Kirigami.Units.smallSpacing
+
+                Label { text: "X" }
+                SpinBox {
+                    id: camRotSpinX
+
+                    editable: true
+                    from: -180
+                    to: 180
+                    stepSize: 1
+                    value: UserInterfaceSettings.cameraRotation3DviewX
+
+                    onValueChanged: {
+                        UserInterfaceSettings.cameraRotation3DviewX = value;
+                        UserInterfaceSettings.save();
+                    }
+                }
+                Label { text: "Y" }
+                SpinBox {
+                    id: camRotSpinY
+
+                    editable: true
+                    from: -180
+                    to: 180
+                    stepSize: 1
+                    value: UserInterfaceSettings.cameraRotation3DviewY
+
+                    onValueChanged: {
+                        UserInterfaceSettings.cameraRotation3DviewY = value;
+                        UserInterfaceSettings.save();
+                    }
+                }
+                Label { text: "Z" }
+                SpinBox {
+                    id: camRotSpinZ
+
+                    editable: true
+                    from: -180
+                    to: 180
+                    stepSize: 1
+                    value: UserInterfaceSettings.cameraRotation3DviewZ
+
+                    onValueChanged: {
+                        UserInterfaceSettings.cameraRotation3DviewZ = value;
+                        UserInterfaceSettings.save();
+                    }
+                }
+            }
+            Item {
+                Layout.fillWidth: true
+            }
+
+            Label {
+                Layout.alignment: Qt.AlignRight
+                text: ""
+            }
+            RowLayout {
+                Button {
+                    id: getCamPosButton
+
+                    text: qsTr("Get current position & rotation")
+
+                    onClicked: {
+                        // Capture the live 3D view camera pose; the spin boxes' onValueChanged
+                        // handlers persist it to the settings (loaded at next startup). The
+                        // spin boxes are integer-based, so round to the nearest value.
+                        var pos = app.layersCameraPosition();
+                        var rot = app.layersCameraRotation();
+                        camPosSpinX.value = Math.round(pos.x);
+                        camPosSpinY.value = Math.round(pos.y);
+                        camPosSpinZ.value = Math.round(pos.z);
+                        camRotSpinX.value = Math.round(rot.x);
+                        camRotSpinY.value = Math.round(rot.y);
+                        camRotSpinZ.value = Math.round(rot.z);
+                    }
+                }
+                LabelWithTooltip {
+                    Layout.fillWidth: true
+                    elide: Text.ElideRight
+                    text: qsTr("Capture 3D view pose and saves it as the startup position/rotation.")
+                }
+            }
+            Item {
+                Layout.fillWidth: true
+            }
+
+            Item {
+                height: 1
+                width: 1
+            }
+            CheckBox {
+                id: hideDomeOverflowCheckBox
+                checked: UserInterfaceSettings.hideDomeOverflowIn3DView
+                text: qsTr("Hide dome overflow in 3D view")
+
+                onCheckedChanged: {
+                    UserInterfaceSettings.hideDomeOverflowIn3DView = checked;
+                    UserInterfaceSettings.save();
+                }
+            }
+            Item {
+                Layout.fillWidth: true
+            }
+
+            Label {
+                Layout.alignment: Qt.AlignRight
+                text: qsTr("Dome overflow opacity:")
+                enabled: hideDomeOverflowCheckBox.checked
+            }
+            RowLayout {
+                SpinBox {
+                    id: domeOverflowOpacity
+
+                    enabled: hideDomeOverflowCheckBox.checked
+                    from: 0
+                    to: 100
+                    value: UserInterfaceSettings.domeOverflowOpacity * 100
+
+                    onValueChanged: {
+                        UserInterfaceSettings.domeOverflowOpacity = value / 100.0;
+                        UserInterfaceSettings.save();
+                    }
+                }
+                LabelWithTooltip {
+                    Layout.fillWidth: true
+                    elide: Text.ElideRight
+                    enabled: hideDomeOverflowCheckBox.checked
+                    text: {
+                        qsTr("% (0 = transparent, 100 = fully opaque)");
                     }
                 }
             }
@@ -793,3 +948,4 @@ SettingsBasePage {
         }
     }
 }
+
