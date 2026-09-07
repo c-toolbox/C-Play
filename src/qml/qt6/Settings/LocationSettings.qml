@@ -224,6 +224,24 @@ SettingsBasePage {
                     openCPlayFileLocation.open();
                 }
             }
+            ToolButton {
+                id: cPlayFileLocationClearButton
+
+                focusPolicy: Qt.NoFocus
+                icon.height: 16
+                icon.name: "edit-clear"
+                text: ""
+
+                onClicked: {
+                    cPlayFileLocationText.text = "";
+                    LocationSettings.cPlayFileLocation = "";
+                    LocationSettings.save();
+                }
+
+                ToolTip {
+                    text: qsTr("Clear path")
+                }
+            }
         }
         Label {
             Layout.alignment: Qt.AlignRight
@@ -260,6 +278,24 @@ SettingsBasePage {
                     openCPlayMediaLocation.open();
                 }
             }
+            ToolButton {
+                id: cPlayMediaLocationClearButton
+
+                focusPolicy: Qt.NoFocus
+                icon.height: 16
+                icon.name: "edit-clear"
+                text: ""
+
+                onClicked: {
+                    cPlayMediaLocationText.text = "";
+                    LocationSettings.cPlayMediaLocation = "";
+                    LocationSettings.save();
+                }
+
+                ToolTip {
+                    text: qsTr("Clear path")
+                }
+            }
         }
         Label {
             Layout.alignment: Qt.AlignRight
@@ -294,6 +330,24 @@ SettingsBasePage {
 
                 onClicked: {
                     openPrimaryFileDialogLocation.open();
+                }
+            }
+            ToolButton {
+                id: fileDialogLocationClearButton
+
+                focusPolicy: Qt.NoFocus
+                icon.height: 16
+                icon.name: "edit-clear"
+                text: ""
+
+                onClicked: {
+                    fileDialogLocationText.text = "";
+                    LocationSettings.fileDialogLocation = "";
+                    LocationSettings.save();
+                }
+
+                ToolTip {
+                    text: qsTr("Clear path")
                 }
             }
         }
@@ -333,6 +387,24 @@ SettingsBasePage {
                     videoFileDialogLocation.open();
                 }
             }
+            ToolButton {
+                id: videoFileDialogLocationClearButton
+
+                focusPolicy: Qt.NoFocus
+                icon.height: 16
+                icon.name: "edit-clear"
+                text: ""
+
+                onClicked: {
+                    videoFileDialogLocationText.text = "";
+                    LocationSettings.videoFileDialogLocation = "";
+                    LocationSettings.save();
+                }
+
+                ToolTip {
+                    text: qsTr("Clear path")
+                }
+            }
         }
         Label {
             Layout.alignment: Qt.AlignRight
@@ -368,6 +440,24 @@ SettingsBasePage {
 
                 onClicked: {
                     imageFileDialogLocation.open();
+                }
+            }
+            ToolButton {
+                id: imageFileDialogLocationClearButton
+
+                focusPolicy: Qt.NoFocus
+                icon.height: 16
+                icon.name: "edit-clear"
+                text: ""
+
+                onClicked: {
+                    imageFileDialogLocationText.text = "";
+                    LocationSettings.imageFileDialogLocation = "";
+                    LocationSettings.save();
+                }
+
+                ToolTip {
+                    text: qsTr("Clear path")
                 }
             }
         }
@@ -407,6 +497,24 @@ SettingsBasePage {
                     audioFileDialogLocation.open();
                 }
             }
+            ToolButton {
+                id: audioFileDialogLocationClearButton
+
+                focusPolicy: Qt.NoFocus
+                icon.height: 16
+                icon.name: "edit-clear"
+                text: ""
+
+                onClicked: {
+                    audioFileDialogLocationText.text = "";
+                    LocationSettings.audioFileDialogLocation = "";
+                    LocationSettings.save();
+                }
+
+                ToolTip {
+                    text: qsTr("Clear path")
+                }
+            }
         }
         Label {
             Layout.alignment: Qt.AlignRight
@@ -444,6 +552,24 @@ SettingsBasePage {
                     pdfFileDialogLocation.open();
                 }
             }
+            ToolButton {
+                id: pdfFileDialogLocationClearButton
+
+                focusPolicy: Qt.NoFocus
+                icon.height: 16
+                icon.name: "edit-clear"
+                text: ""
+
+                onClicked: {
+                    pdfFileDialogLocationText.text = "";
+                    LocationSettings.pdfFileDialogLocation = "";
+                    LocationSettings.save();
+                }
+
+                ToolTip {
+                    text: qsTr("Clear path")
+                }
+            }
         }
         Label {
             Layout.alignment: Qt.AlignRight
@@ -478,6 +604,24 @@ SettingsBasePage {
 
                 onClicked: {
                     openUniviewVideoLocation.open();
+                }
+            }
+            ToolButton {
+                id: univiewVideoLocationClearButton
+
+                focusPolicy: Qt.NoFocus
+                icon.height: 16
+                icon.name: "edit-clear"
+                text: ""
+
+                onClicked: {
+                    univiewVideoLocationText.text = "";
+                    LocationSettings.univiewVideoLocation = "";
+                    LocationSettings.save();
+                }
+
+                ToolTip {
+                    text: qsTr("Clear path")
                 }
             }
         }
@@ -531,6 +675,24 @@ SettingsBasePage {
 
                 onClicked: {
                     screenshotLocationDialog.open();
+                }
+            }
+            ToolButton {
+                id: screenshotPathClearButton
+
+                focusPolicy: Qt.NoFocus
+                icon.height: 16
+                icon.name: "edit-clear"
+                text: ""
+
+                onClicked: {
+                    screenshotPath.text = "";
+                    LocationSettings.screenshotPath = "";
+                    LocationSettings.save();
+                }
+
+                ToolTip {
+                    text: qsTr("Clear path")
                 }
             }
             Label {

@@ -82,6 +82,24 @@ SettingsBasePage {
                     presentationToLoadOnStartupDialog.open();
                 }
             }
+            ToolButton {
+                id: presentationToLoadOnStartupClearButton
+
+                focusPolicy: Qt.NoFocus
+                icon.height: 16
+                icon.name: "edit-clear"
+                text: ""
+
+                onClicked: {
+                    presentationToLoadOnStartupText.text = "";
+                    PresentationSettings.presentationToLoadOnStartup = "";
+                    PresentationSettings.save();
+                }
+
+                ToolTip {
+                    text: qsTr("Clear path")
+                }
+            }
         }
         Item {
             // spacer item
@@ -278,6 +296,24 @@ SettingsBasePage {
                 PresentationSettings.preLoadLayers = checked;
                 PresentationSettings.save();
                 slidesModel.preLoadLayers = checked;
+            }
+        }
+        Item {
+            // spacer item
+            Layout.fillWidth: true
+        }
+
+        Item {
+            height: 1
+            width: 1
+        }
+        CheckBox {
+            checked: PresentationSettings.showTipsAtStartup
+            text: qsTr("Show tips at startup in the layers list.")
+
+            onCheckedChanged: {
+                PresentationSettings.showTipsAtStartup = checked;
+                PresentationSettings.save();
             }
         }
         Item {

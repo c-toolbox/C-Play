@@ -77,6 +77,24 @@ SettingsBasePage {
                     playlistToLoadOnStartupDialog.open();
                 }
             }
+            ToolButton {
+                id: playlistToLoadOnStartupClearButton
+
+                focusPolicy: Qt.NoFocus
+                icon.height: 16
+                icon.name: "edit-clear"
+                text: ""
+
+                onClicked: {
+                    playlistToLoadOnStartupText.text = "";
+                    PlaylistSettings.playlistToLoadOnStartup = "";
+                    PlaylistSettings.save();
+                }
+
+                ToolTip {
+                    text: qsTr("Clear path")
+                }
+            }
         }
         Item {
             height: 1

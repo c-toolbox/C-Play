@@ -26,6 +26,35 @@ Rectangle {
     property bool busyIndicator: false
     property bool shouldBeVisible: true
 
+    // Tips shown at the bottom of the layers list. The rotation order is shuffled once on
+    // startup (this component is created once per app start), each tip is visible for 20 s,
+    // and no more tips are shown after all of them have been displayed until next launch.
+    readonly property var allTips: [
+        qsTr("You can move selected layer in the 3D view by using Ctrl + Left mouse."),
+        qsTr("Right-click or use Ctrl+C to copy a layer, and Ctrl+V to paste a copy."),
+        qsTr("You can drag-and-drop files directly from the file explorer.")
+    ]
+    property var tipOrder: []
+    property int tipIndex: 0
+    // Set once all tips have been shown this session - no more tips until next launch.
+    property bool tipsFinished: false
+
+    function shuffleTips() {
+        var order = [];
+        for (var i = 0; i < allTips.length; ++i)
+            order.push(i);
+        // Fisher-Yates shuffle - new random rotation order on every startup
+        for (var j = order.length - 1; j > 0; --j) {
+            var k = Math.floor(Math.random() * (j + 1));
+            var tmp = order[j];
+            order[j] = order[k];
+            order[k] = tmp;
+        }
+        tipOrder = order;
+    }
+
+    Component.onCompleted: shuffleTips()
+
     visible: shouldBeVisible && !window.hideUI
     color: Kirigami.Theme.backgroundColor
     height: mpv.height
@@ -441,6 +470,7 @@ Rectangle {
     RowLayout {
         id: moveLayerTip
 
+        visible: !tipsFinished && PresentationSettings.showTipsAtStartup
         anchors.left: parent.left
         anchors.right: parent.right
         anchors.bottom: parent.bottom
@@ -452,14 +482,14 @@ Rectangle {
         Kirigami.Icon {
             id: moveLayerTipIcon
 
-            source: "map-globe"   // same icon as the 3D view toggle in the header taskbar
+            source: "system-help"   // generic tip icon, since the tips rotate between topics
             color: Kirigami.Theme.disabledTextColor
             Layout.preferredWidth: Kirigami.Units.iconSizes.small
             Layout.preferredHeight: Kirigami.Units.iconSizes.small
             Layout.alignment: Qt.AlignTop
 
             ToolTip {
-                text: qsTr("3D view")
+                text: qsTr("Tips")
             }
         }
         Label {
@@ -469,7 +499,7 @@ Rectangle {
             font.pointSize: 9
             wrapMode: Text.Wrap
             Layout.fillWidth: true
-            text: qsTr("Tip: You can move selected layer in the 3D view by using Ctrl + Left mouse.")
+            text: qsTr("Tip: ") + allTips[tipOrder.length > 0 ? tipOrder[tipIndex] : tipIndex]
         }
     }
 
@@ -479,7 +509,7 @@ Rectangle {
         ScrollBar.horizontal.policy: ScrollBar.AlwaysOff
         anchors.fill: parent
         anchors.topMargin: layersHeader.height + 5
-        anchors.bottomMargin: moveLayerTip.height + 5
+        anchors.bottomMargin: (moveLayerTip.visible ? moveLayerTip.height : 0) + 5
         clip: true
         z: 20
 
@@ -556,6 +586,20 @@ Rectangle {
         id: layersItemCompact
 
         LayersItemCompact {
+        }
+    }
+    Timer {
+        id: tipRotationTimer
+
+        interval: 20000
+        repeat: true
+        running: !tipsFinished && PresentationSettings.showTipsAtStartup && shouldBeVisible && !window.hideUI
+
+        onTriggered: {
+            if (tipIndex + 1 >= allTips.length)
+                tipsFinished = true;   // last tip has been shown - no more tips until next launch
+            else
+                tipIndex += 1;
         }
     }
     Timer {
