@@ -37,7 +37,7 @@
     </entry>
     <entry name="CameraPosition3DviewZ" type="Double">
       <label>Camera position Z for 3D view</label>
-      <default>0</default>
+      <default>2</default>
     </entry>
     <entry name="CameraRotation3DviewX" type="Double">
       <label>Camera rotation X for 3D view</label>

@@ -27,8 +27,9 @@ Rectangle {
     property bool shouldBeVisible: true
 
     // Tips shown at the bottom of the layers list. The rotation order is shuffled once on
-    // startup (this component is created once per app start), each tip is visible for 20 s,
-    // and no more tips are shown after all of them have been displayed until next launch.
+    // startup (this component is created once per app start); the user advances to the next
+    // tip with a button or hides the tips for this session, and no more tips are shown after
+    // all of them have been displayed until next launch.
     readonly property var allTips: [
         qsTr("You can move selected layer in the 3D view by using Ctrl + Left mouse."),
         qsTr("Right-click or use Ctrl+C to copy a layer, and Ctrl+V to paste a copy."),
@@ -36,10 +37,19 @@ Rectangle {
     ]
     property var tipOrder: []
     property int tipIndex: 0
-    // Set once all tips have been shown this session - no more tips until next launch.
+    // Set when all tips have been shown or the user hides the tips - no more tips until next launch.
     property bool tipsFinished: false
 
+    function showNextTip() {
+        if (tipIndex + 1 >= allTips.length)
+            tipsFinished = true;   // last tip has been shown - no more tips until next launch
+        else
+            tipIndex += 1;
+    }
+
     function shuffleTips() {
+        if(PresentationSettings.showTipsAtStartup === false)
+            return;
         var order = [];
         for (var i = 0; i < allTips.length; ++i)
             order.push(i);
@@ -501,6 +511,30 @@ Rectangle {
             Layout.fillWidth: true
             text: qsTr("Tip: ") + allTips[tipOrder.length > 0 ? tipOrder[tipIndex] : tipIndex]
         }
+        ToolButton {
+            id: moveLayerTipNextButton
+
+            focusPolicy: Qt.NoFocus
+            icon.name: "arrow-right"
+            icon.height: 16
+            text: ""
+            Layout.alignment: Qt.AlignTop
+            ToolTip.text: qsTr("Show next tip")
+
+            onClicked: showNextTip()
+        }
+        ToolButton {
+            id: moveLayerTipHideButton
+
+            focusPolicy: Qt.NoFocus
+            icon.name: "window-close"
+            icon.height: 16
+            text: ""
+            Layout.alignment: Qt.AlignTop
+            ToolTip.text: qsTr("Hide tips")
+
+            onClicked: tipsFinished = true;   // no more tips until next launch
+        }
     }
 
     ScrollView {
@@ -586,20 +620,6 @@ Rectangle {
         id: layersItemCompact
 
         LayersItemCompact {
-        }
-    }
-    Timer {
-        id: tipRotationTimer
-
-        interval: 20000
-        repeat: true
-        running: !tipsFinished && PresentationSettings.showTipsAtStartup && shouldBeVisible && !window.hideUI
-
-        onTriggered: {
-            if (tipIndex + 1 >= allTips.length)
-                tipsFinished = true;   // last tip has been shown - no more tips until next launch
-            else
-                tipIndex += 1;
         }
     }
     Timer {
