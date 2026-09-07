@@ -1566,6 +1566,27 @@ void LayersRendererQtOpenGLObject::updateLayers() {
         }
     }
 
+    // The background/foreground image layers are master layers, so their plane mesh is
+    // never created by the setters. Apply the global plane parameters and build the mesh
+    // here, otherwise BaseLayer::drawPlane() is a no-op and nothing is rendered.
+    auto ensurePlaneMesh = [](BaseLayer* layer, int gridMode, int stereoMode) {
+        if (!layer || !layer->ready() || gridMode != static_cast<int>(BaseLayer::GridMode::Plane))
+            return;
+
+        const glm::vec2 planeSize(
+            float(SyncHelper::instance().variables.planeWidth),
+            float(SyncHelper::instance().variables.planeHeight));
+
+        layer->setStereoMode(static_cast<uint8_t>(stereoMode));
+        layer->setPlaneSize(planeSize, static_cast<uint8_t>(SyncHelper::instance().variables.planeConsiderAspectRatio));
+        layer->setPlaneElevation(SyncHelper::instance().variables.planeElevation);
+        layer->setPlaneDistance(SyncHelper::instance().variables.planeDistance);
+
+        if (!layer->hasPlane() || layer->needSync()) {
+            layer->updatePlane();
+        }
+    };
+
     // Process layer image uploads
     if (m_backgroundImageLayer) {
         m_backgroundImageLayer->processImageUpload(m_backgroundImageFile.toStdString(), m_backgroundImageDirty);
@@ -1574,6 +1595,9 @@ void LayersRendererQtOpenGLObject::updateLayers() {
             m_backgroundImageLayer->setTranslate(translateXYZ);
             m_backgroundImageDirty = false;
         }
+        ensurePlaneMesh(m_backgroundImageLayer.get(),
+            SyncHelper::instance().variables.gridToMapOnBg,
+            SyncHelper::instance().variables.stereoscopicModeBg);
     }
     if (m_foregroundImageLayer) {
         m_foregroundImageLayer->processImageUpload(m_foregroundImageFile.toStdString(), m_foregroundImageDirty);
@@ -1582,6 +1606,9 @@ void LayersRendererQtOpenGLObject::updateLayers() {
             m_foregroundImageLayer->setTranslate(translateXYZ);
             m_foregroundImageDirty = false;
         }
+        ensurePlaneMesh(m_foregroundImageLayer.get(),
+            SyncHelper::instance().variables.gridToMapOnFg,
+            SyncHelper::instance().variables.stereoscopicModeFg);
     }
     if (m_mpvObject && m_overlayImageLayer) {
         bool overlayUpdated = false;
