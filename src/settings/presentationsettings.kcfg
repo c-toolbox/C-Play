@@ -38,6 +38,10 @@
       <label>The default grid mode for new layers</label>
       <default>1</default>
     </entry>
+    <entry name="GuessGridModeOnDragAndDrop" type="bool">
+      <label>Guess grid mode on drag-and-drop</label>
+      <default>true</default>
+    </entry>
 	  <entry name="DefaultLayerVisibility" type="int">
       <label>The default visibility for new layers</label>
       <default>0</default>

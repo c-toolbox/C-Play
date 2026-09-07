@@ -104,19 +104,22 @@ void VideoLayer::cleanup() {
     }
 }
 
+void VideoLayer::update(bool updateRendering) {
+    MpvLayer::update(updateRendering);
+
+    if (!updateRendering) {
+        std::lock_guard<std::mutex> lock(m_updateFrameMutex);
+        applyPendingVideoSize();
+    }
+}
+
 void VideoLayer::updateFrame() {
     std::lock_guard<std::mutex> lock(m_updateFrameMutex);
 
     if (!m_data.mpvInitializedGL)
         return;
 
-    // Pick up any pending video size change safely under the lock.
-    if (m_data.pendingWidth > 0 && m_data.pendingHeight > 0) {
-        renderData.width = m_data.pendingWidth;
-        renderData.height = m_data.pendingHeight;
-        m_data.pendingWidth = 0;
-        m_data.pendingHeight = 0;
-    }
+    applyPendingVideoSize();
 
     updateFbo();
 
@@ -157,6 +160,15 @@ void VideoLayer::updateFrame() {
             {MPV_RENDER_PARAM_SKIP_RENDERING, &skip_rendering},
             {MPV_RENDER_PARAM_INVALID, nullptr}};
         mpv_render_context_render(m_data.renderContext, params);
+    }
+}
+
+void VideoLayer::applyPendingVideoSize() {
+    if (m_data.pendingWidth > 0 && m_data.pendingHeight > 0) {
+        renderData.width = m_data.pendingWidth;
+        renderData.height = m_data.pendingHeight;
+        m_data.pendingWidth = 0;
+        m_data.pendingHeight = 0;
     }
 }
 

@@ -12,6 +12,7 @@
 #include <QElapsedTimer>
 #include <layers/baselayer.h>
 #include <QtQml/qqmlregistration.h>
+#include <QSet>
 #include <QVector>
 #include <memory>
 
@@ -310,8 +311,10 @@ Q_SIGNALS:
 private:
     void setNeedSync();
     void ensureTimelineSizeMatchesLayers();
+    void guessGridModeForDraggedLayer(int layerIdx, BaseLayer *layer);
 
     Layers m_layers;
+    QSet<BaseLayer *> m_draggedLayersAwaitingGridGuess;
     LayersTypeModel *m_layerTypeModel;
     BaseLayer::LayerHierarchy m_layerHierachy;
     int m_layersVisibility = 0;

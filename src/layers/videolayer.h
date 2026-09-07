@@ -22,6 +22,7 @@ public:
     virtual void initialize();
     void initializeGL();
     void cleanup();
+    void update(bool updateRendering = true) override;
     void updateFrame();
     virtual bool ready() const;
 
@@ -30,6 +31,7 @@ public:
     void updateFbo();
 
 private:
+    void applyPendingVideoSize();
     void checkNeededMpvFboResize();
     void createMpvFBO(int width, int height);
     void generateTexture(unsigned int &id, int width, int height);

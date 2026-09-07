@@ -176,6 +176,7 @@ Layers LayersModel::getLayers() const {
 
 void LayersModel::setLayers(const Layers &layers) {
     beginResetModel();
+    m_draggedLayersAwaitingGridGuess.clear();
     m_layers = layers;
     endResetModel();
 }
@@ -424,7 +425,16 @@ int LayersModel::addLayerBasedOnMime(QUrl fileUrl) {
         return -1;
 
     QFileInfo fileInfo(filePath);
-    return addLayer(fileInfo.baseName(), type, filePath, PresentationSettings::defaultStereoModeForLayers(), PresentationSettings::defaultGridModeForLayers());
+    const int layerIdx = addLayer(fileInfo.baseName(), type, filePath, PresentationSettings::defaultStereoModeForLayers(), PresentationSettings::defaultGridModeForLayers());
+    if (layerIdx >= 0
+        && PresentationSettings::guessGridModeOnDragAndDrop()
+        && (type == BaseLayer::LayerType::IMAGE || type == BaseLayer::LayerType::VIDEO)) {
+        BaseLayer *layer = m_layers[layerIdx].first.get();
+        layer->setShouldPreLoad(true);
+        m_draggedLayersAwaitingGridGuess.insert(layer);
+    }
+
+    return layerIdx;
 }
 
 void LayersModel::removeLayer(int i) {
@@ -435,6 +445,7 @@ void LayersModel::removeLayer(int i) {
         return;
 
     m_layers[i].first->setEnabled(false);
+    m_draggedLayersAwaitingGridGuess.remove(m_layers[i].first.get());
 
     beginRemoveRows(QModelIndex(), i, i);
     m_layers.removeAt(i);
@@ -581,8 +592,10 @@ void LayersModel::clearLayers() {
         if (lockedLayers < m_layers.size()) {
             beginRemoveRows(QModelIndex(), lockedLayers, m_layers.size() - 1);
             for (int i = lockedLayers; i < m_layers.size(); i++) {
-                if (m_layers[i].first)
+                if (m_layers[i].first) {
                     m_layers[i].first->setEnabled(false);
+                    m_draggedLayersAwaitingGridGuess.remove(m_layers[i].first.get());
+                }
             }
             m_layers.erase(m_layers.begin() + lockedLayers, m_layers.end());
             endRemoveRows();
@@ -602,6 +615,7 @@ void LayersModel::clearLayers() {
             m_layers.clear();
             endRemoveRows();
         }
+        m_draggedLayersAwaitingGridGuess.clear();
         setLayersNeedsSave(false);
     }
 
@@ -1666,11 +1680,18 @@ bool LayersModel::runRenderOnLayersThatShouldUpdate(bool updateRendering, bool p
         if (layer && layer->isEnabled()) {
             if (layer->shouldUpdate()
                 || (preload && !layer->ready()) 
-                || (layer->shouldPreLoad() && !layer->ready())) {
+                || (layer->shouldPreLoad() && !layer->ready())
+                || m_draggedLayersAwaitingGridGuess.contains(layer.get())) {
                 if (!layer->hasInitialized()) {
                     layer->initialize();
                 }
                 layer->update(layer->shouldUpdate() && updateRendering);
+            }
+            if (m_draggedLayersAwaitingGridGuess.contains(layer.get())
+                && layer->ready()
+                && layer->width() > 0
+                && layer->height() > 0) {
+                guessGridModeForDraggedLayer(i, layer.get());
             }
             if (layer->ready() && layer->shouldUpdateFrame()) {
                 // Mostly here to handle update on layers in other windows
@@ -1695,6 +1716,28 @@ bool LayersModel::runRenderOnLayersThatShouldUpdate(bool updateRendering, bool p
         }
     }
     return statusHasUpdated;
+}
+
+void LayersModel::guessGridModeForDraggedLayer(int layerIdx, BaseLayer *layer) {
+    m_draggedLayersAwaitingGridGuess.remove(layer);
+
+    if (!PresentationSettings::guessGridModeOnDragAndDrop())
+        return;
+
+    uint8_t guessedGridMode = layer->gridMode();
+    if (layer->width() == layer->height()) {
+        guessedGridMode = BaseLayer::Dome;
+    }
+    else if (layer->width() == 2 * layer->height()) {
+        guessedGridMode = BaseLayer::Sphere_EQR;
+    }
+
+    if (guessedGridMode != layer->gridMode()) {
+        layer->setGridMode(guessedGridMode);
+        updateLayer(layerIdx);
+        setLayersNeedsSave(true);
+        setNeedSync();
+    }
 }
 
 LayersTypeModel::LayersTypeModel(QObject *parent)

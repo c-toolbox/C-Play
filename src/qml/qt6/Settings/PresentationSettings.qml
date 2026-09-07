@@ -217,6 +217,24 @@ SettingsBasePage {
             width: 1
         }
         CheckBox {
+            checked: PresentationSettings.guessGridModeOnDragAndDrop
+            text: qsTr("Guess grid mode on drag-and-drop")
+
+            onCheckedChanged: {
+                PresentationSettings.guessGridModeOnDragAndDrop = checked;
+                PresentationSettings.save();
+            }
+        }
+        Item {
+            // spacer item
+            Layout.fillWidth: true
+        }
+
+        Item {
+            height: 1
+            width: 1
+        }
+        CheckBox {
             checked: PresentationSettings.mediaVisibilityControlMasterLayers
             text: qsTr("Media visibility control master layer visibility.")
 
