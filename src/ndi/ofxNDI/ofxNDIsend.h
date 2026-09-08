@@ -6,7 +6,7 @@
 
 	https://ndi.video
 
-	Copyright (C) 2016-2024 Lynn Jarvis.
+	Copyright (C) 2016-2026 Lynn Jarvis.
 
 	http://www.spout.zeal.co
 
@@ -40,6 +40,8 @@
 			 - Add changes for OSX (https://github.com/ThomasLengeling/ofxNDI)
 			 - add "m_" prefix to all class variables
 	15.11.19 - Change to dynamic load of Newtek NDI dlls
+	19.01.25 - Update to NDI 6.1.1.0
+	20.12.25 - Update to NDI version 6.2.1.0
 
 */
 #pragma once
@@ -48,6 +50,8 @@
 
 #include <stdio.h>
 #include <string>
+#include <map> // for std::map
+#include <numeric>  // for std::gcd
 
 #include "ofxNDIdynloader.h" // NDI library loader
 #include "ofxNDIutils.h" // buffer copy utilities
@@ -113,6 +117,9 @@ public:
 	// Return whether the sender has been created
 	bool SenderCreated();
 
+	// Return the number of receiver connections
+	int GetConnections(uint32_t msec_timeout);
+
 	// Return current sender width
 	unsigned int GetWidth();
 
@@ -175,6 +182,12 @@ public:
 	// Get whether clocked
 	bool GetClockVideo();
 
+	// Set audio frame type
+	void SetAudioType(int type);
+
+	// Get audio frame type
+	int GetAudioType();
+
 	// Set asynchronous sending mode
 	// (disables clocked video)
 	// Initialized false
@@ -186,9 +199,12 @@ public:
 	// Set to send Audio
 	// Initialized false
 	void SetAudio(bool bAudio = true);
-
+	
 	// Get whether audio sending is set
 	bool GetAudio();
+
+	// Set audio clocked
+	void SetClockAudio(bool bClocked = true);
 
 	// Set audio sample rate
 	// - sampleRate | rate in hz
@@ -214,6 +230,15 @@ public:
 	// - data | data to send (float)
 	void SetAudioData(const float *data = NULL); // Audio data
 
+	// Get audio data
+	float* GetAudioData();
+
+	// Get the sender audio frame
+	NDIlib_audio_frame_v2_t GetAudioFrame();
+
+	// Send an audio frame
+	bool SendAudio();
+
 	// Set to send metadata
 	// Initialized false
 	void SetMetadata(bool bMetadata = true);
@@ -225,9 +250,12 @@ public:
 	// Get the current NDI SDK version
 	std::string GetNDIversion();
 
+	// Public for external use
+	const NDIlib_v4* p_NDILib;
+
 private:
 
-	const NDIlib_v4* p_NDILib;
+	// const NDIlib_v4* p_NDILib;
 	bool m_bNDIinitialized;
 
 	ofxNDIdynloader libloader;
@@ -247,7 +275,7 @@ private:
 	int m_horizontal_aspect; // Aspect horizontal ratio
 	int m_vertical_aspect; // Aspect vertical ratio
 	float m_picture_aspect_ratio; // Aspect ratio
-	bool m_bProgressive; // Progressive output flag
+	bool m_bProgressive; // Progressive video output flag
 	bool m_bClockVideo; // Clock video flag
 	bool m_bAsync; // NDI asynchronous sender
 	NDIlib_FourCC_video_type_e m_Format; // Output format. Default RGBA. May also be BGRA or YUV.
@@ -255,12 +283,15 @@ private:
 
 	// Audio
 	bool m_bAudio;
+	bool m_bClockAudio; // Clock audio (default false)
+	int m_AudioType = 0; 
 	NDIlib_audio_frame_v2_t m_audio_frame;
+
 	int m_AudioSampleRate;
 	int m_AudioChannels;
 	int m_AudioSamples;
 	int64_t m_AudioTimecode;
-	float *m_AudioData;
+	float *m_AudioData = nullptr;
 
 	// Metadata
 	bool m_bMetadata;
