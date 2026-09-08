@@ -44,6 +44,8 @@ NdiSenderSource NdiSender::sourceFromMpvObject(MpvObject *mpv) {
     source.textureId = [mpv]() -> unsigned int { return mpv->fboTextureId(); };
     source.width = [mpv]() -> int { return mpv->fboWidth(); };
     source.height = [mpv]() -> int { return mpv->fboHeight(); };
+    // The mpv FBO is already stored in the orientation NDI expects.
+    source.invertY = []() -> bool { return false; };
     return source;
 }
 
@@ -58,6 +60,9 @@ NdiSenderSource NdiSender::sourceFromLayer(BaseLayer *layer) {
     };
     source.width = [layer]() -> int { return layer->width(); };
     source.height = [layer]() -> int { return layer->height(); };
+    // Layer textures are bottom-up, but a layer that is already flagged flipY
+    // stores its rows the other way around, so the two cancel out.
+    source.invertY = [layer]() -> bool { return !layer->flipY(); };
     return source;
 }
 
@@ -175,7 +180,7 @@ void NdiSender::releasePbos() {
 // Streaming texture pixel readback, the inverse of NdiLayer::LoadTexturePixels.
 // The read into the PBO is asynchronous, the buffer mapped is the one filled a
 // couple of frames earlier, so the GPU is never stalled.
-unsigned char *NdiSender::readPixels(unsigned int textureId, int width, int height) {
+unsigned char *NdiSender::readPixels(unsigned int textureId, int width, int height, bool invertY) {
     const size_t dataSize = static_cast<size_t>(width) * static_cast<size_t>(height) * 4;
 
     if (!m_pbo[0]) {
@@ -216,7 +221,10 @@ unsigned char *NdiSender::readPixels(unsigned int textureId, int width, int heig
         // The ring has to be filled before the trailing buffer holds a
         // complete frame, otherwise the first frames would be garbage.
         if (m_framesCaptured > 2) {
-            ofxNDIutils::CopyImage(pboMemory, m_frameBuffer, width, height, true);
+            // The flip is applied here, once. Both this copy and
+            // ofxNDIsend::SendImage can invert, so SendImage is always called
+            // with bInvert=false to avoid cancelling this one out.
+            ofxNDIutils::CopyImage(pboMemory, m_frameBuffer, width, height, invertY);
             result = m_frameBuffer;
         }
         glUnmapBuffer(GL_PIXEL_PACK_BUFFER);
@@ -241,17 +249,20 @@ bool NdiSender::captureAndSend() {
     if (!createOrUpdateSender(width, height))
         return false;
 
-    unsigned char *pixels = readPixels(textureId, width, height);
+    // Textures read back with glGetTexImage are bottom-up. A source can opt out
+    // when it already stores its rows top-down.
+    const bool invertY = m_source.invertY ? m_source.invertY() : true;
+
+    unsigned char *pixels = readPixels(textureId, width, height, invertY);
     if (!pixels)
         return false;
 
-    // The source FBO is rendered bottom-up compared to what NDI expects,
-    // so the image is flipped while being sent.
+    // readPixels has already applied the vertical flip, so no second invert here.
     return m_sender.SendImage(pixels,
                               static_cast<unsigned int>(width),
                               static_cast<unsigned int>(height),
                               /*bSwapRB=*/false,
-                              /*bInvert=*/true);
+                              /*bInvert=*/false);
 }
 
 void NdiSender::cleanupGL() {
@@ -275,7 +286,7 @@ void NdiSender::releaseSender() {
 void NdiSender::releasePbos() {
 }
 
-unsigned char *NdiSender::readPixels(unsigned int, int, int) {
+unsigned char *NdiSender::readPixels(unsigned int, int, int, bool) {
     return nullptr;
 }
 

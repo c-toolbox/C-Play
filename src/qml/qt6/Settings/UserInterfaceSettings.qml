@@ -549,6 +549,24 @@ SettingsBasePage {
                 width: 1
             }
             CheckBox {
+                id: hideMasterOnlyLayersCheckBox
+                checked: UserInterfaceSettings.hideMasterOnlyLayersIn3DView
+                text: qsTr("Hide master-only layers in 3D view")
+
+                onCheckedChanged: {
+                    UserInterfaceSettings.hideMasterOnlyLayersIn3DView = checked;
+                    UserInterfaceSettings.save();
+                }
+            }
+            Item {
+                Layout.fillWidth: true
+            }
+
+            Item {
+                height: 1
+                width: 1
+            }
+            CheckBox {
                 id: hideDomeOverflowCheckBox
                 checked: UserInterfaceSettings.hideDomeOverflowIn3DView
                 text: qsTr("Hide dome overflow in 3D view")

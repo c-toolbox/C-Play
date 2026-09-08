@@ -728,6 +728,14 @@ static void postSyncPreDraw() {
                     else {
                         auto existing = find_if(secondaryLayers.begin(), secondaryLayers.end(),
                                                 [&packet](const std::shared_ptr<BaseLayer>& layer) { return layer && layer->identifier() == packet.id; });
+                        // Guard against decoding a payload into a layer of a
+                        // different type, which would corrupt the layer state.
+                        // The layer is dropped and re-created instead.
+                        if (existing != secondaryLayers.end()
+                            && static_cast<int>((*existing)->type()) != packet.layerType
+                            && packet.fullSync) {
+                            existing = secondaryLayers.end();
+                        }
                         if (existing != secondaryLayers.end()) {
                             layer = *existing;
                         }

@@ -51,6 +51,10 @@
 #ifdef REST_LAYER
 #include <layers/restlayer.h>
 #endif
+// ndisender.h is always compiled, it degrades to a no-op implementation when
+// the build has no NDI support. The complete type is needed here regardless,
+// since BaseLayer holds a std::unique_ptr<NdiSender>.
+#include <ndi/ndisender.h>
 
 std::atomic_uint32_t BaseLayer::m_id_gen = 1;
 
@@ -259,15 +263,21 @@ BaseLayer::BaseLayer() {
     m_keepVisibilityForNumSlides = 0;
     m_identifier = 0;
     m_pendingStart = false;
+    m_ndiOutputEnabled = false;
+    m_ndiSenderName = "";
     setNeedSync();
 }
 
 BaseLayer::~BaseLayer() {
     planeData.mesh.reset();
+#ifdef NDI_SUPPORT
+    m_ndiSender.reset();
+#endif
 }
 
 void BaseLayer::cleanup() {
-    // Overwrite in derived class
+    // Overwrite in derived class, but always call cleanupNdiOutput()
+    cleanupNdiOutput();
 }
 
 void BaseLayer::initialize() {
@@ -380,6 +390,14 @@ void BaseLayer::setVolumeMute(bool) {
 bool BaseLayer::existOnMasterOnly() const {
     // Overwrite in derived class
     return m_existOnMasterOnly;
+}
+
+void BaseLayer::setExistOnMasterOnly(bool value) {
+    if (m_existOnMasterOnly == value)
+        return;
+
+    m_existOnMasterOnly = value;
+    setNeedSync();
 }
 
 int BaseLayer::eofMode() const {
@@ -1088,5 +1106,121 @@ void BaseLayer::setNeedSync() {
     m_syncIteration = PresentationSettings::networkSyncIterations();
 #else
     m_syncIteration = 1;
+#endif
+}
+
+bool BaseLayer::ndiOutputSupported() {
+#ifdef NDI_SUPPORT
+    return NdiSender::isSupported();
+#else
+    return false;
+#endif
+}
+
+bool BaseLayer::ndiOutputEnabled() const {
+    return m_ndiOutputEnabled;
+}
+
+void BaseLayer::setNdiOutputEnabled(bool enabled) {
+    if (enabled == m_ndiOutputEnabled)
+        return;
+
+    m_ndiOutputEnabled = enabled;
+
+    if (m_ndiOutputEnabled) {
+        if (m_ndiSenderName.empty()) {
+            m_ndiSenderName = generateNdiSenderName();
+        }
+    }
+    else {
+        m_ndiSenderName.clear();
+    }
+
+#ifdef NDI_SUPPORT
+    if (m_ndiSender) {
+        // The sender is stopped here, but the OpenGL resources can only be
+        // released from the render thread. updateNdiOutput() does that.
+        m_ndiSender->stop();
+    }
+#endif
+}
+
+std::string BaseLayer::ndiSenderName() const {
+    return m_ndiSenderName;
+}
+
+void BaseLayer::setNdiSenderName(std::string name) {
+    if (name == m_ndiSenderName)
+        return;
+
+    m_ndiSenderName = name;
+
+#ifdef NDI_SUPPORT
+    // Force the sender to be re-created under the new name.
+    if (m_ndiSender) {
+        m_ndiSender->stop();
+    }
+#endif
+}
+
+std::string BaseLayer::generateNdiSenderName() const {
+    std::string name = "C-Play Layer " + std::to_string(m_identifier);
+    if (!m_title.empty()) {
+        name += " - " + m_title;
+    }
+    return name;
+}
+
+bool BaseLayer::ndiOutputIsSending() const {
+#ifdef NDI_SUPPORT
+    return m_ndiSender && m_ndiSender->isSending();
+#else
+    return false;
+#endif
+}
+
+void BaseLayer::updateNdiOutput() {
+#ifdef NDI_SUPPORT
+    if (!isMaster())
+        return;
+
+    if (!m_ndiOutputEnabled) {
+        // Release the sender while we still have a current context.
+        if (m_ndiSender) {
+            m_ndiSender->cleanupGL();
+            m_ndiSender.reset();
+        }
+        return;
+    }
+
+    if (!NdiSender::isSupported())
+        return;
+
+    if (!hasTexture() || textureId() == 0 || width() <= 0 || height() <= 0)
+        return;
+
+    if (!m_ndiSender) {
+        m_ndiSender = std::make_unique<NdiSender>();
+    }
+
+    if (!m_ndiSender->isEnabled()) {
+        if (m_ndiSenderName.empty()) {
+            m_ndiSenderName = generateNdiSenderName();
+        }
+        m_ndiSender->setSource(NdiSender::sourceFromLayer(this));
+        if (!m_ndiSender->start(m_ndiSenderName))
+            return;
+    }
+
+    m_ndiSender->captureAndSend();
+#endif
+}
+
+void BaseLayer::cleanupNdiOutput() {
+#ifdef NDI_SUPPORT
+    if (m_ndiSender) {
+        m_ndiSender->cleanupGL();
+        m_ndiSender.reset();
+    }
 #endif
 }

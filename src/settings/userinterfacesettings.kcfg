@@ -59,6 +59,10 @@
       <label>Dome overflow mask opacity</label>
       <default>0.7</default>
     </entry>
+    <entry name="HideMasterOnlyLayersIn3DView" type="bool">
+      <label>Hide master-only layers in 3D view</label>
+      <default>true</default>
+    </entry>
     <entry name="ShowHeader" type="bool">
       <label>Show header</label>
       <default>true</default>

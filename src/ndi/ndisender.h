@@ -34,6 +34,9 @@ struct NdiSenderSource {
     // Native resolution of the texture.
     std::function<int()> width;
     std::function<int()> height;
+    // True when the texture rows are stored bottom-up compared to what NDI
+    // expects, so that the image has to be flipped vertically while sending.
+    std::function<bool()> invertY;
     // Optional human readable name of the source, used for logging.
     std::string name;
 
@@ -88,7 +91,7 @@ private:
     void releaseSender();
     // Asynchronously reads the texture into the PBO ring and returns the
     // pixels captured a couple of frames ago, or nullptr when not ready yet.
-    unsigned char *readPixels(unsigned int textureId, int width, int height);
+    unsigned char *readPixels(unsigned int textureId, int width, int height, bool invertY);
     void releasePbos();
 
     // TODO: audio support. ofxNDIsend already provides SetAudio /

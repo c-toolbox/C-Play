@@ -874,6 +874,48 @@ TracksModel* LayerQtItem::audioTracksModel() const {
     return m_audioTracksModel;
 }
 
+bool LayerQtItem::layerNdiAvailable() const {
+    return BaseLayer::ndiOutputSupported();
+}
+
+bool LayerQtItem::layerNdiOutputEnabled() const {
+    if (m_layer) {
+        return m_layer->ndiOutputEnabled();
+    }
+    return false;
+}
+
+void LayerQtItem::setLayerNdiOutputEnabled(bool enabled) {
+    if (m_layer && m_layer->ndiOutputEnabled() != enabled) {
+        m_layer->setNdiOutputEnabled(enabled);
+        Q_EMIT layerValueChanged();
+        Q_EMIT layerNeedsSave();
+    }
+}
+
+bool LayerQtItem::layerExistOnMasterOnly() const {
+    return m_layer && m_layer->existOnMasterOnly();
+}
+
+void LayerQtItem::setLayerExistOnMasterOnly(bool value) {
+    if (m_layer && m_layer->existOnMasterOnly() != value) {
+        m_layer->setExistOnMasterOnly(value);
+        Q_EMIT layerValueChanged();
+        Q_EMIT layerNeedsSave();
+    }
+}
+
+QString LayerQtItem::layerNdiSenderName() const {
+    if (m_layer) {
+        return QString::fromStdString(m_layer->ndiSenderName());
+    }
+    return QStringLiteral("");
+}
+
+bool LayerQtItem::layerNdiSending() const {
+    return m_layer && m_layer->ndiOutputIsSending();
+}
+
 void LayerQtItem::loadTracks() {
     if (m_layer) {
         m_audioTracksModel->setTracks(m_layer->audioTracks());

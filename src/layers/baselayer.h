@@ -9,10 +9,14 @@
 #define BASELAYER_H
 
 #include <glm/glm.hpp>
+#include <memory>
 #include <mutex>
+#include <string>
 #include <vector>
 #include "track.h"
 #include <utils/planegrid.h>
+
+class NdiSender;
 
 class BaseLayer {
 public:
@@ -161,6 +165,8 @@ public:
     virtual void setVolumeMute(bool v);
 
     virtual bool existOnMasterOnly() const;
+    // User controlled flag deciding if the layer should be synced to the nodes.
+    void setExistOnMasterOnly(bool value);
 
     virtual int eofMode() const;
     virtual void setEOFMode(int eofMode);
@@ -326,6 +332,20 @@ public:
 
     bool shouldRenderForEye() const;
 
+    // NDI output on the master. The nodes are not affected by this.
+    static bool ndiOutputSupported();
+    bool ndiOutputEnabled() const;
+    void setNdiOutputEnabled(bool enabled);
+    std::string ndiSenderName() const;
+    void setNdiSenderName(std::string name);
+    std::string generateNdiSenderName() const;
+    bool ndiOutputIsSending() const;
+    // Captures the layer texture and sends one NDI frame. Must be called with
+    // the OpenGL context owning the layer texture current.
+    void updateNdiOutput();
+    // Releases the NDI sender and its OpenGL resources. Requires a current context.
+    void cleanupNdiOutput();
+
 protected:
     void setNeedSync();
 
@@ -356,6 +376,12 @@ protected:
 
     uint32_t m_identifier;
     static std::atomic_uint32_t m_id_gen;
+
+    bool m_ndiOutputEnabled;
+    std::string m_ndiSenderName;
+#ifdef NDI_SUPPORT
+    std::unique_ptr<NdiSender> m_ndiSender;
+#endif
 };
 
 #endif // BASELAYER_H

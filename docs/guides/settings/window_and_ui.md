@@ -35,6 +35,7 @@ When idle mode is enabled, the UI automatically hides after a period of inactivi
 * **3D view camera position** — Starting X/Y/Z position of the 3D view camera (default 0/0/0). Loaded when C-Play starts; orbiting and zooming then move the camera freely until restart.
 * **3D view camera rotation** — Starting X/Y/Z rotation of the 3D view camera in degrees (default 0/0/0). Loaded together with the position at startup.
 * **Get current position & rotation** — Button that captures the live 3D view camera pose and saves it as the new startup position/rotation, so you can fix the camera where you have framed it. Double-clicking in the 3D view also restores this saved pose.
+* **Hide master-only layers in 3D view** — Layers marked to exist on the master only (i.e. not synced to the nodes) are hidden from the 3D visualization when enabled (default on).
 * **Hide dome overflow in 3D view** — Mask content that falls outside the dome projection area (default off).
 * **Dome overflow opacity** — Opacity of the dome overflow mask, from 0% (transparent) to 100% (fully opaque). Default 70%.
 

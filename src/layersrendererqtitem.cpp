@@ -1728,6 +1728,9 @@ void LayersRendererQtOpenGLObject::renderLayers(float angle,
                 BaseLayer* layer = layerPtr.get();
 
                 if (layer) {
+                    // Layers that only exist on the master can be hidden from the 3D view.
+                    if (UserInterfaceSettings::hideMasterOnlyLayersIn3DView() && layer->existOnMasterOnly())
+                        continue;
                     if (layer->ready() && layer->hasTexture() && (layer->alpha() > 0.f)) {
                         if (layer->hasSubLayers()) {
                             for (const auto& sublayer : layer->getSubLayers()) {
@@ -1771,6 +1774,9 @@ void LayersRendererQtOpenGLObject::renderLayers(float angle,
                     std::shared_ptr<BaseLayer> layerPtr = slidePtr->layerShared(l);
                     BaseLayer* layer = layerPtr.get();
                     if (layer) {
+                        // Layers that only exist on the master can be hidden from the 3D view.
+                        if (UserInterfaceSettings::hideMasterOnlyLayersIn3DView() && layer->existOnMasterOnly())
+                            continue;
                         if (layer->ready() && layer->hasTexture() && (layer->alpha() > 0.f)) {
                             if (layer->hasSubLayers()) {
                                 // QR operations active: skip the parent, only render sublayers

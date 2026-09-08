@@ -140,10 +140,10 @@ Kirigami.ApplicationWindow {
 
     color: Kirigami.Theme.alternateBackgroundColor
     height: 630
-    minimumWidth: 820
+    minimumWidth: 980
     title: qsTr("")
     visible: false
-    width: 820
+    width: 980
 
     Component.onCompleted: {
         if (window.x > width) {
@@ -372,6 +372,7 @@ Kirigami.ApplicationWindow {
                         text: qsTr("Configure Grid Parameters")
                     }
                 }
+
                 PropertyAnimation {
                     id: visibility_fade_out_animation
 
@@ -451,6 +452,45 @@ Kirigami.ApplicationWindow {
 
                     ToolTip {
                         text: qsTr("Region of interest")
+                    }
+                }
+
+                ToolButton {
+                    id: ndiOutputButton
+
+                    checkable: true
+                    checked: layerViewItem.layerNdiOutputEnabled
+                    enabled: layerViewItem.layerNdiAvailable && layerViewItem.layerTypeName !== "Audio"
+                    focusPolicy: Qt.NoFocus
+                    icon.color: (!layerViewItem.layerNdiOutputEnabled ? "crimson" : (layerViewItem.layerNdiSending ? "lime" : "orange"))
+                    icon.name: "cloud-upload"
+                    text: qsTr("NDI")
+
+                    onClicked: {
+                        layerViewItem.layerNdiOutputEnabled = checked;
+                    }
+
+                    ToolTip {
+                        text: layerViewItem.layerNdiAvailable ? (layerViewItem.layerNdiOutputEnabled ? qsTr("NDI output on master: %1").arg(layerViewItem.layerNdiSenderName) : qsTr("NDI output for this layer on the master")) : qsTr("Application built without NDI support")
+                    }
+                }
+                ToolButton {
+                    id: masterOnlyButton
+
+                    checkable: true
+                    checked: layerViewItem.layerExistOnMasterOnly
+                    focusPolicy: Qt.NoFocus
+                    icon.color: layerViewItem.layerExistOnMasterOnly ? "orange" : "lime"
+                    icon.name: layerViewItem.layerExistOnMasterOnly ? "network-disconnect" : "network-connect"
+                    text: qsTr("Sync")
+
+                    onClicked: {
+                        layerViewItem.layerExistOnMasterOnly = checked;
+                        app.slides.needsSync = true;
+                    }
+
+                    ToolTip {
+                        text: layerViewItem.layerExistOnMasterOnly ? qsTr("Layer exists on the master only, it is not synced to the nodes") : qsTr("Layer is synced to the nodes")
                     }
                 }
             }

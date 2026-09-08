@@ -130,6 +130,11 @@ class LayerQtItem : public QQuickItem {
     Q_PROPERTY(int layerRestMethod READ layerRestMethod WRITE setLayerRestMethod NOTIFY layerValueChanged)
     Q_PROPERTY(QString layerRestParameters READ layerRestParameters WRITE setLayerRestParameters NOTIFY layerValueChanged)
     Q_PROPERTY(bool layerRestIgnoreStatus READ layerRestIgnoreStatus WRITE setLayerRestIgnoreStatus NOTIFY layerValueChanged)
+    Q_PROPERTY(bool layerNdiAvailable READ layerNdiAvailable CONSTANT)
+    Q_PROPERTY(bool layerNdiOutputEnabled READ layerNdiOutputEnabled WRITE setLayerNdiOutputEnabled NOTIFY layerValueChanged)
+    Q_PROPERTY(bool layerExistOnMasterOnly READ layerExistOnMasterOnly WRITE setLayerExistOnMasterOnly NOTIFY layerValueChanged)
+    Q_PROPERTY(QString layerNdiSenderName READ layerNdiSenderName NOTIFY layerValueChanged)
+    Q_PROPERTY(bool layerNdiSending READ layerNdiSending NOTIFY layerPositionChanged)
 
 public:
     LayerQtItem();
@@ -228,6 +233,14 @@ public:
     QString layerTypeName();
     QString layerTitle();
     void setLayerTitle(QString value);
+
+    bool layerNdiAvailable() const;
+    bool layerNdiOutputEnabled() const;
+    void setLayerNdiOutputEnabled(bool enabled);
+    bool layerExistOnMasterOnly() const;
+    void setLayerExistOnMasterOnly(bool value);
+    QString layerNdiSenderName() const;
+    bool layerNdiSending() const;
 
     QSize textureSize();
 

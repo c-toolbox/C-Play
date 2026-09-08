@@ -1155,6 +1155,17 @@ void LayersModel::decodeFromJSON(QJsonObject &obj, const QStringList &forRelativ
                         m_layers[idx].first->setFlipY(flipY);
                     }
 
+                    if (o.contains(QStringLiteral("ndiOutput"))) {
+                        m_layers[idx].first->setNdiOutputEnabled(o.value(QStringLiteral("ndiOutput")).toBool());
+                        if (o.contains(QStringLiteral("ndiSenderName"))) {
+                            m_layers[idx].first->setNdiSenderName(o.value(QStringLiteral("ndiSenderName")).toString().toStdString());
+                        }
+                    }
+
+                    if (o.contains(QStringLiteral("existOnMasterOnly"))) {
+                        m_layers[idx].first->setExistOnMasterOnly(o.value(QStringLiteral("existOnMasterOnly")).toBool());
+                    }
+
                     if (o.contains(QStringLiteral("eye_mode"))) {
                         QString em = o.value(QStringLiteral("eye_mode")).toString();
                         if (em == QStringLiteral("left"))
@@ -1588,6 +1599,15 @@ void LayersModel::encodeToJSON(QJsonObject &obj, const QStringList &forRelativeP
             }
         }
 
+        if (layer->ndiOutputEnabled()) {
+            layerData.insert(QStringLiteral("ndiOutput"), QJsonValue(true));
+            layerData.insert(QStringLiteral("ndiSenderName"), QJsonValue(QString::fromStdString(layer->ndiSenderName())));
+        }
+
+        if (layer->existOnMasterOnly()) {
+            layerData.insert(QStringLiteral("existOnMasterOnly"), QJsonValue(true));
+        }
+
         if (layer->eyeMode() != static_cast<uint8_t>(BaseLayer::EyeMode::Both)) {
             QString em;
             if (layer->eyeMode() == static_cast<uint8_t>(BaseLayer::EyeMode::Left))
@@ -1697,6 +1717,11 @@ bool LayersModel::runRenderOnLayersThatShouldUpdate(bool updateRendering, bool p
                 // Mostly here to handle update on layers in other windows
                 layer->updateFrame();
             }
+            // Publish the layer as an own NDI source when requested. We are on
+            // the render thread with a current OpenGL context here, which
+            // updateNdiOutput() requires. It is also a no-op, and releases any
+            // previously allocated resources, when the mode is off.
+            layer->updateNdiOutput();
             if (m_layers.size() > i && m_layers[i].first->type() != BaseLayer::REST) {
                 int currentStatus = m_layers[i].second;
                 if (layer && layer->ready() && layer->alpha() > 0.f) {
