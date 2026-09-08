@@ -1673,6 +1673,17 @@ ToolBar {
                 text: "ON/OFF to show floating layer window."
             }
         }
+        ToolButton {
+            id: ndiSenderButton
+
+            action: actions.ndiSenderAction
+            focusPolicy: Qt.NoFocus
+            display: AbstractButton.IconOnly
+            visible: ndiSender.available
+            ToolTip {
+                text: ndiSender.sending ? "NDI output \"" + ndiSender.senderName + "\" is sending at " + ndiSender.width + "x" + ndiSender.height + "." : "ON/OFF to send the player as an NDI source."
+            }
+        }
         Item {
             Layout.fillWidth: true
         }

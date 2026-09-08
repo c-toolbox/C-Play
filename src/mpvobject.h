@@ -606,7 +606,7 @@ private:
 class MpvRenderer : public QQuickFramebufferObject::Renderer {
 public:
     MpvRenderer(MpvView* new_view);
-    ~MpvRenderer() = default;
+    ~MpvRenderer();
 
     MpvView* view;
 

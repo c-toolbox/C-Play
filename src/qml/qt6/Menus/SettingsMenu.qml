@@ -42,6 +42,14 @@ Menu {
                 text: "ON/OFF to sync state from master to clients."
             }
         }
+        MenuItem {
+            action: actions.ndiSenderAction
+            visible: ndiSender.available
+            height: visible ? implicitHeight : 0
+            ToolTip {
+                text: "ON/OFF to send the player as an NDI source."
+            }
+        }
     }
     MenuSeparator {
     }

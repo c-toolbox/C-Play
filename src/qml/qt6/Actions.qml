@@ -78,6 +78,18 @@ QtObject {
             viewLayersIn3DRenderItem.visible = !viewLayersIn3DRenderItem.visible;
         }
     }
+    property Action ndiSenderAction: Action {
+        id: ndiSenderAction
+
+        enabled: ndiSender.available
+        icon.name: "cloud-upload"
+        icon.color: ndiSender.enabled ? "lime" : "crimson"
+        text: ndiSender.enabled ? qsTr("NDI output is ON") : qsTr("NDI output is OFF")
+
+        onTriggered: {
+            ndiSender.enabled = !ndiSender.enabled;
+        }
+    }
     property Action windowOnTopAction: Action {
         id: windowOnTopAction
 

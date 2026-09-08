@@ -68,6 +68,10 @@ set(SOURCE_FILES
     main.cpp    
     mpvobject.cpp
     mpvobject.h
+    ndi/ndisender.cpp
+    ndi/ndisender.h
+    ndi/ndisendermodel.cpp
+    ndi/ndisendermodel.h
     qthelper.h
     playercontroller.cpp
     playercontroller.h
@@ -135,6 +139,8 @@ if(BUILD_CPLAY_WITH_NDI)
         ndi/ofxNDI/ofxNDIplatforms.h
         ndi/ofxNDI/ofxNDIreceive.cpp
         ndi/ofxNDI/ofxNDIreceive.h
+        ndi/ofxNDI/ofxNDIsend.cpp
+        ndi/ofxNDI/ofxNDIsend.h
         ndi/ofxNDI/ofxNDIutils.cpp
         ndi/ofxNDI/ofxNDIutils.h
     )

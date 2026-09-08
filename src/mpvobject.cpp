@@ -23,6 +23,7 @@
 #include "track.h"
 #include "tracksmodel.h"
 #include "layers/textlayer.h"
+#include "ndi/ndisendermodel.h"
 #include <iostream>
 #ifdef MULTI_VIDEO_LAYER
 #include <nlohmann/json.hpp>
@@ -230,6 +231,11 @@ MpvObject::MpvObject(QQuickItem *parent)
             connect(win, &QQuickWindow::frameSwapped, this, &MpvObject::onFrameSwapped);
         }
     });
+
+    // Offer this player as the source for the NDI output.
+    if (NdiSenderModel::instance()) {
+        NdiSenderModel::instance()->setMpvObject(this);
+    }
 }
 
 MpvObject::~MpvObject() {
@@ -2301,6 +2307,17 @@ MpvRenderer::MpvRenderer(MpvView* new_view)
     : view{ new_view } {
 }
 
+MpvRenderer::~MpvRenderer() {
+    // Destroyed on the render thread with the OpenGL context current, so this
+    // is the right place to release the NDI output GPU resources.
+    const bool isPrimaryView = !view || !view->obj
+        || view->obj->mpv_views.empty()
+        || view->obj->mpv_views[0] == view;
+    if (isPrimaryView && NdiSenderModel::instance()) {
+        NdiSenderModel::instance()->cleanupGL();
+    }
+}
+
 void MpvRenderer::render() {
     if (!view || !view->obj || !view->obj->mpv_gl) {
         return;
@@ -2415,6 +2432,16 @@ void MpvRenderer::render() {
                 v->fbo->release();
             }
         }
+    }
+
+    // Publish the freshly rendered frame over NDI. This runs on the render
+    // thread, where the OpenGL context holding mpv_fbo is current.
+    // render() is invoked once per view, so only the first view drives the
+    // output to avoid sending the same frame several times per tick.
+    const bool isPrimaryView = view->obj->mpv_views.empty()
+        || view->obj->mpv_views[0] == view;
+    if (isPrimaryView && NdiSenderModel::instance()) {
+        NdiSenderModel::instance()->renderFrame();
     }
 }
 

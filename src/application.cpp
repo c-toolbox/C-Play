@@ -12,6 +12,7 @@
 #include "layerqtitem.h"
 #include "layersrendererqtitem.h"
 #include "mpvobject.h"
+#include "ndi/ndisendermodel.h"
 #include "playercontroller.h"
 #include "screensmodel.h"
 #include "slidesmodel.h"
@@ -373,6 +374,8 @@ void Application::setupQmlContextProperties() {
                                             QStringLiteral("Application should not be created in QML"));
 
     m_engine->rootContext()->setContextProperty(QStringLiteral("playerController"), new PlayerController(this));
+
+    m_engine->rootContext()->setContextProperty(QStringLiteral("ndiSender"), new NdiSenderModel(this));
 
 #ifdef PDF_SUPPORT
     m_engine->rootContext()->setContextProperty(QStringLiteral("PDF_SUPPORT"), QVariant(true));
