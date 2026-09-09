@@ -327,11 +327,15 @@ static std::vector<std::byte> encode() {
             if (masterSlidePtr)
                 slidesToSync.push_back(std::make_pair(-1, masterSlidePtr));
 
-            // Check if model says sync needed
+            // Check if model says sync needed. A slide's own needSync flag is set by
+            // structural changes (add/remove/move layers) which reorder the layer list;
             int totalLayersToSync = 0;
             bool needLayerSync = Application::instance().slidesModel()->needsSync();
             for (auto& sp : slidesToSync) {
                 LayersModel* slide = sp.second;
+                if (slide->needsSync()) {
+                    needLayerSync = true;
+                }
                 int numLayers = slide->numberOfLayers();
                 for (int l = 0; l < numLayers; l++) {
                     std::shared_ptr<BaseLayer> layerPtr = slide->layerShared(l);
