@@ -8,7 +8,7 @@ nav_order: 1
 
 C-Play is a video/media player developed for cluster environments where you need multiple computers and/or displays to run your content on. The displays could be flat or curved in any setup that is supported by our underlying toolkit [SGCT](https://sgct.github.io/) and any media format supported by [MPV](https://mpv.io/).
 
-## Latest Release Version: 2.3
+## Latest Version: 2.4 (Beta)
 
 ![Render C-Play v2.3](assets/Cplay-v2-3.png)
 
@@ -63,6 +63,8 @@ With the layer types above, you can make it almost as easy as using PowerPoint t
 - HTTP Web API, so you can integrate control of C-Play into a custom system.
 
 - REST Commands (HTTP and WebSockets) to control other application, such as OBS Studio which C-Play then can receive content from.
+
+- NDI output of the main video and individual presentation layers, so other applications (e.g. OBS Studio) can receive C-Play content over the network *(Added in 2.4)*.
 
 - Tested and used on Windows 10/11, in domes and other big arenas.
 

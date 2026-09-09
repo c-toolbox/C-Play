@@ -14,6 +14,8 @@ This page covers four topics:
 3. [VDO.Ninja example](#obs-vdoninja-example) - bring a remote guest into C-Play through OBS
 4. [Multiple OBS outputs](#multiple-obs-outputs) - run more than one independent NDI sender
 
+> **The reverse direction:** From C-Play v2.4.0, C-Play can also *send* its main video or individual layers out as NDI sources that OBS (or any other NDI receiver) can pick up. See [C-Play -> NDI output](ndi-output).
+
 ---
 
 ## OBS Studio + NDI<a name="obs-studio-ndi"></a>
