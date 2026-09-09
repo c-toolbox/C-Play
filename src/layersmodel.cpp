@@ -151,6 +151,10 @@ QVariant LayersModel::data(const QModelIndex &index, int role) const {
         return QVariant(layerStatus(index.row()));
     case VisibilityRole:
         return QVariant(static_cast<int>(layerItem->alpha() * 100.f));
+    case NdiOutputRole:
+        return QVariant(layerItem->ndiOutputEnabled());
+    case ExistOnMasterOnlyRole:
+        return QVariant(layerItem->existOnMasterOnly());
     }
 
     return QVariant();
@@ -167,6 +171,8 @@ QHash<int, QByteArray> LayersModel::roleNames() const {
     roles[GridRole] = "gridToMapOn";
     roles[StatusRole] = "status";
     roles[VisibilityRole] = "visibility";
+    roles[NdiOutputRole] = "ndiOutput";
+    roles[ExistOnMasterOnlyRole] = "existOnMasterOnly";
     return roles;
 }
 

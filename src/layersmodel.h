@@ -77,7 +77,9 @@ public:
         StereoRole,
         GridRole,
         StatusRole,
-        VisibilityRole
+        VisibilityRole,
+        NdiOutputRole,
+        ExistOnMasterOnlyRole
     };
 
     int rowCount(const QModelIndex &parent = QModelIndex()) const override;

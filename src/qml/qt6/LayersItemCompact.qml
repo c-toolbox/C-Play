@@ -305,13 +305,55 @@ ItemDelegate {
             width: 12
             color: "transparent"
 
-            Kirigami.Icon {
+            Row {
+                anchors.left: parent.left
                 anchors.bottom: parent.bottom
-                source: "drag-surface"
-                width: 12
-                height: 12
-                opacity: 0.6
-                visible: !root.dragging
+
+                Kirigami.Icon {
+                    source: "drag-surface"
+                    width: 12
+                    height: 12
+                    opacity: 0.6
+                    visible: !root.dragging
+                }
+
+                // NDI output indicator, shown when not in default state (NDI enabled)
+                Kirigami.Icon {
+                    id: ndiIndicatorIcon
+                    source: "cloud-upload"
+                    width: 12
+                    height: 12
+                    color: "lime"
+                    visible: model.ndiOutput
+
+                    MouseArea {
+                        id: ndiIndicatorMA
+                        anchors.fill: parent
+                        hoverEnabled: true
+                    }
+
+                    ToolTip.visible: ndiIndicatorMA.containsMouse
+                    ToolTip.text: qsTr("NDI output is enabled for this layer on the master.")
+                }
+
+                // Sync indicator, shown when not in default state (not synced to the nodes)
+                Kirigami.Icon {
+                    id: syncIndicatorIcon
+                    source: model.existOnMasterOnly ? "network-disconnect" : "network-connect"
+                    width: 12
+                    height: 12
+                    color: "orange"
+                    visible: model.existOnMasterOnly
+
+                    MouseArea {
+                        id: syncIndicatorMA
+                        anchors.fill: parent
+                        hoverEnabled: true
+                    }
+
+                    ToolTip.visible: syncIndicatorMA.containsMouse
+                    ToolTip.text: qsTr("Layer exists on the master only, it is not synced to the nodes.")
+                }
             }
 
             // Template for transient insertion indicator (created at drag start)

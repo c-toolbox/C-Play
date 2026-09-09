@@ -39,6 +39,9 @@
 #ifdef SAIL_SUPPORT
 #include <sail-common/config.h>
 #endif
+#ifdef SGCT_HAS_OPENXR
+#include <openxr/openxr.h>
+#endif
 #include <layers/streammodel.h>
 #include "httpclientmodel.h"
 #include "wwsclientmodel.h"
@@ -786,6 +789,9 @@ void Application::updateAboutOtherText(const QString &mpvVersion, const QString 
 
     otherText += QStringLiteral("Qt ") + QStringLiteral(QT_VERSION_STR) + QStringLiteral(" for master QML-based user interface.\n");
     otherText += QStringLiteral("SGCT ") + QString::fromStdString(std::string(sgct::Version)) + QStringLiteral(" for cluster environment and client rendering.\n");
+#ifdef SGCT_HAS_OPENXR
+    otherText += QStringLiteral("OpenXR ") + QString::number(XR_VERSION_MAJOR(XR_CURRENT_API_VERSION)) + QStringLiteral(".") + QString::number(XR_VERSION_MINOR(XR_CURRENT_API_VERSION)) + QStringLiteral(".") + QString::number(XR_VERSION_PATCH(XR_CURRENT_API_VERSION)) + QStringLiteral(" for VR headset support.\n");
+#endif
     otherText += QStringLiteral("MPV ") + mpv_version_clean + QStringLiteral(" + FFmpeg ") + ffmpeg_version_clean;
 #ifdef JACK_SUPPORT
     otherText += QStringLiteral(" + Jack ") + QString::fromStdString(jack_get_version_string()) + QStringLiteral(" for media playback.\n");
