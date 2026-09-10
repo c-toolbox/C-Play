@@ -18,10 +18,31 @@ Menu {
 
     Menu {
         title: "States"
-        MenuItem {
-            action: actions.viewLayersIn3DAction
-            ToolTip {
-                text: "ON/OFF to have a 3D view of all layers."
+        Menu {
+            title: qsTr("Main view")
+
+            icon.name: window.mainViewMode === 0 ? "map-flat" :
+                      window.mainViewMode === 1 ? "map-globe" : "map-gnomonic"
+            icon.color: window.mainViewMode === 0 ? "crimson" :
+                        window.mainViewMode === 1 ? "lime" : "lightblue"
+
+            MenuItem {
+                checkable: true
+                checked: window.mainViewMode === 0
+                text: qsTr("Render only the main video")
+                onTriggered: window.mainViewMode = 0
+            }
+            MenuItem {
+                checkable: true
+                checked: window.mainViewMode === 1
+                text: qsTr("Render all layers with perspective camera (3D view)")
+                onTriggered: window.mainViewMode = 1
+            }
+            MenuItem {
+                checkable: true
+                checked: window.mainViewMode === 2
+                text: qsTr("Render all layers as 180-degree fisheye (fulldome)")
+                onTriggered: window.mainViewMode = 2
             }
         }
         MenuItem {

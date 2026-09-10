@@ -404,7 +404,7 @@ SettingsBasePage {
             CheckBox {
                 id: renderAsFisheyeCheckBox
                 checked: UserInterfaceSettings.renderAsFisheyeIn3DView
-                text: qsTr("Render 3D view as 180-degree fisheye (fulldome)")
+                text: qsTr("Render 3D view as 180-degree fisheye (fulldome) at startup")
 
                 onCheckedChanged: {
                     UserInterfaceSettings.renderAsFisheyeIn3DView = checked;

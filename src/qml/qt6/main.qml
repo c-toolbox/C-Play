@@ -32,6 +32,14 @@ Kirigami.ApplicationWindow {
     property url newMediaFileToOpen: ""
     property bool uiPopupOpen: false  // True when any popup (Menu, ComboBox dropdown or Dialog) is open in this ApplicationWindow
 
+    // How the central viewport renders its content:
+    //   0 = render only the main video (standard flat playback view)
+    //   1 = render all layers with a perspective camera (3D view)
+    //   2 = render all layers as a 180-degree fisheye (fulldome)
+    // The UserInterfaceSettings settings decide which mode is active at startup; afterwards the
+    // globe menu in the header taskbar (and Settings > States) changes it during playback.
+    property int mainViewMode: 0
+
     onClosing: {
         app.sendQuitToNodes();
     }
@@ -255,7 +263,7 @@ Kirigami.ApplicationWindow {
 
     LayersRendererQtItem {
         id: viewLayersIn3DRenderItem
-        visible: false
+        visible: window.mainViewMode > 0
 
         anchors.left: (window.hideUI ? parent.left : PlaylistSettings.position === "left" ? (playSections.visible ? playSections.right : playList.right) : (layers.visible ? layers.right : slides.right))
         anchors.right: (window.hideUI ? parent.right : PlaylistSettings.position === "right" ? (playList.visible ? playList.left : playSections.left) : (slides.visible ? slides.left : layers.left))
@@ -272,8 +280,8 @@ Kirigami.ApplicationWindow {
         meshFov: mpv.fov
         meshAngle: mpv.angle
 
-        // Optional one-pass 180-degree fisheye (fulldome) rendering of the dome view.
-        renderAsFisheye: UserInterfaceSettings.renderAsFisheyeIn3DView
+        // One-pass 180-degree fisheye (fulldome) rendering, selected by the main view mode menu.
+        renderAsFisheye: window.mainViewMode === 2
 
         mpvObject: mpv
         backgroundImageFile: playerController.checkAndCorrectPath(playerController.backgroundImageFileUrl())
@@ -348,8 +356,10 @@ Kirigami.ApplicationWindow {
             // Register with the Application so the settings dialog can read the live camera pose.
             app.setLayersRenderer(viewLayersIn3DRenderItem);
 
+            // The settings decide which main view mode is active at startup; after this, only the
+            // globe menu in the header taskbar (window.mainViewMode) changes it during playback.
             if(UserInterfaceSettings.show3DviewAtStartup){
-                viewLayersIn3DRenderItem.visible = true;
+                window.mainViewMode = UserInterfaceSettings.renderAsFisheyeIn3DView ? 2 : 1;
             }
         }
 
