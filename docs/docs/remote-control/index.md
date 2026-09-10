@@ -1,0 +1,12 @@
+---
+title: Remote control
+sidebar_position: 7
+---
+
+# Remote control
+
+C-Play has integrated a REST API library to enable external control against the master UI, to enable control from an external application, which could be a more portable web UI.
+Below you find links to the API as well as an example UI.
+
+ - [HTTP Web API](/remote-control/api)
+ - [Medialon Example Web UI](/remote-control/ui)

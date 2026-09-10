@@ -1,0 +1,90 @@
+/**
+ * Any CSS included here will be global. The classic template
+ * bundles Infima by default. Infima is a CSS framework designed to
+ * work well for content-centric websites.
+ */
+
+/* Warm palette taken from the C-toolbox logo: orange primary, red for warnings. */
+:root {
+  --ifm-color-primary: #d4501a;
+  --ifm-color-primary-dark: #bf4817;
+  --ifm-color-primary-darker: #b44416;
+  --ifm-color-primary-darkest: #943812;
+  --ifm-color-primary-light: #de5c26;
+  --ifm-color-primary-lighter: #e06731;
+  --ifm-color-primary-lightest: #e78754;
+  --ifm-code-font-size: 95%;
+  --docusaurus-highlighted-code-line-bg: rgba(212, 80, 26, 0.12);
+
+  --ctech-red: #c8102e;
+  --ctech-amber: #f5a300;
+  --ctech-orange: #e8621f;
+  --ctech-clay: #b06a3b;
+  --ifm-link-color: var(--ifm-color-primary-darker);
+}
+
+/* For readability concerns, you should choose a lighter palette in dark mode. */
+[data-theme='dark'] {
+  --ifm-color-primary: #ff8a50;
+  --ifm-color-primary-dark: #ff7433;
+  --ifm-color-primary-darker: #ff6924;
+  --ifm-color-primary-darkest: #f04d00;
+  --ifm-color-primary-light: #ffa06d;
+  --ifm-color-primary-lighter: #ffab7c;
+  --ifm-color-primary-lightest: #ffc9a9;
+  --docusaurus-highlighted-code-line-bg: rgba(255, 138, 80, 0.18);
+
+  --ctech-red: #ff5a6e;
+  --ctech-amber: #ffc043;
+  --ctech-orange: #ff8a50;
+  --ctech-clay: #d99a6c;
+  --ifm-link-color: var(--ifm-color-primary-light);
+}
+
+/* Warm admonitions: no green or blue anywhere in the palette. */
+.theme-admonition-tip {
+  --ifm-alert-background-color: rgba(232, 98, 31, 0.1);
+  --ifm-alert-border-color: var(--ctech-orange);
+}
+
+.theme-admonition-info,
+.theme-admonition-note {
+  --ifm-alert-background-color: rgba(176, 106, 59, 0.1);
+  --ifm-alert-border-color: var(--ctech-clay);
+}
+
+.theme-admonition-warning {
+  --ifm-alert-background-color: rgba(245, 163, 0, 0.12);
+  --ifm-alert-border-color: var(--ctech-amber);
+}
+
+.theme-admonition-danger {
+  --ifm-alert-background-color: rgba(200, 16, 46, 0.12);
+  --ifm-alert-border-color: var(--ctech-red);
+}
+
+.navbar__logo img {
+  object-fit: contain;
+}
+
+/* Local search box (@cmfcmf/docusaurus-search-local): retheme the default
+   purple accents from autocomplete-theme-classic to the C-Tech warm palette.
+   Per the plugin docs, overrides need !important, and the dark-mode selector
+   must out-specificity the theme's own body[data-theme=dark] block. */
+html:root {
+  --aa-primary-color-rgb: 212, 80, 26 !important; /* focus ring + active result accent (--ifm-color-primary) */
+  --aa-input-border-color-rgb: 176, 106, 59 !important; /* search box border (clay) */
+  --aa-panel-border-color-rgb: 176, 106, 59 !important; /* results panel border (clay) */
+  --aa-muted-color-rgb: 176, 106, 59 !important; /* muted text and borders (clay) */
+  --aa-icon-color-rgb: 180, 68, 22 !important; /* search icon (--ifm-color-primary-darker) */
+  --aa-selected-color-rgb: 231, 135, 84 !important; /* active result highlight (peach) */
+}
+
+html[data-theme='dark'] body {
+  --aa-primary-color-rgb: 255, 138, 80 !important; /* dark primary */
+  --aa-input-border-color-rgb: 255, 138, 80 !important;
+  --aa-panel-border-color-rgb: 255, 138, 80 !important;
+  --aa-muted-color-rgb: 255, 171, 124 !important; /* primary-lighter */
+  --aa-icon-color-rgb: 255, 138, 80 !important;
+  --aa-selected-color-rgb: 255, 138, 80 !important;
+}

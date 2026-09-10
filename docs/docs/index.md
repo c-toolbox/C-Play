@@ -1,17 +1,20 @@
+---
+title: Home
+sidebar_position: 1
+---
+
 # C-Play : Cluster Media Player
 
-C-Play is an open source cluster media player, useful for video playback and presentations in immersive environments, such as domes and powerwalls.
+C-Play is a video/media player developed for cluster environments where you need multiple computers and/or displays to run your content on. The displays could be flat or curved in any setup that is supported by our underlying toolkit [SGCT](https://sgct.github.io/) and any media format supported by [MPV](https://mpv.io/).
 
-![Render C-Play v2.3](docs/static/assets/Cplay-v2-3.png)
+## Latest Version: 2.4 (Beta)
 
-# Documentation
+![Render C-Play v2.3](/assets/Cplay-v2-3.png)
 
-https://c-toolbox.github.io/C-Play/
-
-# Content features
+### Content features
 These are just some features that set C-Play apart from other media and video players:
 
-C-Play support media that is:
+C-Play supports media that is:
 
 - Stereoscopic (Side-by-side or Top-Bottom) and Monoscopic
 
@@ -32,15 +35,15 @@ An additional powerful feature in C-Play is the presentation tool, where you can
 
 - *Audio* (WAV, AAC, MP3 etc)
 
-- *NDI*, *OMT* or *Spout* (Network video/audio or live sharing across local apps.)
+- *NDI*, *OMT* or *Spout* (Video/audio over network or applications.)
 
-- *Streams* (YouTube and similar inputs supported through FFmpeg)
+- *Streams* (YouTube etc supported through FFmpeg)
 
-- *Text* (With custom fonts, also used for subtitles)
+- *Text* (With custom font, also used for subtitles.) 
 
 With the layer types above, you can make it almost as easy as using PowerPoint to create an immersive presentation.
 
-# Technical features
+### Technical features
 
 - Runs a Qt/QML UI application on the master computer and a small non-UI GLFW/SGCT application on the nodes/clients.
 
@@ -56,11 +59,25 @@ With the layer types above, you can make it almost as easy as using PowerPoint t
 
 - C-Play nodes can run on top of other applications. On the master, viewing your video or a layer on a secondary monitor is also simple and requires no extra decoding resources.
 
-- HTTP Web API, so you can integrate C-Play control into a custom system.
+- HTTP Web API, so you can integrate control of C-Play into a custom system.
 
 - REST Commands (HTTP and WebSockets) to control other application, such as OBS Studio which C-Play then can receive content from.
 
+- NDI output of the main video and individual presentation layers, so other applications (e.g. OBS Studio) can receive C-Play content over the network *(Added in 2.4)*.
+
 - Tested and used on Windows 10/11, in domes and other big arenas.
+
+## Guides
+1. [Install C-Play](/install)
+1. [Setup C-Play](/setup)
+1. [Media structure](/media)
+1. [Settings](/settings)
+1. [Playback features](/playback)
+1. [Remote control](/remote-control)
+1. [Build from code](/build)
+
+## Launcher
+To launch the application on master+nodes, we use our own application called [C-Troll](https://github.com/c-toolbox/C-Troll).
 
 ## Backend
 C-Play is an open source cluster video player, based on these open source projects:
@@ -73,19 +90,12 @@ C-Play is an open source cluster video player, based on these open source projec
 Optional libraries in current C-Play builds include:
 
 - [NDI](https://ndi.video/for-developers/ndi-sdk/) - Support frame-synced NDI streams, video and audio
-- [OMT](https://openmediatransport.org/) (Open Media Transport) - Support OMT video and audio streams
+- [OMT](https://openmediatransport.org/) (Open Media Transport) - Support frame-synced OMT video and audio streams
 - [Poppler](https://poppler.freedesktop.org/) - For rendering PDF pages
-- [Wuffs](https://github.com/google/wuffs) & [Sail](https://sail.software/) - For more extensive image decoding
-# Build on Windows
+- [SAIL](https://sail.software/) - For more extensive image decoding
 
-- Use the [Craft Guide](https://c-toolbox.github.io/C-Play/build/craft) to install all dependencies for the UI, including Qt and KDE Frameworks libraries.
+# License
+C-Play is licensed under the [GNU General Public License v3.0](https://choosealicense.com/licenses/gpl-3.0/)
 
-- Use the [Build FFMPEG and MPV Guide](https://c-toolbox.github.io/C-Play/build/mpv_ffmpeg) guide to build FFmpeg and MPV with JACK+portaudio support.
-
-- Install optional libraries such as NDI, OMT, and Poppler, for network video/audio and PDF support, either through installers or using vcpkg where available.
-
-- Configure C-Play with CMake.
-
-- It is also good practice to follow the [Deploy Guide](https://c-toolbox.github.io/C-Play/build/deploy) to copy the build and its dependencies into a single binary folder.
-
-- Build in Visual Studio 2022, or whichever IDE you prefer.
+# Contact
+For any questions or further information about the C-Play project, [erik.sunden@liu.se](mailto:erik.sunden@liu.se).
