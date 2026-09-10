@@ -378,6 +378,7 @@ SettingsBasePage {
                     from: 30
                     to: 150
                     value: UserInterfaceSettings.fov3Dview
+                    enabled: !UserInterfaceSettings.renderAsFisheyeIn3DView
 
                     onValueChanged: {
                         UserInterfaceSettings.fov3Dview = value;
@@ -390,6 +391,24 @@ SettingsBasePage {
                     text: {
                         qsTr("degrees");
                     }
+                }
+            }
+            Item {
+                Layout.fillWidth: true
+            }
+            
+            Item {
+                height: 1
+                width: 1
+            }
+            CheckBox {
+                id: renderAsFisheyeCheckBox
+                checked: UserInterfaceSettings.renderAsFisheyeIn3DView
+                text: qsTr("Render 3D view as 180-degree fisheye (fulldome)")
+
+                onCheckedChanged: {
+                    UserInterfaceSettings.renderAsFisheyeIn3DView = checked;
+                    UserInterfaceSettings.save();
                 }
             }
             Item {

@@ -46,6 +46,17 @@ The mouse cursor indicates the current mode: an open hand while orbiting, a clos
 
 The camera's field of view is set by *"3D View FOV"* in the [Window & UI settings](/settings/window_and_ui) (30–150 degrees, default is a wide-angle view). It is not changed by mouse input — use the wheel to zoom and the setting to change the lens angle.
 
+#### Fisheye 180° projection (fulldome)
+
+Enable *"Render 3D view as 180-degree fisheye (fulldome)"* in the [Window & UI settings](/settings/window_and_ui) to replace the perspective camera with a virtual **180° equidistant fisheye lens** centered on the zenith (straight up). The whole scene is then projected onto a flat circular image — exactly what an omnidirectional 180° fulldome camera would capture from inside your dome or sphere.
+
+* Dome-mapped, sphere-mapped (EQR and EAC), and flat/plane layers are all rendered through the lens; plain 2D layers stay flat as usual.
+* The image is *equidistant*: distance from the centre equals angle from the zenith. For full-hemisphere content (180° FOV) the disk matches exactly what normal mode shows on the dome, and areas below the horizon are rendered black. Content with a narrower FOV sits in the inner region of the circle.
+* The output is locked to the zenith: orbiting or zooming the camera does not change it, and the dome tilt angle is ignored while this mode is active.
+* *"3D View FOV"* is disabled while fisheye rendering is on — the lens angle is fixed at 180°. Dome overflow masking is also not applied in this mode.
+
+Toggling the setting takes effect immediately; no restart is needed. This is useful for previewing how your content looks as a flat fulldome image, for example before stitching or when checking coverage of the full hemisphere.
+
 #### Dome overflow masking
 
 When working with dome-mapped content, you can hide the area that falls outside the dome projection. Enable *"Hide dome overflow in 3D view"* in the Window & UI settings. An opacity slider (0–100%) controls how strongly the overflow area is masked, allowing you to see a faint outline of the full content or hide it completely.

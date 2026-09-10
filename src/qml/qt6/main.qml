@@ -272,6 +272,9 @@ Kirigami.ApplicationWindow {
         meshFov: mpv.fov
         meshAngle: mpv.angle
 
+        // Optional one-pass 180-degree fisheye (fulldome) rendering of the dome view.
+        renderAsFisheye: UserInterfaceSettings.renderAsFisheyeIn3DView
+
         mpvObject: mpv
         backgroundImageFile: playerController.checkAndCorrectPath(playerController.backgroundImageFileUrl())
         foregroundImageFile: playerController.checkAndCorrectPath(playerController.foregroundImageFileUrl())

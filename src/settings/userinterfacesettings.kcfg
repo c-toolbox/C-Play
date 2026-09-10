@@ -63,6 +63,10 @@
       <label>Hide master-only layers in 3D view</label>
       <default>true</default>
     </entry>
+    <entry name="RenderAsFisheyeIn3DView" type="bool">
+      <label>Render 3D view as 180-degree fisheye (fulldome)</label>
+      <default>false</default>
+    </entry>
     <entry name="ShowHeader" type="bool">
       <label>Show header</label>
       <default>true</default>

@@ -16,6 +16,7 @@
 #include <QtQuick/QQuickWindow>
 #include <QTimer>
 #include <QVector3D>
+#include <QVector2D>
 #include <QMatrix4x4>
 #include <atomic>
 #include <memory>
@@ -43,6 +44,8 @@ public:
     const std::vector<std::shared_ptr<BaseLayer>>& getLayers();
 
     void setCameraParams(const QMatrix4x4& viewMatrix, const QMatrix4x4& projectionMatrix);
+
+    void setRenderAsFisheye(bool value);
 
     void setMpvObject(MpvObject* mpv);
     void setBackgroundImageFile(const QString& file);
@@ -72,6 +75,10 @@ private:
     void createShaders();
     void renderQuad();
 
+    // Region of the framebuffer actually rendered into. In fisheye mode this is the largest
+    // centered square inside the item rect, so the fulldome image keeps a 1:1 aspect ratio.
+    QRect renderViewportRect() const;
+
     QQuickWindow* m_window = nullptr;
     bool m_initialized = false;
 
@@ -99,6 +106,8 @@ private:
     std::unique_ptr<QOpenGLShaderProgram> m_videoPrg;
     std::unique_ptr<QOpenGLShaderProgram> m_meshPrg;
     std::unique_ptr<QOpenGLShaderProgram> m_EACPrg;
+    std::unique_ptr<QOpenGLShaderProgram> m_fisheyePrg;
+    std::unique_ptr<QOpenGLShaderProgram> m_fisheyeEACPrg;
 
     // Shader uniform locations - video
     int m_videoAlphaLoc;
@@ -128,6 +137,29 @@ private:
     int m_EACEyeModeLoc;
     int m_EACStereoscopicModeLoc;
 
+    // Shader uniform locations - fisheye
+    int m_fisheyeAlphaLoc;
+    int m_fisheyeEyeModeLoc;
+    int m_fisheyeFlipYLoc;
+    int m_fisheyeStereoscopicModeLoc;
+    int m_fisheyeMatrixLoc;
+    int m_fisheyeOutsideLoc;
+    int m_fisheyeHalfFovLoc;
+    int m_fisheyeRoi;
+
+    // Shader uniform locations - fisheye EAC
+    int m_fisheyeEACAlphaLoc;
+    int m_fisheyeEACEyeModeLoc;
+    int m_fisheyeEACFlipYLoc;
+    int m_fisheyeEACStereoscopicModeLoc;
+    int m_fisheyeEACMatrixLoc;
+    int m_fisheyeEACOutsideLoc;
+    int m_fisheyeEACHalfFovLoc;
+    int m_fisheyeEACScaleLoc;
+    int m_fisheyeEACVideoWidthLoc;
+    int m_fisheyeEACVideoHeightLoc;
+    int m_fisheyeEACFlipUpDownLoc;
+
     // Meshes
     std::unique_ptr<DomeGrid> m_domeMesh;
     std::unique_ptr<DomeGrid> m_domeMaskMesh;
@@ -143,6 +175,7 @@ private:
     bool m_itemVisible = false;
     bool m_divideUpdateAndRender = false;
     bool m_shuttingDown = false;
+    bool m_renderAsFisheye = false;
 };
 
 class LayersRendererQtItem : public QQuickItem {
@@ -155,6 +188,7 @@ class LayersRendererQtItem : public QQuickItem {
     Q_PROPERTY(double meshRadius MEMBER m_meshRadius READ meshRadius WRITE setMeshRadius NOTIFY meshRadiusChanged)
     Q_PROPERTY(double meshFov MEMBER m_meshFov READ meshFov WRITE setMeshFov NOTIFY meshFovChanged)
     Q_PROPERTY(double meshAngle MEMBER m_meshAngle READ meshAngle WRITE setMeshAngle NOTIFY meshAngleChanged)
+    Q_PROPERTY(bool renderAsFisheye MEMBER m_renderAsFisheye READ renderAsFisheye WRITE setRenderAsFisheye NOTIFY renderAsFisheyeChanged)
     Q_PROPERTY(MpvObject* mpvObject READ mpvObject WRITE setMpvObject NOTIFY mpvObjectChanged)
     Q_PROPERTY(QString backgroundImageFile READ backgroundImageFile WRITE setBackgroundImageFile NOTIFY backgroundImageFileChanged)
     Q_PROPERTY(QString foregroundImageFile READ foregroundImageFile WRITE setForegroundImageFile NOTIFY foregroundImageFileChanged)
@@ -181,6 +215,9 @@ public:
 
     double meshAngle() const;
     void setMeshAngle(double value);
+
+    bool renderAsFisheye() const;
+    void setRenderAsFisheye(bool value);
 
     MpvObject* mpvObject() const;
     void setMpvObject(MpvObject* mpv);
@@ -218,6 +255,7 @@ Q_SIGNALS:
     void meshRadiusChanged();
     void meshFovChanged();
     void meshAngleChanged();
+    void renderAsFisheyeChanged();
     void mpvObjectChanged();
     void backgroundImageFileChanged();
     void foregroundImageFileChanged();
@@ -256,6 +294,8 @@ private:
     double m_meshRadius;
     double m_meshFov;
     double m_meshAngle;
+
+    bool m_renderAsFisheye = false;
 
     MpvObject* m_mpvObject = nullptr;
     QString m_backgroundImageFile;
