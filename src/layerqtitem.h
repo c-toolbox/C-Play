@@ -130,6 +130,7 @@ class LayerQtItem : public QQuickItem {
     Q_PROPERTY(int layerRestMethod READ layerRestMethod WRITE setLayerRestMethod NOTIFY layerValueChanged)
     Q_PROPERTY(QString layerRestParameters READ layerRestParameters WRITE setLayerRestParameters NOTIFY layerValueChanged)
     Q_PROPERTY(bool layerRestIgnoreStatus READ layerRestIgnoreStatus WRITE setLayerRestIgnoreStatus NOTIFY layerValueChanged)
+    Q_PROPERTY(QString layerStreamKey READ layerStreamKey WRITE setLayerStreamKey NOTIFY layerValueChanged)
     Q_PROPERTY(bool layerNdiAvailable READ layerNdiAvailable CONSTANT)
     Q_PROPERTY(bool layerNdiOutputEnabled READ layerNdiOutputEnabled WRITE setLayerNdiOutputEnabled NOTIFY layerValueChanged)
     Q_PROPERTY(bool layerExistOnMasterOnly READ layerExistOnMasterOnly WRITE setLayerExistOnMasterOnly NOTIFY layerValueChanged)
@@ -338,6 +339,9 @@ public:
 
     bool layerRestIgnoreStatus() const;
     void setLayerRestIgnoreStatus(bool ignore);
+
+    QString layerStreamKey() const;
+    void setLayerStreamKey(QString key);
 
 Q_SIGNALS:
     void layerChanged();

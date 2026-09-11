@@ -111,6 +111,12 @@ public:
     void initializeAndLoad(std::string filePath);
     void update(bool updateRendering = true);
 
+    // The file path that should actually be loaded on this machine. Defaults to the synced filepath(); StreamLayer overrides it to resolve a per-machine path from its local predefined stream list. An empty return value means no media should be loaded (and any previously loaded media is unloaded).
+    virtual std::string effectiveFilePath() const { return filepath(); }
+
+    // Stop playback and clear all loaded media, so that ready()/loadedFile() report nothing loaded.
+    void unload();
+
     void start();
     void stop();
 

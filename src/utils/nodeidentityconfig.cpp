@@ -7,13 +7,43 @@
 
 #include "nodeidentityconfig.h"
 #include <sgct/sgct.h>
+#include <filesystem>
 #include <fstream>
 #include <sstream>
+#include <vector>
 #include <nlohmann/json.hpp>
 
 /*static*/ const std::string NodeIdentityConfig::kDefaultFilePath = "./data/multivideo/nodes.json";
 
 NodeIdentityConfig::NodeIdentityConfig() {}
+
+/*static*/
+std::string NodeIdentityConfig::findDefaultFilePath() {
+    // The default path is CWD-relative ("./data/multivideo/nodes.json"), which only works when the app is
+    // launched from its install directory. To be robust against other working directories, also walk up from
+    // the current directory looking for <dir>/data/multivideo/nodes.json (covers e.g. running from a build/ subfolder).
+    std::vector<std::string> candidates;
+    candidates.push_back(kDefaultFilePath);
+
+    try {
+        namespace fs = std::filesystem;
+        auto cur = fs::current_path();
+        for (int i = 0; i < 6 && !cur.empty(); ++i) {
+            candidates.push_back((cur / "data" / "multivideo" / "nodes.json").string());
+            if (!cur.has_parent_path() || cur.parent_path() == cur)
+                break;
+            cur = cur.parent_path();
+        }
+    } catch (...) {}
+
+    for (const auto& c : candidates) {
+        try {
+            if (std::filesystem::exists(c))
+                return c;
+        } catch (...) {}
+    }
+    return "";
+}
 
 bool NodeIdentityConfig::loadFromFile(const std::string& filePath) {
     std::ifstream file(filePath);

@@ -29,6 +29,9 @@ public:
 
     NodeIdentityConfig();
 
+    // Locate nodes.json. Tries the default CWD-relative path first, then walks up from the current directory looking for <dir>/data/multivideo/nodes.json (covers e.g. running from a build/ subfolder). Returns "" if not found.
+    static std::string findDefaultFilePath();
+
     // Load configuration from a JSON file. Returns true on success.
     bool loadFromFile(const std::string& filePath = kDefaultFilePath);
 

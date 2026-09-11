@@ -45,35 +45,6 @@ const std::string& MultiVideoLayer::compositionJson() const {
 // ─── Node-side API ────────────────────────────────────────────────────────────
 
 namespace {
-// Try to locate nodes.json in a set of candidate locations. The default path is
-// CWD-relative ("./data/multivideo/nodes.json"), which only works when the app is
-// launched from its install directory. To be robust against other working
-// directories, also walk up from the current directory looking for
-// <dir>/data/multivideo/nodes.json (covers e.g. running from a build/ subfolder).
-std::string findNodesJsonPath() {
-    std::vector<std::string> candidates;
-    candidates.push_back(NodeIdentityConfig::kDefaultFilePath);
-
-    try {
-        namespace fs = std::filesystem;
-        auto cur = fs::current_path();
-        for (int i = 0; i < 6 && !cur.empty(); ++i) {
-            candidates.push_back((cur / "data" / "multivideo" / "nodes.json").string());
-            if (!cur.has_parent_path() || cur.parent_path() == cur)
-                break;
-            cur = cur.parent_path();
-        }
-    } catch (...) {}
-
-    for (const auto& c : candidates) {
-        try {
-            if (std::filesystem::exists(c))
-                return c;
-        } catch (...) {}
-    }
-    return "";
-}
-
 // If every entry in the composition targets exactly one logical node and they all
 // agree on that single key, return it. This is the common "one video per eye on a
 // single node" case (e.g. both eyes keyed under "Node1"). Used as a fallback when
@@ -122,7 +93,7 @@ void MultiVideoLayer::applyCompositionOnNode() {
         myAddress = sgct::Engine::instance().thisNode().address();
     } catch (...) {}
 
-    const std::string nodesPath = findNodesJsonPath();
+    const std::string nodesPath = NodeIdentityConfig::findDefaultFilePath();
     NodeIdentityConfig nodeId;
     if (!nodesPath.empty()) {
         nodeId.loadFromFile(nodesPath);

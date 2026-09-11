@@ -89,6 +89,33 @@ When choosing *"Spout"*, a combobox becomes visible instead of the file dialog f
 
 When choosing *"Stream"*, you can choose between pre-defined streams for your system in a combobox, loaded from the editable file *"data/predefined-streams.json"*, or add a custom entry in a text field. The stream is handled as video/audio with the MPV library, so explore the possibilities further through the MPV documentation.
 
+#### Per-node stream paths in clusters
+
+In a cluster setup (master + nodes), each machine can resolve a different local media path for the same predefined stream. When you add a Stream layer from the predefined list, C-Play stores the entry's *title* as a stable key on the layer and syncs that key to all machines. Each machine then looks up the entry in its own local `data/predefined-streams.json` and resolves which path it should open:
+
+1. **`paths[role]`** — An optional object mapping roles to paths. The role is `"master"` on the master, or the node id from `data/multivideo/nodes.json` on nodes (the machine's IP address when no id can be resolved). When a key exists for that machine its value wins over everything else - even an empty value (`""` or `null`). An empty value means *this machine intentionally does not open this stream*.
+2. **`pathTemplate`** — An optional template string where `{nodeId}` is replaced with the machine's role/node id (e.g. `"av://dshow:video=Capture Card ({nodeId})"`). Used when there is no explicit `paths` entry for that machine.
+3. **`path`** — The plain default path, used as a fallback when neither of the above applies. It may be empty, in which case only machines listed under `paths` open the stream.
+
+If an entry's title does not exist at all in a machine's local file (for instance if the files differ between machines), that machine falls back to the path synced from the master. Custom (non-predefined) stream paths are always used verbatim on every machine, and per-node resolution is not applied.
+
+Example:
+
+```json
+{
+    "title": "HDMI Capture 1",
+    "path": "",
+    "paths": {
+        "master": "av://dshow:video=Capture Card (RX0)",
+        "node-A": ""
+    }
+}
+```
+
+In this example the master opens its local capture card, while `node-A` intentionally does not open anything. All other nodes fall back to the plain `path`, which is also empty here - so only the master displays this stream.
+
+Note that per-node resolution on a node requires the machine to be identifiable through `data/multivideo/nodes.json` (see [Multi-video composition](/media/cplaymulti)). The local JSON files are re-read every few seconds, so edits take effect without restarting C-Play.
+
 When choosing *"Control"*, the layer does not display any visual content. Instead, it dispatches a player control operation when activated through the slide timeline. Control layers exist only on the master node and are useful for automating playback actions within a presentation.
 
 In the layer view for a control layer, two fields are shown instead of the usual grid/stereo parameters:

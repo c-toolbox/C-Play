@@ -10,6 +10,7 @@
 #include <utils/qroperationhandler.h>
 #include <utils/qroperationconfig.h>
 #include <utils/dividetexturehandler.h>
+#include <utils/streampathresolver.h>
 #include <sgct/opengl.h>
 #include <sgct/sgct.h>
 
@@ -98,6 +99,44 @@ void StreamLayer::updateFrame() {
 
 bool StreamLayer::ready() const {
     return !m_data.loadedFile.empty();
+}
+
+std::string StreamLayer::streamKey() const {
+    return m_streamKey;
+}
+
+void StreamLayer::setStreamKey(const std::string& key) {
+    if (m_streamKey != key) {
+        m_streamKey = key;
+        if (isMaster())
+            setNeedSync();
+    }
+}
+
+std::string StreamLayer::effectiveFilePath() const {
+    if (m_streamKey.empty()) {
+        // Custom stream path or legacy layer: use the synced file path verbatim.
+        return filepath();
+    }
+
+    std::string resolved;
+    if (StreamPathResolver::instance().resolve(m_streamKey, isMaster(), resolved)) {
+        // May be empty - meaning this machine intentionally does not open this stream.
+        return resolved;
+    }
+
+    // Entry not found in the local predefined-streams.json: fall back to the synced path.
+    return filepath();
+}
+
+void StreamLayer::encodeTypeCore(std::vector<std::byte>& data) {
+    VideoLayer::encodeTypeCore(data);
+    sgct::serializeObject(data, m_streamKey);
+}
+
+void StreamLayer::decodeTypeCore(const std::vector<std::byte>& data, unsigned int& pos) {
+    VideoLayer::decodeTypeCore(data, pos);
+    sgct::deserializeObject(data, pos, m_streamKey);
 }
 
 static void streamGridIndexToColsRows(int grid, int& cols, int& rows) {

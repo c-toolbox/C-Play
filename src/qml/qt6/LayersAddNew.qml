@@ -98,6 +98,8 @@ Kirigami.ApplicationWindow {
                             }
                             else {
                                 layerView.layerItem.layerIdx = app.slides.selected.addLayer(layerCoreProps.layerTitle.text, layerCoreProps.typeComboBox.currentIndex + 1, layerCoreProps.streamsComboBox.currentValue, layerCoreProps.stereoscopicModeForLayer.currentIndex, layerCoreProps.gridModeForLayer.currentIndex);
+                                // Remember which predefined entry this layer was created from (the entry title), so each machine in the cluster can resolve its own local path from data/predefined-streams.json. Custom paths keep an empty key and use the file path verbatim.
+                                layerView.layerItem.layerStreamKey = layerCoreProps.streamsComboBox.currentText;
                             }
                             layersAddNew.visible = false;
                             app.slides.updateSelectedSlide();

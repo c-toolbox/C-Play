@@ -24,6 +24,21 @@
                 "path": "av://dshow:video=OBS Virtual Camera",
                 "title": "OBS Virtual Camera",
                 "enabled": false
+            },
+            {
+                "path": "",
+                "title": "Example: Per-node capture card (see docs)",
+                "enabled": false,
+                "paths": {
+                    "master": "av://dshow:video=Capture Card (RX0)",
+                    "node-A": ""
+                }
+            },
+            {
+                "path": "",
+                "title": "Example: Template-based capture card (see docs)",
+                "enabled": false,
+                "pathTemplate": "av://dshow:video=Capture Card ({nodeId})"
             }
 		]
 }

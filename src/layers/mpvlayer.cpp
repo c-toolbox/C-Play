@@ -462,6 +462,19 @@ void MpvLayer::initializeAndLoad(std::string filePath) {
     loadFile(filePath);
 }
 
+void MpvLayer::unload() {
+    if (m_data.loadedFile.empty())
+        return;
+
+    sgct::Log::Info(std::format("Unloading file from mpv: {}", m_data.loadedFile));
+    if (m_data.mpvInitialized && m_data.handle) {
+        mpv::qt::command_async(m_data.handle, QStringList() << QStringLiteral("stop"));
+    }
+    m_data.loadedFile.clear();
+    m_data.audioTracks.clear();
+    m_data.updateRendering = false;
+}
+
 void MpvLayer::update(bool updateRendering) {
     std::lock_guard<std::mutex> lock(m_updateMutex);
 
@@ -473,8 +486,14 @@ void MpvLayer::update(bool updateRendering) {
             initializeGL();
         }
 
-        if (m_data.loadedFile != filepath()) {
-            loadFile(filepath());
+        const std::string effectivePath = effectiveFilePath();
+        if (effectivePath.empty()) {
+            // No media for this machine: unload anything previously loaded so the layer stops rendering.
+            if (!m_data.loadedFile.empty()) {
+                unload();
+            }
+        } else if (m_data.loadedFile != effectivePath) {
+            loadFile(effectivePath);
         }
 
         if (!isMaster()) {

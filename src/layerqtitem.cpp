@@ -22,6 +22,7 @@
 #include <layers/mpvlayer.h>
 #include <layers/controllayer.h>
 #include <layers/restlayer.h>
+#include <layers/streamlayer.h>
 #include <layers/imagelayer.h>
 
 #include <QOpenGLContext>
@@ -1378,6 +1379,25 @@ void LayerQtItem::setLayerRestIgnoreStatus(bool ignore) {
         RestLayer* restLayer = static_cast<RestLayer*>(m_layer);
         if (restLayer->ignoreStatus() != ignore) {
             restLayer->setIgnoreStatus(ignore);
+            Q_EMIT layerValueChanged();
+            Q_EMIT layerNeedsSave();
+        }
+    }
+}
+
+QString LayerQtItem::layerStreamKey() const {
+    if (m_layer && m_layer->type() == BaseLayer::STREAM) {
+        StreamLayer* streamLayer = static_cast<StreamLayer*>(m_layer);
+        return QString::fromStdString(streamLayer->streamKey());
+    }
+    return QStringLiteral("");
+}
+
+void LayerQtItem::setLayerStreamKey(QString key) {
+    if (m_layer && m_layer->isEnabled() && m_layer->type() == BaseLayer::STREAM) {
+        StreamLayer* streamLayer = static_cast<StreamLayer*>(m_layer);
+        if (QString::fromStdString(streamLayer->streamKey()) != key) {
+            streamLayer->setStreamKey(key.toStdString());
             Q_EMIT layerValueChanged();
             Q_EMIT layerNeedsSave();
         }
