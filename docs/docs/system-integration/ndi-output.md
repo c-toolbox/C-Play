@@ -13,14 +13,14 @@ Two levels of output are available:
 
 | Output | What is sent | Where you toggle it |
 |--------|--------------|---------------------|
-| **Main video** | The full player output (main media + composited layers) | Upload button (![](/assets/icons/kt-set-max-upload-speed-white.svg)) in the header taskbar, or the Settings menu |
+| **Player output** | What C-Play's main window displays — the full player output (main media + composited layers) in flat playback, or the 3D view when a 3D master view mode is active | Upload button (![](/assets/icons/kt-set-max-upload-speed-white.svg)) in the header taskbar, or the Settings menu |
 | **Layers** | A single presentation layer, independently of the main output | Per-layer **NDI** button in the layer view |
 
 Both outputs are **video only** for now and run on the **master** computer. The nodes are not affected by NDI output.
 
 ---
 
-## Main video NDI output
+## Player output NDI output
 
 The entire player output can be sent as an NDI source named `C-Play` (default).
 
@@ -29,6 +29,21 @@ The entire player output can be sent as an NDI source named `C-Play` (default).
 3. While sending, the tooltip shows the live sender name and resolution, for example: `NDI output "C-Play" is sending at 1920x1080.`
 
 The source is published at the native resolution of the player texture and one frame is sent per presented frame, so the receiver sees exactly what C-Play shows.
+
+### Following the master view
+
+The output follows the [master view mode](/playback/views#master-view): while the main window shows only the main video, the NDI source carries the full player output as before; while a **3D view** (perspective or fisheye camera) is active, it instead publishes the rendered 3D scene — all layers together, exactly as shown in C-Play's main window. Switching master view mode during transmission swaps the published content without interrupting the sender.
+
+The resolution of the 3D view output is set by *NDI output resolution for 3D view* in the [Window & UI settings](/settings/window_and_ui) (default **2K**):
+
+| Setting | Perspective camera (16:9) | Fisheye camera (1:1) |
+|---------|---------------------------|----------------------|
+| **2K** | 1920×1080 | 2048×2048 |
+| **4K** | 3840×2160 | 4096×4096 |
+| **6K** | 5760×3240 | 6144×6144 |
+| **8K** | 7680×4320 | 8192×8192 |
+
+The perspective camera keeps a 16:9 aspect ratio, while the fisheye (fulldome) camera is square. The selected resolution applies when the 3D view output starts — for example after toggling NDI output off/on or switching between the perspective and fisheye cameras.
 
 ---
 
@@ -74,7 +89,7 @@ Master-only layers are hidden from the 3D view by default; this can be changed i
 
 ## Receiving C-Play's NDI output
 
-Any application with an NDI receiver can discover and receive the sources, as long as it is on the same network as the C-Play master. The sender names to look for are `C-Play` (main video) and `C-Play Layer <id> - <title>` (layers).
+Any application with an NDI receiver can discover and receive the sources, as long as it is on the same network as the C-Play master. The sender names to look for are `C-Play` (the player output — main video, or the 3D view when a 3D master view mode is active) and `C-Play Layer <id> - <title>` (layers).
 
 ### Example: OBS Studio
 

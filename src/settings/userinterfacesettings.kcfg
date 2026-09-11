@@ -67,6 +67,10 @@
       <label>Render 3D view as 180-degree fisheye (fulldome)</label>
       <default>false</default>
     </entry>
+    <entry name="NdiResolution3DView" type="Int">
+      <label>NDI output resolution for the 3D view (0=2K, 1=4K, 2=6K, 3=8K)</label>
+      <default>0</default>
+    </entry>
     <entry name="ShowHeader" type="bool">
       <label>Show header</label>
       <default>true</default>

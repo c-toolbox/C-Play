@@ -8,6 +8,7 @@
 #include "ndisendermodel.h"
 #include "ndisender.h"
 
+#include <layersrendererqtitem.h>
 #include <mpvobject.h>
 
 NdiSenderModel *NdiSenderModel::_instance = nullptr;
@@ -47,12 +48,13 @@ void NdiSenderModel::setEnabled(bool enabled) {
     m_enabled = enabled;
 
     if (m_enabled) {
-        m_sender->setSource(NdiSender::sourceFromMpvObject(m_mpv));
-        m_sender->start(m_senderName.toStdString());
+        updateSource();
     } else {
         // The actual sender and the OpenGL resources are released on the
         // render thread in renderFrame/cleanupGL, stop only flags the intent.
         m_sender->stop();
+        if (m_layersRenderer)
+            m_layersRenderer->setNdiCaptureEnabled(false);
         if (m_lastSending) {
             m_lastSending = false;
             Q_EMIT sendingChanged();
@@ -97,14 +99,77 @@ int NdiSenderModel::height() const {
     return m_sender->height();
 }
 
+int NdiSenderModel::mainViewMode() const {
+    return m_mainViewMode;
+}
+
+void NdiSenderModel::setMainViewMode(int mode) {
+    if (m_mainViewMode == mode)
+        return;
+
+    m_mainViewMode = mode;
+    Q_EMIT mainViewModeChanged();
+
+    // Switch between the main video and the 3D view without interrupting the sender.
+    if (m_enabled)
+        updateSource();
+}
+
+bool NdiSenderModel::capturesThreeDView() const {
+    return m_mainViewMode > 0 && m_layersRenderer != nullptr;
+}
+
+void NdiSenderModel::updateSource() {
+    const bool captureThreeD = capturesThreeDView();
+
+    if (m_layersRenderer)
+        m_layersRenderer->setNdiCaptureEnabled(m_enabled && captureThreeD);
+
+    if (!m_enabled)
+        return;
+
+    if (captureThreeD)
+        m_sender->setSource(NdiSender::sourceFromLayersRenderer(m_layersRenderer));
+    else
+        m_sender->setSource(NdiSender::sourceFromMpvObject(m_mpv));
+
+    m_sender->start(m_senderName.toStdString());
+}
+
 void NdiSenderModel::setMpvObject(MpvObject *mpv) {
     m_mpv = mpv;
 
     if (m_enabled)
-        m_sender->setSource(NdiSender::sourceFromMpvObject(m_mpv));
+        updateSource();
 }
 
-void NdiSenderModel::renderFrame() {
+void NdiSenderModel::setLayersRendererItem(LayersRendererQtItem *renderer) {
+    if (m_layersRenderer == renderer)
+        return;
+
+    if (m_layersRenderer)
+        m_layersRenderer->setNdiCaptureEnabled(false);
+
+    m_layersRenderer = renderer;
+
+    updateSource();
+}
+
+void NdiSenderModel::renderFrameFromMpv() {
+    if (m_enabled && capturesThreeDView())
+        return;
+
+    captureFrame();
+}
+
+void NdiSenderModel::renderFrameFrom3D() {
+    if (!m_enabled || !capturesThreeDView())
+        return;
+
+    captureFrame();
+}
+
+void NdiSenderModel::captureFrame() {
     if (!m_enabled) {
         // Release the sender and the PBOs while we still have a context.
         if (m_sender->isSending() || m_sender->width() != 0)

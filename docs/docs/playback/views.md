@@ -17,7 +17,7 @@ The view-mode button in the header taskbar opens a menu with the three master vi
 * **Show 3D view with perspective camera** — the interactive 3D scene described below (lime globe icon).
 * **Show 3D view with fisheye camera** — a flat circular fulldome image, see [Fisheye 180° projection](#fisheye-180-projection-fulldome) below (light blue half-circle icon).
 
-The same menu is available under **Settings → States**, where the *Master view* entry also shows an icon of the currently selected mode — there the items are worded as *Render only the main video*, *Render 3D view with perspective camera*, and *Render 3D view with a fisheye camera*. Choosing a mode only changes the current session; which mode C-Play starts in is decided by the [Window & UI settings](/settings/window_and_ui).
+The same menu is available under **Settings → States**, where the *Master view* entry also shows an icon of the currently selected mode — there the items are worded as *Render only the main video*, *Render 3D view with perspective camera*, and *Render 3D view with a fisheye camera*. Choosing a mode only changes the current session; which mode C-Play starts in is decided by the [Window & UI settings](/settings/window_and_ui). The [NDI output](/system-integration/ndi-output) follows this mode as well — while a 3D view is active it publishes the rendered scene instead of the main video.
 
 The 3D view supports an interactive camera with orbit controls, letting you rotate around the scene to inspect your content from different angles.
 

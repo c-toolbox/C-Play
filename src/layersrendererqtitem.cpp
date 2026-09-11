@@ -12,6 +12,8 @@
 #include "gridsettings.h"
 #include "mpvobject.h"
 #include "userinterfacesettings.h"
+#include <ndi/ndisendermodel.h>
+#include <QDebug>
 #include <QOpenGLContext>
 #include <QQuickGraphicsDevice>
 #include <QTimer>
@@ -20,6 +22,7 @@
 #include <glm/glm.hpp>
 #include <glm/gtc/matrix_transform.hpp>
 #include <glm/gtc/type_ptr.hpp>
+#include <algorithm>
 #include <array>
 #include <cmath>
 
@@ -553,6 +556,10 @@ LayersRendererQtItem::LayersRendererQtItem()
     m_meshRadius = GridSettings::surfaceRadius();
     m_meshAngle = GridSettings::surfaceAngle();
 
+    // Let the NDI output publish this view when the master view state selects it.
+    if (NdiSenderModel::instance())
+        NdiSenderModel::instance()->setLayersRendererItem(this);
+
     connect(this, &QQuickItem::windowChanged, this, &LayersRendererQtItem::handleWindowChanged);
 }
 
@@ -630,7 +637,32 @@ void LayersRendererQtItem::setRenderAsFisheye(bool value) {
     if (m_renderAsFisheye == value)
         return;
     m_renderAsFisheye = value;
+    // The NDI target is 16:9 with the perspective camera and 1:1 as fisheye.
+    updateNdiTarget();
     Q_EMIT renderAsFisheyeChanged();
+}
+
+void LayersRendererQtItem::setNdiCaptureEnabled(bool enabled) {
+    if (m_ndiCaptureEnabled == enabled)
+        return;
+    m_ndiCaptureEnabled = enabled;
+    updateNdiTarget();
+}
+
+bool LayersRendererQtItem::isNdiCaptureEnabled() const {
+    return m_ndiCaptureEnabled;
+}
+
+unsigned int LayersRendererQtItem::ndiTextureId() const {
+    return m_renderer ? m_renderer->ndiTextureId() : 0u;
+}
+
+int LayersRendererQtItem::ndiWidth() const {
+    return m_renderer ? m_renderer->ndiWidth() : 0;
+}
+
+int LayersRendererQtItem::ndiHeight() const {
+    return m_renderer ? m_renderer->ndiHeight() : 0;
 }
 
 MpvObject* LayersRendererQtItem::mpvObject() const {
@@ -709,8 +741,37 @@ void LayersRendererQtItem::updateCameraMatrices() {
                         static_cast<float>(width()), static_cast<float>(height()),
                         viewMatrix, projectionMatrix);
 
+    // The NDI target has its own fixed aspect ratio, so it needs its own projection.
+    QMatrix4x4 ndiViewMatrix;
+    QMatrix4x4 ndiProjectionMatrix;
+    buildCameraMatrices(m_cameraPosition, m_cameraEulerRotation, m_fieldOfView,
+                        static_cast<float>(m_ndiWidth), static_cast<float>(m_ndiHeight),
+                        ndiViewMatrix, ndiProjectionMatrix);
+
     if (m_renderer) {
         m_renderer->setCameraParams(viewMatrix, projectionMatrix);
+        m_renderer->setNdiProjectionMatrix(ndiProjectionMatrix);
+    }
+}
+
+void LayersRendererQtItem::updateNdiTarget() {
+    // 0 = 2K, 1 = 4K, 2 = 6K, 3 = 8K. The perspective camera keeps a 16:9 aspect ratio,
+    // the fisheye (fulldome) camera a square one.
+    const int tier = std::clamp(UserInterfaceSettings::ndiResolution3DView(), 0, 3);
+    const int scale = tier + 1;
+
+    const int width = m_renderAsFisheye ? 2048 * scale : 1920 * scale;
+    const int height = m_renderAsFisheye ? 2048 * scale : 1080 * scale;
+
+    if (m_ndiWidth != width || m_ndiHeight != height) {
+        m_ndiWidth = width;
+        m_ndiHeight = height;
+        updateCameraMatrices();
+    }
+
+    if (m_renderer) {
+        m_renderer->setNdiCaptureSize(m_ndiWidth, m_ndiHeight);
+        m_renderer->setNdiCaptureEnabled(m_ndiCaptureEnabled);
     }
 }
 
@@ -969,6 +1030,9 @@ void LayersRendererQtItem::handleWindowChanged(QQuickWindow* win) {
 void LayersRendererQtItem::cleanup() {
     beginShutdown();
 
+    if (NdiSenderModel::instance())
+        NdiSenderModel::instance()->setLayersRendererItem(nullptr);
+
     if (m_timer) {
         m_timer->stop();
         m_timer->deleteLater();
@@ -998,6 +1062,10 @@ private:
 
 void LayersRendererQtItem::releaseResources() {
     beginShutdown();
+
+    if (NdiSenderModel::instance())
+        NdiSenderModel::instance()->setLayersRendererItem(nullptr);
+
     if (m_timer) {
         m_timer->stop();
         m_timer->deleteLater();
@@ -1050,6 +1118,9 @@ void LayersRendererQtItem::sync() {
     );
     m_renderer->setViewportRect(itemRect.toRect());
 
+    // Picks up runtime changes of the configured NDI resolution as well.
+    updateNdiTarget();
+
     updateCameraMatrices();
 }
 
@@ -1075,6 +1146,7 @@ LayersRendererQtOpenGLObject::LayersRendererQtOpenGLObject(QObject* parent)
     // Set sensible defaults matching the previous hardcoded values
     m_viewMatrix.lookAt(QVector3D(0.0f, 0.0f, 0.0f), QVector3D(0.0f, 0.0f, -1.0f), QVector3D(0.0f, 1.0f, 0.0f));
     m_projectionMatrix.perspective(90.0f, 1.0f, 0.1f, 1000.0f);
+    m_ndiProjectionMatrix = m_projectionMatrix;
 }
 
 LayersRendererQtOpenGLObject::~LayersRendererQtOpenGLObject() {
@@ -1089,6 +1161,7 @@ LayersRendererQtOpenGLObject::~LayersRendererQtOpenGLObject() {
         glDeleteTextures(1, &m_maskTexture);
         m_maskTexture = 0;
     }
+    releaseNdiTarget();
 }
 
 void LayersRendererQtOpenGLObject::setWindow(QQuickWindow* window) {
@@ -1102,6 +1175,122 @@ void LayersRendererQtOpenGLObject::setCameraParams(const QMatrix4x4& viewMatrix,
 
 void LayersRendererQtOpenGLObject::setRenderAsFisheye(bool value) {
     m_renderAsFisheye = value;
+}
+
+void LayersRendererQtOpenGLObject::setNdiProjectionMatrix(const QMatrix4x4& projectionMatrix) {
+    m_ndiProjectionMatrix = projectionMatrix;
+}
+
+void LayersRendererQtOpenGLObject::setNdiCaptureEnabled(bool enabled) {
+    m_ndiCaptureEnabled = enabled;
+}
+
+void LayersRendererQtOpenGLObject::setNdiCaptureSize(int width, int height) {
+    m_ndiRequestedWidth = width;
+    m_ndiRequestedHeight = height;
+}
+
+unsigned int LayersRendererQtOpenGLObject::ndiTextureId() const {
+    return m_ndiTexture;
+}
+
+int LayersRendererQtOpenGLObject::ndiWidth() const {
+    return m_ndiWidth;
+}
+
+int LayersRendererQtOpenGLObject::ndiHeight() const {
+    return m_ndiHeight;
+}
+
+bool LayersRendererQtOpenGLObject::ensureNdiTarget() {
+    const int width = m_ndiRequestedWidth;
+    const int height = m_ndiRequestedHeight;
+
+    if (width <= 0 || height <= 0) {
+        releaseNdiTarget();
+        return false;
+    }
+
+    if (m_ndiFbo != 0 && m_ndiWidth == width && m_ndiHeight == height)
+        return true;
+
+    releaseNdiTarget();
+
+    glGenTextures(1, &m_ndiTexture);
+    glBindTexture(GL_TEXTURE_2D, m_ndiTexture);
+    glTexImage2D(GL_TEXTURE_2D, 0, GL_RGBA8, width, height, 0, GL_RGBA, GL_UNSIGNED_BYTE, nullptr);
+    glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_MIN_FILTER, GL_LINEAR);
+    glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_MAG_FILTER, GL_LINEAR);
+    glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_WRAP_S, GL_CLAMP_TO_EDGE);
+    glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_WRAP_T, GL_CLAMP_TO_EDGE);
+    glBindTexture(GL_TEXTURE_2D, 0);
+
+    glGenFramebuffers(1, &m_ndiFbo);
+
+    GLint previousFbo = 0;
+    glGetIntegerv(GL_FRAMEBUFFER_BINDING, &previousFbo);
+    glBindFramebuffer(GL_FRAMEBUFFER, m_ndiFbo);
+    glFramebufferTexture2D(GL_FRAMEBUFFER, GL_COLOR_ATTACHMENT0, GL_TEXTURE_2D, m_ndiTexture, 0);
+
+    const GLenum status = glCheckFramebufferStatus(GL_FRAMEBUFFER);
+    glBindFramebuffer(GL_FRAMEBUFFER, static_cast<GLuint>(previousFbo));
+
+    if (status != GL_FRAMEBUFFER_COMPLETE) {
+        qWarning() << "LayersRendererQtItem: could not create the" << width << "x" << height
+                   << "NDI capture target, framebuffer status" << status;
+        releaseNdiTarget();
+        return false;
+    }
+
+    m_ndiWidth = width;
+    m_ndiHeight = height;
+    return true;
+}
+
+void LayersRendererQtOpenGLObject::releaseNdiTarget() {
+    if (m_ndiFbo) {
+        glDeleteFramebuffers(1, &m_ndiFbo);
+        m_ndiFbo = 0;
+    }
+    if (m_ndiTexture) {
+        glDeleteTextures(1, &m_ndiTexture);
+        m_ndiTexture = 0;
+    }
+    m_ndiWidth = 0;
+    m_ndiHeight = 0;
+}
+
+void LayersRendererQtOpenGLObject::blitNdiTargetToScreen(GLuint targetFramebuffer) {
+    if (!m_ndiFbo || m_ndiWidth <= 0 || m_ndiHeight <= 0)
+        return;
+
+    const QRect itemRect = m_viewportRect;
+    if (itemRect.width() <= 0 || itemRect.height() <= 0)
+        return;
+
+    // Largest centered rect inside the item that keeps the capture aspect ratio, so the
+    // on-screen image shows exactly what is broadcast, letterboxed if needed.
+    const double captureAspect = double(m_ndiWidth) / double(m_ndiHeight);
+    int destWidth = itemRect.width();
+    int destHeight = int(std::lround(destWidth / captureAspect));
+    if (destHeight > itemRect.height()) {
+        destHeight = itemRect.height();
+        destWidth = int(std::lround(destHeight * captureAspect));
+    }
+
+    const int destX = itemRect.x() + (itemRect.width() - destWidth) / 2;
+    const int destY = itemRect.y() + (itemRect.height() - destHeight) / 2;
+
+    glBindFramebuffer(GL_READ_FRAMEBUFFER, m_ndiFbo);
+    glBindFramebuffer(GL_DRAW_FRAMEBUFFER, targetFramebuffer);
+
+    glDisable(GL_SCISSOR_TEST);
+    glBlitFramebuffer(0, 0, m_ndiWidth, m_ndiHeight,
+                      destX, destY, destX + destWidth, destY + destHeight,
+                      GL_COLOR_BUFFER_BIT, GL_LINEAR);
+
+    glBindFramebuffer(GL_FRAMEBUFFER, targetFramebuffer);
+    glViewport(itemRect.x(), itemRect.y(), itemRect.width(), itemRect.height());
 }
 
 void LayersRendererQtOpenGLObject::setMpvObject(MpvObject* mpv) {
@@ -2436,11 +2625,51 @@ void LayersRendererQtOpenGLObject::init() {
     Q_EMIT initialized();
 }
 
+void LayersRendererQtOpenGLObject::renderFrame() {
+    // Remember the framebuffer Qt has bound for this frame, so it can be restored after an
+    // offscreen pass and used as the blit destination.
+    GLint previousFbo = 0;
+    glGetIntegerv(GL_FRAMEBUFFER_BINDING, &previousFbo);
+
+    const bool captureToNdi = m_ndiCaptureEnabled && ensureNdiTarget();
+
+    if (!captureToNdi) {
+        if (!m_ndiCaptureEnabled && m_ndiFbo)
+            releaseNdiTarget();
+
+        // Use the anchored item rect instead of the full window size
+        // (a centered square when rendering fulldome fisheye).
+        const QRect vp = renderViewportRect();
+        glViewport(vp.x(), vp.y(), vp.width(), vp.height());
+
+        renderLayers(m_meshAngle, m_viewMatrix, m_projectionMatrix);
+        return;
+    }
+
+    // The scene is rendered only once, into the NDI capture target at its configured
+    // resolution, and is then scaled onto the screen below.
+    glBindFramebuffer(GL_FRAMEBUFFER, m_ndiFbo);
+    glViewport(0, 0, m_ndiWidth, m_ndiHeight);
+
+    glClearColor(0.0f, 0.0f, 0.0f, 1.0f);
+    glClear(GL_COLOR_BUFFER_BIT);
+
+    renderLayers(m_meshAngle, m_viewMatrix, m_ndiProjectionMatrix);
+
+    // Publish the frame while the capture target is still bound and up to date.
+    if (NdiSenderModel::instance())
+        NdiSenderModel::instance()->renderFrameFrom3D();
+
+    glBindFramebuffer(GL_FRAMEBUFFER, static_cast<GLuint>(previousFbo));
+
+    blitNdiTargetToScreen(static_cast<GLuint>(previousFbo));
+}
+
 void LayersRendererQtOpenGLObject::firstPass() {
     if (m_shuttingDown || LayersRendererQtItem::isShuttingDown() || !m_initialized || !m_itemVisible) {
         return;
     }
-    
+
     m_window->beginExternalCommands();
 
     glDisable(GL_DEPTH_TEST);
@@ -2450,12 +2679,7 @@ void LayersRendererQtOpenGLObject::firstPass() {
     glClear(GL_COLOR_BUFFER_BIT);
 
     if (!m_divideUpdateAndRender) {
-        // Use the anchored item rect instead of the full window size
-        // (a centered square when rendering fulldome fisheye).
-        const QRect vp = renderViewportRect();
-        glViewport(vp.x(), vp.y(), vp.width(), vp.height());
-
-        renderLayers(m_meshAngle, m_viewMatrix, m_projectionMatrix);
+        renderFrame();
     }
 
     m_window->endExternalCommands();
@@ -2466,7 +2690,7 @@ void LayersRendererQtOpenGLObject::firstPass() {
     }
 #endif
 }
-        
+
 void LayersRendererQtOpenGLObject::secondPass() {
     if (m_shuttingDown || LayersRendererQtItem::isShuttingDown() || !m_initialized || !m_itemVisible) {
         return;
@@ -2478,12 +2702,7 @@ void LayersRendererQtOpenGLObject::secondPass() {
 
     m_window->beginExternalCommands();
 
-    // Use the anchored item rect instead of the full window size
-    // (a centered square when rendering fulldome fisheye).
-    const QRect vp = renderViewportRect();
-    glViewport(vp.x(), vp.y(), vp.width(), vp.height());
-
-    renderLayers(m_meshAngle, m_viewMatrix, m_projectionMatrix);
+    renderFrame();
 
     m_window->endExternalCommands();
 

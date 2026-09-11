@@ -45,6 +45,21 @@ public:
 
     void setCameraParams(const QMatrix4x4& viewMatrix, const QMatrix4x4& projectionMatrix);
 
+    // Projection used when the scene is rendered into the NDI capture target, which has its
+    // own aspect ratio (16:9 for the perspective camera, 1:1 for fisheye).
+    void setNdiProjectionMatrix(const QMatrix4x4& projectionMatrix);
+
+    // When capture is enabled the scene is rendered once into an offscreen target of the
+    // requested size and that target is then blitted onto the screen, so the layers are
+    // never drawn twice.
+    void setNdiCaptureEnabled(bool enabled);
+    void setNdiCaptureSize(int width, int height);
+
+    // Valid only after a frame has been rendered into the capture target.
+    unsigned int ndiTextureId() const;
+    int ndiWidth() const;
+    int ndiHeight() const;
+
     void setRenderAsFisheye(bool value);
 
     void setMpvObject(MpvObject* mpv);
@@ -78,6 +93,17 @@ private:
     // Region of the framebuffer actually rendered into. In fisheye mode this is the largest
     // centered square inside the item rect, so the fulldome image keeps a 1:1 aspect ratio.
     QRect renderViewportRect() const;
+
+    // Shared body of firstPass/secondPass: renders the layers either straight to the
+    // framebuffer Qt has bound, or into the NDI capture target followed by a blit.
+    void renderFrame();
+    // Creates/resizes the capture target to the requested size. Returns false when there is
+    // nothing usable to render into.
+    bool ensureNdiTarget();
+    void releaseNdiTarget();
+    // Scales the capture target into the largest centered rect inside the item rect that
+    // preserves the capture aspect ratio.
+    void blitNdiTargetToScreen(GLuint targetFramebuffer);
 
     QQuickWindow* m_window = nullptr;
     bool m_initialized = false;
@@ -176,6 +202,17 @@ private:
     bool m_divideUpdateAndRender = false;
     bool m_shuttingDown = false;
     bool m_renderAsFisheye = false;
+
+    // NDI capture target. The requested state is written from the GUI thread and read on
+    // the render thread, the allocated state is only touched on the render thread.
+    QMatrix4x4 m_ndiProjectionMatrix;
+    std::atomic_bool m_ndiCaptureEnabled = false;
+    std::atomic_int m_ndiRequestedWidth = 0;
+    std::atomic_int m_ndiRequestedHeight = 0;
+    GLuint m_ndiFbo = 0;
+    GLuint m_ndiTexture = 0;
+    int m_ndiWidth = 0;
+    int m_ndiHeight = 0;
 };
 
 class LayersRendererQtItem : public QQuickItem {
@@ -218,6 +255,14 @@ public:
 
     bool renderAsFisheye() const;
     void setRenderAsFisheye(bool value);
+
+    // NDI output of the 3D view. The size follows the configured resolution tier and the
+    // camera mode (16:9 for perspective, 1:1 for fisheye).
+    void setNdiCaptureEnabled(bool enabled);
+    bool isNdiCaptureEnabled() const;
+    unsigned int ndiTextureId() const;
+    int ndiWidth() const;
+    int ndiHeight() const;
 
     MpvObject* mpvObject() const;
     void setMpvObject(MpvObject* mpv);
@@ -268,6 +313,10 @@ private:
 
     void updateCameraMatrices();
 
+    // Recomputes the NDI target size from the resolution setting and the camera mode, and
+    // pushes it (together with the matching projection) to the renderer.
+    void updateNdiTarget();
+
     // Dragging helpers (GUI thread, pure CPU math on the live camera state).
     bool rayFromScreenPoint(float x, float y, QVector3D& origin, QVector3D& direction) const;
     bool aimAtScreenPointLocked(const BaseLayer* layer, float x, float y, double& azimuthDeg, double& elevationDeg) const;
@@ -296,6 +345,10 @@ private:
     double m_meshAngle;
 
     bool m_renderAsFisheye = false;
+
+    bool m_ndiCaptureEnabled = false;
+    int m_ndiWidth = 0;
+    int m_ndiHeight = 0;
 
     MpvObject* m_mpvObject = nullptr;
     QString m_backgroundImageFile;

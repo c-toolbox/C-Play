@@ -15,6 +15,7 @@
 
 class MpvObject;
 class NdiSender;
+class LayersRendererQtItem;
 
 /**
  * QML facing controller for the NDI output.
@@ -32,6 +33,9 @@ class NdiSenderModel : public QObject {
     Q_PROPERTY(QString senderName READ senderName WRITE setSenderName NOTIFY senderNameChanged)
     Q_PROPERTY(int width READ width NOTIFY resolutionChanged)
     Q_PROPERTY(int height READ height NOTIFY resolutionChanged)
+    // Mirrors window.mainViewMode: 0 renders the main video, 1 and 2 the 3D view with a
+    // perspective respectively fisheye camera. Selects which source is published.
+    Q_PROPERTY(int mainViewMode READ mainViewMode WRITE setMainViewMode NOTIFY mainViewModeChanged)
 
 public:
     explicit NdiSenderModel(QObject *parent = nullptr);
@@ -52,12 +56,23 @@ public:
     int width() const;
     int height() const;
 
+    int mainViewMode() const;
+    void setMainViewMode(int mode);
+
+    // True while the 3D view, not the main video, is the NDI source.
+    bool capturesThreeDView() const;
+
     // Connects the output to the main player. Called once the MpvObject exists.
     void setMpvObject(MpvObject *mpv);
 
+    // Connects the output to the 3D view. Called once the item exists.
+    void setLayersRendererItem(LayersRendererQtItem *renderer);
+
     // Called from the render thread, with the OpenGL context of the source
-    // current, once per presented frame.
-    void renderFrame();
+    // current, once per presented frame. Each entry point is a no-op unless the
+    // matching source is the active one.
+    void renderFrameFromMpv();
+    void renderFrameFrom3D();
 
     // Called from the render thread when the OpenGL context goes away.
     void cleanupGL();
@@ -67,12 +82,21 @@ Q_SIGNALS:
     void sendingChanged();
     void senderNameChanged();
     void resolutionChanged();
+    void mainViewModeChanged();
 
 private:
+    // Binds the sender to the source matching the current view mode and tells the 3D view
+    // whether it has to render into its capture target.
+    void updateSource();
+    // Shared body of the two per-frame entry points.
+    void captureFrame();
+
     std::unique_ptr<NdiSender> m_sender;
     MpvObject *m_mpv = nullptr;
+    LayersRendererQtItem *m_layersRenderer = nullptr;
     QString m_senderName;
     std::atomic_bool m_enabled = false;
+    std::atomic_int m_mainViewMode = 0;
     bool m_lastSending = false;
     int m_lastWidth = 0;
     int m_lastHeight = 0;

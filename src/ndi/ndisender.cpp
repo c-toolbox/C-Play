@@ -8,6 +8,7 @@
 #include "ndisender.h"
 
 #include <layers/baselayer.h>
+#include <layersrendererqtitem.h>
 #include <mpvobject.h>
 
 #ifdef NDI_SUPPORT
@@ -49,8 +50,7 @@ NdiSenderSource NdiSender::sourceFromMpvObject(MpvObject *mpv) {
     return source;
 }
 
-NdiSenderSource NdiSender::sourceFromLayer(BaseLayer *layer) {
-    NdiSenderSource source;
+NdiSenderSource NdiSender::sourceFromLayer(BaseLayer *layer) {    NdiSenderSource source;
     if (!layer)
         return source;
 
@@ -63,6 +63,20 @@ NdiSenderSource NdiSender::sourceFromLayer(BaseLayer *layer) {
     // Layer textures are bottom-up, but a layer that is already flagged flipY
     // stores its rows the other way around, so the two cancel out.
     source.invertY = [layer]() -> bool { return !layer->flipY(); };
+    return source;
+}
+
+NdiSenderSource NdiSender::sourceFromLayersRenderer(LayersRendererQtItem *renderer) {
+    NdiSenderSource source;
+    if (!renderer)
+        return source;
+
+    source.name = "3D view";
+    source.textureId = [renderer]() -> unsigned int { return renderer->ndiTextureId(); };
+    source.width = [renderer]() -> int { return renderer->ndiWidth(); };
+    source.height = [renderer]() -> int { return renderer->ndiHeight(); };
+    // The capture FBO is rendered with the OpenGL bottom-up convention, NDI expects top-down.
+    source.invertY = []() -> bool { return true; };
     return source;
 }
 

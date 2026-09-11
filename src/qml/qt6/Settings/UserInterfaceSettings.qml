@@ -417,6 +417,52 @@ SettingsBasePage {
 
             Label {
                 Layout.alignment: Qt.AlignRight
+                text: qsTr("NDI output resolution for 3D view:")
+            }
+            RowLayout {
+                ComboBox {
+                    id: ndiResolution3DViewComboBox
+
+                    textRole: "key"
+                    currentIndex: UserInterfaceSettings.ndiResolution3DView
+
+                    model: ListModel {
+                        ListElement {
+                            key: "2K"
+                        }
+                        ListElement {
+                            key: "4K"
+                        }
+                        ListElement {
+                            key: "6K"
+                        }
+                        ListElement {
+                            key: "8K"
+                        }
+                    }
+
+                    onActivated: {
+                        UserInterfaceSettings.ndiResolution3DView = currentIndex;
+                        UserInterfaceSettings.save();
+                    }
+                }
+                LabelWithTooltip {
+                    Layout.fillWidth: true
+                    elide: Text.ElideRight
+                    text: {
+                        const perspective = ["1920x1080", "3840x2160", "5760x3240", "7680x4320"];
+                        const fisheye = ["2048x2048", "4096x4096", "6144x6144", "8192x8192"];
+                        const idx = ndiResolution3DViewComboBox.currentIndex;
+                        qsTr("%1 with perspective camera, %2 as fisheye").arg(perspective[idx]).arg(fisheye[idx]);
+                    }
+                }
+            }
+            Item {
+                Layout.fillWidth: true
+            }
+
+            Label {
+                Layout.alignment: Qt.AlignRight
                 text: qsTr("3D view camera position:")
             }
             RowLayout {

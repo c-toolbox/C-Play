@@ -40,6 +40,12 @@ Kirigami.ApplicationWindow {
     // globe menu in the header taskbar (and Settings > States) changes it during playback.
     property int mainViewMode: 0
 
+    // Keep the NDI output in sync with the master view state, so it publishes the 3D view
+    // instead of the main video whenever the 3D view is the one being shown.
+    onMainViewModeChanged: {
+        ndiSender.mainViewMode = window.mainViewMode;
+    }
+
     onClosing: {
         app.sendQuitToNodes();
     }

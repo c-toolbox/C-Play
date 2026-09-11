@@ -19,6 +19,7 @@
 
 class MpvObject;
 class BaseLayer;
+class LayersRendererQtItem;
 
 /**
  * Describes the object that provides the pixels to send over NDI.
@@ -63,6 +64,7 @@ public:
     // Adapters for the supported source objects.
     static NdiSenderSource sourceFromMpvObject(MpvObject *mpv);
     static NdiSenderSource sourceFromLayer(BaseLayer *layer);
+    static NdiSenderSource sourceFromLayersRenderer(LayersRendererQtItem *renderer);
 
     void setSource(const NdiSenderSource &source);
     const NdiSenderSource &source() const;

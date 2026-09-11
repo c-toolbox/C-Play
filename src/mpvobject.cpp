@@ -2438,10 +2438,11 @@ void MpvRenderer::render() {
     // thread, where the OpenGL context holding mpv_fbo is current.
     // render() is invoked once per view, so only the first view drives the
     // output to avoid sending the same frame several times per tick.
+    // renderFrameFromMpv is a no-op while the 3D view is the NDI source.
     const bool isPrimaryView = view->obj->mpv_views.empty()
         || view->obj->mpv_views[0] == view;
     if (isPrimaryView && NdiSenderModel::instance()) {
-        NdiSenderModel::instance()->renderFrame();
+        NdiSenderModel::instance()->renderFrameFromMpv();
     }
 }
 
