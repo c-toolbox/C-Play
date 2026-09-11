@@ -7,17 +7,17 @@ sidebar_position: 6
 
 C-Play provides several view-related features for controlling how content is displayed, both on the master application and on networked display nodes.
 
-### ![](/assets/icons/map-globe.svg) 3D View
+### ![](/assets/icons/map-globe.svg) Master view
 
-The 3D view is an alternative visualization mode that renders your layers in a 3D scene instead of the standard flat playback view. This is useful for previewing how content will look when projected onto domes or spheres.
+The master view is what C-Play's main window displays — either just the main video, all layers rendered in an interactive 3D scene, or all layers through a 180° fisheye lens. The layer-rendering modes are useful for previewing how content will look when projected onto domes or spheres.
 
-The view-mode button in the header taskbar opens a menu with the three main view modes. Its icon reflects the current mode:
+The view-mode button in the header taskbar opens a menu with the three master view modes. Its icon reflects the current mode:
 
-* **Render only the main video** — the standard flat playback view (crimson flat-map icon).
-* **Render all layers with perspective camera (3D view)** — the interactive 3D scene described below (lime globe icon).
-* **Render all layers as 180-degree fisheye (fulldome)** — a flat circular fulldome image, see [Fisheye 180° projection](#fisheye-180-projection-fulldome) below (light blue gnomonic icon).
+* **Show only the main video** — the standard flat playback view (crimson flat-map icon).
+* **Show 3D view with perspective camera** — the interactive 3D scene described below (lime globe icon).
+* **Show 3D view with fisheye camera** — a flat circular fulldome image, see [Fisheye 180° projection](#fisheye-180-projection-fulldome) below (light blue half-circle icon).
 
-The same menu is available under **Settings → States**, where the *Main view* entry also shows an icon of the currently selected mode. Choosing a mode only changes the current session; which mode C-Play starts in is decided by the [Window & UI settings](/settings/window_and_ui).
+The same menu is available under **Settings → States**, where the *Master view* entry also shows an icon of the currently selected mode — there the items are worded as *Render only the main video*, *Render 3D view with perspective camera*, and *Render 3D view with a fisheye camera*. Choosing a mode only changes the current session; which mode C-Play starts in is decided by the [Window & UI settings](/settings/window_and_ui).
 
 The 3D view supports an interactive camera with orbit controls, letting you rotate around the scene to inspect your content from different angles.
 
@@ -54,20 +54,20 @@ The camera's field of view is set by *"3D View FOV"* in the [Window & UI setting
 
 #### Fisheye 180° projection (fulldome)
 
-Select **"Render all layers as 180-degree fisheye (fulldome)"** from the globe menu in the header taskbar to replace the perspective camera with a virtual **180° equidistant fisheye lens** centered on the zenith (straight up). To start C-Play directly in this mode, enable *"Render 3D view as 180-degree fisheye (fulldome) at startup"* in the [Window & UI settings](/settings/window_and_ui). The whole scene is then projected onto a flat circular image — exactly what an omnidirectional 180° fulldome camera would capture from inside your dome or sphere.
+Select **"Show 3D view with fisheye camera"** from the view-mode menu in the header taskbar to replace the perspective camera with a virtual **180° equidistant fisheye lens** centered on the zenith (straight up). To start C-Play directly in this mode, enable *"Render 3D view as 180-degree fisheye (fulldome) at startup"* in the [Window & UI settings](/settings/window_and_ui). The whole scene is then projected onto a flat circular image — exactly what an omnidirectional 180° fulldome camera would capture from inside your dome or sphere.
 
 * Dome-mapped, sphere-mapped (EQR and EAC), and flat/plane layers are all rendered through the lens; plain 2D layers stay flat as usual.
 * The image is *equidistant*: distance from the centre equals angle from the zenith. For full-hemisphere content (180° FOV) the disk matches exactly what normal mode shows on the dome, and areas below the horizon are rendered black. Content with a narrower FOV sits in the inner region of the circle.
 * The output is locked to the zenith: orbiting or zooming the camera does not change it, and the dome tilt angle is ignored while this mode is active.
 * The *"3D View FOV"* setting does not apply in this mode — the lens angle is fixed at 180° — and dome overflow masking is also not applied.
 
-Switching between the modes in the globe menu takes effect immediately; no restart is needed. This is useful for previewing how your content looks as a flat fulldome image, for example before stitching or when checking coverage of the full hemisphere.
+Switching between the modes in the view-mode menu takes effect immediately; no restart is needed. This is useful for previewing how your content looks as a flat fulldome image, for example before stitching or when checking coverage of the full hemisphere.
 
 #### Dome overflow masking
 
 When working with dome-mapped content, you can hide the area that falls outside the dome projection. Enable *"Hide dome overflow in 3D view"* in the Window & UI settings. An opacity slider (0–100%) controls how strongly the overflow area is masked, allowing you to see a faint outline of the full content or hide it completely.
 
-In [Window & UI settings](/settings/window_and_ui), you can choose to show the 3D view automatically when the application starts.
+In [Window & UI settings](/settings/window_and_ui), you can choose which master view mode C-Play starts in.
 
 ### ![](/assets/icons/view-task.svg) Floating window layer
 
@@ -88,7 +88,7 @@ The floating window can toggle between displaying the main video layer and layer
 ### View states
 
 ![States](/assets/ui/header_taskbar/states.png)
-Except the 3D view explained above there is other view states.
+Besides the master view modes explained above, there are a few other view states.
 
 #### Always on top
 

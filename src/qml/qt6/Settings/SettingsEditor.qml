@@ -17,7 +17,7 @@ Kirigami.ApplicationWindow {
 
     property string pagePath: "qrc:/qt/qml/org/ctoolbox/cplay/qml/qt6/Settings"
 
-    height: 820
+    height: 880
     title: qsTr("C-Play Preferences")
     visible: false
     width: 1000

@@ -1647,10 +1647,10 @@ ToolBar {
             id: viewLayersIn3DRenderButton
 
             icon.name: window.mainViewMode === 0 ? "map-flat" :
-                      window.mainViewMode === 1 ? "map-globe" : "map-gnomonic"
+                      window.mainViewMode === 1 ? "map-globe" : "draw-halfcircle3"
             icon.color: window.mainViewMode === 0 ? "crimson" :
                         window.mainViewMode === 1 ? "lime" : "lightblue"
-            text: qsTr("Main view")
+            text: qsTr("Master view")
             focusPolicy: Qt.NoFocus
             display: AbstractButton.IconOnly
 
@@ -1659,9 +1659,9 @@ ToolBar {
             }
 
             ToolTip {
-                text: window.mainViewMode === 0 ? "Choose how the main view is rendered (currently: only the main video)." :
-                      window.mainViewMode === 1 ? "Choose how the main view is rendered (currently: all layers with perspective camera, 3D view)." :
-                                                  "Choose how the main view is rendered (currently: all layers as 180-degree fisheye, fulldome)."
+                text: window.mainViewMode === 0 ? "Choose how the master view is rendered (currently: only the main video)." :
+                      window.mainViewMode === 1 ? "Choose how the master view is rendered (currently: 3D view with perspective camera)." :
+                                                  "Choose how the master view is rendered (currently: 3D view with fisheye camera)."
             }
 
             Menu {
@@ -1674,7 +1674,7 @@ ToolBar {
                 MenuItem {
                     checkable: true
                     checked: window.mainViewMode === 0
-                    text: qsTr("Render only the main video")
+                    text: qsTr("Show only the main video")
                     ToolTip {
                         text: "The standard flat playback view with just the main media."
                     }
@@ -1683,7 +1683,7 @@ ToolBar {
                 MenuItem {
                     checkable: true
                     checked: window.mainViewMode === 1
-                    text: qsTr("Render all layers with perspective camera (3D view)")
+                    text: qsTr("Show 3D view with perspective camera")
                     ToolTip {
                         text: "All layers rendered together in the interactive 3D scene."
                     }
@@ -1692,7 +1692,7 @@ ToolBar {
                 MenuItem {
                     checkable: true
                     checked: window.mainViewMode === 2
-                    text: qsTr("Render all layers as 180-degree fisheye (fulldome)")
+                    text: qsTr("Show 3D view with fisheye camera")
                     ToolTip {
                         text: "All layers rendered through a virtual 180-degree fisheye lens centered on the zenith."
                     }

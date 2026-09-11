@@ -21,5 +21,5 @@ Here are further details on the available controls:
 
  - [Enable/disable sync](/playback/sync)
 
- - [Views (3D view, node window, in-top)](/playback/views)
+ - [Views (master view, node window, in-top)](/playback/views)
 

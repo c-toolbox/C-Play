@@ -346,7 +346,7 @@ SettingsBasePage {
             SettingsHeader {
                 Layout.columnSpan: 3
                 Layout.fillWidth: true
-                text: qsTr("3D view settings")
+                text: qsTr("Master view settings")
                 level: 4
             }
 

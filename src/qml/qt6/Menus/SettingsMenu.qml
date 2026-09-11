@@ -19,10 +19,10 @@ Menu {
     Menu {
         title: "States"
         Menu {
-            title: qsTr("Main view")
+            title: qsTr("Master view")
 
             icon.name: window.mainViewMode === 0 ? "map-flat" :
-                      window.mainViewMode === 1 ? "map-globe" : "map-gnomonic"
+                      window.mainViewMode === 1 ? "map-globe" : "draw-halfcircle3"
             icon.color: window.mainViewMode === 0 ? "crimson" :
                         window.mainViewMode === 1 ? "lime" : "lightblue"
 
@@ -35,13 +35,13 @@ Menu {
             MenuItem {
                 checkable: true
                 checked: window.mainViewMode === 1
-                text: qsTr("Render all layers with perspective camera (3D view)")
+                text: qsTr("Render 3D view with perspective camera")
                 onTriggered: window.mainViewMode = 1
             }
             MenuItem {
                 checkable: true
                 checked: window.mainViewMode === 2
-                text: qsTr("Render all layers as 180-degree fisheye (fulldome)")
+                text: qsTr("Render 3D view with a fisheye camera")
                 onTriggered: window.mainViewMode = 2
             }
         }
