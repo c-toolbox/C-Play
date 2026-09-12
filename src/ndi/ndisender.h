@@ -78,6 +78,8 @@ public:
     bool isSending() const;
 
     const std::string &senderName() const;
+    // Full name the receivers see, which includes the machine name, or empty while not sending.
+    const std::string &ndiName() const;
     int width() const;
     int height() const;
 
@@ -106,6 +108,7 @@ private:
 
     NdiSenderSource m_source;
     std::string m_senderName;
+    std::string m_ndiName;
 
     // Set from the GUI thread, read from the render thread.
     std::atomic_bool m_enabled = false;

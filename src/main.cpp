@@ -75,6 +75,11 @@ bool preLoadLayers = false;
 std::vector<std::shared_ptr<BaseLayer>> secondaryLayers;
 std::vector<std::shared_ptr<BaseLayer>> secondaryLayersToKeep;
 
+#ifdef NDI_SUPPORT
+// Receives the NDI stream the master publishes, shown alone on the nodes when requested.
+std::shared_ptr<NdiLayer> masterNdiLayer;
+#endif
+
 std::shared_ptr<LayersRenderer> layerRender;
 
 } // namespace
@@ -236,6 +241,10 @@ static std::vector<std::byte> encode() {
             serializeObject(data, SyncHelper::instance().variables.stereoscopicModeBg);
             serializeObject(data, SyncHelper::instance().variables.stereoscopicModeFg);
             serializeObject(data, SyncHelper::instance().variables.viewMode);
+            serializeObject(data, SyncHelper::instance().variables.masterNdiOnNodes);
+            if (SyncHelper::instance().variables.masterNdiOnNodes > 0) {
+                serializeObject(data, SyncHelper::instance().variables.masterNdiName);
+            }
             serializeObject(data, SyncHelper::instance().variables.windowOnTop);
             serializeObject(data, SyncHelper::instance().variables.windowOpacity);
             
@@ -546,6 +555,11 @@ static void decode(const std::vector<std::byte> &data) {
             deserializeObject(data, pos, SyncHelper::instance().variables.stereoscopicModeBg);
             deserializeObject(data, pos, SyncHelper::instance().variables.stereoscopicModeFg);
             deserializeObject(data, pos, SyncHelper::instance().variables.viewMode);
+            deserializeObject(data, pos, SyncHelper::instance().variables.masterNdiOnNodes);
+            if (SyncHelper::instance().variables.masterNdiOnNodes > 0) {
+                if (!safeToRead()) return;
+                deserializeObject(data, pos, SyncHelper::instance().variables.masterNdiName);
+            }
             deserializeObject(data, pos, SyncHelper::instance().variables.windowOnTop);
             deserializeObject(data, pos, SyncHelper::instance().variables.windowOpacity);
 
@@ -677,6 +691,112 @@ static void decode(const std::vector<std::byte> &data) {
             pendingLayerPacketsAvailable = true;
         }
     }
+}
+
+// Applies the synced window features and, for windows that mix 2D and 3D viewports, enables
+// the set of viewports matching the content currently being rendered.
+static void applyWindowAndViewportState(bool show2Dcontent, bool show3Dcontent) {
+    for (const std::unique_ptr<Window> &win : Engine::instance().thisNode().windows()) {
+        bool exist2Dviewports = false;
+        bool exist3Dviewports = false;
+
+        // Set window features
+        if (glfwGetWindowOpacity(win->windowHandle()) != SyncHelper::instance().variables.windowOpacity) {
+            glfwSetWindowOpacity(win->windowHandle(), SyncHelper::instance().variables.windowOpacity);
+        }
+        int currentWinOnTop = glfwGetWindowAttrib(win->windowHandle(), GLFW_FLOATING);
+        int newWinOnTop = (SyncHelper::instance().variables.windowOnTop ? 1 : 0);
+        if (newWinOnTop != currentWinOnTop) {
+            glfwSetWindowAttrib(win->windowHandle(), GLFW_FLOATING, newWinOnTop);
+        }
+
+        for (const std::unique_ptr<Viewport> &vp : win->viewports()) {
+            if (vp->eye() == FrustumMode::Mono) {
+                exist2Dviewports = true;
+            } else if (vp->eye() == FrustumMode::StereoLeft || vp->eye() == FrustumMode::StereoRight) {
+                exist3Dviewports = true;
+            }
+        }
+
+        if (exist2Dviewports && exist3Dviewports) {
+            for (const std::unique_ptr<Viewport> &vp : win->viewports()) {
+                if (show2Dcontent && (vp->eye() == FrustumMode::Mono)) {
+                    vp->setEnabled(true);
+                } else if (show3Dcontent && (vp->eye() == FrustumMode::StereoLeft || vp->eye() == FrustumMode::StereoRight)) {
+                    vp->setEnabled(true);
+                } else {
+                    vp->setEnabled(false);
+                }
+            }
+        }
+    }
+}
+
+// Returns true while this node should show the NDI stream from the master instead of its own
+// layer composition. The receiver only exists while that state is on.
+static bool updateMasterNdiLayer(const glm::vec3 &rotXYZ, const glm::vec3 &translateXYZ) {
+#ifdef NDI_SUPPORT
+    const int ndiState = SyncHelper::instance().variables.masterNdiOnNodes;
+    const std::string &ndiName = SyncHelper::instance().variables.masterNdiName;
+
+    // Drop the receiver when the state is off or the master publishes under another name.
+    if (masterNdiLayer && (ndiState <= 0 || masterNdiLayer->filepath() != ndiName)) {
+        masterNdiLayer->stop();
+        masterNdiLayer.reset(); // destructor releases the receiver and the GL resources
+    }
+
+    if (ndiState <= 0)
+        return false;
+
+    // The master sender is not running yet, so there is nothing to receive.
+    if (ndiName.empty())
+        return true;
+
+    if (!masterNdiLayer) {
+        masterNdiLayer = std::make_shared<NdiLayer>();
+        masterNdiLayer->setTitle(ndiName);
+        masterNdiLayer->setFilePath(ndiName);
+        masterNdiLayer->enableAudio(false);
+        masterNdiLayer->initialize();
+    }
+
+    masterNdiLayer->update();
+
+    if (ndiState == 1) {
+        // The master publishes the main video, so map it the way the main video is mapped.
+        masterNdiLayer->setAlpha(SyncHelper::instance().variables.alpha);
+        masterNdiLayer->setGridMode(static_cast<uint8_t>(SyncHelper::instance().variables.gridToMapOn));
+        masterNdiLayer->setStereoMode(static_cast<uint8_t>(SyncHelper::instance().variables.stereoscopicMode));
+        masterNdiLayer->setRotate(rotXYZ);
+        masterNdiLayer->setTranslate(translateXYZ);
+    } else {
+        // 2 = the 16:9 perspective view on a plane, 3 = the fisheye rendering on the dome, both flat.
+        masterNdiLayer->setAlpha(1.f);
+        masterNdiLayer->setGridMode(static_cast<uint8_t>(ndiState == 2 ? BaseLayer::GridMode::Plane : BaseLayer::GridMode::Dome));
+        masterNdiLayer->setStereoMode(static_cast<uint8_t>(BaseLayer::StereoMode::No_2D));
+        masterNdiLayer->setRotate(glm::vec3(0.f));
+        masterNdiLayer->setTranslate(glm::vec3(0.f));
+    }
+
+    masterNdiLayer->setPlaneDistance(SyncHelper::instance().variables.planeDistance);
+    masterNdiLayer->setPlaneElevation(SyncHelper::instance().variables.planeElevation);
+    masterNdiLayer->setPlaneSize(glm::vec2(float(SyncHelper::instance().variables.planeWidth),
+                                           float(SyncHelper::instance().variables.planeHeight)),
+                                 static_cast<uint8_t>(SyncHelper::instance().variables.planeConsiderAspectRatio));
+
+    if (masterNdiLayer->ready()) {
+        layerRender->addLayer(masterNdiLayer);
+    }
+
+    const bool show3Dcontent = (masterNdiLayer->stereoMode() > 0) && (SyncHelper::instance().variables.viewMode != 1);
+    applyWindowAndViewportState(!show3Dcontent, show3Dcontent);
+
+    return true;
+#else
+    (void)rotXYZ;
+    (void)translateXYZ;
+    return false;
+#endif
 }
 
 static void postSyncPreDraw() {
@@ -885,8 +1005,12 @@ static void postSyncPreDraw() {
 
         layerRender->clearLayers();
 
+        // When the master NDI stream is shown, it is the only thing rendered on this node.
+        const bool masterNdiActive = updateMasterNdiLayer(rotXYZ, translateXYZ);
+
         // Background image layer
-        if ((!mainVideoLayer->renderingIsOn() || !mainVideoLayer->ready() ||
+        if (!masterNdiActive &&
+            (!mainVideoLayer->renderingIsOn() || !mainVideoLayer->ready() ||
              SyncHelper::instance().variables.alpha < 1.f || SyncHelper::instance().variables.gridToMapOn == 1) &&
             backgroundImageLayer->ready() && SyncHelper::instance().variables.alphaBg > 0.f) {
             backgroundImageLayer->setAlpha(SyncHelper::instance().variables.alphaBg);
@@ -898,7 +1022,7 @@ static void postSyncPreDraw() {
         // Custom layers with hierarchy BACK
         // Should stop if mainVideoLayer is full visible
         // Rendered top to bottom, so need to add them the other way around...
-        for (auto it = secondaryLayers.rbegin(); it != secondaryLayers.rend(); ++it) {
+        for (auto it = secondaryLayers.rbegin(); !masterNdiActive && it != secondaryLayers.rend(); ++it) {
             std::shared_ptr<BaseLayer> layer = (*it);
             if (!layer)
                 continue;
@@ -927,7 +1051,7 @@ static void postSyncPreDraw() {
         }
 
         // Main video/media layer
-        if (mainVideoLayer->renderingIsOn()) {
+        if (!masterNdiActive && mainVideoLayer->renderingIsOn()) {
             if (mainVideoLayer->ready() && SyncHelper::instance().variables.alpha > 0.f) {                
                 mainVideoLayer->setAlpha(SyncHelper::instance().variables.alpha);
                 mainVideoLayer->setGridMode(static_cast<uint8_t>(SyncHelper::instance().variables.gridToMapOn));
@@ -1022,47 +1146,13 @@ static void postSyncPreDraw() {
                 show2Dcontent = true;
                 show3Dcontent = false;
             }
-            
-            for (const std::unique_ptr<Window> &win : Engine::instance().thisNode().windows()) {
-                bool exist2Dviewports = false;
-                bool exist3Dviewports = false;
 
-                // Set window features
-                if (glfwGetWindowOpacity(win->windowHandle()) != SyncHelper::instance().variables.windowOpacity) {
-                    glfwSetWindowOpacity(win->windowHandle(), SyncHelper::instance().variables.windowOpacity);
-                }
-                int currentWinOnTop = glfwGetWindowAttrib(win->windowHandle(), GLFW_FLOATING);
-                int newWinOnTop = (SyncHelper::instance().variables.windowOnTop ? 1 : 0);
-                if (newWinOnTop != currentWinOnTop) {
-                    glfwSetWindowAttrib(win->windowHandle(), GLFW_FLOATING, newWinOnTop);
-                }
-
-                // Step 2
-                for (const std::unique_ptr<Viewport> &vp : win->viewports()) {
-                    if (vp->eye() == FrustumMode::Mono) {
-                        exist2Dviewports = true;
-                    } else if (vp->eye() == FrustumMode::StereoLeft || vp->eye() == FrustumMode::StereoRight) {
-                        exist3Dviewports = true;
-                    }
-                }
-                // Step 3
-                if (exist2Dviewports && exist3Dviewports) {
-                    for (const std::unique_ptr<Viewport> &vp : win->viewports()) {
-                        if (show2Dcontent && (vp->eye() == FrustumMode::Mono)) {
-                            vp->setEnabled(true);
-                        } else if (show3Dcontent && (vp->eye() == FrustumMode::StereoLeft || vp->eye() == FrustumMode::StereoRight)) {
-                            vp->setEnabled(true);
-                        } else {
-                            vp->setEnabled(false);
-                        }
-                    }
-                }
-            }
+            applyWindowAndViewportState(show2Dcontent, show3Dcontent);
         }
 
         // Custom layers with hierarchy FRONT
         // Rendered top to bottom, so need to add them the other way around...
-        for (auto it = secondaryLayers.rbegin(); it != secondaryLayers.rend(); ++it) {
+        for (auto it = secondaryLayers.rbegin(); !masterNdiActive && it != secondaryLayers.rend(); ++it) {
             std::shared_ptr<BaseLayer> layer = (*it);
             if (!layer)
                 continue;
@@ -1091,7 +1181,7 @@ static void postSyncPreDraw() {
         }
 
         // Foreground image layer
-        if (foregroundImageLayer->ready() && SyncHelper::instance().variables.alphaFg > 0.f) {
+        if (!masterNdiActive && foregroundImageLayer->ready() && SyncHelper::instance().variables.alphaFg > 0.f) {
             foregroundImageLayer->setAlpha(SyncHelper::instance().variables.alphaFg);
             foregroundImageLayer->setGridMode(static_cast<uint8_t>(SyncHelper::instance().variables.gridToMapOnFg));
             foregroundImageLayer->setStereoMode(static_cast<uint8_t>(SyncHelper::instance().variables.stereoscopicModeFg));
@@ -1201,6 +1291,10 @@ static void cleanup() {
         mainVideoLayer.reset();
         mainSubtitleLayer.reset();
         layerRender.reset();
+
+#ifdef NDI_SUPPORT
+        masterNdiLayer.reset();
+#endif
 
         ImageLayer::processPendingGLCleanup();
     }

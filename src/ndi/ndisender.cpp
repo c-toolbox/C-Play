@@ -14,6 +14,7 @@
 #ifdef NDI_SUPPORT
 #include <ndi/ofxNDI/ofxNDIutils.h>
 #include <sgct/log.h>
+#include <QSysInfo>
 #include <format>
 #endif
 
@@ -120,6 +121,9 @@ const std::string &NdiSender::senderName() const {
     return m_senderName;
 }
 
+const std::string &NdiSender::ndiName() const {
+    return m_ndiName;
+}
 int NdiSender::width() const {
     return m_width;
 }
@@ -169,7 +173,13 @@ bool NdiSender::createOrUpdateSender(int width, int height) {
     m_height = height;
     m_framesCaptured = 0;
 
-    sgct::Log::Info(std::format("NdiSender: sending \"{}\" at {}x{}", m_senderName, width, height));
+    m_ndiName = m_sender.GetNDIname();
+    if (m_ndiName.empty()) {
+        // Mirrors how NDI itself composes the name the receivers see.
+        m_ndiName = QSysInfo::machineHostName().toStdString() + " (" + m_senderName + ")";
+    }
+
+    sgct::Log::Info(std::format("NdiSender: sending \"{}\" at {}x{}", m_ndiName, width, height));
 
     return true;
 }
@@ -179,6 +189,7 @@ void NdiSender::releaseSender() {
         m_sender.ReleaseSender();
         m_senderCreated = false;
     }
+    m_ndiName.clear();
     m_width = 0;
     m_height = 0;
 }

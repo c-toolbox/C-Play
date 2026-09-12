@@ -376,9 +376,16 @@ void Application::setupQmlContextProperties() {
     qmlRegisterUncreatableType<Application>("Application", 1, 0, "Application",
                                             QStringLiteral("Application should not be created in QML"));
 
-    m_engine->rootContext()->setContextProperty(QStringLiteral("playerController"), new PlayerController(this));
+    auto *playerController = new PlayerController(this);
+    m_engine->rootContext()->setContextProperty(QStringLiteral("playerController"), playerController);
 
-    m_engine->rootContext()->setContextProperty(QStringLiteral("ndiSender"), new NdiSenderModel(this));
+    auto *ndiSenderModel = new NdiSenderModel(this);
+    m_engine->rootContext()->setContextProperty(QStringLiteral("ndiSender"), ndiSenderModel);
+
+    // The nodes address the master sender by its full NDI name, known once the sender runs.
+    connect(ndiSenderModel, &NdiSenderModel::ndiNameChanged, playerController, [playerController, ndiSenderModel]() {
+        playerController->setMasterNdiName(ndiSenderModel->ndiName());
+    });
 
 #ifdef PDF_SUPPORT
     m_engine->rootContext()->setContextProperty(QStringLiteral("PDF_SUPPORT"), QVariant(true));

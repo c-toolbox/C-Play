@@ -44,6 +44,21 @@ Menu {
                 text: qsTr("Render 3D view with a fisheye camera")
                 onTriggered: window.mainViewMode = 2
             }
+            MenuSeparator {
+                visible: NDI_SUPPORT
+                height: visible ? implicitHeight : 0
+            }
+            MenuItem {
+                checkable: true
+                checked: window.showNdiOnNodes
+                visible: NDI_SUPPORT
+                height: visible ? implicitHeight : 0
+                text: qsTr("Show the master NDI output on all nodes")
+                onTriggered: window.showNdiOnNodes = !window.showNdiOnNodes
+                ToolTip {
+                    text: "The nodes render the NDI stream from the master instead of their own layers. The NDI output has to be ON."
+                }
+            }
         }
         MenuItem {
             action: actions.windowOpacityAction

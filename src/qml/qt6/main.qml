@@ -40,10 +40,21 @@ Kirigami.ApplicationWindow {
     // globe menu in the header taskbar (and Settings > States) changes it during playback.
     property int mainViewMode: 0
 
+    // When on, the nodes render the "C-Play" NDI stream from the master instead of their own
+    // layers, following whatever the master view currently shows.
+    property bool showNdiOnNodes: false
+
     // Keep the NDI output in sync with the master view state, so it publishes the 3D view
     // instead of the main video whenever the 3D view is the one being shown.
     onMainViewModeChanged: {
         ndiSender.mainViewMode = window.mainViewMode;
+        updateNdiOnNodes();
+    }
+
+    onShowNdiOnNodesChanged: updateNdiOnNodes()
+
+    function updateNdiOnNodes() {
+        playerController.masterNdiOnNodes = window.showNdiOnNodes ? window.mainViewMode + 1 : 0;
     }
 
     onClosing: {
@@ -366,6 +377,12 @@ Kirigami.ApplicationWindow {
             // globe menu in the header taskbar (window.mainViewMode) changes it during playback.
             if(UserInterfaceSettings.show3DviewAtStartup){
                 window.mainViewMode = UserInterfaceSettings.renderAsFisheyeIn3DView ? 2 : 1;
+            }
+
+            // Showing the master NDI output on the nodes at startup also decides the master view.
+            if(NDI_SUPPORT && UserInterfaceSettings.masterNdiOnNodesAtStartup > 0){
+                window.mainViewMode = UserInterfaceSettings.masterNdiOnNodesAtStartup - 1;
+                window.showNdiOnNodes = true;
             }
         }
 

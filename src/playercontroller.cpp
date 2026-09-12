@@ -702,6 +702,37 @@ int PlayerController::getViewModeOnClients() {
     return SyncHelper::instance().variables.viewMode;
 }
 
+int PlayerController::masterNdiOnNodes() {
+    return SyncHelper::instance().variables.masterNdiOnNodes;
+}
+
+void PlayerController::setMasterNdiOnNodes(int value) {
+    // 0 = nodes render their own layers, 1-3 = nodes render the master "C-Play" NDI stream
+    if (SyncHelper::instance().variables.masterNdiOnNodes == value)
+        return;
+
+    SyncHelper::instance().variables.masterNdiOnNodes = value;
+    SyncHelper::instance().variables.playerControllerNeedSync = true;
+
+    Q_EMIT masterNdiOnNodesChanged();
+}
+
+QString PlayerController::masterNdiName() {
+    return QString::fromStdString(SyncHelper::instance().variables.masterNdiName);
+}
+
+void PlayerController::setMasterNdiName(const QString &value) {
+    // Receivers need the full name of the master sender, which includes the machine name.
+    const std::string name = value.toStdString();
+    if (SyncHelper::instance().variables.masterNdiName == name)
+        return;
+
+    SyncHelper::instance().variables.masterNdiName = name;
+    SyncHelper::instance().variables.playerControllerNeedSync = true;
+
+    Q_EMIT masterNdiNameChanged();
+}
+
 bool PlayerController::rewindMediaOnEOF() {
     return m_rewindMediaOnEOF;
 }

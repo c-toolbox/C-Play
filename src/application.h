@@ -373,6 +373,11 @@ public:
         int stereoscopicModeFg;
         int eofMode;
         int viewMode;
+        // 0 = normal layer composition on the nodes, 1-3 = show the master "C-Play" NDI stream
+        // (1 main video, 2 perspective 3D view, 3 fisheye 3D view).
+        int masterNdiOnNodes;
+        // Full NDI name of the master sender, which includes the master machine name.
+        std::string masterNdiName;
         double radius;
         double fov;
         double angle;
@@ -468,6 +473,8 @@ public:
         /*stereoscopicModeFg*/ 0,
         /*eofMode*/ 0,
         /*viewMode*/ 0,
+        /*masterNdiOnNodes*/ 0,
+        /*masterNdiName*/ "",
         /*radius*/ 740,
         /*fov*/ 165,
         /*angle*/ 27.f,

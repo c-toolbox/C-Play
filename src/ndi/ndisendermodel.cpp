@@ -59,6 +59,10 @@ void NdiSenderModel::setEnabled(bool enabled) {
             m_lastSending = false;
             Q_EMIT sendingChanged();
         }
+        if (!m_ndiName.isEmpty()) {
+            m_ndiName.clear();
+            Q_EMIT ndiNameChanged();
+        }
         if (m_lastWidth != 0 || m_lastHeight != 0) {
             m_lastWidth = 0;
             m_lastHeight = 0;
@@ -89,6 +93,10 @@ void NdiSenderModel::setSenderName(const QString &name) {
         setEnabled(false);
         setEnabled(true);
     }
+}
+
+QString NdiSenderModel::ndiName() const {
+    return m_ndiName;
 }
 
 int NdiSenderModel::width() const {
@@ -179,6 +187,10 @@ void NdiSenderModel::captureFrame() {
             m_lastSending = false;
             Q_EMIT sendingChanged();
         }
+        if (!m_ndiName.isEmpty()) {
+            m_ndiName.clear();
+            Q_EMIT ndiNameChanged();
+        }
         return;
     }
 
@@ -188,6 +200,12 @@ void NdiSenderModel::captureFrame() {
     if (isSending != m_lastSending) {
         m_lastSending = isSending;
         Q_EMIT sendingChanged();
+    }
+
+    const QString ndiName = QString::fromStdString(m_sender->ndiName());
+    if (ndiName != m_ndiName) {
+        m_ndiName = ndiName;
+        Q_EMIT ndiNameChanged();
     }
 
     if (m_sender->width() != m_lastWidth || m_sender->height() != m_lastHeight) {

@@ -44,6 +44,16 @@ public:
         WRITE setSyncProperties
         NOTIFY syncPropertiesChanged)
 
+    Q_PROPERTY(int masterNdiOnNodes
+        READ masterNdiOnNodes
+        WRITE setMasterNdiOnNodes
+        NOTIFY masterNdiOnNodesChanged)
+
+    Q_PROPERTY(QString masterNdiName
+        READ masterNdiName
+        WRITE setMasterNdiName
+        NOTIFY masterNdiNameChanged)
+
     Q_INVOKABLE QString supportedImageNameFilters() const;
     Q_INVOKABLE QStringList supportedImageDecoderNames() const;
     Q_INVOKABLE QString imageRingBufferGpuMemoryText(int percent) const;
@@ -117,6 +127,12 @@ public Q_SLOTS:
     void setViewModeOnClients(int value);
     int getViewModeOnClients();
 
+    int masterNdiOnNodes();
+    void setMasterNdiOnNodes(int value);
+
+    QString masterNdiName();
+    void setMasterNdiName(const QString &value);
+
     bool rewindMediaOnEOF();
     void setRewindMediaOnEOF(bool value);
 
@@ -159,6 +175,8 @@ Q_SIGNALS:
     void foregroundImageChanged();
     void foregroundVisibilityChanged();
     void viewModeOnClientsChanged();
+    void masterNdiOnNodesChanged();
+    void masterNdiNameChanged();
     void rewindMediaOnEOFChanged();
     void nodeWindowOnTopChanged();
     void nodeWindowOpacityChanged();

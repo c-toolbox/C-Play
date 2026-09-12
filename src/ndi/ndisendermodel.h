@@ -31,6 +31,8 @@ class NdiSenderModel : public QObject {
     Q_PROPERTY(bool enabled READ enabled WRITE setEnabled NOTIFY enabledChanged)
     Q_PROPERTY(bool sending READ sending NOTIFY sendingChanged)
     Q_PROPERTY(QString senderName READ senderName WRITE setSenderName NOTIFY senderNameChanged)
+    // Full name the receivers see, "<machine> (<senderName>)", empty while not sending.
+    Q_PROPERTY(QString ndiName READ ndiName NOTIFY ndiNameChanged)
     Q_PROPERTY(int width READ width NOTIFY resolutionChanged)
     Q_PROPERTY(int height READ height NOTIFY resolutionChanged)
     // Mirrors window.mainViewMode: 0 renders the main video, 1 and 2 the 3D view with a
@@ -52,6 +54,8 @@ public:
 
     QString senderName() const;
     void setSenderName(const QString &name);
+
+    QString ndiName() const;
 
     int width() const;
     int height() const;
@@ -81,6 +85,7 @@ Q_SIGNALS:
     void enabledChanged();
     void sendingChanged();
     void senderNameChanged();
+    void ndiNameChanged();
     void resolutionChanged();
     void mainViewModeChanged();
 
@@ -95,6 +100,7 @@ private:
     MpvObject *m_mpv = nullptr;
     LayersRendererQtItem *m_layersRenderer = nullptr;
     QString m_senderName;
+    QString m_ndiName;
     std::atomic_bool m_enabled = false;
     std::atomic_int m_mainViewMode = 0;
     bool m_lastSending = false;

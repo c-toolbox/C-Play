@@ -1698,6 +1698,22 @@ ToolBar {
                     }
                     onTriggered: window.mainViewMode = 2
                 }
+                MenuSeparator {
+                    visible: NDI_SUPPORT
+                    height: visible ? implicitHeight : 0
+                }
+                MenuItem {
+                    checkable: true
+                    checked: window.showNdiOnNodes
+                    visible: NDI_SUPPORT
+                    enabled: ndiSender.enabled
+                    height: visible ? implicitHeight : 0
+                    text: qsTr("Show the master NDI output on all nodes")
+                    ToolTip {
+                        text: "The nodes render the \"C-Play\" NDI stream from the master instead of their own layers. The NDI output has to be ON."
+                    }
+                    onTriggered: window.showNdiOnNodes = !window.showNdiOnNodes
+                }
             }
         }
         ToolButton {
