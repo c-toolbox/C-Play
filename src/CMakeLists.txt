@@ -496,7 +496,21 @@ if(POLICY CMP0169)
     cmake_policy(PUSH)
     cmake_policy(SET CMP0169 OLD)
 endif()
+# The vendored SGCT tree (notably its OpenXR SDK) ships install() rules that would drop
+# dev files (headers, loader lib and CMake config files) into the C-Play install prefix.
+# We only use SGCT as a build dependency, so skip all of its install rules here instead
+# of patching the submodule. Note: CMAKE_SKIP_INSTALL_RULES is evaluated at generation
+# time per directory scope (not when install() is called), so it must be ON while sgct/
+# is processed and restored afterwards for this directory's own rules below.
+set(CMAKE_SKIP_INSTALL_RULES ON)
 add_subdirectory(${CMAKE_CURRENT_SOURCE_DIR}/sgct)
+set(CMAKE_SKIP_INSTALL_RULES OFF)
+
+# Skipped directories do not get a cmake_install.cmake generated, but the parent install
+# script unconditionally include()s its subdirectories' scripts. Write an empty stub so
+# that `cmake --install` does not fail on the missing file.
+file(WRITE ${CMAKE_CURRENT_BINARY_DIR}/sgct/cmake_install.cmake
+     "# Vendored SGCT: install rules are intentionally disabled.\n")
 if(POLICY CMP0169)
     cmake_policy(POP)
 endif()
