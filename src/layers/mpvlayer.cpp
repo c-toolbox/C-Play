@@ -251,26 +251,26 @@ bool initMPV(MpvLayer::mpvData& vd) {
 
     // Set EOF mode
     if (vd.eofMode == 0) { // Pause
-        mpv::qt::set_property_async(vd.handle, QStringLiteral("keep-open"), QStringLiteral("yes"));
-        mpv::qt::set_property_async(vd.handle, QStringLiteral("loop-file"), QStringLiteral("no"));
+        mpv::qt::set_property_async(vd.handle, QStringLiteral("keep-open"), QStringLiteral("yes"), vd.loggingOn);
+        mpv::qt::set_property_async(vd.handle, QStringLiteral("loop-file"), QStringLiteral("no"), vd.loggingOn);
     }
     else if (vd.eofMode == 1) { // Continue
-        mpv::qt::set_property_async(vd.handle, QStringLiteral("keep-open"), QStringLiteral("no"));
-        mpv::qt::set_property_async(vd.handle, QStringLiteral("loop-file"), QStringLiteral("no"));
+        mpv::qt::set_property_async(vd.handle, QStringLiteral("keep-open"), QStringLiteral("no"), vd.loggingOn);
+        mpv::qt::set_property_async(vd.handle, QStringLiteral("loop-file"), QStringLiteral("no"), vd.loggingOn);
     }
     else { // Loop
-        mpv::qt::set_property_async(vd.handle, QStringLiteral("keep-open"), QStringLiteral("yes"));
-        mpv::qt::set_property_async(vd.handle, QStringLiteral("loop-file"), QStringLiteral("inf"));
+        mpv::qt::set_property_async(vd.handle, QStringLiteral("keep-open"), QStringLiteral("yes"), vd.loggingOn);
+        mpv::qt::set_property_async(vd.handle, QStringLiteral("loop-file"), QStringLiteral("inf"), vd.loggingOn);
     }
 
     //Set Loop time
     if (vd.loopTimeEnabled && vd.eofMode == 2) {
-        mpv::qt::set_property_async(vd.handle, QStringLiteral("ab-loop-a"), vd.loopTimeA);
-        mpv::qt::set_property_async(vd.handle, QStringLiteral("ab-loop-b"), vd.loopTimeB);
+        mpv::qt::set_property_async(vd.handle, QStringLiteral("ab-loop-a"), vd.loopTimeA, vd.loggingOn);
+        mpv::qt::set_property_async(vd.handle, QStringLiteral("ab-loop-b"), vd.loopTimeB, vd.loggingOn);
     }
     else {
-        mpv::qt::set_property_async(vd.handle, QStringLiteral("ab-loop-a"), QStringLiteral("no"));
-        mpv::qt::set_property_async(vd.handle, QStringLiteral("ab-loop-b"), QStringLiteral("no"));
+        mpv::qt::set_property_async(vd.handle, QStringLiteral("ab-loop-a"), QStringLiteral("no"), vd.loggingOn);
+        mpv::qt::set_property_async(vd.handle, QStringLiteral("ab-loop-b"), QStringLiteral("no"), vd.loggingOn);
     }
 
     // Set if we support video or not (enabled by default)
@@ -311,18 +311,18 @@ bool initMPV(MpvLayer::mpvData& vd) {
     }
 
     // Load mpv configurations
-    mpv::qt::load_configurations(vd.handle, QString::fromStdString(SyncHelper::instance().configuration.confAll));
+    mpv::qt::load_configurations(vd.handle, QString::fromStdString(SyncHelper::instance().configuration.confAll), vd.loggingOn);
     if (vd.isMaster) {
-        mpv::qt::load_configurations(vd.handle, QString::fromStdString(SyncHelper::instance().configuration.confMasterOnly));
+        mpv::qt::load_configurations(vd.handle, QString::fromStdString(SyncHelper::instance().configuration.confMasterOnly), vd.loggingOn);
     }
     else {
-        mpv::qt::load_configurations(vd.handle, QString::fromStdString(SyncHelper::instance().configuration.confNodesOnly));
+        mpv::qt::load_configurations(vd.handle, QString::fromStdString(SyncHelper::instance().configuration.confNodesOnly), vd.loggingOn);
     }
 
     // Apply per-layer options (after global settings so they take precedence)
     std::string layerOptionsPath = mpvOptionsFilePath(vd);
     if (!layerOptionsPath.empty()) {
-        mpv::qt::load_configurations(vd.handle, QString::fromStdString(layerOptionsPath));
+        mpv::qt::load_configurations(vd.handle, QString::fromStdString(layerOptionsPath), vd.loggingOn);
     }
     vd.mpvOptionsNameApplied = vd.mpvOptionsName;
     vd.mpvOptionsApplied = true;
@@ -970,17 +970,17 @@ void MpvLayer::applyMpvOptions() {
         return;
 
     // Re-apply global settings first, then the layer-specific options
-    mpv::qt::load_configurations(m_data.handle, QString::fromStdString(SyncHelper::instance().configuration.confAll));
+    mpv::qt::load_configurations(m_data.handle, QString::fromStdString(SyncHelper::instance().configuration.confAll), m_data.loggingOn);
     if (isMaster()) {
-        mpv::qt::load_configurations(m_data.handle, QString::fromStdString(SyncHelper::instance().configuration.confMasterOnly));
+        mpv::qt::load_configurations(m_data.handle, QString::fromStdString(SyncHelper::instance().configuration.confMasterOnly), m_data.loggingOn);
     }
     else {
-        mpv::qt::load_configurations(m_data.handle, QString::fromStdString(SyncHelper::instance().configuration.confNodesOnly));
+        mpv::qt::load_configurations(m_data.handle, QString::fromStdString(SyncHelper::instance().configuration.confNodesOnly), m_data.loggingOn);
     }
 
     std::string optionsPath = mpvOptionsFilePath(m_data);
     if (!optionsPath.empty()) {
-        mpv::qt::load_configurations(m_data.handle, QString::fromStdString(optionsPath));
+        mpv::qt::load_configurations(m_data.handle, QString::fromStdString(optionsPath), m_data.loggingOn);
     }
 
     m_data.mpvOptionsNameApplied = m_data.mpvOptionsName;

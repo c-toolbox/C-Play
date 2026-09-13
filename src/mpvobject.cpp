@@ -140,8 +140,10 @@ MpvObject::MpvObject(QQuickItem *parent)
     setStereoscopicMode(ImageSettings::stereoModeForBackground());
     setGridToMapOn(ImageSettings::gridToMapOnForBackground());
 
-    mpv::qt::load_configurations(mpv, QString::fromStdString(SyncHelper::instance().configuration.confAll));
-    mpv::qt::load_configurations(mpv, QString::fromStdString(SyncHelper::instance().configuration.confMasterOnly));
+    mpv::qt::load_configurations(mpv, QString::fromStdString(SyncHelper::instance().configuration.confAll),
+                                 !SyncHelper::instance().configuration.logFile.empty() || !SyncHelper::instance().configuration.logLevel.empty());
+    mpv::qt::load_configurations(mpv, QString::fromStdString(SyncHelper::instance().configuration.confMasterOnly),
+                                 !SyncHelper::instance().configuration.logFile.empty() || !SyncHelper::instance().configuration.logLevel.empty());
 
     updateAudioDeviceList();
 
@@ -1111,7 +1113,10 @@ void MpvObject::loadMultiVideo(const QString &jsonPath, bool updateLastPlayedFil
                         newCommand << options;
                     }
 
-                    qInfo() << newCommand;
+                    if (!SyncHelper::instance().configuration.logFile.empty()
+                        || !SyncHelper::instance().configuration.logLevel.empty()) {
+                        qInfo() << newCommand;
+                    }
                     command(newCommand, true);
 
                     // Store the audio file for reference (used by separateAudioFile() getter)
@@ -1333,7 +1338,10 @@ void MpvObject::loadItem(PlayListItemData itemData, bool updateLastPlayedFile, Q
 #endif
         newCommand << options;
 
-        qInfo() << newCommand;
+        if (!SyncHelper::instance().configuration.logFile.empty()
+            || !SyncHelper::instance().configuration.logLevel.empty()) {
+            qInfo() << newCommand;
+        }
 
         m_currentSectionsIndex = -1;
 

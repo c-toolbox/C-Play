@@ -279,7 +279,7 @@ static inline QVariant get_property(mpv_handle *ctx, const QString &name) {
  * @return mpv error code (<0 on error, >= 0 on success)
  */
 static inline int set_property(mpv_handle *ctx, const QString &name,
-                               const QVariant &v, bool loggingOn = true) {
+                               const QVariant &v, bool loggingOn = false) {
     node_builder node(v);
     if (loggingOn) {
         qInfo() << "(MPV) SetProperty: Name = " << name << ", Value = " << v.toString();
@@ -293,7 +293,7 @@ static inline int set_property(mpv_handle *ctx, const QString &name,
  * @return mpv error code (<0 on error, >= 0 on success)
  */
 static inline void set_property_async(mpv_handle *ctx, const QString &name,
-                                      const QVariant &v, bool loggingOn = true) {
+                                      const QVariant &v, bool loggingOn = false) {
     node_builder node(v);
     if (loggingOn) {
         qInfo() << "(MPV) SetProperty (ASYNC): Name = " << name << ", Value = " << v.toString();
@@ -331,15 +331,16 @@ static inline void command_async(mpv_handle *ctx, const QVariant &args) {
 /**
  * Load and set mpv-conf.json file with MPV configurations
  *
+ * @param loggingOn if true, log the loaded configuration options (only enabled via command line)
  * @return false or true for success
  */
-static inline bool load_configurations(mpv_handle *ctx, QString filepath) {
+static inline bool load_configurations(mpv_handle *ctx, QString filepath, bool loggingOn = false) {
     QFile mpvConfFile(filepath);
 
     if (!mpvConfFile.open(QIODevice::ReadOnly)) {
         qWarning() << "Couldn't open mpv configuration file: " << filepath;
         return false;
-    } else {
+    } else if (loggingOn) {
         qInfo() << "Loading mpv configuration file: " << filepath;
     }
 
@@ -351,7 +352,7 @@ static inline bool load_configurations(mpv_handle *ctx, QString filepath) {
 
     for (const QString &key : mpvCommands.keys()) {
         QJsonValue value = mpvCommands.value(key);
-        set_property(ctx, key, value.toVariant());
+        set_property(ctx, key, value.toVariant(), loggingOn);
     }
 
     return true;
