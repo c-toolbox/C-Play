@@ -127,6 +127,7 @@ class LayerQtItem : public QQuickItem {
     Q_PROPERTY(QString layerOperation READ layerOperation WRITE setLayerOperation NOTIFY layerValueChanged)
     Q_PROPERTY(QString layerParameter READ layerParameter WRITE setLayerParameter NOTIFY layerValueChanged)
     Q_PROPERTY(QString layerRestUrl READ layerRestUrl WRITE setLayerRestUrl NOTIFY layerValueChanged)
+    Q_PROPERTY(QString layerWhepUrl READ layerWhepUrl WRITE setLayerWhepUrl NOTIFY layerValueChanged)
     Q_PROPERTY(int layerRestMethod READ layerRestMethod WRITE setLayerRestMethod NOTIFY layerValueChanged)
     Q_PROPERTY(QString layerRestParameters READ layerRestParameters WRITE setLayerRestParameters NOTIFY layerValueChanged)
     Q_PROPERTY(bool layerRestIgnoreStatus READ layerRestIgnoreStatus WRITE setLayerRestIgnoreStatus NOTIFY layerValueChanged)
@@ -330,6 +331,8 @@ public:
 
     QString layerRestUrl() const;
     void setLayerRestUrl(QString url);
+    QString layerWhepUrl() const;
+    void setLayerWhepUrl(const QString &url);
 
     int layerRestMethod() const;
     void setLayerRestMethod(int method);

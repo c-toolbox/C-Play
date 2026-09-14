@@ -36,6 +36,7 @@ GridLayout {
     property alias ndiSenderComboBox: ndiSenderComboBox
     property alias spoutSenderComboBox: spoutSenderComboBox
     property alias omtSenderComboBox: omtSenderComboBox
+    property alias whepUrlField: whepUrlField
     property alias stereoscopicModeForLayer: stereoscopicModeForLayer
     property alias gridModeForLayer: gridModeForLayer
     property alias textForLayer: textForLayer
@@ -345,6 +346,9 @@ GridLayout {
                 loadRestParametersFromJson(app.httpClientModel.data(app.httpClientModel.index(idx, 0), Qt.UserRole + 3));
                 restIgnoreStatusCheckBox.checked = app.httpClientModel.data(app.httpClientModel.index(idx, 0), Qt.UserRole + 4) || false;
             }
+            else if (typeComboBox.currentText === "WebRTC") {
+                whepUrlField.text = "";
+            }
             else {
                 layerTitle.text = "";
                 fileForLayer.text = "";
@@ -360,11 +364,11 @@ GridLayout {
         Layout.alignment: Qt.AlignRight
         font.pointSize: 9
         text: qsTr("File:")
-        visible: typeComboBox.currentText != "Stream" && typeComboBox.currentText != "NDI" && typeComboBox.currentText != "Spout" && typeComboBox.currentText != "OMT" && typeComboBox.currentText != "Text" && typeComboBox.currentText != "Control" && typeComboBox.currentText != "REST"
+        visible: typeComboBox.currentText != "Stream" && typeComboBox.currentText != "NDI" && typeComboBox.currentText != "Spout" && typeComboBox.currentText != "OMT" && typeComboBox.currentText != "WebRTC" && typeComboBox.currentText != "Text" && typeComboBox.currentText != "Control" && typeComboBox.currentText != "REST"
     }
     RowLayout {
         Layout.fillWidth: true
-        visible: typeComboBox.currentText != "Stream" && typeComboBox.currentText != "NDI" && typeComboBox.currentText != "Spout" && typeComboBox.currentText != "OMT" && typeComboBox.currentText != "Text" && typeComboBox.currentText != "Control" && typeComboBox.currentText != "REST"
+        visible: typeComboBox.currentText != "Stream" && typeComboBox.currentText != "NDI" && typeComboBox.currentText != "Spout" && typeComboBox.currentText != "OMT" && typeComboBox.currentText != "WebRTC" && typeComboBox.currentText != "Text" && typeComboBox.currentText != "Control" && typeComboBox.currentText != "REST"
 
         TextField {
             id: fileForLayer
@@ -630,6 +634,44 @@ GridLayout {
     }
     Item {
         visible: root.showSpacers && typeComboBox.currentText === "OMT"
+        Layout.fillWidth: true
+    }
+
+    Label {
+        Layout.alignment: Qt.AlignRight
+        font.pointSize: 9
+        text: qsTr("WHEP URL:")
+        visible: typeComboBox.currentText === "WebRTC"
+    }
+    TextField {
+        id: whepUrlField
+
+        Layout.fillWidth: true
+        Layout.preferredWidth: font.pointSize * 17
+        placeholderText: "http://host:8889/live/stream/whep"
+        text: ""
+        visible: typeComboBox.currentText === "WebRTC"
+
+        onEditingFinished: {
+            // Default the layer title to the stream name when the user did not set one.
+            if (layerTitle.text === "" && text.trim() !== "") {
+                var noQuery = text.trim().split("?")[0];
+                var segments = noQuery.split("/");
+                for (var i = segments.length - 1; i >= 0; --i) {
+                    if (segments[i] !== "" && segments[i].toLowerCase() !== "whep") {
+                        layerTitle.text = segments[i];
+                        break;
+                    }
+                }
+            }
+        }
+
+        ToolTip {
+            text: qsTr("WHEP endpoint URL, e.g. http://mediamtx:8889/live/mystream/whep")
+        }
+    }
+    Item {
+        visible: root.showSpacers && typeComboBox.currentText === "WebRTC"
         Layout.fillWidth: true
     }
 

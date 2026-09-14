@@ -51,6 +51,9 @@
 #ifdef REST_LAYER
 #include <layers/restlayer.h>
 #endif
+#ifdef WEBRTC_LAYER
+#include <webrtc/webrtclayer.h>
+#endif
 // ndisender.h is always compiled, it degrades to a no-op implementation when
 // the build has no NDI support. The complete type is needed here regardless,
 // since BaseLayer holds a std::unique_ptr<NdiSender>.
@@ -109,6 +112,10 @@ std::string BaseLayer::typeDescription(BaseLayer::LayerType e) {
 #ifdef REST_LAYER
     case REST:
         return "REST";
+#endif
+#ifdef WEBRTC_LAYER
+    case WEBRTC:
+        return "WebRTC";
 #endif
     default:
         return "";
@@ -223,6 +230,13 @@ BaseLayer *BaseLayer::createLayer(bool isMaster, int layerType, FUNC_V1, FUNC_V2
     case static_cast<int>(BaseLayer::LayerType::REST): {
         RestLayer* newRest = new RestLayer();
         newLayer = newRest;
+        break;
+    }
+#endif
+#ifdef WEBRTC_LAYER
+    case static_cast<int>(BaseLayer::LayerType::WEBRTC): {
+        WebRTCLayer* newWebRtc = new WebRTCLayer();
+        newLayer = newWebRtc;
         break;
     }
 #endif

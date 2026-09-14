@@ -58,6 +58,9 @@ public:
 #ifdef REST_LAYER
         REST,
 #endif
+#ifdef WEBRTC_LAYER
+        WEBRTC,
+#endif
         INVALID
     };
 

@@ -137,6 +137,13 @@ Kirigami.ApplicationWindow {
                             layersAddNew.visible = false;
                             app.slides.updateSelectedSlide();
                             mpv.focus = true;
+                        } else if (layerCoreProps.typeComboBox.currentText === "WebRTC") {
+                            if (layerCoreProps.whepUrlField.text.trim() !== "") {
+                                layerView.layerItem.layerIdx = app.slides.selected.addLayer(layerCoreProps.layerTitle.text, layerCoreProps.typeComboBox.currentIndex + 1, layerCoreProps.whepUrlField.text.trim(), layerCoreProps.stereoscopicModeForLayer.currentIndex, layerCoreProps.gridModeForLayer.currentIndex);
+                                layersAddNew.visible = false;
+                                app.slides.updateSelectedSlide();
+                                mpv.focus = true;
+                            }
                         } else if (layerCoreProps.fileForLayer.text !== "") {
                             layerView.layerItem.layerIdx = app.slides.selected.addLayer(layerCoreProps.layerTitle.text, layerCoreProps.typeComboBox.currentIndex + 1, layerCoreProps.fileForLayer.text, layerCoreProps.stereoscopicModeForLayer.currentIndex, layerCoreProps.gridModeForLayer.currentIndex);
                             // If an image sequence was detected and user did not opt to load only this image

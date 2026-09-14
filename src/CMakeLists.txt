@@ -167,6 +167,19 @@ if(BUILD_CPLAY_WITH_OMT)
     target_include_directories(${TARGET_NAME} PRIVATE omt)
 endif()
 
+if(BUILD_CPLAY_WITH_WEBRTC)
+    list(APPEND SOURCE_FILES webrtc/webrtctypes.h)
+    list(APPEND SOURCE_FILES webrtc/whepclient.cpp)
+    list(APPEND SOURCE_FILES webrtc/whepclient.h)
+    list(APPEND SOURCE_FILES webrtc/webrtcsource.cpp)
+    list(APPEND SOURCE_FILES webrtc/webrtcsource.h)
+    list(APPEND SOURCE_FILES webrtc/videodecoder.cpp)
+    list(APPEND SOURCE_FILES webrtc/videodecoder.h)
+    list(APPEND SOURCE_FILES webrtc/webrtclayer.cpp)
+    list(APPEND SOURCE_FILES webrtc/webrtclayer.h)
+    target_include_directories(${TARGET_NAME} PRIVATE webrtc)
+endif()
+
 if(BUILD_CPLAY_WITH_MDK)
     list(APPEND SOURCE_FILES layers/adaptivevideolayer.cpp)
     list(APPEND SOURCE_FILES layers/adaptivevideolayer.h)
@@ -440,6 +453,20 @@ if(BUILD_CPLAY_WITH_OMT)
     target_include_directories(${TARGET_NAME} PRIVATE ${OMT_INCLUDE_DIRS})
 endif()
 
+if(BUILD_CPLAY_WITH_WEBRTC)
+    list(APPEND TARGET_LIBRARIES LibDataChannel::LibDataChannel FFmpegPinned::FFmpeg Qt6::Network)
+    target_compile_definitions(${TARGET_NAME} PUBLIC WEBRTC_SUPPORT WEBRTC_LAYER)
+    # libdatachannel declares `struct RTC_CPP_EXPORT Message : binary` where
+    # binary = std::vector<std::byte>. On MSVC the dllimport decoration then
+    # propagates to the STL base class, so every TU that includes the rtc
+    # headers references vector<byte> methods through __imp_ imports while all
+    # other TUs define them locally as COMDATs -> LNK2005 multiply defined.
+    # Defining RTC_STATIC makes RTC_CPP_EXPORT/RTC_C_EXPORT empty; calls to the
+    # DLL's functions still resolve through its import library, so linking is
+    # unaffected and all STL symbols stay local.
+    target_compile_definitions(${TARGET_NAME} PUBLIC RTC_STATIC)
+endif()
+
 if(BUILD_CPLAY_WITH_POPPLER)
     list(APPEND TARGET_LIBRARIES Poppler::Cpp)
     target_compile_definitions(${TARGET_NAME} PUBLIC PDF_SUPPORT PDF_LAYER)
@@ -589,6 +616,13 @@ if(CPLAY_INSTALL_DEPENDENCIES)
         endif()
 
         set(MY_DEPENDENCY_PATHS ${_mpv_bin_dir} ${_qt_bin_dir} ${_scalable_dir})
+        if(BUILD_CPLAY_WITH_WEBRTC)
+            # FFmpeg runtime DLLs (same tree as mpv) and datachannel.dll from vcpkg.
+            list(APPEND MY_DEPENDENCY_PATHS ${FFmpegPinned_RUNTIME_DIR})
+            if(BUILD_WITH_VCPKG_SUPPORT)
+                list(APPEND MY_DEPENDENCY_PATHS "${VCPKG_INSTALLED_DIR}/${VCPKG_TARGET_TRIPLET}/bin")
+            endif()
+        endif()
         # Transfer the values into the install script
         install(CODE "set(MY_DEPENDENCY_PATHS \"${MY_DEPENDENCY_PATHS}\")")
         install(CODE "set(target \"$<TARGET_FILE:${TARGET_NAME}>\")")
@@ -664,6 +698,10 @@ if(CPLAY_INSTALL_DEPENDENCIES)
 
         if(BUILD_WITH_VCPKG_SUPPORT)
             list(APPEND CIDFPL "${VCPKG_INSTALLED_DIR}/${VCPKG_TARGET_TRIPLET}/bin")
+        endif()
+        if(BUILD_CPLAY_WITH_WEBRTC)
+            # FFmpeg runtime DLLs (same tree as mpv). datachannel.dll comes from the vcpkg bin above.
+            list(APPEND CIDFPL ${FFmpegPinned_RUNTIME_DIR})
         endif()
         if(BUILD_CPLAY_WITH_MDK)
             list(APPEND CIDFPL ${MDK_SDK_ROOT})

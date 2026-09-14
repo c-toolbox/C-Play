@@ -22,6 +22,9 @@
 #include <layers/mpvlayer.h>
 #include <layers/controllayer.h>
 #include <layers/restlayer.h>
+#ifdef WEBRTC_LAYER
+#include <webrtc/webrtclayer.h>
+#endif
 #include <layers/streamlayer.h>
 #include <layers/imagelayer.h>
 
@@ -1326,6 +1329,31 @@ void LayerQtItem::setLayerRestUrl(QString url) {
             Q_EMIT layerNeedsSave();
         }
     }
+}
+
+QString LayerQtItem::layerWhepUrl() const {
+#ifdef WEBRTC_LAYER
+    if (m_layer && m_layer->type() == BaseLayer::WEBRTC) {
+        return QString::fromStdString(m_layer->filepath());
+    }
+#endif
+    return QStringLiteral("");
+}
+
+#ifdef WEBRTC_LAYER
+void LayerQtItem::setLayerWhepUrl(const QString &url) {
+    if (m_layer && m_layer->isEnabled() && m_layer->type() == BaseLayer::WEBRTC) {
+        WebRTCLayer* webRtcLayer = static_cast<WebRTCLayer*>(m_layer);
+        if (QString::fromStdString(webRtcLayer->whepUrl()) != url) {
+            // Restarts the connection when the layer is running.
+            webRtcLayer->setWhepUrl(url.toStdString());
+            Q_EMIT layerValueChanged();
+            Q_EMIT layerNeedsSave();
+        }
+    }
+#else
+void LayerQtItem::setLayerWhepUrl(const QString &) {
+#endif
 }
 
 int LayerQtItem::layerRestMethod() const {

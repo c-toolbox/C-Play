@@ -203,6 +203,21 @@ if(BUILD_CPLAY_WITH_OMT)
     endif()
 endif()
 
+option(BUILD_CPLAY_WITH_WEBRTC "Global On/Off for WebRTC/WHEP support" OFF)
+if(BUILD_CPLAY_WITH_WEBRTC)
+    find_package(LibDataChannel CONFIG REQUIRED)
+    set_package_properties(LibDataChannel PROPERTIES TYPE REQUIRED
+        URL "https://github.com/paullouisageneau/libdatachannel" DESCRIPTION "WebRTC data channels for the WHEP client")
+
+    find_package(Qt6Network ${QT_MIN_VERSION})
+    set_package_properties(Qt6Network PROPERTIES TYPE REQUIRED)
+
+    # Decode with the same FFmpeg tree that mpv was built against (derived from Libmpv).
+    find_package(FFmpegPinned COMPONENTS AVCODEC AVUTIL SWSCALE REQUIRED)
+    set_package_properties(FFmpegPinned PROPERTIES TYPE REQUIRED
+        URL "https://ffmpeg.org/" DESCRIPTION "FFmpeg decode pipeline (NVDEC when available) for the WebRTC layer")
+endif()
+
 option(BUILD_CPLAY_WITH_POPPLER "Global On/Off for PDF support via Poppler library" OFF)
 if(BUILD_CPLAY_WITH_POPPLER)
     find_package(Poppler COMPONENTS Cpp Core REQUIRED)

@@ -30,6 +30,7 @@ Kirigami.ApplicationWindow {
     property var textControls: undefined
     property var qrCodeControls: undefined
     property var flipYControls: undefined
+    property var webrtcControls: undefined
 
     function createRoiComponents() {
         if (!selection) {
@@ -138,6 +139,18 @@ Kirigami.ApplicationWindow {
         }
     }
 
+    function createWebrtcComponents() {
+        if (!webrtcControls) {
+            webrtcControls = webrtcComponent.createObject(layerViewItem);
+        }
+    }
+    function destroyWebrtcComponents() {
+        if (webrtcControls) {
+            webrtcControls.destroy();
+            webrtcControls = undefined;
+        }
+    }
+
     color: Kirigami.Theme.alternateBackgroundColor
     height: 630
     minimumWidth: 980
@@ -161,6 +174,7 @@ Kirigami.ApplicationWindow {
         destroyStreamComponents();
         destroyQRCodeComponents();
         destroyFlipYComponents();
+        destroyWebrtcComponents();
     }
     onVisibilityChanged: {
         if (visible) {
@@ -194,6 +208,10 @@ Kirigami.ApplicationWindow {
                 else if (layerViewItem.layerTypeName === "Spout") {
                     createFlipYComponents();
                 }
+                else if (layerViewItem.layerTypeName === "WebRTC") {
+                    createWebrtcComponents();
+                    createFlipYComponents();
+                }
                 else if (layerViewItem.layerTypeName === "Text") {
                     createTextComponents();
                 }
@@ -207,6 +225,7 @@ Kirigami.ApplicationWindow {
                 destroyTextComponents();
                 destroyQRCodeComponents();
                 destroyFlipYComponents();
+                destroyWebrtcComponents();
             }
         }
     }
@@ -1743,6 +1762,89 @@ Kirigami.ApplicationWindow {
             }
         }
         Component {
+            id: webrtcComponent
+
+            Row {
+                anchors.horizontalCenter: parent.horizontalCenter
+                anchors.bottom: parent.bottom
+                bottomPadding: 60
+
+                RowLayout {
+                    Rectangle {
+                        color: Kirigami.Theme.alternateBackgroundColor
+                        implicitHeight: 35
+                        implicitWidth: 480
+                        radius: 5
+
+                        RowLayout {
+                            anchors.fill: parent
+                            anchors.leftMargin: 8
+
+                            Label {
+                                font.pointSize: 9
+                                text: qsTr("WHEP URL:")
+                            }
+                            TextField {
+                                id: whepUrlEdit
+
+                                Layout.fillWidth: true
+                                implicitWidth: 340
+                                placeholderText: "http://host:8889/live/stream/whep"
+                                text: layerViewItem.layerWhepUrl
+
+                                onEditingFinished: {
+                                    if (text !== layerViewItem.layerWhepUrl) {
+                                        layerViewItem.layerWhepUrl = text;
+                                    }
+                                }
+                            }
+                        }
+                    }
+                    Rectangle {
+                        color: Kirigami.Theme.alternateBackgroundColor
+                        implicitHeight: 35
+                        implicitWidth: 160
+                        radius: 5
+
+                        RowLayout {
+                            anchors.fill: parent
+                            anchors.leftMargin: 8
+
+                            CheckBox {
+                                id: masterOnlyCheckBox
+
+                                focusPolicy: Qt.NoFocus
+                                text: qsTr("Master only")
+                                checked: layerViewItem.layerExistOnMasterOnly
+
+                                onToggled: {
+                                    layerViewItem.layerExistOnMasterOnly = checked;
+                                }
+
+                                ToolTip {
+                                    text: qsTr("When checked, the stream is pulled once on the master. Uncheck to let every node pull its own copy.")
+                                }
+                            }
+                        }
+                    }
+                }
+                Connections {
+                    function onLayerChanged() {
+                        if (layerViewItem.layerIdx !== -1) {
+                            whepUrlEdit.text = layerViewItem.layerWhepUrl;
+                            masterOnlyCheckBox.checked = layerViewItem.layerExistOnMasterOnly;
+                        }
+                    }
+                    function onLayerValueChanged() {
+                        whepUrlEdit.text = layerViewItem.layerWhepUrl;
+                        masterOnlyCheckBox.checked = layerViewItem.layerExistOnMasterOnly;
+                    }
+
+                    target: layerViewItem
+                }
+            }
+        }
+        Component {
             id: qrCodeComponent
 
             Row {
@@ -1974,6 +2076,7 @@ Kirigami.ApplicationWindow {
                         destroyTextComponents();
                         destroyQRCodeComponents();
                         destroyFlipYComponents();
+                        destroyWebrtcComponents();
                     }
                     else if (layerViewItem.layerTypeName === "Video" 
                         || layerViewItem.layerTypeName === "Audio") {
@@ -1984,6 +2087,7 @@ Kirigami.ApplicationWindow {
                         destroyTextComponents();
                         destroyQRCodeComponents();
                         destroyFlipYComponents();
+                        destroyWebrtcComponents();
                     }
                     else if (layerViewItem.layerTypeName === "Stream") {
                         destroyPageComponents();
@@ -1993,6 +2097,7 @@ Kirigami.ApplicationWindow {
                         destroyTextComponents();
                         createQRCodeComponents();
                         createFlipYComponents();
+                        destroyWebrtcComponents();
                     }
                     else if (layerViewItem.layerTypeName === "NDI") {
                         destroyPageComponents();
@@ -2002,6 +2107,7 @@ Kirigami.ApplicationWindow {
                         destroyTextComponents();
                         createQRCodeComponents();
                         createFlipYComponents();
+                        destroyWebrtcComponents();
                     }
                     else if (layerViewItem.layerTypeName === "OMT") {
                         destroyPageComponents();
@@ -2011,6 +2117,7 @@ Kirigami.ApplicationWindow {
                         destroyTextComponents();
                         createQRCodeComponents();
                         createFlipYComponents();
+                        destroyWebrtcComponents();
                     }
                     else if (layerViewItem.layerTypeName === "Spout") {
                         destroyPageComponents();
@@ -2020,6 +2127,17 @@ Kirigami.ApplicationWindow {
                         destroyTextComponents();
                         destroyQRCodeComponents();
                         createFlipYComponents();
+                        destroyWebrtcComponents();
+                    }
+                    else if (layerViewItem.layerTypeName === "WebRTC") {
+                        destroyPageComponents();
+                        destroyAudioComponents();
+                        destroyMediaComponents();
+                        destroyStreamComponents();
+                        destroyTextComponents();
+                        destroyQRCodeComponents();
+                        createFlipYComponents();
+                        createWebrtcComponents();
                     }
                     else if (layerViewItem.layerTypeName === "Text") {
                         destroyPageComponents();
@@ -2029,6 +2147,7 @@ Kirigami.ApplicationWindow {
                         createTextComponents();
                         destroyQRCodeComponents();
                         destroyFlipYComponents();
+                        destroyWebrtcComponents();
                     }
                     else {
                         destroyPageComponents();
@@ -2038,6 +2157,7 @@ Kirigami.ApplicationWindow {
                         destroyTextComponents();
                         destroyQRCodeComponents();
                         destroyFlipYComponents();
+                        destroyWebrtcComponents();
                     }
                 }
                 else {
@@ -2049,6 +2169,7 @@ Kirigami.ApplicationWindow {
                     destroyTextComponents();
                     destroyQRCodeComponents();
                     destroyFlipYComponents();
+                    destroyWebrtcComponents();
                 }
             }
             function onLayerValueChanged() {
