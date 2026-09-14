@@ -39,6 +39,41 @@ Rectangle {
     property int tipIndex: 0
     // Set when all tips have been shown or the user hides the tips - no more tips until next launch.
     property bool tipsFinished: false
+    // Whether the tips row is currently displayed. It stays hidden while the layers panel is
+    // opened and only becomes true after a short delay, so the tips pop up instead of being
+    // visible right away.
+    property bool tipsVisible: false
+    // True while any loading is in progress (either for the slides or this layers panel).
+    property bool isBusy: slides.busyIndicator || busyIndicator
+
+    // (Re)start the countdown that reveals the tips. Hides any currently shown tips and waits a
+    // fresh 5 seconds before showing them again, so that loading always delays the tips by a full
+    // interval from when it finishes.
+    function armTipTimer() {
+        if (tipsFinished || !PresentationSettings.showTipsAtStartup)
+            return;
+        tipShowTimer.stop();
+        tipsVisible = false;
+        tipShowTimer.start();
+    }
+
+    // Start the countdown when the layers panel is opened (only if not already loading - in that
+    // case the onIsBusyChanged handler below arms it once the loading has finished).
+    onShouldBeVisibleChanged: {
+        if (shouldBeVisible && !isBusy)
+            armTipTimer();
+    }
+
+    // Whenever loading starts, halt the showing of the tips and restart the trigger; whenever it
+    // ends, start a fresh countdown so that the tips appear 5 seconds after things settle down.
+    onIsBusyChanged: {
+        if (isBusy) {
+            tipShowTimer.stop();
+            tipsVisible = false;
+        } else if (shouldBeVisible && !tipsFinished && PresentationSettings.showTipsAtStartup) {
+            armTipTimer();
+        }
+    }
 
     function showNextTip() {
         if (tipIndex + 1 >= allTips.length)
@@ -480,7 +515,7 @@ Rectangle {
     RowLayout {
         id: moveLayerTip
 
-        visible: !tipsFinished && PresentationSettings.showTipsAtStartup
+        visible: tipsVisible && !tipsFinished && PresentationSettings.showTipsAtStartup
         anchors.left: parent.left
         anchors.right: parent.right
         anchors.bottom: parent.bottom
@@ -662,6 +697,21 @@ Rectangle {
             app.slides.updateSelectedSlide();
             app.slides.pauseLayerUpdate = false;
             busyIndicator = false;
+        }
+    }
+    Timer {
+        id: tipShowTimer
+
+        interval: 5000
+        repeat: false
+
+        onTriggered: {
+            if (isBusy) {
+                // Still loading - keep waiting and restart the countdown from scratch.
+                tipShowTimer.start();
+            } else {
+                tipsVisible = true;
+            }
         }
     }
 }
