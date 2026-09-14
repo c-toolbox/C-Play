@@ -10,6 +10,7 @@
 #define MPVOBJECT_H
 
 #include <QQuickFramebufferObject>
+#include <QTimer>
 #include <QVector3D>
 
 #include "playlistitem.h"
@@ -112,6 +113,20 @@ public:
                        READ watchPercentage
                            WRITE setWatchPercentage
                                NOTIFY watchPercentageChanged)
+
+    Q_PROPERTY(bool loggingEnabled
+                   READ loggingEnabled
+                       WRITE setLoggingEnabled
+                           NOTIFY loggingEnabledChanged)
+
+    Q_PROPERTY(bool performanceMetricsEnabled
+                   READ performanceMetricsEnabled
+                       WRITE setPerformanceMetricsEnabled
+                           NOTIFY performanceMetricsEnabledChanged)
+
+    Q_PROPERTY(QVariantMap performanceStats
+                   READ performanceStats
+                       NOTIFY performanceStatsChanged)
 
     Q_PROPERTY(bool hwDecoding
                    READ hwDecoding
@@ -310,6 +325,14 @@ public:
     double watchPercentage();
     void setWatchPercentage(double value);
 
+    bool loggingEnabled() const;
+    void setLoggingEnabled(bool enabled);
+
+    bool performanceMetricsEnabled() const;
+    void setPerformanceMetricsEnabled(bool enabled);
+
+    QVariantMap performanceStats() const;
+
     bool hwDecoding();
     void setHWDecoding(bool value);
 
@@ -455,6 +478,9 @@ Q_SIGNALS:
     void sectionLoaded(int);
     void endFile(QString reason);
     void watchPercentageChanged();
+    void loggingEnabledChanged();
+    void performanceMetricsEnabledChanged();
+    void performanceStatsChanged();
     void ready();
     void audioTracksModelChanged();
     void subtitleTracksModelChanged();
@@ -556,6 +582,14 @@ private:
     bool m_apiOverrideFromCommandLine = false;
     int m_commandLineApiType = -1;  // -1 = not set, 0 = OpenGL, 1 = OpenGL-NexT
 
+    // Logging settings (Settings > Logging)
+    bool m_loggingEnabled = false;
+    bool m_performanceMetricsEnabled = false;
+    QTimer *m_perfTimer = nullptr;
+    QVariantMap m_performanceStats;
+    int64_t m_frameDropBaseline = 0;
+    int64_t m_decoderFrameDropBaseline = 0;
+
     mutable std::unique_ptr<PlaneGrid> m_planeGrid;
     mutable float m_planeGridWidth = 0.f;
     mutable float m_planeGridHeight = 0.f;
@@ -567,6 +601,10 @@ private:
     void updateRecentLoadedMediaFiles(QString path);
     void updateRecentLoadedPlaylists(QString path);
     QString md5(const QString &str);
+
+    // Logging / performance metrics (Settings > Logging)
+    void applyGeneralLogging();
+    void updatePerformanceStats();
 };
 
 class MpvView : public QQuickFramebufferObject {

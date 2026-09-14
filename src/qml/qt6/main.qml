@@ -30,6 +30,7 @@ Kirigami.ApplicationWindow {
     property bool isIdleMode: false
     property bool hideUI: (isFullScreenMode || isIdleMode)
     property url newMediaFileToOpen: ""
+    property bool forceClose: false
     property bool uiPopupOpen: false  // True when any popup (Menu, ComboBox dropdown or Dialog) is open in this ApplicationWindow
 
     // How the central viewport renders its content:
@@ -57,7 +58,26 @@ Kirigami.ApplicationWindow {
         playerController.masterNdiOnNodes = window.showNdiOnNodes ? window.mainViewMode + 1 : 0;
     }
 
-    onClosing: {
+    Timer {
+        id: closeTimer
+        interval: 1000
+        running: false
+        repeat: false
+
+        onTriggered: {
+            window.close() // Closes the target window
+        }
+    }
+
+    onClosing: function(close) {
+        if (!forceClose && (LoggingSettings.generalLoggingEnabled || LoggingSettings.performanceMetricsEnabled)) {
+            // Don't close yet; ask whether to turn logging off for next start. The nodes keep
+            // running until the user has answered (see Application::quitApp).
+            close.accepted = false;
+            forceClose = true;
+            loggingCloseDialog.open();
+            return;
+        }
         app.sendQuitToNodes();
     }
 
@@ -595,6 +615,9 @@ Kirigami.ApplicationWindow {
     RestCommandsEditor {
         id: restCommandsEditor
     }
+    LoggingWindow {
+        id: loggingWindow
+    }
 
     LayerView {
         id: layerView
@@ -812,6 +835,36 @@ Kirigami.ApplicationWindow {
             mpv.focus = true;
             LocationSettings.fileDialogLastLocation = app.pathToUrl(newMediaFileToOpen);
             LocationSettings.save();
+        }
+    }
+
+    Dialog {
+        id: loggingCloseDialog
+        title: qsTr("Logging enabled")
+        modal: true
+        width: 420
+        standardButtons: Dialog.Yes | Dialog.No
+
+        onOpened: PopupHelpers.handlePopupOpen()
+        onClosed: PopupHelpers.handlePopupClose()
+
+        Label {
+            text: qsTr("General logging and/or MPV performance statistics are currently enabled.\n\nDo you want to turn them off so they are not active on next start?")
+            wrapMode: Text.WordWrap
+            Layout.fillWidth: true
+        }
+
+        onAccepted: {
+            LoggingSettings.generalLoggingEnabled = false;
+            LoggingSettings.performanceMetricsEnabled = false;
+            LoggingSettings.save();
+            app.sendQuitToNodes();
+            closeTimer.start();
+        }
+
+        onRejected: {
+            app.sendQuitToNodes();
+            closeTimer.start();
         }
     }
 

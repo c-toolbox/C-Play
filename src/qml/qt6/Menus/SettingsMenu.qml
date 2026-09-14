@@ -96,6 +96,13 @@ Menu {
             restCommandsEditor.visible = true;
         }
     }
+    MenuItem {
+        text: qsTr("Logging...")
+        icon.name: "console"
+        onTriggered: {
+            loggingWindow.visible = true;
+        }
+    }
     MenuSeparator {
     }
     MenuItem {

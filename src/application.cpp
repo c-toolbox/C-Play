@@ -49,6 +49,7 @@
 #include "audiosettings.h"
 #include "gridsettings.h"
 #include "imagesettings.h"
+#include "loggingsettings.h"
 #include "locationsettings.h"
 #include "mousesettings.h"
 #include "playbacksettings.h"
@@ -362,6 +363,7 @@ void Application::setupQmlSettingsTypes() {
     qmlRegisterSingletonInstance("org.ctoolbox.cplay", 1, 0, "AudioSettings", AudioSettings::self());
     qmlRegisterSingletonInstance("org.ctoolbox.cplay", 1, 0, "GridSettings", GridSettings::self());
     qmlRegisterSingletonInstance("org.ctoolbox.cplay", 1, 0, "ImageSettings", ImageSettings::self());
+    qmlRegisterSingletonInstance("org.ctoolbox.cplay", 1, 0, "LoggingSettings", LoggingSettings::self());
     qmlRegisterSingletonInstance("org.ctoolbox.cplay", 1, 0, "PresentationSettings", PresentationSettings::self());
     qmlRegisterSingletonInstance("org.ctoolbox.cplay", 1, 0, "LocationSettings", LocationSettings::self());
     qmlRegisterSingletonInstance("org.ctoolbox.cplay", 1, 0, "MouseSettings", MouseSettings::self());
@@ -443,7 +445,16 @@ void Application::sendQuitToNodes() {
 }
 
 void Application::quitApp() {
-    sendQuitToNodes();
+    // If logging is enabled, the main window intercepts the close event and asks whether to
+    // turn it off for next start. In that case the nodes must keep running until the user has
+    // answered; when they choose to turn it off, the quit is re-triggered and the nodes are
+    // terminated from the main window's onClosing handler. If no main window exists (QML failed
+    // to load), terminate the nodes as before.
+    const bool loggingEnabled = LoggingSettings::self()->generalLoggingEnabled() ||
+                                LoggingSettings::self()->performanceMetricsEnabled();
+    if (!loggingEnabled || m_engine->rootObjects().isEmpty()) {
+        sendQuitToNodes();
+    }
     m_app->quit();
 }
 

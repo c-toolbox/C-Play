@@ -15,6 +15,7 @@
 #include "gridsettings.h"
 #include "imagesettings.h"
 #include "locationsettings.h"
+#include "loggingsettings.h"
 #include "playbacksettings.h"
 #include "playlistitem.h"
 #include "playlistsettings.h"
@@ -83,11 +84,18 @@ MpvObject::MpvObject(QQuickItem *parent)
 
     mpv_set_option_string(mpv, "vo", "libmpv");
 
-    if (!SyncHelper::instance().configuration.logFile.empty()
-        || !SyncHelper::instance().configuration.logLevel.empty()) {
+    const bool cliLogging = !SyncHelper::instance().configuration.logFile.empty()
+                            || !SyncHelper::instance().configuration.logLevel.empty();
+    if (cliLogging) {
         mpv_set_option_string(mpv, "terminal", "yes");
         mpv_set_option_string(mpv, "msg-level", "all=v");
         mpv_request_log_messages(mpv, SyncHelper::instance().configuration.logLevel.c_str());
+    }
+
+    // General logging (Settings > Logging). Command-line --loglevel/--logfile take precedence at startup.
+    m_loggingEnabled = cliLogging || LoggingSettings::generalLoggingEnabled();
+    if (!cliLogging) {
+        applyGeneralLogging();
     }
 
     m_rotationSpeed = GridSettings::surfaceRotationSpeed();
@@ -170,6 +178,9 @@ MpvObject::MpvObject(QQuickItem *parent)
         throw std::runtime_error("could not initialize mpv context");
 
     mpv_set_wakeup_callback(mpv, MpvObject::mpvEvents, this);
+
+    // Performance metrics (Settings > Logging), started after mpv is initialized.
+    setPerformanceMetricsEnabled(LoggingSettings::performanceMetricsEnabled());
 
     connect(this, &MpvObject::fileLoaded,
             this, &MpvObject::loadTracks);
@@ -1612,6 +1623,125 @@ void MpvObject::loadUniviewPlaylist(const QString &file, bool updateLastPlayedFi
     if (updateLastPlayedFile) {
         LocationSettings::setLastPlayedFile(fileToLoad);
         updateRecentLoadedPlaylists(fileToLoad);
+    }
+}
+
+bool MpvObject::loggingEnabled() const {
+    return m_loggingEnabled;
+}
+
+void MpvObject::setLoggingEnabled(bool enabled) {
+    if (m_loggingEnabled == enabled)
+        return;
+    m_loggingEnabled = enabled;
+    applyGeneralLogging();
+    Q_EMIT loggingEnabledChanged();
+}
+
+// Applies the general logging state: which MPV log messages are forwarded to the application
+// logger and at what level the application logger reports.
+void MpvObject::applyGeneralLogging() {
+    if (!mpv)
+        return;
+    if (m_loggingEnabled) {
+        mpv_request_log_messages(mpv, "debug");
+        sgct::Log::instance().setNotifyLevel(sgct::Log::Level::Debug);
+    } else {
+        mpv_request_log_messages(mpv, "error");
+        sgct::Log::instance().setNotifyLevel(sgct::Log::Level::Error);
+    }
+}
+
+bool MpvObject::performanceMetricsEnabled() const {
+    return m_performanceMetricsEnabled;
+}
+
+void MpvObject::setPerformanceMetricsEnabled(bool enabled) {
+    if (m_performanceMetricsEnabled == enabled)
+        return;
+    m_performanceMetricsEnabled = enabled;
+    if (enabled) {
+        // Baseline the cumulative drop counters so the UI shows deltas since enabling.
+        int64_t drops = 0;
+        mpv_get_property(mpv, "frame-drop-count", MPV_FORMAT_INT64, &drops);
+        m_frameDropBaseline = drops;
+        mpv_get_property(mpv, "decoder-frame-drop-count", MPV_FORMAT_INT64, &drops);
+        m_decoderFrameDropBaseline = drops;
+
+        if (!m_perfTimer) {
+            m_perfTimer = new QTimer(this);
+            connect(m_perfTimer, &QTimer::timeout, this, &MpvObject::updatePerformanceStats);
+        }
+        m_perfTimer->start(1000);
+    } else {
+        if (m_perfTimer)
+            m_perfTimer->stop();
+        m_performanceStats.clear();
+    }
+    Q_EMIT performanceMetricsEnabledChanged();
+}
+
+QVariantMap MpvObject::performanceStats() const {
+    return m_performanceStats;
+}
+
+// Polls MPV performance data once per second while metrics are enabled.
+// perf-info returns values measured since the previous query (MPV resets its internal state on each query).
+void MpvObject::updatePerformanceStats() {
+    if (!mpv || !m_performanceMetricsEnabled)
+        return;
+
+    QVariantMap stats;
+
+    mpv_node node = {};
+    if (mpv_get_property(mpv, "perf-info", MPV_FORMAT_NODE, &node) >= 0 &&
+        node.format == MPV_FORMAT_NODE_ARRAY && node.u.list) {
+        for (int i = 0; i < node.u.list->num; ++i) {
+            const mpv_node *entry = &node.u.list->values[i];
+            if (!entry || entry->format != MPV_FORMAT_NODE_MAP || !entry->u.list)
+                continue;
+            QString name, text;
+            for (int j = 0; j < entry->u.list->num; ++j) {
+                const char *key = entry->u.list->keys[j];
+                if (!key)
+                    continue;
+                const mpv_node &value = entry->u.list->values[j];
+                if (strcmp(key, "name") == 0 && value.format == MPV_FORMAT_STRING) {
+                    name = QString::fromUtf8(value.u.string);
+                } else if (strcmp(key, "text") == 0 && value.format == MPV_FORMAT_STRING) {
+                    text = QString::fromUtf8(value.u.string);
+                }
+            }
+            if (!name.isEmpty())
+                stats.insert(name, text.isEmpty() ? QStringLiteral("-") : text);
+        }
+    }
+    mpv_free_node_contents(&node);
+
+    // Cumulative drop counters. MPV resets them on seek/file load/video reconfig, so the baseline is
+    // re-captured whenever a counter goes backwards and the UI shows deltas since enabling.
+    auto readDropCounter = [this](const char *prop, int64_t &baseline) -> qint64 {
+        int64_t current = 0;
+        if (mpv_get_property(mpv, prop, MPV_FORMAT_INT64, &current) < 0)
+            return 0; // property unavailable (e.g. no video loaded yet)
+        if (current < baseline)
+            baseline = current;
+        return static_cast<qint64>(current - baseline);
+    };
+    stats.insert(QStringLiteral("vo-frame-drop-count"), QString::number(readDropCounter("frame-drop-count", m_frameDropBaseline)));
+    stats.insert(QStringLiteral("decoder-frame-drop-count"), QString::number(readDropCounter("decoder-frame-drop-count", m_decoderFrameDropBaseline)));
+
+    if (m_performanceStats != stats) {
+        m_performanceStats = std::move(stats);
+        Q_EMIT performanceStatsChanged();
+    }
+
+    // Log a compact summary at debug level for headless diagnostics (visible when general logging is enabled).
+    if (m_loggingEnabled) {
+        QStringList parts;
+        for (auto it = stats.constBegin(); it != stats.constEnd(); ++it)
+            parts << QStringLiteral("%1=%2").arg(it.key()).arg(it.value().toString());
+        sgct::Log::Debug(std::format("MPV perf: {}", parts.join(QStringLiteral(", ")).toStdString()));
     }
 }
 

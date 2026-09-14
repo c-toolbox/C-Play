@@ -254,6 +254,7 @@ set(QML_SRC_FILES
     qml/qt6/LayerView.qml
     qml/qt6/LayerViewGridParams.qml
     qml/qt6/RestCommandsEditor.qml
+    qml/qt6/LoggingWindow.qml
     qml/qt6/Slides.qml
     qml/qt6/SlidesItemCompact.qml
     qml/qt6/SlidesVisibilityView.qml
@@ -295,6 +296,7 @@ set(KCFCG_FILE_NAMES
     audiosettings
     gridsettings
     imagesettings
+    loggingsettings
     locationsettings
     mousesettings
     playbacksettings
