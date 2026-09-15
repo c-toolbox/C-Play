@@ -216,6 +216,12 @@ if(BUILD_CPLAY_WITH_WEBRTC)
     find_package(FFmpegPinned COMPONENTS AVCODEC AVUTIL SWSCALE REQUIRED)
     set_package_properties(FFmpegPinned PROPERTIES TYPE REQUIRED
         URL "https://ffmpeg.org/" DESCRIPTION "FFmpeg decode pipeline (NVDEC when available) for the WebRTC layer")
+
+    if(NOT TARGET PortAudio::PortAudio)
+        find_package(PortAudio REQUIRED)
+        set_package_properties(PortAudio PROPERTIES TYPE REQUIRED
+            URL "https://www.portaudio.com/" DESCRIPTION "for WebRTC audio output support.")
+    endif()
 endif()
 
 option(BUILD_CPLAY_WITH_POPPLER "Global On/Off for PDF support via Poppler library" OFF)

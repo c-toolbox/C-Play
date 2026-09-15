@@ -59,6 +59,10 @@ Q_SIGNALS:
     void videoCodecNegotiated(WebRtcVideoCodec codec);
     void errorOccurred(const QString &message);
 
+    // Emitted on every depacketized Opus payload received from the stream (raw codec
+    // bytes, not PCM). rtpTimestamp is the RTP timestamp in 48 kHz units.
+    void audioFrameReceived(const QByteArray &payload, quint32 rtpTimestamp);
+
 private:
     void beginNegotiation(const QList<IceServerSpec> &iceServers);
     void onLocalDescriptionReady();
@@ -71,6 +75,7 @@ private:
     WhepClient *m_whep = nullptr;
     std::shared_ptr<rtc::PeerConnection> m_peer;
     std::shared_ptr<rtc::Track> m_videoTrack;
+    std::shared_ptr<rtc::Track> m_audioTrack; // recvonly Opus track, active only if the stream has audio
 
     MediaFrameCallback m_onVideo;
 

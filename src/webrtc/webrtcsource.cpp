@@ -20,6 +20,7 @@ namespace {
 
 constexpr int kVideoPayloadTypeH264 = 106;
 constexpr int kVideoPayloadTypeH265 = 103;
+constexpr int kAudioPayloadTypeOpus = 111;
 
 /// Routes libdatachannel's own ICE/DTLS diagnostics into the C-Play log. Without it a
 /// handshake that dies after the SDP exchange fails completely silently.
@@ -84,6 +85,23 @@ WebRtcVideoCodec videoCodecFromAnswer(const QString &sdp)
         }
     }
     return WebRtcVideoCodec::Unknown;
+}
+
+/// Audio is optional in a WHEP stream: servers without it answer with no m=audio line
+/// (or one on port 0). Only then do we wire up the audio track.
+bool hasActiveAudioInAnswer(const QString &sdp)
+{
+    static const QRegularExpression audioLine(
+        uR"(^m=audio\s+(\d+))"_s,
+        QRegularExpression::MultilineOption);
+
+    auto it = audioLine.globalMatch(sdp);
+    while (it.hasNext()) {
+        if (it.next().captured(1).toInt() != 0) {
+            return true;
+        }
+    }
+    return false;
 }
 
 } // namespace
@@ -227,6 +245,12 @@ void WebRtcSource::beginNegotiation(const QList<IceServerSpec> &iceServers)
     }
     m_videoTrack = m_peer->addTrack(video);
 
+    // Offer a recvonly Opus audio track as well. Streams without audio simply omit it
+    // in their answer, so this keeps video-only WHEP streams working unchanged.
+    rtc::Description::Audio audio("audio", rtc::Description::Direction::RecvOnly);
+    audio.addOpusCodec(kAudioPayloadTypeOpus);
+    m_audioTrack = m_peer->addTrack(audio);
+
     try {
         m_peer->setLocalDescription(rtc::Description::Type::Offer);
     } catch (const std::exception &error) {
@@ -303,6 +327,32 @@ void WebRtcSource::onAnswer(const QString &sdpAnswer)
 
     m_videoTrack->onOpen([this] { requestKeyframe(); });
 
+    // Audio is optional: wire it up only if the answer carries an active m=audio line.
+    // A failure here must not kill the video path, so errors are logged and swallowed.
+    if (m_audioTrack) {
+        if (!hasActiveAudioInAnswer(sdpAnswer)) {
+            sgct::Log::Info("WebRTC: stream has no audio track (video-only)\n");
+        } else {
+            try {
+                m_audioTrack->setMediaHandler(std::make_shared<rtc::OpusRtpDepacketizer>());
+                m_audioTrack->chainMediaHandler(std::make_shared<rtc::RtcpReceivingSession>());
+                m_audioTrack->onFrame([this](rtc::binary data, rtc::FrameInfo info) {
+                    if (!data.empty()) {
+                        Q_EMIT audioFrameReceived(
+                            QByteArray(reinterpret_cast<const char *>(data.data()),
+                                       static_cast<int>(data.size())),
+                            info.timestamp);
+                    }
+                });
+                sgct::Log::Info("WebRTC: stream carries an Opus audio track\n");
+            } catch (const std::exception &error) {
+                sgct::Log::Warning(std::string("WebRTC: could not install the audio depacketizer, "
+                                               "continuing video-only: ")
+                                   + error.what() + "\n");
+            }
+        }
+    }
+
     try {
         m_peer->setRemoteDescription(
             rtc::Description(sdpAnswer.toStdString(), rtc::Description::Type::Answer));
@@ -325,6 +375,10 @@ void WebRtcSource::teardownPeer()
     if (m_videoTrack) {
         m_videoTrack->onFrame(nullptr);
         m_videoTrack.reset();
+    }
+    if (m_audioTrack) {
+        m_audioTrack->onFrame(nullptr);
+        m_audioTrack.reset();
     }
     if (m_peer) {
         try {

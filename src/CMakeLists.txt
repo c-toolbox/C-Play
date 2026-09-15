@@ -175,6 +175,8 @@ if(BUILD_CPLAY_WITH_WEBRTC)
     list(APPEND SOURCE_FILES webrtc/webrtcsource.h)
     list(APPEND SOURCE_FILES webrtc/videodecoder.cpp)
     list(APPEND SOURCE_FILES webrtc/videodecoder.h)
+    list(APPEND SOURCE_FILES webrtc/audiodecoder.cpp)
+    list(APPEND SOURCE_FILES webrtc/audiodecoder.h)
     list(APPEND SOURCE_FILES webrtc/webrtclayer.cpp)
     list(APPEND SOURCE_FILES webrtc/webrtclayer.h)
     target_include_directories(${TARGET_NAME} PRIVATE webrtc)
@@ -454,7 +456,7 @@ if(BUILD_CPLAY_WITH_OMT)
 endif()
 
 if(BUILD_CPLAY_WITH_WEBRTC)
-    list(APPEND TARGET_LIBRARIES LibDataChannel::LibDataChannel FFmpegPinned::FFmpeg Qt6::Network)
+    list(APPEND TARGET_LIBRARIES LibDataChannel::LibDataChannel FFmpegPinned::FFmpeg Qt6::Network PortAudio::PortAudio)
     target_compile_definitions(${TARGET_NAME} PUBLIC WEBRTC_SUPPORT WEBRTC_LAYER)
     # libdatachannel declares `struct RTC_CPP_EXPORT Message : binary` where
     # binary = std::vector<std::byte>. On MSVC the dllimport decoration then

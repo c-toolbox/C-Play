@@ -7,8 +7,13 @@
 #pragma once
 
 #include <layers/baselayer.h>
+#include "webrtc/audiodecoder.h"
 #include "webrtc/videodecoder.h"
 #include "webrtc/webrtctypes.h"
+
+#include <QByteArray>
+
+#include <portaudio.h>
 
 #include <atomic>
 #include <chrono>
@@ -68,6 +73,15 @@ public:
     /// node pull its own copy of the stream.
     bool existOnMasterOnly() const override;
 
+    // Audio (WHEP Opus -> PortAudio), mirroring the NDI/OMT layer behavior. The
+    // stream's audio is optional: hasAudio()/isAudioEnabled() drive the UI, and the
+    // output only starts once decoded PCM actually arrives.
+    bool hasAudio() const override;
+    bool isAudioEnabled() const override;
+    void enableAudio(bool enabled = true) override;
+    void updateAudioOutput() override;
+    void setVolume(int v, bool storeLevel = true) override;
+
 private:
     // Main thread only.
     void startSource();
@@ -85,6 +99,13 @@ private:
 
     WebRtcStreamConfig buildConfig() const;
 
+    // Audio output (main thread only). Depacketized Opus payloads arrive through a
+    // queued signal; decoded PCM is pushed straight into the PortAudio stream.
+    void handleAudioFrame(const QByteArray &payload, quint32 rtpTimestamp);
+    void pushDecodedPcm(const float *pcm, int sampleRate, int channels, int frames);
+    bool startAudioOutput();
+    void stopAudioOutput();
+
     WebRtcSource *m_source = nullptr; // main thread; deleted via deleteLater()
     std::atomic<bool> m_shouldRun { false };
     std::atomic<bool> m_startPending { false };    // a start() is queued on the main thread
@@ -96,6 +117,25 @@ private:
 
     VideoDecoder m_decoder; // decode worker thread only
     std::atomic<WebRtcVideoCodec> m_negotiatedCodec { WebRtcVideoCodec::Unknown };
+
+    // Audio state (main thread only)
+    bool m_isAudioEnabled = false;
+    float m_audioVolume = 1.f;
+    bool m_audioDecodeDisabled = false; // set when the Opus decoder cannot be opened
+
+    // PortAudio output stream (main thread only). Opened lazily on the first decoded
+    // frame and torn down by stop()/enableAudio(false)/updateAudioOutput().
+    PaStream *m_audioStream = nullptr;
+    bool m_audioStreamOpen = false;
+    bool m_audioStreamStarted = false;
+    int m_audioSampleRate = 48000;
+    int m_audioChannels = 2;       // channels of the decoded stream
+    int m_audioOutputChannels = 2; // channels actually opened (after mix-to-output)
+    PaError m_audioError = paNoError;
+    PaStreamParameters m_audioOutputParameters{};
+    std::vector<float> m_interleavedAudioBuf;
+
+    AudioDecoder m_audioDecoder; // main thread only
 
     std::mutex m_queueMutex;
     std::condition_variable m_queueCv;

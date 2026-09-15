@@ -6,6 +6,7 @@
 
 #include "webrtc/webrtclayer.h"
 
+#include "audiosettings.h"
 #include "webrtc/videodecoder.h"
 #include "webrtc/webrtcsource.h"
 
@@ -16,6 +17,8 @@
 #include <QObject>
 #include <QMetaObject>
 #include <QTimer>
+
+#include <algorithm>
 
 namespace {
 
@@ -59,6 +62,49 @@ bool canStartDecodingAt(const std::vector<std::uint8_t> &data, WebRtcVideoCodec 
         i = header;
     }
     return false;
+}
+
+/// Chooses the PortAudio output device, mirroring the NDI/OMT layers: the default
+/// device unless a custom one is configured in the audio settings.
+PaDeviceIndex chosenAudioDevice() {
+    PaDeviceIndex choseDeviceIdx = Pa_GetDefaultOutputDevice();
+    if (choseDeviceIdx == paNoDevice) {
+        sgct::Log::Error("WebRTCLayer: no default audio output device.\n");
+    }
+
+    if (AudioSettings::portAudioCustomOutput()) {
+        if (!AudioSettings::portAudioOutputDevice().isEmpty()
+            && !AudioSettings::portAudioOutputApi().isEmpty()) {
+            const int numDevices = Pa_GetDeviceCount();
+            if (numDevices < 0) {
+                return choseDeviceIdx;
+            }
+
+            bool foundDevice = false;
+            for (int i = 0; i < numDevices; ++i) {
+                const PaDeviceInfo *deviceInfo = Pa_GetDeviceInfo(i);
+                const PaHostApiInfo *apiInfo = Pa_GetHostApiInfo(deviceInfo->hostApi);
+                if (!deviceInfo || !apiInfo || deviceInfo->maxOutputChannels <= 1) {
+                    continue;
+                }
+
+                const QString deviceName = QString::fromUtf8(deviceInfo->name);
+                const QString apiName = QString::fromUtf8(apiInfo->name);
+                if (deviceName == AudioSettings::portAudioOutputDevice()
+                    && apiName == AudioSettings::portAudioOutputApi()) {
+                    choseDeviceIdx = i;
+                    foundDevice = true;
+                }
+            }
+
+            if (!foundDevice) {
+                sgct::Log::Info("WebRTCLayer: did not find the desired audio device, "
+                                "sticking with the default.\n");
+            }
+        }
+    }
+
+    return choseDeviceIdx;
 }
 
 } // namespace
@@ -181,6 +227,12 @@ void WebRTCLayer::stop() {
     m_shouldRun.store(false, std::memory_order_relaxed);
     stopSource();
 
+    // Tear down the audio output (main thread only). The decoder is reopened lazily
+    // on the next session's first payload.
+    stopAudioOutput();
+    m_audioDecoder.close();
+    m_audioDecodeDisabled = false;
+
     {
         std::lock_guard<std::mutex> lock(m_queueMutex);
         m_stopRequested = true;
@@ -288,6 +340,25 @@ void WebRTCLayer::startSource() {
             return;
         }
         sgct::Log::Error("WebRTCLayer: " + message.toStdString() + "\n");
+    });
+
+    // Audio: depacketized Opus payloads are emitted from a libdatachannel thread and
+    // queued onto the main thread, where decoding and PortAudio live. The decoder's
+    // frame callback fires synchronously inside handleAudioFrame().
+    m_audioDecoder.setOnFrame([this, weakAlive](const float *pcm, int sampleRate, int channels, int frames) {
+        auto alive = weakAlive.lock();
+        if (!alive || !*alive) {
+            return;
+        }
+        pushDecodedPcm(pcm, sampleRate, channels, frames);
+    });
+
+    QObject::connect(source, &WebRtcSource::audioFrameReceived, source, [this, weakAlive](const QByteArray &payload, quint32 rtpTimestamp) {
+        auto alive = weakAlive.lock();
+        if (!alive || !*alive) {
+            return;
+        }
+        handleAudioFrame(payload, rtpTimestamp);
     });
 
     m_source = source;
@@ -512,4 +583,236 @@ void WebRTCLayer::updateFrame() {
     glBindTexture(GL_TEXTURE_2D, renderData.texId);
     glTexSubImage2D(GL_TEXTURE_2D, 0, 0, 0, width, height, GL_RGBA, GL_UNSIGNED_BYTE, staging.data());
     m_lastUploadedSeq = seq;
+}
+
+// ============================================================
+// Audio (WHEP Opus -> PortAudio), mirroring the NDI/OMT layers
+// ============================================================
+
+bool WebRTCLayer::hasAudio() const {
+    return isAudioEnabled() || (isMaster() && AudioSettings::enableAudioOnNodes());
+}
+
+bool WebRTCLayer::isAudioEnabled() const {
+    return m_isAudioEnabled;
+}
+
+void WebRTCLayer::enableAudio(bool enabled) {
+    if (m_isAudioEnabled == enabled) {
+        return;
+    }
+
+    m_isAudioEnabled = enabled;
+    if (!enabled) {
+        // Silence immediately; the output reopens lazily on the next PCM frame.
+        stopAudioOutput();
+        m_audioDecoder.close();
+    }
+}
+
+void WebRTCLayer::updateAudioOutput() {
+    // The master follows the global audio settings, like NDI/OMT do.
+    if (isMaster()) {
+        if (!m_isAudioEnabled && AudioSettings::enableAudioOnMaster()) {
+            enableAudio(true);
+        } else if (m_isAudioEnabled && !AudioSettings::enableAudioOnMaster()) {
+            enableAudio(false);
+        }
+    }
+
+    // Nothing running to update; the stream opens lazily on the first PCM frame.
+    if (!isAudioEnabled() || !m_audioStreamOpen) {
+        return;
+    }
+
+    const PaDeviceIndex currentDeviceIdx = m_audioOutputParameters.device;
+    const PaDeviceIndex newDeviceIdx = chosenAudioDevice();
+
+    int channelCount = m_audioOutputChannels;
+    if (AudioSettings::portAudioMixInputToOutput()) {
+        const PaDeviceInfo *devInfo = Pa_GetDeviceInfo(newDeviceIdx);
+        if (devInfo) {
+            channelCount = std::min(AudioSettings::portAudioOutputChannels(), devInfo->maxOutputChannels);
+        }
+    } else {
+        channelCount = m_audioChannels;
+    }
+
+    const bool restartStream = newDeviceIdx != currentDeviceIdx
+                               || m_audioOutputParameters.channelCount != channelCount;
+    if (!restartStream) {
+        return;
+    }
+
+    // The stream was open (and therefore started): reopen it on the new device.
+    stopAudioOutput();
+    m_audioOutputParameters.device = newDeviceIdx;
+    m_audioOutputChannels = channelCount;
+    startAudioOutput();
+}
+
+void WebRTCLayer::setVolume(int v, bool storeLevel) {
+    if (storeLevel) {
+        m_volume = v;
+    }
+
+    m_audioVolume = static_cast<float>(v) / 100.f;
+
+    if (isMaster() && AudioSettings::enableAudioOnNodes()) {
+        setNeedSync();
+    }
+}
+
+void WebRTCLayer::handleAudioFrame(const QByteArray &payload, quint32 rtpTimestamp) {
+    Q_UNUSED(rtpTimestamp); // Opus decoding is self-clocking; PortAudio owns the output clock
+
+    // Ignore frames queued after stop() - they must not (re)open the audio output.
+    if (!m_shouldRun.load(std::memory_order_relaxed)) {
+        return;
+    }
+
+    if (!isAudioEnabled() || payload.isEmpty() || m_audioDecodeDisabled) {
+        return;
+    }
+
+    if (!m_audioDecoder.isOpen()) {
+        QString error;
+        if (!m_audioDecoder.open(&error)) {
+            sgct::Log::Error("WebRTCLayer: " + error.toStdString() + "\n");
+            m_audioDecodeDisabled = true; // do not retry (and spam) on every packet
+            return;
+        }
+    }
+
+    QString error;
+    if (!m_audioDecoder.decode(reinterpret_cast<const std::uint8_t *>(payload.constData()),
+                               payload.size(), &error)) {
+        sgct::Log::Error("WebRTCLayer: " + error.toStdString() + "\n");
+        m_audioDecoder.close(); // drop the context so a fresh one can resync
+    }
+}
+
+void WebRTCLayer::pushDecodedPcm(const float *pcm, int sampleRate, int channels, int frames) {
+    if (!isAudioEnabled() || !pcm || channels <= 0 || frames <= 0) {
+        return;
+    }
+
+    // Open the output lazily on the first PCM frame (rate/channels are known now), or
+    // reopen it when the stream parameters change mid-session.
+    if (!m_audioStreamOpen) {
+        m_audioSampleRate = sampleRate > 0 ? sampleRate : 48000;
+        m_audioChannels = channels;
+        if (!startAudioOutput()) {
+            return;
+        }
+    } else if (sampleRate != m_audioSampleRate || channels != m_audioChannels) {
+        stopAudioOutput();
+        m_audioSampleRate = sampleRate > 0 ? sampleRate : 48000;
+        m_audioChannels = channels;
+        if (!startAudioOutput()) {
+            return;
+        }
+    }
+
+    // The decoder hands out interleaved float32: pcm[s * channels + c]. PortAudio with
+    // paFloat32 expects the same layout, so only channel mapping and volume are needed.
+    const int outChannels = m_audioOutputChannels;
+    const std::size_t totalSamples = static_cast<std::size_t>(frames) * static_cast<std::size_t>(outChannels);
+    if (m_interleavedAudioBuf.size() < totalSamples) {
+        m_interleavedAudioBuf.resize(totalSamples);
+    }
+
+    const float vol = m_audioVolume;
+    for (int s = 0; s < frames; ++s) {
+        const float *inSample = pcm + static_cast<std::size_t>(s) * channels;
+        float *outSample = m_interleavedAudioBuf.data() + static_cast<std::size_t>(s) * outChannels;
+        for (int oc = 0; oc < outChannels; ++oc) {
+            // Map output channel to input channel (simple wrap for down/upmix).
+            const int ic = (oc < channels) ? oc : (oc % channels);
+            outSample[oc] = inSample[ic] * vol;
+        }
+    }
+
+    m_audioError = Pa_WriteStream(m_audioStream, m_interleavedAudioBuf.data(), static_cast<unsigned long>(frames));
+    if (m_audioError != paNoError && m_audioError != paOutputUnderflowed) {
+        sgct::Log::Error("WebRTCLayer: Pa_WriteStream failed.\n");
+    }
+}
+
+bool WebRTCLayer::startAudioOutput() {
+    // PortAudio is process-wide and refcounted; initialize it once for all layers.
+    static std::once_flag paInitFlag;
+    std::call_once(paInitFlag, [] {
+        if (Pa_Initialize() != paNoError) {
+            sgct::Log::Error("WebRTCLayer: PortAudio initialization failed.\n");
+        }
+    });
+
+    m_audioOutputParameters.device = chosenAudioDevice();
+    if (m_audioOutputParameters.device == paNoDevice) {
+        return false;
+    }
+
+    // Determine the output channel count.
+    if (AudioSettings::portAudioMixInputToOutput()) {
+        const PaDeviceInfo *devInfo = Pa_GetDeviceInfo(m_audioOutputParameters.device);
+        if (devInfo) {
+            m_audioOutputChannels = std::min(AudioSettings::portAudioOutputChannels(), devInfo->maxOutputChannels);
+        }
+    } else {
+        m_audioOutputChannels = m_audioChannels;
+    }
+
+    m_audioOutputParameters.channelCount = m_audioOutputChannels;
+    m_audioOutputParameters.sampleFormat = paFloat32;
+    const PaDeviceInfo *devInfo = Pa_GetDeviceInfo(m_audioOutputParameters.device);
+    if (devInfo) {
+        m_audioOutputParameters.suggestedLatency = devInfo->defaultLowOutputLatency;
+    } else {
+        m_audioOutputParameters.suggestedLatency = 0.05;
+    }
+    m_audioOutputParameters.hostApiSpecificStreamInfo = nullptr;
+
+    // Open the stream without a callback - we use Pa_WriteStream instead.
+    m_audioError = Pa_OpenStream(
+        &m_audioStream,
+        nullptr,
+        &m_audioOutputParameters,
+        m_audioSampleRate,
+        paFramesPerBufferUnspecified,
+        paClipOff,
+        nullptr, // no callback
+        nullptr  // no userData
+    );
+
+    if (m_audioError != paNoError) {
+        sgct::Log::Error("WebRTCLayer: failed to open the PortAudio stream.\n");
+        return false;
+    }
+    m_audioStreamOpen = true;
+
+    m_audioError = Pa_StartStream(m_audioStream);
+    if (m_audioError != paNoError) {
+        sgct::Log::Error("WebRTCLayer: failed to start the PortAudio stream.\n");
+        stopAudioOutput();
+        return false;
+    }
+    m_audioStreamStarted = true;
+
+    sgct::Log::Info("WebRTCLayer: audio output started (" + std::to_string(m_audioSampleRate) + " Hz, "
+                    + std::to_string(m_audioOutputChannels) + " channel(s))\n");
+    return true;
+}
+
+void WebRTCLayer::stopAudioOutput() {
+    if (m_audioStream && m_audioStreamOpen) {
+        if (m_audioStreamStarted) {
+            Pa_StopStream(m_audioStream);
+            m_audioStreamStarted = false;
+        }
+        Pa_CloseStream(m_audioStream);
+        m_audioStreamOpen = false;
+    }
+
+    m_audioStream = nullptr;
 }
