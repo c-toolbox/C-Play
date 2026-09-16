@@ -19,6 +19,9 @@ MpvObject {
 
     property bool sphereGrid: false
     property MpvView view: view
+    // True while the initial startup file/playlist (if one is configured) is being loaded, so
+    // onPlaylistModelChanged()/onPlaySectionsModelChanged() can apply the "show at startup" settings.
+    property bool loadingStartupFile: false
 
     signal setAudio(int id)
 
@@ -110,12 +113,16 @@ MpvObject {
         }
     }
     onPlaySectionsModelChanged: {
-        if (playSections.sectionsView.count > 0 && playSections.state === "hidden") {
+        // The views are shown automatically when their models have content, unless this is the
+        // initial startup load and the corresponding "show at startup" setting says to keep it hidden.
+        const showOnLoad = !loadingStartupFile || PlaylistSettings.playSectionsViewVisibilityAtStartup === 0;
+        if (playSections.sectionsView.count > 0 && playSections.state === "hidden" && showOnLoad) {
             actions.toggleSectionsAction.trigger();
         }
     }
     onPlaylistModelChanged: {
-        if (playList.playlistView.count > 0 && playList.state === "hidden") {
+        const showOnLoad = !loadingStartupFile || PlaylistSettings.playlistViewVisibilityAtStartup === 0;
+        if (playList.playlistView.count > 0 && playList.state === "hidden" && showOnLoad) {
             actions.togglePlaylistAction.trigger();
         }
     }
@@ -125,8 +132,21 @@ MpvObject {
         const preferredAudioTrack = AudioSettings.preferredTrack;
         setProperty("aid", preferredAudioTrack === 0 ? "auto" : preferredAudioTrack);
         setProperty("alang", AudioSettings.preferredLanguage);
+        // "Show always at startup" - show the views right away, regardless of whether a
+        // playlist/file is loaded (or will be loaded) at startup.
+        if (PlaylistSettings.playlistViewVisibilityAtStartup === 1 && playList.state === "hidden") {
+            actions.togglePlaylistAction.trigger();
+        }
+        if (PlaylistSettings.playSectionsViewVisibilityAtStartup === 1 && playSections.state === "hidden") {
+            actions.toggleSectionsAction.trigger();
+        }
         if (app.getStartupFile() !== "") {
+            loadingStartupFile = true;
             openMediaFile(app.getStartupFile(), false, PlaylistSettings.loadSiblings);
+            // The load above runs synchronously, so onPlaylistModelChanged()/onPlaySectionsModelChanged()
+            // have already run if they were triggered - clear the startup flag either way so later
+            // loads are not affected.
+            loadingStartupFile = false;
         }
     }
     onResetOrientation: {

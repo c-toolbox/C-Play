@@ -104,6 +104,89 @@ SettingsBasePage {
             font.italic: true
             text: qsTr("Command line argument \"--loadfile\" overrides above path.")
         }
+        
+        Label {
+            Layout.alignment: Qt.AlignRight
+            text: qsTr("Show playlist view:")
+        }
+        ComboBox {
+            id: playlistViewVisibilityAtStartupComboBox
+
+            enabled: true
+            textRole: "mode"
+
+            model: ListModel {
+                id: playlistViewVisibilityAtStartup
+
+                ListElement {
+                    mode: "Show on playlist load"
+                    value: 0
+                }
+                ListElement {
+                    mode: "Show always at startup"
+                    value: 1
+                }
+                ListElement {
+                    mode: "Hide at startup"
+                    value: 2
+                }
+            }
+
+            Component.onCompleted: {
+                for (let i = 0; i < playlistViewVisibilityAtStartup.count; ++i) {
+                    if (playlistViewVisibilityAtStartup.get(i).value === PlaylistSettings.playlistViewVisibilityAtStartup) {
+                        currentIndex = i;
+                        break;
+                    }
+                }
+            }
+            onActivated: {
+                PlaylistSettings.playlistViewVisibilityAtStartup = model.get(index).value;
+                PlaylistSettings.save();
+            }
+        }
+
+        Label {
+            Layout.alignment: Qt.AlignRight
+            text: qsTr("Show play sections view:")
+        }
+        ComboBox {
+            id: playSectionsViewVisibilityAtStartupComboBox
+
+            enabled: true
+            textRole: "mode"
+
+            model: ListModel {
+                id: playSectionsViewVisibilityAtStartup
+
+                ListElement {
+                    mode: "Show on playlist load"
+                    value: 0
+                }
+                ListElement {
+                    mode: "Show always at startup"
+                    value: 1
+                }
+                ListElement {
+                    mode: "Hide at startup"
+                    value: 2
+                }
+            }
+
+            Component.onCompleted: {
+                for (let i = 0; i < playSectionsViewVisibilityAtStartup.count; ++i) {
+                    if (playSectionsViewVisibilityAtStartup.get(i).value === PlaylistSettings.playSectionsViewVisibilityAtStartup) {
+                        currentIndex = i;
+                        break;
+                    }
+                }
+            }
+            onActivated: {
+                PlaylistSettings.playSectionsViewVisibilityAtStartup = model.get(index).value;
+                PlaylistSettings.save();
+            }
+        }
+        
         Label {
             Layout.alignment: Qt.AlignRight
             text: qsTr("Position")

@@ -26,6 +26,9 @@ Rectangle {
     property alias slidesView: slidesView
     property bool busyIndicator: false
     property bool shouldBeVisible: true
+    // True while the initial startup presentation (if one is configured in the settings) is being
+    // loaded, so onPresentationHasLoaded() can apply the "show at startup" visibility settings.
+    property bool loadingStartupPresentation: false
     property string presentationToLoad: ""
     property Button openPresentationButton: openPresentationButton
     property Button savePresentationButton: savePresentationButton
@@ -523,7 +526,16 @@ Rectangle {
             Component.onCompleted: {
                 if (PresentationSettings.presentationToLoadOnStartup !== "") {
                     presentationToLoad = PresentationSettings.presentationToLoadOnStartup;
+                    loadingStartupPresentation = true;
                     openCPlayPresentation();
+                }
+                // "Show always at startup" - show the views right away, regardless of whether a
+                // presentation is loaded (or will be loaded) at startup.
+                if (PresentationSettings.slidesViewVisibilityAtStartup === 1 && slides.state === "hidden") {
+                    actions.toggleSlidesAction.trigger();
+                }
+                if (PresentationSettings.layersViewVisibilityAtStartup === 1 && layers.state === "hidden") {
+                    actions.toggleLayersAction.trigger();
                 }
                 layers.layersView.currentIndex = -1;
                 slidesView.currentIndex = app.slides.selectedSlideIdx;
@@ -564,10 +576,15 @@ Rectangle {
                 function onPresentationHasLoaded() {
                     app.slides.selectedSlideIdx = app.slides.selectedSlideIdx;
 
-                    if (slidesView.count > 0 && slides.state === "hidden") {
+                    // The views are shown automatically when a presentation has loaded, unless this is the
+                    // initial startup load and the corresponding "show at startup" setting says to keep it hidden.
+                    const showSlidesViewOnLoad = !loadingStartupPresentation || PresentationSettings.slidesViewVisibilityAtStartup === 0;
+                    const showLayersViewOnLoad = !loadingStartupPresentation || PresentationSettings.layersViewVisibilityAtStartup === 0;
+
+                    if (slidesView.count > 0 && slides.state === "hidden" && showSlidesViewOnLoad) {
                         actions.toggleSlidesAction.trigger();
                     }
-                    if (layers.layersView.count > 0 && layers.state === "hidden") {
+                    if (layers.layersView.count > 0 && layers.state === "hidden" && showLayersViewOnLoad) {
                         actions.toggleLayersAction.trigger();
                     }
                     app.slides.pauseLayerUpdate = false;
@@ -623,6 +640,9 @@ Rectangle {
 
         onTriggered: {
             app.slides.loadFromJSONFile(presentationToLoad);
+            // The load above runs synchronously, so onPresentationHasLoaded() has already run if it
+            // succeeded - clear the startup flag either way so later loads are not affected.
+            loadingStartupPresentation = false;
             slidesView.currentIndex = app.slides.selectedSlideIdx;
             layers.layersView.currentIndex = -1;
         }

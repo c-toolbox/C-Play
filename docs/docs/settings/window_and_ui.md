@@ -19,6 +19,10 @@ These settings control the appearance, layout, and behavior of the C-Play user i
 * **Show top bar / header** — Toggle visibility of the top header bar containing playback controls and menus (default on).
 * **Show bottom bar / footer** — Toggle visibility of the bottom footer bar containing the timeline and media info (default on).
 
+### Full screen at startup
+
+* **Start C-Play in full screen mode at startup** — Launch the main window directly in full-screen mode, hiding the header, footer and menu bar until you toggle it back off with *Toggle Full Screen* (Ctrl+Shift+F) (default off).
+
 ### Idle mode
 
 When idle mode is enabled, the UI automatically hides after a period of inactivity, giving a clean full-screen view of the content.

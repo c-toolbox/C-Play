@@ -78,5 +78,13 @@
       <label>Show tips at startup in the layers list</label>
       <default>true</default>
     </entry>
+    <entry name="SlidesViewVisibilityAtStartup" type="int">
+      <label>When to show the slides view at startup (0=show on presentation load, 1=always show at startup, 2=hide at startup)</label>
+      <default>0</default>
+    </entry>
+    <entry name="LayersViewVisibilityAtStartup" type="int">
+      <label>When to show the layers view at startup (0=show on presentation load, 1=always show at startup, 2=hide at startup)</label>
+      <default>0</default>
+    </entry>
   </group>
 </kcfg>

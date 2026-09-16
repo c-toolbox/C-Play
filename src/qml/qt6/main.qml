@@ -227,7 +227,12 @@ Kirigami.ApplicationWindow {
         }
     }
 
-    Component.onCompleted: app.activateColorScheme(UserInterfaceSettings.colorScheme)
+    Component.onCompleted: {
+        app.activateColorScheme(UserInterfaceSettings.colorScheme);
+        if (UserInterfaceSettings.fullScreenAtStartup) {
+            window.isFullScreenMode = true;
+        }
+    }
 
     SystemPalette {
         id: systemPalette

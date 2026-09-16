@@ -64,5 +64,13 @@
     <entry name="LastPlaylistIndex" type="Int">
       <default>0</default>
     </entry>
+    <entry name="PlaylistViewVisibilityAtStartup" type="int">
+      <label>When to show the playlist view at startup (0=show on playlist load, 1=always show at startup, 2=hide at startup)</label>
+      <default>0</default>
+    </entry>
+    <entry name="PlaySectionsViewVisibilityAtStartup" type="int">
+      <label>When to show the play sections view at startup (0=show on playlist load, 1=always show at startup, 2=hide at startup)</label>
+      <default>0</default>
+    </entry>
   </group>
 </kcfg>

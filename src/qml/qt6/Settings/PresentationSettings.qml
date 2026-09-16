@@ -108,6 +108,100 @@ SettingsBasePage {
 
         Label {
             Layout.alignment: Qt.AlignRight
+            text: qsTr("Show slides view:")
+        }
+        RowLayout {
+            ComboBox {
+                id: slidesViewVisibilityAtStartupComboBox
+
+                enabled: true
+                textRole: "mode"
+
+                model: ListModel {
+                    id: slidesViewVisibilityAtStartup
+
+                    ListElement {
+                        mode: "Show on presentation load"
+                        value: 0
+                    }
+                    ListElement {
+                        mode: "Show always at startup"
+                        value: 1
+                    }
+                    ListElement {
+                        mode: "Hide at startup"
+                        value: 2
+                    }
+                }
+
+                Component.onCompleted: {
+                    for (let i = 0; i < slidesViewVisibilityAtStartup.count; ++i) {
+                        if (slidesViewVisibilityAtStartup.get(i).value === PresentationSettings.slidesViewVisibilityAtStartup) {
+                            currentIndex = i;
+                            break;
+                        }
+                    }
+                }
+                onActivated: {
+                    PresentationSettings.slidesViewVisibilityAtStartup = model.get(index).value;
+                    PresentationSettings.save();
+                }
+            }
+        }
+        Item {
+            // spacer item
+            Layout.fillWidth: true
+        }
+
+        Label {
+            Layout.alignment: Qt.AlignRight
+            text: qsTr("Show layers view:")
+        }
+        RowLayout {
+            ComboBox {
+                id: layersViewVisibilityAtStartupComboBox
+
+                enabled: true
+                textRole: "mode"
+
+                model: ListModel {
+                    id: layersViewVisibilityAtStartup
+
+                    ListElement {
+                        mode: "Show on presentation load"
+                        value: 0
+                    }
+                    ListElement {
+                        mode: "Show always at startup"
+                        value: 1
+                    }
+                    ListElement {
+                        mode: "Hide at startup"
+                        value: 2
+                    }
+                }
+
+                Component.onCompleted: {
+                    for (let i = 0; i < layersViewVisibilityAtStartup.count; ++i) {
+                        if (layersViewVisibilityAtStartup.get(i).value === PresentationSettings.layersViewVisibilityAtStartup) {
+                            currentIndex = i;
+                            break;
+                        }
+                    }
+                }
+                onActivated: {
+                    PresentationSettings.layersViewVisibilityAtStartup = model.get(index).value;
+                    PresentationSettings.save();
+                }
+            }
+        }
+        Item {
+            // spacer item
+            Layout.fillWidth: true
+        }
+
+        Label {
+            Layout.alignment: Qt.AlignRight
             text: qsTr("Default stereoscopic mode for new layer:")
         }
         RowLayout {

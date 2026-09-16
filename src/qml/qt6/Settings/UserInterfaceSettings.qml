@@ -118,6 +118,23 @@ SettingsBasePage {
                 width: 1
             }
             CheckBox {
+                checked: UserInterfaceSettings.fullScreenAtStartup
+                text: qsTr("Start C-Play in full screen mode at startup")
+
+                onCheckedChanged: {
+                    UserInterfaceSettings.fullScreenAtStartup = checked;
+                    UserInterfaceSettings.save();
+                }
+            }
+            Item {
+                Layout.fillWidth: true
+            }
+
+            Item {
+                height: 1
+                width: 1
+            }
+            CheckBox {
                 checked: UserInterfaceSettings.showHeader
                 text: qsTr("Show Top Bar / Header")
 

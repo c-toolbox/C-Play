@@ -112,6 +112,10 @@
     <entry name="WindowOnTopAtStartup" type="bool">
       <default>false</default>
     </entry>
+    <entry name="FullScreenAtStartup" type="bool">
+      <label>Start C-Play in full screen mode at startup</label>
+      <default>false</default>
+    </entry>
     <entry name="WindowFadeDuration" type="int">
       <default>2000</default>
     </entry>
