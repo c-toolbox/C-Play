@@ -35,7 +35,9 @@ An additional powerful feature in C-Play is the presentation tool, where you can
 
 - *Audio* (WAV, AAC, MP3 etc)
 
-- *NDI*, *OMT* or *Spout* (Video/audio over network or applications.)
+- *NDI*, *OMT*, *WebRTC* or *Spout* (Live video/audio over the network, or shared from local apps.)
+
+- *DirectShow* (Windows camera/capture card input, or media files rendered through DirectShow.)
 
 - *Streams* (YouTube etc supported through FFmpeg)
 

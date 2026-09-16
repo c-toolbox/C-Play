@@ -44,6 +44,9 @@ class LayersRendererQtItem;
 #ifdef SPOUT_SUPPORT
 #include <layers/spoutmodel.h>
 #endif
+#ifdef DIRECTSHOW_SUPPORT
+#include <layers/directshowmodel.h>
+#endif
 #ifdef OMT_SUPPORT
 #include <omt/omtmodel.h>
 #endif
@@ -92,6 +95,12 @@ Q_DECLARE_METATYPE(PortAudioModel*)
 #ifndef METATYPE_SpoutSendersModel
 #define METATYPE_SpoutSendersModel
 Q_DECLARE_METATYPE(SpoutSendersModel*)
+#endif
+#endif
+#ifdef DIRECTSHOW_SUPPORT
+#ifndef METATYPE_DirectShowModel
+#define METATYPE_DirectShowModel
+Q_DECLARE_METATYPE(DirectShowModel*)
 #endif
 #endif
 #ifdef OMT_SUPPORT
@@ -238,6 +247,16 @@ public:
     void setSpoutSendersModel(SpoutSendersModel* model);
 #endif
 
+#ifdef DIRECTSHOW_SUPPORT
+    Q_PROPERTY(DirectShowModel* directShowModel
+        READ directShowModel
+        WRITE setDirectShowModel
+        NOTIFY directShowModelChanged)
+
+    DirectShowModel* directShowModel();
+    void setDirectShowModel(DirectShowModel* model);
+#endif
+
 #ifdef OMT_SUPPORT
     Q_PROPERTY(OMTSendersModel* omtSendersModel
         READ omtSendersModel
@@ -264,6 +283,9 @@ Q_SIGNALS:
 #endif
 #ifdef SPOUT_SUPPORT
     void spoutSendersModelChanged();
+#endif
+#ifdef DIRECTSHOW_SUPPORT
+    void directShowModelChanged();
 #endif
 #ifdef OMT_SUPPORT
     void omtSendersModelChanged();
@@ -307,6 +329,9 @@ private:
 #endif
 #ifdef SPOUT_SUPPORT
     SpoutSendersModel* m_spoutSendersModel;
+#endif
+#ifdef DIRECTSHOW_SUPPORT
+    DirectShowModel* m_directShowModel;
 #endif
 #ifdef OMT_SUPPORT
     OMTSendersModel* m_omtSendersModel;

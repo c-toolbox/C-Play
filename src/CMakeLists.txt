@@ -159,6 +159,13 @@ if(BUILD_CPLAY_WITH_SPOUT)
     list(APPEND SOURCE_FILES layers/spoutmodel.h)
 endif()
 
+if(BUILD_CPLAY_WITH_DIRECTSHOW)
+    list(APPEND SOURCE_FILES layers/directshowlayer.cpp)
+    list(APPEND SOURCE_FILES layers/directshowlayer.h)
+    list(APPEND SOURCE_FILES layers/directshowmodel.cpp)
+    list(APPEND SOURCE_FILES layers/directshowmodel.h)
+endif()
+
 if(BUILD_CPLAY_WITH_OMT)
     list(APPEND SOURCE_FILES omt/omtlayer.cpp)
     list(APPEND SOURCE_FILES omt/omtlayer.h)
@@ -446,6 +453,11 @@ if(BUILD_CPLAY_WITH_SPOUT)
 
     get_target_property(SPOUT_INCLUDE_DIRS Spout2::SpoutLibrary INTERFACE_INCLUDE_DIRECTORIES)
     target_include_directories(${TARGET_NAME} PRIVATE ${SPOUT_INCLUDE_DIRS})
+endif()
+
+if(BUILD_CPLAY_WITH_DIRECTSHOW)
+    list(APPEND TARGET_LIBRARIES quartz ole32 strmiids)
+    target_compile_definitions(${TARGET_NAME} PUBLIC DIRECTSHOW_SUPPORT DIRECTSHOW_LAYER)
 endif()
 
 if(BUILD_CPLAY_WITH_OMT)

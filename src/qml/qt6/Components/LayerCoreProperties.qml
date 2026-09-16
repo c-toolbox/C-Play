@@ -36,6 +36,8 @@ GridLayout {
     property alias ndiSenderComboBox: ndiSenderComboBox
     property alias spoutSenderComboBox: spoutSenderComboBox
     property alias omtSenderComboBox: omtSenderComboBox
+    property alias directShowVideoDeviceComboBox: directShowVideoDeviceComboBox
+    property alias directShowAudioDeviceComboBox: directShowAudioDeviceComboBox
     property alias whepUrlField: whepUrlField
     property alias stereoscopicModeForLayer: stereoscopicModeForLayer
     property alias gridModeForLayer: gridModeForLayer
@@ -323,6 +325,14 @@ GridLayout {
                 app.omtSendersModel.updateSendersList();
                 omtSenderComboBox.currentIndex = app.omtSendersModel.numberOfSenders - 1;
                 layerTitle.text = omtSenderComboBox.currentText;
+            }
+            else if (typeComboBox.currentText === "DirectShow") {
+                if (app.directShowModel) {
+                    app.directShowModel.updateDeviceLists();
+                    directShowVideoDeviceComboBox.currentIndex = app.directShowModel.videoDevices.length - 1;
+                    directShowAudioDeviceComboBox.currentIndex = app.directShowModel.audioDevices.length - 1;
+                    layerTitle.text = "DirectShow:" + (directShowVideoDeviceComboBox.currentText || "");
+                }
             }
             else if (typeComboBox.currentText === "Stream") {
                 app.streamsModel.updateStreamsList();
@@ -634,6 +644,88 @@ GridLayout {
     }
     Item {
         visible: root.showSpacers && typeComboBox.currentText === "OMT"
+        Layout.fillWidth: true
+    }
+
+    Label {
+        Layout.alignment: Qt.AlignRight
+        text: qsTr("Video device:")
+        visible: typeComboBox.currentText === "DirectShow"
+    }
+    RowLayout {
+        Layout.fillWidth: true
+        visible: typeComboBox.currentText === "DirectShow"
+
+        ComboBox {
+            id: directShowVideoDeviceComboBox
+
+            Layout.fillWidth: true
+            model: app.directShowModel ? app.directShowModel.videoDevices : []
+            currentIndex: (app.directShowModel && app.directShowModel.videoDevices.length > 0) ? app.directShowModel.videoDevices.length - 1 : -1
+
+            Component.onCompleted: {
+                if (app.directShowModel) {
+                    app.directShowModel.updateDeviceLists();
+                    directShowVideoDeviceComboBox.currentIndex = app.directShowModel.videoDevices.length - 1;
+                    layerTitle.text = "DirectShow:" + (directShowVideoDeviceComboBox.currentText || "");
+                }
+            }
+            onActivated: {
+                layerTitle.text = "DirectShow:" + (directShowVideoDeviceComboBox.currentText || "");
+            }
+        }
+        ToolButton {
+            id: updateDirectShowDevicesBox
+
+            focusPolicy: Qt.NoFocus
+            icon.height: 16
+            icon.name: "view-refresh"
+            text: ""
+
+            onClicked: {
+                if (app.directShowModel) {
+                    app.directShowModel.updateDeviceLists();
+                    directShowVideoDeviceComboBox.currentIndex = app.directShowModel.videoDevices.length - 1;
+                    directShowAudioDeviceComboBox.currentIndex = app.directShowModel.audioDevices.length - 1;
+                    layerTitle.text = "DirectShow:" + (directShowVideoDeviceComboBox.currentText || "");
+                }
+            }
+
+            ToolTip {
+                text: qsTr("Rescan capture devices")
+            }
+        }
+    }
+    Item {
+        visible: root.showSpacers && typeComboBox.currentText === "DirectShow"
+        Layout.fillWidth: true
+    }
+
+    Label {
+        Layout.alignment: Qt.AlignRight
+        text: qsTr("Audio device:")
+        visible: typeComboBox.currentText === "DirectShow"
+    }
+    RowLayout {
+        Layout.fillWidth: true
+        visible: typeComboBox.currentText === "DirectShow"
+
+        ComboBox {
+            id: directShowAudioDeviceComboBox
+
+            Layout.fillWidth: true
+            model: app.directShowModel ? app.directShowModel.audioDevices : []
+            currentIndex: (app.directShowModel && app.directShowModel.audioDevices.length > 0) ? app.directShowModel.audioDevices.length - 1 : -1
+
+            Component.onCompleted: {
+                if (app.directShowModel) {
+                    directShowAudioDeviceComboBox.currentIndex = app.directShowModel.audioDevices.length - 1;
+                }
+            }
+        }
+    }
+    Item {
+        visible: root.showSpacers && typeComboBox.currentText === "DirectShow"
         Layout.fillWidth: true
     }
 

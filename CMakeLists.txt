@@ -190,6 +190,12 @@ if(BUILD_CPLAY_WITH_SPOUT)
         URL "https://spout.zeal.co/" DESCRIPTION "video sharing on windows")
 endif()
 
+option(BUILD_CPLAY_WITH_DIRECTSHOW "Global On/Off for DirectShow layer support" ON)
+if(NOT WIN32 AND BUILD_CPLAY_WITH_DIRECTSHOW)
+    message(STATUS "DirectShow is only available on Windows - disabling")
+    set(BUILD_CPLAY_WITH_DIRECTSHOW OFF)
+endif()
+
 option(BUILD_CPLAY_WITH_OMT "Global On/Off for OMT support" OFF)
 if(BUILD_CPLAY_WITH_OMT)
     find_package(OMT REQUIRED)

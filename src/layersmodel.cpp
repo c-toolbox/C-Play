@@ -20,6 +20,9 @@
 #ifdef SPOUT_SUPPORT
 #include <layers/spoutlayer.h>
 #endif
+#ifdef DIRECTSHOW_SUPPORT
+#include <layers/directshowlayer.h>
+#endif
 #include <layers/textlayer.h>
 #include <layers/mpvlayer.h>
 #include <layers/controllayer.h>
@@ -355,6 +358,20 @@ int LayersModel::addLayer(QString title, int type, QString filepath, int stereoM
                 f.close();
                 static_cast<MultiVideoLayer*>(newLayer)->setCompositionJson(jsonContent);
             }
+        }
+#endif
+#ifdef DIRECTSHOW_SUPPORT
+        else if (type == BaseLayer::DIRECTSHOW) {
+            // filepath holds "videoDevice|audioDevice" when capture devices were chosen in the UI,
+            // or a plain media file path otherwise. '|' cannot occur in NTFS file names, so the
+            // two forms are unambiguous.
+            DirectShowLayer* newDirectShowLayer = static_cast<DirectShowLayer*>(newLayer);
+            const int sepIdx = filepath.indexOf(QChar::fromLatin1('|'));
+            if (sepIdx >= 0) {
+                newDirectShowLayer->setCaptureDevices(filepath.left(sepIdx).toStdString(),
+                                                      filepath.mid(sepIdx + 1).toStdString());
+            }
+            newLayer->setFilePath(filepath.toStdString());
         }
 #endif
         else {

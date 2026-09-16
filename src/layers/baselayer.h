@@ -43,11 +43,17 @@ public:
 #ifdef OMT_SUPPORT
         OMT,
 #endif
+#ifdef DIRECTSHOW_SUPPORT
+        DIRECTSHOW,
+#endif
 #ifdef SPOUT_SUPPORT
         SPOUT,
 #endif
 #ifdef STREAM_LAYER
         STREAM,
+#endif
+#ifdef WEBRTC_LAYER
+        WEBRTC,
 #endif
 #ifdef TEXT_LAYER
         TEXT,
@@ -57,9 +63,6 @@ public:
 #endif
 #ifdef REST_LAYER
         REST,
-#endif
-#ifdef WEBRTC_LAYER
-        WEBRTC,
 #endif
         INVALID
     };

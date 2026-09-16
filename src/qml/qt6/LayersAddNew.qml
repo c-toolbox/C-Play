@@ -92,6 +92,22 @@ Kirigami.ApplicationWindow {
                             layersAddNew.visible = false;
                             app.slides.updateSelectedSlide();
                             mpv.focus = true;
+                        } else if (layerCoreProps.typeComboBox.currentText === "DirectShow") {
+                            // A chosen video device means capture mode - the parameter string carries
+                            // "videoDevice|audioDevice" (the audio part may be empty). Without a video
+                            // device the layer plays back the media file instead.
+                            var directShowParam = "";
+                            if (layerCoreProps.directShowVideoDeviceComboBox.currentText !== "") {
+                                directShowParam = layerCoreProps.directShowVideoDeviceComboBox.currentText + "|" + layerCoreProps.directShowAudioDeviceComboBox.currentText;
+                            } else if (layerCoreProps.fileForLayer.text !== "") {
+                                directShowParam = layerCoreProps.fileForLayer.text;
+                            }
+                            if (directShowParam !== "") {
+                                layerView.layerItem.layerIdx = app.slides.selected.addLayer(layerCoreProps.layerTitle.text, layerCoreProps.typeComboBox.currentIndex + 1, directShowParam, layerCoreProps.stereoscopicModeForLayer.currentIndex, layerCoreProps.gridModeForLayer.currentIndex);
+                                layersAddNew.visible = false;
+                                app.slides.updateSelectedSlide();
+                                mpv.focus = true;
+                            }
                         } else if (layerCoreProps.typeComboBox.currentText === "Stream") {
                             if(layerCoreProps.streamsLayout.customEntry){
                                 layerView.layerItem.layerIdx = app.slides.selected.addLayer(layerCoreProps.layerTitle.text, layerCoreProps.typeComboBox.currentIndex + 1, layerCoreProps.streamCustomEntryField.text, layerCoreProps.stereoscopicModeForLayer.currentIndex, layerCoreProps.gridModeForLayer.currentIndex);

@@ -170,6 +170,9 @@ Application::Application(int &argc, char **argv, const QString &applicationName)
 #ifdef SPOUT_SUPPORT
     m_spoutSendersModel = new SpoutSendersModel(this);
 #endif
+#ifdef DIRECTSHOW_SUPPORT
+    m_directShowModel = new DirectShowModel(this);
+#endif
 #ifdef OMT_SUPPORT
     m_omtSendersModel = new OMTSendersModel(this);
 #endif
@@ -663,6 +666,23 @@ void Application::setSpoutSendersModel(SpoutSendersModel* model) {
     }
     m_spoutSendersModel = model;
     Q_EMIT spoutSendersModelChanged();
+}
+#endif
+
+#ifdef DIRECTSHOW_SUPPORT
+DirectShowModel* Application::directShowModel() {
+    return m_directShowModel;
+}
+
+void Application::setDirectShowModel(DirectShowModel* model) {
+    if (m_directShowModel == model) {
+        return;
+    }
+    if (model && !model->parent()) {
+        model->setParent(this);
+    }
+    m_directShowModel = model;
+    Q_EMIT directShowModelChanged();
 }
 #endif
 

@@ -32,7 +32,9 @@ An additional powerful feature in C-Play is the presentation tool, where you can
 
 - *Audio* (WAV, AAC, MP3 etc)
 
-- *NDI*, *OMT* or *Spout* (Network video/audio or live sharing across local apps.)
+- *NDI*, *OMT*, *WebRTC* or *Spout* (Live network video/audio, or live sharing across local apps.)
+
+- *DirectShow* (Windows camera/capture card input, or media files rendered through DirectShow)
 
 - *Streams* (YouTube and similar inputs supported through FFmpeg)
 
@@ -74,6 +76,7 @@ Optional libraries in current C-Play builds include:
 
 - [NDI](https://ndi.video/for-developers/ndi-sdk/) - Support frame-synced NDI streams, video and audio
 - [OMT](https://openmediatransport.org/) (Open Media Transport) - Support OMT video and audio streams
+- [libdatachannel](https://github.com/paullouisageneau/libdatachannel) - WebRTC/WHEP input layer
 - [Poppler](https://poppler.freedesktop.org/) - For rendering PDF pages
 - [Wuffs](https://github.com/google/wuffs) & [Sail](https://sail.software/) - For more extensive image decoding
 # Build on Windows

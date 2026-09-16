@@ -17,6 +17,9 @@
 #include <layers/imagelayer.h>
 #include <layers/videolayer.h>
 #include <layers/textlayer.h>
+#ifdef DIRECTSHOW_LAYER
+#include <layers/directshowlayer.h>
+#endif
 #include <layersmodel.h>
 #include <atomic>
 #include <mutex>
@@ -1297,6 +1300,9 @@ static void cleanup() {
 #endif
 
         ImageLayer::processPendingGLCleanup();
+#ifdef DIRECTSHOW_LAYER
+        DirectShowLayer::processPendingGLCleanup();
+#endif
     }
 
 #ifdef NDI_SUPPORT

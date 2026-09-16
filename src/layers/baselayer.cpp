@@ -39,6 +39,9 @@
 #if defined(SPOUT_LAYER)
 #include <layers/spoutlayer.h>
 #endif
+#if defined(DIRECTSHOW_LAYER)
+#include <layers/directshowlayer.h>
+#endif
 #if defined(OMT_LAYER)
 #include <omt/omtlayer.h>
 #endif
@@ -89,17 +92,25 @@ std::string BaseLayer::typeDescription(BaseLayer::LayerType e) {
     case NDI:
         return "NDI";
 #endif
-#ifdef STREAM_LAYER
-    case STREAM:
-        return "Stream";
+#ifdef OMT_LAYER
+    case OMT:
+        return "OMT";
+#endif
+#ifdef DIRECTSHOW_LAYER
+    case DIRECTSHOW:
+        return "DirectShow";
 #endif
 #ifdef SPOUT_LAYER
     case SPOUT:
         return "Spout";
 #endif
-#ifdef OMT_LAYER
-    case OMT:
-        return "OMT";
+#ifdef STREAM_LAYER
+    case STREAM:
+        return "Stream";
+#endif
+#ifdef WEBRTC_LAYER
+    case WEBRTC:
+        return "WebRTC";
 #endif
 #ifdef TEXT_LAYER
     case TEXT:
@@ -112,10 +123,6 @@ std::string BaseLayer::typeDescription(BaseLayer::LayerType e) {
 #ifdef REST_LAYER
     case REST:
         return "REST";
-#endif
-#ifdef WEBRTC_LAYER
-    case WEBRTC:
-        return "WebRTC";
 #endif
     default:
         return "";
@@ -237,6 +244,13 @@ BaseLayer *BaseLayer::createLayer(bool isMaster, int layerType, FUNC_V1, FUNC_V2
     case static_cast<int>(BaseLayer::LayerType::WEBRTC): {
         WebRTCLayer* newWebRtc = new WebRTCLayer();
         newLayer = newWebRtc;
+        break;
+    }
+#endif
+#ifdef DIRECTSHOW_LAYER
+    case static_cast<int>(BaseLayer::LayerType::DIRECTSHOW): {
+        DirectShowLayer* newDirectShow = new DirectShowLayer();
+        newLayer = newDirectShow;
         break;
     }
 #endif
