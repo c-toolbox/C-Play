@@ -6,6 +6,8 @@
 
 #include "webrtc/webrtcsource.h"
 
+#include "webrtc/opusaudiodepacketizer.h"
+
 #include <QCoreApplication>
 #include <QMetaObject>
 #include <QRegularExpression>
@@ -124,6 +126,11 @@ void WebRtcSource::setConfig(const WebRtcStreamConfig &config)
 void WebRtcSource::setVideoCallback(MediaFrameCallback callback)
 {
     m_onVideo = std::move(callback);
+}
+
+void WebRtcSource::setRawAudioPacketCallback(RawAudioPacketCallback callback)
+{
+    m_onRawAudioPacket = std::move(callback);
 }
 
 WebRtcStreamState WebRtcSource::state() const
@@ -334,7 +341,12 @@ void WebRtcSource::onAnswer(const QString &sdpAnswer)
             sgct::Log::Info("WebRTC: stream has no audio track (video-only)\n");
         } else {
             try {
-                m_audioTrack->setMediaHandler(std::make_shared<rtc::OpusRtpDepacketizer>());
+                // libdatachannel's generic RtpDepacketizer does not strip RFC 3550 padding (its H264/H265
+                // siblings do), so a padded sender would leak the pad bytes into the Opus payload and make
+                // two-CBR-frame packets structurally invalid. Use a subclass that removes them first.
+                auto opusDepacketizer = std::make_shared<OpusAudioDepacketizer>();
+                opusDepacketizer->setRawPacketCallback(m_onRawAudioPacket);
+                m_audioTrack->setMediaHandler(opusDepacketizer);
                 m_audioTrack->chainMediaHandler(std::make_shared<rtc::RtcpReceivingSession>());
                 m_audioTrack->onFrame([this](rtc::binary data, rtc::FrameInfo info) {
                     if (!data.empty()) {

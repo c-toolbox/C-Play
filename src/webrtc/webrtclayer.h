@@ -137,6 +137,8 @@ private:
 
     AudioDecoder m_audioDecoder; // main thread only
 
+    std::chrono::steady_clock::time_point m_lastAudioOpenErrorLog{}; // throttles repeated open-failure logs
+
     std::mutex m_queueMutex;
     std::condition_variable m_queueCv;
     std::deque<WebRtcAnnexBUnit> m_queue; // bounded, drop oldest when full

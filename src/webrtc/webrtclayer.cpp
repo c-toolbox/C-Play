@@ -786,7 +786,14 @@ bool WebRTCLayer::startAudioOutput() {
     );
 
     if (m_audioError != paNoError) {
-        sgct::Log::Error("WebRTCLayer: failed to open the PortAudio stream.\n");
+        // The stream is reopened lazily on every PCM frame, so a failing device would log an
+        // error ~50 times per second; report it at most once every 5 seconds.
+        const auto now = std::chrono::steady_clock::now();
+        if (std::chrono::duration_cast<std::chrono::seconds>(now - m_lastAudioOpenErrorLog).count() >= 5) {
+            m_lastAudioOpenErrorLog = now;
+            sgct::Log::Error("WebRTCLayer: failed to open the PortAudio stream (error " + std::to_string(m_audioError)
+                             + ").\n");
+        }
         return false;
     }
     m_audioStreamOpen = true;
@@ -799,8 +806,12 @@ bool WebRTCLayer::startAudioOutput() {
     }
     m_audioStreamStarted = true;
 
+    const PaDeviceInfo *startedDevInfo = Pa_GetDeviceInfo(m_audioOutputParameters.device);
     sgct::Log::Info("WebRTCLayer: audio output started (" + std::to_string(m_audioSampleRate) + " Hz, "
-                    + std::to_string(m_audioOutputChannels) + " channel(s))\n");
+                    + std::to_string(m_audioOutputChannels) + " channel(s)"
+                    + (startedDevInfo ? ", device: " : "")
+                    + (startedDevInfo ? QString::fromUtf8(startedDevInfo->name).toStdString() : "")
+                    + ")\n");
     return true;
 }
 

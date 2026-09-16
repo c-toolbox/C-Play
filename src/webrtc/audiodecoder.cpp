@@ -11,6 +11,7 @@ extern "C" {
 #include <libavcodec/avcodec.h>
 #include <libavutil/error.h>
 #include <libavutil/frame.h>
+#include <libavutil/mem.h>
 #include <libavutil/samplefmt.h>
 #include <libavutil/version.h>
 }
@@ -38,7 +39,37 @@ int frameChannels(const AVFrame& frame) {
 #endif
 }
 
-// Converts one planar decoded frame (S16P or FLTP) into interleaved float32 in [-1, 1].
+// Requests stereo output from the decoder so that mono streams are upmixed by Opus and
+// true stereo keeps both channels.
+void requestStereoOutput(AVCodecContext* ctx) {
+#if LIBAVUTIL_VERSION_INT >= AV_VERSION_INT(57, 28, 100)
+    av_channel_layout_default(&ctx->ch_layout, 2);
+#else
+    ctx->channels = 2;
+#endif
+}
+
+// Builds a standard OpusHead (RFC 7845) with mapping family 0, so the built-in decoder never
+// interprets packet data as a multistream configuration header. Layout per RFC 7845 section 4,
+// little-endian fields; pre-skip and output gain stay zero.
+std::vector<std::uint8_t> makeOpusHead(int channels, int sampleRate) {
+    std::vector<std::uint8_t> head(21, 0);
+    std::memcpy(head.data(), "OpusHead", 8); // magic string
+    head[8] = 1;                             // version
+    head[9] = static_cast<std::uint8_t>(channels); // channel count (mapping family 0: 1 or 2)
+    const std::uint32_t rate = sampleRate > 0 ? static_cast<std::uint32_t>(sampleRate) : 48000;
+    head[14] = static_cast<std::uint8_t>(rate & 0xFF); // input sample rate, little-endian
+    head[15] = static_cast<std::uint8_t>((rate >> 8) & 0xFF);
+    head[16] = static_cast<std::uint8_t>((rate >> 16) & 0xFF);
+    head[17] = static_cast<std::uint8_t>((rate >> 24) & 0xFF);
+    head[20] = 0; // mapping family: 0 selects the standard channel mapping
+    return head;
+}
+
+// A little slack past the header so any over-reading parser stays inside allocated memory.
+constexpr std::size_t kExtradataPadding = 16;
+
+// Converts one decoded frame (planar or packed, float or s16) into interleaved float32 in [-1, 1].
 bool convertToInterleavedFloat(const AVFrame& frame, std::vector<float>& out) {
     const int channels = frameChannels(frame);
     const int frames = frame.nb_samples;
@@ -69,6 +100,16 @@ bool convertToInterleavedFloat(const AVFrame& frame, std::vector<float>& out) {
                 *dst = static_cast<float>(plane[i]) / 32768.f;
             }
         }
+    } else if (frame.format == AV_SAMPLE_FMT_FLT) {
+        // Packed float: plane 0 already holds the interleaved samples.
+        std::memcpy(out.data(), planes[0], out.size() * sizeof(float));
+    } else if (frame.format == AV_SAMPLE_FMT_S16) {
+        // Packed s16: the libopus wrapper emits this layout in some FFmpeg builds, so it must
+        // be handled here or every frame would be silently dropped.
+        const int16_t* samples = reinterpret_cast<const int16_t*>(planes[0]);
+        for (std::size_t i = 0; i < out.size(); ++i) {
+            out[i] = static_cast<float>(samples[i]) / 32768.f;
+        }
     } else {
         return false; // unexpected sample format from the Opus decoder
     }
@@ -87,7 +128,14 @@ AudioDecoder::~AudioDecoder() {
 bool AudioDecoder::open(QString* error) {
     close();
 
-    const AVCodec* codec = avcodec_find_decoder(AV_CODEC_ID_OPUS);
+    // Prefer FFmpeg's external libopus wrapper when the build includes it. Otherwise use
+    // the built-in native decoder, which is told via an explicit OpusHead (mapping family
+    // 0) that the stream consists of raw RFC 6716 packets - not a multistream container.
+    const AVCodec* codec = avcodec_find_decoder_by_name("libopus");
+    const bool usingLibOpusWrapper = codec != nullptr;
+    if (!codec) {
+        codec = avcodec_find_decoder(AV_CODEC_ID_OPUS);
+    }
     if (!codec) {
         *error = u"Opus decoder not found in FFmpeg build"_s;
         return false;
@@ -101,6 +149,27 @@ bool AudioDecoder::open(QString* error) {
 
     // Opus RTP timestamps are expressed in 48 kHz units.
     m_context->pkt_timebase = AVRational{1, 48000};
+    requestStereoOutput(m_context);
+    m_context->sample_rate = 48000;
+    // Ask FFmpeg for planar float output; it inserts an internal resampler when the decoder's
+    // native format differs (the libopus wrapper emits packed s16 in some builds). The manual
+    // conversion below still copes with any other layout, so this is belt and braces.
+    m_context->request_sample_fmt = AV_SAMPLE_FMT_FLTP;
+
+    if (!usingLibOpusWrapper) {
+        // Built-in decoder: without extradata it hunts for an in-band OpusHead and misreads the
+        // first raw packet's TOC byte as a multichannel configuration header, then aborts. A
+        // standard header with mapping family 0 tells it to treat the stream as plain RFC 6716.
+        const std::vector<std::uint8_t> head = makeOpusHead(2, 48000);
+        m_context->extradata = static_cast<uint8_t*>(av_mallocz(head.size() + kExtradataPadding));
+        if (!m_context->extradata) {
+            *error = u"Failed to allocate Opus header"_s;
+            close();
+            return false;
+        }
+        std::memcpy(m_context->extradata, head.data(), head.size());
+        m_context->extradata_size = static_cast<int>(head.size());
+    }
 
     const int ret = avcodec_open2(m_context, codec, nullptr);
     if (ret < 0) {
@@ -159,6 +228,29 @@ bool AudioDecoder::drainFrames(QString* error) {
 bool AudioDecoder::decode(const uint8_t* data, size_t size, QString* error) {
     if (!m_context || !data || size == 0) {
         return true; // nothing to feed (not an error)
+    }
+
+    // Some upstream encoders (observed on the WHEP/RTSP feeds we consume) append one undeclared
+    // extra byte to their Opus RTP payloads, which makes two-CBR-frame packets structurally
+    // invalid: opus_packet_parse_impl() rejects any odd length after the TOC byte. Try the full
+    // packet first and fall back to dropping the trailing byte before giving up on a frame.
+    if (decodePacket(data, size, error)) {
+        return true;
+    }
+    if (size > 1) {
+        QString retryError;
+        if (decodePacket(data, size - 1, &retryError)) {
+            ++m_trailingByteRetries;
+            return true;
+        }
+    }
+    // *error was already set by the first attempt.
+    return false;
+}
+
+bool AudioDecoder::decodePacket(const uint8_t* data, size_t size, QString* error) {
+    if (!m_context || !data || size == 0) {
+        return false;
     }
 
     AVPacket pkt{};

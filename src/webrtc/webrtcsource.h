@@ -44,6 +44,12 @@ public:
 
     void setVideoCallback(MediaFrameCallback callback);
 
+    /// Diagnostic hook (used for live wire-level debugging): receives each raw audio RTP
+    /// datagram, header included, before depacketization and padding stripping, so behaviour
+    /// such as RFC 3550 padding can be verified. Not called when unset.
+    using RawAudioPacketCallback = std::function<void(const std::uint8_t *data, std::size_t size)>;
+    void setRawAudioPacketCallback(RawAudioPacketCallback callback);
+
     void start();
     void stop();
 
@@ -78,6 +84,7 @@ private:
     std::shared_ptr<rtc::Track> m_audioTrack; // recvonly Opus track, active only if the stream has audio
 
     MediaFrameCallback m_onVideo;
+    RawAudioPacketCallback m_onRawAudioPacket;
 
     std::atomic<WebRtcStreamState> m_state { WebRtcStreamState::Idle };
     std::atomic<WebRtcVideoCodec> m_videoCodec { WebRtcVideoCodec::Unknown };
