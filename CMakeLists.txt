@@ -196,6 +196,14 @@ if(NOT WIN32 AND BUILD_CPLAY_WITH_DIRECTSHOW)
     set(BUILD_CPLAY_WITH_DIRECTSHOW OFF)
 endif()
 
+if(BUILD_CPLAY_WITH_DIRECTSHOW)
+    if(NOT TARGET PortAudio::PortAudio)
+        find_package(PortAudio REQUIRED)
+        set_package_properties(PortAudio PROPERTIES TYPE REQUIRED
+            URL "https://www.portaudio.com/" DESCRIPTION "for DirectShow audio output support.")
+    endif()
+endif()
+
 option(BUILD_CPLAY_WITH_OMT "Global On/Off for OMT support" OFF)
 if(BUILD_CPLAY_WITH_OMT)
     find_package(OMT REQUIRED)

@@ -458,7 +458,7 @@ if(BUILD_CPLAY_WITH_SPOUT)
 endif()
 
 if(BUILD_CPLAY_WITH_DIRECTSHOW)
-    list(APPEND TARGET_LIBRARIES quartz ole32 strmiids)
+    list(APPEND TARGET_LIBRARIES quartz ole32 strmiids PortAudio::PortAudio)
     target_compile_definitions(${TARGET_NAME} PUBLIC DIRECTSHOW_SUPPORT DIRECTSHOW_LAYER)
 endif()
 

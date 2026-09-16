@@ -9,6 +9,9 @@
 #include <sgct/opengl.h>
 #include <sgct/sgct.h>
 #include <format>
+#include <algorithm>
+#include <cstring>
+#include "audiosettings.h"
 
 std::mutex DirectShowLayer::s_pendingTexDeleteMutex;
 std::vector<unsigned int> DirectShowLayer::s_pendingTexToDelete;
@@ -38,6 +41,14 @@ const GUID kIidIMediaFile{0x568aab5a, 0xc900, 0x11d3, {0xae, 0x21, 0x00, 0xa0, 0
 // CreateClassEnumerator(). Not the CATID_* that filters register under - that one
 // makes enumeration return S_FALSE.
 const GUID kCatVideoInput{0x860bb310, 0x5d01, 0x11d0, {0xbd, 0x3b, 0x00, 0xa0, 0xc9, 0x11, 0xce, 0x86}};
+// Audio input device category CLSID (uuids.h: CLSID_AudioInputDeviceCategory) - same note as above.
+const GUID kCatAudioInput{0x25e9876a, 0xccb4, 0x11cf, {0xb4, 0x3f, 0x08, 0x00, 0x2b, 0xe1, 0x03, 0x18}};
+// Audio pin category (ksmedia.h: KSPIN_CATEGORY_AUDIO) - not declared by this machine's SDK headers.
+const GUID kPinCategoryAudio{0x086325c7, 0x5fe7, 0x4f5e, {0x84, 0x6f, 0xc6, 0xff, 0x5e, 0x8b, 0x99, 0x8a}};
+// PCM / IEEE float audio subformats (ksmedia.h: KSDATAFORMAT_SUBTYPE_PCM / _IEEE_FLOAT), used to
+// resolve WAVEFORMATEXTENSIBLE formats. Not declared by this machine's SDK headers.
+const GUID kSubtypePcm{0x00000001, 0x0000, 0x0010, {0x80, 0x00, 0x00, 0xaa, 0x00, 0x38, 0x9b, 0x71}};
+const GUID kSubtypeIeeeFloat{0x00000003, 0x0000, 0x0010, {0x80, 0x00, 0x00, 0xaa, 0x00, 0x38, 0x9b, 0x71}};
 
 #pragma warning(push)
 #pragma warning(disable : 5204) // COM interfaces have no destructor by design
@@ -59,6 +70,10 @@ void deleteMediaType(AM_MEDIA_TYPE* mt) {
 
 // How long a running graph may stay frameless before we give up on the file.
 constexpr std::chrono::seconds kStallTimeout{10};
+// Bounded audio ring capacity (jitter absorption between DirectShow and PortAudio) and the
+// retry backoff for failed PortAudio stream opens.
+constexpr int kAudioRingSeconds{2};
+constexpr std::chrono::seconds kAudioRetryBackoff{2};
 
 // Convert a UTF-8 path to wide characters for the Windows/DirectShow APIs.
 std::wstring toWideString(const std::string& utf8) {
@@ -148,9 +163,9 @@ IPin* findPin(IBaseFilter* filter, PIN_DIRECTION dir) {
     return result;
 }
 
-// Creates a capture filter for the device with the given friendly name from the video
-// input category. Returns an added reference or nullptr when not found.
-IBaseFilter* createCaptureFilter(const std::wstring& friendlyName) {
+// Creates a capture filter for the device with the given friendly name from the given
+// device category (video or audio input). Returns an added reference or nullptr when not found.
+IBaseFilter* createCaptureFilter(const GUID& deviceCategory, const std::wstring& friendlyName) {
     IBaseFilter* result = nullptr;
 
     ICreateDevEnum* pSystemDevices = nullptr;
@@ -162,7 +177,7 @@ IBaseFilter* createCaptureFilter(const std::wstring& friendlyName) {
     // This SDK's ICreateDevEnum enumerates monikers (not filters) - bind each one to
     // its property bag to read the device's friendly name.
     IEnumMoniker* pCategoryDevices = nullptr;
-    const HRESULT hrEnum = pSystemDevices->CreateClassEnumerator(kCatVideoInput, &pCategoryDevices, 0);
+    const HRESULT hrEnum = pSystemDevices->CreateClassEnumerator(deviceCategory, &pCategoryDevices, 0);
     pSystemDevices->Release();
     if (FAILED(hrEnum) || !pCategoryDevices)
         return nullptr;
@@ -199,6 +214,63 @@ IBaseFilter* createCaptureFilter(const std::wstring& friendlyName) {
     return result;
 }
 
+// Resolves the effective PCM format tag of an audio WAVEFORMATEX, unwrapping
+// WAVEFORMATEXTENSIBLE. Returns 0 when the format is not one we can convert.
+unsigned short effectiveAudioFormatTag(const WAVEFORMATEX* wfx, DWORD formatSize) {
+    if (!wfx || formatSize < sizeof(WAVEFORMATEX))
+        return 0;
+    unsigned short tag = wfx->wFormatTag;
+    if (tag == WAVE_FORMAT_EXTENSIBLE && formatSize >= sizeof(WAVEFORMATEXTENSIBLE)) {
+        const auto* ext = reinterpret_cast<const WAVEFORMATEXTENSIBLE*>(wfx);
+        if (IsEqualGUID(ext->SubFormat, kSubtypePcm))
+            tag = WAVE_FORMAT_PCM;
+        else if (IsEqualGUID(ext->SubFormat, kSubtypeIeeeFloat))
+            tag = WAVE_FORMAT_IEEE_FLOAT;
+        else
+            return 0; // compressed subformat - not supported
+    }
+    return tag;
+}
+
+// Converts a grabbed audio sample to interleaved float32 in [-1, 1]. Supported: PCM8/PCM16,
+// IEEE float32 and WAVEFORMATEXTENSIBLE wrapping one of those. Returns false for anything
+// else (e.g. compressed codecs) - the caller then keeps playing video-only.
+bool convertAudioToFloat32(const BYTE* data, DWORD length, const WAVEFORMATEX* wfx, DWORD formatSize, std::vector<float>& out) {
+    if (!data || !wfx || wfx->nChannels == 0)
+        return false;
+    const unsigned short tag = effectiveAudioFormatTag(wfx, formatSize);
+    const size_t bytesPerSample = wfx->wBitsPerSample / 8;
+    if (bytesPerSample == 0)
+        return false;
+
+    const size_t nFrames = static_cast<size_t>(length) / (bytesPerSample * wfx->nChannels);
+    out.resize(nFrames * wfx->nChannels);
+
+    switch (tag) {
+        case WAVE_FORMAT_PCM:
+            if (wfx->wBitsPerSample == 8) { // unsigned PCM
+                const auto* p = reinterpret_cast<const BYTE*>(data);
+                for (size_t i = 0; i < out.size(); ++i)
+                    out[i] = (static_cast<int>(p[i]) - 128) / 128.0f;
+            } else if (wfx->wBitsPerSample == 16) {
+                const auto* p = reinterpret_cast<const int16_t*>(data);
+                for (size_t i = 0; i < out.size(); ++i)
+                    out[i] = static_cast<float>(p[i]) / 32768.0f;
+            } else {
+                return false; // PCM with other bit depths is not supported
+            }
+            break;
+        case WAVE_FORMAT_IEEE_FLOAT:
+            if (wfx->wBitsPerSample != 32)
+                return false;
+            std::memcpy(out.data(), data, out.size() * sizeof(float));
+            break;
+        default:
+            return false; // compressed/unknown codec - video-only fallback
+    }
+    return true;
+}
+
 } // namespace
 
 DirectShowLayer::DirectShowLayer() {
@@ -214,9 +286,17 @@ DirectShowLayer::~DirectShowLayer() {
 
 void DirectShowLayer::cleanup() {
 #ifdef _WIN32
+    // Stop the audio output before tearing down the graph so no sample can be pushed
+    // while the stream is closing (mirrors NdiLayer/OmtLayer).
+    m_receiveAudio.store(false);
+    closeAudioStream();
     {
         std::lock_guard<std::mutex> lock(m_graphMutex);
         releaseGraph();
+    }
+    if (m_portAudioInitialized.load()) {
+        Pa_Terminate();
+        m_portAudioInitialized.store(false);
     }
 #endif
     if (renderData.texId > 0) {
@@ -249,7 +329,20 @@ bool DirectShowLayer::hasTexture() const {
 
 void DirectShowLayer::update(bool updateRendering) {
 #ifdef _WIN32
-    ensureGraph();
+    // PortAudio lifecycle (mirrors NdiLayer/OmtLayer): initialize once when audio is enabled.
+    if (m_isAudioEnabled && !m_portAudioInitialized.load())
+        ensurePortAudioInitialized();
+
+    const bool wantReceive = m_isAudioEnabled && m_portAudioInitialized.load();
+    if (wantReceive != m_receiveAudio.load()) {
+        m_receiveAudio.store(wantReceive);
+        if (!wantReceive) {
+            closeAudioStream(); // stop output immediately when audio is disabled
+            m_audioRing.clear();
+        }
+    }
+
+    ensureGraph(); // rebuilds the graph once if an audio path must be added or removed
 #endif
     if (updateRendering)
         updateFrame();
@@ -382,17 +475,28 @@ HRESULT DirectShowLayer::SampleCallback(double /*sampleTime*/, IMediaSample* pSa
     if (!pData || length == 0)
         return E_FAIL;
 
+    // The same callback object serves both grabbers - route audio samples to the
+    // PortAudio output path and keep everything below for video.
+    AM_MEDIA_TYPE* pSampleMt = nullptr;
+    if (SUCCEEDED(pSample->GetMediaType(&pSampleMt)) && pSampleMt) {
+        if (IsEqualGUID(pSampleMt->majortype, MEDIATYPE_Audio)) {
+            handleAudioSample(pData, length, pSampleMt);
+            deleteMediaType(pSampleMt);
+            return S_OK;
+        }
+    }
+
     // Determine pixel format and size. Prefer the sample's own media type,
     // fall back to the graph output type cached after Run().
     PixelFormat pixelType = PixelFormat::Unknown;
     int width = 0;
     int height = 0;
 
-    AM_MEDIA_TYPE* pSampleMt = nullptr;
-    if (SUCCEEDED(pSample->GetMediaType(&pSampleMt)) && pSampleMt) {
+    if (pSampleMt) {
         pixelType = samplePixelType(pSampleMt);
         videoInfoSize(pSampleMt, width, height);
         deleteMediaType(pSampleMt);
+        pSampleMt = nullptr;
     }
     if (width <= 0 || height <= 0) {
         width = m_cachedWidth;
@@ -586,6 +690,14 @@ bool DirectShowLayer::buildAndRunGraph(const std::string& pathUtf8) {
     // COM must be initialized on this thread before any DirectShow call.
     CoInitializeEx(nullptr, COINIT_MULTITHREADED); // E_FAIL/RPC_E_CHANGED_MODE are fine
 
+    // Fresh build - reset per-graph audio state.
+    m_audioPathBuilt = false;
+    m_audioPathUnavailable = false;
+    m_unsupportedAudioLogged.store(false);
+    m_cachedAudioRate = 0;
+    m_cachedAudioChannels = 0;
+    m_cachedAudioFormatSize = 0;
+
     const std::wstring path = toWideString(pathUtf8);
     if (path.empty())
         return false;
@@ -606,7 +718,7 @@ bool DirectShowLayer::buildAndRunGraph(const std::string& pathUtf8) {
     const bool isCapture = !m_captureVideoDevice.empty();
     if (isCapture) {
         // Live capture: create the filter for the device chosen in the UI.
-        m_fileSourceFilter = createCaptureFilter(toWideString(m_captureVideoDevice));
+        m_fileSourceFilter = createCaptureFilter(kCatVideoInput, toWideString(m_captureVideoDevice));
         if (!m_fileSourceFilter) {
             sgct::Log::Error(std::format("DirectShowLayer: could not find video capture device '{}'\n",
                                          m_captureVideoDevice));
@@ -734,6 +846,12 @@ bool DirectShowLayer::buildAndRunGraph(const std::string& pathUtf8) {
         return false;
     }
 
+    // Audio path (non-fatal): a second sample grabber fed from the source's audio pin or an
+    // explicit capture device. Any failure leaves the graph video-only.
+    if (m_isAudioEnabled) {
+        buildAudioPath();
+    }
+
     hr = m_mediaControl->Run();
     if (FAILED(hr)) {
         releaseGraph();
@@ -772,10 +890,9 @@ bool DirectShowLayer::buildAndRunGraph(const std::string& pathUtf8) {
     m_loadedFile = isCapture ? ("capture:" + m_captureVideoDevice) : pathUtf8;
     m_graphStart = std::chrono::steady_clock::now();
     sgct::Log::Info(std::format("DirectShowLayer: graph running for '{}'\n", m_loadedFile));
-    if (isCapture && !m_captureAudioDevice.empty()) {
-        // The audio device was chosen in the UI, but this layer renders video only.
-        sgct::Log::Info(std::format("DirectShowLayer: audio capture device '{}' selected - audio routing pending\n",
-                                    m_captureAudioDevice));
+    if (m_isAudioEnabled && !m_audioPathBuilt) {
+        // Audio was requested but no usable audio pin/connection exists for this source.
+        sgct::Log::Info("DirectShowLayer: no audio path available - playing video-only\n");
     }
     return true;
 }
@@ -790,14 +907,20 @@ void DirectShowLayer::ensureGraph() {
 
     std::lock_guard<std::mutex> lock(m_graphMutex);
 
-    // Already rendering this source - only check for a stall while not ready.
+    // Already rendering this source - only check for a stall while not ready. Rebuild once
+    // when the audio path presence no longer matches the enabled state (audio toggled at
+    // runtime). m_audioPathUnavailable stops us from retrying sources without an audio pin.
     if (m_graphBuilder && m_loadedFile == sourceKey) {
-        if (!ready() && std::chrono::steady_clock::now() - m_graphStart > kStallTimeout) {
-            sgct::Log::Error(std::format("DirectShowLayer: no frame received for '{}', giving up\n", sourceKey));
-            releaseGraph();
-            m_buildFailed = true;
+        const bool audioMismatch = (m_isAudioEnabled && !m_audioPathBuilt && !m_audioPathUnavailable)
+                                || (!m_isAudioEnabled && m_audioPathBuilt);
+        if (!audioMismatch) {
+            if (!ready() && std::chrono::steady_clock::now() - m_graphStart > kStallTimeout) {
+                sgct::Log::Error(std::format("DirectShowLayer: no frame received for '{}', giving up\n", sourceKey));
+                releaseGraph();
+                m_buildFailed = true;
+            }
+            return;
         }
-        return;
     }
 
     // A previous build for this exact source failed or stalled - don't spin on it.
@@ -832,6 +955,14 @@ void DirectShowLayer::releaseGraph() {
             pGrabber->Release();
         }
     }
+    if (m_audioGrabberFilter) {
+        ISampleGrabber* pGrabber = nullptr;
+        if (SUCCEEDED(m_audioGrabberFilter->QueryInterface(IID_ISampleGrabber, reinterpret_cast<void**>(&pGrabber)))
+            && pGrabber) {
+            pGrabber->SetCallback(nullptr, 0);
+            pGrabber->Release();
+        }
+    }
 
     if (m_mediaControl)
         m_mediaControl->Stop();
@@ -841,6 +972,10 @@ void DirectShowLayer::releaseGraph() {
             m_graphBuilder->RemoveFilter(m_fileSourceFilter);
         if (m_sampleGrabberFilter)
             m_graphBuilder->RemoveFilter(m_sampleGrabberFilter);
+        if (m_audioGrabberFilter)
+            m_graphBuilder->RemoveFilter(m_audioGrabberFilter);
+        if (m_audioSourceFilter)
+            m_graphBuilder->RemoveFilter(m_audioSourceFilter);
     }
 
     if (m_fileSourceFilter) {
@@ -850,6 +985,14 @@ void DirectShowLayer::releaseGraph() {
     if (m_sampleGrabberFilter) {
         m_sampleGrabberFilter->Release();
         m_sampleGrabberFilter = nullptr;
+    }
+    if (m_audioGrabberFilter) {
+        m_audioGrabberFilter->Release();
+        m_audioGrabberFilter = nullptr;
+    }
+    if (m_audioSourceFilter) {
+        m_audioSourceFilter->Release();
+        m_audioSourceFilter = nullptr;
     }
     if (m_mediaControl) {
         m_mediaControl->Release();
@@ -861,6 +1004,520 @@ void DirectShowLayer::releaseGraph() {
     }
 
     m_loadedFile.clear();
+    m_audioPathBuilt = false;
+    m_audioPathUnavailable = false;
+}
+
+// ---------------------------------------------------------------------------
+// Audio path + PortAudio output (mirrors NdiLayer/OmtLayer)
+// ---------------------------------------------------------------------------
+
+bool DirectShowLayer::AudioRing::setFormat(int ch, int sampleRate) {
+    std::lock_guard<std::mutex> lock(mutex);
+    if (ch <= 0 || sampleRate <= 0)
+        return false;
+    const size_t newMaxFrames = static_cast<size_t>(sampleRate) * kAudioRingSeconds; // bounded jitter buffer
+    if (!data.empty() && channels == ch && maxFrames == newMaxFrames)
+        return true; // same layout - keep buffered audio
+    data.assign(newMaxFrames * static_cast<size_t>(ch), 0.0f);
+    channels = ch;
+    head = tail = frames = 0;
+    maxFrames = newMaxFrames;
+    return true;
+}
+
+void DirectShowLayer::AudioRing::push(const float* interleaved, size_t nFrames) {
+    std::lock_guard<std::mutex> lock(mutex);
+    if (!interleaved || nFrames == 0 || maxFrames == 0 || channels <= 0)
+        return;
+    const size_t ch = static_cast<size_t>(channels);
+
+    // Never buffer more than the capacity: drop oldest (existing first, then incoming).
+    if (nFrames >= maxFrames) {
+        interleaved += (nFrames - maxFrames) * ch; // keep only the newest frames of this chunk
+        nFrames = maxFrames;
+        tail = head;                               // discard everything already buffered
+        frames = 0;
+    } else if (frames + nFrames > maxFrames) {
+        const size_t drop = frames + nFrames - maxFrames;
+        tail = (tail + drop) % maxFrames;
+        frames -= drop;
+    }
+
+    for (size_t f = 0; f < nFrames; ++f) {
+        std::copy_n(interleaved + f * ch, ch, data.data() + head * ch);
+        head = (head + 1) % maxFrames;
+    }
+    frames += nFrames;
+}
+
+size_t DirectShowLayer::AudioRing::pop(float* out, int outChannels, size_t maxNFrames, float volume) {
+    std::lock_guard<std::mutex> lock(mutex);
+    if (!out || outChannels <= 0 || frames == 0 || maxFrames == 0 || channels <= 0)
+        return 0;
+    const size_t n = (frames < maxNFrames) ? frames : maxNFrames;
+    const size_t inCh = static_cast<size_t>(channels);
+    for (size_t f = 0; f < n; ++f) {
+        const float* src = data.data() + tail * inCh;
+        float* dst = out + f * static_cast<size_t>(outChannels);
+        for (int oc = 0; oc < outChannels; ++oc) {
+            // Map output channel onto an input channel (simple wrap for down/upmix - mirrors OmtLayer).
+            const int ic = (oc < channels) ? oc : (oc % channels);
+            dst[oc] = src[ic] * volume;
+        }
+        tail = (tail + 1) % maxFrames;
+    }
+    frames -= n;
+    return n;
+}
+
+void DirectShowLayer::AudioRing::clear() {
+    std::lock_guard<std::mutex> lock(mutex);
+    head = tail = frames = 0;
+}
+
+bool DirectShowLayer::buildAudioPath() {
+    // Non-fatal by contract: any failure just leaves the graph video-only.
+    m_audioPathBuilt = false;
+    m_audioPathUnavailable = false;
+
+    IPin* pOutPin = nullptr; // pin feeding the audio grabber (added reference)
+
+    if (!m_captureAudioDevice.empty()) {
+        // Explicit microphone chosen in the UI: add an audio capture filter.
+        IBaseFilter* pAudioCapture = createCaptureFilter(kCatAudioInput, toWideString(m_captureAudioDevice));
+        if (!pAudioCapture) {
+            sgct::Log::Error(std::format("DirectShowLayer: could not find audio capture device '{}'\n", m_captureAudioDevice));
+        } else if (FAILED(m_graphBuilder->AddFilter(pAudioCapture, L"Audio Capture"))) {
+            pAudioCapture->Release();
+        } else {
+            m_audioSourceFilter = pAudioCapture; // keep the reference for releaseGraph()
+            pOutPin = findPin(m_audioSourceFilter, PINDIR_OUTPUT);
+        }
+    }
+
+    if (!pOutPin) {
+        // The source's own audio pin (file playback or a capture filter with a built-in mic).
+        ICaptureGraphBuilder2* pCaptureBuilder = nullptr;
+        if (SUCCEEDED(CoCreateInstance(CLSID_CaptureGraphBuilder2, nullptr, CLSCTX_INPROC_SERVER,
+                                       IID_ICaptureGraphBuilder2, reinterpret_cast<void**>(&pCaptureBuilder)))
+            && pCaptureBuilder) {
+            if (SUCCEEDED(pCaptureBuilder->SetFiltergraph(m_graphBuilder))) {
+                pCaptureBuilder->FindPin(m_fileSourceFilter, PINDIR_OUTPUT, &kPinCategoryAudio,
+                                         &MEDIATYPE_Audio, TRUE, 0, &pOutPin);
+            }
+            pCaptureBuilder->Release();
+        }
+
+        if (!pOutPin) {
+            // Last resort: any output pin whose media type is audio.
+            IEnumPins* pEnum = nullptr;
+            if (SUCCEEDED(m_fileSourceFilter->EnumPins(&pEnum)) && pEnum) {
+                while (true) {
+                    IPin* pPin = nullptr;
+                    ULONG fetched = 0;
+                    if (FAILED(pEnum->Next(1, &pPin, &fetched)) || fetched != 1 || !pPin)
+                        break;
+                    PIN_DIRECTION pinDir = PINDIR_INPUT;
+                    bool isAudioOut = false;
+                    if (SUCCEEDED(pPin->QueryDirection(&pinDir)) && pinDir == PINDIR_OUTPUT) {
+                        // Enumerate the pin's supported media types and look for audio.
+                        IEnumMediaTypes* pMtEnum = nullptr;
+                        if (SUCCEEDED(pPin->EnumMediaTypes(&pMtEnum)) && pMtEnum) {
+                            while (true) {
+                                AM_MEDIA_TYPE* pMt = nullptr;
+                                ULONG fetchedMt = 0;
+                                if (FAILED(pMtEnum->Next(1, &pMt, &fetchedMt)) || fetchedMt != 1 || !pMt)
+                                    break;
+                                const bool audioType = IsEqualGUID(pMt->majortype, MEDIATYPE_Audio);
+                                deleteMediaType(pMt);
+                                if (audioType) {
+                                    isAudioOut = true;
+                                    break;
+                                }
+                            }
+                            pMtEnum->Release();
+                        }
+                    }
+                    if (!isAudioOut)
+                        pPin->Release();
+                    else
+                        pOutPin = pPin; // keep the reference from Next()
+                    if (pOutPin)
+                        break;
+                }
+                pEnum->Release();
+            }
+        }
+
+        if (!pOutPin) {
+            m_audioPathUnavailable = true;
+            sgct::Log::Info("DirectShowLayer: source has no usable audio pin - playing video-only\n");
+            return false;
+        }
+    }
+
+    // Create the audio sample grabber (shares this callback object with the video one).
+    IBaseFilter* pGrabberFilter = nullptr;
+    if (FAILED(CoCreateInstance(CLSID_SampleGrabber, nullptr, CLSCTX_INPROC_SERVER,
+                                IID_IBaseFilter, reinterpret_cast<void**>(&pGrabberFilter))) || !pGrabberFilter) {
+        pOutPin->Release();
+        return false;
+    }
+
+    bool grabberAdded = false;
+    bool ok = false;
+    if (SUCCEEDED(m_graphBuilder->AddFilter(pGrabberFilter, L"Audio Sample Grabber"))) {
+        grabberAdded = true;
+        ISampleGrabber* pGrabber = nullptr;
+        if (SUCCEEDED(pGrabberFilter->QueryInterface(IID_ISampleGrabber, reinterpret_cast<void**>(&pGrabber))) && pGrabber) {
+            // Mode 0: IMediaSample pointers so the audio format can be read per sample.
+            ok = SUCCEEDED(pGrabber->SetCallback(this, 0));
+            pGrabber->Release();
+        }
+
+        if (ok) {
+            IPin* pInPin = findPin(pGrabberFilter, PINDIR_INPUT);
+            ICaptureGraphBuilder2* pCaptureBuilder = nullptr;
+            bool connected = false;
+            if (pInPin && SUCCEEDED(CoCreateInstance(CLSID_CaptureGraphBuilder2, nullptr, CLSCTX_INPROC_SERVER,
+                                                     IID_ICaptureGraphBuilder2, reinterpret_cast<void**>(&pCaptureBuilder)))
+                && pCaptureBuilder) {
+                if (SUCCEEDED(pCaptureBuilder->SetFiltergraph(m_graphBuilder))) {
+                    // RenderStream inserts any needed decoders/converters; fall back to a
+                    // direct pin connection when it is unavailable or fails.
+                    connected = SUCCEEDED(pCaptureBuilder->RenderStream(&kPinCategoryAudio, &MEDIATYPE_Audio,
+                                                                        pOutPin, nullptr, pGrabberFilter));
+                }
+            }
+            if (!connected && pInPin) {
+                connected = SUCCEEDED(m_graphBuilder->Connect(pOutPin, pInPin));
+            }
+            if (pCaptureBuilder)
+                pCaptureBuilder->Release();
+            if (pInPin)
+                pInPin->Release();
+
+            ok = connected;
+        }
+    }
+
+    pOutPin->Release();
+
+    if (!ok) {
+        // Roll back the partially built audio path - the graph stays video-only.
+        sgct::Log::Error("DirectShowLayer: could not connect the audio sample grabber - playing video-only\n");
+        if (grabberAdded)
+            m_graphBuilder->RemoveFilter(pGrabberFilter);
+        if (m_audioSourceFilter)
+            m_graphBuilder->RemoveFilter(m_audioSourceFilter);
+        pGrabberFilter->Release();
+        if (m_audioSourceFilter) {
+            m_audioSourceFilter->Release();
+            m_audioSourceFilter = nullptr;
+        }
+        return false;
+    }
+
+    m_audioGrabberFilter = pGrabberFilter; // keep the reference for releaseGraph()
+    m_audioPathBuilt = true;
+    sgct::Log::Info("DirectShowLayer: audio path built\n");
+    return true;
+}
+
+void DirectShowLayer::handleAudioSample(const BYTE* pData, DWORD length, const AM_MEDIA_TYPE* pMt) {
+    // Audio is only consumed while enabled and PortAudio is ready (set by update()).
+    if (!m_receiveAudio.load())
+        return;
+
+    // Resolve the sample's format - prefer the sample's own media type.
+    int rate = 0;
+    int channels = 0;
+    const WAVEFORMATEX* wfx = nullptr;
+    DWORD wfxSize = 0;
+    if (pMt && pMt->pbFormat && pMt->cbFormat >= sizeof(WAVEFORMATEX)) {
+        wfx = reinterpret_cast<const WAVEFORMATEX*>(pMt->pbFormat);
+        wfxSize = pMt->cbFormat;
+        rate = static_cast<int>(wfx->nSamplesPerSec);
+        channels = static_cast<int>(wfx->nChannels);
+    }
+    if (rate <= 0 || channels <= 0) {
+        // Sample carried no usable media type - fall back to the cached pin format.
+        if (m_cachedAudioFormatSize < sizeof(WAVEFORMATEX))
+            return;
+        wfx = reinterpret_cast<const WAVEFORMATEX*>(m_cachedAudioFormat.data());
+        wfxSize = m_cachedAudioFormatSize;
+        rate = m_cachedAudioRate;
+        channels = m_cachedAudioChannels;
+    }
+
+    // Cache the format for samples that carry no media type.
+    if (wfx != reinterpret_cast<const WAVEFORMATEX*>(m_cachedAudioFormat.data()) && wfxSize <= m_cachedAudioFormat.size()) {
+        std::copy_n(reinterpret_cast<const BYTE*>(wfx), static_cast<int>(wfxSize), m_cachedAudioFormat.begin());
+        m_cachedAudioFormatSize = wfxSize;
+        m_cachedAudioRate = rate;
+        m_cachedAudioChannels = channels;
+    }
+
+    // Convert to interleaved float32 (PCM8/16, IEEE float32, extensible PCM). Unsupported
+    // codecs are skipped - the layer keeps playing video-only.
+    std::vector<float> converted;
+    if (!convertAudioToFloat32(pData, length, wfx, wfxSize, converted)) {
+        if (m_unsupportedAudioLogged.exchange(true) == false) {
+            sgct::Log::Warning(std::format("DirectShowLayer: unsupported audio format (tag 0x{:04X}, {} bits) - continuing video-only\n",
+                                           wfx->wFormatTag, wfx->wBitsPerSample));
+        }
+        return;
+    }
+
+    {
+        std::lock_guard<std::mutex> lock(m_audioStreamMutex);
+        if (m_portAudioInitialized.load()) {
+            const bool formatChanged = (m_paSampleRate != rate) || (m_audioSourceChannels != channels);
+            if (!m_audioStreamOpen.load()) {
+                openAudioStreamLocked(rate, channels); // lazy open once the first usable sample arrives
+            } else if (formatChanged) {
+                closeAudioStreamLocked();
+                openAudioStreamLocked(rate, channels);
+            }
+        }
+        if (m_audioStreamOpen.load() && m_audioStreamStarted.load()) {
+            const size_t nFrames = converted.size() / static_cast<size_t>(channels);
+            if (nFrames > 0) {
+                m_audioRing.setFormat(channels, rate);
+                m_audioRing.push(converted.data(), nFrames);
+            }
+        }
+    }
+}
+
+void DirectShowLayer::ensurePortAudioInitialized() {
+    if (m_portAudioInitialized.load())
+        return;
+    const PaError err = Pa_Initialize();
+    if (err != paNoError) {
+        sgct::Log::Error(std::format("DirectShowLayer: PortAudio initialization failed ({})\n", Pa_GetErrorText(err)));
+        return;
+    }
+    m_portAudioInitialized.store(true);
+    // Pick the output device now so updateAudioOutput() can detect changes against it.
+    m_audioOutputParameters.device = GetChosenApplicationAudioDevice();
+}
+
+bool DirectShowLayer::openAudioStreamLocked(int sampleRate, int channels) {
+    // Retry backoff: don't hammer a failing device on every audio sample.
+    const auto now = std::chrono::steady_clock::now();
+    if (m_audioOpenLastFailed != std::chrono::steady_clock::time_point{} && now - m_audioOpenLastFailed < kAudioRetryBackoff)
+        return false;
+
+    // Determine output channel count (mirrors OmtLayer).
+    int outChannels = channels;
+    if (AudioSettings::portAudioMixInputToOutput()) {
+        const PaDeviceInfo* devInfo = Pa_GetDeviceInfo(m_audioOutputParameters.device);
+        if (devInfo)
+            outChannels = std::min(AudioSettings::portAudioOutputChannels(), static_cast<int>(devInfo->maxOutputChannels));
+    }
+    m_audioOutputChannels.store(outChannels);
+
+    m_audioOutputParameters.channelCount = outChannels;
+    m_audioOutputParameters.sampleFormat = paFloat32;
+    const PaDeviceInfo* devInfo = Pa_GetDeviceInfo(m_audioOutputParameters.device);
+    if (devInfo)
+        m_audioOutputParameters.suggestedLatency = devInfo->defaultLowOutputLatency;
+    else
+        m_audioOutputParameters.suggestedLatency = 0.05;
+    m_audioOutputParameters.hostApiSpecificStreamInfo = nullptr;
+
+    m_audioError = Pa_OpenStream(&m_audioStream, nullptr, &m_audioOutputParameters, sampleRate,
+                                 paFramesPerBufferUnspecified, paClipOff, audioOutputCallback, this);
+    if (m_audioError != paNoError) {
+        sgct::Log::Error(std::format("DirectShowLayer: failed to open PortAudio stream ({})\n", Pa_GetErrorText(m_audioError)));
+        m_audioOpenLastFailed = now;
+        return false;
+    }
+
+    m_paSampleRate = sampleRate;
+    m_audioSourceChannels = channels;
+    m_audioStreamOpen.store(true);
+    start(); // mirrors NdiLayer/OmtLayer: open + start together
+    sgct::Log::Info(std::format("DirectShowLayer: audio output opened ({} Hz, {} -> {} ch)\n", sampleRate, channels, outChannels));
+    return m_audioStreamStarted.load();
+}
+
+void DirectShowLayer::closeAudioStreamLocked() {
+    if (m_audioStream) {
+        if (m_audioStreamStarted.load()) {
+            const PaError err = Pa_StopStream(m_audioStream);
+            if (err == paNoError || err == paStreamIsStopped)
+                m_audioStreamStarted.store(false);
+            else
+                Pa_AbortStream(m_audioStream); // mirrors NdiLayer::cleanup()
+        }
+        if (m_audioStreamOpen.load()) {
+            const PaError err = Pa_CloseStream(m_audioStream);
+            if (err == paNoError)
+                m_audioStreamOpen.store(false);
+        }
+    }
+    m_audioStream = nullptr;
+    m_paSampleRate = 0;
+}
+
+void DirectShowLayer::closeAudioStream() {
+    std::lock_guard<std::mutex> lock(m_audioStreamMutex);
+    closeAudioStreamLocked();
+}
+
+PaDeviceIndex DirectShowLayer::GetChosenApplicationAudioDevice() {
+    PaDeviceIndex choseDeviceIdx = Pa_GetDefaultOutputDevice(); /* default output device */
+    if (choseDeviceIdx == paNoDevice) {
+        sgct::Log::Error("DirectShowLayer Error: No default audio output device.\n");
+    }
+    if (AudioSettings::portAudioCustomOutput()) {
+        if (!AudioSettings::portAudioOutputDevice().isEmpty()
+            && !AudioSettings::portAudioOutputApi().isEmpty()) {
+            int numDevices = Pa_GetDeviceCount();
+            if (numDevices < 0) {
+                return choseDeviceIdx;
+            }
+            const PaDeviceInfo* deviceInfo;
+            const PaHostApiInfo* apiInfo;
+            sgct::Log::Info(std::format("DirectShowLayer: Trying to find audio device named \"{}\" using the \"{}\" api.",
+                                        AudioSettings::portAudioOutputDevice().toStdString(),
+                                        AudioSettings::portAudioOutputApi().toStdString()));
+            bool foundDevice = false;
+            for (int i = 0; i < numDevices; ++i) {
+                deviceInfo = Pa_GetDeviceInfo(i);
+                apiInfo = Pa_GetHostApiInfo(deviceInfo->hostApi);
+                if (deviceInfo->maxOutputChannels > 1) {
+                    const QString deviceName = QString::fromUtf8(deviceInfo->name);
+                    const QString apiName = QString::fromUtf8(apiInfo->name);
+                    if (deviceName == AudioSettings::portAudioOutputDevice()
+                        && apiName == AudioSettings::portAudioOutputApi()) {
+                        choseDeviceIdx = i;
+                        foundDevice = true;
+                        sgct::Log::Info("DirectShowLayer: Found desired audio device.\n");
+                    }
+                }
+            }
+            if (!foundDevice) {
+                sgct::Log::Info("DirectShowLayer: Did not find desired audio device. Sticking with default device.\n");
+            }
+        }
+    }
+    return choseDeviceIdx;
+}
+
+int DirectShowLayer::audioOutputCallback(const void* /*inputBuffer*/, void* outputBuffer,
+                                         unsigned long framesPerBuffer, const PaStreamCallbackTimeInfo*,
+                                         PaStreamCallbackFlags, void* userData) {
+    auto* layer = static_cast<DirectShowLayer*>(userData);
+    float* out = static_cast<float*>(outputBuffer);
+    if (!layer || !out)
+        return paContinue;
+
+    // Drain the ring straight into the output buffer (no allocation on this thread).
+    const int outChannels = layer->m_audioOutputChannels.load();
+    const size_t got = layer->m_audioRing.pop(out, outChannels, static_cast<size_t>(framesPerBuffer),
+                                              layer->m_audioVolume.load());
+    if (got < static_cast<size_t>(framesPerBuffer)) {
+        // Underrun: silence the rest of the buffer.
+        std::fill_n(out + got * outChannels, (static_cast<size_t>(framesPerBuffer) - got) * outChannels, 0.0f);
+    }
+    return paContinue;
+}
+
+void DirectShowLayer::start() {
+    if (!m_audioStreamStarted.load() && isAudioEnabled() && m_audioStream && m_audioStreamOpen.load()) {
+        setVolume(m_volume);
+        m_audioError = Pa_StartStream(m_audioStream);
+        if (m_audioError == paNoError) {
+            m_audioStreamStarted.store(true);
+        }
+    }
+}
+
+void DirectShowLayer::stop() {
+    if (isAudioEnabled() && m_audioStream && m_audioStreamOpen.load() && m_audioStreamStarted.load()) {
+        m_audioError = Pa_StopStream(m_audioStream);
+        if (m_audioError == paNoError) {
+            m_audioStreamStarted.store(false);
+        }
+    }
+}
+
+bool DirectShowLayer::hasAudio() const {
+    return (isAudioEnabled() || (isMaster() && AudioSettings::enableAudioOnNodes()));
+}
+
+bool DirectShowLayer::isAudioEnabled() const {
+    return m_isAudioEnabled;
+}
+
+void DirectShowLayer::enableAudio(bool enabled) {
+    m_isAudioEnabled = enabled;
+}
+
+void DirectShowLayer::updateAudioOutput() {
+    if (isMaster()) {
+        if (!m_isAudioEnabled && AudioSettings::enableAudioOnMaster()) {
+            enableAudio(true);
+        } else if (m_isAudioEnabled && !AudioSettings::enableAudioOnMaster()) {
+            enableAudio(false);
+        }
+    }
+    if (!isAudioEnabled() || !m_portAudioInitialized.load())
+        return;
+
+    // See if device has changed.
+    const PaDeviceIndex newDeviceIdx = GetChosenApplicationAudioDevice();
+
+    std::lock_guard<std::mutex> lock(m_audioStreamMutex); // the streaming thread may open/close concurrently
+    const PaDeviceIndex currentDeviceIdx = m_audioOutputParameters.device;
+
+    int channelCount = (m_audioSourceChannels > 0) ? m_audioSourceChannels : 2;
+    if (AudioSettings::portAudioMixInputToOutput()) {
+        const PaDeviceInfo* devInfo = Pa_GetDeviceInfo(newDeviceIdx);
+        if (devInfo)
+            channelCount = std::min(AudioSettings::portAudioOutputChannels(), static_cast<int>(devInfo->maxOutputChannels));
+    }
+
+    bool restartStream = false;
+    if (newDeviceIdx != currentDeviceIdx) {
+        restartStream = true;
+    } else if (m_audioStreamOpen.load() && m_audioOutputParameters.channelCount != channelCount) {
+        restartStream = true;
+    }
+    if (!restartStream)
+        return;
+
+    // Close the stream to restart it with the new device/channel count.
+    const bool wasStarted = m_audioStreamStarted.load();
+    const int savedRate = m_paSampleRate;
+    const int savedChannels = m_audioSourceChannels;
+    closeAudioStreamLocked();
+
+    // If the stream is closed, let's switch device.
+    if (!m_audioStreamOpen.load()) {
+        m_audioOutputParameters.device = newDeviceIdx;
+
+        // Let's start again if started (same source format as before).
+        if (wasStarted && savedRate > 0) {
+            openAudioStreamLocked(savedRate, savedChannels);
+        }
+    }
+}
+
+void DirectShowLayer::setVolume(int v, bool storeLevel) {
+    if (storeLevel) {
+        m_volume = v;
+    }
+
+    // The PortAudio callback reads the volume atomically - no stream lock needed.
+    m_audioVolume.store(static_cast<float>(v) / 100.0f);
+
+    if (isMaster() && AudioSettings::enableAudioOnNodes())
+        setNeedSync();
 }
 
 #endif // _WIN32

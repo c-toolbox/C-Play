@@ -9,6 +9,7 @@
 #define DIRECTSHOWLAYER_H
 
 #include <layers/baselayer.h>
+#include <array>
 #include <atomic>
 #include <chrono>
 #include <cstdint>
@@ -26,6 +27,8 @@
 #  endif
 #  include <windows.h>
 #  include <dshow.h>
+#  include <mmreg.h> // WAVEFORMATEX / WAVE_FORMAT_* / WAVEFORMATEXTENSIBLE (not pulled in by dshow.h)
+#  include <portaudio.h>
 
 // The Sample Grabber interfaces are not declared by this machine's Windows SDK.
 // These match the classic DirectShow layout (samplegrabber.h); the symbols
@@ -54,7 +57,10 @@ struct ISampleGrabber : public IUnknown {
 // Sample Grabber, both part of the Windows SDK quartz.dll). The grabbed frame
 // is converted to RGBA8 and handed to the render thread which uploads it as an
 // OpenGL texture. Still images show their single frame; video files keep
-// playing through the same pipeline.
+// playing through the same pipeline. When audio is enabled, a second sample
+// grabber captures the source's audio (or an audio capture device), which is
+// converted to interleaved float32 and played out through PortAudio - mirroring
+// NdiLayer/OmtLayer.
 #ifdef _WIN32
 // Video pixel formats understood by DirectShowLayer::SampleCallback().
 enum class PixelFormat : int { Unknown = 0, RGB24, RGB32, YUY2, NV12, I420, YV12, UYVY };
@@ -89,12 +95,21 @@ public:
     static void processPendingGLCleanup();
 
     // Capture devices chosen in the UI (friendly names). An empty video device means
-    // "no capture" - the layer plays back filepath() as a media file instead. The audio
-    // device is stored for future use; this layer renders video only. Must be called
-    // before initialize().
+    // "no capture" - the layer plays back filepath() as a media file instead. A non-empty
+    // audio device routes that microphone to the PortAudio output; otherwise the source's
+    // own audio track is used when available. Must be called before initialize().
     void setCaptureDevices(const std::string& videoDevice, const std::string& audioDevice);
 
 #ifdef _WIN32
+    // Audio output via PortAudio - mirrors NdiLayer/OmtLayer.
+    void start() override;
+    void stop() override;
+    bool hasAudio() const override;
+    bool isAudioEnabled() const override;
+    void enableAudio(bool enabled = true) override;
+    void updateAudioOutput() override;
+    void setVolume(int v, bool storeLevel = true) override;
+
     // IUnknown. The layer holds an immortal base reference, so Release() can
     // never drop the count to zero - destruction is owned by BaseLayer's
     // shared_ptr machinery (see cleanup()).
@@ -112,6 +127,23 @@ private:
     bool buildAndRunGraph(const std::string& pathUtf8); // render thread only
     void ensureGraph();                                  // render thread only
     void releaseGraph();                                 // any thread (MTA COM)
+
+    // Audio path / PortAudio output (mirrors NdiLayer/OmtLayer).
+    bool buildAudioPath();                                   // render thread only, during graph build; non-fatal on failure
+    void handleAudioSample(const BYTE* pData, DWORD length, const AM_MEDIA_TYPE* pMt);  // DirectShow streaming thread
+    void ensurePortAudioInitialized();                       // render thread (idempotent)
+    bool openAudioStreamLocked(int sampleRate, int channels); // caller holds m_audioStreamMutex
+    void closeAudioStreamLocked();                            // caller holds m_audioStreamMutex
+    void closeAudioStream();                                  // any thread
+    PaDeviceIndex GetChosenApplicationAudioDevice();          // any thread
+
+    // PortAudio output callback - drains m_audioRing into the output buffer. Runs on a
+    // (possibly real-time) PortAudio thread: no allocation, no logging, minimal work.
+    static int audioOutputCallback(const void* /*inputBuffer*/, void* outputBuffer,
+                                   unsigned long framesPerBuffer,
+                                   const PaStreamCallbackTimeInfo* /*streamTime*/,
+                                   PaStreamCallbackFlags /*statusFlags*/,
+                                   void* userData);
 #endif
     bool consumeNewFrame(std::vector<unsigned char>& pixels, int& width, int& height);
     void uploadFrame(const std::vector<unsigned char>& pixels, int width, int height);
@@ -132,6 +164,56 @@ private:
     PixelFormat m_cachedPixelType = PixelFormat::Unknown;
 
     std::atomic<ULONG> m_comRefCount{1}; // immortal base reference (see QueryInterface)
+
+    // Audio path: a second sample grabber fed from the source's audio pin (file playback, or a
+    // capture filter with a built-in mic) or from an audio capture filter. Grabbed samples are
+    // converted to interleaved float32, buffered in m_audioRing and played out through PortAudio.
+    IBaseFilter* m_audioGrabberFilter = nullptr;
+    IBaseFilter* m_audioSourceFilter = nullptr;  // audio capture filter (when a device is chosen)
+    bool m_audioPathBuilt = false;               // current graph contains an audio path - render thread
+    bool m_audioPathUnavailable = false;         // last build found no usable audio pin - render thread
+
+    // Cached format of the connected audio pin, used when a sample carries no media type.
+    int m_cachedAudioRate = 0;
+    int m_cachedAudioChannels = 0;
+    std::array<BYTE, sizeof(WAVEFORMATEXTENSIBLE)> m_cachedAudioFormat{};
+    DWORD m_cachedAudioFormatSize = 0; // valid bytes in m_cachedAudioFormat (>= sizeof(WAVEFORMATEX))
+
+    // Bounded interleaved-float32 handoff between the DirectShow streaming thread (producer) and
+    // the PortAudio callback (consumer). When full, oldest frames are dropped so a stalled
+    // consumer can never grow memory or latency without bound.
+    struct AudioRing {
+        std::mutex mutex;
+        std::vector<float> data;   // capacity = maxFrames * channels floats
+        int channels = 0;          // channel count of the stored (source) layout
+        size_t head = 0;           // next frame to write, in [0, maxFrames)
+        size_t tail = 0;           // next frame to read, in [0, maxFrames)
+        size_t frames = 0;         // frames currently available
+        size_t maxFrames = 0;      // capacity in frames
+
+        bool setFormat(int ch, int sampleRate); // (re)allocate for a new layout/rate; drops buffered audio
+        void push(const float* interleaved, size_t nFrames);
+        size_t pop(float* out, int outChannels, size_t maxNFrames, float volume);
+        void clear();
+    };
+    AudioRing m_audioRing;
+
+    // PortAudio output state (mirrors NdiLayer/OmtLayer).
+    std::mutex m_audioStreamMutex;               // guards open/close/restart of m_audioStream
+    PaStreamParameters m_audioOutputParameters{};
+    PaStream* m_audioStream = nullptr;
+    PaError m_audioError = paNoError;
+    bool m_isAudioEnabled = false;
+    std::atomic<bool> m_portAudioInitialized{false}; // render thread writes, streaming thread reads
+    std::atomic<bool> m_receiveAudio{false};         // audio enabled + PortAudio ready: samples are consumed
+    std::atomic<bool> m_audioStreamOpen{false};      // start()/stop() read these without the stream mutex
+    std::atomic<bool> m_audioStreamStarted{false};
+    int m_paSampleRate = 0;                      // sample rate of the open stream (0 = never opened)
+    int m_audioSourceChannels = 0;               // channel count of the grabbed audio (ring layout)
+    std::atomic<int> m_audioOutputChannels{2};   // read by the PortAudio callback without locking
+    std::atomic<float> m_audioVolume{1.0f};      // read by the PortAudio callback without locking
+    std::atomic<bool> m_unsupportedAudioLogged{false}; // log unsupported codecs once per graph (streaming thread sets, render resets)
+    std::chrono::steady_clock::time_point m_audioOpenLastFailed{};  // retry backoff for failed opens
 #endif
 
     std::shared_ptr<FrameHandoff> m_handoff;
