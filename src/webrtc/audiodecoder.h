@@ -44,21 +44,6 @@ public:
     /// Diagnostic: a high count means the upstream encoder is sending malformed Opus payloads.
     std::uint64_t trailingByteRetryCount() const { return m_trailingByteRetries; }
 
-    // Diagnostics for localizing "decode() succeeds but no PCM comes out": how many frames
-    // avcodec_receive_frame() has actually yielded, how many were dropped by the sample-format
-    // conversion, and the layout of the most recent frame (channels / samples / AVSampleFormat).
-    std::uint64_t framesReceivedCount() const { return m_framesReceived; }
-    std::uint64_t convertFailureCount() const { return m_convertFailures; }
-    void lastFrameInfo(int* channels, int* samples, int* format) const {
-        if (channels) *channels = m_lastChannels;
-        if (samples) *samples = m_lastSamples;
-        if (format) *format = m_lastFormat;
-    }
-    /// Channel count requested on the decoder context (diagnostic for the frame-layout fallback).
-    int contextChannelCount() const;
-    /// Effective sample rate handed to the output callback (diagnostic for the rate-fallback fix).
-    int lastSampleRate() const { return m_lastSampleRate; }
-
 private:
     // Feeds one packet to FFmpeg and delivers every resulting frame through the callback.
     bool decodePacket(const std::uint8_t* data, size_t size, QString* error);
@@ -69,14 +54,6 @@ private:
     AVCodecContext* m_context = nullptr;
     FrameCallback m_onFrame;
     std::uint64_t m_trailingByteRetries = 0;
-
-    // Diagnostics (main thread only): populated by drainFrames().
-    std::uint64_t m_framesReceived = 0;   // frames yielded by avcodec_receive_frame()
-    std::uint64_t m_convertFailures = 0;  // received frames dropped by convertToInterleavedFloat()
-    int m_lastChannels = -1;              // channel count of the most recent frame
-    int m_lastSampleRate = 0;             // effective sample rate handed to the output callback
-    int m_lastSamples = -1;               // sample count of the most recent frame
-    int m_lastFormat = -1;                // AVSampleFormat of the most recent frame
 };
 
 #endif // AUDIODECODER_H

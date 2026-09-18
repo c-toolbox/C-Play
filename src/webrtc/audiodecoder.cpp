@@ -141,10 +141,6 @@ AudioDecoder::~AudioDecoder() {
     close();
 }
 
-int AudioDecoder::contextChannelCount() const {
-    return contextChannels(m_context);
-}
-
 bool AudioDecoder::open(QString* error) {
     close();
 
@@ -229,7 +225,6 @@ bool AudioDecoder::drainFrames(QString* error) {
         }
 
         std::vector<float> pcm;
-        ++m_framesReceived;
         // Resolve the channel count. Some FFmpeg builds leave a decoded Opus frame's own layout
         // unset (reads back as 0), which would make conversion drop every frame; fall back to the
         // layout requested on the context, and finally to stereo - this class always decodes to
@@ -251,13 +246,8 @@ bool AudioDecoder::drainFrames(QString* error) {
         if (sampleRate <= 0) {
             sampleRate = 48000;
         }
-        m_lastChannels = frameChannels(*frame); // raw per-frame value (diagnostic: shows the bug)
-        m_lastSampleRate = sampleRate;          // effective rate handed to the output (diagnostic)
-        m_lastSamples = frame->nb_samples;
-        m_lastFormat = static_cast<int>(frame->format);
         if (!convertToInterleavedFloat(*frame, channels, pcm)) {
             // Unsupported sample format or malformed frame: skip it but keep going.
-            ++m_convertFailures;
             av_frame_unref(frame);
             continue;
         }

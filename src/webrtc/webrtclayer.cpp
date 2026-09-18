@@ -233,13 +233,6 @@ void WebRTCLayer::stop() {
     m_audioDecoder.close();
     m_audioDecodeDisabled = false;
 
-    // Reset per-session diagnostics so each connection starts from a clean slate.
-    m_audioFramesReceived = 0;
-    m_audioDecodeAttempts = 0;
-    m_audioPcmFrames = 0;
-    m_audioPeak = 0.f;
-    m_lastAudioDiagLog = std::chrono::steady_clock::time_point{};
-
     {
         std::lock_guard<std::mutex> lock(m_queueMutex);
         m_stopRequested = true;
@@ -673,36 +666,6 @@ void WebRTCLayer::setVolume(int v, bool storeLevel) {
 void WebRTCLayer::handleAudioFrame(const QByteArray &payload, quint32 rtpTimestamp) {
     Q_UNUSED(rtpTimestamp); // Opus decoding is self-clocking; PortAudio owns the output clock
 
-    ++m_audioFramesReceived; // every depacketized payload that reaches the layer
-
-    // Periodic diagnostic: shows exactly where the audio chain stalls. received=0 ->
-    // wiring/negotiation; received>0 but decoded=0 -> a guard is dropping frames (see
-    // shouldRun/decDisabled/enabled); decoded>0 but pcm=0 -> decoder not emitting;
-    // pcm>0 but streamOpen=0 -> PortAudio open failing; started=1 yet silent -> device/format.
-    const auto now = std::chrono::steady_clock::now();
-    if (std::chrono::duration_cast<std::chrono::seconds>(now - m_lastAudioDiagLog).count() >= 2) {
-        m_lastAudioDiagLog = now;
-        int lastCh = -1, lastNs = -1, lastFmt = -1;
-        m_audioDecoder.lastFrameInfo(&lastCh, &lastNs, &lastFmt);
-        sgct::Log::Info("WebRTCLayer audio diag: received=" + std::to_string(m_audioFramesReceived)
-                        + " decoded=" + std::to_string(m_audioDecodeAttempts)
-                        + " decFrames=" + std::to_string(m_audioDecoder.framesReceivedCount())
-                        + " convFail=" + std::to_string(m_audioDecoder.convertFailureCount())
-                        + " ch=" + std::to_string(lastCh)
-                        + " ctxCh=" + std::to_string(m_audioDecoder.contextChannelCount())
-                        + " sr=" + std::to_string(m_audioDecoder.lastSampleRate())
-                        + " ns=" + std::to_string(lastNs)
-                        + " fmt=" + std::to_string(lastFmt)
-                        + " pcm=" + std::to_string(m_audioPcmFrames)
-                        + " enabled=" + (isAudioEnabled() ? "1" : "0")
-                        + " shouldRun=" + (m_shouldRun.load(std::memory_order_relaxed) ? "1" : "0")
-                        + " decDisabled=" + (m_audioDecodeDisabled ? "1" : "0")
-                        + " decOpen=" + (m_audioDecoder.isOpen() ? "1" : "0")
-                        + " streamOpen=" + (m_audioStreamOpen ? "1" : "0")
-                        + " started=" + (m_audioStreamStarted ? "1" : "0")
-                        + " peak=" + std::to_string(m_audioPeak) + "\n");
-    }
-
     // Ignore frames queued after stop() - they must not (re)open the audio output.
     if (!m_shouldRun.load(std::memory_order_relaxed)) {
         return;
@@ -711,8 +674,6 @@ void WebRTCLayer::handleAudioFrame(const QByteArray &payload, quint32 rtpTimesta
     if (!isAudioEnabled() || payload.isEmpty() || m_audioDecodeDisabled) {
         return;
     }
-
-    ++m_audioDecodeAttempts; // passed every guard: about to feed the decoder
 
     if (!m_audioDecoder.isOpen()) {
         QString error;
@@ -734,14 +695,6 @@ void WebRTCLayer::handleAudioFrame(const QByteArray &payload, quint32 rtpTimesta
 void WebRTCLayer::pushDecodedPcm(const float *pcm, int sampleRate, int channels, int frames) {
     if (!isAudioEnabled() || !pcm || channels <= 0 || frames <= 0) {
         return;
-    }
-
-    m_audioPcmFrames += static_cast<std::uint64_t>(frames);
-    for (int i = 0; i < frames * channels; ++i) {
-        const float a = pcm[i] < 0.f ? -pcm[i] : pcm[i];
-        if (a > m_audioPeak) {
-            m_audioPeak = a;
-        }
     }
 
     // Open the output lazily on the first PCM frame (rate/channels are known now), or

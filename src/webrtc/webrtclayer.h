@@ -142,13 +142,6 @@ private:
 
     std::chrono::steady_clock::time_point m_lastAudioOpenErrorLog{}; // throttles repeated open-failure logs
 
-    // Audio-path diagnostics (main thread only) to pinpoint where the chain stalls.
-    std::uint64_t m_audioFramesReceived = 0; // depacketized payloads reaching handleAudioFrame()
-    std::uint64_t m_audioDecodeAttempts = 0; // frames that passed every guard and were fed to decode()
-    std::uint64_t m_audioPcmFrames = 0;      // PCM frames delivered to pushDecodedPcm()
-    float m_audioPeak = 0.f;                 // running peak amplitude of decoded PCM
-    std::chrono::steady_clock::time_point m_lastAudioDiagLog{};       // throttles the periodic summary
-
     std::mutex m_queueMutex;
     std::condition_variable m_queueCv;
     std::deque<WebRtcAnnexBUnit> m_queue; // bounded, drop oldest when full
