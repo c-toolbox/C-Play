@@ -1,0 +1,38 @@
+{
+    "directshows": [
+        {
+            "title": "HDMI Capture 1",
+            "videoDevice": "DELTA-hmi Video Source (card0 RX0)",
+            "audioDevice": "DELTA-hmi Audio Source (card0 RX0)",
+            "enabled": true
+        },
+        {
+            "title": "HDMI Capture 1 (No audio)",
+            "videoDevice": "DELTA-hmi Video Source (card0 RX0)",
+            "audioDevice": "",
+            "enabled": true
+        },
+        {
+            "title": "Logitech C925",
+            "videoDevice": "Logitech Webcam C925e",
+            "audioDevice": "Microphone (Logitech Webcam C925e)",
+            "enabled": true
+        },
+        {
+            "title": "Capture Card (per machine)",
+            "videoDevice": "",
+            "audioDevice": "",
+            "enabled": false,
+            "devices": {
+                "master": {
+                    "videoDevice": "DELTA-hmi Video Source (card0 RX0)",
+                    "audioDevice": ""
+                },
+                "node-A": {
+                    "videoDevice": "Datapath VisionSC-DP2 Video 01",
+                    "audioDevice": ""
+                }
+            }
+        }
+    ]
+}

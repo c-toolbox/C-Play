@@ -9,6 +9,8 @@
 #define BASELAYER_H
 
 #include <glm/glm.hpp>
+#include <atomic>
+#include <cstdint>
 #include <memory>
 #include <mutex>
 #include <string>
@@ -160,6 +162,20 @@ public:
     virtual double remaining();
 
     virtual bool hasAudio() const;
+    // True when the layer reports live audio levels from its decoded audio path,
+    // e.g. for a level meter in the LayerView (NDI, OMT, DirectShow and WebRTC do).
+    virtual bool hasAudioLevels() const { return false; }
+    // Current audio level in [0..1] for visualization purposes. The value decays
+    // smoothly between sample reports and falls to zero when no new samples arrive.
+    float audioLevel() const;
+    // Report the peak of a freshly decoded/mixed audio frame (clamped to [0..1]).
+    // Called from the layer's audio path, which may run on any thread. Callers should only
+    // invoke this while audioLevelsEnabled() is true so the per-sample scan can be skipped.
+    void reportAudioLevel(float peak);
+    // Enable or disable live audio level reporting. While disabled the layers skip their
+    // per-sample peak computation in the audio path and audioLevel() reports zero.
+    void setAudioLevelsEnabled(bool enabled);
+    bool audioLevelsEnabled() const;
     virtual int audioId();
     virtual void setAudioId(int id);
     virtual bool isAudioEnabled() const;
@@ -361,6 +377,11 @@ protected:
     std::string m_filepath;
     int m_volume;
     float m_volumeScaling;
+    // Live audio level state (see audioLevel()/reportAudioLevel()). The writer is always
+    // the layer's own single audio path, readers are lock-free.
+    std::atomic<float> m_audioPeak{0.f};
+    std::atomic<int64_t> m_audioPeakTimeMs{0}; // steady_clock ms of the last report (0 = never)
+    std::atomic<bool> m_audioLevelsEnabled{false}; // gate for the per-sample peak scan in the audio path
     int m_keepVisibilityForNumSlides;
     bool m_isLocked;
     bool m_isEnabled;

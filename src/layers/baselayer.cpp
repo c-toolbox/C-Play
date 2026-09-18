@@ -15,6 +15,8 @@
 #endif
 #include <sgct/opengl.h>
 #include <sgct/shareddata.h>
+#include <chrono>
+#include <cmath>
 #ifdef AUDIO_LAYER
 #include "audiosettings.h"
 #endif
@@ -375,6 +377,90 @@ double BaseLayer::remaining() {
 
 bool BaseLayer::hasAudio() const {
     return false;
+}
+
+namespace {
+// Time constant for the exponential decay of the reported audio level. A value around
+// 100 ms reads like a typical VU meter: fast enough to follow speech, slow enough that
+// individual frames do not flicker.
+constexpr int64_t kAudioLevelDecayMs = 100;
+// If no new samples have been reported for this long the level is considered stale and
+// falls back to zero (stream stopped, audio disabled, sender silent).
+constexpr int64_t kAudioLevelStaleMs = 250;
+
+int64_t steadyClockMs() {
+    return std::chrono::duration_cast<std::chrono::milliseconds>(std::chrono::steady_clock::now().time_since_epoch()).count();
+}
+} // namespace
+
+float BaseLayer::audioLevel() const {
+    if (!m_audioLevelsEnabled.load(std::memory_order_acquire)) {
+        return 0.f; // meter disabled -> no level computation at all
+    }
+
+    const int64_t lastReport = m_audioPeakTimeMs.load(std::memory_order_relaxed);
+    if (lastReport == 0) {
+        return 0.f;
+    }
+
+    const int64_t ageMs = steadyClockMs() - lastReport;
+    if (ageMs > kAudioLevelStaleMs) {
+        return 0.f; // no new samples for a while -> treat as silence
+    }
+
+    float level = m_audioPeak.load(std::memory_order_relaxed);
+    if (ageMs > 0) {
+        // Decay since the last report so the meter falls smoothly between updates.
+        level *= std::exp(-static_cast<float>(ageMs) / static_cast<float>(kAudioLevelDecayMs));
+    }
+
+    return std::min(1.f, std::max(0.f, level));
+}
+
+void BaseLayer::reportAudioLevel(float peak) {
+    if (peak < 0.f) {
+        peak = 0.f;
+    } else if (peak > 1.f) {
+        peak = 1.f;
+    }
+
+    const int64_t now = steadyClockMs();
+    const int64_t lastReport = m_audioPeakTimeMs.load(std::memory_order_relaxed);
+
+    float held = m_audioPeak.load(std::memory_order_relaxed);
+    if (lastReport != 0) {
+        const int64_t dtMs = now - lastReport;
+        if (dtMs > 0 && dtMs <= kAudioLevelStaleMs) {
+            // Decay the held peak for the time elapsed since the previous report so that
+            // sustained signals hold their level while gaps between frames release it.
+            held *= std::exp(-static_cast<float>(dtMs) / static_cast<float>(kAudioLevelDecayMs));
+        } else if (dtMs > kAudioLevelStaleMs) {
+            held = 0.f; // the stream was silent/stopped in between -> restart from zero
+        }
+    }
+
+    if (peak > held) {
+        held = peak;
+    }
+
+    m_audioPeak.store(held, std::memory_order_relaxed);
+    m_audioPeakTimeMs.store(now, std::memory_order_release);
+}
+
+void BaseLayer::setAudioLevelsEnabled(bool enabled) {
+    if (m_audioLevelsEnabled.load(std::memory_order_relaxed) == enabled) {
+        return;
+    }
+    m_audioLevelsEnabled.store(enabled, std::memory_order_release);
+    if (!enabled) {
+        // Drop the held level so that re-enabling starts from silence.
+        m_audioPeak.store(0.f, std::memory_order_relaxed);
+        m_audioPeakTimeMs.store(0, std::memory_order_release);
+    }
+}
+
+bool BaseLayer::audioLevelsEnabled() const {
+    return m_audioLevelsEnabled.load(std::memory_order_acquire);
 }
 
 int BaseLayer::audioId() {

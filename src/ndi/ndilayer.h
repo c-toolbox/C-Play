@@ -58,7 +58,13 @@ public:
     bool isAudioEnabled() const;
     void enableAudio(bool enabled = true);
     void updateAudioOutput();
+    // The audio level is reported from the PortAudio callback (or the Pa_WriteStream path),
+    // so a meter in the LayerView can show live levels while the image renders.
+    bool hasAudioLevels() const override { return true; }
     void setVolume(int v, bool storeLevel = true);
+
+    // Access for the file-scope PortAudio callback (it is not a member function).
+    ofxNDIreceive* receiver() { return &NDIreceiver; }
 
     void encodeTypeAlways(std::vector<std::byte>& data);
     void decodeTypeAlways(const std::vector<std::byte>& data, unsigned int& pos);

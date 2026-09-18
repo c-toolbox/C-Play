@@ -239,6 +239,18 @@ void OmtLayer::ProcessAudioFrame(OMTMediaFrame* frame) {
         }
     }
 
+    // Report the peak of this frame for the audio level meter in the LayerView, but only
+    // while the meter is enabled so the per-sample scan stays out of the hot path.
+    if (audioLevelsEnabled()) {
+        float maxAbs = 0.f;
+        for (size_t i = 0; i < totalSamples; ++i) {
+            float v = m_interleavedAudioBuf[i];
+            if (v < 0.f) v = -v;
+            if (v > maxAbs) maxAbs = v;
+        }
+        reportAudioLevel(maxAbs);
+    }
+
     // Write directly to the PortAudio stream (blocking)
     m_audioError = Pa_WriteStream(m_audioStream, m_interleavedAudioBuf.data(), static_cast<unsigned long>(samplesPerChannel));
     if (m_audioError != paNoError && m_audioError != paOutputUnderflowed) {

@@ -46,6 +46,7 @@ class LayersRendererQtItem;
 #endif
 #ifdef DIRECTSHOW_SUPPORT
 #include <layers/directshowmodel.h>
+#include <layers/directshowpresetsmodel.h>
 #endif
 #ifdef OMT_SUPPORT
 #include <omt/omtmodel.h>
@@ -101,6 +102,10 @@ Q_DECLARE_METATYPE(SpoutSendersModel*)
 #ifndef METATYPE_DirectShowModel
 #define METATYPE_DirectShowModel
 Q_DECLARE_METATYPE(DirectShowModel*)
+#endif
+#ifndef METATYPE_DirectShowPresetsModel
+#define METATYPE_DirectShowPresetsModel
+Q_DECLARE_METATYPE(DirectShowPresetsModel*)
 #endif
 #endif
 #ifdef OMT_SUPPORT
@@ -255,6 +260,14 @@ public:
 
     DirectShowModel* directShowModel();
     void setDirectShowModel(DirectShowModel* model);
+
+    Q_PROPERTY(DirectShowPresetsModel* directShowPresetsModel
+        READ directShowPresetsModel
+        WRITE setDirectShowPresetsModel
+        NOTIFY directShowPresetsModelChanged)
+
+    DirectShowPresetsModel* directShowPresetsModel();
+    void setDirectShowPresetsModel(DirectShowPresetsModel* model);
 #endif
 
 #ifdef OMT_SUPPORT
@@ -286,6 +299,7 @@ Q_SIGNALS:
 #endif
 #ifdef DIRECTSHOW_SUPPORT
     void directShowModelChanged();
+    void directShowPresetsModelChanged();
 #endif
 #ifdef OMT_SUPPORT
     void omtSendersModelChanged();
@@ -332,6 +346,7 @@ private:
 #endif
 #ifdef DIRECTSHOW_SUPPORT
     DirectShowModel* m_directShowModel;
+    DirectShowPresetsModel* m_directShowPresetsModel;
 #endif
 #ifdef OMT_SUPPORT
     OMTSendersModel* m_omtSendersModel;

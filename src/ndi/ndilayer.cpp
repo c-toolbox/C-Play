@@ -203,7 +203,8 @@ static int paNDIAudioCallback(const void*, void* outputBuffer,
     PaStreamCallbackFlags,
     void* userData)
 {
-    ofxNDIreceive* reciever = (ofxNDIreceive*)userData;
+    NdiLayer* layer = (NdiLayer*)userData;
+    ofxNDIreceive* reciever = layer ? layer->receiver() : nullptr;
     if(reciever) {
         if (reciever->shouldReceiveAudio()) {
             void* receviedFrames = reciever->ReceiveAudioOnlyFrameSync((int)framesPerBuffer);
@@ -219,6 +220,19 @@ static int paNDIAudioCallback(const void*, void* outputBuffer,
                         reinterpret_cast<int16_t*>(outputBuffer),
                         outChannels,
                         static_cast<std::size_t>(framesPerBuffer));
+                }
+
+                // Report the peak of this frame for the audio level meter in the LayerView.
+                if (layer && layer->audioLevelsEnabled() && outChannels > 0) {
+                    int maxAbs = 0;
+                    const int16_t* outSamples = reinterpret_cast<const int16_t*>(outputBuffer);
+                    const std::size_t totalSamples = static_cast<std::size_t>(framesPerBuffer) * static_cast<std::size_t>(outChannels);
+                    for (std::size_t i = 0; i < totalSamples; ++i) {
+                        int v = outSamples[i];
+                        if (v < 0) v = -v; // widen to int so INT16_MIN does not overflow
+                        if (v > maxAbs) maxAbs = v;
+                    }
+                    layer->reportAudioLevel(static_cast<float>(maxAbs) / 32768.f);
                 }
             }
         }
@@ -937,9 +951,24 @@ bool NdiLayer::ReceiveData(bool updateRendering) {
         }
 
         if (!m_recevieAudioThroughCallback && m_audioStreamOpen && m_audioStreamStarted) {
-            m_audioError = Pa_WriteStream(m_audioStream, NDIreceiver.GetAudioInterleaved(), NDIreceiver.GetAudioSamples());
+            const int16_t* interleaved = NDIreceiver.GetAudioInterleaved();
+            // GetAudioSamples() is the frame count per channel, which is what Pa_WriteStream expects.
+            const int framesPerChannel = NDIreceiver.GetAudioSamples();
+            m_audioError = Pa_WriteStream(m_audioStream, interleaved, framesPerChannel);
             if (m_audioError != paNoError) {
                 sgct::Log::Error("NdiLayer Error: audio stream error");
+            }
+
+            // Report the peak of this frame for the audio level meter in the LayerView.
+            if (interleaved && audioLevelsEnabled()) {
+                int maxAbs = 0;
+                const int totalSamples = framesPerChannel * std::max(1, NDIreceiver.GetAudioChannels());
+                for (int i = 0; i < totalSamples; ++i) {
+                    int v = interleaved[i];
+                    if (v < 0) v = -v; // widen to int so INT16_MIN does not overflow
+                    if (v > maxAbs) maxAbs = v;
+                }
+                reportAudioLevel(static_cast<float>(maxAbs) / 32768.f);
             }
         }
 
@@ -977,7 +1006,8 @@ bool NdiLayer::StartAudioStream() {
     m_audioOutputParameters.hostApiSpecificStreamInfo = NULL;
 
     if (m_recevieAudioThroughCallback) {
-        m_audioError = Pa_OpenStream(&m_audioStream, NULL, &m_audioOutputParameters, NDIreceiver.GetAudioSampleRate(), NDIreceiver.GetAudioSamples(), paClipOff, paNDIAudioCallback, &NDIreceiver);
+        // The callback receives the layer as userData so it can report the audio level.
+        m_audioError = Pa_OpenStream(&m_audioStream, NULL, &m_audioOutputParameters, NDIreceiver.GetAudioSampleRate(), NDIreceiver.GetAudioSamples(), paClipOff, paNDIAudioCallback, this);
     }
     else {
         m_audioError = Pa_OpenStream(&m_audioStream, NULL, &m_audioOutputParameters, NDIreceiver.GetAudioSampleRate(), NDIreceiver.GetAudioSamples(), paClipOff, NULL, NULL);

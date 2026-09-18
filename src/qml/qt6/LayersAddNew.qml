@@ -97,13 +97,27 @@ Kirigami.ApplicationWindow {
                             // "videoDevice|audioDevice" (the audio part may be empty). Without a video
                             // device the layer plays back the media file instead.
                             var directShowParam = "";
-                            if (layerCoreProps.directShowVideoDeviceComboBox.currentText !== "") {
+                            var directShowPresetKey = "";
+                            if (!layerCoreProps.directShowPresetsLayout.customEntry && layerCoreProps.directShowPresetAvailable) {
+                                // A predefined setup from data/predefined-directshows.json was chosen - it carries its own
+                                // video/audio device combination (either part may be empty for audio-only/video-only setups,
+                                // and both may be empty when the entry only defines per-machine "devices" overrides).
+                                var preset = layerCoreProps.getDirectShowPresetDevices();
+                                if (preset) {
+                                    directShowParam = preset.video + "|" + preset.audio;
+                                    // Remember which predefined entry this layer was created from (the entry title), so each machine in the cluster can resolve its own local capture devices from data/predefined-directshows.json. Custom selections keep an empty key and use the chosen devices verbatim.
+                                    directShowPresetKey = layerCoreProps.directShowPresetsComboBox.currentText;
+                                }
+                            } else if (layerCoreProps.directShowVideoDeviceComboBox.currentText !== "") {
                                 directShowParam = layerCoreProps.directShowVideoDeviceComboBox.currentText + "|" + layerCoreProps.directShowAudioDeviceComboBox.currentText;
                             } else if (layerCoreProps.fileForLayer.text !== "") {
                                 directShowParam = layerCoreProps.fileForLayer.text;
                             }
-                            if (directShowParam !== "") {
+                            if (directShowParam !== "" || directShowPresetKey !== "") {
                                 layerView.layerItem.layerIdx = app.slides.selected.addLayer(layerCoreProps.layerTitle.text, layerCoreProps.typeComboBox.currentIndex + 1, directShowParam, layerCoreProps.stereoscopicModeForLayer.currentIndex, layerCoreProps.gridModeForLayer.currentIndex);
+                                if (directShowPresetKey !== "") {
+                                    layerView.layerItem.layerDirectShowPresetKey = directShowPresetKey;
+                                }
                                 layersAddNew.visible = false;
                                 app.slides.updateSelectedSlide();
                                 mpv.focus = true;

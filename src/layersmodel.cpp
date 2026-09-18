@@ -1053,6 +1053,16 @@ void LayersModel::decodeFromJSON(QJsonObject &obj, const QStringList &forRelativ
                         }
                     }
 
+#ifdef DIRECTSHOW_SUPPORT
+                    if (type == BaseLayer::DIRECTSHOW) {
+                        // Restore the predefined setup key so each machine can re-resolve its own local capture devices.
+                        if (o.contains(QStringLiteral("directShowPreset"))) {
+                            std::string presetKey = o.value(QStringLiteral("directShowPreset")).toString().toStdString();
+                            static_cast<DirectShowLayer*>(m_layers[idx].first.get())->setPresetKey(presetKey);
+                        }
+                    }
+#endif
+
                     if (getLayersCanBeLocked() && o.contains(QStringLiteral("locked"))) {
                         bool locked = o.value(QStringLiteral("locked")).toBool();
                         m_layers[idx].first->setIsLocked(locked);
@@ -1409,6 +1419,16 @@ void LayersModel::encodeToJSON(QJsonObject &obj, const QStringList &forRelativeP
         else {
             layerData.insert(QStringLiteral("path"), QJsonValue(QString::fromStdString(layer->filepath())));
         }
+
+#ifdef DIRECTSHOW_SUPPORT
+        if (layer->type() == BaseLayer::DIRECTSHOW) {
+            // Store the predefined setup key so each machine can re-resolve its own local capture devices on load.
+            const DirectShowLayer* directShowLayer = static_cast<const DirectShowLayer*>(layer.get());
+            if (!directShowLayer->presetKey().empty()) {
+                layerData.insert(QStringLiteral("directShowPreset"), QJsonValue(QString::fromStdString(directShowLayer->presetKey())));
+            }
+        }
+#endif
 
 #ifdef TEXT_LAYER
         if (layer->type() == BaseLayer::TEXT) {

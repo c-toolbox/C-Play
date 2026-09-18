@@ -47,6 +47,9 @@ public:
     void stop();
 
     bool hasAudio() const;
+    // The audio level is reported from ProcessAudioFrame(), so a meter in the LayerView
+    // can show live levels while the image renders.
+    bool hasAudioLevels() const override { return true; }
     bool isAudioEnabled() const;
     void enableAudio(bool enabled = true);
     void updateAudioOutput();

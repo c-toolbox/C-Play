@@ -155,6 +155,12 @@ Application::Application(int &argc, char **argv, const QString &applicationName)
     m_slidesModel(new SlidesModel(this)), 
     m_collection(new KActionCollection(this))
 {
+    // Publish the singleton as early as possible: queued events (e.g. mpv track
+    // updates delivered while windows are created during construction) may call
+    // Application::instance() before create() has finished assigning _instance,
+    // which would throw std::logic_error and abort the process.
+    _instance = this;
+
     m_config = KSharedConfig::openConfig(QStringLiteral("C-Play/cplay.conf"));
     m_shortcuts = new KConfigGroup(m_config, QStringLiteral("Shortcuts"));
     m_schemes = KColorSchemeManager::instance();
@@ -172,6 +178,7 @@ Application::Application(int &argc, char **argv, const QString &applicationName)
 #endif
 #ifdef DIRECTSHOW_SUPPORT
     m_directShowModel = new DirectShowModel(this);
+    m_directShowPresetsModel = new DirectShowPresetsModel(this);
 #endif
 #ifdef OMT_SUPPORT
     m_omtSendersModel = new OMTSendersModel(this);
@@ -683,6 +690,21 @@ void Application::setDirectShowModel(DirectShowModel* model) {
     }
     m_directShowModel = model;
     Q_EMIT directShowModelChanged();
+}
+
+DirectShowPresetsModel* Application::directShowPresetsModel() {
+    return m_directShowPresetsModel;
+}
+
+void Application::setDirectShowPresetsModel(DirectShowPresetsModel* model) {
+    if (m_directShowPresetsModel == model) {
+        return;
+    }
+    if (model && !model->parent()) {
+        model->setParent(this);
+    }
+    m_directShowPresetsModel = model;
+    Q_EMIT directShowPresetsModelChanged();
 }
 #endif
 

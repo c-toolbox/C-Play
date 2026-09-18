@@ -77,6 +77,9 @@ public:
     // stream's audio is optional: hasAudio()/isAudioEnabled() drive the UI, and the
     // output only starts once decoded PCM actually arrives.
     bool hasAudio() const override;
+    // The audio level is reported from pushDecodedPcm(), so a meter in the LayerView can
+    // show live levels while the image renders.
+    bool hasAudioLevels() const override { return true; }
     bool isAudioEnabled() const override;
     void enableAudio(bool enabled = true) override;
     void updateAudioOutput() override;
@@ -138,6 +141,13 @@ private:
     AudioDecoder m_audioDecoder; // main thread only
 
     std::chrono::steady_clock::time_point m_lastAudioOpenErrorLog{}; // throttles repeated open-failure logs
+
+    // Audio-path diagnostics (main thread only) to pinpoint where the chain stalls.
+    std::uint64_t m_audioFramesReceived = 0; // depacketized payloads reaching handleAudioFrame()
+    std::uint64_t m_audioDecodeAttempts = 0; // frames that passed every guard and were fed to decode()
+    std::uint64_t m_audioPcmFrames = 0;      // PCM frames delivered to pushDecodedPcm()
+    float m_audioPeak = 0.f;                 // running peak amplitude of decoded PCM
+    std::chrono::steady_clock::time_point m_lastAudioDiagLog{};       // throttles the periodic summary
 
     std::mutex m_queueMutex;
     std::condition_variable m_queueCv;

@@ -39,6 +39,21 @@ int frameChannels(const AVFrame& frame) {
 #endif
 }
 
+// Channel count requested on the decoder context. Some FFmpeg builds leave a decoded Opus
+// frame's own channel layout unset (it reads back as 0), so this is used as a fallback: this
+// class always configures the context for stereo output, which tells us how to interpret the
+// per-channel sample count even when the frame carries no channel metadata of its own.
+int contextChannels(const AVCodecContext* ctx) {
+    if (!ctx) {
+        return 0;
+    }
+#if LIBAVUTIL_VERSION_INT >= AV_VERSION_INT(57, 28, 100)
+    return ctx->ch_layout.nb_channels;
+#else
+    return ctx->channels;
+#endif
+}
+
 // Requests stereo output from the decoder so that mono streams are upmixed by Opus and
 // true stereo keeps both channels.
 void requestStereoOutput(AVCodecContext* ctx) {
@@ -70,8 +85,9 @@ std::vector<std::uint8_t> makeOpusHead(int channels, int sampleRate) {
 constexpr std::size_t kExtradataPadding = 16;
 
 // Converts one decoded frame (planar or packed, float or s16) into interleaved float32 in [-1, 1].
-bool convertToInterleavedFloat(const AVFrame& frame, std::vector<float>& out) {
-    const int channels = frameChannels(frame);
+// `channels` is supplied by the caller because some FFmpeg builds leave the per-frame channel
+// layout unset; the caller resolves it (frame value with a context fallback).
+bool convertToInterleavedFloat(const AVFrame& frame, int channels, std::vector<float>& out) {
     const int frames = frame.nb_samples;
     if (channels <= 0 || frames <= 0) {
         return false;
@@ -123,6 +139,10 @@ AudioDecoder::AudioDecoder() = default;
 
 AudioDecoder::~AudioDecoder() {
     close();
+}
+
+int AudioDecoder::contextChannelCount() const {
+    return contextChannels(m_context);
 }
 
 bool AudioDecoder::open(QString* error) {
@@ -209,14 +229,41 @@ bool AudioDecoder::drainFrames(QString* error) {
         }
 
         std::vector<float> pcm;
-        if (!convertToInterleavedFloat(*frame, pcm)) {
+        ++m_framesReceived;
+        // Resolve the channel count. Some FFmpeg builds leave a decoded Opus frame's own layout
+        // unset (reads back as 0), which would make conversion drop every frame; fall back to the
+        // layout requested on the context, and finally to stereo - this class always decodes to
+        // two channels, so that is how the per-channel sample count must be interpreted.
+        int channels = frameChannels(*frame);
+        if (channels <= 0) {
+            channels = contextChannels(m_context);
+        }
+        if (channels <= 0) {
+            channels = 2;
+        }
+        // Same class of bug as the channel layout: some FFmpeg builds leave the decoded frame's
+        // sample rate unset (reads back as 0). A zero/varying rate makes the PortAudio side reopen
+        // the stream on every single frame, so resolve a stable rate from the context (48 kHz for Opus).
+        int sampleRate = frame->sample_rate;
+        if (sampleRate <= 0) {
+            sampleRate = m_context ? m_context->sample_rate : 48000;
+        }
+        if (sampleRate <= 0) {
+            sampleRate = 48000;
+        }
+        m_lastChannels = frameChannels(*frame); // raw per-frame value (diagnostic: shows the bug)
+        m_lastSampleRate = sampleRate;          // effective rate handed to the output (diagnostic)
+        m_lastSamples = frame->nb_samples;
+        m_lastFormat = static_cast<int>(frame->format);
+        if (!convertToInterleavedFloat(*frame, channels, pcm)) {
             // Unsupported sample format or malformed frame: skip it but keep going.
+            ++m_convertFailures;
             av_frame_unref(frame);
             continue;
         }
 
         if (m_onFrame) {
-            m_onFrame(pcm.data(), frame->sample_rate, frameChannels(*frame), frame->nb_samples);
+            m_onFrame(pcm.data(), sampleRate, channels, frame->nb_samples);
         }
         av_frame_unref(frame);
     }

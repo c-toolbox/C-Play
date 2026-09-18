@@ -12,6 +12,7 @@
 #include <algorithm>
 #include <cstring>
 #include "audiosettings.h"
+#include <utils/directshowpathresolver.h>
 
 std::mutex DirectShowLayer::s_pendingTexDeleteMutex;
 std::vector<unsigned int> DirectShowLayer::s_pendingTexToDelete;
@@ -42,13 +43,33 @@ const GUID kIidIMediaFile{0x568aab5a, 0xc900, 0x11d3, {0xae, 0x21, 0x00, 0xa0, 0
 // makes enumeration return S_FALSE.
 const GUID kCatVideoInput{0x860bb310, 0x5d01, 0x11d0, {0xbd, 0x3b, 0x00, 0xa0, 0xc9, 0x11, 0xce, 0x86}};
 // Audio input device category CLSID (uuids.h: CLSID_AudioInputDeviceCategory) - same note as above.
-const GUID kCatAudioInput{0x25e9876a, 0xccb4, 0x11cf, {0xb4, 0x3f, 0x08, 0x00, 0x2b, 0xe1, 0x03, 0x18}};
+const GUID kCatAudioInput{0x33d9a762, 0x90c8, 0x11d0, {0xbd, 0x43, 0x00, 0xa0, 0xc9, 0x11, 0xce, 0x86}};
 // Audio pin category (ksmedia.h: KSPIN_CATEGORY_AUDIO) - not declared by this machine's SDK headers.
 const GUID kPinCategoryAudio{0x086325c7, 0x5fe7, 0x4f5e, {0x84, 0x6f, 0xc6, 0xff, 0x5e, 0x8b, 0x99, 0x8a}};
 // PCM / IEEE float audio subformats (ksmedia.h: KSDATAFORMAT_SUBTYPE_PCM / _IEEE_FLOAT), used to
 // resolve WAVEFORMATEXTENSIBLE formats. Not declared by this machine's SDK headers.
 const GUID kSubtypePcm{0x00000001, 0x0000, 0x0010, {0x80, 0x00, 0x00, 0xaa, 0x00, 0x38, 0x9b, 0x71}};
 const GUID kSubtypeIeeeFloat{0x00000003, 0x0000, 0x0010, {0x80, 0x00, 0x00, 0xaa, 0x00, 0x38, 0x9b, 0x71}};
+
+// ---------------------------------------------------------------------------
+// "No signal" detection for DeltaCast / Datapath capture cards.
+//
+// Both vendors expose a KS property set on their WDM capture filter that reports
+// whether an input signal is present (IKsPropertySet, see ksproxy.h). The GUIDs
+// and property IDs below are named after the vendor SDK constants:
+//   DeltaCast : KSPROPSETID_DlCapture / DL_PROPERTY_SIGNAL_PRESENT         (bool/int)
+//   Datapath  : GUID_DatapathVisionProperties / DATAPATH_PROP_SIGNAL_STATUS (status mask/bool)
+// The values here are PLACEHOLDERS - replace them with the constants from the vendor SDK
+// headers. Until then QuerySupported() reports "unsupported" and detection stays disabled,
+// which is safe for every other capture device.
+const GUID kKsPropSetDlCapture{0x00000000, 0x0000, 0x0000, {0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00}}; // TODO: KSPROPSETID_DlCapture from the DeltaCast SDK
+const DWORD kDlPropSignalPresent = 0; // TODO: DL_PROPERTY_SIGNAL_PRESENT from the DeltaCast SDK
+const GUID kKsPropSetDatapathVision{0x00000000, 0x0000, 0x0000, {0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00}}; // TODO: GUID_DatapathVisionProperties from the Datapath SDK
+const DWORD kDatapathPropSignalStatus = 0; // TODO: DATAPATH_PROP_SIGNAL_STATUS from the Datapath SDK
+// ksproxy.h: KSPROPERTY_SUPPORT_GET - bit set by IKsPropertySet::QuerySupported() when Get() is available.
+constexpr DWORD kKsPropertySupportGet = 1;
+// How often pollSignalPresence() reads the signal property (render thread, throttled).
+constexpr std::chrono::milliseconds kSignalPollInterval{1000};
 
 #pragma warning(push)
 #pragma warning(disable : 5204) // COM interfaces have no destructor by design
@@ -59,12 +80,29 @@ struct IMediaFile : public IUnknown {
 };
 #pragma warning(pop)
 
-// Frees an AM_MEDIA_TYPE allocated by the DirectShow runtime.
+// Releases the format block (and any IUnknown) of an AM_MEDIA_TYPE whose structure itself is
+// owned by the caller - e.g. a stack struct filled in by ISampleGrabber::GetConnectedMediaType
+// or IPin::ConnectionMediaType, both of which deep-copy pbFormat with CoTaskMemAlloc. The
+// format block must be released with CoTaskMemFree (or FreeMediaType), never free(): mixing
+// allocators corrupts the CRT heap and crashes once audio samples start carrying media types.
+void releaseMediaTypeFields(AM_MEDIA_TYPE& mt) {
+    if (mt.cbFormat != 0 && mt.pbFormat) {
+        CoTaskMemFree(mt.pbFormat);
+        mt.cbFormat = 0;
+        mt.pbFormat = nullptr;
+    }
+    if (mt.pUnk) {
+        mt.pUnk->Release();
+        mt.pUnk = nullptr;
+    }
+}
+
+// Frees an AM_MEDIA_TYPE allocated by the DirectShow runtime with CoTaskMemAlloc, e.g. one
+// returned by IMediaSample::GetMediaType or IEnumMediaTypes::Next (see DeleteMediaType docs).
 void deleteMediaType(AM_MEDIA_TYPE* mt) {
     if (!mt)
         return;
-    if (mt->pbFormat)
-        free(mt->pbFormat);
+    releaseMediaTypeFields(*mt);
     CoTaskMemFree(mt);
 }
 
@@ -319,6 +357,26 @@ void DirectShowLayer::setCaptureDevices(const std::string& videoDevice, const st
     m_captureAudioDevice = audioDevice;
 }
 
+std::string DirectShowLayer::presetKey() const {
+    return m_presetKey;
+}
+
+void DirectShowLayer::setPresetKey(const std::string& key) {
+    if (m_presetKey != key) {
+        m_presetKey = key;
+        if (isMaster())
+            setNeedSync();
+    }
+}
+
+void DirectShowLayer::encodeTypeCore(std::vector<std::byte>& data) {
+    sgct::serializeObject(data, m_presetKey);
+}
+
+void DirectShowLayer::decodeTypeCore(const std::vector<std::byte>& data, unsigned int& pos) {
+    sgct::deserializeObject(data, pos, m_presetKey);
+}
+
 bool DirectShowLayer::ready() const {
     return renderData.texId > 0;
 }
@@ -436,10 +494,13 @@ void DirectShowLayer::processPendingGLCleanup() {
 #ifdef _WIN32
 
 // ---------------------------------------------------------------------------
-// COM object (IUnknown + ISampleGrabberCB)
+// Per-grabber sample callbacks (IUnknown + ISampleGrabberCB)
 // ---------------------------------------------------------------------------
 
-HRESULT DirectShowLayer::QueryInterface(REFIID riid, void** ppv) {
+GrabberCallback::GrabberCallback(DirectShowLayer* layer, Role role) : m_layer(layer), m_role(role) {
+}
+
+HRESULT GrabberCallback::QueryInterface(REFIID riid, void** ppv) {
     if (!ppv)
         return E_POINTER;
     *ppv = nullptr;
@@ -452,18 +513,49 @@ HRESULT DirectShowLayer::QueryInterface(REFIID riid, void** ppv) {
     return S_OK;
 }
 
-ULONG DirectShowLayer::AddRef() {
-    return m_comRefCount.fetch_add(1) + 1;
+ULONG GrabberCallback::AddRef() {
+    return m_refCount.fetch_add(1) + 1;
 }
 
-ULONG DirectShowLayer::Release() {
+ULONG GrabberCallback::Release() {
     // The immortal base reference keeps the count at >= 1, so this never
-    // destroys the object.
-    const ULONG previous = m_comRefCount.fetch_sub(1);
+    // destroys the object - destruction is owned by DirectShowLayer.
+    const ULONG previous = m_refCount.fetch_sub(1);
     return previous - 1;
 }
 
-HRESULT DirectShowLayer::SampleCallback(double /*sampleTime*/, IMediaSample* pSample) {
+HRESULT GrabberCallback::SampleCallback(double /*sampleTime*/, IMediaSample* pMediaSample) {
+    if (!m_layer || !pMediaSample)
+        return E_POINTER;
+
+    // Routing is structural: the video grabber's callback only ever sees video
+    // samples and the audio grabber's only audio samples, so no media-type sniffing.
+    if (m_role == Role::Audio) {
+        BYTE* pData = nullptr;
+        const DWORD length = static_cast<DWORD>(pMediaSample->GetActualDataLength());
+        HRESULT hr = pMediaSample->GetPointer(&pData);
+        if (FAILED(hr))
+            return hr;
+        if (!pData || length == 0)
+            return E_FAIL;
+
+        // Prefer the sample's own media type when it carries one - WDM/KS capture
+        // samples often do not, and handleAudioSample() then falls back to the
+        // format cached from the grabber's connected pin.
+        AM_MEDIA_TYPE* pMt = nullptr;
+        if (SUCCEEDED(pMediaSample->GetMediaType(&pMt)) && pMt) {
+            m_layer->handleAudioSample(pData, length, pMt);
+            deleteMediaType(pMt);
+        } else {
+            m_layer->handleAudioSample(pData, length, nullptr);
+        }
+        return S_OK;
+    }
+
+    return m_layer->handleVideoSample(pMediaSample);
+}
+
+HRESULT DirectShowLayer::handleVideoSample(IMediaSample* pSample) {
     if (!pSample || !m_handoff)
         return E_POINTER;
 
@@ -475,28 +567,17 @@ HRESULT DirectShowLayer::SampleCallback(double /*sampleTime*/, IMediaSample* pSa
     if (!pData || length == 0)
         return E_FAIL;
 
-    // The same callback object serves both grabbers - route audio samples to the
-    // PortAudio output path and keep everything below for video.
-    AM_MEDIA_TYPE* pSampleMt = nullptr;
-    if (SUCCEEDED(pSample->GetMediaType(&pSampleMt)) && pSampleMt) {
-        if (IsEqualGUID(pSampleMt->majortype, MEDIATYPE_Audio)) {
-            handleAudioSample(pData, length, pSampleMt);
-            deleteMediaType(pSampleMt);
-            return S_OK;
-        }
-    }
-
     // Determine pixel format and size. Prefer the sample's own media type,
     // fall back to the graph output type cached after Run().
     PixelFormat pixelType = PixelFormat::Unknown;
     int width = 0;
     int height = 0;
 
-    if (pSampleMt) {
+    AM_MEDIA_TYPE* pSampleMt = nullptr;
+    if (SUCCEEDED(pSample->GetMediaType(&pSampleMt)) && pSampleMt) {
         pixelType = samplePixelType(pSampleMt);
         videoInfoSize(pSampleMt, width, height);
         deleteMediaType(pSampleMt);
-        pSampleMt = nullptr;
     }
     if (width <= 0 || height <= 0) {
         width = m_cachedWidth;
@@ -614,9 +695,14 @@ HRESULT DirectShowLayer::SampleCallback(double /*sampleTime*/, IMediaSample* pSa
                 const int uvRow = y >> 1;
                 unsigned char* drow = dst + static_cast<size_t>(y) * width * 4;
                 for (int x = 0; x < width; ++x) {
+                    // NV12 is YCbCr 4:2:0 - the UV plane holds only w/2 CbCr pairs per row,
+                    // one pair covering two horizontal pixels. Indexing it with a full pixel
+                    // column (as in 4:2:2) reads up to half a frame past the end of the sample
+                    // buffer and crashes on NV12 sources such as OBS Virtual Camera.
+                    const int xx = x >> 1;
                     const int yy = pY[static_cast<size_t>(y) * width + x];
-                    const int cb = pUV[(static_cast<size_t>(uvRow) * width + x) * 2] - 128;
-                    const int cr = pUV[(static_cast<size_t>(uvRow) * width + x) * 2 + 1] - 128;
+                    const int cb = pUV[(static_cast<size_t>(uvRow) * (width / 2) + xx) * 2] - 128;
+                    const int cr = pUV[(static_cast<size_t>(uvRow) * (width / 2) + xx) * 2 + 1] - 128;
                     ycbcrToRgba(yy, cb, cr, drow + x * 4);
                 }
             }
@@ -677,98 +763,17 @@ HRESULT DirectShowLayer::SampleCallback(double /*sampleTime*/, IMediaSample* pSa
     return S_OK;
 }
 
-HRESULT DirectShowLayer::BufferCallback(double /*sampleTime*/, BYTE* /*pBuffer*/, DWORD /*bufferLength*/) {
-    // We registered for sample callbacks (mode 0), so this is never used.
-    return E_NOTIMPL;
-}
-
 // ---------------------------------------------------------------------------
 // Filter graph lifecycle
 // ---------------------------------------------------------------------------
 
-bool DirectShowLayer::buildAndRunGraph(const std::string& pathUtf8) {
-    // COM must be initialized on this thread before any DirectShow call.
-    CoInitializeEx(nullptr, COINIT_MULTITHREADED); // E_FAIL/RPC_E_CHANGED_MODE are fine
+bool DirectShowLayer::buildVideoPath(const std::string& videoDevice) {
+    // Adds the video source to the graph and connects it to the sample grabber.
+    // m_fileSourceFilter must already be created (capture or file source).
+    HRESULT hr = S_OK;
 
-    // Fresh build - reset per-graph audio state.
-    m_audioPathBuilt = false;
-    m_audioPathUnavailable = false;
-    m_unsupportedAudioLogged.store(false);
-    m_cachedAudioRate = 0;
-    m_cachedAudioChannels = 0;
-    m_cachedAudioFormatSize = 0;
-
-    const std::wstring path = toWideString(pathUtf8);
-    if (path.empty())
-        return false;
-
-    HRESULT hr = CoCreateInstance(CLSID_FilterGraph, nullptr, CLSCTX_INPROC_SERVER,
-                                  IID_IGraphBuilder, reinterpret_cast<void**>(&m_graphBuilder));
-    if (FAILED(hr) || !m_graphBuilder) {
-        m_graphBuilder = nullptr;
-        return false;
-    }
-
-    hr = m_graphBuilder->QueryInterface(IID_IMediaControl, reinterpret_cast<void**>(&m_mediaControl));
+    hr = m_graphBuilder->AddFilter(m_fileSourceFilter, !videoDevice.empty() ? L"Capture Device" : L"File Source");
     if (FAILED(hr)) {
-        releaseGraph();
-        return false;
-    }
-
-    const bool isCapture = !m_captureVideoDevice.empty();
-    if (isCapture) {
-        // Live capture: create the filter for the device chosen in the UI.
-        m_fileSourceFilter = createCaptureFilter(kCatVideoInput, toWideString(m_captureVideoDevice));
-        if (!m_fileSourceFilter) {
-            sgct::Log::Error(std::format("DirectShowLayer: could not find video capture device '{}'\n",
-                                         m_captureVideoDevice));
-            releaseGraph();
-            return false;
-        }
-    } else {
-        // The file source filter may be registered under a different CLSID than the
-        // classic one, so try both. Loading is attempted through IFileSourceFilter
-        // first and then IMediaFile (not declared by this SDK).
-        for (int attempt = 0; attempt < 2 && !m_fileSourceFilter; ++attempt) {
-            const GUID& clsid = attempt == 0 ? kClsidFileSourceFilter : kClsidFileSourceAsync;
-            IBaseFilter* pFilter = nullptr;
-            if (FAILED(CoCreateInstance(clsid, nullptr, CLSCTX_INPROC_SERVER, IID_IBaseFilter,
-                                        reinterpret_cast<void**>(&pFilter))) || !pFilter) {
-                sgct::Log::Error(std::format("DirectShowLayer: could not create file source filter (attempt {})\n",
-                                             attempt + 1));
-                continue;
-            }
-
-            bool loaded = false;
-            IFileSourceFilter* pFileSource = nullptr;
-            if (SUCCEEDED(pFilter->QueryInterface(IID_IFileSourceFilter, reinterpret_cast<void**>(&pFileSource))) && pFileSource) {
-                loaded = SUCCEEDED(pFileSource->Load(path.c_str(), nullptr));
-                pFileSource->Release();
-            }
-            if (!loaded) {
-                IMediaFile* pMediaFile = nullptr;
-                if (SUCCEEDED(pFilter->QueryInterface(kIidIMediaFile, reinterpret_cast<void**>(&pMediaFile))) && pMediaFile) {
-                    loaded = SUCCEEDED(pMediaFile->SetURL(path.c_str(), nullptr));
-                    pMediaFile->Release();
-                }
-            }
-
-            if (loaded) {
-                m_fileSourceFilter = pFilter; // keep the reference
-            } else {
-                sgct::Log::Error(std::format("DirectShowLayer: file source filter could not load '{}'\n", pathUtf8));
-                pFilter->Release();
-            }
-        }
-    }
-    if (!m_fileSourceFilter) {
-        releaseGraph();
-        return false;
-    }
-
-    hr = m_graphBuilder->AddFilter(m_fileSourceFilter, isCapture ? L"Capture Device" : L"File Source");
-    if (FAILED(hr)) {
-        releaseGraph();
         return false;
     }
 
@@ -776,13 +781,11 @@ bool DirectShowLayer::buildAndRunGraph(const std::string& pathUtf8) {
                           IID_IBaseFilter, reinterpret_cast<void**>(&m_sampleGrabberFilter));
     if (FAILED(hr) || !m_sampleGrabberFilter) {
         m_sampleGrabberFilter = nullptr;
-        releaseGraph();
         return false;
     }
 
     hr = m_graphBuilder->AddFilter(m_sampleGrabberFilter, L"Sample Grabber");
     if (FAILED(hr)) {
-        releaseGraph();
         return false;
     }
 
@@ -795,11 +798,10 @@ bool DirectShowLayer::buildAndRunGraph(const std::string& pathUtf8) {
         // VFW_E_TYPE_NOT_ACCEPTED; SampleCallback converts whatever arrives instead.
 
         // Mode 0: we receive IMediaSample pointers (with media type info).
-        hr = pGrabber->SetCallback(this, 0);
+        hr = pGrabber->SetCallback(&m_videoCallback, 0);
         pGrabber->Release();
     }
     if (FAILED(hr)) {
-        releaseGraph();
         return false;
     }
 
@@ -842,14 +844,114 @@ bool DirectShowLayer::buildAndRunGraph(const std::string& pathUtf8) {
 
     if (!connected) {
         sgct::Log::Error("DirectShowLayer: could not connect file source to sample grabber\n");
+        return false;
+    }
+    return true;
+}
+
+bool DirectShowLayer::buildAndRunGraph(const std::string& pathUtf8, const std::string& videoDevice, const std::string& audioDevice) {
+    // COM must be initialized on this thread before any DirectShow call.
+    CoInitializeEx(nullptr, COINIT_MULTITHREADED); // E_FAIL/RPC_E_CHANGED_MODE are fine
+
+    // Fresh build - reset per-graph audio state.
+    m_audioPathBuilt = false;
+    m_audioPathUnavailable = false;
+    m_unsupportedAudioLogged.store(false);
+    m_cachedAudioRate = 0;
+    m_cachedAudioChannels = 0;
+    m_cachedAudioFormatSize = 0;
+
+    const bool isCapture = !videoDevice.empty();
+    // An audio-only preset has no video device but does have a microphone: the graph then
+    // carries just the audio capture path and never produces video frames.
+    const bool audioOnly = !isCapture && !audioDevice.empty();
+
+    std::wstring path;
+    if (!audioOnly) {
+        path = toWideString(pathUtf8);
+        if (path.empty())
+            return false;
+    }
+
+    HRESULT hr = CoCreateInstance(CLSID_FilterGraph, nullptr, CLSCTX_INPROC_SERVER,
+                                  IID_IGraphBuilder, reinterpret_cast<void**>(&m_graphBuilder));
+    if (FAILED(hr) || !m_graphBuilder) {
+        m_graphBuilder = nullptr;
+        return false;
+    }
+
+    hr = m_graphBuilder->QueryInterface(IID_IMediaControl, reinterpret_cast<void**>(&m_mediaControl));
+    if (FAILED(hr)) {
         releaseGraph();
         return false;
     }
 
-    // Audio path (non-fatal): a second sample grabber fed from the source's audio pin or an
-    // explicit capture device. Any failure leaves the graph video-only.
+    if (isCapture) {
+        // Live capture: create the filter for this machine's resolved video device.
+        m_fileSourceFilter = createCaptureFilter(kCatVideoInput, toWideString(videoDevice));
+        if (!m_fileSourceFilter) {
+            sgct::Log::Error(std::format("DirectShowLayer: could not find video capture device '{}'\n",
+                                         videoDevice));
+            releaseGraph();
+            return false;
+        }
+    } else if (!audioOnly) {
+        // The file source filter may be registered under a different CLSID than the
+        // classic one, so try both. Loading is attempted through IFileSourceFilter
+        // first and then IMediaFile (not declared by this SDK).
+        for (int attempt = 0; attempt < 2 && !m_fileSourceFilter; ++attempt) {
+            const GUID& clsid = attempt == 0 ? kClsidFileSourceFilter : kClsidFileSourceAsync;
+            IBaseFilter* pFilter = nullptr;
+            if (FAILED(CoCreateInstance(clsid, nullptr, CLSCTX_INPROC_SERVER, IID_IBaseFilter,
+                                        reinterpret_cast<void**>(&pFilter))) || !pFilter) {
+                sgct::Log::Error(std::format("DirectShowLayer: could not create file source filter (attempt {})\n",
+                                             attempt + 1));
+                continue;
+            }
+
+            bool loaded = false;
+            IFileSourceFilter* pFileSource = nullptr;
+            if (SUCCEEDED(pFilter->QueryInterface(IID_IFileSourceFilter, reinterpret_cast<void**>(&pFileSource))) && pFileSource) {
+                loaded = SUCCEEDED(pFileSource->Load(path.c_str(), nullptr));
+                pFileSource->Release();
+            }
+            if (!loaded) {
+                IMediaFile* pMediaFile = nullptr;
+                if (SUCCEEDED(pFilter->QueryInterface(kIidIMediaFile, reinterpret_cast<void**>(&pMediaFile))) && pMediaFile) {
+                    loaded = SUCCEEDED(pMediaFile->SetURL(path.c_str(), nullptr));
+                    pMediaFile->Release();
+                }
+            }
+
+            if (loaded) {
+                m_fileSourceFilter = pFilter; // keep the reference
+            } else {
+                sgct::Log::Error(std::format("DirectShowLayer: file source filter could not load '{}'\n", pathUtf8));
+                pFilter->Release();
+            }
+        }
+    }
+    if (!audioOnly && !m_fileSourceFilter) {
+        releaseGraph();
+        return false;
+    }
+
+    // Video path (source -> sample grabber). Skipped entirely for audio-only graphs.
+    if (!audioOnly && !buildVideoPath(videoDevice)) {
+        releaseGraph();
+        return false;
+    }
+
+    // Audio path: a second sample grabber fed from the source's audio pin or an explicit
+    // capture device. Non-fatal for video graphs (any failure leaves them video-only), but
+    // fatal for an audio-only graph - there is nothing else to render then.
     if (m_isAudioEnabled) {
-        buildAudioPath();
+        const bool audioBuilt = buildAudioPath(audioDevice);
+        if (!audioBuilt && audioOnly) {
+            sgct::Log::Error("DirectShowLayer: could not build the audio capture path\n");
+            releaseGraph();
+            return false;
+        }
     }
 
     hr = m_mediaControl->Run();
@@ -859,7 +961,7 @@ bool DirectShowLayer::buildAndRunGraph(const std::string& pathUtf8) {
     }
 
     // Cache the negotiated output type - used when samples carry no media type.
-    {
+    if (!audioOnly) {
         AM_MEDIA_TYPE outType{};
         bool haveType = false;
 
@@ -885,9 +987,17 @@ bool DirectShowLayer::buildAndRunGraph(const std::string& pathUtf8) {
         } else {
             sgct::Log::Error("DirectShowLayer: could not read the grabber's connected media type\n");
         }
+
+        // outType is a stack struct; only its format block was allocated by DirectShow.
+        releaseMediaTypeFields(outType);
     }
 
-    m_loadedFile = isCapture ? ("capture:" + m_captureVideoDevice) : pathUtf8;
+    m_loadedFile = isCapture ? ("capture:" + videoDevice) : pathUtf8;
+    if (isCapture) {
+        // Live capture: look for a DeltaCast/Datapath signal property on the filter so we can log
+        // "no signal" / "signal restored" transitions while the graph runs.
+        setupSignalDetection();
+    }
     m_graphStart = std::chrono::steady_clock::now();
     sgct::Log::Info(std::format("DirectShowLayer: graph running for '{}'\n", m_loadedFile));
     if (m_isAudioEnabled && !m_audioPathBuilt) {
@@ -897,11 +1007,140 @@ bool DirectShowLayer::buildAndRunGraph(const std::string& pathUtf8) {
     return true;
 }
 
+// "No signal" detection for DeltaCast / Datapath capture cards (see kKsPropSetDlCapture /
+// kKsPropSetDatapathVision). The card's WDM filter exposes IKsPropertySet; when it supports one
+// of the vendor property sets we keep a reference to it and remember which signal-status
+// property to poll. Render thread only, during graph build for capture devices.
+void DirectShowLayer::setupSignalDetection() {
+    if (m_signalPropSet) {
+        m_signalPropSet->Release();
+        m_signalPropSet = nullptr;
+    }
+    m_signalVendor = SignalVendor::None;
+    m_signalState.store(SignalState::Unknown);
+    m_lastSignalPoll = {}; // allow an immediate first read after (re)build
+
+    struct Spec {
+        const char* name;
+        SignalVendor vendor;
+        GUID setGuid;
+        DWORD propId;
+    };
+    static const Spec kSpecs[] = {
+        {"DeltaCast", SignalVendor::DeltaCast, kKsPropSetDlCapture, kDlPropSignalPresent},
+        {"Datapath",  SignalVendor::Datapath,  kKsPropSetDatapathVision, kDatapathPropSignalStatus},
+    };
+
+    if (!m_fileSourceFilter) {
+        return; // file playback - nothing to poll
+    }
+
+    IKsPropertySet* pProps = nullptr;
+    if (FAILED(m_fileSourceFilter->QueryInterface(IID_IKsPropertySet, reinterpret_cast<void**>(&pProps))) || !pProps) {
+        sgct::Log::Debug("DirectShowLayer: capture filter does not expose IKsPropertySet - signal detection disabled\n");
+        return;
+    }
+
+    for (const Spec& spec : kSpecs) {
+        DWORD support = 0;
+        if (SUCCEEDED(pProps->QuerySupported(spec.setGuid, spec.propId, &support)) && (support & kKsPropertySupportGet)) {
+            m_signalVendor = spec.vendor;
+            m_signalSetGuid = spec.setGuid;
+            m_signalPropId = spec.propId;
+            m_signalPropSet = pProps; // keep the reference until releaseGraph()
+            sgct::Log::Debug(std::format("DirectShowLayer: {} signal property supported - polling for signal presence\n", spec.name));
+            return;
+        }
+    }
+
+    sgct::Log::Debug("DirectShowLayer: no DeltaCast/Datapath signal property on this capture device - detection disabled\n");
+    pProps->Release();
+}
+
+// Reads the vendor's signal-status property (throttled to kSignalPollInterval) and logs state
+// transitions. Both vendors report presence as a boolean/integer or status mask, so non-zero
+// means "signal present". Render thread only; called from ensureGraph() while holding m_graphMutex.
+void DirectShowLayer::pollSignalPresence() {
+    if (!m_signalPropSet || m_signalVendor == SignalVendor::None) {
+        return;
+    }
+
+    const auto now = std::chrono::steady_clock::now();
+    if (now - m_lastSignalPoll < kSignalPollInterval) {
+        return;
+    }
+    m_lastSignalPoll = now;
+
+    DWORD value = 0;
+    DWORD returned = 0;
+    if (FAILED(m_signalPropSet->Get(m_signalSetGuid, m_signalPropId, nullptr, 0, &value, sizeof(value), &returned))) {
+        return; // transient failure - keep the last known state
+    }
+
+    const char* vendorName = m_signalVendor == SignalVendor::DeltaCast ? "DeltaCast" : "Datapath";
+    const SignalState next = value != 0 ? SignalState::Present : SignalState::Absent;
+    const SignalState prev = m_signalState.exchange(next);
+    if (prev == next) {
+        return;
+    }
+
+    switch (next) {
+    case SignalState::Present:
+        if (prev == SignalState::Unknown) {
+            sgct::Log::Debug(std::format("DirectShowLayer: signal present on '{}' ({})\n", m_loadedFile, vendorName));
+        } else {
+            sgct::Log::Debug(std::format("DirectShowLayer: signal restored on '{}' ({}) - no-signal ended\n", m_loadedFile, vendorName));
+        }
+        break;
+    case SignalState::Absent:
+        sgct::Log::Debug(std::format("DirectShowLayer: NO SIGNAL detected on '{}' ({})\n", m_loadedFile, vendorName));
+        break;
+    default:
+        break; // Unknown is only ever the previous state, never the new one
+    }
+}
+
 void DirectShowLayer::ensureGraph() {
     // Capture devices take precedence over file playback: when a video capture device
     // was chosen in the UI, the graph renders that live stream instead of the media
     // file at filepath(). The key identifies what the current graph is rendering.
-    const std::string sourceKey = m_captureVideoDevice.empty() ? filepath() : ("capture:" + m_captureVideoDevice);
+    std::string videoDevice = m_captureVideoDevice;
+    std::string audioDevice = m_captureAudioDevice;
+    bool fromPreset = false;
+    if (!m_presetKey.empty()) {
+        // This layer was created from a predefined setup: each machine resolves its own local
+        // capture devices for the entry (by title) in its data/predefined-directshows.json.
+        std::string resolvedVideo, resolvedAudio;
+        if (DirectShowPathResolver::instance().resolve(m_presetKey, isMaster(), resolvedVideo, resolvedAudio)) {
+            videoDevice = resolvedVideo;
+            audioDevice = resolvedAudio;
+            fromPreset = true;
+        }
+        // Entry not found in the local file: fall back to the synced device pair.
+    }
+
+    if (fromPreset && videoDevice.empty() && audioDevice.empty()) {
+        // This machine intentionally has no capture for this setup - stay idle and never
+        // fall back to file playback. Tear down any graph from a previous resolution.
+        std::lock_guard<std::mutex> lock(m_graphMutex);
+        if (m_graphBuilder) {
+            releaseGraph();
+            if (renderData.texId > 0) {
+                glDeleteTextures(1, &renderData.texId); // render thread - safe directly
+                renderData.texId = 0;
+                renderData.width = 0;
+                renderData.height = 0;
+            }
+        }
+        return;
+    }
+
+    const bool isCapture = !videoDevice.empty();
+    // An audio-only preset (microphone without a video device) never produces frames, so
+    // ready() stays false and the stall timeout below must not apply to it.
+    const bool audioOnly = !isCapture && !audioDevice.empty();
+    const std::string sourceKey = isCapture ? ("capture:" + videoDevice)
+                          : (audioOnly ? ("audio-capture:" + audioDevice) : filepath());
     if (sourceKey.empty())
         return;
 
@@ -914,11 +1153,12 @@ void DirectShowLayer::ensureGraph() {
         const bool audioMismatch = (m_isAudioEnabled && !m_audioPathBuilt && !m_audioPathUnavailable)
                                 || (!m_isAudioEnabled && m_audioPathBuilt);
         if (!audioMismatch) {
-            if (!ready() && std::chrono::steady_clock::now() - m_graphStart > kStallTimeout) {
+            if (!ready() && !audioOnly && std::chrono::steady_clock::now() - m_graphStart > kStallTimeout) {
                 sgct::Log::Error(std::format("DirectShowLayer: no frame received for '{}', giving up\n", sourceKey));
                 releaseGraph();
                 m_buildFailed = true;
             }
+            pollSignalPresence(); // throttled internally; no-op unless a DeltaCast/Datapath signal property was found
             return;
         }
     }
@@ -939,9 +1179,11 @@ void DirectShowLayer::ensureGraph() {
 
     m_attemptedFile = sourceKey;
     m_buildFailed = false;
-    if (!buildAndRunGraph(sourceKey)) {
+    if (!buildAndRunGraph(sourceKey, videoDevice, audioDevice)) {
         m_buildFailed = true;
         sgct::Log::Error(std::format("DirectShowLayer: failed to build graph for '{}'\n", sourceKey));
+    } else {
+        pollSignalPresence(); // first read right after the graph started (throttled afterwards)
     }
 }
 
@@ -1002,6 +1244,13 @@ void DirectShowLayer::releaseGraph() {
         m_graphBuilder->Release();
         m_graphBuilder = nullptr;
     }
+
+    if (m_signalPropSet) {
+        m_signalPropSet->Release();
+        m_signalPropSet = nullptr;
+    }
+    m_signalVendor = SignalVendor::None;
+    m_signalState.store(SignalState::Unknown);
 
     m_loadedFile.clear();
     m_audioPathBuilt = false;
@@ -1076,18 +1325,18 @@ void DirectShowLayer::AudioRing::clear() {
     head = tail = frames = 0;
 }
 
-bool DirectShowLayer::buildAudioPath() {
+bool DirectShowLayer::buildAudioPath(const std::string& audioDevice) {
     // Non-fatal by contract: any failure just leaves the graph video-only.
     m_audioPathBuilt = false;
     m_audioPathUnavailable = false;
 
     IPin* pOutPin = nullptr; // pin feeding the audio grabber (added reference)
 
-    if (!m_captureAudioDevice.empty()) {
-        // Explicit microphone chosen in the UI: add an audio capture filter.
-        IBaseFilter* pAudioCapture = createCaptureFilter(kCatAudioInput, toWideString(m_captureAudioDevice));
+    if (!audioDevice.empty()) {
+        // Explicit microphone for this machine: add an audio capture filter.
+        IBaseFilter* pAudioCapture = createCaptureFilter(kCatAudioInput, toWideString(audioDevice));
         if (!pAudioCapture) {
-            sgct::Log::Error(std::format("DirectShowLayer: could not find audio capture device '{}'\n", m_captureAudioDevice));
+            sgct::Log::Error(std::format("DirectShowLayer: could not find audio capture device '{}'\n", audioDevice));
         } else if (FAILED(m_graphBuilder->AddFilter(pAudioCapture, L"Audio Capture"))) {
             pAudioCapture->Release();
         } else {
@@ -1098,6 +1347,11 @@ bool DirectShowLayer::buildAudioPath() {
 
     if (!pOutPin) {
         // The source's own audio pin (file playback or a capture filter with a built-in mic).
+        if (!m_fileSourceFilter) {
+            // Audio-only graph - there is no video/source filter to look for an audio pin on.
+            m_audioPathUnavailable = true;
+            return false;
+        }
         ICaptureGraphBuilder2* pCaptureBuilder = nullptr;
         if (SUCCEEDED(CoCreateInstance(CLSID_CaptureGraphBuilder2, nullptr, CLSCTX_INPROC_SERVER,
                                        IID_ICaptureGraphBuilder2, reinterpret_cast<void**>(&pCaptureBuilder)))
@@ -1172,7 +1426,7 @@ bool DirectShowLayer::buildAudioPath() {
         ISampleGrabber* pGrabber = nullptr;
         if (SUCCEEDED(pGrabberFilter->QueryInterface(IID_ISampleGrabber, reinterpret_cast<void**>(&pGrabber))) && pGrabber) {
             // Mode 0: IMediaSample pointers so the audio format can be read per sample.
-            ok = SUCCEEDED(pGrabber->SetCallback(this, 0));
+            ok = SUCCEEDED(pGrabber->SetCallback(&m_audioCallback, 0));
             pGrabber->Release();
         }
 
@@ -1221,7 +1475,43 @@ bool DirectShowLayer::buildAudioPath() {
 
     m_audioGrabberFilter = pGrabberFilter; // keep the reference for releaseGraph()
     m_audioPathBuilt = true;
-    sgct::Log::Info("DirectShowLayer: audio path built\n");
+
+    // Cache the negotiated audio format now (the pin is connected, this runs before Run()).
+    // WDM/KS capture devices often deliver samples whose GetMediaType() fails, and
+    // handleAudioSample() falls back to this cache - mirroring what buildAndRunGraph()
+    // does for the video grabber. Without it, such sources would drop every sample.
+    AM_MEDIA_TYPE outType{};
+    bool haveType = false;
+    ISampleGrabber* pFormatGrabber = nullptr;
+    if (SUCCEEDED(pGrabberFilter->QueryInterface(IID_ISampleGrabber, reinterpret_cast<void**>(&pFormatGrabber)))
+        && pFormatGrabber) {
+        // Works on this machine's stack where IPin::ConnectionMediaType returns E_NOTIMPL.
+        haveType = SUCCEEDED(pFormatGrabber->GetConnectedMediaType(&outType));
+        pFormatGrabber->Release();
+    }
+    if (!haveType) {
+        IPin* pInPin2 = findPin(pGrabberFilter, PINDIR_INPUT);
+        if (pInPin2) {
+            haveType = SUCCEEDED(pInPin2->ConnectionMediaType(&outType));
+            pInPin2->Release();
+        }
+    }
+    if (haveType && outType.pbFormat && outType.cbFormat >= sizeof(WAVEFORMATEX)) {
+        const WAVEFORMATEX* wfx = reinterpret_cast<const WAVEFORMATEX*>(outType.pbFormat);
+        m_cachedAudioRate = static_cast<int>(wfx->nSamplesPerSec);
+        m_cachedAudioChannels = static_cast<int>(wfx->nChannels);
+        const DWORD copySize = std::min<DWORD>(outType.cbFormat, sizeof(m_cachedAudioFormat));
+        std::copy_n(outType.pbFormat, static_cast<int>(copySize), m_cachedAudioFormat.begin());
+        m_cachedAudioFormatSize = copySize;
+    } else {
+        sgct::Log::Error("DirectShowLayer: could not read the audio grabber's connected media type\n");
+    }
+    // outType is a stack struct filled in by GetConnectedMediaType/ConnectionMediaType; only its
+    // format block was allocated by DirectShow, so release just the fields (no-op if empty).
+    releaseMediaTypeFields(outType);
+
+    sgct::Log::Info(std::format("DirectShowLayer: audio path built ({} Hz, {} ch)\n",
+                                m_cachedAudioRate, m_cachedAudioChannels));
     return true;
 }
 
@@ -1424,6 +1714,20 @@ int DirectShowLayer::audioOutputCallback(const void* /*inputBuffer*/, void* outp
         // Underrun: silence the rest of the buffer.
         std::fill_n(out + got * outChannels, (static_cast<size_t>(framesPerBuffer) - got) * outChannels, 0.0f);
     }
+
+    // Report the peak of this frame for the audio level meter in the LayerView, but only
+    // while the meter is enabled so the per-sample scan stays out of the hot path.
+    if (layer->audioLevelsEnabled()) {
+        float maxAbs = 0.f;
+        const size_t totalSamples = static_cast<size_t>(framesPerBuffer) * static_cast<size_t>(outChannels);
+        for (size_t i = 0; i < totalSamples; ++i) {
+            float v = out[i];
+            if (v < 0.f) v = -v;
+            if (v > maxAbs) maxAbs = v;
+        }
+        layer->reportAudioLevel(maxAbs);
+    }
+
     return paContinue;
 }
 

@@ -73,6 +73,13 @@ class LayerQtItem : public QQuickItem {
     Q_PROPERTY(int layerGridMode READ layerGridMode WRITE setLayerGridMode NOTIFY layerValueChanged)
     Q_PROPERTY(int layerVisibility READ layerVisibility WRITE setLayerVisibility NOTIFY layerValueChanged)
     Q_PROPERTY(bool layerHasAudio READ layerHasAudio NOTIFY layerPositionChanged)
+    // True when the layer reports live audio levels from its decoded audio path (NDI, OMT, DirectShow and WebRTC).
+    Q_PROPERTY(bool layerHasAudioLevels READ layerHasAudioLevels NOTIFY layerChanged)
+    // Current audio level in [0..1] for visualization purposes; refreshed by the window timer.
+    Q_PROPERTY(float layerAudioLevel READ layerAudioLevel NOTIFY layerAudioLevelChanged)
+    // Whether the audio level meter for this layer is enabled in the LayerView; while disabled
+    // the layer skips its per-sample peak computation (see BaseLayer::setAudioLevelsEnabled()).
+    Q_PROPERTY(bool layerAudioLevelsEnabled READ layerAudioLevelsEnabled WRITE setLayerAudioLevelsEnabled NOTIFY layerValueChanged)
     Q_PROPERTY(int layerAudioId READ layerAudioId WRITE setLayerAudioId NOTIFY layerValueChanged)
     Q_PROPERTY(int layerVolume READ layerVolume WRITE setLayerVolume NOTIFY layerValueChanged)
     Q_PROPERTY(bool layerPause READ layerPause WRITE setLayerPause NOTIFY layerPositionChanged)
@@ -132,6 +139,9 @@ class LayerQtItem : public QQuickItem {
     Q_PROPERTY(QString layerRestParameters READ layerRestParameters WRITE setLayerRestParameters NOTIFY layerValueChanged)
     Q_PROPERTY(bool layerRestIgnoreStatus READ layerRestIgnoreStatus WRITE setLayerRestIgnoreStatus NOTIFY layerValueChanged)
     Q_PROPERTY(QString layerStreamKey READ layerStreamKey WRITE setLayerStreamKey NOTIFY layerValueChanged)
+#ifdef DIRECTSHOW_SUPPORT
+    Q_PROPERTY(QString layerDirectShowPresetKey READ layerDirectShowPresetKey WRITE setLayerDirectShowPresetKey NOTIFY layerValueChanged)
+#endif
     Q_PROPERTY(bool layerNdiAvailable READ layerNdiAvailable CONSTANT)
     Q_PROPERTY(bool layerNdiOutputEnabled READ layerNdiOutputEnabled WRITE setLayerNdiOutputEnabled NOTIFY layerValueChanged)
     Q_PROPERTY(bool layerExistOnMasterOnly READ layerExistOnMasterOnly WRITE setLayerExistOnMasterOnly NOTIFY layerValueChanged)
@@ -157,6 +167,14 @@ public:
     void setLayerVisibility(int value);
 
     bool layerHasAudio() const;
+    // True when the layer reports live audio levels from its decoded audio path.
+    bool layerHasAudioLevels() const;
+    // Current audio level in [0..1] for visualization purposes (see BaseLayer::audioLevel()).
+    float layerAudioLevel() const;
+    // Whether the audio level meter for this layer is enabled. The state is kept here so it can
+    // be re-applied to a newly selected layer.
+    bool layerAudioLevelsEnabled() const;
+    void setLayerAudioLevelsEnabled(bool enabled);
 
     int layerAudioId() const;
     void setLayerAudioId(int value);
@@ -346,6 +364,11 @@ public:
     QString layerStreamKey() const;
     void setLayerStreamKey(QString key);
 
+#ifdef DIRECTSHOW_SUPPORT
+    QString layerDirectShowPresetKey() const;
+    void setLayerDirectShowPresetKey(QString key);
+#endif
+
 Q_SIGNALS:
     void layerChanged();
     void layerPositionChanged();
@@ -354,6 +377,8 @@ Q_SIGNALS:
     void viewChanged();
     void roiChanged();
     void audioTracksModelChanged();
+    // Emitted by the window timer when the reported audio level changes.
+    void layerAudioLevelChanged();
 
 private:
     Q_INVOKABLE void handleWindowChanged(QQuickWindow *win);
@@ -362,6 +387,8 @@ private:
     int m_layerIdx;
     BaseLayer *m_layer;
     bool m_ownsLayer;
+    float m_lastEmittedAudioLevel = -1.f; // sentinel so the first timer tick always emits
+    bool m_audioLevelsEnabled = false; // desired meter state, re-applied to each new layer
     bool m_updatingLayer;
     LayerQtOpenGLObject *m_renderer;
     TracksModel* m_audioTracksModel;

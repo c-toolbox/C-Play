@@ -95,7 +95,41 @@ When choosing *"WebRTC"*, a **WHEP URL** field becomes visible instead of the fi
 
 When choosing *"Stream"*, you can choose between pre-defined streams for your system in a combobox, loaded from the editable file *"data/predefined-streams.json"*, or add a custom entry in a text field. The stream is handled as video/audio with the MPV library, so explore the possibilities further through the MPV documentation.
 
-#### Per-node stream paths in clusters
+#### Predefined DirectShow setups
+
+DirectShow layers work the same way: C-Play can load a list of predefined capture setups from the editable file *"data/predefined-directshows.json"*. When the file exists and contains at least one enabled setup, a **Setup** combobox is shown in the layer dialog instead of the video/audio device rows; the button next to it switches between the predefined list and the custom device selection (and keeps both options in sync with each other). If the file does not exist or cannot be parsed, no predefined setups are shown and you simply select the capture devices manually.
+
+The JSON format looks like this:
+
+```json
+{
+    "directshows": [
+        {
+            "title": "HDMI Capture 1",
+            "videoDevice": "DELTA-hmi Video Source (card0 RX0)",
+            "audioDevice": "",
+            "enabled": true
+        },
+        {
+            "title": "Displayport Capture 1",
+            "videoDevice": "Datapath VisionSC-DP2 Video 01",
+            "audioDevice": ""
+        }
+    ]
+}
+```
+
+- `title` is the name shown in the layer dialog and used as the default layer title.
+- `videoDevice` must match a video capture device name reported by DirectShow on this machine (the same names that appear in the *Video device* dropdown). It may be empty for audio-only setups.
+- `audioDevice` must match an audio capture device name reported by DirectShow (the same names as in the *Audio device* dropdown). It may be empty when no audio should be captured.
+- `enabled` is optional and defaults to `true`. Set it to `false` to keep a setup in the file without showing it in the UI - useful for documenting example setups that do not apply on every machine.
+- `devices` is an optional object with per-machine device overrides, keyed by role (`"master"` or node ids from `data/multivideo/nodes.json`) - see [Per-node resolution in clusters](#per-node-resolution-in-clusters). An entry whose plain devices are both empty but that has a non-empty `devices` object is still shown in the UI.
+- Entries where both device names are empty and there is no `devices` object are ignored.
+- The file is re-read every time the predefined list is opened, so you can edit it while C-Play is running and pick up changes without restarting.
+
+When a DirectShow layer is created from a predefined setup, its parameter string is set to `videoDevice|audioDevice` (the audio part may be empty) and the entry's *title* is stored as a stable key on the layer, so each machine in a cluster can resolve its own local capture devices.
+
+#### Per-node resolution in clusters
 
 In a cluster setup (master + nodes), each machine can resolve a different local media path for the same predefined stream. When you add a Stream layer from the predefined list, C-Play stores the entry's *title* as a stable key on the layer and syncs that key to all machines. Each machine then looks up the entry in its own local `data/predefined-streams.json` and resolves which path it should open:
 
@@ -121,6 +155,31 @@ Example:
 In this example the master opens its local capture card, while `node-A` intentionally does not open anything. All other nodes fall back to the plain `path`, which is also empty here - so only the master displays this stream.
 
 Note that per-node resolution on a node requires the machine to be identifiable through `data/multivideo/nodes.json` (see [Multi-video composition](/media/cplaymulti)). The local JSON files are re-read every few seconds, so edits take effect without restarting C-Play.
+
+DirectShow capture setups work the same way with `data/predefined-directshows.json`: when you add a DirectShow layer from the predefined list, C-Play stores the entry's *title* as a stable key on the layer and syncs it to all machines. Each machine then looks up the entry in its own local file and resolves which capture devices it should use:
+
+1. **`devices[role]`** — An optional object mapping roles to device pairs (`{"videoDevice": ..., "audioDevice": ...}`). The role is `"master"` on the master, or the node id from `data/multivideo/nodes.json` on nodes (the machine's IP address when no id can be resolved). When a key exists for that machine its value wins over everything else - even when both values are empty (`""` or `null`), which means *this machine intentionally does not open any capture at all* and the layer stays idle there.
+2. **`videoDevice` / `audioDevice`** — The plain default device names, used as a fallback when there is no explicit `devices` entry for that machine.
+
+Unlike streams, DirectShow setups do not support `{nodeId}` templates - capture device names are machine-specific strings, so per-role entries are the natural way to describe them. If an entry's title does not exist at all in a machine's local file (for instance if the files differ between machines), that machine falls back to the device pair synced from the master. Custom (non-predefined) DirectShow layers always use their chosen devices verbatim on every machine, and per-node resolution is not applied.
+
+Example:
+
+```json
+{
+    "title": "HDMI Capture 1",
+    "videoDevice": "",
+    "audioDevice": "",
+    "devices": {
+        "master": { "videoDevice": "DELTA-hmi Video Source (card0 RX0)", "audioDevice": "" },
+        "node-A": { "videoDevice": "Datapath VisionSC-DP2 Video 01", "audioDevice": "" }
+    }
+}
+```
+
+In this example the master captures from its DELTA card while `node-A` captures from its Datapath card. All other nodes fall back to the plain devices (both empty here) - so they stay idle for this setup.
+
+Unlike stream keys, DirectShow preset keys are also stored in *.cplaypres* files (`"directShowPreset"`), so per-machine resolution survives saving and reloading a presentation.
 
 When choosing *"Control"*, the layer does not display any visual content. Instead, it dispatches a player control operation when activated through the slide timeline. Control layers exist only on the master node and are useful for automating playback actions within a presentation.
 

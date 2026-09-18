@@ -26,6 +26,9 @@
 #include <webrtc/webrtclayer.h>
 #endif
 #include <layers/streamlayer.h>
+#ifdef DIRECTSHOW_SUPPORT
+#include <layers/directshowlayer.h>
+#endif
 #include <layers/imagelayer.h>
 
 #include <QOpenGLContext>
@@ -78,6 +81,7 @@ void LayerQtItem::setLayerIdx(int idx) {
         }
         m_layerIdx = -1;
         m_layer = nullptr;
+        m_lastEmittedAudioLevel = -1.f; // force a fresh audio level emit for the (empty) view
         Q_EMIT layerChanged();
         Q_EMIT layerValueChanged();
         return;
@@ -88,6 +92,8 @@ void LayerQtItem::setLayerIdx(int idx) {
         }
         m_layer = nl;
         m_layer->setShouldPreLoad(true);
+        m_layer->setAudioLevelsEnabled(m_audioLevelsEnabled); // re-apply the meter state to the new layer
+        m_lastEmittedAudioLevel = -1.f; // force a fresh audio level emit for the new layer
         Q_EMIT layerChanged();
         Q_EMIT layerValueChanged();
         if (window()) {
@@ -176,6 +182,34 @@ bool LayerQtItem::layerHasAudio() const {
         return m_layer->hasAudio();
     else
         return false;
+}
+
+bool LayerQtItem::layerHasAudioLevels() const {
+    if (m_layer)
+        return m_layer->hasAudioLevels();
+    else
+        return false;
+}
+
+float LayerQtItem::layerAudioLevel() const {
+    if (m_layer)
+        return static_cast<float>(m_layer->audioLevel());
+    else
+        return 0.f;
+}
+
+bool LayerQtItem::layerAudioLevelsEnabled() const {
+    return m_audioLevelsEnabled;
+}
+
+void LayerQtItem::setLayerAudioLevelsEnabled(bool enabled) {
+    if (m_audioLevelsEnabled == enabled) {
+        return;
+    }
+    m_audioLevelsEnabled = enabled;
+    if (m_layer) {
+        m_layer->setAudioLevelsEnabled(enabled);
+    }
 }
 
 int LayerQtItem::layerAudioId() const {
@@ -1432,6 +1466,27 @@ void LayerQtItem::setLayerStreamKey(QString key) {
     }
 }
 
+#ifdef DIRECTSHOW_SUPPORT
+QString LayerQtItem::layerDirectShowPresetKey() const {
+    if (m_layer && m_layer->type() == BaseLayer::DIRECTSHOW) {
+        DirectShowLayer* directShowLayer = static_cast<DirectShowLayer*>(m_layer);
+        return QString::fromStdString(directShowLayer->presetKey());
+    }
+    return QStringLiteral("");
+}
+
+void LayerQtItem::setLayerDirectShowPresetKey(QString key) {
+    if (m_layer && m_layer->isEnabled() && m_layer->type() == BaseLayer::DIRECTSHOW) {
+        DirectShowLayer* directShowLayer = static_cast<DirectShowLayer*>(m_layer);
+        if (QString::fromStdString(directShowLayer->presetKey()) != key) {
+            directShowLayer->setPresetKey(key.toStdString());
+            Q_EMIT layerValueChanged();
+            Q_EMIT layerNeedsSave();
+        }
+    }
+}
+#endif
+
 void LayerQtItem::handleWindowChanged(QQuickWindow *win) {
     if (win) {
         connect(win, &QQuickWindow::beforeSynchronizing, this, &LayerQtItem::sync, Qt::DirectConnection);
@@ -1443,6 +1498,14 @@ void LayerQtItem::handleWindowChanged(QQuickWindow *win) {
             m_timer->setInterval((1.0f / 60.0f) * 1000.0f);
 
             connect(m_timer, &QTimer::timeout, win, &QQuickWindow::update);
+            // Refresh the reported audio level for visualization (e.g. the meter in LayerView).
+            connect(m_timer, &QTimer::timeout, this, [this] {
+                const float level = layerAudioLevel();
+                if (level != m_lastEmittedAudioLevel) {
+                    m_lastEmittedAudioLevel = level;
+                    Q_EMIT layerAudioLevelChanged();
+                }
+            });
 
             m_timer->start();
         }

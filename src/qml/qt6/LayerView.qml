@@ -547,6 +547,77 @@ Kirigami.ApplicationWindow {
 
             onClicked: {}
         }
+        // Optional audio level meter, shown on top of the rendered image while a supported
+        // layer (NDI/OMT/DirectShow/WebRTC) is playing audio. The small button next to the bar
+        // toggles it; both are only available for layers that report audio levels.
+        RowLayout {
+            id: audioLevelMeterGroup
+
+            visible: layerViewItem.layerHasAudioLevels && layerViewItem.layerIdx !== -1
+            anchors.left: parent.left
+            anchors.bottom: parent.bottom
+            anchors.margins: 12
+
+            ToolButton {
+                id: showAudioLevelMeter
+
+                checkable: true
+                checked: false
+                focusPolicy: Qt.NoFocus
+                // Only compute levels in the layer's audio path while the meter is enabled.
+                onCheckedChanged: layerViewItem.layerAudioLevelsEnabled = checked
+                icon.color: (checked ? "lime" : "crimson")
+                icon.name: "audio-volume-high"
+                Layout.alignment: Qt.AlignVCenter
+
+                ToolTip {
+                    text: qsTr("Show the audio level meter for this layer")
+                }
+            }
+            Rectangle {
+                id: audioLevelMeter
+
+                visible: showAudioLevelMeter.checked
+                width: 200
+                height: 18
+                radius: 9
+                color: "#66000000"
+                border.color: "#55FFFFFF"
+                border.width: 1
+
+                Rectangle {
+                    id: audioLevelMeterFill
+
+                    anchors.left: parent.left
+                    anchors.verticalCenter: parent.verticalCenter
+                    width: Math.max(0, layerViewItem.layerAudioLevel) * (audioLevelMeter.width - 4)
+                    height: audioLevelMeter.height - 4
+                    radius: (audioLevelMeter.height - 4) / 2
+                    gradient: Gradient {
+                        GradientStop { position: 0.0; color: "#2ECC40" }
+                        GradientStop { position: 0.7; color: "#F1C40F" }
+                        GradientStop { position: 0.9; color: "#FF851B" }
+                        GradientStop { position: 1.0; color: "#CC2A36" }
+                    }
+
+                    Behavior on width {
+                        NumberAnimation { duration: 80; easing.type: Easing.OutCubic }
+                    }
+                }
+                Label {
+                    anchors.left: parent.left
+                    anchors.leftMargin: 10
+                    anchors.verticalCenter: parent.verticalCenter
+                    text: layerViewItem.layerAudioLevel > 0.0001
+                          ? (20 * Math.log(layerViewItem.layerAudioLevel) / Math.LN10).toFixed(1) + " dB"
+                          : "-inf dB"
+                    color: "white"
+                    font.pointSize: 9
+                    style: Text.Outline
+                    styleColor: "black"
+                }
+            }
+        }
         // Sublayer ROI highlight rectangle
         Rectangle {
             id: subLayerRoiHighlight

@@ -50,6 +50,32 @@ struct ISampleGrabber : public IUnknown {
     virtual HRESULT STDMETHODCALLTYPE GetCurrentSample(IMediaSample** ppSample) = 0;
     virtual HRESULT STDMETHODCALLTYPE SetCallback(ISampleGrabberCB* callback, int interfaceMode) = 0;
 };
+
+// One COM callback object per sample grabber (see DirectShowLayer::m_videoCallback /
+// m_audioCallback). Samples are routed by which grabber delivered them - not by the
+// sample's own media type, which WDM/KS capture devices often do not attach. Each holds
+// an immortal base reference: destruction is owned by the layer, which clears the
+// grabber callback (releaseGraph()) before it is destroyed.
+class DirectShowLayer; // forward declaration for the back-pointer below
+class GrabberCallback : public ISampleGrabberCB {
+public:
+    enum class Role { Video, Audio };
+
+    explicit GrabberCallback(DirectShowLayer* layer, Role role);
+
+    HRESULT QueryInterface(REFIID riid, void** ppv) override;
+    ULONG AddRef() override;
+    ULONG Release() override;
+
+    // Called on the DirectShow streaming thread.
+    HRESULT SampleCallback(double sampleTime, IMediaSample* pMediaSample) override;
+    HRESULT BufferCallback(double /*sampleTime*/, BYTE* /*pBuffer*/, DWORD /*bufferLength*/) override { return E_NOTIMPL; }
+
+private:
+    DirectShowLayer* m_layer = nullptr; // non-owning - the layer outlives its callbacks
+    Role m_role = Role::Video;
+    std::atomic<ULONG> m_refCount{1};   // immortal base reference held by the layer
+};
 #pragma warning(pop)
 #endif
 
@@ -62,10 +88,10 @@ struct ISampleGrabber : public IUnknown {
 // converted to interleaved float32 and played out through PortAudio - mirroring
 // NdiLayer/OmtLayer.
 #ifdef _WIN32
-// Video pixel formats understood by DirectShowLayer::SampleCallback().
+// Video pixel formats understood by DirectShowLayer::handleVideoSample().
 enum class PixelFormat : int { Unknown = 0, RGB24, RGB32, YUY2, NV12, I420, YV12, UYVY };
 
-class DirectShowLayer : public BaseLayer, public ISampleGrabberCB {
+class DirectShowLayer : public BaseLayer {
 #else
 class DirectShowLayer : public BaseLayer {
 #endif
@@ -95,10 +121,20 @@ public:
     static void processPendingGLCleanup();
 
     // Capture devices chosen in the UI (friendly names). An empty video device means
-    // "no capture" - the layer plays back filepath() as a media file instead. A non-empty
-    // audio device routes that microphone to the PortAudio output; otherwise the source's
-    // own audio track is used when available. Must be called before initialize().
+    // "no capture" - the layer plays back filepath() as a media file instead, unless an
+    // audio device was chosen too, which selects audio-only mode (microphone to the
+    // PortAudio output, no video at all). A non-empty audio device routes that microphone
+    // to the PortAudio output; otherwise the source's own audio track is used when available.
+    // Must be called before initialize().
     void setCaptureDevices(const std::string& videoDevice, const std::string& audioDevice);
+
+    // Stable key identifying the predefined DirectShow setup this layer was created from (the entry's title). Empty for custom device selections and file playback. Each machine resolves its own local capture devices from this key via its local data/predefined-directshows.json; a resolution with both devices empty means no capture on that machine.
+    std::string presetKey() const;
+    void setPresetKey(const std::string& key);
+
+    // Type-specific sync of the preset key to/from the other machines (mirrors StreamLayer).
+    void encodeTypeCore(std::vector<std::byte>& data) override;
+    void decodeTypeCore(const std::vector<std::byte>& data, unsigned int& pos) override;
 
 #ifdef _WIN32
     // Audio output via PortAudio - mirrors NdiLayer/OmtLayer.
@@ -109,28 +145,26 @@ public:
     void enableAudio(bool enabled = true) override;
     void updateAudioOutput() override;
     void setVolume(int v, bool storeLevel = true) override;
-
-    // IUnknown. The layer holds an immortal base reference, so Release() can
-    // never drop the count to zero - destruction is owned by BaseLayer's
-    // shared_ptr machinery (see cleanup()).
-    HRESULT QueryInterface(REFIID riid, void** ppv) override;
-    ULONG AddRef() override;
-    ULONG Release() override;
-
-    // ISampleGrabberCB - called on the DirectShow streaming thread.
-    HRESULT SampleCallback(double sampleTime, IMediaSample* pSample) override;
-    HRESULT BufferCallback(double sampleTime, BYTE* pBuffer, DWORD bufferLength) override;
+    // The audio level is reported from the PortAudio output callback, so a meter in the
+    // LayerView can show live levels while the image renders.
+    bool hasAudioLevels() const override { return true; }
 #endif
 
 private:
 #ifdef _WIN32
-    bool buildAndRunGraph(const std::string& pathUtf8); // render thread only
+    friend class GrabberCallback; // forwards grabber samples to handleVideoSample()/handleAudioSample()
+
+    bool buildAndRunGraph(const std::string& pathUtf8, const std::string& videoDevice, const std::string& audioDevice); // render thread only; devices are the per-machine resolved pair (see presetKey())
+    bool buildVideoPath(const std::string& videoDevice); // render thread only, during graph build: source -> video grabber; videoDevice is the per-machine resolved pair's video part (empty = file source)
     void ensureGraph();                                  // render thread only
     void releaseGraph();                                 // any thread (MTA COM)
+    void setupSignalDetection();                         // render thread only, during graph build for capture devices
+    void pollSignalPresence();                           // render thread only, called from ensureGraph() - throttled internally
 
     // Audio path / PortAudio output (mirrors NdiLayer/OmtLayer).
-    bool buildAudioPath();                                   // render thread only, during graph build; non-fatal on failure
-    void handleAudioSample(const BYTE* pData, DWORD length, const AM_MEDIA_TYPE* pMt);  // DirectShow streaming thread
+    bool buildAudioPath(const std::string& audioDevice);  // render thread only, during graph build; non-fatal on failure. audioDevice is the per-machine resolved microphone name (empty = use the source's own audio pin)
+    HRESULT handleVideoSample(IMediaSample* pSample);      // DirectShow streaming thread (video grabber callback)
+    void handleAudioSample(const BYTE* pData, DWORD length, const AM_MEDIA_TYPE* pMt);  // DirectShow streaming thread (audio grabber callback)
     void ensurePortAudioInitialized();                       // render thread (idempotent)
     bool openAudioStreamLocked(int sampleRate, int channels); // caller holds m_audioStreamMutex
     void closeAudioStreamLocked();                            // caller holds m_audioStreamMutex
@@ -158,12 +192,28 @@ private:
     bool m_buildFailed = false;    // don't retry a failed/stalled build for the same file
     std::chrono::steady_clock::time_point m_graphStart{};
 
+    // "No signal" detection for DeltaCast / Datapath capture cards (see setupSignalDetection()).
+    // The card's WDM filter exposes IKsPropertySet; when it supports one of the vendor property
+    // sets we poll its signal-status property once per second and log state transitions.
+    enum class SignalVendor : int { None = 0, DeltaCast, Datapath };
+    enum class SignalState : int { Unknown = 0, Absent, Present };
+
+    IKsPropertySet* m_signalPropSet = nullptr; // owned reference for the graph's lifetime (released in releaseGraph)
+    SignalVendor m_signalVendor = SignalVendor::None;
+    GUID m_signalSetGuid{};   // vendor property set to poll
+    DWORD m_signalPropId = 0; // signal-status property within that set
+    std::atomic<SignalState> m_signalState{SignalState::Unknown};
+    std::chrono::steady_clock::time_point m_lastSignalPoll{};
+
     // Cached from the grabber's connection media type after Run(), used when a sample carries no media type.
     int m_cachedWidth = 0;
     int m_cachedHeight = 0;
     PixelFormat m_cachedPixelType = PixelFormat::Unknown;
 
-    std::atomic<ULONG> m_comRefCount{1}; // immortal base reference (see QueryInterface)
+    // One callback object per grabber - samples are routed by which grabber delivered them,
+    // not by the sample's own media type (see GrabberCallback above).
+    GrabberCallback m_videoCallback{this, GrabberCallback::Role::Video};
+    GrabberCallback m_audioCallback{this, GrabberCallback::Role::Audio};
 
     // Audio path: a second sample grabber fed from the source's audio pin (file playback, or a
     // capture filter with a built-in mic) or from an audio capture filter. Grabbed samples are
@@ -220,9 +270,13 @@ private:
     uint64_t m_consumedFrameCount = 0; // render thread only
 
     // Capture devices chosen in the UI (see setCaptureDevices). Written before
-    // initialize(), read by the render thread while running.
+    // initialize(), read by the render thread while running. When a preset key is set,
+    // these act as the fallback for machines without a local predefined-directshows.json entry.
     std::string m_captureVideoDevice;
     std::string m_captureAudioDevice;
+
+    // Stable key of the predefined DirectShow setup this layer was created from (entry title); empty for custom devices/files. Synced to all machines via encodeTypeCore/decodeTypeCore.
+    std::string m_presetKey;
 
     mutable std::mutex m_graphMutex;   // guards graph build/release
 

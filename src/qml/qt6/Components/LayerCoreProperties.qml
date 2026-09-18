@@ -38,6 +38,8 @@ GridLayout {
     property alias omtSenderComboBox: omtSenderComboBox
     property alias directShowVideoDeviceComboBox: directShowVideoDeviceComboBox
     property alias directShowAudioDeviceComboBox: directShowAudioDeviceComboBox
+    property alias directShowPresetsLayout: directShowPresetsLayout
+    property alias directShowPresetsComboBox: directShowPresetsComboBox
     property alias whepUrlField: whepUrlField
     property alias stereoscopicModeForLayer: stereoscopicModeForLayer
     property alias gridModeForLayer: gridModeForLayer
@@ -49,6 +51,9 @@ GridLayout {
     property alias restCustomUrlField: restCustomUrlField
     property alias restMethodComboBox: restMethodComboBox
     property alias restIgnoreStatusCheckBox: restIgnoreStatusCheckBox
+
+    // True when data/predefined-directshows.json provides at least one enabled capture setup.
+    property bool directShowPresetAvailable: app.directShowPresetsModel && app.directShowPresetsModel.numberOfPresets > 0
 
     property string restParametersJson: ""
     property var restObsActionNames: [qsTr("Set Profile"), qsTr("Set Scene"), qsTr("Set Scene Collection"), qsTr("Custom")]
@@ -74,6 +79,28 @@ GridLayout {
                 break;
             }
         }
+        directShowPresetsLayout.customEntry = false;
+    }
+
+    // Returns the video/audio device combination of the currently selected predefined DirectShow setup, or null when none is available.
+    function getDirectShowPresetDevices() {
+        var m = app.directShowPresetsModel;
+        if (!m || directShowPresetsComboBox.currentIndex < 0)
+            return null;
+        var idx = directShowPresetsComboBox.currentIndex;
+        return { video: m.data(m.index(idx, 0), Qt.UserRole), audio: m.data(m.index(idx, 0), Qt.UserRole + 1) };
+    }
+
+    // Mirrors the selected predefined setup onto the custom device comboboxes so that switching to the
+    // custom options starts from the same devices. Devices not present on this machine are left unselected.
+    function applyDirectShowPresetToDevices() {
+        var devices = getDirectShowPresetDevices();
+        if (!devices || !app.directShowModel)
+            return;
+        var vi = app.directShowModel.videoDevices.indexOf(devices.video);
+        directShowVideoDeviceComboBox.currentIndex = vi >= 0 ? vi : -1;
+        var ai = app.directShowModel.audioDevices.indexOf(devices.audio);
+        directShowAudioDeviceComboBox.currentIndex = ai >= 0 ? ai : -1;
     }
 
     function getRestParametersJson() {
@@ -331,6 +358,14 @@ GridLayout {
                     app.directShowModel.updateDeviceLists();
                     directShowVideoDeviceComboBox.currentIndex = app.directShowModel.videoDevices.length - 1;
                     directShowAudioDeviceComboBox.currentIndex = app.directShowModel.audioDevices.length - 1;
+                }
+                if (root.directShowPresetAvailable) {
+                    // Predefined setups exist: default to the first one, like Stream layers do.
+                    directShowPresetsLayout.customEntry = false;
+                    directShowPresetsComboBox.currentIndex = 0;
+                    applyDirectShowPresetToDevices();
+                    layerTitle.text = directShowPresetsComboBox.currentText;
+                } else {
                     layerTitle.text = "DirectShow:" + (directShowVideoDeviceComboBox.currentText || "");
                 }
             }
@@ -374,11 +409,11 @@ GridLayout {
         Layout.alignment: Qt.AlignRight
         font.pointSize: 9
         text: qsTr("File:")
-        visible: typeComboBox.currentText != "Stream" && typeComboBox.currentText != "NDI" && typeComboBox.currentText != "Spout" && typeComboBox.currentText != "OMT" && typeComboBox.currentText != "WebRTC" && typeComboBox.currentText != "Text" && typeComboBox.currentText != "Control" && typeComboBox.currentText != "REST"
+        visible: typeComboBox.currentText != "Stream" && typeComboBox.currentText != "DirectShow"&& typeComboBox.currentText != "NDI" && typeComboBox.currentText != "Spout" && typeComboBox.currentText != "OMT" && typeComboBox.currentText != "WebRTC" && typeComboBox.currentText != "Text" && typeComboBox.currentText != "Control" && typeComboBox.currentText != "REST"
     }
     RowLayout {
         Layout.fillWidth: true
-        visible: typeComboBox.currentText != "Stream" && typeComboBox.currentText != "NDI" && typeComboBox.currentText != "Spout" && typeComboBox.currentText != "OMT" && typeComboBox.currentText != "WebRTC" && typeComboBox.currentText != "Text" && typeComboBox.currentText != "Control" && typeComboBox.currentText != "REST"
+        visible: typeComboBox.currentText != "Stream" && typeComboBox.currentText != "DirectShow" && typeComboBox.currentText != "NDI" && typeComboBox.currentText != "Spout" && typeComboBox.currentText != "OMT" && typeComboBox.currentText != "WebRTC" && typeComboBox.currentText != "Text" && typeComboBox.currentText != "Control" && typeComboBox.currentText != "REST"
 
         TextField {
             id: fileForLayer
@@ -649,12 +684,73 @@ GridLayout {
 
     Label {
         Layout.alignment: Qt.AlignRight
+        text: qsTr("Setup:")
+        visible: typeComboBox.currentText === "DirectShow" && root.directShowPresetAvailable
+    }
+    RowLayout {
+        id: directShowPresetsLayout
+
+        Layout.fillWidth: true
+        property bool customEntry: false
+        visible: typeComboBox.currentText === "DirectShow" && root.directShowPresetAvailable
+
+        ComboBox {
+            id: directShowPresetsComboBox
+
+            Layout.fillWidth: true
+            model: app.directShowPresetsModel ? app.directShowPresetsModel : []
+            currentIndex: 0
+            textRole: "title"
+            visible: directShowPresetsLayout.customEntry === false
+
+            Component.onCompleted: {
+                if (app.directShowPresetsModel) {
+                    app.directShowPresetsModel.updatePresetsList();
+                    directShowPresetsLayout.customEntry = false;
+                    directShowPresetsComboBox.currentIndex = 0;
+                    layerTitle.text = directShowPresetsComboBox.currentText;
+                }
+            }
+            onActivated: {
+                layerTitle.text = directShowPresetsComboBox.currentText;
+                applyDirectShowPresetToDevices();
+            }
+        }
+        ToolButton {
+            id: directShowPresetComboOrFieldButton
+
+            focusPolicy: Qt.NoFocus
+            icon.height: 16
+            icon.name: directShowPresetsLayout.customEntry ? "gnumeric-object-combo" : "text-field"
+            text: ""
+
+            onClicked: {
+                if (directShowPresetsLayout.customEntry) {
+                    app.directShowPresetsModel.updatePresetsList();
+                    directShowPresetsComboBox.currentIndex = 0;
+                    applyDirectShowPresetToDevices();
+                    directShowPresetsLayout.customEntry = false;
+                    layerTitle.text = directShowPresetsComboBox.currentText;
+                } else {
+                    directShowPresetsLayout.customEntry = true;
+                    layerTitle.text = "DirectShow:" + (directShowVideoDeviceComboBox.currentText || "");
+                }
+            }
+
+            ToolTip {
+                text: directShowPresetsLayout.customEntry ? qsTr("Use predefined setup list") : qsTr("Use custom capture devices")
+            }
+        }
+    }
+
+    Label {
+        Layout.alignment: Qt.AlignRight
         text: qsTr("Video device:")
-        visible: typeComboBox.currentText === "DirectShow"
+        visible: typeComboBox.currentText === "DirectShow" && (!root.directShowPresetAvailable || directShowPresetsLayout.customEntry)
     }
     RowLayout {
         Layout.fillWidth: true
-        visible: typeComboBox.currentText === "DirectShow"
+        visible: typeComboBox.currentText === "DirectShow" && (!root.directShowPresetAvailable || directShowPresetsLayout.customEntry)
 
         ComboBox {
             id: directShowVideoDeviceComboBox
@@ -666,8 +762,13 @@ GridLayout {
             Component.onCompleted: {
                 if (app.directShowModel) {
                     app.directShowModel.updateDeviceLists();
-                    directShowVideoDeviceComboBox.currentIndex = app.directShowModel.videoDevices.length - 1;
-                    layerTitle.text = "DirectShow:" + (directShowVideoDeviceComboBox.currentText || "");
+                    if (root.directShowPresetAvailable) {
+                        // A predefined setup is shown by default - mirror its devices onto the custom comboboxes.
+                        applyDirectShowPresetToDevices();
+                    } else {
+                        directShowVideoDeviceComboBox.currentIndex = app.directShowModel.videoDevices.length - 1;
+                        layerTitle.text = "DirectShow:" + (directShowVideoDeviceComboBox.currentText || "");
+                    }
                 }
             }
             onActivated: {
@@ -697,18 +798,18 @@ GridLayout {
         }
     }
     Item {
-        visible: root.showSpacers && typeComboBox.currentText === "DirectShow"
+        visible: root.showSpacers && typeComboBox.currentText === "DirectShow" && (!root.directShowPresetAvailable || directShowPresetsLayout.customEntry)
         Layout.fillWidth: true
     }
 
     Label {
         Layout.alignment: Qt.AlignRight
         text: qsTr("Audio device:")
-        visible: typeComboBox.currentText === "DirectShow"
+        visible: typeComboBox.currentText === "DirectShow" && (!root.directShowPresetAvailable || directShowPresetsLayout.customEntry)
     }
     RowLayout {
         Layout.fillWidth: true
-        visible: typeComboBox.currentText === "DirectShow"
+        visible: typeComboBox.currentText === "DirectShow" && (!root.directShowPresetAvailable || directShowPresetsLayout.customEntry)
 
         ComboBox {
             id: directShowAudioDeviceComboBox
@@ -725,7 +826,7 @@ GridLayout {
         }
     }
     Item {
-        visible: root.showSpacers && typeComboBox.currentText === "DirectShow"
+        visible: root.showSpacers && typeComboBox.currentText === "DirectShow" && (!root.directShowPresetAvailable || directShowPresetsLayout.customEntry)
         Layout.fillWidth: true
     }
 
