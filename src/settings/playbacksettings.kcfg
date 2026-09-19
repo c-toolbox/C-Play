@@ -42,6 +42,10 @@
       <label>Fade down media visibility before rewind</label>
       <default>false</default>
     </entry>
+    <entry name="DefaultEofModeOnFileLoad" type="int">
+      <label>Default end-of-file mode when loading a file without its own EOF mode (-1 = Use current, 0 = Pause, 1 = Continue/Next, 2 = Loop)</label>
+      <default>-1</default>
+    </entry>
     <entry name="Visibility" type="Int">
       <label>Visibility at startup</label>
       <default>100</default>

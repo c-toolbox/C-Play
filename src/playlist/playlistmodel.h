@@ -216,7 +216,6 @@ private:
     QString m_playListName;
     QString m_playListPath;
     int m_playingVideo = -1;
-    int m_defaultEofMode = 2; // Looping
     bool m_playListEdited = false;
     KSharedConfig::Ptr m_config;
 };

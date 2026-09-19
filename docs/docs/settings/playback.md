@@ -16,6 +16,7 @@ The playback settings within C-Play control fading, visibility, seeking, and tim
 * **Sync volume and visibility fading** — When enabled, volume and visibility fade together (default off).
 * **Rewind on EOF when paused** — Rewind to start when end-of-file is reached while paused (default off).
 * **Fade down before rewind** — Fade visibility down before rewinding (default off).
+* **Default EOF mode on file load** — End-of-file mode applied when a loaded file has no saved EOF mode of its own, e.g. plain media files opened in the main video player (not C-Play files). Options: *Use current EOF mode* (keep the active mode, default), *Pause*, *Continue / Next*, and *Loop*.
 
 ### Seek steps
 

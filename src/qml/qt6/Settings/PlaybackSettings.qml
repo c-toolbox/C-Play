@@ -119,6 +119,58 @@ SettingsBasePage {
             }
         }
 
+        Label {
+            Layout.alignment: Qt.AlignRight
+            text: qsTr("Default EOF mode on file load:")
+        }
+        RowLayout {
+            ComboBox {
+                id: defaultEofModeOnFileLoadBox
+
+                textRole: "label"
+
+                model: ListModel {
+                    id: defaultEofModeModel
+
+                    ListElement {
+                        label: "Use current EOF mode"
+                        value: -1
+                    }
+                    ListElement {
+                        label: "Pause"
+                        value: 0
+                    }
+                    ListElement {
+                        label: "Continue / Next"
+                        value: 1
+                    }
+                    ListElement {
+                        label: "Loop"
+                        value: 2
+                    }
+                }
+
+                Component.onCompleted: {
+                    for (let i = 0; i < defaultEofModeModel.count; ++i) {
+                        if (defaultEofModeModel.get(i).value === PlaybackSettings.defaultEofModeOnFileLoad) {
+                            currentIndex = i;
+                            break;
+                        }
+                    }
+                }
+                onActivated: {
+                    PlaybackSettings.defaultEofModeOnFileLoad = model.get(index).value;
+                    PlaybackSettings.save();
+                }
+            }
+            LabelWithTooltip {
+                Layout.fillWidth: true
+                elide: Text.ElideRight
+                text: qsTr("Used when a loaded file has no saved end-of-file mode (e.g. plain media files opened in the main player).")
+            }
+        }
+
+
                // Seek Small Step
         Label {
             Layout.alignment: Qt.AlignRight

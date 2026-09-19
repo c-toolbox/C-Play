@@ -10,6 +10,7 @@
 #include "_debug.h"
 #include "application.h"
 #include "locationsettings.h"
+#include "playbacksettings.h"
 #include "playlistitem.h"
 #include "worker.h"
 
@@ -776,7 +777,9 @@ QString PlayListModel::separateOverlayFile(int i) const {
 int PlayListModel::eofMode(int i) const {
     if (i >= 0 && m_playList.size() > i && m_playList[i])
         return m_playList[i].data()->eofMode();
-    return m_defaultEofMode;
+    // No item-specific EOF mode available (e.g. a plain media file loaded in the main player).
+    // Fall back to the user-configured default (-1 = keep the current EOF mode).
+    return PlaybackSettings::defaultEofModeOnFileLoad();
 }
 
 void PlayListModel::setEofMode(int i, int eofMode) {
