@@ -384,6 +384,7 @@ void NdiLayer::update(bool updateRendering) {
     if (m_typePropertiesDecoded) {
         m_typePropertiesDecoded = false;
         setVolume(m_volume_Dec);
+        setVolumeMute(m_volumeMute_Dec);
         setQRCodeDetectionEnabled(m_qrCodeDetectionEnabled_Dec);
     }
 
@@ -542,7 +543,25 @@ void NdiLayer::setVolume(int v, bool storeLevel) {
 
     if (isAudioEnabled()) {
         m_volume_Dec = v;
-        NDIreceiver.SetAudioVolume(static_cast<float>(v) / 100.f);
+        // Keep the receiver muted while volume mute is active.
+        NDIreceiver.SetAudioVolume(m_volumeMute ? 0.f : static_cast<float>(v) / 100.f);
+    }
+
+    if (isMaster() && AudioSettings::enableAudioOnNodes())
+        setNeedSync();
+}
+
+void NdiLayer::setVolumeMute(bool v) {
+    if (m_volumeMute == v)
+        return;
+
+    m_volumeMute = v;
+    m_volumeMute_Dec = v;
+
+    if (isAudioEnabled()) {
+        // Muting is done by zeroing the receiver's audio volume, which both the PortAudio
+        // callback path and the Pa_WriteStream path pick up. Unmuting restores the level.
+        NDIreceiver.SetAudioVolume(v ? 0.f : static_cast<float>(m_volume) / 100.f);
     }
 
     if (isMaster() && AudioSettings::enableAudioOnNodes())
@@ -623,6 +642,7 @@ void NdiLayer::decodeTypeAlways(const std::vector<std::byte>& data, unsigned int
 
 void NdiLayer::encodeTypeProperties(std::vector<std::byte>& data) {
     sgct::serializeObject(data, m_volume_Dec);
+    sgct::serializeObject(data, m_volumeMute_Dec);
     sgct::serializeObject(data, isQRCodeDetectionEnabled());
     sgct::serializeObject(data, m_textureDivisionMode);
     sgct::serializeObject(data, m_textureDivisionGrid);
@@ -650,6 +670,7 @@ void NdiLayer::encodeTypeProperties(std::vector<std::byte>& data) {
 
 void NdiLayer::decodeTypeProperties(const std::vector<std::byte>& data, unsigned int& pos) {
     sgct::deserializeObject(data, pos, m_volume_Dec);
+    sgct::deserializeObject(data, pos, m_volumeMute_Dec);
     sgct::deserializeObject(data, pos, m_qrCodeDetectionEnabled_Dec);
 
     int divMode = 0;

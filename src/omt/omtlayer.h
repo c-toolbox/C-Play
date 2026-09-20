@@ -1,6 +1,6 @@
 /*
  * SPDX-FileCopyrightText:
- * 2026 Erik Sundén <eriksunden85@gmail.com>
+ * 2026 Erik Sundï¿½n <eriksunden85@gmail.com>
  *
  * SPDX-License-Identifier: GPL-3.0-or-later
  */
@@ -54,6 +54,7 @@ public:
     void enableAudio(bool enabled = true);
     void updateAudioOutput();
     void setVolume(int v, bool storeLevel = true);
+    void setVolumeMute(bool v);
 
     void encodeTypeAlways(std::vector<std::byte>& data);
     void decodeTypeAlways(const std::vector<std::byte>& data, unsigned int& pos);
@@ -94,6 +95,8 @@ private:
     bool m_isAudioEnabled = false;
     bool m_typePropertiesDecoded = false;
     int m_volume_Dec = 100;
+    bool m_volumeMute = false;
+    bool m_volumeMute_Dec = false;
     float m_audioVolume = 1.0f;
     int m_audioSampleRate = 48000;
     int m_audioChannels = 2;

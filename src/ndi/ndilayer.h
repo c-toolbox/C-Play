@@ -62,6 +62,7 @@ public:
     // so a meter in the LayerView can show live levels while the image renders.
     bool hasAudioLevels() const override { return true; }
     void setVolume(int v, bool storeLevel = true);
+    void setVolumeMute(bool v);
 
     // Access for the file-scope PortAudio callback (it is not a member function).
     ofxNDIreceive* receiver() { return &NDIreceiver; }
@@ -125,6 +126,8 @@ private:
     bool m_isAudioEnabled = false;
     bool m_typePropertiesDecoded = false;
     int m_volume_Dec = 100;
+    bool m_volumeMute = false;
+    bool m_volumeMute_Dec = false;
     bool m_qrCodeDetectionEnabled_Dec = false;
 
     // Conversion buffer for YUV formats

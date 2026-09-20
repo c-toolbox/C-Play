@@ -1,6 +1,6 @@
 /*
  * SPDX-FileCopyrightText:
- * 2026 Erik Sundén <eriksunden85@gmail.com>
+ * 2026 Erik Sundï¿½n <eriksunden85@gmail.com>
  *
  * SPDX-License-Identifier: GPL-3.0-or-later
  */
@@ -111,6 +111,7 @@ void OmtLayer::update(bool updateRendering) {
     if (m_typePropertiesDecoded) {
         m_typePropertiesDecoded = false;
         setVolume(m_volume_Dec);
+        setVolumeMute(m_volumeMute_Dec);
     }
 
     // Check if sender exists
@@ -123,7 +124,7 @@ void OmtLayer::update(bool updateRendering) {
         return;
     }
 
-    // Create receiver if needed — request both video and audio if audio is enabled
+    // Create receiver if needed ï¿½ request both video and audio if audio is enabled
     if (!m_receiver) {
         OMTFrameType frameTypes = OMTFrameType_Video;
         if (m_receiveAudio) {
@@ -221,9 +222,10 @@ void OmtLayer::ProcessAudioFrame(OMTMediaFrame* frame) {
 
     // OMT audio is planar 32-bit float: [ch0_sample0..ch0_sampleN][ch1_sample0..ch1_sampleN]...
     // PortAudio with paFloat32 expects interleaved float: [s0_ch0, s0_ch1, ..., s1_ch0, s1_ch1, ...]
-    // We interleave and apply volume — no format conversion needed.
+    // We interleave and apply volume ï¿½ no format conversion needed.
     const float* srcData = static_cast<const float*>(frame->Data);
-    float vol = m_audioVolume;
+    // Mute zeroes the per-frame volume so no audio is written to the PortAudio stream.
+    const float vol = m_volumeMute ? 0.f : m_audioVolume;
 
     size_t totalSamples = static_cast<size_t>(samplesPerChannel) * static_cast<size_t>(outChannels);
     if (m_interleavedAudioBuf.size() < totalSamples) {
@@ -284,7 +286,7 @@ bool OmtLayer::StartAudioStream() {
     }
     m_audioOutputParameters.hostApiSpecificStreamInfo = NULL;
 
-    // Open stream without callback — we use Pa_WriteStream instead
+    // Open stream without callback ï¿½ we use Pa_WriteStream instead
     m_audioError = Pa_OpenStream(
         &m_audioStream,
         NULL,
@@ -457,6 +459,17 @@ void OmtLayer::setVolume(int v, bool storeLevel) {
         setNeedSync();
 }
 
+void OmtLayer::setVolumeMute(bool v) {
+    if (m_volumeMute == v)
+        return;
+
+    m_volumeMute = v;
+    m_volumeMute_Dec = v;
+
+    if (isMaster() && AudioSettings::enableAudioOnNodes())
+        setNeedSync();
+}
+
 // Helper to convert grid index to cols/rows
 static void omtGridIndexToColsRows(int grid, int& cols, int& rows) {
     switch (grid) {
@@ -529,6 +542,7 @@ void OmtLayer::decodeTypeAlways(const std::vector<std::byte>& data, unsigned int
 
 void OmtLayer::encodeTypeProperties(std::vector<std::byte>& data) {
     sgct::serializeObject(data, m_volume_Dec);
+    sgct::serializeObject(data, m_volumeMute_Dec);
     sgct::serializeObject(data, m_textureDivisionMode);
     sgct::serializeObject(data, m_textureDivisionGrid);
 
@@ -555,6 +569,7 @@ void OmtLayer::encodeTypeProperties(std::vector<std::byte>& data) {
 
 void OmtLayer::decodeTypeProperties(const std::vector<std::byte>& data, unsigned int& pos) {
     sgct::deserializeObject(data, pos, m_volume_Dec);
+    sgct::deserializeObject(data, pos, m_volumeMute_Dec);
 
     int divMode = 0;
     sgct::deserializeObject(data, pos, divMode);

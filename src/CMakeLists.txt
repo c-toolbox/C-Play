@@ -8,7 +8,7 @@ set(CPLAY_VERSION_MAJOR 2)
 set(CPLAY_VERSION_MINOR 4)
 set(CPLAY_VERSION_PATCH 0)
 set(CPLAY_VERSION_PR_NAME "Beta")
-set(CPLAY_VERSION_PR_VERS 7)
+set(CPLAY_VERSION_PR_VERS 8)
 
 qt_add_executable(${TARGET_NAME})
 set_compile_options(${TARGET_NAME})
@@ -478,6 +478,13 @@ endif()
 if(BUILD_CPLAY_WITH_WEBRTC)
     list(APPEND TARGET_LIBRARIES LibDataChannel::LibDataChannel FFmpegPinned::FFmpeg Qt6::Network PortAudio::PortAudio)
     target_compile_definitions(${TARGET_NAME} PUBLIC WEBRTC_SUPPORT WEBRTC_LAYER)
+    # The WebRTC layer must decode with exactly the FFmpeg headers mpv was built
+    # against. Add the pinned include dir to the target itself so it precedes any
+    # environment (e.g. vcpkg) paths that other linked libraries contribute via
+    # their interface includes.
+    if(FFmpegPinned_INCLUDE_DIR)
+        target_include_directories(${TARGET_NAME} BEFORE PRIVATE ${FFmpegPinned_INCLUDE_DIR})
+    endif()
     # libdatachannel declares `struct RTC_CPP_EXPORT Message : binary` where
     # binary = std::vector<std::byte>. On MSVC the dllimport decoration then
     # propagates to the STL base class, so every TU that includes the rtc

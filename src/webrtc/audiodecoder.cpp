@@ -66,18 +66,20 @@ void requestStereoOutput(AVCodecContext* ctx) {
 
 // Builds a standard OpusHead (RFC 7845) with mapping family 0, so the built-in decoder never
 // interprets packet data as a multistream configuration header. Layout per RFC 7845 section 4,
-// little-endian fields; pre-skip and output gain stay zero.
+// little-endian fields: version [8], channel count [9], pre-skip [10..11] (zero), input sample
+// rate [12..15], output gain [16..17] (zero), mapping family [18].
 std::vector<std::uint8_t> makeOpusHead(int channels, int sampleRate) {
     std::vector<std::uint8_t> head(21, 0);
     std::memcpy(head.data(), "OpusHead", 8); // magic string
     head[8] = 1;                             // version
     head[9] = static_cast<std::uint8_t>(channels); // channel count (mapping family 0: 1 or 2)
     const std::uint32_t rate = sampleRate > 0 ? static_cast<std::uint32_t>(sampleRate) : 48000;
-    head[14] = static_cast<std::uint8_t>(rate & 0xFF); // input sample rate, little-endian
-    head[15] = static_cast<std::uint8_t>((rate >> 8) & 0xFF);
-    head[16] = static_cast<std::uint8_t>((rate >> 16) & 0xFF);
-    head[17] = static_cast<std::uint8_t>((rate >> 24) & 0xFF);
-    head[20] = 0; // mapping family: 0 selects the standard channel mapping
+    head[12] = static_cast<std::uint8_t>(rate & 0xFF); // input sample rate, little-endian [12..15]
+    head[13] = static_cast<std::uint8_t>((rate >> 8) & 0xFF);
+    head[14] = static_cast<std::uint8_t>((rate >> 16) & 0xFF);
+    head[15] = static_cast<std::uint8_t>((rate >> 24) & 0xFF);
+    // Output gain [16..17] stays zero.
+    head[18] = 0; // mapping family: 0 selects the standard channel mapping
     return head;
 }
 
@@ -120,8 +122,8 @@ bool convertToInterleavedFloat(const AVFrame& frame, int channels, std::vector<f
         // Packed float: plane 0 already holds the interleaved samples.
         std::memcpy(out.data(), planes[0], out.size() * sizeof(float));
     } else if (frame.format == AV_SAMPLE_FMT_S16) {
-        // Packed s16: the libopus wrapper emits this layout in some FFmpeg builds, so it must
-        // be handled here or every frame would be silently dropped.
+        // Packed s16: some Opus decoder configurations emit this layout, so it must be
+        // handled here or every frame would be silently dropped.
         const int16_t* samples = reinterpret_cast<const int16_t*>(planes[0]);
         for (std::size_t i = 0; i < out.size(); ++i) {
             out[i] = static_cast<float>(samples[i]) / 32768.f;
@@ -144,14 +146,14 @@ AudioDecoder::~AudioDecoder() {
 bool AudioDecoder::open(QString* error) {
     close();
 
-    // Prefer FFmpeg's external libopus wrapper when the build includes it. Otherwise use
-    // the built-in native decoder, which is told via an explicit OpusHead (mapping family
-    // 0) that the stream consists of raw RFC 6716 packets - not a multistream container.
-    const AVCodec* codec = avcodec_find_decoder_by_name("libopus");
-    const bool usingLibOpusWrapper = codec != nullptr;
-    if (!codec) {
-        codec = avcodec_find_decoder(AV_CODEC_ID_OPUS);
-    }
+    // Always use FFmpeg's built-in Opus decoder. The external "libopus" wrapper is deliberately
+    // avoided: it loads libopus-0.dll at runtime, and a missing or mismatched copy of that DLL
+    // crashes the process inside avcodec_open2(). On FFmpeg 5.x, avcodec_find_decoder() returns
+    // the native decoder even when the wrapper is registered in the build, so this selection is
+    // deterministic no matter which libopus-0.dll happens to sit next to the app. The built-in
+    // decoder is told via an explicit OpusHead (mapping family 0) that the stream consists of raw
+    // RFC 6716 packets - not a multistream container.
+    const AVCodec* codec = avcodec_find_decoder(AV_CODEC_ID_OPUS);
     if (!codec) {
         *error = u"Opus decoder not found in FFmpeg build"_s;
         return false;
@@ -168,12 +170,13 @@ bool AudioDecoder::open(QString* error) {
     requestStereoOutput(m_context);
     m_context->sample_rate = 48000;
     // Ask FFmpeg for planar float output; it inserts an internal resampler when the decoder's
-    // native format differs (the libopus wrapper emits packed s16 in some builds). The manual
-    // conversion below still copes with any other layout, so this is belt and braces.
+    // native format differs (the built-in Opus decoder natively emits FLTP, so normally no
+    // conversion is inserted). The manual conversion below still copes with any other layout,
+    // so this is belt and braces.
     m_context->request_sample_fmt = AV_SAMPLE_FMT_FLTP;
 
-    if (!usingLibOpusWrapper) {
-        // Built-in decoder: without extradata it hunts for an in-band OpusHead and misreads the
+    {
+        // Without extradata the built-in decoder hunts for an in-band OpusHead and misreads the
         // first raw packet's TOC byte as a multichannel configuration header, then aborts. A
         // standard header with mapping family 0 tells it to treat the stream as plain RFC 6716.
         const std::vector<std::uint8_t> head = makeOpusHead(2, 48000);

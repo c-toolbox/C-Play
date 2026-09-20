@@ -1193,6 +1193,17 @@ void SlidesModel::runUpdateVolumeOnLayers(int volume) {
     }
 }
 
+void SlidesModel::runUpdateMuteOnLayers(bool mute) {
+    for (int i = -1; i < numberOfSlides(); i++) {
+        const Layers& slideLayers = slide(i)->getLayers();
+        for (auto layer : slideLayers) {
+            if (!layer.first)
+                continue;
+            layer.first->setVolumeMute(mute);
+        }
+    }
+}
+
 void SlidesModel::checkMasterLayersRunBasedOnMediaVisibility(int mediaVisibility) {
     // Start/stop master layers that are visible dependent on media visibility
     const Layers& slideLayers = masterSlide()->getLayers();

@@ -72,7 +72,7 @@ class LayerQtItem : public QQuickItem {
     Q_PROPERTY(int layerEyeMode READ layerEyeMode WRITE setLayerEyeMode NOTIFY layerValueChanged)
     Q_PROPERTY(int layerGridMode READ layerGridMode WRITE setLayerGridMode NOTIFY layerValueChanged)
     Q_PROPERTY(int layerVisibility READ layerVisibility WRITE setLayerVisibility NOTIFY layerValueChanged)
-    Q_PROPERTY(bool layerHasAudio READ layerHasAudio NOTIFY layerPositionChanged)
+    Q_PROPERTY(bool layerHasAudio READ layerHasAudio NOTIFY layerHasAudioChanged)
     // True when the layer reports live audio levels from its decoded audio path (NDI, OMT, DirectShow and WebRTC).
     Q_PROPERTY(bool layerHasAudioLevels READ layerHasAudioLevels NOTIFY layerChanged)
     // Current audio level in [0..1] for visualization purposes; refreshed by the window timer.
@@ -379,6 +379,10 @@ Q_SIGNALS:
     void audioTracksModelChanged();
     // Emitted by the window timer when the reported audio level changes.
     void layerAudioLevelChanged();
+    // Emitted when the layer's audio-track availability changes (e.g. a live stream's
+    // PMT arrives late and an audio track appears after FILE_LOADED). Drives the
+    // LayerView audio controls so they show up as soon as audio exists.
+    void layerHasAudioChanged();
 
 private:
     Q_INVOKABLE void handleWindowChanged(QQuickWindow *win);
@@ -388,6 +392,7 @@ private:
     BaseLayer *m_layer;
     bool m_ownsLayer;
     float m_lastEmittedAudioLevel = -1.f; // sentinel so the first timer tick always emits
+    bool m_lastEmittedHasAudio = false;   // last reported audio-track availability (timer-polled)
     bool m_audioLevelsEnabled = false; // desired meter state, re-applied to each new layer
     bool m_updatingLayer;
     LayerQtOpenGLObject *m_renderer;

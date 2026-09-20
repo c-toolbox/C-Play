@@ -84,6 +84,7 @@ public:
     void enableAudio(bool enabled = true) override;
     void updateAudioOutput() override;
     void setVolume(int v, bool storeLevel = true) override;
+    void setVolumeMute(bool v) override;
 
 private:
     // Main thread only.
@@ -124,6 +125,7 @@ private:
     // Audio state (main thread only)
     bool m_isAudioEnabled = false;
     float m_audioVolume = 1.f;
+    bool m_volumeMute = false;
     bool m_audioDecodeDisabled = false; // set when the Opus decoder cannot be opened
 
     // PortAudio output stream (main thread only). Opened lazily on the first decoded

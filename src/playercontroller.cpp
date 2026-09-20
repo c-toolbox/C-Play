@@ -83,6 +83,14 @@ void PlayerController::setupConnections() {
     connect(m_mpv, &MpvObject::visibilityChanged, this, &PlayerController::backgroundVisibilityChanged);
     connect(this, &PlayerController::backgroundImageChanged, this, &PlayerController::backgroundVisibilityChanged);
 
+    // When the main video's mute state changes (e.g. via the mute action), all audio
+    // sources in layers need to be muted/unmuted as well.
+    connect(m_mpv, &MpvObject::muteChanged, this, [this]() {
+        if (m_slidesModel) {
+            m_slidesModel->runUpdateMuteOnLayers(m_mpv->mute());
+        }
+    });
+
     Q_EMIT backgroundVisibilityChanged();
 }
 

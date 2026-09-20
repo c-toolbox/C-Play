@@ -1588,6 +1588,12 @@ void LayersModel::encodeToJSON(QJsonObject &obj, const QStringList &forRelativeP
                 layerData.insert(QStringLiteral("time_end"), QJsonValue(layer->loopTimeB()));
             }
         }
+        if (layer->type() == BaseLayer::STREAM) {
+            if (layer->hasAudio()) {
+                layerData.insert(QStringLiteral("volume"), QJsonValue(layer->volume()));
+                layerData.insert(QStringLiteral("audioId"), QJsonValue(layer->audioId()));
+            }
+        }
 
         QString grid;
         int gridIdx = layer->gridMode();

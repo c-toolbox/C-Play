@@ -82,6 +82,7 @@ void LayerQtItem::setLayerIdx(int idx) {
         m_layerIdx = -1;
         m_layer = nullptr;
         m_lastEmittedAudioLevel = -1.f; // force a fresh audio level emit for the (empty) view
+        m_lastEmittedHasAudio = false;  // force a fresh has-audio emit for the (empty) view
         Q_EMIT layerChanged();
         Q_EMIT layerValueChanged();
         return;
@@ -94,6 +95,7 @@ void LayerQtItem::setLayerIdx(int idx) {
         m_layer->setShouldPreLoad(true);
         m_layer->setAudioLevelsEnabled(m_audioLevelsEnabled); // re-apply the meter state to the new layer
         m_lastEmittedAudioLevel = -1.f; // force a fresh audio level emit for the new layer
+        m_lastEmittedHasAudio = false;  // force a fresh has-audio emit (and track refresh) for the new layer
         Q_EMIT layerChanged();
         Q_EMIT layerValueChanged();
         if (window()) {
@@ -1504,6 +1506,15 @@ void LayerQtItem::handleWindowChanged(QQuickWindow *win) {
                 if (level != m_lastEmittedAudioLevel) {
                     m_lastEmittedAudioLevel = level;
                     Q_EMIT layerAudioLevelChanged();
+                }
+                // Audio tracks can appear after the view is open (live streams whose PMT
+                // arrives late). Poll so the LayerView audio controls show up as soon as they exist.
+                const bool hasAudio = layerHasAudio();
+                if (hasAudio != m_lastEmittedHasAudio) {
+                    m_lastEmittedHasAudio = hasAudio;
+                    if (hasAudio)
+                        loadTracks(); // refresh the model so countTracks()/track menu reflect the new tracks
+                    Q_EMIT layerHasAudioChanged();
                 }
             });
 

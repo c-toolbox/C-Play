@@ -221,6 +221,7 @@ public:
     Q_INVOKABLE void runStartAfterPresentationLoad();
     Q_INVOKABLE void runUpdateAudioOutputOnLayers();
     Q_INVOKABLE void runUpdateVolumeOnLayers(int volume);
+    Q_INVOKABLE void runUpdateMuteOnLayers(bool mute);
     Q_INVOKABLE void checkMasterLayersRunBasedOnMediaVisibility(int mediaVisibility);
 
     Q_PROPERTY(bool pauseLayerUpdate
@@ -257,7 +258,7 @@ public:
     Q_INVOKABLE bool outroRunning(int slideIdx) const;
 
     // Returns true if slideIdx has a timeline enabled and at least one layer
-    // with at least one keyframe — used by QML to decide whether to play the
+    // with at least one keyframe ï¿½ used by QML to decide whether to play the
     // timeline instead of the normal fade animations.
     Q_INVOKABLE bool slideHasTimelineKeyframes(int slideIdx) const;
 

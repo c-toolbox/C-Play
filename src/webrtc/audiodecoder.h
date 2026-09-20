@@ -16,9 +16,10 @@
 struct AVCodecContext;
 
 // Decodes depacketized Opus payloads (as delivered by the WHEP/WebRTC source) into
-// interleaved float32 PCM at 48 kHz. Uses FFmpeg's external libopus wrapper when the
-// build provides one, otherwise the built-in decoder with an explicit plain mono/stereo
-// OpusHead so raw RFC 6716 packets are never misread as a multistream configuration.
+// interleaved float32 PCM at 48 kHz. Always uses FFmpeg's built-in Opus decoder - the
+// external libopus wrapper is deliberately avoided because it requires a matching
+// libopus-0.dll at runtime - together with an explicit stereo OpusHead (mapping family 0)
+// so raw RFC 6716 packets are never misread as a multistream configuration.
 // The callback receives one decoded frame at a time: `pcm` holds `frames * channels`
 // samples in [-1, 1].
 class AudioDecoder {

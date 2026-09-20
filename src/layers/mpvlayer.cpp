@@ -112,8 +112,10 @@ void on_mpv_events(MpvLayer::mpvData &vd, BaseLayer::RenderParams) {
         }
         switch (event->event_id) {
         case MPV_EVENT_FILE_LOADED: {
+            // Always read the track list so hasAudio() is accurate even when audio
+            // is disabled; only apply the selection/volume when audio is enabled.
+            loadTracks(vd);
             if (vd.audioEnabled) {
-                loadTracks(vd);
                 loadAudioId(vd);
                 mpv::qt::set_property(vd.handle, QStringLiteral("volume"), vd.volume, vd.loggingOn);
             }
@@ -191,6 +193,14 @@ void on_mpv_events(MpvLayer::mpvData &vd, BaseLayer::RenderParams) {
                             vd.timeThresholdSetSkips -= 1;
                         }
                     }
+                }
+            } else if (strcmp(prop->name, "track-list") == 0) {
+                // Live streams can add/replace tracks after FILE_LOADED (PMT updates).
+                loadTracks(vd);
+                if (vd.audioEnabled) {
+                    // Re-apply the selection so a newly appearing track is picked up
+                    // (aid=auto selects the first/default audio track when it shows up).
+                    loadAudioId(vd);
                 }
             }
             break;
@@ -354,6 +364,9 @@ bool initMPV(MpvLayer::mpvData& vd) {
     mpv_observe_property(vd.handle, 0, "pause", MPV_FORMAT_FLAG);
     mpv_observe_property(vd.handle, 0, "time-pos", MPV_FORMAT_DOUBLE);
     mpv_observe_property(vd.handle, 0, "duration", MPV_FORMAT_DOUBLE);
+    // Live streams (e.g. TS multicast) can report their tracks after FILE_LOADED;
+    // re-read the track list whenever it changes so hasAudio() stays accurate.
+    mpv_observe_property(vd.handle, 0, "track-list", MPV_FORMAT_NODE);
     return true;
 }
 
@@ -527,6 +540,14 @@ void MpvLayer::update(bool updateRendering) {
 
 void MpvLayer::start() {
     if (ready() && m_data.mediaIsPaused) {
+        // Apply this layer's audio setting on start so auto-selected tracks (e.g. a stream's
+        // Opus audio) are picked up without requiring a pause/resume cycle. The paint loop
+        // only does this when it is the one performing the start; an explicit start() call
+        // (e.g. from QML right after the layer becomes visible) would otherwise leave mpv
+        // with aid=no and no audio track selected.
+        if (isMaster()) {
+            enableAudio(AudioSettings::enableAudioOnMaster());
+        }
         if (isAudioEnabled()) {
             setAudioId(m_data.audioId);
         }

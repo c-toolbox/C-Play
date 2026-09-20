@@ -191,6 +191,7 @@ Kirigami.ApplicationWindow {
                     createMediaComponents();
                 }
                 else if (layerViewItem.layerTypeName === "Stream") {
+                    createAudioComponents();
                     createStreamComponents();
                     createQRCodeComponents();
                     createFlipYComponents();
@@ -211,6 +212,13 @@ Kirigami.ApplicationWindow {
                 else if (layerViewItem.layerTypeName === "WebRTC") {
                     createWebrtcComponents();
                     createFlipYComponents();
+                    // The stream's audio is optional: only show the volume controls when
+                    // the layer reports audio through BaseLayer::hasAudio().
+                    if (layerViewItem.layerHasAudio) {
+                        createAudioComponents();
+                    } else {
+                        destroyAudioComponents();
+                    }
                 }
                 else if (layerViewItem.layerTypeName === "Text") {
                     createTextComponents();
@@ -2162,7 +2170,7 @@ Kirigami.ApplicationWindow {
                     }
                     else if (layerViewItem.layerTypeName === "Stream") {
                         destroyPageComponents();
-                        destroyAudioComponents();
+                        createAudioComponents();
                         destroyMediaComponents();
                         createStreamComponents();
                         destroyTextComponents();
@@ -2202,13 +2210,19 @@ Kirigami.ApplicationWindow {
                     }
                     else if (layerViewItem.layerTypeName === "WebRTC") {
                         destroyPageComponents();
-                        destroyAudioComponents();
                         destroyMediaComponents();
                         destroyStreamComponents();
                         destroyTextComponents();
                         destroyQRCodeComponents();
                         createFlipYComponents();
                         createWebrtcComponents();
+                        // The stream's audio is optional: only show the volume controls when
+                        // the layer reports audio through BaseLayer::hasAudio().
+                        if (layerViewItem.layerHasAudio) {
+                            createAudioComponents();
+                        } else {
+                            destroyAudioComponents();
+                        }
                     }
                     else if (layerViewItem.layerTypeName === "Text") {
                         destroyPageComponents();
@@ -2247,6 +2261,18 @@ Kirigami.ApplicationWindow {
                 if (visibilitySlider){
                     if(visibilitySlider.value !== layerViewItem.layerVisibility){
                         visibilitySlider.value = layerViewItem.layerVisibility;
+                    }
+                }
+            }
+
+            // The WebRTC stream's audio is optional and can appear or disappear while the
+            // view is open; keep the volume controls in sync with BaseLayer::hasAudio().
+            function onLayerHasAudioChanged() {
+                if (layerViewItem.layerIdx !== -1 && layerViewItem.layerTypeName === "WebRTC") {
+                    if (layerViewItem.layerHasAudio) {
+                        createAudioComponents();
+                    } else {
+                        destroyAudioComponents();
                     }
                 }
             }

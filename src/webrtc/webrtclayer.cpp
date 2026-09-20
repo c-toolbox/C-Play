@@ -663,6 +663,15 @@ void WebRTCLayer::setVolume(int v, bool storeLevel) {
     }
 }
 
+void WebRTCLayer::setVolumeMute(bool v) {
+    if (m_volumeMute == v) {
+        return;
+    }
+
+    // pushDecodedPcm() reads the flag and zeroes the output while muted.
+    m_volumeMute = v;
+}
+
 void WebRTCLayer::handleAudioFrame(const QByteArray &payload, quint32 rtpTimestamp) {
     Q_UNUSED(rtpTimestamp); // Opus decoding is self-clocking; PortAudio owns the output clock
 
@@ -722,7 +731,8 @@ void WebRTCLayer::pushDecodedPcm(const float *pcm, int sampleRate, int channels,
         m_interleavedAudioBuf.resize(totalSamples);
     }
 
-    const float vol = m_audioVolume;
+    // Mute zeroes the per-frame volume so no audio is written to the PortAudio stream.
+    const float vol = m_volumeMute ? 0.f : m_audioVolume;
     for (int s = 0; s < frames; ++s) {
         const float *inSample = pcm + static_cast<std::size_t>(s) * channels;
         float *outSample = m_interleavedAudioBuf.data() + static_cast<std::size_t>(s) * outChannels;
