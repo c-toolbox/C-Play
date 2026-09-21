@@ -69,8 +69,10 @@ const GUID kKsPropSetDatapathVision{0x00000000, 0x0000, 0x0000, {0x00, 0x00, 0x0
 const DWORD kDatapathPropSignalStatus = 0; // TODO: DATAPATH_PROP_SIGNAL_STATUS from the Datapath SDK
 // ksproxy.h: KSPROPERTY_SUPPORT_GET - bit set by IKsPropertySet::QuerySupported() when Get() is available.
 constexpr DWORD kKsPropertySupportGet = 1;
-// How often pollSignalPresence() reads the signal property (render thread, throttled).
+// How often pollSignalPresence() reads the signal property (graph worker idle loop, throttled).
 constexpr std::chrono::milliseconds kSignalPollInterval{1000};
+// How often the graph worker's idle loop wakes up for audio maintenance and signal polling.
+constexpr std::chrono::milliseconds kWorkerIdleInterval{100};
 
 #pragma warning(push)
 #pragma warning(disable : 5204) // COM interfaces have no destructor by design
@@ -333,10 +335,17 @@ void DirectShowLayer::cleanup() {
     m_receiveAudio.store(false);
     closeAudioStream();
     closeAudioInput(); // and the low-latency WASAPI input, if one was open
+
+    // Terminate the graph worker; it releases the filter graph with COM still initialized on its own thread.
     {
-        std::lock_guard<std::mutex> lock(m_graphMutex);
-        releaseGraph();
+        std::lock_guard<std::mutex> lock(m_cmdMutex);
+        m_terminateWorker.store(true);
     }
+    m_cmdCv.notify_all();
+    if (m_workerThread && m_workerThread->joinable())
+        m_workerThread->join();
+    m_workerThread.reset();
+
     if (m_portAudioInitialized.load()) {
         Pa_Terminate();
         m_portAudioInitialized.store(false);
@@ -392,37 +401,17 @@ bool DirectShowLayer::hasTexture() const {
 
 void DirectShowLayer::update(bool updateRendering) {
 #ifdef _WIN32
-    // PortAudio lifecycle (mirrors NdiLayer/OmtLayer): initialize once when audio is enabled.
-    if (m_isAudioEnabled && !m_portAudioInitialized.load())
-        ensurePortAudioInitialized();
-
-    const bool wantReceive = m_isAudioEnabled && m_portAudioInitialized.load();
+    // PortAudio initialization, WASAPI input opens and output stream retries run in the graph
+    // worker's idle loop (audioMaintenance) so no device I/O happens on this thread.
+    const bool wantReceive = m_isAudioEnabled.load() && m_portAudioInitialized.load();
     if (wantReceive != m_receiveAudio.load()) {
         m_receiveAudio.store(wantReceive);
         if (!wantReceive) {
             closeAudioStream(); // stop output immediately when audio is disabled
             closeAudioInput();  // and the low-latency WASAPI input stream too
-            m_audioInputStalled = false; // a fresh attempt is allowed when audio is re-enabled
+            m_audioInputStalled.store(false); // a fresh attempt is allowed when audio is re-enabled
             m_audioRing.clear();
         }
-    }
-
-    if (wantReceive && !m_audioPathBuilt && !m_audioInputOpen.load()) {
-        // Audio enabled at runtime for an explicit microphone: open the low-latency WASAPI input
-        // directly instead of rebuilding the video graph just to add a DirectShow audio path. On
-        // failure ensureGraph() below falls back to the WDM filter (full rebuild).
-        std::string videoDevice, audioDevice;
-        resolveCaptureDevices(videoDevice, audioDevice);
-        if (!audioDevice.empty())
-            openAudioInput(audioDevice);
-    }
-
-    if (wantReceive && m_audioInputOpen.load() && !m_audioStreamOpen.load()) {
-        // Retry the PortAudio output stream while WASAPI input is feeding the ring (e.g., after a
-        // transient failure at graph build). Backoff lives in openAudioStreamLocked().
-        std::lock_guard<std::mutex> lock(m_audioStreamMutex);
-        if (!m_audioStreamOpen.load())
-            openAudioStreamLocked(m_audioInputRate.load(), m_audioInputChannels.load());
     }
 
     if (wantReceive && m_audioInputOpen.load()) {
@@ -434,13 +423,13 @@ void DirectShowLayer::update(bool updateRendering) {
                                    std::chrono::steady_clock::now().time_since_epoch()).count();
             if (nowMs - lastMs > kAudioInputStallTimeout.count() * 1000LL) {
                 sgct::Log::Warning("DirectShowLayer: WASAPI input stopped delivering samples - falling back to the DirectShow audio path\n");
-                m_audioInputStalled = true; // skip WASAPI for the next graph build
+                m_audioInputStalled.store(true); // skip WASAPI for the next graph build
                 closeAudioInput();
             }
         }
     }
 
-    ensureGraph(); // rebuilds the graph once if an audio path must be added or removed
+    ensureGraph(); // enqueues graph/audio work for the worker thread; never blocks on COM/PortAudio I/O
 #endif
     if (updateRendering)
         updateFrame();
@@ -453,6 +442,27 @@ void DirectShowLayer::updateFrame() {
     // Also handles a file change made through setFilePath() after we became
     // ready - the render loop only calls update() while !ready().
     ensureGraph();
+
+    // Drop the last frame once its graph is gone and no rebuild/release is in flight (stall
+    // give-up, "no capture on this machine", failed build) - mirrors what ensureGraph() used to do inline.
+    {
+        bool graphGone = false;
+        {
+            std::lock_guard<std::mutex> lock(m_statusMutex);
+            graphGone = !m_status.hasGraph && m_inFlightSource.empty() && !m_releasePending.load();
+        }
+        if (graphGone) {
+            if (renderData.texId > 0) {
+                glDeleteTextures(1, &renderData.texId); // render thread - safe directly
+                renderData.width = 0;
+                renderData.height = 0;
+                renderData.texId = 0;
+            }
+            std::vector<unsigned char> stale;
+            int sw = 0, sh = 0;
+            consumeNewFrame(stale, sw, sh); // discard any frame still in flight from a dying graph
+        }
+    }
 
     std::vector<unsigned char> pixels;
     int width = 0;
@@ -890,8 +900,7 @@ bool DirectShowLayer::buildVideoPath(const std::string& videoDevice) {
 }
 
 bool DirectShowLayer::buildAndRunGraph(const std::string& pathUtf8, const std::string& videoDevice, const std::string& audioDevice) {
-    // COM must be initialized on this thread before any DirectShow call.
-    CoInitializeEx(nullptr, COINIT_MULTITHREADED); // E_FAIL/RPC_E_CHANGED_MODE are fine
+    // COM is initialized once on the graph worker thread (see runGraphWorker).
 
     // Fresh build - reset per-graph audio state.
     m_audioPathBuilt = false;
@@ -987,10 +996,10 @@ bool DirectShowLayer::buildAndRunGraph(const std::string& pathUtf8, const std::s
     // fatal for an audio-only graph - there is nothing else to render then. An explicit
     // microphone is preferred through a low-latency WASAPI input stream: the WDM/DirectShow
     // audio filter delivers ~500ms blocks and adds that much steady-state latency (e.g., C925).
-    if (m_isAudioEnabled) {
+    if (m_isAudioEnabled.load()) {
         bool audioBuilt = false;
         if (!audioDevice.empty()) {
-            if (!m_audioInputStalled && openAudioInput(audioDevice)) {
+            if (!m_audioInputStalled.load() && openAudioInput(audioDevice)) {
                 audioBuilt = true; // no DirectShow filter needed - m_audioPathBuilt stays false
             } else {
                 sgct::Log::Info(std::format("DirectShowLayer: WASAPI input unavailable for '{}' - using the DirectShow audio path\n", audioDevice));
@@ -1000,7 +1009,7 @@ bool DirectShowLayer::buildAndRunGraph(const std::string& pathUtf8, const std::s
             closeAudioInput(); // no explicit microphone for this source - stop any stale input stream
             audioBuilt = buildAudioPath("");
         }
-        m_audioInputStalled = false; // consumed (or not applicable) by this build
+        m_audioInputStalled.store(false); // consumed (or not applicable) by this build
         if (!audioBuilt && audioOnly) {
             sgct::Log::Error("DirectShowLayer: could not build the audio capture path\n");
             releaseGraph();
@@ -1061,7 +1070,7 @@ bool DirectShowLayer::buildAndRunGraph(const std::string& pathUtf8, const std::s
     }
     m_graphStart = std::chrono::steady_clock::now();
     sgct::Log::Info(std::format("DirectShowLayer: graph running for '{}'\n", m_loadedFile));
-    if (m_isAudioEnabled && !m_audioPathBuilt && !m_audioInputOpen.load()) {
+    if (m_isAudioEnabled.load() && !m_audioPathBuilt && !m_audioInputOpen.load()) {
         // Audio was requested but no usable audio pin/connection exists for this source.
         sgct::Log::Info("DirectShowLayer: no audio path available - playing video-only\n");
     }
@@ -1071,7 +1080,7 @@ bool DirectShowLayer::buildAndRunGraph(const std::string& pathUtf8, const std::s
 // "No signal" detection for DeltaCast / Datapath capture cards (see kKsPropSetDlCapture /
 // kKsPropSetDatapathVision). The card's WDM filter exposes IKsPropertySet; when it supports one
 // of the vendor property sets we keep a reference to it and remember which signal-status
-// property to poll. Render thread only, during graph build for capture devices.
+// property to poll. Graph worker thread only, during graph build for capture devices.
 void DirectShowLayer::setupSignalDetection() {
     if (m_signalPropSet) {
         m_signalPropSet->Release();
@@ -1120,7 +1129,7 @@ void DirectShowLayer::setupSignalDetection() {
 
 // Reads the vendor's signal-status property (throttled to kSignalPollInterval) and logs state
 // transitions. Both vendors report presence as a boolean/integer or status mask, so non-zero
-// means "signal present". Render thread only; called from ensureGraph() while holding m_graphMutex.
+// means "signal present". Graph worker thread only; called from the idle loop and after a successful build.
 void DirectShowLayer::pollSignalPresence() {
     if (!m_signalPropSet || m_signalVendor == SignalVendor::None) {
         return;
@@ -1165,22 +1174,25 @@ void DirectShowLayer::ensureGraph() {
     // Capture devices take precedence over file playback: when a video capture device
     // was chosen in the UI, the graph renders that live stream instead of the media
     // file at filepath(). The key identifies what the current graph is rendering.
+    startWorker(); // spawn the graph worker once - all COM/PortAudio I/O happens there
+
     std::string videoDevice, audioDevice;
     const bool fromPreset = resolveCaptureDevices(videoDevice, audioDevice);
 
     if (fromPreset && videoDevice.empty() && audioDevice.empty()) {
         // This machine intentionally has no capture for this setup - stay idle and never
-        // fall back to file playback. Tear down any graph from a previous resolution.
-        std::lock_guard<std::mutex> lock(m_graphMutex);
-        closeAudioInput(); // stop the low-latency WASAPI input too, if one was open
-        if (m_graphBuilder) {
-            releaseGraph();
-            if (renderData.texId > 0) {
-                glDeleteTextures(1, &renderData.texId); // render thread - safe directly
-                renderData.texId = 0;
-                renderData.width = 0;
-                renderData.height = 0;
-            }
+        // fall back to file playback. Ask the worker to tear down any graph from a previous resolution;
+        // updateFrame() drops the stale frame once the release completes.
+        bool hasGraph = false;
+        std::string loadedFile;
+        {
+            std::lock_guard<std::mutex> lock(m_statusMutex);
+            hasGraph = m_status.hasGraph;
+            loadedFile = m_status.loadedFile;
+        }
+        if (hasGraph && !m_releasePending.load()) {
+            m_releasePending.store(true);
+            enqueueGraphCommand(GraphOp::Release, loadedFile);
         }
         return;
     }
@@ -1194,49 +1206,202 @@ void DirectShowLayer::ensureGraph() {
     if (sourceKey.empty())
         return;
 
-    std::lock_guard<std::mutex> lock(m_graphMutex);
+    GraphStatus st;
+    {
+        std::lock_guard<std::mutex> lock(m_statusMutex);
+        st = m_status;
+    }
 
     // Already rendering this source - only check for a stall while not ready. Rebuild once
     // when the audio path presence no longer matches the enabled state (audio toggled at
-    // runtime). m_audioPathUnavailable stops us from retrying sources without an audio pin.
-    if (m_graphBuilder && m_loadedFile == sourceKey) {
+    // runtime). lastFailedSource stops us from retrying sources without an audio pin.
+    if (st.hasGraph && st.loadedFile == sourceKey) {
         // An open WASAPI input stream satisfies the audio requirement without any DirectShow filter,
         // so it must not trigger a rebuild when audio is toggled at runtime.
-        const bool audioSatisfied = m_audioPathBuilt || (m_audioInputOpen.load() && !audioDevice.empty());
-        const bool audioMismatch = (m_isAudioEnabled && !audioSatisfied && !m_audioPathUnavailable)
-                                || (!m_isAudioEnabled && (m_audioPathBuilt || m_audioInputOpen.load()));
+        const bool audioSatisfied = st.audioPathBuilt || (m_audioInputOpen.load() && !audioDevice.empty());
+        const bool audioMismatch = (m_isAudioEnabled.load() && !audioSatisfied && !st.audioPathUnavailable)
+                                || (!m_isAudioEnabled.load() && (st.audioPathBuilt || m_audioInputOpen.load()));
         if (!audioMismatch) {
-            if (!ready() && !audioOnly && std::chrono::steady_clock::now() - m_graphStart > kStallTimeout) {
-                sgct::Log::Error(std::format("DirectShowLayer: no frame received for '{}', giving up\n", sourceKey));
-                releaseGraph();
-                m_buildFailed = true;
+            // A running graph that never delivered a frame is stuck - give up on the source. The
+            // release runs on the worker; lastFailedSource stops us from retrying it afterwards.
+            const long long nowMs = std::chrono::duration_cast<std::chrono::milliseconds>(std::chrono::steady_clock::now().time_since_epoch()).count();
+            if (!ready() && !audioOnly && st.graphStartMs > 0 && nowMs - st.graphStartMs > kStallTimeout.count() * 1000LL) {
+                if (!m_releasePending.load()) {
+                    sgct::Log::Error(std::format("DirectShowLayer: no frame received for '{}', giving up\n", sourceKey));
+                    m_releasePending.store(true);
+                    enqueueGraphCommand(GraphOp::Release, sourceKey, std::string{}, std::string{}, true);
+                }
             }
-            pollSignalPresence(); // throttled internally; no-op unless a DeltaCast/Datapath signal property was found
+            return; // signal polling runs in the worker's idle loop
+        }
+    }
+
+    // A build for exactly this source is already queued - nothing to do.
+    {
+        std::lock_guard<std::mutex> lock(m_cmdMutex);
+        if (m_hasPendingCmd && m_pendingCmd.op == GraphOp::Build && m_pendingCmd.sourceKey == sourceKey)
             return;
+    }
+
+    // Request a (re)build for this source - but only when nothing equivalent is running and the
+    // request is still needed against the freshest status snapshot (a build may have completed
+    // between the first read and now).
+    {
+        std::lock_guard<std::mutex> lock(m_statusMutex);
+        if (!m_inFlightSource.empty() && m_inFlightSource == sourceKey)
+            return;
+
+        st = m_status;
+        if (st.hasGraph && st.loadedFile == sourceKey) {
+            const bool audioSatisfied = st.audioPathBuilt || (m_audioInputOpen.load() && !audioDevice.empty());
+            const bool stillMismatched = (m_isAudioEnabled.load() && !audioSatisfied && !st.audioPathUnavailable)
+                                       || (!m_isAudioEnabled.load() && (st.audioPathBuilt || m_audioInputOpen.load()));
+            if (!stillMismatched)
+                return; // the running graph already matches what we asked for
         }
     }
 
     // A previous build for this exact source failed or stalled - don't spin on it.
-    if (m_buildFailed && m_attemptedFile == sourceKey)
+    if (!st.hasGraph && st.lastFailedSource == sourceKey)
         return;
 
-    // New source: rebuild the graph and drop the old frame so we don't show
-    // stale content while loading.
-    releaseGraph();
-    if (renderData.texId > 0) {
-        glDeleteTextures(1, &renderData.texId); // render thread - safe directly
-        renderData.texId = 0;
-        renderData.width = 0;
-        renderData.height = 0;
+    // New source (or an audio path must be added/removed): ask the worker to rebuild. The old frame
+    // stays visible until the new graph delivers its first frame - updateFrame() drops it when a
+    // terminal no-graph state is reached instead.
+    enqueueGraphCommand(GraphOp::Build, sourceKey, videoDevice, audioDevice);
+}
+
+void DirectShowLayer::startWorker() {
+    std::lock_guard<std::mutex> lock(m_cmdMutex);
+    if (m_terminateWorker.load() || m_workerRunning.load())
+        return;
+    m_workerRunning.store(true);
+    m_workerThread = std::make_unique<std::thread>(&DirectShowLayer::runGraphWorker, this);
+}
+
+void DirectShowLayer::enqueueGraphCommand(GraphOp op, const std::string& sourceKey,
+                                          const std::string& videoDevice, const std::string& audioDevice,
+                                          bool markFailed) {
+    GraphCommand cmd;
+    cmd.op = op;
+    cmd.sourceKey = sourceKey;
+    cmd.videoDevice = videoDevice;
+    cmd.audioDevice = audioDevice;
+    cmd.markFailed = markFailed;
+    {
+        std::lock_guard<std::mutex> lock(m_cmdMutex);
+        m_pendingCmd = std::move(cmd); // latest wins - supersedes any command not started yet
+        m_hasPendingCmd = true;
+    }
+    m_cmdCv.notify_all();
+}
+
+void DirectShowLayer::publishStatus(bool hasGraph, const std::string& failedSource) {
+    std::lock_guard<std::mutex> lock(m_statusMutex);
+    m_status.hasGraph = hasGraph;
+    m_status.loadedFile = hasGraph ? m_loadedFile : std::string{};
+    m_status.audioPathBuilt = hasGraph && m_audioPathBuilt;
+    m_status.audioPathUnavailable = hasGraph ? m_audioPathUnavailable : false;
+    m_status.graphStartMs = hasGraph ? std::chrono::duration_cast<std::chrono::milliseconds>(m_graphStart.time_since_epoch()).count() : 0;
+    m_status.lastFailedSource = failedSource;
+}
+
+void DirectShowLayer::runGraphWorker() {
+    // COM must be initialized on this thread before any DirectShow call. All graph work happens here
+    // so the render/main thread never blocks on device enumeration, filter negotiation or Run()/Stop().
+    CoInitializeEx(nullptr, COINIT_MULTITHREADED);
+
+    while (true) {
+        GraphCommand cmd;
+        bool hasCmd = false;
+        {
+            std::unique_lock<std::mutex> lock(m_cmdMutex);
+            m_cmdCv.wait_for(lock, kWorkerIdleInterval, [this] {
+                return m_hasPendingCmd || m_terminateWorker.load();
+            });
+            if (m_hasPendingCmd) {
+                cmd = m_pendingCmd;
+                m_hasPendingCmd = false;
+                hasCmd = true;
+            }
+        }
+
+        // Shutdown wins over pending work - the final teardown below releases everything.
+        if (m_terminateWorker.load())
+            break;
+
+        if (hasCmd) {
+            executeCommand(cmd);
+        } else {
+            audioMaintenance();   // PortAudio init / WASAPI input open + output stream retry
+            pollSignalPresence(); // throttled internally to kSignalPollInterval
+        }
     }
 
-    m_attemptedFile = sourceKey;
-    m_buildFailed = false;
-    if (!buildAndRunGraph(sourceKey, videoDevice, audioDevice)) {
-        m_buildFailed = true;
-        sgct::Log::Error(std::format("DirectShowLayer: failed to build graph for '{}'\n", sourceKey));
+    // Final teardown while COM is still initialized on this thread.
+    closeAudioInput();
+    releaseGraph();
+    publishStatus(false);
+    m_workerRunning.store(false);
+    CoUninitialize();
+}
+
+void DirectShowLayer::executeCommand(const GraphCommand& cmd) {
+    if (cmd.op == GraphOp::Release) {
+        closeAudioInput(); // stop the low-latency WASAPI input too, if one was open
+        releaseGraph();
+        publishStatus(false, cmd.markFailed ? cmd.sourceKey : std::string{});
     } else {
-        pollSignalPresence(); // first read right after the graph started (throttled afterwards)
+        {
+            std::lock_guard<std::mutex> lock(m_statusMutex);
+            m_inFlightSource = cmd.sourceKey;
+        }
+        // Make sure PortAudio is ready before the build so an audio path can open its streams.
+        if (m_isAudioEnabled.load())
+            ensurePortAudioInitialized();
+
+        releaseGraph(); // drop whatever is running - no status publish, a rebuild is in flight
+        const bool ok = buildAndRunGraph(cmd.sourceKey, cmd.videoDevice, cmd.audioDevice);
+        if (!ok) {
+            sgct::Log::Error(std::format("DirectShowLayer: failed to build graph for '{}'\n", cmd.sourceKey));
+        } else {
+            pollSignalPresence(); // first read right after the graph started (throttled afterwards)
+        }
+        publishStatus(ok, ok ? std::string{} : cmd.sourceKey);
+        {
+            std::lock_guard<std::mutex> lock(m_statusMutex);
+            m_inFlightSource.clear();
+        }
+    }
+    m_releasePending.store(false); // a completed command supersedes any queued release request
+}
+
+void DirectShowLayer::audioMaintenance() {
+    // Worker idle loop: the PortAudio device I/O that used to run on the render thread.
+    if (!m_isAudioEnabled.load())
+        return;
+
+    if (!m_portAudioInitialized.load()) {
+        ensurePortAudioInitialized(); // one-time Pa_Initialize + output device selection
+        return;                       // next cycle handles stream opens once initialized
+    }
+
+    if (!m_audioPathBuilt && !m_audioInputOpen.load()) {
+        // Audio enabled at runtime for an explicit microphone: open the low-latency WASAPI input
+        // directly instead of waiting for a graph rebuild. On failure ensureGraph() falls back to
+        // the WDM filter (full rebuild).
+        std::string videoDevice, audioDevice;
+        resolveCaptureDevices(videoDevice, audioDevice);
+        if (!audioDevice.empty())
+            openAudioInput(audioDevice);
+    }
+
+    if (m_audioInputOpen.load() && !m_audioStreamOpen.load()) {
+        // Retry the PortAudio output stream while WASAPI input is feeding the ring (e.g., after a
+        // transient failure at graph build). Backoff lives in openAudioStreamLocked().
+        std::lock_guard<std::mutex> lock(m_audioStreamMutex);
+        if (!m_audioStreamOpen.load())
+            openAudioStreamLocked(m_audioInputRate.load(), m_audioInputChannels.load());
     }
 }
 
@@ -1733,11 +1898,11 @@ bool DirectShowLayer::resolveCaptureDevices(std::string& videoDevice, std::strin
 }
 
 bool DirectShowLayer::openAudioInput(const std::string& deviceName) {
-    // Render thread only. Opens a small-buffer WASAPI input stream for an explicit microphone so
+    // Graph worker thread only. Opens a small-buffer WASAPI input stream for an explicit microphone so
     // audio arrives in ~10ms packets instead of the WDM filter's ~500ms blocks. Returns false when
     // PortAudio is unavailable or the device cannot be opened - the caller falls back to
     // buildAudioPath().
-    if (!m_portAudioInitialized.load() || deviceName.empty() || m_audioInputStalled)
+    if (!m_portAudioInitialized.load() || deviceName.empty() || m_audioInputStalled.load())
         return false;
 
     std::lock_guard<std::mutex> lock(m_audioStreamMutex);
@@ -1968,18 +2133,18 @@ bool DirectShowLayer::hasAudio() const {
 }
 
 bool DirectShowLayer::isAudioEnabled() const {
-    return m_isAudioEnabled;
+    return m_isAudioEnabled.load();
 }
 
 void DirectShowLayer::enableAudio(bool enabled) {
-    m_isAudioEnabled = enabled;
+    m_isAudioEnabled.store(enabled);
 }
 
 void DirectShowLayer::updateAudioOutput() {
     if (isMaster()) {
-        if (!m_isAudioEnabled && AudioSettings::enableAudioOnMaster()) {
+        if (!m_isAudioEnabled.load() && AudioSettings::enableAudioOnMaster()) {
             enableAudio(true);
-        } else if (m_isAudioEnabled && !AudioSettings::enableAudioOnMaster()) {
+        } else if (m_isAudioEnabled.load() && !AudioSettings::enableAudioOnMaster()) {
             enableAudio(false);
         }
     }

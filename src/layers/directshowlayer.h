@@ -12,10 +12,12 @@
 #include <array>
 #include <atomic>
 #include <chrono>
+#include <condition_variable>
 #include <cstdint>
 #include <memory>
 #include <mutex>
 #include <string>
+#include <thread>
 #include <vector>
 
 #ifdef _WIN32
@@ -155,18 +157,50 @@ private:
 #ifdef _WIN32
     friend class GrabberCallback; // forwards grabber samples to handleVideoSample()/handleAudioSample()
 
-    bool buildAndRunGraph(const std::string& pathUtf8, const std::string& videoDevice, const std::string& audioDevice); // render thread only; devices are the per-machine resolved pair (see presetKey())
-    bool buildVideoPath(const std::string& videoDevice); // render thread only, during graph build: source -> video grabber; videoDevice is the per-machine resolved pair's video part (empty = file source)
-    void ensureGraph();                                  // render thread only
-    void releaseGraph();                                 // any thread (MTA COM)
-    void setupSignalDetection();                         // render thread only, during graph build for capture devices
-    void pollSignalPresence();                           // render thread only, called from ensureGraph() - throttled internally
+    bool buildAndRunGraph(const std::string& pathUtf8, const std::string& videoDevice, const std::string& audioDevice); // graph worker thread only; devices are the per-machine resolved pair (see presetKey())
+    bool buildVideoPath(const std::string& videoDevice); // graph worker thread only, during graph build: source -> video grabber; videoDevice is the per-machine resolved pair's video part (empty = file source)
+    void ensureGraph();                                  // render thread only - enqueues work for the graph worker, never blocks on COM/PortAudio I/O
+    void releaseGraph();                                 // graph worker thread only (MTA COM)
+    void setupSignalDetection();                         // graph worker thread only, during graph build for capture devices
+    void pollSignalPresence();                           // graph worker thread only - throttled internally
+
+    // Graph worker thread (mirrors MpvLayer/ImageLayer): owns the DirectShow filter graph and all
+    // PortAudio device I/O so the render/main thread never blocks on device enumeration, filter
+    // negotiation or stream opens. Commands are single-slot latest-wins: a newer request supersedes
+    // an older one that has not started yet.
+    enum class GraphOp { None = 0, Build, Release };
+    struct GraphCommand {
+        GraphOp op = GraphOp::None;
+        std::string sourceKey;   // "capture:<device>", "audio-capture:<device>" or the media file path
+        std::string videoDevice; // per-machine resolved pair (empty = file source)
+        std::string audioDevice;
+        bool markFailed = false; // Release: remember this source as failed so ensureGraph() stops retrying it
+    };
+    void startWorker();          // render thread, idempotent - spawns the worker if not running/terminated
+    void runGraphWorker();       // worker thread entry: COM init + command loop + final teardown
+    void executeCommand(const GraphCommand& cmd); // worker thread only
+    void audioMaintenance();     // worker idle loop: PortAudio init / WASAPI input open + output stream retry
+    void enqueueGraphCommand(GraphOp op, const std::string& sourceKey,
+                             const std::string& videoDevice = {}, const std::string& audioDevice = {},
+                             bool markFailed = false); // any thread (latest wins)
+    void publishStatus(bool hasGraph, const std::string& failedSource = {}); // worker thread only - updates the render-visible snapshot
+
+    // Snapshot of the running graph for the render thread's decisions (ensureGraph/updateFrame).
+    // Published by the worker after each build/release; read under m_statusMutex.
+    struct GraphStatus {
+        bool hasGraph = false;             // a graph is built and Run() succeeded
+        std::string loadedFile;            // source key of the running graph
+        bool audioPathBuilt = false;       // current graph contains an audio path
+        bool audioPathUnavailable = false; // last build found no usable audio pin
+        long long graphStartMs = 0;        // steady_clock ms when Run() succeeded (0 = none)
+        std::string lastFailedSource;      // source key whose build failed/stalled - don't retry it
+    };
 
     // Audio path / PortAudio output (mirrors NdiLayer/OmtLayer).
-    bool buildAudioPath(const std::string& audioDevice);  // render thread only, during graph build; non-fatal on failure. audioDevice is the per-machine resolved microphone name (empty = use the source's own audio pin)
+    bool buildAudioPath(const std::string& audioDevice);  // graph worker thread only, during graph build; non-fatal on failure. audioDevice is the per-machine resolved microphone name (empty = use the source's own audio pin)
     HRESULT handleVideoSample(IMediaSample* pSample);      // DirectShow streaming thread (video grabber callback)
     void handleAudioSample(const BYTE* pData, DWORD length, const AM_MEDIA_TYPE* pMt);  // DirectShow streaming thread (audio grabber callback)
-    void ensurePortAudioInitialized();                       // render thread (idempotent)
+    void ensurePortAudioInitialized();                       // graph worker thread only (idempotent)
     bool openAudioStreamLocked(int sampleRate, int channels); // caller holds m_audioStreamMutex
     void closeAudioStreamLocked();                            // caller holds m_audioStreamMutex
     void closeAudioStream();                                  // any thread
@@ -174,15 +208,16 @@ private:
 
     // Low-latency WASAPI input for an explicit capture microphone: the WDM/DirectShow audio filter
     // delivers ~500ms blocks and adds that much steady-state latency, so the mic is captured through
-    // a small-buffer PortAudio input stream instead (see openAudioInput). Render thread only; the
-    // PortAudio callback just pushes into m_audioRing (internally synchronized).
-    bool openAudioInput(const std::string& deviceName);       // render thread; false -> caller falls back to buildAudioPath()
+    // a small-buffer PortAudio input stream instead (see openAudioInput). Graph worker thread only;
+    // the PortAudio callback just pushes into m_audioRing (internally synchronized).
+    bool openAudioInput(const std::string& deviceName);       // graph worker thread only; false -> caller falls back to buildAudioPath()
     void closeAudioInput();                                   // any thread
     void closeAudioInputLocked();                             // caller holds m_audioStreamMutex
     static int audioInputCallback(const void* inputBuffer, void*, unsigned long framesPerBuffer, const PaStreamCallbackTimeInfo*, PaStreamCallbackFlags, void* userData);
 
-    // Preset-aware capture device resolution shared by ensureGraph() and update(). Returns true when
-    // the names came from this machine's predefined-directshows.json entry. Render thread only.
+    // Preset-aware capture device resolution shared by ensureGraph() (render thread) and the graph
+    // worker's audio maintenance. Returns true when the names came from this machine's
+    // predefined-directshows.json entry. Any thread - the resolver is internally synchronized.
     bool resolveCaptureDevices(std::string& videoDevice, std::string& audioDevice) const;
 
     // PortAudio output callback - drains m_audioRing into the output buffer. Runs on a
@@ -201,10 +236,23 @@ private:
     IMediaControl* m_mediaControl = nullptr;
     IBaseFilter* m_fileSourceFilter = nullptr;
     IBaseFilter* m_sampleGrabberFilter = nullptr;
-    std::string m_loadedFile;      // source the current graph is rendering (file path or "capture:<device>") - render thread
-    std::string m_attemptedFile;   // last source a build was attempted for (render thread)
-    bool m_buildFailed = false;    // don't retry a failed/stalled build for the same file
-    std::chrono::steady_clock::time_point m_graphStart{};
+    std::string m_loadedFile;      // source the current graph is rendering (file path or "capture:<device>") - worker thread only, published via m_status
+    std::chrono::steady_clock::time_point m_graphStart{}; // worker thread only, published via m_status
+
+    // Graph worker state (see runGraphWorker). The command slot is single-slot latest-wins so rapid
+    // source changes collapse into one build of the newest request.
+    std::unique_ptr<std::thread> m_workerThread;
+    std::mutex m_cmdMutex;                 // guards the command slot + worker spawn/terminate
+    std::condition_variable m_cmdCv;
+    GraphCommand m_pendingCmd{};           // guarded by m_cmdMutex
+    bool m_hasPendingCmd = false;          // guarded by m_cmdMutex
+    std::atomic<bool> m_workerRunning{false};
+    std::atomic<bool> m_terminateWorker{false};
+
+    std::mutex m_statusMutex;              // guards m_status + m_inFlightSource (worker publishes, render thread reads)
+    GraphStatus m_status{};
+    std::string m_inFlightSource;          // source key of the Build currently executing - guarded by m_statusMutex
+    std::atomic<bool> m_releasePending{false}; // a Release command is queued/in flight (dedupes requests)
 
     // "No signal" detection for DeltaCast / Datapath capture cards (see setupSignalDetection()).
     // The card's WDM filter exposes IKsPropertySet; when it supports one of the vendor property
@@ -234,8 +282,8 @@ private:
     // converted to interleaved float32, buffered in m_audioRing and played out through PortAudio.
     IBaseFilter* m_audioGrabberFilter = nullptr;
     IBaseFilter* m_audioSourceFilter = nullptr;  // audio capture filter (when a device is chosen)
-    bool m_audioPathBuilt = false;               // current graph contains an audio path - render thread
-    bool m_audioPathUnavailable = false;         // last build found no usable audio pin - render thread
+    bool m_audioPathBuilt = false;               // current graph contains an audio path - worker thread only, published via m_status
+    bool m_audioPathUnavailable = false;         // last build found no usable audio pin - worker thread only, published via m_status
 
     // Cached format of the connected audio pin, used when a sample carries no media type.
     int m_cachedAudioRate = 0;
@@ -250,7 +298,7 @@ private:
     // next build so the DirectShow WDM path takes over.
     PaStream* m_audioInputStream = nullptr;
     std::string m_audioInputDevice;
-    bool m_audioInputStalled = false;          // render thread only
+    std::atomic<bool> m_audioInputStalled{false}; // watchdog (render) sets, graph worker consumes on the next build
     std::atomic<bool> m_audioInputOpen{false};
     std::atomic<int> m_audioInputRate{0};
     std::atomic<int> m_audioInputChannels{0};
@@ -280,8 +328,8 @@ private:
     PaStreamParameters m_audioOutputParameters{};
     PaStream* m_audioStream = nullptr;
     PaError m_audioError = paNoError;
-    bool m_isAudioEnabled = false;
-    std::atomic<bool> m_portAudioInitialized{false}; // render thread writes, streaming thread reads
+    std::atomic<bool> m_isAudioEnabled{false};  // UI/render thread writes, graph worker + PortAudio callback read
+    std::atomic<bool> m_portAudioInitialized{false}; // graph worker writes, render/streaming threads read
     std::atomic<bool> m_receiveAudio{false};         // audio enabled + PortAudio ready: samples are consumed
     std::atomic<bool> m_audioStreamOpen{false};      // start()/stop() read these without the stream mutex
     std::atomic<bool> m_audioStreamStarted{false};
@@ -305,8 +353,6 @@ private:
 
     // Stable key of the predefined DirectShow setup this layer was created from (entry title); empty for custom devices/files. Synced to all machines via encodeTypeCore/decodeTypeCore.
     std::string m_presetKey;
-
-    mutable std::mutex m_graphMutex;   // guards graph build/release
 
     // Deferred GL cleanup: texture IDs queued here from any thread,
     // deleted on the render thread by processPendingGLCleanup().
