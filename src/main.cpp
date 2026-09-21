@@ -10,6 +10,11 @@
 #define GLFW_INCLUDE_NONE
 #include "application.h"
 #include <GLFW/glfw3.h>
+#ifdef WIN32
+#include <Windows.h>
+#define GLFW_EXPOSE_NATIVE_WIN32
+#include <GLFW/glfw3native.h>
+#endif // WIN32
 #include <fstream>
 #include <glm/glm.hpp>
 #include <layersrenderer.h>
@@ -696,22 +701,79 @@ static void decode(const std::vector<std::byte> &data) {
     }
 }
 
-// Applies the synced window features and, for windows that mix 2D and 3D viewports, enables
-// the set of viewports matching the content currently being rendered.
+// Applies the synced window features (opacity and on-top) to all node windows.
+// This is intentionally decoupled from content rendering so fades and on-top state
+// are applied even when no media is playing, in NDI mode, or another app has focus.
+static void syncNodeWindowFeatures() {
+    const float targetOpacity = SyncHelper::instance().variables.windowOpacity;
+    const int newWinOnTop = (SyncHelper::instance().variables.windowOnTop ? 1 : 0);
+
+    for (const std::unique_ptr<Window> &win : Engine::instance().thisNode().windows()) {
+        // Compare with a small epsilon: layered window alpha is quantized to 1/255,
+        // so an exact float comparison would re-apply the same value every frame.
+        const float currentOpacity = glfwGetWindowOpacity(win->windowHandle());
+        const float opacityDiff = currentOpacity - targetOpacity;
+        if (opacityDiff > 1.f / 256.f || opacityDiff < -1.f / 256.f) {
+            glfwSetWindowOpacity(win->windowHandle(), targetOpacity);
+        }
+
+        if (newWinOnTop != glfwGetWindowAttrib(win->windowHandle(), GLFW_FLOATING)) {
+            glfwSetWindowAttrib(win->windowHandle(), GLFW_FLOATING, newWinOnTop);
+        }
+    }
+}
+
+// Keeps node windows at the very top of the Z-order while they are floating (on-top).
+// A non-C-Play window created after us with WS_EX_TOPMOST would otherwise stay above
+// us until we are clicked into focus again, which makes opacity fades appear to "not
+// work" when C-Play was started before such an app. Re-asserting HWND_TOPMOST without
+// activation fixes the Z-order within the topmost band while leaving keyboard/mouse
+// focus untouched.
+#ifdef WIN32
+static void assertNodeWindowsTopmost() {
+    static DWORD lastAssertTime = 0;
+    const DWORD now = GetTickCount();
+
+    // Throttle: no need to walk the Z-order more than a few times per second.
+    if (now - lastAssertTime < 500u)
+        return;
+    lastAssertTime = now;
+
+    for (const std::unique_ptr<Window> &win : Engine::instance().thisNode().windows()) {
+        if (!glfwGetWindowAttrib(win->windowHandle(), GLFW_FLOATING))
+            continue;
+
+        HWND handle = glfwGetWin32Window(win->windowHandle());
+        if (!handle || !IsWindowVisible(handle))
+            continue;
+
+        // Walk up the Z-order from our position. If a visible topmost window that is
+        // not one of ours sits above us, bring ourselves back to the front.
+        for (HWND other = GetWindow(handle, GW_HWNDPREV); other != NULL; other = GetWindow(other, GW_HWNDPREV)) {
+            if (!(GetWindowLongW(other, GWL_EXSTYLE) & WS_EX_TOPMOST) || !IsWindowVisible(other))
+                continue;
+
+            // Skip sibling GLFW windows (e.g. other C-Play nodes on this machine) to
+            // avoid Z-order thrashing between them.
+            WCHAR className[64];
+            if (GetClassNameW(other, className, 64) > 0 && lstrcmpW(className, L"GLFW30") == 0)
+                continue;
+
+            SetWindowPos(handle, HWND_TOPMOST, 0, 0, 0, 0,
+                         SWP_NOMOVE | SWP_NOSIZE | SWP_NOACTIVATE);
+            break; // only the nearest covering window matters
+        }
+    }
+}
+#endif // WIN32
+
+// For windows that mix 2D and 3D viewports, enables the set of viewports matching
+// the content currently being rendered. Window features (opacity/on-top) are handled
+// by syncNodeWindowFeatures() so they keep working regardless of what is rendering.
 static void applyWindowAndViewportState(bool show2Dcontent, bool show3Dcontent) {
     for (const std::unique_ptr<Window> &win : Engine::instance().thisNode().windows()) {
         bool exist2Dviewports = false;
         bool exist3Dviewports = false;
-
-        // Set window features
-        if (glfwGetWindowOpacity(win->windowHandle()) != SyncHelper::instance().variables.windowOpacity) {
-            glfwSetWindowOpacity(win->windowHandle(), SyncHelper::instance().variables.windowOpacity);
-        }
-        int currentWinOnTop = glfwGetWindowAttrib(win->windowHandle(), GLFW_FLOATING);
-        int newWinOnTop = (SyncHelper::instance().variables.windowOnTop ? 1 : 0);
-        if (newWinOnTop != currentWinOnTop) {
-            glfwSetWindowAttrib(win->windowHandle(), GLFW_FLOATING, newWinOnTop);
-        }
 
         for (const std::unique_ptr<Viewport> &vp : win->viewports()) {
             if (vp->eye() == FrustumMode::Mono) {
@@ -815,6 +877,15 @@ static void postSyncPreDraw() {
 
     // Apply synced commands
     if (!Engine::instance().isMaster()) {
+        // Keep window features (opacity/on-top) in sync every frame, independent of
+        // which layers are rendering. This makes fades work even when no media is
+        // playing and keeps the windows on top regardless of focus or start order.
+        syncNodeWindowFeatures();
+
+#ifdef WIN32
+        assertNodeWindowsTopmost();
+#endif // WIN32
+
         if (!backgroundImageLayer || !foregroundImageLayer || !overlayImageLayer
             || !mainVideoLayer || !mainSubtitleLayer || !layerRender) {
             return;

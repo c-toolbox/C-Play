@@ -1715,6 +1715,16 @@ ToolBar {
             }
         }
         ToolButton {
+            id: windowOnTop
+
+            action: actions.windowOnTopAction
+            focusPolicy: Qt.NoFocus
+            display: AbstractButton.IconOnly
+            ToolTip {
+                text: "ON/OFF to sync state from master to clients."
+            }
+        }
+        ToolButton {
             id: floatingWindow
 
             action: actions.floatingWindowAction
