@@ -55,6 +55,14 @@ GridLayout {
     // True when data/predefined-directshows.json provides at least one enabled capture setup.
     property bool directShowPresetAvailable: app.directShowPresetsModel && app.directShowPresetsModel.numberOfPresets > 0
 
+    // The audio device selected in the DirectShow section; an empty string means "No audio capture"
+    // (the first entry of the audio combobox) or that no selection is available.
+    property string directShowAudioDeviceSelection: {
+        if (directShowAudioDeviceComboBox.currentIndex <= 0)
+            return "";
+        return directShowAudioDeviceComboBox.currentText;
+    }
+
     property string restParametersJson: ""
     property var restObsActionNames: [qsTr("Set Profile"), qsTr("Set Scene"), qsTr("Set Scene Collection"), qsTr("Custom")]
 
@@ -100,7 +108,8 @@ GridLayout {
         var vi = app.directShowModel.videoDevices.indexOf(devices.video);
         directShowVideoDeviceComboBox.currentIndex = vi >= 0 ? vi : -1;
         var ai = app.directShowModel.audioDevices.indexOf(devices.audio);
-        directShowAudioDeviceComboBox.currentIndex = ai >= 0 ? ai : -1;
+        // Index 0 of the audio combobox is "No audio capture"; real devices start at index 1.
+        directShowAudioDeviceComboBox.currentIndex = ai >= 0 ? ai + 1 : (devices.audio === "" ? 0 : -1);
     }
 
     function getRestParametersJson() {
@@ -357,7 +366,8 @@ GridLayout {
                 if (app.directShowModel) {
                     app.directShowModel.updateDeviceLists();
                     directShowVideoDeviceComboBox.currentIndex = app.directShowModel.videoDevices.length - 1;
-                    directShowAudioDeviceComboBox.currentIndex = app.directShowModel.audioDevices.length - 1;
+                    // Index 0 of the audio combobox is "No audio capture"; default to the last real device.
+                    directShowAudioDeviceComboBox.currentIndex = app.directShowModel.audioDevices.length;
                 }
                 if (root.directShowPresetAvailable) {
                     // Predefined setups exist: default to the first one, like Stream layers do.
@@ -787,7 +797,8 @@ GridLayout {
                 if (app.directShowModel) {
                     app.directShowModel.updateDeviceLists();
                     directShowVideoDeviceComboBox.currentIndex = app.directShowModel.videoDevices.length - 1;
-                    directShowAudioDeviceComboBox.currentIndex = app.directShowModel.audioDevices.length - 1;
+                    // Index 0 of the audio combobox is "No audio capture"; default to the last real device.
+                    directShowAudioDeviceComboBox.currentIndex = app.directShowModel.audioDevices.length;
                     layerTitle.text = "DirectShow:" + (directShowVideoDeviceComboBox.currentText || "");
                 }
             }
@@ -815,12 +826,15 @@ GridLayout {
             id: directShowAudioDeviceComboBox
 
             Layout.fillWidth: true
-            model: app.directShowModel ? app.directShowModel.audioDevices : []
-            currentIndex: (app.directShowModel && app.directShowModel.audioDevices.length > 0) ? app.directShowModel.audioDevices.length - 1 : -1
+            // Index 0 is the explicit "No audio capture" option (video-only layer); real devices start at index 1.
+            // Note: use .concat(), not "+", which would stringify both arrays into one long string.
+            model: [qsTr("No audio capture")].concat(app.directShowModel ? app.directShowModel.audioDevices : [])
+            currentIndex: (app.directShowModel && app.directShowModel.audioDevices.length > 0) ? app.directShowModel.audioDevices.length : 0
 
             Component.onCompleted: {
                 if (app.directShowModel) {
-                    directShowAudioDeviceComboBox.currentIndex = app.directShowModel.audioDevices.length - 1;
+                    // Default to the last real device; index 0 is "No audio capture".
+                    directShowAudioDeviceComboBox.currentIndex = app.directShowModel.audioDevices.length;
                 }
             }
         }

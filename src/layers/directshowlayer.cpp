@@ -1005,9 +1005,15 @@ bool DirectShowLayer::buildAndRunGraph(const std::string& pathUtf8, const std::s
                 sgct::Log::Info(std::format("DirectShowLayer: WASAPI input unavailable for '{}' - using the DirectShow audio path\n", audioDevice));
                 audioBuilt = buildAudioPath(audioDevice);
             }
+        } else if (!isCapture) {
+            closeAudioInput(); // no explicit microphone for this file - stop any stale input stream
+            audioBuilt = buildAudioPath(""); // fall back to the source's own audio track when it has one
         } else {
-            closeAudioInput(); // no explicit microphone for this source - stop any stale input stream
-            audioBuilt = buildAudioPath("");
+            // Video-only capture ("No audio capture" selected in the UI): no microphone and no
+            // embedded audio from the capture card either - never build an audio path for this
+            // source, and mark it unavailable so ensureGraph() does not keep retrying.
+            closeAudioInput();
+            m_audioPathUnavailable = true;
         }
         m_audioInputStalled.store(false); // consumed (or not applicable) by this build
         if (!audioBuilt && audioOnly) {

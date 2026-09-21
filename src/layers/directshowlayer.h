@@ -126,7 +126,9 @@ public:
     // "no capture" - the layer plays back filepath() as a media file instead, unless an
     // audio device was chosen too, which selects audio-only mode (microphone to the
     // PortAudio output, no video at all). A non-empty audio device routes that microphone
-    // to the PortAudio output; otherwise the source's own audio track is used when available.
+    // to the PortAudio output. For capture sources an empty audio device means "no audio
+    // capture" - video only, without any embedded audio from the card either; for file
+    // playback it falls back to the source's own audio track when available.
     // Must be called before initialize().
     void setCaptureDevices(const std::string& videoDevice, const std::string& audioDevice);
 

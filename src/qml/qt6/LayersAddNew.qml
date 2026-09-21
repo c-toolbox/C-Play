@@ -94,8 +94,9 @@ Kirigami.ApplicationWindow {
                             mpv.focus = true;
                         } else if (layerCoreProps.typeComboBox.currentText === "DirectShow") {
                             // A chosen video device means capture mode - the parameter string carries
-                            // "videoDevice|audioDevice" (the audio part may be empty). Without a video
-                            // device the layer plays back the media file instead.
+                            // "videoDevice|audioDevice" (the audio part may be empty for a video-only
+                            // layer, i.e. "No audio capture"). Without a video device the layer plays
+                            // back the media file instead.
                             var directShowParam = "";
                             var directShowPresetKey = "";
                             if (!layerCoreProps.directShowPresetsLayout.customEntry && layerCoreProps.directShowPresetAvailable) {
@@ -109,7 +110,8 @@ Kirigami.ApplicationWindow {
                                     directShowPresetKey = layerCoreProps.directShowPresetsComboBox.currentText;
                                 }
                             } else if (layerCoreProps.directShowVideoDeviceComboBox.currentText !== "") {
-                                directShowParam = layerCoreProps.directShowVideoDeviceComboBox.currentText + "|" + layerCoreProps.directShowAudioDeviceComboBox.currentText;
+                                // directShowAudioDeviceSelection is empty when "No audio capture" is selected.
+                                directShowParam = layerCoreProps.directShowVideoDeviceComboBox.currentText + "|" + layerCoreProps.directShowAudioDeviceSelection;
                             } else if (layerCoreProps.fileForLayer.text !== "") {
                                 directShowParam = layerCoreProps.fileForLayer.text;
                             }
