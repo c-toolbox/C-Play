@@ -8,7 +8,6 @@
 #include "ndilayer.h"
 #include "audiosettings.h"
 #include <sgct/sgct.h>
-#include <chrono>
 #include <cstdint>
 #include <cstddef>
 #include <cstring>
@@ -398,14 +397,10 @@ void NdiLayer::update(bool updateRendering) {
     // Check if our sender exists
     m_isReady = NdiFinder::instance().senderExists(filepath());
     if (!m_isReady) {
-        if (!isMaster()) {
-            // Only refresh senders at most once every 2 seconds
-            auto now = std::chrono::steady_clock::now();
-            if (std::chrono::duration_cast<std::chrono::milliseconds>(now - m_lastRefreshTime).count() >= 2000) {
-                NDIreceiver.RefreshSenders();
-                m_lastRefreshTime = now;
-            }
-        }
+        // Keep the per-layer finder inside NDIreceiver alive and let OpenReceiver()
+        // poll it continuously (1 ms timeout). Do not destroy/recreate it here as a
+        // "refresh": that would reset its discovery state and make this machine
+        // detect new senders much slower than one that keeps the finder running.
         return;
     }
 

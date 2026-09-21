@@ -12,7 +12,6 @@
 #include <sgct/opengl.h>
 #include <ndi/ofxNDI/ofxNDIreceive.h>
 #include <portaudio.h>
-#include <chrono>
 #include <memory>
 
 class ofxNDIreceive;
@@ -145,9 +144,6 @@ private:
     std::unique_ptr<class DivideTextureHandler> m_divideTexHandler;
     int m_textureDivisionMode = 0;  // 0=None, 1=ImPres(QR), 2=Division
     int m_textureDivisionGrid = 0;  // grid index
-
-    // Rate-limiting for RefreshSenders
-    std::chrono::steady_clock::time_point m_lastRefreshTime;
 };
 
 #endif // NDILAYER_H
