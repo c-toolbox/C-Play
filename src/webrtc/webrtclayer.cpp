@@ -22,7 +22,8 @@
 
 namespace {
 
-constexpr std::size_t kMaxQueuedUnits = 64;      // bounded Annex-B queue (~a few seconds)
+constexpr std::size_t kMaxQueuedUnits = 64;         // bounded Annex-B queue (~a few seconds)
+constexpr std::size_t kMaxQueuedAudioPackets = 64;  // bounded Opus payload queue (~1.3 s at 20 ms frames)
 constexpr int kReconnectDelayMs = 2000;          // wait before retrying a failed session
 constexpr auto kStarvedForKeyframe = std::chrono::seconds(3);
 
@@ -113,6 +114,19 @@ WebRTCLayer::WebRTCLayer() {
     m_type = WEBRTC;
     // swscale writes RGBA top-down, OpenGL samples bottom-up.
     renderData.flipY = true;
+
+    // The decoded-PCM callback fires on the audio decode worker thread (synchronously
+    // inside AudioDecoder::decode) and pushes straight into the PortAudio stream. Set it
+    // once here: startSource() may run again mid-session (URL change/reconnect) while
+    // that worker is already decoding, so re-setting it there would race with it.
+    std::weak_ptr<std::atomic<bool>> weakAlive = m_alive;
+    m_audioDecoder.setOnFrame([this, weakAlive](const float *pcm, int sampleRate, int channels, int frames) {
+        auto alive = weakAlive.lock();
+        if (!alive || !*alive) {
+            return;
+        }
+        pushDecodedPcm(pcm, sampleRate, channels, frames);
+    });
 }
 
 WebRTCLayer::~WebRTCLayer() {
@@ -215,6 +229,18 @@ void WebRTCLayer::start() {
         }
     }
     m_decodeThread = std::thread([this] { decodeLoop(); });
+
+    // The audio decode worker mirrors the video one: payloads are queued from the main
+    // thread and decoded here, off the GUI event loop.
+    {
+        std::lock_guard<std::mutex> lock(m_audioQueueMutex);
+        m_audioStopRequested = false;
+        while (!m_audioQueue.empty()) {
+            m_audioQueue.pop_front();
+        }
+    }
+    m_audioReopenRequested.store(false, std::memory_order_relaxed);
+    m_audioDecodeThread = std::thread([this] { audioDecodeLoop(); });
 }
 
 void WebRTCLayer::stop() {
@@ -227,11 +253,22 @@ void WebRTCLayer::stop() {
     m_shouldRun.store(false, std::memory_order_relaxed);
     stopSource();
 
-    // Tear down the audio output (main thread only). The decoder is reopened lazily
-    // on the next session's first payload.
+    // Stop the audio decode worker first: it owns the PortAudio stream and the Opus
+    // decoder, so they can only be torn down on the main thread once it has exited.
+    {
+        std::lock_guard<std::mutex> lock(m_audioQueueMutex);
+        m_audioStopRequested = true;
+    }
+    m_audioQueueCv.notify_all();
+
+    if (m_audioDecodeThread.joinable()) {
+        m_audioDecodeThread.join();
+    }
+
+    // The decoder is reopened lazily on the next session's first payload.
     stopAudioOutput();
     m_audioDecoder.close();
-    m_audioDecodeDisabled = false;
+    m_audioDecodeDisabled.store(false, std::memory_order_relaxed);
 
     {
         std::lock_guard<std::mutex> lock(m_queueMutex);
@@ -343,22 +380,15 @@ void WebRTCLayer::startSource() {
     });
 
     // Audio: depacketized Opus payloads are emitted from a libdatachannel thread and
-    // queued onto the main thread, where decoding and PortAudio live. The decoder's
-    // frame callback fires synchronously inside handleAudioFrame().
-    m_audioDecoder.setOnFrame([this, weakAlive](const float *pcm, int sampleRate, int channels, int frames) {
-        auto alive = weakAlive.lock();
-        if (!alive || !*alive) {
-            return;
-        }
-        pushDecodedPcm(pcm, sampleRate, channels, frames);
-    });
-
+    // queued onto the main thread, which only copies them into the bounded queue. The
+    // actual decoding runs on the dedicated audio decode worker (audioDecodeLoop()).
     QObject::connect(source, &WebRtcSource::audioFrameReceived, source, [this, weakAlive](const QByteArray &payload, quint32 rtpTimestamp) {
+        Q_UNUSED(rtpTimestamp); // Opus decoding is self-clocking; PortAudio owns the output clock
         auto alive = weakAlive.lock();
         if (!alive || !*alive) {
             return;
         }
-        handleAudioFrame(payload, rtpTimestamp);
+        pushAudioPayload(payload);
     });
 
     m_source = source;
@@ -598,16 +628,13 @@ bool WebRTCLayer::isAudioEnabled() const {
 }
 
 void WebRTCLayer::enableAudio(bool enabled) {
-    if (m_isAudioEnabled == enabled) {
+    if (m_isAudioEnabled.load(std::memory_order_relaxed) == enabled) {
         return;
     }
 
-    m_isAudioEnabled = enabled;
-    if (!enabled) {
-        // Silence immediately; the output reopens lazily on the next PCM frame.
-        stopAudioOutput();
-        m_audioDecoder.close();
-    }
+    // The audio decode worker reacts on its next iteration: it stops the output and
+    // closes the decoder when disabled, and reopens lazily on the first PCM frame.
+    m_isAudioEnabled.store(enabled, std::memory_order_release);
 }
 
 void WebRTCLayer::updateAudioOutput() {
@@ -620,6 +647,122 @@ void WebRTCLayer::updateAudioOutput() {
         }
     }
 
+    // The PortAudio stream belongs to the audio decode worker; ask it to re-check the
+    // device/channels and reopen when they changed (nothing to do while no stream is
+    // open - it opens lazily on the first PCM frame).
+    m_audioReopenRequested.store(true, std::memory_order_relaxed);
+    m_audioQueueCv.notify_all();
+}
+
+void WebRTCLayer::setVolume(int v, bool storeLevel) {
+    if (storeLevel) {
+        m_volume = v;
+    }
+
+    m_audioVolume.store(static_cast<float>(v) / 100.f, std::memory_order_relaxed);
+
+    if (isMaster() && AudioSettings::enableAudioOnNodes()) {
+        setNeedSync();
+    }
+}
+
+void WebRTCLayer::setVolumeMute(bool v) {
+    if (m_volumeMute.load(std::memory_order_relaxed) == v) {
+        return;
+    }
+
+    // pushDecodedPcm() reads the flag and zeroes the output while muted.
+    m_volumeMute.store(v, std::memory_order_release);
+}
+
+void WebRTCLayer::pushAudioPayload(const QByteArray &payload) {
+    // Main thread only (queued signal handler): copy the payload into the bounded queue;
+    // decoding happens on the audio decode worker.
+    // Ignore frames queued after stop() - they must not (re)open the audio output.
+    if (!m_shouldRun.load(std::memory_order_relaxed)) {
+        return;
+    }
+
+    if (!isAudioEnabled() || payload.isEmpty()) {
+        return;
+    }
+
+    std::lock_guard<std::mutex> lock(m_audioQueueMutex);
+    if (m_audioStopRequested) {
+        return;
+    }
+
+    WebRtcAudioUnit unit;
+    unit.data.assign(payload.constData(), payload.constData() + payload.size()); // copy: the QByteArray dies with the slot call
+    m_audioQueue.push_back(std::move(unit));
+
+    while (m_audioQueue.size() > kMaxQueuedAudioPackets) {
+        m_audioQueue.pop_front(); // live stream: drop oldest rather than grow latency
+    }
+    m_audioQueueCv.notify_one();
+}
+
+void WebRTCLayer::audioDecodeLoop() {
+    while (true) {
+        WebRtcAudioUnit unit;
+        bool haveUnit = false;
+
+        {
+            std::unique_lock<std::mutex> lock(m_audioQueueMutex);
+            m_audioQueueCv.wait_for(lock, std::chrono::milliseconds(200), [this] {
+                return m_audioStopRequested || !m_audioQueue.empty()
+                       || m_audioReopenRequested.load(std::memory_order_relaxed);
+            });
+
+            if (m_audioStopRequested && m_audioQueue.empty()) {
+                break;
+            }
+
+            if (!m_audioQueue.empty()) {
+                unit = std::move(m_audioQueue.front());
+                m_audioQueue.pop_front();
+                haveUnit = true;
+            }
+        }
+
+        // The audio settings changed on the main thread: re-check device/channels and
+        // reopen the output stream here, since it belongs to this thread.
+        if (m_audioReopenRequested.exchange(false, std::memory_order_relaxed)) {
+            maybeReopenAudioOutput();
+        }
+
+        if (!isAudioEnabled()) {
+            // Silence immediately; the output reopens lazily on the next PCM frame.
+            stopAudioOutput();
+            m_audioDecoder.close();
+            continue;
+        }
+
+        if (m_audioDecodeDisabled.load(std::memory_order_relaxed) || !haveUnit) {
+            continue;
+        }
+
+        if (!m_audioDecoder.isOpen()) {
+            QString error;
+            if (!m_audioDecoder.open(&error)) {
+                sgct::Log::Error("WebRTCLayer: " + error.toStdString() + "\n");
+                m_audioDecodeDisabled.store(true, std::memory_order_relaxed); // do not retry (and spam) on every packet
+                continue;
+            }
+        }
+
+        QString error;
+        if (!m_audioDecoder.decode(unit.data.data(), unit.data.size(), &error)) {
+            sgct::Log::Error("WebRTCLayer: " + error.toStdString() + "\n");
+            m_audioDecoder.close(); // drop the context so a fresh one can resync
+        }
+    }
+
+    stopAudioOutput();
+    m_audioDecoder.close();
+}
+
+void WebRTCLayer::maybeReopenAudioOutput() {
     // Nothing running to update; the stream opens lazily on the first PCM frame.
     if (!isAudioEnabled() || !m_audioStreamOpen) {
         return;
@@ -651,57 +794,8 @@ void WebRTCLayer::updateAudioOutput() {
     startAudioOutput();
 }
 
-void WebRTCLayer::setVolume(int v, bool storeLevel) {
-    if (storeLevel) {
-        m_volume = v;
-    }
-
-    m_audioVolume = static_cast<float>(v) / 100.f;
-
-    if (isMaster() && AudioSettings::enableAudioOnNodes()) {
-        setNeedSync();
-    }
-}
-
-void WebRTCLayer::setVolumeMute(bool v) {
-    if (m_volumeMute == v) {
-        return;
-    }
-
-    // pushDecodedPcm() reads the flag and zeroes the output while muted.
-    m_volumeMute = v;
-}
-
-void WebRTCLayer::handleAudioFrame(const QByteArray &payload, quint32 rtpTimestamp) {
-    Q_UNUSED(rtpTimestamp); // Opus decoding is self-clocking; PortAudio owns the output clock
-
-    // Ignore frames queued after stop() - they must not (re)open the audio output.
-    if (!m_shouldRun.load(std::memory_order_relaxed)) {
-        return;
-    }
-
-    if (!isAudioEnabled() || payload.isEmpty() || m_audioDecodeDisabled) {
-        return;
-    }
-
-    if (!m_audioDecoder.isOpen()) {
-        QString error;
-        if (!m_audioDecoder.open(&error)) {
-            sgct::Log::Error("WebRTCLayer: " + error.toStdString() + "\n");
-            m_audioDecodeDisabled = true; // do not retry (and spam) on every packet
-            return;
-        }
-    }
-
-    QString error;
-    if (!m_audioDecoder.decode(reinterpret_cast<const std::uint8_t *>(payload.constData()),
-                               payload.size(), &error)) {
-        sgct::Log::Error("WebRTCLayer: " + error.toStdString() + "\n");
-        m_audioDecoder.close(); // drop the context so a fresh one can resync
-    }
-}
-
 void WebRTCLayer::pushDecodedPcm(const float *pcm, int sampleRate, int channels, int frames) {
+    // Audio decode worker thread only (fires from the decoder's frame callback).
     if (!isAudioEnabled() || !pcm || channels <= 0 || frames <= 0) {
         return;
     }
@@ -732,7 +826,7 @@ void WebRTCLayer::pushDecodedPcm(const float *pcm, int sampleRate, int channels,
     }
 
     // Mute zeroes the per-frame volume so no audio is written to the PortAudio stream.
-    const float vol = m_volumeMute ? 0.f : m_audioVolume;
+    const float vol = m_volumeMute.load(std::memory_order_relaxed) ? 0.f : m_audioVolume.load(std::memory_order_relaxed);
     for (int s = 0; s < frames; ++s) {
         const float *inSample = pcm + static_cast<std::size_t>(s) * channels;
         float *outSample = m_interleavedAudioBuf.data() + static_cast<std::size_t>(s) * outChannels;

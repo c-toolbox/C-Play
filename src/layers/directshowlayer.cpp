@@ -10,6 +10,7 @@
 #include <sgct/sgct.h>
 #include <format>
 #include <algorithm>
+#include <cctype>
 #include <cstring>
 #include "audiosettings.h"
 #include <utils/directshowpathresolver.h>
@@ -112,6 +113,9 @@ constexpr std::chrono::seconds kStallTimeout{10};
 // retry backoff for failed PortAudio stream opens.
 constexpr int kAudioRingSeconds{2};
 constexpr std::chrono::seconds kAudioRetryBackoff{2};
+// A WASAPI input that opened fine but stops delivering samples entirely (driver quirk, unplugged
+// endpoint) is replaced by the DirectShow WDM path after this long so audio keeps working.
+constexpr std::chrono::seconds kAudioInputStallTimeout{3};
 
 // Convert a UTF-8 path to wide characters for the Windows/DirectShow APIs.
 std::wstring toWideString(const std::string& utf8) {
@@ -328,6 +332,7 @@ void DirectShowLayer::cleanup() {
     // while the stream is closing (mirrors NdiLayer/OmtLayer).
     m_receiveAudio.store(false);
     closeAudioStream();
+    closeAudioInput(); // and the low-latency WASAPI input, if one was open
     {
         std::lock_guard<std::mutex> lock(m_graphMutex);
         releaseGraph();
@@ -396,7 +401,42 @@ void DirectShowLayer::update(bool updateRendering) {
         m_receiveAudio.store(wantReceive);
         if (!wantReceive) {
             closeAudioStream(); // stop output immediately when audio is disabled
+            closeAudioInput();  // and the low-latency WASAPI input stream too
+            m_audioInputStalled = false; // a fresh attempt is allowed when audio is re-enabled
             m_audioRing.clear();
+        }
+    }
+
+    if (wantReceive && !m_audioPathBuilt && !m_audioInputOpen.load()) {
+        // Audio enabled at runtime for an explicit microphone: open the low-latency WASAPI input
+        // directly instead of rebuilding the video graph just to add a DirectShow audio path. On
+        // failure ensureGraph() below falls back to the WDM filter (full rebuild).
+        std::string videoDevice, audioDevice;
+        resolveCaptureDevices(videoDevice, audioDevice);
+        if (!audioDevice.empty())
+            openAudioInput(audioDevice);
+    }
+
+    if (wantReceive && m_audioInputOpen.load() && !m_audioStreamOpen.load()) {
+        // Retry the PortAudio output stream while WASAPI input is feeding the ring (e.g., after a
+        // transient failure at graph build). Backoff lives in openAudioStreamLocked().
+        std::lock_guard<std::mutex> lock(m_audioStreamMutex);
+        if (!m_audioStreamOpen.load())
+            openAudioStreamLocked(m_audioInputRate.load(), m_audioInputChannels.load());
+    }
+
+    if (wantReceive && m_audioInputOpen.load()) {
+        // Watchdog: a WASAPI input that opened fine but stops delivering samples entirely (driver
+        // quirk, unplugged endpoint) is replaced by the DirectShow WDM path so audio keeps working.
+        const long long lastMs = m_audioInputLastSampleMs.load(std::memory_order_relaxed);
+        if (lastMs != 0) {
+            const auto nowMs = std::chrono::duration_cast<std::chrono::milliseconds>(
+                                   std::chrono::steady_clock::now().time_since_epoch()).count();
+            if (nowMs - lastMs > kAudioInputStallTimeout.count() * 1000LL) {
+                sgct::Log::Warning("DirectShowLayer: WASAPI input stopped delivering samples - falling back to the DirectShow audio path\n");
+                m_audioInputStalled = true; // skip WASAPI for the next graph build
+                closeAudioInput();
+            }
         }
     }
 
@@ -944,20 +984,41 @@ bool DirectShowLayer::buildAndRunGraph(const std::string& pathUtf8, const std::s
 
     // Audio path: a second sample grabber fed from the source's audio pin or an explicit
     // capture device. Non-fatal for video graphs (any failure leaves them video-only), but
-    // fatal for an audio-only graph - there is nothing else to render then.
+    // fatal for an audio-only graph - there is nothing else to render then. An explicit
+    // microphone is preferred through a low-latency WASAPI input stream: the WDM/DirectShow
+    // audio filter delivers ~500ms blocks and adds that much steady-state latency (e.g., C925).
     if (m_isAudioEnabled) {
-        const bool audioBuilt = buildAudioPath(audioDevice);
+        bool audioBuilt = false;
+        if (!audioDevice.empty()) {
+            if (!m_audioInputStalled && openAudioInput(audioDevice)) {
+                audioBuilt = true; // no DirectShow filter needed - m_audioPathBuilt stays false
+            } else {
+                sgct::Log::Info(std::format("DirectShowLayer: WASAPI input unavailable for '{}' - using the DirectShow audio path\n", audioDevice));
+                audioBuilt = buildAudioPath(audioDevice);
+            }
+        } else {
+            closeAudioInput(); // no explicit microphone for this source - stop any stale input stream
+            audioBuilt = buildAudioPath("");
+        }
+        m_audioInputStalled = false; // consumed (or not applicable) by this build
         if (!audioBuilt && audioOnly) {
             sgct::Log::Error("DirectShowLayer: could not build the audio capture path\n");
             releaseGraph();
             return false;
         }
+    } else {
+        closeAudioInput(); // audio disabled - make sure no stale input stream keeps running
     }
 
     hr = m_mediaControl->Run();
     if (FAILED(hr)) {
-        releaseGraph();
-        return false;
+        // An audio-only source captured through WASAPI leaves the DirectShow graph empty; a failed
+        // Run() there must not mark the build failed while audio is already flowing.
+        const bool wasapiAudioOnly = audioOnly && m_audioInputOpen.load();
+        if (!wasapiAudioOnly) {
+            releaseGraph();
+            return false;
+        }
     }
 
     // Cache the negotiated output type - used when samples carry no media type.
@@ -1000,7 +1061,7 @@ bool DirectShowLayer::buildAndRunGraph(const std::string& pathUtf8, const std::s
     }
     m_graphStart = std::chrono::steady_clock::now();
     sgct::Log::Info(std::format("DirectShowLayer: graph running for '{}'\n", m_loadedFile));
-    if (m_isAudioEnabled && !m_audioPathBuilt) {
+    if (m_isAudioEnabled && !m_audioPathBuilt && !m_audioInputOpen.load()) {
         // Audio was requested but no usable audio pin/connection exists for this source.
         sgct::Log::Info("DirectShowLayer: no audio path available - playing video-only\n");
     }
@@ -1104,25 +1165,14 @@ void DirectShowLayer::ensureGraph() {
     // Capture devices take precedence over file playback: when a video capture device
     // was chosen in the UI, the graph renders that live stream instead of the media
     // file at filepath(). The key identifies what the current graph is rendering.
-    std::string videoDevice = m_captureVideoDevice;
-    std::string audioDevice = m_captureAudioDevice;
-    bool fromPreset = false;
-    if (!m_presetKey.empty()) {
-        // This layer was created from a predefined setup: each machine resolves its own local
-        // capture devices for the entry (by title) in its data/predefined-directshows.json.
-        std::string resolvedVideo, resolvedAudio;
-        if (DirectShowPathResolver::instance().resolve(m_presetKey, isMaster(), resolvedVideo, resolvedAudio)) {
-            videoDevice = resolvedVideo;
-            audioDevice = resolvedAudio;
-            fromPreset = true;
-        }
-        // Entry not found in the local file: fall back to the synced device pair.
-    }
+    std::string videoDevice, audioDevice;
+    const bool fromPreset = resolveCaptureDevices(videoDevice, audioDevice);
 
     if (fromPreset && videoDevice.empty() && audioDevice.empty()) {
         // This machine intentionally has no capture for this setup - stay idle and never
         // fall back to file playback. Tear down any graph from a previous resolution.
         std::lock_guard<std::mutex> lock(m_graphMutex);
+        closeAudioInput(); // stop the low-latency WASAPI input too, if one was open
         if (m_graphBuilder) {
             releaseGraph();
             if (renderData.texId > 0) {
@@ -1150,8 +1200,11 @@ void DirectShowLayer::ensureGraph() {
     // when the audio path presence no longer matches the enabled state (audio toggled at
     // runtime). m_audioPathUnavailable stops us from retrying sources without an audio pin.
     if (m_graphBuilder && m_loadedFile == sourceKey) {
-        const bool audioMismatch = (m_isAudioEnabled && !m_audioPathBuilt && !m_audioPathUnavailable)
-                                || (!m_isAudioEnabled && m_audioPathBuilt);
+        // An open WASAPI input stream satisfies the audio requirement without any DirectShow filter,
+        // so it must not trigger a rebuild when audio is toggled at runtime.
+        const bool audioSatisfied = m_audioPathBuilt || (m_audioInputOpen.load() && !audioDevice.empty());
+        const bool audioMismatch = (m_isAudioEnabled && !audioSatisfied && !m_audioPathUnavailable)
+                                || (!m_isAudioEnabled && (m_audioPathBuilt || m_audioInputOpen.load()));
         if (!audioMismatch) {
             if (!ready() && !audioOnly && std::chrono::steady_clock::now() - m_graphStart > kStallTimeout) {
                 sgct::Log::Error(std::format("DirectShowLayer: no frame received for '{}', giving up\n", sourceKey));
@@ -1658,6 +1711,164 @@ void DirectShowLayer::closeAudioStream() {
     closeAudioStreamLocked();
 }
 
+// ---------------------------------------------------------------------------
+// Low-latency WASAPI input for explicit capture microphones
+// ---------------------------------------------------------------------------
+
+bool DirectShowLayer::resolveCaptureDevices(std::string& videoDevice, std::string& audioDevice) const {
+    // This layer may be created from a predefined setup: each machine resolves its own local
+    // capture devices for the entry (by title) in its data/predefined-directshows.json. Entry not
+    // found in the local file: fall back to the synced device pair. Render thread only.
+    videoDevice = m_captureVideoDevice;
+    audioDevice = m_captureAudioDevice;
+    if (!m_presetKey.empty()) {
+        std::string resolvedVideo, resolvedAudio;
+        if (DirectShowPathResolver::instance().resolve(m_presetKey, isMaster(), resolvedVideo, resolvedAudio)) {
+            videoDevice = resolvedVideo;
+            audioDevice = resolvedAudio;
+            return true;
+        }
+    }
+    return false;
+}
+
+bool DirectShowLayer::openAudioInput(const std::string& deviceName) {
+    // Render thread only. Opens a small-buffer WASAPI input stream for an explicit microphone so
+    // audio arrives in ~10ms packets instead of the WDM filter's ~500ms blocks. Returns false when
+    // PortAudio is unavailable or the device cannot be opened - the caller falls back to
+    // buildAudioPath().
+    if (!m_portAudioInitialized.load() || deviceName.empty() || m_audioInputStalled)
+        return false;
+
+    std::lock_guard<std::mutex> lock(m_audioStreamMutex);
+    if (m_audioInputOpen.load()) {
+        return m_audioInputDevice == deviceName; // already capturing from this microphone
+    }
+    closeAudioInputLocked(); // switching microphones - stop any previous input first
+
+    // Case-insensitive containment in either direction.
+    const auto ciContains = [](const std::string& haystack, const std::string& needle) {
+        if (needle.empty() || needle.size() > haystack.size())
+            return false;
+        for (size_t off = 0; off + needle.size() <= haystack.size(); ++off) {
+            bool same = true;
+            for (size_t k = 0; k < needle.size(); ++k) {
+                if (std::tolower(static_cast<unsigned char>(haystack[off + k])) != std::tolower(static_cast<unsigned char>(needle[k]))) {
+                    same = false;
+                    break;
+                }
+            }
+            if (same)
+                return true;
+        }
+        return false;
+    };
+
+    const int deviceCount = Pa_GetDeviceCount();
+    for (int i = 0; i < deviceCount; ++i) {
+        const PaDeviceInfo* info = Pa_GetDeviceInfo(i);
+        if (!info || info->maxInputChannels <= 0)
+            continue;
+
+        // The preset stores the Windows endpoint name, which PortAudio reports verbatim; the
+        // containment check tolerates small naming differences.
+        const bool match = (deviceName == info->name) || ciContains(info->name, deviceName) || ciContains(deviceName, info->name);
+        if (!match)
+            continue;
+
+        const int rate = static_cast<int>(info->defaultSampleRate); // native rate - no resampling needed
+        const int channels = (info->maxInputChannels >= 2) ? 2 : 1;
+
+        PaStreamParameters input{};
+        input.device = i;
+        input.channelCount = channels;
+        input.sampleFormat = paFloat32; // interleaved - matches AudioRing::push()
+        input.suggestedLatency = info->defaultLowInputLatency;
+        input.hostApiSpecificStreamInfo = nullptr;
+
+        // 256 frames (~5ms) per callback; stream flags are 0 (this PortAudio version predates paDefault/paNoFlag).
+        PaError err = Pa_OpenStream(&m_audioInputStream, &input, nullptr, rate, 256, 0, audioInputCallback, this);
+        if (err != paNoError) {
+            sgct::Log::Error(std::format("DirectShowLayer: failed to open WASAPI input '{}' ({})\n", info->name, Pa_GetErrorText(err)));
+            m_audioInputStream = nullptr;
+            return false;
+        }
+        err = Pa_StartStream(m_audioInputStream);
+        if (err != paNoError) {
+            sgct::Log::Error(std::format("DirectShowLayer: failed to start WASAPI input '{}' ({})\n", info->name, Pa_GetErrorText(err)));
+            Pa_CloseStream(m_audioInputStream);
+            m_audioInputStream = nullptr;
+            return false;
+        }
+
+        m_audioInputDevice = deviceName;
+        m_audioInputRate.store(rate);
+        m_audioInputChannels.store(channels);
+        // Start the watchdog clock now: if no packet arrives within kAudioInputStallTimeout,
+        // update() replaces this stream with the DirectShow WDM path.
+        m_audioInputLastSampleMs.store(std::chrono::duration_cast<std::chrono::milliseconds>(
+                                           std::chrono::steady_clock::now().time_since_epoch()).count());
+        m_audioInputOpen.store(true);
+        sgct::Log::Info(std::format("DirectShowLayer: audio via WASAPI input '{}' ({} Hz, {} ch, low latency)\n", info->name, rate, channels));
+
+        // Open the output stream right away so audio starts without waiting for a first sample.
+        // A failure here is retried from update() with backoff.
+        openAudioStreamLocked(rate, channels);
+        return true;
+    }
+
+    sgct::Log::Error(std::format("DirectShowLayer: no PortAudio input device matching '{}'\n", deviceName));
+    return false;
+}
+
+void DirectShowLayer::closeAudioInputLocked() {
+    if (m_audioInputStream) {
+        const PaError err = Pa_StopStream(m_audioInputStream); // no-op when already stopped
+        if (err != paNoError && err != paStreamIsStopped)
+            Pa_AbortStream(m_audioInputStream); // mirrors closeAudioStreamLocked()
+        Pa_CloseStream(m_audioInputStream);
+        m_audioInputStream = nullptr;
+    }
+    m_audioInputOpen.store(false);
+    m_audioInputRate.store(0);
+    m_audioInputChannels.store(0);
+}
+
+void DirectShowLayer::closeAudioInput() {
+    std::lock_guard<std::mutex> lock(m_audioStreamMutex);
+    closeAudioInputLocked();
+}
+
+int DirectShowLayer::audioInputCallback(const void* inputBuffer, void*, unsigned long framesPerBuffer, const PaStreamCallbackTimeInfo*, PaStreamCallbackFlags, void* userData) {
+    auto* layer = static_cast<DirectShowLayer*>(userData);
+    if (!layer || !inputBuffer || framesPerBuffer == 0)
+        return paContinue;
+    if (!layer->m_receiveAudio.load())
+        return paContinue; // audio disabled - drop samples until the stream is closed
+
+    const int channels = layer->m_audioInputChannels.load();
+    const int rate = layer->m_audioInputRate.load();
+    if (channels <= 0 || rate <= 0)
+        return paContinue;
+
+    // AudioRing is internally synchronized; setFormat() is a no-op while the layout matches. The
+    // output stream is opened from the render thread (openAudioInput/update), never here - PortAudio
+    // callbacks must not call back into the API. Push only once it plays out, mirroring
+    // handleAudioSample(), so stale audio never accumulates in the ring at startup.
+    if (!layer->m_audioStreamOpen.load() || !layer->m_audioStreamStarted.load()) {
+        layer->m_audioInputLastSampleMs.store(std::chrono::duration_cast<std::chrono::milliseconds>(
+                                                  std::chrono::steady_clock::now().time_since_epoch()).count(),
+                                              std::memory_order_relaxed); // still feeds the stall watchdog in update()
+        return paContinue;
+    }
+    layer->m_audioRing.setFormat(channels, rate);
+    layer->m_audioRing.push(static_cast<const float*>(inputBuffer), framesPerBuffer);
+    layer->m_audioInputLastSampleMs.store(std::chrono::duration_cast<std::chrono::milliseconds>(
+                                              std::chrono::steady_clock::now().time_since_epoch()).count(),
+                                          std::memory_order_relaxed); // feeds the stall watchdog in update()
+    return paContinue;
+}
+
 PaDeviceIndex DirectShowLayer::GetChosenApplicationAudioDevice() {
     PaDeviceIndex choseDeviceIdx = Pa_GetDefaultOutputDevice(); /* default output device */
     if (choseDeviceIdx == paNoDevice) {
@@ -1708,8 +1919,10 @@ int DirectShowLayer::audioOutputCallback(const void* /*inputBuffer*/, void* outp
 
     // Drain the ring straight into the output buffer (no allocation on this thread).
     const int outChannels = layer->m_audioOutputChannels.load();
+    // Mute zeroes the per-frame volume so no audio is written to the PortAudio stream.
+    const float vol = layer->m_volumeMute.load() ? 0.f : layer->m_audioVolume.load();
     const size_t got = layer->m_audioRing.pop(out, outChannels, static_cast<size_t>(framesPerBuffer),
-                                              layer->m_audioVolume.load());
+                                              vol);
     if (got < static_cast<size_t>(framesPerBuffer)) {
         // Underrun: silence the rest of the buffer.
         std::fill_n(out + got * outChannels, (static_cast<size_t>(framesPerBuffer) - got) * outChannels, 0.0f);
@@ -1822,6 +2035,14 @@ void DirectShowLayer::setVolume(int v, bool storeLevel) {
 
     if (isMaster() && AudioSettings::enableAudioOnNodes())
         setNeedSync();
+}
+
+void DirectShowLayer::setVolumeMute(bool v) {
+    if (m_volumeMute.load() == v)
+        return;
+
+    // The PortAudio callback reads the flag atomically - no stream lock needed.
+    m_volumeMute.store(v);
 }
 
 #endif // _WIN32

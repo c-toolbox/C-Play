@@ -36,12 +36,21 @@ struct WebRtcAnnexBUnit {
     std::int64_t pts = 0;
 };
 
+/// One depacketized Opus payload handed from the main-thread signal handler to the
+/// audio decode worker. The data is copied because the QByteArray only lives for
+/// the duration of the queued slot call.
+struct WebRtcAudioUnit {
+    std::vector<std::uint8_t> data;
+};
+
 /// Pulls a WHEP (WebRTC) stream, decodes it with FFmpeg (NVDEC when available)
 /// and renders the newest frame like the NDI/OMT layers.
 ///
 /// The WHEP URL is stored in the layer's filepath property. Threading:
 ///  - start()/stop() run on the main thread; they own the WebRtcSource QObject.
-///  - a dedicated worker thread drains a bounded Annex-B queue and decodes.
+///  - a dedicated worker thread drains a bounded Annex-B queue and decodes video.
+///  - a second worker thread drains a bounded Opus payload queue, decodes audio and
+///    owns the PortAudio output stream (like MpvLayer/ImageLayer decode off-main).
 ///  - updateFrame() runs on the render thread and uploads the newest RGBA frame.
 class WebRTCLayer : public BaseLayer {
 public:
@@ -101,11 +110,16 @@ private:
     void decodeLoop();
     void pushAnnexB(const std::uint8_t *data, std::size_t size, std::int64_t pts);
 
+    // Audio decode worker thread only (queue access is mutex protected). The queued
+    // signal handler on the main thread just copies payloads into m_audioQueue.
+    void audioDecodeLoop();
+    void pushAudioPayload(const QByteArray &payload);
+    void maybeReopenAudioOutput();
+
     WebRtcStreamConfig buildConfig() const;
 
-    // Audio output (main thread only). Depacketized Opus payloads arrive through a
-    // queued signal; decoded PCM is pushed straight into the PortAudio stream.
-    void handleAudioFrame(const QByteArray &payload, quint32 rtpTimestamp);
+    // Audio output (audio decode worker thread only). Decoded PCM is pushed straight
+    // into the PortAudio stream from that thread.
     void pushDecodedPcm(const float *pcm, int sampleRate, int channels, int frames);
     bool startAudioOutput();
     void stopAudioOutput();
@@ -122,14 +136,14 @@ private:
     VideoDecoder m_decoder; // decode worker thread only
     std::atomic<WebRtcVideoCodec> m_negotiatedCodec { WebRtcVideoCodec::Unknown };
 
-    // Audio state (main thread only)
-    bool m_isAudioEnabled = false;
-    float m_audioVolume = 1.f;
-    bool m_volumeMute = false;
-    bool m_audioDecodeDisabled = false; // set when the Opus decoder cannot be opened
+    // Audio state shared between the main thread (UI) and the audio decode worker.
+    std::atomic<bool> m_isAudioEnabled { false };
+    std::atomic<float> m_audioVolume { 1.f };
+    std::atomic<bool> m_volumeMute { false };
+    std::atomic<bool> m_audioDecodeDisabled { false }; // set when the Opus decoder cannot be opened
 
-    // PortAudio output stream (main thread only). Opened lazily on the first decoded
-    // frame and torn down by stop()/enableAudio(false)/updateAudioOutput().
+    // PortAudio output stream (audio decode worker thread only). Opened lazily on the
+    // first decoded frame and torn down by stop() or enableAudio(false) via that thread.
     PaStream *m_audioStream = nullptr;
     bool m_audioStreamOpen = false;
     bool m_audioStreamStarted = false;
@@ -140,7 +154,9 @@ private:
     PaStreamParameters m_audioOutputParameters{};
     std::vector<float> m_interleavedAudioBuf;
 
-    AudioDecoder m_audioDecoder; // main thread only
+    AudioDecoder m_audioDecoder; // audio decode worker thread only
+
+    std::atomic<bool> m_audioReopenRequested { false }; // updateAudioOutput() -> worker
 
     std::chrono::steady_clock::time_point m_lastAudioOpenErrorLog{}; // throttles repeated open-failure logs
 
@@ -148,6 +164,11 @@ private:
     std::condition_variable m_queueCv;
     std::deque<WebRtcAnnexBUnit> m_queue; // bounded, drop oldest when full
     bool m_stopRequested = false;
+
+    std::mutex m_audioQueueMutex;
+    std::condition_variable m_audioQueueCv;
+    std::deque<WebRtcAudioUnit> m_audioQueue; // bounded, drop oldest when full
+    bool m_audioStopRequested = false;        // guarded by m_audioQueueMutex
 
     mutable std::mutex m_frameMutex;
     std::vector<std::uint8_t> m_latestFrame; // RGBA8, newest decoded frame
@@ -158,4 +179,5 @@ private:
     std::uint64_t m_lastUploadedSeq = 0; // render thread only
 
     std::thread m_decodeThread;
+    std::thread m_audioDecodeThread;
 };

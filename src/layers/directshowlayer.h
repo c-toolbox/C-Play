@@ -145,6 +145,7 @@ public:
     void enableAudio(bool enabled = true) override;
     void updateAudioOutput() override;
     void setVolume(int v, bool storeLevel = true) override;
+    void setVolumeMute(bool v) override;
     // The audio level is reported from the PortAudio output callback, so a meter in the
     // LayerView can show live levels while the image renders.
     bool hasAudioLevels() const override { return true; }
@@ -170,6 +171,19 @@ private:
     void closeAudioStreamLocked();                            // caller holds m_audioStreamMutex
     void closeAudioStream();                                  // any thread
     PaDeviceIndex GetChosenApplicationAudioDevice();          // any thread
+
+    // Low-latency WASAPI input for an explicit capture microphone: the WDM/DirectShow audio filter
+    // delivers ~500ms blocks and adds that much steady-state latency, so the mic is captured through
+    // a small-buffer PortAudio input stream instead (see openAudioInput). Render thread only; the
+    // PortAudio callback just pushes into m_audioRing (internally synchronized).
+    bool openAudioInput(const std::string& deviceName);       // render thread; false -> caller falls back to buildAudioPath()
+    void closeAudioInput();                                   // any thread
+    void closeAudioInputLocked();                             // caller holds m_audioStreamMutex
+    static int audioInputCallback(const void* inputBuffer, void*, unsigned long framesPerBuffer, const PaStreamCallbackTimeInfo*, PaStreamCallbackFlags, void* userData);
+
+    // Preset-aware capture device resolution shared by ensureGraph() and update(). Returns true when
+    // the names came from this machine's predefined-directshows.json entry. Render thread only.
+    bool resolveCaptureDevices(std::string& videoDevice, std::string& audioDevice) const;
 
     // PortAudio output callback - drains m_audioRing into the output buffer. Runs on a
     // (possibly real-time) PortAudio thread: no allocation, no logging, minimal work.
@@ -229,6 +243,19 @@ private:
     std::array<BYTE, sizeof(WAVEFORMATEXTENSIBLE)> m_cachedAudioFormat{};
     DWORD m_cachedAudioFormatSize = 0; // valid bytes in m_cachedAudioFormat (>= sizeof(WAVEFORMATEX))
 
+    // Low-latency WASAPI input stream for an explicit capture microphone (see openAudioInput). The
+    // render thread owns the stream handle and the device name; the atomics are read by the PortAudio
+    // callback and update(). m_audioInputStalled is set by the watchdog in update() when a stream that
+    // opened fine stops delivering samples entirely - buildAndRunGraph() then skips WASAPI for the
+    // next build so the DirectShow WDM path takes over.
+    PaStream* m_audioInputStream = nullptr;
+    std::string m_audioInputDevice;
+    bool m_audioInputStalled = false;          // render thread only
+    std::atomic<bool> m_audioInputOpen{false};
+    std::atomic<int> m_audioInputRate{0};
+    std::atomic<int> m_audioInputChannels{0};
+    std::atomic<long long> m_audioInputLastSampleMs{0}; // steady_clock ms of the last input packet (0 = none yet)
+
     // Bounded interleaved-float32 handoff between the DirectShow streaming thread (producer) and
     // the PortAudio callback (consumer). When full, oldest frames are dropped so a stalled
     // consumer can never grow memory or latency without bound.
@@ -262,6 +289,7 @@ private:
     int m_audioSourceChannels = 0;               // channel count of the grabbed audio (ring layout)
     std::atomic<int> m_audioOutputChannels{2};   // read by the PortAudio callback without locking
     std::atomic<float> m_audioVolume{1.0f};      // read by the PortAudio callback without locking
+    std::atomic<bool> m_volumeMute{false};       // read by the PortAudio callback without locking
     std::atomic<bool> m_unsupportedAudioLogged{false}; // log unsupported codecs once per graph (streaming thread sets, render resets)
     std::chrono::steady_clock::time_point m_audioOpenLastFailed{};  // retry backoff for failed opens
 #endif
