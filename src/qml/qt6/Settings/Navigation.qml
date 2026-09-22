@@ -83,6 +83,7 @@ Kirigami.Page {
         id: settingsPagesList
 
         anchors.fill: parent
+        currentIndex: -1
         model: settingsPagesModel
 
         delegate: ItemDelegate {
