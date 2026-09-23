@@ -76,6 +76,7 @@
 #include <QPair>
 #include <QFileInfo>
 #include <QGuiApplication>
+#include <QClipboard>
 #include <QMimeDatabase>
 #include <QPointer>
 #include <QQmlApplicationEngine>
@@ -169,6 +170,11 @@ Application::Application(int &argc, char **argv, const QString &applicationName)
     m_mpvOptionsModel = new MpvOptionsModel(this);
     m_httpClientModel = new HttpClientModel(this);
     m_wwsClientModel = new WwsClientModel(this);
+#ifdef MEDIA_MTX_SUPPORT
+    m_mediaMtxServersModel = new MediaMtxServersModel(this);
+    m_mediaMtxModel = new MediaMtxModel(this);
+    m_mediaMtxModel->setServersModel(m_mediaMtxServersModel);
+#endif
 #ifdef NDI_SUPPORT
     m_ndiSendersModel = new NDISendersModel(this);
     m_portAudioModel = new PortAudioModel(this);
@@ -533,6 +539,10 @@ void Application::showCursor() {
     QApplication::setOverrideCursor(Qt::ArrowCursor);
 }
 
+void Application::copyToClipboard(const QString &text) {
+    QGuiApplication::clipboard()->setText(text);
+}
+
 int Application::getFadeDurationCurrentTime(bool restart) {
     if (restart) {
         fadeDurationTimer.start();
@@ -627,6 +637,16 @@ void Application::setWwsClientModel(WwsClientModel* model) {
     m_wwsClientModel = model;
     Q_EMIT wwsClientModelChanged();
 }
+
+#ifdef MEDIA_MTX_SUPPORT
+MediaMtxServersModel* Application::mediaMtxServersModel() {
+    return m_mediaMtxServersModel;
+}
+
+MediaMtxModel* Application::mediaMtxModel() {
+    return m_mediaMtxModel;
+}
+#endif
 
 #ifdef NDI_SUPPORT
 

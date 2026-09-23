@@ -308,6 +308,40 @@ void WebRTCLayer::setWhepUrl(std::string url) {
     }
 }
 
+void WebRTCLayer::setAuthUsername(std::string username) {
+    if (username == m_authUsername) {
+        return;
+    }
+
+    m_authUsername = std::move(username);
+    setNeedSync();
+    if (m_shouldRun.load(std::memory_order_relaxed)) {
+        startSource(); // reconnect so the new Authorization header takes effect
+    }
+}
+
+void WebRTCLayer::setAuthPassword(std::string password) {
+    if (password == m_authPassword) {
+        return;
+    }
+
+    m_authPassword = std::move(password);
+    setNeedSync();
+    if (m_shouldRun.load(std::memory_order_relaxed)) {
+        startSource(); // reconnect so the new Authorization header takes effect
+    }
+}
+
+void WebRTCLayer::encodeTypeCore(std::vector<std::byte> &data) {
+    sgct::serializeObject(data, m_authUsername);
+    sgct::serializeObject(data, m_authPassword);
+}
+
+void WebRTCLayer::decodeTypeCore(const std::vector<std::byte> &data, unsigned int &pos) {
+    sgct::deserializeObject(data, pos, m_authUsername);
+    sgct::deserializeObject(data, pos, m_authPassword);
+}
+
 bool WebRTCLayer::existOnMasterOnly() const {
     return m_existOnMasterOnly;
 }
@@ -315,8 +349,11 @@ bool WebRTCLayer::existOnMasterOnly() const {
 WebRtcStreamConfig WebRTCLayer::buildConfig() const {
     WebRtcStreamConfig config;
     config.whepUrl = QUrl(QString::fromStdString(filepath()));
-    // Credentials may be embedded in the URL (user:pass@host); WhepClient lifts
-    // them into an Authorization header. Explicit overrides are not exposed yet.
+    // HTTP Basic auth is carried as an Authorization header on the WHEP request. The explicit
+    // layer credentials take precedence; if they are empty, WhepClient falls back to any
+    // credentials embedded in the URL (user:pass@host).
+    config.username = QString::fromStdString(m_authUsername);
+    config.password = QString::fromStdString(m_authPassword);
     return config;
 }
 

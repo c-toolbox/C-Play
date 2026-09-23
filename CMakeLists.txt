@@ -238,6 +238,14 @@ if(BUILD_CPLAY_WITH_WEBRTC)
     endif()
 endif()
 
+# MediaMTX support talks to a MediaMTX server over its HTTP control API, so it works on every
+# platform; it is enabled by default only on Windows.
+if(WIN32)
+    option(BUILD_CPLAY_WITH_MEDIA_MTX "Global On/Off for MediaMTX stream server support" ON)
+else()
+    option(BUILD_CPLAY_WITH_MEDIA_MTX "Global On/Off for MediaMTX stream server support" OFF)
+endif()
+
 option(BUILD_CPLAY_WITH_POPPLER "Global On/Off for PDF support via Poppler library" OFF)
 if(BUILD_CPLAY_WITH_POPPLER)
     find_package(Poppler COMPONENTS Cpp Core REQUIRED)

@@ -8,7 +8,7 @@ set(CPLAY_VERSION_MAJOR 2)
 set(CPLAY_VERSION_MINOR 4)
 set(CPLAY_VERSION_PATCH 0)
 set(CPLAY_VERSION_PR_NAME "Beta")
-set(CPLAY_VERSION_PR_VERS 8)
+set(CPLAY_VERSION_PR_VERS 9)
 
 qt_add_executable(${TARGET_NAME})
 set_compile_options(${TARGET_NAME})
@@ -197,6 +197,13 @@ if(BUILD_CPLAY_WITH_WEBRTC)
     target_include_directories(${TARGET_NAME} PRIVATE webrtc)
 endif()
 
+if(BUILD_CPLAY_WITH_MEDIA_MTX)
+    list(APPEND SOURCE_FILES mediamtxmodel.cpp)
+    list(APPEND SOURCE_FILES mediamtxmodel.h)
+    list(APPEND SOURCE_FILES mediamtxcredentials.cpp)
+    list(APPEND SOURCE_FILES mediamtxcredentials.h)
+endif()
+
 if(BUILD_CPLAY_WITH_MDK)
     list(APPEND SOURCE_FILES layers/adaptivevideolayer.cpp)
     list(APPEND SOURCE_FILES layers/adaptivevideolayer.h)
@@ -283,6 +290,7 @@ set(QML_SRC_FILES
     qml/qt6/LayersItemCompact.qml
     qml/qt6/LayerView.qml
     qml/qt6/LayerViewGridParams.qml
+    qml/qt6/MediaMTXEditor.qml
     qml/qt6/RestCommandsEditor.qml
     qml/qt6/LoggingWindow.qml
     qml/qt6/Slides.qml
@@ -496,6 +504,11 @@ if(BUILD_CPLAY_WITH_WEBRTC)
     target_compile_definitions(${TARGET_NAME} PUBLIC RTC_STATIC)
 endif()
 
+if(BUILD_CPLAY_WITH_MEDIA_MTX)
+    # cpp-httplib (vendored, header-only) is used for the MediaMTX control API; no extra libraries.
+    target_compile_definitions(${TARGET_NAME} PUBLIC MEDIA_MTX_SUPPORT)
+endif()
+
 if(BUILD_CPLAY_WITH_POPPLER)
     list(APPEND TARGET_LIBRARIES Poppler::Cpp)
     target_compile_definitions(${TARGET_NAME} PUBLIC PDF_SUPPORT PDF_LAYER)
@@ -517,6 +530,10 @@ endif()
 find_package(OpenGL REQUIRED)
 if(WIN32)
     list(APPEND TARGET_LIBRARIES opengl32)
+    if(BUILD_CPLAY_WITH_MEDIA_MTX)
+        # Windows Credential Manager lookups for MediaMTX server passwords (CredReadW).
+        list(APPEND TARGET_LIBRARIES advapi32)
+    endif()
 else()
     list(APPEND TARGET_LIBRARIES OpenGL::GL)
 endif()

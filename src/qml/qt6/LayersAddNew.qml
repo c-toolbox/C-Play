@@ -128,6 +128,10 @@ Kirigami.ApplicationWindow {
                             if(layerCoreProps.streamsLayout.customEntry){
                                 layerView.layerItem.layerIdx = app.slides.selected.addLayer(layerCoreProps.layerTitle.text, layerCoreProps.typeComboBox.currentIndex + 1, layerCoreProps.streamCustomEntryField.text, layerCoreProps.stereoscopicModeForLayer.currentIndex, layerCoreProps.gridModeForLayer.currentIndex);
                             }
+                            else if(layerCoreProps.streamsLayout.mediaMtxEntry){
+                                // MediaMTX streams resolve to a plain RTSP URL, so they behave like a custom path.
+                                layerView.layerItem.layerIdx = app.slides.selected.addLayer(layerCoreProps.layerTitle.text, layerCoreProps.typeComboBox.currentIndex + 1, layerCoreProps.mediaMtxStreamsComboBox.currentValue, layerCoreProps.stereoscopicModeForLayer.currentIndex, layerCoreProps.gridModeForLayer.currentIndex);
+                            }
                             else {
                                 layerView.layerItem.layerIdx = app.slides.selected.addLayer(layerCoreProps.layerTitle.text, layerCoreProps.typeComboBox.currentIndex + 1, layerCoreProps.streamsComboBox.currentValue, layerCoreProps.stereoscopicModeForLayer.currentIndex, layerCoreProps.gridModeForLayer.currentIndex);
                                 // Remember which predefined entry this layer was created from (the entry title), so each machine in the cluster can resolve its own local path from data/predefined-streams.json. Custom paths keep an empty key and use the file path verbatim.

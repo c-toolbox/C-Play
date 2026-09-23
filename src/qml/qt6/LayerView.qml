@@ -1843,7 +1843,8 @@ Kirigami.ApplicationWindow {
         Component {
             id: webrtcComponent
 
-            Row {
+            Column {
+                spacing: 6
                 anchors.horizontalCenter: parent.horizontalCenter
                 anchors.bottom: parent.bottom
                 bottomPadding: 60
@@ -1907,16 +1908,69 @@ Kirigami.ApplicationWindow {
                         }
                     }
                 }
+                RowLayout {
+                    Rectangle {
+                        color: Kirigami.Theme.alternateBackgroundColor
+                        implicitHeight: 35
+                        implicitWidth: 480
+                        radius: 5
+
+                        RowLayout {
+                            anchors.fill: parent
+                            anchors.leftMargin: 8
+
+                            Label {
+                                font.pointSize: 9
+                                text: qsTr("Auth user:")
+                            }
+                            TextField {
+                                id: whepAuthUserEdit
+
+                                Layout.preferredWidth: 150
+                                placeholderText: "username"
+                                text: layerViewItem.layerWhepAuthUsername
+
+                                onEditingFinished: {
+                                    if (text !== layerViewItem.layerWhepAuthUsername) {
+                                        layerViewItem.layerWhepAuthUsername = text;
+                                    }
+                                }
+                            }
+                            Label {
+                                font.pointSize: 9
+                                text: qsTr("password:")
+                            }
+                            TextField {
+                                id: whepAuthPasswordEdit
+
+                                Layout.fillWidth: true
+                                echoMode: TextInput.Password
+                                placeholderText: "password"
+                                text: layerViewItem.layerWhepAuthPassword
+
+                                onEditingFinished: {
+                                    if (text !== layerViewItem.layerWhepAuthPassword) {
+                                        layerViewItem.layerWhepAuthPassword = text;
+                                    }
+                                }
+                            }
+                        }
+                    }
+                }
                 Connections {
                     function onLayerChanged() {
                         if (layerViewItem.layerIdx !== -1) {
                             whepUrlEdit.text = layerViewItem.layerWhepUrl;
                             masterOnlyCheckBox.checked = layerViewItem.layerExistOnMasterOnly;
+                            whepAuthUserEdit.text = layerViewItem.layerWhepAuthUsername;
+                            whepAuthPasswordEdit.text = layerViewItem.layerWhepAuthPassword;
                         }
                     }
                     function onLayerValueChanged() {
                         whepUrlEdit.text = layerViewItem.layerWhepUrl;
                         masterOnlyCheckBox.checked = layerViewItem.layerExistOnMasterOnly;
+                        whepAuthUserEdit.text = layerViewItem.layerWhepAuthUsername;
+                        whepAuthPasswordEdit.text = layerViewItem.layerWhepAuthPassword;
                     }
 
                     target: layerViewItem

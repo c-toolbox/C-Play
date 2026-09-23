@@ -33,6 +33,8 @@ GridLayout {
     property alias streamsLayout: streamsLayout
     property alias streamsComboBox: streamsComboBox
     property alias streamCustomEntryField: streamCustomEntryField
+    property alias mediaMtxServerComboBox: mediaMtxServerComboBox
+    property alias mediaMtxStreamsComboBox: mediaMtxStreamsComboBox
     property alias ndiSenderComboBox: ndiSenderComboBox
     property alias spoutSenderComboBox: spoutSenderComboBox
     property alias omtSenderComboBox: omtSenderComboBox
@@ -54,6 +56,10 @@ GridLayout {
 
     // True when data/predefined-directshows.json provides at least one enabled capture setup.
     property bool directShowPresetAvailable: app.directShowPresetsModel && app.directShowPresetsModel.numberOfPresets > 0
+
+    // MediaMTX support is a build option (BUILD_CPLAY_WITH_MEDIA_MTX); in builds without it the
+    // models simply do not exist on app, so this stays false and the MediaMTX stream picker is hidden.
+    property bool mediaMtxAvailable: !!app.mediaMtxServersModel && !!app.mediaMtxModel
 
     // The audio device selected in the DirectShow section; an empty string means "No audio capture"
     // (the first entry of the audio combobox) or that no selection is available.
@@ -382,6 +388,7 @@ GridLayout {
             else if (typeComboBox.currentText === "Stream") {
                 app.streamsModel.updateStreamsList();
                 streamsLayout.customEntry = false;
+                streamsLayout.mediaMtxEntry = false;
                 streamsComboBox.currentIndex = 0;
                 streamCustomEntryField.text = "";
                 layerTitle.text = streamsComboBox.currentText;
@@ -494,6 +501,7 @@ GridLayout {
         Layout.fillWidth: true
         visible: typeComboBox.currentText === "Stream"
         property bool customEntry: false
+        property bool mediaMtxEntry: false
 
         ComboBox {
             id: streamsComboBox
@@ -503,7 +511,7 @@ GridLayout {
             currentIndex: 0
             textRole: "title"
             valueRole: "path"
-            visible: streamsLayout.customEntry === false
+            visible: streamsLayout.customEntry === false && streamsLayout.mediaMtxEntry === false
 
             Component.onCompleted: {
                 app.streamsModel.updateStreamsList();
@@ -530,22 +538,93 @@ GridLayout {
                 text: qsTr("Stream path (see mpv docs)..")
             }
         }
+        ComboBox {
+            id: mediaMtxServerComboBox
+
+            Layout.fillWidth: true
+            Layout.preferredWidth: font.pointSize * 8
+            model: app.mediaMtxServersModel
+            textRole: "name"
+            currentIndex: 0
+            visible: root.mediaMtxAvailable && streamsLayout.mediaMtxEntry === true
+
+            onActivated: {
+                app.mediaMtxModel.refresh(mediaMtxServerComboBox.currentIndex);
+            }
+
+            ToolTip {
+                text: qsTr("MediaMTX server (configured in Settings -> MediaMTX Streams)")
+            }
+        }
+        ComboBox {
+            id: mediaMtxStreamsComboBox
+
+            Layout.fillWidth: true
+            Layout.preferredWidth: font.pointSize * 12
+            model: app.mediaMtxModel
+            textRole: "name"
+            valueRole: "rtspUrl"
+            currentIndex: 0
+            visible: root.mediaMtxAvailable && streamsLayout.mediaMtxEntry === true
+
+            onActivated: {
+                layerTitle.text = mediaMtxStreamsComboBox.currentText;
+            }
+
+            ToolTip {
+                text: qsTr("Streams published on the selected MediaMTX server")
+            }
+        }
+        ToolButton {
+            id: mediaMtxRefreshButton
+
+            focusPolicy: Qt.NoFocus
+            icon.height: 16
+            icon.name: "view-refresh"
+            text: ""
+            visible: root.mediaMtxAvailable && streamsLayout.mediaMtxEntry === true
+            enabled: root.mediaMtxAvailable && !app.mediaMtxModel.refreshInProgress && app.mediaMtxServersModel.numberOfServers > 0
+
+            onClicked: {
+                app.mediaMtxModel.refresh(mediaMtxServerComboBox.currentIndex);
+            }
+
+            ToolTip {
+                text: qsTr("Fetch stream list from the MediaMTX server")
+            }
+        }
         ToolButton {
             id: streamComboOrFieldButton
 
             focusPolicy: Qt.NoFocus
             icon.height: 16
-            icon.name: streamsLayout.customEntry ? "gnumeric-object-combo" : "text-field"
+            icon.name: streamsLayout.customEntry ? (root.mediaMtxAvailable ? "network-server" : "gnumeric-object-combo") : (streamsLayout.mediaMtxEntry ? "gnumeric-object-combo" : "text-field")
             text: ""
 
             onClicked: {
                 if(streamsLayout.customEntry) {
+                    streamsLayout.customEntry = false;
+                    if (root.mediaMtxAvailable) {
+                        // custom -> MediaMTX
+                        streamsLayout.mediaMtxEntry = true;
+                        app.mediaMtxServersModel.updateServersList();
+                        layerTitle.text = mediaMtxStreamsComboBox.currentText;
+                    } else {
+                        // custom -> predefined list (no MediaMTX in this build)
+                        app.streamsModel.updateStreamsList();
+                        streamsComboBox.currentIndex = 0;
+                        layerTitle.text = streamsComboBox.currentText;
+                    }
+                }
+                else if(streamsLayout.mediaMtxEntry) {
+                    // MediaMTX -> predefined list
+                    streamsLayout.mediaMtxEntry = false;
                     app.streamsModel.updateStreamsList();
                     streamsComboBox.currentIndex = 0;
-                    streamsLayout.customEntry = false;
                     layerTitle.text = streamsComboBox.currentText;
                 }
                 else {
+                    // predefined list -> custom
                     streamsLayout.customEntry = true;
                     layerTitle.text = ""
                 }
@@ -553,7 +632,7 @@ GridLayout {
             }
 
             ToolTip {
-                text: streamsLayout.customEntry ? qsTr("Use predefined stream list") : qsTr("Use custom stream path")
+                text: streamsLayout.customEntry ? (root.mediaMtxAvailable ? qsTr("Use MediaMTX server") : qsTr("Use predefined stream list")) : (streamsLayout.mediaMtxEntry ? qsTr("Use predefined stream list") : qsTr("Use custom stream path"))
             }
         }
     }

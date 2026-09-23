@@ -38,6 +38,9 @@ class LayersRendererQtItem;
 #include <layers/mpvoptionsmodel.h>
 #include "httpclientmodel.h"
 #include "wwsclientmodel.h"
+#ifdef MEDIA_MTX_SUPPORT
+#include "mediamtxmodel.h"
+#endif
 #ifdef NDI_SUPPORT
 #include <ndi/ndimodel.h>
 #endif
@@ -84,6 +87,13 @@ Q_DECLARE_METATYPE(HttpClientModel*)
 #ifndef METATYPE_WwsClientModel
 #define METATYPE_WwsClientModel
 Q_DECLARE_METATYPE(WwsClientModel*)
+#endif
+#ifdef MEDIA_MTX_SUPPORT
+#ifndef METATYPE_MediaMtxModel
+#define METATYPE_MediaMtxModel
+Q_DECLARE_METATYPE(MediaMtxModel*)
+Q_DECLARE_METATYPE(MediaMtxServersModel*)
+#endif
 #endif
 #ifdef NDI_SUPPORT
 #ifndef METATYPE_NDIModels
@@ -169,6 +179,8 @@ public:
     Q_INVOKABLE static double timeToSeconds(const QString &time);
     Q_INVOKABLE static void hideCursor();
     Q_INVOKABLE static void showCursor();
+    // Copies text to the system clipboard, e.g. a stream address from the MediaMTX editor.
+    Q_INVOKABLE static void copyToClipboard(const QString &text);
     Q_INVOKABLE static QString mimeType(QUrl url);
 
     bool getFontPath(const std::string& inFontName, std::string& outPath);
@@ -223,6 +235,20 @@ public:
 
     WwsClientModel* wwsClientModel();
     void setWwsClientModel(WwsClientModel* model);
+
+#ifdef MEDIA_MTX_SUPPORT
+    Q_PROPERTY(MediaMtxServersModel* mediaMtxServersModel
+        READ mediaMtxServersModel
+        NOTIFY mediaMtxModelChanged)
+
+    MediaMtxServersModel* mediaMtxServersModel();
+
+    Q_PROPERTY(MediaMtxModel* mediaMtxModel
+        READ mediaMtxModel
+        NOTIFY mediaMtxModelChanged)
+
+    MediaMtxModel* mediaMtxModel();
+#endif
 
 #ifdef NDI_SUPPORT
     Q_PROPERTY(NDISendersModel* ndiSendersModel
@@ -290,6 +316,9 @@ Q_SIGNALS:
     void mpvOptionsModelChanged();
     void httpClientModelChanged();
     void wwsClientModelChanged();
+#ifdef MEDIA_MTX_SUPPORT
+    void mediaMtxModelChanged();
+#endif
 #ifdef NDI_SUPPORT
     void ndiSendersModelChanged();
     void portAudioModelChanged();
@@ -337,6 +366,10 @@ private:
     MpvOptionsModel* m_mpvOptionsModel;
     HttpClientModel* m_httpClientModel;
     WwsClientModel* m_wwsClientModel;
+#ifdef MEDIA_MTX_SUPPORT
+    MediaMtxServersModel* m_mediaMtxServersModel;
+    MediaMtxModel* m_mediaMtxModel;
+#endif
 #ifdef NDI_SUPPORT
     NDISendersModel* m_ndiSendersModel;
     PortAudioModel* m_portAudioModel;

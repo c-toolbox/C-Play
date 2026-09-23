@@ -135,6 +135,9 @@ class LayerQtItem : public QQuickItem {
     Q_PROPERTY(QString layerParameter READ layerParameter WRITE setLayerParameter NOTIFY layerValueChanged)
     Q_PROPERTY(QString layerRestUrl READ layerRestUrl WRITE setLayerRestUrl NOTIFY layerValueChanged)
     Q_PROPERTY(QString layerWhepUrl READ layerWhepUrl WRITE setLayerWhepUrl NOTIFY layerValueChanged)
+    // HTTP Basic auth for a WebRTC (WHEP) layer, sent as an Authorization header on the WHEP request.
+    Q_PROPERTY(QString layerWhepAuthUsername READ layerWhepAuthUsername WRITE setLayerWhepAuthUsername NOTIFY layerValueChanged)
+    Q_PROPERTY(QString layerWhepAuthPassword READ layerWhepAuthPassword WRITE setLayerWhepAuthPassword NOTIFY layerValueChanged)
     Q_PROPERTY(int layerRestMethod READ layerRestMethod WRITE setLayerRestMethod NOTIFY layerValueChanged)
     Q_PROPERTY(QString layerRestParameters READ layerRestParameters WRITE setLayerRestParameters NOTIFY layerValueChanged)
     Q_PROPERTY(bool layerRestIgnoreStatus READ layerRestIgnoreStatus WRITE setLayerRestIgnoreStatus NOTIFY layerValueChanged)
@@ -349,8 +352,13 @@ public:
 
     QString layerRestUrl() const;
     void setLayerRestUrl(QString url);
+
     QString layerWhepUrl() const;
     void setLayerWhepUrl(const QString &url);
+    QString layerWhepAuthUsername() const;
+    void setLayerWhepAuthUsername(const QString &username);
+    QString layerWhepAuthPassword() const;
+    void setLayerWhepAuthPassword(const QString &password);
 
     int layerRestMethod() const;
     void setLayerRestMethod(int method);

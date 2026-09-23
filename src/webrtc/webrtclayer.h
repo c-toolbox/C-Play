@@ -78,6 +78,15 @@ public:
     std::string whepUrl() const { return filepath(); }
     void setWhepUrl(std::string url);
 
+    /// HTTP Basic authentication for the WHEP endpoint, sent as an Authorization header on
+    /// the WHEP request (MediaMTX authenticates WebRTC this way). Stored on the layer so it
+    /// persists with the presentation and syncs to nodes. An empty username disables auth;
+    /// when set it takes precedence over any credentials embedded in the URL.
+    std::string authUsername() const { return m_authUsername; }
+    void setAuthUsername(std::string username);
+    std::string authPassword() const { return m_authPassword; }
+    void setAuthPassword(std::string password);
+
     /// New WebRTC layers default to master-only; uncheck it in the UI to let every
     /// node pull its own copy of the stream.
     bool existOnMasterOnly() const override;
@@ -94,6 +103,11 @@ public:
     void updateAudioOutput() override;
     void setVolume(int v, bool storeLevel = true) override;
     void setVolumeMute(bool v) override;
+
+ public:
+    // Persist the WHEP HTTP auth credentials with the layer (cplayfile + node sync).
+    void encodeTypeCore(std::vector<std::byte> &data) override;
+    void decodeTypeCore(const std::vector<std::byte> &data, unsigned int &pos) override;
 
 private:
     // Main thread only.
@@ -132,6 +146,11 @@ private:
     bool m_reconnectScheduled = false; // main thread
 
     std::shared_ptr<std::atomic<bool>> m_alive = std::make_shared<std::atomic<bool>>(true);
+    // HTTP Basic authentication for the WHEP endpoint, sent as an Authorization header on the
+    // WHEP request. Persisted with the layer and synced to nodes; empty username disables it.
+    std::string m_authUsername;
+    std::string m_authPassword;
+
 
     VideoDecoder m_decoder; // decode worker thread only
     std::atomic<WebRtcVideoCodec> m_negotiatedCodec { WebRtcVideoCodec::Unknown };

@@ -97,6 +97,16 @@ Menu {
         }
     }
     MenuItem {
+        text: qsTr("MediaMTX Streams...")
+        icon.name: "network-server"
+        // MediaMTX support is a build option (BUILD_CPLAY_WITH_MEDIA_MTX); the models do not exist on app without it.
+        visible: !!app.mediaMtxServersModel && !!app.mediaMtxModel
+        height: visible ? implicitHeight : 0
+        onTriggered: {
+            mediaMtxEditor.visible = true;
+        }
+    }
+    MenuItem {
         text: qsTr("Logging...")
         icon.name: "console"
         onTriggered: {

@@ -1392,6 +1392,56 @@ void LayerQtItem::setLayerWhepUrl(const QString &) {
 #endif
 }
 
+QString LayerQtItem::layerWhepAuthUsername() const {
+#ifdef WEBRTC_LAYER
+    if (m_layer && m_layer->type() == BaseLayer::WEBRTC) {
+        return QString::fromStdString(static_cast<WebRTCLayer*>(m_layer)->authUsername());
+    }
+#endif
+    return QStringLiteral("");
+}
+
+QString LayerQtItem::layerWhepAuthPassword() const {
+#ifdef WEBRTC_LAYER
+    if (m_layer && m_layer->type() == BaseLayer::WEBRTC) {
+        return QString::fromStdString(static_cast<WebRTCLayer*>(m_layer)->authPassword());
+    }
+#endif
+    return QStringLiteral("");
+}
+
+#ifdef WEBRTC_LAYER
+void LayerQtItem::setLayerWhepAuthUsername(const QString &username) {
+    if (m_layer && m_layer->isEnabled() && m_layer->type() == BaseLayer::WEBRTC) {
+        WebRTCLayer* webRtcLayer = static_cast<WebRTCLayer*>(m_layer);
+        if (QString::fromStdString(webRtcLayer->authUsername()) != username) {
+            // Reconnects the session when the layer is running.
+            webRtcLayer->setAuthUsername(username.toStdString());
+            Q_EMIT layerValueChanged();
+            Q_EMIT layerNeedsSave();
+        }
+    }
+}
+
+void LayerQtItem::setLayerWhepAuthPassword(const QString &password) {
+    if (m_layer && m_layer->isEnabled() && m_layer->type() == BaseLayer::WEBRTC) {
+        WebRTCLayer* webRtcLayer = static_cast<WebRTCLayer*>(m_layer);
+        if (QString::fromStdString(webRtcLayer->authPassword()) != password) {
+            // Reconnects the session when the layer is running.
+            webRtcLayer->setAuthPassword(password.toStdString());
+            Q_EMIT layerValueChanged();
+            Q_EMIT layerNeedsSave();
+        }
+    }
+}
+#else
+void LayerQtItem::setLayerWhepAuthUsername(const QString &) {
+}
+
+void LayerQtItem::setLayerWhepAuthPassword(const QString &) {
+}
+#endif
+
 int LayerQtItem::layerRestMethod() const {
     if (m_layer && m_layer->type() == BaseLayer::REST) {
         RestLayer* restLayer = static_cast<RestLayer*>(m_layer);

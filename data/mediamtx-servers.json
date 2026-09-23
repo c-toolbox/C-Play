@@ -1,0 +1,19 @@
+{
+    "servers": [
+        {
+            "apiPort": 9997,
+            "apiScheme": "http",
+            "autoDetectRtsp": true,
+            "autoDetectWebRtc": true,
+            "enabled": true,
+            "host": "127.0.0.1",
+            "name": "cplay-test",
+            "rtspPort": 8554,
+            "rtspScheme": "rtsp",
+            "rtspTransport": "tcp",
+            "username": "server",
+            "webrtcPort": 8889,
+            "webrtcScheme": "http"
+        }
+    ]
+}

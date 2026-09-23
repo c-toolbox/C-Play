@@ -1,0 +1,7 @@
+{
+    "rtsp-transport": "tcp",
+    "cache": "no",
+    "demuxer-lavf-probesize": "32",
+    "demuxer-lavf-analyzeduration": "0.1",
+    "profile": "low-latency"
+}
