@@ -9,7 +9,8 @@ import org.ctoolbox.cplay
 
 Kirigami.ApplicationWindow {
     function hasCurrentEditItem() {
-        return !mpv.playSectionsModel.isEmpty() && mpv.playSectionsModel.currentEditItem;
+        var item = mpv.playSectionsModel.currentEditItem;
+        return !!item && !mpv.playSectionsModel.isEmpty();
     }
 
     function openFileDialog(dialog) {

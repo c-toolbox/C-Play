@@ -127,8 +127,11 @@ int PlaySectionsModel::getNumberOfSections() {
 void PlaySectionsModel::clear() {
     m_playingSection = -1;
     beginResetModel();
-    delete m_currentEditItem;
-    m_currentEditItem = nullptr;
+    if (m_currentEditItem) {
+        delete m_currentEditItem;
+        m_currentEditItem = nullptr;
+        Q_EMIT currentEditItemChanged();
+    }
     endResetModel();
 }
 
