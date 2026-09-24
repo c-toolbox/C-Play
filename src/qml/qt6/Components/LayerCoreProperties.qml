@@ -43,6 +43,7 @@ GridLayout {
     property alias directShowPresetsLayout: directShowPresetsLayout
     property alias directShowPresetsComboBox: directShowPresetsComboBox
     property alias whepUrlField: whepUrlField
+    property alias masterRelayCheckBox: masterRelayCheckBox
     property alias stereoscopicModeForLayer: stereoscopicModeForLayer
     property alias gridModeForLayer: gridModeForLayer
     property alias textForLayer: textForLayer
@@ -76,6 +77,7 @@ GridLayout {
         typeComboBox.currentIndex = 0;
         fileForLayer.text = "";
         layerTitle.text = "";
+        masterRelayCheckBox.checked = true;
         restObsConnectCheckBox.checked = false;
         restObsActionComboBox.currentIndex = 0;
         restObsOptionComboBox.currentIndex = -1;
@@ -959,6 +961,24 @@ GridLayout {
     Item {
         visible: root.showSpacers && typeComboBox.currentText === "WebRTC"
         Layout.fillWidth: true
+    }
+
+    Label {
+        Layout.alignment: Qt.AlignRight
+        font.pointSize: 9
+        text: qsTr("Master relay:")
+        visible: typeComboBox.currentText === "WebRTC"
+    }
+    CheckBox {
+        id: masterRelayCheckBox
+
+        checked: true
+        focusPolicy: Qt.NoFocus
+        visible: typeComboBox.currentText === "WebRTC"
+
+        ToolTip {
+            text: qsTr("The master pulls the stream once and relays it to all nodes. When off, every node with this layer pulls its own copy of the stream.")
+        }
     }
 
     Label {

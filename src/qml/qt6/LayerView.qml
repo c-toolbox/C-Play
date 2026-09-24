@@ -1883,7 +1883,7 @@ Kirigami.ApplicationWindow {
                     Rectangle {
                         color: Kirigami.Theme.alternateBackgroundColor
                         implicitHeight: 35
-                        implicitWidth: 160
+                        implicitWidth: 320
                         radius: 5
 
                         RowLayout {
@@ -1902,7 +1902,22 @@ Kirigami.ApplicationWindow {
                                 }
 
                                 ToolTip {
-                                    text: qsTr("When checked, the stream is pulled once on the master. Uncheck to let every node pull its own copy.")
+                                    text: qsTr("When checked, this layer exists on the master only and is not synced to the nodes.")
+                                }
+                            }
+                            CheckBox {
+                                id: masterRelayCheckBox
+
+                                focusPolicy: Qt.NoFocus
+                                text: qsTr("Master relay")
+                                checked: layerViewItem.layerMasterRelay
+
+                                onToggled: {
+                                    layerViewItem.layerMasterRelay = checked;
+                                }
+
+                                ToolTip {
+                                    text: qsTr("The master pulls the stream once and relays it to all nodes. When off, every node with this layer pulls its own copy of the stream.")
                                 }
                             }
                         }
@@ -1962,6 +1977,7 @@ Kirigami.ApplicationWindow {
                         if (layerViewItem.layerIdx !== -1) {
                             whepUrlEdit.text = layerViewItem.layerWhepUrl;
                             masterOnlyCheckBox.checked = layerViewItem.layerExistOnMasterOnly;
+                            masterRelayCheckBox.checked = layerViewItem.layerMasterRelay;
                             whepAuthUserEdit.text = layerViewItem.layerWhepAuthUsername;
                             whepAuthPasswordEdit.text = layerViewItem.layerWhepAuthPassword;
                         }
@@ -1969,6 +1985,7 @@ Kirigami.ApplicationWindow {
                     function onLayerValueChanged() {
                         whepUrlEdit.text = layerViewItem.layerWhepUrl;
                         masterOnlyCheckBox.checked = layerViewItem.layerExistOnMasterOnly;
+                        masterRelayCheckBox.checked = layerViewItem.layerMasterRelay;
                         whepAuthUserEdit.text = layerViewItem.layerWhepAuthUsername;
                         whepAuthPasswordEdit.text = layerViewItem.layerWhepAuthPassword;
                     }

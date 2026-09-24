@@ -10,6 +10,7 @@
 #include "webrtc/audiodecoder.h"
 #include "webrtc/videodecoder.h"
 #include "webrtc/webrtctypes.h"
+#include "webrtc/webrtcmediasource.h"
 
 #include <QByteArray>
 
@@ -25,7 +26,6 @@
 #include <thread>
 #include <vector>
 
-class WebRtcSource;
 class VideoDecoder;
 
 /// One Annex-B access unit handed from the libdatachannel media thread to the
@@ -87,6 +87,12 @@ public:
     std::string authPassword() const { return m_authPassword; }
     void setAuthPassword(std::string password);
 
+    /// Master relay for this layer (default on): the master pulls the WHEP stream once and
+    /// relays it to all nodes through its WebRtcHub, so only one upstream connection is used.
+    /// When off, every machine that has the layer pulls its own copy of the stream directly.
+    bool masterRelayEnabled() const { return m_masterRelayEnabled; }
+    void setMasterRelayEnabled(bool enabled);
+
     /// New WebRTC layers default to master-only; uncheck it in the UI to let every
     /// node pull its own copy of the stream.
     bool existOnMasterOnly() const override;
@@ -138,7 +144,7 @@ private:
     bool startAudioOutput();
     void stopAudioOutput();
 
-    WebRtcSource *m_source = nullptr; // main thread; deleted via deleteLater()
+    WebRtcMediaSource *m_source = nullptr; // main thread; deleted via deleteLater()
     std::atomic<bool> m_shouldRun { false };
     std::atomic<bool> m_startPending { false };    // a start() is queued on the main thread
     std::atomic<bool> m_explicitlyStopped { false }; // stop() was asked for; do not self-start
@@ -150,6 +156,11 @@ private:
     // WHEP request. Persisted with the layer and synced to nodes; empty username disables it.
     std::string m_authUsername;
     std::string m_authPassword;
+
+    // Master relay (default on): the master pulls once and relays to the nodes via WebRtcHub;
+    // when off, each node that has this layer pulls its own WHEP copy directly. Synced like
+    // the auth fields so master and nodes always agree on the transport.
+    bool m_masterRelayEnabled = true;
 
 
     VideoDecoder m_decoder; // decode worker thread only

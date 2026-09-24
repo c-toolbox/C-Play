@@ -138,6 +138,9 @@ class LayerQtItem : public QQuickItem {
     // HTTP Basic auth for a WebRTC (WHEP) layer, sent as an Authorization header on the WHEP request.
     Q_PROPERTY(QString layerWhepAuthUsername READ layerWhepAuthUsername WRITE setLayerWhepAuthUsername NOTIFY layerValueChanged)
     Q_PROPERTY(QString layerWhepAuthPassword READ layerWhepAuthPassword WRITE setLayerWhepAuthPassword NOTIFY layerValueChanged)
+    // Master relay for a WebRTC layer (default on): the master pulls once and relays to all
+    // nodes through its hub; when off every node with the layer pulls its own copy directly.
+    Q_PROPERTY(bool layerMasterRelay READ layerMasterRelay WRITE setLayerMasterRelay NOTIFY layerValueChanged)
     Q_PROPERTY(int layerRestMethod READ layerRestMethod WRITE setLayerRestMethod NOTIFY layerValueChanged)
     Q_PROPERTY(QString layerRestParameters READ layerRestParameters WRITE setLayerRestParameters NOTIFY layerValueChanged)
     Q_PROPERTY(bool layerRestIgnoreStatus READ layerRestIgnoreStatus WRITE setLayerRestIgnoreStatus NOTIFY layerValueChanged)
@@ -359,6 +362,8 @@ public:
     void setLayerWhepAuthUsername(const QString &username);
     QString layerWhepAuthPassword() const;
     void setLayerWhepAuthPassword(const QString &password);
+    bool layerMasterRelay() const;
+    void setLayerMasterRelay(bool enabled);
 
     int layerRestMethod() const;
     void setLayerRestMethod(int method);

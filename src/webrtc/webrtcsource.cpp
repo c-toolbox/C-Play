@@ -24,26 +24,6 @@ constexpr int kVideoPayloadTypeH264 = 106;
 constexpr int kVideoPayloadTypeH265 = 103;
 constexpr int kAudioPayloadTypeOpus = 111;
 
-/// Routes libdatachannel's own ICE/DTLS diagnostics into the C-Play log. Without it a
-/// handshake that dies after the SDP exchange fails completely silently.
-void ensureWebRtcLogger()
-{
-    static const bool initialized = [] {
-        rtc::InitLogger(rtc::LogLevel::Warning, [](rtc::LogLevel level, std::string message) {
-            const std::string line = "libdatachannel: " + message + "\n";
-            if (level <= rtc::LogLevel::Error) {
-                sgct::Log::Error(line);
-            } else if (level == rtc::LogLevel::Warning) {
-                sgct::Log::Warning(line);
-            } else {
-                sgct::Log::Info(line);
-            }
-        });
-        return true;
-    }();
-    (void)initialized;
-}
-
 const char *stateName(WebRtcStreamState state)
 {
     switch (state) {
@@ -55,17 +35,6 @@ const char *stateName(WebRtcStreamState state)
     }
     return "Unknown";
 }
-
-/// The state and codec enums travel through queued signal/slot connections, so
-/// they must be known to the meta type system.
-struct WebRtcMetaTypes {
-    WebRtcMetaTypes()
-    {
-        qRegisterMetaType<WebRtcStreamState>("WebRtcStreamState");
-        qRegisterMetaType<WebRtcVideoCodec>("WebRtcVideoCodec");
-    }
-};
-const WebRtcMetaTypes webRtcMetaTypes;
 
 /// MediaMTX answers with exactly one video codec; find out which so the right
 /// depacketizer can be installed before media starts flowing.
@@ -109,7 +78,7 @@ bool hasActiveAudioInAnswer(const QString &sdp)
 } // namespace
 
 WebRtcSource::WebRtcSource(QObject *parent)
-    : QObject(parent)
+    : WebRtcMediaSource(parent)
 {
 }
 
@@ -121,11 +90,6 @@ WebRtcSource::~WebRtcSource()
 void WebRtcSource::setConfig(const WebRtcStreamConfig &config)
 {
     m_config = config;
-}
-
-void WebRtcSource::setVideoCallback(MediaFrameCallback callback)
-{
-    m_onVideo = std::move(callback);
 }
 
 void WebRtcSource::setRawAudioPacketCallback(RawAudioPacketCallback callback)
@@ -156,7 +120,7 @@ void WebRtcSource::setState(WebRtcStreamState state)
 void WebRtcSource::start()
 {
     stop();
-    ensureWebRtcLogger();
+    webRtcEnsureLibDataChannelLogger();
 
     m_offerSent = false;
     m_videoCodec.store(WebRtcVideoCodec::Unknown, std::memory_order_relaxed);

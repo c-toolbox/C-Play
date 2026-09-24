@@ -176,6 +176,8 @@ Kirigami.ApplicationWindow {
                         } else if (layerCoreProps.typeComboBox.currentText === "WebRTC") {
                             if (layerCoreProps.whepUrlField.text.trim() !== "") {
                                 layerView.layerItem.layerIdx = app.slides.selected.addLayer(layerCoreProps.layerTitle.text, layerCoreProps.typeComboBox.currentIndex + 1, layerCoreProps.whepUrlField.text.trim(), layerCoreProps.stereoscopicModeForLayer.currentIndex, layerCoreProps.gridModeForLayer.currentIndex);
+                                // The relay is on by default; only an unchecked box changes that.
+                                layerView.layerItem.layerMasterRelay = layerCoreProps.masterRelayCheckBox.checked;
                                 layersAddNew.visible = false;
                                 app.slides.updateSelectedSlide();
                                 mpv.focus = true;

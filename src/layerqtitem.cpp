@@ -1442,6 +1442,29 @@ void LayerQtItem::setLayerWhepAuthPassword(const QString &) {
 }
 #endif
 
+bool LayerQtItem::layerMasterRelay() const {
+#ifdef WEBRTC_LAYER
+    if (m_layer && m_layer->type() == BaseLayer::WEBRTC) {
+        return static_cast<WebRTCLayer*>(m_layer)->masterRelayEnabled();
+    }
+#endif
+    return true; // the default for new WebRTC layers
+}
+
+void LayerQtItem::setLayerMasterRelay(bool enabled) {
+#ifdef WEBRTC_LAYER
+    if (m_layer && m_layer->isEnabled() && m_layer->type() == BaseLayer::WEBRTC) {
+        WebRTCLayer* webRtcLayer = static_cast<WebRTCLayer*>(m_layer);
+        if (webRtcLayer->masterRelayEnabled() != enabled) {
+            // Switches the transport when the layer is running.
+            webRtcLayer->setMasterRelayEnabled(enabled);
+            Q_EMIT layerValueChanged();
+            Q_EMIT layerNeedsSave();
+        }
+    }
+#endif
+}
+
 int LayerQtItem::layerRestMethod() const {
     if (m_layer && m_layer->type() == BaseLayer::REST) {
         RestLayer* restLayer = static_cast<RestLayer*>(m_layer);

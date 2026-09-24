@@ -27,6 +27,9 @@
 #include <layers/mpvlayer.h>
 #include <layers/controllayer.h>
 #include <layers/restlayer.h>
+#ifdef WEBRTC_LAYER
+#include <webrtc/webrtclayer.h>
+#endif
 #ifdef MULTI_VIDEO_LAYER
 #include <layers/multivideolayer.h>
 #include <QFile>
@@ -1199,6 +1202,13 @@ void LayersModel::decodeFromJSON(QJsonObject &obj, const QStringList &forRelativ
                         m_layers[idx].first->setExistOnMasterOnly(o.value(QStringLiteral("existOnMasterOnly")).toBool());
                     }
 
+#ifdef WEBRTC_LAYER
+                    // The default is on; only an explicit opt-out is stored in the file.
+                    if (o.contains(QStringLiteral("masterRelay")) && m_layers[idx].first->type() == BaseLayer::WEBRTC) {
+                        static_cast<WebRTCLayer*>(m_layers[idx].first.get())->setMasterRelayEnabled(o.value(QStringLiteral("masterRelay")).toBool());
+                    }
+#endif
+
                     if (o.contains(QStringLiteral("eye_mode"))) {
                         QString em = o.value(QStringLiteral("eye_mode")).toString();
                         if (em == QStringLiteral("left"))
@@ -1659,6 +1669,13 @@ void LayersModel::encodeToJSON(QJsonObject &obj, const QStringList &forRelativeP
         if (layer->existOnMasterOnly()) {
             layerData.insert(QStringLiteral("existOnMasterOnly"), QJsonValue(true));
         }
+
+#ifdef WEBRTC_LAYER
+        // The default is on; only persist the opt-out.
+        if (layer->type() == BaseLayer::WEBRTC && !static_cast<WebRTCLayer*>(layer.get())->masterRelayEnabled()) {
+            layerData.insert(QStringLiteral("masterRelay"), QJsonValue(false));
+        }
+#endif
 
         if (layer->eyeMode() != static_cast<uint8_t>(BaseLayer::EyeMode::Both)) {
             QString em;

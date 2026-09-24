@@ -4,10 +4,13 @@
  * SPDX-License-Identifier: GPL-3.0-or-later
  */
 
+#include "application.h"
 #include "webrtc/webrtclayer.h"
 
 #include "audiosettings.h"
 #include "webrtc/videodecoder.h"
+#include "webrtc/webrtchub.h"
+#include "webrtc/webrtcrelayclient.h"
 #include "webrtc/webrtcsource.h"
 
 #include <sgct/sgct.h>
@@ -332,14 +335,33 @@ void WebRTCLayer::setAuthPassword(std::string password) {
     }
 }
 
+void WebRTCLayer::setMasterRelayEnabled(bool enabled) {
+    if (enabled == m_masterRelayEnabled) {
+        return;
+    }
+
+    m_masterRelayEnabled = enabled;
+    setNeedSync();
+    if (m_shouldRun.load(std::memory_order_relaxed)) {
+        startSource(); // switch transport: hub relay <-> direct WHEP pull
+    }
+}
+
 void WebRTCLayer::encodeTypeCore(std::vector<std::byte> &data) {
     sgct::serializeObject(data, m_authUsername);
     sgct::serializeObject(data, m_authPassword);
+    sgct::serializeObject(data, m_masterRelayEnabled);
 }
 
 void WebRTCLayer::decodeTypeCore(const std::vector<std::byte> &data, unsigned int &pos) {
     sgct::deserializeObject(data, pos, m_authUsername);
     sgct::deserializeObject(data, pos, m_authPassword);
+    // Older masters (and older copy buffers) do not carry the relay flag; keep the default.
+    if (pos + sizeof(bool) <= data.size()) {
+        sgct::deserializeObject(data, pos, m_masterRelayEnabled);
+    } else {
+        m_masterRelayEnabled = true;
+    }
 }
 
 bool WebRTCLayer::existOnMasterOnly() const {
@@ -360,21 +382,59 @@ WebRtcStreamConfig WebRTCLayer::buildConfig() const {
 void WebRTCLayer::startSource() {
     stopSource();
 
-    auto *source = new WebRtcSource(); // no parent; we own it and deleteLater() it
-    source->setConfig(buildConfig());
+    const std::string layerId = std::to_string(identifier());
+    // Nodes do not pull WHEP themselves by default (that would make every node hit the same
+    // upstream address): the master pulls once and relays to all nodes through its WebRtcHub.
+    // The per-layer relay option can switch that off, in which case each machine with the
+    // layer pulls its own copy of the stream directly.
+    const bool relayToNodes = isMaster() && !existOnMasterOnly() && masterRelayEnabled();
+
+    WebRtcMediaSource *source = nullptr;
+    if (isMaster()) {
+        auto *whep = new WebRtcSource(); // no parent; we own it and deleteLater() it
+        whep->setConfig(buildConfig());
+        source = whep;
+
+        if (relayToNodes) {
+            std::weak_ptr<std::atomic<bool>> weakAlive = m_alive;
+            WebRtcHub::instance().registerFeed(layerId, [weakAlive, whep] {
+                auto alive = weakAlive.lock();
+                if (!alive || !*alive) {
+                    return;
+                }
+                // A node just joined: let it start decoding at an IDR frame.
+                whep->requestKeyframe();
+            });
+        }
+    } else if (masterRelayEnabled()) {
+        // The master's address comes from the SGCT cluster config; the node reaches the hub on
+        // that host (see WebRtcHub).
+        source = new WebRtcRelayClient(sgct::ClusterManager::instance().masterAddress(),
+                                       kWebRtcHubPort, layerId);
+    } else {
+        // Relay disabled: this node pulls its own copy of the stream directly.
+        auto *whep = new WebRtcSource();
+        whep->setConfig(buildConfig());
+        source = whep;
+    }
 
     // The layer may be destroyed while the source is still pending deletion or a
     // signal is queued, so every callback checks the alive flag before touching
     // any member.
     std::weak_ptr<std::atomic<bool>> weakAlive = m_alive;
 
-    source->setVideoCallback([this, weakAlive](const std::uint8_t *data, std::size_t size,
-                                               quint32 rtpTimestamp) {
+    source->setVideoCallback([this, weakAlive, relayToNodes, layerId](const std::uint8_t *data,
+                                                                      std::size_t size,
+                                                                      quint32 rtpTimestamp) {
         auto alive = weakAlive.lock();
         if (!alive || !*alive) {
             return;
         }
         pushAnnexB(data, size, static_cast<std::int64_t>(rtpTimestamp));
+        // Fan the frame out to the nodes: non-blocking enqueue into each node's SCTP stream.
+        if (relayToNodes) {
+            WebRtcHub::instance().publishVideo(layerId, data, size, rtpTimestamp);
+        }
     });
 
     // The layer is plain C++, so the source itself is the context object: the
@@ -382,7 +442,7 @@ void WebRTCLayer::startSource() {
     // signal is emitted from a libdatachannel thread. A null context would create a
     // connection that never fires. weakAlive still guards against the layer being
     // destroyed while a signal is queued.
-    QObject::connect(source, &WebRtcSource::videoCodecNegotiated, source, [this, weakAlive](WebRtcVideoCodec codec) {
+    QObject::connect(source, &WebRtcMediaSource::videoCodecNegotiated, source, [this, weakAlive, relayToNodes, layerId](WebRtcVideoCodec codec) {
         auto alive = weakAlive.lock();
         if (!alive || !*alive) {
             return;
@@ -396,9 +456,12 @@ void WebRTCLayer::startSource() {
             }
         }
         m_queueCv.notify_all();
+        if (relayToNodes) {
+            WebRtcHub::instance().updateFeedCodec(layerId, codec);
+        }
     });
 
-    QObject::connect(source, &WebRtcSource::stateChanged, source, [this, weakAlive](WebRtcStreamState state) {
+    QObject::connect(source, &WebRtcMediaSource::stateChanged, source, [this, weakAlive](WebRtcStreamState state) {
         auto alive = weakAlive.lock();
         if (!alive || !*alive) {
             return;
@@ -408,7 +471,7 @@ void WebRTCLayer::startSource() {
         }
     });
 
-    QObject::connect(source, &WebRtcSource::errorOccurred, source, [weakAlive](const QString &message) {
+    QObject::connect(source, &WebRtcMediaSource::errorOccurred, source, [weakAlive](const QString &message) {
         auto alive = weakAlive.lock();
         if (!alive || !*alive) {
             return;
@@ -419,7 +482,7 @@ void WebRTCLayer::startSource() {
     // Audio: depacketized Opus payloads are emitted from a libdatachannel thread and
     // queued onto the main thread, which only copies them into the bounded queue. The
     // actual decoding runs on the dedicated audio decode worker (audioDecodeLoop()).
-    QObject::connect(source, &WebRtcSource::audioFrameReceived, source, [this, weakAlive](const QByteArray &payload, quint32 rtpTimestamp) {
+    QObject::connect(source, &WebRtcMediaSource::audioFrameReceived, source, [this, weakAlive](const QByteArray &payload, quint32 rtpTimestamp) {
         Q_UNUSED(rtpTimestamp); // Opus decoding is self-clocking; PortAudio owns the output clock
         auto alive = weakAlive.lock();
         if (!alive || !*alive) {
@@ -427,6 +490,15 @@ void WebRTCLayer::startSource() {
         }
         pushAudioPayload(payload);
     });
+
+    if (relayToNodes) {
+        // DirectConnection: run on the emitting libdatachannel thread so relayed audio does
+        // not take an extra event-loop hop. publishAudio() is thread-safe and non-blocking.
+        QObject::connect(source, &WebRtcMediaSource::audioFrameReceived, source, [layerId](const QByteArray &payload, quint32 rtpTimestamp) {
+            WebRtcHub::instance().publishAudio(layerId, reinterpret_cast<const std::uint8_t *>(payload.constData()),
+                                               static_cast<std::size_t>(payload.size()), rtpTimestamp);
+        }, Qt::DirectConnection);
+    }
 
     m_source = source;
     source->start();
@@ -440,7 +512,11 @@ void WebRTCLayer::stopSource() {
     // Detach the media callback first so no new units arrive while tearing down.
     // In-flight callbacks are guarded by the alive flag and the queue mutex.
     m_source->setVideoCallback(nullptr);
-    m_source->stop(); // WHEP DELETE + close peer connection
+    // Unregister the hub feed before stopping so no new fan-out or keyframe requests arrive.
+    if (isMaster()) {
+        WebRtcHub::instance().unregisterFeed(std::to_string(identifier()));
+    }
+    m_source->stop(); // WHEP DELETE + close peer connection / relay session
     m_source->deleteLater();
     m_source = nullptr;
 }
