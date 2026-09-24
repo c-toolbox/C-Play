@@ -26,6 +26,7 @@
 #include <layers/directshowlayer.h>
 #endif
 #include <layersmodel.h>
+#include <QCoreApplication>
 #include <atomic>
 #include <mutex>
 #include <slidesmodel.h>
@@ -136,6 +137,9 @@ static void initOGL(GLFWwindow *) {
 }
 
 static void preSync() {
+    if (!Engine::instance().isMaster()) {
+        QCoreApplication::processEvents();
+    }
 }
 
 static std::vector<std::byte> encode() {
@@ -1526,8 +1530,14 @@ int main(int argc, char *argv[]) {
     } else {
         Log::Info("Start Client");
 
+        char *nodeAppArgv[] = { argv[0], nullptr };
+        int nodeAppArgc = 1;
+        QCoreApplication nodeApp(nodeAppArgc, nodeAppArgv);
+
         Engine::instance().exec();
         Engine::destroy();
+
+        QCoreApplication::processEvents();
         return EXIT_SUCCESS;
     }
 }
