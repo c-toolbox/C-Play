@@ -35,11 +35,13 @@ An additional powerful feature in C-Play is the presentation tool, where you can
 
 - *Audio* (WAV, AAC, MP3 etc)
 
-- *NDI*, *OMT*, *WebRTC* or *Spout* (Live video/audio over the network, or shared from local apps.)
+- *NDI* or *OMT* (Live video/audio over the network)
 
-- *DirectShow* (Windows camera/capture card input, or media files rendered through DirectShow.)
+- *Spout* or *DirectShow* (Local camera/capture card or texture sharing.)
 
 - *Streams* (YouTube etc supported through FFmpeg)
+
+- *WebRTC* (Low-latency streaming from anywhere. *Pair with VDO.Ninja for remote guests to share there devices.*)
 
 - *Text* (With custom font, also used for subtitles.) 
 
@@ -67,6 +69,8 @@ With the layer types above, you can make it almost as easy as using PowerPoint t
 
 - NDI output of the main video and individual presentation layers, so other applications (e.g. OBS Studio) can receive C-Play content over the network *(Added in 2.4)*.
 
+- Optional [MediaMTX](https://github.com/bluenviron/mediamtx) integration to fetch available live streams from a server and add them as Stream or WebRTC layers *(Added in 2.4)*.
+
 - Tested and used on Windows 10/11, in domes and other big arenas.
 
 ## Guides
@@ -93,6 +97,7 @@ Optional libraries in current C-Play builds include:
 
 - [NDI](https://ndi.video/for-developers/ndi-sdk/) - Support frame-synced NDI streams, video and audio
 - [OMT](https://openmediatransport.org/) (Open Media Transport) - Support frame-synced OMT video and audio streams
+- [libdatachannel](https://github.com/paullouisageneau/libdatachannel) - WebRTC data channels for pulling WHEP live streams *(Added in 2.4)*
 - [Poppler](https://poppler.freedesktop.org/) - For rendering PDF pages
 - [SAIL](https://sail.software/) - For more extensive image decoding
 

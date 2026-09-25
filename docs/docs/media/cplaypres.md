@@ -75,7 +75,7 @@ Here you can choose from the following layer types:
 | **NDI** | Live video and audio received from an NDI sender on the network. |
 | **OMT** | Live video and audio received from an OMT sender on the network. |
 | **Spout** | Live video shared from another Windows application on the same machine. |
-| **DirectShow** | Live camera or capture card input, or media files rendered through a Windows DirectShow filter graph using the system's built-in decoders (Windows only, video for now). |
+| **DirectShow** | Live camera or capture card input with optional audio, or media files rendered through a Windows DirectShow filter graph using the system's built-in decoders (Windows only). |
 | **WebRTC** | Live video and audio pulled from a WHEP endpoint on the network, e.g. MediaMTX. |
 | **Stream** | RTSP/RMTP, capture cards, camera feeds, or other MPV-compatible live inputs. |
 | **Control** | Non-visual automation commands for playback, fades, loading, and timing control. |

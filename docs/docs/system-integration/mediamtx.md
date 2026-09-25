@@ -1,13 +1,13 @@
 ---
 title: MediaMTX streams
-sidebar_position: 5
+sidebar_position: 6
 ---
 
 # MediaMTX streams in C-Play
 
 [MediaMTX](https://github.com/bluenviron/mediamtx) is a small real-time media server that can receive video from cameras, encoders, OBS, or WebRTC senders and republish it over RTSP, RTMP, HLS, SRT, and WebRTC. C-Play can ask a MediaMTX server which streams it currently serves and turn any of them into a **Stream layer** with a correct RTSP or SRT URL. If the server has WebRTC enabled (`webrtc: yes`), streams can additionally be added as a **WebRTC layer** that pulls via WHEP.
 
-C-Play uses **RTSP** as the primary protocol, because it gives the lowest latency with mpv-based playback and works with TCP transport on restrictive networks. **SRT** is offered as an alternative for UDP-friendly networks; it is played by the same Stream layer (the bundled mpv/ffmpeg build includes libSRT).
+We recommend **WebRTC** whenever it is available, as it gives the lowest latency of all supported protocols. **RTSP** remains a solid default — it works with TCP transport on restrictive networks and is what C-Play has historically used for stream playback. **SRT** is offered as an alternative for UDP-friendly, lossy or long-distance networks; both RTSP and SRT are played by the same Stream layer (the bundled mpv/ffmpeg build includes libSRT).
 
 ## Enable the MediaMTX control API
 
@@ -65,7 +65,7 @@ Press **Test Connection** to verify the API is reachable, then **Fetch Streams**
 
 The stream list shows every active path on the server, plus configured paths that are currently idle. For each path you get the publishing source type, the track codecs, the number of readers, and the resulting playback URL for the selected protocol.
 
-Select a stream, pick the **Protocol** (RTSP, SRT, or WebRTC), and choose:
+Select a stream, pick the **Protocol** (RTSP, SRT, or WebRTC — prefer WebRTC when it is offered, since it gives the lowest latency), and choose:
 
 * **Add As Layer** - creates a Stream layer on the currently selected slide using the RTSP URL or an SRT URL (`srt://host:8890/path`), or a WebRTC layer using the WHEP URL (`http://host:8889/path/whep`) when WebRTC is selected.
 * **Save To Predefined Streams** - appends the stream to `data/predefined-streams.json` so it shows up in the normal predefined stream list on every machine that has the same file. Available for RTSP and SRT, because the predefined stream list is consumed by mpv-based Stream layers; WebRTC is not offered here, since WHEP URLs are ephemeral.
