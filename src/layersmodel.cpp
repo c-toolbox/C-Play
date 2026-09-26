@@ -417,6 +417,21 @@ int LayersModel::addLayer(QString title, int type, QString filepath, int stereoM
     return -1;
 }
 
+int LayersModel::addRestLayer(QString title, QString url, int method, QString parameters, bool ignoreStatus) {
+    const int layerIdx = addLayer(title, BaseLayer::REST, url, 0, 0);
+    if (layerIdx < 0) {
+        return -1;
+    }
+
+    RestLayer* restLayer = static_cast<RestLayer*>(m_layers[layerIdx].first.get());
+    restLayer->setMethod(method);
+    restLayer->setParameters(parameters.toStdString());
+    restLayer->setIgnoreStatus(ignoreStatus);
+
+    setLayersNeedsSave(true);
+    return layerIdx;
+}
+
 int LayersModel::getLayerTypeBasedOnMime(QUrl fileUrl) {
     QMimeDatabase db;
     QMimeType type = db.mimeTypeForUrl(fileUrl);

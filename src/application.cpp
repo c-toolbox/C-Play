@@ -44,6 +44,7 @@
 #endif
 #include <layers/streammodel.h>
 #include "httpclientmodel.h"
+#include "cluxclient.h"
 #include "wwsclientmodel.h"
 
 #include "audiosettings.h"
@@ -169,6 +170,8 @@ Application::Application(int &argc, char **argv, const QString &applicationName)
     m_streamsModel = new StreamModel(this);
     m_mpvOptionsModel = new MpvOptionsModel(this);
     m_httpClientModel = new HttpClientModel(this);
+    m_cluxClient = new CLuxClient(this);
+    m_cluxClient->loadServerConfig(); // load the single C-Lux server from data/clux-server.json
     m_wwsClientModel = new WwsClientModel(this);
 #ifdef MEDIA_MTX_SUPPORT
     m_mediaMtxServersModel = new MediaMtxServersModel(this);
@@ -621,6 +624,21 @@ void Application::setHttpClientModel(HttpClientModel* model) {
     }
     m_httpClientModel = model;
     Q_EMIT httpClientModelChanged();
+}
+
+CLuxClient* Application::cluxClient() {
+    return m_cluxClient;
+}
+
+void Application::setCluxClient(CLuxClient* client) {
+    if (m_cluxClient == client) {
+        return;
+    }
+    if (client && !client->parent()) {
+        client->setParent(this);
+    }
+    m_cluxClient = client;
+    Q_EMIT cluxClientChanged();
 }
 
 WwsClientModel* Application::wwsClientModel() {

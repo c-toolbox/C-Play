@@ -97,6 +97,13 @@ Menu {
         }
     }
     MenuItem {
+        text: qsTr("C-Lux Editor...")
+        icon.name: "preferences-desktop-color"
+        onTriggered: {
+            cluxEditor.visible = true;
+        }
+    }
+    MenuItem {
         text: qsTr("MediaMTX Streams...")
         icon.name: "network-server"
         // MediaMTX support is a build option (BUILD_CPLAY_WITH_MEDIA_MTX); the models do not exist on app without it.

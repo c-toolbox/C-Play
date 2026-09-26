@@ -1920,6 +1920,35 @@ Kirigami.ApplicationWindow {
                                     text: qsTr("The master pulls the stream once and relays it to all nodes. When off, every node with this layer pulls its own copy of the stream.")
                                 }
                             }
+                            Label {
+                                font.pointSize: 9
+                                text: qsTr("Sync delay:")
+                                visible: masterRelayCheckBox.checked
+                            }
+                            SpinBox {
+                                id: syncDelaySpinBox
+
+                                editable: true
+                                focusPolicy: Qt.StrongFocus
+                                from: 0
+                                stepSize: 10
+                                to: 1000
+                                value: layerViewItem.layerSyncDelay
+                                visible: masterRelayCheckBox.checked
+
+                                textFromValue: function (value) {
+                                    return value + " ms";
+                                }
+                                valueFromText: function (text) {
+                                    return parseInt(text);
+                                }
+                                onValueModified: {
+                                    layerViewItem.layerSyncDelay = value;
+                                }
+
+                                ToolTip.text: qsTr("How far behind the live edge the master and all nodes show the stream, in sync. Raise it if nodes stutter; lower it for less latency.")
+                                ToolTip.visible: hovered
+                            }
                         }
                     }
                 }
@@ -1978,6 +2007,7 @@ Kirigami.ApplicationWindow {
                             whepUrlEdit.text = layerViewItem.layerWhepUrl;
                             masterOnlyCheckBox.checked = layerViewItem.layerExistOnMasterOnly;
                             masterRelayCheckBox.checked = layerViewItem.layerMasterRelay;
+                            syncDelaySpinBox.value = layerViewItem.layerSyncDelay;
                             whepAuthUserEdit.text = layerViewItem.layerWhepAuthUsername;
                             whepAuthPasswordEdit.text = layerViewItem.layerWhepAuthPassword;
                         }
@@ -1986,6 +2016,7 @@ Kirigami.ApplicationWindow {
                         whepUrlEdit.text = layerViewItem.layerWhepUrl;
                         masterOnlyCheckBox.checked = layerViewItem.layerExistOnMasterOnly;
                         masterRelayCheckBox.checked = layerViewItem.layerMasterRelay;
+                        syncDelaySpinBox.value = layerViewItem.layerSyncDelay;
                         whepAuthUserEdit.text = layerViewItem.layerWhepAuthUsername;
                         whepAuthPasswordEdit.text = layerViewItem.layerWhepAuthPassword;
                     }

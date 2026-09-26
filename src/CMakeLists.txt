@@ -29,6 +29,8 @@ set(SOURCE_FILES
     httpserverthread.h
     httpclientmodel.cpp
     httpclientmodel.h
+    cluxclient.cpp
+    cluxclient.h
     wwsclientmodel.cpp
     wwsclientmodel.h
     layers/audiolayer.cpp
@@ -298,6 +300,8 @@ set(QML_SRC_FILES
     qml/qt6/LayerViewGridParams.qml
     qml/qt6/MediaMTXEditor.qml
     qml/qt6/RestCommandsEditor.qml
+    qml/qt6/CLuxEditor.qml
+    qml/qt6/CLuxPreview.qml
     qml/qt6/LoggingWindow.qml
     qml/qt6/Slides.qml
     qml/qt6/SlidesItemCompact.qml
@@ -377,6 +381,7 @@ source_group(${AUTO_SOURCE_NAME} FILES ${QMLCACHE_FILES})
 set(TARGET_LIBRARIES
     Qt6::Core
     Qt6::Gui
+    Qt6::Network
     Qt6::Qml
     Qt6::Quick
     Qt6::QuickControls2

@@ -620,6 +620,9 @@ Kirigami.ApplicationWindow {
     RestCommandsEditor {
         id: restCommandsEditor
     }
+    CLuxEditor {
+        id: cluxEditor
+    }
     MediaMTXEditor {
         id: mediaMtxEditor
     }

@@ -37,6 +37,7 @@ class LayersRendererQtItem;
 #include <layers/streammodel.h>
 #include <layers/mpvoptionsmodel.h>
 #include "httpclientmodel.h"
+#include "cluxclient.h"
 #include "wwsclientmodel.h"
 #ifdef MEDIA_MTX_SUPPORT
 #include "mediamtxmodel.h"
@@ -83,6 +84,10 @@ Q_DECLARE_METATYPE(MpvOptionsModel*)
 #ifndef METATYPE_HttpClientModel
 #define METATYPE_HttpClientModel
 Q_DECLARE_METATYPE(HttpClientModel*)
+#endif
+#ifndef METATYPE_CLuxClient
+#define METATYPE_CLuxClient
+Q_DECLARE_METATYPE(CLuxClient*)
 #endif
 #ifndef METATYPE_WwsClientModel
 #define METATYPE_WwsClientModel
@@ -228,6 +233,15 @@ public:
     HttpClientModel* httpClientModel();
     void setHttpClientModel(HttpClientModel* model);
 
+    // Client for the C-Lux light server, used by the C-Lux Editor dialog.
+    Q_PROPERTY(CLuxClient* cluxClient
+        READ cluxClient
+        WRITE setCluxClient
+        NOTIFY cluxClientChanged)
+
+    CLuxClient* cluxClient();
+    void setCluxClient(CLuxClient* client);
+
     Q_PROPERTY(WwsClientModel* wwsClientModel
         READ wwsClientModel
         WRITE setWwsClientModel
@@ -315,6 +329,7 @@ Q_SIGNALS:
     void streamsModelChanged();
     void mpvOptionsModelChanged();
     void httpClientModelChanged();
+    void cluxClientChanged();
     void wwsClientModelChanged();
 #ifdef MEDIA_MTX_SUPPORT
     void mediaMtxModelChanged();
@@ -365,6 +380,7 @@ private:
     StreamModel* m_streamsModel;
     MpvOptionsModel* m_mpvOptionsModel;
     HttpClientModel* m_httpClientModel;
+    CLuxClient* m_cluxClient;
     WwsClientModel* m_wwsClientModel;
 #ifdef MEDIA_MTX_SUPPORT
     MediaMtxServersModel* m_mediaMtxServersModel;

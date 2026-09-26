@@ -72,6 +72,9 @@ set_package_properties(Qt6QuickControls2 PROPERTIES TYPE REQUIRED)
 find_package(Qt6WebSockets ${QT_MIN_VERSION})
 set_package_properties(Qt6WebSockets PROPERTIES TYPE REQUIRED)
 
+find_package(Qt6Network ${QT_MIN_VERSION})
+set_package_properties(Qt6Network PROPERTIES TYPE REQUIRED)
+
 find_package(Breeze)
 set_package_properties(Breeze PROPERTIES TYPE RECOMMENDED
     URL "https://api.kde.org/frameworks/breeze-icons/html/index.html")
