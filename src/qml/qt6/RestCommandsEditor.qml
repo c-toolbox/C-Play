@@ -26,16 +26,13 @@ Kirigami.ApplicationWindow {
     property var methodNames: ["GET", "POST", "PUT", "DELETE", "WS", "WSS"]
     property var obsActionNames: [qsTr("Set Profile"), qsTr("Set Scene"), qsTr("Set Scene Collection")]
 
-    Component.onCompleted: {
-        if (window.x > width) {
-            x = window.x - width;
-        } else {
-            x = window.x;
-        }
-        y = window.y;
-    }
     onVisibilityChanged: {
         if (visible) {
+            // Center over the main application window. From this nested component "window" is
+            // that outer window, not this one. The top edge is clamped so a dialog taller than
+            // the main window never rises above its top corner.
+            x = window.x + (window.width - width) / 2;
+            y = Math.max(window.y, window.y + (window.height - height) / 2);
             app.httpClientModel.updateCommandsList();
             selectedCommandIndex = -1;
             clearEditFields();

@@ -23,6 +23,15 @@ Kirigami.ApplicationWindow {
     width: 1000
 
     Component.onCompleted: pageStack.push(`${root.pagePath}/Navigation.qml`)
+    onVisibleChanged: {
+        if (visible) {
+            // Center over the main application window. From this nested component "window" is
+            // that outer window, not this one. The top edge is clamped so a dialog taller than
+            // the main window never rises above its top corner.
+            x = window.x + (window.width - width) / 2;
+            y = Math.max(window.y, window.y + (window.height - height) / 2);
+        }
+    }
 
     Loader {
         asynchronous: true

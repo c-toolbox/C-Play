@@ -24,13 +24,14 @@ Kirigami.ApplicationWindow {
 
     ListModel { id: statsModel }
 
-    Component.onCompleted: {
-        if (window.x > width) {
-            x = window.x - width;
-        } else {
-            x = window.x;
+    onVisibleChanged: {
+        if (visible) {
+            // Center over the main application window. From this nested component "window" is
+            // that outer window, not this one. The top edge is clamped so a dialog taller than
+            // the main window never rises above its top corner.
+            x = window.x + (window.width - width) / 2;
+            y = Math.max(window.y, window.y + (window.height - height) / 2);
         }
-        y = window.y;
     }
 
     Connections {
