@@ -6,6 +6,8 @@
 
 #include "webrtc/webrtchub.h"
 
+#include "webrtc/webrtcmediasource.h"
+
 #include <rtc/rtc.hpp>
 #include <sgct/log.h>
 
@@ -28,6 +30,12 @@ std::string signalingMessage(const QJsonObject &object) {
     return QString::fromUtf8(QJsonDocument(object).toJson(QJsonDocument::Compact)).toStdString();
 }
 
+const std::shared_ptr<const std::vector<std::uint8_t>> &discontinuityFrame() {
+    static const auto frame = std::make_shared<const std::vector<std::uint8_t>>(
+        std::vector<std::uint8_t>{static_cast<std::uint8_t>(kWebRtcRelayDiscontinuity)});
+    return frame;
+}
+
 } // namespace
 
 WebRtcHub &WebRtcHub::instance() {
@@ -40,6 +48,8 @@ WebRtcHub::~WebRtcHub() {
 }
 
 void WebRtcHub::registerFeed(const std::string &layerId, std::function<void()> requestKeyframe) {
+    joinRetiredSenders();
+
     bool startedNow = false;
     {
         std::lock_guard<std::mutex> lock(m_mutex);
@@ -104,6 +114,7 @@ void WebRtcHub::unregisterFeed(const std::string &layerId) {
         m_feeds.erase(layerId);
     }
     stopIfNoFeeds();
+    joinRetiredSenders();
 }
 
 void WebRtcHub::stopIfNoFeeds(bool force) {
@@ -124,54 +135,183 @@ void WebRtcHub::stopIfNoFeeds(bool force) {
     for (auto &conn : nodes) {
         removeNode(conn);
     }
+    joinRetiredSenders();
     // The WebSocketServer destructor stops the accept thread; done after releasing m_mutex.
 }
 
+void WebRtcHub::joinRetiredSenders() {
+    std::vector<std::thread> retired;
+    {
+        std::lock_guard<std::mutex> lock(m_mutex);
+        retired.swap(m_retiredSenders);
+    }
+    for (auto &thread : retired) {
+        if (thread.joinable()) {
+            thread.join();
+        }
+    }
+}
+
+std::vector<WebRtcHub::Target> WebRtcHub::targetsFor(const std::string &layerId) {
+    std::vector<Target> targets;
+    std::lock_guard<std::mutex> lock(m_mutex);
+    for (const auto &conn : m_nodes) {
+        if (conn->metadataSent && conn->dc && conn->layerId == layerId) {
+            targets.push_back({conn, conn->dc});
+        }
+    }
+    return targets;
+}
+
 void WebRtcHub::publishVideo(const std::string &layerId, const std::uint8_t *data, std::size_t size,
-                             std::uint32_t rtpTimestamp) {
+                             std::int64_t pts, bool keyframe) {
     if (!data || size == 0) {
         return;
     }
+    const auto targets = targetsFor(layerId);
+    if (targets.empty()) {
+        return;
+    }
 
-    // Frame: [type][u64 BE timestamp][Annex-B access unit]. Built once and shared by all nodes.
-    std::vector<std::uint8_t> frame(1 + 8 + size);
-    frame[0] = kWebRtcRelayVideo;
-    writeBigEndian64(frame.data() + 1, rtpTimestamp);
-    std::memcpy(frame.data() + 9, data, size);
+    // Frame: [type][flags][u64 BE timestamp][Annex-B access unit]. Built once and shared by
+    // all node queues.
+    auto frame = std::make_shared<std::vector<std::uint8_t>>(1 + 1 + 8 + size);
+    (*frame)[0] = kWebRtcRelayVideo;
+    (*frame)[1] = keyframe ? kWebRtcRelayVideoKeyframe : 0;
+    writeBigEndian64(frame->data() + 2, static_cast<std::uint64_t>(pts));
+    std::memcpy(frame->data() + 10, data, size);
 
-    fanOut(layerId, frame);
+    fanOut(layerId, targets, frame, true, keyframe);
 }
 
 void WebRtcHub::publishAudio(const std::string &layerId, const std::uint8_t *data, std::size_t size,
-                             std::uint32_t rtpTimestamp) {
+                             std::int64_t pts) {
     if (!data || size == 0) {
+        return;
+    }
+    const auto targets = targetsFor(layerId);
+    if (targets.empty()) {
         return;
     }
 
     // Frame: [type][u64 BE timestamp][depacketized Opus payload].
-    std::vector<std::uint8_t> frame(1 + 8 + size);
-    frame[0] = kWebRtcRelayAudio;
-    writeBigEndian64(frame.data() + 1, rtpTimestamp);
-    std::memcpy(frame.data() + 9, data, size);
+    auto frame = std::make_shared<std::vector<std::uint8_t>>(1 + 8 + size);
+    (*frame)[0] = kWebRtcRelayAudio;
+    writeBigEndian64(frame->data() + 1, static_cast<std::uint64_t>(pts));
+    std::memcpy(frame->data() + 9, data, size);
 
-    fanOut(layerId, frame);
+    fanOut(layerId, targets, frame, false, false);
 }
 
-void WebRtcHub::fanOut(const std::string &layerId, const std::vector<std::uint8_t> &frame) {
-    // Collect the targets under the lock, then send without holding it: sendBuffer() only
-    // enqueues into each node's SCTP stream and must not serialize against signaling.
-    std::vector<std::shared_ptr<rtc::DataChannel>> targets;
-    {
-        std::lock_guard<std::mutex> lock(m_mutex);
-        for (const auto &conn : m_nodes) {
-            if (!conn->layerId.empty() && conn->layerId == layerId && conn->dc) {
-                targets.push_back(conn->dc);
-            }
+void WebRtcHub::fanOut(const std::string &layerId, const std::vector<Target> &targets,
+                       const std::shared_ptr<const std::vector<std::uint8_t>> &frame, bool isVideo,
+                       bool keyframe) {
+    bool needKeyframe = false;
+    for (const auto &target : targets) {
+        if (enqueue(*target.conn, *target.dc, frame, isVideo, keyframe) == EnqueueResult::Overflow) {
+            needKeyframe = true;
         }
     }
 
-    for (auto &dc : targets) {
-        dc->sendBuffer(frame);
+    if (needKeyframe) {
+        std::function<void()> requestKeyframe;
+        {
+            std::lock_guard<std::mutex> lock(m_mutex);
+            auto it = m_feeds.find(layerId);
+            if (it != m_feeds.end()) {
+                requestKeyframe = it->second.requestKeyframe;
+            }
+        }
+        if (requestKeyframe) {
+            requestKeyframe(); // coalesced by the WHEP source
+        }
+    }
+}
+
+WebRtcHub::EnqueueResult WebRtcHub::enqueue(NodeConnection &conn, rtc::DataChannel &dc,
+                                            const std::shared_ptr<const std::vector<std::uint8_t>> &frame,
+                                            bool isVideo, bool keyframe) {
+    const auto now = Clock::now();
+    // Data already handed to SCTP but not yet on the wire (libdatachannel's own send queue).
+    const std::size_t inTransport = dc.bufferedAmount();
+
+    bool queued = false;
+    bool overflow = false;
+    {
+        std::lock_guard<std::mutex> lock(conn.queueMutex);
+        if (conn.stopSender) {
+            return EnqueueResult::Skipped;
+        }
+
+        const bool tooMuchData = conn.queuedBytes + inTransport > kWebRtcRelayMaxNodeBacklogBytes;
+        const bool tooOld = !conn.queue.empty()
+                            && now - conn.queue.front().enqueued
+                                   > std::chrono::milliseconds(kWebRtcRelayMaxNodeBacklogMs);
+        if (tooMuchData || tooOld) {
+            // The node cannot keep up (slow link, stalled machine): anything still queued is
+            // already too late to be shown in sync. Drop it and restart at the next keyframe
+            // rather than letting the latency grow without bound.
+            overflow = !conn.waitingForKeyframe; // report (and ask for an IDR) once per drop
+            conn.queue.clear();
+            conn.queuedBytes = 0;
+            conn.waitingForKeyframe = true;
+            conn.discontinuity = true;
+        }
+
+        if (conn.waitingForKeyframe) {
+            if (!isVideo) {
+                // Keep audio flowing on a fresh join; while recovering from a drop, give the
+                // transport a chance to drain first.
+                if (conn.discontinuity) {
+                    return overflow ? EnqueueResult::Overflow : EnqueueResult::Skipped;
+                }
+            } else if (!keyframe || inTransport > kWebRtcRelayMaxNodeBacklogBytes / 2) {
+                return overflow ? EnqueueResult::Overflow : EnqueueResult::Skipped;
+            } else {
+                conn.waitingForKeyframe = false;
+            }
+        }
+
+        if (isVideo && conn.discontinuity) {
+            conn.queue.push_back({discontinuityFrame(), now});
+            conn.queuedBytes += discontinuityFrame()->size();
+            conn.discontinuity = false;
+        }
+        conn.queue.push_back({frame, now});
+        conn.queuedBytes += frame->size();
+        queued = true;
+    }
+    if (queued) {
+        conn.queueCv.notify_one();
+    }
+    if (overflow) {
+        return EnqueueResult::Overflow;
+    }
+    return queued ? EnqueueResult::Queued : EnqueueResult::Skipped;
+}
+
+void WebRtcHub::senderLoop(std::shared_ptr<NodeConnection> conn, std::shared_ptr<rtc::DataChannel> dc) {
+    while (true) {
+        QueuedFrame item;
+        {
+            std::unique_lock<std::mutex> lock(conn->queueMutex);
+            conn->queueCv.wait(lock, [&] { return conn->stopSender || !conn->queue.empty(); });
+            if (conn->stopSender) {
+                break;
+            }
+            item = std::move(conn->queue.front());
+            conn->queue.pop_front();
+            conn->queuedBytes -= std::min(conn->queuedBytes, item.bytes->size());
+        }
+
+        // SCTP, DTLS and the UDP send all run synchronously on this thread, which is exactly
+        // why every node has its own: a slow node never delays the others.
+        try {
+            dc->send(reinterpret_cast<const rtc::byte *>(item.bytes->data()), item.bytes->size());
+        } catch (const std::exception &error) {
+            sgct::Log::Warning(std::string("WebRtcHub: stopped sending to a node: ") + error.what() + "\n");
+            break; // the channel is closed; removeNode() follows via the state callbacks
+        }
     }
 }
 
@@ -225,6 +365,21 @@ void WebRtcHub::handleSignaling(const std::shared_ptr<NodeConnection> &conn, con
 
     if (type == QStringLiteral("hello")) {
         const std::string layerId = object.value(QStringLiteral("layerId")).toString().toStdString();
+        const int version = object.value(QStringLiteral("version")).toInt(1);
+        if (version != kWebRtcRelayProtocolVersion) {
+            sgct::Log::Warning("WebRtcHub: rejecting a node speaking relay protocol v" + std::to_string(version)
+                               + " (master: v" + std::to_string(kWebRtcRelayProtocolVersion) + ")\n");
+            QJsonObject error;
+            error.insert(QStringLiteral("type"), QStringLiteral("error"));
+            error.insert(QStringLiteral("message"),
+                         QStringLiteral("relay protocol version mismatch (master v%1, node v%2); "
+                                        "run the same C-Play version on all machines")
+                             .arg(kWebRtcRelayProtocolVersion)
+                             .arg(version));
+            send(error);
+            removeNode(conn);
+            return;
+        }
 
         bool knownFeed = false;
         {
@@ -310,10 +465,17 @@ void WebRtcHub::handleSignaling(const std::shared_ptr<NodeConnection> &conn, con
 }
 
 void WebRtcHub::createPeerForNode(const std::shared_ptr<NodeConnection> &conn) {
+    webRtcEnsureLibDataChannelLogger();
+    webRtcEnsureRelayTransportSettings();
+
     rtc::Configuration config;
-    // All nodes share one UDP socket/port on the master (libjuice MUX mode); each node still
-    // gets its own PeerConnection and DataChannel.
-    config.enableIceUdpMux = true;
+    // One UDP socket per node (no ICE UDP mux): with a shared socket every node shares one
+    // kernel send buffer and one libjuice thread, so a burst to one node (a keyframe) makes
+    // the datagrams of the others drop and stalls their SCTP streams on retransmission.
+    config.enableIceUdpMux = false;
+    config.portRangeBegin = kWebRtcRelayPortRangeBegin;
+    config.portRangeEnd = kWebRtcRelayPortRangeEnd;
+    config.mtu = kWebRtcRelayMtu;
     config.maxMessageSize = kWebRtcRelayMaxMessageSize;
     // The hub answers explicitly in the "offer" handler below. Auto-negotiation would also make
     // libdatachannel generate surprise local offers (e.g. when a remote data channel appears)
@@ -385,7 +547,15 @@ void WebRtcHub::onNodeDataChannel(const std::shared_ptr<NodeConnection> &conn,
     std::function<void()> requestKeyframe;
     {
         std::lock_guard<std::mutex> lock(m_mutex);
+        // The node may already have been removed (closed signaling); a sender started now
+        // would never be joined.
+        const bool active = std::any_of(m_nodes.begin(), m_nodes.end(),
+                                        [&](const auto &candidate) { return candidate.get() == conn.get(); });
+        if (!active || conn->dc) {
+            return;
+        }
         conn->dc = dc;
+        conn->sender = std::thread(&WebRtcHub::senderLoop, conn, dc);
         auto it = m_feeds.find(conn->layerId);
         if (it != m_feeds.end()) {
             codec = it->second.codec.load(std::memory_order_relaxed);
@@ -406,29 +576,31 @@ void WebRtcHub::onNodeDataChannel(const std::shared_ptr<NodeConnection> &conn,
 }
 
 bool WebRtcHub::sendMetadata(const std::shared_ptr<NodeConnection> &conn) {
-    std::shared_ptr<rtc::DataChannel> dc;
-    WebRtcVideoCodec codec = WebRtcVideoCodec::Unknown;
-    {
-        std::lock_guard<std::mutex> lock(m_mutex);
-        if (conn->metadataSent || !conn->dc) {
-            return false;
-        }
-        auto it = m_feeds.find(conn->layerId);
-        if (it == m_feeds.end()) {
-            return false;
-        }
-        codec = it->second.codec.load(std::memory_order_relaxed);
-        if (codec == WebRtcVideoCodec::Unknown) {
-            return false;
-        }
-        conn->metadataSent = true;
-        dc = conn->dc;
+    std::lock_guard<std::mutex> lock(m_mutex);
+    if (conn->metadataSent || !conn->dc) {
+        return false;
+    }
+    auto it = m_feeds.find(conn->layerId);
+    if (it == m_feeds.end()) {
+        return false;
+    }
+    const WebRtcVideoCodec codec = it->second.codec.load(std::memory_order_relaxed);
+    if (codec == WebRtcVideoCodec::Unknown) {
+        return false;
     }
 
-    // Frame: [type][1 byte codec]. The node starts decoding only after receiving it.
-    const std::vector<std::uint8_t> frame{static_cast<std::uint8_t>(kWebRtcRelayMetadata),
-                                          static_cast<std::uint8_t>(codec)};
-    dc->sendBuffer(frame);
+    // Frame: [type][1 byte codec]. The node starts decoding only after receiving it. Queued
+    // while m_mutex is held, together with setting metadataSent: publishes only target nodes
+    // with metadataSent (read under m_mutex), so no media frame can be queued before it.
+    auto frame = std::make_shared<const std::vector<std::uint8_t>>(
+        std::vector<std::uint8_t>{static_cast<std::uint8_t>(kWebRtcRelayMetadata), static_cast<std::uint8_t>(codec)});
+    {
+        std::lock_guard<std::mutex> queueLock(conn->queueMutex);
+        conn->queue.push_back({frame, Clock::now()});
+        conn->queuedBytes += frame->size();
+    }
+    conn->queueCv.notify_one();
+    conn->metadataSent = true;
     return true;
 }
 
@@ -447,6 +619,20 @@ void WebRtcHub::removeNode(const std::shared_ptr<NodeConnection> &conn) {
         // Take the members out so no other thread can observe a half-closed connection.
         pc = std::move(conn->pc);
         ws = std::move(conn->ws);
+
+        // Stop the sender. It is joined later from the main thread (joinRetiredSenders()):
+        // this may run inside a libdatachannel callback of the very transport the sender is
+        // currently sending on.
+        {
+            std::lock_guard<std::mutex> queueLock(conn->queueMutex);
+            conn->stopSender = true;
+            conn->queue.clear();
+            conn->queuedBytes = 0;
+        }
+        conn->queueCv.notify_all();
+        if (conn->sender.joinable()) {
+            m_retiredSenders.push_back(std::move(conn->sender));
+        }
     }
 
     if (pc) {

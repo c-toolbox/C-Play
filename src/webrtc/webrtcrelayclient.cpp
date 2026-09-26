@@ -76,6 +76,7 @@ void WebRtcRelayClient::start() {
     }
 
     m_iceStarted.store(false, std::memory_order_relaxed);
+    m_pendingDiscontinuity = false;
     auto session = std::make_shared<std::atomic<bool>>(true);
     m_session.store(session);
 
@@ -101,6 +102,7 @@ void WebRtcRelayClient::start() {
         QJsonObject hello;
         hello.insert(QStringLiteral("type"), QStringLiteral("hello"));
         hello.insert(QStringLiteral("layerId"), QString::fromStdString(m_layerId));
+        hello.insert(QStringLiteral("version"), kWebRtcRelayProtocolVersion);
         ws->send(signalingMessage(hello));
     });
 
@@ -185,10 +187,15 @@ void WebRtcRelayClient::beginIce() {
         return;
     }
 
+    webRtcEnsureRelayTransportSettings();
+
     rtc::Configuration config;
-    // Share one UDP socket across this node's peer connections (harmless with a single layer,
-    // required to mirror the master side).
-    config.enableIceUdpMux = true;
+    // One UDP socket per peer connection (no ICE UDP mux), bound inside the relay port range
+    // so it can be opened in the firewall. Mirrors the master side.
+    config.enableIceUdpMux = false;
+    config.portRangeBegin = kWebRtcRelayPortRangeBegin;
+    config.portRangeEnd = kWebRtcRelayPortRangeEnd;
+    config.mtu = kWebRtcRelayMtu;
     config.maxMessageSize = kWebRtcRelayMaxMessageSize;
     // With auto-negotiation enabled, createDataChannel() below would generate the offer itself,
     // before our onLocalDescription handler is installed (the callback fires on a worker thread),
@@ -334,27 +341,36 @@ void WebRtcRelayClient::onDataChannelMessage(const rtc::binary &message) {
         break;
     }
     case kWebRtcRelayVideo: {
-        // [type][u64 BE timestamp][Annex-B access unit]
-        if (message.size() < 9) {
+        // [type][flags][u64 BE timestamp][Annex-B access unit]
+        constexpr std::size_t kHeader = 1 + 1 + 8;
+        if (message.size() <= kHeader) {
             break;
         }
-        const std::uint64_t timestamp = readBigEndian64(bytes + 1);
-        if (m_onVideo && message.size() > 9) {
-            m_onVideo(bytes + 9, message.size() - 9, static_cast<quint32>(timestamp));
-        }
+        WebRtcVideoFrame frame;
+        frame.data = bytes + kHeader;
+        frame.size = message.size() - kHeader;
+        frame.pts = static_cast<std::int64_t>(readBigEndian64(bytes + 2));
+        frame.keyframe = (bytes[1] & kWebRtcRelayVideoKeyframe) != 0;
+        frame.discontinuity = m_pendingDiscontinuity;
+        m_pendingDiscontinuity = false;
+        deliverVideo(frame);
         break;
     }
     case kWebRtcRelayAudio: {
         // [type][u64 BE timestamp][depacketized Opus payload]
-        if (message.size() < 9) {
+        constexpr std::size_t kHeader = 1 + 8;
+        if (message.size() <= kHeader) {
             break;
         }
-        const std::uint64_t timestamp = readBigEndian64(bytes + 1);
-        Q_EMIT audioFrameReceived(
-            QByteArray(reinterpret_cast<const char *>(bytes + 9), static_cast<int>(message.size() - 9)),
-            static_cast<quint32>(timestamp));
+        deliverAudio(bytes + kHeader, message.size() - kHeader,
+                     static_cast<std::int64_t>(readBigEndian64(bytes + 1)));
         break;
     }
+    case kWebRtcRelayDiscontinuity:
+        // The hub dropped frames for us; it resumes at a keyframe, which is flagged so the
+        // decoder resynchronises there.
+        m_pendingDiscontinuity = true;
+        break;
     default:
         break; // unknown frame type (newer master); skip it
     }

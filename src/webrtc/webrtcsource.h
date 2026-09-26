@@ -12,10 +12,12 @@
 #include <QObject>
 
 #include <atomic>
+#include <chrono>
 #include <cstddef>
 #include <cstdint>
 #include <functional>
 #include <memory>
+#include <mutex>
 
 namespace rtc {
 class PeerConnection;
@@ -65,7 +67,10 @@ private:
 
     WhepClient *m_whep = nullptr;
     std::shared_ptr<rtc::PeerConnection> m_peer;
+    // requestKeyframe() may run on any thread, so the video track pointer is guarded.
+    std::mutex m_trackMutex;
     std::shared_ptr<rtc::Track> m_videoTrack;
+    std::atomic<std::chrono::steady_clock::rep> m_lastKeyframeRequest{0}; // steady_clock ticks, 0 = never
     std::shared_ptr<rtc::Track> m_audioTrack; // recvonly Opus track, active only if the stream has audio
 
     RawAudioPacketCallback m_onRawAudioPacket;

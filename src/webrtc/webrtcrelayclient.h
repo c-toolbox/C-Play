@@ -84,4 +84,7 @@ private:
 
     std::atomic<WebRtcStreamState> m_state{WebRtcStreamState::Idle};
     std::atomic<bool> m_iceStarted{false};
+    // Data channel messages are delivered one at a time, so this needs no lock; it is reset
+    // by start() before the new session's channel exists.
+    bool m_pendingDiscontinuity = false;
 };

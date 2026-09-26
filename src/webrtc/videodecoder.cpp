@@ -245,6 +245,13 @@ bool VideoDecoder::decode(const std::uint8_t *data, std::size_t size, std::int64
     return drain(error);
 }
 
+void VideoDecoder::flush()
+{
+    if (m_context) {
+        avcodec_flush_buffers(m_context.get());
+    }
+}
+
 bool VideoDecoder::drain(QString *error)
 {
     while (true) {
@@ -271,7 +278,8 @@ bool VideoDecoder::convertAndEmit(AVFrame *frame, QString *error)
 {
     AVFrame *src = frame;
 
-    // Hardware frames must be copied to system memory before swscale can read them.
+    // Hardware frames must be copied to system memory before they can be uploaded. The
+    // transfer keeps NVDEC's NV12 layout; no conversion happens on the CPU.
     if (frame->hw_frames_ctx != nullptr) {
         av_frame_unref(m_sysFrame.get());
         const int ret = av_hwframe_transfer_data(m_sysFrame.get(), frame, 0);
@@ -285,12 +293,71 @@ bool VideoDecoder::convertAndEmit(AVFrame *frame, QString *error)
         src = m_sysFrame.get();
     }
 
-    const int width = src->width;
-    const int height = src->height;
+    const int width = src->width > 0 ? src->width : frame->width;
+    const int height = src->height > 0 ? src->height : frame->height;
     if (width <= 0 || height <= 0) {
         return true; // skip empty frames
     }
 
+    // Timestamps and colour properties live on the decoder's frame; the transferred copy
+    // only carries the pixels.
+    DecodedVideoFrame out;
+    out.width = width;
+    out.height = height;
+    out.pts = frame->best_effort_timestamp != AV_NOPTS_VALUE ? frame->best_effort_timestamp : frame->pts;
+    switch (frame->colorspace) {
+    case AVCOL_SPC_BT709:
+        out.matrix = VideoColorMatrix::Bt709;
+        break;
+    case AVCOL_SPC_BT2020_NCL:
+    case AVCOL_SPC_BT2020_CL:
+        out.matrix = VideoColorMatrix::Bt2020;
+        break;
+    case AVCOL_SPC_BT470BG:
+    case AVCOL_SPC_SMPTE170M:
+    case AVCOL_SPC_FCC:
+        out.matrix = VideoColorMatrix::Bt601;
+        break;
+    default:
+        // Unspecified: the usual convention is BT.709 for HD, BT.601 for SD.
+        out.matrix = height >= 720 ? VideoColorMatrix::Bt709 : VideoColorMatrix::Bt601;
+        break;
+    }
+    out.fullRange = frame->color_range == AVCOL_RANGE_JPEG || src->format == AV_PIX_FMT_YUVJ420P;
+
+    if (m_forceRgba) {
+        if (!convertToRgba(src, out, error)) {
+            return false;
+        }
+    } else if (src->format == AV_PIX_FMT_NV12) {
+        out.layout = VideoPixelLayout::Nv12;
+        for (int i = 0; i < 2; ++i) {
+            out.planes[i] = src->data[i];
+            out.strides[i] = src->linesize[i];
+        }
+    } else if (src->format == AV_PIX_FMT_YUV420P || src->format == AV_PIX_FMT_YUVJ420P) {
+        out.layout = VideoPixelLayout::Yuv420p;
+        for (int i = 0; i < 3; ++i) {
+            out.planes[i] = src->data[i];
+            out.strides[i] = src->linesize[i];
+        }
+    } else {
+        // Anything else (10-bit, 4:2:2, 4:4:4, ...) is rare here: convert on the CPU.
+        if (!convertToRgba(src, out, error)) {
+            return false;
+        }
+    }
+
+    if (m_onFrame) {
+        m_onFrame(out);
+    }
+    return true;
+}
+
+bool VideoDecoder::convertToRgba(AVFrame *src, DecodedVideoFrame &out, QString *error)
+{
+    const int width = out.width;
+    const int height = out.height;
     if (!m_sws || m_swsSrcFormat != src->format || m_swsWidth != width || m_swsHeight != height) {
         if (m_sws) {
             sws_freeContext(m_sws);
@@ -309,6 +376,13 @@ bool VideoDecoder::convertAndEmit(AVFrame *frame, QString *error)
         m_swsHeight = height;
     }
 
+    // Honour the stream's matrix and range instead of swscale's BT.601 limited default.
+    const int colorspace = out.matrix == VideoColorMatrix::Bt709    ? SWS_CS_ITU709
+                           : out.matrix == VideoColorMatrix::Bt2020 ? SWS_CS_BT2020
+                                                                    : SWS_CS_ITU601;
+    const int *coefficients = sws_getCoefficients(colorspace);
+    sws_setColorspaceDetails(m_sws, coefficients, out.fullRange ? 1 : 0, coefficients, 1, 0, 1 << 16, 1 << 16);
+
     const std::size_t bufferSize = static_cast<std::size_t>(width) * height * 4u;
     if (m_rgbaBuffer.size() < bufferSize) {
         m_rgbaBuffer.resize(bufferSize);
@@ -318,8 +392,8 @@ bool VideoDecoder::convertAndEmit(AVFrame *frame, QString *error)
     int dstStride[4] = { static_cast<int>(width) * 4, 0, 0, 0 };
     sws_scale(m_sws, src->data, src->linesize, 0, height, dstData, dstStride);
 
-    if (m_onFrame) {
-        m_onFrame(m_rgbaBuffer.data(), width, height);
-    }
+    out.layout = VideoPixelLayout::Rgba;
+    out.planes[0] = m_rgbaBuffer.data();
+    out.strides[0] = width * 4;
     return true;
 }

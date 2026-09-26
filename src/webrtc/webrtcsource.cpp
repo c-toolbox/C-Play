@@ -23,6 +23,7 @@ namespace {
 constexpr int kVideoPayloadTypeH264 = 106;
 constexpr int kVideoPayloadTypeH265 = 103;
 constexpr int kAudioPayloadTypeOpus = 111;
+constexpr auto kKeyframeRequestInterval = std::chrono::milliseconds(500);
 
 const char *stateName(WebRtcStreamState state)
 {
@@ -123,6 +124,7 @@ void WebRtcSource::start()
     webRtcEnsureLibDataChannelLogger();
 
     m_offerSent = false;
+    m_lastKeyframeRequest.store(0, std::memory_order_relaxed);
     m_videoCodec.store(WebRtcVideoCodec::Unknown, std::memory_order_relaxed);
     setState(WebRtcStreamState::Connecting);
 
@@ -214,7 +216,10 @@ void WebRtcSource::beginNegotiation(const QList<IceServerSpec> &iceServers)
             break;
         }
     }
-    m_videoTrack = m_peer->addTrack(video);
+    {
+        std::lock_guard<std::mutex> lock(m_trackMutex);
+        m_videoTrack = m_peer->addTrack(video);
+    }
 
     // Offer a recvonly Opus audio track as well. Streams without audio simply omit it
     // in their answer, so this keeps video-only WHEP streams working unchanged.
@@ -289,11 +294,19 @@ void WebRtcSource::onAnswer(const QString &sdpAnswer)
         return;
     }
 
-    m_videoTrack->onFrame([this](rtc::binary data, rtc::FrameInfo info) {
-        if (m_onVideo && !data.empty()) {
-            m_onVideo(reinterpret_cast<const std::uint8_t *>(data.data()), data.size(),
-                      info.timestamp);
+    // onFrame calls for one track are serialized, so the unwrapper needs no lock. A fresh
+    // one per session: a new WHEP session starts at an unrelated RTP timestamp.
+    auto videoUnwrapper = std::make_shared<RtpTimestampUnwrapper>();
+    m_videoTrack->onFrame([this, codec, videoUnwrapper](rtc::binary data, rtc::FrameInfo info) {
+        if (data.empty()) {
+            return;
         }
+        WebRtcVideoFrame frame;
+        frame.data = reinterpret_cast<const std::uint8_t *>(data.data());
+        frame.size = data.size();
+        frame.pts = videoUnwrapper->unwrap(info.timestamp);
+        frame.keyframe = webRtcIsRandomAccessPoint(frame.data, frame.size, codec);
+        deliverVideo(frame);
     });
 
     m_videoTrack->onOpen([this] { requestKeyframe(); });
@@ -312,12 +325,11 @@ void WebRtcSource::onAnswer(const QString &sdpAnswer)
                 opusDepacketizer->setRawPacketCallback(m_onRawAudioPacket);
                 m_audioTrack->setMediaHandler(opusDepacketizer);
                 m_audioTrack->chainMediaHandler(std::make_shared<rtc::RtcpReceivingSession>());
-                m_audioTrack->onFrame([this](rtc::binary data, rtc::FrameInfo info) {
+                auto audioUnwrapper = std::make_shared<RtpTimestampUnwrapper>();
+                m_audioTrack->onFrame([this, audioUnwrapper](rtc::binary data, rtc::FrameInfo info) {
                     if (!data.empty()) {
-                        Q_EMIT audioFrameReceived(
-                            QByteArray(reinterpret_cast<const char *>(data.data()),
-                                       static_cast<int>(data.size())),
-                            info.timestamp);
+                        deliverAudio(reinterpret_cast<const std::uint8_t *>(data.data()), data.size(),
+                                     audioUnwrapper->unwrap(info.timestamp));
                     }
                 });
                 sgct::Log::Info("WebRTC: stream carries an Opus audio track\n");
@@ -341,16 +353,42 @@ void WebRtcSource::onAnswer(const QString &sdpAnswer)
 
 void WebRtcSource::requestKeyframe()
 {
-    if (m_videoTrack && m_videoTrack->isOpen()) {
-        m_videoTrack->requestKeyframe();
+    // Called from the main thread, the decode worker and the hub (node joins, starved or
+    // lagging nodes). Several nodes asking at once must not become a PLI storm: one IDR
+    // serves all of them, so requests within kKeyframeRequestInterval are coalesced.
+    const auto now = std::chrono::steady_clock::now().time_since_epoch().count();
+    auto last = m_lastKeyframeRequest.load(std::memory_order_relaxed);
+    const auto interval =
+        std::chrono::duration_cast<std::chrono::steady_clock::duration>(kKeyframeRequestInterval).count();
+    if (last != 0 && now - last < interval) {
+        return;
+    }
+    if (!m_lastKeyframeRequest.compare_exchange_strong(last, now, std::memory_order_relaxed)) {
+        return; // another thread is sending the request right now
+    }
+
+    std::shared_ptr<rtc::Track> track;
+    {
+        std::lock_guard<std::mutex> lock(m_trackMutex);
+        track = m_videoTrack;
+    }
+    if (track && track->isOpen()) {
+        track->requestKeyframe();
+    } else {
+        m_lastKeyframeRequest.store(0, std::memory_order_relaxed); // nothing was sent
     }
 }
 
 void WebRtcSource::teardownPeer()
 {
-    if (m_videoTrack) {
-        m_videoTrack->onFrame(nullptr);
-        m_videoTrack.reset();
+    std::shared_ptr<rtc::Track> videoTrack;
+    {
+        std::lock_guard<std::mutex> lock(m_trackMutex);
+        videoTrack = std::move(m_videoTrack);
+    }
+    if (videoTrack) {
+        videoTrack->onFrame(nullptr);
+        videoTrack.reset();
     }
     if (m_audioTrack) {
         m_audioTrack->onFrame(nullptr);

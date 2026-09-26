@@ -1465,6 +1465,32 @@ void LayerQtItem::setLayerMasterRelay(bool enabled) {
 #endif
 }
 
+int LayerQtItem::layerSyncDelay() const {
+#ifdef WEBRTC_LAYER
+    if (m_layer && m_layer->type() == BaseLayer::WEBRTC) {
+        return static_cast<WebRTCLayer*>(m_layer)->syncDelayMs();
+    }
+    return kWebRtcDefaultSyncDelayMs;
+#else
+    return 0;
+#endif
+}
+
+void LayerQtItem::setLayerSyncDelay(int delayMs) {
+#ifdef WEBRTC_LAYER
+    if (m_layer && m_layer->isEnabled() && m_layer->type() == BaseLayer::WEBRTC) {
+        WebRTCLayer* webRtcLayer = static_cast<WebRTCLayer*>(m_layer);
+        if (webRtcLayer->syncDelayMs() != delayMs) {
+            webRtcLayer->setSyncDelayMs(delayMs);
+            Q_EMIT layerValueChanged();
+            Q_EMIT layerNeedsSave();
+        }
+    }
+#else
+    Q_UNUSED(delayMs);
+#endif
+}
+
 int LayerQtItem::layerRestMethod() const {
     if (m_layer && m_layer->type() == BaseLayer::REST) {
         RestLayer* restLayer = static_cast<RestLayer*>(m_layer);

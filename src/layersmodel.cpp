@@ -1222,6 +1222,9 @@ void LayersModel::decodeFromJSON(QJsonObject &obj, const QStringList &forRelativ
                     if (o.contains(QStringLiteral("masterRelay")) && m_layers[idx].first->type() == BaseLayer::WEBRTC) {
                         static_cast<WebRTCLayer*>(m_layers[idx].first.get())->setMasterRelayEnabled(o.value(QStringLiteral("masterRelay")).toBool());
                     }
+                    if (o.contains(QStringLiteral("syncDelayMs")) && m_layers[idx].first->type() == BaseLayer::WEBRTC) {
+                        static_cast<WebRTCLayer*>(m_layers[idx].first.get())->setSyncDelayMs(o.value(QStringLiteral("syncDelayMs")).toInt(kWebRtcDefaultSyncDelayMs));
+                    }
 #endif
 
                     if (o.contains(QStringLiteral("eye_mode"))) {
@@ -1689,6 +1692,10 @@ void LayersModel::encodeToJSON(QJsonObject &obj, const QStringList &forRelativeP
         // The default is on; only persist the opt-out.
         if (layer->type() == BaseLayer::WEBRTC && !static_cast<WebRTCLayer*>(layer.get())->masterRelayEnabled()) {
             layerData.insert(QStringLiteral("masterRelay"), QJsonValue(false));
+        }
+        if (layer->type() == BaseLayer::WEBRTC
+            && static_cast<WebRTCLayer*>(layer.get())->syncDelayMs() != kWebRtcDefaultSyncDelayMs) {
+            layerData.insert(QStringLiteral("syncDelayMs"), QJsonValue(static_cast<WebRTCLayer*>(layer.get())->syncDelayMs()));
         }
 #endif
 
