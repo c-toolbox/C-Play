@@ -14,4 +14,5 @@ Below are guides for the current integration workflows:
  - [Launch apps and control things with C-Play](/system-integration/rest-troll-obs) - Trigger HTTP and WebSocket commands, launch OBS through C-Troll, and control OBS through obs-websocket.
  - [VDO.Ninja -> C-Play](/system-integration/vdo-ninja) - Bring remote VDO.Ninja guests into C-Play directly as a WebRTC layer (new in 2.4) by pulling VDO.Ninja's hosted WHEP endpoint, through an OBS/NDI bridge, or via your own MediaMTX server.
  - [MediaMTX streams](/system-integration/mediamtx) - Browse the streams published on a MediaMTX server and add them as RTSP stream layers.
+ - [C-Lux lights](/system-integration/clux) - Control a C-Lux light server from C-Play: scenes, patterns, blackout and work light in live or preview mode, with a dome preview, an optional 3D view overlay, NDI capture of C-Play's own output, and scene actions attached to slides. New in 2.4.0.
  - [C-Play "on-top" of other apps](/system-integration/on-top) - Keep C-Play above local applications, reveal apps behind it with opacity, or bring local GPU output in through Spout.

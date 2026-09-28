@@ -37,7 +37,9 @@ class LayersRendererQtItem;
 #include <layers/streammodel.h>
 #include <layers/mpvoptionsmodel.h>
 #include "httpclientmodel.h"
-#include "cluxclient.h"
+#ifdef CLUX_SUPPORT
+#include <clux/cluxclient.h>
+#endif
 #include "wwsclientmodel.h"
 #ifdef MEDIA_MTX_SUPPORT
 #include "mediamtxmodel.h"
@@ -85,9 +87,11 @@ Q_DECLARE_METATYPE(MpvOptionsModel*)
 #define METATYPE_HttpClientModel
 Q_DECLARE_METATYPE(HttpClientModel*)
 #endif
+#ifdef CLUX_SUPPORT
 #ifndef METATYPE_CLuxClient
 #define METATYPE_CLuxClient
 Q_DECLARE_METATYPE(CLuxClient*)
+#endif
 #endif
 #ifndef METATYPE_WwsClientModel
 #define METATYPE_WwsClientModel
@@ -233,6 +237,7 @@ public:
     HttpClientModel* httpClientModel();
     void setHttpClientModel(HttpClientModel* model);
 
+#ifdef CLUX_SUPPORT
     // Client for the C-Lux light server, used by the C-Lux Editor dialog.
     Q_PROPERTY(CLuxClient* cluxClient
         READ cluxClient
@@ -241,6 +246,18 @@ public:
 
     CLuxClient* cluxClient();
     void setCluxClient(CLuxClient* client);
+
+    // Runtime-only toggle for the C-Lux live light-color overlay in the 3D view. It is never
+    // persisted (always off at startup) and is flipped from the C-Lux Editor during a session;
+    // main.qml binds the renderer item to it.
+    Q_PROPERTY(bool cluxPreviewVisible
+        READ cluxPreviewVisible
+        WRITE setCluxPreviewVisible
+        NOTIFY cluxPreviewVisibleChanged)
+
+    bool cluxPreviewVisible();
+    void setCluxPreviewVisible(bool visible);
+#endif
 
     Q_PROPERTY(WwsClientModel* wwsClientModel
         READ wwsClientModel
@@ -329,7 +346,10 @@ Q_SIGNALS:
     void streamsModelChanged();
     void mpvOptionsModelChanged();
     void httpClientModelChanged();
+#ifdef CLUX_SUPPORT
     void cluxClientChanged();
+    void cluxPreviewVisibleChanged();
+#endif
     void wwsClientModelChanged();
 #ifdef MEDIA_MTX_SUPPORT
     void mediaMtxModelChanged();
@@ -380,7 +400,10 @@ private:
     StreamModel* m_streamsModel;
     MpvOptionsModel* m_mpvOptionsModel;
     HttpClientModel* m_httpClientModel;
+#ifdef CLUX_SUPPORT
     CLuxClient* m_cluxClient;
+    bool m_cluxPreviewVisible = false;   // runtime-only, always off at startup (not persisted)
+#endif
     WwsClientModel* m_wwsClientModel;
 #ifdef MEDIA_MTX_SUPPORT
     MediaMtxServersModel* m_mediaMtxServersModel;

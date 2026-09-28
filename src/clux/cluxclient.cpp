@@ -5,6 +5,7 @@
  */
 
 #include "cluxclient.h"
+#include "cluxpreviewrenderer.h"
 
 #include <QFile>
 #include <QJsonArray>
@@ -22,11 +23,83 @@ namespace {
 const QString serverConfigPath = QStringLiteral("./data/clux-server.json");
 // Used when no value has been stored yet; matches the former KCFG default.
 const QString defaultServerUrl = QStringLiteral("http://localhost:8787");
+// The cached preview state (light count, scenes, patterns, applied scenes), persisted in
+// data/clux-state.json so preview mode can be used without a connection.
+const QString stateCachePath = QStringLiteral("./data/clux-state.json");
+
+// Convert a JSON value to its QVariant equivalent, keeping nested objects and arrays so
+// the full serialized pattern parameters can be stored as-is.
+QVariant jsonValueToVariant(const QJsonValue& v) {
+    switch (v.type()) {
+    case QJsonValue::Object: {
+        const QJsonObject o = v.toObject();
+        QVariantMap m;
+        for (auto it = o.constBegin(); it != o.constEnd(); ++it)
+            m.insert(it.key(), jsonValueToVariant(it.value()));
+        return m;
+    }
+    case QJsonValue::Array: {
+        const QJsonArray a = v.toArray();
+        QVariantList l;
+        for (const QJsonValue& e : a)
+            l.append(jsonValueToVariant(e));
+        return l;
+    }
+    case QJsonValue::Double:
+        return v.toDouble();
+    case QJsonValue::Bool:
+        return v.toBool();
+    case QJsonValue::String:
+        return v.toString();
+    default: // Null
+        return QVariant();
+    }
+}
+
+// The inverse of jsonValueToVariant(): convert a QVariant back to JSON for the cached
+// state file. Only the types that occur in practice (maps, lists, numbers, bools,
+// strings) are handled; anything else is stored as null.
+QJsonValue variantToJson(const QVariant& v) {
+    const uint t = v.userType();
+    // Containers first, then scalars; the numeric checks must come before any broader
+    // conversion because an int converts to double as well.
+    if (t == QMetaType::QVariantMap) {
+        QJsonObject o;
+        const QVariantMap m = v.toMap();
+        for (auto it = m.constBegin(); it != m.constEnd(); ++it)
+            o.insert(it.key(), variantToJson(it.value()));
+        return o;
+    }
+    if (t == QMetaType::QVariantList) {
+        QJsonArray a;
+        const QVariantList l = v.toList();
+        for (const QVariant& e : l)
+            a.append(variantToJson(e));
+        return a;
+    }
+    if (t == QMetaType::QString)
+        return v.toString();
+    if (t == QMetaType::Bool)
+        return v.toBool();
+    if (t == QMetaType::Int || t == QMetaType::UInt || t == QMetaType::LongLong ||
+        t == QMetaType::ULongLong)
+        return v.toLongLong();
+    if (t == QMetaType::Double || t == QMetaType::Float)
+        return v.toDouble();
+    return QJsonValue(); // Null
+}
+
+QJsonArray variantListToJson(const QVariantList& list) {
+    QJsonArray a;
+    for (const QVariant& e : list)
+        a.append(variantToJson(e));
+    return a;
+}
 
 // Parse a /scenes response into the list display format: name, how many patterns each
-// scene holds, and the patterns themselves - name, type, enabled state and opacity. The
-// pattern details let preview mode simulate applying scenes locally without touching the
-// server; they mirror what refreshState() stores in m_patterns for live patterns.
+// scene holds, and the full serialized pattern entries. The pattern details let preview
+// mode simulate applying scenes locally without touching the server; they mirror what
+// refreshState() stores in m_patterns for live patterns.
 QVariantList parseSceneList(const QByteArray& data) {
     QVariantList list;
     const QJsonArray arr = QJsonDocument::fromJson(data).array();
@@ -35,17 +108,12 @@ QVariantList parseSceneList(const QByteArray& data) {
         QVariantMap m;
         m.insert(QStringLiteral("name"), o.value(QStringLiteral("name")).toString());
 
+        // The full serialized entries, so preview mode can render a scene's patterns
+        // locally with exactly the parameters the server would use.
         QVariantList patterns;
         const QJsonArray parr = o.value(QStringLiteral("patterns")).toArray();
-        for (const QJsonValue& pv : parr) {
-            const QJsonObject po = pv.toObject();
-            QVariantMap pm;
-            pm.insert(QStringLiteral("name"), po.value(QStringLiteral("name")).toString());
-            pm.insert(QStringLiteral("type"), po.value(QStringLiteral("type")).toString());
-            pm.insert(QStringLiteral("enabled"), po.value(QStringLiteral("enabled")).toBool(false));
-            pm.insert(QStringLiteral("opacity"), po.value(QStringLiteral("opacity")).toDouble(1.0));
-            patterns.append(pm);
-        }
+        for (const QJsonValue& pv : parr)
+            patterns.append(jsonValueToVariant(pv).toMap());
         m.insert(QStringLiteral("patterns"), patterns);
         m.insert(QStringLiteral("patternCount"), parr.size());
         list.append(m);
@@ -67,9 +135,44 @@ QStringList parseAppliedScenes(const QByteArray& data) {
 CLuxClient::CLuxClient(QObject* parent)
     : QObject(parent), m_nam(new QNetworkAccessManager(this)) {
     // In live mode the full server state is polled this often, so changes made from
-    // another control surface show up in the UI within a second.
+    // another control surface show up in the UI within a second. The NDI status rides
+    // along: its receiver can be re-aimed or lose its source at any time too.
     m_pollTimer.setInterval(1000);
-    connect(&m_pollTimer, &QTimer::timeout, this, [this]() { refreshState(); });
+    connect(&m_pollTimer, &QTimer::timeout, this, [this]() { refreshState(); refreshNdi(); });
+
+    // The sampling geometry as C-Lux defines it by default (shared/video.ts): a centered
+    // ring at full radius with zero width. Seeded so setNdiRingWidth() can send the whole
+    // geometry before the first status has reported one.
+    m_ndiGeometry = {
+        {QStringLiteral("centerX"), 0.5},
+        {QStringLiteral("centerY"), 0.5},
+        {QStringLiteral("radius"), 1.0},
+        {QStringLiteral("ringWidth"), 0.0},
+        {QStringLiteral("rotation"), 0.0},
+        {QStringLiteral("stripY"), 0.5},
+        {QStringLiteral("stripHeight"), 0.025}
+    };
+
+    // Preview-mode frames are rendered locally from the state this client keeps, in place
+    // of the live frame feed; see CLuxPreviewRenderer for how it mirrors the server.
+    m_localPreview = new CLuxPreviewRenderer(this);
+    connect(m_localPreview, &CLuxPreviewRenderer::frameReady, this, [this](const QVariantList& frame) {
+        m_frame = frame;
+        Q_EMIT frameChanged();
+    });
+
+    // Keep the renderer in step with every state change and start or stop it to match the
+    // mode: it renders out of live mode, once a light count is known - connected or not.
+    // The cached-state file follows along too (it skips the write when nothing changed).
+    connect(this, &CLuxClient::stateChanged, this, [this]() {
+        m_localPreview->setLightCount(m_nLights);
+        m_localPreview->setPatterns(m_patterns);
+        m_localPreview->setSolidColor(m_solidColor[0], m_solidColor[1], m_solidColor[2], m_solidEnabled);
+        updateLocalPreview();
+        saveStateCache();
+    });
+    connect(this, &CLuxClient::connectionStateChanged, this, [this]() { updateLocalPreview(); });
+    connect(this, &CLuxClient::liveModeChanged, this, [this]() { updateLocalPreview(); });
 }
 
 CLuxClient::~CLuxClient() {
@@ -87,6 +190,13 @@ void CLuxClient::setServerUrl(const QString& url) {
         normalized.chop(1);
     if (m_serverUrl != normalized) {
         m_serverUrl = normalized;
+        // A session belongs to the server that issued it: a new URL makes any held token
+        // meaningless, and whether auth is required will be re-checked on the next connect.
+        const bool hadAuthState = m_authRequired || !m_token.isEmpty();
+        m_authRequired = false;
+        m_token.clear();
+        if (hadAuthState)
+            Q_EMIT authStateChanged();
         Q_EMIT serverUrlChanged();
         saveServerConfig(); // persist, as the former KCFG setting did automatically
     }
@@ -126,6 +236,66 @@ void CLuxClient::saveServerConfig() const {
     }
     file.write(QJsonDocument(root).toJson(QJsonDocument::Indented));
     file.close();
+}
+
+QByteArray CLuxClient::serializeState() const {
+    QJsonObject root;
+    root.insert(QStringLiteral("nLights"), m_nLights);
+    root.insert(QStringLiteral("scenes"), variantListToJson(m_scenes));
+    root.insert(QStringLiteral("patterns"), variantListToJson(m_patterns));
+    QJsonArray applied;
+    for (const QString& name : m_appliedScenes)
+        applied.append(name);
+    root.insert(QStringLiteral("appliedScenes"), applied);
+    return QJsonDocument(root).toJson(QJsonDocument::Compact);
+}
+
+void CLuxClient::saveStateCache() {
+    const QByteArray json = serializeState();
+    if (json == m_stateCache)
+        return; // nothing changed since the last save or load
+    m_stateCache = json;
+
+    QFile file(stateCachePath);
+    if (!file.open(QIODevice::WriteOnly | QIODevice::Truncate)) {
+        qWarning() << "CLuxClient: couldn't write" << stateCachePath;
+        return;
+    }
+    file.write(json);
+}
+
+void CLuxClient::loadStateCache() {
+    QFile file(stateCachePath);
+    if (!file.open(QIODevice::ReadOnly))
+        return; // no cache yet (first run): preview mode starts empty
+    const QJsonDocument doc = QJsonDocument::fromJson(file.readAll());
+    file.close();
+    if (!doc.isObject())
+        return;
+
+    const QJsonObject root = doc.object();
+    m_nLights = qMax(0, root.value(QStringLiteral("nLights")).toInt(0));
+
+    // Same list shapes as refreshState() stores: full serialized entries for both scenes
+    // and patterns, so preview mode can render them locally with the server's parameters.
+    QVariantList scenes;
+    for (const QJsonValue& v : root.value(QStringLiteral("scenes")).toArray())
+        scenes.append(jsonValueToVariant(v).toMap());
+    m_scenes = scenes;
+
+    QVariantList patterns;
+    for (const QJsonValue& v : root.value(QStringLiteral("patterns")).toArray())
+        patterns.append(jsonValueToVariant(v).toMap());
+    m_patterns = patterns;
+
+    QStringList applied;
+    for (const QJsonValue& v : root.value(QStringLiteral("appliedScenes")).toArray())
+        applied.append(v.toString());
+    m_appliedScenes = applied;
+
+    // Remember the state as loaded so the stateChanged below does not rewrite the file.
+    m_stateCache = serializeState();
+    Q_EMIT stateChanged(); // syncs and starts the local preview renderer
 }
 
 QUrl CLuxClient::apiUrl(const QString& path) const {
@@ -172,6 +342,9 @@ void CLuxClient::connectToServer() {
         if (handleAuthReply(reply)) {
             refreshState();
             startStream();
+            // The NDI endpoints are open like the stream, so they work regardless of the
+            // auth outcome; m_connected only flips once the stream's first bytes arrive.
+            refreshNdi();
         }
     });
 }
@@ -188,8 +361,13 @@ bool CLuxClient::handleAuthReply(QNetworkReply* reply) {
 
     const QJsonObject obj = QJsonDocument::fromJson(reply->readAll()).object();
     m_authRequired = obj.value(QStringLiteral("required")).toBool(false);
-    // No password configured, or the kept token still works: nothing to hold on to.
-    if (obj.value(QStringLiteral("authenticated")).toBool(false) || !m_authRequired)
+    // Keep the token only when it is both needed and accepted by this server. When no
+    // password is configured there is nothing to hold on to, and when auth is required
+    // but our kept token is not accepted (it expired, or a restart dropped the in-memory
+    // sessions) dropping it brings the login row back instead of leaving us looking
+    // "authenticated" while every protected call answers 401.
+    const bool tokenWorks = m_authRequired && obj.value(QStringLiteral("authenticated")).toBool(false);
+    if (!tokenWorks)
         m_token.clear();
     Q_EMIT authStateChanged();
     return true;
@@ -211,6 +389,10 @@ void CLuxClient::login(const QString& password) {
                 message = QStringLiteral("Incorrect password");
             else if (status == 429)
                 message = QStringLiteral("Too many failed attempts, try again in a few minutes");
+            else if (status == 409)
+                // No edit password is configured; the login row should not be visible, but
+                // handle it gracefully in case of a race with a config change.
+                message = QStringLiteral("No edit password is configured on the C-Lux server");
             Q_EMIT errorOccurred(message);
             return;
         }
@@ -223,31 +405,30 @@ void CLuxClient::login(const QString& password) {
 
 void CLuxClient::disconnectFromServer() {
     stopStream();
-    clearPendingOps(); // queued preview changes are meaningless without a connection
 
-    if (m_connected || !m_patterns.isEmpty() || !m_scenes.isEmpty()) {
-        m_patterns.clear();
-        m_scenes.clear();
-        m_appliedScenes.clear();
-        m_blackout = false;
-        m_halfLight = false;
-        m_solidColor[0] = m_solidColor[1] = m_solidColor[2] = 0;
-        m_solidEnabled = false;
-        Q_EMIT stateChanged();
-    }
+    // The local state is kept on purpose: preview mode stays usable without a connection,
+    // editing the cached state (see loadStateCache()), and queued preview changes are
+    // replayed when live mode is entered again after reconnecting. A successful connect
+    // re-syncs everything from the server via refreshState().
 
     if (m_connected) {
         m_connected = false;
         Q_EMIT connectionStateChanged();
     }
     updatePolling();
+
+    // Live mode requires a connection: fall back to preview locally, with no server
+    // traffic left to send (see setLiveMode()).
+    if (m_liveMode)
+        setLiveMode(false);
 }
 
 void CLuxClient::refreshState() {
     if (m_serverUrl.isEmpty())
         return;
 
-    // Patterns: keep the fields the editor shows.
+    // Patterns: the full serialized entries, so preview mode can render them locally with
+    // exactly the parameters the server holds (the editor shows name/type/enabled/opacity).
     QNetworkReply* patterns = request(QNetworkAccessManager::GetOperation, QStringLiteral("/patterns"));
     connect(patterns, &QNetworkReply::finished, this, [this, patterns]() {
         if (patterns->error() != QNetworkReply::NoError) {
@@ -256,15 +437,8 @@ void CLuxClient::refreshState() {
         }
         QVariantList list;
         const QJsonArray arr = QJsonDocument::fromJson(patterns->readAll()).array();
-        for (const QJsonValue& v : arr) {
-            const QJsonObject o = v.toObject();
-            QVariantMap m;
-            m.insert(QStringLiteral("name"), o.value(QStringLiteral("name")).toString());
-            m.insert(QStringLiteral("type"), o.value(QStringLiteral("type")).toString());
-            m.insert(QStringLiteral("enabled"), o.value(QStringLiteral("enabled")).toBool(false));
-            m.insert(QStringLiteral("opacity"), o.value(QStringLiteral("opacity")).toDouble(1.0));
-            list.append(m);
-        }
+        for (const QJsonValue& v : arr)
+            list.append(jsonValueToVariant(v).toMap());
         m_patterns = list;
         Q_EMIT stateChanged();
     });
@@ -362,17 +536,151 @@ void CLuxClient::refreshScenes() {
     });
 }
 
-// A failed state fetch only matters while the stream says we are connected; during a
-// teardown the in-flight replies just die quietly.
+// Applies a NdiStatus object from the server to the NDI properties and emits the change.
+// Shared by refreshNdi() and setNdiSource(), since both responses carry it.
+void CLuxClient::applyNdiStatus(const QJsonObject& obj) {
+    m_ndiSupported = obj.value(QStringLiteral("supported")).toBool(true);
+    // reason/error/source are null (not absent) when they do not apply; toString() maps
+    // that to an empty string, which is what the properties use for "none".
+    m_ndiReason = obj.value(QStringLiteral("reason")).toString();
+    m_ndiSource = obj.value(QStringLiteral("source")).toString();
+    m_ndiRunning = obj.value(QStringLiteral("running")).toBool(false);
+    m_ndiConnections = qMax(0, obj.value(QStringLiteral("connections")).toInt(0));
+    m_ndiError = obj.value(QStringLiteral("error")).toString();
+
+    // The sampling geometry, kept whole so an update can send it back with one field
+    // changed; the API requires every part of it at once.
+    const QJsonObject geo = obj.value(QStringLiteral("geometry")).toObject();
+    if (!geo.isEmpty()) {
+        QVariantMap g;
+        for (auto it = geo.constBegin(); it != geo.constEnd(); ++it)
+            g.insert(it.key(), jsonValueToVariant(it.value()));
+        m_ndiGeometry = g;
+    }
+
+    // Without NDI on the server no source list can exist; drop whatever was cached so a
+    // later reconnect does not show senders from another machine's server.
+    if (!m_ndiSupported)
+        m_ndiSources.clear();
+
+    Q_EMIT ndiStateChanged();
+}
+
+void CLuxClient::refreshNdi() {
+    if (m_serverUrl.isEmpty())
+        return;
+
+    // Status first: it says whether discovery is available at all, and the source list
+    // request would only answer 503 when it is not. Like refreshState(), this runs right
+    // after a connect as well, before m_connected has flipped yet. The status is applied
+    // (and emitted) only once both requests have answered, so the UI sees one consistent
+    // update per refresh - the QML side picks its default source from that single signal.
+    QNetworkReply* status = request(QNetworkAccessManager::GetOperation, QStringLiteral("/ndi"));
+    connect(status, &QNetworkReply::finished, this, [this, status]() {
+        if (status->error() != QNetworkReply::NoError) {
+            reportStateError(status);
+            return;
+        }
+        const QJsonObject obj = QJsonDocument::fromJson(status->readAll()).object();
+
+        // Without NDI on the server there is no source list to fetch.
+        if (!obj.value(QStringLiteral("supported")).toBool(true)) {
+            applyNdiStatus(obj);
+            return;
+        }
+
+        // What discovery has seen on the network: name plus, when known, the address.
+        QNetworkReply* sources = request(QNetworkAccessManager::GetOperation, QStringLiteral("/ndi/sources"));
+        connect(sources, &QNetworkReply::finished, this, [this, sources, obj]() {
+            if (sources->error() != QNetworkReply::NoError) {
+                reportStateError(sources);
+                return;
+            }
+            QVariantList list;
+            const QJsonArray arr = QJsonDocument::fromJson(sources->readAll()).array();
+            for (const QJsonValue& v : arr) {
+                const QVariantMap m = jsonValueToVariant(v).toMap();
+                if (m.value(QStringLiteral("name")).toString().isEmpty())
+                    continue;
+                list.append(m);
+            }
+            m_ndiSources = list;
+            applyNdiStatus(obj);   // emits ndiStateChanged() with both updates in place
+        });
+    });
+}
+
+void CLuxClient::setNdiSource(const QString& name) {
+    // A command like the others: it needs a connection, and the UI keeps its controls
+    // disabled without one.
+    if (!m_connected)
+        return;
+
+    // The API takes null to stop the receiver; an empty string would be rejected.
+    const QJsonObject body = name.isEmpty()
+                                 ? QJsonObject{{QStringLiteral("source"), QJsonValue::Null}}
+                                 : QJsonObject{{QStringLiteral("source"), name}};
+    QNetworkReply* reply = request(QNetworkAccessManager::PutOperation, QStringLiteral("/ndi"),
+                                   QJsonDocument(body).toJson(QJsonDocument::Compact));
+    connect(reply, &QNetworkReply::finished, this, [this, reply]() {
+        if (reply->error() != QNetworkReply::NoError) {
+            reportStateError(reply);
+            return;
+        }
+        applyNdiStatus(QJsonDocument::fromJson(reply->readAll()).object());
+    });
+}
+
+void CLuxClient::setNdiRingWidth(double width) {
+    // A command like the others: it needs a connection, and the UI keeps its controls
+    // disabled without one.
+    if (!m_connected)
+        return;
+
+    // The API validates the whole geometry at once, so send it back with only this field
+    // changed; clamp to what the server accepts (a fraction of the rim radius).
+    const double clamped = qBound(0.0, width, 1.0);
+    QJsonObject geo;
+    for (auto it = m_ndiGeometry.constBegin(); it != m_ndiGeometry.constEnd(); ++it) {
+        const double value = it.key() == QStringLiteral("ringWidth") ? clamped : it.value().toDouble();
+        geo.insert(it.key(), value);
+    }
+
+    const QJsonObject body{{QStringLiteral("geometry"), geo}};
+    QNetworkReply* reply = request(QNetworkAccessManager::PutOperation, QStringLiteral("/ndi"),
+                                   QJsonDocument(body).toJson(QJsonDocument::Compact));
+    connect(reply, &QNetworkReply::finished, this, [this, reply]() {
+        if (reply->error() != QNetworkReply::NoError) {
+            reportStateError(reply);
+            return;
+        }
+        applyNdiStatus(QJsonDocument::fromJson(reply->readAll()).object());
+    });
+}
+
+// A failed request only matters while the stream says we are connected; during a teardown
+// the in-flight replies just die quietly. A 401 can only come from the password-protected
+// endpoints (pattern toggles): the server requires a login and our credentials, if any,
+// are not accepted - the session expired, or it was dropped by a restart or a password
+// change. Mark auth as required in case we did not know yet (the password can be set while
+// connected), drop the token so the login row comes back, and say what happened instead of
+// dumping the raw error string.
 void CLuxClient::reportStateError(QNetworkReply* reply) {
     if (!m_connected)
         return;
 
     const int status = reply->attribute(QNetworkRequest::HttpStatusCodeAttribute).toInt();
-    if (status == 401 && m_authRequired && !authenticated())
-        Q_EMIT errorOccurred(QStringLiteral("The C-Lux session expired, log in again."));
-    else
-        Q_EMIT errorOccurred(QStringLiteral("Failed to fetch state: %1").arg(reply->errorString()));
+    if (status == 401) {
+        const bool hadToken = !m_token.isEmpty();
+        m_authRequired = true;
+        m_token.clear();
+        Q_EMIT authStateChanged();
+        Q_EMIT errorOccurred(hadToken
+                                 ? QStringLiteral("The C-Lux session is no longer valid (it may have expired or the password was changed), log in again.")
+                                 : QStringLiteral("Log in to the C-Lux server first: this action needs the edit password."));
+        return;
+    }
+    Q_EMIT errorOccurred(QStringLiteral("Failed to fetch state: %1").arg(reply->errorString()));
 }
 
 
@@ -380,8 +688,9 @@ void CLuxClient::startStream() {
     stopStream();
     m_streamBuffer.clear();
 
-    // In preview mode we watch the raw feed: frames before the blackout and half-light
-    // masks are applied, so the animation stays visible while the real output is dark.
+    // In preview mode we watch the raw (pre-mask) feed only to hold the connection and
+    // learn the light count; its frames are ignored because the local renderer produces
+    // the preview instead.
     const QString path = m_liveMode ? QStringLiteral("/stream") : QStringLiteral("/stream?raw=1");
     QNetworkRequest req(apiUrl(path));
     if (!m_token.isEmpty())
@@ -422,17 +731,23 @@ void CLuxClient::startStream() {
             if (arr.size() < 3 || arr.size() % 3 != 0)
                 continue;
 
+            const int lights = arr.size() / 3;
+            if (lights != m_nLights) {
+                m_nLights = lights;
+                Q_EMIT stateChanged();
+            }
+
+            // In preview mode the local renderer owns the frame feed, so the stream only
+            // keeps the connection alive and reports the light count.
+            if (!m_liveMode)
+                continue;
+
             QVariantList frame;
             frame.reserve(arr.size());
             for (const QJsonValue& v : arr)
                 frame.append(v.toInt(0));
 
             m_frame = frame;
-            const int lights = arr.size() / 3;
-            if (lights != m_nLights) {
-                m_nLights = lights;
-                Q_EMIT stateChanged();
-            }
             Q_EMIT frameChanged();
         }
     });
@@ -444,6 +759,12 @@ void CLuxClient::startStream() {
             m_connected = false;
             Q_EMIT connectionStateChanged();
         }
+
+        // Live mode requires a connection: fall back to preview locally, keeping any
+        // queued changes for the next time live mode is entered (see setLiveMode()).
+        if (m_liveMode)
+            setLiveMode(false);
+
         updatePolling();
         stopStream();
     });
@@ -473,16 +794,35 @@ void CLuxClient::updatePolling() {
         m_pollTimer.stop();
 }
 
+// The local preview renders out of live mode, once a light count is known - with or
+// without a connection: offline it previews edits against the cached state (see
+// loadStateCache()). While connected the SSE feed keeps running either way as the
+// connection's heartbeat (see startStream()); in preview mode its frames are ignored.
+void CLuxClient::updateLocalPreview() {
+    const bool shouldRun = !m_liveMode && m_nLights > 0;
+    if (shouldRun)
+        m_localPreview->start();
+    else
+        m_localPreview->stop();
+}
+
 
 void CLuxClient::setLiveMode(bool on) {
     if (m_liveMode == on)
+        return;
+
+    // Live mode drives the physical lights, so it is only available while connected.
+    // Preview mode works offline against the cached state (see loadStateCache()).
+    if (on && !m_connected)
         return;
 
     const bool wasConnected = m_connected;
     m_liveMode = on;
     Q_EMIT liveModeChanged();
 
-    // While disconnected the mode simply takes effect when the connection is made.
+    // Reaching here while disconnected means turning preview off after a disconnect: it
+    // takes effect locally, with no server to reconfigure. (Turning it on is impossible
+    // there: see the guard above.)
     if (!wasConnected) {
         updatePolling();
         return;
@@ -493,6 +833,15 @@ void CLuxClient::setLiveMode(bool on) {
         // blackout so the lights come up with exactly that look. The per-second poll is
         // started by finishEnteringLiveMode(), once the replay is done, so it cannot
         // overwrite the state mid-flush.
+        if (m_authRequired && !authenticated() && pendingOpsNeedAuth()) {
+            // Pattern toggles in the queue sit behind the edit password; without a login
+            // they would all fail one by one. Stay in preview mode until the user has
+            // logged in, instead of half-applying the queued look.
+            m_liveMode = false;
+            Q_EMIT liveModeChanged();
+            Q_EMIT errorOccurred(QStringLiteral("Log in to the C-Lux server first: some queued changes need the edit password."));
+            return;
+        }
         flushPendingOps();
         return;
     }
@@ -537,6 +886,14 @@ void CLuxClient::clearPendingOps() {
         return;
     m_pendingOps.clear();
     Q_EMIT pendingChangesChanged();
+}
+
+bool CLuxClient::pendingOpsNeedAuth() const {
+    for (const QVariant& v : m_pendingOps) {
+        if (v.toMap().value(QStringLiteral("op")).toString() == QStringLiteral("setPatternEnabled"))
+            return true;
+    }
+    return false;
 }
 
 QVariantMap CLuxClient::sceneByName(const QString& name) const {
@@ -639,12 +996,13 @@ void CLuxClient::finishEnteringLiveMode() {
 }
 
 void CLuxClient::setPatternEnabled(const QString& name, bool enabled) {
-    if (!m_connected || name.isEmpty())
+    if (name.isEmpty())
         return;
 
     // Preview mode never sends commands that change the server: they update the local
     // state and are queued for replay when live mode is entered. The same applies to
-    // every scene/pattern command below.
+    // every scene/pattern command below. It works while disconnected too, against the
+    // cached state (see loadStateCache()).
     if (!m_liveMode) {
         for (QVariant& v : m_patterns) {
             QVariantMap m = v.toMap();
@@ -661,6 +1019,18 @@ void CLuxClient::setPatternEnabled(const QString& name, bool enabled) {
             return;
         }
         // Not in the local list (the server would answer 404 as well): nothing to do.
+        return;
+    }
+
+    // Live mode sends straight away and therefore requires a connection.
+    if (!m_connected)
+        return;
+
+    // The toggle endpoint sits behind the edit password; refuse early with a clear message
+    // instead of letting the server answer 401 (reportStateError() covers that case too,
+    // e.g. when the session expires between this check and the reply).
+    if (m_authRequired && !authenticated()) {
+        Q_EMIT errorOccurred(QStringLiteral("Log in to the C-Lux server first: this action needs the edit password."));
         return;
     }
 
@@ -687,12 +1057,10 @@ void CLuxClient::setPatternEnabled(const QString& name, bool enabled) {
 }
 
 void CLuxClient::clearPatterns() {
-    if (!m_connected)
-        return;
-
     if (!m_liveMode) {
         // Mirror the server: clearing also drops the applied scenes. Skip the queue when
-        // there is nothing to clear, as the server-side call would be a no-op too.
+        // there is nothing to clear, as the server-side call would be a no-op too. Works
+        // while disconnected as well (see setPatternEnabled()).
         if (m_patterns.isEmpty() && m_appliedScenes.isEmpty())
             return;
         m_patterns.clear();
@@ -701,6 +1069,10 @@ void CLuxClient::clearPatterns() {
         queuePendingOp({{QStringLiteral("op"), QStringLiteral("clearPatterns")}});
         return;
     }
+
+    // Live mode sends straight away and therefore requires a connection.
+    if (!m_connected)
+        return;
 
     QNetworkReply* reply = request(QNetworkAccessManager::PostOperation,
                                    QStringLiteral("/patterns/clear"));
@@ -715,7 +1087,7 @@ void CLuxClient::clearPatterns() {
 }
 
 void CLuxClient::applyScene(const QString& name) {
-    if (!m_connected || name.isEmpty())
+    if (name.isEmpty())
         return;
 
     if (!m_liveMode) {
@@ -749,6 +1121,10 @@ void CLuxClient::applyScene(const QString& name) {
         return;
     }
 
+    // Live mode sends straight away and therefore requires a connection.
+    if (!m_connected)
+        return;
+
     QNetworkReply* reply = request(QNetworkAccessManager::PostOperation,
                                    QStringLiteral("/scenes/") + encodeName(name) + QStringLiteral("/apply"));
     connect(reply, &QNetworkReply::finished, this, [this, name, reply]() {
@@ -764,7 +1140,7 @@ void CLuxClient::applyScene(const QString& name) {
 }
 
 void CLuxClient::unapplyScene(const QString& name) {
-    if (!m_connected || name.isEmpty())
+    if (name.isEmpty())
         return;
 
     if (!m_liveMode) {
@@ -810,6 +1186,10 @@ void CLuxClient::unapplyScene(const QString& name) {
         return;
     }
 
+    // Live mode sends straight away and therefore requires a connection.
+    if (!m_connected)
+        return;
+
     QNetworkReply* reply = request(QNetworkAccessManager::PostOperation,
                                    QStringLiteral("/scenes/") + encodeName(name) + QStringLiteral("/unapply"));
     connect(reply, &QNetworkReply::finished, this, [this, name, reply]() {
@@ -824,7 +1204,7 @@ void CLuxClient::unapplyScene(const QString& name) {
 }
 
 void CLuxClient::replaceWithScene(const QString& name) {
-    if (!m_connected || name.isEmpty())
+    if (name.isEmpty())
         return;
 
     if (!m_liveMode) {
@@ -842,6 +1222,10 @@ void CLuxClient::replaceWithScene(const QString& name) {
                         {QStringLiteral("name"), name}});
         return;
     }
+
+    // Live mode sends straight away and therefore requires a connection.
+    if (!m_connected)
+        return;
 
     QNetworkReply* reply = request(QNetworkAccessManager::PostOperation,
                                    QStringLiteral("/scenes/") + encodeName(name) + QStringLiteral("/replace"));

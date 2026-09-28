@@ -325,6 +325,23 @@ Kirigami.ApplicationWindow {
         // One-pass 180-degree fisheye (fulldome) rendering, selected by the main view mode menu.
         renderAsFisheye: window.mainViewMode === 2
 
+        // C-Lux live light-color overlay in the 3D view (only when built with CLUX support): a
+        // runtime-only toggle (always off at startup, flipped from the C-Lux Editor), colors from
+        // the active client (the same source CLuxPreview.qml uses). The item has no such properties
+        // without CLUX support, so the bindings stay inactive then.
+        Binding {
+            target: viewLayersIn3DRenderItem
+            property: "cluxPreviewVisible"
+            value: app.cluxPreviewVisible
+            when: CLUX_SUPPORT
+        }
+        Binding {
+            target: viewLayersIn3DRenderItem
+            property: "cluxPreviewFrame"
+            value: app.cluxClient ? app.cluxClient.frame : []
+            when: CLUX_SUPPORT
+        }
+
         mpvObject: mpv
         backgroundImageFile: playerController.checkAndCorrectPath(playerController.backgroundImageFileUrl())
         foregroundImageFile: playerController.checkAndCorrectPath(playerController.foregroundImageFileUrl())
@@ -620,8 +637,13 @@ Kirigami.ApplicationWindow {
     RestCommandsEditor {
         id: restCommandsEditor
     }
-    CLuxEditor {
-        id: cluxEditor
+    // C-Lux editor dialog. Only instantiated when built with C-Lux support (BUILD_CPLAY_WITH_CLUX):
+    // its bindings reference app.cluxClient, which does not exist on app without it, so the loader
+    // stays inactive in that case and none of them are ever evaluated.
+    Loader {
+        id: cluxEditorLoader
+        active: CLUX_SUPPORT
+        source: "CLuxEditor.qml"
     }
     MediaMTXEditor {
         id: mediaMtxEditor

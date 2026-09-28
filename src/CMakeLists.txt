@@ -8,7 +8,7 @@ set(CPLAY_VERSION_MAJOR 2)
 set(CPLAY_VERSION_MINOR 4)
 set(CPLAY_VERSION_PATCH 0)
 set(CPLAY_VERSION_PR_NAME "Beta")
-set(CPLAY_VERSION_PR_VERS 9)
+set(CPLAY_VERSION_PR_VERS 10)
 
 qt_add_executable(${TARGET_NAME})
 set_compile_options(${TARGET_NAME})
@@ -29,8 +29,6 @@ set(SOURCE_FILES
     httpserverthread.h
     httpclientmodel.cpp
     httpclientmodel.h
-    cluxclient.cpp
-    cluxclient.h
     wwsclientmodel.cpp
     wwsclientmodel.h
     layers/audiolayer.cpp
@@ -212,6 +210,16 @@ if(BUILD_CPLAY_WITH_MEDIA_MTX)
     list(APPEND SOURCE_FILES mediamtxmodel.h)
     list(APPEND SOURCE_FILES mediamtxcredentials.cpp)
     list(APPEND SOURCE_FILES mediamtxcredentials.h)
+endif()
+
+if(BUILD_CPLAY_WITH_CLUX)
+    list(APPEND SOURCE_FILES clux/cluxclient.cpp)
+    list(APPEND SOURCE_FILES clux/cluxclient.h)
+    list(APPEND SOURCE_FILES clux/cluxpatterns.cpp)
+    list(APPEND SOURCE_FILES clux/cluxpatterns.h)
+    list(APPEND SOURCE_FILES clux/cluxpreviewrenderer.cpp)
+    list(APPEND SOURCE_FILES clux/cluxpreviewrenderer.h)
+    target_include_directories(${TARGET_NAME} PRIVATE clux)
 endif()
 
 if(BUILD_CPLAY_WITH_MDK)
@@ -520,6 +528,11 @@ endif()
 if(BUILD_CPLAY_WITH_MEDIA_MTX)
     # cpp-httplib (vendored, header-only) is used for the MediaMTX control API; no extra libraries.
     target_compile_definitions(${TARGET_NAME} PUBLIC MEDIA_MTX_SUPPORT)
+endif()
+
+if(BUILD_CPLAY_WITH_CLUX)
+    # Qt WebSockets/Network are already required; no extra libraries.
+    target_compile_definitions(${TARGET_NAME} PUBLIC CLUX_SUPPORT)
 endif()
 
 if(BUILD_CPLAY_WITH_POPPLER)

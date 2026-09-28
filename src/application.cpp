@@ -44,7 +44,9 @@
 #endif
 #include <layers/streammodel.h>
 #include "httpclientmodel.h"
-#include "cluxclient.h"
+#ifdef CLUX_SUPPORT
+#include <clux/cluxclient.h>
+#endif
 #include "wwsclientmodel.h"
 
 #include "audiosettings.h"
@@ -170,8 +172,11 @@ Application::Application(int &argc, char **argv, const QString &applicationName)
     m_streamsModel = new StreamModel(this);
     m_mpvOptionsModel = new MpvOptionsModel(this);
     m_httpClientModel = new HttpClientModel(this);
+#ifdef CLUX_SUPPORT
     m_cluxClient = new CLuxClient(this);
     m_cluxClient->loadServerConfig(); // load the single C-Lux server from data/clux-server.json
+    m_cluxClient->loadStateCache();   // restore the cached state so preview mode works offline
+#endif
     m_wwsClientModel = new WwsClientModel(this);
 #ifdef MEDIA_MTX_SUPPORT
     m_mediaMtxServersModel = new MediaMtxServersModel(this);
@@ -431,6 +436,12 @@ void Application::setupQmlContextProperties() {
 #else
     m_engine->rootContext()->setContextProperty(QStringLiteral("OMT_SUPPORT"), QVariant(false));
 #endif
+
+#ifdef CLUX_SUPPORT
+    m_engine->rootContext()->setContextProperty(QStringLiteral("CLUX_SUPPORT"), QVariant(true));
+#else
+    m_engine->rootContext()->setContextProperty(QStringLiteral("CLUX_SUPPORT"), QVariant(false));
+#endif
 }
 
 QUrl Application::configFilePath() {
@@ -626,6 +637,7 @@ void Application::setHttpClientModel(HttpClientModel* model) {
     Q_EMIT httpClientModelChanged();
 }
 
+#ifdef CLUX_SUPPORT
 CLuxClient* Application::cluxClient() {
     return m_cluxClient;
 }
@@ -640,6 +652,19 @@ void Application::setCluxClient(CLuxClient* client) {
     m_cluxClient = client;
     Q_EMIT cluxClientChanged();
 }
+
+bool Application::cluxPreviewVisible() {
+    return m_cluxPreviewVisible;
+}
+
+void Application::setCluxPreviewVisible(bool visible) {
+    if (m_cluxPreviewVisible == visible) {
+        return;
+    }
+    m_cluxPreviewVisible = visible;
+    Q_EMIT cluxPreviewVisibleChanged();
+}
+#endif
 
 WwsClientModel* Application::wwsClientModel() {
     return m_wwsClientModel;

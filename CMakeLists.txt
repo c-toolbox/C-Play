@@ -241,6 +241,10 @@ if(BUILD_CPLAY_WITH_WEBRTC)
     endif()
 endif()
 
+# C-Lux support talks to a C-Lux light server over its REST API + SSE frame stream using Qt
+# WebSockets/Network, which are already required; no extra dependencies.
+option(BUILD_CPLAY_WITH_CLUX "Global On/Off for C-Lux light server support" ON)
+
 # MediaMTX support talks to a MediaMTX server over its HTTP control API, so it works on every
 # platform; it is enabled by default only on Windows.
 if(WIN32)

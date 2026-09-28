@@ -18,6 +18,7 @@
 #include <QVector3D>
 #include <QVector2D>
 #include <QMatrix4x4>
+#include <QVariantList>
 #include <atomic>
 #include <memory>
 #include <mutex>
@@ -62,6 +63,13 @@ public:
 
     void setRenderAsFisheye(bool value);
 
+#ifdef CLUX_SUPPORT
+    // C-Lux preview overlay (top layer): renders the live light colors as a dome-grid ring
+    // with a radial alpha fade from 1.0 at the rim toward 0 at the center.
+    void setCluxPreviewVisible(bool visible);
+    void setCluxPreviewFrame(const QVariantList& frame);
+#endif
+
     void setMpvObject(MpvObject* mpv);
     void setBackgroundImageFile(const QString& file);
     void setForegroundImageFile(const QString& file);
@@ -71,7 +79,17 @@ public:
 
 
     void updateLayers();
-    void renderLayers(float angle, const QMatrix4x4& viewMatrix, const QMatrix4x4& projectionMatrix);
+    // includeCluxPreview=false keeps the C-Lux preview overlay out of this pass; the NDI capture
+    // path uses it so the broadcast never contains the overlay, and re-applies it on top after
+    // publishing (see renderFrame).
+    void renderLayers(float angle, const QMatrix4x4& viewMatrix, const QMatrix4x4& projectionMatrix, bool includeCluxPreview = true);
+
+#ifdef CLUX_SUPPORT
+    // C-Lux preview overlay helpers (render thread).
+    void renderCluxPreview(float angle, const QMatrix4x4& viewMatrix, const QMatrix4x4& projectionMatrix);
+    void ensureCluxDiskTexture(int nLights);
+#endif
+
     void reportSwap();
 
     Q_INVOKABLE void init();
@@ -203,6 +221,22 @@ private:
     bool m_shuttingDown = false;
     bool m_renderAsFisheye = false;
 
+#ifdef CLUX_SUPPORT
+    // C-Lux preview overlay (render thread). The live light colors are baked into a dome-grid
+    // disk texture on the CPU: each pixel stores the color of the light at its azimuth plus a
+    // radial alpha (1.0 at the rim fading to 0 at the center), so it can be drawn with the
+    // existing dome/fisheye programs without any new shaders.
+    bool m_cluxPreviewVisible = false;
+    int m_cluxNLights = 0;
+    std::vector<unsigned char> m_cluxFrameBytes;   // nLights * 3, latest RGB values (0..255)
+    bool m_cluxColorsDirty = false;
+    unsigned int m_cluxDiskTexture = 0;            // N x N RGBA8 disk texture
+    std::vector<int> m_cluxPixelLight;             // per-pixel light index (-1 outside the disk)
+    std::vector<unsigned char> m_cluxPixelAlpha;   // per-pixel radial alpha (0..255)
+    int m_cluxPixelMapNLights = 0;                 // nLights the pixel map was built for
+    std::vector<unsigned char> m_cluxTexData;      // staging buffer (N*N*4 bytes)
+#endif
+
     // NDI capture target. The requested state is written from the GUI thread and read on
     // the render thread, the allocated state is only touched on the render thread.
     QMatrix4x4 m_ndiProjectionMatrix;
@@ -232,6 +266,12 @@ class LayersRendererQtItem : public QQuickItem {
     Q_PROPERTY(bool uiPopupOpen READ isUiPopupOpen WRITE setUiPopupOpen NOTIFY uiPopupOpenChanged)
     Q_PROPERTY(int selectedPlaneLayerIndex READ selectedPlaneLayerIndex NOTIFY planeSelectionChanged)
 
+#ifdef CLUX_SUPPORT
+    // C-Lux preview overlay toggle + live frame (driven from the CLux UI / client).
+    Q_PROPERTY(bool cluxPreviewVisible MEMBER m_cluxPreviewVisible READ cluxPreviewVisible WRITE setCluxPreviewVisible NOTIFY cluxPreviewVisibleChanged)
+    Q_PROPERTY(QVariantList cluxPreviewFrame WRITE setCluxPreviewFrame)
+#endif
+
 public:
     LayersRendererQtItem();
 
@@ -255,6 +295,12 @@ public:
 
     bool renderAsFisheye() const;
     void setRenderAsFisheye(bool value);
+
+#ifdef CLUX_SUPPORT
+    bool cluxPreviewVisible() const;
+    void setCluxPreviewVisible(bool visible);
+    void setCluxPreviewFrame(const QVariantList& frame);
+#endif
 
     // NDI output of the 3D view. The size follows the configured resolution tier and the
     // camera mode (16:9 for perspective, 1:1 for fisheye).
@@ -301,6 +347,9 @@ Q_SIGNALS:
     void meshFovChanged();
     void meshAngleChanged();
     void renderAsFisheyeChanged();
+#ifdef CLUX_SUPPORT
+    void cluxPreviewVisibleChanged();
+#endif
     void mpvObjectChanged();
     void backgroundImageFileChanged();
     void foregroundImageFileChanged();
@@ -345,6 +394,12 @@ private:
     double m_meshAngle;
 
     bool m_renderAsFisheye = false;
+
+#ifdef CLUX_SUPPORT
+    // C-Lux preview overlay (GUI thread), pushed to the renderer in sync().
+    bool m_cluxPreviewVisible = false;
+    QVariantList m_cluxPreviewFrame;
+#endif
 
     bool m_ndiCaptureEnabled = false;
     int m_ndiWidth = 0;

@@ -99,8 +99,11 @@ Menu {
     MenuItem {
         text: qsTr("C-Lux Editor...")
         icon.name: "preferences-desktop-color"
+        // C-Lux support is a build option (BUILD_CPLAY_WITH_CLUX); the client does not exist on app without it.
+        visible: CLUX_SUPPORT
+        height: visible ? implicitHeight : 0
         onTriggered: {
-            cluxEditor.visible = true;
+            cluxEditorLoader.item.visible = true;
         }
     }
     MenuItem {

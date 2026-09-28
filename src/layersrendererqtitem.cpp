@@ -642,6 +642,25 @@ void LayersRendererQtItem::setRenderAsFisheye(bool value) {
     Q_EMIT renderAsFisheyeChanged();
 }
 
+#ifdef CLUX_SUPPORT
+bool LayersRendererQtItem::cluxPreviewVisible() const {
+    return m_cluxPreviewVisible;
+}
+
+void LayersRendererQtItem::setCluxPreviewVisible(bool visible) {
+    if (m_cluxPreviewVisible == visible)
+        return;
+    m_cluxPreviewVisible = visible;
+    Q_EMIT cluxPreviewVisibleChanged();
+}
+
+void LayersRendererQtItem::setCluxPreviewFrame(const QVariantList& frame) {
+    // Store the latest live frame; it is pushed to the renderer in sync() so the render thread
+    // picks it up on the next frame (same requested-state pattern as the other properties).
+    m_cluxPreviewFrame = frame;
+}
+#endif
+
 void LayersRendererQtItem::setNdiCaptureEnabled(bool enabled) {
     if (m_ndiCaptureEnabled == enabled)
         return;
@@ -1102,6 +1121,10 @@ void LayersRendererQtItem::sync() {
     m_renderer->setMpvObject(m_mpvObject);
     m_renderer->setBackgroundImageFile(m_backgroundImageFile);
     m_renderer->setForegroundImageFile(m_foregroundImageFile);
+#ifdef CLUX_SUPPORT
+    m_renderer->setCluxPreviewVisible(m_cluxPreviewVisible);
+    m_renderer->setCluxPreviewFrame(m_cluxPreviewFrame);
+#endif
 
 #if MPV_CLIENT_API_VERSION >= MPV_MAKE_VERSION(2, 3)
     m_renderer->setDivideUpdateAndRender(!m_uiPopupOpen);
@@ -1161,6 +1184,12 @@ LayersRendererQtOpenGLObject::~LayersRendererQtOpenGLObject() {
         glDeleteTextures(1, &m_maskTexture);
         m_maskTexture = 0;
     }
+#ifdef CLUX_SUPPORT
+    if (m_cluxDiskTexture) {
+        glDeleteTextures(1, &m_cluxDiskTexture);
+        m_cluxDiskTexture = 0;
+    }
+#endif
     releaseNdiTarget();
 }
 
@@ -1176,6 +1205,170 @@ void LayersRendererQtOpenGLObject::setCameraParams(const QMatrix4x4& viewMatrix,
 void LayersRendererQtOpenGLObject::setRenderAsFisheye(bool value) {
     m_renderAsFisheye = value;
 }
+
+#ifdef CLUX_SUPPORT
+void LayersRendererQtOpenGLObject::setCluxPreviewVisible(bool visible) {
+    m_cluxPreviewVisible = visible;
+}
+
+void LayersRendererQtOpenGLObject::setCluxPreviewFrame(const QVariantList& frame) {
+    // The frame is a flat list of nLights*3 ints (r, g, b per light). Store the latest values on
+    // the GUI thread; the render thread bakes them into the disk texture when they change. This
+    // follows the same requested-state pattern as the other sync() pushes. Only mark dirty when
+    // the bytes actually differ so an unchanged frame pushed every sync() doesn't re-upload.
+    const int count = static_cast<int>(frame.size());
+    if (count <= 0 || count % 3 != 0) {
+        m_cluxNLights = 0;
+        return;
+    }
+    const int nLights = count / 3;
+    std::vector<unsigned char> bytes(static_cast<size_t>(nLights) * 3);
+    for (int i = 0; i < count; ++i) {
+        int v = frame.at(i).toInt();
+        if (v < 0) v = 0;
+        else if (v > 255) v = 255;
+        bytes[static_cast<size_t>(i)] = static_cast<unsigned char>(v);
+    }
+    const bool changed = (nLights != m_cluxNLights) ||
+                         !(m_cluxFrameBytes.size() == bytes.size() &&
+                           std::equal(m_cluxFrameBytes.begin(), m_cluxFrameBytes.end(), bytes.begin()));
+    m_cluxNLights = nLights;
+    m_cluxFrameBytes = std::move(bytes);
+    if (changed)
+        m_cluxColorsDirty = true;
+}
+
+void LayersRendererQtOpenGLObject::ensureCluxDiskTexture(int nLights) {
+    if (nLights <= 0)
+        return;
+
+    // Rebuild the per-pixel light/alpha map when the light count changes. The disk is a square
+    // N x N texture whose pixels mirror the DomeGrid texcoord convention: center at (0.5, 0.5),
+    // offset proportional to (sin theta, -cos theta) with radius 0.5 at the rim. Each pixel gets
+    // the light whose azimuth (2*pi*i/nLights) it falls in, plus a radial alpha that fades linearly
+    // from 0 at the center to 1 at the rim.
+    if (m_cluxPixelMapNLights != nLights) {
+        const int N = 512;
+        m_cluxPixelLight.assign(static_cast<size_t>(N) * N, -1);
+        m_cluxPixelAlpha.assign(static_cast<size_t>(N) * N, 0);
+        for (int y = 0; y < N; ++y) {
+            const float ty = ((float)y + 0.5f) / static_cast<float>(N);   // 0..1 top->bottom
+            for (int x = 0; x < N; ++x) {
+                const float tx = ((float)x + 0.5f) / static_cast<float>(N);   // 0..1 left->right
+                const float dx = tx - 0.5f;
+                const float dy = ty - 0.5f;
+                const float r = std::sqrt(dx * dx + dy * dy);    // 0 at center, ~0.354 at corner
+                if (r > 0.5f)
+                    continue;                                    // outside the disk
+                const size_t idx = static_cast<size_t>(y) * N + x;
+                m_cluxPixelAlpha[idx] = static_cast<unsigned char>((r / 0.5f) * 255.0f);
+                if (r < 1e-6f) {
+                    m_cluxPixelLight[idx] = 0;                   // center pixel: arbitrary light
+                } else {
+                    const float theta = std::atan2(dx, -dy);     // matches DomeGrid texcoord
+                    int li = static_cast<int>(theta / (2.0 * kPi) * nLights + 0.5f);
+                    if (li < 0)
+                        li += nLights;
+                    m_cluxPixelLight[idx] = li % nLights;
+                }
+            }
+        }
+        m_cluxTexData.assign(static_cast<size_t>(N) * N * 4, 0);
+        m_cluxPixelMapNLights = nLights;
+    }
+
+    if (!m_cluxDiskTexture) {
+        glGenTextures(1, &m_cluxDiskTexture);
+    }
+}
+
+void LayersRendererQtOpenGLObject::renderCluxPreview(float angle, const QMatrix4x4& viewMatrix,
+    const QMatrix4x4& projectionMatrix) {
+    if (!m_cluxPreviewVisible || m_cluxNLights <= 0)
+        return;
+
+    ensureCluxDiskTexture(m_cluxNLights);
+    if (!m_cluxDiskTexture || !m_domeMesh)
+        return;
+
+    // Bake the latest light colors into the disk texture (only when they changed). RGB carries the
+    // color, A carries the precomputed radial fade, so the existing programs' per-pixel alpha
+    // produces the rim-to-center fade without any new shader.
+    if (m_cluxColorsDirty) {
+        const size_t nPixels = m_cluxPixelLight.size();
+        for (size_t i = 0; i < nPixels; ++i) {
+            unsigned char* px = &m_cluxTexData[i * 4];
+            const int li = m_cluxPixelLight[i];
+            if (li >= 0 && li < m_cluxNLights) {
+                const size_t s = static_cast<size_t>(li) * 3;
+                px[0] = m_cluxFrameBytes[s];
+                px[1] = m_cluxFrameBytes[s + 1];
+                px[2] = m_cluxFrameBytes[s + 2];
+            } else {
+                px[0] = px[1] = px[2] = 0;
+            }
+            px[3] = m_cluxPixelAlpha[i];
+        }
+        const int N = static_cast<int>(std::sqrt(static_cast<double>(m_cluxTexData.size() / 4)));
+        glActiveTexture(GL_TEXTURE0);
+        glBindTexture(GL_TEXTURE_2D, m_cluxDiskTexture);
+        glTexImage2D(GL_TEXTURE_2D, 0, GL_RGBA, N, N, 0, GL_RGBA, GL_UNSIGNED_BYTE, m_cluxTexData.data());
+        glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_MIN_FILTER, GL_LINEAR);
+        glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_MAG_FILTER, GL_LINEAR);
+        glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_WRAP_S, GL_CLAMP_TO_EDGE);
+        glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_WRAP_T, GL_CLAMP_TO_EDGE);
+        m_cluxColorsDirty = false;
+    }
+
+    // Draw on top of all content layers using the same dome transform as a zero-rotation dome
+    // layer. Depth testing is disabled for the whole pass (see firstPass), so draw order keeps this
+    // overlay on top; blending gives the alpha fade over the content below.
+    glActiveTexture(GL_TEXTURE0);
+    glBindTexture(GL_TEXTURE_2D, m_cluxDiskTexture);
+    glEnable(GL_BLEND);
+    glBlendFunc(GL_SRC_ALPHA, GL_ONE_MINUS_SRC_ALPHA);
+
+    if (m_renderAsFisheye) {
+        if (!m_fisheyePrg) {
+            glDisable(GL_BLEND);
+            return;
+        }
+        m_fisheyePrg->bind();
+        m_fisheyePrg->setUniformValue(m_fisheyeEyeModeLoc, 0);
+        m_fisheyePrg->setUniformValue(m_fisheyeStereoscopicModeLoc, 0);
+        m_fisheyePrg->setUniformValue(m_fisheyeAlphaLoc, 1.0f);   // per-pixel alpha carries the fade
+        m_fisheyePrg->setUniformValue(m_fisheyeFlipYLoc, false);
+        m_fisheyePrg->setUniformValue(m_fisheyeOutsideLoc, 0);
+        m_fisheyePrg->setUniformValue(m_fisheyeHalfFovLoc, static_cast<float>(glm::radians(m_meshFov * 0.5)));
+        m_fisheyePrg->setUniformValue(m_fisheyeRoi, 0.f, 0.f, 1.f, 1.f);
+        QMatrix4x4 model;   // identity: no layer rotation for the preview overlay
+        m_fisheyePrg->setUniformValue(m_fisheyeMatrixLoc, model);
+        if (m_domeMesh)
+            m_domeMesh->draw();
+        m_fisheyePrg->release();
+    } else {
+        if (!m_meshPrg) {
+            glDisable(GL_BLEND);
+            return;
+        }
+        m_meshPrg->bind();
+        m_meshPrg->setUniformValue(m_meshEyeModeLoc, 0);
+        m_meshPrg->setUniformValue(m_meshStereoscopicModeLoc, 0);
+        m_meshPrg->setUniformValue(m_meshRoi, 0.f, 0.f, 1.f, 1.f);
+        m_meshPrg->setUniformValue(m_meshAlphaLoc, 1.0f);   // per-pixel alpha carries the fade
+        m_meshPrg->setUniformValue(m_meshFlipYLoc, false);
+        m_meshPrg->setUniformValue(m_meshOutsideLoc, 0);    // render the dome's inner surface
+        QMatrix4x4 mvp = projectionMatrix * viewMatrix;
+        mvp.rotate(-angle, 1, 0, 0);   // dome tilt (matches a zero-rotation dome layer)
+        m_meshPrg->setUniformValue(m_meshMatrixLoc, mvp);
+        if (m_domeMesh)
+            m_domeMesh->draw();
+        m_meshPrg->release();
+    }
+
+    glDisable(GL_BLEND);
+}
+#endif // CLUX_SUPPORT
 
 void LayersRendererQtOpenGLObject::setNdiProjectionMatrix(const QMatrix4x4& projectionMatrix) {
     m_ndiProjectionMatrix = projectionMatrix;
@@ -2367,7 +2560,7 @@ void LayersRendererQtOpenGLObject::updateLayers() {
 }
 
 void LayersRendererQtOpenGLObject::renderLayers(float angle,
-    const QMatrix4x4& viewMatrix, const QMatrix4x4& projectionMatrix) {
+    const QMatrix4x4& viewMatrix, const QMatrix4x4& projectionMatrix, bool includeCluxPreview) {
     if (m_shuttingDown || LayersRendererQtItem::isShuttingDown())
         return;
 
@@ -2483,6 +2676,15 @@ void LayersRendererQtOpenGLObject::renderLayers(float angle,
         m_foregroundImageLayer->setStereoMode(static_cast<uint8_t>(SyncHelper::instance().variables.stereoscopicModeFg));
         renderLayer(m_foregroundImageLayer.get(), eyeMode, angle, viewMatrix, projectionMatrix);
     }
+
+#ifdef CLUX_SUPPORT
+    // Render the C-Lux preview overlay on top of all content layers (if enabled). It uses the same
+    // dome transform as a zero-rotation dome layer so it lines up with dome-mapped content; depth
+    // testing is off for the pass, so draw order keeps it on top. The NDI capture path passes
+    // includeCluxPreview=false and re-applies the overlay after publishing (see renderFrame).
+    if (includeCluxPreview)
+        renderCluxPreview(angle, viewMatrix, projectionMatrix);
+#endif
 
     // Render black dome mask on top of everything (if enabled).
     // In fisheye mode the output is already a flat fulldome disk, so there is no dome
@@ -2654,11 +2856,20 @@ void LayersRendererQtOpenGLObject::renderFrame() {
     glClearColor(0.0f, 0.0f, 0.0f, 1.0f);
     glClear(GL_COLOR_BUFFER_BIT);
 
-    renderLayers(m_meshAngle, m_viewMatrix, m_ndiProjectionMatrix);
+    // The C-Lux preview is a local overlay: render the capture target without it so the broadcast
+    // never contains it, even while it is enabled for the viewport.
+    renderLayers(m_meshAngle, m_viewMatrix, m_ndiProjectionMatrix, /*includeCluxPreview=*/false);
 
-    // Publish the frame while the capture target is still bound and up to date.
+    // Publish the frame while the capture target is still bound and up to date. The readback is
+    // enqueued before any later draw in this context, so it captures the preview-free scene.
     if (NdiSenderModel::instance())
         NdiSenderModel::instance()->renderFrameFrom3D();
+
+#ifdef CLUX_SUPPORT
+    // Apply the C-Lux preview on top of everything only now, right before the target is blitted to
+    // the screen, so the local viewport shows it while the broadcast does not.
+    renderCluxPreview(m_meshAngle, m_viewMatrix, m_ndiProjectionMatrix);
+#endif
 
     glBindFramebuffer(GL_FRAMEBUFFER, static_cast<GLuint>(previousFbo));
 
