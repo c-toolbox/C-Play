@@ -99,3 +99,5 @@ This can also be set to activate at startup via *"Node windows always on top at 
 #### Opacity and fading
 
 The node window opacity can be faded between fully visible (1.0) and fully hidden (0.0) using the *window opacity* action ![](/assets/icons/view-visible-lime.svg) (visible) / ![](/assets/icons/view-hidden-crimson.svg) (hidden). The fade animation duration is configurable in the Window & UI settings (default 2 seconds). While the window is in a partially transparent state, the action indicates *"TRANSPARENT"* with an ![](/assets/icons/view-visible-orange.svg) orange highlight.
+
+How the opacity is applied can be chosen as **Node window opacity mode** in the [Window & UI settings](/settings/window_and_ui#node-window-behavior): *Complete window (uniform fade)* fades the entire window uniformly, content included, while *Content-based (fades background only)* only fades the unrendered/background areas between opaque black and fully transparent, keeping rendered content fully visible.

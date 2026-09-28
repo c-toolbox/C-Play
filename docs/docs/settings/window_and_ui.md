@@ -47,8 +47,11 @@ These settings decide which master view mode C-Play starts in. The current mode 
 
 ### Node window behavior
 
+Windowed node windows use a transparent framebuffer by default, so areas that are not rendered — for example the corners outside the warp mesh — show the desktop behind the window instead of black. Fullscreen node windows are excluded: they run in an exclusive video mode where per-pixel transparency is unavailable and stay opaque.
+
 * **Node windows always on top at startup** — Keep node display windows above all other OS windows when the application starts (default off).
 * **Window fade duration** — Duration in milliseconds for fade-in and fade-out animations on the node window (0–20000, default 2000). Shown in the UI as seconds.
+* **Node window opacity mode** — How the [window opacity](/playback/views#opacity-and-fading) is applied to the node windows created by this process. *Complete window (uniform fade)* fades everything uniformly, including rendered content; *Content-based (fades background only)* drives the alpha of the unrendered/background areas only, so they fade between opaque black and fully transparent while rendered content keeps its own per-pixel alpha (fullscreen node windows are not faded in this mode). Default is *Complete window (uniform fade)*. Changing it requires restarting the node.
 
 ### Open file behavior
 

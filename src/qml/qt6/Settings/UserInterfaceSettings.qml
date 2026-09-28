@@ -96,6 +96,32 @@ SettingsBasePage {
                 Layout.fillWidth: true
             }
 
+            Label {
+                Layout.alignment: Qt.AlignRight
+                text: qsTr("Node window opacity mode:")
+            }
+            RowLayout {
+                ComboBox {
+                    id: nodeWindowOpacityModeCombo
+
+                    model: [qsTr("Complete window (uniform fade)"), qsTr("Content-based (alpha channel)")]
+
+                    Component.onCompleted: currentIndex = UserInterfaceSettings.nodeWindowOpacityMode === "complete-window" ? 0 : 1
+                    onActivated: {
+                        UserInterfaceSettings.nodeWindowOpacityMode = index === 0 ? "complete-window" : "content-based";
+                        UserInterfaceSettings.save();
+                    }
+                }
+                LabelWithTooltip {
+                    Layout.fillWidth: true
+                    elide: Text.ElideRight
+                    text: qsTr("How the node window opacity is applied. Applies to node windows created by this process; requires restarting the node.")
+                }
+            }
+            Item {
+                Layout.fillWidth: true
+            }
+
             Item {
                 height: 1
                 width: 1
