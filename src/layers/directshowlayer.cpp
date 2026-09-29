@@ -431,7 +431,12 @@ void DirectShowLayer::update(bool updateRendering) {
 
     ensureGraph(); // enqueues graph/audio work for the worker thread; never blocks on COM/PortAudio I/O
 #endif
-    if (updateRendering)
+    // Upload frames even when updateRendering is false, mirroring ImageLayer::update(): the node
+    // render loop (and the slide pre-load path) only calls update(false) while !ready(), and
+    // ready() is texId > 0 - a texture that is only ever created in uploadFrame(). Without this,
+    // a layer on a node (or a pre-loaded slide) could never become ready and would never be added
+    // to the render list. updateFrame() is cheap when no new frame is pending.
+    if (updateRendering || !ready())
         updateFrame();
 }
 
@@ -1898,6 +1903,23 @@ bool DirectShowLayer::resolveCaptureDevices(std::string& videoDevice, std::strin
             videoDevice = resolvedVideo;
             audioDevice = resolvedAudio;
             return true;
+        }
+    }
+    // No explicit device pair reached this machine. On the master, addLayer() fills
+    // m_captureVideoDevice/m_captureAudioDevice directly, but those members are not synced to the
+    // nodes (only the preset key is). A node - or any machine whose local
+    // predefined-directshows.json lacks the entry - therefore arrives here with an empty pair, and
+    // the capture devices live only in the synced filepath(), which addLayer() stores as
+    // "videoDevice|audioDevice" ('|' cannot occur in NTFS file names, so the two forms are
+    // unambiguous). Recover the pair from it so the node builds its own capture graph instead of
+    // trying to load "Camera|Mic" as a media file (which never becomes ready). Mirrors
+    // LayersModel::addLayer().
+    if (videoDevice.empty() && audioDevice.empty()) {
+        const std::string& path = filepath();
+        const size_t sep = path.find('|');
+        if (sep != std::string::npos) {
+            videoDevice = path.substr(0, sep);
+            audioDevice = path.substr(sep + 1);
         }
     }
     return false;

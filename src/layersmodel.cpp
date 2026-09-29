@@ -1671,6 +1671,9 @@ void LayersModel::encodeToJSON(QJsonObject &obj, const QStringList &forRelativeP
 #ifdef WEBRTC_LAYER
             case BaseLayer::WEBRTC:
 #endif
+#ifdef DIRECTSHOW_SUPPORT
+            case BaseLayer::DIRECTSHOW:
+#endif
                 // For NDI layers, we want to preserve the flipY setting in the JSON for accurate restoration later
                 layerData.insert(QStringLiteral("flipY"), QJsonValue(true));
                 break;
