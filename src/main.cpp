@@ -15,7 +15,6 @@
 #define GLFW_EXPOSE_NATIVE_WIN32
 #include <GLFW/glfw3native.h>
 #endif // WIN32
-#include <fstream>
 #include <glm/glm.hpp>
 #include <layersrenderer.h>
 #include <layers/baselayer.h>
@@ -30,6 +29,8 @@
 #include <atomic>
 #include <mutex>
 #include <slidesmodel.h>
+#include <telemetry/nodetelemetry.h>
+#include <utils/logfilewriter.h>
 
 #ifdef MDK_SUPPORT
 #include <mdk/global.h>
@@ -47,8 +48,6 @@ namespace {
 
 bool allowDirectRendering = false;
 
-std::mutex logMutex;
-std::ofstream logFile;
 std::string logFilePath = "";
 std::string logLevel = "";
 std::string startupFile = "";
@@ -1386,6 +1385,14 @@ static void postDraw() {
             layer->reportSwap();
         }
     }
+
+    // Node telemetry: self-throttled (1 Hz default) JSON push to the master over the
+    // DataTransfer channel. No-op unless the master has enabled telemetry. postDraw runs on
+    // the render thread, so only touch the manager once it is known to be constructed on the
+    // main thread; this call must never trigger its construction here.
+    if (NodeTelemetryManager::isReady()) {
+        NodeTelemetryManager::instance().collectAndSend(layerRender->getLayers());
+    }
 }
 
 static void cleanup() {
@@ -1425,14 +1432,35 @@ static void cleanup() {
     NDIlib_destroy();
 #endif
 
-    if (!logFilePath.empty()) {
-        logFile.close();
-    }
+    // Close all open log files (the --logfile file, plus the general logging file if it was
+    // still enabled when the engine shuts down).
+    LogFileWriter::closeAll();
 }
 
-static void logging(Log::Level, std::string_view message) {
-    std::lock_guard<std::mutex> lock(logMutex);
-    logFile << message << std::endl;
+// Node telemetry transport: SGCT's app-owned DataTransfer channel (a second TCP connection
+// per node, orthogonal to the frame-locked sync path). These plain function pointers are
+// moved into NetworkManager by Engine::create and invoked on SGCT's network receive threads;
+// the manager is thread-safe and dispatches master vs node roles internally.
+//
+// The callbacks can fire while Engine::create() is still running - long before any
+// QCoreApplication/QApplication exists in this process. NodeTelemetryManager is a QObject
+// singleton that must be constructed on the main thread only after QApplication exists (it
+// happens in Application's constructor); if a network thread won the construction race, Qt
+// would treat that thread as the "main" thread and constructing the real QApplication later
+// crashes with an access violation at launch. Until NodeTelemetryManager::isReady() is true
+// the events are dropped, which is harmless: the master re-broadcasts its enable command
+// every sweep tick (so nodes pick up late) and node rows/online state are rebuilt from
+// subsequent telemetry packets and status changes.
+static void dataTransferDecode(void* data, int length, int packageId, int clientIndex) {
+    if (!NodeTelemetryManager::isReady())
+        return;
+    NodeTelemetryManager::instance().handleNodeData(data, length, packageId, clientIndex);
+}
+
+static void dataTransferStatus(bool connected, int clientIndex) {
+    if (!NodeTelemetryManager::isReady())
+        return;
+    NodeTelemetryManager::instance().handleNodeStatus(connected, clientIndex);
 }
 
 int main(int argc, char *argv[]) {
@@ -1441,6 +1469,19 @@ int main(int argc, char *argv[]) {
     clusterConfig = loadCluster(config.configFilename);
     if (!clusterConfig.success) {
         return -1;
+    }
+
+    // Node telemetry (master node-health table) rides SGCT's app-owned DataTransfer channel,
+    // which requires a "datatransferport" per node in the cluster config. Inject a default
+    // (sync port + 1000) for nodes that do not set one, so telemetry works without editing
+    // cluster JSONs. Both the master and the nodes run this same code on the same JSON, so
+    // both sides agree on the port. An explicit port in the config always wins.
+    for (auto& node : clusterConfig.nodes) {
+        if (!node.dataTransferPort.has_value() && node.port > 0) {
+            node.dataTransferPort = static_cast<uint16_t>(node.port + 1000);
+            Log::Info(std::format("Node telemetry: defaulting DataTransfer port {} for node {}",
+                                  *node.dataTransferPort, node.address));
+        }
     }
 
     // Look for C-Play command line specific things
@@ -1490,15 +1531,15 @@ int main(int argc, char *argv[]) {
             if (i + 1 >= arg.size()) { i++; continue; }
             std::string logFileName = arg[i + 1]; // for instance, either "log_master.txt" or "log_client.txt"
             logFilePath = "./data/log/" + logFileName;
-            logFile.open(logFilePath, std::ofstream::out | std::ofstream::trunc);
-            if (logLevel.empty()) { // Set log level to info if we specfied a log file
+            const int logFileId = LogFileWriter::open(logFilePath, /*truncate=*/true);
+            if (logFileId < 0) {
+                Log::Error("Could not open log file '" + logFilePath + "'");
+                logFilePath.clear();
+            } else if (logLevel.empty()) { // Set log level to info if we specfied a log file
                 Log::instance().setNotifyLevel(Log::Level::Info);
                 logLevel = "info";
                 SyncHelper::instance().configuration.logLevel = logLevel;
             }
-            Log::instance().setShowLogLevel(true);
-            Log::instance().setShowTime(true);
-            Log::instance().setLogCallback(logging);
             SyncHelper::instance().configuration.logFile = logFilePath;
             arg.erase(arg.begin() + i, arg.begin() + i + 2);
         } else if (arg[i] == "--loadfile") {
@@ -1519,6 +1560,8 @@ int main(int argc, char *argv[]) {
     callbacks.draw = draw;
     callbacks.postDraw = postDraw;
     callbacks.cleanup = cleanup;
+    callbacks.dataTransferDecode = dataTransferDecode;
+    callbacks.dataTransferStatus = dataTransferStatus;
     // Set right before SGCT creates the windows. The hint is global process state and
     // Window::openWindow() does not override it, so every window of this process gets an
     // alpha-capable pixel format (per-pixel DWM transparency). Fullscreen windows acquire an
@@ -1554,6 +1597,11 @@ int main(int argc, char *argv[]) {
         Engine::destroy();
         return EXIT_FAILURE;
     }
+
+    // Note: NodeTelemetryManager is deliberately NOT created here. It is a QObject and must
+    // come into existence only after QApplication does - Application's constructor creates it
+    // on the main thread (see application.cpp). Creating it before that would let SGCT's
+    // network threads race the construction and crash the launch (see dataTransferDecode).
 
 #ifdef MDK_SUPPORT
     //Unique for C-Play
@@ -1601,6 +1649,15 @@ int main(int argc, char *argv[]) {
         char *nodeAppArgv[] = { argv[0], nullptr };
         int nodeAppArgc = 1;
         QCoreApplication nodeApp(nodeAppArgc, nodeAppArgv);
+
+        // Node telemetry: construct the QObject singleton here - on the main thread and only now
+        // that QCoreApplication exists (the node process never creates an Application). Without
+        // this, isReady() stays false forever on nodes: postDraw() would skip collectAndSend()
+        // and the dataTransfer callbacks would drop the master's enable command, so no node
+        // metrics could ever reach the master. Packets arriving before this point are dropped
+        // harmlessly - the master re-broadcasts its enable state every sweep tick (1 s), so a
+        // late-constructed manager picks up the current state within one interval.
+        NodeTelemetryManager::instance();
 
         Engine::instance().exec();
         Engine::destroy();

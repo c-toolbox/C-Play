@@ -15,6 +15,7 @@
     {
       "address": "127.0.0.1",
       "port": 20401,
+      "datatransferport": 21401,
       "windows": [
         {
           "fullscreen": false,
@@ -56,6 +57,7 @@
     {
       "address": "127.0.0.2",
       "port": 20402,
+      "datatransferport": 21402,
       "windows": [
         {
           "fullscreen": false,

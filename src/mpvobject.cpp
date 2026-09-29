@@ -25,6 +25,7 @@
 #include "tracksmodel.h"
 #include "layers/textlayer.h"
 #include "ndi/ndisendermodel.h"
+#include "utils/logfilewriter.h"
 #include <iostream>
 #ifdef MULTI_VIDEO_LAYER
 #include <nlohmann/json.hpp>
@@ -268,6 +269,12 @@ MpvObject::~MpvObject() {
 
     if (SyncHelper::instance().variables.subtitleText)
         delete SyncHelper::instance().variables.subtitleText;
+
+    // Make sure the general logging file is closed even if it was still enabled at shutdown.
+    if (m_generalLogFileId >= 0) {
+        LogFileWriter::close(m_generalLogFileId);
+        m_generalLogFileId = -1;
+    }
 }
 
 PlayListModel *MpvObject::playlistModel() {
@@ -1639,16 +1646,23 @@ void MpvObject::setLoggingEnabled(bool enabled) {
 }
 
 // Applies the general logging state: which MPV log messages are forwarded to the application
-// logger and at what level the application logger reports.
+// logger and at what level the application logger reports. While enabled, all logged messages
+// (debug level) are also appended to data/log/cplay_general.log; disabling stops writing there.
 void MpvObject::applyGeneralLogging() {
     if (!mpv)
         return;
     if (m_loggingEnabled) {
         mpv_request_log_messages(mpv, "debug");
         sgct::Log::instance().setNotifyLevel(sgct::Log::Level::Debug);
+        if (m_generalLogFileId < 0)
+            m_generalLogFileId = LogFileWriter::open(QStringLiteral("./data/log/cplay_general.log").toStdString());
     } else {
         mpv_request_log_messages(mpv, "error");
         sgct::Log::instance().setNotifyLevel(sgct::Log::Level::Error);
+        if (m_generalLogFileId >= 0) {
+            LogFileWriter::close(m_generalLogFileId);
+            m_generalLogFileId = -1;
+        }
     }
 }
 

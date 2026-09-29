@@ -18,5 +18,15 @@ SPDX-License-Identifier: GPL-3.0-or-later
       <label>Enable MPV performance statistics collection</label>
       <default>false</default>
     </entry>
+    <entry name="NodeTelemetryEnabled" type="bool">
+      <label>Enable per-node telemetry collection on cluster nodes</label>
+      <default>false</default>
+    </entry>
+    <entry name="NodeTelemetryInterval" type="int">
+      <label>Node telemetry reporting interval in milliseconds</label>
+      <default>1000</default>
+      <min>100</min>
+      <max>5000</max>
+    </entry>
   </group>
 </kcfg>

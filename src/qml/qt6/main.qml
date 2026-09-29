@@ -70,7 +70,7 @@ Kirigami.ApplicationWindow {
     }
 
     onClosing: function(close) {
-        if (!forceClose && (LoggingSettings.generalLoggingEnabled || LoggingSettings.performanceMetricsEnabled)) {
+        if (!forceClose && (LoggingSettings.generalLoggingEnabled || LoggingSettings.performanceMetricsEnabled || LoggingSettings.nodeTelemetryEnabled)) {
             // Don't close yet; ask whether to turn logging off for next start. The nodes keep
             // running until the user has answered (see Application::quitApp).
             close.accepted = false;
@@ -875,14 +875,14 @@ Kirigami.ApplicationWindow {
         id: loggingCloseDialog
         title: qsTr("Logging enabled")
         modal: true
-        width: 420
+        width: 520
         standardButtons: Dialog.Yes | Dialog.No
 
         onOpened: PopupHelpers.handlePopupOpen()
         onClosed: PopupHelpers.handlePopupClose()
 
         Label {
-            text: qsTr("General logging and/or MPV performance statistics are currently enabled.\n\nDo you want to turn them off so they are not active on next start?")
+            text: qsTr("General logging, MPV performance statistics and/or node telemetry are currently enabled.\n\nDo you want to turn them off so they are not active on next start?")
             wrapMode: Text.WordWrap
             Layout.fillWidth: true
         }
@@ -890,6 +890,7 @@ Kirigami.ApplicationWindow {
         onAccepted: {
             LoggingSettings.generalLoggingEnabled = false;
             LoggingSettings.performanceMetricsEnabled = false;
+            LoggingSettings.nodeTelemetryEnabled = false;
             LoggingSettings.save();
             app.sendQuitToNodes();
             closeTimer.start();

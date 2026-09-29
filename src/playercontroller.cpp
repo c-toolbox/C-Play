@@ -3,11 +3,13 @@
 #include "application.h"
 #include "httpserverthread.h"
 #include "imagesettings.h"
+#include "loggingsettings.h"
 #include "locationsettings.h"
 #include "mpvobject.h"
 #include "playbacksettings.h"
 #include "slidesmodel.h"
 #include "presentationsettings.h"
+#include "telemetry/nodetelemetry.h"
 #include "userinterfacesettings.h"
 #include "layers/controllayer.h"
 #include "layersmodel.h"
@@ -54,6 +56,11 @@ PlayerController::PlayerController(QObject *parent)
     connect(this, &PlayerController::mpvChanged,
             this, &PlayerController::setupConnections);
 
+    // Per-node telemetry rows are pushed from SGCT's network thread; the manager emits
+    // telemetryChanged on the GUI thread (queued), which we forward to QML.
+    connect(&NodeTelemetryManager::instance(), &NodeTelemetryManager::telemetryChanged,
+            this, &PlayerController::nodeTelemetryChanged);
+
     setupHttpServer();
 
     setBackgroundImageFile(ImageSettings::imageToLoadAsBackground());
@@ -68,6 +75,11 @@ PlayerController::PlayerController(QObject *parent)
 
     setNodeWindowsOnTop(UserInterfaceSettings::windowOnTopAtStartup());
     setNodeWindowOpacityContentBased(UserInterfaceSettings::windowOpacityContentBased());
+
+    // Restore the persisted node-telemetry toggle (master only; the manager ignores it on nodes).
+    NodeTelemetryManager::instance().setIntervalMs(LoggingSettings::nodeTelemetryInterval());
+    if (LoggingSettings::nodeTelemetryEnabled())
+        NodeTelemetryManager::instance().setEnabled(true);
 
     // Set up the Control layer dispatch callback
     ControlLayer::setDispatchCallback([this](const std::string& operation, const std::string& parameter) {
@@ -804,6 +816,33 @@ void PlayerController::setCaptureBackBuffer(bool backBuffer) {
     SyncHelper::instance().variables.captureBackBuffer = backBuffer;
 }
 
+QVariantList PlayerController::nodeTelemetry() const {
+    return NodeTelemetryManager::instance().telemetryList();
+}
+
+void PlayerController::setNodeTelemetryEnabled(bool enabled) {
+    LoggingSettings::setNodeTelemetryEnabled(enabled);
+    LoggingSettings::self()->save();
+    NodeTelemetryManager::instance().setEnabled(enabled);
+}
+
+bool PlayerController::nodeTelemetryEnabled() const {
+    return LoggingSettings::nodeTelemetryEnabled();
+}
+
+void PlayerController::setNodeTelemetryInterval(int ms) {
+    const int clamped = qBound(100, ms, 5000);
+    if (LoggingSettings::nodeTelemetryInterval() == clamped)
+        return;
+    LoggingSettings::setNodeTelemetryInterval(clamped);
+    LoggingSettings::self()->save();
+    NodeTelemetryManager::instance().setIntervalMs(clamped);
+}
+
+int PlayerController::nodeTelemetryInterval() const {
+    return LoggingSettings::nodeTelemetryInterval();
+}
+
 QString PlayerController::supportedImageNameFilters() const {
     QStringList exts = {
         QStringLiteral("*.bmp"),
@@ -874,6 +913,8 @@ void PlayerController::setMpv(MpvObject *mpv) {
     }
     m_mpv = mpv;
     httpServer->setMpv(mpv);
+    // The telemetry manager builds the master's own row from this instance.
+    NodeTelemetryManager::instance().setMasterMpv(mpv);
     Q_EMIT mpvChanged();
 }
 

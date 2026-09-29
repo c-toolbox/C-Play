@@ -20,9 +20,11 @@ Kirigami.ApplicationWindow {
     height: 560
     title: qsTr("Logging")
     visible: false
-    width: 720
+    width: 900
 
     ListModel { id: statsModel }
+
+    ListModel { id: nodeModel }
 
     onVisibleChanged: {
         if (visible) {
@@ -31,6 +33,41 @@ Kirigami.ApplicationWindow {
             // the main window never rises above its top corner.
             x = window.x + (window.width - width) / 2;
             y = Math.max(window.y, window.y + (window.height - height) / 2);
+            if (nodeTelemetryCheck.checked)
+                updateNodeTable();
+        }
+    }
+
+    Connections {
+        target: playerController
+        function onNodeTelemetryChanged() {
+            if (root.visible && nodeTelemetryCheck.checked)
+                updateNodeTable();
+        }
+    }
+
+    function fmt(v, digits) {
+        return (v === undefined || v === null) ? "-" : Number(v).toFixed(digits);
+    }
+
+    function updateNodeTable() {
+        nodeModel.clear();
+        const rows = playerController.nodeTelemetry;
+        if (!rows)
+            return;
+        for (const r of rows) {
+            nodeModel.append({
+                "rowName": r.name,
+                "rowOnline": r.online,
+                "rowFps": r.online ? fmt(r.fps, 1) : "-",
+                "rowVoDrops": r.online ? String(r.voDrops) : "-",
+                "rowDecDrops": r.online ? String(r.decoderDrops) : "-",
+                "rowOffset": r.online ? fmt(r.syncOffsetMs, 1) + " ms" : "-",
+                "rowGpu": (r.online && r.gpuLoad >= 0) ? fmt(r.gpuLoad, 0) + " %" : "n/a",
+                "rowDecoder": r.online ? ((r.hwCurrent && r.hwCurrent !== "no" ? r.hwCurrent : "sw") + " / " + (r.videoCodec || "-")) : "-",
+                "rowLayers": r.online ? String(r.layerCount) : "-",
+                "rowLatency": (r.online && r.latencyMs >= 0) ? fmt(r.latencyMs, 2) + " ms" : "n/a"
+            });
         }
     }
 
@@ -80,7 +117,7 @@ Kirigami.ApplicationWindow {
             }
         }
         Label {
-            text: qsTr("When enabled, all MPV log messages (debug level) are reported to the console/log file. When disabled, only errors are reported.")
+            text: qsTr("When enabled, all MPV log messages (debug level) and application debug output are reported to the console and appended to data/log/cplay_general.log. When disabled, only errors are reported.")
             font.italic: true
             opacity: 0.7
             wrapMode: Text.WordWrap
@@ -165,6 +202,100 @@ Kirigami.ApplicationWindow {
             ScrollBar.vertical: ScrollBar {}
         }
 
-        Item { Layout.fillHeight: true; visible: !perfMetricsCheck.checked }
+        Label {
+            text: qsTr("Node telemetry")
+            font.pointSize: 14
+            font.bold: true
+            Layout.topMargin: Kirigami.Units.largeSpacing
+        }
+        CheckBox {
+            id: nodeTelemetryCheck
+            checked: LoggingSettings.nodeTelemetryEnabled
+            text: qsTr("Enable per-node telemetry (FPS, dropped frames, sync offset, GPU load, decoder state, latency)")
+            onCheckedChanged: {
+                if (checked !== LoggingSettings.nodeTelemetryEnabled) {
+                    LoggingSettings.nodeTelemetryEnabled = checked;
+                    LoggingSettings.save();
+                }
+                playerController.setNodeTelemetryEnabled(checked);
+                if (checked)
+                    updateNodeTable();
+            }
+        }
+        Label {
+            visible: nodeTelemetryCheck.checked
+            text: qsTr("Nodes report once per second over the cluster data-transfer channel. Latency is the sync round-trip time measured by the master. GPU load is only available on Windows nodes. A node is marked offline when no report arrives for 3 seconds.")
+            font.italic: true
+            opacity: 0.7
+            wrapMode: Text.WordWrap
+            Layout.fillWidth: true
+        }
+
+        ListView {
+            id: nodeTable
+            visible: nodeTelemetryCheck.checked
+            clip: true
+            Layout.fillWidth: true
+            Layout.fillHeight: true
+            Layout.minimumHeight: 120
+
+            model: nodeModel
+
+            header: RowLayout {
+                width: nodeTable.width
+                spacing: Kirigami.Units.smallSpacing
+
+                Label { text: qsTr("Node"); font.bold: true; Layout.fillWidth: true }
+                Label { text: qsTr("FPS"); font.bold: true; Layout.preferredWidth: 52 }
+                Label { text: qsTr("VO drops"); font.bold: true; Layout.preferredWidth: 70 }
+                Label { text: qsTr("Dec drops"); font.bold: true; Layout.preferredWidth: 70 }
+                Label { text: qsTr("Sync offset"); font.bold: true; Layout.preferredWidth: 82 }
+                Label { text: qsTr("GPU"); font.bold: true; Layout.preferredWidth: 46 }
+                Label { text: qsTr("Decoder"); font.bold: true; Layout.preferredWidth: 120 }
+                Label { text: qsTr("Layers"); font.bold: true; Layout.preferredWidth: 48 }
+                Label { text: qsTr("Latency"); font.bold: true; Layout.preferredWidth: 76 }
+                Label { text: qsTr("Status"); font.bold: true; Layout.preferredWidth: 60 }
+            }
+
+            delegate: RowLayout {
+                width: nodeTable.width
+                spacing: Kirigami.Units.smallSpacing
+
+                Label { text: model.rowName; elide: Text.ElideRight; Layout.fillWidth: true }
+                Label {
+                    text: model.rowFps
+                    Layout.preferredWidth: 52
+                    color: model.rowOnline && Number(model.rowFps) < 24 ? "orange" : Kirigami.Theme.textColor
+                }
+                Label {
+                    text: model.rowVoDrops
+                    Layout.preferredWidth: 70
+                    color: model.rowOnline && Number(model.rowVoDrops) > 0 ? "orange" : Kirigami.Theme.textColor
+                }
+                Label {
+                    text: model.rowDecDrops
+                    Layout.preferredWidth: 70
+                    color: model.rowOnline && Number(model.rowDecDrops) > 0 ? "orange" : Kirigami.Theme.textColor
+                }
+                Label {
+                    text: model.rowOffset
+                    Layout.preferredWidth: 82
+                    color: model.rowOnline && Number(model.rowOffset) > 100 ? "crimson" : Kirigami.Theme.textColor
+                }
+                Label { text: model.rowGpu; Layout.preferredWidth: 46 }
+                Label { text: model.rowDecoder; elide: Text.ElideRight; Layout.preferredWidth: 120 }
+                Label { text: model.rowLayers; Layout.preferredWidth: 48 }
+                Label { text: model.rowLatency; Layout.preferredWidth: 76 }
+                Label {
+                    text: model.rowOnline ? qsTr("online") : qsTr("offline")
+                    Layout.preferredWidth: 60
+                    color: model.rowOnline ? "lime" : "crimson"
+                }
+            }
+
+            ScrollBar.vertical: ScrollBar {}
+        }
+
+        Item { Layout.fillHeight: true; visible: !perfMetricsCheck.checked && !nodeTelemetryCheck.checked }
     }
 }

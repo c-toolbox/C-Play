@@ -17,6 +17,7 @@
 #include "screensmodel.h"
 #include "slidesmodel.h"
 #include "slidesqtitem.h"
+#include "telemetry/nodetelemetry.h"
 
 #ifdef JACK_SUPPORT
 #include <jack/jack.h>
@@ -164,6 +165,14 @@ Application::Application(int &argc, char **argv, const QString &applicationName)
     // Application::instance() before create() has finished assigning _instance,
     // which would throw std::logic_error and abort the process.
     _instance = this;
+
+    // Node telemetry: construct its QObject singleton here - on the main thread and only now
+    // that QApplication (m_app) exists. It must not be created earlier in main(): SGCT's
+    // network threads are already running by then, and a QObject constructed before the GUI
+    // app is up (or from a non-main thread winning the construction race) corrupts Qt's
+    // main-thread bookkeeping and crashes at launch. From this point on the dataTransfer
+    // callbacks may touch the manager: instance() flips NodeTelemetryManager::isReady().
+    NodeTelemetryManager::instance();
 
     m_config = KSharedConfig::openConfig(QStringLiteral("C-Play/cplay.conf"));
     m_shortcuts = new KConfigGroup(m_config, QStringLiteral("Shortcuts"));

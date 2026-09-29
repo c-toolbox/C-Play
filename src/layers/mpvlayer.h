@@ -169,6 +169,15 @@ public:
     void updateFrameSyncSettings();
     void applyFrameSyncCorrection(double masterPos, double slavePos, double baseSpeed);
 
+    // --- Telemetry accessors (used by NodeTelemetryManager on nodes) ---
+    // True when this layer has a live mpv handle with media loaded.
+    bool telemetryActive() const {
+        return m_data.handle && m_data.mpvInitialized && !m_data.loadedFile.empty();
+    }
+    mpv_handle *telemetryHandle() const { return m_data.handle; }
+    // True when this layer plays a live stream (no meaningful sync offset).
+    bool telemetryIsStream() const { return m_data.isStream; }
+
 protected:
     mpvData m_data;
     gl_adress_func_v1 m_openglProcAdr;

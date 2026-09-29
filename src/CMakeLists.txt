@@ -8,7 +8,7 @@ set(CPLAY_VERSION_MAJOR 2)
 set(CPLAY_VERSION_MINOR 4)
 set(CPLAY_VERSION_PATCH 0)
 set(CPLAY_VERSION_PR_NAME "Beta")
-set(CPLAY_VERSION_PR_VERS 11)
+set(CPLAY_VERSION_PR_VERS 12)
 
 qt_add_executable(${TARGET_NAME})
 set_compile_options(${TARGET_NAME})
@@ -87,6 +87,8 @@ set(SOURCE_FILES
     slidesmodel.h
     slidesqtitem.cpp
     slidesqtitem.h
+    telemetry/nodetelemetry.cpp
+    telemetry/nodetelemetry.h
     track.cpp
     track.h
     tracksmodel.cpp
@@ -97,6 +99,8 @@ set(SOURCE_FILES
     utils/domegrid.h
     utils/dividetexturehandler.cpp
     utils/dividetexturehandler.h
+    utils/gpuload.cpp
+    utils/gpuload.h
     utils/framesynccontroller.cpp
     utils/framesynccontroller.h
     utils/planegrid.cpp
@@ -113,6 +117,8 @@ set(SOURCE_FILES
     utils/spheregrid.h
     utils/imagesequenceutils.cpp
     utils/imagesequenceutils.h
+    utils/logfilewriter.cpp
+    utils/logfilewriter.h
     utils/multivideoconfig.cpp
     utils/multivideoconfig.h
     utils/nodeidentityconfig.cpp
@@ -556,6 +562,8 @@ endif()
 find_package(OpenGL REQUIRED)
 if(WIN32)
     list(APPEND TARGET_LIBRARIES opengl32)
+    # Node telemetry: GPU Engine utilization counters (GpuLoadProbe).
+    list(APPEND TARGET_LIBRARIES pdh)
     if(BUILD_CPLAY_WITH_MEDIA_MTX)
         # Windows Credential Manager lookups for MediaMTX server passwords (CredReadW).
         list(APPEND TARGET_LIBRARIES advapi32)

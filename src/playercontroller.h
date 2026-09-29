@@ -59,6 +59,17 @@ public:
         WRITE setMasterNdiName
         NOTIFY masterNdiNameChanged)
 
+    // Per-node health table (FPS, drops, sync offset, GPU load, decoder state, latency),
+    // collected from the cluster nodes over SGCT's DataTransfer channel.
+    Q_PROPERTY(QVariantList nodeTelemetry
+        READ nodeTelemetry
+        NOTIFY nodeTelemetryChanged)
+
+    Q_INVOKABLE void setNodeTelemetryEnabled(bool enabled);
+    Q_INVOKABLE bool nodeTelemetryEnabled() const;
+    Q_INVOKABLE void setNodeTelemetryInterval(int ms);
+    Q_INVOKABLE int nodeTelemetryInterval() const;
+
     Q_INVOKABLE QString supportedImageNameFilters() const;
     Q_INVOKABLE QStringList supportedImageDecoderNames() const;
     Q_INVOKABLE QString imageRingBufferGpuMemoryText(int percent) const;
@@ -190,6 +201,7 @@ Q_SIGNALS:
     void nodeWindowOpacityChanged();
     void nodeWindowOpacityContentBasedChanged();
     void syncPropertiesChanged();
+    void nodeTelemetryChanged();
 
 private:
     MpvObject *mpv() const;
@@ -197,6 +209,8 @@ private:
 
     SlidesModel *slidesModel() const;
     void setSlidesModel(SlidesModel* sm);
+
+    QVariantList nodeTelemetry() const;
 
     void setupHttpServer();
 

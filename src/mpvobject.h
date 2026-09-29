@@ -280,6 +280,10 @@ public:
     QString mediaTitle();
     QString separateAudioFile();
 
+    // Raw mpv handle for read-only telemetry collection by NodeTelemetryManager's
+    // master row (nullptr before initialization). mpv's client API is thread-safe.
+    mpv_handle *telemetryHandle() const { return mpv; }
+
     double position();
     void setPosition(double value);
 
@@ -584,6 +588,7 @@ private:
 
     // Logging settings (Settings > Logging)
     bool m_loggingEnabled = false;
+    int m_generalLogFileId = -1;  // LogFileWriter id of data/log/cplay_general.log while general logging is on
     bool m_performanceMetricsEnabled = false;
     QTimer *m_perfTimer = nullptr;
     QVariantMap m_performanceStats;
