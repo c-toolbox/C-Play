@@ -101,21 +101,24 @@ SettingsBasePage {
                 text: qsTr("Node window opacity mode:")
             }
             RowLayout {
-                ComboBox {
-                    id: nodeWindowOpacityModeCombo
+                CheckBox {
+                    id: nodeWindowOpacityContentBasedCheckBox
 
-                    model: [qsTr("Complete window (uniform fade)"), qsTr("Content-based (alpha channel)")]
+                    checked: playerController.nodeWindowOpacityContentBased
+                    text: qsTr("Content-based (alpha channel)")
 
-                    Component.onCompleted: currentIndex = UserInterfaceSettings.nodeWindowOpacityMode === "complete-window" ? 0 : 1
-                    onActivated: {
-                        UserInterfaceSettings.nodeWindowOpacityMode = index === 0 ? "complete-window" : "content-based";
+                    onCheckedChanged: {
+                        // Update the synced state so the nodes switch mode immediately, and
+                        // persist it for the next startup.
+                        playerController.nodeWindowOpacityContentBased = checked;
+                        UserInterfaceSettings.windowOpacityContentBased = checked;
                         UserInterfaceSettings.save();
                     }
                 }
                 LabelWithTooltip {
                     Layout.fillWidth: true
                     elide: Text.ElideRight
-                    text: qsTr("How the node window opacity is applied. Applies to node windows created by this process; requires restarting the node.")
+                    text: qsTr("How the node window opacity is applied to the nodes. Unchecked fades the complete window uniformly, content included; checked only fades the unrendered/background areas between opaque black and fully transparent.")
                 }
             }
             Item {

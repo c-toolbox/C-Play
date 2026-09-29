@@ -119,9 +119,9 @@
     <entry name="WindowFadeDuration" type="int">
       <default>2000</default>
     </entry>
-    <entry name="NodeWindowOpacityMode" type="String">
-      <label>How the node window opacity is applied: complete-window (uniform whole-window fade) or content-based (alpha channel and clear color)</label>
-      <default>complete-window</default>
+    <entry name="WindowOpacityContentBased" type="bool">
+      <label>How the node window opacity is applied: false = complete-window (uniform whole-window fade), true = content-based (alpha channel and clear color)</label>
+      <default>false</default>
     </entry>
     <entry name="FloatingWindowShowsMainVideoLayer" type="bool">
       <default>true</default>

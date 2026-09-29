@@ -39,6 +39,11 @@ public:
         WRITE setNodeWindowsOpacity
         NOTIFY nodeWindowOpacityChanged)
 
+    Q_PROPERTY(bool nodeWindowOpacityContentBased
+        READ nodeWindowOpacityContentBased
+        WRITE setNodeWindowOpacityContentBased
+        NOTIFY nodeWindowOpacityContentBasedChanged)
+
     Q_PROPERTY(bool syncProperties
         READ syncProperties
         WRITE setSyncProperties
@@ -142,6 +147,9 @@ public Q_SLOTS:
     float nodeWindowsOpacity();
     void setNodeWindowsOpacity(float value);
 
+    bool nodeWindowOpacityContentBased();
+    void setNodeWindowOpacityContentBased(bool value);
+
     bool syncProperties();
     void setSyncProperties(bool value);
 
@@ -180,6 +188,7 @@ Q_SIGNALS:
     void rewindMediaOnEOFChanged();
     void nodeWindowOnTopChanged();
     void nodeWindowOpacityChanged();
+    void nodeWindowOpacityContentBasedChanged();
     void syncPropertiesChanged();
 
 private:

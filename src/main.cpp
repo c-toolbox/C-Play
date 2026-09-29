@@ -30,7 +30,6 @@
 #include <atomic>
 #include <mutex>
 #include <slidesmodel.h>
-#include "userinterfacesettings.h"
 
 #ifdef MDK_SUPPORT
 #include <mdk/global.h>
@@ -53,12 +52,6 @@ std::ofstream logFile;
 std::string logFilePath = "";
 std::string logLevel = "";
 std::string startupFile = "";
-
-// How the synced node window opacity is applied to this process's windows: "complete-window"
-// (default) uses a uniform whole-window fade via glfwSetWindowOpacity(), "content-based"
-// drives the background clear color alpha so unrendered areas fade between opaque black and
-// fully transparent. Read from kcfg at startup; changing it requires restarting the node.
-std::string nodeWindowOpacityMode = "complete-window";
 
 // The cluster configuration of this process, stored at file scope so the preWindow callback
 // (a plain function pointer) can inspect which of this node's windows are fullscreen right
@@ -272,7 +265,8 @@ static std::vector<std::byte> encode() {
             }
             serializeObject(data, SyncHelper::instance().variables.windowOnTop);
             serializeObject(data, SyncHelper::instance().variables.windowOpacity);
-            
+            serializeObject(data, SyncHelper::instance().variables.windowOpacityContentBased);
+
             // Screenshot
             serializeObject(data, SyncHelper::instance().variables.takeScreenshot);
             if (SyncHelper::instance().variables.takeScreenshot) {
@@ -587,6 +581,7 @@ static void decode(const std::vector<std::byte> &data) {
             }
             deserializeObject(data, pos, SyncHelper::instance().variables.windowOnTop);
             deserializeObject(data, pos, SyncHelper::instance().variables.windowOpacity);
+            deserializeObject(data, pos, SyncHelper::instance().variables.windowOpacityContentBased);
 
             // Screenshot
             if (!safeToRead()) return;
@@ -725,15 +720,17 @@ static void syncNodeWindowFeatures() {
     const float targetOpacity = SyncHelper::instance().variables.windowOpacity;
     const int newWinOnTop = (SyncHelper::instance().variables.windowOnTop ? 1 : 0);
 
-    // In "content-based" mode the uniform glfwSetWindowOpacity() call is skipped for all
-    // windows, because GLFW forbids combining it with a transparent framebuffer on the same
-    // window ("the results of doing this are undefined"). Fullscreen windows (opaque pixel
-    // format) therefore stay at full opacity in that mode; on-top (Z-order) still applies in
-    // both modes.
-    const bool allowUniformOpacity = (nodeWindowOpacityMode == "complete-window");
+    // How the master wants the synced opacity applied: "complete-window" uses a uniform
+    // whole-window fade via glfwSetWindowOpacity(); "content-based" skips it, because GLFW
+    // forbids combining it with a transparent framebuffer on the same window ("the results of
+    // doing this are undefined"), and instead drives the background clear color alpha in
+    // draw(). Fullscreen windows (opaque pixel format) therefore stay at full opacity in that
+    // mode; on-top (Z-order) still applies in both modes. The mode is synced from the master,
+    // so it can change while this node is running.
+    const bool contentBased = SyncHelper::instance().variables.windowOpacityContentBased;
 
     for (const std::unique_ptr<Window> &win : Engine::instance().thisNode().windows()) {
-        if (allowUniformOpacity) {
+        if (!contentBased) {
             // Compare with a small epsilon: layered window alpha is quantized to 1/255,
             // so an exact float comparison would re-apply the same value every frame.
             const float currentOpacity = glfwGetWindowOpacity(win->windowHandle());
@@ -741,6 +738,11 @@ static void syncNodeWindowFeatures() {
             if (opacityDiff > 1.f / 256.f || opacityDiff < -1.f / 256.f) {
                 glfwSetWindowOpacity(win->windowHandle(), targetOpacity);
             }
+        } else if (glfwGetWindowOpacity(win->windowHandle()) < 1.f - 1.f / 256.f) {
+            // The mode was switched to content-based while a uniform fade from the
+            // complete-window state is still active; reset it so only the clear color alpha
+            // drives transparency (setting 1.0 removes the layered window attribute).
+            glfwSetWindowOpacity(win->windowHandle(), 1.f);
         }
 
         if (newWinOnTop != glfwGetWindowAttrib(win->windowHandle(), GLFW_FLOATING)) {
@@ -1350,18 +1352,21 @@ static void draw(const RenderData &data) {
 
     glDisable(GL_BLEND);
 
-    if (nodeWindowOpacityMode == "content-based") {
-        // The synced window opacity drives the background clear color alpha. Re-clear this
-        // viewport's FBO region: SGCT already set the scissor rect for exactly this viewport/eye
-        // in setupViewport() and disabled the test after its own (0,0,0,0) clear but left the
-        // rect. This replaces that hardcoded clear for this region without touching SGCT, so
-        // unrendered areas fade between opaque black and fully transparent while rendered
-        // content keeps its own per-pixel alpha.
-        glEnable(GL_SCISSOR_TEST);
+    // The synced window opacity drives the background clear color alpha. Re-clear this
+    // viewport's FBO region: SGCT already set the scissor rect for exactly this viewport/eye
+    // in setupViewport() and disabled the test after its own (0,0,0,0) clear but left the
+    // rect. This replaces that hardcoded clear for this region without touching SGCT, so
+    // unrendered areas fade between opaque black and fully transparent while rendered
+    // content keeps its own per-pixel alpha.
+    glEnable(GL_SCISSOR_TEST);
+    if (SyncHelper::instance().variables.windowOpacityContentBased) {
         glClearColor(0.f, 0.f, 0.f, SyncHelper::instance().variables.windowOpacity);
-        glClear(GL_COLOR_BUFFER_BIT);
-        glDisable(GL_SCISSOR_TEST);
     }
+    else {
+        glClearColor(0.f, 0.f, 0.f, 1.f);
+    }
+    glClear(GL_COLOR_BUFFER_BIT);
+    glDisable(GL_SCISSOR_TEST);
 
     // Render layers
     layerRender->renderLayers(data,
@@ -1431,26 +1436,6 @@ static void logging(Log::Level, std::string_view message) {
 }
 
 int main(int argc, char *argv[]) {
-    // Set organization/application names before any QCoreApplication instance exists so that
-    // KConfig resolves the same cplay.conf on headless nodes (the master process sets identical
-    // values in application.cpp).
-    QCoreApplication::setOrganizationName(QStringLiteral("C-Play"));
-    QCoreApplication::setApplicationName(QStringLiteral("C-Play"));
-
-    std::string opacityMode = UserInterfaceSettings::nodeWindowOpacityMode().toStdString();
-    // Map the pre-rename values so existing cplay.conf files keep their chosen mode.
-    if (opacityMode == "window") {
-        opacityMode = "complete-window";
-    } else if (opacityMode == "framebuffer") {
-        opacityMode = "content-based";
-    }
-    if (opacityMode != "complete-window" && opacityMode != "content-based") {
-        Log::Warning(std::format("Invalid node window opacity mode '{}'. Falling back to 'complete-window'", opacityMode));
-        opacityMode = "complete-window";
-    }
-    nodeWindowOpacityMode = opacityMode;
-    Log::Info(std::format("Node window opacity mode: {}", nodeWindowOpacityMode));
-
     std::vector<std::string> arg(argv + 1, argv + argc);
     Configuration config = parseArguments(arg);
     clusterConfig = loadCluster(config.configFilename);

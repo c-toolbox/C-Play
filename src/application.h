@@ -517,6 +517,7 @@ public:
         double loopTimeB;
         bool windowOnTop;
         float windowOpacity;
+        bool windowOpacityContentBased;
         bool takeScreenshot;
         std::string screenshotPath;
         bool captureBackBuffer;
@@ -614,6 +615,7 @@ public:
         /*loopTimeB*/ 0,
         /*windowOnTop*/ false,
         /*windowOpacity*/ 1.f,
+        /*windowOpacityContentBased*/ false,
         /*takeScreenshot*/ false,
         /*screenshotPath*/ "",
         /*captureBackBuffer*/ false,

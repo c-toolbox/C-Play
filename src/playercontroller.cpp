@@ -67,6 +67,7 @@ PlayerController::PlayerController(QObject *parent)
     setRewindMediaOnEOF(PlaybackSettings::rewindOnEOFwhenPause());
 
     setNodeWindowsOnTop(UserInterfaceSettings::windowOnTopAtStartup());
+    setNodeWindowOpacityContentBased(UserInterfaceSettings::windowOpacityContentBased());
 
     // Set up the Control layer dispatch callback
     ControlLayer::setDispatchCallback([this](const std::string& operation, const std::string& parameter) {
@@ -771,6 +772,17 @@ void PlayerController::setNodeWindowsOpacity(float value) {
     SyncHelper::instance().variables.playerControllerNeedSync = true;
 
     Q_EMIT nodeWindowOpacityChanged();
+}
+
+bool PlayerController::nodeWindowOpacityContentBased() {
+    return SyncHelper::instance().variables.windowOpacityContentBased;
+}
+
+void PlayerController::setNodeWindowOpacityContentBased(bool value) {
+    SyncHelper::instance().variables.windowOpacityContentBased = value;
+    SyncHelper::instance().variables.playerControllerNeedSync = true;
+
+    Q_EMIT nodeWindowOpacityContentBasedChanged();
 }
 
 bool PlayerController::syncProperties() {
