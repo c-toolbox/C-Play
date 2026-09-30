@@ -18,6 +18,7 @@
 #include "qthelper.h"
 #include "tracksmodel.h"
 #include "utils/framesynccontroller.h"
+#include <atomic>
 #include <client.h>
 #include <mutex>
 #include <render_gl.h>
@@ -530,8 +531,11 @@ private:
     mpv_render_context *mpv_gl;
     QOpenGLFramebufferObject* mpv_fbo;
     std::vector<MpvView*> mpv_views;
-    std::mutex m_renderMutex;
-    bool m_fboReady = false;
+    // Recursive + mutable so it can be locked from const getters and from
+    // addView()/removeView() without risking self-deadlock when those are
+    // reached from an already-locked call stack (e.g. updatePlane()).
+    mutable std::recursive_mutex m_renderMutex;
+    std::atomic<bool> m_fboReady = false;
 
     friend class MpvRenderer;
     friend class MpvView;

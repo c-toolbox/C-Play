@@ -260,7 +260,8 @@ MpvObject::~MpvObject() {
     mpv_terminate_destroy(mpv);
 
     {
-        std::lock_guard<std::mutex> lock(m_renderMutex);
+        std::lock_guard<std::recursive_mutex> lock(m_renderMutex);
+        m_fboReady = false;
         if (mpv_fbo) {
             delete mpv_fbo;
             mpv_fbo = nullptr;
@@ -1826,11 +1827,11 @@ void MpvObject::eventHandler() {
                 mpv_get_property(mpv, "dheight", MPV_FORMAT_INT64, &h) >= 0 &&
                 w > 0 && h > 0) {
                 {
-                    std::lock_guard<std::mutex> lock(m_renderMutex);
+                    std::lock_guard<std::recursive_mutex> lock(m_renderMutex);
                     m_pendingVideoWidth = (int)w;
                     m_pendingVideoHeight = (int)h;
+                    m_fboReady = false;
                 }
-                m_fboReady = false;
                 Q_EMIT planeChanged();
             }
             break;
@@ -1922,12 +1923,12 @@ void MpvObject::eventHandler() {
                     int newW = vm[QStringLiteral("w")].toInt();
                     int newH = vm[QStringLiteral("h")].toInt();
                     {
-                        std::lock_guard<std::mutex> lock(m_renderMutex);
+                        std::lock_guard<std::recursive_mutex> lock(m_renderMutex);
                         m_pendingVideoWidth = newW;
                         m_pendingVideoHeight = newH;
-                    }
-                    if (newW != m_videoWidth || newH != m_videoHeight) {
-                        m_fboReady = false;
+                        if (newW != m_videoWidth || newH != m_videoHeight) {
+                            m_fboReady = false;
+                        }
                     }
                     Q_EMIT planeChanged();
                 }
@@ -2080,14 +2081,16 @@ void MpvObject::applyFrameSyncCorrection(double masterPos, double slavePos, doub
 }
 
 unsigned int MpvObject::fboTextureId() const {
+    std::lock_guard<std::recursive_mutex> lock(m_renderMutex);
     if (mpv_fbo)
         return static_cast<unsigned int>(mpv_fbo->texture());
-    else if(!mpv_views.empty() && mpv_views[0] && mpv_views[0]->fboObject())
+    else if (!mpv_views.empty() && mpv_views[0] && mpv_views[0]->fboObject())
         return static_cast<unsigned int>(mpv_views[0]->fboObject()->texture());
     return 0;
 }
 
 int MpvObject::fboWidth() const {
+    std::lock_guard<std::recursive_mutex> lock(m_renderMutex);
     if (mpv_fbo)
         return mpv_fbo->width();
     else if (!mpv_views.empty() && mpv_views[0] && mpv_views[0]->fboObject())
@@ -2096,6 +2099,7 @@ int MpvObject::fboWidth() const {
 }
 
 int MpvObject::fboHeight() const {
+    std::lock_guard<std::recursive_mutex> lock(m_renderMutex);
     if (mpv_fbo)
         return mpv_fbo->height();
     else if (!mpv_views.empty() && mpv_views[0] && mpv_views[0]->fboObject())
@@ -2169,7 +2173,9 @@ void MpvObject::onFrameSwapped() {
         return;
     mpv_render_context_report_swap(mpv_gl);
 
-    // Also report for all attached MpvView instances
+    // Also report for all attached MpvView instances. mpv_views is mutated on
+    // the GUI thread (addView/removeView), so iterate under the same lock.
+    std::lock_guard<std::recursive_mutex> lock(m_renderMutex);
     for (MpvView* view : mpv_views) {
         if (view && view->obj && view->obj->mpv_gl) {
             mpv_render_context_report_swap(view->obj->mpv_gl);
@@ -2399,12 +2405,18 @@ QString MpvObject::md5(const QString &str) {
 void MpvObject::addView(MpvView* view) {
     if (!view)
         return;
+    // mpv_views is read by the render thread (fboTextureId/fboWidth/fboHeight
+    // and MpvRenderer::render) under m_renderMutex, so every mutation has to
+    // take the same lock. Without this the render thread can observe a
+    // half-resized vector and dereference a dangling mpv_views[0].
+    std::lock_guard<std::recursive_mutex> lock(m_renderMutex);
     mpv_views.push_back(view);
     std::sort(mpv_views.begin(), mpv_views.end());
     mpv_views.erase(std::unique(mpv_views.begin(), mpv_views.end()), mpv_views.end());
 }
 
 void MpvObject::removeView(MpvView* view) {
+    std::lock_guard<std::recursive_mutex> lock(m_renderMutex);
     auto it = std::find(mpv_views.begin(), mpv_views.end(), view);
     if (it != mpv_views.end()) { 
         mpv_views.erase(it);
@@ -2475,7 +2487,7 @@ void MpvRenderer::render() {
         return;
     }
 
-    std::lock_guard<std::mutex> lock(view->obj->m_renderMutex);
+    std::lock_guard<std::recursive_mutex> lock(view->obj->m_renderMutex);
 
     view->fbo = framebufferObject();
 

@@ -2070,10 +2070,14 @@ void LayersRendererQtOpenGLObject::renderMpvObject(MpvObject* mpv, int eyeMode, 
     if (!mpv)
         return;
 
+    // Take the lock *before* inspecting any FBO state: reading m_fboReady
+    // outside the mutex was a TOCTOU race against the GUI thread clearing it
+    // (MPV_EVENT_START_FILE / VIDEO_RECONFIG) and against the render thread
+    // recreating mpv_fbo.
+    std::lock_guard<std::recursive_mutex> lock(mpv->m_renderMutex);
+
     if (!mpv->m_fboReady)
         return;
-
-    std::lock_guard<std::mutex> lock(mpv->m_renderMutex);
 
     const unsigned int texId = mpv->fboTextureId();
     const float alpha = static_cast<float>(mpv->visibility()) / 100.f;
