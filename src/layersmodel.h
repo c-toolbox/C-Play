@@ -15,6 +15,7 @@
 #include <QSet>
 #include <QVector>
 #include <memory>
+#include <mutex>
 
 class QTimer;
 
@@ -320,6 +321,13 @@ private:
 
     Layers m_layers;
     QSet<BaseLayer *> m_draggedLayersAwaitingGridGuess;
+    // Guards m_layers / m_draggedLayersAwaitingGridGuess against the render thread
+    // (SlidesQtItemRenderer::update -> runRenderOnLayersThatShouldUpdate), which
+    // iterates them while the GUI thread adds/removes layers via drag-and-drop.
+    // Without this, m_layers.push_back() reallocating the QList dangles the render
+    // thread's reference (use-after-free) and concurrent QSet access corrupts the
+    // hash, which is what makes adding several layers at once stall and crash.
+    mutable std::recursive_mutex m_layersMutex;
     LayersTypeModel *m_layerTypeModel;
     BaseLayer::LayerHierarchy m_layerHierachy;
     int m_layersVisibility = 0;

@@ -16,6 +16,7 @@
 #include <QJsonDocument>
 #include <QJsonObject>
 #include <QTimer>
+#include <QThread>
 
 SlideVisibilityModel::SlideVisibilityModel(QList<QSharedPointer<LayersModel>>* slideList, QObject* parent)
     : QAbstractTableModel(parent), m_slideList(slideList){
@@ -835,6 +836,13 @@ void SlidesModel::moveSlideDown(int i) {
 
 void SlidesModel::updateSlide(int i) {
     if (i >= 0 && i < m_slides.size()) {
+        // Called from the render thread too (layer status changes inside
+        // runRenderOnLayersThatShouldUpdate), and emitting model signals into QML
+        // from there is not allowed. Bounce it onto the thread the model lives on.
+        if (QThread::currentThread() != thread()) {
+            QMetaObject::invokeMethod(this, [this, i]() { updateSlide(i); }, Qt::QueuedConnection);
+            return;
+        }
         Q_EMIT dataChanged(index(i, 0), index(i, 0));
     }
 }

@@ -614,11 +614,30 @@ Rectangle {
 
                     onDropped: function(drop) {
                         if(app.slides.selected.layersEnabled){
+                            // Pause the render thread's layer updates while the batch is
+                            // inserted, exactly like the clear/remove operations do. Without
+                            // this the render loop starts loading every layer as it appears,
+                            // competing with the GUI thread for the model and stalling the UI.
+                            busyIndicator = true;
+                            app.slides.pauseLayerUpdate = true;
+
+                            // Add every file first and only point the layer view at the
+                            // last one afterwards. Rebinding layerIdx per file made the
+                            // preview tear down and re-attach its layer (and repaint the
+                            // window) once per dropped file, which stalled the UI when a
+                            // handful of images came in at the same time.
+                            var lastAdded = -1;
                             for(var i in drop.urls){
-                                layerView.layerItem.layerIdx = app.slides.selected.addLayerBasedOnMime(drop.urls[i]);          
+                                var idx = app.slides.selected.addLayerBasedOnMime(drop.urls[i]);
+                                if(idx >= 0)
+                                    lastAdded = idx;
                             }
+                            if(lastAdded >= 0)
+                                layerView.layerItem.layerIdx = lastAdded;
+
                             app.slides.updateSelectedSlide();
                             mpv.focus = true;
+                            addDroppedLayersTimer.start();
                         }
                     }
                 }
@@ -679,6 +698,18 @@ Rectangle {
             if(app.slides.selected.layersEnabled){
                 app.slides.selected.clearLayers();
             }
+            app.slides.updateSelectedSlide();
+            app.slides.pauseLayerUpdate = false;
+            busyIndicator = false;
+        }
+    }
+    Timer {
+        id: addDroppedLayersTimer
+
+        interval: 500
+        repeat: false
+
+        onTriggered: {
             app.slides.updateSelectedSlide();
             app.slides.pauseLayerUpdate = false;
             busyIndicator = false;

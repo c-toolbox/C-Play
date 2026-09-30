@@ -46,6 +46,7 @@
 #include <QQuickView>
 #include <QMimeDatabase>
 #include <QTimer>
+#include <QThread>
 
 static void *get_proc_address_qopengl_v1(void* ctx, const char *name) {
     Q_UNUSED(ctx)
@@ -81,6 +82,7 @@ LayersModel::LayersModel(QObject *parent)
 }
 
 LayersModel::~LayersModel() {
+    std::lock_guard<std::recursive_mutex> layersLock(m_layersMutex);
     m_layers.clear();
 }
 
@@ -183,10 +185,12 @@ QHash<int, QByteArray> LayersModel::roleNames() const {
 }
 
 Layers LayersModel::getLayers() const {
+    std::lock_guard<std::recursive_mutex> layersLock(m_layersMutex);
     return m_layers;
 }
 
 void LayersModel::setLayers(const Layers &layers) {
+    std::lock_guard<std::recursive_mutex> layersLock(m_layersMutex);
     beginResetModel();
     m_draggedLayersAwaitingGridGuess.clear();
     m_layers = layers;
@@ -209,7 +213,8 @@ void LayersModel::setHierarchy(BaseLayer::LayerHierarchy h) {
 }
 
 int LayersModel::numberOfLayers() {
-    return m_layers.size();
+    std::lock_guard<std::recursive_mutex> layersLock(m_layersMutex);
+    return static_cast<int>(m_layers.size());
 }
 
 bool LayersModel::needsSync() {
@@ -226,6 +231,7 @@ void LayersModel::setHasSynced() {
 }
 
 BaseLayer *LayersModel::layer(int i) {
+    std::lock_guard<std::recursive_mutex> layersLock(m_layersMutex);
     if (i >= 0 && m_layers.size() > i && m_layers[i].first)
         return m_layers[i].first.get();
     else
@@ -233,6 +239,7 @@ BaseLayer *LayersModel::layer(int i) {
 }
 
 std::shared_ptr<BaseLayer> LayersModel::layerShared(int i) {
+    std::lock_guard<std::recursive_mutex> layersLock(m_layersMutex);
     if (i >= 0 && m_layers.size() > i)
         return m_layers[i].first;
     else
@@ -315,6 +322,11 @@ int LayersModel::maxLayerStatus() {
 }
 
 int LayersModel::addLayer(QString title, int type, QString filepath, int stereoMode, int gridMode) {
+    // Serialize against the render thread, which iterates m_layers every frame
+    // (SlidesQtItemRenderer::update -> runRenderOnLayersThatShouldUpdate). Adding
+    // several layers via drag-and-drop used to realloc the QList underneath the
+    // render thread, dangling its reference and crashing the app.
+    std::lock_guard<std::recursive_mutex> layersLock(m_layersMutex);
     // Create new layer
     BaseLayer *newLayer = BaseLayer::createLayer(true, type, get_proc_address_qopengl_v1, get_proc_address_qopengl_v2, title.toStdString());
 
@@ -457,6 +469,7 @@ int LayersModel::getLayerTypeBasedOnMime(QUrl fileUrl) {
 }
 
 int LayersModel::addLayerBasedOnMime(QUrl fileUrl) {
+    std::lock_guard<std::recursive_mutex> layersLock(m_layersMutex);
     int type = getLayerTypeBasedOnMime(fileUrl);
     if (type == BaseLayer::LayerType::INVALID)
         return -1;
@@ -479,6 +492,7 @@ int LayersModel::addLayerBasedOnMime(QUrl fileUrl) {
 }
 
 void LayersModel::removeLayer(int i) {
+    std::lock_guard<std::recursive_mutex> layersLock(m_layersMutex);
     if (i < 0 || i >= m_layers.size() || !m_layers.at(i).first)
         return;
 
@@ -498,6 +512,7 @@ void LayersModel::removeLayer(int i) {
 }
 
 void LayersModel::moveLayer(int i, int t) {
+    std::lock_guard<std::recursive_mutex> layersLock(m_layersMutex);
     if (i < 0 || t < 0 || i >= m_layers.size() || t >= m_layers.size() || i == t) {
         Q_EMIT dataChanged(index(i, 0), index(t, 0));
         Q_EMIT layersModelChanged();
@@ -523,6 +538,7 @@ void LayersModel::moveLayer(int i, int t) {
 }
 
 void LayersModel::moveLayerTop(int i) {
+    std::lock_guard<std::recursive_mutex> layersLock(m_layersMutex);
     if (i < 1)
         return;
     if (!beginMoveRows(QModelIndex(), i, i, QModelIndex(), 0))
@@ -538,6 +554,7 @@ void LayersModel::moveLayerTop(int i) {
 }
 
 void LayersModel::moveLayerUp(int i) {
+    std::lock_guard<std::recursive_mutex> layersLock(m_layersMutex);
     if (i < 1)
         return;
     if (!beginMoveRows(QModelIndex(), i, i, QModelIndex(), i - 1))
@@ -551,6 +568,7 @@ void LayersModel::moveLayerUp(int i) {
 }
 
 void LayersModel::moveLayerDown(int i) {
+    std::lock_guard<std::recursive_mutex> layersLock(m_layersMutex);
     if (i < 0 || i == (m_layers.size() - 1))
         return;
     if (!beginMoveRows(QModelIndex(), i + 1, i + 1, QModelIndex(), i))
@@ -564,6 +582,7 @@ void LayersModel::moveLayerDown(int i) {
 }
 
 void LayersModel::moveLayerBottom(int i) {
+    std::lock_guard<std::recursive_mutex> layersLock(m_layersMutex);
     if (i < 0 || i == (m_layers.size() - 1))
         return;
     if (!beginMoveRows(QModelIndex(), m_layers.size() - 1, m_layers.size() - 1, QModelIndex(), i))
@@ -581,6 +600,17 @@ void LayersModel::moveLayerBottom(int i) {
 void LayersModel::updateLayer(int i) {
     if (i < 0 || i >= m_layers.size())
         return;
+
+    // Also called from the render thread (layer status changes and the grid-mode
+    // guess for dragged-and-dropped layers). Emitting model signals straight into a
+    // QML ListView from that thread is not allowed and was a source of stalls and
+    // crashes when several layers were dropped at once, so bounce the notification
+    // onto the thread the model lives on.
+    if (QThread::currentThread() != thread()) {
+        QMetaObject::invokeMethod(this, [this, i]() { updateLayer(i); }, Qt::QueuedConnection);
+        return;
+    }
+
     Q_EMIT dataChanged(index(i, 0), index(i, 0));
 }
 
@@ -610,6 +640,7 @@ bool LayersModel::isLocked(int i) {
 }
 
 void LayersModel::clearLayers() {
+    std::lock_guard<std::recursive_mutex> layersLock(m_layersMutex);
     if (getLayersCanBeLocked()) {
         //Move all locked layers above unlocked ones
         //Remove unlocked layers
@@ -693,6 +724,14 @@ bool LayersModel::getLayersEnabled() {
 }
 
 void LayersModel::setLayersNeedsSave(bool value) {
+    // Also reached from the render thread via guessGridModeForDraggedLayer() for
+    // dragged-and-dropped layers. The signal is connected straight into QML, so
+    // emit it from the thread the model lives on instead.
+    if (QThread::currentThread() != thread()) {
+        QMetaObject::invokeMethod(this, [this, value]() { setLayersNeedsSave(value); }, Qt::QueuedConnection);
+        return;
+    }
+
     m_layersNeedsSave = value;
     Q_EMIT layersNeedsSaveChanged(value);
 }
@@ -717,6 +756,7 @@ BaseLayer* LayersModel::getLayerToCopy() {
 }
 
 void LayersModel::addCopyOfLayer(BaseLayer* srcLayer) {
+    std::lock_guard<std::recursive_mutex> layersLock(m_layersMutex);
     if (srcLayer == nullptr)
         return;
 
@@ -901,6 +941,7 @@ QString LayersModel::makePathRelativeTo(const QString &filePath, const QStringLi
 }
 
 void LayersModel::decodeFromJSON(QJsonObject &obj, const QStringList &forRelativePaths) {
+    std::lock_guard<std::recursive_mutex> layersLock(m_layersMutex);
     if (obj.contains(QStringLiteral("name"))) {
         QString name = obj.value(QStringLiteral("name")).toString();
         setLayersName(name);
@@ -1789,6 +1830,10 @@ void LayersModel::encodeToJSON(QJsonObject &obj, const QStringList &forRelativeP
 
 bool LayersModel::runRenderOnLayersThatShouldUpdate(bool updateRendering, bool preload) {
     bool statusHasUpdated = false;
+    // The GUI thread adds/removes layers here (drag-and-drop), which used to realloc
+    // m_layers underneath this loop: the render thread kept a reference into the freed
+    // QList and crashed. Same for m_draggedLayersAwaitingGridGuess.
+    std::lock_guard<std::recursive_mutex> layersLock(m_layersMutex);
     for (int i = 0; i < m_layers.size(); i++) {
         auto& layer = m_layers[i].first;
         if (layer && layer->isEnabled()) {
