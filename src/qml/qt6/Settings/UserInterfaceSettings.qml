@@ -99,6 +99,7 @@ SettingsBasePage {
             Label {
                 Layout.alignment: Qt.AlignRight
                 text: qsTr("Node window opacity mode:")
+                enabled: ConfigModel.nodeWindowTransparencySupported
             }
             RowLayout {
                 CheckBox {
@@ -106,6 +107,7 @@ SettingsBasePage {
 
                     checked: playerController.nodeWindowOpacityContentBased
                     text: qsTr("Content-based (alpha channel)")
+                    enabled: ConfigModel.nodeWindowTransparencySupported
 
                     onCheckedChanged: {
                         // Update the synced state so the nodes switch mode immediately, and
@@ -118,7 +120,9 @@ SettingsBasePage {
                 LabelWithTooltip {
                     Layout.fillWidth: true
                     elide: Text.ElideRight
-                    text: qsTr("How the node window opacity is applied to the nodes. Unchecked fades the complete window uniformly, content included; checked only fades the unrendered/background areas between opaque black and fully transparent.")
+                    text: ConfigModel.nodeWindowTransparencySupported ?
+                        qsTr("How the node window opacity is applied to the nodes. Unchecked fades the complete window uniformly, content included; checked only fades the unrendered/background areas between opaque black and fully transparent.") :
+                        qsTr("Unavailable: all node windows in the cluster configuration are fullscreen. Node window transparency/fading requires windowed (non-fullscreen) node windows.")
                 }
             }
             Item {
@@ -132,14 +136,19 @@ SettingsBasePage {
             CheckBox {
                 checked: UserInterfaceSettings.windowOnTopAtStartup
                 text: qsTr("Node windows always on top at startup")
+                enabled: ConfigModel.nodeWindowTransparencySupported
 
                 onCheckedChanged: {
                     UserInterfaceSettings.windowOnTopAtStartup = checked;
                     UserInterfaceSettings.save();
                 }
             }
-            Item {
+            LabelWithTooltip {
                 Layout.fillWidth: true
+                elide: Text.ElideRight
+                text: ConfigModel.nodeWindowTransparencySupported ?
+                    "" :
+                    qsTr("Unavailable: all node windows in the cluster configuration are fullscreen. The on-top feature requires windowed (non-fullscreen) node windows.")
             }
 
             Item {

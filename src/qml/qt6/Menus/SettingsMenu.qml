@@ -7,6 +7,7 @@
 import QtQuick
 import QtQuick.Controls
 import "../Components/PopupHelpers.js" as PopupHelpers
+import org.ctoolbox.cplay
 
 Menu {
     id: root
@@ -63,13 +64,17 @@ Menu {
         MenuItem {
             action: actions.windowOpacityAction
             ToolTip {
-                text: "ON/OFF to have node windows visible."
+                text: ConfigModel.nodeWindowTransparencySupported ?
+                    "ON/OFF to have node windows visible." :
+                    "Node window transparency/fading is unavailable: all node windows in the cluster configuration are fullscreen. Only windowed (non-fullscreen) node windows support fading."
             }
         }
         MenuItem {
             action: actions.windowOnTopAction
             ToolTip {
-                text: "ON/OFF to sync state from master to clients."
+                text: ConfigModel.nodeWindowTransparencySupported ?
+                    "ON/OFF to show C-Play node windows on top of other applications." :
+                    "Node window on-top is unavailable: all node windows in the cluster configuration are fullscreen. Only windowed (non-fullscreen) node windows support the on-top feature."
             }
         }
         MenuItem {

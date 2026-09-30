@@ -1711,7 +1711,7 @@ ToolBar {
             focusPolicy: Qt.NoFocus
             display: AbstractButton.IconOnly
             ToolTip {
-                text: "ON/OFF to have node windows visible."
+                text: ConfigModel.nodeWindowTransparencySupported ? "ON/OFF to have node windows visible." : "Node window transparency/fading is unavailable: all node windows in the cluster configuration are fullscreen."
             }
         }
         ToolButton {
@@ -1721,7 +1721,7 @@ ToolBar {
             focusPolicy: Qt.NoFocus
             display: AbstractButton.IconOnly
             ToolTip {
-                text: "ON/OFF to sync state from master to clients."
+                text: ConfigModel.nodeWindowTransparencySupported ? "ON/OFF to show C-Play node windows on top of other applications." : "Node window on-top is unavailable: all node windows in the cluster configuration are fullscreen."
             }
         }
         ToolButton {

@@ -31,6 +31,7 @@
 #include <slidesmodel.h>
 #include <telemetry/nodetelemetry.h>
 #include <utils/logfilewriter.h>
+#include <configmodel.h>
 
 #ifdef MDK_SUPPORT
 #include <mdk/global.h>
@@ -1484,12 +1485,21 @@ int main(int argc, char *argv[]) {
         }
     }
 
+    // Analyse the cluster configuration (nodes, windows, fullscreen state, ...) once and
+    // expose it as a QML model singleton so the UI and C++ code can query the setup at
+    // runtime - e.g. whether the node window transparency/fading feature is usable at all
+    // (it requires windowed, i.e. non-fullscreen, node windows).
+    ConfigModel::instance().initializeCluster(clusterConfig, config);
+
     // Look for C-Play command line specific things
+    std::string mpvConfFolderArg;
+    std::string mpvApiArg;
     size_t i = 0;
     while (i < arg.size()) {
         if (arg[i] == "--mpvconf") {
             if (i + 1 >= arg.size()) { i++; continue; }
             std::string mpvConfFolder = arg[i + 1]; // for instance, either "decoding_cpu" or "decoding_gpu_nvdec"
+            mpvConfFolderArg = mpvConfFolder;
             SyncHelper::instance().configuration.confAll = "./data/mpv-conf/" + mpvConfFolder + "/all.json";
             SyncHelper::instance().configuration.confMasterOnly = "./data/mpv-conf/" + mpvConfFolder + "/master-only.json";
             SyncHelper::instance().configuration.confNodesOnly = "./data/mpv-conf/" + mpvConfFolder + "/nodes-only.json";
@@ -1499,6 +1509,7 @@ int main(int argc, char *argv[]) {
             // Store mpvapi for later use - will be passed to MpvObject via Application
             // For now, set it as an environment-like variable in configuration
             std::string apiType = arg[i + 1];
+            mpvApiArg = apiType;
             if (apiType == "opengl" || apiType == "opengl-next") {
                 SyncHelper::instance().configuration.mpvApiOverride = apiType;
             } else {
@@ -1551,6 +1562,17 @@ int main(int argc, char *argv[]) {
         }
     }
 
+    // Publish the C-Play specific command line options to the runtime config knowledge
+    // model (they are consumed here, after loadCluster, so they cannot be captured with
+    // the SGCT options in initializeCluster above).
+    ConfigModel::instance().setCPlayCommandLineOptions(
+        QString::fromStdString(mpvConfFolderArg),
+        QString::fromStdString(mpvApiArg),
+        QString::fromStdString(logLevel),
+        QString::fromStdString(logFilePath),
+        QString::fromStdString(startupFile),
+        allowDirectRendering);
+
     Engine::Callbacks callbacks;
     callbacks.initOpenGL = initOGL;
     callbacks.preSync = preSync;
@@ -1572,21 +1594,13 @@ int main(int argc, char *argv[]) {
     callbacks.preWindow = [] {
         // ClusterManager was created before preWindow runs and holds the id of this process's
         // node in the cluster config (the runtime Window class does not expose its fullscreen
-        // state, so it must be read from the config).
+        // state, so it must be read from the config - ConfigModel caches that analysis).
         const int nodeId = ClusterManager::instance().thisNodeId();
         if (nodeId < 0 || static_cast<size_t>(nodeId) >= clusterConfig.nodes.size()) {
             return;
         }
 
-        bool anyFullScreen = false;
-        for (const auto &w : clusterConfig.nodes[nodeId].windows) {
-            if (w.isFullScreen.value_or(false)) {
-                anyFullScreen = true;
-                break;
-            }
-        }
-
-        if (!anyFullScreen) {
+        if (!ConfigModel::instance().nodeHasFullScreenWindow(nodeId)) {
             glfwWindowHint(GLFW_TRANSPARENT_FRAMEBUFFER, GLFW_TRUE);
         }
     };
@@ -1597,6 +1611,12 @@ int main(int argc, char *argv[]) {
         Engine::destroy();
         return EXIT_FAILURE;
     }
+
+    // Now that ClusterManager/NetworkManager exist, record which node this process is and
+    // whether it is the master, so ConfigModel can exclude the master's own (hidden, never
+    // faded) windows from the node window statistics.
+    ConfigModel::instance().setRuntimeRole(ClusterManager::instance().thisNodeId(),
+                                           Engine::instance().isMaster());
 
     // Note: NodeTelemetryManager is deliberately NOT created here. It is a QObject and must
     // come into existence only after QApplication does - Application's constructor creates it

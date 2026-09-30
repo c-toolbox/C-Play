@@ -82,9 +82,15 @@ QtObject {
     property Action windowOnTopAction: Action {
         id: windowOnTopAction
 
-        text: playerController.nodeWindowsOnTop ? qsTr("Node windows on-top feature is ON") : qsTr("Node windows on-top feature is OFF")
+        // The node windows on-top feature only works on windowed (non-fullscreen) node
+        // windows; the cluster configuration is analysed at startup by ConfigModel.
+        enabled: ConfigModel.nodeWindowTransparencySupported
+        text: ConfigModel.nodeWindowTransparencySupported ?
+            (playerController.nodeWindowsOnTop ? qsTr("Node windows on-top feature is ON") : qsTr("Node windows on-top feature is OFF"))
+            : qsTr("Node windows on-top unavailable (fullscreen nodes)")
         icon.name: playerController.nodeWindowsOnTop ? "window-restore-pip" : "window-minimize-pip"
-        icon.color: playerController.nodeWindowsOnTop ? "lime" : "crimson"
+        icon.color: ConfigModel.nodeWindowTransparencySupported ?
+            (playerController.nodeWindowsOnTop ? "lime" : "crimson") : "gray"
 
         onTriggered: {
             playerController.nodeWindowsOnTop = !playerController.nodeWindowsOnTop;
@@ -93,9 +99,12 @@ QtObject {
     property Action windowOpacityAction: Action {
         id: windowOpacityAction
 
-        text: qsTr("Node windows are VISIBLE")
+        // Node window transparency/fading only works on windowed (non-fullscreen) node
+        // windows; the cluster configuration is analysed at startup by ConfigModel.
+        enabled: ConfigModel.nodeWindowTransparencySupported
+        text: ConfigModel.nodeWindowTransparencySupported ? qsTr("Node windows are VISIBLE") : qsTr("Node window fading unavailable (fullscreen nodes)")
         icon.name: "view-visible"
-        icon.color: "lime"
+        icon.color: ConfigModel.nodeWindowTransparencySupported ? "lime" : "gray"
 
         onTriggered: {
             if(playerController.nodeWindowsOpacity > 0.0){

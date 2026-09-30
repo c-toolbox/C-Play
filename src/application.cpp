@@ -8,6 +8,7 @@
 
 #include "application.h"
 #include "cplayfiledialog.h"
+#include "configmodel.h"
 #include "haction.h"
 #include "layerqtitem.h"
 #include "layersrendererqtitem.h"
@@ -404,6 +405,12 @@ void Application::setupQmlSettingsTypes() {
     qmlRegisterSingletonInstance("org.ctoolbox.cplay", 1, 0, "PlaylistSettings", PlaylistSettings::self());
     qmlRegisterSingletonInstance("org.ctoolbox.cplay", 1, 0, "SubtitleSettings", SubtitleSettings::self());
     qmlRegisterSingletonInstance("org.ctoolbox.cplay", 1, 0, "UserInterfaceSettings", UserInterfaceSettings::self());
+
+    // Runtime knowledge of the cluster configuration the process was started with
+    // (nodes, windows, fullscreen state, command line options). The instance is a
+    // process-wide cache created in main() before the QML engine exists, so it is
+    // registered as a singleton instance rather than via QML_SINGLETON.
+    qmlRegisterSingletonInstance("org.ctoolbox.cplay", 1, 0, "ConfigModel", &ConfigModel::instance());
 }
 
 void Application::setupQmlContextProperties() {

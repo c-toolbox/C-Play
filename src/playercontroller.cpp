@@ -1,6 +1,7 @@
 #include "playercontroller.h"
 #include "_debug.h"
 #include "application.h"
+#include "configmodel.h"
 #include "httpserverthread.h"
 #include "imagesettings.h"
 #include "loggingsettings.h"
@@ -769,6 +770,16 @@ bool PlayerController::nodeWindowsOnTop() {
 }
 
 void PlayerController::setNodeWindowsOnTop(bool value) {
+    // The node window on-top feature only works on windowed (non-fullscreen) node
+    // windows: a fullscreen window acquires an exclusive video mode and is already at
+    // the top of its display, so floating/Z-ordering it above other applications has no
+    // visible effect. When the cluster configuration has no windowed node windows, keep
+    // the nodes in normal Z-order instead of applying a floating state that would be
+    // silently ignored.
+    if (!ConfigModel::instance().nodeWindowTransparencySupported()) {
+        value = false;
+    }
+
     SyncHelper::instance().variables.windowOnTop = value;
     SyncHelper::instance().variables.playerControllerNeedSync = true;
 
@@ -780,6 +791,15 @@ float PlayerController::nodeWindowsOpacity() {
 }
 
 void PlayerController::setNodeWindowsOpacity(float value) {
+    // The node window transparency/fading feature only works on windowed (non-fullscreen)
+    // node windows: a fullscreen window acquires an exclusive video mode with an opaque
+    // pixel format, where neither whole-window fades nor per-pixel alpha have any effect.
+    // When the cluster configuration has no windowed node windows, keep the nodes fully
+    // visible instead of applying a fade that would be silently ignored.
+    if (!ConfigModel::instance().nodeWindowTransparencySupported()) {
+        value = 1.0f;
+    }
+
     SyncHelper::instance().variables.windowOpacity = value;
     SyncHelper::instance().variables.playerControllerNeedSync = true;
 
