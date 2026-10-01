@@ -975,12 +975,49 @@ double LayersRendererQtItem::planeMoveCmPerPixelLocked() const {
     return refDistCm * 2.0 * std::tan(fovDeg * kPi / 360.0) / hPx;
 }
 
+namespace {
+// Project a plane-local point (metres) through the same transform the renderer uses for the
+// selected plane, into the item's pixel space. Mirrors renderLayers(): the perspective camera
+// runs the model matrix through the view/projection, while the fisheye (fulldome) lens projects
+// the model-space direction around the dome zenith (+Y) with an equidistant radius (see the
+// FisheyeProjection shader). Returns false when the point is behind the camera (perspective) or
+// degenerate (fisheye at the zenith), so the caller can keep a safe fallback.
+bool projectPlaneLocalToPixel(bool fisheye, double meshFovDeg, const QMatrix4x4& model,
+                              const QMatrix4x4& viewMatrix, const QMatrix4x4& projectionMatrix,
+                              double widthPx, double heightPx, const QVector3D& localM,
+                              QPointF& out) {
+    const QVector3D p = model.map(localM);   // model space (metres)
+    if (fisheye) {
+        const double len = p.length();
+        if (len < 1e-6)
+            return false;
+        const QVector3D dir = p / float(len);
+        const double halfFov = std::max(1e-6, glm::radians(meshFovDeg * 0.5));
+        const double phi = std::acos(std::clamp(double(dir.y()), -1.0, 1.0));
+        const double radius = phi / halfFov;
+        const double azLen = std::hypot(double(dir.x()), double(dir.z()));
+        const double ndcX = (azLen > 1e-6) ? (double(dir.x()) / azLen) * radius : 0.0;
+        const double ndcY = (azLen > 1e-6) ? (double(dir.z()) / azLen) * radius : 0.0;
+        out = QPointF((ndcX * 0.5 + 0.5) * widthPx, (0.5 - ndcY * 0.5) * heightPx);
+        return true;
+    }
+    const QVector4D clip = projectionMatrix * viewMatrix * QVector4D(p, 1.0f);
+    if (clip.w() <= 1e-6)
+        return false;   // behind the camera
+    const double ndcX = clip.x() / clip.w();
+    const double ndcY = clip.y() / clip.w();
+    out = QPointF((ndcX * 0.5 + 0.5) * widthPx, (0.5 - ndcY * 0.5) * heightPx);
+    return true;
+}
+} // namespace
+
 void LayersRendererQtItem::planeMoveAxesLocked(double& rightPerCmH, double& downPerCmH,
                                                double& rightPerCmV, double& downPerCmV) const {
     // Neutral fronto-parallel fallback (a plane facing the camera at the mesh radius): a
     // horizontal drag maps 1:1 to plane horizontal and a vertical drag to plane vertical.
     const float fovDeg = (m_fieldOfView > 1.0f && m_fieldOfView < 179.0f) ? m_fieldOfView : 90.0f;
     const double hPx = std::max(1.0, static_cast<double>(height()));
+    const double wPx = std::max(1.0, static_cast<double>(width()));
     const double distCm = std::abs(m_selectedPlaneLayer->planeDistance());
     const double refDistCm = (distCm > 1e-6) ? distCm : m_meshRadius;
     const double tanHalf = std::tan(fovDeg * kPi / 360.0);
@@ -990,46 +1027,43 @@ void LayersRendererQtItem::planeMoveAxesLocked(double& rightPerCmH, double& down
     rightPerCmV = 0.0;
     downPerCmV = -pxPerCm;
 
-    // The plane transform is R_x(-meshAngle) * R_az * R_el * R_roll * T(h/100, v/100, -d/100),
-    // so its local X/Y axes (the plane-horizontal / plane-vertical directions) in the dome frame
-    // are the first two columns of R = R_az * R_el * R_roll, taken through R_x(-meshAngle) into
-    // world space. World units are metres (the transform divides the cm parameters by 100).
-    QMatrix4x4 toWorld;
-    toWorld.rotate(float(-m_meshAngle), 1.0f, 0.0f, 0.0f);
-    QMatrix4x4 rot;
-    rot.rotate(float(m_selectedPlaneLayer->planeAzimuth()), 0.0f, -1.0f, 0.0f);
-    rot.rotate(float(m_selectedPlaneLayer->planeElevation()), 1.0f, 0.0f, 0.0f);
-    rot.rotate(float(m_selectedPlaneLayer->planeRoll()), 0.0f, 0.0f, 1.0f);
-    const QVector3D axisH = toWorld.mapVector(rot.mapVector(QVector3D(1.0f, 0.0f, 0.0f)));
-    const QVector3D axisV = toWorld.mapVector(rot.mapVector(QVector3D(0.0f, 1.0f, 0.0f)));
+    // Rebuild the plane's model matrix exactly as the renderer does, including the dome-angle
+    // tilt that the fisheye lens deliberately omits (its output is locked to the zenith).
+    QMatrix4x4 model;
+    if (!m_renderAsFisheye)
+        model.rotate(float(-m_meshAngle), 1.0f, 0.0f, 0.0f);
+    model.rotate(float(m_selectedPlaneLayer->planeAzimuth()), 0.0f, -1.0f, 0.0f);
+    model.rotate(float(m_selectedPlaneLayer->planeElevation()), 1.0f, 0.0f, 0.0f);
+    model.rotate(float(m_selectedPlaneLayer->planeRoll()), 0.0f, 0.0f, 1.0f);
+    model.translate(float(m_selectedPlaneLayer->planeHorizontal()) / 100.0f,
+                    float(m_selectedPlaneLayer->planeVertical()) / 100.0f,
+                    float(-m_selectedPlaneLayer->planeDistance()) / 100.0f);
 
-    // World-space camera basis (identical to buildCameraMatrices()).
-    QMatrix4x4 camRot;
-    camRot.rotate(m_cameraEulerRotation.y(), 0.0f, 1.0f, 0.0f);
-    camRot.rotate(m_cameraEulerRotation.x(), 1.0f, 0.0f, 0.0f);
-    camRot.rotate(m_cameraEulerRotation.z(), 0.0f, 0.0f, 1.0f);
-    const QVector3D camRight = camRot.mapVector(QVector3D(1.0f, 0.0f, 0.0f)).normalized();
-    const QVector3D camUp = camRot.mapVector(QVector3D(0.0f, 1.0f, 0.0f)).normalized();
-    const QVector3D camFwd = camRot.mapVector(QVector3D(0.0f, 0.0f, -1.0f)).normalized();
+    QMatrix4x4 viewMatrix, projectionMatrix;
+    if (!m_renderAsFisheye)
+        buildCameraMatrices(m_cameraPosition, m_cameraEulerRotation, m_fieldOfView,
+                            static_cast<float>(width()), static_cast<float>(height()),
+                            viewMatrix, projectionMatrix);
 
-    // World position of the plane centre (metres): the translation is applied in the plane's own
-    // frame, so it goes through R = R_az * R_el * R_roll and R_x(-meshAngle) too.
-    const QVector3D centre = toWorld.map(rot.map(QVector3D(float(m_selectedPlaneLayer->planeHorizontal()) / 100.0f,
-                                                             float(m_selectedPlaneLayer->planeVertical()) / 100.0f,
-                                                             float(-m_selectedPlaneLayer->planeDistance()) / 100.0f)));
-    const double depth = QVector3D::dotProduct(centre - m_cameraPosition, camFwd);
-    if (depth <= 1e-4)
-        return;   // plane at/behind the camera: keep the neutral fallback above
+    // Sample the on-screen position of the plane centre and of two points one centimetre along
+    // its local X (plane-horizontal) and Y (plane-vertical) axes. The differences give the pixels
+    // per cm along each axis for the *active* projection, so the drag follows the pointer for any
+    // plane orientation, camera pose, or lens (perspective vs fisheye) without special-casing.
+    QPointF c0, cH, cV;
+    const bool ok0 = projectPlaneLocalToPixel(m_renderAsFisheye, m_meshFov, model, viewMatrix,
+                                              projectionMatrix, wPx, hPx, QVector3D(0, 0, 0), c0);
+    const bool okH = projectPlaneLocalToPixel(m_renderAsFisheye, m_meshFov, model, viewMatrix,
+                                              projectionMatrix, wPx, hPx, QVector3D(0.01f, 0, 0), cH);
+    const bool okV = projectPlaneLocalToPixel(m_renderAsFisheye, m_meshFov, model, viewMatrix,
+                                              projectionMatrix, wPx, hPx, QVector3D(0, 0.01f, 0), cV);
+    if (!ok0 || !okH || !okV)
+        return;   // degenerate projection: keep the neutral fallback above
 
-    // Perspective scale: pixels per metre along the camera right/up axes at this depth. A +1 cm
-    // change moves the plane 0.01 m along its axis, so the on-screen pixels per cm follow.
-    const double kRight = hPx / (2.0 * tanHalf * depth);
-    const double kUp = kRight;
     auto clampScale = [](double s) { return std::clamp(s, -1e6, 1e6); };
-    rightPerCmH = clampScale(0.01 * kRight * QVector3D::dotProduct(axisH, camRight));
-    downPerCmH = clampScale(-0.01 * kUp * QVector3D::dotProduct(axisH, camUp));
-    rightPerCmV = clampScale(0.01 * kRight * QVector3D::dotProduct(axisV, camRight));
-    downPerCmV = clampScale(-0.01 * kUp * QVector3D::dotProduct(axisV, camUp));
+    rightPerCmH = clampScale(double(cH.x() - c0.x()));
+    downPerCmH = clampScale(double(cH.y() - c0.y()));
+    rightPerCmV = clampScale(double(cV.x() - c0.x()));
+    downPerCmV = clampScale(double(cV.y() - c0.y()));
 }
 
 bool LayersRendererQtItem::beginLayerDrag(int action, float x, float y) {
