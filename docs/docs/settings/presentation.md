@@ -21,6 +21,10 @@ These defaults are applied when adding new layers. Each layer can be changed ind
 * **Default grid mode** — Mapping mode for new layers: None (pre-split), Plane, Dome, Sphere EQR, or Sphere EAC (default Plane).
 * **Default visibility** — Initial visibility percentage for new layers (0–100, default 0).
 
+### 3D view layer dragging
+
+* **Ctrl/Alt/Shift+drag on layer** — Each of Ctrl, Alt and Shift + left-drag in the [3D view](/playback/views) manipulates the selected layer with an independently chosen operation: *Elevation & Azimuth*, *Elevation*, *Azimuth*, *Horizontal & Vertical Move*, *Horizontal Move*, *Vertical Move*, *Resize plane size* or *Move plane distance*. Defaults: Ctrl and Alt aim at the pointer, Shift resizes the plane. Sphere and dome layers rotate with the pointer regardless of these settings.
+
 ### Master control
 
 * **Media visibility controls master layer visibility** — When enabled, the primary media visibility (from "Open file" or the playlist) controls the fade in/out and start/stop of master layers (default on).

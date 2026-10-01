@@ -10,6 +10,7 @@
 #include "layersmodel.h"
 #include "slidesmodel.h"
 #include "gridsettings.h"
+#include "presentationsettings.h"
 #include "mpvobject.h"
 #include "userinterfacesettings.h"
 #include <ndi/ndisendermodel.h>
@@ -799,6 +800,24 @@ constexpr double kPi = 3.14159265358979323846;
 // Sphere/dome drag sensitivity in degrees per pixel (matches the QML camera orbitSpeed).
 constexpr double kDragDegreesPerPixel = 0.25;
 
+// Layer-drag operations for the selected layer in the view. Each modifier combo (Ctrl/Alt/Shift
+// + left drag) is assigned one of them via PresentationSettings::ctrlDragLayerAction /
+// altDragLayerAction / shiftDragLayerAction; it decides which grid parameters a drag changes.
+constexpr int kDragAimElevationAzimuth = 0;   // default: aim at the pointer
+constexpr int kDragAimElevationOnly = 1;
+constexpr int kDragAimAzimuthOnly = 2;
+constexpr int kDragMoveHorizontalVertical = 3;
+constexpr int kDragMoveHorizontalOnly = 4;
+constexpr int kDragMoveVerticalOnly = 5;
+constexpr int kDragResizePlaneSize = 6;       // scale width & height proportionally
+constexpr int kDragMovePlaneDistance = 7;     // move the plane toward/away from the camera
+
+// Plane resize/distance drag limits, matching the Grid Parameters dialog ranges (cm).
+constexpr double kPlaneSizeMinCm = 1.0;
+constexpr double kPlaneSizeMaxCm = 2000.0;
+constexpr double kPlaneDistanceMinCm = 0.0;
+constexpr double kPlaneDistanceMaxCm = 2000.0;
+
 // Wrap an angle in degrees to (-180, 180].
 double normalizeAngleDegrees(double a) {
     while (a <= -180.0)
@@ -923,53 +942,90 @@ void LayersRendererQtItem::setPlaneSelectionByIndex(int index) {
     setSelectedPlaneLayer(std::move(layer), resolved);
 }
 
-bool LayersRendererQtItem::beginPlaneDrag(float x, float y) {
+bool LayersRendererQtItem::selectedLayerStillValidLocked() {
+    if (!m_selectedPlaneLayer)
+        return false;
+
+    // The layer may have been removed or the slide switched since it was selected.
+    auto* slides = Application::isCreated() ? Application::instance().slidesModel() : nullptr;
+    LayersModel* slide = slides ? slides->selectedSlide() : nullptr;
+    bool valid = false;
+    if (slide) {
+        for (int l = 0; l < slide->numberOfLayers(); ++l) {
+            if (slide->layerShared(l) == m_selectedPlaneLayer) {
+                valid = true;
+                break;
+            }
+        }
+    }
+    if (!valid)
+        setSelectedPlaneLayer(nullptr, -1);   // stale selection: clear it
+    return valid;
+}
+
+double LayersRendererQtItem::planeMoveCmPerPixelLocked() const {
+    // Sensitivity in cm per pixel, derived so the layer follows the pointer on screen:
+    // one pixel subtends 2*tan(fov/2)/height radians at the plane's distance from the
+    // camera (which sits at the dome centre). Fall back to the mesh radius when the
+    // plane is placed at the centre.
+    const double distCm = std::abs(m_selectedPlaneLayer->planeDistance());
+    const double refDistCm = (distCm > 1e-6) ? distCm : m_meshRadius;
+    const float fovDeg = (m_fieldOfView > 1.0f && m_fieldOfView < 179.0f) ? m_fieldOfView : 90.0f;
+    const double hPx = std::max(1.0, static_cast<double>(height()));
+    return refDistCm * 2.0 * std::tan(fovDeg * kPi / 360.0) / hPx;
+}
+
+bool LayersRendererQtItem::beginLayerDrag(int action, float x, float y) {
     bool ok = false;
     double hitAz = 0.0, hitEl = 0.0;
-    bool selectionValid = true;
     uint8_t mode = 0;
     glm::vec3 startRotate{};
+    double startWidthCm = 0.0, startHeightCm = 0.0, startDistanceCm = 0.0;
     {
         std::lock_guard<std::mutex> lock(LayersRendererQtItem::layerAccessMutex());
-        if (!LayersRendererQtItem::isShuttingDown() && m_selectedPlaneLayer) {
-            // The layer may have been removed or the slide switched since it was selected.
-            auto* slides = Application::isCreated() ? Application::instance().slidesModel() : nullptr;
-            LayersModel* slide = slides ? slides->selectedSlide() : nullptr;
-            selectionValid = false;
-            if (slide) {
-                for (int l = 0; l < slide->numberOfLayers(); ++l) {
-                    if (slide->layerShared(l) == m_selectedPlaneLayer) {
-                        selectionValid = true;
-                        break;
-                    }
-                }
-            }
-            if (selectionValid) {
-                mode = m_selectedPlaneLayer->gridMode();
-                startRotate = m_selectedPlaneLayer->rotate();
-                if (mode == static_cast<uint8_t>(BaseLayer::GridMode::Plane)) {
-                    // Flat layer: no hit testing, wherever the pointer is it aims at the layer.
-                    ok = aimAtScreenPointLocked(m_selectedPlaneLayer.get(), x, y, hitAz, hitEl);
-                } else {
-                    // Sphere/dome layer: rotation follows the pointer delta from this point.
-                    ok = true;
-                }
+        if (!LayersRendererQtItem::isShuttingDown() && selectedLayerStillValidLocked()) {
+            mode = m_selectedPlaneLayer->gridMode();
+            startRotate = m_selectedPlaneLayer->rotate();
+            if (mode == static_cast<uint8_t>(BaseLayer::GridMode::Plane)) {
+                // Flat layer: no hit testing, wherever the pointer is it aims at the layer.
+                ok = aimAtScreenPointLocked(m_selectedPlaneLayer.get(), x, y, hitAz, hitEl);
+                startWidthCm = m_selectedPlaneLayer->planeWidth();
+                startHeightCm = m_selectedPlaneLayer->planeHeight();
+                startDistanceCm = m_selectedPlaneLayer->planeDistance();
+            } else {
+                // Sphere/dome layer: rotation follows the pointer delta from this point.
+                ok = true;
             }
         }
     }
 
     m_planeDragActive = false;
-    if (!ok) {
-        const bool hadSelection = (m_selectedPlaneLayer != nullptr);
-        if (hadSelection && !selectionValid)
-            setSelectedPlaneLayer(nullptr, -1);   // stale selection: clear it
+    if (!ok)
         return false;
+    if (mode == static_cast<uint8_t>(BaseLayer::GridMode::Plane)) {
+        // Resizing needs a valid size to scale about.
+        if (action == kDragResizePlaneSize && (startWidthCm <= 0.0 || startHeightCm <= 0.0))
+            return false;   // no valid plane size yet: QML falls back to orbiting
     }
 
+    m_planeDragAction = action;
     if (mode == static_cast<uint8_t>(BaseLayer::GridMode::Plane)) {
         // Store the grab offset so the layer does not jump to the cursor on press.
         m_grabAzimuthOffsetDeg = normalizeAngleDegrees(m_selectedPlaneLayer->planeAzimuth() - hitAz);
         m_grabElevationOffsetDeg = m_selectedPlaneLayer->planeElevation() - hitEl;
+
+        // The move/resize/distance operations map the pointer delta since press to plane
+        // parameters, so remember the baselines like sphere/dome drags do.
+        m_dragStartX = x;
+        m_dragStartY = y;
+        m_planeDragStartHorizontalCm = m_selectedPlaneLayer->planeHorizontal();
+        m_planeDragStartVerticalCm = m_selectedPlaneLayer->planeVertical();
+        m_planeDragStartWidthCm = startWidthCm;
+        m_planeDragStartHeightCm = startHeightCm;
+        m_planeDragStartDistanceCm = startDistanceCm;
+
+        // Sensitivity in cm per pixel so the layer follows the pointer on screen.
+        m_planeMoveCmPerPixel = planeMoveCmPerPixelLocked();
     } else {
         // Sphere/dome: remember the press point and current rotation as the drag baseline.
         m_dragStartX = x;
@@ -990,25 +1046,13 @@ bool LayersRendererQtItem::dragPlaneTo(float x, float y) {
     if (LayersRendererQtItem::isShuttingDown())
         return false;
 
-    if (m_selectedPlaneLayer->gridMode() == static_cast<uint8_t>(BaseLayer::GridMode::Plane)) {
-        double targetAz = 0.0, targetEl = 0.0;
-        if (!aimAtScreenPointLocked(m_selectedPlaneLayer.get(), x, y, targetAz, targetEl))
-            return false;
-
-        const double newAz = normalizeAngleDegrees(targetAz + m_grabAzimuthOffsetDeg);
-        const double newEl = targetEl + m_grabElevationOffsetDeg;
-
-        if (std::abs(newAz - m_selectedPlaneLayer->planeAzimuth()) > 1e-4 ||
-            std::abs(newEl - m_selectedPlaneLayer->planeElevation()) > 1e-4) {
-            m_selectedPlaneLayer->setPlaneAzimuth(newAz);
-            m_selectedPlaneLayer->setPlaneElevation(newEl);
-            changed = true;
-        }
-    } else {
+    const uint8_t mode = m_selectedPlaneLayer->gridMode();
+    if (mode != static_cast<uint8_t>(BaseLayer::GridMode::Plane)) {
         // Sphere/dome: X drag -> yaw; Y drag -> pitch as well for spheres. Domes keep their
-        // pitch and rotate in yaw only. The content follows the pointer (a rightward/upward
-        // drag moves the layer's front right/up on screen).
-        const bool domeYawOnly = (m_selectedPlaneLayer->gridMode() == static_cast<uint8_t>(BaseLayer::GridMode::Dome));
+        // pitch and rotate in yaw only, regardless of which operation the modifier combo is
+        // configured for. The content follows the pointer (a rightward/upward drag moves the
+        // layer's front right/up on screen).
+        const bool domeYawOnly = (mode == static_cast<uint8_t>(BaseLayer::GridMode::Dome));
         const double newYaw   = m_dragStartYawDeg   - (x - m_dragStartX) * kDragDegreesPerPixel;
         const double newPitch = domeYawOnly ? m_dragStartPitchDeg
                                             : m_dragStartPitchDeg - (y - m_dragStartY) * kDragDegreesPerPixel;
@@ -1021,12 +1065,97 @@ bool LayersRendererQtItem::dragPlaneTo(float x, float y) {
             m_selectedPlaneLayer->setRotate(rot);
             changed = true;
         }
+        return changed;
+    }
+
+    switch (m_planeDragAction) {
+    case kDragMoveHorizontalVertical:
+    case kDragMoveHorizontalOnly:
+    case kDragMoveVerticalOnly: {
+        // Horizontal/vertical move operations: map the pointer delta since press to plane
+        // horizontal/vertical offsets. The content follows the pointer — dragging right moves
+        // the layer right, dragging up moves it upward (screen y points down).
+        const bool hEnabled = (m_planeDragAction == kDragMoveHorizontalVertical || m_planeDragAction == kDragMoveHorizontalOnly);
+        const bool vEnabled = (m_planeDragAction == kDragMoveHorizontalVertical || m_planeDragAction == kDragMoveVerticalOnly);
+
+        double newH = m_planeDragStartHorizontalCm;
+        double newV = m_planeDragStartVerticalCm;
+        if (hEnabled)
+            newH += (x - m_dragStartX) * m_planeMoveCmPerPixel;
+        if (vEnabled)
+            newV -= (y - m_dragStartY) * m_planeMoveCmPerPixel;
+
+        const bool hChanged = hEnabled && std::abs(newH - m_selectedPlaneLayer->planeHorizontal()) > 1e-4;
+        const bool vChanged = vEnabled && std::abs(newV - m_selectedPlaneLayer->planeVertical()) > 1e-4;
+        if (hChanged || vChanged) {
+            if (hChanged)
+                m_selectedPlaneLayer->setPlaneHorizontal(newH);
+            if (vChanged)
+                m_selectedPlaneLayer->setPlaneVertical(newV);
+            changed = true;
+        }
+        break;
+    }
+    case kDragResizePlaneSize: {
+        // Resize: the vertical pointer delta scales width and height proportionally about the
+        // size at press time, so dragging down by one on-screen plane height doubles it.
+        const double dyCm = (y - m_dragStartY) * m_planeMoveCmPerPixel;
+        const double factor = 1.0 + dyCm / m_planeDragStartHeightCm;
+        const double newW = std::clamp(m_planeDragStartWidthCm * factor, kPlaneSizeMinCm, kPlaneSizeMaxCm);
+        const double newH = std::clamp(m_planeDragStartHeightCm * factor, kPlaneSizeMinCm, kPlaneSizeMaxCm);
+        if (newW != m_selectedPlaneLayer->planeWidth() || newH != m_selectedPlaneLayer->planeHeight()) {
+            m_selectedPlaneLayer->setPlaneSize(glm::vec2(static_cast<float>(newW), static_cast<float>(newH)),
+                                               m_selectedPlaneLayer->planeAspectRatio());
+            changed = true;
+        }
+        break;
+    }
+    case kDragMovePlaneDistance: {
+        // Dragging down moves the plane away from the camera, dragging up brings it closer. The
+        // sensitivity matches the pointer on screen at the plane's depth, like the horizontal/
+        // vertical move operations do.
+        const double newDist = std::clamp(m_planeDragStartDistanceCm + (y - m_dragStartY) * m_planeMoveCmPerPixel,
+                                          kPlaneDistanceMinCm, kPlaneDistanceMaxCm);
+        if (std::abs(newDist - m_selectedPlaneLayer->planeDistance()) > 1e-4) {
+            m_selectedPlaneLayer->setPlaneDistance(newDist);
+            changed = true;
+        }
+        break;
+    }
+    default: {   // aim operations (kDragAimElevationAzimuth is the default), or unknown values
+        double targetAz = 0.0, targetEl = 0.0;
+        if (!aimAtScreenPointLocked(m_selectedPlaneLayer.get(), x, y, targetAz, targetEl))
+            return false;
+
+        // Elevation & azimuth is the default; the other aim operations change only one of them
+        // and leave the rest untouched.
+        const bool azEnabled = (m_planeDragAction == kDragAimElevationAzimuth || m_planeDragAction == kDragAimAzimuthOnly);
+        const bool elEnabled = (m_planeDragAction == kDragAimElevationAzimuth || m_planeDragAction == kDragAimElevationOnly);
+
+        double newAz = m_selectedPlaneLayer->planeAzimuth();
+        double newEl = m_selectedPlaneLayer->planeElevation();
+        if (azEnabled)
+            newAz = normalizeAngleDegrees(targetAz + m_grabAzimuthOffsetDeg);
+        if (elEnabled)
+            newEl = targetEl + m_grabElevationOffsetDeg;
+
+        const bool azChanged = azEnabled && std::abs(newAz - m_selectedPlaneLayer->planeAzimuth()) > 1e-4;
+        const bool elChanged = elEnabled && std::abs(newEl - m_selectedPlaneLayer->planeElevation()) > 1e-4;
+        if (azChanged || elChanged) {
+            if (azChanged)
+                m_selectedPlaneLayer->setPlaneAzimuth(newAz);
+            if (elChanged)
+                m_selectedPlaneLayer->setPlaneElevation(newEl);
+            changed = true;
+        }
+    }
     }
     return changed;
 }
 
 void LayersRendererQtItem::endPlaneDrag() {
     m_planeDragActive = false;
+    m_planeDragAction = -1;
 }
 
 void LayersRendererQtItem::handleWindowChanged(QQuickWindow* win) {

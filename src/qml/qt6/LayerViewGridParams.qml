@@ -317,6 +317,14 @@ Kirigami.ApplicationWindow {
 
                         onValueChanged: layerView.layerItem.layerPlaneWidth = value
                     }
+                    Connections {
+                        function onLayerValueChanged() {
+                            if (planeWidthBox.value !== layerView.layerItem.layerPlaneWidth)
+                                planeWidthBox.value = layerView.layerItem.layerPlaneWidth;
+                        }
+
+                        target: layerView.layerItem
+                    }
                     Label {
                         Layout.fillWidth: true
                         elide: Text.ElideRight
@@ -342,6 +350,14 @@ Kirigami.ApplicationWindow {
 
                         onValueChanged: layerView.layerItem.layerPlaneHeight = value
                     }
+                    Connections {
+                        function onLayerValueChanged() {
+                            if (planeHeightBox.value !== layerView.layerItem.layerPlaneHeight)
+                                planeHeightBox.value = layerView.layerItem.layerPlaneHeight;
+                        }
+
+                        target: layerView.layerItem
+                    }
                     Label {
                         Layout.alignment: Qt.AlignLeft
                         Layout.fillWidth: true
@@ -365,6 +381,14 @@ Kirigami.ApplicationWindow {
                         to: 2000
 
                         onValueChanged: layerView.layerItem.layerPlaneDistance = value
+                    }
+                    Connections {
+                        function onLayerValueChanged() {
+                            if (planeDistanceBox.value !== layerView.layerItem.layerPlaneDistance)
+                                planeDistanceBox.value = layerView.layerItem.layerPlaneDistance;
+                        }
+
+                        target: layerView.layerItem
                     }
                     Label {
                         Layout.alignment: Qt.AlignLeft

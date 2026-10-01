@@ -30,8 +30,31 @@ Rectangle {
     // startup (this component is created once per app start); the user advances to the next
     // tip with a button or hides the tips for this session, and no more tips are shown after
     // all of them have been displayed until next launch.
+    // Display names for the modifier+drag layer operations (values 0-7), matching the options in
+    // the Presentation settings page and presentationsettings.kcfg.
+    readonly property var dragLayerActionNames: [
+        qsTr("Elevation & Azimuth"),
+        qsTr("Elevation"),
+        qsTr("Azimuth"),
+        qsTr("Horizontal & Vertical Move"),
+        qsTr("Horizontal Move"),
+        qsTr("Vertical Move"),
+        qsTr("Resize plane size"),
+        qsTr("Move plane distance")
+    ]
+
+    function dragLayerActionName(action) {
+        return (action >= 0 && action < dragLayerActionNames.length) ? dragLayerActionNames[action] : "";
+    }
+
+    // The first tip reflects the operations currently configured for Ctrl/Alt/Shift+left-drag in
+    // the Presentation settings, so it always tells the user what each modifier key does. The
+    // binding re-evaluates whenever any of those settings changes.
     readonly property var allTips: [
-        qsTr("You can move selected layer in the 3D view by using Ctrl + Left mouse."),
+        qsTr("In the 3D view, hold a modifier key and left-drag to manipulate the selected layer (Ctrl = %1, Alt = %2, Shift = %3).")
+            .arg(dragLayerActionName(PresentationSettings.ctrlDragLayerAction))
+            .arg(dragLayerActionName(PresentationSettings.altDragLayerAction))
+            .arg(dragLayerActionName(PresentationSettings.shiftDragLayerAction)),
         qsTr("Right-click or use Ctrl+C to copy a layer, and Ctrl+V to paste a copy."),
         qsTr("You can drag-and-drop files directly from the file explorer.")
     ]

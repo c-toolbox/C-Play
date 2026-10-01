@@ -306,6 +306,141 @@ SettingsBasePage {
             Layout.fillWidth: true
         }
 
+        // Shared options for the modifier+drag layer operations below (see
+        // presentationsettings.kcfg): each of Ctrl/Alt/Shift+left-drag can be assigned any of them.
+        ListModel {
+            id: dragLayerActionOptions
+
+            ListElement {
+                mode: "Elevation & Azimuth"
+                value: 0
+            }
+            ListElement {
+                mode: "Elevation"
+                value: 1
+            }
+            ListElement {
+                mode: "Azimuth"
+                value: 2
+            }
+            ListElement {
+                mode: "Horizontal & Vertical Move"
+                value: 3
+            }
+            ListElement {
+                mode: "Horizontal Move"
+                value: 4
+            }
+            ListElement {
+                mode: "Vertical Move"
+                value: 5
+            }
+            ListElement {
+                mode: "Resize plane size"
+                value: 6
+            }
+            ListElement {
+                mode: "Move plane distance"
+                value: 7
+            }
+        }
+
+        Label {
+            Layout.alignment: Qt.AlignRight
+            text: qsTr("Ctrl+Left mouse button drag on layer:")
+        }
+        RowLayout {
+            ComboBox {
+                id: ctrlDragLayerActionComboBox
+
+                enabled: true
+                textRole: "mode"
+
+                model: dragLayerActionOptions
+
+                Component.onCompleted: {
+                    for (let i = 0; i < dragLayerActionOptions.count; ++i) {
+                        if (dragLayerActionOptions.get(i).value === PresentationSettings.ctrlDragLayerAction) {
+                            currentIndex = i;
+                            break;
+                        }
+                    }
+                }
+                onActivated: {
+                    PresentationSettings.ctrlDragLayerAction = model.get(index).value;
+                    PresentationSettings.save();
+                }
+            }
+        }
+        Item {
+            // spacer item
+            Layout.fillWidth: true
+        }
+
+        Label {
+            Layout.alignment: Qt.AlignRight
+            text: qsTr("Alt+Left mouse button drag on layer:")
+        }
+        RowLayout {
+            ComboBox {
+                id: altDragLayerActionComboBox
+
+                enabled: true
+                textRole: "mode"
+
+                model: dragLayerActionOptions
+
+                Component.onCompleted: {
+                    for (let i = 0; i < dragLayerActionOptions.count; ++i) {
+                        if (dragLayerActionOptions.get(i).value === PresentationSettings.altDragLayerAction) {
+                            currentIndex = i;
+                            break;
+                        }
+                    }
+                }
+                onActivated: {
+                    PresentationSettings.altDragLayerAction = model.get(index).value;
+                    PresentationSettings.save();
+                }
+            }
+        }
+        Item {
+            // spacer item
+            Layout.fillWidth: true
+        }
+
+        Label {
+            Layout.alignment: Qt.AlignRight
+            text: qsTr("Shift+Left mouse button drag on layer:")
+        }
+        RowLayout {
+            ComboBox {
+                id: shiftDragLayerActionComboBox
+
+                enabled: true
+                textRole: "mode"
+
+                model: dragLayerActionOptions
+
+                Component.onCompleted: {
+                    for (let i = 0; i < dragLayerActionOptions.count; ++i) {
+                        if (dragLayerActionOptions.get(i).value === PresentationSettings.shiftDragLayerAction) {
+                            currentIndex = i;
+                            break;
+                        }
+                    }
+                }
+                onActivated: {
+                    PresentationSettings.shiftDragLayerAction = model.get(index).value;
+                    PresentationSettings.save();
+                }
+            }
+        }
+        Item {
+            // spacer item
+            Layout.fillWidth: true
+        }
+
         Item {
             height: 1
             width: 1

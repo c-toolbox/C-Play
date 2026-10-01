@@ -326,13 +326,15 @@ public:
 
     // Moving of 3D-grid layers in the view. The selected layer comes from the Layers panel
     // (setPlaneSelectionByIndex); no hit testing is done in the 3D view.
-    // Flat layers (GridMode::Plane) are aimed at the pointer via azimuth/elevation; spheres
-    // rotate with the pointer delta since press (X -> yaw, Y -> pitch), domes in yaw only (X).
+    // Ctrl/Alt/Shift+drag all manipulate the selected layer with an operation chosen per
+    // modifier combo in the Presentation settings: flat layers (GridMode::Plane) support
+    // aiming, horizontal/vertical moving, resizing and distance moving; spheres rotate with
+    // the pointer delta since press (X -> yaw, Y -> pitch), domes in yaw only (X).
     // Coordinates are logical pixels in this item's space, origin top-left, y pointing down.
     Q_INVOKABLE void setPlaneSelectionByIndex(int index);    // sync selection from the Layers panel; -1 clears (2D rows clear too)
-    Q_INVOKABLE bool beginPlaneDrag(float x, float y);       // true if a 3D-grid layer is selected and can be moved from this point
-    Q_INVOKABLE bool dragPlaneTo(float x, float y);          // move the selected layer while dragging; returns true when parameters changed
-    Q_INVOKABLE void endPlaneDrag();                         // finish an active plane drag
+    Q_INVOKABLE bool beginLayerDrag(int action, float x, float y);   // start a modifier+drag layer operation (see kDrag* values in the .cpp); true if it can run from this point
+    Q_INVOKABLE bool dragPlaneTo(float x, float y);          // continue an active layer drag; returns true when parameters changed
+    Q_INVOKABLE void endPlaneDrag();                         // finish an active layer drag
 
     Q_INVOKABLE void sync();
     Q_INVOKABLE void cleanup();
@@ -370,17 +372,37 @@ private:
     bool rayFromScreenPoint(float x, float y, QVector3D& origin, QVector3D& direction) const;
     bool aimAtScreenPointLocked(const BaseLayer* layer, float x, float y, double& azimuthDeg, double& elevationDeg) const;
     void setSelectedPlaneLayer(std::shared_ptr<BaseLayer> layer, int index);
+    // True when the selected layer still exists in the current slide; clears a stale selection
+    // (slide switched or layer removed) so the next drag starts clean. Caller holds the lock.
+    bool selectedLayerStillValidLocked();
+    // Pointer sensitivity for flat-layer drags in cm per pixel, derived from the camera FOV and
+    // the plane's distance from it, so that dragging moves the layer with the pointer on screen.
+    double planeMoveCmPerPixelLocked() const;
 
     // 3D-grid layer selection and drag state (GUI thread only).
     std::shared_ptr<BaseLayer> m_selectedPlaneLayer;
     int m_selectedPlaneIndex = -1;
     bool m_planeDragActive = false;
+    // Which layer-drag operation is active while m_planeDragActive (see the kDrag* values in
+    // the .cpp): decides which grid parameters dragPlaneTo() updates. -1 when no drag.
+    int m_planeDragAction = -1;
     double m_grabAzimuthOffsetDeg = 0.0;
     double m_grabElevationOffsetDeg = 0.0;
     // Sphere/dome drag state: rotation is mapped from the pointer delta since press.
     float m_dragStartX = 0.0f, m_dragStartY = 0.0f;
     double m_dragStartPitchDeg = 0.0;   // rotate().x at press time
     double m_dragStartYawDeg = 0.0;     // rotate().y at press time
+    // Flat-layer drag state for the horizontal/vertical move modes: plane offsets (cm) at
+    // press time and the pointer sensitivity derived from the camera FOV and layer distance,
+    // so that dragging moves the layer with the pointer on screen.
+    double m_planeDragStartHorizontalCm = 0.0;
+    double m_planeDragStartVerticalCm = 0.0;
+    double m_planeMoveCmPerPixel = 1.0;
+    // Flat-layer size/distance drag baselines captured at press time (cm): plane width/height
+    // for the resize action and plane distance for the move-distance action.
+    double m_planeDragStartWidthCm = 0.0;
+    double m_planeDragStartHeightCm = 0.0;
+    double m_planeDragStartDistanceCm = 0.0;
 
     LayersRendererQtOpenGLObject* m_renderer;
     QTimer* m_timer;

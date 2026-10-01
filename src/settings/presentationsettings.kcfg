@@ -86,5 +86,17 @@
       <label>When to show the layers view at startup (0=show on presentation load, 1=always show at startup, 2=hide at startup)</label>
       <default>0</default>
     </entry>
+    <entry name="CtrlDragLayerAction" type="int">
+      <label>Which operation Ctrl+left-drag performs on the selected layer in the 3D view (0=elevation &amp; azimuth, 1=elevation only, 2=azimuth only, 3=horizontal &amp; vertical move, 4=horizontal move only, 5=vertical move only, 6=resize plane size, 7=move plane distance)</label>
+      <default>0</default>
+    </entry>
+    <entry name="AltDragLayerAction" type="int">
+      <label>Which operation Alt+left-drag performs on the selected layer in the 3D view (same options as CtrlDragLayerAction)</label>
+      <default>0</default>
+    </entry>
+    <entry name="ShiftDragLayerAction" type="int">
+      <label>Which operation Shift+left-drag performs on the selected layer in the 3D view (same options as CtrlDragLayerAction)</label>
+      <default>6</default>
+    </entry>
   </group>
 </kcfg>

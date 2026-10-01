@@ -29,24 +29,30 @@ The camera starts at the centre of the rendered sphere/dome, looking straight fo
 |:---|:---|
 | **Left- or right-click + drag** | *Orbit* the camera. Dragging right/left turns the view horizontally, dragging up/down tilts it vertically. |
 | **Mouse wheel / touchpad scroll** | *Zoom* (dolly) along the view axis. Scrolling up moves the camera forward into the scene, scrolling down moves it back. The camera is kept inside the rendered sphere, so it cannot pass through the content surface. |
-| **Ctrl + left-click + drag** | *Move the selected layer*. Drags the layer currently selected in the [Layers](/playback/presentation) panel: flat layers are aimed across the sphere (azimuth/elevation), spheres rotate with the pointer (horizontal → yaw, vertical → pitch), and domes rotate horizontally only (yaw). |
+| **Ctrl + left-click + drag** | *Manipulate the selected layer* with the operation configured for Ctrl in the [Presentation settings](/settings/presentation) (default: aim at pointer). Spheres rotate with the pointer (horizontal → yaw, vertical → pitch), domes horizontally only. With no layer selected it orbits like plain dragging. |
+| **Alt + left-click + drag** | Same as Ctrl+drag, but using the operation configured for Alt in the [Presentation settings](/settings/presentation). |
+| **Shift + left-click + drag** | Same as Ctrl+drag, but using the operation configured for Shift in the [Presentation settings](/settings/presentation) (default: resize plane size). |
 | **Double-click** | *Reset the camera* back to its original position and orientation (centre of the scene, no rotation). Zoom level and orbit rotation are both restored. |
 
 A press only becomes a drag after the pointer has moved a few pixels, so a double-click never accidentally rotates the view or moves a layer.
 
 #### Moving layers in the 3D view
 
-Ctrl + left-drag moves **flat (plane), dome, and sphere layers**. The [Layers](/playback/presentation) panel is the single source of truth for which layer is moved: select the layer row there first, then Ctrl-drag it in the 3D view. If a plain 2D layer is selected — or no layer at all — the Ctrl-drag falls back to orbiting the camera instead.
+Ctrl, Alt and Shift + left-drag all manipulate the **selected layer** — flat (plane), dome or sphere. The [Layers](/playback/presentation) panel is the single source of truth for which layer is moved: select the layer row there first, then drag it in the 3D view with the modifier held down. If a plain 2D layer — or no layer at all — is selected, the modifier+drag falls back to orbiting the camera instead.
 
-How the drag maps onto the layer depends on its grid mode:
+Each modifier combo is independently assigned one of these operations in the [Presentation settings](/settings/presentation):
 
-* **Flat layers** are aimed at the pointer wherever it is, updating *plane azimuth* and *plane elevation*.
-* **Sphere layers** rotate with the pointer movement since press: horizontal dragging controls *yaw*, vertical dragging controls *pitch*. The content follows the cursor — dragging right spins the sphere to the right, dragging up tilts it upward.
-* **Dome layers** rotate in *yaw* only (horizontal dragging); their pitch is left unchanged.
+* **Elevation & Azimuth** (default for Ctrl and Alt) — aims a flat layer at the pointer wherever it is, updating *plane azimuth* and *plane elevation*.
+* **Elevation** / **Azimuth** — same as above but changes only that one angle.
+* **Horizontal & Vertical Move**, **Horizontal Move**, **Vertical Move** — slide a flat layer sideways/up-down (updating its horizontal/vertical offsets) instead of re-aiming it; the content follows the pointer.
+* **Resize plane size** (default for Shift) — scales a flat layer's *plane width* and *plane height* proportionally: dragging down grows the plane, dragging up shrinks it.
+* **Move plane distance** — moves a flat layer away from / toward the camera.
+
+Sphere layers always rotate with the pointer movement since press regardless of which operation is configured: horizontal dragging controls *yaw*, vertical dragging controls *pitch*. Dome layers rotate in *yaw* only (horizontal dragging); their pitch is left unchanged.
 
 While dragging, the values are updated live and mirrored back to the grid parameters dialog and the Layers list. When you release the mouse, the change is marked for saving with the current slide.
 
-The mouse cursor indicates the current mode: an open hand while orbiting, a closed hand while moving a layer.
+The mouse cursor indicates the current mode: an open hand while orbiting, a closed hand while manipulating a layer.
 
 #### Field of view
 

@@ -398,8 +398,8 @@ Kirigami.ApplicationWindow {
                 panEnabled: false
 
                 // Mouse input is handled by layerRenderMouseArea below (drag orbits the scene,
-                // Ctrl+left-drag moves the flat layer selected in the Layers panel), so the
-                // controller's own input handlers are disabled.
+                // Ctrl+left-drag moves/aims the selected layer and Shift+left-drag resizes its
+                // plane or moves its distance), so the controller's own input handlers are disabled.
                 mouseEnabled: false
 
                 // The built-in wheel/pinch zoom scales with the camera's distance from the
@@ -434,16 +434,20 @@ Kirigami.ApplicationWindow {
 
             // Interaction state machine:
             //  0 = idle, 1 = pressed (waiting to see if it becomes a drag),
-            //  2 = orbiting the camera, 3 = moving the selected flat layer.
+            //  2 = orbiting the camera,
+            //  3/4/5 = dragging the selected layer with Ctrl/Alt/Shift held.
             property int dragMode: 0
             property real pressX: 0
             property real pressY: 0
             property real lastX: 0
             property real lastY: 0
             property bool layerDragChanged: false
-            // Whether Ctrl was held when the current press started; decides between orbiting
-            // and moving the selected flat layer once the drag is committed.
+            // Which modifier was held when the current press started; decides between orbiting
+            // and dragging the selected layer once the drag is committed, and which operation
+            // (configured per modifier combo in the Presentation settings) that drag performs.
             property bool ctrlHeldAtPress: false
+            property bool altHeldAtPress: false
+            property bool shiftHeldAtPress: false
 
             // A press only becomes a drag after this much movement so that double-clicks
             // (camera reset) never trigger an orbit or a layer move.
@@ -452,7 +456,7 @@ Kirigami.ApplicationWindow {
             readonly property real orbitSpeed: 0.25
 
             cursorShape: {
-                if (dragMode === 3)
+                if (dragMode === 3 || dragMode === 4 || dragMode === 5)
                     return Qt.ClosedHandCursor;
                 if (dragMode !== 0)
                     return Qt.OpenHandCursor;
@@ -471,11 +475,24 @@ Kirigami.ApplicationWindow {
             function commitDragMode() {
                 if (dragMode !== 1)
                     return;
-                // Ctrl+left-drag moves the flat layer selected in the Layers panel; with no
-                // plane layer selected it falls back to orbiting. Any other drag orbits too.
-                if ((pressedButtons & Qt.LeftButton) && !(pressedButtons & Qt.RightButton) && ctrlHeldAtPress) {
-                    const started = viewLayersIn3DRenderItem.beginPlaneDrag(pressX, pressY);
-                    dragMode = started ? 3 : 2;
+                // Ctrl/Alt/Shift+left-drag manipulates the layer selected in the Layers panel
+                // with the operation configured for that modifier combo (flat layers); sphere
+                // and dome layers rotate instead. With no such layer selected they fall back to
+                // orbiting, as does any other drag.
+                if ((pressedButtons & Qt.LeftButton) && !(pressedButtons & Qt.RightButton)) {
+                    let action = -1;
+                    if (ctrlHeldAtPress)
+                        action = PresentationSettings.ctrlDragLayerAction;
+                    else if (altHeldAtPress)
+                        action = PresentationSettings.altDragLayerAction;
+                    else if (shiftHeldAtPress)
+                        action = PresentationSettings.shiftDragLayerAction;
+                    if (action >= 0) {
+                        const started = viewLayersIn3DRenderItem.beginLayerDrag(action, pressX, pressY);
+                        dragMode = started ? (ctrlHeldAtPress ? 3 : altHeldAtPress ? 4 : 5) : 2;
+                    } else {
+                        dragMode = 2;
+                    }
                 } else if (pressedButtons & (Qt.LeftButton | Qt.RightButton)) {
                     dragMode = 2;
                 } else {
@@ -489,6 +506,11 @@ Kirigami.ApplicationWindow {
                 var li = layerView.layerItem;
                 if (li && li.layerIdx === viewLayersIn3DRenderItem.selectedPlaneLayerIndex) {
                     li.layerPlaneAzimuth = li.layerPlaneAzimuth;   // flat layers
+                    li.layerPlaneHorizontal = li.layerPlaneHorizontal;   // flat layers (move modes)
+                    li.layerPlaneVertical = li.layerPlaneVertical;       // flat layers (move modes)
+                    li.layerPlaneWidth = li.layerPlaneWidth;             // flat layers (resize operation)
+                    li.layerPlaneHeight = li.layerPlaneHeight;           // flat layers (resize operation)
+                    li.layerPlaneDistance = li.layerPlaneDistance;       // flat layers (distance operation)
                     li.layerRotatePitch = li.layerRotatePitch;     // sphere/dome layers
                     li.layerRotateYaw = li.layerRotateYaw;         // sphere/dome layers
                 }
@@ -502,6 +524,8 @@ Kirigami.ApplicationWindow {
                 pressY = lastY = mouse.y;
                 layerDragChanged = false;
                 ctrlHeldAtPress = (mouse.modifiers & Qt.ControlModifier) !== 0;
+                altHeldAtPress = (mouse.modifiers & Qt.AltModifier) !== 0;
+                shiftHeldAtPress = (mouse.modifiers & Qt.ShiftModifier) !== 0;
             }
 
             onPositionChanged: (mouse) => {
@@ -525,7 +549,7 @@ Kirigami.ApplicationWindow {
 
                 if (dragMode === 2) {
                     orbitCamera(dx, dy);
-                } else if (dragMode === 3) {
+                } else if (dragMode === 3 || dragMode === 4 || dragMode === 5) {
                     if (viewLayersIn3DRenderItem.dragPlaneTo(mouse.x, mouse.y))
                         layerDragChanged = true;
                     refreshGridParamsDialog();
@@ -533,7 +557,7 @@ Kirigami.ApplicationWindow {
             }
 
             onReleased: (mouse) => {
-                const wasLayerDrag = dragMode === 3;
+                const wasLayerDrag = dragMode === 3 || dragMode === 4 || dragMode === 5;
                 if (wasLayerDrag)
                     viewLayersIn3DRenderItem.endPlaneDrag();
                 dragMode = 0;
