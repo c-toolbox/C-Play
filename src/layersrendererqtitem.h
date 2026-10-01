@@ -376,8 +376,14 @@ private:
     // (slide switched or layer removed) so the next drag starts clean. Caller holds the lock.
     bool selectedLayerStillValidLocked();
     // Pointer sensitivity for flat-layer drags in cm per pixel, derived from the camera FOV and
-    // the plane's distance from it, so that dragging moves the layer with the pointer on screen.
+    // the plane's distance from it, so that resizing/distance drags track the pointer on screen.
     double planeMoveCmPerPixelLocked() const;
+    // Screen-space projection (pixels per cm) of the selected plane's own horizontal and vertical
+    // axes, so horizontal/vertical move drags follow the pointer exactly regardless of the plane's
+    // orientation (azimuth/elevation/roll) or the camera pose. Each pair gives the pointer delta
+    // (dx right, dy down) that a unit change of the parameter produces on screen. Caller holds the lock.
+    void planeMoveAxesLocked(double& rightPerCmH, double& downPerCmH,
+                             double& rightPerCmV, double& downPerCmV) const;
 
     // 3D-grid layer selection and drag state (GUI thread only).
     std::shared_ptr<BaseLayer> m_selectedPlaneLayer;
@@ -398,6 +404,13 @@ private:
     double m_planeDragStartHorizontalCm = 0.0;
     double m_planeDragStartVerticalCm = 0.0;
     double m_planeMoveCmPerPixel = 1.0;
+    // Screen-space projection of the plane's own axes captured at press time (pixels per cm),
+    // used by the horizontal/vertical move modes so the layer tracks the pointer for any plane
+    // orientation: (dx right, dy down) produced by a +1 cm change of plane horizontal/vertical.
+    double m_planeDragRightPerCmH = 0.0;
+    double m_planeDragDownPerCmH = 0.0;
+    double m_planeDragRightPerCmV = 0.0;
+    double m_planeDragDownPerCmV = 0.0;
     // Flat-layer size/distance drag baselines captured at press time (cm): plane width/height
     // for the resize action and plane distance for the move-distance action.
     double m_planeDragStartWidthCm = 0.0;

@@ -975,6 +975,63 @@ double LayersRendererQtItem::planeMoveCmPerPixelLocked() const {
     return refDistCm * 2.0 * std::tan(fovDeg * kPi / 360.0) / hPx;
 }
 
+void LayersRendererQtItem::planeMoveAxesLocked(double& rightPerCmH, double& downPerCmH,
+                                               double& rightPerCmV, double& downPerCmV) const {
+    // Neutral fronto-parallel fallback (a plane facing the camera at the mesh radius): a
+    // horizontal drag maps 1:1 to plane horizontal and a vertical drag to plane vertical.
+    const float fovDeg = (m_fieldOfView > 1.0f && m_fieldOfView < 179.0f) ? m_fieldOfView : 90.0f;
+    const double hPx = std::max(1.0, static_cast<double>(height()));
+    const double distCm = std::abs(m_selectedPlaneLayer->planeDistance());
+    const double refDistCm = (distCm > 1e-6) ? distCm : m_meshRadius;
+    const double tanHalf = std::tan(fovDeg * kPi / 360.0);
+    const double pxPerCm = hPx / (2.0 * tanHalf * refDistCm);
+    rightPerCmH = pxPerCm;
+    downPerCmH = 0.0;
+    rightPerCmV = 0.0;
+    downPerCmV = -pxPerCm;
+
+    // The plane transform is R_x(-meshAngle) * R_az * R_el * R_roll * T(h/100, v/100, -d/100),
+    // so its local X/Y axes (the plane-horizontal / plane-vertical directions) in the dome frame
+    // are the first two columns of R = R_az * R_el * R_roll, taken through R_x(-meshAngle) into
+    // world space. World units are metres (the transform divides the cm parameters by 100).
+    QMatrix4x4 toWorld;
+    toWorld.rotate(float(-m_meshAngle), 1.0f, 0.0f, 0.0f);
+    QMatrix4x4 rot;
+    rot.rotate(float(m_selectedPlaneLayer->planeAzimuth()), 0.0f, -1.0f, 0.0f);
+    rot.rotate(float(m_selectedPlaneLayer->planeElevation()), 1.0f, 0.0f, 0.0f);
+    rot.rotate(float(m_selectedPlaneLayer->planeRoll()), 0.0f, 0.0f, 1.0f);
+    const QVector3D axisH = toWorld.mapVector(rot.mapVector(QVector3D(1.0f, 0.0f, 0.0f)));
+    const QVector3D axisV = toWorld.mapVector(rot.mapVector(QVector3D(0.0f, 1.0f, 0.0f)));
+
+    // World-space camera basis (identical to buildCameraMatrices()).
+    QMatrix4x4 camRot;
+    camRot.rotate(m_cameraEulerRotation.y(), 0.0f, 1.0f, 0.0f);
+    camRot.rotate(m_cameraEulerRotation.x(), 1.0f, 0.0f, 0.0f);
+    camRot.rotate(m_cameraEulerRotation.z(), 0.0f, 0.0f, 1.0f);
+    const QVector3D camRight = camRot.mapVector(QVector3D(1.0f, 0.0f, 0.0f)).normalized();
+    const QVector3D camUp = camRot.mapVector(QVector3D(0.0f, 1.0f, 0.0f)).normalized();
+    const QVector3D camFwd = camRot.mapVector(QVector3D(0.0f, 0.0f, -1.0f)).normalized();
+
+    // World position of the plane centre (metres): the translation is applied in the plane's own
+    // frame, so it goes through R = R_az * R_el * R_roll and R_x(-meshAngle) too.
+    const QVector3D centre = toWorld.map(rot.map(QVector3D(float(m_selectedPlaneLayer->planeHorizontal()) / 100.0f,
+                                                             float(m_selectedPlaneLayer->planeVertical()) / 100.0f,
+                                                             float(-m_selectedPlaneLayer->planeDistance()) / 100.0f)));
+    const double depth = QVector3D::dotProduct(centre - m_cameraPosition, camFwd);
+    if (depth <= 1e-4)
+        return;   // plane at/behind the camera: keep the neutral fallback above
+
+    // Perspective scale: pixels per metre along the camera right/up axes at this depth. A +1 cm
+    // change moves the plane 0.01 m along its axis, so the on-screen pixels per cm follow.
+    const double kRight = hPx / (2.0 * tanHalf * depth);
+    const double kUp = kRight;
+    auto clampScale = [](double s) { return std::clamp(s, -1e6, 1e6); };
+    rightPerCmH = clampScale(0.01 * kRight * QVector3D::dotProduct(axisH, camRight));
+    downPerCmH = clampScale(-0.01 * kUp * QVector3D::dotProduct(axisH, camUp));
+    rightPerCmV = clampScale(0.01 * kRight * QVector3D::dotProduct(axisV, camRight));
+    downPerCmV = clampScale(-0.01 * kUp * QVector3D::dotProduct(axisV, camUp));
+}
+
 bool LayersRendererQtItem::beginLayerDrag(int action, float x, float y) {
     bool ok = false;
     double hitAz = 0.0, hitEl = 0.0;
@@ -1024,8 +1081,12 @@ bool LayersRendererQtItem::beginLayerDrag(int action, float x, float y) {
         m_planeDragStartHeightCm = startHeightCm;
         m_planeDragStartDistanceCm = startDistanceCm;
 
-        // Sensitivity in cm per pixel so the layer follows the pointer on screen.
+        // Sensitivity in cm per pixel for the resize/distance drags, plus the screen-space
+        // projection of the plane's own axes for the horizontal/vertical move drags, so the layer
+        // follows the pointer exactly for any plane orientation or camera pose.
         m_planeMoveCmPerPixel = planeMoveCmPerPixelLocked();
+        planeMoveAxesLocked(m_planeDragRightPerCmH, m_planeDragDownPerCmH,
+                            m_planeDragRightPerCmV, m_planeDragDownPerCmV);
     } else {
         // Sphere/dome: remember the press point and current rotation as the drag baseline.
         m_dragStartX = x;
@@ -1078,12 +1139,36 @@ bool LayersRendererQtItem::dragPlaneTo(float x, float y) {
         const bool hEnabled = (m_planeDragAction == kDragMoveHorizontalVertical || m_planeDragAction == kDragMoveHorizontalOnly);
         const bool vEnabled = (m_planeDragAction == kDragMoveHorizontalVertical || m_planeDragAction == kDragMoveVerticalOnly);
 
+        // The plane's own axes project onto the screen as (hRx, hRy) for horizontal and
+        // (vRx, vRy) for vertical (pixels per cm, dx right / dy down). Solve the pointer delta
+        // for the parameter change that reproduces it, so the layer tracks the pointer for any
+        // plane orientation instead of a single fixed cm-per-pixel scale.
+        const double dx = x - m_dragStartX;
+        const double dy = y - m_dragStartY;
+        const double hRx = m_planeDragRightPerCmH, vRx = m_planeDragRightPerCmV;
+        const double hRy = m_planeDragDownPerCmH, vRy = m_planeDragDownPerCmV;
+
         double newH = m_planeDragStartHorizontalCm;
         double newV = m_planeDragStartVerticalCm;
-        if (hEnabled)
-            newH += (x - m_dragStartX) * m_planeMoveCmPerPixel;
-        if (vEnabled)
-            newV -= (y - m_dragStartY) * m_planeMoveCmPerPixel;
+        const double det = hRx * vRy - vRx * hRy;
+        if (hEnabled && vEnabled && std::abs(det) > 1e-9) {
+            // Exact 2x2 solve: both parameters free to match the pointer on screen.
+            newH += (vRy * dx - vRx * dy) / det;
+            newV += (hRx * dy - hRy * dx) / det;
+        } else {
+            // One axis (or a degenerate projection): least-squares fit of the pointer delta onto
+            // each enabled axis independently.
+            if (hEnabled) {
+                const double nn = hRx * hRx + hRy * hRy;
+                if (nn > 1e-12)
+                    newH += (hRx * dx + hRy * dy) / nn;
+            }
+            if (vEnabled) {
+                const double nn = vRx * vRx + vRy * vRy;
+                if (nn > 1e-12)
+                    newV += (vRx * dx + vRy * dy) / nn;
+            }
+        }
 
         const bool hChanged = hEnabled && std::abs(newH - m_selectedPlaneLayer->planeHorizontal()) > 1e-4;
         const bool vChanged = vEnabled && std::abs(newV - m_selectedPlaneLayer->planeVertical()) > 1e-4;
