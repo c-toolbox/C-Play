@@ -1261,14 +1261,39 @@ void SlidesModel::clearRecentPresentations() {
 }
 
 void SlidesModel::runRenderOnLayersThatShouldUpdate(bool updateRendering) {
-    if (!pauseLayerUpdate()) {
-        for (int i = -1; i < numberOfSlides(); i++) {
-            if (pauseLayerUpdate()) {
-                break;
-            }
-            if (slide(i)->runRenderOnLayersThatShouldUpdate(updateRendering, preLoadLayers())) {
-                updateSlide(i);
-            }
+    if (pauseLayerUpdate()) {
+        return;
+    }
+
+    const bool preload = preLoadLayers();
+
+    // Master slide: m_masterSlide is a stable member, never removed from the model
+    // while the app runs, so it is safe to use directly from the render thread.
+    if (m_masterSlide) {
+        m_masterSlide->runRenderOnLayersThatShouldUpdate(updateRendering, preload);
+    }
+
+    // The slides themselves must not be reached through slide(i)/numberOfSlides():
+    // those read m_slides without m_slidesMutex and return a raw pointer. At startup
+    // (clearSlides() + addSlide() from a presentation load, which the layers panel
+    // opening triggers) the GUI thread erases and reallocs m_slides underneath the
+    // render thread, destroying the LayersModel - and with it its m_layers container
+    // and mutex - while this loop is iterating it. That produced use-after-free
+    // crashes on a garbage BaseLayer vtable inside runRenderOnLayersThatShouldUpdate.
+    // Take a shared-pointer snapshot instead: it keeps every LayersModel alive for
+    // the duration of the loop even if the GUI thread removes it in the meantime,
+    // and the per-model m_layersMutex then does its job again.
+    QList<QSharedPointer<LayersModel>> slides;
+    if (!trySnapshotSlides(slides)) {
+        // GUI thread is mid-modification of the slide list: skip this frame.
+        return;
+    }
+    for (int i = 0; i < slides.size(); i++) {
+        if (pauseLayerUpdate()) {
+            break;
+        }
+        if (slides[i] && slides[i]->runRenderOnLayersThatShouldUpdate(updateRendering, preload)) {
+            updateSlide(i);
         }
     }
 }
