@@ -149,6 +149,12 @@ public:
     virtual void reportSwap();
     virtual bool hasTexture() const = 0;
 
+    // Loader failure verification (node side): lets a layer refresh its load status before the
+    // NodeLoaderVerifier reads it. Default is a no-op - layers whose loader reports failures
+    // directly via setLoadError() do not override it. Overridden by layers whose loader state
+    // lives outside BaseLayer's members (MPV event thread, MDK player polling, DirectShow worker).
+    virtual void collectLoadStatus();
+
     virtual void start();
     virtual void stop();
 
@@ -268,6 +274,13 @@ public:
     std::string filepath() const;
     void setFilePath(std::string p);
 
+    // Loader failure state for the NodeLoaderVerifier: the source path that failed to load and
+    // a short human-readable reason. An empty error means no failure. Writers may run on loader
+    // or worker threads, so all access is mutex-protected (see m_loadStatusMutex).
+    std::string loadStatusPath() const;
+    std::string loadError() const;
+    bool loadFailed() const;
+
     int keepVisibilityForNumSlides() const;
     void setKeepVisibilityForNumSlides(int k);
 
@@ -370,6 +383,15 @@ public:
 
 protected:
     void setNeedSync();
+
+    // Loader failure state mutators. Idempotent (no-op when the state is unchanged) so the
+    // verifier's per-tick collectLoadStatus() sync stays cheap and chatter-free.
+    void setLoadError(const std::string &path, const std::string &err);
+    void clearLoadError();
+
+    mutable std::mutex m_loadStatusMutex;
+    std::string m_loadStatusPath;
+    std::string m_loadError;
 
     LayerType m_type;
     LayerHierarchy m_hierachy;

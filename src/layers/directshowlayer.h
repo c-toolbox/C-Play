@@ -119,6 +119,9 @@ public:
     bool ready() const;
     bool hasTexture() const override;
 
+    // Surfaces the worker's lastFailedSource through BaseLayer's load-status members.
+    void collectLoadStatus() override;
+
     // Must be called from the render thread every frame to flush deferred GL deletions.
     static void processPendingGLCleanup();
 

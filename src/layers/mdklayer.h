@@ -52,6 +52,9 @@ public:
     virtual bool ready() const;
     bool hasTexture() const override;
 
+    // Polls the MDK player's media status and syncs a load failure into BaseLayer's members.
+    void collectLoadStatus() override;
+
     void initializeAndLoad(std::string filePath);
     void update(bool updateRendering = true);
 

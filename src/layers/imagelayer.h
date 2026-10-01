@@ -75,6 +75,10 @@ public:
         std::atomic_bool multiFrame{false};
         std::atomic_bool animated{false};
         std::atomic_bool usingFrameQueue{false};
+
+        // Total decode failure reported by the loader thread (no frame queued and no SGCT
+        // image). Written before threadDone is set, so a reader that observes threadDone sees it.
+        std::string loadError;
     };
 
     // Legacy alias kept so call sites outside this file need no changes
@@ -89,9 +93,13 @@ public:
     bool ready() const;
     bool hasTexture() const override;
 
+    // Syncs the loader thread's decode-failure state into BaseLayer's load-status members.
+    void collectLoadStatus() override;
+
     bool processImageUpload(std::string filename, bool forceUpdate);
     std::string loadedFile();
-    bool fileIsImage(std::string &filePath, ImageLayer::ImageDecoder &decoder);
+    // When error is non-null it receives a short reason on failure (missing file / unsupported format).
+    bool fileIsImage(std::string &filePath, ImageLayer::ImageDecoder &decoder, std::string *error = nullptr);
 
     int frameCount() const;
     int currentFrameIndex() const;

@@ -10,6 +10,7 @@
 
 #include <client.h>
 #include <layers/baselayer.h>
+#include <chrono>
 #include <condition_variable>
 #include <mutex>
 #include <render_gl.h>
@@ -87,6 +88,14 @@ public:
         std::atomic_bool threadDone = false;
         std::atomic_bool terminate = false;
         onFileLoadedCallback fileLoadedCallback = nullptr;
+
+        // Loader failure state. The mpv event thread (on_mpv_events) writes pendingLoadError /
+        // fileLoaded; the render thread reads them in collectLoadStatus() and syncs them into
+        // BaseLayer's load-status members. Guarded by loadStatusMutex.
+        std::mutex loadStatusMutex;
+        bool fileLoaded = false;                     // MPV_EVENT_FILE_LOADED received for loadedFile
+        std::string pendingLoadError;                // "" = no failure reported by the event thread
+        std::chrono::steady_clock::time_point loadRequestedTime{}; // when loadfile was issued
     };
 
     MpvLayer(gl_adress_func_v1 opa,
@@ -107,6 +116,10 @@ public:
 
     // Called after a frame has been presented to report swap to MPV.
     void reportSwap() override;
+
+    // Syncs the mpv event thread's failure state into BaseLayer's load-status members and
+    // cross-checks the idle-active timeout for loads that never produced FILE_LOADED.
+    void collectLoadStatus() override;
 
     void initializeAndLoad(std::string filePath);
     void update(bool updateRendering = true);

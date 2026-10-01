@@ -19,6 +19,7 @@
 #include "slidesmodel.h"
 #include "slidesqtitem.h"
 #include "telemetry/nodetelemetry.h"
+#include "telemetry/nodeloaderverifier.h"
 
 #ifdef JACK_SUPPORT
 #include <jack/jack.h>
@@ -174,6 +175,11 @@ Application::Application(int &argc, char **argv, const QString &applicationName)
     // main-thread bookkeeping and crashes at launch. From this point on the dataTransfer
     // callbacks may touch the manager: instance() flips NodeTelemetryManager::isReady().
     NodeTelemetryManager::instance();
+
+    // Same main-thread-only construction rule for the loader verifier (always-on load-failure
+    // reporting over the same DataTransfer channel; no enable command to re-broadcast, so a
+    // late construction only delays first reports until the next failure change/reconnect).
+    NodeLoaderVerifier::instance();
 
     m_config = KSharedConfig::openConfig(QStringLiteral("C-Play/cplay.conf"));
     m_shortcuts = new KConfigGroup(m_config, QStringLiteral("Shortcuts"));

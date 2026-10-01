@@ -11,7 +11,7 @@
 #include "mpvobject.h"
 #include "utils/gpuload.h"
 
-#include <mpv/client.h>
+#include <client.h>
 #include <nlohmann/json.hpp>
 #include <sgct/sgct.h>
 
@@ -321,6 +321,11 @@ void NodeTelemetryManager::handleNodeData(void* data, int length, int /*packageI
             root["v"].get<int>() != 1) {
             return;
         }
+
+        // Packets carrying a "kind" discriminator belong to another DataTransfer consumer
+        // (NodeLoaderVerifier's load-failure reports) - not telemetry.
+        if (root.contains("kind"))
+            return;
 
         // Node-side telemetry report.
         if (!root.contains("node") || !root["node"].is_number_integer())

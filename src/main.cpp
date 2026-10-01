@@ -30,6 +30,7 @@
 #include <mutex>
 #include <slidesmodel.h>
 #include <telemetry/nodetelemetry.h>
+#include <telemetry/nodeloaderverifier.h>
 #include <utils/logfilewriter.h>
 #include <configmodel.h>
 
@@ -1394,6 +1395,19 @@ static void postDraw() {
     if (NodeTelemetryManager::isReady()) {
         NodeTelemetryManager::instance().collectAndSend(layerRender->getLayers());
     }
+
+    // Node loader verification: always-on, event-driven load-failure reports to the master.
+    // Walks primary + secondary layers explicitly - a failed layer never reaches the render
+    // container (ready() is false), and mainVideoLayer lives outside it entirely.
+    if (NodeLoaderVerifier::isReady()) {
+        std::vector<std::shared_ptr<BaseLayer>> verifierLayers;
+        verifierLayers.reserve(primaryLayers.size() + secondaryLayers.size());
+        for (auto &layer : primaryLayers)
+            verifierLayers.push_back(layer);
+        for (auto &layer : secondaryLayers)
+            verifierLayers.push_back(layer);
+        NodeLoaderVerifier::instance().collectAndSend(verifierLayers);
+    }
 }
 
 static void cleanup() {
@@ -1453,15 +1467,19 @@ static void cleanup() {
 // every sweep tick (so nodes pick up late) and node rows/online state are rebuilt from
 // subsequent telemetry packets and status changes.
 static void dataTransferDecode(void* data, int length, int packageId, int clientIndex) {
-    if (!NodeTelemetryManager::isReady())
-        return;
-    NodeTelemetryManager::instance().handleNodeData(data, length, packageId, clientIndex);
+    if (NodeTelemetryManager::isReady())
+        NodeTelemetryManager::instance().handleNodeData(data, length, packageId, clientIndex);
+    // Both consumers share the DataTransfer channel and discriminate by packet content:
+    // telemetry packets carry no "kind", load-failure packets carry "kind":"loadfail".
+    if (NodeLoaderVerifier::isReady())
+        NodeLoaderVerifier::instance().handleNodeData(data, length, packageId, clientIndex);
 }
 
 static void dataTransferStatus(bool connected, int clientIndex) {
-    if (!NodeTelemetryManager::isReady())
-        return;
-    NodeTelemetryManager::instance().handleNodeStatus(connected, clientIndex);
+    if (NodeTelemetryManager::isReady())
+        NodeTelemetryManager::instance().handleNodeStatus(connected, clientIndex);
+    if (NodeLoaderVerifier::isReady())
+        NodeLoaderVerifier::instance().handleNodeStatus(connected, clientIndex);
 }
 
 int main(int argc, char *argv[]) {
@@ -1678,6 +1696,11 @@ int main(int argc, char *argv[]) {
         // harmlessly - the master re-broadcasts its enable state every sweep tick (1 s), so a
         // late-constructed manager picks up the current state within one interval.
         NodeTelemetryManager::instance();
+
+        // Same main-thread-only construction rule for the loader verifier (always-on, so it has
+        // no enable command to lose - packets arriving before this point are dropped and the
+        // node re-reports its failures on the next failure change or DataTransfer reconnect).
+        NodeLoaderVerifier::instance();
 
         Engine::instance().exec();
         Engine::destroy();

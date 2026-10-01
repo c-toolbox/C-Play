@@ -11,6 +11,7 @@
 #include "slidesmodel.h"
 #include "presentationsettings.h"
 #include "telemetry/nodetelemetry.h"
+#include "telemetry/nodeloaderverifier.h"
 #include "userinterfacesettings.h"
 #include "layers/controllayer.h"
 #include "layersmodel.h"
@@ -61,6 +62,11 @@ PlayerController::PlayerController(QObject *parent)
     // telemetryChanged on the GUI thread (queued), which we forward to QML.
     connect(&NodeTelemetryManager::instance(), &NodeTelemetryManager::telemetryChanged,
             this, &PlayerController::nodeTelemetryChanged);
+
+    // Node load-failure rows are pushed from SGCT's network thread; the verifier emits
+    // loadFailuresChanged on the GUI thread (queued), which we forward to QML.
+    connect(&NodeLoaderVerifier::instance(), &NodeLoaderVerifier::loadFailuresChanged,
+            this, &PlayerController::nodeLoadFailuresChanged);
 
     setupHttpServer();
 
@@ -838,6 +844,10 @@ void PlayerController::setCaptureBackBuffer(bool backBuffer) {
 
 QVariantList PlayerController::nodeTelemetry() const {
     return NodeTelemetryManager::instance().telemetryList();
+}
+
+QVariantList PlayerController::nodeLoadFailures() const {
+    return NodeLoaderVerifier::instance().loadFailuresList();
 }
 
 void PlayerController::setNodeTelemetryEnabled(bool enabled) {

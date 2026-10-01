@@ -1317,6 +1317,20 @@ void DirectShowLayer::publishStatus(bool hasGraph, const std::string& failedSour
     m_status.lastFailedSource = failedSource;
 }
 
+void DirectShowLayer::collectLoadStatus() {
+    bool hasGraph = false;
+    std::string failedSource;
+    {
+        const std::lock_guard<std::mutex> lock(m_statusMutex);
+        hasGraph = m_status.hasGraph;
+        failedSource = m_status.lastFailedSource;
+    }
+    if (hasGraph)
+        clearLoadError(); // a running graph means the current source loaded fine
+    else if (!failedSource.empty())
+        setLoadError(failedSource, "DirectShow graph build failed");
+}
+
 void DirectShowLayer::runGraphWorker() {
     // COM must be initialized on this thread before any DirectShow call. All graph work happens here
     // so the render/main thread never blocks on device enumeration, filter negotiation or Run()/Stop().

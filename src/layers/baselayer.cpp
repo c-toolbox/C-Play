@@ -295,6 +295,8 @@ BaseLayer::BaseLayer() {
     m_pendingStart = false;
     m_ndiOutputEnabled = false;
     m_ndiSenderName = "";
+    m_loadStatusPath = "";
+    m_loadError = "";
     setNeedSync();
 }
 
@@ -817,6 +819,45 @@ std::string BaseLayer::filepath() const {
 void BaseLayer::setFilePath(std::string p) {
     m_filepath = p;
     setNeedSync();
+}
+
+std::string BaseLayer::loadStatusPath() const {
+    const std::lock_guard<std::mutex> lock(m_loadStatusMutex);
+    return m_loadStatusPath;
+}
+
+std::string BaseLayer::loadError() const {
+    const std::lock_guard<std::mutex> lock(m_loadStatusMutex);
+    return m_loadError;
+}
+
+bool BaseLayer::loadFailed() const {
+    const std::lock_guard<std::mutex> lock(m_loadStatusMutex);
+    return !m_loadError.empty();
+}
+
+void BaseLayer::setLoadError(const std::string &path, const std::string &err) {
+    if (err.empty()) {
+        clearLoadError();
+        return;
+    }
+    const std::lock_guard<std::mutex> lock(m_loadStatusMutex);
+    if (m_loadError == err && m_loadStatusPath == path)
+        return; // idempotent - the verifier syncs this every tick
+    m_loadStatusPath = path;
+    m_loadError = err;
+}
+
+void BaseLayer::clearLoadError() {
+    const std::lock_guard<std::mutex> lock(m_loadStatusMutex);
+    if (m_loadError.empty())
+        return; // idempotent
+    m_loadStatusPath.clear();
+    m_loadError.clear();
+}
+
+// Default: nothing to refresh - the layer's loader reports failures directly via setLoadError().
+void BaseLayer::collectLoadStatus() {
 }
 
 int BaseLayer::volume() const {

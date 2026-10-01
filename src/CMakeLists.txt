@@ -91,6 +91,8 @@ set(SOURCE_FILES
     slidesqtitem.h
     telemetry/nodetelemetry.cpp
     telemetry/nodetelemetry.h
+    telemetry/nodeloaderverifier.cpp
+    telemetry/nodeloaderverifier.h
     track.cpp
     track.h
     tracksmodel.cpp

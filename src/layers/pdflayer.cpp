@@ -219,11 +219,14 @@ bool PdfLayer::loadDocument(std::string filepath) {
 
     if (m_pdfData.document == nullptr) {
         sgct::Log::Error(std::format("Loading error: PDF {} failed", filepath));
+        setLoadError(filepath, "could not load PDF");
     }
     else if (m_pdfData.document->is_locked()) {
         sgct::Log::Error(std::format("Loading error: PDF {} is encrypted.", filepath));
+        setLoadError(filepath, "PDF is encrypted");
     }
     else { //Success
+        clearLoadError();
         setNumPages(m_pdfData.document->pages());
         return true;
     }

@@ -16,6 +16,11 @@
 #include <QDir>
 #include <QFileInfo>
 
+namespace {
+// Grace window between issuing loadfile and declaring the load failed when mpv is still idle.
+constexpr std::chrono::seconds kMpvLoadFailureGrace{3};
+} // namespace
+
 void loadTracks(MpvLayer::mpvData& vd) {
     if (vd.handle && vd.mpvInitialized && !vd.loadedFile.empty()) {
         vd.audioTracks.clear();
@@ -112,6 +117,12 @@ void on_mpv_events(MpvLayer::mpvData &vd, BaseLayer::RenderParams) {
         }
         switch (event->event_id) {
         case MPV_EVENT_FILE_LOADED: {
+            // The file is open and playing - any pending load failure no longer applies.
+            {
+                const std::lock_guard<std::mutex> lock(vd.loadStatusMutex);
+                vd.fileLoaded = true;
+                vd.pendingLoadError.clear();
+            }
             // Always read the track list so hasAudio() is accurate even when audio
             // is disabled; only apply the selection/volume when audio is enabled.
             loadTracks(vd);
@@ -202,6 +213,22 @@ void on_mpv_events(MpvLayer::mpvData &vd, BaseLayer::RenderParams) {
                     // (aid=auto selects the first/default audio track when it shows up).
                     loadAudioId(vd);
                 }
+            }
+            break;
+        }
+
+        case MPV_EVENT_END_FILE: {
+            // A load that ends in an error never produced FILE_LOADED - report it so the master
+            // can see which files failed to open on this node. EOF/STOP/QUIT are not loader
+            // failures (with keep-open=yes an EOF just holds the last frame).
+            mpv_event_end_file *endFile = reinterpret_cast<mpv_event_end_file *>(event->data);
+            const bool isError = endFile && endFile->reason == MPV_END_FILE_REASON_ERROR;
+            {
+                const std::lock_guard<std::mutex> lock(vd.loadStatusMutex);
+                if (isError)
+                    vd.pendingLoadError = "mpv load error";
+                else
+                    vd.pendingLoadError.clear();
             }
             break;
         }
@@ -486,6 +513,12 @@ void MpvLayer::unload() {
     m_data.loadedFile.clear();
     m_data.audioTracks.clear();
     m_data.updateRendering = false;
+    {
+        const std::lock_guard<std::mutex> lock(m_data.loadStatusMutex);
+        m_data.fileLoaded = false;
+        m_data.pendingLoadError.clear();
+        m_data.loadRequestedTime = {};
+    }
 }
 
 void MpvLayer::update(bool updateRendering) {
@@ -791,6 +824,14 @@ void MpvLayer::loadFile(std::string filePath, bool reload) {
         m_data.loadedFile = filePath;
         m_data.audioTracks.clear();
 
+        // A new load attempt starts - the previous FILE_LOADED / failure no longer applies.
+        {
+            const std::lock_guard<std::mutex> lock(m_data.loadStatusMutex);
+            m_data.fileLoaded = false;
+            m_data.pendingLoadError.clear();
+            m_data.loadRequestedTime = std::chrono::steady_clock::now();
+        }
+
         // Re-apply global settings first, then the layer-specific options,
         // so options persist across file loads (mpv may reset them per file).
         m_data.mpvOptionsApplied = false;
@@ -820,6 +861,39 @@ void MpvLayer::loadFile(std::string filePath, bool reload) {
 
 std::string MpvLayer::loadedFile() {
     return m_data.loadedFile;
+}
+
+void MpvLayer::collectLoadStatus() {
+    if (!m_data.mpvInitialized || !m_data.handle)
+        return;
+
+    std::string path;
+    std::string error;
+    {
+        const std::lock_guard<std::mutex> lock(m_data.loadStatusMutex);
+        path = m_data.loadedFile;
+        error = m_data.pendingLoadError;
+        if (error.empty() && !path.empty() && !m_data.fileLoaded) {
+            // Idle-active cross-check: the load was requested but mpv never got past its idle
+            // state within the grace window - the file is missing or unopenable. Live streams
+            // are excluded: a slow connection must not be reported as a failure (a hard
+            // failure still arrives as END_FILE reason=error).
+            const auto now = std::chrono::steady_clock::now();
+            if (!m_data.isStream && m_data.loadRequestedTime.time_since_epoch().count() != 0 &&
+                now - m_data.loadRequestedTime > kMpvLoadFailureGrace) {
+                bool idleActive = false;
+                if (mpv_get_property(m_data.handle, "idle-active", MPV_FORMAT_FLAG, &idleActive) >= 0 &&
+                    idleActive) {
+                    error = "not found / could not open";
+                }
+            }
+        }
+    }
+
+    if (path.empty() || error.empty())
+        clearLoadError();
+    else
+        setLoadError(path, error);
 }
 
 bool MpvLayer::renderingIsOn() const {

@@ -274,6 +274,14 @@ auto loadImageAsync = [](std::shared_ptr<ImageLayer::ThreadContext> ctx, int max
         ctx->img = sgct::Image();
     }
 
+    // Report a total decode failure to the render thread: no frame was queued and the SGCT
+    // fallback produced no image. Written before threadDone is set, so a reader that observes
+    // threadDone (acquire) sees it via the atomic's happens-before edge.
+    if (!ctx->usingFrameQueue.load() && !ctx->imageDone.load())
+        ctx->loadError = "could not decode image";
+    else
+        ctx->loadError.clear();
+
     ctx->threadDone = true;
     ctx->threadRunning = false;
 };
@@ -369,6 +377,22 @@ bool ImageLayer::ready() const {
     return !m_ctx->filename.empty() && m_ctx->threadDone && renderData.texId > 0;
 }
 
+void ImageLayer::collectLoadStatus() {
+    if (!m_ctx)
+        return; // no active load - processImageUpload() manages the state there
+    const std::string path = m_ctx->filename;
+    if (path.empty()) {
+        clearLoadError();
+        return;
+    }
+    if (ready()) {
+        clearLoadError(); // successful texture upload - any reported failure is stale
+        return;
+    }
+    if (m_ctx->threadDone.load() && !m_ctx->usingFrameQueue.load() && !m_ctx->imageDone.load())
+        setLoadError(path, m_ctx->loadError.empty() ? "could not decode image" : m_ctx->loadError);
+}
+
 bool ImageLayer::hasTexture() const { return true; }
 
 int ImageLayer::frameCount() const {
@@ -404,9 +428,11 @@ bool ImageLayer::processImageUpload(std::string filename, bool forceUpdate) {
             m_ctx.reset();
             renderData.texId = 0; renderData.width = 0; renderData.height = 0;
             releaseTexRing();
+            clearLoadError(); // no media assigned anymore - drop any reported failure
         } else {
             ImageLayer::ImageDecoder decoderToUse;
-            if (fileIsImage(filename, decoderToUse)) {
+            std::string loadErr;
+            if (fileIsImage(filename, decoderToUse, &loadErr)) {
                 signalAndDetachThread();
 
                 m_hasFirstFrame = false;
@@ -424,9 +450,11 @@ bool ImageLayer::processImageUpload(std::string filename, bool forceUpdate) {
                 sgct::Log::Info(std::format("Loading new {} image asynchronously with {}: {}",
                     m_identifier, decoderName(m_ctx->decoder), filename));
                 m_thread = std::make_unique<std::thread>(loadImageAsync, m_ctx, kMaxBufferedFrames);
+                clearLoadError(); // a new attempt is starting - drop any stale failure
                 return true;
             } else {
                 if (m_ctx) m_ctx->filename = "";
+                setLoadError(filename, loadErr.empty() ? "could not load image" : loadErr);
             }
         }
     }
@@ -437,7 +465,7 @@ std::string ImageLayer::loadedFile() {
     return m_ctx ? m_ctx->filename : "";
 }
 
-bool ImageLayer::fileIsImage(std::string &filePath, ImageLayer::ImageDecoder& decoder) {
+bool ImageLayer::fileIsImage(std::string &filePath, ImageLayer::ImageDecoder& decoder, std::string *error) {
     if (!filePath.empty()) {
         if (std::filesystem::exists(filePath)) {
             std::filesystem::path bgPath = std::filesystem::path(filePath);
@@ -467,11 +495,14 @@ bool ImageLayer::fileIsImage(std::string &filePath, ImageLayer::ImageDecoder& de
 
                 sgct::Log::Warning(std::format("Image file extension is not supported by selected {} decoder: {}",
                     decoderName(dec), filePath));
+                if (error) *error = "unsupported image format";
             } else {
                 sgct::Log::Warning(std::format("Image file has no extension: {}", filePath));
+                if (error) *error = "unsupported image format";
             }
         } else {
             sgct::Log::Warning(std::format("Could not find image file: {}", filePath));
+            if (error) *error = "image file not found";
         }
     } else {
         sgct::Log::Warning(std::format("Image file is empty: {}", filePath));

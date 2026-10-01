@@ -70,6 +70,12 @@ public:
     Q_INVOKABLE void setNodeTelemetryInterval(int ms);
     Q_INVOKABLE int nodeTelemetryInterval() const;
 
+    // Per-node file load failures reported by the cluster nodes (always-on, independent of the
+    // telemetry toggle). One row per failed (node, path) pair.
+    Q_PROPERTY(QVariantList nodeLoadFailures
+        READ nodeLoadFailures
+        NOTIFY nodeLoadFailuresChanged)
+
     Q_INVOKABLE QString supportedImageNameFilters() const;
     Q_INVOKABLE QStringList supportedImageDecoderNames() const;
     Q_INVOKABLE QString imageRingBufferGpuMemoryText(int percent) const;
@@ -202,6 +208,7 @@ Q_SIGNALS:
     void nodeWindowOpacityContentBasedChanged();
     void syncPropertiesChanged();
     void nodeTelemetryChanged();
+    void nodeLoadFailuresChanged();
 
 private:
     MpvObject *mpv() const;
@@ -211,6 +218,8 @@ private:
     void setSlidesModel(SlidesModel* sm);
 
     QVariantList nodeTelemetry() const;
+
+    QVariantList nodeLoadFailures() const;
 
     void setupHttpServer();
 

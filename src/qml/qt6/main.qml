@@ -176,6 +176,20 @@ Kirigami.ApplicationWindow {
         target: playerController
     }
 
+    // Cluster node load failures: the detailed rows are shown only in the Logging window
+    // (LoggingWindow.qml). On the master we latch a flag the first time a failure appears so a
+    // small alert button can pop up in the top-left corner of the main view; pressing it opens
+    // the Logging window and clears the flag, hiding the button again. New failures re-arm it.
+    property bool nodeLoadFailureSeen: false
+
+    Connections {
+        target: playerController
+        function onNodeLoadFailuresChanged() {
+            if (ConfigModel.isMaster && playerController.nodeLoadFailures.length > 0)
+                window.nodeLoadFailureSeen = true;
+        }
+    }
+
     title: mpv.mediaTitle || qsTr("C-Play")
     visible: true
     visibility: window.isFullScreenMode ? Window.FullScreen : Window.Windowed
@@ -620,6 +634,48 @@ Kirigami.ApplicationWindow {
         }
     }
 
+    // Cluster node load-failure alert: a compact button in the top-left corner of the main view
+    // (above the video/3D area) that appears as soon as any node reports a failed load, so the
+    // problem is visible without the OSD. Pressing it opens the Logging window, where the failed
+    // (node, path) rows are listed, and dismisses the button; it reappears on the next failure.
+    // Anchored to the main viewport (same geometry as MpvVideo / the 3D view), so it never
+    // covers the playlist or layer panels, and it stays visible in fullscreen/idle mode.
+    Button {
+        id: nodeLoadFailureButton
+
+        visible: ConfigModel.isMaster && window.nodeLoadFailureSeen
+        anchors.left: mpv.left
+        anchors.top: mpv.top
+        anchors.leftMargin: Kirigami.Units.smallSpacing
+        anchors.topMargin: Kirigami.Units.smallSpacing
+        z: 100   // above the video / 3D view / layer panels
+        padding: Kirigami.Units.smallSpacing
+
+        contentItem: Row {
+            spacing: Kirigami.Units.smallSpacing
+
+            Kirigami.Icon {
+                source: "dialog-error"
+                width: Kirigami.Units.iconSizes.small
+                height: Kirigami.Units.iconSizes.small
+                anchors.verticalCenter: parent.verticalCenter
+            }
+            Label {
+                text: qsTr("Node load problem")
+                anchors.verticalCenter: parent.verticalCenter
+            }
+        }
+
+        ToolTip {
+            text: qsTr("One or more cluster nodes failed to load a file. Click to open the Logging window.")
+        }
+
+        onClicked: {
+            loggingWindow.visible = true;
+            window.nodeLoadFailureSeen = false;
+        }
+    }
+
     PlaySections {
         id: playSections
 
@@ -674,6 +730,13 @@ Kirigami.ApplicationWindow {
     }
     LoggingWindow {
         id: loggingWindow
+
+        // Opening the Logging window by any route (menu, ...) also counts as acknowledging the
+        // node load failures, so the alert button disappears.
+        onVisibleChanged: {
+            if (visible)
+                window.nodeLoadFailureSeen = false;
+        }
     }
 
     LayerView {

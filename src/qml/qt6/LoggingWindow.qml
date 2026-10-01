@@ -26,6 +26,8 @@ Kirigami.ApplicationWindow {
 
     ListModel { id: nodeModel }
 
+    ListModel { id: loadFailuresModel }
+
     onVisibleChanged: {
         if (visible) {
             // Center over the main application window. From this nested component "window" is
@@ -35,6 +37,7 @@ Kirigami.ApplicationWindow {
             y = Math.max(window.y, window.y + (window.height - height) / 2);
             if (nodeTelemetryCheck.checked)
                 updateNodeTable();
+            updateNodeLoadFailureTable();
         }
     }
 
@@ -43,6 +46,34 @@ Kirigami.ApplicationWindow {
         function onNodeTelemetryChanged() {
             if (root.visible && nodeTelemetryCheck.checked)
                 updateNodeTable();
+        }
+    }
+
+    // Node load failures are always-on (independent of the telemetry toggle), so this table is
+    // refreshed whenever the failure set changes and shown only while there are entries.
+    Connections {
+        target: playerController
+        function onNodeLoadFailuresChanged() {
+            if (root.visible)
+                updateNodeLoadFailureTable();
+        }
+    }
+
+    function updateNodeLoadFailureTable() {
+        loadFailuresModel.clear();
+        const rows = playerController.nodeLoadFailures;
+        if (!rows)
+            return;
+        for (const r of rows) {
+            let layerText = r.layerTitle || "-";
+            if (r.layerType && r.layerType !== "")
+                layerText += " (" + r.layerType + ")";
+            loadFailuresModel.append({
+                "rowName": r.name,
+                "rowPath": r.path,
+                "rowLayer": layerText,
+                "rowError": r.error
+            });
         }
     }
 
@@ -291,6 +322,53 @@ Kirigami.ApplicationWindow {
                     Layout.preferredWidth: 60
                     color: model.rowOnline ? "lime" : "crimson"
                 }
+            }
+
+            ScrollBar.vertical: ScrollBar {}
+        }
+
+        Label {
+            text: qsTr("Node load failures")
+            font.pointSize: 14
+            font.bold: true
+            Layout.topMargin: Kirigami.Units.largeSpacing
+            visible: playerController.nodeLoadFailures.length > 0
+        }
+        Label {
+            visible: playerController.nodeLoadFailures.length > 0
+            text: qsTr("Files that a cluster node could not open or decode. Reported automatically (independent of the telemetry toggle); entries disappear when the node loads the file successfully, goes offline, or stays silent for 30 seconds.")
+            font.italic: true
+            opacity: 0.7
+            wrapMode: Text.WordWrap
+            Layout.fillWidth: true
+        }
+
+        ListView {
+            id: loadFailuresTable
+            visible: playerController.nodeLoadFailures.length > 0
+            clip: true
+            Layout.fillWidth: true
+            Layout.minimumHeight: 80
+            model: loadFailuresModel
+
+            header: RowLayout {
+                width: loadFailuresTable.width
+                spacing: Kirigami.Units.smallSpacing
+
+                Label { text: qsTr("Node"); font.bold: true; Layout.preferredWidth: 140 }
+                Label { text: qsTr("File / source"); font.bold: true; Layout.fillWidth: true }
+                Label { text: qsTr("Layer"); font.bold: true; Layout.preferredWidth: 160 }
+                Label { text: qsTr("Error"); font.bold: true; Layout.preferredWidth: 220 }
+            }
+
+            delegate: RowLayout {
+                width: loadFailuresTable.width
+                spacing: Kirigami.Units.smallSpacing
+
+                Label { text: model.rowName; elide: Text.ElideRight; Layout.preferredWidth: 140 }
+                Label { text: model.rowPath; elide: Text.ElideMiddle; Layout.fillWidth: true }
+                Label { text: model.rowLayer; elide: Text.ElideRight; Layout.preferredWidth: 160 }
+                Label { text: model.rowError; elide: Text.ElideRight; Layout.preferredWidth: 220; color: "crimson" }
             }
 
             ScrollBar.vertical: ScrollBar {}

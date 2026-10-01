@@ -109,6 +109,20 @@ bool MdkLayer::ready() const {
     return !m_data.loadedFile.empty() && m_data.updateRendering;
 }
 
+void MdkLayer::collectLoadStatus() {
+    if (m_data.loadedFile.empty()) {
+        clearLoadError();
+        return;
+    }
+    // prepare()/setMedia() report no error at all - the only signal is the media status.
+    const MediaStatus status = m_player->mediaStatus();
+    if ((status & MediaStatus::Invalid) != 0)
+        setLoadError(m_data.loadedFile, "MDK: unsupported format or invalid media source");
+    else if ((status & MediaStatus::Loaded) != 0)
+        clearLoadError();
+    // Loading/Buffering/Stalled: the load is still in progress - keep the previous state.
+}
+
 bool MdkLayer::hasTexture() const {
     return true;
 }
