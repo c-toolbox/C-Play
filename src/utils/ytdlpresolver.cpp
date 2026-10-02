@@ -12,6 +12,7 @@
 #include <sgct/sgct.h>
 
 #include <QCoreApplication>
+#include <QDir>
 #include <QFileInfo>
 #include <QRegularExpression>
 #include <QStandardPaths>
@@ -25,6 +26,33 @@ const QRegularExpression& youtubeHostPattern() {
     static const QRegularExpression re(QStringLiteral("^(https?://)?(www\\.)?([a-z0-9-]+\\.)*(youtube|youtu\\.be)",
                                                        QRegularExpression::CaseInsensitiveOption));
     return re;
+}
+
+// Locate the yt-dlp executable inside dir: first "yt-dlp(.exe)" directly in dir, then - for a
+// PyInstaller onedir build (a folder named "yt-dlp" containing yt-dlp.exe + _internal/) - the
+// executable inside that folder. Only real files are accepted: QFileInfo::exists() would also
+// match the "yt-dlp" folder itself, which is not executable and must never be handed to mpv's
+// ytdl_hook (that made a plugins/yt-dlp/ onedir install fail silently). yt-dlp locates its
+// _internal scripts relative to the executable itself, so pointing at that file works no matter
+// what working directory mpv runs with. Returns an empty string when nothing usable is found.
+QString findYtdlpInDir(const QString& dir) {
+    if (dir.isEmpty() || !QFileInfo(dir).isDir())
+        return {};
+    const QDir d(dir);
+    for (const QString& name : {QStringLiteral("yt-dlp.exe"), QStringLiteral("yt-dlp")}) {
+        const QFileInfo fi(d.filePath(name));
+        if (fi.isFile())
+            return fi.absoluteFilePath();
+    }
+    const QFileInfo sub(d.filePath(QStringLiteral("yt-dlp")));
+    if (sub.isDir()) {
+        for (const QString& name : {QStringLiteral("yt-dlp.exe"), QStringLiteral("yt-dlp")}) {
+            const QFileInfo fi(sub.absoluteFilePath() + QStringLiteral("/") + name);
+            if (fi.isFile())
+                return fi.absoluteFilePath();
+        }
+    }
+    return {};
 }
 } // namespace
 
@@ -47,12 +75,17 @@ bool isYouTubeUrl(const std::string& path) {
 }
 
 std::string resolveYtdlpPath() {
-    // 1. Explicit setting, if it points at an existing file.
+    // 1. Explicit setting, if it points at an existing file (or a folder containing one).
     const QString configured = PlaybackSettings::ytdlpPath();
     if (!configured.isEmpty()) {
-        // The setting may be a bare name (searched on PATH) or a path to the executable.
-        if (QFileInfo::exists(configured))
-            return configured.toStdString();
+        QFileInfo fi(configured);
+        if (fi.isFile())
+            return fi.absoluteFilePath().toStdString();
+        // A folder may be given too (e.g. a PyInstaller onedir build: yt-dlp/yt-dlp.exe + _internal).
+        const QString inFolder = findYtdlpInDir(configured);
+        if (!inFolder.isEmpty())
+            return inFolder.toStdString();
+        // The setting may also be a bare name (searched on PATH).
         const QString onPath = QStandardPaths::findExecutable(configured);
         if (!onPath.isEmpty())
             return onPath.toStdString();
@@ -60,15 +93,26 @@ std::string resolveYtdlpPath() {
                                        configured.toStdString()));
     }
 
-    // 2. Next to C-Play.exe.
+    // 2. Next to C-Play.exe - as a file, or inside a "yt-dlp" folder (onedir build).
     const QString appDir = QCoreApplication::applicationDirPath();
-    for (const QString& name : {QStringLiteral("yt-dlp.exe"), QStringLiteral("yt-dlp")}) {
-        const QString candidate = appDir + QStringLiteral("/") + name;
-        if (QFileInfo::exists(candidate))
-            return candidate.toStdString();
+    {
+        const QString found = findYtdlpInDir(appDir);
+        if (!found.isEmpty())
+            return found.toStdString();
     }
 
-    // 3. On PATH.
+    // 3. In the plugins folder of the working directory / application directory, as a file or
+    // inside a "yt-dlp" subfolder (onedir build). The process working directory is used when
+    // C-Play is started from its install folder; the application directory is checked as well,
+    // since a GUI app launched from Explorer, the Start menu or a shortcut may have a different
+    // current directory.
+    for (const QString& dir : {QDir::currentPath(), appDir}) {
+        const QString found = findYtdlpInDir(dir + QStringLiteral("/plugins"));
+        if (!found.isEmpty())
+            return found.toStdString();
+    }
+
+    // 4. On PATH.
     const QString onPath = QStandardPaths::findExecutable(QStringLiteral("yt-dlp"));
     if (!onPath.isEmpty())
         return onPath.toStdString();

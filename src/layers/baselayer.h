@@ -165,6 +165,16 @@ public:
     virtual void start();
     virtual void stop();
 
+    // Request playback, deferring it when the layer is not ready yet. A slow load
+    // (e.g. a network stream) that completes after the request is fulfilled by the
+    // render loop calling fulfillPendingStart() each frame, so a play signal that
+    // arrives before the load finished is not lost.
+    void requestStart();
+    // Called from the render loop: starts a layer whose start() was deferred by
+    // requestStart() (or setAlpha() on a visibility change) until ready() turned
+    // true. Only fires for a visible, updating master layer. Returns true if started.
+    bool fulfillPendingStart();
+
     virtual bool pause();
     virtual void setPause(bool paused);
 
@@ -476,7 +486,9 @@ protected:
     bool m_shouldPreLoad;
     bool m_hasInitialized;
     bool m_needSync;
-    bool m_pendingStart;
+    // Written by the GUI thread (requestStart/setAlpha/setShouldUpdate), read and
+    // consumed by the render thread (fulfillPendingStart) - hence atomic.
+    std::atomic_bool m_pendingStart{false};
     int m_syncIteration;
 
     mutable std::mutex m_updateMutex;

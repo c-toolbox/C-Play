@@ -110,3 +110,9 @@ Planes define where frozen sublayers appear in the dome or sphere. They are conf
 ```
 
 Each plane can optionally specify `height`, `azimuth`, `elevation`, `roll`, and `distance`. Properties that are not specified are inherited from the parent layer.
+
+---
+
+## Streaming layers from master to nodes (C-Play v2.4 and newer)
+
+Any layer type except Audio can be streamed from the master to all nodes, so each node does not have to decode its own copy of the media — see [Streaming layers from master to nodes](/playback/node-streaming).

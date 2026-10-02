@@ -32,7 +32,7 @@ The source is published at the native resolution of the player texture and one f
 
 ### Following the master view
 
-The output follows the [master view mode](/playback/views#master-view): while the main window shows only the main video, the NDI source carries the full player output as before; while a **3D view** (perspective or fisheye camera) is active, it instead publishes the rendered 3D scene — all layers together, exactly as shown in C-Play's main window. Switching master view mode during transmission swaps the published content without interrupting the sender.
+The output follows the [master view mode](/playback/views#-master-view): while the main window shows only the main video, the NDI source carries the full player output as before; while a **3D view** (perspective or fisheye camera) is active, it instead publishes the rendered 3D scene — all layers together, exactly as shown in C-Play's main window. Switching master view mode during transmission swaps the published content without interrupting the sender.
 
 The resolution of the 3D view output is set by *NDI output resolution for 3D view* in the [Window & UI settings](/settings/window_and_ui) (default **2K**):
 
@@ -71,6 +71,8 @@ Notes:
 * NDI output is only available for layers that render video; it is disabled for **Audio** layers.
 * Output happens on the master only — the nodes are not affected by this setting.
 * The setting (and the sender name) is saved with the presentation file, so a show can be reloaded and the same NDI sources come back automatically.
+
+For sending a layer to C-Play's **own nodes** instead of an external application — over UDP multicast or as an NDI source received by auto-created NDI layers on the nodes — see [Streaming layers from master to nodes](/playback/node-streaming).
 
 ---
 

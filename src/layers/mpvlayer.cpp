@@ -298,13 +298,13 @@ bool initMPV(MpvLayer::mpvData& vd) {
 
     // YouTube layers (and stream layers pointed at a YouTube URL): point mpv's embedded
     // ytdl_hook.lua at the yt-dlp executable we resolved on this machine (settings entry,
-    // next to C-Play.exe, or PATH). An empty resolution leaves the hook's own PATH search
-    // in charge. These are pre-init options.
+    // next to C-Play.exe, working directory plugins folder, or PATH). An empty resolution
+    // leaves the hook's own PATH search in charge. These are pre-init options.
     vd.isYoutubeAtInit = vd.isYoutube;
     if (vd.isYoutube) {
         const std::string ytdlPath = YtdlpResolver::resolveYtdlpPath();
         if (ytdlPath.empty()) {
-            sgct::Log::Warning("YouTube stream: yt-dlp not found (Settings -> Playback -> yt-dlp path, or next to C-Play.exe, or on PATH). Letting ytdl_hook search PATH itself.");
+            sgct::Log::Warning("YouTube stream: yt-dlp not found (Settings -> Playback -> yt-dlp path, next to C-Play.exe, <working directory>/plugins/, or on PATH). Letting ytdl_hook search PATH itself.");
         } else {
             sgct::Log::Info(std::format("YouTube stream: using yt-dlp at '{}'.", ytdlPath));
         }

@@ -539,8 +539,8 @@ GridLayout {
         text: {
             if (app.resolveYtdlpPath() === "") {
                 return qsTr("! YouTube playback needs yt-dlp - not found on this machine. "
-                          + "Add yt-dlp.exe next to C-Play.exe, add it to PATH, "
-                          + "or set the path in Settings -> Playback.");
+                          + "Add yt-dlp.exe next to C-Play.exe (or into <working directory>/plugins/), "
+                          + "add it to PATH, or set the path in Settings -> Playback.");
             }
             return qsTr("Played via yt-dlp (%1). Every cluster node also needs yt-dlp.").arg(app.resolveYtdlpPath());
         }
@@ -709,7 +709,7 @@ GridLayout {
         color: youtubeHintLabel.text.startsWith("!") ? "crimson" : Kirigami.Theme.neutralTextColor
         text: {
             if (app.resolveYtdlpPath() === "") {
-                return qsTr("! YouTube URL - yt-dlp not found. Add yt-dlp.exe next to C-Play.exe, "
+                return qsTr("! YouTube URL - yt-dlp not found. Add yt-dlp.exe next to C-Play.exe (or into <working directory>/plugins/), "
                           + "add it to PATH, or set the path in Settings -> Playback.");
             }
             return qsTr("YouTube URL - played via yt-dlp (every cluster node also needs yt-dlp).");

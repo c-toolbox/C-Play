@@ -23,3 +23,5 @@ Here are further details on the available controls:
 
  - [Views (master view, node window, in-top)](/playback/views)
 
+  - [Streaming layers from master to nodes](/playback/node-streaming) — Stream rendered layer textures from the master to all nodes over UDP multicast or NDI, so each node does not have to decode its own copy.
+

@@ -1176,7 +1176,11 @@ void SlidesModel::runStartAfterPresentationLoad() {
         const Layers& slideLayers = slide(i)->getLayers();
         for (auto layer : slideLayers) {
             if (layer.first && layer.first->alpha() > 0.f) {
-                layer.first->start();
+                // requestStart(): a layer whose load is still in progress (e.g. a slow
+                // stream) records the request and starts as soon as it becomes ready,
+                // instead of the play signal being dropped because start() requires
+                // ready() right now.
+                layer.first->requestStart();
             }
 
         }
@@ -1233,7 +1237,7 @@ void SlidesModel::checkMasterLayersRunBasedOnMediaVisibility(int mediaVisibility
         else {
             if (slideLayers[i].first->alpha() > 0.f) {
                 if (mediaVisibility < 100 && slideLayers[i].first->pause()) {
-                    slideLayers[i].first->start();
+                    slideLayers[i].first->requestStart();
                 }
                 else if (mediaVisibility == 100 && !slideLayers[i].first->pause()) {
                     slideLayers[i].first->stop();

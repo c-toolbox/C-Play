@@ -41,6 +41,8 @@ An additional powerful feature in C-Play is the presentation tool, where you can
 
 - *Streams* (YouTube etc supported through FFmpeg)
 
+- *YouTube* (Single video URLs played as VOD layers with full player controls, resolved by yt-dlp *(Added in 2.4)*)
+
 - *WebRTC* (Low-latency streaming from anywhere. *Pair with VDO.Ninja for remote guests to share there devices.*)
 
 - *Text* (With custom font, also used for subtitles.) 
@@ -68,6 +70,8 @@ With the layer types above, you can make it almost as easy as using PowerPoint t
 - REST Commands (HTTP and WebSockets) to control other application, such as OBS Studio which C-Play then can receive content from.
 
 - NDI output of the main video and individual presentation layers, so other applications (e.g. OBS Studio) can receive C-Play content over the network *(Added in 2.4)*.
+
+- Stream presentation layers from the master to all nodes over UDP multicast or NDI, so each layer is rendered once on the master and shown frame-synced on every node without decoding it again *(Added in 2.4)*.
 
 - Optional [MediaMTX](https://github.com/bluenviron/mediamtx) integration to fetch available live streams from a server and add them as Stream or WebRTC layers *(Added in 2.4)*.
 

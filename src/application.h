@@ -177,7 +177,8 @@ public:
     Q_INVOKABLE QString getStartupFile();
     Q_INVOKABLE QString mpvOptionsPath(const QString &name, const QString &suffix);
     // YouTube support for Stream layers: URL detection (same host patterns as mpv's
-    // ytdl_hook) and yt-dlp discovery (settings path, next to C-Play.exe, or PATH).
+    // ytdl_hook) and yt-dlp discovery (settings path, next to C-Play.exe, working directory
+    // plugins folder, or PATH).
     // Used by the layer properties UI to show a hint/warning for YouTube URLs.
     Q_INVOKABLE bool isYouTubeUrl(const QString &path);
     Q_INVOKABLE QString resolveYtdlpPath();

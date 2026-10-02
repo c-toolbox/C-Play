@@ -385,6 +385,27 @@ void BaseLayer::stop() {
     // Overwrite in derived class
 }
 
+void BaseLayer::requestStart() {
+    // Start now when possible; otherwise remember the request so the render loop
+    // can fulfil it once a slow load (e.g. a stream) finally completes. Without
+    // this, a play signal fired before the load finished was simply dropped and
+    // the layer stayed paused forever.
+    if (isMaster() && !ready()) {
+        m_pendingStart = true;
+        return;
+    }
+    start();
+}
+
+bool BaseLayer::fulfillPendingStart() {
+    if (m_pendingStart && isMaster() && shouldUpdate() && alpha() > 0.f && ready()) {
+        m_pendingStart = false;
+        start();
+        return true;
+    }
+    return false;
+}
+
 bool BaseLayer::pause() {
     return true;
     // Overwrite in derived class

@@ -743,7 +743,8 @@ Kirigami.ApplicationWindow {
         // Loader failure overlay (e.g. a bad stream URL, or a YouTube URL on a machine
         // without yt-dlp). The text comes from the layer's load-error state, refreshed
         // by the LayerQtItem poll timer (layerErrorChanged). Styled after the main OSD
-        // "Could not play" message.
+        // "Could not play" message. z keeps it above the player controls, which are created
+        // dynamically on top of this item and anchored to the same bottom edge.
         Rectangle {
             id: layerErrorOverlay
 
@@ -755,6 +756,7 @@ Kirigami.ApplicationWindow {
             radius: 6
             color: Qt.rgba(0.1, 0.1, 0.1, 0.8)
             visible: layerViewItem.layerHasError && layerViewItem.layerIdx !== -1
+            z: 10
 
             Label {
                 id: layerErrorLabel

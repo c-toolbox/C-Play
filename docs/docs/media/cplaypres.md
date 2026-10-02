@@ -78,6 +78,7 @@ Here you can choose from the following layer types:
 | **DirectShow** | Live camera or capture card input with optional audio, or media files rendered through a Windows DirectShow filter graph using the system's built-in decoders (Windows only). |
 | **WebRTC** | Live video and audio pulled from a WHEP endpoint on the network, e.g. MediaMTX. |
 | **Stream** | RTSP/RMTP, capture cards, camera feeds, or other MPV-compatible live inputs. |
+| **YouTube** | A single YouTube video URL (watch, shorts or youtu.be) played as video-on-demand with full player controls, resolved by the external yt-dlp tool. |
 | **Control** | Non-visual automation commands for playback, fades, loading, and timing control. |
 | **REST** | Non-visual HTTP or WebSocket request fired when the slide is triggered (e.g. control lighting, projectors, OBS Studio, or other applications). |
 
@@ -101,9 +102,10 @@ When choosing *"YouTube"*, a single **URL** field becomes visible instead of the
 
 YouTube URLs are resolved by mpv's `ytdl_hook.lua`, which spawns the external **yt-dlp** executable. C-Play locates yt-dlp on each machine in this order:
 
-1. The **yt-dlp path** set in *Settings → Playback → YouTube (Stream layers)*.
+1. The **yt-dlp path** set in *Settings → Playback* (*YouTube playback*).
 2. `yt-dlp.exe` (or `yt-dlp`) placed next to `C-Play.exe`.
-3. Anywhere on the system `PATH`.
+3. `plugins/yt-dlp(.exe)` in the working directory C-Play was started from (also checked relative to the folder containing `C-Play.exe`).
+4. Anywhere on the system `PATH`.
 
 If none is found, the layer reports a load error and shows an error overlay in the *Layer View*. The layer-properties dialog and the settings page both show whether yt-dlp was found on the current machine.
 

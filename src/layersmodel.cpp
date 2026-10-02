@@ -1882,6 +1882,11 @@ bool LayersModel::runRenderOnLayersThatShouldUpdate(bool updateRendering, bool p
                 }
                 layer->update(layer->shouldUpdate() && updateRendering);
             }
+            // A play signal that arrived before this layer finished loading (a slow
+            // stream, yt-dlp resolution, etc.) is fulfilled here: update() above has
+            // driven the load forward, and this is the per-frame place that already
+            // polls ready(), so the deferred start fires as soon as the load lands.
+            layer->fulfillPendingStart();
             if (m_draggedLayersAwaitingGridGuess.contains(layer.get())
                 && layer->ready()
                 && layer->width() > 0

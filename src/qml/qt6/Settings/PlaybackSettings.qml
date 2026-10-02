@@ -523,7 +523,7 @@ SettingsBasePage {
                 }
 
                 ToolTip {
-                    text: qsTr("Path to the yt-dlp executable used for YouTube URLs in Stream layers. Empty = auto-detect next to C-Play.exe, then on PATH.")
+                    text: qsTr("Path to the yt-dlp executable used for YouTube URLs in Stream layers. Empty = auto-detect next to C-Play.exe, then in <working directory>/plugins/, then on PATH.")
                 }
             }
             ToolButton {
@@ -571,7 +571,7 @@ SettingsBasePage {
             text: qsTr("YouTube URLs in Stream layers are resolved by mpv via the external yt-dlp tool. "
                      + "Every cluster node playing such a layer needs yt-dlp too. Status on this machine: ")
                   + (app.resolveYtdlpPath() === ""
-                     ? qsTr("yt-dlp NOT found - download yt-dlp.exe and place it next to C-Play.exe, on PATH, or set the path above.")
+                     ? qsTr("yt-dlp NOT found - download yt-dlp.exe and place it next to C-Play.exe (or into <working directory>/plugins/), on PATH, or set the path above.")
                      : qsTr("found: %1").arg(app.resolveYtdlpPath()))
         }
         Label {

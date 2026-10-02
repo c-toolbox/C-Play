@@ -36,6 +36,15 @@ These settings control how playback time is kept in sync between master and node
 * **Apply threshold sync on loop only** — Only apply threshold sync when looping (default on).
 * **Time to check threshold after loop** — Delay in milliseconds after a loop before checking sync (0–20000, default 500).
 
+### YouTube playback (C-Play v2.4 and newer)
+
+These settings apply to [YouTube layers](/media/cplaypres#youtube-playback-and-yt-dlp) and Stream layers that use a YouTube URL — mpv resolves the URLs through its embedded `ytdl_hook`, which spawns an external yt-dlp executable:
+
+* **yt-dlp path** — Path to the yt-dlp executable used on this machine (with browse and clear buttons). Empty = auto-detect: next to C-Play.exe, then `<working directory>/plugins/`, and finally anywhere on PATH. The page shows whether yt-dlp was found on this machine.
+* **yt-dlp format** — Optional yt-dlp format selector passed to mpv's `ytdl_hook` (`ytdl-format`) to cap resolution or pick specific codecs (for example `bv*[height<=1080]+ba/b`). Empty = mpv/yt-dlp default.
+
+> **Every cluster node needs yt-dlp too.** A YouTube layer stores its URL verbatim and syncs it to all machines; each machine resolves the URL locally with its own yt-dlp.
+
 ### MPV configuration
 
 The currently loaded MPV configuration is displayed at the bottom of this page (read-only). For more details on how MPV configuration affects playback, see the [Video configuration guide](/setup/video).
