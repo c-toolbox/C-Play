@@ -774,6 +774,27 @@ void NdiLayer::decodeTypeProperties(const std::vector<std::byte>& data, unsigned
     m_typePropertiesDecoded = true;
 }
 
+void NdiLayer::encodeNodeDefaultsForNodes(std::vector<std::byte>& data, bool full) {
+    // Mirrors decodeTypeAlways(): no texture-division sublayers.
+    const bool divisionActive = false;
+    sgct::serializeObject(data, divisionActive);
+
+    if (!full)
+        return;
+
+    // Mirrors decodeTypeProperties(): defaults for a layer receiving a node stream.
+    const int volume = 100;
+    const bool volumeMute = false;
+    const bool qrDetection = false;
+    const int divisionMode = 0;
+    const int divisionGrid = 0;
+    sgct::serializeObject(data, volume);
+    sgct::serializeObject(data, volumeMute);
+    sgct::serializeObject(data, qrDetection);
+    sgct::serializeObject(data, divisionMode);
+    sgct::serializeObject(data, divisionGrid);
+}
+
 bool NdiLayer::isQRCodeDetectionEnabled() const {
     if (m_qrProcessor) {
         return m_qrProcessor->isEnabled();

@@ -1436,6 +1436,7 @@ struct NodeStreamSettings {
     int latencyGuardMs = 1;
     bool allowPartialFrames = false;
     bool loopback = true;
+    bool preferNdi = false;
 };
 
 std::mutex g_nodeStreamSettingsMutex;
@@ -1489,6 +1490,7 @@ void BaseLayer::applyNodeStreamSettings() {
     settings.latencyGuardMs = PresentationSettings::nodeStreamLatencyGuardMs();
     settings.allowPartialFrames = PresentationSettings::nodeStreamAllowPartialFrames();
     settings.loopback = PresentationSettings::nodeStreamLoopback();
+    settings.preferNdi = PresentationSettings::nodeStreamPreferNdi();
     std::lock_guard<std::mutex> lock(g_nodeStreamSettingsMutex);
     g_nodeStreamSettings = settings;
 #endif
@@ -1571,6 +1573,54 @@ void BaseLayer::setNodeStreamMaxFps(int fps) {
     m_nodeStreamMaxFps = std::max(fps, 0);
 }
 
+int BaseLayer::nodeStreamUseNdi() const {
+    return m_nodeStreamUseNdi;
+}
+
+void BaseLayer::setNodeStreamUseNdi(int value) {
+    value = std::clamp(value, -1, 1);
+    if (value == m_nodeStreamUseNdi)
+        return;
+    m_nodeStreamUseNdi = value;
+    // The nodes may have to swap between a NodeStreamLayer and an NdiLayer.
+    if (m_nodeStreamOutputEnabled)
+        setNeedSync();
+}
+
+bool BaseLayer::nodeStreamUseNdiEffective() const {
+#ifdef NODE_STREAM_SUPPORT
+    if (!m_nodeStreamOutputEnabled)
+        return false;
+    const bool useNdi = m_nodeStreamUseNdi >= 0 ? m_nodeStreamUseNdi == 1 : nodeStreamSettings().preferNdi;
+    if (!useNdi)
+        return false;
+#if defined(NDI_SUPPORT) && defined(NDI_LAYER)
+    return NdiSender::isSupported();
+#else
+    return false;
+#endif
+#else
+    return false;
+#endif
+}
+
+std::string BaseLayer::nodeStreamNdiSenderName() const {
+    return generateNdiSenderName();
+}
+
+bool BaseLayer::nodeStreamPreferNdi() {
+#ifdef NODE_STREAM_SUPPORT
+    return nodeStreamSettings().preferNdi;
+#else
+    return false;
+#endif
+}
+
+void BaseLayer::markNodeStreamLayerForResync() {
+    if (m_nodeStreamOutputEnabled)
+        setNeedSync();
+}
+
 std::string BaseLayer::nodeStreamEffectiveGroup() const {
 #ifdef NODE_STREAM_SUPPORT
     const std::string group = nodeStreamGroup();
@@ -1594,7 +1644,9 @@ int BaseLayer::nodeStreamEffectivePort() const {
 bool BaseLayer::nodeStreamOutputIsSending() const {
 #ifdef NODE_STREAM_SUPPORT
     std::lock_guard<std::mutex> lock(m_nodeStreamMutex);
-    return m_nodeStreamSender && m_nodeStreamSender->isSending();
+    if (m_nodeStreamSender && m_nodeStreamSender->isSending())
+        return true;
+    return m_nodeStreamNdiSender && m_nodeStreamNdiSender->isSending();
 #else
     return false;
 #endif
@@ -1612,6 +1664,59 @@ void BaseLayer::updateNodeStreamOutput() {
 
     if (!shouldUpdate() || !hasTexture() || textureId() == 0 || width() <= 0 || height() <= 0)
         return;
+
+    if (nodeStreamUseNdiEffective()) {
+        // NDI mode: the nodes receive this layer with an automatically created NDI layer.
+        // The UDP path is fully bypassed, and the plain NDI output sender is separate.
+        if (m_nodeStreamSender) {
+            m_nodeStreamSender->cleanupGL();
+            std::lock_guard<std::mutex> lock(m_nodeStreamMutex);
+            m_nodeStreamSender.reset();
+        }
+
+        const std::string name = nodeStreamNdiSenderName();
+        if (!m_nodeStreamNdiSender || m_nodeStreamNdiStartedName != name) {
+            if (m_nodeStreamNdiSender) {
+                m_nodeStreamNdiSender->cleanupGL();
+            }
+            auto sender = std::make_unique<NdiSender>();
+            sender->setSource(NdiSender::sourceFromLayer(this));
+            if (!sender->start(name)) {
+                std::lock_guard<std::mutex> lock(m_nodeStreamMutex);
+                m_nodeStreamNdiSender.reset();
+                m_nodeStreamNdiStartedName.clear();
+                m_nodeStreamNdiSyncedName.clear();
+                return;
+            }
+            std::lock_guard<std::mutex> lock(m_nodeStreamMutex);
+            m_nodeStreamNdiSender = std::move(sender);
+            m_nodeStreamNdiStartedName = name;
+            m_nodeStreamNdiSyncedName.clear();
+        }
+
+        // Only the render thread replaces the sender, so it can be used without the lock here.
+        m_nodeStreamNdiSender->captureAndSend();
+
+        // The full NDI name (including the machine name) is only known once the sender
+        // was created lazily. Re-sync the layer once it appears or changes, so the nodes
+        // address the exact discoverable name.
+        const std::string ndiName = m_nodeStreamNdiSender->ndiName();
+        if (!ndiName.empty() && ndiName != m_nodeStreamNdiSyncedName) {
+            std::lock_guard<std::mutex> lock(m_nodeStreamMutex);
+            m_nodeStreamNdiSyncedName = ndiName;
+            setNeedSync();
+        }
+        return;
+    }
+
+    // UDP multicast mode: release the NDI sender, if any.
+    if (m_nodeStreamNdiSender) {
+        m_nodeStreamNdiSender->cleanupGL();
+        std::lock_guard<std::mutex> lock(m_nodeStreamMutex);
+        m_nodeStreamNdiSender.reset();
+        m_nodeStreamNdiStartedName.clear();
+        m_nodeStreamNdiSyncedName.clear();
+    }
 
     if (!m_nodeStreamSender) {
         auto sender = std::make_unique<NodeStreamSender>();
@@ -1640,6 +1745,13 @@ void BaseLayer::updateNodeStreamOutput() {
 
 void BaseLayer::cleanupNodeStreamOutput() {
 #ifdef NODE_STREAM_SUPPORT
+    if (m_nodeStreamNdiSender) {
+        m_nodeStreamNdiSender->cleanupGL();
+        std::lock_guard<std::mutex> lock(m_nodeStreamMutex);
+        m_nodeStreamNdiSender.reset();
+        m_nodeStreamNdiStartedName.clear();
+        m_nodeStreamNdiSyncedName.clear();
+    }
     if (m_nodeStreamSender) {
         m_nodeStreamSender->cleanupGL();
         std::lock_guard<std::mutex> lock(m_nodeStreamMutex);
@@ -1654,14 +1766,51 @@ bool BaseLayer::syncToNodes() const {
 
 int BaseLayer::syncTypeForNodes() const {
 #ifdef NODE_STREAM_SUPPORT
-    if (m_nodeStreamOutputEnabled)
+    if (m_nodeStreamOutputEnabled) {
+        if (nodeStreamUseNdiEffective()) {
+#if defined(NDI_LAYER)
+            return static_cast<int>(NDI);
+#else
+            return static_cast<int>(INVALID);
+#endif
+        }
         return static_cast<int>(NODESTREAM);
+    }
 #endif
     return static_cast<int>(m_type);
 }
 
+void BaseLayer::encodeBaseCoreForNdiNodes(std::vector<std::byte>& data) const {
+    // Like encodeBaseCore(), but the filepath slot carries the full NDI source name,
+    // which is what an NdiLayer addresses its receiver by. The received image is
+    // always top-down, so the node copy never flips.
+    sgct::serializeObject(data, m_hierachy);
+    std::string ndiName;
+    {
+        std::lock_guard<std::mutex> lock(m_nodeStreamMutex);
+        ndiName = m_nodeStreamNdiSyncedName;
+    }
+    if (ndiName.empty())
+        ndiName = nodeStreamNdiSenderName();
+    sgct::serializeObject(data, ndiName);
+    const bool flipY = false;
+    sgct::serializeObject(data, flipY);
+}
+
 void BaseLayer::encodeFullForNodes(std::vector<std::byte>& data) {
 #ifdef NODE_STREAM_SUPPORT
+    if (m_nodeStreamOutputEnabled && nodeStreamUseNdiEffective()) {
+#if defined(NDI_LAYER)
+        // Mirrors NdiLayer::decodeFull: the node creates an NdiLayer receiving this
+        // layer as an NDI source. NdiLayer does not override decodeTypeCore, so the
+        // type sections are written by NdiLayer::encodeNodeDefaultsForNodes().
+        encodeBaseCoreForNdiNodes(data);
+        encodeBaseAlways(data);
+        encodeBaseProperties(data);
+        NdiLayer::encodeNodeDefaultsForNodes(data, true);
+        return;
+#endif
+    }
     if (m_nodeStreamOutputEnabled) {
         // Mirrors encodeFull with the NodeStreamLayer type sections.
         encodeBaseCore(data);
@@ -1712,6 +1861,14 @@ void BaseLayer::encodeNodeStreamTypeAlways(std::vector<std::byte>& data) const {
 
 void BaseLayer::encodeAlwaysForNodes(std::vector<std::byte>& data) {
 #ifdef NODE_STREAM_SUPPORT
+    if (m_nodeStreamOutputEnabled && nodeStreamUseNdiEffective()) {
+#if defined(NDI_LAYER)
+        // Mirrors NdiLayer::decodeAlways.
+        encodeBaseAlways(data);
+        NdiLayer::encodeNodeDefaultsForNodes(data, false);
+        return;
+#endif
+    }
     if (m_nodeStreamOutputEnabled) {
         encodeBaseAlways(data);
         encodeNodeStreamTypeAlways(data);

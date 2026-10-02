@@ -165,6 +165,12 @@ class LayerQtItem : public QQuickItem {
     Q_PROPERTY(int layerNodeStreamMaxFps READ layerNodeStreamMaxFps WRITE setLayerNodeStreamMaxFps NOTIFY layerValueChanged)
     Q_PROPERTY(QString layerNodeStreamAddress READ layerNodeStreamAddress NOTIFY layerValueChanged)
     Q_PROPERTY(bool layerNodeStreamSending READ layerNodeStreamSending NOTIFY layerPositionChanged)
+    // NDI mode for node streaming: follows the global preference unless overridden.
+    Q_PROPERTY(bool layerNodeStreamUseNdi READ layerNodeStreamUseNdi WRITE setLayerNodeStreamUseNdi NOTIFY layerValueChanged)
+    // True when the layer has an explicit NDI/UDP override set on it.
+    Q_PROPERTY(bool layerNodeStreamNdiOverridden READ layerNodeStreamNdiOverridden NOTIFY layerValueChanged)
+    // The NDI source name the nodes receive this layer as in NDI mode.
+    Q_PROPERTY(QString layerNodeStreamNdiName READ layerNodeStreamNdiName NOTIFY layerValueChanged)
 
 public:
     LayerQtItem();
@@ -295,6 +301,10 @@ public:
     void setLayerNodeStreamMaxFps(int fps);
     QString layerNodeStreamAddress() const;
     bool layerNodeStreamSending() const;
+    bool layerNodeStreamUseNdi() const;
+    void setLayerNodeStreamUseNdi(bool useNdi);
+    bool layerNodeStreamNdiOverridden() const;
+    QString layerNodeStreamNdiName() const;
 
     QSize textureSize();
 

@@ -1045,6 +1045,40 @@ bool LayerQtItem::layerNodeStreamSending() const {
     return m_layer && m_layer->nodeStreamOutputIsSending();
 }
 
+bool LayerQtItem::layerNodeStreamUseNdi() const {
+    if (!m_layer)
+        return false;
+    if (m_layer->nodeStreamOutputEnabled())
+        return m_layer->nodeStreamUseNdiEffective();
+    // While not streaming, show the mode that would be used when streaming starts.
+    const int overrideValue = m_layer->nodeStreamUseNdi();
+    return overrideValue >= 0 ? overrideValue == 1 : BaseLayer::nodeStreamPreferNdi();
+}
+
+void LayerQtItem::setLayerNodeStreamUseNdi(bool useNdi) {
+    if (!m_layer)
+        return;
+    // Selecting the same mode as the global preference clears the override again,
+    // so the layer follows the global setting from then on.
+    const bool global = BaseLayer::nodeStreamPreferNdi();
+    const int value = useNdi == global ? -1 : (useNdi ? 1 : 0);
+    if (m_layer->nodeStreamUseNdi() != value) {
+        m_layer->setNodeStreamUseNdi(value);
+        Q_EMIT layerValueChanged();
+        Q_EMIT layerNeedsSave();
+    }
+}
+
+bool LayerQtItem::layerNodeStreamNdiOverridden() const {
+    return m_layer && m_layer->nodeStreamUseNdi() >= 0;
+}
+
+QString LayerQtItem::layerNodeStreamNdiName() const {
+    if (!m_layer)
+        return QString();
+    return QString::fromStdString(m_layer->nodeStreamNdiSenderName());
+}
+
 void LayerQtItem::loadTracks() {
     if (m_layer) {
         m_audioTracksModel->setTracks(m_layer->audioTracks());

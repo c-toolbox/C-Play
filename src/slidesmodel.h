@@ -104,6 +104,8 @@ public:
 
     bool needsSync();
     void setNeedsSync(bool value);
+    // Marks every node-streaming layer of every slide for a full re-sync.
+    void markAllLayersNeedSync();
     void setHasSynced();
 
     Q_PROPERTY(bool preLoadLayers

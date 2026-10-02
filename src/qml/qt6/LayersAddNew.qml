@@ -16,7 +16,7 @@ Kirigami.ApplicationWindow {
     id: root
 
     color: Kirigami.Theme.alternateBackgroundColor
-    height: 430
+    height: 500
     title: qsTr("Add new layer")
     visible: false
     width: 400

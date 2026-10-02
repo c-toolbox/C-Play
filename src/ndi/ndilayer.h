@@ -93,6 +93,12 @@ public:
     bool hasSubLayers() const override;
     std::vector<std::shared_ptr<BaseLayer>>& getSubLayers() const override;
 
+    // Encodes the type sections of a layer that receives a node stream over NDI,
+    // matching decodeTypeAlways()/decodeTypeProperties(). The master calls this when
+    // it streams a layer to the nodes in NDI mode, so the nodes create an NdiLayer
+    // with sensible defaults (the source name itself travels in the filepath field).
+    static void encodeNodeDefaultsForNodes(std::vector<std::byte>& data, bool full);
+
 private:
     bool ReceiveData(bool updateRendering);
     bool OpenReceiver();

@@ -160,7 +160,10 @@ QVariant LayersModel::data(const QModelIndex &index, int role) const {
     case VisibilityRole:
         return QVariant(static_cast<int>(layerItem->alpha() * 100.f));
     case NdiOutputRole:
-        return QVariant(layerItem->ndiOutputEnabled());
+        // The upload icon also covers node streaming over NDI: the layer is then
+        // published as an NDI source on the master too.
+        return QVariant(layerItem->ndiOutputEnabled()
+                        || (layerItem->nodeStreamOutputEnabled() && layerItem->nodeStreamUseNdiEffective()));
     case ExistOnMasterOnlyRole:
         return QVariant(layerItem->existOnMasterOnly());
     case NodeStreamOutputRole:
@@ -1271,6 +1274,8 @@ void LayersModel::decodeFromJSON(QJsonObject &obj, const QStringList &forRelativ
                         m_layers[idx].first->setNodeStreamPort(o.value(QStringLiteral("nodeStreamPort")).toInt());
                     if (o.contains(QStringLiteral("nodeStreamMaxFps")))
                         m_layers[idx].first->setNodeStreamMaxFps(o.value(QStringLiteral("nodeStreamMaxFps")).toInt());
+                    if (o.contains(QStringLiteral("nodeStreamUseNdi")))
+                        m_layers[idx].first->setNodeStreamUseNdi(o.value(QStringLiteral("nodeStreamUseNdi")).toBool() ? 1 : 0);
                     if (o.contains(QStringLiteral("nodeStreamOutput")))
                         m_layers[idx].first->setNodeStreamOutputEnabled(o.value(QStringLiteral("nodeStreamOutput")).toBool());
 
@@ -1750,6 +1755,8 @@ void LayersModel::encodeToJSON(QJsonObject &obj, const QStringList &forRelativeP
 
         if (layer->nodeStreamOutputEnabled())
             layerData.insert(QStringLiteral("nodeStreamOutput"), QJsonValue(true));
+        if (layer->nodeStreamUseNdi() >= 0)
+            layerData.insert(QStringLiteral("nodeStreamUseNdi"), QJsonValue(layer->nodeStreamUseNdi() == 1));
         if (layer->nodeStreamFormat() != 0)
             layerData.insert(QStringLiteral("nodeStreamFormat"), QJsonValue(layer->nodeStreamFormat()));
         if (layer->nodeStreamSyncMode() != 0)
@@ -1976,6 +1983,15 @@ QHash<int, QByteArray> LayersTypeModel::roleNames() const {
 void LayersModel::setNeedSync() {
     m_needSync = true;
     m_syncIteration = PresentationSettings::networkSyncIterations();
+}
+
+void LayersModel::markAllLayersNeedSync() {
+    std::lock_guard<std::recursive_mutex> layersLock(m_layersMutex);
+    for (auto& pair : m_layers) {
+        if (pair.first)
+            pair.first->markNodeStreamLayerForResync();
+    }
+    setNeedSync();
 }
 
 // ---- Timeline implementation ------------------------------------------------

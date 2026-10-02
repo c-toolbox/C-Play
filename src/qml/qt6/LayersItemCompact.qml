@@ -333,7 +333,9 @@ ItemDelegate {
                     }
 
                     ToolTip.visible: ndiIndicatorMA.containsMouse
-                    ToolTip.text: qsTr("NDI output is enabled for this layer on the master.")
+                    ToolTip.text: model.ndiOutput && model.nodeStreamOutput
+                        ? qsTr("The layer is streamed to the nodes as an NDI source on the master.")
+                        : qsTr("NDI output is enabled for this layer on the master.")
                 }
 
                 // Node stream indicator, shown when the layer texture is streamed to the nodes

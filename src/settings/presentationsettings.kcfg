@@ -140,5 +140,9 @@
       <label>Deliver the streams to nodes on the master computer as well.</label>
       <default>true</default>
     </entry>
+    <entry name="NodeStreamPreferNdi" type="bool">
+      <label>Prefer streaming the layers to the nodes over NDI, instead of UDP multicast. The nodes then receive the streams with automatically created NDI layers. Can be overridden per layer.</label>
+      <default>false</default>
+    </entry>
   </group>
 </kcfg>

@@ -465,6 +465,14 @@ void SlidesModel::setNeedsSync(bool value) {
     Q_EMIT needsSyncChanged();
 }
 
+void SlidesModel::markAllLayersNeedSync() {
+    std::lock_guard<std::recursive_mutex> lock(m_slidesMutex);
+    for (auto& slide : m_slides) {
+        if (slide)
+            slide->markAllLayersNeedSync();
+    }
+}
+
 void SlidesModel::setHasSynced() {
     if (m_syncIteration > 0) {
         m_syncIteration--;

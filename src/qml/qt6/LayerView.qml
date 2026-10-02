@@ -501,7 +501,11 @@ Kirigami.ApplicationWindow {
                     }
 
                     ToolTip {
-                        text: layerViewItem.layerNodeStreamOutputEnabled ? qsTr("Streaming the layer texture to the nodes on %1").arg(layerViewItem.layerNodeStreamAddress) : qsTr("Stream the layer texture from the master to the nodes, instead of loading the layer on each node")
+                        text: layerViewItem.layerNodeStreamOutputEnabled
+                            ? (layerViewItem.layerNodeStreamUseNdi
+                                ? qsTr("Streaming the layer texture to the nodes as NDI source %1").arg(layerViewItem.layerNodeStreamNdiName)
+                                : qsTr("Streaming the layer texture to the nodes on %1").arg(layerViewItem.layerNodeStreamAddress))
+                            : qsTr("Stream the layer texture from the master to the nodes, instead of loading the layer on each node")
                     }
                 }
                 ToolButton {
@@ -529,12 +533,41 @@ Kirigami.ApplicationWindow {
                         GridLayout {
                             columns: 2
 
+                            CheckBox {
+                                visible: NDI_SUPPORT && NODE_STREAM_SUPPORT
+                                Layout.columnSpan: 2
+                                checked: layerViewItem.layerNodeStreamUseNdi
+                                text: qsTr("Prefer NDI (instead of UDP multicast)")
+
+                                onCheckedChanged: {
+                                    if (checked !== layerViewItem.layerNodeStreamUseNdi) {
+                                        layerViewItem.layerNodeStreamUseNdi = checked;
+                                        app.slides.needsSync = true;
+                                    }
+                                }
+
+                                ToolTip.visible: hovered
+                                ToolTip.text: qsTr("Stream this layer to the nodes as an NDI source, received by an automatically created NDI layer. The UDP-only options below then don't apply. Unchecking this to match the global preference lets the layer follow the global setting again.")
+                            }
+
+                            Label {
+                                visible: NDI_SUPPORT && NODE_STREAM_SUPPORT && layerViewItem.layerNodeStreamUseNdi
+                                Layout.alignment: Qt.AlignRight
+                                text: qsTr("NDI source:")
+                            }
+                            Label {
+                                visible: NDI_SUPPORT && NODE_STREAM_SUPPORT && layerViewItem.layerNodeStreamUseNdi
+                                text: layerViewItem.layerNodeStreamNdiName
+                            }
+
                             Label {
                                 Layout.alignment: Qt.AlignRight
+                                enabled: !layerViewItem.layerNodeStreamUseNdi
                                 text: qsTr("Compression:")
                             }
                             ComboBox {
                                 Layout.fillWidth: true
+                                enabled: !layerViewItem.layerNodeStreamUseNdi
                                 model: [qsTr("Auto (BC1, or BC3 with alpha)"), qsTr("BC1 (RGB, smallest)"), qsTr("BC3 (RGBA)"), qsTr("BC7 (RGBA, best quality)")]
                                 currentIndex: layerViewItem.layerNodeStreamFormat
 
@@ -545,10 +578,12 @@ Kirigami.ApplicationWindow {
 
                             Label {
                                 Layout.alignment: Qt.AlignRight
+                                enabled: !layerViewItem.layerNodeStreamUseNdi
                                 text: qsTr("Sync:")
                             }
                             ComboBox {
                                 Layout.fillWidth: true
+                                enabled: !layerViewItem.layerNodeStreamUseNdi
                                 model: [qsTr("Frame-locked to the master"), qsTr("Immediate (lowest latency)")]
                                 currentIndex: layerViewItem.layerNodeStreamSyncMode
 
@@ -560,10 +595,12 @@ Kirigami.ApplicationWindow {
 
                             Label {
                                 Layout.alignment: Qt.AlignRight
+                                enabled: !layerViewItem.layerNodeStreamUseNdi
                                 text: qsTr("Max frame rate:")
                             }
                             SpinBox {
                                 editable: true
+                                enabled: !layerViewItem.layerNodeStreamUseNdi
                                 from: 0
                                 to: 240
                                 value: layerViewItem.layerNodeStreamMaxFps
@@ -578,10 +615,12 @@ Kirigami.ApplicationWindow {
 
                             Label {
                                 Layout.alignment: Qt.AlignRight
+                                enabled: !layerViewItem.layerNodeStreamUseNdi
                                 text: qsTr("Multicast group:")
                             }
                             TextField {
                                 Layout.fillWidth: true
+                                enabled: !layerViewItem.layerNodeStreamUseNdi
                                 placeholderText: qsTr("Automatic")
                                 text: layerViewItem.layerNodeStreamGroup
 
@@ -593,10 +632,12 @@ Kirigami.ApplicationWindow {
 
                             Label {
                                 Layout.alignment: Qt.AlignRight
+                                enabled: !layerViewItem.layerNodeStreamUseNdi
                                 text: qsTr("Port:")
                             }
                             SpinBox {
                                 editable: true
+                                enabled: !layerViewItem.layerNodeStreamUseNdi
                                 from: 0
                                 to: 65535
                                 value: layerViewItem.layerNodeStreamPort
@@ -612,9 +653,11 @@ Kirigami.ApplicationWindow {
 
                             Label {
                                 Layout.alignment: Qt.AlignRight
+                                visible: !layerViewItem.layerNodeStreamUseNdi
                                 text: qsTr("Address:")
                             }
                             Label {
+                                visible: !layerViewItem.layerNodeStreamUseNdi
                                 text: layerViewItem.layerNodeStreamAddress
                             }
                         }
@@ -647,9 +690,14 @@ Kirigami.ApplicationWindow {
 
                     checkable: true
                     checked: layerViewItem.layerNdiOutputEnabled
+                    // While the layer is streamed to the nodes over NDI, it is already
+                    // published as an NDI source, so the plain output is not available.
                     enabled: layerViewItem.layerNdiAvailable && layerViewItem.layerTypeName !== "Audio"
+                        && !(layerViewItem.layerNodeStreamOutputEnabled && layerViewItem.layerNodeStreamUseNdi)
                     focusPolicy: Qt.NoFocus
-                    icon.color: (!layerViewItem.layerNdiOutputEnabled ? "crimson" : (layerViewItem.layerNdiSending ? "lime" : "orange"))
+                    icon.color: (layerViewItem.layerNodeStreamOutputEnabled && layerViewItem.layerNodeStreamUseNdi)
+                        ? (layerViewItem.layerNodeStreamSending ? "lime" : "orange")
+                        : (!layerViewItem.layerNdiOutputEnabled ? "crimson" : (layerViewItem.layerNdiSending ? "lime" : "orange"))
                     icon.name: "cloud-upload"
                     text: qsTr("NDI")
 
@@ -658,7 +706,9 @@ Kirigami.ApplicationWindow {
                     }
 
                     ToolTip {
-                        text: layerViewItem.layerNdiAvailable ? (layerViewItem.layerNdiOutputEnabled ? qsTr("NDI output on master: %1").arg(layerViewItem.layerNdiSenderName) : qsTr("NDI output for this layer on the master")) : qsTr("Application built without NDI support")
+                        text: (layerViewItem.layerNodeStreamOutputEnabled && layerViewItem.layerNodeStreamUseNdi)
+                            ? qsTr("The layer is streamed to the nodes as NDI source %1").arg(layerViewItem.layerNodeStreamNdiName)
+                            : (layerViewItem.layerNdiAvailable ? (layerViewItem.layerNdiOutputEnabled ? qsTr("NDI output on master: %1").arg(layerViewItem.layerNdiSenderName) : qsTr("NDI output for this layer on the master")) : qsTr("Application built without NDI support"))
                     }
                 }
             }

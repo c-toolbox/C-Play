@@ -414,6 +414,20 @@ public:
     std::string nodeStreamEffectiveGroup() const;
     int nodeStreamEffectivePort() const;
     bool nodeStreamOutputIsSending() const;
+    // NDI mode for node streaming: -1 follows the global preference, 0 forces UDP
+    // multicast, 1 forces NDI.
+    int nodeStreamUseNdi() const;
+    void setNodeStreamUseNdi(int value);
+    // True when node streaming for this layer should use NDI, taking the per-layer
+    // override, the global preference and NDI availability into account.
+    bool nodeStreamUseNdiEffective() const;
+    // The NDI source name the nodes receive this layer as in NDI mode.
+    std::string nodeStreamNdiSenderName() const;
+    // The cached global "prefer NDI" preference.
+    static bool nodeStreamPreferNdi();
+    // Marks a streaming layer for a full re-sync, e.g. when the global NDI preference
+    // changed and the nodes may have to swap between NodeStreamLayer and NdiLayer.
+    void markNodeStreamLayerForResync();
     // Encodes and queues the layer texture. Must be called on the render thread.
     void updateNodeStreamOutput();
     // Stops the stream and releases its OpenGL resources. Requires a current context.
@@ -428,6 +442,9 @@ public:
 protected:
     void setNeedSync();
     void encodeNodeStreamTypeAlways(std::vector<std::byte>& data) const;
+    // Base-core section for the NDI node-stream mode: like encodeBaseCore(), but the
+    // filepath slot carries the NDI source name the node's NdiLayer receives.
+    void encodeBaseCoreForNdiNodes(std::vector<std::byte>& data) const;
 
     // Loader failure state mutators. Idempotent (no-op when the state is unchanged) so the
     // verifier's per-tick collectLoadStatus() sync stays cheap and chatter-free.
@@ -482,11 +499,19 @@ protected:
     std::atomic<int> m_nodeStreamSyncMode{0};
     std::atomic<int> m_nodeStreamPort{0};
     std::atomic<int> m_nodeStreamMaxFps{0};
+    std::atomic<int> m_nodeStreamUseNdi{-1};
     std::string m_nodeStreamGroup;
     mutable std::mutex m_nodeStreamMutex;
 #ifdef NODE_STREAM_SUPPORT
     // Created and released on the render thread, read under m_nodeStreamMutex by the sync encoder.
     std::unique_ptr<NodeStreamSender> m_nodeStreamSender;
+    // The NDI sender used in NDI mode (kept separate from the plain NDI output sender).
+    // Created and released on the render thread, read under m_nodeStreamMutex by the sync encoder.
+    std::unique_ptr<NdiSender> m_nodeStreamNdiSender;
+    // Render-thread only: the name the sender was started with, and the full NDI name
+    // last reported to the nodes (the full name is only known once the sender runs).
+    std::string m_nodeStreamNdiStartedName;
+    std::string m_nodeStreamNdiSyncedName;
 #endif
 };
 

@@ -408,7 +408,15 @@ void Application::setupQmlSettingsTypes() {
     qmlRegisterSingletonInstance("org.ctoolbox.cplay", 1, 0, "LoggingSettings", LoggingSettings::self());
     qmlRegisterSingletonInstance("org.ctoolbox.cplay", 1, 0, "PresentationSettings", PresentationSettings::self());
     BaseLayer::applyNodeStreamSettings();
-    QObject::connect(PresentationSettings::self(), &KCoreConfigSkeleton::configChanged, [] { BaseLayer::applyNodeStreamSettings(); });
+    QObject::connect(PresentationSettings::self(), &KCoreConfigSkeleton::configChanged, this, [this] {
+        const bool preferNdiBefore = BaseLayer::nodeStreamPreferNdi();
+        BaseLayer::applyNodeStreamSettings();
+        // Layers without a per-layer override follow the global NDI preference, so they
+        // may have to swap between a NodeStreamLayer and an NdiLayer on the nodes.
+        if (BaseLayer::nodeStreamPreferNdi() != preferNdiBefore && m_slidesModel) {
+            m_slidesModel->markAllLayersNeedSync();
+        }
+    });
     qmlRegisterSingletonInstance("org.ctoolbox.cplay", 1, 0, "LocationSettings", LocationSettings::self());
     qmlRegisterSingletonInstance("org.ctoolbox.cplay", 1, 0, "MouseSettings", MouseSettings::self());
     qmlRegisterSingletonInstance("org.ctoolbox.cplay", 1, 0, "PlaybackSettings", PlaybackSettings::self());

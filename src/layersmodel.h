@@ -317,6 +317,12 @@ Q_SIGNALS:
 
 private:
     void setNeedSync();
+
+public:
+    // Marks every node-streaming layer for a full re-sync (see BaseLayer::markNodeStreamLayerForResync).
+    void markAllLayersNeedSync();
+
+private:
     void ensureTimelineSizeMatchesLayers();
     void guessGridModeForDraggedLayer(int layerIdx, BaseLayer *layer);
 

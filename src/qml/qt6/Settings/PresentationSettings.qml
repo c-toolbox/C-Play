@@ -770,6 +770,30 @@ SettingsBasePage {
             text: qsTr("Layer streaming to nodes (UDP multicast)")
         }
 
+                Item {
+            visible: NODE_STREAM_SUPPORT && NDI_SUPPORT
+            height: 1
+            width: 1
+        }
+        CheckBox {
+            visible: NODE_STREAM_SUPPORT && NDI_SUPPORT
+            checked: PresentationSettings.nodeStreamPreferNdi
+            text: qsTr("Prefer NDI for streaming layers to the nodes, instead of UDP multicast.")
+
+            onCheckedChanged: {
+                PresentationSettings.nodeStreamPreferNdi = checked;
+                PresentationSettings.save();
+            }
+
+            ToolTip {
+                text: qsTr("Layers are streamed to the nodes as NDI sources and received by automatically created NDI layers on the nodes. Can be overridden per layer. Requires NDI on the master and the nodes.")
+            }
+        }
+        Item {
+            visible: NODE_STREAM_SUPPORT && NDI_SUPPORT
+            Layout.fillWidth: true
+        }
+
         Label {
             visible: NODE_STREAM_SUPPORT
             Layout.alignment: Qt.AlignRight
