@@ -11,6 +11,7 @@
 #include "configmodel.h"
 #include "haction.h"
 #include "layerqtitem.h"
+#include "layers/baselayer.h"
 #include "layersrendererqtitem.h"
 #include "mpvobject.h"
 #include "ndi/ndisendermodel.h"
@@ -406,6 +407,8 @@ void Application::setupQmlSettingsTypes() {
     qmlRegisterSingletonInstance("org.ctoolbox.cplay", 1, 0, "ImageSettings", ImageSettings::self());
     qmlRegisterSingletonInstance("org.ctoolbox.cplay", 1, 0, "LoggingSettings", LoggingSettings::self());
     qmlRegisterSingletonInstance("org.ctoolbox.cplay", 1, 0, "PresentationSettings", PresentationSettings::self());
+    BaseLayer::applyNodeStreamSettings();
+    QObject::connect(PresentationSettings::self(), &KCoreConfigSkeleton::configChanged, [] { BaseLayer::applyNodeStreamSettings(); });
     qmlRegisterSingletonInstance("org.ctoolbox.cplay", 1, 0, "LocationSettings", LocationSettings::self());
     qmlRegisterSingletonInstance("org.ctoolbox.cplay", 1, 0, "MouseSettings", MouseSettings::self());
     qmlRegisterSingletonInstance("org.ctoolbox.cplay", 1, 0, "PlaybackSettings", PlaybackSettings::self());
@@ -464,6 +467,12 @@ void Application::setupQmlContextProperties() {
     m_engine->rootContext()->setContextProperty(QStringLiteral("CLUX_SUPPORT"), QVariant(true));
 #else
     m_engine->rootContext()->setContextProperty(QStringLiteral("CLUX_SUPPORT"), QVariant(false));
+#endif
+
+#ifdef NODE_STREAM_SUPPORT
+    m_engine->rootContext()->setContextProperty(QStringLiteral("NODE_STREAM_SUPPORT"), QVariant(true));
+#else
+    m_engine->rootContext()->setContextProperty(QStringLiteral("NODE_STREAM_SUPPORT"), QVariant(false));
 #endif
 }
 

@@ -99,4 +99,38 @@
       <default>6</default>
     </entry>
   </group>
+  <group name="NodeStream">
+    <entry name="NodeStreamBaseGroup" type="String">
+      <label>Multicast group of layer streams to the nodes. Each layer uses the next group, unless overridden on the layer.</label>
+      <default>239.192.77.1</default>
+    </entry>
+    <entry name="NodeStreamBasePort" type="int">
+      <label>UDP port of layer streams to the nodes, unless overridden on the layer.</label>
+      <default>50100</default>
+    </entry>
+    <entry name="NodeStreamInterface" type="String">
+      <label>IPv4 address of the master network interface to send from. Empty uses the master address of the cluster configuration.</label>
+      <default></default>
+    </entry>
+    <entry name="NodeStreamTTL" type="int">
+      <label>Multicast time-to-live (number of router hops).</label>
+      <default>1</default>
+    </entry>
+    <entry name="NodeStreamMaxDatagram" type="int">
+      <label>Largest UDP datagram in bytes. 1472 fits a standard 1500 MTU, 8972 fits 9000 byte jumbo frames.</label>
+      <default>1472</default>
+    </entry>
+    <entry name="NodeStreamRateMbps" type="int">
+      <label>Combined send rate limit of all layer streams in Mbit/s. 0 sends without pacing.</label>
+      <default>9000</default>
+    </entry>
+    <entry name="NodeStreamFrameLockedWaitMs" type="int">
+      <label>How long a node waits for a late frame in frame-locked mode, in milliseconds.</label>
+      <default>3</default>
+    </entry>
+    <entry name="NodeStreamLoopback" type="bool">
+      <label>Deliver the streams to nodes on the master computer as well.</label>
+      <default>true</default>
+    </entry>
+  </group>
 </kcfg>

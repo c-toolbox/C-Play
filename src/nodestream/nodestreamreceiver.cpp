@@ -1,0 +1,458 @@
+/*
+ * SPDX-FileCopyrightText:
+ * 2026 Erik Sunden <eriksunden85@gmail.com>
+ *
+ * SPDX-License-Identifier: GPL-3.0-or-later
+ */
+
+#include "nodestreamreceiver.h"
+
+#include <sgct/log.h>
+#include <algorithm>
+#include <chrono>
+#include <cstring>
+#include <format>
+
+namespace {
+
+constexpr int kReceiveBufferBytes = 64 * 1024 * 1024;
+constexpr int kReceiveTimeoutMs = 100;
+constexpr int64_t kStatsIntervalNs = 5'000'000'000;
+
+int64_t nowNs() {
+    return std::chrono::duration_cast<std::chrono::nanoseconds>(std::chrono::steady_clock::now().time_since_epoch()).count();
+}
+
+// True when frame id a comes after b, with wrap-around.
+bool isNewer(uint32_t a, uint32_t b) {
+    return static_cast<int32_t>(a - b) > 0;
+}
+
+} // namespace
+
+NodeStreamReceiver::NodeStreamReceiver() = default;
+
+NodeStreamReceiver::~NodeStreamReceiver() {
+    stop();
+}
+
+bool NodeStreamReceiver::start(const std::string &group, uint16_t port, const std::string &interfaceAddress,
+                               uint32_t streamId) {
+    stop();
+
+    m_endpoint = std::format("{}:{}", group, port);
+    if (!m_socket.openReceiver(group, port, interfaceAddress, kReceiveBufferBytes, kReceiveTimeoutMs)) {
+        std::lock_guard<std::mutex> lock(m_mutex);
+        m_lastError = std::format("Could not join {}: {}", m_endpoint, m_socket.lastError());
+        sgct::Log::Error(std::format("NodeStreamReceiver: {}", m_lastError));
+        return false;
+    }
+
+    {
+        std::lock_guard<std::mutex> lock(m_mutex);
+        m_streamId = streamId;
+        m_hasSession = false;
+        m_hasAcquired = false;
+        m_lastError.clear();
+        for (Slot &slot : m_slots) {
+            if (slot.state == Filling || slot.state == Complete)
+                slot.state = Free;
+        }
+        m_statStartNs = nowNs();
+    }
+
+    sgct::Log::Info(std::format("NodeStreamReceiver: listening on {}{}", m_endpoint,
+                                interfaceAddress.empty() ? std::string() : " via " + interfaceAddress));
+    m_quit = false;
+    m_running = true;
+    m_thread = std::thread(&NodeStreamReceiver::threadMain, this);
+    return true;
+}
+
+void NodeStreamReceiver::stop() {
+    if (m_thread.joinable()) {
+        m_quit = true;
+        m_thread.join();
+    }
+    m_socket.close();
+    m_running = false;
+    m_quit = false;
+}
+
+bool NodeStreamReceiver::isRunning() const {
+    return m_running;
+}
+
+std::string NodeStreamReceiver::lastError() const {
+    std::lock_guard<std::mutex> lock(m_mutex);
+    return m_lastError;
+}
+
+void NodeStreamReceiver::threadMain() {
+    std::vector<uint8_t> buffer(nodestream::kMaxDatagram);
+    while (!m_quit) {
+        const int received = m_socket.receive(buffer.data(), buffer.size());
+        if (received > 0) {
+            handlePacket(buffer.data(), static_cast<size_t>(received));
+        } else if (received < 0) {
+            {
+                std::lock_guard<std::mutex> lock(m_mutex);
+                m_lastError = std::format("Receive failed on {}: {}", m_endpoint, m_socket.lastError());
+            }
+            std::this_thread::sleep_for(std::chrono::milliseconds(50));
+        }
+
+        if (nowNs() - m_statStartNs >= kStatsIntervalNs)
+            logStats();
+    }
+}
+
+void NodeStreamReceiver::handlePacket(const uint8_t *data, size_t size) {
+    nodestream::PacketHeader header{};
+    bool valid = size > sizeof(header);
+    if (valid) {
+        std::memcpy(&header, data, sizeof(header));
+        valid = header.magic == nodestream::kMagic && header.version == nodestream::kVersion
+                && nodestream::isConcreteFormat(header.format) && header.width > 0 && header.height > 0
+                && header.width <= nodestream::kMaxDimension && header.height <= nodestream::kMaxDimension
+                && header.byteLength > 0 && size == sizeof(header) + header.byteLength;
+    }
+    if (valid) {
+        const auto format = static_cast<nodestream::Format>(header.format);
+        const uint64_t blockSize = nodestream::blockBytes(format);
+        const uint64_t rowBytes = nodestream::blocksAcross(header.width) * blockSize;
+        const uint64_t frameSize = nodestream::frameBytes(format, header.width, header.height);
+        const uint64_t offset = header.byteOffset;
+        const uint64_t length = header.byteLength;
+        const bool wholeRows = offset % rowBytes == 0 && length % rowBytes == 0;
+        const bool withinRow = offset / rowBytes == (offset + length - 1) / rowBytes;
+        valid = offset % blockSize == 0 && length % blockSize == 0 && offset + length <= frameSize
+                && (wholeRows || withinRow) && header.packetCount > 0 && header.packetIndex < header.packetCount
+                && header.packetCount <= frameSize / blockSize;
+    }
+
+    std::lock_guard<std::mutex> lock(m_mutex);
+    ++m_statPackets;
+    if (!valid) {
+        ++m_statInvalid;
+        return;
+    }
+    if (header.streamId != m_streamId)
+        return;
+
+    Slot *slot = slotForPacket(header);
+    if (!slot || slot->received[header.packetIndex])
+        return;
+
+    std::memcpy(slot->mapped + header.byteOffset, data + sizeof(header), header.byteLength);
+    slot->received[header.packetIndex] = 1;
+    slot->ranges.emplace_back(header.byteOffset, header.byteLength);
+    if (++slot->receivedCount == slot->packetCount) {
+        slot->state = Complete;
+        ++m_statCompleted;
+        m_cv.notify_all();
+    }
+}
+
+NodeStreamReceiver::Slot *NodeStreamReceiver::slotForPacket(const nodestream::PacketHeader &header) {
+    if (!m_hasSession || header.sessionId != m_sessionId) {
+        m_hasSession = true;
+        m_sessionId = header.sessionId;
+        m_hasAcquired = false;
+        for (Slot &slot : m_slots) {
+            if (slot.state == Filling || slot.state == Complete)
+                slot.state = Free;
+        }
+    }
+
+    const auto format = static_cast<nodestream::Format>(header.format);
+    for (Slot &slot : m_slots) {
+        if (slot.frameId != header.frameId || slot.state == Free)
+            continue;
+        if (slot.state != Filling)
+            return nullptr;
+        if (slot.format != format || slot.width != header.width || slot.height != header.height
+            || slot.packetCount != header.packetCount)
+            return nullptr;
+        return &slot;
+    }
+
+    // Late packets of frames that have already been shown are useless.
+    if (m_hasAcquired && !isNewer(header.frameId, m_lastAcquiredFrameId))
+        return nullptr;
+
+    const size_t frameSize = nodestream::frameBytes(format, header.width, header.height);
+    Slot *chosen = nullptr;
+    for (Slot &slot : m_slots) {
+        if (slot.state == Free && slot.mapped && slot.capacity >= frameSize) {
+            chosen = &slot;
+            break;
+        }
+    }
+    if (!chosen) {
+        // Recycle the oldest pending frame, if it is older than this one.
+        for (Slot &slot : m_slots) {
+            if ((slot.state == Filling || slot.state == Complete) && slot.capacity >= frameSize
+                && isNewer(header.frameId, slot.frameId) && (!chosen || isNewer(chosen->frameId, slot.frameId)))
+                chosen = &slot;
+        }
+    }
+    if (!chosen) {
+        bool anyLargeEnough = false;
+        for (const Slot &slot : m_slots)
+            anyLargeEnough = anyLargeEnough || slot.capacity >= frameSize;
+        if (!anyLargeEnough)
+            m_requiredCapacity = std::max(m_requiredCapacity, frameSize);
+        return nullptr;
+    }
+
+    if (chosen->state == Filling)
+        ++m_statIncomplete;
+    chosen->state = Filling;
+    chosen->frameId = header.frameId;
+    chosen->format = format;
+    chosen->width = header.width;
+    chosen->height = header.height;
+    chosen->packetCount = header.packetCount;
+    chosen->receivedCount = 0;
+    chosen->received.assign(header.packetCount, 0);
+    chosen->ranges.clear();
+    chosen->ranges.reserve(header.packetCount);
+    return chosen;
+}
+
+void NodeStreamReceiver::releaseSlotGL(Slot &slot) {
+    if (slot.fence) {
+        glDeleteSync(slot.fence);
+        slot.fence = nullptr;
+    }
+    if (slot.pbo) {
+        if (slot.mapped) {
+            glBindBuffer(GL_PIXEL_UNPACK_BUFFER, slot.pbo);
+            glUnmapBuffer(GL_PIXEL_UNPACK_BUFFER);
+            glBindBuffer(GL_PIXEL_UNPACK_BUFFER, 0);
+        }
+        glDeleteBuffers(1, &slot.pbo);
+    }
+    slot.pbo = 0;
+    slot.mapped = nullptr;
+    slot.capacity = 0;
+    slot.state = Free;
+}
+
+void NodeStreamReceiver::reallocateSlot(Slot &slot, size_t capacity) {
+    releaseSlotGL(slot);
+    const GLbitfield flags = GL_MAP_WRITE_BIT | GL_MAP_PERSISTENT_BIT | GL_MAP_COHERENT_BIT;
+    glGenBuffers(1, &slot.pbo);
+    glBindBuffer(GL_PIXEL_UNPACK_BUFFER, slot.pbo);
+    glBufferStorage(GL_PIXEL_UNPACK_BUFFER, static_cast<GLsizeiptr>(capacity), nullptr, flags);
+    slot.mapped = static_cast<uint8_t *>(glMapBufferRange(GL_PIXEL_UNPACK_BUFFER, 0, static_cast<GLsizeiptr>(capacity), flags));
+    glBindBuffer(GL_PIXEL_UNPACK_BUFFER, 0);
+    if (!slot.mapped) {
+        sgct::Log::Error("NodeStreamReceiver: could not map upload buffer");
+        releaseSlotGL(slot);
+        return;
+    }
+    slot.capacity = capacity;
+}
+
+void NodeStreamReceiver::serviceGL() {
+    std::lock_guard<std::mutex> lock(m_mutex);
+    for (Slot &slot : m_slots) {
+        if (slot.state != Uploading || !slot.fence)
+            continue;
+        const GLenum result = glClientWaitSync(slot.fence, 0, 0);
+        if (result == GL_ALREADY_SIGNALED || result == GL_CONDITION_SATISFIED) {
+            glDeleteSync(slot.fence);
+            slot.fence = nullptr;
+            slot.state = Free;
+        }
+    }
+
+    if (m_requiredCapacity > 0) {
+        bool allLargeEnough = true;
+        for (Slot &slot : m_slots) {
+            if (slot.capacity >= m_requiredCapacity)
+                continue;
+            if (slot.state == Uploading) {
+                allLargeEnough = false;
+                continue;
+            }
+            reallocateSlot(slot, m_requiredCapacity);
+            allLargeEnough = allLargeEnough && slot.capacity >= m_requiredCapacity;
+        }
+        if (allLargeEnough)
+            m_requiredCapacity = 0;
+    }
+}
+
+NodeStreamReceiver::Frame NodeStreamReceiver::takeSlot(int index) {
+    Slot &slot = m_slots[index];
+    Frame frame;
+    frame.slot = index;
+    frame.pbo = slot.pbo;
+    frame.sessionId = m_sessionId;
+    frame.frameId = slot.frameId;
+    frame.format = slot.format;
+    frame.width = slot.width;
+    frame.height = slot.height;
+    frame.complete = slot.state == Complete;
+    if (!frame.complete) {
+        ++m_statPartialUploads;
+        std::vector<std::pair<uint32_t, uint32_t>> ranges = slot.ranges;
+        std::sort(ranges.begin(), ranges.end());
+        for (const auto &range : ranges) {
+            if (!frame.ranges.empty() && frame.ranges.back().first + frame.ranges.back().second == range.first)
+                frame.ranges.back().second += range.second;
+            else
+                frame.ranges.push_back(range);
+        }
+    }
+    slot.state = Uploading;
+    if (!m_hasAcquired || isNewer(slot.frameId, m_lastAcquiredFrameId)) {
+        m_hasAcquired = true;
+        m_lastAcquiredFrameId = slot.frameId;
+    }
+    return frame;
+}
+
+void NodeStreamReceiver::freeOlderThan(uint32_t frameId) {
+    for (Slot &slot : m_slots) {
+        if ((slot.state == Filling || slot.state == Complete) && isNewer(frameId, slot.frameId)) {
+            if (slot.state == Filling)
+                ++m_statIncomplete;
+            slot.state = Free;
+        }
+    }
+}
+
+std::vector<NodeStreamReceiver::Frame> NodeStreamReceiver::acquireFrameLocked(uint32_t sessionId, uint32_t targetFrameId,
+                                                                              int maxWaitMs, bool hasLastUploaded,
+                                                                              uint32_t lastUploadedFrameId) {
+    std::vector<Frame> frames;
+    if (hasLastUploaded && !isNewer(targetFrameId, lastUploadedFrameId))
+        return frames;
+
+    std::unique_lock<std::mutex> lock(m_mutex);
+    auto findTarget = [&]() -> int {
+        if (!m_hasSession || m_sessionId != sessionId)
+            return -1;
+        for (int i = 0; i < kSlotCount; ++i) {
+            if ((m_slots[i].state == Filling || m_slots[i].state == Complete) && m_slots[i].frameId == targetFrameId)
+                return i;
+        }
+        return -1;
+    };
+    auto targetComplete = [&]() {
+        const int i = findTarget();
+        return i >= 0 && m_slots[i].state == Complete;
+    };
+
+    if (maxWaitMs > 0 && !targetComplete())
+        m_cv.wait_for(lock, std::chrono::milliseconds(maxWaitMs), [&] { return m_quit || targetComplete(); });
+
+    if (!m_hasSession || m_sessionId != sessionId)
+        return frames;
+
+    const int target = findTarget();
+    if (target >= 0 && m_slots[target].state == Complete) {
+        frames.push_back(takeSlot(target));
+        freeOlderThan(targetFrameId);
+        return frames;
+    }
+
+    // Fall back to the newest complete frame up to the target.
+    int best = -1;
+    for (int i = 0; i < kSlotCount; ++i) {
+        const Slot &slot = m_slots[i];
+        if (slot.state != Complete || isNewer(slot.frameId, targetFrameId))
+            continue;
+        if (hasLastUploaded && !isNewer(slot.frameId, lastUploadedFrameId))
+            continue;
+        if (best < 0 || isNewer(slot.frameId, m_slots[best].frameId))
+            best = i;
+    }
+    if (best >= 0)
+        frames.push_back(takeSlot(best));
+    // The target is late or has lost packets: show what arrived on top.
+    if (target >= 0)
+        frames.push_back(takeSlot(target));
+    if (!frames.empty())
+        freeOlderThan(frames.back().frameId);
+    return frames;
+}
+
+std::vector<NodeStreamReceiver::Frame> NodeStreamReceiver::acquireNewest(bool hasLastUploaded, uint32_t lastUploadedFrameId) {
+    std::vector<Frame> frames;
+    std::lock_guard<std::mutex> lock(m_mutex);
+
+    int newestComplete = -1;
+    int newestStarted = -1;
+    for (int i = 0; i < kSlotCount; ++i) {
+        const Slot &slot = m_slots[i];
+        if (slot.state != Filling && slot.state != Complete)
+            continue;
+        if (hasLastUploaded && !isNewer(slot.frameId, lastUploadedFrameId))
+            continue;
+        if (newestStarted < 0 || isNewer(slot.frameId, m_slots[newestStarted].frameId))
+            newestStarted = i;
+        if (slot.state == Complete && (newestComplete < 0 || isNewer(slot.frameId, m_slots[newestComplete].frameId)))
+            newestComplete = i;
+    }
+
+    int chosen = newestComplete;
+    if (chosen < 0 && newestStarted >= 0) {
+        // A frame that a newer frame has superseded will not receive more packets.
+        for (int i = 0; i < kSlotCount; ++i) {
+            const Slot &slot = m_slots[i];
+            if (slot.state != Filling || i == newestStarted)
+                continue;
+            if (hasLastUploaded && !isNewer(slot.frameId, lastUploadedFrameId))
+                continue;
+            if (chosen < 0 || isNewer(slot.frameId, m_slots[chosen].frameId))
+                chosen = i;
+        }
+    }
+    if (chosen >= 0) {
+        const uint32_t frameId = m_slots[chosen].frameId;
+        frames.push_back(takeSlot(chosen));
+        freeOlderThan(frameId);
+    }
+    return frames;
+}
+
+void NodeStreamReceiver::finishUpload(const Frame &frame) {
+    if (frame.slot < 0 || frame.slot >= kSlotCount)
+        return;
+    std::lock_guard<std::mutex> lock(m_mutex);
+    Slot &slot = m_slots[frame.slot];
+    if (slot.fence)
+        glDeleteSync(slot.fence);
+    slot.fence = glFenceSync(GL_SYNC_GPU_COMMANDS_COMPLETE, 0);
+}
+
+void NodeStreamReceiver::logStats() {
+    std::lock_guard<std::mutex> lock(m_mutex);
+    const int64_t now = nowNs();
+    const double seconds = static_cast<double>(now - m_statStartNs) / 1.0e9;
+    if (m_statPackets > 0 && seconds > 0.0) {
+        sgct::Log::Info(std::format(
+            "NodeStreamReceiver {}: {:.0f} packets/s, {:.1f} complete fps, incomplete {}, partial uploads {}, invalid {}",
+            m_endpoint, static_cast<double>(m_statPackets) / seconds, static_cast<double>(m_statCompleted) / seconds,
+            m_statIncomplete, m_statPartialUploads, m_statInvalid));
+    }
+    m_statStartNs = now;
+    m_statPackets = 0;
+    m_statInvalid = 0;
+    m_statCompleted = 0;
+    m_statIncomplete = 0;
+    m_statPartialUploads = 0;
+}
+
+void NodeStreamReceiver::cleanupGL() {
+    stop();
+    std::lock_guard<std::mutex> lock(m_mutex);
+    for (Slot &slot : m_slots)
+        releaseSlotGL(slot);
+    m_requiredCapacity = 0;
+}

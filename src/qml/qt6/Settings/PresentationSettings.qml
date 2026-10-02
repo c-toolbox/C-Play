@@ -758,5 +758,213 @@ SettingsBasePage {
             // spacer item
             Layout.fillWidth: true
         }
+
+        // ------------------------------------
+        // LAYER STREAMING TO NODES
+        // --
+
+        SettingsHeader {
+            visible: NODE_STREAM_SUPPORT
+            Layout.columnSpan: 3
+            Layout.fillWidth: true
+            text: qsTr("Layer streaming to nodes (UDP multicast)")
+        }
+
+        Label {
+            visible: NODE_STREAM_SUPPORT
+            Layout.alignment: Qt.AlignRight
+            text: qsTr("Base multicast group:")
+        }
+        TextField {
+            visible: NODE_STREAM_SUPPORT
+            placeholderText: "239.192.77.1"
+            text: PresentationSettings.nodeStreamBaseGroup
+
+            onEditingFinished: {
+                PresentationSettings.nodeStreamBaseGroup = text.trim();
+                PresentationSettings.save();
+            }
+
+            ToolTip {
+                text: qsTr("Each layer streams to the base group plus its layer id, unless a group is set on the layer.")
+            }
+        }
+        Item {
+            visible: NODE_STREAM_SUPPORT
+            Layout.fillWidth: true
+        }
+
+        Label {
+            visible: NODE_STREAM_SUPPORT
+            Layout.alignment: Qt.AlignRight
+            text: qsTr("Base port:")
+        }
+        SpinBox {
+            visible: NODE_STREAM_SUPPORT
+            editable: true
+            from: 1024
+            to: 65535
+            value: PresentationSettings.nodeStreamBasePort
+
+            onValueChanged: {
+                PresentationSettings.nodeStreamBasePort = value.toFixed(0);
+                PresentationSettings.save();
+            }
+        }
+        Item {
+            visible: NODE_STREAM_SUPPORT
+            Layout.fillWidth: true
+        }
+
+        Label {
+            visible: NODE_STREAM_SUPPORT
+            Layout.alignment: Qt.AlignRight
+            text: qsTr("Master interface address:")
+        }
+        TextField {
+            visible: NODE_STREAM_SUPPORT
+            placeholderText: qsTr("Cluster master address")
+            text: PresentationSettings.nodeStreamInterface
+
+            onEditingFinished: {
+                PresentationSettings.nodeStreamInterface = text.trim();
+                PresentationSettings.save();
+            }
+
+            ToolTip {
+                text: qsTr("IPv4 address of the network interface to send from. Empty uses the master address of the cluster configuration.")
+            }
+        }
+        Item {
+            visible: NODE_STREAM_SUPPORT
+            Layout.fillWidth: true
+        }
+
+        Label {
+            visible: NODE_STREAM_SUPPORT
+            Layout.alignment: Qt.AlignRight
+            text: qsTr("Max datagram size (bytes):")
+        }
+        RowLayout {
+            visible: NODE_STREAM_SUPPORT
+            SpinBox {
+                editable: true
+                from: 576
+                to: 65507
+                value: PresentationSettings.nodeStreamMaxDatagram
+
+                onValueChanged: {
+                    PresentationSettings.nodeStreamMaxDatagram = value.toFixed(0);
+                    PresentationSettings.save();
+                }
+            }
+            Label {
+                Layout.fillWidth: true
+                text: qsTr("(1472 for 1500 MTU, 8972 for jumbo frames)")
+            }
+        }
+        Item {
+            visible: NODE_STREAM_SUPPORT
+            Layout.fillWidth: true
+        }
+
+        Label {
+            visible: NODE_STREAM_SUPPORT
+            Layout.alignment: Qt.AlignRight
+            text: qsTr("Send rate limit (Mbit/s):")
+        }
+        RowLayout {
+            visible: NODE_STREAM_SUPPORT
+            SpinBox {
+                editable: true
+                from: 0
+                to: 100000
+                stepSize: 100
+                value: PresentationSettings.nodeStreamRateMbps
+
+                onValueChanged: {
+                    PresentationSettings.nodeStreamRateMbps = value.toFixed(0);
+                    PresentationSettings.save();
+                }
+            }
+            Label {
+                Layout.fillWidth: true
+                text: qsTr("(All layer streams combined, 0 = no pacing)")
+            }
+        }
+        Item {
+            visible: NODE_STREAM_SUPPORT
+            Layout.fillWidth: true
+        }
+
+        Label {
+            visible: NODE_STREAM_SUPPORT
+            Layout.alignment: Qt.AlignRight
+            text: qsTr("Frame-locked wait (msec):")
+        }
+        RowLayout {
+            visible: NODE_STREAM_SUPPORT
+            SpinBox {
+                editable: true
+                from: 0
+                to: 50
+                value: PresentationSettings.nodeStreamFrameLockedWaitMs
+
+                onValueChanged: {
+                    PresentationSettings.nodeStreamFrameLockedWaitMs = value.toFixed(0);
+                    PresentationSettings.save();
+                }
+            }
+            Label {
+                Layout.fillWidth: true
+                text: qsTr("(How long a node waits for a late frame)")
+            }
+        }
+        Item {
+            visible: NODE_STREAM_SUPPORT
+            Layout.fillWidth: true
+        }
+
+        Label {
+            visible: NODE_STREAM_SUPPORT
+            Layout.alignment: Qt.AlignRight
+            text: qsTr("Multicast TTL:")
+        }
+        SpinBox {
+            visible: NODE_STREAM_SUPPORT
+            editable: true
+            from: 1
+            to: 32
+            value: PresentationSettings.nodeStreamTTL
+
+            onValueChanged: {
+                PresentationSettings.nodeStreamTTL = value.toFixed(0);
+                PresentationSettings.save();
+            }
+        }
+        Item {
+            visible: NODE_STREAM_SUPPORT
+            Layout.fillWidth: true
+        }
+
+        Item {
+            visible: NODE_STREAM_SUPPORT
+            height: 1
+            width: 1
+        }
+        CheckBox {
+            visible: NODE_STREAM_SUPPORT
+            checked: PresentationSettings.nodeStreamLoopback
+            text: qsTr("Deliver streams to nodes running on the master computer.")
+
+            onCheckedChanged: {
+                PresentationSettings.nodeStreamLoopback = checked;
+                PresentationSettings.save();
+            }
+        }
+        Item {
+            visible: NODE_STREAM_SUPPORT
+            Layout.fillWidth: true
+        }
     }
 }

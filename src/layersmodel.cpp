@@ -163,6 +163,8 @@ QVariant LayersModel::data(const QModelIndex &index, int role) const {
         return QVariant(layerItem->ndiOutputEnabled());
     case ExistOnMasterOnlyRole:
         return QVariant(layerItem->existOnMasterOnly());
+    case NodeStreamOutputRole:
+        return QVariant(layerItem->nodeStreamOutputEnabled());
     }
 
     return QVariant();
@@ -181,6 +183,7 @@ QHash<int, QByteArray> LayersModel::roleNames() const {
     roles[VisibilityRole] = "visibility";
     roles[NdiOutputRole] = "ndiOutput";
     roles[ExistOnMasterOnlyRole] = "existOnMasterOnly";
+    roles[NodeStreamOutputRole] = "nodeStreamOutput";
     return roles;
 }
 
@@ -1258,6 +1261,19 @@ void LayersModel::decodeFromJSON(QJsonObject &obj, const QStringList &forRelativ
                         m_layers[idx].first->setExistOnMasterOnly(o.value(QStringLiteral("existOnMasterOnly")).toBool());
                     }
 
+                    if (o.contains(QStringLiteral("nodeStreamFormat")))
+                        m_layers[idx].first->setNodeStreamFormat(o.value(QStringLiteral("nodeStreamFormat")).toInt());
+                    if (o.contains(QStringLiteral("nodeStreamSync")))
+                        m_layers[idx].first->setNodeStreamSyncMode(o.value(QStringLiteral("nodeStreamSync")).toInt());
+                    if (o.contains(QStringLiteral("nodeStreamGroup")))
+                        m_layers[idx].first->setNodeStreamGroup(o.value(QStringLiteral("nodeStreamGroup")).toString().trimmed().toStdString());
+                    if (o.contains(QStringLiteral("nodeStreamPort")))
+                        m_layers[idx].first->setNodeStreamPort(o.value(QStringLiteral("nodeStreamPort")).toInt());
+                    if (o.contains(QStringLiteral("nodeStreamMaxFps")))
+                        m_layers[idx].first->setNodeStreamMaxFps(o.value(QStringLiteral("nodeStreamMaxFps")).toInt());
+                    if (o.contains(QStringLiteral("nodeStreamOutput")))
+                        m_layers[idx].first->setNodeStreamOutputEnabled(o.value(QStringLiteral("nodeStreamOutput")).toBool());
+
 #ifdef WEBRTC_LAYER
                     // The default is on; only an explicit opt-out is stored in the file.
                     if (o.contains(QStringLiteral("masterRelay")) && m_layers[idx].first->type() == BaseLayer::WEBRTC) {
@@ -1732,6 +1748,19 @@ void LayersModel::encodeToJSON(QJsonObject &obj, const QStringList &forRelativeP
             layerData.insert(QStringLiteral("existOnMasterOnly"), QJsonValue(true));
         }
 
+        if (layer->nodeStreamOutputEnabled())
+            layerData.insert(QStringLiteral("nodeStreamOutput"), QJsonValue(true));
+        if (layer->nodeStreamFormat() != 0)
+            layerData.insert(QStringLiteral("nodeStreamFormat"), QJsonValue(layer->nodeStreamFormat()));
+        if (layer->nodeStreamSyncMode() != 0)
+            layerData.insert(QStringLiteral("nodeStreamSync"), QJsonValue(layer->nodeStreamSyncMode()));
+        if (!layer->nodeStreamGroup().empty())
+            layerData.insert(QStringLiteral("nodeStreamGroup"), QJsonValue(QString::fromStdString(layer->nodeStreamGroup())));
+        if (layer->nodeStreamPort() != 0)
+            layerData.insert(QStringLiteral("nodeStreamPort"), QJsonValue(layer->nodeStreamPort()));
+        if (layer->nodeStreamMaxFps() != 0)
+            layerData.insert(QStringLiteral("nodeStreamMaxFps"), QJsonValue(layer->nodeStreamMaxFps()));
+
 #ifdef WEBRTC_LAYER
         // The default is on; only persist the opt-out.
         if (layer->type() == BaseLayer::WEBRTC && !static_cast<WebRTCLayer*>(layer.get())->masterRelayEnabled()) {
@@ -1861,6 +1890,8 @@ bool LayersModel::runRenderOnLayersThatShouldUpdate(bool updateRendering, bool p
             // updateNdiOutput() requires. It is also a no-op, and releases any
             // previously allocated resources, when the mode is off.
             layer->updateNdiOutput();
+            // Same for streaming the texture to the nodes.
+            layer->updateNodeStreamOutput();
             if (m_layers.size() > i && m_layers[i].first->type() != BaseLayer::REST) {
                 int currentStatus = m_layers[i].second;
                 if (layer && layer->ready() && layer->alpha() > 0.f) {
@@ -1907,6 +1938,11 @@ void LayersModel::guessGridModeForDraggedLayer(int layerIdx, BaseLayer *layer) {
 LayersTypeModel::LayersTypeModel(QObject *parent)
     : QAbstractListModel(parent) {
     for (int i = 1; i != (int)BaseLayer::LayerType::INVALID; i++) {
+#ifdef NODE_STREAM_SUPPORT
+        // Node-only receiver, never created by the user.
+        if (i == (int)BaseLayer::LayerType::NODESTREAM)
+            continue;
+#endif
         m_layerTypes.append(QString::fromStdString(BaseLayer::typeDescription((BaseLayer::LayerType)i)));
     }
 }

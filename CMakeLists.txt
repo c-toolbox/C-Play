@@ -241,6 +241,10 @@ if(BUILD_CPLAY_WITH_WEBRTC)
     endif()
 endif()
 
+# GPU block-compressed (BC1/BC3/BC7) layer textures sent from master to nodes over UDP multicast.
+# Uses raw sockets and OpenGL compute shaders; no extra dependencies.
+option(BUILD_CPLAY_WITH_NODE_STREAM "Global On/Off for layer streaming to nodes over UDP multicast" ON)
+
 # C-Lux support talks to a C-Lux light server over its REST API + SSE frame stream using Qt
 # WebSockets/Network, which are already required; no extra dependencies.
 option(BUILD_CPLAY_WITH_CLUX "Global On/Off for C-Lux light server support" ON)

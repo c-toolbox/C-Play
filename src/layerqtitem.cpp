@@ -958,6 +958,93 @@ bool LayerQtItem::layerNdiSending() const {
     return m_layer && m_layer->ndiOutputIsSending();
 }
 
+bool LayerQtItem::layerNodeStreamAvailable() const {
+    return BaseLayer::nodeStreamOutputSupported();
+}
+
+bool LayerQtItem::layerNodeStreamOutputEnabled() const {
+    return m_layer && m_layer->nodeStreamOutputEnabled();
+}
+
+void LayerQtItem::setLayerNodeStreamOutputEnabled(bool enabled) {
+    if (m_layer && m_layer->nodeStreamOutputEnabled() != enabled) {
+        m_layer->setNodeStreamOutputEnabled(enabled);
+        Q_EMIT layerValueChanged();
+        Q_EMIT layerNeedsSave();
+    }
+}
+
+int LayerQtItem::layerNodeStreamFormat() const {
+    return m_layer ? m_layer->nodeStreamFormat() : 0;
+}
+
+void LayerQtItem::setLayerNodeStreamFormat(int format) {
+    if (m_layer && m_layer->nodeStreamFormat() != format) {
+        m_layer->setNodeStreamFormat(format);
+        Q_EMIT layerValueChanged();
+        Q_EMIT layerNeedsSave();
+    }
+}
+
+int LayerQtItem::layerNodeStreamSyncMode() const {
+    return m_layer ? m_layer->nodeStreamSyncMode() : 0;
+}
+
+void LayerQtItem::setLayerNodeStreamSyncMode(int mode) {
+    if (m_layer && m_layer->nodeStreamSyncMode() != mode) {
+        m_layer->setNodeStreamSyncMode(mode);
+        Q_EMIT layerValueChanged();
+        Q_EMIT layerNeedsSave();
+    }
+}
+
+QString LayerQtItem::layerNodeStreamGroup() const {
+    return m_layer ? QString::fromStdString(m_layer->nodeStreamGroup()) : QString();
+}
+
+void LayerQtItem::setLayerNodeStreamGroup(const QString &group) {
+    const std::string value = group.trimmed().toStdString();
+    if (m_layer && m_layer->nodeStreamGroup() != value) {
+        m_layer->setNodeStreamGroup(value);
+        Q_EMIT layerValueChanged();
+        Q_EMIT layerNeedsSave();
+    }
+}
+
+int LayerQtItem::layerNodeStreamPort() const {
+    return m_layer ? m_layer->nodeStreamPort() : 0;
+}
+
+void LayerQtItem::setLayerNodeStreamPort(int port) {
+    if (m_layer && m_layer->nodeStreamPort() != port) {
+        m_layer->setNodeStreamPort(port);
+        Q_EMIT layerValueChanged();
+        Q_EMIT layerNeedsSave();
+    }
+}
+
+int LayerQtItem::layerNodeStreamMaxFps() const {
+    return m_layer ? m_layer->nodeStreamMaxFps() : 0;
+}
+
+void LayerQtItem::setLayerNodeStreamMaxFps(int fps) {
+    if (m_layer && m_layer->nodeStreamMaxFps() != fps) {
+        m_layer->setNodeStreamMaxFps(fps);
+        Q_EMIT layerValueChanged();
+        Q_EMIT layerNeedsSave();
+    }
+}
+
+QString LayerQtItem::layerNodeStreamAddress() const {
+    if (!m_layer)
+        return QString();
+    return QStringLiteral("%1:%2").arg(QString::fromStdString(m_layer->nodeStreamEffectiveGroup())).arg(m_layer->nodeStreamEffectivePort());
+}
+
+bool LayerQtItem::layerNodeStreamSending() const {
+    return m_layer && m_layer->nodeStreamOutputIsSending();
+}
+
 void LayerQtItem::loadTracks() {
     if (m_layer) {
         m_audioTracksModel->setTracks(m_layer->audioTracks());

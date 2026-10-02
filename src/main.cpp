@@ -369,7 +369,7 @@ static std::vector<std::byte> encode() {
                 for (int l = 0; l < numLayers; l++) {
                     std::shared_ptr<BaseLayer> layerPtr = slide->layerShared(l);
                     BaseLayer* layer = layerPtr.get();
-                    if (layer && !layer->existOnMasterOnly()) {
+                    if (layer && layer->syncToNodes()) {
                         totalLayersToSync++;
                         if(layer->needSync()) {
                             needLayerSync = true;
@@ -391,19 +391,19 @@ static std::vector<std::byte> encode() {
                     for (int l = 0; l < numLayers; l++) {
                         std::shared_ptr<BaseLayer> layerPtr = slideRaw->layerShared(l);
                         BaseLayer *nextLayer = layerPtr.get();
-                        if(nextLayer && !nextLayer->existOnMasterOnly()) {
+                        if(nextLayer && nextLayer->syncToNodes()) {
                             serializeObject(data, nextLayer->identifier()); // ID
                             bool needSync = nextLayer->needSync();
                             serializeObject(data, needSync);   // Check needs sync
-                            serializeObject(data, static_cast<int>(nextLayer->type())); // Type
+                            serializeObject(data, nextLayer->syncTypeForNodes()); // Type
 
                             std::vector<std::byte> layerData;
                             if (needSync) {
-                                nextLayer->encodeFull(layerData);
+                                nextLayer->encodeFullForNodes(layerData);
                                 nextLayer->setHasSynced();
                             }
                             else {
-                                nextLayer->encodeAlways(layerData);
+                                nextLayer->encodeAlwaysForNodes(layerData);
                             }
                             int layerDataSize = static_cast<int>(layerData.size());
                             serializeObject(data, layerDataSize);
@@ -423,11 +423,11 @@ static std::vector<std::byte> encode() {
                     for (int l = 0; l < numLayers; l++) {
                         std::shared_ptr<BaseLayer> layerPtr = slideRaw->layerShared(l);
                         BaseLayer *nextLayer = layerPtr.get();
-                        if(nextLayer && !nextLayer->existOnMasterOnly()) {
+                        if(nextLayer && nextLayer->syncToNodes()) {
                             serializeObject(data, nextLayer->identifier()); // ID
                             // Encode always data with a size prefix so clients can skip if layer not found
                             std::vector<std::byte> alwaysData;
-                            nextLayer->encodeAlways(alwaysData);
+                            nextLayer->encodeAlwaysForNodes(alwaysData);
                             int alwaysSize = static_cast<int>(alwaysData.size());
                             serializeObject(data, alwaysSize);
                             data.insert(data.end(), alwaysData.begin(), alwaysData.end());

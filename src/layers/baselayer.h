@@ -19,6 +19,7 @@
 #include <utils/planegrid.h>
 
 class NdiSender;
+class NodeStreamSender;
 
 class BaseLayer {
 public:
@@ -68,6 +69,9 @@ public:
 #endif
 #ifdef REST_LAYER
         REST,
+#endif
+#ifdef NODE_STREAM_SUPPORT
+        NODESTREAM,
 #endif
         INVALID
     };
@@ -371,6 +375,8 @@ public:
     bool shouldRenderForEye() const;
 
     // NDI output on the master. The nodes are not affected by this.
+    // Mutually exclusive with node stream output: enabling one disables the other,
+    // since both encode the layer texture on the master.
     static bool ndiOutputSupported();
     bool ndiOutputEnabled() const;
     void setNdiOutputEnabled(bool enabled);
@@ -384,8 +390,44 @@ public:
     // Releases the NDI sender and its OpenGL resources. Requires a current context.
     void cleanupNdiOutput();
 
+    // Streams the layer texture to the nodes (GPU block compression + UDP multicast).
+    // While enabled, the nodes show a NodeStreamLayer instead of their own copy of this layer.
+    // Mutually exclusive with NDI output: enabling one disables the other.
+    static bool nodeStreamOutputSupported();
+    // Reloads the global node stream settings. Call on the GUI thread.
+    static void applyNodeStreamSettings();
+    bool nodeStreamOutputEnabled() const;
+    void setNodeStreamOutputEnabled(bool enabled);
+    // nodestream::Format (0 = Auto, 1 = BC1, 2 = BC3, 3 = BC7).
+    int nodeStreamFormat() const;
+    void setNodeStreamFormat(int format);
+    // nodestream::SyncMode (0 = frame-locked, 1 = immediate).
+    int nodeStreamSyncMode() const;
+    void setNodeStreamSyncMode(int mode);
+    // Empty / 0 means derived from the global settings.
+    std::string nodeStreamGroup() const;
+    void setNodeStreamGroup(std::string group);
+    int nodeStreamPort() const;
+    void setNodeStreamPort(int port);
+    int nodeStreamMaxFps() const;
+    void setNodeStreamMaxFps(int fps);
+    std::string nodeStreamEffectiveGroup() const;
+    int nodeStreamEffectivePort() const;
+    bool nodeStreamOutputIsSending() const;
+    // Encodes and queues the layer texture. Must be called on the render thread.
+    void updateNodeStreamOutput();
+    // Stops the stream and releases its OpenGL resources. Requires a current context.
+    void cleanupNodeStreamOutput();
+
+    // How the layer is synced to the nodes, taking node streaming into account.
+    bool syncToNodes() const;
+    int syncTypeForNodes() const;
+    void encodeFullForNodes(std::vector<std::byte>& data);
+    void encodeAlwaysForNodes(std::vector<std::byte>& data);
+
 protected:
     void setNeedSync();
+    void encodeNodeStreamTypeAlways(std::vector<std::byte>& data) const;
 
     // Loader failure state mutators. Idempotent (no-op when the state is unchanged) so the
     // verifier's per-tick collectLoadStatus() sync stays cheap and chatter-free.
@@ -433,6 +475,18 @@ protected:
     std::string m_ndiSenderName;
 #ifdef NDI_SUPPORT
     std::unique_ptr<NdiSender> m_ndiSender;
+#endif
+
+    std::atomic_bool m_nodeStreamOutputEnabled{false};
+    std::atomic<int> m_nodeStreamFormat{0};
+    std::atomic<int> m_nodeStreamSyncMode{0};
+    std::atomic<int> m_nodeStreamPort{0};
+    std::atomic<int> m_nodeStreamMaxFps{0};
+    std::string m_nodeStreamGroup;
+    mutable std::mutex m_nodeStreamMutex;
+#ifdef NODE_STREAM_SUPPORT
+    // Created and released on the render thread, read under m_nodeStreamMutex by the sync encoder.
+    std::unique_ptr<NodeStreamSender> m_nodeStreamSender;
 #endif
 };
 

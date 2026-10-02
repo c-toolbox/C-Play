@@ -15,8 +15,10 @@
 #endif
 #include <sgct/opengl.h>
 #include <sgct/shareddata.h>
+#include <algorithm>
 #include <chrono>
 #include <cmath>
+#include <cstdio>
 #ifdef AUDIO_LAYER
 #include "audiosettings.h"
 #endif
@@ -66,6 +68,12 @@
 // the build has no NDI support. The complete type is needed here regardless,
 // since BaseLayer holds a std::unique_ptr<NdiSender>.
 #include <ndi/ndisender.h>
+#ifdef NODE_STREAM_SUPPORT
+#include <nodestream/nodestreamlayer.h>
+#include <nodestream/nodestreamsender.h>
+#include <nodestream/nodestreamsocket.h>
+#include <sgct/clustermanager.h>
+#endif
 
 std::atomic_uint32_t BaseLayer::m_id_gen = 1;
 
@@ -132,6 +140,10 @@ std::string BaseLayer::typeDescription(BaseLayer::LayerType e) {
 #ifdef REST_LAYER
     case REST:
         return "REST";
+#endif
+#ifdef NODE_STREAM_SUPPORT
+    case NODESTREAM:
+        return "NodeStream";
 #endif
     default:
         return "";
@@ -270,6 +282,12 @@ BaseLayer *BaseLayer::createLayer(bool isMaster, int layerType, FUNC_V1, FUNC_V2
         break;
     }
 #endif
+#ifdef NODE_STREAM_LAYER
+    case static_cast<int>(BaseLayer::LayerType::NODESTREAM): {
+        newLayer = new NodeStreamLayer();
+        break;
+    }
+#endif
     default:
         break;
     }
@@ -319,11 +337,15 @@ BaseLayer::~BaseLayer() {
 #ifdef NDI_SUPPORT
     m_ndiSender.reset();
 #endif
+#ifdef NODE_STREAM_SUPPORT
+    m_nodeStreamSender.reset();
+#endif
 }
 
 void BaseLayer::cleanup() {
     // Overwrite in derived class, but always call cleanupNdiOutput()
     cleanupNdiOutput();
+    cleanupNodeStreamOutput();
 }
 
 void BaseLayer::initialize() {
@@ -1294,6 +1316,12 @@ void BaseLayer::setNdiOutputEnabled(bool enabled) {
     if (enabled == m_ndiOutputEnabled)
         return;
 
+    if (enabled && m_nodeStreamOutputEnabled) {
+        // Both NDI output and node streaming encode the layer texture on the master,
+        // so they cannot be active at the same time.
+        setNodeStreamOutputEnabled(false);
+    }
+
     m_ndiOutputEnabled = enabled;
 
     if (m_ndiOutputEnabled) {
@@ -1392,4 +1420,296 @@ void BaseLayer::cleanupNdiOutput() {
         m_ndiSender.reset();
     }
 #endif
+}
+
+#ifdef NODE_STREAM_SUPPORT
+namespace {
+
+struct NodeStreamSettings {
+    std::string baseGroup = nodestream::kDefaultGroup;
+    int basePort = nodestream::kDefaultPort;
+    std::string interfaceAddress;
+    int ttl = 1;
+    int maxDatagram = 1472;
+    int rateMbps = 9000;
+    int frameLockedWaitMs = 3;
+    bool loopback = true;
+};
+
+std::mutex g_nodeStreamSettingsMutex;
+NodeStreamSettings g_nodeStreamSettings;
+
+NodeStreamSettings nodeStreamSettings() {
+    std::lock_guard<std::mutex> lock(g_nodeStreamSettingsMutex);
+    return g_nodeStreamSettings;
+}
+
+// Spreads the layers over consecutive groups so that the nodes only receive the streams they show.
+std::string groupForLayer(const std::string &baseGroup, uint32_t identifier) {
+    unsigned int a, b, c, d;
+    if (std::sscanf(baseGroup.c_str(), "%u.%u.%u.%u", &a, &b, &c, &d) != 4 || a > 255 || b > 255 || c > 255 || d > 255)
+        return baseGroup;
+    d = 1 + ((d + 253 + identifier % 254) % 254);
+    return std::to_string(a) + "." + std::to_string(b) + "." + std::to_string(c) + "." + std::to_string(d);
+}
+
+std::string masterInterfaceAddress() {
+    static const std::string address = [] {
+        const std::string resolved = NodeStreamSocket::resolveIPv4(sgct::ClusterManager::instance().masterAddress());
+        return NodeStreamSocket::isLoopbackAddress(resolved) ? std::string() : resolved;
+    }();
+    return address;
+}
+
+} // namespace
+#endif
+
+bool BaseLayer::nodeStreamOutputSupported() {
+#ifdef NODE_STREAM_SUPPORT
+    return true;
+#else
+    return false;
+#endif
+}
+
+void BaseLayer::applyNodeStreamSettings() {
+#if defined(NODE_STREAM_SUPPORT) && defined(NETWORK_SYNC_SETTINGS)
+    NodeStreamSettings settings;
+    settings.baseGroup = PresentationSettings::nodeStreamBaseGroup().trimmed().toStdString();
+    if (settings.baseGroup.empty())
+        settings.baseGroup = nodestream::kDefaultGroup;
+    settings.basePort = PresentationSettings::nodeStreamBasePort();
+    settings.interfaceAddress = PresentationSettings::nodeStreamInterface().trimmed().toStdString();
+    settings.ttl = PresentationSettings::nodeStreamTTL();
+    settings.maxDatagram = PresentationSettings::nodeStreamMaxDatagram();
+    settings.rateMbps = PresentationSettings::nodeStreamRateMbps();
+    settings.frameLockedWaitMs = PresentationSettings::nodeStreamFrameLockedWaitMs();
+    settings.loopback = PresentationSettings::nodeStreamLoopback();
+    std::lock_guard<std::mutex> lock(g_nodeStreamSettingsMutex);
+    g_nodeStreamSettings = settings;
+#endif
+}
+
+bool BaseLayer::nodeStreamOutputEnabled() const {
+    return m_nodeStreamOutputEnabled;
+}
+
+void BaseLayer::setNodeStreamOutputEnabled(bool enabled) {
+    if (!nodeStreamOutputSupported() || enabled == m_nodeStreamOutputEnabled)
+        return;
+
+    if (enabled && m_ndiOutputEnabled) {
+        // Both NDI output and node streaming encode the layer texture on the master,
+        // so they cannot be active at the same time.
+        setNdiOutputEnabled(false);
+    }
+
+    m_nodeStreamOutputEnabled = enabled;
+    // The nodes replace their layer with (or back from) a NodeStreamLayer.
+    setNeedSync();
+}
+
+int BaseLayer::nodeStreamFormat() const {
+    return m_nodeStreamFormat;
+}
+
+void BaseLayer::setNodeStreamFormat(int format) {
+    m_nodeStreamFormat = std::clamp(format, 0, 3);
+}
+
+int BaseLayer::nodeStreamSyncMode() const {
+    return m_nodeStreamSyncMode;
+}
+
+void BaseLayer::setNodeStreamSyncMode(int mode) {
+    mode = std::clamp(mode, 0, 1);
+    if (mode == m_nodeStreamSyncMode)
+        return;
+    m_nodeStreamSyncMode = mode;
+    if (m_nodeStreamOutputEnabled)
+        setNeedSync();
+}
+
+std::string BaseLayer::nodeStreamGroup() const {
+    std::lock_guard<std::mutex> lock(m_nodeStreamMutex);
+    return m_nodeStreamGroup;
+}
+
+void BaseLayer::setNodeStreamGroup(std::string group) {
+    {
+        std::lock_guard<std::mutex> lock(m_nodeStreamMutex);
+        if (group == m_nodeStreamGroup)
+            return;
+        m_nodeStreamGroup = group;
+    }
+    if (m_nodeStreamOutputEnabled)
+        setNeedSync();
+}
+
+int BaseLayer::nodeStreamPort() const {
+    return m_nodeStreamPort;
+}
+
+void BaseLayer::setNodeStreamPort(int port) {
+    port = std::clamp(port, 0, 65535);
+    if (port == m_nodeStreamPort)
+        return;
+    m_nodeStreamPort = port;
+    if (m_nodeStreamOutputEnabled)
+        setNeedSync();
+}
+
+int BaseLayer::nodeStreamMaxFps() const {
+    return m_nodeStreamMaxFps;
+}
+
+void BaseLayer::setNodeStreamMaxFps(int fps) {
+    m_nodeStreamMaxFps = std::max(fps, 0);
+}
+
+std::string BaseLayer::nodeStreamEffectiveGroup() const {
+#ifdef NODE_STREAM_SUPPORT
+    const std::string group = nodeStreamGroup();
+    if (!group.empty())
+        return group;
+    return groupForLayer(nodeStreamSettings().baseGroup, m_identifier);
+#else
+    return std::string();
+#endif
+}
+
+int BaseLayer::nodeStreamEffectivePort() const {
+#ifdef NODE_STREAM_SUPPORT
+    const int port = m_nodeStreamPort;
+    return port > 0 ? port : nodeStreamSettings().basePort;
+#else
+    return 0;
+#endif
+}
+
+bool BaseLayer::nodeStreamOutputIsSending() const {
+#ifdef NODE_STREAM_SUPPORT
+    std::lock_guard<std::mutex> lock(m_nodeStreamMutex);
+    return m_nodeStreamSender && m_nodeStreamSender->isSending();
+#else
+    return false;
+#endif
+}
+
+void BaseLayer::updateNodeStreamOutput() {
+#ifdef NODE_STREAM_SUPPORT
+    if (!isMaster())
+        return;
+
+    if (!m_nodeStreamOutputEnabled) {
+        cleanupNodeStreamOutput();
+        return;
+    }
+
+    if (!shouldUpdate() || !hasTexture() || textureId() == 0 || width() <= 0 || height() <= 0)
+        return;
+
+    if (!m_nodeStreamSender) {
+        auto sender = std::make_unique<NodeStreamSender>();
+        sender->setSource(NodeStreamSender::sourceFromLayer(this));
+        std::lock_guard<std::mutex> lock(m_nodeStreamMutex);
+        m_nodeStreamSender = std::move(sender);
+    }
+
+    const NodeStreamSettings settings = nodeStreamSettings();
+    NodeStreamConfig config;
+    config.group = nodeStreamEffectiveGroup();
+    config.port = static_cast<uint16_t>(nodeStreamEffectivePort());
+    config.interfaceAddress = settings.interfaceAddress.empty() ? masterInterfaceAddress() : settings.interfaceAddress;
+    config.ttl = settings.ttl;
+    config.loopback = settings.loopback;
+    config.maxDatagram = settings.maxDatagram;
+    config.rateMbps = settings.rateMbps;
+    config.format = static_cast<nodestream::Format>(m_nodeStreamFormat.load());
+    config.maxFps = m_nodeStreamMaxFps;
+    config.streamId = m_identifier;
+
+    // Only the render thread replaces the sender, so it can be used without the lock here.
+    m_nodeStreamSender->captureAndSend(config);
+#endif
+}
+
+void BaseLayer::cleanupNodeStreamOutput() {
+#ifdef NODE_STREAM_SUPPORT
+    if (m_nodeStreamSender) {
+        m_nodeStreamSender->cleanupGL();
+        std::lock_guard<std::mutex> lock(m_nodeStreamMutex);
+        m_nodeStreamSender.reset();
+    }
+#endif
+}
+
+bool BaseLayer::syncToNodes() const {
+    return !existOnMasterOnly() || m_nodeStreamOutputEnabled;
+}
+
+int BaseLayer::syncTypeForNodes() const {
+#ifdef NODE_STREAM_SUPPORT
+    if (m_nodeStreamOutputEnabled)
+        return static_cast<int>(NODESTREAM);
+#endif
+    return static_cast<int>(m_type);
+}
+
+void BaseLayer::encodeFullForNodes(std::vector<std::byte>& data) {
+#ifdef NODE_STREAM_SUPPORT
+    if (m_nodeStreamOutputEnabled) {
+        // Mirrors encodeFull with the NodeStreamLayer type sections.
+        encodeBaseCore(data);
+        encodeBaseAlways(data);
+        encodeBaseProperties(data);
+
+        const std::string group = nodeStreamEffectiveGroup();
+        const int port = nodeStreamEffectivePort();
+        const uint8_t syncMode = static_cast<uint8_t>(m_nodeStreamSyncMode.load());
+        const int maxWaitMs = nodeStreamSettings().frameLockedWaitMs;
+        const uint32_t streamId = m_identifier;
+        sgct::serializeObject(data, group);
+        sgct::serializeObject(data, port);
+        sgct::serializeObject(data, syncMode);
+        sgct::serializeObject(data, maxWaitMs);
+        sgct::serializeObject(data, streamId);
+
+        encodeNodeStreamTypeAlways(data);
+        return;
+    }
+#endif
+    encodeFull(data);
+}
+
+void BaseLayer::encodeNodeStreamTypeAlways(std::vector<std::byte>& data) const {
+#ifdef NODE_STREAM_SUPPORT
+    uint32_t sessionId = 0;
+    uint32_t targetFrameId = 0;
+    bool sending = false;
+    {
+        std::lock_guard<std::mutex> lock(m_nodeStreamMutex);
+        if (m_nodeStreamSender) {
+            sessionId = m_nodeStreamSender->sessionId();
+            targetFrameId = m_nodeStreamSender->lastSentFrameId();
+            sending = m_nodeStreamSender->isSending();
+        }
+    }
+    sgct::serializeObject(data, sessionId);
+    sgct::serializeObject(data, targetFrameId);
+    sgct::serializeObject(data, sending);
+#else
+    (void)data;
+#endif
+}
+
+void BaseLayer::encodeAlwaysForNodes(std::vector<std::byte>& data) {
+#ifdef NODE_STREAM_SUPPORT
+    if (m_nodeStreamOutputEnabled) {
+        encodeBaseAlways(data);
+        encodeNodeStreamTypeAlways(data);
+        return;
+    }
+#endif
+    encodeAlways(data);
 }

@@ -153,7 +153,7 @@ Kirigami.ApplicationWindow {
 
     color: Kirigami.Theme.alternateBackgroundColor
     height: 630
-    minimumWidth: 980
+    minimumWidth: 1100
     title: qsTr("")
     visible: false
     width: 980
@@ -484,6 +484,165 @@ Kirigami.ApplicationWindow {
                 }
 
                 ToolButton {
+                    id: nodeStreamButton
+
+                    checkable: true
+                    checked: layerViewItem.layerNodeStreamOutputEnabled
+                    enabled: layerViewItem.layerTypeName !== "Audio"
+                    visible: layerViewItem.layerNodeStreamAvailable
+                    focusPolicy: Qt.NoFocus
+                    icon.color: (!layerViewItem.layerNodeStreamOutputEnabled ? "crimson" : (layerViewItem.layerNodeStreamSending ? "lime" : "orange"))
+                    icon.name: "network-wired"
+                    text: qsTr("Nodes")
+
+                    onClicked: {
+                        layerViewItem.layerNodeStreamOutputEnabled = checked;
+                        app.slides.needsSync = true;
+                    }
+
+                    ToolTip {
+                        text: layerViewItem.layerNodeStreamOutputEnabled ? qsTr("Streaming the layer texture to the nodes on %1").arg(layerViewItem.layerNodeStreamAddress) : qsTr("Stream the layer texture from the master to the nodes, instead of loading the layer on each node")
+                    }
+                }
+                ToolButton {
+                    id: nodeStreamOptionsButton
+
+                    enabled: nodeStreamButton.enabled
+                    visible: layerViewItem.layerNodeStreamAvailable
+                    focusPolicy: Qt.NoFocus
+                    icon.name: "configure"
+
+                    onClicked: nodeStreamPopup.open()
+
+                    ToolTip {
+                        text: qsTr("Options for streaming to the nodes")
+                    }
+
+                    Popup {
+                        id: nodeStreamPopup
+
+                        // The button sits at the right end of the toolbar, so open to its left.
+                        x: nodeStreamOptionsButton.width - width
+                        y: nodeStreamOptionsButton.height
+                        padding: Kirigami.Units.largeSpacing
+
+                        GridLayout {
+                            columns: 2
+
+                            Label {
+                                Layout.alignment: Qt.AlignRight
+                                text: qsTr("Compression:")
+                            }
+                            ComboBox {
+                                Layout.fillWidth: true
+                                model: [qsTr("Auto (BC1, or BC3 with alpha)"), qsTr("BC1 (RGB, smallest)"), qsTr("BC3 (RGBA)"), qsTr("BC7 (RGBA, best quality)")]
+                                currentIndex: layerViewItem.layerNodeStreamFormat
+
+                                onActivated: index => {
+                                    layerViewItem.layerNodeStreamFormat = index;
+                                }
+                            }
+
+                            Label {
+                                Layout.alignment: Qt.AlignRight
+                                text: qsTr("Sync:")
+                            }
+                            ComboBox {
+                                Layout.fillWidth: true
+                                model: [qsTr("Frame-locked to the master"), qsTr("Immediate (lowest latency)")]
+                                currentIndex: layerViewItem.layerNodeStreamSyncMode
+
+                                onActivated: index => {
+                                    layerViewItem.layerNodeStreamSyncMode = index;
+                                    app.slides.needsSync = true;
+                                }
+                            }
+
+                            Label {
+                                Layout.alignment: Qt.AlignRight
+                                text: qsTr("Max frame rate:")
+                            }
+                            SpinBox {
+                                editable: true
+                                from: 0
+                                to: 240
+                                value: layerViewItem.layerNodeStreamMaxFps
+
+                                onValueModified: {
+                                    layerViewItem.layerNodeStreamMaxFps = value;
+                                }
+
+                                ToolTip.visible: hovered
+                                ToolTip.text: qsTr("0 sends every rendered frame")
+                            }
+
+                            Label {
+                                Layout.alignment: Qt.AlignRight
+                                text: qsTr("Multicast group:")
+                            }
+                            TextField {
+                                Layout.fillWidth: true
+                                placeholderText: qsTr("Automatic")
+                                text: layerViewItem.layerNodeStreamGroup
+
+                                onEditingFinished: {
+                                    layerViewItem.layerNodeStreamGroup = text;
+                                    app.slides.needsSync = true;
+                                }
+                            }
+
+                            Label {
+                                Layout.alignment: Qt.AlignRight
+                                text: qsTr("Port:")
+                            }
+                            SpinBox {
+                                editable: true
+                                from: 0
+                                to: 65535
+                                value: layerViewItem.layerNodeStreamPort
+
+                                onValueModified: {
+                                    layerViewItem.layerNodeStreamPort = value;
+                                    app.slides.needsSync = true;
+                                }
+
+                                ToolTip.visible: hovered
+                                ToolTip.text: qsTr("0 uses the port from the settings")
+                            }
+
+                            Label {
+                                Layout.alignment: Qt.AlignRight
+                                text: qsTr("Address:")
+                            }
+                            Label {
+                                text: layerViewItem.layerNodeStreamAddress
+                            }
+                        }
+                    }
+                }
+                ToolButton {
+                    id: masterOnlyButton
+
+                    checkable: true
+                    checked: layerViewItem.layerExistOnMasterOnly
+                    // While the layer texture is streamed from the master, the layer always
+                    // exists on the nodes as a stream receiver, so this has no effect.
+                    enabled: !layerViewItem.layerNodeStreamOutputEnabled
+                    focusPolicy: Qt.NoFocus
+                    icon.color: layerViewItem.layerExistOnMasterOnly ? "orange" : "lime"
+                    icon.name: layerViewItem.layerExistOnMasterOnly ? "network-disconnect" : "network-connect"
+                    text: qsTr("Sync")
+
+                    onClicked: {
+                        layerViewItem.layerExistOnMasterOnly = checked;
+                        app.slides.needsSync = true;
+                    }
+
+                    ToolTip {
+                        text: !enabled ? qsTr("The layer texture is streamed from the master, so this layer always exists on the nodes") : (layerViewItem.layerExistOnMasterOnly ? qsTr("Layer exists on the master only, it is not synced to the nodes") : qsTr("Layer is synced to the nodes"))
+                    }
+                }
+                ToolButton {
                     id: ndiOutputButton
 
                     checkable: true
@@ -500,25 +659,6 @@ Kirigami.ApplicationWindow {
 
                     ToolTip {
                         text: layerViewItem.layerNdiAvailable ? (layerViewItem.layerNdiOutputEnabled ? qsTr("NDI output on master: %1").arg(layerViewItem.layerNdiSenderName) : qsTr("NDI output for this layer on the master")) : qsTr("Application built without NDI support")
-                    }
-                }
-                ToolButton {
-                    id: masterOnlyButton
-
-                    checkable: true
-                    checked: layerViewItem.layerExistOnMasterOnly
-                    focusPolicy: Qt.NoFocus
-                    icon.color: layerViewItem.layerExistOnMasterOnly ? "orange" : "lime"
-                    icon.name: layerViewItem.layerExistOnMasterOnly ? "network-disconnect" : "network-connect"
-                    text: qsTr("Sync")
-
-                    onClicked: {
-                        layerViewItem.layerExistOnMasterOnly = checked;
-                        app.slides.needsSync = true;
-                    }
-
-                    ToolTip {
-                        text: layerViewItem.layerExistOnMasterOnly ? qsTr("Layer exists on the master only, it is not synced to the nodes") : qsTr("Layer is synced to the nodes")
                     }
                 }
             }

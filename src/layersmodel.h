@@ -80,7 +80,8 @@ public:
         StatusRole,
         VisibilityRole,
         NdiOutputRole,
-        ExistOnMasterOnlyRole
+        ExistOnMasterOnlyRole,
+        NodeStreamOutputRole
     };
 
     int rowCount(const QModelIndex &parent = QModelIndex()) const override;

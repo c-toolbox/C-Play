@@ -156,6 +156,15 @@ class LayerQtItem : public QQuickItem {
     Q_PROPERTY(bool layerExistOnMasterOnly READ layerExistOnMasterOnly WRITE setLayerExistOnMasterOnly NOTIFY layerValueChanged)
     Q_PROPERTY(QString layerNdiSenderName READ layerNdiSenderName NOTIFY layerValueChanged)
     Q_PROPERTY(bool layerNdiSending READ layerNdiSending NOTIFY layerPositionChanged)
+    Q_PROPERTY(bool layerNodeStreamAvailable READ layerNodeStreamAvailable CONSTANT)
+    Q_PROPERTY(bool layerNodeStreamOutputEnabled READ layerNodeStreamOutputEnabled WRITE setLayerNodeStreamOutputEnabled NOTIFY layerValueChanged)
+    Q_PROPERTY(int layerNodeStreamFormat READ layerNodeStreamFormat WRITE setLayerNodeStreamFormat NOTIFY layerValueChanged)
+    Q_PROPERTY(int layerNodeStreamSyncMode READ layerNodeStreamSyncMode WRITE setLayerNodeStreamSyncMode NOTIFY layerValueChanged)
+    Q_PROPERTY(QString layerNodeStreamGroup READ layerNodeStreamGroup WRITE setLayerNodeStreamGroup NOTIFY layerValueChanged)
+    Q_PROPERTY(int layerNodeStreamPort READ layerNodeStreamPort WRITE setLayerNodeStreamPort NOTIFY layerValueChanged)
+    Q_PROPERTY(int layerNodeStreamMaxFps READ layerNodeStreamMaxFps WRITE setLayerNodeStreamMaxFps NOTIFY layerValueChanged)
+    Q_PROPERTY(QString layerNodeStreamAddress READ layerNodeStreamAddress NOTIFY layerValueChanged)
+    Q_PROPERTY(bool layerNodeStreamSending READ layerNodeStreamSending NOTIFY layerPositionChanged)
 
 public:
     LayerQtItem();
@@ -270,6 +279,22 @@ public:
     void setLayerExistOnMasterOnly(bool value);
     QString layerNdiSenderName() const;
     bool layerNdiSending() const;
+
+    bool layerNodeStreamAvailable() const;
+    bool layerNodeStreamOutputEnabled() const;
+    void setLayerNodeStreamOutputEnabled(bool enabled);
+    int layerNodeStreamFormat() const;
+    void setLayerNodeStreamFormat(int format);
+    int layerNodeStreamSyncMode() const;
+    void setLayerNodeStreamSyncMode(int mode);
+    QString layerNodeStreamGroup() const;
+    void setLayerNodeStreamGroup(const QString &group);
+    int layerNodeStreamPort() const;
+    void setLayerNodeStreamPort(int port);
+    int layerNodeStreamMaxFps() const;
+    void setLayerNodeStreamMaxFps(int fps);
+    QString layerNodeStreamAddress() const;
+    bool layerNodeStreamSending() const;
 
     QSize textureSize();
 

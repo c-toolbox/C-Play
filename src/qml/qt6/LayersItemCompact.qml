@@ -336,6 +336,24 @@ ItemDelegate {
                     ToolTip.text: qsTr("NDI output is enabled for this layer on the master.")
                 }
 
+                // Node stream indicator, shown when the layer texture is streamed to the nodes
+                Kirigami.Icon {
+                    source: "network-wired"
+                    width: 12
+                    height: 12
+                    color: "lime"
+                    visible: model.nodeStreamOutput
+
+                    MouseArea {
+                        id: nodeStreamIndicatorMA
+                        anchors.fill: parent
+                        hoverEnabled: true
+                    }
+
+                    ToolTip.visible: nodeStreamIndicatorMA.containsMouse
+                    ToolTip.text: qsTr("The layer texture is streamed from the master to the nodes.")
+                }
+
                 // Sync indicator, shown when not in default state (not synced to the nodes)
                 Kirigami.Icon {
                     id: syncIndicatorIcon
