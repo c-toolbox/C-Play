@@ -1431,8 +1431,10 @@ struct NodeStreamSettings {
     std::string interfaceAddress;
     int ttl = 1;
     int maxDatagram = 1472;
-    int rateMbps = 9000;
-    int frameLockedWaitMs = 3;
+    int rateMbps = 0;
+    int frameLockedWaitMs = 2;
+    int latencyGuardMs = 1;
+    bool allowPartialFrames = false;
     bool loopback = true;
 };
 
@@ -1484,6 +1486,8 @@ void BaseLayer::applyNodeStreamSettings() {
     settings.maxDatagram = PresentationSettings::nodeStreamMaxDatagram();
     settings.rateMbps = PresentationSettings::nodeStreamRateMbps();
     settings.frameLockedWaitMs = PresentationSettings::nodeStreamFrameLockedWaitMs();
+    settings.latencyGuardMs = PresentationSettings::nodeStreamLatencyGuardMs();
+    settings.allowPartialFrames = PresentationSettings::nodeStreamAllowPartialFrames();
     settings.loopback = PresentationSettings::nodeStreamLoopback();
     std::lock_guard<std::mutex> lock(g_nodeStreamSettingsMutex);
     g_nodeStreamSettings = settings;
@@ -1666,14 +1670,16 @@ void BaseLayer::encodeFullForNodes(std::vector<std::byte>& data) {
 
         const std::string group = nodeStreamEffectiveGroup();
         const int port = nodeStreamEffectivePort();
+        const NodeStreamSettings settings = nodeStreamSettings();
         const uint8_t syncMode = static_cast<uint8_t>(m_nodeStreamSyncMode.load());
-        const int maxWaitMs = nodeStreamSettings().frameLockedWaitMs;
+        const int maxWaitMs = settings.frameLockedWaitMs;
         const uint32_t streamId = m_identifier;
         sgct::serializeObject(data, group);
         sgct::serializeObject(data, port);
         sgct::serializeObject(data, syncMode);
         sgct::serializeObject(data, maxWaitMs);
         sgct::serializeObject(data, streamId);
+        sgct::serializeObject(data, settings.allowPartialFrames);
 
         encodeNodeStreamTypeAlways(data);
         return;
@@ -1687,11 +1693,12 @@ void BaseLayer::encodeNodeStreamTypeAlways(std::vector<std::byte>& data) const {
     uint32_t sessionId = 0;
     uint32_t targetFrameId = 0;
     bool sending = false;
+    const int64_t guardNs = static_cast<int64_t>(std::max(nodeStreamSettings().latencyGuardMs, 0)) * 1'000'000;
     {
         std::lock_guard<std::mutex> lock(m_nodeStreamMutex);
         if (m_nodeStreamSender) {
             sessionId = m_nodeStreamSender->sessionId();
-            targetFrameId = m_nodeStreamSender->lastSentFrameId();
+            targetFrameId = m_nodeStreamSender->targetFrameId(guardNs);
             sending = m_nodeStreamSender->isSending();
         }
     }

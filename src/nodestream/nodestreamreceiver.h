@@ -56,13 +56,13 @@ public:
     // Releases slots whose uploads have finished and (re)allocates buffers.
     void serviceGL();
 
-    // Frame-locked selection: waits up to maxWaitMs for the target frame. The
-    // result is ordered for upload and may contain an older complete frame
-    // followed by the partial target frame.
+    // Frame-locked selection: waits up to maxWaitMs (once per target) for the target
+    // frame. Falls back to the newest complete frame up to the target. With
+    // allowPartial, an incomplete target follows it for upload on top.
     std::vector<Frame> acquireFrameLocked(uint32_t sessionId, uint32_t targetFrameId, int maxWaitMs,
-                                          bool hasLastUploaded, uint32_t lastUploadedFrameId);
-    // Newest complete frame, or a partial frame that a newer frame has superseded.
-    std::vector<Frame> acquireNewest(bool hasLastUploaded, uint32_t lastUploadedFrameId);
+                                          bool hasLastUploaded, uint32_t lastUploadedFrameId, bool allowPartial);
+    // Newest complete frame or, with allowPartial, a partial frame that a newer frame has superseded.
+    std::vector<Frame> acquireNewest(bool hasLastUploaded, uint32_t lastUploadedFrameId, bool allowPartial);
 
     // Must be called after the upload commands for the frame have been issued.
     void finishUpload(const Frame &frame);
@@ -89,6 +89,8 @@ private:
         int height = 0;
         uint32_t packetCount = 0;
         uint32_t receivedCount = 0;
+        int64_t firstPacketNs = 0;
+        int64_t completeNs = 0;
         std::vector<uint8_t> received;
         std::vector<std::pair<uint32_t, uint32_t>> ranges;
     };
@@ -121,12 +123,31 @@ private:
     size_t m_requiredCapacity = 0;
     std::string m_lastError;
 
+    bool m_hasWaited = false;
+    uint32_t m_waitedSession = 0;
+    uint32_t m_waitedTarget = 0;
+    bool m_hasPrevTarget = false;
+    uint32_t m_prevTargetSession = 0;
+    uint32_t m_prevTarget = 0;
+
     // Stats, guarded by m_mutex.
     uint64_t m_statPackets = 0;
     uint64_t m_statInvalid = 0;
     uint64_t m_statCompleted = 0;
     uint64_t m_statIncomplete = 0;
     uint64_t m_statPartialUploads = 0;
+    uint64_t m_statMissingPackets = 0;
+    uint64_t m_statLatePackets = 0;
+    uint64_t m_statLateTargets = 0;
+    uint64_t m_statHeld = 0;
+    uint64_t m_statWaits = 0;
+    uint64_t m_statTargetRepeats = 0;
+    uint64_t m_statTargetSkips = 0;
+    uint64_t m_statSlackCount = 0;
+    double m_statSpreadMs = 0.0;
+    double m_statSlackMs = 0.0;
+    double m_statMinSlackMs = 0.0;
+    double m_statWaitMs = 0.0;
     int64_t m_statStartNs = 0;
 };
 

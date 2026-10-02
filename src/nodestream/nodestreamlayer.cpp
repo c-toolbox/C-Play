@@ -21,6 +21,8 @@ constexpr GLenum kCompressedRgbS3tcDxt1 = 0x83F0;
 constexpr GLenum kCompressedRgbaS3tcDxt5 = 0x83F3;
 
 constexpr int64_t kRetryStartNs = 2'000'000'000;
+// Without a complete frame for this long, frames with lost packets are shown anyway.
+constexpr int64_t kPartialFallbackNs = 250'000'000;
 
 GLenum glFormat(nodestream::Format format) {
     switch (format) {
@@ -109,15 +111,19 @@ void NodeStreamLayer::update(bool) {
 
     std::vector<NodeStreamReceiver::Frame> frames;
     const bool hasLast = m_hasLastUploaded && m_lastUploadedSession == m_sessionId;
+    const int64_t now = nowNs();
+    const bool allowPartial = m_allowPartial || (m_hasFrame && now - m_lastCompleteUploadNs > kPartialFallbackNs);
     if (m_syncMode == static_cast<uint8_t>(nodestream::SyncMode::FrameLocked)) {
         if (m_masterSending)
-            frames = m_receiver->acquireFrameLocked(m_sessionId, m_targetFrameId, m_maxWaitMs, hasLast, m_lastUploadedFrameId);
+            frames = m_receiver->acquireFrameLocked(m_sessionId, m_targetFrameId, m_maxWaitMs, hasLast,
+                                                    m_lastUploadedFrameId, allowPartial);
     } else {
-        frames = m_receiver->acquireNewest(hasLast, m_lastUploadedFrameId);
+        frames = m_receiver->acquireNewest(hasLast, m_lastUploadedFrameId, allowPartial);
     }
 
     for (const NodeStreamReceiver::Frame &frame : frames) {
-        upload(frame);
+        if (upload(frame) && frame.complete)
+            m_lastCompleteUploadNs = now;
         m_receiver->finishUpload(frame);
         m_hasLastUploaded = true;
         m_lastUploadedSession = frame.sessionId;
@@ -223,6 +229,7 @@ void NodeStreamLayer::decodeTypeCore(const std::vector<std::byte> &data, unsigne
     sgct::deserializeObject(data, pos, m_syncMode);
     sgct::deserializeObject(data, pos, m_maxWaitMs);
     sgct::deserializeObject(data, pos, m_streamId);
+    sgct::deserializeObject(data, pos, m_allowPartial);
 }
 
 void NodeStreamLayer::decodeTypeAlways(const std::vector<std::byte> &data, unsigned int &pos) {

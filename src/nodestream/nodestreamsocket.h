@@ -37,10 +37,18 @@ public:
     int receive(void *buffer, size_t length);
 
     const std::string &lastError() const;
+    // Effective kernel buffer sizes, or -1 when unknown.
+    int sendBufferSize() const;
+    int receiveBufferSize() const;
 
     // Resolves a host name or dotted address to a dotted IPv4 address, or empty.
     static std::string resolveIPv4(const std::string &host);
     static bool isLoopbackAddress(const std::string &dotted);
+    // Transmit link speed of the adapter with this IPv4 address, or of the fastest
+    // operational adapter when the address is empty. 0 when unknown.
+    static uint64_t linkSpeedMbps(const std::string &interfaceAddress);
+    // Sleeps until the steady_clock time in nanoseconds, with sub-millisecond precision.
+    static void waitUntilNs(int64_t steadyNs);
 
 private:
     void setError(const std::string &what);

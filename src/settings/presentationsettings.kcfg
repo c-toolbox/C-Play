@@ -121,12 +121,20 @@
       <default>1472</default>
     </entry>
     <entry name="NodeStreamRateMbps" type="int">
-      <label>Combined send rate limit of all layer streams in Mbit/s. 0 sends without pacing.</label>
-      <default>9000</default>
+      <label>Combined send rate limit of all layer streams in Mbit/s. 0 uses 85% of the link speed of the send interface.</label>
+      <default>0</default>
     </entry>
     <entry name="NodeStreamFrameLockedWaitMs" type="int">
       <label>How long a node waits for a late frame in frame-locked mode, in milliseconds.</label>
-      <default>3</default>
+      <default>2</default>
+    </entry>
+    <entry name="NodeStreamLatencyGuardMs" type="int">
+      <label>In frame-locked mode, the nodes are told to show a frame only once it has been on the wire this many milliseconds.</label>
+      <default>1</default>
+    </entry>
+    <entry name="NodeStreamAllowPartialFrames" type="bool">
+      <label>Let the nodes show frames with lost packets on top of the previous frame, instead of holding the previous frame.</label>
+      <default>false</default>
     </entry>
     <entry name="NodeStreamLoopback" type="bool">
       <label>Deliver the streams to nodes on the master computer as well.</label>

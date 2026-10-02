@@ -53,6 +53,8 @@ bool NodeStreamReceiver::start(const std::string &group, uint16_t port, const st
         m_streamId = streamId;
         m_hasSession = false;
         m_hasAcquired = false;
+        m_hasWaited = false;
+        m_hasPrevTarget = false;
         m_lastError.clear();
         for (Slot &slot : m_slots) {
             if (slot.state == Filling || slot.state == Complete)
@@ -61,8 +63,9 @@ bool NodeStreamReceiver::start(const std::string &group, uint16_t port, const st
         m_statStartNs = nowNs();
     }
 
-    sgct::Log::Info(std::format("NodeStreamReceiver: listening on {}{}", m_endpoint,
-                                interfaceAddress.empty() ? std::string() : " via " + interfaceAddress));
+    sgct::Log::Info(std::format("NodeStreamReceiver: listening on {}{}, receive buffer {}", m_endpoint,
+                                interfaceAddress.empty() ? std::string() : " via " + interfaceAddress,
+                                m_socket.receiveBufferSize()));
     m_quit = false;
     m_running = true;
     m_thread = std::thread(&NodeStreamReceiver::threadMain, this);
@@ -149,6 +152,8 @@ void NodeStreamReceiver::handlePacket(const uint8_t *data, size_t size) {
     slot->ranges.emplace_back(header.byteOffset, header.byteLength);
     if (++slot->receivedCount == slot->packetCount) {
         slot->state = Complete;
+        slot->completeNs = nowNs();
+        m_statSpreadMs += static_cast<double>(slot->completeNs - slot->firstPacketNs) / 1.0e6;
         ++m_statCompleted;
         m_cv.notify_all();
     }
@@ -178,8 +183,10 @@ NodeStreamReceiver::Slot *NodeStreamReceiver::slotForPacket(const nodestream::Pa
     }
 
     // Late packets of frames that have already been shown are useless.
-    if (m_hasAcquired && !isNewer(header.frameId, m_lastAcquiredFrameId))
+    if (m_hasAcquired && !isNewer(header.frameId, m_lastAcquiredFrameId)) {
+        ++m_statLatePackets;
         return nullptr;
+    }
 
     const size_t frameSize = nodestream::frameBytes(format, header.width, header.height);
     Slot *chosen = nullptr;
@@ -215,6 +222,7 @@ NodeStreamReceiver::Slot *NodeStreamReceiver::slotForPacket(const nodestream::Pa
     chosen->height = header.height;
     chosen->packetCount = header.packetCount;
     chosen->receivedCount = 0;
+    chosen->firstPacketNs = nowNs();
     chosen->received.assign(header.packetCount, 0);
     chosen->ranges.clear();
     chosen->ranges.reserve(header.packetCount);
@@ -297,8 +305,14 @@ NodeStreamReceiver::Frame NodeStreamReceiver::takeSlot(int index) {
     frame.width = slot.width;
     frame.height = slot.height;
     frame.complete = slot.state == Complete;
-    if (!frame.complete) {
+    if (frame.complete) {
+        const double slackMs = static_cast<double>(nowNs() - slot.completeNs) / 1.0e6;
+        m_statMinSlackMs = m_statSlackCount == 0 ? slackMs : std::min(m_statMinSlackMs, slackMs);
+        m_statSlackMs += slackMs;
+        ++m_statSlackCount;
+    } else {
         ++m_statPartialUploads;
+        m_statMissingPackets += slot.packetCount - slot.receivedCount;
         std::vector<std::pair<uint32_t, uint32_t>> ranges = slot.ranges;
         std::sort(ranges.begin(), ranges.end());
         for (const auto &range : ranges) {
@@ -328,12 +342,25 @@ void NodeStreamReceiver::freeOlderThan(uint32_t frameId) {
 
 std::vector<NodeStreamReceiver::Frame> NodeStreamReceiver::acquireFrameLocked(uint32_t sessionId, uint32_t targetFrameId,
                                                                               int maxWaitMs, bool hasLastUploaded,
-                                                                              uint32_t lastUploadedFrameId) {
+                                                                              uint32_t lastUploadedFrameId,
+                                                                              bool allowPartial) {
     std::vector<Frame> frames;
+    std::unique_lock<std::mutex> lock(m_mutex);
+
+    if (m_hasPrevTarget && m_prevTargetSession == sessionId) {
+        const int32_t step = static_cast<int32_t>(targetFrameId - m_prevTarget);
+        if (step == 0)
+            ++m_statTargetRepeats;
+        else if (step > 1)
+            m_statTargetSkips += static_cast<uint64_t>(step - 1);
+    }
+    m_hasPrevTarget = true;
+    m_prevTargetSession = sessionId;
+    m_prevTarget = targetFrameId;
+
     if (hasLastUploaded && !isNewer(targetFrameId, lastUploadedFrameId))
         return frames;
 
-    std::unique_lock<std::mutex> lock(m_mutex);
     auto findTarget = [&]() -> int {
         if (!m_hasSession || m_sessionId != sessionId)
             return -1;
@@ -348,8 +375,17 @@ std::vector<NodeStreamReceiver::Frame> NodeStreamReceiver::acquireFrameLocked(ui
         return i >= 0 && m_slots[i].state == Complete;
     };
 
-    if (maxWaitMs > 0 && !targetComplete())
+    // Wait once per target, so that a late frame does not stall every node frame until it arrives.
+    const bool waitedBefore = m_hasWaited && m_waitedSession == sessionId && m_waitedTarget == targetFrameId;
+    if (maxWaitMs > 0 && !waitedBefore && !targetComplete()) {
+        m_hasWaited = true;
+        m_waitedSession = sessionId;
+        m_waitedTarget = targetFrameId;
+        const int64_t waitStartNs = nowNs();
         m_cv.wait_for(lock, std::chrono::milliseconds(maxWaitMs), [&] { return m_quit || targetComplete(); });
+        m_statWaitMs += static_cast<double>(nowNs() - waitStartNs) / 1.0e6;
+        ++m_statWaits;
+    }
 
     if (!m_hasSession || m_sessionId != sessionId)
         return frames;
@@ -360,6 +396,7 @@ std::vector<NodeStreamReceiver::Frame> NodeStreamReceiver::acquireFrameLocked(ui
         freeOlderThan(targetFrameId);
         return frames;
     }
+    ++m_statLateTargets;
 
     // Fall back to the newest complete frame up to the target.
     int best = -1;
@@ -374,15 +411,18 @@ std::vector<NodeStreamReceiver::Frame> NodeStreamReceiver::acquireFrameLocked(ui
     }
     if (best >= 0)
         frames.push_back(takeSlot(best));
-    // The target is late or has lost packets: show what arrived on top.
-    if (target >= 0)
+    // Showing what arrived of the target on top mixes two frames in one image.
+    if (target >= 0 && allowPartial)
         frames.push_back(takeSlot(target));
-    if (!frames.empty())
+    if (frames.empty())
+        ++m_statHeld;
+    else
         freeOlderThan(frames.back().frameId);
     return frames;
 }
 
-std::vector<NodeStreamReceiver::Frame> NodeStreamReceiver::acquireNewest(bool hasLastUploaded, uint32_t lastUploadedFrameId) {
+std::vector<NodeStreamReceiver::Frame> NodeStreamReceiver::acquireNewest(bool hasLastUploaded, uint32_t lastUploadedFrameId,
+                                                                         bool allowPartial) {
     std::vector<Frame> frames;
     std::lock_guard<std::mutex> lock(m_mutex);
 
@@ -401,7 +441,7 @@ std::vector<NodeStreamReceiver::Frame> NodeStreamReceiver::acquireNewest(bool ha
     }
 
     int chosen = newestComplete;
-    if (chosen < 0 && newestStarted >= 0) {
+    if (chosen < 0 && newestStarted >= 0 && allowPartial) {
         // A frame that a newer frame has superseded will not receive more packets.
         for (int i = 0; i < kSlotCount; ++i) {
             const Slot &slot = m_slots[i];
@@ -437,14 +477,33 @@ void NodeStreamReceiver::logStats() {
     const double seconds = static_cast<double>(now - m_statStartNs) / 1.0e9;
     if (m_statPackets > 0 && seconds > 0.0) {
         sgct::Log::Info(std::format(
-            "NodeStreamReceiver {}: {:.0f} packets/s, {:.1f} complete fps, incomplete {}, partial uploads {}, invalid {}",
+            "NodeStreamReceiver {}: {:.0f} packets/s, {:.1f} complete fps, frame spread {:.2f} ms, slack {:.2f} ms (min {:.2f}), "
+            "incomplete {} (missing packets {}, late packets {}), partial uploads {}, late targets {}, held {}, "
+            "waits {} ({:.2f} ms avg), target repeats {}, target skips {}, invalid {}",
             m_endpoint, static_cast<double>(m_statPackets) / seconds, static_cast<double>(m_statCompleted) / seconds,
-            m_statIncomplete, m_statPartialUploads, m_statInvalid));
+            m_statCompleted ? m_statSpreadMs / static_cast<double>(m_statCompleted) : 0.0,
+            m_statSlackCount ? m_statSlackMs / static_cast<double>(m_statSlackCount) : 0.0,
+            m_statSlackCount ? m_statMinSlackMs : 0.0, m_statIncomplete, m_statMissingPackets, m_statLatePackets,
+            m_statPartialUploads, m_statLateTargets, m_statHeld, m_statWaits,
+            m_statWaits ? m_statWaitMs / static_cast<double>(m_statWaits) : 0.0, m_statTargetRepeats, m_statTargetSkips,
+            m_statInvalid));
     }
     m_statStartNs = now;
     m_statPackets = 0;
     m_statInvalid = 0;
     m_statCompleted = 0;
+    m_statSpreadMs = 0.0;
+    m_statSlackMs = 0.0;
+    m_statMinSlackMs = 0.0;
+    m_statSlackCount = 0;
+    m_statMissingPackets = 0;
+    m_statLatePackets = 0;
+    m_statLateTargets = 0;
+    m_statHeld = 0;
+    m_statWaits = 0;
+    m_statWaitMs = 0.0;
+    m_statTargetRepeats = 0;
+    m_statTargetSkips = 0;
     m_statIncomplete = 0;
     m_statPartialUploads = 0;
 }

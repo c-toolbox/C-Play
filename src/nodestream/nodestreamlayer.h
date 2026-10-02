@@ -42,8 +42,9 @@ private:
     std::string m_group;
     int m_port = 0;
     uint8_t m_syncMode = static_cast<uint8_t>(nodestream::SyncMode::FrameLocked);
-    int m_maxWaitMs = 3;
+    int m_maxWaitMs = 2;
     uint32_t m_streamId = 0;
+    bool m_allowPartial = false;
     uint32_t m_sessionId = 0;
     uint32_t m_targetFrameId = 0;
     bool m_masterSending = false;
@@ -63,6 +64,7 @@ private:
     bool m_hasLastUploaded = false;
     uint32_t m_lastUploadedSession = 0;
     uint32_t m_lastUploadedFrameId = 0;
+    int64_t m_lastCompleteUploadNs = 0;
 };
 
 #endif // NODESTREAMLAYER_H

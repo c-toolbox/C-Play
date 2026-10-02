@@ -889,7 +889,7 @@ SettingsBasePage {
             }
             Label {
                 Layout.fillWidth: true
-                text: qsTr("(All layer streams combined, 0 = no pacing)")
+                text: qsTr("(All layer streams combined, 0 = 85% of link speed)")
             }
         }
         Item {
@@ -918,6 +918,34 @@ SettingsBasePage {
             Label {
                 Layout.fillWidth: true
                 text: qsTr("(How long a node waits for a late frame)")
+            }
+        }
+        Item {
+            visible: NODE_STREAM_SUPPORT
+            Layout.fillWidth: true
+        }
+
+        Label {
+            visible: NODE_STREAM_SUPPORT
+            Layout.alignment: Qt.AlignRight
+            text: qsTr("Frame-locked latency guard (msec):")
+        }
+        RowLayout {
+            visible: NODE_STREAM_SUPPORT
+            SpinBox {
+                editable: true
+                from: 0
+                to: 100
+                value: PresentationSettings.nodeStreamLatencyGuardMs
+
+                onValueChanged: {
+                    PresentationSettings.nodeStreamLatencyGuardMs = value.toFixed(0);
+                    PresentationSettings.save();
+                }
+            }
+            Label {
+                Layout.fillWidth: true
+                text: qsTr("(Time a frame has been on the wire before the nodes show it)")
             }
         }
         Item {
@@ -960,6 +988,30 @@ SettingsBasePage {
             onCheckedChanged: {
                 PresentationSettings.nodeStreamLoopback = checked;
                 PresentationSettings.save();
+            }
+        }
+        Item {
+            visible: NODE_STREAM_SUPPORT
+            Layout.fillWidth: true
+        }
+
+        Item {
+            visible: NODE_STREAM_SUPPORT
+            height: 1
+            width: 1
+        }
+        CheckBox {
+            visible: NODE_STREAM_SUPPORT
+            checked: PresentationSettings.nodeStreamAllowPartialFrames
+            text: qsTr("Show frames with lost packets on the nodes (may mix two frames).")
+
+            onCheckedChanged: {
+                PresentationSettings.nodeStreamAllowPartialFrames = checked;
+                PresentationSettings.save();
+            }
+
+            ToolTip {
+                text: qsTr("When off, the nodes keep showing the previous complete frame until a complete one arrives.")
             }
         }
         Item {

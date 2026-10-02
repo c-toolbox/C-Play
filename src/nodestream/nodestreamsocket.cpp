@@ -14,6 +14,7 @@
 #endif
 #include <winsock2.h>
 #include <ws2tcpip.h>
+#include <iphlpapi.h>
 #else
 #include <arpa/inet.h>
 #include <cerrno>
@@ -28,7 +29,11 @@
 
 #include "nodestreamsocket.h"
 
+#include <algorithm>
+#include <chrono>
 #include <string>
+#include <thread>
+#include <vector>
 
 namespace {
 
@@ -334,4 +339,110 @@ std::string NodeStreamSocket::resolveIPv4(const std::string &host) {
 
 bool NodeStreamSocket::isLoopbackAddress(const std::string &dotted) {
     return dotted.rfind("127.", 0) == 0;
+}
+
+namespace {
+
+int socketBufferSize(uintptr_t s, int option) {
+    if (s == kInvalid)
+        return -1;
+    int value = 0;
+#ifdef _WIN32
+    int length = sizeof(value);
+#else
+    socklen_t length = sizeof(value);
+#endif
+    if (getsockopt(native(s), SOL_SOCKET, option, reinterpret_cast<char *>(&value), &length) != 0)
+        return -1;
+    return value;
+}
+
+int64_t steadyNowNs() {
+    return std::chrono::duration_cast<std::chrono::nanoseconds>(std::chrono::steady_clock::now().time_since_epoch()).count();
+}
+
+#ifdef _WIN32
+// CREATE_WAITABLE_TIMER_HIGH_RESOLUTION, Windows 10 1803 and later.
+constexpr DWORD kHighResolutionTimer = 0x00000002;
+#endif
+
+} // namespace
+
+int NodeStreamSocket::sendBufferSize() const {
+    return socketBufferSize(m_socket, SO_SNDBUF);
+}
+
+int NodeStreamSocket::receiveBufferSize() const {
+    return socketBufferSize(m_socket, SO_RCVBUF);
+}
+
+uint64_t NodeStreamSocket::linkSpeedMbps(const std::string &interfaceAddress) {
+#ifdef _WIN32
+    uint32_t wanted = 0;
+    const bool anyInterface = interfaceAddress.empty() || !parseIPv4(interfaceAddress, wanted);
+
+    ULONG size = 16 * 1024;
+    std::vector<uint8_t> buffer;
+    ULONG result = ERROR_BUFFER_OVERFLOW;
+    for (int attempt = 0; attempt < 3 && result == ERROR_BUFFER_OVERFLOW; ++attempt) {
+        buffer.resize(size);
+        result = GetAdaptersAddresses(AF_INET, GAA_FLAG_SKIP_ANYCAST | GAA_FLAG_SKIP_MULTICAST | GAA_FLAG_SKIP_DNS_SERVER,
+                                      nullptr, reinterpret_cast<IP_ADAPTER_ADDRESSES *>(buffer.data()), &size);
+    }
+    if (result != NO_ERROR)
+        return 0;
+
+    uint64_t fastest = 0;
+    for (auto *adapter = reinterpret_cast<IP_ADAPTER_ADDRESSES *>(buffer.data()); adapter; adapter = adapter->Next) {
+        if (adapter->OperStatus != IfOperStatusUp || adapter->IfType == IF_TYPE_SOFTWARE_LOOPBACK)
+            continue;
+        // ULONG64_MAX means unknown.
+        const uint64_t speed = adapter->TransmitLinkSpeed == ~0ULL ? 0 : adapter->TransmitLinkSpeed / 1'000'000;
+        if (anyInterface) {
+            fastest = std::max(fastest, speed);
+            continue;
+        }
+        for (auto *unicast = adapter->FirstUnicastAddress; unicast; unicast = unicast->Next) {
+            const sockaddr *addr = unicast->Address.lpSockaddr;
+            if (addr && addr->sa_family == AF_INET
+                && reinterpret_cast<const sockaddr_in *>(addr)->sin_addr.s_addr == wanted)
+                return speed;
+        }
+    }
+    return anyInterface ? fastest : 0;
+#else
+    (void)interfaceAddress;
+    return 0;
+#endif
+}
+
+void NodeStreamSocket::waitUntilNs(int64_t steadyNs) {
+    const int64_t remaining = steadyNs - steadyNowNs();
+#ifdef _WIN32
+    if (remaining > 600'000) {
+        struct ThreadTimer {
+            HANDLE handle = CreateWaitableTimerExW(nullptr, nullptr, kHighResolutionTimer, TIMER_ALL_ACCESS);
+            ~ThreadTimer() {
+                if (handle)
+                    CloseHandle(handle);
+            }
+        };
+        thread_local ThreadTimer threadTimer;
+        const HANDLE timer = threadTimer.handle;
+        if (timer) {
+            // Relative due time in 100 ns units, waking a little early to spin the rest.
+            LARGE_INTEGER due;
+            due.QuadPart = -((remaining - 400'000) / 100);
+            if (SetWaitableTimer(timer, &due, 0, nullptr, nullptr, FALSE))
+                WaitForSingleObject(timer, INFINITE);
+        } else if (remaining > 2'000'000) {
+            std::this_thread::sleep_for(std::chrono::nanoseconds(remaining - 1'000'000));
+        }
+    }
+#else
+    if (remaining > 200'000)
+        std::this_thread::sleep_for(std::chrono::nanoseconds(remaining - 100'000));
+#endif
+    while (steadyNowNs() < steadyNs)
+        std::this_thread::yield();
 }
