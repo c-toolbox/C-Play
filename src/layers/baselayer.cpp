@@ -35,6 +35,9 @@
 #ifdef STREAM_LAYER
 #include <layers/streamlayer.h>
 #endif
+#ifdef YOUTUBE_LAYER
+#include <layers/youtubelayer.h>
+#endif
 #ifdef MULTI_VIDEO_LAYER
 #include <layers/multivideolayer.h>
 #endif
@@ -109,6 +112,10 @@ std::string BaseLayer::typeDescription(BaseLayer::LayerType e) {
 #ifdef STREAM_LAYER
     case STREAM:
         return "Stream";
+#endif
+#ifdef YOUTUBE_LAYER
+    case YOUTUBE:
+        return "YouTube";
 #endif
 #ifdef WEBRTC_LAYER
     case WEBRTC:
@@ -218,6 +225,13 @@ BaseLayer *BaseLayer::createLayer(bool isMaster, int layerType, FUNC_V1, FUNC_V2
     case static_cast<int>(BaseLayer::LayerType::STREAM): {
         StreamLayer* newStream = new StreamLayer(opa1);
         newLayer = newStream;
+        break;
+    }
+#endif
+#ifdef YOUTUBE_LAYER
+    case static_cast<int>(BaseLayer::LayerType::YOUTUBE): {
+        YoutubeLayer* newYoutube = new YoutubeLayer(opa1);
+        newLayer = newYoutube;
         break;
     }
 #endif

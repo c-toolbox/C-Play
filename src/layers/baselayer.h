@@ -54,6 +54,9 @@ public:
 #ifdef STREAM_LAYER
         STREAM,
 #endif
+#ifdef YOUTUBE_LAYER
+        YOUTUBE,
+#endif
 #ifdef WEBRTC_LAYER
         WEBRTC,
 #endif

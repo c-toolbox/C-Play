@@ -771,6 +771,8 @@ SettingsBasePage {
                                 } else {
                                     UserInterfaceSettings.floatingWindowLayerPath = layerCoreProps.streamsComboBox.currentValue;
                                 }                            
+                            } else if (layerCoreProps.typeComboBox.currentText === "YouTube") {
+                                UserInterfaceSettings.floatingWindowLayerPath = layerCoreProps.youtubeUrlField.text;
                             } else if (layerCoreProps.typeComboBox.currentText === "Text") {
                                 UserInterfaceSettings.floatingWindowLayerPath = layerCoreProps.textForLayer.text;
                             } else {

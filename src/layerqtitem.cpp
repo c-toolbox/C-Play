@@ -290,14 +290,14 @@ double LayerQtItem::layerRemaining() const {
 }
 
 int LayerQtItem::layerEofMode() const {
-    if (m_layer && (m_layer->type() == BaseLayer::LayerType::VIDEO || m_layer->type() == BaseLayer::LayerType::AUDIO)) {
+    if (m_layer && (m_layer->type() == BaseLayer::LayerType::VIDEO || m_layer->type() == BaseLayer::LayerType::AUDIO || m_layer->type() == BaseLayer::LayerType::YOUTUBE)) {
         return m_layer->eofMode();
     }
     return -1;
 }
 
 void LayerQtItem::setLayerEofMode(int value) {
-    if (m_layer && m_layer->isEnabled() && (m_layer->type() == BaseLayer::LayerType::VIDEO || m_layer->type() == BaseLayer::LayerType::AUDIO)) {
+    if (m_layer && m_layer->isEnabled() && (m_layer->type() == BaseLayer::LayerType::VIDEO || m_layer->type() == BaseLayer::LayerType::AUDIO || m_layer->type() == BaseLayer::LayerType::YOUTUBE)) {
         if (m_layer->eofMode() != value) {
             m_layer->setEOFMode(value);
             Q_EMIT layerNeedsSave();
@@ -307,7 +307,7 @@ void LayerQtItem::setLayerEofMode(int value) {
 }
 
 QString LayerQtItem::layerMpvOptions() const {
-    if (m_layer && (m_layer->type() == BaseLayer::LayerType::VIDEO || m_layer->type() == BaseLayer::LayerType::AUDIO || m_layer->type() == BaseLayer::LayerType::STREAM)) {
+    if (m_layer && (m_layer->type() == BaseLayer::LayerType::VIDEO || m_layer->type() == BaseLayer::LayerType::AUDIO || m_layer->type() == BaseLayer::LayerType::STREAM || m_layer->type() == BaseLayer::LayerType::YOUTUBE)) {
         const MpvLayer* mpvLayer = static_cast<const MpvLayer*>(m_layer);
         return QString::fromStdString(mpvLayer->mpvOptionsName());
     }
@@ -315,7 +315,7 @@ QString LayerQtItem::layerMpvOptions() const {
 }
 
 void LayerQtItem::setLayerMpvOptions(QString value) {
-    if (m_layer && m_layer->isEnabled() && (m_layer->type() == BaseLayer::LayerType::VIDEO || m_layer->type() == BaseLayer::LayerType::AUDIO || m_layer->type() == BaseLayer::LayerType::STREAM)) {
+    if (m_layer && m_layer->isEnabled() && (m_layer->type() == BaseLayer::LayerType::VIDEO || m_layer->type() == BaseLayer::LayerType::AUDIO || m_layer->type() == BaseLayer::LayerType::STREAM || m_layer->type() == BaseLayer::LayerType::YOUTUBE)) {
         MpvLayer* mpvLayer = static_cast<MpvLayer*>(m_layer);
         if (QString::fromStdString(mpvLayer->mpvOptionsName()) != value) {
             mpvLayer->setMpvOptionsName(value.toStdString());
@@ -334,6 +334,8 @@ QString LayerQtItem::layerMpvOptionsSuffix() const {
             return QStringLiteral("_audio");
         case BaseLayer::LayerType::STREAM:
             return QStringLiteral("_stream");
+        case BaseLayer::LayerType::YOUTUBE:
+            return QStringLiteral("_youtube");
         default:
             break;
         }
@@ -342,14 +344,14 @@ QString LayerQtItem::layerMpvOptionsSuffix() const {
 }
 
 bool LayerQtItem::layerLoopTimeEnabled() const {
-    if (m_layer && (m_layer->type() == BaseLayer::LayerType::VIDEO || m_layer->type() == BaseLayer::LayerType::AUDIO)) {
+    if (m_layer && (m_layer->type() == BaseLayer::LayerType::VIDEO || m_layer->type() == BaseLayer::LayerType::AUDIO || m_layer->type() == BaseLayer::LayerType::YOUTUBE)) {
         return m_layer->loopTimeEnabled();
     }
     return false;
 }
 
 void LayerQtItem::setLayerLoopTimeEnabled(bool value) {
-    if (m_layer && m_layer->isEnabled() && (m_layer->type() == BaseLayer::LayerType::VIDEO || m_layer->type() == BaseLayer::LayerType::AUDIO)) {
+    if (m_layer && m_layer->isEnabled() && (m_layer->type() == BaseLayer::LayerType::VIDEO || m_layer->type() == BaseLayer::LayerType::AUDIO || m_layer->type() == BaseLayer::LayerType::YOUTUBE)) {
         if (m_layer->loopTimeEnabled() != value) {
             m_layer->setLoopTime(m_layer->loopTimeA(), m_layer->loopTimeB(), value);
             Q_EMIT layerNeedsSave();
@@ -359,14 +361,14 @@ void LayerQtItem::setLayerLoopTimeEnabled(bool value) {
 }
 
 double LayerQtItem::layerLoopTimeA() const {
-    if (m_layer && (m_layer->type() == BaseLayer::LayerType::VIDEO || m_layer->type() == BaseLayer::LayerType::AUDIO)) {
+    if (m_layer && (m_layer->type() == BaseLayer::LayerType::VIDEO || m_layer->type() == BaseLayer::LayerType::AUDIO || m_layer->type() == BaseLayer::LayerType::YOUTUBE)) {
         return m_layer->loopTimeA();
     }
     return 0.0;
 }
 
 void LayerQtItem::setLayerLoopTimeA(double value) {
-    if (m_layer && m_layer->isEnabled() && (m_layer->type() == BaseLayer::LayerType::VIDEO || m_layer->type() == BaseLayer::LayerType::AUDIO)) {
+    if (m_layer && m_layer->isEnabled() && (m_layer->type() == BaseLayer::LayerType::VIDEO || m_layer->type() == BaseLayer::LayerType::AUDIO || m_layer->type() == BaseLayer::LayerType::YOUTUBE)) {
         if (m_layer->loopTimeA() != value) {
             m_layer->setLoopTime(value, m_layer->loopTimeB(), m_layer->loopTimeEnabled());
             Q_EMIT layerNeedsSave();
@@ -376,14 +378,14 @@ void LayerQtItem::setLayerLoopTimeA(double value) {
 }
 
 double LayerQtItem::layerLoopTimeB() const {
-    if (m_layer && (m_layer->type() == BaseLayer::LayerType::VIDEO || m_layer->type() == BaseLayer::LayerType::AUDIO)) {
+    if (m_layer && (m_layer->type() == BaseLayer::LayerType::VIDEO || m_layer->type() == BaseLayer::LayerType::AUDIO || m_layer->type() == BaseLayer::LayerType::YOUTUBE)) {
         return m_layer->loopTimeB();
     }
     return 0.0;
 }
 
 void LayerQtItem::setLayerLoopTimeB(double value) {
-    if (m_layer && m_layer->isEnabled() && (m_layer->type() == BaseLayer::LayerType::VIDEO || m_layer->type() == BaseLayer::LayerType::AUDIO)) {
+    if (m_layer && m_layer->isEnabled() && (m_layer->type() == BaseLayer::LayerType::VIDEO || m_layer->type() == BaseLayer::LayerType::AUDIO || m_layer->type() == BaseLayer::LayerType::YOUTUBE)) {
         if (m_layer->loopTimeB() != value) {
             m_layer->setLoopTime(m_layer->loopTimeA(), value, m_layer->loopTimeEnabled());
             Q_EMIT layerNeedsSave();
@@ -1567,6 +1569,17 @@ void LayerQtItem::setLayerStreamKey(QString key) {
     }
 }
 
+bool LayerQtItem::layerHasError() const {
+    return m_layer && m_layer->loadFailed();
+}
+
+QString LayerQtItem::layerError() const {
+    if (!m_layer)
+        return QString();
+    const std::string err = m_layer->loadError();
+    return err.empty() ? QString() : QString::fromStdString(err);
+}
+
 #ifdef DIRECTSHOW_SUPPORT
 QString LayerQtItem::layerDirectShowPresetKey() const {
     if (m_layer && m_layer->type() == BaseLayer::DIRECTSHOW) {
@@ -1614,6 +1627,24 @@ void LayerQtItem::handleWindowChanged(QQuickWindow *win) {
                     if (hasAudio)
                         loadTracks(); // refresh the model so countTracks()/track menu reflect the new tracks
                     Q_EMIT layerHasAudioChanged();
+                }
+                // Loader failures (bad URL, missing yt-dlp, ...) arrive asynchronously from the
+                // mpv event thread. On nodes the NodeLoaderVerifier refreshes the load status;
+                // on the master nothing else does, so refresh it here for mpv-based layers
+                // (cheap, idempotent) and poll so the LayerView error overlay appears or
+                // disappears without reopening the view.
+                if (m_layer && (m_layer->type() == BaseLayer::STREAM
+                                || m_layer->type() == BaseLayer::YOUTUBE
+                                || m_layer->type() == BaseLayer::VIDEO
+                                || m_layer->type() == BaseLayer::AUDIO)) {
+                    m_layer->collectLoadStatus();
+                }
+                const bool hasError = layerHasError();
+                const QString errorText = hasError ? layerError() : QString();
+                if (hasError != m_lastEmittedHasError || errorText != m_lastEmittedError) {
+                    m_lastEmittedHasError = hasError;
+                    m_lastEmittedError = errorText;
+                    Q_EMIT layerErrorChanged();
                 }
             });
 
@@ -1798,7 +1829,8 @@ void LayerQtItem::sync() {
     m_renderer->setOwnsLayer(m_ownsLayer);
 
     if (m_layer) {
-        if (m_layer->type() == BaseLayer::LayerType::VIDEO || m_layer->type() == BaseLayer::LayerType::AUDIO) {
+        if (m_layer->type() == BaseLayer::LayerType::VIDEO || m_layer->type() == BaseLayer::LayerType::AUDIO
+            || m_layer->type() == BaseLayer::LayerType::YOUTUBE) {
             Q_EMIT layerPositionChanged();
         }
     }

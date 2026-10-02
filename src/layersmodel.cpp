@@ -1208,7 +1208,7 @@ void LayersModel::decodeFromJSON(QJsonObject &obj, const QStringList &forRelativ
                         }
                     }
 
-                    if ((type == BaseLayer::VIDEO || type == BaseLayer::AUDIO || type == BaseLayer::STREAM)) {
+                    if ((type == BaseLayer::VIDEO || type == BaseLayer::AUDIO || type == BaseLayer::STREAM || type == BaseLayer::YOUTUBE)) {
                         if (o.contains(QStringLiteral("mpvOptions"))) {
                             std::string mpvOptions = o.value(QStringLiteral("mpvOptions")).toString().toStdString();
                             MpvLayer* mpvLayer = static_cast<MpvLayer*>(m_layers[idx].first.get());
@@ -1216,7 +1216,7 @@ void LayersModel::decodeFromJSON(QJsonObject &obj, const QStringList &forRelativ
                         }
                     }
 
-                    if ((type == BaseLayer::VIDEO || type == BaseLayer::AUDIO)) {
+                    if ((type == BaseLayer::VIDEO || type == BaseLayer::AUDIO || type == BaseLayer::YOUTUBE)) {
                         BaseLayer* baseLayer = m_layers[idx].first.get();
                         if (o.contains(QStringLiteral("end_of_file"))) {
                             int eofMode = 2; // Loop by default
@@ -1624,13 +1624,13 @@ void LayersModel::encodeToJSON(QJsonObject &obj, const QStringList &forRelativeP
             layerData.insert(QStringLiteral("method"), QJsonValue(restLayer->method()));
             layerData.insert(QStringLiteral("parameters"), QJsonValue(QString::fromStdString(restLayer->parameters())));
         }
-        if (layer->type() == BaseLayer::VIDEO || layer->type() == BaseLayer::AUDIO || layer->type() == BaseLayer::STREAM) {
+        if (layer->type() == BaseLayer::VIDEO || layer->type() == BaseLayer::AUDIO || layer->type() == BaseLayer::STREAM || layer->type() == BaseLayer::YOUTUBE) {
             MpvLayer* mpvLayer = static_cast<MpvLayer*>(layer.get());
             if (!mpvLayer->mpvOptionsName().empty()) {
                 layerData.insert(QStringLiteral("mpvOptions"), QJsonValue(QString::fromStdString(mpvLayer->mpvOptionsName())));
             }
         }
-        if (layer->type() == BaseLayer::VIDEO || layer->type() == BaseLayer::AUDIO) {
+        if (layer->type() == BaseLayer::VIDEO || layer->type() == BaseLayer::AUDIO || layer->type() == BaseLayer::YOUTUBE) {
             if (layer->hasAudio()) {
                 layerData.insert(QStringLiteral("volume"), QJsonValue(layer->volume()));
                 layerData.insert(QStringLiteral("audioId"), QJsonValue(layer->audioId()));

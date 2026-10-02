@@ -8,7 +8,7 @@ set(CPLAY_VERSION_MAJOR 2)
 set(CPLAY_VERSION_MINOR 4)
 set(CPLAY_VERSION_PATCH 0)
 set(CPLAY_VERSION_PR_NAME "Beta")
-set(CPLAY_VERSION_PR_VERS 16)
+set(CPLAY_VERSION_PR_VERS 17)
 
 qt_add_executable(${TARGET_NAME})
 set_compile_options(${TARGET_NAME})
@@ -49,6 +49,8 @@ set(SOURCE_FILES
     layers/mpvoptionsmodel.h
     layers/streamlayer.cpp
     layers/streamlayer.h
+    layers/youtubelayer.cpp
+    layers/youtubelayer.h
     layers/streammodel.cpp
     layers/streammodel.h
     layers/textlayer.cpp
@@ -131,6 +133,8 @@ set(SOURCE_FILES
     utils/streampathsconfig.h
     utils/streampathresolver.cpp
     utils/streampathresolver.h
+    utils/ytdlpresolver.cpp
+    utils/ytdlpresolver.h
     utils/multivideohandler.cpp
     utils/multivideohandler.h
 )
@@ -457,6 +461,7 @@ target_compile_definitions(${TARGET_NAME} PRIVATE
     MULTI_VIDEO_LAYER
     AUDIO_LAYER
     STREAM_LAYER
+    YOUTUBE_LAYER
     CONTROL_LAYER
     TEXT_LAYER
     REST_LAYER

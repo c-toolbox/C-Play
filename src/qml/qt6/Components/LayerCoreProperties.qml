@@ -33,6 +33,7 @@ GridLayout {
     property alias streamsLayout: streamsLayout
     property alias streamsComboBox: streamsComboBox
     property alias streamCustomEntryField: streamCustomEntryField
+    property alias youtubeUrlField: youtubeUrlField
     property alias mediaMtxServerComboBox: mediaMtxServerComboBox
     property alias mediaMtxStreamsComboBox: mediaMtxStreamsComboBox
     property alias ndiSenderComboBox: ndiSenderComboBox
@@ -413,6 +414,10 @@ GridLayout {
             else if (typeComboBox.currentText === "WebRTC") {
                 whepUrlField.text = "";
             }
+            else if (typeComboBox.currentText === "YouTube") {
+                youtubeUrlField.text = "";
+                layerTitle.text = "";
+            }
             else {
                 layerTitle.text = "";
                 fileForLayer.text = "";
@@ -428,11 +433,11 @@ GridLayout {
         Layout.alignment: Qt.AlignRight
         font.pointSize: 9
         text: qsTr("File:")
-        visible: typeComboBox.currentText != "Stream" && typeComboBox.currentText != "DirectShow"&& typeComboBox.currentText != "NDI" && typeComboBox.currentText != "Spout" && typeComboBox.currentText != "OMT" && typeComboBox.currentText != "WebRTC" && typeComboBox.currentText != "Text" && typeComboBox.currentText != "Control" && typeComboBox.currentText != "REST"
+        visible: typeComboBox.currentText != "Stream" && typeComboBox.currentText != "YouTube" && typeComboBox.currentText != "DirectShow"&& typeComboBox.currentText != "NDI" && typeComboBox.currentText != "Spout" && typeComboBox.currentText != "OMT" && typeComboBox.currentText != "WebRTC" && typeComboBox.currentText != "Text" && typeComboBox.currentText != "Control" && typeComboBox.currentText != "REST"
     }
     RowLayout {
         Layout.fillWidth: true
-        visible: typeComboBox.currentText != "Stream" && typeComboBox.currentText != "DirectShow" && typeComboBox.currentText != "NDI" && typeComboBox.currentText != "Spout" && typeComboBox.currentText != "OMT" && typeComboBox.currentText != "WebRTC" && typeComboBox.currentText != "Text" && typeComboBox.currentText != "Control" && typeComboBox.currentText != "REST"
+        visible: typeComboBox.currentText != "Stream" && typeComboBox.currentText != "YouTube" && typeComboBox.currentText != "DirectShow" && typeComboBox.currentText != "NDI" && typeComboBox.currentText != "Spout" && typeComboBox.currentText != "OMT" && typeComboBox.currentText != "WebRTC" && typeComboBox.currentText != "Text" && typeComboBox.currentText != "Control" && typeComboBox.currentText != "REST"
 
         TextField {
             id: fileForLayer
@@ -490,6 +495,54 @@ GridLayout {
                 else if (typeComboBox.currentText === "MultiVideo")
                     fileToLoadAsMultiVideoLayerDialog.open();
             }
+        }
+    }
+
+    Label {
+        Layout.alignment: Qt.AlignRight
+        text: qsTr("URL:")
+        visible: typeComboBox.currentText === "YouTube"
+    }
+    RowLayout {
+        Layout.fillWidth: true
+        visible: typeComboBox.currentText === "YouTube"
+
+        TextField {
+            id: youtubeUrlField
+
+            Layout.fillWidth: true
+            Layout.preferredWidth: font.pointSize * 17
+            placeholderText: "https://www.youtube.com/watch?v=..."
+            text: ""
+
+            onEditingFinished: {}
+
+            ToolTip {
+                text: qsTr("Single YouTube video URL (watch / shorts / youtu.be)")
+            }
+        }
+    }
+
+    // YouTube availability hint: mpv resolves the URL through the external yt-dlp tool,
+    // which must be available on every machine that plays the layer.
+    Label {
+        id: youtubeLayerHintLabel
+
+        Layout.columnSpan: 2
+        Layout.fillWidth: true
+        Layout.leftMargin: 4
+        font.pointSize: 9
+        font.italic: true
+        wrapMode: Text.WordWrap
+        visible: typeComboBox.currentText === "YouTube"
+        color: youtubeLayerHintLabel.text.startsWith("!") ? "crimson" : Kirigami.Theme.neutralTextColor
+        text: {
+            if (app.resolveYtdlpPath() === "") {
+                return qsTr("! YouTube playback needs yt-dlp - not found on this machine. "
+                          + "Add yt-dlp.exe next to C-Play.exe, add it to PATH, "
+                          + "or set the path in Settings -> Playback.");
+            }
+            return qsTr("Played via yt-dlp (%1). Every cluster node also needs yt-dlp.").arg(app.resolveYtdlpPath());
         }
     }
 
@@ -636,6 +689,30 @@ GridLayout {
             ToolTip {
                 text: streamsLayout.customEntry ? (root.mediaMtxAvailable ? qsTr("Use MediaMTX server") : qsTr("Use predefined stream list")) : (streamsLayout.mediaMtxEntry ? qsTr("Use predefined stream list") : qsTr("Use custom stream path"))
             }
+        }
+    }
+
+    // YouTube hint for custom stream paths: mpv resolves YouTube URLs through the external
+    // yt-dlp tool, which must be available on every machine that plays the layer.
+    Label {
+        id: youtubeHintLabel
+
+        Layout.columnSpan: 2
+        Layout.fillWidth: true
+        Layout.leftMargin: 4
+        font.pointSize: 9
+        font.italic: true
+        wrapMode: Text.WordWrap
+        visible: typeComboBox.currentText === "Stream" && streamsLayout.customEntry
+                 && streamCustomEntryField.text.length > 0
+                 && app.isYouTubeUrl(streamCustomEntryField.text)
+        color: youtubeHintLabel.text.startsWith("!") ? "crimson" : Kirigami.Theme.neutralTextColor
+        text: {
+            if (app.resolveYtdlpPath() === "") {
+                return qsTr("! YouTube URL - yt-dlp not found. Add yt-dlp.exe next to C-Play.exe, "
+                          + "add it to PATH, or set the path in Settings -> Playback.");
+            }
+            return qsTr("YouTube URL - played via yt-dlp (every cluster node also needs yt-dlp).");
         }
     }
 

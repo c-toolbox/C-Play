@@ -140,6 +140,13 @@ Kirigami.ApplicationWindow {
                             layersAddNew.visible = false;
                             app.slides.updateSelectedSlide();
                             mpv.focus = true;
+                        } else if (layerCoreProps.typeComboBox.currentText === "YouTube") {
+                            if (layerCoreProps.youtubeUrlField.text.trim() !== "") {
+                                layerView.layerItem.layerIdx = app.slides.selected.addLayer(layerCoreProps.layerTitle.text, layerCoreProps.typeComboBox.currentIndex + 1, layerCoreProps.youtubeUrlField.text.trim(), layerCoreProps.stereoscopicModeForLayer.currentIndex, layerCoreProps.gridModeForLayer.currentIndex);
+                                layersAddNew.visible = false;
+                                app.slides.updateSelectedSlide();
+                                mpv.focus = true;
+                            }
                         } else if (layerCoreProps.typeComboBox.currentText === "Text") {
                             layerView.layerItem.layerIdx = app.slides.selected.addLayer(layerCoreProps.layerTitle.text, layerCoreProps.typeComboBox.currentIndex + 1, layerCoreProps.textForLayer.text, layerCoreProps.stereoscopicModeForLayer.currentIndex, layerCoreProps.gridModeForLayer.currentIndex);
                             layersAddNew.visible = false;

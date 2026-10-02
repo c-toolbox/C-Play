@@ -20,6 +20,7 @@
 #include "slidesqtitem.h"
 #include "telemetry/nodetelemetry.h"
 #include "telemetry/nodeloaderverifier.h"
+#include "utils/ytdlpresolver.h"
 
 #ifdef JACK_SUPPORT
 #include <jack/jack.h>
@@ -881,6 +882,14 @@ QString Application::mpvOptionsPath(const QString &name, const QString &suffix) 
     if (name.isEmpty())
         return QStringLiteral("");
     return mpvConfRootPath() + QStringLiteral("/") + name + suffix + QStringLiteral(".json");
+}
+
+bool Application::isYouTubeUrl(const QString &path) {
+    return YtdlpResolver::isYouTubeUrl(path.toStdString());
+}
+
+QString Application::resolveYtdlpPath() {
+    return QString::fromStdString(YtdlpResolver::resolveYtdlpPath());
 }
 
 QStringList Application::availableGuiStyles() {

@@ -146,6 +146,8 @@ class LayerQtItem : public QQuickItem {
     Q_PROPERTY(QString layerRestParameters READ layerRestParameters WRITE setLayerRestParameters NOTIFY layerValueChanged)
     Q_PROPERTY(bool layerRestIgnoreStatus READ layerRestIgnoreStatus WRITE setLayerRestIgnoreStatus NOTIFY layerValueChanged)
     Q_PROPERTY(QString layerStreamKey READ layerStreamKey WRITE setLayerStreamKey NOTIFY layerValueChanged)
+    Q_PROPERTY(bool layerHasError READ layerHasError NOTIFY layerErrorChanged)
+    Q_PROPERTY(QString layerError READ layerError NOTIFY layerErrorChanged)
 #ifdef DIRECTSHOW_SUPPORT
     Q_PROPERTY(QString layerDirectShowPresetKey READ layerDirectShowPresetKey WRITE setLayerDirectShowPresetKey NOTIFY layerValueChanged)
 #endif
@@ -380,6 +382,12 @@ public:
     QString layerStreamKey() const;
     void setLayerStreamKey(QString key);
 
+    // Live loader failure state of an mpv-based layer (stream/video), polled by the window
+    // timer and emitted as layerErrorChanged() when it changes. Used by the LayerView error
+    // overlay (e.g. a bad YouTube URL or a missing yt-dlp).
+    bool layerHasError() const;
+    QString layerError() const;
+
 #ifdef DIRECTSHOW_SUPPORT
     QString layerDirectShowPresetKey() const;
     void setLayerDirectShowPresetKey(QString key);
@@ -399,6 +407,8 @@ Q_SIGNALS:
     // PMT arrives late and an audio track appears after FILE_LOADED). Drives the
     // LayerView audio controls so they show up as soon as audio exists.
     void layerHasAudioChanged();
+    // Emitted by the window timer when the layer's loader failure state changes.
+    void layerErrorChanged();
 
 private:
     Q_INVOKABLE void handleWindowChanged(QQuickWindow *win);
@@ -409,6 +419,8 @@ private:
     bool m_ownsLayer;
     float m_lastEmittedAudioLevel = -1.f; // sentinel so the first timer tick always emits
     bool m_lastEmittedHasAudio = false;   // last reported audio-track availability (timer-polled)
+    bool m_lastEmittedHasError = false;   // last reported loader failure state (timer-polled)
+    QString m_lastEmittedError;           // last reported loader error text (timer-polled)
     bool m_audioLevelsEnabled = false; // desired meter state, re-applied to each new layer
     bool m_updatingLayer;
     LayerQtOpenGLObject *m_renderer;

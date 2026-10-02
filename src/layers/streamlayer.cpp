@@ -98,7 +98,10 @@ void StreamLayer::updateFrame() {
 }
 
 bool StreamLayer::ready() const {
-    return !m_data.loadedFile.empty();
+    // A load that ended in an error (MPV_EVENT_END_FILE reason=error, e.g. a bad YouTube
+    // URL or a missing yt-dlp) is never "ready", so the layer status drops to 0 and the
+    // error overlay can be shown instead of a frozen/black frame.
+    return !m_data.loadedFile.empty() && !m_data.loadFailed;
 }
 
 std::string StreamLayer::streamKey() const {

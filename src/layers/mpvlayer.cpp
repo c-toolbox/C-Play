@@ -8,9 +8,11 @@
 #include "mpvlayer.h"
 #include "application.h"
 #include "audiosettings.h"
+#include "playbacksettings.h"
 #include "track.h"
 #include "qthelper.h"
 #include "utils/framesynccontroller.h"
+#include "utils/ytdlpresolver.h"
 #include <sgct/sgct.h>
 #include <QCoreApplication>
 #include <QDir>
@@ -96,6 +98,11 @@ std::string mpvOptionsFilePath(const MpvLayer::mpvData& vd) {
     case BaseLayer::STREAM:
         suffix = "_stream";
         break;
+#ifdef YOUTUBE_LAYER
+    case BaseLayer::YOUTUBE:
+        suffix = "_youtube";
+        break;
+#endif
     default:
         return "";
     }
@@ -123,6 +130,7 @@ void on_mpv_events(MpvLayer::mpvData &vd, BaseLayer::RenderParams) {
                 vd.fileLoaded = true;
                 vd.pendingLoadError.clear();
             }
+            vd.loadFailed = false;
             // Always read the track list so hasAudio() is accurate even when audio
             // is disabled; only apply the selection/volume when audio is enabled.
             loadTracks(vd);
@@ -220,15 +228,25 @@ void on_mpv_events(MpvLayer::mpvData &vd, BaseLayer::RenderParams) {
         case MPV_EVENT_END_FILE: {
             // A load that ends in an error never produced FILE_LOADED - report it so the master
             // can see which files failed to open on this node. EOF/STOP/QUIT are not loader
-            // failures (with keep-open=yes an EOF just holds the last frame).
+            // failures (with keep-open=yes an EOF just holds the last frame). An intentional
+            // unload()/stop() is never a failure either.
             mpv_event_end_file *endFile = reinterpret_cast<mpv_event_end_file *>(event->data);
-            const bool isError = endFile && endFile->reason == MPV_END_FILE_REASON_ERROR;
+            const bool isError = endFile && endFile->reason == MPV_END_FILE_REASON_ERROR && !vd.intentionalStop;
+            const int errCode = endFile ? endFile->error : event->error;
+            const char *errStr = errCode != 0 ? mpv_error_string(errCode) : nullptr;
             {
                 const std::lock_guard<std::mutex> lock(vd.loadStatusMutex);
-                if (isError)
-                    vd.pendingLoadError = "mpv load error";
-                else
+                if (isError) {
+                    vd.pendingLoadError = errStr ? std::format("mpv load error: {}", errStr)
+                                                 : std::string("mpv load error");
+                } else {
                     vd.pendingLoadError.clear();
+                }
+            }
+            vd.loadFailed = isError;
+            if (isError) {
+                sgct::Log::Error(std::format("mpv failed to load '{}': {}",
+                    vd.loadedFile, errStr ? errStr : "unknown error"));
             }
             break;
         }
@@ -278,6 +296,35 @@ bool initMPV(MpvLayer::mpvData& vd) {
         mpv_request_log_messages(vd.handle, vd.logLevel.c_str());
     }
 
+    // YouTube layers (and stream layers pointed at a YouTube URL): point mpv's embedded
+    // ytdl_hook.lua at the yt-dlp executable we resolved on this machine (settings entry,
+    // next to C-Play.exe, or PATH). An empty resolution leaves the hook's own PATH search
+    // in charge. These are pre-init options.
+    vd.isYoutubeAtInit = vd.isYoutube;
+    if (vd.isYoutube) {
+        const std::string ytdlPath = YtdlpResolver::resolveYtdlpPath();
+        if (ytdlPath.empty()) {
+            sgct::Log::Warning("YouTube stream: yt-dlp not found (Settings -> Playback -> yt-dlp path, or next to C-Play.exe, or on PATH). Letting ytdl_hook search PATH itself.");
+        } else {
+            sgct::Log::Info(std::format("YouTube stream: using yt-dlp at '{}'.", ytdlPath));
+        }
+        std::vector<std::string> opts;
+        if (!ytdlPath.empty())
+            opts.push_back("ytdl_hook-ytdl_path=" + ytdlPath);
+        const std::string ytdlFormat = PlaybackSettings::ytdlFormat().toStdString();
+        if (!ytdlFormat.empty())
+            opts.push_back("ytdl_hook-ytdl-format=" + ytdlFormat);
+        if (!opts.empty()) {
+            std::string scriptOpts;
+            for (size_t i = 0; i < opts.size(); ++i) {
+                if (i != 0)
+                    scriptOpts += ",";
+                scriptOpts += opts[i];
+            }
+            mpv_set_option_string(vd.handle, "script-opts", scriptOpts.c_str());
+        }
+    }
+
     // Some minor options can only be set before mpv_initialize().
     if (mpv_initialize(vd.handle) < 0) {
         sgct::Log::Error("mpv init failed");
@@ -315,8 +362,10 @@ bool initMPV(MpvLayer::mpvData& vd) {
         mpv::qt::set_property(vd.handle, QStringLiteral("vid"), QStringLiteral("no"), vd.loggingOn);
     }
 
-    // Set specific values if stream
-    if (vd.isStream) {
+    // Set specific values if stream. YouTube content (dedicated layer or URL) is VOD: the
+    // live-stream low-latency profile and untimed demuxing cause audio drift there, so
+    // they are skipped.
+    if (vd.isStream && !vd.isYoutube) {
         mpv::qt::set_property(vd.handle, QStringLiteral("profile"), QStringLiteral("low-latency"), vd.loggingOn);
         mpv::qt::set_property(vd.handle, QStringLiteral("untimed"), QStringLiteral(""), vd.loggingOn);
     }
@@ -434,6 +483,10 @@ void MpvLayer::initialize() {
 }
 
 void MpvLayer::initializeMpv() {
+    // Decide once, before the mpv thread (and initMPV) starts, whether this layer resolves
+    // through ytdl_hook/yt-dlp: the script-opts and the low-latency/untimed skip are
+    // pre-initialization decisions.
+    m_data.isYoutube = usesYtdl() || (m_data.isStream && YtdlpResolver::isYouTubeUrl(effectiveFilePath()));
     // Run MPV on another thread
     if (!m_data.threadRunning && !m_data.trd) {
         m_data.initializationDone = false;
@@ -484,6 +537,8 @@ bool MpvLayer::hasTexture() const {
 
 void MpvLayer::initializeAndLoad(std::string filePath) {
     if (!m_data.mpvInitialized) {
+        // The explicit path (not the synced one) is what loadFile() below will open.
+        m_data.isYoutube = usesYtdl() || (m_data.isStream && YtdlpResolver::isYouTubeUrl(filePath));
         initializeMpv();
 
         std::unique_lock<std::mutex> lock(m_data.initializationMutex);
@@ -508,6 +563,9 @@ void MpvLayer::unload() {
 
     sgct::Log::Info(std::format("Unloading file from mpv: {}", m_data.loadedFile));
     if (m_data.mpvInitialized && m_data.handle) {
+        // The END_FILE this stop produces is not a load failure, even if an in-flight
+        // load (e.g. a failing yt-dlp resolution) is aborted by it.
+        m_data.intentionalStop = true;
         mpv::qt::command_async(m_data.handle, QStringList() << QStringLiteral("stop"));
     }
     m_data.loadedFile.clear();
@@ -519,6 +577,7 @@ void MpvLayer::unload() {
         m_data.pendingLoadError.clear();
         m_data.loadRequestedTime = {};
     }
+    m_data.loadFailed = false;
 }
 
 void MpvLayer::update(bool updateRendering) {
@@ -823,6 +882,19 @@ void MpvLayer::loadFile(std::string filePath, bool reload) {
         m_data.updateRendering = false;
         m_data.loadedFile = filePath;
         m_data.audioTracks.clear();
+        // Keep the YouTube flag in sync with what we are actually about to open (the path
+        // can change between loads; initMPV only reads it at initialization time).
+        const bool newIsYoutube = usesYtdl() || (m_data.isStream && YtdlpResolver::isYouTubeUrl(filePath));
+        if (newIsYoutube != m_data.isYoutubeAtInit) {
+            // ytdl_hook script-opts and the low-latency/untimed skip are pre-initialization
+            // decisions: a layer re-pointed at (or away from) YouTube after mpv started keeps
+            // the old configuration until the layer is re-created.
+            sgct::Log::Warning(std::format("Stream layer switched {} YouTube on a live mpv handle - "
+                "yt-dlp options / low-latency settings were fixed at initialization. Re-create the "
+                "layer (or restart C-Play) for full effect.",
+                newIsYoutube ? "to" : "away from"));
+        }
+        m_data.isYoutube = newIsYoutube;
 
         // A new load attempt starts - the previous FILE_LOADED / failure no longer applies.
         {
@@ -831,6 +903,8 @@ void MpvLayer::loadFile(std::string filePath, bool reload) {
             m_data.pendingLoadError.clear();
             m_data.loadRequestedTime = std::chrono::steady_clock::now();
         }
+        m_data.loadFailed = false;
+        m_data.intentionalStop = false;
 
         // Re-apply global settings first, then the layer-specific options,
         // so options persist across file loads (mpv may reset them per file).

@@ -95,6 +95,26 @@ When choosing *"WebRTC"*, a **WHEP URL** field becomes visible instead of the fi
 
 When choosing *"Stream"*, you can choose between pre-defined streams for your system in a combobox, loaded from the editable file *"data/predefined-streams.json"*, or add a custom entry in a text field. The stream is handled as video/audio with the MPV library, so explore the possibilities further through the MPV documentation.
 
+When choosing *"YouTube"*, a single **URL** field becomes visible instead of the file dialog field. Paste a single YouTube video URL (`watch`, `shorts`, or `youtu.be`) and the layer plays it through mpv's embedded `ytdl_hook`, which uses the external [yt-dlp](https://github.com/yt-dlp/yt-dlp) tool to resolve the actual media streams. A YouTube layer is treated as video-on-demand content, so — unlike a live Stream layer — it gets the full set of player controls in the *Layer View*: play/pause, a seek slider, stop/rewind, end-of-file mode (pause or loop) and A-B section looping, exactly like a Video layer. It is never forced into the live-stream low-latency mode (which would cause audio drift).
+
+### YouTube playback and yt-dlp
+
+YouTube URLs are resolved by mpv's `ytdl_hook.lua`, which spawns the external **yt-dlp** executable. C-Play locates yt-dlp on each machine in this order:
+
+1. The **yt-dlp path** set in *Settings → Playback → YouTube (Stream layers)*.
+2. `yt-dlp.exe` (or `yt-dlp`) placed next to `C-Play.exe`.
+3. Anywhere on the system `PATH`.
+
+If none is found, the layer reports a load error and shows an error overlay in the *Layer View*. The layer-properties dialog and the settings page both show whether yt-dlp was found on the current machine.
+
+> **Every cluster node needs yt-dlp too.** A YouTube layer stores its URL verbatim and syncs it to all machines; each machine resolves the URL locally with its own yt-dlp. A node without yt-dlp shows the error overlay while the master keeps playing — this is expected.
+
+An optional **yt-dlp format** string in *Settings → Playback* is passed to `ytdl_hook` (`ytdl-format`) to cap resolution or pick specific codecs (for example `bv*[height<=1080]+ba/b`). Leave it empty to use the mpv/yt-dlp default.
+
+A per-layer options profile named **Youtube** (from `data/mpv-conf/youtube_youtube.json`) is available in the *Layer View* options dropdown for cache/demuxer tuning.
+
+Cookies, authentication and age-restricted content are out of scope, as are channel and playlist URLs (single video URLs only).
+
 #### Predefined DirectShow setups
 
 DirectShow layers work the same way: C-Play can load a list of predefined capture setups from the editable file *"data/predefined-directshows.json"*. When the file exists and contains at least one enabled setup, a **Setup** combobox is shown in the layer dialog instead of the video/audio device rows; the button next to it switches between the predefined list and the custom device selection (and keeps both options in sync with each other). If the file does not exist or cannot be parsed, no predefined setups are shown and you simply select the capture devices manually.

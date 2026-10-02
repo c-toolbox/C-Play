@@ -176,6 +176,11 @@ public:
     Q_INVOKABLE void updateAboutOtherText(const QString &mpvVersion, const QString &ffmpegVersion);
     Q_INVOKABLE QString getStartupFile();
     Q_INVOKABLE QString mpvOptionsPath(const QString &name, const QString &suffix);
+    // YouTube support for Stream layers: URL detection (same host patterns as mpv's
+    // ytdl_hook) and yt-dlp discovery (settings path, next to C-Play.exe, or PATH).
+    // Used by the layer properties UI to show a hint/warning for YouTube URLs.
+    Q_INVOKABLE bool isYouTubeUrl(const QString &path);
+    Q_INVOKABLE QString resolveYtdlpPath();
 
     // 3D view camera state bridge: main.qml registers the LayersRendererQtItem here so that
     // the settings dialog (a separate QML document) can read the live camera pose.

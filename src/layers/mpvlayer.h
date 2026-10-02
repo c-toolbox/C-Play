@@ -36,6 +36,13 @@ public:
         bool allowDirectRendering = false;
         bool isMaster = false;
         bool isStream = false;
+        // True when this stream layer's effective path is a YouTube URL (computed in
+        // initializeMpv() before the mpv thread starts; read by initMPV to configure
+        // ytdl_hook and skip the live-stream low-latency/untimed options).
+        bool isYoutube = false;
+        // Value of isYoutube when initMPV() ran. ytdl_hook script-opts are pre-init only,
+        // so switching a live layer to/from a YouTube URL cannot fully re-configure mpv.
+        bool isYoutubeAtInit = false;
         bool supportVideo = true;
         std::vector<Track> audioTracks;
         bool audioEnabled = false;
@@ -96,6 +103,13 @@ public:
         bool fileLoaded = false;                     // MPV_EVENT_FILE_LOADED received for loadedFile
         std::string pendingLoadError;                // "" = no failure reported by the event thread
         std::chrono::steady_clock::time_point loadRequestedTime{}; // when loadfile was issued
+        // Quick-check mirror of pendingLoadError for ready() gating on the render thread
+        // (collectLoadStatus only runs on nodes). Written by the mpv event thread on
+        // MPV_EVENT_END_FILE reason=error, cleared on FILE_LOADED and by loadFile().
+        std::atomic_bool loadFailed = false;
+        // Set while an intentional unload()/stop() is in flight, so the END_FILE it produces
+        // is not reported as a load failure.
+        std::atomic_bool intentionalStop = false;
     };
 
     MpvLayer(gl_adress_func_v1 opa,
@@ -126,6 +140,12 @@ public:
 
     // The file path that should actually be loaded on this machine. Defaults to the synced filepath(); StreamLayer overrides it to resolve a per-machine path from its local predefined stream list. An empty return value means no media should be loaded (and any previously loaded media is unloaded).
     virtual std::string effectiveFilePath() const { return filepath(); }
+
+    // True when this layer resolves its media through mpv's ytdl_hook.lua / the external
+    // yt-dlp tool (YoutubeLayer). Drives the ytdl_hook script-opts and the live-stream
+    // low-latency/untimed skip in initMPV(). Stream layers may also auto-detect YouTube
+    // URLs via YtdlpResolver::isYouTubeUrl().
+    virtual bool usesYtdl() const { return false; }
 
     // Stop playback and clear all loaded media, so that ready()/loadedFile() report nothing loaded.
     void unload();

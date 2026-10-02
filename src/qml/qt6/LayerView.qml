@@ -186,7 +186,8 @@ Kirigami.ApplicationWindow {
                     createPageComponents();
                 }
                 else if (layerViewItem.layerTypeName === "Video" 
-                        || layerViewItem.layerTypeName === "Audio") {
+                        || layerViewItem.layerTypeName === "Audio"
+                        || layerViewItem.layerTypeName === "YouTube") {
                     createAudioComponents();
                     createMediaComponents();
                 }
@@ -548,6 +549,36 @@ Kirigami.ApplicationWindow {
             verticalAlignment: Text.AlignVCenter
             visible: layerViewItem.layerIdx === -1
             wrapMode: Text.WordWrap
+        }
+        // Loader failure overlay (e.g. a bad stream URL, or a YouTube URL on a machine
+        // without yt-dlp). The text comes from the layer's load-error state, refreshed
+        // by the LayerQtItem poll timer (layerErrorChanged). Styled after the main OSD
+        // "Could not play" message.
+        Rectangle {
+            id: layerErrorOverlay
+
+            anchors.horizontalCenter: parent.horizontalCenter
+            anchors.bottom: parent.bottom
+            anchors.bottomMargin: 12
+            width: Math.min(layerErrorLabel.implicitWidth + 24, parent.width)
+            height: layerErrorLabel.implicitHeight + 16
+            radius: 6
+            color: Qt.rgba(0.1, 0.1, 0.1, 0.8)
+            visible: layerViewItem.layerHasError && layerViewItem.layerIdx !== -1
+
+            Label {
+                id: layerErrorLabel
+
+                anchors.centerIn: parent
+                width: layerErrorOverlay.width - 24
+                color: "crimson"
+                font.family: "Helvetica"
+                font.pointSize: 12
+                horizontalAlignment: Text.AlignHCenter
+                text: qsTr("Could not play: %1").arg(layerViewItem.layerError)
+                verticalAlignment: Text.AlignVCenter
+                wrapMode: Text.WordWrap
+            }
         }
         MouseArea {
             anchors.fill: parent
@@ -923,6 +954,8 @@ Kirigami.ApplicationWindow {
                         return qsTr("Audio Options:");
                     if (layerViewItem.layerMpvOptionsSuffix === "_stream")
                         return qsTr("Stream Options:");
+                    if (layerViewItem.layerMpvOptionsSuffix === "_youtube")
+                        return qsTr("YouTube Options:");
                     return qsTr("Video Options:");
                 }
 
@@ -2260,7 +2293,8 @@ Kirigami.ApplicationWindow {
                         destroyWebrtcComponents();
                     }
                     else if (layerViewItem.layerTypeName === "Video" 
-                        || layerViewItem.layerTypeName === "Audio") {
+                        || layerViewItem.layerTypeName === "Audio"
+                        || layerViewItem.layerTypeName === "YouTube") {
                         destroyPageComponents();
                         createAudioComponents();
                         createMediaComponents();
