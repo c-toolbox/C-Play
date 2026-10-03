@@ -250,6 +250,8 @@ if(BUILD_CPLAY_WITH_NODE_STREAM)
     list(APPEND SOURCE_FILES nodestream/nodestreamreceiver.h)
     list(APPEND SOURCE_FILES nodestream/nodestreamlayer.cpp)
     list(APPEND SOURCE_FILES nodestream/nodestreamlayer.h)
+    list(APPEND SOURCE_FILES nodestream/lz4/lz4.c)
+    list(APPEND SOURCE_FILES nodestream/lz4/lz4.h)
 endif()
 
 if(BUILD_CPLAY_WITH_MDK)
@@ -681,6 +683,23 @@ if(CPLAY_INSTALL_DEPENDENCIES)
     get_filename_component(_qt_bin_dir "${_qmake_executable}" DIRECTORY)
     get_filename_component(_qt_dir "${_qt_bin_dir}" DIRECTORY)
     get_filename_component(_mpv_bin_dir "${Libmpv_LIBRARIES}" DIRECTORY)
+
+    # Copy mpv.exe and ffmpeg.exe from the mpv build directory (where libmpv was found) to bin.
+    if(EXISTS "${_mpv_bin_dir}/mpv.exe")
+        install(FILES "${_mpv_bin_dir}/mpv.exe" DESTINATION "${CMAKE_INSTALL_PREFIX}/bin")
+    endif()
+    if(EXISTS "${_mpv_bin_dir}/ffmpeg.exe")
+        install(FILES "${_mpv_bin_dir}/ffmpeg.exe" DESTINATION "${CMAKE_INSTALL_PREFIX}/bin")
+    endif()
+
+    # Copy yt-dlp (and its PyInstaller _internal folder, when present) to bin/plugins/yt-dlp so
+    # the runtime resolver finds it next to C-Play.exe.
+    if(YtDlp_EXECUTABLE)
+        install(FILES "${YtDlp_EXECUTABLE}" DESTINATION "${CMAKE_INSTALL_PREFIX}/bin/plugins/yt-dlp")
+        if(EXISTS "${YtDlp_DIR}/_internal")
+            install(DIRECTORY "${YtDlp_DIR}/_internal" DESTINATION "${CMAKE_INSTALL_PREFIX}/bin/plugins/yt-dlp")
+        endif()
+    endif()
 
     install(CODE "set(QT_BIN_DIR \"${_qt_bin_dir}\")")
 

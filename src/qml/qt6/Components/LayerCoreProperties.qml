@@ -523,29 +523,6 @@ GridLayout {
         }
     }
 
-    // YouTube availability hint: mpv resolves the URL through the external yt-dlp tool,
-    // which must be available on every machine that plays the layer.
-    Label {
-        id: youtubeLayerHintLabel
-
-        Layout.columnSpan: 2
-        Layout.fillWidth: true
-        Layout.leftMargin: 4
-        font.pointSize: 9
-        font.italic: true
-        wrapMode: Text.WordWrap
-        visible: typeComboBox.currentText === "YouTube"
-        color: youtubeLayerHintLabel.text.startsWith("!") ? "crimson" : Kirigami.Theme.neutralTextColor
-        text: {
-            if (app.resolveYtdlpPath() === "") {
-                return qsTr("! YouTube playback needs yt-dlp - not found on this machine. "
-                          + "Add yt-dlp.exe next to C-Play.exe (or into <working directory>/plugins/), "
-                          + "add it to PATH, or set the path in Settings -> Playback.");
-            }
-            return qsTr("Played via yt-dlp (%1). Every cluster node also needs yt-dlp.").arg(app.resolveYtdlpPath());
-        }
-    }
-
     Label {
         Layout.alignment: Qt.AlignRight
         text: qsTr("Path:")

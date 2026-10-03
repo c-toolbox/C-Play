@@ -1453,6 +1453,9 @@ struct NodeStreamSettings {
     int ttl = 1;
     int maxDatagram = 1472;
     int rateMbps = 0;
+    bool lz4 = true;
+    bool deltaFrames = true;
+    int keyframeIntervalMs = 500;
     int frameLockedWaitMs = 2;
     int latencyGuardMs = 1;
     bool allowPartialFrames = false;
@@ -1507,6 +1510,9 @@ void BaseLayer::applyNodeStreamSettings() {
     settings.ttl = PresentationSettings::nodeStreamTTL();
     settings.maxDatagram = PresentationSettings::nodeStreamMaxDatagram();
     settings.rateMbps = PresentationSettings::nodeStreamRateMbps();
+    settings.lz4 = PresentationSettings::nodeStreamCompressLz4();
+    settings.deltaFrames = PresentationSettings::nodeStreamDeltaFrames();
+    settings.keyframeIntervalMs = PresentationSettings::nodeStreamKeyframeIntervalMs();
     settings.frameLockedWaitMs = PresentationSettings::nodeStreamFrameLockedWaitMs();
     settings.latencyGuardMs = PresentationSettings::nodeStreamLatencyGuardMs();
     settings.allowPartialFrames = PresentationSettings::nodeStreamAllowPartialFrames();
@@ -1755,6 +1761,9 @@ void BaseLayer::updateNodeStreamOutput() {
     config.loopback = settings.loopback;
     config.maxDatagram = settings.maxDatagram;
     config.rateMbps = settings.rateMbps;
+    config.lz4 = settings.lz4;
+    config.deltaFrames = settings.deltaFrames;
+    config.keyframeIntervalMs = settings.keyframeIntervalMs;
     config.format = static_cast<nodestream::Format>(m_nodeStreamFormat.load());
     config.maxFps = m_nodeStreamMaxFps;
     config.streamId = m_identifier;

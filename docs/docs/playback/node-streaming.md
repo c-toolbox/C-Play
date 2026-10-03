@@ -42,7 +42,7 @@ The compression, sync, frame rate, group and port options only apply to the UDP 
 
 ## Global settings
 
-The defaults for all layer streams are set in *Settings → Presentation*, section **Layer streaming to nodes (UDP multicast)** — see [Presentation settings](/settings/presentation#layer-streaming-to-nodes). In short: base multicast group and port, master send interface, TTL, max datagram size, combined send rate limit, frame-locked wait time and latency guard, partial-frame handling, loopback delivery to nodes running on the master computer, and the global **Prefer NDI** checkbox.
+The defaults for all layer streams are set in *Settings → Presentation*, section **Layer streaming to nodes (UDP multicast)** — see [Presentation settings](/settings/presentation#layer-streaming-to-nodes). In short: base multicast group and port, master send interface, TTL, max datagram size, combined send rate limit, LZ4 compression, delta frames and keyframe interval, frame-locked wait time and latency guard, partial-frame handling, loopback delivery to nodes running on the master computer, and the global **Prefer NDI** checkbox.
 
 ## How it works (UDP multicast)
 
@@ -51,6 +51,8 @@ The master block-compresses each rendered layer texture on the GPU (BC1/BC3/BC7)
 - With **Frame-locked** sync (default), nodes hold the previous complete frame until the new one is fully received — with a small configurable wait for late packets and a latency guard so all nodes switch to the new frame at the same instant.
 - With **Immediate** sync, each node uploads every packet as it arrives for lowest possible latency; frames may be shown slightly earlier on faster machines.
 - When *Show frames with lost packets* is enabled in the settings, partially received frames are displayed on top of the previous one instead of holding it (two frames can briefly mix).
+
+To save bandwidth, the master by default sends only the regions of the layer that changed since the previous frame (**delta frames**), with a full **keyframe** at the keyframe interval (default 500 ms), whenever the layer size or format changes, or when most of the layer changed. Unchanged layers send nothing until the next keyframe. A node applies delta frames only on top of the exact frame they were made for; if it missed one, it holds the image until the next keyframe (or, with *Show frames with lost packets*, applies them anyway). Each packet is additionally compressed losslessly with **LZ4**, which mostly helps flat graphics, text and slides; larger datagrams (jumbo frames) compress slightly better.
 
 The stream carries **video only**: the layer's audio continues to play from the master, where the media is actually decoded — the node-side receiver does not decode any media. All other layer parameters (grid/mapping mode, visibility, position, etc.) keep applying on each node as usual; only the texture source changes from "load locally" to "receive from the master".
 

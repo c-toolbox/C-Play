@@ -65,6 +65,9 @@ These settings configure the defaults for [streaming layer textures from the mas
 * **Master interface address** — IPv4 address of the network interface to send from. Empty uses the master address of the cluster configuration.
 * **Max datagram size (bytes)** — Largest UDP datagram in bytes (576–65507, default 1472). 1472 fits a standard 1500 MTU, 8972 fits 9000 byte jumbo frames.
 * **Send rate limit (Mbit/s)** — Combined send rate of all layer streams (default 0 = 85% of the link speed of the send interface).
+* **Compress streams with LZ4** — Losslessly compress each packet with LZ4 (default OFF). Saves bandwidth on flat graphics and text, at a small CPU cost on the master and the nodes. Packets that do not shrink are sent uncompressed.
+* **Send only changed regions (delta frames)** — Between keyframes, send only the parts of the layer that changed since the previous frame (default on). A node that misses a delta frame holds the image until the next keyframe, unless *Show frames with lost packets* is enabled.
+* **Keyframe interval (msec)** — How often a full frame is sent for nodes that joined late or lost packets (50–10000, default 500).
 * **Frame-locked wait (msec)** — How long a node waits for a late frame in frame-locked mode (0–50, default 2).
 * **Frame-locked latency guard (msec)** — In frame-locked mode, the nodes are told to show a frame only once it has been on the wire this many milliseconds (0–100, default 1).
 * **Multicast TTL** — Multicast time-to-live in router hops (1–32, default 1).

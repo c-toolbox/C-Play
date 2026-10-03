@@ -135,6 +135,15 @@ find_package(Libmpv)
 set_package_properties(Libmpv PROPERTIES TYPE REQUIRED
     URL "https://mpv.io")
 
+# Optional: yt-dlp executable used by mpv's ytdl_hook for YouTube streams. When found it is
+# copied to bin/plugins/yt-dlp during INSTALL (see src/CMakeLists.txt).
+find_package(YtDlp)
+set_package_properties(YtDlp PROPERTIES TYPE OPTIONAL
+    URL "https://github.com/yt-dlp/yt-dlp" DESCRIPTION "yt-dlp executable for YouTube stream support")
+if(NOT YtDlp_FOUND)
+    message(STATUS "yt-dlp not found: get it from https://github.com/yt-dlp/yt-dlp and set CMAKE_PREFIX_PATH or YTDLP_ROOT to the folder containing yt-dlp.exe (a PyInstaller onedir build with _internal/ works too), or install it on PATH")
+endif()
+
 option(BUILD_CPLAY_WITH_JACK "Global On/Off for JACK support" ON)
 if(BUILD_CPLAY_WITH_JACK)
     find_package(Jack2 REQUIRED)
@@ -242,8 +251,11 @@ if(BUILD_CPLAY_WITH_WEBRTC)
 endif()
 
 # GPU block-compressed (BC1/BC3/BC7) layer textures sent from master to nodes over UDP multicast.
-# Uses raw sockets and OpenGL compute shaders; no extra dependencies.
+# Uses raw sockets and OpenGL compute shaders; LZ4 is vendored in src/nodestream/lz4.
 option(BUILD_CPLAY_WITH_NODE_STREAM "Global On/Off for layer streaming to nodes over UDP multicast" ON)
+if(BUILD_CPLAY_WITH_NODE_STREAM)
+    enable_language(C)
+endif()
 
 # C-Lux support talks to a C-Lux light server over its REST API + SSE frame stream using Qt
 # WebSockets/Network, which are already required; no extra dependencies.

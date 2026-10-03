@@ -18,11 +18,14 @@
 #include <condition_variable>
 #include <cstdint>
 #include <functional>
+#include <memory>
 #include <mutex>
 #include <string>
 #include <thread>
+#include <vector>
 
 class BaseLayer;
+union LZ4_stream_u;
 
 struct NodeStreamSource {
     std::function<unsigned int()> textureId;
@@ -43,6 +46,11 @@ struct NodeStreamConfig {
     int maxDatagram = 1472;
     // Combined send rate of all senders, 0 uses 85% of the interface link speed.
     int rateMbps = 0;
+    bool lz4 = true;
+    // Send only the units that changed since the previous frame, with periodic keyframes.
+    bool deltaFrames = true;
+    // A full frame is sent at least this often, also when nothing changed.
+    int keyframeIntervalMs = 500;
     nodestream::Format format = nodestream::Format::Auto;
     int maxFps = 0;
     uint32_t streamId = 0;
@@ -124,7 +132,9 @@ private:
     void releaseSlot(Slot &slot);
     void threadMain();
     // Returns the estimated time the last packet left the network interface.
-    int64_t sendFrame(const Slot &slot, uint32_t frameId);
+    // Sends all units when units is null, otherwise only the listed ones.
+    int64_t sendFrame(const Slot &slot, const nodestream::UnitLayout &layout, uint32_t frameId, uint32_t baseFrameId,
+                      const std::vector<uint32_t> *units);
     void logStats();
 
     NodeStreamSource m_source;
@@ -154,9 +164,15 @@ private:
 
     // Send thread only.
     uint32_t m_nextFrameId = 0;
-    bool m_hasLastHash = false;
-    uint64_t m_lastHash = 0;
-    int64_t m_lastSendNs = 0;
+    bool m_hasSent = false;
+    uint64_t m_unitLayoutKey = 0;
+    // Unit hashes of the last sent frame state, to find the units a delta frame has to carry.
+    std::vector<uint64_t> m_unitHashes;
+    std::vector<uint64_t> m_newUnitHashes;
+    std::vector<uint32_t> m_dirtyUnits;
+    int64_t m_lastKeyframeNs = 0;
+    std::unique_ptr<LZ4_stream_u> m_lz4State;
+    std::vector<char> m_lz4Buffer;
 
     std::atomic<uint32_t> m_sessionId = 0;
     std::atomic_bool m_sending = false;
@@ -173,10 +189,15 @@ private:
     std::atomic<uint64_t> m_framesDropped = 0;
     std::atomic<float> m_gpuTimeMs = -1.0f;
     uint64_t m_statFrames = 0;
+    uint64_t m_statKeyframes = 0;
+    uint64_t m_statUnitsSent = 0;
+    uint64_t m_statUnitsTotal = 0;
     uint64_t m_statDuplicates = 0;
     uint64_t m_statBytes = 0;
+    uint64_t m_statRawBytes = 0;
     uint64_t m_statSendErrors = 0;
     double m_statSendMs = 0.0;
+    double m_statCompressMs = 0.0;
     double m_statLatencyMs = 0.0;
     double m_statMaxLatencyMs = 0.0;
     int64_t m_statStartNs = 0;

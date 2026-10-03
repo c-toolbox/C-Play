@@ -8,6 +8,9 @@
 #include "nodestreamsender.h"
 #include "layers/baselayer.h"
 
+#define LZ4_STATIC_LINKING_ONLY
+#include "lz4/lz4.h"
+
 #include <sgct/log.h>
 #include <algorithm>
 #include <chrono>
@@ -23,8 +26,8 @@ constexpr int kSendBufferBytes = 1024 * 1024;
 constexpr size_t kPacingChunkBytes = 64 * 1024;
 constexpr int kAutoAlphaHoldFrames = 60;
 constexpr int64_t kStatsIntervalNs = 5'000'000'000;
-// An unchanged frame is still resent this often, for nodes that joined late or lost packets.
-constexpr int64_t kDuplicateRefreshNs = 500'000'000;
+// Above this fraction of changed units a keyframe is sent instead of a delta frame.
+constexpr double kDeltaMaxDirtyFraction = 0.6;
 constexpr int kAutoRatePercent = 85;
 constexpr int kFallbackLinkMbps = 1000;
 
@@ -159,8 +162,8 @@ bool NodeStreamSender::restart(const NodeStreamConfig &config) {
     m_nextFrameId = 0;
     m_nextSequence = 0;
     m_lastCaptureNs = 0;
-    m_hasLastHash = false;
-    m_lastSendNs = 0;
+    m_hasSent = false;
+    m_lastKeyframeNs = 0;
     {
         std::lock_guard<std::mutex> lock(m_sentMutex);
         m_sentCount = 0;
@@ -417,18 +420,41 @@ void NodeStreamSender::threadMain() {
         }
 
         const int64_t now = nowNs();
-        const uint64_t hash = hashFrame(slot->mapped, slot->size,
-                                        (static_cast<uint64_t>(slot->format) << 32) ^ (static_cast<uint64_t>(slot->width) << 16)
-                                            ^ static_cast<uint64_t>(slot->height));
-        if (m_hasLastHash && hash == m_lastHash && now - m_lastSendNs < kDuplicateRefreshNs) {
+        const nodestream::UnitLayout layout =
+            nodestream::makeUnitLayout(slot->format, slot->width, slot->height, m_config.maxDatagram);
+        const uint64_t layoutKey = (static_cast<uint64_t>(slot->format) << 32)
+                                   ^ (static_cast<uint64_t>(slot->width) << 16) ^ static_cast<uint64_t>(slot->height);
+        m_newUnitHashes.resize(layout.unitCount);
+        for (uint32_t unit = 0; unit < layout.unitCount; ++unit) {
+            uint32_t offset;
+            uint32_t length;
+            nodestream::unitRange(layout, unit, offset, length);
+            m_newUnitHashes[unit] = hashFrame(slot->mapped + offset, length, layoutKey);
+        }
+        const bool sameLayout = m_hasSent && layoutKey == m_unitLayoutKey;
+        m_dirtyUnits.clear();
+        if (sameLayout) {
+            for (uint32_t unit = 0; unit < layout.unitCount; ++unit) {
+                if (m_newUnitHashes[unit] != m_unitHashes[unit])
+                    m_dirtyUnits.push_back(unit);
+            }
+        }
+        const int64_t keyframeIntervalNs = static_cast<int64_t>(std::max(m_config.keyframeIntervalMs, 1)) * 1'000'000;
+        const bool keyframeDue = !sameLayout || now - m_lastKeyframeNs >= keyframeIntervalNs;
+        if (!keyframeDue && m_dirtyUnits.empty()) {
             ++m_statDuplicates;
         } else {
+            const bool keyframe = keyframeDue || !m_config.deltaFrames
+                                  || static_cast<double>(m_dirtyUnits.size()) > kDeltaMaxDirtyFraction * layout.unitCount;
+            const uint32_t baseFrameId = keyframe ? 0 : m_nextFrameId;
             if (++m_nextFrameId == 0)
                 m_nextFrameId = 1;
-            const int64_t wireDoneNs = sendFrame(*slot, m_nextFrameId);
-            m_hasLastHash = true;
-            m_lastHash = hash;
-            m_lastSendNs = now;
+            const int64_t wireDoneNs = sendFrame(*slot, layout, m_nextFrameId, baseFrameId, keyframe ? nullptr : &m_dirtyUnits);
+            if (keyframe)
+                m_lastKeyframeNs = now;
+            m_hasSent = true;
+            m_unitLayoutKey = layoutKey;
+            m_unitHashes.swap(m_newUnitHashes);
             {
                 std::lock_guard<std::mutex> lock(m_sentMutex);
                 m_sent[m_sentNext] = {m_nextFrameId, wireDoneNs};
@@ -450,75 +476,96 @@ void NodeStreamSender::threadMain() {
         m_waitContext.doneCurrent();
 }
 
-int64_t NodeStreamSender::sendFrame(const Slot &slot, uint32_t frameId) {
+int64_t NodeStreamSender::sendFrame(const Slot &slot, const nodestream::UnitLayout &layout, uint32_t frameId,
+                                    uint32_t baseFrameId, const std::vector<uint32_t> *units) {
     const int64_t startNs = nowNs();
-    const uint32_t blockSize = nodestream::blockBytes(slot.format);
-    const uint32_t rowBytes = nodestream::blocksAcross(slot.width) * blockSize;
-    const uint32_t rows = nodestream::blocksAcross(slot.height);
-    const uint32_t maxPayload = (static_cast<uint32_t>(m_config.maxDatagram) - sizeof(nodestream::PacketHeader)) / blockSize * blockSize;
-
-    // Whole block rows per packet when a row fits, otherwise row segments.
-    uint32_t rowsPerPacket = 0;
-    uint32_t segmentsPerRow = 1;
-    uint32_t packetCount = 0;
-    if (rowBytes <= maxPayload) {
-        rowsPerPacket = maxPayload / rowBytes;
-        packetCount = (rows + rowsPerPacket - 1) / rowsPerPacket;
-    } else {
-        segmentsPerRow = (rowBytes + maxPayload - 1) / maxPayload;
-        packetCount = rows * segmentsPerRow;
-    }
+    const uint32_t packetCount = units ? static_cast<uint32_t>(units->size()) : layout.unitCount;
 
     nodestream::PacketHeader header{};
     header.magic = nodestream::kMagic;
     header.version = nodestream::kVersion;
     header.format = static_cast<uint8_t>(slot.format);
-    header.flags = 0;
     header.streamId = m_config.streamId;
     header.sessionId = m_sessionId;
     header.frameId = frameId;
+    header.baseFrameId = baseFrameId;
     header.width = static_cast<uint16_t>(slot.width);
     header.height = static_cast<uint16_t>(slot.height);
     header.packetCount = packetCount;
     header.timestampNs = slot.timestampNs;
 
-    const uint64_t totalBytes = slot.size + static_cast<uint64_t>(packetCount) * sizeof(header);
+    if (m_config.lz4 && !m_lz4State) {
+        m_lz4State = std::make_unique<LZ4_stream_u>();
+        LZ4_initStream(m_lz4State.get(), sizeof(LZ4_stream_u));
+    }
+    if (m_config.lz4)
+        m_lz4Buffer.resize(static_cast<size_t>(LZ4_compressBound(static_cast<int>(layout.maxPayload))));
+
+    uint64_t unsentBound = static_cast<uint64_t>(packetCount) * sizeof(header);
+    if (units) {
+        for (const uint32_t unit : *units) {
+            uint32_t offset;
+            uint32_t length;
+            nodestream::unitRange(layout, unit, offset, length);
+            unsentBound += length;
+        }
+    } else {
+        unsentBound += slot.size;
+    }
+
     uint64_t reservedBytes = 0;
     uint64_t sentBytes = 0;
     int64_t wireDoneNs = 0;
+    int64_t compressNs = 0;
     for (uint32_t p = 0; p < packetCount; ++p) {
         uint32_t offset;
         uint32_t length;
-        if (rowsPerPacket > 0) {
-            const uint32_t row = p * rowsPerPacket;
-            offset = row * rowBytes;
-            length = std::min(rowsPerPacket, rows - row) * rowBytes;
-        } else {
-            const uint32_t row = p / segmentsPerRow;
-            const uint32_t segment = p % segmentsPerRow;
-            offset = row * rowBytes + segment * maxPayload;
-            length = std::min(maxPayload, rowBytes - segment * maxPayload);
-        }
+        nodestream::unitRange(layout, units ? (*units)[p] : p, offset, length);
         header.packetIndex = p;
         header.byteOffset = offset;
         header.byteLength = length;
+        header.flags = 0;
 
-        if (sentBytes >= reservedBytes) {
-            const uint64_t chunk = std::min<uint64_t>(kPacingChunkBytes, totalBytes - reservedBytes);
+        const uint8_t *payload = slot.mapped + offset;
+        uint32_t payloadSize = length;
+        if (m_config.lz4) {
+            const int64_t compressStartNs = nowNs();
+            const int compressed = LZ4_compress_fast_extState_fastReset(
+                m_lz4State.get(), reinterpret_cast<const char *>(payload), m_lz4Buffer.data(), static_cast<int>(length),
+                static_cast<int>(m_lz4Buffer.size()), 1);
+            compressNs += nowNs() - compressStartNs;
+            if (compressed > 0 && static_cast<uint32_t>(compressed) < length) {
+                payload = reinterpret_cast<const uint8_t *>(m_lz4Buffer.data());
+                payloadSize = static_cast<uint32_t>(compressed);
+                header.flags = nodestream::kFlagLz4;
+            }
+        }
+
+        // Reserved on the bytes actually sent; the last chunk may cover a little more than needed.
+        const uint64_t packetBytes = payloadSize + sizeof(header);
+        if (sentBytes + packetBytes > reservedBytes) {
+            const uint64_t chunk = std::max<uint64_t>(packetBytes, std::min<uint64_t>(kPacingChunkBytes, unsentBound));
             wireDoneNs = SendPacer::instance().reserve(static_cast<size_t>(chunk), m_rateMbps);
             reservedBytes += chunk;
         }
-        sentBytes += length + sizeof(header);
+        sentBytes += packetBytes;
+        unsentBound -= length + sizeof(header);
 
-        if (!m_socket.send(&header, sizeof(header), slot.mapped + offset, length))
+        if (!m_socket.send(&header, sizeof(header), payload, payloadSize))
             ++m_statSendErrors;
-        m_statBytes += length + sizeof(header);
+        m_statBytes += packetBytes;
+        m_statRawBytes += length + sizeof(header);
 
         if (m_quit)
             break;
     }
 
     ++m_statFrames;
+    if (!units)
+        ++m_statKeyframes;
+    m_statUnitsSent += packetCount;
+    m_statUnitsTotal += layout.unitCount;
+    m_statCompressMs += static_cast<double>(compressNs) / 1.0e6;
     const int64_t endNs = nowNs();
     m_statSendMs += static_cast<double>(endNs - startNs) / 1.0e6;
     return std::max(wireDoneNs, endNs);
@@ -534,18 +581,28 @@ void NodeStreamSender::logStats() {
                                                                          : "BC7";
     sgct::Log::Info(std::format(
         "NodeStreamSender {}:{} ({}): {:.1f} fps, {:.0f} Mbps, send {:.2f} ms/frame, capture to wire {:.2f} ms (max {:.2f}), "
-        "gpu {:.2f} ms, duplicates {}, dropped {}, send errors {}",
+        "gpu {:.2f} ms, keyframes {}, deltas {} ({:.0f}% of units sent), wire/raw {:.0f}% (lz4 {:.2f} ms/frame), "
+        "duplicates {}, dropped {}, send errors {}",
         m_config.group, m_config.port, formatName, static_cast<double>(m_statFrames) / seconds,
         static_cast<double>(m_statBytes) * 8.0 / seconds / 1.0e6,
         m_statFrames ? m_statSendMs / static_cast<double>(m_statFrames) : 0.0,
         m_statFrames ? m_statLatencyMs / static_cast<double>(m_statFrames) : 0.0, m_statMaxLatencyMs, m_gpuTimeMs.load(),
-        m_statDuplicates, m_framesDropped.exchange(0), m_statSendErrors));
+        m_statKeyframes, m_statFrames - m_statKeyframes,
+        m_statUnitsTotal ? 100.0 * static_cast<double>(m_statUnitsSent) / static_cast<double>(m_statUnitsTotal) : 0.0,
+        m_statRawBytes ? 100.0 * static_cast<double>(m_statBytes) / static_cast<double>(m_statRawBytes) : 100.0,
+        m_statFrames ? m_statCompressMs / static_cast<double>(m_statFrames) : 0.0, m_statDuplicates,
+        m_framesDropped.exchange(0), m_statSendErrors));
     m_statStartNs = now;
     m_statFrames = 0;
+    m_statKeyframes = 0;
+    m_statUnitsSent = 0;
+    m_statUnitsTotal = 0;
     m_statDuplicates = 0;
     m_statBytes = 0;
+    m_statRawBytes = 0;
     m_statSendErrors = 0;
     m_statSendMs = 0.0;
+    m_statCompressMs = 0.0;
     m_statLatencyMs = 0.0;
     m_statMaxLatencyMs = 0.0;
 }

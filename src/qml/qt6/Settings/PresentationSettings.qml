@@ -921,6 +921,83 @@ SettingsBasePage {
             Layout.fillWidth: true
         }
 
+        Item {
+            visible: NODE_STREAM_SUPPORT
+            height: 1
+            width: 1
+        }
+        CheckBox {
+            visible: NODE_STREAM_SUPPORT
+            checked: PresentationSettings.nodeStreamCompressLz4
+            text: qsTr("Compress streams with LZ4.")
+
+            onCheckedChanged: {
+                PresentationSettings.nodeStreamCompressLz4 = checked;
+                PresentationSettings.save();
+            }
+
+            ToolTip {
+                text: qsTr("Compresses each packet losslessly. Saves bandwidth on flat graphics and costs some CPU on the master and the nodes.")
+            }
+        }
+        Item {
+            visible: NODE_STREAM_SUPPORT
+            Layout.fillWidth: true
+        }
+
+        Item {
+            visible: NODE_STREAM_SUPPORT
+            height: 1
+            width: 1
+        }
+        CheckBox {
+            visible: NODE_STREAM_SUPPORT
+            checked: PresentationSettings.nodeStreamDeltaFrames
+            text: qsTr("Send only changed regions (delta frames).")
+
+            onCheckedChanged: {
+                PresentationSettings.nodeStreamDeltaFrames = checked;
+                PresentationSettings.save();
+            }
+
+            ToolTip {
+                text: qsTr("Between full keyframes, only the parts of the layer that changed are sent. A node that misses a delta frame waits for the next keyframe, unless frames with lost packets are shown.")
+            }
+        }
+        Item {
+            visible: NODE_STREAM_SUPPORT
+            Layout.fillWidth: true
+        }
+
+        Label {
+            visible: NODE_STREAM_SUPPORT
+            Layout.alignment: Qt.AlignRight
+            text: qsTr("Keyframe interval (msec):")
+        }
+        RowLayout {
+            visible: NODE_STREAM_SUPPORT
+            SpinBox {
+                editable: true
+                from: 50
+                to: 10000
+                stepSize: 50
+                value: PresentationSettings.nodeStreamKeyframeIntervalMs
+
+                onValueChanged: {
+                    PresentationSettings.nodeStreamKeyframeIntervalMs = value.toFixed(0);
+                    PresentationSettings.save();
+                }
+            }
+            Label {
+                Layout.fillWidth: true
+                text: qsTr("(Full frame for nodes that joined late or lost packets)")
+            }
+        }
+        Item {
+            visible: NODE_STREAM_SUPPORT
+            Layout.fillWidth: true
+        }
+
         Label {
             visible: NODE_STREAM_SUPPORT
             Layout.alignment: Qt.AlignRight

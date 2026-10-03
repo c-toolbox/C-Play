@@ -73,6 +73,7 @@ void NodeStreamLayer::cleanup() {
     m_texHeight = 0;
     m_hasFrame = false;
     m_hasLastUploaded = false;
+    m_textureExact = false;
     m_activeGroup.clear();
     m_activePort = 0;
 }
@@ -111,18 +112,25 @@ void NodeStreamLayer::update(bool) {
 
     std::vector<NodeStreamReceiver::Frame> frames;
     const bool hasLast = m_hasLastUploaded && m_lastUploadedSession == m_sessionId;
+    m_textureExact = hasLast && m_textureExact;
     const int64_t now = nowNs();
     const bool allowPartial = m_allowPartial || (m_hasFrame && now - m_lastCompleteUploadNs > kPartialFallbackNs);
+    // Without the partial setting, deltas wait for a frame they can be applied to exactly.
+    const bool allowMissingBase = m_allowPartial;
     if (m_syncMode == static_cast<uint8_t>(nodestream::SyncMode::FrameLocked)) {
         if (m_masterSending)
             frames = m_receiver->acquireFrameLocked(m_sessionId, m_targetFrameId, m_maxWaitMs, hasLast,
-                                                    m_lastUploadedFrameId, allowPartial);
+                                                    m_lastUploadedFrameId, m_textureExact, allowPartial,
+                                                    allowMissingBase);
     } else {
-        frames = m_receiver->acquireNewest(hasLast, m_lastUploadedFrameId, allowPartial);
+        frames = m_receiver->acquireNewest(hasLast, m_lastUploadedFrameId, m_textureExact, allowPartial,
+                                           allowMissingBase);
     }
 
     for (const NodeStreamReceiver::Frame &frame : frames) {
-        if (upload(frame) && frame.complete)
+        const bool uploaded = upload(frame);
+        m_textureExact = uploaded && frame.keepsExact && (frame.baseFrameId == 0 || m_textureExact);
+        if (uploaded && frame.complete && m_textureExact)
             m_lastCompleteUploadNs = now;
         m_receiver->finishUpload(frame);
         m_hasLastUploaded = true;
@@ -135,8 +143,8 @@ bool NodeStreamLayer::upload(const NodeStreamReceiver::Frame &frame) {
     const GLenum internalFormat = glFormat(frame.format);
     const bool resized = frame.width != m_texWidth || frame.height != m_texHeight;
     if (!m_texture || resized || frame.format != m_texFormat) {
-        // A partial frame on a fresh texture would show uninitialized blocks.
-        if (!frame.complete)
+        // A partial frame or a delta on a fresh texture would show uninitialized blocks.
+        if (!frame.complete || frame.baseFrameId != 0)
             return false;
         if (m_texture)
             glDeleteTextures(1, &m_texture);
@@ -157,7 +165,7 @@ bool NodeStreamLayer::upload(const NodeStreamReceiver::Frame &frame) {
     }
 
     glBindBuffer(GL_PIXEL_UNPACK_BUFFER, frame.pbo);
-    if (frame.complete) {
+    if (frame.complete && frame.baseFrameId == 0) {
         glCompressedTexSubImage2D(GL_TEXTURE_2D, 0, 0, 0, frame.width, frame.height, internalFormat,
                                   static_cast<GLsizei>(nodestream::frameBytes(frame.format, frame.width, frame.height)), nullptr);
     } else {

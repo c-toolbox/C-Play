@@ -34,11 +34,15 @@ public:
         GLuint pbo = 0;
         uint32_t sessionId = 0;
         uint32_t frameId = 0;
+        // 0 for a keyframe, otherwise the frame this delta applies on top of.
+        uint32_t baseFrameId = 0;
         nodestream::Format format = nodestream::Format::BC1;
         int width = 0;
         int height = 0;
         bool complete = false;
-        // Sorted, merged byte ranges that were received (only for partial frames).
+        // True when the texture matches this frame exactly after the upload.
+        bool keepsExact = false;
+        // Sorted, merged byte ranges that were received (only for partial and delta frames).
         std::vector<std::pair<uint32_t, uint32_t>> ranges;
     };
 
@@ -59,10 +63,14 @@ public:
     // Frame-locked selection: waits up to maxWaitMs (once per target) for the target
     // frame. Falls back to the newest complete frame up to the target. With
     // allowPartial, an incomplete target follows it for upload on top.
-    std::vector<Frame> acquireFrameLocked(uint32_t sessionId, uint32_t targetFrameId, int maxWaitMs,
-                                          bool hasLastUploaded, uint32_t lastUploadedFrameId, bool allowPartial);
+    // Delta frames are returned together with the frames they build on, in upload
+    // order. A delta whose base is not available is held back unless allowMissingBase.
+    std::vector<Frame> acquireFrameLocked(uint32_t sessionId, uint32_t targetFrameId, int maxWaitMs, bool hasLastUploaded,
+                                          uint32_t lastUploadedFrameId, bool textureExact, bool allowPartial,
+                                          bool allowMissingBase);
     // Newest complete frame or, with allowPartial, a partial frame that a newer frame has superseded.
-    std::vector<Frame> acquireNewest(bool hasLastUploaded, uint32_t lastUploadedFrameId, bool allowPartial);
+    std::vector<Frame> acquireNewest(bool hasLastUploaded, uint32_t lastUploadedFrameId, bool textureExact,
+                                     bool allowPartial, bool allowMissingBase);
 
     // Must be called after the upload commands for the frame have been issued.
     void finishUpload(const Frame &frame);
@@ -84,6 +92,7 @@ private:
         size_t capacity = 0;
         SlotState state = Free;
         uint32_t frameId = 0;
+        uint32_t baseFrameId = 0;
         nodestream::Format format = nodestream::Format::BC1;
         int width = 0;
         int height = 0;
@@ -100,7 +109,9 @@ private:
     void threadMain();
     void handlePacket(const uint8_t *data, size_t size);
     Slot *slotForPacket(const nodestream::PacketHeader &header);
-    Frame takeSlot(int index);
+    // Complete frames to upload in order so that the texture ends up exactly at slot end, or empty.
+    std::vector<int> chainTo(int end, bool hasLastUploaded, uint32_t lastUploadedFrameId, bool textureExact) const;
+    Frame takeSlot(int index, bool keepsExact);
     void freeOlderThan(uint32_t frameId);
     void reallocateSlot(Slot &slot, size_t capacity);
     void releaseSlotGL(Slot &slot);
@@ -112,6 +123,8 @@ private:
     std::atomic_bool m_running = false;
     uint32_t m_streamId = 0;
     std::string m_endpoint;
+    // Receive thread only. LZ4 reads back its output, so it must not decompress into the mapped buffers.
+    std::vector<uint8_t> m_decompressBuffer;
 
     mutable std::mutex m_mutex;
     std::condition_variable m_cv;
@@ -140,6 +153,9 @@ private:
     uint64_t m_statLatePackets = 0;
     uint64_t m_statLateTargets = 0;
     uint64_t m_statHeld = 0;
+    uint64_t m_statDeltas = 0;
+    uint64_t m_statBaseHolds = 0;
+    uint64_t m_statMissingBase = 0;
     uint64_t m_statWaits = 0;
     uint64_t m_statTargetRepeats = 0;
     uint64_t m_statTargetSkips = 0;

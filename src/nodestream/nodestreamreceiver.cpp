@@ -6,6 +6,7 @@
  */
 
 #include "nodestreamreceiver.h"
+#include "lz4/lz4.h"
 
 #include <sgct/log.h>
 #include <algorithm>
@@ -93,6 +94,7 @@ std::string NodeStreamReceiver::lastError() const {
 
 void NodeStreamReceiver::threadMain() {
     std::vector<uint8_t> buffer(nodestream::kMaxDatagram);
+    m_decompressBuffer.resize(nodestream::kMaxDatagram);
     while (!m_quit) {
         const int received = m_socket.receive(buffer.data(), buffer.size());
         if (received > 0) {
@@ -113,12 +115,18 @@ void NodeStreamReceiver::threadMain() {
 void NodeStreamReceiver::handlePacket(const uint8_t *data, size_t size) {
     nodestream::PacketHeader header{};
     bool valid = size > sizeof(header);
+    size_t payloadSize = 0;
+    bool lz4 = false;
     if (valid) {
         std::memcpy(&header, data, sizeof(header));
+        payloadSize = size - sizeof(header);
+        lz4 = (header.flags & nodestream::kFlagLz4) != 0;
         valid = header.magic == nodestream::kMagic && header.version == nodestream::kVersion
                 && nodestream::isConcreteFormat(header.format) && header.width > 0 && header.height > 0
                 && header.width <= nodestream::kMaxDimension && header.height <= nodestream::kMaxDimension
-                && header.byteLength > 0 && size == sizeof(header) + header.byteLength;
+                && header.byteLength > 0 && header.byteLength <= nodestream::kMaxDatagram
+                && (lz4 ? payloadSize <= static_cast<size_t>(LZ4_compressBound(static_cast<int>(header.byteLength)))
+                        : payloadSize == header.byteLength);
     }
     if (valid) {
         const auto format = static_cast<nodestream::Format>(header.format);
@@ -132,6 +140,14 @@ void NodeStreamReceiver::handlePacket(const uint8_t *data, size_t size) {
         valid = offset % blockSize == 0 && length % blockSize == 0 && offset + length <= frameSize
                 && (wholeRows || withinRow) && header.packetCount > 0 && header.packetIndex < header.packetCount
                 && header.packetCount <= frameSize / blockSize;
+    }
+    const uint8_t *payload = data + sizeof(header);
+    if (valid && lz4) {
+        const int decompressed = LZ4_decompress_safe(reinterpret_cast<const char *>(payload),
+                                                     reinterpret_cast<char *>(m_decompressBuffer.data()),
+                                                     static_cast<int>(payloadSize), static_cast<int>(header.byteLength));
+        valid = decompressed == static_cast<int>(header.byteLength);
+        payload = m_decompressBuffer.data();
     }
 
     std::lock_guard<std::mutex> lock(m_mutex);
@@ -147,7 +163,7 @@ void NodeStreamReceiver::handlePacket(const uint8_t *data, size_t size) {
     if (!slot || slot->received[header.packetIndex])
         return;
 
-    std::memcpy(slot->mapped + header.byteOffset, data + sizeof(header), header.byteLength);
+    std::memcpy(slot->mapped + header.byteOffset, payload, header.byteLength);
     slot->received[header.packetIndex] = 1;
     slot->ranges.emplace_back(header.byteOffset, header.byteLength);
     if (++slot->receivedCount == slot->packetCount) {
@@ -177,7 +193,7 @@ NodeStreamReceiver::Slot *NodeStreamReceiver::slotForPacket(const nodestream::Pa
         if (slot.state != Filling)
             return nullptr;
         if (slot.format != format || slot.width != header.width || slot.height != header.height
-            || slot.packetCount != header.packetCount)
+            || slot.packetCount != header.packetCount || slot.baseFrameId != header.baseFrameId)
             return nullptr;
         return &slot;
     }
@@ -217,6 +233,7 @@ NodeStreamReceiver::Slot *NodeStreamReceiver::slotForPacket(const nodestream::Pa
         ++m_statIncomplete;
     chosen->state = Filling;
     chosen->frameId = header.frameId;
+    chosen->baseFrameId = header.baseFrameId;
     chosen->format = format;
     chosen->width = header.width;
     chosen->height = header.height;
@@ -294,13 +311,36 @@ void NodeStreamReceiver::serviceGL() {
     }
 }
 
-NodeStreamReceiver::Frame NodeStreamReceiver::takeSlot(int index) {
+std::vector<int> NodeStreamReceiver::chainTo(int end, bool hasLastUploaded, uint32_t lastUploadedFrameId,
+                                             bool textureExact) const {
+    std::vector<int> chain;
+    int index = end;
+    while (true) {
+        const Slot &slot = m_slots[index];
+        chain.push_back(index);
+        if (slot.baseFrameId == 0 || (hasLastUploaded && textureExact && slot.baseFrameId == lastUploadedFrameId))
+            break;
+        index = -1;
+        for (int i = 0; i < kSlotCount; ++i) {
+            if (m_slots[i].state == Complete && m_slots[i].frameId == slot.baseFrameId)
+                index = i;
+        }
+        if (index < 0 || static_cast<int>(chain.size()) >= kSlotCount)
+            return {};
+    }
+    std::reverse(chain.begin(), chain.end());
+    return chain;
+}
+
+NodeStreamReceiver::Frame NodeStreamReceiver::takeSlot(int index, bool keepsExact) {
     Slot &slot = m_slots[index];
     Frame frame;
     frame.slot = index;
     frame.pbo = slot.pbo;
     frame.sessionId = m_sessionId;
     frame.frameId = slot.frameId;
+    frame.baseFrameId = slot.baseFrameId;
+    frame.keepsExact = keepsExact;
     frame.format = slot.format;
     frame.width = slot.width;
     frame.height = slot.height;
@@ -313,6 +353,14 @@ NodeStreamReceiver::Frame NodeStreamReceiver::takeSlot(int index) {
     } else {
         ++m_statPartialUploads;
         m_statMissingPackets += slot.packetCount - slot.receivedCount;
+    }
+    if (slot.baseFrameId != 0) {
+        ++m_statDeltas;
+        if (!keepsExact)
+            ++m_statMissingBase;
+    }
+    // A delta's buffer only holds its own units, so it is uploaded range by range even when complete.
+    if (!frame.complete || slot.baseFrameId != 0) {
         std::vector<std::pair<uint32_t, uint32_t>> ranges = slot.ranges;
         std::sort(ranges.begin(), ranges.end());
         for (const auto &range : ranges) {
@@ -342,8 +390,8 @@ void NodeStreamReceiver::freeOlderThan(uint32_t frameId) {
 
 std::vector<NodeStreamReceiver::Frame> NodeStreamReceiver::acquireFrameLocked(uint32_t sessionId, uint32_t targetFrameId,
                                                                               int maxWaitMs, bool hasLastUploaded,
-                                                                              uint32_t lastUploadedFrameId,
-                                                                              bool allowPartial) {
+                                                                              uint32_t lastUploadedFrameId, bool textureExact,
+                                                                              bool allowPartial, bool allowMissingBase) {
     std::vector<Frame> frames;
     std::unique_lock<std::mutex> lock(m_mutex);
 
@@ -390,30 +438,60 @@ std::vector<NodeStreamReceiver::Frame> NodeStreamReceiver::acquireFrameLocked(ui
     if (!m_hasSession || m_sessionId != sessionId)
         return frames;
 
+    auto takeChain = [&](const std::vector<int> &chain) {
+        for (const int index : chain)
+            frames.push_back(takeSlot(index, true));
+    };
+
     const int target = findTarget();
     if (target >= 0 && m_slots[target].state == Complete) {
-        frames.push_back(takeSlot(target));
-        freeOlderThan(targetFrameId);
-        return frames;
+        const std::vector<int> chain = chainTo(target, hasLastUploaded, lastUploadedFrameId, textureExact);
+        if (!chain.empty() || allowMissingBase) {
+            if (chain.empty())
+                frames.push_back(takeSlot(target, false));
+            else
+                takeChain(chain);
+            freeOlderThan(targetFrameId);
+            return frames;
+        }
+        ++m_statBaseHolds;
+    } else {
+        ++m_statLateTargets;
     }
-    ++m_statLateTargets;
 
-    // Fall back to the newest complete frame up to the target.
+    // Fall back to the newest complete frame up to the target that can be shown.
     int best = -1;
+    std::vector<int> bestChain;
     for (int i = 0; i < kSlotCount; ++i) {
         const Slot &slot = m_slots[i];
-        if (slot.state != Complete || isNewer(slot.frameId, targetFrameId))
+        if (i == target || slot.state != Complete || isNewer(slot.frameId, targetFrameId))
             continue;
         if (hasLastUploaded && !isNewer(slot.frameId, lastUploadedFrameId))
             continue;
-        if (best < 0 || isNewer(slot.frameId, m_slots[best].frameId))
-            best = i;
+        if (best >= 0 && !isNewer(slot.frameId, m_slots[best].frameId))
+            continue;
+        std::vector<int> chain = chainTo(i, hasLastUploaded, lastUploadedFrameId, textureExact);
+        if (chain.empty() && !allowMissingBase)
+            continue;
+        best = i;
+        bestChain = std::move(chain);
     }
-    if (best >= 0)
-        frames.push_back(takeSlot(best));
+    bool exact = hasLastUploaded && textureExact;
+    uint32_t currentId = lastUploadedFrameId;
+    if (best >= 0) {
+        if (bestChain.empty())
+            frames.push_back(takeSlot(best, false));
+        else
+            takeChain(bestChain);
+        exact = frames.back().keepsExact;
+        currentId = frames.back().frameId;
+    }
     // Showing what arrived of the target on top mixes two frames in one image.
-    if (target >= 0 && allowPartial)
-        frames.push_back(takeSlot(target));
+    if (target >= 0 && m_slots[target].state == Filling && allowPartial) {
+        const uint32_t base = m_slots[target].baseFrameId;
+        if (base == 0 || (exact && base == currentId) || allowMissingBase)
+            frames.push_back(takeSlot(target, false));
+    }
     if (frames.empty())
         ++m_statHeld;
     else
@@ -422,12 +500,15 @@ std::vector<NodeStreamReceiver::Frame> NodeStreamReceiver::acquireFrameLocked(ui
 }
 
 std::vector<NodeStreamReceiver::Frame> NodeStreamReceiver::acquireNewest(bool hasLastUploaded, uint32_t lastUploadedFrameId,
-                                                                         bool allowPartial) {
+                                                                         bool textureExact, bool allowPartial,
+                                                                         bool allowMissingBase) {
     std::vector<Frame> frames;
     std::lock_guard<std::mutex> lock(m_mutex);
 
     int newestComplete = -1;
     int newestStarted = -1;
+    int best = -1;
+    std::vector<int> bestChain;
     for (int i = 0; i < kSlotCount; ++i) {
         const Slot &slot = m_slots[i];
         if (slot.state != Filling && slot.state != Complete)
@@ -436,28 +517,46 @@ std::vector<NodeStreamReceiver::Frame> NodeStreamReceiver::acquireNewest(bool ha
             continue;
         if (newestStarted < 0 || isNewer(slot.frameId, m_slots[newestStarted].frameId))
             newestStarted = i;
-        if (slot.state == Complete && (newestComplete < 0 || isNewer(slot.frameId, m_slots[newestComplete].frameId)))
+        if (slot.state != Complete)
+            continue;
+        if (newestComplete < 0 || isNewer(slot.frameId, m_slots[newestComplete].frameId))
             newestComplete = i;
+        if (best >= 0 && !isNewer(slot.frameId, m_slots[best].frameId))
+            continue;
+        std::vector<int> chain = chainTo(i, hasLastUploaded, lastUploadedFrameId, textureExact);
+        if (chain.empty())
+            continue;
+        best = i;
+        bestChain = std::move(chain);
     }
 
-    int chosen = newestComplete;
-    if (chosen < 0 && newestStarted >= 0 && allowPartial) {
+    if (best >= 0) {
+        for (const int index : bestChain)
+            frames.push_back(takeSlot(index, true));
+    } else if (newestComplete >= 0) {
+        if (allowMissingBase)
+            frames.push_back(takeSlot(newestComplete, false));
+        else
+            ++m_statBaseHolds;
+    } else if (newestStarted >= 0 && allowPartial) {
         // A frame that a newer frame has superseded will not receive more packets.
+        int chosen = -1;
         for (int i = 0; i < kSlotCount; ++i) {
             const Slot &slot = m_slots[i];
             if (slot.state != Filling || i == newestStarted)
                 continue;
             if (hasLastUploaded && !isNewer(slot.frameId, lastUploadedFrameId))
                 continue;
-            if (chosen < 0 || isNewer(slot.frameId, m_slots[chosen].frameId))
+            const bool baseOk = slot.baseFrameId == 0 || allowMissingBase
+                                || (hasLastUploaded && textureExact && slot.baseFrameId == lastUploadedFrameId);
+            if (baseOk && (chosen < 0 || isNewer(slot.frameId, m_slots[chosen].frameId)))
                 chosen = i;
         }
+        if (chosen >= 0)
+            frames.push_back(takeSlot(chosen, false));
     }
-    if (chosen >= 0) {
-        const uint32_t frameId = m_slots[chosen].frameId;
-        frames.push_back(takeSlot(chosen));
-        freeOlderThan(frameId);
-    }
+    if (!frames.empty())
+        freeOlderThan(frames.back().frameId);
     return frames;
 }
 
@@ -479,12 +578,14 @@ void NodeStreamReceiver::logStats() {
         sgct::Log::Info(std::format(
             "NodeStreamReceiver {}: {:.0f} packets/s, {:.1f} complete fps, frame spread {:.2f} ms, slack {:.2f} ms (min {:.2f}), "
             "incomplete {} (missing packets {}, late packets {}), partial uploads {}, late targets {}, held {}, "
+            "deltas {} (missing base {}, base holds {}), "
             "waits {} ({:.2f} ms avg), target repeats {}, target skips {}, invalid {}",
             m_endpoint, static_cast<double>(m_statPackets) / seconds, static_cast<double>(m_statCompleted) / seconds,
             m_statCompleted ? m_statSpreadMs / static_cast<double>(m_statCompleted) : 0.0,
             m_statSlackCount ? m_statSlackMs / static_cast<double>(m_statSlackCount) : 0.0,
             m_statSlackCount ? m_statMinSlackMs : 0.0, m_statIncomplete, m_statMissingPackets, m_statLatePackets,
-            m_statPartialUploads, m_statLateTargets, m_statHeld, m_statWaits,
+            m_statPartialUploads, m_statLateTargets, m_statHeld, m_statDeltas, m_statMissingBase, m_statBaseHolds,
+            m_statWaits,
             m_statWaits ? m_statWaitMs / static_cast<double>(m_statWaits) : 0.0, m_statTargetRepeats, m_statTargetSkips,
             m_statInvalid));
     }
@@ -500,6 +601,9 @@ void NodeStreamReceiver::logStats() {
     m_statLatePackets = 0;
     m_statLateTargets = 0;
     m_statHeld = 0;
+    m_statDeltas = 0;
+    m_statMissingBase = 0;
+    m_statBaseHolds = 0;
     m_statWaits = 0;
     m_statWaitMs = 0.0;
     m_statTargetRepeats = 0;

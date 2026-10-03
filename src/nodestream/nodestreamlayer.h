@@ -62,6 +62,8 @@ private:
     int m_texHeight = 0;
     bool m_hasFrame = false;
     bool m_hasLastUploaded = false;
+    // True when the texture holds the last uploaded frame exactly, so that deltas can be applied.
+    bool m_textureExact = false;
     uint32_t m_lastUploadedSession = 0;
     uint32_t m_lastUploadedFrameId = 0;
     int64_t m_lastCompleteUploadNs = 0;
