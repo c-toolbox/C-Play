@@ -1071,6 +1071,8 @@ SettingsBasePage {
             showTitleParams: false
             showGridParams: false
             showStereoParams: false
+            // The "layer source for nodes" option only makes sense when adding a new layer, not in the floating window settings.
+            showNodeSourceParams: false
 
             Component.onCompleted: {
                 // set the saved values

@@ -26,6 +26,9 @@ GridLayout {
     property bool showTitleParams: true
     property bool showGridParams: true
     property bool showStereoParams: true
+    // Where the nodes get their content from for live source layers (DirectShow, Spout, Stream,
+    // YouTube). Hidden in contexts where Node stream does not apply (e.g. the floating window).
+    property bool showNodeSourceParams: true
 
     property alias typeComboBox: typeComboBox
     property alias fileForLayer: fileForLayer
@@ -55,6 +58,7 @@ GridLayout {
     property alias restCustomUrlField: restCustomUrlField
     property alias restMethodComboBox: restMethodComboBox
     property alias restIgnoreStatusCheckBox: restIgnoreStatusCheckBox
+    property alias nodeSourceComboBox: nodeSourceComboBox
 
     // True when data/predefined-directshows.json provides at least one enabled capture setup.
     property bool directShowPresetAvailable: app.directShowPresetsModel && app.directShowPresetsModel.numberOfPresets > 0
@@ -73,6 +77,11 @@ GridLayout {
 
     property string restParametersJson: ""
     property var restObsActionNames: [qsTr("Set Profile"), qsTr("Set Scene"), qsTr("Set Scene Collection"), qsTr("Custom")]
+
+    // The layer title auto-filled from the last fetched YouTube video ("" = none). While
+    // layerTitle still holds this exact value, a newer fetch may replace it; any other content
+    // is user input and must never be overwritten by later fetches.
+    property string youtubeAutoFilledTitle: ""
 
     function resetValues() {
         typeComboBox.currentIndex = 0;
@@ -97,6 +106,15 @@ GridLayout {
             }
         }
         directShowPresetsLayout.customEntry = false;
+        // Drop any in-flight YouTube metadata fetch and its auto-filled title.
+        youtubeFetchTimer.stop();
+        youtubeAutoFilledTitle = "";
+        if (app.ytdlpMetadataModel) {
+            app.ytdlpMetadataModel.clear();
+        }
+
+        // "Nodes read from original source" is the default for new layers.
+        nodeSourceComboBox.currentIndex = 0;
     }
 
     // Returns the video/audio device combination of the currently selected predefined DirectShow setup, or null when none is available.
@@ -356,6 +374,14 @@ GridLayout {
         textRole: "typeName"
 
         onActivated: {
+            // A layer-type switch invalidates any in-flight YouTube metadata fetch.
+            youtubeFetchTimer.stop();
+            if (typeComboBox.currentText !== "YouTube") {
+                youtubeAutoFilledTitle = "";
+                if (app.ytdlpMetadataModel) {
+                    app.ytdlpMetadataModel.clear();
+                }
+            }
             if (typeComboBox.currentText === "NDI") {
                 app.ndiSendersModel.updateSendersList();
                 ndiSenderComboBox.currentIndex = app.ndiSendersModel.numberOfSenders - 1;
@@ -515,10 +541,59 @@ GridLayout {
             placeholderText: "https://www.youtube.com/watch?v=..."
             text: ""
 
-            onEditingFinished: {}
+            // Debounced metadata fetch while the user types/pastes a URL; the fetched video
+            // title is used to pre-fill the layer name (see youtubeTitleConnections below).
+            onTextChanged: {
+                // Any change invalidates the previous fetch - drop its state so the status line
+                // never shows info for a URL that is no longer in the field, and "Fetching..."
+                // appears immediately instead of a stale result.
+                if (app.ytdlpMetadataModel) {
+                    app.ytdlpMetadataModel.clear();
+                }
+                if (typeComboBox.currentText === "YouTube" && app.isYouTubeUrl(text.trim())) {
+                    youtubeFetchTimer.restart();
+                } else {
+                    youtubeFetchTimer.stop();
+                }
+            }
 
             ToolTip {
                 text: qsTr("Single YouTube video URL (watch / shorts / youtu.be)")
+            }
+        }
+    }
+
+    // Resolves the pasted YouTube URL ~0.7 s after the last keystroke so one yt-dlp process is
+    // spawned per pause in typing, not per character.
+    Timer {
+        id: youtubeFetchTimer
+        interval: 700
+        repeat: false
+        onTriggered: {
+            if (app.ytdlpMetadataModel) {
+                app.ytdlpMetadataModel.fetch(youtubeUrlField.text.trim());
+            }
+        }
+    }
+
+    // Pre-fills the layer name with the fetched video title. Only fills an empty field or one
+    // that still holds a previously auto-filled title - never overwrites user input. The title
+    // is truncated to fit the field's maximumLength (30 characters).
+    Connections {
+        id: youtubeTitleConnections
+        target: app.ytdlpMetadataModel
+
+        function onDataChanged() {
+            if (typeComboBox.currentText !== "YouTube" || !app.ytdlpMetadataModel)
+                return;
+            const fetchedTitle = app.ytdlpMetadataModel.title;
+            if (fetchedTitle === "")
+                return; // fetch started or failed - keep whatever is in the field
+            if (layerTitle.text === "" || layerTitle.text === youtubeAutoFilledTitle) {
+                // fetchedTitle is a JS string - use substring(), not QString's left().
+                const t = fetchedTitle.length > layerTitle.maximumLength ? fetchedTitle.substring(0, layerTitle.maximumLength) : fetchedTitle;
+                layerTitle.text = t;
+                youtubeAutoFilledTitle = t;
             }
         }
     }
@@ -1049,6 +1124,14 @@ GridLayout {
         maximumLength: 30
         placeholderText: "Layer title"
         text: ""
+
+        // Any content other than the auto-filled YouTube title is user input (or a programmatic
+        // name from another layer type) - stop auto-filling so later fetches leave it alone.
+        onTextChanged: {
+            if (youtubeAutoFilledTitle !== "" && text !== youtubeAutoFilledTitle) {
+                youtubeAutoFilledTitle = "";
+            }
+        }
     }
     Item {
         visible: showTitleParams && root.showSpacers
@@ -1476,6 +1559,30 @@ GridLayout {
         Layout.fillWidth: true
     }
 
+    // Where the nodes get this layer's content from, shown only for live source layers (DirectShow,
+    // Spout, Stream, YouTube). "Nodes read from original source" keeps the default behaviour where
+    // every node loads and decodes its own copy; "Master sends content to nodes" enables Node stream
+    // on the layer so the master renders it once and streams the texture to all nodes.
+    Label {
+        Layout.alignment: Qt.AlignRight
+        text: qsTr("Nodes:")
+        visible: nodeSourceComboBox.visible
+    }
+    ComboBox {
+        id: nodeSourceComboBox
+
+        Layout.fillWidth: true
+        model: [qsTr("Nodes read from original source"), qsTr("Master sends content to nodes")]
+        currentIndex: 0
+        visible: root.showNodeSourceParams && NODE_STREAM_SUPPORT
+            && (typeComboBox.currentText === "DirectShow" || typeComboBox.currentText === "Spout"
+                || typeComboBox.currentText === "Stream" || typeComboBox.currentText === "YouTube")
+
+        ToolTip {
+            text: qsTr("Choose where the nodes get this layer's content from. 'Nodes read from original source' loads and decodes the layer on every node; 'Master sends content to nodes' enables Node stream, so the master renders the layer once and streams its texture to all nodes.")
+        }
+    }
+
     function controlNeedsParam() {
         var op = controlOperationComboBox.currentText;
         return op === "Seek" || op === "SetPosition"
@@ -1518,5 +1625,59 @@ GridLayout {
     Item {
         visible: root.showSpacers && typeComboBox.currentText != "Text" && typeComboBox.currentText != "Control" && typeComboBox.currentText != "REST"
         Layout.fillWidth: true
+    }
+
+    // Status line for the YouTube metadata fetch, pinned to the bottom of the dialog by the
+    // fill-height spacer above. Shows a spinner with "Fetching info from Youtube..." as soon as
+    // a URL is in the field (the yt-dlp lookup can take a while), then reports the fetched video
+    // title - which also pre-fills the layer name - together with the format that will be played,
+    // or an error message.
+    RowLayout {
+        id: youtubeFetchStatus
+
+        Layout.columnSpan: 2
+        Layout.fillWidth: true
+        spacing: 6
+        visible: typeComboBox.currentText === "YouTube" && app.ytdlpMetadataModel
+                 && app.isYouTubeUrl(youtubeUrlField.text.trim())
+
+        // True while a result is pending: during the debounce pause before the fetch starts and
+        // for as long as yt-dlp runs. Once title or errorText arrives, the result is shown.
+        property bool fetching: {
+            if (!app.ytdlpMetadataModel)
+                return false;
+            if (app.ytdlpMetadataModel.isLoading)
+                return true;
+            return app.ytdlpMetadataModel.title === "" && app.ytdlpMetadataModel.errorText === "";
+        }
+
+        BusyIndicator {
+            id: youtubeFetchSpinner
+
+            Layout.alignment: Qt.AlignVCenter
+            Layout.preferredWidth: 16
+            Layout.preferredHeight: 16
+            running: youtubeFetchStatus.fetching
+            visible: running
+        }
+        Label {
+            Layout.fillWidth: true
+            font.pointSize: 9
+            font.italic: true
+            wrapMode: Text.WordWrap
+            text: {
+                if (!app.ytdlpMetadataModel)
+                    return "";
+                if (youtubeFetchStatus.fetching)
+                    return qsTr("Fetching info from Youtube...");
+                if (app.ytdlpMetadataModel.errorText !== "")
+                    return app.ytdlpMetadataModel.errorText;
+                let t = qsTr("Fetched video: %1").arg(app.ytdlpMetadataModel.title);
+                if (app.ytdlpMetadataModel.playbackFormat !== "")
+                    t += "\n" + qsTr("Best format: %1").arg(app.ytdlpMetadataModel.playbackFormat);
+                return t;
+            }
+            color: app.ytdlpMetadataModel && app.ytdlpMetadataModel.errorText !== "" ? "crimson" : Kirigami.Theme.neutralTextColor
+        }
     }
 }

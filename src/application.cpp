@@ -190,6 +190,7 @@ Application::Application(int &argc, char **argv, const QString &applicationName)
     m_streamsModel = new StreamModel(this);
     m_mpvOptionsModel = new MpvOptionsModel(this);
     m_httpClientModel = new HttpClientModel(this);
+    m_ytdlpMetadataModel = new YtdlpMetadataModel(this);
 #ifdef CLUX_SUPPORT
     m_cluxClient = new CLuxClient(this);
     m_cluxClient->loadServerConfig(); // load the single C-Lux server from data/clux-server.json
@@ -660,6 +661,10 @@ void Application::setMpvOptionsModel(MpvOptionsModel* model) {
     }
     m_mpvOptionsModel = model;
     Q_EMIT mpvOptionsModelChanged();
+}
+
+YtdlpMetadataModel* Application::ytdlpMetadataModel() {
+    return m_ytdlpMetadataModel;
 }
 
 HttpClientModel* Application::httpClientModel() {

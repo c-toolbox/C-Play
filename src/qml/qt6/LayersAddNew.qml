@@ -32,6 +32,11 @@ Kirigami.ApplicationWindow {
     onVisibilityChanged: {
         if (visible) {
             layerCoreProps.resetValues();
+        } else {
+            // Cancel any in-flight YouTube metadata fetch when the dialog closes.
+            if (app.ytdlpMetadataModel) {
+                app.ytdlpMetadataModel.clear();
+            }
         }
     }
 
@@ -84,6 +89,10 @@ Kirigami.ApplicationWindow {
                             mpv.focus = true;
                         } else if (layerCoreProps.typeComboBox.currentText === "Spout") {
                             layerView.layerItem.layerIdx = app.slides.selected.addLayer(layerCoreProps.layerTitle.text, layerCoreProps.typeComboBox.currentIndex + 1, layerCoreProps.spoutSenderComboBox.currentText, layerCoreProps.stereoscopicModeForLayer.currentIndex, layerCoreProps.gridModeForLayer.currentIndex);
+                            // "Master sends content to nodes" enables Node stream on the new layer immediately.
+                            if (layerCoreProps.nodeSourceComboBox.currentIndex === 1) {
+                                layerView.layerItem.layerNodeStreamOutputEnabled = true;
+                            }
                             layersAddNew.visible = false;
                             app.slides.updateSelectedSlide();
                             mpv.focus = true;
@@ -120,6 +129,10 @@ Kirigami.ApplicationWindow {
                                 if (directShowPresetKey !== "") {
                                     layerView.layerItem.layerDirectShowPresetKey = directShowPresetKey;
                                 }
+                                // "Master sends content to nodes" enables Node stream on the new layer immediately.
+                                if (layerCoreProps.nodeSourceComboBox.currentIndex === 1) {
+                                    layerView.layerItem.layerNodeStreamOutputEnabled = true;
+                                }
                                 layersAddNew.visible = false;
                                 app.slides.updateSelectedSlide();
                                 mpv.focus = true;
@@ -137,12 +150,20 @@ Kirigami.ApplicationWindow {
                                 // Remember which predefined entry this layer was created from (the entry title), so each machine in the cluster can resolve its own local path from data/predefined-streams.json. Custom paths keep an empty key and use the file path verbatim.
                                 layerView.layerItem.layerStreamKey = layerCoreProps.streamsComboBox.currentText;
                             }
+                            // "Master sends content to nodes" enables Node stream on the new layer immediately.
+                            if (layerCoreProps.nodeSourceComboBox.currentIndex === 1) {
+                                layerView.layerItem.layerNodeStreamOutputEnabled = true;
+                            }
                             layersAddNew.visible = false;
                             app.slides.updateSelectedSlide();
                             mpv.focus = true;
                         } else if (layerCoreProps.typeComboBox.currentText === "YouTube") {
                             if (layerCoreProps.youtubeUrlField.text.trim() !== "") {
                                 layerView.layerItem.layerIdx = app.slides.selected.addLayer(layerCoreProps.layerTitle.text, layerCoreProps.typeComboBox.currentIndex + 1, layerCoreProps.youtubeUrlField.text.trim(), layerCoreProps.stereoscopicModeForLayer.currentIndex, layerCoreProps.gridModeForLayer.currentIndex);
+                                // "Master sends content to nodes" enables Node stream on the new layer immediately.
+                                if (layerCoreProps.nodeSourceComboBox.currentIndex === 1) {
+                                    layerView.layerItem.layerNodeStreamOutputEnabled = true;
+                                }
                                 layersAddNew.visible = false;
                                 app.slides.updateSelectedSlide();
                                 mpv.focus = true;

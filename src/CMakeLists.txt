@@ -135,6 +135,8 @@ set(SOURCE_FILES
     utils/streampathresolver.h
     utils/ytdlpresolver.cpp
     utils/ytdlpresolver.h
+    utils/ytdlpmetadata.cpp
+    utils/ytdlpmetadata.h
     utils/multivideohandler.cpp
     utils/multivideohandler.h
 )

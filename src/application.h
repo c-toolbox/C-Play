@@ -37,6 +37,7 @@ class LayersRendererQtItem;
 #include <layers/streammodel.h>
 #include <layers/mpvoptionsmodel.h>
 #include "httpclientmodel.h"
+#include "utils/ytdlpmetadata.h"
 #ifdef CLUX_SUPPORT
 #include <clux/cluxclient.h>
 #endif
@@ -86,6 +87,10 @@ Q_DECLARE_METATYPE(MpvOptionsModel*)
 #ifndef METATYPE_HttpClientModel
 #define METATYPE_HttpClientModel
 Q_DECLARE_METATYPE(HttpClientModel*)
+#endif
+#ifndef METATYPE_YtdlpMetadataModel
+#define METATYPE_YtdlpMetadataModel
+Q_DECLARE_METATYPE(YtdlpMetadataModel*)
 #endif
 #ifdef CLUX_SUPPORT
 #ifndef METATYPE_CLuxClient
@@ -243,6 +248,15 @@ public:
     HttpClientModel* httpClientModel();
     void setHttpClientModel(HttpClientModel* model);
 
+    // Fetches yt-dlp metadata (video formats / audio tracks / subtitle languages) for a stream
+    // URL without starting playback; the layer properties UI uses it to offer quality, audio and
+    // subtitle selection before a YouTube/stream layer is created.
+    Q_PROPERTY(YtdlpMetadataModel* ytdlpMetadataModel
+        READ ytdlpMetadataModel
+        NOTIFY ytdlpMetadataModelChanged)
+
+    YtdlpMetadataModel* ytdlpMetadataModel();
+
 #ifdef CLUX_SUPPORT
     // Client for the C-Lux light server, used by the C-Lux Editor dialog.
     Q_PROPERTY(CLuxClient* cluxClient
@@ -352,6 +366,7 @@ Q_SIGNALS:
     void streamsModelChanged();
     void mpvOptionsModelChanged();
     void httpClientModelChanged();
+    void ytdlpMetadataModelChanged();
 #ifdef CLUX_SUPPORT
     void cluxClientChanged();
     void cluxPreviewVisibleChanged();
@@ -406,6 +421,7 @@ private:
     StreamModel* m_streamsModel;
     MpvOptionsModel* m_mpvOptionsModel;
     HttpClientModel* m_httpClientModel;
+    YtdlpMetadataModel* m_ytdlpMetadataModel;
 #ifdef CLUX_SUPPORT
     CLuxClient* m_cluxClient;
     bool m_cluxPreviewVisible = false;   // runtime-only, always off at startup (not persisted)
