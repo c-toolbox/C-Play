@@ -1493,8 +1493,9 @@ void LayersRendererQtOpenGLObject::ensureCluxDiskTexture(int nLights) {
     // Rebuild the per-pixel light/alpha map when the light count changes. The disk is a square
     // N x N texture whose pixels mirror the DomeGrid texcoord convention: center at (0.5, 0.5),
     // offset proportional to (sin theta, -cos theta) with radius 0.5 at the rim. Each pixel gets
-    // the light whose azimuth (2*pi*i/nLights) it falls in, plus a radial alpha that fades linearly
-    // from 0 at the center to 1 at the rim.
+    // the light whose azimuth (2*pi*i/nLights) it falls in. Keep the bright glow in the
+    // outer 10% of the fisheye radius (about 9 degrees above the rim on a hemisphere).
+    // A faint cubic tail carries the color farther upward, fading out at the crown.
     if (m_cluxPixelMapNLights != nLights) {
         const int N = 512;
         m_cluxPixelLight.assign(static_cast<size_t>(N) * N, -1);
@@ -1509,7 +1510,11 @@ void LayersRendererQtOpenGLObject::ensureCluxDiskTexture(int nLights) {
                 if (r > 0.5f)
                     continue;                                    // outside the disk
                 const size_t idx = static_cast<size_t>(y) * N + x;
-                m_cluxPixelAlpha[idx] = static_cast<unsigned char>((r / 0.5f) * 255.0f);
+                const float radius = r / 0.5f;
+                const float rimGlow = std::clamp((radius - 0.9f) / 0.1f, 0.0f, 1.0f);
+                const float upwardTint = radius * radius * radius;
+                const float alpha = 0.92f * rimGlow * rimGlow + 0.08f * upwardTint;
+                m_cluxPixelAlpha[idx] = static_cast<unsigned char>(alpha * 255.0f);
                 if (r < 1e-6f) {
                     m_cluxPixelLight[idx] = 0;                   // center pixel: arbitrary light
                 } else {

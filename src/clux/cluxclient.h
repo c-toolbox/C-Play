@@ -205,8 +205,9 @@ class CLuxClient : public QObject {
     void refreshScenes();
 
     // Re-fetch the NDI status (supported/running/source/connections/error) and the list
-    // of sources discovery has seen on the network. No-op while disconnected; in live
-    // mode this also runs automatically once per second with the state poll.
+    // of sources discovery has seen on the network. No-op while disconnected. Calling
+    // this opts into live-mode polling until NDI is turned off or disconnected; optional
+    // NDI endpoints are never queried just because the client connects.
     void refreshNdi();
 
     // Assign the named NDI source to the server's receiver, or stop it when name is
@@ -309,6 +310,7 @@ class CLuxClient : public QObject {
 
     // NDI capture state from the server (see the property comments above).
     QVariantList m_ndiSources;
+    bool m_ndiPollingEnabled = false;
     bool m_ndiSupported = true;   // stays optimistic until the first status says otherwise
     QString m_ndiReason;
     QString m_ndiSource;

@@ -57,7 +57,7 @@ The local renderer reproduces the static, sine wave, gradient, and rainbow patte
 
 ### Show in 3D view
 
-The **Show in 3D view** switch overlays the live light colors on C-Play's own 3D render as a dome-grid ring with a radial alpha fade from the rim toward the center — useful for checking how the lights sit over the content while you work. It is runtime-only: always off at startup and not persisted, so it never surprises anyone who opens the show later.
+The **Show in 3D view** switch overlays the live light colors on C-Play's own 3D render as a narrow, bright glow within the outer 10% of the fisheye radius, with a faint color tint fading farther upward toward the dome crown — useful for checking how the lights sit over the content while you work. It is runtime-only: always off at startup and not persisted, so it never surprises anyone who opens the show later.
 
 ## NDI capture into C-Lux
 
@@ -68,7 +68,7 @@ C-Lux can receive one NDI source of its own and feed a Video pattern from it, sa
 * **Ring width** — thickness of the rim band each light samples, as a fraction of the ring's radius (0 reads a single circle of pixels). The server keeps this setting whether or not a source is running, so you can pre-aim the next one.
 * **Status line** — what the receiver is doing right now: receiving which source, starting up, no signal, or an error.
 
-The NDI endpoints are open like the frame stream, so this works in both modes; in preview mode the blackout keeps the real output dark while you aim it. In live mode the state refreshes every second with the rest of the poll; in preview mode use **Update sources**.
+The NDI endpoints are open like the frame stream, so this works in both modes; in preview mode the blackout keeps the real output dark while you aim it. NDI is queried only after you turn on **Use NDI source**, so servers without the optional endpoints can connect without NDI errors. While NDI is enabled, live mode refreshes its state every second; in preview mode use **Update sources**. Turning it off or disconnecting stops NDI polling.
 
 ## Attach scene actions to slides
 

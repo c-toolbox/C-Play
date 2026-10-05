@@ -135,10 +135,14 @@ QStringList parseAppliedScenes(const QByteArray& data) {
 CLuxClient::CLuxClient(QObject* parent)
     : QObject(parent), m_nam(new QNetworkAccessManager(this)) {
     // In live mode the full server state is polled this often, so changes made from
-    // another control surface show up in the UI within a second. The NDI status rides
-    // along: its receiver can be re-aimed or lose its source at any time too.
+    // another control surface show up in the UI within a second. Only poll the optional
+    // NDI endpoints after the operator has requested NDI.
     m_pollTimer.setInterval(1000);
-    connect(&m_pollTimer, &QTimer::timeout, this, [this]() { refreshState(); refreshNdi(); });
+    connect(&m_pollTimer, &QTimer::timeout, this, [this]() {
+        refreshState();
+        if (m_ndiPollingEnabled && m_ndiSupported && !m_ndiSource.isEmpty())
+            refreshNdi();
+    });
 
     // The sampling geometry as C-Lux defines it by default (shared/video.ts): a centered
     // ring at full radius with zero width. Seeded so setNdiRingWidth() can send the whole
@@ -342,9 +346,6 @@ void CLuxClient::connectToServer() {
         if (handleAuthReply(reply)) {
             refreshState();
             startStream();
-            // The NDI endpoints are open like the stream, so they work regardless of the
-            // auth outcome; m_connected only flips once the stream's first bytes arrive.
-            refreshNdi();
         }
     });
 }
@@ -404,6 +405,11 @@ void CLuxClient::login(const QString& password) {
 }
 
 void CLuxClient::disconnectFromServer() {
+    m_ndiPollingEnabled = false;
+    m_ndiSource.clear();
+    m_ndiRunning = false;
+    m_ndiConnections = 0;
+    m_ndiSources.clear();
     stopStream();
 
     // The local state is kept on purpose: preview mode stays usable without a connection,
@@ -416,6 +422,7 @@ void CLuxClient::disconnectFromServer() {
         Q_EMIT connectionStateChanged();
     }
     updatePolling();
+    Q_EMIT ndiStateChanged();
 
     // Live mode requires a connection: fall back to preview locally, with no server
     // traffic left to send (see setLiveMode()).
@@ -567,17 +574,27 @@ void CLuxClient::applyNdiStatus(const QJsonObject& obj) {
 }
 
 void CLuxClient::refreshNdi() {
-    if (m_serverUrl.isEmpty())
+    if (!m_connected || m_serverUrl.isEmpty())
         return;
 
+    m_ndiPollingEnabled = true;
+
     // Status first: it says whether discovery is available at all, and the source list
-    // request would only answer 503 when it is not. Like refreshState(), this runs right
-    // after a connect as well, before m_connected has flipped yet. The status is applied
+    // request would only answer 503 when it is not. The status is applied
     // (and emitted) only once both requests have answered, so the UI sees one consistent
     // update per refresh - the QML side picks its default source from that single signal.
     QNetworkReply* status = request(QNetworkAccessManager::GetOperation, QStringLiteral("/ndi"));
     connect(status, &QNetworkReply::finished, this, [this, status]() {
+        if (!m_ndiPollingEnabled)
+            return;
         if (status->error() != QNetworkReply::NoError) {
+            if (status->attribute(QNetworkRequest::HttpStatusCodeAttribute).toInt() == 404) {
+                m_ndiPollingEnabled = false;
+                applyNdiStatus(QJsonObject{
+                    {QStringLiteral("supported"), false},
+                    {QStringLiteral("reason"), QStringLiteral("NDI is not available on the server")}});
+                return;
+            }
             reportStateError(status);
             return;
         }
@@ -592,6 +609,8 @@ void CLuxClient::refreshNdi() {
         // What discovery has seen on the network: name plus, when known, the address.
         QNetworkReply* sources = request(QNetworkAccessManager::GetOperation, QStringLiteral("/ndi/sources"));
         connect(sources, &QNetworkReply::finished, this, [this, sources, obj]() {
+            if (!m_ndiPollingEnabled)
+                return;
             if (sources->error() != QNetworkReply::NoError) {
                 reportStateError(sources);
                 return;
@@ -615,6 +634,8 @@ void CLuxClient::setNdiSource(const QString& name) {
     // disabled without one.
     if (!m_connected)
         return;
+
+    m_ndiPollingEnabled = !name.isEmpty();
 
     // The API takes null to stop the receiver; an empty string would be rejected.
     const QJsonObject body = name.isEmpty()
