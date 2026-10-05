@@ -16,22 +16,6 @@ import org.ctoolbox.cplay
 SettingsBasePage {
     id: root
 
-    CPlayFileDialog {
-        id: ytdlpPathDialog
-
-        parentWindow: root.Window.window
-        fileMode: CPlayFileDialog.OpenFile
-        nameFilters: ["yt-dlp executable (yt-dlp.exe yt-dlp)", "All files (*.*)"]
-        title: "Choose yt-dlp executable"
-
-        onAccepted: {
-            ytdlpPathText.text = playerController.returnRelativeOrAbsolutePath(ytdlpPathDialog.selectedFile.toString());
-            PlaybackSettings.ytdlpPath = ytdlpPathText.text;
-            PlaybackSettings.save();
-        }
-        onRejected: {}
-    }
-
     GridLayout {
         id: content
 
@@ -493,108 +477,6 @@ SettingsBasePage {
                 elide: Text.ElideRight
                 text: {
                     qsTr("ms = Initial offset applied to target position on slaves");
-                }
-            }
-        }
-
-        SettingsHeader {
-            Layout.columnSpan: 2
-            Layout.fillWidth: true
-            text: qsTr("YouTube playback")
-            level: 4
-        }
-        Label {
-            Layout.alignment: Qt.AlignRight
-            text: qsTr("yt-dlp path:")
-        }
-        RowLayout {
-            Layout.fillWidth: true
-
-            TextField {
-                id: ytdlpPathText
-
-                Layout.fillWidth: true
-                placeholderText: "Auto-detect (next to C-Play.exe or PATH)"
-                text: PlaybackSettings.ytdlpPath
-
-                onEditingFinished: {
-                    PlaybackSettings.ytdlpPath = text;
-                    PlaybackSettings.save();
-                }
-
-                ToolTip {
-                    text: qsTr("Path to the yt-dlp executable used for YouTube URLs in Stream layers. Empty = auto-detect next to C-Play.exe, then in <working directory>/plugins/, then on PATH.")
-                }
-            }
-            ToolButton {
-                focusPolicy: Qt.NoFocus
-                icon.height: 16
-                icon.name: "document-open"
-                text: ""
-
-                onClicked: {
-                    ytdlpPathDialog.open();
-                }
-
-                ToolTip {
-                    text: qsTr("Browse for yt-dlp.exe")
-                }
-            }
-            ToolButton {
-                focusPolicy: Qt.NoFocus
-                icon.height: 16
-                icon.name: "edit-clear-all"
-                text: ""
-
-                onClicked: {
-                    ytdlpPathText.text = "";
-                    PlaybackSettings.ytdlpPath = "";
-                    PlaybackSettings.save();
-                }
-
-                ToolTip {
-                    text: qsTr("Clear - use auto-detection")
-                }
-            }
-        }
-        Item {
-            Layout.fillWidth: true
-        }
-        Label {
-            Layout.columnSpan: 2
-            Layout.fillWidth: true
-            Layout.leftMargin: 4
-            font.pointSize: 9
-            font.italic: true
-            wrapMode: Text.WordWrap
-            color: Kirigami.Theme.neutralTextColor
-            text: qsTr("YouTube URLs in Stream layers are resolved by mpv via the external yt-dlp tool. "
-                     + "Every cluster node playing such a layer needs yt-dlp too. Status on this machine: ")
-                  + (app.resolveYtdlpPath() === ""
-                     ? qsTr("yt-dlp NOT found - download yt-dlp.exe and place it next to C-Play.exe (or into <working directory>/plugins/), on PATH, or set the path above.")
-                     : qsTr("found: %1").arg(app.resolveYtdlpPath()))
-        }
-        Label {
-            Layout.alignment: Qt.AlignRight
-            text: qsTr("yt-dlp format:")
-        }
-        RowLayout {
-            Layout.fillWidth: true
-
-            TextField {
-                id: ytdlFormatText
-
-                Layout.fillWidth: true
-                placeholderText: "Default (e.g. bv*[height<=1080]+ba/b)"
-                text: PlaybackSettings.ytdlFormat
-
-                onEditingFinished: {
-                    PlaybackSettings.ytdlFormat = text;
-                    PlaybackSettings.save();
-                }
-
-                ToolTip {
-                    text: qsTr("Optional yt-dlp format selector passed to mpv's ytdl_hook (ytdl-format). Empty = mpv/yt-dlp default.")
                 }
             }
         }

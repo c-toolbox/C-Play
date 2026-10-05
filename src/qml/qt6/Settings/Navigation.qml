@@ -69,6 +69,11 @@ Kirigami.Page {
             page: "PresentationSettings.qml"
         }
         ListElement {
+            iconName: "upload-media"
+            name: "Streaming"
+            page: "StreamingSettings.qml"
+        }
+        ListElement {
             iconName: "media-view-subtitles-symbolic"
             name: "Text & subtitles"
             page: "SubtitleSettings.qml"
@@ -77,6 +82,11 @@ Kirigami.Page {
             iconName: "edit-paste-style"
             name: "Window & UI"
             page: "UserInterfaceSettings.qml"
+        }
+        ListElement {
+            iconName: "code-block"
+            name: "TCP control"
+            page: "TcpControlSettingsPage.qml"
         }
     }
     ListView {

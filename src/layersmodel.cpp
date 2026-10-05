@@ -27,6 +27,7 @@
 #include <layers/mpvlayer.h>
 #include <layers/controllayer.h>
 #include <layers/restlayer.h>
+#include <layers/tcplayer.h>
 #ifdef WEBRTC_LAYER
 #include <webrtc/webrtclayer.h>
 #endif
@@ -113,6 +114,10 @@ QVariant LayersModel::data(const QModelIndex &index, int role) const {
     case TitleRole:
         return QVariant(QString::fromStdString(layerItem->title()));
     case PathRole:
+        if (layerItem->type() == BaseLayer::TCP) {
+            const auto *tcp = static_cast<const TcpLayer *>(layerItem);
+            return QString::fromStdString(tcp->commandId());
+        }
         if (layerItem->type() == BaseLayer::CONTROL) {
             const ControlLayer* controlLayer = static_cast<const ControlLayer*>(layerItem);
             return QVariant(QString::fromStdString(controlLayer->operation()) + QStringLiteral(":") + QString::fromStdString(controlLayer->parameter()));
@@ -299,7 +304,7 @@ int LayersModel::minLayerStatus() {
     for (int i = 0; i < m_layers.size(); i++) {
         if (!m_layers[i].first)
             continue;
-        if (m_layers[i].first->type() == BaseLayer::CONTROL || m_layers[i].first->type() == BaseLayer::REST)
+        if (m_layers[i].first->type() == BaseLayer::CONTROL || m_layers[i].first->type() == BaseLayer::REST || m_layers[i].first->type() == BaseLayer::TCP)
             continue;
         if (minStatus == -1)
             minStatus = m_layers[i].second;
@@ -317,7 +322,7 @@ int LayersModel::maxLayerStatus() {
     for (int i = 0; i < m_layers.size(); i++) {
         if (!m_layers[i].first)
             continue;
-        if (m_layers[i].first->type() == BaseLayer::CONTROL || m_layers[i].first->type() == BaseLayer::REST)
+        if (m_layers[i].first->type() == BaseLayer::CONTROL || m_layers[i].first->type() == BaseLayer::REST || m_layers[i].first->type() == BaseLayer::TCP)
             continue;
         if (maxStatus == -1)
             maxStatus = m_layers[i].second;
@@ -363,6 +368,12 @@ int LayersModel::addLayer(QString title, int type, QString filepath, int stereoM
             newTextLayer->setText(filepath.toStdString());
         }
 #endif
+        else if (newLayer->type() == BaseLayer::TCP) {
+            auto *tcp = static_cast<TcpLayer *>(newLayer);
+            tcp->setCommandId(filepath.toStdString());
+            if (Application::isCreated())
+                tcp->setManager(Application::instance().tcpControlManager());
+        }
         else if (newLayer->type() == BaseLayer::REST && Application::isCreated()) {
             RestLayer* newRestLayer = static_cast<RestLayer*>(newLayer);
             newRestLayer->setHttpClientModel(Application::instance().httpClientModel());
@@ -408,7 +419,7 @@ int LayersModel::addLayer(QString title, int type, QString filepath, int stereoM
         newLayer->initialize();
 
         const int layerIdx = m_layers.size();
-        int initialStatus = (newLayer->type() == BaseLayer::REST) ? -1 : 0;
+        int initialStatus = (newLayer->type() == BaseLayer::REST || newLayer->type() == BaseLayer::TCP) ? -1 : 0;
         beginInsertRows(QModelIndex(), layerIdx, layerIdx);
         m_layers.push_back(QPair(std::shared_ptr<BaseLayer>(newLayer), initialStatus));
         ensureTimelineSizeMatchesLayers();
@@ -448,6 +459,10 @@ int LayersModel::addRestLayer(QString title, QString url, int method, QString pa
 
     setLayersNeedsSave(true);
     return layerIdx;
+}
+
+int LayersModel::addTcpLayer(const QString &title, const QString &commandId) {
+    return addLayer(title, BaseLayer::TCP, commandId, 0, 0);
 }
 
 int LayersModel::getLayerTypeBasedOnMime(QUrl fileUrl) {
@@ -1015,6 +1030,9 @@ void LayersModel::decodeFromJSON(QJsonObject &obj, const QStringList &forRelativ
                         if (o.contains(QStringLiteral("url"))) {
                             path = o.value(QStringLiteral("url")).toString();
                         }
+                    }
+                    else if (type == BaseLayer::TCP) {
+                        path = o.value(QStringLiteral("tcpCommandId")).toString(path);
                     }
 
                     int grid = PresentationSettings::defaultGridModeForLayers();
@@ -1645,6 +1663,10 @@ void LayersModel::encodeToJSON(QJsonObject &obj, const QStringList &forRelativeP
             layerData.insert(QStringLiteral("method"), QJsonValue(restLayer->method()));
             layerData.insert(QStringLiteral("parameters"), QJsonValue(QString::fromStdString(restLayer->parameters())));
         }
+        if (layer->type() == BaseLayer::TCP) {
+            auto *tcp = static_cast<TcpLayer *>(layer.get());
+            layerData.insert(QStringLiteral("tcpCommandId"), QString::fromStdString(tcp->commandId()));
+        }
         if (layer->type() == BaseLayer::VIDEO || layer->type() == BaseLayer::AUDIO || layer->type() == BaseLayer::STREAM || layer->type() == BaseLayer::YOUTUBE) {
             MpvLayer* mpvLayer = static_cast<MpvLayer*>(layer.get());
             if (!mpvLayer->mpvOptionsName().empty()) {
@@ -1906,7 +1928,10 @@ bool LayersModel::runRenderOnLayersThatShouldUpdate(bool updateRendering, bool p
             layer->updateNodeStreamOutput();
             if (m_layers.size() > i && m_layers[i].first->type() != BaseLayer::REST) {
                 int currentStatus = m_layers[i].second;
-                if (layer && layer->ready() && layer->alpha() > 0.f) {
+                if (layer && layer->type() == BaseLayer::TCP) {
+                    m_layers[i].second = static_cast<TcpLayer *>(layer.get())->triggerStatus();
+                }
+                else if (layer && layer->ready() && layer->alpha() > 0.f) {
                     m_layers[i].second = 2;
                 }
                 else if (layer && layer->ready()) {

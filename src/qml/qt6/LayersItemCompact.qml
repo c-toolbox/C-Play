@@ -42,6 +42,11 @@ ItemDelegate {
             return model.type;
         else if(model.type === "Control")
             return model.type + " - " + model.filepath;
+        else if(model.type === "TCP") {
+            var commands = app.tcpControlManager.commands;
+            var servers = app.tcpControlManager.servers;
+            return model.type + " - " + app.tcpControlManager.commandDescription(model.filepath);
+        }
         else if(model.type === "REST")
             return model.type + " - " + model.filepath;
         else if(model.type === "MultiVideo")
@@ -50,6 +55,12 @@ ItemDelegate {
             return model.type + model.page + " - " + model.stereoVideo + " " + model.gridToMapOn;
     }
     function statusToolTipText(status) {
+        if (model.type === "TCP") {
+            if (status === 2) return qsTr("TCP command accepted by transport; device execution is not acknowledged.");
+            if (status === 1) return qsTr("TCP command is being dispatched.");
+            if (status === 0) return qsTr("TCP command rejected: check the command and server connection.");
+            return qsTr("TCP command has not been triggered.");
+        }
         if (status === 2)
             return qsTr("Layer status: Loaded and visible.");
         if (status === 1)
@@ -206,7 +217,7 @@ ItemDelegate {
                 anchors.right: its.right
                 implicitHeight: 25
                 implicitWidth: 100
-                visible: !visibilitySlider.visible && model.type !== "Control" && model.type !== "REST"
+                visible: !visibilitySlider.visible && model.type !== "Control" && model.type !== "REST" && model.type !== "TCP"
 
                 ToolTip.visible: visibilityPreviewMA.containsMouse
                 ToolTip.text: qsTr("Layer visibility: %1%. Select the layer to adjust its opacity.").arg(model.visibility)
@@ -247,7 +258,7 @@ ItemDelegate {
 
                 anchors.bottom: parent.bottom
                 anchors.right: its.right
-                visible: layersView.currentIndex === index && model.type !== "Control" && model.type !== "REST"
+                visible: layersView.currentIndex === index && model.type !== "Control" && model.type !== "REST" && model.type !== "TCP"
                 implicitWidth: 100
                 overlayLabel: qsTr("")
 
@@ -277,7 +288,7 @@ ItemDelegate {
                 anchors.right: its.right
                 implicitHeight: 20
                 implicitWidth: 100
-                visible: layersView.currentIndex !== index && model.type !== "Control" && model.type !== "REST"
+                visible: layersView.currentIndex !== index && model.type !== "Control" && model.type !== "REST" && model.type !== "TCP"
 
                 ToolTip.visible: visibilityTextMA.containsMouse
                 ToolTip.text: qsTr("Layer visibility: %1%. Select the layer to adjust its opacity.").arg(model.visibility)
@@ -521,7 +532,7 @@ ItemDelegate {
     }
     onDoubleClicked: {
         layerView.layerItem.layerIdx = index;
-        if (model.type === "Control" || model.type === "REST") {
+        if (model.type === "Control" || model.type === "REST" || model.type === "TCP") {
             layerView.layerItem.start();
         } else if (layerView.layerItem.layerVisibility === 100 && !visibility_fade_out_animation.running) {
             visibility_fade_out_animation.start();

@@ -5,9 +5,9 @@
  * SPDX-License-Identifier: GPL-3.0-or-later
  */
 
+#include "streamsettings.h"
 #include "ytdlpresolver.h"
 
-#include "playbacksettings.h"
 
 #include <sgct/sgct.h>
 
@@ -76,7 +76,7 @@ bool isYouTubeUrl(const std::string& path) {
 
 std::string resolveYtdlpPath() {
     // 1. Explicit setting, if it points at an existing file (or a folder containing one).
-    const QString configured = PlaybackSettings::ytdlpPath();
+    const QString configured = StreamSettings::ytdlpPath();
     if (!configured.isEmpty()) {
         QFileInfo fi(configured);
         if (fi.isFile())

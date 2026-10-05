@@ -63,6 +63,10 @@
 #include "playbacksettings.h"
 #include "playlistsettings.h"
 #include "presentationsettings.h"
+#include "streamsettings.h"
+#include "tcpcontrolsettings.h"
+#include "tcpcontrolclient.h"
+#include <QStandardPaths>
 #include "subtitlesettings.h"
 #include "userinterfacesettings.h"
 
@@ -190,6 +194,9 @@ Application::Application(int &argc, char **argv, const QString &applicationName)
     m_streamsModel = new StreamModel(this);
     m_mpvOptionsModel = new MpvOptionsModel(this);
     m_httpClientModel = new HttpClientModel(this);
+    m_tcpControlManager = new TcpControlManager(this,
+        QStandardPaths::writableLocation(QStandardPaths::GenericConfigLocation)
+            + QStringLiteral("/C-Play/tcp-control.json"));
     m_ytdlpMetadataModel = new YtdlpMetadataModel(this);
 #ifdef CLUX_SUPPORT
     m_cluxClient = new CLuxClient(this);
@@ -403,13 +410,19 @@ void Application::registerQmlTypes() {
 }
 
 void Application::setupQmlSettingsTypes() {
+    qmlRegisterSingletonInstance("org.ctoolbox.cplay", 1, 0, "TcpControlSettings", TcpControlSettings::self());
+    qmlRegisterUncreatableType<TcpControlClient>("org.ctoolbox.cplay", 1, 0, "TcpControlClient",
+                                               QStringLiteral("Owned by PlayerController"));
+    qmlRegisterUncreatableType<TcpControlManager>("org.ctoolbox.cplay", 1, 0, "TcpControlManager",
+                                                QStringLiteral("Owned by Application"));
     qmlRegisterSingletonInstance("org.ctoolbox.cplay", 1, 0, "AudioSettings", AudioSettings::self());
     qmlRegisterSingletonInstance("org.ctoolbox.cplay", 1, 0, "GridSettings", GridSettings::self());
     qmlRegisterSingletonInstance("org.ctoolbox.cplay", 1, 0, "ImageSettings", ImageSettings::self());
     qmlRegisterSingletonInstance("org.ctoolbox.cplay", 1, 0, "LoggingSettings", LoggingSettings::self());
     qmlRegisterSingletonInstance("org.ctoolbox.cplay", 1, 0, "PresentationSettings", PresentationSettings::self());
+    qmlRegisterSingletonInstance("org.ctoolbox.cplay", 1, 0, "StreamSettings", StreamSettings::self());
     BaseLayer::applyNodeStreamSettings();
-    QObject::connect(PresentationSettings::self(), &KCoreConfigSkeleton::configChanged, this, [this] {
+    QObject::connect(StreamSettings::self(), &KCoreConfigSkeleton::configChanged, this, [this] {
         const bool preferNdiBefore = BaseLayer::nodeStreamPreferNdi();
         BaseLayer::applyNodeStreamSettings();
         // Layers without a per-layer override follow the global NDI preference, so they

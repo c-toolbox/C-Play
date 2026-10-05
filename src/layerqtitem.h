@@ -134,6 +134,7 @@ class LayerQtItem : public QQuickItem {
     Q_PROPERTY(QString layerOperation READ layerOperation WRITE setLayerOperation NOTIFY layerValueChanged)
     Q_PROPERTY(QString layerParameter READ layerParameter WRITE setLayerParameter NOTIFY layerValueChanged)
     Q_PROPERTY(QString layerRestUrl READ layerRestUrl WRITE setLayerRestUrl NOTIFY layerValueChanged)
+    Q_PROPERTY(QString layerTcpCommandId READ layerTcpCommandId WRITE setLayerTcpCommandId NOTIFY layerValueChanged)
     Q_PROPERTY(QString layerWhepUrl READ layerWhepUrl WRITE setLayerWhepUrl NOTIFY layerValueChanged)
     // HTTP Basic auth for a WebRTC (WHEP) layer, sent as an Authorization header on the WHEP request.
     Q_PROPERTY(QString layerWhepAuthUsername READ layerWhepAuthUsername WRITE setLayerWhepAuthUsername NOTIFY layerValueChanged)
@@ -392,6 +393,8 @@ public:
     void setLayerParameter(QString param);
 
     QString layerRestUrl() const;
+    QString layerTcpCommandId() const;
+    void setLayerTcpCommandId(const QString &id);
     void setLayerRestUrl(QString url);
 
     QString layerWhepUrl() const;

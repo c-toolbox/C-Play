@@ -37,6 +37,7 @@ class LayersRendererQtItem;
 #include <layers/streammodel.h>
 #include <layers/mpvoptionsmodel.h>
 #include "httpclientmodel.h"
+#include "tcpcontrolmanager.h"
 #include "utils/ytdlpmetadata.h"
 #ifdef CLUX_SUPPORT
 #include <clux/cluxclient.h>
@@ -246,6 +247,8 @@ public:
         NOTIFY httpClientModelChanged)
 
     HttpClientModel* httpClientModel();
+    Q_PROPERTY(TcpControlManager *tcpControlManager READ tcpControlManager CONSTANT)
+    TcpControlManager *tcpControlManager() const { return m_tcpControlManager; }
     void setHttpClientModel(HttpClientModel* model);
 
     // Fetches yt-dlp metadata (video formats / audio tracks / subtitle languages) for a stream
@@ -421,6 +424,7 @@ private:
     StreamModel* m_streamsModel;
     MpvOptionsModel* m_mpvOptionsModel;
     HttpClientModel* m_httpClientModel;
+    TcpControlManager *m_tcpControlManager = nullptr;
     YtdlpMetadataModel* m_ytdlpMetadataModel;
 #ifdef CLUX_SUPPORT
     CLuxClient* m_cluxClient;

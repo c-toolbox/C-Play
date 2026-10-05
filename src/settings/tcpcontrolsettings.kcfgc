@@ -1,0 +1,8 @@
+# SPDX-License-Identifier: GPL-3.0-or-later
+File=tcpcontrolsettings.kcfg
+ClassName=TcpControlSettings
+Mutators=true
+DefaultValueGetters=true
+GenerateProperties=true
+ParentInConstructor=true
+Singleton=true

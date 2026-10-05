@@ -186,6 +186,15 @@ Kirigami.ApplicationWindow {
                             layersAddNew.visible = false;
                             app.slides.updateSelectedSlide();
                             mpv.focus = true;
+                        } else if (layerCoreProps.typeComboBox.currentText === "TCP") {
+                            if (layerCoreProps.tcpCommandsComboBox.currentIndex < 0)
+                                return;
+                            layerView.layerItem.layerIdx = app.slides.selected.addTcpLayer(
+                                layerCoreProps.layerTitle.text || layerCoreProps.tcpCommandsComboBox.currentText,
+                                layerCoreProps.tcpCommandsComboBox.currentValue);
+                            layersAddNew.visible = false;
+                            app.slides.updateSelectedSlide();
+                            mpv.focus = true;
                         } else if (layerCoreProps.typeComboBox.currentText === "REST") {
                             var restUrl;
                             if(layerCoreProps.restCommandsLayout.customEntry) {

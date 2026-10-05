@@ -5,9 +5,9 @@
  * SPDX-License-Identifier: GPL-3.0-or-later
  */
 
+#include "streamsettings.h"
 #include "ndilayer.h"
 #include "audiosettings.h"
-#include "presentationsettings.h"
 #include <sgct/sgct.h>
 #include <cstdint>
 #include <cstddef>
@@ -287,7 +287,7 @@ NdiLayer::NdiLayer() {
     NDIreceiver.ResetFps(30.0);
 
     // Applied when the render context first opens the receiver.
-    m_gpuConversionEnabled = PresentationSettings::ndiReceiveGpuConversion();
+    m_gpuConversionEnabled = StreamSettings::ndiReceiveGpuConversion();
 
     m_qrProcessor = std::make_unique<QRCommandProcessor>();
     m_qrProcessor->setCommandCallback([this](const QRCommand& cmd) {

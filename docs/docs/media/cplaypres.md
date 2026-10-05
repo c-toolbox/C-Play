@@ -81,6 +81,7 @@ Here you can choose from the following layer types:
 | **YouTube** | A single YouTube video URL (watch, shorts or youtu.be) played as video-on-demand with full player controls, resolved by the external yt-dlp tool. |
 | **Control** | Non-visual automation commands for playback, fades, loading, and timing control. |
 | **REST** | Non-visual HTTP or WebSocket request fired when the slide is triggered (e.g. control lighting, projectors, OBS Studio, or other applications). |
+| **TCP** | Non-visual saved command sent through a persistent connection to a configured TCP server. |
 
 The file-based layer types *Image*, *Video*, *Audio*, and *PDF* are chosen through file dialogs. The default dialog locations of each of these types can be changed in "Settings -> Configure -> Location", as seen [here](/settings/location).
 
@@ -240,6 +241,12 @@ In the layer view for a REST layer, three fields are shown:
 When the slide is loaded, the REST layer fires the configured request on a background thread and reports success or failure.
 
 For more details on the REST layer and the REST Commands Editor, see the [HTTP Web API documentation](/remote-control/api#rest-layer).
+
+### TCP layer
+
+Choose **TCP** to trigger a reusable command through one of C-Play's persistent TCP server connections. Define servers and text or binary commands in **Settings → Configure → TCP control**, then select a command when adding the layer. Each server keeps its own connection, so multiple layers can send different commands to different devices.
+
+The layer fires when started. Double-click it or press **Trigger** in its layer view to send manually; the layer view also lets you choose another command. Its status indicates whether the transport accepted the command, not whether the device executed it. Disconnected commands are rejected and are never replayed after reconnect. See [TCP control client](/remote-control/tcp) for framing, persistence, and examples.
 
 After you have added a new layer, you can specify its parameters in more detail through the *"Layer View"*. Here you control grid and stereo parameters, the volume level if applicable, and inspect how the output looks.
 

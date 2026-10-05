@@ -66,12 +66,6 @@
       <label>MPV render API type used for video rendering (0 = OpenGL, 1 = OpenGL Next)</label>
       <default>0</default>
     </entry>
-    <entry name="YtdlpPath" type="String">
-      <label>Path to yt-dlp executable (used for YouTube URLs in Stream layers; empty = auto-detect next to C-Play or on PATH)</label>
-    </entry>
-    <entry name="YtdlFormat" type="String">
-      <label>yt-dlp format selector passed to mpv ytdl_hook (empty = mpv/yt-dlp default)</label>
-    </entry>
     <entry name="UseFrameSyncCorrection" type="bool">
       <label>Use frame sync correction (progressive speed adjustment + hard seek to stay in sync)</label>
       <default>false</default>

@@ -11,6 +11,7 @@
 #include <QObject>
 #include <QStringList>
 #include <QVariantMap>
+#include "tcpcontrolclient.h"
 
 class MpvObject;
 class HttpServerThread;
@@ -22,12 +23,15 @@ class PlayerController : public QObject {
 
     Q_PROPERTY(MpvObject *mpv READ mpv WRITE setMpv NOTIFY mpvChanged)
     Q_PROPERTY(SlidesModel *slides READ slidesModel WRITE setSlidesModel NOTIFY slidesModelChanged)
+    Q_PROPERTY(QString tcpControlError READ tcpControlError NOTIFY tcpControlErrorChanged)
 
 public:
     explicit PlayerController(QObject *parent = nullptr);
     ~PlayerController() = default;
 
     void setupConnections();
+    QString tcpControlError() const { return m_tcpControlError; }
+    Q_INVOKABLE void applyTcpControlSettings();
 
     Q_PROPERTY(bool nodeWindowsOnTop
         READ nodeWindowsOnTop
@@ -174,6 +178,7 @@ public Q_SLOTS:
     void setCaptureBackBuffer(bool backBuffer);
 
 Q_SIGNALS:
+    void tcpControlErrorChanged();
     void quitCPlay();
     void next();
     void previous();
@@ -211,6 +216,8 @@ Q_SIGNALS:
     void nodeLoadFailuresChanged();
 
 private:
+    bool resolveTcpControlSelection(const QString &operation, const QString &parameter, int &index) const;
+    QString m_tcpControlError;
     MpvObject *mpv() const;
     void setMpv(MpvObject *mpv);
 

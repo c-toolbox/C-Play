@@ -728,6 +728,41 @@ Kirigami.ApplicationWindow {
         height: parent.height - toolBarLayerView.height
         width: parent.width
 
+        ColumnLayout {
+            anchors.centerIn: parent
+            width: Math.min(parent.width - 40, 600)
+            visible: layerViewItem.layerTypeName === "TCP"
+            Label { text: qsTr("TCP command:") }
+            ComboBox {
+                Layout.fillWidth: true
+                model: app.tcpControlManager.commands
+                textRole: "name"
+                valueRole: "id"
+                currentIndex: {
+                    var commands = app.tcpControlManager.commands;
+                    for (var i = 0; i < commands.length; ++i)
+                        if (commands[i].id === layerViewItem.layerTcpCommandId) return i;
+                    return -1;
+                }
+                onActivated: layerViewItem.layerTcpCommandId = currentValue
+            }
+            Label {
+                Layout.fillWidth: true
+                wrapMode: Text.WordWrap
+                text: {
+                    var commands = app.tcpControlManager.commands;
+                    var servers = app.tcpControlManager.servers;
+                    return app.tcpControlManager.commandDescription(layerViewItem.layerTcpCommandId);
+                }
+            }
+            Button { text: qsTr("Trigger"); onClicked: layerViewItem.start() }
+            Label {
+                Layout.fillWidth: true
+                wrapMode: Text.WordWrap
+                text: app.tcpControlManager.lastError
+            }
+        }
+
         Label {
             id: noLayerLabel
 

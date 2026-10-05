@@ -5,6 +5,7 @@
  * SPDX-License-Identifier: GPL-3.0-or-later
  */
 
+#include "streamsettings.h"
 #include "layersrendererqtitem.h"
 #include "application.h"
 #include "layersmodel.h"
@@ -777,7 +778,7 @@ void LayersRendererQtItem::updateCameraMatrices() {
 void LayersRendererQtItem::updateNdiTarget() {
     // 0 = 2K, 1 = 4K, 2 = 6K, 3 = 8K. The perspective camera keeps a 16:9 aspect ratio,
     // the fisheye (fulldome) camera a square one.
-    const int tier = std::clamp(UserInterfaceSettings::ndiResolution3DView(), 0, 3);
+    const int tier = std::clamp(StreamSettings::ndiResolution3DView(), 0, 3);
     const int scale = tier + 1;
 
     const int width = m_renderAsFisheye ? 2048 * scale : 1920 * scale;

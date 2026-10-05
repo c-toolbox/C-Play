@@ -24,7 +24,7 @@ namespace YtdlpResolver {
 bool isYouTubeUrl(const std::string& path);
 
 // Locate the yt-dlp executable on this machine:
-//   1. PlaybackSettings::ytdlpPath() when non-empty and pointing at an existing file (or a
+//   1. StreamSettings::ytdlpPath() when non-empty and pointing at an existing file (or a
 //      folder containing one).
 //   2. "yt-dlp.exe" (or "yt-dlp") next to C-Play.exe, or inside a "yt-dlp" folder there.
 //   3. "<working directory>/plugins/yt-dlp(.exe)" - also checked relative to the application

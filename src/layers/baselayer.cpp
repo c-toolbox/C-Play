@@ -5,6 +5,7 @@
  * SPDX-License-Identifier: GPL-3.0-or-later
  */
 
+#include "streamsettings.h"
 #include "baselayer.h"
 #include <layers/imagelayer.h>
 #ifdef VIDEO_LAYER
@@ -61,6 +62,7 @@
 #ifdef REST_LAYER
 #include <layers/restlayer.h>
 #endif
+#include <layers/tcplayer.h>
 #ifdef WEBRTC_LAYER
 #include <webrtc/webrtclayer.h>
 #endif
@@ -145,6 +147,8 @@ std::string BaseLayer::typeDescription(BaseLayer::LayerType e) {
     case NODESTREAM:
         return "NodeStream";
 #endif
+    case TCP:
+        return "TCP";
     default:
         return "";
     }
@@ -268,6 +272,10 @@ BaseLayer *BaseLayer::createLayer(bool isMaster, int layerType, FUNC_V1, FUNC_V2
         break;
     }
 #endif
+    case static_cast<int>(BaseLayer::LayerType::TCP): {
+        newLayer = new TcpLayer();
+        break;
+    }
 #ifdef WEBRTC_LAYER
     case static_cast<int>(BaseLayer::LayerType::WEBRTC): {
         WebRTCLayer* newWebRtc = new WebRTCLayer();
@@ -1502,22 +1510,22 @@ bool BaseLayer::nodeStreamOutputSupported() {
 void BaseLayer::applyNodeStreamSettings() {
 #if defined(NODE_STREAM_SUPPORT) && defined(NETWORK_SYNC_SETTINGS)
     NodeStreamSettings settings;
-    settings.baseGroup = PresentationSettings::nodeStreamBaseGroup().trimmed().toStdString();
+    settings.baseGroup = StreamSettings::nodeStreamBaseGroup().trimmed().toStdString();
     if (settings.baseGroup.empty())
         settings.baseGroup = nodestream::kDefaultGroup;
-    settings.basePort = PresentationSettings::nodeStreamBasePort();
-    settings.interfaceAddress = PresentationSettings::nodeStreamInterface().trimmed().toStdString();
-    settings.ttl = PresentationSettings::nodeStreamTTL();
-    settings.maxDatagram = PresentationSettings::nodeStreamMaxDatagram();
-    settings.rateMbps = PresentationSettings::nodeStreamRateMbps();
-    settings.lz4 = PresentationSettings::nodeStreamCompressLz4();
-    settings.deltaFrames = PresentationSettings::nodeStreamDeltaFrames();
-    settings.keyframeIntervalMs = PresentationSettings::nodeStreamKeyframeIntervalMs();
-    settings.frameLockedWaitMs = PresentationSettings::nodeStreamFrameLockedWaitMs();
-    settings.latencyGuardMs = PresentationSettings::nodeStreamLatencyGuardMs();
-    settings.allowPartialFrames = PresentationSettings::nodeStreamAllowPartialFrames();
-    settings.loopback = PresentationSettings::nodeStreamLoopback();
-    settings.preferNdi = PresentationSettings::nodeStreamPreferNdi();
+    settings.basePort = StreamSettings::nodeStreamBasePort();
+    settings.interfaceAddress = StreamSettings::nodeStreamInterface().trimmed().toStdString();
+    settings.ttl = StreamSettings::nodeStreamTTL();
+    settings.maxDatagram = StreamSettings::nodeStreamMaxDatagram();
+    settings.rateMbps = StreamSettings::nodeStreamRateMbps();
+    settings.lz4 = StreamSettings::nodeStreamCompressLz4();
+    settings.deltaFrames = StreamSettings::nodeStreamDeltaFrames();
+    settings.keyframeIntervalMs = StreamSettings::nodeStreamKeyframeIntervalMs();
+    settings.frameLockedWaitMs = StreamSettings::nodeStreamFrameLockedWaitMs();
+    settings.latencyGuardMs = StreamSettings::nodeStreamLatencyGuardMs();
+    settings.allowPartialFrames = StreamSettings::nodeStreamAllowPartialFrames();
+    settings.loopback = StreamSettings::nodeStreamLoopback();
+    settings.preferNdi = StreamSettings::nodeStreamPreferNdi();
     std::lock_guard<std::mutex> lock(g_nodeStreamSettingsMutex);
     g_nodeStreamSettings = settings;
 #endif

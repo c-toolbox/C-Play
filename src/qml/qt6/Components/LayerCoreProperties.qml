@@ -55,6 +55,7 @@ GridLayout {
     property alias controlParameterField: controlParameterField
     property alias restCommandsLayout: restCommandsLayout
     property alias restCommandsComboBox: restCommandsComboBox
+    property alias tcpCommandsComboBox: tcpCommandsComboBox
     property alias restCustomUrlField: restCustomUrlField
     property alias restMethodComboBox: restMethodComboBox
     property alias restIgnoreStatusCheckBox: restIgnoreStatusCheckBox
@@ -459,11 +460,11 @@ GridLayout {
         Layout.alignment: Qt.AlignRight
         font.pointSize: 9
         text: qsTr("File:")
-        visible: typeComboBox.currentText != "Stream" && typeComboBox.currentText != "YouTube" && typeComboBox.currentText != "DirectShow"&& typeComboBox.currentText != "NDI" && typeComboBox.currentText != "Spout" && typeComboBox.currentText != "OMT" && typeComboBox.currentText != "WebRTC" && typeComboBox.currentText != "Text" && typeComboBox.currentText != "Control" && typeComboBox.currentText != "REST"
+        visible: typeComboBox.currentText != "Stream" && typeComboBox.currentText != "YouTube" && typeComboBox.currentText != "DirectShow"&& typeComboBox.currentText != "NDI" && typeComboBox.currentText != "Spout" && typeComboBox.currentText != "OMT" && typeComboBox.currentText != "WebRTC" && typeComboBox.currentText != "Text" && typeComboBox.currentText != "Control" && typeComboBox.currentText != "REST" && typeComboBox.currentText != "TCP"
     }
     RowLayout {
         Layout.fillWidth: true
-        visible: typeComboBox.currentText != "Stream" && typeComboBox.currentText != "YouTube" && typeComboBox.currentText != "DirectShow" && typeComboBox.currentText != "NDI" && typeComboBox.currentText != "Spout" && typeComboBox.currentText != "OMT" && typeComboBox.currentText != "WebRTC" && typeComboBox.currentText != "Text" && typeComboBox.currentText != "Control" && typeComboBox.currentText != "REST"
+        visible: typeComboBox.currentText != "Stream" && typeComboBox.currentText != "YouTube" && typeComboBox.currentText != "DirectShow" && typeComboBox.currentText != "NDI" && typeComboBox.currentText != "Spout" && typeComboBox.currentText != "OMT" && typeComboBox.currentText != "WebRTC" && typeComboBox.currentText != "Text" && typeComboBox.currentText != "Control" && typeComboBox.currentText != "REST" && typeComboBox.currentText != "TCP"
 
         TextField {
             id: fileForLayer
@@ -1141,7 +1142,7 @@ GridLayout {
     Label {
         Layout.alignment: Qt.AlignRight
         text: qsTr("Stereo:")
-        visible: showStereoParams && typeComboBox.currentText !== "Audio" && typeComboBox.currentText !== "Text" && typeComboBox.currentText !== "Control" && typeComboBox.currentText !== "REST"
+        visible: showStereoParams && typeComboBox.currentText !== "Audio" && typeComboBox.currentText !== "Text" && typeComboBox.currentText !== "Control" && typeComboBox.currentText !== "REST" && typeComboBox.currentText !== "TCP"
     }
     ComboBox {
         id: stereoscopicModeForLayer
@@ -1149,7 +1150,7 @@ GridLayout {
         Layout.fillWidth: true
         focusPolicy: Qt.NoFocus
         textRole: "mode"
-        visible: showStereoParams && typeComboBox.currentText !== "Audio" && typeComboBox.currentText !== "Text" && typeComboBox.currentText !== "Control" && typeComboBox.currentText !== "REST"
+        visible: showStereoParams && typeComboBox.currentText !== "Audio" && typeComboBox.currentText !== "Text" && typeComboBox.currentText !== "Control" && typeComboBox.currentText !== "REST" && typeComboBox.currentText !== "TCP"
 
         model: ListModel {
             id: stereoscopicModeForLayerList
@@ -1177,14 +1178,14 @@ GridLayout {
         onActivated: {}
     }
     Item {
-        visible: root.showSpacers && typeComboBox.currentText !== "Audio" && typeComboBox.currentText !== "Text" && typeComboBox.currentText !== "Control" && typeComboBox.currentText !== "REST"
+        visible: root.showSpacers && typeComboBox.currentText !== "Audio" && typeComboBox.currentText !== "Text" && typeComboBox.currentText !== "Control" && typeComboBox.currentText !== "REST" && typeComboBox.currentText !== "TCP"
         Layout.fillWidth: true
     }
 
     Label {
         Layout.alignment: Qt.AlignRight
         text: qsTr("Grid:")
-        visible: showGridParams && typeComboBox.currentText !== "Audio" && typeComboBox.currentText !== "Text" && typeComboBox.currentText !== "Control" && typeComboBox.currentText !== "REST"
+        visible: showGridParams && typeComboBox.currentText !== "Audio" && typeComboBox.currentText !== "Text" && typeComboBox.currentText !== "Control" && typeComboBox.currentText !== "REST" && typeComboBox.currentText !== "TCP"
     }
     ComboBox {
         id: gridModeForLayer
@@ -1192,7 +1193,7 @@ GridLayout {
         Layout.fillWidth: true
         focusPolicy: Qt.NoFocus
         textRole: "mode"
-        visible: showGridParams && typeComboBox.currentText !== "Audio" && typeComboBox.currentText !== "Text" && typeComboBox.currentText !== "Control" && typeComboBox.currentText !== "REST"
+        visible: showGridParams && typeComboBox.currentText !== "Audio" && typeComboBox.currentText !== "Text" && typeComboBox.currentText !== "Control" && typeComboBox.currentText !== "REST" && typeComboBox.currentText !== "TCP"
 
         model: ListModel {
             id: gridModeForLayerList
@@ -1223,7 +1224,7 @@ GridLayout {
         onActivated: {}
     }
     Item {
-        visible: root.showSpacers && typeComboBox.currentText !== "Audio" && typeComboBox.currentText !== "Text" && typeComboBox.currentText !== "Control" && typeComboBox.currentText !== "REST"
+        visible: root.showSpacers && typeComboBox.currentText !== "Audio" && typeComboBox.currentText !== "Text" && typeComboBox.currentText !== "Control" && typeComboBox.currentText !== "REST" && typeComboBox.currentText !== "TCP"
         Layout.fillWidth: true
     }
 
@@ -1303,6 +1304,29 @@ GridLayout {
     Item {
         visible: root.showSpacers && typeComboBox.currentText === "Control" && controlNeedsParam()
         Layout.fillWidth: true
+    }
+
+    Label {
+        text: qsTr("TCP command:")
+        visible: typeComboBox.currentText === "TCP"
+    }
+    ComboBox {
+        id: tcpCommandsComboBox
+        Layout.fillWidth: true
+        visible: typeComboBox.currentText === "TCP"
+        model: app.tcpControlManager.commands
+        textRole: "name"
+        valueRole: "id"
+        onActivated: layerTitle.text = currentText
+    }
+    Label {
+        Layout.columnSpan: 2
+        Layout.fillWidth: true
+        wrapMode: Text.WordWrap
+        visible: typeComboBox.currentText === "TCP"
+        text: tcpCommandsComboBox.currentIndex >= 0
+            ? app.tcpControlManager.commandDescription(tcpCommandsComboBox.currentValue)
+            : qsTr("Define servers and commands in Settings → TCP control first.")
     }
 
     // --- REST layer section ---
@@ -1616,14 +1640,14 @@ GridLayout {
     }
 
     Item {
-        enabled: typeComboBox.currentText != "Text" && typeComboBox.currentText != "Control" && typeComboBox.currentText != "REST"
+        enabled: typeComboBox.currentText != "Text" && typeComboBox.currentText != "Control" && typeComboBox.currentText != "REST" && typeComboBox.currentText != "TCP"
         Layout.columnSpan: 2
         Layout.fillHeight: true
         // spacer item
         Layout.fillWidth: true
     }
     Item {
-        visible: root.showSpacers && typeComboBox.currentText != "Text" && typeComboBox.currentText != "Control" && typeComboBox.currentText != "REST"
+        visible: root.showSpacers && typeComboBox.currentText != "Text" && typeComboBox.currentText != "Control" && typeComboBox.currentText != "REST" && typeComboBox.currentText != "TCP"
         Layout.fillWidth: true
     }
 

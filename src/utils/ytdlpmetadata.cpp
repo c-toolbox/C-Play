@@ -5,9 +5,9 @@
  * SPDX-License-Identifier: GPL-3.0-or-later
  */
 
+#include "streamsettings.h"
 #include "ytdlpmetadata.h"
 #include "ytdlpresolver.h"
-#include "playbacksettings.h"
 
 #include <sgct/sgct.h>
 
@@ -827,7 +827,7 @@ void YtdlpMetadataModel::fetch(const QString& url) {
 
     const QString ytdlpPath = QString::fromStdString(YtdlpResolver::resolveYtdlpPath());
     // Read on the main thread so the worker never touches KConfig.
-    const QString configuredFormat = PlaybackSettings::ytdlFormat().trimmed();
+    const QString configuredFormat = StreamSettings::ytdlFormat().trimmed();
     {
         std::lock_guard<std::mutex> lock(m_mutex);
         m_errorText.clear();

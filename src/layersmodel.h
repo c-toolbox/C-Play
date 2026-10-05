@@ -110,6 +110,7 @@ public:
     Q_INVOKABLE int maxLayerStatus();
 
     Q_INVOKABLE int addLayer(QString title, int type, QString filepath, int stereoMode, int gridMode);
+    Q_INVOKABLE int addTcpLayer(const QString &title, const QString &commandId);
     // Add a REST layer with its request fully specified up front (used by the C-Lux editor
     // to attach scene actions to slides). Returns the new layer index or -1 on failure.
     Q_INVOKABLE int addRestLayer(QString title, QString url, int method, QString parameters, bool ignoreStatus);

@@ -19,10 +19,13 @@
 #include "tracksmodel.h"
 #include "layers/imagelayer.h"
 #include "utils/imagesequenceutils.h"
+#include "tcpcontrolsettings.h"
+#include "tcpcontrolcommandadapter.h"
 
 #include <QDir>
 #include <QFileInfo>
 #include <QSet>
+#include <QRegularExpression>
 
 #ifdef SAIL_SUPPORT
 #include <sail-c++/sail-c++.h>
@@ -70,6 +73,64 @@ PlayerController::PlayerController(QObject *parent)
 
     setupHttpServer();
 
+    auto *tcpManager = Application::instance().tcpControlManager();
+    auto *tcpAdapter = new TcpControlCommandAdapter(this);
+    connect(tcpManager, &TcpControlManager::controlMessageReceived, tcpAdapter,
+        [tcpAdapter](const QString &, const QByteArray &payload) { tcpAdapter->parseMessage(payload); });
+    const auto tcpError = [this](const QString &error) {
+        m_tcpControlError = error;
+        Q_EMIT tcpControlErrorChanged();
+        qWarning().noquote() << "TCP control:" << error;
+    };
+    connect(tcpAdapter, &TcpControlCommandAdapter::protocolError, this, tcpError);
+    connect(tcpManager, &TcpControlManager::serverError, this,
+        [tcpError](const QString &id, const QString &error) { tcpError(id + QStringLiteral(": ") + error); });
+    connect(tcpAdapter, &TcpControlCommandAdapter::commandReceived, this,
+            [this, tcpError](const QString &operation, const QString &parameter) {
+        if (!ConfigModel::instance().isMaster() || !m_mpv || !m_slidesModel) {
+            tcpError(tr("TCP command rejected: player is not ready"));
+            return;
+        }
+        m_tcpControlError.clear();
+        Q_EMIT tcpControlErrorChanged();
+        QString dispatchParameter = parameter;
+        if (operation == QStringLiteral("LoadFromAudioTracks") || operation == QStringLiteral("LoadFromPlaylist")
+            || operation == QStringLiteral("LoadFromSections") || operation == QStringLiteral("LoadFromSlides")) {
+            int index = -1;
+            if (!resolveTcpControlSelection(operation, parameter, index)) {
+                tcpError(tr("TCP selection does not exist: %1").arg(parameter));
+                return;
+            }
+            dispatchParameter = QString::number(index);
+        }
+        DispatchControlOperation(operation, dispatchParameter);
+    });
+    connect(this, &PlayerController::mpvChanged, this, &PlayerController::applyTcpControlSettings);
+    connect(this, &PlayerController::slidesModelChanged, this, &PlayerController::applyTcpControlSettings);
+    connect(&ConfigModel::instance(), &ConfigModel::runtimeRoleChanged,
+            this, &PlayerController::applyTcpControlSettings);
+    connect(QCoreApplication::instance(), &QCoreApplication::aboutToQuit, tcpManager,
+            [tcpManager] { tcpManager->setActive(false); });
+
+    // Migrate the original single-server settings once. Never replace an existing
+    // multi-server file (including a malformed file that the operator must repair).
+    if (!QFileInfo::exists(tcpManager->configurationPath()) && TcpControlSettings::enabled()) {
+        QVariantMap legacy {
+            {QStringLiteral("name"), tr("Legacy TCP control")}, {QStringLiteral("host"), TcpControlSettings::host()},
+            {QStringLiteral("port"), TcpControlSettings::port()}, {QStringLiteral("enabled"), true}, {QStringLiteral("acceptControlCommands"), true},
+            {QStringLiteral("autoReconnect"), TcpControlSettings::autoReconnect()},
+            {QStringLiteral("connectTimeoutMs"), TcpControlSettings::connectTimeoutMs()},
+            {QStringLiteral("retryInitialMs"), TcpControlSettings::retryInitialMs()},
+            {QStringLiteral("retryMaximumMs"), TcpControlSettings::retryMaximumMs()},
+            {QStringLiteral("stableConnectionMs"), TcpControlSettings::stableConnectionMs()},
+            {QStringLiteral("framing"), TcpControlSettings::framingMode()},
+            {QStringLiteral("receiveTerminatorHex"), TcpControlSettings::receiveTerminatorHex()},
+            {QStringLiteral("sendTerminatorHex"), TcpControlSettings::sendTerminatorHex()},
+            {QStringLiteral("maximumMessageBytes"), TcpControlSettings::maximumMessageBytes()},
+            {QStringLiteral("maximumPendingWriteBytes"), TcpControlSettings::maximumPendingWriteBytes()}
+        };
+        tcpManager->saveServer(legacy);
+    }
     setBackgroundImageFile(ImageSettings::imageToLoadAsBackground());
     setBackgroundGridMode(ImageSettings::gridToMapOnForBackground());
     setBackgroundStereoMode(ImageSettings::stereoModeForBackground());
@@ -92,6 +153,52 @@ PlayerController::PlayerController(QObject *parent)
     ControlLayer::setDispatchCallback([this](const std::string& operation, const std::string& parameter) {
         DispatchControlOperation(QString::fromStdString(operation), QString::fromStdString(parameter));
     });
+}
+
+void PlayerController::applyTcpControlSettings() {
+    Application::instance().tcpControlManager()->setActive(
+        ConfigModel::instance().isMaster() && m_mpv && m_slidesModel);
+}
+
+bool PlayerController::resolveTcpControlSelection(const QString &operation, const QString &parameter, int &index) const {
+    QList<QStringList> names;
+    if (operation == QStringLiteral("LoadFromAudioTracks")) {
+        auto *model = m_mpv->audioTracksModel();
+        if (!model)
+            return false;
+        for (int i = 0; i < model->rowCount(); ++i)
+            names.append(QStringList { model->data(model->index(i, 0), Qt::DisplayRole).toString() });
+    } else if (operation == QStringLiteral("LoadFromPlaylist")) {
+        auto *model = m_mpv->playlistModel();
+        if (!model)
+            return false;
+        for (int i = 0; i < model->getPlayListSize(); ++i)
+            names.append(QStringList { model->mediaTitle(i), model->listTitle(i), model->fileName(i) });
+    } else if (operation == QStringLiteral("LoadFromSections")) {
+        auto *model = m_mpv->playSectionsModel();
+        if (!model)
+            return false;
+        for (int i = 0; i < model->getNumberOfSections(); ++i)
+            names.append(QStringList { model->sectionTitle(i) });
+    } else if (operation == QStringLiteral("LoadFromSlides")) {
+        for (int i = 0; i < m_slidesModel->numberOfSlides(); ++i) {
+            auto *slide = m_slidesModel->slide(i);
+            names.append(slide ? QStringList { slide->getLayersName() } : QStringList());
+        }
+    } else {
+        return false;
+    }
+    bool numeric = false;
+    index = parameter.toInt(&numeric);
+    if (numeric)
+        return index >= 0 && index < names.size() && !names.at(index).isEmpty();
+    for (int i = 0; i < names.size(); ++i) {
+        if (names.at(i).contains(parameter)) {
+            index = i;
+            return true;
+        }
+    }
+    return false;
 }
 
 void PlayerController::setupConnections() {

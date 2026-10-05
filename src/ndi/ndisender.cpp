@@ -5,6 +5,7 @@
  * SPDX-License-Identifier: GPL-3.0-or-later
  */
 
+#include "streamsettings.h"
 #include "ndisender.h"
 
 #include <layers/baselayer.h>
@@ -13,7 +14,6 @@
 
 #ifdef NDI_SUPPORT
 #include <ndi/ofxNDI/ofxNDIutils.h>
-#include "presentationsettings.h"
 #include <cstring>
 #include <utility>
 #include <sgct/log.h>
@@ -103,7 +103,7 @@ bool NdiSender::start(const std::string &senderName) {
 
     // The source must be in place before the render thread observes m_enabled.
 #ifdef NDI_SUPPORT
-    m_gpuConversionRequested = PresentationSettings::ndiOutputGpuConversion();
+    m_gpuConversionRequested = StreamSettings::ndiOutputGpuConversion();
 #endif
     m_senderName = senderName;
     m_enabled = true;

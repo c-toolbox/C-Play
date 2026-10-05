@@ -5,10 +5,10 @@
  * SPDX-License-Identifier: GPL-3.0-or-later
  */
 
+#include "streamsettings.h"
 #include "mpvlayer.h"
 #include "application.h"
 #include "audiosettings.h"
-#include "playbacksettings.h"
 #include "track.h"
 #include "qthelper.h"
 #include "utils/framesynccontroller.h"
@@ -311,7 +311,7 @@ bool initMPV(MpvLayer::mpvData& vd) {
         std::vector<std::string> opts;
         if (!ytdlPath.empty())
             opts.push_back("ytdl_hook-ytdl_path=" + ytdlPath);
-        const std::string ytdlFormat = PlaybackSettings::ytdlFormat().toStdString();
+        const std::string ytdlFormat = StreamSettings::ytdlFormat().toStdString();
         if (!ytdlFormat.empty())
             opts.push_back("ytdl_hook-ytdl-format=" + ytdlFormat);
         if (!opts.empty()) {

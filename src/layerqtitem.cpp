@@ -22,6 +22,7 @@
 #include <layers/mpvlayer.h>
 #include <layers/controllayer.h>
 #include <layers/restlayer.h>
+#include <layers/tcplayer.h>
 #ifdef WEBRTC_LAYER
 #include <webrtc/webrtclayer.h>
 #endif
@@ -1479,6 +1480,19 @@ QString LayerQtItem::layerRestUrl() const {
     return QStringLiteral("");
 }
 
+QString LayerQtItem::layerTcpCommandId() const {
+    return m_layer && m_layer->type() == BaseLayer::TCP
+        ? QString::fromStdString(static_cast<TcpLayer *>(m_layer)->commandId()) : QString();
+}
+
+void LayerQtItem::setLayerTcpCommandId(const QString &id) {
+    if (m_layer && m_layer->isEnabled() && m_layer->type() == BaseLayer::TCP && layerTcpCommandId() != id) {
+        static_cast<TcpLayer *>(m_layer)->setCommandId(id.toStdString());
+        Q_EMIT layerValueChanged();
+        Q_EMIT layerNeedsSave();
+    }
+}
+
 void LayerQtItem::setLayerRestUrl(QString url) {
     if (m_layer && m_layer->isEnabled() && m_layer->type() == BaseLayer::REST) {
         RestLayer* restLayer = static_cast<RestLayer*>(m_layer);
@@ -1912,7 +1926,7 @@ void LayerQtItem::createLayer(int type, QString filepath){
 
 void LayerQtItem::start() {
     if (m_layer) {
-        if (m_layer->type() == BaseLayer::CONTROL || m_layer->type() == BaseLayer::REST) {
+        if (m_layer->type() == BaseLayer::CONTROL || m_layer->type() == BaseLayer::REST || m_layer->type() == BaseLayer::TCP) {
             m_layer->start();
         } else if (m_ownsLayer) {
             m_layer->setShouldUpdate(true);
@@ -1923,7 +1937,7 @@ void LayerQtItem::start() {
 
 void LayerQtItem::stop() {
     if (m_layer) {
-        if (m_layer->type() == BaseLayer::CONTROL || m_layer->type() == BaseLayer::REST) {
+        if (m_layer->type() == BaseLayer::CONTROL || m_layer->type() == BaseLayer::REST || m_layer->type() == BaseLayer::TCP) {
             m_layer->stop();
         } else if (m_ownsLayer) {
             m_layer->setShouldUpdate(false);

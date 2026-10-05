@@ -1,0 +1,90 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<!--
+ SPDX-FileCopyrightText: 2021-2026 Erik Sundén <eriksunden85@gmail.com>
+ SPDX-FileCopyrightText: 2020 George Florea Bănuș <georgefb899@gmail.com>
+ SPDX-License-Identifier: GPL-3.0-or-later
+ -->
+<kcfg xmlns="http://www.kde.org/standards/kcfg/1.0"
+      xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance"
+      xsi:schemaLocation="http://www.kde.org/standards/kcfg/1.0
+                          http://www.kde.org/standards/kcfg/1.0/kcfg.xsd" >
+  <kcfgfile name="C-Play/cplay.conf" />
+  <group name="Stream">
+    <entry name="YtdlpPath" type="String">
+      <label>Path to yt-dlp executable (used for YouTube URLs in Stream layers; empty = auto-detect next to C-Play or on PATH)</label>
+    </entry>
+    <entry name="YtdlFormat" type="String">
+      <label>yt-dlp format selector passed to mpv ytdl_hook (empty = mpv/yt-dlp default)</label>
+    </entry>
+    <entry name="NdiReceiveGpuConversion" type="bool">
+      <label>Receive native NDI formats with fastest decoding and convert to RGBA using the GPU, preserving alpha. Recreate NDI layers after changing this setting.</label>
+      <default>true</default>
+    </entry>
+    <entry name="NdiOutputGpuConversion" type="bool">
+      <label>Convert NDI output from RGB to UYVY using the GPU. Restart NDI outputs after changing this setting. Output alpha is discarded.</label>
+      <default>true</default>
+    </entry>
+    <entry name="NodeStreamBaseGroup" type="String">
+      <label>Multicast group of layer streams to the nodes. Each layer uses the next group, unless overridden on the layer.</label>
+      <default>239.192.77.1</default>
+    </entry>
+    <entry name="NodeStreamBasePort" type="int">
+      <label>UDP port of layer streams to the nodes, unless overridden on the layer.</label>
+      <default>50100</default>
+    </entry>
+    <entry name="NodeStreamInterface" type="String">
+      <label>IPv4 address of the master network interface to send from. Empty uses the master address of the cluster configuration.</label>
+      <default></default>
+    </entry>
+    <entry name="NodeStreamTTL" type="int">
+      <label>Multicast time-to-live (number of router hops).</label>
+      <default>1</default>
+    </entry>
+    <entry name="NodeStreamMaxDatagram" type="int">
+      <label>Largest UDP datagram in bytes. 1472 fits a standard 1500 MTU, 8972 fits 9000 byte jumbo frames.</label>
+      <default>1472</default>
+    </entry>
+    <entry name="NodeStreamRateMbps" type="int">
+      <label>Combined send rate limit of all layer streams in Mbit/s. 0 uses 85% of the link speed of the send interface.</label>
+      <default>0</default>
+    </entry>
+    <entry name="NodeStreamCompressLz4" type="bool">
+      <label>Compress the layer streams with LZ4 before sending them to the nodes.</label>
+      <default>false</default>
+    </entry>
+    <entry name="NodeStreamDeltaFrames" type="bool">
+      <label>Send only the regions of a layer that changed since the previous frame, with a full keyframe at the keyframe interval.</label>
+      <default>true</default>
+    </entry>
+    <entry name="NodeStreamKeyframeIntervalMs" type="int">
+      <label>How often a full frame is sent, for nodes that joined late or lost packets, in milliseconds.</label>
+      <default>500</default>
+      <min>50</min>
+      <max>10000</max>
+    </entry>
+    <entry name="NodeStreamFrameLockedWaitMs" type="int">
+      <label>How long a node waits for a late frame in frame-locked mode, in milliseconds.</label>
+      <default>2</default>
+    </entry>
+    <entry name="NodeStreamLatencyGuardMs" type="int">
+      <label>In frame-locked mode, the nodes are told to show a frame only once it has been on the wire this many milliseconds.</label>
+      <default>1</default>
+    </entry>
+    <entry name="NodeStreamAllowPartialFrames" type="bool">
+      <label>Let the nodes show frames with lost packets on top of the previous frame, instead of holding the previous frame.</label>
+      <default>false</default>
+    </entry>
+    <entry name="NodeStreamLoopback" type="bool">
+      <label>Deliver the streams to nodes on the master computer as well.</label>
+      <default>true</default>
+    </entry>
+    <entry name="NodeStreamPreferNdi" type="bool">
+      <label>Prefer streaming the layers to the nodes over NDI, instead of UDP multicast. The nodes then receive the streams with automatically created NDI layers. Can be overridden per layer.</label>
+      <default>true</default>
+    </entry>
+    <entry name="NdiResolution3DView" type="Int">
+      <label>NDI output resolution for the 3D view (0=2K, 1=4K, 2=6K, 3=8K)</label>
+      <default>0</default>
+    </entry>
+  </group>
+</kcfg>

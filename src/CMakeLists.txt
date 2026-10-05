@@ -8,7 +8,7 @@ set(CPLAY_VERSION_MAJOR 2)
 set(CPLAY_VERSION_MINOR 4)
 set(CPLAY_VERSION_PATCH 0)
 set(CPLAY_VERSION_PR_NAME "Beta")
-set(CPLAY_VERSION_PR_VERS 18)
+set(CPLAY_VERSION_PR_VERS 19)
 
 qt_add_executable(${TARGET_NAME})
 set_compile_options(${TARGET_NAME})
@@ -31,6 +31,12 @@ set(SOURCE_FILES
     httpserverthread.h
     httpclientmodel.cpp
     httpclientmodel.h
+    tcpcontrolclient.cpp
+    tcpcontrolclient.h
+    tcpcontrolcommandadapter.cpp
+    tcpcontrolcommandadapter.h
+    tcpcontrolmanager.cpp
+    tcpcontrolmanager.h
     wwsclientmodel.cpp
     wwsclientmodel.h
     layers/audiolayer.cpp
@@ -41,6 +47,8 @@ set(SOURCE_FILES
     layers/controllayer.h
     layers/restlayer.cpp
     layers/restlayer.h
+    layers/tcplayer.cpp
+    layers/tcplayer.h
     layers/imagelayer.cpp
     layers/imagelayer.h
     layers/mpvlayer.cpp
@@ -322,7 +330,9 @@ set(QML_SRC_FILES
     qml/qt6/Settings/PlaybackSettings.qml
     qml/qt6/Settings/PlaylistSettings.qml
     qml/qt6/Settings/PresentationSettings.qml
+    qml/qt6/Settings/StreamingSettings.qml
     qml/qt6/Settings/SubtitleSettings.qml
+    qml/qt6/Settings/TcpControlSettingsPage.qml
     qml/qt6/Settings/UserInterfaceSettings.qml
     qml/qt6/Settings/SettingsEditor.qml
     qml/qt6/Actions.qml
@@ -395,7 +405,9 @@ set(KCFCG_FILE_NAMES
     playbacksettings
     playlistsettings
     presentationsettings
+    streamsettings
     subtitlesettings
+    tcpcontrolsettings
     userinterfacesettings
 )
 set(KCFCG_MOC_FILES "")

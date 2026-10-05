@@ -73,6 +73,7 @@ public:
 #ifdef NODE_STREAM_SUPPORT
         NODESTREAM,
 #endif
+        TCP,
         INVALID
     };
 
