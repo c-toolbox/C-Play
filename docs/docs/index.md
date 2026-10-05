@@ -37,9 +37,9 @@ An additional powerful feature in C-Play is the presentation tool, where you can
 
 - *NDI* or *OMT* (Live video/audio over the network)
 
-- *Spout* or *DirectShow* (Local camera/capture card or texture sharing.)
+- *Spout* or *DirectShow* (Texture sharing from other apps or local camera/capture cards and similiar sources.)
 
-- *Streams* (YouTube etc supported through FFmpeg)
+- *Streams* (Live streaming over SRT (UDP) or RTSP — camera feeds, capture cards, encoders, and other MPV-compatible live inputs)
 
 - *YouTube* (Single video URLs played as VOD layers with full player controls, resolved by yt-dlp *(Added in 2.4)*)
 

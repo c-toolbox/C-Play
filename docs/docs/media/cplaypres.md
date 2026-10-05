@@ -77,7 +77,7 @@ Here you can choose from the following layer types:
 | **Spout** | Live video shared from another Windows application on the same machine. |
 | **DirectShow** | Live camera or capture card input with optional audio, or media files rendered through a Windows DirectShow filter graph using the system's built-in decoders (Windows only). |
 | **WebRTC** | Live video and audio pulled from a WHEP endpoint on the network, e.g. MediaMTX. |
-| **Stream** | RTSP/RMTP, capture cards, camera feeds, or other MPV-compatible live inputs. |
+| **Stream** | Live streaming over SRT (UDP) or RTSP — camera feeds, capture cards, encoders, and other MPV-compatible live inputs. |
 | **YouTube** | A single YouTube video URL (watch, shorts or youtu.be) played as video-on-demand with full player controls, resolved by the external yt-dlp tool. |
 | **Control** | Non-visual automation commands for playback, fades, loading, and timing control. |
 | **REST** | Non-visual HTTP or WebSocket request fired when the slide is triggered (e.g. control lighting, projectors, OBS Studio, or other applications). |
@@ -94,7 +94,20 @@ When choosing *"DirectShow"* (Windows only), **Video device** and **Audio device
 
 When choosing *"WebRTC"*, a **WHEP URL** field becomes visible instead of the file dialog field. Enter the WHEP endpoint of the stream you want to pull, for example `http://mediamtx:8889/live/mystream/whep` when using [MediaMTX](https://github.com/bluenviron/mediamtx) as the WebRTC server; credentials can be embedded in the URL (`user:pass@host`). If you leave the title empty, it defaults to the stream name taken from the last part of the URL. The layer receives both video and audio when the stream carries them (H.264/H.265 video, Opus audio), decodes with FFmpeg — NVDEC hardware decoding when available — and reconnects automatically if the session fails while the layer should be running. The WHEP URL can be changed later in the *Layer View*; changing it restarts the connection. Like other live layers it can be marked master-only with the **Sync** button: then only the master pulls the stream; otherwise every node in the cluster pulls its own copy of the WHEP endpoint, which keeps each machine's network load local.
 
-When choosing *"Stream"*, you can choose between pre-defined streams for your system in a combobox, loaded from the editable file *"data/predefined-streams.json"*, or add a custom entry in a text field. The stream is handled as video/audio with the MPV library, so explore the possibilities further through the MPV documentation.
+When choosing *"Stream"*, you can choose between pre-defined streams for your system in a combobox, loaded from the editable file *"data/predefined-streams.json"*, or add a custom entry in a text field. The mode button next to the field cycles through *predefined list -> custom path -> MediaMTX server* (the last option only appears when [MediaMTX](/system-integration/mediamtx) is available).
+
+Stream layers are for **live streaming**: camera feeds, capture cards, hardware or software encoders, and media servers. The stream is played by MPV with a low-latency profile and untimed demuxing applied automatically, so the layer follows the live feed with minimal delay instead of buffering it like a video file.
+
+The most common URL types are:
+
+* **SRT** — `srt://host:port/path`. A low-latency protocol that runs over UDP, well suited to lossy or long-distance networks (for example between buildings or across the internet). The bundled ffmpeg build includes libSRT, so SRT URLs work out of the box; a MediaMTX server serves SRT on port `8890` by default.
+* **RTSP** — `rtsp://host:port/path`. A solid default that also works over TCP transport on restrictive networks. The included *Rtsp-tcp-lowlatency* options profile (selectable in the layer view) forces RTSP-over-TCP, disables caching, and shortens probing so the stream starts quickly.
+
+Any other MPV-compatible input can be used as well — for example Windows capture cards and cameras through `av://dshow:video=...` paths, or raw UDP multicast feeds from encoders. See the [MPV documentation](https://mpv.io/manual/stable/) for the full list of supported protocols.
+
+In a cluster setup every node opens the same stream URL; layers created from the predefined list can instead resolve a different local path per machine — see [Per-node resolution in clusters](#per-node-resolution-in-clusters).
+
+> **YouTube:** pasting a YouTube URL into a Stream layer also works — C-Play detects it and plays it as video-on-demand content through yt-dlp. For YouTube videos, prefer the dedicated **YouTube** layer type below, which is purpose-built for that use case with full player controls.
 
 When choosing *"YouTube"*, a single **URL** field becomes visible instead of the file dialog field. Paste a single YouTube video URL (`watch`, `shorts`, or `youtu.be`) and the layer plays it through mpv's embedded `ytdl_hook`, which uses the external [yt-dlp](https://github.com/yt-dlp/yt-dlp) tool to resolve the actual media streams. A YouTube layer is treated as video-on-demand content, so — unlike a live Stream layer — it gets the full set of player controls in the *Layer View*: play/pause, a seek slider, stop/rewind, end-of-file mode (pause or loop) and A-B section looping, exactly like a Video layer. It is never forced into the live-stream low-latency mode (which would cause audio drift).
 
