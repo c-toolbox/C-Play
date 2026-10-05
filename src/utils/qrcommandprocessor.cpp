@@ -7,7 +7,8 @@
 
 #include "qrcommandprocessor.h"
 #include "qrcodereader.h"
-#include <sgct/sgct.h>
+#include <sgct/log.h>
+#include <format>
 #include <algorithm>
 #include <sstream>
 
@@ -39,13 +40,13 @@ void QRCommandProcessor::setCommandCallback(CommandCallback callback) {
     m_callback = std::move(callback);
 }
 
-bool QRCommandProcessor::processFrame(unsigned char* pixelData, unsigned int width, unsigned int height, int GLformat) {
+bool QRCommandProcessor::processFrame(unsigned char* pixelData, unsigned int width, unsigned int height, int GLformat, int rowStride, int pixelStride) {
     if (!m_enabled) {
         return false;
     }
 
     // Phase 1: Scan for QR codes
-    std::vector<std::string> decodedResults = m_reader->scan(pixelData, width, height, GLformat);
+    std::vector<std::string> decodedResults = m_reader->scan(pixelData, width, height, GLformat, rowStride, pixelStride);
 
     if (!decodedResults.empty()) {
         // QR codes detected: queue unique operations, signal caller to skip frame

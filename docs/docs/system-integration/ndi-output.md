@@ -106,3 +106,19 @@ If the source does not appear on the receiving machine:
 * Verify that the output is actually ON in C-Play — the header button should be lime, and for a layer the **NDI** button icon should be lime (actively sending), not orange.
 
 For the reverse direction — sending OBS content *into* C-Play as an NDI layer — see [OBS Studio + NDI -> C-Play](/system-integration/obs-ndi).
+
+## Optional GPU color conversion
+
+In **Settings > Presentation**, enable **Convert NDI input on the GPU** and/or **Convert NDI output on the GPU**. Both options are off by default. Recreate NDI input layers after changing the input option; stop and start outputs after changing the output option. Configure each receiving computer separately, including nodes.
+
+With OpenGL 4.3, the input option requests `NDIlib_recv_color_format_fastest` and converts the decoder's native raw buffer to RGBA on the GPU. It supports **UYVY, UYVA, NV12, I420, YV12, P216, PA16, BGRA, BGRX, RGBA, and RGBX**, including padded rows and format changes. UYVA and PA16 preserve alpha; 16-bit color is converted at its native precision before writing the application's RGBA8 rendering texture.
+
+The NDI `fastest` mode can deliver individual interlaced fields. Input uses the existing NDI frame synchronizer from the first frame and requests progressive video. If the SDK still returns a half-height field, the GPU reconstructs full display height using bob deinterlacing: native scanlines are retained and missing scanlines are interpolated, with the field parity and boundary rows respected. Audio initialization and playback continue independently of video capture.
+
+QR detection scans the source luminance plane directly (including the high byte of 16-bit luminance) before GPU upload. QR control frames remain hidden, and their commands retain the existing two-phase execution behavior. RGB sources are scanned directly with their native row stride. Individual fields expand native luminance (or RGB rows) for QR scanning to preserve the full image aspect ratio. QR decoding itself runs on the CPU, without CPU YUV-to-RGB conversion or an added GPU readback.
+
+UYVY input uploads and output readbacks transfer **two bytes per pixel**, half the size of RGBA. UYVA requires three bytes per pixel including alpha; 4:2:0 input uses 1.5, P216 uses four, PA16 uses six, and RGB input uses four, excluding row padding. Output retains the asynchronous PBO readback ring. This reduces GPU transfer traffic for subsampled input/output and moves color conversion off the CPU; it does not halve NDI network bandwidth.
+
+GPU output discards alpha and shares chroma between each pair of horizontal pixels. Leave the output option disabled when output transparency is needed. Unsupported contexts fall back to SDK RGB input; GPU resource limits retain CPU conversion as a fallback for complete frames; unsupported field frames are skipped rather than read as full-size buffers. Odd output widths use the existing RGB path.
+
+Conversion uses studio-range YCbCr and NDI's resolution-dependent matrices: BT.601 for SD, BT.709 above 720x576, and BT.2020 above 1920x1080, as specified in the [NDI frame documentation](https://docs.ndi.video/all/developing-with-ndi/sdk/frame-types).

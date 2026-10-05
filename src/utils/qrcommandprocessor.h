@@ -25,17 +25,17 @@ struct QRCommand {
 //
 // Phase 1 (QR codes detected in frame):
 //   - Unique command strings are queued.
-//   - processFrame() returns false, signalling the caller to skip using this
+//   - processFrame() returns true, signalling the caller to skip using this
 //     frame for display (it is a "control frame").
 //
 // Phase 2 (No QR codes detected, queue non-empty):
 //   - All queued commands are parsed and dispatched via the registered callback.
 //   - The queue is cleared.
-//   - processFrame() returns true, signalling the caller to proceed with
+//   - processFrame() returns false, signalling the caller to proceed with
 //     normal frame processing.
 //
 // When no QR codes are detected and the queue is already empty,
-// processFrame() returns true immediately (normal frame).
+// processFrame() returns false immediately (normal frame).
 //
 class QRCommandProcessor {
 public:
@@ -46,7 +46,7 @@ public:
     QRCommandProcessor();
     ~QRCommandProcessor();
 
-    // Enable or disable the processor. When disabled processFrame() always returns true.
+    // Enable or disable the processor. When disabled processFrame() always returns false.
     void setEnabled(bool enabled);
     bool isEnabled() const;
 
@@ -57,11 +57,12 @@ public:
     void setCommandCallback(CommandCallback callback);
 
     // Process a video frame. Returns:
-    //   true  - caller should proceed with normal frame handling (upload texture, etc.)
-    //   false - caller should skip this frame (QR codes detected, queuing commands)
+    //   true  - caller should skip this frame (QR codes detected, queuing commands)
+    //   false - caller should proceed with normal frame handling (upload texture, etc.)
     //
-    // pixelData, width, height, GLformat: image data (GL_BGRA or GL_RGBA).
-    bool processFrame(unsigned char* pixelData, unsigned int width, unsigned int height, int GLformat);
+    // pixelData, width, height, GLformat: image data (GL_BGRA, GL_RGBA, or GL_RED luminance).
+    // rowStride and pixelStride allow scanning native NDI planes without RGB conversion.
+    bool processFrame(unsigned char* pixelData, unsigned int width, unsigned int height, int GLformat, int rowStride = 0, int pixelStride = 0);
 
     // Clear any pending commands without executing them.
     void clearQueue();

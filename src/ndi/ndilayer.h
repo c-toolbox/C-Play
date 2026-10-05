@@ -106,7 +106,7 @@ private:
     bool StartAudioStream();
     PaDeviceIndex GetChosenApplicationAudioDevice();
 
-    bool FindCodes(unsigned char* data, unsigned int width, unsigned int height, int GLformat);
+    bool FindCodes(unsigned char* data, unsigned int width, unsigned int height, int GLformat, int rowStride = 0, int pixelStride = 0);
     bool GetPixelData(GLuint TextureID, unsigned int width, unsigned int height);
     bool LoadTexturePixels(GLuint TextureID, unsigned int width, unsigned int height, unsigned char *data, int GLformat, unsigned int stride);
     void GenerateTexture(unsigned int &id, int width, int height);

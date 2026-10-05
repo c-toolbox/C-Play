@@ -1587,7 +1587,7 @@ bool ofxNDIreceive::ReceiveImageOnlyFrameSync(unsigned int& width, unsigned int&
 			pNDI_framesync = NDIlib_framesync_create(pNDI_recv);
 			m_frameSyncOn = true;
 		}
-		NDIlib_framesync_capture_video(pNDI_framesync, &video_frame);
+		NDIlib_framesync_capture_video(pNDI_framesync, &video_frame, NDIlib_frame_format_type_progressive);
 
 		if (video_frame.p_data) {
 			// The caller can check whether a frame has been received
@@ -1727,7 +1727,12 @@ NDIlib_FourCC_video_type_e ofxNDIreceive::GetVideoType()
 // Video frame line stride in bytes
 unsigned int ofxNDIreceive::GetVideoStride()
 {
-	return (unsigned int)video_frame.data_size_in_bytes;
+	return (unsigned int)video_frame.line_stride_in_bytes;
+}
+
+NDIlib_frame_format_type_e ofxNDIreceive::GetVideoFrameFormat() const
+{
+	return video_frame.frame_format_type;
 }
 
 // Get a pointer to the current video frame data

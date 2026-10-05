@@ -19,8 +19,8 @@ public:
     // Scan image data for QR codes. Returns decoded text strings.
     // pixelData: pointer to image pixel data
     // width, height: image dimensions
-    // GLformat: GL_BGRA or GL_RGBA
-    std::vector<std::string> scan(unsigned char* pixelData, unsigned int width, unsigned int height, int GLformat);
+    // GLformat: GL_BGRA, GL_RGBA, or GL_RED (luminance). Strides default to packed pixels.
+    std::vector<std::string> scan(unsigned char* pixelData, unsigned int width, unsigned int height, int GLformat, int rowStride = 0, int pixelStride = 0);
 
 private:
     struct Impl;

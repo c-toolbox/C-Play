@@ -182,13 +182,15 @@ public:
 	bool FrameSyncOn();
 	   
 	// Get the video type received
-	// The receiver should always receive RGBA.
-	// This function is backup only - no error checking.
+	// Inspect each frame: fastest/best can change the native raw format at runtime.
 	// NDIlib_FourCC_type_e GetVideoType();
 	NDIlib_FourCC_video_type_e GetVideoType();
 
 	// Video frame line stride in bytes
 	unsigned int GetVideoStride();
+
+	// Fastest/best may deliver individual half-height fields, even through FrameSync.
+	NDIlib_frame_format_type_e GetVideoFrameFormat() const;
 
 	// Get a pointer to the current video frame data
 	unsigned char *GetVideoData();

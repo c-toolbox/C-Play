@@ -900,7 +900,21 @@ bool NdiLayer::ReceiveData(bool updateRendering) {
     // Audio is captured in separate callback
     bool receviedAudio = false;
     bool receviedImage = false;
-    if (updateRendering && (!isMaster() || (m_audioStreamOpen && m_recevieAudioThroughCallback))) {
+    if (m_gpuConversionEnabled && updateRendering) {
+        try {
+            receviedImage = NDIreceiver.ReceiveImageOnlyFrameSync(width, height);
+            // Bootstrap audio parameters before opening the PortAudio callback,
+            // or service the blocking audio path independently of video capture.
+            if (isMaster() && isAudioEnabled() && (!m_audioStreamOpen || !m_recevieAudioThroughCallback))
+                receviedAudio = NDIreceiver.ReceiveAudioOnly() != nullptr;
+        }
+        catch (const std::exception& e) {
+            sgct::Log::Error(std::format("NdiLayer Error in GPU frame sync receive: {}", e.what()));
+            if (receviedImage) NDIreceiver.FreeVideoData();
+            return false;
+        }
+    }
+    else if (updateRendering && (!isMaster() || (m_audioStreamOpen && m_recevieAudioThroughCallback))) {
         if (m_hasCapturedImage || NDIreceiver.FrameSyncOn()) { // We can start using frame sync now
             try {
                 receviedImage = NDIreceiver.ReceiveImageOnlyFrameSync(width, height);
@@ -959,27 +973,6 @@ bool NdiLayer::ReceiveData(bool updateRendering) {
         }
     }
 
-    if (receviedImage) {
-        // Check for changed sender dimensions
-        if (width != (unsigned int)renderData.width || height != (unsigned int)renderData.height) {
-            if (renderData.width > 0)
-                glDeleteTextures(1, &renderData.texId);
-
-            GenerateTexture(renderData.texId, width, height);
-
-            renderData.width = (int)width;
-            renderData.height = (int)height;
-        }
-        // Get NDI pixel data from the video frame
-        try {
-            return GetPixelData(renderData.texId, width, height);
-        }
-        catch (const std::exception& e) {
-            sgct::Log::Error(std::format("NdiLayer Error in GetPixelData: {}", e.what()));
-            return false;
-        }
-    }
-
     if (receviedAudio || (!isMaster() && isAudioEnabled())) {
         if (!m_audioStreamOpen) {
             StartAudioStream();
@@ -1006,19 +999,42 @@ bool NdiLayer::ReceiveData(bool updateRendering) {
                 reportAudioLevel(static_cast<float>(maxAbs) / 32768.f);
             }
         }
-
-        return true;
     }
 
-    return false;
+    if (receviedImage) {
+        const auto frameFormat = NDIreceiver.GetVideoFrameFormat();
+        if (frameFormat == NDIlib_frame_format_type_field_0 || frameFormat == NDIlib_frame_format_type_field_1)
+            height *= 2; // GPU reconstructs individual fields at full display height.
+        // Check for changed sender dimensions
+        if (width != (unsigned int)renderData.width || height != (unsigned int)renderData.height) {
+            if (renderData.width > 0)
+                glDeleteTextures(1, &renderData.texId);
+
+            GenerateTexture(renderData.texId, width, height);
+
+            renderData.width = (int)width;
+            renderData.height = (int)height;
+        }
+        // Get NDI pixel data from the video frame
+        try {
+            return GetPixelData(renderData.texId, width, height);
+        }
+        catch (const std::exception& e) {
+            sgct::Log::Error(std::format("NdiLayer Error in GetPixelData: {}", e.what()));
+            NDIreceiver.FreeVideoData();
+            return false;
+        }
+    }
+
+    return receviedAudio || (!isMaster() && isAudioEnabled());
 }
 
 // Create receiver if not initialized or a new sender has been selected
 bool NdiLayer::OpenReceiver() {
     if (!m_receiveFormatConfigured) {
         m_gpuConversionEnabled = m_gpuConversionEnabled && m_gpuConversion.initialize();
-        // UYVY for opaque sources, BGRA for sources with alpha.
-        NDIreceiver.SetFormat(m_gpuConversionEnabled ? NDIlib_recv_color_format_UYVY_BGRA
+        // Accept the decoder's native raw format, including alpha.
+        NDIreceiver.SetFormat(m_gpuConversionEnabled ? NDIlib_recv_color_format_fastest
                                                      : NDIlib_recv_color_format_BGRX_BGRA);
         m_receiveFormatConfigured = true;
     }
@@ -1104,11 +1120,11 @@ PaDeviceIndex NdiLayer::GetChosenApplicationAudioDevice() {
 }
 
 //Find barcodes in the received frame data using two-phase QR command scheme
-bool NdiLayer::FindCodes(unsigned char* data, unsigned int width, unsigned int height, int GLformat) {
+bool NdiLayer::FindCodes(unsigned char* data, unsigned int width, unsigned int height, int GLformat, int rowStride, int pixelStride) {
     if (!m_qrProcessor || !m_qrProcessor->isEnabled()) {
         return false;
     }
-    return m_qrProcessor->processFrame(data, width, height, GLformat);
+    return m_qrProcessor->processFrame(data, width, height, GLformat, rowStride, pixelStride);
 }
 
 void NdiLayer::onQRCommand(const QRCommand& command) {
@@ -1147,11 +1163,69 @@ bool NdiLayer::GetPixelData(GLuint TextureID, unsigned int width, unsigned int h
     NDIlib_FourCC_video_type_e currentFormat = NDIreceiver.GetVideoType();
     unsigned int stride = NDIreceiver.GetVideoStride();
     
+    const auto frameFormat = NDIreceiver.GetVideoFrameFormat();
+    const auto field = frameFormat == NDIlib_frame_format_type_field_0 ? NdiGpuConversion::Field::Upper
+        : frameFormat == NDIlib_frame_format_type_field_1 ? NdiGpuConversion::Field::Lower
+        : NdiGpuConversion::Field::Progressive;
+    const bool fielded = field != NdiGpuConversion::Field::Progressive;
+    const unsigned int inputHeight = fielded ? height/2 : height;
     bool gpuUploaded = false;
-    if (m_gpuConversionEnabled && currentFormat == NDIlib_FourCC_type_UYVY
-        && !isQRCodeDetectionEnabled()) {
-        gpuUploaded = m_gpuConversion.upload(TextureID, static_cast<int>(width),
-                                             static_cast<int>(height), videoData, stride);
+    bool qrChecked = false;
+    if (m_gpuConversionEnabled) {
+        using Format = NdiGpuConversion::Format;
+        Format format = Format::UYVY;
+        bool supported = true;
+        int qrFormat = GL_RED;
+        int qrPixelStride = 1;
+        unsigned char* qrPixels = videoData;
+        switch (currentFormat) {
+        case NDIlib_FourCC_type_UYVY: format = Format::UYVY; qrPixels++; qrPixelStride = 2; break;
+        case NDIlib_FourCC_type_UYVA: format = Format::UYVA; qrPixels++; qrPixelStride = 2; break;
+        case NDIlib_FourCC_type_NV12: format = Format::NV12; break;
+        case NDIlib_FourCC_type_I420: format = Format::I420; break;
+        case NDIlib_FourCC_type_YV12: format = Format::YV12; break;
+        case NDIlib_FourCC_type_P216: format = Format::P216; qrPixels++; qrPixelStride = 2; break;
+        case NDIlib_FourCC_type_PA16: format = Format::PA16; qrPixels++; qrPixelStride = 2; break;
+        case NDIlib_FourCC_type_BGRA: format = Format::BGRA; qrFormat = GL_BGRA; qrPixelStride = 4; break;
+        case NDIlib_FourCC_type_BGRX: format = Format::BGRX; qrFormat = GL_BGRA; qrPixelStride = 4; break;
+        case NDIlib_FourCC_type_RGBA: format = Format::RGBA; qrFormat = GL_RGBA; qrPixelStride = 4; break;
+        case NDIlib_FourCC_type_RGBX: format = Format::RGBX; qrFormat = GL_RGBA; qrPixelStride = 4; break;
+        default: supported = false; break;
+        }
+        if (supported) {
+            // Scan native luma before upload: QR control frames must never replace
+            // the displayed texture or the texture used by queued QR operations.
+            qrChecked = true;
+            if (isQRCodeDetectionEnabled()) {
+                std::vector<unsigned char> qrField;
+                int qrStride = static_cast<int>(stride);
+                if (fielded) {
+                    // QR detection requires the full image aspect ratio. Expand
+                    // native luminance only; no CPU YUV-to-RGB conversion/readback.
+                    const int bytesPerPixel = qrFormat == GL_RED ? 1 : 4;
+                    qrStride = static_cast<int>(width)*bytesPerPixel;
+                    qrField.resize(static_cast<size_t>(qrStride)*height);
+                    for (unsigned int y = 0; y < height; ++y)
+                        for (unsigned int x = 0; x < width; ++x)
+                            std::memcpy(qrField.data()+static_cast<size_t>(y)*qrStride+x*bytesPerPixel,
+                                        qrPixels+static_cast<size_t>(y/2)*stride+x*qrPixelStride, bytesPerPixel);
+                    qrPixels = qrField.data();
+                    qrPixelStride = bytesPerPixel;
+                }
+                if (FindCodes(qrPixels, width, height, qrFormat, qrStride, qrPixelStride)) {
+                    NDIreceiver.FreeVideoData();
+                    return false;
+                }
+            }
+            gpuUploaded = m_gpuConversion.upload(TextureID, static_cast<int>(width),
+                                                 static_cast<int>(inputHeight), videoData, stride, format, field);
+        }
+    }
+
+    if (fielded && !gpuUploaded) {
+        // A field buffer is half-height. Never pass it to a full-frame CPU converter.
+        NDIreceiver.FreeVideoData();
+        return false;
     }
 
     // Calculate required buffer size for RGBA conversion
@@ -1205,8 +1279,12 @@ bool NdiLayer::GetPixelData(GLuint TextureID, unsigned int width, unsigned int h
             break;
             
         case NDIlib_FourCC_type_UYVA: // YCbCr 4:2:2:4 with alpha
-            // Treat as UYVY for now (alpha not fully supported)
             ofxNDIutils::YUV422_to_RGBA(videoData, m_conversionBuffer, width, height, stride);
+            // Preserve the separate alpha plane in the CPU resource-limit fallback too.
+            for (unsigned int y = 0; y < height; ++y)
+                for (unsigned int x = 0; x < width; ++x)
+                    m_conversionBuffer[(static_cast<size_t>(y)*width+x)*4+3] =
+                        videoData[static_cast<size_t>(stride)*height+static_cast<size_t>(y)*(stride/2)+x];
             pixelData = m_conversionBuffer;
             GLformat = GL_RGBA;
             break;
@@ -1260,7 +1338,7 @@ bool NdiLayer::GetPixelData(GLuint TextureID, unsigned int width, unsigned int h
 
     // Check for QR commands before uploading texture (two-phase scheme).
     bool foundCodes = false;
-    if (isQRCodeDetectionEnabled()) {
+    if (isQRCodeDetectionEnabled() && !qrChecked) {
         foundCodes = FindCodes(pixelData, width, height, GLformat);
     }
 

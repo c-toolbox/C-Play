@@ -35,17 +35,18 @@ QRCodeReader::~QRCodeReader() {
     delete m_impl;
 }
 
-std::vector<std::string> QRCodeReader::scan(unsigned char* pixelData, unsigned int width, unsigned int height, int GLformat) {
+std::vector<std::string> QRCodeReader::scan(unsigned char* pixelData, unsigned int width, unsigned int height, int GLformat, int rowStride, int pixelStride) {
     std::vector<std::string> results;
 
-    if (GLformat != GL_BGRA && GLformat != GL_RGBA) {
+    if (GLformat != GL_BGRA && GLformat != GL_RGBA && GLformat != GL_RED) {
         return results;
     }
 
 #ifdef ZXING_SUPPORT
-    ZXing::ImageFormat imageFormat = (GLformat == GL_BGRA) ? ZXing::ImageFormat::BGRA : ZXing::ImageFormat::RGBA;
+    ZXing::ImageFormat imageFormat = GLformat == GL_RED ? ZXing::ImageFormat::Lum
+        : GLformat == GL_BGRA ? ZXing::ImageFormat::BGRA : ZXing::ImageFormat::RGBA;
 
-    auto image = ZXing::ImageView(pixelData, width, height, imageFormat);
+    auto image = ZXing::ImageView(pixelData, width, height, imageFormat, rowStride, pixelStride);
     auto codes = ZXing::ReadBarcodes(image, m_impl->options);
 
     for (const auto& b : codes) {
