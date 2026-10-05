@@ -13,6 +13,9 @@
 
 #ifdef NDI_SUPPORT
 #include <ndi/ofxNDI/ofxNDIutils.h>
+#include "presentationsettings.h"
+#include <cstring>
+#include <utility>
 #include <sgct/log.h>
 #include <QSysInfo>
 #include <format>
@@ -24,6 +27,7 @@ NdiSender::~NdiSender() {
     // OpenGL resources cannot be released here since there is no guarantee of
     // a current context. cleanupGL() must have been called before.
     releaseSender();
+    delete[] m_previousFrameBuffer;
     delete[] m_frameBuffer;
     m_frameBuffer = nullptr;
     m_frameBufferSize = 0;
@@ -98,6 +102,9 @@ bool NdiSender::start(const std::string &senderName) {
         return false;
 
     // The source must be in place before the render thread observes m_enabled.
+#ifdef NDI_SUPPORT
+    m_gpuConversionRequested = PresentationSettings::ndiOutputGpuConversion();
+#endif
     m_senderName = senderName;
     m_enabled = true;
     return true;
@@ -134,21 +141,25 @@ int NdiSender::height() const {
 
 #ifdef NDI_SUPPORT
 
-bool NdiSender::createOrUpdateSender(int width, int height) {
+bool NdiSender::createOrUpdateSender(int width, int height, bool gpuConversion) {
     if (width <= 0 || height <= 0)
         return false;
 
     if (m_senderCreated) {
-        if (m_width == width && m_height == height)
+        if (m_width == width && m_height == height && m_gpuConversionActive == gpuConversion)
             return true;
 
-        // Resolution changed, tell NDI about the new dimensions.
+        // UpdateSender synchronizes any pending async frame before buffers change.
+        m_sender.SetFormat(gpuConversion ? NDIlib_FourCC_video_type_UYVY
+                                         : NDIlib_FourCC_video_type_RGBA);
+        // Resolution or transfer format changed.
         if (!m_sender.UpdateSender(static_cast<unsigned int>(width),
                                    static_cast<unsigned int>(height))) {
             sgct::Log::Error(std::format("NdiSender Error: could not update sender to {}x{}", width, height));
             return false;
         }
 
+        m_gpuConversionActive = gpuConversion;
         m_width = width;
         m_height = height;
         releasePbos();
@@ -156,9 +167,9 @@ bool NdiSender::createOrUpdateSender(int width, int height) {
         return true;
     }
 
-    m_sender.SetFormat(NDIlib_FourCC_video_type_RGBA);
-    // Asynchronous sending keeps the render thread free, the PBO ring already
-    // guarantees that the buffer handed over stays valid for several frames.
+    m_sender.SetFormat(gpuConversion ? NDIlib_FourCC_video_type_UYVY
+                                     : NDIlib_FourCC_video_type_RGBA);
+    // Alternate CPU buffers preserve the frame owned by an asynchronous send.
     m_sender.SetAsync(true);
 
     if (!m_sender.CreateSender(m_senderName.c_str(),
@@ -169,6 +180,7 @@ bool NdiSender::createOrUpdateSender(int width, int height) {
     }
 
     m_senderCreated = true;
+    m_gpuConversionActive = gpuConversion;
     m_width = width;
     m_height = height;
     m_framesCaptured = 0;
@@ -206,7 +218,16 @@ void NdiSender::releasePbos() {
 // The read into the PBO is asynchronous, the buffer mapped is the one filled a
 // couple of frames earlier, so the GPU is never stalled.
 unsigned char *NdiSender::readPixels(unsigned int textureId, int width, int height, bool invertY) {
-    const size_t dataSize = static_cast<size_t>(width) * static_cast<size_t>(height) * 4;
+    const int transferWidth = m_gpuConversionActive ? width / 2 : width;
+    const size_t dataSize = static_cast<size_t>(transferWidth) * static_cast<size_t>(height) * 4;
+
+    GLint packAlignment, packRowLength, packSkipRows, packSkipPixels, packBuffer, texture;
+    glGetIntegerv(GL_PACK_ALIGNMENT, &packAlignment);
+    glGetIntegerv(GL_PACK_ROW_LENGTH, &packRowLength);
+    glGetIntegerv(GL_PACK_SKIP_ROWS, &packSkipRows);
+    glGetIntegerv(GL_PACK_SKIP_PIXELS, &packSkipPixels);
+    glGetIntegerv(GL_PIXEL_PACK_BUFFER_BINDING, &packBuffer);
+    glGetIntegerv(GL_TEXTURE_BINDING_2D, &texture);
 
     if (!m_pbo[0]) {
         glGenBuffers(3, m_pbo);
@@ -220,7 +241,9 @@ unsigned char *NdiSender::readPixels(unsigned int textureId, int width, int heig
 
     if (m_frameBufferSize != dataSize) {
         delete[] m_frameBuffer;
+        delete[] m_previousFrameBuffer;
         m_frameBuffer = new unsigned char[dataSize];
+        m_previousFrameBuffer = new unsigned char[dataSize];
         m_frameBufferSize = dataSize;
     }
 
@@ -228,11 +251,14 @@ unsigned char *NdiSender::readPixels(unsigned int textureId, int width, int heig
     NextPboIndex = (PboIndex + 1) % 3;
 
     glPixelStorei(GL_PACK_ALIGNMENT, 1);
+    glPixelStorei(GL_PACK_ROW_LENGTH, 0);
+    glPixelStorei(GL_PACK_SKIP_ROWS, 0);
+    glPixelStorei(GL_PACK_SKIP_PIXELS, 0);
 
     // Start an asynchronous read of the current texture into the current PBO.
     glBindBuffer(GL_PIXEL_PACK_BUFFER, m_pbo[PboIndex]);
     glBindTexture(GL_TEXTURE_2D, textureId);
-    glGetTexImage(GL_TEXTURE_2D, 0, GL_RGBA, GL_UNSIGNED_BYTE, 0);
+    glGetTexImage(GL_TEXTURE_2D, 0, m_gpuConversionActive ? GL_RGBA_INTEGER : GL_RGBA, GL_UNSIGNED_BYTE, 0);
     glBindTexture(GL_TEXTURE_2D, 0);
 
     m_framesCaptured++;
@@ -249,13 +275,22 @@ unsigned char *NdiSender::readPixels(unsigned int textureId, int width, int heig
             // The flip is applied here, once. Both this copy and
             // ofxNDIsend::SendImage can invert, so SendImage is always called
             // with bInvert=false to avoid cancelling this one out.
-            ofxNDIutils::CopyImage(pboMemory, m_frameBuffer, width, height, invertY);
+            std::swap(m_frameBuffer, m_previousFrameBuffer);
+            if (m_gpuConversionActive)
+                std::memcpy(m_frameBuffer, pboMemory, dataSize); // shader already flipped
+            else
+                ofxNDIutils::CopyImage(pboMemory, m_frameBuffer, width, height, invertY);
             result = m_frameBuffer;
         }
         glUnmapBuffer(GL_PIXEL_PACK_BUFFER);
     }
 
-    glBindBuffer(GL_PIXEL_PACK_BUFFER, 0);
+    glBindBuffer(GL_PIXEL_PACK_BUFFER, packBuffer);
+    glBindTexture(GL_TEXTURE_2D, texture);
+    glPixelStorei(GL_PACK_ALIGNMENT, packAlignment);
+    glPixelStorei(GL_PACK_ROW_LENGTH, packRowLength);
+    glPixelStorei(GL_PACK_SKIP_ROWS, packSkipRows);
+    glPixelStorei(GL_PACK_SKIP_PIXELS, packSkipPixels);
 
     return result;
 }
@@ -271,14 +306,17 @@ bool NdiSender::captureAndSend() {
     if (textureId == 0 || width <= 0 || height <= 0)
         return false;
 
-    if (!createOrUpdateSender(width, height))
-        return false;
-
     // Textures read back with glGetTexImage are bottom-up. A source can opt out
     // when it already stores its rows top-down.
     const bool invertY = m_source.invertY ? m_source.invertY() : true;
 
-    unsigned char *pixels = readPixels(textureId, width, height, invertY);
+    const GLuint packedTexture = m_gpuConversionRequested
+        ? m_gpuConversion.pack(textureId, width, height, invertY) : 0;
+    if (!createOrUpdateSender(width, height, packedTexture != 0))
+        return false;
+
+    unsigned char *pixels = readPixels(packedTexture ? packedTexture : textureId,
+                                       width, height, invertY);
     if (!pixels)
         return false;
 
@@ -291,6 +329,7 @@ bool NdiSender::captureAndSend() {
 }
 
 void NdiSender::cleanupGL() {
+    m_gpuConversion.cleanup();
     releasePbos();
     releaseSender();
     m_framesCaptured = 0;
@@ -298,7 +337,7 @@ void NdiSender::cleanupGL() {
 
 #else // !NDI_SUPPORT
 
-bool NdiSender::createOrUpdateSender(int, int) {
+bool NdiSender::createOrUpdateSender(int, int, bool) {
     return false;
 }
 

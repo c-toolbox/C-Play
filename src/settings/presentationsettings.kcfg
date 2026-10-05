@@ -9,6 +9,14 @@
                           http://www.kde.org/standards/kcfg/1.0/kcfg.xsd" >
   <kcfgfile name="C-Play/cplay.conf" />
   <group name="Presentation">
+    <entry name="NdiReceiveGpuConversion" type="bool">
+      <label>Convert opaque NDI input from UYVY to RGB using the GPU. Recreate NDI layers after changing this setting.</label>
+      <default>false</default>
+    </entry>
+    <entry name="NdiOutputGpuConversion" type="bool">
+      <label>Convert NDI output from RGB to UYVY using the GPU. Restart NDI outputs after changing this setting. Output alpha is discarded.</label>
+      <default>false</default>
+    </entry>
     <entry name="PresentationToLoadOnStartup" type="String">
       <label>A presentation to load at startup</label>
     </entry>

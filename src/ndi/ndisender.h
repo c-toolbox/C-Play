@@ -15,6 +15,7 @@
 
 #ifdef NDI_SUPPORT
 #include <ndi/ofxNDI/ofxNDIsend.h>
+#include <ndi/ndigpuconversion.h>
 #endif
 
 class MpvObject;
@@ -91,7 +92,7 @@ public:
     void cleanupGL();
 
 private:
-    bool createOrUpdateSender(int width, int height);
+    bool createOrUpdateSender(int width, int height, bool gpuConversion);
     void releaseSender();
     // Asynchronously reads the texture into the PBO ring and returns the
     // pixels captured a couple of frames ago, or nullptr when not ready yet.
@@ -104,6 +105,7 @@ private:
 
 #ifdef NDI_SUPPORT
     ofxNDIsend m_sender;
+    NdiGpuConversion m_gpuConversion;
 #endif
 
     NdiSenderSource m_source;
@@ -113,6 +115,8 @@ private:
     // Set from the GUI thread, read from the render thread.
     std::atomic_bool m_enabled = false;
     bool m_senderCreated = false;
+    bool m_gpuConversionRequested = false;
+    bool m_gpuConversionActive = false;
     int m_width = 0;
     int m_height = 0;
 
@@ -125,7 +129,9 @@ private:
     int m_framesCaptured = 0;
 
     // CPU side copy of the mapped PBO, handed to ofxNDIsend.
+    // Alternate buffers: NDI owns the previous buffer until the next send.
     unsigned char *m_frameBuffer = nullptr;
+    unsigned char *m_previousFrameBuffer = nullptr;
     size_t m_frameBufferSize = 0;
 };
 

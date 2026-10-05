@@ -149,6 +149,7 @@ if(BUILD_CPLAY_WITH_WUFFS)
 endif()
 
 if(BUILD_CPLAY_WITH_NDI)
+    list(APPEND SOURCE_FILES ndi/ndigpuconversion.cpp ndi/ndigpuconversion.h)
     list(APPEND SOURCE_FILES ndi/ndilayer.cpp)
     list(APPEND SOURCE_FILES ndi/ndilayer.h)
     list(APPEND SOURCE_FILES ndi/ndimodel.cpp)

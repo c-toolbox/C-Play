@@ -7,6 +7,7 @@
 
 #include "ndilayer.h"
 #include "audiosettings.h"
+#include "presentationsettings.h"
 #include <sgct/sgct.h>
 #include <cstdint>
 #include <cstddef>
@@ -285,13 +286,8 @@ NdiLayer::NdiLayer() {
     setType(BaseLayer::LayerType::NDI);
     NDIreceiver.ResetFps(30.0);
 
-    // =======================================
-    // Set to prefer BGRA
-    NDIreceiver.SetFormat(NDIlib_recv_color_format_BGRX_BGRA);
-    // NDI SDK says we should ask for the format we want in the end, which is BGR or RGB in this case
-    // The SDK will most likely convert the video to the requested format using AXV2 instructions etc
-    // So while NDIlib_recv_color_format_fastest or NDIlib_recv_color_format_best will work with implemented conversion
-    // we better stick with the above formats for best performance.
+    // Applied when the render context first opens the receiver.
+    m_gpuConversionEnabled = PresentationSettings::ndiReceiveGpuConversion();
 
     m_qrProcessor = std::make_unique<QRCommandProcessor>();
     m_qrProcessor->setCommandCallback([this](const QRCommand& cmd) {
@@ -299,8 +295,6 @@ NdiLayer::NdiLayer() {
     });
 
     m_qrOpHandler = std::make_unique<QROperationHandler>();
-
-    OpenReceiver();
 }
 
 NdiLayer::~NdiLayer() {
@@ -339,13 +333,17 @@ void NdiLayer::cleanup() {
     }
 
     NDIreceiver.ReleaseReceiver();
+    m_gpuConversion.cleanup();
+    m_receiveFormatConfigured = false;
 
     if (m_pbo[0]) {
         glDeleteBuffers(3, m_pbo);
+        m_pbo[0] = m_pbo[1] = m_pbo[2] = 0;
     }
 
     if (renderData.texId > 0) {
         glDeleteTextures(1, &renderData.texId);
+        renderData.texId = 0;
     }
 
     // Free conversion buffer
@@ -1017,6 +1015,13 @@ bool NdiLayer::ReceiveData(bool updateRendering) {
 
 // Create receiver if not initialized or a new sender has been selected
 bool NdiLayer::OpenReceiver() {
+    if (!m_receiveFormatConfigured) {
+        m_gpuConversionEnabled = m_gpuConversionEnabled && m_gpuConversion.initialize();
+        // UYVY for opaque sources, BGRA for sources with alpha.
+        NDIreceiver.SetFormat(m_gpuConversionEnabled ? NDIlib_recv_color_format_UYVY_BGRA
+                                                     : NDIlib_recv_color_format_BGRX_BGRA);
+        m_receiveFormatConfigured = true;
+    }
     if (NDIreceiver.OpenReceiver()) {
         // Initialize pbos for asynchronous pixel load
         if (!m_pbo[0]) {
@@ -1142,6 +1147,13 @@ bool NdiLayer::GetPixelData(GLuint TextureID, unsigned int width, unsigned int h
     NDIlib_FourCC_video_type_e currentFormat = NDIreceiver.GetVideoType();
     unsigned int stride = NDIreceiver.GetVideoStride();
     
+    bool gpuUploaded = false;
+    if (m_gpuConversionEnabled && currentFormat == NDIlib_FourCC_type_UYVY
+        && !isQRCodeDetectionEnabled()) {
+        gpuUploaded = m_gpuConversion.upload(TextureID, static_cast<int>(width),
+                                             static_cast<int>(height), videoData, stride);
+    }
+
     // Calculate required buffer size for RGBA conversion
     size_t requiredBufferSize = static_cast<size_t>(width) * static_cast<size_t>(height) * 4;
     
@@ -1152,7 +1164,7 @@ bool NdiLayer::GetPixelData(GLuint TextureID, unsigned int width, unsigned int h
                            currentFormat != NDIlib_FourCC_type_RGBA &&
                            currentFormat != NDIlib_FourCC_type_RGBX);
     
-    if (needsConversion) {
+    if (needsConversion && !gpuUploaded) {
         if (m_conversionBufferSize != requiredBufferSize || m_lastVideoFormat != currentFormat) {
             // Reallocate conversion buffer
             if (m_conversionBuffer) {
@@ -1184,7 +1196,7 @@ bool NdiLayer::GetPixelData(GLuint TextureID, unsigned int width, unsigned int h
     int GLformat = GL_BGRA; // Default format
 
     // Convert based on NDI format
-    switch (currentFormat) {
+    if (!gpuUploaded) switch (currentFormat) {
         // YUV 4:2:2 formats - 8-bit
         case NDIlib_FourCC_type_UYVY: // YCbCr 4:2:2
             ofxNDIutils::YUV422_to_RGBA(videoData, m_conversionBuffer, width, height, stride);
@@ -1258,7 +1270,8 @@ bool NdiLayer::GetPixelData(GLuint TextureID, unsigned int width, unsigned int h
     }
 
     // Load the texture with the converted or original pixel data
-    bool success = LoadTexturePixels(TextureID, width, height, pixelData, GLformat);
+    bool success = gpuUploaded || LoadTexturePixels(TextureID, width, height, pixelData, GLformat,
+                                                     needsConversion ? width * 4 : stride);
 
     // Free the NDI video buffer
     NDIreceiver.FreeVideoData();
@@ -1281,47 +1294,45 @@ bool NdiLayer::GetPixelData(GLuint TextureID, unsigned int width, unsigned int h
     return success;
 }
 
-// Streaming texture pixel load
-// Approximately 20% faster than using glTexSubImage2D alone
-// GLformat can be default GL_BGRA or GL_RGBA
-bool NdiLayer::LoadTexturePixels(GLuint TextureID, unsigned int width, unsigned int height, unsigned char *data, int GLformat) {
-    void *pboMemory = NULL;
-
+// Fill an orphaned PBO before uploading. This remains valid across resolution
+// changes and switches between GPU conversion and the QR/alpha RGB path.
+bool NdiLayer::LoadTexturePixels(GLuint TextureID, unsigned int width, unsigned int height,
+                                 unsigned char *data, int GLformat, unsigned int stride) {
+    const size_t rowBytes = static_cast<size_t>(width) * 4;
+    if (!data || stride < rowBytes) return false;
+    GLint buffer, texture, alignment, rowLength, skipRows, skipPixels;
+    glGetIntegerv(GL_PIXEL_UNPACK_BUFFER_BINDING, &buffer);
+    glGetIntegerv(GL_TEXTURE_BINDING_2D, &texture);
+    glGetIntegerv(GL_UNPACK_ALIGNMENT, &alignment);
+    glGetIntegerv(GL_UNPACK_ROW_LENGTH, &rowLength);
+    glGetIntegerv(GL_UNPACK_SKIP_ROWS, &skipRows);
+    glGetIntegerv(GL_UNPACK_SKIP_PIXELS, &skipPixels);
     PboIndex = (PboIndex + 1) % 3;
-    NextPboIndex = (PboIndex + 1) % 3;
-
-    // Bind the texture and PBO
-    glBindTexture(GL_TEXTURE_2D, TextureID);
     glBindBuffer(GL_PIXEL_UNPACK_BUFFER, m_pbo[PboIndex]);
-
-    // Copy pixels from PBO to the texture - use offset instead of pointer.
-    // glTexSubImage2D redefines a contiguous subregion of an existing
-    // two-dimensional texture image. NULL data pointer reserves space.
-    glTexSubImage2D(GL_TEXTURE_2D, 0, 0, 0, width, height, GLformat, GL_UNSIGNED_BYTE, 0);
-
-    // Bind PBO to update the texture
-    glBindBuffer(GL_PIXEL_UNPACK_BUFFER, m_pbo[NextPboIndex]);
-
-    // Call glBufferData() with a NULL pointer to clear the PBO data and avoid a stall.
-    glBufferData(GL_PIXEL_UNPACK_BUFFER, width * height * 4, 0, GL_STREAM_DRAW);
-
-    // Map the buffer object into client's memory
-    pboMemory = (void *)glMapBuffer(GL_PIXEL_UNPACK_BUFFER, GL_WRITE_ONLY);
-    // Update the mapped buffer directly
-    if (pboMemory) {
-        // RGBA pixel data
-        // Use sse2 if the width is divisible by 16
-        ofxNDIutils::CopyImage(data, (unsigned char *)pboMemory, width, height, true);
-        glUnmapBuffer(GL_PIXEL_UNPACK_BUFFER); // release the mapped buffer
-    } else {
-        glBindBuffer(GL_PIXEL_UNPACK_BUFFER, 0);
-        return false;
+    glBufferData(GL_PIXEL_UNPACK_BUFFER, rowBytes * height, nullptr, GL_STREAM_DRAW);
+    auto* pixels = static_cast<unsigned char*>(glMapBuffer(GL_PIXEL_UNPACK_BUFFER, GL_WRITE_ONLY));
+    bool success = false;
+    if (pixels) {
+        for (unsigned int y = 0; y < height; ++y)
+            std::memcpy(pixels + static_cast<size_t>(height-1-y)*rowBytes,
+                        data + static_cast<size_t>(y)*stride, rowBytes);
+        success = glUnmapBuffer(GL_PIXEL_UNPACK_BUFFER) == GL_TRUE;
+        if (success) {
+            glPixelStorei(GL_UNPACK_ALIGNMENT, 1);
+            glPixelStorei(GL_UNPACK_ROW_LENGTH, 0);
+            glPixelStorei(GL_UNPACK_SKIP_ROWS, 0);
+            glPixelStorei(GL_UNPACK_SKIP_PIXELS, 0);
+            glBindTexture(GL_TEXTURE_2D, TextureID);
+            glTexSubImage2D(GL_TEXTURE_2D, 0, 0, 0, width, height, GLformat, GL_UNSIGNED_BYTE, nullptr);
+        }
     }
-
-    // Release PBOs
-    glBindBuffer(GL_PIXEL_UNPACK_BUFFER, 0);
-
-    return true;
+    glBindBuffer(GL_PIXEL_UNPACK_BUFFER, buffer);
+    glBindTexture(GL_TEXTURE_2D, texture);
+    glPixelStorei(GL_UNPACK_ALIGNMENT, alignment);
+    glPixelStorei(GL_UNPACK_ROW_LENGTH, rowLength);
+    glPixelStorei(GL_UNPACK_SKIP_ROWS, skipRows);
+    glPixelStorei(GL_UNPACK_SKIP_PIXELS, skipPixels);
+    return success;
 }
 
 void NdiLayer::GenerateTexture(unsigned int &id, int width, int height) {

@@ -13,6 +13,7 @@
 #include <ndi/ofxNDI/ofxNDIreceive.h>
 #include <portaudio.h>
 #include <memory>
+#include <ndi/ndigpuconversion.h>
 
 class ofxNDIreceive;
 class QRCommandProcessor;
@@ -107,12 +108,15 @@ private:
 
     bool FindCodes(unsigned char* data, unsigned int width, unsigned int height, int GLformat);
     bool GetPixelData(GLuint TextureID, unsigned int width, unsigned int height);
-    bool LoadTexturePixels(GLuint TextureID, unsigned int width, unsigned int height, unsigned char *data, int GLformat);
+    bool LoadTexturePixels(GLuint TextureID, unsigned int width, unsigned int height, unsigned char *data, int GLformat, unsigned int stride);
     void GenerateTexture(unsigned int &id, int width, int height);
 
     void onQRCommand(const struct QRCommand& command);
 
     ofxNDIreceive NDIreceiver;
+    NdiGpuConversion m_gpuConversion;
+    bool m_gpuConversionEnabled = false;
+    bool m_receiveFormatConfigured = false;
 
     PaStreamParameters m_audioOutputParameters;
     PaStream* m_audioStream = nullptr;

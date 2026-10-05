@@ -759,6 +759,40 @@ SettingsBasePage {
             Layout.fillWidth: true
         }
 
+        SettingsHeader {
+            visible: NDI_SUPPORT
+            Layout.columnSpan: 3
+            Layout.fillWidth: true
+            text: qsTr("NDI GPU conversion")
+        }
+        CheckBox {
+            visible: NDI_SUPPORT
+            Layout.columnSpan: 3
+            text: qsTr("Convert NDI input on the GPU (recreate NDI layers to apply)")
+            checked: PresentationSettings.ndiReceiveGpuConversion
+            onToggled: {
+                PresentationSettings.ndiReceiveGpuConversion = checked;
+                PresentationSettings.save();
+            }
+        }
+        CheckBox {
+            visible: NDI_SUPPORT
+            Layout.columnSpan: 3
+            text: qsTr("Convert NDI output on the GPU (restart outputs to apply; discards alpha)")
+            checked: PresentationSettings.ndiOutputGpuConversion
+            onToggled: {
+                PresentationSettings.ndiOutputGpuConversion = checked;
+                PresentationSettings.save();
+            }
+        }
+        Label {
+            visible: NDI_SUPPORT
+            Layout.columnSpan: 3
+            Layout.fillWidth: true
+            wrapMode: Text.WordWrap
+            text: qsTr("Requires OpenGL 4.3. Transfers packed YUV 4:2:2 at half the RGBA size. Unsupported cases use CPU conversion. QR detection uses the CPU input path.")
+        }
+
         // ------------------------------------
         // LAYER STREAMING TO NODES
         // --
