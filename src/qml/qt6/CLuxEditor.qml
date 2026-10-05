@@ -144,6 +144,11 @@ Kirigami.ApplicationWindow {
         // One consistent NDI update per refresh (see CLuxClient::refreshNdi): the source
         // list and the receiver status arrive together.
         function onNdiStateChanged() {
+            if (!root.client.connected) {
+                root.ndiAwaitingDefault = false;
+                root.setNdiSwitch(false);
+                return;
+            }
             if (root.ndiAwaitingDefault) {
                 // The switch was just turned on and its discovery run has answered.
                 root.ndiAwaitingDefault = false;
@@ -476,6 +481,7 @@ Kirigami.ApplicationWindow {
                                         root.ndiAwaitingDefault = true;
                                         root.client.refreshNdi();
                                     } else {
+                                        root.ndiAwaitingDefault = false;
                                         root.client.setNdiSource("");
                                     }
                                 }
@@ -487,7 +493,7 @@ Kirigami.ApplicationWindow {
                                 text: qsTr("Update sources")
                                 flat: true
                                 icon.name: "view-refresh"
-                                enabled: root.client.connected && !root.client.liveMode
+                                enabled: root.client.connected && ndiSwitch.checked && !root.client.liveMode
                                 onClicked: {
                                     showStatus("");
                                     root.client.refreshNdi();
