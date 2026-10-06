@@ -1,0 +1,41 @@
+{
+    "version": 1,
+    "servers": [
+        {
+            "id": "medialon-task-server",
+            "name": "Medialon task server (example)",
+            "host": "127.0.0.1",
+            "port": 9000,
+            "enabled": false,
+            "acceptControlCommands": false,
+            "autoReconnect": true,
+            "connectTimeoutMs": 5000,
+            "retryInitialMs": 1000,
+            "retryMaximumMs": 30000,
+            "stableConnectionMs": 10000,
+            "framing": 0,
+            "receiveTerminatorHex": "0d0a",
+            "sendTerminatorHex": "0d0a",
+            "maximumMessageBytes": 1048576,
+            "maximumPendingWriteBytes": 1048576
+        }
+    ],
+    "commands": [
+        {
+            "id": "medialon-task-start",
+            "name": "Medialon: start MyTask",
+            "serverId": "medialon-task-server",
+            "encoding": "text",
+            "payload": "task_start MyTask",
+            "raw": false
+        },
+        {
+            "id": "medialon-task-stop",
+            "name": "Medialon: stop MyTask",
+            "serverId": "medialon-task-server",
+            "encoding": "text",
+            "payload": "task_stop MyTask",
+            "raw": false
+        }
+    ]
+}

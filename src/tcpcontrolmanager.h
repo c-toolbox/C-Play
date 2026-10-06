@@ -24,7 +24,7 @@ public:
     QString configurationPath() const { return m_configurationPath; }
     bool active() const { return m_active; }
     void setActive(bool active);
-    bool loadConfiguration();
+    bool loadConfiguration(const QString &sourcePath = {});
     TcpControlClient *clientForServer(const QString &id) const { return m_clients.value(id); }
 
     // Empty id creates a new UUID. A supplied id updates an existing profile.

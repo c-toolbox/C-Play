@@ -130,6 +130,9 @@ PlayerController::PlayerController(QObject *parent)
             {QStringLiteral("maximumPendingWriteBytes"), TcpControlSettings::maximumPendingWriteBytes()}
         };
         tcpManager->saveServer(legacy);
+    } else if (!QFileInfo::exists(tcpManager->configurationPath())
+        && QFileInfo::exists(QStringLiteral("./data/predefined-tcp-control.json"))) {
+        tcpManager->loadConfiguration(QStringLiteral("./data/predefined-tcp-control.json"));
     }
     setBackgroundImageFile(ImageSettings::imageToLoadAsBackground());
     setBackgroundGridMode(ImageSettings::gridToMapOnForBackground());

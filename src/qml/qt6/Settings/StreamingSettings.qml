@@ -224,10 +224,6 @@ SettingsBasePage {
                 Layout.fillWidth: true
             }
 
-            // ------------------------------------
-            // LAYER STREAMING TO NODES
-            // --
-
             Item {
                 visible: NODE_STREAM_SUPPORT && NDI_SUPPORT
                 height: 1
@@ -250,6 +246,61 @@ SettingsBasePage {
             Item {
                 visible: NODE_STREAM_SUPPORT && NDI_SUPPORT
                 Layout.fillWidth: true
+            }
+
+            // ------------------------------------
+            // LAYER STREAMING TO NODES
+            // --
+
+            Item {
+                Layout.fillWidth: true
+            }
+            Label {
+                visible: NODE_STREAM_SUPPORT
+                Layout.columnSpan: 2
+                Layout.fillWidth: true
+                wrapMode: Text.WordWrap
+                text: qsTr("Enable NodeStream by default for new layers (Add new layer dialog):")
+            }
+
+            Item {
+                Layout.fillWidth: true
+            }
+            RowLayout {
+                visible: NODE_STREAM_SUPPORT
+                Layout.columnSpan: 2
+                CheckBox {
+                    text: qsTr("DirectShow")
+                    checked: StreamSettings.nodeStreamDefaultDirectShow
+                    onToggled: {
+                        StreamSettings.nodeStreamDefaultDirectShow = checked;
+                        StreamSettings.save();
+                    }
+                }
+                CheckBox {
+                    text: qsTr("Spout")
+                    checked: StreamSettings.nodeStreamDefaultSpout
+                    onToggled: {
+                        StreamSettings.nodeStreamDefaultSpout = checked;
+                        StreamSettings.save();
+                    }
+                }
+                CheckBox {
+                    text: qsTr("Stream")
+                    checked: StreamSettings.nodeStreamDefaultStream
+                    onToggled: {
+                        StreamSettings.nodeStreamDefaultStream = checked;
+                        StreamSettings.save();
+                    }
+                }
+                CheckBox {
+                    text: qsTr("YouTube")
+                    checked: StreamSettings.nodeStreamDefaultYouTube
+                    onToggled: {
+                        StreamSettings.nodeStreamDefaultYouTube = checked;
+                        StreamSettings.save();
+                    }
+                }
             }
 
             Label {

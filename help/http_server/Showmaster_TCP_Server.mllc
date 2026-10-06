@@ -1,0 +1,96 @@
+[INFOS]
+Title=Task Remote Server
+Author=C-Play
+Version=1.0.0
+DeviceMark=Medialon
+Model=Showmaster
+Description=Receives task_start and task_stop with a task name and CRLF. Project task dispatch logic is required.
+
+[TYPE]
+Communication=TCP/IP Server
+Port=9000
+Bind on specified=0
+Specified address=0.0.0.0
+Optimize packets=0
+
+[FRAMES]
+Count of bytes=0
+Hexa character=!
+Decimal character=&
+Header character=
+Ending character=!0A
+Convert non literal mode=0
+Keep frames=1
+Input checksum verification=0
+Output checksum verification=0
+Checksum character=@
+Timeout between bytes=250
+
+[EXCLUDED CHARACTERS]
+Count=0
+Not in header/ending=1
+Checksum before replacement=0
+
+[CHECKSUM]
+Checksum type=SUM
+CRC16 mask=A001
+CRC16 initial value=0000
+Start checksum at=0
+Stop checksum from=
+Checksum count=1
+Checksum position from end=
+Checksum two's complement=0
+Checksum ASCII coded=0
+Checksum high byte first=1
+
+[COMMANDS]
+Count=0
+
+[POSITRACK GROUPS]
+Count=0
+
+[ANSWERS]
+For each mode=0
+For each frame=
+Count=0
+
+[MONITORING]
+FixedLengthChar=X
+VariableLengthChar=?
+Requests count=0
+Wait for answer=0
+Timeout Answer=3000
+Variables count=3
+Variable0.Name=Last_Command
+Variable0.Frame=?!0D!0A
+Variable0.Position=0
+Variable0.Length=1
+Variable0.Type=string
+Variable0.Format=literal
+Variable0.UpdateMode=0
+Variable0.EnumNameCount=0
+Variable0.BEnumIntegerValues=0
+Variable1.Name=Start_Task_Name
+Variable1.Frame=task_start ?!0D!0A
+Variable1.Position=11
+Variable1.Length=1
+Variable1.Type=string
+Variable1.Format=literal
+Variable1.UpdateMode=0
+Variable1.EnumNameCount=0
+Variable1.BEnumIntegerValues=0
+Variable2.Name=Stop_Task_Name
+Variable2.Frame=task_stop ?!0D!0A
+Variable2.Position=10
+Variable2.Length=1
+Variable2.Type=string
+Variable2.Format=literal
+Variable2.UpdateMode=0
+Variable2.EnumNameCount=0
+Variable2.BEnumIntegerValues=0
+
+[AUTOMATION]
+Connection mode=1
+Deconnection mode=1
+Deconnection delay=20
+

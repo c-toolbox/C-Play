@@ -26,6 +26,14 @@ Profiles and commands are saved atomically in `C-Play/tcp-control.json` beneath 
 
 The original single-server `[TcpControl]` configuration is imported once as **Legacy TCP control** when it is enabled and the multi-server configuration file does not exist. An existing file is never replaced by migration.
 
+### Predefined startup configuration
+
+When no saved `C-Play/tcp-control.json` exists and legacy TCP control is disabled, C-Play loads `./data/predefined-tcp-control.json` at startup, relative to the working directory, like the other `predefined-*` files. It uses the same `version`, `servers`, and `commands` structure as the saved configuration. The packaged example defines an enabled Medialon server at 127.0.0.1 on port 9000 with CRLF framing and `task_start MyTask` / `task_stop MyTask` commands.
+
+Set the host to the Showmaster Editor computer during programming or the Showmaster address during standalone operation. Replace `MyTask` with your task name, enable the server, and save it in **TCP control**. Medialon's LLC device must listen on port 9000 and dispatch received commands to project tasks.
+
+Predefined entries load into memory; saving a server or command writes the complete configuration to the user configuration path. That saved file takes precedence on later starts, even when empty or invalid. To use edited predefined entries again, back up and move the saved file out of that path before restarting. Keep IDs stable when editing examples so presentation layers retain their command references. Startup loads definitions and connects enabled servers; it does not automatically trigger commands.
+
 Server fields in the JSON file are:
 
 | Field | Default | Meaning |

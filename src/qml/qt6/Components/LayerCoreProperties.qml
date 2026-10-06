@@ -114,8 +114,22 @@ GridLayout {
             app.ytdlpMetadataModel.clear();
         }
 
-        // "Nodes read from original source" is the default for new layers.
-        nodeSourceComboBox.currentIndex = 0;
+        resetNodeSourceDefault();
+    }
+
+    function resetNodeSourceDefault() {
+        if (!nodeSourceComboBox)
+            return;
+        var enabled = false;
+        if (showNodeSourceParams && NODE_STREAM_SUPPORT) {
+            switch (typeComboBox.currentText) {
+            case "DirectShow": enabled = StreamSettings.nodeStreamDefaultDirectShow; break;
+            case "Spout": enabled = StreamSettings.nodeStreamDefaultSpout; break;
+            case "Stream": enabled = StreamSettings.nodeStreamDefaultStream; break;
+            case "YouTube": enabled = StreamSettings.nodeStreamDefaultYouTube; break;
+            }
+        }
+        nodeSourceComboBox.currentIndex = enabled ? 1 : 0;
     }
 
     // Returns the video/audio device combination of the currently selected predefined DirectShow setup, or null when none is available.
@@ -373,6 +387,8 @@ GridLayout {
         Layout.fillWidth: true
         model: app.slides.selected.layersTypeModel
         textRole: "typeName"
+
+        onCurrentTextChanged: root.resetNodeSourceDefault()
 
         onActivated: {
             // A layer-type switch invalidates any in-flight YouTube metadata fetch.

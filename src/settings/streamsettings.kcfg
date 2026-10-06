@@ -24,6 +24,22 @@
       <label>Convert NDI output from RGB to UYVY using the GPU. Restart NDI outputs after changing this setting. Output alpha is discarded.</label>
       <default>true</default>
     </entry>
+    <entry name="NodeStreamDefaultDirectShow" type="bool">
+      <label>Enable NodeStream by default for new DirectShow layers in the Add new layer dialog.</label>
+      <default>false</default>
+    </entry>
+    <entry name="NodeStreamDefaultSpout" type="bool">
+      <label>Enable NodeStream by default for new Spout layers in the Add new layer dialog.</label>
+      <default>false</default>
+    </entry>
+    <entry name="NodeStreamDefaultStream" type="bool">
+      <label>Enable NodeStream by default for new Stream layers in the Add new layer dialog.</label>
+      <default>false</default>
+    </entry>
+    <entry name="NodeStreamDefaultYouTube" type="bool">
+      <label>Enable NodeStream by default for new YouTube layers in the Add new layer dialog.</label>
+      <default>true</default>
+    </entry>
     <entry name="NodeStreamBaseGroup" type="String">
       <label>Multicast group of layer streams to the nodes. Each layer uses the next group, unless overridden on the layer.</label>
       <default>239.192.77.1</default>

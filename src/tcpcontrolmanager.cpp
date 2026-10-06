@@ -109,8 +109,8 @@ bool TcpControlManager::persist(const QVariantList &servers, const QVariantList 
     return true;
 }
 
-bool TcpControlManager::loadConfiguration() {
-    QFile file(m_configurationPath);
+bool TcpControlManager::loadConfiguration(const QString &sourcePath) {
+    QFile file(sourcePath.isEmpty() ? m_configurationPath : sourcePath);
     if (!file.open(QIODevice::ReadOnly)) {
         error(tr("Cannot read TCP configuration: %1").arg(file.errorString()));
         return false;
