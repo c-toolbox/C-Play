@@ -155,5 +155,17 @@
     <entry name="FloatingWindowVisibleAtStartup" type="bool">
       <default>false</default>
     </entry>
+    <entry name="CluxConnectAtStartup" type="bool">
+      <label>Connect to the C-Lux server at application launch</label>
+      <default>false</default>
+    </entry>
+    <entry name="CluxGoLiveAtStartup" type="bool">
+      <label>Enter C-Lux live mode at application launch (requires a connection)</label>
+      <default>false</default>
+    </entry>
+    <entry name="CluxShowIn3DViewAtStartup" type="bool">
+      <label>Show the C-Lux light preview in the 3D view at application launch</label>
+      <default>false</default>
+    </entry>
   </group>
 </kcfg>

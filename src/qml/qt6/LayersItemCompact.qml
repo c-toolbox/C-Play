@@ -256,6 +256,14 @@ ItemDelegate {
             VisibilitySlider {
                 id: visibilitySlider
 
+                // Model refreshes must not write back while the selected layer changes.
+                property bool syncingValue: false
+                function syncValue(newValue) {
+                    syncingValue = true;
+                    value = newValue;
+                    syncingValue = false;
+                }
+
                 anchors.bottom: parent.bottom
                 anchors.right: its.right
                 visible: layersView.currentIndex === index && model.type !== "Control" && model.type !== "REST" && model.type !== "TCP"
@@ -268,11 +276,12 @@ ItemDelegate {
 
                 onVisibleChanged: {
                     if (visible) {
-                        visibilitySlider.value = app.slides.selected.layerVisibility(index);
+                        visibilitySlider.syncValue(app.slides.selected.layerVisibility(index));
                     }
                 }
                 onValueChanged: {
-                    if (!layersView.enabled || visibilitySlider.enabled) {
+                    if (!syncingValue && layerView.layerItem.layerIdx === index
+                            && (!layersView.enabled || visibilitySlider.enabled)) {
                         if (visibilitySlider.visible && (value.toFixed(0) !== layerView.layerItem.layerVisibility)) {
                             layerView.layerItem.layerVisibility = value.toFixed(0);
                             app.slides.needsSync = true;
@@ -280,7 +289,7 @@ ItemDelegate {
                     }
                 }
                 Component.onCompleted: {
-                    visibilitySlider.value = app.slides.selected.layerVisibility(index);
+                    visibilitySlider.syncValue(app.slides.selected.layerVisibility(index));
                 }
             }
             Item {
@@ -517,8 +526,8 @@ ItemDelegate {
     }
 
     onHighlightedChanged: {
-        if (highlighted && model.visibility) {
-            visibilitySlider.value = model.visibility;
+        if (highlighted) {
+            visibilitySlider.syncValue(model.visibility);
         }
     }
 
@@ -574,11 +583,11 @@ ItemDelegate {
     Connections {
         function onLayerChanged() {
             if (visibilitySlider.value !== app.slides.selected.layerVisibility(index))
-                visibilitySlider.value = app.slides.selected.layerVisibility(index);
+                visibilitySlider.syncValue(app.slides.selected.layerVisibility(index));
         }
         function onLayerValueChanged() {
             if (visibilitySlider.value !== app.slides.selected.layerVisibility(index))
-                visibilitySlider.value = app.slides.selected.layerVisibility(index);
+                visibilitySlider.syncValue(app.slides.selected.layerVisibility(index));
         }
 
         target: layerView.layerItem

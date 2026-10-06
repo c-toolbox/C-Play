@@ -18,7 +18,7 @@ Kirigami.ApplicationWindow {
     height: 600
     title: qsTr("C-Lux Editor")
     visible: false
-    width: 950
+    width: 1100
 
     readonly property var client: app.cluxClient
 
@@ -250,12 +250,49 @@ Kirigami.ApplicationWindow {
                 color: root.client.liveMode ? "red" : Kirigami.Theme.highlightColor
             }
 
-            // Runtime-only toggle for the live light-color overlay in the 3D view (always off at
-            // startup, not persisted). Drives app.cluxPreviewVisible, which main.qml binds to.
+            // Toggle for the live light-color overlay in the 3D view (not persisted; the state at
+            // launch comes from UserInterfaceSettings.cluxShowIn3DViewAtStartup). Drives
+            // app.cluxPreviewVisible, which main.qml binds to.
             Label { text: qsTr("Show in 3D view") }
             Switch {
                 checked: app.cluxPreviewVisible
                 onToggled: app.cluxPreviewVisible = checked
+            }
+
+            // Startup behaviour, persisted in UserInterfaceSettings (cplay.conf) and consumed by
+            // the Application at the next launch: connect to the server, go live once connected,
+            // and show the light overlay in the 3D view. All off by default.
+            Label { text: qsTr("At startup:") }
+            CheckBox {
+                text: qsTr("Connect")
+                checked: UserInterfaceSettings.cluxConnectAtStartup
+                onToggled: {
+                    UserInterfaceSettings.cluxConnectAtStartup = checked;
+                    if (!checked) {
+                        // Going live requires a connection, so it cannot survive without it.
+                        UserInterfaceSettings.cluxGoLiveAtStartup = false;
+                    }
+                    UserInterfaceSettings.save();
+                }
+            }
+            CheckBox {
+                text: qsTr("Go live")
+                // Live mode drives the physical lights and requires a connection (the client
+                // refuses it while disconnected), so it is only available with connect at startup.
+                enabled: UserInterfaceSettings.cluxConnectAtStartup
+                checked: UserInterfaceSettings.cluxGoLiveAtStartup
+                onToggled: {
+                    UserInterfaceSettings.cluxGoLiveAtStartup = checked;
+                    UserInterfaceSettings.save();
+                }
+            }
+            CheckBox {
+                text: qsTr("3D view")
+                checked: UserInterfaceSettings.cluxShowIn3DViewAtStartup
+                onToggled: {
+                    UserInterfaceSettings.cluxShowIn3DViewAtStartup = checked;
+                    UserInterfaceSettings.save();
+                }
             }
 
             // Queued preview-mode changes, replayed in order when live mode is entered.

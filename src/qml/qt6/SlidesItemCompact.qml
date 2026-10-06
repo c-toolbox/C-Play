@@ -510,10 +510,8 @@ ItemDelegate {
             if (app.slides.triggeredSlideIdx === index) {
                 app.slides.triggeredSlideVisibility = 0;
             }
-            slidesView.enabled = true;
+            slides.restoreSlideNavigation();
             app.slides.pauseLayerUpdate = false;
-            app.action("slidePrevious").enabled = true;
-            app.action("slideNext").enabled = true;
         }
         onStarted: {
             slidesView.enabled = false;
@@ -535,10 +533,8 @@ ItemDelegate {
             if (app.slides.triggeredSlideIdx === index) {
                 app.slides.triggeredSlideVisibility = 100;
             }
-            slidesView.enabled = true;
+            slides.restoreSlideNavigation();
             app.slides.pauseLayerUpdate = false;
-            app.action("slidePrevious").enabled = true;
-            app.action("slideNext").enabled = true;
         }
         onStarted: {
             slidesView.enabled = false;

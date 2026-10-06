@@ -425,16 +425,25 @@ Kirigami.ApplicationWindow {
                 VisibilitySlider {
                     id: visibilitySlider
 
+                    // Model refreshes must not write back while the selected layer changes.
+                    property bool syncingValue: false
+                    function syncValue(newValue) {
+                        syncingValue = true;
+                        value = newValue;
+                        syncingValue = false;
+                    }
+
                     overlayLabel: qsTr("Layer visibility: ")
 
                     onValueChanged: {
-                        if (value.toFixed(0) !== layerViewItem.layerVisibility) {
+                        if (!syncingValue && layerViewItem.layerIdx >= 0
+                                && value.toFixed(0) !== layerViewItem.layerVisibility) {
                             layerViewItem.layerVisibility = value.toFixed(0);
                             app.slides.needsSync = true;
                         }
                     }
                     Component.onCompleted: {
-                        visibilitySlider.value = layerViewItem.layerVisibility;
+                        visibilitySlider.syncValue(layerViewItem.layerVisibility);
                     }
                 }
                 PropertyAnimation {
@@ -2482,7 +2491,7 @@ Kirigami.ApplicationWindow {
                     layerViewItem.loadTracks();
                     layerWindow.title = layerViewItem.layerTitle;
                     if(visibilitySlider)
-                        visibilitySlider.value = layerViewItem.layerVisibility;
+                        visibilitySlider.syncValue(layerViewItem.layerVisibility);
                     for (let sm = 0; sm < stereoscopicModeForLayerList.count; ++sm) {
                         if (stereoscopicModeForLayerList.get(sm).value === layerViewItem.layerStereoMode) {
                             stereoscopicModeForLayer.currentIndex = sm;
@@ -2623,7 +2632,7 @@ Kirigami.ApplicationWindow {
             function onLayerValueChanged() {
                 if (visibilitySlider){
                     if(visibilitySlider.value !== layerViewItem.layerVisibility){
-                        visibilitySlider.value = layerViewItem.layerVisibility;
+                        visibilitySlider.syncValue(layerViewItem.layerVisibility);
                     }
                 }
             }

@@ -196,6 +196,14 @@ Rectangle {
         removeSlideTimer.start();
     }
 
+    function restoreSlideNavigation() {
+        // A removed delegate may never finish its fade animation. Restore the
+        // binding as well as the actions so busy operations still disable the list.
+        slidesView.enabled = Qt.binding(function() { return !slidesRoot.busyIndicator; });
+        app.action("slidePrevious").enabled = true;
+        app.action("slideNext").enabled = true;
+    }
+
     function openFileDialog(dialog) {
         Qt.callLater(function() {
             dialog.open();
@@ -681,6 +689,7 @@ Rectangle {
 
         onTriggered: {
             app.slides.clearSlides();
+            restoreSlideNavigation();
             loadPresentation.start();
         }
     }
@@ -692,6 +701,7 @@ Rectangle {
 
         onTriggered: {
             app.slides.clearSlides();
+            restoreSlideNavigation();
             restoreUpdateAfterRemove.start();
         }
     }
@@ -703,6 +713,7 @@ Rectangle {
 
         onTriggered: {
             app.slides.removeSlide(slidesView.currentIndex);
+            restoreSlideNavigation();
             restoreUpdateAfterRemove.start();
         }
     }

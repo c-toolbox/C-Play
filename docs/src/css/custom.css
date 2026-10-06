@@ -67,6 +67,13 @@
   object-fit: contain;
 }
 
+/* Infima constrains images globally (img { max-width: 100% }) but not other
+   replaced media, so embedded <video> elements would render at their full
+   intrinsic width and overflow the content column. Mirror the same scaling. */
+video {
+  max-width: 100%;
+}
+
 /* Local search box (@cmfcmf/docusaurus-search-local): retheme the default
    purple accents from autocomplete-theme-classic to the C-Tech warm palette.
    Per the plugin docs, overrides need !important, and the dark-mode selector

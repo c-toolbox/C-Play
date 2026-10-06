@@ -104,6 +104,8 @@
 #include <QThread>
 #include <QtGlobal>
 
+#include <memory>
+
 #include <KActionCollection>
 #include <KAboutApplicationDialog>
 #include <KAboutData>
@@ -202,6 +204,27 @@ Application::Application(int &argc, char **argv, const QString &applicationName)
     m_cluxClient = new CLuxClient(this);
     m_cluxClient->loadServerConfig(); // load the single C-Lux server from data/clux-server.json
     m_cluxClient->loadStateCache();   // restore the cached state so preview mode works offline
+
+    // The startup behaviour is a UserInterfaceSettings choice (Window & UI page), all off by
+    // default; the server URL and cached state themselves stay in the JSON files. The 3D view
+    // overlay is initialised from the setting here; the C-Lux Editor's toggle stays runtime-only.
+    m_cluxPreviewVisible = UserInterfaceSettings::cluxShowIn3DViewAtStartup();
+    if (UserInterfaceSettings::cluxConnectAtStartup()) {
+        if (UserInterfaceSettings::cluxGoLiveAtStartup()) {
+            // Going live drives the physical lights and requires a connection (the client
+            // refuses it while disconnected), so it is deferred to the first successful
+            // connect: a one-shot handler enters live mode and removes itself again.
+            auto liveOnConnect = std::make_shared<QMetaObject::Connection>();
+            *liveOnConnect = connect(m_cluxClient, &CLuxClient::connectionStateChanged, this,
+                                     [this, liveOnConnect]() {
+                                         if (m_cluxClient->connected()) {
+                                             m_cluxClient->setLiveMode(true);
+                                             QObject::disconnect(*liveOnConnect);
+                                         }
+                                     });
+        }
+        m_cluxClient->connectToServer();
+    }
 #endif
     m_wwsClientModel = new WwsClientModel(this);
 #ifdef MEDIA_MTX_SUPPORT
