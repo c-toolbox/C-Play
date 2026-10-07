@@ -24,6 +24,9 @@
 #ifdef DIRECTSHOW_LAYER
 #include <layers/directshowlayer.h>
 #endif
+#ifdef CAPTURE_LAYER
+#include <capture/capturelayer.h>
+#endif
 #include <layersmodel.h>
 #include <QCoreApplication>
 #include <atomic>
@@ -1045,6 +1048,9 @@ static void postSyncPreDraw() {
             secondaryLayers = std::move(secondaryLayersToKeep);
             secondaryLayersToKeep.clear();
             updateLayers = false;
+#ifdef CAPTURE_LAYER
+            CaptureLayer::processPendingGLCleanup();
+#endif
         }
 
         glm::vec3 rotXYZ = glm::vec3(float(SyncHelper::instance().variables.rotateX),
@@ -1439,6 +1445,9 @@ static void cleanup() {
         ImageLayer::processPendingGLCleanup();
 #ifdef DIRECTSHOW_LAYER
         DirectShowLayer::processPendingGLCleanup();
+#endif
+#ifdef CAPTURE_LAYER
+        CaptureLayer::processPendingGLCleanup();
 #endif
     }
 

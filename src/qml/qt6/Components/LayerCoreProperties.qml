@@ -60,6 +60,12 @@ GridLayout {
     property alias restMethodComboBox: restMethodComboBox
     property alias restIgnoreStatusCheckBox: restIgnoreStatusCheckBox
     property alias nodeSourceComboBox: nodeSourceComboBox
+    property alias capturePresetsLayout: capturePresetsLayout
+    property alias capturePresetsComboBox: capturePresetsComboBox
+
+    // True when data/predefined-captures.json provides at least one enabled capture setup.
+    property bool capturePresetAvailable: !!app.capturePresetsModel && app.capturePresetsModel.numberOfPresets > 0
+    readonly property var captureGangingValues: ["", "off", "2x1", "1x2", "2x2", "3x1", "1x3", "4x1", "1x4"]
 
     // True when data/predefined-directshows.json provides at least one enabled capture setup.
     property bool directShowPresetAvailable: app.directShowPresetsModel && app.directShowPresetsModel.numberOfPresets > 0
@@ -107,6 +113,7 @@ GridLayout {
             }
         }
         directShowPresetsLayout.customEntry = false;
+        capturePresetsLayout.customEntry = false;
         // Drop any in-flight YouTube metadata fetch and its auto-filled title.
         youtubeFetchTimer.stop();
         youtubeAutoFilledTitle = "";
@@ -130,6 +137,24 @@ GridLayout {
             }
         }
         nodeSourceComboBox.currentIndex = enabled ? 1 : 0;
+    }
+
+    // True when the Capture layer is created from a predefined setup (rather than a custom input).
+    function captureUsesPreset() {
+        return capturePresetAvailable && !capturePresetsLayout.customEntry && capturePresetsComboBox.currentIndex >= 0;
+    }
+
+    // The Capture layer file path: the selected setup's default source, or the custom selection.
+    function getCaptureSourceString() {
+        if (!app.captureModel)
+            return "";
+        if (captureUsesPreset()) {
+            var m = app.capturePresetsModel;
+            return m.data(m.index(capturePresetsComboBox.currentIndex, 0), Qt.UserRole + 1);
+        }
+        return app.captureModel.sourceString("datapath", captureInputSpinBox.value,
+                                             captureGangingValues[captureGangingComboBox.currentIndex],
+                                             captureDirectGpuCheckBox.checked, captureAudioCheckBox.checked);
     }
 
     // Returns the video/audio device combination of the currently selected predefined DirectShow setup, or null when none is available.
@@ -431,6 +456,19 @@ GridLayout {
                     layerTitle.text = "DirectShow:" + (directShowVideoDeviceComboBox.currentText || "");
                 }
             }
+            else if (typeComboBox.currentText === "Capture") {
+                if (app.captureModel)
+                    app.captureModel.updateInputList();
+                if (app.capturePresetsModel)
+                    app.capturePresetsModel.updatePresetsList();
+                if (root.capturePresetAvailable) {
+                    capturePresetsLayout.customEntry = false;
+                    capturePresetsComboBox.currentIndex = 0;
+                    layerTitle.text = capturePresetsComboBox.currentText;
+                } else {
+                    layerTitle.text = "Capture:" + captureInputSpinBox.value;
+                }
+            }
             else if (typeComboBox.currentText === "Stream") {
                 app.streamsModel.updateStreamsList();
                 streamsLayout.customEntry = false;
@@ -476,11 +514,11 @@ GridLayout {
         Layout.alignment: Qt.AlignRight
         font.pointSize: 9
         text: qsTr("File:")
-        visible: typeComboBox.currentText != "Stream" && typeComboBox.currentText != "YouTube" && typeComboBox.currentText != "DirectShow"&& typeComboBox.currentText != "NDI" && typeComboBox.currentText != "Spout" && typeComboBox.currentText != "OMT" && typeComboBox.currentText != "WebRTC" && typeComboBox.currentText != "Text" && typeComboBox.currentText != "Control" && typeComboBox.currentText != "REST" && typeComboBox.currentText != "TCP"
+        visible: typeComboBox.currentText != "Stream" && typeComboBox.currentText != "YouTube" && typeComboBox.currentText != "DirectShow"&& typeComboBox.currentText != "NDI" && typeComboBox.currentText != "Spout" && typeComboBox.currentText != "OMT" && typeComboBox.currentText != "WebRTC" && typeComboBox.currentText != "Text" && typeComboBox.currentText != "Control" && typeComboBox.currentText != "REST" && typeComboBox.currentText != "TCP" && typeComboBox.currentText != "Capture"
     }
     RowLayout {
         Layout.fillWidth: true
-        visible: typeComboBox.currentText != "Stream" && typeComboBox.currentText != "YouTube" && typeComboBox.currentText != "DirectShow" && typeComboBox.currentText != "NDI" && typeComboBox.currentText != "Spout" && typeComboBox.currentText != "OMT" && typeComboBox.currentText != "WebRTC" && typeComboBox.currentText != "Text" && typeComboBox.currentText != "Control" && typeComboBox.currentText != "REST" && typeComboBox.currentText != "TCP"
+        visible: typeComboBox.currentText != "Stream" && typeComboBox.currentText != "YouTube" && typeComboBox.currentText != "DirectShow" && typeComboBox.currentText != "NDI" && typeComboBox.currentText != "Spout" && typeComboBox.currentText != "OMT" && typeComboBox.currentText != "WebRTC" && typeComboBox.currentText != "Text" && typeComboBox.currentText != "Control" && typeComboBox.currentText != "REST" && typeComboBox.currentText != "TCP" && typeComboBox.currentText != "Capture"
 
         TextField {
             id: fileForLayer
@@ -1071,6 +1109,225 @@ GridLayout {
         Layout.fillWidth: true
     }
 
+    // --- Capture layer section (capture card SDKs, e.g. Datapath RGBEasy) ---
+    Label {
+        Layout.alignment: Qt.AlignRight
+        text: qsTr("Setup:")
+        visible: typeComboBox.currentText === "Capture" && root.capturePresetAvailable
+    }
+    RowLayout {
+        id: capturePresetsLayout
+
+        Layout.fillWidth: true
+        property bool customEntry: false
+        visible: typeComboBox.currentText === "Capture" && root.capturePresetAvailable
+
+        ComboBox {
+            id: capturePresetsComboBox
+
+            Layout.fillWidth: true
+            model: app.capturePresetsModel ? app.capturePresetsModel : []
+            currentIndex: 0
+            textRole: "title"
+            visible: capturePresetsLayout.customEntry === false
+
+            Component.onCompleted: {
+                if (app.capturePresetsModel)
+                    app.capturePresetsModel.updatePresetsList();
+            }
+            onActivated: {
+                layerTitle.text = capturePresetsComboBox.currentText;
+            }
+
+            ToolTip {
+                text: qsTr("Predefined capture setup from data/predefined-captures.json. Each machine resolves its own input from its local copy, so the master and the nodes may capture different inputs.")
+            }
+        }
+        ToolButton {
+            focusPolicy: Qt.NoFocus
+            icon.height: 16
+            icon.name: capturePresetsLayout.customEntry ? "gnumeric-object-combo" : "text-field"
+            text: ""
+
+            onClicked: {
+                if (capturePresetsLayout.customEntry) {
+                    app.capturePresetsModel.updatePresetsList();
+                    capturePresetsComboBox.currentIndex = 0;
+                    capturePresetsLayout.customEntry = false;
+                    layerTitle.text = capturePresetsComboBox.currentText;
+                } else {
+                    capturePresetsLayout.customEntry = true;
+                    layerTitle.text = "Capture:" + captureInputSpinBox.value;
+                }
+            }
+
+            ToolTip {
+                text: capturePresetsLayout.customEntry ? qsTr("Use predefined setup list") : qsTr("Use custom capture input")
+            }
+        }
+    }
+    Item {
+        visible: root.showSpacers && typeComboBox.currentText === "Capture" && root.capturePresetAvailable
+        Layout.fillWidth: true
+    }
+
+    Label {
+        Layout.alignment: Qt.AlignRight
+        text: qsTr("Input:")
+        visible: typeComboBox.currentText === "Capture" && (!root.capturePresetAvailable || capturePresetsLayout.customEntry)
+    }
+    RowLayout {
+        Layout.fillWidth: true
+        visible: typeComboBox.currentText === "Capture" && (!root.capturePresetAvailable || capturePresetsLayout.customEntry)
+
+        Label {
+            text: qsTr("Datapath")
+        }
+        SpinBox {
+            id: captureInputSpinBox
+
+            from: 1
+            to: 64
+            value: 1
+            editable: true
+
+            onValueModified: {
+                if (layerTitle.text === "" || layerTitle.text.startsWith("Capture:"))
+                    layerTitle.text = "Capture:" + value;
+            }
+
+            ToolTip {
+                text: qsTr("Capture input number (1 = first input, as in the Datapath Vision utility). The input does not need to exist on this machine - nodes open their own.")
+            }
+        }
+        ToolButton {
+            focusPolicy: Qt.NoFocus
+            icon.height: 16
+            icon.name: "view-refresh"
+            text: ""
+
+            onClicked: {
+                if (app.captureModel)
+                    app.captureModel.updateInputList();
+            }
+
+            ToolTip {
+                text: qsTr("Rescan capture inputs on this machine")
+            }
+        }
+    }
+    Item {
+        visible: root.showSpacers && typeComboBox.currentText === "Capture" && (!root.capturePresetAvailable || capturePresetsLayout.customEntry)
+        Layout.fillWidth: true
+    }
+
+    Label {
+        Layout.alignment: Qt.AlignRight
+        text: qsTr("Ganging:")
+        visible: typeComboBox.currentText === "Capture" && (!root.capturePresetAvailable || capturePresetsLayout.customEntry)
+    }
+    ComboBox {
+        id: captureGangingComboBox
+
+        Layout.fillWidth: true
+        model: [qsTr("Leave as configured"), qsTr("Off"), "2x1", "1x2", "2x2", "3x1", "1x3", "4x1", "1x4"]
+        currentIndex: 0
+        visible: typeComboBox.currentText === "Capture" && (!root.capturePresetAvailable || capturePresetsLayout.customEntry)
+
+        ToolTip {
+            text: qsTr("Combine several inputs of the card into one larger image (columns x rows)")
+        }
+    }
+    Item {
+        visible: root.showSpacers && typeComboBox.currentText === "Capture" && (!root.capturePresetAvailable || capturePresetsLayout.customEntry)
+        Layout.fillWidth: true
+    }
+
+    Label {
+        Layout.alignment: Qt.AlignRight
+        text: qsTr("GPU direct:")
+        visible: typeComboBox.currentText === "Capture" && (!root.capturePresetAvailable || capturePresetsLayout.customEntry)
+    }
+    CheckBox {
+        id: captureDirectGpuCheckBox
+
+        checked: true
+        focusPolicy: Qt.NoFocus
+        visible: typeComboBox.currentText === "Capture" && (!root.capturePresetAvailable || capturePresetsLayout.customEntry)
+
+        ToolTip {
+            text: qsTr("DMA frames straight into GPU memory (AMD DirectGMA / NVIDIA GPUDirect for Video). Falls back to a copy through system memory when the GPU does not support it.")
+        }
+    }
+    Item {
+        visible: root.showSpacers && typeComboBox.currentText === "Capture" && (!root.capturePresetAvailable || capturePresetsLayout.customEntry)
+        Layout.fillWidth: true
+    }
+
+    Label {
+        Layout.alignment: Qt.AlignRight
+        text: qsTr("Audio:")
+        visible: typeComboBox.currentText === "Capture" && (!root.capturePresetAvailable || capturePresetsLayout.customEntry)
+    }
+    CheckBox {
+        id: captureAudioCheckBox
+
+        checked: false
+        focusPolicy: Qt.NoFocus
+        visible: typeComboBox.currentText === "Capture" && (!root.capturePresetAvailable || capturePresetsLayout.customEntry)
+
+        ToolTip {
+            text: qsTr("Also capture the input's audio. With a custom input every machine that captures plays it; use a predefined setup (\"audio\" per machine in data/predefined-captures.json) to choose where audio plays.")
+        }
+    }
+    Item {
+        visible: root.showSpacers && typeComboBox.currentText === "Capture" && (!root.capturePresetAvailable || capturePresetsLayout.customEntry)
+        Layout.fillWidth: true
+    }
+
+    Label {
+        Layout.columnSpan: 2
+        Layout.fillWidth: true
+        Layout.leftMargin: 4
+        font.pointSize: 9
+        wrapMode: Text.WordWrap
+        visible: typeComboBox.currentText === "Capture" && !!app.captureModel && app.captureModel.inputNames.length > 0
+        text: app.captureModel ? qsTr("Inputs on this machine:") + "\n" + app.captureModel.inputNames.join("\n") : ""
+    }
+    Item {
+        visible: root.showSpacers && typeComboBox.currentText === "Capture" && !!app.captureModel && app.captureModel.inputNames.length > 0
+        Layout.fillWidth: true
+    }
+
+    // Capture prerequisites on this machine: a card driver, and a professional GPU for GPU direct transfer.
+    Label {
+        id: captureWarningLabel
+
+        Layout.columnSpan: 2
+        Layout.fillWidth: true
+        Layout.leftMargin: 4
+        font.pointSize: 9
+        font.italic: true
+        wrapMode: Text.WordWrap
+        color: Kirigami.Theme.neutralTextColor
+        visible: typeComboBox.currentText === "Capture" && text !== ""
+        text: {
+            if (!app.captureModel)
+                return "";
+            var lines = [];
+            if (app.captureModel.availableSdks.length === 0)
+                lines.push(qsTr("! No capture card driver (e.g. Datapath RGBEasy) found on this machine - only machines with the driver capture."));
+            if (!app.captureModel.professionalGpu)
+                lines.push(qsTr("! No professional GPU detected (%1). Frames are copied through system memory; GPU direct capture needs an NVIDIA Quadro/RTX professional GPU (GPUDirect for Video) or an AMD Radeon Pro/FirePro GPU (DirectGMA).")
+                           .arg(app.captureModel.gpuName !== "" ? app.captureModel.gpuName : qsTr("unknown GPU")));
+            return lines.join("\n");
+        }
+    }
+    Item {
+        visible: root.showSpacers && captureWarningLabel.visible
+        Layout.fillWidth: true
+    }
+
     Label {
         Layout.alignment: Qt.AlignRight
         font.pointSize: 9
@@ -1616,7 +1873,8 @@ GridLayout {
         currentIndex: 0
         visible: root.showNodeSourceParams && NODE_STREAM_SUPPORT
             && (typeComboBox.currentText === "DirectShow" || typeComboBox.currentText === "Spout"
-                || typeComboBox.currentText === "Stream" || typeComboBox.currentText === "YouTube")
+                || typeComboBox.currentText === "Stream" || typeComboBox.currentText === "YouTube"
+                || typeComboBox.currentText === "Capture")
 
         ToolTip {
             text: qsTr("Choose where the nodes get this layer's content from. 'Nodes read from original source' loads and decodes the layer on every node; 'Master sends content to nodes' enables Node stream, so the master renders the layer once and streams its texture to all nodes.")

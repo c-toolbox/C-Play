@@ -50,6 +50,9 @@
 #if defined(DIRECTSHOW_LAYER)
 #include <layers/directshowlayer.h>
 #endif
+#if defined(CAPTURE_LAYER)
+#include <capture/capturelayer.h>
+#endif
 #if defined(OMT_LAYER)
 #include <omt/omtlayer.h>
 #endif
@@ -114,6 +117,10 @@ std::string BaseLayer::typeDescription(BaseLayer::LayerType e) {
 #ifdef DIRECTSHOW_LAYER
     case DIRECTSHOW:
         return "DirectShow";
+#endif
+#ifdef CAPTURE_LAYER
+    case CAPTURE:
+        return "Capture";
 #endif
 #ifdef SPOUT_LAYER
     case SPOUT:
@@ -287,6 +294,12 @@ BaseLayer *BaseLayer::createLayer(bool isMaster, int layerType, FUNC_V1, FUNC_V2
     case static_cast<int>(BaseLayer::LayerType::DIRECTSHOW): {
         DirectShowLayer* newDirectShow = new DirectShowLayer();
         newLayer = newDirectShow;
+        break;
+    }
+#endif
+#ifdef CAPTURE_LAYER
+    case static_cast<int>(BaseLayer::LayerType::CAPTURE): {
+        newLayer = new CaptureLayer();
         break;
     }
 #endif

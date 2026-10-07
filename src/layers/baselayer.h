@@ -49,6 +49,9 @@ public:
 #ifdef DIRECTSHOW_SUPPORT
         DIRECTSHOW,
 #endif
+#ifdef CAPTURE_SUPPORT
+        CAPTURE,
+#endif
 #ifdef SPOUT_SUPPORT
         SPOUT,
 #endif

@@ -137,6 +137,24 @@ Kirigami.ApplicationWindow {
                                 app.slides.updateSelectedSlide();
                                 mpv.focus = true;
                             }
+                        } else if (layerCoreProps.typeComboBox.currentText === "Capture") {
+                            // The file path holds the default capture source; a predefined setup also stores its
+                            // title, which every machine resolves against its own data/predefined-captures.json.
+                            var captureParam = layerCoreProps.getCaptureSourceString();
+                            var capturePresetKey = layerCoreProps.captureUsesPreset() ? layerCoreProps.capturePresetsComboBox.currentText : "";
+                            if (captureParam !== "" || capturePresetKey !== "") {
+                                layerView.layerItem.layerIdx = app.slides.selected.addLayer(layerCoreProps.layerTitle.text, layerCoreProps.typeComboBox.currentIndex + 1, captureParam, layerCoreProps.stereoscopicModeForLayer.currentIndex, layerCoreProps.gridModeForLayer.currentIndex);
+                                if (capturePresetKey !== "") {
+                                    layerView.layerItem.layerCapturePresetKey = capturePresetKey;
+                                }
+                                // "Master sends content to nodes" enables Node stream on the new layer immediately.
+                                if (layerCoreProps.nodeSourceComboBox.currentIndex === 1) {
+                                    layerView.layerItem.layerNodeStreamOutputEnabled = true;
+                                }
+                                layersAddNew.visible = false;
+                                app.slides.updateSelectedSlide();
+                                mpv.focus = true;
+                            }
                         } else if (layerCoreProps.typeComboBox.currentText === "Stream") {
                             if(layerCoreProps.streamsLayout.customEntry){
                                 layerView.layerItem.layerIdx = app.slides.selected.addLayer(layerCoreProps.layerTitle.text, layerCoreProps.typeComboBox.currentIndex + 1, layerCoreProps.streamCustomEntryField.text, layerCoreProps.stereoscopicModeForLayer.currentIndex, layerCoreProps.gridModeForLayer.currentIndex);

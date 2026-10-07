@@ -68,6 +68,14 @@ if(CPLAY_INSTALL_DEPENDENCIES)
             else()
                 message("${PROJECT_SOURCE_DIR}/data/predefined-directshows.json was not found")
             endif()
+            if(EXISTS "${PROJECT_SOURCE_DIR}/data/predefined-captures.json")
+                file(INSTALL
+                    DESTINATION "${CMAKE_INSTALL_PREFIX}/bin/data"
+                    FILES "${PROJECT_SOURCE_DIR}/data/predefined-captures.json"
+                )
+            else()
+                message("${PROJECT_SOURCE_DIR}/data/predefined-captures.json was not found")
+            endif()
             if(EXISTS "${PROJECT_SOURCE_DIR}/data/predefined-rest-commands.json")
                 file(INSTALL
                     DESTINATION "${CMAKE_INSTALL_PREFIX}/bin/data"

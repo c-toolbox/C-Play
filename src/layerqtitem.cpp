@@ -30,6 +30,9 @@
 #ifdef DIRECTSHOW_SUPPORT
 #include <layers/directshowlayer.h>
 #endif
+#ifdef CAPTURE_SUPPORT
+#include <capture/capturelayer.h>
+#endif
 #include <layers/imagelayer.h>
 
 #include <QOpenGLContext>
@@ -1736,6 +1739,31 @@ void LayerQtItem::setLayerDirectShowPresetKey(QString key) {
 }
 #endif
 
+#ifdef CAPTURE_SUPPORT
+QString LayerQtItem::layerCapturePresetKey() const {
+    if (m_layer && m_layer->type() == BaseLayer::CAPTURE)
+        return QString::fromStdString(static_cast<CaptureLayer*>(m_layer)->presetKey());
+    return QString();
+}
+
+void LayerQtItem::setLayerCapturePresetKey(QString key) {
+    if (m_layer && m_layer->isEnabled() && m_layer->type() == BaseLayer::CAPTURE) {
+        CaptureLayer* captureLayer = static_cast<CaptureLayer*>(m_layer);
+        if (QString::fromStdString(captureLayer->presetKey()) != key) {
+            captureLayer->setPresetKey(key.toStdString());
+            Q_EMIT layerValueChanged();
+            Q_EMIT layerNeedsSave();
+        }
+    }
+}
+
+QString LayerQtItem::layerCaptureStatus() const {
+    if (m_layer && m_layer->type() == BaseLayer::CAPTURE)
+        return QString::fromStdString(static_cast<CaptureLayer*>(m_layer)->statusText());
+    return QString();
+}
+#endif
+
 void LayerQtItem::handleWindowChanged(QQuickWindow *win) {
     if (win) {
         connect(win, &QQuickWindow::beforeSynchronizing, this, &LayerQtItem::sync, Qt::DirectConnection);
@@ -1781,6 +1809,13 @@ void LayerQtItem::handleWindowChanged(QQuickWindow *win) {
                     m_lastEmittedError = errorText;
                     Q_EMIT layerErrorChanged();
                 }
+#ifdef CAPTURE_SUPPORT
+                const QString captureStatus = layerCaptureStatus();
+                if (captureStatus != m_lastEmittedCaptureStatus) {
+                    m_lastEmittedCaptureStatus = captureStatus;
+                    Q_EMIT layerCaptureStatusChanged();
+                }
+#endif
             });
 
             m_timer->start();

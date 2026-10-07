@@ -246,6 +246,10 @@ Application::Application(int &argc, char **argv, const QString &applicationName)
 #ifdef OMT_SUPPORT
     m_omtSendersModel = new OMTSendersModel(this);
 #endif
+#ifdef CAPTURE_SUPPORT
+    m_captureModel = new CaptureModel(this);
+    m_capturePresetsModel = new CapturePresetsModel(this);
+#endif
 
     if (UserInterfaceSettings::useBreezeIconTheme()) {
         QIcon::setThemeName(QStringLiteral("breeze"));
@@ -506,6 +510,12 @@ void Application::setupQmlContextProperties() {
     m_engine->rootContext()->setContextProperty(QStringLiteral("OMT_SUPPORT"), QVariant(true));
 #else
     m_engine->rootContext()->setContextProperty(QStringLiteral("OMT_SUPPORT"), QVariant(false));
+#endif
+
+#ifdef CAPTURE_SUPPORT
+    m_engine->rootContext()->setContextProperty(QStringLiteral("CAPTURE_SUPPORT"), QVariant(true));
+#else
+    m_engine->rootContext()->setContextProperty(QStringLiteral("CAPTURE_SUPPORT"), QVariant(false));
 #endif
 
 #ifdef CLUX_SUPPORT
@@ -1022,6 +1032,9 @@ void Application::updateAboutOtherText(const QString &mpvVersion, const QString 
 #endif
 #ifdef SPOUT_SUPPORT
     otherText += QStringLiteral("Spout ") + m_spoutSendersModel->getSpoutVersionString() + QStringLiteral(" for sharing video across Windows apps.\n");
+#endif
+#ifdef CAPTURE_DATAPATH
+    otherText += QStringLiteral("Datapath RGBEasy for direct capture card input.\n");
 #endif
 #if defined(WUFFS_SUPPORT) && defined(SAIL_SUPPORT)
     otherText += QStringLiteral("Wuffs and Sail ") + QStringLiteral(SAIL_VERSION_STRING) + QStringLiteral(" for extended image format decoding.\n");

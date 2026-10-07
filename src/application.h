@@ -59,6 +59,9 @@ class LayersRendererQtItem;
 #ifdef OMT_SUPPORT
 #include <omt/omtmodel.h>
 #endif
+#ifdef CAPTURE_SUPPORT
+#include <capture/capturemodel.h>
+#endif
 
 #if QT_VERSION >= QT_VERSION_CHECK(6, 0, 0)
 #ifndef OPAQUE_PTR_QAbstractItemModel
@@ -137,6 +140,13 @@ Q_DECLARE_METATYPE(DirectShowPresetsModel*)
 #ifndef METATYPE_OMTSendersModel
 #define METATYPE_OMTSendersModel
 Q_DECLARE_METATYPE(OMTSendersModel*)
+#endif
+#endif
+#ifdef CAPTURE_SUPPORT
+#ifndef METATYPE_CaptureModels
+#define METATYPE_CaptureModels
+Q_DECLARE_METATYPE(CaptureModel*)
+Q_DECLARE_METATYPE(CapturePresetsModel*)
 #endif
 #endif
 #endif
@@ -360,6 +370,14 @@ public:
     void setOmtSendersModel(OMTSendersModel* model);
 #endif
 
+#ifdef CAPTURE_SUPPORT
+    Q_PROPERTY(CaptureModel* captureModel READ captureModel CONSTANT)
+    CaptureModel* captureModel() { return m_captureModel; }
+
+    Q_PROPERTY(CapturePresetsModel* capturePresetsModel READ capturePresetsModel CONSTANT)
+    CapturePresetsModel* capturePresetsModel() { return m_capturePresetsModel; }
+#endif
+
 Q_SIGNALS:
     void actionsUpdated();
     void applicationInteraction();
@@ -448,6 +466,10 @@ private:
 #endif
 #ifdef OMT_SUPPORT
     OMTSendersModel* m_omtSendersModel;
+#endif
+#ifdef CAPTURE_SUPPORT
+    CaptureModel* m_captureModel = nullptr;
+    CapturePresetsModel* m_capturePresetsModel = nullptr;
 #endif
     KAboutData* m_aboutData;
     KActionCollection* m_collection;

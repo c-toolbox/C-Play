@@ -23,6 +23,9 @@
 #ifdef DIRECTSHOW_SUPPORT
 #include <layers/directshowlayer.h>
 #endif
+#ifdef CAPTURE_SUPPORT
+#include <capture/capturelayer.h>
+#endif
 #include <layers/textlayer.h>
 #include <layers/mpvlayer.h>
 #include <layers/controllayer.h>
@@ -1155,6 +1158,12 @@ void LayersModel::decodeFromJSON(QJsonObject &obj, const QStringList &forRelativ
                         }
                     }
 #endif
+#ifdef CAPTURE_SUPPORT
+                    if (type == BaseLayer::CAPTURE && o.contains(QStringLiteral("capturePreset"))) {
+                        // Each machine re-resolves its own local capture source from this setup title.
+                        static_cast<CaptureLayer*>(m_layers[idx].first.get())->setPresetKey(o.value(QStringLiteral("capturePreset")).toString().toStdString());
+                    }
+#endif
 
                     if (getLayersCanBeLocked() && o.contains(QStringLiteral("locked"))) {
                         bool locked = o.value(QStringLiteral("locked")).toBool();
@@ -1545,6 +1554,15 @@ void LayersModel::encodeToJSON(QJsonObject &obj, const QStringList &forRelativeP
             if (!directShowLayer->presetKey().empty()) {
                 layerData.insert(QStringLiteral("directShowPreset"), QJsonValue(QString::fromStdString(directShowLayer->presetKey())));
             }
+        }
+#endif
+#ifdef CAPTURE_SUPPORT
+        if (layer->type() == BaseLayer::CAPTURE) {
+            const CaptureLayer* captureLayer = static_cast<const CaptureLayer*>(layer.get());
+            if (!captureLayer->presetKey().empty()) {
+                layerData.insert(QStringLiteral("capturePreset"), QJsonValue(QString::fromStdString(captureLayer->presetKey())));
+            }
+            layerData.insert(QStringLiteral("volume"), QJsonValue(layer->volume()));
         }
 #endif
 

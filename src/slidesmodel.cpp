@@ -10,6 +10,9 @@
 #include "locationsettings.h"
 #include "presentationsettings.h"
 #include "layers/baselayer.h"
+#ifdef CAPTURE_SUPPORT
+#include <capture/capturelayer.h>
+#endif
 #include <QDir>
 #include <QFileInfo>
 #include <QJsonArray>
@@ -1280,6 +1283,11 @@ void SlidesModel::clearRecentPresentations() {
 }
 
 void SlidesModel::runRenderOnLayersThatShouldUpdate(bool updateRendering) {
+#ifdef CAPTURE_SUPPORT
+    // Captures of layers deleted on the GUI thread are closed here, on the render thread that owns them.
+    CaptureLayer::processPendingGLCleanup();
+#endif
+
     if (pauseLayerUpdate()) {
         return;
     }

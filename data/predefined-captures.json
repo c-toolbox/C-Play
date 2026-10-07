@@ -1,0 +1,43 @@
+{
+    "captures": [
+        {
+            "title": "Datapath Input 1",
+            "backend": "datapath",
+            "input": 1,
+            "directGpu": true,
+            "audio": false,
+            "enabled": true
+        },
+        {
+            "title": "Datapath Input 1 (audio on master)",
+            "backend": "datapath",
+            "input": 1,
+            "directGpu": true,
+            "audio": false,
+            "enabled": false,
+            "sources": {
+                "master": { "audio": true, "directGpu": false }
+            }
+        },
+        {
+            "title": "Datapath Input 1+2 (2x1 ganging)",
+            "backend": "datapath",
+            "input": 1,
+            "ganging": "2x1",
+            "directGpu": true,
+            "enabled": false
+        },
+        {
+            "title": "Datapath Capture (nodes only)",
+            "backend": "datapath",
+            "input": 1,
+            "directGpu": true,
+            "enabled": false,
+            "sources": {
+                "master": null,
+                "node-A": { "input": 1, "audio": true },
+                "node-B": { "input": 2, "directGpu": false }
+            }
+        }
+    ]
+}

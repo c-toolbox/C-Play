@@ -210,6 +210,13 @@ Kirigami.ApplicationWindow {
                 else if (layerViewItem.layerTypeName === "Spout") {
                     createFlipYComponents();
                 }
+                else if (layerViewItem.layerTypeName === "Capture") {
+                    if (layerViewItem.layerHasAudio) {
+                        createAudioComponents();
+                    } else {
+                        destroyAudioComponents();
+                    }
+                }
                 else if (layerViewItem.layerTypeName === "WebRTC") {
                     createWebrtcComponents();
                     createFlipYComponents();
@@ -814,6 +821,31 @@ Kirigami.ApplicationWindow {
                 text: qsTr("Could not play: %1").arg(layerViewItem.layerError)
                 verticalAlignment: Text.AlignVCenter
                 wrapMode: Text.WordWrap
+            }
+        }
+        // Capture layer state on this machine: resolution and transfer path (GPU direct or CPU copy),
+        // or why nothing is shown (no signal, no source configured for this machine).
+        Rectangle {
+            id: captureStatusOverlay
+
+            anchors.left: parent.left
+            anchors.top: parent.top
+            anchors.margins: 8
+            width: captureStatusLabel.implicitWidth + 16
+            height: captureStatusLabel.implicitHeight + 8
+            radius: 4
+            color: Qt.rgba(0.1, 0.1, 0.1, 0.7)
+            visible: CAPTURE_SUPPORT && layerViewItem.layerIdx !== -1 && layerViewItem.layerTypeName === "Capture"
+                     && !layerViewItem.layerHasError && captureStatusLabel.text !== ""
+            z: 10
+
+            Label {
+                id: captureStatusLabel
+
+                anchors.centerIn: parent
+                font.pointSize: 9
+                color: text.indexOf("CPU copy") >= 0 ? Kirigami.Theme.neutralTextColor : "white"
+                text: CAPTURE_SUPPORT ? (layerViewItem.layerCaptureStatus || "") : ""
             }
         }
         MouseArea {
@@ -2580,6 +2612,20 @@ Kirigami.ApplicationWindow {
                         createFlipYComponents();
                         destroyWebrtcComponents();
                     }
+                    else if (layerViewItem.layerTypeName === "Capture") {
+                        destroyPageComponents();
+                        destroyMediaComponents();
+                        destroyStreamComponents();
+                        destroyTextComponents();
+                        destroyQRCodeComponents();
+                        destroyFlipYComponents();
+                        destroyWebrtcComponents();
+                        if (layerViewItem.layerHasAudio) {
+                            createAudioComponents();
+                        } else {
+                            destroyAudioComponents();
+                        }
+                    }
                     else if (layerViewItem.layerTypeName === "WebRTC") {
                         destroyPageComponents();
                         destroyMediaComponents();
@@ -2640,7 +2686,7 @@ Kirigami.ApplicationWindow {
             // The WebRTC stream's audio is optional and can appear or disappear while the
             // view is open; keep the volume controls in sync with BaseLayer::hasAudio().
             function onLayerHasAudioChanged() {
-                if (layerViewItem.layerIdx !== -1 && layerViewItem.layerTypeName === "WebRTC") {
+                if (layerViewItem.layerIdx !== -1 && (layerViewItem.layerTypeName === "WebRTC" || layerViewItem.layerTypeName === "Capture")) {
                     if (layerViewItem.layerHasAudio) {
                         createAudioComponents();
                     } else {

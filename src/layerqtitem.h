@@ -152,6 +152,11 @@ class LayerQtItem : public QQuickItem {
 #ifdef DIRECTSHOW_SUPPORT
     Q_PROPERTY(QString layerDirectShowPresetKey READ layerDirectShowPresetKey WRITE setLayerDirectShowPresetKey NOTIFY layerValueChanged)
 #endif
+#ifdef CAPTURE_SUPPORT
+    Q_PROPERTY(QString layerCapturePresetKey READ layerCapturePresetKey WRITE setLayerCapturePresetKey NOTIFY layerValueChanged)
+    // Live state of a Capture layer, e.g. "1920x1080, AMD DirectGMA" or "No signal" (timer-polled).
+    Q_PROPERTY(QString layerCaptureStatus READ layerCaptureStatus NOTIFY layerCaptureStatusChanged)
+#endif
     Q_PROPERTY(bool layerNdiAvailable READ layerNdiAvailable CONSTANT)
     Q_PROPERTY(bool layerNdiOutputEnabled READ layerNdiOutputEnabled WRITE setLayerNdiOutputEnabled NOTIFY layerValueChanged)
     Q_PROPERTY(bool layerExistOnMasterOnly READ layerExistOnMasterOnly WRITE setLayerExistOnMasterOnly NOTIFY layerValueChanged)
@@ -430,6 +435,11 @@ public:
     QString layerDirectShowPresetKey() const;
     void setLayerDirectShowPresetKey(QString key);
 #endif
+#ifdef CAPTURE_SUPPORT
+    QString layerCapturePresetKey() const;
+    void setLayerCapturePresetKey(QString key);
+    QString layerCaptureStatus() const;
+#endif
 
 Q_SIGNALS:
     void layerChanged();
@@ -447,6 +457,9 @@ Q_SIGNALS:
     void layerHasAudioChanged();
     // Emitted by the window timer when the layer's loader failure state changes.
     void layerErrorChanged();
+#ifdef CAPTURE_SUPPORT
+    void layerCaptureStatusChanged();
+#endif
 
 private:
     Q_INVOKABLE void handleWindowChanged(QQuickWindow *win);
@@ -458,6 +471,9 @@ private:
     float m_lastEmittedAudioLevel = -1.f; // sentinel so the first timer tick always emits
     bool m_lastEmittedHasAudio = false;   // last reported audio-track availability (timer-polled)
     bool m_lastEmittedHasError = false;   // last reported loader failure state (timer-polled)
+#ifdef CAPTURE_SUPPORT
+    QString m_lastEmittedCaptureStatus;   // last reported Capture layer state (timer-polled)
+#endif
     QString m_lastEmittedError;           // last reported loader error text (timer-polled)
     bool m_audioLevelsEnabled = false; // desired meter state, re-applied to each new layer
     bool m_updatingLayer;

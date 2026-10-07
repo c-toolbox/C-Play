@@ -229,6 +229,43 @@ if(BUILD_CPLAY_WITH_OMT)
     endif()
 endif()
 
+# Capture layer: reads frames directly from capture card SDKs (bypassing DirectShow). Optional,
+# and only built when at least one enabled card SDK is found.
+option(BUILD_CPLAY_WITH_CAPTURE "Global On/Off for capture card SDK layer support" OFF)
+if(BUILD_CPLAY_WITH_CAPTURE AND NOT WIN32)
+    message(STATUS "Capture layer SDKs are only available on Windows - disabling")
+    set(BUILD_CPLAY_WITH_CAPTURE OFF)
+endif()
+if(BUILD_CPLAY_WITH_CAPTURE)
+    set(CPLAY_CAPTURE_BACKENDS "")
+
+    option(BUILD_CPLAY_WITH_CAPTURE_DATAPATH "Capture layer backend for Datapath cards (RGBEasy SDK)" ON)
+    if(BUILD_CPLAY_WITH_CAPTURE_DATAPATH)
+        set(RGBEASY_ROOT "$ENV{RGBEASY_ROOT}" CACHE PATH "Datapath RGBEasy SDK folder (containing C/INCLUDE and C/LIB)")
+        find_package(RGBEasy)
+        set_package_properties(RGBEasy PROPERTIES TYPE OPTIONAL
+            URL "https://www.datapath.co.uk/" DESCRIPTION "Datapath RGBEasy SDK for the Capture layer")
+        if(RGBEasy_FOUND)
+            list(APPEND CPLAY_CAPTURE_BACKENDS Datapath)
+            if(NOT TARGET PortAudio::PortAudio)
+                find_package(PortAudio REQUIRED)
+                set_package_properties(PortAudio PROPERTIES TYPE REQUIRED
+                    URL "https://www.portaudio.com/" DESCRIPTION "for Capture layer audio output support.")
+            endif()
+        else()
+            message(WARNING "BUILD_CPLAY_WITH_CAPTURE_DATAPATH is ON but the RGBEasy SDK was not found (set RGBEASY_ROOT)")
+            set(BUILD_CPLAY_WITH_CAPTURE_DATAPATH OFF)
+        endif()
+    endif()
+
+    if(CPLAY_CAPTURE_BACKENDS)
+        message(STATUS "Capture layer backends: ${CPLAY_CAPTURE_BACKENDS}")
+    else()
+        message(WARNING "BUILD_CPLAY_WITH_CAPTURE is ON but no capture SDK was found/enabled - disabling the Capture layer")
+        set(BUILD_CPLAY_WITH_CAPTURE OFF)
+    endif()
+endif()
+
 option(BUILD_CPLAY_WITH_WEBRTC "Global On/Off for WebRTC/WHEP support" OFF)
 if(BUILD_CPLAY_WITH_WEBRTC)
     find_package(LibDataChannel CONFIG REQUIRED)
