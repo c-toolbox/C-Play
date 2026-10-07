@@ -140,6 +140,8 @@ bool CapturePresets::loadFromFile(const std::string& filePath) {
                         roleSource = parseSource(it.value(), e.source);
                     else
                         roleSource.input = 0; // null: no capture on that machine
+                    if (it.key() == "master" && it.value().is_object())
+                        roleSource.placeholder = it.value().value("placeholder", false);
                     e.perRole[it.key()] = roleSource;
                 }
             }

@@ -7,6 +7,7 @@
 
 #include "spoutmodel.h"
 #include "spoutlayer.h"
+#include <utils/streampathsconfig.h>
 
 SpoutSendersModel::SpoutSendersModel(QObject *parent)
     : QAbstractListModel(parent) {
@@ -48,6 +49,15 @@ void SpoutSendersModel::updateSendersList() {
     m_Spoutsenders.clear();
     for (auto s : sendersList) {
         m_Spoutsenders.append(QString::fromStdString(s));
+    }
+    StreamPathsConfig presets;
+    const auto path = StreamPathsConfig::findDefaultFilePath("predefined-spouts.json");
+    if (!path.empty() && presets.loadFromFile(path, "spouts", "sender", "senders")) {
+        for (const auto& [title, entry] : presets.entries()) {
+            const auto name = QString::fromStdString(title);
+            if (entry.enabled && !m_Spoutsenders.contains(name))
+                m_Spoutsenders.append(name);
+        }
     }
     endResetModel();
 

@@ -38,7 +38,7 @@ These settings control how playback time is kept in sync between master and node
 
 ### YouTube playback (C-Play v2.4 and newer)
 
-These settings apply to [YouTube layers](/media/cplaypres#youtube-playback-and-yt-dlp) and Stream layers that use a YouTube URL — mpv resolves the URLs through its embedded `ytdl_hook`, which spawns an external yt-dlp executable:
+These settings apply to [YouTube layers](/media/layers#youtube-playback-and-yt-dlp) and Stream layers that use a YouTube URL — mpv resolves the URLs through its embedded `ytdl_hook`, which spawns an external yt-dlp executable:
 
 * **yt-dlp path** — Path to the yt-dlp executable used on this machine (with browse and clear buttons). Empty = auto-detect: next to C-Play.exe, then `<working directory>/plugins/`, and finally anywhere on PATH. The page shows whether yt-dlp was found on this machine.
 * **yt-dlp format** — Optional yt-dlp format selector passed to mpv's `ytdl_hook` (`ytdl-format`) to cap resolution or pick specific codecs (for example `bv*[height<=1080]+ba/b`). Empty = mpv/yt-dlp default.

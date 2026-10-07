@@ -32,3 +32,4 @@ You can save a media bundle, based on the content specified above, to make C-Pla
 
   From C-Play v2.1, you can build slides with multiple media layers which can be viewed as an immersive presentation, through this guide:
  - [CPlayPres](/media/cplaypres)
+Choose media, live sources, text, and automation actions with the [Layers and sources guide](/media/layers).

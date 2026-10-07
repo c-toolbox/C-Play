@@ -6,6 +6,7 @@
  */
 
 #include "spoutlayer.h"
+#include <utils/streampathresolver.h>
 #include <fmt/core.h>
 #include <sgct/opengl.h>
 #include <sgct/sgct.h>
@@ -103,10 +104,12 @@ void SpoutLayer::initialize() {
 		return;
 
 	// Set as active
-	m_receiver->SetActiveSender(filepath().c_str());
+	resolveSender();
 }
 
 void SpoutLayer::update(bool updateRendering) {
+    resolveSender();
+    if (updateMasterPlaceholder()) return;
 	if (!ready()) {
 		return;
 	}
@@ -116,7 +119,25 @@ void SpoutLayer::update(bool updateRendering) {
 	}
 }
 
+bool SpoutLayer::resolveSender() {
+    bool placeholder = false;
+    std::string sender;
+    if (!StreamPathResolver::spoutInstance().resolve(filepath(), isMaster(), sender, &placeholder))
+        sender = filepath();
+    setMasterPlaceholder(placeholder);
+    if (sender != m_resolvedSender) {
+        if (m_receiver) {
+            m_receiver->ReleaseReceiver();
+            if (!sender.empty()) m_receiver->SetReceiverName(sender.c_str());
+        }
+        m_resolvedSender = sender;
+    }
+    return !sender.empty();
+}
+
 void SpoutLayer::updateFrame() {
+    resolveSender();
+    if (updateMasterPlaceholder()) return;
 	// Let's recieve image or audio
 	if (m_receiver && ready()) {
 		unsigned int width = m_receiver->GetSenderWidth();
@@ -147,13 +168,15 @@ void SpoutLayer::updateFrame() {
 }
 
 bool SpoutLayer::ready() const {
-	if (!m_receiver)
+    if (masterPlaceholderEnabled())
+        return masterPlaceholderReady();
+	if (!m_receiver || m_resolvedSender.empty())
 		return false;
 
 	if(m_receiver->IsConnected())
         return true;
 
-	if (m_receiver->GetActiveSender(filepath().data()))
+	if (m_receiver->FindSenderName(m_resolvedSender.c_str()))
 		return true;
 
     return false;
@@ -178,5 +201,7 @@ void SpoutLayer::GenerateTexture(unsigned int& id, int width, int height) {
 }
 
 bool SpoutLayer::hasTexture() const {
+    if (masterPlaceholderEnabled())
+        return masterPlaceholderReady();
     return true;
 }

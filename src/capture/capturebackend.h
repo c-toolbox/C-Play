@@ -24,7 +24,8 @@ struct CaptureSource {
     bool directGpu = true;  // try DMA straight into GPU memory (requires a professional GPU)
     bool audio = false;     // also capture the input's audio and play it on this machine
 
-    bool valid() const { return !backend.empty() && input > 0; }
+    bool placeholder = false; // Local master preset only; never encoded in toString().
+    bool valid() const { return !placeholder && !backend.empty() && input > 0; }
     std::string toString() const;
     static CaptureSource fromString(const std::string& str);
 };

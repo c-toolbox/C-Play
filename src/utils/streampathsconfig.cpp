@@ -18,18 +18,18 @@
 StreamPathsConfig::StreamPathsConfig() {}
 
 /*static*/
-std::string StreamPathsConfig::findDefaultFilePath() {
+std::string StreamPathsConfig::findDefaultFilePath(const std::string& filename) {
     // The default path is CWD-relative ("./data/predefined-streams.json"), which only works when the app is
     // launched from its install directory. To be robust against other working directories, also walk up from
     // the current directory looking for <dir>/data/predefined-streams.json (covers e.g. running from a build/ subfolder).
     std::vector<std::string> candidates;
-    candidates.push_back(kDefaultFilePath);
+    candidates.push_back((std::filesystem::path("data") / filename).string());
 
     try {
         namespace fs = std::filesystem;
         auto cur = fs::current_path();
         for (int i = 0; i < 6 && !cur.empty(); ++i) {
-            candidates.push_back((cur / "data" / "predefined-streams.json").string());
+            candidates.push_back((cur / "data" / filename).string());
             if (!cur.has_parent_path() || cur.parent_path() == cur)
                 break;
             cur = cur.parent_path();
@@ -45,7 +45,8 @@ std::string StreamPathsConfig::findDefaultFilePath() {
     return "";
 }
 
-bool StreamPathsConfig::loadFromFile(const std::string& filePath) {
+bool StreamPathsConfig::loadFromFile(const std::string& filePath, const std::string& collection,
+    const std::string& pathKey, const std::string& pathsKey) {
     std::ifstream file(filePath);
     if (!file.is_open()) {
         sgct::Log::Warning(std::format("StreamPathsConfig: cannot open file '{}'", filePath));
@@ -58,26 +59,29 @@ bool StreamPathsConfig::loadFromFile(const std::string& filePath) {
     try {
         nlohmann::json doc = nlohmann::json::parse(ss.str());
 
-        if (!doc.contains("streams") || !doc["streams"].is_array()) {
+        if (!doc.contains(collection) || !doc[collection].is_array()) {
             sgct::Log::Error("StreamPathsConfig: JSON must contain a 'streams' array");
             m_loaded = false;
             return false;
         }
 
         std::map<std::string, Entry> entries;
-        for (const auto& s : doc["streams"]) {
+        for (const auto& s : doc[collection]) {
             if (!s.contains("title") || !s["title"].is_string()) continue;
             const std::string title = s["title"].get<std::string>();
             if (entries.count(title)) continue; // First entry wins on duplicate titles
 
             Entry e;
-            if (s.contains("path")) {
-                e.path = s["path"].is_null() ? "" : s["path"].get<std::string>();
+            e.enabled = s.value("enabled", true);
+            if (s.contains(pathKey)) {
+                e.path = s[pathKey].is_null() ? "" : s[pathKey].get<std::string>();
             }
-            if (s.contains("paths") && s["paths"].is_object()) {
+            if (s.contains(pathsKey) && s[pathsKey].is_object()) {
                 e.hasPaths = true;
-                for (auto it = s["paths"].begin(); it != s["paths"].end(); ++it) {
+                for (auto it = s[pathsKey].begin(); it != s[pathsKey].end(); ++it) {
                     const auto& v = it.value();
+                    if (it.key() == "master" && v.is_object())
+                        e.masterPlaceholder = v.value("placeholder", false);
                     // Empty string and null both mean "intentionally no stream on that machine"
                     e.paths[it.key()] = v.is_string() ? v.get<std::string>() : "";
                 }
@@ -109,12 +113,14 @@ int StreamPathsConfig::entryCount() const {
     return static_cast<int>(m_entries.size());
 }
 
-bool StreamPathsConfig::resolvePathForRole(const std::string& title, const std::string& role, std::string& outPath) const {
+bool StreamPathsConfig::resolvePathForRole(const std::string& title, const std::string& role, std::string& outPath, bool* placeholder) const {
+    if (placeholder) *placeholder = false;
     auto it = m_entries.find(title);
     if (it == m_entries.end())
         return false;
 
     const Entry& e = it->second;
+    if (placeholder) *placeholder = role == "master" && e.masterPlaceholder;
 
     // 1. Explicit per-machine override wins, even when empty (intentional no-stream).
     if (e.hasPaths) {
@@ -128,11 +134,11 @@ bool StreamPathsConfig::resolvePathForRole(const std::string& title, const std::
     // 2. Template substitution ({nodeId} -> role). Skipped when the machine has no resolvable identity,
     // so an unresolved node falls through to the plain path instead of a broken template result.
     if (!e.pathTemplate.empty() && !role.empty()) {
-        const std::string placeholder = "{nodeId}";
-        auto pos = e.pathTemplate.find(placeholder);
+        const std::string nodeToken = "{nodeId}";
+        auto pos = e.pathTemplate.find(nodeToken);
         if (pos != std::string::npos) {
             outPath = e.pathTemplate;
-            outPath.replace(pos, placeholder.size(), role);
+            outPath.replace(pos, nodeToken.size(), role);
             return true;
         }
         outPath = e.pathTemplate;

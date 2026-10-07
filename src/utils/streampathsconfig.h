@@ -17,6 +17,9 @@
 //   * "paths" - an object mapping role/node id ("master", or node ids from data/multivideo/nodes.json) to a path. When present it wins for that machine, even when the value is empty ("" or null), which means the stream is intentionally not opened on that machine.
 //   * "pathTemplate" - a template string where {nodeId} is replaced with the machine's role/node id. Used when there is no explicit "paths" entry for the machine.
 //
+// A master override {"placeholder": true} renders a movable name/ID TextLayer on the master
+// instead of opening a source. Node source resolution is unchanged.
+//
 // Resolution order per machine: paths[role] (if present) -> pathTemplate -> plain path.
 //
 // JSON format:
@@ -37,6 +40,8 @@ public:
     static const std::string kDefaultFilePath;
 
     struct Entry {
+        bool masterPlaceholder = false;
+        bool enabled = true;
         std::string path;                              // Plain default path (may be empty)
         std::map<std::string, std::string> paths;      // Role/node id -> path (empty = no stream on that machine)
         bool hasPaths = false;                         // Whether the "paths" key was present at all
@@ -46,10 +51,13 @@ public:
     StreamPathsConfig();
 
     // Locate predefined-streams.json. Tries the default CWD-relative path first, then walks up from the current directory looking for <dir>/data/predefined-streams.json (covers e.g. running from a build/ subfolder). Returns "" if not found.
-    static std::string findDefaultFilePath();
+    static std::string findDefaultFilePath(const std::string& filename = "predefined-streams.json");
 
     // Load and parse configuration from a JSON file. Returns true on success.
-    bool loadFromFile(const std::string& filePath = kDefaultFilePath);
+    bool loadFromFile(const std::string& filePath = kDefaultFilePath,
+        const std::string& collection = "streams", const std::string& pathKey = "path",
+        const std::string& pathsKey = "paths");
+    const std::map<std::string, Entry>& entries() const { return m_entries; }
 
     // Whether any entries were loaded.
     bool isLoaded() const;
@@ -60,7 +68,7 @@ public:
     // Resolve the local path for a stream entry (by title) on the machine identified by role ("master" or node id).
     // Returns false if no entry with that title exists (caller should fall back to the synced file path).
     // When true, outPath may be empty - meaning "no stream on this machine".
-    bool resolvePathForRole(const std::string& title, const std::string& role, std::string& outPath) const;
+    bool resolvePathForRole(const std::string& title, const std::string& role, std::string& outPath, bool* placeholder = nullptr) const;
 
 private:
     // title -> entry

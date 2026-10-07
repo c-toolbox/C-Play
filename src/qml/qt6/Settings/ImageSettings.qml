@@ -49,6 +49,38 @@ SettingsBasePage {
         }
         onRejected: mpv.focus = true
     }
+    CPlayFileDialog {
+        id: noSignalImageForCaptureDialog
+
+        parentWindow: root.Window.window
+        fileMode: CPlayFileDialog.OpenFile
+        currentFolder: LocationSettings.cPlayMediaLocation !== "" ? app.pathToUrl(LocationSettings.cPlayMediaLocation) : app.pathToUrl(LocationSettings.fileDialogLastLocation)
+        nameFilters: [playerController.supportedImageNameFilters()]
+        title: "Choose image to show when a capture input has no signal"
+
+        onAccepted: {
+            playerController.setNoSignalImageForCapture(noSignalImageForCaptureDialog.selectedFile.toString());
+            noSignalImageForCaptureText.text = playerController.noSignalImageForCapture();
+            mpv.focus = true;
+        }
+        onRejected: mpv.focus = true
+    }
+    CPlayFileDialog {
+        id: noSignalImageForDirectShowDialog
+
+        parentWindow: root.Window.window
+        fileMode: CPlayFileDialog.OpenFile
+        currentFolder: LocationSettings.cPlayMediaLocation !== "" ? app.pathToUrl(LocationSettings.cPlayMediaLocation) : app.pathToUrl(LocationSettings.fileDialogLastLocation)
+        nameFilters: [playerController.supportedImageNameFilters()]
+        title: "Choose image to show when a DirectShow capture input has no signal"
+
+        onAccepted: {
+            playerController.setNoSignalImageForDirectShow(noSignalImageForDirectShowDialog.selectedFile.toString());
+            noSignalImageForDirectShowText.text = playerController.noSignalImageForDirectShow();
+            mpv.focus = true;
+        }
+        onRejected: mpv.focus = true
+    }
     GridLayout {
         id: content
 
@@ -408,6 +440,114 @@ SettingsBasePage {
                 }
             }
         }
+        Item {
+            Layout.columnSpan: 3
+            Layout.fillWidth: true
+            // spacer item
+            height: 20
+        }
+
+        // ------------------------------------
+        // NO SIGNAL IMAGES
+        // ------------------------------------
+        SettingsHeader {
+            Layout.columnSpan: 3
+            Layout.fillWidth: true
+            text: qsTr("No signal images")
+        }
+        Label {
+            Layout.alignment: Qt.AlignRight
+            text: qsTr("Capture layers:")
+        }
+        RowLayout {
+            TextField {
+                id: noSignalImageForCaptureText
+
+                placeholderText: "Path to image file"
+                text: playerController.noSignalImageForCapture()
+
+                onEditingFinished: {
+                    playerController.setNoSignalImageForCapture(text);
+                    text = playerController.noSignalImageForCapture();
+                }
+
+                ToolTip {
+                    text: qsTr("Image shown instead of a Capture layer while its input has no signal, for layers with \"Use no-signal image\" enabled.")
+                }
+            }
+            ToolButton {
+                focusPolicy: Qt.NoFocus
+                icon.height: 16
+                icon.name: "document-open"
+                text: ""
+
+                onClicked: {
+                    noSignalImageForCaptureDialog.open();
+                }
+            }
+            ToolButton {
+                focusPolicy: Qt.NoFocus
+                icon.height: 16
+                icon.name: "edit-clear"
+                text: ""
+
+                onClicked: {
+                    playerController.setNoSignalImageForCapture("");
+                    noSignalImageForCaptureText.text = playerController.noSignalImageForCapture();
+                }
+            }
+        }
+        Item {
+            // spacer item
+            Layout.fillWidth: true
+        }
+        Label {
+            Layout.alignment: Qt.AlignRight
+            text: qsTr("DirectShow layers:")
+        }
+        RowLayout {
+            TextField {
+                id: noSignalImageForDirectShowText
+
+                placeholderText: "Path to image file"
+                text: playerController.noSignalImageForDirectShow()
+
+                onEditingFinished: {
+                    playerController.setNoSignalImageForDirectShow(text);
+                    text = playerController.noSignalImageForDirectShow();
+                }
+
+                ToolTip {
+                    text: qsTr("Image shown instead of a DirectShow capture layer while its input has no signal (DeltaCast/Datapath cards), for layers with \"Use no-signal image\" enabled.")
+                }
+            }
+            ToolButton {
+                focusPolicy: Qt.NoFocus
+                icon.height: 16
+                icon.name: "document-open"
+                text: ""
+
+                onClicked: {
+                    noSignalImageForDirectShowDialog.open();
+                }
+            }
+            ToolButton {
+                focusPolicy: Qt.NoFocus
+                icon.height: 16
+                icon.name: "edit-clear"
+                text: ""
+
+                onClicked: {
+                    playerController.setNoSignalImageForDirectShow("");
+                    noSignalImageForDirectShowText.text = playerController.noSignalImageForDirectShow();
+                }
+            }
+        }
+        Item {
+            // spacer item
+            Layout.fillWidth: true
+        }
+
         Item {
             Layout.columnSpan: 3
             Layout.fillWidth: true

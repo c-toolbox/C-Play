@@ -19,6 +19,7 @@ public:
     ~StreamLayer();
 
     void initialize();
+    void update(bool updateRendering = true) override;
     void updateFrame();
     bool ready() const;
 
@@ -60,6 +61,7 @@ public:
     std::vector<std::shared_ptr<BaseLayer>>& getSubLayers() const override;
 
 private:
+    bool refreshMasterPlaceholder();
     bool FindCodes(unsigned int texId, unsigned int width, unsigned int height);
     void onQRCommand(const QRCommand& command);
 

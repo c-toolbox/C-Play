@@ -46,7 +46,28 @@ void StreamLayer::initialize() {
     VideoLayer::initialize();
 }
 
+bool StreamLayer::refreshMasterPlaceholder() {
+    bool placeholder = false;
+    std::string resolved;
+    if (isMaster() && !m_streamKey.empty())
+        StreamPathResolver::instance().resolve(m_streamKey, true, resolved, &placeholder);
+    setMasterPlaceholder(placeholder);
+    if (masterPlaceholderEnabled()) {
+        unload();
+        return updateMasterPlaceholder();
+    }
+    return false;
+}
+
+void StreamLayer::update(bool updateRendering) {
+    if (refreshMasterPlaceholder())
+        return;
+    VideoLayer::update(updateRendering);
+}
+
 void StreamLayer::updateFrame() {
+    if (refreshMasterPlaceholder())
+        return;
     if (m_typePropertiesDecoded) {
         m_typePropertiesDecoded = false;
         setQRCodeDetectionEnabled(m_qrCodeDetectionEnabled_Dec);
@@ -98,6 +119,8 @@ void StreamLayer::updateFrame() {
 }
 
 bool StreamLayer::ready() const {
+    if (masterPlaceholderEnabled())
+        return masterPlaceholderReady();
     // A load that ended in an error (MPV_EVENT_END_FILE reason=error, e.g. a bad YouTube
     // URL or a missing yt-dlp) is never "ready", so the layer status drops to 0 and the
     // error overlay can be shown instead of a frozen/black frame.
@@ -506,6 +529,8 @@ void StreamLayer::onQRCommand(const QRCommand& command) {
 }
 
 bool StreamLayer::hasSubLayers() const {
+    if (masterPlaceholderEnabled())
+        return false;
     if (m_textureDivisionMode == 2 && m_divideTexHandler)
         return m_divideTexHandler->hasSubLayers();
     return m_qrOpHandler ? m_qrOpHandler->hasSubLayers() : false;

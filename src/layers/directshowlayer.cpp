@@ -14,6 +14,12 @@
 #include <cstring>
 #include "audiosettings.h"
 #include <utils/directshowpathresolver.h>
+#ifdef CAPTURE_DATAPATH
+#include <capture/datapathcapture.h>
+#endif
+#ifdef DIRECTSHOW_DATAPATH
+#include <layers/datapathdshowsignal.h>
+#endif
 
 std::mutex DirectShowLayer::s_pendingTexDeleteMutex;
 std::vector<unsigned int> DirectShowLayer::s_pendingTexToDelete;
@@ -55,18 +61,15 @@ const GUID kSubtypeIeeeFloat{0x00000003, 0x0000, 0x0010, {0x80, 0x00, 0x00, 0xaa
 // ---------------------------------------------------------------------------
 // "No signal" detection for DeltaCast / Datapath capture cards.
 //
-// Both vendors expose a KS property set on their WDM capture filter that reports
-// whether an input signal is present (IKsPropertySet, see ksproxy.h). The GUIDs
-// and property IDs below are named after the vendor SDK constants:
-//   DeltaCast : KSPROPSETID_DlCapture / DL_PROPERTY_SIGNAL_PRESENT         (bool/int)
-//   Datapath  : GUID_DatapathVisionProperties / DATAPATH_PROP_SIGNAL_STATUS (status mask/bool)
-// The values here are PLACEHOLDERS - replace them with the constants from the vendor SDK
-// headers. Until then QuerySupported() reports "unsupported" and detection stays disabled,
-// which is safe for every other capture device.
+// DeltaCast exposes a KS property set on its WDM capture filter that reports whether an input
+// signal is present (IKsPropertySet, see ksproxy.h):
+//   DeltaCast : KSPROPSETID_DlCapture / DL_PROPERTY_SIGNAL_PRESENT (bool/int)
+// The values here are PLACEHOLDERS - replace them with the constants from the DeltaCast SDK
+// headers. Until then QuerySupported() reports "unsupported" and detection stays disabled.
+// Datapath inputs are polled through the filter's IVisionUser (Datapath DirectShow SDK), or else
+// through the RGBEasy SDK (DatapathSignalProbe).
 const GUID kKsPropSetDlCapture{0x00000000, 0x0000, 0x0000, {0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00}}; // TODO: KSPROPSETID_DlCapture from the DeltaCast SDK
 const DWORD kDlPropSignalPresent = 0; // TODO: DL_PROPERTY_SIGNAL_PRESENT from the DeltaCast SDK
-const GUID kKsPropSetDatapathVision{0x00000000, 0x0000, 0x0000, {0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00}}; // TODO: GUID_DatapathVisionProperties from the Datapath SDK
-const DWORD kDatapathPropSignalStatus = 0; // TODO: DATAPATH_PROP_SIGNAL_STATUS from the Datapath SDK
 // ksproxy.h: KSPROPERTY_SUPPORT_GET - bit set by IKsPropertySet::QuerySupported() when Get() is available.
 constexpr DWORD kKsPropertySupportGet = 1;
 // How often pollSignalPresence() reads the signal property (graph worker idle loop, throttled).
@@ -385,18 +388,26 @@ void DirectShowLayer::setPresetKey(const std::string& key) {
 
 void DirectShowLayer::encodeTypeCore(std::vector<std::byte>& data) {
     sgct::serializeObject(data, m_presetKey);
+    sgct::serializeObject(data, m_useNoSignalImage.load());
 }
 
 void DirectShowLayer::decodeTypeCore(const std::vector<std::byte>& data, unsigned int& pos) {
     sgct::deserializeObject(data, pos, m_presetKey);
+    bool useNoSignalImage = false;
+    sgct::deserializeObject(data, pos, useNoSignalImage);
+    m_useNoSignalImage.store(useNoSignalImage);
 }
 
 bool DirectShowLayer::ready() const {
-    return renderData.texId > 0;
+    if (masterPlaceholderEnabled())
+        return masterPlaceholderReady();
+    return noSignalImageEnabled() || (renderData.texId > 0 && !noSignalHidden());
 }
 
 bool DirectShowLayer::hasTexture() const {
-    return renderData.texId > 0;
+    if (masterPlaceholderEnabled())
+        return masterPlaceholderReady();
+    return noSignalImageEnabled() || (renderData.texId > 0 && !noSignalHidden());
 }
 
 void DirectShowLayer::update(bool updateRendering) {
@@ -431,6 +442,8 @@ void DirectShowLayer::update(bool updateRendering) {
 
     ensureGraph(); // enqueues graph/audio work for the worker thread; never blocks on COM/PortAudio I/O
 #endif
+    if (updateMasterPlaceholder())
+        return;
     // Upload frames even when updateRendering is false, mirroring ImageLayer::update(): the node
     // render loop (and the slide pre-load path) only calls update(false) while !ready(), and
     // ready() is texId > 0 - a texture that is only ever created in uploadFrame(). Without this,
@@ -447,6 +460,8 @@ void DirectShowLayer::updateFrame() {
     // Also handles a file change made through setFilePath() after we became
     // ready - the render loop only calls update() while !ready().
     ensureGraph();
+    if (updateMasterPlaceholder())
+        return;
 
     // Drop the last frame once its graph is gone and no rebuild/release is in flight (stall
     // give-up, "no capture on this machine", failed build) - mirrors what ensureGraph() used to do inline.
@@ -474,6 +489,8 @@ void DirectShowLayer::updateFrame() {
     int height = 0;
     if (consumeNewFrame(pixels, width, height))
         uploadFrame(pixels, width, height);
+
+    updateNoSignalImage(m_signalState.load() == SignalState::Absent, noSignalImageFile(LayerType::DIRECTSHOW));
 #endif
 }
 
@@ -1077,7 +1094,7 @@ bool DirectShowLayer::buildAndRunGraph(const std::string& pathUtf8, const std::s
     if (isCapture) {
         // Live capture: look for a DeltaCast/Datapath signal property on the filter so we can log
         // "no signal" / "signal restored" transitions while the graph runs.
-        setupSignalDetection();
+        setupSignalDetection(videoDevice);
     }
     m_graphStart = std::chrono::steady_clock::now();
     sgct::Log::Info(std::format("DirectShowLayer: graph running for '{}'\n", m_loadedFile));
@@ -1088,61 +1105,73 @@ bool DirectShowLayer::buildAndRunGraph(const std::string& pathUtf8, const std::s
     return true;
 }
 
-// "No signal" detection for DeltaCast / Datapath capture cards (see kKsPropSetDlCapture /
-// kKsPropSetDatapathVision). The card's WDM filter exposes IKsPropertySet; when it supports one
-// of the vendor property sets we keep a reference to it and remember which signal-status
-// property to poll. Graph worker thread only, during graph build for capture devices.
-void DirectShowLayer::setupSignalDetection() {
+// "No signal" detection for DeltaCast / Datapath capture cards. DeltaCast: the card's WDM filter
+// exposes IKsPropertySet with the vendor property set (see kKsPropSetDlCapture). Datapath: the
+// filter's IVisionUser::get_SignalType, or else the device name mapped to its RGBEasy input.
+// Graph worker thread only, during graph build for capture devices.
+void DirectShowLayer::setupSignalDetection(const std::string& videoDevice) {
     if (m_signalPropSet) {
         m_signalPropSet->Release();
         m_signalPropSet = nullptr;
     }
+#ifdef CAPTURE_DATAPATH
+    m_datapathProbe.reset();
+#endif
+#ifdef DIRECTSHOW_DATAPATH
+    if (m_datapathVision) {
+        m_datapathVision->Release();
+        m_datapathVision = nullptr;
+    }
+#endif
     m_signalVendor = SignalVendor::None;
     m_signalState.store(SignalState::Unknown);
     m_lastSignalPoll = {}; // allow an immediate first read after (re)build
-
-    struct Spec {
-        const char* name;
-        SignalVendor vendor;
-        GUID setGuid;
-        DWORD propId;
-    };
-    static const Spec kSpecs[] = {
-        {"DeltaCast", SignalVendor::DeltaCast, kKsPropSetDlCapture, kDlPropSignalPresent},
-        {"Datapath",  SignalVendor::Datapath,  kKsPropSetDatapathVision, kDatapathPropSignalStatus},
-    };
 
     if (!m_fileSourceFilter) {
         return; // file playback - nothing to poll
     }
 
     IKsPropertySet* pProps = nullptr;
-    if (FAILED(m_fileSourceFilter->QueryInterface(IID_IKsPropertySet, reinterpret_cast<void**>(&pProps))) || !pProps) {
-        sgct::Log::Debug("DirectShowLayer: capture filter does not expose IKsPropertySet - signal detection disabled\n");
-        return;
-    }
-
-    for (const Spec& spec : kSpecs) {
+    if (SUCCEEDED(m_fileSourceFilter->QueryInterface(IID_IKsPropertySet, reinterpret_cast<void**>(&pProps))) && pProps) {
         DWORD support = 0;
-        if (SUCCEEDED(pProps->QuerySupported(spec.setGuid, spec.propId, &support)) && (support & kKsPropertySupportGet)) {
-            m_signalVendor = spec.vendor;
-            m_signalSetGuid = spec.setGuid;
-            m_signalPropId = spec.propId;
+        if (SUCCEEDED(pProps->QuerySupported(kKsPropSetDlCapture, kDlPropSignalPresent, &support)) && (support & kKsPropertySupportGet)) {
+            m_signalVendor = SignalVendor::DeltaCast;
+            m_signalSetGuid = kKsPropSetDlCapture;
+            m_signalPropId = kDlPropSignalPresent;
             m_signalPropSet = pProps; // keep the reference until releaseGraph()
-            sgct::Log::Debug(std::format("DirectShowLayer: {} signal property supported - polling for signal presence\n", spec.name));
+            sgct::Log::Debug("DirectShowLayer: DeltaCast signal property supported - polling for signal presence\n");
             return;
         }
+        pProps->Release();
     }
 
-    sgct::Log::Debug("DirectShowLayer: no DeltaCast/Datapath signal property on this capture device - detection disabled\n");
-    pProps->Release();
+#ifdef DIRECTSHOW_DATAPATH
+    m_datapathVision = DatapathDShowSignal::query(m_fileSourceFilter);
+    if (m_datapathVision) {
+        sgct::Log::Info(std::format("DirectShowLayer: '{}' is a Datapath Vision filter - polling for signal presence\n", videoDevice));
+        m_signalVendor = SignalVendor::Datapath;
+        return;
+    }
+#endif
+
+#ifdef CAPTURE_DATAPATH
+    auto probe = std::make_unique<DatapathSignalProbe>();
+    if (probe->attach(videoDevice)) {
+        sgct::Log::Info(std::format("DirectShowLayer: '{}' mapped to Datapath input {} - polling for signal presence\n",
+                                    videoDevice, probe->input()));
+        m_signalVendor = SignalVendor::Datapath;
+        m_datapathProbe = std::move(probe);
+        return;
+    }
+#endif
+    (void)videoDevice;
+    sgct::Log::Debug("DirectShowLayer: no DeltaCast/Datapath signal detection for this capture device - detection disabled\n");
 }
 
-// Reads the vendor's signal-status property (throttled to kSignalPollInterval) and logs state
-// transitions. Both vendors report presence as a boolean/integer or status mask, so non-zero
-// means "signal present". Graph worker thread only; called from the idle loop and after a successful build.
+// Reads the vendor's signal state (throttled to kSignalPollInterval) and logs state transitions.
+// Graph worker thread only; called from the idle loop and after a successful build.
 void DirectShowLayer::pollSignalPresence() {
-    if (!m_signalPropSet || m_signalVendor == SignalVendor::None) {
+    if (m_signalVendor == SignalVendor::None) {
         return;
     }
 
@@ -1152,14 +1181,32 @@ void DirectShowLayer::pollSignalPresence() {
     }
     m_lastSignalPoll = now;
 
-    DWORD value = 0;
-    DWORD returned = 0;
-    if (FAILED(m_signalPropSet->Get(m_signalSetGuid, m_signalPropId, nullptr, 0, &value, sizeof(value), &returned))) {
-        return; // transient failure - keep the last known state
+    bool present = false;
+    if (m_signalVendor == SignalVendor::DeltaCast) {
+        DWORD value = 0;
+        DWORD returned = 0;
+        if (!m_signalPropSet || FAILED(m_signalPropSet->Get(m_signalSetGuid, m_signalPropId, nullptr, 0, &value, sizeof(value), &returned))) {
+            return; // transient failure - keep the last known state
+        }
+        present = value != 0;
+    } else {
+        int state = -1;
+#ifdef DIRECTSHOW_DATAPATH
+        if (m_datapathVision)
+            state = DatapathDShowSignal::poll(m_datapathVision);
+#endif
+#ifdef CAPTURE_DATAPATH
+        if (m_datapathProbe)
+            state = m_datapathProbe->poll();
+#endif
+        if (state < 0) {
+            return;
+        }
+        present = state > 0;
     }
 
     const char* vendorName = m_signalVendor == SignalVendor::DeltaCast ? "DeltaCast" : "Datapath";
-    const SignalState next = value != 0 ? SignalState::Present : SignalState::Absent;
+    const SignalState next = present ? SignalState::Present : SignalState::Absent;
     const SignalState prev = m_signalState.exchange(next);
     if (prev == next) {
         return;
@@ -1188,7 +1235,9 @@ void DirectShowLayer::ensureGraph() {
     startWorker(); // spawn the graph worker once - all COM/PortAudio I/O happens there
 
     std::string videoDevice, audioDevice;
-    const bool fromPreset = resolveCaptureDevices(videoDevice, audioDevice);
+    bool placeholder = false;
+    const bool fromPreset = resolveCaptureDevices(videoDevice, audioDevice, &placeholder);
+    setMasterPlaceholder(placeholder);
 
     if (fromPreset && videoDevice.empty() && audioDevice.empty()) {
         // This machine intentionally has no capture for this setup - stay idle and never
@@ -1236,7 +1285,9 @@ void DirectShowLayer::ensureGraph() {
             // A running graph that never delivered a frame is stuck - give up on the source. The
             // release runs on the worker; lastFailedSource stops us from retrying it afterwards.
             const long long nowMs = std::chrono::duration_cast<std::chrono::milliseconds>(std::chrono::steady_clock::now().time_since_epoch()).count();
-            if (!ready() && !audioOnly && st.graphStartMs > 0 && nowMs - st.graphStartMs > kStallTimeout.count() * 1000LL) {
+            // ready() is false while a hidden layer has no signal, so check for a frame directly.
+            const bool noFrameYet = renderData.texId == 0 && m_signalState.load() != SignalState::Absent;
+            if (noFrameYet && !audioOnly && st.graphStartMs > 0 && nowMs - st.graphStartMs > kStallTimeout.count() * 1000LL) {
                 if (!m_releasePending.load()) {
                     sgct::Log::Error(std::format("DirectShowLayer: no frame received for '{}', giving up\n", sourceKey));
                     m_releasePending.store(true);
@@ -1494,6 +1545,15 @@ void DirectShowLayer::releaseGraph() {
     }
     m_signalVendor = SignalVendor::None;
     m_signalState.store(SignalState::Unknown);
+#ifdef CAPTURE_DATAPATH
+    m_datapathProbe.reset();
+#endif
+#ifdef DIRECTSHOW_DATAPATH
+    if (m_datapathVision) {
+        m_datapathVision->Release();
+        m_datapathVision = nullptr;
+    }
+#endif
 
     m_loadedFile.clear();
     m_audioPathBuilt = false;
@@ -1905,7 +1965,8 @@ void DirectShowLayer::closeAudioStream() {
 // Low-latency WASAPI input for explicit capture microphones
 // ---------------------------------------------------------------------------
 
-bool DirectShowLayer::resolveCaptureDevices(std::string& videoDevice, std::string& audioDevice) const {
+bool DirectShowLayer::resolveCaptureDevices(std::string& videoDevice, std::string& audioDevice, bool* placeholder) const {
+    if (placeholder) *placeholder = false;
     // This layer may be created from a predefined setup: each machine resolves its own local
     // capture devices for the entry (by title) in its data/predefined-directshows.json. Entry not
     // found in the local file: fall back to the synced device pair. Render thread only.
@@ -1913,7 +1974,7 @@ bool DirectShowLayer::resolveCaptureDevices(std::string& videoDevice, std::strin
     audioDevice = m_captureAudioDevice;
     if (!m_presetKey.empty()) {
         std::string resolvedVideo, resolvedAudio;
-        if (DirectShowPathResolver::instance().resolve(m_presetKey, isMaster(), resolvedVideo, resolvedAudio)) {
+        if (DirectShowPathResolver::instance().resolve(m_presetKey, isMaster(), resolvedVideo, resolvedAudio, placeholder)) {
             videoDevice = resolvedVideo;
             audioDevice = resolvedAudio;
             return true;

@@ -199,6 +199,63 @@ bool DatapathCaptureBackend::sdkAvailable() {
     return dllPresent();
 }
 
+DatapathSignalProbe::~DatapathSignalProbe() {
+    if (m_sdkLoaded)
+        releaseSdk();
+}
+
+bool DatapathSignalProbe::attach(const std::string& friendlyName) {
+    m_input = 0;
+    if (!m_sdkLoaded) {
+        unsigned long error = 0;
+        if (!acquireSdk(error))
+            return false;
+        m_sdkLoaded = true;
+    }
+
+    unsigned long count = 0;
+    if (RGBGetNumberOfInputs(&count) != 0 || count == 0)
+        return false;
+
+    // DirectShow names the Datapath inputs "<vendor/model> <1-based input>", so the last number
+    // in the name is the input; only trust it when the name looks like a Datapath device.
+    const std::string name = toLower(friendlyName);
+    bool looksLikeDatapath = name.find("datapath") != std::string::npos || name.find("vision") != std::string::npos;
+    for (unsigned long i = 0; i < count && !looksLikeDatapath; ++i) {
+        RGBINPUTINFOW info{};
+        info.Size = sizeof(info);
+        if (RGBGetInputInfoW(i, &info) == 0) {
+            const std::string device = toLower(wideToUtf8(info.DeviceName));
+            looksLikeDatapath = !device.empty() && name.find(device) != std::string::npos;
+        }
+    }
+    if (!looksLikeDatapath)
+        return false;
+
+    const size_t end = name.find_last_of("0123456789");
+    if (end == std::string::npos)
+        return false;
+    size_t begin = end;
+    while (begin > 0 && std::isdigit(static_cast<unsigned char>(name[begin - 1])))
+        --begin;
+    const int input = std::atoi(name.substr(begin, end - begin + 1).c_str());
+    if (input < 1 || input > static_cast<int>(count))
+        return false;
+
+    m_input = input;
+    return true;
+}
+
+int DatapathSignalProbe::poll() const {
+    if (!m_sdkLoaded || m_input <= 0)
+        return -1;
+    SIGNALTYPE signal = RGB_SIGNALTYPE_NOSIGNAL;
+    unsigned long w = 0, h = 0, rate = 0;
+    if (RGBGetInputSignalType(static_cast<unsigned long>(m_input - 1), &signal, &w, &h, &rate) != 0)
+        return -1;
+    return isValidSignal(signal, w, h) ? 1 : 0;
+}
+
 std::vector<CaptureInputInfo> DatapathCaptureBackend::listInputs() {
     std::vector<CaptureInputInfo> inputs;
     unsigned long error = 0;

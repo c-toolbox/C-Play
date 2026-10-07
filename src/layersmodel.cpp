@@ -28,6 +28,7 @@
 #endif
 #include <layers/textlayer.h>
 #include <layers/mpvlayer.h>
+#include <layers/streamlayer.h>
 #include <layers/controllayer.h>
 #include <layers/restlayer.h>
 #include <layers/tcplayer.h>
@@ -1147,6 +1148,11 @@ void LayersModel::decodeFromJSON(QJsonObject &obj, const QStringList &forRelativ
                             std::string body = o.value(QStringLiteral("requestBody")).toString().toStdString();
                             restLayer->setParameters(body);
                         }
+                        restLayer->setIgnoreStatus(o.value(QStringLiteral("ignoreStatus")).toBool(false));
+                    }
+
+                    if (type == BaseLayer::STREAM && o.contains(QStringLiteral("streamKey"))) {
+                        static_cast<StreamLayer*>(m_layers[idx].first.get())->setStreamKey(o.value(QStringLiteral("streamKey")).toString().toStdString());
                     }
 
 #ifdef DIRECTSHOW_SUPPORT
@@ -1290,6 +1296,9 @@ void LayersModel::decodeFromJSON(QJsonObject &obj, const QStringList &forRelativ
                         m_layers[idx].first->setFlipY(flipY);
                     }
 
+                    if (o.contains(QStringLiteral("noSignalImage")))
+                        m_layers[idx].first->setUseNoSignalImage(o.value(QStringLiteral("noSignalImage")).toBool());
+
                     if (o.contains(QStringLiteral("ndiOutput"))) {
                         m_layers[idx].first->setNdiOutputEnabled(o.value(QStringLiteral("ndiOutput")).toBool());
                         if (o.contains(QStringLiteral("ndiSenderName"))) {
@@ -1323,6 +1332,11 @@ void LayersModel::decodeFromJSON(QJsonObject &obj, const QStringList &forRelativ
                     }
                     if (o.contains(QStringLiteral("syncDelayMs")) && m_layers[idx].first->type() == BaseLayer::WEBRTC) {
                         static_cast<WebRTCLayer*>(m_layers[idx].first.get())->setSyncDelayMs(o.value(QStringLiteral("syncDelayMs")).toInt(kWebRtcDefaultSyncDelayMs));
+                    }
+                    if (o.contains(QStringLiteral("whepAuthUsername")) && m_layers[idx].first->type() == BaseLayer::WEBRTC) {
+                        WebRTCLayer* webRtcLayer = static_cast<WebRTCLayer*>(m_layers[idx].first.get());
+                        webRtcLayer->setAuthUsername(o.value(QStringLiteral("whepAuthUsername")).toString().toStdString());
+                        webRtcLayer->setAuthPassword(o.value(QStringLiteral("whepAuthPassword")).toString().toStdString());
                     }
 #endif
 
@@ -1411,7 +1425,7 @@ void LayersModel::decodeFromJSON(QJsonObject &obj, const QStringList &forRelativ
                                 hasRotation = true;
                             }
                             if (po.contains(QStringLiteral("roll"))) {
-                                double sphereRoll = po.value(QStringLiteral("yaw")).toDouble();
+                                double sphereRoll = po.value(QStringLiteral("roll")).toDouble();
                                 sphereRotation.z = static_cast<float>(sphereRoll);
                                 hasRotation = true;
                             }
@@ -1589,53 +1603,26 @@ void LayersModel::encodeToJSON(QJsonObject &obj, const QStringList &forRelativeP
 #ifdef NDI_SUPPORT
         if (layer->type() == BaseLayer::NDI) {
             layerData.insert(QStringLiteral("volume"), QJsonValue(layer->volume()));
-
-            if (layer->isQRCodeDetectionEnabled()) {
-                layerData.insert(QStringLiteral("qrCodeDetection"), QJsonValue(true));
-            }
-            if (layer->textureDivisionMode() != 0) {
-                layerData.insert(QStringLiteral("textureDivisionMode"), QJsonValue(layer->textureDivisionMode()));
-            }
-            if (layer->textureDivisionGrid() != 0) {
-                layerData.insert(QStringLiteral("textureDivisionGrid"), QJsonValue(layer->textureDivisionGrid()));
-            }
-            if (layer->textureDivisionMode() == 2 && layer->hasSubLayers()) {
-                QJsonArray subLayersArray;
-                auto& subs = layer->getSubLayers();
-                for (int si = 0; si < static_cast<int>(subs.size()); ++si) {
-                    auto& sub = subs[si];
-                    if (!sub) continue;
-                    QJsonObject subData;
-                    subData.insert(QStringLiteral("title"), QJsonValue(QString::fromStdString(sub->title())));
-                    subData.insert(QStringLiteral("visibility"), QJsonValue(static_cast<int>(sub->alpha() * 100.f)));
-                    subData.insert(QStringLiteral("grid"), QJsonValue(static_cast<int>(sub->gridMode())));
-                    subData.insert(QStringLiteral("stereo"), QJsonValue(static_cast<int>(sub->stereoMode())));
-                    if (sub->gridMode() == BaseLayer::GridMode::Plane) {
-                        QJsonObject planeObj;
-                        planeObj.insert(QStringLiteral("aspectRatio"), QJsonValue(sub->planeAspectRatio()));
-                        planeObj.insert(QStringLiteral("width"), QJsonValue(sub->planeWidth()));
-                        planeObj.insert(QStringLiteral("height"), QJsonValue(sub->planeHeight()));
-                        planeObj.insert(QStringLiteral("elevation"), QJsonValue(sub->planeElevation()));
-                        planeObj.insert(QStringLiteral("azimuth"), QJsonValue(sub->planeAzimuth()));
-                        planeObj.insert(QStringLiteral("roll"), QJsonValue(sub->planeRoll()));
-                        planeObj.insert(QStringLiteral("distance"), QJsonValue(sub->planeDistance()));
-                        planeObj.insert(QStringLiteral("horizontal"), QJsonValue(sub->planeHorizontal()));
-                        planeObj.insert(QStringLiteral("vertical"), QJsonValue(sub->planeVertical()));
-                        subData.insert(QStringLiteral("plane"), planeObj);
-                    } else {
-                        QJsonObject rotObj;
-                        rotObj.insert(QStringLiteral("pitch"), QJsonValue(static_cast<double>(sub->rotate().x)));
-                        rotObj.insert(QStringLiteral("yaw"), QJsonValue(static_cast<double>(sub->rotate().y)));
-                        rotObj.insert(QStringLiteral("roll"), QJsonValue(static_cast<double>(sub->rotate().z)));
-                        subData.insert(QStringLiteral("rotate"), rotObj);
-                    }
-                    subLayersArray.push_back(subData);
-                }
-                layerData.insert(QStringLiteral("divisionSubLayers"), subLayersArray);
-            }
         }
 #endif
-        if (layer->type() == BaseLayer::STREAM) {
+#ifdef OMT_SUPPORT
+        if (layer->type() == BaseLayer::OMT) {
+            layerData.insert(QStringLiteral("volume"), QJsonValue(layer->volume()));
+        }
+#endif
+#ifdef WEBRTC_LAYER
+        if (layer->type() == BaseLayer::WEBRTC) {
+            layerData.insert(QStringLiteral("volume"), QJsonValue(layer->volume()));
+        }
+#endif
+        bool supportsTextureDivision = layer->type() == BaseLayer::STREAM;
+#ifdef NDI_SUPPORT
+        supportsTextureDivision = supportsTextureDivision || layer->type() == BaseLayer::NDI;
+#endif
+#ifdef OMT_SUPPORT
+        supportsTextureDivision = supportsTextureDivision || layer->type() == BaseLayer::OMT;
+#endif
+        if (supportsTextureDivision) {
             if (layer->isQRCodeDetectionEnabled()) {
                 layerData.insert(QStringLiteral("qrCodeDetection"), QJsonValue(true));
             }
@@ -1690,6 +1677,13 @@ void LayersModel::encodeToJSON(QJsonObject &obj, const QStringList &forRelativeP
             layerData.insert(QStringLiteral("url"), QJsonValue(QString::fromStdString(restLayer->url())));
             layerData.insert(QStringLiteral("method"), QJsonValue(restLayer->method()));
             layerData.insert(QStringLiteral("parameters"), QJsonValue(QString::fromStdString(restLayer->parameters())));
+            if (restLayer->ignoreStatus())
+                layerData.insert(QStringLiteral("ignoreStatus"), QJsonValue(true));
+        }
+        if (layer->type() == BaseLayer::STREAM) {
+            const std::string streamKey = static_cast<StreamLayer*>(layer.get())->streamKey();
+            if (!streamKey.empty())
+                layerData.insert(QStringLiteral("streamKey"), QJsonValue(QString::fromStdString(streamKey)));
         }
         if (layer->type() == BaseLayer::TCP) {
             auto *tcp = static_cast<TcpLayer *>(layer.get());
@@ -1766,32 +1760,33 @@ void LayersModel::encodeToJSON(QJsonObject &obj, const QStringList &forRelativeP
         layerData.insert(QStringLiteral("visibility"), QJsonValue(static_cast<int>(layer->alpha() * 100.f)));
         layerData.insert(QStringLiteral("keepVisibilityForNumSlides"), QJsonValue(layer->keepVisibilityForNumSlides()));
 
-        if (layer->flipY()) {
-            switch (layer->type()) {
+        switch (layer->type()) {
 #ifdef NDI_LAYER
-            case BaseLayer::NDI:
+        case BaseLayer::NDI:
 #endif
 #ifdef OMT_LAYER
-            case BaseLayer::OMT:
+        case BaseLayer::OMT:
 #endif
 #ifdef STREAM_LAYER
-            case BaseLayer::STREAM:
+        case BaseLayer::STREAM:
 #endif
 #ifdef SPOUT_LAYER
-            case BaseLayer::SPOUT:
+        case BaseLayer::SPOUT:
 #endif
 #ifdef WEBRTC_LAYER
-            case BaseLayer::WEBRTC:
+        case BaseLayer::WEBRTC:
 #endif
+            // User-toggled in the LayerView; store both states since some types default to flipped.
+            layerData.insert(QStringLiteral("flipY"), QJsonValue(layer->flipY()));
+            break;
 #ifdef DIRECTSHOW_SUPPORT
-            case BaseLayer::DIRECTSHOW:
-#endif
-                // For NDI layers, we want to preserve the flipY setting in the JSON for accurate restoration later
+        case BaseLayer::DIRECTSHOW:
+            if (layer->flipY())
                 layerData.insert(QStringLiteral("flipY"), QJsonValue(true));
-                break;
-            default:
-                break;
-            }
+            break;
+#endif
+        default:
+            break;
         }
 
         if (layer->ndiOutputEnabled()) {
@@ -1802,6 +1797,9 @@ void LayersModel::encodeToJSON(QJsonObject &obj, const QStringList &forRelativeP
         if (layer->existOnMasterOnly()) {
             layerData.insert(QStringLiteral("existOnMasterOnly"), QJsonValue(true));
         }
+
+        if (layer->useNoSignalImage())
+            layerData.insert(QStringLiteral("noSignalImage"), QJsonValue(true));
 
         if (layer->nodeStreamOutputEnabled())
             layerData.insert(QStringLiteral("nodeStreamOutput"), QJsonValue(true));
@@ -1826,6 +1824,13 @@ void LayersModel::encodeToJSON(QJsonObject &obj, const QStringList &forRelativeP
         if (layer->type() == BaseLayer::WEBRTC
             && static_cast<WebRTCLayer*>(layer.get())->syncDelayMs() != kWebRtcDefaultSyncDelayMs) {
             layerData.insert(QStringLiteral("syncDelayMs"), QJsonValue(static_cast<WebRTCLayer*>(layer.get())->syncDelayMs()));
+        }
+        if (layer->type() == BaseLayer::WEBRTC) {
+            const WebRTCLayer* webRtcLayer = static_cast<WebRTCLayer*>(layer.get());
+            if (!webRtcLayer->authUsername().empty()) {
+                layerData.insert(QStringLiteral("whepAuthUsername"), QJsonValue(QString::fromStdString(webRtcLayer->authUsername())));
+                layerData.insert(QStringLiteral("whepAuthPassword"), QJsonValue(QString::fromStdString(webRtcLayer->authPassword())));
+            }
         }
 #endif
 

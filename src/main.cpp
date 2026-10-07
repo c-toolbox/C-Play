@@ -311,6 +311,18 @@ static std::vector<std::byte> encode() {
             serializeObject(data, SyncHelper::instance().variables.multiVideoConfig);
             SyncHelper::instance().variables.multiVideoConfigDirty = false;
 #endif
+#ifdef CAPTURE_SUPPORT
+        } else if (SyncHelper::instance().variables.noSignalImageCaptureDirty) { // ID: 5 = capture no-signal image file
+            serializeObject(data, 5);
+            serializeObject(data, SyncHelper::instance().variables.noSignalImageCapture);
+            SyncHelper::instance().variables.noSignalImageCaptureDirty = false;
+#endif
+#ifdef DIRECTSHOW_SUPPORT
+        } else if (SyncHelper::instance().variables.noSignalImageDirectShowDirty) { // ID: 6 = DirectShow no-signal image file
+            serializeObject(data, 6);
+            serializeObject(data, SyncHelper::instance().variables.noSignalImageDirectShow);
+            SyncHelper::instance().variables.noSignalImageDirectShowDirty = false;
+#endif
         } else { // Sending no URL
             serializeObject(data, -1);
         }
@@ -629,6 +641,18 @@ static void decode(const std::vector<std::byte> &data) {
             deserializeObject(data, pos, SyncHelper::instance().variables.multiVideoEnabled);
             deserializeObject(data, pos, SyncHelper::instance().variables.multiVideoConfig);
             SyncHelper::instance().variables.multiVideoConfigDirty = true;
+#endif
+#ifdef CAPTURE_SUPPORT
+        } else if (transferedImageId == 5) {
+            if (!safeToRead()) return;
+            deserializeObject(data, pos, SyncHelper::instance().variables.noSignalImageCapture);
+            BaseLayer::setNoSignalImageFile(BaseLayer::CAPTURE, SyncHelper::instance().variables.noSignalImageCapture);
+#endif
+#ifdef DIRECTSHOW_SUPPORT
+        } else if (transferedImageId == 6) {
+            if (!safeToRead()) return;
+            deserializeObject(data, pos, SyncHelper::instance().variables.noSignalImageDirectShow);
+            BaseLayer::setNoSignalImageFile(BaseLayer::DIRECTSHOW, SyncHelper::instance().variables.noSignalImageDirectShow);
 #endif
         }
 

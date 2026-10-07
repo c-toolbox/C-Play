@@ -23,6 +23,9 @@
 // role is "master", or the node id from data/multivideo/nodes.json (falling back to the node IP).
 // A role mapped to null, or to an input <= 0, means "no capture on that machine".
 //
+// A master source {"placeholder": true} replaces capture with a movable name/ID TextLayer
+// on the master. The flag is local and is ignored for node overrides.
+//
 // JSON format:
 // {
 //   "captures": [

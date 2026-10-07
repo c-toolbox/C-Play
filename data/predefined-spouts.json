@@ -1,0 +1,16 @@
+{
+    "spouts": [
+        {
+            "title": "Example: Spout on nodes with master placeholder",
+            "sender": "Node graphics",
+            "enabled": false,
+            "senders": {
+                "master": {
+                    "placeholder": true
+                },
+                "node-A": "Graphics A",
+                "node-B": "Graphics B"
+            }
+        }
+    ]
+}

@@ -131,6 +131,7 @@ class LayerQtItem : public QQuickItem {
     Q_PROPERTY(int layerSubLayerCount READ layerSubLayerCount NOTIFY layerValueChanged)
     Q_PROPERTY(QRectF layerSelectedSubLayerRoi READ layerSelectedSubLayerRoi NOTIFY layerValueChanged)
     Q_PROPERTY(bool layerFlipY READ layerFlipY WRITE setLayerFlipY NOTIFY layerValueChanged)
+    Q_PROPERTY(bool layerUseNoSignalImage READ layerUseNoSignalImage WRITE setLayerUseNoSignalImage NOTIFY layerValueChanged)
     Q_PROPERTY(QString layerOperation READ layerOperation WRITE setLayerOperation NOTIFY layerValueChanged)
     Q_PROPERTY(QString layerParameter READ layerParameter WRITE setLayerParameter NOTIFY layerValueChanged)
     Q_PROPERTY(QString layerRestUrl READ layerRestUrl WRITE setLayerRestUrl NOTIFY layerValueChanged)
@@ -390,6 +391,9 @@ public:
 
     bool layerFlipY() const;
     void setLayerFlipY(bool flip);
+
+    bool layerUseNoSignalImage() const;
+    void setLayerUseNoSignalImage(bool use);
 
     QString layerOperation() const;
     void setLayerOperation(QString op);

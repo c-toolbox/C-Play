@@ -88,6 +88,8 @@ bool DirectShowPathsConfig::loadFromFile(const std::string& filePath) {
                 e.hasPerRole = true;
                 for (auto it = s["devices"].begin(); it != s["devices"].end(); ++it) {
                     const auto& v = it.value();
+                    if (it.key() == "master" && v.is_object())
+                        e.masterPlaceholder = v.value("placeholder", false);
                     // Empty strings and nulls both mean "intentionally no capture on that machine"
                     DevicePair pair;
                     if (v.is_object()) {
@@ -121,12 +123,20 @@ int DirectShowPathsConfig::entryCount() const {
     return static_cast<int>(m_entries.size());
 }
 
-bool DirectShowPathsConfig::resolveDevicesForRole(const std::string& title, const std::string& role, std::string& outVideoDevice, std::string& outAudioDevice) const {
+bool DirectShowPathsConfig::resolveDevicesForRole(const std::string& title, const std::string& role, std::string& outVideoDevice, std::string& outAudioDevice, bool* placeholder) const {
+    if (placeholder) *placeholder = false;
     auto it = m_entries.find(title);
     if (it == m_entries.end())
         return false;
 
     const Entry& e = it->second;
+    const bool usePlaceholder = role == "master" && e.masterPlaceholder;
+    if (placeholder) *placeholder = usePlaceholder;
+    if (usePlaceholder) {
+        outVideoDevice.clear();
+        outAudioDevice.clear();
+        return true;
+    }
 
     // 1. Explicit per-machine override wins, even when both devices are empty (intentional no-capture).
     if (e.hasPerRole) {

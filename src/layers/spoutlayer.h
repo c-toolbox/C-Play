@@ -41,6 +41,8 @@ public:
     bool hasTexture() const override;
 
 private:
+    bool resolveSender();
+    std::string m_resolvedSender;
     void GenerateTexture(unsigned int& id, int width, int height);
 
     SPOUTLIBRARY* m_receiver;

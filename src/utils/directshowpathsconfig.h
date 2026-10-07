@@ -16,6 +16,9 @@
 // Each entry is identified by its "title", which acts as a stable key shared across all machines in a cluster. Besides the plain default "videoDevice"/"audioDevice", an entry may define:
 //   * "devices" - an object mapping role/node id ("master", or node ids from data/multivideo/nodes.json) to a device pair {"videoDevice": ..., "audioDevice": ...}. When present it wins for that machine, even when both values are empty ("" or null), which means the capture setup is intentionally not opened on that machine.
 //
+// A master override {"placeholder": true} renders a movable name/ID TextLayer on the master
+// instead of opening a source. Node source resolution is unchanged.
+//
 // Resolution order per machine: devices[role] (if present) -> plain videoDevice/audioDevice.
 //
 // JSON format:
@@ -44,6 +47,7 @@ public:
     };
 
     struct Entry {
+        bool masterPlaceholder = false;
         DevicePair devices;                          // Plain default device pair (may be empty)
         std::map<std::string, DevicePair> perRole;   // Role/node id -> device pair (both empty = no capture on that machine)
         bool hasPerRole = false;                     // Whether the "devices" key was present at all
@@ -66,7 +70,7 @@ public:
     // Resolve the local capture devices for a setup entry (by title) on the machine identified by role ("master" or node id).
     // Returns false if no entry with that title exists (caller should fall back to the synced device pair).
     // When true, both out values may be empty - meaning "no capture on this machine".
-    bool resolveDevicesForRole(const std::string& title, const std::string& role, std::string& outVideoDevice, std::string& outAudioDevice) const;
+    bool resolveDevicesForRole(const std::string& title, const std::string& role, std::string& outVideoDevice, std::string& outAudioDevice, bool* placeholder = nullptr) const;
 
 private:
     // title -> entry

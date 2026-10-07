@@ -28,7 +28,7 @@ public:
     // Returns false if no entry with that title exists in the local predefined-directshows.json
     // (caller should fall back to the synced device pair).
     // When true, both out values may be empty - meaning "no capture on this machine".
-    bool resolve(const std::string& setupKey, bool isMaster, std::string& outVideoDevice, std::string& outAudioDevice);
+    bool resolve(const std::string& setupKey, bool isMaster, std::string& outVideoDevice, std::string& outAudioDevice, bool* placeholder = nullptr);
 
 private:
     DirectShowPathResolver() = default;

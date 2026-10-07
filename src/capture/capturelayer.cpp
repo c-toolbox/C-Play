@@ -60,13 +60,14 @@ std::string CaptureLayer::statusText() const {
     }
     if (!backend) {
         const CaptureSource src = resolveSource();
+        if (isMaster() && src.placeholder) return "Master placeholder";
         return src.valid() ? std::string("Starting") : std::string("No capture source on this machine");
     }
     const std::string err = backend->error();
     if (!err.empty())
         return err;
     if (!backend->hasSignal())
-        return "No signal";
+        return noSignalImageEnabled() ? "No signal (showing no-signal image)" : "No signal";
     if (backend->textureId() == 0)
         return "Waiting for frames";
     return std::format("{}x{}, {}", backend->width(), backend->height(), CaptureBackend::transferName(backend->transfer()));
@@ -74,10 +75,14 @@ std::string CaptureLayer::statusText() const {
 
 void CaptureLayer::encodeTypeCore(std::vector<std::byte>& data) {
     sgct::serializeObject(data, m_presetKey);
+    sgct::serializeObject(data, m_useNoSignalImage.load());
 }
 
 void CaptureLayer::decodeTypeCore(const std::vector<std::byte>& data, unsigned int& pos) {
     sgct::deserializeObject(data, pos, m_presetKey);
+    bool useNoSignalImage = false;
+    sgct::deserializeObject(data, pos, useNoSignalImage);
+    m_useNoSignalImage.store(useNoSignalImage);
 }
 
 void CaptureLayer::encodeTypeProperties(std::vector<std::byte>& data) {
@@ -128,15 +133,19 @@ void CaptureLayer::setVolumeMute(bool v) {
 }
 
 bool CaptureLayer::ready() const {
-    return renderData.texId > 0;
+    if (masterPlaceholderEnabled())
+        return masterPlaceholderReady();
+    return noSignalImageEnabled() || (renderData.texId > 0 && !noSignalHidden());
 }
 
 bool CaptureLayer::hasTexture() const {
-    return renderData.texId > 0;
+    if (masterPlaceholderEnabled())
+        return masterPlaceholderReady();
+    return noSignalImageEnabled() || (renderData.texId > 0 && !noSignalHidden());
 }
 
 unsigned int CaptureLayer::textureInternalFormat() const {
-    return GL_RGB8;
+    return masterPlaceholderEnabled() || noSignalImageEnabled() ? GL_RGBA8 : GL_RGB8;
 }
 
 void CaptureLayer::processPendingGLCleanup() {
@@ -167,6 +176,7 @@ void CaptureLayer::updateCapture() {
     CaptureBackend::processPendingClose();
 
     const CaptureSource src = resolveSource();
+    setMasterPlaceholder(src.placeholder);
     const std::string key = src.valid() ? src.toString() : std::string();
     if (key != m_backendKey) {
         std::shared_ptr<CaptureBackend> previous;
@@ -188,7 +198,11 @@ void CaptureLayer::updateCapture() {
             setLoadError(key, "capture backend '" + src.backend + "' is not available in this build");
     }
 
+    if (updateMasterPlaceholder())
+        return;
+
     if (!m_backend) {
+        updateNoSignalImage(false, {});
         m_sourceHasAudio.store(false);
         renderData.texId = 0;
         renderData.width = 0;
@@ -211,4 +225,6 @@ void CaptureLayer::updateCapture() {
     renderData.height = m_backend->height();
     // Not setFlipY(): that would mark the layer for re-sync whenever the transfer mode changes.
     renderData.flipY = m_backend->flipY();
+
+    updateNoSignalImage(!m_backend->hasSignal() && m_backend->error().empty(), noSignalImageFile(LayerType::CAPTURE));
 }

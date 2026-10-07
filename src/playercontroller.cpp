@@ -142,6 +142,8 @@ PlayerController::PlayerController(QObject *parent)
     setForegroundGridMode(ImageSettings::gridToMapOnForForeground());
     setForegroundStereoMode(ImageSettings::stereoModeForForeground());
 
+    applyNoSignalImages();
+
     setRewindMediaOnEOF(PlaybackSettings::rewindOnEOFwhenPause());
 
     setNodeWindowsOnTop(UserInterfaceSettings::windowOnTopAtStartup());
@@ -794,6 +796,64 @@ int PlayerController::foregroundStereoMode() {
 void PlayerController::setForegroundStereoMode(int value) {
     SyncHelper::instance().variables.stereoscopicModeFg = value;
     SyncHelper::instance().variables.playerControllerNeedSync = true;
+}
+
+QString PlayerController::noSignalImageForCapture() {
+    return ImageSettings::noSignalImageForCapture();
+}
+
+void PlayerController::setNoSignalImageForCapture(const QString &path) {
+    QString stored;
+    if (!storableNoSignalImagePath(path, stored))
+        return;
+    ImageSettings::setNoSignalImageForCapture(stored);
+    ImageSettings::self()->save();
+    applyNoSignalImages();
+}
+
+QString PlayerController::noSignalImageForDirectShow() {
+    return ImageSettings::noSignalImageForDirectShow();
+}
+
+void PlayerController::setNoSignalImageForDirectShow(const QString &path) {
+    QString stored;
+    if (!storableNoSignalImagePath(path, stored))
+        return;
+    ImageSettings::setNoSignalImageForDirectShow(stored);
+    ImageSettings::self()->save();
+    applyNoSignalImages();
+}
+
+bool PlayerController::storableNoSignalImagePath(const QString &path, QString &stored) {
+    stored.clear();
+    if (path.isEmpty())
+        return true;
+    const QString absolutePath = checkAndCorrectPath(path);
+    if (absolutePath.isEmpty())
+        return false;
+    stored = returnRelativeOrAbsolutePath(absolutePath);
+    return true;
+}
+
+void PlayerController::applyNoSignalImages() {
+    auto resolve = [this](const QString &stored) {
+        return stored.isEmpty() ? std::string() : checkAndCorrectPath(stored).toStdString();
+    };
+    auto &vars = SyncHelper::instance().variables;
+#ifdef CAPTURE_SUPPORT
+    const std::string capture = resolve(ImageSettings::noSignalImageForCapture());
+    BaseLayer::setNoSignalImageFile(BaseLayer::CAPTURE, capture);
+    vars.noSignalImageCapture = capture;
+    vars.noSignalImageCaptureDirty = true;
+#endif
+#ifdef DIRECTSHOW_SUPPORT
+    const std::string directShow = resolve(ImageSettings::noSignalImageForDirectShow());
+    BaseLayer::setNoSignalImageFile(BaseLayer::DIRECTSHOW, directShow);
+    vars.noSignalImageDirectShow = directShow;
+    vars.noSignalImageDirectShowDirty = true;
+#endif
+    (void)resolve;
+    (void)vars;
 }
 
 float PlayerController::backgroundVisibilityOnMaster() {

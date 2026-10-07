@@ -43,5 +43,11 @@
       <label>Image decoder used by ImageLayer.</label>
       <default>Auto</default>
     </entry>
+    <entry name="NoSignalImageForCapture" type="String">
+      <label>An image file shown by Capture layers while their input has no signal</label>
+    </entry>
+    <entry name="NoSignalImageForDirectShow" type="String">
+      <label>An image file shown by DirectShow layers while their capture input has no signal</label>
+    </entry>
   </group>
 </kcfg>

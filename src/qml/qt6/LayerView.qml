@@ -848,6 +848,46 @@ Kirigami.ApplicationWindow {
                 text: CAPTURE_SUPPORT ? (layerViewItem.layerCaptureStatus || "") : ""
             }
         }
+        Rectangle {
+            id: noSignalImageOverlay
+
+            anchors.right: parent.right
+            anchors.top: parent.top
+            anchors.margins: 8
+            implicitWidth: noSignalImageCheckBox.implicitWidth + 16
+            implicitHeight: noSignalImageCheckBox.implicitHeight + 4
+            width: implicitWidth
+            height: implicitHeight
+            radius: 4
+            color: Qt.rgba(0.1, 0.1, 0.1, 0.7)
+            visible: layerViewItem.layerIdx !== -1
+                     && (layerViewItem.layerTypeName === "Capture" || layerViewItem.layerTypeName === "DirectShow")
+            z: 10
+
+            CheckBox {
+                id: noSignalImageCheckBox
+
+                anchors.centerIn: parent
+                focusPolicy: Qt.NoFocus
+                text: qsTr("Use no-signal image")
+                checked: layerViewItem.layerUseNoSignalImage
+
+                onToggled: layerViewItem.layerUseNoSignalImage = checked
+
+                ToolTip.visible: hovered
+                ToolTip.text: qsTr("Show the no-signal image (Settings > Image) while the input has no signal. When off, the layer is not rendered without a signal.")
+            }
+            Connections {
+                function onLayerChanged() {
+                    noSignalImageCheckBox.checked = layerViewItem.layerUseNoSignalImage;
+                }
+                function onLayerValueChanged() {
+                    noSignalImageCheckBox.checked = layerViewItem.layerUseNoSignalImage;
+                }
+
+                target: layerViewItem
+            }
+        }
         MouseArea {
             anchors.fill: parent
             visible: layerViewItem.layerIdx !== -1

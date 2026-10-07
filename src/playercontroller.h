@@ -147,6 +147,11 @@ public Q_SLOTS:
     int foregroundStereoMode();
     void setForegroundStereoMode(int value);
 
+    QString noSignalImageForCapture();
+    void setNoSignalImageForCapture(const QString &path);
+    QString noSignalImageForDirectShow();
+    void setNoSignalImageForDirectShow(const QString &path);
+
     float backgroundVisibilityOnMaster();
     void setViewModeOnMaster(int value);
     int getViewModeOnMaster();
@@ -229,6 +234,8 @@ private:
     QVariantList nodeLoadFailures() const;
 
     void setupHttpServer();
+    bool storableNoSignalImagePath(const QString &path, QString &stored);
+    void applyNoSignalImages();
 
     MpvObject *m_mpv;
     SlidesModel* m_slidesModel;

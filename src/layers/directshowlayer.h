@@ -59,6 +59,7 @@ struct ISampleGrabber : public IUnknown {
 // an immortal base reference: destruction is owned by the layer, which clears the
 // grabber callback (releaseGraph()) before it is destroyed.
 class DirectShowLayer; // forward declaration for the back-pointer below
+class DatapathSignalProbe;
 class GrabberCallback : public ISampleGrabberCB {
 public:
     enum class Role { Video, Audio };
@@ -166,7 +167,7 @@ private:
     bool buildVideoPath(const std::string& videoDevice); // graph worker thread only, during graph build: source -> video grabber; videoDevice is the per-machine resolved pair's video part (empty = file source)
     void ensureGraph();                                  // render thread only - enqueues work for the graph worker, never blocks on COM/PortAudio I/O
     void releaseGraph();                                 // graph worker thread only (MTA COM)
-    void setupSignalDetection();                         // graph worker thread only, during graph build for capture devices
+    void setupSignalDetection(const std::string& videoDevice); // graph worker thread only, during graph build for capture devices
     void pollSignalPresence();                           // graph worker thread only - throttled internally
 
     // Graph worker thread (mirrors MpvLayer/ImageLayer): owns the DirectShow filter graph and all
@@ -223,7 +224,7 @@ private:
     // Preset-aware capture device resolution shared by ensureGraph() (render thread) and the graph
     // worker's audio maintenance. Returns true when the names came from this machine's
     // predefined-directshows.json entry. Any thread - the resolver is internally synchronized.
-    bool resolveCaptureDevices(std::string& videoDevice, std::string& audioDevice) const;
+    bool resolveCaptureDevices(std::string& videoDevice, std::string& audioDevice, bool* placeholder = nullptr) const;
 
     // PortAudio output callback - drains m_audioRing into the output buffer. Runs on a
     // (possibly real-time) PortAudio thread: no allocation, no logging, minimal work.
@@ -271,6 +272,12 @@ private:
     DWORD m_signalPropId = 0; // signal-status property within that set
     std::atomic<SignalState> m_signalState{SignalState::Unknown};
     std::chrono::steady_clock::time_point m_lastSignalPoll{};
+#ifdef CAPTURE_DATAPATH
+    std::unique_ptr<DatapathSignalProbe> m_datapathProbe; // Datapath inputs are polled through RGBEasy
+#endif
+#ifdef DIRECTSHOW_DATAPATH
+    IUnknown* m_datapathVision = nullptr; // IVisionUser of a Datapath Vision filter (preferred over RGBEasy)
+#endif
 
     // Cached from the grabber's connection media type after Run(), used when a sample carries no media type.
     int m_cachedWidth = 0;

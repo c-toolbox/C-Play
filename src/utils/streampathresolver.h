@@ -23,15 +23,17 @@
 class StreamPathResolver {
 public:
     static StreamPathResolver& instance();
+    static StreamPathResolver& spoutInstance();
 
     // Resolve the local path for a predefined stream entry (by title) on this machine.
     // Returns false if no entry with that title exists in the local predefined-streams.json
     // (caller should fall back to the synced file path).
     // When true, outPath may be empty - meaning "no stream on this machine".
-    bool resolve(const std::string& streamKey, bool isMaster, std::string& outPath);
+    bool resolve(const std::string& streamKey, bool isMaster, std::string& outPath, bool* placeholder = nullptr);
 
 private:
-    StreamPathResolver() = default;
+    StreamPathResolver(bool spout = false) : m_spout(spout) {}
+    bool m_spout;
 
     void refreshIfNeeded();
     std::string roleFor(bool isMaster) const;

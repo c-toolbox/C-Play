@@ -18,8 +18,10 @@
 #include "track.h"
 #include <utils/planegrid.h>
 
+class ImageLayer;
 class NdiSender;
 class NodeStreamSender;
+class TextLayer;
 
 class BaseLayer {
 public:
@@ -324,12 +326,14 @@ public:
     void setShouldPreLoad(bool value);
 
     bool flipY() const;
+    bool renderFlipY() const;
     void setFlipY(bool f);
 
     uint8_t gridMode() const;
     void setGridMode(uint8_t g);
 
     uint8_t stereoMode() const;
+    uint8_t renderStereoMode() const;
     void setStereoMode(uint8_t s);
 
     uint8_t eyeMode() const;
@@ -453,7 +457,37 @@ public:
     void encodeFullForNodes(std::vector<std::byte>& data);
     void encodeAlwaysForNodes(std::vector<std::byte>& data);
 
+    // Image shown by layers of the given type while their input has no signal (empty = none). Any thread.
+    static void setNoSignalImageFile(LayerType type, const std::string& file);
+    static std::string noSignalImageFile(LayerType type);
+
+    // Per layer: show the no-signal image while the input has no signal; otherwise the layer is not ready then.
+    bool useNoSignalImage() const;
+    void setUseNoSignalImage(bool use);
+
 protected:
+    // Resolved from the local preset; never serialized to the nodes.
+    void setMasterPlaceholder(bool enabled);
+    bool masterPlaceholderEnabled() const;
+    bool masterPlaceholderReady() const;
+    bool updateMasterPlaceholder();
+#ifdef TEXT_LAYER
+    std::unique_ptr<TextLayer> m_masterPlaceholder;
+#endif
+    std::atomic_bool m_masterPlaceholderEnabled{false};
+
+    // Render thread: shows imageFile instead of the layer content while noSignal is true, for
+    // layers that can detect a missing input signal. Returns true while the image is shown.
+    bool updateNoSignalImage(bool noSignal, const std::string& imageFile);
+    bool noSignalImageEnabled() const;
+    // True while the input has no signal and no image replaces it - the layer should report !ready().
+    bool noSignalHidden() const;
+    std::unique_ptr<ImageLayer> m_noSignalImage;
+    std::string m_noSignalImageFile;
+    std::atomic_bool m_noSignalImageEnabled{false};
+    std::atomic_bool m_noSignal{false};
+    std::atomic_bool m_useNoSignalImage{false};
+
     void setNeedSync();
     void encodeNodeStreamTypeAlways(std::vector<std::byte>& data) const;
     // Base-core section for the NDI node-stream mode: like encodeBaseCore(), but the

@@ -574,6 +574,10 @@ public:
         std::string multiVideoConfig;
         bool multiVideoConfigDirty;
         bool multiVideoEnabled;
+        std::string noSignalImageCapture;
+        bool noSignalImageCaptureDirty;
+        std::string noSignalImageDirectShow;
+        bool noSignalImageDirectShowDirty;
     };
 
     struct ConfigurationVariables {
@@ -671,7 +675,11 @@ public:
         /*playerControllerNeedSync*/ true,
         /*multiVideoConfig*/ "",
         /*multiVideoConfigDirty*/ false,
-        /*multiVideoEnabled*/ false };
+        /*multiVideoEnabled*/ false,
+        /*noSignalImageCapture*/ "",
+        /*noSignalImageCaptureDirty*/ false,
+        /*noSignalImageDirectShow*/ "",
+        /*noSignalImageDirectShowDirty*/ false };
 
     ConfigurationVariables configuration = {
         /*confAll*/ "./data/mpv-conf/default/all.json",

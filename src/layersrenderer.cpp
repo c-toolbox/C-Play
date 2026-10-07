@@ -485,14 +485,14 @@ void LayersRenderer::renderLayer(const sgct::RenderData& data, const BaseLayer* 
         EACPrg->bind();
 
         glUniform1f(EACAlphaLoc, layer->alpha());
-        glUniform1i(EACFlipYLoc, (layer->flipY() ? 1 : 0));
+        glUniform1i(EACFlipYLoc, (layer->renderFlipY() ? 1 : 0));
         glUniform1i(EACOutsideLoc, 0);
         glUniform1i(EACVideoWidthLoc, layer->width());
         glUniform1i(EACVideoHeightLoc, layer->height());
 
-        if (layer->stereoMode() > 0) {
+        if (layer->renderStereoMode() > 0) {
             glUniform1i(EACEyeModeLoc, (GLint)currentEye);
-            glUniform1i(EACStereoscopicModeLoc, (GLint)layer->stereoMode());
+            glUniform1i(EACStereoscopicModeLoc, (GLint)layer->renderStereoMode());
         }
         else {
             glUniform1i(EACEyeModeLoc, 0);
@@ -547,9 +547,9 @@ void LayersRenderer::renderLayer(const sgct::RenderData& data, const BaseLayer* 
 
         meshPrg->bind();
 
-        if (layer->stereoMode() > 0) {
+        if (layer->renderStereoMode() > 0) {
             glUniform1i(meshEyeModeLoc, (GLint)currentEye);
-            glUniform1i(meshStereoscopicModeLoc, (GLint)layer->stereoMode());
+            glUniform1i(meshStereoscopicModeLoc, (GLint)layer->renderStereoMode());
         }
         else {
             glUniform1i(meshEyeModeLoc, 0);
@@ -564,7 +564,7 @@ void LayersRenderer::renderLayer(const sgct::RenderData& data, const BaseLayer* 
         }
 
         glUniform1f(meshAlphaLoc, layer->alpha());
-        glUniform1i(meshFlipYLoc, (layer->flipY() ? 1 : 0));
+        glUniform1i(meshFlipYLoc, (layer->renderFlipY() ? 1 : 0));
 
         glUniformMatrix4fv(meshMatrixLoc, 1, GL_FALSE, &MVP_transformed_rot[0][0]);
 
@@ -599,9 +599,9 @@ void LayersRenderer::renderLayer(const sgct::RenderData& data, const BaseLayer* 
 
         meshPrg->bind();
 
-        if (layer->stereoMode() > 0) {
+        if (layer->renderStereoMode() > 0) {
             glUniform1i(meshEyeModeLoc, (GLint)currentEye);
-            glUniform1i(meshStereoscopicModeLoc, (GLint)layer->stereoMode());
+            glUniform1i(meshStereoscopicModeLoc, (GLint)layer->renderStereoMode());
         }
         else {
             glUniform1i(meshEyeModeLoc, 0);
@@ -616,7 +616,7 @@ void LayersRenderer::renderLayer(const sgct::RenderData& data, const BaseLayer* 
         }
 
         glUniform1f(meshAlphaLoc, layer->alpha());
-        glUniform1i(meshFlipYLoc, (layer->flipY() ? 1 : 0));
+        glUniform1i(meshFlipYLoc, (layer->renderFlipY() ? 1 : 0));
 
         const sgct::mat4 mvp = data.modelViewProjectionMatrix;
         glm::mat4 MVP_transformed_rot = glm::translate(glm::make_mat4(mvp.values.data()), layer->translate());
@@ -638,9 +638,9 @@ void LayersRenderer::renderLayer(const sgct::RenderData& data, const BaseLayer* 
 
         meshPrg->bind();
 
-        if (layer->stereoMode() > 0) {
+        if (layer->renderStereoMode() > 0) {
             glUniform1i(meshEyeModeLoc, (GLint)currentEye);
-            glUniform1i(meshStereoscopicModeLoc, (GLint)layer->stereoMode());
+            glUniform1i(meshStereoscopicModeLoc, (GLint)layer->renderStereoMode());
         }
         else {
             glUniform1i(meshEyeModeLoc, 0);
@@ -655,7 +655,7 @@ void LayersRenderer::renderLayer(const sgct::RenderData& data, const BaseLayer* 
         }
 
         glUniform1f(meshAlphaLoc, layer->alpha());
-        glUniform1i(meshFlipYLoc, (layer->flipY() ? 1 : 0));
+        glUniform1i(meshFlipYLoc, (layer->renderFlipY() ? 1 : 0));
 
         const sgct::mat4 mvp = data.projectionMatrix * data.viewMatrix;
 
@@ -685,9 +685,9 @@ void LayersRenderer::renderLayer(const sgct::RenderData& data, const BaseLayer* 
     else {
         videoPrg->bind();
 
-        if (layer->stereoMode() > 0) {
+        if (layer->renderStereoMode() > 0) {
             glUniform1i(videoEyeModeLoc, (GLint)currentEye);
-            glUniform1i(videoStereoscopicModeLoc, (GLint)layer->stereoMode());
+            glUniform1i(videoStereoscopicModeLoc, (GLint)layer->renderStereoMode());
         }
         else {
             glUniform1i(videoEyeModeLoc, 0);
@@ -702,7 +702,7 @@ void LayersRenderer::renderLayer(const sgct::RenderData& data, const BaseLayer* 
         }
 
         glUniform1f(videoAlphaLoc, layer->alpha());
-        glUniform1i(videoFlipYLoc, (layer->flipY() ? 1 : 0));
+        glUniform1i(videoFlipYLoc, (layer->renderFlipY() ? 1 : 0));
 
         data.window.renderScreenQuad();
 

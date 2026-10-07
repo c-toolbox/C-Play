@@ -20,6 +20,7 @@
 #include <chrono>
 #include <cmath>
 #include <cstdio>
+#include <map>
 #ifdef AUDIO_LAYER
 #include "audiosettings.h"
 #endif
@@ -58,6 +59,8 @@
 #endif
 #ifdef TEXT_LAYER
 #include <layers/textlayer.h>
+#include "application.h"
+#include "subtitlesettings.h"
 #endif
 #ifdef CONTROL_LAYER
 #include <layers/controllayer.h>
@@ -950,7 +953,120 @@ void BaseLayer::setKeepVisibilityForNumSlides(int k) {
     m_keepVisibilityForNumSlides = k;
 }
 
+void BaseLayer::setMasterPlaceholder(bool enabled) {
+#ifdef TEXT_LAYER
+    enabled = enabled && isMaster();
+#else
+    enabled = false;
+#endif
+    if (m_masterPlaceholderEnabled.exchange(enabled) != enabled)
+        setNeedSync();
+}
+
+bool BaseLayer::masterPlaceholderEnabled() const {
+    return m_masterPlaceholderEnabled;
+}
+
+bool BaseLayer::masterPlaceholderReady() const {
+#ifdef TEXT_LAYER
+    return m_masterPlaceholder && m_masterPlaceholder->ready();
+#else
+    return false;
+#endif
+}
+
+bool BaseLayer::updateMasterPlaceholder() {
+    if (!masterPlaceholderEnabled())
+        return false;
+#ifdef TEXT_LAYER
+    if (!m_masterPlaceholder) {
+        m_masterPlaceholder = std::make_unique<TextLayer>();
+        m_masterPlaceholder->setIsMaster(true);
+        m_masterPlaceholder->setTextureSize(1280, 256);
+        m_masterPlaceholder->setFont(SubtitleSettings::subtitleFontFamily().toStdString());
+    }
+    // Refresh the label after renaming or duplicating a layer.
+    const std::string label = generateNdiSenderName();
+    if (m_masterPlaceholder->text() != label) {
+        m_masterPlaceholder->setFontSize(std::clamp(1800 / static_cast<int>(label.size()), 12, 48));
+        m_masterPlaceholder->setText(label);
+    }
+    // Font discovery may finish after the layer was created.
+    if (m_masterPlaceholder->fontName().empty() && Application::isCreated()) {
+        const auto fonts = Application::instance().fonts();
+        if (!fonts.empty())
+            m_masterPlaceholder->setFont(fonts.front().toStdString());
+    }
+    if (!m_masterPlaceholder->fontName().empty())
+        m_masterPlaceholder->update();
+#endif
+    clearLoadError();
+    return true;
+}
+
+bool BaseLayer::updateNoSignalImage(bool noSignal, const std::string& file) {
+    m_noSignal = noSignal;
+    const std::string imageFile = m_useNoSignalImage ? file : std::string();
+    if (imageFile.empty()) {
+        m_noSignalImageEnabled = false;
+        // Not reset: width()/height() may read m_noSignalImage from other threads.
+        if (m_noSignalImage && !m_noSignalImageFile.empty())
+            m_noSignalImage->processImageUpload("", true);
+        m_noSignalImageFile.clear();
+        return false;
+    }
+    if (!m_noSignalImage)
+        m_noSignalImage = std::make_unique<ImageLayer>("no-signal");
+    // Only force a (re)load when the file changes, so a broken file is not retried every frame.
+    const bool fileChanged = imageFile != m_noSignalImageFile;
+    m_noSignalImageFile = imageFile;
+    m_noSignalImage->processImageUpload(imageFile, fileChanged);
+    if (m_noSignalImage->ready())
+        m_noSignalImage->updateFrame();
+    m_noSignalImageEnabled = noSignal && m_noSignalImage->ready();
+    return m_noSignalImageEnabled;
+}
+
+bool BaseLayer::noSignalImageEnabled() const {
+    return m_noSignalImageEnabled;
+}
+
+bool BaseLayer::noSignalHidden() const {
+    return m_noSignal && !m_noSignalImageEnabled;
+}
+
+bool BaseLayer::useNoSignalImage() const {
+    return m_useNoSignalImage;
+}
+
+void BaseLayer::setUseNoSignalImage(bool use) {
+    if (m_useNoSignalImage.exchange(use) != use && isMaster())
+        setNeedSync();
+}
+
+namespace {
+std::mutex s_noSignalImageMutex;
+std::map<int, std::string> s_noSignalImageFiles;
+}
+
+void BaseLayer::setNoSignalImageFile(LayerType type, const std::string& file) {
+    std::lock_guard<std::mutex> lock(s_noSignalImageMutex);
+    s_noSignalImageFiles[static_cast<int>(type)] = file;
+}
+
+std::string BaseLayer::noSignalImageFile(LayerType type) {
+    std::lock_guard<std::mutex> lock(s_noSignalImageMutex);
+    const auto it = s_noSignalImageFiles.find(static_cast<int>(type));
+    return it != s_noSignalImageFiles.end() ? it->second : std::string();
+}
+
 unsigned int BaseLayer::textureId() const {
+#ifdef TEXT_LAYER
+    if (masterPlaceholderEnabled())
+        return m_masterPlaceholder ? m_masterPlaceholder->textureId() : 0;
+#endif
+    if (noSignalImageEnabled())
+        return m_noSignalImage->textureId();
     return renderData.texId;
 }
 
@@ -959,10 +1075,22 @@ unsigned int BaseLayer::textureInternalFormat() const {
 }
 
 int BaseLayer::width() const {
+#ifdef TEXT_LAYER
+    if (masterPlaceholderEnabled())
+        return m_masterPlaceholder ? m_masterPlaceholder->width() : 0;
+#endif
+    if (noSignalImageEnabled())
+        return m_noSignalImage->width();
     return renderData.width;
 }
 
 int BaseLayer::height() const {
+#ifdef TEXT_LAYER
+    if (masterPlaceholderEnabled())
+        return m_masterPlaceholder ? m_masterPlaceholder->height() : 0;
+#endif
+    if (noSignalImageEnabled())
+        return m_noSignalImage->height();
     return renderData.height;
 }
 
@@ -1058,6 +1186,14 @@ bool BaseLayer::flipY() const {
     return renderData.flipY;
 }
 
+bool BaseLayer::renderFlipY() const {
+    if (masterPlaceholderEnabled())
+        return false;
+    if (noSignalImageEnabled())
+        return m_noSignalImage->flipY();
+    return flipY();
+}
+
 void BaseLayer::setFlipY(bool f) {
     renderData.flipY = f;
     setNeedSync();
@@ -1077,6 +1213,10 @@ void BaseLayer::setGridMode(uint8_t g) {
 
 uint8_t BaseLayer::stereoMode() const {
     return renderData.stereoMode;
+}
+
+uint8_t BaseLayer::renderStereoMode() const {
+    return masterPlaceholderEnabled() || noSignalImageEnabled() ? static_cast<uint8_t>(No_2D) : stereoMode();
 }
 
 void BaseLayer::setStereoMode(uint8_t s) {
@@ -1260,21 +1400,21 @@ bool BaseLayer::hasPlane() const {
 }
 
 void BaseLayer::updatePlane() {
-    if (renderData.width <= 0 || renderData.height <= 0)
+    if (this->width() <= 0 || this->height() <= 0)
         return;
 
     if (planeData.specifiedSize.x <= 0 || planeData.specifiedSize.y <= 0)
         return;
 
-    float width = float(renderData.width);
-    float height = float(renderData.height);
+    float width = float(this->width());
+    float height = float(this->height());
     if (renderData.roiEnabled) {
         width *= renderData.roi.z;
         height *= renderData.roi.w;
     }
 
     glm::vec2 calculatedPlaneSize = planeData.specifiedSize;
-    int sm = renderData.stereoMode;
+    int sm = renderStereoMode();
 
     float ratioMultiplier = 1.0f;
     if (sm == 1) { // Side-by-side
@@ -1705,7 +1845,7 @@ void BaseLayer::updateNodeStreamOutput() {
     if (!isMaster())
         return;
 
-    if (!m_nodeStreamOutputEnabled) {
+    if (!nodeStreamOutputEnabled() || masterPlaceholderEnabled()) {
         cleanupNodeStreamOutput();
         return;
     }
@@ -1812,12 +1952,12 @@ void BaseLayer::cleanupNodeStreamOutput() {
 }
 
 bool BaseLayer::syncToNodes() const {
-    return !existOnMasterOnly() || m_nodeStreamOutputEnabled;
+    return !existOnMasterOnly() || (nodeStreamOutputEnabled() && !masterPlaceholderEnabled());
 }
 
 int BaseLayer::syncTypeForNodes() const {
 #ifdef NODE_STREAM_SUPPORT
-    if (m_nodeStreamOutputEnabled) {
+    if (nodeStreamOutputEnabled() && !masterPlaceholderEnabled()) {
         if (nodeStreamUseNdiEffective()) {
 #if defined(NDI_LAYER)
             return static_cast<int>(NDI);
@@ -1850,7 +1990,7 @@ void BaseLayer::encodeBaseCoreForNdiNodes(std::vector<std::byte>& data) const {
 
 void BaseLayer::encodeFullForNodes(std::vector<std::byte>& data) {
 #ifdef NODE_STREAM_SUPPORT
-    if (m_nodeStreamOutputEnabled && nodeStreamUseNdiEffective()) {
+    if (nodeStreamOutputEnabled() && !masterPlaceholderEnabled() && nodeStreamUseNdiEffective()) {
 #if defined(NDI_LAYER)
         // Mirrors NdiLayer::decodeFull: the node creates an NdiLayer receiving this
         // layer as an NDI source. NdiLayer does not override decodeTypeCore, so the
@@ -1862,7 +2002,7 @@ void BaseLayer::encodeFullForNodes(std::vector<std::byte>& data) {
         return;
 #endif
     }
-    if (m_nodeStreamOutputEnabled) {
+    if (nodeStreamOutputEnabled() && !masterPlaceholderEnabled()) {
         // Mirrors encodeFull with the NodeStreamLayer type sections.
         encodeBaseCore(data);
         encodeBaseAlways(data);
@@ -1912,7 +2052,7 @@ void BaseLayer::encodeNodeStreamTypeAlways(std::vector<std::byte>& data) const {
 
 void BaseLayer::encodeAlwaysForNodes(std::vector<std::byte>& data) {
 #ifdef NODE_STREAM_SUPPORT
-    if (m_nodeStreamOutputEnabled && nodeStreamUseNdiEffective()) {
+    if (nodeStreamOutputEnabled() && !masterPlaceholderEnabled() && nodeStreamUseNdiEffective()) {
 #if defined(NDI_LAYER)
         // Mirrors NdiLayer::decodeAlways.
         encodeBaseAlways(data);
@@ -1920,7 +2060,7 @@ void BaseLayer::encodeAlwaysForNodes(std::vector<std::byte>& data) {
         return;
 #endif
     }
-    if (m_nodeStreamOutputEnabled) {
+    if (nodeStreamOutputEnabled() && !masterPlaceholderEnabled()) {
         encodeBaseAlways(data);
         encodeNodeStreamTypeAlways(data);
         return;

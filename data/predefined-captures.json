@@ -34,7 +34,7 @@
             "directGpu": true,
             "enabled": false,
             "sources": {
-                "master": null,
+                "master": { "placeholder": true },
                 "node-A": { "input": 1, "audio": true },
                 "node-B": { "input": 2, "directGpu": false }
             }

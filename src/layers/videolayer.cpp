@@ -177,7 +177,7 @@ bool VideoLayer::ready() const {
 }
 
 unsigned int VideoLayer::textureInternalFormat() const {
-    return GL_RGBA16F;
+    return masterPlaceholderEnabled() ? GL_RGBA8 : GL_RGBA16F;
 }
 
 void VideoLayer::updateFbo() {

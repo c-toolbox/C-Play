@@ -151,4 +151,22 @@ private:
     std::unique_ptr<DatapathAudioCapture> m_audio; // only for sources with audio=true
 };
 
+// Signal state of a Datapath input that is captured through another API (the DirectShow layer).
+class DatapathSignalProbe {
+public:
+    DatapathSignalProbe() = default;
+    ~DatapathSignalProbe();
+
+    // Maps a DirectShow video device friendly name (e.g. "Datapath VisionSC-DP2 01") to its
+    // RGBEasy input. False when the SDK is missing or the name is no Datapath input.
+    bool attach(const std::string& friendlyName);
+    int input() const { return m_input; } // 1-based, 0 = not attached
+    // 1 = signal present, 0 = no signal, -1 = unknown.
+    int poll() const;
+
+private:
+    bool m_sdkLoaded = false;
+    int m_input = 0;
+};
+
 #endif // DATAPATHCAPTURE_H

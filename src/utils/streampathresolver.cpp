@@ -18,6 +18,11 @@ constexpr std::chrono::seconds kRefreshInterval{5};
     return resolver;
 }
 
+StreamPathResolver& StreamPathResolver::spoutInstance() {
+    static StreamPathResolver resolver(true);
+    return resolver;
+}
+
 void StreamPathResolver::refreshIfNeeded() {
     const auto now = std::chrono::steady_clock::now();
     if (m_lastRefresh.time_since_epoch().count() != 0 && now - m_lastRefresh < kRefreshInterval)
@@ -25,9 +30,10 @@ void StreamPathResolver::refreshIfNeeded() {
     m_lastRefresh = now;
 
     // findDefaultFilePath() only returns a path that exists, so missing files do not produce log spam.
-    const std::string streamsPath = StreamPathsConfig::findDefaultFilePath();
+    const std::string streamsPath = StreamPathsConfig::findDefaultFilePath(m_spout ? "predefined-spouts.json" : "predefined-streams.json");
     if (!streamsPath.empty()) {
-        m_paths.loadFromFile(streamsPath);
+        m_paths.loadFromFile(streamsPath, m_spout ? "spouts" : "streams",
+            m_spout ? "sender" : "path", m_spout ? "senders" : "paths");
     } else if (m_paths.isLoaded()) {
         sgct::Log::Debug("StreamPathResolver: predefined-streams.json not found, keeping last loaded list");
     }
@@ -57,12 +63,12 @@ std::string StreamPathResolver::roleFor(bool isMaster) const {
     return "";
 }
 
-bool StreamPathResolver::resolve(const std::string& streamKey, bool isMaster, std::string& outPath) {
+bool StreamPathResolver::resolve(const std::string& streamKey, bool isMaster, std::string& outPath, bool* placeholder) {
     std::lock_guard<std::mutex> lock(m_mutex);
     refreshIfNeeded();
 
     const std::string role = roleFor(isMaster);
-    if (!m_paths.resolvePathForRole(streamKey, role, outPath))
+    if (!m_paths.resolvePathForRole(streamKey, role, outPath, placeholder))
         return false;
 
     if (outPath.empty() && m_warnedNoPath.insert(streamKey).second) {

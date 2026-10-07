@@ -33,6 +33,17 @@
                     "audioDevice": ""
                 }
             }
+        },
+        {
+            "title": "Example: DirectShow on nodes with master placeholder",
+            "videoDevice": "OBS Virtual Camera",
+            "audioDevice": "",
+            "enabled": false,
+            "devices": {
+                "master": {
+                    "placeholder": true
+                }
+            }
         }
     ]
 }

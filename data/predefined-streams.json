@@ -39,6 +39,16 @@
                 "title": "Example: Template-based capture card (see docs)",
                 "enabled": false,
                 "pathTemplate": "av://dshow:video=Capture Card ({nodeId})"
+            },
+        {
+            "title": "Example: Stream on nodes with master placeholder",
+            "path": "udp://239.1.1.1:5000",
+            "enabled": false,
+            "paths": {
+                "master": {
+                    "placeholder": true
+                }
             }
-		]
+        }
+    ]
 }

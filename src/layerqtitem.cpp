@@ -1437,6 +1437,18 @@ void LayerQtItem::setLayerFlipY(bool flip) {
     }
 }
 
+bool LayerQtItem::layerUseNoSignalImage() const {
+    return m_layer && m_layer->useNoSignalImage();
+}
+
+void LayerQtItem::setLayerUseNoSignalImage(bool use) {
+    if (m_layer && m_layer->isEnabled() && m_layer->useNoSignalImage() != use) {
+        m_layer->setUseNoSignalImage(use);
+        Q_EMIT layerValueChanged();
+        Q_EMIT layerNeedsSave();
+    }
+}
+
 QString LayerQtItem::layerOperation() const {
     if (m_layer && m_layer->type() == BaseLayer::CONTROL) {
         ControlLayer* controlLayer = static_cast<ControlLayer*>(m_layer);
@@ -2124,7 +2136,7 @@ void LayerQtOpenGLObject::paint() {
     glBindTexture(GL_TEXTURE_2D, m_layer->textureId());
 
     m_program->setUniformValue("tex", 1);
-    m_program->setUniformValue("flipY", (m_layer->flipY() ? 1 : 0 ));
+    m_program->setUniformValue("flipY", (m_layer->renderFlipY() ? 1 : 0 ));
 
     glViewport(m_viewOffset.x(), m_viewOffset.y(), m_viewSize.width(), m_viewSize.height());
 

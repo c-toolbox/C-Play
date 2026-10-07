@@ -214,6 +214,22 @@ if(BUILD_CPLAY_WITH_DIRECTSHOW)
         set_package_properties(PortAudio PROPERTIES TYPE REQUIRED
             URL "https://www.portaudio.com/" DESCRIPTION "for DirectShow audio output support.")
     endif()
+
+    # Optional header-only Datapath DirectShow SDK: "no signal" detection for Datapath Vision filters.
+    set(DATAPATH_DSHOW_ROOT "$ENV{DATAPATH_DSHOW_ROOT}" CACHE PATH "Datapath DirectShow SDK folder (containing INCLUDE/DGC133ST.h), e.g. D:/Datapath/STREAMING/DIRECTSHOW")
+    find_path(DATAPATH_DSHOW_INCLUDE_DIR
+        NAMES DGC133ST.h
+        PATHS
+            ${DATAPATH_DSHOW_ROOT}/INCLUDE
+            ${DATAPATH_DSHOW_ROOT}
+            ${RGBEASY_ROOT}/../STREAMING/DIRECTSHOW/INCLUDE
+            $ENV{RGBEASY_ROOT}/../STREAMING/DIRECTSHOW/INCLUDE
+        NO_DEFAULT_PATH
+    )
+    mark_as_advanced(DATAPATH_DSHOW_INCLUDE_DIR)
+    if(DATAPATH_DSHOW_INCLUDE_DIR)
+        message(STATUS "Datapath DirectShow SDK: ${DATAPATH_DSHOW_INCLUDE_DIR}")
+    endif()
 endif()
 
 option(BUILD_CPLAY_WITH_OMT "Global On/Off for OMT support" OFF)
