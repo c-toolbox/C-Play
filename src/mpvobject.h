@@ -543,6 +543,7 @@ private:
 
     void addView(MpvView* view);
     void removeView(MpvView* view);
+    static void mpvRedraw(void* ctx);
 
     void sectionPositionCheck(double position);
 

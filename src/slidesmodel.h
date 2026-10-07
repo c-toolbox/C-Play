@@ -13,6 +13,7 @@
 #include <QAbstractTableModel>
 #include <QtQml/qqmlregistration.h>
 #include <QElapsedTimer>
+#include <memory>
 #include <mutex>
 
 class BaseLayer;
@@ -303,7 +304,7 @@ private:
     LayersModel *m_masterSlide;
     LayersModel *m_dummySlide;
     SlideVisibilityModel* m_visibilityModel;
-    BaseLayer *m_layerToCopyFrom;
+    std::weak_ptr<BaseLayer> m_layerToCopyFrom;
     bool m_needSync;
     int m_syncIteration;
     int m_selectedSlideIdx = -1; // Means master

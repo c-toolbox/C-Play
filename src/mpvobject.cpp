@@ -48,12 +48,6 @@
 #include <QStandardPaths>
 #include <QtGlobal>
 
-static void on_mpv_redraw(void *ctx) {
-    if (!ctx)
-        return;
-    QMetaObject::invokeMethod(static_cast<MpvView *>(ctx), "update", Qt::QueuedConnection);
-}
-
 static void *get_proc_address_mpv(void *ctx, const char *name) {
     Q_UNUSED(ctx)
 
@@ -253,11 +247,19 @@ MpvObject::MpvObject(QQuickItem *parent)
 }
 
 MpvObject::~MpvObject() {
-    // only initialized if something got drawn
-    if (mpv_gl) {
-        mpv_render_context_free(mpv_gl);
+    mpv_set_wakeup_callback(mpv, nullptr, nullptr);
+
+    {
+        std::lock_guard<std::recursive_mutex> lock(m_renderMutex);
+        // only initialized if something got drawn
+        if (mpv_gl) {
+            mpv_render_context_set_update_callback(mpv_gl, nullptr, nullptr);
+            mpv_render_context_free(mpv_gl);
+            mpv_gl = nullptr;
+        }
     }
     mpv_terminate_destroy(mpv);
+    mpv = nullptr;
 
     {
         std::lock_guard<std::recursive_mutex> lock(m_renderMutex);
@@ -2169,13 +2171,13 @@ void MpvObject::loadTracks() {
 }
 
 void MpvObject::onFrameSwapped() {
+    std::lock_guard<std::recursive_mutex> lock(m_renderMutex);
     if (!mpv || !mpv_gl)
         return;
     mpv_render_context_report_swap(mpv_gl);
 
     // Also report for all attached MpvView instances. mpv_views is mutated on
     // the GUI thread (addView/removeView), so iterate under the same lock.
-    std::lock_guard<std::recursive_mutex> lock(m_renderMutex);
     for (MpvView* view : mpv_views) {
         if (view && view->obj && view->obj->mpv_gl) {
             mpv_render_context_report_swap(view->obj->mpv_gl);
@@ -2423,6 +2425,24 @@ void MpvObject::removeView(MpvView* view) {
     }
 }
 
+// Called by mpv from its own thread; targets the MpvObject, since any single view may be destroyed first.
+void MpvObject::mpvRedraw(void* ctx) {
+    auto* obj = static_cast<MpvObject*>(ctx);
+    if (!obj)
+        return;
+    QMetaObject::invokeMethod(obj, [obj]() {
+        // The primary view renders mpv and blits into the other views.
+        MpvView* primary = nullptr;
+        {
+            std::lock_guard<std::recursive_mutex> lock(obj->m_renderMutex);
+            if (!obj->mpv_views.empty())
+                primary = obj->mpv_views.front();
+        }
+        if (primary)
+            primary->update();
+    }, Qt::QueuedConnection);
+}
+
 MpvView::MpvView(QQuickItem* parent)
     : QQuickFramebufferObject(parent), fbo(nullptr), obj(nullptr), m_renderingPriority(1000) {
 
@@ -2488,6 +2508,8 @@ void MpvRenderer::render() {
     }
 
     std::lock_guard<std::recursive_mutex> lock(view->obj->m_renderMutex);
+    if (!view->obj->mpv_gl)
+        return;
 
     view->fbo = framebufferObject();
 
@@ -2632,7 +2654,7 @@ QOpenGLFramebufferObject* MpvRenderer::createFramebufferObject(const QSize& size
 
                 if (mpv_render_context_create(&view->obj->mpv_gl, view->obj->mpv, params) < 0)
                     throw std::runtime_error("failed to initialize mpv GL context");
-            mpv_render_context_set_update_callback(view->obj->mpv_gl, on_mpv_redraw, view);
+            mpv_render_context_set_update_callback(view->obj->mpv_gl, MpvObject::mpvRedraw, view->obj);
             Q_EMIT view->obj->ready();
         }
     }

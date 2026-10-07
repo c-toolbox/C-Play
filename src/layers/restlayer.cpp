@@ -20,7 +20,7 @@ RestLayer::~RestLayer() {
 }
 
 void RestLayer::cleanup() {
-    m_statusCallback = nullptr;
+    // Join first: the worker thread invokes m_statusCallback from onRequestFinished().
     if (m_workerThread) {
         m_workerThread->quit();
         m_workerThread->wait();
@@ -29,6 +29,7 @@ void RestLayer::cleanup() {
         m_worker = nullptr;
         m_wwsWorker = nullptr;
     }
+    m_statusCallback = nullptr;
 }
 
 void RestLayer::initialize() {

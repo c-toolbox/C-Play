@@ -428,9 +428,15 @@ int LayersModel::addLayer(QString title, int type, QString filepath, int stereoM
         // Set up status callback for REST layers
         if (newLayer->type() == BaseLayer::REST) {
             RestLayer* restLayer = static_cast<RestLayer*>(newLayer);
-            restLayer->setStatusCallback([this, layerIdx](int status) {
-                QMetaObject::invokeMethod(this, [this, layerIdx, status]() {
-                    setLayerStatus(layerIdx, status);
+            // Resolve the row at delivery time: layers may have been moved or removed since.
+            restLayer->setStatusCallback([this, newLayer](int status) {
+                QMetaObject::invokeMethod(this, [this, newLayer, status]() {
+                    for (int i = 0; i < m_layers.size(); ++i) {
+                        if (m_layers[i].first.get() == newLayer) {
+                            setLayerStatus(i, status);
+                            break;
+                        }
+                    }
                 }, Qt::QueuedConnection);
             });
         }
@@ -452,7 +458,9 @@ int LayersModel::addRestLayer(QString title, QString url, int method, QString pa
         return -1;
     }
 
-    RestLayer* restLayer = static_cast<RestLayer*>(m_layers[layerIdx].first.get());
+    RestLayer* restLayer = dynamic_cast<RestLayer*>(m_layers[layerIdx].first.get());
+    if (!restLayer)
+        return -1;
     restLayer->setMethod(method);
     restLayer->setParameters(parameters.toStdString());
     restLayer->setIgnoreStatus(ignoreStatus);
@@ -560,7 +568,7 @@ void LayersModel::moveLayer(int i, int t) {
 
 void LayersModel::moveLayerTop(int i) {
     std::lock_guard<std::recursive_mutex> layersLock(m_layersMutex);
-    if (i < 1)
+    if (i < 1 || i >= m_layers.size())
         return;
     if (!beginMoveRows(QModelIndex(), i, i, QModelIndex(), 0))
         return;
@@ -576,7 +584,7 @@ void LayersModel::moveLayerTop(int i) {
 
 void LayersModel::moveLayerUp(int i) {
     std::lock_guard<std::recursive_mutex> layersLock(m_layersMutex);
-    if (i < 1)
+    if (i < 1 || i >= m_layers.size())
         return;
     if (!beginMoveRows(QModelIndex(), i, i, QModelIndex(), i - 1))
         return;
@@ -590,7 +598,7 @@ void LayersModel::moveLayerUp(int i) {
 
 void LayersModel::moveLayerDown(int i) {
     std::lock_guard<std::recursive_mutex> layersLock(m_layersMutex);
-    if (i < 0 || i == (m_layers.size() - 1))
+    if (i < 0 || i >= (m_layers.size() - 1))
         return;
     if (!beginMoveRows(QModelIndex(), i + 1, i + 1, QModelIndex(), i))
         return;
@@ -604,7 +612,7 @@ void LayersModel::moveLayerDown(int i) {
 
 void LayersModel::moveLayerBottom(int i) {
     std::lock_guard<std::recursive_mutex> layersLock(m_layersMutex);
-    if (i < 0 || i == (m_layers.size() - 1))
+    if (i < 0 || i >= (m_layers.size() - 1))
         return;
     if (!beginMoveRows(QModelIndex(), m_layers.size() - 1, m_layers.size() - 1, QModelIndex(), i))
         return;
@@ -668,7 +676,7 @@ void LayersModel::clearLayers() {
         int unlockedLayers = 0;
         int lockedLayers = 0;
         for (int i = 0; i < m_layers.size(); i++) {
-            if (m_layers[i].first->isLocked()) {
+            if (m_layers[i].first && m_layers[i].first->isLocked()) {
                 if (unlockedLayers > 0) {
                     if (beginMoveRows(QModelIndex(), i, i, QModelIndex(), lockedLayers)) {
                         m_layers.move(i, lockedLayers);
@@ -703,7 +711,8 @@ void LayersModel::clearLayers() {
         if (!m_layers.isEmpty()) {
             beginRemoveRows(QModelIndex(), 0, m_layers.size() - 1);
             for (int i = 0; i < m_layers.size(); i++) {
-                m_layers[i].first->setEnabled(false);
+                if (m_layers[i].first)
+                    m_layers[i].first->setEnabled(false);
             }
             m_layers.clear();
             endRemoveRows();
@@ -769,9 +778,10 @@ int LayersModel::getLayerToCopyIdx() {
     return m_layerToCopyIdx;
 }
 
-BaseLayer* LayersModel::getLayerToCopy() {
+std::shared_ptr<BaseLayer> LayersModel::getLayerToCopy() {
+    std::lock_guard<std::recursive_mutex> layersLock(m_layersMutex);
     if (m_layerToCopyIdx >= 0 && m_layerToCopyIdx < m_layers.size() && m_layers[m_layerToCopyIdx].first)
-        return m_layers[m_layerToCopyIdx].first.get();
+        return m_layers[m_layerToCopyIdx].first;
 
     return nullptr;
 }
@@ -813,7 +823,7 @@ void LayersModel::overwriteLayerProperties(BaseLayer* srcLayer, int dstLayerIdx)
     if (srcLayer == nullptr)
         return;
 
-    if (dstLayerIdx < 0 || dstLayerIdx >= m_layers.size())
+    if (dstLayerIdx < 0 || dstLayerIdx >= m_layers.size() || !m_layers[dstLayerIdx].first)
         return;
 
     std::vector<std::byte> data;

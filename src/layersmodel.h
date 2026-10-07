@@ -163,7 +163,7 @@ public:
 
     Q_INVOKABLE void setLayerToCopyIdx(int value);
     Q_INVOKABLE int getLayerToCopyIdx();
-    BaseLayer* getLayerToCopy();
+    std::shared_ptr<BaseLayer> getLayerToCopy();
     void addCopyOfLayer(BaseLayer* srcLayer);
     void overwriteLayerProperties(BaseLayer* srcLayer, int dstLayerIdx);
 

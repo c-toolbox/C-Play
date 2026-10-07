@@ -25,7 +25,8 @@ private:
 };
 
 void SlidesQtItem::releaseResources() {
-    window()->scheduleRenderJob(new CleanupJob(m_renderer), QQuickWindow::BeforeSynchronizingStage);
+    if (m_renderer && window())
+        window()->scheduleRenderJob(new CleanupJob(m_renderer), QQuickWindow::BeforeSynchronizingStage);
     m_renderer = nullptr;
 }
 

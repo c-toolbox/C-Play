@@ -641,7 +641,7 @@ LayersModel* SlidesModel::slide(std::string name) {
         return masterSlide();
     }
     for (int i = 0; i < m_slides.size(); i++) {
-        if (m_slides[i]->getLayersName().toLower() == nameLowCase) {
+        if (m_slides[i] && m_slides[i]->getLayersName().toLower() == nameLowCase) {
             return slide(i);
         }
     }
@@ -709,7 +709,7 @@ int SlidesModel::addSlide() {
 void SlidesModel::removeSlide(int i) {
     {
         std::lock_guard<std::recursive_mutex> lock(m_slidesMutex);
-        if(i < 0 || i >= m_slides.size() || m_slides[i]->getLayersCanBeLocked())
+        if(i < 0 || i >= m_slides.size() || (m_slides[i] && m_slides[i]->getLayersCanBeLocked()))
             return;
 
         beginRemoveRows(QModelIndex(), i, i);
@@ -766,15 +766,18 @@ void SlidesModel::moveSlide(int i, int t) {
         m_slides.move(i, t);
         m_previousSelectedSlideIdx = t;
 
-        if (m_triggeredSlideIdx == i)
-            m_triggeredSlideIdx = t;
-        else if (m_triggeredSlideIdx == t)
-            m_triggeredSlideIdx = i;
-
-        if (m_previousTriggeredSlideIdx == i)
-            m_previousTriggeredSlideIdx = t;
-        else if (m_previousTriggeredSlideIdx == t)
-            m_previousTriggeredSlideIdx = i;
+        // Rows between i and t shift by one towards i.
+        auto remap = [i, t](int idx) {
+            if (idx == i)
+                return t;
+            if (i < t && idx > i && idx <= t)
+                return idx - 1;
+            if (t < i && idx >= t && idx < i)
+                return idx + 1;
+            return idx;
+        };
+        m_triggeredSlideIdx = remap(m_triggeredSlideIdx);
+        m_previousTriggeredSlideIdx = remap(m_previousTriggeredSlideIdx);
 
         endMoveRows();
 
@@ -789,7 +792,7 @@ void SlidesModel::moveSlide(int i, int t) {
 void SlidesModel::moveSlideUp(int i) {
     {
         std::lock_guard<std::recursive_mutex> lock(m_slidesMutex);
-        if (i < 1)
+        if (i < 1 || i >= m_slides.size())
             return;
         if (!beginMoveRows(QModelIndex(), i, i, QModelIndex(), i - 1))
             return;
@@ -817,7 +820,7 @@ void SlidesModel::moveSlideUp(int i) {
 void SlidesModel::moveSlideDown(int i) {
     {
         std::lock_guard<std::recursive_mutex> lock(m_slidesMutex);
-        if (i < 0 || i == (m_slides.size() - 1))
+        if (i < 0 || i >= (m_slides.size() - 1))
             return;
         if (!beginMoveRows(QModelIndex(), i + 1, i + 1, QModelIndex(), i))
             return;
@@ -868,7 +871,7 @@ void SlidesModel::clearSlides() {
         int unlockedSlides = 0;
         int lockedSlides = 0;
         for (int i = 0; i < m_slides.size(); i++) {
-            if (m_slides[i]->getLayersCanBeLocked()) {
+            if (m_slides[i] && m_slides[i]->getLayersCanBeLocked()) {
                 if (unlockedSlides > 0) {
                     if (beginMoveRows(QModelIndex(), i, i, QModelIndex(), lockedSlides)) {
                         m_slides.move(i, lockedSlides);
@@ -924,7 +927,7 @@ void SlidesModel::clearAllForShutdown() {
             slide->clearLayers();
     }
 
-    m_layerToCopyFrom = nullptr;
+    m_layerToCopyFrom.reset();
 }
 
 void SlidesModel::slideContentChanged() {
@@ -932,34 +935,37 @@ void SlidesModel::slideContentChanged() {
 }
 
 void SlidesModel::copyLayer() {
-    m_layerToCopyFrom = selectedSlide() ? selectedSlide()->getLayerToCopy() : nullptr;
+    LayersModel* src = selectedSlide();
+    m_layerToCopyFrom = src ? src->getLayerToCopy() : std::shared_ptr<BaseLayer>();
     m_clearCopyTimer->start();
 }
 
 void SlidesModel::clearCopyLayer() {
-    m_layerToCopyFrom = nullptr;
+    m_layerToCopyFrom.reset();
     Q_EMIT copyCleared();
 }
 
 bool SlidesModel::copyIsAvailable() {
-    return (m_layerToCopyFrom != nullptr);
+    return !m_layerToCopyFrom.expired();
 }
 
 void SlidesModel::pasteLayer() {
-    if (!m_layerToCopyFrom)
+    std::shared_ptr<BaseLayer> src = m_layerToCopyFrom.lock();
+    if (!src)
         return;
     LayersModel* slideToPaste = slide(getSlideToPasteIdx());
     if (slideToPaste) {
-        slideToPaste->addCopyOfLayer(m_layerToCopyFrom);
+        slideToPaste->addCopyOfLayer(src.get());
         updateSlide(getSlideToPasteIdx());
         m_clearCopyTimer->start();
     }
 }
 
 void SlidesModel::pasteLayerAsProperties(int layerIdx) {
-    if (!m_layerToCopyFrom || !selectedSlide())
+    std::shared_ptr<BaseLayer> src = m_layerToCopyFrom.lock();
+    if (!src || !selectedSlide())
         return;
-    selectedSlide()->overwriteLayerProperties(m_layerToCopyFrom, layerIdx);
+    selectedSlide()->overwriteLayerProperties(src.get(), layerIdx);
     m_clearCopyTimer->start();
 }
 
@@ -1011,7 +1017,8 @@ std::string SlidesModel::getSlidesAsFormattedString(size_t charsPerItem) const {
     for (int i = 0; i < m_slides.size(); i++) {
         std::string title = std::to_string(i + 1) + ". ";
 
-        title += m_slides[i]->getLayersName().toStdString();
+        if (m_slides[i])
+            title += m_slides[i]->getLayersName().toStdString();
 
         size_t countChars = title.size();
         if (countChars < charsPerItem) {
