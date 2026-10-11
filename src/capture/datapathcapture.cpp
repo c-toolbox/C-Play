@@ -130,6 +130,32 @@ void RGBCBKAPI noSignalFn(HWND, HRGB, ULONG_PTR userData) {
         reinterpret_cast<DatapathCaptureBackend*>(userData)->onNoSignal();
 }
 
+// Stereo -> output layout, same channel mapping as the NDI layer's mixToOutputChannels():
+// 2.1: FL FR LFE | 5.0: FL FR C SL SR | 5.1: FL FR C LFE SL SR | 7.0: +RL RR | 7.1: FL FR C LFE SL SR RL RR.
+void mixStereoToOutput(float L, float R, float* out, int outChannels) {
+    const float C = 0.35355339f * (L + R);
+    const float LFE = 0.25f * (L + R);
+    switch (outChannels) {
+    case 1: out[0] = 0.5f * (L + R); break;
+    case 2: out[0] = L; out[1] = R; break;
+    case 3: out[0] = L; out[1] = R; out[2] = LFE; break;
+    case 5: out[0] = L; out[1] = R; out[2] = C; out[3] = 0.5f * L; out[4] = 0.5f * R; break;
+    case 6: out[0] = L; out[1] = R; out[2] = C; out[3] = LFE; out[4] = 0.5f * L; out[5] = 0.5f * R; break;
+    case 7:
+        out[0] = L; out[1] = R; out[2] = C; out[3] = 0.5f * L; out[4] = 0.5f * R;
+        out[5] = 0.25f * L; out[6] = 0.25f * R;
+        break;
+    case 8:
+        out[0] = L; out[1] = R; out[2] = C; out[3] = LFE; out[4] = 0.5f * L; out[5] = 0.5f * R;
+        out[6] = 0.25f * L; out[7] = 0.25f * R;
+        break;
+    default:
+        for (int oc = 0; oc < outChannels; ++oc)
+            out[oc] = (oc % 2) ? R : L;
+        break;
+    }
+}
+
 int audioOutputCallback(const void*, void* output, unsigned long frames, const PaStreamCallbackTimeInfo*,
                         PaStreamCallbackFlags, void* userData) {
     if (output && userData)
@@ -1006,9 +1032,7 @@ void DatapathAudioCapture::fillOutput(float* out, unsigned long frames) {
             stereo[c] *= volume;
             peak = std::max(peak, std::fabs(stereo[c]));
         }
-        float* frameOut = out + static_cast<size_t>(f) * m_outChannels;
-        for (int oc = 0; oc < m_outChannels; ++oc)
-            frameOut[oc] = stereo[oc % 2];
+        mixStereoToOutput(stereo[0], stereo[1], out + static_cast<size_t>(f) * m_outChannels, m_outChannels);
     }
 
     if (m_reportLevels.load()) {
