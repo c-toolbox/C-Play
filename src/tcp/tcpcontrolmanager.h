@@ -14,6 +14,8 @@
 #include <QVariantMap>
 #include <QJsonObject>
 #include <QPointer>
+#include <functional>
+#include <optional>
 class ControlEventFeed;
 
 // Servers are identified by host:port (IPv6 uses [address]:port).
@@ -40,6 +42,11 @@ public:
     void setEventFeed(ControlEventFeed *feed);
     bool loadConfiguration(const QString &sourcePath = {});
     TcpControlClient *clientForServer(const QString &id) const { return m_clients.value(id); }
+    // Formats a list topic like the matching REST list endpoint; nullopt falls back to generic formatting.
+    using ListFormatter = std::function<std::optional<QByteArray>(const QString &topic, int charsPerItem)>;
+    void setListFormatter(ListFormatter formatter) { m_listFormatter = std::move(formatter); }
+    // Formatted commands for `topic` are resent when `source` changes (layers follow triggered_slide).
+    void addTopicDependency(const QString &topic, const QString &source) { m_topicDependencies[source].append(topic); }
 
     // Server IDs derive from the endpoint; a supplied old ID selects the profile
     // to edit. Command IDs remain UUIDs when not explicitly provided.
@@ -88,7 +95,9 @@ private:
     QHash<QString, TcpControlClient *> m_clients;
     QSet<QString> m_manualStops;
     QHash<QString, QStringList> m_subscriptions;
+    QHash<QString, QStringList> m_topicDependencies;
     QPointer<ControlEventFeed> m_eventFeed;
+    ListFormatter m_listFormatter;
     bool m_active = false;
 };
 #endif

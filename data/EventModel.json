@@ -15,7 +15,7 @@
             "stableConnectionMs": 10000,
             "framing": 0,
             "receiveTerminatorHex": "0d0a",
-            "sendTerminatorHex": "0d0a",
+            "sendTerminatorHex": "0d",
             "maximumMessageBytes": 1048576,
             "maximumPendingWriteBytes": 1048576
         }

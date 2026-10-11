@@ -60,6 +60,8 @@ QByteArray eventValueBytes(const QJsonValue &value, int charsPerItem) {
                 label = QString::fromUcs4(characters.constData(), characters.size());
                 label += QString(charsPerItem - characters.size(), QLatin1Char(' '));
             }
+            // Rows are LF separated like the REST list endpoints.
+            if (i > 0) formatted += QLatin1Char('\n');
             formatted += label;
         }
         return formatted.toUtf8();
@@ -542,7 +544,13 @@ bool TcpControlManager::dispatchCommand(const QString &id, const QJsonObject &ev
                 Q_EMIT commandTriggered(id, false);
                 return false;
             }
-            payload += eventValueBytes(value, item.value(QStringLiteral("charsPerItem")).toInt());
+            const int charsPerItem = item.value(QStringLiteral("charsPerItem")).toInt();
+            QString topic = event.value(QStringLiteral("topic")).toString();
+            if (topic.isEmpty()) topic = item.value(QStringLiteral("eventTopics")).toStringList().value(0);
+            // Lists use the REST formatters so TCP and REST send identical text.
+            const auto formatted = charsPerItem > 0 && m_listFormatter
+                ? m_listFormatter(topic, charsPerItem) : std::nullopt;
+            payload += formatted ? *formatted : eventValueBytes(value, charsPerItem);
         }
         accepted = item.value(QStringLiteral("raw")).toBool() ? client->sendBinary(payload) : client->sendMessage(payload);
         if (!accepted) error(client->lastError());
@@ -588,6 +596,16 @@ void TcpControlManager::publishEvent(const QJsonObject &event) {
         const auto command = value.toMap();
         if (matches(command.value(QStringLiteral("eventTopics")).toStringList()))
             dispatchCommand(command.value(QStringLiteral("id")).toString(), event);
+    }
+    // Only formatted output depends on the source topic; an empty event reads the cached value.
+    for (const auto &dependent : m_topicDependencies.value(topic)) {
+        for (const auto &value : commands) {
+            const auto command = value.toMap();
+            if (command.value(QStringLiteral("eventPayload")).toString() == QStringLiteral("value")
+                && command.value(QStringLiteral("charsPerItem")).toInt() > 0
+                && command.value(QStringLiteral("eventTopics")).toStringList().contains(dependent))
+                dispatchCommand(command.value(QStringLiteral("id")).toString(), {});
+        }
     }
 }
 

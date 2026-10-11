@@ -41,7 +41,7 @@ The original single-server `[TcpControl]` configuration is imported once as **Le
 
 #### Predefined startup configuration
 
-When no saved `C-Play/tcp-control.json` exists and legacy TCP control is disabled, C-Play loads `./data/predefined-tcp-control.json` at startup, relative to the working directory, like the other `predefined-*` files. It uses the same `version`, `servers`, and `commands` structure as the saved configuration. The packaged example defines a disabled Medialon server at 127.0.0.1 on port 9000 with CRLF framing, `task_start MyTask` / `task_stop MyTask` commands, and all 26 ControlEventFeed monitoring commands.
+When no saved `C-Play/tcp-control.json` exists and legacy TCP control is disabled, C-Play loads `./data/predefined-tcp-control.json` at startup, relative to the working directory, like the other `predefined-*` files. It uses the same `version`, `servers`, and `commands` structure as the saved configuration. The packaged example defines a disabled Medialon server at 127.0.0.1 on port 9000 with CR framing (`sendTerminatorHex: "0d"`), `task_start MyTask` / `task_stop MyTask` commands, and all 26 ControlEventFeed monitoring commands.
 
 Set the host to the Showmaster Editor computer during programming or the Showmaster address during standalone operation. Replace `MyTask` with your task name, enable the server, and save it in **TCP control**. Medialon's LLC device must listen on port 9000 and dispatch received commands to project tasks.
 
@@ -125,7 +125,7 @@ Changes are sampled on the ready master's Qt thread every 100 ms, regardless of 
 
 #### Medialon event variables and EventModel
 
-`data/EventModel.json` is the shared definition for all 26 event commands and their Medialon monitoring variables. New installations receive these commands through `data/predefined-tcp-control.json`. For an existing project, select a saved server in **TCP control**, enter the EventModel JSON path, and click **Import EventModel**. Import merges commands into that server, keeps unrelated commands, and uses stable IDs; importing again updates the same entries. Configure the server for delimiter framing with `sendTerminatorHex: "0d0a"`, then enable it. Server JSON notifications can remain disabled because the imported commands send the monitoring frames themselves.
+`data/EventModel.json` is the shared definition for all 26 event commands and their Medialon monitoring variables. New installations receive these commands through `data/predefined-tcp-control.json`. For an existing project, select a saved server in **TCP control**, enter the EventModel JSON path, and click **Import EventModel**. Import merges commands into that server, keeps unrelated commands, and uses stable IDs; importing again updates the same entries. Configure the server for delimiter framing with `sendTerminatorHex: "0d"` (CR), then enable it. Frames end at CR so that the LF row separators in formatted lists stay inside the value; a server still using `0d0a` makes the driver drop list frames. Server JSON notifications can remain disabled because the imported commands send the monitoring frames themselves.
 
 Generate the matching driver from the same model:
 
@@ -134,7 +134,7 @@ python help/http_server/generate_control_events.py
 # Optional: --model path/to/EventModel.json --port 9000 --output path/to/receiver.mllc
 ```
 
-The ready-to-use driver is `help/http_server/CPlay_Control_Events.mllc`. Install it as a Medialon LLC TCP/IP Server device. It receives unsolicited CRLF frames, updates variables immediately, and makes no polling requests. The existing `Showmaster_TCP_Server.mllc` remains the separate task-start/task-stop receiver.
+The ready-to-use driver is `help/http_server/CPlay_Control_Events.mllc`. Install it as a Medialon LLC TCP/IP Server device. It receives unsolicited CR-terminated frames, updates variables immediately, and makes no polling requests. The existing `Showmaster_TCP_Server.mllc` remains the separate task-start/task-stop receiver; it still expects CRLF, so send to it through its own C-Play server profile with `sendTerminatorHex: "0d0a"`.
 
 | Topics | Medialon variable type and contents |
 | --- | --- |
@@ -144,14 +144,14 @@ The ready-to-use driver is `help/http_server/CPlay_Control_Events.mllc`. Install
 | `position`, `remaining`, `duration`, `speed` | String `CPlay_<topic>`: decimal value preserving fractional precision. LLC has no floating-point variable type. |
 | `media_title`, `slide_name` | String `CPlay_<topic>`: current UI text; line breaks become spaces. |
 
-For example, volume changes send `cplay volume 75`, followed by CRLF. Playlist changes send the list itself to `CPlay_playlist`, rather than a change counter. All 26 event commands use `eventPayload: "value"`.
+For example, volume changes send `cplay volume 75`, followed by CR. Playlist changes send the list itself to `CPlay_playlist`, rather than a change counter. All 26 event commands use `eventPayload: "value"`.
 
 Reusable commands persist `eventPayload`, defaulting to `fixed` for manual device/task commands. `value` appends the current value to the saved payload prefix and requires text encoding and exactly one specific `eventTopics` entry. Automatic dispatch uses the event's value; manually triggering the command reads the current cached value, including lists. Older saved `change` commands migrate to `value` on load, with `charsPerItem: 40` unless explicitly set. Reimport the updated EventModel and install the regenerated LLC driver to use the new collection variable names and types.
 
 `charsPerItem` is a saved per-command integer from 0 to 4096:
 
 - `0` sends arrays and objects as full compact JSON, retaining their fields. Scalars are unaffected: booleans send 0/1, numbers preserve fractional precision, and strings send their text with CR/LF replaced by spaces.
-- A positive width sends list rows as numbered labels, concatenated into one frame. Each row occupies exactly that many Unicode characters, padded with spaces or truncated with `... ` when the width allows. Labels prefer `listTitle`, `shortText`, `title`, `name`, `text`, `language`, `video`, then `path`; rows without these fields use their JSON representation. A playlist object's `playlist` array supplies its rows. The list order follows the feed, including master-slide entries for slides/layers.
+- A positive width sends `playlist`, `sections`, `audiotracks` and `slides` exactly as the REST `/playlist`, `/sections`, `/audiotracks` and `/slides` endpoints return them with the same `charsPerItem`: numbered rows separated by LF, playlist and section rows ending with their duration, and the slide list excluding the master slide. `layers` is sent as the REST `/layers` endpoint returns it for the currently triggered slide, or for the master slide when no slide is triggered; it is also resent whenever `triggered_slide` changes. Any other list sends numbered labels separated by LF, each exactly that many Unicode characters, padded with spaces or truncated with `... ` when the width allows. Their labels prefer `listTitle`, `shortText`, `title`, `name`, `text`, `language`, `video`, then `path`; rows without these fields use their JSON representation. Use a send terminator without LF (the Medialon driver expects CR, `0d`) when lists contain LF row separators.
 - The packaged list commands use `40`; other event commands use `0`. Fixed-width labels intentionally limit list details; use width `0` or the existing REST list/JSON endpoints when full detail is needed. The setting is available in the command editor and through REST, and persists across restarts.
 
 Startup and reconnect do not replay events. For initialization, connect and request a full update through [TCP REST control](api.md#tcp-connection-and-update-control). Full updates read one cached snapshot (sampled every 100 ms) and dispatch each event command on the selected server once. Manual-only task and device commands are excluded.

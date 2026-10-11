@@ -18,10 +18,15 @@ def generate(model_path, output, port=9000):
     # Checked-in base driver keeps generation independent of Medialon installation.
     config.read(Path(__file__).with_name("Showmaster_TCP_Server.mllc"), encoding="ascii")
     config["INFOS"]["Title"] = "C-Play Control Events"
-    config["INFOS"]["Description"] = "Receives C-Play scalar values and formatted lists over CRLF TCP."
+    config["INFOS"]["Description"] = "Receives C-Play scalar values and formatted lists over CR-terminated TCP."
     config["TYPE"]["Port"] = str(port)
+    # Frames end at CR so LF row separators in formatted lists stay inside the value.
+    config["FRAMES"]["Ending character"] = "!0D"
     monitoring = config["MONITORING"]
     variables = dict(monitoring)
+    for key, value in variables.items():
+        if key.endswith(".Frame") and value.endswith("!0D!0A"):
+            variables[key] = value[:-len("!0A")]
     offset = int(monitoring["Variables count"])
     variables["Variables count"] = str(offset + len(model["commands"]))
     names, prefixes = set(), set()
@@ -40,7 +45,7 @@ def generate(model_path, output, port=9000):
             raise ValueError(f"Invalid or duplicate event command: {name}")
         names.add(name)
         prefixes.add(prefix)
-        fields = dict(Name=name, Frame=prefix + "?!0D!0A", Position=len(prefix), Length=1,
+        fields = dict(Name=name, Frame=prefix + "?!0D", Position=len(prefix), Length=1,
                       Type=variable_type, Format="literal",
                       UpdateMode=0, EnumNameCount=0, BEnumIntegerValues=0)
         for key, value in fields.items():

@@ -183,6 +183,31 @@ void PlayerController::setupControlEvents() {
     httpServer->setEventFeed(m_controlEvents);
     httpServer->setTcpControlManager(Application::instance().tcpControlManager());
     Application::instance().tcpControlManager()->setEventFeed(m_controlEvents);
+    // Same formatters as the REST list endpoints (/playlist, /sections, /audiotracks, /slides).
+    Application::instance().tcpControlManager()->setListFormatter(
+        [this](const QString &topic, int charsPerItem) -> std::optional<QByteArray> {
+        if (topic == QStringLiteral("playlist"))
+            return m_mpv && m_mpv->playlistModel()
+                ? QByteArray::fromStdString(m_mpv->playlistModel()->getListAsFormattedString(charsPerItem)) : QByteArray();
+        if (topic == QStringLiteral("sections"))
+            return m_mpv && m_mpv->playSectionsModel()
+                ? QByteArray::fromStdString(m_mpv->playSectionsModel()->getSectionsAsFormattedString(charsPerItem)) : QByteArray();
+        if (topic == QStringLiteral("audiotracks"))
+            return m_mpv && m_mpv->audioTracksModel()
+                ? QByteArray::fromStdString(m_mpv->audioTracksModel()->getListAsFormattedString("", charsPerItem)) : QByteArray();
+        if (topic == QStringLiteral("slides"))
+            return m_slidesModel ? QByteArray::fromStdString(m_slidesModel->getSlidesAsFormattedString(charsPerItem)) : QByteArray();
+        if (topic == QStringLiteral("layers")) {
+            // Layers of the triggered slide, or the master slide when none is triggered.
+            if (!m_slidesModel) return QByteArray();
+            const int triggered = m_slidesModel->triggeredSlideIdx();
+            auto *slide = triggered >= 0 ? m_slidesModel->slide(triggered) : m_slidesModel->masterSlide();
+            return slide ? QByteArray::fromStdString(slide->getLayersAsFormattedString(charsPerItem)) : QByteArray();
+        }
+        return std::nullopt;
+    });
+    Application::instance().tcpControlManager()->addTopicDependency(
+        QStringLiteral("layers"), QStringLiteral("triggered_slide"));
     connect(QCoreApplication::instance(), &QCoreApplication::aboutToQuit,
         m_controlEvents, &ControlEventFeed::stop);
     const QList<QPair<QString, QByteArray>> properties {
