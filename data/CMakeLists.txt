@@ -88,6 +88,7 @@ if(CPLAY_INSTALL_DEPENDENCIES)
                 file(INSTALL
                     DESTINATION "${CMAKE_INSTALL_PREFIX}/bin/data"
                     FILES "${PROJECT_SOURCE_DIR}/data/predefined-tcp-control.json"
+                          "${PROJECT_SOURCE_DIR}/data/EventModel.json"
                 )
             else()
                 message("${PROJECT_SOURCE_DIR}/data/predefined-tcp-control.json was not found")

@@ -1,4 +1,9 @@
-/* SPDX-License-Identifier: GPL-3.0-or-later */
+/*
+ * SPDX-FileCopyrightText:
+ * 2026 Erik Sunden <eriksunden85@gmail.com>
+ *
+ * SPDX-License-Identifier: GPL-3.0-or-later
+ */
 #ifndef TCPCONTROLCLIENT_H
 #define TCPCONTROLCLIENT_H
 

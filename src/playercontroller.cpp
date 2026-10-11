@@ -20,7 +20,9 @@
 #include "layers/imagelayer.h"
 #include "utils/imagesequenceutils.h"
 #include "tcpcontrolsettings.h"
-#include "tcpcontrolcommandadapter.h"
+#include "tcp/tcpcontrolcommandadapter.h"
+#include "controleventfeed.h"
+#include <QJsonArray>
 
 #include <QDir>
 #include <QFileInfo>
@@ -71,9 +73,15 @@ PlayerController::PlayerController(QObject *parent)
     connect(&NodeLoaderVerifier::instance(), &NodeLoaderVerifier::loadFailuresChanged,
             this, &PlayerController::nodeLoadFailuresChanged);
 
+    setupControlEvents();
     setupHttpServer();
 
     auto *tcpManager = Application::instance().tcpControlManager();
+    tcpManager->listener()->setHandler([this](const QString &path, const QJsonObject &parameters) {
+        if (!ConfigModel::instance().isMaster() || !m_mpv || !m_slidesModel)
+            return QJsonObject{{QStringLiteral("accepted"), false}, {QStringLiteral("message"), tr("Player is not ready")}};
+        return httpServer->executeControlAction(path, parameters);
+    });
     auto *tcpAdapter = new TcpControlCommandAdapter(this);
     connect(tcpManager, &TcpControlManager::controlMessageReceived, tcpAdapter,
         [tcpAdapter](const QString &, const QByteArray &payload) { tcpAdapter->parseMessage(payload); });
@@ -161,8 +169,133 @@ PlayerController::PlayerController(QObject *parent)
 }
 
 void PlayerController::applyTcpControlSettings() {
-    Application::instance().tcpControlManager()->setActive(
-        ConfigModel::instance().isMaster() && m_mpv && m_slidesModel);
+    const bool active = ConfigModel::instance().isMaster() && m_mpv && m_slidesModel;
+    m_controlEvents->setActive(active);
+    auto *manager = Application::instance().tcpControlManager();
+    manager->setActive(active);
+    if (active && TcpControlSettings::serverEnabled())
+        manager->listener()->start(TcpControlSettings::serverBindAddress(), TcpControlSettings::serverPort());
+    else manager->listener()->stop();
+}
+
+void PlayerController::setupControlEvents() {
+    m_controlEvents = new ControlEventFeed(this);
+    httpServer->setEventFeed(m_controlEvents);
+    httpServer->setTcpControlManager(Application::instance().tcpControlManager());
+    Application::instance().tcpControlManager()->setEventFeed(m_controlEvents);
+    connect(QCoreApplication::instance(), &QCoreApplication::aboutToQuit,
+        m_controlEvents, &ControlEventFeed::stop);
+    const QList<QPair<QString, QByteArray>> properties {
+        {QStringLiteral("position"), "position"}, {QStringLiteral("remaining"), "remaining"},
+        {QStringLiteral("duration"), "duration"}, {QStringLiteral("pause"), "pause"},
+        {QStringLiteral("auto_play"), "autoPlay"}, {QStringLiteral("volume"), "volume"},
+        {QStringLiteral("mute"), "mute"}, {QStringLiteral("visibility"), "visibility"},
+        {QStringLiteral("sync_image_volume_fade"), "syncVolumeVisibilityFading"},
+        {QStringLiteral("stereo_mode"), "stereoscopicMode"}, {QStringLiteral("grid_mode"), "gridToMapOn"},
+        {QStringLiteral("eof_mode"), "eofMode"}, {QStringLiteral("loop_mode"), "eofMode"},
+        {QStringLiteral("media_title"), "mediaTitle"}
+    };
+    for (const auto &[topic, property] : properties) {
+        m_controlEvents->addTopic(topic, [this, property]() -> QJsonValue {
+            return m_mpv ? QJsonValue::fromVariant(m_mpv->property(property.constData())) : QJsonValue();
+        });
+    }
+    m_controlEvents->addTopic(QStringLiteral("speed"), [this]() -> QJsonValue {
+        return m_mpv ? QJsonValue(m_mpv->speed()) : QJsonValue();
+    });
+    const auto modelValues = [](QAbstractItemModel *model) {
+        QJsonArray rows;
+        if (!model) return rows;
+        const auto roles = model->roleNames();
+        for (int i = 0; i < model->rowCount(); ++i) {
+            QJsonObject row{{QStringLiteral("index"), i}};
+            for (auto role = roles.begin(); role != roles.end(); ++role)
+                row.insert(QString::fromUtf8(role.value()), QJsonValue::fromVariant(model->data(model->index(i, 0), role.key())));
+            rows.append(row);
+        }
+        return rows;
+    };
+    m_controlEvents->addTopic(QStringLiteral("playlist"), [this]() -> QJsonValue {
+        QJsonObject result;
+        if (m_mpv && m_mpv->playlistModel()) {
+            auto *model = m_mpv->playlistModel();
+            model->asJSON(result);
+            auto rows = result.value(QStringLiteral("playlist")).toArray();
+            int rowIndex = 0;
+            for (int i = 0; i < model->getPlayListSize(); ++i) {
+                if (!model->getItem(i)) continue; // asJSON also skips missing items.
+                if (rowIndex >= rows.size()) break;
+                auto row = rows.at(rowIndex).toObject();
+                // Include the UI label so custom list titles are sent and sampled.
+                row.insert(QStringLiteral("listTitle"), model->data(model->index(i, 0), PlayListModel::TitleRole).toString());
+                rows[rowIndex++] = row;
+            }
+            result.insert(QStringLiteral("playlist"), rows);
+        }
+        return result;
+    });
+    m_controlEvents->addTopic(QStringLiteral("sections"), [this, modelValues]() -> QJsonValue {
+        return modelValues(m_mpv ? m_mpv->playSectionsModel() : nullptr);
+    });
+    m_controlEvents->addTopic(QStringLiteral("audiotracks"), [this, modelValues]() -> QJsonValue {
+        return modelValues(m_mpv ? m_mpv->audioTracksModel() : nullptr);
+    });
+    m_controlEvents->addTopic(QStringLiteral("playing_in_playlist"), [this]() -> QJsonValue {
+        return m_mpv && m_mpv->playlistModel() ? m_mpv->playlistModel()->getPlayingVideo() : -1;
+    });
+    m_controlEvents->addTopic(QStringLiteral("playing_in_sections"), [this]() -> QJsonValue {
+        return m_mpv && m_mpv->playSectionsModel() ? m_mpv->playSectionsModel()->getPlayingSection() : -1;
+    });
+    m_controlEvents->addTopic(QStringLiteral("playing_in_audiotracks"), [this]() -> QJsonValue {
+        return m_mpv ? m_mpv->audioId() - 1 : -1;
+    });
+    m_controlEvents->addTopic(QStringLiteral("playing_in_slides"), [this]() -> QJsonValue {
+        return m_slidesModel ? m_slidesModel->selectedSlideIdx() : -1;
+    });
+    m_controlEvents->addTopic(QStringLiteral("triggered_slide"), [this]() -> QJsonValue {
+        return m_slidesModel ? m_slidesModel->triggeredSlideIdx() : -1;
+    });
+    m_controlEvents->addTopic(QStringLiteral("slide_name"), [this]() -> QJsonValue {
+        return m_slidesModel && m_slidesModel->selectedSlide()
+            ? QJsonValue(m_slidesModel->selectedSlide()->getLayersName()) : QJsonValue();
+    });
+    m_controlEvents->addTopic(QStringLiteral("slides"), [this]() -> QJsonValue {
+        QJsonArray slides;
+        if (m_slidesModel) {
+            for (int i = -1; i < m_slidesModel->numberOfSlides(); ++i) {
+                auto *slide = i == -1 ? m_slidesModel->masterSlide() : m_slidesModel->slide(i);
+                if (slide) slides.append(QJsonObject{{QStringLiteral("index"), i},
+                    {QStringLiteral("name"), slide->getLayersName()}, {QStringLiteral("path"), slide->getLayersPath()}});
+            }
+        }
+        return slides;
+    });
+    m_controlEvents->addTopic(QStringLiteral("layers"), [this]() -> QJsonValue {
+        QJsonArray layers;
+        if (!m_slidesModel) return layers;
+        for (int i = -1; i < m_slidesModel->numberOfSlides(); ++i) {
+            auto *slide = i == -1 ? m_slidesModel->masterSlide() : m_slidesModel->slide(i);
+            if (!slide) continue;
+            const auto entries = slide->getLayers();
+            for (int j = 0; j < entries.size(); ++j) {
+                const auto &layer = entries[j].first;
+                if (!layer) continue;
+                layers.append(QJsonObject{{QStringLiteral("slideIndex"), i}, {QStringLiteral("index"), j},
+                    {QStringLiteral("id"), QString::number(layer->identifier())},
+                    {QStringLiteral("title"), QString::fromStdString(layer->title())},
+                    {QStringLiteral("path"), QString::fromStdString(layer->filepath())},
+                    {QStringLiteral("type"), static_cast<int>(layer->type())},
+                    {QStringLiteral("volume"), layer->volume()}, {QStringLiteral("visibility"), layer->alpha()},
+                    {QStringLiteral("stereoMode"), layer->stereoMode()}, {QStringLiteral("gridMode"), layer->gridMode()},
+                    {QStringLiteral("plane"), QJsonObject{{QStringLiteral("azimuth"), layer->planeAzimuth()},
+                        {QStringLiteral("elevation"), layer->planeElevation()}, {QStringLiteral("roll"), layer->planeRoll()},
+                        {QStringLiteral("distance"), layer->planeDistance()}, {QStringLiteral("horizontal"), layer->planeHorizontal()},
+                        {QStringLiteral("vertical"), layer->planeVertical()}, {QStringLiteral("width"), layer->planeWidth()},
+                        {QStringLiteral("height"), layer->planeHeight()}, {QStringLiteral("aspectRatio"), layer->planeAspectRatio()}}}});
+            }
+        }
+        return layers;
+    });
 }
 
 bool PlayerController::resolveTcpControlSelection(const QString &operation, const QString &parameter, int &index) const {

@@ -1,0 +1,415 @@
+{
+    "version": 1,
+    "servers": [
+        {
+            "id": "127.0.0.1:9000",
+            "name": "Medialon task server (example)",
+            "host": "127.0.0.1",
+            "port": 9000,
+            "enabled": false,
+            "acceptControlCommands": false,
+            "autoReconnect": true,
+            "connectTimeoutMs": 5000,
+            "retryInitialMs": 1000,
+            "retryMaximumMs": 30000,
+            "stableConnectionMs": 10000,
+            "framing": 0,
+            "receiveTerminatorHex": "0d0a",
+            "sendTerminatorHex": "0d0a",
+            "maximumMessageBytes": 1048576,
+            "maximumPendingWriteBytes": 1048576
+        }
+    ],
+    "commands": [
+        {
+            "id": "medialon-event-position",
+            "name": "Medialon: position",
+            "serverId": "127.0.0.1:9000",
+            "encoding": "text",
+            "payload": "cplay position ",
+            "raw": false,
+            "eventTopics": [
+                "position"
+            ],
+            "eventPayload": "value",
+            "monitoringVariable": "CPlay_position",
+            "monitoringType": "string",
+            "charsPerItem": 0
+        },
+        {
+            "id": "medialon-event-remaining",
+            "name": "Medialon: remaining",
+            "serverId": "127.0.0.1:9000",
+            "encoding": "text",
+            "payload": "cplay remaining ",
+            "raw": false,
+            "eventTopics": [
+                "remaining"
+            ],
+            "eventPayload": "value",
+            "monitoringVariable": "CPlay_remaining",
+            "monitoringType": "string",
+            "charsPerItem": 0
+        },
+        {
+            "id": "medialon-event-duration",
+            "name": "Medialon: duration",
+            "serverId": "127.0.0.1:9000",
+            "encoding": "text",
+            "payload": "cplay duration ",
+            "raw": false,
+            "eventTopics": [
+                "duration"
+            ],
+            "eventPayload": "value",
+            "monitoringVariable": "CPlay_duration",
+            "monitoringType": "string",
+            "charsPerItem": 0
+        },
+        {
+            "id": "medialon-event-pause",
+            "name": "Medialon: pause",
+            "serverId": "127.0.0.1:9000",
+            "encoding": "text",
+            "payload": "cplay pause ",
+            "raw": false,
+            "eventTopics": [
+                "pause"
+            ],
+            "eventPayload": "value",
+            "monitoringVariable": "CPlay_pause",
+            "monitoringType": "integer",
+            "charsPerItem": 0
+        },
+        {
+            "id": "medialon-event-auto_play",
+            "name": "Medialon: auto_play",
+            "serverId": "127.0.0.1:9000",
+            "encoding": "text",
+            "payload": "cplay auto_play ",
+            "raw": false,
+            "eventTopics": [
+                "auto_play"
+            ],
+            "eventPayload": "value",
+            "monitoringVariable": "CPlay_auto_play",
+            "monitoringType": "integer",
+            "charsPerItem": 0
+        },
+        {
+            "id": "medialon-event-speed",
+            "name": "Medialon: speed",
+            "serverId": "127.0.0.1:9000",
+            "encoding": "text",
+            "payload": "cplay speed ",
+            "raw": false,
+            "eventTopics": [
+                "speed"
+            ],
+            "eventPayload": "value",
+            "monitoringVariable": "CPlay_speed",
+            "monitoringType": "string",
+            "charsPerItem": 0
+        },
+        {
+            "id": "medialon-event-volume",
+            "name": "Medialon: volume",
+            "serverId": "127.0.0.1:9000",
+            "encoding": "text",
+            "payload": "cplay volume ",
+            "raw": false,
+            "eventTopics": [
+                "volume"
+            ],
+            "eventPayload": "value",
+            "monitoringVariable": "CPlay_volume",
+            "monitoringType": "integer",
+            "charsPerItem": 0
+        },
+        {
+            "id": "medialon-event-mute",
+            "name": "Medialon: mute",
+            "serverId": "127.0.0.1:9000",
+            "encoding": "text",
+            "payload": "cplay mute ",
+            "raw": false,
+            "eventTopics": [
+                "mute"
+            ],
+            "eventPayload": "value",
+            "monitoringVariable": "CPlay_mute",
+            "monitoringType": "integer",
+            "charsPerItem": 0
+        },
+        {
+            "id": "medialon-event-visibility",
+            "name": "Medialon: visibility",
+            "serverId": "127.0.0.1:9000",
+            "encoding": "text",
+            "payload": "cplay visibility ",
+            "raw": false,
+            "eventTopics": [
+                "visibility"
+            ],
+            "eventPayload": "value",
+            "monitoringVariable": "CPlay_visibility",
+            "monitoringType": "integer",
+            "charsPerItem": 0
+        },
+        {
+            "id": "medialon-event-sync_image_volume_fade",
+            "name": "Medialon: sync_image_volume_fade",
+            "serverId": "127.0.0.1:9000",
+            "encoding": "text",
+            "payload": "cplay sync_image_volume_fade ",
+            "raw": false,
+            "eventTopics": [
+                "sync_image_volume_fade"
+            ],
+            "eventPayload": "value",
+            "monitoringVariable": "CPlay_sync_image_volume_fade",
+            "monitoringType": "integer",
+            "charsPerItem": 0
+        },
+        {
+            "id": "medialon-event-stereo_mode",
+            "name": "Medialon: stereo_mode",
+            "serverId": "127.0.0.1:9000",
+            "encoding": "text",
+            "payload": "cplay stereo_mode ",
+            "raw": false,
+            "eventTopics": [
+                "stereo_mode"
+            ],
+            "eventPayload": "value",
+            "monitoringVariable": "CPlay_stereo_mode",
+            "monitoringType": "integer",
+            "charsPerItem": 0
+        },
+        {
+            "id": "medialon-event-grid_mode",
+            "name": "Medialon: grid_mode",
+            "serverId": "127.0.0.1:9000",
+            "encoding": "text",
+            "payload": "cplay grid_mode ",
+            "raw": false,
+            "eventTopics": [
+                "grid_mode"
+            ],
+            "eventPayload": "value",
+            "monitoringVariable": "CPlay_grid_mode",
+            "monitoringType": "integer",
+            "charsPerItem": 0
+        },
+        {
+            "id": "medialon-event-eof_mode",
+            "name": "Medialon: eof_mode",
+            "serverId": "127.0.0.1:9000",
+            "encoding": "text",
+            "payload": "cplay eof_mode ",
+            "raw": false,
+            "eventTopics": [
+                "eof_mode"
+            ],
+            "eventPayload": "value",
+            "monitoringVariable": "CPlay_eof_mode",
+            "monitoringType": "integer",
+            "charsPerItem": 0
+        },
+        {
+            "id": "medialon-event-loop_mode",
+            "name": "Medialon: loop_mode",
+            "serverId": "127.0.0.1:9000",
+            "encoding": "text",
+            "payload": "cplay loop_mode ",
+            "raw": false,
+            "eventTopics": [
+                "loop_mode"
+            ],
+            "eventPayload": "value",
+            "monitoringVariable": "CPlay_loop_mode",
+            "monitoringType": "integer",
+            "charsPerItem": 0
+        },
+        {
+            "id": "medialon-event-media_title",
+            "name": "Medialon: media_title",
+            "serverId": "127.0.0.1:9000",
+            "encoding": "text",
+            "payload": "cplay media_title ",
+            "raw": false,
+            "eventTopics": [
+                "media_title"
+            ],
+            "eventPayload": "value",
+            "monitoringVariable": "CPlay_media_title",
+            "monitoringType": "string",
+            "charsPerItem": 0
+        },
+        {
+            "id": "medialon-event-audiotracks",
+            "name": "Medialon: audiotracks",
+            "serverId": "127.0.0.1:9000",
+            "encoding": "text",
+            "payload": "cplay audiotracks ",
+            "raw": false,
+            "eventTopics": [
+                "audiotracks"
+            ],
+            "eventPayload": "value",
+            "monitoringVariable": "CPlay_audiotracks",
+            "monitoringType": "string",
+            "charsPerItem": 40
+        },
+        {
+            "id": "medialon-event-playing_in_audiotracks",
+            "name": "Medialon: playing_in_audiotracks",
+            "serverId": "127.0.0.1:9000",
+            "encoding": "text",
+            "payload": "cplay playing_in_audiotracks ",
+            "raw": false,
+            "eventTopics": [
+                "playing_in_audiotracks"
+            ],
+            "eventPayload": "value",
+            "monitoringVariable": "CPlay_playing_in_audiotracks",
+            "monitoringType": "integer",
+            "charsPerItem": 0
+        },
+        {
+            "id": "medialon-event-playlist",
+            "name": "Medialon: playlist",
+            "serverId": "127.0.0.1:9000",
+            "encoding": "text",
+            "payload": "cplay playlist ",
+            "raw": false,
+            "eventTopics": [
+                "playlist"
+            ],
+            "eventPayload": "value",
+            "monitoringVariable": "CPlay_playlist",
+            "monitoringType": "string",
+            "charsPerItem": 40
+        },
+        {
+            "id": "medialon-event-playing_in_playlist",
+            "name": "Medialon: playing_in_playlist",
+            "serverId": "127.0.0.1:9000",
+            "encoding": "text",
+            "payload": "cplay playing_in_playlist ",
+            "raw": false,
+            "eventTopics": [
+                "playing_in_playlist"
+            ],
+            "eventPayload": "value",
+            "monitoringVariable": "CPlay_playing_in_playlist",
+            "monitoringType": "integer",
+            "charsPerItem": 0
+        },
+        {
+            "id": "medialon-event-sections",
+            "name": "Medialon: sections",
+            "serverId": "127.0.0.1:9000",
+            "encoding": "text",
+            "payload": "cplay sections ",
+            "raw": false,
+            "eventTopics": [
+                "sections"
+            ],
+            "eventPayload": "value",
+            "monitoringVariable": "CPlay_sections",
+            "monitoringType": "string",
+            "charsPerItem": 40
+        },
+        {
+            "id": "medialon-event-playing_in_sections",
+            "name": "Medialon: playing_in_sections",
+            "serverId": "127.0.0.1:9000",
+            "encoding": "text",
+            "payload": "cplay playing_in_sections ",
+            "raw": false,
+            "eventTopics": [
+                "playing_in_sections"
+            ],
+            "eventPayload": "value",
+            "monitoringVariable": "CPlay_playing_in_sections",
+            "monitoringType": "integer",
+            "charsPerItem": 0
+        },
+        {
+            "id": "medialon-event-slides",
+            "name": "Medialon: slides",
+            "serverId": "127.0.0.1:9000",
+            "encoding": "text",
+            "payload": "cplay slides ",
+            "raw": false,
+            "eventTopics": [
+                "slides"
+            ],
+            "eventPayload": "value",
+            "monitoringVariable": "CPlay_slides",
+            "monitoringType": "string",
+            "charsPerItem": 40
+        },
+        {
+            "id": "medialon-event-slide_name",
+            "name": "Medialon: slide_name",
+            "serverId": "127.0.0.1:9000",
+            "encoding": "text",
+            "payload": "cplay slide_name ",
+            "raw": false,
+            "eventTopics": [
+                "slide_name"
+            ],
+            "eventPayload": "value",
+            "monitoringVariable": "CPlay_slide_name",
+            "monitoringType": "string",
+            "charsPerItem": 0
+        },
+        {
+            "id": "medialon-event-playing_in_slides",
+            "name": "Medialon: playing_in_slides",
+            "serverId": "127.0.0.1:9000",
+            "encoding": "text",
+            "payload": "cplay playing_in_slides ",
+            "raw": false,
+            "eventTopics": [
+                "playing_in_slides"
+            ],
+            "eventPayload": "value",
+            "monitoringVariable": "CPlay_playing_in_slides",
+            "monitoringType": "integer",
+            "charsPerItem": 0
+        },
+        {
+            "id": "medialon-event-triggered_slide",
+            "name": "Medialon: triggered_slide",
+            "serverId": "127.0.0.1:9000",
+            "encoding": "text",
+            "payload": "cplay triggered_slide ",
+            "raw": false,
+            "eventTopics": [
+                "triggered_slide"
+            ],
+            "eventPayload": "value",
+            "monitoringVariable": "CPlay_triggered_slide",
+            "monitoringType": "integer",
+            "charsPerItem": 0
+        },
+        {
+            "id": "medialon-event-layers",
+            "name": "Medialon: layers",
+            "serverId": "127.0.0.1:9000",
+            "encoding": "text",
+            "payload": "cplay layers ",
+            "raw": false,
+            "eventTopics": [
+                "layers"
+            ],
+            "eventPayload": "value",
+            "monitoringVariable": "CPlay_layers",
+            "monitoringType": "string",
+            "charsPerItem": 40
+        }
+    ]
+}

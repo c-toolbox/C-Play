@@ -65,7 +65,7 @@
 #include "presentationsettings.h"
 #include "streamsettings.h"
 #include "tcpcontrolsettings.h"
-#include "tcpcontrolclient.h"
+#include "tcp/tcpcontrolclient.h"
 #include <QStandardPaths>
 #include "subtitlesettings.h"
 #include "userinterfacesettings.h"
@@ -437,6 +437,8 @@ void Application::registerQmlTypes() {
 }
 
 void Application::setupQmlSettingsTypes() {
+    qmlRegisterUncreatableType<TcpControlServer>("org.ctoolbox.cplay", 1, 0, "TcpControlServer",
+                                               QStringLiteral("Owned by TcpControlManager"));
     qmlRegisterSingletonInstance("org.ctoolbox.cplay", 1, 0, "TcpControlSettings", TcpControlSettings::self());
     qmlRegisterUncreatableType<TcpControlClient>("org.ctoolbox.cplay", 1, 0, "TcpControlClient",
                                                QStringLiteral("Owned by PlayerController"));

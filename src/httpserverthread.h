@@ -9,6 +9,8 @@
 #define HTTPSERVERTHREAD_H
 
 #include <QMutex>
+#include <QJsonObject>
+#include <map>
 #include <QSize>
 #include <QThread>
 #include <QWaitCondition>
@@ -21,6 +23,8 @@ class MpvObject;
 class SlidesModel;
 class LayersModel;
 class BaseLayer;
+class ControlEventFeed;
+class TcpControlManager;
 
 class HttpServerThread : public QThread {
     Q_OBJECT
@@ -30,8 +34,11 @@ public:
     ~HttpServerThread();
 
     void setupHttpServer();
+    QJsonObject executeControlAction(const QString &path, const QJsonObject &parameters);
     void setMpv(MpvObject *mpv);
     void setSlidesModel(SlidesModel* sm);
+    void setEventFeed(ControlEventFeed *feed) { m_eventFeed = feed; }
+    void setTcpControlManager(TcpControlManager *manager) { m_tcpControlManager = manager; }
 
     Q_INVOKABLE void terminate();
 
@@ -74,6 +81,9 @@ protected:
     void run() override;
 
 private:
+    void registerPost(const std::string &path, httplib::Server::Handler handler);
+    std::map<std::string, httplib::Server::Handler> m_postHandlers;
+
     bool stringToInt(std::string str, int &parsedInt);
     bool stringToDouble(std::string str, double &parsedDouble);
 
@@ -104,6 +114,8 @@ private:
     const std::string getLayerFromRequest(const httplib::Request& req, LayersModel* &lm, int &layerIdx, BaseLayer* &resolvedLayer);
 
     MpvObject *m_mpv;
+    ControlEventFeed *m_eventFeed = nullptr;
+    TcpControlManager *m_tcpControlManager = nullptr;
     SlidesModel* m_slidesModel;
     httplib::Server svr;
     bool runServer;

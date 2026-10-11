@@ -1,0 +1,151 @@
+[INFOS]
+Title=C-Play TCP Control Client
+Author=C-Play
+Version=1.0.0
+DeviceMark=Medialon
+Model=Showmaster
+Description=Sends C-Play REST actions over TCP. String parameters must be URL percent encoded.
+
+[TYPE]
+Communication=TCP/IP Client
+Address=127.0.0.1
+Port=7008
+Auto reconnection=1
+Optimize packets=0
+
+[FRAMES]
+Count of bytes=0
+Hexa character=!
+Decimal character=&
+Header character=
+Ending character=!0A
+Convert non literal mode=0
+Keep frames=0
+Input checksum verification=0
+Output checksum verification=0
+Checksum character=@
+Timeout between bytes=250
+
+[EXCLUDED CHARACTERS]
+Count=0
+Not in header/ending=1
+Checksum before replacement=0
+
+[CHECKSUM]
+Checksum type=SUM
+CRC16 mask=A001
+CRC16 initial value=0000
+Start checksum at=0
+Stop checksum from=
+Checksum count=1
+Checksum position from end=
+Checksum two's complement=0
+Checksum ASCII coded=0
+Checksum high byte first=1
+
+[COMMANDS]
+Count=41
+Command0.Name=Quit
+Command0.Frame=POST /quit!0D!0A
+Command1.Name=Play
+Command1.Frame=POST /play!0D!0A
+Command2.Name=Pause
+Command2.Frame=POST /pause!0D!0A
+Command3.Name=Stop
+Command3.Frame=POST /stop!0D!0A
+Command4.Name=Rewind
+Command4.Frame=POST /rewind!0D!0A
+Command5.Name=Position
+Command5.Frame=POST /position?set=[set,string,literal,0]!0D!0A
+Command6.Name=Seek
+Command6.Frame=POST /seek?time=[time,string,literal,0]!0D!0A
+Command7.Name=Auto Play
+Command7.Frame=POST /auto_play?on=[on,string,literal,0]!0D!0A
+Command8.Name=Speed
+Command8.Frame=POST /speed?factor=[factor,string,literal,0]!0D!0A
+Command9.Name=Volume
+Command9.Frame=POST /volume?level=[level,string,literal,0]!0D!0A
+Command10.Name=Fade Volume Down
+Command10.Frame=POST /fade_volume_down!0D!0A
+Command11.Name=Fade Volume Up
+Command11.Frame=POST /fade_volume_up!0D!0A
+Command12.Name=Fade Image Down
+Command12.Frame=POST /fade_image_down!0D!0A
+Command13.Name=Fade Image Up
+Command13.Frame=POST /fade_image_up!0D!0A
+Command14.Name=Sync Image Volume Fade
+Command14.Frame=POST /sync_image_volume_fade?value=[value,string,literal,0]!0D!0A
+Command15.Name=Background Image
+Command15.Frame=POST /background_image?on=[on,string,literal,0]!0D!0A
+Command16.Name=Foreground Image
+Command16.Frame=POST /foreground_image?on=[on,string,literal,0]!0D!0A
+Command17.Name=View Mode
+Command17.Frame=POST /view_mode?mode=[mode,string,literal,0]!0D!0A
+Command18.Name=Load From Audiotracks
+Command18.Frame=POST /load_from_audiotracks?index=[index,string,literal,0]!0D!0A
+Command19.Name=Load From Playlist
+Command19.Frame=POST /load_from_playlist?index=[index,string,literal,0]!0D!0A
+Command20.Name=Load From Sections
+Command20.Frame=POST /load_from_sections?index=[index,string,literal,0]!0D!0A
+Command21.Name=Spin Pitch Up
+Command21.Frame=POST /spin_pitch_up?on=[on,string,literal,0]!0D!0A
+Command22.Name=Spin Pitch Down
+Command22.Frame=POST /spin_pitch_down?on=[on,string,literal,0]!0D!0A
+Command23.Name=Spin Yaw Left
+Command23.Frame=POST /spin_yaw_left?on=[on,string,literal,0]!0D!0A
+Command24.Name=Spin Yaw Right
+Command24.Frame=POST /spin_yaw_right?on=[on,string,literal,0]!0D!0A
+Command25.Name=Spin Roll Ccw
+Command25.Frame=POST /spin_roll_ccw?on=[on,string,literal,0]!0D!0A
+Command26.Name=Spin Roll Cw
+Command26.Frame=POST /spin_roll_cw?on=[on,string,literal,0]!0D!0A
+Command27.Name=Orientation Reset
+Command27.Frame=POST /orientation_reset!0D!0A
+Command28.Name=Surface Transition
+Command28.Frame=POST /surface_transition!0D!0A
+Command29.Name=Slide Previous
+Command29.Frame=POST /slide_previous!0D!0A
+Command30.Name=Slide Next
+Command30.Frame=POST /slide_next!0D!0A
+Command31.Name=Slides Reset To Start
+Command31.Frame=POST /slides_reset_to_start!0D!0A
+Command32.Name=Select From Slides
+Command32.Frame=POST /select_from_slides?index=[index,string,literal,0]!0D!0A
+Command33.Name=Load From Slides
+Command33.Frame=POST /load_from_slides?index=[index,string,literal,0]!0D!0A
+Command34.Name=Layer Volume
+Command34.Frame=POST /layer_volume?slide_idx=[slide_idx,string,literal,0]!26layer_idx=[layer_idx,string,literal,0]!26level=[level,string,literal,0]!0D!0A
+Command35.Name=Layer Visibility
+Command35.Frame=POST /layer_visibility?slide_idx=[slide_idx,string,literal,0]!26layer_idx=[layer_idx,string,literal,0]!26value=[value,string,literal,0]!0D!0A
+Command36.Name=Layer Plane
+Command36.Frame=POST /layer_plane?slide_idx=[slide_idx,string,literal,0]!26layer_idx=[layer_idx,string,literal,0]!26azimuth=[azimuth,string,literal,0]!26elevation=[elevation,string,literal,0]!26roll=[roll,string,literal,0]!26distance=[distance,string,literal,0]!26horizontal=[horizontal,string,literal,0]!26vertical=[vertical,string,literal,0]!0D!0A
+Command37.Name=Tcp Connect
+Command37.Frame=POST /tcp/connect?server_id=[server_id,string,literal,0]!0D!0A
+Command38.Name=Tcp Disconnect
+Command38.Frame=POST /tcp/disconnect?server_id=[server_id,string,literal,0]!0D!0A
+Command39.Name=Tcp Trigger
+Command39.Frame=POST /tcp/trigger?server_id=[server_id,string,literal,0]!26command_id=[command_id,string,literal,0]!0D!0A
+Command40.Name=Tcp Command
+Command40.Frame=POST /tcp/command?command_id=[command_id,string,literal,0]!26charsPerItem=[charsPerItem,string,literal,0]!0D!0A
+
+[POSITRACK GROUPS]
+Count=0
+
+[ANSWERS]
+For each mode=0
+For each frame=
+Count=0
+
+[MONITORING]
+FixedLengthChar=X
+VariableLengthChar=?
+Requests count=0
+Wait for answer=0
+Timeout Answer=3000
+Variables count=0
+
+[AUTOMATION]
+Connection mode=1
+Deconnection mode=1
+Deconnection delay=20
+

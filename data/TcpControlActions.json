@@ -1,0 +1,380 @@
+{
+  "version": 1,
+  "commands": [
+    {
+      "path": "/quit",
+      "name": "Quit",
+      "parameters": [],
+      "required": []
+    },
+    {
+      "path": "/play",
+      "name": "Play",
+      "parameters": [],
+      "required": []
+    },
+    {
+      "path": "/pause",
+      "name": "Pause",
+      "parameters": [],
+      "required": []
+    },
+    {
+      "path": "/stop",
+      "name": "Stop",
+      "parameters": [],
+      "required": []
+    },
+    {
+      "path": "/rewind",
+      "name": "Rewind",
+      "parameters": [],
+      "required": []
+    },
+    {
+      "path": "/position",
+      "name": "Position",
+      "parameters": [
+        "set"
+      ],
+      "required": [
+        "set"
+      ]
+    },
+    {
+      "path": "/seek",
+      "name": "Seek",
+      "parameters": [
+        "time"
+      ],
+      "required": [
+        "time"
+      ]
+    },
+    {
+      "path": "/auto_play",
+      "name": "Auto Play",
+      "parameters": [
+        "on"
+      ],
+      "required": [
+        "on"
+      ]
+    },
+    {
+      "path": "/speed",
+      "name": "Speed",
+      "parameters": [
+        "factor"
+      ],
+      "required": [
+        "factor"
+      ]
+    },
+    {
+      "path": "/volume",
+      "name": "Volume",
+      "parameters": [
+        "level"
+      ],
+      "required": [
+        "level"
+      ]
+    },
+    {
+      "path": "/fade_volume_down",
+      "name": "Fade Volume Down",
+      "parameters": [],
+      "required": []
+    },
+    {
+      "path": "/fade_volume_up",
+      "name": "Fade Volume Up",
+      "parameters": [],
+      "required": []
+    },
+    {
+      "path": "/fade_image_down",
+      "name": "Fade Image Down",
+      "parameters": [],
+      "required": []
+    },
+    {
+      "path": "/fade_image_up",
+      "name": "Fade Image Up",
+      "parameters": [],
+      "required": []
+    },
+    {
+      "path": "/sync_image_volume_fade",
+      "name": "Sync Image Volume Fade",
+      "parameters": [
+        "value"
+      ],
+      "required": [
+        "value"
+      ]
+    },
+    {
+      "path": "/background_image",
+      "name": "Background Image",
+      "parameters": [
+        "on"
+      ],
+      "required": [
+        "on"
+      ]
+    },
+    {
+      "path": "/foreground_image",
+      "name": "Foreground Image",
+      "parameters": [
+        "on"
+      ],
+      "required": [
+        "on"
+      ]
+    },
+    {
+      "path": "/view_mode",
+      "name": "View Mode",
+      "parameters": [
+        "mode"
+      ],
+      "required": [
+        "mode"
+      ]
+    },
+    {
+      "path": "/load_from_audiotracks",
+      "name": "Load From Audiotracks",
+      "parameters": [
+        "index"
+      ],
+      "required": [
+        "index"
+      ]
+    },
+    {
+      "path": "/load_from_playlist",
+      "name": "Load From Playlist",
+      "parameters": [
+        "index"
+      ],
+      "required": [
+        "index"
+      ]
+    },
+    {
+      "path": "/load_from_sections",
+      "name": "Load From Sections",
+      "parameters": [
+        "index"
+      ],
+      "required": [
+        "index"
+      ]
+    },
+    {
+      "path": "/spin_pitch_up",
+      "name": "Spin Pitch Up",
+      "parameters": [
+        "on"
+      ],
+      "required": [
+        "on"
+      ]
+    },
+    {
+      "path": "/spin_pitch_down",
+      "name": "Spin Pitch Down",
+      "parameters": [
+        "on"
+      ],
+      "required": [
+        "on"
+      ]
+    },
+    {
+      "path": "/spin_yaw_left",
+      "name": "Spin Yaw Left",
+      "parameters": [
+        "on"
+      ],
+      "required": [
+        "on"
+      ]
+    },
+    {
+      "path": "/spin_yaw_right",
+      "name": "Spin Yaw Right",
+      "parameters": [
+        "on"
+      ],
+      "required": [
+        "on"
+      ]
+    },
+    {
+      "path": "/spin_roll_ccw",
+      "name": "Spin Roll Ccw",
+      "parameters": [
+        "on"
+      ],
+      "required": [
+        "on"
+      ]
+    },
+    {
+      "path": "/spin_roll_cw",
+      "name": "Spin Roll Cw",
+      "parameters": [
+        "on"
+      ],
+      "required": [
+        "on"
+      ]
+    },
+    {
+      "path": "/orientation_reset",
+      "name": "Orientation Reset",
+      "parameters": [],
+      "required": []
+    },
+    {
+      "path": "/surface_transition",
+      "name": "Surface Transition",
+      "parameters": [],
+      "required": []
+    },
+    {
+      "path": "/slide_previous",
+      "name": "Slide Previous",
+      "parameters": [],
+      "required": []
+    },
+    {
+      "path": "/slide_next",
+      "name": "Slide Next",
+      "parameters": [],
+      "required": []
+    },
+    {
+      "path": "/slides_reset_to_start",
+      "name": "Slides Reset To Start",
+      "parameters": [],
+      "required": []
+    },
+    {
+      "path": "/select_from_slides",
+      "name": "Select From Slides",
+      "parameters": [
+        "index"
+      ],
+      "required": [
+        "index"
+      ]
+    },
+    {
+      "path": "/load_from_slides",
+      "name": "Load From Slides",
+      "parameters": [
+        "index"
+      ],
+      "required": [
+        "index"
+      ]
+    },
+    {
+      "path": "/layer_volume",
+      "name": "Layer Volume",
+      "parameters": [
+        "slide_idx",
+        "layer_idx",
+        "level"
+      ],
+      "required": [
+        "level"
+      ]
+    },
+    {
+      "path": "/layer_visibility",
+      "name": "Layer Visibility",
+      "parameters": [
+        "slide_idx",
+        "layer_idx",
+        "value"
+      ],
+      "required": [
+        "value"
+      ]
+    },
+    {
+      "path": "/layer_plane",
+      "name": "Layer Plane",
+      "parameters": [
+        "slide_idx",
+        "layer_idx",
+        "azimuth",
+        "elevation",
+        "roll",
+        "distance",
+        "horizontal",
+        "vertical"
+      ],
+      "required": [],
+      "anyOf": [
+        "azimuth",
+        "elevation",
+        "roll",
+        "distance",
+        "horizontal",
+        "vertical"
+      ]
+    },
+    {
+      "path": "/tcp/connect",
+      "name": "Tcp Connect",
+      "parameters": [
+        "server_id"
+      ],
+      "required": [
+        "server_id"
+      ]
+    },
+    {
+      "path": "/tcp/disconnect",
+      "name": "Tcp Disconnect",
+      "parameters": [
+        "server_id"
+      ],
+      "required": [
+        "server_id"
+      ]
+    },
+    {
+      "path": "/tcp/trigger",
+      "name": "Tcp Trigger",
+      "parameters": [
+        "server_id",
+        "command_id"
+      ],
+      "required": [
+        "server_id",
+        "command_id"
+      ]
+    },
+    {
+      "path": "/tcp/command",
+      "name": "Tcp Command",
+      "parameters": [
+        "command_id",
+        "charsPerItem"
+      ],
+      "required": [
+        "command_id",
+        "charsPerItem"
+      ]
+    }
+  ]
+}

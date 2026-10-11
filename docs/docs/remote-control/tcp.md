@@ -1,13 +1,24 @@
 ---
-title: TCP control client
+title: TCP control
 sidebar_position: 3
 ---
 
-# TCP control client
+# TCP control
 
-C-Play's master can keep independent outgoing connections to multiple TCP servers. Configure them in **Settings → Configure → TCP control**, define reusable commands, and trigger those commands from **TCP** presentation layers. Connections start once the player's media and slide models are available. Cluster nodes do not open control connections.
+C-Play provides both an outgoing TCP Control Client and an incoming TCP Control Server on the ready master. Configure both in **Settings → Configure → TCP control**. Cluster nodes do not open control connections or listen for commands.
 
-## Servers and reusable commands
+| Component | Connection direction | Purpose |
+| --- | --- | --- |
+| [TCP Control Client](#tcp-control-client) | C-Play connects to an external TCP server. | Send saved commands from presentation layers and send state updates to devices or control systems such as Medialon. |
+| [TCP Control Server](#tcp-control-server) | An external TCP client connects to C-Play, normally on port 7008. | Control C-Play using the existing REST action names and parameters over a persistent TCP connection. |
+
+The two components can run together. For Medialon, **C-Play Control Events** is the server receiving C-Play updates, while **C-Play TCP Control Client** connects to C-Play's server to send actions. HTTP control normally uses port 7007 and is configured separately.
+
+## TCP Control Client
+
+C-Play's master can keep independent outgoing connections to multiple TCP servers. Define reusable commands and trigger them from **TCP** presentation layers. Connections start once the player's media and slide models are available.
+
+### Servers and reusable commands
 
 1. Click **New server**, enter its name, host and port, configure framing and reconnection, then click **Save server**. Repeat for every device or control system.
 2. Click **New command**, give it a name, select its server, and enter a UTF-8 text or hexadecimal payload. Click **Save command**.
@@ -18,17 +29,19 @@ For example, define a **Projector** server using CRLF termination and a **Lighti
 
 Every server has its own enabled flag, connection state, error, framing, buffers, timeout, and retry backoff. A reconnect on one server does not interrupt the others. **Disconnect** stops retries for that server until **Connect**, saving that server, or application reactivation. Turn its **Enabled** flag off and save to keep it disconnected across restarts.
 
-Commands refer to servers by stable IDs; layers refer to commands by stable IDs. Renaming either keeps these references intact. Editing a saved command updates all layers that reference it. A server cannot be deleted while commands still reference it. Deleting a command leaves referencing layers with an explicit missing-command rejection; it never silently selects another command.
+Server IDs are always the configured endpoint: `host:port`, such as `127.0.0.1:9000` or `showmaster.example:9000`. IPv6 uses `[address]:port`, such as `[2001:db8::1]:9000`. Hostnames are trimmed and lowercased, and numeric addresses use their canonical spelling. Duplicate endpoints are rejected. Changing a host or port changes its server ID and remaps all saved command references atomically. Layers refer to commands by stable IDs; renaming or changing a server endpoint preserves those command IDs and layer references. Editing a saved command updates all layers that reference it. A server cannot be deleted while commands still reference it. Deleting a command leaves referencing layers with an explicit missing-command rejection; it never silently selects another command.
 
-## Configuration and persistence
+### Configuration and persistence
 
 Profiles and commands are saved atomically in `C-Play/tcp-control.json` beneath Qt's generic configuration directory. The settings page displays the exact path. Copy this file with a presentation to another master to preserve its server and command references. Presentations store each TCP layer's `tcpCommandId`; they do not embed device endpoints or payloads.
 
+Existing multi-server configurations with arbitrary or UUID server IDs migrate on load: IDs derive from host/port and commands are remapped while their IDs remain unchanged. A saved user configuration is rewritten atomically with the migrated references; predefined source files load into memory. Duplicate endpoints or ambiguous old IDs reject the complete configuration without applying partial changes.
+
 The original single-server `[TcpControl]` configuration is imported once as **Legacy TCP control** when it is enabled and the multi-server configuration file does not exist. An existing file is never replaced by migration.
 
-### Predefined startup configuration
+#### Predefined startup configuration
 
-When no saved `C-Play/tcp-control.json` exists and legacy TCP control is disabled, C-Play loads `./data/predefined-tcp-control.json` at startup, relative to the working directory, like the other `predefined-*` files. It uses the same `version`, `servers`, and `commands` structure as the saved configuration. The packaged example defines an enabled Medialon server at 127.0.0.1 on port 9000 with CRLF framing and `task_start MyTask` / `task_stop MyTask` commands.
+When no saved `C-Play/tcp-control.json` exists and legacy TCP control is disabled, C-Play loads `./data/predefined-tcp-control.json` at startup, relative to the working directory, like the other `predefined-*` files. It uses the same `version`, `servers`, and `commands` structure as the saved configuration. The packaged example defines a disabled Medialon server at 127.0.0.1 on port 9000 with CRLF framing, `task_start MyTask` / `task_stop MyTask` commands, and all 26 ControlEventFeed monitoring commands.
 
 Set the host to the Showmaster Editor computer during programming or the Showmaster address during standalone operation. Replace `MyTask` with your task name, enable the server, and save it in **TCP control**. Medialon's LLC device must listen on port 9000 and dispatch received commands to project tasks.
 
@@ -38,7 +51,7 @@ Server fields in the JSON file are:
 
 | Field | Default | Meaning |
 | --- | --- | --- |
-| `id`, `name` | generated ID, required name | Stable identity and display name. |
+| `id`, `name` | derived `host:port`, required name | Endpoint identity and display name; IPv6 IDs use `[address]:port`. |
 | `host`, `port` | required | Server hostname/IP and TCP port, 1–65535. |
 | `enabled` | `true` | Maintain this connection when the master is ready. |
 | `acceptControlCommands` | `false` | Interpret incoming frames as C-Play JSON commands. Leave off for device replies. |
@@ -58,7 +71,7 @@ Each command has `id`, `name`, `serverId`, `encoding` (`text` or `hex`), `payloa
 
 A TCP layer's status is **not triggered**, **dispatching**, **accepted by transport**, or **rejected**. Acceptance means Qt accepted the bytes for sending; it does not acknowledge execution by the device. Commands attempted while disconnected are rejected and never queued for replay.
 
-## Commands and framing
+### Commands and framing
 
 When **Receive C-Play control commands** is enabled for a server, each incoming frame contains one UTF-8 JSON object with an `operation` string and an optional `parameter` string. Numeric and boolean parameters are strings. Unknown operations, invalid parameter types, extra object fields, invalid UTF-8, and malformed JSON are rejected and reported in the settings page.
 
@@ -86,11 +99,132 @@ The C-Play command adapter supports these existing control operations:
 | `SetSyncVolumeVisibilityFading`, `SpinPitchUp`, `SpinPitchDown`, `SpinYawLeft`, `SpinYawRight`, `SpinRollCW`, `SpinRollCCW` | `true`, `false`, `1`, or `0`. |
 | `LoadFromAudioTracks`, `LoadFromPlaylist`, `LoadFromSections`, `LoadFromSlides` | Zero-based index or exact existing name; playlist selection also accepts its list title or filename. |
 
-The TCP adapter uses `PlayerController::DispatchControlOperation()`. It does not provide the HTTP API's full query/response endpoint set or automatically acknowledge commands.
+The TCP adapter uses `PlayerController::DispatchControlOperation()`. Control operations do not automatically acknowledge execution. The event protocol below provides queries and change subscriptions for the supported topics.
+
+### Change notifications and automatic commands
+
+In **TCP control**, a server's **Send change notifications** field selects comma-separated topics, for example `triggered_slide, layers, playlist`. C-Play sends a framed UTF-8 JSON notification to that server when a selected value changes. Leave the field empty to disable notifications, or use `*` for all supported topics. This works independently of **Receive C-Play control commands**.
+
+A reusable command's **Trigger on changes** field selects topics that automatically send that command's payload (with its current value when `eventPayload` is `value`) to its configured server. For example, set it to `triggered_slide` to send `task_start RefreshSlides` whenever a slide is triggered. Leave it empty for manual/layer triggering only. Each matching topic change triggers the command once; selecting multiple topics can send the command multiple times during one player update. Changes to `layers` include volume, visibility and plane settings, so fades can trigger repeated notifications/commands.
+
+Both server and command definitions persist these selections in an optional `eventTopics` array; existing version-1 configurations remain valid:
+
+```json
+"eventTopics": ["triggered_slide", "layers", "playlist"]
+```
+
+Notifications use the server's delimiter or length-prefix framing:
+
+```json
+{"type":"change","topic":"playing_in_slides","value":2,"previous":1,"sequence":"42","timestamp":"2026-10-08T12:00:00.000Z"}
+```
+
+For a complete topic list, call HTTP `GET /event_topics` or use the list in TCP settings. Topic names match API endpoints without the leading `/`, with additional `pause`, `mute` and `triggered_slide` topics. `playing_in_slides` follows the selected slide, as the existing HTTP endpoint does; `triggered_slide` follows the slide actually triggered. Slide index `-1` denotes the master slide.
+
+Changes are sampled on the ready master's Qt thread every 100 ms, regardless of whether they come from the UI, playback, a timeline, or remote control. Rapid changes are coalesced to the latest sampled state. Startup establishes a baseline without triggering commands. Notifications and automatic commands require an enabled, connected server; they are never queued or replayed after reconnect.
+
+#### Medialon event variables and EventModel
+
+`data/EventModel.json` is the shared definition for all 26 event commands and their Medialon monitoring variables. New installations receive these commands through `data/predefined-tcp-control.json`. For an existing project, select a saved server in **TCP control**, enter the EventModel JSON path, and click **Import EventModel**. Import merges commands into that server, keeps unrelated commands, and uses stable IDs; importing again updates the same entries. Configure the server for delimiter framing with `sendTerminatorHex: "0d0a"`, then enable it. Server JSON notifications can remain disabled because the imported commands send the monitoring frames themselves.
+
+Generate the matching driver from the same model:
+
+```sh
+python help/http_server/generate_control_events.py
+# Optional: --model path/to/EventModel.json --port 9000 --output path/to/receiver.mllc
+```
+
+The ready-to-use driver is `help/http_server/CPlay_Control_Events.mllc`. Install it as a Medialon LLC TCP/IP Server device. It receives unsolicited CRLF frames, updates variables immediately, and makes no polling requests. The existing `Showmaster_TCP_Server.mllc` remains the separate task-start/task-stop receiver.
+
+| Topics | Medialon variable type and contents |
+| --- | --- |
+| `audiotracks`, `playlist`, `sections`, `slides`, `layers` | String `CPlay_<topic>`: actual list values, formatted using the command's `charsPerItem`. |
+| `pause`, `auto_play`, `mute`, `sync_image_volume_fade` | Integer `CPlay_<topic>`: current boolean as 0/1. |
+| `volume`, `visibility`, stereo/grid/EOF/loop modes, playing indices, `triggered_slide` | Integer `CPlay_<topic>`: current value, including negative indices. |
+| `position`, `remaining`, `duration`, `speed` | String `CPlay_<topic>`: decimal value preserving fractional precision. LLC has no floating-point variable type. |
+| `media_title`, `slide_name` | String `CPlay_<topic>`: current UI text; line breaks become spaces. |
+
+For example, volume changes send `cplay volume 75`, followed by CRLF. Playlist changes send the list itself to `CPlay_playlist`, rather than a change counter. All 26 event commands use `eventPayload: "value"`.
+
+Reusable commands persist `eventPayload`, defaulting to `fixed` for manual device/task commands. `value` appends the current value to the saved payload prefix and requires text encoding and exactly one specific `eventTopics` entry. Automatic dispatch uses the event's value; manually triggering the command reads the current cached value, including lists. Older saved `change` commands migrate to `value` on load, with `charsPerItem: 40` unless explicitly set. Reimport the updated EventModel and install the regenerated LLC driver to use the new collection variable names and types.
+
+`charsPerItem` is a saved per-command integer from 0 to 4096:
+
+- `0` sends arrays and objects as full compact JSON, retaining their fields. Scalars are unaffected: booleans send 0/1, numbers preserve fractional precision, and strings send their text with CR/LF replaced by spaces.
+- A positive width sends list rows as numbered labels, concatenated into one frame. Each row occupies exactly that many Unicode characters, padded with spaces or truncated with `... ` when the width allows. Labels prefer `listTitle`, `shortText`, `title`, `name`, `text`, `language`, `video`, then `path`; rows without these fields use their JSON representation. A playlist object's `playlist` array supplies its rows. The list order follows the feed, including master-slide entries for slides/layers.
+- The packaged list commands use `40`; other event commands use `0`. Fixed-width labels intentionally limit list details; use width `0` or the existing REST list/JSON endpoints when full detail is needed. The setting is available in the command editor and through REST, and persists across restarts.
+
+Startup and reconnect do not replay events. For initialization, connect and request a full update through [TCP REST control](api.md#tcp-connection-and-update-control). Full updates read one cached snapshot (sampled every 100 ms) and dispatch each event command on the selected server once. Manual-only task and device commands are excluded.
+
+Each EventModel command also supplies `monitoringVariable` and `monitoringType` for the generator. Keep the model, generated driver, and predefined commands aligned when customizing the protocol. Existing saved TCP configurations take precedence over predefined files and require an explicit import.
+
+#### Subscribe and query over TCP
+
+When **Receive C-Play control commands** is enabled, the connected server can send these additional JSON frames:
+
+```json
+{"operation":"Get","topics":["volume","playing_in_slides","playlist"]}
+{"operation":"Subscribe","topics":["triggered_slide","layers"]}
+{"operation":"Unsubscribe","topics":["*"]}
+```
+
+`Get` returns a snapshot without subscribing. `Subscribe` replaces that connection's runtime topic selection, immediately returns a snapshot, and then sends matching change notifications. `Unsubscribe` removes listed runtime topics; `*` clears the runtime subscription. Runtime subscriptions are cleared on disconnect; subscribe again after reconnect. Saved server notification topics remain active independently of runtime subscriptions.
+
+Snapshots contain `type: "snapshot"`, a string `sequence`, a `values` object keyed by topic, an empty `events` array, and `reset: false`. Unsupported topics or malformed event requests return `type: "error"`. Numeric/boolean values in event responses are native JSON values, unlike the string parameters of control operations.
+
+`slides` contains slide indices, names and paths. `layers` contains all layers across slides (including master), with slide/index/id, title/path/type, volume, visibility (0–1), stereo/grid modes and plane settings. `playlist` uses the existing playlist JSON representation; `audiotracks` and `sections` are arrays of model rows. These structured values are intended to refresh a controller's state rather than reproduce the API's formatted text lists.
+
+HTTP long polling and optional WebSocket subscriptions use the same feed; see [API change subscriptions](api.md#change-subscriptions).
+
+## TCP Control Server
+
+The incoming listener accepts REST-style actions from Medialon or another TCP client. It dispatches directly to the same action handlers as HTTP; enabling the HTTP listener is optional. The listener does not use the outgoing client's `operation` / `parameter` protocol.
+
+### Enable the listener
+
+Enable **Incoming TCP control → Enable TCP server on master**, choose a numeric IPv4 or IPv6 bind address and port (default `0.0.0.0:7008`), then click **Apply listener**. These settings persist in `cplay.conf`. Only a ready master listens; disabling the server, changing role, or quitting closes its clients. HTTP may remain disabled. Use a bind address reachable from Medialon; the listener shares the REST API's trusted-network access model.
+
+### Medialon client driver
+
+Generate the Medialon client driver:
+
+```powershell
+python help/http_server/generate_control_client.py --address 192.168.1.10 --port 7008
+```
+
+Import `help/http_server/CPlay_Control_Client.mllc` into Medialon's Low Level Communicator drivers and create a device using **C-Play TCP Control Client**. Set the address to the C-Play master. The checked-in driver defaults to `127.0.0.1:7008`. It uses TCP/IP Client mode with auto reconnection, and exposes one command for each REST action. The existing **C-Play Control Events** driver remains the separate Medialon server for outgoing state updates.
+
+The shared `data/TcpControlActions.json` catalog defines all 41 actions and is embedded in C-Play. The generator uses this same catalog. Commands include playback, seeking, auto-play, speed, volume, fades, background/foreground visibility, view mode, list selections, spin, orientation reset, surface transition, slide navigation/reset/selection, layer volume/visibility/plane properties, quitting, and outgoing TCP connect/disconnect/trigger/command-width changes. Information-only endpoints are unavailable, including REST POST endpoints that only retrieve values.
+
+### Command format and replies
+
+The wire format is one UTF-8 command per LF or CRLF terminated line. Send an actual newline after each request; there is no HTTP version, header block or request body on this TCP connection. Medialon sends request lines:
+
+```text
+POST /play
+POST /volume?level=65
+POST /load_from_playlist?index=2
+POST /layer_visibility?slide_idx=0&layer_idx=1&value=50
+```
+
+Use the REST parameter names, units and zero-based indices. String parameters in Medialon must be URL percent encoded when they contain special characters: space `%20`, ampersand `%26`, hash `%23`, percent `%25`, and UTF-8 bytes for non-ASCII text. A plus sign is literal. The generated layer commands use slide/layer indices; custom commands can use `slide_name`, `layer_title`, `sub_layer_idx`, or `sub_layer_title` as the REST API does. Omitting the slide selector targets the Master slide. Layer plane commands can set any subset of the six plane properties.
+
+Other TCP clients can send JSON instead, with string parameter values:
+
+```json
+{"path":"/volume","parameters":{"level":"65"}}
+{"path":"/layer_visibility","parameters":{"layer_title":"Logo","value":"50"}}
+```
+
+Each command receives a newline-delimited JSON reply, for example `{"accepted":true,"status":200,"message":"Play"}`. `accepted` reports dispatch to the REST handler, not completion of playback or a transition. Legacy REST validation messages are preserved; read the message for an invalid value or missing target. Malformed requests, unsupported paths, and missing mutation parameters return `accepted:false` without dispatch. The Medialon driver sends commands without waiting for replies and does not replay commands after reconnect.
+
+JSON parameters must be strings, including numbers and booleans. Repeated URL query parameter names are rejected. Setters require their mutation parameter (for example, `/volume` requires `level`); `/volume` alone is rejected as an information query. State queries and subscriptions remain available through the [event API](api.md#change-subscriptions) or the outgoing client's [subscription protocol](#subscribe-and-query-over-tcp).
+
+The listener supports up to 16 clients, a 64 KiB limit per command, and bounded reply buffers. Oversized commands and clients that do not consume replies are disconnected. Partial messages and multiple commands in one TCP packet are supported.
 
 ## Multiple connections from C++
 
-`TcpControlManager` owns the transports and exposes `servers`, `commands`, and per-server `messageReceived(serverId, payload)`, `connectionStateChanged(serverId, state)`, and `serverError(serverId, description)` signals. `controlMessageReceived` is emitted only for profiles that opt into incoming C-Play commands. `saveServer()`, `saveCommand()`, and `triggerCommand(commandId)` use stable IDs. `setActive()` starts or stops enabled connections; the C-Play integration activates it only on the ready master.
+`TcpControlManager` owns the transports and exposes `servers`, `commands`, and per-server `messageReceived(serverId, payload)`, `connectionStateChanged(serverId, state)`, and `serverError(serverId, description)` signals. `controlMessageReceived` is emitted only for profiles that opt into incoming C-Play commands. `saveServer()` returns the endpoint-derived server ID; `saveCommand()` and `triggerCommand(commandId)` use stable command IDs. `setActive()` starts or stops enabled connections; the C-Play integration activates it only on the ready master.
 
 `TcpLayer` dispatches through this manager on the application's Qt thread. Stopping or removing a layer does not tear down a shared server connection. The presentation and cluster serialization retain its command ID.
 
@@ -120,7 +254,7 @@ Incomplete frames and pending writes are discarded when a connection fails. Comm
 
 ## Tests
 
-The transport and command adapter tests can be built independently of C-Play's rendering dependencies:
+The event feed, TCP notification/command, runtime subscription/reconnection and WebSocket tests can be built independently of C-Play's rendering dependencies:
 
 ```sh
 cmake -S tests -B build/tcp-tests -DCMAKE_PREFIX_PATH=/path/to/Qt
@@ -128,4 +262,4 @@ cmake --build build/tcp-tests --config Release
 ctest --test-dir build/tcp-tests -C Release --output-on-failure
 ```
 
-Alternatively, enable `CPLAY_BUILD_TCP_CONTROL_TESTS` when configuring the main project. Qt Test and the Qt runtime libraries must be available to the test executable.
+Qt Core, Network, WebSockets and Test, and their runtime libraries, must be available to the test executable.

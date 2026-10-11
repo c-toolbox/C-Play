@@ -1,0 +1,1 @@
+<RCC><qresource prefix="/tcp-control"><file alias="actions.json">TcpControlActions.json</file></qresource></RCC>

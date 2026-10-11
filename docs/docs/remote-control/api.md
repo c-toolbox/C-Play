@@ -5,11 +5,13 @@ sidebar_position: 1
 
 # HTTP API and HTTP/WebSockets Commands
 
-This page covers three topics:
+This page covers five topics:
 
 1. [HTTP API for C-Play](#http-api-for-c-play) — endpoints for controlling C-Play remotely
 2. [REST (HTTP and WebSockets) Commands Editor](#rest-commands-editor) — built-in client for managing and testing HTTP and WebSocket commands
 3. [REST Layer](#rest-layer) — non-visual layer type that fires HTTP or WebSocket requests from slides
+4. [TCP connection and update control](#tcp-connection-and-update-control) — REST endpoints for C-Play's outgoing TCP connections and saved commands
+5. [Change subscriptions](#change-subscriptions) — state snapshots, HTTP long polling, and optional event WebSockets
 
 ---
 
@@ -53,6 +55,8 @@ Endpoints are divided into two categories:
 `/slide_previous`, `/slide_next`,
 `/load_from_audiotracks`, `/load_from_playlist`, `/load_from_sections`,
 `/load_from_slides`, `/select_from_slides`
+
+The additional GET-only endpoints `/tcp/servers`, `/tcp/commands`, `/event_topics` and `/events`, and POST-only endpoints `/tcp/connect`, `/tcp/disconnect`, `/tcp/trigger` and `/tcp/command`, are documented in [TCP connection and update control](#tcp-connection-and-update-control) and [Change subscriptions](#change-subscriptions) at the bottom of this page.
 
 ---
 
@@ -346,3 +350,94 @@ Commands are stored in `data/predefined-rest-commands.json` relative to the appl
 ```
 
 Commands with `"enabled": false` are skipped when loading. Parameters are stored as a JSON array of `{"name": ..., "value": ...}` objects, which allows values containing spaces and special characters. For `POST`/`PUT` requests parameters are sent as the request body; for `GET`/`DELETE` they are appended as query parameters; for `WS`/`WSS` they are converted to a JSON WebSocket message or an OBS WebSocket request.
+
+---
+
+## TCP connection and update control
+
+These HTTP endpoints manage the outgoing [TCP Control Client](tcp.md#tcp-control-client): its saved server profiles, connections and commands. They use the HTTP API port (default 7007), and return `application/json` with `Cache-Control: no-store`. The incoming [TCP Control Server](tcp.md#tcp-control-server) is a separate listener, normally on port 7008; its bind address and port are configured in TCP settings.
+
+| Endpoint | Method | Parameters | Result |
+| --- | --- | --- | --- |
+| `/tcp/servers` | GET | — | `servers` array containing saved profiles and runtime connection state. |
+| `/tcp/commands` | GET | `server_id` (optional) | `commands` array, optionally filtered to one saved server; includes command IDs, payloads, event topics and `charsPerItem`. |
+| `/tcp/connect` | POST | `server_id` | Start or resume connection attempts; HTTP 202 with `success` and `server_id`. The server must be enabled and the player active. |
+| `/tcp/disconnect` | POST | `server_id` | Disconnect and suspend retries; HTTP 200 with `success` and `server_id`. Does not disable the saved profile. |
+| `/tcp/trigger` | POST | `server_id`, `command_id` | Send one saved command on its server; HTTP 200 with `success`. Use `command_id=all` for a full state update. |
+| `/tcp/command` | POST | `command_id`, `charsPerItem` | Save the command's list width (integer 0–4096); HTTP 200 with `success` and the updated `command` object. |
+
+Obtain IDs from `/tcp/servers` and `/tcp/commands`. Server IDs are endpoints such as `127.0.0.1:9000` or `[2001:db8::1]:9000`; command IDs are stable saved identifiers. `/tcp/trigger` requires the command to belong to the specified server. `/tcp/command` changes only the width of an existing command; it does not create a command or send it.
+
+With `command_id=all`, C-Play reads one cached state snapshot and dispatches each command on that server with a nonempty `eventTopics` selection once. Commands without event topics are excluded. The response reports `success`, `accepted` and `rejected` counts, and a `message`. A full update requires an active event feed and a connected TCP server. This is useful after startup or reconnect, since changes missed while disconnected are not replayed.
+
+`charsPerItem=0` sends arrays and objects as compact JSON for commands using `eventPayload: "value"`. Positive widths send numbered, padded or truncated list labels concatenated into one frame; the packaged Medialon list commands use 40. Scalars retain their usual value format. See [EventModel formatting](tcp.md#medialon-event-variables-and-eventmodel) for details.
+
+For example, list the definitions, connect to the saved Medialon endpoint, then request a full update:
+
+```sh
+curl 'http://localhost:7007/tcp/servers'
+curl 'http://localhost:7007/tcp/commands?server_id=127.0.0.1%3A9000'
+curl -X POST 'http://localhost:7007/tcp/connect?server_id=127.0.0.1%3A9000'
+# Wait until /tcp/servers reports the connection as connected.
+curl -X POST 'http://localhost:7007/tcp/trigger?server_id=127.0.0.1%3A9000&command_id=all'
+```
+
+To change a list command's width, use the exact ID returned by `/tcp/commands` in place of `COMMAND_ID`:
+
+```sh
+curl -X POST 'http://localhost:7007/tcp/command?command_id=COMMAND_ID&charsPerItem=60'
+curl -X POST 'http://localhost:7007/tcp/trigger?server_id=127.0.0.1%3A9000&command_id=COMMAND_ID'
+curl -X POST 'http://localhost:7007/tcp/disconnect?server_id=127.0.0.1%3A9000'
+```
+
+Successful connect and trigger responses confirm that C-Play accepted the operation or transport write; they do not confirm connection completion or execution by the remote device. Invalid or missing parameters return HTTP 400, unknown IDs return 404, rejected operations or save failures return 409, and unavailable TCP control or a request timeout returns 503. Error responses contain `success: false` and a `message`; full-update responses retain their counts. Commands rejected while disconnected are not queued.
+
+## Change subscriptions
+
+The event feed exposes the same sampled state to HTTP, WebSocket and outgoing TCP subscribers. HTTP uses the configured API port (default 7007). Values are sampled every 100 ms on the ready master, so rapid changes may be coalesced.
+
+| Endpoint | Method | Parameters | Result |
+| --- | --- | --- | --- |
+| `/event_topics` | GET | — | JSON array of supported topic names. |
+| `/events` | GET | `topics` (optional), `since` (optional), `wait` (optional) | JSON state snapshot or changes after a sequence cursor. |
+
+`topics` is a comma-separated list, such as `volume,playing_in_slides,playlist`; omit it or use `*` for all topics. Topic names include `position`, `remaining`, `duration`, `pause`, `volume`, `mute`, `speed`, `playlist`, `sections`, `audiotracks`, `slides`, `layers` and `triggered_slide`. Call `/event_topics` for the complete list. Unsupported topics return HTTP 400.
+
+### Initial snapshot and long polling
+
+Start without `since` to get current values:
+
+```sh
+curl 'http://localhost:7007/event_topics'
+curl 'http://localhost:7007/events?topics=volume,pause'
+```
+
+A snapshot has this structure:
+
+```json
+{"type":"snapshot","sequence":"42","values":{"volume":75,"pause":false},"events":[],"reset":false}
+```
+
+Use the returned `sequence` as `since` in the next request. `since` is an unsigned integer cursor represented as a string in responses. `wait` is an integer from 0 to 25000 milliseconds (default 0); with a valid cursor, a positive value waits for matching changes or the timeout:
+
+```sh
+curl 'http://localhost:7007/events?topics=volume,pause&since=42&wait=25000'
+```
+
+A change response has `type: "events"`, the latest string `sequence`, `values: {}`, an `events` array, and `reset: false`. Each event contains `type: "change"`, `topic`, `value`, `previous`, its string `sequence`, and a UTC `timestamp`. A timeout returns an empty events array. Repeat the request with the latest response's sequence; stopping requests ends polling without an explicit unsubscribe call.
+
+The journal keeps the latest 512 events across all topics. A cursor that is too old or ahead of the current sequence returns `reset: true` with a fresh snapshot. Start again without `since` after restarting C-Play or changing topic selections. Invalid cursors or wait values return HTTP 400; an unavailable event feed returns 503. Successful `/events` responses use `application/json` and `Cache-Control: no-store`.
+
+Event responses use native JSON numbers and booleans, and structured collection values. Playlist, track, section, slide and layer events refresh controller state; they do not reproduce the original REST text-list formatting. `playing_in_slides` follows the selected slide, while `triggered_slide` follows the slide actually triggered. `layers` covers all slides, including the master, and includes volume, visibility and plane properties.
+
+### Optional event WebSocket listener
+
+To receive pushed events, add `websocketPort` to `data/http-server-conf.json` and enable HTTP:
+
+```json
+{"run":"yes","port":7007,"websocketPort":7009}
+```
+
+Connect to `ws://localhost:7009/events?topics=volume,triggered_slide`. This is a separate WebSocket port, not the HTTP port or the TCP Control Server port. The listener sends an initial snapshot followed by individual matching change objects. Reconnect with a new URL to change topics; closing the connection unsubscribes, and reconnecting receives a fresh snapshot. It runs on the ready master, permits up to 16 subscribers and closes slow connections when pending output exceeds 1 MiB.
+
+The outgoing TCP client's [Get/Subscribe/Unsubscribe protocol](tcp.md#subscribe-and-query-over-tcp) offers access to this feed over an existing control connection. The incoming TCP Control Server accepts actions only and does not implement event queries or subscriptions.

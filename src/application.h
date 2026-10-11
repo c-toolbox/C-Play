@@ -37,7 +37,7 @@ class LayersRendererQtItem;
 #include <layers/streammodel.h>
 #include <layers/mpvoptionsmodel.h>
 #include "httpclientmodel.h"
-#include "tcpcontrolmanager.h"
+#include "tcp/tcpcontrolmanager.h"
 #include "utils/ytdlpmetadata.h"
 #ifdef CLUX_SUPPORT
 #include <clux/cluxclient.h>

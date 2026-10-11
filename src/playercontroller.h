@@ -11,11 +11,12 @@
 #include <QObject>
 #include <QStringList>
 #include <QVariantMap>
-#include "tcpcontrolclient.h"
+#include "tcp/tcpcontrolclient.h"
 
 class MpvObject;
 class HttpServerThread;
 class SlidesModel;
+class ControlEventFeed;
 
 class PlayerController : public QObject {
     Q_OBJECT
@@ -221,6 +222,8 @@ Q_SIGNALS:
     void nodeLoadFailuresChanged();
 
 private:
+    void setupControlEvents();
+    ControlEventFeed *m_controlEvents = nullptr;
     bool resolveTcpControlSelection(const QString &operation, const QString &parameter, int &index) const;
     QString m_tcpControlError;
     MpvObject *mpv() const;

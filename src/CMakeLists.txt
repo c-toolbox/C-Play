@@ -31,12 +31,18 @@ set(SOURCE_FILES
     httpserverthread.h
     httpclientmodel.cpp
     httpclientmodel.h
-    tcpcontrolclient.cpp
-    tcpcontrolclient.h
-    tcpcontrolcommandadapter.cpp
-    tcpcontrolcommandadapter.h
-    tcpcontrolmanager.cpp
-    tcpcontrolmanager.h
+    tcp/tcpcontrolclient.cpp
+    tcp/tcpcontrolclient.h
+    tcp/tcpcontrolcommandadapter.cpp
+    tcp/tcpcontrolcommandadapter.h
+    tcp/tcpcontrolserver.cpp
+    tcp/tcpcontrolserver.h
+    tcp/tcpcontrolmanager.cpp
+    tcp/tcpcontrolmanager.h
+    tcp/tcpcontrolrestapi.cpp
+    tcp/tcpcontrolrestapi.h
+    controleventfeed.cpp
+    controleventfeed.h
     wwsclientmodel.cpp
     wwsclientmodel.h
     layers/audiolayer.cpp
@@ -299,6 +305,7 @@ endif()
 target_sources(${TARGET_NAME} 
     PRIVATE 
     ${SOURCE_FILES}
+    ../data/tcp-control-actions.qrc
     ../data/images/images.qrc
     ../data/images/icon.rc
 )

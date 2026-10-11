@@ -131,3 +131,4 @@ CMakeLists.txt.user*
 
 # VS Code
 .vscode/*
+*.mngBckProj

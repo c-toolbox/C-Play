@@ -1,4 +1,9 @@
-/* SPDX-License-Identifier: GPL-3.0-or-later */
+/*
+ * SPDX-FileCopyrightText:
+ * 2026 Erik Sunden <eriksunden85@gmail.com>
+ *
+ * SPDX-License-Identifier: GPL-3.0-or-later
+ */
 #ifndef NDIGPUCONVERSION_H
 #define NDIGPUCONVERSION_H
 

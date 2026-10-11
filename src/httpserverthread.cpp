@@ -12,6 +12,8 @@
 #include "slidesmodel.h"
 #include "layersmodel.h"
 #include "layers/baselayer.h"
+#include "controleventfeed.h"
+#include "tcp/tcpcontrolrestapi.h"
 
 #include <QFile>
 #include <QJsonDocument>
@@ -42,62 +44,73 @@ HttpServerThread::~HttpServerThread() {
 void HttpServerThread::setupHttpServer() {
     QFile httpServerConfFile(QStringLiteral("./data/http-server-conf.json"));
 
-    if (!httpServerConfFile.open(QIODevice::ReadOnly)) {
-        qWarning("Couldn't open http server configuration file.");
-        runServer = false;
-        return;
-    }
-
-    QByteArray httpServerConfigArray = httpServerConfFile.readAll();
-    QJsonDocument httpServerConfDoc(QJsonDocument::fromJson(httpServerConfigArray));
-    QJsonObject httpServerConf = httpServerConfDoc.object();
-
-    QString runServerStr = QStringLiteral("");
-    if (httpServerConf.contains(QStringLiteral("run"))) {
-        runServerStr = httpServerConf.value(QStringLiteral("run")).toString();
-    } else {
-        qWarning("Couldn't find run parameter in http server configuration file.");
-        runServer = false;
-        return;
-    }
-
-    if (httpServerConf.contains(QStringLiteral("port"))) {
-        portServer = httpServerConf.value(QStringLiteral("port")).toInt();
-    } else {
-        qWarning("Couldn't find port parameter in http server configuration file.");
-        runServer = false;
-        return;
-    }
-
-    if (runServerStr == QStringLiteral("yes")) {
+    QJsonObject httpServerConf;
+    if (httpServerConfFile.open(QIODevice::ReadOnly))
+        httpServerConf = QJsonDocument::fromJson(httpServerConfFile.readAll()).object();
+    runServer = httpServerConf.value(QStringLiteral("run")).toString() == QStringLiteral("yes");
+    portServer = httpServerConf.value(QStringLiteral("port")).toInt(7007);
+    // Register actions even when the HTTP listener is disabled. TCP dispatch uses
+    // these same callbacks on the player thread, without a loopback HTTP request.
+    {
+        registerTcpControlRoutes(svr, m_tcpControlManager,
+            [this](const std::string &path, httplib::Server::Handler handler) { registerPost(path, std::move(handler)); });
+        svr.Get("/event_topics", [](const httplib::Request &, httplib::Response &res) {
+            res.set_content(QJsonDocument(QJsonArray::fromStringList(ControlEventFeed::availableTopics()))
+                .toJson(QJsonDocument::Compact).toStdString(), "application/json");
+        });
+        const auto requestTopics = [](const httplib::Request &req) {
+            return req.has_param("topics") ? QString::fromStdString(req.get_param_value("topics")).split(QLatin1Char(','))
+                : QStringList{QStringLiteral("*")};
+        };
+        svr.Get("/events", [this, requestTopics](const httplib::Request &req, httplib::Response &res) {
+            const auto topics = requestTopics(req);
+            const QString since = QString::fromStdString(req.get_param_value("since"));
+            bool cursorValid = true, waitValid = true;
+            if (!since.isEmpty()) since.toULongLong(&cursorValid);
+            const int wait = req.has_param("wait") ? QString::fromStdString(req.get_param_value("wait")).toInt(&waitValid) : 0;
+            if (!ControlEventFeed::validateTopics(topics) || !cursorValid || !waitValid || wait < 0 || wait > 25000) {
+                res.status = 400;
+                res.set_content("Invalid topics, since cursor or wait (0-25000 ms)", "text/plain");
+                return;
+            }
+            if (!m_eventFeed) { res.status = 503; return; }
+            res.set_header("Cache-Control", "no-store");
+            res.set_content(QJsonDocument(m_eventFeed->read(topics, since, wait))
+                .toJson(QJsonDocument::Compact).toStdString(), "application/json");
+        });
+        if (runServer && m_eventFeed && httpServerConf.contains(QStringLiteral("websocketPort"))) {
+            const int port = httpServerConf.value(QStringLiteral("websocketPort")).toInt();
+            if (port > 0 && port <= 65535) m_eventFeed->setWebSocketPort(static_cast<quint16>(port));
+            else qWarning("Invalid event websocketPort (must be 1-65535)");
+        }
         svr.Get("/status", [](const httplib::Request &, httplib::Response &res) {
             res.set_content("OK", "text/plain");
         });
-        svr.Post("/status", [](const httplib::Request &, httplib::Response &res) {
+        registerPost("/status", [](const httplib::Request &, httplib::Response &res) {
             res.set_content("OK", "text/plain");
         });
 
-        svr.Post("/quit", [this](const httplib::Request&, httplib::Response& res) {
+        registerPost("/quit", [this](const httplib::Request&, httplib::Response& res) {
             res.set_content("Quitting C-Play", "text/plain");
             Q_EMIT quitCPlay();
         });
 
-        svr.Post("/play", [this](const httplib::Request &, httplib::Response &res) {
+        registerPost("/play", [this](const httplib::Request &, httplib::Response &res) {
             Q_EMIT playMedia();
             res.set_content("Play", "text/plain");
         });
 
-        svr.Post("/pause", [this](const httplib::Request &, httplib::Response &res) {
+        registerPost("/pause", [this](const httplib::Request &, httplib::Response &res) {
             Q_EMIT pauseMedia();
             res.set_content("Pause", "text/plain");
         });
 
-        svr.Post("/stop", [this](const httplib::Request &, httplib::Response &res) {
+        registerPost("/stop", [this](const httplib::Request &, httplib::Response &res) {
             Q_EMIT rewindMedia();
             res.set_content("Stop/rewind", "text/plain");
         });
 
-        svr.Post("/rewind", [this](const httplib::Request &, httplib::Response &res) {
+        registerPost("/rewind", [this](const httplib::Request &, httplib::Response &res) {
             Q_EMIT rewindMedia();
             res.set_content("Stop/rewind", "text/plain");
         });
@@ -114,14 +127,14 @@ void HttpServerThread::setupHttpServer() {
             }
         };
         svr.Get("/position", positionGetHandler);
-        svr.Post("/position", [this, positionGetHandler](const httplib::Request &req, httplib::Response &res) {
+        registerPost("/position", [this, positionGetHandler](const httplib::Request &req, httplib::Response &res) {
             if (req.has_param("set")) {
                 setPositionFromStr(req.get_param_value("set"));
             }
             positionGetHandler(req, res);
         });
 
-        svr.Post("/seek", [this](const httplib::Request &req, httplib::Response &res) {
+        registerPost("/seek", [this](const httplib::Request &req, httplib::Response &res) {
             if (req.has_param("time")) {
                 int timeInSec = 0;
                 if (stringToInt(req.get_param_value("time"), timeInSec)) {
@@ -155,7 +168,7 @@ void HttpServerThread::setupHttpServer() {
             }
         };
         svr.Get("/remaining", remainingHandler);
-        svr.Post("/remaining", remainingHandler);
+        registerPost("/remaining", remainingHandler);
 
         auto durationHandler = [this](const httplib::Request &req, httplib::Response &res) {
             if (m_mpv) {
@@ -169,7 +182,7 @@ void HttpServerThread::setupHttpServer() {
             }
         };
         svr.Get("/duration", durationHandler);
-        svr.Post("/duration", durationHandler);
+        registerPost("/duration", durationHandler);
 
         auto autoPlayGetHandler = [this](const httplib::Request &, httplib::Response &res) {
             if (m_mpv) {
@@ -183,7 +196,7 @@ void HttpServerThread::setupHttpServer() {
             }
         };
         svr.Get("/auto_play", autoPlayGetHandler);
-        svr.Post("/auto_play", [this, autoPlayGetHandler](const httplib::Request &req, httplib::Response &res) {
+        registerPost("/auto_play", [this, autoPlayGetHandler](const httplib::Request &req, httplib::Response &res) {
             if (req.has_param("on")) {
                 int value = -1;
                 if (stringToInt(req.get_param_value("on"), value)) {
@@ -212,7 +225,7 @@ void HttpServerThread::setupHttpServer() {
             }
         };
         svr.Get("/speed", speedGetHandler);
-        svr.Post("/speed", [this, speedGetHandler](const httplib::Request& req, httplib::Response& res) {
+        registerPost("/speed", [this, speedGetHandler](const httplib::Request& req, httplib::Response& res) {
             if (req.has_param("factor")) {
                 setSpeedFromStr(req.get_param_value("factor"));
             }
@@ -227,7 +240,7 @@ void HttpServerThread::setupHttpServer() {
             }
         };
         svr.Get("/volume", volumeGetHandler);
-        svr.Post("/volume", [this, volumeGetHandler](const httplib::Request &req, httplib::Response &res) {
+        registerPost("/volume", [this, volumeGetHandler](const httplib::Request &req, httplib::Response &res) {
             if (req.has_param("level")) {
                 setVolumeFromStr(req.get_param_value("level"));
             }
@@ -243,24 +256,24 @@ void HttpServerThread::setupHttpServer() {
             }
         };
         svr.Get("/fade_duration", fadeDurationHandler);
-        svr.Post("/fade_duration", fadeDurationHandler);
+        registerPost("/fade_duration", fadeDurationHandler);
 
-        svr.Post("/fade_volume_down", [this](const httplib::Request &, httplib::Response &res) {
+        registerPost("/fade_volume_down", [this](const httplib::Request &, httplib::Response &res) {
             Q_EMIT fadeVolumeDown();
             res.set_content("Fading volume down", "text/plain");
         });
 
-        svr.Post("/fade_volume_up", [this](const httplib::Request &, httplib::Response &res) {
+        registerPost("/fade_volume_up", [this](const httplib::Request &, httplib::Response &res) {
             Q_EMIT fadeVolumeUp();
             res.set_content("Fading volume up", "text/plain");
         });
 
-        svr.Post("/fade_image_down", [this](const httplib::Request &, httplib::Response &res) {
+        registerPost("/fade_image_down", [this](const httplib::Request &, httplib::Response &res) {
             Q_EMIT fadeImageDown();
             res.set_content("Fading image down", "text/plain");
         });
 
-        svr.Post("/fade_image_up", [this](const httplib::Request &, httplib::Response &res) {
+        registerPost("/fade_image_up", [this](const httplib::Request &, httplib::Response &res) {
             Q_EMIT fadeImageUp();
             res.set_content("Fading image up", "text/plain");
         });
@@ -273,7 +286,7 @@ void HttpServerThread::setupHttpServer() {
             }
         };
         svr.Get("/sync_image_volume_fade", syncImageVolumeFadeGetHandler);
-        svr.Post("/sync_image_volume_fade", [this, syncImageVolumeFadeGetHandler](const httplib::Request &req, httplib::Response &res) {
+        registerPost("/sync_image_volume_fade", [this, syncImageVolumeFadeGetHandler](const httplib::Request &req, httplib::Response &res) {
             if (req.has_param("value")) {
                 std::string valueStr = req.get_param_value("value");
                 setSyncImageFadingFromStr(valueStr);
@@ -291,7 +304,7 @@ void HttpServerThread::setupHttpServer() {
             }
         };
         svr.Get("/visibility", visibilityHandler);
-        svr.Post("/visibility", visibilityHandler);
+        registerPost("/visibility", visibilityHandler);
 
         auto stereoModeHandler = [this](const httplib::Request &, httplib::Response &res) {
             if (m_mpv) {
@@ -301,7 +314,7 @@ void HttpServerThread::setupHttpServer() {
             }
         };
         svr.Get("/stereo_mode", stereoModeHandler);
-        svr.Post("/stereo_mode", stereoModeHandler);
+        registerPost("/stereo_mode", stereoModeHandler);
 
         auto gridModeHandler = [this](const httplib::Request &, httplib::Response &res) {
             if (m_mpv) {
@@ -311,7 +324,7 @@ void HttpServerThread::setupHttpServer() {
             }
         };
         svr.Get("/grid_mode", gridModeHandler);
-        svr.Post("/grid_mode", gridModeHandler);
+        registerPost("/grid_mode", gridModeHandler);
 
         auto backgroundImageGetHandler = [this](const httplib::Request &, httplib::Response &res) {
             PlayerController *playctrl = qobject_cast<PlayerController *>(parent());
@@ -326,7 +339,7 @@ void HttpServerThread::setupHttpServer() {
             }
         };
         svr.Get("/background_image", backgroundImageGetHandler);
-        svr.Post("/background_image", [this, backgroundImageGetHandler](const httplib::Request &req, httplib::Response &res) {
+        registerPost("/background_image", [this, backgroundImageGetHandler](const httplib::Request &req, httplib::Response &res) {
             if (req.has_param("on")) {
                 int value = -1;
                 if (stringToInt(req.get_param_value("on"), value)) {
@@ -356,7 +369,7 @@ void HttpServerThread::setupHttpServer() {
             }
         };
         svr.Get("/background_image_stereo_mode", backgroundImageStereoModeHandler);
-        svr.Post("/background_image_stereo_mode", backgroundImageStereoModeHandler);
+        registerPost("/background_image_stereo_mode", backgroundImageStereoModeHandler);
 
         auto backgroundImageGridModeHandler = [this](const httplib::Request &, httplib::Response &res) {
             PlayerController *playctrl = qobject_cast<PlayerController *>(parent());
@@ -367,7 +380,7 @@ void HttpServerThread::setupHttpServer() {
             }
         };
         svr.Get("/background_image_grid_mode", backgroundImageGridModeHandler);
-        svr.Post("/background_image_grid_mode", backgroundImageGridModeHandler);
+        registerPost("/background_image_grid_mode", backgroundImageGridModeHandler);
 
         auto foregroundImageGetHandler = [this](const httplib::Request &, httplib::Response &res) {
             PlayerController *playctrl = qobject_cast<PlayerController *>(parent());
@@ -382,7 +395,7 @@ void HttpServerThread::setupHttpServer() {
             }
         };
         svr.Get("/foreground_image", foregroundImageGetHandler);
-        svr.Post("/foreground_image", [this, foregroundImageGetHandler](const httplib::Request &req, httplib::Response &res) {
+        registerPost("/foreground_image", [this, foregroundImageGetHandler](const httplib::Request &req, httplib::Response &res) {
             if (req.has_param("on")) {
                 int value = -1;
                 if (stringToInt(req.get_param_value("on"), value)) {
@@ -412,7 +425,7 @@ void HttpServerThread::setupHttpServer() {
             }
         };
         svr.Get("/foreground_image_stereo_mode", foregroundImageStereoModeHandler);
-        svr.Post("/foreground_image_stereo_mode", foregroundImageStereoModeHandler);
+        registerPost("/foreground_image_stereo_mode", foregroundImageStereoModeHandler);
 
         auto foregroundImageGridModeHandler = [this](const httplib::Request &, httplib::Response &res) {
             PlayerController *playctrl = qobject_cast<PlayerController *>(parent());
@@ -423,7 +436,7 @@ void HttpServerThread::setupHttpServer() {
             }
         };
         svr.Get("/foreground_image_grid_mode", foregroundImageGridModeHandler);
-        svr.Post("/foreground_image_grid_mode", foregroundImageGridModeHandler);
+        registerPost("/foreground_image_grid_mode", foregroundImageGridModeHandler);
 
         auto eofModeHandler = [this](const httplib::Request &, httplib::Response &res) {
             if (m_mpv) {
@@ -433,7 +446,7 @@ void HttpServerThread::setupHttpServer() {
             }
         };
         svr.Get("/eof_mode", eofModeHandler);
-        svr.Post("/eof_mode", eofModeHandler);
+        registerPost("/eof_mode", eofModeHandler);
 
         auto loopModeHandler = [this](const httplib::Request &, httplib::Response &res) {
             if (m_mpv) {
@@ -443,7 +456,7 @@ void HttpServerThread::setupHttpServer() {
             }
         };
         svr.Get("/loop_mode", loopModeHandler);
-        svr.Post("/loop_mode", loopModeHandler);
+        registerPost("/loop_mode", loopModeHandler);
 
         auto viewModeGetHandler = [this](const httplib::Request &, httplib::Response &res) {
             PlayerController *playctrl = qobject_cast<PlayerController *>(parent());
@@ -454,7 +467,7 @@ void HttpServerThread::setupHttpServer() {
             }
         };
         svr.Get("/view_mode", viewModeGetHandler);
-        svr.Post("/view_mode", [this, viewModeGetHandler](const httplib::Request &req, httplib::Response &res) {
+        registerPost("/view_mode", [this, viewModeGetHandler](const httplib::Request &req, httplib::Response &res) {
             if (req.has_param("mode")) {
                 setViewModeFromStr(req.get_param_value("mode"));
             }
@@ -469,7 +482,7 @@ void HttpServerThread::setupHttpServer() {
             }
         };
         svr.Get("/media_title", mediaTitleHandler);
-        svr.Post("/media_title", mediaTitleHandler);
+        registerPost("/media_title", mediaTitleHandler);
 
         auto audiotracksHandler = [this](const httplib::Request &req, httplib::Response &res) {
             std::string charsPerItem = "";
@@ -483,15 +496,15 @@ void HttpServerThread::setupHttpServer() {
             res.set_content(getAudioTracksItems(charsPerItem, removeLoadedFilePrefix), "text/plain");
         };
         svr.Get("/audiotracks", audiotracksHandler);
-        svr.Post("/audiotracks", audiotracksHandler);
+        registerPost("/audiotracks", audiotracksHandler);
 
         auto playingInAudiotracksHandler = [this](const httplib::Request &, httplib::Response &res) {
             res.set_content(getPlaylingItemIndexFromAudioTracks(), "text/plain");
         };
         svr.Get("/playing_in_audiotracks", playingInAudiotracksHandler);
-        svr.Post("/playing_in_audiotracks", playingInAudiotracksHandler);
+        registerPost("/playing_in_audiotracks", playingInAudiotracksHandler);
 
-        svr.Post("/load_from_audiotracks", [this](const httplib::Request &req, httplib::Response &res) {
+        registerPost("/load_from_audiotracks", [this](const httplib::Request &req, httplib::Response &res) {
             if (req.has_param("index")) {
                 std::string indexStr = req.get_param_value("index");
                 res.set_content(LoadIndexFromAudioTracks(indexStr), "text/plain");
@@ -509,15 +522,15 @@ void HttpServerThread::setupHttpServer() {
             res.set_content(getPlayListItems(charsPerItem), "text/plain");
         };
         svr.Get("/playlist", playlistHandler);
-        svr.Post("/playlist", playlistHandler);
+        registerPost("/playlist", playlistHandler);
 
         auto playingInPlaylistHandler = [this](const httplib::Request &, httplib::Response &res) {
             res.set_content(getPlaylingItemIndexFromPlaylist(), "text/plain");
         };
         svr.Get("/playing_in_playlist", playingInPlaylistHandler);
-        svr.Post("/playing_in_playlist", playingInPlaylistHandler);
+        registerPost("/playing_in_playlist", playingInPlaylistHandler);
 
-        svr.Post("/load_from_playlist", [this](const httplib::Request &req, httplib::Response &res) {
+        registerPost("/load_from_playlist", [this](const httplib::Request &req, httplib::Response &res) {
             if (req.has_param("index")) {
                 std::string indexStr = req.get_param_value("index");
                 res.set_content(LoadIndexFromPlaylist(indexStr), "text/plain");
@@ -535,15 +548,15 @@ void HttpServerThread::setupHttpServer() {
             res.set_content(getSectionsItems(charsPerItem), "text/plain");
         };
         svr.Get("/sections", sectionsHandler);
-        svr.Post("/sections", sectionsHandler);
+        registerPost("/sections", sectionsHandler);
 
         auto playingInSectionsHandler = [this](const httplib::Request &, httplib::Response &res) {
             res.set_content(getPlaylingItemIndexFromSections(), "text/plain");
         };
         svr.Get("/playing_in_sections", playingInSectionsHandler);
-        svr.Post("/playing_in_sections", playingInSectionsHandler);
+        registerPost("/playing_in_sections", playingInSectionsHandler);
 
-        svr.Post("/load_from_sections", [this](const httplib::Request &req, httplib::Response &res) {
+        registerPost("/load_from_sections", [this](const httplib::Request &req, httplib::Response &res) {
             if (req.has_param("index")) {
                 std::string indexStr = req.get_param_value("index");
                 res.set_content(LoadIndexFromSections(indexStr), "text/plain");
@@ -571,7 +584,7 @@ void HttpServerThread::setupHttpServer() {
             }
         };
         svr.Get("/section_start_time", sectionStartTimeHandler);
-        svr.Post("/section_start_time", sectionStartTimeHandler);
+        registerPost("/section_start_time", sectionStartTimeHandler);
 
         auto sectionEndTimeHandler = [this](const httplib::Request &req, httplib::Response &res) {
             if (m_mpv) {
@@ -591,7 +604,7 @@ void HttpServerThread::setupHttpServer() {
             }
         };
         svr.Get("/section_end_time", sectionEndTimeHandler);
-        svr.Post("/section_end_time", sectionEndTimeHandler);
+        registerPost("/section_end_time", sectionEndTimeHandler);
 
         auto sectionEndModeHandler = [this](const httplib::Request &, httplib::Response &res) {
             if (m_mpv) {
@@ -607,7 +620,7 @@ void HttpServerThread::setupHttpServer() {
             }
         };
         svr.Get("/section_end_mode", sectionEndModeHandler);
-        svr.Post("/section_end_mode", sectionEndModeHandler);
+        registerPost("/section_end_mode", sectionEndModeHandler);
 
         auto playfileJsonHandler = [this](const httplib::Request &, httplib::Response &res) {
             if (m_mpv) {
@@ -623,7 +636,7 @@ void HttpServerThread::setupHttpServer() {
             }
         };
         svr.Get("/playfile_json", playfileJsonHandler);
-        svr.Post("/playfile_json", playfileJsonHandler);
+        registerPost("/playfile_json", playfileJsonHandler);
 
         auto playlistJsonHandler = [this](const httplib::Request &, httplib::Response &res) {
             if (m_mpv) {
@@ -637,9 +650,9 @@ void HttpServerThread::setupHttpServer() {
             }
         };
         svr.Get("/playlist_json", playlistJsonHandler);
-        svr.Post("/playlist_json", playlistJsonHandler);
+        registerPost("/playlist_json", playlistJsonHandler);
 
-        svr.Post("/spin_pitch_up", [this](const httplib::Request &req, httplib::Response &res) {
+        registerPost("/spin_pitch_up", [this](const httplib::Request &req, httplib::Response &res) {
             if (req.has_param("on")) {
                 int runSpin = -1;
                 if (stringToInt(req.get_param_value("on"), runSpin)) {
@@ -660,7 +673,7 @@ void HttpServerThread::setupHttpServer() {
             }
         });
 
-        svr.Post("/spin_pitch_down", [this](const httplib::Request &req, httplib::Response &res) {
+        registerPost("/spin_pitch_down", [this](const httplib::Request &req, httplib::Response &res) {
             if (req.has_param("on")) {
                 int runSpin = -1;
                 if (stringToInt(req.get_param_value("on"), runSpin)) {
@@ -681,7 +694,7 @@ void HttpServerThread::setupHttpServer() {
             }
         });
 
-        svr.Post("/spin_yaw_left", [this](const httplib::Request &req, httplib::Response &res) {
+        registerPost("/spin_yaw_left", [this](const httplib::Request &req, httplib::Response &res) {
             if (req.has_param("on")) {
                 int runSpin = -1;
                 if (stringToInt(req.get_param_value("on"), runSpin)) {
@@ -702,7 +715,7 @@ void HttpServerThread::setupHttpServer() {
             }
         });
 
-        svr.Post("/spin_yaw_right", [this](const httplib::Request &req, httplib::Response &res) {
+        registerPost("/spin_yaw_right", [this](const httplib::Request &req, httplib::Response &res) {
             if (req.has_param("on")) {
                 int runSpin = -1;
                 if (stringToInt(req.get_param_value("on"), runSpin)) {
@@ -723,7 +736,7 @@ void HttpServerThread::setupHttpServer() {
             }
         });
 
-        svr.Post("/spin_roll_ccw", [this](const httplib::Request &req, httplib::Response &res) {
+        registerPost("/spin_roll_ccw", [this](const httplib::Request &req, httplib::Response &res) {
             if (req.has_param("on")) {
                 int runSpin = -1;
                 if (stringToInt(req.get_param_value("on"), runSpin)) {
@@ -744,7 +757,7 @@ void HttpServerThread::setupHttpServer() {
             }
         });
 
-        svr.Post("/spin_roll_cw", [this](const httplib::Request &req, httplib::Response &res) {
+        registerPost("/spin_roll_cw", [this](const httplib::Request &req, httplib::Response &res) {
             if (req.has_param("on")) {
                 int runSpin = -1;
                 if (stringToInt(req.get_param_value("on"), runSpin)) {
@@ -765,12 +778,12 @@ void HttpServerThread::setupHttpServer() {
             }
         });
 
-        svr.Post("/orientation_reset", [this](const httplib::Request &, httplib::Response &res) {
+        registerPost("/orientation_reset", [this](const httplib::Request &, httplib::Response &res) {
             Q_EMIT orientationAndSpinReset();
             res.set_content("Origin Reset", "text/plain");
         });
 
-        svr.Post("/surface_transition", [this](const httplib::Request &req, httplib::Response &res) {
+        registerPost("/surface_transition", [this](const httplib::Request &req, httplib::Response &res) {
             Q_EMIT runSurfaceTransition();
 
             if (m_mpv) {
@@ -800,14 +813,14 @@ void HttpServerThread::setupHttpServer() {
             }
         };
         svr.Get("/slide_name", slideNameHandler);
-        svr.Post("/slide_name", slideNameHandler);
+        registerPost("/slide_name", slideNameHandler);
 
-        svr.Post("/slide_previous", [this](const httplib::Request&, httplib::Response& res) {
+        registerPost("/slide_previous", [this](const httplib::Request&, httplib::Response& res) {
             Q_EMIT slidePrevious();
             res.set_content("Previous slide", "text/plain");
         });
 
-        svr.Post("/slide_next", [this](const httplib::Request&, httplib::Response& res) {
+        registerPost("/slide_next", [this](const httplib::Request&, httplib::Response& res) {
             Q_EMIT slideNext();
             res.set_content("Next slide", "text/plain");
         });
@@ -820,22 +833,22 @@ void HttpServerThread::setupHttpServer() {
             res.set_content(getSlideItems(charsPerItem), "text/plain");
         };
         svr.Get("/slides", slidesHandler);
-        svr.Post("/slides", slidesHandler);
+        registerPost("/slides", slidesHandler);
 
         auto playingInSlidesHandler = [this](const httplib::Request&, httplib::Response& res) {
             res.set_content(getPlaylingItemIndexFromSlides(), "text/plain");
         };
         svr.Get("/playing_in_slides", playingInSlidesHandler);
-        svr.Post("/playing_in_slides", playingInSlidesHandler);
+        registerPost("/playing_in_slides", playingInSlidesHandler);
 
         auto resetSlidesToStartHandler = [this](const httplib::Request&, httplib::Response& res) {
             Q_EMIT resetSlidesToStart();
             res.set_content("Reset slides to start position", "text/plain");
         };
         svr.Get("/slides_reset_to_start", resetSlidesToStartHandler);
-        svr.Post("/slides_reset_to_start", resetSlidesToStartHandler);
+        registerPost("/slides_reset_to_start", resetSlidesToStartHandler);
         
-        svr.Post("/select_from_slides", [this](const httplib::Request& req, httplib::Response& res) {
+        registerPost("/select_from_slides", [this](const httplib::Request& req, httplib::Response& res) {
             if (req.has_param("index")) {
                 std::string indexStr = req.get_param_value("index");
                 res.set_content(SelectIndexFromSlides(indexStr), "text/plain");
@@ -845,7 +858,7 @@ void HttpServerThread::setupHttpServer() {
             }
         });
 
-        svr.Post("/load_from_slides", [this](const httplib::Request& req, httplib::Response& res) {
+        registerPost("/load_from_slides", [this](const httplib::Request& req, httplib::Response& res) {
             if (req.has_param("index")) {
                 std::string indexStr = req.get_param_value("index");
                 res.set_content(LoadIndexFromSlides(indexStr), "text/plain");
@@ -879,7 +892,7 @@ void HttpServerThread::setupHttpServer() {
             }
         };
         svr.Get("/layers", layersHandler);
-        svr.Post("/layers", layersHandler);
+        registerPost("/layers", layersHandler);
 
         auto layerVolumeGetHandler = [this](const httplib::Request& req, httplib::Response& res) {
             LayersModel* layerModel = nullptr;
@@ -891,7 +904,7 @@ void HttpServerThread::setupHttpServer() {
             }
         };
         svr.Get("/layer_volume", layerVolumeGetHandler);
-        svr.Post("/layer_volume", [this](const httplib::Request& req, httplib::Response& res) {
+        registerPost("/layer_volume", [this](const httplib::Request& req, httplib::Response& res) {
             LayersModel* layerModel = nullptr;
             int layerIdx = -1;
             BaseLayer* layer = nullptr;
@@ -920,7 +933,7 @@ void HttpServerThread::setupHttpServer() {
             }
         };
         svr.Get("/layer_visibility", layerVisibilityGetHandler);
-        svr.Post("/layer_visibility", [this](const httplib::Request& req, httplib::Response& res) {
+        registerPost("/layer_visibility", [this](const httplib::Request& req, httplib::Response& res) {
             LayersModel* layerModel = nullptr;
             int layerIdx = -1;
             BaseLayer* layer = nullptr;
@@ -983,7 +996,7 @@ void HttpServerThread::setupHttpServer() {
             }
         };
         svr.Get("/layer_plane", layerPlaneGetHandler);
-        svr.Post("/layer_plane", [this](const httplib::Request& req, httplib::Response& res) {
+        registerPost("/layer_plane", [this](const httplib::Request& req, httplib::Response& res) {
             LayersModel* layerModel = nullptr;
             int layerIdx = -1;
             BaseLayer* layer = nullptr;
@@ -1067,15 +1080,32 @@ void HttpServerThread::setupHttpServer() {
             }
         });
 
-        runServer = true;
-        return;
     }
+}
 
-    runServer = false;
-    return;
+void HttpServerThread::registerPost(const std::string &path, httplib::Server::Handler handler) {
+    m_postHandlers[path] = handler;
+    svr.Post(path, std::move(handler));
+}
+
+QJsonObject HttpServerThread::executeControlAction(const QString &path, const QJsonObject &parameters) {
+    const auto it = m_postHandlers.find(path.toStdString());
+    if (it == m_postHandlers.end() || !m_mpv || !m_slidesModel)
+        return {{QStringLiteral("accepted"), false}, {QStringLiteral("message"), tr("Player action unavailable")}};
+    httplib::Request request;
+    request.method = "POST";
+    request.path = path.toStdString();
+    for (auto p = parameters.begin(); p != parameters.end(); ++p)
+        request.params.emplace(p.key().toStdString(), p.value().toString().toStdString());
+    httplib::Response response;
+    it->second(request, response);
+    const int status = response.status < 0 ? 200 : response.status;
+    return {{QStringLiteral("accepted"), status >= 200 && status < 300},
+        {QStringLiteral("status"), status}, {QStringLiteral("message"), QString::fromStdString(response.body)}};
 }
 
 void HttpServerThread::terminate() {
+    if (m_eventFeed) m_eventFeed->stop();
     {
         QMutexLocker lock(&mutex);
         abort = true;

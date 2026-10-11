@@ -83,3 +83,10 @@ if(CPLAY_INSTALL_DEPENDENCIES)
         ]])
     endif()
 endif()
+
+install(FILES
+    http_server/CPlay_Control_Client.mllc
+    http_server/generate_control_client.py
+    http_server/Showmaster_TCP_Server.mllc
+    DESTINATION ${CMAKE_INSTALL_PREFIX}/bin/help/http_server)
+install(FILES ../data/TcpControlActions.json DESTINATION ${CMAKE_INSTALL_PREFIX}/bin/data)

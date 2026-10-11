@@ -1,11 +1,16 @@
-/* SPDX-License-Identifier: GPL-3.0-or-later */
+/*
+ * SPDX-FileCopyrightText:
+ * 2026 Erik Sunden <eriksunden85@gmail.com>
+ *
+ * SPDX-License-Identifier: GPL-3.0-or-later
+ */
 #ifndef TCPLAYER_H
 #define TCPLAYER_H
 #include <layers/baselayer.h>
 #include <QPointer>
 #include <atomic>
 #include <memory>
-#include "tcpcontrolmanager.h"
+#include "tcp/tcpcontrolmanager.h"
 
 class TcpLayer : public BaseLayer {
 public:

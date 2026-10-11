@@ -1,4 +1,9 @@
-/* SPDX-License-Identifier: GPL-3.0-or-later */
+/*
+ * SPDX-FileCopyrightText:
+ * 2026 Erik Sunden <eriksunden85@gmail.com>
+ *
+ * SPDX-License-Identifier: GPL-3.0-or-later
+ */
 import QtQuick
 import QtQuick.Controls
 import QtQuick.Layouts
@@ -18,6 +23,10 @@ SettingsBasePage {
             if (items[i].id === id) return i;
         return -1;
     }
+    function topics(text) {
+        return text.split(",").map(function(value) { return value.trim(); })
+            .filter(function(value) { return value.length > 0; });
+    }
     function editServer(s) {
         serverId = s ? s.id : "";
         serverName.text = s ? s.name : "";
@@ -25,6 +34,7 @@ SettingsBasePage {
         port.value = s ? s.port : 7008;
         enabled.checked = s ? s.enabled : true;
         acceptControl.checked = s ? s.acceptControlCommands : false;
+        serverEventTopics.text = s && s.eventTopics ? s.eventTopics.join(", ") : "";
         reconnect.checked = s ? s.autoReconnect : true;
         framing.currentIndex = s ? s.framing : 0;
         receiveHex.text = s ? s.receiveTerminatorHex : "0a";
@@ -37,14 +47,19 @@ SettingsBasePage {
         writeLimit.value = s ? s.maximumPendingWriteBytes : 1048576;
     }
     function saveServer() {
+        var previousId = serverId;
         var id = manager.saveServer({id: serverId, name: serverName.text, host: host.text,
             port: port.value, enabled: enabled.checked, acceptControlCommands: acceptControl.checked,
+            eventTopics: topics(serverEventTopics.text),
             autoReconnect: reconnect.checked, framing: framing.currentIndex,
             receiveTerminatorHex: receiveHex.text, sendTerminatorHex: sendHex.text,
             connectTimeoutMs: timeout.value, retryInitialMs: retryInitial.value,
             retryMaximumMs: retryMaximum.value, stableConnectionMs: stable.value,
             maximumMessageBytes: messageLimit.value, maximumPendingWriteBytes: writeLimit.value});
-        if (id !== "") serverId = id;
+        if (id !== "") {
+            serverId = id;
+            if (commandServerId === previousId) commandServerId = id;
+        }
     }
     function editCommand(c) {
         commandId = c ? c.id : "";
@@ -53,6 +68,9 @@ SettingsBasePage {
         encoding.currentIndex = c && c.encoding === "hex" ? 1 : 0;
         payload.text = c ? c.payload : "";
         raw.checked = c ? c.raw : false;
+        commandEventTopics.text = c && c.eventTopics ? c.eventTopics.join(", ") : "";
+        eventPayload.currentIndex = c && c.eventPayload !== "fixed" && c.eventPayload ? 1 : 0;
+        charsPerItem.value = c && c.charsPerItem ? c.charsPerItem : 0;
     }
     Component.onCompleted: { editServer(null); editCommand(null); }
     Connections {
@@ -66,6 +84,31 @@ SettingsBasePage {
     ColumnLayout {
         width: parent.width
         spacing: 12
+        SettingsHeader { Layout.fillWidth: true; text: qsTr("Incoming TCP control") }
+        CheckBox { id: listenerEnabled; text: qsTr("Enable TCP server on master"); checked: TcpControlSettings.serverEnabled }
+        RowLayout {
+            Label { text: qsTr("Bind address:") }
+            TextField { id: listenerAddress; text: TcpControlSettings.serverBindAddress }
+            Label { text: qsTr("Port:") }
+            SpinBox { id: listenerPort; from: 1; to: 65535; value: TcpControlSettings.serverPort; editable: true }
+            Button {
+                text: qsTr("Apply listener")
+                onClicked: {
+                    TcpControlSettings.serverEnabled = listenerEnabled.checked;
+                    TcpControlSettings.serverBindAddress = listenerAddress.text;
+                    TcpControlSettings.serverPort = listenerPort.value;
+                    TcpControlSettings.save();
+                    playerController.applyTcpControlSettings();
+                }
+            }
+        }
+        Label {
+            Layout.fillWidth: true; wrapMode: Text.WordWrap
+            text: root.manager.listener.listening
+                ? qsTr("Listening on port %1; %2 clients connected").arg(root.manager.listener.port).arg(root.manager.listener.clientCount)
+                : qsTr("TCP server stopped")
+        }
+        Label { Layout.fillWidth: true; wrapMode: Text.WordWrap; text: root.manager.listener.lastError }
         SettingsHeader { Layout.fillWidth: true; text: qsTr("Persistent TCP servers") }
         Label {
             Layout.fillWidth: true; wrapMode: Text.WordWrap
@@ -101,6 +144,11 @@ SettingsBasePage {
             CheckBox { id: enabled }
             Label { text: qsTr("Receive C-Play control commands:") }
             CheckBox { id: acceptControl; text: qsTr("Parse incoming JSON commands") }
+            Label { text: qsTr("Send change notifications:") }
+            TextField {
+                id: serverEventTopics; Layout.fillWidth: true
+                placeholderText: qsTr("Comma-separated topics; empty disables notifications")
+            }
             Label { text: qsTr("Automatic reconnect:") }
             CheckBox { id: reconnect }
             Label { text: qsTr("Framing:") }
@@ -133,6 +181,21 @@ SettingsBasePage {
         }
         SettingsHeader { Layout.fillWidth: true; text: qsTr("Reusable TCP commands") }
         RowLayout {
+            TextField { id: eventModelPath; Layout.fillWidth: true; text: "./data/EventModel.json"; placeholderText: qsTr("EventModel JSON path") }
+            Button {
+                text: qsTr("Import EventModel"); enabled: root.serverId !== ""
+                onClicked: root.manager.importEventModel(root.serverId, eventModelPath.text)
+            }
+        }
+        Label {
+            Layout.fillWidth: true; wrapMode: Text.WordWrap
+            text: qsTr("Import adds matching Medialon event commands to the selected saved server. Use CRLF framing for the generated LLC driver.")
+        }
+        Label {
+            Layout.fillWidth: true; wrapMode: Text.WordWrap
+            text: qsTr("Notification and command trigger topics (use * for all): ") + root.manager.eventTopics.join(", ")
+        }
+        RowLayout {
             ComboBox {
                 Layout.fillWidth: true
                 model: root.manager.commands; textRole: "name"; valueRole: "id"
@@ -156,6 +219,19 @@ SettingsBasePage {
             ComboBox { id: encoding; model: [qsTr("UTF-8 text"), qsTr("Hexadecimal bytes")] }
             Label { text: qsTr("Exact wire bytes:") }
             CheckBox { id: raw; text: qsTr("Send without adding framing or termination") }
+            Label { text: qsTr("Trigger on changes:") }
+            TextField {
+                id: commandEventTopics; Layout.fillWidth: true
+                placeholderText: qsTr("e.g. triggered_slide, layers, playlist; empty = manual")
+            }
+            Label { text: qsTr("Event payload:") }
+            ComboBox { id: eventPayload; model: [qsTr("Fixed payload"), qsTr("Append current value")] }
+            Label { text: qsTr("Characters per list item:") }
+            SpinBox { id: charsPerItem; from: 0; to: 4096; editable: true }
+        }
+        Label {
+            Layout.fillWidth: true; wrapMode: Text.WordWrap
+            text: qsTr("Use 0 to send full lists. A positive width pads or shortens each list label to that many characters.")
         }
         TextArea {
             id: payload; Layout.fillWidth: true; Layout.preferredHeight: 120
@@ -168,7 +244,8 @@ SettingsBasePage {
                 onClicked: {
                     var id = root.manager.saveCommand({id: root.commandId, name: commandName.text,
                         serverId: root.commandServerId, encoding: encoding.currentIndex === 0 ? "text" : "hex",
-                        payload: payload.text, raw: raw.checked});
+                        payload: payload.text, raw: raw.checked, eventTopics: root.topics(commandEventTopics.text),
+                        eventPayload: ["fixed", "value"][eventPayload.currentIndex], charsPerItem: charsPerItem.value});
                     if (id !== "") root.commandId = id;
                 }
             }
