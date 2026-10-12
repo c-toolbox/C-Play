@@ -48,10 +48,14 @@
 #include <QJsonDocument>
 #include <QJsonObject>
 #include <QOpenGLContext>
+#include <QScopedValueRollback>
 #include <QQuickView>
 #include <QMimeDatabase>
 #include <QTimer>
 #include <QThread>
+#include <algorithm>
+#include <array>
+#include <limits>
 
 static void *get_proc_address_qopengl_v1(void* ctx, const char *name) {
     Q_UNUSED(ctx)
@@ -88,6 +92,8 @@ LayersModel::LayersModel(QObject *parent)
 
 LayersModel::~LayersModel() {
     std::lock_guard<std::recursive_mutex> layersLock(m_layersMutex);
+    m_order.clear();
+    m_refs.clear();
     m_layers.clear();
 }
 
@@ -95,18 +101,18 @@ int LayersModel::rowCount(const QModelIndex &parent) const {
     if (parent.isValid())
         return 0;
 
-    return m_layers.size();
+    return m_order.size();
 }
 
 QVariant LayersModel::data(const QModelIndex &index, int role) const {
-    if (!index.isValid() || m_layers.empty())
+    if (!index.isValid() || m_order.empty())
         return QVariant();
 
     const int row = index.row();
-    if (row < 0 || row >= m_layers.size())
+    if (row < 0 || row >= m_order.size())
         return QVariant();
 
-    const BaseLayer *layerItem = m_layers.at(row).first.get();
+    const BaseLayer *layerItem = rowLayer(row);
 
     if(layerItem == nullptr)
         return QVariant();
@@ -177,6 +183,10 @@ QVariant LayersModel::data(const QModelIndex &index, int role) const {
         return QVariant(layerItem->existOnMasterOnly());
     case NodeStreamOutputRole:
         return QVariant(layerItem->nodeStreamOutputEnabled());
+    case IsReferenceRole:
+        return QVariant(isReference(row));
+    case ReferenceSourceRole:
+        return QVariant(referenceSource(row));
     }
 
     return QVariant();
@@ -196,6 +206,8 @@ QHash<int, QByteArray> LayersModel::roleNames() const {
     roles[NdiOutputRole] = "ndiOutput";
     roles[ExistOnMasterOnlyRole] = "existOnMasterOnly";
     roles[NodeStreamOutputRole] = "nodeStreamOutput";
+    roles[IsReferenceRole] = "isReference";
+    roles[ReferenceSourceRole] = "referenceSource";
     return roles;
 }
 
@@ -209,6 +221,11 @@ void LayersModel::setLayers(const Layers &layers) {
     beginResetModel();
     m_draggedLayersAwaitingGridGuess.clear();
     m_layers = layers;
+    m_order.clear();
+    for (const auto &l : m_layers)
+        m_order.append(l.first.get());
+    for (const auto &r : m_refs)
+        m_order.append(r.layer.get());
     endResetModel();
 }
 
@@ -247,10 +264,7 @@ void LayersModel::setHasSynced() {
 
 BaseLayer *LayersModel::layer(int i) {
     std::lock_guard<std::recursive_mutex> layersLock(m_layersMutex);
-    if (i >= 0 && m_layers.size() > i && m_layers[i].first)
-        return m_layers[i].first.get();
-    else
-        return nullptr;
+    return rowLayer(i);
 }
 
 std::shared_ptr<BaseLayer> LayersModel::layerShared(int i) {
@@ -261,15 +275,364 @@ std::shared_ptr<BaseLayer> LayersModel::layerShared(int i) {
         return std::shared_ptr<BaseLayer>();
 }
 
+// ---- References / render order ----------------------------------------------
+
+BaseLayer *LayersModel::rowLayer(int row) const {
+    if (row < 0 || row >= m_order.size())
+        return nullptr;
+    return const_cast<BaseLayer *>(m_order[row]);
+}
+
+int LayersModel::ownIndexOf(const BaseLayer *layer) const {
+    if (!layer)
+        return -1;
+    for (int i = 0; i < m_layers.size(); ++i) {
+        if (m_layers[i].first.get() == layer)
+            return i;
+    }
+    return -1;
+}
+
+int LayersModel::ownIndexOfRow(int row) const {
+    return ownIndexOf(rowLayer(row));
+}
+
+int LayersModel::referenceIndexOf(const BaseLayer *layer) const {
+    if (!layer)
+        return -1;
+    for (int i = 0; i < m_refs.size(); ++i) {
+        if (m_refs[i].layer.get() == layer)
+            return i;
+    }
+    return -1;
+}
+
+int LayersModel::rowOfLayer(const BaseLayer *layer) const {
+    return layer ? static_cast<int>(m_order.indexOf(layer)) : -1;
+}
+
+bool LayersModel::containsLayer(const BaseLayer *layer) const {
+    std::lock_guard<std::recursive_mutex> layersLock(m_layersMutex);
+    return rowOfLayer(layer) >= 0;
+}
+
+int LayersModel::ownLayerStatus(const BaseLayer *layer) const {
+    const int own = ownIndexOf(layer);
+    return own >= 0 ? m_layers[own].second : -1;
+}
+
+int LayersModel::rowForNewOwnLayer() const {
+    for (int row = m_order.size() - 1; row >= 0; --row) {
+        if (ownIndexOf(m_order[row]) >= 0)
+            return row + 1;
+    }
+    return 0;
+}
+
+void LayersModel::syncOwnLayersToOrder() {
+    Layers sorted;
+    sorted.reserve(m_layers.size());
+    for (const BaseLayer *l : m_order) {
+        const int own = ownIndexOf(l);
+        if (own >= 0)
+            sorted.push_back(m_layers[own]);
+    }
+    if (sorted.size() == m_layers.size())
+        m_layers = sorted;
+}
+
+bool LayersModel::isReference(int i) const {
+    return referenceIndexOf(rowLayer(i)) >= 0;
+}
+
+QString LayersModel::referenceSource(int i) const {
+    const int ref = referenceIndexOf(rowLayer(i));
+    if (ref < 0 || !m_refs[ref].owner)
+        return QString();
+    return m_refs[ref].owner->getLayersName();
+}
+
+int LayersModel::numberOfReferences() const {
+    return m_refs.size();
+}
+
+std::vector<std::shared_ptr<BaseLayer>> LayersModel::renderOrderShared() const {
+    std::lock_guard<std::recursive_mutex> layersLock(m_layersMutex);
+    std::vector<std::shared_ptr<BaseLayer>> result;
+    result.reserve(m_order.size());
+    for (const BaseLayer *l : m_order) {
+        const int own = ownIndexOf(l);
+        if (own >= 0) {
+            result.push_back(m_layers[own].first);
+            continue;
+        }
+        const int ref = referenceIndexOf(l);
+        if (ref >= 0)
+            result.push_back(m_refs[ref].layer);
+    }
+    return result;
+}
+
+void LayersModel::updateLayerRow(const BaseLayer *layer) {
+    if (QThread::currentThread() != thread()) {
+        QMetaObject::invokeMethod(this, [this, layer]() { updateLayerRow(layer); }, Qt::QueuedConnection);
+        return;
+    }
+    const int row = rowOfLayer(layer);
+    if (row >= 0)
+        Q_EMIT dataChanged(index(row, 0), index(row, 0));
+}
+
+void LayersModel::setReferencedLayers(const QVector<LayerReference> &refs) {
+    std::lock_guard<std::recursive_mutex> layersLock(m_layersMutex);
+
+    bool same = refs.size() == m_refs.size();
+    for (int i = 0; same && i < refs.size(); ++i) {
+        same = refs[i].layer == m_refs[i].layer && refs[i].owner == m_refs[i].owner
+            && refs[i].slideOffset == m_refs[i].slideOffset && refs[i].ownerLayerIdx == m_refs[i].ownerLayerIdx;
+    }
+    if (same && m_pendingRenderOrder.isEmpty() && m_pendingReferenceTracks.isEmpty())
+        return;
+
+    // Keep the order of rows that remain, drop vanished references and put new ones on
+    // top (nearest earlier slide first).
+    QVector<const BaseLayer *> kept;
+    for (const BaseLayer *l : m_order) {
+        if (ownIndexOf(l) >= 0) {
+            kept.append(l);
+            continue;
+        }
+        for (const auto &r : refs) {
+            if (r.layer.get() == l) {
+                kept.append(l);
+                break;
+            }
+        }
+    }
+    QVector<const BaseLayer *> newOrder;
+    for (const auto &r : refs) {
+        if (r.layer && !kept.contains(r.layer.get()) && !newOrder.contains(r.layer.get()))
+            newOrder.append(r.layer.get());
+    }
+    newOrder.append(kept);
+
+    beginResetModel();
+    m_refs = refs;
+    m_order = newOrder;
+    for (const auto &r : m_refs) {
+        if (r.layer)
+            m_referenceTrackLayers[r.layer.get()] = r.layer;
+    }
+    applyPendingRenderOrder();
+    applyPendingReferenceTracks();
+    ensureTimelineSizeMatchesLayers();
+    endResetModel();
+
+    rebuildEffectSchedule();
+    setNeedSync();
+    Q_EMIT timelineChanged();
+}
+
+void LayersModel::applyPendingRenderOrder() {
+    if (m_pendingRenderOrder.isEmpty())
+        return;
+
+    // Wait until every saved reference can be resolved.
+    QVector<const BaseLayer *> saved;
+    for (const auto &v : m_pendingRenderOrder) {
+        const QString key = v.toString();
+        const BaseLayer *layer = nullptr;
+        if (key.startsWith(QLatin1Char('L'))) {
+            bool ok = false;
+            const int own = key.mid(1).toInt(&ok);
+            if (ok && own >= 0 && own < m_layers.size())
+                layer = m_layers[own].first.get();
+        }
+        else if (key.startsWith(QLatin1Char('R'))) {
+            const QStringList parts = key.mid(1).split(QLatin1Char(':'));
+            if (parts.size() == 2) {
+                const int offset = parts[0].toInt();
+                const int ownerIdx = parts[1].toInt();
+                bool found = false;
+                for (const auto &r : m_refs) {
+                    if (r.slideOffset == offset && r.ownerLayerIdx == ownerIdx) {
+                        layer = r.layer.get();
+                        found = true;
+                        break;
+                    }
+                }
+                if (!found)
+                    return;
+            }
+        }
+        if (layer && !saved.contains(layer))
+            saved.append(layer);
+    }
+
+    // Saved rows first in saved order, then anything not mentioned keeps its relative place.
+    QVector<const BaseLayer *> newOrder = saved;
+    for (const BaseLayer *l : m_order) {
+        if (!newOrder.contains(l))
+            newOrder.append(l);
+    }
+    if (newOrder.size() == m_order.size())
+        m_order = newOrder;
+    syncOwnLayersToOrder();
+    m_pendingRenderOrder = QJsonArray();
+}
+
+void LayersModel::applyPendingReferenceTracks() {
+    if (m_pendingReferenceTracks.isEmpty())
+        return;
+
+    QJsonArray unresolved;
+    for (const auto &v : m_pendingReferenceTracks) {
+        const QJsonObject o = v.toObject();
+        const int offset = o.value(QStringLiteral("slideOffset")).toInt(-1);
+        const int ownerIdx = o.value(QStringLiteral("layerIndex")).toInt(-1);
+        const LayerReference *match = nullptr;
+        for (const auto &r : m_refs) {
+            if (r.slideOffset == offset && r.ownerLayerIdx == ownerIdx) {
+                match = &r;
+                break;
+            }
+        }
+        if (!match || !match->layer) {
+            unresolved.push_back(o);
+            continue;
+        }
+        m_referenceTrackLayers[match->layer.get()] = match->layer;
+        decodeTrack(o, m_layerTimelines[match->layer.get()]);
+    }
+    // References appear once all slides are loaded; anything still unresolved then
+    // points at a layer that no longer reaches this slide and is dropped.
+    m_pendingReferenceTracks = m_refs.isEmpty() ? unresolved : QJsonArray();
+}
+
+void LayersModel::setTimelineSuppressedLayers(const QSet<const BaseLayer *> &layers, bool isLive) {
+    m_timelineSuppressed = layers;
+    m_isLiveSlide = isLive;
+}
+
+bool LayersModel::isTimelineSuppressed(const BaseLayer *layer) const {
+    return m_timelineSuppressed.contains(layer);
+}
+
+void LayersModel::hideUnsuppressedReferences(bool evenWhenLive) {
+    if (m_isLiveSlide && !evenWhenLive)
+        return;
+    for (int row = 0; row < m_order.size(); ++row) {
+        if (ownIndexOfRow(row) >= 0)
+            continue;
+        BaseLayer *layer = rowLayer(row);
+        if (!layer || isTimelineSuppressed(layer))
+            continue;
+        layer->setAlpha(0.f);
+        if (isLayerTimelineDriven(layer))
+            layer->clearAnimState();
+        updateLayer(row);
+    }
+}
+
+namespace {
+bool isPlainAlphaKeyframe(const LayerKeyframe &kf, int timeMs, float alpha) {
+    return kf.timeMs == timeMs && kf.alpha == alpha && kf.easing == 0 && !kf.hasRotate
+        && !kf.hasTranslate && !kf.hasScale && !kf.hasPlane;
+}
+}
+
+bool LayersModel::addReferenceOutroFade(const BaseLayer *layer) {
+    std::lock_guard<std::recursive_mutex> layersLock(m_layersMutex);
+    if (!m_hasTimeline || !hasOutro() || referenceIndexOf(layer) < 0)
+        return false;
+    // A stored track (also one kept from an earlier span) is the user's; leave it.
+    auto it = m_layerTimelines.find(layer);
+    if (it != m_layerTimelines.end() && (!it->second.keyframes.isEmpty() || !it->second.effects.isEmpty()))
+        return false;
+
+    LayerTimeline &track = m_layerTimelines[layer];
+    if (layer->hasTexture()) {
+        addDefaultFadeEffects(track, false, true);
+    }
+    else {
+        LayerKeyframe kfStart;
+        kfStart.timeMs = 0;
+        kfStart.alpha = 1.f;
+        LayerKeyframe kfOutro;
+        kfOutro.timeMs = m_timelineOutroStart;
+        kfOutro.alpha = 1.f;
+        LayerKeyframe kfEnd;
+        kfEnd.timeMs = m_timelineDuration;
+        kfEnd.alpha = 0.f;
+        track.keyframes = { kfStart, kfOutro, kfEnd };
+    }
+
+    rebuildEffectSchedule();
+    const int row = rowOfLayer(layer);
+    if (row >= 0)
+        Q_EMIT dataChanged(index(row, 0), index(row, 0));
+    setLayersNeedsSave(true);
+    Q_EMIT timelineChanged();
+    return true;
+}
+
+bool LayersModel::removeReferenceOutroFade(const BaseLayer *layer) {
+    std::lock_guard<std::recursive_mutex> layersLock(m_layersMutex);
+    if (!layer || ownIndexOf(layer) >= 0)
+        return false;
+    auto it = m_layerTimelines.find(layer);
+    if (it == m_layerTimelines.end())
+        return false;
+    const auto &kfs = it->second.keyframes;
+    const auto &effects = it->second.effects;
+    const bool defaultEffect = kfs.isEmpty() && effects.size() == 1 && isDefaultOutroFade(effects[0]);
+    // Older presentations stored the default fade as keyframes.
+    const bool defaultKeyframes = effects.isEmpty() && kfs.size() == 3
+        && isPlainAlphaKeyframe(kfs[0], 0, 1.f)
+        && isPlainAlphaKeyframe(kfs[1], m_timelineOutroStart, 1.f)
+        && isPlainAlphaKeyframe(kfs[2], m_timelineDuration, 0.f);
+    if (!defaultEffect && !defaultKeyframes)
+        return false;
+
+    m_layerTimelines.erase(it);
+    rebuildEffectSchedule();
+    const int row = rowOfLayer(layer);
+    if (row >= 0)
+        Q_EMIT dataChanged(index(row, 0), index(row, 0));
+    setLayersNeedsSave(true);
+    Q_EMIT timelineChanged();
+    return true;
+}
+
+bool LayersModel::hasTrackForLayer(const BaseLayer *layer) const {
+    if (!m_hasTimeline || !layer)
+        return false;
+    auto it = m_layerTimelines.find(layer);
+    return it != m_layerTimelines.end() && (!it->second.keyframes.isEmpty() || !it->second.effects.isEmpty());
+}
+
+void LayersModel::pruneReferenceTracks(const QSet<const BaseLayer *> &aliveLayers) {
+    std::lock_guard<std::recursive_mutex> layersLock(m_layersMutex);
+    for (auto it = m_referenceTrackLayers.begin(); it != m_referenceTrackLayers.end();) {
+        if (it->second.expired() || !aliveLayers.contains(it->first)) {
+            m_layerTimelines.erase(it->first);
+            it = m_referenceTrackLayers.erase(it);
+        }
+        else {
+            ++it;
+        }
+    }
+}
+
 QString LayersModel::layerTitle(int i) const {
-    if (i >= 0 && m_layers.size() > i && m_layers[i].first)
-        return QString::fromStdString(m_layers[i].first->title());
+    if (const BaseLayer *l = rowLayer(i))
+        return QString::fromStdString(l->title());
     return QString();
 }
 
 int LayersModel::layerVisibility(int i) const {
-    if (i >= 0 && m_layers.size() > i && m_layers[i].first)
-        return static_cast<int>(m_layers[i].first->alpha() * 100.f);
+    if (const BaseLayer *l = rowLayer(i))
+        return static_cast<int>(l->alpha() * 100.f);
     return 0;
 }
 
@@ -287,15 +650,19 @@ int LayersModel::layerIdx(std::string title) {
 }
 
 int LayersModel::layerStatus(int i) const {
-    if (i >= 0 && m_layers.size() > i)
-        return m_layers[i].second;
-    else
-        return -1;
+    const int own = ownIndexOfRow(i);
+    if (own >= 0)
+        return m_layers[own].second;
+    const int ref = referenceIndexOf(rowLayer(i));
+    if (ref >= 0 && m_refs[ref].owner)
+        return m_refs[ref].owner->ownLayerStatus(m_refs[ref].layer.get());
+    return -1;
 }
 
 void LayersModel::setLayerStatus(int i, int status) {
-    if (i >= 0 && i < m_layers.size()) {
-        m_layers[i].second = status;
+    const int own = ownIndexOfRow(i);
+    if (own >= 0) {
+        m_layers[own].second = status;
         Q_EMIT dataChanged(index(i, 0), index(i, 0));
     }
 }
@@ -422,12 +789,14 @@ int LayersModel::addLayer(QString title, int type, QString filepath, int stereoM
             static_cast<uint8_t>(GridSettings::plane_Calculate_Size_Based_on_Video()));
         newLayer->initialize();
 
-        const int layerIdx = m_layers.size();
+        const int layerIdx = rowForNewOwnLayer();
         int initialStatus = (newLayer->type() == BaseLayer::REST || newLayer->type() == BaseLayer::TCP) ? -1 : 0;
         beginInsertRows(QModelIndex(), layerIdx, layerIdx);
         m_layers.push_back(QPair(std::shared_ptr<BaseLayer>(newLayer), initialStatus));
+        m_order.insert(layerIdx, newLayer);
         ensureTimelineSizeMatchesLayers();
         endInsertRows();
+        addDefaultFadeForNewLayer(layerIdx);
 
         // Set up status callback for REST layers
         if (newLayer->type() == BaseLayer::REST) {
@@ -435,12 +804,9 @@ int LayersModel::addLayer(QString title, int type, QString filepath, int stereoM
             // Resolve the row at delivery time: layers may have been moved or removed since.
             restLayer->setStatusCallback([this, newLayer](int status) {
                 QMetaObject::invokeMethod(this, [this, newLayer, status]() {
-                    for (int i = 0; i < m_layers.size(); ++i) {
-                        if (m_layers[i].first.get() == newLayer) {
-                            setLayerStatus(i, status);
-                            break;
-                        }
-                    }
+                    const int row = rowOfLayer(newLayer);
+                    if (row >= 0)
+                        setLayerStatus(row, status);
                 }, Qt::QueuedConnection);
             });
         }
@@ -462,7 +828,7 @@ int LayersModel::addRestLayer(QString title, QString url, int method, QString pa
         return -1;
     }
 
-    RestLayer* restLayer = dynamic_cast<RestLayer*>(m_layers[layerIdx].first.get());
+    RestLayer* restLayer = dynamic_cast<RestLayer*>(rowLayer(layerIdx));
     if (!restLayer)
         return -1;
     restLayer->setMethod(method);
@@ -516,7 +882,7 @@ int LayersModel::addLayerBasedOnMime(QUrl fileUrl) {
     if (layerIdx >= 0
         && PresentationSettings::guessGridModeOnDragAndDrop()
         && (type == BaseLayer::LayerType::IMAGE || type == BaseLayer::LayerType::VIDEO)) {
-        BaseLayer *layer = m_layers[layerIdx].first.get();
+        BaseLayer *layer = rowLayer(layerIdx);
         layer->setShouldPreLoad(true);
         m_draggedLayersAwaitingGridGuess.insert(layer);
     }
@@ -526,18 +892,36 @@ int LayersModel::addLayerBasedOnMime(QUrl fileUrl) {
 
 void LayersModel::removeLayer(int i) {
     std::lock_guard<std::recursive_mutex> layersLock(m_layersMutex);
-    if (i < 0 || i >= m_layers.size() || !m_layers.at(i).first)
+    const int ref = referenceIndexOf(rowLayer(i));
+    if (ref >= 0) {
+        // A reference is removed by ending the owner's visibility span before this slide.
+        // SlidesModel rebuilds the references of all slides on layersModelChanged.
+        const LayerReference r = m_refs[ref];
+        if (r.layer && r.owner && !(r.owner->getLayersCanBeLocked() && r.layer->isLocked())) {
+            r.layer->setKeepVisibilityForNumSlides(std::max(0, r.slideOffset - 1));
+            r.owner->setLayersNeedsSave(true);
+            Q_EMIT layersModelChanged();
+            Q_EMIT layerVisibilitySpanChanged(r.layer.get());
+        }
+        return;
+    }
+
+    const int own = ownIndexOfRow(i);
+    if (own < 0 || !m_layers.at(own).first)
         return;
 
-    if (getLayersCanBeLocked() && m_layers.at(i).first->isLocked())
+    if (getLayersCanBeLocked() && m_layers.at(own).first->isLocked())
         return;
 
-    m_layers[i].first->setEnabled(false);
-    m_draggedLayersAwaitingGridGuess.remove(m_layers[i].first.get());
+    m_layers[own].first->setEnabled(false);
+    m_draggedLayersAwaitingGridGuess.remove(m_layers[own].first.get());
+    m_layerTimelines.erase(m_layers[own].first.get());
 
     beginRemoveRows(QModelIndex(), i, i);
-    m_layers.removeAt(i);
+    m_order.removeAt(i);
+    m_layers.removeAt(own);
     endRemoveRows();
+    rebuildEffectSchedule();
     setLayersNeedsSave(true);
     setNeedSync();
 
@@ -546,7 +930,7 @@ void LayersModel::removeLayer(int i) {
 
 void LayersModel::moveLayer(int i, int t) {
     std::lock_guard<std::recursive_mutex> layersLock(m_layersMutex);
-    if (i < 0 || t < 0 || i >= m_layers.size() || t >= m_layers.size() || i == t) {
+    if (i < 0 || t < 0 || i >= m_order.size() || t >= m_order.size() || i == t) {
         Q_EMIT dataChanged(index(i, 0), index(t, 0));
         Q_EMIT layersModelChanged();
         return;
@@ -560,7 +944,8 @@ void LayersModel::moveLayer(int i, int t) {
         return;
     }
 
-    m_layers.move(i, t);
+    m_order.move(i, t);
+    syncOwnLayersToOrder();
     endMoveRows();
 
     Q_EMIT dataChanged(index(t, 0), index(t, 0));
@@ -572,11 +957,12 @@ void LayersModel::moveLayer(int i, int t) {
 
 void LayersModel::moveLayerTop(int i) {
     std::lock_guard<std::recursive_mutex> layersLock(m_layersMutex);
-    if (i < 1 || i >= m_layers.size())
+    if (i < 1 || i >= m_order.size())
         return;
     if (!beginMoveRows(QModelIndex(), i, i, QModelIndex(), 0))
         return;
-    m_layers.move(i, 0);
+    m_order.move(i, 0);
+    syncOwnLayersToOrder();
     endMoveRows();
     for (int j = 0; j < i; j++)
         updateLayer(j);
@@ -588,11 +974,12 @@ void LayersModel::moveLayerTop(int i) {
 
 void LayersModel::moveLayerUp(int i) {
     std::lock_guard<std::recursive_mutex> layersLock(m_layersMutex);
-    if (i < 1 || i >= m_layers.size())
+    if (i < 1 || i >= m_order.size())
         return;
     if (!beginMoveRows(QModelIndex(), i, i, QModelIndex(), i - 1))
         return;
-    m_layers.move(i, i - 1);
+    m_order.move(i, i - 1);
+    syncOwnLayersToOrder();
     endMoveRows();
     setLayersNeedsSave(true);
     setNeedSync();
@@ -602,11 +989,12 @@ void LayersModel::moveLayerUp(int i) {
 
 void LayersModel::moveLayerDown(int i) {
     std::lock_guard<std::recursive_mutex> layersLock(m_layersMutex);
-    if (i < 0 || i >= (m_layers.size() - 1))
+    if (i < 0 || i >= (m_order.size() - 1))
         return;
     if (!beginMoveRows(QModelIndex(), i + 1, i + 1, QModelIndex(), i))
         return;
-    m_layers.move(i, i + 1);
+    m_order.move(i, i + 1);
+    syncOwnLayersToOrder();
     endMoveRows();
     setLayersNeedsSave(true);
     setNeedSync();
@@ -616,13 +1004,14 @@ void LayersModel::moveLayerDown(int i) {
 
 void LayersModel::moveLayerBottom(int i) {
     std::lock_guard<std::recursive_mutex> layersLock(m_layersMutex);
-    if (i < 0 || i >= (m_layers.size() - 1))
+    if (i < 0 || i >= (m_order.size() - 1))
         return;
-    if (!beginMoveRows(QModelIndex(), m_layers.size() - 1, m_layers.size() - 1, QModelIndex(), i))
+    if (!beginMoveRows(QModelIndex(), i, i, QModelIndex(), m_order.size()))
         return;
-    m_layers.move(i, m_layers.size() - 1);
+    m_order.move(i, m_order.size() - 1);
+    syncOwnLayersToOrder();
     endMoveRows();
-    for (int j = i; j < m_layers.size(); j++)
+    for (int j = i; j < m_order.size(); j++)
         updateLayer(j);
     setLayersNeedsSave(true);
     setNeedSync();
@@ -631,7 +1020,7 @@ void LayersModel::moveLayerBottom(int i) {
 }
 
 void LayersModel::updateLayer(int i) {
-    if (i < 0 || i >= m_layers.size())
+    if (i < 0 || i >= m_order.size())
         return;
 
     // Also called from the render thread (layer status changes and the grid-mode
@@ -648,63 +1037,50 @@ void LayersModel::updateLayer(int i) {
 }
 
 void LayersModel::lockLayer(int i) {
-    if (i < 0 || i >= m_layers.size() || !m_layers[i].first)
+    const int own = ownIndexOfRow(i);
+    if (own < 0 || !m_layers[own].first)
         return;
 
-    m_layers[i].first->setIsLocked(true);
+    m_layers[own].first->setIsLocked(true);
     updateLayer(i);
     setLayersNeedsSave(true);
 }
 
 void LayersModel::unlockLayer(int i) {
-    if (i < 0 || i >= m_layers.size() || !m_layers[i].first)
+    const int own = ownIndexOfRow(i);
+    if (own < 0 || !m_layers[own].first)
         return;
 
-    m_layers[i].first->setIsLocked(false);
+    m_layers[own].first->setIsLocked(false);
     updateLayer(i);
     setLayersNeedsSave(true);
 }
 
 bool LayersModel::isLocked(int i) {
-    if (!getLayersCanBeLocked() || i < 0 || i >= m_layers.size() || !m_layers[i].first)
+    const int own = ownIndexOfRow(i);
+    if (!getLayersCanBeLocked() || own < 0 || !m_layers[own].first)
         return false;
 
-    return m_layers[i].first->isLocked();
+    return m_layers[own].first->isLocked();
 }
 
 void LayersModel::clearLayers() {
     std::lock_guard<std::recursive_mutex> layersLock(m_layersMutex);
+    // References are kept: they belong to earlier slides.
+    beginResetModel();
     if (getLayersCanBeLocked()) {
-        //Move all locked layers above unlocked ones
-        //Remove unlocked layers
-        int unlockedLayers = 0;
-        int lockedLayers = 0;
+        //Keep locked layers (in their order), remove unlocked layers
+        Layers locked;
         for (int i = 0; i < m_layers.size(); i++) {
             if (m_layers[i].first && m_layers[i].first->isLocked()) {
-                if (unlockedLayers > 0) {
-                    if (beginMoveRows(QModelIndex(), i, i, QModelIndex(), lockedLayers)) {
-                        m_layers.move(i, lockedLayers);
-                        endMoveRows();
-                    }
-                }
-                lockedLayers++;
+                locked.push_back(m_layers[i]);
             }
-            else {
-                unlockedLayers++;
+            else if (m_layers[i].first) {
+                m_layers[i].first->setEnabled(false);
+                m_draggedLayersAwaitingGridGuess.remove(m_layers[i].first.get());
             }
         }
-
-        if (lockedLayers < m_layers.size()) {
-            beginRemoveRows(QModelIndex(), lockedLayers, m_layers.size() - 1);
-            for (int i = lockedLayers; i < m_layers.size(); i++) {
-                if (m_layers[i].first) {
-                    m_layers[i].first->setEnabled(false);
-                    m_draggedLayersAwaitingGridGuess.remove(m_layers[i].first.get());
-                }
-            }
-            m_layers.erase(m_layers.begin() + lockedLayers, m_layers.end());
-            endRemoveRows();
-        }
+        m_layers = locked;
 
         if (m_layers.isEmpty())
             setLayersNeedsSave(false);
@@ -712,19 +1088,23 @@ void LayersModel::clearLayers() {
             setLayersNeedsSave(true);
     }
     else {
-        if (!m_layers.isEmpty()) {
-            beginRemoveRows(QModelIndex(), 0, m_layers.size() - 1);
-            for (int i = 0; i < m_layers.size(); i++) {
-                if (m_layers[i].first)
-                    m_layers[i].first->setEnabled(false);
-            }
-            m_layers.clear();
-            endRemoveRows();
+        for (int i = 0; i < m_layers.size(); i++) {
+            if (m_layers[i].first)
+                m_layers[i].first->setEnabled(false);
         }
+        m_layers.clear();
         m_draggedLayersAwaitingGridGuess.clear();
         setLayersNeedsSave(false);
     }
+    m_order.clear();
+    for (const auto &l : m_layers)
+        m_order.append(l.first.get());
+    for (const auto &r : m_refs)
+        m_order.append(r.layer.get());
+    endResetModel();
 
+    ensureTimelineSizeMatchesLayers();
+    rebuildEffectSchedule();
     setNeedSync();
 
     Q_EMIT layersModelChanged();
@@ -732,14 +1112,19 @@ void LayersModel::clearLayers() {
 
 void LayersModel::setLayersVisibility(int value, bool propagateDown) {
     m_layersVisibility = value;
+    // Manual visibility shows layers as they are, without a stale animation pose.
+    if (propagateDown && !m_timelineRunning && !m_outroRunning)
+        clearAllAnimStates();
     for (int i = 0; i < m_layers.size(); i++) {
         if (!m_layers[i].first)
             continue;
         if (propagateDown) {
             m_layers[i].first->setAlpha(static_cast<float>(value) * 0.01f);
         }
-        updateLayer(i);
     }
+    // Also refreshes referenced rows, whose visibility follows the slide transitions.
+    for (int i = 0; i < m_order.size(); i++)
+        updateLayer(i);
     Q_EMIT layersVisibilityChanged();
     setNeedSync();
 }
@@ -784,8 +1169,12 @@ int LayersModel::getLayerToCopyIdx() {
 
 std::shared_ptr<BaseLayer> LayersModel::getLayerToCopy() {
     std::lock_guard<std::recursive_mutex> layersLock(m_layersMutex);
-    if (m_layerToCopyIdx >= 0 && m_layerToCopyIdx < m_layers.size() && m_layers[m_layerToCopyIdx].first)
-        return m_layers[m_layerToCopyIdx].first;
+    const int own = ownIndexOfRow(m_layerToCopyIdx);
+    if (own >= 0 && m_layers[own].first)
+        return m_layers[own].first;
+    const int ref = referenceIndexOf(rowLayer(m_layerToCopyIdx));
+    if (ref >= 0)
+        return m_refs[ref].layer;
 
     return nullptr;
 }
@@ -810,11 +1199,13 @@ void LayersModel::addCopyOfLayer(BaseLayer* srcLayer) {
         newLayer->setHierarchy(hierarchy());
         newLayer->initialize();
 
-        const int layerIdx = m_layers.size();
+        const int layerIdx = rowForNewOwnLayer();
         beginInsertRows(QModelIndex(), layerIdx, layerIdx);
         m_layers.push_back(QPair(std::shared_ptr<BaseLayer>(newLayer), 0));
+        m_order.insert(layerIdx, newLayer);
         ensureTimelineSizeMatchesLayers();
         endInsertRows();
+        addDefaultFadeForNewLayer(layerIdx);
 
         setLayersNeedsSave(true);
         setNeedSync();
@@ -827,20 +1218,21 @@ void LayersModel::overwriteLayerProperties(BaseLayer* srcLayer, int dstLayerIdx)
     if (srcLayer == nullptr)
         return;
 
-    if (dstLayerIdx < 0 || dstLayerIdx >= m_layers.size() || !m_layers[dstLayerIdx].first)
+    BaseLayer *dstLayer = rowLayer(dstLayerIdx);
+    if (!dstLayer || dstLayer == srcLayer)
         return;
 
     std::vector<std::byte> data;
     srcLayer->encodeBaseProperties(data);
 
-    if(m_layers[dstLayerIdx].first->type() == srcLayer->type())
+    if(dstLayer->type() == srcLayer->type())
         srcLayer->encodeTypeProperties(data);
 
     unsigned int pos = 0;
-    m_layers[dstLayerIdx].first->decodeBaseProperties(data, pos);
+    dstLayer->decodeBaseProperties(data, pos);
 
-    if (m_layers[dstLayerIdx].first->type() == srcLayer->type())
-        m_layers[dstLayerIdx].first->decodeTypeProperties(data, pos);
+    if (dstLayer->type() == srcLayer->type())
+        dstLayer->decodeTypeProperties(data, pos);
 
     updateLayer(dstLayerIdx);
     setLayersNeedsSave(true);
@@ -977,6 +1369,7 @@ QString LayersModel::makePathRelativeTo(const QString &filePath, const QStringLi
 
 void LayersModel::decodeFromJSON(QJsonObject &obj, const QStringList &forRelativePaths) {
     std::lock_guard<std::recursive_mutex> layersLock(m_layersMutex);
+    const QScopedValueRollback<bool> decoding(m_decodingLayers, true);
     if (obj.contains(QStringLiteral("name"))) {
         QString name = obj.value(QStringLiteral("name")).toString();
         setLayersName(name);
@@ -1082,7 +1475,8 @@ void LayersModel::decodeFromJSON(QJsonObject &obj, const QStringList &forRelativ
                         stereo = BaseLayer::StereoMode::TBF_3D;
                     }
 
-                    int idx = addLayer(title, type, path, stereo, grid);
+                    const int row = addLayer(title, type, path, stereo, grid);
+                    const int idx = ownIndexOfRow(row);
 
                     if (idx < 0)
                         continue;
@@ -1461,28 +1855,10 @@ void LayersModel::decodeFromJSON(QJsonObject &obj, const QStringList &forRelativ
                         }
                     }
 
-                    // Per-layer timeline keyframes
-                    if (o.contains(QStringLiteral("timelineKeyframes"))) {
-                        ensureTimelineSizeMatchesLayers();
-                        QJsonArray kfArray = o.value(QStringLiteral("timelineKeyframes")).toArray();
-                        LayerTimeline track;
-                        for (auto kv : kfArray) {
-                            QJsonObject ko = kv.toObject();
-                            LayerKeyframe kf;
-                            kf.timeMs       = ko.value(QStringLiteral("timeMs")).toInt();
-                            kf.alpha        = static_cast<float>(ko.value(QStringLiteral("alpha")).toDouble());
-                            kf.hasRotate    = ko.value(QStringLiteral("hasRotate")).toBool(false);
-                            kf.rotateX      = static_cast<float>(ko.value(QStringLiteral("rotateX")).toDouble(0.0));
-                            kf.rotateY      = static_cast<float>(ko.value(QStringLiteral("rotateY")).toDouble(0.0));
-                            kf.rotateZ      = static_cast<float>(ko.value(QStringLiteral("rotateZ")).toDouble(0.0));
-                            kf.hasTranslate = ko.value(QStringLiteral("hasTranslate")).toBool(false);
-                            kf.translateX   = static_cast<float>(ko.value(QStringLiteral("translateX")).toDouble(0.0));
-                            kf.translateY   = static_cast<float>(ko.value(QStringLiteral("translateY")).toDouble(0.0));
-                            kf.translateZ   = static_cast<float>(ko.value(QStringLiteral("translateZ")).toDouble(0.0));
-                            track.keyframes.append(kf);
-                        }
-                        if (idx < m_layerTimelines.size())
-                            m_layerTimelines[idx] = track;
+                    // Per-layer timeline keyframes and effects
+                    if (o.contains(QStringLiteral("timelineKeyframes")) || o.contains(QStringLiteral("animationEffects"))) {
+                        if (LayerTimeline *track = timelineAt(row))
+                            decodeTrack(o, *track);
                     }
                 }
             }
@@ -1503,7 +1879,10 @@ void LayersModel::decodeFromJSON(QJsonObject &obj, const QStringList &forRelativ
                     if (static_cast<int>(m_layers[j].first->type()) == lockedType
                         && m_layers[j].first->title() == lockedTitle) {
                         m_layers[j].first->setEnabled(false);
-                        beginRemoveRows(QModelIndex(), j, j);
+                        m_layerTimelines.erase(m_layers[j].first.get());
+                        const int row = rowOfLayer(m_layers[j].first.get());
+                        beginRemoveRows(QModelIndex(), row, row);
+                        m_order.removeAt(row);
                         m_layers.removeAt(j);
                         endRemoveRows();
                         numLockedLayersLeft--;
@@ -1514,6 +1893,13 @@ void LayersModel::decodeFromJSON(QJsonObject &obj, const QStringList &forRelativ
         }
     }
 
+    // Resolved once SlidesModel has handed over the references (see setReferencedLayers).
+    m_pendingRenderOrder = obj.value(QStringLiteral("renderOrder")).toArray();
+    m_pendingReferenceTracks = obj.value(QStringLiteral("referenceAnimations")).toArray();
+    applyPendingRenderOrder();
+    applyPendingReferenceTracks();
+
+    rebuildEffectSchedule();
     setNeedSync();
 }
 
@@ -1887,28 +2273,11 @@ void LayersModel::encodeToJSON(QJsonObject &obj, const QStringList &forRelativeP
         roiArray.push_back(QJsonValue(roiData));
         layerData.insert(QString(QStringLiteral("roi")), QJsonValue(roiArray));
 
-        // Per-layer timeline keyframes
-        if (m_hasTimeline && li < m_layerTimelines.size() && !m_layerTimelines[li].keyframes.isEmpty()) {
-            QJsonArray kfArray;
-            for (const LayerKeyframe &kf : m_layerTimelines[li].keyframes) {
-                QJsonObject kfObj;
-                kfObj.insert(QStringLiteral("timeMs"), QJsonValue(kf.timeMs));
-                kfObj.insert(QStringLiteral("alpha"),  QJsonValue(static_cast<double>(kf.alpha)));
-                if (kf.hasRotate) {
-                    kfObj.insert(QStringLiteral("hasRotate"), QJsonValue(true));
-                    kfObj.insert(QStringLiteral("rotateX"),   QJsonValue(static_cast<double>(kf.rotateX)));
-                    kfObj.insert(QStringLiteral("rotateY"),   QJsonValue(static_cast<double>(kf.rotateY)));
-                    kfObj.insert(QStringLiteral("rotateZ"),   QJsonValue(static_cast<double>(kf.rotateZ)));
-                }
-                if (kf.hasTranslate) {
-                    kfObj.insert(QStringLiteral("hasTranslate"), QJsonValue(true));
-                    kfObj.insert(QStringLiteral("translateX"),   QJsonValue(static_cast<double>(kf.translateX)));
-                    kfObj.insert(QStringLiteral("translateY"),   QJsonValue(static_cast<double>(kf.translateY)));
-                    kfObj.insert(QStringLiteral("translateZ"),   QJsonValue(static_cast<double>(kf.translateZ)));
-                }
-                kfArray.push_back(kfObj);
-            }
-            layerData.insert(QStringLiteral("timelineKeyframes"), kfArray);
+        // Per-layer timeline keyframes and effects
+        if (const LayerTimeline *track = timelineAt(rowOfLayer(layer.get()))) {
+            const QJsonObject trackObj = encodeTrack(*track);
+            for (auto it = trackObj.begin(); it != trackObj.end(); ++it)
+                layerData.insert(it.key(), it.value());
         }
 
         layersArray.push_back(QJsonValue(layerData));
@@ -1916,7 +2285,181 @@ void LayersModel::encodeToJSON(QJsonObject &obj, const QStringList &forRelativeP
 
     obj.insert(QString(QStringLiteral("layers")), QJsonValue(layersArray));
 
+    // Render order and animations of layers referenced from earlier slides. Own layers are
+    // written as "L<index in layers>", references as "R<slides back>:<index in that slide>".
+    if (!m_refs.isEmpty()) {
+        QJsonArray orderArray;
+        for (const BaseLayer *l : m_order) {
+            const int own = ownIndexOf(l);
+            if (own >= 0) {
+                orderArray.push_back(QStringLiteral("L%1").arg(own));
+                continue;
+            }
+            const int ref = referenceIndexOf(l);
+            if (ref >= 0)
+                orderArray.push_back(QStringLiteral("R%1:%2").arg(m_refs[ref].slideOffset).arg(m_refs[ref].ownerLayerIdx));
+        }
+        obj.insert(QStringLiteral("renderOrder"), orderArray);
+
+        QJsonArray refTracks;
+        for (const LayerReference &r : m_refs) {
+            auto it = m_layerTimelines.find(r.layer.get());
+            if (it == m_layerTimelines.end())
+                continue;
+            QJsonObject trackObj = encodeTrack(it->second);
+            if (trackObj.isEmpty())
+                continue;
+            trackObj.insert(QStringLiteral("slideOffset"), r.slideOffset);
+            trackObj.insert(QStringLiteral("layerIndex"), r.ownerLayerIdx);
+            refTracks.push_back(trackObj);
+        }
+        if (!refTracks.isEmpty())
+            obj.insert(QStringLiteral("referenceAnimations"), refTracks);
+    }
+
     setLayersNeedsSave(false);
+}
+
+QJsonObject LayersModel::encodeTrack(const LayerTimeline &track) const {
+    QJsonObject obj;
+    if (m_hasTimeline && !track.keyframes.isEmpty()) {
+        QJsonArray kfArray;
+        for (const LayerKeyframe &kf : track.keyframes) {
+            QJsonObject kfObj;
+            kfObj.insert(QStringLiteral("timeMs"), QJsonValue(kf.timeMs));
+            kfObj.insert(QStringLiteral("alpha"),  QJsonValue(static_cast<double>(kf.alpha)));
+            if (kf.easing != 0)
+                kfObj.insert(QStringLiteral("easing"), QJsonValue(kf.easing));
+            if (kf.hasRotate) {
+                kfObj.insert(QStringLiteral("hasRotate"), QJsonValue(true));
+                kfObj.insert(QStringLiteral("rotateX"),   QJsonValue(static_cast<double>(kf.rotateX)));
+                kfObj.insert(QStringLiteral("rotateY"),   QJsonValue(static_cast<double>(kf.rotateY)));
+                kfObj.insert(QStringLiteral("rotateZ"),   QJsonValue(static_cast<double>(kf.rotateZ)));
+            }
+            if (kf.hasTranslate) {
+                kfObj.insert(QStringLiteral("hasTranslate"), QJsonValue(true));
+                kfObj.insert(QStringLiteral("translateX"),   QJsonValue(static_cast<double>(kf.translateX)));
+                kfObj.insert(QStringLiteral("translateY"),   QJsonValue(static_cast<double>(kf.translateY)));
+                kfObj.insert(QStringLiteral("translateZ"),   QJsonValue(static_cast<double>(kf.translateZ)));
+            }
+            if (kf.hasScale) {
+                kfObj.insert(QStringLiteral("hasScale"), QJsonValue(true));
+                kfObj.insert(QStringLiteral("scale"),    QJsonValue(static_cast<double>(kf.scale)));
+            }
+            if (kf.hasPlane) {
+                kfObj.insert(QStringLiteral("hasPlane"),        QJsonValue(true));
+                kfObj.insert(QStringLiteral("planeAzimuth"),    QJsonValue(static_cast<double>(kf.planeAzimuth)));
+                kfObj.insert(QStringLiteral("planeElevation"),  QJsonValue(static_cast<double>(kf.planeElevation)));
+                kfObj.insert(QStringLiteral("planeRoll"),       QJsonValue(static_cast<double>(kf.planeRoll)));
+                kfObj.insert(QStringLiteral("planeDistance"),   QJsonValue(static_cast<double>(kf.planeDistance)));
+                kfObj.insert(QStringLiteral("planeHorizontal"), QJsonValue(static_cast<double>(kf.planeHorizontal)));
+                kfObj.insert(QStringLiteral("planeVertical"),   QJsonValue(static_cast<double>(kf.planeVertical)));
+            }
+            kfArray.push_back(kfObj);
+        }
+        obj.insert(QStringLiteral("timelineKeyframes"), kfArray);
+    }
+    if (m_hasTimeline && !track.effects.isEmpty()) {
+        QJsonArray efArray;
+        for (const auto &e : track.effects) {
+            QJsonObject eo;
+            eo.insert(QStringLiteral("order"), e.order);
+            eo.insert(QStringLiteral("phase"), e.phase);
+            eo.insert(QStringLiteral("preset"), e.preset);
+            eo.insert(QStringLiteral("trigger"), e.trigger);
+            eo.insert(QStringLiteral("delayMs"), e.delayMs);
+            eo.insert(QStringLiteral("durationMs"), e.durationMs);
+            eo.insert(QStringLiteral("easing"), e.easing);
+            eo.insert(QStringLiteral("direction"), e.direction);
+            eo.insert(QStringLiteral("feather"), static_cast<double>(e.feather));
+            eo.insert(QStringLiteral("amount"), static_cast<double>(e.amount));
+            if (cplay::anim::effectPresetIsMove(e.preset)) {
+                QJsonObject t;
+                t.insert(QStringLiteral("azimuth"), static_cast<double>(e.target.azimuth));
+                t.insert(QStringLiteral("elevation"), static_cast<double>(e.target.elevation));
+                t.insert(QStringLiteral("roll"), static_cast<double>(e.target.roll));
+                t.insert(QStringLiteral("distance"), static_cast<double>(e.target.distance));
+                t.insert(QStringLiteral("horizontal"), static_cast<double>(e.target.horizontal));
+                t.insert(QStringLiteral("vertical"), static_cast<double>(e.target.vertical));
+                eo.insert(QStringLiteral("planeTarget"), t);
+                if (e.hasStart) {
+                    QJsonObject st;
+                    st.insert(QStringLiteral("azimuth"), static_cast<double>(e.start.azimuth));
+                    st.insert(QStringLiteral("elevation"), static_cast<double>(e.start.elevation));
+                    st.insert(QStringLiteral("roll"), static_cast<double>(e.start.roll));
+                    st.insert(QStringLiteral("distance"), static_cast<double>(e.start.distance));
+                    st.insert(QStringLiteral("horizontal"), static_cast<double>(e.start.horizontal));
+                    st.insert(QStringLiteral("vertical"), static_cast<double>(e.start.vertical));
+                    eo.insert(QStringLiteral("planeStart"), st);
+                }
+            }
+            efArray.push_back(eo);
+        }
+        obj.insert(QStringLiteral("animationEffects"), efArray);
+    }
+    return obj;
+}
+
+void LayersModel::decodeTrack(const QJsonObject &o, LayerTimeline &track) const {
+    track.keyframes.clear();
+    track.effects.clear();
+    const QJsonArray kfArray = o.value(QStringLiteral("timelineKeyframes")).toArray();
+    for (const auto &kv : kfArray) {
+        QJsonObject ko = kv.toObject();
+        LayerKeyframe kf;
+        kf.timeMs          = ko.value(QStringLiteral("timeMs")).toInt();
+        kf.alpha           = static_cast<float>(ko.value(QStringLiteral("alpha")).toDouble());
+        kf.easing          = ko.value(QStringLiteral("easing")).toInt(0);
+        kf.hasRotate       = ko.value(QStringLiteral("hasRotate")).toBool(false);
+        kf.rotateX         = static_cast<float>(ko.value(QStringLiteral("rotateX")).toDouble(0.0));
+        kf.rotateY         = static_cast<float>(ko.value(QStringLiteral("rotateY")).toDouble(0.0));
+        kf.rotateZ         = static_cast<float>(ko.value(QStringLiteral("rotateZ")).toDouble(0.0));
+        kf.hasTranslate    = ko.value(QStringLiteral("hasTranslate")).toBool(false);
+        kf.translateX      = static_cast<float>(ko.value(QStringLiteral("translateX")).toDouble(0.0));
+        kf.translateY      = static_cast<float>(ko.value(QStringLiteral("translateY")).toDouble(0.0));
+        kf.translateZ      = static_cast<float>(ko.value(QStringLiteral("translateZ")).toDouble(0.0));
+        kf.hasScale        = ko.value(QStringLiteral("hasScale")).toBool(false);
+        kf.scale           = static_cast<float>(ko.value(QStringLiteral("scale")).toDouble(1.0));
+        kf.hasPlane        = ko.value(QStringLiteral("hasPlane")).toBool(false);
+        kf.planeAzimuth    = static_cast<float>(ko.value(QStringLiteral("planeAzimuth")).toDouble(0.0));
+        kf.planeElevation  = static_cast<float>(ko.value(QStringLiteral("planeElevation")).toDouble(0.0));
+        kf.planeRoll       = static_cast<float>(ko.value(QStringLiteral("planeRoll")).toDouble(0.0));
+        kf.planeDistance   = static_cast<float>(ko.value(QStringLiteral("planeDistance")).toDouble(0.0));
+        kf.planeHorizontal = static_cast<float>(ko.value(QStringLiteral("planeHorizontal")).toDouble(0.0));
+        kf.planeVertical   = static_cast<float>(ko.value(QStringLiteral("planeVertical")).toDouble(0.0));
+        track.keyframes.append(kf);
+    }
+    const QJsonArray efArray = o.value(QStringLiteral("animationEffects")).toArray();
+    for (const auto &ev : efArray) {
+        QJsonObject eo = ev.toObject();
+        cplay::anim::LayerEffect e;
+        e.order      = eo.value(QStringLiteral("order")).toInt(0);
+        e.phase      = std::clamp(eo.value(QStringLiteral("phase")).toInt(0), 0, 1);
+        e.preset     = std::clamp(eo.value(QStringLiteral("preset")).toInt(1), 0, cplay::anim::effectPresetCount() - 1);
+        e.trigger    = std::clamp(eo.value(QStringLiteral("trigger")).toInt(1), 0, 2);
+        e.delayMs    = std::max(0, eo.value(QStringLiteral("delayMs")).toInt(0));
+        e.durationMs = std::max(1, eo.value(QStringLiteral("durationMs")).toInt(500));
+        e.easing     = eo.value(QStringLiteral("easing")).toInt(0);
+        e.direction  = std::clamp(eo.value(QStringLiteral("direction")).toInt(0), 0, cplay::anim::effectDirectionCount() - 1);
+        e.feather    = static_cast<float>(eo.value(QStringLiteral("feather")).toDouble(0.1));
+        e.amount     = static_cast<float>(eo.value(QStringLiteral("amount")).toDouble(1.0));
+        const QJsonObject t = eo.value(QStringLiteral("planeTarget")).toObject();
+        e.target.azimuth    = static_cast<float>(t.value(QStringLiteral("azimuth")).toDouble(0.0));
+        e.target.elevation  = static_cast<float>(t.value(QStringLiteral("elevation")).toDouble(0.0));
+        e.target.roll       = static_cast<float>(t.value(QStringLiteral("roll")).toDouble(0.0));
+        e.target.distance   = static_cast<float>(t.value(QStringLiteral("distance")).toDouble(0.0));
+        e.target.horizontal = static_cast<float>(t.value(QStringLiteral("horizontal")).toDouble(0.0));
+        e.target.vertical   = static_cast<float>(t.value(QStringLiteral("vertical")).toDouble(0.0));
+        const QJsonObject st = eo.value(QStringLiteral("planeStart")).toObject();
+        e.hasStart = !st.isEmpty();
+        e.start.azimuth    = static_cast<float>(st.value(QStringLiteral("azimuth")).toDouble(0.0));
+        e.start.elevation  = static_cast<float>(st.value(QStringLiteral("elevation")).toDouble(0.0));
+        e.start.roll       = static_cast<float>(st.value(QStringLiteral("roll")).toDouble(0.0));
+        e.start.distance   = static_cast<float>(st.value(QStringLiteral("distance")).toDouble(0.0));
+        e.start.horizontal = static_cast<float>(st.value(QStringLiteral("horizontal")).toDouble(0.0));
+        e.start.vertical   = static_cast<float>(st.value(QStringLiteral("vertical")).toDouble(0.0));
+        track.effects.append(e);
+    }
 }
 
 bool LayersModel::runRenderOnLayersThatShouldUpdate(bool updateRendering, bool preload) {
@@ -1974,7 +2517,7 @@ bool LayersModel::runRenderOnLayersThatShouldUpdate(bool updateRendering, bool p
                     m_layers[i].second = 0;
                 }
                 if (currentStatus != m_layers[i].second) {
-                    updateLayer(i);
+                    updateLayerRow(layer.get());
                     statusHasUpdated = true;
                 }
             }
@@ -1997,9 +2540,10 @@ void LayersModel::guessGridModeForDraggedLayer(int layerIdx, BaseLayer *layer) {
         guessedGridMode = BaseLayer::Sphere_EQR;
     }
 
+    Q_UNUSED(layerIdx)
     if (guessedGridMode != layer->gridMode()) {
         layer->setGridMode(guessedGridMode);
-        updateLayer(layerIdx);
+        updateLayerRow(layer);
         setLayersNeedsSave(true);
         setNeedSync();
     }
@@ -2076,31 +2620,45 @@ void LayersModel::setHasTimeline(bool value) {
         // Default outro start to fadeDurationToNextSlide if not already set
         if (m_timelineOutroStart <= 0 && fadeMs > 0 && fadeMs < m_timelineDuration)
             m_timelineOutroStart = m_timelineDuration - fadeMs;
-        // Auto-generate default fade-in / fade-out keyframes for layers without any keyframes
+        // Default fade-in / fade-out for layers without any animation
         int outroMs = (m_timelineOutroStart > 0) ? m_timelineOutroStart : m_timelineDuration;
         bool anyGenerated = false;
-        for (int l = 0; l < m_layers.size(); ++l) {
-            if (l < m_layerTimelines.size() && m_layerTimelines[l].keyframes.isEmpty()) {
+        for (int l = 0; l < m_order.size(); ++l) {
+            // Referenced layers are already visible when the slide starts; they only get
+            // a track when the user animates them.
+            if (ownIndexOfRow(l) < 0)
+                continue;
+            LayerTimeline *track = timelineAt(l);
+            if (track && track->keyframes.isEmpty() && track->effects.isEmpty()) {
+                anyGenerated = true;
+                if (layerSupportsAnimation(l)) {
+                    addDefaultFadeEffects(*track, true, hasOutro());
+                    continue;
+                }
                 LayerKeyframe kfStart;
                 kfStart.timeMs = 0;
                 kfStart.alpha  = 0.f;
                 LayerKeyframe kfFull;
                 kfFull.timeMs = outroMs;
                 kfFull.alpha  = 1.f;
-                m_layerTimelines[l].keyframes.append(kfStart);
-                m_layerTimelines[l].keyframes.append(kfFull);
+                track->keyframes.append(kfStart);
+                track->keyframes.append(kfFull);
                 if (m_timelineOutroStart > 0) {
                     LayerKeyframe kfEnd;
                     kfEnd.timeMs = m_timelineDuration;
                     kfEnd.alpha  = 0.f;
-                    m_layerTimelines[l].keyframes.append(kfEnd);
+                    track->keyframes.append(kfEnd);
                 }
-                anyGenerated = true;
             }
         }
         if (anyGenerated)
             Q_EMIT layersModelChanged();
     }
+    else {
+        stopAllTimelines();
+        clearAllAnimStates();
+    }
+    rebuildEffectSchedule();
     setLayersNeedsSave(true);
     Q_EMIT timelineChanged();
 }
@@ -2150,64 +2708,266 @@ int LayersModel::outroDuration() const {
 }
 
 void LayersModel::ensureTimelineSizeMatchesLayers() {
-    while (m_layerTimelines.size() < m_layers.size())
-        m_layerTimelines.append(LayerTimeline());
+    // Drop timelines of layers that no longer exist (their address could be reused).
+    // Tracks of referenced layers survive while the layer lives, even if the reference
+    // is gone for now (the owner's visibility span may be extended again).
+    for (auto it = m_referenceTrackLayers.begin(); it != m_referenceTrackLayers.end();)
+        it = it->second.expired() ? m_referenceTrackLayers.erase(it) : std::next(it);
+    for (auto it = m_layerTimelines.begin(); it != m_layerTimelines.end();) {
+        const bool found = ownIndexOf(it->first) >= 0
+            || m_referenceTrackLayers.find(it->first) != m_referenceTrackLayers.end();
+        it = found ? std::next(it) : m_layerTimelines.erase(it);
+    }
+}
+
+void LayersModel::addDefaultFadeEffects(LayerTimeline &track, bool intro, bool outro) const {
+    using namespace cplay::anim;
+    for (int phase = 0; phase < 2; ++phase) {
+        if (!(phase == 0 ? intro : outro))
+            continue;
+        LayerEffect e;
+        e.phase = phase;
+        e.preset = static_cast<int>(EffectPreset::Fade);
+        e.trigger = static_cast<int>(EffectTrigger::WithPrevious);
+        e.easing = static_cast<int>(phase == 0 ? Easing::OutCubic : Easing::InCubic);
+        e.durationMs = std::max(1, phase == 0 ? introDuration() : outroDuration());
+        int maxOrder = -1;
+        for (const auto &kv : m_layerTimelines) {
+            for (const auto &other : kv.second.effects) {
+                if (other.phase == phase)
+                    maxOrder = std::max(maxOrder, other.order);
+            }
+        }
+        for (const auto &other : track.effects) {
+            if (other.phase == phase)
+                maxOrder = std::max(maxOrder, other.order);
+        }
+        e.order = maxOrder + 1;
+        track.effects.append(e);
+    }
+}
+
+bool LayersModel::isDefaultOutroFade(const cplay::anim::LayerEffect &e) const {
+    using namespace cplay::anim;
+    return e.phase == static_cast<int>(EffectPhase::Outro) && e.preset == static_cast<int>(EffectPreset::Fade)
+        && e.trigger == static_cast<int>(EffectTrigger::WithPrevious) && e.delayMs == 0
+        && e.easing == static_cast<int>(Easing::InCubic) && e.durationMs == std::max(1, outroDuration());
+}
+
+void LayersModel::addDefaultFadeForNewLayer(int layerIdx) {
+    if (!m_hasTimeline || m_decodingLayers || !layerSupportsAnimation(layerIdx))
+        return;
+    LayerTimeline *track = timelineAt(layerIdx);
+    if (!track || !track->keyframes.isEmpty() || !track->effects.isEmpty())
+        return;
+    addDefaultFadeEffects(*track, true, hasOutro());
+    rebuildEffectSchedule();
+    Q_EMIT timelineChanged();
+}
+
+LayerTimeline *LayersModel::timelineAt(int layerIdx) {
+    const BaseLayer *layer = rowLayer(layerIdx);
+    if (!layer)
+        return nullptr;
+    return &m_layerTimelines[layer];
+}
+
+const LayerTimeline *LayersModel::timelineAt(int layerIdx) const {
+    const BaseLayer *layer = rowLayer(layerIdx);
+    if (!layer)
+        return nullptr;
+    auto it = m_layerTimelines.find(layer);
+    return it == m_layerTimelines.end() ? nullptr : &it->second;
+}
+
+namespace {
+
+QVariantMap keyframeToMap(const LayerKeyframe &kf) {
+    QVariantMap m;
+    m[QStringLiteral("timeMs")]          = kf.timeMs;
+    m[QStringLiteral("alpha")]           = static_cast<double>(kf.alpha);
+    m[QStringLiteral("easing")]          = kf.easing;
+    m[QStringLiteral("hasRotate")]       = kf.hasRotate;
+    m[QStringLiteral("rotateX")]         = static_cast<double>(kf.rotateX);
+    m[QStringLiteral("rotateY")]         = static_cast<double>(kf.rotateY);
+    m[QStringLiteral("rotateZ")]         = static_cast<double>(kf.rotateZ);
+    m[QStringLiteral("hasTranslate")]    = kf.hasTranslate;
+    m[QStringLiteral("translateX")]      = static_cast<double>(kf.translateX);
+    m[QStringLiteral("translateY")]      = static_cast<double>(kf.translateY);
+    m[QStringLiteral("translateZ")]      = static_cast<double>(kf.translateZ);
+    m[QStringLiteral("hasScale")]        = kf.hasScale;
+    m[QStringLiteral("scale")]           = static_cast<double>(kf.scale);
+    m[QStringLiteral("hasPlane")]        = kf.hasPlane;
+    m[QStringLiteral("planeAzimuth")]    = static_cast<double>(kf.planeAzimuth);
+    m[QStringLiteral("planeElevation")]  = static_cast<double>(kf.planeElevation);
+    m[QStringLiteral("planeRoll")]       = static_cast<double>(kf.planeRoll);
+    m[QStringLiteral("planeDistance")]   = static_cast<double>(kf.planeDistance);
+    m[QStringLiteral("planeHorizontal")] = static_cast<double>(kf.planeHorizontal);
+    m[QStringLiteral("planeVertical")]   = static_cast<double>(kf.planeVertical);
+    return m;
+}
+
+// Only keys present in the map are changed.
+void applyMapToKeyframe(const QVariantMap &m, LayerKeyframe &kf) {
+    auto f = [&m](const char *key, float &out) {
+        const QString k = QString::fromLatin1(key);
+        if (m.contains(k))
+            out = static_cast<float>(m.value(k).toDouble());
+    };
+    auto b = [&m](const char *key, bool &out) {
+        const QString k = QString::fromLatin1(key);
+        if (m.contains(k))
+            out = m.value(k).toBool();
+    };
+    if (m.contains(QStringLiteral("timeMs")))
+        kf.timeMs = m.value(QStringLiteral("timeMs")).toInt();
+    if (m.contains(QStringLiteral("easing")))
+        kf.easing = m.value(QStringLiteral("easing")).toInt();
+    f("alpha", kf.alpha);
+    b("hasRotate", kf.hasRotate);
+    f("rotateX", kf.rotateX);
+    f("rotateY", kf.rotateY);
+    f("rotateZ", kf.rotateZ);
+    b("hasTranslate", kf.hasTranslate);
+    f("translateX", kf.translateX);
+    f("translateY", kf.translateY);
+    f("translateZ", kf.translateZ);
+    b("hasScale", kf.hasScale);
+    f("scale", kf.scale);
+    b("hasPlane", kf.hasPlane);
+    f("planeAzimuth", kf.planeAzimuth);
+    f("planeElevation", kf.planeElevation);
+    f("planeRoll", kf.planeRoll);
+    f("planeDistance", kf.planeDistance);
+    f("planeHorizontal", kf.planeHorizontal);
+    f("planeVertical", kf.planeVertical);
+    kf.alpha = std::clamp(kf.alpha, 0.f, 1.f);
+}
+
+void sortKeyframes(QVector<LayerKeyframe> &kfs) {
+    std::stable_sort(kfs.begin(), kfs.end(), [](const LayerKeyframe &a, const LayerKeyframe &b) {
+        return a.timeMs < b.timeMs;
+    });
+}
+
+// Interpolates one keyframe group; easing of the segment's first keyframe shapes the segment.
+template <size_t N, typename Has, typename Get>
+bool evaluateGroup(const QVector<LayerKeyframe> &kfs, int timeMs, Has has, Get get, std::array<float, N> &out) {
+    const LayerKeyframe *prev = nullptr;
+    const LayerKeyframe *next = nullptr;
+    for (const LayerKeyframe &kf : kfs) {
+        if (!has(kf))
+            continue;
+        if (kf.timeMs <= timeMs)
+            prev = &kf;
+        else {
+            next = &kf;
+            break;
+        }
+    }
+    if (!prev && !next)
+        return false;
+    if (!prev) {
+        out = get(*next);
+        return true;
+    }
+    if (!next || next->timeMs <= prev->timeMs) {
+        out = get(*prev);
+        return true;
+    }
+    const float t = static_cast<float>(timeMs - prev->timeMs) / static_cast<float>(next->timeMs - prev->timeMs);
+    const float e = cplay::anim::ease(prev->easing, t);
+    const std::array<float, N> a = get(*prev);
+    const std::array<float, N> c = get(*next);
+    for (size_t i = 0; i < N; ++i)
+        out[i] = a[i] + e * (c[i] - a[i]);
+    return true;
+}
+
+QVariantMap effectToMap(const cplay::anim::LayerEffect &e) {
+    QVariantMap m;
+    m[QStringLiteral("order")]      = e.order;
+    m[QStringLiteral("phase")]      = e.phase;
+    m[QStringLiteral("preset")]     = e.preset;
+    m[QStringLiteral("presetName")] = QString::fromLatin1(cplay::anim::effectPresetName(e.preset));
+    m[QStringLiteral("trigger")]    = e.trigger;
+    m[QStringLiteral("delayMs")]    = e.delayMs;
+    m[QStringLiteral("durationMs")] = e.durationMs;
+    m[QStringLiteral("easing")]     = e.easing;
+    m[QStringLiteral("direction")]  = e.direction;
+    m[QStringLiteral("feather")]    = static_cast<double>(e.feather);
+    m[QStringLiteral("amount")]     = static_cast<double>(e.amount);
+    m[QStringLiteral("targetAzimuth")]    = static_cast<double>(e.target.azimuth);
+    m[QStringLiteral("targetElevation")]  = static_cast<double>(e.target.elevation);
+    m[QStringLiteral("targetRoll")]       = static_cast<double>(e.target.roll);
+    m[QStringLiteral("targetDistance")]   = static_cast<double>(e.target.distance);
+    m[QStringLiteral("targetHorizontal")] = static_cast<double>(e.target.horizontal);
+    m[QStringLiteral("targetVertical")]   = static_cast<double>(e.target.vertical);
+    m[QStringLiteral("hasStart")]         = e.hasStart;
+    m[QStringLiteral("startAzimuth")]     = static_cast<double>(e.start.azimuth);
+    m[QStringLiteral("startElevation")]   = static_cast<double>(e.start.elevation);
+    m[QStringLiteral("startRoll")]        = static_cast<double>(e.start.roll);
+    m[QStringLiteral("startDistance")]    = static_cast<double>(e.start.distance);
+    m[QStringLiteral("startHorizontal")]  = static_cast<double>(e.start.horizontal);
+    m[QStringLiteral("startVertical")]    = static_cast<double>(e.start.vertical);
+    return m;
+}
+
+QVariantMap poseToMap(const cplay::anim::PlanePose &p) {
+    QVariantMap m;
+    m[QStringLiteral("azimuth")]    = static_cast<double>(p.azimuth);
+    m[QStringLiteral("elevation")]  = static_cast<double>(p.elevation);
+    m[QStringLiteral("roll")]       = static_cast<double>(p.roll);
+    m[QStringLiteral("distance")]   = static_cast<double>(p.distance);
+    m[QStringLiteral("horizontal")] = static_cast<double>(p.horizontal);
+    m[QStringLiteral("vertical")]   = static_cast<double>(p.vertical);
+    return m;
+}
+
+// Entrance/exit effects that shape visibility; Move effects leave it alone.
+bool hasVisibilityEffects(const LayerTimeline &track, cplay::anim::EffectPhase phase) {
+    for (const auto &e : track.effects) {
+        if (e.phase == static_cast<int>(phase) && !cplay::anim::effectPresetIsMove(e.preset))
+            return true;
+    }
+    return false;
+}
+
 }
 
 QVariantList LayersModel::getKeyframes(int layerIdx) const {
     QVariantList result;
-    if (layerIdx < 0 || layerIdx >= m_layerTimelines.size())
+    const LayerTimeline *track = timelineAt(layerIdx);
+    if (!track)
         return result;
-    for (const LayerKeyframe &kf : m_layerTimelines[layerIdx].keyframes) {
-        QVariantMap m;
-        m[QStringLiteral("timeMs")]       = kf.timeMs;
-        m[QStringLiteral("alpha")]        = static_cast<double>(kf.alpha);
-        m[QStringLiteral("hasRotate")]    = kf.hasRotate;
-        m[QStringLiteral("rotateX")]      = static_cast<double>(kf.rotateX);
-        m[QStringLiteral("rotateY")]      = static_cast<double>(kf.rotateY);
-        m[QStringLiteral("rotateZ")]      = static_cast<double>(kf.rotateZ);
-        m[QStringLiteral("hasTranslate")] = kf.hasTranslate;
-        m[QStringLiteral("translateX")]   = static_cast<double>(kf.translateX);
-        m[QStringLiteral("translateY")]   = static_cast<double>(kf.translateY);
-        m[QStringLiteral("translateZ")]   = static_cast<double>(kf.translateZ);
-        result.append(m);
-    }
+    for (const LayerKeyframe &kf : track->keyframes)
+        result.append(keyframeToMap(kf));
     return result;
 }
 
 void LayersModel::setKeyframes(int layerIdx, const QVariantList &keyframes) {
-    ensureTimelineSizeMatchesLayers();
-    if (layerIdx < 0 || layerIdx >= m_layerTimelines.size())
+    LayerTimeline *track = timelineAt(layerIdx);
+    if (!track)
         return;
-    LayerTimeline track;
+    track->keyframes.clear();
     for (const QVariant &v : keyframes) {
-        QVariantMap m = v.toMap();
         LayerKeyframe kf;
-        kf.timeMs       = m.value(QStringLiteral("timeMs"),       0).toInt();
-        kf.alpha        = static_cast<float>(m.value(QStringLiteral("alpha"),        0.0).toDouble());
-        kf.hasRotate    = m.value(QStringLiteral("hasRotate"),    false).toBool();
-        kf.rotateX      = static_cast<float>(m.value(QStringLiteral("rotateX"),      0.0).toDouble());
-        kf.rotateY      = static_cast<float>(m.value(QStringLiteral("rotateY"),      0.0).toDouble());
-        kf.rotateZ      = static_cast<float>(m.value(QStringLiteral("rotateZ"),      0.0).toDouble());
-        kf.hasTranslate = m.value(QStringLiteral("hasTranslate"), false).toBool();
-        kf.translateX   = static_cast<float>(m.value(QStringLiteral("translateX"),   0.0).toDouble());
-        kf.translateY   = static_cast<float>(m.value(QStringLiteral("translateY"),   0.0).toDouble());
-        kf.translateZ   = static_cast<float>(m.value(QStringLiteral("translateZ"),   0.0).toDouble());
-        track.keyframes.append(kf);
+        applyMapToKeyframe(v.toMap(), kf);
+        track->keyframes.append(kf);
     }
-    m_layerTimelines[layerIdx] = track;
+    sortKeyframes(track->keyframes);
     setLayersNeedsSave(true);
     Q_EMIT timelineChanged();
 }
 
 void LayersModel::addKeyframe(int layerIdx, int timeMs, float alpha) {
-    ensureTimelineSizeMatchesLayers();
-    if (layerIdx < 0 || layerIdx >= m_layerTimelines.size())
+    LayerTimeline *track = timelineAt(layerIdx);
+    if (!track)
         return;
     LayerKeyframe kf;
     kf.timeMs = std::max(0, std::min(timeMs, m_timelineDuration));
     kf.alpha  = std::max(0.f, std::min(alpha, 1.f));
-    auto &kfs = m_layerTimelines[layerIdx].keyframes;
+    auto &kfs = track->keyframes;
     int insertPos = 0;
     while (insertPos < kfs.size() && kfs[insertPos].timeMs <= kf.timeMs)
         ++insertPos;
@@ -2221,8 +2981,8 @@ void LayersModel::addKeyframe(int layerIdx, int timeMs, float alpha,
                               float rotateX, float rotateY, float rotateZ,
                               bool hasTranslate,
                               float translateX, float translateY, float translateZ) {
-    ensureTimelineSizeMatchesLayers();
-    if (layerIdx < 0 || layerIdx >= m_layerTimelines.size())
+    LayerTimeline *track = timelineAt(layerIdx);
+    if (!track)
         return;
     LayerKeyframe kf;
     kf.timeMs       = std::max(0, std::min(timeMs, m_timelineDuration));
@@ -2231,7 +2991,7 @@ void LayersModel::addKeyframe(int layerIdx, int timeMs, float alpha,
     kf.rotateX      = rotateX; kf.rotateY = rotateY; kf.rotateZ = rotateZ;
     kf.hasTranslate = hasTranslate;
     kf.translateX   = translateX; kf.translateY = translateY; kf.translateZ = translateZ;
-    auto &kfs = m_layerTimelines[layerIdx].keyframes;
+    auto &kfs = track->keyframes;
     int insertPos = 0;
     while (insertPos < kfs.size() && kfs[insertPos].timeMs <= kf.timeMs)
         ++insertPos;
@@ -2241,9 +3001,10 @@ void LayersModel::addKeyframe(int layerIdx, int timeMs, float alpha,
 }
 
 void LayersModel::removeKeyframe(int layerIdx, int keyframeIdx) {
-    if (layerIdx < 0 || layerIdx >= m_layerTimelines.size())
+    LayerTimeline *track = timelineAt(layerIdx);
+    if (!track)
         return;
-    auto &kfs = m_layerTimelines[layerIdx].keyframes;
+    auto &kfs = track->keyframes;
     if (keyframeIdx < 0 || keyframeIdx >= kfs.size())
         return;
     kfs.removeAt(keyframeIdx);
@@ -2252,16 +3013,15 @@ void LayersModel::removeKeyframe(int layerIdx, int keyframeIdx) {
 }
 
 void LayersModel::updateKeyframe(int layerIdx, int keyframeIdx, int timeMs, float alpha) {
-    if (layerIdx < 0 || layerIdx >= m_layerTimelines.size())
+    LayerTimeline *track = timelineAt(layerIdx);
+    if (!track)
         return;
-    auto &kfs = m_layerTimelines[layerIdx].keyframes;
+    auto &kfs = track->keyframes;
     if (keyframeIdx < 0 || keyframeIdx >= kfs.size())
         return;
     kfs[keyframeIdx].timeMs = std::max(0, std::min(timeMs, m_timelineDuration));
     kfs[keyframeIdx].alpha  = std::max(0.f, std::min(alpha, 1.f));
-    std::sort(kfs.begin(), kfs.end(), [](const LayerKeyframe &a, const LayerKeyframe &b) {
-        return a.timeMs < b.timeMs;
-    });
+    sortKeyframes(kfs);
     setLayersNeedsSave(true);
     Q_EMIT timelineChanged();
 }
@@ -2271,9 +3031,10 @@ void LayersModel::updateKeyframe(int layerIdx, int keyframeIdx, int timeMs, floa
                                  float rotateX, float rotateY, float rotateZ,
                                  bool hasTranslate,
                                  float translateX, float translateY, float translateZ) {
-    if (layerIdx < 0 || layerIdx >= m_layerTimelines.size())
+    LayerTimeline *track = timelineAt(layerIdx);
+    if (!track)
         return;
-    auto &kfs = m_layerTimelines[layerIdx].keyframes;
+    auto &kfs = track->keyframes;
     if (keyframeIdx < 0 || keyframeIdx >= kfs.size())
         return;
     kfs[keyframeIdx].timeMs       = std::max(0, std::min(timeMs, m_timelineDuration));
@@ -2282,109 +3043,346 @@ void LayersModel::updateKeyframe(int layerIdx, int keyframeIdx, int timeMs, floa
     kfs[keyframeIdx].rotateX      = rotateX; kfs[keyframeIdx].rotateY = rotateY; kfs[keyframeIdx].rotateZ = rotateZ;
     kfs[keyframeIdx].hasTranslate = hasTranslate;
     kfs[keyframeIdx].translateX   = translateX; kfs[keyframeIdx].translateY = translateY; kfs[keyframeIdx].translateZ = translateZ;
-    std::sort(kfs.begin(), kfs.end(), [](const LayerKeyframe &a, const LayerKeyframe &b) {
-        return a.timeMs < b.timeMs;
-    });
+    sortKeyframes(kfs);
+    setLayersNeedsSave(true);
+    Q_EMIT timelineChanged();
+}
+
+void LayersModel::setKeyframeEasing(int layerIdx, int keyframeIdx, int easing) {
+    LayerTimeline *track = timelineAt(layerIdx);
+    if (!track || keyframeIdx < 0 || keyframeIdx >= track->keyframes.size())
+        return;
+    track->keyframes[keyframeIdx].easing = std::clamp(easing, 0, cplay::anim::easingCount() - 1);
+    setLayersNeedsSave(true);
+    Q_EMIT timelineChanged();
+}
+
+void LayersModel::updateKeyframeExtras(int layerIdx, int keyframeIdx, const QVariantMap &values) {
+    LayerTimeline *track = timelineAt(layerIdx);
+    if (!track || keyframeIdx < 0 || keyframeIdx >= track->keyframes.size())
+        return;
+    LayerKeyframe &kf = track->keyframes[keyframeIdx];
+    applyMapToKeyframe(values, kf);
+    kf.timeMs = std::clamp(kf.timeMs, 0, m_timelineDuration);
+    // A freshly enabled group starts from the layer's current values.
+    BaseLayer *layer = rowLayer(layerIdx);
+    if (values.value(QStringLiteral("hasPlane")).toBool() && !values.contains(QStringLiteral("planeAzimuth"))) {
+        kf.planeAzimuth = static_cast<float>(layer->planeAzimuth());
+        kf.planeElevation = static_cast<float>(layer->planeElevation());
+        kf.planeRoll = static_cast<float>(layer->planeRoll());
+        kf.planeDistance = static_cast<float>(layer->planeDistance());
+        kf.planeHorizontal = static_cast<float>(layer->planeHorizontal());
+        kf.planeVertical = static_cast<float>(layer->planeVertical());
+    }
+    sortKeyframes(track->keyframes);
     setLayersNeedsSave(true);
     Q_EMIT timelineChanged();
 }
 
 float LayersModel::evaluateAlphaAt(int layerIdx, int timeMs) const {
-    if (layerIdx < 0 || layerIdx >= m_layerTimelines.size())
+    const LayerTimeline *track = timelineAt(layerIdx);
+    if (!track || track->keyframes.isEmpty())
         return 0.f;
-    const auto &kfs = m_layerTimelines[layerIdx].keyframes;
-    if (kfs.isEmpty())
-        return 0.f;
-    if (timeMs <= kfs.first().timeMs) return kfs.first().alpha;
-    if (timeMs >= kfs.last().timeMs)  return kfs.last().alpha;
-    for (int i = 0; i < kfs.size() - 1; i++) {
-        if (timeMs >= kfs[i].timeMs && timeMs <= kfs[i + 1].timeMs) {
-            float t = static_cast<float>(timeMs - kfs[i].timeMs)
-                    / static_cast<float>(kfs[i + 1].timeMs - kfs[i].timeMs);
-            return kfs[i].alpha + t * (kfs[i + 1].alpha - kfs[i].alpha);
-        }
-    }
-    return kfs.last().alpha;
+    std::array<float, 1> a{0.f};
+    evaluateGroup(track->keyframes, timeMs, [](const LayerKeyframe &) { return true; },
+        [](const LayerKeyframe &k) { return std::array<float, 1>{k.alpha}; }, a);
+    return std::clamp(a[0], 0.f, 1.f);
 }
 
-bool LayersModel::evaluateRotateAt(int layerIdx, int timeMs, float &rx, float &ry, float &rz) const {
-    if (layerIdx < 0 || layerIdx >= m_layerTimelines.size()) return false;
-    const auto &kfs = m_layerTimelines[layerIdx].keyframes;
-    QVector<const LayerKeyframe *> rKFs;
-    for (const LayerKeyframe &kf : kfs)
-        if (kf.hasRotate) rKFs.append(&kf);
-    if (rKFs.isEmpty()) return false;
-    if (timeMs <= rKFs.first()->timeMs) { rx = rKFs.first()->rotateX; ry = rKFs.first()->rotateY; rz = rKFs.first()->rotateZ; return true; }
-    if (timeMs >= rKFs.last()->timeMs)  { rx = rKFs.last()->rotateX;  ry = rKFs.last()->rotateY;  rz = rKFs.last()->rotateZ;  return true; }
-    for (int i = 0; i < rKFs.size() - 1; ++i) {
-        if (timeMs >= rKFs[i]->timeMs && timeMs <= rKFs[i + 1]->timeMs) {
-            float t = static_cast<float>(timeMs - rKFs[i]->timeMs)
-                    / static_cast<float>(rKFs[i + 1]->timeMs - rKFs[i]->timeMs);
-            rx = rKFs[i]->rotateX + t * (rKFs[i + 1]->rotateX - rKFs[i]->rotateX);
-            ry = rKFs[i]->rotateY + t * (rKFs[i + 1]->rotateY - rKFs[i]->rotateY);
-            rz = rKFs[i]->rotateZ + t * (rKFs[i + 1]->rotateZ - rKFs[i]->rotateZ);
-            return true;
-        }
+cplay::anim::LayerAnimState LayersModel::evaluateAnimState(int layerIdx, int timeMs) const {
+    using namespace cplay::anim;
+    LayerAnimState state;
+    BaseLayer *layer = rowLayer(layerIdx);
+    if (!layer)
+        return state;
+
+    // Render state carries offsets from the saved values.
+    PlanePose pose;
+    if (evaluateMovePose(layer, timeMs, pose)) {
+        state.planeAngleOffset = glm::vec3(pose.azimuth - static_cast<float>(layer->planeAzimuth()),
+                                           pose.elevation - static_cast<float>(layer->planeElevation()),
+                                           pose.roll - static_cast<float>(layer->planeRoll()));
+        state.planePosOffset = glm::vec3(pose.horizontal - static_cast<float>(layer->planeHorizontal()),
+                                         pose.vertical - static_cast<float>(layer->planeVertical()),
+                                         pose.distance - static_cast<float>(layer->planeDistance()));
     }
-    rx = rKFs.last()->rotateX; ry = rKFs.last()->rotateY; rz = rKFs.last()->rotateZ;
-    return true;
+
+    const LayerTimeline *track = timelineAt(layerIdx);
+    if (!track)
+        return state;
+
+    // Keyframe values are absolute.
+    const auto &kfs = track->keyframes;
+    std::array<float, 3> v3{};
+    if (evaluateGroup(kfs, timeMs, [](const LayerKeyframe &k) { return k.hasRotate; },
+            [](const LayerKeyframe &k) { return std::array<float, 3>{k.rotateX, k.rotateY, k.rotateZ}; }, v3))
+        state.rotateOffset = glm::vec3(v3[0], v3[1], v3[2]) - layer->rotate();
+    if (evaluateGroup(kfs, timeMs, [](const LayerKeyframe &k) { return k.hasTranslate; },
+            [](const LayerKeyframe &k) { return std::array<float, 3>{k.translateX, k.translateY, k.translateZ}; }, v3))
+        state.translateOffset = glm::vec3(v3[0], v3[1], v3[2]) - layer->translate();
+    std::array<float, 1> v1{};
+    if (evaluateGroup(kfs, timeMs, [](const LayerKeyframe &k) { return k.hasScale; },
+            [](const LayerKeyframe &k) { return std::array<float, 1>{k.scale}; }, v1))
+        state.scale = std::max(0.f, v1[0]);
+    std::array<float, 6> v6{};
+    if (evaluateGroup(kfs, timeMs, [](const LayerKeyframe &k) { return k.hasPlane; },
+            [](const LayerKeyframe &k) {
+                return std::array<float, 6>{k.planeAzimuth, k.planeElevation, k.planeRoll,
+                                            k.planeHorizontal, k.planeVertical, k.planeDistance};
+            }, v6)) {
+        state.planeAngleOffset = glm::vec3(v6[0] - static_cast<float>(layer->planeAzimuth()),
+                                           v6[1] - static_cast<float>(layer->planeElevation()),
+                                           v6[2] - static_cast<float>(layer->planeRoll()));
+        state.planePosOffset = glm::vec3(v6[3] - static_cast<float>(layer->planeHorizontal()),
+                                         v6[4] - static_cast<float>(layer->planeVertical()),
+                                         v6[5] - static_cast<float>(layer->planeDistance()));
+    }
+
+    // Effects: intro effects run within [0, outroStart), exit effects from outroStart.
+    const int outroStart = hasOutro() ? m_timelineOutroStart : m_timelineDuration;
+    auto applySchedule = [&](const QVector<ScheduledEffect> &schedule, int localMs, bool intro) {
+        for (const ScheduledEffect &s : schedule) {
+            if (s.layer != layer || s.effectIdx < 0 || s.effectIdx >= track->effects.size())
+                continue;
+            const LayerEffect &e = track->effects[s.effectIdx];
+            if (effectPresetIsMove(e.preset))
+                continue;
+            const int dur = std::max(1, s.endMs - s.startMs);
+            const float p = static_cast<float>(localMs - s.startMs) / static_cast<float>(dur);
+            applyEffect(e, p, state);
+            // Hidden until its entrance starts, and after its exit ends.
+            if ((intro && localMs < s.startMs) || (!intro && localMs >= s.endMs))
+                state.alphaMul = 0.f;
+        }
+    };
+    if (timeMs < outroStart || !hasOutro())
+        applySchedule(m_introSchedule, timeMs, true);
+    else
+        applySchedule(m_outroSchedule, timeMs - outroStart, false);
+
+    return state;
 }
 
-bool LayersModel::evaluateTranslateAt(int layerIdx, int timeMs, float &tx, float &ty, float &tz) const {
-    if (layerIdx < 0 || layerIdx >= m_layerTimelines.size()) return false;
-    const auto &kfs = m_layerTimelines[layerIdx].keyframes;
-    QVector<const LayerKeyframe *> tKFs;
-    for (const LayerKeyframe &kf : kfs)
-        if (kf.hasTranslate) tKFs.append(&kf);
-    if (tKFs.isEmpty()) return false;
-    if (timeMs <= tKFs.first()->timeMs) { tx = tKFs.first()->translateX; ty = tKFs.first()->translateY; tz = tKFs.first()->translateZ; return true; }
-    if (timeMs >= tKFs.last()->timeMs)  { tx = tKFs.last()->translateX;  ty = tKFs.last()->translateY;  tz = tKFs.last()->translateZ;  return true; }
-    for (int i = 0; i < tKFs.size() - 1; ++i) {
-        if (timeMs >= tKFs[i]->timeMs && timeMs <= tKFs[i + 1]->timeMs) {
-            float t = static_cast<float>(timeMs - tKFs[i]->timeMs)
-                    / static_cast<float>(tKFs[i + 1]->timeMs - tKFs[i]->timeMs);
-            tx = tKFs[i]->translateX + t * (tKFs[i + 1]->translateX - tKFs[i]->translateX);
-            ty = tKFs[i]->translateY + t * (tKFs[i + 1]->translateY - tKFs[i]->translateY);
-            tz = tKFs[i]->translateZ + t * (tKFs[i + 1]->translateZ - tKFs[i]->translateZ);
-            return true;
-        }
+cplay::anim::PlanePose LayersModel::entryPose(const BaseLayer *layer) const {
+    auto it = m_entryPoses.find(layer);
+    if (it != m_entryPoses.end())
+        return it->second;
+    cplay::anim::PlanePose p;
+    if (layer) {
+        p.azimuth = static_cast<float>(layer->planeAzimuth());
+        p.elevation = static_cast<float>(layer->planeElevation());
+        p.roll = static_cast<float>(layer->planeRoll());
+        p.distance = static_cast<float>(layer->planeDistance());
+        p.horizontal = static_cast<float>(layer->planeHorizontal());
+        p.vertical = static_cast<float>(layer->planeVertical());
     }
-    tx = tKFs.last()->translateX; ty = tKFs.last()->translateY; tz = tKFs.last()->translateZ;
-    return true;
+    return p;
+}
+
+bool LayersModel::evaluateMovePose(const BaseLayer *layer, int timeMs, cplay::anim::PlanePose &pose,
+                                   const cplay::anim::LayerEffect *stopBefore) const {
+    using namespace cplay::anim;
+    pose = entryPose(layer);
+    bool moved = m_entryPoses.find(layer) != m_entryPoses.end();
+    auto it = m_layerTimelines.find(layer);
+    if (!m_hasTimeline || it == m_layerTimelines.end())
+        return moved;
+    const LayerTimeline &track = it->second;
+    const bool inOutro = hasOutro() && timeMs >= m_timelineOutroStart;
+    bool stopped = false;
+
+    // Each move starts where the previous one ended (or from the entry pose), unless it
+    // has its own start; a first move with its own start holds it until it plays.
+    auto run = [&](const QVector<ScheduledEffect> &schedule, int localMs) {
+        PlanePose from = pose;
+        bool first = true;
+        for (const ScheduledEffect &s : schedule) {
+            if (s.layer != layer || s.effectIdx < 0 || s.effectIdx >= track.effects.size())
+                continue;
+            const LayerEffect &e = track.effects[s.effectIdx];
+            if (&e == stopBefore) {
+                stopped = true;
+                return;
+            }
+            if (!effectPresetIsMove(e.preset))
+                continue;
+            moved = true;
+            if (e.hasStart) {
+                from = e.start;
+                if (first)
+                    pose = e.start;
+            }
+            first = false;
+            if (localMs < s.startMs)
+                continue;
+            const float p = std::clamp(static_cast<float>(localMs - s.startMs)
+                                       / static_cast<float>(std::max(1, s.endMs - s.startMs)), 0.f, 1.f);
+            pose = lerpPose(from, e.target, ease(e.easing, p));
+            from = e.target;
+        }
+    };
+    run(m_introSchedule, inOutro ? std::numeric_limits<int>::max() : timeMs);
+    if (inOutro && !stopped)
+        run(m_outroSchedule, timeMs - m_timelineOutroStart);
+    return moved;
+}
+
+void LayersModel::setEntryPoses(std::unordered_map<const BaseLayer *, cplay::anim::PlanePose> poses) {
+    m_entryPoses = std::move(poses);
+}
+
+bool LayersModel::finalMovePose(const BaseLayer *layer, cplay::anim::PlanePose &pose) const {
+    // Exit moves only run on layers leaving the show, so they are not carried on.
+    return evaluateMovePose(layer, hasOutro() ? m_timelineOutroStart : std::numeric_limits<int>::max(), pose);
+}
+
+void LayersModel::applyCarriedPoses() {
+    for (int l = 0; l < m_order.size(); ++l) {
+        if (ownIndexOfRow(l) >= 0)
+            continue;
+        BaseLayer *layer = rowLayer(l);
+        if (!layer || isTimelineSuppressed(layer) || hasTrackForLayer(layer))
+            continue;
+        layer->setAnimState(evaluateAnimState(l, 0));
+        updateLayer(l);
+    }
+}
+
+QVariantMap LayersModel::poseBeforeEffect(int layerIdx, int effectIdx) const {
+    const LayerTimeline *track = timelineAt(layerIdx);
+    const BaseLayer *layer = rowLayer(layerIdx);
+    if (!track || !layer || effectIdx < 0 || effectIdx >= track->effects.size())
+        return poseToMap(entryPose(layer));
+    if (track->effects[effectIdx].hasStart)
+        return poseToMap(track->effects[effectIdx].start);
+    cplay::anim::PlanePose pose;
+    evaluateMovePose(layer, std::numeric_limits<int>::max(), pose, &track->effects[effectIdx]);
+    return poseToMap(pose);
+}
+
+void LayersModel::captureMovePose(int layerIdx, int effectIdx, bool end) {
+    using namespace cplay::anim;
+    LayerTimeline *track = timelineAt(layerIdx);
+    BaseLayer *layer = rowLayer(layerIdx);
+    if (!track || !layer || effectIdx < 0 || effectIdx >= track->effects.size()
+        || !effectPresetIsMove(track->effects[effectIdx].preset))
+        return;
+    LayerEffect &e = track->effects[effectIdx];
+
+    PlanePose before;
+    const bool movedBefore = evaluateMovePose(layer, std::numeric_limits<int>::max(), before, &e);
+    if (!e.hasStart) {
+        e.start = before;
+        e.hasStart = true;
+    }
+
+    const LayerAnimState &s = layer->animState();
+    const bool anim = layer->animActive();
+    PlanePose shown;
+    shown.azimuth = static_cast<float>(layer->planeAzimuth()) + (anim ? s.planeAngleOffset.x : 0.f);
+    shown.elevation = static_cast<float>(layer->planeElevation()) + (anim ? s.planeAngleOffset.y : 0.f);
+    shown.roll = static_cast<float>(layer->planeRoll()) + (anim ? s.planeAngleOffset.z : 0.f);
+    shown.horizontal = static_cast<float>(layer->planeHorizontal()) + (anim ? s.planePosOffset.x : 0.f);
+    shown.vertical = static_cast<float>(layer->planeVertical()) + (anim ? s.planePosOffset.y : 0.f);
+    shown.distance = static_cast<float>(layer->planeDistance()) + (anim ? s.planePosOffset.z : 0.f);
+    (end ? e.target : e.start) = shown;
+
+    // Slides before the layer's first move show its saved pose, which a drag may have changed.
+    if (!movedBefore) {
+        layer->setPlaneAzimuth(e.start.azimuth);
+        layer->setPlaneElevation(e.start.elevation);
+        layer->setPlaneRoll(e.start.roll);
+        layer->setPlaneHorizontal(e.start.horizontal);
+        layer->setPlaneVertical(e.start.vertical);
+        layer->setPlaneDistance(e.start.distance);
+    }
+    layer->setAnimState(evaluateAnimState(layerIdx, m_timelinePositionMs));
+    updateLayer(layerIdx);
+    setLayersNeedsSave(true);
+    Q_EMIT timelineChanged();
+}
+
+bool LayersModel::effectPresetIsMove(int preset) const {
+    return cplay::anim::effectPresetIsMove(preset);
 }
 
 bool LayersModel::layerHasKeyframes(int layerIdx) const {
-    if (layerIdx < 0 || layerIdx >= m_layerTimelines.size())
-        return false;
-    return !m_layerTimelines[layerIdx].keyframes.isEmpty();
+    const LayerTimeline *track = timelineAt(layerIdx);
+    return track && !track->keyframes.isEmpty();
 }
 
-void LayersModel::applyTimelineAt(int timeMs) {
-    for (int l = 0; l < m_layers.size(); ++l) {
-        if (!m_layers[l].first)
+bool LayersModel::layerHasEffects(int layerIdx) const {
+    const LayerTimeline *track = timelineAt(layerIdx);
+    return track && !track->effects.isEmpty();
+}
+
+bool LayersModel::isLayerTimelineDriven(const BaseLayer *layer) const {
+    if (!m_hasTimeline || !layer)
+        return false;
+    auto it = m_layerTimelines.find(layer);
+    if (it == m_layerTimelines.end())
+        return false;
+    if (!it->second.keyframes.isEmpty())
+        return true;
+    return hasVisibilityEffects(it->second, cplay::anim::EffectPhase::Intro);
+}
+
+void LayersModel::clearAllAnimStates() {
+    for (const auto &l : m_layers) {
+        if (l.first && l.first->animActive() && !isTimelineSuppressed(l.first.get()))
+            l.first->clearAnimState();
+    }
+    // A referenced layer keeps the pose it got from earlier slides unless this slide animates it.
+    for (const auto &r : m_refs) {
+        if (r.layer && r.layer->animActive() && !isTimelineSuppressed(r.layer.get())
+            && isLayerTimelineDriven(r.layer.get()))
+            r.layer->clearAnimState();
+    }
+}
+
+void LayersModel::applyTimelineAt(int timeMs, bool skipReferences) {
+    const bool inOutro = hasOutro() && timeMs >= m_timelineOutroStart;
+    for (int l = 0; l < m_order.size(); ++l) {
+        BaseLayer *layer = rowLayer(l);
+        if (!layer || isTimelineSuppressed(layer))
             continue;
-        if (l < m_layerTimelines.size() && !m_layerTimelines[l].keyframes.isEmpty()) {
-            m_layers[l].first->setAlpha(evaluateAlphaAt(l, timeMs));
-            float rx = 0.f, ry = 0.f, rz = 0.f;
-            if (evaluateRotateAt(l, timeMs, rx, ry, rz)) {
-                glm::vec3 r(rx, ry, rz);
-                m_layers[l].first->setRotate(r);
-            }
-            float tx = 0.f, ty = 0.f, tz = 0.f;
-            if (evaluateTranslateAt(l, timeMs, tx, ty, tz)) {
-                glm::vec3 t(tx, ty, tz);
-                m_layers[l].first->setTranslate(t);
-            }
-        } else {
-            // No keyframes: fade in linearly over the intro, hold 1.0 from outroStart onward
-            int introEnd = hasOutro() ? m_timelineOutroStart : m_timelineDuration;
-            if (introEnd > 0 && timeMs < introEnd) {
+        const LayerTimeline *track = timelineAt(l);
+        const bool isRef = ownIndexOfRow(l) < 0;
+        if (isRef && skipReferences)
+            continue;
+        // Referenced layers without a track in this slide keep their visibility and the
+        // pose earlier slides moved them to.
+        if (isRef && (!track || (track->keyframes.isEmpty() && track->effects.isEmpty()))) {
+            layer->setAnimState(evaluateAnimState(l, timeMs));
+            updateLayer(l);
+            continue;
+        }
+        const bool hasKfs = track && !track->keyframes.isEmpty();
+        const bool hasIntroEffects = track && hasVisibilityEffects(*track, cplay::anim::EffectPhase::Intro);
+
+        if (hasKfs) {
+            layer->setAlpha(evaluateAlphaAt(l, timeMs));
+        }
+        else if (hasIntroEffects) {
+            // Visibility is shaped by the effects; keep the layer running once the intro started.
+            layer->setAlpha(timeMs > 0 ? 1.f : 0.f);
+        }
+        else if (isRef) {
+            // Only exit effects or moves: already visible when this slide starts.
+            layer->setAlpha(1.f);
+        }
+        else {
+            // No keyframes: fade in linearly over the first intro step, hold 1.0 afterwards
+            int introEnd = !m_introStepStarts.isEmpty() ? m_introStepStarts.first()
+                         : (hasOutro() ? m_timelineOutroStart : m_timelineDuration);
+            if (introEnd > 0 && timeMs < introEnd && !inOutro) {
                 float t = static_cast<float>(timeMs) / static_cast<float>(introEnd);
-                m_layers[l].first->setAlpha(t);
+                layer->setAlpha(t);
             } else {
-                m_layers[l].first->setAlpha(1.f);
+                layer->setAlpha(1.f);
             }
         }
+        layer->setAnimState(evaluateAnimState(l, timeMs));
         updateLayer(l);
     }
 }
@@ -2393,32 +3391,466 @@ void LayersModel::applyTimelineOutroAt(int outroTimeMs, const QVector<float> &ta
     if (!hasOutro())
         return;
     int absTimeMs = std::max(m_timelineOutroStart, std::min(m_timelineOutroStart + outroTimeMs, m_timelineDuration));
-    for (int l = 0; l < m_layers.size(); ++l) {
-        if (!m_layers[l].first)
+    for (int l = 0; l < m_order.size(); ++l) {
+        BaseLayer *layer = rowLayer(l);
+        // Layers that continue in the live slide do not run this slide's exit.
+        if (!layer || isTimelineSuppressed(layer))
             continue;
-        if (l < m_layerTimelines.size() && !m_layerTimelines[l].keyframes.isEmpty()) {
-            float targetAlpha = (l < targetAlphaPerLayer.size()) ? targetAlphaPerLayer[l] : m_layers[l].first->alpha();
-            m_layers[l].first->setAlpha(evaluateAlphaAt(l, absTimeMs) * targetAlpha);
-            float rx = 0.f, ry = 0.f, rz = 0.f;
-            if (evaluateRotateAt(l, absTimeMs, rx, ry, rz)) {
-                glm::vec3 r(rx, ry, rz);
-                m_layers[l].first->setRotate(r);
-            }
-            float tx = 0.f, ty = 0.f, tz = 0.f;
-            if (evaluateTranslateAt(l, absTimeMs, tx, ty, tz)) {
-                glm::vec3 t(tx, ty, tz);
-                m_layers[l].first->setTranslate(t);
-            }
-        } else {
+        const LayerTimeline *track = timelineAt(l);
+        float targetAlpha = (l < targetAlphaPerLayer.size()) ? targetAlphaPerLayer[l] : layer->alpha();
+        const bool hasOutroEffects = track && hasVisibilityEffects(*track, cplay::anim::EffectPhase::Outro);
+        if (track && !track->keyframes.isEmpty()) {
+            layer->setAlpha(evaluateAlphaAt(l, absTimeMs) * targetAlpha);
+        }
+        else if (hasOutroEffects) {
+            layer->setAlpha(targetAlpha);
+        }
+        else {
             // No keyframes: layer is fully visible at the outro boundary, fades to 0
             int dur = outroDuration();
             if (dur > 0) {
                 float ft = static_cast<float>(std::min(outroTimeMs, dur)) / static_cast<float>(dur);
-                m_layers[l].first->setAlpha(1.f - ft);
+                layer->setAlpha(1.f - ft);
             }
         }
+        layer->setAnimState(evaluateAnimState(l, absTimeMs));
         updateLayer(l);
     }
+}
+
+// ---- Entrance / exit effects ----------------------------------------------
+
+void LayersModel::rebuildEffectSchedule() {
+    using namespace cplay::anim;
+    m_introSchedule.clear();
+    m_outroSchedule.clear();
+    m_introStepStarts.clear();
+    m_introEffectsSpan = 0;
+    m_outroEffectsSpan = 0;
+
+    struct Item {
+        const BaseLayer *layer;
+        int layerIdx;
+        int effectIdx;
+        const LayerEffect *effect;
+    };
+
+    for (int phase = 0; phase < 2; ++phase) {
+        QVector<Item> items;
+        for (int l = 0; l < m_order.size(); ++l) {
+            const LayerTimeline *track = timelineAt(l);
+            if (!track)
+                continue;
+            for (int i = 0; i < track->effects.size(); ++i) {
+                if (track->effects[i].phase == phase)
+                    items.append({rowLayer(l), l, i, &track->effects[i]});
+            }
+        }
+        std::stable_sort(items.begin(), items.end(), [](const Item &a, const Item &b) {
+            if (a.effect->order != b.effect->order)
+                return a.effect->order < b.effect->order;
+            return a.layerIdx < b.layerIdx;
+        });
+
+        auto &schedule = phase == 0 ? m_introSchedule : m_outroSchedule;
+        int prevStart = 0;
+        int prevEnd = 0;
+        int maxEnd = 0;
+        int step = 0;
+        for (int k = 0; k < items.size(); ++k) {
+            const LayerEffect &e = *items[k].effect;
+            int trigger = e.trigger;
+            // Exits run automatically when the slide is left.
+            if (phase == 1 && trigger == static_cast<int>(EffectTrigger::OnClick))
+                trigger = static_cast<int>(EffectTrigger::AfterPrevious);
+
+            int start = 0;
+            if (trigger == static_cast<int>(EffectTrigger::OnClick)) {
+                // A leading click step leaves room for the regular slide fade first.
+                const int stepStart = k == 0 ? std::max(1, PresentationSettings::fadeDurationToNextSlide()) : maxEnd;
+                ++step;
+                m_introStepStarts.append(stepStart);
+                start = stepStart + e.delayMs;
+            }
+            else if (trigger == static_cast<int>(EffectTrigger::WithPrevious)) {
+                start = prevStart + e.delayMs;
+            }
+            else {
+                start = prevEnd + e.delayMs;
+            }
+            const int end = start + std::max(1, e.durationMs);
+            schedule.append({items[k].layer, items[k].effectIdx, start, end, step});
+            prevStart = start;
+            prevEnd = end;
+            maxEnd = std::max(maxEnd, end);
+        }
+        if (phase == 0)
+            m_introEffectsSpan = std::max(maxEnd, m_introStepStarts.isEmpty() ? 0 : m_introStepStarts.last());
+        else
+            m_outroEffectsSpan = maxEnd;
+    }
+    Q_EMIT animationStepChanged();
+}
+
+void LayersModel::fitTimelineToEffects() {
+    bool changed = false;
+    const int introDur = introDuration();
+    if (m_introEffectsSpan > introDur) {
+        if (hasOutro()) {
+            m_timelineDuration += m_introEffectsSpan - introDur;
+            m_timelineOutroStart = m_introEffectsSpan;
+        }
+        else {
+            m_timelineDuration = std::max(m_introEffectsSpan, 100);
+        }
+        changed = true;
+    }
+    if (m_outroEffectsSpan > outroDuration()) {
+        if (!hasOutro())
+            m_timelineOutroStart = std::max(m_timelineDuration, 1);
+        m_timelineDuration = m_timelineOutroStart + m_outroEffectsSpan;
+        changed = true;
+    }
+    if (changed)
+        Q_EMIT timelineChanged();
+}
+
+void LayersModel::enableTimelineForEffects() {
+    if (m_hasTimeline)
+        return;
+    m_hasTimeline = true;
+    m_timelineDuration = 100;
+    m_timelineOutroStart = -1;
+}
+
+QVariantList LayersModel::getEffects(int layerIdx) const {
+    QVariantList result;
+    const LayerTimeline *track = timelineAt(layerIdx);
+    if (!track)
+        return result;
+    const BaseLayer *layer = rowLayer(layerIdx);
+    for (int i = 0; i < track->effects.size(); ++i) {
+        QVariantMap m = effectToMap(track->effects[i]);
+        const auto &schedule = track->effects[i].phase == 0 ? m_introSchedule : m_outroSchedule;
+        for (const ScheduledEffect &s : schedule) {
+            if (s.layer == layer && s.effectIdx == i) {
+                m[QStringLiteral("startMs")] = s.startMs;
+                m[QStringLiteral("endMs")] = s.endMs;
+                m[QStringLiteral("step")] = s.step;
+                break;
+            }
+        }
+        m[QStringLiteral("effectIdx")] = i;
+        m[QStringLiteral("layerIdx")] = layerIdx;
+        result.append(m);
+    }
+    return result;
+}
+
+QVariantList LayersModel::getSlideEffects(int phase) const {
+    QVariantList result;
+    const auto &schedule = phase == 0 ? m_introSchedule : m_outroSchedule;
+    for (const ScheduledEffect &s : schedule) {
+        const int layerIdx = rowOfLayer(s.layer);
+        const LayerTimeline *track = timelineAt(layerIdx);
+        if (!track || s.effectIdx < 0 || s.effectIdx >= track->effects.size())
+            continue;
+        QVariantMap m = effectToMap(track->effects[s.effectIdx]);
+        m[QStringLiteral("layerIdx")] = layerIdx;
+        m[QStringLiteral("effectIdx")] = s.effectIdx;
+        m[QStringLiteral("layerTitle")] = layerTitle(layerIdx);
+        m[QStringLiteral("startMs")] = s.startMs;
+        m[QStringLiteral("endMs")] = s.endMs;
+        m[QStringLiteral("step")] = s.step;
+        result.append(m);
+    }
+    return result;
+}
+
+int LayersModel::addEffect(int layerIdx, int phase, int preset) {
+    using namespace cplay::anim;
+    LayerTimeline *track = timelineAt(layerIdx);
+    if (!track || !layerSupportsAnimation(layerIdx))
+        return -1;
+    LayerEffect e;
+    e.phase = std::clamp(phase, 0, 1);
+    e.preset = std::clamp(preset, 0, effectPresetCount() - 1);
+    int maxOrder = -1;
+    for (const auto &kv : m_layerTimelines) {
+        for (const auto &other : kv.second.effects) {
+            if (other.phase == e.phase)
+                maxOrder = std::max(maxOrder, other.order);
+        }
+    }
+    e.order = maxOrder + 1;
+    e.trigger = static_cast<int>(EffectTrigger::WithPrevious);
+    e.easing = static_cast<int>(e.phase == 0 ? Easing::OutCubic : Easing::InCubic);
+    e.durationMs = std::max(1, PresentationSettings::fadeDurationToNextSlide());
+    if (e.preset == static_cast<int>(EffectPreset::Appear))
+        e.durationMs = 1;
+    const bool isMove = effectPresetIsMove(e.preset);
+    if (isMove)
+        e.easing = static_cast<int>(Easing::InOutCubic);
+    enableTimelineForEffects();
+    track->effects.append(e);
+    rebuildEffectSchedule();
+    // A new move starts as a no-op where the layer currently ends up.
+    if (isMove)
+        evaluateMovePose(rowLayer(layerIdx), std::numeric_limits<int>::max(), track->effects.last().target,
+                         &track->effects.last());
+    fitTimelineToEffects();
+    setLayersNeedsSave(true);
+    Q_EMIT timelineChanged();
+    return track->effects.size() - 1;
+}
+
+void LayersModel::updateEffect(int layerIdx, int effectIdx, const QVariantMap &values) {
+    using namespace cplay::anim;
+    LayerTimeline *track = timelineAt(layerIdx);
+    if (!track || effectIdx < 0 || effectIdx >= track->effects.size())
+        return;
+    LayerEffect &e = track->effects[effectIdx];
+    const bool wasMove = effectPresetIsMove(e.preset);
+    auto readInt = [&values](const char *key, int &out, int lo, int hi) {
+        const QString k = QString::fromLatin1(key);
+        if (values.contains(k))
+            out = std::clamp(values.value(k).toInt(), lo, hi);
+    };
+    auto readFloat = [&values](const char *key, float &out, float lo, float hi) {
+        const QString k = QString::fromLatin1(key);
+        if (values.contains(k))
+            out = std::clamp(static_cast<float>(values.value(k).toDouble()), lo, hi);
+    };
+    readInt("phase", e.phase, 0, 1);
+    readInt("preset", e.preset, 0, effectPresetCount() - 1);
+    readInt("trigger", e.trigger, 0, 2);
+    readInt("delayMs", e.delayMs, 0, 3600000);
+    readInt("durationMs", e.durationMs, 1, 3600000);
+    readInt("easing", e.easing, 0, easingCount() - 1);
+    readInt("direction", e.direction, 0, effectDirectionCount() - 1);
+    readFloat("feather", e.feather, 0.f, 1.f);
+    readFloat("amount", e.amount, 0.f, 10.f);
+    readFloat("targetAzimuth", e.target.azimuth, -36000.f, 36000.f);
+    readFloat("targetElevation", e.target.elevation, -36000.f, 36000.f);
+    readFloat("targetRoll", e.target.roll, -36000.f, 36000.f);
+    readFloat("targetDistance", e.target.distance, -1.0e6f, 1.0e6f);
+    readFloat("targetHorizontal", e.target.horizontal, -1.0e6f, 1.0e6f);
+    readFloat("targetVertical", e.target.vertical, -1.0e6f, 1.0e6f);
+    if (values.contains(QStringLiteral("hasStart")))
+        e.hasStart = values.value(QStringLiteral("hasStart")).toBool();
+    readFloat("startAzimuth", e.start.azimuth, -36000.f, 36000.f);
+    readFloat("startElevation", e.start.elevation, -36000.f, 36000.f);
+    readFloat("startRoll", e.start.roll, -36000.f, 36000.f);
+    readFloat("startDistance", e.start.distance, -1.0e6f, 1.0e6f);
+    readFloat("startHorizontal", e.start.horizontal, -1.0e6f, 1.0e6f);
+    readFloat("startVertical", e.start.vertical, -1.0e6f, 1.0e6f);
+    rebuildEffectSchedule();
+    if (!wasMove && effectPresetIsMove(e.preset))
+        evaluateMovePose(rowLayer(layerIdx), std::numeric_limits<int>::max(), e.target, &e);
+    fitTimelineToEffects();
+    setLayersNeedsSave(true);
+    Q_EMIT timelineChanged();
+}
+
+void LayersModel::removeEffect(int layerIdx, int effectIdx) {
+    LayerTimeline *track = timelineAt(layerIdx);
+    if (!track || effectIdx < 0 || effectIdx >= track->effects.size())
+        return;
+    track->effects.removeAt(effectIdx);
+    rebuildEffectSchedule();
+    if (BaseLayer *layer = rowLayer(layerIdx))
+        layer->clearAnimState();
+    setLayersNeedsSave(true);
+    Q_EMIT timelineChanged();
+}
+
+void LayersModel::moveEffect(int layerIdx, int effectIdx, int newPos) {
+    LayerTimeline *track = timelineAt(layerIdx);
+    if (!track || effectIdx < 0 || effectIdx >= track->effects.size())
+        return;
+    const BaseLayer *layer = rowLayer(layerIdx);
+    const auto &schedule = track->effects[effectIdx].phase == 0 ? m_introSchedule : m_outroSchedule;
+    QVector<QPair<const BaseLayer *, int>> ordered;
+    int current = -1;
+    for (const ScheduledEffect &s : schedule) {
+        if (s.layer == layer && s.effectIdx == effectIdx)
+            current = ordered.size();
+        ordered.append({s.layer, s.effectIdx});
+    }
+    if (current < 0)
+        return;
+    newPos = std::clamp(newPos, 0, static_cast<int>(ordered.size()) - 1);
+    if (newPos == current)
+        return;
+    ordered.move(current, newPos);
+    for (int i = 0; i < ordered.size(); ++i) {
+        auto it = m_layerTimelines.find(ordered[i].first);
+        if (it != m_layerTimelines.end() && ordered[i].second < it->second.effects.size())
+            it->second.effects[ordered[i].second].order = i;
+    }
+    rebuildEffectSchedule();
+    fitTimelineToEffects();
+    setLayersNeedsSave(true);
+    Q_EMIT timelineChanged();
+}
+
+bool LayersModel::layerSupportsAnimation(int layerIdx) const {
+    const BaseLayer *layer = rowLayer(layerIdx);
+    return layer && layer->hasTexture();
+}
+
+void LayersModel::previewEffect(int layerIdx, int effectIdx) {
+    const LayerTimeline *track = timelineAt(layerIdx);
+    if (!track || effectIdx < 0 || effectIdx >= track->effects.size())
+        return;
+    const BaseLayer *layer = rowLayer(layerIdx);
+    if (track->effects[effectIdx].phase == 0) {
+        for (const ScheduledEffect &s : m_introSchedule) {
+            if (s.layer == layer && s.effectIdx == effectIdx) {
+                startTimelineFrom(s.startMs);
+                return;
+            }
+        }
+    }
+    else {
+        stopTimeline();
+        startTimelineOutro();
+    }
+}
+
+bool LayersModel::convertEffectToKeyframes(int layerIdx, int effectIdx) {
+    using namespace cplay::anim;
+    LayerTimeline *track = timelineAt(layerIdx);
+    if (!track || effectIdx < 0 || effectIdx >= track->effects.size())
+        return false;
+    const LayerEffect e = track->effects[effectIdx];
+    if (e.preset != static_cast<int>(EffectPreset::Fade) && e.preset != static_cast<int>(EffectPreset::Zoom))
+        return false;
+    const BaseLayer *layer = rowLayer(layerIdx);
+    const auto &schedule = e.phase == 0 ? m_introSchedule : m_outroSchedule;
+    int startMs = -1;
+    int endMs = -1;
+    for (const ScheduledEffect &s : schedule) {
+        if (s.layer == layer && s.effectIdx == effectIdx) {
+            startMs = s.startMs;
+            endMs = s.endMs;
+        }
+    }
+    if (startMs < 0)
+        return false;
+    const int offset = e.phase == 0 ? 0 : (hasOutro() ? m_timelineOutroStart : m_timelineDuration);
+    const bool intro = e.phase == 0;
+    LayerKeyframe a;
+    a.timeMs = offset + startMs;
+    a.alpha = intro ? 0.f : 1.f;
+    a.easing = e.easing;
+    LayerKeyframe b;
+    b.timeMs = offset + endMs;
+    b.alpha = intro ? 1.f : 0.f;
+    if (e.preset == static_cast<int>(EffectPreset::Zoom)) {
+        a.hasScale = b.hasScale = true;
+        const float hidden = std::max(0.f, 1.f - std::min(e.amount, 1.f));
+        a.scale = intro ? hidden : 1.f;
+        b.scale = intro ? 1.f : hidden;
+    }
+    track->effects.removeAt(effectIdx);
+    track->keyframes.append(a);
+    track->keyframes.append(b);
+    sortKeyframes(track->keyframes);
+    rebuildEffectSchedule();
+    setLayersNeedsSave(true);
+    Q_EMIT timelineChanged();
+    return true;
+}
+
+QStringList LayersModel::effectPresetNames() const {
+    QStringList names;
+    for (int i = 0; i < cplay::anim::effectPresetCount(); ++i)
+        names.append(QString::fromLatin1(cplay::anim::effectPresetName(i)));
+    return names;
+}
+
+int LayersModel::effectPresetCategory(int preset) const {
+    return cplay::anim::effectPresetCategory(preset);
+}
+
+bool LayersModel::effectPresetUsesDirection(int preset) const {
+    return cplay::anim::effectPresetUsesDirection(preset);
+}
+
+bool LayersModel::effectPresetUsesFeather(int preset) const {
+    return cplay::anim::effectPresetUsesFeather(preset);
+}
+
+QStringList LayersModel::effectDirectionNames() const {
+    QStringList names;
+    for (int i = 0; i < cplay::anim::effectDirectionCount(); ++i)
+        names.append(QString::fromLatin1(cplay::anim::effectDirectionName(i)));
+    return names;
+}
+
+QStringList LayersModel::easingNames() const {
+    QStringList names;
+    for (int i = 0; i < cplay::anim::easingCount(); ++i)
+        names.append(QString::fromLatin1(cplay::anim::easingName(i)));
+    return names;
+}
+
+double LayersModel::easingValue(int easing, double t) const {
+    return static_cast<double>(cplay::anim::ease(easing, static_cast<float>(t)));
+}
+
+// ---- On-click build steps ----------------------------------------------------
+
+QVariantList LayersModel::introStepStarts() const {
+    QVariantList result;
+    for (int s : m_introStepStarts)
+        result.append(s);
+    return result;
+}
+
+int LayersModel::introStopAfter(int startMs) const {
+    for (int s : m_introStepStarts) {
+        if (s > startMs)
+            return s;
+    }
+    return hasOutro() ? m_timelineOutroStart : m_timelineDuration;
+}
+
+bool LayersModel::hasPendingAnimationStep() const {
+    if (!m_hasTimeline || m_outroRunning)
+        return false;
+    if (m_timelineRunning)
+        return !m_timelineReversed && m_timelineStopAtMs >= 0 && m_introStepStarts.contains(m_timelineStopAtMs);
+    return m_introStepStarts.contains(m_timelinePositionMs);
+}
+
+bool LayersModel::playNextAnimationStep() {
+    if (!hasPendingAnimationStep())
+        return false;
+    // Clicking during an animation finishes it and starts the next step right away.
+    const int from = m_timelineRunning ? m_timelineStopAtMs : m_timelinePositionMs;
+    startTimelineFrom(from);
+    return true;
+}
+
+bool LayersModel::playPreviousAnimationStep() {
+    if (!m_hasTimeline || m_outroRunning || m_introStepStarts.isEmpty())
+        return false;
+    const int pos = m_timelineRunning ? m_timelinePauseOffset : m_timelinePositionMs;
+    int target = -1;
+    for (int s : m_introStepStarts) {
+        if (s < pos)
+            target = s;
+    }
+    if (target < 0)
+        return false;
+    stopTimeline();
+    applyTimelineAt(target);
+    m_timelinePositionMs = target;
+    Q_EMIT timelinePositionChanged(target);
+    Q_EMIT animationStepChanged();
+    return true;
 }
 
 // ---- Timeline playback (per-slide) ------------------------------------------
@@ -2437,11 +3869,13 @@ void LayersModel::startTimelineFrom(int startMs) {
     m_timelineRunning     = true;
     m_timelineReversed    = false;
     m_timelinePositionMs  = m_timelinePauseOffset;
+    m_timelineStopAtMs    = introStopAfter(m_timelinePauseOffset);
     m_timelineElapsed.start();
     ensureTimerRunning();
 
     Q_EMIT timelineStarted();
     Q_EMIT timelinePositionChanged(m_timelinePauseOffset);
+    Q_EMIT animationStepChanged();
 }
 
 void LayersModel::startTimelineReverse() {
@@ -2454,6 +3888,7 @@ void LayersModel::startTimelineReverse() {
     m_timelineRunning     = true;
     m_timelineReversed    = true;
     m_timelinePositionMs  = m_timelineDuration;
+    m_timelineStopAtMs    = -1;
     m_timelineElapsed.start();
     ensureTimerRunning();
 
@@ -2471,14 +3906,16 @@ void LayersModel::startTimelineIntro() {
     m_timelineRunning     = true;
     m_timelineReversed    = false;
     m_timelinePositionMs  = 0;
+    m_timelineStopAtMs    = introStopAfter(0);
     m_timelineElapsed.start();
     ensureTimerRunning();
 
     Q_EMIT timelineStarted();
     Q_EMIT timelinePositionChanged(0);
+    Q_EMIT animationStepChanged();
 }
 
-void LayersModel::startTimelineOutro() {
+void LayersModel::startTimelineOutro(int fromOutroMs) {
     if (!m_hasTimeline || !hasOutro())
         return;
 
@@ -2487,16 +3924,19 @@ void LayersModel::startTimelineOutro() {
     applyTimelineAt(getTimelineOutroStart());
 
     m_outroTargetAlpha.clear();
-    for (int l = 0; l < m_layers.size(); ++l)
-        m_outroTargetAlpha.append(m_layers[l].first ? m_layers[l].first->alpha() : 0.f);
+    for (int l = 0; l < m_order.size(); ++l) {
+        const BaseLayer *layer = rowLayer(l);
+        m_outroTargetAlpha.append(layer ? layer->alpha() : 0.f);
+    }
 
+    m_outroOffsetMs = std::clamp(fromOutroMs, 0, outroDuration());
     m_outroRunning = true;
-    m_timelinePositionMs = getTimelineOutroStart();
+    m_timelinePositionMs = getTimelineOutroStart() + m_outroOffsetMs;
     m_outroElapsed.start();
     ensureTimerRunning();
 
     Q_EMIT outroStarted();
-    Q_EMIT timelinePositionChanged(getTimelineOutroStart());
+    Q_EMIT timelinePositionChanged(m_timelinePositionMs);
 }
 
 void LayersModel::stopTimeline() {
@@ -2548,8 +3988,8 @@ bool LayersModel::outroRunning() const {
 bool LayersModel::hasTimelineKeyframes() const {
     if (!m_hasTimeline)
         return false;
-    for (int l = 0; l < rowCount(); ++l) {
-        if (layerHasKeyframes(l))
+    for (int l = 0; l < m_order.size(); ++l) {
+        if (layerHasKeyframes(l) || layerHasEffects(l))
             return true;
     }
     return false;
@@ -2562,6 +4002,9 @@ void LayersModel::jumpToIntroStart() {
     stopTimeline();
 
     applyTimelineAt(0);
+    // Used when the slide is reset after being left; carried-over layers that are not
+    // part of the live slide must not stay visible at their time-0 pose.
+    hideUnsuppressedReferences(false);
     m_timelinePositionMs = 0;
 
     int vis = timelineVisibility();
@@ -2597,22 +4040,26 @@ int LayersModel::timelineVisibility() const {
     if (duration <= 0)
         return 0;
 
+    // Plain layers fade in during the first intro step; later steps keep them fully visible.
+    const int firstStep = m_introStepStarts.isEmpty() ? -1 : m_introStepStarts.first();
+
     if (hasOutro()) {
-        int outroStart = m_timelineOutroStart;
+        int outroStart = firstStep > 0 ? std::min(firstStep, m_timelineOutroStart) : m_timelineOutroStart;
         int outroDur   = outroDuration();
-        if (posMs <= outroStart) {
+        if (posMs <= m_timelineOutroStart) {
             if (outroStart <= 0)
                 return 100;
-            return static_cast<int>(posMs * 100 / outroStart);
+            return std::min(100, static_cast<int>(posMs * 100 / outroStart));
         } else {
-            int outroElapsed = posMs - outroStart;
+            int outroElapsed = posMs - m_timelineOutroStart;
             if (outroDur <= 0)
                 return 0;
             return 100 - static_cast<int>(outroElapsed * 100 / outroDur);
         }
     }
 
-    return static_cast<int>(posMs * 100 / duration);
+    const int introRef = firstStep > 0 ? std::min(firstStep, duration) : duration;
+    return std::min(100, static_cast<int>(posMs * 100 / introRef));
 }
 
 void LayersModel::ensureTimerRunning() {
@@ -2634,7 +4081,8 @@ void LayersModel::onTimelineTick() {
             int elapsed  = static_cast<int>(m_timelineElapsed.elapsed()) + m_timelinePauseOffset;
             int duration = m_timelineDuration;
             int posMs = m_timelineReversed ? std::max(0, duration - elapsed) : elapsed;
-            int stopAt = (hasOutro() && !m_timelineReversed) ? introDuration() : duration;
+            int stopAt = (!m_timelineReversed && m_timelineStopAtMs >= 0) ? m_timelineStopAtMs
+                       : ((hasOutro() && !m_timelineReversed) ? introDuration() : duration);
             bool finished = m_timelineReversed ? (posMs <= 0) : (posMs >= stopAt);
 
             if (finished) {
@@ -2648,8 +4096,10 @@ void LayersModel::onTimelineTick() {
                 setLayersVisibility(vis, false);
             Q_EMIT timelinePositionChanged(posMs);
 
-            if (finished)
+            if (finished) {
                 stopTimeline();
+                Q_EMIT animationStepChanged();
+            }
         }
     }
 
@@ -2658,14 +4108,17 @@ void LayersModel::onTimelineTick() {
         if (!m_hasTimeline) {
             stopOutro();
         } else {
-            int elapsed    = static_cast<int>(m_outroElapsed.elapsed());
+            int elapsed    = static_cast<int>(m_outroElapsed.elapsed()) + m_outroOffsetMs;
             int outroDur   = outroDuration();
             int outroTimeMs = std::min(elapsed, outroDur);
             bool finished  = (outroTimeMs >= outroDur);
 
             if (finished) {
                 applyTimelineOutroAt(outroDur, m_outroTargetAlpha);
-                applyTimelineAt(0);
+                // References are hidden below; resetting them to time 0 would flash them at full alpha.
+                applyTimelineAt(0, true);
+                // The exit has finished, also when the live slide was faded out by re-triggering it.
+                hideUnsuppressedReferences(true);
                 m_timelinePositionMs = 0;
                 setLayersVisibility(0, false);
                 stopOutro();

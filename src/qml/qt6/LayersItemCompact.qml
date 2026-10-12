@@ -38,6 +38,9 @@ ItemDelegate {
         return number;
     }
     function subText() {
+        return baseSubText();
+    }
+    function baseSubText() {
         if(model.type === "Audio")
             return model.type;
         else if(model.type === "Control")
@@ -99,7 +102,20 @@ ItemDelegate {
             if (down) {
                 return Qt.alpha(Kirigami.Theme.positiveBackgroundColor, 0.8);
             }
+            if (model.isReference) {
+                return Kirigami.Theme.alternateBackgroundColor;
+            }
             return Kirigami.Theme.backgroundColor;
+        }
+
+        // Marks rows that reference a layer owned by an earlier slide.
+        Rectangle {
+            anchors.left: parent.left
+            anchors.top: parent.top
+            anchors.bottom: parent.bottom
+            width: 3
+            color: Kirigami.Theme.linkColor
+            visible: model.isReference
         }
     }
     contentItem: Rectangle {
@@ -131,6 +147,7 @@ ItemDelegate {
                 implicitHeight: 50
                 selected: root.down
                 subtitle: subText()
+                opacity: model.isReference ? 0.85 : 1.0
                 title: (layersView.currentIndex === index ? layersNumText() : layersNumText() + model.title)
             }
             TextInput {
@@ -152,7 +169,7 @@ ItemDelegate {
             }
             Button  {
                 flat: true
-                visible: app.slides.selected.layersCanBeLocked
+                visible: app.slides.selected.layersCanBeLocked && !model.isReference
                 hoverEnabled: true
                 anchors.leftMargin: 93
                 anchors.bottomMargin: -3
@@ -335,6 +352,24 @@ ItemDelegate {
                     height: 12
                     opacity: 0.6
                     visible: !root.dragging
+                }
+
+                // Reference indicator: the layer is owned by an earlier slide
+                Kirigami.Icon {
+                    source: "link"
+                    width: 12
+                    height: 12
+                    color: Kirigami.Theme.linkColor
+                    visible: model.isReference
+
+                    MouseArea {
+                        id: referenceIndicatorMA
+                        anchors.fill: parent
+                        hoverEnabled: true
+                    }
+
+                    ToolTip.visible: referenceIndicatorMA.containsMouse
+                    ToolTip.text: qsTr("Reference to a layer of %1, kept visible in this slide by its slide visibility. Edits change the original layer; the position in this list and the animations are set per slide.").arg(model.referenceSource)
                 }
 
                 // NDI output indicator, shown when not in default state (NDI enabled)

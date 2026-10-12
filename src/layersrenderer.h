@@ -9,6 +9,7 @@
 #define LAYERSRENDERER_H
 
 #include <layers/baselayer.h>
+#include <animation/maskglsl.h>
 #include <mutex>
 #include <sgct/sgct.h>
 #include <utils/domegrid.h>
@@ -61,6 +62,10 @@ private:
     int EACVideoHeightLoc;
     int EACEyeModeLoc;
     int EACStereoscopicModeLoc;
+
+    cplay::anim::MaskUniformLocations videoMaskLocs;
+    cplay::anim::MaskUniformLocations meshMaskLocs;
+    cplay::anim::MaskUniformLocations EACMaskLocs;
 
     const sgct::ShaderProgram *videoPrg;
     const sgct::ShaderProgram *meshPrg;

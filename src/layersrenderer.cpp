@@ -6,6 +6,7 @@
  */
 
 #include "layersrenderer.h"
+#include <animation/maskglsl.h>
 #include <glm/glm.hpp>
 #include <glm/gtc/matrix_transform.hpp>
 #include <glm/gtc/type_ptr.hpp>
@@ -21,11 +22,14 @@ constexpr std::string_view VideoVert = R"(
   uniform int stereoscopicMode;
   uniform vec4 roi;
   uniform bool flipY;
+  uniform mat4 quadMatrix;
 
   out vec2 tr_uv;
+  out vec2 mask_uv;
 
   void main() {
-    gl_Position = vec4(in_position, 0.0, 1.0);
+    gl_Position = quadMatrix * vec4(in_position, 0.0, 1.0);
+    mask_uv = in_texCoord;
     tr_uv = flipY ? vec2(in_texCoord.x, 1.0-in_texCoord.y) : in_texCoord;
     tr_uv = (tr_uv * roi.zw) + roi.xy;
 
@@ -71,9 +75,11 @@ constexpr std::string_view MeshVert = R"(
 
   out vec2 tr_uv;
   out vec3 tr_normals;
+  out vec2 mask_uv;
 
   void main() {
     gl_Position = mvp * vec4(in_position, 1.0);
+    mask_uv = in_texCoord;
     tr_uv = flipY ? vec2(in_texCoord.x, 1.0-in_texCoord.y) : in_texCoord;
     tr_uv = (tr_uv * roi.zw) + roi.xy;
     tr_normals = in_normal;
@@ -114,15 +120,16 @@ constexpr std::string_view VideoFrag = R"(
 
   in vec2 tr_uv;
   in vec3 tr_normals;
+  in vec2 mask_uv;
   out vec4 out_color;
-
+)" CPLAY_MASK_GLSL R"(
   void main() {
     vec2 texCoods = tr_uv;
     if(outside){
         texCoods = vec2(1.0-tr_uv.x, tr_uv.y);
     }
    
-    out_color = texture(tex, texCoods) * vec4(1.0, 1.0, 1.0, alpha);
+    out_color = texture(tex, texCoods) * vec4(1.0, 1.0, 1.0, alpha * cplayMask(mask_uv));
   }
 )";
 
@@ -166,7 +173,7 @@ constexpr std::string_view EACVideoFrag = R"(
   in vec3 tr_position;
   in vec3 tr_normal;
   out vec4 out_color;
-
+)" CPLAY_MASK_GLSL R"(
   const float M_PI_2 = 1.57079632679489661923;   // pi/2
   const float M_PI_4 = 0.785398163397448309616;  // pi/4
   const float M_1_PI = 0.318309886183790671538;  // 1/pi
@@ -362,6 +369,11 @@ constexpr std::string_view EACVideoFrag = R"(
     }
    
     out_color = texture(tex, uv) * vec4(1.0, 1.0, 1.0, alpha);
+    if (maskType != 0) {
+        vec3 n = normalize(tr_normal);
+        vec2 eqr = vec2(atan(n.x, n.z) / (2.0 * M_PI) + 0.5, asin(clamp(n.y, -1.0, 1.0)) / M_PI + 0.5);
+        out_color.a *= cplayMask(eqr);
+    }
   }
 )";
 
@@ -418,6 +430,7 @@ void LayersRenderer::initializeGL(double radius, double fov) {
         meshRoi = glGetUniformLocation(meshPrg->id(), "roi");
         meshAlphaLoc = glGetUniformLocation(meshPrg->id(), "alpha");
         meshOutsideLoc = glGetUniformLocation(meshPrg->id(), "outside");
+        meshMaskLocs.locate([this](const char *n) { return glGetUniformLocation(meshPrg->id(), n); });
         meshPrg->unbind();
     }
 
@@ -434,6 +447,7 @@ void LayersRenderer::initializeGL(double radius, double fov) {
         EACScaleLoc = glGetUniformLocation(EACPrg->id(), "scaleToUnitCube");
         EACVideoWidthLoc = glGetUniformLocation(EACPrg->id(), "videoWidth");
         EACVideoHeightLoc = glGetUniformLocation(EACPrg->id(), "videoHeight");
+        EACMaskLocs.locate([this](const char *n) { return glGetUniformLocation(EACPrg->id(), n); });
         EACPrg->unbind();
     }
 
@@ -446,6 +460,7 @@ void LayersRenderer::initializeGL(double radius, double fov) {
         videoStereoscopicModeLoc = glGetUniformLocation(videoPrg->id(), "stereoscopicMode");
         videoRoi = glGetUniformLocation(videoPrg->id(), "roi");
         videoAlphaLoc = glGetUniformLocation(videoPrg->id(), "alpha");
+        videoMaskLocs.locate([this](const char *n) { return glGetUniformLocation(videoPrg->id(), n); });
         videoPrg->unbind();
     }
 
@@ -474,7 +489,21 @@ const std::vector<std::shared_ptr<BaseLayer>> &LayersRenderer::getLayers() {
     return layers2render;
 }
 
+namespace {
+struct GlUniformSetter {
+    void set1i(int loc, int v) const { glUniform1i(loc, v); }
+    void set1f(int loc, float v) const { glUniform1f(loc, v); }
+    void set2f(int loc, float a, float b) const { glUniform2f(loc, a, b); }
+};
+}
+
 void LayersRenderer::renderLayer(const sgct::RenderData& data, const BaseLayer* layer, sgct::FrustumMode currentEye, float angle) {
+    const float alpha = layer->renderAlpha();
+    const glm::vec3 rot = layer->renderRotate();
+    const glm::vec3 trans = layer->renderTranslate();
+    const cplay::anim::LayerAnimState &anim = layer->animState();
+    const float aspect = layer->renderAspectRatio();
+    const GlUniformSetter setter;
     glActiveTexture(GL_TEXTURE0);
     glBindTexture(GL_TEXTURE_2D, layer->textureId());
     glEnable(GL_BLEND);
@@ -484,7 +513,8 @@ void LayersRenderer::renderLayer(const sgct::RenderData& data, const BaseLayer* 
 
         EACPrg->bind();
 
-        glUniform1f(EACAlphaLoc, layer->alpha());
+        glUniform1f(EACAlphaLoc, alpha);
+        EACMaskLocs.apply(setter, anim, 2.f);
         glUniform1i(EACFlipYLoc, (layer->renderFlipY() ? 1 : 0));
         glUniform1i(EACOutsideLoc, 0);
         glUniform1i(EACVideoWidthLoc, layer->width());
@@ -500,12 +530,12 @@ void LayersRenderer::renderLayer(const sgct::RenderData& data, const BaseLayer* 
         }
 
         const sgct::mat4 mvp = data.modelViewProjectionMatrix;
-        glm::mat4 MVP_transformed = glm::translate(glm::make_mat4(mvp.values.data()), layer->translate());
+        glm::mat4 MVP_transformed = glm::translate(glm::make_mat4(mvp.values.data()), trans);
 
         glm::mat4 MVP_transformed_rot = MVP_transformed;
-        MVP_transformed_rot = glm::rotate(MVP_transformed_rot, glm::radians(layer->rotate().z), glm::vec3(0.0f, 0.0f, 1.0f));        // roll
-        MVP_transformed_rot = glm::rotate(MVP_transformed_rot, glm::radians(layer->rotate().x), glm::vec3(1.0f, 0.0f, 0.0f));        // pitch
-        MVP_transformed_rot = glm::rotate(MVP_transformed_rot, glm::radians(layer->rotate().y), glm::vec3(0.0f, 1.0f, 0.0f));        // yaw
+        MVP_transformed_rot = glm::rotate(MVP_transformed_rot, glm::radians(rot.z), glm::vec3(0.0f, 0.0f, 1.0f));        // roll
+        MVP_transformed_rot = glm::rotate(MVP_transformed_rot, glm::radians(rot.x), glm::vec3(1.0f, 0.0f, 0.0f));        // pitch
+        MVP_transformed_rot = glm::rotate(MVP_transformed_rot, glm::radians(rot.y), glm::vec3(0.0f, 1.0f, 0.0f));        // yaw
         MVP_transformed_rot = glm::rotate(MVP_transformed_rot, glm::radians(90.f), glm::vec3(0.0f, 0.0f, 1.0f));                     // roll
         glUniformMatrix4fv(EACMatrixLoc, 1, GL_FALSE, &MVP_transformed_rot[0][0]);
 
@@ -516,9 +546,9 @@ void LayersRenderer::renderLayer(const sgct::RenderData& data, const BaseLayer* 
 
         // Compensate for the angle of the dome
         glm::mat4 MVP_transformed_rot2 = MVP_transformed;
-        MVP_transformed_rot2 = glm::rotate(MVP_transformed_rot2, glm::radians(360.f - layer->rotate().z), glm::vec3(0.0f, 0.0f, 1.0f));         // roll
-        MVP_transformed_rot2 = glm::rotate(MVP_transformed_rot2, glm::radians(360.f - layer->rotate().x + angle), glm::vec3(1.0f, 0.0f, 0.0f)); // pitch
-        MVP_transformed_rot2 = glm::rotate(MVP_transformed_rot2, glm::radians(360.f - layer->rotate().y), glm::vec3(0.0f, 1.0f, 0.0f));  // yaw
+        MVP_transformed_rot2 = glm::rotate(MVP_transformed_rot2, glm::radians(360.f - rot.z), glm::vec3(0.0f, 0.0f, 1.0f));         // roll
+        MVP_transformed_rot2 = glm::rotate(MVP_transformed_rot2, glm::radians(360.f - rot.x + angle), glm::vec3(1.0f, 0.0f, 0.0f)); // pitch
+        MVP_transformed_rot2 = glm::rotate(MVP_transformed_rot2, glm::radians(360.f - rot.y), glm::vec3(0.0f, 1.0f, 0.0f));  // yaw
         MVP_transformed_rot2 = glm::rotate(MVP_transformed_rot2, glm::radians(360.f - 90.f), glm::vec3(0.0f, 0.0f, 1.0f));                      // roll
 
         glUniformMatrix4fv(EACMatrixLoc, 1, GL_FALSE, &MVP_transformed_rot2[0][0]);
@@ -538,12 +568,12 @@ void LayersRenderer::renderLayer(const sgct::RenderData& data, const BaseLayer* 
         glEnable(GL_CULL_FACE);
 
         const sgct::mat4 mvp = data.modelViewProjectionMatrix;
-        glm::mat4 MVP_transformed = glm::translate(glm::make_mat4(mvp.values.data()), layer->translate());
+        glm::mat4 MVP_transformed = glm::translate(glm::make_mat4(mvp.values.data()), trans);
 
         glm::mat4 MVP_transformed_rot = MVP_transformed;
-        MVP_transformed_rot = glm::rotate(MVP_transformed_rot, glm::radians(layer->rotate().z), glm::vec3(0.0f, 0.0f, 1.0f)); // roll
-        MVP_transformed_rot = glm::rotate(MVP_transformed_rot, glm::radians(layer->rotate().x), glm::vec3(1.0f, 0.0f, 0.0f)); // pitch
-        MVP_transformed_rot = glm::rotate(MVP_transformed_rot, glm::radians(layer->rotate().y - 90.f), glm::vec3(0.0f, 1.0f, 0.0f)); // yaw
+        MVP_transformed_rot = glm::rotate(MVP_transformed_rot, glm::radians(rot.z), glm::vec3(0.0f, 0.0f, 1.0f)); // roll
+        MVP_transformed_rot = glm::rotate(MVP_transformed_rot, glm::radians(rot.x), glm::vec3(1.0f, 0.0f, 0.0f)); // pitch
+        MVP_transformed_rot = glm::rotate(MVP_transformed_rot, glm::radians(rot.y - 90.f), glm::vec3(0.0f, 1.0f, 0.0f)); // yaw
 
         meshPrg->bind();
 
@@ -563,7 +593,8 @@ void LayersRenderer::renderLayer(const sgct::RenderData& data, const BaseLayer* 
             glUniform4f(meshRoi, 0.f, 0.f, 1.f, 1.f);
         }
 
-        glUniform1f(meshAlphaLoc, layer->alpha());
+        glUniform1f(meshAlphaLoc, alpha);
+        meshMaskLocs.apply(setter, anim, 2.f);
         glUniform1i(meshFlipYLoc, (layer->renderFlipY() ? 1 : 0));
 
         glUniformMatrix4fv(meshMatrixLoc, 1, GL_FALSE, &MVP_transformed_rot[0][0]);
@@ -577,9 +608,9 @@ void LayersRenderer::renderLayer(const sgct::RenderData& data, const BaseLayer* 
 
         // Compensate for the angle of the dome
         glm::mat4 MVP_transformed_rot2 = MVP_transformed;
-        MVP_transformed_rot2 = glm::rotate(MVP_transformed_rot2, glm::radians(360.f - layer->rotate().z), glm::vec3(0.0f, 0.0f, 1.0f));         // roll
-        MVP_transformed_rot2 = glm::rotate(MVP_transformed_rot2, glm::radians(360.f - layer->rotate().x + angle), glm::vec3(1.0f, 0.0f, 0.0f)); // pitch
-        MVP_transformed_rot2 = glm::rotate(MVP_transformed_rot2, glm::radians(360.f - layer->rotate().y + 90.f), glm::vec3(0.0f, 1.0f, 0.0f));         // yaw
+        MVP_transformed_rot2 = glm::rotate(MVP_transformed_rot2, glm::radians(360.f - rot.z), glm::vec3(0.0f, 0.0f, 1.0f));         // roll
+        MVP_transformed_rot2 = glm::rotate(MVP_transformed_rot2, glm::radians(360.f - rot.x + angle), glm::vec3(1.0f, 0.0f, 0.0f)); // pitch
+        MVP_transformed_rot2 = glm::rotate(MVP_transformed_rot2, glm::radians(360.f - rot.y + 90.f), glm::vec3(0.0f, 1.0f, 0.0f));         // yaw
 
         glUniformMatrix4fv(meshMatrixLoc, 1, GL_FALSE, &MVP_transformed_rot2[0][0]);
         // render outside sphere
@@ -615,14 +646,15 @@ void LayersRenderer::renderLayer(const sgct::RenderData& data, const BaseLayer* 
             glUniform4f(meshRoi, 0.f, 0.f, 1.f, 1.f);
         }
 
-        glUniform1f(meshAlphaLoc, layer->alpha());
+        glUniform1f(meshAlphaLoc, alpha);
+        meshMaskLocs.apply(setter, anim, 2.f);
         glUniform1i(meshFlipYLoc, (layer->renderFlipY() ? 1 : 0));
 
         const sgct::mat4 mvp = data.modelViewProjectionMatrix;
-        glm::mat4 MVP_transformed_rot = glm::translate(glm::make_mat4(mvp.values.data()), layer->translate());
-        MVP_transformed_rot = glm::rotate(MVP_transformed_rot, glm::radians(layer->rotate().z), glm::vec3(0.0f, 0.0f, 1.0f));         // roll
-        MVP_transformed_rot = glm::rotate(MVP_transformed_rot, glm::radians(layer->rotate().x - angle), glm::vec3(1.0f, 0.0f, 0.0f)); // pitch
-        MVP_transformed_rot = glm::rotate(MVP_transformed_rot, glm::radians(layer->rotate().y), glm::vec3(0.0f, 1.0f, 0.0f));         // yaw
+        glm::mat4 MVP_transformed_rot = glm::translate(glm::make_mat4(mvp.values.data()), trans);
+        MVP_transformed_rot = glm::rotate(MVP_transformed_rot, glm::radians(rot.z), glm::vec3(0.0f, 0.0f, 1.0f));         // roll
+        MVP_transformed_rot = glm::rotate(MVP_transformed_rot, glm::radians(rot.x - angle), glm::vec3(1.0f, 0.0f, 0.0f)); // pitch
+        MVP_transformed_rot = glm::rotate(MVP_transformed_rot, glm::radians(rot.y), glm::vec3(0.0f, 1.0f, 0.0f));         // yaw
         glUniformMatrix4fv(meshMatrixLoc, 1, GL_FALSE, &MVP_transformed_rot[0][0]);
 
         domeMesh->draw();
@@ -654,7 +686,8 @@ void LayersRenderer::renderLayer(const sgct::RenderData& data, const BaseLayer* 
             glUniform4f(meshRoi, 0.f, 0.f, 1.f, 1.f);
         }
 
-        glUniform1f(meshAlphaLoc, layer->alpha());
+        glUniform1f(meshAlphaLoc, alpha);
+        meshMaskLocs.apply(setter, anim, aspect);
         glUniform1i(meshFlipYLoc, (layer->renderFlipY() ? 1 : 0));
 
         const sgct::mat4 mvp = data.projectionMatrix * data.viewMatrix;
@@ -665,10 +698,12 @@ void LayersRenderer::renderLayer(const sgct::RenderData& data, const BaseLayer* 
         planeTransform = glm::rotate(planeTransform, glm::radians(-angle), glm::vec3(1.0f, 0.0f, 0.0f));
 
         //Specifc plane parameters
-        planeTransform = glm::rotate(planeTransform, glm::radians(float(layer->planeAzimuth())), glm::vec3(0.0f, -1.0f, 0.0f));  // azimuth
-        planeTransform = glm::rotate(planeTransform, glm::radians(float(layer->planeElevation())), glm::vec3(1.0f, 0.0f, 0.0f)); // elevation
-        planeTransform = glm::rotate(planeTransform, glm::radians(float(layer->planeRoll())), glm::vec3(0.0f, 0.0f, 1.0f));      // roll
-        planeTransform = glm::translate(planeTransform, glm::vec3(float(layer->planeHorizontal()) / 100.f, float(layer->planeVertical()) / 100.f, float(-layer->planeDistance()) / 100.f));
+        planeTransform = glm::rotate(planeTransform, glm::radians(float(layer->renderPlaneAzimuth())), glm::vec3(0.0f, -1.0f, 0.0f));  // azimuth
+        planeTransform = glm::rotate(planeTransform, glm::radians(float(layer->renderPlaneElevation())), glm::vec3(1.0f, 0.0f, 0.0f)); // elevation
+        planeTransform = glm::rotate(planeTransform, glm::radians(float(layer->renderPlaneRoll())), glm::vec3(0.0f, 0.0f, 1.0f));      // roll
+        planeTransform = glm::translate(planeTransform, glm::vec3(float(layer->renderPlaneHorizontal()) / 100.f, float(layer->renderPlaneVertical()) / 100.f, float(-layer->renderPlaneDistance()) / 100.f));
+        if (layer->animActive() && anim.scale != 1.f)
+            planeTransform = glm::scale(planeTransform, glm::vec3(anim.scale, anim.scale, 1.f));
 
         planeTransform = glm::make_mat4(mvp.values.data()) * planeTransform;
         glUniformMatrix4fv(meshMatrixLoc, 1, GL_FALSE, &planeTransform[0][0]);
@@ -701,7 +736,14 @@ void LayersRenderer::renderLayer(const sgct::RenderData& data, const BaseLayer* 
             glUniform4f(videoRoi, 0.f, 0.f, 1.f, 1.f);
         }
 
-        glUniform1f(videoAlphaLoc, layer->alpha());
+        glUniform1f(videoAlphaLoc, alpha);
+        videoMaskLocs.apply(setter, anim, aspect);
+        GLint viewport[4] = {0, 0, 1, 1};
+        if (layer->animActive() && anim.spin != 0.f)
+            glGetIntegerv(GL_VIEWPORT, viewport);
+        const glm::mat4 quad = cplay::anim::flatQuadMatrix(anim, layer->animActive(),
+            viewport[3] > 0 ? static_cast<float>(viewport[2]) / static_cast<float>(viewport[3]) : 1.f);
+        glUniformMatrix4fv(videoMaskLocs.quadMatrix, 1, GL_FALSE, &quad[0][0]);
         glUniform1i(videoFlipYLoc, (layer->renderFlipY() ? 1 : 0));
 
         data.window.renderScreenQuad();

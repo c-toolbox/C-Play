@@ -59,12 +59,17 @@ public:
     Q_INVOKABLE void cellClicked(int column, int row);
     Q_INVOKABLE void resetTable();
 
+Q_SIGNALS:
+    // A layer's keep-visibility span was changed from the table.
+    void keepVisibilityChanged(BaseLayer *layer);
+
 private:
     BaseLayer* findLayer(int row);
     int calculateLocalIndex(int column, int row, bool ignoreKeepValue = false) const;
     QString cellColor(int column, int row) const;
     QString cellText(int column, int row) const;
-    bool cellHasTimeline(int row) const;
+    // True when the slide in this column animates the layer on its timeline.
+    bool cellAnimated(int column, int row) const;
 
     QList<QSharedPointer<LayersModel>>* m_slideList;
 
@@ -85,6 +90,7 @@ public:
         NameRole = Qt::UserRole,
         PathRole,
         LayersRole,
+        RefsRole,
         LayerMinStatusRole,
         LayerMaxStatusRole,
         LockedRole,
@@ -164,6 +170,12 @@ public:
     QSharedPointer<LayersModel> slideShared(int i);
     QList<QSharedPointer<LayersModel>> snapshotSlides();
     bool trySnapshotSlides(QList<QSharedPointer<LayersModel>>& out);
+
+    // All slide layers, each once, bottom of the stack first: layers of slides other than
+    // the triggered one in slide order, then the triggered slide's own render order
+    // (its own layers and the layers it references from earlier slides) on top.
+    std::vector<std::shared_ptr<BaseLayer>> buildRenderStack(const QList<QSharedPointer<LayersModel>>& slides) const;
+    bool tryRenderStack(std::vector<std::shared_ptr<BaseLayer>>& out);
 
     Q_PROPERTY(SlideVisibilityModel *visibilityModel
         READ visibilityModel
@@ -250,7 +262,7 @@ public:
     Q_INVOKABLE void startTimelineFrom(int slideIdx, int startMs);
     Q_INVOKABLE void startTimelineReverse(int slideIdx);
     Q_INVOKABLE void startTimelineIntro(int slideIdx);
-    Q_INVOKABLE void startTimelineOutro(int slideIdx);
+    Q_INVOKABLE void startTimelineOutro(int slideIdx, int fromOutroMs = 0);
     Q_INVOKABLE void stopTimeline(int slideIdx);
     Q_INVOKABLE void stopOutro(int slideIdx);
     Q_INVOKABLE void stopAllTimelines();
@@ -274,10 +286,26 @@ public:
     // keyframes, or -1 if not applicable.
     Q_INVOKABLE int slideTimelineVisibility(int slideIdx) const;
 
+    // On-click animation steps of the triggered slide. Return true when a step was played,
+    // so "next"/"previous" only change slide when no step is pending.
+    Q_INVOKABLE bool nextAnimationStep();
+    Q_INVOKABLE bool previousAnimationStep();
+    Q_INVOKABLE bool hasPendingAnimationStep() const;
+
 private:
     void setNeedSync();
     void updateRecentLoadedPresentations(QString path);
     void onSlideVisibilityChanged(int slideIdx);
+    // After a layer's keep-visibility span changed: the last slide showing it fades it out
+    // in its timeline outro, other slides drop that default fade.
+    void updateReferenceOutroFades(BaseLayer *layer);
+    // Hands every slide the layers of earlier slides that are still visible in it.
+    void rebuildReferences();
+    // Shared layers are driven by the triggered slide only; tell the other slides to leave them.
+    void updateTimelineSuppression();
+    // Hands every slide the plane poses that Move effects of earlier slides leave its layers in.
+    void scheduleMovePoseUpdate();
+    void updateMovePoses();
 
 Q_SIGNALS:
     void slideModelChanged();
@@ -317,6 +345,7 @@ private:
     bool m_slidesNeedsSave = false;
     bool m_pauseLayerUpdate = false;
     bool m_preloadLayers = false;
+    bool m_movePoseUpdatePending = false;
     QString m_slidesName;
     QString m_slidesPath;
     QTimer* m_clearCopyTimer;

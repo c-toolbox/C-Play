@@ -40,7 +40,8 @@ ItemDelegate {
         return rowNumber;
     }
     function subText() {
-        return model.layers + (model.layers === 1 ? " layer" : " layers");
+        const text = model.layers + (model.layers === 1 ? " layer" : " layers");
+        return model.refs > 0 ? text + " + " + model.refs + (model.refs === 1 ? " ref" : " refs") : text;
     }
     function statusToolTipText(status) {
         if (status === 2)
@@ -470,6 +471,22 @@ ItemDelegate {
     SlideTimeline {
         id: slideTimelineWindow
         slideIndex: index
+        animationPaneLoader: animationPaneLoader
+    }
+
+    // Per-slide animation pane, created on first use
+    Loader {
+        id: animationPaneLoader
+        active: false
+        sourceComponent: LayerAnimationPane {
+            slideIndex: index
+            slideTimeline: slideTimelineWindow
+        }
+        function open() {
+            active = true;
+            item.show();
+            item.raise();
+        }
     }
 
     // Timeline toggle button — shown bottom-left when slide is selected

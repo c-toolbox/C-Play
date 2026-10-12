@@ -14,6 +14,7 @@
 #include "presentationsettings.h"
 #include "mpvobject.h"
 #include "userinterfacesettings.h"
+#include <animation/maskglsl.h>
 #include <ndi/ndisendermodel.h>
 #include <QDebug>
 #include <QOpenGLContext>
@@ -39,11 +40,14 @@ uniform int eye;
 uniform int stereoscopicMode;
 uniform vec4 roi;
 uniform bool flipY;
+uniform mat4 quadMatrix;
 
 out vec2 tr_uv;
+out vec2 mask_uv;
 
 void main() {
-    gl_Position = vec4(in_position, 0.0, 1.0);
+    gl_Position = quadMatrix * vec4(in_position, 0.0, 1.0);
+    mask_uv = in_texCoord;
     tr_uv = flipY ? vec2(in_texCoord.x, 1.0-in_texCoord.y) : in_texCoord;
     tr_uv = (tr_uv * roi.zw) + roi.xy;
 
@@ -89,9 +93,11 @@ uniform bool flipY;
 
 out vec2 tr_uv;
 out vec3 tr_normals;
+out vec2 mask_uv;
 
 void main() {
     gl_Position = mvp * vec4(in_position, 1.0);
+    mask_uv = in_texCoord;
     tr_uv = flipY ? vec2(in_texCoord.x, 1.0-in_texCoord.y) : in_texCoord;
     tr_uv = (tr_uv * roi.zw) + roi.xy;
     tr_normals = in_normal;
@@ -132,15 +138,16 @@ uniform bool outside;
 
 in vec2 tr_uv;
 in vec3 tr_normals;
+in vec2 mask_uv;
 out vec4 out_color;
-
+)" CPLAY_MASK_GLSL R"(
 void main() {
     vec2 texCoods = tr_uv;
     if(outside){
         texCoods = vec2(1.0-tr_uv.x, tr_uv.y);
     }
    
-    out_color = texture(tex, texCoods) * vec4(1.0, 1.0, 1.0, alpha);
+    out_color = texture(tex, texCoods) * vec4(1.0, 1.0, 1.0, alpha * cplayMask(mask_uv));
 }
 )";
 
@@ -187,7 +194,7 @@ uniform bool flipY;
 in vec3 tr_position;
 in vec3 tr_normal;
 out vec4 out_color;
-
+)" CPLAY_MASK_GLSL R"(
 const float M_PI_2 = 1.57079632679489661923;   // pi/2
 const float M_PI_4 = 0.785398163397448309616;  // pi/4
 const float M_1_PI = 0.318309886183790671538;  // 1/pi
@@ -385,7 +392,13 @@ vec4 eac_shade() {
         }
     }
 
-    return texture(tex, uv) * vec4(1.0, 1.0, 1.0, alpha);
+    vec4 shaded = texture(tex, uv) * vec4(1.0, 1.0, 1.0, alpha);
+    if (maskType != 0) {
+        vec3 n = normalize(tr_normal);
+        vec2 eqr = vec2(atan(n.x, n.z) / (2.0 * M_PI) + 0.5, asin(clamp(n.y, -1.0, 1.0)) / M_PI + 0.5);
+        shaded.a *= cplayMask(eqr);
+    }
+    return shaded;
 }
 )";
 
@@ -496,7 +509,7 @@ uniform vec4 roi;
 in vec2 tr_texCoord;
 in float tr_radius;
 out vec4 out_color;
-
+)" CPLAY_MASK_GLSL R"(
 void main() {
     // Geometry outside the dome cap has no place on the fulldome disk.
     if (tr_radius > 1.0)
@@ -537,7 +550,7 @@ void main() {
         }
     }
 
-    out_color = texture(tex, uv) * vec4(1.0, 1.0, 1.0, alpha);
+    out_color = texture(tex, uv) * vec4(1.0, 1.0, 1.0, alpha * cplayMask(tr_texCoord));
 }
 )";
 
@@ -931,8 +944,11 @@ void LayersRendererQtItem::setPlaneSelectionByIndex(int index) {
         if (!LayersRendererQtItem::isShuttingDown()) {
             auto* slides = Application::isCreated() ? Application::instance().slidesModel() : nullptr;
             LayersModel* slide = slides ? slides->selectedSlide() : nullptr;
-            if (slide && index >= 0 && index < slide->numberOfLayers()) {
-                std::shared_ptr<BaseLayer> candidate = slide->layerShared(index);
+            // index is a row of the selected slide, which also lists referenced layers.
+            const std::vector<std::shared_ptr<BaseLayer>> rows = slide ? slide->renderOrderShared()
+                                                                       : std::vector<std::shared_ptr<BaseLayer>>();
+            if (index >= 0 && index < static_cast<int>(rows.size())) {
+                std::shared_ptr<BaseLayer> candidate = rows[index];
                 if (candidate && candidate->gridMode() != static_cast<uint8_t>(BaseLayer::None)) {
                     layer = std::move(candidate);
                     resolved = index;
@@ -950,15 +966,7 @@ bool LayersRendererQtItem::selectedLayerStillValidLocked() {
     // The layer may have been removed or the slide switched since it was selected.
     auto* slides = Application::isCreated() ? Application::instance().slidesModel() : nullptr;
     LayersModel* slide = slides ? slides->selectedSlide() : nullptr;
-    bool valid = false;
-    if (slide) {
-        for (int l = 0; l < slide->numberOfLayers(); ++l) {
-            if (slide->layerShared(l) == m_selectedPlaneLayer) {
-                valid = true;
-                break;
-            }
-        }
-    }
+    const bool valid = slide && slide->containsLayer(m_selectedPlaneLayer.get());
     if (!valid)
         setSelectedPlaneLayer(nullptr, -1);   // stale selection: clear it
     return valid;
@@ -1079,11 +1087,15 @@ bool LayersRendererQtItem::beginLayerDrag(int action, float x, float y) {
             mode = m_selectedPlaneLayer->gridMode();
             startRotate = m_selectedPlaneLayer->rotate();
             if (mode == static_cast<uint8_t>(BaseLayer::GridMode::Plane)) {
+                m_selectedPlaneLayer->beginPoseEdit();
+                m_poseEditLayer = m_selectedPlaneLayer;
                 // Flat layer: no hit testing, wherever the pointer is it aims at the layer.
                 ok = aimAtScreenPointLocked(m_selectedPlaneLayer.get(), x, y, hitAz, hitEl);
                 startWidthCm = m_selectedPlaneLayer->planeWidth();
                 startHeightCm = m_selectedPlaneLayer->planeHeight();
                 startDistanceCm = m_selectedPlaneLayer->planeDistance();
+                if (!ok || (action == kDragResizePlaneSize && (startWidthCm <= 0.0 || startHeightCm <= 0.0)))
+                    m_selectedPlaneLayer->endPoseEdit();
             } else {
                 // Sphere/dome layer: rotation follows the pointer delta from this point.
                 ok = true;
@@ -1274,6 +1286,12 @@ bool LayersRendererQtItem::dragPlaneTo(float x, float y) {
 }
 
 void LayersRendererQtItem::endPlaneDrag() {
+    {
+        std::lock_guard<std::mutex> lock(LayersRendererQtItem::layerAccessMutex());
+        if (auto layer = m_poseEditLayer.lock())
+            layer->endPoseEdit();
+        m_poseEditLayer.reset();
+    }
     m_planeDragActive = false;
     m_planeDragAction = -1;
 }
@@ -1772,6 +1790,8 @@ void LayersRendererQtOpenGLObject::createShaders() {
     m_videoFlipYLoc = m_videoPrg->uniformLocation("flipY");
     m_videoStereoscopicModeLoc = m_videoPrg->uniformLocation("stereoscopicMode");
     m_videoRoi = m_videoPrg->uniformLocation("roi");
+    m_videoMaskLocs.locate([this](const char *n) { return m_videoPrg->uniformLocation(n); });
+    m_videoPrg->setUniformValue(m_videoMaskLocs.quadMatrix, QMatrix4x4());
     m_videoPrg->release();
 
     // Create mesh shader
@@ -1789,6 +1809,7 @@ void LayersRendererQtOpenGLObject::createShaders() {
     m_meshRoi = m_meshPrg->uniformLocation("roi");
     m_meshAlphaLoc = m_meshPrg->uniformLocation("alpha");
     m_meshOutsideLoc = m_meshPrg->uniformLocation("outside");
+    m_meshMaskLocs.locate([this](const char *n) { return m_meshPrg->uniformLocation(n); });
     m_meshPrg->release();
 
     // Create EAC shader
@@ -1809,6 +1830,7 @@ void LayersRendererQtOpenGLObject::createShaders() {
     m_EACVideoWidthLoc = m_EACPrg->uniformLocation("videoWidth");
     m_EACVideoHeightLoc = m_EACPrg->uniformLocation("videoHeight");
     m_EACFlipUpDownLoc = m_EACPrg->uniformLocation("flipUpDown");
+    m_EACMaskLocs.locate([this](const char *n) { return m_EACPrg->uniformLocation(n); });
     m_EACPrg->release();
 
     // Create fisheye shader (one-pass 180-degree fulldome projection).
@@ -1830,6 +1852,7 @@ void LayersRendererQtOpenGLObject::createShaders() {
     m_fisheyeOutsideLoc = m_fisheyePrg->uniformLocation("outside");
     m_fisheyeHalfFovLoc = m_fisheyePrg->uniformLocation("halfFov");
     m_fisheyeRoi = m_fisheyePrg->uniformLocation("roi");
+    m_fisheyeMaskLocs.locate([this](const char *n) { return m_fisheyePrg->uniformLocation(n); });
     m_fisheyePrg->release();
 
     // Create fisheye shader for EAC content: same lens, EAC cubemap texture mapping.
@@ -1851,7 +1874,38 @@ void LayersRendererQtOpenGLObject::createShaders() {
     m_fisheyeEACVideoWidthLoc = m_fisheyeEACPrg->uniformLocation("videoWidth");
     m_fisheyeEACVideoHeightLoc = m_fisheyeEACPrg->uniformLocation("videoHeight");
     m_fisheyeEACFlipUpDownLoc = m_fisheyeEACPrg->uniformLocation("flipUpDown");
+    m_fisheyeEACMaskLocs.locate([this](const char *n) { return m_fisheyeEACPrg->uniformLocation(n); });
     m_fisheyeEACPrg->release();
+}
+
+namespace {
+struct QtUniformSetter {
+    QOpenGLShaderProgram *prg;
+    void set1i(int loc, int v) const { prg->setUniformValue(loc, static_cast<GLint>(v)); }
+    void set1f(int loc, float v) const { prg->setUniformValue(loc, static_cast<GLfloat>(v)); }
+    void set2f(int loc, float a, float b) const { prg->setUniformValue(loc, a, b); }
+};
+}
+
+void LayersRendererQtOpenGLObject::resetAnimUniforms() {
+    const cplay::anim::LayerAnimState neutral;
+    auto reset = [&neutral](QOpenGLShaderProgram *prg, const cplay::anim::MaskUniformLocations &locs) {
+        if (!prg)
+            return;
+        prg->bind();
+        locs.apply(QtUniformSetter{prg}, neutral, 1.f);
+        prg->release();
+    };
+    reset(m_meshPrg.get(), m_meshMaskLocs);
+    reset(m_EACPrg.get(), m_EACMaskLocs);
+    reset(m_fisheyePrg.get(), m_fisheyeMaskLocs);
+    reset(m_fisheyeEACPrg.get(), m_fisheyeEACMaskLocs);
+    if (m_videoPrg) {
+        m_videoPrg->bind();
+        m_videoMaskLocs.apply(QtUniformSetter{m_videoPrg.get()}, neutral, 1.f);
+        m_videoPrg->setUniformValue(m_videoMaskLocs.quadMatrix, QMatrix4x4());
+        m_videoPrg->release();
+    }
 }
 
 QRect LayersRendererQtOpenGLObject::renderViewportRect() const {
@@ -1956,6 +2010,13 @@ void LayersRendererQtOpenGLObject::renderLayer(const BaseLayer* layer, int eyeMo
     glEnable(GL_BLEND);
     glBlendFunc(GL_SRC_ALPHA, GL_ONE_MINUS_SRC_ALPHA);
 
+    const float alpha = layer->renderAlpha();
+    const glm::vec3 rot = layer->renderRotate();
+    const glm::vec3 trans = layer->renderTranslate();
+    const cplay::anim::LayerAnimState &anim = layer->animState();
+    const bool animActive = layer->animActive();
+    const float aspect = layer->renderAspectRatio();
+
     int gridMode = layer->gridMode();
     int stereoMode = layer->renderStereoMode();
     // Master UI specific: if grid is 0, we use the default values
@@ -1969,7 +2030,8 @@ void LayersRendererQtOpenGLObject::renderLayer(const BaseLayer* layer, int eyeMo
         if (m_renderAsFisheye) {
             m_fisheyeEACPrg->bind();
 
-            m_fisheyeEACPrg->setUniformValue(m_fisheyeEACAlphaLoc, layer->alpha());
+            m_fisheyeEACPrg->setUniformValue(m_fisheyeEACAlphaLoc, alpha);
+            m_fisheyeEACMaskLocs.apply(QtUniformSetter{m_fisheyeEACPrg.get()}, anim, 2.f);
             m_fisheyeEACPrg->setUniformValue(m_fisheyeEACFlipYLoc, layer->renderFlipY());
             m_fisheyeEACPrg->setUniformValue(m_fisheyeEACOutsideLoc, 0);
             m_fisheyeEACPrg->setUniformValue(m_fisheyeEACVideoWidthLoc, layer->width());
@@ -1988,9 +2050,9 @@ void LayersRendererQtOpenGLObject::renderLayer(const BaseLayer* layer, int eyeMo
             }
 
             QMatrix4x4 model;
-            model.rotate(layer->rotate().z, 0, 0, 1);   // roll
-            model.rotate(layer->rotate().x, 1, 0, 0);   // pitch
-            model.rotate(layer->rotate().y, 0, 1, 0);   // yaw
+            model.rotate(rot.z, 0, 0, 1);   // roll
+            model.rotate(rot.x, 1, 0, 0);   // pitch
+            model.rotate(rot.y, 0, 1, 0);   // yaw
             model.rotate(-90.f, 0, 0, 1);               // roll
             m_fisheyeEACPrg->setUniformValue(m_fisheyeEACMatrixLoc, model);
 
@@ -2003,7 +2065,8 @@ void LayersRendererQtOpenGLObject::renderLayer(const BaseLayer* layer, int eyeMo
         else {
             m_EACPrg->bind();
 
-            m_EACPrg->setUniformValue(m_EACAlphaLoc, layer->alpha());
+            m_EACPrg->setUniformValue(m_EACAlphaLoc, alpha);
+            m_EACMaskLocs.apply(QtUniformSetter{m_EACPrg.get()}, anim, 2.f);
             m_EACPrg->setUniformValue(m_EACFlipYLoc, layer->renderFlipY());
             m_EACPrg->setUniformValue(m_EACOutsideLoc, 0);
             m_EACPrg->setUniformValue(m_EACVideoWidthLoc, layer->width());
@@ -2021,13 +2084,13 @@ void LayersRendererQtOpenGLObject::renderLayer(const BaseLayer* layer, int eyeMo
             }
 
             QMatrix4x4 mvp = projectionMatrix * viewMatrix;
-            QVector3D translate(layer->translate().x, layer->translate().y, layer->translate().z);
+            QVector3D translate(trans.x, trans.y, trans.z);
             mvp.translate(translate);
 
             QMatrix4x4 mvpRot = mvp;
-            mvpRot.rotate(layer->rotate().z, 0, 0, 1);                      // roll
-            mvpRot.rotate(layer->rotate().x, 1, 0, 0);                      // pitch
-            mvpRot.rotate(layer->rotate().y, 0, 1, 0);                      // yaw
+            mvpRot.rotate(rot.z, 0, 0, 1);                      // roll
+            mvpRot.rotate(rot.x, 1, 0, 0);                      // pitch
+            mvpRot.rotate(rot.y, 0, 1, 0);                      // yaw
             mvpRot.rotate(-90.f, 0, 0, 1);                                    // roll
 
             m_EACPrg->setUniformValue(m_EACMatrixLoc, mvpRot);
@@ -2072,15 +2135,16 @@ void LayersRendererQtOpenGLObject::renderLayer(const BaseLayer* layer, int eyeMo
                 m_fisheyePrg->setUniformValue(m_fisheyeRoi, 0.f, 0.f, 1.f, 1.f);
             }
 
-            m_fisheyePrg->setUniformValue(m_fisheyeAlphaLoc, layer->alpha());
+            m_fisheyePrg->setUniformValue(m_fisheyeAlphaLoc, alpha);
+            m_fisheyeMaskLocs.apply(QtUniformSetter{m_fisheyePrg.get()}, anim, 2.f);
             m_fisheyePrg->setUniformValue(m_fisheyeFlipYLoc, layer->renderFlipY());
             m_fisheyePrg->setUniformValue(m_fisheyeOutsideLoc, 0);
             m_fisheyePrg->setUniformValue(m_fisheyeHalfFovLoc, static_cast<float>(glm::radians(m_meshFov * 0.5)));
 
             QMatrix4x4 model;
-            model.rotate(layer->rotate().z, 0, 0, 1);         // roll
-            model.rotate(layer->rotate().x, 1, 0, 0);         // pitch
-            model.rotate(layer->rotate().y - 90.f, 0, 1, 0);  // yaw
+            model.rotate(rot.z, 0, 0, 1);         // roll
+            model.rotate(rot.x, 1, 0, 0);         // pitch
+            model.rotate(rot.y - 90.f, 0, 1, 0);  // yaw
             m_fisheyePrg->setUniformValue(m_fisheyeMatrixLoc, model);
 
             // Only the hemisphere above the dome horizon reaches the disk (the fragment
@@ -2095,13 +2159,13 @@ void LayersRendererQtOpenGLObject::renderLayer(const BaseLayer* layer, int eyeMo
         else {
             // EQR sphere rendering
             QMatrix4x4 mvp = projectionMatrix * viewMatrix;
-            QVector3D translate(layer->translate().x, layer->translate().y, layer->translate().z);
+            QVector3D translate(trans.x, trans.y, trans.z);
             mvp.translate(translate);
 
             QMatrix4x4 mvpRot = mvp;
-            mvpRot.rotate(layer->rotate().z, 0, 0, 1);  // roll
-            mvpRot.rotate(layer->rotate().x, 1, 0, 0);  // pitch
-            mvpRot.rotate(layer->rotate().y - 90.f, 0, 1, 0);  // yaw
+            mvpRot.rotate(rot.z, 0, 0, 1);  // roll
+            mvpRot.rotate(rot.x, 1, 0, 0);  // pitch
+            mvpRot.rotate(rot.y - 90.f, 0, 1, 0);  // yaw
 
             m_meshPrg->bind();
 
@@ -2122,7 +2186,8 @@ void LayersRendererQtOpenGLObject::renderLayer(const BaseLayer* layer, int eyeMo
                 m_meshPrg->setUniformValue(m_meshRoi, 0.f, 0.f, 1.f, 1.f);
             }
 
-            m_meshPrg->setUniformValue(m_meshAlphaLoc, layer->alpha());
+            m_meshPrg->setUniformValue(m_meshAlphaLoc, alpha);
+            m_meshMaskLocs.apply(QtUniformSetter{m_meshPrg.get()}, anim, 2.f);
             m_meshPrg->setUniformValue(m_meshFlipYLoc, layer->renderFlipY());
             m_meshPrg->setUniformValue(m_meshMatrixLoc, mvpRot);
 
@@ -2158,7 +2223,8 @@ void LayersRendererQtOpenGLObject::renderLayer(const BaseLayer* layer, int eyeMo
                 m_fisheyePrg->setUniformValue(m_fisheyeStereoscopicModeLoc, 0);
             }
 
-            m_fisheyePrg->setUniformValue(m_fisheyeAlphaLoc, layer->alpha());
+            m_fisheyePrg->setUniformValue(m_fisheyeAlphaLoc, alpha);
+            m_fisheyeMaskLocs.apply(QtUniformSetter{m_fisheyePrg.get()}, anim, 2.f);
             m_fisheyePrg->setUniformValue(m_fisheyeFlipYLoc, layer->renderFlipY());
             m_fisheyePrg->setUniformValue(m_fisheyeOutsideLoc, 0);
             m_fisheyePrg->setUniformValue(m_fisheyeHalfFovLoc, static_cast<float>(glm::radians(m_meshFov * 0.5)));
@@ -2174,9 +2240,9 @@ void LayersRendererQtOpenGLObject::renderLayer(const BaseLayer* layer, int eyeMo
             // The fulldome image is always centered on the zenith, so the camera and the dome
             // tilt are irrelevant here; only the layer's own orientation matters.
             QMatrix4x4 model;
-            model.rotate(layer->rotate().z, 0, 0, 1);   // roll
-            model.rotate(layer->rotate().x, 1, 0, 0);   // pitch
-            model.rotate(layer->rotate().y, 0, 1, 0);   // yaw
+            model.rotate(rot.z, 0, 0, 1);   // roll
+            model.rotate(rot.x, 1, 0, 0);   // pitch
+            model.rotate(rot.y, 0, 1, 0);   // yaw
             m_fisheyePrg->setUniformValue(m_fisheyeMatrixLoc, model);
 
             if (m_domeMesh) {
@@ -2205,15 +2271,16 @@ void LayersRendererQtOpenGLObject::renderLayer(const BaseLayer* layer, int eyeMo
                 m_meshPrg->setUniformValue(m_meshRoi, 0.f, 0.f, 1.f, 1.f);
             }
 
-            m_meshPrg->setUniformValue(m_meshAlphaLoc, layer->alpha());
+            m_meshPrg->setUniformValue(m_meshAlphaLoc, alpha);
+            m_meshMaskLocs.apply(QtUniformSetter{m_meshPrg.get()}, anim, 2.f);
             m_meshPrg->setUniformValue(m_meshFlipYLoc, layer->renderFlipY());
 
             QMatrix4x4 mvpRot = projectionMatrix * viewMatrix;
-            QVector3D translate(layer->translate().x, layer->translate().y, layer->translate().z);
+            QVector3D translate(trans.x, trans.y, trans.z);
             mvpRot.translate(translate);
-            mvpRot.rotate(layer->rotate().z, 0, 0, 1);           // roll
-            mvpRot.rotate(layer->rotate().x - angle, 1, 0, 0);   // pitch
-            mvpRot.rotate(layer->rotate().y, 0, 1, 0);           // yaw
+            mvpRot.rotate(rot.z, 0, 0, 1);           // roll
+            mvpRot.rotate(rot.x - angle, 1, 0, 0);   // pitch
+            mvpRot.rotate(rot.y, 0, 1, 0);           // yaw
             m_meshPrg->setUniformValue(m_meshMatrixLoc, mvpRot);
 
             if (m_domeMesh) {
@@ -2252,7 +2319,8 @@ void LayersRendererQtOpenGLObject::renderLayer(const BaseLayer* layer, int eyeMo
             prg->setUniformValue(roiLoc, 0.f, 0.f, 1.f, 1.f);
         }
 
-        prg->setUniformValue(alphaLoc, layer->alpha());
+        prg->setUniformValue(alphaLoc, alpha);
+        (m_renderAsFisheye ? m_fisheyeMaskLocs : m_meshMaskLocs).apply(QtUniformSetter{prg}, anim, aspect);
         prg->setUniformValue(flipYLoc, layer->renderFlipY());
 
         QMatrix4x4 planeTransform;
@@ -2263,13 +2331,15 @@ void LayersRendererQtOpenGLObject::renderLayer(const BaseLayer* layer, int eyeMo
             planeTransform.rotate(-angle, 1, 0, 0);
 
         // Specific plane parameters
-        planeTransform.rotate(float(layer->planeAzimuth()), 0, -1, 0);    // azimuth
-        planeTransform.rotate(float(layer->planeElevation()), 1, 0, 0);   // elevation
-        planeTransform.rotate(float(layer->planeRoll()), 0, 0, 1);        // roll
+        planeTransform.rotate(float(layer->renderPlaneAzimuth()), 0, -1, 0);    // azimuth
+        planeTransform.rotate(float(layer->renderPlaneElevation()), 1, 0, 0);   // elevation
+        planeTransform.rotate(float(layer->renderPlaneRoll()), 0, 0, 1);        // roll
         planeTransform.translate(
-            float(layer->planeHorizontal()) / 100.f,
-            float(layer->planeVertical()) / 100.f,
-            float(-layer->planeDistance()) / 100.f);
+            float(layer->renderPlaneHorizontal()) / 100.f,
+            float(layer->renderPlaneVertical()) / 100.f,
+            float(-layer->renderPlaneDistance()) / 100.f);
+        if (animActive && anim.scale != 1.f)
+            planeTransform.scale(anim.scale, anim.scale, 1.f);
 
         if (m_renderAsFisheye) {
             // The fisheye lens needs the plane in world space, without any camera.
@@ -2308,13 +2378,23 @@ void LayersRendererQtOpenGLObject::renderLayer(const BaseLayer* layer, int eyeMo
             m_videoPrg->setUniformValue(m_videoRoi, 0.f, 0.f, 1.f, 1.f);
         }
 
-        m_videoPrg->setUniformValue(m_videoAlphaLoc, layer->alpha());
+        m_videoPrg->setUniformValue(m_videoAlphaLoc, alpha);
+        m_videoMaskLocs.apply(QtUniformSetter{m_videoPrg.get()}, anim, aspect);
+        {
+            const QRect vp = renderViewportRect();
+            const glm::mat4 quad = cplay::anim::flatQuadMatrix(anim, animActive,
+                vp.height() > 0 ? static_cast<float>(vp.width()) / static_cast<float>(vp.height()) : 1.f);
+            m_videoPrg->setUniformValue(m_videoMaskLocs.quadMatrix, QMatrix4x4(glm::value_ptr(glm::transpose(quad))));
+        }
         m_videoPrg->setUniformValue(m_videoFlipYLoc, layer->renderFlipY());
 
         renderQuad();
 
         m_videoPrg->release();
     }
+
+    if (animActive)
+        resetAnimUniforms();
 
     glDisable(GL_BLEND);
 }
@@ -2894,32 +2974,26 @@ void LayersRendererQtOpenGLObject::renderLayers(float angle,
         }
     }
 
-    // Render slides layers - use try-lock snapshot to avoid deadlocking with UI thread
+    // Render slides layers bottom to top, following the render order of the triggered slide
+    // (see SlidesModel::tryRenderStack) - try-lock snapshot to avoid deadlocking with UI thread
     if (Application::instance().slidesModel()) {
-        QList<QSharedPointer<LayersModel>> slidesSnapshot;
-        if (Application::instance().slidesModel()->trySnapshotSlides(slidesSnapshot)) {
-            for (int s = 0; s < slidesSnapshot.size(); s++) {
-                auto& slidePtr = slidesSnapshot[s];
-                if (!slidePtr) continue;
-
-                int numLayers = slidePtr->numberOfLayers();
-                for (int l = numLayers - 1; l >= 0; l--) {
-                    std::shared_ptr<BaseLayer> layerPtr = slidePtr->layerShared(l);
-                    BaseLayer* layer = layerPtr.get();
-                    if (layer) {
-                        // Layers that only exist on the master can be hidden from the 3D view.
-                        if (UserInterfaceSettings::hideMasterOnlyLayersIn3DView() && layer->existOnMasterOnly())
-                            continue;
-                        if (layer->ready() && layer->hasTexture() && (layer->alpha() > 0.f)) {
-                            if (layer->hasSubLayers()) {
-                                // QR operations active: skip the parent, only render sublayers
-                                for (const auto& sublayer : layer->getSubLayers()) {
-                                    renderLayer(sublayer.get(), eyeMode, angle, viewMatrix, projectionMatrix);
-                                }
+        std::vector<std::shared_ptr<BaseLayer>> renderStack;
+        if (Application::instance().slidesModel()->tryRenderStack(renderStack)) {
+            for (const auto& layerPtr : renderStack) {
+                BaseLayer* layer = layerPtr.get();
+                if (layer) {
+                    // Layers that only exist on the master can be hidden from the 3D view.
+                    if (UserInterfaceSettings::hideMasterOnlyLayersIn3DView() && layer->existOnMasterOnly())
+                        continue;
+                    if (layer->ready() && layer->hasTexture() && (layer->alpha() > 0.f)) {
+                        if (layer->hasSubLayers()) {
+                            // QR operations active: skip the parent, only render sublayers
+                            for (const auto& sublayer : layer->getSubLayers()) {
+                                renderLayer(sublayer.get(), eyeMode, angle, viewMatrix, projectionMatrix);
                             }
-                            else {
-                                renderLayer(layer, eyeMode, angle, viewMatrix, projectionMatrix);
-                            }
+                        }
+                        else {
+                            renderLayer(layer, eyeMode, angle, viewMatrix, projectionMatrix);
                         }
                     }
                 }

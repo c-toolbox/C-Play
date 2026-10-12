@@ -10,22 +10,28 @@
 
 #include <QAbstractListModel>
 #include <QElapsedTimer>
+#include <QJsonArray>
+#include <QPointer>
+#include <animation/layereffects.h>
 #include <layers/baselayer.h>
 #include <QtQml/qqmlregistration.h>
 #include <QSet>
 #include <QVector>
 #include <memory>
 #include <mutex>
+#include <unordered_map>
 
 class QTimer;
 
 using Layers = QList<QPair<std::shared_ptr<BaseLayer>, int>>;
 
-// A single keyframe: time in milliseconds [0, timelineDuration] and alpha [0.0, 1.0]
-// Rotation (X/Y/Z in degrees) and translation (X/Y/Z) are optional per-keyframe.
+// A single keyframe at timeMs. Alpha is always keyed; the other groups are optional and
+// interpolate only between keyframes that have them. Values are absolute layer values.
+// easing shapes the segment from this keyframe to the next one of the same group.
 struct LayerKeyframe {
     int     timeMs = 0;
     float   alpha  = 0.f;
+    int     easing = 0;
     bool    hasRotate    = false;
     float   rotateX = 0.f;
     float   rotateY = 0.f;
@@ -34,12 +40,35 @@ struct LayerKeyframe {
     float   translateX = 0.f;
     float   translateY = 0.f;
     float   translateZ = 0.f;
+    bool    hasScale = false;
+    float   scale = 1.f;
+    bool    hasPlane = false;
+    float   planeAzimuth = 0.f;
+    float   planeElevation = 0.f;
+    float   planeRoll = 0.f;
+    float   planeDistance = 0.f;
+    float   planeHorizontal = 0.f;
+    float   planeVertical = 0.f;
 };
 
-// Per-layer timeline track: ordered list of keyframes
+// Per-layer timeline track: ordered keyframes plus entrance/exit effects.
 struct LayerTimeline {
     QVector<LayerKeyframe> keyframes;
-    int outroStartMs = -1; // -1 means no split (all keyframes are intro)
+    QVector<cplay::anim::LayerEffect> effects;
+};
+
+class LayersModel;
+
+// A layer owned by an earlier slide that is still visible in this slide
+// (see BaseLayer::keepVisibilityForNumSlides). It is listed, ordered and can be
+// animated in this slide, but it is saved, synced and loaded by its owner.
+struct LayerReference {
+    std::shared_ptr<BaseLayer> layer;
+    QPointer<LayersModel> owner;
+    // How many slides back the owner is (1 = previous slide).
+    int slideOffset = 0;
+    // Index of the layer in the owner's own layer list.
+    int ownerLayerIdx = -1;
 };
 
 class LayersTypeModel : public QAbstractListModel {
@@ -81,13 +110,19 @@ public:
         VisibilityRole,
         NdiOutputRole,
         ExistOnMasterOnlyRole,
-        NodeStreamOutputRole
+        NodeStreamOutputRole,
+        IsReferenceRole,
+        ReferenceSourceRole
     };
 
     int rowCount(const QModelIndex &parent = QModelIndex()) const override;
     QVariant data(const QModelIndex &index, int role = Qt::DisplayRole) const override;
     virtual QHash<int, QByteArray> roleNames() const override;
 
+    // Rows of the model are the slide's render order (top first): its own layers plus
+    // references to layers of earlier slides. Q_INVOKABLE index arguments are rows.
+    // getLayers(), numberOfLayers(), layerShared() and layerIdx() only cover the layers
+    // this slide owns, indexed in their own order.
     Layers getLayers() const;
     void setLayers(const Layers &layers);
 
@@ -100,6 +135,54 @@ public:
 
     Q_INVOKABLE BaseLayer *layer(int i);
     std::shared_ptr<BaseLayer> layerShared(int i);
+
+    // ---- References / render order ---------------------------------------
+
+    // Set by SlidesModel whenever the slide structure or keep-visibility spans change.
+    void setReferencedLayers(const QVector<LayerReference> &refs);
+    Q_INVOKABLE bool isReference(int i) const;
+    // "<slide number>. <slide name>" of the slide owning a referenced row, empty for own layers.
+    Q_INVOKABLE QString referenceSource(int i) const;
+    Q_INVOKABLE int numberOfReferences() const;
+    bool containsLayer(const BaseLayer *layer) const;
+    int rowOfLayer(const BaseLayer *layer) const;
+    // Status of an own layer (see layerStatus), -1 if not owned.
+    int ownLayerStatus(const BaseLayer *layer) const;
+    // Every layer of the slide (own and referenced), top of the render order first.
+    std::vector<std::shared_ptr<BaseLayer>> renderOrderShared() const;
+    // Refreshes the row showing the layer, safe to call from any thread.
+    void updateLayerRow(const BaseLayer *layer);
+
+    // True when this slide's timeline has keyframes or effects for the layer.
+    bool hasTrackForLayer(const BaseLayer *layer) const;
+    // Gives a referenced layer without a track a fade-out over the outro (this slide is
+    // the last one showing it). Returns true when a track was created.
+    bool addReferenceOutroFade(const BaseLayer *layer);
+    // Drops a referenced layer's track if it is still the unedited fade from addReferenceOutroFade.
+    bool removeReferenceOutroFade(const BaseLayer *layer);
+    // Drops stored reference animations of layers that no longer exist in any slide.
+    void pruneReferenceTracks(const QSet<const BaseLayer *> &aliveLayers);
+
+    // Layers the timeline of this slide must leave alone because another slide that
+    // also contains them is live (the triggered slide drives shared layers).
+    // isLive: this slide is the triggered one.
+    void setTimelineSuppressedLayers(const QSet<const BaseLayer *> &layers, bool isLive);
+
+    // ---- Move effects across slides ---------------------------------------
+
+    // Plane poses referenced layers enter this slide with, as left by Move effects of
+    // earlier slides (set by SlidesModel). Layers without an entry use their saved values.
+    void setEntryPoses(std::unordered_map<const BaseLayer *, cplay::anim::PlanePose> poses);
+    // Pose after this slide's entrance Move effects. False when the layer neither enters
+    // with a carried pose nor moves in this slide.
+    bool finalMovePose(const BaseLayer *layer, cplay::anim::PlanePose &pose) const;
+    // Places referenced layers this slide does not animate where earlier slides left them.
+    void applyCarriedPoses();
+    // Plane pose a layer has right before the given effect starts (map of the 6 plane values).
+    Q_INVOKABLE QVariantMap poseBeforeEffect(int layerIdx, int effectIdx) const;
+    // Stores the layer's currently shown plane pose as the start or end of a Move effect.
+    Q_INVOKABLE void captureMovePose(int layerIdx, int effectIdx, bool end);
+    Q_INVOKABLE bool effectPresetIsMove(int preset) const;
 
     Q_INVOKABLE QString layerTitle(int i) const;
     Q_INVOKABLE int layerVisibility(int i) const;
@@ -251,16 +334,57 @@ public:
                                     float translateX, float translateY, float translateZ);
     Q_INVOKABLE bool layerHasKeyframes(int layerIdx) const;
 
+    // Sets the easing of one keyframe (segment towards the next keyframe).
+    Q_INVOKABLE void setKeyframeEasing(int layerIdx, int keyframeIdx, int easing);
+    // Sets optional scale/plane groups of one keyframe from a map (see getKeyframes()).
+    Q_INVOKABLE void updateKeyframeExtras(int layerIdx, int keyframeIdx, const QVariantMap &values);
+
+    // ---- Entrance / exit effects ------------------------------------------
+
+    // Effects of one layer: maps with order, phase, preset, trigger, delayMs, durationMs,
+    // easing, direction, feather, amount plus scheduled startMs/endMs (relative to phase start).
+    Q_INVOKABLE QVariantList getEffects(int layerIdx) const;
+    // All effects of the slide for a phase, in playback order, with layerIdx/effectIdx/stepNumber.
+    Q_INVOKABLE QVariantList getSlideEffects(int phase) const;
+    Q_INVOKABLE int addEffect(int layerIdx, int phase, int preset);
+    Q_INVOKABLE void updateEffect(int layerIdx, int effectIdx, const QVariantMap &values);
+    Q_INVOKABLE void removeEffect(int layerIdx, int effectIdx);
+    // Moves an effect to position newPos within the ordered list of its phase.
+    Q_INVOKABLE void moveEffect(int layerIdx, int effectIdx, int newPos);
+    Q_INVOKABLE bool layerHasEffects(int layerIdx) const;
+    Q_INVOKABLE bool layerSupportsAnimation(int layerIdx) const;
+    // Plays the timeline from the start of the given effect.
+    Q_INVOKABLE void previewEffect(int layerIdx, int effectIdx);
+    // Bakes an effect into keyframes is not possible for masks; returns false then.
+    Q_INVOKABLE bool convertEffectToKeyframes(int layerIdx, int effectIdx);
+
+    Q_INVOKABLE QStringList effectPresetNames() const;
+    Q_INVOKABLE int effectPresetCategory(int preset) const;
+    Q_INVOKABLE bool effectPresetUsesDirection(int preset) const;
+    Q_INVOKABLE bool effectPresetUsesFeather(int preset) const;
+    Q_INVOKABLE QStringList effectDirectionNames() const;
+    Q_INVOKABLE QStringList easingNames() const;
+    // Eased value of t in [0,1] for drawing easing curves in the UI.
+    Q_INVOKABLE double easingValue(int easing, double t) const;
+
+    // ---- On-click build steps (intro only) --------------------------------
+
+    // Start times (ms) of each on-click step within the intro.
+    Q_INVOKABLE QVariantList introStepStarts() const;
+    // True while the intro is paused at an on-click step waiting for "next".
+    Q_INVOKABLE bool hasPendingAnimationStep() const;
+    Q_INVOKABLE bool playNextAnimationStep();
+    Q_INVOKABLE bool playPreviousAnimationStep();
+
+    // True when the layer's alpha is driven by the timeline (keyframes or entrance effects).
+    bool isLayerTimelineDriven(const BaseLayer *layer) const;
+
     // Evaluate interpolated alpha for a given layer at a given time
     float evaluateAlphaAt(int layerIdx, int timeMs) const;
-    // Evaluate interpolated rotation; returns false if no rotation keyframes exist
-    bool evaluateRotateAt(int layerIdx, int timeMs, float &rx, float &ry, float &rz) const;
-    // Evaluate interpolated translation; returns false if no translation keyframes exist
-    bool evaluateTranslateAt(int layerIdx, int timeMs, float &tx, float &ty, float &tz) const;
 
     // Apply interpolated alpha to all layers at the given timeline position
     // and emit dataChanged so model views (LayersItemCompact) update instantly.
-    Q_INVOKABLE void applyTimelineAt(int timeMs);
+    Q_INVOKABLE void applyTimelineAt(int timeMs, bool skipReferences = false);
 
     // Apply the outro section at outroTimeMs (0 = start of outro, outroStartMs..duration range).
     // targetAlphaPerLayer: per-layer end-state alpha as determined by SlideVisibilityModel (0..1).
@@ -280,7 +404,7 @@ public:
     Q_INVOKABLE void startTimelineFrom(int startMs);
     Q_INVOKABLE void startTimelineReverse();
     Q_INVOKABLE void startTimelineIntro();
-    Q_INVOKABLE void startTimelineOutro();
+    Q_INVOKABLE void startTimelineOutro(int fromOutroMs = 0);
     Q_INVOKABLE void stopTimeline();
     Q_INVOKABLE void stopOutro();
     Q_INVOKABLE void stopAllTimelines();
@@ -315,6 +439,9 @@ Q_SIGNALS:
     void timelinePositionChanged(int posMs);
     void outroStarted();
     void outroStopped();
+    void animationStepChanged();
+    // A referenced layer's keep-visibility span was shortened from this slide.
+    void layerVisibilitySpanChanged(BaseLayer *layer);
 
 private:
     void setNeedSync();
@@ -324,10 +451,58 @@ public:
     void markAllLayersNeedSync();
 
 private:
+    BaseLayer *rowLayer(int row) const;
+    int ownIndexOfRow(int row) const;
+    int ownIndexOf(const BaseLayer *layer) const;
+    int referenceIndexOf(const BaseLayer *layer) const;
+    // Row where a newly added own layer goes: below the last own layer, above references.
+    int rowForNewOwnLayer() const;
+    // Reorders m_layers to follow the own layers' order in m_order.
+    void syncOwnLayersToOrder();
+    void applyPendingRenderOrder();
+    void applyPendingReferenceTracks();
+    bool isTimelineSuppressed(const BaseLayer *layer) const;
+    // Hides referenced layers that are not shown by the live slide (used when this slide is left).
+    void hideUnsuppressedReferences(bool evenWhenLive);
+    QJsonObject encodeTrack(const LayerTimeline &track) const;
+    void decodeTrack(const QJsonObject &o, LayerTimeline &track) const;
+
     void ensureTimelineSizeMatchesLayers();
+    // Default slide fade as Fade effects spanning the intro and/or the outro.
+    void addDefaultFadeEffects(LayerTimeline &track, bool intro, bool outro) const;
+    bool isDefaultOutroFade(const cplay::anim::LayerEffect &e) const;
+    // Gives a layer added by the user to a timeline slide the default fade effects.
+    void addDefaultFadeForNewLayer(int layerIdx);
+    LayerTimeline *timelineAt(int layerIdx);
+    const LayerTimeline *timelineAt(int layerIdx) const;
+    // Evaluates keyframes and effects of one layer at absolute timeline time.
+    cplay::anim::LayerAnimState evaluateAnimState(int layerIdx, int timeMs) const;
+    cplay::anim::PlanePose entryPose(const BaseLayer *layer) const;
+    // Plane pose from Move effects at timeline time; false when nothing moves the layer.
+    // stopBefore: evaluate only the Move effects scheduled before this one.
+    bool evaluateMovePose(const BaseLayer *layer, int timeMs, cplay::anim::PlanePose &pose,
+                          const cplay::anim::LayerEffect *stopBefore = nullptr) const;
+    void rebuildEffectSchedule();
+    void fitTimelineToEffects();
+    void enableTimelineForEffects();
+    int introStopAfter(int startMs) const;
+    void clearAllAnimStates();
     void guessGridModeForDraggedLayer(int layerIdx, BaseLayer *layer);
 
     Layers m_layers;
+    QVector<LayerReference> m_refs;
+    // Render order of all rows (own and referenced layers), top first.
+    QVector<const BaseLayer *> m_order;
+    // Saved order and reference animations waiting for the references to be resolved
+    // after a presentation load (references are only known once every slide is loaded).
+    QJsonArray m_pendingRenderOrder;
+    QJsonArray m_pendingReferenceTracks;
+    // Layers that had a reference track at some point; their track survives while the
+    // layer exists, so shrinking and re-extending a keep-visibility span keeps animations.
+    std::unordered_map<const BaseLayer *, std::weak_ptr<BaseLayer>> m_referenceTrackLayers;
+    QSet<const BaseLayer *> m_timelineSuppressed;
+    std::unordered_map<const BaseLayer *, cplay::anim::PlanePose> m_entryPoses;
+    bool m_isLiveSlide = false;
     QSet<BaseLayer *> m_draggedLayersAwaitingGridGuess;
     // Guards m_layers / m_draggedLayersAwaitingGridGuess against the render thread
     // (SlidesQtItemRenderer::update -> runRenderOnLayersThatShouldUpdate), which
@@ -343,6 +518,7 @@ private:
     int m_layerToCopyIdx = -1;
     bool m_layersCanBeLocked = false;
     bool m_layersNeedsSave = false;
+    bool m_decodingLayers = false;
     bool m_needSync;
     int m_syncIteration;
     QString m_layersName;
@@ -352,7 +528,22 @@ private:
     bool m_hasTimeline = false;
     int  m_timelineDuration = 5000; // ms
     int  m_timelineOutroStart = -1; // ms, -1 = no split
-    QVector<LayerTimeline> m_layerTimelines;
+    // Keyed by layer so timelines follow layers when they are moved or removed.
+    std::unordered_map<const BaseLayer *, LayerTimeline> m_layerTimelines;
+
+    struct ScheduledEffect {
+        const BaseLayer *layer = nullptr;
+        int effectIdx = -1;
+        int startMs = 0;
+        int endMs = 0;
+        int step = 0;
+    };
+    QVector<ScheduledEffect> m_introSchedule;
+    QVector<ScheduledEffect> m_outroSchedule;
+    QVector<int> m_introStepStarts;
+    int m_introEffectsSpan = 0;
+    int m_outroEffectsSpan = 0;
+    int m_timelineStopAtMs = -1;
 
     // Timeline playback state (per-slide)
     void onTimelineTick();
@@ -367,6 +558,7 @@ private:
     int            m_timelinePositionMs  = 0;
 
     QElapsedTimer  m_outroElapsed;
+    int            m_outroOffsetMs       = 0;
     bool           m_outroRunning        = false;
     QVector<float> m_outroTargetAlpha;
 };

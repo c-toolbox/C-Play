@@ -709,12 +709,61 @@ void BaseLayer::encodeBaseAlways(std::vector<std::byte>& data) const {
     sgct::serializeObject(data, m_shouldUpdate);
     sgct::serializeObject(data, m_shouldPreLoad);
     sgct::serializeObject(data, renderData.alpha);
+
+    sgct::serializeObject(data, m_animActive);
+    if (m_animActive) {
+        const auto &a = m_animState;
+        sgct::serializeObject(data, a.alphaMul);
+        sgct::serializeObject(data, a.move.x);
+        sgct::serializeObject(data, a.move.y);
+        sgct::serializeObject(data, a.scale);
+        sgct::serializeObject(data, a.spin);
+        for (int i = 0; i < 3; ++i) {
+            sgct::serializeObject(data, a.rotateOffset[i]);
+            sgct::serializeObject(data, a.translateOffset[i]);
+            sgct::serializeObject(data, a.planeAngleOffset[i]);
+            sgct::serializeObject(data, a.planePosOffset[i]);
+        }
+        sgct::serializeObject(data, a.maskType);
+        sgct::serializeObject(data, a.maskProgress);
+        sgct::serializeObject(data, a.maskFeather);
+        sgct::serializeObject(data, a.maskAngle);
+        sgct::serializeObject(data, a.maskCenter.x);
+        sgct::serializeObject(data, a.maskCenter.y);
+        sgct::serializeObject(data, a.maskInvert);
+    }
 }
 
 void BaseLayer::decodeBaseAlways(const std::vector<std::byte>& data, unsigned int& pos) {
     sgct::deserializeObject(data, pos, m_shouldUpdate);
     sgct::deserializeObject(data, pos, m_shouldPreLoad);
     sgct::deserializeObject(data, pos, renderData.alpha);
+
+    sgct::deserializeObject(data, pos, m_animActive);
+    if (m_animActive) {
+        auto &a = m_animState;
+        sgct::deserializeObject(data, pos, a.alphaMul);
+        sgct::deserializeObject(data, pos, a.move.x);
+        sgct::deserializeObject(data, pos, a.move.y);
+        sgct::deserializeObject(data, pos, a.scale);
+        sgct::deserializeObject(data, pos, a.spin);
+        for (int i = 0; i < 3; ++i) {
+            sgct::deserializeObject(data, pos, a.rotateOffset[i]);
+            sgct::deserializeObject(data, pos, a.translateOffset[i]);
+            sgct::deserializeObject(data, pos, a.planeAngleOffset[i]);
+            sgct::deserializeObject(data, pos, a.planePosOffset[i]);
+        }
+        sgct::deserializeObject(data, pos, a.maskType);
+        sgct::deserializeObject(data, pos, a.maskProgress);
+        sgct::deserializeObject(data, pos, a.maskFeather);
+        sgct::deserializeObject(data, pos, a.maskAngle);
+        sgct::deserializeObject(data, pos, a.maskCenter.x);
+        sgct::deserializeObject(data, pos, a.maskCenter.y);
+        sgct::deserializeObject(data, pos, a.maskInvert);
+    }
+    else {
+        m_animState = cplay::anim::LayerAnimState();
+    }
 }
 
 void BaseLayer::encodeBaseProperties(std::vector<std::byte>& data) const {
@@ -1393,6 +1442,125 @@ void BaseLayer::drawPlane() const {
     if (planeData.mesh) {
         planeData.mesh->draw();
     }
+}
+
+const cplay::anim::LayerAnimState &BaseLayer::animState() const {
+    return m_animState;
+}
+
+bool BaseLayer::animActive() const {
+    return m_animActive;
+}
+
+void BaseLayer::setAnimState(const cplay::anim::LayerAnimState &state) {
+    m_animState = state;
+    m_animActive = !state.isIdentity();
+    if (hasSubLayers()) {
+        for (const auto& sublayer : getSubLayers()) {
+            if (sublayer)
+                sublayer->setAnimState(state);
+        }
+    }
+}
+
+void BaseLayer::clearAnimState() {
+    setAnimState(cplay::anim::LayerAnimState());
+}
+
+void BaseLayer::beginPoseEdit() {
+    if (m_poseEditing || !m_animActive)
+        return;
+    const glm::vec3 a = m_animState.planeAngleOffset;
+    const glm::vec3 p = m_animState.planePosOffset;
+    if (a == glm::vec3(0.f) && p == glm::vec3(0.f))
+        return;
+    m_poseEditing = true;
+    m_poseEditAngles = glm::dvec3(planeData.azimuth, planeData.elevation, planeData.roll);
+    m_poseEditPos = glm::dvec3(planeData.horizontal, planeData.vertical, planeData.distance);
+    // Drag tools work on the saved values, so show the animated pose through them meanwhile.
+    setPlaneAzimuth(m_poseEditAngles.x + a.x);
+    setPlaneElevation(m_poseEditAngles.y + a.y);
+    setPlaneRoll(m_poseEditAngles.z + a.z);
+    setPlaneHorizontal(m_poseEditPos.x + p.x);
+    setPlaneVertical(m_poseEditPos.y + p.y);
+    setPlaneDistance(m_poseEditPos.z + p.z);
+    cplay::anim::LayerAnimState s = m_animState;
+    s.planeAngleOffset = glm::vec3(0.f);
+    s.planePosOffset = glm::vec3(0.f);
+    setAnimState(s);
+}
+
+void BaseLayer::endPoseEdit() {
+    if (!m_poseEditing)
+        return;
+    m_poseEditing = false;
+    cplay::anim::LayerAnimState s = m_animState;
+    s.planeAngleOffset = glm::vec3(glm::dvec3(planeData.azimuth, planeData.elevation, planeData.roll) - m_poseEditAngles);
+    s.planePosOffset = glm::vec3(glm::dvec3(planeData.horizontal, planeData.vertical, planeData.distance) - m_poseEditPos);
+    setPlaneAzimuth(m_poseEditAngles.x);
+    setPlaneElevation(m_poseEditAngles.y);
+    setPlaneRoll(m_poseEditAngles.z);
+    setPlaneHorizontal(m_poseEditPos.x);
+    setPlaneVertical(m_poseEditPos.y);
+    setPlaneDistance(m_poseEditPos.z);
+    setAnimState(s);
+}
+
+float BaseLayer::renderAlpha() const {
+    return m_animActive ? renderData.alpha * m_animState.alphaMul : renderData.alpha;
+}
+
+glm::vec3 BaseLayer::renderRotate() const {
+    if (!m_animActive)
+        return renderData.rotate;
+    // Layer-relative movement turns into yaw/pitch on dome and sphere surfaces.
+    return renderData.rotate + m_animState.rotateOffset
+        + glm::vec3(m_animState.move.y * 45.f, -m_animState.move.x * 90.f, m_animState.spin);
+}
+
+glm::vec3 BaseLayer::renderTranslate() const {
+    return m_animActive ? renderData.translate + m_animState.translateOffset : renderData.translate;
+}
+
+double BaseLayer::renderPlaneAzimuth() const {
+    return m_animActive ? planeData.azimuth + m_animState.planeAngleOffset.x : planeData.azimuth;
+}
+
+double BaseLayer::renderPlaneElevation() const {
+    return m_animActive ? planeData.elevation + m_animState.planeAngleOffset.y : planeData.elevation;
+}
+
+double BaseLayer::renderPlaneRoll() const {
+    return m_animActive ? planeData.roll + m_animState.planeAngleOffset.z + m_animState.spin : planeData.roll;
+}
+
+double BaseLayer::renderPlaneDistance() const {
+    return m_animActive ? planeData.distance + m_animState.planePosOffset.z : planeData.distance;
+}
+
+double BaseLayer::renderPlaneHorizontal() const {
+    if (!m_animActive)
+        return planeData.horizontal;
+    const double w = planeData.actualSize.x > 0.f ? planeData.actualSize.x : planeData.specifiedSize.x;
+    return planeData.horizontal + m_animState.planePosOffset.x + m_animState.move.x * w;
+}
+
+double BaseLayer::renderPlaneVertical() const {
+    if (!m_animActive)
+        return planeData.vertical;
+    const double h = planeData.actualSize.y > 0.f ? planeData.actualSize.y : planeData.specifiedSize.y;
+    return planeData.vertical + m_animState.planePosOffset.y + m_animState.move.y * h;
+}
+
+float BaseLayer::renderAspectRatio() const {
+    const int w = width();
+    const int h = height();
+    if (w <= 0 || h <= 0)
+        return 1.f;
+    float aspect = static_cast<float>(w) / static_cast<float>(h);
+    if (renderData.roiEnabled && renderData.roi.w > 0.f)
+        aspect *= renderData.roi.z / renderData.roi.w;
+    return aspect;
 }
 
 bool BaseLayer::hasPlane() const {

@@ -24,6 +24,7 @@
 #include <mutex>
 #include <vector>
 #include <layers/baselayer.h>
+#include <animation/maskglsl.h>
 #include <layers/imagelayer.h>
 #include <utils/domegrid.h>
 #include <utils/spheregrid.h>
@@ -204,6 +205,13 @@ private:
     int m_fisheyeEACVideoHeightLoc;
     int m_fisheyeEACFlipUpDownLoc;
 
+    cplay::anim::MaskUniformLocations m_videoMaskLocs;
+    cplay::anim::MaskUniformLocations m_meshMaskLocs;
+    cplay::anim::MaskUniformLocations m_EACMaskLocs;
+    cplay::anim::MaskUniformLocations m_fisheyeMaskLocs;
+    cplay::anim::MaskUniformLocations m_fisheyeEACMaskLocs;
+    // Restores neutral mask/quad uniforms after an animated layer so other draws are unaffected.
+    void resetAnimUniforms();
     // Meshes
     std::unique_ptr<DomeGrid> m_domeMesh;
     std::unique_ptr<DomeGrid> m_domeMaskMesh;
@@ -387,6 +395,7 @@ private:
 
     // 3D-grid layer selection and drag state (GUI thread only).
     std::shared_ptr<BaseLayer> m_selectedPlaneLayer;
+    std::weak_ptr<BaseLayer> m_poseEditLayer;
     int m_selectedPlaneIndex = -1;
     bool m_planeDragActive = false;
     // Which layer-drag operation is active while m_planeDragActive (see the kDrag* values in

@@ -19,9 +19,15 @@ Window {
     // Public API
     // -----------------------------------------------------------------------
     property int slideIndex: -1
+    property var animationPaneLoader: null
 
     readonly property var slideModel: (slideIndex >= 0 && slideIndex < app.slides.numberOfSlides())
                                       ? app.slides.slide(slideIndex) : null
+
+    // Start times of on-click steps (intro), drawn as markers in the ruler.
+    property var stepStarts: []
+    readonly property int outroOffsetMs: outroStartMs > 0 ? outroStartMs : duration
+    readonly property var easingNameList: slideModel ? slideModel.easingNames() : []
 
     // -----------------------------------------------------------------------
     // Window chrome
@@ -53,9 +59,11 @@ Window {
     property int   outroStartMs: slideModel ? slideModel.timelineOutroStart : -1
     property int   playheadMs: 0
 
-    // true while the C++ timer is running — prevents onPlayheadMsChanged from
+    // true while the C++ timer is running ï¿½ prevents onPlayheadMsChanged from
     // double-applying applyTimelineAt (the tick already does it)
     property bool  timelinePlaying: false
+    // Set while playheadMs follows a position reported by C++ (already applied there).
+    property bool  syncingPlayhead: false
 
     // Currently selected keyframe: { layerIdx, kfIdx }  or  null
     property var   selectedKf: null
@@ -63,7 +71,7 @@ Window {
     // Bumped to force inspector spinboxes to re-read from the model
     property int   inspectorRevision: 0
 
-    // Live drag state — updated every frame while dragging a keyframe
+    // Live drag state ï¿½ updated every frame while dragging a keyframe
     property bool  draggingKf: false
     property int   dragLiveMs: 0
     property real  dragLiveAlpha: 0.0
@@ -111,9 +119,48 @@ Window {
     }
 
     function rebuildAllTracks() {
+        root.stepStarts = root.slideModel ? root.slideModel.introStepStarts() : [];
+        ruler.requestPaint();
         for (var i = 0; i < keyframesRepeater.count; i++) {
             var item = keyframesRepeater.itemAt(i);
             if (item) item.reload();
+        }
+    }
+
+    // Alpha between two keyframes, shaped by the first keyframe's easing.
+    function easedAlpha(a, b, t) {
+        var e = root.slideModel ? root.slideModel.easingValue(a.easing !== undefined ? a.easing : 0, t) : t;
+        return a.alpha + e * (b.alpha - a.alpha);
+    }
+
+    function deleteSelectedKf() {
+        if (root.selectedKf && root.slideModel) {
+            root.slideModel.removeKeyframe(root.selectedKf.layerIdx, root.selectedKf.kfIdx);
+            root.rebuildTrack(root.selectedKf.layerIdx);
+            root.selectedKf = null;
+        }
+    }
+
+    function updateSelectedExtras(values) {
+        if (!root.selectedKf || !root.slideModel) return;
+        root.slideModel.updateKeyframeExtras(root.selectedKf.layerIdx, root.selectedKf.kfIdx, values);
+        root.rebuildTrack(root.selectedKf.layerIdx);
+        root.inspectorRevision++;
+    }
+
+    Shortcut {
+        sequence: StandardKey.Delete
+        enabled: root.selectedKf !== null
+        onActivated: root.deleteSelectedKf()
+    }
+    // "Easy ease" as in After Effects.
+    Shortcut {
+        sequence: "F9"
+        enabled: root.selectedKf !== null
+        onActivated: {
+            root.slideModel.setKeyframeEasing(root.selectedKf.layerIdx, root.selectedKf.kfIdx, 6);
+            root.rebuildTrack(root.selectedKf.layerIdx);
+            root.inspectorRevision++;
         }
     }
 
@@ -128,7 +175,7 @@ Window {
 
     // Apply timeline alpha only when the user scrubs manually (not during C++ tick)
     onPlayheadMsChanged: {
-        if (!timelinePlaying && root.slideModel && root.slideModel.hasTimeline) {
+        if (!timelinePlaying && !syncingPlayhead && root.slideModel && root.slideModel.hasTimeline) {
             root.slideModel.applyTimelineAt(root.playheadMs);
         }
     }
@@ -150,9 +197,19 @@ Window {
             playButton.checked   = true;
         }
         function onTimelinePositionChanged(posMs) {
+            root.syncingPlayhead = true;
             root.playheadMs = posMs;
+            root.syncingPlayhead = false;
         }
         function onTimelineStopped() {
+            root.timelinePlaying = false;
+            playButton.checked   = false;
+        }
+        function onOutroStarted() {
+            root.timelinePlaying = true;
+            playButton.checked   = true;
+        }
+        function onOutroStopped() {
             root.timelinePlaying = false;
             playButton.checked   = false;
         }
@@ -171,6 +228,10 @@ Window {
         // Fired by LayersModel whenever a layer is added, removed or moved
         function onLayersModelChanged() {
             rebuildAllTracksTimer.restart();
+        }
+        function onAnimationStepChanged() {
+            root.stepStarts = root.slideModel ? root.slideModel.introStepStarts() : [];
+            ruler.requestPaint();
         }
     }
 
@@ -199,6 +260,15 @@ Window {
                         if (root.slideModel && root.slideModel.hasTimeline !== checked)
                             root.slideModel.hasTimeline = checked;
                     }
+                }
+
+                Button {
+                    text: qsTr("Animations")
+                    icon.name: "rating"
+                    visible: root.animationPaneLoader !== null
+                    ToolTip.visible: hovered
+                    ToolTip.text: qsTr("Entrance and exit effects (PowerPoint-style animation pane)")
+                    onClicked: root.animationPaneLoader.open()
                 }
 
                 ToolSeparator {}
@@ -258,9 +328,16 @@ Window {
                     enabled: enableCheck.checked
                     onClicked: {
                         if (checked) {
-                            app.slides.startTimelineFrom(root.slideIndex, root.playheadMs);
+                            // The intro stops at the outro start; from there on Play runs the outro.
+                            if (root.slideModel && root.slideModel.hasOutro() && root.playheadMs >= root.outroStartMs) {
+                                var from = root.playheadMs >= root.duration ? 0 : root.playheadMs - root.outroStartMs;
+                                app.slides.startTimelineOutro(root.slideIndex, from);
+                            } else {
+                                app.slides.startTimelineFrom(root.slideIndex, root.playheadMs);
+                            }
                         } else {
                             app.slides.stopTimeline(root.slideIndex);
+                            app.slides.stopOutro(root.slideIndex);
                         }
                     }
                 }
@@ -285,8 +362,6 @@ Window {
                     color: enableCheck.checked ? "#f77" : "#777"
                     leftPadding: 8
                 }
-
-                Item { Layout.fillWidth: true }
             }
         }
 
@@ -356,11 +431,92 @@ Window {
                     Button {
                         text: qsTr("Delete")
                         icon.name: "edit-delete"
-                        onClicked: {
-                            if (root.selectedKf && root.slideModel) {
-                                root.slideModel.removeKeyframe(root.selectedKf.layerIdx, root.selectedKf.kfIdx);
-                                root.rebuildTrack(root.selectedKf.layerIdx);
-                                root.selectedKf = null;
+                        onClicked: root.deleteSelectedKf()
+                    }
+
+                    Label { text: qsTr("Easing to next:"); color: "#aaa"; font.pointSize: 8 }
+                    ComboBox {
+                        id: kfEasingCombo
+                        implicitWidth: 170
+                        model: root.easingNameList
+                        currentIndex: { var _r = root.inspectorRevision; var d = root.selectedKfData(); return d ? d.easing : 0; }
+                        onActivated: {
+                            if (!root.selectedKf || !root.slideModel) return;
+                            root.slideModel.setKeyframeEasing(root.selectedKf.layerIdx, root.selectedKf.kfIdx, currentIndex);
+                            root.rebuildTrack(root.selectedKf.layerIdx);
+                            root.inspectorRevision++;
+                        }
+                    }
+                    EasingCurveThumb {
+                        slideModel: root.slideModel
+                        easing: kfEasingCombo.currentIndex
+                        implicitWidth: 40
+                        implicitHeight: 26
+                        strokeColor: "#5bf"
+                    }
+
+                    Item { Layout.fillWidth: true }
+                }
+
+                // ---- Optional scale and plane groups ----
+                RowLayout {
+                    spacing: 10
+                    Layout.fillWidth: true
+
+                    CheckBox {
+                        id: hasScaleCheck
+                        text: qsTr("Scale")
+                        font.pointSize: 8
+                        checked: { var _r = root.inspectorRevision; var d = root.selectedKfData(); return d ? d.hasScale : false; }
+                        onToggled: root.updateSelectedExtras({ hasScale: checked })
+                    }
+                    SpinBox {
+                        from: 0; to: 1000; stepSize: 5
+                        editable: true
+                        enabled: hasScaleCheck.checked
+                        implicitWidth: 80
+                        value: { var _r = root.inspectorRevision; var d = root.selectedKfData(); return d ? Math.round(d.scale * 100) : 100; }
+                        textFromValue: function(v) { return v + " %"; }
+                        valueFromText: function(t) { var p = parseFloat(t); return isNaN(p) ? value : Math.round(p); }
+                        onValueModified: root.updateSelectedExtras({ scale: value / 100.0 })
+                    }
+
+                    CheckBox {
+                        id: hasPlaneCheck
+                        text: qsTr("Plane")
+                        font.pointSize: 8
+                        checked: { var _r = root.inspectorRevision; var d = root.selectedKfData(); return d ? d.hasPlane : false; }
+                        onToggled: root.updateSelectedExtras({ hasPlane: checked })
+                        ToolTip.visible: hovered
+                        ToolTip.text: qsTr("Animate plane azimuth, elevation, roll, distance and offsets (plane grid mode)")
+                    }
+                    Repeater {
+                        model: [
+                            { key: "planeAzimuth", label: qsTr("Az"), unit: "\u00b0" },
+                            { key: "planeElevation", label: qsTr("El"), unit: "\u00b0" },
+                            { key: "planeRoll", label: qsTr("Roll"), unit: "\u00b0" },
+                            { key: "planeDistance", label: qsTr("Dist"), unit: " cm" },
+                            { key: "planeHorizontal", label: qsTr("H"), unit: " cm" },
+                            { key: "planeVertical", label: qsTr("V"), unit: " cm" }
+                        ]
+                        RowLayout {
+                            required property var modelData
+                            spacing: 2
+                            enabled: hasPlaneCheck.checked
+                            Label { text: parent.modelData.label + ":"; color: "#aaa"; font.pointSize: 8 }
+                            SpinBox {
+                                id: planeSpin
+                                from: -100000; to: 100000; stepSize: 10
+                                editable: true
+                                implicitWidth: 78
+                                value: { var _r = root.inspectorRevision; var d = root.selectedKfData(); return d ? Math.round(d[parent.modelData.key] * 10) : 0; }
+                                textFromValue: function(v) { return (v / 10.0).toFixed(1) + planeSpin.parent.modelData.unit; }
+                                valueFromText: function(t) { var p = parseFloat(t); return isNaN(p) ? value : Math.round(p * 10); }
+                                onValueModified: {
+                                    var values = {};
+                                    values[parent.modelData.key] = value / 10.0;
+                                    root.updateSelectedExtras(values);
+                                }
                             }
                         }
                     }
@@ -542,7 +698,7 @@ Window {
             opacity: enableCheck.checked ? 1.0 : 0.35
 
             // -----------------------------------------------------------------
-            // Fixed header column (layer names) — scrolls vertically with Flickable
+            // Fixed header column (layer names) ï¿½ scrolls vertically with Flickable
             // -----------------------------------------------------------------
             Rectangle {
                 id: headerColumn
@@ -581,10 +737,21 @@ Window {
                                 anchors.rightMargin: 30
                                 verticalAlignment: Text.AlignVCenter
                                 elide: Text.ElideRight
-                                // 'title' is the TitleRole exposed by LayersModel
-                                text: model.title !== undefined ? model.title : ""
-                                color: Kirigami.Theme.textColor
+                                // 'title' is the TitleRole exposed by LayersModel; referenced
+                                // layers (owned by an earlier slide) are marked and italic.
+                                text: model.title !== undefined ? (model.isReference ? "â†³ " + model.title : model.title) : ""
+                                color: model.isReference ? Kirigami.Theme.linkColor : Kirigami.Theme.textColor
                                 font.pointSize: 8
+                                font.italic: model.isReference === true
+
+                                MouseArea {
+                                    id: trackHeaderMA
+                                    anchors.fill: parent
+                                    hoverEnabled: true
+                                    acceptedButtons: Qt.NoButton
+                                }
+                                ToolTip.visible: model.isReference === true && trackHeaderMA.containsMouse
+                                ToolTip.text: qsTr("Reference from %1: keyframes here animate the layer while this slide is shown").arg(model.referenceSource)
                             }
 
                             Label {
@@ -691,6 +858,18 @@ Window {
                             ctx.font = "bold 8px sans-serif";
                             ctx.fillText(qsTr("OUT"), ox + 3, height - 3);
                         }
+
+                        // On-click step markers
+                        for (var s = 0; s < root.stepStarts.length; s++) {
+                            var sx = root.msToX(root.stepStarts[s]);
+                            ctx.fillStyle = "#5bf";
+                            ctx.beginPath();
+                            ctx.arc(sx, 7, 6, 0, 2 * Math.PI);
+                            ctx.fill();
+                            ctx.fillStyle = "#000";
+                            ctx.font = "bold 8px sans-serif";
+                            ctx.fillText((s + 1).toString(), sx - 2.5, 10);
+                        }
                     }
 
                     Connections {
@@ -702,7 +881,7 @@ Window {
                 }
 
                 // =============================================================
-                // Track rows — driven by the same QAbstractListModel
+                // Track rows ï¿½ driven by the same QAbstractListModel
                 // =============================================================
                 Column {
                     id: tracksColumn
@@ -712,7 +891,7 @@ Window {
 
                     Repeater {
                         id: keyframesRepeater
-                        // Use slideModel here too — guaranteed same row count as header
+                        // Use slideModel here too ï¿½ guaranteed same row count as header
                         model: root.slideModel
 
                         // --------------------------------------------------------- 
@@ -720,17 +899,32 @@ Window {
                         // ---------------------------------------------------------
                         Item {
                             id: trackRow
-                            // 'index' is the row index in the model — this is the layerIdx
+                            // 'index' is the row index in the model ï¿½ this is the layerIdx
                             readonly property int layerIdx: index
 
-                            // kfData: array of { timeMs, alpha }
+                            // kfData: array of keyframe maps, effData: entrance/exit effects
                             property var kfData: []
+                            property var effData: []
 
                             width: trackArea.contentWidth
                             height: root.trackHeight
 
                             function reload() {
                                 kfData = root.slideModel ? root.slideModel.getKeyframes(layerIdx) : [];
+                                effData = root.slideModel ? root.slideModel.getEffects(layerIdx) : [];
+                            }
+
+                            // Adds eased line segments between keyframes to the current path.
+                            function traceCurve(ctx, h) {
+                                for (var i = 0; i < kfData.length - 1; i++) {
+                                    var a = kfData[i], b = kfData[i + 1];
+                                    var steps = Math.max(1, Math.min(24, Math.round(root.msToX(b.timeMs - a.timeMs) / 4)));
+                                    for (var k = 1; k <= steps; k++) {
+                                        var t = k / steps;
+                                        ctx.lineTo(root.msToX(a.timeMs + t * (b.timeMs - a.timeMs)) - clipX,
+                                                   root.alphaToY(root.easedAlpha(a, b, t), h));
+                                    }
+                                }
                             }
 
                             Component.onCompleted: reload()
@@ -779,11 +973,8 @@ Window {
                                         ctx.beginPath();
                                         var firstX = root.msToX(trackRow.kfData[0].timeMs) - trackRow.clipX;
                                         ctx.moveTo(firstX, height);
-                                        for (var i = 0; i < trackRow.kfData.length; i++) {
-                                            var kf = trackRow.kfData[i];
-                                            ctx.lineTo(root.msToX(kf.timeMs) - trackRow.clipX,
-                                                       root.alphaToY(kf.alpha, height));
-                                        }
+                                        ctx.lineTo(firstX, root.alphaToY(trackRow.kfData[0].alpha, height));
+                                        trackRow.traceCurve(ctx, height);
                                         ctx.lineTo(root.msToX(trackRow.kfData[trackRow.kfData.length - 1].timeMs) - trackRow.clipX, height);
                                         ctx.closePath();
                                         ctx.fill();
@@ -791,13 +982,8 @@ Window {
                                         ctx.strokeStyle = Qt.rgba(0.35, 0.75, 1.0, 0.90);
                                         ctx.lineWidth = 1.5;
                                         ctx.beginPath();
-                                        for (var j = 0; j < trackRow.kfData.length; j++) {
-                                            var kf2 = trackRow.kfData[j];
-                                            var px2 = root.msToX(kf2.timeMs) - trackRow.clipX;
-                                            var py2 = root.alphaToY(kf2.alpha, height);
-                                            if (j === 0) ctx.moveTo(px2, py2);
-                                            else         ctx.lineTo(px2, py2);
-                                        }
+                                        ctx.moveTo(firstX, root.alphaToY(trackRow.kfData[0].alpha, height));
+                                        trackRow.traceCurve(ctx, height);
                                         ctx.stroke();
                                     }
 
@@ -874,12 +1060,20 @@ Window {
                                             var cx = width  / 2;
                                             var cy = height / 2;
                                             var r  = Math.min(cx, cy) - 0.5;
+                                            // After Effects style: diamond = linear, circle = eased, square = hold
+                                            var easing = kfItem.kf.easing !== undefined ? kfItem.kf.easing : 0;
                                             ctx.beginPath();
-                                            ctx.moveTo(cx,     cy - r);
-                                            ctx.lineTo(cx + r, cy    );
-                                            ctx.lineTo(cx,     cy + r);
-                                            ctx.lineTo(cx - r, cy    );
-                                            ctx.closePath();
+                                            if (easing === 0) {
+                                                ctx.moveTo(cx,     cy - r);
+                                                ctx.lineTo(cx + r, cy    );
+                                                ctx.lineTo(cx,     cy + r);
+                                                ctx.lineTo(cx - r, cy    );
+                                                ctx.closePath();
+                                            } else if (easing === 31) {
+                                                ctx.rect(cx - r * 0.8, cy - r * 0.8, r * 1.6, r * 1.6);
+                                            } else {
+                                                ctx.arc(cx, cy, r * 0.9, 0, 2 * Math.PI);
+                                            }
                                             ctx.fillStyle   = kfItem.isSelected ? "#ffa020"
                                                             : Qt.rgba(0.35, 0.75, 1.0, 1.0);
                                             ctx.fill();
@@ -890,6 +1084,7 @@ Window {
                                         Connections {
                                             target: kfItem
                                             function onIsSelectedChanged() { kfDiamond.requestPaint(); }
+                                            function onKfChanged() { kfDiamond.requestPaint(); }
                                         }
                                     }
 
@@ -984,12 +1179,91 @@ Window {
                                     }
                                 }
                             } // Repeater (keyframes)
+
+                            // ---- Entrance (green) / exit (red) effect bars ----
+                            Repeater {
+                                model: trackRow.effData
+
+                                Rectangle {
+                                    id: effBar
+                                    required property var modelData
+                                    readonly property bool isIntro: modelData.phase === 0
+                                    readonly property int baseMs: isIntro ? 0 : root.outroOffsetMs
+                                    property real dragDx: 0
+                                    property real resizeDx: 0
+
+                                    x: root.msToX(baseMs + (modelData.startMs !== undefined ? modelData.startMs : 0)) + dragDx
+                                    y: trackRow.height - 11
+                                    width: Math.max(4, root.msToX((modelData.endMs || 0) - (modelData.startMs || 0)) + resizeDx)
+                                    height: 9
+                                    radius: 2
+                                    z: 4
+                                    color: isIntro ? "#3fb950" : "#f85149"
+                                    opacity: 0.9
+
+                                    Text {
+                                        anchors.left: parent.left
+                                        anchors.leftMargin: 2
+                                        anchors.verticalCenter: parent.verticalCenter
+                                        width: parent.width - 4
+                                        elide: Text.ElideRight
+                                        font.pointSize: 6
+                                        color: "#000"
+                                        text: effBar.modelData.presetName
+                                    }
+
+                                    ToolTip.visible: barMA.containsMouse && !barMA.pressed
+                                    ToolTip.delay: 400
+                                    ToolTip.text: (effBar.isIntro ? qsTr("Entrance: ") : qsTr("Exit: ")) + effBar.modelData.presetName
+                                                  + "  " + (effBar.modelData.durationMs / 1000).toFixed(2) + " s"
+                                                  + qsTr("\nDrag to change the delay, drag the right edge to change the duration.\nDouble-click to open the animation pane.")
+
+                                    // Move: changes the delay
+                                    MouseArea {
+                                        id: barMA
+                                        anchors.fill: parent
+                                        anchors.rightMargin: 4
+                                        hoverEnabled: true
+                                        cursorShape: Qt.SizeHorCursor
+                                        property real pressX: 0
+                                        onPressed: function(mouse) { pressX = mapToItem(trackRow, mouse.x, 0).x; }
+                                        onPositionChanged: function(mouse) {
+                                            if (pressed)
+                                                effBar.dragDx = Math.max(-root.msToX(effBar.modelData.delayMs), mapToItem(trackRow, mouse.x, 0).x - pressX);
+                                        }
+                                        onReleased: {
+                                            var delay = Math.max(0, effBar.modelData.delayMs + root.xToMs(effBar.dragDx));
+                                            effBar.dragDx = 0;
+                                            root.slideModel.updateEffect(trackRow.layerIdx, effBar.modelData.effectIdx, { delayMs: delay });
+                                        }
+                                        onDoubleClicked: if (root.animationPaneLoader) root.animationPaneLoader.open()
+                                    }
+                                    // Resize: changes the duration
+                                    MouseArea {
+                                        anchors.right: parent.right
+                                        width: 5
+                                        height: parent.height
+                                        cursorShape: Qt.SplitHCursor
+                                        property real pressX: 0
+                                        onPressed: function(mouse) { pressX = mapToItem(trackRow, mouse.x, 0).x; }
+                                        onPositionChanged: function(mouse) {
+                                            if (pressed)
+                                                effBar.resizeDx = mapToItem(trackRow, mouse.x, 0).x - pressX;
+                                        }
+                                        onReleased: {
+                                            var dur = Math.max(1, effBar.modelData.durationMs + root.xToMs(effBar.resizeDx));
+                                            effBar.resizeDx = 0;
+                                            root.slideModel.updateEffect(trackRow.layerIdx, effBar.modelData.effectIdx, { durationMs: dur });
+                                        }
+                                    }
+                                }
+                            }
                         } // trackRow
                     } // Repeater (layers / keyframesRepeater)
                 } // Column
 
                 // =============================================================
-                // Outro divider — draggable vertical line marking intro/outro split
+                // Outro divider ï¿½ draggable vertical line marking intro/outro split
                 // =============================================================
                 Item {
                     id: outroDividerItem

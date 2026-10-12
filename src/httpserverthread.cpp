@@ -915,7 +915,7 @@ void HttpServerThread::setupHttpServer() {
                     if (stringToInt(req.get_param_value("level"), volumeLevel)) {
                         if (volumeLevel >= 0 && volumeLevel <= 100) {
                             layer->setVolume(volumeLevel);
-                            if (layerModel) layerModel->updateLayer(layerIdx);
+                            if (layerModel) layerModel->updateLayerRow(layer);
                         }
                     }
                 }
@@ -944,7 +944,7 @@ void HttpServerThread::setupHttpServer() {
                     if (stringToInt(req.get_param_value("value"), value)) {
                         if (value >= 0 && value <= 100) {
                             layer->setAlpha(static_cast<float>(value) * 0.01f);
-                            if (layerModel) layerModel->updateLayer(layerIdx);
+                            if (layerModel) layerModel->updateLayerRow(layer);
                         }
                     }
                 }
@@ -1074,7 +1074,7 @@ void HttpServerThread::setupHttpServer() {
                             returnString += "\n";
                     }
                     if (updateLayer) {
-                        if (layerModel) layerModel->updateLayer(layerIdx);
+                        if (layerModel) layerModel->updateLayerRow(layer);
                     }
                     res.set_content(returnString, "text/plain");
             }
@@ -1438,8 +1438,9 @@ const std::string HttpServerThread::getLayerFromRequest(const httplib::Request& 
             }
             if (lm) {
                 std::string layerTitleStr = req.get_param_value("layer_title");
+                // layer_idx / layer_title address the slide's own layers, not references.
                 layerIdx = lm->layerIdx(layerTitleStr);
-                BaseLayer* layer = lm->layer(layerIdx);
+                BaseLayer* layer = lm->layerShared(layerIdx).get();
                 if (!layer) {
                     return "Could not find layer with title: " + layerTitleStr;
                 }
@@ -1468,7 +1469,7 @@ const std::string HttpServerThread::getLayerFromRequest(const httplib::Request& 
             if (lm) {
                 std::string layerIdxStr = req.get_param_value("layer_idx");
                 if (stringToInt(layerIdxStr, layerIdx)) {
-                    BaseLayer* layer = lm->layer(layerIdx);
+                    BaseLayer* layer = lm->layerShared(layerIdx).get();
                     if (!layer) {
                         return "Could not find layer with idx : " + layerIdxStr;
                     }

@@ -429,7 +429,7 @@ Rectangle {
                     }
 
                     ToolTip {
-                        text: qsTr("Add layer to bottom of list")
+                        text: qsTr("Add layer below the slide's own layers")
                     }
                 }
                 Button {
@@ -444,7 +444,9 @@ Rectangle {
                     }
 
                     ToolTip {
-                        text: qsTr("Remove selected layer")
+                        text: app.slides.selected.isReference(layersView.currentIndex)
+                              ? qsTr("Remove the selected reference: the original layer stops being visible from this slide on")
+                              : qsTr("Remove selected layer")
                     }
                 }
                 Button {

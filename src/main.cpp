@@ -371,24 +371,31 @@ static std::vector<std::byte> encode() {
             if (masterSlidePtr)
                 slidesToSync.push_back(std::make_pair(-1, masterSlidePtr));
 
+            // Layers top to bottom: the slide render stack reversed (it follows the render
+            // order of the triggered slide, see SlidesModel::buildRenderStack), then master.
+            std::vector<std::shared_ptr<BaseLayer>> layersToSync = Application::instance().slidesModel()->buildRenderStack(slidesSnapshot);
+            std::reverse(layersToSync.begin(), layersToSync.end());
+            if (masterSlidePtr) {
+                int numLayers = masterSlidePtr->numberOfLayers();
+                for (int l = 0; l < numLayers; l++)
+                    layersToSync.push_back(masterSlidePtr->layerShared(l));
+            }
+
             // Check if model says sync needed. A slide's own needSync flag is set by
             // structural changes (add/remove/move layers) which reorder the layer list;
             int totalLayersToSync = 0;
             bool needLayerSync = Application::instance().slidesModel()->needsSync();
             for (auto& sp : slidesToSync) {
-                LayersModel* slide = sp.second;
-                if (slide->needsSync()) {
+                if (sp.second->needsSync()) {
                     needLayerSync = true;
                 }
-                int numLayers = slide->numberOfLayers();
-                for (int l = 0; l < numLayers; l++) {
-                    std::shared_ptr<BaseLayer> layerPtr = slide->layerShared(l);
-                    BaseLayer* layer = layerPtr.get();
-                    if (layer && layer->syncToNodes()) {
-                        totalLayersToSync++;
-                        if(layer->needSync()) {
-                            needLayerSync = true;
-                        }
+            }
+            for (const auto& layerPtr : layersToSync) {
+                BaseLayer* layer = layerPtr.get();
+                if (layer && layer->syncToNodes()) {
+                    totalLayersToSync++;
+                    if(layer->needSync()) {
+                        needLayerSync = true;
                     }
                 }
             }
@@ -400,53 +407,45 @@ static std::vector<std::byte> encode() {
             // Sync only complete layer information when needed
             serializeObject(data, totalLayersToSync);
             if (needLayerSync) {
-                for (auto& sp : slidesToSync) {
-                    LayersModel* slideRaw = sp.second;
-                    int numLayers = slideRaw->numberOfLayers();
-                    for (int l = 0; l < numLayers; l++) {
-                        std::shared_ptr<BaseLayer> layerPtr = slideRaw->layerShared(l);
-                        BaseLayer *nextLayer = layerPtr.get();
-                        if(nextLayer && nextLayer->syncToNodes()) {
-                            serializeObject(data, nextLayer->identifier()); // ID
-                            bool needSync = nextLayer->needSync();
-                            serializeObject(data, needSync);   // Check needs sync
-                            serializeObject(data, nextLayer->syncTypeForNodes()); // Type
+                for (const auto& layerPtr : layersToSync) {
+                    BaseLayer *nextLayer = layerPtr.get();
+                    if(nextLayer && nextLayer->syncToNodes()) {
+                        serializeObject(data, nextLayer->identifier()); // ID
+                        bool needSync = nextLayer->needSync();
+                        serializeObject(data, needSync);   // Check needs sync
+                        serializeObject(data, nextLayer->syncTypeForNodes()); // Type
 
-                            std::vector<std::byte> layerData;
-                            if (needSync) {
-                                nextLayer->encodeFullForNodes(layerData);
-                                nextLayer->setHasSynced();
-                            }
-                            else {
-                                nextLayer->encodeAlwaysForNodes(layerData);
-                            }
-                            int layerDataSize = static_cast<int>(layerData.size());
-                            serializeObject(data, layerDataSize);
-                            data.insert(data.end(), layerData.begin(), layerData.end());
+                        std::vector<std::byte> layerData;
+                        if (needSync) {
+                            nextLayer->encodeFullForNodes(layerData);
+                            nextLayer->setHasSynced();
                         }
+                        else {
+                            nextLayer->encodeAlwaysForNodes(layerData);
+                        }
+                        int layerDataSize = static_cast<int>(layerData.size());
+                        serializeObject(data, layerDataSize);
+                        data.insert(data.end(), layerData.begin(), layerData.end());
                     }
-                    slideRaw->setHasSynced();
+                }
+                for (auto& sp : slidesToSync) {
+                    sp.second->setHasSynced();
                 }
                 Application::instance().slidesModel()->setHasSynced();
             }
             else {
                 // Perform a simpler "always" sync which contains update only
                 // Should never remove layers, but only update existing ones, so no need to send layer count or ID
-                for (auto& sp : slidesToSync) {
-                    LayersModel* slideRaw = sp.second;
-                    int numLayers = slideRaw->numberOfLayers();
-                    for (int l = 0; l < numLayers; l++) {
-                        std::shared_ptr<BaseLayer> layerPtr = slideRaw->layerShared(l);
-                        BaseLayer *nextLayer = layerPtr.get();
-                        if(nextLayer && nextLayer->syncToNodes()) {
-                            serializeObject(data, nextLayer->identifier()); // ID
-                            // Encode always data with a size prefix so clients can skip if layer not found
-                            std::vector<std::byte> alwaysData;
-                            nextLayer->encodeAlwaysForNodes(alwaysData);
-                            int alwaysSize = static_cast<int>(alwaysData.size());
-                            serializeObject(data, alwaysSize);
-                            data.insert(data.end(), alwaysData.begin(), alwaysData.end());
-                        }
+                for (const auto& layerPtr : layersToSync) {
+                    BaseLayer *nextLayer = layerPtr.get();
+                    if(nextLayer && nextLayer->syncToNodes()) {
+                        serializeObject(data, nextLayer->identifier()); // ID
+                        // Encode always data with a size prefix so clients can skip if layer not found
+                        std::vector<std::byte> alwaysData;
+                        nextLayer->encodeAlwaysForNodes(alwaysData);
+                        int alwaysSize = static_cast<int>(alwaysData.size());
+                        serializeObject(data, alwaysSize);
+                        data.insert(data.end(), alwaysData.begin(), alwaysData.end());
                     }
                 }
             }

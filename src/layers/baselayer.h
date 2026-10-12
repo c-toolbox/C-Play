@@ -16,6 +16,7 @@
 #include <string>
 #include <vector>
 #include "track.h"
+#include <animation/layeranimstate.h>
 #include <utils/planegrid.h>
 
 class ImageLayer;
@@ -386,6 +387,27 @@ public:
     bool hasPlane() const;
     void updatePlane();
 
+    // Timeline animation applied on top of the saved parameters (render only).
+    const cplay::anim::LayerAnimState &animState() const;
+    bool animActive() const;
+    void setAnimState(const cplay::anim::LayerAnimState &state);
+    void clearAnimState();
+    // A drag of a layer shown at an animated plane pose edits that pose and leaves the
+    // saved plane parameters as they were (used to record Move effect positions).
+    void beginPoseEdit();
+    void endPoseEdit();
+
+    float renderAlpha() const;
+    glm::vec3 renderRotate() const;
+    glm::vec3 renderTranslate() const;
+    double renderPlaneAzimuth() const;
+    double renderPlaneElevation() const;
+    double renderPlaneRoll() const;
+    double renderPlaneDistance() const;
+    double renderPlaneHorizontal() const;
+    double renderPlaneVertical() const;
+    float renderAspectRatio() const;
+
     void setIsMaster(bool value);
     void setIdentifier(uint32_t id);
     void updateIdentifierBasedOnCount();
@@ -534,6 +556,12 @@ protected:
 
     RenderParams renderData;
     PlaneParams planeData;
+    cplay::anim::LayerAnimState m_animState;
+    bool m_animActive = false;
+    bool m_poseEditing = false;
+    // Saved azimuth/elevation/roll and horizontal/vertical/distance while a pose edit runs.
+    glm::dvec3 m_poseEditAngles{0.0};
+    glm::dvec3 m_poseEditPos{0.0};
 
     uint32_t m_identifier;
     static std::atomic_uint32_t m_id_gen;

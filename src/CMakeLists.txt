@@ -8,7 +8,7 @@ set(CPLAY_VERSION_MAJOR 2)
 set(CPLAY_VERSION_MINOR 4)
 set(CPLAY_VERSION_PATCH 0)
 set(CPLAY_VERSION_PR_NAME "Beta")
-set(CPLAY_VERSION_PR_VERS 23)
+set(CPLAY_VERSION_PR_VERS 24)
 
 qt_add_executable(${TARGET_NAME})
 set_compile_options(${TARGET_NAME})
@@ -43,6 +43,12 @@ set(SOURCE_FILES
     tcp/tcpcontrolrestapi.h
     controleventfeed.cpp
     controleventfeed.h
+    animation/easing.cpp
+    animation/easing.h
+    animation/layeranimstate.h
+    animation/layereffects.cpp
+    animation/layereffects.h
+    animation/maskglsl.h
     wwsclientmodel.cpp
     wwsclientmodel.h
     layers/audiolayer.cpp
@@ -334,6 +340,8 @@ if(Qt6_VERSION VERSION_GREATER_EQUAL 6.8.0)
 endif()
 
 set(QML_SRC_FILES
+    qml/qt6/Components/EasingCurveThumb.qml
+    qml/qt6/Components/EffectPreviewTile.qml
     qml/qt6/Components/ImageAdjustmentSlider.qml
     qml/qt6/Components/LabelWithTooltip.qml
     qml/qt6/Components/LayerCoreProperties.qml
@@ -388,6 +396,7 @@ set(QML_SRC_FILES
     qml/qt6/SlidesItemCompact.qml
     qml/qt6/SlidesVisibilityView.qml
     qml/qt6/SlideTimeline.qml
+    qml/qt6/LayerAnimationPane.qml
     qml/qt6/BackgroundImage.qml
     qml/qt6/ForegroundImage.qml
     qml/qt6/SaveAsCPlayFile.qml
