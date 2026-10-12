@@ -201,6 +201,7 @@ public:
     double speed();
     void updateFrameSyncSettings();
     void applyFrameSyncCorrection(double masterPos, double slavePos, double baseSpeed);
+    void frameSyncSeek(double target, double baseSpeed);
 
     // --- Telemetry accessors (used by NodeTelemetryManager on nodes) ---
     // True when this layer has a live mpv handle with media loaded.
@@ -215,6 +216,14 @@ protected:
     mpvData m_data;
     gl_adress_func_v1 m_openglProcAdr;
     FrameSyncController m_frameSyncController;
+    // Frame sync gating (nodes): mpv seeks are async and playback start is jittery,
+    // so corrections wait for seeks to land and for playback to settle.
+    bool m_frameSyncSeekPending = false;
+    double m_frameSyncSeekTarget = 0.0;
+    std::chrono::steady_clock::time_point m_frameSyncSeekTime{};
+    bool m_frameSyncNeedsSettle = true;
+    std::chrono::steady_clock::time_point m_frameSyncHoldUntil{};
+    std::chrono::steady_clock::time_point m_frameSyncLastCheck{};
 };
 
 #endif // MPVLAYER_H

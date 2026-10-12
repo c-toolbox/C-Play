@@ -14,6 +14,7 @@
 #include "utils/framesynccontroller.h"
 #include "utils/ytdlpresolver.h"
 #include <sgct/sgct.h>
+#include <cmath>
 #include <QCoreApplication>
 #include <QDir>
 #include <QFileInfo>
@@ -191,7 +192,8 @@ void on_mpv_events(MpvLayer::mpvData &vd, BaseLayer::RenderParams) {
                             return;
                         }
                     }
-                    if (!vd.isMaster && SyncHelper::instance().variables.timeThresholdEnabled && !vd.isStream) {
+                    if (!vd.isMaster && SyncHelper::instance().variables.timeThresholdEnabled
+                        && !SyncHelper::instance().variables.frameSyncEnabled && !vd.isStream) {
                         double timeToSet = vd.timePos;
                         double latestPosition = *reinterpret_cast<double*>(prop->data);
                         // We do not want to "over-force" seeks, as this will slow down and might cause continued stutter.
@@ -602,11 +604,26 @@ void MpvLayer::update(bool updateRendering) {
         }
 
         if (!isMaster()) {
+            const bool wasPaused = m_data.mediaIsPaused;
             setTimePause(m_data.mediaShouldPause, false);
             const SyncHelper::SyncVariables& v = SyncHelper::instance().variables;
             if (v.frameSyncEnabled) {
                 updateFrameSyncSettings();
-                applyFrameSyncCorrection(m_data.timeToSet, position(), v.playbackSpeed);
+                // Keep timePos current; the video-reconfig handler seeks to it.
+                setTimePosition(m_data.timeToSet, false);
+                if (wasPaused && !m_data.mediaIsPaused) {
+                    m_frameSyncNeedsSettle = true;
+                }
+                if (m_data.timeIsDirty) {
+                    // Explicit master seek (e.g. start from 0): follow it directly.
+                    frameSyncSeek(m_data.timeToSet, v.playbackSpeed);
+                } else if (!m_data.mediaIsPaused) {
+                    double slavePos = 0.0;
+                    if (m_data.handle && !m_data.loadedFile.empty()
+                        && mpv_get_property(m_data.handle, "time-pos", MPV_FORMAT_DOUBLE, &slavePos) >= 0) {
+                        applyFrameSyncCorrection(m_data.timeToSet, slavePos, v.playbackSpeed);
+                    }
+                }
             } else {
                 setTimePosition(m_data.timeToSet, m_data.timeIsDirty);
             }
@@ -881,6 +898,8 @@ void MpvLayer::loadFile(std::string filePath, bool reload) {
         m_data.reconfigs = 0;
         m_data.updateRendering = false;
         m_data.loadedFile = filePath;
+        m_frameSyncSeekPending = false;
+        m_frameSyncNeedsSettle = true;
         m_data.audioTracks.clear();
         // Keep the YouTube flag in sync with what we are actually about to open (the path
         // can change between loads; initMPV only reads it at initialization time).
@@ -1091,6 +1110,33 @@ void MpvLayer::updateFrameSyncSettings() {
 }
 
 void MpvLayer::applyFrameSyncCorrection(double masterPos, double slavePos, double baseSpeed) {
+    using namespace std::chrono;
+    const auto now = steady_clock::now();
+    constexpr auto settleTime = milliseconds(1000);
+
+    if (m_frameSyncSeekPending) {
+        if (std::abs(slavePos - m_frameSyncSeekTarget) >= 0.5 && now - m_frameSyncSeekTime < seconds(3)) {
+            return;
+        }
+        m_frameSyncSeekPending = false;
+        m_frameSyncNeedsSettle = true;
+    }
+
+    // First valid position after load/unpause/seek: let playback get going before judging drift.
+    if (m_frameSyncNeedsSettle) {
+        m_frameSyncNeedsSettle = false;
+        m_frameSyncHoldUntil = now + settleTime;
+    }
+    if (now < m_frameSyncHoldUntil) {
+        return;
+    }
+
+    const double interval = SyncHelper::instance().variables.frameSyncSyncInterval;
+    if (now - m_frameSyncLastCheck < std::chrono::duration<double>(interval)) {
+        return;
+    }
+    m_frameSyncLastCheck = now;
+
     FrameSyncController::Decision d = m_frameSyncController.decide(masterPos, slavePos, baseSpeed);
     switch (d.action) {
     case FrameSyncController::Action::None:
@@ -1102,9 +1148,19 @@ void MpvLayer::applyFrameSyncCorrection(double masterPos, double slavePos, doubl
         setSpeed(d.speed);
         break;
     case FrameSyncController::Action::HardSeek:
-        setTimePosition(d.seekTarget, true);
+        frameSyncSeek(d.seekTarget, baseSpeed);
         break;
     }
+}
+
+void MpvLayer::frameSyncSeek(double target, double baseSpeed) {
+    if (baseSpeed != speed()) {
+        setSpeed(baseSpeed);
+    }
+    setTimePosition(target, true);
+    m_frameSyncSeekPending = true;
+    m_frameSyncSeekTarget = target;
+    m_frameSyncSeekTime = std::chrono::steady_clock::now();
 }
 
 void MpvLayer::setAudioFile(const std::string &audioFile) {
