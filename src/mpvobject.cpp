@@ -2500,6 +2500,8 @@ MpvRenderer::~MpvRenderer() {
     if (isPrimaryView && NdiSenderModel::instance()) {
         NdiSenderModel::instance()->cleanupGL();
     }
+    if (view)
+        view->fbo = nullptr;
 }
 
 void MpvRenderer::render() {
@@ -2659,5 +2661,15 @@ QOpenGLFramebufferObject* MpvRenderer::createFramebufferObject(const QSize& size
         }
     }
 
-    return QQuickFramebufferObject::Renderer::createFramebufferObject(size);
+    QOpenGLFramebufferObject* newFbo = QQuickFramebufferObject::Renderer::createFramebufferObject(size);
+    if (view) {
+        if (view->obj) {
+            std::lock_guard<std::recursive_mutex> lock(view->obj->m_renderMutex);
+            view->fbo = newFbo;
+        }
+        else {
+            view->fbo = newFbo;
+        }
+    }
+    return newFbo;
 }
