@@ -87,13 +87,13 @@
       <default>false</default>
     </entry>
     <entry name="CircularCanvasWidth" type="Int">
-      <default>12288</default>
+      <default>8192</default>
       <min>1</min></entry>
     <entry name="CircularCanvasHeight" type="Int">
-      <default>1200</default>
+      <default>1024</default>
       <min>1</min></entry>
     <entry name="CircularSurfaceWidthCM" type="Double">
-      <default>6000</default>
+      <default>9000</default>
       <min>1</min>
       <max>1000000</max>
     </entry>
