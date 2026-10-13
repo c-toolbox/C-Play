@@ -17,6 +17,22 @@ import org.ctoolbox.cplay
 SettingsBasePage {
     id: root
 
+    property string capturePlaceholderColor: ImageSettings.capturePlaceholderBackgroundColor
+
+    ColorDialog {
+        id: capturePlaceholderColorDialog
+
+        selectedColor: root.capturePlaceholderColor
+        title: qsTr("Background color of Capture layer placeholders")
+
+        onAccepted: {
+            root.capturePlaceholderColor = selectedColor.toString();
+            playerController.setCapturePlaceholderBackground(capturePlaceholderBackgroundCheckBox.checked, root.capturePlaceholderColor);
+            mpv.focus = true;
+        }
+        onRejected: mpv.focus = true
+    }
+
     CPlayFileDialog {
         id: fileToLoadAsBackgroundDialog
 
@@ -532,6 +548,50 @@ SettingsBasePage {
         Item {
             // spacer item
             Layout.fillWidth: true
+        }
+
+        Label {
+            Layout.alignment: Qt.AlignRight
+            text: qsTr("Capture placeholder background:")
+            visible: CAPTURE_SUPPORT
+        }
+        RowLayout {
+            visible: CAPTURE_SUPPORT
+
+            CheckBox {
+                id: capturePlaceholderBackgroundCheckBox
+
+                checked: ImageSettings.capturePlaceholderBackground
+                focusPolicy: Qt.NoFocus
+
+                onToggled: playerController.setCapturePlaceholderBackground(checked, root.capturePlaceholderColor)
+
+                ToolTip {
+                    text: qsTr("Opaque background behind the name label that the master shows instead of a Capture layer that only captures on a node (or on the nodes only).")
+                }
+            }
+            Rectangle {
+                Layout.preferredWidth: 48
+                Layout.preferredHeight: 24
+                color: root.capturePlaceholderColor
+                border.color: Kirigami.Theme.textColor
+                border.width: 1
+                opacity: capturePlaceholderBackgroundCheckBox.checked ? 1.0 : 0.4
+            }
+            ToolButton {
+                enabled: capturePlaceholderBackgroundCheckBox.checked
+                focusPolicy: Qt.NoFocus
+                icon.height: 16
+                icon.name: "color-management"
+                text: ""
+
+                onClicked: capturePlaceholderColorDialog.open()
+            }
+        }
+        Item {
+            // spacer item
+            Layout.fillWidth: true
+            visible: CAPTURE_SUPPORT
         }
 
         Item {

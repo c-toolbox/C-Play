@@ -46,6 +46,9 @@ public:
     // Whether any entries were loaded.
     bool isLoaded() const;
 
+    // All entries, ip -> id.
+    const std::map<std::string, std::string>& entries() const { return m_ipToId; }
+
 private:
     // ip -> id
     std::map<std::string, std::string> m_ipToId;

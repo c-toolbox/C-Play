@@ -104,7 +104,8 @@ void TextLayer::updateFrame() {
     checkNeededFboResize();
 
     // If new text and rendered text is the same, we do not need to update
-    if (text() == m_data.text) {
+    const bool dirty = m_renderDirty.exchange(false);
+    if (!dirty && text() == m_data.text) {
         return;
     }
     m_data.text = text();
@@ -141,7 +142,10 @@ void TextLayer::updateFrame() {
     GLint viewport[4];
     glGetIntegerv(GL_VIEWPORT, viewport);
     glViewport(0, 0, m_data.fboWidth, m_data.fboHeight);
-    glClearColor(0, 0, 0, 0);
+    if (m_backgroundEnabled)
+        glClearColor(m_backgroundColor.x, m_backgroundColor.y, m_backgroundColor.z, 1.f);
+    else
+        glClearColor(0, 0, 0, 0);
     glClear(GL_COLOR_BUFFER_BIT);
     glDisable(GL_DEPTH_TEST);
     glEnable(GL_BLEND);
@@ -154,7 +158,8 @@ void TextLayer::updateFrame() {
     const glm::mat4 orthoMatrix = glm::ortho(0.f, res.x, 0.f, res.y);
     const float h = font->height() * 1.59f;
     const float offsetX = 0;
-    const float offsetY = h * lines.size();
+    const float offsetY = m_centerVertically ? (res.y + h * (static_cast<float>(lines.size()) - 1.f) - font->height()) / 2.f
+                                             : h * lines.size();
     const float marginX = res.x / 7.f;
     sgct::text::Alignment alignment = static_cast<sgct::text::Alignment>(m_alignment);
     for (size_t i = 0; i < lines.size(); i++) {
@@ -310,6 +315,31 @@ void TextLayer::setColor(std::string hex, float r, float g, float b) {
     setNeedSync();
 }
 
+bool TextLayer::backgroundEnabled() const {
+    return m_backgroundEnabled;
+}
+
+std::string TextLayer::backgroundColorHex() const {
+    return m_backgroundColorHex;
+}
+
+void TextLayer::setBackground(bool enabled, std::string hex, float r, float g, float b) {
+    if (m_backgroundEnabled == enabled && m_backgroundColorHex == hex)
+        return;
+    m_backgroundEnabled = enabled;
+    m_backgroundColorHex = hex;
+    m_backgroundColor = sgct::vec4{ r, g, b, 1.f };
+    m_renderDirty = true;
+    setNeedSync();
+}
+
+void TextLayer::setCenterVertically(bool center) {
+    if (m_centerVertically != center) {
+        m_centerVertically = center;
+        m_renderDirty = true;
+    }
+}
+
 void TextLayer::setTextureSize(int w, int h) {
     renderData.width = w;
     renderData.height = h;
@@ -342,6 +372,10 @@ void TextLayer::encodeTypeProperties(std::vector<std::byte>& data) {
     sgct::serializeObject(data, m_color.z);
     sgct::serializeObject(data, renderData.width);
     sgct::serializeObject(data, renderData.height);
+    sgct::serializeObject(data, m_backgroundEnabled);
+    sgct::serializeObject(data, m_backgroundColor.x);
+    sgct::serializeObject(data, m_backgroundColor.y);
+    sgct::serializeObject(data, m_backgroundColor.z);
 }
 
 void TextLayer::decodeTypeProperties(const std::vector<std::byte>& data, unsigned int& pos) {
@@ -354,6 +388,15 @@ void TextLayer::decodeTypeProperties(const std::vector<std::byte>& data, unsigne
     sgct::deserializeObject(data, pos, m_color.z);
     sgct::deserializeObject(data, pos, renderData.width);
     sgct::deserializeObject(data, pos, renderData.height);
+    const sgct::vec4 previousBackground = m_backgroundColor;
+    const bool previousEnabled = m_backgroundEnabled;
+    sgct::deserializeObject(data, pos, m_backgroundEnabled);
+    sgct::deserializeObject(data, pos, m_backgroundColor.x);
+    sgct::deserializeObject(data, pos, m_backgroundColor.y);
+    sgct::deserializeObject(data, pos, m_backgroundColor.z);
+    if (previousEnabled != m_backgroundEnabled || previousBackground.x != m_backgroundColor.x
+        || previousBackground.y != m_backgroundColor.y || previousBackground.z != m_backgroundColor.z)
+        m_renderDirty = true;
 }
 
 void TextLayer::checkNeededFboResize() {
@@ -378,6 +421,7 @@ void TextLayer::createFBO(int width, int height) {
 
     m_data.fboWidth = width;
     m_data.fboHeight = height;
+    m_renderDirty = true; // the new texture is empty
 
     glGenFramebuffers(1, &m_data.fboId);
     glBindFramebuffer(GL_FRAMEBUFFER, m_data.fboId);

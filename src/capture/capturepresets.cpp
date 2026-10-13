@@ -182,3 +182,23 @@ bool CapturePresets::resolve(const std::string& title, bool isMaster, CaptureSou
     }
     return true;
 }
+
+/*static*/
+std::string CapturePresets::machineRole(bool isMaster) {
+    Resolver& r = resolver();
+    std::lock_guard<std::mutex> lock(r.mutex);
+    r.refreshIfNeeded();
+    return roleFor(isMaster, r.identity);
+}
+
+/*static*/
+bool CapturePresets::isThisMachine(const std::string& role, bool isMaster) {
+    if (role.empty())
+        return false;
+    if (role == machineRole(isMaster))
+        return true;
+    try {
+        return role == sgct::Engine::instance().thisNode().address();
+    } catch (...) {}
+    return false;
+}

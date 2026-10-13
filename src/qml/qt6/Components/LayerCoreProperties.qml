@@ -62,6 +62,14 @@ GridLayout {
     property alias nodeSourceComboBox: nodeSourceComboBox
     property alias capturePresetsLayout: capturePresetsLayout
     property alias capturePresetsComboBox: capturePresetsComboBox
+    property alias captureNodeComboBox: captureNodeComboBox
+
+    // Capture inputs reported by the cluster nodes (app.captureModel.nodes).
+    property var captureNodes: app.captureModel ? app.captureModel.nodes : []
+    // The selected node row, or null for "All machines".
+    property var captureTargetNodeRow: captureNodeComboBox.currentIndex > 0 && captureNodeComboBox.currentIndex <= captureNodes.length
+                                       ? captureNodes[captureNodeComboBox.currentIndex - 1] : null
+    property bool captureNodeTargeted: captureTargetNodeRow !== null
 
     // True when data/predefined-captures.json provides at least one enabled capture setup.
     property bool capturePresetAvailable: !!app.capturePresetsModel && app.capturePresetsModel.numberOfPresets > 0
@@ -114,6 +122,7 @@ GridLayout {
         }
         directShowPresetsLayout.customEntry = false;
         capturePresetsLayout.customEntry = false;
+        captureNodeComboBox.currentIndex = 0;
         // Drop any in-flight YouTube metadata fetch and its auto-filled title.
         youtubeFetchTimer.stop();
         youtubeAutoFilledTitle = "";
@@ -141,7 +150,27 @@ GridLayout {
 
     // True when the Capture layer is created from a predefined setup (rather than a custom input).
     function captureUsesPreset() {
-        return capturePresetAvailable && !capturePresetsLayout.customEntry && capturePresetsComboBox.currentIndex >= 0;
+        return capturePresetAvailable && !captureNodeTargeted && !capturePresetsLayout.customEntry && capturePresetsComboBox.currentIndex >= 0;
+    }
+
+    // Role of the only node that captures, or "" when every machine resolves its own source.
+    function captureTargetNode() {
+        return captureTargetNodeRow ? captureTargetNodeRow.role : "";
+    }
+
+    // Mirrors the selected node input onto the custom input number and the layer title.
+    function applyCaptureNodeInput() {
+        var row = captureTargetNodeRow;
+        if (!row)
+            return;
+        var idx = captureNodeInputComboBox.currentIndex;
+        if (idx >= 0 && idx < row.inputSources.length) {
+            var m = /:(\d+)/.exec(row.inputSources[idx]);
+            if (m)
+                captureInputSpinBox.value = parseInt(m[1]);
+        }
+        if (layerTitle.text === "" || layerTitle.text.startsWith("Capture:") || layerTitle.text === capturePresetsComboBox.currentText)
+            layerTitle.text = "Capture:" + row.role + ":" + captureInputSpinBox.value;
     }
 
     // The Capture layer file path: the selected setup's default source, or the custom selection.
@@ -457,8 +486,11 @@ GridLayout {
                 }
             }
             else if (typeComboBox.currentText === "Capture") {
-                if (app.captureModel)
+                if (app.captureModel) {
                     app.captureModel.updateInputList();
+                    app.captureModel.refreshNodes();
+                }
+                captureNodeComboBox.currentIndex = 0;
                 if (app.capturePresetsModel)
                     app.capturePresetsModel.updatePresetsList();
                 if (root.capturePresetAvailable) {
@@ -1112,15 +1144,92 @@ GridLayout {
     // --- Capture layer section (capture card SDKs, e.g. Datapath RGBEasy) ---
     Label {
         Layout.alignment: Qt.AlignRight
+        text: qsTr("Capture on:")
+        visible: typeComboBox.currentText === "Capture"
+    }
+    RowLayout {
+        Layout.fillWidth: true
+        visible: typeComboBox.currentText === "Capture"
+
+        ComboBox {
+            id: captureNodeComboBox
+
+            Layout.fillWidth: true
+            currentIndex: 0
+            model: {
+                var items = [qsTr("All machines")];
+                for (var i = 0; i < root.captureNodes.length; ++i) {
+                    var n = root.captureNodes[i];
+                    var suffix = !n.reported ? qsTr(" - no report") : (!n.online ? qsTr(" - offline") : qsTr(" - %n input(s)", "", n.inputNames.length));
+                    items.push(n.label + suffix);
+                }
+                return items;
+            }
+
+            onActivated: {
+                if (root.captureNodeTargeted) {
+                    capturePresetsLayout.customEntry = true;
+                    captureNodeInputComboBox.currentIndex = root.captureTargetNodeRow.inputSources.length > 0 ? 0 : -1;
+                    root.applyCaptureNodeInput();
+                }
+            }
+
+            ToolTip {
+                text: qsTr("All machines: each machine captures its own input (predefined setup or custom input). A node: only that node captures, using the inputs it reported; the master shows a text placeholder with the layer name and node that moves the layer.")
+            }
+        }
+        ToolButton {
+            focusPolicy: Qt.NoFocus
+            icon.height: 16
+            icon.name: "view-refresh"
+            text: ""
+
+            onClicked: {
+                if (app.captureModel)
+                    app.captureModel.refreshNodes();
+            }
+
+            ToolTip {
+                text: qsTr("Ask the nodes (data/multivideo/nodes.json) to report their capture inputs again")
+            }
+        }
+    }
+    Item {
+        visible: root.showSpacers && typeComboBox.currentText === "Capture"
+        Layout.fillWidth: true
+    }
+
+    Label {
+        Layout.alignment: Qt.AlignRight
+        text: qsTr("Node input:")
+        visible: typeComboBox.currentText === "Capture" && root.captureNodeTargeted
+    }
+    ComboBox {
+        id: captureNodeInputComboBox
+
+        Layout.fillWidth: true
+        model: root.captureTargetNodeRow ? root.captureTargetNodeRow.inputNames : []
+        visible: typeComboBox.currentText === "Capture" && root.captureNodeTargeted
+        displayText: currentIndex >= 0 ? currentText : qsTr("No inputs reported - set the input number below")
+
+        onActivated: root.applyCaptureNodeInput()
+    }
+    Item {
+        visible: root.showSpacers && typeComboBox.currentText === "Capture" && root.captureNodeTargeted
+        Layout.fillWidth: true
+    }
+
+    Label {
+        Layout.alignment: Qt.AlignRight
         text: qsTr("Setup:")
-        visible: typeComboBox.currentText === "Capture" && root.capturePresetAvailable
+        visible: typeComboBox.currentText === "Capture" && root.capturePresetAvailable && !root.captureNodeTargeted
     }
     RowLayout {
         id: capturePresetsLayout
 
         Layout.fillWidth: true
         property bool customEntry: false
-        visible: typeComboBox.currentText === "Capture" && root.capturePresetAvailable
+        visible: typeComboBox.currentText === "Capture" && root.capturePresetAvailable && !root.captureNodeTargeted
 
         ComboBox {
             id: capturePresetsComboBox
@@ -1167,7 +1276,7 @@ GridLayout {
         }
     }
     Item {
-        visible: root.showSpacers && typeComboBox.currentText === "Capture" && root.capturePresetAvailable
+        visible: root.showSpacers && typeComboBox.currentText === "Capture" && root.capturePresetAvailable && !root.captureNodeTargeted
         Layout.fillWidth: true
     }
 

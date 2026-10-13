@@ -60,6 +60,7 @@
 #endif
 #ifdef TEXT_LAYER
 #include <layers/textlayer.h>
+#include <QColor>
 #include "application.h"
 #include "subtitlesettings.h"
 #endif
@@ -1039,14 +1040,39 @@ bool BaseLayer::updateMasterPlaceholder() {
     if (!m_masterPlaceholder) {
         m_masterPlaceholder = std::make_unique<TextLayer>();
         m_masterPlaceholder->setIsMaster(true);
-        m_masterPlaceholder->setTextureSize(1280, 256);
+        m_masterPlaceholder->setCenterVertically(true);
         m_masterPlaceholder->setFont(SubtitleSettings::subtitleFontFamily().toStdString());
     }
     // Refresh the label after renaming or duplicating a layer.
-    const std::string label = generateNdiSenderName();
-    if (m_masterPlaceholder->text() != label) {
-        m_masterPlaceholder->setFontSize(std::clamp(1800 / static_cast<int>(label.size()), 12, 48));
+    const std::string label = masterPlaceholderLabel();
+    int width = 1280;
+    int height = 256;
+    masterPlaceholderSize(width, height);
+    const bool sizeChanged = m_masterPlaceholder->width() != width || m_masterPlaceholder->height() != height;
+    if (sizeChanged)
+        m_masterPlaceholder->setTextureSize(width, height);
+    if (m_masterPlaceholder->text() != label || sizeChanged) {
+        // Largest font that fits the longest line and all lines.
+        size_t lineCount = 0;
+        size_t longest = 1;
+        size_t start = 0;
+        while (start <= label.size()) {
+            const size_t end = std::min(label.find('\n', start), label.size());
+            longest = std::max(longest, end - start);
+            ++lineCount;
+            start = end + 1;
+        }
+        const int byWidth = static_cast<int>(width * 1.4 / static_cast<double>(longest));
+        const int byHeight = static_cast<int>(height * 0.3 / static_cast<double>(lineCount));
+        m_masterPlaceholder->setFontSize(std::clamp(std::min(byWidth, byHeight), 12, std::max(48, height / 8)));
         m_masterPlaceholder->setText(label);
+    }
+    std::string backgroundHex;
+    const bool background = masterPlaceholderBackground(backgroundHex);
+    if (background != m_masterPlaceholder->backgroundEnabled() || (background && backgroundHex != m_masterPlaceholder->backgroundColorHex())) {
+        const QColor c(QString::fromStdString(backgroundHex));
+        m_masterPlaceholder->setBackground(background, backgroundHex, static_cast<float>(c.redF()),
+                                           static_cast<float>(c.greenF()), static_cast<float>(c.blueF()));
     }
     // Font discovery may finish after the layer was created.
     if (m_masterPlaceholder->fontName().empty() && Application::isCreated()) {

@@ -11,6 +11,7 @@
 #include <QAbstractListModel>
 #include <QObject>
 #include <QStringList>
+#include <QVariantList>
 
 // QML facing info for the Capture layer: the capture card inputs on this machine and whether
 // the GPU supports direct capture transfer (AMD DirectGMA / NVIDIA GPUDirect for Video).
@@ -37,11 +38,19 @@ public:
 
     Q_INVOKABLE void updateInputList();
 
+    // Capture inputs reported by the cluster nodes (see NodeCaptureInventory), one map per node:
+    // {role, label, address, online, reported, sdks, inputNames, inputSources}.
+    Q_PROPERTY(QVariantList nodes READ nodes NOTIFY nodesChanged)
+    QVariantList nodes() const;
+    // Asks all nodes to report their inputs again.
+    Q_INVOKABLE void refreshNodes();
+
     // Builds a layer file path for a custom selection (input is 1-based).
     Q_INVOKABLE QString sourceString(const QString &backend, int input, const QString &ganging, bool directGpu, bool audio) const;
 
 Q_SIGNALS:
     void inputsChanged();
+    void nodesChanged();
 
 private:
     QStringList m_inputNames;

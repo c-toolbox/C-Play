@@ -70,6 +70,11 @@ public:
     // most every few seconds. Any thread.
     static bool resolve(const std::string& title, bool isMaster, CaptureSource& out);
 
+    // This machine's role: "master", the node id from nodes.json, or the node IP. Any thread.
+    static std::string machineRole(bool isMaster);
+    // True when role names this machine (nodes.json id or IP address). Any thread.
+    static bool isThisMachine(const std::string& role, bool isMaster);
+
 private:
     std::vector<Entry> m_entries;
 };

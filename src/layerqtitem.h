@@ -158,6 +158,8 @@ class LayerQtItem : public QQuickItem {
 #endif
 #ifdef CAPTURE_SUPPORT
     Q_PROPERTY(QString layerCapturePresetKey READ layerCapturePresetKey WRITE setLayerCapturePresetKey NOTIFY layerValueChanged)
+    // Role of the only node that captures ("" = every machine resolves its own source).
+    Q_PROPERTY(QString layerCaptureTargetNode READ layerCaptureTargetNode WRITE setLayerCaptureTargetNode NOTIFY layerValueChanged)
     // Live state of a Capture layer, e.g. "1920x1080, AMD DirectGMA" or "No signal" (timer-polled).
     Q_PROPERTY(QString layerCaptureStatus READ layerCaptureStatus NOTIFY layerCaptureStatusChanged)
 #endif
@@ -451,6 +453,8 @@ public:
 #ifdef CAPTURE_SUPPORT
     QString layerCapturePresetKey() const;
     void setLayerCapturePresetKey(QString key);
+    QString layerCaptureTargetNode() const;
+    void setLayerCaptureTargetNode(QString role);
     QString layerCaptureStatus() const;
 #endif
 

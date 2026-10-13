@@ -302,8 +302,11 @@ std::vector<CaptureInputInfo> DatapathCaptureBackend::listInputs() {
             SIGNALTYPE signal = RGB_SIGNALTYPE_NOSIGNAL;
             unsigned long w = 0, h = 0, rate = 0;
             std::string mode = "no signal";
-            if (RGBGetInputSignalType(i, &signal, &w, &h, &rate) == 0 && isValidSignal(signal, w, h))
+            if (RGBGetInputSignalType(i, &signal, &w, &h, &rate) == 0 && isValidSignal(signal, w, h)) {
                 mode = rate > 0 ? std::format("{}x{}@{}Hz", w, h, rate) : std::format("{}x{}", w, h);
+                info.width = static_cast<int>(w);
+                info.height = static_cast<int>(h);
+            }
 
             info.name = std::format("Datapath {}: {} ({})", info.source.input, device.empty() ? "Vision input" : device, mode);
             inputs.push_back(std::move(info));

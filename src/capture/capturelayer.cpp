@@ -8,6 +8,7 @@
 #include "capturelayer.h"
 #include "audiosettings.h"
 #include <capture/capturepresets.h>
+#include <capture/nodecaptureinventory.h>
 #include <sgct/opengl.h>
 #include <sgct/sgct.h>
 #include <format>
@@ -52,6 +53,69 @@ void CaptureLayer::setPresetKey(const std::string& key) {
     }
 }
 
+std::string CaptureLayer::targetNode() const {
+    std::lock_guard<std::mutex> lock(m_targetMutex);
+    return m_targetNode;
+}
+
+void CaptureLayer::setTargetNode(const std::string& role) {
+    {
+        std::lock_guard<std::mutex> lock(m_targetMutex);
+        if (m_targetNode == role)
+            return;
+        m_targetNode = role;
+    }
+    if (isMaster())
+        setNeedSync();
+}
+
+namespace {
+std::mutex s_placeholderMutex;
+bool s_placeholderBackground = true;
+std::string s_placeholderBackgroundHex = "#000000";
+// Used until the node has reported the size of the capture.
+constexpr int kDefaultPlaceholderWidth = 1920;
+constexpr int kDefaultPlaceholderHeight = 1080;
+}
+
+void CaptureLayer::setPlaceholderBackground(bool enabled, const std::string& hex) {
+    std::lock_guard<std::mutex> lock(s_placeholderMutex);
+    s_placeholderBackground = enabled;
+    s_placeholderBackgroundHex = hex;
+}
+
+bool CaptureLayer::masterPlaceholderBackground(std::string& hex) const {
+    std::lock_guard<std::mutex> lock(s_placeholderMutex);
+    hex = s_placeholderBackgroundHex;
+    return s_placeholderBackground;
+}
+
+bool CaptureLayer::nodeCaptureSize(int& width, int& height) const {
+    const std::string target = targetNode();
+    return !target.empty() && NodeCaptureInventory::isReady()
+        && NodeCaptureInventory::instance().captureSize(target, filepath(), width, height);
+}
+
+void CaptureLayer::masterPlaceholderSize(int& width, int& height) const {
+    if (!nodeCaptureSize(width, height)) {
+        width = kDefaultPlaceholderWidth;
+        height = kDefaultPlaceholderHeight;
+    }
+}
+
+std::string CaptureLayer::masterPlaceholderLabel() const {
+    std::string label = BaseLayer::masterPlaceholderLabel();
+    const std::string target = targetNode();
+    if (target.empty())
+        return label;
+    label += "\nNode: " + target + "\nInput: " + filepath();
+    int width = 0;
+    int height = 0;
+    if (nodeCaptureSize(width, height))
+        label += std::format("\n{}x{}", width, height);
+    return label;
+}
+
 std::string CaptureLayer::statusText() const {
     std::shared_ptr<CaptureBackend> backend;
     {
@@ -60,7 +124,10 @@ std::string CaptureLayer::statusText() const {
     }
     if (!backend) {
         const CaptureSource src = resolveSource();
+        const std::string target = targetNode();
+        if (isMaster() && !target.empty()) return "Captured on " + target + " only (master placeholder)";
         if (isMaster() && src.placeholder) return "Master placeholder";
+        if (!target.empty() && !src.valid()) return "Captured on " + target + " only";
         return src.valid() ? std::string("Starting") : std::string("No capture source on this machine");
     }
     const std::string err = backend->error();
@@ -76,6 +143,7 @@ std::string CaptureLayer::statusText() const {
 void CaptureLayer::encodeTypeCore(std::vector<std::byte>& data) {
     sgct::serializeObject(data, m_presetKey);
     sgct::serializeObject(data, m_useNoSignalImage.load());
+    sgct::serializeObject(data, targetNode());
 }
 
 void CaptureLayer::decodeTypeCore(const std::vector<std::byte>& data, unsigned int& pos) {
@@ -83,6 +151,10 @@ void CaptureLayer::decodeTypeCore(const std::vector<std::byte>& data, unsigned i
     bool useNoSignalImage = false;
     sgct::deserializeObject(data, pos, useNoSignalImage);
     m_useNoSignalImage.store(useNoSignalImage);
+    std::string target;
+    sgct::deserializeObject(data, pos, target);
+    std::lock_guard<std::mutex> lock(m_targetMutex);
+    m_targetNode = std::move(target);
 }
 
 void CaptureLayer::encodeTypeProperties(std::vector<std::byte>& data) {
@@ -153,6 +225,17 @@ void CaptureLayer::processPendingGLCleanup() {
 }
 
 CaptureSource CaptureLayer::resolveSource() const {
+    const std::string target = targetNode();
+    if (!target.empty()) {
+        if (isMaster()) {
+            CaptureSource placeholder;
+            placeholder.placeholder = true;
+            return placeholder;
+        }
+        if (!CapturePresets::isThisMachine(target, false))
+            return CaptureSource{"", 0, "", true};
+        return CaptureSource::fromString(filepath());
+    }
     if (!m_presetKey.empty()) {
         CaptureSource resolved;
         if (CapturePresets::resolve(m_presetKey, isMaster(), resolved))

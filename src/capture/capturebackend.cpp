@@ -248,6 +248,22 @@ std::vector<CaptureInputInfo> CaptureBackend::listInputs() {
     return inputs;
 }
 
+std::vector<CaptureInputInfo> CaptureBackend::activeCaptures() {
+    std::vector<CaptureInputInfo> result;
+    std::lock_guard<std::mutex> lock(s_registryMutex);
+    for (const auto& [key, weak] : s_registry) {
+        const auto backend = weak.lock();
+        if (!backend || backend->m_width <= 0 || backend->m_height <= 0)
+            continue;
+        CaptureInputInfo info;
+        info.source = backend->source();
+        info.width = backend->m_width;
+        info.height = backend->m_height;
+        result.push_back(std::move(info));
+    }
+    return result;
+}
+
 std::vector<std::string> CaptureBackend::availableSdks() {
     std::vector<std::string> sdks;
 #ifdef CAPTURE_DATAPATH

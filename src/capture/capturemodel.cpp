@@ -8,9 +8,11 @@
 #include "capturemodel.h"
 #include <capture/capturebackend.h>
 #include <capture/capturepresets.h>
+#include <capture/nodecaptureinventory.h>
 
 CaptureModel::CaptureModel(QObject *parent)
     : QObject(parent) {
+    connect(&NodeCaptureInventory::instance(), &NodeCaptureInventory::nodesChanged, this, &CaptureModel::nodesChanged);
     const CaptureGpuInfo gpu = detectCaptureGpu();
     m_gpuName = QString::fromStdString(gpu.name);
     m_professionalGpu = gpu.professional;
@@ -49,6 +51,15 @@ void CaptureModel::updateInputList() {
     for (const std::string &sdk : CaptureBackend::availableSdks())
         m_availableSdks.append(QString::fromStdString(sdk));
     Q_EMIT inputsChanged();
+}
+
+QVariantList CaptureModel::nodes() const {
+    return NodeCaptureInventory::instance().nodes();
+}
+
+void CaptureModel::refreshNodes() {
+    NodeCaptureInventory::instance().requestFromNodes();
+    Q_EMIT nodesChanged(); // nodes.json may have changed
 }
 
 QString CaptureModel::sourceString(const QString &backend, int input, const QString &ganging, bool directGpu, bool audio) const {

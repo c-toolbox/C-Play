@@ -22,6 +22,10 @@
 #include "tcpcontrolsettings.h"
 #include "tcp/tcpcontrolcommandadapter.h"
 #include "controleventfeed.h"
+#ifdef CAPTURE_SUPPORT
+#include "capture/capturelayer.h"
+#endif
+#include <QColor>
 #include <QJsonArray>
 
 #include <QDir>
@@ -151,6 +155,10 @@ PlayerController::PlayerController(QObject *parent)
     setForegroundStereoMode(ImageSettings::stereoModeForForeground());
 
     applyNoSignalImages();
+#ifdef CAPTURE_SUPPORT
+    CaptureLayer::setPlaceholderBackground(ImageSettings::capturePlaceholderBackground(),
+                                           ImageSettings::capturePlaceholderBackgroundColor().toStdString());
+#endif
 
     setRewindMediaOnEOF(PlaybackSettings::rewindOnEOFwhenPause());
 
@@ -983,6 +991,17 @@ void PlayerController::setNoSignalImageForDirectShow(const QString &path) {
     ImageSettings::setNoSignalImageForDirectShow(stored);
     ImageSettings::self()->save();
     applyNoSignalImages();
+}
+
+void PlayerController::setCapturePlaceholderBackground(bool enabled, const QString &color) {
+    const QColor c(color);
+    const QString hex = c.isValid() ? c.name(QColor::HexRgb) : QStringLiteral("#000000");
+    ImageSettings::setCapturePlaceholderBackground(enabled);
+    ImageSettings::setCapturePlaceholderBackgroundColor(hex);
+    ImageSettings::self()->save();
+#ifdef CAPTURE_SUPPORT
+    CaptureLayer::setPlaceholderBackground(enabled, hex.toStdString());
+#endif
 }
 
 bool PlayerController::storableNoSignalImagePath(const QString &path, QString &stored) {

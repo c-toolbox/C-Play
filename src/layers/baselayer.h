@@ -510,6 +510,11 @@ protected:
     bool masterPlaceholderEnabled() const;
     bool masterPlaceholderReady() const;
     bool updateMasterPlaceholder();
+    virtual std::string masterPlaceholderLabel() const { return generateNdiSenderName(); }
+    // Placeholder texture size; unchanged (1280x256) by default.
+    virtual void masterPlaceholderSize(int& width, int& height) const { (void)width; (void)height; }
+    // True with a #RRGGBB color for an opaque placeholder background; none by default.
+    virtual bool masterPlaceholderBackground(std::string& hex) const { (void)hex; return false; }
 #ifdef TEXT_LAYER
     std::unique_ptr<TextLayer> m_masterPlaceholder;
 #endif

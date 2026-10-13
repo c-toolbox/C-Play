@@ -16,7 +16,7 @@ Kirigami.ApplicationWindow {
     id: root
 
     color: Kirigami.Theme.alternateBackgroundColor
-    height: 500
+    height: 612
     title: qsTr("Add new layer")
     visible: false
     width: 400
@@ -146,6 +146,9 @@ Kirigami.ApplicationWindow {
                                 layerView.layerItem.layerIdx = app.slides.selected.addLayer(layerCoreProps.layerTitle.text, layerCoreProps.typeComboBox.currentIndex + 1, captureParam, layerCoreProps.stereoscopicModeForLayer.currentIndex, layerCoreProps.gridModeForLayer.currentIndex);
                                 if (capturePresetKey !== "") {
                                     layerView.layerItem.layerCapturePresetKey = capturePresetKey;
+                                }
+                                if (layerCoreProps.captureTargetNode() !== "") {
+                                    layerView.layerItem.layerCaptureTargetNode = layerCoreProps.captureTargetNode();
                                 }
                                 // "Master sends content to nodes" enables Node stream on the new layer immediately.
                                 if (layerCoreProps.nodeSourceComboBox.currentIndex === 1) {

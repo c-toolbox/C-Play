@@ -1563,6 +1563,9 @@ void LayersModel::decodeFromJSON(QJsonObject &obj, const QStringList &forRelativ
                         // Each machine re-resolves its own local capture source from this setup title.
                         static_cast<CaptureLayer*>(m_layers[idx].first.get())->setPresetKey(o.value(QStringLiteral("capturePreset")).toString().toStdString());
                     }
+                    if (type == BaseLayer::CAPTURE && o.contains(QStringLiteral("captureNode"))) {
+                        static_cast<CaptureLayer*>(m_layers[idx].first.get())->setTargetNode(o.value(QStringLiteral("captureNode")).toString().toStdString());
+                    }
 #endif
 
                     if (getLayersCanBeLocked() && o.contains(QStringLiteral("locked"))) {
@@ -1967,6 +1970,9 @@ void LayersModel::encodeToJSON(QJsonObject &obj, const QStringList &forRelativeP
             const CaptureLayer* captureLayer = static_cast<const CaptureLayer*>(layer.get());
             if (!captureLayer->presetKey().empty()) {
                 layerData.insert(QStringLiteral("capturePreset"), QJsonValue(QString::fromStdString(captureLayer->presetKey())));
+            }
+            if (!captureLayer->targetNode().empty()) {
+                layerData.insert(QStringLiteral("captureNode"), QJsonValue(QString::fromStdString(captureLayer->targetNode())));
             }
             layerData.insert(QStringLiteral("volume"), QJsonValue(layer->volume()));
         }

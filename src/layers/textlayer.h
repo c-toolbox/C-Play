@@ -10,6 +10,7 @@
 
 #include <layers/baselayer.h>
 #include <sgct/sgct.h>
+#include <atomic>
 #include <string>
 
 class TextLayer : public BaseLayer {
@@ -57,6 +58,14 @@ public:
     std::string colorHex() const;
     void setColor(std::string hex, float r, float g, float b);
 
+    // Optional opaque background behind the text (off by default).
+    bool backgroundEnabled() const;
+    std::string backgroundColorHex() const;
+    void setBackground(bool enabled, std::string hex, float r, float g, float b);
+
+    // Centers the text block vertically instead of placing it at the bottom. Local only, not synced.
+    void setCenterVertically(bool center);
+
     void setTextureSize(int w, int h);
 
     void encodeTypeAlways(std::vector<std::byte>& data);
@@ -78,6 +87,11 @@ private:
     int m_alignment;
     std::string m_colorHex;
     sgct::vec4 m_color;
+    bool m_backgroundEnabled = false;
+    std::string m_backgroundColorHex = "#000000";
+    sgct::vec4 m_backgroundColor{ 0.f, 0.f, 0.f, 1.f };
+    bool m_centerVertically = false;
+    std::atomic_bool m_renderDirty{false};
     textData m_data;
 };
 

@@ -28,6 +28,9 @@
 #ifdef CAPTURE_LAYER
 #include <capture/capturelayer.h>
 #endif
+#ifdef CAPTURE_SUPPORT
+#include <capture/nodecaptureinventory.h>
+#endif
 #include <layersmodel.h>
 #include <QCoreApplication>
 #include <atomic>
@@ -1457,6 +1460,11 @@ static void postDraw() {
             verifierLayers.push_back(layer);
         NodeLoaderVerifier::instance().collectAndSend(verifierLayers);
     }
+
+#ifdef CAPTURE_SUPPORT
+    if (NodeCaptureInventory::isReady())
+        NodeCaptureInventory::instance().sendPending();
+#endif
 }
 
 static void cleanup() {
@@ -1525,6 +1533,11 @@ static void dataTransferDecode(void* data, int length, int packageId, int client
     // telemetry packets carry no "kind", load-failure packets carry "kind":"loadfail".
     if (NodeLoaderVerifier::isReady())
         NodeLoaderVerifier::instance().handleNodeData(data, length, packageId, clientIndex);
+#ifdef CAPTURE_SUPPORT
+    // Capture input inventory: "kind":"captureinv" / "captureinv-req".
+    if (NodeCaptureInventory::isReady())
+        NodeCaptureInventory::instance().handleData(data, length, clientIndex);
+#endif
 }
 
 static void dataTransferStatus(bool connected, int clientIndex) {
@@ -1532,6 +1545,10 @@ static void dataTransferStatus(bool connected, int clientIndex) {
         NodeTelemetryManager::instance().handleNodeStatus(connected, clientIndex);
     if (NodeLoaderVerifier::isReady())
         NodeLoaderVerifier::instance().handleNodeStatus(connected, clientIndex);
+#ifdef CAPTURE_SUPPORT
+    if (NodeCaptureInventory::isReady())
+        NodeCaptureInventory::instance().handleStatus(connected, clientIndex);
+#endif
 }
 
 int main(int argc, char *argv[]) {
@@ -1753,8 +1770,15 @@ int main(int argc, char *argv[]) {
         // no enable command to lose - packets arriving before this point are dropped and the
         // node re-reports its failures on the next failure change or DataTransfer reconnect).
         NodeLoaderVerifier::instance();
+#ifdef CAPTURE_SUPPORT
+        // Same rule; starts the node's capture input scan worker.
+        NodeCaptureInventory::instance();
+#endif
 
         Engine::instance().exec();
+#ifdef CAPTURE_SUPPORT
+        NodeCaptureInventory::instance().shutdown();
+#endif
         Engine::destroy();
 
         QCoreApplication::processEvents();

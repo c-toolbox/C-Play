@@ -1814,6 +1814,23 @@ void LayerQtItem::setLayerCapturePresetKey(QString key) {
     }
 }
 
+QString LayerQtItem::layerCaptureTargetNode() const {
+    if (m_layer && m_layer->type() == BaseLayer::CAPTURE)
+        return QString::fromStdString(static_cast<CaptureLayer*>(m_layer)->targetNode());
+    return QString();
+}
+
+void LayerQtItem::setLayerCaptureTargetNode(QString role) {
+    if (m_layer && m_layer->isEnabled() && m_layer->type() == BaseLayer::CAPTURE) {
+        CaptureLayer* captureLayer = static_cast<CaptureLayer*>(m_layer);
+        if (QString::fromStdString(captureLayer->targetNode()) != role) {
+            captureLayer->setTargetNode(role.toStdString());
+            Q_EMIT layerValueChanged();
+            Q_EMIT layerNeedsSave();
+        }
+    }
+}
+
 QString LayerQtItem::layerCaptureStatus() const {
     if (m_layer && m_layer->type() == BaseLayer::CAPTURE)
         return QString::fromStdString(static_cast<CaptureLayer*>(m_layer)->statusText());

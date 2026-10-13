@@ -33,6 +33,8 @@ struct CaptureSource {
 struct CaptureInputInfo {
     CaptureSource source;
     std::string name; // human readable, e.g. "Datapath 1: VisionSC-DP2"
+    int width = 0;    // current signal size, 0 when unknown/no signal
+    int height = 0;
 };
 
 // Graphics adapter as seen by DXGI (no OpenGL context needed).
@@ -92,6 +94,8 @@ public:
     static void processPendingClose();
     // All inputs of all compiled-in backends whose SDK is present on this machine.
     static std::vector<CaptureInputInfo> listInputs();
+    // Sources and frame sizes of the running captures that have delivered a frame. Any thread.
+    static std::vector<CaptureInputInfo> activeCaptures();
     // Names of the compiled-in backends whose SDK runtime is present on this machine.
     static std::vector<std::string> availableSdks();
 
