@@ -18,6 +18,7 @@
 #include "track.h"
 #include <animation/layeranimstate.h>
 #include <utils/planegrid.h>
+#include <utils/circularplane.h>
 
 class ImageLayer;
 class NdiSender;
@@ -134,6 +135,10 @@ public:
         double elevation = 0.0;
         double roll = 0.0;
         double distance = 0.0;
+        bool circular = false;
+        bool circularModeInitialized = false;
+        double centreDegrees = 180.0;
+        double widthDegrees = 20.0;
         double horizontal = 0.0;
         double vertical = 0.0;
         uint8_t aspectRatioConsideration = 1;
@@ -366,6 +371,18 @@ public:
     double planeDistance() const;
     void setPlaneDistance(double pD);
 
+    bool planeCircular() const;
+    void setPlaneCircular(bool enabled);
+    double planeCentreDegrees() const;
+    void setPlaneCentreDegrees(double degrees);
+    double planeWidthDegrees() const;
+    double planeWidthFromHeightCm() const;
+    void setPlaneWidthDegrees(double degrees);
+    cplay::circular::Mapping circularMapping() const;
+    bool circularPlaneActive() const;
+    double planeHorizontalForRendering(bool animated = true) const;
+    glm::mat4 circularPlaneModel(bool animated = true) const;
+    glm::vec2 planeActualSize() const { return planeData.actualSize; }
     double planeHorizontal() const;
     void setPlaneHorizontal(double pH);
 

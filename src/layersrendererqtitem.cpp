@@ -95,7 +95,16 @@ out vec2 tr_uv;
 out vec3 tr_normals;
 out vec2 mask_uv;
 
+uniform mat4 circularModel;
+uniform float circularHalfWidth;
+uniform vec2 circularSourceBounds;
+
 void main() {
+    float circularX = (circularModel * vec4(in_position, 1.0)).x;
+    gl_ClipDistance[0] = circularX + circularHalfWidth;
+    gl_ClipDistance[1] = circularHalfWidth - circularX;
+    gl_ClipDistance[2] = circularX - circularSourceBounds.x;
+    gl_ClipDistance[3] = circularSourceBounds.y - circularX;
     gl_Position = mvp * vec4(in_position, 1.0);
     mask_uv = in_texCoord;
     tr_uv = flipY ? vec2(in_texCoord.x, 1.0-in_texCoord.y) : in_texCoord;
@@ -452,7 +461,16 @@ layout (location = 2) in vec3 in_position;
 out vec2 tr_texCoord;
 out float tr_radius;
 
+uniform mat4 circularModel;
+uniform float circularHalfWidth;
+uniform vec2 circularSourceBounds;
+
 void main() {
+    float circularX = (circularModel * vec4(in_position, 1.0)).x;
+    gl_ClipDistance[0] = circularX + circularHalfWidth;
+    gl_ClipDistance[1] = circularHalfWidth - circularX;
+    gl_ClipDistance[2] = circularX - circularSourceBounds.x;
+    gl_ClipDistance[3] = circularSourceBounds.y - circularX;
     gl_Position = fisheye_project(in_position, tr_radius);
     tr_texCoord = in_texCoord;
 }
@@ -1048,23 +1066,56 @@ void LayersRendererQtItem::planeMoveAxesLocked(double& rightPerCmH, double& down
                     float(m_selectedPlaneLayer->planeVertical()) / 100.0f,
                     float(-m_selectedPlaneLayer->planeDistance()) / 100.0f);
 
+    if (m_selectedPlaneLayer->circularPlaneActive()) {
+        QMatrix4x4 circularModel(glm::value_ptr(m_selectedPlaneLayer->circularPlaneModel(false)));
+        model.setToIdentity();
+        if (!m_renderAsFisheye) model.rotate(float(-m_meshAngle), 1, 0, 0);
+        model *= circularModel.transposed();
+    }
+
     QMatrix4x4 viewMatrix, projectionMatrix;
     if (!m_renderAsFisheye)
         buildCameraMatrices(m_cameraPosition, m_cameraEulerRotation, m_fieldOfView,
                             static_cast<float>(width()), static_cast<float>(height()),
                             viewMatrix, projectionMatrix);
 
+    if (m_selectedPlaneLayer->circularPlaneActive()) {
+        const auto mapping = m_selectedPlaneLayer->circularMapping();
+        const auto copies = cplay::circular::copies(m_selectedPlaneLayer->circularPlaneModel(false),
+                                                   m_selectedPlaneLayer->planeActualSize(), mapping.widthCm);
+        double best = std::numeric_limits<double>::max();
+        for (const auto &copy : copies) {
+            QMatrix4x4 candidate(glm::value_ptr(copy.model)); candidate = candidate.transposed();
+            QMatrix4x4 tilt; if (!m_renderAsFisheye) tilt.rotate(float(-m_meshAngle), 1, 0, 0);
+            candidate = tilt * candidate;
+            QPointF centre;
+            if (!projectPlaneLocalToPixel(m_renderAsFisheye, m_meshFov, candidate, viewMatrix,
+                                          projectionMatrix, wPx, hPx, QVector3D(), centre)) continue;
+            const double dx = centre.x() - m_dragStartX, dy = centre.y() - m_dragStartY;
+            if (dx * dx + dy * dy < best) { best = dx * dx + dy * dy; model = candidate; }
+        }
+    }
+
     // Sample the on-screen position of the plane centre and of two points one centimetre along
     // its local X (plane-horizontal) and Y (plane-vertical) axes. The differences give the pixels
     // per cm along each axis for the *active* projection, so the drag follows the pointer for any
     // plane orientation, camera pose, or lens (perspective vs fisheye) without special-casing.
+    QVector3D horizontalAxis(0.01f, 0, 0), verticalAxis(0, 0.01f, 0);
+    if (m_selectedPlaneLayer->circularPlaneActive()) {
+        QMatrix4x4 orientation;
+        orientation.rotate(float(m_selectedPlaneLayer->planeAzimuth()), 0, -1, 0);
+        orientation.rotate(float(m_selectedPlaneLayer->planeElevation()), 1, 0, 0);
+        orientation.rotate(float(m_selectedPlaneLayer->planeRoll()), 0, 0, 1);
+        horizontalAxis = orientation.inverted().mapVector(horizontalAxis);
+        verticalAxis = orientation.inverted().mapVector(verticalAxis);
+    }
     QPointF c0, cH, cV;
     const bool ok0 = projectPlaneLocalToPixel(m_renderAsFisheye, m_meshFov, model, viewMatrix,
                                               projectionMatrix, wPx, hPx, QVector3D(0, 0, 0), c0);
     const bool okH = projectPlaneLocalToPixel(m_renderAsFisheye, m_meshFov, model, viewMatrix,
-                                              projectionMatrix, wPx, hPx, QVector3D(0.01f, 0, 0), cH);
+                                              projectionMatrix, wPx, hPx, horizontalAxis, cH);
     const bool okV = projectPlaneLocalToPixel(m_renderAsFisheye, m_meshFov, model, viewMatrix,
-                                              projectionMatrix, wPx, hPx, QVector3D(0, 0.01f, 0), cV);
+                                              projectionMatrix, wPx, hPx, verticalAxis, cV);
     if (!ok0 || !okH || !okV)
         return;   // degenerate projection: keep the neutral fallback above
 
@@ -1091,7 +1142,8 @@ bool LayersRendererQtItem::beginLayerDrag(int action, float x, float y) {
                 m_poseEditLayer = m_selectedPlaneLayer;
                 // Flat layer: no hit testing, wherever the pointer is it aims at the layer.
                 ok = aimAtScreenPointLocked(m_selectedPlaneLayer.get(), x, y, hitAz, hitEl);
-                startWidthCm = m_selectedPlaneLayer->planeWidth();
+                startWidthCm = m_selectedPlaneLayer->circularPlaneActive()
+                    ? m_selectedPlaneLayer->planeWidthDegrees() : m_selectedPlaneLayer->planeWidth();
                 startHeightCm = m_selectedPlaneLayer->planeHeight();
                 startDistanceCm = m_selectedPlaneLayer->planeDistance();
                 if (!ok || (action == kDragResizePlaneSize && (startWidthCm <= 0.0 || startHeightCm <= 0.0)))
@@ -1122,7 +1174,8 @@ bool LayersRendererQtItem::beginLayerDrag(int action, float x, float y) {
         // parameters, so remember the baselines like sphere/dome drags do.
         m_dragStartX = x;
         m_dragStartY = y;
-        m_planeDragStartHorizontalCm = m_selectedPlaneLayer->planeHorizontal();
+        m_planeDragStartCentreDegrees = m_selectedPlaneLayer->planeCentreDegrees();
+        m_planeDragStartHorizontalCm = m_selectedPlaneLayer->planeHorizontalForRendering(false);
         m_planeDragStartVerticalCm = m_selectedPlaneLayer->planeVertical();
         m_planeDragStartWidthCm = startWidthCm;
         m_planeDragStartHeightCm = startHeightCm;
@@ -1217,11 +1270,17 @@ bool LayersRendererQtItem::dragPlaneTo(float x, float y) {
             }
         }
 
-        const bool hChanged = hEnabled && std::abs(newH - m_selectedPlaneLayer->planeHorizontal()) > 1e-4;
+        const bool hChanged = hEnabled && std::abs(newH - m_selectedPlaneLayer->planeHorizontalForRendering(false)) > 1e-4;
         const bool vChanged = vEnabled && std::abs(newV - m_selectedPlaneLayer->planeVertical()) > 1e-4;
         if (hChanged || vChanged) {
-            if (hChanged)
-                m_selectedPlaneLayer->setPlaneHorizontal(newH);
+            if (hChanged) {
+                if (m_selectedPlaneLayer->circularPlaneActive()) {
+                    const auto mapping = m_selectedPlaneLayer->circularMapping();
+                    const double deltaCm = newH - m_planeDragStartHorizontalCm;
+                    m_selectedPlaneLayer->setPlaneCentreDegrees(m_planeDragStartCentreDegrees
+                        + mapping.direction() * deltaCm * 360.0 / mapping.widthCm);
+                } else m_selectedPlaneLayer->setPlaneHorizontal(newH);
+            }
             if (vChanged)
                 m_selectedPlaneLayer->setPlaneVertical(newV);
             changed = true;
@@ -1233,6 +1292,12 @@ bool LayersRendererQtItem::dragPlaneTo(float x, float y) {
         // size at press time, so dragging down by one on-screen plane height doubles it.
         const double dyCm = (y - m_dragStartY) * m_planeMoveCmPerPixel;
         const double factor = 1.0 + dyCm / m_planeDragStartHeightCm;
+        if (m_selectedPlaneLayer->circularPlaneActive()) {
+            m_selectedPlaneLayer->setPlaneWidthDegrees(std::clamp(m_planeDragStartWidthCm * factor, 0.01, 360.0));
+            m_selectedPlaneLayer->setPlaneHeight(std::clamp(m_planeDragStartHeightCm * factor, kPlaneSizeMinCm, kPlaneSizeMaxCm));
+            changed = true;
+            break;
+        }
         const double newW = std::clamp(m_planeDragStartWidthCm * factor, kPlaneSizeMinCm, kPlaneSizeMaxCm);
         const double newH = std::clamp(m_planeDragStartHeightCm * factor, kPlaneSizeMinCm, kPlaneSizeMaxCm);
         if (newW != m_selectedPlaneLayer->planeWidth() || newH != m_selectedPlaneLayer->planeHeight()) {
@@ -2323,38 +2388,64 @@ void LayersRendererQtOpenGLObject::renderLayer(const BaseLayer* layer, int eyeMo
         (m_renderAsFisheye ? m_fisheyeMaskLocs : m_meshMaskLocs).apply(QtUniformSetter{prg}, anim, aspect);
         prg->setUniformValue(flipYLoc, layer->renderFlipY());
 
-        QMatrix4x4 planeTransform;
+        if (layer->circularPlaneActive()) {
+            const_cast<BaseLayer*>(layer)->updatePlane();
+            const auto mapping = layer->circularMapping();
+            const auto copies = cplay::circular::copies(layer->circularPlaneModel(), layer->planeActualSize(), mapping.widthCm);
+            QMatrix4x4 tilt;
+            if (!m_renderAsFisheye) tilt.rotate(-angle, 1, 0, 0);
+            GLboolean previous[4];
+            for (int i = 0; i < 4; ++i) { previous[i] = glIsEnabled(GL_CLIP_DISTANCE0 + i); glEnable(GL_CLIP_DISTANCE0 + i); }
+            prg->setUniformValue("circularHalfWidth", float(mapping.widthCm / 200.0));
+            if (m_renderAsFisheye) {
+                prg->setUniformValue(m_fisheyeOutsideLoc, 0);
+                prg->setUniformValue(m_fisheyeHalfFovLoc, static_cast<float>(glm::radians(m_meshFov * 0.5)));
+            }
+            for (const auto &copy : copies) {
+                // QMatrix4x4's pointer constructor takes row-major values.
+                QMatrix4x4 model(glm::value_ptr(copy.model));
+                model = model.transposed();
+                const QMatrix4x4 transform = tilt * model;
+                prg->setUniformValue(matrixLoc, m_renderAsFisheye ? transform : projectionMatrix * viewMatrix * transform);
+                prg->setUniformValue("circularModel", model);
+                prg->setUniformValue("circularSourceBounds", QVector2D(copy.sourceBounds.x, copy.sourceBounds.y));
+                layer->drawPlane();
+            }
+            for (int i = 0; i < 4; ++i) if (!previous[i]) glDisable(GL_CLIP_DISTANCE0 + i);
+        } else {
+            QMatrix4x4 planeTransform;
 
-        // Respect the dome angle. In fisheye mode the output is locked to the zenith, so the
-        // dome tilt must not be applied.
-        if (!m_renderAsFisheye)
-            planeTransform.rotate(-angle, 1, 0, 0);
+            // Respect the dome angle. In fisheye mode the output is locked to the zenith, so the
+            // dome tilt must not be applied.
+            if (!m_renderAsFisheye)
+                planeTransform.rotate(-angle, 1, 0, 0);
 
-        // Specific plane parameters
-        planeTransform.rotate(float(layer->renderPlaneAzimuth()), 0, -1, 0);    // azimuth
-        planeTransform.rotate(float(layer->renderPlaneElevation()), 1, 0, 0);   // elevation
-        planeTransform.rotate(float(layer->renderPlaneRoll()), 0, 0, 1);        // roll
-        planeTransform.translate(
-            float(layer->renderPlaneHorizontal()) / 100.f,
-            float(layer->renderPlaneVertical()) / 100.f,
-            float(-layer->renderPlaneDistance()) / 100.f);
-        if (animActive && anim.scale != 1.f)
-            planeTransform.scale(anim.scale, anim.scale, 1.f);
+            // Specific plane parameters
+            planeTransform.rotate(float(layer->renderPlaneAzimuth()), 0, -1, 0);    // azimuth
+            planeTransform.rotate(float(layer->renderPlaneElevation()), 1, 0, 0);   // elevation
+            planeTransform.rotate(float(layer->renderPlaneRoll()), 0, 0, 1);        // roll
+            planeTransform.translate(
+                float(layer->renderPlaneHorizontal()) / 100.f,
+                float(layer->renderPlaneVertical()) / 100.f,
+                float(-layer->renderPlaneDistance()) / 100.f);
+            if (animActive && anim.scale != 1.f)
+                planeTransform.scale(anim.scale, anim.scale, 1.f);
 
-        if (m_renderAsFisheye) {
-            // The fisheye lens needs the plane in world space, without any camera.
-            prg->setUniformValue(m_fisheyeOutsideLoc, 0);
-            prg->setUniformValue(m_fisheyeHalfFovLoc, static_cast<float>(glm::radians(m_meshFov * 0.5)));
-            prg->setUniformValue(matrixLoc, planeTransform);
+            if (m_renderAsFisheye) {
+                // The fisheye lens needs the plane in world space, without any camera.
+                prg->setUniformValue(m_fisheyeOutsideLoc, 0);
+                prg->setUniformValue(m_fisheyeHalfFovLoc, static_cast<float>(glm::radians(m_meshFov * 0.5)));
+                prg->setUniformValue(matrixLoc, planeTransform);
+            }
+            else {
+                QMatrix4x4 mvp = projectionMatrix * viewMatrix;
+                QMatrix4x4 finalMvp = mvp * planeTransform;
+                prg->setUniformValue(matrixLoc, finalMvp);
+            }
+
+            layer->drawPlane();
+
         }
-        else {
-            QMatrix4x4 mvp = projectionMatrix * viewMatrix;
-            QMatrix4x4 finalMvp = mvp * planeTransform;
-            prg->setUniformValue(matrixLoc, finalMvp);
-        }
-
-        layer->drawPlane();
-
         prg->release();
     }
     else {

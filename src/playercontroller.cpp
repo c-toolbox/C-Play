@@ -316,7 +316,10 @@ void PlayerController::setupControlEvents() {
                         {QStringLiteral("elevation"), layer->planeElevation()}, {QStringLiteral("roll"), layer->planeRoll()},
                         {QStringLiteral("distance"), layer->planeDistance()}, {QStringLiteral("horizontal"), layer->planeHorizontal()},
                         {QStringLiteral("vertical"), layer->planeVertical()}, {QStringLiteral("width"), layer->planeWidth()},
-                        {QStringLiteral("height"), layer->planeHeight()}, {QStringLiteral("aspectRatio"), layer->planeAspectRatio()}}}});
+                        {QStringLiteral("height"), layer->planeHeight()}, {QStringLiteral("aspectRatio"), layer->planeAspectRatio()},
+                        {QStringLiteral("circular"), layer->planeCircular()},
+                        {QStringLiteral("centreDegrees"), layer->planeCentreDegrees()},
+                        {QStringLiteral("widthDegrees"), layer->planeWidthDegrees()}}}});
             }
         }
         return layers;

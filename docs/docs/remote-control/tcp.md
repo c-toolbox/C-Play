@@ -209,6 +209,8 @@ POST /layer_visibility?slide_idx=0&layer_idx=1&value=50
 
 Use the REST parameter names, units and zero-based indices. String parameters in Medialon must be URL percent encoded when they contain special characters: space `%20`, ampersand `%26`, hash `%23`, percent `%25`, and UTF-8 bytes for non-ASCII text. A plus sign is literal. The generated layer commands use slide/layer indices; custom commands can use `slide_name`, `layer_title`, `sub_layer_idx`, or `sub_layer_title` as the REST API does. Omitting the slide selector targets the Master slide. Layer plane commands can set any subset of the six plane properties.
 
+`/layer_plane` also accepts `circular`, `centreDegrees` and `widthDegrees` for [circular placement](api.md#layer-control), for example `POST /layer_plane?slide_idx=0&layer_idx=0&circular=1&centreDegrees=355&widthDegrees=20`. The shared circular surface must be enabled in Grid Settings. Regenerate the Medialon client driver to expose these additional optional fields; empty degree fields leave their saved values unchanged.
+
 Other TCP clients can send JSON instead, with string parameter values:
 
 ```json

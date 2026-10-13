@@ -320,7 +320,10 @@
         "roll",
         "distance",
         "horizontal",
-        "vertical"
+        "vertical",
+        "circular",
+        "centreDegrees",
+        "widthDegrees"
       ],
       "required": [],
       "anyOf": [
@@ -329,7 +332,10 @@
         "roll",
         "distance",
         "horizontal",
-        "vertical"
+        "vertical",
+        "circular",
+        "centreDegrees",
+        "widthDegrees"
       ]
     },
     {

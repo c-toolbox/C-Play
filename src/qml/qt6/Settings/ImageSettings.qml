@@ -91,10 +91,64 @@ SettingsBasePage {
         // --
 
         SettingsHeader {
-            Layout.columnSpan: 3
+            Layout.columnSpan: 2
             Layout.fillWidth: true
             text: qsTr("Background & Foreground settings")
         }
+        RowLayout {
+            Button {
+                text: "Reset values"
+
+                onClicked: {
+                    playerController.setBackgroundImageFile(ImageSettings.imageToLoadAsBackground);
+                    playerController.setBackgroundStereoMode(ImageSettings.stereoModeForBackground);
+                    playerController.setBackgroundGridMode(ImageSettings.gridToMapOnForBackground);
+                    fileForBackgroundImageText.text = playerController.backgroundImageFile();
+                    for (let i = 0; i < loadGridOnStartupModeBg.count; ++i) {
+                        if (loadGridOnStartupModeBg.get(i).value === playerController.backgroundGridMode()) {
+                            loadGridOnStartupComboBoxBg.currentIndex = i;
+                            break;
+                        }
+                    }
+                    for (let j = 0; j < stereoscopicModeOnStartupModeBg.count; ++j) {
+                        if (stereoscopicModeOnStartupModeBg.get(j).value === playerController.backgroundStereoMode()) {
+                            stereoscopicModeOnStartupComboBoxBg.currentIndex = j;
+                            break;
+                        }
+                    }
+                    playerController.setForegroundImageFile(ImageSettings.imageToLoadAsForeground);
+                    playerController.setForegroundStereoMode(ImageSettings.stereoModeForForeground);
+                    playerController.setForegroundGridMode(ImageSettings.gridToMapOnForForeground);
+                    fileForForegroundImageText.text = playerController.foregroundImageFile();
+                    for (let i = 0; i < loadGridOnStartupModeFg.count; ++i) {
+                        if (loadGridOnStartupModeFg.get(i).value === playerController.foregroundGridMode()) {
+                            loadGridOnStartupComboBoxFg.currentIndex = i;
+                            break;
+                        }
+                    }
+                    for (let j = 0; j < stereoscopicModeOnStartupModeFg.count; ++j) {
+                        if (stereoscopicModeOnStartupModeFg.get(j).value === playerController.foregroundStereoMode()) {
+                            stereoscopicModeOnStartupComboBoxFg.currentIndex = j;
+                            break;
+                        }
+                    }
+                }
+            }
+            Button {
+                text: "Save values for startup"
+
+                onClicked: {
+                    ImageSettings.imageToLoadAsBackground = playerController.backgroundImageFile();
+                    ImageSettings.stereoModeForBackground = playerController.backgroundStereoMode();
+                    ImageSettings.gridToMapOnForBackground = playerController.backgroundGridMode();
+                    ImageSettings.imageToLoadAsForeground = playerController.foregroundImageFile();
+                    ImageSettings.stereoModeForForeground = playerController.foregroundStereoMode();
+                    ImageSettings.gridToMapOnForForeground = playerController.foregroundGridMode();
+                    ImageSettings.save();
+                }
+            }
+        }
+
         Label {
             Layout.alignment: Qt.AlignRight
             text: qsTr("Image to load as background:")
@@ -377,75 +431,7 @@ SettingsBasePage {
             // spacer item
             Layout.fillWidth: true
         }
-        RowLayout {
-            Layout.columnSpan: 2
-
-            Button {
-                text: "Reset background and foreground values"
-
-                onClicked: {
-                    playerController.setBackgroundImageFile(ImageSettings.imageToLoadAsBackground);
-                    playerController.setBackgroundStereoMode(ImageSettings.stereoModeForBackground);
-                    playerController.setBackgroundGridMode(ImageSettings.gridToMapOnForBackground);
-                    fileForBackgroundImageText.text = playerController.backgroundImageFile();
-                    for (let i = 0; i < loadGridOnStartupModeBg.count; ++i) {
-                        if (loadGridOnStartupModeBg.get(i).value === playerController.backgroundGridMode()) {
-                            loadGridOnStartupComboBoxBg.currentIndex = i;
-                            break;
-                        }
-                    }
-                    for (let j = 0; j < stereoscopicModeOnStartupModeBg.count; ++j) {
-                        if (stereoscopicModeOnStartupModeBg.get(j).value === playerController.backgroundStereoMode()) {
-                            stereoscopicModeOnStartupComboBoxBg.currentIndex = j;
-                            break;
-                        }
-                    }
-                    playerController.setForegroundImageFile(ImageSettings.imageToLoadAsForeground);
-                    playerController.setForegroundStereoMode(ImageSettings.stereoModeForForeground);
-                    playerController.setForegroundGridMode(ImageSettings.gridToMapOnForForeground);
-                    fileForForegroundImageText.text = playerController.foregroundImageFile();
-                    for (let i = 0; i < loadGridOnStartupModeFg.count; ++i) {
-                        if (loadGridOnStartupModeFg.get(i).value === playerController.foregroundGridMode()) {
-                            loadGridOnStartupComboBoxFg.currentIndex = i;
-                            break;
-                        }
-                    }
-                    for (let j = 0; j < stereoscopicModeOnStartupModeFg.count; ++j) {
-                        if (stereoscopicModeOnStartupModeFg.get(j).value === playerController.foregroundStereoMode()) {
-                            stereoscopicModeOnStartupComboBoxFg.currentIndex = j;
-                            break;
-                        }
-                    }
-                }
-            }
-        }
-        Item {
-            // spacer item
-            Layout.fillWidth: true
-        }
-        RowLayout {
-            Layout.columnSpan: 2
-
-            Button {
-                text: "Save background and foreground values for startup"
-
-                onClicked: {
-                    ImageSettings.imageToLoadAsBackground = playerController.backgroundImageFile();
-                    ImageSettings.stereoModeForBackground = playerController.backgroundStereoMode();
-                    ImageSettings.gridToMapOnForBackground = playerController.backgroundGridMode();
-                    ImageSettings.imageToLoadAsForeground = playerController.foregroundImageFile();
-                    ImageSettings.stereoModeForForeground = playerController.foregroundStereoMode();
-                    ImageSettings.gridToMapOnForForeground = playerController.foregroundGridMode();
-                    ImageSettings.save();
-                }
-            }
-        }
-        Item {
-            Layout.columnSpan: 3
-            Layout.fillWidth: true
-            // spacer item
-            height: 20
-        }
+        
 
         // ------------------------------------
         // NO SIGNAL IMAGES

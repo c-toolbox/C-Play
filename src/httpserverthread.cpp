@@ -6,6 +6,7 @@
  */
 
 #include "httpserverthread.h"
+#include <cmath>
 #include "mpvobject.h"
 #include "playbacksettings.h"
 #include "playercontroller.h"
@@ -992,6 +993,14 @@ void HttpServerThread::setupHttpServer() {
                         count++;
                         if (count < countParams) returnString += "\n";
                     }
+                    for (const auto &parameter : {"circular", "centreDegrees", "widthDegrees"}) {
+                        if (!req.has_param(parameter)) continue;
+                        if (count > 0 && !returnString.empty() && returnString.back() != '\n') returnString += "\n";
+                        if (std::string(parameter) == "circular") returnString += layer->planeCircular() ? "1" : "0";
+                        else if (std::string(parameter) == "centreDegrees") returnString += std::to_string(layer->planeCentreDegrees());
+                        else returnString += std::to_string(layer->planeWidthDegrees());
+                        ++count;
+                    }
                     res.set_content(returnString, "text/plain");
             }
         };
@@ -1002,6 +1011,25 @@ void HttpServerThread::setupHttpServer() {
             BaseLayer* layer = nullptr;
             res.set_content(getLayerFromRequest(req, layerModel, layerIdx, layer), "text/plain");
             if (layer) {
+                    // Validate the new fields before changing any plane property.
+                    double centreDegrees = layer->planeCentreDegrees(), widthDegrees = layer->planeWidthDegrees();
+                    bool circular = layer->planeCircular();
+                    if (req.has_param("circular") && !req.get_param_value("circular").empty()) {
+                        const auto value = req.get_param_value("circular");
+                        if (value != "0" && value != "1" && value != "true" && value != "false") {
+                            res.status = 400; res.set_content("circular must be 0, 1, true or false", "text/plain"); return;
+                        }
+                        circular = value == "1" || value == "true";
+                    }
+                    for (const auto &parameter : {"centreDegrees", "widthDegrees"}) {
+                        if (!req.has_param(parameter) || req.get_param_value(parameter).empty()) continue;
+                        bool valid = false;
+                        const double value = QString::fromStdString(req.get_param_value(parameter)).toDouble(&valid);
+                        if (!valid || !std::isfinite(value) || (std::string(parameter) == "widthDegrees" && (value <= 0 || value > 360))) {
+                            res.status = 400; res.set_content("Expected finite degrees; widthDegrees must be greater than 0 and at most 360", "text/plain"); return;
+                        }
+                        if (std::string(parameter) == "centreDegrees") centreDegrees = value; else widthDegrees = value;
+                    }
                     bool updateLayer = false;
                     std::string returnString = "";
                     // Guard against unsigned underflow when fewer than 2 params provided
@@ -1072,6 +1100,17 @@ void HttpServerThread::setupHttpServer() {
                         count++;
                         if (count < countParams)
                             returnString += "\n";
+                    }
+                    if (req.has_param("circular") && !req.get_param_value("circular").empty()) { layer->setPlaneCircular(circular); updateLayer = true; }
+                    if (req.has_param("centreDegrees") && !req.get_param_value("centreDegrees").empty()) { layer->setPlaneCentreDegrees(centreDegrees); updateLayer = true; }
+                    if (req.has_param("widthDegrees") && !req.get_param_value("widthDegrees").empty()) { layer->setPlaneWidthDegrees(widthDegrees); updateLayer = true; }
+                    for (const auto &parameter : {"circular", "centreDegrees", "widthDegrees"}) {
+                        if (!req.has_param(parameter)) continue;
+                        if (count > 0 && !returnString.empty() && returnString.back() != '\n') returnString += "\n";
+                        if (std::string(parameter) == "circular") returnString += layer->planeCircular() ? "1" : "0";
+                        else if (std::string(parameter) == "centreDegrees") returnString += std::to_string(layer->planeCentreDegrees());
+                        else returnString += std::to_string(layer->planeWidthDegrees());
+                        ++count;
                     }
                     if (updateLayer) {
                         if (layerModel) layerModel->updateLayerRow(layer);

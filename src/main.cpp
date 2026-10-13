@@ -9,6 +9,7 @@
 #include <sgct/sgct.h>
 #define GLFW_INCLUDE_NONE
 #include "application.h"
+#include "gridsettings.h"
 #include <GLFW/glfw3.h>
 #ifdef WIN32
 #include <Windows.h>
@@ -223,6 +224,17 @@ static std::vector<std::byte> encode() {
             serializeObject(data, SyncHelper::instance().variables.planeElevation);
             serializeObject(data, SyncHelper::instance().variables.planeDistance);
             serializeObject(data, SyncHelper::instance().variables.planeConsiderAspectRatio);
+
+            SyncHelper::instance().variables.circularEnabled = GridSettings::circularEnabled();
+            serializeObject(data, SyncHelper::instance().variables.circularEnabled);
+            if(SyncHelper::instance().variables.circularEnabled) {
+                SyncHelper::instance().variables.circularSurfaceWidthCM = GridSettings::circularSurfaceWidthCM();
+                serializeObject(data, SyncHelper::instance().variables.circularSurfaceWidthCM);
+                SyncHelper::instance().variables.circularSeamDegrees = GridSettings::circularSeamDegrees();
+                serializeObject(data, SyncHelper::instance().variables.circularSeamDegrees);
+                SyncHelper::instance().variables.circularClockwise = GridSettings::circularClockwise();
+                serializeObject(data, SyncHelper::instance().variables.circularClockwise);
+            }
 
             // Looptime
             serializeObject(data, SyncHelper::instance().variables.loopTimeDirty);
@@ -547,6 +559,14 @@ static void decode(const std::vector<std::byte> &data) {
             deserializeObject(data, pos, SyncHelper::instance().variables.planeElevation);
             deserializeObject(data, pos, SyncHelper::instance().variables.planeDistance);
             deserializeObject(data, pos, SyncHelper::instance().variables.planeConsiderAspectRatio);
+
+            deserializeObject(data, pos, SyncHelper::instance().variables.circularEnabled);
+            if (SyncHelper::instance().variables.circularEnabled) {
+                if (!safeToRead(sizeof(bool) + 2 * sizeof(double))) return;
+                deserializeObject(data, pos, SyncHelper::instance().variables.circularSurfaceWidthCM);
+                deserializeObject(data, pos, SyncHelper::instance().variables.circularSeamDegrees);
+                deserializeObject(data, pos, SyncHelper::instance().variables.circularClockwise);
+            }
 
             // Looptime
             if (!safeToRead()) return;

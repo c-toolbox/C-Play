@@ -118,7 +118,7 @@ Command34.Frame=POST /layer_volume?slide_idx=[slide_idx,string,literal,0]!26laye
 Command35.Name=Layer Visibility
 Command35.Frame=POST /layer_visibility?slide_idx=[slide_idx,string,literal,0]!26layer_idx=[layer_idx,string,literal,0]!26value=[value,string,literal,0]!0D!0A
 Command36.Name=Layer Plane
-Command36.Frame=POST /layer_plane?slide_idx=[slide_idx,string,literal,0]!26layer_idx=[layer_idx,string,literal,0]!26azimuth=[azimuth,string,literal,0]!26elevation=[elevation,string,literal,0]!26roll=[roll,string,literal,0]!26distance=[distance,string,literal,0]!26horizontal=[horizontal,string,literal,0]!26vertical=[vertical,string,literal,0]!0D!0A
+Command36.Frame=POST /layer_plane?slide_idx=[slide_idx,string,literal,0]!26layer_idx=[layer_idx,string,literal,0]!26azimuth=[azimuth,string,literal,0]!26elevation=[elevation,string,literal,0]!26roll=[roll,string,literal,0]!26distance=[distance,string,literal,0]!26horizontal=[horizontal,string,literal,0]!26vertical=[vertical,string,literal,0]!26circular=[circular,string,literal,0]!26centreDegrees=[centreDegrees,string,literal,0]!26widthDegrees=[widthDegrees,string,literal,0]!0D!0A
 Command37.Name=Tcp Connect
 Command37.Frame=POST /tcp/connect?server_id=[server_id,string,literal,0]!0D!0A
 Command38.Name=Tcp Disconnect

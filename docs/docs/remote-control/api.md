@@ -227,7 +227,17 @@ If neither sublayer param is provided, the parent layer is used. If the parent l
 |----------|--------|-------------------|-------------|---------|
 | `/layer_volume` | GET, POST | `level=` *(optional)* — `0`–`100` | Get or set layer volume | Volume level (0–100) |
 | `/layer_visibility` | GET, POST | `value=` *(optional)* — `0`–`100` | Get or set layer visibility | Visibility (0–100) |
-| `/layer_plane` | GET, POST | `azimuth=`, `elevation=`, `roll=`, `distance=`, `horizontal=`, `vertical=` *(any combination)* | Get or set layer plane parameters. Send a param with no value to read. | One value per param, newline-separated |
+| `/layer_plane` | GET, POST | `azimuth=`, `elevation=`, `roll=`, `distance=`, `horizontal=`, `vertical=`, `circular=`, `centreDegrees=`, `widthDegrees=` *(any combination)* | Get or set layer plane parameters. Send a param with no value to read. | One value per param, newline-separated |
+
+`circular` accepts `0`, `1`, `false` or `true`. `centreDegrees` accepts finite, fractional and unwrapped angles; `widthDegrees` must be greater than 0 and at most 360. Empty values leave these new fields unchanged and return their current values. Nonempty invalid values return HTTP 400 before applying the plane update. The existing `horizontal` parameter keeps its centimetre meaning; use `centreDegrees` for circular placement. The shared mapping must also be enabled in [Grid Settings](/settings/grid#circular-surface-mapping).
+
+For example, enable a 20° layer centred at 355°:
+
+```sh
+curl -X POST 'http://localhost:7007/layer_plane?slide_idx=0&layer_idx=0&circular=1&centreDegrees=355&widthDegrees=20'
+```
+
+The same parameters are accepted by the [TCP Control Server](tcp.md#tcp-control-server). The structured `layers` event includes `circular`, `centreDegrees` and `widthDegrees` in each layer's plane data.
 
 ## Spin & orientation
 

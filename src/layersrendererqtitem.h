@@ -410,6 +410,7 @@ private:
     // Flat-layer drag state for the horizontal/vertical move modes: plane offsets (cm) at
     // press time and the pointer sensitivity derived from the camera FOV and layer distance,
     // so that dragging moves the layer with the pointer on screen.
+    double m_planeDragStartCentreDegrees = 180.0;
     double m_planeDragStartHorizontalCm = 0.0;
     double m_planeDragStartVerticalCm = 0.0;
     double m_planeMoveCmPerPixel = 1.0;

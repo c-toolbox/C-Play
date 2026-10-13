@@ -104,6 +104,9 @@ class LayerQtItem : public QQuickItem {
     Q_PROPERTY(double layerPlaneElevation READ layerPlaneElevation WRITE setLayerPlaneElevation NOTIFY layerValueChanged)
     Q_PROPERTY(double layerPlaneRoll READ layerPlaneRoll WRITE setLayerPlaneRoll NOTIFY layerValueChanged)
     Q_PROPERTY(double layerPlaneDistance READ layerPlaneDistance WRITE setLayerPlaneDistance NOTIFY layerValueChanged)
+    Q_PROPERTY(bool layerPlaneCircular READ layerPlaneCircular WRITE setLayerPlaneCircular NOTIFY layerValueChanged)
+    Q_PROPERTY(double layerPlaneCentreDegrees READ layerPlaneCentreDegrees WRITE setLayerPlaneCentreDegrees NOTIFY layerValueChanged)
+    Q_PROPERTY(double layerPlaneWidthDegrees READ layerPlaneWidthDegrees WRITE setLayerPlaneWidthDegrees NOTIFY layerValueChanged)
     Q_PROPERTY(double layerPlaneHorizontal READ layerPlaneHorizontal WRITE setLayerPlaneHorizontal NOTIFY layerValueChanged)
     Q_PROPERTY(double layerPlaneVertical READ layerPlaneVertical WRITE setLayerPlaneVertical NOTIFY layerValueChanged)
     Q_PROPERTY(bool layerRoiEnabled READ layerRoiEnabled WRITE setLayerRoiEnabled NOTIFY layerValueChanged)
@@ -272,6 +275,12 @@ public:
     double layerPlaneDistance() const;
     void setLayerPlaneDistance(double pD);
 
+    bool layerPlaneCircular() const;
+    void setLayerPlaneCircular(bool value);
+    double layerPlaneCentreDegrees() const;
+    void setLayerPlaneCentreDegrees(double value);
+    double layerPlaneWidthDegrees() const;
+    void setLayerPlaneWidthDegrees(double value);
     double layerPlaneHorizontal() const;
     void setLayerPlaneHorizontal(double pH);
 

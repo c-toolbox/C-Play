@@ -149,6 +149,9 @@ void DivideTextureHandler::createSubLayers(BaseLayer* parentLayer) {
                 sub->setPlaneElevation(parentLayer->planeElevation());
                 sub->setPlaneRoll(parentLayer->planeRoll());
                 sub->setPlaneDistance(parentLayer->planeDistance());
+                sub->setPlaneCircular(parentLayer->planeCircular());
+                sub->setPlaneCentreDegrees(parentLayer->planeCentreDegrees());
+                sub->setPlaneWidthDegrees(parentLayer->planeWidthDegrees());
                 sub->setPlaneHorizontal(parentLayer->planeHorizontal());
                 sub->setPlaneVertical(parentLayer->planeVertical());
                 sub->setPlaneSize(glm::vec2(static_cast<float>(parentLayer->planeWidth()),

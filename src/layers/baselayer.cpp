@@ -6,6 +6,7 @@
  */
 
 #include "streamsettings.h"
+#include "gridsettings.h"
 #include "baselayer.h"
 #include <layers/imagelayer.h>
 #ifdef VIDEO_LAYER
@@ -784,6 +785,9 @@ void BaseLayer::encodeBaseProperties(std::vector<std::byte>& data) const {
         sgct::serializeObject(data, planeData.elevation);
         sgct::serializeObject(data, planeData.roll);
         sgct::serializeObject(data, planeData.distance);
+        sgct::serializeObject(data, planeData.circular);
+        sgct::serializeObject(data, planeData.centreDegrees);
+        sgct::serializeObject(data, planeData.widthDegrees);
         sgct::serializeObject(data, planeData.horizontal);
         sgct::serializeObject(data, planeData.vertical);
         sgct::serializeObject(data, planeData.specifiedSize.x);
@@ -815,6 +819,10 @@ void BaseLayer::decodeBaseProperties(const std::vector<std::byte>& data, unsigne
         sgct::deserializeObject(data, pos, planeData.elevation);
         sgct::deserializeObject(data, pos, planeData.roll);
         sgct::deserializeObject(data, pos, planeData.distance);
+        sgct::deserializeObject(data, pos, planeData.circular);
+        planeData.circularModeInitialized = true;
+        sgct::deserializeObject(data, pos, planeData.centreDegrees);
+        sgct::deserializeObject(data, pos, planeData.widthDegrees);
         sgct::deserializeObject(data, pos, planeData.horizontal);
         sgct::deserializeObject(data, pos, planeData.vertical);
         sgct::deserializeObject(data, pos, planeData.specifiedSize.x);
@@ -1253,6 +1261,12 @@ uint8_t BaseLayer::gridMode() const {
 }
 
 void BaseLayer::setGridMode(uint8_t g) {
+    // Apply the global default once, including layers switched to Plane later.
+    // Explicit choices and cloned/synchronized settings remain authoritative.
+    if (isMaster() && g == GridMode::Plane && !planeData.circularModeInitialized) {
+        planeData.circular = GridSettings::circularEnabled();
+        planeData.circularModeInitialized = true;
+    }
     renderData.gridMode = g;
     if (!isMaster() && gridMode() == GridMode::Plane) {
         updatePlane();
@@ -1375,6 +1389,76 @@ void BaseLayer::setPlaneDistance(double pD) {
     setNeedSync();
 }
 
+bool BaseLayer::planeCircular() const { return planeData.circular; }
+void BaseLayer::setPlaneCircular(bool enabled) {
+    planeData.circular = enabled;
+    planeData.circularModeInitialized = true;
+    setNeedSync();
+}
+double BaseLayer::planeCentreDegrees() const { return planeData.centreDegrees; }
+void BaseLayer::setPlaneCentreDegrees(double degrees) {
+    if (std::isfinite(degrees)) { planeData.centreDegrees = degrees; setNeedSync(); }
+}
+double BaseLayer::planeWidthFromHeightCm() const {
+    double width = this->width(), height = this->height();
+    if (renderData.roiEnabled) {
+        width *= renderData.roi.z;
+        height *= renderData.roi.w;
+    }
+    if (width <= 0.0 || height <= 0.0) return 0.0;
+    double ratio = width / height;
+    const int stereo = renderStereoMode();
+    if (stereo == 1 && ratio >= 2.0) ratio *= 0.5;
+    else if (stereo == 2 && height / width >= 1.0) ratio *= 2.0;
+    else if (stereo == 3) ratio = 2.0 * height / width;
+    return planeData.specifiedSize.y * ratio;
+}
+double BaseLayer::planeWidthDegrees() const {
+    if (circularPlaneActive() && planeData.aspectRatioConsideration == 1) {
+        const double width = planeWidthFromHeightCm();
+        if (width > 0.0) return width * 360.0 / circularMapping().widthCm;
+    }
+    return planeData.widthDegrees;
+}
+void BaseLayer::setPlaneWidthDegrees(double degrees) {
+    if (std::isfinite(degrees) && degrees > 0.0 && degrees <= 360.0) {
+        planeData.widthDegrees = degrees; setNeedSync();
+    }
+}
+cplay::circular::Mapping BaseLayer::circularMapping() const {
+    if (isMaster()) return {GridSettings::circularEnabled(), GridSettings::circularSurfaceWidthCM(),
+        GridSettings::circularSeamDegrees(), GridSettings::circularClockwise()};
+    const auto &v = SyncHelper::instance().variables;
+    return {v.circularEnabled, v.circularSurfaceWidthCM, v.circularSeamDegrees, v.circularClockwise};
+}
+bool BaseLayer::circularPlaneActive() const {
+    return gridMode() == GridMode::Plane && planeData.circular && circularMapping().valid();
+}
+double BaseLayer::planeHorizontalForRendering(bool animated) const {
+    if (!circularPlaneActive()) return animated ? renderPlaneHorizontal() : planeHorizontal();
+    const auto mapping = circularMapping();
+    double x = mapping.direction() * (std::fmod(planeData.centreDegrees, 360.0)
+        - std::fmod(mapping.seamDegrees, 360.0)) * mapping.widthCm / 360.0 - mapping.widthCm / 2.0;
+    if (animated && m_animActive) {
+        // Pose horizontal offsets are degrees in circular mode; generic Move remains
+        // layer-relative. Keep the stored angle unwrapped throughout interpolation.
+        x += mapping.direction() * m_animState.planePosOffset.x * mapping.widthCm / 360.0;
+        x += m_animState.move.x * mapping.widthCm * planeWidthDegrees() / 360.0;
+    }
+    return mapping.wrapCm(x);
+}
+glm::mat4 BaseLayer::circularPlaneModel(bool animated) const {
+    glm::mat4 model = glm::translate(glm::mat4(1.f), glm::vec3(
+        planeHorizontalForRendering(animated) / 100.0,
+        (animated ? renderPlaneVertical() : planeVertical()) / 100.0,
+        -(animated ? renderPlaneDistance() : planeDistance()) / 100.0));
+    model = glm::rotate(model, glm::radians(float(animated ? renderPlaneAzimuth() : planeAzimuth())), glm::vec3(0, -1, 0));
+    model = glm::rotate(model, glm::radians(float(animated ? renderPlaneElevation() : planeElevation())), glm::vec3(1, 0, 0));
+    model = glm::rotate(model, glm::radians(float(animated ? renderPlaneRoll() : planeRoll())), glm::vec3(0, 0, 1));
+    if (animated && m_animActive) model = glm::scale(model, glm::vec3(m_animState.scale, m_animState.scale, 1.f));
+    return model;
+}
+
 double BaseLayer::planeHorizontal() const {
     return planeData.horizontal;
 }
@@ -1439,6 +1523,8 @@ void BaseLayer::setPlaneSize(glm::vec2 pS, uint8_t parc) {
 }
 
 void BaseLayer::drawPlane() const {
+    // Shared mapping changes can resize an existing circular mesh on either master or node.
+    if (planeData.circular) const_cast<BaseLayer*>(this)->updatePlane();
     if (planeData.mesh) {
         planeData.mesh->draw();
     }
@@ -1476,12 +1562,13 @@ void BaseLayer::beginPoseEdit() {
         return;
     m_poseEditing = true;
     m_poseEditAngles = glm::dvec3(planeData.azimuth, planeData.elevation, planeData.roll);
-    m_poseEditPos = glm::dvec3(planeData.horizontal, planeData.vertical, planeData.distance);
+    m_poseEditPos = glm::dvec3(planeData.circular ? planeData.centreDegrees : planeData.horizontal, planeData.vertical, planeData.distance);
     // Drag tools work on the saved values, so show the animated pose through them meanwhile.
     setPlaneAzimuth(m_poseEditAngles.x + a.x);
     setPlaneElevation(m_poseEditAngles.y + a.y);
     setPlaneRoll(m_poseEditAngles.z + a.z);
-    setPlaneHorizontal(m_poseEditPos.x + p.x);
+    if (planeData.circular) setPlaneCentreDegrees(m_poseEditPos.x + p.x);
+    else setPlaneHorizontal(m_poseEditPos.x + p.x);
     setPlaneVertical(m_poseEditPos.y + p.y);
     setPlaneDistance(m_poseEditPos.z + p.z);
     cplay::anim::LayerAnimState s = m_animState;
@@ -1496,11 +1583,12 @@ void BaseLayer::endPoseEdit() {
     m_poseEditing = false;
     cplay::anim::LayerAnimState s = m_animState;
     s.planeAngleOffset = glm::vec3(glm::dvec3(planeData.azimuth, planeData.elevation, planeData.roll) - m_poseEditAngles);
-    s.planePosOffset = glm::vec3(glm::dvec3(planeData.horizontal, planeData.vertical, planeData.distance) - m_poseEditPos);
+    s.planePosOffset = glm::vec3(glm::dvec3(planeData.circular ? planeData.centreDegrees : planeData.horizontal, planeData.vertical, planeData.distance) - m_poseEditPos);
     setPlaneAzimuth(m_poseEditAngles.x);
     setPlaneElevation(m_poseEditAngles.y);
     setPlaneRoll(m_poseEditAngles.z);
-    setPlaneHorizontal(m_poseEditPos.x);
+    if (planeData.circular) setPlaneCentreDegrees(m_poseEditPos.x);
+    else setPlaneHorizontal(m_poseEditPos.x);
     setPlaneVertical(m_poseEditPos.y);
     setPlaneDistance(m_poseEditPos.z);
     setAnimState(s);
@@ -1571,7 +1659,9 @@ void BaseLayer::updatePlane() {
     if (this->width() <= 0 || this->height() <= 0)
         return;
 
-    if (planeData.specifiedSize.x <= 0 || planeData.specifiedSize.y <= 0)
+    const bool circular = circularPlaneActive();
+    if ((!circular && planeData.specifiedSize.x <= 0)
+        || (planeData.specifiedSize.y <= 0 && (!circular || planeData.aspectRatioConsideration != 2)))
         return;
 
     float width = float(this->width());
@@ -1582,6 +1672,7 @@ void BaseLayer::updatePlane() {
     }
 
     glm::vec2 calculatedPlaneSize = planeData.specifiedSize;
+    if (circular) calculatedPlaneSize.x = float(circularMapping().widthCm * planeWidthDegrees() / 360.0);
     int sm = renderStereoMode();
 
     float ratioMultiplier = 1.0f;
@@ -1601,15 +1692,8 @@ void BaseLayer::updatePlane() {
         ratioMultiplier = 2.0f;
     }
 
-    if (planeData.aspectRatioConsideration == 1) { // Calculate width from video
-        float ratio = width / height;
-
-        if (sm == 3) { // Top-bottom-flip
-            ratio = height / width;
-        }
-        ratio *= ratioMultiplier;
-
-        calculatedPlaneSize.x = ratio * planeData.specifiedSize.y;
+    if (planeData.aspectRatioConsideration == 1) { // Calculate width from specified height
+        calculatedPlaneSize.x = float(planeWidthFromHeightCm());
     } else if (planeData.aspectRatioConsideration == 2) { // Calculate height from video
         float ratio = height / width;
 
@@ -1618,7 +1702,7 @@ void BaseLayer::updatePlane() {
         }
         ratio *= ratioMultiplier;
 
-        calculatedPlaneSize.y = ratio * planeData.specifiedSize.x;
+        calculatedPlaneSize.y = ratio * calculatedPlaneSize.x;
     }
 
     // Re-create plane if it isn't correct size

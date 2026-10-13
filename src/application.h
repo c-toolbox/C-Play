@@ -547,6 +547,10 @@ public:
         double translateX;
         double translateY;
         double translateZ;
+        bool circularEnabled = false;
+        double circularSurfaceWidthCM = 1480.0;
+        double circularSeamDegrees = 0.0;
+        bool circularClockwise = true;
         double planeWidth;
         double planeHeight;
         double planeElevation;
@@ -649,6 +653,10 @@ public:
         /*translateX*/ 0,
         /*translateY*/ 0,
         /*translateZ*/ 0,
+        /*circularEnabled*/ false,
+        /*circularSurfaceWidthCM*/ 1480.0,
+        /*circularSeamDegrees*/ 0.0,
+        /*circularClockwise*/ true,
         /*planeWidth*/ 0,
         /*planeHeight*/ 0,
         /*planeElevation*/ 0,

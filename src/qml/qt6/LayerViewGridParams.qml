@@ -30,7 +30,7 @@ Kirigami.ApplicationWindow {
         }
         var mode = layerView.layerItem.layerGridMode;
         if (mode === 1) {
-            root.height = 450;
+            root.height = 610;
         } else if (mode === 2) {
             root.height = 150;
         } else if (mode > 2) {
@@ -300,11 +300,57 @@ Kirigami.ApplicationWindow {
                         layerView.layerItem.layerPlaneAspectRatio = model.get(index).value;
                     }
                 }
+                Label { text: qsTr("Horizontal movement:"); Layout.alignment: Qt.AlignRight }
+                ComboBox {
+                    Layout.columnSpan: 2
+                    model: [qsTr("Centimetres"), qsTr("Circular degrees")]
+                    currentIndex: layerView.layerItem.layerPlaneCircular ? 1 : 0
+                    onActivated: layerView.layerItem.layerPlaneCircular = currentIndex === 1
+                }
                 Label {
+                    visible: layerView.layerItem.layerPlaneCircular && !GridSettings.circularEnabled
+                    Layout.columnSpan: 3; Layout.fillWidth: true; wrapMode: Text.WordWrap
+                    text: qsTr("Enable circular surface mapping in Grid Settings to render in degrees.")
+                }
+                Label {
+                    visible: layerView.layerItem.layerPlaneCircular
+                    text: qsTr("Centre angle (degrees):"); Layout.alignment: Qt.AlignRight
+                }
+                SpinBox {
+                    visible: layerView.layerItem.layerPlaneCircular
+                    enabled: GridSettings.circularEnabled
+                    Layout.columnSpan: 2
+                    from: -360000000; to: 360000000; stepSize: 100; editable: true
+                    value: Math.round(layerView.layerItem.layerPlaneCentreDegrees * 100)
+                    textFromValue: function(value, locale) { return Number(value / 100).toLocaleString(locale, 'f', 2) }
+                    valueFromText: function(text, locale) { return Math.round(Number.fromLocaleString(locale, text) * 100) }
+                    validator: DoubleValidator { bottom: -3600000; top: 3600000; decimals: 2 }
+                    onValueModified: layerView.layerItem.layerPlaneCentreDegrees = value / 100
+                }
+                Label {
+                    visible: layerView.layerItem.layerPlaneCircular
+                    text: qsTr("Angular width (degrees):"); Layout.alignment: Qt.AlignRight
+                }
+                SpinBox {
+                    visible: layerView.layerItem.layerPlaneCircular
+                    enabled: GridSettings.circularEnabled && layerView.layerItem.layerPlaneAspectRatio !== 1
+                    Layout.columnSpan: 2
+                    from: 1
+                    to: layerView.layerItem.layerPlaneAspectRatio === 1 ? Math.max(36000, Math.round(layerView.layerItem.layerPlaneWidthDegrees * 100)) : 36000
+                    stepSize: 100; editable: true
+                    value: Math.round(layerView.layerItem.layerPlaneWidthDegrees * 100)
+                    textFromValue: function(value, locale) { return Number(value / 100).toLocaleString(locale, 'f', 2) }
+                    valueFromText: function(text, locale) { return Math.round(Number.fromLocaleString(locale, text) * 100) }
+                    validator: DoubleValidator { bottom: 0.01; top: 360; decimals: 2 }
+                    onValueModified: layerView.layerItem.layerPlaneWidthDegrees = value / 100
+                }
+                Label {
+                    visible: !layerView.layerItem.layerPlaneCircular
                     text: qsTr("Plane width:")
                     Layout.alignment: Qt.AlignRight
                 }
                 RowLayout {
+                    visible: !layerView.layerItem.layerPlaneCircular
                     Layout.columnSpan: 2
 
                     SpinBox {
@@ -628,10 +674,12 @@ Kirigami.ApplicationWindow {
                 }
 
                 Label {
+                    visible: !layerView.layerItem.layerPlaneCircular
                     text: qsTr("Plane horizontal move:")
                     Layout.alignment: Qt.AlignRight
                 }
                 RowLayout {
+                    visible: !layerView.layerItem.layerPlaneCircular
                     Layout.columnSpan: 2
 
                     SpinBox {

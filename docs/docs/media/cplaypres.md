@@ -66,6 +66,8 @@ To add new layers, click the ![](/assets/icons/list-add.svg) "+" button to the l
 
 Choose a layer type and source, then open **Layer View** to preview and position it. The [Layers and sources guide](/media/layers) explains every layer type, source setup, per-node inputs, and [master placeholders](/media/layers#master-placeholders-for-node-sources).
 
+Plane layers can also use [circular horizontal mapping](/settings/grid#circular-surface-mapping). Define and enable the shared 360° canvas in Grid Settings; new plane layers then default to **Circular degrees**. Presentation files store `circular`, `centreDegrees` and `widthDegrees` in the layer's `plane` object, including texture-division sublayers. The shared surface calibration stays in GridSettings. Missing circular mode fields inherit the global default; explicitly saved modes are preserved.
+
 ### ![](/assets/icons/table.svg) Layer visibility across slides.
 
 In the slides menu there is a button named *"Visibility"* ![](/assets/icons/table.svg), which opens the window named *"Slide Visibility Table View"* when clicked. The window lets you control and review how layers behave across slides. This means that you can create layers that are visible across multiple slides, instead of only being shown during one specific slide. The meanings of the different cell colors are:

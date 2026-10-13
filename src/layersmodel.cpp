@@ -1617,6 +1617,9 @@ void LayersModel::decodeFromJSON(QJsonObject &obj, const QStringList &forRelativ
                                     sub->setStereoMode(static_cast<uint8_t>(subObj.value(QStringLiteral("stereo")).toInt()));
                                 if (subObj.contains(QStringLiteral("plane"))) {
                                     QJsonObject po = subObj.value(QStringLiteral("plane")).toObject();
+                                    if (po.contains(QStringLiteral("circular"))) sub->setPlaneCircular(po.value(QStringLiteral("circular")).toBool());
+                                    if (po.contains(QStringLiteral("centreDegrees"))) sub->setPlaneCentreDegrees(po.value(QStringLiteral("centreDegrees")).toDouble());
+                                    if (po.contains(QStringLiteral("widthDegrees"))) sub->setPlaneWidthDegrees(po.value(QStringLiteral("widthDegrees")).toDouble());
                                     if (po.contains(QStringLiteral("aspectRatio")))
                                         sub->setPlaneAspectRatio(static_cast<uint8_t>(po.value(QStringLiteral("aspectRatio")).toInt()));
                                     if (po.contains(QStringLiteral("width")))
@@ -1749,6 +1752,9 @@ void LayersModel::decodeFromJSON(QJsonObject &obj, const QStringList &forRelativ
                         QJsonArray planeArray = planeValues.toArray();
                         for (auto pa : planeArray) {
                             QJsonObject po = pa.toObject();
+                            if (po.contains(QStringLiteral("circular"))) m_layers[idx].first->setPlaneCircular(po.value(QStringLiteral("circular")).toBool());
+                            if (po.contains(QStringLiteral("centreDegrees"))) m_layers[idx].first->setPlaneCentreDegrees(po.value(QStringLiteral("centreDegrees")).toDouble());
+                            if (po.contains(QStringLiteral("widthDegrees"))) m_layers[idx].first->setPlaneWidthDegrees(po.value(QStringLiteral("widthDegrees")).toDouble());
                             if (po.contains(QStringLiteral("aspectRatio"))) {
                                 int planeAR = po.value(QStringLiteral("aspectRatio")).toInt();
                                 m_layers[idx].first->setPlaneAspectRatio(static_cast<uint8_t>(planeAR));
@@ -2031,6 +2037,9 @@ void LayersModel::encodeToJSON(QJsonObject &obj, const QStringList &forRelativeP
                     subData.insert(QStringLiteral("stereo"), QJsonValue(static_cast<int>(sub->stereoMode())));
                     if (sub->gridMode() == BaseLayer::GridMode::Plane) {
                         QJsonObject planeObj;
+                        planeObj.insert(QStringLiteral("circular"), QJsonValue(sub->planeCircular()));
+                        planeObj.insert(QStringLiteral("centreDegrees"), QJsonValue(sub->planeCentreDegrees()));
+                        planeObj.insert(QStringLiteral("widthDegrees"), QJsonValue(sub->planeWidthDegrees()));
                         planeObj.insert(QStringLiteral("aspectRatio"), QJsonValue(sub->planeAspectRatio()));
                         planeObj.insert(QStringLiteral("width"), QJsonValue(sub->planeWidth()));
                         planeObj.insert(QStringLiteral("height"), QJsonValue(sub->planeHeight()));
@@ -2233,6 +2242,9 @@ void LayersModel::encodeToJSON(QJsonObject &obj, const QStringList &forRelativeP
         if (gridIdx == BaseLayer::GridMode::Plane) {
             QJsonArray planeArray;
             QJsonObject planeData;
+            planeData.insert(QStringLiteral("circular"), QJsonValue(layer->planeCircular()));
+            planeData.insert(QStringLiteral("centreDegrees"), QJsonValue(layer->planeCentreDegrees()));
+            planeData.insert(QStringLiteral("widthDegrees"), QJsonValue(layer->planeWidthDegrees()));
             planeData.insert(QStringLiteral("aspectRatio"), QJsonValue(layer->planeAspectRatio()));
             planeData.insert(QStringLiteral("width"), QJsonValue(layer->planeWidth()));
             planeData.insert(QStringLiteral("height"), QJsonValue(layer->planeHeight()));
@@ -2940,8 +2952,12 @@ QVariantList LayersModel::getKeyframes(int layerIdx) const {
     const LayerTimeline *track = timelineAt(layerIdx);
     if (!track)
         return result;
-    for (const LayerKeyframe &kf : track->keyframes)
-        result.append(keyframeToMap(kf));
+    const BaseLayer *layer = rowLayer(layerIdx);
+    for (const LayerKeyframe &kf : track->keyframes) {
+        QVariantMap value = keyframeToMap(kf);
+        value[QStringLiteral("planeCircular")] = layer && layer->planeCircular();
+        result.append(value);
+    }
     return result;
 }
 
@@ -3071,7 +3087,7 @@ void LayersModel::updateKeyframeExtras(int layerIdx, int keyframeIdx, const QVar
         kf.planeElevation = static_cast<float>(layer->planeElevation());
         kf.planeRoll = static_cast<float>(layer->planeRoll());
         kf.planeDistance = static_cast<float>(layer->planeDistance());
-        kf.planeHorizontal = static_cast<float>(layer->planeHorizontal());
+        kf.planeHorizontal = static_cast<float>((layer->planeCircular() ? layer->planeCentreDegrees() : layer->planeHorizontal()));
         kf.planeVertical = static_cast<float>(layer->planeVertical());
     }
     sortKeyframes(track->keyframes);
@@ -3102,7 +3118,7 @@ cplay::anim::LayerAnimState LayersModel::evaluateAnimState(int layerIdx, int tim
         state.planeAngleOffset = glm::vec3(pose.azimuth - static_cast<float>(layer->planeAzimuth()),
                                            pose.elevation - static_cast<float>(layer->planeElevation()),
                                            pose.roll - static_cast<float>(layer->planeRoll()));
-        state.planePosOffset = glm::vec3(pose.horizontal - static_cast<float>(layer->planeHorizontal()),
+        state.planePosOffset = glm::vec3(pose.horizontal - static_cast<float>((layer->planeCircular() ? layer->planeCentreDegrees() : layer->planeHorizontal())),
                                          pose.vertical - static_cast<float>(layer->planeVertical()),
                                          pose.distance - static_cast<float>(layer->planeDistance()));
     }
@@ -3133,7 +3149,7 @@ cplay::anim::LayerAnimState LayersModel::evaluateAnimState(int layerIdx, int tim
         state.planeAngleOffset = glm::vec3(v6[0] - static_cast<float>(layer->planeAzimuth()),
                                            v6[1] - static_cast<float>(layer->planeElevation()),
                                            v6[2] - static_cast<float>(layer->planeRoll()));
-        state.planePosOffset = glm::vec3(v6[3] - static_cast<float>(layer->planeHorizontal()),
+        state.planePosOffset = glm::vec3(v6[3] - static_cast<float>((layer->planeCircular() ? layer->planeCentreDegrees() : layer->planeHorizontal())),
                                          v6[4] - static_cast<float>(layer->planeVertical()),
                                          v6[5] - static_cast<float>(layer->planeDistance()));
     }
@@ -3173,7 +3189,7 @@ cplay::anim::PlanePose LayersModel::entryPose(const BaseLayer *layer) const {
         p.elevation = static_cast<float>(layer->planeElevation());
         p.roll = static_cast<float>(layer->planeRoll());
         p.distance = static_cast<float>(layer->planeDistance());
-        p.horizontal = static_cast<float>(layer->planeHorizontal());
+        p.horizontal = static_cast<float>((layer->planeCircular() ? layer->planeCentreDegrees() : layer->planeHorizontal()));
         p.vertical = static_cast<float>(layer->planeVertical());
     }
     return p;
@@ -3282,7 +3298,7 @@ void LayersModel::captureMovePose(int layerIdx, int effectIdx, bool end) {
     shown.azimuth = static_cast<float>(layer->planeAzimuth()) + (anim ? s.planeAngleOffset.x : 0.f);
     shown.elevation = static_cast<float>(layer->planeElevation()) + (anim ? s.planeAngleOffset.y : 0.f);
     shown.roll = static_cast<float>(layer->planeRoll()) + (anim ? s.planeAngleOffset.z : 0.f);
-    shown.horizontal = static_cast<float>(layer->planeHorizontal()) + (anim ? s.planePosOffset.x : 0.f);
+    shown.horizontal = static_cast<float>((layer->planeCircular() ? layer->planeCentreDegrees() : layer->planeHorizontal())) + (anim ? s.planePosOffset.x : 0.f);
     shown.vertical = static_cast<float>(layer->planeVertical()) + (anim ? s.planePosOffset.y : 0.f);
     shown.distance = static_cast<float>(layer->planeDistance()) + (anim ? s.planePosOffset.z : 0.f);
     (end ? e.target : e.start) = shown;
@@ -3292,7 +3308,8 @@ void LayersModel::captureMovePose(int layerIdx, int effectIdx, bool end) {
         layer->setPlaneAzimuth(e.start.azimuth);
         layer->setPlaneElevation(e.start.elevation);
         layer->setPlaneRoll(e.start.roll);
-        layer->setPlaneHorizontal(e.start.horizontal);
+        if (layer->planeCircular()) layer->setPlaneCentreDegrees(e.start.horizontal);
+        else layer->setPlaneHorizontal(e.start.horizontal);
         layer->setPlaneVertical(e.start.vertical);
         layer->setPlaneDistance(e.start.distance);
     }
@@ -3531,6 +3548,7 @@ QVariantList LayersModel::getEffects(int layerIdx) const {
     const BaseLayer *layer = rowLayer(layerIdx);
     for (int i = 0; i < track->effects.size(); ++i) {
         QVariantMap m = effectToMap(track->effects[i]);
+        m[QStringLiteral("planeCircular")] = layer && layer->planeCircular();
         const auto &schedule = track->effects[i].phase == 0 ? m_introSchedule : m_outroSchedule;
         for (const ScheduledEffect &s : schedule) {
             if (s.layer == layer && s.effectIdx == i) {

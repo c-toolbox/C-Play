@@ -664,6 +664,51 @@ void LayerQtItem::setLayerPlaneDistance(double pD) {
     }
 }
 
+bool LayerQtItem::layerPlaneCircular() const {
+    BaseLayer* target = selectedSubLayerPtr();
+    if (!target) target = m_layer;
+    return target ? target->planeCircular() : false;
+}
+void LayerQtItem::setLayerPlaneCircular(bool value) {
+    BaseLayer* target = selectedSubLayerPtr();
+    if (!target) target = m_layer;
+    if (target && target->isEnabled() && target->planeCircular() != value) {
+        target->setPlaneCircular(value);
+        Q_EMIT layerNeedsSave();
+        Q_EMIT layerValueChanged();
+    }
+}
+
+double LayerQtItem::layerPlaneCentreDegrees() const {
+    BaseLayer* target = selectedSubLayerPtr();
+    if (!target) target = m_layer;
+    return target ? target->planeCentreDegrees() : 180.0;
+}
+void LayerQtItem::setLayerPlaneCentreDegrees(double value) {
+    BaseLayer* target = selectedSubLayerPtr();
+    if (!target) target = m_layer;
+    if (target && target->isEnabled() && target->planeCentreDegrees() != value) {
+        target->setPlaneCentreDegrees(value);
+        Q_EMIT layerNeedsSave();
+        Q_EMIT layerValueChanged();
+    }
+}
+
+double LayerQtItem::layerPlaneWidthDegrees() const {
+    BaseLayer* target = selectedSubLayerPtr();
+    if (!target) target = m_layer;
+    return target ? target->planeWidthDegrees() : 20.0;
+}
+void LayerQtItem::setLayerPlaneWidthDegrees(double value) {
+    BaseLayer* target = selectedSubLayerPtr();
+    if (!target) target = m_layer;
+    if (target && target->isEnabled() && target->planeWidthDegrees() != value) {
+        target->setPlaneWidthDegrees(value);
+        Q_EMIT layerNeedsSave();
+        Q_EMIT layerValueChanged();
+    }
+}
+
 double LayerQtItem::layerPlaneHorizontal() const {
     BaseLayer* sub = selectedSubLayerPtr();
     if (sub)

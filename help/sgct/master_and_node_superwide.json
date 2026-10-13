@@ -1,0 +1,110 @@
+{
+  "version": 1,
+  "masteraddress": "127.0.0.1",
+  "users": [
+    {
+      "eyeseparation": 0.06,
+      "pos": {
+        "x": 0,
+        "y": 0,
+        "z": 3
+      }
+    }
+  ],
+  "nodes": [
+    {
+      "address": "127.0.0.1",
+      "port": 20401,
+      "datatransferport": 21401,
+      "windows": [
+        {
+          "fullscreen": false,
+          "pos": {
+            "x": 0,
+            "y": 300
+          },
+          "size": {
+            "x": 1024,
+            "y": 1024
+          },
+          "viewports": [
+            {
+              "pos": {
+                "x": 0,
+                "y": 0
+              },
+              "size": {
+                "x": 1,
+                "y": 1
+              },
+              "projection": {
+                "type": "PlanarProjection",
+                "fov": {
+                  "hfov": 80,
+                  "vfov": 50.534015846724
+                },
+                "orientation": {
+                  "pitch": 0,
+                  "roll": 0,
+                  "yaw": 0
+                }
+              }
+            }
+          ]
+        }
+      ]
+    },
+    {
+      "address": "127.0.0.2",
+      "port": 20402,
+      "datatransferport": 21402,
+      "windows": [
+        {
+          "fullscreen": false,
+          "pos": {
+            "x": 100,
+            "y": 100
+          },
+          "size": {
+            "x": 1229,
+            "y": 120
+          },
+          "res": {
+            "x": 12288,
+            "y": 1200
+          },
+          "viewports": [
+            {
+              "pos": {
+                "x": 0,
+                "y": 0
+              },
+              "size": {
+                "x": 1,
+                "y": 1
+              },
+              "projection": {
+                "type": "ProjectionPlane",
+                "lowerleft": {
+                  "x": -9.42478,
+                  "y": -0.92041,
+                  "z": 0
+                },
+                "upperleft": {
+                  "x": -9.42478,
+                  "y": 0.92041,
+                  "z": 0
+                },
+                "upperright": {
+                  "x": 9.42478,
+                  "y": 0.92041,
+                  "z": 0
+                }
+              }
+            }
+          ]
+        }
+      ]
+    }
+  ]
+}

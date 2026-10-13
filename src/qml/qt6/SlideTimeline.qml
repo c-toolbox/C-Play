@@ -496,7 +496,7 @@ Window {
                             { key: "planeElevation", label: qsTr("El"), unit: "\u00b0" },
                             { key: "planeRoll", label: qsTr("Roll"), unit: "\u00b0" },
                             { key: "planeDistance", label: qsTr("Dist"), unit: " cm" },
-                            { key: "planeHorizontal", label: qsTr("H"), unit: " cm" },
+                            { key: "planeHorizontal", label: qsTr("H"), unit: (root.selectedKfData() && root.selectedKfData().planeCircular) ? "\u00b0" : " cm" },
                             { key: "planeVertical", label: qsTr("V"), unit: " cm" }
                         ]
                         RowLayout {

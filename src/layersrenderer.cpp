@@ -77,7 +77,16 @@ constexpr std::string_view MeshVert = R"(
   out vec3 tr_normals;
   out vec2 mask_uv;
 
-  void main() {
+  uniform mat4 circularModel;
+uniform float circularHalfWidth;
+uniform vec2 circularSourceBounds;
+
+void main() {
+    float circularX = (circularModel * vec4(in_position, 1.0)).x;
+    gl_ClipDistance[0] = circularX + circularHalfWidth;
+    gl_ClipDistance[1] = circularHalfWidth - circularX;
+    gl_ClipDistance[2] = circularX - circularSourceBounds.x;
+    gl_ClipDistance[3] = circularSourceBounds.y - circularX;
     gl_Position = mvp * vec4(in_position, 1.0);
     mask_uv = in_texCoord;
     tr_uv = flipY ? vec2(in_texCoord.x, 1.0-in_texCoord.y) : in_texCoord;
@@ -692,24 +701,43 @@ void LayersRenderer::renderLayer(const sgct::RenderData& data, const BaseLayer* 
 
         const sgct::mat4 mvp = data.projectionMatrix * data.viewMatrix;
 
-        glm::mat4 planeTransform = glm::mat4(1.0f);
+        if (layer->circularPlaneActive()) {
+            const_cast<BaseLayer*>(layer)->updatePlane();
+            const auto mapping = layer->circularMapping();
+            const auto copies = cplay::circular::copies(layer->circularPlaneModel(), layer->planeActualSize(), mapping.widthCm);
+            const glm::mat4 tilt = glm::rotate(glm::mat4(1.f), glm::radians(-angle), glm::vec3(1, 0, 0));
+            const glm::mat4 vp = glm::make_mat4(mvp.values.data());
+            GLboolean previous[4];
+            for (int i = 0; i < 4; ++i) { previous[i] = glIsEnabled(GL_CLIP_DISTANCE0 + i); glEnable(GL_CLIP_DISTANCE0 + i); }
+            glUniform1f(glGetUniformLocation(meshPrg->id(), "circularHalfWidth"), float(mapping.widthCm / 200.0));
+            for (const auto &copy : copies) {
+                const glm::mat4 matrix = vp * tilt * copy.model;
+                glUniformMatrix4fv(meshMatrixLoc, 1, GL_FALSE, &matrix[0][0]);
+                glUniformMatrix4fv(glGetUniformLocation(meshPrg->id(), "circularModel"), 1, GL_FALSE, &copy.model[0][0]);
+                glUniform2fv(glGetUniformLocation(meshPrg->id(), "circularSourceBounds"), 1, glm::value_ptr(copy.sourceBounds));
+                layer->drawPlane();
+            }
+            for (int i = 0; i < 4; ++i) if (!previous[i]) glDisable(GL_CLIP_DISTANCE0 + i);
+        } else {
+            glm::mat4 planeTransform = glm::mat4(1.0f);
 
-        //Respect the dome angle
-        planeTransform = glm::rotate(planeTransform, glm::radians(-angle), glm::vec3(1.0f, 0.0f, 0.0f));
+            //Respect the dome angle
+            planeTransform = glm::rotate(planeTransform, glm::radians(-angle), glm::vec3(1.0f, 0.0f, 0.0f));
 
-        //Specifc plane parameters
-        planeTransform = glm::rotate(planeTransform, glm::radians(float(layer->renderPlaneAzimuth())), glm::vec3(0.0f, -1.0f, 0.0f));  // azimuth
-        planeTransform = glm::rotate(planeTransform, glm::radians(float(layer->renderPlaneElevation())), glm::vec3(1.0f, 0.0f, 0.0f)); // elevation
-        planeTransform = glm::rotate(planeTransform, glm::radians(float(layer->renderPlaneRoll())), glm::vec3(0.0f, 0.0f, 1.0f));      // roll
-        planeTransform = glm::translate(planeTransform, glm::vec3(float(layer->renderPlaneHorizontal()) / 100.f, float(layer->renderPlaneVertical()) / 100.f, float(-layer->renderPlaneDistance()) / 100.f));
-        if (layer->animActive() && anim.scale != 1.f)
-            planeTransform = glm::scale(planeTransform, glm::vec3(anim.scale, anim.scale, 1.f));
+            //Specifc plane parameters
+            planeTransform = glm::rotate(planeTransform, glm::radians(float(layer->renderPlaneAzimuth())), glm::vec3(0.0f, -1.0f, 0.0f));  // azimuth
+            planeTransform = glm::rotate(planeTransform, glm::radians(float(layer->renderPlaneElevation())), glm::vec3(1.0f, 0.0f, 0.0f)); // elevation
+            planeTransform = glm::rotate(planeTransform, glm::radians(float(layer->renderPlaneRoll())), glm::vec3(0.0f, 0.0f, 1.0f));      // roll
+            planeTransform = glm::translate(planeTransform, glm::vec3(float(layer->renderPlaneHorizontal()) / 100.f, float(layer->renderPlaneVertical()) / 100.f, float(-layer->renderPlaneDistance()) / 100.f));
+            if (layer->animActive() && anim.scale != 1.f)
+                planeTransform = glm::scale(planeTransform, glm::vec3(anim.scale, anim.scale, 1.f));
 
-        planeTransform = glm::make_mat4(mvp.values.data()) * planeTransform;
-        glUniformMatrix4fv(meshMatrixLoc, 1, GL_FALSE, &planeTransform[0][0]);
+            planeTransform = glm::make_mat4(mvp.values.data()) * planeTransform;
+            glUniformMatrix4fv(meshMatrixLoc, 1, GL_FALSE, &planeTransform[0][0]);
 
-        layer->drawPlane();
+            layer->drawPlane();
 
+        }
         meshPrg->unbind();
 
         // Set up backface culling again

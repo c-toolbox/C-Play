@@ -34,7 +34,7 @@ struct LayerAnimState {
     glm::vec3 translateOffset = glm::vec3(0.f);
     // Azimuth, elevation, roll (degrees).
     glm::vec3 planeAngleOffset = glm::vec3(0.f);
-    // Horizontal, vertical, distance (cm).
+    // Horizontal: degrees for circular planes, otherwise cm. Vertical/distance: cm.
     glm::vec3 planePosOffset = glm::vec3(0.f);
 
     int32_t maskType = 0;

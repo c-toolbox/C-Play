@@ -504,7 +504,7 @@ Window {
                         { key: "Elevation", label: qsTr("Elevation"), unit: "\u00b0" },
                         { key: "Roll", label: qsTr("Roll"), unit: "\u00b0" },
                         { key: "Distance", label: qsTr("Distance"), unit: " cm" },
-                        { key: "Horizontal", label: qsTr("Horizontal"), unit: " cm" },
+                        { key: "Horizontal", label: qsTr("Horizontal"), unit: options.e && options.e.planeCircular ? "\u00b0" : " cm" },
                         { key: "Vertical", label: qsTr("Vertical"), unit: " cm" }
                     ]
 

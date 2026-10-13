@@ -16,6 +16,14 @@ import org.ctoolbox.cplay
 SettingsBasePage {
     id: root
 
+    property var circularStartupState: null
+    function circularState() {
+        return { enabled: GridSettings.circularEnabled, width: GridSettings.circularCanvasWidth,
+                 height: GridSettings.circularCanvasHeight, surfaceWidth: GridSettings.circularSurfaceWidthCM,
+                 seam: GridSettings.circularSeamDegrees, clockwise: GridSettings.circularClockwise }
+    }
+    Component.onCompleted: circularStartupState = circularState()
+
     GridLayout {
         id: content
 
@@ -25,9 +33,77 @@ SettingsBasePage {
         // GRID PARAMETERS
         // --
         SettingsHeader {
-            Layout.columnSpan: 3
             Layout.fillWidth: true
+            Layout.columnSpan: 2
             text: qsTr("Grid/mapping parameters")
+        }
+         RowLayout {
+            Button {
+                text: "Reset values"
+
+                onClicked: {
+                    if (root.circularStartupState) {
+                        GridSettings.circularEnabled = root.circularStartupState.enabled;
+                        GridSettings.circularCanvasWidth = root.circularStartupState.width;
+                        GridSettings.circularCanvasHeight = root.circularStartupState.height;
+                        GridSettings.circularSurfaceWidthCM = root.circularStartupState.surfaceWidth;
+                        GridSettings.circularSeamDegrees = root.circularStartupState.seam;
+                        GridSettings.circularClockwise = root.circularStartupState.clockwise;
+                    }
+                    mpv.planeWidth = GridSettings.plane_Width_CM;
+                    mpv.planeHeight = GridSettings.plane_Height_CM;
+                    mpv.planeElevation = GridSettings.plane_Elevation_Degrees;
+                    mpv.planeDistance = GridSettings.plane_Distance_CM;
+                    planeHorizontalRangeBox.value = GridSettings.plane_Horizontal_Range_CM;
+                    planeVerticalRangeBox.value = GridSettings.plane_Vertical_Range_CM;
+                    mpv.planeConsiderAspectRatio = GridSettings.plane_Calculate_Size_Based_on_Video;
+                    mpv.rotationSpeed = GridSettings.surfaceRotationSpeed;
+                    mpv.radius = GridSettings.surfaceRadius;
+                    mpv.fov = GridSettings.surfaceFov;
+                    mpv.angle = GridSettings.surfaceAngle;
+                    mpv.rotate = Qt.vector3d(GridSettings.surfaceRotateX, GridSettings.surfaceRotateY, GridSettings.surfaceRotateZ);
+                    mpv.translate = Qt.vector3d(GridSettings.surfaceTranslateX, GridSettings.surfaceTranslateY, GridSettings.surfaceTranslateZ);
+                    mpv.surfaceTransitionTime = GridSettings.surfaceTransitionTime;
+                    surfaceRadiusScenario.value = GridSettings.surfaceRadius_2ndState;
+                    surfaceFovScenario.value = GridSettings.surfaceFov_2ndState;
+                    surfaceAngleScenario.value = GridSettings.surfaceAngle_2ndState;
+                    surfaceTranslateXScenario.value = GridSettings.surfaceTranslateX_2ndState;
+                    surfaceTranslateYScenario.value = GridSettings.surfaceTranslateY_2ndState;
+                    surfaceTranslateZScenario.value = GridSettings.surfaceTranslateZ_2ndState;
+                }
+            }
+            Button {
+                text: "Save values for startup"
+
+                onClicked: {
+                    GridSettings.plane_Width_CM = mpv.planeWidth;
+                    GridSettings.plane_Height_CM = mpv.planeHeight;
+                    GridSettings.plane_Elevation_Degrees = mpv.planeElevation;
+                    GridSettings.plane_Distance_CM = mpv.planeDistance;
+                    GridSettings.plane_Horizontal_Range_CM = planeHorizontalRangeBox.value;
+                    GridSettings.plane_Vertical_Range_CM = planeVerticalRangeBox.value;
+                    GridSettings.plane_Calculate_Size_Based_on_Video = mpv.planeConsiderAspectRatio;
+                    GridSettings.surfaceRotationSpeed = mpv.rotationSpeed;
+                    GridSettings.surfaceRadius = mpv.radius;
+                    GridSettings.surfaceFov = mpv.fov;
+                    GridSettings.surfaceAngle = mpv.angle;
+                    GridSettings.surfaceRotateX = mpv.rotate.x;
+                    GridSettings.surfaceRotateY = mpv.rotate.y;
+                    GridSettings.surfaceRotateZ = mpv.rotate.z;
+                    GridSettings.surfaceTranslateX = mpv.translate.x;
+                    GridSettings.surfaceTranslateY = mpv.translate.y;
+                    GridSettings.surfaceTranslateZ = mpv.translate.z;
+                    GridSettings.surfaceTransitionTime = mpv.surfaceTransitionTime;
+                    GridSettings.surfaceRadius_2ndState = surfaceRadiusScenario.value;
+                    GridSettings.surfaceFov_2ndState = surfaceFovScenario.value;
+                    GridSettings.surfaceAngle_2ndState = surfaceAngleScenario.value;
+                    GridSettings.surfaceTranslateX_2ndState = surfaceTranslateXScenario.value;
+                    GridSettings.surfaceTranslateY_2ndState = surfaceTranslateYScenario.value;
+                    GridSettings.surfaceTranslateZ_2ndState = surfaceTranslateZScenario.value;
+                    GridSettings.save();
+                    root.circularStartupState = root.circularState();
+                }
+            }
         }
 
         // ------------------------------------
@@ -432,8 +508,6 @@ SettingsBasePage {
             text: qsTr("Rotate around X: ")
         }
         RowLayout {
-            Layout.columnSpan: 2
-
             Slider {
                 id: rotateXSlider
 
@@ -493,7 +567,30 @@ SettingsBasePage {
                 }
             }
         }
+        RowLayout {
+            Layout.alignment: Qt.AlignRight
 
+            Label {
+                text: qsTr("Transition time:")
+            }
+            SpinBox {
+                id: transitionTime
+
+                from: 0
+                stepSize: 1
+                to: 20
+
+                Component.onCompleted: transitionTime.value = mpv.surfaceTransitionTime
+                onValueChanged: mpv.surfaceTransitionTime = value
+            }
+            LabelWithTooltip {
+                elide: Text.ElideRight
+                text: {
+                    qsTr("s");
+                }
+            }
+        } 
+        
         // ------------------------------------
         // RotateY
         // ------------------------------------
@@ -501,8 +598,6 @@ SettingsBasePage {
             text: qsTr("Rotate around Y: ")
         }
         RowLayout {
-            Layout.columnSpan: 2
-
             Slider {
                 id: rotateYSlider
 
@@ -559,170 +654,6 @@ SettingsBasePage {
                 Layout.fillWidth: true
                 text: {
                     qsTr("degrees");
-                }
-            }
-        }
-
-        // ------------------------------------
-        // RotateZ
-        // ------------------------------------
-        Label {
-            text: qsTr("Rotate around Z: ")
-        }
-        RowLayout {
-            Layout.columnSpan: 2
-
-            Slider {
-                id: rotateZSlider
-
-                Layout.topMargin: Kirigami.Units.largeSpacing
-                enabled: mpv.gridToMapOn < 3
-                from: -18000
-                to: 18000
-                value: mpv.rotate.z * 100
-
-                onMoved: {
-                    rotateZSpinBox.value = value.toFixed(0);
-                    mpv.rotate.z = rotateZSpinBox.realValue;
-                }
-            }
-            SpinBox {
-                id: rotateZSpinBox
-
-                property int decimals: 2
-                property real realValue: value / 100
-
-                enabled: mpv.gridToMapOn < 3
-                from: -18000
-                stepSize: 10
-                textFromValue: function (value, locale) {
-                    return Number(value / 100).toLocaleString(locale, 'f', rotateZSpinBox.decimals);
-                }
-                to: 18000
-                value: mpv.rotate.z * 100
-                valueFromText: function (text, locale) {
-                    return Number.fromLocaleString(locale, text) * 100;
-                }
-
-                validator: DoubleValidator {
-                    bottom: Math.min(rotateZSpinBox.from, rotateZSpinBox.to)
-                    top: Math.max(rotateZSpinBox.from, rotateZSpinBox.to)
-                }
-
-                onValueModified: {
-                    mpv.rotate.z = realValue;
-                    rotateZSlider.value = value;
-                }
-
-                Connections {
-                    function onRotateChanged() {
-                        if (rotateZSpinBox.realValue !== mpv.rotate.z)
-                            rotateZSpinBox.value = mpv.rotate.z * 100;
-                    }
-
-                    target: mpv
-                }
-            }
-            Label {
-                Layout.alignment: Qt.AlignLeft
-                Layout.fillWidth: true
-                text: {
-                    qsTr("degrees");
-                }
-            }
-        }
-
-        // ------------------------------------
-        // Reset
-        // ------------------------------------
-
-        RowLayout {
-            Layout.columnSpan: 2
-            Layout.fillWidth: true
-
-            Button {
-                text: "Reset grid settings to startup values"
-
-                onClicked: {
-                    mpv.planeWidth = GridSettings.plane_Width_CM;
-                    mpv.planeHeight = GridSettings.plane_Height_CM;
-                    mpv.planeElevation = GridSettings.plane_Elevation_Degrees;
-                    mpv.planeDistance = GridSettings.plane_Distance_CM;
-                    planeHorizontalRangeBox.value = GridSettings.plane_Horizontal_Range_CM;
-                    planeVerticalRangeBox.value = GridSettings.plane_Vertical_Range_CM;
-                    mpv.planeConsiderAspectRatio = GridSettings.plane_Calculate_Size_Based_on_Video;
-                    mpv.rotationSpeed = GridSettings.surfaceRotationSpeed;
-                    mpv.radius = GridSettings.surfaceRadius;
-                    mpv.fov = GridSettings.surfaceFov;
-                    mpv.angle = GridSettings.surfaceAngle;
-                    mpv.rotate = Qt.vector3d(GridSettings.surfaceRotateX, GridSettings.surfaceRotateY, GridSettings.surfaceRotateZ);
-                    mpv.translate = Qt.vector3d(GridSettings.surfaceTranslateX, GridSettings.surfaceTranslateY, GridSettings.surfaceTranslateZ);
-                    mpv.surfaceTransitionTime = GridSettings.surfaceTransitionTime;
-                    surfaceRadiusScenario.value = GridSettings.surfaceRadius_2ndState;
-                    surfaceFovScenario.value = GridSettings.surfaceFov_2ndState;
-                    surfaceAngleScenario.value = GridSettings.surfaceAngle_2ndState;
-                    surfaceTranslateXScenario.value = GridSettings.surfaceTranslateX_2ndState;
-                    surfaceTranslateYScenario.value = GridSettings.surfaceTranslateY_2ndState;
-                    surfaceTranslateZScenario.value = GridSettings.surfaceTranslateZ_2ndState;
-                }
-            }
-        }
-        RowLayout {
-            Layout.alignment: Qt.AlignRight
-
-            Label {
-                text: qsTr("Transition time:")
-            }
-            SpinBox {
-                id: transitionTime
-
-                from: 0
-                stepSize: 1
-                to: 20
-
-                Component.onCompleted: transitionTime.value = mpv.surfaceTransitionTime
-                onValueChanged: mpv.surfaceTransitionTime = value
-            }
-            LabelWithTooltip {
-                elide: Text.ElideRight
-                text: {
-                    qsTr("s");
-                }
-            }
-        }
-        RowLayout {
-            Layout.columnSpan: 2
-            Layout.fillWidth: true
-
-            Button {
-                text: "Save current grid settings to load on startup"
-
-                onClicked: {
-                    GridSettings.plane_Width_CM = mpv.planeWidth;
-                    GridSettings.plane_Height_CM = mpv.planeHeight;
-                    GridSettings.plane_Elevation_Degrees = mpv.planeElevation;
-                    GridSettings.plane_Distance_CM = mpv.planeDistance;
-                    GridSettings.plane_Horizontal_Range_CM = planeHorizontalRangeBox.value;
-                    GridSettings.plane_Vertical_Range_CM = planeVerticalRangeBox.value;
-                    GridSettings.plane_Calculate_Size_Based_on_Video = mpv.planeConsiderAspectRatio;
-                    GridSettings.surfaceRotationSpeed = mpv.rotationSpeed;
-                    GridSettings.surfaceRadius = mpv.radius;
-                    GridSettings.surfaceFov = mpv.fov;
-                    GridSettings.surfaceAngle = mpv.angle;
-                    GridSettings.surfaceRotateX = mpv.rotate.x;
-                    GridSettings.surfaceRotateY = mpv.rotate.y;
-                    GridSettings.surfaceRotateZ = mpv.rotate.z;
-                    GridSettings.surfaceTranslateX = mpv.translate.x;
-                    GridSettings.surfaceTranslateY = mpv.translate.y;
-                    GridSettings.surfaceTranslateZ = mpv.translate.z;
-                    GridSettings.surfaceTransitionTime = mpv.surfaceTransitionTime;
-                    GridSettings.surfaceRadius_2ndState = surfaceRadiusScenario.value;
-                    GridSettings.surfaceFov_2ndState = surfaceFovScenario.value;
-                    GridSettings.surfaceAngle_2ndState = surfaceAngleScenario.value;
-                    GridSettings.surfaceTranslateX_2ndState = surfaceTranslateXScenario.value;
-                    GridSettings.surfaceTranslateY_2ndState = surfaceTranslateYScenario.value;
-                    GridSettings.surfaceTranslateZ_2ndState = surfaceTranslateZScenario.value;
-                    GridSettings.save();
                 }
             }
         }
@@ -827,6 +758,129 @@ SettingsBasePage {
 
                 target: mpv
             }
+        }
+
+
+        // ------------------------------------
+        // RotateZ
+        // ------------------------------------
+        Label {
+            text: qsTr("Rotate around Z: ")
+        }
+        RowLayout {
+            Layout.columnSpan: 2
+
+            Slider {
+                id: rotateZSlider
+
+                Layout.topMargin: Kirigami.Units.largeSpacing
+                enabled: mpv.gridToMapOn < 3
+                from: -18000
+                to: 18000
+                value: mpv.rotate.z * 100
+
+                onMoved: {
+                    rotateZSpinBox.value = value.toFixed(0);
+                    mpv.rotate.z = rotateZSpinBox.realValue;
+                }
+            }
+            SpinBox {
+                id: rotateZSpinBox
+
+                property int decimals: 2
+                property real realValue: value / 100
+
+                enabled: mpv.gridToMapOn < 3
+                from: -18000
+                stepSize: 10
+                textFromValue: function (value, locale) {
+                    return Number(value / 100).toLocaleString(locale, 'f', rotateZSpinBox.decimals);
+                }
+                to: 18000
+                value: mpv.rotate.z * 100
+                valueFromText: function (text, locale) {
+                    return Number.fromLocaleString(locale, text) * 100;
+                }
+
+                validator: DoubleValidator {
+                    bottom: Math.min(rotateZSpinBox.from, rotateZSpinBox.to)
+                    top: Math.max(rotateZSpinBox.from, rotateZSpinBox.to)
+                }
+
+                onValueModified: {
+                    mpv.rotate.z = realValue;
+                    rotateZSlider.value = value;
+                }
+
+                Connections {
+                    function onRotateChanged() {
+                        if (rotateZSpinBox.realValue !== mpv.rotate.z)
+                            rotateZSpinBox.value = mpv.rotate.z * 100;
+                    }
+
+                    target: mpv
+                }
+            }
+            Label {
+                Layout.alignment: Qt.AlignLeft
+                Layout.fillWidth: true
+                text: {
+                    qsTr("degrees");
+                }
+            }
+        }
+
+        SettingsHeader {
+            Layout.columnSpan: 3
+            Layout.fillWidth: true
+            text: qsTr("Circular surface mapping")
+        }
+        CheckBox {
+            Layout.columnSpan: 3
+            text: qsTr("Enable circular horizontal mapping for plane layers")
+            checked: GridSettings.circularEnabled
+            onToggled: GridSettings.circularEnabled = checked
+        }
+        Label { text: qsTr("Full canvas width (pixels):") }
+        SpinBox {
+            Layout.columnSpan: 2
+            from: 1; to: 1000000; editable: true
+            value: GridSettings.circularCanvasWidth
+            onValueModified: GridSettings.circularCanvasWidth = value
+        }
+        Label { text: qsTr("Full canvas height (pixels):") }
+        SpinBox {
+            Layout.columnSpan: 2
+            from: 1; to: 1000000; editable: true
+            value: GridSettings.circularCanvasHeight
+            onValueModified: GridSettings.circularCanvasHeight = value
+        }
+        Label { text: qsTr("Full surface width (cm):") }
+        SpinBox {
+            Layout.columnSpan: 2
+            from: 1; to: 1000000; editable: true
+            value: GridSettings.circularSurfaceWidthCM
+            onValueModified: GridSettings.circularSurfaceWidthCM = value
+        }
+        Label { text: qsTr("Left/right seam angle (degrees):") }
+        SpinBox {
+            Layout.columnSpan: 2
+            from: -36000; to: 36000; editable: true
+            value: GridSettings.circularSeamDegrees
+            onValueModified: GridSettings.circularSeamDegrees = value
+        }
+        Label { text: qsTr("Increasing angles:") }
+        ComboBox {
+            Layout.columnSpan: 2
+            model: [qsTr("Left to right"), qsTr("Right to left")]
+            currentIndex: GridSettings.circularClockwise ? 0 : 1
+            onActivated: GridSettings.circularClockwise = currentIndex === 0
+        }
+        Label {
+            Layout.columnSpan: 3
+            Layout.fillWidth: true
+            wrapMode: Text.WordWrap
+            text: qsTr("The complete canvas covers 360°, shared by all output viewports. Match the surface width to the width of the logical projection plane. %1 pixels per degree.").arg((GridSettings.circularCanvasWidth / 360).toFixed(2))
         }
     }
 }
