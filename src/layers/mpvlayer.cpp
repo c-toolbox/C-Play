@@ -119,6 +119,12 @@ std::string mpvOptionsFilePath(const MpvLayer::mpvData& vd) {
 
 void on_mpv_events(MpvLayer::mpvData &vd, BaseLayer::RenderParams) {
     while (vd.handle) {
+        const bool generalLoggingEnabled = SyncHelper::instance().variables.generalLoggingEnabled.load();
+        if (generalLoggingEnabled != vd.generalLoggingApplied) {
+            mpv_request_log_messages(vd.handle, generalLoggingEnabled ? "debug"
+                : (vd.loggingOn && !vd.logLevel.empty() ? vd.logLevel.c_str() : "error"));
+            vd.generalLoggingApplied = generalLoggingEnabled;
+        }
         mpv_event *event = mpv_wait_event(vd.handle, 0.1);
         if (event->event_id == MPV_EVENT_NONE) {
             break;
@@ -295,8 +301,10 @@ bool initMPV(MpvLayer::mpvData& vd) {
     if (vd.loggingOn) {
         mpv_set_option_string(vd.handle, "terminal", "yes");
         mpv_set_option_string(vd.handle, "msg-level", "all=v");
-        mpv_request_log_messages(vd.handle, vd.logLevel.c_str());
     }
+    vd.generalLoggingApplied = SyncHelper::instance().variables.generalLoggingEnabled.load();
+    mpv_request_log_messages(vd.handle, vd.generalLoggingApplied ? "debug"
+        : (vd.loggingOn && !vd.logLevel.empty() ? vd.logLevel.c_str() : "error"));
 
     // YouTube layers (and stream layers pointed at a YouTube URL): point mpv's embedded
     // ytdl_hook.lua at the yt-dlp executable we resolved on this machine (settings entry,

@@ -28,6 +28,8 @@ public:
         std::mutex initializationMutex;
         std::condition_variable initializationCondition;
         bool loggingOn = false;
+        // Accessed only by this layer's MPV event thread.
+        bool generalLoggingApplied = false;
         bool mediaIsPaused = true;
         bool mediaShouldPause = true;
         std::string logLevel = "info";

@@ -47,6 +47,9 @@ public:
     // Short human readable state, e.g. "1920x1080, NVIDIA GPUDirect for Video".
     std::string statusText() const;
 
+    // True while frames of a live signal are captured on this machine (render thread).
+    bool captureOk() const;
+
     void encodeTypeCore(std::vector<std::byte>& data) override;
     void decodeTypeCore(const std::vector<std::byte>& data, unsigned int& pos) override;
     void encodeTypeProperties(std::vector<std::byte>& data) override;

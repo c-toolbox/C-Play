@@ -28,6 +28,7 @@ void logFileCallback(sgct::Log::Level, std::string_view message) {
     std::lock_guard<std::mutex> lock(g_logFilesMutex);
     for (auto &entry : g_logFiles) {
         entry.second << message << '\n';
+        entry.second.flush();
     }
 }
 

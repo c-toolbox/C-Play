@@ -59,6 +59,9 @@ bool allowDirectRendering = false;
 
 std::string logFilePath = "";
 std::string logLevel = "";
+int nodeGeneralLogFileId = -1;
+bool nodeGeneralLoggingApplied = false;
+bool nodeGeneralLoggingInitialized = false;
 std::string startupFile = "";
 
 // The cluster configuration of this process, stored at file scope so the preWindow callback
@@ -165,6 +168,10 @@ static std::vector<std::byte> encode() {
     if (SyncHelper::instance().variables.terminateNodes) {
         return data;
     }
+
+    // Logging follows the master even when playback synchronization is disabled.
+    const bool generalLoggingEnabled = SyncHelper::instance().variables.generalLoggingEnabled.load();
+    serializeObject(data, generalLoggingEnabled);
 
     serializeObject(data, SyncHelper::instance().variables.alpha);
     serializeObject(data, SyncHelper::instance().variables.alphaBg);
@@ -493,7 +500,10 @@ static void decode(const std::vector<std::byte> &data) {
         return;
     }
 
-    if (!safeToRead(3 * sizeof(float))) return;
+    if (!safeToRead(sizeof(bool) + 3 * sizeof(float))) return;
+    bool generalLoggingEnabled = false;
+    deserializeObject(data, pos, generalLoggingEnabled);
+    SyncHelper::instance().variables.generalLoggingEnabled = generalLoggingEnabled;
     deserializeObject(data, pos, SyncHelper::instance().variables.alpha);
     deserializeObject(data, pos, SyncHelper::instance().variables.alphaBg);
     deserializeObject(data, pos, SyncHelper::instance().variables.alphaFg);
@@ -955,6 +965,33 @@ static void postSyncPreDraw() {
 
     // Apply synced commands
     if (!Engine::instance().isMaster()) {
+        const bool generalLoggingEnabled = SyncHelper::instance().variables.generalLoggingEnabled.load();
+        if (!nodeGeneralLoggingInitialized || generalLoggingEnabled != nodeGeneralLoggingApplied) {
+            nodeGeneralLoggingInitialized = true;
+            nodeGeneralLoggingApplied = generalLoggingEnabled;
+            if (generalLoggingEnabled) {
+                if (nodeGeneralLogFileId < 0) {
+                    nodeGeneralLogFileId = LogFileWriter::open("./data/log/cplay_general.log");
+                    if (nodeGeneralLogFileId < 0)
+                        Log::Error("Could not open node general log file './data/log/cplay_general.log'");
+                }
+                Log::instance().setNotifyLevel(Log::Level::Debug);
+                Log::Info("General logging enabled by master on this node");
+            } else {
+                if (nodeGeneralLogFileId >= 0) {
+                    Log::Info("General logging disabled by master on this node");
+                    LogFileWriter::close(nodeGeneralLogFileId);
+                    nodeGeneralLogFileId = -1;
+                }
+                // Preserve command-line logging when the UI setting is disabled.
+                auto level = Log::Level::Error;
+                if (logLevel == "debug") level = Log::Level::Debug;
+                else if (logLevel == "info") level = Log::Level::Info;
+                else if (logLevel == "warn") level = Log::Level::Warning;
+                Log::instance().setNotifyLevel(level);
+            }
+        }
+
         // Keep window features (opacity/on-top) in sync every frame, independent of
         // which layers are rendering. This makes fades work even when no media is
         // playing and keeps the windows on top regardless of focus or start order.
@@ -1462,8 +1499,17 @@ static void postDraw() {
     }
 
 #ifdef CAPTURE_SUPPORT
-    if (NodeCaptureInventory::isReady())
+    if (NodeCaptureInventory::isReady()) {
         NodeCaptureInventory::instance().sendPending();
+        // A capture layer that is not ready is not in the render container either.
+        std::vector<std::shared_ptr<BaseLayer>> captureLayers;
+        captureLayers.reserve(primaryLayers.size() + secondaryLayers.size());
+        for (auto &layer : primaryLayers)
+            captureLayers.push_back(layer);
+        for (auto &layer : secondaryLayers)
+            captureLayers.push_back(layer);
+        NodeCaptureInventory::instance().sendLayerStatus(captureLayers);
+    }
 #endif
 }
 

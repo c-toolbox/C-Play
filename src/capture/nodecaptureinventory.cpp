@@ -7,6 +7,7 @@
 
 #include "nodecaptureinventory.h"
 #include <capture/capturebackend.h>
+#include <capture/capturelayer.h>
 #include <capture/capturepresets.h>
 #include <utils/nodeidentityconfig.h>
 
@@ -24,8 +25,10 @@ using nlohmann::json;
 namespace {
 
 constexpr auto kRescanInterval = std::chrono::seconds(5);
+constexpr auto kStatusInterval = std::chrono::seconds(1);
 constexpr const char *kKindReport = "captureinv";
 constexpr const char *kKindRequest = "captureinv-req";
+constexpr const char *kKindStatus = "capturestatus";
 
 // Returns the packet's "kind", or "" when the packet is not a v1 JSON object with one.
 std::string packetKind(const void *data, int length, json &root) {
@@ -196,12 +199,18 @@ void NodeCaptureInventory::handleData(void *data, int length, int clientIndex) {
     if (!m_isMaster) {
         if (kind == kKindRequest) {
             m_forceSend.store(true);
+            m_statusForceSend.store(true);
             {
                 std::lock_guard<std::mutex> lock(m_workerMutex);
                 m_rescan = true;
             }
             m_workerCv.notify_all();
         }
+        return;
+    }
+
+    if (kind == kKindStatus) {
+        handleLayerStatus(root, clientIndex);
         return;
     }
 
@@ -245,17 +254,78 @@ void NodeCaptureInventory::handleData(void *data, int length, int clientIndex) {
 
     {
         const std::lock_guard<std::mutex> lock(m_mutex);
+        const auto previous = m_reports.constFind(nodeId);
+        if (previous != m_reports.constEnd())
+            r.layers = previous->layers; // reported separately
         m_reports.insert(nodeId, r);
         m_clientToNode.insert(clientIndex, nodeId);
     }
     QMetaObject::invokeMethod(this, "nodesChanged", Qt::QueuedConnection);
 }
 
+void NodeCaptureInventory::handleLayerStatus(const nlohmann::json &root, int clientIndex) {
+    QHash<uint32_t, LayerStatus> layers;
+    int nodeId = -1;
+    QString role, address;
+    try {
+        nodeId = root.value("node", -1);
+        role = QString::fromStdString(root.value("role", std::string()));
+        address = QString::fromStdString(root.value("address", std::string()));
+        const json list = root.value("layers", json::array());
+        if (list.is_array()) {
+            for (const auto &l : list) {
+                if (!l.is_object() || !l.contains("id") || !l["id"].is_number_unsigned())
+                    continue;
+                LayerStatus s;
+                s.nodeOnline = true;
+                s.reported = true;
+                s.ok = l.value("ok", false);
+                s.status = l.value("status", std::string());
+                s.width = l.value("w", 0);
+                s.height = l.value("h", 0);
+                layers.insert(l["id"].get<uint32_t>(), s);
+            }
+        }
+    } catch (const json::exception &) {
+        return;
+    }
+    if (nodeId < 0)
+        return;
+
+    const std::lock_guard<std::mutex> lock(m_mutex);
+    NodeReport &r = m_reports[nodeId];
+    if (r.role.isEmpty())
+        r.role = role.isEmpty() ? address : role;
+    if (r.address.isEmpty())
+        r.address = address;
+    r.online = true;
+    r.layers = std::move(layers);
+    m_clientToNode.insert(clientIndex, nodeId);
+}
+
+NodeCaptureInventory::LayerStatus NodeCaptureInventory::layerStatus(const std::string &role, uint32_t layerId) const {
+    LayerStatus result;
+    const QString qrole = QString::fromStdString(role);
+    const std::lock_guard<std::mutex> lock(m_mutex);
+    for (const NodeReport &r : m_reports) {
+        if (r.role != qrole && r.address != qrole)
+            continue;
+        const auto it = r.layers.constFind(layerId);
+        if (r.online && it != r.layers.constEnd())
+            return it.value();
+        result.nodeOnline = r.online;
+        return result;
+    }
+    return result;
+}
+
 void NodeCaptureInventory::handleStatus(bool connected, int clientIndex) {
     if (!m_isMaster) {
         // Report again to a (re)connected master.
-        if (connected)
+        if (connected) {
             m_forceSend.store(true);
+            m_statusForceSend.store(true);
+        }
         return;
     }
     if (connected)
@@ -322,6 +392,50 @@ void NodeCaptureInventory::workerLoop() {
         }
         m_workerCv.wait_for(lock, kRescanInterval, [this] { return m_stop || m_rescan; });
         m_rescan = false;
+    }
+}
+
+void NodeCaptureInventory::sendLayerStatus(const std::vector<std::shared_ptr<BaseLayer>> &layers) {
+    if (m_isMaster)
+        return;
+    const auto now = std::chrono::steady_clock::now();
+    if (m_lastStatusCollect.time_since_epoch().count() != 0 && now - m_lastStatusCollect < kStatusInterval)
+        return;
+    m_lastStatusCollect = now;
+
+    json list = json::array();
+    for (const auto &layer : layers) {
+        if (!layer || layer->type() != BaseLayer::CAPTURE)
+            continue;
+        const auto *capture = static_cast<const CaptureLayer *>(layer.get());
+        if (!CapturePresets::isThisMachine(capture->targetNode(), false))
+            continue;
+        const bool ok = capture->captureOk();
+        list.push_back({{"id", capture->identifier()},
+                        {"ok", ok},
+                        {"status", capture->statusText()},
+                        {"w", ok ? capture->width() : 0},
+                        {"h", ok ? capture->height() : 0}});
+    }
+
+    json root;
+    root["v"] = 1;
+    root["kind"] = kKindStatus;
+    const auto &cm = sgct::ClusterManager::instance();
+    root["node"] = cm.thisNodeId();
+    root["role"] = CapturePresets::machineRole(false);
+    root["address"] = cm.thisNode().address();
+    root["layers"] = list;
+    const std::string payload = root.dump();
+    if (payload == m_lastStatusPayload && !m_statusForceSend.load())
+        return;
+    m_statusForceSend.store(false);
+    try {
+        sgct::NetworkManager::instance().transferData(payload.data(), static_cast<int>(payload.size()),
+                                                      m_packageCounter.fetch_add(1));
+        m_lastStatusPayload = payload;
+    } catch (...) {
+        m_statusForceSend.store(true); // connection down - retry next interval
     }
 }
 

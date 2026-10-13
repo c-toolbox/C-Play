@@ -32,7 +32,8 @@ public:
     // Locate nodes.json. Tries the default CWD-relative path first, then walks up from the current directory looking for <dir>/data/multivideo/nodes.json (covers e.g. running from a build/ subfolder). Returns "" if not found.
     static std::string findDefaultFilePath();
 
-    // Load configuration from a JSON file. Returns true on success.
+    // Load once per process, using the first supplied path. All instances reuse
+    // that result (including failures); changes require a restart. Returns true on success.
     bool loadFromFile(const std::string& filePath = kDefaultFilePath);
 
     // Return the node identifier for a given IP address.
@@ -50,6 +51,8 @@ public:
     const std::map<std::string, std::string>& entries() const { return m_ipToId; }
 
 private:
+    bool readFromFile(const std::string& filePath);
+
     // ip -> id
     std::map<std::string, std::string> m_ipToId;
     bool m_loaded = false;

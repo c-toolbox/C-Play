@@ -15,6 +15,7 @@
 #include <KSharedConfig>
 #include <QElapsedTimer>
 #include <QVector3D>
+#include <atomic>
 
 class QAbstractItemModel;
 class QAction;
@@ -582,6 +583,8 @@ public:
         bool noSignalImageCaptureDirty;
         std::string noSignalImageDirectShow;
         bool noSignalImageDirectShowDirty;
+        // Published to MPV event threads; also synchronized independently of playback.
+        std::atomic_bool generalLoggingEnabled = false;
     };
 
     struct ConfigurationVariables {

@@ -92,8 +92,20 @@ bool CaptureLayer::masterPlaceholderBackground(std::string& hex) const {
 
 bool CaptureLayer::nodeCaptureSize(int& width, int& height) const {
     const std::string target = targetNode();
-    return !target.empty() && NodeCaptureInventory::isReady()
-        && NodeCaptureInventory::instance().captureSize(target, filepath(), width, height);
+    if (target.empty() || !NodeCaptureInventory::isReady())
+        return false;
+    const NodeCaptureInventory::LayerStatus s = NodeCaptureInventory::instance().layerStatus(target, identifier());
+    if (s.reported && s.width > 0 && s.height > 0) {
+        width = s.width;
+        height = s.height;
+        return true;
+    }
+    return NodeCaptureInventory::instance().captureSize(target, filepath(), width, height);
+}
+
+bool CaptureLayer::captureOk() const {
+    std::lock_guard<std::mutex> lock(m_backendMutex);
+    return m_backend && m_backend->error().empty() && m_backend->hasSignal() && m_backend->textureId() != 0;
 }
 
 void CaptureLayer::masterPlaceholderSize(int& width, int& height) const {
@@ -113,10 +125,31 @@ std::string CaptureLayer::masterPlaceholderLabel() const {
     int height = 0;
     if (nodeCaptureSize(width, height))
         label += std::format("\n{}x{}", width, height);
+    if (NodeCaptureInventory::isReady()) {
+        const NodeCaptureInventory::LayerStatus s = NodeCaptureInventory::instance().layerStatus(target, identifier());
+        if (!s.nodeOnline)
+            label += "\nStatus: node offline";
+        else if (!s.reported)
+            label += "\nStatus: waiting for node";
+        else
+            label += "\nStatus: " + (s.ok ? std::string("ready") : s.status);
+    }
     return label;
 }
 
 std::string CaptureLayer::statusText() const {
+    const std::string target = targetNode();
+    if (isMaster() && !target.empty()) {
+        // The capture runs on the target node only: show what that node reported.
+        if (!NodeCaptureInventory::isReady())
+            return target + ": no report";
+        const NodeCaptureInventory::LayerStatus s = NodeCaptureInventory::instance().layerStatus(target, identifier());
+        if (!s.nodeOnline)
+            return target + ": node offline";
+        if (!s.reported)
+            return target + ": waiting for report";
+        return target + (s.ok ? ": ready, " : ": ") + s.status;
+    }
     std::shared_ptr<CaptureBackend> backend;
     {
         std::lock_guard<std::mutex> lock(m_backendMutex);
@@ -124,8 +157,6 @@ std::string CaptureLayer::statusText() const {
     }
     if (!backend) {
         const CaptureSource src = resolveSource();
-        const std::string target = targetNode();
-        if (isMaster() && !target.empty()) return "Captured on " + target + " only (master placeholder)";
         if (isMaster() && src.placeholder) return "Master placeholder";
         if (!target.empty() && !src.valid()) return "Captured on " + target + " only";
         return src.valid() ? std::string("Starting") : std::string("No capture source on this machine");

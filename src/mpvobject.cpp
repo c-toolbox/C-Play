@@ -89,6 +89,7 @@ MpvObject::MpvObject(QQuickItem *parent)
 
     // General logging (Settings > Logging). Command-line --loglevel/--logfile take precedence at startup.
     m_loggingEnabled = cliLogging || LoggingSettings::generalLoggingEnabled();
+    SyncHelper::instance().variables.generalLoggingEnabled = LoggingSettings::generalLoggingEnabled();
     if (!cliLogging) {
         applyGeneralLogging();
     }
@@ -1641,6 +1642,7 @@ bool MpvObject::loggingEnabled() const {
 }
 
 void MpvObject::setLoggingEnabled(bool enabled) {
+    SyncHelper::instance().variables.generalLoggingEnabled = enabled;
     if (m_loggingEnabled == enabled)
         return;
     m_loggingEnabled = enabled;

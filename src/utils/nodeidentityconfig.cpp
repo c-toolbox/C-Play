@@ -46,6 +46,19 @@ std::string NodeIdentityConfig::findDefaultFilePath() {
 }
 
 bool NodeIdentityConfig::loadFromFile(const std::string& filePath) {
+    // Function-local static initialization is thread-safe. All instances reuse the
+    // first load attempt, including failures, for the lifetime of the process.
+    static const NodeIdentityConfig runtimeConfig = [&filePath] {
+        NodeIdentityConfig config;
+        config.readFromFile(filePath);
+        return config;
+    }();
+
+    *this = runtimeConfig;
+    return m_loaded;
+}
+
+bool NodeIdentityConfig::readFromFile(const std::string& filePath) {
     std::ifstream file(filePath);
     if (!file.is_open()) {
         sgct::Log::Warning(std::format("NodeIdentityConfig: cannot open file '{}'", filePath));

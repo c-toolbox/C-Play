@@ -148,7 +148,7 @@ Kirigami.ApplicationWindow {
             }
         }
         Label {
-            text: qsTr("When enabled, all MPV log messages (debug level) and application debug output are reported to the console and appended to data/log/cplay_general.log. When disabled, only errors are reported.")
+            text: qsTr("When enabled, all MPV log messages (debug level) and application debug output are reported to the console and appended to each computer's local data/log/cplay_general.log, on the master and all nodes. When disabled, only errors are reported unless command-line logging is enabled.")
             font.italic: true
             opacity: 0.7
             wrapMode: Text.WordWrap
