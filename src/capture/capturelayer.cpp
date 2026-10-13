@@ -9,12 +9,14 @@
 #include "audiosettings.h"
 #include <capture/capturepresets.h>
 #include <capture/nodecaptureinventory.h>
+#include <utils/texturesubdivision.h>
 #include <sgct/opengl.h>
 #include <sgct/sgct.h>
 #include <format>
 
 CaptureLayer::CaptureLayer() {
     setType(BaseLayer::LayerType::CAPTURE);
+    enableTextureSubdivision();
     // Capture frames are top-down; set here since JSON decoding only applies flipY on load.
     renderData.flipY = true;
 }
@@ -188,9 +190,18 @@ void CaptureLayer::decodeTypeCore(const std::vector<std::byte>& data, unsigned i
     m_targetNode = std::move(target);
 }
 
+void CaptureLayer::encodeTypeAlways(std::vector<std::byte>& data) {
+    m_subdivision->encodeAlways(data);
+}
+
+void CaptureLayer::decodeTypeAlways(const std::vector<std::byte>& data, unsigned int& pos) {
+    m_subdivision->decodeAlways(data, pos);
+}
+
 void CaptureLayer::encodeTypeProperties(std::vector<std::byte>& data) {
     sgct::serializeObject(data, m_volume);
     sgct::serializeObject(data, m_volumeMute.load());
+    m_subdivision->encodeProperties(data);
 }
 
 void CaptureLayer::decodeTypeProperties(const std::vector<std::byte>& data, unsigned int& pos) {
@@ -198,6 +209,7 @@ void CaptureLayer::decodeTypeProperties(const std::vector<std::byte>& data, unsi
     sgct::deserializeObject(data, pos, m_volume);
     sgct::deserializeObject(data, pos, mute);
     m_volumeMute.store(mute);
+    m_subdivision->decodeProperties(data, pos);
 }
 
 bool CaptureLayer::hasAudio() const {
@@ -334,9 +346,12 @@ void CaptureLayer::updateCapture() {
     if (peak >= 0.f)
         reportAudioLevel(peak);
 
-    renderData.texId = m_backend->textureId();
     renderData.width = m_backend->width();
     renderData.height = m_backend->height();
+    // The capture texture is shared by all layers showing this input: a QR control frame is
+    // shown as this layer's copy of the last clean frame instead.
+    renderData.texId = m_subdivision->filterControlFrame(m_backend->textureId(), renderData.width, renderData.height);
+    m_subdivision->updateSubLayers(renderData.texId, renderData.width, renderData.height);
     // Not setFlipY(): that would mark the layer for re-sync whenever the transfer mode changes.
     renderData.flipY = m_backend->flipY();
 

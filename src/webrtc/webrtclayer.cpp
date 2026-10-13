@@ -12,6 +12,7 @@
 #include "webrtc/webrtchub.h"
 #include "webrtc/webrtcrelayclient.h"
 #include "webrtc/webrtcsource.h"
+#include <utils/texturesubdivision.h>
 
 #include <sgct/sgct.h>
 #include <sgct/opengl.h>
@@ -281,6 +282,7 @@ WebRTCLayer::WebRTCLayer() {
     m_type = WEBRTC;
     // swscale writes RGBA top-down, OpenGL samples bottom-up.
     renderData.flipY = true;
+    enableTextureSubdivision();
 
     // The decoded-PCM callback fires on the audio decode worker thread (synchronously
     // inside AudioDecoder::decode) and pushes straight into the PortAudio stream. Set it
@@ -579,6 +581,7 @@ void WebRTCLayer::encodeTypeAlways(std::vector<std::byte> &data) {
     }
     sgct::serializeObject(data, valid);
     sgct::serializeObject(data, target);
+    m_subdivision->encodeAlways(data);
 }
 
 void WebRTCLayer::decodeTypeAlways(const std::vector<std::byte> &data, unsigned int &pos) {
@@ -586,6 +589,7 @@ void WebRTCLayer::decodeTypeAlways(const std::vector<std::byte> &data, unsigned 
     std::int64_t target = 0;
     sgct::deserializeObject(data, pos, valid);
     sgct::deserializeObject(data, pos, target);
+    m_subdivision->decodeAlways(data, pos);
     if (isMaster()) {
         return; // in-process layer copies: the master runs its own clock
     }
@@ -594,6 +598,14 @@ void WebRTCLayer::decodeTypeAlways(const std::vector<std::byte> &data, unsigned 
     if (valid) {
         m_slotFreedCv.notify_all(); // the decoder may be waiting for the target to advance
     }
+}
+
+void WebRTCLayer::encodeTypeProperties(std::vector<std::byte> &data) {
+    m_subdivision->encodeProperties(data);
+}
+
+void WebRTCLayer::decodeTypeProperties(const std::vector<std::byte> &data, unsigned int &pos) {
+    m_subdivision->decodeProperties(data, pos);
 }
 
 bool WebRTCLayer::presentationTarget(std::int64_t &target) {
@@ -1173,11 +1185,19 @@ void WebRTCLayer::updateFrame() {
     m_slotFreedCv.notify_all(); // older pictures are free now
 
     const WebRtcFrameSlot &slot = m_slots[static_cast<std::size_t>(index)]; // pinned: read-only for everyone
-    if (slot.layout == VideoPixelLayout::Rgba) {
-        uploadRgba(slot);
-    } else if (!uploadYuv(slot)) {
-        // No usable GPU conversion: let the decoder convert on the CPU from now on.
-        m_forceRgbaOutput.store(true, std::memory_order_relaxed);
+    // QR control frames are never uploaded (two-phase scheme); YUV is scanned on its luma plane.
+    const bool rgba = slot.layout == VideoPixelLayout::Rgba;
+    if (!m_subdivision->isControlFrame(const_cast<std::uint8_t *>(slot.data.data()), slot.width, slot.height,
+                                       rgba ? GL_RGBA : GL_RED)) {
+        if (rgba) {
+            uploadRgba(slot);
+            m_subdivision->updateSubLayers(renderData.texId, renderData.width, renderData.height);
+        } else if (uploadYuv(slot)) {
+            m_subdivision->updateSubLayers(renderData.texId, renderData.width, renderData.height);
+        } else {
+            // No usable GPU conversion: let the decoder convert on the CPU from now on.
+            m_forceRgbaOutput.store(true, std::memory_order_relaxed);
+        }
     }
 
     {

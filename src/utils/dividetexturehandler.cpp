@@ -9,6 +9,8 @@
 #include <layers/baselayer.h>
 #include <layers/texturelayer.h>
 #include <sgct/sgct.h>
+#include <algorithm>
+#include <cmath>
 
 DivideTextureHandler::DivideTextureHandler() {
 }
@@ -180,4 +182,187 @@ void DivideTextureHandler::applyRoiForCell(std::shared_ptr<TextureLayer>& sub, i
 
     sub->setRoiEnabled(true);
     sub->setRoi(x, y, cellW, cellH);
+}
+
+namespace {
+constexpr double kMergeEpsilon = 1e-6;
+
+bool differs(double a, double b) {
+    return std::abs(a - b) > kMergeEpsilon;
+}
+
+// Setters mark the layer for sync, so only call them for an actual change.
+void assign(BaseLayer* layer, double (BaseLayer::*get)() const, void (BaseLayer::*set)(double), double value) {
+    if (differs((layer->*get)(), value))
+        (layer->*set)(value);
+}
+}
+
+DivideTextureHandler::MergedCell DivideTextureHandler::readCell(const BaseLayer* cell) {
+    MergedCell m;
+    m.layer = cell;
+    m.gridMode = cell->gridMode();
+    m.circular = cell->planeCircular();
+    m.aspectRatio = cell->planeAspectRatio();
+    m.azimuth = cell->planeAzimuth();
+    m.elevation = cell->planeElevation();
+    m.roll = cell->planeRoll();
+    m.distance = cell->planeDistance();
+    m.horizontal = cell->planeHorizontal();
+    m.vertical = cell->planeVertical();
+    m.centreDegrees = cell->planeCentreDegrees();
+    m.width = cell->planeWidth();
+    m.height = cell->planeHeight();
+    m.widthDegrees = cell->planeWidthDegrees();
+    return m;
+}
+
+bool DivideTextureHandler::cellChanged(const MergedCell& applied, const BaseLayer* cell) {
+    const MergedCell now = readCell(cell);
+    return now.gridMode != applied.gridMode || now.circular != applied.circular
+        || now.aspectRatio != applied.aspectRatio
+        || differs(now.azimuth, applied.azimuth) || differs(now.elevation, applied.elevation)
+        || differs(now.roll, applied.roll) || differs(now.distance, applied.distance)
+        || differs(now.horizontal, applied.horizontal) || differs(now.vertical, applied.vertical)
+        || differs(now.centreDegrees, applied.centreDegrees)
+        || differs(now.width, applied.width) || differs(now.height, applied.height)
+        || differs(now.widthDegrees, applied.widthDegrees);
+}
+
+void DivideTextureHandler::applyMerge(BaseLayer* parent, int mergeCols, int mergeRows, bool followMovedCell) {
+    std::lock_guard<std::mutex> lock(m_mergeMutex);
+    const int count = static_cast<int>(m_subLayers.size());
+    if (!parent || count == 0 || count != cellCount() || mergeCols < 1 || mergeRows < 1
+        || mergeCols * mergeRows < count)
+        return;
+    for (const auto& sub : m_subLayers) {
+        if (!sub)
+            return;
+    }
+
+    // Previous state only counts for the same cells (a new division recreates them).
+    bool known = static_cast<int>(m_merged.size()) == count;
+    for (int i = 0; known && i < count; ++i)
+        known = m_merged[i].layer == m_subLayers[i].get();
+
+    // A cell moved through its own parameters becomes the reference for the parent.
+    int moved = -1;
+    if (followMovedCell && known) {
+        for (int i = 0; i < count; ++i) {
+            if (cellChanged(m_merged[i], m_subLayers[i].get())) {
+                moved = i;
+                break;
+            }
+        }
+    }
+
+    if (moved >= 0) {
+        const BaseLayer* cell = m_subLayers[moved].get();
+        if (parent->gridMode() != cell->gridMode())
+            parent->setGridMode(cell->gridMode());
+        if (parent->planeCircular() != cell->planeCircular())
+            parent->setPlaneCircular(cell->planeCircular());
+        if (parent->planeAspectRatio() != cell->planeAspectRatio())
+            parent->setPlaneAspectRatio(cell->planeAspectRatio());
+        assign(parent, &BaseLayer::planeAzimuth, &BaseLayer::setPlaneAzimuth, cell->planeAzimuth());
+        assign(parent, &BaseLayer::planeElevation, &BaseLayer::setPlaneElevation, cell->planeElevation());
+        assign(parent, &BaseLayer::planeRoll, &BaseLayer::setPlaneRoll, cell->planeRoll());
+        assign(parent, &BaseLayer::planeDistance, &BaseLayer::setPlaneDistance, cell->planeDistance());
+        assign(parent, &BaseLayer::planeWidth, &BaseLayer::setPlaneWidth, cell->planeWidth() * m_cols);
+        assign(parent, &BaseLayer::planeHeight, &BaseLayer::setPlaneHeight, cell->planeHeight() * m_rows);
+        // With aspect ratio 1 a circular plane derives its width from the height instead.
+        if (differs(m_merged[moved].widthDegrees, cell->planeWidthDegrees())
+            && !(parent->circularPlaneActive() && parent->planeAspectRatio() == 1))
+            assign(parent, &BaseLayer::planeWidthDegrees, &BaseLayer::setPlaneWidthDegrees,
+                   std::min(cell->planeWidthDegrees() * m_cols, 360.0));
+    }
+
+    const uint8_t gridMode = parent->gridMode();
+    const bool plane = gridMode == BaseLayer::GridMode::Plane;
+    for (auto& sub : m_subLayers) {
+        if (sub->gridMode() != gridMode)
+            sub->setGridMode(gridMode);
+        if (!plane)
+            continue;
+        if (sub->stereoMode() != parent->stereoMode())
+            sub->setStereoMode(parent->stereoMode());
+        if (sub->flipY() != parent->flipY())
+            sub->setFlipY(parent->flipY());
+        if (sub->planeCircular() != parent->planeCircular())
+            sub->setPlaneCircular(parent->planeCircular());
+        if (sub->planeAspectRatio() != parent->planeAspectRatio())
+            sub->setPlaneAspectRatio(parent->planeAspectRatio());
+        assign(sub.get(), &BaseLayer::planeWidth, &BaseLayer::setPlaneWidth, parent->planeWidth() / m_cols);
+        assign(sub.get(), &BaseLayer::planeHeight, &BaseLayer::setPlaneHeight, parent->planeHeight() / m_rows);
+        assign(sub.get(), &BaseLayer::planeWidthDegrees, &BaseLayer::setPlaneWidthDegrees,
+               parent->planeWidthDegrees() / m_cols);
+    }
+
+    if (plane) {
+        // All cells share one size: from the texture once it arrived, the specified one before.
+        const bool circular = parent->circularPlaneActive();
+        const auto mapping = parent->circularMapping();
+        glm::vec2 cellSize(0.f);
+        for (const auto& sub : m_subLayers) {
+            if (const auto size = sub->computedPlaneSize()) {
+                cellSize = *size;
+                break;
+            }
+        }
+        if (cellSize.x <= 0.f || cellSize.y <= 0.f) {
+            const BaseLayer* sub = m_subLayers[0].get();
+            cellSize.x = static_cast<float>(circular ? mapping.widthCm * sub->planeWidthDegrees() / 360.0
+                                                     : sub->planeWidth());
+            cellSize.y = static_cast<float>(sub->planeHeight());
+        }
+
+        // Offset of a cell from the layout centre, in cm on the plane (x right, y up).
+        // The plane mesh has texture row 0 at the bottom, so the top row of the picture is
+        // the first cell row when flipped and the last one otherwise.
+        const bool topRowFirst = parent->flipY();
+        auto offset = [&](int index) {
+            const int col = index % m_cols;
+            const int row = index / m_cols;
+            const int readingIndex = (topRowFirst ? row : m_rows - 1 - row) * m_cols + col;
+            const int mergedCol = readingIndex % mergeCols;
+            const int mergedRow = readingIndex / mergeCols;
+            return glm::dvec2((mergedCol + 0.5 - mergeCols * 0.5) * cellSize.x,
+                              (mergeRows * 0.5 - mergedRow - 0.5) * cellSize.y);
+        };
+        // On a circular plane the horizontal position is the centre angle.
+        auto degrees = [&](double cm) { return mapping.direction() * cm * 360.0 / mapping.widthCm; };
+
+        if (moved >= 0) {
+            const BaseLayer* cell = m_subLayers[moved].get();
+            const glm::dvec2 o = offset(moved);
+            if (circular)
+                assign(parent, &BaseLayer::planeCentreDegrees, &BaseLayer::setPlaneCentreDegrees,
+                       cell->planeCentreDegrees() - degrees(o.x));
+            else
+                assign(parent, &BaseLayer::planeHorizontal, &BaseLayer::setPlaneHorizontal, cell->planeHorizontal() - o.x);
+            assign(parent, &BaseLayer::planeVertical, &BaseLayer::setPlaneVertical, cell->planeVertical() - o.y);
+        }
+
+        for (int i = 0; i < count; ++i) {
+            BaseLayer* sub = m_subLayers[i].get();
+            const glm::dvec2 o = offset(i);
+            assign(sub, &BaseLayer::planeAzimuth, &BaseLayer::setPlaneAzimuth, parent->planeAzimuth());
+            assign(sub, &BaseLayer::planeElevation, &BaseLayer::setPlaneElevation, parent->planeElevation());
+            assign(sub, &BaseLayer::planeRoll, &BaseLayer::setPlaneRoll, parent->planeRoll());
+            assign(sub, &BaseLayer::planeDistance, &BaseLayer::setPlaneDistance, parent->planeDistance());
+            if (circular) {
+                assign(sub, &BaseLayer::planeCentreDegrees, &BaseLayer::setPlaneCentreDegrees,
+                       parent->planeCentreDegrees() + degrees(o.x));
+                assign(sub, &BaseLayer::planeHorizontal, &BaseLayer::setPlaneHorizontal, parent->planeHorizontal());
+            } else {
+                assign(sub, &BaseLayer::planeCentreDegrees, &BaseLayer::setPlaneCentreDegrees, parent->planeCentreDegrees());
+                assign(sub, &BaseLayer::planeHorizontal, &BaseLayer::setPlaneHorizontal, parent->planeHorizontal() + o.x);
+            }
+            assign(sub, &BaseLayer::planeVertical, &BaseLayer::setPlaneVertical, parent->planeVertical() + o.y);
+        }
+    }
+
+    m_merged.resize(count);
+    for (int i = 0; i < count; ++i)
+        m_merged[i] = readCell(m_subLayers[i].get());
 }

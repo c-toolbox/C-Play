@@ -30,8 +30,6 @@ private:
     static OmtFinder* _instance;
 };
 
-class DivideTextureHandler;
-
 class OmtLayer : public BaseLayer {
 public:
     OmtLayer();
@@ -62,15 +60,6 @@ public:
     void encodeTypeProperties(std::vector<std::byte>& data);
     void decodeTypeProperties(const std::vector<std::byte>& data, unsigned int& pos);
 
-    int textureDivisionMode() const override;
-    void setTextureDivisionMode(int mode) override;
-
-    int textureDivisionGrid() const override;
-    void setTextureDivisionGrid(int grid) override;
-
-    bool hasSubLayers() const override;
-    std::vector<std::shared_ptr<BaseLayer>>& getSubLayers() const override;
-
 private:
     void GenerateTexture(unsigned int& id, int width, int height);
     bool StartAudioStream();
@@ -79,11 +68,6 @@ private:
 
     omt_receive_t* m_receiver = nullptr;
     bool m_isReady = false;
-
-    // Texture division handler
-    std::unique_ptr<DivideTextureHandler> m_divideTexHandler;
-    int m_textureDivisionMode = 0;  // 0=None, 2=Division
-    int m_textureDivisionGrid = 0;  // grid index
 
     // Audio members
     PaStreamParameters m_audioOutputParameters;

@@ -52,6 +52,8 @@ public:
 
     void encodeTypeCore(std::vector<std::byte>& data) override;
     void decodeTypeCore(const std::vector<std::byte>& data, unsigned int& pos) override;
+    void encodeTypeAlways(std::vector<std::byte>& data) override;
+    void decodeTypeAlways(const std::vector<std::byte>& data, unsigned int& pos) override;
     void encodeTypeProperties(std::vector<std::byte>& data) override;
     void decodeTypeProperties(const std::vector<std::byte>& data, unsigned int& pos) override;
 

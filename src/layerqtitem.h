@@ -126,9 +126,12 @@ class LayerQtItem : public QQuickItem {
     Q_PROPERTY(QColor layerTextFontColor READ layerTextFontColor WRITE setLayerTextFontColor NOTIFY layerValueChanged)
     Q_PROPERTY(int layerTextAlignment READ layerTextAlignment WRITE setLayerTextAlignment NOTIFY layerValueChanged)
     Q_PROPERTY(QSize layerTextRenderSize READ layerTextRenderSize WRITE setLayerTextRenderSize NOTIFY layerValueChanged)
+    Q_PROPERTY(bool layerSupportsTextureDivision READ layerSupportsTextureDivision NOTIFY layerValueChanged)
     Q_PROPERTY(bool layerQRCodeDetectionEnabled READ layerQRCodeDetectionEnabled WRITE setLayerQRCodeDetectionEnabled NOTIFY layerValueChanged)
     Q_PROPERTY(int layerTextureDivisionMode READ layerTextureDivisionMode WRITE setLayerTextureDivisionMode NOTIFY layerValueChanged)
     Q_PROPERTY(int layerDivisionGrid READ layerDivisionGrid WRITE setLayerDivisionGrid NOTIFY layerValueChanged)
+    Q_PROPERTY(QStringList layerDivisionMergeOptions READ layerDivisionMergeOptions NOTIFY layerValueChanged)
+    Q_PROPERTY(QString layerDivisionMerge READ layerDivisionMerge WRITE setLayerDivisionMerge NOTIFY layerValueChanged)
     Q_PROPERTY(QStringList layerSubLayerNames READ layerSubLayerNames NOTIFY layerValueChanged)
     Q_PROPERTY(int layerSelectedSubLayer READ layerSelectedSubLayer WRITE setLayerSelectedSubLayer NOTIFY layerValueChanged)
     Q_PROPERTY(int layerSubLayerCount READ layerSubLayerCount NOTIFY layerValueChanged)
@@ -380,6 +383,7 @@ public:
     QSize layerTextRenderSize() const;
     void setLayerTextRenderSize(QSize size);
 
+    bool layerSupportsTextureDivision() const;
     bool layerQRCodeDetectionEnabled() const;
     void setLayerQRCodeDetectionEnabled(bool enabled);
 
@@ -388,6 +392,11 @@ public:
 
     int layerDivisionGrid() const;
     void setLayerDivisionGrid(int grid);
+
+    // Merge layouts as "CxR" (e.g. "4x1"), and "Custom" for independent cells.
+    QStringList layerDivisionMergeOptions() const;
+    QString layerDivisionMerge() const;
+    void setLayerDivisionMerge(const QString& merge);
 
     QStringList layerSubLayerNames() const;
     int layerSelectedSubLayer() const;
@@ -504,6 +513,9 @@ private:
     QPoint m_roiOffset;
     QSize m_roiSize;
     int m_selectedSubLayer = 0;
+
+    // Re-aligns merged division cells after a grid parameter edit.
+    void applyDivisionMerge();
 };
 
 #endif // LAYERQTITEM_H

@@ -13,6 +13,7 @@
 #include <cstdint>
 #include <memory>
 #include <mutex>
+#include <optional>
 #include <string>
 #include <vector>
 #include "track.h"
@@ -24,6 +25,7 @@ class ImageLayer;
 class NdiSender;
 class NodeStreamSender;
 class TextLayer;
+class TextureSubdivision;
 
 class BaseLayer {
 public:
@@ -245,6 +247,20 @@ public:
     // Texture division grid index: 0=1x1, 1=1x2, 2=2x1, 3=2x2, 4=2x3, 5=3x2, 6=3x3
     virtual int textureDivisionGrid() const;
     virtual void setTextureDivisionGrid(int grid);
+
+    // Division merge layout: the cells, in reading order, placed side by side on a
+    // cols x rows grid around the layer's own plane (Plane grid mode). 0x0 = custom,
+    // every cell keeps its own grid parameters. Returns false for a layout that does not
+    // fit the division (see TextureSubdivision::isValidMerge()).
+    virtual int textureDivisionMergeColumns() const;
+    virtual int textureDivisionMergeRows() const;
+    virtual bool setTextureDivisionMerge(int cols, int rows);
+    // Re-aligns the cells to the merge layout after a plane parameter of the layer or of
+    // one of its cells changed; a moved cell moves the whole layout. Done every frame too.
+    void applyTextureDivisionMerge();
+
+    // True for layers offering the layer operations above (see enableTextureSubdivision()).
+    bool supportsTextureSubdivision() const;
     
     virtual void encodeTypeCore(std::vector<std::byte>& data);
     virtual void decodeTypeCore(const std::vector<std::byte>& data, unsigned int& pos);
@@ -403,6 +419,8 @@ public:
     void drawPlane() const;
     bool hasPlane() const;
     void updatePlane();
+    // The plane size updatePlane() creates, in cm; empty without texture or size.
+    std::optional<glm::vec2> computedPlaneSize() const;
 
     // Timeline animation applied on top of the saved parameters (render only).
     const cplay::anim::LayerAnimState &animState() const;
@@ -578,6 +596,12 @@ protected:
 
     RenderParams renderData;
     PlaneParams planeData;
+
+    // Called from the constructor of a layer that receives a live texture: enables the QR /
+    // division layer operations. The layer feeds m_subdivision with its frames and syncs it
+    // in its type sections.
+    void enableTextureSubdivision();
+    std::unique_ptr<TextureSubdivision> m_subdivision;
     cplay::anim::LayerAnimState m_animState;
     bool m_animActive = false;
     bool m_poseEditing = false;

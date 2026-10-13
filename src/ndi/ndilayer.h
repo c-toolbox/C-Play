@@ -16,10 +16,6 @@
 #include <ndi/ndigpuconversion.h>
 
 class ofxNDIreceive;
-class QRCommandProcessor;
-class QROperationHandler;
-class QROperationConfig;
-struct QRPlaneDefinition;
 
 class NdiFinder {
 public:
@@ -73,27 +69,6 @@ public:
     void encodeTypeProperties(std::vector<std::byte>& data);
     void decodeTypeProperties(const std::vector<std::byte>& data, unsigned int& pos);
 
-    bool isQRCodeDetectionEnabled() const override;
-    void setQRCodeDetectionEnabled(bool enabled) override;
-
-    int textureDivisionMode() const override;
-    void setTextureDivisionMode(int mode) override;
-
-    int textureDivisionGrid() const override;
-    void setTextureDivisionGrid(int grid) override;
-
-    // Load QR operation plane configuration from a JSON file.
-    bool loadQROperationConfig(const std::string& filePath);
-
-    // Access the QR operation configuration.
-    const QROperationConfig* qrOperationConfig() const;
-
-    // Get the name of the currently active (live) plane, or empty if none.
-    std::string activePlaneName() const;
-
-    bool hasSubLayers() const override;
-    std::vector<std::shared_ptr<BaseLayer>>& getSubLayers() const override;
-
     // Encodes the type sections of a layer that receives a node stream over NDI,
     // matching decodeTypeAlways()/decodeTypeProperties(). The master calls this when
     // it streams a layer to the nodes in NDI mode, so the nodes create an NdiLayer
@@ -106,12 +81,9 @@ private:
     bool StartAudioStream();
     PaDeviceIndex GetChosenApplicationAudioDevice();
 
-    bool FindCodes(unsigned char* data, unsigned int width, unsigned int height, int GLformat, int rowStride = 0, int pixelStride = 0);
     bool GetPixelData(GLuint TextureID, unsigned int width, unsigned int height);
     bool LoadTexturePixels(GLuint TextureID, unsigned int width, unsigned int height, unsigned char *data, int GLformat, unsigned int stride);
     void GenerateTexture(unsigned int &id, int width, int height);
-
-    void onQRCommand(const struct QRCommand& command);
 
     ofxNDIreceive NDIreceiver;
     NdiGpuConversion m_gpuConversion;
@@ -137,23 +109,11 @@ private:
     int m_volume_Dec = 100;
     bool m_volumeMute = false;
     bool m_volumeMute_Dec = false;
-    bool m_qrCodeDetectionEnabled_Dec = false;
 
     // Conversion buffer for YUV formats
     unsigned char* m_conversionBuffer = nullptr;
     size_t m_conversionBufferSize = 0;
     NDIlib_FourCC_video_type_e m_lastVideoFormat = NDIlib_FourCC_type_BGRA;
-
-    // QR command processing
-    std::unique_ptr<QRCommandProcessor> m_qrProcessor;
-
-    // QR operation handler (sublayers, config, SetActive/Clear/Freeze)
-    std::unique_ptr<QROperationHandler> m_qrOpHandler;
-
-    // Texture division handler (alternative to QR operation)
-    std::unique_ptr<class DivideTextureHandler> m_divideTexHandler;
-    int m_textureDivisionMode = 0;  // 0=None, 1=ImPres(QR), 2=Division
-    int m_textureDivisionGrid = 0;  // grid index
 };
 
 #endif // NDILAYER_H

@@ -14,10 +14,7 @@
 #include <cstring>
 #include <climits>
 #include <cmath>
-#include <utils/qrcommandprocessor.h>
-#include <utils/qroperationhandler.h>
-#include <utils/qroperationconfig.h>
-#include <utils/dividetexturehandler.h>
+#include <utils/texturesubdivision.h>
 #include <layers/texturelayer.h>
 
 // simple clamp for 16-bit samples
@@ -289,12 +286,7 @@ NdiLayer::NdiLayer() {
     // Applied when the render context first opens the receiver.
     m_gpuConversionEnabled = StreamSettings::ndiReceiveGpuConversion();
 
-    m_qrProcessor = std::make_unique<QRCommandProcessor>();
-    m_qrProcessor->setCommandCallback([this](const QRCommand& cmd) {
-        onQRCommand(cmd);
-    });
-
-    m_qrOpHandler = std::make_unique<QROperationHandler>();
+    enableTextureSubdivision();
 }
 
 NdiLayer::~NdiLayer() {
@@ -382,7 +374,6 @@ void NdiLayer::update(bool updateRendering) {
         m_typePropertiesDecoded = false;
         setVolume(m_volume_Dec);
         setVolumeMute(m_volumeMute_Dec);
-        setQRCodeDetectionEnabled(m_qrCodeDetectionEnabled_Dec);
     }
 
     // Check sender amount
@@ -563,331 +554,42 @@ void NdiLayer::setVolumeMute(bool v) {
 
 // Helper to convert grid index to cols/rows
 // 0=1x1, 1=1x2, 2=2x1, 3=2x2, 4=2x3, 5=3x2, 6=3x3
-static void ndiGridIndexToColsRows(int grid, int& cols, int& rows) {
-    switch (grid) {
-    case 1: cols = 1; rows = 2; break;
-    case 2: cols = 2; rows = 1; break;
-    case 3: cols = 2; rows = 2; break;
-    case 4: cols = 2; rows = 3; break;
-    case 5: cols = 3; rows = 2; break;
-    case 6: cols = 3; rows = 3; break;
-    default: cols = 1; rows = 1; break;
-    }
-}
-
 void NdiLayer::encodeTypeAlways(std::vector<std::byte>& data) {
-    // Always write whether division-mode sublayer data follows
-    bool divisionActive = (m_textureDivisionMode == 2 && m_divideTexHandler);
-    sgct::serializeObject(data, divisionActive);
-    if (divisionActive) {
-        bool hasSubs = m_divideTexHandler->hasSubLayers();
-        sgct::serializeObject(data, hasSubs);
-        if (hasSubs) {
-            auto& subs = m_divideTexHandler->subLayers();
-            int actualCount = static_cast<int>(subs.size());
-            sgct::serializeObject(data, actualCount);
-            for (int i = 0; i < actualCount; ++i) {
-                auto& sub = subs[i];
-                if (sub) {
-                    sub->encodeBaseAlways(data);
-                    sub->encodeTypeAlways(data);
-                }
-            }
-        }
-    }
+    m_subdivision->encodeAlways(data);
 }
 
 void NdiLayer::decodeTypeAlways(const std::vector<std::byte>& data, unsigned int& pos) {
-    bool divisionActive = false;
-    sgct::deserializeObject(data, pos, divisionActive);
-    if (divisionActive) {
-        bool hasSubs = false;
-        sgct::deserializeObject(data, pos, hasSubs);
-        if (hasSubs) {
-            int actualCount = 0;
-            sgct::deserializeObject(data, pos, actualCount);
-
-            if (m_divideTexHandler && m_divideTexHandler->hasSubLayers()) {
-                auto& subs = m_divideTexHandler->subLayers();
-                for (int i = 0; i < actualCount; ++i) {
-                    if (i < static_cast<int>(subs.size()) && subs[i]) {
-                        subs[i]->decodeBaseAlways(data, pos);
-                        subs[i]->decodeTypeAlways(data, pos);
-                    } else {
-                        // Skip: shouldUpdate, shouldPreLoad, alpha
-                        bool tmpBool; float tmpFloat;
-                        sgct::deserializeObject(data, pos, tmpBool);
-                        sgct::deserializeObject(data, pos, tmpBool);
-                        sgct::deserializeObject(data, pos, tmpFloat);
-                    }
-                }
-            } else {
-                for (int i = 0; i < actualCount; ++i) {
-                    bool tmpBool; float tmpFloat;
-                    sgct::deserializeObject(data, pos, tmpBool);
-                    sgct::deserializeObject(data, pos, tmpBool);
-                    sgct::deserializeObject(data, pos, tmpFloat);
-                }
-            }
-        }
-    }
+    m_subdivision->decodeAlways(data, pos);
 }
 
 void NdiLayer::encodeTypeProperties(std::vector<std::byte>& data) {
     sgct::serializeObject(data, m_volume_Dec);
     sgct::serializeObject(data, m_volumeMute_Dec);
-    sgct::serializeObject(data, isQRCodeDetectionEnabled());
-    sgct::serializeObject(data, m_textureDivisionMode);
-    sgct::serializeObject(data, m_textureDivisionGrid);
-
-    // Serialize sublayer properties for division mode
-    if (m_textureDivisionMode == 2 && m_divideTexHandler) {
-        int numSubs = m_divideTexHandler->cellCount();
-        sgct::serializeObject(data, numSubs);
-        bool hasSubs = m_divideTexHandler->hasSubLayers();
-        sgct::serializeObject(data, hasSubs);
-        if (hasSubs) {
-            auto& subs = m_divideTexHandler->subLayers();
-            int actualCount = static_cast<int>(subs.size());
-            sgct::serializeObject(data, actualCount);
-            for (int i = 0; i < actualCount; ++i) {
-                auto& sub = subs[i];
-                if (sub) {
-                    sub->encodeBaseProperties(data);
-                    sub->encodeTypeProperties(data);
-                }
-            }
-        }
-    }
+    m_subdivision->encodeProperties(data);
 }
 
 void NdiLayer::decodeTypeProperties(const std::vector<std::byte>& data, unsigned int& pos) {
     sgct::deserializeObject(data, pos, m_volume_Dec);
     sgct::deserializeObject(data, pos, m_volumeMute_Dec);
-    sgct::deserializeObject(data, pos, m_qrCodeDetectionEnabled_Dec);
-
-    int divMode = 0;
-    sgct::deserializeObject(data, pos, divMode);
-    int divGrid = 0;
-    sgct::deserializeObject(data, pos, divGrid);
-
-    m_textureDivisionMode = divMode;
-    m_textureDivisionGrid = divGrid;
-
-    // Deserialize sublayer properties for division mode
-    if (m_textureDivisionMode == 2) {
-        int numSubs = 0;
-        sgct::deserializeObject(data, pos, numSubs);
-        bool hasSubs = false;
-        sgct::deserializeObject(data, pos, hasSubs);
-        if (hasSubs) {
-            int actualCount = 0;
-            sgct::deserializeObject(data, pos, actualCount);
-
-            // Ensure DivideTextureHandler exists and has proper division set
-            if (!m_divideTexHandler) {
-                m_divideTexHandler = std::make_unique<DivideTextureHandler>();
-            }
-            int cols = 1, rows = 1;
-            ndiGridIndexToColsRows(m_textureDivisionGrid, cols, rows);
-            m_divideTexHandler->setDivision(cols, rows, this);
-
-            // If sublayers exist, decode into them; otherwise just advance pos
-            if (m_divideTexHandler->hasSubLayers()) {
-                auto& subs = m_divideTexHandler->subLayers();
-                for (int i = 0; i < actualCount; ++i) {
-                    if (i < static_cast<int>(subs.size()) && subs[i]) {
-                        subs[i]->decodeBaseProperties(data, pos);
-                        subs[i]->decodeTypeProperties(data, pos);
-                    } else {
-                        // Skip data for this sublayer
-                        uint8_t gm, sm;
-                        sgct::deserializeObject(data, pos, gm);
-                        sgct::deserializeObject(data, pos, sm);
-                        bool roiEn;
-                        sgct::deserializeObject(data, pos, roiEn);
-                        if (roiEn) {
-                            float rx, ry, rz, rw;
-                            sgct::deserializeObject(data, pos, rx);
-                            sgct::deserializeObject(data, pos, ry);
-                            sgct::deserializeObject(data, pos, rz);
-                            sgct::deserializeObject(data, pos, rw);
-                        }
-                        if (gm == BaseLayer::GridMode::Plane) {
-                            double d; float f; uint8_t u;
-                            sgct::deserializeObject(data, pos, d);
-                            sgct::deserializeObject(data, pos, d);
-                            sgct::deserializeObject(data, pos, d);
-                            sgct::deserializeObject(data, pos, d);
-                            sgct::deserializeObject(data, pos, d);
-                            sgct::deserializeObject(data, pos, d);
-                            sgct::deserializeObject(data, pos, f);
-                            sgct::deserializeObject(data, pos, f);
-                            sgct::deserializeObject(data, pos, u);
-                        } else {
-                            float rx, ry, rz;
-                            sgct::deserializeObject(data, pos, rx);
-                            sgct::deserializeObject(data, pos, ry);
-                            sgct::deserializeObject(data, pos, rz);
-                        }
-                    }
-                }
-            } else {
-                // Sublayers don't exist yet on this node, skip their data
-                for (int i = 0; i < actualCount; ++i) {
-                    uint8_t gm, sm;
-                    sgct::deserializeObject(data, pos, gm);
-                    sgct::deserializeObject(data, pos, sm);
-                    bool roiEn;
-                    sgct::deserializeObject(data, pos, roiEn);
-                    if (roiEn) {
-                        float rx, ry, rz, rw;
-                        sgct::deserializeObject(data, pos, rx);
-                        sgct::deserializeObject(data, pos, ry);
-                        sgct::deserializeObject(data, pos, rz);
-                        sgct::deserializeObject(data, pos, rw);
-                    }
-                    if (gm == BaseLayer::GridMode::Plane) {
-                        double d; float f; uint8_t u;
-                        sgct::deserializeObject(data, pos, d);
-                        sgct::deserializeObject(data, pos, d);
-                        sgct::deserializeObject(data, pos, d);
-                        sgct::deserializeObject(data, pos, d);
-                        sgct::deserializeObject(data, pos, d);
-                        sgct::deserializeObject(data, pos, d);
-                        sgct::deserializeObject(data, pos, f);
-                        sgct::deserializeObject(data, pos, f);
-                        sgct::deserializeObject(data, pos, u);
-                    } else {
-                        float rx, ry, rz;
-                        sgct::deserializeObject(data, pos, rx);
-                        sgct::deserializeObject(data, pos, ry);
-                        sgct::deserializeObject(data, pos, rz);
-                    }
-                }
-            }
-        }
-    }
+    m_subdivision->decodeProperties(data, pos);
 
     m_typePropertiesDecoded = true;
 }
 
 void NdiLayer::encodeNodeDefaultsForNodes(std::vector<std::byte>& data, bool full) {
-    // Mirrors decodeTypeAlways(): no texture-division sublayers.
-    const bool divisionActive = false;
-    sgct::serializeObject(data, divisionActive);
-
-    if (!full)
+    // Mirrors decodeTypeAlways()/decodeTypeProperties(): defaults for a layer receiving a
+    // node stream, without layer operations.
+    if (full) {
+        const int volume = 100;
+        const bool volumeMute = false;
+        // decodeFull() reads the always section before the properties.
+        TextureSubdivision::encodeDefaults(data, false);
+        sgct::serializeObject(data, volume);
+        sgct::serializeObject(data, volumeMute);
+        TextureSubdivision::encodeDefaults(data, true);
         return;
-
-    // Mirrors decodeTypeProperties(): defaults for a layer receiving a node stream.
-    const int volume = 100;
-    const bool volumeMute = false;
-    const bool qrDetection = false;
-    const int divisionMode = 0;
-    const int divisionGrid = 0;
-    sgct::serializeObject(data, volume);
-    sgct::serializeObject(data, volumeMute);
-    sgct::serializeObject(data, qrDetection);
-    sgct::serializeObject(data, divisionMode);
-    sgct::serializeObject(data, divisionGrid);
-}
-
-bool NdiLayer::isQRCodeDetectionEnabled() const {
-    if (m_qrProcessor) {
-        return m_qrProcessor->isEnabled();
     }
-    return false;
-}
-
-void NdiLayer::setQRCodeDetectionEnabled(bool enabled) {
-    if (m_qrProcessor) {
-        m_qrProcessor->setEnabled(enabled);
-    }
-    if (!enabled && m_qrOpHandler) {
-        m_qrOpHandler->clearAll();
-    }
-
-    if (isMaster())
-        setNeedSync();
-}
-
-bool NdiLayer::loadQROperationConfig(const std::string& filePath) {
-    if (m_qrOpHandler) {
-        return m_qrOpHandler->loadConfig(filePath);
-    }
-    return false;
-}
-
-const QROperationConfig* NdiLayer::qrOperationConfig() const {
-    if (m_qrOpHandler) {
-        return m_qrOpHandler->config();
-    }
-    return nullptr;
-}
-
-std::string NdiLayer::activePlaneName() const {
-    if (m_qrOpHandler) {
-        return m_qrOpHandler->activePlaneName();
-    }
-    return std::string();
-}
-
-int NdiLayer::textureDivisionMode() const {
-    return m_textureDivisionMode;
-}
-
-void NdiLayer::setTextureDivisionMode(int mode) {
-    if (m_textureDivisionMode == mode)
-        return;
-
-    m_textureDivisionMode = mode;
-
-    if (mode == 1) {
-        setQRCodeDetectionEnabled(true);
-        if (m_divideTexHandler) {
-            m_divideTexHandler->clearAll();
-        }
-    } else if (mode == 2) {
-        setQRCodeDetectionEnabled(false);
-        if (!m_divideTexHandler) {
-            m_divideTexHandler = std::make_unique<DivideTextureHandler>();
-        }
-        int cols = 1, rows = 1;
-        ndiGridIndexToColsRows(m_textureDivisionGrid, cols, rows);
-        m_divideTexHandler->setDivision(cols, rows, this);
-    } else {
-        setQRCodeDetectionEnabled(false);
-        if (m_divideTexHandler) {
-            m_divideTexHandler->clearAll();
-        }
-    }
-
-    if (isMaster())
-        setNeedSync();
-}
-
-int NdiLayer::textureDivisionGrid() const {
-    return m_textureDivisionGrid;
-}
-
-void NdiLayer::setTextureDivisionGrid(int grid) {
-    if (m_textureDivisionGrid == grid)
-        return;
-
-    m_textureDivisionGrid = grid;
-
-    if (m_textureDivisionMode == 2) {
-        if (!m_divideTexHandler) {
-            m_divideTexHandler = std::make_unique<DivideTextureHandler>();
-        }
-        int cols = 1, rows = 1;
-        ndiGridIndexToColsRows(grid, cols, rows);
-        m_divideTexHandler->setDivision(cols, rows, this);
-    }
-
-    if (isMaster())
-        setNeedSync();
+    TextureSubdivision::encodeDefaults(data, false);
 }
 
 // Receive ofTexture
@@ -1119,35 +821,6 @@ PaDeviceIndex NdiLayer::GetChosenApplicationAudioDevice() {
     return choseDeviceIdx;
 }
 
-//Find barcodes in the received frame data using two-phase QR command scheme
-bool NdiLayer::FindCodes(unsigned char* data, unsigned int width, unsigned int height, int GLformat, int rowStride, int pixelStride) {
-    if (!m_qrProcessor || !m_qrProcessor->isEnabled()) {
-        return false;
-    }
-    return m_qrProcessor->processFrame(data, width, height, GLformat, rowStride, pixelStride);
-}
-
-void NdiLayer::onQRCommand(const QRCommand& command) {
-    if (m_qrOpHandler) {
-        m_qrOpHandler->handleCommand(command, this, renderData.texId, renderData.width, renderData.height);
-    }
-}
-
-bool NdiLayer::hasSubLayers() const {
-    if (m_textureDivisionMode == 2 && m_divideTexHandler)
-        return m_divideTexHandler->hasSubLayers();
-    return m_qrOpHandler ? m_qrOpHandler->hasSubLayers() : false;
-}
-
-std::vector<std::shared_ptr<BaseLayer>>& NdiLayer::getSubLayers() const {
-    if (m_textureDivisionMode == 2 && m_divideTexHandler && m_divideTexHandler->hasSubLayers())
-        return m_divideTexHandler->subLayers();
-    if (m_qrOpHandler) {
-        return m_qrOpHandler->subLayers();
-    }
-    static std::vector<std::shared_ptr<BaseLayer>> empty;
-    return empty;
-}
     
 // Get NDI pixel data from the video frame to ofTexture
 bool NdiLayer::GetPixelData(GLuint TextureID, unsigned int width, unsigned int height) {
@@ -1212,7 +885,7 @@ bool NdiLayer::GetPixelData(GLuint TextureID, unsigned int width, unsigned int h
                     qrPixels = qrField.data();
                     qrPixelStride = bytesPerPixel;
                 }
-                if (FindCodes(qrPixels, width, height, qrFormat, qrStride, qrPixelStride)) {
+                if (m_subdivision->isControlFrame(qrPixels, width, height, qrFormat, qrStride, qrPixelStride)) {
                     NDIreceiver.FreeVideoData();
                     return false;
                 }
@@ -1339,7 +1012,7 @@ bool NdiLayer::GetPixelData(GLuint TextureID, unsigned int width, unsigned int h
     // Check for QR commands before uploading texture (two-phase scheme).
     bool foundCodes = false;
     if (isQRCodeDetectionEnabled() && !qrChecked) {
-        foundCodes = FindCodes(pixelData, width, height, GLformat);
+        foundCodes = m_subdivision->isControlFrame(pixelData, width, height, GLformat);
     }
 
     if (foundCodes) {
@@ -1358,15 +1031,7 @@ bool NdiLayer::GetPixelData(GLuint TextureID, unsigned int width, unsigned int h
         m_hasCapturedImage = true;
         m_isReady = true;
 
-        // Update the active sublayer with the new frame
-        if (isQRCodeDetectionEnabled() && m_qrOpHandler && m_qrOpHandler->isActive()) {
-            m_qrOpHandler->updateActiveSubLayer(this, renderData.texId, renderData.width, renderData.height);
-        }
-
-        // Update divide texture sublayers if division mode is active
-        if (m_textureDivisionMode == 2 && m_divideTexHandler && m_divideTexHandler->isActive()) {
-            m_divideTexHandler->updateSubLayers(this, renderData.texId, renderData.width, renderData.height);
-        }
+        m_subdivision->updateSubLayers(renderData.texId, renderData.width, renderData.height);
     }
 
     return success;

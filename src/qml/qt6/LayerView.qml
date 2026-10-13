@@ -194,17 +194,14 @@ Kirigami.ApplicationWindow {
                 else if (layerViewItem.layerTypeName === "Stream") {
                     createAudioComponents();
                     createStreamComponents();
-                    createQRCodeComponents();
                     createFlipYComponents();
                 }
                 else if (layerViewItem.layerTypeName === "NDI") {
                     createAudioComponents();
-                    createQRCodeComponents();
                     createFlipYComponents();
                 }
                 else if (layerViewItem.layerTypeName === "OMT") {
                     createAudioComponents();
-                    createQRCodeComponents();
                     createFlipYComponents();
                 }
                 else if (layerViewItem.layerTypeName === "Spout") {
@@ -230,6 +227,12 @@ Kirigami.ApplicationWindow {
                 }
                 else if (layerViewItem.layerTypeName === "Text") {
                     createTextComponents();
+                }
+                if (layerViewItem.layerSupportsTextureDivision) {
+                    createQRCodeComponents();
+                }
+                else {
+                    destroyQRCodeComponents();
                 }
             }
             else {
@@ -2378,7 +2381,7 @@ Kirigami.ApplicationWindow {
                     Rectangle {
                         color: Kirigami.Theme.alternateBackgroundColor
                         implicitHeight: 35
-                        implicitWidth: 550
+                        implicitWidth: 720
                         radius: 5
 
                         RowLayout {
@@ -2417,7 +2420,6 @@ Kirigami.ApplicationWindow {
                                 delegate: ItemDelegate {
                                     width: textureDivisionModeComboBox.width
                                     text: model.mode
-                                    visible: !(model.value === 1 && layerViewItem.layerTypeName === "OMT")
                                     height: visible ? implicitHeight : 0
                                     highlighted: textureDivisionModeComboBox.highlightedIndex === index
                                 }
@@ -2499,6 +2501,28 @@ Kirigami.ApplicationWindow {
                             }
                             Label {
                                 font.pointSize: 9
+                                text: qsTr("Merge:")
+                                enabled: textureDivisionModeComboBox.currentIndex === 2
+                            }
+                            ComboBox {
+                                id: divisionMergeComboBox
+
+                                Layout.fillWidth: true
+                                focusPolicy: Qt.NoFocus
+                                enabled: textureDivisionModeComboBox.currentIndex === 2
+                                model: layerViewItem.layerDivisionMergeOptions
+                                currentIndex: layerViewItem.layerDivisionMergeOptions.indexOf(layerViewItem.layerDivisionMerge)
+
+                                ToolTip.visible: hovered
+                                ToolTip.delay: 500
+                                ToolTip.text: qsTr("Places the cells side by side on this grid around the Original layer's plane (Plane grid mode). Moving the Original or any cell moves them all. Custom keeps each cell's own grid parameters.")
+
+                                onActivated: {
+                                    layerViewItem.layerDivisionMerge = model[index];
+                                }
+                            }
+                            Label {
+                                font.pointSize: 9
                                 text: qsTr("Sub-Layer:")
                                 enabled: textureDivisionModeComboBox.currentIndex !== 0
                             }
@@ -2534,6 +2558,7 @@ Kirigami.ApplicationWindow {
                                     break;
                                 }
                             }
+                            divisionMergeComboBox.currentIndex = layerViewItem.layerDivisionMergeOptions.indexOf(layerViewItem.layerDivisionMerge);
                             subLayerComboBox.currentIndex = layerViewItem.layerSelectedSubLayer;
                         }
                     }
@@ -2550,6 +2575,7 @@ Kirigami.ApplicationWindow {
                                 break;
                             }
                         }
+                        divisionMergeComboBox.currentIndex = layerViewItem.layerDivisionMergeOptions.indexOf(layerViewItem.layerDivisionMerge);
                         subLayerComboBox.currentIndex = layerViewItem.layerSelectedSubLayer;
                     }
 
@@ -2596,7 +2622,6 @@ Kirigami.ApplicationWindow {
                         destroyMediaComponents();
                         destroyStreamComponents();
                         destroyTextComponents();
-                        destroyQRCodeComponents();
                         destroyFlipYComponents();
                         destroyWebrtcComponents();
                     }
@@ -2608,7 +2633,6 @@ Kirigami.ApplicationWindow {
                         createMediaComponents();
                         destroyStreamComponents();
                         destroyTextComponents();
-                        destroyQRCodeComponents();
                         destroyFlipYComponents();
                         destroyWebrtcComponents();
                     }
@@ -2618,7 +2642,6 @@ Kirigami.ApplicationWindow {
                         destroyMediaComponents();
                         createStreamComponents();
                         destroyTextComponents();
-                        createQRCodeComponents();
                         createFlipYComponents();
                         destroyWebrtcComponents();
                     }
@@ -2628,7 +2651,6 @@ Kirigami.ApplicationWindow {
                         destroyMediaComponents();
                         destroyStreamComponents();
                         destroyTextComponents();
-                        createQRCodeComponents();
                         createFlipYComponents();
                         destroyWebrtcComponents();
                     }
@@ -2638,7 +2660,6 @@ Kirigami.ApplicationWindow {
                         destroyMediaComponents();
                         destroyStreamComponents();
                         destroyTextComponents();
-                        createQRCodeComponents();
                         createFlipYComponents();
                         destroyWebrtcComponents();
                     }
@@ -2648,7 +2669,6 @@ Kirigami.ApplicationWindow {
                         destroyMediaComponents();
                         destroyStreamComponents();
                         destroyTextComponents();
-                        destroyQRCodeComponents();
                         createFlipYComponents();
                         destroyWebrtcComponents();
                     }
@@ -2657,7 +2677,6 @@ Kirigami.ApplicationWindow {
                         destroyMediaComponents();
                         destroyStreamComponents();
                         destroyTextComponents();
-                        destroyQRCodeComponents();
                         destroyFlipYComponents();
                         destroyWebrtcComponents();
                         if (layerViewItem.layerHasAudio) {
@@ -2671,7 +2690,6 @@ Kirigami.ApplicationWindow {
                         destroyMediaComponents();
                         destroyStreamComponents();
                         destroyTextComponents();
-                        destroyQRCodeComponents();
                         createFlipYComponents();
                         createWebrtcComponents();
                         // The stream's audio is optional: only show the volume controls when
@@ -2688,7 +2706,6 @@ Kirigami.ApplicationWindow {
                         destroyMediaComponents();
                         destroyStreamComponents();
                         createTextComponents();
-                        destroyQRCodeComponents();
                         destroyFlipYComponents();
                         destroyWebrtcComponents();
                     }
@@ -2698,9 +2715,14 @@ Kirigami.ApplicationWindow {
                         destroyMediaComponents();
                         destroyStreamComponents();
                         destroyTextComponents();
-                        destroyQRCodeComponents();
                         destroyFlipYComponents();
                         destroyWebrtcComponents();
+                    }
+                    if (layerViewItem.layerSupportsTextureDivision) {
+                        createQRCodeComponents();
+                    }
+                    else {
+                        destroyQRCodeComponents();
                     }
                 }
                 else {

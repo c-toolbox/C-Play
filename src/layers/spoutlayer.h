@@ -40,12 +40,20 @@ public:
     bool ready() const;
     bool hasTexture() const override;
 
+    // Layer operations (QR / division), see TextureSubdivision.
+    void encodeTypeAlways(std::vector<std::byte>& data) override;
+    void decodeTypeAlways(const std::vector<std::byte>& data, unsigned int& pos) override;
+    void encodeTypeProperties(std::vector<std::byte>& data) override;
+    void decodeTypeProperties(const std::vector<std::byte>& data, unsigned int& pos) override;
+
 private:
     bool resolveSender();
     std::string m_resolvedSender;
     void GenerateTexture(unsigned int& id, int width, int height);
 
     SPOUTLIBRARY* m_receiver;
+    // Receives the sender's frames; renderData.texId is the texture shown.
+    unsigned int m_receiveTexId = 0;
 };
 
 #endif // SPOUTLAYER_H

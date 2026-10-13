@@ -14,6 +14,7 @@
 #include "subtitlesettings.h"
 #include "slidesmodel.h"
 #include "track.h"
+#include <utils/texturesubdivision.h>
 
 #ifdef PDF_SUPPORT
 #include <layers/pdflayer.h>
@@ -160,6 +161,7 @@ void LayerQtItem::setLayerGridMode(int mode) {
             Q_EMIT layerNeedsSave();
         }
         target->setGridMode(static_cast<uint8_t>(mode));
+        applyDivisionMerge();
         Q_EMIT layerValueChanged();
     }
 }
@@ -179,6 +181,7 @@ void LayerQtItem::setLayerVisibility(int value) {
     if (!target) target = m_layer;
     if (target && target->isEnabled()) {
         target->setAlpha(static_cast<float>(value) * 0.01f);
+        applyDivisionMerge();
         Q_EMIT layerValueChanged();
     }
 }
@@ -457,6 +460,7 @@ void LayerQtItem::setLayerRotatePitch(double x) {
         }
         rot.x = x;
         target->setRotate(rot);
+        applyDivisionMerge();
         Q_EMIT layerValueChanged();
     }
 }
@@ -482,6 +486,7 @@ void LayerQtItem::setLayerRotateYaw(double y)
         }
         rot.y = y;
         target->setRotate(rot);
+        applyDivisionMerge();
         Q_EMIT layerValueChanged();
     }
 }
@@ -506,6 +511,7 @@ void LayerQtItem::setLayerRotateRoll(double z) {
         }
         rot.z = z;
         target->setRotate(rot);
+        applyDivisionMerge();
         Q_EMIT layerValueChanged();
     }
 }
@@ -528,6 +534,7 @@ void LayerQtItem::setLayerPlaneWidth(double pW) {
             Q_EMIT layerNeedsSave();
         }
         target->setPlaneWidth(pW);
+        applyDivisionMerge();
         Q_EMIT layerValueChanged();
     }
 }
@@ -550,6 +557,7 @@ void LayerQtItem::setLayerPlaneHeight(double pH) {
             Q_EMIT layerNeedsSave();
         }
         target->setPlaneHeight(pH);
+        applyDivisionMerge();
         Q_EMIT layerValueChanged();
     }
 }
@@ -572,6 +580,7 @@ void LayerQtItem::setLayerPlaneAspectRatio(int parc) {
             Q_EMIT layerNeedsSave();
         }
         target->setPlaneAspectRatio(static_cast<uint8_t>(parc));
+        applyDivisionMerge();
         Q_EMIT layerValueChanged();
     }
 }
@@ -594,6 +603,7 @@ void LayerQtItem::setLayerPlaneAzimuth(double pA) {
             Q_EMIT layerNeedsSave();
         }
         target->setPlaneAzimuth(pA);
+        applyDivisionMerge();
         Q_EMIT layerValueChanged();
     }
 }
@@ -616,6 +626,7 @@ void LayerQtItem::setLayerPlaneElevation(double pE) {
             Q_EMIT layerNeedsSave();
         }
         target->setPlaneElevation(pE);
+        applyDivisionMerge();
         Q_EMIT layerValueChanged();
     }
 }
@@ -638,6 +649,7 @@ void LayerQtItem::setLayerPlaneRoll(double pR) {
             Q_EMIT layerNeedsSave();
         }
         target->setPlaneRoll(pR);
+        applyDivisionMerge();
         Q_EMIT layerValueChanged();
     }
 }
@@ -660,6 +672,7 @@ void LayerQtItem::setLayerPlaneDistance(double pD) {
             Q_EMIT layerNeedsSave();
         }
         target->setPlaneDistance(pD);
+        applyDivisionMerge();
         Q_EMIT layerValueChanged();
     }
 }
@@ -675,6 +688,7 @@ void LayerQtItem::setLayerPlaneCircular(bool value) {
     if (target && target->isEnabled() && target->planeCircular() != value) {
         target->setPlaneCircular(value);
         Q_EMIT layerNeedsSave();
+        applyDivisionMerge();
         Q_EMIT layerValueChanged();
     }
 }
@@ -690,6 +704,7 @@ void LayerQtItem::setLayerPlaneCentreDegrees(double value) {
     if (target && target->isEnabled() && target->planeCentreDegrees() != value) {
         target->setPlaneCentreDegrees(value);
         Q_EMIT layerNeedsSave();
+        applyDivisionMerge();
         Q_EMIT layerValueChanged();
     }
 }
@@ -705,6 +720,7 @@ void LayerQtItem::setLayerPlaneWidthDegrees(double value) {
     if (target && target->isEnabled() && target->planeWidthDegrees() != value) {
         target->setPlaneWidthDegrees(value);
         Q_EMIT layerNeedsSave();
+        applyDivisionMerge();
         Q_EMIT layerValueChanged();
     }
 }
@@ -727,6 +743,7 @@ void LayerQtItem::setLayerPlaneHorizontal(double pH) {
             Q_EMIT layerNeedsSave();
         }
         target->setPlaneHorizontal(pH);
+        applyDivisionMerge();
         Q_EMIT layerValueChanged();
     }
 }
@@ -749,6 +766,7 @@ void LayerQtItem::setLayerPlaneVertical(double pV) {
             Q_EMIT layerNeedsSave();
         }
         target->setPlaneVertical(pV);
+        applyDivisionMerge();
         Q_EMIT layerValueChanged();
     }
 }
@@ -1289,6 +1307,10 @@ void LayerQtItem::setLayerTextRenderSize(QSize) {
 #endif
 }
 
+bool LayerQtItem::layerSupportsTextureDivision() const {
+    return m_layer && m_layer->supportsTextureSubdivision();
+}
+
 bool LayerQtItem::layerQRCodeDetectionEnabled() const {
     if (m_layer)
         return m_layer->isQRCodeDetectionEnabled();
@@ -1336,6 +1358,43 @@ void LayerQtItem::setLayerDivisionGrid(int grid) {
             Q_EMIT layerNeedsSave();
         }
     }
+}
+
+QStringList LayerQtItem::layerDivisionMergeOptions() const {
+    QStringList options{QStringLiteral("Custom")};
+    if (!m_layer)
+        return options;
+    int cols = 1, rows = 1;
+    TextureSubdivision::gridToColsRows(m_layer->textureDivisionGrid(), cols, rows);
+    for (const auto& [mergeCols, mergeRows] : TextureSubdivision::validMerges(cols * rows))
+        options.append(QStringLiteral("%1x%2").arg(mergeCols).arg(mergeRows));
+    return options;
+}
+
+QString LayerQtItem::layerDivisionMerge() const {
+    if (!m_layer || m_layer->textureDivisionMergeColumns() <= 0)
+        return QStringLiteral("Custom");
+    return QStringLiteral("%1x%2").arg(m_layer->textureDivisionMergeColumns()).arg(m_layer->textureDivisionMergeRows());
+}
+
+void LayerQtItem::setLayerDivisionMerge(const QString& merge) {
+    if (!m_layer || !m_layer->isEnabled() || merge == layerDivisionMerge())
+        return;
+    int cols = 0, rows = 0;
+    const QStringList parts = merge.split(QLatin1Char('x'));
+    if (parts.size() == 2) {
+        cols = parts[0].toInt();
+        rows = parts[1].toInt();
+    }
+    if (m_layer->setTextureDivisionMerge(cols, rows)) {
+        Q_EMIT layerValueChanged();
+        Q_EMIT layerNeedsSave();
+    }
+}
+
+void LayerQtItem::applyDivisionMerge() {
+    if (m_layer)
+        m_layer->applyTextureDivisionMerge();
 }
 
 QStringList LayerQtItem::layerSubLayerNames() const {

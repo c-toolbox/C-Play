@@ -21,13 +21,13 @@ For changing the presentation timings, this is made in the "Settings -> Configur
 
 ## Layer operation modes (C-Play v2.3 and newer)
 
-NDI, Stream, and OMT layers support a **Layer Operation** mode that controls how the layer's texture is subdivided into sublayers. The mode is selected via a combo box in the layer view:
+Layers that receive a live video feed (NDI, OMT, Stream, DirectShow, Capture, Spout and WebRTC) support a **Layer Operation** mode that controls how the layer's texture is subdivided into sublayers. The mode is selected via a combo box in the layer view:
 
 | Mode | Description | Supported by |
 |------|-------------|--------------|
 | **None** | No subdivision — the layer displays normally. | All layers |
-| **ImPres Mode (QR)** | QR code-driven sublayer control (see below). | NDI, Stream |
-| **Division Mode** | Static grid-based texture division (see below). | NDI, Stream, OMT |
+| **ImPres Mode (QR)** | QR code-driven sublayer control (see below). | NDI, OMT, Stream, DirectShow, Capture, Spout, WebRTC |
+| **Division Mode** | Static grid-based texture division (see below). | NDI, OMT, Stream, DirectShow, Capture, Spout, WebRTC |
 
 When a sublayer mode is active, the layer view shows a **Sub-Layer** selector and highlights the selected sublayer's region in yellow on the preview.
 
@@ -49,7 +49,25 @@ When Division Mode is selected, a **Division** combo box appears with the follow
 | 3×2 | 3 columns, 2 rows |
 | 3×3 | 3 columns, 3 rows |
 
-Each sublayer points to a region of the parent texture (no copy) and can have **independent** alpha, grid mode, plane parameters, rotation, and translation — all editable via the grid parameters panel.
+Each sublayer points to a region of the parent texture (no copy) and has its own alpha.
+
+#### Merge layout
+
+The **Merge** combo box sets how the sublayers are placed when the grid mode is *Plane*. They are put side by side, in reading order (left to right, top row first), on the chosen grid. That grid is centred on the *Original* layer's plane, at the same scale. The options are every grid that holds all the cells without leaving a row or column empty. For example:
+
+| Division | Merge options |
+|:-:|--------|
+| 1×2 | 1×2 (as source), 2×1 |
+| 2×2 | 1×4, 2×2 (as source), 3×2, 4×1 |
+| 3×3 | 1×9, 2×5, 3×3 (as source), 4×3, 5×2, 6×2, 7×2, 8×2, 9×1 |
+
+With the source layout the merged result looks like the undivided layer. When the last row of a layout has fewer cells, those cells are left-aligned.
+
+The *Original* layer sets the position, orientation, distance and size of the whole layout, including circular plane mapping. Sizes are per cell: a cell is the *Original* plane's width divided by the division columns and its height divided by the division rows. Moving or resizing any sublayer, through its grid parameters or the HTTP API, moves or resizes the whole layout, so the cells always stay aligned. Changing the grid mode of a sublayer changes it for all of them. A new division starts with its source layout. Changing the division resets a merge layout that no longer fits.
+
+On a circular plane, the cells are placed by centre angle. With a plane roll they are not rotated around the layout centre.
+
+Choose **Custom** to give each sublayer **independent** grid mode, plane parameters, rotation and translation, all editable in the grid parameters panel. Presentations saved before merge layouts existed open as *Custom*.
 
 ---
 
@@ -61,7 +79,7 @@ ImPres is a QR code-driven presentation mode. When enabled, C-Play scans incomin
 
 ### Enabling ImPres
 
-In the layer view for an NDI or Stream layer, select *"ImPres Mode (QR)"* from the **Layer Operation** combo box. This setting is saved with the presentation. OMT layers do not support ImPres mode.
+In the layer view for a live-feed layer (NDI, OMT, Stream, DirectShow, Capture, Spout or WebRTC), select *"ImPres Mode (QR)"* from the **Layer Operation** combo box. This setting is saved with the presentation. NDI, OMT, DirectShow and WebRTC layers scan each frame before it is uploaded; Stream, Capture and Spout layers read the frame back from the GPU, which costs more on high resolutions.
 
 ### Example
 You can open the example PowerPoint at `data/impres/ImPres_PPT_Template.ppt`, which shows one practical way to display the QR codes so they are visible immediately when a new slide appears and then disappear quite quickly.

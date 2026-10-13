@@ -1603,9 +1603,20 @@ void LayersModel::decodeFromJSON(QJsonObject &obj, const QStringList &forRelativ
                         m_layers[idx].first->setTextureDivisionGrid(divGrid);
                     }
 
+                    // Projects from before merge layouts placed each cell on its own.
+                    if (o.contains(QStringLiteral("textureDivisionMergeColumns"))) {
+                        m_layers[idx].first->setTextureDivisionMerge(
+                            o.value(QStringLiteral("textureDivisionMergeColumns")).toInt(),
+                            o.value(QStringLiteral("textureDivisionMergeRows")).toInt());
+                    } else if (o.contains(QStringLiteral("divisionSubLayers"))) {
+                        m_layers[idx].first->setTextureDivisionMerge(0, 0);
+                    }
+                    // Merged cells take their grid parameters from this layer.
+                    const bool divisionMerged = m_layers[idx].first->textureDivisionMergeColumns() > 0;
+
                     // Restore sublayer properties for division mode
                     if (o.contains(QStringLiteral("divisionSubLayers")) && m_layers[idx].first->textureDivisionMode() == 2) {
-                        if (m_layers[idx].first->hasSubLayers()) {
+                        if (!m_layers[idx].first->getSubLayers().empty()) {
                             QJsonArray subArray = o.value(QStringLiteral("divisionSubLayers")).toArray();
                             auto& subs = m_layers[idx].first->getSubLayers();
                             for (int si = 0; si < subArray.size() && si < static_cast<int>(subs.size()); ++si) {
@@ -1614,11 +1625,11 @@ void LayersModel::decodeFromJSON(QJsonObject &obj, const QStringList &forRelativ
                                 if (!sub) continue;
                                 if (subObj.contains(QStringLiteral("visibility")))
                                     sub->setAlpha(static_cast<float>(subObj.value(QStringLiteral("visibility")).toInt()) * 0.01f);
-                                if (subObj.contains(QStringLiteral("grid")))
+                                if (subObj.contains(QStringLiteral("grid")) && !divisionMerged)
                                     sub->setGridMode(static_cast<uint8_t>(subObj.value(QStringLiteral("grid")).toInt()));
-                                if (subObj.contains(QStringLiteral("stereo")))
+                                if (subObj.contains(QStringLiteral("stereo")) && !divisionMerged)
                                     sub->setStereoMode(static_cast<uint8_t>(subObj.value(QStringLiteral("stereo")).toInt()));
-                                if (subObj.contains(QStringLiteral("plane"))) {
+                                if (subObj.contains(QStringLiteral("plane")) && !divisionMerged) {
                                     QJsonObject po = subObj.value(QStringLiteral("plane")).toObject();
                                     if (po.contains(QStringLiteral("circular"))) sub->setPlaneCircular(po.value(QStringLiteral("circular")).toBool());
                                     if (po.contains(QStringLiteral("centreDegrees"))) sub->setPlaneCentreDegrees(po.value(QStringLiteral("centreDegrees")).toDouble());
@@ -2013,14 +2024,7 @@ void LayersModel::encodeToJSON(QJsonObject &obj, const QStringList &forRelativeP
             layerData.insert(QStringLiteral("volume"), QJsonValue(layer->volume()));
         }
 #endif
-        bool supportsTextureDivision = layer->type() == BaseLayer::STREAM;
-#ifdef NDI_SUPPORT
-        supportsTextureDivision = supportsTextureDivision || layer->type() == BaseLayer::NDI;
-#endif
-#ifdef OMT_SUPPORT
-        supportsTextureDivision = supportsTextureDivision || layer->type() == BaseLayer::OMT;
-#endif
-        if (supportsTextureDivision) {
+        if (layer->supportsTextureSubdivision()) {
             if (layer->isQRCodeDetectionEnabled()) {
                 layerData.insert(QStringLiteral("qrCodeDetection"), QJsonValue(true));
             }
@@ -2030,7 +2034,12 @@ void LayersModel::encodeToJSON(QJsonObject &obj, const QStringList &forRelativeP
             if (layer->textureDivisionGrid() != 0) {
                 layerData.insert(QStringLiteral("textureDivisionGrid"), QJsonValue(layer->textureDivisionGrid()));
             }
-            if (layer->textureDivisionMode() == 2 && layer->hasSubLayers()) {
+            if (layer->textureDivisionMode() == 2) {
+                layerData.insert(QStringLiteral("textureDivisionMergeColumns"), QJsonValue(layer->textureDivisionMergeColumns()));
+                layerData.insert(QStringLiteral("textureDivisionMergeRows"), QJsonValue(layer->textureDivisionMergeRows()));
+            }
+            // Not hasSubLayers(): that is false while a placeholder or no-signal image shows.
+            if (layer->textureDivisionMode() == 2 && !layer->getSubLayers().empty()) {
                 QJsonArray subLayersArray;
                 auto& subs = layer->getSubLayers();
                 for (int si = 0; si < static_cast<int>(subs.size()); ++si) {

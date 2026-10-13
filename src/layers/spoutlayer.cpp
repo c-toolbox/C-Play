@@ -7,6 +7,7 @@
 
 #include "spoutlayer.h"
 #include <utils/streampathresolver.h>
+#include <utils/texturesubdivision.h>
 #include <fmt/core.h>
 #include <sgct/opengl.h>
 #include <sgct/sgct.h>
@@ -70,6 +71,7 @@ std::string SpoutFinder::getSpoutVersionString() {
 
 SpoutLayer::SpoutLayer() {
     setType(BaseLayer::LayerType::SPOUT);
+    enableTextureSubdivision();
 
 	m_receiver = GetSpout();
 	if (!m_receiver) {
@@ -83,10 +85,12 @@ SpoutLayer::~SpoutLayer() {
 
 void SpoutLayer::cleanup() {
 	if (m_receiver) {
-     if (renderData.texId > 0) {
-			glDeleteTextures(1, &renderData.texId);
-			renderData.texId = 0;
+     if (m_receiveTexId > 0) {
+			glDeleteTextures(1, &m_receiveTexId);
+			m_receiveTexId = 0;
 		}
+		m_subdivision->releaseGL();
+		renderData.texId = 0;
 		renderData.width = 0;
 		renderData.height = 0;
 		// Release the receiver
@@ -152,18 +156,23 @@ void SpoutLayer::updateFrame() {
 
 			// Check for changed sender dimensions
 			if (width != (unsigned int)renderData.width || height != (unsigned int)renderData.height) {
-				if (renderData.width > 0)
-					glDeleteTextures(1, &renderData.texId);
+				if (m_receiveTexId > 0)
+					glDeleteTextures(1, &m_receiveTexId);
 
-				GenerateTexture(renderData.texId, width, height);
+				GenerateTexture(m_receiveTexId, width, height);
 
+				renderData.texId = m_receiveTexId;
 				renderData.width = (int)width;
 				renderData.height = (int)height;
 			}
 		}
 
-		// Receive texture
-		m_receiver->ReceiveTexture(renderData.texId, GL_TEXTURE_2D, true);
+		// Receive texture. A QR control frame is shown as the last clean frame instead,
+		// so the receive texture is kept apart from the one shown.
+		if (m_receiver->ReceiveTexture(m_receiveTexId, GL_TEXTURE_2D, true)) {
+			renderData.texId = m_subdivision->filterControlFrame(m_receiveTexId, renderData.width, renderData.height);
+			m_subdivision->updateSubLayers(renderData.texId, renderData.width, renderData.height);
+		}
 	}
 }
 
@@ -180,6 +189,22 @@ bool SpoutLayer::ready() const {
 		return true;
 
     return false;
+}
+
+void SpoutLayer::encodeTypeAlways(std::vector<std::byte>& data) {
+    m_subdivision->encodeAlways(data);
+}
+
+void SpoutLayer::decodeTypeAlways(const std::vector<std::byte>& data, unsigned int& pos) {
+    m_subdivision->decodeAlways(data, pos);
+}
+
+void SpoutLayer::encodeTypeProperties(std::vector<std::byte>& data) {
+    m_subdivision->encodeProperties(data);
+}
+
+void SpoutLayer::decodeTypeProperties(const std::vector<std::byte>& data, unsigned int& pos) {
+    m_subdivision->decodeProperties(data, pos);
 }
 
 void SpoutLayer::GenerateTexture(unsigned int& id, int width, int height) {

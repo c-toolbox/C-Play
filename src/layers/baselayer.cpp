@@ -8,6 +8,7 @@
 #include "streamsettings.h"
 #include "gridsettings.h"
 #include "baselayer.h"
+#include <utils/texturesubdivision.h>
 #include <layers/imagelayer.h>
 #ifdef VIDEO_LAYER
 #include <layers/videolayer.h>
@@ -636,27 +637,73 @@ void BaseLayer::setValue(std::string, int) {
 }
 
 bool BaseLayer::isQRCodeDetectionEnabled() const {
-    return false;
+    return m_subdivision && m_subdivision->qrEnabled();
 }
 
-void BaseLayer::setQRCodeDetectionEnabled(bool) {
-    // Overwrite in derived class
+void BaseLayer::setQRCodeDetectionEnabled(bool enabled) {
+    if (!m_subdivision)
+        return;
+    m_subdivision->setQrEnabled(enabled);
+    if (isMaster())
+        setNeedSync();
 }
 
 int BaseLayer::textureDivisionMode() const {
-    return 0;
+    return m_subdivision ? m_subdivision->mode() : 0;
 }
 
-void BaseLayer::setTextureDivisionMode(int) {
-    // Overwrite in derived class
+void BaseLayer::setTextureDivisionMode(int mode) {
+    if (!m_subdivision || m_subdivision->mode() == mode)
+        return;
+    m_subdivision->setMode(mode);
+    if (isMaster())
+        setNeedSync();
 }
 
 int BaseLayer::textureDivisionGrid() const {
-    return 0;
+    return m_subdivision ? m_subdivision->grid() : 0;
 }
 
-void BaseLayer::setTextureDivisionGrid(int) {
-    // Overwrite in derived class
+void BaseLayer::setTextureDivisionGrid(int grid) {
+    if (!m_subdivision || m_subdivision->grid() == grid)
+        return;
+    m_subdivision->setGrid(grid);
+    if (isMaster())
+        setNeedSync();
+}
+
+int BaseLayer::textureDivisionMergeColumns() const {
+    return m_subdivision ? m_subdivision->mergeColumns() : 0;
+}
+
+int BaseLayer::textureDivisionMergeRows() const {
+    return m_subdivision ? m_subdivision->mergeRows() : 0;
+}
+
+bool BaseLayer::setTextureDivisionMerge(int cols, int rows) {
+    if (!m_subdivision)
+        return false;
+    if (m_subdivision->mergeColumns() == cols && m_subdivision->mergeRows() == rows)
+        return true;
+    if (!m_subdivision->setMerge(cols, rows))
+        return false;
+    if (isMaster())
+        setNeedSync();
+    return true;
+}
+
+void BaseLayer::applyTextureDivisionMerge() {
+    if (m_subdivision)
+        m_subdivision->applyMerge();
+}
+
+bool BaseLayer::supportsTextureSubdivision() const {
+    return m_subdivision != nullptr;
+}
+
+void BaseLayer::enableTextureSubdivision() {
+    if (!m_subdivision)
+        m_subdivision = std::make_unique<TextureSubdivision>(this);
 }
 
 void BaseLayer::encodeTypeCore(std::vector<std::byte>&) {
@@ -684,10 +731,15 @@ void BaseLayer::decodeTypeProperties(const std::vector<std::byte>&, unsigned int
 }
 
 bool BaseLayer::hasSubLayers() const {
-    return false;
+    // While a placeholder or the no-signal image shows, the layer renders that as a whole.
+    if (!m_subdivision || masterPlaceholderEnabled() || noSignalImageEnabled())
+        return false;
+    return m_subdivision->hasSubLayers();
 }
 
 std::vector<std::shared_ptr<BaseLayer>>& BaseLayer::getSubLayers() const {
+    if (m_subdivision)
+        return m_subdivision->subLayers();
     static std::vector<std::shared_ptr<BaseLayer>> empty;
     return empty;
 }
@@ -1681,14 +1733,14 @@ bool BaseLayer::hasPlane() const {
     return planeData.mesh != nullptr;
 }
 
-void BaseLayer::updatePlane() {
+std::optional<glm::vec2> BaseLayer::computedPlaneSize() const {
     if (this->width() <= 0 || this->height() <= 0)
-        return;
+        return std::nullopt;
 
     const bool circular = circularPlaneActive();
     if ((!circular && planeData.specifiedSize.x <= 0)
         || (planeData.specifiedSize.y <= 0 && (!circular || planeData.aspectRatioConsideration != 2)))
-        return;
+        return std::nullopt;
 
     float width = float(this->width());
     float height = float(this->height());
@@ -1730,6 +1782,15 @@ void BaseLayer::updatePlane() {
 
         calculatedPlaneSize.y = ratio * calculatedPlaneSize.x;
     }
+
+    return calculatedPlaneSize;
+}
+
+void BaseLayer::updatePlane() {
+    const std::optional<glm::vec2> size = computedPlaneSize();
+    if (!size)
+        return;
+    const glm::vec2 calculatedPlaneSize = *size;
 
     // Re-create plane if it isn't correct size
     if (planeData.mesh == nullptr || calculatedPlaneSize.x != planeData.actualSize.x || calculatedPlaneSize.y != planeData.actualSize.y) {

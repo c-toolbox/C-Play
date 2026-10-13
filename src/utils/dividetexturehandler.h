@@ -8,7 +8,9 @@
 #ifndef DIVIDETEXTUREHANDLER_H
 #define DIVIDETEXTUREHANDLER_H
 
+#include <cstdint>
 #include <memory>
+#include <mutex>
 #include <string>
 #include <vector>
 
@@ -67,13 +69,45 @@ public:
     // Call this after changing division or when parent properties change.
     void reinitializeFromParent(BaseLayer* parentLayer);
 
+    // Places the cells, in reading order (top row first), side by side on a
+    // mergeCols x mergeRows grid centred on the parent's plane, at the parent's scale:
+    // pose, size and stereo/flip come from the parent, each cell gets its offset within the
+    // layout. Only in Plane grid mode; otherwise only the grid mode is shared.
+    // With followMovedCell, a cell changed since the last call (moved through its own grid
+    // parameters) first moves the parent, so the layout moves along with it.
+    void applyMerge(BaseLayer* parentLayer, int mergeCols, int mergeRows, bool followMovedCell);
+
 private:
+    // What applyMerge() last set on a cell, to notice cells changed elsewhere.
+    struct MergedCell {
+        const BaseLayer* layer = nullptr;
+        uint8_t gridMode = 0;
+        bool circular = false;
+        uint8_t aspectRatio = 0;
+        double azimuth = 0.0;
+        double elevation = 0.0;
+        double roll = 0.0;
+        double distance = 0.0;
+        double horizontal = 0.0;
+        double vertical = 0.0;
+        double centreDegrees = 0.0;
+        double width = 0.0;
+        double height = 0.0;
+        double widthDegrees = 0.0;
+    };
+    static MergedCell readCell(const BaseLayer* cell);
+    static bool cellChanged(const MergedCell& applied, const BaseLayer* cell);
+
     void createSubLayers(BaseLayer* parentLayer);
     void applyRoiForCell(std::shared_ptr<TextureLayer>& sub, int col, int row) const;
 
     int m_cols = 1;
     int m_rows = 1;
     mutable std::vector<std::shared_ptr<BaseLayer>> m_subLayers;
+
+    // applyMerge() runs on the render thread every frame and on the GUI thread after edits.
+    std::mutex m_mergeMutex;
+    std::vector<MergedCell> m_merged;
 };
 
 #endif // DIVIDETEXTUREHANDLER_H

@@ -149,6 +149,10 @@ public:
     void encodeTypeAlways(std::vector<std::byte> &data) override;
     void decodeTypeAlways(const std::vector<std::byte> &data, unsigned int &pos) override;
 
+    // Layer operations (QR / division), see TextureSubdivision.
+    void encodeTypeProperties(std::vector<std::byte> &data) override;
+    void decodeTypeProperties(const std::vector<std::byte> &data, unsigned int &pos) override;
+
 private:
     enum class SyncMode {
         None,        // show the newest decoded frame (no relay, or master-only layer)

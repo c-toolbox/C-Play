@@ -14,6 +14,7 @@
 #include <cstring>
 #include "audiosettings.h"
 #include <utils/directshowpathresolver.h>
+#include <utils/texturesubdivision.h>
 #ifdef CAPTURE_DATAPATH
 #include <capture/datapathcapture.h>
 #endif
@@ -322,6 +323,7 @@ bool convertAudioToFloat32(const BYTE* data, DWORD length, const WAVEFORMATEX* w
 
 DirectShowLayer::DirectShowLayer() {
     setType(BaseLayer::LayerType::DIRECTSHOW);
+    enableTextureSubdivision();
 #ifdef _WIN32
     m_handoff = std::make_shared<FrameHandoff>();
 #endif
@@ -396,6 +398,22 @@ void DirectShowLayer::decodeTypeCore(const std::vector<std::byte>& data, unsigne
     bool useNoSignalImage = false;
     sgct::deserializeObject(data, pos, useNoSignalImage);
     m_useNoSignalImage.store(useNoSignalImage);
+}
+
+void DirectShowLayer::encodeTypeAlways(std::vector<std::byte>& data) {
+    m_subdivision->encodeAlways(data);
+}
+
+void DirectShowLayer::decodeTypeAlways(const std::vector<std::byte>& data, unsigned int& pos) {
+    m_subdivision->decodeAlways(data, pos);
+}
+
+void DirectShowLayer::encodeTypeProperties(std::vector<std::byte>& data) {
+    m_subdivision->encodeProperties(data);
+}
+
+void DirectShowLayer::decodeTypeProperties(const std::vector<std::byte>& data, unsigned int& pos) {
+    m_subdivision->decodeProperties(data, pos);
 }
 
 bool DirectShowLayer::ready() const {
@@ -514,6 +532,10 @@ void DirectShowLayer::uploadFrame(const std::vector<unsigned char>& pixels, int 
     if (width <= 0 || height <= 0 || pixels.size() < static_cast<size_t>(width) * height * 4)
         return;
 
+    // QR control frames are never uploaded (two-phase scheme).
+    if (m_subdivision->isControlFrame(const_cast<unsigned char*>(pixels.data()), width, height, GL_RGBA))
+        return;
+
     const bool firstFrame = renderData.texId == 0;
     const bool resized = !firstFrame && (renderData.width != width || renderData.height != height);
 
@@ -548,6 +570,8 @@ void DirectShowLayer::uploadFrame(const std::vector<unsigned char>& pixels, int 
         glTexSubImage2D(GL_TEXTURE_2D, 0, 0, 0, width, height,
                         GL_RGBA, GL_UNSIGNED_BYTE, pixels.data());
     }
+
+    m_subdivision->updateSubLayers(renderData.texId, renderData.width, renderData.height);
 #endif
 }
 
