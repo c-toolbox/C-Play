@@ -110,8 +110,8 @@ SettingsBasePage {
                     enabled: ConfigModel.nodeWindowTransparencySupported
 
                     onCheckedChanged: {
-                        // Update the synced state so the nodes switch mode immediately, and
-                        // persist it for the next startup.
+                        // Connected nodes persist the synced choice for their next startup.
+                        // Framebuffer transparency cannot change on an existing window.
                         playerController.nodeWindowOpacityContentBased = checked;
                         UserInterfaceSettings.windowOpacityContentBased = checked;
                         UserInterfaceSettings.save();
@@ -121,7 +121,7 @@ SettingsBasePage {
                     Layout.fillWidth: true
                     elide: Text.ElideRight
                     text: ConfigModel.nodeWindowTransparencySupported ?
-                        qsTr("How the node window opacity is applied to the nodes. Unchecked fades the complete window uniformly, content included; checked only fades the unrendered/background areas between opaque black and fully transparent.") :
+                        qsTr("How the node window opacity is applied to the nodes. Unchecked fades the complete window uniformly, content included; checked only fades the unrendered/background areas between opaque black and fully transparent. Restart connected nodes after changing this mode. Nodes that were offline must reconnect to receive the setting, then restart.") :
                         qsTr("Unavailable: all node windows in the cluster configuration are fullscreen. Node window transparency/fading requires windowed (non-fullscreen) node windows.")
                 }
             }

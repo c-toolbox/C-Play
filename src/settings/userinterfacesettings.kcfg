@@ -116,7 +116,7 @@
       <default>2000</default>
     </entry>
     <entry name="WindowOpacityContentBased" type="bool">
-      <label>How the node window opacity is applied: false = complete-window (uniform whole-window fade), true = content-based (alpha channel and clear color)</label>
+      <label>How the node window opacity is applied: false = complete-window (uniform whole-window fade), true = content-based (alpha channel and clear color). Changing this requires restarting connected nodes.</label>
       <default>false</default>
     </entry>
     <entry name="FloatingWindowShowsMainVideoLayer" type="bool">

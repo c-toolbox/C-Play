@@ -516,6 +516,12 @@ void LayersRenderer::renderLayer(const sgct::RenderData& data, const BaseLayer* 
     glActiveTexture(GL_TEXTURE0);
     glBindTexture(GL_TEXTURE_2D, layer->textureId());
     glEnable(GL_BLEND);
+    // Blend straight-alpha RGB while accumulating coverage separately. Using
+    // SRC_ALPHA for alpha would square it and make an opaque background translucent
+    // during layer fades. Set this explicitly rather than inheriting SGCT's state.
+    glBlendEquation(GL_FUNC_ADD);
+    glBlendFuncSeparate(GL_SRC_ALPHA, GL_ONE_MINUS_SRC_ALPHA,
+                        GL_ONE, GL_ONE_MINUS_SRC_ALPHA);
 
     if (layer->gridMode() == 4) {
         glEnable(GL_CULL_FACE);

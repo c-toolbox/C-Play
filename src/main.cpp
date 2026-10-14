@@ -31,6 +31,8 @@
 #include <capture/nodecaptureinventory.h>
 #include <layersmodel.h>
 #include <QCoreApplication>
+#include <KConfig>
+#include <KConfigGroup>
 #include <atomic>
 #include <mutex>
 #include <slidesmodel.h>
@@ -67,6 +69,11 @@ std::string startupFile = "";
 // before SGCT creates the windows. Fully qualified because "using namespace sgct;" appears
 // later in this file.
 sgct::config::Cluster clusterConfig;
+
+// Framebuffer transparency is a creation-time choice. Keep the active mode separate
+// from the master's requested mode, which is persisted on nodes for their next start.
+bool nodeWindowContentBased = false;
+bool savedWindowContentBased = false;
 
 struct PendingLayerPacket {
     uint32_t id = 0;
@@ -787,17 +794,28 @@ static void syncNodeWindowFeatures() {
     const float targetOpacity = SyncHelper::instance().variables.windowOpacity;
     const int newWinOnTop = (SyncHelper::instance().variables.windowOnTop ? 1 : 0);
 
-    // How the master wants the synced opacity applied: "complete-window" uses a uniform
-    // whole-window fade via glfwSetWindowOpacity(); "content-based" skips it, because GLFW
-    // forbids combining it with a transparent framebuffer on the same window ("the results of
-    // doing this are undefined"), and instead drives the background clear color alpha in
-    // draw(). Fullscreen windows (opaque pixel format) therefore stay at full opacity in that
-    // mode; on-top (Z-order) still applies in both modes. The mode is synced from the master,
-    // so it can change while this node is running.
-    const bool contentBased = SyncHelper::instance().variables.windowOpacityContentBased;
+    const bool requestedContentBased =
+        SyncHelper::instance().variables.windowOpacityContentBased;
+    if (requestedContentBased != savedWindowContentBased) {
+        // Each node has its own settings file, including on remote machines. Remember
+        // the master's choice locally, but do not change the active window mode here.
+        KConfig settings(QStringLiteral("C-Play/cplay.conf"));
+        KConfigGroup group(&settings, QStringLiteral("UserInterface"));
+        group.writeEntry("WindowOpacityContentBased", requestedContentBased);
+        if (!settings.sync()) {
+            Log::Error("Could not save node window opacity mode for the next restart");
+        }
+        savedWindowContentBased = requestedContentBased;
+        Log::Info(requestedContentBased == nodeWindowContentBased ?
+            "Node window opacity mode matches the active windows" :
+            "Node window opacity mode changed; restart this node to apply it");
+    }
 
     for (const std::unique_ptr<Window> &win : Engine::instance().thisNode().windows()) {
-        if (!contentBased) {
+        // Never apply whole-window opacity to a transparent framebuffer, even if
+        // the master requests a different mode while this node is running.
+        if (!nodeWindowContentBased &&
+            !glfwGetWindowAttrib(win->windowHandle(), GLFW_TRANSPARENT_FRAMEBUFFER)) {
             // Compare with a small epsilon: layered window alpha is quantized to 1/255,
             // so an exact float comparison would re-apply the same value every frame.
             const float currentOpacity = glfwGetWindowOpacity(win->windowHandle());
@@ -805,11 +823,6 @@ static void syncNodeWindowFeatures() {
             if (opacityDiff > 1.f / 256.f || opacityDiff < -1.f / 256.f) {
                 glfwSetWindowOpacity(win->windowHandle(), targetOpacity);
             }
-        } else if (glfwGetWindowOpacity(win->windowHandle()) < 1.f - 1.f / 256.f) {
-            // The mode was switched to content-based while a uniform fade from the
-            // complete-window state is still active; reset it so only the clear color alpha
-            // drives transparency (setting 1.0 removes the layered window attribute).
-            glfwSetWindowOpacity(win->windowHandle(), 1.f);
         }
 
         if (newWinOnTop != glfwGetWindowAttrib(win->windowHandle(), GLFW_FLOATING)) {
@@ -1456,7 +1469,7 @@ static void draw(const RenderData &data) {
     // unrendered areas fade between opaque black and fully transparent while rendered
     // content keeps its own per-pixel alpha.
     glEnable(GL_SCISSOR_TEST);
-    if (SyncHelper::instance().variables.windowOpacityContentBased) {
+    if (nodeWindowContentBased) {
         glClearColor(0.f, 0.f, 0.f, SyncHelper::instance().variables.windowOpacity);
     }
     else {
@@ -1599,6 +1612,14 @@ static void dataTransferStatus(bool connected, int clientIndex) {
 }
 
 int main(int argc, char *argv[]) {
+    // Use the same explicit settings file as UserInterfaceSettings, without creating
+    // its QObject singleton before QApplication/QCoreApplication exists.
+    {
+        KConfig settings(QStringLiteral("C-Play/cplay.conf"));
+        const KConfigGroup group(&settings, QStringLiteral("UserInterface"));
+        nodeWindowContentBased = group.readEntry("WindowOpacityContentBased", false);
+        savedWindowContentBased = nodeWindowContentBased;
+    }
     std::vector<std::string> arg(argv + 1, argv + argc);
     Configuration config = parseArguments(arg);
     clusterConfig = loadCluster(config.configFilename);
@@ -1718,14 +1739,11 @@ int main(int argc, char *argv[]) {
     callbacks.cleanup = cleanup;
     callbacks.dataTransferDecode = dataTransferDecode;
     callbacks.dataTransferStatus = dataTransferStatus;
-    // Set right before SGCT creates the windows. The hint is global process state and
-    // Window::openWindow() does not override it, so every window of this process gets an
-    // alpha-capable pixel format (per-pixel DWM transparency). Fullscreen windows acquire an
-    // exclusive video mode where per-pixel transparency is unavailable, and the hint cannot be
-    // applied per window without SGCT changes -> only set it when none of this node's windows
-    // is fullscreen. Changing this requires restarting the node process (e.g. via a cluster
-    // config change).
+    // Choose exactly one transparency mechanism when SGCT creates the windows.
+    // The hint is global and cannot be changed on existing windows. Fullscreen nodes
+    // cannot use framebuffer transparency; mode changes require a node restart.
     callbacks.preWindow = [] {
+        glfwWindowHint(GLFW_TRANSPARENT_FRAMEBUFFER, GLFW_FALSE);
         // ClusterManager was created before preWindow runs and holds the id of this process's
         // node in the cluster config (the runtime Window class does not expose its fullscreen
         // state, so it must be read from the config - ConfigModel caches that analysis).
@@ -1734,7 +1752,8 @@ int main(int argc, char *argv[]) {
             return;
         }
 
-        if (!ConfigModel::instance().nodeHasFullScreenWindow(nodeId)) {
+        if (nodeWindowContentBased &&
+            !ConfigModel::instance().nodeHasFullScreenWindow(nodeId)) {
             glfwWindowHint(GLFW_TRANSPARENT_FRAMEBUFFER, GLFW_TRUE);
         }
     };
