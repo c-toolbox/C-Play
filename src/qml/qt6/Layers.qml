@@ -524,6 +524,55 @@ Rectangle {
                 height: 1
                 width: Kirigami.Units.gridUnit + 10
             }
+            ButtonGroup {
+                id: masterHierarchyGroup
+                exclusive: true
+            }
+            Repeater {
+                // Master slide only: marks the selected layer as rendered behind (BACK)
+                // or above (FRONT) the layers of all other slides.
+                model: [
+                    { label: qsTr("Front"), value: 1, tip: qsTr("Front: the selected master layer is rendered above the layers of all slides (below the foreground image)") },
+                    { label: qsTr("Back"), value: 0, tip: qsTr("Back: the selected master layer is rendered behind the main video and the layers of all slides") }
+                ]
+                delegate: Button {
+                    required property var modelData
+                    readonly property int selectedHierarchy: layersView.currentItem ? layersView.currentItem.layerHierarchy : -1
+
+                    visible: app.slides.selectedSlideIdx === -1
+                    enabled: selectedHierarchy >= 0 && app.slides.selected.layersEnabled
+                             && !layersView.currentItem.layerIsReference && !layersView.currentItem.layerIsLocked
+                    checkable: true
+                    checked: selectedHierarchy === modelData.value
+                    ButtonGroup.group: masterHierarchyGroup
+                    font.pointSize: 8
+                    text: modelData.label
+                    leftPadding: 15
+                    rightPadding: 15
+                    Layout.preferredWidth: hierarchyTextMetrics.advanceWidth + leftPadding + rightPadding + 4
+
+                    TextMetrics {
+                        id: hierarchyTextMetrics
+                        font: parent.font
+                        text: parent.text
+                    }
+                    Layout.preferredHeight: Kirigami.Units.gridUnit * 1.2
+
+                    onClicked: {
+                        app.slides.selected.setLayerHierarchy(layersView.currentIndex, modelData.value);
+                        checked = Qt.binding(() => selectedHierarchy === modelData.value);
+                    }
+
+                    ToolTip {
+                        text: modelData.tip
+                    }
+                }
+            }
+            Item {
+                visible: app.slides.selectedSlideIdx === -1
+                Layout.fillHeight: true
+                Layout.preferredWidth: 3
+            }
         }
     }
 

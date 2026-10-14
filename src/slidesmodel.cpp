@@ -1430,6 +1430,9 @@ void SlidesModel::checkMasterLayersRunBasedOnMediaVisibility(int mediaVisibility
     for (int i = 0; i < slideLayers.size(); i++) {
         if (!slideLayers[i].first)
             continue;
+        // Front layers are rendered above the media, so media visibility must not affect them.
+        if (slideLayers[i].first->hierarchy() == BaseLayer::LayerHierarchy::FRONT)
+            continue;
         if (PresentationSettings::mediaVisibilityControlMasterLayers()) {
             slideLayers[i].first->setAlpha(static_cast<float>(100 - mediaVisibility) / 100.f);
             masterSlide()->updateLayer(i);

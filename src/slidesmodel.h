@@ -9,6 +9,7 @@
 #define SLIDESMODEL_H
 
 #include <qqml.h>
+#include <QPointer>
 #include <QAbstractListModel>
 #include <QAbstractTableModel>
 #include <QtQml/qqmlregistration.h>
@@ -329,7 +330,7 @@ Q_SIGNALS:
 private:
     QList<QSharedPointer<LayersModel>> m_slides;
     mutable std::recursive_mutex m_slidesMutex;
-    LayersModel *m_masterSlide;
+    QPointer<LayersModel> m_masterSlide;
     LayersModel *m_dummySlide;
     SlideVisibilityModel* m_visibilityModel;
     std::weak_ptr<BaseLayer> m_layerToCopyFrom;

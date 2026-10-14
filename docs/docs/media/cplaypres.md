@@ -30,7 +30,7 @@ The slides panel toolbar (first and second row):
 | ![](/assets/icons/list-remove.svg) | Remove selected slide |
 | ![](/assets/icons/pan-up-symbolic.svg) | Move selected slide up |
 | ![](/assets/icons/pan-down-symbolic.svg) | Move selected slide down |
-| ![](/assets/icons/backgroundtool.svg) | Master slide (permanent background layers) |
+| ![](/assets/icons/backgroundtool.svg) | Master slide (permanent layers, behind or above all slides) |
 
 #### Layers toolbar
 
@@ -50,15 +50,29 @@ The layers panel toolbar (first and second row):
 | ![](/assets/icons/layer-lower.svg) | Move selected layer down |
 | ![](/assets/icons/document-edit-decrypt-verify.svg) | Layer view (inspect selected layer) |
 
-Even if you have not created any slides, there is always a special slide called *Master* that you can add layers to. The special thing about the *master* slide is that layers in this slide are always rendered in front of the background image, but behind any media you play from *"Open file"* or through the playlist. Hence, the master layers essentially work as flexible background layers. Layers in the other slides are rendered in front of the media in the main player, and the foreground image is on top.
+Even if you have not created any slides, there is always a special slide called *Master* that you can add layers to. Master layers are permanent: they are not tied to a triggered slide. Each master layer is either a **Back** or a **Front** layer:
+
+* **Back** layers (default) are rendered in front of the background image, but behind any media you play from *"Open file"* or through the playlist. They work as flexible background layers.
+* **Front** layers are rendered above the layers of all other slides, but below the foreground image. Use them for permanent overlays such as logos, frames or masks.
+
+Layers in the other slides are rendered in front of the media in the main player, and the foreground image is always on top.
 
 I.e., from top to bottom in render hierarchy:
 
 * ![](/assets/icons/layer-top.svg) Foreground image
+* ![](/assets/icons/backgroundtool.svg) Master slide, Front layers
 * ![](/assets/icons/layer-raise.svg) Slides in list
 * ![](/assets/icons/media-playback-start.svg) Main media
-* ![](/assets/icons/backgroundtool.svg) Master slide
+* ![](/assets/icons/backgroundtool.svg) Master slide, Back layers
 * ![](/assets/icons/layer-bottom.svg) Background image
+
+Within each group, the order of the master layers list applies (top of the list is rendered on top). The same order is used in the master 3D view and on all nodes.
+
+#### Marking master layers as Front or Back
+
+When the *Master* slide is selected, two buttons, **Front** and **Back**, are shown next to the *Master Layers* title above the layers list. They set the hierarchy of the selected layer, and show which one it currently has. Each master layer also shows a small grey *Front*/*Back* mark in the top right corner of its row; click the mark to toggle it. Locked layers and references cannot be changed.
+
+New master layers start as Back layers. Presentations saved before this feature load with all master layers as Back, so they render exactly as before. A `"hierarchy": "front"` entry is only saved for Front layers; older C-Play versions ignore it and show those layers as Back layers.
 
 To add new layers, click the ![](/assets/icons/list-add.svg) "+" button to the left in the layers list, and the *"Add new layer"* will become visible. 
 
@@ -82,7 +96,7 @@ In the slides menu there is a button named *"Visibility"* ![](/assets/icons/tabl
 
 * A black cell can be changed to a white cell by clicking it.
 
-Remember, master layer visibility usually fades in and out depending on media visibility. See [presentation settings](/settings/presentation).
+Remember, the visibility of master Back layers usually fades in and out depending on media visibility. Master Front layers are not affected by media visibility. See [presentation settings](/settings/presentation).
 
 ![Slide Visibility Matrix](/assets/ui/slide_visibility_matrix.png)
 

@@ -48,7 +48,7 @@ This is a local-compositing technique. The application behind C-Play is not capt
 
 Presentation layers can be used as overlays while the background application keeps running. For example, a master-slide layer can act as a persistent background or mask, while a normal slide layer can show titles, logos, timers, or mapped media above the live application.
 
-Layer ordering still follows the normal presentation rules described in [Presentation (Slides & Layers)](/media/cplaypres): master layers are behind normal media, slide layers are in front of media, and foreground images are on top.
+Layer ordering still follows the normal presentation rules described in [Presentation (Slides & Layers)](/media/cplaypres): master Back layers are behind normal media, slide layers are in front of media, master Front layers are above slide layers, and foreground images are on top.
 
 ---
 

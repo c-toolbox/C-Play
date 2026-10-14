@@ -112,7 +112,8 @@ public:
         ExistOnMasterOnlyRole,
         NodeStreamOutputRole,
         IsReferenceRole,
-        ReferenceSourceRole
+        ReferenceSourceRole,
+        HierarchyRole
     };
 
     int rowCount(const QModelIndex &parent = QModelIndex()) const override;
@@ -209,6 +210,9 @@ public:
     Q_INVOKABLE void lockLayer(int i);
     Q_INVOKABLE void unlockLayer(int i);
     Q_INVOKABLE bool isLocked(int i);
+    // BaseLayer::LayerHierarchy of the layer in row i (0 = back, 1 = front), -1 if none.
+    Q_INVOKABLE int layerHierarchy(int i) const;
+    Q_INVOKABLE void setLayerHierarchy(int i, int h);
     Q_INVOKABLE void clearLayers();
 
     Q_PROPERTY(LayersTypeModel *layersTypeModel

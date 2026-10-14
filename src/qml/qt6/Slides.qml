@@ -449,7 +449,7 @@ Rectangle {
                     }
 
                     ToolTip {
-                        text: qsTr("Master slide with perminent background layers")
+                        text: qsTr("Master slide with permanent layers, rendered behind (Back) or above (Front) all slides")
                     }
                 }
                 Item {

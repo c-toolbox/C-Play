@@ -393,15 +393,24 @@ static std::vector<std::byte> encode() {
             if (masterSlidePtr)
                 slidesToSync.push_back(std::make_pair(-1, masterSlidePtr));
 
-            // Layers top to bottom: the slide render stack reversed (it follows the render
-            // order of the triggered slide, see SlidesModel::buildRenderStack), then master.
-            std::vector<std::shared_ptr<BaseLayer>> layersToSync = Application::instance().slidesModel()->buildRenderStack(slidesSnapshot);
-            std::reverse(layersToSync.begin(), layersToSync.end());
+            // Layers top to bottom: master FRONT layers, the slide render stack reversed (it
+            // follows the render order of the triggered slide, see SlidesModel::buildRenderStack),
+            // then master BACK layers.
+            std::vector<std::shared_ptr<BaseLayer>> layersToSync;
+            std::vector<std::shared_ptr<BaseLayer>> masterBackLayers;
             if (masterSlidePtr) {
                 int numLayers = masterSlidePtr->numberOfLayers();
-                for (int l = 0; l < numLayers; l++)
-                    layersToSync.push_back(masterSlidePtr->layerShared(l));
+                for (int l = 0; l < numLayers; l++) {
+                    std::shared_ptr<BaseLayer> masterLayer = masterSlidePtr->layerShared(l);
+                    if (masterLayer && masterLayer->hierarchy() == BaseLayer::LayerHierarchy::FRONT)
+                        layersToSync.push_back(masterLayer);
+                    else
+                        masterBackLayers.push_back(masterLayer);
+                }
             }
+            std::vector<std::shared_ptr<BaseLayer>> slideStack = Application::instance().slidesModel()->buildRenderStack(slidesSnapshot);
+            layersToSync.insert(layersToSync.end(), slideStack.rbegin(), slideStack.rend());
+            layersToSync.insert(layersToSync.end(), masterBackLayers.begin(), masterBackLayers.end());
 
             // Check if model says sync needed. A slide's own needSync flag is set by
             // structural changes (add/remove/move layers) which reorder the layer list;

@@ -27,7 +27,7 @@ These defaults are applied when adding new layers. Each layer can be changed ind
 
 ### Master control
 
-* **Media visibility controls master layer visibility** — When enabled, the primary media visibility (from "Open file" or the playlist) controls the fade in/out and start/stop of master layers (default on).
+* **Media visibility controls master layer visibility** — When enabled, the primary media visibility (from "Open file" or the playlist) controls the fade in/out and start/stop of master Back layers (default on). Master Front layers are rendered above the media and are never affected.
 * **Master volume controls all layers volume** — When enabled, changing the master volume in the header also affects all layer volume levels, applied as a percentage of each layer's individual maximum (default on).
 
 ### Lockable layers

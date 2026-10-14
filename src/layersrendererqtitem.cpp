@@ -3022,33 +3022,37 @@ void LayersRendererQtOpenGLObject::renderLayers(float angle,
         renderLayer(m_backgroundImageLayer.get(), eyeMode, angle, viewMatrix, projectionMatrix);
     }
 
-    // Render master slide
-    if (Application::instance().slidesModel()) {
+    // Render master slide layers of one hierarchy: BACK below the video and slides, FRONT above them
+    auto renderMasterLayers = [&](BaseLayer::LayerHierarchy hierarchy) {
+        if (!Application::instance().slidesModel())
+            return;
         auto* slide = Application::instance().slidesModel()->masterSlide();
-        if (slide) {
-            int numLayers = slide->numberOfLayers();
-            for (int l = numLayers - 1; l >= 0; l--) {
-                std::shared_ptr<BaseLayer> layerPtr = slide->layerShared(l);
-                BaseLayer* layer = layerPtr.get();
+        if (!slide)
+            return;
+        int numLayers = slide->numberOfLayers();
+        for (int l = numLayers - 1; l >= 0; l--) {
+            std::shared_ptr<BaseLayer> layerPtr = slide->layerShared(l);
+            BaseLayer* layer = layerPtr.get();
 
-                if (layer) {
-                    // Layers that only exist on the master can be hidden from the 3D view.
-                    if (UserInterfaceSettings::hideMasterOnlyLayersIn3DView() && layer->existOnMasterOnly())
-                        continue;
-                    if (layer->ready() && layer->hasTexture() && (layer->alpha() > 0.f)) {
-                        if (layer->hasSubLayers()) {
-                            for (const auto& sublayer : layer->getSubLayers()) {
-                                renderLayer(sublayer.get(), eyeMode, angle, viewMatrix, projectionMatrix);
-                            }
+            if (layer && layer->hierarchy() == hierarchy) {
+                // Layers that only exist on the master can be hidden from the 3D view.
+                if (UserInterfaceSettings::hideMasterOnlyLayersIn3DView() && layer->existOnMasterOnly())
+                    continue;
+                if (layer->ready() && layer->hasTexture() && (layer->alpha() > 0.f)) {
+                    if (layer->hasSubLayers()) {
+                        for (const auto& sublayer : layer->getSubLayers()) {
+                            renderLayer(sublayer.get(), eyeMode, angle, viewMatrix, projectionMatrix);
                         }
-                        else if(!layer->isQRCodeDetectionEnabled() || layer->isQRCodeDetectionEnabled() && !layer->hasSubLayers()){
-                            renderLayer(layer, eyeMode, angle, viewMatrix, projectionMatrix);
-                        }
+                    }
+                    else if(!layer->isQRCodeDetectionEnabled() || layer->isQRCodeDetectionEnabled() && !layer->hasSubLayers()){
+                        renderLayer(layer, eyeMode, angle, viewMatrix, projectionMatrix);
                     }
                 }
             }
         }
-    }
+    };
+
+    renderMasterLayers(BaseLayer::LayerHierarchy::BACK);
 
     // Render MPV video layer
     if (m_mpvObject && SyncHelper::instance().variables.alpha) {
@@ -3091,6 +3095,8 @@ void LayersRendererQtOpenGLObject::renderLayers(float angle,
             }
         }
     }
+
+    renderMasterLayers(BaseLayer::LayerHierarchy::FRONT);
 
     // Render foreground image layer
     if (m_foregroundImageLayer && m_foregroundImageLayer->ready() && SyncHelper::instance().variables.alphaFg > 0.f) {

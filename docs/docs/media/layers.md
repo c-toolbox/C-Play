@@ -232,7 +232,7 @@ For mapping choices, see [Video & image mapping modes](/media/mapping). For fade
 
 ## Master and node sources
 
-By default, nodes load their own copy of a synchronized layer. The **Sync** control in Layer View can make a layer exist only on the master. This is separate from the **Master slide**, which determines the layer's position in the rendering order.
+By default, nodes load their own copy of a synchronized layer. The **Sync** control in Layer View can make a layer exist only on the master. This is separate from the **Master slide** and its Front/Back marking, which determine the layer's position in the [rendering order](/media/cplaypres).
 
 For supported live layer types, **Nodes read from original source** lets each machine load its source, while **Master sends content to nodes** renders on the master and streams the texture. The **Nodes** control in Layer View also enables texture streaming. See [Streaming layers from master to nodes](/playback/node-streaming) for transport, audio, and synchronization details.
 

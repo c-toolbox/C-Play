@@ -187,6 +187,8 @@ QVariant LayersModel::data(const QModelIndex &index, int role) const {
         return QVariant(isReference(row));
     case ReferenceSourceRole:
         return QVariant(referenceSource(row));
+    case HierarchyRole:
+        return QVariant(static_cast<int>(layerItem->hierarchy()));
     }
 
     return QVariant();
@@ -208,6 +210,7 @@ QHash<int, QByteArray> LayersModel::roleNames() const {
     roles[NodeStreamOutputRole] = "nodeStreamOutput";
     roles[IsReferenceRole] = "isReference";
     roles[ReferenceSourceRole] = "referenceSource";
+    roles[HierarchyRole] = "hierarchy";
     return roles;
 }
 
@@ -1064,6 +1067,27 @@ bool LayersModel::isLocked(int i) {
     return m_layers[own].first->isLocked();
 }
 
+int LayersModel::layerHierarchy(int i) const {
+    std::lock_guard<std::recursive_mutex> layersLock(m_layersMutex);
+    const BaseLayer *l = rowLayer(i);
+    return l ? static_cast<int>(l->hierarchy()) : -1;
+}
+
+void LayersModel::setLayerHierarchy(int i, int h) {
+    if (h != BaseLayer::LayerHierarchy::BACK && h != BaseLayer::LayerHierarchy::FRONT)
+        return;
+    {
+        std::lock_guard<std::recursive_mutex> layersLock(m_layersMutex);
+        const int own = ownIndexOfRow(i);
+        if (own < 0 || !m_layers[own].first || m_layers[own].first->hierarchy() == h)
+            return;
+        m_layers[own].first->setHierarchy(static_cast<BaseLayer::LayerHierarchy>(h));
+    }
+    setNeedSync();
+    updateLayer(i);
+    setLayersNeedsSave(true);
+}
+
 void LayersModel::clearLayers() {
     std::lock_guard<std::recursive_mutex> layersLock(m_layersMutex);
     // References are kept: they belong to earlier slides.
@@ -1721,6 +1745,15 @@ void LayersModel::decodeFromJSON(QJsonObject &obj, const QStringList &forRelativ
                         m_layers[idx].first->setExistOnMasterOnly(o.value(QStringLiteral("existOnMasterOnly")).toBool());
                     }
 
+                    // Absent in older files: the layer keeps the slide default (set in addLayer).
+                    if (o.contains(QStringLiteral("hierarchy"))) {
+                        const QString h = o.value(QStringLiteral("hierarchy")).toString();
+                        if (h == QStringLiteral("front"))
+                            m_layers[idx].first->setHierarchy(BaseLayer::LayerHierarchy::FRONT);
+                        else if (h == QStringLiteral("back"))
+                            m_layers[idx].first->setHierarchy(BaseLayer::LayerHierarchy::BACK);
+                    }
+
                     if (o.contains(QStringLiteral("nodeStreamFormat")))
                         m_layers[idx].first->setNodeStreamFormat(o.value(QStringLiteral("nodeStreamFormat")).toInt());
                     if (o.contains(QStringLiteral("nodeStreamSync")))
@@ -2206,6 +2239,11 @@ void LayersModel::encodeToJSON(QJsonObject &obj, const QStringList &forRelativeP
 
         if (layer->existOnMasterOnly()) {
             layerData.insert(QStringLiteral("existOnMasterOnly"), QJsonValue(true));
+        }
+
+        if (layer->hierarchy() != m_layerHierachy) {
+            layerData.insert(QStringLiteral("hierarchy"),
+                             QJsonValue(layer->hierarchy() == BaseLayer::LayerHierarchy::FRONT ? QStringLiteral("front") : QStringLiteral("back")));
         }
 
         if (layer->useNoSignalImage())

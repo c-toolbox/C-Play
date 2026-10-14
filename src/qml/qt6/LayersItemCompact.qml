@@ -21,6 +21,11 @@ ItemDelegate {
     property int iconWidth: 0
     property string rowNumber: (index + 1).toString()
 
+    // Read by the master Front/Back buttons in Layers.qml through layersView.currentItem.
+    readonly property int layerHierarchy: model.hierarchy
+    readonly property bool layerIsReference: model.isReference
+    readonly property bool layerIsLocked: model.locked && app.slides.selected.layersCanBeLocked
+
     // Drag state for visual feedback
     property bool dragging: false
     property real originalY: 0
@@ -200,6 +205,38 @@ ItemDelegate {
                     text: model.locked ? qsTr("Layer is locked. Click to unlock it for editing.") : qsTr("Layer is unlocked. Click to lock it against editing.")
                 }
             }
+            Label {
+                // Master slide only: toggles whether the layer is rendered behind or above all slides.
+                visible: app.slides.selectedSlideIdx === -1 && !model.isReference
+                anchors.top: parent.top
+                anchors.right: parent.right
+                anchors.topMargin: 2
+                anchors.rightMargin: 16
+                font.pointSize: 7
+                color: model.hierarchy === 1 ? Kirigami.Theme.textColor : Kirigami.Theme.disabledTextColor
+                opacity: hierarchyMarkMA.containsMouse ? 1.0 : 0.7
+                text: model.hierarchy === 1 ? qsTr("Front") : qsTr("Back")
+
+                MouseArea {
+                    id: hierarchyMarkMA
+                    anchors.fill: parent
+                    anchors.margins: -2
+                    hoverEnabled: true
+                    enabled: !root.layerIsLocked
+                    cursorShape: Qt.PointingHandCursor
+
+                    onClicked: {
+                        if (app.slides.selected.layersEnabled) {
+                            app.slides.selected.setLayerHierarchy(index, model.hierarchy === 1 ? 0 : 1);
+                        }
+                    }
+                }
+
+                ToolTip.visible: hierarchyMarkMA.containsMouse
+                ToolTip.text: model.hierarchy === 1
+                              ? qsTr("Front: rendered above the layers of all slides (below the foreground image). Click to make it a back layer.")
+                              : qsTr("Back: rendered behind the main video and the layers of all slides. Click to make it a front layer.")
+            }
             Rectangle {
                 anchors.top: parent.top
                 anchors.right: parent.right
@@ -275,6 +312,12 @@ ItemDelegate {
 
                 // Model refreshes must not write back while the selected layer changes.
                 property bool syncingValue: false
+                // Follows changes made elsewhere, e.g. fades driven by the media visibility.
+                property int modelVisibility: model.visibility
+                onModelVisibilityChanged: {
+                    if (visible && !pressed && Math.round(value) !== modelVisibility)
+                        syncValue(modelVisibility);
+                }
                 function syncValue(newValue) {
                     syncingValue = true;
                     value = newValue;
