@@ -130,8 +130,14 @@ std::vector<std::pair<int, int>> TextureSubdivision::validMerges(int cellCount) 
 }
 
 void TextureSubdivision::applyMerge() {
-    if (m_mode != Division || !m_divideTexHandler || m_mergeCols < 1 || m_mergeRows < 1)
+    if (m_mode != Division || !m_divideTexHandler)
         return;
+    if (m_mergeCols < 1 || m_mergeRows < 1) {
+        // Custom cells use their usual full-screen quad instead of the previous merge.
+        for (auto& sub : m_divideTexHandler->subLayers())
+            sub->setScreenRect(glm::vec4(0.f, 0.f, 1.f, 1.f));
+        return;
+    }
     // Only the master turns a moved cell into a move of the layout; the nodes follow the
     // synced parent (and cells).
     m_divideTexHandler->applyMerge(m_owner, m_mergeCols, m_mergeRows, m_owner->isMaster());

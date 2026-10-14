@@ -281,15 +281,33 @@ void DivideTextureHandler::applyMerge(BaseLayer* parent, int mergeCols, int merg
 
     const uint8_t gridMode = parent->gridMode();
     const bool plane = gridMode == BaseLayer::GridMode::Plane;
+    const bool flat = gridMode == BaseLayer::GridMode::None;
+    // ROI row zero is at the bottom unless the texture is flipped. Arrange cells
+    // in picture reading order for both plane and screen-space merge layouts.
+    auto mergedPosition = [&](int index) {
+        const int col = index % m_cols;
+        const int row = index / m_cols;
+        const int readingIndex = (parent->flipY() ? row : m_rows - 1 - row) * m_cols + col;
+        return glm::ivec2(readingIndex % mergeCols, readingIndex / mergeCols);
+    };
+    for (int i = 0; i < count; ++i) {
+        const auto position = mergedPosition(i);
+        m_subLayers[i]->setScreenRect(flat
+            ? glm::vec4(float(position.x) / mergeCols, 1.f - float(position.y + 1) / mergeRows,
+                        1.f / mergeCols, 1.f / mergeRows)
+            : glm::vec4(0.f, 0.f, 1.f, 1.f));
+    }
     for (auto& sub : m_subLayers) {
         if (sub->gridMode() != gridMode)
             sub->setGridMode(gridMode);
-        if (!plane)
+        if (!plane && !flat)
             continue;
         if (sub->stereoMode() != parent->stereoMode())
             sub->setStereoMode(parent->stereoMode());
         if (sub->flipY() != parent->flipY())
             sub->setFlipY(parent->flipY());
+        if (!plane)
+            continue;
         if (sub->planeCircular() != parent->planeCircular())
             sub->setPlaneCircular(parent->planeCircular());
         if (sub->planeAspectRatio() != parent->planeAspectRatio())
@@ -321,15 +339,10 @@ void DivideTextureHandler::applyMerge(BaseLayer* parent, int mergeCols, int merg
         }
 
         // Offset of a cell from the layout centre, in cm on the plane (x right, y up).
-        // The plane mesh has texture row 0 at the bottom, so the top row of the picture is
-        // the first cell row when flipped and the last one otherwise.
-        const bool topRowFirst = parent->flipY();
         auto offset = [&](int index) {
-            const int col = index % m_cols;
-            const int row = index / m_cols;
-            const int readingIndex = (topRowFirst ? row : m_rows - 1 - row) * m_cols + col;
-            const int mergedCol = readingIndex % mergeCols;
-            const int mergedRow = readingIndex / mergeCols;
+            const auto position = mergedPosition(index);
+            const int mergedCol = position.x;
+            const int mergedRow = position.y;
             return glm::dvec2((mergedCol + 0.5 - mergeCols * 0.5) * cellSize.x,
                               (mergeRows * 0.5 - mergedRow - 0.5) * cellSize.y);
         };

@@ -770,7 +770,8 @@ void LayersRenderer::renderLayer(const sgct::RenderData& data, const BaseLayer* 
         if (layer->animActive() && anim.spin != 0.f)
             glGetIntegerv(GL_VIEWPORT, viewport);
         const glm::mat4 quad = cplay::anim::flatQuadMatrix(anim, layer->animActive(),
-            viewport[3] > 0 ? static_cast<float>(viewport[2]) / static_cast<float>(viewport[3]) : 1.f);
+            viewport[3] > 0 ? static_cast<float>(viewport[2]) / static_cast<float>(viewport[3]) : 1.f,
+            layer->screenRect());
         glUniformMatrix4fv(videoMaskLocs.quadMatrix, 1, GL_FALSE, &quad[0][0]);
         glUniform1i(videoFlipYLoc, (layer->renderFlipY() ? 1 : 0));
 

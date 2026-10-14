@@ -2474,7 +2474,8 @@ void LayersRendererQtOpenGLObject::renderLayer(const BaseLayer* layer, int eyeMo
         {
             const QRect vp = renderViewportRect();
             const glm::mat4 quad = cplay::anim::flatQuadMatrix(anim, animActive,
-                vp.height() > 0 ? static_cast<float>(vp.width()) / static_cast<float>(vp.height()) : 1.f);
+                vp.height() > 0 ? static_cast<float>(vp.width()) / static_cast<float>(vp.height()) : 1.f,
+                layer->screenRect());
             m_videoPrg->setUniformValue(m_videoMaskLocs.quadMatrix, QMatrix4x4(glm::value_ptr(glm::transpose(quad))));
         }
         m_videoPrg->setUniformValue(m_videoFlipYLoc, layer->renderFlipY());

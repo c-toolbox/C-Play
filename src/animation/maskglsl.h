@@ -63,18 +63,24 @@ float cplayMask(vec2 uv) {
 namespace cplay::anim {
 
 // Transform for the flat (screen quad) render path, in normalized device coordinates.
-inline glm::mat4 flatQuadMatrix(const LayerAnimState &a, bool active, float viewportAspect) {
+inline glm::mat4 flatQuadMatrix(const LayerAnimState &a, bool active, float viewportAspect,
+                               const glm::vec4 &screenRect = glm::vec4(0.f, 0.f, 1.f, 1.f)) {
     glm::mat4 m(1.f);
-    if (!active)
-        return m;
-    const float aspect = viewportAspect > 0.f && std::isfinite(viewportAspect) ? viewportAspect : 1.f;
-    m = glm::translate(m, glm::vec3(a.move * 2.f, 0.f));
-    if (a.spin != 0.f) {
-        m = glm::scale(m, glm::vec3(1.f / aspect, 1.f, 1.f));
-        m = glm::rotate(m, glm::radians(a.spin), glm::vec3(0.f, 0.f, 1.f));
-        m = glm::scale(m, glm::vec3(aspect, 1.f, 1.f));
+    if (active) {
+        const float aspect = viewportAspect > 0.f && std::isfinite(viewportAspect) ? viewportAspect : 1.f;
+        m = glm::translate(m, glm::vec3(a.move * 2.f, 0.f));
+        if (a.spin != 0.f) {
+            m = glm::scale(m, glm::vec3(1.f / aspect, 1.f, 1.f));
+            m = glm::rotate(m, glm::radians(a.spin), glm::vec3(0.f, 0.f, 1.f));
+            m = glm::scale(m, glm::vec3(aspect, 1.f, 1.f));
+        }
+        m = glm::scale(m, glm::vec3(a.scale, a.scale, 1.f));
     }
-    m = glm::scale(m, glm::vec3(a.scale, a.scale, 1.f));
+    // Map the full NDC quad into the cell's destination rectangle. Animation then
+    // transforms the resulting layout in window coordinates.
+    m = glm::translate(m, glm::vec3(2.f * screenRect.x + screenRect.z - 1.f,
+                                  2.f * screenRect.y + screenRect.w - 1.f, 0.f));
+    m = glm::scale(m, glm::vec3(screenRect.z, screenRect.w, 1.f));
     return m;
 }
 

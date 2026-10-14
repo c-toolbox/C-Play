@@ -135,6 +135,9 @@ public:
         glm::vec3 rotate = glm::vec3(0);
         glm::vec3 translate = glm::vec3(0);
         glm::vec4 roi = glm::vec4(0.f, 0.f, 1.f, 1.f);
+        // Derived division/merge destination in normalized screen coordinates (bottom left).
+        // Rebuilt from the synced layout, rather than serialized as a layer property.
+        glm::vec4 screenRect = glm::vec4(0.f, 0.f, 1.f, 1.f);
     };
 
     struct PlaneParams {
@@ -379,6 +382,9 @@ public:
     const glm::vec4 &roi() const;
     void setRoi(const glm::vec4 &r);
     void setRoi(float x, float y, float width, float height);
+
+    const glm::vec4 &screenRect() const { return renderData.screenRect; }
+    void setScreenRect(const glm::vec4 &rect) { renderData.screenRect = rect; }
 
     double planeAzimuth() const;
     void setPlaneAzimuth(double pA);

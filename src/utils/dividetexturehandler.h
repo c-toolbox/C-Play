@@ -73,7 +73,8 @@ public:
     // mergeCols x mergeRows grid centred on the parent's plane. The parent's specified
     // width/height (or circular width) constrains the complete merge layout:
     // pose, size and stereo/flip come from the parent, each cell gets its offset within the
-    // layout. Only in Plane grid mode; otherwise only the grid mode is shared.
+    // layout. In None/Pre-Split mode each cell fills its normalized destination in
+    // the window; other grid modes only share the grid mode.
     // With followMovedCell, a cell changed since the last call (moved through its own grid
     // parameters) first moves the parent, so the layout moves along with it.
     void applyMerge(BaseLayer* parentLayer, int mergeCols, int mergeRows, bool followMovedCell);
