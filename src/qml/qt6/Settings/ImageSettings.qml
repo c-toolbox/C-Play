@@ -552,12 +552,9 @@ SettingsBasePage {
 
         Label {
             Layout.alignment: Qt.AlignRight
-            text: qsTr("Capture placeholder background:")
-            visible: CAPTURE_SUPPORT
+            text: qsTr("Master placeholder background:")
         }
         RowLayout {
-            visible: CAPTURE_SUPPORT
-
             CheckBox {
                 id: capturePlaceholderBackgroundCheckBox
 
@@ -567,7 +564,7 @@ SettingsBasePage {
                 onToggled: playerController.setCapturePlaceholderBackground(checked, root.capturePlaceholderColor)
 
                 ToolTip {
-                    text: qsTr("Opaque background behind the name label that the master shows instead of a Capture layer that only captures on a node (or on the nodes only).")
+                    text: qsTr("Opaque background behind the layer title shown by master text placeholders for Capture, DirectShow and Spout sources rendered on nodes.")
                 }
             }
             Rectangle {
@@ -591,7 +588,6 @@ SettingsBasePage {
         Item {
             // spacer item
             Layout.fillWidth: true
-            visible: CAPTURE_SUPPORT
         }
 
         Item {

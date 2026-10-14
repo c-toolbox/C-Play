@@ -6,9 +6,18 @@
  */
 
 #include "nodecaptureinventory.h"
+#include <layers/baselayer.h>
+#ifdef CAPTURE_SUPPORT
 #include <capture/capturebackend.h>
 #include <capture/capturelayer.h>
-#include <capture/capturepresets.h>
+#endif
+#ifdef SPOUT_SUPPORT
+#include <layers/spoutlayer.h>
+#endif
+#ifdef DIRECTSHOW_SUPPORT
+#include <layers/directshowmodel.h>
+#include <layers/directshowlayer.h>
+#endif
 #include <utils/nodeidentityconfig.h>
 
 #include <nlohmann/json.hpp>
@@ -126,6 +135,9 @@ QVariantList NodeCaptureInventory::nodes() const {
                                              : QStringLiteral("%1 (%2)").arg(r.role, r.address));
         m.insert(QStringLiteral("online"), r.online);
         m.insert(QStringLiteral("reported"), reported);
+        m.insert(QStringLiteral("spoutSenders"), r.spoutSenders);
+        m.insert(QStringLiteral("videoDevices"), r.videoDevices);
+        m.insert(QStringLiteral("audioDevices"), r.audioDevices);
         m.insert(QStringLiteral("sdks"), r.sdks);
         m.insert(QStringLiteral("inputNames"), r.inputNames);
         m.insert(QStringLiteral("inputSources"), r.inputSources);
@@ -156,6 +168,7 @@ QVariantList NodeCaptureInventory::nodes() const {
 }
 
 bool NodeCaptureInventory::captureSize(const std::string &role, const std::string &source, int &width, int &height) const {
+#ifdef CAPTURE_SUPPORT
     const CaptureSource wanted = CaptureSource::fromString(source);
     const QString qrole = QString::fromStdString(role);
     const std::lock_guard<std::mutex> lock(m_mutex);
@@ -183,6 +196,9 @@ bool NodeCaptureInventory::captureSize(const std::string &role, const std::strin
             return true;
         }
     }
+#else
+    (void)role; (void)source; (void)width; (void)height;
+#endif
     return false;
 }
 
@@ -224,6 +240,9 @@ void NodeCaptureInventory::handleData(void *data, int length, int clientIndex) {
     try {
         r.role = QString::fromStdString(root.value("role", std::string()));
         r.address = QString::fromStdString(root.value("address", std::string()));
+        r.spoutSenders = toStringList(root.value("spoutSenders", json::array()));
+        r.videoDevices = toStringList(root.value("videoDevices", json::array()));
+        r.audioDevices = toStringList(root.value("audioDevices", json::array()));
         r.sdks = toStringList(root.value("sdks", json::array()));
         const json inputs = root.value("inputs", json::array());
         if (inputs.is_array()) {
@@ -356,9 +375,10 @@ std::string NodeCaptureInventory::buildPayload() const {
     root["kind"] = kKindReport;
     const auto &cm = sgct::ClusterManager::instance();
     root["node"] = cm.thisNodeId();
-    root["role"] = CapturePresets::machineRole(false);
+    root["role"] = machineRole(false);
     root["address"] = cm.thisNode().address();
 
+#ifdef CAPTURE_SUPPORT
     json sdks = json::array();
     for (const std::string &sdk : CaptureBackend::availableSdks())
         sdks.push_back(sdk);
@@ -373,6 +393,28 @@ std::string NodeCaptureInventory::buildPayload() const {
     for (const CaptureInputInfo &info : CaptureBackend::activeCaptures())
         active.push_back({{"source", info.source.toString()}, {"w", info.width}, {"h", info.height}});
     root["active"] = active;
+#endif
+#ifdef SPOUT_SUPPORT
+    // Own a separate SDK instance: the GUI's singleton finder must stay on its thread.
+    const auto release = [](SPOUTLIBRARY* library) { if (library) library->Release(); };
+    std::unique_ptr<SPOUTLIBRARY, decltype(release)> finder(GetSpout(), release);
+    root["spoutSenders"] = json::array();
+    if (finder) {
+        const int count = finder->GetSenderCount();
+        for (int i = 0; i < count; ++i) {
+            char name[256] = {};
+            if (finder->GetSender(i, name)) root["spoutSenders"].push_back(name);
+        }
+    }
+#endif
+#ifdef DIRECTSHOW_SUPPORT
+    DirectShowModel devices;
+    devices.updateDeviceLists(false);
+    root["videoDevices"] = json::array();
+    root["audioDevices"] = json::array();
+    for (const QString& device : devices.videoDevices()) root["videoDevices"].push_back(device.toStdString());
+    for (const QString& device : devices.audioDevices()) root["audioDevices"].push_back(device.toStdString());
+#endif
     return root.dump();
 }
 
@@ -405,17 +447,31 @@ void NodeCaptureInventory::sendLayerStatus(const std::vector<std::shared_ptr<Bas
 
     json list = json::array();
     for (const auto &layer : layers) {
-        if (!layer || layer->type() != BaseLayer::CAPTURE)
+        if (!layer || layer->targetNode().empty() || !isThisMachine(layer->targetNode(), false))
             continue;
-        const auto *capture = static_cast<const CaptureLayer *>(layer.get());
-        if (!CapturePresets::isThisMachine(capture->targetNode(), false))
-            continue;
-        const bool ok = capture->captureOk();
-        list.push_back({{"id", capture->identifier()},
-                        {"ok", ok},
-                        {"status", capture->statusText()},
-                        {"w", ok ? capture->width() : 0},
-                        {"h", ok ? capture->height() : 0}});
+        bool ok = false;
+        std::string status;
+#ifdef CAPTURE_SUPPORT
+        if (layer->type() == BaseLayer::CAPTURE) {
+            const auto* capture = static_cast<const CaptureLayer*>(layer.get());
+            ok = capture->captureOk();
+            status = capture->statusText();
+        }
+#endif
+#ifdef SPOUT_SUPPORT
+        if (layer->type() == BaseLayer::SPOUT) {
+            ok = static_cast<const SpoutLayer*>(layer.get())->captureOk();
+            status = ok ? "ready" : "Waiting for Spout sender";
+        }
+#endif
+#ifdef DIRECTSHOW_SUPPORT
+        if (layer->type() == BaseLayer::DIRECTSHOW) {
+            ok = static_cast<const DirectShowLayer*>(layer.get())->captureOk();
+            status = ok ? "ready" : "Waiting for DirectShow frames";
+        }
+#endif
+        list.push_back({{"id", layer->identifier()}, {"ok", ok}, {"status", status},
+                        {"w", ok ? layer->width() : 0}, {"h", ok ? layer->height() : 0}});
     }
 
     json root;
@@ -423,7 +479,7 @@ void NodeCaptureInventory::sendLayerStatus(const std::vector<std::shared_ptr<Bas
     root["kind"] = kKindStatus;
     const auto &cm = sgct::ClusterManager::instance();
     root["node"] = cm.thisNodeId();
-    root["role"] = CapturePresets::machineRole(false);
+    root["role"] = machineRole(false);
     root["address"] = cm.thisNode().address();
     root["layers"] = list;
     const std::string payload = root.dump();
@@ -457,4 +513,22 @@ void NodeCaptureInventory::sendPending() {
     } catch (...) {
         m_forceSend.store(true); // connection down - retry next frame
     }
+}
+
+std::string NodeCaptureInventory::machineRole(bool isMaster) {
+    if (isMaster) return "master";
+    static const NodeIdentityConfig identity = [] {
+        NodeIdentityConfig config;
+        const std::string path = NodeIdentityConfig::findDefaultFilePath();
+        if (!path.empty()) config.loadFromFile(path);
+        return config;
+    }();
+    const std::string role = identity.thisNodeId();
+    return role.empty() ? sgct::ClusterManager::instance().thisNode().address() : role;
+}
+
+bool NodeCaptureInventory::isThisMachine(const std::string& role, bool isMaster) {
+    if (role.empty()) return true;
+    if (role == machineRole(isMaster)) return true;
+    return !isMaster && role == sgct::ClusterManager::instance().thisNode().address();
 }

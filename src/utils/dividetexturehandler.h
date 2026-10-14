@@ -70,7 +70,8 @@ public:
     void reinitializeFromParent(BaseLayer* parentLayer);
 
     // Places the cells, in reading order (top row first), side by side on a
-    // mergeCols x mergeRows grid centred on the parent's plane, at the parent's scale:
+    // mergeCols x mergeRows grid centred on the parent's plane. The parent's specified
+    // width/height (or circular width) constrains the complete merge layout:
     // pose, size and stereo/flip come from the parent, each cell gets its offset within the
     // layout. Only in Plane grid mode; otherwise only the grid mode is shared.
     // With followMovedCell, a cell changed since the last call (moved through its own grid
@@ -108,6 +109,8 @@ private:
     // applyMerge() runs on the render thread every frame and on the GUI thread after edits.
     std::mutex m_mergeMutex;
     std::vector<MergedCell> m_merged;
+    int m_appliedMergeCols = 1;
+    int m_appliedMergeRows = 1;
 };
 
 #endif // DIVIDETEXTUREHANDLER_H

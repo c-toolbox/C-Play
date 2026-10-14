@@ -89,8 +89,9 @@ Kirigami.ApplicationWindow {
                             mpv.focus = true;
                         } else if (layerCoreProps.typeComboBox.currentText === "Spout") {
                             layerView.layerItem.layerIdx = app.slides.selected.addLayer(layerCoreProps.layerTitle.text, layerCoreProps.typeComboBox.currentIndex + 1, layerCoreProps.spoutSenderComboBox.currentText, layerCoreProps.stereoscopicModeForLayer.currentIndex, layerCoreProps.gridModeForLayer.currentIndex);
+                            layerView.layerItem.layerCaptureTargetNode = layerCoreProps.captureTargetNode();
                             // "Master sends content to nodes" enables Node stream on the new layer immediately.
-                            if (layerCoreProps.nodeSourceComboBox.currentIndex === 1) {
+                            if (!layerCoreProps.captureNodeTargeted && layerCoreProps.nodeSourceComboBox.currentIndex === 1) {
                                 layerView.layerItem.layerNodeStreamOutputEnabled = true;
                             }
                             layersAddNew.visible = false;
@@ -108,7 +109,7 @@ Kirigami.ApplicationWindow {
                             // back the media file instead.
                             var directShowParam = "";
                             var directShowPresetKey = "";
-                            if (!layerCoreProps.directShowPresetsLayout.customEntry && layerCoreProps.directShowPresetAvailable) {
+                            if (!layerCoreProps.captureNodeTargeted && !layerCoreProps.directShowPresetsLayout.customEntry && layerCoreProps.directShowPresetAvailable) {
                                 // A predefined setup from data/predefined-directshows.json was chosen - it carries its own
                                 // video/audio device combination (either part may be empty for audio-only/video-only setups,
                                 // and both may be empty when the entry only defines per-machine "devices" overrides).
@@ -126,11 +127,12 @@ Kirigami.ApplicationWindow {
                             }
                             if (directShowParam !== "" || directShowPresetKey !== "") {
                                 layerView.layerItem.layerIdx = app.slides.selected.addLayer(layerCoreProps.layerTitle.text, layerCoreProps.typeComboBox.currentIndex + 1, directShowParam, layerCoreProps.stereoscopicModeForLayer.currentIndex, layerCoreProps.gridModeForLayer.currentIndex);
+                                layerView.layerItem.layerCaptureTargetNode = layerCoreProps.captureTargetNode();
                                 if (directShowPresetKey !== "") {
                                     layerView.layerItem.layerDirectShowPresetKey = directShowPresetKey;
                                 }
                                 // "Master sends content to nodes" enables Node stream on the new layer immediately.
-                                if (layerCoreProps.nodeSourceComboBox.currentIndex === 1) {
+                                if (!layerCoreProps.captureNodeTargeted && layerCoreProps.nodeSourceComboBox.currentIndex === 1) {
                                     layerView.layerItem.layerNodeStreamOutputEnabled = true;
                                 }
                                 layersAddNew.visible = false;
@@ -151,7 +153,7 @@ Kirigami.ApplicationWindow {
                                     layerView.layerItem.layerCaptureTargetNode = layerCoreProps.captureTargetNode();
                                 }
                                 // "Master sends content to nodes" enables Node stream on the new layer immediately.
-                                if (layerCoreProps.nodeSourceComboBox.currentIndex === 1) {
+                                if (!layerCoreProps.captureNodeTargeted && layerCoreProps.nodeSourceComboBox.currentIndex === 1) {
                                     layerView.layerItem.layerNodeStreamOutputEnabled = true;
                                 }
                                 layersAddNew.visible = false;

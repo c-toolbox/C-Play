@@ -57,7 +57,7 @@ public:
 
     // Re-enumerates the video and audio capture devices. Call this when a new
     // device may have been plugged in (e.g. from a refresh button).
-    Q_INVOKABLE void updateDeviceLists();
+    Q_INVOKABLE void updateDeviceLists(bool logDevices = true);
 
 Q_SIGNALS:
     void deviceListsChanged();

@@ -119,6 +119,7 @@ public:
     void updateFrame();
     bool ready() const;
     bool hasTexture() const override;
+    bool captureOk() const { return captureTargetIsLocal() && renderData.texId > 0 && !noSignalImageEnabled() && !noSignalHidden(); }
 
     // Surfaces the worker's lastFailedSource through BaseLayer's load-status members.
     void collectLoadStatus() override;

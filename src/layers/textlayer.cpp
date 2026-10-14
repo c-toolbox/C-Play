@@ -12,6 +12,7 @@
 #include <glm/glm.hpp>
 #include <glm/gtc/matrix_transform.hpp>
 #include <glm/gtc/type_ptr.hpp>
+#include <algorithm>
 
 #ifdef SGCT_HAS_TEXT
 #include <freetype/freetype.h>
@@ -154,9 +155,17 @@ void TextLayer::updateFrame() {
     glBindVertexArray(font->vao());
 
     std::vector<std::string> lines = split(std::move(m_data.text), '\n');
-    const glm::vec2 res = glm::vec2(m_data.fboWidth, m_data.fboHeight);
-    const glm::mat4 orthoMatrix = glm::ortho(0.f, res.x, 0.f, res.y);
+    glm::vec2 res = glm::vec2(m_data.fboWidth, m_data.fboHeight);
     const float h = font->height() * 1.59f;
+    if (m_fitToTexture) {
+        float longest = 1.f;
+        for (const auto& line : lines)
+            longest = std::max(longest, getLineWidth(*font, line));
+        const float blockHeight = std::max(1.f, h * static_cast<float>(lines.size()));
+        const float scale = std::min({ 1.f, res.x * 0.8f / longest, res.y * 0.8f / blockHeight });
+        res /= scale;
+    }
+    const glm::mat4 orthoMatrix = glm::ortho(0.f, res.x, 0.f, res.y);
     const float offsetX = 0;
     const float offsetY = m_centerVertically ? (res.y + h * (static_cast<float>(lines.size()) - 1.f) - font->height()) / 2.f
                                              : h * lines.size();
@@ -344,6 +353,13 @@ void TextLayer::setTextureSize(int w, int h) {
     renderData.width = w;
     renderData.height = h;
     setNeedSync();
+}
+
+void TextLayer::setFitToTexture(bool fit) {
+    if (m_fitToTexture != fit) {
+        m_fitToTexture = fit;
+        m_renderDirty = true;
+    }
 }
 
 void TextLayer::encodeTypeAlways(std::vector<std::byte>& data) {

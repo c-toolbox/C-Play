@@ -8,6 +8,7 @@
 #include "streamsettings.h"
 #include "gridsettings.h"
 #include "baselayer.h"
+#include <capture/nodecaptureinventory.h>
 #include <utils/texturesubdivision.h>
 #include <layers/imagelayer.h>
 #ifdef VIDEO_LAYER
@@ -87,6 +88,24 @@
 #endif
 
 std::atomic_uint32_t BaseLayer::m_id_gen = 1;
+
+namespace {
+std::mutex s_placeholderMutex;
+bool s_placeholderBackground = true;
+std::string s_placeholderBackgroundHex = "#000000";
+}
+
+void BaseLayer::setPlaceholderBackground(bool enabled, const std::string& hex) {
+    std::lock_guard<std::mutex> lock(s_placeholderMutex);
+    s_placeholderBackground = enabled;
+    s_placeholderBackgroundHex = hex;
+}
+
+bool BaseLayer::masterPlaceholderBackground(std::string& hex) const {
+    std::lock_guard<std::mutex> lock(s_placeholderMutex);
+    hex = s_placeholderBackgroundHex;
+    return s_placeholderBackground;
+}
 
 std::string BaseLayer::typeDescription(BaseLayer::LayerType e) {
     switch (e) {
@@ -1093,6 +1112,7 @@ bool BaseLayer::updateMasterPlaceholder() {
         m_masterPlaceholder = std::make_unique<TextLayer>();
         m_masterPlaceholder->setIsMaster(true);
         m_masterPlaceholder->setCenterVertically(true);
+        m_masterPlaceholder->setFitToTexture(true);
         m_masterPlaceholder->setFont(SubtitleSettings::subtitleFontFamily().toStdString());
     }
     // Refresh the label after renaming or duplicating a layer.
@@ -1100,6 +1120,20 @@ bool BaseLayer::updateMasterPlaceholder() {
     int width = 1280;
     int height = 256;
     masterPlaceholderSize(width, height);
+    applyTextureDivisionMerge();
+    // Fit one text block to the complete merged plane, rather than stretching the
+    // source-sized placeholder across a layout with a different aspect ratio.
+    if (textureDivisionMode() == TextureSubdivision::Division
+        && textureDivisionMergeColumns() > 0 && textureDivisionMergeRows() > 0
+        && m_subdivision->hasSubLayers()) {
+        const auto extent = computedPlaneSize();
+        if (extent && extent->x > 0.f && extent->y > 0.f) {
+            const int maxSize = std::clamp(std::max(width, height), 256, 4096);
+            const double aspect = static_cast<double>(extent->x) / extent->y;
+            width = aspect >= 1.0 ? maxSize : std::max(1, static_cast<int>(std::round(maxSize * aspect)));
+            height = aspect >= 1.0 ? std::max(1, static_cast<int>(std::round(maxSize / aspect))) : maxSize;
+        }
+    }
     const bool sizeChanged = m_masterPlaceholder->width() != width || m_masterPlaceholder->height() != height;
     if (sizeChanged)
         m_masterPlaceholder->setTextureSize(width, height);
@@ -1134,6 +1168,8 @@ bool BaseLayer::updateMasterPlaceholder() {
     }
     if (!m_masterPlaceholder->fontName().empty())
         m_masterPlaceholder->update();
+    if (gridMode() == GridMode::Plane)
+        updatePlane();
 #endif
     clearLoadError();
     return true;
@@ -1734,7 +1770,24 @@ bool BaseLayer::hasPlane() const {
 }
 
 std::optional<glm::vec2> BaseLayer::computedPlaneSize() const {
-    if (this->width() <= 0 || this->height() <= 0)
+    if (masterPlaceholderEnabled() && gridMode() == GridMode::Plane
+        && textureDivisionMode() == TextureSubdivision::Division
+        && textureDivisionMergeColumns() > 0 && textureDivisionMergeRows() > 0
+        && m_subdivision->hasSubLayers()) {
+        int sourceWidth = 1280, sourceHeight = 256;
+        masterPlaceholderSize(sourceWidth, sourceHeight);
+        // Cells keep the source ROI and plane size even when their texture is only
+        // available on a node. Use those properties without modifying synced geometry.
+        const auto& cell = m_subdivision->subLayers().front();
+        const auto size = cell->computedPlaneSizeForTexture(sourceWidth, sourceHeight, stereoMode());
+        if (size)
+            return *size * glm::vec2(textureDivisionMergeColumns(), textureDivisionMergeRows());
+    }
+    return computedPlaneSizeForTexture(this->width(), this->height(), renderStereoMode());
+}
+
+std::optional<glm::vec2> BaseLayer::computedPlaneSizeForTexture(int textureWidth, int textureHeight, int sm) const {
+    if (textureWidth <= 0 || textureHeight <= 0)
         return std::nullopt;
 
     const bool circular = circularPlaneActive();
@@ -1742,8 +1795,8 @@ std::optional<glm::vec2> BaseLayer::computedPlaneSize() const {
         || (planeData.specifiedSize.y <= 0 && (!circular || planeData.aspectRatioConsideration != 2)))
         return std::nullopt;
 
-    float width = float(this->width());
-    float height = float(this->height());
+    float width = float(textureWidth);
+    float height = float(textureHeight);
     if (renderData.roiEnabled) {
         width *= renderData.roi.z;
         height *= renderData.roi.w;
@@ -1751,7 +1804,6 @@ std::optional<glm::vec2> BaseLayer::computedPlaneSize() const {
 
     glm::vec2 calculatedPlaneSize = planeData.specifiedSize;
     if (circular) calculatedPlaneSize.x = float(circularMapping().widthCm * planeWidthDegrees() / 360.0);
-    int sm = renderStereoMode();
 
     float ratioMultiplier = 1.0f;
     if (sm == 1) { // Side-by-side
@@ -1771,7 +1823,10 @@ std::optional<glm::vec2> BaseLayer::computedPlaneSize() const {
     }
 
     if (planeData.aspectRatioConsideration == 1) { // Calculate width from specified height
-        calculatedPlaneSize.x = float(planeWidthFromHeightCm());
+        float ratio = width / height;
+        if (sm == 3)
+            ratio = height / width;
+        calculatedPlaneSize.x = planeData.specifiedSize.y * ratio * ratioMultiplier;
     } else if (planeData.aspectRatioConsideration == 2) { // Calculate height from video
         float ratio = height / width;
 
@@ -2406,4 +2461,41 @@ void BaseLayer::encodeAlwaysForNodes(std::vector<std::byte>& data) {
     }
 #endif
     encodeAlways(data);
+}
+
+std::string BaseLayer::targetNode() const {
+    std::lock_guard<std::mutex> lock(m_captureTargetMutex);
+    return m_captureTargetNode;
+}
+
+void BaseLayer::setTargetNode(const std::string& role) {
+    {
+        std::lock_guard<std::mutex> lock(m_captureTargetMutex);
+        if (m_captureTargetNode == role) return;
+        m_captureTargetNode = role;
+    }
+    if (isMaster()) setNeedSync();
+}
+
+bool BaseLayer::captureTargetIsLocal() const {
+    const std::string target = targetNode();
+    return target.empty() || NodeCaptureInventory::isThisMachine(target, isMaster());
+}
+
+std::string BaseLayer::masterPlaceholderLabel() const {
+    return title();
+}
+
+void BaseLayer::masterPlaceholderSize(int& width, int& height) const {
+    const std::string target = targetNode();
+    if (target.empty()) return;
+    width = 1920;
+    height = 1080;
+    if (NodeCaptureInventory::isReady()) {
+        const auto status = NodeCaptureInventory::instance().layerStatus(target, identifier());
+        if (status.width > 0 && status.height > 0) {
+            width = status.width;
+            height = status.height;
+        }
+    }
 }

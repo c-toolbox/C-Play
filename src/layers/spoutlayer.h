@@ -39,6 +39,10 @@ public:
     void updateFrame();
     bool ready() const;
     bool hasTexture() const override;
+    bool captureOk() const;
+
+    void encodeTypeCore(std::vector<std::byte>& data) override;
+    void decodeTypeCore(const std::vector<std::byte>& data, unsigned int& pos) override;
 
     // Layer operations (QR / division), see TextureSubdivision.
     void encodeTypeAlways(std::vector<std::byte>& data) override;

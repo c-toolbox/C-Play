@@ -21,9 +21,7 @@
 #include "slidesqtitem.h"
 #include "telemetry/nodetelemetry.h"
 #include "telemetry/nodeloaderverifier.h"
-#ifdef CAPTURE_SUPPORT
-#include "capture/nodecaptureinventory.h"
-#endif
+#include <capture/nodecaptureinventory.h>
 #include "utils/ytdlpresolver.h"
 
 #ifdef JACK_SUPPORT
@@ -191,9 +189,7 @@ Application::Application(int &argc, char **argv, const QString &applicationName)
     // reporting over the same DataTransfer channel; no enable command to re-broadcast, so a
     // late construction only delays first reports until the next failure change/reconnect).
     NodeLoaderVerifier::instance();
-#ifdef CAPTURE_SUPPORT
-    NodeCaptureInventory::instance();
-#endif
+    connect(&NodeCaptureInventory::instance(), &NodeCaptureInventory::nodesChanged, this, &Application::captureNodesChanged);
 
     m_config = KSharedConfig::openConfig(QStringLiteral("C-Play/cplay.conf"));
     m_shortcuts = new KConfigGroup(m_config, QStringLiteral("Shortcuts"));
@@ -1390,4 +1386,12 @@ SyncHelper &SyncHelper::instance() {
         _instance = new SyncHelper();
     }
     return *_instance;
+}
+
+QVariantList Application::captureNodes() const {
+    return NodeCaptureInventory::instance().nodes();
+}
+
+void Application::refreshCaptureNodes() {
+    NodeCaptureInventory::instance().requestFromNodes();
 }

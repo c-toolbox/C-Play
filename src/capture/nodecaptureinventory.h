@@ -26,10 +26,10 @@
 
 class BaseLayer;
 
-// Capture card inputs of every cluster node, reported to the master over SGCT's DataTransfer
+// Capture card inputs, Spout senders and DirectShow video/audio devices of every cluster node, reported to the master over SGCT's DataTransfer
 // channel (shared with NodeTelemetryManager and NodeLoaderVerifier; packets carry
 // "kind":"captureinv" and "kind":"captureinv-req"). The master uses them to create Capture
-// layers that only capture on one node (CaptureLayer::targetNode). The target node also reports
+// layers that only capture on one node (BaseLayer::targetNode). The target node also reports
 // the state of those layers ("kind":"capturestatus"), keyed by the synced layer identifier.
 //
 // Node side: a worker thread rescans the inputs every few seconds; postDraw() sends the result
@@ -42,6 +42,8 @@ public:
     // Main thread only, once Q(Core)Application exists. Other threads must check isReady() first.
     static NodeCaptureInventory &instance();
     static bool isReady() noexcept;
+    static std::string machineRole(bool isMaster);
+    static bool isThisMachine(const std::string& role, bool isMaster);
 
     NodeCaptureInventory(const NodeCaptureInventory &) = delete;
     NodeCaptureInventory &operator=(const NodeCaptureInventory &) = delete;
@@ -53,7 +55,8 @@ public:
     // Master, GUI thread: asks all nodes to report their inputs now.
     void requestFromNodes();
     // Master: one row per node in nodes.json and/or with a received report:
-    // {role, label, address, online, reported, sdks, inputNames, inputSources}.
+    // {role, label, address, online, reported, sdks, inputNames, inputSources,
+    //  spoutSenders, videoDevices, audioDevices}.
     QVariantList nodes() const;
     // Master, any thread: frame size of source on the node named role (nodes.json id or IP), from
     // its running capture or else the input's signal. False when unknown.
@@ -63,14 +66,14 @@ public:
         bool nodeOnline = false;
         bool reported = false; // the node has the layer and reported its state
         bool ok = false;       // live signal captured
-        std::string status;    // CaptureLayer::statusText() on the node
+        std::string status;    // human-readable capture state on the node
         int width = 0;
         int height = 0;
     };
-    // Master, any thread: state of the Capture layer with that identifier on the node named role.
+    // Master, any thread: state of the capture layer with that identifier on the node named role.
     LayerStatus layerStatus(const std::string &role, uint32_t layerId) const;
 
-    // Node, render thread: sends the state of the Capture layers targeted at this node when it changed.
+    // Node, render thread: sends the state of the capture layers targeted at this node when it changed.
     void sendLayerStatus(const std::vector<std::shared_ptr<BaseLayer>> &layers);
 
     // Node, render thread: sends the latest inventory when it changed or was requested.
@@ -100,6 +103,9 @@ private:
         QString role;
         QString address;
         bool online = false;
+        QStringList spoutSenders;
+        QStringList videoDevices;
+        QStringList audioDevices;
         QStringList sdks;
         QStringList inputNames;
         QStringList inputSources;

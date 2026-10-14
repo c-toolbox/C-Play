@@ -126,7 +126,10 @@ void SpoutLayer::update(bool updateRendering) {
 bool SpoutLayer::resolveSender() {
     bool placeholder = false;
     std::string sender;
-    if (!StreamPathResolver::spoutInstance().resolve(filepath(), isMaster(), sender, &placeholder))
+    if (!targetNode().empty()) {
+        placeholder = isMaster();
+        if (captureTargetIsLocal()) sender = filepath();
+    } else if (!StreamPathResolver::spoutInstance().resolve(filepath(), isMaster(), sender, &placeholder))
         sender = filepath();
     setMasterPlaceholder(placeholder);
     if (sender != m_resolvedSender) {
@@ -179,7 +182,7 @@ void SpoutLayer::updateFrame() {
 bool SpoutLayer::ready() const {
     if (masterPlaceholderEnabled())
         return masterPlaceholderReady();
-	if (!m_receiver || m_resolvedSender.empty())
+	if (!captureTargetIsLocal() || !m_receiver || m_resolvedSender.empty())
 		return false;
 
 	if(m_receiver->IsConnected())
@@ -228,5 +231,19 @@ void SpoutLayer::GenerateTexture(unsigned int& id, int width, int height) {
 bool SpoutLayer::hasTexture() const {
     if (masterPlaceholderEnabled())
         return masterPlaceholderReady();
-    return true;
+    return captureTargetIsLocal();
+}
+
+void SpoutLayer::encodeTypeCore(std::vector<std::byte>& data) {
+    sgct::serializeObject(data, targetNode());
+}
+
+void SpoutLayer::decodeTypeCore(const std::vector<std::byte>& data, unsigned int& pos) {
+    std::string target;
+    sgct::deserializeObject(data, pos, target);
+    setTargetNode(target);
+}
+
+bool SpoutLayer::captureOk() const {
+    return captureTargetIsLocal() && m_receiver && m_receiver->IsConnected() && renderData.texId != 0;
 }

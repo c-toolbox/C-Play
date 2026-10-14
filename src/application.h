@@ -11,6 +11,7 @@
 
 #include "renderthread.h"
 #include <QMap>
+#include <QVariantList>
 #include <QUrl>
 #include <KSharedConfig>
 #include <QElapsedTimer>
@@ -371,6 +372,10 @@ public:
     void setOmtSendersModel(OMTSendersModel* model);
 #endif
 
+    Q_PROPERTY(QVariantList captureNodes READ captureNodes NOTIFY captureNodesChanged)
+    QVariantList captureNodes() const;
+    Q_INVOKABLE void refreshCaptureNodes();
+
 #ifdef CAPTURE_SUPPORT
     Q_PROPERTY(CaptureModel* captureModel READ captureModel CONSTANT)
     CaptureModel* captureModel() { return m_captureModel; }
@@ -380,6 +385,7 @@ public:
 #endif
 
 Q_SIGNALS:
+    void captureNodesChanged();
     void actionsUpdated();
     void applicationInteraction();
     void fontsChanged();

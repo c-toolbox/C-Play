@@ -22,6 +22,35 @@ GridLayout {
     columns: 2
     rowSpacing: 8
 
+    // Only handle right clicks so the source control keeps its normal left-click behavior.
+    component SourceCopyArea: MouseArea {
+        id: copyArea
+        anchors.fill: parent
+        acceptedButtons: Qt.RightButton
+        property string identifier: ""
+        property string copyText: qsTr("Copy source identifier")
+        property bool showAudioIdentifier: false
+        property string audioIdentifier: ""
+
+        onClicked: (mouse) => copyMenu.popup(mouse.x, mouse.y)
+
+        Menu {
+            id: copyMenu
+            objectName: "sourceIdentifierMenu"
+            MenuItem {
+                text: copyArea.copyText
+                enabled: copyArea.identifier !== ""
+                onTriggered: app.copyToClipboard(copyArea.identifier)
+            }
+            MenuItem {
+                text: qsTr("Copy audio device identifier")
+                visible: copyArea.showAudioIdentifier
+                enabled: copyArea.audioIdentifier !== ""
+                onTriggered: app.copyToClipboard(copyArea.audioIdentifier)
+            }
+        }
+    }
+
     property bool showSpacers: false
     property bool showTitleParams: true
     property bool showGridParams: true
@@ -64,12 +93,24 @@ GridLayout {
     property alias capturePresetsComboBox: capturePresetsComboBox
     property alias captureNodeComboBox: captureNodeComboBox
 
-    // Capture inputs reported by the cluster nodes (app.captureModel.nodes).
-    property var captureNodes: app.captureModel ? app.captureModel.nodes : []
-    // The selected node row, or null for "All machines".
-    property var captureTargetNodeRow: captureNodeComboBox.currentIndex > 0 && captureNodeComboBox.currentIndex <= captureNodes.length
-                                       ? captureNodes[captureNodeComboBox.currentIndex - 1] : null
-    property bool captureNodeTargeted: captureTargetNodeRow !== null
+    // Local capture sources reported by the cluster nodes, available with any capture backend.
+    property var captureNodes: app.captureNodes
+    property string selectedCaptureNodeRole: ""
+    onSelectedCaptureNodeRoleChanged: Qt.callLater(updateCaptureNodeIndex)
+    property string selectedRemoteSpout: ""
+    property string selectedRemoteVideo: ""
+    property string selectedRemoteAudio: ""
+    property var captureTargetNodeRow: {
+        for (var i = 0; i < captureNodes.length; ++i)
+            if (captureNodes[i].role === selectedCaptureNodeRole) return captureNodes[i];
+        return null;
+    }
+    property bool captureNodeTargeted: selectedCaptureNodeRole !== ""
+    property bool nodeCaptureType: typeComboBox.currentText === "Capture" || typeComboBox.currentText === "Spout" || typeComboBox.currentText === "DirectShow"
+    property var directShowVideoDevices: captureNodeTargeted && typeComboBox.currentText === "DirectShow"
+        ? (captureTargetNodeRow ? captureTargetNodeRow.videoDevices : []) : (app.directShowModel ? app.directShowModel.videoDevices : [])
+    property var directShowAudioDevices: captureNodeTargeted && typeComboBox.currentText === "DirectShow"
+        ? (captureTargetNodeRow ? captureTargetNodeRow.audioDevices : []) : (app.directShowModel ? app.directShowModel.audioDevices : [])
 
     // True when data/predefined-captures.json provides at least one enabled capture setup.
     property bool capturePresetAvailable: !!app.capturePresetsModel && app.capturePresetsModel.numberOfPresets > 0
@@ -122,7 +163,7 @@ GridLayout {
         }
         directShowPresetsLayout.customEntry = false;
         capturePresetsLayout.customEntry = false;
-        captureNodeComboBox.currentIndex = 0;
+        selectedCaptureNodeRole = "";
         // Drop any in-flight YouTube metadata fetch and its auto-filled title.
         youtubeFetchTimer.stop();
         youtubeAutoFilledTitle = "";
@@ -153,9 +194,16 @@ GridLayout {
         return capturePresetAvailable && !captureNodeTargeted && !capturePresetsLayout.customEntry && capturePresetsComboBox.currentIndex >= 0;
     }
 
+    function updateCaptureNodeIndex() {
+        var index = 0;
+        for (var i = 0; i < captureNodes.length; ++i)
+            if (captureNodes[i].role === selectedCaptureNodeRole) index = i + 1;
+        captureNodeComboBox.currentIndex = index;
+    }
+
     // Role of the only node that captures, or "" when every machine resolves its own source.
     function captureTargetNode() {
-        return captureTargetNodeRow ? captureTargetNodeRow.role : "";
+        return selectedCaptureNodeRole;
     }
 
     // Mirrors the selected node input onto the custom input number and the layer title.
@@ -445,6 +493,8 @@ GridLayout {
         onCurrentTextChanged: root.resetNodeSourceDefault()
 
         onActivated: {
+            selectedCaptureNodeRole = "";
+            if (root.nodeCaptureType) app.refreshCaptureNodes();
             // A layer-type switch invalidates any in-flight YouTube metadata fetch.
             youtubeFetchTimer.stop();
             if (typeComboBox.currentText !== "YouTube") {
@@ -471,9 +521,9 @@ GridLayout {
             else if (typeComboBox.currentText === "DirectShow") {
                 if (app.directShowModel) {
                     app.directShowModel.updateDeviceLists();
-                    directShowVideoDeviceComboBox.currentIndex = app.directShowModel.videoDevices.length - 1;
+                    directShowVideoDeviceComboBox.currentIndex = root.directShowVideoDevices.length - 1;
                     // Index 0 of the audio combobox is "No audio capture"; default to the last real device.
-                    directShowAudioDeviceComboBox.currentIndex = app.directShowModel.audioDevices.length;
+                    directShowAudioDeviceComboBox.currentIndex = root.directShowAudioDevices.length;
                 }
                 if (root.directShowPresetAvailable) {
                     // Predefined setups exist: default to the first one, like Stream layers do.
@@ -490,7 +540,7 @@ GridLayout {
                     app.captureModel.updateInputList();
                     app.captureModel.refreshNodes();
                 }
-                captureNodeComboBox.currentIndex = 0;
+                selectedCaptureNodeRole = "";
                 if (app.capturePresetsModel)
                     app.capturePresetsModel.updatePresetsList();
                 if (root.capturePresetAvailable) {
@@ -700,6 +750,10 @@ GridLayout {
         ComboBox {
             id: streamsComboBox
 
+            SourceCopyArea {
+                identifier: streamsComboBox.currentIndex >= 0 ? streamsComboBox.currentValue : ""
+            }
+
             Layout.fillWidth: true
             model: app.streamsModel
             currentIndex: 0
@@ -867,6 +921,10 @@ GridLayout {
         ComboBox {
             id: ndiSenderComboBox
 
+            SourceCopyArea {
+                identifier: ndiSenderComboBox.currentIndex >= 0 ? ndiSenderComboBox.currentText : ""
+            }
+
             Layout.fillWidth: true
             model: app.ndiSendersModel
             currentIndex: (app.ndiSendersModel ? app.ndiSendersModel.numberOfSenders - 1 : -1)
@@ -907,19 +965,35 @@ GridLayout {
         ComboBox {
             id: spoutSenderComboBox
 
+            SourceCopyArea {
+                identifier: spoutSenderComboBox.currentIndex >= 0 ? spoutSenderComboBox.currentText : ""
+            }
+
             Layout.fillWidth: true
-            model: app.spoutSendersModel
-            currentIndex: (app.spoutSendersModel ? app.spoutSendersModel.numberOfSenders - 1 : -1)
-            textRole: "typeName"
+            model: root.captureNodeTargeted ? (root.captureTargetNodeRow ? root.captureTargetNodeRow.spoutSenders : []) : app.spoutSendersModel
+            currentIndex: root.captureNodeTargeted ? (root.captureTargetNodeRow && root.captureTargetNodeRow.spoutSenders.length > 0 ? 0 : -1) : (app.spoutSendersModel ? app.spoutSendersModel.numberOfSenders - 1 : -1)
+            textRole: root.captureNodeTargeted ? "" : "typeName"
 
             Component.onCompleted: {
-                if(app.spoutSendersModel){
+                if (root.captureNodeTargeted) {
+                    app.refreshCaptureNodes();
+                } else if(app.spoutSendersModel){
                     app.spoutSendersModel.updateSendersList();
                     spoutSenderComboBox.currentIndex = app.spoutSendersModel.numberOfSenders - 1;
                     layerTitle.text = spoutSenderComboBox.currentText;
                 }
             }
+            onModelChanged: {
+                if (root.captureNodeTargeted) {
+                    currentIndex = root.selectedRemoteSpout === "" ? (count > 0 ? 0 : -1) : model.indexOf(root.selectedRemoteSpout);
+                    if (currentIndex >= 0 && root.selectedRemoteSpout === "") {
+                        root.selectedRemoteSpout = currentText;
+                        layerTitle.text = currentText;
+                    }
+                }
+            }
             onActivated: {
+                if (root.captureNodeTargeted) root.selectedRemoteSpout = currentText;
                 layerTitle.text = spoutSenderComboBox.currentText;
             }
         }
@@ -932,7 +1006,9 @@ GridLayout {
             text: ""
 
             onClicked: {
-                if(app.spoutSendersModel){
+                if (root.captureNodeTargeted) {
+                    app.refreshCaptureNodes();
+                } else if(app.spoutSendersModel){
                     app.spoutSendersModel.updateSendersList();
                     spoutSenderComboBox.currentIndex = app.spoutSendersModel.numberOfSenders - 1;
                     layerTitle.text = spoutSenderComboBox.currentText;
@@ -950,6 +1026,10 @@ GridLayout {
 
         ComboBox {
             id: omtSenderComboBox
+
+            SourceCopyArea {
+                identifier: omtSenderComboBox.currentIndex >= 0 ? omtSenderComboBox.currentText : ""
+            }
 
             Layout.fillWidth: true
             model: app.omtSendersModel
@@ -992,17 +1072,25 @@ GridLayout {
     Label {
         Layout.alignment: Qt.AlignRight
         text: qsTr("Setup:")
-        visible: typeComboBox.currentText === "DirectShow" && root.directShowPresetAvailable
+        visible: typeComboBox.currentText === "DirectShow" && root.directShowPresetAvailable && !root.captureNodeTargeted
     }
     RowLayout {
         id: directShowPresetsLayout
 
         Layout.fillWidth: true
         property bool customEntry: false
-        visible: typeComboBox.currentText === "DirectShow" && root.directShowPresetAvailable
+        visible: typeComboBox.currentText === "DirectShow" && root.directShowPresetAvailable && !root.captureNodeTargeted
 
         ComboBox {
             id: directShowPresetsComboBox
+
+            SourceCopyArea {
+                property var devices: root.getDirectShowPresetDevices()
+                identifier: devices ? devices.video : ""
+                copyText: qsTr("Copy video device identifier")
+                showAudioIdentifier: true
+                audioIdentifier: devices ? devices.audio : ""
+            }
 
             Layout.fillWidth: true
             model: app.directShowPresetsModel ? app.directShowPresetsModel : []
@@ -1053,32 +1141,46 @@ GridLayout {
     Label {
         Layout.alignment: Qt.AlignRight
         text: qsTr("Video device:")
-        visible: typeComboBox.currentText === "DirectShow" && (!root.directShowPresetAvailable || directShowPresetsLayout.customEntry)
+        visible: typeComboBox.currentText === "DirectShow" && (root.captureNodeTargeted || !root.directShowPresetAvailable || directShowPresetsLayout.customEntry)
     }
     RowLayout {
         Layout.fillWidth: true
-        visible: typeComboBox.currentText === "DirectShow" && (!root.directShowPresetAvailable || directShowPresetsLayout.customEntry)
+        visible: typeComboBox.currentText === "DirectShow" && (root.captureNodeTargeted || !root.directShowPresetAvailable || directShowPresetsLayout.customEntry)
 
         ComboBox {
             id: directShowVideoDeviceComboBox
 
+            SourceCopyArea {
+                identifier: directShowVideoDeviceComboBox.currentIndex >= 0 ? directShowVideoDeviceComboBox.currentText : ""
+                copyText: qsTr("Copy video device identifier")
+            }
+
             Layout.fillWidth: true
-            model: app.directShowModel ? app.directShowModel.videoDevices : []
-            currentIndex: (app.directShowModel && app.directShowModel.videoDevices.length > 0) ? app.directShowModel.videoDevices.length - 1 : -1
+            model: root.directShowVideoDevices
+            currentIndex: (app.directShowModel && root.directShowVideoDevices.length > 0) ? root.directShowVideoDevices.length - 1 : -1
 
             Component.onCompleted: {
-                if (app.directShowModel) {
+                if (root.captureNodeTargeted) {
+                    app.refreshCaptureNodes();
+                } else if (app.directShowModel) {
                     app.directShowModel.updateDeviceLists();
                     if (root.directShowPresetAvailable) {
                         // A predefined setup is shown by default - mirror its devices onto the custom comboboxes.
                         applyDirectShowPresetToDevices();
                     } else {
-                        directShowVideoDeviceComboBox.currentIndex = app.directShowModel.videoDevices.length - 1;
+                        directShowVideoDeviceComboBox.currentIndex = root.directShowVideoDevices.length - 1;
                         layerTitle.text = "DirectShow:" + (directShowVideoDeviceComboBox.currentText || "");
                     }
                 }
             }
+            onModelChanged: {
+                if (root.captureNodeTargeted) {
+                    currentIndex = root.selectedRemoteVideo === "" ? (count > 0 ? 0 : -1) : model.indexOf(root.selectedRemoteVideo);
+                    if (currentIndex >= 0 && root.selectedRemoteVideo === "") root.selectedRemoteVideo = currentText;
+                }
+            }
             onActivated: {
+                if (root.captureNodeTargeted) root.selectedRemoteVideo = currentText;
                 layerTitle.text = "DirectShow:" + (directShowVideoDeviceComboBox.currentText || "");
             }
         }
@@ -1091,11 +1193,13 @@ GridLayout {
             text: ""
 
             onClicked: {
-                if (app.directShowModel) {
+                if (root.captureNodeTargeted) {
+                    app.refreshCaptureNodes();
+                } else if (app.directShowModel) {
                     app.directShowModel.updateDeviceLists();
-                    directShowVideoDeviceComboBox.currentIndex = app.directShowModel.videoDevices.length - 1;
+                    directShowVideoDeviceComboBox.currentIndex = root.directShowVideoDevices.length - 1;
                     // Index 0 of the audio combobox is "No audio capture"; default to the last real device.
-                    directShowAudioDeviceComboBox.currentIndex = app.directShowModel.audioDevices.length;
+                    directShowAudioDeviceComboBox.currentIndex = root.directShowAudioDevices.length;
                     layerTitle.text = "DirectShow:" + (directShowVideoDeviceComboBox.currentText || "");
                 }
             }
@@ -1106,38 +1210,51 @@ GridLayout {
         }
     }
     Item {
-        visible: root.showSpacers && typeComboBox.currentText === "DirectShow" && (!root.directShowPresetAvailable || directShowPresetsLayout.customEntry)
+        visible: root.showSpacers && typeComboBox.currentText === "DirectShow" && (root.captureNodeTargeted || !root.directShowPresetAvailable || directShowPresetsLayout.customEntry)
         Layout.fillWidth: true
     }
 
     Label {
         Layout.alignment: Qt.AlignRight
         text: qsTr("Audio device:")
-        visible: typeComboBox.currentText === "DirectShow" && (!root.directShowPresetAvailable || directShowPresetsLayout.customEntry)
+        visible: typeComboBox.currentText === "DirectShow" && (root.captureNodeTargeted || !root.directShowPresetAvailable || directShowPresetsLayout.customEntry)
     }
     RowLayout {
         Layout.fillWidth: true
-        visible: typeComboBox.currentText === "DirectShow" && (!root.directShowPresetAvailable || directShowPresetsLayout.customEntry)
+        visible: typeComboBox.currentText === "DirectShow" && (root.captureNodeTargeted || !root.directShowPresetAvailable || directShowPresetsLayout.customEntry)
 
         ComboBox {
             id: directShowAudioDeviceComboBox
 
+            SourceCopyArea {
+                identifier: root.directShowAudioDeviceSelection
+                copyText: qsTr("Copy audio device identifier")
+            }
+
             Layout.fillWidth: true
             // Index 0 is the explicit "No audio capture" option (video-only layer); real devices start at index 1.
             // Note: use .concat(), not "+", which would stringify both arrays into one long string.
-            model: [qsTr("No audio capture")].concat(app.directShowModel ? app.directShowModel.audioDevices : [])
-            currentIndex: (app.directShowModel && app.directShowModel.audioDevices.length > 0) ? app.directShowModel.audioDevices.length : 0
+            model: [qsTr("No audio capture")].concat(root.directShowAudioDevices)
+            currentIndex: (app.directShowModel && root.directShowAudioDevices.length > 0) ? root.directShowAudioDevices.length : 0
+
+            onModelChanged: {
+                if (root.captureNodeTargeted)
+                    currentIndex = root.selectedRemoteAudio === "" ? 0 : model.indexOf(root.selectedRemoteAudio);
+            }
+            onActivated: {
+                if (root.captureNodeTargeted) root.selectedRemoteAudio = currentIndex > 0 ? currentText : "";
+            }
 
             Component.onCompleted: {
                 if (app.directShowModel) {
                     // Default to the last real device; index 0 is "No audio capture".
-                    directShowAudioDeviceComboBox.currentIndex = app.directShowModel.audioDevices.length;
+                    directShowAudioDeviceComboBox.currentIndex = root.directShowAudioDevices.length;
                 }
             }
         }
     }
     Item {
-        visible: root.showSpacers && typeComboBox.currentText === "DirectShow" && (!root.directShowPresetAvailable || directShowPresetsLayout.customEntry)
+        visible: root.showSpacers && typeComboBox.currentText === "DirectShow" && (root.captureNodeTargeted || !root.directShowPresetAvailable || directShowPresetsLayout.customEntry)
         Layout.fillWidth: true
     }
 
@@ -1145,14 +1262,16 @@ GridLayout {
     Label {
         Layout.alignment: Qt.AlignRight
         text: qsTr("Capture on:")
-        visible: typeComboBox.currentText === "Capture"
+        visible: root.showNodeSourceParams && root.nodeCaptureType
     }
     RowLayout {
         Layout.fillWidth: true
-        visible: typeComboBox.currentText === "Capture"
+        visible: root.showNodeSourceParams && root.nodeCaptureType
 
         ComboBox {
             id: captureNodeComboBox
+
+            onModelChanged: Qt.callLater(root.updateCaptureNodeIndex)
 
             Layout.fillWidth: true
             currentIndex: 0
@@ -1160,14 +1279,29 @@ GridLayout {
                 var items = [qsTr("All machines")];
                 for (var i = 0; i < root.captureNodes.length; ++i) {
                     var n = root.captureNodes[i];
-                    var suffix = !n.reported ? qsTr(" - no report") : (!n.online ? qsTr(" - offline") : qsTr(" - %n input(s)", "", n.inputNames.length));
+                    var suffix = !n.reported ? qsTr(" - no report") : (!n.online ? qsTr(" - offline") : qsTr(" - %n input(s)", "", typeComboBox.currentText === "Spout" ? n.spoutSenders.length : typeComboBox.currentText === "DirectShow" ? n.videoDevices.length : n.inputNames.length));
                     items.push(n.label + suffix);
                 }
                 return items;
             }
 
             onActivated: {
-                if (root.captureNodeTargeted) {
+                root.selectedRemoteSpout = "";
+                root.selectedRemoteVideo = "";
+                root.selectedRemoteAudio = "";
+                root.selectedCaptureNodeRole = currentIndex > 0 ? root.captureNodes[currentIndex - 1].role : "";
+                nodeSourceComboBox.currentIndex = 0;
+                if (root.captureNodeTargeted && typeComboBox.currentText === "Spout") {
+                    spoutSenderComboBox.currentIndex = root.captureTargetNodeRow && root.captureTargetNodeRow.spoutSenders.length > 0 ? 0 : -1;
+                    root.selectedRemoteSpout = spoutSenderComboBox.currentText;
+                    layerTitle.text = spoutSenderComboBox.currentText;
+                } else if (root.captureNodeTargeted && typeComboBox.currentText === "DirectShow") {
+                    directShowPresetsLayout.customEntry = true;
+                    directShowVideoDeviceComboBox.currentIndex = root.directShowVideoDevices.length > 0 ? 0 : -1;
+                    directShowAudioDeviceComboBox.currentIndex = 0;
+                    root.selectedRemoteVideo = directShowVideoDeviceComboBox.currentText;
+                    layerTitle.text = "DirectShow:" + directShowVideoDeviceComboBox.currentText;
+                } else if (root.captureNodeTargeted) {
                     capturePresetsLayout.customEntry = true;
                     captureNodeInputComboBox.currentIndex = root.captureTargetNodeRow.inputSources.length > 0 ? 0 : -1;
                     root.applyCaptureNodeInput();
@@ -1185,8 +1319,7 @@ GridLayout {
             text: ""
 
             onClicked: {
-                if (app.captureModel)
-                    app.captureModel.refreshNodes();
+                app.refreshCaptureNodes();
             }
 
             ToolTip {
@@ -1195,7 +1328,7 @@ GridLayout {
         }
     }
     Item {
-        visible: root.showSpacers && typeComboBox.currentText === "Capture"
+        visible: root.showSpacers && root.showNodeSourceParams && root.nodeCaptureType
         Layout.fillWidth: true
     }
 
@@ -1206,6 +1339,12 @@ GridLayout {
     }
     ComboBox {
         id: captureNodeInputComboBox
+
+        SourceCopyArea {
+            identifier: root.captureTargetNodeRow && captureNodeInputComboBox.currentIndex >= 0
+                        && captureNodeInputComboBox.currentIndex < root.captureTargetNodeRow.inputSources.length
+                        ? root.captureTargetNodeRow.inputSources[captureNodeInputComboBox.currentIndex] : ""
+        }
 
         Layout.fillWidth: true
         model: root.captureTargetNodeRow ? root.captureTargetNodeRow.inputNames : []
@@ -1233,6 +1372,10 @@ GridLayout {
 
         ComboBox {
             id: capturePresetsComboBox
+
+            SourceCopyArea {
+                identifier: capturePresetsComboBox.currentIndex >= 0 ? root.getCaptureSourceString() : ""
+            }
 
             Layout.fillWidth: true
             model: app.capturePresetsModel ? app.capturePresetsModel : []
@@ -1294,6 +1437,10 @@ GridLayout {
         }
         SpinBox {
             id: captureInputSpinBox
+
+            SourceCopyArea {
+                identifier: root.getCaptureSourceString()
+            }
 
             from: 1
             to: 64
@@ -1980,7 +2127,7 @@ GridLayout {
         Layout.fillWidth: true
         model: [qsTr("Nodes read from original source"), qsTr("Master sends content to nodes")]
         currentIndex: 0
-        visible: root.showNodeSourceParams && NODE_STREAM_SUPPORT
+        visible: root.showNodeSourceParams && NODE_STREAM_SUPPORT && !root.captureNodeTargeted
             && (typeComboBox.currentText === "DirectShow" || typeComboBox.currentText === "Spout"
                 || typeComboBox.currentText === "Stream" || typeComboBox.currentText === "YouTube"
                 || typeComboBox.currentText === "Capture")

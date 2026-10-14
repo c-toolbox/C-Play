@@ -66,6 +66,9 @@ public:
     // Centers the text block vertically instead of placing it at the bottom. Local only, not synced.
     void setCenterVertically(bool center);
 
+    // Local placeholders can shrink the text block to fit narrow or short textures.
+    void setFitToTexture(bool fit);
+
     void setTextureSize(int w, int h);
 
     void encodeTypeAlways(std::vector<std::byte>& data);
@@ -91,6 +94,7 @@ private:
     std::string m_backgroundColorHex = "#000000";
     sgct::vec4 m_backgroundColor{ 0.f, 0.f, 0.f, 1.f };
     bool m_centerVertically = false;
+    bool m_fitToTexture = false;
     std::atomic_bool m_renderDirty{false};
     textData m_data;
 };

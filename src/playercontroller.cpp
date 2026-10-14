@@ -155,10 +155,8 @@ PlayerController::PlayerController(QObject *parent)
     setForegroundStereoMode(ImageSettings::stereoModeForForeground());
 
     applyNoSignalImages();
-#ifdef CAPTURE_SUPPORT
-    CaptureLayer::setPlaceholderBackground(ImageSettings::capturePlaceholderBackground(),
-                                           ImageSettings::capturePlaceholderBackgroundColor().toStdString());
-#endif
+    BaseLayer::setPlaceholderBackground(ImageSettings::capturePlaceholderBackground(),
+                                       ImageSettings::capturePlaceholderBackgroundColor().toStdString());
 
     setRewindMediaOnEOF(PlaybackSettings::rewindOnEOFwhenPause());
 
@@ -999,9 +997,7 @@ void PlayerController::setCapturePlaceholderBackground(bool enabled, const QStri
     ImageSettings::setCapturePlaceholderBackground(enabled);
     ImageSettings::setCapturePlaceholderBackgroundColor(hex);
     ImageSettings::self()->save();
-#ifdef CAPTURE_SUPPORT
-    CaptureLayer::setPlaceholderBackground(enabled, hex.toStdString());
-#endif
+    BaseLayer::setPlaceholderBackground(enabled, hex.toStdString());
 }
 
 bool PlayerController::storableNoSignalImagePath(const QString &path, QString &stored) {

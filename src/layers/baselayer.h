@@ -29,6 +29,11 @@ class TextureSubdivision;
 
 class BaseLayer {
 public:
+    // Live local capture routing: empty = every machine, otherwise only the named node.
+    virtual std::string targetNode() const;
+    virtual void setTargetNode(const std::string& role);
+    bool captureTargetIsLocal() const;
+
     enum LayerType {
         BASE,
 #ifdef IMAGE_LAYER
@@ -522,17 +527,23 @@ public:
     bool useNoSignalImage() const;
     void setUseNoSignalImage(bool use);
 
+    // Shared optional background for all master text placeholders. Any thread.
+    static void setPlaceholderBackground(bool enabled, const std::string& hex);
+
 protected:
+    std::optional<glm::vec2> computedPlaneSizeForTexture(int width, int height, int stereo) const;
     // Resolved from the local preset; never serialized to the nodes.
     void setMasterPlaceholder(bool enabled);
     bool masterPlaceholderEnabled() const;
     bool masterPlaceholderReady() const;
     bool updateMasterPlaceholder();
-    virtual std::string masterPlaceholderLabel() const { return generateNdiSenderName(); }
+    virtual std::string masterPlaceholderLabel() const;
     // Placeholder texture size; unchanged (1280x256) by default.
-    virtual void masterPlaceholderSize(int& width, int& height) const { (void)width; (void)height; }
-    // True with a #RRGGBB color for an opaque placeholder background; none by default.
-    virtual bool masterPlaceholderBackground(std::string& hex) const { (void)hex; return false; }
+    virtual void masterPlaceholderSize(int& width, int& height) const;
+    // True with a #RRGGBB color for an opaque placeholder background.
+    virtual bool masterPlaceholderBackground(std::string& hex) const;
+    mutable std::mutex m_captureTargetMutex;
+    std::string m_captureTargetNode;
 #ifdef TEXT_LAYER
     std::unique_ptr<TextLayer> m_masterPlaceholder;
 #endif

@@ -153,7 +153,7 @@ public Q_SLOTS:
     QString noSignalImageForDirectShow();
     void setNoSignalImageForDirectShow(const QString &path);
 
-    // Master placeholder background of Capture layers (saved to ImageSettings).
+    // Master placeholder background of Capture, DirectShow and Spout layers (saved to ImageSettings).
     void setCapturePlaceholderBackground(bool enabled, const QString &color);
 
     float backgroundVisibilityOnMaster();

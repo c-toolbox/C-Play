@@ -43,6 +43,9 @@ public:
     Q_INVOKABLE void init();
     Q_INVOKABLE void paint();
 
+    QString layerCaptureTargetNode() const;
+    void setLayerCaptureTargetNode(QString role);
+
 Q_SIGNALS:
     void viewChanged();
 
@@ -156,16 +159,19 @@ class LayerQtItem : public QQuickItem {
     Q_PROPERTY(QString layerStreamKey READ layerStreamKey WRITE setLayerStreamKey NOTIFY layerValueChanged)
     Q_PROPERTY(bool layerHasError READ layerHasError NOTIFY layerErrorChanged)
     Q_PROPERTY(QString layerError READ layerError NOTIFY layerErrorChanged)
+    Q_PROPERTY(QString layerSourceDescription READ layerSourceDescription NOTIFY layerSourceDescriptionChanged)
+    Q_PROPERTY(QString layerSourceIdentifier READ layerSourceIdentifier NOTIFY layerSourceDescriptionChanged)
+    Q_PROPERTY(QString layerSourceAudioIdentifier READ layerSourceAudioIdentifier NOTIFY layerSourceDescriptionChanged)
 #ifdef DIRECTSHOW_SUPPORT
     Q_PROPERTY(QString layerDirectShowPresetKey READ layerDirectShowPresetKey WRITE setLayerDirectShowPresetKey NOTIFY layerValueChanged)
 #endif
 #ifdef CAPTURE_SUPPORT
     Q_PROPERTY(QString layerCapturePresetKey READ layerCapturePresetKey WRITE setLayerCapturePresetKey NOTIFY layerValueChanged)
     // Role of the only node that captures ("" = every machine resolves its own source).
-    Q_PROPERTY(QString layerCaptureTargetNode READ layerCaptureTargetNode WRITE setLayerCaptureTargetNode NOTIFY layerValueChanged)
     // Live state of a Capture layer, e.g. "1920x1080, AMD DirectGMA" or "No signal" (timer-polled).
     Q_PROPERTY(QString layerCaptureStatus READ layerCaptureStatus NOTIFY layerCaptureStatusChanged)
 #endif
+    Q_PROPERTY(QString layerCaptureTargetNode READ layerCaptureTargetNode WRITE setLayerCaptureTargetNode NOTIFY layerValueChanged)
     Q_PROPERTY(bool layerNdiAvailable READ layerNdiAvailable CONSTANT)
     Q_PROPERTY(bool layerNdiOutputEnabled READ layerNdiOutputEnabled WRITE setLayerNdiOutputEnabled NOTIFY layerValueChanged)
     Q_PROPERTY(bool layerExistOnMasterOnly READ layerExistOnMasterOnly WRITE setLayerExistOnMasterOnly NOTIFY layerValueChanged)
@@ -454,6 +460,9 @@ public:
     // overlay (e.g. a bad YouTube URL or a missing yt-dlp).
     bool layerHasError() const;
     QString layerError() const;
+    QString layerSourceDescription() const;
+    QString layerSourceIdentifier() const;
+    QString layerSourceAudioIdentifier() const;
 
 #ifdef DIRECTSHOW_SUPPORT
     QString layerDirectShowPresetKey() const;
@@ -462,10 +471,11 @@ public:
 #ifdef CAPTURE_SUPPORT
     QString layerCapturePresetKey() const;
     void setLayerCapturePresetKey(QString key);
-    QString layerCaptureTargetNode() const;
-    void setLayerCaptureTargetNode(QString role);
     QString layerCaptureStatus() const;
 #endif
+
+    QString layerCaptureTargetNode() const;
+    void setLayerCaptureTargetNode(QString role);
 
 Q_SIGNALS:
     void layerChanged();
@@ -483,11 +493,20 @@ Q_SIGNALS:
     void layerHasAudioChanged();
     // Emitted by the window timer when the layer's loader failure state changes.
     void layerErrorChanged();
+    void layerSourceDescriptionChanged();
 #ifdef CAPTURE_SUPPORT
     void layerCaptureStatusChanged();
 #endif
 
 private:
+    struct SourceIdentifiers {
+        QString input;
+        QString audio;
+        QString backend;
+        bool placeholder = false;
+    };
+    SourceIdentifiers sourceIdentifiers() const;
+
     Q_INVOKABLE void handleWindowChanged(QQuickWindow *win);
     void releaseResources() override;
 
@@ -501,6 +520,7 @@ private:
     QString m_lastEmittedCaptureStatus;   // last reported Capture layer state (timer-polled)
 #endif
     QString m_lastEmittedError;           // last reported loader error text (timer-polled)
+    QString m_lastEmittedSourceDescription;
     bool m_audioLevelsEnabled = false; // desired meter state, re-applied to each new layer
     bool m_updatingLayer;
     LayerQtOpenGLObject *m_renderer;

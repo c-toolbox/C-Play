@@ -826,29 +826,54 @@ Kirigami.ApplicationWindow {
                 wrapMode: Text.WordWrap
             }
         }
-        // Capture layer state on this machine: resolution and transfer path (GPU direct or CPU copy),
-        // or why nothing is shown (no signal, no source configured for this machine).
+        // Source identifiers for predefined JSON entries, plus local or target-node state.
         Rectangle {
             id: captureStatusOverlay
 
             anchors.left: parent.left
             anchors.top: parent.top
             anchors.margins: 8
-            width: captureStatusLabel.implicitWidth + 16
-            height: captureStatusLabel.implicitHeight + 8
+            width: Math.min(captureStatusLabel.implicitWidth + 16, parent.width - 16)
+            height: captureStatusLabel.height + 8
             radius: 4
             color: Qt.rgba(0.1, 0.1, 0.1, 0.7)
-            visible: CAPTURE_SUPPORT && layerViewItem.layerIdx !== -1 && layerViewItem.layerTypeName === "Capture"
-                     && !layerViewItem.layerHasError && captureStatusLabel.text !== ""
+            visible: layerViewItem.layerIdx !== -1 && captureStatusLabel.text !== ""
             z: 10
 
             Label {
                 id: captureStatusLabel
 
                 anchors.centerIn: parent
+                width: parent.width - 16
                 font.pointSize: 9
+                textFormat: Text.PlainText
+                wrapMode: Text.WrapAnywhere
                 color: text.indexOf("CPU copy") >= 0 ? Kirigami.Theme.neutralTextColor : "white"
-                text: CAPTURE_SUPPORT ? (layerViewItem.layerCaptureStatus || "") : ""
+                text: layerViewItem.layerSourceDescription
+            }
+
+            MouseArea {
+                anchors.fill: parent
+                acceptedButtons: Qt.RightButton
+                onClicked: (mouse) => sourceIdentifierMenu.popup(mouse.x, mouse.y)
+
+                Menu {
+                    id: sourceIdentifierMenu
+                    objectName: "layerSourceIdentifierMenu"
+
+                    MenuItem {
+                        text: layerViewItem.layerTypeName === "DirectShow"
+                            ? qsTr("Copy video device identifier") : qsTr("Copy source identifier")
+                        enabled: layerViewItem.layerSourceIdentifier !== ""
+                        onTriggered: app.copyToClipboard(layerViewItem.layerSourceIdentifier)
+                    }
+                    MenuItem {
+                        text: qsTr("Copy audio device identifier")
+                        visible: layerViewItem.layerTypeName === "DirectShow"
+                        enabled: layerViewItem.layerSourceAudioIdentifier !== ""
+                        onTriggered: app.copyToClipboard(layerViewItem.layerSourceAudioIdentifier)
+                    }
+                }
             }
         }
         Rectangle {

@@ -268,13 +268,15 @@ void DivideTextureHandler::applyMerge(BaseLayer* parent, int mergeCols, int merg
         assign(parent, &BaseLayer::planeElevation, &BaseLayer::setPlaneElevation, cell->planeElevation());
         assign(parent, &BaseLayer::planeRoll, &BaseLayer::setPlaneRoll, cell->planeRoll());
         assign(parent, &BaseLayer::planeDistance, &BaseLayer::setPlaneDistance, cell->planeDistance());
-        assign(parent, &BaseLayer::planeWidth, &BaseLayer::setPlaneWidth, cell->planeWidth() * m_cols);
-        assign(parent, &BaseLayer::planeHeight, &BaseLayer::setPlaneHeight, cell->planeHeight() * m_rows);
+        // Cell settings describe its share of the previously applied merge layout.
+        // Keep that scale when an edit and a layout change arrive together.
+        assign(parent, &BaseLayer::planeWidth, &BaseLayer::setPlaneWidth, cell->planeWidth() * m_appliedMergeCols);
+        assign(parent, &BaseLayer::planeHeight, &BaseLayer::setPlaneHeight, cell->planeHeight() * m_appliedMergeRows);
         // With aspect ratio 1 a circular plane derives its width from the height instead.
         if (differs(m_merged[moved].widthDegrees, cell->planeWidthDegrees())
             && !(parent->circularPlaneActive() && parent->planeAspectRatio() == 1))
             assign(parent, &BaseLayer::planeWidthDegrees, &BaseLayer::setPlaneWidthDegrees,
-                   std::min(cell->planeWidthDegrees() * m_cols, 360.0));
+                   std::min(cell->planeWidthDegrees() * m_appliedMergeCols, 360.0));
     }
 
     const uint8_t gridMode = parent->gridMode();
@@ -292,10 +294,12 @@ void DivideTextureHandler::applyMerge(BaseLayer* parent, int mergeCols, int merg
             sub->setPlaneCircular(parent->planeCircular());
         if (sub->planeAspectRatio() != parent->planeAspectRatio())
             sub->setPlaneAspectRatio(parent->planeAspectRatio());
-        assign(sub.get(), &BaseLayer::planeWidth, &BaseLayer::setPlaneWidth, parent->planeWidth() / m_cols);
-        assign(sub.get(), &BaseLayer::planeHeight, &BaseLayer::setPlaneHeight, parent->planeHeight() / m_rows);
+        // The specified size constrains the complete merged plane. The source grid
+        // only selects the ROI; the merge grid determines each cell's size.
+        assign(sub.get(), &BaseLayer::planeWidth, &BaseLayer::setPlaneWidth, parent->planeWidth() / mergeCols);
+        assign(sub.get(), &BaseLayer::planeHeight, &BaseLayer::setPlaneHeight, parent->planeHeight() / mergeRows);
         assign(sub.get(), &BaseLayer::planeWidthDegrees, &BaseLayer::setPlaneWidthDegrees,
-               parent->planeWidthDegrees() / m_cols);
+               parent->planeWidthDegrees() / mergeCols);
     }
 
     if (plane) {
@@ -365,4 +369,6 @@ void DivideTextureHandler::applyMerge(BaseLayer* parent, int mergeCols, int merg
     m_merged.resize(count);
     for (int i = 0; i < count; ++i)
         m_merged[i] = readCell(m_subLayers[i].get());
+    m_appliedMergeCols = mergeCols;
+    m_appliedMergeRows = mergeRows;
 }

@@ -50,11 +50,11 @@
       <label>An image file shown by DirectShow layers while their capture input has no signal</label>
     </entry>
     <entry name="CapturePlaceholderBackground" type="Bool">
-      <label>Draw an opaque background behind the master placeholder text of Capture layers</label>
+      <label>Draw an opaque background behind the master placeholder text of Capture, DirectShow and Spout layers</label>
       <default>true</default>
     </entry>
     <entry name="CapturePlaceholderBackgroundColor" type="String">
-      <label>Background color (#RRGGBB) of the master placeholder of Capture layers</label>
+      <label>Background color (#RRGGBB) of the master placeholder of Capture, DirectShow and Spout layers</label>
       <default>#000000</default>
     </entry>
   </group>

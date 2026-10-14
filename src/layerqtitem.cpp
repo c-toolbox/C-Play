@@ -15,6 +15,11 @@
 #include "slidesmodel.h"
 #include "track.h"
 #include <utils/texturesubdivision.h>
+#include <capture/nodecaptureinventory.h>
+#ifdef SPOUT_SUPPORT
+#include <layers/spoutlayer.h>
+#include <utils/streampathresolver.h>
+#endif
 
 #ifdef PDF_SUPPORT
 #include <layers/pdflayer.h>
@@ -30,9 +35,11 @@
 #include <layers/streamlayer.h>
 #ifdef DIRECTSHOW_SUPPORT
 #include <layers/directshowlayer.h>
+#include <utils/directshowpathresolver.h>
 #endif
 #ifdef CAPTURE_SUPPORT
 #include <capture/capturelayer.h>
+#include <capture/capturepresets.h>
 #endif
 #include <layers/imagelayer.h>
 
@@ -1827,6 +1834,118 @@ bool LayerQtItem::layerHasError() const {
     return m_layer && m_layer->loadFailed();
 }
 
+LayerQtItem::SourceIdentifiers LayerQtItem::sourceIdentifiers() const {
+    SourceIdentifiers identifiers;
+    if (!m_layer)
+        return identifiers;
+
+    const std::string target = m_layer->targetNode();
+#ifdef CAPTURE_SUPPORT
+    if (m_layer->type() == BaseLayer::CAPTURE) {
+        const auto* capture = static_cast<const CaptureLayer*>(m_layer);
+        CaptureSource source = CaptureSource::fromString(m_layer->filepath());
+        if (target.empty() && !capture->presetKey().empty()) {
+            CaptureSource resolved;
+            if (CapturePresets::resolve(capture->presetKey(), m_layer->isMaster(), resolved))
+                source = resolved;
+        }
+        identifiers.backend = QString::fromStdString(source.backend);
+        if (source.valid())
+            identifiers.input = QString::fromStdString(source.toString());
+    }
+#endif
+#ifdef DIRECTSHOW_SUPPORT
+    if (m_layer->type() == BaseLayer::DIRECTSHOW) {
+        const auto* directShow = static_cast<const DirectShowLayer*>(m_layer);
+        const std::string path = m_layer->filepath();
+        const auto separator = path.find('|');
+        std::string video = separator == std::string::npos ? path : path.substr(0, separator);
+        std::string audio = separator == std::string::npos ? "" : path.substr(separator + 1);
+        if (target.empty() && !directShow->presetKey().empty())
+            DirectShowPathResolver::instance().resolve(directShow->presetKey(), m_layer->isMaster(), video, audio, &identifiers.placeholder);
+        identifiers.input = QString::fromStdString(video);
+        identifiers.audio = QString::fromStdString(audio);
+    }
+#endif
+#ifdef SPOUT_SUPPORT
+    if (m_layer->type() == BaseLayer::SPOUT) {
+        std::string sender = m_layer->filepath();
+        if (target.empty())
+            StreamPathResolver::spoutInstance().resolve(m_layer->filepath(), m_layer->isMaster(), sender, &identifiers.placeholder);
+        identifiers.input = QString::fromStdString(sender);
+    }
+#endif
+    return identifiers;
+}
+
+QString LayerQtItem::layerSourceIdentifier() const {
+    return sourceIdentifiers().input;
+}
+
+QString LayerQtItem::layerSourceAudioIdentifier() const {
+    return sourceIdentifiers().audio;
+}
+
+QString LayerQtItem::layerSourceDescription() const {
+    if (!m_layer)
+        return QString();
+
+    const SourceIdentifiers identifiers = sourceIdentifiers();
+    const QString input = identifiers.input.isEmpty() ? tr("None") : identifiers.input;
+#ifdef CAPTURE_SUPPORT
+    if (m_layer->type() == BaseLayer::CAPTURE) {
+        return tr("Backend: %1\nInput: %2\n%3")
+            .arg(identifiers.backend, input,
+                 QString::fromStdString(static_cast<const CaptureLayer*>(m_layer)->statusText()));
+    }
+#endif
+    QString description;
+    bool ok = false;
+    QString waiting;
+#ifdef DIRECTSHOW_SUPPORT
+    if (m_layer->type() == BaseLayer::DIRECTSHOW) {
+        description = tr("Input: %1").arg(input);
+        if (!identifiers.audio.isEmpty())
+            description += tr("\nAudio: %1").arg(identifiers.audio);
+        ok = static_cast<const DirectShowLayer*>(m_layer)->captureOk();
+        waiting = tr("Waiting for DirectShow frames");
+    }
+#endif
+#ifdef SPOUT_SUPPORT
+    if (m_layer->type() == BaseLayer::SPOUT) {
+        description = tr("Input: %1").arg(input);
+        ok = static_cast<const SpoutLayer*>(m_layer)->captureOk();
+        waiting = tr("Waiting for Spout sender");
+    }
+#endif
+    if (description.isEmpty())
+        return QString();
+
+    const std::string target = m_layer->targetNode();
+    QString status;
+    if (m_layer->isMaster() && !target.empty()) {
+        status = QString::fromStdString(target) + QStringLiteral(": ");
+        if (!NodeCaptureInventory::isReady()) {
+            status += tr("No report");
+        } else {
+            const auto report = NodeCaptureInventory::instance().layerStatus(target, m_layer->identifier());
+            if (!report.nodeOnline)
+                status += tr("Node offline");
+            else if (!report.reported)
+                status += tr("Waiting for report");
+            else
+                status += QString::fromStdString(report.status);
+        }
+    } else if (identifiers.placeholder) {
+        status = tr("Master placeholder");
+    } else if (!target.empty() && !m_layer->captureTargetIsLocal()) {
+        status = tr("Captured on %1 only").arg(QString::fromStdString(target));
+    } else {
+        status = ok ? tr("%1x%2, ready").arg(m_layer->width()).arg(m_layer->height()) : waiting;
+    }
+    return description + QStringLiteral("\n") + status;
+}
+
 QString LayerQtItem::layerError() const {
     if (!m_layer)
         return QString();
@@ -1867,23 +1986,6 @@ void LayerQtItem::setLayerCapturePresetKey(QString key) {
         CaptureLayer* captureLayer = static_cast<CaptureLayer*>(m_layer);
         if (QString::fromStdString(captureLayer->presetKey()) != key) {
             captureLayer->setPresetKey(key.toStdString());
-            Q_EMIT layerValueChanged();
-            Q_EMIT layerNeedsSave();
-        }
-    }
-}
-
-QString LayerQtItem::layerCaptureTargetNode() const {
-    if (m_layer && m_layer->type() == BaseLayer::CAPTURE)
-        return QString::fromStdString(static_cast<CaptureLayer*>(m_layer)->targetNode());
-    return QString();
-}
-
-void LayerQtItem::setLayerCaptureTargetNode(QString role) {
-    if (m_layer && m_layer->isEnabled() && m_layer->type() == BaseLayer::CAPTURE) {
-        CaptureLayer* captureLayer = static_cast<CaptureLayer*>(m_layer);
-        if (QString::fromStdString(captureLayer->targetNode()) != role) {
-            captureLayer->setTargetNode(role.toStdString());
             Q_EMIT layerValueChanged();
             Q_EMIT layerNeedsSave();
         }
@@ -1936,6 +2038,11 @@ void LayerQtItem::handleWindowChanged(QQuickWindow *win) {
                     m_layer->collectLoadStatus();
                 }
                 const bool hasError = layerHasError();
+                const QString sourceDescription = layerSourceDescription();
+                if (sourceDescription != m_lastEmittedSourceDescription) {
+                    m_lastEmittedSourceDescription = sourceDescription;
+                    Q_EMIT layerSourceDescriptionChanged();
+                }
                 const QString errorText = hasError ? layerError() : QString();
                 if (hasError != m_lastEmittedHasError || errorText != m_lastEmittedError) {
                     m_lastEmittedHasError = hasError;
@@ -2283,4 +2390,16 @@ void LayerQtOpenGLObject::paint() {
 #if QT_VERSION < QT_VERSION_CHECK(6, 0, 0)
     m_window->resetOpenGLState();
 #endif
+}
+
+QString LayerQtItem::layerCaptureTargetNode() const {
+    return m_layer ? QString::fromStdString(m_layer->targetNode()) : QString();
+}
+
+void LayerQtItem::setLayerCaptureTargetNode(QString role) {
+    if (m_layer && m_layer->isEnabled() && QString::fromStdString(m_layer->targetNode()) != role) {
+        m_layer->setTargetNode(role.toStdString());
+        Q_EMIT layerValueChanged();
+        Q_EMIT layerNeedsSave();
+    }
 }

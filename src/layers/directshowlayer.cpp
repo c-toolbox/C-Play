@@ -389,11 +389,15 @@ void DirectShowLayer::setPresetKey(const std::string& key) {
 }
 
 void DirectShowLayer::encodeTypeCore(std::vector<std::byte>& data) {
+    sgct::serializeObject(data, targetNode());
     sgct::serializeObject(data, m_presetKey);
     sgct::serializeObject(data, m_useNoSignalImage.load());
 }
 
 void DirectShowLayer::decodeTypeCore(const std::vector<std::byte>& data, unsigned int& pos) {
+    std::string target;
+    sgct::deserializeObject(data, pos, target);
+    setTargetNode(target);
     sgct::deserializeObject(data, pos, m_presetKey);
     bool useNoSignalImage = false;
     sgct::deserializeObject(data, pos, useNoSignalImage);
@@ -419,20 +423,20 @@ void DirectShowLayer::decodeTypeProperties(const std::vector<std::byte>& data, u
 bool DirectShowLayer::ready() const {
     if (masterPlaceholderEnabled())
         return masterPlaceholderReady();
-    return noSignalImageEnabled() || (renderData.texId > 0 && !noSignalHidden());
+    return captureTargetIsLocal() && (noSignalImageEnabled() || (renderData.texId > 0 && !noSignalHidden()));
 }
 
 bool DirectShowLayer::hasTexture() const {
     if (masterPlaceholderEnabled())
         return masterPlaceholderReady();
-    return noSignalImageEnabled() || (renderData.texId > 0 && !noSignalHidden());
+    return captureTargetIsLocal() && (noSignalImageEnabled() || (renderData.texId > 0 && !noSignalHidden()));
 }
 
 void DirectShowLayer::update(bool updateRendering) {
 #ifdef _WIN32
     // PortAudio initialization, WASAPI input opens and output stream retries run in the graph
     // worker's idle loop (audioMaintenance) so no device I/O happens on this thread.
-    const bool wantReceive = m_isAudioEnabled.load() && m_portAudioInitialized.load();
+    const bool wantReceive = captureTargetIsLocal() && m_isAudioEnabled.load() && m_portAudioInitialized.load();
     if (wantReceive != m_receiveAudio.load()) {
         m_receiveAudio.store(wantReceive);
         if (!wantReceive) {
@@ -1991,6 +1995,20 @@ void DirectShowLayer::closeAudioStream() {
 
 bool DirectShowLayer::resolveCaptureDevices(std::string& videoDevice, std::string& audioDevice, bool* placeholder) const {
     if (placeholder) *placeholder = false;
+    if (!targetNode().empty()) {
+        if (placeholder) *placeholder = isMaster();
+        videoDevice.clear();
+        audioDevice.clear();
+        if (captureTargetIsLocal()) {
+            const std::string path = filepath();
+            const auto sep = path.find('|');
+            if (sep != std::string::npos) {
+                videoDevice = path.substr(0, sep);
+                audioDevice = path.substr(sep + 1);
+            }
+        }
+        return true;
+    }
     // This layer may be created from a predefined setup: each machine resolves its own local
     // capture devices for the entry (by title) in its data/predefined-directshows.json. Entry not
     // found in the local file: fall back to the synced device pair. Render thread only.

@@ -72,24 +72,9 @@ void CaptureLayer::setTargetNode(const std::string& role) {
 }
 
 namespace {
-std::mutex s_placeholderMutex;
-bool s_placeholderBackground = true;
-std::string s_placeholderBackgroundHex = "#000000";
 // Used until the node has reported the size of the capture.
 constexpr int kDefaultPlaceholderWidth = 1920;
 constexpr int kDefaultPlaceholderHeight = 1080;
-}
-
-void CaptureLayer::setPlaceholderBackground(bool enabled, const std::string& hex) {
-    std::lock_guard<std::mutex> lock(s_placeholderMutex);
-    s_placeholderBackground = enabled;
-    s_placeholderBackgroundHex = hex;
-}
-
-bool CaptureLayer::masterPlaceholderBackground(std::string& hex) const {
-    std::lock_guard<std::mutex> lock(s_placeholderMutex);
-    hex = s_placeholderBackgroundHex;
-    return s_placeholderBackground;
 }
 
 bool CaptureLayer::nodeCaptureSize(int& width, int& height) const {
@@ -115,28 +100,6 @@ void CaptureLayer::masterPlaceholderSize(int& width, int& height) const {
         width = kDefaultPlaceholderWidth;
         height = kDefaultPlaceholderHeight;
     }
-}
-
-std::string CaptureLayer::masterPlaceholderLabel() const {
-    std::string label = BaseLayer::masterPlaceholderLabel();
-    const std::string target = targetNode();
-    if (target.empty())
-        return label;
-    label += "\nNode: " + target + "\nInput: " + filepath();
-    int width = 0;
-    int height = 0;
-    if (nodeCaptureSize(width, height))
-        label += std::format("\n{}x{}", width, height);
-    if (NodeCaptureInventory::isReady()) {
-        const NodeCaptureInventory::LayerStatus s = NodeCaptureInventory::instance().layerStatus(target, identifier());
-        if (!s.nodeOnline)
-            label += "\nStatus: node offline";
-        else if (!s.reported)
-            label += "\nStatus: waiting for node";
-        else
-            label += "\nStatus: " + (s.ok ? std::string("ready") : s.status);
-    }
-    return label;
 }
 
 std::string CaptureLayer::statusText() const {

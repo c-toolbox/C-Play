@@ -103,7 +103,7 @@ void DirectShowModel::setSelectedAudioDevice(const QString &device) {
     Q_EMIT audioDeviceSelected();
 }
 
-void DirectShowModel::updateDeviceLists() {
+void DirectShowModel::updateDeviceLists(bool logDevices) {
 #ifdef _WIN32
     // COM must be initialized on this thread before any DirectShow call.
     const HRESULT hrCo = CoInitializeEx(nullptr, COINIT_MULTITHREADED);
@@ -131,11 +131,11 @@ void DirectShowModel::updateDeviceLists() {
         Q_EMIT audioDeviceSelected();
     }
 
-    sgct::Log::Info(std::format("DirectShowModel: found {} video and {} audio capture devices\n",
+    if (logDevices) sgct::Log::Info(std::format("DirectShowModel: found {} video and {} audio capture devices\n",
                                 video.size(), audio.size()));
 
     // Balance only the COM initialization we performed ourselves.
-    if (hrCo == S_OK) {
+    if (SUCCEEDED(hrCo)) {
         CoUninitialize();
     }
 #endif // _WIN32

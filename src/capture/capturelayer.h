@@ -41,8 +41,8 @@ public:
     // Role (nodes.json id or IP) of the only node that captures; empty = every machine resolves its
     // own source. When set, the file path is used verbatim on that node, the master shows its
     // placeholder and the other machines capture nothing.
-    std::string targetNode() const;
-    void setTargetNode(const std::string& role);
+    std::string targetNode() const override;
+    void setTargetNode(const std::string& role) override;
 
     // Short human readable state, e.g. "1920x1080, NVIDIA GPUDirect for Video".
     std::string statusText() const;
@@ -69,17 +69,12 @@ public:
     // Render thread: closes captures that were released on another thread.
     static void processPendingGLCleanup();
 
-    // Opaque background of the master placeholders (black by default). Any thread.
-    static void setPlaceholderBackground(bool enabled, const std::string& hex);
-
 private:
     CaptureSource resolveSource() const;
     void updateCapture();
     // Frame size the target node reported for this layer's source.
     bool nodeCaptureSize(int& width, int& height) const;
-    std::string masterPlaceholderLabel() const override;
     void masterPlaceholderSize(int& width, int& height) const override;
-    bool masterPlaceholderBackground(std::string& hex) const override;
 
     std::string m_presetKey;
     mutable std::mutex m_targetMutex;
