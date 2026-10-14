@@ -279,7 +279,10 @@ public:
     virtual void encodeTypeProperties(std::vector<std::byte>& data);
     virtual void decodeTypeProperties(const std::vector<std::byte>& data, unsigned int& pos);
 
+    // Whether to render sublayers: false while a placeholder or no-signal image shows.
     virtual bool hasSubLayers() const;
+    // Stored sublayers, including cells hidden by a placeholder or no-signal image.
+    // Use these for state propagation and synchronization.
     virtual std::vector<std::shared_ptr<BaseLayer>>& getSubLayers() const;
 
     // End virtual methods to use in derived classes

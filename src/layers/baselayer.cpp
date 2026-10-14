@@ -966,12 +966,10 @@ void BaseLayer::setEnabled(bool enabled) {
 bool BaseLayer::needSync() const {
     if (m_needSync)
         return true;
-    // Check if any sublayer needs sync (division mode)
-    if (hasSubLayers()) {
-        for (const auto& sublayer : getSubLayers()) {
-            if (sublayer && sublayer->needSync())
-                return true;
-        }
+    // Stored cells still sync while a placeholder or no-signal image is rendered.
+    for (const auto& sublayer : getSubLayers()) {
+        if (sublayer && sublayer->needSync())
+            return true;
     }
     return false;
 }
@@ -983,12 +981,10 @@ void BaseLayer::setHasSynced() {
     else {
         m_needSync = false;
     }
-    // Also mark sublayers as synced
-    if (hasSubLayers()) {
-        for (const auto& sublayer : getSubLayers()) {
-            if (sublayer)
-                sublayer->setHasSynced();
-        }
+    // Also mark stored sublayers as synced, including temporarily hidden cells.
+    for (const auto& sublayer : getSubLayers()) {
+        if (sublayer)
+            sublayer->setHasSynced();
     }
 }
 
@@ -1311,12 +1307,10 @@ void BaseLayer::setAlpha(float a) {
 
     renderData.alpha = a;
 
-    // Apply alpha on sublayers as well, so they don't have to handle it themselves.
-    if (hasSubLayers()) {
-        for (const auto& sublayer : getSubLayers()) {
-            if (sublayer) {
-                sublayer->setAlpha(a);
-            }
+    // Propagate to stored cells even while the master renders a capture placeholder.
+    for (const auto& sublayer : getSubLayers()) {
+        if (sublayer) {
+            sublayer->setAlpha(a);
         }
     }
 
@@ -1655,11 +1649,10 @@ bool BaseLayer::animActive() const {
 void BaseLayer::setAnimState(const cplay::anim::LayerAnimState &state) {
     m_animState = state;
     m_animActive = !state.isIdentity();
-    if (hasSubLayers()) {
-        for (const auto& sublayer : getSubLayers()) {
-            if (sublayer)
-                sublayer->setAnimState(state);
-        }
+    // Animation state must reach cells that are temporarily hidden by a fallback.
+    for (const auto& sublayer : getSubLayers()) {
+        if (sublayer)
+            sublayer->setAnimState(state);
     }
 }
 
