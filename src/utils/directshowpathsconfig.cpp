@@ -123,14 +123,16 @@ int DirectShowPathsConfig::entryCount() const {
     return static_cast<int>(m_entries.size());
 }
 
-bool DirectShowPathsConfig::resolveDevicesForRole(const std::string& title, const std::string& role, std::string& outVideoDevice, std::string& outAudioDevice, bool* placeholder) const {
+bool DirectShowPathsConfig::resolveDevicesForRole(const std::string& title, const std::string& role, std::string& outVideoDevice, std::string& outAudioDevice, bool* placeholder,
+                                                  bool allowPlaceholder) const {
     if (placeholder) *placeholder = false;
     auto it = m_entries.find(title);
     if (it == m_entries.end())
         return false;
 
     const Entry& e = it->second;
-    const bool usePlaceholder = role == "master" && e.masterPlaceholder;
+    const bool masterPlaceholder = role == "master" && e.masterPlaceholder;
+    const bool usePlaceholder = masterPlaceholder && allowPlaceholder;
     if (placeholder) *placeholder = usePlaceholder;
     if (usePlaceholder) {
         outVideoDevice.clear();
@@ -139,9 +141,12 @@ bool DirectShowPathsConfig::resolveDevicesForRole(const std::string& title, cons
     }
 
     // 1. Explicit per-machine override wins, even when both devices are empty (intentional no-capture).
+    // A master placeholder override without devices is skipped when placeholders are not allowed
+    // (master-only layers), so the master opens the default devices.
     if (e.hasPerRole) {
         auto pit = e.perRole.find(role);
-        if (pit != e.perRole.end()) {
+        if (pit != e.perRole.end()
+            && !(masterPlaceholder && pit->second.videoDevice.empty() && pit->second.audioDevice.empty())) {
             outVideoDevice = pit->second.videoDevice;
             outAudioDevice = pit->second.audioDevice;
             return true;

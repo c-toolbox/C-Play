@@ -91,8 +91,12 @@ Kirigami.ApplicationWindow {
                             layerView.layerItem.layerIdx = app.slides.selected.addLayer(layerCoreProps.layerTitle.text, layerCoreProps.typeComboBox.currentIndex + 1, layerCoreProps.spoutSenderComboBox.currentText, layerCoreProps.stereoscopicModeForLayer.currentIndex, layerCoreProps.gridModeForLayer.currentIndex);
                             layerView.layerItem.layerCaptureTargetNode = layerCoreProps.captureTargetNode();
                             // "Master sends content to nodes" enables Node stream on the new layer immediately.
-                            if (!layerCoreProps.captureNodeTargeted && layerCoreProps.nodeSourceComboBox.currentIndex === 1) {
+                            if (!layerCoreProps.captureNodeTargeted && !layerCoreProps.captureMasterOnly && layerCoreProps.nodeSourceComboBox.currentIndex === 1) {
                                 layerView.layerItem.layerNodeStreamOutputEnabled = true;
+                            } else if (layerCoreProps.captureMasterOnly) {
+                                // "Master only": the layer captures on the master and is not synced to the nodes.
+                                layerView.layerItem.layerExistOnMasterOnly = true;
+                                app.slides.needsSync = true;
                             }
                             layersAddNew.visible = false;
                             app.slides.updateSelectedSlide();
@@ -132,8 +136,12 @@ Kirigami.ApplicationWindow {
                                     layerView.layerItem.layerDirectShowPresetKey = directShowPresetKey;
                                 }
                                 // "Master sends content to nodes" enables Node stream on the new layer immediately.
-                                if (!layerCoreProps.captureNodeTargeted && layerCoreProps.nodeSourceComboBox.currentIndex === 1) {
+                                if (!layerCoreProps.captureNodeTargeted && !layerCoreProps.captureMasterOnly && layerCoreProps.nodeSourceComboBox.currentIndex === 1) {
                                     layerView.layerItem.layerNodeStreamOutputEnabled = true;
+                                } else if (layerCoreProps.captureMasterOnly) {
+                                    // "Master only": the layer captures on the master and is not synced to the nodes.
+                                    layerView.layerItem.layerExistOnMasterOnly = true;
+                                    app.slides.needsSync = true;
                                 }
                                 layersAddNew.visible = false;
                                 app.slides.updateSelectedSlide();
@@ -153,8 +161,12 @@ Kirigami.ApplicationWindow {
                                     layerView.layerItem.layerCaptureTargetNode = layerCoreProps.captureTargetNode();
                                 }
                                 // "Master sends content to nodes" enables Node stream on the new layer immediately.
-                                if (!layerCoreProps.captureNodeTargeted && layerCoreProps.nodeSourceComboBox.currentIndex === 1) {
+                                if (!layerCoreProps.captureNodeTargeted && !layerCoreProps.captureMasterOnly && layerCoreProps.nodeSourceComboBox.currentIndex === 1) {
                                     layerView.layerItem.layerNodeStreamOutputEnabled = true;
+                                } else if (layerCoreProps.captureMasterOnly) {
+                                    // "Master only": the layer captures on the master and is not synced to the nodes.
+                                    layerView.layerItem.layerExistOnMasterOnly = true;
+                                    app.slides.needsSync = true;
                                 }
                                 layersAddNew.visible = false;
                                 app.slides.updateSelectedSlide();

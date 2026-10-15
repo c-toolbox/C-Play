@@ -68,7 +68,8 @@ public:
     // Resolve the local path for a stream entry (by title) on the machine identified by role ("master" or node id).
     // Returns false if no entry with that title exists (caller should fall back to the synced file path).
     // When true, outPath may be empty - meaning "no stream on this machine".
-    bool resolvePathForRole(const std::string& title, const std::string& role, std::string& outPath, bool* placeholder = nullptr) const;
+    bool resolvePathForRole(const std::string& title, const std::string& role, std::string& outPath, bool* placeholder = nullptr,
+                            bool allowPlaceholder = true) const;
 
 private:
     // title -> entry

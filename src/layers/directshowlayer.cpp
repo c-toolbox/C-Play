@@ -2016,7 +2016,8 @@ bool DirectShowLayer::resolveCaptureDevices(std::string& videoDevice, std::strin
     audioDevice = m_captureAudioDevice;
     if (!m_presetKey.empty()) {
         std::string resolvedVideo, resolvedAudio;
-        if (DirectShowPathResolver::instance().resolve(m_presetKey, isMaster(), resolvedVideo, resolvedAudio, placeholder)) {
+        // A master-only layer has no nodes to show the capture: it never shows the placeholder.
+        if (DirectShowPathResolver::instance().resolve(m_presetKey, isMaster(), resolvedVideo, resolvedAudio, placeholder, !existOnMasterOnly())) {
             videoDevice = resolvedVideo;
             audioDevice = resolvedAudio;
             return true;

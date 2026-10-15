@@ -136,6 +136,11 @@ std::string CaptureLayer::statusText() const {
     return std::format("{}x{}, {}", backend->width(), backend->height(), CaptureBackend::transferName(backend->transfer()));
 }
 
+std::string CaptureLayer::sourceText() const {
+    const CaptureSource src = resolveSource();
+    return src.valid() ? src.toString() : std::string();
+}
+
 void CaptureLayer::encodeTypeCore(std::vector<std::byte>& data) {
     sgct::serializeObject(data, m_presetKey);
     sgct::serializeObject(data, m_useNoSignalImage.load());
@@ -243,8 +248,9 @@ CaptureSource CaptureLayer::resolveSource() const {
         return CaptureSource::fromString(filepath());
     }
     if (!m_presetKey.empty()) {
+        // A master-only layer has no nodes to show the capture: it never shows the placeholder.
         CaptureSource resolved;
-        if (CapturePresets::resolve(m_presetKey, isMaster(), resolved))
+        if (CapturePresets::resolve(m_presetKey, isMaster(), resolved, !existOnMasterOnly()))
             return resolved;
     }
     // No local entry for the preset (or a custom selection): use the synced default source.

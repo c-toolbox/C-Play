@@ -70,7 +70,8 @@ public:
     // Resolve the local capture devices for a setup entry (by title) on the machine identified by role ("master" or node id).
     // Returns false if no entry with that title exists (caller should fall back to the synced device pair).
     // When true, both out values may be empty - meaning "no capture on this machine".
-    bool resolveDevicesForRole(const std::string& title, const std::string& role, std::string& outVideoDevice, std::string& outAudioDevice, bool* placeholder = nullptr) const;
+    bool resolveDevicesForRole(const std::string& title, const std::string& role, std::string& outVideoDevice, std::string& outAudioDevice, bool* placeholder = nullptr,
+                               bool allowPlaceholder = true) const;
 
 private:
     // title -> entry

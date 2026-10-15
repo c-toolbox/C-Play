@@ -113,17 +113,20 @@ int StreamPathsConfig::entryCount() const {
     return static_cast<int>(m_entries.size());
 }
 
-bool StreamPathsConfig::resolvePathForRole(const std::string& title, const std::string& role, std::string& outPath, bool* placeholder) const {
+bool StreamPathsConfig::resolvePathForRole(const std::string& title, const std::string& role, std::string& outPath, bool* placeholder,
+                                           bool allowPlaceholder) const {
     if (placeholder) *placeholder = false;
     auto it = m_entries.find(title);
     if (it == m_entries.end())
         return false;
 
     const Entry& e = it->second;
-    if (placeholder) *placeholder = role == "master" && e.masterPlaceholder;
+    const bool masterPlaceholder = role == "master" && e.masterPlaceholder;
+    if (placeholder) *placeholder = masterPlaceholder && allowPlaceholder;
 
-    // 1. Explicit per-machine override wins, even when empty (intentional no-stream).
-    if (e.hasPaths) {
+    // 1. Explicit per-machine override wins, even when empty (intentional no-stream). A master
+    // placeholder override is skipped when placeholders are not allowed (master-only layers).
+    if (e.hasPaths && !(masterPlaceholder && !allowPlaceholder)) {
         auto pit = e.paths.find(role);
         if (pit != e.paths.end()) {
             outPath = pit->second;

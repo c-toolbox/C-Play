@@ -29,7 +29,10 @@ public:
     // Returns false if no entry with that title exists in the local predefined-streams.json
     // (caller should fall back to the synced file path).
     // When true, outPath may be empty - meaning "no stream on this machine".
-    bool resolve(const std::string& streamKey, bool isMaster, std::string& outPath, bool* placeholder = nullptr);
+    // allowPlaceholder = false (master-only layers) resolves a master placeholder entry to the
+    // entry's default path instead.
+    bool resolve(const std::string& streamKey, bool isMaster, std::string& outPath, bool* placeholder = nullptr,
+                 bool allowPlaceholder = true);
 
 private:
     StreamPathResolver(bool spout = false) : m_spout(spout) {}

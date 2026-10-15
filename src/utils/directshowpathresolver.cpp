@@ -57,12 +57,13 @@ std::string DirectShowPathResolver::roleFor(bool isMaster) const {
     return "";
 }
 
-bool DirectShowPathResolver::resolve(const std::string& setupKey, bool isMaster, std::string& outVideoDevice, std::string& outAudioDevice, bool* placeholder) {
+bool DirectShowPathResolver::resolve(const std::string& setupKey, bool isMaster, std::string& outVideoDevice, std::string& outAudioDevice, bool* placeholder,
+                                     bool allowPlaceholder) {
     std::lock_guard<std::mutex> lock(m_mutex);
     refreshIfNeeded();
 
     const std::string role = roleFor(isMaster);
-    if (!m_paths.resolveDevicesForRole(setupKey, role, outVideoDevice, outAudioDevice, placeholder))
+    if (!m_paths.resolveDevicesForRole(setupKey, role, outVideoDevice, outAudioDevice, placeholder, allowPlaceholder))
         return false;
 
     if (outVideoDevice.empty() && outAudioDevice.empty() && m_warnedNoCapture.insert(setupKey).second) {

@@ -167,7 +167,7 @@ bool CapturePresets::resolveForRole(const std::string& title, const std::string&
 }
 
 /*static*/
-bool CapturePresets::resolve(const std::string& title, bool isMaster, CaptureSource& out) {
+bool CapturePresets::resolve(const std::string& title, bool isMaster, CaptureSource& out, bool allowPlaceholder) {
     Resolver& r = resolver();
     std::lock_guard<std::mutex> lock(r.mutex);
     r.refreshIfNeeded();
@@ -175,6 +175,8 @@ bool CapturePresets::resolve(const std::string& title, bool isMaster, CaptureSou
     const std::string role = roleFor(isMaster, r.identity);
     if (!r.presets.resolveForRole(title, role, out))
         return false;
+    if (!allowPlaceholder)
+        out.placeholder = false;
 
     if (!out.valid() && r.reportedNoCapture.insert(title).second) {
         sgct::Log::Info(std::format("CapturePresets: setup '{}' has no capture source for role '{}' - nothing is captured on this machine",

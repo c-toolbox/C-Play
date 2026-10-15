@@ -46,6 +46,8 @@ public:
 
     // Short human readable state, e.g. "1920x1080, NVIDIA GPUDirect for Video".
     std::string statusText() const;
+    // Source this machine captures (CaptureSource::toString()), empty when it captures nothing.
+    std::string sourceText() const;
 
     // True while frames of a live signal are captured on this machine (render thread).
     bool captureOk() const;

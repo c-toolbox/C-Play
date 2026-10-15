@@ -9,6 +9,7 @@
 #include "application.h"
 #include "layersmodel.h"
 #include "audiosettings.h"
+#include "imagesettings.h"
 #include "presentationsettings.h"
 #include "gridsettings.h"
 #include "subtitlesettings.h"
@@ -1850,7 +1851,7 @@ LayerQtItem::SourceIdentifiers LayerQtItem::sourceIdentifiers() const {
         CaptureSource source = CaptureSource::fromString(m_layer->filepath());
         if (target.empty() && !capture->presetKey().empty()) {
             CaptureSource resolved;
-            if (CapturePresets::resolve(capture->presetKey(), m_layer->isMaster(), resolved))
+            if (CapturePresets::resolve(capture->presetKey(), m_layer->isMaster(), resolved, !m_layer->existOnMasterOnly()))
                 source = resolved;
         }
         identifiers.backend = QString::fromStdString(source.backend);
@@ -1866,7 +1867,8 @@ LayerQtItem::SourceIdentifiers LayerQtItem::sourceIdentifiers() const {
         std::string video = separator == std::string::npos ? path : path.substr(0, separator);
         std::string audio = separator == std::string::npos ? "" : path.substr(separator + 1);
         if (target.empty() && !directShow->presetKey().empty())
-            DirectShowPathResolver::instance().resolve(directShow->presetKey(), m_layer->isMaster(), video, audio, &identifiers.placeholder);
+            DirectShowPathResolver::instance().resolve(directShow->presetKey(), m_layer->isMaster(), video, audio, &identifiers.placeholder,
+                                                       !m_layer->existOnMasterOnly());
         identifiers.input = QString::fromStdString(video);
         identifiers.audio = QString::fromStdString(audio);
     }
@@ -1875,7 +1877,8 @@ LayerQtItem::SourceIdentifiers LayerQtItem::sourceIdentifiers() const {
     if (m_layer->type() == BaseLayer::SPOUT) {
         std::string sender = m_layer->filepath();
         if (target.empty())
-            StreamPathResolver::spoutInstance().resolve(m_layer->filepath(), m_layer->isMaster(), sender, &identifiers.placeholder);
+            StreamPathResolver::spoutInstance().resolve(m_layer->filepath(), m_layer->isMaster(), sender, &identifiers.placeholder,
+                                                        !m_layer->existOnMasterOnly());
         identifiers.input = QString::fromStdString(sender);
     }
 #endif
@@ -1898,9 +1901,27 @@ QString LayerQtItem::layerSourceDescription() const {
     const QString input = identifiers.input.isEmpty() ? tr("None") : identifiers.input;
 #ifdef CAPTURE_SUPPORT
     if (m_layer->type() == BaseLayer::CAPTURE) {
-        return tr("Backend: %1\nInput: %2\n%3")
+        QString description = tr("Backend: %1\nInput: %2\n%3")
             .arg(identifiers.backend, input,
                  QString::fromStdString(static_cast<const CaptureLayer*>(m_layer)->statusText()));
+        // Without target node every machine captures its own (preset resolved) source: list what
+        // each node reported after the master's own state.
+        if (m_layer->isMaster() && m_layer->targetNode().empty() && NodeCaptureInventory::isReady()) {
+            const auto statuses = NodeCaptureInventory::instance().layerStatuses(m_layer->identifier());
+            if (!statuses.empty())
+                description.prepend(tr("master:\n"));
+            for (const auto& [role, s] : statuses) {
+                description += QStringLiteral("\n") + QString::fromStdString(role) + QStringLiteral(": ");
+                if (!s.nodeOnline) {
+                    description += tr("Node offline");
+                    continue;
+                }
+                description += QString::fromStdString(s.status);
+                if (!s.source.empty())
+                    description += tr("\n  Input: %1").arg(QString::fromStdString(s.source));
+            }
+        }
+        return description;
     }
 #endif
     QString description;
@@ -2193,6 +2214,10 @@ void LayerQtOpenGLObject::calculateViewParameters() {
 void LayerQtItem::createLayer(int type, QString filepath){
     BaseLayer* newLayer = BaseLayer::createLayer(true, type, get_proc_address_qopengl_v1, get_proc_address_qopengl_v2);
     newLayer->setFilePath(filepath.toStdString());
+    // Default the no-signal image on when one is configured for this layer type.
+    if ((type == BaseLayer::CAPTURE && !ImageSettings::noSignalImageForCapture().isEmpty())
+        || (type == BaseLayer::DIRECTSHOW && !ImageSettings::noSignalImageForDirectShow().isEmpty()))
+        newLayer->setUseNoSignalImage(true);
     newLayer->initialize();
 
     if (m_layer && m_ownsLayer) {

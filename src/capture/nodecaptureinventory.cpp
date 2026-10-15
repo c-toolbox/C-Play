@@ -302,6 +302,7 @@ void NodeCaptureInventory::handleLayerStatus(const nlohmann::json &root, int cli
                 s.status = l.value("status", std::string());
                 s.width = l.value("w", 0);
                 s.height = l.value("h", 0);
+                s.source = l.value("source", std::string());
                 layers.insert(l["id"].get<uint32_t>(), s);
             }
         }
@@ -334,6 +335,23 @@ NodeCaptureInventory::LayerStatus NodeCaptureInventory::layerStatus(const std::s
             return it.value();
         result.nodeOnline = r.online;
         return result;
+    }
+    return result;
+}
+
+std::vector<std::pair<std::string, NodeCaptureInventory::LayerStatus>> NodeCaptureInventory::layerStatuses(uint32_t layerId) const {
+    std::vector<std::pair<std::string, LayerStatus>> result;
+    const std::lock_guard<std::mutex> lock(m_mutex);
+    QList<int> ids = m_reports.keys();
+    std::sort(ids.begin(), ids.end());
+    for (int id : ids) {
+        const NodeReport &r = m_reports.constFind(id).value();
+        const auto it = r.layers.constFind(layerId);
+        if (it == r.layers.constEnd())
+            continue;
+        LayerStatus s = it.value();
+        s.nodeOnline = r.online;
+        result.emplace_back(r.role.toStdString(), std::move(s));
     }
     return result;
 }
@@ -447,15 +465,26 @@ void NodeCaptureInventory::sendLayerStatus(const std::vector<std::shared_ptr<Bas
 
     json list = json::array();
     for (const auto &layer : layers) {
-        if (!layer || layer->targetNode().empty() || !isThisMachine(layer->targetNode(), false))
+        if (!layer)
+            continue;
+        const std::string target = layer->targetNode();
+        // Capture layers without target node capture on every machine (per-machine presets).
+#ifdef CAPTURE_SUPPORT
+        const bool everyMachine = target.empty() && layer->type() == BaseLayer::CAPTURE;
+#else
+        const bool everyMachine = false;
+#endif
+        if (!everyMachine && (target.empty() || !isThisMachine(target, false)))
             continue;
         bool ok = false;
         std::string status;
+        std::string source;
 #ifdef CAPTURE_SUPPORT
         if (layer->type() == BaseLayer::CAPTURE) {
             const auto* capture = static_cast<const CaptureLayer*>(layer.get());
             ok = capture->captureOk();
             status = capture->statusText();
+            source = capture->sourceText();
         }
 #endif
 #ifdef SPOUT_SUPPORT
@@ -470,7 +499,7 @@ void NodeCaptureInventory::sendLayerStatus(const std::vector<std::shared_ptr<Bas
             status = ok ? "ready" : "Waiting for DirectShow frames";
         }
 #endif
-        list.push_back({{"id", layer->identifier()}, {"ok", ok}, {"status", status},
+        list.push_back({{"id", layer->identifier()}, {"ok", ok}, {"status", status}, {"source", source},
                         {"w", ok ? layer->width() : 0}, {"h", ok ? layer->height() : 0}});
     }
 

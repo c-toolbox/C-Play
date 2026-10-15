@@ -63,12 +63,13 @@ std::string StreamPathResolver::roleFor(bool isMaster) const {
     return "";
 }
 
-bool StreamPathResolver::resolve(const std::string& streamKey, bool isMaster, std::string& outPath, bool* placeholder) {
+bool StreamPathResolver::resolve(const std::string& streamKey, bool isMaster, std::string& outPath, bool* placeholder,
+                                 bool allowPlaceholder) {
     std::lock_guard<std::mutex> lock(m_mutex);
     refreshIfNeeded();
 
     const std::string role = roleFor(isMaster);
-    if (!m_paths.resolvePathForRole(streamKey, role, outPath, placeholder))
+    if (!m_paths.resolvePathForRole(streamKey, role, outPath, placeholder, allowPlaceholder))
         return false;
 
     if (outPath.empty() && m_warnedNoPath.insert(streamKey).second) {

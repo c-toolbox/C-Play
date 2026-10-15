@@ -22,6 +22,7 @@
 #include <mutex>
 #include <string>
 #include <thread>
+#include <utility>
 #include <vector>
 
 class BaseLayer;
@@ -69,11 +70,17 @@ public:
         std::string status;    // human-readable capture state on the node
         int width = 0;
         int height = 0;
+        std::string source;    // source the node resolved for the layer (Capture layers)
     };
     // Master, any thread: state of the capture layer with that identifier on the node named role.
     LayerStatus layerStatus(const std::string &role, uint32_t layerId) const;
+    // Master, any thread: state of the layer on every node that reported it, ordered by node index,
+    // as (role, status) pairs. Used for capture layers without target node, where each machine
+    // resolves its own source.
+    std::vector<std::pair<std::string, LayerStatus>> layerStatuses(uint32_t layerId) const;
 
-    // Node, render thread: sends the state of the capture layers targeted at this node when it changed.
+    // Node, render thread: sends the state of the capture layers targeted at this node, and of the
+    // Capture layers every machine captures on (no target node), when it changed.
     void sendLayerStatus(const std::vector<std::shared_ptr<BaseLayer>> &layers);
 
     // Node, render thread: sends the latest inventory when it changed or was requested.

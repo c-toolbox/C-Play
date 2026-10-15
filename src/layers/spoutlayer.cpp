@@ -129,7 +129,7 @@ bool SpoutLayer::resolveSender() {
     if (!targetNode().empty()) {
         placeholder = isMaster();
         if (captureTargetIsLocal()) sender = filepath();
-    } else if (!StreamPathResolver::spoutInstance().resolve(filepath(), isMaster(), sender, &placeholder))
+    } else if (!StreamPathResolver::spoutInstance().resolve(filepath(), isMaster(), sender, &placeholder, !existOnMasterOnly()))
         sender = filepath();
     setMasterPlaceholder(placeholder);
     if (sender != m_resolvedSender) {

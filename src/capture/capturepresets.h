@@ -24,7 +24,8 @@
 // A role mapped to null, or to an input <= 0, means "no capture on that machine".
 //
 // A master source {"placeholder": true} replaces capture with a movable name/ID TextLayer
-// on the master. The flag is local and is ignored for node overrides.
+// on the master. The flag is local and is ignored for node overrides and for master-only layers,
+// which capture the master source instead.
 //
 // JSON format:
 // {
@@ -67,8 +68,9 @@ public:
     bool resolveForRole(const std::string& title, const std::string& role, CaptureSource& out) const;
 
     // Resolves an entry for this machine using a process-wide copy of the local files, re-read at
-    // most every few seconds. Any thread.
-    static bool resolve(const std::string& title, bool isMaster, CaptureSource& out);
+    // most every few seconds. allowPlaceholder = false (master-only layers) resolves a master
+    // placeholder source to a capture of the same fields instead. Any thread.
+    static bool resolve(const std::string& title, bool isMaster, CaptureSource& out, bool allowPlaceholder = true);
 
     // This machine's role: "master", the node id from nodes.json, or the node IP. Any thread.
     static std::string machineRole(bool isMaster);

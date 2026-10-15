@@ -97,6 +97,10 @@ GridLayout {
     property var captureNodes: app.captureNodes
     property string selectedCaptureNodeRole: ""
     onSelectedCaptureNodeRoleChanged: Qt.callLater(updateCaptureNodeIndex)
+    // "Master only": the master captures its own source (predefined setup or custom selection) and
+    // the layer is created as a master only layer, so the nodes never get it.
+    property bool captureMasterOnly: false
+    onCaptureMasterOnlyChanged: Qt.callLater(updateCaptureNodeIndex)
     property string selectedRemoteSpout: ""
     property string selectedRemoteVideo: ""
     property string selectedRemoteAudio: ""
@@ -164,6 +168,7 @@ GridLayout {
         directShowPresetsLayout.customEntry = false;
         capturePresetsLayout.customEntry = false;
         selectedCaptureNodeRole = "";
+        captureMasterOnly = false;
         // Drop any in-flight YouTube metadata fetch and its auto-filled title.
         youtubeFetchTimer.stop();
         youtubeAutoFilledTitle = "";
@@ -194,10 +199,11 @@ GridLayout {
         return capturePresetAvailable && !captureNodeTargeted && !capturePresetsLayout.customEntry && capturePresetsComboBox.currentIndex >= 0;
     }
 
+    // Index 0 is "All machines", 1 is "Master only" and the nodes follow.
     function updateCaptureNodeIndex() {
-        var index = 0;
+        var index = captureMasterOnly ? 1 : 0;
         for (var i = 0; i < captureNodes.length; ++i)
-            if (captureNodes[i].role === selectedCaptureNodeRole) index = i + 1;
+            if (captureNodes[i].role === selectedCaptureNodeRole) index = i + 2;
         captureNodeComboBox.currentIndex = index;
     }
 
@@ -494,6 +500,7 @@ GridLayout {
 
         onActivated: {
             selectedCaptureNodeRole = "";
+            captureMasterOnly = false;
             if (root.nodeCaptureType) app.refreshCaptureNodes();
             // A layer-type switch invalidates any in-flight YouTube metadata fetch.
             youtubeFetchTimer.stop();
@@ -1276,7 +1283,7 @@ GridLayout {
             Layout.fillWidth: true
             currentIndex: 0
             model: {
-                var items = [qsTr("All machines")];
+                var items = [qsTr("All machines"), qsTr("Master only")];
                 for (var i = 0; i < root.captureNodes.length; ++i) {
                     var n = root.captureNodes[i];
                     var suffix = !n.reported ? qsTr(" - no report") : (!n.online ? qsTr(" - offline") : qsTr(" - %n input(s)", "", typeComboBox.currentText === "Spout" ? n.spoutSenders.length : typeComboBox.currentText === "DirectShow" ? n.videoDevices.length : n.inputNames.length));
@@ -1289,7 +1296,8 @@ GridLayout {
                 root.selectedRemoteSpout = "";
                 root.selectedRemoteVideo = "";
                 root.selectedRemoteAudio = "";
-                root.selectedCaptureNodeRole = currentIndex > 0 ? root.captureNodes[currentIndex - 1].role : "";
+                root.selectedCaptureNodeRole = currentIndex > 1 ? root.captureNodes[currentIndex - 2].role : "";
+                root.captureMasterOnly = currentIndex === 1;
                 nodeSourceComboBox.currentIndex = 0;
                 if (root.captureNodeTargeted && typeComboBox.currentText === "Spout") {
                     spoutSenderComboBox.currentIndex = root.captureTargetNodeRow && root.captureTargetNodeRow.spoutSenders.length > 0 ? 0 : -1;
@@ -1309,7 +1317,7 @@ GridLayout {
             }
 
             ToolTip {
-                text: qsTr("All machines: each machine captures its own input (predefined setup or custom input). A node: only that node captures, using the inputs it reported; the master shows a text placeholder with the layer name and node that moves the layer.")
+                text: qsTr("All machines: each machine captures its own input (predefined setup or custom input). Master only: only the master captures its input (predefined setup or custom input) and the layer exists on the master only, it is not synced to the nodes. A node: only that node captures, using the inputs it reported; the master shows a text placeholder with the layer name and node that moves the layer.")
             }
         }
         ToolButton {
@@ -2127,7 +2135,7 @@ GridLayout {
         Layout.fillWidth: true
         model: [qsTr("Nodes read from original source"), qsTr("Master sends content to nodes")]
         currentIndex: 0
-        visible: root.showNodeSourceParams && NODE_STREAM_SUPPORT && !root.captureNodeTargeted
+        visible: root.showNodeSourceParams && NODE_STREAM_SUPPORT && !root.captureNodeTargeted && !root.captureMasterOnly
             && (typeComboBox.currentText === "DirectShow" || typeComboBox.currentText === "Spout"
                 || typeComboBox.currentText === "Stream" || typeComboBox.currentText === "YouTube"
                 || typeComboBox.currentText === "Capture")
