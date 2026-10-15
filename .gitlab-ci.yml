@@ -1,0 +1,39 @@
+# GitLab Pages deployment for the C-Play Docusaurus site (gitlab.liu.se).
+#
+# How it works:
+# - The Docusaurus project lives in docs/, so npm runs from there.
+# - The job MUST be named "pages" and its artifact must contain a `public/`
+#   directory at the repository root — that is how GitLab serves Pages.
+#   Docusaurus normally builds to `build/`, so we pass --out-dir=../public.
+# - Only the default branch deploys; other branches are ignored.
+#
+# url/baseUrl: docusaurus.config.ts defaults to the GitHub Pages location
+# (https://c-toolbox.github.io + /C-Play/). Here they are derived from GitLab's
+# CI_PAGES_URL so the site works wherever this instance serves it. To pin them
+# instead, set DOCS_URL / DOCS_BASE_URL as CI/CD variables.
+
+image: node:24
+
+cache:
+  key:
+    files:
+      - docs/package-lock.json
+  paths:
+    - docs/node_modules/
+
+pages:
+  script:
+    - cd docs
+    - export DOCS_URL="${DOCS_URL:-$(echo "$CI_PAGES_URL" | sed -E 's#^(https?://[^/]+).*#\1#')}"
+    - export DOCS_BASE_URL="${DOCS_BASE_URL:-$(echo "$CI_PAGES_URL" | sed -E 's#^https?://[^/]+##; s#/*$#/#')}"
+    - echo "Building docs for ${DOCS_URL}${DOCS_BASE_URL}"
+    - npm ci
+    - npm run build -- --out-dir=../public
+  artifacts:
+    paths:
+      - public
+  rules:
+    - if: $CI_COMMIT_BRANCH == $CI_DEFAULT_BRANCH
+      changes:
+        - docs/**/*
+        - .gitlab-ci.yml
