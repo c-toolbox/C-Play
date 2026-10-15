@@ -343,7 +343,10 @@ ItemDelegate {
                     if (!syncingValue && layerView.layerItem.layerIdx === index
                             && (!layersView.enabled || visibilitySlider.enabled)) {
                         if (visibilitySlider.visible && (value.toFixed(0) !== layerView.layerItem.layerVisibility)) {
-                            layerView.layerItem.layerVisibility = value.toFixed(0);
+                            // A layer with entrance/exit effects scrubs through them instead of fading.
+                            if (layerView.layerItem.layerSelectedSubLayer > 0
+                                    || !app.slides.selected.scrubLayerAnimation(index, Math.round(value)))
+                                layerView.layerItem.layerVisibility = value.toFixed(0);
                             app.slides.needsSync = true;
                         }
                     }
@@ -622,10 +625,23 @@ ItemDelegate {
         if (model.type === "Control" || model.type === "REST" || model.type === "TCP") {
             layerView.layerItem.start();
         } else if (layerView.layerItem.layerVisibility === 100 && !visibility_fade_out_animation.running) {
-            visibility_fade_out_animation.start();
+            // The layer's exit effects replace the plain fade when it has any.
+            if (!playLayerAnimation(false))
+                visibility_fade_out_animation.start();
         } else if (layerView.layerItem.layerVisibility < 100 && !visibility_fade_in_animation.running) {
-            visibility_fade_in_animation.start();
+            if (!playLayerAnimation(true))
+                visibility_fade_in_animation.start();
         }
+    }
+
+    // Plays the layer's entrance (show) or exit effects instead of fading it, when it has them.
+    function playLayerAnimation(show) {
+        if (layerView.layerItem.layerSelectedSubLayer > 0)
+            return false;
+        if (!app.slides.selected.playLayerAnimation(index, show))
+            return false;
+        app.slides.needsSync = true;
+        return true;
     }
 
     PropertyAnimation {
@@ -669,5 +685,18 @@ ItemDelegate {
         }
 
         target: layerView.layerItem
+    }
+    Connections {
+        function onLayerAnimationFinished(layerIdx) {
+            if (layerIdx === index)
+                visibilitySlider.syncValue(app.slides.selected.layerVisibility(index));
+        }
+        // While the layer animates, the slider follows the animation instead of the opacity.
+        function onLayerAnimationProgressChanged(layerIdx, progress) {
+            if (layerIdx === index)
+                visibilitySlider.syncValue(progress);
+        }
+
+        target: app.slides.selected
     }
 }

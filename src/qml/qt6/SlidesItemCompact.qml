@@ -591,6 +591,8 @@ ItemDelegate {
                     return;
                 }
                 if (app.slides.slideHasTimelineKeyframes(index)) {
+                    // Exit effects may still run after the slide fade itself has ended.
+                    app.slides.stopOutro(index);
                     app.slides.startTimeline(index);
                     return;
                 }
@@ -605,7 +607,9 @@ ItemDelegate {
             if (prevIdx === index) {
                 if (model.visibility > 0) {
                     if (app.slides.slideHasTimelineKeyframes(index)) {
-                        if(app.slides.slideFadeTime == PresentationSettings.fadeDurationToPreviousSlide) {
+                        // Going back resets a timeline slide; a regular slide with effects plays its exit.
+                        if(app.slides.slideFadeTime == PresentationSettings.fadeDurationToPreviousSlide
+                           && app.slides.slide(index).hasTimeline) {
                             app.slides.jumpToIntroStart(index);
                             return;
                         }

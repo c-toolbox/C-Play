@@ -154,7 +154,7 @@ public:
     // Refreshes the row showing the layer, safe to call from any thread.
     void updateLayerRow(const BaseLayer *layer);
 
-    // True when this slide's timeline has keyframes or effects for the layer.
+    // True when this slide animates the layer: effects, or keyframes on a timeline slide.
     bool hasTrackForLayer(const BaseLayer *layer) const;
     // Gives a referenced layer without a track a fade-out over the outro (this slide is
     // the last one showing it). Returns true when a track was created.
@@ -292,6 +292,8 @@ public:
 
     // ---- Timeline --------------------------------------------------------
 
+    // Enables the keyframe timeline and its own intro/outro durations. Entrance and exit
+    // effects do not need it: on a regular slide they play alongside the slide fade.
     Q_PROPERTY(bool hasTimeline
         READ getHasTimeline
         WRITE setHasTimeline
@@ -380,7 +382,22 @@ public:
     Q_INVOKABLE bool playNextAnimationStep();
     Q_INVOKABLE bool playPreviousAnimationStep();
 
-    // True when the layer's alpha is driven by the timeline (keyframes or entrance effects).
+    // ---- Layer animation (one layer shown or hidden on its own) ------------
+
+    // Plays the layer's entrance (show) or exit effects by themselves, as when the layer is
+    // faded in or out by hand. Works in every slide, the master slide included. Returns
+    // false when the layer has no effects in that phase, so the caller fades it normally.
+    Q_INVOKABLE bool playLayerAnimation(int layerIdx, bool show);
+    Q_INVOKABLE bool layerAnimationRunning(int layerIdx) const;
+    // Shows the layer at visibility value (0..100) of its entrance or exit, as when its
+    // visibility slider is dragged. The phase is picked when a scrub starts (a fully shown
+    // layer scrubs its exit, any other its entrance; a running animation keeps its own) and
+    // kept until the scrub reaches 0 or 100. Returns false when that phase has no effects,
+    // so the caller sets the opacity instead.
+    Q_INVOKABLE bool scrubLayerAnimation(int layerIdx, int value);
+    Q_INVOKABLE void stopLayerAnimations();
+
+    // True when the layer's alpha is driven by the animation (keyframes or entrance effects).
     bool isLayerTimelineDriven(const BaseLayer *layer) const;
 
     // Evaluate interpolated alpha for a given layer at a given time
@@ -418,6 +435,8 @@ public:
     Q_INVOKABLE int  timelinePositionMs() const;
     Q_INVOKABLE bool outroRunning() const;
 
+    // True when triggering the slide plays its animation (timeline keyframes or effects)
+    // instead of the plain slide fade.
     Q_INVOKABLE bool hasTimelineKeyframes() const;
 
     Q_INVOKABLE void jumpToIntroStart();
@@ -444,6 +463,10 @@ Q_SIGNALS:
     void outroStarted();
     void outroStopped();
     void animationStepChanged();
+    // A layer animation started with playLayerAnimation() ended (layerIdx is its row).
+    void layerAnimationFinished(int layerIdx);
+    // Progress of a running layer animation as visibility: 0..100 for an entrance, 100..0 for an exit.
+    void layerAnimationProgressChanged(int layerIdx, int progress);
     // A referenced layer's keep-visibility span was shortened from this slide.
     void layerVisibilitySpanChanged(BaseLayer *layer);
 
@@ -474,13 +497,30 @@ private:
     void ensureTimelineSizeMatchesLayers();
     // Default slide fade as Fade effects spanning the intro and/or the outro.
     void addDefaultFadeEffects(LayerTimeline &track, bool intro, bool outro) const;
+    bool isDefaultIntroFade(const cplay::anim::LayerEffect &e) const;
     bool isDefaultOutroFade(const cplay::anim::LayerEffect &e) const;
+    // Drops the default fades a timeline slide gave its layers (used when the timeline is turned off).
+    void removeDefaultFadeEffects();
     // Gives a layer added by the user to a timeline slide the default fade effects.
     void addDefaultFadeForNewLayer(int layerIdx);
     LayerTimeline *timelineAt(int layerIdx);
     const LayerTimeline *timelineAt(int layerIdx) const;
     // Evaluates keyframes and effects of one layer at absolute timeline time.
     cplay::anim::LayerAnimState evaluateAnimState(int layerIdx, int timeMs) const;
+    struct ScheduledEffect;
+    // Applies the layer's non-move effects of a schedule at localMs (time in the phase).
+    void applyScheduledEffects(const BaseLayer *layer, const LayerTimeline &track,
+                               const QVector<ScheduledEffect> &schedule, int localMs, bool intro,
+                               cplay::anim::LayerAnimState &state) const;
+    // Runs the layer's Move effects of a schedule up to localMs, starting from pose.
+    // Returns false when stopBefore was reached.
+    bool runMoveEffects(const BaseLayer *layer, const LayerTimeline &track,
+                        const QVector<ScheduledEffect> &schedule, int localMs,
+                        cplay::anim::PlanePose &pose, bool &moved,
+                        const cplay::anim::LayerEffect *stopBefore) const;
+    // Render offsets that show the layer at pose.
+    void setPoseOffsets(const BaseLayer *layer, const cplay::anim::PlanePose &pose,
+                        cplay::anim::LayerAnimState &state) const;
     cplay::anim::PlanePose entryPose(const BaseLayer *layer) const;
     // Plane pose from Move effects at timeline time; false when nothing moves the layer.
     // stopBefore: evaluate only the Move effects scheduled before this one.
@@ -488,7 +528,16 @@ private:
                           const cplay::anim::LayerEffect *stopBefore = nullptr) const;
     void rebuildEffectSchedule();
     void fitTimelineToEffects();
-    void enableTimelineForEffects();
+    // Without a timeline, intro and outro last the slide fade, or longer when effects need it.
+    void fitEffectsOnlyTiming();
+    // Playback runs on timeline slides and on slides with effects.
+    bool animationsActive() const;
+    bool hasAnyEffects() const;
+    // Keyframes only animate on timeline slides.
+    const QVector<LayerKeyframe> &activeKeyframes(const LayerTimeline &track) const;
+    // Fade-in / fade-out time of layers this slide does not animate.
+    int plainFadeInMs() const;
+    int plainFadeOutMs() const;
     int introStopAfter(int startMs) const;
     void clearAllAnimStates();
     void guessGridModeForDraggedLayer(int layerIdx, BaseLayer *layer);
@@ -543,6 +592,29 @@ private:
         int step = 0;
     };
     QVector<ScheduledEffect> m_introSchedule;
+    // A layer playing its entrance or exit on its own (see playLayerAnimation).
+    struct LayerPlay {
+        const BaseLayer *layer = nullptr;
+        bool show = true;
+        QVector<ScheduledEffect> schedule;
+        int spanMs = 0;
+        cplay::anim::PlanePose startPose;
+        bool moved = false;
+        QElapsedTimer elapsed;
+        // Held by the visibility slider at scrubMs instead of running.
+        bool scrubbing = false;
+        int scrubMs = 0;
+        int scrubValue = 0;
+    };
+    QVector<LayerPlay> m_layerPlays;
+    cplay::anim::LayerAnimState evaluateLayerPlay(const LayerPlay &play, int ms) const;
+    // The layer's effects of one phase, timed among themselves. False when there are none.
+    bool buildLayerPlay(int layerIdx, bool show, LayerPlay &play) const;
+    int layerPlayMs(const LayerPlay &play) const;
+    bool hasTimedLayerPlays() const;
+    // Visibility shown for a layer while it animates on its own (see above), -1 when it does not.
+    int layerPlayProgress(const BaseLayer *layer) const;
+    void advanceLayerPlays();
     QVector<ScheduledEffect> m_outroSchedule;
     QVector<int> m_introStepStarts;
     int m_introEffectsSpan = 0;

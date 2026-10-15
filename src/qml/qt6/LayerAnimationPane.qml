@@ -15,17 +15,33 @@ import org.kde.kirigami as Kirigami
 import org.ctoolbox.cplay
 
 // PowerPoint-style animation pane: entrance (intro) and exit (outro) effects per slide.
+// Effects also play on slides without a timeline, together with the regular slide fade.
 Window {
     id: root
 
-    property int slideIndex: -1
+    // Slide to animate, -1 for the master slide (whose layers only animate when shown or hidden on their own).
+    property int slideIndex: -2
     property var slideTimeline: null
+    // Row of the slide's layer to edit only (as from the layer view), -1 for all layers.
+    property int layerFilter: -1
 
-    readonly property var slideModel: (slideIndex >= 0 && slideIndex < app.slides.numberOfSlides())
-                                      ? app.slides.slide(slideIndex) : null
+    readonly property bool isMaster: slideIndex === -1
+    readonly property var slideModel: isMaster ? app.slides.masterSlide()
+                                      : ((slideIndex >= 0 && slideIndex < app.slides.numberOfSlides()) ? app.slides.slide(slideIndex) : null)
+    readonly property bool layerMode: layerFilter >= 0
+    // The master slide is never triggered, and the layer view previews one layer:
+    // both play the layer on its own instead of the slide's intro or outro.
+    readonly property bool layerPlayback: isMaster || layerMode
+    readonly property bool layerAnimatable: {
+        var _r = revision;
+        return !layerMode || (slideModel !== null && layerFilter < slideModel.rowCount()
+                              && slideModel.layerSupportsAnimation(layerFilter));
+    }
 
     // 0 = entrance (intro), 1 = exit (outro)
     property int phase: 0
+    // Effects of the phase in slide playback order, and the ones shown (filtered by layer).
+    property var allEffects: []
     property var effects: []
     // Selected row in the effect list: { layerIdx, effectIdx } or null
     property var selected: null
@@ -35,7 +51,18 @@ Window {
     readonly property color outroColor: "#f85149"
     readonly property color phaseColor: phase === 0 ? introColor : outroColor
 
-    title: slideModel ? qsTr("Animations: %1. %2").arg(slideIndex + 1).arg(slideModel.layersName) : qsTr("Animations")
+    title: {
+        var _r = revision;
+        if (!slideModel)
+            return qsTr("Animations");
+        if (layerMode && isMaster)
+            return qsTr("Animations: %1 (master slide)").arg(slideModel.layerTitle(layerFilter));
+        if (layerMode)
+            return qsTr("Animations: %1 (slide %2. %3)").arg(slideModel.layerTitle(layerFilter)).arg(slideIndex + 1).arg(slideModel.layersName);
+        if (isMaster)
+            return qsTr("Animations: master slide");
+        return qsTr("Animations: %1. %2").arg(slideIndex + 1).arg(slideModel.layersName);
+    }
     width: 460
     height: 720
     minimumWidth: 380
@@ -45,10 +72,13 @@ Window {
 
     function reload() {
         if (!slideModel) {
+            allEffects = [];
             effects = [];
+            revision++;
             return;
         }
-        effects = slideModel.getSlideEffects(phase);
+        allEffects = slideModel.getSlideEffects(phase);
+        effects = layerMode ? allEffects.filter(function(e) { return e.layerIdx === layerFilter; }) : allEffects;
         if (selected) {
             var found = false;
             for (var i = 0; i < effects.length; i++) {
@@ -85,6 +115,36 @@ Window {
         return -1;
     }
 
+    // Position of the shown row in the slide's playback order (what moveEffect expects).
+    function slidePosition(row) {
+        if (row < 0 || row >= effects.length)
+            return -1;
+        for (var i = 0; i < allEffects.length; i++) {
+            if (allEffects[i].layerIdx === effects[row].layerIdx && allEffects[i].effectIdx === effects[row].effectIdx)
+                return i;
+        }
+        return -1;
+    }
+
+    // Moves the selected effect to where the shown row targetRow plays.
+    function moveSelectedTo(targetRow) {
+        var pos = slidePosition(targetRow);
+        if (pos >= 0)
+            slideModel.moveEffect(selected.layerIdx, selected.effectIdx, pos);
+    }
+
+    function targetLayerIdx() {
+        return layerMode ? layerFilter : layerCombo.currentValue;
+    }
+
+    // Previews one effect: on its own layer in layer playback, otherwise in the slide timeline.
+    function previewEffect(layerIdx, effectIdx) {
+        if (layerPlayback)
+            slideModel.playLayerAnimation(layerIdx, phase === 0);
+        else
+            slideModel.previewEffect(layerIdx, effectIdx);
+    }
+
     function updateSelected(values) {
         if (!slideModel || !selected)
             return;
@@ -93,8 +153,8 @@ Window {
 
     function totalSpan() {
         var span = 1;
-        for (var i = 0; i < effects.length; i++)
-            span = Math.max(span, effects[i].endMs);
+        for (var i = 0; i < allEffects.length; i++)
+            span = Math.max(span, allEffects[i].endMs);
         return span;
     }
 
@@ -109,7 +169,14 @@ Window {
         reload();
     }
     onVisibleChanged: if (visible) reload()
-    onSlideModelChanged: reload()
+    onSlideModelChanged: {
+        selected = null;
+        reload();
+    }
+    onLayerFilterChanged: {
+        selected = null;
+        reload();
+    }
 
     Connections {
         target: root.slideModel
@@ -153,12 +220,26 @@ Window {
         // -------------------------------------------------------------------
         // Add effect
         // -------------------------------------------------------------------
+        Label {
+            Layout.fillWidth: true
+            visible: !root.slideModel || !root.layerAnimatable
+            wrapMode: Text.WordWrap
+            opacity: 0.7
+            text: !root.slideModel ? qsTr("Select a slide to animate its layers.")
+                                   : qsTr("This layer has no image to animate.")
+        }
+
         RowLayout {
             Layout.fillWidth: true
+            enabled: root.slideModel !== null && root.layerAnimatable
 
-            Label { text: qsTr("Layer:") }
+            Label {
+                text: qsTr("Layer:")
+                visible: !root.layerMode
+            }
             ComboBox {
                 id: layerCombo
+                visible: !root.layerMode
                 Layout.fillWidth: true
                 textRole: "title"
                 valueRole: "layerIdx"
@@ -178,11 +259,15 @@ Window {
                     return list;
                 }
             }
+            Item {
+                visible: root.layerMode
+                Layout.fillWidth: true
+            }
             Button {
                 id: addButton
                 text: qsTr("Add effect")
                 icon.name: "list-add"
-                enabled: layerCombo.count > 0
+                enabled: root.layerMode || layerCombo.count > 0
                 onClicked: gallery.open()
             }
         }
@@ -212,7 +297,8 @@ Window {
                     wrapMode: Text.WordWrap
                     opacity: 0.7
                     text: root.phase === 0
-                          ? qsTr("No entrance effects. Pick a layer and press \"Add effect\" to animate how it appears.")
+                          ? (root.layerMode ? qsTr("No entrance effects. Press \"Add effect\" to animate how the layer appears.")
+                                            : qsTr("No entrance effects. Pick a layer and press \"Add effect\" to animate how it appears."))
                           : qsTr("No exit effects. Exit effects play when the slide is left.")
                 }
 
@@ -224,7 +310,7 @@ Window {
                     width: ListView.view.width
                     highlighted: ListView.isCurrentItem
                     onClicked: root.selected = { layerIdx: row.modelData.layerIdx, effectIdx: row.modelData.effectIdx }
-                    onDoubleClicked: root.slideModel.previewEffect(row.modelData.layerIdx, row.modelData.effectIdx)
+                    onDoubleClicked: root.previewEffect(row.modelData.layerIdx, row.modelData.effectIdx)
 
                     contentItem: RowLayout {
                         spacing: Kirigami.Units.smallSpacing
@@ -308,14 +394,14 @@ Window {
                 enabled: root.selectedRow() > 0
                 ToolTip.visible: hovered
                 ToolTip.text: qsTr("Play earlier")
-                onClicked: root.slideModel.moveEffect(root.selected.layerIdx, root.selected.effectIdx, root.selectedRow() - 1)
+                onClicked: root.moveSelectedTo(root.selectedRow() - 1)
             }
             ToolButton {
                 icon.name: "go-down"
                 enabled: root.selectedRow() >= 0 && root.selectedRow() < root.effects.length - 1
                 ToolTip.visible: hovered
                 ToolTip.text: qsTr("Play later")
-                onClicked: root.slideModel.moveEffect(root.selected.layerIdx, root.selected.effectIdx, root.selectedRow() + 1)
+                onClicked: root.moveSelectedTo(root.selectedRow() + 1)
             }
             ToolButton {
                 id: removeButton
@@ -346,14 +432,17 @@ Window {
                 text: qsTr("Play")
                 icon.name: "media-playback-start"
                 enabled: root.selected !== null
-                onClicked: root.slideModel.previewEffect(root.selected.layerIdx, root.selected.effectIdx)
+                onClicked: root.previewEffect(root.selected.layerIdx, root.selected.effectIdx)
             }
             Button {
-                text: root.phase === 0 ? qsTr("Play intro") : qsTr("Play outro")
+                text: root.layerPlayback ? (root.phase === 0 ? qsTr("Play entrance") : qsTr("Play exit"))
+                                         : (root.phase === 0 ? qsTr("Play intro") : qsTr("Play outro"))
                 icon.name: "media-seek-forward"
-                enabled: root.effects.length > 0
+                enabled: root.layerPlayback ? root.effects.length > 0 : root.allEffects.length > 0
                 onClicked: {
-                    if (root.phase === 0)
+                    if (root.layerPlayback)
+                        root.slideModel.playLayerAnimation(root.layerMode ? root.layerFilter : root.effects[0].layerIdx, root.phase === 0);
+                    else if (root.phase === 0)
                         app.slides.startTimelineFrom(root.slideIndex, 0);
                     else
                         app.slides.startTimelineOutro(root.slideIndex);
@@ -623,9 +712,14 @@ Window {
                 wrapMode: Text.WordWrap
                 font.pointSize: 8
                 opacity: 0.7
-                text: root.phase === 0
-                      ? qsTr("\"On click\" steps wait for Next (keyboard, remote or /slide_next) before playing. Moves on a layer kept from an earlier slide continue from where that slide left it.")
-                      : qsTr("Exit effects play automatically when the slide is left.")
+                text: root.isMaster
+                      ? qsTr("Master slide layers play their entrance when they are shown and their exit when they are hidden (double-click in the layer list, or the show/hide buttons of the layer view).")
+                      : (root.phase === 0
+                         ? qsTr("\"On click\" steps wait for Next (keyboard, remote or /slide_next) before playing. Moves on a layer kept from an earlier slide continue from where that slide left it.")
+                         : qsTr("Exit effects play automatically when the slide is left."))
+                        + (root.slideModel && !root.slideModel.hasTimeline
+                           ? " " + qsTr("The slide needs no timeline: layers without effects keep the regular slide fade.") : "")
+                        + " " + qsTr("Showing or hiding the layer on its own (double-click in the layer list) also plays its entrance or exit.")
             }
             Button {
                 text: qsTr("Timeline")
@@ -700,7 +794,7 @@ Window {
                                 intro: root.phase === 0
                                 accentColor: root.phaseColor
                                 onChosen: {
-                                    var layerIdx = layerCombo.currentValue;
+                                    var layerIdx = root.targetLayerIdx();
                                     var idx = root.slideModel.addEffect(layerIdx, root.phase, preset);
                                     gallery.close();
                                     if (idx >= 0)

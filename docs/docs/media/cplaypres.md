@@ -146,7 +146,7 @@ Timeline data, including all keyframes and duration settings, is stored in the *
 
 ### Animations (C-Play v2.4 and newer)
 
-C-Play v2.4 extends the timeline with easing curves, more animatable properties, and a PowerPoint-style *animation pane* for entrance and exit effects. Effects and keyframes live on the same slide timeline, so you can use either one or both.
+C-Play v2.4 extends the timeline with easing curves, more animatable properties, and a PowerPoint-style *animation pane* for entrance and exit effects. Keyframes need the slide timeline. Entrance and exit effects do not: every layer can have them, also on a slide without a timeline. On a timeline slide, effects and keyframes share the same timeline, so you can use either one or both.
 
 #### Keyframe easing
 
@@ -175,10 +175,13 @@ An optional group only interpolates between keyframes that have it turned on. Ke
 
 Open the animation pane in one of these ways:
 
-* Click **Animations** in the timeline toolbar.
+* Click **Animation** in the layer view toolbar. The pane then shows only the effects of that layer, and follows the layer selected in the layer list.
+* Click **Animations** in the timeline toolbar (the timeline does not have to be enabled).
 * Double-click an effect bar in the timeline.
 
-The pane has two tabs: **Entrance (intro)** and **Exit (outro)**. To add an effect, pick a layer in the *Layer* list, click **Add effect**, and choose a preset from the gallery. Only layers with visual content can be animated. If the slide has no timeline yet, adding an effect turns it on. The timeline duration grows automatically to fit the effects.
+The pane has two tabs: **Entrance (intro)** and **Exit (outro)**. To add an effect, pick a layer in the *Layer* list, click **Add effect**, and choose a preset from the gallery. Only layers with visual content can be animated, and the master slide has no entrance or exit effects.
+
+On a slide without a timeline, layers without effects keep the regular slide fade, and the effects play on top of it when the slide is triggered and left. On a timeline slide, the timeline duration grows automatically to fit the effects. Turning the timeline off keeps the effects you added, and removes the default fades that turning it on gave the layers.
 
 | Category | Presets | Description |
 |----------|---------|-------------|

@@ -267,7 +267,7 @@ Window {
                     icon.name: "rating"
                     visible: root.animationPaneLoader !== null
                     ToolTip.visible: hovered
-                    ToolTip.text: qsTr("Entrance and exit effects (PowerPoint-style animation pane)")
+                    ToolTip.text: qsTr("Entrance and exit effects (PowerPoint-style animation pane). They also play without the timeline enabled.")
                     onClicked: root.animationPaneLoader.open()
                 }
 

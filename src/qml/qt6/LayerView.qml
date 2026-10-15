@@ -32,6 +32,17 @@ Kirigami.ApplicationWindow {
     property var flipYControls: undefined
     property var webrtcControls: undefined
 
+    // Plays the layer's entrance (show) or exit effects instead of fading it, when it has them.
+    // A selected sublayer has no effects of its own and fades as usual.
+    function playLayerAnimation(show) {
+        if (layerViewItem.layerIdx < 0 || layerViewItem.layerSelectedSubLayer > 0)
+            return false;
+        if (!app.slides.selected.playLayerAnimation(layerViewItem.layerIdx, show))
+            return false;
+        app.slides.needsSync = true;
+        return true;
+    }
+
     function createRoiComponents() {
         if (!selection) {
             selection = selectionComponent.createObject(layerViewItem, {
@@ -153,10 +164,10 @@ Kirigami.ApplicationWindow {
 
     color: Kirigami.Theme.alternateBackgroundColor
     height: 630
-    minimumWidth: 1100
+    minimumWidth: 1200
     title: qsTr("")
     visible: false
-    width: 980
+    width: 1200
 
     Component.onCompleted: {
         if (window.x > width) {
@@ -246,6 +257,37 @@ Kirigami.ApplicationWindow {
                 destroyFlipYComponents();
                 destroyWebrtcComponents();
             }
+        }
+    }
+
+    Connections {
+        function onLayerAnimationFinished(layerIdx) {
+            if (layerIdx !== layerViewItem.layerIdx)
+                return;
+            layerViewItem.refreshValues();
+            visibilitySlider.syncValue(layerViewItem.layerVisibility);
+        }
+        // While the layer animates, the slider follows the animation instead of the opacity.
+        function onLayerAnimationProgressChanged(layerIdx, progress) {
+            if (layerIdx === layerViewItem.layerIdx && layerViewItem.layerSelectedSubLayer <= 0)
+                visibilitySlider.syncValue(progress);
+        }
+
+        target: app.slides.selected
+    }
+
+    // Animation pane locked to the layer shown here, created on first use
+    Loader {
+        id: layerAnimationPaneLoader
+        active: false
+        sourceComponent: LayerAnimationPane {
+            slideIndex: app.slides.selectedSlideIdx
+            layerFilter: layerViewItem.layerIdx
+        }
+        function open() {
+            active = true;
+            item.show();
+            item.raise();
         }
     }
 
@@ -427,7 +469,7 @@ Kirigami.ApplicationWindow {
                     icon.name: "view-hidden"
 
                     onClicked: {
-                        if (!visibility_fade_out_animation.running) {
+                        if (!visibility_fade_out_animation.running && !layerWindow.playLayerAnimation(false)) {
                             visibility_fade_out_animation.start();
                         }
                     }
@@ -448,7 +490,10 @@ Kirigami.ApplicationWindow {
                     onValueChanged: {
                         if (!syncingValue && layerViewItem.layerIdx >= 0
                                 && value.toFixed(0) !== layerViewItem.layerVisibility) {
-                            layerViewItem.layerVisibility = value.toFixed(0);
+                            // A layer with entrance/exit effects scrubs through them instead of fading.
+                            if (layerViewItem.layerSelectedSubLayer > 0
+                                    || !app.slides.selected.scrubLayerAnimation(layerViewItem.layerIdx, Math.round(value)))
+                                layerViewItem.layerVisibility = value.toFixed(0);
                             app.slides.needsSync = true;
                         }
                     }
@@ -472,9 +517,48 @@ Kirigami.ApplicationWindow {
                     icon.name: "view-visible"
 
                     onClicked: {
-                        if (!visibility_fade_in_animation.running) {
+                        if (!visibility_fade_in_animation.running && !layerWindow.playLayerAnimation(true)) {
                             visibility_fade_in_animation.start();
                         }
+                    }
+                }
+                ToolButton {
+                    id: animationButton
+
+                    // Bumped when the slide's effects change, so the bindings below re-evaluate.
+                    property int revision: 0
+                    readonly property bool hasEffects: {
+                        var _r = revision;
+                        return layerViewItem.layerIdx >= 0
+                               && app.slides.selected.layerHasEffects(layerViewItem.layerIdx);
+                    }
+
+                    enabled: {
+                        var _r = revision;
+                        return layerViewItem.layerIdx >= 0
+                               && app.slides.selected.layerSupportsAnimation(layerViewItem.layerIdx);
+                    }
+                    focusPolicy: Qt.NoFocus
+                    icon.color: hasEffects ? "lime" : Kirigami.Theme.textColor
+                    icon.name: "rating"
+                    text: qsTr("Animation")
+
+                    onClicked: layerAnimationPaneLoader.open()
+
+                    Connections {
+                        target: app.slides.selected
+                        function onTimelineChanged() { animationButton.revision++; }
+                        function onLayersModelChanged() { animationButton.revision++; }
+                    }
+                    Connections {
+                        target: layerViewItem
+                        function onLayerChanged() { animationButton.revision++; }
+                    }
+
+                    ToolTip {
+                        text: animationButton.enabled
+                              ? qsTr("Entrance and exit effects of this layer. They play when the slide is triggered and left (with or without a slide timeline), and when the layer is shown or hidden on its own.")
+                              : qsTr("Entrance and exit effects are available for layers with an image")
                     }
                 }
                 ToolButton {
@@ -501,6 +585,7 @@ Kirigami.ApplicationWindow {
                         text: qsTr("Region of interest")
                     }
                 }
+                
 
                 ToolButton {
                     id: nodeStreamButton

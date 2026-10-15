@@ -365,6 +365,8 @@ public:
     Q_INVOKABLE void sync();
     Q_INVOKABLE void cleanup();
     Q_INVOKABLE void updateView();
+    // Re-reads the layer values in QML after something else changed them (e.g. an animation).
+    Q_INVOKABLE void refreshValues();
     Q_INVOKABLE void updateRoi();
     Q_INVOKABLE void updateEnabled(bool);
 

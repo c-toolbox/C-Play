@@ -957,6 +957,10 @@ void LayerQtItem::setRoiTexSize(QSize s) {
     }
 }
 
+void LayerQtItem::refreshValues() {
+    Q_EMIT layerValueChanged();
+}
+
 void LayerQtItem::updateView() {
     if (m_renderer) {
         m_viewOffset = m_renderer->viewOffset() / window()->devicePixelRatio();

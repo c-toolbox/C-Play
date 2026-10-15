@@ -351,11 +351,12 @@ bool SlideVisibilityModel::cellAnimated(int column, int row) const {
         || column < 0 || column >= m_slideList->size() || !m_slideList->at(column))
         return false;
 
-    // The owner slide plays its whole timeline over its own layers; a later slide only
-    // animates a referenced layer when it has a track for it.
-    if (m_layerOwnerSlide[row] == column)
-        return m_slideList->at(column)->hasTimelineKeyframes();
-    return m_slideList->at(column)->hasTrackForLayer(m_visibilityLayers[row]);
+    // A timeline slide plays its whole timeline over its own layers; otherwise a slide
+    // only animates the layers it has effects (or a track) for.
+    const LayersModel *slide = m_slideList->at(column).get();
+    if (m_layerOwnerSlide[row] == column && slide->getHasTimeline())
+        return slide->hasTimelineKeyframes();
+    return slide->hasTrackForLayer(m_visibilityLayers[row]);
 }
 
 SlidesModel::SlidesModel(QObject *parent)

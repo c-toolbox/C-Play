@@ -69,7 +69,7 @@ private:
     int calculateLocalIndex(int column, int row, bool ignoreKeepValue = false) const;
     QString cellColor(int column, int row) const;
     QString cellText(int column, int row) const;
-    // True when the slide in this column animates the layer on its timeline.
+    // True when the slide in this column animates the layer (timeline or effects).
     bool cellAnimated(int column, int row) const;
 
     QList<QSharedPointer<LayersModel>>* m_slideList;
@@ -273,9 +273,9 @@ public:
     Q_INVOKABLE int  timelinePositionMs(int slideIdx) const;
     Q_INVOKABLE bool outroRunning(int slideIdx) const;
 
-    // Returns true if slideIdx has a timeline enabled and at least one layer
-    // with at least one keyframe � used by QML to decide whether to play the
-    // timeline instead of the normal fade animations.
+    // Returns true if slideIdx animates its layers (timeline keyframes or entrance/exit
+    // effects), used by QML to decide whether to play the animation instead of
+    // the normal fade.
     Q_INVOKABLE bool slideHasTimelineKeyframes(int slideIdx) const;
 
     // Jump a slide's layers to the intro start position (time 0) or the outro
