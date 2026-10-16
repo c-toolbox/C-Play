@@ -138,7 +138,8 @@ void main() {
 }
 )";
 
-constexpr const char* VideoFrag = R"(
+// Fragment shaders are split around the cplayPost() definition (see cplay::anim::postGlsl()).
+constexpr const char* VideoFragHead = R"(
 #version 460 core
 
 uniform sampler2D tex;
@@ -149,14 +150,16 @@ in vec2 tr_uv;
 in vec3 tr_normals;
 in vec2 mask_uv;
 out vec4 out_color;
-)" CPLAY_MASK_GLSL R"(
+)" CPLAY_MASK_GLSL;
+
+constexpr const char* VideoFragMain = R"(
 void main() {
     vec2 texCoods = tr_uv;
     if(outside){
         texCoods = vec2(1.0-tr_uv.x, tr_uv.y);
     }
    
-    out_color = texture(tex, texCoods) * vec4(1.0, 1.0, 1.0, alpha * cplayMask(mask_uv));
+    out_color = cplayPost(texCoods, mask_uv) * vec4(1.0, 1.0, 1.0, alpha * cplayMask(mask_uv));
 }
 )";
 
@@ -188,7 +191,7 @@ void main() {
 
 // Shared EAC (equi-angular cubemap) fragment mapping, used by both the perspective and the
 // fisheye EAC programs. Combined with one of the main() chunks below to form a full shader.
-constexpr const char* EACFragCommon = R"(
+constexpr const char* EACFragHead = R"(
 #version 460 core
 
 uniform sampler2D tex;
@@ -203,7 +206,9 @@ uniform bool flipY;
 in vec3 tr_position;
 in vec3 tr_normal;
 out vec4 out_color;
-)" CPLAY_MASK_GLSL R"(
+)" CPLAY_MASK_GLSL;
+
+constexpr const char* EACFragCommon = R"(
 const float M_PI_2 = 1.57079632679489661923;   // pi/2
 const float M_PI_4 = 0.785398163397448309616;  // pi/4
 const float M_1_PI = 0.318309886183790671538;  // 1/pi
@@ -401,7 +406,7 @@ vec4 eac_shade() {
         }
     }
 
-    vec4 shaded = texture(tex, uv) * vec4(1.0, 1.0, 1.0, alpha);
+    vec4 shaded = cplayPost(uv, uv) * vec4(1.0, 1.0, 1.0, alpha);
     if (maskType != 0) {
         vec3 n = normalize(tr_normal);
         vec2 eqr = vec2(atan(n.x, n.z) / (2.0 * M_PI) + 0.5, asin(clamp(n.y, -1.0, 1.0)) / M_PI + 0.5);
@@ -513,7 +518,7 @@ void main() {
 }
 )";
 
-constexpr const char* FisheyeVideoFrag = R"(
+constexpr const char* FisheyeVideoFragHead = R"(
 #version 460 core
 
 uniform sampler2D tex;
@@ -527,7 +532,9 @@ uniform vec4 roi;
 in vec2 tr_texCoord;
 in float tr_radius;
 out vec4 out_color;
-)" CPLAY_MASK_GLSL R"(
+)" CPLAY_MASK_GLSL;
+
+constexpr const char* FisheyeVideoFragMain = R"(
 void main() {
     // Geometry outside the dome cap has no place on the fulldome disk.
     if (tr_radius > 1.0)
@@ -568,7 +575,7 @@ void main() {
         }
     }
 
-    out_color = texture(tex, uv) * vec4(1.0, 1.0, 1.0, alpha * cplayMask(tr_texCoord));
+    out_color = cplayPost(uv, tr_texCoord) * vec4(1.0, 1.0, 1.0, alpha * cplayMask(tr_texCoord));
 }
 )";
 
@@ -1505,10 +1512,13 @@ LayersRendererQtOpenGLObject::LayersRendererQtOpenGLObject(QObject* parent)
 }
 
 LayersRendererQtOpenGLObject::~LayersRendererQtOpenGLObject() {
-    m_videoPrg.reset();
-    m_meshPrg.reset();
-    m_EACPrg.reset();
-    m_fisheyePrg.reset();
+    for (ShaderVariant &variant : m_shaderVariants) {
+        variant.videoPrg.reset();
+        variant.meshPrg.reset();
+        variant.EACPrg.reset();
+        variant.fisheyePrg.reset();
+        variant.fisheyeEACPrg.reset();
+    }
     m_domeMesh.reset();
     m_domeMaskMesh.reset();
     m_sphereMesh.reset();
@@ -1666,41 +1676,41 @@ void LayersRendererQtOpenGLObject::renderCluxPreview(float angle, const QMatrix4
     glBlendFunc(GL_SRC_ALPHA, GL_ONE_MINUS_SRC_ALPHA);
 
     if (m_renderAsFisheye) {
-        if (!m_fisheyePrg) {
+        if (!m_sv->fisheyePrg) {
             glDisable(GL_BLEND);
             return;
         }
-        m_fisheyePrg->bind();
-        m_fisheyePrg->setUniformValue(m_fisheyeEyeModeLoc, 0);
-        m_fisheyePrg->setUniformValue(m_fisheyeStereoscopicModeLoc, 0);
-        m_fisheyePrg->setUniformValue(m_fisheyeAlphaLoc, 1.0f);   // per-pixel alpha carries the fade
-        m_fisheyePrg->setUniformValue(m_fisheyeFlipYLoc, false);
-        m_fisheyePrg->setUniformValue(m_fisheyeOutsideLoc, 0);
-        m_fisheyePrg->setUniformValue(m_fisheyeHalfFovLoc, static_cast<float>(glm::radians(m_meshFov * 0.5)));
-        m_fisheyePrg->setUniformValue(m_fisheyeRoi, 0.f, 0.f, 1.f, 1.f);
+        m_sv->fisheyePrg->bind();
+        m_sv->fisheyePrg->setUniformValue(m_sv->fisheyeEyeModeLoc, 0);
+        m_sv->fisheyePrg->setUniformValue(m_sv->fisheyeStereoscopicModeLoc, 0);
+        m_sv->fisheyePrg->setUniformValue(m_sv->fisheyeAlphaLoc, 1.0f);   // per-pixel alpha carries the fade
+        m_sv->fisheyePrg->setUniformValue(m_sv->fisheyeFlipYLoc, false);
+        m_sv->fisheyePrg->setUniformValue(m_sv->fisheyeOutsideLoc, 0);
+        m_sv->fisheyePrg->setUniformValue(m_sv->fisheyeHalfFovLoc, static_cast<float>(glm::radians(m_meshFov * 0.5)));
+        m_sv->fisheyePrg->setUniformValue(m_sv->fisheyeRoi, 0.f, 0.f, 1.f, 1.f);
         QMatrix4x4 model;   // identity: no layer rotation for the preview overlay
-        m_fisheyePrg->setUniformValue(m_fisheyeMatrixLoc, model);
+        m_sv->fisheyePrg->setUniformValue(m_sv->fisheyeMatrixLoc, model);
         if (m_domeMesh)
             m_domeMesh->draw();
-        m_fisheyePrg->release();
+        m_sv->fisheyePrg->release();
     } else {
-        if (!m_meshPrg) {
+        if (!m_sv->meshPrg) {
             glDisable(GL_BLEND);
             return;
         }
-        m_meshPrg->bind();
-        m_meshPrg->setUniformValue(m_meshEyeModeLoc, 0);
-        m_meshPrg->setUniformValue(m_meshStereoscopicModeLoc, 0);
-        m_meshPrg->setUniformValue(m_meshRoi, 0.f, 0.f, 1.f, 1.f);
-        m_meshPrg->setUniformValue(m_meshAlphaLoc, 1.0f);   // per-pixel alpha carries the fade
-        m_meshPrg->setUniformValue(m_meshFlipYLoc, false);
-        m_meshPrg->setUniformValue(m_meshOutsideLoc, 0);    // render the dome's inner surface
+        m_sv->meshPrg->bind();
+        m_sv->meshPrg->setUniformValue(m_sv->meshEyeModeLoc, 0);
+        m_sv->meshPrg->setUniformValue(m_sv->meshStereoscopicModeLoc, 0);
+        m_sv->meshPrg->setUniformValue(m_sv->meshRoi, 0.f, 0.f, 1.f, 1.f);
+        m_sv->meshPrg->setUniformValue(m_sv->meshAlphaLoc, 1.0f);   // per-pixel alpha carries the fade
+        m_sv->meshPrg->setUniformValue(m_sv->meshFlipYLoc, false);
+        m_sv->meshPrg->setUniformValue(m_sv->meshOutsideLoc, 0);    // render the dome's inner surface
         QMatrix4x4 mvp = projectionMatrix * viewMatrix;
         mvp.rotate(-angle, 1, 0, 0);   // dome tilt (matches a zero-rotation dome layer)
-        m_meshPrg->setUniformValue(m_meshMatrixLoc, mvp);
+        m_sv->meshPrg->setUniformValue(m_sv->meshMatrixLoc, mvp);
         if (m_domeMesh)
             m_domeMesh->draw();
-        m_meshPrg->release();
+        m_sv->meshPrg->release();
     }
 
     glDisable(GL_BLEND);
@@ -1842,105 +1852,116 @@ void LayersRendererQtOpenGLObject::setForegroundImageFile(const QString& file) {
 }
 
 void LayersRendererQtOpenGLObject::createShaders() {
-    // Create video shader
-    m_videoPrg = std::make_unique<QOpenGLShaderProgram>();
-    m_videoPrg->addShaderFromSourceCode(QOpenGLShader::Vertex, VideoVert);
-    m_videoPrg->addShaderFromSourceCode(QOpenGLShader::Fragment, VideoFrag);
-    m_videoPrg->link();
+    createShaderVariant(false);
+    createShaderVariant(true);
+    m_sv = &m_shaderVariants[0];
+}
 
-    m_videoPrg->bind();
-    m_videoPrg->setUniformValue("tex", 0);
-    m_videoAlphaLoc = m_videoPrg->uniformLocation("alpha");
-    m_videoEyeModeLoc = m_videoPrg->uniformLocation("eye");
-    m_videoFlipYLoc = m_videoPrg->uniformLocation("flipY");
-    m_videoStereoscopicModeLoc = m_videoPrg->uniformLocation("stereoscopicMode");
-    m_videoRoi = m_videoPrg->uniformLocation("roi");
-    m_videoMaskLocs.locate([this](const char *n) { return m_videoPrg->uniformLocation(n); });
-    m_videoPrg->setUniformValue(m_videoMaskLocs.quadMatrix, QMatrix4x4());
-    m_videoPrg->release();
+void LayersRendererQtOpenGLObject::createShaderVariant(bool postEffects) {
+    m_sv = &m_shaderVariants[postEffects ? 1 : 0];
+    const QByteArray post(cplay::anim::postGlsl(postEffects));
+    const QByteArray videoFrag = QByteArray(VideoFragHead) + post + VideoFragMain;
+    const QByteArray eacFrag = QByteArray(EACFragHead) + post + EACFragCommon;
+
+    // Create video shader
+    m_sv->videoPrg = std::make_unique<QOpenGLShaderProgram>();
+    m_sv->videoPrg->addShaderFromSourceCode(QOpenGLShader::Vertex, VideoVert);
+    m_sv->videoPrg->addShaderFromSourceCode(QOpenGLShader::Fragment, videoFrag);
+    m_sv->videoPrg->link();
+
+    m_sv->videoPrg->bind();
+    m_sv->videoPrg->setUniformValue("tex", 0);
+    m_sv->videoAlphaLoc = m_sv->videoPrg->uniformLocation("alpha");
+    m_sv->videoEyeModeLoc = m_sv->videoPrg->uniformLocation("eye");
+    m_sv->videoFlipYLoc = m_sv->videoPrg->uniformLocation("flipY");
+    m_sv->videoStereoscopicModeLoc = m_sv->videoPrg->uniformLocation("stereoscopicMode");
+    m_sv->videoRoi = m_sv->videoPrg->uniformLocation("roi");
+    m_sv->videoMaskLocs.locate([this](const char *n) { return m_sv->videoPrg->uniformLocation(n); });
+    m_sv->videoPrg->setUniformValue(m_sv->videoMaskLocs.quadMatrix, QMatrix4x4());
+    m_sv->videoPrg->release();
 
     // Create mesh shader
-    m_meshPrg = std::make_unique<QOpenGLShaderProgram>();
-    m_meshPrg->addShaderFromSourceCode(QOpenGLShader::Vertex, MeshVert);
-    m_meshPrg->addShaderFromSourceCode(QOpenGLShader::Fragment, VideoFrag);
-    m_meshPrg->link();
+    m_sv->meshPrg = std::make_unique<QOpenGLShaderProgram>();
+    m_sv->meshPrg->addShaderFromSourceCode(QOpenGLShader::Vertex, MeshVert);
+    m_sv->meshPrg->addShaderFromSourceCode(QOpenGLShader::Fragment, videoFrag);
+    m_sv->meshPrg->link();
 
-    m_meshPrg->bind();
-    m_meshPrg->setUniformValue("tex", 0);
-    m_meshMatrixLoc = m_meshPrg->uniformLocation("mvp");
-    m_meshEyeModeLoc = m_meshPrg->uniformLocation("eye");
-    m_meshFlipYLoc = m_meshPrg->uniformLocation("flipY");
-    m_meshStereoscopicModeLoc = m_meshPrg->uniformLocation("stereoscopicMode");
-    m_meshRoi = m_meshPrg->uniformLocation("roi");
-    m_meshAlphaLoc = m_meshPrg->uniformLocation("alpha");
-    m_meshOutsideLoc = m_meshPrg->uniformLocation("outside");
-    m_meshMaskLocs.locate([this](const char *n) { return m_meshPrg->uniformLocation(n); });
-    m_meshPrg->release();
+    m_sv->meshPrg->bind();
+    m_sv->meshPrg->setUniformValue("tex", 0);
+    m_sv->meshMatrixLoc = m_sv->meshPrg->uniformLocation("mvp");
+    m_sv->meshEyeModeLoc = m_sv->meshPrg->uniformLocation("eye");
+    m_sv->meshFlipYLoc = m_sv->meshPrg->uniformLocation("flipY");
+    m_sv->meshStereoscopicModeLoc = m_sv->meshPrg->uniformLocation("stereoscopicMode");
+    m_sv->meshRoi = m_sv->meshPrg->uniformLocation("roi");
+    m_sv->meshAlphaLoc = m_sv->meshPrg->uniformLocation("alpha");
+    m_sv->meshOutsideLoc = m_sv->meshPrg->uniformLocation("outside");
+    m_sv->meshMaskLocs.locate([this](const char *n) { return m_sv->meshPrg->uniformLocation(n); });
+    m_sv->meshPrg->release();
 
     // Create EAC shader
-    m_EACPrg = std::make_unique<QOpenGLShaderProgram>();
-    m_EACPrg->addShaderFromSourceCode(QOpenGLShader::Vertex, EACMeshVert);
-    m_EACPrg->addShaderFromSourceCode(QOpenGLShader::Fragment, QByteArray(EACFragCommon) + EACFragMain);
-    m_EACPrg->link();
+    m_sv->EACPrg = std::make_unique<QOpenGLShaderProgram>();
+    m_sv->EACPrg->addShaderFromSourceCode(QOpenGLShader::Vertex, EACMeshVert);
+    m_sv->EACPrg->addShaderFromSourceCode(QOpenGLShader::Fragment, eacFrag + EACFragMain);
+    m_sv->EACPrg->link();
 
-    m_EACPrg->bind();
-    m_EACPrg->setUniformValue("tex", 0);
-    m_EACMatrixLoc = m_EACPrg->uniformLocation("mvp");
-    m_EACEyeModeLoc = m_EACPrg->uniformLocation("eye");
-    m_EACFlipYLoc = m_EACPrg->uniformLocation("flipY");
-    m_EACStereoscopicModeLoc = m_EACPrg->uniformLocation("stereoscopicMode");
-    m_EACAlphaLoc = m_EACPrg->uniformLocation("alpha");
-    m_EACOutsideLoc = m_EACPrg->uniformLocation("outside");
-    m_EACScaleLoc = m_EACPrg->uniformLocation("scaleToUnitCube");
-    m_EACVideoWidthLoc = m_EACPrg->uniformLocation("videoWidth");
-    m_EACVideoHeightLoc = m_EACPrg->uniformLocation("videoHeight");
-    m_EACFlipUpDownLoc = m_EACPrg->uniformLocation("flipUpDown");
-    m_EACMaskLocs.locate([this](const char *n) { return m_EACPrg->uniformLocation(n); });
-    m_EACPrg->release();
+    m_sv->EACPrg->bind();
+    m_sv->EACPrg->setUniformValue("tex", 0);
+    m_sv->EACMatrixLoc = m_sv->EACPrg->uniformLocation("mvp");
+    m_sv->EACEyeModeLoc = m_sv->EACPrg->uniformLocation("eye");
+    m_sv->EACFlipYLoc = m_sv->EACPrg->uniformLocation("flipY");
+    m_sv->EACStereoscopicModeLoc = m_sv->EACPrg->uniformLocation("stereoscopicMode");
+    m_sv->EACAlphaLoc = m_sv->EACPrg->uniformLocation("alpha");
+    m_sv->EACOutsideLoc = m_sv->EACPrg->uniformLocation("outside");
+    m_sv->EACScaleLoc = m_sv->EACPrg->uniformLocation("scaleToUnitCube");
+    m_sv->EACVideoWidthLoc = m_sv->EACPrg->uniformLocation("videoWidth");
+    m_sv->EACVideoHeightLoc = m_sv->EACPrg->uniformLocation("videoHeight");
+    m_sv->EACFlipUpDownLoc = m_sv->EACPrg->uniformLocation("flipUpDown");
+    m_sv->EACMaskLocs.locate([this](const char *n) { return m_sv->EACPrg->uniformLocation(n); });
+    m_sv->EACPrg->release();
 
     // Create fisheye shader (one-pass 180-degree fulldome projection).
     // The vertex stage replaces the perspective camera with an equidistant fisheye lens
     // centered on the dome zenith; the fragment samples the mesh texture coordinates.
     // Used for dome, sphere (EQR) and plane content.
-    m_fisheyePrg = std::make_unique<QOpenGLShaderProgram>();
-    m_fisheyePrg->addShaderFromSourceCode(QOpenGLShader::Vertex, QByteArray(FisheyeProjection) + FisheyeMeshVert);
-    m_fisheyePrg->addShaderFromSourceCode(QOpenGLShader::Fragment, FisheyeVideoFrag);
-    m_fisheyePrg->link();
+    m_sv->fisheyePrg = std::make_unique<QOpenGLShaderProgram>();
+    m_sv->fisheyePrg->addShaderFromSourceCode(QOpenGLShader::Vertex, QByteArray(FisheyeProjection) + FisheyeMeshVert);
+    m_sv->fisheyePrg->addShaderFromSourceCode(QOpenGLShader::Fragment, QByteArray(FisheyeVideoFragHead) + post + FisheyeVideoFragMain);
+    m_sv->fisheyePrg->link();
 
-    m_fisheyePrg->bind();
-    m_fisheyePrg->setUniformValue("tex", 0);
-    m_fisheyeMatrixLoc = m_fisheyePrg->uniformLocation("model");
-    m_fisheyeEyeModeLoc = m_fisheyePrg->uniformLocation("eye");
-    m_fisheyeFlipYLoc = m_fisheyePrg->uniformLocation("flipY");
-    m_fisheyeStereoscopicModeLoc = m_fisheyePrg->uniformLocation("stereoscopicMode");
-    m_fisheyeAlphaLoc = m_fisheyePrg->uniformLocation("alpha");
-    m_fisheyeOutsideLoc = m_fisheyePrg->uniformLocation("outside");
-    m_fisheyeHalfFovLoc = m_fisheyePrg->uniformLocation("halfFov");
-    m_fisheyeRoi = m_fisheyePrg->uniformLocation("roi");
-    m_fisheyeMaskLocs.locate([this](const char *n) { return m_fisheyePrg->uniformLocation(n); });
-    m_fisheyePrg->release();
+    m_sv->fisheyePrg->bind();
+    m_sv->fisheyePrg->setUniformValue("tex", 0);
+    m_sv->fisheyeMatrixLoc = m_sv->fisheyePrg->uniformLocation("model");
+    m_sv->fisheyeEyeModeLoc = m_sv->fisheyePrg->uniformLocation("eye");
+    m_sv->fisheyeFlipYLoc = m_sv->fisheyePrg->uniformLocation("flipY");
+    m_sv->fisheyeStereoscopicModeLoc = m_sv->fisheyePrg->uniformLocation("stereoscopicMode");
+    m_sv->fisheyeAlphaLoc = m_sv->fisheyePrg->uniformLocation("alpha");
+    m_sv->fisheyeOutsideLoc = m_sv->fisheyePrg->uniformLocation("outside");
+    m_sv->fisheyeHalfFovLoc = m_sv->fisheyePrg->uniformLocation("halfFov");
+    m_sv->fisheyeRoi = m_sv->fisheyePrg->uniformLocation("roi");
+    m_sv->fisheyeMaskLocs.locate([this](const char *n) { return m_sv->fisheyePrg->uniformLocation(n); });
+    m_sv->fisheyePrg->release();
 
     // Create fisheye shader for EAC content: same lens, EAC cubemap texture mapping.
-    m_fisheyeEACPrg = std::make_unique<QOpenGLShaderProgram>();
-    m_fisheyeEACPrg->addShaderFromSourceCode(QOpenGLShader::Vertex, QByteArray(FisheyeProjection) + FisheyeEACMeshVert);
-    m_fisheyeEACPrg->addShaderFromSourceCode(QOpenGLShader::Fragment, QByteArray(EACFragCommon) + FisheyeEACFragMain);
-    m_fisheyeEACPrg->link();
+    m_sv->fisheyeEACPrg = std::make_unique<QOpenGLShaderProgram>();
+    m_sv->fisheyeEACPrg->addShaderFromSourceCode(QOpenGLShader::Vertex, QByteArray(FisheyeProjection) + FisheyeEACMeshVert);
+    m_sv->fisheyeEACPrg->addShaderFromSourceCode(QOpenGLShader::Fragment, eacFrag + FisheyeEACFragMain);
+    m_sv->fisheyeEACPrg->link();
 
-    m_fisheyeEACPrg->bind();
-    m_fisheyeEACPrg->setUniformValue("tex", 0);
-    m_fisheyeEACMatrixLoc = m_fisheyeEACPrg->uniformLocation("model");
-    m_fisheyeEACHalfFovLoc = m_fisheyeEACPrg->uniformLocation("halfFov");
-    m_fisheyeEACEyeModeLoc = m_fisheyeEACPrg->uniformLocation("eye");
-    m_fisheyeEACFlipYLoc = m_fisheyeEACPrg->uniformLocation("flipY");
-    m_fisheyeEACStereoscopicModeLoc = m_fisheyeEACPrg->uniformLocation("stereoscopicMode");
-    m_fisheyeEACAlphaLoc = m_fisheyeEACPrg->uniformLocation("alpha");
-    m_fisheyeEACOutsideLoc = m_fisheyeEACPrg->uniformLocation("outside");
-    m_fisheyeEACScaleLoc = m_fisheyeEACPrg->uniformLocation("scaleToUnitCube");
-    m_fisheyeEACVideoWidthLoc = m_fisheyeEACPrg->uniformLocation("videoWidth");
-    m_fisheyeEACVideoHeightLoc = m_fisheyeEACPrg->uniformLocation("videoHeight");
-    m_fisheyeEACFlipUpDownLoc = m_fisheyeEACPrg->uniformLocation("flipUpDown");
-    m_fisheyeEACMaskLocs.locate([this](const char *n) { return m_fisheyeEACPrg->uniformLocation(n); });
-    m_fisheyeEACPrg->release();
+    m_sv->fisheyeEACPrg->bind();
+    m_sv->fisheyeEACPrg->setUniformValue("tex", 0);
+    m_sv->fisheyeEACMatrixLoc = m_sv->fisheyeEACPrg->uniformLocation("model");
+    m_sv->fisheyeEACHalfFovLoc = m_sv->fisheyeEACPrg->uniformLocation("halfFov");
+    m_sv->fisheyeEACEyeModeLoc = m_sv->fisheyeEACPrg->uniformLocation("eye");
+    m_sv->fisheyeEACFlipYLoc = m_sv->fisheyeEACPrg->uniformLocation("flipY");
+    m_sv->fisheyeEACStereoscopicModeLoc = m_sv->fisheyeEACPrg->uniformLocation("stereoscopicMode");
+    m_sv->fisheyeEACAlphaLoc = m_sv->fisheyeEACPrg->uniformLocation("alpha");
+    m_sv->fisheyeEACOutsideLoc = m_sv->fisheyeEACPrg->uniformLocation("outside");
+    m_sv->fisheyeEACScaleLoc = m_sv->fisheyeEACPrg->uniformLocation("scaleToUnitCube");
+    m_sv->fisheyeEACVideoWidthLoc = m_sv->fisheyeEACPrg->uniformLocation("videoWidth");
+    m_sv->fisheyeEACVideoHeightLoc = m_sv->fisheyeEACPrg->uniformLocation("videoHeight");
+    m_sv->fisheyeEACFlipUpDownLoc = m_sv->fisheyeEACPrg->uniformLocation("flipUpDown");
+    m_sv->fisheyeEACMaskLocs.locate([this](const char *n) { return m_sv->fisheyeEACPrg->uniformLocation(n); });
+    m_sv->fisheyeEACPrg->release();
 }
 
 namespace {
@@ -1949,27 +1970,29 @@ struct QtUniformSetter {
     void set1i(int loc, int v) const { prg->setUniformValue(loc, static_cast<GLint>(v)); }
     void set1f(int loc, float v) const { prg->setUniformValue(loc, static_cast<GLfloat>(v)); }
     void set2f(int loc, float a, float b) const { prg->setUniformValue(loc, a, b); }
+    void set4fv(int loc, int count, const float *v) const { prg->setUniformValueArray(loc, v, count, 4); }
 };
 }
 
 void LayersRendererQtOpenGLObject::resetAnimUniforms() {
     const cplay::anim::LayerAnimState neutral;
-    auto reset = [&neutral](QOpenGLShaderProgram *prg, const cplay::anim::MaskUniformLocations &locs) {
+    const cplay::anim::PostEffects noFx;
+    auto reset = [&neutral, &noFx](QOpenGLShaderProgram *prg, const cplay::anim::MaskUniformLocations &locs) {
         if (!prg)
             return;
         prg->bind();
-        locs.apply(QtUniformSetter{prg}, neutral, 1.f);
+        locs.apply(QtUniformSetter{prg}, neutral, 1.f, noFx);
         prg->release();
     };
-    reset(m_meshPrg.get(), m_meshMaskLocs);
-    reset(m_EACPrg.get(), m_EACMaskLocs);
-    reset(m_fisheyePrg.get(), m_fisheyeMaskLocs);
-    reset(m_fisheyeEACPrg.get(), m_fisheyeEACMaskLocs);
-    if (m_videoPrg) {
-        m_videoPrg->bind();
-        m_videoMaskLocs.apply(QtUniformSetter{m_videoPrg.get()}, neutral, 1.f);
-        m_videoPrg->setUniformValue(m_videoMaskLocs.quadMatrix, QMatrix4x4());
-        m_videoPrg->release();
+    reset(m_sv->meshPrg.get(), m_sv->meshMaskLocs);
+    reset(m_sv->EACPrg.get(), m_sv->EACMaskLocs);
+    reset(m_sv->fisheyePrg.get(), m_sv->fisheyeMaskLocs);
+    reset(m_sv->fisheyeEACPrg.get(), m_sv->fisheyeEACMaskLocs);
+    if (m_sv->videoPrg) {
+        m_sv->videoPrg->bind();
+        m_sv->videoMaskLocs.apply(QtUniformSetter{m_sv->videoPrg.get()}, neutral, 1.f, noFx);
+        m_sv->videoPrg->setUniformValue(m_sv->videoMaskLocs.quadMatrix, QMatrix4x4());
+        m_sv->videoPrg->release();
     }
 }
 
@@ -2065,7 +2088,7 @@ void LayersRendererQtOpenGLObject::renderQuad() {
 }
 
 void LayersRendererQtOpenGLObject::renderLayer(const BaseLayer* layer, int eyeMode, float angle,
-    const QMatrix4x4& viewMatrix, const QMatrix4x4& projectionMatrix) {
+    const QMatrix4x4& viewMatrix, const QMatrix4x4& projectionMatrix, const BaseLayer* fxSource) {
     if (!layer || !layer->ready()) {
         return;
     }
@@ -2080,6 +2103,14 @@ void LayersRendererQtOpenGLObject::renderLayer(const BaseLayer* layer, int eyeMo
     const glm::vec3 trans = layer->renderTranslate();
     const cplay::anim::LayerAnimState &anim = layer->animState();
     const bool animActive = layer->animActive();
+    const cplay::anim::PostEffects &fx = (fxSource ? fxSource : layer)->postEffects();
+    // Layers without post effects use the plain shaders; restore them for the draws that follow.
+    struct VariantRestore {
+        ShaderVariant *&current;
+        ShaderVariant *plain;
+        ~VariantRestore() { current = plain; }
+    } variantRestore{m_sv, &m_shaderVariants[0]};
+    m_sv = &m_shaderVariants[fx.active() ? 1 : 0];
     const float aspect = layer->renderAspectRatio();
 
     int gridMode = layer->gridMode();
@@ -2093,25 +2124,25 @@ void LayersRendererQtOpenGLObject::renderLayer(const BaseLayer* layer, int eyeMo
     if (gridMode == 4) {
         // EAC sphere: plain perspective, or one-pass fisheye (fulldome).
         if (m_renderAsFisheye) {
-            m_fisheyeEACPrg->bind();
+            m_sv->fisheyeEACPrg->bind();
 
-            m_fisheyeEACPrg->setUniformValue(m_fisheyeEACAlphaLoc, alpha);
-            m_fisheyeEACMaskLocs.apply(QtUniformSetter{m_fisheyeEACPrg.get()}, anim, 2.f);
-            m_fisheyeEACPrg->setUniformValue(m_fisheyeEACFlipYLoc, layer->renderFlipY());
-            m_fisheyeEACPrg->setUniformValue(m_fisheyeEACOutsideLoc, 0);
-            m_fisheyeEACPrg->setUniformValue(m_fisheyeEACVideoWidthLoc, layer->width());
-            m_fisheyeEACPrg->setUniformValue(m_fisheyeEACVideoHeightLoc, layer->height());
-            m_fisheyeEACPrg->setUniformValue(m_fisheyeEACFlipUpDownLoc, false);
-            m_fisheyeEACPrg->setUniformValue(m_fisheyeEACScaleLoc, static_cast<float>(100.0 / m_meshRadius));
-            m_fisheyeEACPrg->setUniformValue(m_fisheyeEACHalfFovLoc, static_cast<float>(glm::radians(m_meshFov * 0.5)));
+            m_sv->fisheyeEACPrg->setUniformValue(m_sv->fisheyeEACAlphaLoc, alpha);
+            m_sv->fisheyeEACMaskLocs.apply(QtUniformSetter{m_sv->fisheyeEACPrg.get()}, anim, 2.f, fx);
+            m_sv->fisheyeEACPrg->setUniformValue(m_sv->fisheyeEACFlipYLoc, layer->renderFlipY());
+            m_sv->fisheyeEACPrg->setUniformValue(m_sv->fisheyeEACOutsideLoc, 0);
+            m_sv->fisheyeEACPrg->setUniformValue(m_sv->fisheyeEACVideoWidthLoc, layer->width());
+            m_sv->fisheyeEACPrg->setUniformValue(m_sv->fisheyeEACVideoHeightLoc, layer->height());
+            m_sv->fisheyeEACPrg->setUniformValue(m_sv->fisheyeEACFlipUpDownLoc, false);
+            m_sv->fisheyeEACPrg->setUniformValue(m_sv->fisheyeEACScaleLoc, static_cast<float>(100.0 / m_meshRadius));
+            m_sv->fisheyeEACPrg->setUniformValue(m_sv->fisheyeEACHalfFovLoc, static_cast<float>(glm::radians(m_meshFov * 0.5)));
 
             if (layer->renderStereoMode() > 0) {
-                m_fisheyeEACPrg->setUniformValue(m_fisheyeEACEyeModeLoc, eyeMode);
-                m_fisheyeEACPrg->setUniformValue(m_fisheyeEACStereoscopicModeLoc, stereoMode);
+                m_sv->fisheyeEACPrg->setUniformValue(m_sv->fisheyeEACEyeModeLoc, eyeMode);
+                m_sv->fisheyeEACPrg->setUniformValue(m_sv->fisheyeEACStereoscopicModeLoc, stereoMode);
             }
             else {
-                m_fisheyeEACPrg->setUniformValue(m_fisheyeEACEyeModeLoc, 0);
-                m_fisheyeEACPrg->setUniformValue(m_fisheyeEACStereoscopicModeLoc, 0);
+                m_sv->fisheyeEACPrg->setUniformValue(m_sv->fisheyeEACEyeModeLoc, 0);
+                m_sv->fisheyeEACPrg->setUniformValue(m_sv->fisheyeEACStereoscopicModeLoc, 0);
             }
 
             QMatrix4x4 model;
@@ -2119,33 +2150,33 @@ void LayersRendererQtOpenGLObject::renderLayer(const BaseLayer* layer, int eyeMo
             model.rotate(rot.x, 1, 0, 0);   // pitch
             model.rotate(rot.y, 0, 1, 0);   // yaw
             model.rotate(-90.f, 0, 0, 1);               // roll
-            m_fisheyeEACPrg->setUniformValue(m_fisheyeEACMatrixLoc, model);
+            m_sv->fisheyeEACPrg->setUniformValue(m_sv->fisheyeEACMatrixLoc, model);
 
             glDisable(GL_CULL_FACE);
             if (m_sphereMesh)
                 m_sphereMesh->draw();
 
-            m_fisheyeEACPrg->release();
+            m_sv->fisheyeEACPrg->release();
         }
         else {
-            m_EACPrg->bind();
+            m_sv->EACPrg->bind();
 
-            m_EACPrg->setUniformValue(m_EACAlphaLoc, alpha);
-            m_EACMaskLocs.apply(QtUniformSetter{m_EACPrg.get()}, anim, 2.f);
-            m_EACPrg->setUniformValue(m_EACFlipYLoc, layer->renderFlipY());
-            m_EACPrg->setUniformValue(m_EACOutsideLoc, 0);
-            m_EACPrg->setUniformValue(m_EACVideoWidthLoc, layer->width());
-            m_EACPrg->setUniformValue(m_EACVideoHeightLoc, layer->height());
-            m_EACPrg->setUniformValue(m_EACFlipUpDownLoc, false);
-            m_EACPrg->setUniformValue(m_EACScaleLoc, static_cast<float>(100.0 / m_meshRadius));
+            m_sv->EACPrg->setUniformValue(m_sv->EACAlphaLoc, alpha);
+            m_sv->EACMaskLocs.apply(QtUniformSetter{m_sv->EACPrg.get()}, anim, 2.f, fx);
+            m_sv->EACPrg->setUniformValue(m_sv->EACFlipYLoc, layer->renderFlipY());
+            m_sv->EACPrg->setUniformValue(m_sv->EACOutsideLoc, 0);
+            m_sv->EACPrg->setUniformValue(m_sv->EACVideoWidthLoc, layer->width());
+            m_sv->EACPrg->setUniformValue(m_sv->EACVideoHeightLoc, layer->height());
+            m_sv->EACPrg->setUniformValue(m_sv->EACFlipUpDownLoc, false);
+            m_sv->EACPrg->setUniformValue(m_sv->EACScaleLoc, static_cast<float>(100.0 / m_meshRadius));
 
             if (layer->renderStereoMode() > 0) {
-                m_EACPrg->setUniformValue(m_EACEyeModeLoc, eyeMode);
-                m_EACPrg->setUniformValue(m_EACStereoscopicModeLoc, stereoMode);
+                m_sv->EACPrg->setUniformValue(m_sv->EACEyeModeLoc, eyeMode);
+                m_sv->EACPrg->setUniformValue(m_sv->EACStereoscopicModeLoc, stereoMode);
             }
             else {
-                m_EACPrg->setUniformValue(m_EACEyeModeLoc, 0);
-                m_EACPrg->setUniformValue(m_EACStereoscopicModeLoc, 0);
+                m_sv->EACPrg->setUniformValue(m_sv->EACEyeModeLoc, 0);
+                m_sv->EACPrg->setUniformValue(m_sv->EACStereoscopicModeLoc, 0);
             }
 
             QMatrix4x4 mvp = projectionMatrix * viewMatrix;
@@ -2158,7 +2189,7 @@ void LayersRendererQtOpenGLObject::renderLayer(const BaseLayer* layer, int eyeMo
             mvpRot.rotate(rot.y, 0, 1, 0);                      // yaw
             mvpRot.rotate(-90.f, 0, 0, 1);                                    // roll
 
-            m_EACPrg->setUniformValue(m_EACMatrixLoc, mvpRot);
+            m_sv->EACPrg->setUniformValue(m_sv->EACMatrixLoc, mvpRot);
 
             glEnable(GL_CULL_FACE);
 
@@ -2175,42 +2206,42 @@ void LayersRendererQtOpenGLObject::renderLayer(const BaseLayer* layer, int eyeMo
 
             glDisable(GL_CULL_FACE);
 
-            m_EACPrg->release();
+            m_sv->EACPrg->release();
         }
     }
     else if (gridMode == 3) {
         // EQR sphere rendering: plain perspective, or one-pass fisheye (fulldome).
         if (m_renderAsFisheye) {
-            m_fisheyePrg->bind();
+            m_sv->fisheyePrg->bind();
 
             if (stereoMode > 0) {
-                m_fisheyePrg->setUniformValue(m_fisheyeEyeModeLoc, eyeMode);
-                m_fisheyePrg->setUniformValue(m_fisheyeStereoscopicModeLoc, stereoMode);
+                m_sv->fisheyePrg->setUniformValue(m_sv->fisheyeEyeModeLoc, eyeMode);
+                m_sv->fisheyePrg->setUniformValue(m_sv->fisheyeStereoscopicModeLoc, stereoMode);
             }
             else {
-                m_fisheyePrg->setUniformValue(m_fisheyeEyeModeLoc, 0);
-                m_fisheyePrg->setUniformValue(m_fisheyeStereoscopicModeLoc, 0);
+                m_sv->fisheyePrg->setUniformValue(m_sv->fisheyeEyeModeLoc, 0);
+                m_sv->fisheyePrg->setUniformValue(m_sv->fisheyeStereoscopicModeLoc, 0);
             }
 
             if (layer->roiEnabled()) {
                 glm::vec4 roi = layer->roi();
-                m_fisheyePrg->setUniformValue(m_fisheyeRoi, roi.x, roi.y, roi.z, roi.w);
+                m_sv->fisheyePrg->setUniformValue(m_sv->fisheyeRoi, roi.x, roi.y, roi.z, roi.w);
             }
             else {
-                m_fisheyePrg->setUniformValue(m_fisheyeRoi, 0.f, 0.f, 1.f, 1.f);
+                m_sv->fisheyePrg->setUniformValue(m_sv->fisheyeRoi, 0.f, 0.f, 1.f, 1.f);
             }
 
-            m_fisheyePrg->setUniformValue(m_fisheyeAlphaLoc, alpha);
-            m_fisheyeMaskLocs.apply(QtUniformSetter{m_fisheyePrg.get()}, anim, 2.f);
-            m_fisheyePrg->setUniformValue(m_fisheyeFlipYLoc, layer->renderFlipY());
-            m_fisheyePrg->setUniformValue(m_fisheyeOutsideLoc, 0);
-            m_fisheyePrg->setUniformValue(m_fisheyeHalfFovLoc, static_cast<float>(glm::radians(m_meshFov * 0.5)));
+            m_sv->fisheyePrg->setUniformValue(m_sv->fisheyeAlphaLoc, alpha);
+            m_sv->fisheyeMaskLocs.apply(QtUniformSetter{m_sv->fisheyePrg.get()}, anim, 2.f, fx);
+            m_sv->fisheyePrg->setUniformValue(m_sv->fisheyeFlipYLoc, layer->renderFlipY());
+            m_sv->fisheyePrg->setUniformValue(m_sv->fisheyeOutsideLoc, 0);
+            m_sv->fisheyePrg->setUniformValue(m_sv->fisheyeHalfFovLoc, static_cast<float>(glm::radians(m_meshFov * 0.5)));
 
             QMatrix4x4 model;
             model.rotate(rot.z, 0, 0, 1);         // roll
             model.rotate(rot.x, 1, 0, 0);         // pitch
             model.rotate(rot.y - 90.f, 0, 1, 0);  // yaw
-            m_fisheyePrg->setUniformValue(m_fisheyeMatrixLoc, model);
+            m_sv->fisheyePrg->setUniformValue(m_sv->fisheyeMatrixLoc, model);
 
             // Only the hemisphere above the dome horizon reaches the disk (the fragment
             // stage discards the rest), and the nonlinear projection makes winding order
@@ -2219,7 +2250,7 @@ void LayersRendererQtOpenGLObject::renderLayer(const BaseLayer* layer, int eyeMo
             if (m_sphereMesh)
                 m_sphereMesh->draw();
 
-            m_fisheyePrg->release();
+            m_sv->fisheyePrg->release();
         }
         else {
             // EQR sphere rendering
@@ -2232,32 +2263,32 @@ void LayersRendererQtOpenGLObject::renderLayer(const BaseLayer* layer, int eyeMo
             mvpRot.rotate(rot.x, 1, 0, 0);  // pitch
             mvpRot.rotate(rot.y - 90.f, 0, 1, 0);  // yaw
 
-            m_meshPrg->bind();
+            m_sv->meshPrg->bind();
 
             if (stereoMode > 0) {
-                m_meshPrg->setUniformValue(m_meshEyeModeLoc, eyeMode);
-                m_meshPrg->setUniformValue(m_meshStereoscopicModeLoc, stereoMode);
+                m_sv->meshPrg->setUniformValue(m_sv->meshEyeModeLoc, eyeMode);
+                m_sv->meshPrg->setUniformValue(m_sv->meshStereoscopicModeLoc, stereoMode);
             }
             else {
-                m_meshPrg->setUniformValue(m_meshEyeModeLoc, 0);
-                m_meshPrg->setUniformValue(m_meshStereoscopicModeLoc, 0);
+                m_sv->meshPrg->setUniformValue(m_sv->meshEyeModeLoc, 0);
+                m_sv->meshPrg->setUniformValue(m_sv->meshStereoscopicModeLoc, 0);
             }
 
             if (layer->roiEnabled()) {
                 glm::vec4 roi = layer->roi();
-                m_meshPrg->setUniformValue(m_meshRoi, roi.x, roi.y, roi.z, roi.w);
+                m_sv->meshPrg->setUniformValue(m_sv->meshRoi, roi.x, roi.y, roi.z, roi.w);
             }
             else {
-                m_meshPrg->setUniformValue(m_meshRoi, 0.f, 0.f, 1.f, 1.f);
+                m_sv->meshPrg->setUniformValue(m_sv->meshRoi, 0.f, 0.f, 1.f, 1.f);
             }
 
-            m_meshPrg->setUniformValue(m_meshAlphaLoc, alpha);
-            m_meshMaskLocs.apply(QtUniformSetter{m_meshPrg.get()}, anim, 2.f);
-            m_meshPrg->setUniformValue(m_meshFlipYLoc, layer->renderFlipY());
-            m_meshPrg->setUniformValue(m_meshMatrixLoc, mvpRot);
+            m_sv->meshPrg->setUniformValue(m_sv->meshAlphaLoc, alpha);
+            m_sv->meshMaskLocs.apply(QtUniformSetter{m_sv->meshPrg.get()}, anim, 2.f, fx);
+            m_sv->meshPrg->setUniformValue(m_sv->meshFlipYLoc, layer->renderFlipY());
+            m_sv->meshPrg->setUniformValue(m_sv->meshMatrixLoc, mvpRot);
 
             // Render inside sphere
-            m_meshPrg->setUniformValue(m_meshOutsideLoc, 0);
+            m_sv->meshPrg->setUniformValue(m_sv->meshOutsideLoc, 0);
 
             glEnable(GL_CULL_FACE);
 
@@ -2271,35 +2302,35 @@ void LayersRendererQtOpenGLObject::renderLayer(const BaseLayer* layer, int eyeMo
 
             glDisable(GL_CULL_FACE);
 
-            m_meshPrg->release();
+            m_sv->meshPrg->release();
         }
     }
     else if (gridMode == 2) {
         // Dome rendering: plain perspective, or one-pass 180-degree fisheye (fulldome).
         if (m_renderAsFisheye) {
-            m_fisheyePrg->bind();
+            m_sv->fisheyePrg->bind();
 
             if (stereoMode > 0) {
-                m_fisheyePrg->setUniformValue(m_fisheyeEyeModeLoc, eyeMode);
-                m_fisheyePrg->setUniformValue(m_fisheyeStereoscopicModeLoc, stereoMode);
+                m_sv->fisheyePrg->setUniformValue(m_sv->fisheyeEyeModeLoc, eyeMode);
+                m_sv->fisheyePrg->setUniformValue(m_sv->fisheyeStereoscopicModeLoc, stereoMode);
             }
             else {
-                m_fisheyePrg->setUniformValue(m_fisheyeEyeModeLoc, 0);
-                m_fisheyePrg->setUniformValue(m_fisheyeStereoscopicModeLoc, 0);
+                m_sv->fisheyePrg->setUniformValue(m_sv->fisheyeEyeModeLoc, 0);
+                m_sv->fisheyePrg->setUniformValue(m_sv->fisheyeStereoscopicModeLoc, 0);
             }
 
-            m_fisheyePrg->setUniformValue(m_fisheyeAlphaLoc, alpha);
-            m_fisheyeMaskLocs.apply(QtUniformSetter{m_fisheyePrg.get()}, anim, 2.f);
-            m_fisheyePrg->setUniformValue(m_fisheyeFlipYLoc, layer->renderFlipY());
-            m_fisheyePrg->setUniformValue(m_fisheyeOutsideLoc, 0);
-            m_fisheyePrg->setUniformValue(m_fisheyeHalfFovLoc, static_cast<float>(glm::radians(m_meshFov * 0.5)));
+            m_sv->fisheyePrg->setUniformValue(m_sv->fisheyeAlphaLoc, alpha);
+            m_sv->fisheyeMaskLocs.apply(QtUniformSetter{m_sv->fisheyePrg.get()}, anim, 2.f, fx);
+            m_sv->fisheyePrg->setUniformValue(m_sv->fisheyeFlipYLoc, layer->renderFlipY());
+            m_sv->fisheyePrg->setUniformValue(m_sv->fisheyeOutsideLoc, 0);
+            m_sv->fisheyePrg->setUniformValue(m_sv->fisheyeHalfFovLoc, static_cast<float>(glm::radians(m_meshFov * 0.5)));
 
             if (layer->roiEnabled()) {
                 glm::vec4 roi = layer->roi();
-                m_fisheyePrg->setUniformValue(m_fisheyeRoi, roi.x, roi.y, roi.z, roi.w);
+                m_sv->fisheyePrg->setUniformValue(m_sv->fisheyeRoi, roi.x, roi.y, roi.z, roi.w);
             }
             else {
-                m_fisheyePrg->setUniformValue(m_fisheyeRoi, 0.f, 0.f, 1.f, 1.f);
+                m_sv->fisheyePrg->setUniformValue(m_sv->fisheyeRoi, 0.f, 0.f, 1.f, 1.f);
             }
 
             // The fulldome image is always centered on the zenith, so the camera and the dome
@@ -2308,37 +2339,37 @@ void LayersRendererQtOpenGLObject::renderLayer(const BaseLayer* layer, int eyeMo
             model.rotate(rot.z, 0, 0, 1);   // roll
             model.rotate(rot.x, 1, 0, 0);   // pitch
             model.rotate(rot.y, 0, 1, 0);   // yaw
-            m_fisheyePrg->setUniformValue(m_fisheyeMatrixLoc, model);
+            m_sv->fisheyePrg->setUniformValue(m_sv->fisheyeMatrixLoc, model);
 
             if (m_domeMesh) {
                 m_domeMesh->draw();
             }
 
-            m_fisheyePrg->release();
+            m_sv->fisheyePrg->release();
         }
         else {
-            m_meshPrg->bind();
+            m_sv->meshPrg->bind();
 
             if (stereoMode > 0) {
-                m_meshPrg->setUniformValue(m_meshEyeModeLoc, eyeMode);
-                m_meshPrg->setUniformValue(m_meshStereoscopicModeLoc, stereoMode);
+                m_sv->meshPrg->setUniformValue(m_sv->meshEyeModeLoc, eyeMode);
+                m_sv->meshPrg->setUniformValue(m_sv->meshStereoscopicModeLoc, stereoMode);
             }
             else {
-                m_meshPrg->setUniformValue(m_meshEyeModeLoc, 0);
-                m_meshPrg->setUniformValue(m_meshStereoscopicModeLoc, 0);
+                m_sv->meshPrg->setUniformValue(m_sv->meshEyeModeLoc, 0);
+                m_sv->meshPrg->setUniformValue(m_sv->meshStereoscopicModeLoc, 0);
             }
 
             if (layer->roiEnabled()) {
                 glm::vec4 roi = layer->roi();
-                m_meshPrg->setUniformValue(m_meshRoi, roi.x, roi.y, roi.z, roi.w);
+                m_sv->meshPrg->setUniformValue(m_sv->meshRoi, roi.x, roi.y, roi.z, roi.w);
             }
             else {
-                m_meshPrg->setUniformValue(m_meshRoi, 0.f, 0.f, 1.f, 1.f);
+                m_sv->meshPrg->setUniformValue(m_sv->meshRoi, 0.f, 0.f, 1.f, 1.f);
             }
 
-            m_meshPrg->setUniformValue(m_meshAlphaLoc, alpha);
-            m_meshMaskLocs.apply(QtUniformSetter{m_meshPrg.get()}, anim, 2.f);
-            m_meshPrg->setUniformValue(m_meshFlipYLoc, layer->renderFlipY());
+            m_sv->meshPrg->setUniformValue(m_sv->meshAlphaLoc, alpha);
+            m_sv->meshMaskLocs.apply(QtUniformSetter{m_sv->meshPrg.get()}, anim, 2.f, fx);
+            m_sv->meshPrg->setUniformValue(m_sv->meshFlipYLoc, layer->renderFlipY());
 
             QMatrix4x4 mvpRot = projectionMatrix * viewMatrix;
             QVector3D translate(trans.x, trans.y, trans.z);
@@ -2346,24 +2377,24 @@ void LayersRendererQtOpenGLObject::renderLayer(const BaseLayer* layer, int eyeMo
             mvpRot.rotate(rot.z, 0, 0, 1);           // roll
             mvpRot.rotate(rot.x - angle, 1, 0, 0);   // pitch
             mvpRot.rotate(rot.y, 0, 1, 0);           // yaw
-            m_meshPrg->setUniformValue(m_meshMatrixLoc, mvpRot);
+            m_sv->meshPrg->setUniformValue(m_sv->meshMatrixLoc, mvpRot);
 
             if (m_domeMesh) {
                 m_domeMesh->draw();
             }
 
-            m_meshPrg->release();
+            m_sv->meshPrg->release();
         }
     }
     else if (gridMode == 1) {
         // Plane rendering
-        QOpenGLShaderProgram* prg = m_renderAsFisheye ? m_fisheyePrg.get() : m_meshPrg.get();
-        const int eyeModeLoc = m_renderAsFisheye ? m_fisheyeEyeModeLoc : m_meshEyeModeLoc;
-        const int stereoLoc = m_renderAsFisheye ? m_fisheyeStereoscopicModeLoc : m_meshStereoscopicModeLoc;
-        const int roiLoc = m_renderAsFisheye ? m_fisheyeRoi : m_meshRoi;
-        const int alphaLoc = m_renderAsFisheye ? m_fisheyeAlphaLoc : m_meshAlphaLoc;
-        const int flipYLoc = m_renderAsFisheye ? m_fisheyeFlipYLoc : m_meshFlipYLoc;
-        const int matrixLoc = m_renderAsFisheye ? m_fisheyeMatrixLoc : m_meshMatrixLoc;
+        QOpenGLShaderProgram* prg = m_renderAsFisheye ? m_sv->fisheyePrg.get() : m_sv->meshPrg.get();
+        const int eyeModeLoc = m_renderAsFisheye ? m_sv->fisheyeEyeModeLoc : m_sv->meshEyeModeLoc;
+        const int stereoLoc = m_renderAsFisheye ? m_sv->fisheyeStereoscopicModeLoc : m_sv->meshStereoscopicModeLoc;
+        const int roiLoc = m_renderAsFisheye ? m_sv->fisheyeRoi : m_sv->meshRoi;
+        const int alphaLoc = m_renderAsFisheye ? m_sv->fisheyeAlphaLoc : m_sv->meshAlphaLoc;
+        const int flipYLoc = m_renderAsFisheye ? m_sv->fisheyeFlipYLoc : m_sv->meshFlipYLoc;
+        const int matrixLoc = m_renderAsFisheye ? m_sv->fisheyeMatrixLoc : m_sv->meshMatrixLoc;
 
         prg->bind();
 
@@ -2385,7 +2416,7 @@ void LayersRendererQtOpenGLObject::renderLayer(const BaseLayer* layer, int eyeMo
         }
 
         prg->setUniformValue(alphaLoc, alpha);
-        (m_renderAsFisheye ? m_fisheyeMaskLocs : m_meshMaskLocs).apply(QtUniformSetter{prg}, anim, aspect);
+        (m_renderAsFisheye ? m_sv->fisheyeMaskLocs : m_sv->meshMaskLocs).apply(QtUniformSetter{prg}, anim, aspect, fx);
         prg->setUniformValue(flipYLoc, layer->renderFlipY());
 
         if (layer->circularPlaneActive()) {
@@ -2398,8 +2429,8 @@ void LayersRendererQtOpenGLObject::renderLayer(const BaseLayer* layer, int eyeMo
             for (int i = 0; i < 4; ++i) { previous[i] = glIsEnabled(GL_CLIP_DISTANCE0 + i); glEnable(GL_CLIP_DISTANCE0 + i); }
             prg->setUniformValue("circularHalfWidth", float(mapping.widthCm / 200.0));
             if (m_renderAsFisheye) {
-                prg->setUniformValue(m_fisheyeOutsideLoc, 0);
-                prg->setUniformValue(m_fisheyeHalfFovLoc, static_cast<float>(glm::radians(m_meshFov * 0.5)));
+                prg->setUniformValue(m_sv->fisheyeOutsideLoc, 0);
+                prg->setUniformValue(m_sv->fisheyeHalfFovLoc, static_cast<float>(glm::radians(m_meshFov * 0.5)));
             }
             for (const auto &copy : copies) {
                 // QMatrix4x4's pointer constructor takes row-major values.
@@ -2433,8 +2464,8 @@ void LayersRendererQtOpenGLObject::renderLayer(const BaseLayer* layer, int eyeMo
 
             if (m_renderAsFisheye) {
                 // The fisheye lens needs the plane in world space, without any camera.
-                prg->setUniformValue(m_fisheyeOutsideLoc, 0);
-                prg->setUniformValue(m_fisheyeHalfFovLoc, static_cast<float>(glm::radians(m_meshFov * 0.5)));
+                prg->setUniformValue(m_sv->fisheyeOutsideLoc, 0);
+                prg->setUniformValue(m_sv->fisheyeHalfFovLoc, static_cast<float>(glm::radians(m_meshFov * 0.5)));
                 prg->setUniformValue(matrixLoc, planeTransform);
             }
             else {
@@ -2450,39 +2481,39 @@ void LayersRendererQtOpenGLObject::renderLayer(const BaseLayer* layer, int eyeMo
     }
     else {
         // 2D rendering (gridMode == 0)
-        m_videoPrg->bind();
+        m_sv->videoPrg->bind();
 
         if (stereoMode > 0) {
-            m_videoPrg->setUniformValue(m_videoEyeModeLoc, eyeMode);
-            m_videoPrg->setUniformValue(m_videoStereoscopicModeLoc, stereoMode);
+            m_sv->videoPrg->setUniformValue(m_sv->videoEyeModeLoc, eyeMode);
+            m_sv->videoPrg->setUniformValue(m_sv->videoStereoscopicModeLoc, stereoMode);
         }
         else {
-            m_videoPrg->setUniformValue(m_videoEyeModeLoc, 0);
-            m_videoPrg->setUniformValue(m_videoStereoscopicModeLoc, 0);
+            m_sv->videoPrg->setUniformValue(m_sv->videoEyeModeLoc, 0);
+            m_sv->videoPrg->setUniformValue(m_sv->videoStereoscopicModeLoc, 0);
         }
 
         if (layer->roiEnabled()) {
             glm::vec4 roi = layer->roi();
-            m_videoPrg->setUniformValue(m_videoRoi, roi.x, roi.y, roi.z, roi.w);
+            m_sv->videoPrg->setUniformValue(m_sv->videoRoi, roi.x, roi.y, roi.z, roi.w);
         }
         else {
-            m_videoPrg->setUniformValue(m_videoRoi, 0.f, 0.f, 1.f, 1.f);
+            m_sv->videoPrg->setUniformValue(m_sv->videoRoi, 0.f, 0.f, 1.f, 1.f);
         }
 
-        m_videoPrg->setUniformValue(m_videoAlphaLoc, alpha);
-        m_videoMaskLocs.apply(QtUniformSetter{m_videoPrg.get()}, anim, aspect);
+        m_sv->videoPrg->setUniformValue(m_sv->videoAlphaLoc, alpha);
+        m_sv->videoMaskLocs.apply(QtUniformSetter{m_sv->videoPrg.get()}, anim, aspect, fx);
         {
             const QRect vp = renderViewportRect();
             const glm::mat4 quad = cplay::anim::flatQuadMatrix(anim, animActive,
                 vp.height() > 0 ? static_cast<float>(vp.width()) / static_cast<float>(vp.height()) : 1.f,
                 layer->screenRect());
-            m_videoPrg->setUniformValue(m_videoMaskLocs.quadMatrix, QMatrix4x4(glm::value_ptr(glm::transpose(quad))));
+            m_sv->videoPrg->setUniformValue(m_sv->videoMaskLocs.quadMatrix, QMatrix4x4(glm::value_ptr(glm::transpose(quad))));
         }
-        m_videoPrg->setUniformValue(m_videoFlipYLoc, layer->renderFlipY());
+        m_sv->videoPrg->setUniformValue(m_sv->videoFlipYLoc, layer->renderFlipY());
 
         renderQuad();
 
-        m_videoPrg->release();
+        m_sv->videoPrg->release();
     }
 
     if (animActive)
@@ -2539,24 +2570,24 @@ void LayersRendererQtOpenGLObject::renderMpvObject(MpvObject* mpv, int eyeMode, 
     if (gridMode == 4) {
         // EAC sphere: plain perspective, or one-pass fisheye (fulldome).
         if (m_renderAsFisheye) {
-            m_fisheyeEACPrg->bind();
+            m_sv->fisheyeEACPrg->bind();
 
-            m_fisheyeEACPrg->setUniformValue(m_fisheyeEACAlphaLoc, alpha);
-            m_fisheyeEACPrg->setUniformValue(m_fisheyeEACFlipYLoc, false);
-            m_fisheyeEACPrg->setUniformValue(m_fisheyeEACVideoWidthLoc, texW);
-            m_fisheyeEACPrg->setUniformValue(m_fisheyeEACVideoHeightLoc, texH);
-            m_fisheyeEACPrg->setUniformValue(m_fisheyeEACFlipUpDownLoc, true);
-            m_fisheyeEACPrg->setUniformValue(m_fisheyeEACScaleLoc, static_cast<float>(100.0 / m_meshRadius));
-            m_fisheyeEACPrg->setUniformValue(m_fisheyeEACHalfFovLoc, static_cast<float>(glm::radians(m_meshFov * 0.5)));
-            m_fisheyeEACPrg->setUniformValue(m_fisheyeEACOutsideLoc, 1);
+            m_sv->fisheyeEACPrg->setUniformValue(m_sv->fisheyeEACAlphaLoc, alpha);
+            m_sv->fisheyeEACPrg->setUniformValue(m_sv->fisheyeEACFlipYLoc, false);
+            m_sv->fisheyeEACPrg->setUniformValue(m_sv->fisheyeEACVideoWidthLoc, texW);
+            m_sv->fisheyeEACPrg->setUniformValue(m_sv->fisheyeEACVideoHeightLoc, texH);
+            m_sv->fisheyeEACPrg->setUniformValue(m_sv->fisheyeEACFlipUpDownLoc, true);
+            m_sv->fisheyeEACPrg->setUniformValue(m_sv->fisheyeEACScaleLoc, static_cast<float>(100.0 / m_meshRadius));
+            m_sv->fisheyeEACPrg->setUniformValue(m_sv->fisheyeEACHalfFovLoc, static_cast<float>(glm::radians(m_meshFov * 0.5)));
+            m_sv->fisheyeEACPrg->setUniformValue(m_sv->fisheyeEACOutsideLoc, 1);
 
             if (stereoMode > 0) {
-                m_fisheyeEACPrg->setUniformValue(m_fisheyeEACEyeModeLoc, eyeMode);
-                m_fisheyeEACPrg->setUniformValue(m_fisheyeEACStereoscopicModeLoc, stereoMode);
+                m_sv->fisheyeEACPrg->setUniformValue(m_sv->fisheyeEACEyeModeLoc, eyeMode);
+                m_sv->fisheyeEACPrg->setUniformValue(m_sv->fisheyeEACStereoscopicModeLoc, stereoMode);
             }
             else {
-                m_fisheyeEACPrg->setUniformValue(m_fisheyeEACEyeModeLoc, 0);
-                m_fisheyeEACPrg->setUniformValue(m_fisheyeEACStereoscopicModeLoc, 0);
+                m_sv->fisheyeEACPrg->setUniformValue(m_sv->fisheyeEACEyeModeLoc, 0);
+                m_sv->fisheyeEACPrg->setUniformValue(m_sv->fisheyeEACStereoscopicModeLoc, 0);
             }
 
             QMatrix4x4 model;
@@ -2570,31 +2601,31 @@ void LayersRendererQtOpenGLObject::renderMpvObject(MpvObject* mpv, int eyeMode, 
             else {
                 model.rotate(180.f, 0, 0, 1); // roll
             }
-            m_fisheyeEACPrg->setUniformValue(m_fisheyeEACMatrixLoc, model);
+            m_sv->fisheyeEACPrg->setUniformValue(m_sv->fisheyeEACMatrixLoc, model);
 
             glDisable(GL_CULL_FACE);
             if (m_sphereMesh)
                 m_sphereMesh->draw();
 
-            m_fisheyeEACPrg->release();
+            m_sv->fisheyeEACPrg->release();
         }
         else {
-            m_EACPrg->bind();
+            m_sv->EACPrg->bind();
 
-            m_EACPrg->setUniformValue(m_EACAlphaLoc, alpha);
-            m_EACPrg->setUniformValue(m_EACFlipYLoc, false);
-            m_EACPrg->setUniformValue(m_EACVideoWidthLoc, texW);
-            m_EACPrg->setUniformValue(m_EACVideoHeightLoc, texH);
-            m_EACPrg->setUniformValue(m_EACFlipUpDownLoc, true);
-            m_EACPrg->setUniformValue(m_EACScaleLoc, static_cast<float>(100.0 / m_meshRadius));
+            m_sv->EACPrg->setUniformValue(m_sv->EACAlphaLoc, alpha);
+            m_sv->EACPrg->setUniformValue(m_sv->EACFlipYLoc, false);
+            m_sv->EACPrg->setUniformValue(m_sv->EACVideoWidthLoc, texW);
+            m_sv->EACPrg->setUniformValue(m_sv->EACVideoHeightLoc, texH);
+            m_sv->EACPrg->setUniformValue(m_sv->EACFlipUpDownLoc, true);
+            m_sv->EACPrg->setUniformValue(m_sv->EACScaleLoc, static_cast<float>(100.0 / m_meshRadius));
 
             if (stereoMode > 0) {
-                m_EACPrg->setUniformValue(m_EACEyeModeLoc, eyeMode);
-                m_EACPrg->setUniformValue(m_EACStereoscopicModeLoc, stereoMode);
+                m_sv->EACPrg->setUniformValue(m_sv->EACEyeModeLoc, eyeMode);
+                m_sv->EACPrg->setUniformValue(m_sv->EACStereoscopicModeLoc, stereoMode);
             }
             else {
-                m_EACPrg->setUniformValue(m_EACEyeModeLoc, 0);
-                m_EACPrg->setUniformValue(m_EACStereoscopicModeLoc, 0);
+                m_sv->EACPrg->setUniformValue(m_sv->EACEyeModeLoc, 0);
+                m_sv->EACPrg->setUniformValue(m_sv->EACStereoscopicModeLoc, 0);
             }
 
             QMatrix4x4 mvp = projectionMatrix * viewMatrix;
@@ -2611,9 +2642,9 @@ void LayersRendererQtOpenGLObject::renderMpvObject(MpvObject* mpv, int eyeMode, 
             else {
                 mvpRot.rotate(180.f, 0, 0, 1); // roll
             }
-            m_EACPrg->setUniformValue(m_EACMatrixLoc, mvpRot);
+            m_sv->EACPrg->setUniformValue(m_sv->EACMatrixLoc, mvpRot);
 
-            m_EACPrg->setUniformValue(m_EACOutsideLoc, 1);
+            m_sv->EACPrg->setUniformValue(m_sv->EACOutsideLoc, 1);
 
             glEnable(GL_CULL_FACE);
 
@@ -2630,40 +2661,40 @@ void LayersRendererQtOpenGLObject::renderMpvObject(MpvObject* mpv, int eyeMode, 
 
             glDisable(GL_CULL_FACE);
 
-            m_EACPrg->release();
+            m_sv->EACPrg->release();
         }
     }
     else if (gridMode == 3) {
         // EQR sphere: plain perspective, or one-pass fisheye (fulldome).
         if (m_renderAsFisheye) {
-            m_fisheyePrg->bind();
+            m_sv->fisheyePrg->bind();
 
             if (stereoMode > 0) {
-                m_fisheyePrg->setUniformValue(m_fisheyeEyeModeLoc, eyeMode);
-                m_fisheyePrg->setUniformValue(m_fisheyeStereoscopicModeLoc, stereoMode);
+                m_sv->fisheyePrg->setUniformValue(m_sv->fisheyeEyeModeLoc, eyeMode);
+                m_sv->fisheyePrg->setUniformValue(m_sv->fisheyeStereoscopicModeLoc, stereoMode);
             }
             else {
-                m_fisheyePrg->setUniformValue(m_fisheyeEyeModeLoc, 0);
-                m_fisheyePrg->setUniformValue(m_fisheyeStereoscopicModeLoc, 0);
+                m_sv->fisheyePrg->setUniformValue(m_sv->fisheyeEyeModeLoc, 0);
+                m_sv->fisheyePrg->setUniformValue(m_sv->fisheyeStereoscopicModeLoc, 0);
             }
 
-            m_fisheyePrg->setUniformValue(m_fisheyeRoi, 0.f, 0.f, 1.f, 1.f);
-            m_fisheyePrg->setUniformValue(m_fisheyeAlphaLoc, alpha);
-            m_fisheyePrg->setUniformValue(m_fisheyeFlipYLoc, true);
-            m_fisheyePrg->setUniformValue(m_fisheyeOutsideLoc, 0);
-            m_fisheyePrg->setUniformValue(m_fisheyeHalfFovLoc, static_cast<float>(glm::radians(m_meshFov * 0.5)));
+            m_sv->fisheyePrg->setUniformValue(m_sv->fisheyeRoi, 0.f, 0.f, 1.f, 1.f);
+            m_sv->fisheyePrg->setUniformValue(m_sv->fisheyeAlphaLoc, alpha);
+            m_sv->fisheyePrg->setUniformValue(m_sv->fisheyeFlipYLoc, true);
+            m_sv->fisheyePrg->setUniformValue(m_sv->fisheyeOutsideLoc, 0);
+            m_sv->fisheyePrg->setUniformValue(m_sv->fisheyeHalfFovLoc, static_cast<float>(glm::radians(m_meshFov * 0.5)));
 
             QMatrix4x4 model;
             model.rotate(rotateXYZ.z(), 0, 0, 1);         // roll
             model.rotate(rotateXYZ.x(), 1, 0, 0);         // pitch
             model.rotate(rotateXYZ.y() - 90.f, 0, 1, 0);  // yaw
-            m_fisheyePrg->setUniformValue(m_fisheyeMatrixLoc, model);
+            m_sv->fisheyePrg->setUniformValue(m_sv->fisheyeMatrixLoc, model);
 
             glDisable(GL_CULL_FACE);
             if (m_sphereMesh)
                 m_sphereMesh->draw();
 
-            m_fisheyePrg->release();
+            m_sv->fisheyePrg->release();
         }
         else {
             // EQR sphere
@@ -2675,22 +2706,22 @@ void LayersRendererQtOpenGLObject::renderMpvObject(MpvObject* mpv, int eyeMode, 
             mvpRot.rotate(rotateXYZ.x(), 1, 0, 0);  // pitch
             mvpRot.rotate(rotateXYZ.y() - 90.f, 0, 1, 0);  // yaw
 
-            m_meshPrg->bind();
+            m_sv->meshPrg->bind();
 
             if (stereoMode > 0) {
-                m_meshPrg->setUniformValue(m_meshEyeModeLoc, eyeMode);
-                m_meshPrg->setUniformValue(m_meshStereoscopicModeLoc, stereoMode);
+                m_sv->meshPrg->setUniformValue(m_sv->meshEyeModeLoc, eyeMode);
+                m_sv->meshPrg->setUniformValue(m_sv->meshStereoscopicModeLoc, stereoMode);
             }
             else {
-                m_meshPrg->setUniformValue(m_meshEyeModeLoc, 0);
-                m_meshPrg->setUniformValue(m_meshStereoscopicModeLoc, 0);
+                m_sv->meshPrg->setUniformValue(m_sv->meshEyeModeLoc, 0);
+                m_sv->meshPrg->setUniformValue(m_sv->meshStereoscopicModeLoc, 0);
             }
 
-            m_meshPrg->setUniformValue(m_meshRoi, 0.f, 0.f, 1.f, 1.f);
-            m_meshPrg->setUniformValue(m_meshAlphaLoc, alpha);
-            m_meshPrg->setUniformValue(m_meshFlipYLoc, true);
-            m_meshPrg->setUniformValue(m_meshMatrixLoc, mvpRot);
-            m_meshPrg->setUniformValue(m_meshOutsideLoc, 0);
+            m_sv->meshPrg->setUniformValue(m_sv->meshRoi, 0.f, 0.f, 1.f, 1.f);
+            m_sv->meshPrg->setUniformValue(m_sv->meshAlphaLoc, alpha);
+            m_sv->meshPrg->setUniformValue(m_sv->meshFlipYLoc, true);
+            m_sv->meshPrg->setUniformValue(m_sv->meshMatrixLoc, mvpRot);
+            m_sv->meshPrg->setUniformValue(m_sv->meshOutsideLoc, 0);
 
             // Render back faces first for correct blending
             glEnable(GL_CULL_FACE);
@@ -2704,28 +2735,28 @@ void LayersRendererQtOpenGLObject::renderMpvObject(MpvObject* mpv, int eyeMode, 
                 m_sphereMesh->draw();
 
             glDisable(GL_CULL_FACE);
-            m_meshPrg->release();
+            m_sv->meshPrg->release();
         }
     }
     else if (gridMode == 2) {
         // Dome rendering: plain perspective, or one-pass 180-degree fisheye (fulldome).
         if (m_renderAsFisheye) {
-            m_fisheyePrg->bind();
+            m_sv->fisheyePrg->bind();
 
             if (stereoMode > 0) {
-                m_fisheyePrg->setUniformValue(m_fisheyeEyeModeLoc, eyeMode);
-                m_fisheyePrg->setUniformValue(m_fisheyeStereoscopicModeLoc, stereoMode);
+                m_sv->fisheyePrg->setUniformValue(m_sv->fisheyeEyeModeLoc, eyeMode);
+                m_sv->fisheyePrg->setUniformValue(m_sv->fisheyeStereoscopicModeLoc, stereoMode);
             }
             else {
-                m_fisheyePrg->setUniformValue(m_fisheyeEyeModeLoc, 0);
-                m_fisheyePrg->setUniformValue(m_fisheyeStereoscopicModeLoc, 0);
+                m_sv->fisheyePrg->setUniformValue(m_sv->fisheyeEyeModeLoc, 0);
+                m_sv->fisheyePrg->setUniformValue(m_sv->fisheyeStereoscopicModeLoc, 0);
             }
 
-            m_fisheyePrg->setUniformValue(m_fisheyeAlphaLoc, alpha);
-            m_fisheyePrg->setUniformValue(m_fisheyeFlipYLoc, true);
-            m_fisheyePrg->setUniformValue(m_fisheyeOutsideLoc, 0);
-            m_fisheyePrg->setUniformValue(m_fisheyeHalfFovLoc, static_cast<float>(glm::radians(m_meshFov * 0.5)));
-            m_fisheyePrg->setUniformValue(m_fisheyeRoi, 0.f, 0.f, 1.f, 1.f);
+            m_sv->fisheyePrg->setUniformValue(m_sv->fisheyeAlphaLoc, alpha);
+            m_sv->fisheyePrg->setUniformValue(m_sv->fisheyeFlipYLoc, true);
+            m_sv->fisheyePrg->setUniformValue(m_sv->fisheyeOutsideLoc, 0);
+            m_sv->fisheyePrg->setUniformValue(m_sv->fisheyeHalfFovLoc, static_cast<float>(glm::radians(m_meshFov * 0.5)));
+            m_sv->fisheyePrg->setUniformValue(m_sv->fisheyeRoi, 0.f, 0.f, 1.f, 1.f);
 
             // Fulldome output is centered on the zenith, independent of the camera and the
             // dome tilt.
@@ -2733,28 +2764,28 @@ void LayersRendererQtOpenGLObject::renderMpvObject(MpvObject* mpv, int eyeMode, 
             model.rotate(rotateXYZ.z(), 0, 0, 1);   // roll
             model.rotate(rotateXYZ.x(), 1, 0, 0);   // pitch
             model.rotate(rotateXYZ.y(), 0, 1, 0);   // yaw
-            m_fisheyePrg->setUniformValue(m_fisheyeMatrixLoc, model);
+            m_sv->fisheyePrg->setUniformValue(m_sv->fisheyeMatrixLoc, model);
 
             if (m_domeMesh)
                 m_domeMesh->draw();
 
-            m_fisheyePrg->release();
+            m_sv->fisheyePrg->release();
         }
         else {
-            m_meshPrg->bind();
+            m_sv->meshPrg->bind();
 
             if (stereoMode > 0) {
-                m_meshPrg->setUniformValue(m_meshEyeModeLoc, eyeMode);
-                m_meshPrg->setUniformValue(m_meshStereoscopicModeLoc, stereoMode);
+                m_sv->meshPrg->setUniformValue(m_sv->meshEyeModeLoc, eyeMode);
+                m_sv->meshPrg->setUniformValue(m_sv->meshStereoscopicModeLoc, stereoMode);
             }
             else {
-                m_meshPrg->setUniformValue(m_meshEyeModeLoc, 0);
-                m_meshPrg->setUniformValue(m_meshStereoscopicModeLoc, 0);
+                m_sv->meshPrg->setUniformValue(m_sv->meshEyeModeLoc, 0);
+                m_sv->meshPrg->setUniformValue(m_sv->meshStereoscopicModeLoc, 0);
             }
 
-            m_meshPrg->setUniformValue(m_meshRoi, 0.f, 0.f, 1.f, 1.f);
-            m_meshPrg->setUniformValue(m_meshAlphaLoc, alpha);
-            m_meshPrg->setUniformValue(m_meshFlipYLoc, true);
+            m_sv->meshPrg->setUniformValue(m_sv->meshRoi, 0.f, 0.f, 1.f, 1.f);
+            m_sv->meshPrg->setUniformValue(m_sv->meshAlphaLoc, alpha);
+            m_sv->meshPrg->setUniformValue(m_sv->meshFlipYLoc, true);
 
             QMatrix4x4 mvpRot = projectionMatrix * viewMatrix;
             mvpRot.translate(translate);
@@ -2762,23 +2793,23 @@ void LayersRendererQtOpenGLObject::renderMpvObject(MpvObject* mpv, int eyeMode, 
             mvpRot.rotate(rotateXYZ.x() - angle, 1, 0, 0);      // pitch
             mvpRot.rotate(rotateXYZ.y(), 0, 1, 0);              // yaw
 
-            m_meshPrg->setUniformValue(m_meshMatrixLoc, mvpRot);
+            m_sv->meshPrg->setUniformValue(m_sv->meshMatrixLoc, mvpRot);
 
             if (m_domeMesh)
                 m_domeMesh->draw();
 
-            m_meshPrg->release();
+            m_sv->meshPrg->release();
         }
     }
     else if (gridMode == 1) {
         // Plane
-        QOpenGLShaderProgram* prg = m_renderAsFisheye ? m_fisheyePrg.get() : m_meshPrg.get();
-        const int eyeModeLoc = m_renderAsFisheye ? m_fisheyeEyeModeLoc : m_meshEyeModeLoc;
-        const int stereoLoc = m_renderAsFisheye ? m_fisheyeStereoscopicModeLoc : m_meshStereoscopicModeLoc;
-        const int roiLoc = m_renderAsFisheye ? m_fisheyeRoi : m_meshRoi;
-        const int alphaLoc = m_renderAsFisheye ? m_fisheyeAlphaLoc : m_meshAlphaLoc;
-        const int flipYLoc = m_renderAsFisheye ? m_fisheyeFlipYLoc : m_meshFlipYLoc;
-        const int matrixLoc = m_renderAsFisheye ? m_fisheyeMatrixLoc : m_meshMatrixLoc;
+        QOpenGLShaderProgram* prg = m_renderAsFisheye ? m_sv->fisheyePrg.get() : m_sv->meshPrg.get();
+        const int eyeModeLoc = m_renderAsFisheye ? m_sv->fisheyeEyeModeLoc : m_sv->meshEyeModeLoc;
+        const int stereoLoc = m_renderAsFisheye ? m_sv->fisheyeStereoscopicModeLoc : m_sv->meshStereoscopicModeLoc;
+        const int roiLoc = m_renderAsFisheye ? m_sv->fisheyeRoi : m_sv->meshRoi;
+        const int alphaLoc = m_renderAsFisheye ? m_sv->fisheyeAlphaLoc : m_sv->meshAlphaLoc;
+        const int flipYLoc = m_renderAsFisheye ? m_sv->fisheyeFlipYLoc : m_sv->meshFlipYLoc;
+        const int matrixLoc = m_renderAsFisheye ? m_sv->fisheyeMatrixLoc : m_sv->meshMatrixLoc;
 
         prg->bind();
 
@@ -2804,8 +2835,8 @@ void LayersRendererQtOpenGLObject::renderMpvObject(MpvObject* mpv, int eyeMode, 
 
         if (m_renderAsFisheye) {
             // The fisheye lens needs the plane in world space, without any camera.
-            prg->setUniformValue(m_fisheyeOutsideLoc, 0);
-            prg->setUniformValue(m_fisheyeHalfFovLoc, static_cast<float>(glm::radians(m_meshFov * 0.5)));
+            prg->setUniformValue(m_sv->fisheyeOutsideLoc, 0);
+            prg->setUniformValue(m_sv->fisheyeHalfFovLoc, static_cast<float>(glm::radians(m_meshFov * 0.5)));
             prg->setUniformValue(matrixLoc, planeTransform);
         }
         else {
@@ -2819,24 +2850,24 @@ void LayersRendererQtOpenGLObject::renderMpvObject(MpvObject* mpv, int eyeMode, 
     }
     else {
         // 2D rendering (gridMode == 0)
-        m_videoPrg->bind();
+        m_sv->videoPrg->bind();
 
         if (stereoMode > 0) {
-            m_videoPrg->setUniformValue(m_videoEyeModeLoc, eyeMode);
-            m_videoPrg->setUniformValue(m_videoStereoscopicModeLoc, stereoMode);
+            m_sv->videoPrg->setUniformValue(m_sv->videoEyeModeLoc, eyeMode);
+            m_sv->videoPrg->setUniformValue(m_sv->videoStereoscopicModeLoc, stereoMode);
         }
         else {
-            m_videoPrg->setUniformValue(m_videoEyeModeLoc, 0);
-            m_videoPrg->setUniformValue(m_videoStereoscopicModeLoc, 0);
+            m_sv->videoPrg->setUniformValue(m_sv->videoEyeModeLoc, 0);
+            m_sv->videoPrg->setUniformValue(m_sv->videoStereoscopicModeLoc, 0);
         }
 
-        m_videoPrg->setUniformValue(m_videoRoi, 0.f, 0.f, 1.f, 1.f);
-        m_videoPrg->setUniformValue(m_videoAlphaLoc, alpha);
-        m_videoPrg->setUniformValue(m_videoFlipYLoc, true);
+        m_sv->videoPrg->setUniformValue(m_sv->videoRoi, 0.f, 0.f, 1.f, 1.f);
+        m_sv->videoPrg->setUniformValue(m_sv->videoAlphaLoc, alpha);
+        m_sv->videoPrg->setUniformValue(m_sv->videoFlipYLoc, true);
 
         renderQuad();
 
-        m_videoPrg->release();
+        m_sv->videoPrg->release();
     }
 
     glDisable(GL_BLEND);
@@ -3042,7 +3073,7 @@ void LayersRendererQtOpenGLObject::renderLayers(float angle,
                 if (layer->ready() && layer->hasTexture() && (layer->alpha() > 0.f)) {
                     if (layer->hasSubLayers()) {
                         for (const auto& sublayer : layer->getSubLayers()) {
-                            renderLayer(sublayer.get(), eyeMode, angle, viewMatrix, projectionMatrix);
+                            renderLayer(sublayer.get(), eyeMode, angle, viewMatrix, projectionMatrix, layer);
                         }
                     }
                     else if(!layer->isQRCodeDetectionEnabled() || layer->isQRCodeDetectionEnabled() && !layer->hasSubLayers()){
@@ -3085,7 +3116,7 @@ void LayersRendererQtOpenGLObject::renderLayers(float angle,
                         if (layer->hasSubLayers()) {
                             // QR operations active: skip the parent, only render sublayers
                             for (const auto& sublayer : layer->getSubLayers()) {
-                                renderLayer(sublayer.get(), eyeMode, angle, viewMatrix, projectionMatrix);
+                                renderLayer(sublayer.get(), eyeMode, angle, viewMatrix, projectionMatrix, layer);
                             }
                         }
                         else {
@@ -3125,24 +3156,24 @@ void LayersRendererQtOpenGLObject::renderLayers(float angle,
         glEnable(GL_BLEND);
         glBlendFunc(GL_SRC_ALPHA, GL_ONE_MINUS_SRC_ALPHA);
 
-        m_meshPrg->bind();
+        m_sv->meshPrg->bind();
 
-        m_meshPrg->setUniformValue(m_meshEyeModeLoc, 0);
-        m_meshPrg->setUniformValue(m_meshStereoscopicModeLoc, 0);
-        m_meshPrg->setUniformValue(m_meshRoi, 0.f, 0.f, 1.f, 1.f);
-        m_meshPrg->setUniformValue(m_meshAlphaLoc, static_cast<float>(UserInterfaceSettings::domeOverflowOpacity()));
-        m_meshPrg->setUniformValue(m_meshFlipYLoc, false);
-        m_meshPrg->setUniformValue(m_meshOutsideLoc, 0);
+        m_sv->meshPrg->setUniformValue(m_sv->meshEyeModeLoc, 0);
+        m_sv->meshPrg->setUniformValue(m_sv->meshStereoscopicModeLoc, 0);
+        m_sv->meshPrg->setUniformValue(m_sv->meshRoi, 0.f, 0.f, 1.f, 1.f);
+        m_sv->meshPrg->setUniformValue(m_sv->meshAlphaLoc, static_cast<float>(UserInterfaceSettings::domeOverflowOpacity()));
+        m_sv->meshPrg->setUniformValue(m_sv->meshFlipYLoc, false);
+        m_sv->meshPrg->setUniformValue(m_sv->meshOutsideLoc, 0);
 
         QMatrix4x4 mvpRot = projectionMatrix * viewMatrix;
         // Invert the tilt angle: 180 + angle
         mvpRot.rotate(-(180.f + angle), 1, 0, 0);
 
-        m_meshPrg->setUniformValue(m_meshMatrixLoc, mvpRot);
+        m_sv->meshPrg->setUniformValue(m_sv->meshMatrixLoc, mvpRot);
 
         m_domeMaskMesh->draw();
 
-        m_meshPrg->release();
+        m_sv->meshPrg->release();
         glDisable(GL_BLEND);
     }
 }

@@ -263,11 +263,11 @@ Window {
                 }
 
                 Button {
-                    text: qsTr("Animations")
+                    text: qsTr("Effects")
                     icon.name: "rating"
                     visible: root.animationPaneLoader !== null
                     ToolTip.visible: hovered
-                    ToolTip.text: qsTr("Entrance and exit effects (PowerPoint-style animation pane). They also play without the timeline enabled.")
+                    ToolTip.text: qsTr("Effects pane: entrance and exit effects (PowerPoint-style), which also play without the timeline enabled, and post process effects such as chroma key.")
                     onClicked: root.animationPaneLoader.open()
                 }
 
@@ -1216,7 +1216,7 @@ Window {
                                     ToolTip.delay: 400
                                     ToolTip.text: (effBar.isIntro ? qsTr("Entrance: ") : qsTr("Exit: ")) + effBar.modelData.presetName
                                                   + "  " + (effBar.modelData.durationMs / 1000).toFixed(2) + " s"
-                                                  + qsTr("\nDrag to change the delay, drag the right edge to change the duration.\nDouble-click to open the animation pane.")
+                                                  + qsTr("\nDrag to change the delay, drag the right edge to change the duration.\nDouble-click to open the effects pane.")
 
                                     // Move: changes the delay
                                     MouseArea {

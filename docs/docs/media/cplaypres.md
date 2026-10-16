@@ -78,7 +78,7 @@ To add new layers, click the ![](/assets/icons/list-add.svg) "+" button to the l
 
 ![Layer Add New](/assets/ui/layer_add_new.png)
 
-Choose a layer type and source, then open **Layer View** to preview and position it. The [Layers and sources guide](/media/layers) explains every layer type, source setup, per-node inputs, and [master placeholders](/media/layers#master-placeholders-for-node-sources).
+Choose a layer type and source, then open **Layer View** to preview and position it. The [Layers and sources guide](/media/layers) explains every layer type and source setup. [Layer operations](/media/layer-operations) covers positioning, post process effects, per-node inputs, and [master placeholders](/media/layer-operations#master-placeholders-for-node-sources).
 
 Plane layers can also use [circular horizontal mapping](/settings/grid#circular-surface-mapping). Define and enable the shared 360° canvas in Grid Settings; new plane layers then default to **Circular degrees**. Presentation files store `circular`, `centreDegrees` and `widthDegrees` in the layer's `plane` object, including texture-division sublayers. The shared surface calibration stays in GridSettings. Missing circular mode fields inherit the global default; explicitly saved modes are preserved.
 
@@ -171,15 +171,15 @@ In addition to alpha, rotation and translation, a keyframe can include these opt
 
 An optional group only interpolates between keyframes that have it turned on. Keyframe values are absolute layer values.
 
-#### Animation pane (entrance and exit effects)
+#### Effects pane (entrance, exit and post process effects)
 
-Open the animation pane in one of these ways:
+Open the effects pane in one of these ways:
 
-* Click **Animation** in the layer view toolbar. The pane then shows only the effects of that layer, and follows the layer selected in the layer list.
-* Click **Animations** in the timeline toolbar (the timeline does not have to be enabled).
+* Click **Effects** in the layer view toolbar. The pane then shows only the effects of that layer, and follows the layer selected in the layer list. The button is highlighted when the layer has effects.
+* Click **Effects** in the timeline toolbar (the timeline does not have to be enabled).
 * Double-click an effect bar in the timeline.
 
-The pane has two tabs: **Entrance (intro)** and **Exit (outro)**. To add an effect, pick a layer in the *Layer* list, click **Add effect**, and choose a preset from the gallery. Only layers with visual content can be animated, and the master slide has no entrance or exit effects.
+The pane has three tabs: **Entrance**, **Exit** and **Post Process** (see [Post process effects](/media/layer-operations#post-process-effects)). To add an effect, pick a layer in the *Layer* list, click **Add effect**, and choose a preset from the gallery. Only layers with visual content can be animated, and the master slide has no entrance or exit effects.
 
 On a slide without a timeline, layers without effects keep the regular slide fade, and the effects play on top of it when the slide is triggered and left. On a timeline slide, the timeline duration grows automatically to fit the effects. Turning the timeline off keeps the effects you added, and removes the default fades that turning it on gave the layers.
 
@@ -213,6 +213,10 @@ Each row shows a timing bar, so you can see when every effect plays within its p
 * **Play intro / Play outro** — Preview the whole phase.
 
 In the timeline, effects are shown as green (entrance) and red (exit) bars below each layer track. Drag a bar to change its delay, or drag its right edge to change its duration.
+
+#### Post process effects
+
+The **Post Process** tab holds effects that are always applied to the layer's image, such as chroma key, luma key, color correction, blur and vignette. They belong to the layer rather than the slide, so they apply in every slide that shows it. See [Layer operations → Post process effects](/media/layer-operations#post-process-effects) for every effect, its settings, and how to pick a key color.
 
 #### Triggers and click steps
 
@@ -249,5 +253,5 @@ The Slide Visibility Table shows animated cells in cyan, labelled *Timeline Intr
 
 #### Saving animations
 
-Easing, extra keyframe properties, effects, reference animations and the layer order of each slide are saved in the *.cplaypres* file together with the rest of the timeline. Animation values are applied on top of the layer's saved settings during playback, so the layer's settings are not changed.
+Easing, extra keyframe properties, entrance and exit effects, reference animations and the layer order of each slide are saved in the *.cplaypres* file together with the rest of the timeline. Animation values are applied on top of the layer's saved settings during playback, so the layer's settings are not changed.
 

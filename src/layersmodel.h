@@ -373,6 +373,19 @@ public:
     // Eased value of t in [0,1] for drawing easing curves in the UI.
     Q_INVOKABLE double easingValue(int easing, double t) const;
 
+    // ---- Post process effects ----------------------------------------------
+
+    // Texture effects always applied to the layer, in every slide (a property of the layer,
+    // saved by the slide owning it). The map holds one bool per effect (chromaKey, lumaKey,
+    // colorCorrection, invert, tint, blur, sharpen, pixelate, vignette) and their parameters;
+    // colors are "#rrggbb" strings.
+    Q_INVOKABLE QVariantMap getPostEffects(int layerIdx) const;
+    Q_INVOKABLE void updatePostEffects(int layerIdx, const QVariantMap &values);
+    // Restores the parameters of one effect (named by its bool) to their defaults.
+    Q_INVOKABLE void resetPostEffect(int layerIdx, const QString &effect);
+    Q_INVOKABLE void clearPostEffects(int layerIdx);
+    Q_INVOKABLE bool layerHasPostEffects(int layerIdx) const;
+
     // ---- On-click build steps (intro only) --------------------------------
 
     // Start times (ms) of each on-click step within the intro.
@@ -467,6 +480,8 @@ Q_SIGNALS:
     void layerAnimationFinished(int layerIdx);
     // Progress of a running layer animation as visibility: 0..100 for an entrance, 100..0 for an exit.
     void layerAnimationProgressChanged(int layerIdx, int progress);
+    // Post effects of the layer in row layerIdx changed.
+    void postEffectsChanged(int layerIdx);
     // A referenced layer's keep-visibility span was shortened from this slide.
     void layerVisibilitySpanChanged(BaseLayer *layer);
 
@@ -491,6 +506,8 @@ private:
     bool isTimelineSuppressed(const BaseLayer *layer) const;
     // Hides referenced layers that are not shown by the live slide (used when this slide is left).
     void hideUnsuppressedReferences(bool evenWhenLive);
+    // Marks the slide owning the layer in row layerIdx (this one or, for a reference, its owner) as changed.
+    void markLayerNeedsSave(int layerIdx);
     QJsonObject encodeTrack(const LayerTimeline &track) const;
     void decodeTrack(const QJsonObject &o, LayerTimeline &track) const;
 

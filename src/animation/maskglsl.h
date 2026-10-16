@@ -9,6 +9,7 @@
 #define CPLAY_MASKGLSL_H
 
 #include "layeranimstate.h"
+#include "posteffects.h"
 #include <glm/gtc/matrix_transform.hpp>
 #include <cmath>
 
@@ -93,6 +94,8 @@ struct MaskUniformLocations {
     int aspect = -1;
     int invert = -1;
     int quadMatrix = -1;
+    int postFlags = -1;
+    int postParams = -1;
 
     template <typename LocateFn>
     void locate(LocateFn &&fn) {
@@ -104,11 +107,20 @@ struct MaskUniformLocations {
         aspect = fn("maskAspect");
         invert = fn("maskInvert");
         quadMatrix = fn("quadMatrix");
+        postFlags = fn("postFlags");
+        postParams = fn("postParams");
     }
 
-    // Setter must provide set1i(loc, int), set1f(loc, float) and set2f(loc, float, float).
+    // Setter must provide set1i(loc, int), set1f(loc, float), set2f(loc, float, float) and
+    // set4fv(loc, count, const float *).
     template <typename Setter>
-    void apply(Setter &&s, const LayerAnimState &a, float aspectRatio) const {
+    void apply(Setter &&s, const LayerAnimState &a, float aspectRatio, const PostEffects &fx) const {
+        // Only the post effects shader variant has these uniforms.
+        if (postFlags >= 0) {
+            s.set1i(postFlags, static_cast<int>(fx.enabled));
+            const auto params = fx.packParams();
+            s.set4fv(postParams, PostEffects::ParamCount, &params[0].x);
+        }
         s.set1i(type, a.maskType);
         if (a.maskType == 0)
             return;

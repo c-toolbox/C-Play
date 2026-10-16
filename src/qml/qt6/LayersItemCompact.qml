@@ -418,6 +418,49 @@ ItemDelegate {
                     ToolTip.text: qsTr("Reference to a layer of %1, kept visible in this slide by its slide visibility. Edits change the original layer; the position in this list and the animations are set per slide.").arg(model.referenceSource)
                 }
 
+                // Effects indicator: yellow entrance/exit, blue post process, purple both
+                Kirigami.Icon {
+                    id: effectsIndicatorIcon
+
+                    // Bumped when the slide's effects change, so the bindings below re-evaluate.
+                    property int revision: 0
+                    readonly property bool hasEntranceExit: {
+                        var _r = revision;
+                        return app.slides.selected.layerHasEffects(index);
+                    }
+                    readonly property bool hasPostEffects: {
+                        var _r = revision;
+                        return app.slides.selected.layerHasPostEffects(index);
+                    }
+
+                    source: "rating"
+                    width: 12
+                    height: 12
+                    color: hasEntranceExit && hasPostEffects ? "mediumpurple"
+                         : hasEntranceExit ? "yellow" : "dodgerblue"
+                    visible: hasEntranceExit || hasPostEffects
+
+                    Connections {
+                        target: app.slides.selected
+                        function onTimelineChanged() { effectsIndicatorIcon.revision++; }
+                        function onLayersModelChanged() { effectsIndicatorIcon.revision++; }
+                        function onPostEffectsChanged() { effectsIndicatorIcon.revision++; }
+                    }
+
+                    MouseArea {
+                        id: effectsIndicatorMA
+                        anchors.fill: parent
+                        hoverEnabled: true
+                    }
+
+                    ToolTip.visible: effectsIndicatorMA.containsMouse
+                    ToolTip.text: hasEntranceExit && hasPostEffects
+                        ? qsTr("The layer has entrance/exit effects and post process effects.")
+                        : hasEntranceExit
+                          ? qsTr("The layer has entrance/exit effects.")
+                          : qsTr("The layer has post process effects.")
+                }
+
                 // NDI output indicator, shown when not in default state (NDI enabled)
                 Kirigami.Icon {
                     id: ndiIndicatorIcon

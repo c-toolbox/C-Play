@@ -14,7 +14,10 @@
 #include <QOpenGLVertexArrayObject>
 #include <QtQuick/QQuickItem>
 #include <QtQuick/QQuickWindow>
+#include <QColor>
+#include <QPointF>
 #include <layers/baselayer.h>
+#include <mutex>
 #include "tracksmodel.h"
 
 class LayerQtOpenGLObject : public QObject, protected QOpenGLFunctions {
@@ -46,19 +49,33 @@ public:
     QString layerCaptureTargetNode() const;
     void setLayerCaptureTargetNode(QString role);
 
+    // Shows the layer with its post effects, over a checkerboard where they make it transparent.
+    void setShowPostEffects(bool show);
+    // Samples the layer texture (before post effects) around uv (0..1, bottom left origin)
+    // on the next paint and reports the average with colorPicked().
+    void requestColorPick(const QPointF &uv);
+
 Q_SIGNALS:
     void viewChanged();
+    void colorPicked(const QColor &color);
 
 private:
+    void readPendingColorPick();
+
     bool m_updateLayer = false;
     bool m_itemVisible = false;
     bool m_ownsLayer = false;
+    bool m_showPostEffects = true;
+    std::mutex m_pickMutex;
+    bool m_pickPending = false;
+    QPointF m_pickUv;
     QSize m_windowSize;
     QSize m_viewportSize;
     QPoint m_position;
     QPoint m_viewOffset;
     QSize m_viewSize;
     QOpenGLShaderProgram *m_program = nullptr;
+    QOpenGLShaderProgram *m_postProgram = nullptr;
     QQuickWindow *m_window = nullptr;
     BaseLayer *m_layer = nullptr;
 
@@ -192,9 +209,21 @@ class LayerQtItem : public QQuickItem {
     Q_PROPERTY(bool layerNodeStreamNdiOverridden READ layerNodeStreamNdiOverridden NOTIFY layerValueChanged)
     // The NDI source name the nodes receive this layer as in NDI mode.
     Q_PROPERTY(QString layerNodeStreamNdiName READ layerNodeStreamNdiName NOTIFY layerValueChanged)
+    // While true, clicks in the view pick a color from the layer (see pickColor()).
+    Q_PROPERTY(bool colorPickActive READ colorPickActive WRITE setColorPickActive NOTIFY colorPickActiveChanged)
+    // Shows the layer with its post effects (chroma key, color correction, ...).
+    Q_PROPERTY(bool showPostEffects READ showPostEffects WRITE setShowPostEffects NOTIFY showPostEffectsChanged)
 
 public:
     LayerQtItem();
+
+    bool colorPickActive() const;
+    void setColorPickActive(bool active);
+    bool showPostEffects() const;
+    void setShowPostEffects(bool show);
+    // Samples the layer texture (before post effects) at item position x, y and reports
+    // the color with colorPicked(). Ignored outside the shown image.
+    Q_INVOKABLE void pickColor(qreal x, qreal y);
 
     int layerIdx() const;
     void setLayerIdx(int idx);
@@ -499,6 +528,9 @@ Q_SIGNALS:
 #ifdef CAPTURE_SUPPORT
     void layerCaptureStatusChanged();
 #endif
+    void colorPickActiveChanged();
+    void showPostEffectsChanged();
+    void colorPicked(const QColor &color);
 
 private:
     struct SourceIdentifiers {
@@ -525,6 +557,8 @@ private:
     QString m_lastEmittedSourceDescription;
     bool m_audioLevelsEnabled = false; // desired meter state, re-applied to each new layer
     bool m_updatingLayer;
+    bool m_colorPickActive = false;
+    bool m_showPostEffects = true;
     LayerQtOpenGLObject *m_renderer;
     TracksModel* m_audioTracksModel;
     QTimer *m_timer;

@@ -19,6 +19,7 @@
 #include <QVector2D>
 #include <QMatrix4x4>
 #include <QVariantList>
+#include <array>
 #include <atomic>
 #include <memory>
 #include <mutex>
@@ -75,7 +76,9 @@ public:
     void setBackgroundImageFile(const QString& file);
     void setForegroundImageFile(const QString& file);
 
-    void renderLayer(const BaseLayer* layer, int eyeMode, float angle, const QMatrix4x4& viewMatrix, const QMatrix4x4& projectionMatrix);
+    // fxSource: layer whose post effects apply (a sublayer uses its parent's), nullptr = layer.
+    void renderLayer(const BaseLayer* layer, int eyeMode, float angle, const QMatrix4x4& viewMatrix, const QMatrix4x4& projectionMatrix,
+                     const BaseLayer* fxSource = nullptr);
     void renderMpvObject(MpvObject* mpv, int eyeMode, float angle, const QMatrix4x4& viewMatrix, const QMatrix4x4& projectionMatrix);
 
 
@@ -147,69 +150,78 @@ private:
     bool m_foregroundImageDirty = false;
     MpvObject* m_mpvObject = nullptr;
 
-    // Shader programs (Qt equivalents)
-    std::unique_ptr<QOpenGLShaderProgram> m_videoPrg;
-    std::unique_ptr<QOpenGLShaderProgram> m_meshPrg;
-    std::unique_ptr<QOpenGLShaderProgram> m_EACPrg;
-    std::unique_ptr<QOpenGLShaderProgram> m_fisheyePrg;
-    std::unique_ptr<QOpenGLShaderProgram> m_fisheyeEACPrg;
+    // Shader programs and their uniform locations, in two variants: [0] renders layers
+    // without post effects exactly as before, [1] adds the post effects and is only used
+    // for layers with an effect turned on (see cplay::anim::postGlsl()).
+    struct ShaderVariant {
+        // Shader programs (Qt equivalents)
+        std::unique_ptr<QOpenGLShaderProgram> videoPrg;
+        std::unique_ptr<QOpenGLShaderProgram> meshPrg;
+        std::unique_ptr<QOpenGLShaderProgram> EACPrg;
+        std::unique_ptr<QOpenGLShaderProgram> fisheyePrg;
+        std::unique_ptr<QOpenGLShaderProgram> fisheyeEACPrg;
 
-    // Shader uniform locations - video
-    int m_videoAlphaLoc;
-    int m_videoEyeModeLoc;
-    int m_videoFlipYLoc;
-    int m_videoStereoscopicModeLoc;
-    int m_videoRoi;
+        // Shader uniform locations - video
+        int videoAlphaLoc = -1;
+        int videoEyeModeLoc = -1;
+        int videoFlipYLoc = -1;
+        int videoStereoscopicModeLoc = -1;
+        int videoRoi = -1;
 
-    // Shader uniform locations - mesh
-    int m_meshAlphaLoc;
-    int m_meshEyeModeLoc;
-    int m_meshFlipYLoc;
-    int m_meshMatrixLoc;
-    int m_meshOutsideLoc;
-    int m_meshStereoscopicModeLoc;
-    int m_meshRoi;
+        // Shader uniform locations - mesh
+        int meshAlphaLoc = -1;
+        int meshEyeModeLoc = -1;
+        int meshFlipYLoc = -1;
+        int meshMatrixLoc = -1;
+        int meshOutsideLoc = -1;
+        int meshStereoscopicModeLoc = -1;
+        int meshRoi = -1;
 
-    // Shader uniform locations - EAC
-    int m_EACAlphaLoc;
-    int m_EACFlipYLoc;
-    int m_EACMatrixLoc;
-    int m_EACScaleLoc;
-    int m_EACOutsideLoc;
-    int m_EACVideoWidthLoc;
-    int m_EACVideoHeightLoc;
-    int m_EACFlipUpDownLoc;
-    int m_EACEyeModeLoc;
-    int m_EACStereoscopicModeLoc;
+        // Shader uniform locations - EAC
+        int EACAlphaLoc = -1;
+        int EACFlipYLoc = -1;
+        int EACMatrixLoc = -1;
+        int EACScaleLoc = -1;
+        int EACOutsideLoc = -1;
+        int EACVideoWidthLoc = -1;
+        int EACVideoHeightLoc = -1;
+        int EACFlipUpDownLoc = -1;
+        int EACEyeModeLoc = -1;
+        int EACStereoscopicModeLoc = -1;
 
-    // Shader uniform locations - fisheye
-    int m_fisheyeAlphaLoc;
-    int m_fisheyeEyeModeLoc;
-    int m_fisheyeFlipYLoc;
-    int m_fisheyeStereoscopicModeLoc;
-    int m_fisheyeMatrixLoc;
-    int m_fisheyeOutsideLoc;
-    int m_fisheyeHalfFovLoc;
-    int m_fisheyeRoi;
+        // Shader uniform locations - fisheye
+        int fisheyeAlphaLoc = -1;
+        int fisheyeEyeModeLoc = -1;
+        int fisheyeFlipYLoc = -1;
+        int fisheyeStereoscopicModeLoc = -1;
+        int fisheyeMatrixLoc = -1;
+        int fisheyeOutsideLoc = -1;
+        int fisheyeHalfFovLoc = -1;
+        int fisheyeRoi = -1;
 
-    // Shader uniform locations - fisheye EAC
-    int m_fisheyeEACAlphaLoc;
-    int m_fisheyeEACEyeModeLoc;
-    int m_fisheyeEACFlipYLoc;
-    int m_fisheyeEACStereoscopicModeLoc;
-    int m_fisheyeEACMatrixLoc;
-    int m_fisheyeEACOutsideLoc;
-    int m_fisheyeEACHalfFovLoc;
-    int m_fisheyeEACScaleLoc;
-    int m_fisheyeEACVideoWidthLoc;
-    int m_fisheyeEACVideoHeightLoc;
-    int m_fisheyeEACFlipUpDownLoc;
+        // Shader uniform locations - fisheye EAC
+        int fisheyeEACAlphaLoc = -1;
+        int fisheyeEACEyeModeLoc = -1;
+        int fisheyeEACFlipYLoc = -1;
+        int fisheyeEACStereoscopicModeLoc = -1;
+        int fisheyeEACMatrixLoc = -1;
+        int fisheyeEACOutsideLoc = -1;
+        int fisheyeEACHalfFovLoc = -1;
+        int fisheyeEACScaleLoc = -1;
+        int fisheyeEACVideoWidthLoc = -1;
+        int fisheyeEACVideoHeightLoc = -1;
+        int fisheyeEACFlipUpDownLoc = -1;
 
-    cplay::anim::MaskUniformLocations m_videoMaskLocs;
-    cplay::anim::MaskUniformLocations m_meshMaskLocs;
-    cplay::anim::MaskUniformLocations m_EACMaskLocs;
-    cplay::anim::MaskUniformLocations m_fisheyeMaskLocs;
-    cplay::anim::MaskUniformLocations m_fisheyeEACMaskLocs;
+        cplay::anim::MaskUniformLocations videoMaskLocs;
+        cplay::anim::MaskUniformLocations meshMaskLocs;
+        cplay::anim::MaskUniformLocations EACMaskLocs;
+        cplay::anim::MaskUniformLocations fisheyeMaskLocs;
+        cplay::anim::MaskUniformLocations fisheyeEACMaskLocs;
+    };
+    std::array<ShaderVariant, 2> m_shaderVariants;
+    // Variant in use: the plain one, except while renderLayer() draws a layer with post effects.
+    ShaderVariant *m_sv = &m_shaderVariants[0];
+    void createShaderVariant(bool postEffects);
     // Restores neutral mask/quad uniforms after an animated layer so other draws are unaffected.
     void resetAnimUniforms();
     // Meshes

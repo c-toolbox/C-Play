@@ -45,11 +45,15 @@
 #include <layers/imagelayer.h>
 
 #include <QOpenGLContext>
+#include <QOpenGLFunctions_4_5_Core>
+#include <QOpenGLVersionFunctionsFactory>
 #include <QQuickGraphicsDevice>
 #include <QTimer>
 #include <QtCore/QRunnable>
 #include <QtQuick/qquickwindow.h>
+#include <algorithm>
 #include <array>
+#include <vector>
 
 static void* get_proc_address_qopengl_v1(void* ctx, const char* name) {
     Q_UNUSED(ctx)
@@ -2118,6 +2122,7 @@ LayerQtOpenGLObject::LayerQtOpenGLObject(QObject* parent)
 
 LayerQtOpenGLObject::~LayerQtOpenGLObject() {
     delete m_program;
+    delete m_postProgram;
 }
 
 void LayerQtOpenGLObject::setWindowSize(const QSize &size) {
@@ -2257,7 +2262,9 @@ void LayerQtItem::sync() {
         connect(window(), &QQuickWindow::beforeRenderPassRecording, m_renderer, &LayerQtOpenGLObject::paint, Qt::DirectConnection);
         connect(window(), &QQuickWindow::frameSwapped, m_renderer, &LayerQtOpenGLObject::reportSwap, Qt::DirectConnection);
         connect(m_renderer, &LayerQtOpenGLObject::viewChanged, this, &LayerQtItem::updateView);
+        connect(m_renderer, &LayerQtOpenGLObject::colorPicked, this, &LayerQtItem::colorPicked);
     }
+    m_renderer->setShowPostEffects(m_showPostEffects);
     m_renderer->setLayer(m_layer);
     m_renderer->setWindowSize(window()->size() * window()->devicePixelRatio());
     m_renderer->setViewportSize(this->size().toSize() * window()->devicePixelRatio());
@@ -2293,28 +2300,48 @@ void LayerQtOpenGLObject::init() {
 
         initializeOpenGLFunctions();
 
-        m_program = new QOpenGLShaderProgram();
-
-        m_program->addCacheableShaderFromSourceCode(QOpenGLShader::Vertex,
-                                                    "attribute highp vec3 vertices;"
-                                                    "attribute highp vec2 texcoords;"
-                                                    "varying highp vec2 coords;"
-                                                    "uniform bool flipY;"
-                                                    "void main() {"
-                                                    "    gl_Position = vec4(vertices, 1.0);"
-                                                    "    coords = flipY ? vec2(texcoords.x, 1.0-texcoords.y) : texcoords;"
-                                                    "}");
-        m_program->addCacheableShaderFromSourceCode(QOpenGLShader::Fragment,
-                                                    "varying highp vec2 coords;"
-                                                    "uniform sampler2D tex;"
-                                                    "void main() {"
-                                                    "    gl_FragColor = texture2D(tex, coords);"
-                                                    "}");
-
-        m_program->bindAttributeLocation("vertices", 0);
-        m_program->bindAttributeLocation("texcoords", 1);
-
-        m_program->link();
+        // The plain program shows the texture as is. The post effects one is only used while
+        // the layer has post effects to preview, over a checkerboard where they make it transparent.
+        auto createProgram = [](bool postEffects) {
+            auto *program = new QOpenGLShaderProgram();
+            program->addCacheableShaderFromSourceCode(QOpenGLShader::Vertex, R"(
+#version 460 core
+in vec3 vertices;
+in vec2 texcoords;
+out vec2 coords;
+out vec2 localCoords;
+uniform bool flipY;
+void main() {
+    gl_Position = vec4(vertices, 1.0);
+    localCoords = texcoords;
+    coords = flipY ? vec2(texcoords.x, 1.0-texcoords.y) : texcoords;
+}
+)");
+            program->addCacheableShaderFromSourceCode(QOpenGLShader::Fragment, QByteArray(R"(
+#version 460 core
+in vec2 coords;
+in vec2 localCoords;
+uniform sampler2D tex;
+out vec4 out_color;
+)") + cplay::anim::postGlsl(postEffects) + (postEffects ? R"(
+void main() {
+    vec4 c = cplayPost(coords, localCoords);
+    vec2 cell = floor(gl_FragCoord.xy / 10.0);
+    vec3 bg = mod(cell.x + cell.y, 2.0) < 1.0 ? vec3(0.32) : vec3(0.48);
+    out_color = vec4(mix(bg, c.rgb, clamp(c.a, 0.0, 1.0)), 1.0);
+}
+)" : R"(
+void main() {
+    out_color = cplayPost(coords, localCoords);
+}
+)"));
+            program->bindAttributeLocation("vertices", 0);
+            program->bindAttributeLocation("texcoords", 1);
+            program->link();
+            return program;
+        };
+        m_program = createProgram(false);
+        m_postProgram = createProgram(true);
 
         constexpr std::array<const float, 36> QuadVerts = {
             //     x     y     z      u    v      r    g    b    a
@@ -2385,15 +2412,24 @@ void LayerQtOpenGLObject::paint() {
 
     calculateViewParameters();
 
-    m_program->bind();
+    const cplay::anim::PostEffects &fx = m_layer->postEffects();
+    const bool showFx = m_showPostEffects && fx.active();
+    QOpenGLShaderProgram *program = showFx ? m_postProgram : m_program;
 
-    m_program->enableAttributeArray(0);
+    program->bind();
+
+    program->enableAttributeArray(0);
 
     glActiveTexture(GL_TEXTURE1);
     glBindTexture(GL_TEXTURE_2D, m_layer->textureId());
 
-    m_program->setUniformValue("tex", 1);
-    m_program->setUniformValue("flipY", (m_layer->renderFlipY() ? 1 : 0 ));
+    program->setUniformValue("tex", 1);
+    program->setUniformValue("flipY", (m_layer->renderFlipY() ? 1 : 0 ));
+    if (showFx) {
+        const auto params = fx.packParams();
+        program->setUniformValue("postFlags", static_cast<GLint>(fx.enabled));
+        program->setUniformValueArray("postParams", &params[0].x, cplay::anim::PostEffects::ParamCount, 4);
+    }
 
     glViewport(m_viewOffset.x(), m_viewOffset.y(), m_viewSize.width(), m_viewSize.height());
 
@@ -2407,10 +2443,12 @@ void LayerQtOpenGLObject::paint() {
 
     m_vao.release();
 
-    m_program->disableAttributeArray(0);
-    m_program->release();
+    program->disableAttributeArray(0);
+    program->release();
 
     glDisable(GL_BLEND);
+
+    readPendingColorPick();
 
     m_window->endExternalCommands();
 
@@ -2419,6 +2457,101 @@ void LayerQtOpenGLObject::paint() {
 #if QT_VERSION < QT_VERSION_CHECK(6, 0, 0)
     m_window->resetOpenGLState();
 #endif
+}
+
+void LayerQtOpenGLObject::setShowPostEffects(bool show) {
+    m_showPostEffects = show;
+}
+
+void LayerQtOpenGLObject::requestColorPick(const QPointF &uv) {
+    std::lock_guard<std::mutex> lock(m_pickMutex);
+    m_pickUv = uv;
+    m_pickPending = true;
+}
+
+void LayerQtOpenGLObject::readPendingColorPick() {
+    QPointF uv;
+    {
+        std::lock_guard<std::mutex> lock(m_pickMutex);
+        if (!m_pickPending)
+            return;
+        m_pickPending = false;
+        uv = m_pickUv;
+    }
+
+    QOpenGLContext *ctx = QOpenGLContext::currentContext();
+    auto *gl = ctx ? QOpenGLVersionFunctionsFactory::get<QOpenGLFunctions_4_5_Core>(ctx) : nullptr;
+    const GLuint tex = m_layer->textureId();
+    if (!gl || tex == 0 || !gl->initializeOpenGLFunctions())
+        return;
+
+    GLint w = 0;
+    GLint h = 0;
+    gl->glGetTextureLevelParameteriv(tex, 0, GL_TEXTURE_WIDTH, &w);
+    gl->glGetTextureLevelParameteriv(tex, 0, GL_TEXTURE_HEIGHT, &h);
+    if (w <= 0 || h <= 0)
+        return;
+
+    // Average a small neighbourhood, so one noisy camera pixel does not decide the color.
+    constexpr int Radius = 2;
+    const int cx = std::clamp(static_cast<int>(uv.x() * w), 0, w - 1);
+    const int cy = std::clamp(static_cast<int>(uv.y() * h), 0, h - 1);
+    const int x0 = std::max(cx - Radius, 0);
+    const int y0 = std::max(cy - Radius, 0);
+    const int rw = std::min(cx + Radius, w - 1) - x0 + 1;
+    const int rh = std::min(cy + Radius, h - 1) - y0 + 1;
+    std::vector<float> pixels(static_cast<size_t>(rw) * rh * 4, 0.f);
+    while (gl->glGetError() != GL_NO_ERROR) {}
+    gl->glPixelStorei(GL_PACK_ALIGNMENT, 4);
+    gl->glGetTextureSubImage(tex, 0, x0, y0, 0, rw, rh, 1, GL_RGBA, GL_FLOAT,
+                             static_cast<GLsizei>(pixels.size() * sizeof(float)), pixels.data());
+    if (gl->glGetError() != GL_NO_ERROR)
+        return;
+
+    double rgb[3] = {0.0, 0.0, 0.0};
+    for (size_t i = 0; i < pixels.size(); i += 4) {
+        for (int c = 0; c < 3; ++c)
+            rgb[c] += pixels[i + c];
+    }
+    const double n = static_cast<double>(rw * rh);
+    Q_EMIT colorPicked(QColor::fromRgbF(static_cast<float>(std::clamp(rgb[0] / n, 0.0, 1.0)),
+                                        static_cast<float>(std::clamp(rgb[1] / n, 0.0, 1.0)),
+                                        static_cast<float>(std::clamp(rgb[2] / n, 0.0, 1.0))));
+}
+
+bool LayerQtItem::colorPickActive() const {
+    return m_colorPickActive;
+}
+
+void LayerQtItem::setColorPickActive(bool active) {
+    if (m_colorPickActive == active)
+        return;
+    m_colorPickActive = active;
+    Q_EMIT colorPickActiveChanged();
+}
+
+bool LayerQtItem::showPostEffects() const {
+    return m_showPostEffects;
+}
+
+void LayerQtItem::setShowPostEffects(bool show) {
+    if (m_showPostEffects == show)
+        return;
+    m_showPostEffects = show;
+    Q_EMIT showPostEffectsChanged();
+}
+
+void LayerQtItem::pickColor(qreal x, qreal y) {
+    if (!m_renderer || !m_layer || m_viewSize.width() <= 0 || m_viewSize.height() <= 0)
+        return;
+    const qreal u = (x - m_viewOffset.x()) / m_viewSize.width();
+    // The view is top-left based; the texture bottom-left, unless the layer is flipped.
+    const qreal fromTop = (y - m_viewOffset.y()) / m_viewSize.height();
+    if (u < 0.0 || u > 1.0 || fromTop < 0.0 || fromTop > 1.0)
+        return;
+    m_renderer->requestColorPick(QPointF(u, m_layer->renderFlipY() ? fromTop : 1.0 - fromTop));
+    if (window())
+        window()->update();
 }
 
 QString LayerQtItem::layerCaptureTargetNode() const {

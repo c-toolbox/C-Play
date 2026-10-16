@@ -478,7 +478,7 @@ ItemDelegate {
     Loader {
         id: animationPaneLoader
         active: false
-        sourceComponent: LayerAnimationPane {
+        sourceComponent: LayerEffectsPane {
             slideIndex: index
             slideTimeline: slideTimelineWindow
         }

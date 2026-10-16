@@ -276,13 +276,14 @@ Kirigami.ApplicationWindow {
         target: app.slides.selected
     }
 
-    // Animation pane locked to the layer shown here, created on first use
+    // Effects pane locked to the layer shown here, created on first use
     Loader {
         id: layerAnimationPaneLoader
         active: false
-        sourceComponent: LayerAnimationPane {
+        sourceComponent: LayerEffectsPane {
             slideIndex: app.slides.selectedSlideIdx
             layerFilter: layerViewItem.layerIdx
+            layerView: layerViewItem
         }
         function open() {
             active = true;
@@ -527,10 +528,15 @@ Kirigami.ApplicationWindow {
 
                     // Bumped when the slide's effects change, so the bindings below re-evaluate.
                     property int revision: 0
-                    readonly property bool hasEffects: {
+                    readonly property bool hasEntranceExit: {
                         var _r = revision;
                         return layerViewItem.layerIdx >= 0
                                && app.slides.selected.layerHasEffects(layerViewItem.layerIdx);
+                    }
+                    readonly property bool hasPostEffects: {
+                        var _r = revision;
+                        return layerViewItem.layerIdx >= 0
+                               && app.slides.selected.layerHasPostEffects(layerViewItem.layerIdx);
                     }
 
                     enabled: {
@@ -539,9 +545,13 @@ Kirigami.ApplicationWindow {
                                && app.slides.selected.layerSupportsAnimation(layerViewItem.layerIdx);
                     }
                     focusPolicy: Qt.NoFocus
-                    icon.color: hasEffects ? "lime" : Kirigami.Theme.textColor
+                    // Yellow: entrance/exit, blue: post process, purple: both, crimson: none.
+                    icon.color: hasEntranceExit && hasPostEffects ? "mediumpurple"
+                              : hasEntranceExit ? "yellow"
+                              : hasPostEffects ? "dodgerblue"
+                              : "crimson"
                     icon.name: "rating"
-                    text: qsTr("Animation")
+                    text: qsTr("Effects")
 
                     onClicked: layerAnimationPaneLoader.open()
 
@@ -549,6 +559,7 @@ Kirigami.ApplicationWindow {
                         target: app.slides.selected
                         function onTimelineChanged() { animationButton.revision++; }
                         function onLayersModelChanged() { animationButton.revision++; }
+                        function onPostEffectsChanged() { animationButton.revision++; }
                     }
                     Connections {
                         target: layerViewItem
@@ -557,8 +568,8 @@ Kirigami.ApplicationWindow {
 
                     ToolTip {
                         text: animationButton.enabled
-                              ? qsTr("Entrance and exit effects of this layer. They play when the slide is triggered and left (with or without a slide timeline), and when the layer is shown or hidden on its own.")
-                              : qsTr("Entrance and exit effects are available for layers with an image")
+                              ? qsTr("Effects of this layer. Entrance and exit effects play when the slide is triggered and left (with or without a slide timeline), and when the layer is shown or hidden on its own. Post process effects (chroma key, color correction, ...) are always applied to its image.")
+                              : qsTr("Effects are available for layers with an image")
                     }
                 }
                 ToolButton {
@@ -865,6 +876,43 @@ Kirigami.ApplicationWindow {
                 wrapMode: Text.WordWrap
                 text: app.tcpControlManager.lastError
             }
+        }
+
+        // Picks a color for the effects pane (chroma key): press or drag to sample, release to finish.
+        MouseArea {
+            anchors.fill: parent
+            z: 20
+            visible: layerViewItem.colorPickActive
+            cursorShape: Qt.CrossCursor
+            onPressed: mouse => layerViewItem.pickColor(mouse.x, mouse.y)
+            onPositionChanged: mouse => {
+                if (pressed)
+                    layerViewItem.pickColor(mouse.x, mouse.y);
+            }
+            onReleased: layerViewItem.colorPickActive = false
+        }
+        Rectangle {
+            anchors.horizontalCenter: parent.horizontalCenter
+            anchors.top: parent.top
+            anchors.topMargin: 12
+            width: colorPickLabel.implicitWidth + 24
+            height: colorPickLabel.implicitHeight + 16
+            radius: 6
+            color: Qt.rgba(0.1, 0.1, 0.1, 0.8)
+            visible: layerViewItem.colorPickActive
+            z: 21
+
+            Label {
+                id: colorPickLabel
+                anchors.centerIn: parent
+                color: "white"
+                text: qsTr("Click or drag in the image to pick the color (Esc cancels)")
+            }
+        }
+        Shortcut {
+            sequence: "Esc"
+            enabled: layerViewItem.colorPickActive
+            onActivated: layerViewItem.colorPickActive = false
         }
 
         Label {

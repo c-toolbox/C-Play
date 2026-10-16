@@ -114,4 +114,4 @@ Additional presets can be added as `data/mpv-conf/<name>_stream.json`.
 
 ## Cluster notes
 
-A MediaMTX stream layer stores its playback URL (RTSP or SRT) directly, so every node in the cluster connects to the same server address. If nodes should pull from different servers, save the stream to `data/predefined-streams.json` and then edit that entry to use the per-node `paths` map or a `pathTemplate`, as described in [Per-node resolution in clusters](/media/layers#per-node-resolution-in-clusters).
+A MediaMTX stream layer stores its playback URL (RTSP or SRT) directly, so every node in the cluster connects to the same server address. If nodes should pull from different servers, save the stream to `data/predefined-streams.json` and then edit that entry to use the per-node `paths` map or a `pathTemplate`, as described in [Per-node resolution in clusters](/media/layer-operations#per-node-resolution-in-clusters).

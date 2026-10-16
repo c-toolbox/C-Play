@@ -37,6 +37,7 @@
 #endif
 #ifdef MULTI_VIDEO_LAYER
 #include <layers/multivideolayer.h>
+#include <QColor>
 #include <QFile>
 #endif
 #include "httpclientmodel.h"
@@ -57,6 +58,118 @@
 #include <algorithm>
 #include <array>
 #include <limits>
+#include <vector>
+
+namespace {
+
+using cplay::anim::PostEffects;
+
+// Map key of each post effect's bool, its flag and the keys of its parameters.
+struct PostEffectInfo {
+    const char *key;
+    uint32_t flag;
+    std::vector<const char *> params;
+};
+
+const std::array<PostEffectInfo, 9> &postEffectInfos() {
+    using namespace cplay::anim;
+    static const std::array<PostEffectInfo, 9> infos = {{
+        { "chromaKey", PostChromaKey, { "keyColor", "keySimilarity", "keySmoothness", "keySpill" } },
+        { "lumaKey", PostLumaKey, { "lumaThreshold", "lumaSmoothness", "lumaInvert" } },
+        { "colorCorrection", PostColorCorrection, { "brightness", "contrast", "saturation", "gamma", "hue" } },
+        { "invert", PostInvert, {} },
+        { "tint", PostTint, { "tintColor", "tintAmount" } },
+        { "blur", PostBlur, { "blurRadius" } },
+        { "sharpen", PostSharpen, { "sharpenAmount" } },
+        { "pixelate", PostPixelate, { "pixelSize" } },
+        { "vignette", PostVignette, { "vignetteRadius", "vignetteSoftness", "vignetteAmount", "vignetteMode" } }
+    }};
+    return infos;
+}
+
+QString colorToString(const glm::vec3 &c) {
+    return QColor::fromRgbF(c.r, c.g, c.b).name(QColor::HexRgb);
+}
+
+QVariantMap postEffectsToMap(const PostEffects &fx) {
+    QVariantMap m;
+    for (const PostEffectInfo &info : postEffectInfos())
+        m[QString::fromLatin1(info.key)] = (fx.enabled & info.flag) != 0;
+    m[QStringLiteral("keyColor")] = colorToString(fx.keyColor);
+    m[QStringLiteral("keySimilarity")] = fx.keySimilarity;
+    m[QStringLiteral("keySmoothness")] = fx.keySmoothness;
+    m[QStringLiteral("keySpill")] = fx.keySpill;
+    m[QStringLiteral("lumaThreshold")] = fx.lumaThreshold;
+    m[QStringLiteral("lumaSmoothness")] = fx.lumaSmoothness;
+    m[QStringLiteral("lumaInvert")] = fx.lumaInvert;
+    m[QStringLiteral("brightness")] = fx.brightness;
+    m[QStringLiteral("contrast")] = fx.contrast;
+    m[QStringLiteral("saturation")] = fx.saturation;
+    m[QStringLiteral("gamma")] = fx.gamma;
+    m[QStringLiteral("hue")] = fx.hue;
+    m[QStringLiteral("tintColor")] = colorToString(fx.tintColor);
+    m[QStringLiteral("tintAmount")] = fx.tintAmount;
+    m[QStringLiteral("blurRadius")] = fx.blurRadius;
+    m[QStringLiteral("sharpenAmount")] = fx.sharpenAmount;
+    m[QStringLiteral("pixelSize")] = fx.pixelSize;
+    m[QStringLiteral("vignetteRadius")] = fx.vignetteRadius;
+    m[QStringLiteral("vignetteSoftness")] = fx.vignetteSoftness;
+    m[QStringLiteral("vignetteAmount")] = fx.vignetteAmount;
+    m[QStringLiteral("vignetteMode")] = fx.vignetteMode;
+    return m;
+}
+
+// Applies the keys present in values (as from postEffectsToMap, partial maps allowed).
+void applyPostEffectsMap(PostEffects &fx, const QVariantMap &values) {
+    for (const PostEffectInfo &info : postEffectInfos()) {
+        const QString k = QString::fromLatin1(info.key);
+        if (values.contains(k)) {
+            if (values.value(k).toBool())
+                fx.enabled |= info.flag;
+            else
+                fx.enabled &= ~info.flag;
+        }
+    }
+    auto readFloat = [&values](const char *key, float &out, float lo, float hi) {
+        const QString k = QString::fromLatin1(key);
+        if (values.contains(k))
+            out = std::clamp(static_cast<float>(values.value(k).toDouble()), lo, hi);
+    };
+    auto readColor = [&values](const char *key, glm::vec3 &out) {
+        const QString k = QString::fromLatin1(key);
+        if (!values.contains(k))
+            return;
+        const QVariant v = values.value(k);
+        const QColor c = v.typeId() == QMetaType::QColor ? v.value<QColor>() : QColor::fromString(v.toString());
+        if (c.isValid())
+            out = glm::vec3(c.redF(), c.greenF(), c.blueF());
+    };
+    readColor("keyColor", fx.keyColor);
+    readFloat("keySimilarity", fx.keySimilarity, 0.f, 1.f);
+    readFloat("keySmoothness", fx.keySmoothness, 0.f, 1.f);
+    readFloat("keySpill", fx.keySpill, 0.f, 1.f);
+    readFloat("lumaThreshold", fx.lumaThreshold, 0.f, 1.f);
+    readFloat("lumaSmoothness", fx.lumaSmoothness, 0.f, 1.f);
+    if (values.contains(QStringLiteral("lumaInvert")))
+        fx.lumaInvert = values.value(QStringLiteral("lumaInvert")).toBool();
+    readFloat("brightness", fx.brightness, -1.f, 1.f);
+    readFloat("contrast", fx.contrast, 0.f, 3.f);
+    readFloat("saturation", fx.saturation, 0.f, 3.f);
+    readFloat("gamma", fx.gamma, 0.1f, 4.f);
+    readFloat("hue", fx.hue, -180.f, 180.f);
+    readColor("tintColor", fx.tintColor);
+    readFloat("tintAmount", fx.tintAmount, 0.f, 1.f);
+    readFloat("blurRadius", fx.blurRadius, 0.f, 64.f);
+    readFloat("sharpenAmount", fx.sharpenAmount, 0.f, 3.f);
+    readFloat("pixelSize", fx.pixelSize, 1.f, 256.f);
+    readFloat("vignetteRadius", fx.vignetteRadius, 0.f, 1.5f);
+    readFloat("vignetteSoftness", fx.vignetteSoftness, 0.f, 1.5f);
+    readFloat("vignetteAmount", fx.vignetteAmount, 0.f, 1.f);
+    if (values.contains(QStringLiteral("vignetteMode")))
+        fx.vignetteMode = std::clamp(values.value(QStringLiteral("vignetteMode")).toInt(), 0, 1);
+}
+
+}
 
 static void *get_proc_address_qopengl_v1(void* ctx, const char *name) {
     Q_UNUSED(ctx)
@@ -1921,6 +2034,12 @@ void LayersModel::decodeFromJSON(QJsonObject &obj, const QStringList &forRelativ
                         }
                     }
 
+                    if (o.contains(QStringLiteral("postEffects"))) {
+                        PostEffects fx;
+                        applyPostEffectsMap(fx, o.value(QStringLiteral("postEffects")).toObject().toVariantMap());
+                        m_layers[idx].first->setPostEffects(fx);
+                    }
+
                     // Per-layer timeline keyframes and effects
                     if (o.contains(QStringLiteral("timelineKeyframes")) || o.contains(QStringLiteral("animationEffects"))) {
                         if (LayerTimeline *track = timelineAt(row))
@@ -2349,6 +2468,11 @@ void LayersModel::encodeToJSON(QJsonObject &obj, const QStringList &forRelativeP
         roiData.insert(QStringLiteral("height"), QJsonValue(layer->roi().w));
         roiArray.push_back(QJsonValue(roiData));
         layerData.insert(QString(QStringLiteral("roi")), QJsonValue(roiArray));
+
+        // Post effects, kept when only disabled so their settings survive
+        const QVariantMap postEffects = postEffectsToMap(layer->postEffects());
+        if (postEffects != postEffectsToMap(PostEffects()))
+            layerData.insert(QStringLiteral("postEffects"), QJsonObject::fromVariantMap(postEffects));
 
         // Per-layer timeline keyframes and effects
         if (const LayerTimeline *track = timelineAt(rowOfLayer(layer.get()))) {
@@ -3842,6 +3966,55 @@ void LayersModel::moveEffect(int layerIdx, int effectIdx, int newPos) {
 bool LayersModel::layerSupportsAnimation(int layerIdx) const {
     const BaseLayer *layer = rowLayer(layerIdx);
     return layer && layer->hasTexture();
+}
+
+void LayersModel::markLayerNeedsSave(int layerIdx) {
+    const int ref = referenceIndexOf(rowLayer(layerIdx));
+    if (ref < 0)
+        setLayersNeedsSave(true);
+    else if (m_refs[ref].owner)
+        m_refs[ref].owner->setLayersNeedsSave(true);
+}
+
+QVariantMap LayersModel::getPostEffects(int layerIdx) const {
+    const BaseLayer *layer = rowLayer(layerIdx);
+    return postEffectsToMap(layer ? layer->postEffects() : PostEffects());
+}
+
+void LayersModel::updatePostEffects(int layerIdx, const QVariantMap &values) {
+    BaseLayer *layer = rowLayer(layerIdx);
+    if (!layer)
+        return;
+    PostEffects fx = layer->postEffects();
+    applyPostEffectsMap(fx, values);
+    layer->setPostEffects(fx);
+    markLayerNeedsSave(layerIdx);
+    Q_EMIT postEffectsChanged(layerIdx);
+}
+
+void LayersModel::resetPostEffect(int layerIdx, const QString &effect) {
+    const QVariantMap defaults = postEffectsToMap(PostEffects());
+    for (const PostEffectInfo &info : postEffectInfos()) {
+        if (effect != QLatin1String(info.key))
+            continue;
+        QVariantMap values;
+        for (const char *param : info.params)
+            values[QString::fromLatin1(param)] = defaults.value(QString::fromLatin1(param));
+        updatePostEffects(layerIdx, values);
+        return;
+    }
+}
+
+void LayersModel::clearPostEffects(int layerIdx) {
+    BaseLayer *layer = rowLayer(layerIdx);
+    if (!layer || !layer->postEffects().active())
+        return;
+    updatePostEffects(layerIdx, postEffectsToMap(PostEffects()));
+}
+
+bool LayersModel::layerHasPostEffects(int layerIdx) const {
+    const BaseLayer *layer = rowLayer(layerIdx);
+    return layer && layer->postEffects().active();
 }
 
 void LayersModel::previewEffect(int layerIdx, int effectIdx) {

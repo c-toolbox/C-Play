@@ -18,6 +18,7 @@
 #include <vector>
 #include "track.h"
 #include <animation/layeranimstate.h>
+#include <animation/posteffects.h>
 #include <utils/planegrid.h>
 #include <utils/circularplane.h>
 
@@ -446,6 +447,11 @@ public:
     void beginPoseEdit();
     void endPoseEdit();
 
+    // Texture effects always applied when the layer is rendered (chroma key, color
+    // correction, ...). Saved with the layer and synced to the nodes.
+    const cplay::anim::PostEffects &postEffects() const;
+    void setPostEffects(const cplay::anim::PostEffects &fx);
+
     float renderAlpha() const;
     glm::vec3 renderRotate() const;
     glm::vec3 renderTranslate() const;
@@ -624,6 +630,7 @@ protected:
     std::unique_ptr<TextureSubdivision> m_subdivision;
     cplay::anim::LayerAnimState m_animState;
     bool m_animActive = false;
+    cplay::anim::PostEffects m_postEffects;
     bool m_poseEditing = false;
     // Saved azimuth/elevation/roll and horizontal/vertical/distance while a pose edit runs.
     glm::dvec3 m_poseEditAngles{0.0};

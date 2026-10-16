@@ -120,7 +120,8 @@ void main() {
   }
 )";
 
-constexpr std::string_view VideoFrag = R"(
+// Fragment shaders are split around the cplayPost() definition (see cplay::anim::postGlsl()).
+constexpr std::string_view VideoFragHead = R"(
   #version 460 core
 
   uniform sampler2D tex;
@@ -131,14 +132,16 @@ constexpr std::string_view VideoFrag = R"(
   in vec3 tr_normals;
   in vec2 mask_uv;
   out vec4 out_color;
-)" CPLAY_MASK_GLSL R"(
+)" CPLAY_MASK_GLSL;
+
+constexpr std::string_view VideoFragMain = R"(
   void main() {
     vec2 texCoods = tr_uv;
     if(outside){
         texCoods = vec2(1.0-tr_uv.x, tr_uv.y);
     }
    
-    out_color = texture(tex, texCoods) * vec4(1.0, 1.0, 1.0, alpha * cplayMask(mask_uv));
+    out_color = cplayPost(texCoods, mask_uv) * vec4(1.0, 1.0, 1.0, alpha * cplayMask(mask_uv));
   }
 )";
 
@@ -168,7 +171,7 @@ constexpr std::string_view EACMeshVert = R"(
   }
 )";
 
-constexpr std::string_view EACVideoFrag = R"(
+constexpr std::string_view EACVideoFragHead = R"(
   #version 460 core
 
   uniform sampler2D tex;
@@ -182,7 +185,9 @@ constexpr std::string_view EACVideoFrag = R"(
   in vec3 tr_position;
   in vec3 tr_normal;
   out vec4 out_color;
-)" CPLAY_MASK_GLSL R"(
+)" CPLAY_MASK_GLSL;
+
+constexpr std::string_view EACVideoFragMain = R"(
   const float M_PI_2 = 1.57079632679489661923;   // pi/2
   const float M_PI_4 = 0.785398163397448309616;  // pi/4
   const float M_1_PI = 0.318309886183790671538;  // 1/pi
@@ -377,7 +382,7 @@ constexpr std::string_view EACVideoFrag = R"(
         }
     }
    
-    out_color = texture(tex, uv) * vec4(1.0, 1.0, 1.0, alpha);
+    out_color = cplayPost(uv, uv) * vec4(1.0, 1.0, 1.0, alpha);
     if (maskType != 0) {
         vec3 n = normalize(tr_normal);
         vec2 eqr = vec2(atan(n.x, n.z) / (2.0 * M_PI) + 0.5, asin(clamp(n.y, -1.0, 1.0)) / M_PI + 0.5);
@@ -387,29 +392,7 @@ constexpr std::string_view EACVideoFrag = R"(
 )";
 
 LayersRenderer::LayersRenderer() : meshRadius(0),
-                                 meshFov(0),
-                                 videoAlphaLoc(-1),
-                                 videoEyeModeLoc(-1),
-                                 videoStereoscopicModeLoc(-1),
-                                 videoRoi(-1),
-                                 meshAlphaLoc(-1),
-                                 meshEyeModeLoc(-1),
-                                 meshMatrixLoc(-1),
-                                 meshOutsideLoc(-1),
-                                 meshStereoscopicModeLoc(-1),
-                                 meshRoi(-1),
-                                 EACAlphaLoc(-1),
-                                 EACFlipYLoc(-1),
-                                 EACMatrixLoc(-1),
-                                 EACScaleLoc(-1),
-                                 EACOutsideLoc(-1),
-                                 EACVideoWidthLoc(-1),
-                                 EACVideoHeightLoc(-1),
-                                 EACEyeModeLoc(-1),
-                                 EACStereoscopicModeLoc(-1),
-                                 videoPrg(nullptr),
-                                 meshPrg(nullptr),
-                                 EACPrg(nullptr) {
+                                 meshFov(0) {
 }
 
 LayersRenderer::~LayersRenderer() {
@@ -419,59 +402,71 @@ LayersRenderer::~LayersRenderer() {
 }
 
 void LayersRenderer::initializeGL(double radius, double fov) {
-    // Create shaders
-    if(!sgct::ShaderManager::instance().shaderProgramExists("mesh"))
-        sgct::ShaderManager::instance().addShaderProgram("mesh", MeshVert, VideoFrag);
-    if (!sgct::ShaderManager::instance().shaderProgramExists("EAC"))
-        sgct::ShaderManager::instance().addShaderProgram("EAC", EACMeshVert, EACVideoFrag);
-    if (!sgct::ShaderManager::instance().shaderProgramExists("video"))
-        sgct::ShaderManager::instance().addShaderProgram("video", VideoVert, VideoFrag);
+    // Create shaders: the plain variant keeps the original names, the post effects variant adds "_post".
+    sgct::ShaderManager &shaders = sgct::ShaderManager::instance();
+    for (const bool post : { false, true }) {
+        const std::string suffix = post ? "_post" : "";
+        const std::string postGlsl = cplay::anim::postGlsl(post);
+        const std::string videoFrag = std::string(VideoFragHead) + postGlsl + std::string(VideoFragMain);
+        const std::string eacFrag = std::string(EACVideoFragHead) + postGlsl + std::string(EACVideoFragMain);
+        if (!shaders.shaderProgramExists("mesh" + suffix))
+            shaders.addShaderProgram("mesh" + suffix, MeshVert, videoFrag);
+        if (!shaders.shaderProgramExists("EAC" + suffix))
+            shaders.addShaderProgram("EAC" + suffix, EACMeshVert, eacFrag);
+        if (!shaders.shaderProgramExists("video" + suffix))
+            shaders.addShaderProgram("video" + suffix, VideoVert, videoFrag);
+    }
 
     // OBS: Need to create all shaders befor using any of them. Bug?
-    meshPrg = &sgct::ShaderManager::instance().shaderProgram("mesh");
-    if (meshPrg) {
-        meshPrg->bind();
-        glUniform1i(glGetUniformLocation(meshPrg->id(), "tex"), 0);
-        meshMatrixLoc = glGetUniformLocation(meshPrg->id(), "mvp");
-        meshEyeModeLoc = glGetUniformLocation(meshPrg->id(), "eye");
-        meshFlipYLoc = glGetUniformLocation(meshPrg->id(), "flipY");
-        meshStereoscopicModeLoc = glGetUniformLocation(meshPrg->id(), "stereoscopicMode");
-        meshRoi = glGetUniformLocation(meshPrg->id(), "roi");
-        meshAlphaLoc = glGetUniformLocation(meshPrg->id(), "alpha");
-        meshOutsideLoc = glGetUniformLocation(meshPrg->id(), "outside");
-        meshMaskLocs.locate([this](const char *n) { return glGetUniformLocation(meshPrg->id(), n); });
-        meshPrg->unbind();
-    }
+    for (const bool post : { false, true }) {
+        sv = &variants[post ? 1 : 0];
+        const std::string suffix = post ? "_post" : "";
+        sv->meshPrg = &shaders.shaderProgram("mesh" + suffix);
+        if (sv->meshPrg) {
+            sv->meshPrg->bind();
+            glUniform1i(glGetUniformLocation(sv->meshPrg->id(), "tex"), 0);
+            sv->meshMatrixLoc = glGetUniformLocation(sv->meshPrg->id(), "mvp");
+            sv->meshEyeModeLoc = glGetUniformLocation(sv->meshPrg->id(), "eye");
+            sv->meshFlipYLoc = glGetUniformLocation(sv->meshPrg->id(), "flipY");
+            sv->meshStereoscopicModeLoc = glGetUniformLocation(sv->meshPrg->id(), "stereoscopicMode");
+            sv->meshRoi = glGetUniformLocation(sv->meshPrg->id(), "roi");
+            sv->meshAlphaLoc = glGetUniformLocation(sv->meshPrg->id(), "alpha");
+            sv->meshOutsideLoc = glGetUniformLocation(sv->meshPrg->id(), "outside");
+            sv->meshMaskLocs.locate([this](const char *n) { return glGetUniformLocation(sv->meshPrg->id(), n); });
+            sv->meshPrg->unbind();
+        }
 
-    EACPrg = &sgct::ShaderManager::instance().shaderProgram("EAC");
-    if (EACPrg) {
-        EACPrg->bind();
-        glUniform1i(glGetUniformLocation(EACPrg->id(), "tex"), 0);
-        EACMatrixLoc = glGetUniformLocation(EACPrg->id(), "mvp");
-        EACEyeModeLoc = glGetUniformLocation(EACPrg->id(), "eye");
-        EACFlipYLoc = glGetUniformLocation(EACPrg->id(), "flipY");
-        EACStereoscopicModeLoc = glGetUniformLocation(EACPrg->id(), "stereoscopicMode");
-        EACAlphaLoc = glGetUniformLocation(EACPrg->id(), "alpha");
-        EACOutsideLoc = glGetUniformLocation(EACPrg->id(), "outside");
-        EACScaleLoc = glGetUniformLocation(EACPrg->id(), "scaleToUnitCube");
-        EACVideoWidthLoc = glGetUniformLocation(EACPrg->id(), "videoWidth");
-        EACVideoHeightLoc = glGetUniformLocation(EACPrg->id(), "videoHeight");
-        EACMaskLocs.locate([this](const char *n) { return glGetUniformLocation(EACPrg->id(), n); });
-        EACPrg->unbind();
-    }
+        sv->EACPrg = &shaders.shaderProgram("EAC" + suffix);
+        if (sv->EACPrg) {
+            sv->EACPrg->bind();
+            glUniform1i(glGetUniformLocation(sv->EACPrg->id(), "tex"), 0);
+            sv->EACMatrixLoc = glGetUniformLocation(sv->EACPrg->id(), "mvp");
+            sv->EACEyeModeLoc = glGetUniformLocation(sv->EACPrg->id(), "eye");
+            sv->EACFlipYLoc = glGetUniformLocation(sv->EACPrg->id(), "flipY");
+            sv->EACStereoscopicModeLoc = glGetUniformLocation(sv->EACPrg->id(), "stereoscopicMode");
+            sv->EACAlphaLoc = glGetUniformLocation(sv->EACPrg->id(), "alpha");
+            sv->EACOutsideLoc = glGetUniformLocation(sv->EACPrg->id(), "outside");
+            sv->EACScaleLoc = glGetUniformLocation(sv->EACPrg->id(), "scaleToUnitCube");
+            sv->EACVideoWidthLoc = glGetUniformLocation(sv->EACPrg->id(), "videoWidth");
+            sv->EACVideoHeightLoc = glGetUniformLocation(sv->EACPrg->id(), "videoHeight");
+            sv->EACMaskLocs.locate([this](const char *n) { return glGetUniformLocation(sv->EACPrg->id(), n); });
+            sv->EACPrg->unbind();
+        }
 
-    videoPrg = &sgct::ShaderManager::instance().shaderProgram("video");
-    if (videoPrg) {
-        videoPrg->bind();
-        glUniform1i(glGetUniformLocation(videoPrg->id(), "tex"), 0);
-        videoEyeModeLoc = glGetUniformLocation(videoPrg->id(), "eye");
-        videoFlipYLoc = glGetUniformLocation(videoPrg->id(), "flipY");
-        videoStereoscopicModeLoc = glGetUniformLocation(videoPrg->id(), "stereoscopicMode");
-        videoRoi = glGetUniformLocation(videoPrg->id(), "roi");
-        videoAlphaLoc = glGetUniformLocation(videoPrg->id(), "alpha");
-        videoMaskLocs.locate([this](const char *n) { return glGetUniformLocation(videoPrg->id(), n); });
-        videoPrg->unbind();
+        sv->videoPrg = &shaders.shaderProgram("video" + suffix);
+        if (sv->videoPrg) {
+            sv->videoPrg->bind();
+            glUniform1i(glGetUniformLocation(sv->videoPrg->id(), "tex"), 0);
+            sv->videoEyeModeLoc = glGetUniformLocation(sv->videoPrg->id(), "eye");
+            sv->videoFlipYLoc = glGetUniformLocation(sv->videoPrg->id(), "flipY");
+            sv->videoStereoscopicModeLoc = glGetUniformLocation(sv->videoPrg->id(), "stereoscopicMode");
+            sv->videoRoi = glGetUniformLocation(sv->videoPrg->id(), "roi");
+            sv->videoAlphaLoc = glGetUniformLocation(sv->videoPrg->id(), "alpha");
+            sv->videoMaskLocs.locate([this](const char *n) { return glGetUniformLocation(sv->videoPrg->id(), n); });
+            sv->videoPrg->unbind();
+        }
     }
+    sv = &variants[0];
 
     updateMeshes(radius, fov);
 }
@@ -503,14 +498,24 @@ struct GlUniformSetter {
     void set1i(int loc, int v) const { glUniform1i(loc, v); }
     void set1f(int loc, float v) const { glUniform1f(loc, v); }
     void set2f(int loc, float a, float b) const { glUniform2f(loc, a, b); }
+    void set4fv(int loc, int count, const float *v) const { glUniform4fv(loc, count, v); }
 };
 }
 
-void LayersRenderer::renderLayer(const sgct::RenderData& data, const BaseLayer* layer, sgct::FrustumMode currentEye, float angle) {
+void LayersRenderer::renderLayer(const sgct::RenderData& data, const BaseLayer* layer, sgct::FrustumMode currentEye, float angle,
+                                 const BaseLayer* fxSource) {
     const float alpha = layer->renderAlpha();
     const glm::vec3 rot = layer->renderRotate();
     const glm::vec3 trans = layer->renderTranslate();
     const cplay::anim::LayerAnimState &anim = layer->animState();
+    const cplay::anim::PostEffects &fx = (fxSource ? fxSource : layer)->postEffects();
+    // Layers without post effects use the plain shaders; restore them for the draws that follow.
+    struct VariantRestore {
+        ShaderVariant *&current;
+        ShaderVariant *plain;
+        ~VariantRestore() { current = plain; }
+    } variantRestore{sv, &variants[0]};
+    sv = &variants[fx.active() ? 1 : 0];
     const float aspect = layer->renderAspectRatio();
     const GlUniformSetter setter;
     glActiveTexture(GL_TEXTURE0);
@@ -526,22 +531,22 @@ void LayersRenderer::renderLayer(const sgct::RenderData& data, const BaseLayer* 
     if (layer->gridMode() == 4) {
         glEnable(GL_CULL_FACE);
 
-        EACPrg->bind();
+        sv->EACPrg->bind();
 
-        glUniform1f(EACAlphaLoc, alpha);
-        EACMaskLocs.apply(setter, anim, 2.f);
-        glUniform1i(EACFlipYLoc, (layer->renderFlipY() ? 1 : 0));
-        glUniform1i(EACOutsideLoc, 0);
-        glUniform1i(EACVideoWidthLoc, layer->width());
-        glUniform1i(EACVideoHeightLoc, layer->height());
+        glUniform1f(sv->EACAlphaLoc, alpha);
+        sv->EACMaskLocs.apply(setter, anim, 2.f, fx);
+        glUniform1i(sv->EACFlipYLoc, (layer->renderFlipY() ? 1 : 0));
+        glUniform1i(sv->EACOutsideLoc, 0);
+        glUniform1i(sv->EACVideoWidthLoc, layer->width());
+        glUniform1i(sv->EACVideoHeightLoc, layer->height());
 
         if (layer->renderStereoMode() > 0) {
-            glUniform1i(EACEyeModeLoc, (GLint)currentEye);
-            glUniform1i(EACStereoscopicModeLoc, (GLint)layer->renderStereoMode());
+            glUniform1i(sv->EACEyeModeLoc, (GLint)currentEye);
+            glUniform1i(sv->EACStereoscopicModeLoc, (GLint)layer->renderStereoMode());
         }
         else {
-            glUniform1i(EACEyeModeLoc, 0);
-            glUniform1i(EACStereoscopicModeLoc, 0);
+            glUniform1i(sv->EACEyeModeLoc, 0);
+            glUniform1i(sv->EACStereoscopicModeLoc, 0);
         }
 
         const sgct::mat4 mvp = data.modelViewProjectionMatrix;
@@ -552,7 +557,7 @@ void LayersRenderer::renderLayer(const sgct::RenderData& data, const BaseLayer* 
         MVP_transformed_rot = glm::rotate(MVP_transformed_rot, glm::radians(rot.x), glm::vec3(1.0f, 0.0f, 0.0f));        // pitch
         MVP_transformed_rot = glm::rotate(MVP_transformed_rot, glm::radians(rot.y), glm::vec3(0.0f, 1.0f, 0.0f));        // yaw
         MVP_transformed_rot = glm::rotate(MVP_transformed_rot, glm::radians(90.f), glm::vec3(0.0f, 0.0f, 1.0f));                     // roll
-        glUniformMatrix4fv(EACMatrixLoc, 1, GL_FALSE, &MVP_transformed_rot[0][0]);
+        glUniformMatrix4fv(sv->EACMatrixLoc, 1, GL_FALSE, &MVP_transformed_rot[0][0]);
 
         sphereMesh->draw();
 
@@ -566,16 +571,16 @@ void LayersRenderer::renderLayer(const sgct::RenderData& data, const BaseLayer* 
         MVP_transformed_rot2 = glm::rotate(MVP_transformed_rot2, glm::radians(360.f - rot.y), glm::vec3(0.0f, 1.0f, 0.0f));  // yaw
         MVP_transformed_rot2 = glm::rotate(MVP_transformed_rot2, glm::radians(360.f - 90.f), glm::vec3(0.0f, 0.0f, 1.0f));                      // roll
 
-        glUniformMatrix4fv(EACMatrixLoc, 1, GL_FALSE, &MVP_transformed_rot2[0][0]);
+        glUniformMatrix4fv(sv->EACMatrixLoc, 1, GL_FALSE, &MVP_transformed_rot2[0][0]);
         // render outside sphere
-        glUniform1i(EACOutsideLoc, 1);
+        glUniform1i(sv->EACOutsideLoc, 1);
         sphereMesh->draw();
 
         // Set up backface culling again
         glCullFace(GL_BACK);
-        glUniform1i(EACOutsideLoc, 0);
+        glUniform1i(sv->EACOutsideLoc, 0);
 
-        EACPrg->unbind();
+        sv->EACPrg->unbind();
 
         glDisable(GL_CULL_FACE);
     }
@@ -590,32 +595,32 @@ void LayersRenderer::renderLayer(const sgct::RenderData& data, const BaseLayer* 
         MVP_transformed_rot = glm::rotate(MVP_transformed_rot, glm::radians(rot.x), glm::vec3(1.0f, 0.0f, 0.0f)); // pitch
         MVP_transformed_rot = glm::rotate(MVP_transformed_rot, glm::radians(rot.y - 90.f), glm::vec3(0.0f, 1.0f, 0.0f)); // yaw
 
-        meshPrg->bind();
+        sv->meshPrg->bind();
 
         if (layer->renderStereoMode() > 0) {
-            glUniform1i(meshEyeModeLoc, (GLint)currentEye);
-            glUniform1i(meshStereoscopicModeLoc, (GLint)layer->renderStereoMode());
+            glUniform1i(sv->meshEyeModeLoc, (GLint)currentEye);
+            glUniform1i(sv->meshStereoscopicModeLoc, (GLint)layer->renderStereoMode());
         }
         else {
-            glUniform1i(meshEyeModeLoc, 0);
-            glUniform1i(meshStereoscopicModeLoc, 0);
+            glUniform1i(sv->meshEyeModeLoc, 0);
+            glUniform1i(sv->meshStereoscopicModeLoc, 0);
         }
 
         if (layer->roiEnabled()) {
-            glUniform4fv(meshRoi, 1, glm::value_ptr(layer->roi()));
+            glUniform4fv(sv->meshRoi, 1, glm::value_ptr(layer->roi()));
         }
         else {
-            glUniform4f(meshRoi, 0.f, 0.f, 1.f, 1.f);
+            glUniform4f(sv->meshRoi, 0.f, 0.f, 1.f, 1.f);
         }
 
-        glUniform1f(meshAlphaLoc, alpha);
-        meshMaskLocs.apply(setter, anim, 2.f);
-        glUniform1i(meshFlipYLoc, (layer->renderFlipY() ? 1 : 0));
+        glUniform1f(sv->meshAlphaLoc, alpha);
+        sv->meshMaskLocs.apply(setter, anim, 2.f, fx);
+        glUniform1i(sv->meshFlipYLoc, (layer->renderFlipY() ? 1 : 0));
 
-        glUniformMatrix4fv(meshMatrixLoc, 1, GL_FALSE, &MVP_transformed_rot[0][0]);
+        glUniformMatrix4fv(sv->meshMatrixLoc, 1, GL_FALSE, &MVP_transformed_rot[0][0]);
 
         // render inside sphere
-        glUniform1i(meshOutsideLoc, 0);
+        glUniform1i(sv->meshOutsideLoc, 0);
         sphereMesh->draw();
 
         // Set up frontface culling
@@ -627,54 +632,54 @@ void LayersRenderer::renderLayer(const sgct::RenderData& data, const BaseLayer* 
         MVP_transformed_rot2 = glm::rotate(MVP_transformed_rot2, glm::radians(360.f - rot.x + angle), glm::vec3(1.0f, 0.0f, 0.0f)); // pitch
         MVP_transformed_rot2 = glm::rotate(MVP_transformed_rot2, glm::radians(360.f - rot.y + 90.f), glm::vec3(0.0f, 1.0f, 0.0f));         // yaw
 
-        glUniformMatrix4fv(meshMatrixLoc, 1, GL_FALSE, &MVP_transformed_rot2[0][0]);
+        glUniformMatrix4fv(sv->meshMatrixLoc, 1, GL_FALSE, &MVP_transformed_rot2[0][0]);
         // render outside sphere
-        glUniform1i(meshOutsideLoc, 1);
+        glUniform1i(sv->meshOutsideLoc, 1);
         sphereMesh->draw();
 
         // Set up backface culling again
         glCullFace(GL_BACK);
-        glUniform1i(meshOutsideLoc, 0);
+        glUniform1i(sv->meshOutsideLoc, 0);
 
-        meshPrg->unbind();
+        sv->meshPrg->unbind();
 
         glDisable(GL_CULL_FACE);
     }
     else if (layer->gridMode() == 2) {
         glEnable(GL_CULL_FACE);
 
-        meshPrg->bind();
+        sv->meshPrg->bind();
 
         if (layer->renderStereoMode() > 0) {
-            glUniform1i(meshEyeModeLoc, (GLint)currentEye);
-            glUniform1i(meshStereoscopicModeLoc, (GLint)layer->renderStereoMode());
+            glUniform1i(sv->meshEyeModeLoc, (GLint)currentEye);
+            glUniform1i(sv->meshStereoscopicModeLoc, (GLint)layer->renderStereoMode());
         }
         else {
-            glUniform1i(meshEyeModeLoc, 0);
-            glUniform1i(meshStereoscopicModeLoc, 0);
+            glUniform1i(sv->meshEyeModeLoc, 0);
+            glUniform1i(sv->meshStereoscopicModeLoc, 0);
         }
 
         if (layer->roiEnabled()) {
-            glUniform4fv(meshRoi, 1, glm::value_ptr(layer->roi()));
+            glUniform4fv(sv->meshRoi, 1, glm::value_ptr(layer->roi()));
         }
         else {
-            glUniform4f(meshRoi, 0.f, 0.f, 1.f, 1.f);
+            glUniform4f(sv->meshRoi, 0.f, 0.f, 1.f, 1.f);
         }
 
-        glUniform1f(meshAlphaLoc, alpha);
-        meshMaskLocs.apply(setter, anim, 2.f);
-        glUniform1i(meshFlipYLoc, (layer->renderFlipY() ? 1 : 0));
+        glUniform1f(sv->meshAlphaLoc, alpha);
+        sv->meshMaskLocs.apply(setter, anim, 2.f, fx);
+        glUniform1i(sv->meshFlipYLoc, (layer->renderFlipY() ? 1 : 0));
 
         const sgct::mat4 mvp = data.modelViewProjectionMatrix;
         glm::mat4 MVP_transformed_rot = glm::translate(glm::make_mat4(mvp.values.data()), trans);
         MVP_transformed_rot = glm::rotate(MVP_transformed_rot, glm::radians(rot.z), glm::vec3(0.0f, 0.0f, 1.0f));         // roll
         MVP_transformed_rot = glm::rotate(MVP_transformed_rot, glm::radians(rot.x - angle), glm::vec3(1.0f, 0.0f, 0.0f)); // pitch
         MVP_transformed_rot = glm::rotate(MVP_transformed_rot, glm::radians(rot.y), glm::vec3(0.0f, 1.0f, 0.0f));         // yaw
-        glUniformMatrix4fv(meshMatrixLoc, 1, GL_FALSE, &MVP_transformed_rot[0][0]);
+        glUniformMatrix4fv(sv->meshMatrixLoc, 1, GL_FALSE, &MVP_transformed_rot[0][0]);
 
         domeMesh->draw();
 
-        meshPrg->unbind();
+        sv->meshPrg->unbind();
 
         glDisable(GL_CULL_FACE);
     }
@@ -683,27 +688,27 @@ void LayersRenderer::renderLayer(const sgct::RenderData& data, const BaseLayer* 
         // Set up frontface culling
         glCullFace(GL_FRONT);
 
-        meshPrg->bind();
+        sv->meshPrg->bind();
 
         if (layer->renderStereoMode() > 0) {
-            glUniform1i(meshEyeModeLoc, (GLint)currentEye);
-            glUniform1i(meshStereoscopicModeLoc, (GLint)layer->renderStereoMode());
+            glUniform1i(sv->meshEyeModeLoc, (GLint)currentEye);
+            glUniform1i(sv->meshStereoscopicModeLoc, (GLint)layer->renderStereoMode());
         }
         else {
-            glUniform1i(meshEyeModeLoc, 0);
-            glUniform1i(meshStereoscopicModeLoc, 0);
+            glUniform1i(sv->meshEyeModeLoc, 0);
+            glUniform1i(sv->meshStereoscopicModeLoc, 0);
         }
 
         if (layer->roiEnabled()) {
-            glUniform4fv(meshRoi, 1, glm::value_ptr(layer->roi()));
+            glUniform4fv(sv->meshRoi, 1, glm::value_ptr(layer->roi()));
         }
         else {
-            glUniform4f(meshRoi, 0.f, 0.f, 1.f, 1.f);
+            glUniform4f(sv->meshRoi, 0.f, 0.f, 1.f, 1.f);
         }
 
-        glUniform1f(meshAlphaLoc, alpha);
-        meshMaskLocs.apply(setter, anim, aspect);
-        glUniform1i(meshFlipYLoc, (layer->renderFlipY() ? 1 : 0));
+        glUniform1f(sv->meshAlphaLoc, alpha);
+        sv->meshMaskLocs.apply(setter, anim, aspect, fx);
+        glUniform1i(sv->meshFlipYLoc, (layer->renderFlipY() ? 1 : 0));
 
         const sgct::mat4 mvp = data.projectionMatrix * data.viewMatrix;
 
@@ -715,12 +720,12 @@ void LayersRenderer::renderLayer(const sgct::RenderData& data, const BaseLayer* 
             const glm::mat4 vp = glm::make_mat4(mvp.values.data());
             GLboolean previous[4];
             for (int i = 0; i < 4; ++i) { previous[i] = glIsEnabled(GL_CLIP_DISTANCE0 + i); glEnable(GL_CLIP_DISTANCE0 + i); }
-            glUniform1f(glGetUniformLocation(meshPrg->id(), "circularHalfWidth"), float(mapping.widthCm / 200.0));
+            glUniform1f(glGetUniformLocation(sv->meshPrg->id(), "circularHalfWidth"), float(mapping.widthCm / 200.0));
             for (const auto &copy : copies) {
                 const glm::mat4 matrix = vp * tilt * copy.model;
-                glUniformMatrix4fv(meshMatrixLoc, 1, GL_FALSE, &matrix[0][0]);
-                glUniformMatrix4fv(glGetUniformLocation(meshPrg->id(), "circularModel"), 1, GL_FALSE, &copy.model[0][0]);
-                glUniform2fv(glGetUniformLocation(meshPrg->id(), "circularSourceBounds"), 1, glm::value_ptr(copy.sourceBounds));
+                glUniformMatrix4fv(sv->meshMatrixLoc, 1, GL_FALSE, &matrix[0][0]);
+                glUniformMatrix4fv(glGetUniformLocation(sv->meshPrg->id(), "circularModel"), 1, GL_FALSE, &copy.model[0][0]);
+                glUniform2fv(glGetUniformLocation(sv->meshPrg->id(), "circularSourceBounds"), 1, glm::value_ptr(copy.sourceBounds));
                 layer->drawPlane();
             }
             for (int i = 0; i < 4; ++i) if (!previous[i]) glDisable(GL_CLIP_DISTANCE0 + i);
@@ -739,12 +744,12 @@ void LayersRenderer::renderLayer(const sgct::RenderData& data, const BaseLayer* 
                 planeTransform = glm::scale(planeTransform, glm::vec3(anim.scale, anim.scale, 1.f));
 
             planeTransform = glm::make_mat4(mvp.values.data()) * planeTransform;
-            glUniformMatrix4fv(meshMatrixLoc, 1, GL_FALSE, &planeTransform[0][0]);
+            glUniformMatrix4fv(sv->meshMatrixLoc, 1, GL_FALSE, &planeTransform[0][0]);
 
             layer->drawPlane();
 
         }
-        meshPrg->unbind();
+        sv->meshPrg->unbind();
 
         // Set up backface culling again
         glCullFace(GL_BACK);
@@ -752,38 +757,38 @@ void LayersRenderer::renderLayer(const sgct::RenderData& data, const BaseLayer* 
         glDisable(GL_CULL_FACE);
     }
     else {
-        videoPrg->bind();
+        sv->videoPrg->bind();
 
         if (layer->renderStereoMode() > 0) {
-            glUniform1i(videoEyeModeLoc, (GLint)currentEye);
-            glUniform1i(videoStereoscopicModeLoc, (GLint)layer->renderStereoMode());
+            glUniform1i(sv->videoEyeModeLoc, (GLint)currentEye);
+            glUniform1i(sv->videoStereoscopicModeLoc, (GLint)layer->renderStereoMode());
         }
         else {
-            glUniform1i(videoEyeModeLoc, 0);
-            glUniform1i(videoStereoscopicModeLoc, 0);
+            glUniform1i(sv->videoEyeModeLoc, 0);
+            glUniform1i(sv->videoStereoscopicModeLoc, 0);
         }
 
         if (layer->roiEnabled()) {
-            glUniform4fv(videoRoi, 1, glm::value_ptr(layer->roi()));
+            glUniform4fv(sv->videoRoi, 1, glm::value_ptr(layer->roi()));
         }
         else {
-            glUniform4f(videoRoi, 0.f, 0.f, 1.f, 1.f);
+            glUniform4f(sv->videoRoi, 0.f, 0.f, 1.f, 1.f);
         }
 
-        glUniform1f(videoAlphaLoc, alpha);
-        videoMaskLocs.apply(setter, anim, aspect);
+        glUniform1f(sv->videoAlphaLoc, alpha);
+        sv->videoMaskLocs.apply(setter, anim, aspect, fx);
         GLint viewport[4] = {0, 0, 1, 1};
         if (layer->animActive() && anim.spin != 0.f)
             glGetIntegerv(GL_VIEWPORT, viewport);
         const glm::mat4 quad = cplay::anim::flatQuadMatrix(anim, layer->animActive(),
             viewport[3] > 0 ? static_cast<float>(viewport[2]) / static_cast<float>(viewport[3]) : 1.f,
             layer->screenRect());
-        glUniformMatrix4fv(videoMaskLocs.quadMatrix, 1, GL_FALSE, &quad[0][0]);
-        glUniform1i(videoFlipYLoc, (layer->renderFlipY() ? 1 : 0));
+        glUniformMatrix4fv(sv->videoMaskLocs.quadMatrix, 1, GL_FALSE, &quad[0][0]);
+        glUniform1i(sv->videoFlipYLoc, (layer->renderFlipY() ? 1 : 0));
 
         data.window.renderScreenQuad();
 
-        videoPrg->unbind();
+        sv->videoPrg->unbind();
     }
 }
 
@@ -801,7 +806,7 @@ void LayersRenderer::renderLayers(const sgct::RenderData &data, int viewMode, fl
         if (layer->hasSubLayers()) {
             for (const auto& sublayer : layer->getSubLayers()) {
                 if (sublayer->shouldRenderForEye(currentEyeInt))
-                    renderLayer(data, sublayer.get(), currentEye, angle);
+                    renderLayer(data, sublayer.get(), currentEye, angle, layer.get());
             }
         }
         else if (!layer->isQRCodeDetectionEnabled() || layer->isQRCodeDetectionEnabled() && !layer->hasSubLayers()) {

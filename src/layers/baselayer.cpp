@@ -871,6 +871,15 @@ void BaseLayer::encodeBaseProperties(std::vector<std::byte>& data) const {
         sgct::serializeObject(data, renderData.rotate.y);
         sgct::serializeObject(data, renderData.rotate.z);
     }
+
+    const auto &fx = m_postEffects;
+    sgct::serializeObject(data, fx.enabled);
+    if (fx.enabled != 0) {
+        for (const glm::vec4 &p : fx.packParams()) {
+            for (int i = 0; i < 4; ++i)
+                sgct::serializeObject(data, p[i]);
+        }
+    }
 }
 
 void BaseLayer::decodeBaseProperties(const std::vector<std::byte>& data, unsigned int& pos) {
@@ -905,6 +914,37 @@ void BaseLayer::decodeBaseProperties(const std::vector<std::byte>& data, unsigne
         sgct::deserializeObject(data, pos, renderData.rotate.x);
         sgct::deserializeObject(data, pos, renderData.rotate.y);
         sgct::deserializeObject(data, pos, renderData.rotate.z);
+    }
+
+    auto &fx = m_postEffects;
+    sgct::deserializeObject(data, pos, fx.enabled);
+    if (fx.enabled != 0) {
+        std::array<glm::vec4, cplay::anim::PostEffects::ParamCount> p;
+        for (glm::vec4 &v : p) {
+            for (int i = 0; i < 4; ++i)
+                sgct::deserializeObject(data, pos, v[i]);
+        }
+        fx.keyColor = glm::vec3(p[0]);
+        fx.keySimilarity = p[0].w;
+        fx.keySmoothness = p[1].x;
+        fx.keySpill = p[1].y;
+        fx.lumaThreshold = p[1].z;
+        fx.lumaSmoothness = p[1].w;
+        fx.brightness = p[2].x;
+        fx.contrast = p[2].y;
+        fx.saturation = p[2].z;
+        fx.gamma = p[2].w;
+        fx.hue = glm::degrees(p[3].x);
+        fx.lumaInvert = p[3].y > 0.5f;
+        fx.tintColor = glm::vec3(p[4]);
+        fx.tintAmount = p[4].w;
+        fx.blurRadius = p[5].x;
+        fx.sharpenAmount = p[5].y;
+        fx.pixelSize = p[5].z;
+        fx.vignetteRadius = p[6].x;
+        fx.vignetteSoftness = p[6].y;
+        fx.vignetteAmount = p[6].z;
+        fx.vignetteMode = static_cast<int32_t>(p[6].w + 0.5f);
     }
 }
 
@@ -1658,6 +1698,15 @@ void BaseLayer::setAnimState(const cplay::anim::LayerAnimState &state) {
 
 void BaseLayer::clearAnimState() {
     setAnimState(cplay::anim::LayerAnimState());
+}
+
+const cplay::anim::PostEffects &BaseLayer::postEffects() const {
+    return m_postEffects;
+}
+
+void BaseLayer::setPostEffects(const cplay::anim::PostEffects &fx) {
+    m_postEffects = fx;
+    setNeedSync();
 }
 
 void BaseLayer::beginPoseEdit() {

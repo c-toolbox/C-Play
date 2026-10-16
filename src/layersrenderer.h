@@ -10,6 +10,7 @@
 
 #include <layers/baselayer.h>
 #include <animation/maskglsl.h>
+#include <array>
 #include <mutex>
 #include <sgct/sgct.h>
 #include <utils/domegrid.h>
@@ -29,7 +30,9 @@ public:
 
     const std::vector<std::shared_ptr<BaseLayer>> &getLayers();
 
-    void renderLayer(const sgct::RenderData& data, const BaseLayer* layer, sgct::FrustumMode currentEye, float angle);
+    // fxSource: layer whose post effects apply (a sublayer uses its parent's), nullptr = layer.
+    void renderLayer(const sgct::RenderData& data, const BaseLayer* layer, sgct::FrustumMode currentEye, float angle,
+                     const BaseLayer* fxSource = nullptr);
     void renderLayers(const sgct::RenderData& data, int viewMode, float angle);
 
 private:
@@ -38,38 +41,46 @@ private:
     double meshRadius;
     double meshFov;
 
-    // video
-    int videoAlphaLoc;
-    int videoEyeModeLoc;
-    int videoFlipYLoc;
-    int videoStereoscopicModeLoc;
-    int videoRoi;
-    // mesh
-    int meshAlphaLoc;
-    int meshEyeModeLoc;
-    int meshFlipYLoc;
-    int meshMatrixLoc;
-    int meshOutsideLoc;
-    int meshStereoscopicModeLoc;
-    int meshRoi;
-    // EAC
-    int EACAlphaLoc;
-    int EACFlipYLoc;
-    int EACMatrixLoc;
-    int EACScaleLoc;
-    int EACOutsideLoc;
-    int EACVideoWidthLoc;
-    int EACVideoHeightLoc;
-    int EACEyeModeLoc;
-    int EACStereoscopicModeLoc;
+    // Shader programs and their uniform locations, in two variants: [0] renders layers
+    // without post effects exactly as before, [1] adds the post effects and is only used
+    // for layers with an effect turned on (see cplay::anim::postGlsl()).
+    struct ShaderVariant {
+        // video
+        int videoAlphaLoc = -1;
+        int videoEyeModeLoc = -1;
+        int videoFlipYLoc = -1;
+        int videoStereoscopicModeLoc = -1;
+        int videoRoi = -1;
+        // mesh
+        int meshAlphaLoc = -1;
+        int meshEyeModeLoc = -1;
+        int meshFlipYLoc = -1;
+        int meshMatrixLoc = -1;
+        int meshOutsideLoc = -1;
+        int meshStereoscopicModeLoc = -1;
+        int meshRoi = -1;
+        // EAC
+        int EACAlphaLoc = -1;
+        int EACFlipYLoc = -1;
+        int EACMatrixLoc = -1;
+        int EACScaleLoc = -1;
+        int EACOutsideLoc = -1;
+        int EACVideoWidthLoc = -1;
+        int EACVideoHeightLoc = -1;
+        int EACEyeModeLoc = -1;
+        int EACStereoscopicModeLoc = -1;
 
-    cplay::anim::MaskUniformLocations videoMaskLocs;
-    cplay::anim::MaskUniformLocations meshMaskLocs;
-    cplay::anim::MaskUniformLocations EACMaskLocs;
+        cplay::anim::MaskUniformLocations videoMaskLocs;
+        cplay::anim::MaskUniformLocations meshMaskLocs;
+        cplay::anim::MaskUniformLocations EACMaskLocs;
 
-    const sgct::ShaderProgram *videoPrg;
-    const sgct::ShaderProgram *meshPrg;
-    const sgct::ShaderProgram *EACPrg;
+        const sgct::ShaderProgram *videoPrg = nullptr;
+        const sgct::ShaderProgram *meshPrg = nullptr;
+        const sgct::ShaderProgram *EACPrg = nullptr;
+    };
+    std::array<ShaderVariant, 2> variants;
+    // Variant in use: the plain one, except while renderLayer() draws a layer with post effects.
+    ShaderVariant *sv = &variants[0];
 
     std::unique_ptr<DomeGrid> domeMesh;
     std::unique_ptr<SphereGrid> sphereMesh;

@@ -67,7 +67,7 @@ Choose **PDF** and browse to a PDF document. Open Layer View to select the page 
 
 Choose **Text**, enter the label or caption, and add the layer. In Layer View, edit the text and adjust font, font size, alignment, color, and texture dimensions. Text can contain multiple lines. Use plane mapping to place a label at a specific position, or choose another mapping when the text should follow that surface. Make the chosen font available on machines that render the layer.
 
-The default text settings come from **Settings → Configure → Text & subtitles**. A Text layer is useful for authored content; [master placeholders](#master-placeholders-for-node-sources) generate a label automatically for a node source.
+The default text settings come from **Settings → Configure → Text & subtitles**. A Text layer is useful for authored content; [master placeholders](/media/layer-operations#master-placeholders-for-node-sources) generate a label automatically for a node source.
 
 ## Live sources
 
@@ -127,7 +127,7 @@ The JSON format looks like this:
 - `videoDevice` must match a video capture device name reported by DirectShow on this machine (the same names that appear in the *Video device* dropdown). It may be empty for audio-only setups.
 - `audioDevice` must match an audio capture device name reported by DirectShow (the same names as in the *Audio device* dropdown). It may be empty when no audio should be captured.
 - `enabled` is optional and defaults to `true`. Set it to `false` to keep a setup in the file without showing it in the UI - useful for documenting example setups that do not apply on every machine.
-- `devices` is an optional object with per-machine device overrides, keyed by role (`"master"` or node ids from `data/multivideo/nodes.json`) - see [Per-node resolution in clusters](#per-node-resolution-in-clusters). An entry whose plain devices are both empty but that has a non-empty `devices` object is still shown in the UI.
+- `devices` is an optional object with per-machine device overrides, keyed by role (`"master"` or node ids from `data/multivideo/nodes.json`) - see [Per-node resolution in clusters](/media/layer-operations#per-node-resolution-in-clusters). An entry whose plain devices are both empty but that has a non-empty `devices` object is still shown in the UI.
 - Entries where both device names are empty and there is no `devices` object are ignored.
 - The file is re-read every time the predefined list is opened, so you can edit it while C-Play is running and pick up changes without restarting.
 
@@ -141,7 +141,7 @@ Choose **Capture** for a supported capture card SDK backend, such as Datapath. S
 
 For custom inputs, configure **ganging** when several inputs form one image, choose whether to use **direct GPU** transfer, and enable source audio when needed. Direct GPU transfer depends on suitable hardware and backend support. Layer View shows the capture status, so check it for missing sources, missing signal, or backend errors.
 
-A capture preset contains `title`, `backend`, `input`, and optional `ganging`, `directGpu`, `audio`, and `enabled` fields. Its `sources` object overrides fields for each machine. A role entry inherits the default fields it does not specify. Set a role to `null` or an input of zero to leave capture disabled there. See [per-node resolution](#per-node-resolution-in-clusters) and the [master placeholder example](#master-placeholders-for-node-sources).
+A capture preset contains `title`, `backend`, `input`, and optional `ganging`, `directGpu`, `audio`, and `enabled` fields. Its `sources` object overrides fields for each machine. A role entry inherits the default fields it does not specify. Set a role to `null` or an input of zero to leave capture disabled there. See [per-node resolution](/media/layer-operations#per-node-resolution-in-clusters) and the [master placeholder example](/media/layer-operations#master-placeholders-for-node-sources).
 
 ### WebRTC
 
@@ -166,7 +166,7 @@ The most common URL types are:
 
 Any other MPV-compatible input can be used as well — for example Windows capture cards and cameras through `av://dshow:video=...` paths, or raw UDP multicast feeds from encoders. See the [MPV documentation](https://mpv.io/manual/stable/) for the full list of supported protocols.
 
-In a cluster setup every node opens the same stream URL; layers created from the predefined list can instead resolve a different local path per machine — see [Per-node resolution in clusters](#per-node-resolution-in-clusters).
+In a cluster setup every node opens the same stream URL; layers created from the predefined list can instead resolve a different local path per machine — see [Per-node resolution in clusters](/media/layer-operations#per-node-resolution-in-clusters).
 
 > **YouTube:** pasting a YouTube URL into a Stream layer also works — C-Play detects it and plays it as video-on-demand content through yt-dlp. For YouTube videos, prefer the dedicated **YouTube** layer type below, which is purpose-built for that use case with full player controls.
 
@@ -234,133 +234,6 @@ Choose **TCP** to trigger a reusable command through one of C-Play's persistent 
 
 The layer fires when started. Double-click it or press **Trigger** in its layer view to send manually; the layer view also lets you choose another command. Its status indicates whether the transport accepted the command, not whether the device executed it. Disconnected commands are rejected and are never replayed after reconnect. See [TCP control client](/remote-control/tcp) for framing, persistence, and examples.
 
-## Position, crop, and preview
+## Next steps
 
-After you have added a new layer, you can specify its parameters in more detail through the *"Layer View"*. Here you control grid and stereo parameters, the volume level if applicable, and inspect how the output looks.
-
-![Layer View Video](/assets/ui/layers_view_video.png) &nbsp;&nbsp;&nbsp; ![Layer View Grid Parameters](/assets/ui/layer_view_grid_parameters.png)
-
-### Region of interest
-
-In the top right, there is a *"Region of interest (ROI)"* ![](/assets/icons/trim-to-selection-lime.svg) / ![](/assets/icons/trim-to-selection-crimson.svg) button that enables the feature below, where you can specify a certain region of your layer that should be visible. This is useful when you want to show only part of the source.
-
-![Layer Region of Interest](/assets/ui/layers_view_roi.png)
-
-For mapping choices, see [Video & image mapping modes](/media/mapping). For fades, visibility across slides, and timeline keyframes, return to [Build presentation](/media/cplaypres).
-
-## Master and node sources
-
-By default, nodes load their own copy of a synchronized layer. The **Sync** control in Layer View can make a layer exist only on the master. This is separate from the **Master slide** and its Front/Back marking, which determine the layer's position in the [rendering order](/media/cplaypres).
-
-For supported live layer types, **Nodes read from original source** lets each machine load its source, while **Master sends content to nodes** renders on the master and streams the texture. The **Nodes** control in Layer View also enables texture streaming. See [Streaming layers from master to nodes](/playback/node-streaming) for transport, audio, and synchronization details.
-
-Use per-machine presets when the master and nodes need different local inputs. Use a master placeholder when the source only exists on the nodes and you still need a visible layer to position in the master view.
-
-## Per-node resolution in clusters
-
-In a cluster setup (master + nodes), each machine can resolve a different local media path for the same predefined stream. When you add a Stream layer from the predefined list, C-Play stores the entry's *title* as a stable key on the layer and syncs that key to all machines. Each machine then looks up the entry in its own local `data/predefined-streams.json` and resolves which path it should open:
-
-1. **`paths[role]`** — An optional object mapping roles to paths. The role is `"master"` on the master, or the node id from `data/multivideo/nodes.json` on nodes (the machine's IP address when no id can be resolved). When a key exists for that machine its value wins over everything else - even an empty value (`""` or `null`). An empty value means *this machine intentionally does not open this stream*.
-2. **`pathTemplate`** — An optional template string where `{nodeId}` is replaced with the machine's role/node id (e.g. `"av://dshow:video=Capture Card ({nodeId})"`). Used when there is no explicit `paths` entry for that machine.
-3. **`path`** — The plain default path, used as a fallback when neither of the above applies. It may be empty, in which case only machines listed under `paths` open the stream.
-
-If an entry's title does not exist at all in a machine's local file (for instance if the files differ between machines), that machine falls back to the path synced from the master. Custom (non-predefined) stream paths are always used verbatim on every machine, and per-node resolution is not applied.
-
-Example:
-
-```json
-{
-    "title": "HDMI Capture 1",
-    "path": "",
-    "paths": {
-        "master": "av://dshow:video=Capture Card (RX0)",
-        "node-A": ""
-    }
-}
-```
-
-In this example the master opens its local capture card, while `node-A` intentionally does not open anything. All other nodes fall back to the plain `path`, which is also empty here - so only the master displays this stream.
-
-Note that per-node resolution on a node requires the machine to be identifiable through `data/multivideo/nodes.json` (see [Multi-video composition](/media/cplaymulti)). The local JSON files are re-read every few seconds, so edits take effect without restarting C-Play.
-
-DirectShow capture setups work the same way with `data/predefined-directshows.json`: when you add a DirectShow layer from the predefined list, C-Play stores the entry's *title* as a stable key on the layer and syncs it to all machines. Each machine then looks up the entry in its own local file and resolves which capture devices it should use:
-
-1. **`devices[role]`** — An optional object mapping roles to device pairs (`{"videoDevice": ..., "audioDevice": ...}`). The role is `"master"` on the master, or the node id from `data/multivideo/nodes.json` on nodes (the machine's IP address when no id can be resolved). When a key exists for that machine its value wins over everything else - even when both values are empty (`""` or `null`), which means *this machine intentionally does not open any capture at all* and the layer stays idle there.
-2. **`videoDevice` / `audioDevice`** — The plain default device names, used as a fallback when there is no explicit `devices` entry for that machine.
-
-Unlike streams, DirectShow setups do not support `{nodeId}` templates - capture device names are machine-specific strings, so per-role entries are the natural way to describe them. If an entry's title does not exist at all in a machine's local file (for instance if the files differ between machines), that machine falls back to the device pair synced from the master. Custom (non-predefined) DirectShow layers always use their chosen devices verbatim on every machine, and per-node resolution is not applied.
-
-Example:
-
-```json
-{
-    "title": "HDMI Capture 1",
-    "videoDevice": "",
-    "audioDevice": "",
-    "devices": {
-        "master": { "videoDevice": "DELTA-hmi Video Source (card0 RX0)", "audioDevice": "" },
-        "node-A": { "videoDevice": "Datapath VisionSC-DP2 Video 01", "audioDevice": "" }
-    }
-}
-```
-
-In this example the master captures from its DELTA card while `node-A` captures from its Datapath card. All other nodes fall back to the plain devices (both empty here) - so they stay idle for this setup.
-
-DirectShow preset keys are stored in *.cplaypres* files (`"directShowPreset"`), so per-machine resolution survives saving and reloading a presentation.
-
-Capture uses `sources[role]` with the inheritance described above. Spout uses `senders[role]`, then the default `sender`. Both use the same role and node identity rules. Keep the preset title consistent across machines; source values can differ in their local JSON files.
-
-## Master placeholders for node sources
-
-When a live source only exists on the nodes, configure the predefined source's
-master entry as `{ "placeholder": true }`. The master renders a TextLayer label
-such as `C-Play Layer 12 - Camera`, using the same name and ID format as layer NDI
-output. Drag it in the master view or change its plane position as usual: these
-controls still belong to the original source layer and are synchronized to the
-nodes. Each node opens its own source and uses its own source dimensions.
-
-Use the appropriate mapping in the local predefined source file:
-
-| Layer | File | Master entry |
-| --- | --- | --- |
-| DirectShow | `data/predefined-directshows.json` | `"devices": { "master": { "placeholder": true } }` |
-| Capture | `data/predefined-captures.json` | `"sources": { "master": { "placeholder": true } }` |
-| Stream | `data/predefined-streams.json` | `"paths": { "master": { "placeholder": true } }` |
-| Spout | `data/predefined-spouts.json` | `"senders": { "master": { "placeholder": true } }` |
-
-The placeholder replaces both video and audio on the master. Node overrides and
-the preset's default source continue to work as before. A null or empty master
-entry still means no source and no placeholder. Only the master recognizes the
-placeholder flag. The label uses the configured subtitle font, with an available
-font as fallback; its texture is 1280 × 256 pixels and renders as mono text.
-
-For example, a Capture preset with a placeholder on the master and different
-inputs on two nodes:
-
-```json
-{
-    "captures": [
-        {
-            "title": "Stage camera",
-            "backend": "datapath",
-            "input": 1,
-            "enabled": true,
-            "sources": {
-                "master": { "placeholder": true },
-                "node-A": { "input": 1 },
-                "node-B": { "input": 2 }
-            }
-        }
-    ]
-}
-```
-
-Spout presets appear alongside discovered senders in the Spout selector, even
-when the master has no sender. Select the preset's title; its `sender` is the
-default sender name, and `senders` maps master/node roles to local sender names.
-Preset titles should differ from discovered sender names.
-
-The placeholder is resolved from each machine's local preset JSON. Keep preset
-titles consistent across machines. Source configuration edits are picked up within a few seconds while the layer updates. Streaming the master
-texture to nodes is suspended while a placeholder is active, so the nodes keep
-receiving the original layer configuration and opening their own sources.
+To position and crop a layer, apply post process effects such as chroma key and color correction, or choose which machines in a cluster open its source, see [Layer operations](/media/layer-operations).

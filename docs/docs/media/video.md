@@ -21,7 +21,7 @@ Use **None (pre-split)** for outputs already mapped to the target windows. Keep 
 
 ## Make the prepared files available
 
-C-Play does not copy media files from master to nodes. Make local files available before playback, using the same paths on each machine or the per-node paths supported by [multi-video compositions](/media/cplaymulti) and [predefined sources](/media/layers#per-node-resolution-in-clusters).
+C-Play does not copy media files from master to nodes. Make local files available before playback, using the same paths on each machine or the per-node paths supported by [multi-video compositions](/media/cplaymulti) and [predefined sources](/media/layer-operations#per-node-resolution-in-clusters).
 
 For presentation layers, [streaming textures from the master](/playback/node-streaming) is an alternative to local decoding. This sends rendered frames rather than copying the source file; its audio and synchronization limits are described in that guide.
 

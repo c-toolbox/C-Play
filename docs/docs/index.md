@@ -66,7 +66,7 @@ An additional powerful feature in C-Play is the presentation tool, where you can
 
 With these [layer types](/media/layers), you can build immersive presentations combining media, live sources, and show-control actions. Available types depend on the platform and features enabled in your build.
 
-Each slide can have a [timeline](/media/cplaypres#-timeline-c-play-v23-and-newer) with keyframes to animate layer opacity, position, rotation, and scale. The [animation pane](/media/cplaypres#animations-c-play-v24-and-newer) adds entrance and exit effects such as fades, wipes, fly-ins, and zooms, with easing and click-triggered steps; these effects also work on slides without a timeline.
+Each slide can have a [timeline](/media/cplaypres#-timeline-c-play-v23-and-newer) with keyframes to animate layer opacity, position, rotation, and scale. The [effects pane](/media/cplaypres#animations-c-play-v24-and-newer) adds entrance and exit effects such as fades, wipes, fly-ins, and zooms, with easing and click-triggered steps; these effects also work on slides without a timeline. Its [post process effects](/media/layer-operations#post-process-effects), such as chroma key and color correction, are always applied to a layer's image.
 
 ### Technical features
 
@@ -74,7 +74,9 @@ Each slide can have a [timeline](/media/cplaypres#-timeline-c-play-v23-and-newer
 
 - Sync playback, loading and other properties between master and clients.
 
-- Playing audio is usually performed on master *(Support for node audio is added in 2.2)*. Change of audio output is supported, and C-Play is pre-built with "JACK", which opens for multi-channel low-latency output to for instance ASIO devices.
+- Audio is output either on the **master** or on the **nodes**, depending on the [audio settings](/settings/audio). Master output is the default; output on nodes is enabled with *Enable audio on nodes* *(added in 2.2)*.
+
+- Change of audio output device is supported, and C-Play is pre-built with "JACK", which opens for multi-channel low-latency output to for instance ASIO devices. Audio output through JACK supports at least 64 output channels.
 
 - Loading external audio files as multiple tracks.
 
