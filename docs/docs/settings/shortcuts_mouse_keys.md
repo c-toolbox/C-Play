@@ -1,6 +1,6 @@
 ---
 title: Mouse + Keyboard shortcuts
-sidebar_position: 10
+sidebar_position: 12
 ---
 
 # Mouse + Keyboard shortcuts

@@ -26,6 +26,8 @@ Typical uses are:
 
 Open **Settings -> REST Commands Editor** to create reusable commands. Commands are saved in `data/predefined-rest-commands.json` and can be selected later when configuring a REST layer.
 
+![REST Commands Editor](/assets/ui/rest_commands_editor.png)
+
 ### Supported command types
 
 REST commands support the normal HTTP methods `GET`, `POST`, `PUT`, and `DELETE`. They also support `WS` and `WSS` for WebSocket targets.

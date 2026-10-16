@@ -5,7 +5,7 @@ sidebar_position: 3
 
 # TCP control
 
-C-Play provides both an outgoing TCP Control Client and an incoming TCP Control Server on the ready master. Configure both in **Settings → Configure → TCP control**. Cluster nodes do not open control connections or listen for commands.
+C-Play provides both an outgoing TCP Control Client and an incoming TCP Control Server on the ready master. Configure both in **Settings → Configure → TCP control**, see [TCP control settings](/settings/tcp_control). Cluster nodes do not open control connections or listen for commands.
 
 | Component | Connection direction | Purpose |
 | --- | --- | --- |
@@ -125,7 +125,7 @@ Notifications use the server's delimiter or length-prefix framing:
 {"type":"change","topic":"playing_in_slides","value":2,"previous":1,"sequence":"42","timestamp":"2026-10-08T12:00:00.000Z"}
 ```
 
-For a complete topic list, call HTTP `GET /event_topics` or use the list in TCP settings. Topic names match API endpoints without the leading `/`, with additional `pause`, `mute` and `triggered_slide` topics. `playing_in_slides` follows the selected slide, as the existing HTTP endpoint does; `triggered_slide` follows the slide actually triggered. Slide index `-1` denotes the master slide.
+For a complete topic list, call HTTP `GET /event_topics` or use the list in [TCP control settings](/settings/tcp_control#reusable-tcp-commands). Topic names match API endpoints without the leading `/`, with additional `pause`, `mute` and `triggered_slide` topics. `playing_in_slides` follows the selected slide, as the existing HTTP endpoint does; `triggered_slide` follows the slide actually triggered. Slide index `-1` denotes the master slide.
 
 Changes are sampled on the ready master's Qt thread every 100 ms, regardless of whether they come from the UI, playback, a timeline, or remote control. Rapid changes are coalesced to the latest sampled state. Startup establishes a baseline without triggering commands. Notifications and automatic commands require an enabled, connected server; they are never queued or replayed after reconnect.
 

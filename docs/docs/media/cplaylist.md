@@ -11,6 +11,8 @@ Save a `.cplayfile` for each video when its mapping, audio, or sections need to 
 
 The playlist view, where items are created and managed, is opened in the bottom right (or bottom left, depending on settings).
 
+![Playlist](/assets/ui/playlist.png)
+
 The top toolbar provides the main controls for managing the playlist:
 
 | Icon | Action |
@@ -46,6 +48,8 @@ Each item in the playlist has an end-of-file (EOF) mode that controls what happe
 Starting from C-Play v2.3, the playlist supports per-item overrides that take priority over the values stored in the referenced *.cplayfile*. These let you customize how individual items behave without modifying the original media description.
 
 Per-item overrides are edited in the ![](/assets/icons/view-form.svg) *"View / edit selected playlist entry"* window, opened from the playlist toolbar.
+
+![View / edit playlist entry](/assets/ui/playlist_item.png)
 
 #### Title override
 

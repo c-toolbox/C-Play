@@ -57,19 +57,4 @@ Durations and delays below are in milliseconds. **Presentation change sync itera
 
 ### Layer streaming to nodes
 
-These settings configure the defaults for [streaming layer textures from the master to the nodes](/playback/node-streaming) (C-Play v2.4 and newer, builds with `BUILD_CPLAY_WITH_NODE_STREAM`). Each layer can override the group and port individually in its node stream options.
-
-* **Prefer NDI for streaming layers to the nodes** — Stream the layers to the nodes as NDI sources received by automatically created NDI layers on the nodes, instead of UDP multicast (default off). Can be overridden per layer. Only shown when both node streaming and NDI support are built in; requires NDI on the master and the nodes.
-* **Base multicast group** — Multicast group of the layer streams to the nodes (default `239.192.77.1`). Each layer uses the base group plus its layer id, unless a group is set on the layer.
-* **Base port** — UDP port of the layer streams to the nodes (1024–65535, default 50100), unless overridden on the layer.
-* **Master interface address** — IPv4 address of the network interface to send from. Empty uses the master address of the cluster configuration.
-* **Max datagram size (bytes)** — Largest UDP datagram in bytes (576–65507, default 1472). 1472 fits a standard 1500 MTU, 8972 fits 9000 byte jumbo frames.
-* **Send rate limit (Mbit/s)** — Combined send rate of all layer streams (default 0 = 85% of the link speed of the send interface).
-* **Compress streams with LZ4** — Losslessly compress each packet with LZ4 (default OFF). Saves bandwidth on flat graphics and text, at a small CPU cost on the master and the nodes. Packets that do not shrink are sent uncompressed.
-* **Send only changed regions (delta frames)** — Between keyframes, send only the parts of the layer that changed since the previous frame (default on). A node that misses a delta frame holds the image until the next keyframe, unless *Show frames with lost packets* is enabled.
-* **Keyframe interval (msec)** — How often a full frame is sent for nodes that joined late or lost packets (50–10000, default 500).
-* **Frame-locked wait (msec)** — How long a node waits for a late frame in frame-locked mode (0–50, default 2).
-* **Frame-locked latency guard (msec)** — In frame-locked mode, the nodes are told to show a frame only once it has been on the wire this many milliseconds (0–100, default 1).
-* **Multicast TTL** — Multicast time-to-live in router hops (1–32, default 1).
-* **Deliver streams to nodes running on the master computer** — Loopback delivery of the streams to node instances on the master itself (default on).
-* **Show frames with lost packets on the nodes** — Let the nodes show frames with lost packets on top of the previous frame instead of holding the previous complete frame until a complete one arrives (may briefly mix two frames, default off).
+The defaults for [streaming layers from the master to the nodes](/playback/node-streaming) (C-Play v2.4 and newer) are on the [Streaming settings](/settings/streaming#layer-streaming-to-nodes) page.

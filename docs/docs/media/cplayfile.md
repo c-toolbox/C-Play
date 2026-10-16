@@ -29,6 +29,8 @@ Sections define named ranges within a video. Each has a title, start time, end t
 
 Open the sections panel beside the playlist. Its position follows the [playlist layout setting](/settings/playlist). Enter start and end times manually, or capture them from the current playback position.
 
+![Sections panel](/assets/ui/sections.png)
+
 ## Create a .cplayfile
 
 1. Open the media file in C-Play.

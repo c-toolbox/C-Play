@@ -1,6 +1,6 @@
 ---
 title: Text & subtitles
-sidebar_position: 8
+sidebar_position: 10
 ---
 
 # Text & subtitles (C-Play v2.2 and newer)

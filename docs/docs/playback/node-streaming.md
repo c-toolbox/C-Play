@@ -27,6 +27,8 @@ While a layer is streamed to the nodes it always exists on them as a stream rece
 
 The configure (![](/assets/icons/configure.svg)) button next to the **Nodes** button opens the per-layer stream options:
 
+![Per-layer node stream options](/assets/ui/layer_node_stream_options.png)
+
 | Option | Description |
 |--------|-------------|
 | **Prefer NDI (instead of UDP multicast)** | Stream this layer as an NDI source received by automatically created NDI layers on the nodes. Overrides the global preference for this layer; unchecking it makes the layer follow the global setting again. Only shown when both node streaming and NDI support are built in. |
@@ -34,7 +36,7 @@ The configure (![](/assets/icons/configure.svg)) button next to the **Nodes** bu
 | **Compression** | GPU block-compression format for the UDP stream: *Auto* (BC1, or BC3 when the layer has alpha), *BC1* (RGB, smallest), *BC3* (RGBA) or *BC7* (RGBA, best quality). |
 | **Sync** | *Frame-locked to the master* — nodes wait for a complete frame and show it at the same time as the master (tightest cluster sync); *Immediate (lowest latency)* — nodes show each frame as soon as it arrives. |
 | **Max frame rate** | Cap on frames per second sent for this layer; 0 sends every rendered frame (0–240). |
-| **Multicast group** | Override the multicast group for this layer. Empty uses the automatic group: base group + layer id from the [presentation settings](/settings/presentation#layer-streaming-to-nodes). |
+| **Multicast group** | Override the multicast group for this layer. Empty uses the automatic group: base group + layer id from the [streaming settings](/settings/streaming#layer-streaming-to-nodes). |
 | **Port** | Override the UDP port for this layer; 0 uses the base port from the presentation settings. |
 | **Address** | Read-only effective multicast address (group:port) of the layer stream. |
 
@@ -42,7 +44,7 @@ The compression, sync, frame rate, group and port options only apply to the UDP 
 
 ## Global settings
 
-The defaults for all layer streams are set in *Settings → Presentation*, section **Layer streaming to nodes (UDP multicast)** — see [Presentation settings](/settings/presentation#layer-streaming-to-nodes). In short: base multicast group and port, master send interface, TTL, max datagram size, combined send rate limit, LZ4 compression, delta frames and keyframe interval, frame-locked wait time and latency guard, partial-frame handling, loopback delivery to nodes running on the master computer, and the global **Prefer NDI** checkbox.
+The defaults for all layer streams are set in *Settings → Streaming* — see [Streaming settings](/settings/streaming#layer-streaming-to-nodes). In short: base multicast group and port, master send interface, TTL, max datagram size, combined send rate limit, LZ4 compression, delta frames and keyframe interval, frame-locked wait time and latency guard, partial-frame handling, loopback delivery to nodes running on the master computer, and the global **Prefer NDI** checkbox.
 
 ## How it works (UDP multicast)
 
@@ -60,7 +62,7 @@ The stream carries **video only**: the layer's audio continues to play from the 
 
 When C-Play is built with both node streaming and NDI support, layers can be streamed to the nodes as **NDI sources** instead of UDP multicast:
 
-- Enable it globally with *Prefer NDI for streaming layers to the nodes* in [Presentation settings](/settings/presentation#layer-streaming-to-nodes), or per layer with the checkbox in the node stream options.
+- Enable it globally with *Prefer NDI for streaming layers to the nodes* in [Streaming settings](/settings/streaming#layer-streaming-to-nodes), or per layer with the checkbox in the node stream options.
 - The master then publishes the layer texture as an NDI source named `C-Play Layer <layer id> - <layer title>` and does not open any UDP socket for it; each node automatically creates a regular [NDI layer](/system-integration/obs-ndi) that receives that source, exactly like a manually added NDI layer.
 - Switching the preference (globally or per layer) makes the nodes swap between the NDI receiver and the UDP stream receiver on the next sync.
 

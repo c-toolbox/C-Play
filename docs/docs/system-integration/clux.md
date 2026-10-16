@@ -21,6 +21,8 @@ The integration talks to the server over its REST API and SSE frame stream using
 
 Open **Settings -> C-Lux Editor...**. The toolbar has a connection indicator, a server URL field (default `http://localhost:8787`), and a **Connect** / **Disconnect** button. The URL you connect with is stored in `data/clux-server.json` (a single entry) and reloaded at startup.
 
+![C-Lux Editor](/assets/ui/clux_editor.png)
+
 If the C-Lux server has an edit password configured, a login row appears while connected but not logged in. Only pattern toggles are guarded by the password — scene apply/unapply/replace, clearing patterns, and the NDI endpoints stay open. The session token is kept for the current C-Play session only and never written to disk; restarting the server drops its in-memory sessions, so a reconnect may ask you to log in again.
 
 ## Live mode vs preview mode

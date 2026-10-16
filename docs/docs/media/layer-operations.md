@@ -27,6 +27,8 @@ Post process effects are always applied to the layer's image, for example to key
 
 Click **Effects** in the layer view toolbar and open the **Post Process** tab. The **Effects** button is highlighted when the layer has effects. Turn an effect on with its check box; its settings then appear below it. **Reset** restores an effect's default settings, and **Remove all** turns every effect off.
 
+![Post process effects](/assets/ui/effects_post_process.png)
+
 | Effect | Settings | Description |
 |--------|----------|-------------|
 | **Chroma key** | Key color, Similarity, Smoothness, Spill reduction | Makes a background color, such as a green or blue screen, transparent. *Similarity* sets how close to the key color a pixel must be to be removed, *Smoothness* softens the edge, and *Spill reduction* removes the key color's tint from the edges that remain. |
@@ -56,6 +58,8 @@ For a typical green screen: pick the key color from the background, raise *Simil
 ## Master and node sources
 
 By default, nodes load their own copy of a synchronized layer. The **Sync** control in Layer View can make a layer exist only on the master. This is separate from the **Master slide** and its Front/Back marking, which determine the layer's position in the [rendering order](/media/cplaypres).
+
+![Layer View toolbar with Effects, ROI, Nodes, Sync and NDI](/assets/ui/layer_view_toolbar.png)
 
 For supported live layer types, **Nodes read from original source** lets each machine load its source, while **Master sends content to nodes** renders on the master and streams the texture. The **Nodes** control in Layer View also enables texture streaming. See [Streaming layers from master to nodes](/playback/node-streaming) for transport, audio, and synchronization details.
 

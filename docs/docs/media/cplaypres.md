@@ -181,6 +181,8 @@ Open the effects pane in one of these ways:
 
 The pane has three tabs: **Entrance**, **Exit** and **Post Process** (see [Post process effects](/media/layer-operations#post-process-effects)). To add an effect, pick a layer in the *Layer* list, click **Add effect**, and choose a preset from the gallery. Only layers with visual content can be animated, and the master slide has no entrance or exit effects.
 
+![Effects pane](/assets/ui/effects_entrance.png)
+
 On a slide without a timeline, layers without effects keep the regular slide fade, and the effects play on top of it when the slide is triggered and left. On a timeline slide, the timeline duration grows automatically to fit the effects. Turning the timeline off keeps the effects you added, and removes the default fades that turning it on gave the layers.
 
 | Category | Presets | Description |

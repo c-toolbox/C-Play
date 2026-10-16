@@ -34,7 +34,7 @@ The source is published at the native resolution of the player texture and one f
 
 The output follows the [master view mode](/playback/views#-master-view): while the main window shows only the main video, the NDI source carries the full player output as before; while a **3D view** (perspective or fisheye camera) is active, it instead publishes the rendered 3D scene — all layers together, exactly as shown in C-Play's main window. Switching master view mode during transmission swaps the published content without interrupting the sender.
 
-The resolution of the 3D view output is set by *NDI output resolution for 3D view* in the [Window & UI settings](/settings/window_and_ui) (default **2K**):
+The resolution of the 3D view output is set by *NDI output resolution for 3D view* in the [Streaming settings](/settings/streaming#ndi) (default **2K**):
 
 | Setting | Perspective camera (16:9) | Fisheye camera (1:1) |
 |---------|---------------------------|----------------------|
@@ -50,6 +50,8 @@ The perspective camera keeps a 16:9 aspect ratio, while the fisheye (fulldome) c
 ## Layer NDI output
 
 Each presentation layer can additionally be published as its **own** NDI source, independently of the main video output. This is useful when another application should receive a single feed — for example one camera or one OBS scene that C-Play displays as a layer — without the rest of the composition.
+
+![Layer View toolbar with Nodes, Sync and NDI](/assets/ui/layer_view_toolbar.png)
 
 1. Open the layer view for the slide and select the layer you want to send.
 2. In the layer's control row (next to the Grid, ROI, and visibility controls), click the **NDI** button to enable NDI output for that layer.
@@ -109,7 +111,7 @@ For the reverse direction — sending OBS content *into* C-Play as an NDI layer 
 
 ## Optional GPU color conversion
 
-In **Settings > Presentation**, enable **Convert NDI input on the GPU** and/or **Convert NDI output on the GPU**. Both options are off by default. Recreate NDI input layers after changing the input option; stop and start outputs after changing the output option. Configure each receiving computer separately, including nodes.
+In [**Settings > Streaming**](/settings/streaming#ndi), enable **Convert NDI input on the GPU** and/or **Convert NDI output on the GPU**. Both options are off by default. Recreate NDI input layers after changing the input option; stop and start outputs after changing the output option. Configure each receiving computer separately, including nodes.
 
 With OpenGL 4.3, the input option requests `NDIlib_recv_color_format_fastest` and converts the decoder's native raw buffer to RGBA on the GPU. It supports **UYVY, UYVA, NV12, I420, YV12, P216, PA16, BGRA, BGRX, RGBA, and RGBX**, including padded rows and format changes. UYVA and PA16 preserve alpha; 16-bit color is converted at its native precision before writing the application's RGBA8 rendering texture.
 

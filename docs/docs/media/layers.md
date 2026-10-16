@@ -19,6 +19,8 @@ The types available depend on the platform and the features enabled in your C-Pl
 
 ## Choose a layer type
 
+![Layer types in the Add new layer dialog](/assets/ui/layer_types.png)
+
 | Layer | Use it for | Source to select |
 | --- | --- | --- |
 | [Image](#image) | Logos, still backgrounds, overlays, and photographs | An image file |
@@ -99,6 +101,8 @@ DirectShow is a Windows framework for accessing media devices and decoders. A Di
 
 When choosing *"DirectShow"* (Windows only), **Video device** and **Audio device** comboboxes become visible in addition to the file dialog field. They list the capture devices registered on this machine — cameras and capture cards for video, microphones and line inputs for audio — and a refresh button rescans them when new hardware has been plugged in. If you pick a video device, the layer captures live from that device; if no video device is chosen, the file dialog field is used instead and the selected image or video file is rendered through a DirectShow filter graph using the system's built-in decoders, which makes it useful for media that the regular Image or Video layers cannot decode. Still images show their single frame; video files keep playing through the same pipeline. The **Audio device** combobox also offers a *No audio capture* entry: selecting it creates a video-only layer that captures no audio at all - not from a microphone and not embedded in the capture card either. A picked audio device is stored with the layer and its audio is routed to the machine's audio output; for media files without an explicit audio device, the file's own audio track is used when available.
 
+![Add DirectShow layer](/assets/ui/layer_add_directshow.png)
+
 #### Predefined DirectShow setups
 
 C-Play can load a list of predefined capture setups from the editable file *"data/predefined-directshows.json"*. When the file exists and contains at least one enabled setup, a **Setup** combobox is shown in the layer dialog instead of the video/audio device rows; the button next to it switches between the predefined list and the custom device selection (and keeps both options in sync with each other). If the file does not exist or cannot be parsed, no predefined setups are shown and you simply select the capture devices manually.
@@ -149,6 +153,8 @@ WebRTC carries live video and audio with low latency. In C-Play, a WebRTC layer 
 
 When choosing *"WebRTC"*, a **WHEP URL** field becomes visible instead of the file dialog field. Enter the WHEP endpoint of the stream you want to pull, for example `http://mediamtx:8889/live/mystream/whep` when using [MediaMTX](https://github.com/bluenviron/mediamtx) as the WebRTC server; credentials can be embedded in the URL (`user:pass@host`). If you leave the title empty, it defaults to the stream name taken from the last part of the URL. The layer receives both video and audio when the stream carries them (H.264/H.265 video, Opus audio), decodes with FFmpeg — NVDEC hardware decoding when available — and reconnects automatically if the session fails while the layer should be running. The WHEP URL can be changed later in the *Layer View*; changing it restarts the connection. Like other live layers it can be marked master-only with the **Sync** button: then only the master pulls the stream; otherwise delivery follows the **Master relay** setting described below.
 
+![Add WebRTC layer](/assets/ui/layer_add_webrtc.png)
+
 The **Master relay** option controls whether the master pulls and relays the feed, or nodes pull it themselves. Select the mode that matches your network and server setup. See [MediaMTX integration](/system-integration/mediamtx).
 
 ### Stream
@@ -174,11 +180,13 @@ In a cluster setup every node opens the same stream URL; layers created from the
 
 When choosing *"YouTube"*, a single **URL** field becomes visible instead of the file dialog field. Paste a single YouTube video URL (`watch`, `shorts`, or `youtu.be`) and the layer plays it through mpv's embedded `ytdl_hook`, which uses the external [yt-dlp](https://github.com/yt-dlp/yt-dlp) tool to resolve the actual media streams. A YouTube layer is treated as video-on-demand content, so — unlike a live Stream layer — it gets the full set of player controls in the *Layer View*: play/pause, a seek slider, stop/rewind, end-of-file mode (pause or loop) and A-B section looping, exactly like a Video layer. It is never forced into the live-stream low-latency mode (which would cause audio drift).
 
+![Add YouTube layer](/assets/ui/layer_add_youtube.png)
+
 #### YouTube playback and yt-dlp
 
 YouTube URLs are resolved by mpv's `ytdl_hook.lua`, which spawns the external **yt-dlp** executable. C-Play locates yt-dlp on each machine in this order:
 
-1. The **yt-dlp path** set in *Settings → Playback* (*YouTube playback*).
+1. The **yt-dlp path** set in [*Settings → Streaming*](/settings/streaming#youtube-playback).
 2. `yt-dlp.exe` (or `yt-dlp`) placed next to `C-Play.exe`.
 3. `plugins/yt-dlp(.exe)` in the working directory C-Play was started from (also checked relative to the folder containing `C-Play.exe`).
 4. Anywhere on the system `PATH`.
@@ -187,7 +195,7 @@ If none is found, the layer reports a load error and shows an error overlay in t
 
 > **Every cluster node needs yt-dlp too.** A YouTube layer stores its URL verbatim and syncs it to all machines; each machine resolves the URL locally with its own yt-dlp. A node without yt-dlp shows the error overlay while the master keeps playing — this is expected.
 
-An optional **yt-dlp format** string in *Settings → Playback* is passed to `ytdl_hook` (`ytdl-format`) to cap resolution or pick specific codecs (for example `bv*[height<=1080]+ba/b`). Leave it empty to use the mpv/yt-dlp default.
+An optional **yt-dlp format** string in [*Settings → Streaming*](/settings/streaming#youtube-playback) is passed to `ytdl_hook` (`ytdl-format`) to cap resolution or pick specific codecs (for example `bv*[height<=1080]+ba/b`). Leave it empty to use the mpv/yt-dlp default.
 
 A per-layer options profile named **Youtube** (from `data/mpv-conf/youtube_youtube.json`) is available in the *Layer View* options dropdown for cache/demuxer tuning.
 
@@ -230,7 +238,7 @@ For more details on the REST layer and the REST Commands Editor, see the [HTTP W
 
 A TCP layer is a cue that sends a saved text or binary command over a persistent network connection. Use it for devices and show-control systems with a TCP command protocol, such as triggering a Medialon task or sending a projector command. It has no visual output and runs on the master.
 
-Choose **TCP** to trigger a reusable command through one of C-Play's persistent TCP server connections. Define servers and text or binary commands in **Settings → Configure → TCP control**, then select a command when adding the layer. Each server keeps its own connection, so multiple layers can send different commands to different devices.
+Choose **TCP** to trigger a reusable command through one of C-Play's persistent TCP server connections. Define servers and text or binary commands in [**Settings → Configure → TCP control**](/settings/tcp_control), then select a command when adding the layer. Each server keeps its own connection, so multiple layers can send different commands to different devices.
 
 The layer fires when started. Double-click it or press **Trigger** in its layer view to send manually; the layer view also lets you choose another command. Its status indicates whether the transport accepted the command, not whether the device executed it. Disconnected commands are rejected and are never replayed after reconnect. See [TCP control client](/remote-control/tcp) for framing, persistence, and examples.
 

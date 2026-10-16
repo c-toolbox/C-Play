@@ -293,6 +293,8 @@ In the layer editor, a REST layer can be configured in two ways:
 
 The **REST Commands Editor** is a standalone window accessible from **Settings → REST Commands Editor**. It manages a list of predefined HTTP and WebSocket commands that can be used both for manual testing and as presets when configuring REST layers.
 
+![REST Commands Editor](/assets/ui/rest_commands_editor.png)
+
 ### Features
 
 - Browse all predefined commands (title, method, URL)
@@ -369,7 +371,7 @@ Commands with `"enabled": false` are skipped when loading. Parameters are stored
 
 ## TCP connection and update control
 
-These HTTP endpoints manage the outgoing [TCP Control Client](tcp.md#tcp-control-client): its saved server profiles, connections and commands. They use the HTTP API port (default 7007), and return `application/json` with `Cache-Control: no-store`. The incoming [TCP Control Server](tcp.md#tcp-control-server) is a separate listener, normally on port 7008; its bind address and port are configured in TCP settings.
+These HTTP endpoints manage the outgoing [TCP Control Client](tcp.md#tcp-control-client): its saved server profiles, connections and commands. They use the HTTP API port (default 7007), and return `application/json` with `Cache-Control: no-store`. The incoming [TCP Control Server](tcp.md#tcp-control-server) is a separate listener, normally on port 7008; its bind address and port are configured in [TCP control settings](/settings/tcp_control#incoming-tcp-control).
 
 | Endpoint | Method | Parameters | Result |
 | --- | --- | --- | --- |

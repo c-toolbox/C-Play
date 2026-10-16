@@ -26,6 +26,8 @@ If the API is protected by internal authentication, C-Play sends the user name a
 
 Open **Settings -> MediaMTX Streams...** and fill in the server form:
 
+![MediaMTX Streams](/assets/ui/mediamtx_streams.png)
+
 | Field | Meaning |
 | --- | --- |
 | Name | Label shown in C-Play. Also used as prefix when saving streams to the predefined list. |
