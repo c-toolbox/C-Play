@@ -8,10 +8,12 @@ C-Play is an open source cluster media player, useful for video playback and pre
 
 https://c-toolbox.github.io/C-Play/
 
+For preparing videos and image sequences, including per-window outputs for an SGCT installation, use [C-Slice](https://c-toolbox.github.io/C-Slice/). See the [C-Play video preparation guide](https://c-toolbox.github.io/C-Play/media/video/#prepare-videos-with-c-slice) for the playback workflow.
+
 # Content features
 These are just some features that set C-Play apart from other media and video players:
 
-C-Play support media that is:
+C-Play supports media that is:
 
 - Stereoscopic (Side-by-side or Top-Bottom) and Monoscopic
 
@@ -28,7 +30,7 @@ An additional powerful feature in C-Play is the presentation tool, where you can
 
 - *PDF* (Common export format from PPT)
 
-- *Videos* (H264, HEVC/H265, AV1/H266, VP9 etc) 
+- *Videos* (H264, HEVC/H265, AV1, H.266/VVC, VP9 etc)
 
 - *Audio* (WAV, AAC, MP3 etc)
 
@@ -60,7 +62,7 @@ With the layer types above, you can make it almost as easy as using PowerPoint t
 
 - HTTP Web API, so you can integrate C-Play control into a custom system.
 
-- REST Commands (HTTP and WebSockets) to control other application, such as OBS Studio which C-Play then can receive content from.
+- REST Commands (HTTP and WebSockets) to control other applications, such as OBS Studio which C-Play then can receive content from.
 
 - Tested and used on Windows 10/11, in domes and other big arenas.
 

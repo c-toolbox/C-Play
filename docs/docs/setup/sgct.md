@@ -26,37 +26,76 @@ C-Play would make sure that only the FIRST two viewports below, or the LAST two 
 
 This makes it possible to apply different calibrations for 3D and 2D content, which in some scenarios can make a noticeable difference and may be necessary to show both 3D and 2D content correctly.
 
-* JSON : *Version 2.2 and above*
+### JSON: Version 2.2 and newer
+
+The following is a window's `viewports` fragment; include it in a complete SGCT cluster configuration.
+
 ```json
-"viewports": [
+{
+  "viewports": [
     {
-        "eye": "left",
-        "pos": { "x": 0, "y": 0 },
-        "size": { "x": 0.5, "y": 1 },
-        "projection": { "type": "PlanarProjection", }
+      "eye": "left",
+      "pos": {
+        "x": 0,
+        "y": 0
+      },
+      "size": {
+        "x": 0.5,
+        "y": 1
+      },
+      "projection": {
+        "type": "PlanarProjection"
+      }
     },
     {
-        "eye": "right",
-        "pos": { "x": 0.5, "y": 0 },
-        "size": { "x": 0.5, "y": 1 },
-        "projection": { "type": "PlanarProjection", }
+      "eye": "right",
+      "pos": {
+        "x": 0.5,
+        "y": 0
+      },
+      "size": {
+        "x": 0.5,
+        "y": 1
+      },
+      "projection": {
+        "type": "PlanarProjection"
+      }
     },
     {
-        "eye": "center",
-        "pos": { "x": 0, "y": 0 },
-        "size": { "x": 0.5, "y": 1 },
-        "projection": { "type": "PlanarProjection", }
+      "eye": "center",
+      "pos": {
+        "x": 0,
+        "y": 0
+      },
+      "size": {
+        "x": 0.5,
+        "y": 1
+      },
+      "projection": {
+        "type": "PlanarProjection"
+      }
     },
     {
-        "eye": "center",
-        "pos": { "x": 0.5, "y": 0 },
-        "size": { "x": 0.5, "y": 1 },
-        "projection": { "type": "PlanarProjection", }
+      "eye": "center",
+      "pos": {
+        "x": 0.5,
+        "y": 0
+      },
+      "size": {
+        "x": 0.5,
+        "y": 1
+      },
+      "projection": {
+        "type": "PlanarProjection"
+      }
     }
-]
+  ]
+}
 ```
 
-* XML : *Version 2.1 and below*
+### XML: Version 2.1 and older
+
+This legacy format is not supported in C-Play v2.2 and newer.
 
 ```xml
 <Viewport eye="left">

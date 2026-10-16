@@ -9,7 +9,7 @@ A layer adds media or an automation action to a slide. Use several layers to com
 
 ## Add and configure a layer
 
-1. Select a slide, or select the **Master** slide for background layers that sit behind the main player.
+1. Select a slide, or select the **Master** slide for permanent Back layers behind the main player or Front layers above the slide content.
 2. Click **Add new layer** in the layers toolbar.
 3. Choose a type, give it a descriptive title, and select its file, source, text, or command.
 4. For visual layers, choose the mapping and stereo mode that match the content.
@@ -51,7 +51,9 @@ Choose **Video** and browse to a recorded clip, such as MP4, MKV, MOV, or WebM. 
 
 ### MultiVideo
 
-Choose **MultiVideo** and open a `.cplaymulti` composition file. It defines a master reference video and the video entries each node should load, including per-entry mapping, stereo, eye, and audio settings. Use it when the cluster needs separate files for different surfaces or eyes. Define node IDs in `data/multivideo/nodes.json` and make the referenced files available on the corresponding machines. See [Multi-video composition](/media/cplaymulti) for the complete format and examples.
+A MultiVideo layer groups several video files into one synchronized composition. Use it for installations where different nodes or eyes need different video files while sharing one playback timeline.
+
+Choose **MultiVideo** and open a `.cplaymulti` composition file. It defines a master reference video and the video entries each node should load, including per-entry mapping, stereo, eye, and audio settings. Define node IDs in `data/multivideo/nodes.json` and make the referenced files available on the corresponding machines. See [Multi-video composition](/media/cplaymulti) for the complete format and examples.
 
 ### Audio
 
@@ -71,21 +73,29 @@ The default text settings come from **Settings → Configure → Text & subtitle
 
 ### NDI
 
+NDI (Network Device Interface) carries live video and audio between applications and devices over a network. An NDI layer brings a sender's output, such as an OBS scene or camera feed, into your presentation as a surface you can position and map.
+
 When choosing *"NDI (Network Device Interface)"*, a combobox becomes visible instead of the file dialog field. The combobox contains the discovered NDI sources on the network that can be received. Both image and audio are supported through NDI.
 
 See [NDI integration](/system-integration/obs-ndi) for sender setup.
 
 ### OMT
 
+OMT (Open Media Transport) is another network transport for live video and audio. An OMT layer receives output from an OMT-compatible application or device; use it when your source publishes an OMT feed.
+
 When choosing *"OMT (Open Media Transport)"*, a combobox becomes visible instead of the file dialog field. The combobox contains the discovered OMT sources on the network that can be received.
 
 ### Spout
 
-When choosing *"Spout"*, a combobox becomes visible instead of the file dialog field. The combobox lists the currently available Spout senders from other Windows applications on the same machine, and the refresh button can be used to rescan the sender list. This makes it practical to bring live rendered content such as graphics, real-time engines, or capture tools directly into a slide as a video layer. Spout layers are available by default in C-Play v2.3 Windows builds.
+Spout shares live GPU textures between Windows applications on the same computer. A Spout layer can bring graphics from a rendering engine or another visual application directly into the presentation, with the sender running locally on each receiving machine.
+
+When choosing *"Spout"*, a combobox becomes visible instead of the file dialog field. The combobox lists the currently available Spout senders from other Windows applications on the same machine, and the refresh button can be used to rescan the sender list. Spout layers are available by default in C-Play v2.3 Windows builds.
 
 Predefined Spout setups are loaded from `data/predefined-spouts.json` and appear alongside discovered senders. Each entry has a `title`, default `sender`, optional `enabled`, and a `senders` mapping for per-machine overrides. Select the preset title so nodes resolve their own sender names. A sender must run locally on every machine that receives it. See [Spout for local app sharing](/system-integration/on-top#spout-for-local-app-sharing).
 
 ### DirectShow
+
+DirectShow is a Windows framework for accessing media devices and decoders. A DirectShow layer brings in a local webcam, capture card, or media file through the Windows drivers and filters installed on that machine.
 
 When choosing *"DirectShow"* (Windows only), **Video device** and **Audio device** comboboxes become visible in addition to the file dialog field. They list the capture devices registered on this machine — cameras and capture cards for video, microphones and line inputs for audio — and a refresh button rescans them when new hardware has been plugged in. If you pick a video device, the layer captures live from that device; if no video device is chosen, the file dialog field is used instead and the selected image or video file is rendered through a DirectShow filter graph using the system's built-in decoders, which makes it useful for media that the regular Image or Video layers cannot decode. Still images show their single frame; video files keep playing through the same pipeline. The **Audio device** combobox also offers a *No audio capture* entry: selecting it creates a video-only layer that captures no audio at all - not from a microphone and not embedded in the capture card either. A picked audio device is stored with the layer and its audio is routed to the machine's audio output; for media files without an explicit audio device, the file's own audio track is used when available.
 
@@ -125,6 +135,8 @@ When a DirectShow layer is created from a predefined setup, its parameter string
 
 ### Capture
 
+A Capture layer receives a capture card's input through a supported manufacturer's SDK, such as Datapath's. Use it to bring an external computer's display or a camera signal into the presentation with hardware-specific options such as combining several inputs into one image.
+
 Choose **Capture** for a supported capture card SDK backend, such as Datapath. Select a predefined setup from `data/predefined-captures.json`, or switch to a custom input. Input numbers are **1-based**, matching the Datapath Vision utility; the selected input can exist only on the nodes.
 
 For custom inputs, configure **ganging** when several inputs form one image, choose whether to use **direct GPU** transfer, and enable source audio when needed. Direct GPU transfer depends on suitable hardware and backend support. Layer View shows the capture status, so check it for missing sources, missing signal, or backend errors.
@@ -133,11 +145,15 @@ A capture preset contains `title`, `backend`, `input`, and optional `ganging`, `
 
 ### WebRTC
 
-When choosing *"WebRTC"*, a **WHEP URL** field becomes visible instead of the file dialog field. Enter the WHEP endpoint of the stream you want to pull, for example `http://mediamtx:8889/live/mystream/whep` when using [MediaMTX](https://github.com/bluenviron/mediamtx) as the WebRTC server; credentials can be embedded in the URL (`user:pass@host`). If you leave the title empty, it defaults to the stream name taken from the last part of the URL. The layer receives both video and audio when the stream carries them (H.264/H.265 video, Opus audio), decodes with FFmpeg — NVDEC hardware decoding when available — and reconnects automatically if the session fails while the layer should be running. The WHEP URL can be changed later in the *Layer View*; changing it restarts the connection. Like other live layers it can be marked master-only with the **Sync** button: then only the master pulls the stream; otherwise every node in the cluster pulls its own copy of the WHEP endpoint, which keeps each machine's network load local.
+WebRTC carries live video and audio with low latency. In C-Play, a WebRTC layer receives a feed from a WHEP endpoint (WebRTC-HTTP Egress Protocol), such as one provided by MediaMTX or VDO.Ninja, making it useful for remote cameras, presenters, and screen sharing.
+
+When choosing *"WebRTC"*, a **WHEP URL** field becomes visible instead of the file dialog field. Enter the WHEP endpoint of the stream you want to pull, for example `http://mediamtx:8889/live/mystream/whep` when using [MediaMTX](https://github.com/bluenviron/mediamtx) as the WebRTC server; credentials can be embedded in the URL (`user:pass@host`). If you leave the title empty, it defaults to the stream name taken from the last part of the URL. The layer receives both video and audio when the stream carries them (H.264/H.265 video, Opus audio), decodes with FFmpeg — NVDEC hardware decoding when available — and reconnects automatically if the session fails while the layer should be running. The WHEP URL can be changed later in the *Layer View*; changing it restarts the connection. Like other live layers it can be marked master-only with the **Sync** button: then only the master pulls the stream; otherwise delivery follows the **Master relay** setting described below.
 
 The **Master relay** option controls whether the master pulls and relays the feed, or nodes pull it themselves. Select the mode that matches your network and server setup. See [MediaMTX integration](/system-integration/mediamtx).
 
 ### Stream
+
+A Stream layer plays an ongoing media feed from a URL, such as a camera or encoder publishing through RTSP or SRT. Use it for live inputs that should follow the incoming feed, with playback handled by C-Play's MPV backend.
 
 When choosing *"Stream"*, you can choose between pre-defined streams for your system in a combobox, loaded from the editable file *"data/predefined-streams.json"*, or add a custom entry in a text field. The mode button next to the field cycles through *predefined list -> custom path -> MediaMTX server* (the last option only appears when [MediaMTX](/system-integration/mediamtx) is available).
 
@@ -183,7 +199,7 @@ Command layers have no visual output. Use their trigger controls or the slide ti
 
 ### Control
 
-When choosing *"Control"*, the layer does not display any visual content. Instead, it dispatches a player control operation when activated through the slide timeline. Control layers exist only on the master node and are useful for automating playback actions within a presentation.
+A Control layer is a cue that operates C-Play itself: for example, starting the main video, changing volume, or loading a playlist item at a planned moment. It has no visual output and runs on the master, dispatching a player operation when activated through the slide timeline.
 
 In the layer view for a control layer, two fields are shown instead of the usual grid/stereo parameters:
 
@@ -194,11 +210,11 @@ In the layer view for a control layer, two fields are shown instead of the usual
   * **Orientation**: SpinPitchUp, SpinPitchDown, SpinYawLeft, SpinYawRight, SpinRollCW, SpinRollCCW, OrientationAndSpinReset, RunSurfaceTransition
   * **Surface & Visibility**: SetBackgroundVisibility, SetForegroundVisibility, SetNodeWindowsOpacity
 
-* **Parameter** — An operation-specific value. For example, a volume level for SetVolume, a millisecond position for Seek, a slide name or index for LoadFromSlides, or `true`/`false` for boolean operations. Parameters that reference playlist items, slides, or audio tracks can be specified by name or numeric index.
+* **Parameter** — An operation-specific value. For example, a volume level for SetVolume, a signed number of seconds for Seek, a slide name or index for LoadFromSlides, or `true`/`false` for boolean operations. Parameters that reference playlist items, slides, or audio tracks can be specified by name or numeric index.
 
 ### REST
 
-When choosing *"REST"*, the layer sends an HTTP or WebSocket request when its slide is triggered. Like Control layers, REST layers are non-visual and exist only on the master node. They are useful for integrating external systems — such as lighting controllers, projectors, OBS Studio, or other networked applications — into your presentation workflow.
+A REST layer is a cue that controls an external system through an HTTP or WebSocket request. For example, it can switch an OBS scene or call a lighting controller's API when a slide starts. It has no visual output and sends its request from the master.
 
 In the layer view for a REST layer, three fields are shown:
 
@@ -211,6 +227,8 @@ When the slide is loaded, the REST layer fires the configured request on a backg
 For more details on the REST layer and the REST Commands Editor, see the [HTTP Web API documentation](/remote-control/api#rest-layer).
 
 ### TCP
+
+A TCP layer is a cue that sends a saved text or binary command over a persistent network connection. Use it for devices and show-control systems with a TCP command protocol, such as triggering a Medialon task or sending a projector command. It has no visual output and runs on the master.
 
 Choose **TCP** to trigger a reusable command through one of C-Play's persistent TCP server connections. Define servers and text or binary commands in **Settings → Configure → TCP control**, then select a command when adding the layer. Each server keeps its own connection, so multiple layers can send different commands to different devices.
 

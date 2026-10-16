@@ -5,11 +5,7 @@ sidebar_position: 1
 
 # Qt and KDE Frameworks for C-Play Master UI
 
-C-Play can be built with either Qt6/KF6 or Qt5/KF5, but for best support for DPI scaling Qt6/KF6 is default and recommended.
-*NOTE: C-Play Version 2.1 and newer will only support Qt6.*
-
-The CMake option *BUILD_CPLAY_WITH_QT6* is enabled by default. Disable it to detect Qt5 installation/dependencies instead.
-KDE Frameworks have the same versioning, as the depend on Qt themselves.
+Current C-Play source requires Qt 6.6 or newer and KDE Frameworks 6.0 or newer. Use Qt6/KF6 for current builds. The Qt5/KF5 instructions below apply to older C-Play source versions only; the current CMake build has no `BUILD_CPLAY_WITH_QT6` switch.
 
 Read [Craft on Windows](https://community.kde.org/Get_Involved/development/Windows) and follow the guide with instruction below.
 
@@ -21,9 +17,9 @@ Use Visual Studio 2022 as compiler. (However MSYS / MinGW will be installed late
 
 Run command
 ```
-craft libs/qt6/qtbase libs/qt6/qtdeclarative libs/qt6/qtquick3d libs/qt6/qt5compat extra-cmake-modules kconfig kcoreaddons kfilemetadata ki18n kiconthemes kio kirigami kxmlgui kio-extras breeze breeze-icons qqc2-breeze-style qqc2-desktop-style zxing-cpp
+craft libs/qt6/qtbase libs/qt6/qtdeclarative libs/qt6/qtquick3d libs/qt6/qt5compat extra-cmake-modules kconfig kcoreaddons kfilemetadata ki18n kiconthemes kio kirigami kcolorscheme kwindowsystem kxmlgui kio-extras breeze breeze-icons qqc2-breeze-style qqc2-desktop-style zxing-cpp
 ```
-These are the list of packages needed for this project
+These packages provide the following dependencies:
 - Qt6Core (within Base)
 - Qt6DBus (within Base)
 - Qt6Qml (within Declarative)
@@ -39,6 +35,8 @@ These are the list of packages needed for this project
 - KF6IconThemes (kiconthemes)
 - KF6KIO (kio)
 - KF6Kirigami2 (kirigami)
+- KF6ColorScheme (kcolorscheme)
+- KF6WindowSystem (kwindowsystem)
 - KF6XmlGui (kxmlgui)
 - Kio-extras (kio-extras)
 - Breeze
@@ -46,7 +44,7 @@ These are the list of packages needed for this project
 - Breeze widgets style (qqc2-breeze-style)
 - QQC2-Desktop-Style
 
-Future optional ones:
+Optional QR-code support:
 - ZXing-Cpp (for QR-code guided presentations)
 
 ## Option 2 (older, not available from C-Play version 2.1 and newer): Build Qt5/KF5 for C-Play Master UI
@@ -61,7 +59,7 @@ Run command
 ```
 craft libs/qt5/qtbase libs/qt5/qtdeclarative libs/qt5/qtquickcontrols2 libs/qt5/qttools extra-cmake-modules kconfig kcoreaddons kfilemetadata ki18n kiconthemes kio kirigami kio-extras breeze breeze-icons qqc2-breeze-style qqc2-desktop-style
 ```
-These are the list of packages needed for this project
+These packages provide the following dependencies:
 - Qt5Core (within Base)
 - Qt5DBus (within Base)
 - Qt5Qml (within Declarative)

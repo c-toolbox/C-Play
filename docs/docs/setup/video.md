@@ -9,7 +9,7 @@ This guide is intended for installers who want to get maximum performance out of
 
 C-Play has embedded [mpv](https://mpv.io/), which is highly capable free and open-source media player. MPV can be configured in many ways to maximize performance based on your system.
 
-For reference, at the moment, the latest C-Play comes shipped with compilation of the mpv 0.36 library, and a backend of the latest ffmpeg 5.1 version.
+The bundled mpv and FFmpeg versions depend on the C-Play build. Check the libraries supplied with your installation when choosing decoder options; older releases and custom builds may support different options.
 
 ## MPV configuration files
 
@@ -57,20 +57,22 @@ Usually the nodes are frame-synced, but the master is not. Because of that, we w
  
 ## H264 vs H265
 
+For preparing and encoding media for C-Play, use [C-Slice](https://c-toolbox.github.io/C-Slice/). Its [encoding guide](https://c-toolbox.github.io/C-Slice/guides/media/encoding.html) covers codec, frame-rate, and quality settings; see [video preparation](/media/video#prepare-videos-with-c-slice) for pre-splitting content to match your SGCT setup.
+
 C-Play has been mostly tested with video files encoded with either H264 or H265, as they are very common formats around and well supported by various decoder libraries integrated in MPV.
 
 ### Pros/cons of H264
 
 H264 has been around for quite some time, but it is still a widely used format. It is fast to encode, takes reasonably little space, and is fast to decode depending on bitrate.
-However, the specs limit H264 to 4K videos. You are allowed to go beyond that, to for instance encode a 4K 3D side-by-side video with H264, ending up with a 8Kx2K video.
+Hardware H264 decoders commonly impose resolution limits. A side-by-side stereo file can exceed those limits even when each eye fits: two 3840 × 2160 views produce a 7680 × 2160 frame.
 
-C-Play will load and play this video. However, even if you specified the use of a GPU decoding library such as nvdec, the GPU will not allow that video to be decoded because it is outside the specification. So C-Play will play it using the CPU decoder, which is not restricted in the same way.
+C-Play will load and play this video. However, even if you specified the use of a GPU decoding library such as nvdec, hardware decoding can fail if the file exceeds the GPU decoder's supported dimensions, profile, or level. So C-Play will play it using the CPU decoder, which is not restricted in the same way.
 
 ### Pros/cons of H265
 
 H265 is a newer format and a premier choice for streaming 4K content and beyond. While it takes longer to encode, it produces higher quality at smaller bitrates and results in smaller files than H264 at the same quality.
 
-However, H265 is much more complex to decode, and you might notice that if you try to play H265 files on the CPU with C-Play, it struggles a bit. However, the structure of H265 makes it much more suitable to be better decoded on the GPU. And the resolution specification of H265 goes up to 8K, meaning that a GPU decoding library (such as nvdec) will allow a 4K 3D side-by-side video (8K x 2K) in H265 to be decoded on the GPU.
+However, H265 is much more complex to decode, and you might notice that if you try to play H265 files on the CPU with C-Play, it struggles a bit. However, the structure of H265 makes it much more suitable to be better decoded on the GPU. A capable HEVC GPU decoder can handle a side-by-side 4K-per-eye file (7680 × 2160), but support depends on the GPU, bit depth, chroma format, profile, and driver. Test representative files on your actual playback machines.
 
 ## Per-file MPV options
 
@@ -83,10 +85,11 @@ Per-file options are defined in JSON files placed directly in the *data/mpv-conf
 * *\<name\>_video.json* — video layers
 * *\<name\>_audio.json* — audio layers
 * *\<name\>_stream.json* — stream layers
+* *\<name\>_youtube.json* — YouTube layers
 
 The *\<name\>* part is what identifies the option set in the user interface, so a file named *transparent_video.json* shows up as *transparent* for video layers. You can create as many option sets as you need, and the same name can be used with different suffixes to cover several layer types.
 
-C-Play ships with one such file, *transparent_video.json*, described below. The available files are scanned at runtime, so new files added to *data/mpv-conf* appear in the UI without restarting.
+Included presets cover transparent video (`transparent_video.json`), low-latency RTSP (`rtsp-tcp-lowlatency_stream.json`), and YouTube (`youtube_youtube.json`). The transparent-video preset is described below. The available files are scanned at runtime, so new files added to *data/mpv-conf* appear in the UI without restarting.
 
 ### Selecting options for a layer
 
@@ -94,16 +97,18 @@ Open the layer's view from the master UI. Video and audio layers have a **"Video
 
 When an option set is selected, C-Play first applies the global configuration (*all.json* and *master-only.json* / *nodes-only.json*) and then loads the per-file options, so the per-file values take precedence over the global ones. Changing the selection re-applies the options to the layer's already running MPV instance.
 
-The selection is stored as part of the layer, so it is saved in *.cplayfile* files and synced to the nodes in a cluster setup (master and nodes must run the same C-Play version, and the option file must exist in *data/mpv-conf* on all computers).
+The selection is stored as part of the layer, so it is saved in the presentation's `.cplaypres` file and synced to the nodes in a cluster setup (master and nodes must run the same C-Play version, and the option file must exist in *data/mpv-conf* on all computers).
 
 ### Example: transparent videos
 
 C-Play supports playing back transparent videos, which have been tested with both VP9 and HAP formats. This is implemented as the shipped *data/mpv-conf/transparent_video.json* option file, which contains:
 
 ```json
-	"hwdec": "no",
-	"alpha": "yes",
-	"vd": "libvpx-vp9,libvpx"
+{
+    "hwdec": "no",
+    "alpha": "yes",
+    "vd": "libvpx-vp9,libvpx"
+}
 ```
 
 To use it, open the layer view of the video layer and select *transparent* in the **"Video Options"** dropdown.

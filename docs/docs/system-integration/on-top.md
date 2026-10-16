@@ -18,6 +18,8 @@ Common examples are:
 
 ## Always on top
 
+Use windowed SGCT node windows for this workflow. Exclusive fullscreen windows do not support per-pixel desktop transparency, and the always-on-top control is disabled when all node windows are fullscreen.
+
 The **window on-top** action keeps the node display window above other operating-system windows. Toggle it from the C-Play header using the window on-top action described in [Views](/playback/views#always-on-top).
 
 You can also make this active at startup with **Node windows always on top at startup** in [Window & UI settings](/settings/window_and_ui).
@@ -43,6 +45,8 @@ Typical workflow:
 This is a local-compositing technique. The application behind C-Play is not captured as a C-Play texture; it is simply visible because the C-Play node window is transparent or hidden.
 
 ---
+
+Choose **Node window opacity mode** in [Window & UI settings](/settings/window_and_ui#node-window-behavior): **Complete window** fades the content and window together; **Content-based (alpha channel)** fades the background while preserving rendered content's alpha. Use the latter for overlays that must remain visible above another application. Reconnect and restart nodes after changing the mode, as described in the settings guide.
 
 ## Use C-Play layers above another app
 

@@ -23,7 +23,7 @@ The 3D view supports an interactive camera with orbit controls, letting you rota
 
 #### Navigating the 3D view
 
-The camera starts at the centre of the rendered sphere/dome, looking straight forward. All navigation is done with the mouse directly in the 3D view:
+By default, the camera starts at the centre of the rendered sphere/dome, looking straight forward. A saved startup camera position and rotation override this default. All navigation is done with the mouse directly in the 3D view:
 
 | Input | Action |
 |:---|:---|
@@ -32,7 +32,7 @@ The camera starts at the centre of the rendered sphere/dome, looking straight fo
 | **Ctrl + left-click + drag** | *Manipulate the selected layer* with the operation configured for Ctrl in the [Presentation settings](/settings/presentation) (default: aim at pointer). Spheres rotate with the pointer (horizontal → yaw, vertical → pitch), domes horizontally only. With no layer selected it orbits like plain dragging. |
 | **Alt + left-click + drag** | Same as Ctrl+drag, but using the operation configured for Alt in the [Presentation settings](/settings/presentation). |
 | **Shift + left-click + drag** | Same as Ctrl+drag, but using the operation configured for Shift in the [Presentation settings](/settings/presentation) (default: resize plane size). |
-| **Double-click** | *Reset the camera* back to its original position and orientation (centre of the scene, no rotation). Zoom level and orbit rotation are both restored. |
+| **Double-click** | *Reset the camera* back to its saved startup position and orientation (by default, the centre of the scene with no rotation). Zoom level and orbit rotation are both restored. |
 
 A press only becomes a drag after the pointer has moved a few pixels, so a double-click never accidentally rotates the view or moves a layer.
 

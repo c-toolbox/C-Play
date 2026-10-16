@@ -5,60 +5,44 @@ sidebar_position: 5
 
 # Build and save video description files (*.cplayfile)
 
- C-Play can open any format that MPV supports, which is basically any format that the included FFmpeg libraries support.
+A `.cplayfile` stores a media path and the settings needed to reopen it correctly. Use one for videos whose mapping, audio track, overlay, orientation, or sections need to be restored. It references the media files; it does not embed or copy them.
 
- However, it is good practice to build a ".cplayfile" for all your video files, to store all of the descriptive settings, which C-Play gets from MPV or which can be user-defined.
- 
- These user defined settings are:
+## Saved settings
 
- * Media title
- * Stereoscopic mode
-     * 2D (mono)
-     * 3D (side-by-side)
-     * 3D (top-bottom)
-     * 3D (top-bottom+flip)
-* Grid mode
-     * None (pre-split / prepared content. no mapping)
-     * Plane (regular flat content with various aspect ratios)
-     * Dome (180 fulldome/fisheye projection)
-     * Sphere EQR (360 equirectangular projection)
-     * Sphere EAC (360 equi-angular cubemap projection)
-* Separate Audio File
-     * C-Play supports embedded audio tracks in the video; however, through this option a separate file can be loaded (on the master) as the default selected audio track.
-* Separate Overlay File
-     * C-Play supports loading an overlay image file (such as *.png or *.jpg) to be put on top of the video. This might be useful when mapping a static world map on top of a video showing ocean flow, for instance. This overlay file needs to be loaded with the video and can only be defined in a *"*.cplayfile*".
-* Orientation *(new in v2.3)*
-     * When using dome or sphere grid modes, the current viewing orientation (yaw, pitch, roll) can be saved into the *.cplayfile*. For dome mappings only the yaw is stored; for sphere mappings (EQR and EAC) all three axes are saved. Enable the *"Save orientation"* checkbox in the save dialog when the current orientation differs from the default. On load, the saved orientation is restored automatically.
+* **Media title** — The name shown in the player and playlist.
+* **Stereoscopic mode** — 2D (mono), 3D side-by-side, 3D top-bottom, or 3D top-bottom+flip.
+* **Grid mode** — None (pre-split), Plane, Dome, Sphere EQR, or Sphere EAC. See [mapping modes](/media/mapping).
+* **Separate audio file** — An external audio track selected when the media loads. Make it available on each machine configured to play audio.
+* **Separate overlay file** — An image, such as PNG or JPEG, mapped on top of the video. Use the same grid and stereoscopic layout as the video.
+* **Multi-video composition** — An optional `.cplaymulti` configuration for per-node video entries. See [multi-video composition](/media/cplaymulti#integration-with-cplayfile-c-play-file).
+* **Orientation** (v2.3 and newer) — Enable **Save orientation** in the save dialog to restore the current viewing direction. Dome mapping saves yaw; sphere mappings (EQR and EAC) save yaw, pitch, and roll.
 
 ## Sections
 
-Sections are a concept similar to, but more powerful than, bookmarks or chapters in a video. Every section has a title, start time, end time and eos(*end of section*) mode.
-
-Basically, a section is a piece of the video that can be triggered easily, with various *end behaviors* depending on eos mode. The different eos modes are:
+Sections define named ranges within a video. Each has a title, start time, end time, and end-of-section (EOS) behavior:
 
 * Pause
 * Fade out video, then pause
-* Continue video (do not pause)
+* Continue video
 * Next section
 * Loop section
 
-The sections view, where sections are created and managed, is opened in the bottom right (or bottom left, depending on settings). 
+Open the sections panel beside the playlist. Its position follows the [playlist layout setting](/settings/playlist). Enter start and end times manually, or capture them from the current playback position.
 
-It should be straight-forward to build sections, and while you can edit start and stop time manually, you can easily grab them from the current time in the video.
+## Create a .cplayfile
 
-## Workflow for *.cplayfile creation
+1. Open the media file in C-Play.
 
-1. Just load the video (mp4 etc) in C-Play. 
+   If **Load audio files in same folder** is enabled in [Audio settings](/settings/audio), adjacent audio files appear as additional tracks.
 
+2. In the header, choose the audio track, stereoscopic mode, and grid mode. Check the result in your display environment.
+3. Optionally define sections and set the viewing orientation.
+4. Click **Save As C-Play File** in the header.
 
-If the setting *"Load audio files in same folder as video file"* in the audio configuration settings is checked, any adjacent audio file will be loaded as an audio track as well.
+   ![Save As C-Play File](/assets/ui/saveAsCplayfile.png)
 
-1. In the header menu, select correct *"Audio File"*, *"Stereo (2D or 3D) mode"* and *"Grid Mode"*, such that your video is combined with desired audio track and looks correct in your environment (arena, dome etc).
+   The dialog starts with the current settings. Review the title, paths, mapping, and optional overlay before saving.
 
-1. Optionally, define "*Sections*" for your movie/video if you want to have users jump to certain pre-defined locations.
+5. Click **Save C-Play File**. Use the **Common C-play file location** configured in [Location settings](/settings/location) to keep descriptions together and simplify relative paths.
 
-1. Click the button *"Save As C-Play File"* in the header menu, which will open the dialog below.
- ![Save As CPlayfile](/assets/ui/saveAsCplayfile.png)
- The dialog will already be pre-defined with the current user defined values currently chosen in C-Play. You can change any value here before you save as well, and optionally add an overlay image as well.
-
- 1. Click "*Save C-Play File*" to save it, preferably in the folder you defined in the "*General settings*" as "*Common C-play file location*", which if set, is the start location when this dialog opens.
+Reopen the saved file to check that the intended media and settings are restored before adding it to a [playlist](/media/cplaylist).

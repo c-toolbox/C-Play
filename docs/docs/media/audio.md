@@ -5,9 +5,9 @@ sidebar_position: 4
 
 # Audio files in C-Play
 
-C-Play is designed to handle audio playback and files only on the master PC, which runs the master UI. The nodes should only handle video/image rendering.
+By default, audio plays on the master PC and nodes render video and images. From C-Play v2.2, audio can also play on nodes. Enable the required outputs in [Audio settings](/settings/audio); make external audio files available on each machine that plays them.
 
-The master supports embedded audio in the video files, or "side-loading" of audio files next to the video file.
+C-Play supports embedded audio in the video files, or "side-loading" of audio files next to the video file.
 
 The "side-loading" is enabled in "Settings -> Configure -> Audio":
 

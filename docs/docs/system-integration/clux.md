@@ -39,8 +39,10 @@ Preview mode is meant for building up a look without touching the real lights: e
 
 Losing the connection (server restart, network drop) falls back to preview mode locally; the queue of unsent changes is kept for the next time live mode is entered.
 
-:::note Preview rendering
+:::note[Preview rendering]
+
 The local renderer reproduces the static, sine wave, gradient, and rainbow patterns plus the solid work-light layer with the server's blending. A Video pattern has no local implementation yet, so it contributes nothing to a preview frame, and scene cross-dissolves switch at once instead of easing over the server's transition time.
+
 :::
 
 ## Editor controls

@@ -29,7 +29,7 @@ A sample Medialon Manager 7 project demonstrating these commands is available [h
 
 Endpoints are divided into two categories:
 
-- **GET + POST** — retrieval/get-set endpoints that support both methods. The **GET** handler returns only the current value (no parameters required). The **POST** handler can both set and return values.
+- **GET + POST** — retrieval/get-set endpoints that support both methods. The **GET** handler reads the current value; some endpoints require a target or accept formatting parameters. **POST** can also set values on endpoints that document a setter parameter. Retrieval-only endpoints remain read-only with either method.
 - **POST only** — action endpoints that trigger a state change and only accept POST.
 
 ### GET + POST endpoints
@@ -106,7 +106,7 @@ The additional GET-only endpoints `/tcp/servers`, `/tcp/commands`, `/event_topic
 | `/grid_mode` | GET, POST | — | Get grid/mapping mode | `0`–`4` (see below) |
 | `/eof_mode` | GET, POST | — | Get end-of-file mode (alias: `/loop_mode`) | `0`–`2` (see below) |
 | `/loop_mode` | GET, POST | — | Get end-of-file mode | `0`–`2` (see below) |
-| `/view_mode` | GET, POST | `mode=` *(optional)* — `0` or `1` | Get or set 2D/3D view mode | `0`–`1` (see below) |
+| `/view_mode` | GET, POST | `mode=` *(optional)* — `0` or `1` | Get or set automatic/forced-2D stereo display | `0`–`1` (see below) |
 
 **Stereo mode values:**
 
@@ -136,6 +136,8 @@ The additional GET-only endpoints `/tcp/servers`, `/tcp/commands`, `/event_topic
 | `2` | Loop |
 
 **View mode values:**
+
+This endpoint controls stereo display on the cluster. It does not select the master's flat, perspective, or fisheye preview described in [Views](/playback/views).
 
 | Value | Mode |
 |:-:|------|
@@ -195,8 +197,8 @@ The additional GET-only endpoints `/tcp/servers`, `/tcp/commands`, `/event_topic
 | Endpoint | Method | Params | Description | Returns |
 |----------|--------|--------|-------------|---------|
 | `/slide_name` | GET, POST | — | Get current slide name | Slide name, or empty string |
-| `/slide_previous` | POST | — | Go to previous slide | `"Previous slide"` |
-| `/slide_next` | POST | — | Go to next slide | `"Next slide"` |
+| `/slide_previous` | POST | — | Step back through animation click steps, or go to the previous slide | `"Previous slide"` |
+| `/slide_next` | POST | — | Play the next pending animation click step, or go to the next slide | `"Next slide"` |
 | `/slides` | GET, POST | `charsPerItem=` *(optional)* | Get formatted slide list | Text list |
 | `/playing_in_slides` | GET, POST | — | Current slide index (`-1` = master) | Index |
 | `/select_from_slides` | POST | `index=` *(required)* | Select slide (pre-loads layers) | Confirmation or error |

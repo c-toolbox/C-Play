@@ -23,7 +23,7 @@ vcpkg install jack2
 
 ## Option 1: Build mpv and ffmpeg from MINGW-packages
 
-As of writing (2026-09-01) this is mpv 0.41 and ffmpeg 9.0.1.
+The checked-in package recipes were recorded on 2026-09-01 for mpv 0.41 and FFmpeg 9.0.1. Upstream package versions change; these numbers do not identify the libraries in every C-Play release.
 
 This is easiest if you want the latest libraries. However, Option 2 gives you more control and can therefore maximize performance in C-Play for specific configurations.
 
@@ -100,9 +100,9 @@ After packing, according to the same steps as for *ffmpeg* above, run:
 pacman -U mingw-w64-*-mpv-*-any.pkg.tar.zst
 ```
 
-Create an environmental variable called "PKG_CONFIG_PATH" and add the path "MSYS64_INSTALL_ROOT\ucrt64\lib\pkgconfig". Also add the "MSYS64_INSTALL_ROOT\ucrt64\bin to your environmental "Path".
+Create an environmental variable called "PKG_CONFIG_PATH" and add the path "MSYS64_INSTALL_ROOT\ucrt64\lib\pkgconfig". Also add the "MSYS64_INSTALL_ROOT\ucrt64\bin" to your environment "Path".
 
-Go to point 3 (last section) below to create library for compiling.
+Go to [MSVC linking](#3-after-mpv-compilation-linking-mpv-with-msvc-programs) below to create library for compiling.
 
 ## Option 2: Build custom mpv and ffmpeg with *m-ab-s*
 
@@ -120,7 +120,7 @@ pacman -S mingw-w64-ucrt-x86_64-jack2
 
 - Change the MPV git path from master to release if you want, by opening the file build\media-suite_deps.sh and replace in line 73 "https://github.com/mpv-player/mpv.git" with "https://github.com/mpv-player/mpv.git#release/0.36".
 
-- My setup: Just copy over these [FFmpeg Options](https://raw.githubusercontent.com/c-toolbox/C-Play/master/help/configurations/gplv3/ffmpeg_options.txt), [MPV Options](https://raw.githubusercontent.com/c-toolbox/C-Play/master/help/configurations/gplv3/mpv_options_new.txt) and [Media Build Suite Configuration](https://raw.githubusercontent.com/c-toolbox/C-Play/master/help/configurations/gplv3/media-autobuild_suite.ini) to the build folder. The latest FFmpeg 5.1 will be used in this configuration.
+- My setup: Just copy over these [FFmpeg Options](https://raw.githubusercontent.com/c-toolbox/C-Play/master/help/configurations/gplv3/ffmpeg_options.txt), [MPV Options](https://raw.githubusercontent.com/c-toolbox/C-Play/master/help/configurations/gplv3/mpv_options_new.txt) and [Media Build Suite Configuration](https://raw.githubusercontent.com/c-toolbox/C-Play/master/help/configurations/gplv3/media-autobuild_suite.ini) to the build folder. This historical configuration pins FFmpeg to the `release/5.1` branch; it does not track the current FFmpeg release.
     - Alternatively, do not copy over these files, but during configuration, disable as many encoder as possible, as we want focus on decoding for the player. Also, choose to build ffmpeg with shared libs only, do not strip build files. When asked to edit the FFmpeg options file, add 'jack' to the configuration file.
 ```
 # Enable JACK

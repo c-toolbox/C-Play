@@ -39,8 +39,10 @@ Open **Settings -> MediaMTX Streams...** and fill in the server form:
 
 Press **Add New** to store the server. Servers are saved in `data/mediamtx-servers.json`.
 
-:::warning Passwords are not saved
+:::warning[Passwords are not saved in the server list]
+
 The password is kept in memory for the current C-Play session only and is never written to `data/mediamtx-servers.json`. Re-enter it after restarting C-Play — or store it once in the **Windows Credential Manager** (see below).
+
 :::
 
 ### Windows Credential Manager
@@ -68,11 +70,11 @@ The stream list shows every active path on the server, plus configured paths tha
 Select a stream, pick the **Protocol** (RTSP, SRT, or WebRTC — prefer WebRTC when it is offered, since it gives the lowest latency), and choose:
 
 * **Add As Layer** - creates a Stream layer on the currently selected slide using the RTSP URL or an SRT URL (`srt://host:8890/path`), or a WebRTC layer using the WHEP URL (`http://host:8889/path/whep`) when WebRTC is selected.
-* **Save To Predefined Streams** - appends the stream to `data/predefined-streams.json` so it shows up in the normal predefined stream list on every machine that has the same file. Available for RTSP and SRT, because the predefined stream list is consumed by mpv-based Stream layers; WebRTC is not offered here, since WHEP URLs are ephemeral.
+* **Save To Predefined Streams** - appends the stream to `data/predefined-streams.json` so it shows up in the normal predefined stream list on every machine that has the same file. Available for RTSP and SRT, because the predefined stream list is consumed by mpv-based Stream layers; WebRTC is not offered here because WHEP requires a WebRTC layer rather than an mpv-based Stream layer. A WHEP endpoint can be stable when its stream path is fixed.
 
 WebRTC is only offered as a protocol when both of these hold:
 
-1. The server has WebRTC enabled (`webrtc: yes` in `mediamtx.yml`). C-Play reads this from the global configuration on every fetch; if it is missing or disabled, only RTSP is shown.
+1. The server has WebRTC enabled (`webrtc: yes` in `mediamtx.yml`). C-Play reads this from the global configuration on every fetch; if it is missing or disabled, WebRTC is not offered; SRT availability is checked separately.
 2. This C-Play build was compiled with WebRTC support (the **WebRTC** layer type exists in the Add Layer dialog).
 
 SRT is only offered as a protocol when both of these hold:
@@ -88,8 +90,10 @@ If the MediaMTX paths require authentication for reading, enable **Include crede
 
 SRT URLs never carry credentials — **Include credentials in URL** is disabled for SRT. MediaMTX matches SRT readers against the path name and authenticates them by IP allowlist (`ipWhitelist`) or a path-level SRT passphrase (`srtPassphrase`), not by `user:password@`.
 
-:::warning
-Saving a stream with credentials to the predefined stream list writes the password to `data/predefined-streams.json` in clear text. Prefer read-open paths, or IP-based authentication in MediaMTX, for cluster setups.
+:::warning[Saved URLs can contain passwords]
+
+Saving a stream with credentials to the predefined stream list writes the password to `data/predefined-streams.json` in clear text. A layer created with credentials in its URL also retains them when the presentation is saved. Prefer read-open paths, or IP-based authentication in MediaMTX, for cluster setups.
+
 :::
 
 ## Playback options
@@ -110,4 +114,4 @@ Additional presets can be added as `data/mpv-conf/<name>_stream.json`.
 
 ## Cluster notes
 
-A MediaMTX stream layer stores its playback URL (RTSP or SRT) directly, so every node in the cluster connects to the same server address. If nodes should pull from different servers, save the stream to `data/predefined-streams.json` and then edit that entry to use the per-node `paths` map or a `pathTemplate`, as described in the predefined stream documentation.
+A MediaMTX stream layer stores its playback URL (RTSP or SRT) directly, so every node in the cluster connects to the same server address. If nodes should pull from different servers, save the stream to `data/predefined-streams.json` and then edit that entry to use the per-node `paths` map or a `pathTemplate`, as described in [Per-node resolution in clusters](/media/layers#per-node-resolution-in-clusters).

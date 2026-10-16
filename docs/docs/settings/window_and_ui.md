@@ -56,7 +56,7 @@ Windowed node windows use an opaque framebuffer in the default complete-window m
 ### Open file behavior
 
 * **Show mapping mode on open file** — When opening non-`.cplayfile` files, prompt for the grid mapping mode to use (default on).
-* **Use native file/folder dialogs when available** — When opening file or folder dialog, the default is to use Windows native dialogs, but they can sometimes fail. C-Play handles this and launches the Qt/QML version if this happens. But turning of this checkbox makes us always show the Qt/QML version.
+* **Use native file/folder dialogs when available** — When opening file or folder dialog, the default is to use Windows native dialogs, but they can sometimes fail. C-Play handles this and launches the Qt/QML version if this happens. Clear this checkbox to always use the Qt/QML dialog.
 
 ### Theme and appearance
 

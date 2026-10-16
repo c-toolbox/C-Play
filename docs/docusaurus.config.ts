@@ -27,10 +27,11 @@ const config: Config = {
   onBrokenLinks: 'throw',
 
   markdown: {
-    // future.v4 would otherwise parse .md as plain CommonMark, disabling admonitions.
+    // Keep MDX components in .md pages with future.v4 enabled.
+    // Admonition titles use directive labels: :::note[Title].
     format: 'mdx',
     hooks: {
-      onBrokenMarkdownLinks: 'warn',
+      onBrokenMarkdownLinks: 'throw',
     },
   },
 
@@ -91,7 +92,7 @@ const config: Config = {
         {to: '/setup', label: 'Setup', position: 'left'},
         {to: '/media', label: 'Media', position: 'left'},
         {to: '/playback', label: 'Playback', position: 'left'},
-        {to: '/remote-control', label: 'Remote control', position: 'left'},
+        {to: '/settings', label: 'Settings', position: 'left'},
         {
           href: 'https://github.com/c-toolbox/C-Play',
           label: 'GitHub',
@@ -114,8 +115,8 @@ const config: Config = {
           title: 'Guides',
           items: [
             {label: 'Media file structure', to: '/media'},
-            {label: 'Settings', to: '/settings'},
             {label: 'Playback features', to: '/playback'},
+            {label: 'Settings', to: '/settings'},
             {label: 'Remote control', to: '/remote-control'},
             {label: 'System integration', to: '/system-integration'},
           ],
@@ -128,7 +129,7 @@ const config: Config = {
           ],
         },
       ],
-      copyright: `Copyright © 2021-${new Date().getFullYear()} Erik Sundén. Distributed under a GNU General Public License v3.0.`,
+      copyright: `Copyright Â© 2021-${new Date().getFullYear()} Erik SundÃ©n. Distributed under a GNU General Public License v3.0.`,
     },
     prism: {
       theme: prismThemes.github,

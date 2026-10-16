@@ -1,5 +1,5 @@
 ---
-title: Build playlists (*.cplaylists)
+title: Build playlists (*.cplaylist)
 sidebar_position: 7
 ---
 
@@ -7,7 +7,7 @@ sidebar_position: 7
 
 Playlists in C-Play are essentially lists of [cplayfiles](/media/cplayfile), which are descriptions (mapping, sections etc) of specific videos.
 
-C-Play requires you to save a *cplayfile* of your video to make sure that the mappings and other parameters are correct between loading of different files.
+Save a `.cplayfile` for each video when its mapping, audio, or sections need to be restored on load. Playlists can also reference media files directly, as shown in the JSON example below.
 
 The playlist view, where items are created and managed, is opened in the bottom right (or bottom left, depending on settings).
 

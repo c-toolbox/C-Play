@@ -84,12 +84,12 @@ The `videos` array contains one entry per video stream to play on each node:
 | `stereoMode` | string | Optional. Stereo mode: `"No_2D"`, `"SBS_3D"`, `"TB_3D"`, or `"TBF_3D"`. Defaults to `No_2D`. |
 | `audio` | boolean | Optional. Whether to enable audio for this sub-player. Only one entry should have `audio: true` to avoid overlapping audio. Defaults to `false`. |
 | `audioFile` | string | Optional. Path to a separate audio file to load for this sub-player (mirrors cplayfile's "Separate Audio File"). If specified, the file is loaded via mpv's `audio-file` property. Defaults to empty (no separate audio). |
-| `paths` | object | **Required.** Map of node IDs to file paths (see below). |
+| `paths` | object | Map of node IDs to file paths. Supply `paths`, `pathTemplate`, or both so each intended node can resolve a file. |
 | `plane` | object | Optional. Plane grid parameters (used when `gridMode` is `"Plane"`). See [Plane Parameters](#plane-parameters) below. |
 | `rotate` | array | Optional. Rotation as `[x, y, z]` floats. Used for non-plane grid modes. Defaults to `[0, 0, 0]`. |
 | `translate` | array | Optional. Translation as `[x, y, z]` floats. Defaults to `[0, 0, 0]`. |
 | `roi` | object | Optional. Region of interest settings. See [ROI Parameters](#roi-parameters) below. |
-| `pathTemplate` | string | Optional. Fallback path template with `{nodeId}` placeholder, used when a direct lookup in `paths` fails. |
+| `pathTemplate` | string | Optional. Fallback path template with `{nodeId}` placeholder, used when a direct lookup in `paths` is missing or empty. |
 
 #### Grid Mode Values
 
@@ -120,17 +120,19 @@ The `videos` array contains one entry per video stream to play on each node:
 
 ### Per-Node File Paths
 
-Each video entry must specify which file to play on each node. There are two ways:
+Each video entry must specify which file to play on each node. There are two ways. The examples below show fields to place inside an entry in the `videos` array, rather than complete composition files:
 
 #### Direct Path Mapping (`paths`)
 
 The `paths` object maps node identifiers (from the node identity config) to file paths:
 
 ```json
-"paths": {
-  "Node1": "/path/to/video_left_Node1.mp4",
-  "Node2": "/path/to/video_left_Node2.mp4",
-  "Node3": "/path/to/video_left_Node3.mp4"
+{
+  "paths": {
+    "Node1": "/path/to/video_left_Node1.mp4",
+    "Node2": "/path/to/video_left_Node2.mp4",
+    "Node3": "/path/to/video_left_Node3.mp4"
+  }
 }
 ```
 
@@ -139,26 +141,30 @@ The `paths` object maps node identifiers (from the node identity config) to file
 As a fallback, you can use a path template with the `{nodeId}` placeholder:
 
 ```json
-"pathTemplate": "/videos/{nodeId}/left.mp4"
+{
+  "pathTemplate": "/videos/{nodeId}/left.mp4"
+}
 ```
 
 When resolved for `Node1`, this becomes `/videos/Node1/left.mp4`.
 
-The `paths` lookup takes precedence over `pathTemplate`. If neither is available or resolves to an empty string, that sub-player is skipped with a warning.
+A nonempty `paths` lookup takes precedence over `pathTemplate`. An empty path falls back to the template; it does not disable that node when a template is set. If neither is available or resolves to an empty string, that sub-player is skipped with a warning.
 
 ### Plane Parameters
 
 Plane parameters are used when `gridMode` is `"Plane"`:
 
 ```json
-"plane": {
-  "azimuth": 0.0,
-  "elevation": 0.0,
-  "roll": 0.0,
-  "distance": 100.0,
-  "width": 200.0,
-  "height": 100.0,
-  "aspect": 1
+{
+  "plane": {
+    "azimuth": 0.0,
+    "elevation": 0.0,
+    "roll": 0.0,
+    "distance": 100.0,
+    "width": 200.0,
+    "height": 100.0,
+    "aspect": 1
+  }
 }
 ```
 
@@ -177,12 +183,14 @@ Plane parameters are used when `gridMode` is `"Plane"`:
 Region of interest settings allow displaying only a portion of the video:
 
 ```json
-"roi": {
-  "enabled": true,
-  "x": 0.0,
-  "y": 0.0,
-  "w": 0.5,
-  "h": 1.0
+{
+  "roi": {
+    "enabled": true,
+    "x": 0.0,
+    "y": 0.0,
+    "w": 0.5,
+    "h": 1.0
+  }
 }
 ```
 
@@ -283,7 +291,7 @@ For `Node3`, the resolved paths would be:
 
 ## Workflow for Creating cplaymulti Files
 
-1. **Prepare your video files** — Ensure all videos are available at the paths specified in the configuration, or use path templates with `{nodeId}` placeholders. If using separate audio files, prepare those as well.
+1. **Prepare your video files** — Use [C-Slice](https://c-toolbox.github.io/C-Slice/) when you need to render and encode per-window outputs from a video or image sequence for your SGCT setup. See [video preparation](/media/video#prepare-videos-with-c-slice). Ensure all videos are available at the paths specified in the composition, or use path templates with `{nodeId}` placeholders. If using separate audio files, prepare those as well.
 
 2. **Create node identity config** — Create `./data/multivideo/nodes.json` mapping each node's IP address to a unique identifier:
    ```json
@@ -310,7 +318,7 @@ For `Node3`, the resolved paths would be:
 
 ## Integration with cplayfile (C-Play File)
 
-A `.cplaymulti` multi-video composition can be incorporated **inside a `.cplayfile`** (C-Play file). This allows you to use multi-video playback as part of a structured media file that also includes metadata such as title, sections, EOF mode, and other settings.
+A `.cplaymulti` multi-video composition can be incorporated **inside a `.cplayfile`** (C-Play file). This allows you to use multi-video playback as part of a structured media file that also includes metadata such as title, sections, and other settings. Set per-item EOF behavior in the `.cplaylist` that references it.
 
 ### How It Works
 
@@ -319,7 +327,7 @@ When creating or editing a `.cplayfile`, there is an optional **"Multi-video Com
 1. Instead of loading the media file directly, C-Play loads the multi-video composition specified in the cplaymulti file
 2. The master reference video from the cplaymulti is played on the master node for preview/timeline control
 3. All nodes receive the composition JSON and create sub-players according to their configured entries
-4. Other settings from the cplayfile (title, sections, EOF mode) still apply
+4. Other settings from the cplayfile (title and sections) still apply; the containing playlist supplies its item's EOF mode
 
 ### Example
 
@@ -327,15 +335,13 @@ In a `.cplayfile`, you can specify:
 
 ```json
 {
-  "mediaFile": "/data/Media/Domtest_8K_30_H265/Domtest_Sliced/GUI/DomeTest.mp4",
-  "multivideoConfig": "./data/multivideo/single_node.cplaymulti",
-  "useMultivideoConfig": true,
-  "title": "Stereoscopic Dome Show",
-  "eofMode": 2
+  "video": "/data/Media/Domtest_8K_30_H265/Domtest_Sliced/GUI/DomeTest.mp4",
+  "multivideo": "./data/multivideo/single_node.cplaymulti",
+  "title": "Stereoscopic Dome Show"
 }
 ```
 
-When `useMultivideoConfig` is `true` and `multivideoConfig` points to a valid `.cplaymulti` file, C-Play will:
+The saved file uses the `multivideo` key; `useMultivideoConfig` is an application property, not a JSON field. When `multivideo` resolves to a valid `.cplaymulti` file, C-Play will:
 - Load the multi-video composition instead of the single media file
 - Use the master reference video from the cplaymulti for preview
 - Sync the full composition to all cluster nodes

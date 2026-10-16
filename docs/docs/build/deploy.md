@@ -3,53 +3,50 @@ title: Deploy C-Play with all dependencies
 sidebar_position: 3
 ---
 
-# Deploy(installer maker) guide of C-Play
+# Deploy C-Play and build an installer
 
-After building C-Play, with Craft and MPV, you would want to deploy it to a working directory, and optional build an installer.
+After building C-Play, install it into a separate staging directory with the Qt/KF, mpv, plugin, QML, and optional-library dependencies it needs. Use a staging directory separate from your source, dependency installations, and existing show installation.
 
-Too make it standalone, you need to copy/install all dependencies including all DLL:s (For Qt, KF and MPV etc) and QML files alongside the executable.
+## Configure installation
 
-First, make sure your *CMAKE_INSTALL_PREFIX* is set to the folder you want to copy everything to.
+Set `CMAKE_INSTALL_PREFIX` to the staging directory and enable `CPLAY_INSTALL_DEPENDENCIES`. Reconfigure CMake to expose the dependency-copy options:
 
-Shared "delay-loading" can be tricky to follow, so some manual try/error can be expected of which DLLs are needed for C-Play to start.
-For copying the correct source (as of Craft with 5.15 LTS) and MPV through current guide, simply enable *CPLAY_INSTALL_DEPENDENCIES* in CMake.
+| Option | What it copies |
+| --- | --- |
+| `CPLAY_INSTALL_ITEMS_TO_DATA` | Selected application data, including configuration files, fonts, and media-related resources. |
+| `CPLAY_INSTALL_PLUGINS_FROM_CRAFT` | Qt/KDE plugin DLLs from the Craft installation. |
+| `CPLAY_INSTALL_QML_FROM_CRAFT` | QML modules and their runtime files from Craft. |
+| `CPLAY_INSTALL_GET_RUNTIME_DEPENDENCIES` | DLLs found through CMake's runtime dependency scanner. |
+| `CPLAY_INSTALL_DLLS_FROM_PATHS` | DLLs from the directories in `CPLAY_INSTALL_DLLS_FROM_PATH_LIST`, processed in list order. |
 
-The following options become visible below (and executed in this order): 
+The current build does not provide `CPLAY_INSTALL_ITEMS_FROM_DATA` or `CPLAY_INSTALL_PREDEFINED_DLL_LIST`; use the options above.
 
-* *CPLAY_INSTALL_ITEMS_FROM_DATA*: Does copy all files from C-Play data source into the install directory.
+The source recommends copying DLLs from configured paths on Windows 11, where runtime dependency scanning has caused conflicts. Review `CPLAY_INSTALL_DLLS_FROM_PATH_LIST` for your dependency locations, especially when optional backends are enabled. Avoid mixing DLLs from incompatible versions or build configurations.
 
-* *CPLAY_INSTALL_PLUGINS_FROM_CRAFT* : Copy all plugins (dlls) from Craft build
+When available beside the detected mpv library, `mpv.exe` and `ffmpeg.exe` are copied automatically. A detected yt-dlp executable and its optional `_internal` directory are installed under `bin/plugins/yt-dlp`.
 
-* *CPLAY_INSTALL_QML_FROM_CRAFT* : Copy all qml files from Craft build
+## Install and verify the staged application
 
-* *CPLAY_INSTALL_PREDEFINED_DLL_LIST* : Will copy a predefined list of DLLs from Craft and MPV bin folders (made manually and then printed with *"dir /b *.dll > dll_list.txt*"). The easiest approach of generating your own (if this does not work), is coping all dlls from craft etc to the bin directory, launch C-Play and then try to delete all dlls. The ones that cannot be deleted is the ones to keep.
+Run the **INSTALL** target in Visual Studio, or use the matching configuration from the command line:
 
-* *CPLAY_INSTALL_GET_RUNTIME_DEPENDENCIES*: Runs a cmake command to look for any direct dependencies of C-Play, in the QMAKE/CRAFT and MPV build directories. To complete the pre-defined list (which only fetches from CRAFT/QMAKE directory). 
-*NOTE*: On Windows 11, this seems to copy over many unnecessary DLLs that cause bad behavior and crashes (when in wrong position). So should not be used, use *CPLAY_INSTALL_DLLS_FROM_PATHS* below instead. 
-
-* *CPLAY_INSTALL_DLLS_FROM_PATHS*: This option copies all DLLs located in the *CPLAY_INSTALL_DLLS_FROM_PATH_LIST* variable to the INSTALL/bin folder. These are copied from first to last in the list. First time this variable is created, it will fill the list with paths based on the location of various dependencies. The protocol is then to launch C-Play and then try to delete all dlls. The ones that cannot be deleted is the ones to keep.
-
-Run *INSTALL* from Visual Studio to trigger a complete install/copy operation for each of the above options.
-Then your *CMAKE_INSTALL_PREFIX/bin* should include a working standalone solution of C-Play.
-
-* NOTE: Remember to remove the Visual Redist DLLs which might be present in the directory.
-
-```
-concrt*.dll     Concurrency Runtime Library for native code
-msvcp*.dll      C++ Standard Library for native code
-vcamp*.dll      AMP Library for native code
-vcomp*.dll      OpenMP Library for native code
-vcruntime*.dll  Runtime Library for native code
+```powershell
+cmake --build build --config Release
+cmake --install build --config Release
 ```
 
-## Build installer
+Replace `build` with your CMake build directory. The staged executable and runtime files are placed under `CMAKE_INSTALL_PREFIX/bin`.
 
-After INSTALL has been run in Visual Studio, it is time to make an installer by following these steps:
+Launch from that `bin` directory so relative `data/` paths resolve correctly. Test startup, file playback, audio, QML dialogs, and each optional input used in your show. Also test on a machine without the development environment's dependency directories on `PATH`.
 
-1. Download the latest [Visual Studio redistributable](https://aka.ms/vs/17/release/vc_redist.x64.exe) to the */bin* folder to be launched during installation of C-Play.
+Windows keeping a DLL locked while C-Play runs is not a complete dependency check: delayed plugins and codecs may only load when their features are used. If reducing package size, work on a copy of the staging directory and retest every required feature after removing files.
 
-1. Run the *CPlay_Pack.nsi* script, now present in the install directory, to make an installer.
+## Build an installer
 
-1. The installer is now ready...
+1. Install NSIS on the packaging machine.
+2. Run **INSTALL** to populate the staging directory. It also copies the generated `CPlay_Pack_Installer.nsi` and `CPlay_Pack_Zip.bat` scripts to its root.
+3. Compile `CPlay_Pack_Installer.nsi` with NSIS from the staging directory, where `bin/` and `LICENSE.txt` are available. The script packages the staged `bin/` tree.
+4. Test the installer on a separate machine before distributing it to the cluster.
 
-*Note: It's recommended to also copy the mpv.exe into the /bin folder before making the installer, as this is a useful tool for looking into media specifics.*
+The current NSIS script does not launch a Visual C++ Redistributable installer. Ensure the target machines have the runtime required by your MSVC build; placing `vc_redist.x64.exe` in `bin/` only includes that file in the package. If you change the installer to install the runtime, test that step as part of packaging.
+
+For a ZIP distribution, use the generated `CPlay_Pack_Zip.bat` script and verify the extracted application in the same way.

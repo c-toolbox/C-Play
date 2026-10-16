@@ -29,6 +29,6 @@ For simplicity, you can choose to sync the fading of volume and visibility, so t
 
 The button at the far right of the header controls the overall sync between the master and the clients/nodes: ![](/assets/icons/network-connect-lime.svg) (sync on) or ![](/assets/icons/network-disconnect-crimson.svg) (sync off). Normally, this should always be *On*, but if you want to load, seek, and alter many settings at once, it can be useful to set *"Sync Off"* and then turn it back on when everything is ready.
 
-Keep in mind that audio playback is performed on the master, so if you wanted the media to keep playing on the nodes, while you load new media on the master, this will work with the video/image file, but not with the audio.
+With the default audio routing, audio playback is performed on the master, so if you wanted the media to keep playing on the nodes, while you load new media on the master, this will work with the video/image file, but not with the audio.
 
 Also, media visibility is the only property not affected by this state. It is always synced, no matter what.

@@ -27,29 +27,46 @@ C-Play supports media that is:
 - Any "flat" media with arbitrary aspect ratio
 
 Primary media, such as video and images, is easily opened and configured through playfiles and added to playlists for a standard media player setup.
+
+For video preparation and pre-splitting to match your display setup, use [C-Slice](https://c-toolbox.github.io/C-Slice/). See [video preparation](/media/video#prepare-videos-with-c-slice) for how its outputs are used in C-Play.
+
 An additional powerful feature in C-Play is the presentation tool, where you can add an arbitrary number of layers within slides using numerous inputs, such as:
 
-- *Images* (PNG, JPG, TIFF, WEBP etc)
+- [*Images*](/media/layers#image) (PNG, JPG, TIFF, WEBP etc)
 
-- *PDF* (Common export format from PPT)
+- [*PDF*](/media/layers#pdf) (Common export format from PPT)
 
-- *Videos* (H264, HEVC/H265, AV1/H266, VP9 etc) 
+- [*Videos*](/media/layers#video) (H264, HEVC/H265, AV1, H.266/VVC, VP9 etc)
 
-- *Audio* (WAV, AAC, MP3 etc)
+- [*MultiVideo*](/media/layers#multivideo) (Multiple synchronized videos with per-node files and separate mappings, including left/right eye views)
 
-- *NDI* or *OMT* (Live video/audio over the network)
+- [*Audio*](/media/layers#audio) (WAV, AAC, MP3 etc)
 
-- *Spout* or *DirectShow* (Texture sharing from other apps or local camera/capture cards and similiar sources.)
+- [*NDI*](/media/layers#ndi) or [*OMT*](/media/layers#omt) (Live video/audio over the network)
 
-- *Streams* (Live streaming over SRT (UDP) or RTSP — camera feeds, capture cards, encoders, and other MPV-compatible live inputs)
+- [*Spout*](/media/layers#spout) (GPU video shared by another local Windows application)
 
-- *YouTube* (Single video URLs played as VOD layers with full player controls, resolved by yt-dlp *(Added in 2.4)*)
+- [*DirectShow*](/media/layers#directshow) (Windows cameras, capture devices, or media played through system decoders)
 
-- *WebRTC* (Low-latency streaming from anywhere. *Pair with VDO.Ninja for remote guests to share there devices.*)
+- [*Capture*](/media/layers#capture) (Capture card inputs through supported vendor SDKs, such as Datapath)
 
-- *Text* (With custom font, also used for subtitles.) 
+- [*Streams*](/media/layers#stream) (Live streaming over SRT (UDP) or RTSP — camera feeds, capture cards, encoders, and other MPV-compatible live inputs)
 
-With the layer types above, you can make it almost as easy as using PowerPoint to create an immersive presentation.
+- [*YouTube*](/media/layers#youtube) (Single video URLs played as VOD layers with full player controls, resolved by yt-dlp *(Added in 2.4)*)
+
+- [*WebRTC*](/media/layers#webrtc) (Low-latency streaming from anywhere. *Pair with VDO.Ninja for remote guests to share their devices.*)
+
+- [*Text*](/media/layers#text) (With custom fonts, also used for subtitles)
+
+- [*Control*](/media/layers#control) (Automate C-Play playback, loading, fades, and orientation)
+
+- [*REST*](/media/layers#rest) (Send HTTP or WebSocket commands to external applications and systems)
+
+- [*TCP*](/media/layers#tcp) (Trigger saved commands through persistent device connections)
+
+With these [layer types](/media/layers), you can build immersive presentations combining media, live sources, and show-control actions. Available types depend on the platform and features enabled in your build.
+
+Each slide can have a [timeline](/media/cplaypres#-timeline-c-play-v23-and-newer) with keyframes to animate layer opacity, position, rotation, and scale. The [animation pane](/media/cplaypres#animations-c-play-v24-and-newer) adds entrance and exit effects such as fades, wipes, fly-ins, and zooms, with easing and click-triggered steps; these effects also work on slides without a timeline.
 
 ### Technical features
 
@@ -69,11 +86,11 @@ With the layer types above, you can make it almost as easy as using PowerPoint t
 
 - HTTP Web API, so you can integrate control of C-Play into a custom system.
 
-- REST Commands (HTTP and WebSockets) to control other application, such as OBS Studio which C-Play then can receive content from.
+- REST Commands (HTTP and WebSockets) to control other applications, such as OBS Studio which C-Play then can receive content from.
 
 - NDI output of the main video and individual presentation layers, so other applications (e.g. OBS Studio) can receive C-Play content over the network *(Added in 2.4)*.
 
-- Stream presentation layers from the master to all nodes over UDP multicast or NDI, so each layer is rendered once on the master and shown frame-synced on every node without decoding it again *(Added in 2.4)*.
+- Stream presentation layers from the master to all nodes over UDP multicast or NDI, so each layer is rendered once on the master and displayed on every node without decoding it again (frame-locked synchronization is available with UDP multicast) *(Added in 2.4)*.
 
 - Optional [MediaMTX](https://github.com/bluenviron/mediamtx) integration to fetch available live streams from a server and add them as Stream or WebRTC layers *(Added in 2.4)*.
 

@@ -6,7 +6,7 @@ import useBaseUrl from '@docusaurus/useBaseUrl';
  * Uses useBaseUrl() so the asset paths work with any configured baseUrl
  * (e.g. /C-Play/ for GitHub Pages) and with DOCS_BASE_URL overrides.
  */
-function DemoVideo(): JSX.Element {
+function DemoVideo(): React.JSX.Element {
   return (
     <video
       controls

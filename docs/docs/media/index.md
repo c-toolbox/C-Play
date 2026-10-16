@@ -12,6 +12,8 @@ However, while C-Play is this flexible, it has been designed to use combinations
 For insight into how video is handled, see:
  - [Video file guide](/media/video)
 
+To prepare video or image sequences for your installation, use [C-Slice](https://c-toolbox.github.io/C-Slice/). The [video preparation guide](/media/video#prepare-videos-with-c-slice) explains how its per-window outputs fit into C-Play playback.
+
 And images, either as primary sources, backgrounds or overlays, see:
  - [Image file guide](/media/images)
 

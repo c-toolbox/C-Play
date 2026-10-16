@@ -46,7 +46,7 @@ These defaults are applied when adding new layers. Each layer can be changed ind
 
 ### Timing
 
-All timings are in milliseconds:
+Durations and delays below are in milliseconds. **Presentation change sync iterations** is a count:
 
 * **Fade duration to previous slide** — Fade time when moving backwards in the slide deck (20–20000, default 20).
 * **Fade duration to next slide** — Fade time when moving forwards in the slide deck (20–20000, default 2000).
