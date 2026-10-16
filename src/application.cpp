@@ -1370,6 +1370,13 @@ void Application::setupActions(const QString &actionName) {
         m_collection->setDefaultShortcut(action, QKeySequence(QStringLiteral("Ctrl+Shift+V")));
         m_collection->addAction(actionName, action);
     }
+    if (actionName == QStringLiteral("removeSelected")) {
+        auto action = new HAction(this);
+        action->setText(QStringLiteral("Remove Selected Layer or Slide"));
+        action->setIcon(QIcon::fromTheme(QStringLiteral("layer-delete")));
+        m_collection->setDefaultShortcut(action, QKeySequence(Qt::Key_Delete));
+        m_collection->addAction(actionName, action);
+    }
     m_collection->readSettings(m_shortcuts);
 }
 

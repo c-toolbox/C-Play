@@ -282,6 +282,18 @@ Rectangle {
         removeLayerTimer.start();
     }
 
+    // Keyboard shortcut path (removeSelected action): removes the marked layer under the same
+    // conditions as the remove button, and only while the layers panel is shown.
+    // Returns false when nothing could be removed.
+    function removeSelectedLayer() {
+        if (!shouldBeVisible || isBusy || !layerDeleteButton.enabled)
+            return false;
+        if (layersView.currentIndex < 0 || layersView.currentIndex >= layersView.count)
+            return false;
+        layerDeleteButton.clicked();
+        return true;
+    }
+
     Menu {
         id: pasteLayerMenu
 
@@ -679,42 +691,6 @@ Rectangle {
                         mouse.accepted = false
                     }
                 }
-
-                DropArea {
-                    id: dropAreaLayers
-
-                    anchors.fill: parent
-                    keys: ["text/uri-list"]
-
-                    onDropped: function(drop) {
-                        if(app.slides.selected.layersEnabled){
-                            // Pause the render thread's layer updates while the batch is
-                            // inserted, exactly like the clear/remove operations do. Without
-                            // this the render loop starts loading every layer as it appears,
-                            // competing with the GUI thread for the model and stalling the UI.
-                            busyIndicator = true;
-                            app.slides.pauseLayerUpdate = true;
-
-                            // Add every file first and only point the layer view at the
-                            // last one afterwards. Rebinding layerIdx per file made the
-                            // preview tear down and re-attach its layer (and repaint the
-                            // window) once per dropped file, which stalled the UI when a
-                            // handful of images came in at the same time.
-                            var lastAdded = -1;
-                            for(var i in drop.urls){
-                                var idx = app.slides.selected.addLayerBasedOnMime(drop.urls[i]);
-                                if(idx >= 0)
-                                    lastAdded = idx;
-                            }
-                            if(lastAdded >= 0)
-                                layerView.layerItem.layerIdx = lastAdded;
-
-                            app.slides.updateSelectedSlide();
-                            mpv.focus = true;
-                            addDroppedLayersTimer.start();
-                        }
-                    }
-                }
             }
 
             onCurrentIndexChanged: {
@@ -744,6 +720,131 @@ Rectangle {
             target: layerView.layerItem
         }
     }
+
+    // Drop files anywhere on the layer list. The insertion line shows where the new
+    // layers will land: between two rows, above the first or below the last.
+    DropArea {
+        id: dropAreaLayers
+
+        property int insertRow: -1
+        property int scrollDirection: 0
+
+        // Row pitch of the list (delegate height + spacing).
+        function rowPitch() {
+            var first = layersView.itemAtIndex(0);
+            return (first ? first.height : 50) + layersView.spacing;
+        }
+        function updateInsertRow(dragY) {
+            var contentY = dropAreaLayers.mapToItem(layersView.contentItem, 0, dragY).y;
+            var row = Math.round(contentY / rowPitch());
+            insertRow = Math.max(0, Math.min(layersView.count, row));
+
+            // Auto-scroll when hovering near the top or bottom edge, so a full
+            // list can be scrolled to reach any insertion point.
+            var edge = 25;
+            if (dragY < edge)
+                scrollDirection = -1;
+            else if (dragY > height - edge)
+                scrollDirection = 1;
+            else
+                scrollDirection = 0;
+        }
+        function resetDrag() {
+            insertRow = -1;
+            scrollDirection = 0;
+        }
+
+        anchors.fill: layersScrollView
+        keys: ["text/uri-list"]
+        z: 21
+
+        onEntered: function(drag) {
+            if (!app.slides.selected.layersEnabled) {
+                drag.accepted = false;
+                return;
+            }
+            updateInsertRow(drag.y);
+        }
+        onPositionChanged: function(drag) {
+            updateInsertRow(drag.y);
+        }
+        onExited: resetDrag()
+
+        onDropped: function(drop) {
+            var insertAt = insertRow >= 0 ? insertRow : layersView.count;
+            resetDrag();
+            if(app.slides.selected.layersEnabled){
+                // Pause the render thread's layer updates while the batch is
+                // inserted, exactly like the clear/remove operations do. Without
+                // this the render loop starts loading every layer as it appears,
+                // competing with the GUI thread for the model and stalling the UI.
+                busyIndicator = true;
+                app.slides.pauseLayerUpdate = true;
+
+                // Add every file first and only point the layer view at the
+                // last one afterwards. Rebinding layerIdx per file made the
+                // preview tear down and re-attach its layer (and repaint the
+                // window) once per dropped file, which stalled the UI when a
+                // handful of images came in at the same time.
+                // New layers are appended, then moved to the insertion point
+                // so that multiple files keep their dropped order.
+                var lastAdded = -1;
+                for(var i in drop.urls){
+                    var idx = app.slides.selected.addLayerBasedOnMime(drop.urls[i]);
+                    if(idx >= 0) {
+                        if (idx !== insertAt) {
+                            app.slides.selected.moveLayer(idx, insertAt);
+                            idx = insertAt;
+                        }
+                        lastAdded = idx;
+                        insertAt++;
+                    }
+                }
+                if(lastAdded >= 0) {
+                    layerView.layerItem.layerIdx = lastAdded;
+                    layersView.positionViewAtIndex(lastAdded, ListView.Contain);
+                }
+
+                app.slides.updateSelectedSlide();
+                mpv.focus = true;
+                addDroppedLayersTimer.start();
+            }
+        }
+
+        Rectangle {
+            id: dropInsertionLine
+
+            visible: dropAreaLayers.containsDrag && dropAreaLayers.insertRow >= 0
+            x: 0
+            width: parent.width
+            height: 4
+            radius: 2
+            color: Kirigami.Theme.highlightColor
+            opacity: 0.95
+            y: {
+                if (dropAreaLayers.insertRow < 0)
+                    return 0;
+                // Keep a dependency on contentY so the line follows auto-scroll.
+                var contentY = layersView.contentY;
+                var lineY = dropAreaLayers.insertRow * dropAreaLayers.rowPitch() - layersView.spacing / 2;
+                var localY = layersView.contentItem.mapToItem(dropAreaLayers, 0, lineY).y - height / 2;
+                return Math.max(0, Math.min(dropAreaLayers.height - height, localY));
+            }
+        }
+
+        Timer {
+            interval: 30
+            repeat: true
+            running: dropAreaLayers.containsDrag && dropAreaLayers.scrollDirection !== 0
+
+            onTriggered: {
+                var maxY = Math.max(layersView.originY, layersView.originY + layersView.contentHeight - layersView.height);
+                layersView.contentY = Math.max(layersView.originY, Math.min(maxY, layersView.contentY + dropAreaLayers.scrollDirection * 10));
+                dropAreaLayers.updateInsertRow(dropAreaLayers.drag.y);
+            }
+        }
+    }
+
     Component {
         id: layersItemCompact
 

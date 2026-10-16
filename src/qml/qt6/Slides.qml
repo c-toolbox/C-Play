@@ -196,6 +196,18 @@ Rectangle {
         removeSlideTimer.start();
     }
 
+    // Keyboard shortcut path (removeSelected action): opens the same confirmation dialog as
+    // the remove button, and only while the slides panel is shown.
+    // Returns false when nothing could be removed.
+    function removeSelectedSlide() {
+        if (!shouldBeVisible || busyIndicator || !removeSlideButton.enabled || removeSlideDialog.visible)
+            return false;
+        if (slidesView.currentIndex < 0 || slidesView.currentIndex >= slidesView.count)
+            return false;
+        removeSlideButton.clicked();
+        return true;
+    }
+
     function restoreSlideNavigation() {
         // A removed delegate may never finish its fade animation. Restore the
         // binding as well as the actions so busy operations still disable the list.
@@ -377,6 +389,7 @@ Rectangle {
                     }
                 }
                 Button {
+                    id: removeSlideButton
                     icon.name: "list-remove"
                     enabled: !layerView.visible && !app.slides.selected.layersCanBeLocked
 

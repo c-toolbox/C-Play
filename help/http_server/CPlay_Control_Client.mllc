@@ -44,7 +44,7 @@ Checksum ASCII coded=0
 Checksum high byte first=1
 
 [COMMANDS]
-Count=41
+Count=43
 Command0.Name=Quit
 Command0.Frame=POST /quit!0D!0A
 Command1.Name=Play
@@ -117,16 +117,20 @@ Command34.Name=Layer Volume
 Command34.Frame=POST /layer_volume?slide_idx=[slide_idx,string,literal,0]!26layer_idx=[layer_idx,string,literal,0]!26level=[level,string,literal,0]!0D!0A
 Command35.Name=Layer Visibility
 Command35.Frame=POST /layer_visibility?slide_idx=[slide_idx,string,literal,0]!26layer_idx=[layer_idx,string,literal,0]!26value=[value,string,literal,0]!0D!0A
-Command36.Name=Layer Plane
-Command36.Frame=POST /layer_plane?slide_idx=[slide_idx,string,literal,0]!26layer_idx=[layer_idx,string,literal,0]!26azimuth=[azimuth,string,literal,0]!26elevation=[elevation,string,literal,0]!26roll=[roll,string,literal,0]!26distance=[distance,string,literal,0]!26horizontal=[horizontal,string,literal,0]!26vertical=[vertical,string,literal,0]!26circular=[circular,string,literal,0]!26centreDegrees=[centreDegrees,string,literal,0]!26widthDegrees=[widthDegrees,string,literal,0]!0D!0A
-Command37.Name=Tcp Connect
-Command37.Frame=POST /tcp/connect?server_id=[server_id,string,literal,0]!0D!0A
-Command38.Name=Tcp Disconnect
-Command38.Frame=POST /tcp/disconnect?server_id=[server_id,string,literal,0]!0D!0A
-Command39.Name=Tcp Trigger
-Command39.Frame=POST /tcp/trigger?server_id=[server_id,string,literal,0]!26command_id=[command_id,string,literal,0]!0D!0A
-Command40.Name=Tcp Command
-Command40.Frame=POST /tcp/command?command_id=[command_id,string,literal,0]!26charsPerItem=[charsPerItem,string,literal,0]!0D!0A
+Command36.Name=Layer Fade Up
+Command36.Frame=POST /layer_fade_up?slide_idx=[slide_idx,string,literal,0]!26layer_idx=[layer_idx,string,literal,0]!0D!0A
+Command37.Name=Layer Fade Down
+Command37.Frame=POST /layer_fade_down?slide_idx=[slide_idx,string,literal,0]!26layer_idx=[layer_idx,string,literal,0]!0D!0A
+Command38.Name=Layer Plane
+Command38.Frame=POST /layer_plane?slide_idx=[slide_idx,string,literal,0]!26layer_idx=[layer_idx,string,literal,0]!26azimuth=[azimuth,string,literal,0]!26elevation=[elevation,string,literal,0]!26roll=[roll,string,literal,0]!26distance=[distance,string,literal,0]!26horizontal=[horizontal,string,literal,0]!26vertical=[vertical,string,literal,0]!26circular=[circular,string,literal,0]!26centreDegrees=[centreDegrees,string,literal,0]!26widthDegrees=[widthDegrees,string,literal,0]!0D!0A
+Command39.Name=Tcp Connect
+Command39.Frame=POST /tcp/connect?server_id=[server_id,string,literal,0]!0D!0A
+Command40.Name=Tcp Disconnect
+Command40.Frame=POST /tcp/disconnect?server_id=[server_id,string,literal,0]!0D!0A
+Command41.Name=Tcp Trigger
+Command41.Frame=POST /tcp/trigger?server_id=[server_id,string,literal,0]!26command_id=[command_id,string,literal,0]!0D!0A
+Command42.Name=Tcp Command
+Command42.Frame=POST /tcp/command?command_id=[command_id,string,literal,0]!26charsPerItem=[charsPerItem,string,literal,0]!0D!0A
 
 [POSITRACK GROUPS]
 Count=0

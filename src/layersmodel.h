@@ -409,6 +409,11 @@ public:
     // so the caller sets the opacity instead.
     Q_INVOKABLE bool scrubLayerAnimation(int layerIdx, int value);
     Q_INVOKABLE void stopLayerAnimations();
+    // Shows (fades up) or hides (fades down) the layer as double-clicking it does: plays its
+    // entrance or exit effects when it has them, otherwise fades its opacity over the fade
+    // duration. subLayerIdx >= 0 fades that sublayer's opacity instead. Returns false when
+    // the layer is not in this slide.
+    bool fadeLayer(const BaseLayer *layer, bool show, int subLayerIdx = -1);
 
     // True when the layer's alpha is driven by the animation (keyframes or entrance effects).
     bool isLayerTimelineDriven(const BaseLayer *layer) const;
@@ -632,6 +637,18 @@ private:
     // Visibility shown for a layer while it animates on its own (see above), -1 when it does not.
     int layerPlayProgress(const BaseLayer *layer) const;
     void advanceLayerPlays();
+    // A layer (or one of its sublayers) fading its opacity on its own (see fadeLayer).
+    struct LayerFade {
+        const BaseLayer *layer = nullptr;
+        int subLayerIdx = -1;
+        float from = 0.f;
+        float to = 0.f;
+        int durationMs = 0;
+        QElapsedTimer elapsed;
+    };
+    QVector<LayerFade> m_layerFades;
+    BaseLayer *layerFadeTarget(const LayerFade &fade, int &row) const;
+    void advanceLayerFades();
     QVector<ScheduledEffect> m_outroSchedule;
     QVector<int> m_introStepStarts;
     int m_introEffectsSpan = 0;

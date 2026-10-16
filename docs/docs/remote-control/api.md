@@ -54,7 +54,7 @@ Endpoints are divided into two categories:
 `/spin_roll_ccw`, `/spin_roll_cw`, `/orientation_reset`, `/surface_transition`,
 `/slide_previous`, `/slide_next`,
 `/load_from_audiotracks`, `/load_from_playlist`, `/load_from_sections`,
-`/load_from_slides`, `/select_from_slides`
+`/load_from_slides`, `/select_from_slides`, `/layer_fade_up`, `/layer_fade_down`
 
 The additional GET-only endpoints `/tcp/servers`, `/tcp/commands`, `/event_topics` and `/events`, and POST-only endpoints `/tcp/connect`, `/tcp/disconnect`, `/tcp/trigger` and `/tcp/command`, are documented in [TCP connection and update control](#tcp-connection-and-update-control) and [Change subscriptions](#change-subscriptions) at the bottom of this page.
 
@@ -229,6 +229,8 @@ If neither sublayer param is provided, the parent layer is used. If the parent l
 |----------|--------|-------------------|-------------|---------|
 | `/layer_volume` | GET, POST | `level=` *(optional)* — `0`–`100` | Get or set layer volume | Volume level (0–100) |
 | `/layer_visibility` | GET, POST | `value=` *(optional)* — `0`–`100` | Get or set layer visibility | Visibility (0–100) |
+| `/layer_fade_up` | POST | — | Show the layer as double-clicking it does: plays its entrance effects when it has any, otherwise fades its visibility up to 100 over the fade duration | `"Fading layer up"` or error |
+| `/layer_fade_down` | POST | — | Hide the layer as double-clicking it does: plays its exit effects when it has any, otherwise fades its visibility down to 0 over the fade duration | `"Fading layer down"` or error |
 | `/layer_plane` | GET, POST | `azimuth=`, `elevation=`, `roll=`, `distance=`, `horizontal=`, `vertical=`, `circular=`, `centreDegrees=`, `widthDegrees=` *(any combination)* | Get or set layer plane parameters. Send a param with no value to read. | One value per param, newline-separated |
 
 `circular` accepts `0`, `1`, `false` or `true`. `centreDegrees` accepts finite, fractional and unwrapped angles; `widthDegrees` must be greater than 0 and at most 360. Empty values leave these new fields unchanged and return their current values. Nonempty invalid values return HTTP 400 before applying the plane update. The existing `horizontal` parameter keeps its centimetre meaning; use `centreDegrees` for circular placement. The shared mapping must also be enabled in [Grid Settings](/settings/grid#circular-surface-mapping).

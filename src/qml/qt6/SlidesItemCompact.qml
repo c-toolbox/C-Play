@@ -460,6 +460,7 @@ ItemDelegate {
     onClicked: {
         slidesView.currentIndex = index;
         app.slides.slideToPaste = index;
+        window.removeShortcutTarget = "slide";
     }
     onDoubleClicked: {
         slidesView.currentIndex = index;

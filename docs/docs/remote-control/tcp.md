@@ -200,7 +200,7 @@ python help/http_server/generate_control_client.py --address 192.168.1.10 --port
 
 Import `help/http_server/CPlay_Control_Client.mllc` into Medialon's Low Level Communicator drivers and create a device using **C-Play TCP Control Client**. Set the address to the C-Play master. The checked-in driver defaults to `127.0.0.1:7008`. It uses TCP/IP Client mode with auto reconnection, and exposes one command for each REST action. The existing **C-Play Control Events** driver remains the separate Medialon server for outgoing state updates.
 
-The shared `data/TcpControlActions.json` catalog defines all 41 actions and is embedded in C-Play. The generator uses this same catalog. Commands include playback, seeking, auto-play, speed, volume, fades, background/foreground visibility, view mode, list selections, spin, orientation reset, surface transition, slide navigation/reset/selection, layer volume/visibility/plane properties, quitting, and outgoing TCP connect/disconnect/trigger/command-width changes. Information-only endpoints are unavailable, including REST POST endpoints that only retrieve values.
+The shared `data/TcpControlActions.json` catalog defines all 43 actions and is embedded in C-Play. The generator uses this same catalog. Commands include playback, seeking, auto-play, speed, volume, fades, background/foreground visibility, view mode, list selections, spin, orientation reset, surface transition, slide navigation/reset/selection, layer volume/visibility/fade up/fade down/plane properties, quitting, and outgoing TCP connect/disconnect/trigger/command-width changes. Information-only endpoints are unavailable, including REST POST endpoints that only retrieve values.
 
 ### Command format and replies
 

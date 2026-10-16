@@ -310,6 +310,24 @@
       ]
     },
     {
+      "path": "/layer_fade_up",
+      "name": "Layer Fade Up",
+      "parameters": [
+        "slide_idx",
+        "layer_idx"
+      ],
+      "required": []
+    },
+    {
+      "path": "/layer_fade_down",
+      "name": "Layer Fade Down",
+      "parameters": [
+        "slide_idx",
+        "layer_idx"
+      ],
+      "required": []
+    },
+    {
       "path": "/layer_plane",
       "name": "Layer Plane",
       "parameters": [

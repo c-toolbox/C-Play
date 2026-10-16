@@ -638,6 +638,32 @@ QtObject {
             }
         }
     }
+    property Action removeSelectedAction: Action {
+        id: removeSelectedAction
+
+        property var qaction: app.action("removeSelected")
+
+        enabled: qaction.enabled
+        icon.name: qaction.iconName()
+        shortcut: root.isPrimary ? qaction.shortcutName() : qaction.alternateName()
+        text: qaction.text
+
+        Component.onCompleted: list["removeSelectedAction"] = removeSelectedAction
+        function updateShortcuts() { shortcut = root.isPrimary ? qaction.shortcutName() : qaction.alternateName() }
+        onTriggered: {
+            if(!enabled)
+                return;
+            // Acts on the list the user clicked last, falling back to the other one
+            // if that panel is not shown.
+            if(window.removeShortcutTarget === "slide"){
+                if(!slides.removeSelectedSlide())
+                    layers.removeSelectedLayer();
+            }
+            else if(!layers.removeSelectedLayer()){
+                slides.removeSelectedSlide();
+            }
+        }
+    }
     property Action slidePreviousAction: Action {
         id: slidePreviousAction
 
@@ -819,6 +845,7 @@ QtObject {
         layerCopyAction.updateShortcuts();
         layerPasteAction.updateShortcuts();
         layerPastePropertiesAction.updateShortcuts();
+        removeSelectedAction.updateShortcuts();
         slidePreviousAction.updateShortcuts();
         slideNextAction.updateShortcuts();
         visibilityFadeDownAction.updateShortcuts();

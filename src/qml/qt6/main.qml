@@ -31,6 +31,8 @@ Kirigami.ApplicationWindow {
     property bool hideUI: (isFullScreenMode || isIdleMode)
     property url newMediaFileToOpen: ""
     property bool forceClose: false
+    // Which list the removeSelected shortcut (Delete) acts on: the one clicked last ("layer" or "slide").
+    property string removeShortcutTarget: "layer"
     property bool uiPopupOpen: false  // True when any popup (Menu, ComboBox dropdown or Dialog) is open in this ApplicationWindow
 
     // How the central viewport renders its content:

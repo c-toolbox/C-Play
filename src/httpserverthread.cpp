@@ -953,6 +953,41 @@ void HttpServerThread::setupHttpServer() {
             }
         });
 
+        // Fades a layer up or down as double-clicking it does, with its entrance or exit effects when it has them.
+        auto layerFadeHandler = [this](bool show) {
+            return [this, show](const httplib::Request& req, httplib::Response& res) {
+                LayersModel* layerModel = nullptr;
+                int layerIdx = -1;
+                BaseLayer* layer = nullptr;
+                res.set_content(getLayerFromRequest(req, layerModel, layerIdx, layer), "text/plain");
+                if (!layer || !layerModel) {
+                    return;
+                }
+                std::shared_ptr<BaseLayer> parent = layerModel->layerShared(layerIdx);
+                int subLayerIdx = -1;
+                if (parent && parent.get() != layer) {
+                    auto& subLayers = parent->getSubLayers();
+                    for (size_t i = 0; i < subLayers.size(); ++i) {
+                        if (subLayers[i].get() == layer) {
+                            subLayerIdx = static_cast<int>(i);
+                            break;
+                        }
+                    }
+                }
+                // The fade runs on the model's timer, so start it on the model's thread.
+                QPointer<LayersModel> model(layerModel);
+                QPointer<SlidesModel> slides(m_slidesModel);
+                QMetaObject::invokeMethod(layerModel, [model, slides, parent, show, subLayerIdx]() {
+                    if (model && model->fadeLayer(parent.get(), show, subLayerIdx) && slides) {
+                        slides->setNeedsSync(true);
+                    }
+                }, Qt::QueuedConnection);
+                res.set_content(show ? "Fading layer up" : "Fading layer down", "text/plain");
+            };
+        };
+        registerPost("/layer_fade_up", layerFadeHandler(true));
+        registerPost("/layer_fade_down", layerFadeHandler(false));
+
         auto layerPlaneGetHandler = [this](const httplib::Request& req, httplib::Response& res) {
             LayersModel* layerModel = nullptr;
             int layerIdx = -1;

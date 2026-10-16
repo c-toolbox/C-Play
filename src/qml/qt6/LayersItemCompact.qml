@@ -662,6 +662,7 @@ ItemDelegate {
         if(app.slides.selected.layersEnabled){
             app.slides.selected.layerToCopy = index;
         }
+        window.removeShortcutTarget = "layer";
     }
     onDoubleClicked: {
         layerView.layerItem.layerIdx = index;

@@ -9,6 +9,7 @@
 #include "gridsettings.h"
 #include "imagesettings.h"
 #include "locationsettings.h"
+#include "playbacksettings.h"
 #include "presentationsettings.h"
 #include "subtitlesettings.h"
 #ifdef NDI_SUPPORT
@@ -57,6 +58,7 @@
 #include <QThread>
 #include <algorithm>
 #include <array>
+#include <cmath>
 #include <limits>
 #include <vector>
 
@@ -4180,6 +4182,7 @@ bool LayersModel::playLayerAnimation(int layerIdx, bool show) {
 
     const BaseLayer *layer = play.layer;
     m_layerPlays.removeIf([layer](const LayerPlay &p) { return p.layer == layer; });
+    m_layerFades.removeIf([layer](const LayerFade &f) { return f.layer == layer && f.subLayerIdx < 0; });
     play.elapsed.start();
     m_layerPlays.append(play);
     advanceLayerPlays();
@@ -4370,6 +4373,85 @@ void LayersModel::advanceLayerPlays() {
         setNeedSync();
         stopTimerIfIdle();
     }
+    for (int row : finished)
+        Q_EMIT layerAnimationFinished(row);
+}
+
+bool LayersModel::fadeLayer(const BaseLayer *layer, bool show, int subLayerIdx) {
+    const int row = rowOfLayer(layer);
+    if (row < 0)
+        return false;
+    if (subLayerIdx < 0 && playLayerAnimation(row, show))
+        return true;
+
+    LayerFade fade;
+    fade.layer = layer;
+    fade.subLayerIdx = subLayerIdx;
+    int targetRow = -1;
+    BaseLayer *target = layerFadeTarget(fade, targetRow);
+    if (!target)
+        return false;
+
+    // A layer taken over from its entrance or exit fades from where that left it.
+    if (subLayerIdx < 0 && layerAnimationRunning(row)) {
+        m_layerPlays.removeIf([layer](const LayerPlay &p) { return p.layer == layer; });
+        target->clearAnimState();
+    }
+    m_layerFades.removeIf([layer, subLayerIdx](const LayerFade &f) {
+        return f.layer == layer && f.subLayerIdx == subLayerIdx;
+    });
+    fade.from = target->alpha();
+    fade.to = show ? 1.f : 0.f;
+    // Like the visibility slider, a partly faded layer only fades the rest of the way.
+    fade.durationMs = static_cast<int>(PlaybackSettings::fadeDuration() * std::abs(fade.to - fade.from));
+    fade.elapsed.start();
+    m_layerFades.append(fade);
+    advanceLayerFades();
+    ensureTimerRunning();
+    return true;
+}
+
+BaseLayer *LayersModel::layerFadeTarget(const LayerFade &fade, int &row) const {
+    row = rowOfLayer(fade.layer);
+    BaseLayer *layer = rowLayer(row);
+    if (!layer || fade.subLayerIdx < 0)
+        return layer;
+    if (!layer->hasSubLayers())
+        return nullptr;
+    auto &subLayers = layer->getSubLayers();
+    if (fade.subLayerIdx >= static_cast<int>(subLayers.size()))
+        return nullptr;
+    return subLayers[fade.subLayerIdx].get();
+}
+
+void LayersModel::advanceLayerFades() {
+    QVector<int> finished;
+    for (int k = m_layerFades.size() - 1; k >= 0; --k) {
+        const LayerFade &fade = m_layerFades[k];
+        int row = -1;
+        BaseLayer *target = layerFadeTarget(fade, row);
+        if (!target) {
+            m_layerFades.removeAt(k);
+            continue;
+        }
+        const int ms = static_cast<int>(fade.elapsed.elapsed());
+        const bool done = ms >= fade.durationMs;
+        const float t = done ? 1.f : static_cast<float>(ms) / static_cast<float>(fade.durationMs);
+        target->setAlpha(fade.from + (fade.to - fade.from) * t);
+        updateLayer(row);
+        const bool ownRow = fade.subLayerIdx < 0;
+        if (done) {
+            m_layerFades.removeAt(k);
+            if (ownRow)
+                finished.append(row);
+        }
+        else if (ownRow) {
+            // Keeps the layer's visibility sliders in step, as for an entrance or exit.
+            Q_EMIT layerAnimationProgressChanged(row, qRound(target->alpha() * 100.f));
+        }
+    }
+    setNeedSync();
+    stopTimerIfIdle();
     for (int row : finished)
         Q_EMIT layerAnimationFinished(row);
 }
@@ -4573,7 +4655,7 @@ void LayersModel::ensureTimerRunning() {
 }
 
 void LayersModel::stopTimerIfIdle() {
-    if (!m_timelineRunning && !m_outroRunning && !hasTimedLayerPlays() && m_timelineTimer)
+    if (!m_timelineRunning && !m_outroRunning && !hasTimedLayerPlays() && m_layerFades.isEmpty() && m_timelineTimer)
         m_timelineTimer->stop();
 }
 
@@ -4643,4 +4725,6 @@ void LayersModel::onTimelineTick() {
     // --- Layers shown or hidden on their own (after the slide, so they win) ---
     if (!m_layerPlays.isEmpty())
         advanceLayerPlays();
+    if (!m_layerFades.isEmpty())
+        advanceLayerFades();
 }
