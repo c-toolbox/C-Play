@@ -686,21 +686,6 @@ Kirigami.ApplicationWindow {
     PlayList {
         id: playList
 
-        DropArea {
-            id: dropAreaPlaylist
-
-            anchors.fill: parent
-            keys: ["text/uri-list"]
-
-            onDropped: function(drop) {
-                if (!drop.urls || drop.urls.length === 0)
-                    return;
-                for(var i in drop.urls){
-                    mpv.addFileToPlaylist(drop.urls[i].toString());      
-                }
-                mpv.focus = true;
-            }
-        }
     }
     Slides {
         id: slides

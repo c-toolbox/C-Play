@@ -468,6 +468,104 @@ Rectangle {
             spacing: 1
         }
     }
+
+    // Drop files anywhere on the playlist panel. The insertion line shows where the new
+    // items will land: between two rows, above the first or below the last. Hovering the
+    // header or the bottom edge of the list scrolls it, so a full list can reach any row.
+    DropArea {
+        id: dropAreaPlaylist
+
+        property int insertRow: -1
+        property int scrollDirection: 0
+
+        // Row pitch of the list (delegate height + spacing).
+        function rowPitch() {
+            var first = playlistView.itemAtIndex(0);
+            return (first ? first.height : rowHeight) + playlistView.spacing;
+        }
+        function updateInsertRow(dragY) {
+            var contentY = dropAreaPlaylist.mapToItem(playlistView.contentItem, 0, dragY).y;
+            var row = Math.round(contentY / rowPitch());
+            insertRow = Math.max(0, Math.min(playlistView.count, row));
+
+            var edge = 25;
+            if (dragY < playlistScrollView.y + edge)
+                scrollDirection = -1;
+            else if (dragY > height - edge)
+                scrollDirection = 1;
+            else
+                scrollDirection = 0;
+        }
+        function resetDrag() {
+            insertRow = -1;
+            scrollDirection = 0;
+        }
+
+        anchors.fill: parent
+        keys: ["text/uri-list"]
+        z: 21
+
+        onEntered: function(drag) {
+            updateInsertRow(drag.y);
+        }
+        onPositionChanged: function(drag) {
+            updateInsertRow(drag.y);
+        }
+        onExited: resetDrag()
+
+        onDropped: function(drop) {
+            var insertAt = insertRow >= 0 ? insertRow : playlistView.count;
+            resetDrag();
+            if (!drop.urls || drop.urls.length === 0)
+                return;
+
+            // Each file goes in after the previous one, so multiple files keep their dropped order.
+            var lastAdded = -1;
+            for(var i in drop.urls){
+                var idx = mpv.addFileToPlaylist(drop.urls[i].toString(), insertAt);
+                if(idx >= 0) {
+                    lastAdded = idx;
+                    insertAt = idx + 1;
+                }
+            }
+            if(lastAdded >= 0)
+                playlistView.positionViewAtIndex(lastAdded, ListView.Contain);
+            mpv.focus = true;
+        }
+
+        Rectangle {
+            id: dropInsertionLine
+
+            visible: dropAreaPlaylist.containsDrag && dropAreaPlaylist.insertRow >= 0
+            x: 0
+            width: parent.width
+            height: 4
+            radius: 2
+            color: Kirigami.Theme.highlightColor
+            opacity: 0.95
+            y: {
+                if (dropAreaPlaylist.insertRow < 0)
+                    return 0;
+                // Keep a dependency on contentY so the line follows auto-scroll.
+                var contentY = playlistView.contentY;
+                var lineY = dropAreaPlaylist.insertRow * dropAreaPlaylist.rowPitch() - playlistView.spacing / 2;
+                var localY = playlistView.contentItem.mapToItem(dropAreaPlaylist, 0, lineY).y - height / 2;
+                return Math.max(playlistScrollView.y, Math.min(dropAreaPlaylist.height - height, localY));
+            }
+        }
+
+        Timer {
+            interval: 30
+            repeat: true
+            running: dropAreaPlaylist.containsDrag && dropAreaPlaylist.scrollDirection !== 0
+
+            onTriggered: {
+                var maxY = Math.max(playlistView.originY, playlistView.originY + playlistView.contentHeight - playlistView.height);
+                playlistView.contentY = Math.max(playlistView.originY, Math.min(maxY, playlistView.contentY + dropAreaPlaylist.scrollDirection * 10));
+                dropAreaPlaylist.updateInsertRow(dropAreaPlaylist.drag.y);
+            }
+        }
+    }
     Component {
         id: playListItemCompact
 

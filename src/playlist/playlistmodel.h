@@ -141,6 +141,8 @@ public:
     Q_INVOKABLE int getPlayListSize() const;
     Q_INVOKABLE QPointer<PlayListItem> getItem(int i);
     Q_INVOKABLE void addItem(PlayListItem *item);
+    // Inserts the item at row i (appends when i is out of range) and returns its row.
+    Q_INVOKABLE int insertItem(int i, PlayListItem *item);
     Q_INVOKABLE void removeItem(int i);
     Q_INVOKABLE void moveItem(int i, int t);
     Q_INVOKABLE void moveItemUp(int i);

@@ -1189,16 +1189,14 @@ void MpvObject::loadMultiVideo(const QString &jsonPath, bool updateLastPlayedFil
 #endif
 }
 
-void MpvObject::addFileToPlaylist(const QString &file) {
-    QFileInfo fi(file);
-    QString ext = fi.suffix();
-
+int MpvObject::addFileToPlaylist(const QString &file, int index) {
     PlayListItem *item = loadMediaFileDescription(file);
+    if (!item)
+        return -1;
 
-    if (item) {
-        m_playlistModel->addItem(item);
-        Q_EMIT playlistModelChanged();
-    }
+    const int row = m_playlistModel->insertItem(index, item);
+    Q_EMIT playlistModelChanged();
+    return row;
 }
 
 void MpvObject::clearPlaylist() {

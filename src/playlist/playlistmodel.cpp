@@ -616,6 +616,18 @@ void PlayListModel::addItem(PlayListItem *item) {
     setPlayListIsEdited(true);
 }
 
+int PlayListModel::insertItem(int i, PlayListItem *item) {
+    if (i < 0 || i > m_playList.size())
+        i = m_playList.size();
+    beginInsertRows(QModelIndex(), i, i);
+    m_playList.insert(i, QPointer<PlayListItem>(item));
+    if (m_playingVideo >= i)
+        m_playingVideo += 1;
+    endInsertRows();
+    setPlayListIsEdited(true);
+    return i;
+}
+
 QPointer<PlayListItem> PlayListModel::getItem(int i) {
     if (i < 0 || i >= getPlayListSize()) {
         return nullptr;

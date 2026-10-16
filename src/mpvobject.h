@@ -413,7 +413,9 @@ public:
     Q_INVOKABLE QString checkAndCorrectPath(const QString &filePath, const QStringList &searchPaths);
     Q_INVOKABLE void loadFile(const QString &file, bool updateLastPlayedFile = true);
     Q_INVOKABLE void loadMultiVideo(const QString &jsonPath, bool updateLastPlayedFile = true);
-    Q_INVOKABLE void addFileToPlaylist(const QString &file);
+    // Adds the file at row index of the playlist, or appends it when index is out of range.
+    // Returns the row the file landed on, or -1 when it could not be loaded.
+    Q_INVOKABLE int addFileToPlaylist(const QString &file, int index = -1);
     Q_INVOKABLE void clearPlaylist();
     Q_INVOKABLE void setLoadedAsCurrentEditItem();
     Q_INVOKABLE void loadSection(int playSectionsIndex);
