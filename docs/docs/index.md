@@ -7,30 +7,30 @@ import DemoVideo from '@site/src/components/DemoVideo';
 
 # C-Play : Cluster Media Player
 
-C-Play is a video/media player developed for cluster environments where you need multiple computers and/or displays to run your content on. The displays could be flat or curved in any setup that is supported by our underlying toolkit [SGCT](https://sgct.github.io/) and any media format supported by [MPV](https://mpv.io/).
+C-Play is a video/media player developed for cluster environments where you need multiple computers and/or displays to run your content on. The displays could be flat or curved in any setup that is supported by our underlying toolkit [SGCT](https://sgct.github.io/) (see [cluster configuration](/setup/sgct)) and any media format supported by [MPV](https://mpv.io/).
 
-## Latest Version: 2.4 (Beta)
+## Latest Version: [2.4 (Beta)](/versions/v_2_4)
 
 <DemoVideo />
 
 ### Content features
 These are just some features that set C-Play apart from other media and video players:
 
-C-Play supports media that is:
+C-Play supports media that is (see [mapping modes](/media/mapping)):
 
-- Stereoscopic (Side-by-side or Top-Bottom) and Monoscopic
+- [Stereoscopic](/media/mapping#stereoscopic-mode) (Side-by-side or Top-Bottom) and Monoscopic
 
-- 180 fulldome / fisheye
+- [180 fulldome / fisheye](/media/mapping#grid-mode)
 
-- 360 equirectangular or equiangular cubemap (common on YouTube)
+- [360 equirectangular or equiangular cubemap](/media/mapping#grid-mode) (common on [YouTube](/media/mapping#youtube-360-3d-videos))
 
 - Any "flat" media with arbitrary aspect ratio
 
-Primary media, such as video and images, is easily opened and configured through playfiles and added to playlists for a standard media player setup.
+Primary media, such as [video](/media/video), [images](/media/images) and [audio](/media/audio), is easily opened and configured through [playfiles](/media/cplayfile) and added to [playlists](/media/cplaylist) for a standard media player setup. See [media file structure](/media) for an overview.
 
 For video preparation and pre-splitting to match your display setup, use [C-Slice](https://c-toolbox.github.io/C-Slice/). See [video preparation](/media/video#prepare-videos-with-c-slice) for how its outputs are used in C-Play.
 
-An additional powerful feature in C-Play is the presentation tool, where you can add an arbitrary number of layers within slides using numerous inputs, such as:
+An additional powerful feature in C-Play is the [presentation tool](/playback/presentation), where you can add an arbitrary number of [layers](/media/layers) within [slides](/media/cplaypres) using numerous inputs, such as:
 
 - [*Images*](/media/layers#image) (PNG, JPG, TIFF, WEBP etc)
 
@@ -38,7 +38,7 @@ An additional powerful feature in C-Play is the presentation tool, where you can
 
 - [*Videos*](/media/layers#video) (H264, HEVC/H265, AV1, H.266/VVC, VP9 etc)
 
-- [*MultiVideo*](/media/layers#multivideo) (Multiple synchronized videos with per-node files and separate mappings, including left/right eye views)
+- [*MultiVideo*](/media/layers#multivideo) (Multiple synchronized videos with per-node files and separate mappings, including left/right eye views, saved as [*.cplaymulti](/media/cplaymulti))
 
 - [*Audio*](/media/layers#audio) (WAV, AAC, MP3 etc)
 
@@ -54,15 +54,15 @@ An additional powerful feature in C-Play is the presentation tool, where you can
 
 - [*YouTube*](/media/layers#youtube) (Single video URLs played as VOD layers with full player controls, resolved by yt-dlp *(Added in 2.4)*)
 
-- [*WebRTC*](/media/layers#webrtc) (Low-latency streaming from anywhere. *Pair with VDO.Ninja for remote guests to share their devices.*)
+- [*WebRTC*](/media/layers#webrtc) (Low-latency streaming from anywhere. *Pair with [VDO.Ninja](/system-integration/vdo-ninja) for remote guests to share their devices.*)
 
-- [*Text*](/media/layers#text) (With custom fonts, also used for subtitles)
+- [*Text*](/media/layers#text) (With custom fonts, also used for [subtitles](/settings/subtitles))
 
 - [*Control*](/media/layers#control) (Automate C-Play playback, loading, fades, and orientation)
 
-- [*REST*](/media/layers#rest) (Send HTTP or WebSocket commands to external applications and systems)
+- [*REST*](/media/layers#rest) (Send HTTP or WebSocket commands to external applications and systems, see [REST + C-Troll + OBS](/system-integration/rest-troll-obs))
 
-- [*TCP*](/media/layers#tcp) (Trigger saved commands through persistent device connections)
+- [*TCP*](/media/layers#tcp) (Trigger saved commands through persistent device connections, see [TCP control](/remote-control/tcp))
 
 With these [layer types](/media/layers), you can build immersive presentations combining media, live sources, and show-control actions. Available types depend on the platform and features enabled in your build.
 
@@ -70,31 +70,31 @@ Each slide can have a [timeline](/media/cplaypres#-timeline-c-play-v23-and-newer
 
 ### Technical features
 
-- Runs a Qt/QML UI application on the master computer and a small non-UI GLFW/SGCT application on the nodes/clients.
+- Runs a Qt/QML UI application on the master computer and a small non-UI GLFW/SGCT application on the nodes/clients (see [Setup C-Play](/setup)).
 
-- Sync playback, loading and other properties between master and clients.
+- [Sync](/playback/sync) playback, loading and other properties between master and clients.
 
 - Audio is output either on the **master** or on the **nodes**, depending on the [audio settings](/settings/audio). Master output is the default; output on nodes is enabled with *Enable audio on nodes* *(added in 2.2)*.
 
-- Change of audio output device is supported, and C-Play is pre-built with "JACK", which opens for multi-channel low-latency output to for instance ASIO devices. Audio output through JACK supports at least 64 output channels.
+- Change of audio output device is supported, and C-Play is pre-built with ["JACK"](/setup/audio#jack-low-latency-up-to-64-or-128-channels), which opens for multi-channel low-latency output to for instance ASIO devices. Audio output through JACK supports at least 64 output channels.
 
-- Loading external audio files as multiple tracks.
+- Loading [external audio files](/media/audio) as multiple tracks (see [naming of external files](/setup/audio#naming-of-external-files)).
 
-- Editing and saving playlists and playfiles including all necessary parameters.
+- Editing and saving [playlists](/media/cplaylist) and [playfiles](/media/cplayfile) including all necessary parameters.
 
-- Configure "sections" in an editor to create bookmarks for jumping between clips inside a larger movie.
+- Configure ["sections"](/media/cplayfile#sections) in an editor to create bookmarks for jumping between clips inside a larger movie.
 
-- C-Play nodes can run on top of other applications. On the master, viewing your video or a layer on a secondary monitor is also simple and requires no extra decoding resources.
+- C-Play nodes can run [on top of other applications](/system-integration/on-top). On the master, viewing your video or a layer on a [secondary monitor](/playback/views) is also simple and requires no extra decoding resources.
 
-- HTTP Web API, so you can integrate control of C-Play into a custom system.
+- [HTTP Web API](/remote-control/api), so you can integrate control of C-Play into a custom system.
 
-- REST Commands (HTTP and WebSockets) to control other applications, such as OBS Studio which C-Play then can receive content from.
+- [REST Commands](/system-integration/rest-troll-obs) (HTTP and WebSockets) to control other applications, such as OBS Studio which C-Play then can [receive content from](/system-integration/obs-ndi).
 
-- NDI output of the main video and individual presentation layers, so other applications (e.g. OBS Studio) can receive C-Play content over the network *(Added in 2.4)*.
+- [NDI output](/system-integration/ndi-output) of the main video and individual presentation layers, so other applications (e.g. OBS Studio) can receive C-Play content over the network *(Added in 2.4)*.
 
-- Stream presentation layers from the master to all nodes over UDP multicast or NDI, so each layer is rendered once on the master and displayed on every node without decoding it again (frame-locked synchronization is available with UDP multicast) *(Added in 2.4)*.
+- [Stream presentation layers](/playback/node-streaming) from the master to all nodes over UDP multicast or NDI, so each layer is rendered once on the master and displayed on every node without decoding it again (frame-locked synchronization is available with UDP multicast) *(Added in 2.4)*.
 
-- Optional [MediaMTX](https://github.com/bluenviron/mediamtx) integration to fetch available live streams from a server and add them as Stream or WebRTC layers *(Added in 2.4)*.
+- Optional [MediaMTX](https://github.com/bluenviron/mediamtx) [integration](/system-integration/mediamtx) to fetch available live streams from a server and add them as Stream or WebRTC layers *(Added in 2.4)*.
 
 - Tested and used on Windows 10/11, in domes and other big arenas.
 
@@ -105,10 +105,12 @@ Each slide can have a [timeline](/media/cplaypres#-timeline-c-play-v23-and-newer
 1. [Settings](/settings)
 1. [Playback features](/playback)
 1. [Remote control](/remote-control)
+1. [System integration](/system-integration)
 1. [Build from code](/build)
+1. [Versions](/versions)
 
 ## Launcher
-To launch the application on master+nodes, we use our own application called [C-Troll](https://github.com/c-toolbox/C-Troll).
+To launch the application on master+nodes, we use our own application called [C-Troll](https://github.com/c-toolbox/C-Troll). See [REST + C-Troll + OBS](/system-integration/rest-troll-obs#launch-obs-portable-through-c-troll) for an example.
 
 ## Backend
 C-Play is an open source cluster video player, based on these open source projects:

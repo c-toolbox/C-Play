@@ -29,9 +29,12 @@ And images, either as primary sources, backgrounds or overlays, see:
 You can save a media bundle, based on the content specified above, to make C-Play load everything correctly from one file. See this guide to learn how to make these:
  - [CPlayfile](/media/cplayfile)
 
+ Several synchronized videos, each with its own per-node files and mapping (for example left/right eye views), can be combined into one composition, see:
+ - [CPlayMulti](/media/cplaymulti)
+
  Also, multiple cplayfiles can be ordered in a playlist, through this guide:
  - [CPlaylist](/media/cplaylist)
 
   From C-Play v2.1, you can build slides with multiple media layers which can be viewed as an immersive presentation, through this guide:
  - [CPlayPres](/media/cplaypres)
-Choose media, live sources, text, and automation actions with the [Layers and sources guide](/media/layers).
+Choose media, live sources, text, and automation actions with the [Layers and sources guide](/media/layers). Position, crop, apply post process effects, and choose which machines open a layer's source with the [Layer operations guide](/media/layer-operations).

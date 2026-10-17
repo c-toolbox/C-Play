@@ -12,6 +12,8 @@ sidebar_position: 5
  - [Playback settings](/settings/playback)
  - [Playlist settings](/settings/playlist)
  - [Presentation settings](/settings/presentation)
+ - [Streaming settings](/settings/streaming)
+ - [TCP control settings](/settings/tcp_control)
  - [Text & subtitles](/settings/subtitles)
  - [Window & UI](/settings/window_and_ui)
  - [Mouse + Keyboard shortcuts](/settings/shortcuts_mouse_keys)
