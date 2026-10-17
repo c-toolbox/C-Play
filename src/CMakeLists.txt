@@ -8,7 +8,7 @@ set(CPLAY_VERSION_MAJOR 2)
 set(CPLAY_VERSION_MINOR 4)
 set(CPLAY_VERSION_PATCH 0)
 set(CPLAY_VERSION_PR_NAME "Beta")
-set(CPLAY_VERSION_PR_VERS 34)
+set(CPLAY_VERSION_PR_VERS 35)
 
 qt_add_executable(${TARGET_NAME})
 set_compile_options(${TARGET_NAME})
@@ -269,6 +269,8 @@ if(BUILD_CPLAY_WITH_WEBRTC)
     list(APPEND SOURCE_FILES webrtc/audiodecoder.h)
     list(APPEND SOURCE_FILES webrtc/webrtclayer.cpp)
     list(APPEND SOURCE_FILES webrtc/webrtclayer.h)
+    list(APPEND SOURCE_FILES vdoninjaroommodel.cpp)
+    list(APPEND SOURCE_FILES vdoninjaroommodel.h)
     target_include_directories(${TARGET_NAME} PRIVATE webrtc)
 endif()
 
@@ -399,6 +401,7 @@ set(QML_SRC_FILES
     qml/qt6/LayerView.qml
     qml/qt6/LayerViewGridParams.qml
     qml/qt6/MediaMTXEditor.qml
+    qml/qt6/VdoNinjaRoomsEditor.qml
     qml/qt6/AudioMappingDialog.qml
     qml/qt6/RestCommandsEditor.qml
     qml/qt6/CLuxEditor.qml

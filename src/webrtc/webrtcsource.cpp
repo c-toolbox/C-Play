@@ -9,6 +9,7 @@
 #include "webrtc/opusaudiodepacketizer.h"
 
 #include <QCoreApplication>
+#include <QHostAddress>
 #include <QMetaObject>
 #include <QRegularExpression>
 #include <QStringList>
@@ -24,6 +25,31 @@ constexpr int kVideoPayloadTypeH264 = 106;
 constexpr int kVideoPayloadTypeH265 = 103;
 constexpr int kAudioPayloadTypeOpus = 111;
 constexpr auto kKeyframeRequestInterval = std::chrono::milliseconds(500);
+
+/// Public STUN servers used when the WHEP endpoint advertises no ICE servers but lives on the
+/// Internet, e.g. a VDO.Ninja caller publishing through https://whep.vdo.ninja (&whepout): the
+/// browser is behind its own NAT, so C-Play needs a server-reflexive candidate as well.
+const char *const kFallbackStunServers[] = {
+    "stun:stun.l.google.com:19302",
+    "stun:stun.cloudflare.com:3478",
+};
+
+/// True for endpoints on the local network (MediaMTX in the same LAN), where host candidates
+/// are enough and a STUN lookup would only delay the non-trickle ICE gathering.
+bool isLocalEndpoint(const QUrl &url)
+{
+    const QString host = url.host().toLower();
+    if (host.isEmpty() || host == u"localhost"_s || host.endsWith(u".local"_s)
+        || host.endsWith(u".lan"_s) || !host.contains(u'.')) {
+        return true;
+    }
+    const QHostAddress address(host);
+    if (address.isNull()) {
+        return false; // a public DNS name
+    }
+    return address.isLoopback() || address.isPrivateUse() || address.isLinkLocal()
+           || address.isSiteLocal() || address.isUniqueLocalUnicast();
+}
 
 const char *stateName(WebRtcStreamState state)
 {
@@ -162,6 +188,13 @@ void WebRtcSource::beginNegotiation(const QList<IceServerSpec> &iceServers)
             sgct::Log::Warning("WebRTC: ignoring unusable ICE server "
                                + server.url.toStdString() + ": " + error.what() + "\n");
         }
+    }
+
+    if (configuration.iceServers.empty() && !isLocalEndpoint(m_config.whepUrl)) {
+        for (const char *url : kFallbackStunServers) {
+            configuration.iceServers.emplace_back(url);
+        }
+        sgct::Log::Info("WebRTC: no ICE servers advertised by a public endpoint, using fallback STUN\n");
     }
 
     sgct::Log::Info("WebRTC: negotiating with "

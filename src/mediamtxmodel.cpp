@@ -934,6 +934,15 @@ QString MediaMtxModel::nameAt(int index) const {
     return m_streams.at(index).name;
 }
 
+QStringList MediaMtxModel::onlineStreamNames() const {
+    QStringList names;
+    for (const Stream &s : std::as_const(m_streams)) {
+        if (s.online)
+            names.append(s.name);
+    }
+    return names;
+}
+
 bool MediaMtxModel::addToPredefinedStreams(const QString &title, const QString &url) {
     if (title.isEmpty() || url.isEmpty())
         return false;

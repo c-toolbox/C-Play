@@ -7,11 +7,12 @@ sidebar_position: 5
 
 [VDO.Ninja](https://vdo.ninja/) is a browser-based WebRTC streaming tool that lets anyone with a link share their camera, microphone, or screen in real time — no software to install on the guest side. It is well suited for bringing remote guests into a C-Play presentation as live layers: interview subjects, remote presenters, phone cameras, or screen shares from anywhere.
 
-There are three ways to bring a VDO.Ninja stream into C-Play:
+There are four ways to bring a VDO.Ninja stream into C-Play:
 
 1. **Direct VDO.Ninja WHEP** (new in 2.4, requires a build with WebRTC support) — the guest publishes to VDO.Ninja's hosted WHIP service and C-Play pulls the matching WHEP endpoint straight into a **WebRTC** layer. No MediaMTX, no OBS, and no relay infrastructure of your own.
 2. **OBS bridge** (all versions) — render the VDO.Ninja view link in an OBS browser source and send it into C-Play as NDI.
 3. **Self-hosted MediaMTX** (new in 2.4, requires a build with WebRTC support) — route the guest's stream through your own MediaMTX server using VDO.Ninja's `&mediamtx` parameter, then pull it via WHEP. Use this when you want to host the relay yourself instead of relying on VDO.Ninja's servers.
+4. **VDO.Ninja Arena Rooms** (new in 2.4, requires a build with WebRTC support) — manage a room of numbered caller slots in C-Play: share one invite link, let several remote callers join with camera and/or screen from their browser, and add all slot streams as WebRTC layers in one go. Builds on Option A or C for the transport. See [Option D](#option-d-vdoninja-arena-rooms-new-in-24).
 
 ![VDO.Ninja to C-Play — Option A (direct WHEP), B (OBS bridge) and C (self-hosted MediaMTX)](/assets/integration/vdo-ninja-options.svg)
 
@@ -132,6 +133,72 @@ The layer decodes H.264/H.265 with FFmpeg (NVDEC hardware decoding when availabl
 
 In the *Layer View* you can change the **WHEP URL** at any time (changing it restarts the connection), set **Auth user/password** for HTTP Basic authentication, and toggle **Master only** / **Master relay**. See [Build presentation](/media/cplaypres) for the full layer reference.
 
+## Option D: VDO.Ninja Arena Rooms (new in 2.4)
+
+Options A and C bring in one guest at a time, with links and WHEP URLs you put together by hand. **Arena Rooms** manage this for a whole room of remote callers: C-Play keeps a list of rooms, each with a number of caller **slots**, builds the invite and caller links, and turns every slot's camera and screen stream into a WebRTC layer. Callers join through an [Arena-Call](#arena-call-page) web page in their browser — no software to install — and publish into their slot over VDO.Ninja.
+
+Open the editor with *Settings -> VDO.Ninja Arena Rooms...* (shown in builds with WebRTC support).
+
+![VDO.Ninja Arena Rooms editor](/assets/ui/vdo_ninja_rooms.png)
+
+### Arena-Call page
+
+Arena Rooms work together with an **Arena-Call** caller page, a static web page that you host (for example on your organisation's web server) and enter as the room's **Arena-Call URL**. It shows the callers a landing page listing the slots of the room, and for each slot a page that publishes the caller's camera and/or screen into the VDO.Ninja room under the slot's stream ID. C-Play and the page build the same room and stream IDs, so the links created in C-Play always match the streams C-Play pulls.
+
+### Room settings
+
+| Field | Meaning |
+| --- | --- |
+| **Name** | The room's name in C-Play. |
+| **Title** | Shown to the callers on the Arena-Call page and used for the layer titles. |
+| **Organisation** | A globally unique organisation name, part of the VDO.Ninja room ID. |
+| **Room** | The room name, unique within the organisation. |
+| **Key** | Optional secret mixed into the room and stream IDs, so they cannot be guessed from the organisation and room name alone. It becomes part of the caller links. |
+| **Slots** | Number of callers that can be connected at the same time. |
+| **Arena-Call URL** | Address of your deployed Arena-Call page, used to build the caller links. |
+| **Transport** | **Direct (whep.vdo.ninja)**: each caller's browser serves its stream through VDO.Ninja's hosted WHEP service, no server of your own is needed (as in [Option A](#option-a-direct-vdoninja-whep-new-in-24)). **MediaMTX**: callers publish over WHIP to your own MediaMTX server, which C-Play pulls from (as in [Option C](#option-c-self-hosted-mediamtx-new-in-24)). |
+| **Enabled** | Disabled rooms stay in the list but are not used. |
+
+With the **MediaMTX** transport, three more fields appear:
+
+* **MediaMTX server** — the server C-Play pulls the streams from, as configured in *Settings -> MediaMTX Streams...* (see [MediaMTX streams](/system-integration/mediamtx)). C-Play usually reaches it on the local network.
+* **Public host** — `host[:port]` the callers' browsers publish WHIP to, for example `mediamtx.example.org:8889`. It must be reachable from the Internet over HTTPS and allow publishing to the `arena/` paths.
+* **Publish auth** — optional `user:pass` the callers publish with. The credentials become part of every caller link, so give that MediaMTX user only the publish permission on `~^arena/`.
+
+**Add New**, **Update** and **Remove** manage the room list; the arrows reorder it. The rooms are saved in `data/vdoninja-rooms.json`.
+
+### Room links
+
+* **Copy Invite Link** — copies the Arena-Call landing page of the room, listing all its slots. Share it with the callers; each caller picks a free slot.
+* **Operator Page** — opens the Arena-Call operator page in the browser, with the director view, the return feed and the WHEP endpoints of the room.
+* **Director** — opens the VDO.Ninja director view of the room, to mute, remove or talk to callers.
+* **Return Feed** — opens a screen share sender in the browser whose picture all callers see, for example a view of the arena so remote callers can follow what happens on the dome.
+
+### Slot streams and layers
+
+The **Slot Streams** list shows two streams per slot, the caller's **camera** and **screen**, each with its stream ID and WHEP URL:
+
+* Stream IDs are `<room ID>_P<n>C` for the camera and `<room ID>_P<n>S` for the screen of slot *n*.
+* With the direct transport the WHEP URL is `https://whep.vdo.ninja/<stream ID>`; with MediaMTX it is `<MediaMTX WebRTC address>/arena/<stream ID>/whep`.
+* With the MediaMTX transport, the list shows which streams are live: refresh it, or check **Auto refresh** to poll the server every 5 seconds. With the direct transport the live state is unknown until a layer connects.
+
+Select a stream to work with it:
+
+* **Title** — the title used for the layer.
+* **Camera + Screen / Camera / Screen** and **Copy Caller Link** — copies a personal Arena-Call link for the selected slot that asks the caller to share their camera, their screen or both.
+* **Copy WHEP URL** — copies the stream's WHEP URL, for example to use it in a WebRTC layer elsewhere.
+* **Add As Layer** — adds the selected stream as a WebRTC layer to the selected slide (select a slide in the Slides panel first).
+* **Add All As Layers** — adds one WebRTC layer per slot stream to the selected slide (*Cameras and screens*, *Cameras only* or *Screens only*). Layers of slots without a caller keep retrying until the caller joins, so a whole room can be prepared before the session starts.
+
+The layers are ordinary WebRTC layers: Master relay, master-only, audio, the [audio mapping](/settings/audio_mapping) and everything described above apply to them.
+
+### Typical workflow
+
+1. Deploy the Arena-Call page and add a room in C-Play with its URL, organisation, room name, optional key, number of slots and transport.
+2. **Add All As Layers** to the slide of the session (or add only the slots you need), and position the layers in the dome.
+3. **Copy Invite Link** and send it to the callers — or **Copy Caller Link** per slot to give each caller a fixed slot.
+4. During the session, use **Director** to manage the callers and **Return Feed** to show them the arena.
+
 ## Master Relay option
 
 The WebRTC layer has a **Master relay** checkbox — in the *Add new layer* dialog and on the WebRTC section of the *Layer View*. It is checked by default.
@@ -157,6 +224,8 @@ The *Layer View* also offers **Master only** for WebRTC layers (the same Sync co
 * **Black screen while the guest is live** — for Option C, verify that the WHEP URL path matches `<room>/<stream ID>` exactly (case-sensitive) and that the stream shows up as active on the MediaMTX server, e.g. through its logs or the [MediaMTX streams](/system-integration/mediamtx) dialog in C-Play. For Option A, open `https://vdo.ninja/?whep=<TOKEN>` in a browser to confirm the stream is actually being published — if it plays there but not in C-Play, check that the WHEP URL and token match exactly.
 
 ## Related
+
+* [Audio mapping](/settings/audio_mapping) — place the callers' audio around the dome or along a circular screen
 
 * [OBS Studio + NDI -> C-Play](/system-integration/obs-ndi) — Option B details, including the VDO.Ninja browser-source example
 * [MediaMTX streams](/system-integration/mediamtx) — server setup, control API, and RTSP/SRT/WebRTC layers

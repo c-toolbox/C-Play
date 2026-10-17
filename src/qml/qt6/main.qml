@@ -875,6 +875,9 @@ Kirigami.ApplicationWindow {
     MediaMTXEditor {
         id: mediaMtxEditor
     }
+    VdoNinjaRoomsEditor {
+        id: vdoNinjaRoomsEditor
+    }
     AudioMappingDialog {
         id: audioMappingDialog
     }

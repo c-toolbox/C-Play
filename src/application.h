@@ -49,6 +49,9 @@ class LayersRendererQtItem;
 #ifdef MEDIA_MTX_SUPPORT
 #include "mediamtxmodel.h"
 #endif
+#ifdef WEBRTC_SUPPORT
+#include "vdoninjaroommodel.h"
+#endif
 #ifdef NDI_SUPPORT
 #include <ndi/ndimodel.h>
 #endif
@@ -118,6 +121,13 @@ Q_DECLARE_METATYPE(AudioMappingModel*)
 #define METATYPE_MediaMtxModel
 Q_DECLARE_METATYPE(MediaMtxModel*)
 Q_DECLARE_METATYPE(MediaMtxServersModel*)
+#endif
+#endif
+#ifdef WEBRTC_SUPPORT
+#ifndef METATYPE_VdoNinjaRoomsModel
+#define METATYPE_VdoNinjaRoomsModel
+Q_DECLARE_METATYPE(VdoNinjaRoomsModel*)
+Q_DECLARE_METATYPE(VdoNinjaSlotsModel*)
 #endif
 #endif
 #ifdef NDI_SUPPORT
@@ -325,6 +335,15 @@ public:
     MediaMtxModel* mediaMtxModel();
 #endif
 
+#ifdef WEBRTC_SUPPORT
+    // VDO.Ninja arena rooms (Arena-Call) whose caller streams are pulled by WebRTC layers.
+    Q_PROPERTY(VdoNinjaRoomsModel* vdoNinjaRoomsModel READ vdoNinjaRoomsModel CONSTANT)
+    VdoNinjaRoomsModel* vdoNinjaRoomsModel();
+
+    Q_PROPERTY(VdoNinjaSlotsModel* vdoNinjaSlotsModel READ vdoNinjaSlotsModel CONSTANT)
+    VdoNinjaSlotsModel* vdoNinjaSlotsModel();
+#endif
+
 #ifdef NDI_SUPPORT
     Q_PROPERTY(NDISendersModel* ndiSendersModel
         READ ndiSendersModel
@@ -469,6 +488,10 @@ private:
 #ifdef MEDIA_MTX_SUPPORT
     MediaMtxServersModel* m_mediaMtxServersModel;
     MediaMtxModel* m_mediaMtxModel;
+#endif
+#ifdef WEBRTC_SUPPORT
+    VdoNinjaRoomsModel* m_vdoNinjaRoomsModel = nullptr;
+    VdoNinjaSlotsModel* m_vdoNinjaSlotsModel = nullptr;
 #endif
 #ifdef NDI_SUPPORT
     NDISendersModel* m_ndiSendersModel;

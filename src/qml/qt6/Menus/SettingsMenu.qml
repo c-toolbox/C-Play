@@ -122,6 +122,16 @@ Menu {
         }
     }
     MenuItem {
+        text: qsTr("VDO.Ninja Arena Rooms...")
+        icon.name: "im-user-online"
+        // VDO.Ninja rooms feed WebRTC layers, a build option (BUILD_CPLAY_WITH_WEBRTC); the models do not exist on app without it.
+        visible: !!app.vdoNinjaRoomsModel && !!app.vdoNinjaSlotsModel
+        height: visible ? implicitHeight : 0
+        onTriggered: {
+            vdoNinjaRoomsEditor.visible = true;
+        }
+    }
+    MenuItem {
         text: qsTr("Logging...")
         icon.name: "console"
         onTriggered: {

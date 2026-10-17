@@ -184,6 +184,9 @@ public:
     // by IP allowlist or passphrase instead.
     Q_INVOKABLE QString srtUrlAt(int index) const;
     Q_INVOKABLE QString nameAt(int index) const;
+    // Names of the paths that are currently published (online) on the fetched server; used by
+    // the VDO.Ninja rooms editor to show which arena slot streams are live.
+    Q_INVOKABLE QStringList onlineStreamNames() const;
     // Appends the given URL as a plain entry in data/predefined-streams.json, replacing an
     // existing entry with the same title. The predefined list is consumed by mpv-based Stream
     // layers, so any URL they can open (RTSP, SRT, ...) may be stored here.

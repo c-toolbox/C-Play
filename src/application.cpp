@@ -236,6 +236,11 @@ Application::Application(int &argc, char **argv, const QString &applicationName)
     m_mediaMtxModel = new MediaMtxModel(this);
     m_mediaMtxModel->setServersModel(m_mediaMtxServersModel);
 #endif
+#ifdef WEBRTC_SUPPORT
+    m_vdoNinjaRoomsModel = new VdoNinjaRoomsModel(this);
+    m_vdoNinjaSlotsModel = new VdoNinjaSlotsModel(this);
+    m_vdoNinjaSlotsModel->setRoomsModel(m_vdoNinjaRoomsModel);
+#endif
 #ifdef NDI_SUPPORT
     m_ndiSendersModel = new NDISendersModel(this);
     m_portAudioModel = new PortAudioModel(this);
@@ -789,6 +794,16 @@ MediaMtxServersModel* Application::mediaMtxServersModel() {
 
 MediaMtxModel* Application::mediaMtxModel() {
     return m_mediaMtxModel;
+}
+#endif
+
+#ifdef WEBRTC_SUPPORT
+VdoNinjaRoomsModel* Application::vdoNinjaRoomsModel() {
+    return m_vdoNinjaRoomsModel;
+}
+
+VdoNinjaSlotsModel* Application::vdoNinjaSlotsModel() {
+    return m_vdoNinjaSlotsModel;
 }
 #endif
 
