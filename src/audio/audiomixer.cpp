@@ -261,7 +261,7 @@ void anglesFromDirection(const glm::vec3 &dir, float &azimuthDeg, float &elevati
 }
 
 bool SpatialSource::operator==(const SpatialSource &o) const {
-    return kind == o.kind && centre == o.centre && halfRight == o.halfRight && forward == o.forward && rotation == o.rotation
+    return kind == o.kind && useSpatial == o.useSpatial && centre == o.centre && halfRight == o.halfRight && forward == o.forward && rotation == o.rotation
         && circularValid == o.circularValid && circularDegrees == o.circularDegrees
         && circularHeightCm == o.circularHeightCm && circleRadiusCm == o.circleRadiusCm;
 }
@@ -368,7 +368,7 @@ MixMatrix arrayMix(int inChannels, int outChannels, const SpatialSource &source,
 } // namespace
 
 MixMatrix spatialMix(int inChannels, int outChannels, const SpatialSource &source, const SpeakerSetup &setup) {
-    if (inChannels < 1 || inChannels > kMaxChannels || outChannels < 1 || outChannels > kMaxOutputChannels)
+    if (!source.useSpatial || inChannels < 1 || inChannels > kMaxChannels || outChannels < 1 || outChannels > kMaxOutputChannels)
         return standardMix(inChannels, outChannels);
     if (setup.mode == static_cast<int32_t>(SpatialMode::SpeakerArray) && setup.arrayCount > 0)
         return arrayMix(inChannels, outChannels, source, setup);

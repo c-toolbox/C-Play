@@ -771,12 +771,13 @@ void DatapathCaptureBackend::close() {
     }
 }
 
-void DatapathCaptureBackend::updateAudio(bool wanted, float volume, bool reportLevels,
+void DatapathCaptureBackend::updateAudio(bool wanted, float volume, bool reportLevels, bool mixToOutput,
                                          const cplay::audio::SpatialSource& source) {
     if (!m_source.audio || !wanted)
         return;
     if (!m_audio)
         m_audio = std::make_unique<DatapathAudioCapture>(m_source.input);
+    m_audio->setMixToOutput(mixToOutput);
     m_audio->mixer().setSource(source);
     m_audio->keepAlive(volume, reportLevels);
 }
@@ -825,6 +826,11 @@ void DatapathAudioCapture::keepAlive(float volume, bool reportLevels) {
     }
     if (wake)
         m_cv.notify_all();
+}
+
+void DatapathAudioCapture::setMixToOutput(bool mix) {
+    if (m_mixToOutput.exchange(mix) != mix && m_running.load())
+        restart();
 }
 
 void DatapathAudioCapture::restart() {
@@ -939,7 +945,7 @@ bool DatapathAudioCapture::open() {
     if (!device)
         return fail("no audio output device for capture audio");
     m_outChannels = 2;
-    if (AudioSettings::portAudioMixInputToOutput())
+    if (m_mixToOutput.load())
         m_outChannels = std::max(1, cplay::audio::configuredOutputChannels(device->maxOutputChannels));
     params.channelCount = m_outChannels;
     params.sampleFormat = paFloat32;

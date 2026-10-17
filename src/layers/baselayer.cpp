@@ -572,6 +572,8 @@ cplay::audio::SpatialSource BaseLayer::audioSpatialSource() const {
     // Same transforms as LayersRendererQtItem::renderLayer(), without the dome tilt (the
     // speaker positions are in the dome frame too).
     cplay::audio::SpatialSource source;
+    // Without the up/down mix the output has the source's own channels: no spatial mapping either.
+    source.useSpatial = m_spatialAudioEnabled.load() && audioMixingEnabled() ? 1 : 0;
     const uint8_t grid = gridMode();
     if (grid == GridMode::Plane) {
         glm::mat4 model(1.f);
@@ -615,7 +617,32 @@ cplay::audio::SpatialSource BaseLayer::audioSpatialSource() const {
 }
 
 void BaseLayer::updateAudioSpatialSource() {
+    // A synced audio mapping change: the output channel count follows the up/down mix.
+    if (m_audioOutputRefresh.exchange(false) && hasInitialized())
+        updateAudioOutput();
     m_audioMixer.setSource(audioSpatialSource());
+}
+
+bool BaseLayer::audioMappingEnabled() const {
+    return m_audioMappingEnabled.load();
+}
+
+void BaseLayer::setAudioMappingEnabled(bool enabled) {
+    if (m_audioMappingEnabled.exchange(enabled) != enabled)
+        setNeedSync();
+}
+
+bool BaseLayer::audioMixingEnabled() const {
+    return AudioSettings::portAudioMixInputToOutput() && m_audioMappingEnabled.load();
+}
+
+bool BaseLayer::spatialAudioEnabled() const {
+    return m_spatialAudioEnabled.load();
+}
+
+void BaseLayer::setSpatialAudioEnabled(bool enabled) {
+    if (m_spatialAudioEnabled.exchange(enabled) != enabled)
+        setNeedSync();
 }
 
 int BaseLayer::audioId() {
@@ -922,6 +949,9 @@ void BaseLayer::encodeBaseProperties(std::vector<std::byte>& data) const {
         sgct::serializeObject(data, renderData.rotate.z);
     }
 
+    sgct::serializeObject(data, m_audioMappingEnabled.load());
+    sgct::serializeObject(data, m_spatialAudioEnabled.load());
+
     const auto &fx = m_postEffects;
     sgct::serializeObject(data, fx.enabled);
     if (fx.enabled != 0) {
@@ -965,6 +995,15 @@ void BaseLayer::decodeBaseProperties(const std::vector<std::byte>& data, unsigne
         sgct::deserializeObject(data, pos, renderData.rotate.y);
         sgct::deserializeObject(data, pos, renderData.rotate.z);
     }
+
+    bool audioMapping = true;
+    sgct::deserializeObject(data, pos, audioMapping);
+    const bool mappingChanged = m_audioMappingEnabled.exchange(audioMapping) != audioMapping;
+    bool spatialAudio = true;
+    sgct::deserializeObject(data, pos, spatialAudio);
+    m_spatialAudioEnabled.store(spatialAudio);
+    if (mappingChanged)
+        m_audioOutputRefresh.store(true); // reopened from the render loop (updateAudioSpatialSource)
 
     auto &fx = m_postEffects;
     sgct::deserializeObject(data, pos, fx.enabled);

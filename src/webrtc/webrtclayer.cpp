@@ -1552,7 +1552,7 @@ void WebRTCLayer::maybeReopenAudioOutput() {
     const PaDeviceIndex newDeviceIdx = chosenAudioDevice();
 
     int channelCount = m_audioOutputChannels;
-    if (AudioSettings::portAudioMixInputToOutput()) {
+    if (audioMixingEnabled()) {
         const PaDeviceInfo *devInfo = Pa_GetDeviceInfo(newDeviceIdx);
         if (devInfo) {
             channelCount = cplay::audio::configuredOutputChannels(devInfo->maxOutputChannels);
@@ -1643,7 +1643,7 @@ bool WebRTCLayer::startAudioOutput() {
     }
 
     // Determine the output channel count.
-    if (AudioSettings::portAudioMixInputToOutput()) {
+    if (audioMixingEnabled()) {
         const PaDeviceInfo *devInfo = Pa_GetDeviceInfo(m_audioOutputParameters.device);
         if (devInfo) {
             m_audioOutputChannels = cplay::audio::configuredOutputChannels(devInfo->maxOutputChannels);

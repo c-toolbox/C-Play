@@ -1861,6 +1861,9 @@ void LayersModel::decodeFromJSON(QJsonObject &obj, const QStringList &forRelativ
 
                     // Only saved when true, so absent means off (overrides the addLayer default).
                     m_layers[idx].first->setUseNoSignalImage(o.value(QStringLiteral("noSignalImage")).toBool());
+                    // Absent means on: layers follow the audio mapping and the spatial mapping unless opted out.
+                    m_layers[idx].first->setAudioMappingEnabled(o.value(QStringLiteral("audioMapping")).toBool(true));
+                    m_layers[idx].first->setSpatialAudioEnabled(o.value(QStringLiteral("spatialAudio")).toBool(true));
 
                     if (o.contains(QStringLiteral("ndiOutput"))) {
                         m_layers[idx].first->setNdiOutputEnabled(o.value(QStringLiteral("ndiOutput")).toBool());
@@ -2381,6 +2384,12 @@ void LayersModel::encodeToJSON(QJsonObject &obj, const QStringList &forRelativeP
 
         if (layer->useNoSignalImage())
             layerData.insert(QStringLiteral("noSignalImage"), QJsonValue(true));
+
+        // Only saved when the layer opted out of the audio mapping / spatial mapping (on by default).
+        if (!layer->audioMappingEnabled())
+            layerData.insert(QStringLiteral("audioMapping"), QJsonValue(false));
+        if (!layer->spatialAudioEnabled())
+            layerData.insert(QStringLiteral("spatialAudio"), QJsonValue(false));
 
         if (layer->nodeStreamOutputEnabled())
             layerData.insert(QStringLiteral("nodeStreamOutput"), QJsonValue(true));

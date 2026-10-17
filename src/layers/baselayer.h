@@ -209,8 +209,9 @@ public:
     virtual double remaining();
 
     virtual bool hasAudio() const;
-    // True when the layer reports live audio levels from its decoded audio path,
-    // e.g. for a level meter in the LayerView (NDI, OMT, DirectShow and WebRTC do).
+    // True when the layer reports live audio levels from its decoded audio path, e.g. for a
+    // level meter in the LayerView: the live layers playing through PortAudio (NDI, OMT,
+    // DirectShow, capture and WebRTC), which are also the ones with a spatial audio mapping.
     virtual bool hasAudioLevels() const { return false; }
     // Current audio level in [0..1] for visualization purposes. The value decays
     // smoothly between sample reports and falls to zero when no new samples arrive.
@@ -228,8 +229,21 @@ public:
     cplay::audio::ChannelMixer& audioMixer() { return m_audioMixer; }
     // Where the layer is shown, as seen from the dome centre (render pose, animations included).
     cplay::audio::SpatialSource audioSpatialSource() const;
-    // Pushes audioSpatialSource() to the mixer. Called every frame from the render loop.
+    // Pushes audioSpatialSource() to the mixer and applies synced audio mapping changes.
+    // Called every frame from the render loop.
     virtual void updateAudioSpatialSource();
+    // Per layer opt-outs of the audio mapping of the PortAudio layers, both on by default and
+    // saved/synced to the nodes only as layer settings:
+    //  - audio mapping: the up/down mix to the output layout of the audio settings ("Perform
+    //    audio mixing (up/down) to output device"). Off plays the source channels unmixed.
+    //  - spatial audio: the spatial mapping of the Audio mapping dialog, on top of the audio
+    //    mapping. Off keeps the standard up/down mix.
+    bool audioMappingEnabled() const;
+    void setAudioMappingEnabled(bool enabled);
+    bool spatialAudioEnabled() const;
+    void setSpatialAudioEnabled(bool enabled);
+    // Effective state: the audio settings enable the up/down mix and this layer uses it.
+    bool audioMixingEnabled() const;
     virtual int audioId();
     virtual void setAudioId(int id);
     virtual bool isAudioEnabled() const;
@@ -611,6 +625,9 @@ protected:
     std::atomic<int64_t> m_audioPeakTimeMs{0}; // steady_clock ms of the last report (0 = never)
     std::atomic<bool> m_audioLevelsEnabled{false}; // gate for the per-sample peak scan in the audio path
     cplay::audio::ChannelMixer m_audioMixer;
+    std::atomic_bool m_audioMappingEnabled{true};
+    std::atomic_bool m_audioOutputRefresh{false}; // set when a sync changed the audio mapping
+    std::atomic_bool m_spatialAudioEnabled{true};
     int m_keepVisibilityForNumSlides;
     bool m_isLocked;
     bool m_isEnabled;

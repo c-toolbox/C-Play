@@ -1185,8 +1185,8 @@ QVariantList LayersRendererQtItem::audioSharesForSelectedLayer() const {
     }
     const cplay::audio::SpeakerSetup setup = cplay::audio::speakerSetup();
     float gains[cplay::audio::kMaxArraySpeakers];
-    if (setup.arrayCount <= 0)
-        return shares;
+    if (setup.arrayCount <= 0 || !source.useSpatial)
+        return shares; // opted out: plays with the standard mapping
     cplay::audio::arraySpeakerGains(source, setup, gains);
     for (int i = 0; i < setup.arrayCount; ++i)
         shares.append(100.0 * (setup.constantPower ? double(gains[i]) * gains[i] : double(gains[i])));

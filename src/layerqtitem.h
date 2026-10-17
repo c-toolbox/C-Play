@@ -158,6 +158,11 @@ class LayerQtItem : public QQuickItem {
     Q_PROPERTY(QRectF layerSelectedSubLayerRoi READ layerSelectedSubLayerRoi NOTIFY layerValueChanged)
     Q_PROPERTY(bool layerFlipY READ layerFlipY WRITE setLayerFlipY NOTIFY layerValueChanged)
     Q_PROPERTY(bool layerUseNoSignalImage READ layerUseNoSignalImage WRITE setLayerUseNoSignalImage NOTIFY layerValueChanged)
+    // The layer uses the audio mapping (up/down mix to the output layout of the audio settings);
+    // off = the source channels unmixed.
+    Q_PROPERTY(bool layerAudioMapping READ layerAudioMapping WRITE setLayerAudioMapping NOTIFY layerValueChanged)
+    // The layer follows the spatial audio mapping (Audio mapping dialog); off = standard up/down mix.
+    Q_PROPERTY(bool layerSpatialAudio READ layerSpatialAudio WRITE setLayerSpatialAudio NOTIFY layerValueChanged)
     Q_PROPERTY(QString layerOperation READ layerOperation WRITE setLayerOperation NOTIFY layerValueChanged)
     Q_PROPERTY(QString layerParameter READ layerParameter WRITE setLayerParameter NOTIFY layerValueChanged)
     Q_PROPERTY(QString layerRestUrl READ layerRestUrl WRITE setLayerRestUrl NOTIFY layerValueChanged)
@@ -451,6 +456,10 @@ public:
 
     bool layerUseNoSignalImage() const;
     void setLayerUseNoSignalImage(bool use);
+    bool layerAudioMapping() const;
+    void setLayerAudioMapping(bool enabled);
+    bool layerSpatialAudio() const;
+    void setLayerSpatialAudio(bool enabled);
 
     QString layerOperation() const;
     void setLayerOperation(QString op);

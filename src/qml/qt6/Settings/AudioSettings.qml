@@ -381,7 +381,7 @@ SettingsBasePage {
             Layout.columnSpan: 3
             Layout.topMargin: 20
             Layout.fillWidth: true
-            text: qsTr("Audio settings for Live video layers (NDI/OMT/Capture/DirectShow/WebRTC)"
+            text: qsTr("Audio settings for Live video layers (NDI/OMT/Capture/DirectShow/WebRTC)")
             level: 4
         }
         Item {

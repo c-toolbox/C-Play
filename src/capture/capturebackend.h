@@ -70,9 +70,11 @@ public:
 
     // Audio of sources with audio=true. Call every frame while the audio should play; it stops
     // shortly after the calls stop (layer hidden or removed). Volume is linear, 0..1.
-    // source: where the layer is shown, for the spatial audio mapping.
-    virtual void updateAudio(bool wanted, float volume, bool reportLevels, const cplay::audio::SpatialSource& source) {
-        (void)wanted; (void)volume; (void)reportLevels; (void)source;
+    // mixToOutput: up/down mix to the output layout (audio settings and the layer's audio
+    // mapping); source: where the layer is shown, for the spatial audio mapping.
+    virtual void updateAudio(bool wanted, float volume, bool reportLevels, bool mixToOutput,
+                             const cplay::audio::SpatialSource& source) {
+        (void)wanted; (void)volume; (void)reportLevels; (void)mixToOutput; (void)source;
     }
     // Reopens the audio output, e.g. after the output device setting changed.
     virtual void restartAudio() {}

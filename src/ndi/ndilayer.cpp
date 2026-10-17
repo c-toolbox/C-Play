@@ -295,7 +295,7 @@ void NdiLayer::updateAudioOutput() {
         PaDeviceIndex newDeviceIdx = GetChosenApplicationAudioDevice();
 
         int channelCount = 0;
-        if (AudioSettings::portAudioMixInputToOutput()) {
+        if (audioMixingEnabled()) {
             channelCount = cplay::audio::configuredOutputChannels(Pa_GetDeviceInfo(newDeviceIdx)->maxOutputChannels);
         }
         else {
@@ -575,7 +575,7 @@ bool NdiLayer::OpenReceiver() {
 }
 
 bool NdiLayer::StartAudioStream() {
-    if (AudioSettings::portAudioMixInputToOutput()) {
+    if (audioMixingEnabled()) {
         m_audioOutputParameters.channelCount = cplay::audio::configuredOutputChannels(Pa_GetDeviceInfo(m_audioOutputParameters.device)->maxOutputChannels);
         NDIreceiver.SetAudioTargetOutputChannels(m_audioOutputParameters.channelCount);
     }

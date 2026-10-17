@@ -1569,6 +1569,31 @@ void LayerQtItem::setLayerUseNoSignalImage(bool use) {
     }
 }
 
+bool LayerQtItem::layerAudioMapping() const {
+    return m_layer && m_layer->audioMappingEnabled();
+}
+
+void LayerQtItem::setLayerAudioMapping(bool enabled) {
+    if (m_layer && m_layer->isEnabled() && m_layer->audioMappingEnabled() != enabled) {
+        m_layer->setAudioMappingEnabled(enabled);
+        m_layer->updateAudioOutput(); // reopen the output with the new channel count
+        Q_EMIT layerValueChanged();
+        Q_EMIT layerNeedsSave();
+    }
+}
+
+bool LayerQtItem::layerSpatialAudio() const {
+    return m_layer && m_layer->spatialAudioEnabled();
+}
+
+void LayerQtItem::setLayerSpatialAudio(bool enabled) {
+    if (m_layer && m_layer->isEnabled() && m_layer->spatialAudioEnabled() != enabled) {
+        m_layer->setSpatialAudioEnabled(enabled);
+        Q_EMIT layerValueChanged();
+        Q_EMIT layerNeedsSave();
+    }
+}
+
 QString LayerQtItem::layerOperation() const {
     if (m_layer && m_layer->type() == BaseLayer::CONTROL) {
         ControlLayer* controlLayer = static_cast<ControlLayer*>(m_layer);

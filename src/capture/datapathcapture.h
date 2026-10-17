@@ -28,6 +28,8 @@ public:
 
     void keepAlive(float volume, bool reportLevels); // render thread, every frame while wanted
     cplay::audio::ChannelMixer& mixer() { return m_mixer; }
+    // Up/down mix to the output layout; a change reopens the output with the new channel count.
+    void setMixToOutput(bool mix);
     void restart();
     float takePeak();
     bool running() const { return m_running.load(); }
@@ -61,6 +63,7 @@ private:
     std::atomic<bool> m_running{false};
     std::atomic<float> m_volume{1.f};
     std::atomic<bool> m_reportLevels{false};
+    std::atomic<bool> m_mixToOutput{true};
     std::atomic<float> m_peak{-1.f};
 };
 
@@ -82,7 +85,8 @@ public:
     void close() override;
     void stopCallbacks() override;
 
-    void updateAudio(bool wanted, float volume, bool reportLevels, const cplay::audio::SpatialSource& source) override;
+    void updateAudio(bool wanted, float volume, bool reportLevels, bool mixToOutput,
+                     const cplay::audio::SpatialSource& source) override;
     void restartAudio() override;
     float takeAudioPeak() override;
     bool audioRunning() const override;

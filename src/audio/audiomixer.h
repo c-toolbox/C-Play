@@ -75,6 +75,7 @@ struct SpatialSource {
         Field = 2  // dome/sphere layer: the channels' nominal directions rotate with the content
     };
     int32_t kind = None;
+    int32_t useSpatial = 1;           // 0: the layer opted out of the spatial mapping (standard mapping)
     glm::vec3 centre{0.f, 0.f, -1.f}; // Plane: centre of the plane
     glm::vec3 halfRight{0.f};         // Plane: from the centre to the right edge of the plane
     glm::vec3 forward{0.f, 0.f, -1.f};// Plane: facing direction, used when the centre is at the origin

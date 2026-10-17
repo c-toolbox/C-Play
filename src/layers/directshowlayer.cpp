@@ -1933,7 +1933,7 @@ bool DirectShowLayer::openAudioStreamLocked(int sampleRate, int channels) {
 
     // Determine output channel count (mirrors OmtLayer).
     int outChannels = channels;
-    if (AudioSettings::portAudioMixInputToOutput()) {
+    if (audioMixingEnabled()) {
         const PaDeviceInfo* devInfo = Pa_GetDeviceInfo(m_audioOutputParameters.device);
         if (devInfo)
             outChannels = cplay::audio::configuredOutputChannels(devInfo->maxOutputChannels);
@@ -2304,7 +2304,7 @@ void DirectShowLayer::updateAudioOutput() {
     const PaDeviceIndex currentDeviceIdx = m_audioOutputParameters.device;
 
     int channelCount = (m_audioSourceChannels > 0) ? m_audioSourceChannels : 2;
-    if (AudioSettings::portAudioMixInputToOutput()) {
+    if (audioMixingEnabled()) {
         const PaDeviceInfo* devInfo = Pa_GetDeviceInfo(newDeviceIdx);
         if (devInfo)
             channelCount = cplay::audio::configuredOutputChannels(devInfo->maxOutputChannels);

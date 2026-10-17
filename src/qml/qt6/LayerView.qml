@@ -1055,10 +1055,10 @@ Kirigami.ApplicationWindow {
 
             onClicked: {}
         }
-        // Optional audio level meter, shown on top of the rendered image while a supported
-        // layer (NDI/OMT/DirectShow/WebRTC) is playing audio. The small button next to the bar
-        // toggles it; both are only available for layers that report audio levels.
-        RowLayout {
+        // Audio controls of the live layers playing through PortAudio (NDI, OMT, DirectShow,
+        // capture and WebRTC), on top of the rendered image: the layer's audio mapping options
+        // above the optional audio level meter (the small button next to the bar toggles it).
+        ColumnLayout {
             id: audioLevelMeterGroup
 
             visible: layerViewItem.layerHasAudioLevels && layerViewItem.layerIdx !== -1
@@ -1066,63 +1066,119 @@ Kirigami.ApplicationWindow {
             anchors.bottom: parent.bottom
             anchors.margins: 12
 
-            ToolButton {
-                id: showAudioLevelMeter
+            // Per layer opt-outs of the audio mapping (up/down mix of the audio settings) and of
+            // the spatial mapping on top of it; each is only offered while it is on globally.
+            Rectangle {
+                visible: AudioSettings.portAudioMixInputToOutput
+                implicitWidth: audioMappingColumn.implicitWidth + 12
+                implicitHeight: audioMappingColumn.implicitHeight + 8
+                radius: 4
+                color: Qt.rgba(0.1, 0.1, 0.1, 0.7)
 
-                checkable: true
-                checked: false
-                focusPolicy: Qt.NoFocus
-                // Only compute levels in the layer's audio path while the meter is enabled.
-                onCheckedChanged: layerViewItem.layerAudioLevelsEnabled = checked
-                icon.color: (checked ? "lime" : "crimson")
-                icon.name: "audio-volume-high"
-                Layout.alignment: Qt.AlignVCenter
+                ColumnLayout {
+                    id: audioMappingColumn
 
-                ToolTip {
-                    text: qsTr("Show the audio level meter for this layer")
+                    anchors.centerIn: parent
+                    spacing: 0
+
+                    CheckBox {
+                        id: audioMappingCheckBox
+
+                        focusPolicy: Qt.NoFocus
+                        text: qsTr("Map audio to the output layout (up/down mix)")
+                        checked: layerViewItem.layerAudioMapping
+                        onToggled: layerViewItem.layerAudioMapping = checked
+
+                        ToolTip.visible: hovered
+                        ToolTip.text: qsTr("Mix this layer's audio up or down to the output channels of the audio settings, e.g. 2.0 to 5.1. When off, the source channels play unmixed.")
+                    }
+                    CheckBox {
+                        id: spatialAudioCheckBox
+
+                        visible: app.audioMapping.spatialEnabled
+                        enabled: audioMappingCheckBox.checked
+                        focusPolicy: Qt.NoFocus
+                        text: app.audioMapping.mode === 2 ? qsTr("Follow the spatial mapping (speaker array by distance)")
+                                                          : qsTr("Follow the spatial mapping (surround panning)")
+                        checked: layerViewItem.layerSpatialAudio
+                        onToggled: layerViewItem.layerSpatialAudio = checked
+
+                        ToolTip.visible: hovered
+                        ToolTip.text: qsTr("Let the sound follow where this layer is shown (Audio settings > Audio mapping). When off, the layer uses the standard up/down mix.")
+                    }
+                }
+                Connections {
+                    function onLayerChanged() {
+                        audioMappingCheckBox.checked = layerViewItem.layerAudioMapping;
+                        spatialAudioCheckBox.checked = layerViewItem.layerSpatialAudio;
+                    }
+                    function onLayerValueChanged() {
+                        audioMappingCheckBox.checked = layerViewItem.layerAudioMapping;
+                        spatialAudioCheckBox.checked = layerViewItem.layerSpatialAudio;
+                    }
+
+                    target: layerViewItem
                 }
             }
-            Rectangle {
-                id: audioLevelMeter
+            RowLayout {
+                ToolButton {
+                    id: showAudioLevelMeter
 
-                visible: showAudioLevelMeter.checked
-                width: 200
-                height: 18
-                radius: 9
-                color: "#66000000"
-                border.color: "#55FFFFFF"
-                border.width: 1
+                    checkable: true
+                    checked: false
+                    focusPolicy: Qt.NoFocus
+                    // Only compute levels in the layer's audio path while the meter is enabled.
+                    onCheckedChanged: layerViewItem.layerAudioLevelsEnabled = checked
+                    icon.color: (checked ? "lime" : "crimson")
+                    icon.name: "audio-volume-high"
+                    Layout.alignment: Qt.AlignVCenter
 
-                Rectangle {
-                    id: audioLevelMeterFill
-
-                    anchors.left: parent.left
-                    anchors.verticalCenter: parent.verticalCenter
-                    width: Math.max(0, layerViewItem.layerAudioLevel) * (audioLevelMeter.width - 4)
-                    height: audioLevelMeter.height - 4
-                    radius: (audioLevelMeter.height - 4) / 2
-                    gradient: Gradient {
-                        GradientStop { position: 0.0; color: "#2ECC40" }
-                        GradientStop { position: 0.7; color: "#F1C40F" }
-                        GradientStop { position: 0.9; color: "#FF851B" }
-                        GradientStop { position: 1.0; color: "#CC2A36" }
-                    }
-
-                    Behavior on width {
-                        NumberAnimation { duration: 80; easing.type: Easing.OutCubic }
+                    ToolTip {
+                        text: qsTr("Show the audio level meter for this layer")
                     }
                 }
-                Label {
-                    anchors.left: parent.left
-                    anchors.leftMargin: 10
-                    anchors.verticalCenter: parent.verticalCenter
-                    text: layerViewItem.layerAudioLevel > 0.0001
-                          ? (20 * Math.log(layerViewItem.layerAudioLevel) / Math.LN10).toFixed(1) + " dB"
-                          : "-inf dB"
-                    color: "white"
-                    font.pointSize: 9
-                    style: Text.Outline
-                    styleColor: "black"
+                Rectangle {
+                    id: audioLevelMeter
+
+                    visible: showAudioLevelMeter.checked
+                    width: 200
+                    height: 18
+                    radius: 9
+                    color: "#66000000"
+                    border.color: "#55FFFFFF"
+                    border.width: 1
+
+                    Rectangle {
+                        id: audioLevelMeterFill
+
+                        anchors.left: parent.left
+                        anchors.verticalCenter: parent.verticalCenter
+                        width: Math.max(0, layerViewItem.layerAudioLevel) * (audioLevelMeter.width - 4)
+                        height: audioLevelMeter.height - 4
+                        radius: (audioLevelMeter.height - 4) / 2
+                        gradient: Gradient {
+                            GradientStop { position: 0.0; color: "#2ECC40" }
+                            GradientStop { position: 0.7; color: "#F1C40F" }
+                            GradientStop { position: 0.9; color: "#FF851B" }
+                            GradientStop { position: 1.0; color: "#CC2A36" }
+                        }
+
+                        Behavior on width {
+                            NumberAnimation { duration: 80; easing.type: Easing.OutCubic }
+                        }
+                    }
+                    Label {
+                        anchors.left: parent.left
+                        anchors.leftMargin: 10
+                        anchors.verticalCenter: parent.verticalCenter
+                        text: layerViewItem.layerAudioLevel > 0.0001
+                              ? (20 * Math.log(layerViewItem.layerAudioLevel) / Math.LN10).toFixed(1) + " dB"
+                              : "-inf dB"
+                        color: "white"
+                        font.pointSize: 9
+                        style: Text.Outline
+                        styleColor: "black"
+                    }
                 }
             }
         }

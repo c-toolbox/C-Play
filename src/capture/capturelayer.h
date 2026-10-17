@@ -61,7 +61,9 @@ public:
 
     // Audio plays on the machines whose resolved source has audio=true (see CapturePresets).
     bool hasAudio() const override;
-    bool hasAudioLevels() const override { return hasAudio(); }
+    // Like the other live PortAudio layers, the meter (and the spatial audio toggle) is always
+    // offered; it stays at zero while the source plays no audio.
+    bool hasAudioLevels() const override { return true; }
     bool isAudioEnabled() const override;
     void enableAudio(bool enabled = true) override;
     void updateAudioOutput() override;

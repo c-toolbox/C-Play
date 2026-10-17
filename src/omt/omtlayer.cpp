@@ -262,7 +262,7 @@ bool OmtLayer::StartAudioStream() {
         return false;
 
     // Determine output channel count
-    if (AudioSettings::portAudioMixInputToOutput()) {
+    if (audioMixingEnabled()) {
         const PaDeviceInfo* devInfo = Pa_GetDeviceInfo(m_audioOutputParameters.device);
         if (devInfo) {
             m_audioOutputChannels = cplay::audio::configuredOutputChannels(devInfo->maxOutputChannels);
@@ -396,7 +396,7 @@ void OmtLayer::updateAudioOutput() {
         PaDeviceIndex newDeviceIdx = GetChosenApplicationAudioDevice();
 
         int channelCount = m_audioOutputChannels;
-        if (AudioSettings::portAudioMixInputToOutput()) {
+        if (audioMixingEnabled()) {
             const PaDeviceInfo* devInfo = Pa_GetDeviceInfo(newDeviceIdx);
             if (devInfo) {
                 channelCount = cplay::audio::configuredOutputChannels(devInfo->maxOutputChannels);
