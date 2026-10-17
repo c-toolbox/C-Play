@@ -29,9 +29,15 @@ std::atomic_int ImageLayer::s_lastKnownGpuMemoryKB{0};
 std::mutex ImageLayer::s_pendingTexDeleteMutex;
 std::vector<unsigned int> ImageLayer::s_pendingTexToDelete;
 
+// Defined by glad when built with GL extensions, otherwise not.
+#ifndef GL_GPU_MEMORY_INFO_TOTAL_AVAILABLE_MEMORY_NVX
+#define GL_GPU_MEMORY_INFO_TOTAL_AVAILABLE_MEMORY_NVX 0x9048
+#endif
+#ifndef GL_VBO_FREE_MEMORY_ATI
+#define GL_VBO_FREE_MEMORY_ATI 0x87FB
+#endif
+
 static int queryTotalGpuMemoryKB() {
-    const int GL_GPU_MEMORY_INFO_TOTAL_AVAILABLE_MEMORY_NVX = 0x9048;
-    const int GL_VBO_FREE_MEMORY_ATI = 0x87FB;
     GLint totalMemKB = 0;
     glGetIntegerv(GL_GPU_MEMORY_INFO_TOTAL_AVAILABLE_MEMORY_NVX, &totalMemKB);
     if (glGetError() == GL_NO_ERROR && totalMemKB > 0) {

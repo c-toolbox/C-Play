@@ -8,7 +8,7 @@ set(CPLAY_VERSION_MAJOR 2)
 set(CPLAY_VERSION_MINOR 4)
 set(CPLAY_VERSION_PATCH 0)
 set(CPLAY_VERSION_PR_NAME "Beta")
-set(CPLAY_VERSION_PR_VERS 35)
+set(CPLAY_VERSION_PR_VERS 36)
 
 qt_add_executable(${TARGET_NAME})
 set_compile_options(${TARGET_NAME})
@@ -331,16 +331,6 @@ target_sources(${TARGET_NAME}
 
 source_group(TREE ${CMAKE_CURRENT_SOURCE_DIR} PREFIX "Cpp" FILES ${SOURCE_FILES}) 
 
-if(BUILD_WITH_VCPKG_SUPPORT)
-    option(SGCT_DEP_INCLUDE_LIBPNG "Include LibPNG library" OFF)
-    option(SGCT_DEP_INCLUDE_ZLIB "Include ZLIB library" OFF)
-    option(SGCT_DEP_INCLUDE_TINYXML "Include TinyXML library" OFF)
-else()
-    option(SGCT_DEP_INCLUDE_LIBPNG "Include LibPNG library" ON)
-    option(SGCT_DEP_INCLUDE_ZLIB "Include ZLIB library" ON)
-    option(SGCT_DEP_INCLUDE_ZLIB "Include ZLIB library" ON)
-endif()
-
 find_package(QT NAMES Qt6)
 if(${QT_VERSION_MAJOR} GREATER_EQUAL 6 AND ${QT_VERSION_MINOR} GREATER_EQUAL 8)
     qt_standard_project_setup(REQUIRES 6.8)
@@ -509,7 +499,8 @@ set(TARGET_LIBRARIES
 
     Libmpv::Libmpv
     sgct
-    glm
+    glm::glm
+    nlohmann_json::nlohmann_json
 )
 
 if (MSVC)
@@ -692,52 +683,55 @@ if(BUILD_CPLAY_WITH_OPENSSL)
     target_compile_definitions(${TARGET_NAME} PUBLIC OPENSSL_SUPPORT)
 endif()
 
-option(SGCT_FREETYPE_SUPPORT "Build SGCT with Freetype2" ON)
-option(SGCT_DEP_INCLUDE_FREETYPE "Include FreeType library" OFF)
+# SGCT gets all of its dependencies (GLFW, glad, FreeType, OpenXR, ...) from vcpkg and
+# only installs anything when it is the top-level project, so it is added as-is.
 option(SGCT_BUILD_TESTS "Build SGCT tests" OFF)
-option(SGCT_OPENXR_SUPPORT "Build SGCT with OpenXR support" OFF)
-if(SGCT_OPENXR_SUPPORT AND NOT SGCT_DEP_INCLUDE_OPENXR)
-    set(SGCT_DEP_INCLUDE_OPENXR ON CACHE BOOL "Include OpenXR loader library")
+option(SGCT_BUILD_CALIBRATOR "Build SGCT calibrator application" OFF)
+if(WIN32)
+    # SGCT defaults these proprietary SDKs to OFF; C-Play has always shipped with them.
+    option(SGCT_SCALABLE_SUPPORT "SGCT Scalable SDK support" ON)
+    option(SGCT_NDI_SUPPORT "SGCT NDI Support" ON)
 endif()
-message(STATUS "SGCT OpenXR support: ${SGCT_OPENXR_SUPPORT}")
+set(BUILD_SHARED_LIBS OFF CACHE BOOL "Build shared libraries" FORCE)
+# Build trees configured with the old, vendored SGCT have <pkg>_DIR cached to fake config files
+# it wrote to ${CMAKE_BINARY_DIR}/pkg, which hides the real packages. Drop those entries.
+foreach(_sgct_pkg glad glfw3 glm minizip nlohmann_json nlohmann_json_schema_validator scn stb)
+    string(FIND "${${_sgct_pkg}_DIR}" "${CMAKE_BINARY_DIR}/pkg/" _sgct_pkg_pos)
+    if(_sgct_pkg_pos EQUAL 0)
+        message(STATUS "Dropping stale ${_sgct_pkg}_DIR from the old vendored SGCT: ${${_sgct_pkg}_DIR}")
+        unset(${_sgct_pkg}_DIR CACHE)
+        unset(${_sgct_pkg}_DIR)
+    endif()
+endforeach()
 if(BUILD_WITH_VCPKG_SUPPORT)
+    # SGCT links MINIZIP::minizip, which older vcpkg minizip installs do not export (they only
+    # have unofficial::minizip::minizip). Provide it so both old and new installs work.
     find_package(unofficial-minizip CONFIG REQUIRED)
-    if(TARGET unofficial::minizip::minizip)
-        if(NOT TARGET minizip)
-            add_library(minizip INTERFACE IMPORTED GLOBAL)
-            target_link_libraries(minizip INTERFACE unofficial::minizip::minizip)
-        endif()
-        if(NOT TARGET minizip::minizip)
-            add_library(minizip::minizip INTERFACE IMPORTED GLOBAL)
-            target_link_libraries(minizip::minizip INTERFACE unofficial::minizip::minizip)
-        endif()
+    if(NOT TARGET MINIZIP::minizip)
+        add_library(MINIZIP::minizip INTERFACE IMPORTED)
+        target_link_libraries(MINIZIP::minizip INTERFACE unofficial::minizip::minizip)
+    endif()
+
+    if(WIN32)
+        # SGCT links Vulkan::Vulkan from FindVulkan, which creates a config-less imported target
+        # (from vcpkg's debug library with multi-config generators) that the
+        # CMAKE_MAP_IMPORTED_CONFIG_* mapping in the root CMakeLists.txt cannot resolve. Define it
+        # from vcpkg's per-config VulkanLoader package instead; FindVulkan then reuses it.
+        find_package(VulkanLoader CONFIG REQUIRED)
+        add_library(Vulkan::Vulkan INTERFACE IMPORTED)
+        target_link_libraries(Vulkan::Vulkan INTERFACE Vulkan::Loader)
+        target_include_directories(Vulkan::Vulkan INTERFACE "${VCPKG_INSTALLED_DIR}/${VCPKG_TARGET_TRIPLET}/include")
     endif()
 endif()
-set(SCN_USE_EXTERNAL_FAST_FLOAT OFF CACHE BOOL "Use an external FastFloat package for scnlib" FORCE)
-set(SCN_DISABLE_FAST_FLOAT ON CACHE BOOL "Use std::from_chars instead of fetching FastFloat for scnlib" FORCE)
-set(BUILD_SHARED_LIBS OFF CACHE BOOL "Build shared libraries" FORCE)
-if(POLICY CMP0169)
-    cmake_policy(PUSH)
-    cmake_policy(SET CMP0169 OLD)
-endif()
-# The vendored SGCT tree (notably its OpenXR SDK) ships install() rules that would drop
-# dev files (headers, loader lib and CMake config files) into the C-Play install prefix.
-# We only use SGCT as a build dependency, so skip all of its install rules here instead
-# of patching the submodule. Note: CMAKE_SKIP_INSTALL_RULES is evaluated at generation
-# time per directory scope (not when install() is called), so it must be ON while sgct/
-# is processed and restored afterwards for this directory's own rules below.
-set(CMAKE_SKIP_INSTALL_RULES ON)
 add_subdirectory(${CMAKE_CURRENT_SOURCE_DIR}/sgct)
-set(CMAKE_SKIP_INSTALL_RULES OFF)
 
-# Skipped directories do not get a cmake_install.cmake generated, but the parent install
-# script unconditionally include()s its subdirectories' scripts. Write an empty stub so
-# that `cmake --install` does not fail on the missing file.
-file(WRITE ${CMAKE_CURRENT_BINARY_DIR}/sgct/cmake_install.cmake
-     "# Vendored SGCT: install rules are intentionally disabled.\n")
-if(POLICY CMP0169)
-    cmake_policy(POP)
-endif()
+# Used directly by C-Play; SGCT links them privately so they are not propagated.
+find_package(glm CONFIG REQUIRED)
+find_package(nlohmann_json CONFIG REQUIRED)
+# A static SGCT only links the stb_image declarations; the executable provides the
+# implementation exactly once.
+find_package(stbimage CONFIG REQUIRED)
+list(APPEND TARGET_LIBRARIES unofficial::stbimage::stbimage-read-impl)
 
 target_link_libraries(${TARGET_NAME} PRIVATE ${TARGET_LIBRARIES})
 target_compile_features(${TARGET_NAME} PRIVATE cxx_std_23)
@@ -823,17 +817,18 @@ if(CPLAY_INSTALL_DEPENDENCIES)
 
     option(CPLAY_INSTALL_GET_RUNTIME_DEPENDENCIES "When running INSTALL, look for dependencies with GET_RUNTIME_DEPENDENCIES and copy them" ${INSTALL_GRP})
     if(CPLAY_INSTALL_GET_RUNTIME_DEPENDENCIES)
-        if(SGCT_DEP_INCLUDE_SCALABLE)
+        if(SGCT_SCALABLE_SUPPORT)
             set(_scalable_dir ${CMAKE_CURRENT_SOURCE_DIR}/sgct/ext/scalable)
         endif()
 
         set(MY_DEPENDENCY_PATHS ${_mpv_bin_dir} ${_qt_bin_dir} ${_scalable_dir})
+        if(BUILD_WITH_VCPKG_SUPPORT)
+            # SGCT's dependencies (glfw3, freetype, openxr_loader, vulkan-1, ...) and datachannel.dll.
+            list(APPEND MY_DEPENDENCY_PATHS "${VCPKG_INSTALLED_DIR}/${VCPKG_TARGET_TRIPLET}/bin")
+        endif()
         if(BUILD_CPLAY_WITH_WEBRTC)
-            # FFmpeg runtime DLLs (same tree as mpv) and datachannel.dll from vcpkg.
+            # FFmpeg runtime DLLs (same tree as mpv).
             list(APPEND MY_DEPENDENCY_PATHS ${FFmpegPinned_RUNTIME_DIR})
-            if(BUILD_WITH_VCPKG_SUPPORT)
-                list(APPEND MY_DEPENDENCY_PATHS "${VCPKG_INSTALLED_DIR}/${VCPKG_TARGET_TRIPLET}/bin")
-            endif()
         endif()
         # Transfer the values into the install script
         install(CODE "set(MY_DEPENDENCY_PATHS \"${MY_DEPENDENCY_PATHS}\")")
@@ -924,7 +919,7 @@ if(CPLAY_INSTALL_DEPENDENCIES)
         if(BUILD_CPLAY_WITH_OMT)
             list(APPEND CIDFPL ${OMT_BINARY_DIR})
         endif()
-        if(SGCT_DEP_INCLUDE_SCALABLE)
+        if(SGCT_SCALABLE_SUPPORT)
             list(APPEND CIDFPL ${CMAKE_CURRENT_SOURCE_DIR}/sgct/ext/scalable)
         endif()
 

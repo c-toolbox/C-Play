@@ -44,11 +44,7 @@ set_package_properties(ECM PROPERTIES TYPE REQUIRED
     DESCRIPTION "extra cmake modules")
 set(CMAKE_MODULE_PATH ${ECM_MODULE_PATH} ${ECM_KDE_MODULE_DIR} ${CMAKE_CURRENT_SOURCE_DIR}/cmake)
 
-if (MSVC)
-include(${PROJECT_SOURCE_DIR}/src/sgct/support/cmake/common-compile-settings/platforms/msvc.cmake)
-endif()
-
-include(${PROJECT_SOURCE_DIR}/src/sgct/support/cmake/common-compile-settings/common-compile-settings.cmake)
+# Also pulls in SGCT's common-compile-settings.cmake and the per-compiler platform settings.
 include(${PROJECT_SOURCE_DIR}/src/sgct/support/cmake/set_compile_options.cmake)
 
 find_package(Qt6Core ${QT_MIN_VERSION})
@@ -378,7 +374,7 @@ endif()
 
 if(BUILD_WITH_VCPKG_SUPPORT)
     message(STATUS "Using vcpkg toolchain from: ${CMAKE_TOOLCHAIN_FILE} to build C-Play")
-    message(STATUS "Remember to run/install this: vcpkg install minizip libpng tinyxml2\n")
+    message(STATUS "Remember to run/install SGCT's dependencies: vcpkg install freetype glfw3 glm json-schema-validator libpng minizip nlohmann-json openxr-loader scnlib stbimage tinyxml2 zlib glad[extensions,loader,wgl] spout2 vulkan --overlay-ports=${PROJECT_SOURCE_DIR}/src/sgct/support/vcpkg/ports\n")
 endif()
 
 feature_summary(WHAT ALL FATAL_ON_MISSING_REQUIRED_PACKAGES)

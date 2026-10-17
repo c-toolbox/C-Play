@@ -129,7 +129,7 @@ const config: Config = {
           ],
         },
       ],
-      copyright: `Copyright Â© 2021-${new Date().getFullYear()} Erik SundÃ©n. Distributed under a GNU General Public License v3.0.`,
+      copyright: `Copyright © 2021-${new Date().getFullYear()} Erik Sundén. Distributed under a GNU General Public License v3.0.`,
     },
     prism: {
       theme: prismThemes.github,

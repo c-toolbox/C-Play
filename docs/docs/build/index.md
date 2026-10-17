@@ -24,7 +24,15 @@ These are the steps:
 
 - Use the [Build MPV and FFMPEG Guide](/build/mpv_ffmpeg) guide to build FFmpeg and MPV with JACK+portaudio support.
 
-- Configure with CMake 3.25 or newer and a compiler with C++23 support. Make your Craft Qt6/KF6 installation and mpv development files discoverable through `CMAKE_PREFIX_PATH` and `PATH`. The build enables vcpkg by default: set `VCPKG_ROOT` to its installation, or disable `BUILD_WITH_VCPKG_SUPPORT` when supplying dependencies yourself.
+- Install the dependencies of the SGCT submodule with vcpkg. `stbimage` is not in the vcpkg registry, so it comes from the overlay port shipped in the SGCT repository:
+
+  ```sh
+  vcpkg install freetype glfw3 glm json-schema-validator libpng minizip nlohmann-json openxr-loader scnlib stbimage tinyxml2 zlib glad[extensions,loader,wgl] spout2 vulkan --triplet x64-windows --overlay-ports=src/sgct/support/vcpkg/ports
+  ```
+
+  Run this from the C-Play root rather than from `src/sgct`, as the `vcpkg.json` there switches vcpkg to manifest mode.
+
+- Configure with CMake 4.0 or newer and a compiler with C++23 support. Make your Craft Qt6/KF6 installation and mpv development files discoverable through `CMAKE_PREFIX_PATH` and `PATH`. The build enables vcpkg by default: set `VCPKG_ROOT` to its installation, or disable `BUILD_WITH_VCPKG_SUPPORT` when supplying dependencies yourself.
 
 - Build in Visual Studio 2022 or in Qt-Creator for good QML overview.
 

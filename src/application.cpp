@@ -76,6 +76,10 @@
 #include <sgct/sgct.h>
 #include <sgct/version.h>
 #include <sgct/networkmanager.h>
+#ifndef GLFW_INCLUDE_NONE
+#define GLFW_INCLUDE_NONE
+#endif
+#include <GLFW/glfw3.h>
 
 #include <QApplication>
 #include <QCoreApplication>
@@ -1036,6 +1040,9 @@ void Application::updateAboutOtherText(const QString &mpvVersion, const QString 
 
     otherText += QStringLiteral("Qt ") + QStringLiteral(QT_VERSION_STR) + QStringLiteral(" for master QML-based user interface.\n");
     otherText += QStringLiteral("SGCT ") + QString::fromStdString(std::string(sgct::Version)) + QStringLiteral(" for cluster environment and client rendering.\n");
+    int glfwMajor = 0, glfwMinor = 0, glfwRev = 0;
+    glfwGetVersion(&glfwMajor, &glfwMinor, &glfwRev);
+    otherText += QStringLiteral("GLFW ") + QString::number(glfwMajor) + QStringLiteral(".") + QString::number(glfwMinor) + QStringLiteral(".") + QString::number(glfwRev) + QStringLiteral(" for windowing, OpenGL contexts and input on render nodes.\n");
 #ifdef SGCT_HAS_OPENXR
     otherText += QStringLiteral("OpenXR ") + QString::number(XR_VERSION_MAJOR(XR_CURRENT_API_VERSION)) + QStringLiteral(".") + QString::number(XR_VERSION_MINOR(XR_CURRENT_API_VERSION)) + QStringLiteral(".") + QString::number(XR_VERSION_PATCH(XR_CURRENT_API_VERSION)) + QStringLiteral(" for VR headset support.\n");
 #endif
