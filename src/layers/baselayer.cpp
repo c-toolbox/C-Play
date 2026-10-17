@@ -568,6 +568,56 @@ bool BaseLayer::audioLevelsEnabled() const {
     return m_audioLevelsEnabled.load(std::memory_order_acquire);
 }
 
+cplay::audio::SpatialSource BaseLayer::audioSpatialSource() const {
+    // Same transforms as LayersRendererQtItem::renderLayer(), without the dome tilt (the
+    // speaker positions are in the dome frame too).
+    cplay::audio::SpatialSource source;
+    const uint8_t grid = gridMode();
+    if (grid == GridMode::Plane) {
+        glm::mat4 model(1.f);
+        if (circularPlaneActive()) {
+            model = circularPlaneModel(true);
+        } else {
+            model = glm::rotate(model, glm::radians(float(renderPlaneAzimuth())), glm::vec3(0, -1, 0));
+            model = glm::rotate(model, glm::radians(float(renderPlaneElevation())), glm::vec3(1, 0, 0));
+            model = glm::rotate(model, glm::radians(float(renderPlaneRoll())), glm::vec3(0, 0, 1));
+            model = glm::translate(model, glm::vec3(float(renderPlaneHorizontal()) / 100.f,
+                                                    float(renderPlaneVertical()) / 100.f,
+                                                    float(-renderPlaneDistance()) / 100.f));
+            if (m_animActive)
+                model = glm::scale(model, glm::vec3(m_animState.scale, m_animState.scale, 1.f));
+        }
+        const float widthCm = planeData.actualSize.x > 0.f ? planeData.actualSize.x : planeData.specifiedSize.x;
+        source.kind = cplay::audio::SpatialSource::Plane;
+        source.centre = glm::vec3(model * glm::vec4(0.f, 0.f, 0.f, 1.f));
+        source.halfRight = glm::vec3(model * glm::vec4(widthCm / 200.f, 0.f, 0.f, 0.f));
+        source.forward = glm::vec3(model * glm::vec4(0.f, 0.f, -1.f, 0.f));
+
+        // Position on the circular screen: the unwrapped 360 degree strip of the circular
+        // surface mapping (circular planes are centred at their wrapped centre angle).
+        const cplay::circular::Mapping mapping = circularMapping();
+        if (mapping.valid()) {
+            source.circularValid = 1;
+            source.circularDegrees = static_cast<float>(mapping.cmToAngle(source.centre.x * 100.0));
+            source.circularHeightCm = source.centre.y * 100.f;
+            source.circleRadiusCm = static_cast<float>(mapping.widthCm / (2.0 * 3.14159265358979323846));
+        }
+    } else if (grid == GridMode::Dome || grid == GridMode::Sphere_EQR || grid == GridMode::Sphere_EAC) {
+        const glm::vec3 rot = renderRotate();
+        glm::mat4 model(1.f);
+        model = glm::rotate(model, glm::radians(rot.z), glm::vec3(0, 0, 1)); // roll
+        model = glm::rotate(model, glm::radians(rot.x), glm::vec3(1, 0, 0)); // pitch
+        model = glm::rotate(model, glm::radians(rot.y), glm::vec3(0, 1, 0)); // yaw
+        source.kind = cplay::audio::SpatialSource::Field;
+        source.rotation = glm::mat3(model);
+    }
+    return source;
+}
+
+void BaseLayer::updateAudioSpatialSource() {
+    m_audioMixer.setSource(audioSpatialSource());
+}
+
 int BaseLayer::audioId() {
     return -1;
 }

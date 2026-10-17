@@ -233,14 +233,10 @@ void OmtLayer::ProcessAudioFrame(OMTMediaFrame* frame) {
         m_interleavedAudioBuf.resize(totalSamples);
     }
 
-    for (int s = 0; s < samplesPerChannel; ++s) {
-        for (int oc = 0; oc < outChannels; ++oc) {
-            // Map output channel to input channel (simple wrap for down/upmix)
-            int ic = (oc < channels) ? oc : (oc % channels);
-            float sample = srcData[static_cast<size_t>(ic) * static_cast<size_t>(samplesPerChannel) + static_cast<size_t>(s)];
-            m_interleavedAudioBuf[static_cast<size_t>(s) * static_cast<size_t>(outChannels) + static_cast<size_t>(oc)] = sample * vol;
-        }
-    }
+    // Planar in, interleaved out: standard up/down mix or spatial mapping (shared with the
+    // other PortAudio layers).
+    m_audioMixer.process(srcData, channels, 1, static_cast<size_t>(samplesPerChannel),
+                         m_interleavedAudioBuf.data(), outChannels, static_cast<size_t>(samplesPerChannel), vol);
 
     // Report the peak of this frame for the audio level meter in the LayerView, but only
     // while the meter is enabled so the per-sample scan stays out of the hot path.
@@ -269,7 +265,7 @@ bool OmtLayer::StartAudioStream() {
     if (AudioSettings::portAudioMixInputToOutput()) {
         const PaDeviceInfo* devInfo = Pa_GetDeviceInfo(m_audioOutputParameters.device);
         if (devInfo) {
-            m_audioOutputChannels = std::min(AudioSettings::portAudioOutputChannels(), devInfo->maxOutputChannels);
+            m_audioOutputChannels = cplay::audio::configuredOutputChannels(devInfo->maxOutputChannels);
         }
     }
     else {
@@ -403,7 +399,7 @@ void OmtLayer::updateAudioOutput() {
         if (AudioSettings::portAudioMixInputToOutput()) {
             const PaDeviceInfo* devInfo = Pa_GetDeviceInfo(newDeviceIdx);
             if (devInfo) {
-                channelCount = std::min(AudioSettings::portAudioOutputChannels(), devInfo->maxOutputChannels);
+                channelCount = cplay::audio::configuredOutputChannels(devInfo->maxOutputChannels);
             }
         }
         else {

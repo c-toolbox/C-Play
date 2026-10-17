@@ -45,6 +45,7 @@ class LayersRendererQtItem;
 #include <clux/cluxclient.h>
 #endif
 #include "wwsclientmodel.h"
+#include "audio/audiomappingmodel.h"
 #ifdef MEDIA_MTX_SUPPORT
 #include "mediamtxmodel.h"
 #endif
@@ -107,6 +108,10 @@ Q_DECLARE_METATYPE(CLuxClient*)
 #ifndef METATYPE_WwsClientModel
 #define METATYPE_WwsClientModel
 Q_DECLARE_METATYPE(WwsClientModel*)
+#endif
+#ifndef METATYPE_AudioMappingModel
+#define METATYPE_AudioMappingModel
+Q_DECLARE_METATYPE(AudioMappingModel*)
 #endif
 #ifdef MEDIA_MTX_SUPPORT
 #ifndef METATYPE_MediaMtxModel
@@ -302,6 +307,10 @@ public:
     WwsClientModel* wwsClientModel();
     void setWwsClientModel(WwsClientModel* model);
 
+    // Spatial audio mapping of the PortAudio layers (Audio mapping dialog).
+    Q_PROPERTY(AudioMappingModel* audioMapping READ audioMapping CONSTANT)
+    AudioMappingModel* audioMapping();
+
 #ifdef MEDIA_MTX_SUPPORT
     Q_PROPERTY(MediaMtxServersModel* mediaMtxServersModel
         READ mediaMtxServersModel
@@ -456,6 +465,7 @@ private:
     bool m_cluxPreviewVisible = false;   // runtime-only, always off at startup (not persisted)
 #endif
     WwsClientModel* m_wwsClientModel;
+    AudioMappingModel* m_audioMappingModel = nullptr;
 #ifdef MEDIA_MTX_SUPPORT
     MediaMtxServersModel* m_mediaMtxServersModel;
     MediaMtxModel* m_mediaMtxModel;

@@ -19,6 +19,7 @@
 #include <QVector2D>
 #include <QMatrix4x4>
 #include <QVariantList>
+#include <QVariantMap>
 #include <array>
 #include <atomic>
 #include <memory>
@@ -356,6 +357,21 @@ public:
     Q_INVOKABLE bool dragPlaneTo(float x, float y);          // continue an active layer drag; returns true when parameters changed
     Q_INVOKABLE void endPlaneDrag();                         // finish an active layer drag
 
+    // Speaker placement for the spatial audio mapping (Audio mapping dialog). Directions are
+    // azimuth/elevation in degrees in the dome frame (no dome tilt), drawn on the dome surface.
+    // projectDomeDirection returns {visible, x, y} in this item's pixel space for the current
+    // camera (perspective or fisheye); domeDirectionAtPoint returns {valid, azimuth, elevation}
+    // for the dome point under a pixel.
+    Q_INVOKABLE QVariantMap projectDomeDirection(double azimuthDeg, double elevationDeg) const;
+    Q_INVOKABLE QVariantMap domeDirectionAtPoint(float x, float y) const;
+    // The same for speakers along the circular screen of the circular surface mapping:
+    // degrees on the screen and height in cm, drawn on the unwrapped 360 degree strip at the
+    // distance of the circular layers. circularPointAtPoint returns {valid, degrees, height}.
+    Q_INVOKABLE QVariantMap projectCircularPoint(double degrees, double heightCm) const;
+    Q_INVOKABLE QVariantMap circularPointAtPoint(float x, float y) const;
+    // Speaker array share (percent) of each array speaker for the layer selected in the Layers panel.
+    Q_INVOKABLE QVariantList audioSharesForSelectedLayer() const;
+
     Q_INVOKABLE void sync();
     Q_INVOKABLE void cleanup();
     static void beginShutdown();
@@ -391,6 +407,15 @@ private:
     // Dragging helpers (GUI thread, pure CPU math on the live camera state).
     bool rayFromScreenPoint(float x, float y, QVector3D& origin, QVector3D& direction) const;
     bool aimAtScreenPointLocked(const BaseLayer* layer, float x, float y, double& azimuthDeg, double& elevationDeg) const;
+    // Azimuth/elevation (dome frame) of the point where the view ray through a pixel meets a
+    // sphere of radius radiusM around the dome centre (perspective camera).
+    bool domeAnglesAtScreenPoint(float x, float y, double radiusM, double& azimuthDeg, double& elevationDeg) const;
+    // Largest centred square inside the item: the fisheye (fulldome) image area.
+    QRectF fisheyeSquare() const;
+    // Pixel position of a dome-frame point (metres, no dome tilt) for the current camera.
+    QVariantMap projectDomePoint(const QVector3D& point) const;
+    cplay::circular::Mapping circularScreenMapping() const;
+    double circularScreenDistanceCm() const;
     void setSelectedPlaneLayer(std::shared_ptr<BaseLayer> layer, int index);
     // True when the selected layer still exists in the current slide; clears a stale selection
     // (slide switched or layer removed) so the next drag starts clean. Caller holds the lock.

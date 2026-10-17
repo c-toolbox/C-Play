@@ -1631,21 +1631,21 @@ void DirectShowLayer::AudioRing::push(const float* interleaved, size_t nFrames) 
     frames += nFrames;
 }
 
-size_t DirectShowLayer::AudioRing::pop(float* out, int outChannels, size_t maxNFrames, float volume) {
+size_t DirectShowLayer::AudioRing::pop(float* out, int outChannels, size_t maxNFrames, float volume,
+                                       cplay::audio::ChannelMixer& mixer) {
     std::lock_guard<std::mutex> lock(mutex);
     if (!out || outChannels <= 0 || frames == 0 || maxFrames == 0 || channels <= 0)
         return 0;
     const size_t n = (frames < maxNFrames) ? frames : maxNFrames;
     const size_t inCh = static_cast<size_t>(channels);
-    for (size_t f = 0; f < n; ++f) {
-        const float* src = data.data() + tail * inCh;
-        float* dst = out + f * static_cast<size_t>(outChannels);
-        for (int oc = 0; oc < outChannels; ++oc) {
-            // Map output channel onto an input channel (simple wrap for down/upmix - mirrors OmtLayer).
-            const int ic = (oc < channels) ? oc : (oc % channels);
-            dst[oc] = src[ic] * volume;
-        }
-        tail = (tail + 1) % maxFrames;
+    // At most two contiguous runs: up to the end of the ring, then from its start.
+    size_t done = 0;
+    while (done < n) {
+        const size_t run = std::min(n - done, maxFrames - tail);
+        mixer.processInterleaved(data.data() + tail * inCh, channels, out + done * static_cast<size_t>(outChannels),
+                                 outChannels, run, volume);
+        tail = (tail + run) % maxFrames;
+        done += run;
     }
     frames -= n;
     return n;
@@ -1936,7 +1936,7 @@ bool DirectShowLayer::openAudioStreamLocked(int sampleRate, int channels) {
     if (AudioSettings::portAudioMixInputToOutput()) {
         const PaDeviceInfo* devInfo = Pa_GetDeviceInfo(m_audioOutputParameters.device);
         if (devInfo)
-            outChannels = std::min(AudioSettings::portAudioOutputChannels(), static_cast<int>(devInfo->maxOutputChannels));
+            outChannels = cplay::audio::configuredOutputChannels(devInfo->maxOutputChannels);
     }
     m_audioOutputChannels.store(outChannels);
 
@@ -2233,7 +2233,7 @@ int DirectShowLayer::audioOutputCallback(const void* /*inputBuffer*/, void* outp
     // Mute zeroes the per-frame volume so no audio is written to the PortAudio stream.
     const float vol = layer->m_volumeMute.load() ? 0.f : layer->m_audioVolume.load();
     const size_t got = layer->m_audioRing.pop(out, outChannels, static_cast<size_t>(framesPerBuffer),
-                                              vol);
+                                              vol, layer->m_audioMixer);
     if (got < static_cast<size_t>(framesPerBuffer)) {
         // Underrun: silence the rest of the buffer.
         std::fill_n(out + got * outChannels, (static_cast<size_t>(framesPerBuffer) - got) * outChannels, 0.0f);
@@ -2307,7 +2307,7 @@ void DirectShowLayer::updateAudioOutput() {
     if (AudioSettings::portAudioMixInputToOutput()) {
         const PaDeviceInfo* devInfo = Pa_GetDeviceInfo(newDeviceIdx);
         if (devInfo)
-            channelCount = std::min(AudioSettings::portAudioOutputChannels(), static_cast<int>(devInfo->maxOutputChannels));
+            channelCount = cplay::audio::configuredOutputChannels(devInfo->maxOutputChannels);
     }
 
     bool restartStream = false;

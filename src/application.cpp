@@ -229,6 +229,8 @@ Application::Application(int &argc, char **argv, const QString &applicationName)
     }
 #endif
     m_wwsClientModel = new WwsClientModel(this);
+    // Also pushes the speaker setup from the audio settings to the PortAudio layer mixers.
+    m_audioMappingModel = new AudioMappingModel(this);
 #ifdef MEDIA_MTX_SUPPORT
     m_mediaMtxServersModel = new MediaMtxServersModel(this);
     m_mediaMtxModel = new MediaMtxModel(this);
@@ -763,6 +765,10 @@ void Application::setCluxPreviewVisible(bool visible) {
 
 WwsClientModel* Application::wwsClientModel() {
     return m_wwsClientModel;
+}
+
+AudioMappingModel* Application::audioMapping() {
+    return m_audioMappingModel;
 }
 
 void Application::setWwsClientModel(WwsClientModel* model) {

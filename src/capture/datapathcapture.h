@@ -27,6 +27,7 @@ public:
     ~DatapathAudioCapture();
 
     void keepAlive(float volume, bool reportLevels); // render thread, every frame while wanted
+    cplay::audio::ChannelMixer& mixer() { return m_mixer; }
     void restart();
     float takePeak();
     bool running() const { return m_running.load(); }
@@ -54,6 +55,7 @@ private:
     int m_sampleBytes = 2;    // 2 = 16-bit, 3 = 24-bit packed
     int m_outChannels = 2;
     std::vector<uint8_t> m_pcm; // callback scratch buffer
+    cplay::audio::ChannelMixer m_mixer; // stereo -> output layout (standard or spatial mapping)
     std::string m_lastLoggedError;
 
     std::atomic<bool> m_running{false};
@@ -80,7 +82,7 @@ public:
     void close() override;
     void stopCallbacks() override;
 
-    void updateAudio(bool wanted, float volume, bool reportLevels) override;
+    void updateAudio(bool wanted, float volume, bool reportLevels, const cplay::audio::SpatialSource& source) override;
     void restartAudio() override;
     float takeAudioPeak() override;
     bool audioRunning() const override;

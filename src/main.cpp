@@ -1240,6 +1240,7 @@ static void postSyncPreDraw() {
                 continue;
             layer->enableAudio(SyncHelper::instance().variables.enableAudioOnNodes);
             if (layer->hierarchy() == BaseLayer::LayerHierarchy::BACK) {
+                layer->updateAudioSpatialSource(); // spatial audio mapping follows the layer
                 if (layer->shouldUpdate()) {
                     if (!layer->hasInitialized()) {
                         layer->initialize();
@@ -1370,6 +1371,7 @@ static void postSyncPreDraw() {
                 continue;
             layer->enableAudio(SyncHelper::instance().variables.enableAudioOnNodes);
             if (layer->hierarchy() == BaseLayer::LayerHierarchy::FRONT) {
+                layer->updateAudioSpatialSource(); // spatial audio mapping follows the layer
                 if (layer->shouldUpdate()) {
                     if (!layer->hasInitialized()) {
                         layer->initialize();
@@ -1822,6 +1824,9 @@ int main(int argc, char *argv[]) {
         char *nodeAppArgv[] = { argv[0], nullptr };
         int nodeAppArgc = 1;
         QCoreApplication nodeApp(nodeAppArgc, nodeAppArgv);
+
+        // Speaker setup for the spatial audio mapping of PortAudio layers (audio on nodes).
+        cplay::audio::loadSpeakerSetupFromSettings();
 
         // Node telemetry: construct the QObject singleton here - on the main thread and only now
         // that QCoreApplication exists (the node process never creates an Application). Without

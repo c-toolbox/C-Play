@@ -8,7 +8,7 @@ set(CPLAY_VERSION_MAJOR 2)
 set(CPLAY_VERSION_MINOR 4)
 set(CPLAY_VERSION_PATCH 0)
 set(CPLAY_VERSION_PR_NAME "Beta")
-set(CPLAY_VERSION_PR_VERS 33)
+set(CPLAY_VERSION_PR_VERS 34)
 
 qt_add_executable(${TARGET_NAME})
 set_compile_options(${TARGET_NAME})
@@ -50,6 +50,11 @@ set(SOURCE_FILES
     animation/layereffects.h
     animation/maskglsl.h
     animation/posteffects.h
+    audio/audiomappingmodel.cpp
+    audio/audiomappingmodel.h
+    audio/audiomixer.cpp
+    audio/audiomixer.h
+    audio/speakersettings.h
     wwsclientmodel.cpp
     wwsclientmodel.h
     layers/audiolayer.cpp
@@ -394,6 +399,7 @@ set(QML_SRC_FILES
     qml/qt6/LayerView.qml
     qml/qt6/LayerViewGridParams.qml
     qml/qt6/MediaMTXEditor.qml
+    qml/qt6/AudioMappingDialog.qml
     qml/qt6/RestCommandsEditor.qml
     qml/qt6/CLuxEditor.qml
     qml/qt6/CLuxPreview.qml

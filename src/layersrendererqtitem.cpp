@@ -909,6 +909,10 @@ bool LayersRendererQtItem::rayFromScreenPoint(float x, float y, QVector3D& origi
 }
 
 bool LayersRendererQtItem::aimAtScreenPointLocked(const BaseLayer* layer, float x, float y, double& azimuthDeg, double& elevationDeg) const {
+    return domeAnglesAtScreenPoint(x, y, layer->planeDistance() / 100.0, azimuthDeg, elevationDeg);
+}
+
+bool LayersRendererQtItem::domeAnglesAtScreenPoint(float x, float y, double radiusM, double& azimuthDeg, double& elevationDeg) const {
     QVector3D rayOrigin, rayDir;
     if (!rayFromScreenPoint(x, y, rayOrigin, rayDir))
         return false;
@@ -919,9 +923,9 @@ bool LayersRendererQtItem::aimAtScreenPointLocked(const BaseLayer* layer, float 
     const QVector3D o = toDome.map(rayOrigin);
     const QVector3D dirDome = toDome.mapVector(rayDir).normalized();   // direction: linear part only
 
-    // Intersect the ray with a sphere of radius distance/100 centered at the origin; fall back
+    // Intersect the ray with a sphere of radius radiusM centered at the origin; fall back
     // to the closest approach point when it misses so aiming always works.
-    const double r = layer->planeDistance() / 100.0;
+    const double r = radiusM;
     QVector3D p;
     bool found = false;
     if (r > 1e-6) {
@@ -1044,6 +1048,176 @@ bool projectPlaneLocalToPixel(bool fisheye, double meshFovDeg, const QMatrix4x4&
     return true;
 }
 } // namespace
+
+QRectF LayersRendererQtItem::fisheyeSquare() const {
+    const double side = std::min(width(), height());
+    return QRectF((width() - side) / 2.0, (height() - side) / 2.0, side, side);
+}
+
+QVariantMap LayersRendererQtItem::projectDomePoint(const QVector3D& point) const {
+    QVariantMap result{{QStringLiteral("visible"), false}, {QStringLiteral("x"), 0.0}, {QStringLiteral("y"), 0.0}};
+    if (width() <= 0.0 || height() <= 0.0)
+        return result;
+
+    if (m_renderAsFisheye) {
+        // Mirrors the FisheyeProjection shader: equidistant around the zenith, in the square image area.
+        const float len = point.length();
+        if (len < 1e-6f)
+            return result;
+        const QVector3D dir = point / len;
+        const double halfFov = std::max(1e-6, m_meshFov * 0.5 * kPi / 180.0);
+        const double radius = std::acos(std::clamp(double(dir.y()), -1.0, 1.0)) / halfFov;
+        if (radius > 1.0)
+            return result; // outside the dome image
+        const double azLen = std::hypot(double(dir.x()), double(dir.z()));
+        const double ndcX = azLen > 1e-6 ? double(dir.x()) / azLen * radius : 0.0;
+        const double ndcY = azLen > 1e-6 ? double(dir.z()) / azLen * radius : 0.0;
+        const QRectF sq = fisheyeSquare();
+        result[QStringLiteral("visible")] = true;
+        result[QStringLiteral("x")] = sq.x() + (ndcX * 0.5 + 0.5) * sq.width();
+        result[QStringLiteral("y")] = sq.y() + (0.5 - ndcY * 0.5) * sq.height();
+        return result;
+    }
+
+    QMatrix4x4 viewMatrix, projectionMatrix;
+    buildCameraMatrices(m_cameraPosition, m_cameraEulerRotation, m_fieldOfView,
+                        static_cast<float>(width()), static_cast<float>(height()), viewMatrix, projectionMatrix);
+    QMatrix4x4 tilt;
+    tilt.rotate(float(-m_meshAngle), 1.0f, 0.0f, 0.0f);
+    const QVector4D clip = projectionMatrix * viewMatrix * QVector4D(tilt.map(point), 1.0f);
+    if (clip.w() <= 1e-6f)
+        return result; // behind the camera
+    const double ndcX = clip.x() / clip.w();
+    const double ndcY = clip.y() / clip.w();
+    result[QStringLiteral("visible")] = std::abs(ndcX) <= 1.0 && std::abs(ndcY) <= 1.0;
+    result[QStringLiteral("x")] = (ndcX * 0.5 + 0.5) * width();
+    result[QStringLiteral("y")] = (0.5 - ndcY * 0.5) * height();
+    return result;
+}
+
+QVariantMap LayersRendererQtItem::projectDomeDirection(double azimuthDeg, double elevationDeg) const {
+    const double az = azimuthDeg * kPi / 180.0;
+    const double el = elevationDeg * kPi / 180.0;
+    const QVector3D dir(float(std::sin(az) * std::cos(el)), float(std::sin(el)), float(-std::cos(az) * std::cos(el)));
+    return projectDomePoint(dir * float(std::max(0.01, m_meshRadius / 100.0)));
+}
+
+cplay::circular::Mapping LayersRendererQtItem::circularScreenMapping() const {
+    return {GridSettings::circularEnabled(), GridSettings::circularSurfaceWidthCM(),
+            GridSettings::circularSeamDegrees(), GridSettings::circularClockwise()};
+}
+
+double LayersRendererQtItem::circularScreenDistanceCm() const {
+    // The circular screen is drawn at the distance of the circular layers: the selected layer
+    // when it is one, else the first circular layer of the current slide, else the dome radius.
+    std::lock_guard<std::mutex> lock(LayersRendererQtItem::layerAccessMutex());
+    if (!LayersRendererQtItem::isShuttingDown()) {
+        if (m_selectedPlaneLayer && m_selectedPlaneLayer->circularPlaneActive())
+            return m_selectedPlaneLayer->renderPlaneDistance();
+        auto* slides = Application::isCreated() ? Application::instance().slidesModel() : nullptr;
+        LayersModel* slide = slides ? slides->selectedSlide() : nullptr;
+        if (slide)
+            for (const auto& layer : slide->renderOrderShared())
+                if (layer && layer->circularPlaneActive())
+                    return layer->renderPlaneDistance();
+    }
+    return m_meshRadius;
+}
+
+QVariantMap LayersRendererQtItem::projectCircularPoint(double degrees, double heightCm) const {
+    const cplay::circular::Mapping mapping = circularScreenMapping();
+    if (!mapping.valid())
+        return QVariantMap{{QStringLiteral("visible"), false}, {QStringLiteral("x"), 0.0}, {QStringLiteral("y"), 0.0}};
+    const double xCm = mapping.wrapCm(mapping.angleToCm(degrees));
+    return projectDomePoint(QVector3D(float(xCm / 100.0), float(heightCm / 100.0), float(-circularScreenDistanceCm() / 100.0)));
+}
+
+QVariantMap LayersRendererQtItem::circularPointAtPoint(float x, float y) const {
+    QVariantMap result{{QStringLiteral("valid"), false}, {QStringLiteral("degrees"), 0.0}, {QStringLiteral("height"), 0.0}};
+    const cplay::circular::Mapping mapping = circularScreenMapping();
+    if (!mapping.valid())
+        return result;
+
+    // View ray in the dome frame (no tilt), from the camera (perspective) or the dome centre (fisheye).
+    QVector3D origin, dir;
+    if (m_renderAsFisheye) {
+        const QVariantMap hit = domeDirectionAtPoint(x, y);
+        if (!hit.value(QStringLiteral("valid")).toBool())
+            return result;
+        const double az = hit.value(QStringLiteral("azimuth")).toDouble() * kPi / 180.0;
+        const double el = hit.value(QStringLiteral("elevation")).toDouble() * kPi / 180.0;
+        dir = QVector3D(float(std::sin(az) * std::cos(el)), float(std::sin(el)), float(-std::cos(az) * std::cos(el)));
+    } else {
+        QVector3D rayOrigin, rayDir;
+        if (!rayFromScreenPoint(x, y, rayOrigin, rayDir))
+            return result;
+        QMatrix4x4 toDome;
+        toDome.rotate(float(m_meshAngle), 1.0f, 0.0f, 0.0f);
+        origin = toDome.map(rayOrigin);
+        dir = toDome.mapVector(rayDir).normalized();
+    }
+
+    // Intersect with the screen plane z = -distance.
+    const float planeZ = float(-circularScreenDistanceCm() / 100.0);
+    if (std::abs(dir.z()) < 1e-6f)
+        return result;
+    const float t = (planeZ - origin.z()) / dir.z();
+    if (t <= 0.f)
+        return result; // the screen is behind the ray
+    const QVector3D p = origin + dir * t;
+    result[QStringLiteral("valid")] = true;
+    result[QStringLiteral("degrees")] = std::fmod(mapping.cmToAngle(mapping.wrapCm(p.x() * 100.0)) + 360.0, 360.0);
+    result[QStringLiteral("height")] = p.y() * 100.0;
+    return result;
+}
+
+QVariantList LayersRendererQtItem::audioSharesForSelectedLayer() const {
+    // Speaker array share of each speaker for the layer selected in the Layers panel, in
+    // percent: of the power with constant power on, else of the amplitude. Empty without a
+    // selected 3D layer.
+    QVariantList shares;
+    cplay::audio::SpatialSource source;
+    {
+        std::lock_guard<std::mutex> lock(LayersRendererQtItem::layerAccessMutex());
+        if (LayersRendererQtItem::isShuttingDown() || !m_selectedPlaneLayer)
+            return shares;
+        source = m_selectedPlaneLayer->audioSpatialSource();
+    }
+    const cplay::audio::SpeakerSetup setup = cplay::audio::speakerSetup();
+    float gains[cplay::audio::kMaxArraySpeakers];
+    if (setup.arrayCount <= 0)
+        return shares;
+    cplay::audio::arraySpeakerGains(source, setup, gains);
+    for (int i = 0; i < setup.arrayCount; ++i)
+        shares.append(100.0 * (setup.constantPower ? double(gains[i]) * gains[i] : double(gains[i])));
+    return shares;
+}
+
+QVariantMap LayersRendererQtItem::domeDirectionAtPoint(float x, float y) const {
+    QVariantMap result{{QStringLiteral("valid"), false}, {QStringLiteral("azimuth"), 0.0}, {QStringLiteral("elevation"), 0.0}};
+    double azimuthDeg = 0.0, elevationDeg = 0.0;
+    if (m_renderAsFisheye) {
+        const QRectF sq = fisheyeSquare();
+        if (sq.width() <= 0.0)
+            return result;
+        const double ndcX = (x - sq.center().x()) / (sq.width() / 2.0);
+        const double ndcY = (sq.center().y() - y) / (sq.height() / 2.0);
+        const double radius = std::hypot(ndcX, ndcY);
+        if (radius > 1.0)
+            return result; // outside the dome image
+        const double phi = radius * m_meshFov * 0.5 * kPi / 180.0;
+        const double s = radius > 1e-9 ? std::sin(phi) / radius : 0.0;
+        const double dx = ndcX * s, dy = std::cos(phi), dz = ndcY * s;
+        azimuthDeg = std::atan2(dx, -dz) * 180.0 / kPi;
+        elevationDeg = std::atan2(dy, std::hypot(dx, dz)) * 180.0 / kPi;
+    } else if (!domeAnglesAtScreenPoint(x, y, std::max(0.01, m_meshRadius / 100.0), azimuthDeg, elevationDeg)) {
+        return result;
+    }
+    result[QStringLiteral("valid")] = true;
+    result[QStringLiteral("azimuth")] = azimuthDeg;
+    result[QStringLiteral("elevation")] = elevationDeg;
+    return result;
+}
 
 void LayersRendererQtItem::planeMoveAxesLocked(double& rightPerCmH, double& downPerCmH,
                                                double& rightPerCmV, double& downPerCmV) const {

@@ -84,10 +84,9 @@ SettingsBasePage {
                 width: 10
             }
             Label {
-                visible: NDI_SUPPORT || OMT_SUPPORT
                 Layout.alignment: Qt.AlignLeft
                 font.italic: true
-                text: qsTr("Requires restart to work with NDI")
+                text: qsTr("Requires restart to work with live layers")
             }
         }
         Item {
@@ -382,7 +381,7 @@ SettingsBasePage {
             Layout.columnSpan: 3
             Layout.topMargin: 20
             Layout.fillWidth: true
-            text: qsTr("Audio settings for NDI/OMT/Capture playback")
+            text: qsTr("Audio settings for Live video layers (NDI/OMT/Capture/DirectShow/WebRTC)"
             level: 4
         }
         Item {
@@ -404,7 +403,7 @@ SettingsBasePage {
             Layout.alignment: Qt.AlignRight
             checked: AudioSettings.portAudioCustomOutput
             enabled: true
-            text: qsTr("Use custom audio output for NDI/OMT/Capture playback")
+            text: qsTr("Use custom audio output")
 
             onCheckedChanged: {
                 AudioSettings.portAudioCustomOutput = checked;
@@ -509,6 +508,7 @@ SettingsBasePage {
             onCheckedChanged: {
                 AudioSettings.portAudioMixInputToOutput = checked;
                 AudioSettings.save();
+                app.audioMapping.reload();
                 app.portAudioModel.updatePortAudioList();
                 app.slides.runUpdateAudioOutputOnLayers();
             }
@@ -577,9 +577,40 @@ SettingsBasePage {
                 onActivated: {
                     AudioSettings.portAudioOutputChannels = model.get(index).value;
                     AudioSettings.save();
+                    app.audioMapping.reload();
                     app.portAudioModel.updatePortAudioList();
                     app.slides.runUpdateAudioOutputOnLayers();
                 }
+            }
+            Layout.columnSpan: 2
+        }
+
+        Item {
+            visible: NDI_SUPPORT || OMT_SUPPORT || CAPTURE_SUPPORT
+            height: 1
+            width: 1
+        }
+        RowLayout {
+            visible: NDI_SUPPORT || OMT_SUPPORT || CAPTURE_SUPPORT
+            Button {
+                icon.name: "audio-speakers-symbolic"
+                text: qsTr("Audio mapping...")
+
+                onClicked: {
+                    audioMappingDialog.visible = true;
+                    audioMappingDialog.raise();
+                }
+
+                ToolTip.visible: hovered
+                ToolTip.delay: 500
+                ToolTip.text: qsTr("Optional spatial mapping: place the speakers around the dome and let the sound of each layer follow where the layer is shown.")
+            }
+            Label {
+                color: Kirigami.Theme.disabledTextColor
+                font.italic: true
+                text: !AudioSettings.portAudioMixInputToOutput ? qsTr("Spatial mapping requires audio mixing to the output device")
+                      : app.audioMapping.spatialEnabled ? qsTr("Spatial mapping is on")
+                      : qsTr("Spatial mapping is off")
             }
             Layout.columnSpan: 2
         }

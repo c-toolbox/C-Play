@@ -1555,7 +1555,7 @@ void WebRTCLayer::maybeReopenAudioOutput() {
     if (AudioSettings::portAudioMixInputToOutput()) {
         const PaDeviceInfo *devInfo = Pa_GetDeviceInfo(newDeviceIdx);
         if (devInfo) {
-            channelCount = std::min(AudioSettings::portAudioOutputChannels(), devInfo->maxOutputChannels);
+            channelCount = cplay::audio::configuredOutputChannels(devInfo->maxOutputChannels);
         }
     } else {
         channelCount = m_audioChannels;
@@ -1607,15 +1607,9 @@ void WebRTCLayer::pushDecodedPcm(const float *pcm, int sampleRate, int channels,
 
     // Mute zeroes the per-frame volume so no audio is written to the PortAudio stream.
     const float vol = m_volumeMute.load(std::memory_order_relaxed) ? 0.f : m_audioVolume.load(std::memory_order_relaxed);
-    for (int s = 0; s < frames; ++s) {
-        const float *inSample = pcm + static_cast<std::size_t>(s) * channels;
-        float *outSample = m_interleavedAudioBuf.data() + static_cast<std::size_t>(s) * outChannels;
-        for (int oc = 0; oc < outChannels; ++oc) {
-            // Map output channel to input channel (simple wrap for down/upmix).
-            const int ic = (oc < channels) ? oc : (oc % channels);
-            outSample[oc] = inSample[ic] * vol;
-        }
-    }
+    // Standard up/down mix or spatial mapping (shared with the other PortAudio layers).
+    m_audioMixer.processInterleaved(pcm, channels, m_interleavedAudioBuf.data(), outChannels,
+                                    static_cast<std::size_t>(frames), vol);
 
     // Report the peak of this frame for the audio level meter in the LayerView, but only
     // while the meter is enabled so the per-sample scan stays out of the hot path.
@@ -1652,7 +1646,7 @@ bool WebRTCLayer::startAudioOutput() {
     if (AudioSettings::portAudioMixInputToOutput()) {
         const PaDeviceInfo *devInfo = Pa_GetDeviceInfo(m_audioOutputParameters.device);
         if (devInfo) {
-            m_audioOutputChannels = std::min(AudioSettings::portAudioOutputChannels(), devInfo->maxOutputChannels);
+            m_audioOutputChannels = cplay::audio::configuredOutputChannels(devInfo->maxOutputChannels);
         }
     } else {
         m_audioOutputChannels = m_audioChannels;

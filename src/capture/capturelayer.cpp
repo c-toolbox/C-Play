@@ -310,7 +310,7 @@ void CaptureLayer::updateCapture() {
 
     m_sourceHasAudio.store(src.audio);
     const float volume = m_volumeMute.load() ? 0.f : static_cast<float>(m_volume) / 100.f * m_volumeScaling;
-    m_backend->updateAudio(isAudioEnabled() && alpha() > 0.f, volume, audioLevelsEnabled());
+    m_backend->updateAudio(isAudioEnabled() && alpha() > 0.f, volume, audioLevelsEnabled(), audioSpatialSource());
     const float peak = m_backend->takeAudioPeak();
     if (peak >= 0.f)
         reportAudioLevel(peak);

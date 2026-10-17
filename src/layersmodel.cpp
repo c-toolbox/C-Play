@@ -2688,6 +2688,8 @@ bool LayersModel::runRenderOnLayersThatShouldUpdate(bool updateRendering, bool p
             // driven the load forward, and this is the per-frame place that already
             // polls ready(), so the deferred start fires as soon as the load lands.
             layer->fulfillPendingStart();
+            // The spatial audio mapping follows where the layer is shown (moved, animated).
+            layer->updateAudioSpatialSource();
             if (m_draggedLayersAwaitingGridGuess.contains(layer.get())
                 && layer->ready()
                 && layer->width() > 0

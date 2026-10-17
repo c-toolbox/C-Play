@@ -8,6 +8,7 @@
 #ifndef CAPTUREBACKEND_H
 #define CAPTUREBACKEND_H
 
+#include <audio/audiomixer.h>
 #include <atomic>
 #include <memory>
 #include <mutex>
@@ -69,7 +70,10 @@ public:
 
     // Audio of sources with audio=true. Call every frame while the audio should play; it stops
     // shortly after the calls stop (layer hidden or removed). Volume is linear, 0..1.
-    virtual void updateAudio(bool wanted, float volume, bool reportLevels) { (void)wanted; (void)volume; (void)reportLevels; }
+    // source: where the layer is shown, for the spatial audio mapping.
+    virtual void updateAudio(bool wanted, float volume, bool reportLevels, const cplay::audio::SpatialSource& source) {
+        (void)wanted; (void)volume; (void)reportLevels; (void)source;
+    }
     // Reopens the audio output, e.g. after the output device setting changed.
     virtual void restartAudio() {}
     // Peak level since the previous call in [0..1], or -1 when no audio was played meanwhile.

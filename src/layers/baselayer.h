@@ -17,6 +17,7 @@
 #include <string>
 #include <vector>
 #include "track.h"
+#include <audio/audiomixer.h>
 #include <animation/layeranimstate.h>
 #include <animation/posteffects.h>
 #include <utils/planegrid.h>
@@ -222,6 +223,13 @@ public:
     // per-sample peak computation in the audio path and audioLevel() reports zero.
     void setAudioLevelsEnabled(bool enabled);
     bool audioLevelsEnabled() const;
+    // Channel mapping for layers playing audio through PortAudio: the standard up/down mix
+    // and the optional spatial mapping toward the speakers closest to the layer.
+    cplay::audio::ChannelMixer& audioMixer() { return m_audioMixer; }
+    // Where the layer is shown, as seen from the dome centre (render pose, animations included).
+    cplay::audio::SpatialSource audioSpatialSource() const;
+    // Pushes audioSpatialSource() to the mixer. Called every frame from the render loop.
+    virtual void updateAudioSpatialSource();
     virtual int audioId();
     virtual void setAudioId(int id);
     virtual bool isAudioEnabled() const;
@@ -602,6 +610,7 @@ protected:
     std::atomic<float> m_audioPeak{0.f};
     std::atomic<int64_t> m_audioPeakTimeMs{0}; // steady_clock ms of the last report (0 = never)
     std::atomic<bool> m_audioLevelsEnabled{false}; // gate for the per-sample peak scan in the audio path
+    cplay::audio::ChannelMixer m_audioMixer;
     int m_keepVisibilityForNumSlides;
     bool m_isLocked;
     bool m_isEnabled;

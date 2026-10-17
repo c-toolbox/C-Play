@@ -130,32 +130,6 @@ void RGBCBKAPI noSignalFn(HWND, HRGB, ULONG_PTR userData) {
         reinterpret_cast<DatapathCaptureBackend*>(userData)->onNoSignal();
 }
 
-// Stereo -> output layout, same channel mapping as the NDI layer's mixToOutputChannels():
-// 2.1: FL FR LFE | 5.0: FL FR C SL SR | 5.1: FL FR C LFE SL SR | 7.0: +RL RR | 7.1: FL FR C LFE SL SR RL RR.
-void mixStereoToOutput(float L, float R, float* out, int outChannels) {
-    const float C = 0.35355339f * (L + R);
-    const float LFE = 0.25f * (L + R);
-    switch (outChannels) {
-    case 1: out[0] = 0.5f * (L + R); break;
-    case 2: out[0] = L; out[1] = R; break;
-    case 3: out[0] = L; out[1] = R; out[2] = LFE; break;
-    case 5: out[0] = L; out[1] = R; out[2] = C; out[3] = 0.5f * L; out[4] = 0.5f * R; break;
-    case 6: out[0] = L; out[1] = R; out[2] = C; out[3] = LFE; out[4] = 0.5f * L; out[5] = 0.5f * R; break;
-    case 7:
-        out[0] = L; out[1] = R; out[2] = C; out[3] = 0.5f * L; out[4] = 0.5f * R;
-        out[5] = 0.25f * L; out[6] = 0.25f * R;
-        break;
-    case 8:
-        out[0] = L; out[1] = R; out[2] = C; out[3] = LFE; out[4] = 0.5f * L; out[5] = 0.5f * R;
-        out[6] = 0.25f * L; out[7] = 0.25f * R;
-        break;
-    default:
-        for (int oc = 0; oc < outChannels; ++oc)
-            out[oc] = (oc % 2) ? R : L;
-        break;
-    }
-}
-
 int audioOutputCallback(const void*, void* output, unsigned long frames, const PaStreamCallbackTimeInfo*,
                         PaStreamCallbackFlags, void* userData) {
     if (output && userData)
@@ -797,11 +771,13 @@ void DatapathCaptureBackend::close() {
     }
 }
 
-void DatapathCaptureBackend::updateAudio(bool wanted, float volume, bool reportLevels) {
+void DatapathCaptureBackend::updateAudio(bool wanted, float volume, bool reportLevels,
+                                         const cplay::audio::SpatialSource& source) {
     if (!m_source.audio || !wanted)
         return;
     if (!m_audio)
         m_audio = std::make_unique<DatapathAudioCapture>(m_source.input);
+    m_audio->mixer().setSource(source);
     m_audio->keepAlive(volume, reportLevels);
 }
 
@@ -964,7 +940,7 @@ bool DatapathAudioCapture::open() {
         return fail("no audio output device for capture audio");
     m_outChannels = 2;
     if (AudioSettings::portAudioMixInputToOutput())
-        m_outChannels = std::max(1, std::min(AudioSettings::portAudioOutputChannels(), device->maxOutputChannels));
+        m_outChannels = std::max(1, cplay::audio::configuredOutputChannels(device->maxOutputChannels));
     params.channelCount = m_outChannels;
     params.sampleFormat = paFloat32;
     params.suggestedLatency = device->defaultLowOutputLatency;
@@ -1020,22 +996,29 @@ void DatapathAudioCapture::fillOutput(float* out, unsigned long frames) {
     const float volume = m_volume.load();
     const uint8_t* pcm = m_pcm.data();
     float peak = 0.f;
-    for (unsigned long f = 0; f < frames; ++f) {
-        float stereo[2];
-        for (int c = 0; c < 2; ++c) {
-            const uint8_t* s = pcm + (static_cast<size_t>(f) * 2 + c) * m_sampleBytes;
-            if (m_sampleBytes == 2) {
-                stereo[c] = static_cast<float>(static_cast<int16_t>(s[0] | (s[1] << 8))) / 32768.f;
-            } else {
-                int32_t v = s[0] | (s[1] << 8) | (s[2] << 16);
-                if (v & 0x800000)
-                    v |= ~0xFFFFFF;
-                stereo[c] = static_cast<float>(v) / 8388608.f;
+    // Decode in chunks into a stack buffer, then map stereo onto the output layout.
+    constexpr unsigned long kChunk = 256;
+    float stereo[kChunk * 2];
+    for (unsigned long first = 0; first < frames; first += kChunk) {
+        const unsigned long n = std::min(kChunk, frames - first);
+        for (unsigned long f = 0; f < n; ++f) {
+            for (int c = 0; c < 2; ++c) {
+                const uint8_t* s = pcm + (static_cast<size_t>(first + f) * 2 + c) * m_sampleBytes;
+                float v;
+                if (m_sampleBytes == 2) {
+                    v = static_cast<float>(static_cast<int16_t>(s[0] | (s[1] << 8))) / 32768.f;
+                } else {
+                    int32_t i = s[0] | (s[1] << 8) | (s[2] << 16);
+                    if (i & 0x800000)
+                        i |= ~0xFFFFFF;
+                    v = static_cast<float>(i) / 8388608.f;
+                }
+                v *= volume;
+                peak = std::max(peak, std::fabs(v));
+                stereo[f * 2 + c] = v;
             }
-            stereo[c] *= volume;
-            peak = std::max(peak, std::fabs(stereo[c]));
         }
-        mixStereoToOutput(stereo[0], stereo[1], out + static_cast<size_t>(f) * m_outChannels, m_outChannels);
+        m_mixer.processInterleaved(stereo, 2, out + static_cast<size_t>(first) * m_outChannels, m_outChannels, n);
     }
 
     if (m_reportLevels.load()) {

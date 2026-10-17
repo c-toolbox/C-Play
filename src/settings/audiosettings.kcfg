@@ -64,5 +64,39 @@
       <label>Assuming even channels have LFE</label>
       <default>6</default>
     </entry>
+    <entry name="PortAudioSpatialMode" type="Int">
+      <label>Spatial mapping of PortAudio layer audio: 0 = off, 1 = surround panning, 2 = mono speaker array</label>
+      <default>0</default>
+    </entry>
+    <entry name="PortAudioSpeakerPositions" type="String">
+      <label>Speaker positions for the spatial mapping: channel count|azimuth:elevation;... (degrees)</label>
+    </entry>
+    <entry name="PortAudioSpatialFocus" type="Double">
+      <label>Spatial mapping focus: higher keeps the sound closer to the nearest speakers</label>
+      <default>4.0</default>
+    </entry>
+    <entry name="PortAudioSpatialWidth" type="Int">
+      <label>Spatial mapping width in percent: how far stereo channels spread across a flat layer</label>
+      <default>100</default>
+    </entry>
+    <entry name="PortAudioSpeakerArray" type="String">
+      <label>Speaker array: channel:azimuth:elevation:degrees:height;... (1-based channel, degrees, cm)</label>
+    </entry>
+    <entry name="PortAudioArrayLayout" type="Int">
+      <label>Speaker array positions: 0 = on the dome (azimuth/elevation), 1 = along the circular screen (degrees/height)</label>
+      <default>0</default>
+    </entry>
+    <entry name="PortAudioArrayRolloff" type="Double">
+      <label>Speaker array level drop in dB per doubling of the distance to a speaker</label>
+      <default>6.0</default>
+    </entry>
+    <entry name="PortAudioArrayBlur" type="Double">
+      <label>Speaker array spatial blur in percent of the dome/circle radius</label>
+      <default>5.0</default>
+    </entry>
+    <entry name="PortAudioArrayConstantPower" type="bool">
+      <label>Speaker array: keep the total power constant (otherwise the amplitudes sum to 100%)</label>
+      <default>true</default>
+    </entry>
   </group>
 </kcfg>

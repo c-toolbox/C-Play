@@ -337,7 +337,8 @@ private:
 
         bool setFormat(int ch, int sampleRate); // (re)allocate for a new layout/rate; drops buffered audio
         void push(const float* interleaved, size_t nFrames);
-        size_t pop(float* out, int outChannels, size_t maxNFrames, float volume);
+        // Mixes the buffered frames onto the output layout (standard up/down mix or spatial mapping).
+        size_t pop(float* out, int outChannels, size_t maxNFrames, float volume, cplay::audio::ChannelMixer& mixer);
         void clear();
     };
     AudioRing m_audioRing;

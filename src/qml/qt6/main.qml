@@ -574,6 +574,10 @@ Kirigami.ApplicationWindow {
             }
 
             onReleased: (mouse) => {
+                // A plain click (no drag) places the speaker selected in the Audio mapping dialog.
+                if (dragMode === 1 && mouse.button === Qt.LeftButton && app.audioMapping.showSpeakersInView
+                        && app.audioMapping.placeOnClick && app.audioMapping.selectedSpeaker >= 0)
+                    speakerOverlay.placeSpeaker(app.audioMapping.selectedSpeaker, mouse.x, mouse.y, true);
                 const wasLayerDrag = dragMode === 3 || dragMode === 4 || dragMode === 5;
                 if (wasLayerDrag)
                     viewLayersIn3DRenderItem.endPlaneDrag();
@@ -620,6 +624,161 @@ Kirigami.ApplicationWindow {
                     if (!drop.urls || drop.urls.length === 0)
                         return;
                     openFile(app.pathToUrl(drop.urls[0]))
+                }
+            }
+        }
+
+        // Speakers of the spatial audio mapping, shown and placed from the Audio mapping dialog:
+        // the surround layout speakers on the dome, or the speaker array on the dome or along
+        // the circular screen (the unwrapped 360 degree strip of the circular surface mapping).
+        // Dragging a marker moves the speaker, pressing it selects it. Speaker array markers
+        // show their share of the layer selected in the Layers panel.
+        Item {
+            id: speakerOverlay
+            anchors.fill: parent
+            visible: app.audioMapping.showSpeakersInView && app.audioMapping.mode !== 0
+
+            readonly property bool arrayMode: app.audioMapping.mode === 2
+            readonly property bool circular: arrayMode && app.audioMapping.arrayLayout === 1
+            readonly property var speakerList: arrayMode ? app.audioMapping.arraySpeakers : app.audioMapping.speakers
+            property var shares: []
+            // Bumped regularly so the markers follow layer distance and grid setting changes too.
+            property int tick: 0
+
+            // Moves speaker index to the dome/screen point under (x, y) in this item.
+            function placeSpeaker(index, x, y, save) {
+                if (circular) {
+                    const c = viewLayersIn3DRenderItem.circularPointAtPoint(x, y);
+                    if (c.valid)
+                        app.audioMapping.setArraySpeakerCircularPosition(index, c.degrees, c.height, save);
+                    return c.valid;
+                }
+                const d = viewLayersIn3DRenderItem.domeDirectionAtPoint(x, y);
+                if (!d.valid)
+                    return false;
+                if (arrayMode)
+                    app.audioMapping.setArraySpeakerDomePosition(index, d.azimuth, d.elevation, save);
+                else
+                    app.audioMapping.setSpeakerPosition(index, d.azimuth, d.elevation, save);
+                return true;
+            }
+
+            Timer {
+                interval: 250
+                repeat: true
+                running: speakerOverlay.visible && viewLayersIn3DRenderItem.visible
+                onTriggered: {
+                    speakerOverlay.tick++;
+                    if (speakerOverlay.arrayMode)
+                        speakerOverlay.shares = viewLayersIn3DRenderItem.audioSharesForSelectedLayer();
+                }
+            }
+
+            Repeater {
+                model: speakerOverlay.speakerList.length
+
+                delegate: Rectangle {
+                    id: speakerMarker
+
+                    required property int index
+                    readonly property var speaker: speakerOverlay.speakerList[index]
+                    readonly property bool lfe: !speakerOverlay.arrayMode && !!speaker && speaker.lfe
+                    readonly property bool selected: app.audioMapping.selectedSpeaker === index
+                    readonly property string label: !speaker ? ""
+                                                    : speakerOverlay.arrayMode ? String(speaker.channel) : speaker.label
+                    readonly property var projected: {
+                        // Re-project whenever the camera, the dome or the view size changes.
+                        viewLayersIn3DRenderItem.cameraPosition;
+                        viewLayersIn3DRenderItem.cameraEulerRotation;
+                        viewLayersIn3DRenderItem.fieldOfView;
+                        viewLayersIn3DRenderItem.meshAngle;
+                        viewLayersIn3DRenderItem.meshRadius;
+                        viewLayersIn3DRenderItem.meshFov;
+                        viewLayersIn3DRenderItem.renderAsFisheye;
+                        speakerOverlay.width;
+                        speakerOverlay.height;
+                        speakerOverlay.tick;
+                        if (!speaker)
+                            return { visible: false, x: 0, y: 0 };
+                        if (speakerOverlay.circular)
+                            return viewLayersIn3DRenderItem.projectCircularPoint(speaker.degrees, speaker.height);
+                        return viewLayersIn3DRenderItem.projectDomeDirection(speaker.azimuth, speaker.elevation);
+                    }
+                    readonly property string shareText: speakerOverlay.arrayMode && index < speakerOverlay.shares.length
+                                                        ? qsTr("%1%").arg(speakerOverlay.shares[index].toFixed(0)) : ""
+
+                    visible: !!speaker && !lfe && projected.visible
+                    width: Kirigami.Units.gridUnit * 2
+                    height: width
+                    radius: width / 2
+                    x: projected.x - width / 2
+                    y: projected.y - height / 2
+                    color: selected ? Kirigami.Theme.highlightColor : Qt.rgba(0, 0, 0, 0.6)
+                    border.color: "white"
+                    border.width: selected ? 3 : 2
+
+                    Label {
+                        anchors.centerIn: parent
+                        color: "white"
+                        font.bold: true
+                        text: speakerMarker.label
+                    }
+                    Label {
+                        anchors.top: parent.bottom
+                        anchors.horizontalCenter: parent.horizontalCenter
+                        visible: text !== ""
+                        color: "white"
+                        style: Text.Outline
+                        styleColor: "black"
+                        font.bold: true
+                        text: speakerMarker.shareText
+                    }
+
+                    MouseArea {
+                        id: speakerMouseArea
+
+                        property bool moved: false
+
+                        anchors.fill: parent
+                        hoverEnabled: true
+                        cursorShape: pressed ? Qt.ClosedHandCursor : Qt.OpenHandCursor
+
+                        onPressed: {
+                            app.audioMapping.selectedSpeaker = speakerMarker.index;
+                            moved = false;
+                        }
+                        onPositionChanged: (mouse) => {
+                            if (!pressed)
+                                return;
+                            const p = mapToItem(speakerOverlay, mouse.x, mouse.y);
+                            if (speakerOverlay.placeSpeaker(speakerMarker.index, p.x, p.y, false))
+                                moved = true;
+                        }
+                        onReleased: {
+                            if (!moved)
+                                return;
+                            if (speakerOverlay.arrayMode)
+                                app.audioMapping.saveArraySpeakers();
+                            else
+                                app.audioMapping.saveSpeakerPositions();
+                        }
+
+                        ToolTip.visible: containsMouse && !pressed
+                        ToolTip.delay: 300
+                        ToolTip.text: {
+                            const spk = speakerMarker.speaker;
+                            if (!spk)
+                                return "";
+                            if (speakerOverlay.circular)
+                                return qsTr("Speaker %1 (output channel %2): %3° on the screen, height %4 cm")
+                                    .arg(speakerMarker.index + 1).arg(spk.channel).arg(spk.degrees.toFixed(1)).arg(spk.height.toFixed(0));
+                            if (speakerOverlay.arrayMode)
+                                return qsTr("Speaker %1 (output channel %2): azimuth %3°, elevation %4°")
+                                    .arg(speakerMarker.index + 1).arg(spk.channel).arg(spk.azimuth.toFixed(0)).arg(spk.elevation.toFixed(0));
+                            return qsTr("%1 (channel %2): azimuth %3°, elevation %4°")
+                                .arg(spk.label).arg(speakerMarker.index + 1).arg(spk.azimuth.toFixed(0)).arg(spk.elevation.toFixed(0));
+                        }
+                    }
                 }
             }
         }
@@ -715,6 +874,9 @@ Kirigami.ApplicationWindow {
     }
     MediaMTXEditor {
         id: mediaMtxEditor
+    }
+    AudioMappingDialog {
+        id: audioMappingDialog
     }
     LoggingWindow {
         id: loggingWindow
