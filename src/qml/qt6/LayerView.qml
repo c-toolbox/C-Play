@@ -1065,6 +1065,11 @@ Kirigami.ApplicationWindow {
             anchors.left: parent.left
             anchors.bottom: parent.bottom
             anchors.margins: 12
+            // Sit above the type-specific controls (e.g. WebRTC URL/auth, layer operation),
+            // which are centred at the bottom and would otherwise overlap the audio options.
+            anchors.bottomMargin: 12 + Math.max(layerWindow.webrtcControls ? layerWindow.webrtcControls.height : 0,
+                                                layerWindow.qrCodeControls ? layerWindow.qrCodeControls.height : 0,
+                                                layerWindow.flipYControls ? layerWindow.flipYControls.height : 0)
 
             // Per layer opt-outs of the audio mapping (up/down mix of the audio settings) and of
             // the spatial mapping on top of it; each is only offered while it is on globally.

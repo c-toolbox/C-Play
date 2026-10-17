@@ -34,14 +34,15 @@ For multi-channel audio setups such as JACK, see the [Audio configuration guide]
 * **Preferred language** — IETF language tag for preferred audio track language (e.g. `eng`, `ger`).
 * **Preferred track** — Preferred audio track number. Leave at 0 for automatic selection.
 
-### NDI/OMT audio output (requires NDI and/or OMT support)
+### Audio settings for live video layers
 
-Video and/or audio over network is supported through NDI and/or OMT as a layer within a slide.
+The live layers — **NDI**, **OMT**, **Capture**, **DirectShow** and **WebRTC** — play their audio through PortAudio, separately from the mpv-based media playback above. These settings apply to all of them. (The section is shown in builds with NDI, OMT or capture support.)
 
-These settings are specific to NDI and/or OMT audio output.
+* **Enable audio on: Master / Nodes / Clients** — also decides where the live layers play their audio. Changing it requires a restart to take effect for live layers.
+* **Use custom audio output** — Use a specific PortAudio output device for the live layers instead of the system default (default off).
+* **Use audio device** — The PortAudio output device (with its host API, e.g. WASAPI or ASIO). The line below shows the device's channel count and default sample rate; the refresh button rescans the devices.
+* **Perform audio mixing (up/down) to output device** — Mix every live layer to the output layout chosen below (default off). When off, each live layer plays its source channels unmixed.
+* **Output channels** — The output layout: 2.0, 2.1, 5.0, 5.1, 7.0 or 7.1 (default 6 / 5.1).
+* **Audio mapping...** — Opens the [Audio mapping](/settings/audio_mapping) dialog for the optional spatial mapping: surround panning that makes the sound follow where each layer is shown, or a mono speaker array by distance, including speaker placement in the master view. The text next to the button shows whether a spatial mapping is on.
 
-* **PortAudio custom output** — Enable a custom PortAudio device for NDI and/or OMT audio (default off).
-* **PortAudio output device** — Select the PortAudio output device.
-* **PortAudio output API** — Select the PortAudio host API.
-* **Mix input to output** — Mix NDI and/or OMT audio input directly to the selected output (default off).
-* **Output channels** — Number of audio output channels: 2.0, 2.1, 5.0, 5.1, 7.0, or 7.1 (default 6 / 5.1).
+Each live layer can opt out of the up/down mix and of the spatial mapping in its Layer View; both are on by default. See [Audio mapping](/settings/audio_mapping) for the complete structure.

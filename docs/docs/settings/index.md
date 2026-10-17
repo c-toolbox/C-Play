@@ -6,6 +6,7 @@ sidebar_position: 5
 # The settings within C-Play
 
  - [Audio settings](/settings/audio)
+ - [Audio mapping](/settings/audio_mapping)
  - [Grid/mapping settings](/settings/grid)
  - [Image settings](/settings/image)
  - [Location settings](/settings/location)
