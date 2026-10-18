@@ -24,6 +24,15 @@ import "Components/PopupHelpers.js" as PopupHelpers
 Kirigami.ApplicationWindow {
     id: window
 
+    // Let Qt position the content below both the menu bar and header. Newer
+    // Kirigami versions anchor it to the window with only the header's height
+    // as a top margin, which puts the list toolbars behind the header.
+    contentItem.anchors.fill: undefined
+    contentItem.anchors.left: contentItem.parent.left
+    contentItem.anchors.right: contentItem.parent.right
+    contentItem.anchors.topMargin: 0
+    contentItem.anchors.bottomMargin: 0
+
     property var appActions: actions.list
     property var configure: app.action("configure")
     property bool isFullScreenMode: false
