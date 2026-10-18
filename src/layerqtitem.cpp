@@ -1759,6 +1759,8 @@ void LayerQtItem::setLayerMasterRelay(bool enabled) {
             Q_EMIT layerNeedsSave();
         }
     }
+#else
+    Q_UNUSED(enabled)
 #endif
 }
 
@@ -2245,8 +2247,14 @@ void LayerQtItem::createLayer(int type, QString filepath){
     BaseLayer* newLayer = BaseLayer::createLayer(true, type, get_proc_address_qopengl_v1, get_proc_address_qopengl_v2);
     newLayer->setFilePath(filepath.toStdString());
     // Default the no-signal image on when one is configured for this layer type.
-    if ((type == BaseLayer::CAPTURE && !ImageSettings::noSignalImageForCapture().isEmpty())
-        || (type == BaseLayer::DIRECTSHOW && !ImageSettings::noSignalImageForDirectShow().isEmpty()))
+    bool useNoSignalImage = false;
+#ifdef CAPTURE_SUPPORT
+    useNoSignalImage |= type == BaseLayer::CAPTURE && !ImageSettings::noSignalImageForCapture().isEmpty();
+#endif
+#ifdef DIRECTSHOW_SUPPORT
+    useNoSignalImage |= type == BaseLayer::DIRECTSHOW && !ImageSettings::noSignalImageForDirectShow().isEmpty();
+#endif
+    if (useNoSignalImage)
         newLayer->setUseNoSignalImage(true);
     newLayer->initialize();
 

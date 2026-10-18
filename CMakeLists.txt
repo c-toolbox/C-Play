@@ -33,6 +33,16 @@ set_property(GLOBAL PROPERTY AUTOGEN_TARGETS_FOLDER ${AUTO_TARGET_NAME})
 set_property(GLOBAL PROPERTY AUTOGEN_SOURCE_GROUP ${AUTO_SOURCE_NAME})
 set_property(GLOBAL PROPERTY AUTOMOC_SOURCE_GROUP ${AUTO_SOURCE_NAME})
 
+# vcpkg upgrades can rename libraries (zlib went from zlib.lib/zlibd.lib to z.lib/zd.lib), which
+# leaves FindZLIB's cached paths pointing at files that no longer exist. Drop those so they are found again.
+foreach(_cached_lib ZLIB_LIBRARY_RELEASE ZLIB_LIBRARY_DEBUG)
+    if(DEFINED CACHE{${_cached_lib}} AND NOT EXISTS "${${_cached_lib}}")
+        message(STATUS "Dropping stale ${_cached_lib}: ${${_cached_lib}}")
+        unset(${_cached_lib} CACHE)
+        unset(ZLIB_LIBRARY CACHE)
+    endif()
+endforeach()
+
 set(QT_MIN_VERSION 6.6.0)
 set(KF6_MIN_VERSION 6.0.0)
 

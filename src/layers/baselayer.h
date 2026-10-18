@@ -600,9 +600,11 @@ protected:
 
     void setNeedSync();
     void encodeNodeStreamTypeAlways(std::vector<std::byte>& data) const;
+#if defined(NODE_STREAM_SUPPORT) && defined(NDI_LAYER)
     // Base-core section for the NDI node-stream mode: like encodeBaseCore(), but the
     // filepath slot carries the NDI source name the node's NdiLayer receives.
     void encodeBaseCoreForNdiNodes(std::vector<std::byte>& data) const;
+#endif
 
     // Loader failure state mutators. Idempotent (no-op when the state is unchanged) so the
     // verifier's per-tick collectLoadStatus() sync stays cheap and chatter-free.

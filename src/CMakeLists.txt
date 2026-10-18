@@ -705,9 +705,11 @@ foreach(_sgct_pkg glad glfw3 glm minizip nlohmann_json nlohmann_json_schema_vali
 endforeach()
 if(BUILD_WITH_VCPKG_SUPPORT)
     # SGCT links MINIZIP::minizip, which older vcpkg minizip installs do not export (they only
-    # have unofficial::minizip::minizip). Provide it so both old and new installs work.
-    find_package(unofficial-minizip CONFIG REQUIRED)
-    if(NOT TARGET MINIZIP::minizip)
+    # have unofficial::minizip::minizip). Provide it so both old and new installs work, and only
+    # touch the deprecated unofficial-minizip package when the official targets are missing.
+    find_package(minizip CONFIG QUIET)
+    if(NOT TARGET MINIZIP::minizip AND NOT TARGET MINIZIP::minizipstatic)
+        find_package(unofficial-minizip CONFIG REQUIRED)
         add_library(MINIZIP::minizip INTERFACE IMPORTED)
         target_link_libraries(MINIZIP::minizip INTERFACE unofficial::minizip::minizip)
     endif()
@@ -802,10 +804,11 @@ if(CPLAY_INSTALL_DEPENDENCIES)
     endif()
 
     # Check if we are on Windows 11 (Build number 22000 or higher) or Windows 10 (Build number 10240 or higher)
-    cmake_host_system_information(RESULT OS_VERSION QUERY OS_VERSION)
-    string(REGEX MATCH "[0-9]+" OS_BUILD_NUM "${OS_VERSION}")
+    # Windows 11 still reports itself as version 10.0, so compare the build number (10.0.<build>).
+    string(REGEX MATCH "^[0-9]+\\.[0-9]+\\.([0-9]+)" _os_version_match "${CMAKE_HOST_SYSTEM_VERSION}")
+    set(OS_BUILD_NUM "${CMAKE_MATCH_1}")
 
-    if(${OS_BUILD_NUM} VERSION_GREATER_EQUAL 22000)
+    if(OS_BUILD_NUM AND OS_BUILD_NUM GREATER_EQUAL 22000)
         message("Windows 11 or above detected, recommended to copy all DLLS from path instead of using GET_RUNTIME_DEPENDENCIES")
         set(INSTALL_GRP FALSE)
         set(INSTALL_DFP TRUE)

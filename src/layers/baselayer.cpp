@@ -2496,6 +2496,7 @@ int BaseLayer::syncTypeForNodes() const {
     return static_cast<int>(m_type);
 }
 
+#if defined(NODE_STREAM_SUPPORT) && defined(NDI_LAYER)
 void BaseLayer::encodeBaseCoreForNdiNodes(std::vector<std::byte>& data) const {
     // Like encodeBaseCore(), but the filepath slot carries the full NDI source name,
     // which is what an NdiLayer addresses its receiver by. The received image is
@@ -2512,6 +2513,7 @@ void BaseLayer::encodeBaseCoreForNdiNodes(std::vector<std::byte>& data) const {
     const bool flipY = false;
     sgct::serializeObject(data, flipY);
 }
+#endif
 
 void BaseLayer::encodeFullForNodes(std::vector<std::byte>& data) {
 #ifdef NODE_STREAM_SUPPORT

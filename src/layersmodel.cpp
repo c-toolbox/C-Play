@@ -914,8 +914,14 @@ int LayersModel::addLayer(QString title, int type, QString filepath, int stereoM
         newLayer->setPlaneSize(glm::vec2(GridSettings::plane_Width_CM(), GridSettings::plane_Height_CM()), 
             static_cast<uint8_t>(GridSettings::plane_Calculate_Size_Based_on_Video()));
         // Default the no-signal image on when one is configured for this layer type.
-        if ((type == BaseLayer::CAPTURE && !ImageSettings::noSignalImageForCapture().isEmpty())
-            || (type == BaseLayer::DIRECTSHOW && !ImageSettings::noSignalImageForDirectShow().isEmpty()))
+        bool useNoSignalImage = false;
+#ifdef CAPTURE_SUPPORT
+        useNoSignalImage |= type == BaseLayer::CAPTURE && !ImageSettings::noSignalImageForCapture().isEmpty();
+#endif
+#ifdef DIRECTSHOW_SUPPORT
+        useNoSignalImage |= type == BaseLayer::DIRECTSHOW && !ImageSettings::noSignalImageForDirectShow().isEmpty();
+#endif
+        if (useNoSignalImage)
             newLayer->setUseNoSignalImage(true);
         newLayer->initialize();
 
