@@ -30,6 +30,11 @@ Rectangle {
     // loaded, so onPresentationHasLoaded() can apply the "show at startup" visibility settings.
     property bool loadingStartupPresentation: false
     property string presentationToLoad: ""
+    property var markedIndices: []
+    // Row a Shift + click range starts from: the last row clicked without Shift.
+    property int markAnchor: -1
+    // Rows captured when the removal is confirmed, removed once the remove timer fires.
+    property var slidesToRemove: []
     property Button openPresentationButton: openPresentationButton
     property Button savePresentationButton: savePresentationButton
 
@@ -196,16 +201,52 @@ Rectangle {
         removeSlideTimer.start();
     }
 
+    // Rows marked with Ctrl + left click (one row) or Shift + left click (a range); remove acts on
+    // these when any are marked. Returns true when the click marked rows instead of selecting one.
+    function handleMarkClick(idx) {
+        const type = window.markClickType();
+        if (type === "toggle") {
+            markedIndices = window.toggleMarkedIndex(markedIndices, idx, slidesView.currentIndex);
+            markAnchor = idx;
+            return true;
+        }
+        if (type === "range") {
+            markedIndices = window.markedRange(markAnchor >= 0 ? markAnchor : slidesView.currentIndex, idx);
+            return true;
+        }
+        clearMarked();
+        markAnchor = idx;
+        return false;
+    }
+    function clearMarked() {
+        markAnchor = -1;
+        if (markedIndices.length > 0)
+            markedIndices = [];
+    }
+    function isMarked(idx) {
+        return markedIndices.indexOf(idx) >= 0;
+    }
+
     // Keyboard shortcut path (removeSelected action): opens the same confirmation dialog as
     // the remove button, and only while the slides panel is shown.
     // Returns false when nothing could be removed.
     function removeSelectedSlide() {
         if (!shouldBeVisible || busyIndicator || !removeSlideButton.enabled || removeSlideDialog.visible)
             return false;
-        if (slidesView.currentIndex < 0 || slidesView.currentIndex >= slidesView.count)
+        if (window.rowsToRemove(markedIndices, slidesView.currentIndex, slidesView.count).length === 0)
             return false;
         removeSlideButton.clicked();
         return true;
+    }
+
+    // Marks are plain row indices, so any change to the rows drops them.
+    Connections {
+        function onRowsInserted() { clearMarked(); }
+        function onRowsRemoved() { clearMarked(); }
+        function onRowsMoved() { clearMarked(); }
+        function onModelReset() { clearMarked(); }
+
+        target: slidesView.model
     }
 
     function restoreSlideNavigation() {
@@ -391,14 +432,14 @@ Rectangle {
                 Button {
                     id: removeSlideButton
                     icon.name: "list-remove"
-                    enabled: !layerView.visible && !app.slides.selected.layersCanBeLocked
+                    enabled: !layerView.visible && (markedIndices.length > 0 || !app.slides.selected.layersCanBeLocked)
 
                     onClicked: {
                         removeSlideDialog.open();
                     }
 
                     ToolTip {
-                        text: qsTr("Remove selected slide")
+                        text: markedIndices.length > 0 ? qsTr("Remove the %1 marked slides").arg(markedIndices.length) : qsTr("Remove selected slide")
                     }
 
                     Dialog {
@@ -409,11 +450,17 @@ Rectangle {
                         onClosed: PopupHelpers.handlePopupClose()
 
                         Label {
-                            text: "Confirm removing of slide named <b><font color='red'>" + app.slides.selected.layersName + "</font></b>. This cannot be undone."
+                            readonly property string undoHint: actions.undoRemoveAction.shortcut
+                                                               ? " Undo with " + actions.undoRemoveAction.shortcut + "."
+                                                               : ""
+                            text: markedIndices.length > 0
+                                  ? "Confirm removing of <b><font color='red'>" + markedIndices.length + "</font></b> marked slides. Slides with locked layers are kept." + undoHint
+                                  : "Confirm removing of slide named <b><font color='red'>" + app.slides.selected.layersName + "</font></b>." + undoHint
                             textFormat: Text.RichText
                         }
 
                         onAccepted: {
+                            slidesToRemove = window.rowsToRemove(markedIndices, slidesView.currentIndex, slidesView.count);
                             busyIndicator = true;
                             app.slides.pauseLayerUpdate = true;
                             Qt.callLater(removeSlide);
@@ -563,6 +610,7 @@ Rectangle {
             }
             onCurrentIndexChanged: {
                 layers.layersView.currentIndex = -1;
+                layers.clearMarked();
                 if(app.slides.selectedSlideIdx !== slidesView.currentIndex)
                     app.slides.selectedSlideIdx = slidesView.currentIndex;
                 layers.busyIndicator = false;
@@ -640,6 +688,7 @@ Rectangle {
         id: slidesItemCompact
 
         SlidesItemCompact {
+            highlighted: slidesRoot.markedIndices.length > 0 ? slidesRoot.isMarked(index) : slidesView.currentIndex === index
         }
     }
     Timer {
@@ -725,7 +774,10 @@ Rectangle {
         repeat: false
 
         onTriggered: {
-            app.slides.removeSlide(slidesView.currentIndex);
+            if (app.slides.removeSlides(slidesToRemove))
+                window.recordRemoval("slides");
+            slidesToRemove = [];
+            clearMarked();
             restoreSlideNavigation();
             restoreUpdateAfterRemove.start();
         }

@@ -40,8 +40,80 @@ Kirigami.ApplicationWindow {
     property bool hideUI: (isFullScreenMode || isIdleMode)
     property url newMediaFileToOpen: ""
     property bool forceClose: false
-    // Which list the removeSelected shortcut (Delete) acts on: the one clicked last ("layer" or "slide").
+    // Which list the removeSelected shortcut (Delete) acts on: the one clicked last
+    // ("layer", "slide", "playlist" or "section").
     property string removeShortcutTarget: "layer"
+    // Lists with removals that the undoRemove shortcut (Ctrl+Z) can put back, latest last:
+    // "slides" (slides and layers), "playlist" or "sections". Each entry is one removal step
+    // of that list's model.
+    property var removalUndoOrder: []
+
+    // Called after a removal that the list's model recorded as an undo step.
+    function recordRemoval(list) {
+        removalUndoOrder.push(list);
+        // The models keep at most 50 steps each.
+        if (removalUndoOrder.length > 150)
+            removalUndoOrder.shift();
+    }
+    // Puts back the latest removal in any list. Steps a model no longer has (another
+    // presentation, playlist or media file was loaded since) are skipped.
+    function undoLastRemoval() {
+        while (removalUndoOrder.length > 0) {
+            const list = removalUndoOrder.pop();
+            let restored = false;
+            if (list === "slides")
+                restored = app.slides.undoRemove();
+            else if (list === "playlist")
+                restored = mpv.playlistModel.undoRemove();
+            else if (list === "sections")
+                restored = mpv.playSectionsModel.undoRemove();
+            if (restored)
+                return true;
+        }
+        osd.message(qsTr("Nothing to undo"));
+        return false;
+    }
+
+    // How a left click on a list item marks rows: "toggle" (default Ctrl) adds or removes one row,
+    // "range" (default Shift) marks every row between the anchor and the clicked one, "" is a plain
+    // click. The modifiers are set in the shortcut editor; when both are held the more specific wins.
+    function markClickType() {
+        const toggle = app.heldActionModifierCount("listMarkToggle");
+        const range = app.heldActionModifierCount("listMarkRange");
+        if (range > 0 && range >= toggle)
+            return "range";
+        if (toggle > 0)
+            return "toggle";
+        return "";
+    }
+    // Returns a copy of marked with idx toggled. The first mark also marks the current row,
+    // so selecting a row and then modifier-clicking another marks both.
+    function toggleMarkedIndex(marked, idx, current) {
+        const result = marked.slice();
+        if (result.length === 0 && current >= 0 && current !== idx)
+            result.push(current);
+        const pos = result.indexOf(idx);
+        if (pos >= 0)
+            result.splice(pos, 1);
+        else
+            result.push(idx);
+        return result;
+    }
+    // All rows from anchor to idx, either direction. Without an anchor only idx is marked.
+    function markedRange(anchor, idx) {
+        if (anchor < 0)
+            return [idx];
+        const result = [];
+        for (let r = Math.min(anchor, idx); r <= Math.max(anchor, idx); r++)
+            result.push(r);
+        return result;
+    }
+    // Rows a remove acts on: the marked ones, or else the current one. Highest first, so
+    // removing one row does not shift the rows still to be removed.
+    function rowsToRemove(marked, current, count) {
+        const rows = marked.length > 0 ? marked : [current];
+        return rows.filter(r => r >= 0 && r < count).sort((a, b) => b - a);
+    }
     property bool uiPopupOpen: false  // True when any popup (Menu, ComboBox dropdown or Dialog) is open in this ApplicationWindow
 
     // How the central viewport renders its content:

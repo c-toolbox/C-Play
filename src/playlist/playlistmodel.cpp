@@ -13,20 +13,70 @@
 #include "playbacksettings.h"
 #include "playlistitem.h"
 #include "worker.h"
+#include "utils/autosave.h"
 
 #include <QCollator>
+#include <QCoreApplication>
 #include <QDirIterator>
 #include <QFileInfo>
 #include <QJsonArray>
 #include <QJsonDocument>
 #include <QJsonObject>
 #include <QMimeDatabase>
+#include <QTimer>
 #include <QUrl>
 #include <KSharedConfig>
+
+#include <algorithm>
+#include <functional>
+
+namespace {
+// Removal steps that can be undone. Older steps are dropped.
+constexpr int kMaxRemovalUndoSteps = 50;
+
+// Rows highest first, so removing one row does not shift the rows still to be removed.
+QList<int> descendingUniqueRows(QList<int> rows) {
+    std::sort(rows.begin(), rows.end(), std::greater<int>());
+    rows.erase(std::unique(rows.begin(), rows.end()), rows.end());
+    return rows;
+}
+}
 
 PlaySectionsModel::PlaySectionsModel(QObject *parent)
     : QAbstractListModel(parent),
       m_currentEditItem(nullptr) {
+    m_autosaveTimer = new QTimer(this);
+    m_autosaveTimer->setInterval(Autosave::intervalMs);
+    m_autosaveTimer->setSingleShot(true);
+    connect(m_autosaveTimer, &QTimer::timeout, this, &PlaySectionsModel::autosave);
+    // Not restarted by further edits, so continuous edits are still autosaved regularly.
+    connect(this, &PlaySectionsModel::currentEditItemIsEditedChanged, m_autosaveTimer, [this]() {
+        if (m_currentEditItemIsEdited && !m_autosaveTimer->isActive())
+            m_autosaveTimer->start();
+    });
+    // Edits since the last autosave are written on exit.
+    connect(QCoreApplication::instance(), &QCoreApplication::aboutToQuit, this, [this]() {
+        if (m_autosaveTimer->isActive()) {
+            m_autosaveTimer->stop();
+            autosave();
+        }
+    });
+}
+
+void PlaySectionsModel::autosave() {
+    // Saved or replaced by another item since the edit that started the timer.
+    if (!m_currentEditItemIsEdited || !m_currentEditItem || m_currentEditItem->mediaFile().isEmpty())
+        return;
+
+    // Named after the cplayfile that was loaded, or else after the media file.
+    QString sourcePath = m_currentEditItem->filePath();
+    const QString ext = QFileInfo(sourcePath).suffix();
+    if (ext != QStringLiteral("cplayfile") && ext != QStringLiteral("cplay_file"))
+        sourcePath = m_currentEditItem->mediaFile();
+
+    // Absolute paths, as the autosave is not in the folder of the cplayfile.
+    const QString path = Autosave::filePathFor(sourcePath, QFileInfo(sourcePath).completeBaseName(), QStringLiteral("cplayfile"));
+    Autosave::write(path, m_currentEditItem->asJSONPlayFileDocument({}));
 }
 
 int PlaySectionsModel::rowCount(const QModelIndex &parent) const {
@@ -126,6 +176,7 @@ int PlaySectionsModel::getNumberOfSections() {
 
 void PlaySectionsModel::clear() {
     m_playingSection = -1;
+    m_removalUndo.clear();
     beginResetModel();
     if (m_currentEditItem) {
         delete m_currentEditItem;
@@ -145,6 +196,7 @@ PlayListItem *PlaySectionsModel::currentEditItem() {
 
 void PlaySectionsModel::setCurrentEditItem(PlayListItem *item) {
     m_playingSection = -1;
+    m_removalUndo.clear();
     beginResetModel();
     m_currentEditItem = item;
     Q_EMIT currentEditItemChanged();
@@ -153,6 +205,7 @@ void PlaySectionsModel::setCurrentEditItem(PlayListItem *item) {
 
 void PlaySectionsModel::updateCurrentEditItem(PlayListItem &item) {
     m_playingSection = -1;
+    m_removalUndo.clear();
     beginResetModel();
     if (!m_currentEditItem) {
         m_currentEditItem = new PlayListItem(item.data());
@@ -210,16 +263,53 @@ void PlaySectionsModel::addSection(QString name, QString startTime, QString endT
 }
 
 void PlaySectionsModel::removeSection(int i) {
-    if (!m_currentEditItem || i < 0 || i >= m_currentEditItem->numberOfSections())
-        return;
+    removeSections({i});
+}
 
-    beginRemoveRows(QModelIndex(), i, i);
-    if (m_playingSection == i) {
-        m_playingSection = -1;
+bool PlaySectionsModel::removeSections(const QList<int> &rows) {
+    if (!m_currentEditItem)
+        return false;
+
+    QList<RemovedSection> step;
+    for (const int i : descendingUniqueRows(rows)) {
+        if (i < 0 || i >= m_currentEditItem->numberOfSections())
+            continue;
+
+        step.append({i, m_currentEditItem->sectionTitle(i), m_currentEditItem->sectionStartTime(i),
+                     m_currentEditItem->sectionEndTime(i), m_currentEditItem->sectionEOSMode(i)});
+        beginRemoveRows(QModelIndex(), i, i);
+        if (m_playingSection == i) {
+            m_playingSection = -1;
+        }
+        m_currentEditItem->removeSection(i);
+        endRemoveRows();
     }
-    m_currentEditItem->removeSection(i);
-    endRemoveRows();
+    if (step.isEmpty())
+        return false;
+
+    m_removalUndo.append(step);
+    while (m_removalUndo.size() > kMaxRemovalUndoSteps)
+        m_removalUndo.removeFirst();
     setCurrentEditItemIsEdited(true);
+    return true;
+}
+
+bool PlaySectionsModel::undoRemove() {
+    if (!m_currentEditItem || m_removalUndo.isEmpty())
+        return false;
+
+    const QList<RemovedSection> step = m_removalUndo.takeLast();
+    // Rows were removed highest first, so they are put back lowest first.
+    for (auto it = step.crbegin(); it != step.crend(); ++it) {
+        const int last = m_currentEditItem->numberOfSections();
+        const int row = std::clamp(it->row, 0, last);
+        beginInsertRows(QModelIndex(), row, row);
+        m_currentEditItem->addSection(it->title, it->startTime, it->endTime, it->eosMode);
+        m_currentEditItem->moveSection(last, row);
+        endInsertRows();
+    }
+    setCurrentEditItemIsEdited(true);
+    return true;
 }
 
 void PlaySectionsModel::replaceSection(int i, QString name, QString startTime, QString endTime, int eosMode) {
@@ -342,6 +432,22 @@ std::string PlaySectionsModel::getSectionsAsFormattedString(size_t charsPerItem)
 PlayListModel::PlayListModel(QObject *parent)
     : QAbstractListModel(parent) {
     m_config = KSharedConfig::openConfig(QStringLiteral("C-Play/cplay.conf"));
+    m_autosaveTimer = new QTimer(this);
+    m_autosaveTimer->setInterval(Autosave::intervalMs);
+    m_autosaveTimer->setSingleShot(true);
+    connect(m_autosaveTimer, &QTimer::timeout, this, &PlayListModel::autosave);
+    // Not restarted by further edits, so continuous edits are still autosaved regularly.
+    connect(this, &PlayListModel::playListIsEditedChanged, m_autosaveTimer, [this]() {
+        if (m_playListEdited && !m_autosaveTimer->isActive())
+            m_autosaveTimer->start();
+    });
+    // Edits since the last autosave are written on exit.
+    connect(QCoreApplication::instance(), &QCoreApplication::aboutToQuit, this, [this]() {
+        if (m_autosaveTimer->isActive()) {
+            m_autosaveTimer->stop();
+            autosave();
+        }
+    });
     connect(this, &PlayListModel::videoAdded,
             Worker::instance(), &Worker::getMetaData);
 
@@ -527,6 +633,7 @@ Playlist PlayListModel::getPlayList() const {
 }
 
 void PlayListModel::setPlayList(const Playlist &playList) {
+    m_removalUndo.clear();
     beginResetModel();
     m_playList = playList;
     endResetModel();
@@ -590,6 +697,7 @@ int PlayListModel::getPlayingVideo() const {
 
 void PlayListModel::clear() {
     m_playingVideo = -1;
+    m_removalUndo.clear();
     qDeleteAll(m_playList);
     beginResetModel();
     m_playList.clear();
@@ -636,16 +744,48 @@ QPointer<PlayListItem> PlayListModel::getItem(int i) {
 }
 
 void PlayListModel::removeItem(int i) {
-    if (i < 0 || i >= m_playList.size())
-        return;
-    beginRemoveRows(QModelIndex(), i, i);
-    m_playList.removeAt(i);
-    if (m_playingVideo == i)
-        m_playingVideo = -1;
-    else if (m_playingVideo > i)
-        m_playingVideo -= 1;
-    endRemoveRows();
+    removeItems({i});
+}
+
+bool PlayListModel::removeItems(const QList<int> &rows) {
+    QList<QPair<int, QPointer<PlayListItem>>> step;
+    for (const int i : descendingUniqueRows(rows)) {
+        if (i < 0 || i >= m_playList.size())
+            continue;
+        step.append({i, m_playList[i]});
+        beginRemoveRows(QModelIndex(), i, i);
+        m_playList.removeAt(i);
+        if (m_playingVideo == i)
+            m_playingVideo = -1;
+        else if (m_playingVideo > i)
+            m_playingVideo -= 1;
+        endRemoveRows();
+    }
+    if (step.isEmpty())
+        return false;
+
+    m_removalUndo.append(step);
+    while (m_removalUndo.size() > kMaxRemovalUndoSteps)
+        m_removalUndo.removeFirst();
     setPlayListIsEdited(true);
+    return true;
+}
+
+bool PlayListModel::undoRemove() {
+    while (!m_removalUndo.isEmpty()) {
+        const QList<QPair<int, QPointer<PlayListItem>>> step = m_removalUndo.takeLast();
+        bool restored = false;
+        // Rows were removed highest first, so they are put back lowest first.
+        for (auto it = step.crbegin(); it != step.crend(); ++it) {
+            if (!it->second)
+                continue;
+            insertItem(it->first, it->second);
+            restored = true;
+        }
+        if (restored)
+            return true;
+    }
+    return false;
 }
 
 void PlayListModel::moveItem(int i, int t) {
@@ -1037,17 +1177,9 @@ QString PlayListModel::makePathRelativeTo(const QString &filePath, const QString
     return filePath;
 }
 
-void PlayListModel::saveAsJSONPlaylist(const QString &path) {
+QJsonDocument PlayListModel::asJSONPlaylistDocument(const QStringList &pathsToConsider) {
     QJsonDocument doc;
     QJsonObject obj = doc.object();
-
-    QString fileToSave = path;
-    fileToSave.replace(QStringLiteral("file:///"), QStringLiteral(""));
-    QFileInfo fileToSaveInfo(fileToSave);
-
-    QStringList pathsToConsider;
-    pathsToConsider.append(LocationSettings::cPlayFileLocation());
-    pathsToConsider.append(fileToSaveInfo.absoluteDir().absolutePath());
 
     QJsonArray playlistArray;
     for (int i = 0; i < m_playList.size(); i++) {
@@ -1097,6 +1229,19 @@ void PlayListModel::saveAsJSONPlaylist(const QString &path) {
 
     obj.insert(QString(QStringLiteral("playlist")), QJsonValue(playlistArray));
     doc.setObject(obj);
+    return doc;
+}
+
+void PlayListModel::saveAsJSONPlaylist(const QString &path) {
+    QString fileToSave = path;
+    fileToSave.replace(QStringLiteral("file:///"), QStringLiteral(""));
+    QFileInfo fileToSaveInfo(fileToSave);
+
+    QStringList pathsToConsider;
+    pathsToConsider.append(LocationSettings::cPlayFileLocation());
+    pathsToConsider.append(fileToSaveInfo.absoluteDir().absolutePath());
+
+    QJsonDocument doc = asJSONPlaylistDocument(pathsToConsider);
 
     QFile jsonFile(fileToSave);
     if(jsonFile.open(QFile::WriteOnly)) {
@@ -1110,6 +1255,16 @@ void PlayListModel::saveAsJSONPlaylist(const QString &path) {
     }
 
     setPlayListIsEdited(false);
+}
+
+void PlayListModel::autosave() {
+    // Saved or replaced since the edit that started the timer.
+    if (!m_playListEdited || m_playList.isEmpty())
+        return;
+
+    // Absolute paths, as the autosave is not in the folder of the playlist.
+    const QString path = Autosave::filePathFor(m_playListPath, m_playListName, QStringLiteral("cplaylist"));
+    Autosave::write(path, asJSONPlaylistDocument({}));
 }
 
 void PlayListModel::asJSON(QJsonObject& obj) {

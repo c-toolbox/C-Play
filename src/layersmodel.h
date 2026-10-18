@@ -11,6 +11,7 @@
 #include <QAbstractListModel>
 #include <QElapsedTimer>
 #include <QJsonArray>
+#include <QJsonObject>
 #include <QPointer>
 #include <animation/layereffects.h>
 #include <layers/baselayer.h>
@@ -69,6 +70,20 @@ struct LayerReference {
     int slideOffset = 0;
     // Index of the layer in the owner's own layer list.
     int ownerLayerIdx = -1;
+};
+
+// What LayersModel::takeLayer() removed, so LayersModel::restoreLayer() can put it back.
+struct RemovedLayer {
+    // Row the layer was listed in.
+    int row = -1;
+    // An own layer, as saved in a presentation (with absolute paths).
+    QJsonObject data;
+    // A referenced layer, whose keep-visibility span was shortened to end before this slide.
+    std::weak_ptr<BaseLayer> reference;
+    QPointer<LayersModel> referenceOwner;
+    int previousKeepVisibility = 0;
+
+    bool isValid() const { return !data.isEmpty() || !reference.expired(); }
 };
 
 class LayersTypeModel : public QAbstractListModel {
@@ -201,6 +216,11 @@ public:
     Q_INVOKABLE int getLayerTypeBasedOnMime(QUrl fileUrl);
     Q_INVOKABLE int addLayerBasedOnMime(QUrl fileUrl);
     Q_INVOKABLE void removeLayer(int i);
+    // Removes the layer in row i like removeLayer() and returns what is needed to undo it
+    // (invalid when nothing was removed, e.g. a locked layer).
+    RemovedLayer takeLayer(int i);
+    // Puts back a layer removed by takeLayer(). Returns false when that is no longer possible.
+    bool restoreLayer(const RemovedLayer &removed);
     Q_INVOKABLE void moveLayer(int i, int t);
     Q_INVOKABLE void moveLayerTop(int i);
     Q_INVOKABLE void moveLayerUp(int i);
@@ -287,6 +307,10 @@ public:
 
     void decodeFromJSON(QJsonObject &obj, const QStringList &forRelativePaths);
     void encodeToJSON(QJsonObject &obj, const QStringList &forRelativePaths);
+    // One own layer of the "layers" array of a saved slide. Decoding appends the layer and
+    // returns its row, -1 if it could not be created.
+    QJsonObject encodeLayerToJSON(const std::shared_ptr<BaseLayer> &layer, const QStringList &forRelativePaths);
+    int decodeLayerFromJSON(const QJsonObject &o, const QStringList &forRelativePaths);
 
     bool runRenderOnLayersThatShouldUpdate(bool updateRendering, bool preload);
 

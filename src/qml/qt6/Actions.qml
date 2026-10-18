@@ -653,9 +653,15 @@ QtObject {
         onTriggered: {
             if(!enabled)
                 return;
-            // Acts on the list the user clicked last, falling back to the other one
-            // if that panel is not shown.
-            if(window.removeShortcutTarget === "slide"){
+            // Acts on the list the user clicked last. Slides and layers fall back to
+            // each other if that panel is not shown.
+            if(window.removeShortcutTarget === "playlist"){
+                playList.removeSelectedItems();
+            }
+            else if(window.removeShortcutTarget === "section"){
+                playSections.removeSelectedSections();
+            }
+            else if(window.removeShortcutTarget === "slide"){
                 if(!slides.removeSelectedSlide())
                     layers.removeSelectedLayer();
             }
@@ -664,6 +670,27 @@ QtObject {
             }
         }
     }
+    property Action undoRemoveAction: Action {
+        id: undoRemoveAction
+
+        property var qaction: app.action("undoRemove")
+
+        enabled: qaction.enabled
+        icon.name: qaction.iconName()
+        shortcut: root.isPrimary ? qaction.shortcutName() : qaction.alternateName()
+        text: qaction.text
+
+        Component.onCompleted: list["undoRemoveAction"] = undoRemoveAction
+        function updateShortcuts() { shortcut = root.isPrimary ? qaction.shortcutName() : qaction.alternateName() }
+        onTriggered: {
+            if(enabled)
+                window.undoLastRemoval();
+        }
+    }
+    // Modifiers held while clicking list rows to mark them. Not QML Actions, so they never fire as
+    // shortcuts; created at startup so the shortcut editor lists them.
+    property var listMarkToggleQAction: app.action("listMarkToggle")
+    property var listMarkRangeQAction: app.action("listMarkRange")
     property Action slidePreviousAction: Action {
         id: slidePreviousAction
 
@@ -846,6 +873,7 @@ QtObject {
         layerPasteAction.updateShortcuts();
         layerPastePropertiesAction.updateShortcuts();
         removeSelectedAction.updateShortcuts();
+        undoRemoveAction.updateShortcuts();
         slidePreviousAction.updateShortcuts();
         slideNextAction.updateShortcuts();
         visibilityFadeDownAction.updateShortcuts();

@@ -12,12 +12,14 @@
 #include <QAbstractTableModel>
 #include <QList>
 #include <QPointer>
+#include <QJsonDocument>
 #include <QtQml/qqmlregistration.h>
 #include <KSharedConfig>
 #include <map>
 #include <memory>
 
 class PlayListItem;
+class QTimer;
 using Playlist = QList<QPointer<PlayListItem>>;
 
 class PlaySectionsModel : public QAbstractListModel {
@@ -67,6 +69,11 @@ public:
 
     Q_INVOKABLE void addSection(QString name, QString startTime, QString endTime, int eosMode);
     Q_INVOKABLE void removeSection(int i);
+    // Removes the sections in rows as one step that undoRemove() can put back.
+    // Returns false when nothing was removed.
+    Q_INVOKABLE bool removeSections(const QList<int> &rows);
+    // Puts back the sections of the last removal step. Returns false when there was nothing to put back.
+    Q_INVOKABLE bool undoRemove();
     Q_INVOKABLE void replaceSection(int i, QString name, QString startTime, QString endTime, int eosMode);
     Q_INVOKABLE void moveSection(int i, int t);
     Q_INVOKABLE void moveSectionUp(int i);
@@ -84,9 +91,23 @@ Q_SIGNALS:
     void playingSectionChanged();
 
 private:
+    struct RemovedSection {
+        int row = -1;
+        QString title;
+        double startTime = 0.0;
+        double endTime = 0.0;
+        int eosMode = 0;
+    };
+
     PlayListItem *m_currentEditItem;
     int m_playingSection = -1;
     bool m_currentEditItemIsEdited = false;
+    // Removed sections of the current edit item, latest step last, highest row first within
+    // a step. Cleared when another item is edited.
+    QList<QList<RemovedSection>> m_removalUndo;
+    // Started by an edit, writes the autosave of the edit item as a *.cplayfile (see utils/autosave.h).
+    QTimer *m_autosaveTimer;
+    void autosave();
 };
 
 class PlayListModel : public QAbstractListModel {
@@ -144,6 +165,11 @@ public:
     // Inserts the item at row i (appends when i is out of range) and returns its row.
     Q_INVOKABLE int insertItem(int i, PlayListItem *item);
     Q_INVOKABLE void removeItem(int i);
+    // Removes the items in rows as one step that undoRemove() can put back.
+    // Returns false when nothing was removed.
+    Q_INVOKABLE bool removeItems(const QList<int> &rows);
+    // Puts back the items of the last removal step. Returns false when there was nothing to put back.
+    Q_INVOKABLE bool undoRemove();
     Q_INVOKABLE void moveItem(int i, int t);
     Q_INVOKABLE void moveItemUp(int i);
     Q_INVOKABLE void moveItemDown(int i);
@@ -203,6 +229,8 @@ public:
     Q_INVOKABLE void setListFileEndTimeFromString(int i, const QString &endTime);
     Q_INVOKABLE QString makePathRelativeTo(const QString &filePath, const QStringList &pathsToConsider);
     Q_INVOKABLE void saveAsJSONPlaylist(const QString &path);
+    // The playlist as saved in a *.cplaylist, with paths relative to pathsToConsider where possible.
+    QJsonDocument asJSONPlaylistDocument(const QStringList &pathsToConsider);
 
     void asJSON(QJsonObject& obj);
 
@@ -220,6 +248,12 @@ private:
     int m_playingVideo = -1;
     bool m_playListEdited = false;
     KSharedConfig::Ptr m_config;
+    // Removed items with their rows, latest step last, highest row first within a step.
+    // Cleared when the playlist is cleared or replaced.
+    QList<QList<QPair<int, QPointer<PlayListItem>>>> m_removalUndo;
+    // Started by an edit, writes the autosave of the playlist (see utils/autosave.h).
+    QTimer *m_autosaveTimer;
+    void autosave();
 };
 
 #endif // PLAYLISTMODEL_H

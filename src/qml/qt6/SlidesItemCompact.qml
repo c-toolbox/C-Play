@@ -458,9 +458,11 @@ ItemDelegate {
     }
 
     onClicked: {
+        window.removeShortcutTarget = "slide";
+        if (slidesRoot.handleMarkClick(index))
+            return;
         slidesView.currentIndex = index;
         app.slides.slideToPaste = index;
-        window.removeShortcutTarget = "slide";
     }
     onDoubleClicked: {
         slidesView.currentIndex = index;

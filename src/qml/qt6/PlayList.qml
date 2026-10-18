@@ -27,6 +27,50 @@ Rectangle {
     property int rowHeight: PlaylistSettings.rowHeight
     property alias scrollPositionTimer: scrollPositionTimer
     property bool shouldBeVisible: true
+    property var markedIndices: []
+    // Row a Shift + click range starts from: the last row clicked without Shift.
+    property int markAnchor: -1
+
+    // Rows marked with Ctrl + left click (one row) or Shift + left click (a range); remove acts on
+    // these when any are marked. Returns true when the click marked rows instead of selecting one.
+    function handleMarkClick(idx) {
+        const type = window.markClickType();
+        if (type === "toggle") {
+            markedIndices = window.toggleMarkedIndex(markedIndices, idx, playlistView.currentIndex);
+            markAnchor = idx;
+            return true;
+        }
+        if (type === "range") {
+            markedIndices = window.markedRange(markAnchor >= 0 ? markAnchor : playlistView.currentIndex, idx);
+            return true;
+        }
+        clearMarked();
+        markAnchor = idx;
+        return false;
+    }
+    function clearMarked() {
+        markAnchor = -1;
+        if (markedIndices.length > 0)
+            markedIndices = [];
+    }
+    function isMarked(idx) {
+        return markedIndices.indexOf(idx) >= 0;
+    }
+    // Removes the marked items, or the selected one when none are marked.
+    function removeMarkedItems() {
+        const rows = window.rowsToRemove(markedIndices, playlistView.currentIndex, playlistView.count);
+        if (rows.length > 0 && mpv.playlistModel.removeItems(rows))
+            window.recordRemoval("playlist");
+        clearMarked();
+        return rows.length > 0;
+    }
+    // Keyboard shortcut path (removeSelected action), only while the playlist panel is shown.
+    // Returns false when nothing could be removed.
+    function removeSelectedItems() {
+        if (!shouldBeVisible)
+            return false;
+        return removeMarkedItems();
+    }
 
     function setPlayListScrollPosition() {
         playlistView.positionViewAtIndex(playlistView.model.playingVideo, ListView.Beginning);
@@ -253,11 +297,11 @@ Rectangle {
                 icon.name: "list-remove"
 
                 onClicked: {
-                    mpv.playlistModel.removeItem(playlistView.currentIndex);
+                    removeMarkedItems();
                 }
 
                 ToolTip {
-                    text: qsTr("Remove from playlist")
+                    text: markedIndices.length > 0 ? qsTr("Remove the %1 marked items from playlist").arg(markedIndices.length) : qsTr("Remove from playlist")
                 }
             }
             Button {
@@ -451,6 +495,15 @@ Rectangle {
 
         target: mpv
     }
+    // Marks are plain row indices, so any change to the rows drops them.
+    Connections {
+        function onRowsInserted() { clearMarked(); }
+        function onRowsRemoved() { clearMarked(); }
+        function onRowsMoved() { clearMarked(); }
+        function onModelReset() { clearMarked(); }
+
+        target: playlistView.model
+    }
     ScrollView {
         id: playlistScrollView
 
@@ -570,9 +623,12 @@ Rectangle {
         id: playListItemCompact
 
         PlayListItemCompact {
-            highlighted: playlistView.currentIndex === index
+            highlighted: root.markedIndices.length > 0 ? root.isMarked(index) : playlistView.currentIndex === index
 
             onClicked: {
+                window.removeShortcutTarget = "playlist";
+                if (root.handleMarkClick(index))
+                    return;
                 playlistView.currentIndex = index;
                 if (viewPlaylistItemWindow.visible) {
                     viewPlaylistItemWindow.updateValues(playlistView.currentIndex);

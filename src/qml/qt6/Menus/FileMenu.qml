@@ -143,6 +143,75 @@ Menu {
         }
     }
 
+    // Autosaves of edited presentations, playlists and C-Play files, kept next to the
+    // application settings so the loaded files are never overwritten.
+    Menu {
+        id: autosavedFilesMenu
+
+        title: qsTr("Open Autosaved")
+        icon.name: "document-save"
+
+        // app.autosavedFiles() grouped by type, each group under a heading.
+        function autosavedFilesModel() {
+            const files = app.autosavedFiles();
+            if (files.length === 0)
+                return [{ heading: true, text: qsTr("No autosaved files") }];
+            const headings = { "cplaypres": qsTr("Presentations"), "cplaylist": qsTr("Playlists"), "cplayfile": qsTr("C-Play Files") };
+            const result = [];
+            let type = "";
+            for (const file of files) {
+                if (file.type !== type) {
+                    type = file.type;
+                    result.push({ heading: true, text: headings[type] });
+                }
+                result.push({ heading: false, text: file.text, type: file.type, path: file.path });
+            }
+            return result;
+        }
+
+        onAboutToShow: autosavedFilesMenuInstantiator.model = autosavedFilesModel()
+
+        Instantiator {
+            id: autosavedFilesMenuInstantiator
+
+            model: []
+
+            delegate: MenuItem {
+                text: modelData.text
+                enabled: !modelData.heading
+                font.bold: modelData.heading
+
+                onTriggered: {
+                    if (modelData.type === "cplaypres") {
+                        slides.presentationToLoad = modelData.path;
+                        slides.openCPlayPresentation();
+                    }
+                    else {
+                        mpv.loadFile(modelData.path);
+                    }
+                }
+            }
+
+            onObjectAdded: function(index, object) {
+                autosavedFilesMenu.insertItem(index, object)
+            }
+            onObjectRemoved: function(index, object) {
+                autosavedFilesMenu.removeItem(object)
+            }
+        }
+        MenuSeparator {
+        }
+        MenuItem {
+            text: qsTr("Clear Autosaved Files")
+            icon.name: "edit-clear-history"
+
+            onTriggered: {
+                app.clearAutosavedFiles();
+                autosavedFilesMenuInstantiator.model = [];
+            }
+        }
+    }
+
     MenuSeparator {
     }
     MenuItem {

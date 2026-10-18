@@ -534,17 +534,9 @@ QString PlayListItem::makePathRelativeTo(const QString &filePath, const QStringL
     return filePath;
 }
 
-void PlayListItem::saveAsJSONPlayFile(const QString &path) const {
+QJsonDocument PlayListItem::asJSONPlayFileDocument(const QStringList &pathsToConsider) const {
     QJsonDocument doc;
     QJsonObject obj = doc.object();
-
-    QString fileToSave = path;
-    fileToSave.replace(QStringLiteral("file:///"), QStringLiteral(""));
-    QFileInfo fileToSaveInfo(fileToSave);
-
-    QStringList pathsToConsider;
-    pathsToConsider.append(LocationSettings::cPlayMediaLocation());
-    pathsToConsider.append(fileToSaveInfo.absoluteDir().absolutePath());
 
     obj.insert(QStringLiteral("video"), makePathRelativeTo(mediaFile(), pathsToConsider));
 
@@ -639,6 +631,19 @@ void PlayListItem::saveAsJSONPlayFile(const QString &path) const {
         obj.insert(QStringLiteral("video_sections"), QJsonValue(sectionsArray));
 
     doc.setObject(obj);
+    return doc;
+}
+
+void PlayListItem::saveAsJSONPlayFile(const QString &path) const {
+    QString fileToSave = path;
+    fileToSave.replace(QStringLiteral("file:///"), QStringLiteral(""));
+    QFileInfo fileToSaveInfo(fileToSave);
+
+    QStringList pathsToConsider;
+    pathsToConsider.append(LocationSettings::cPlayMediaLocation());
+    pathsToConsider.append(fileToSaveInfo.absoluteDir().absolutePath());
+
+    QJsonDocument doc = asJSONPlayFileDocument(pathsToConsider);
 
     QFile jsonFile(fileToSave);
     if(!jsonFile.open(QFile::WriteOnly)) {

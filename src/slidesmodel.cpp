@@ -10,9 +10,11 @@
 #include "locationsettings.h"
 #include "presentationsettings.h"
 #include "layers/baselayer.h"
+#include "utils/autosave.h"
 #ifdef CAPTURE_SUPPORT
 #include <capture/capturelayer.h>
 #endif
+#include <QCoreApplication>
 #include <QDir>
 #include <QFileInfo>
 #include <QJsonArray>
@@ -20,6 +22,10 @@
 #include <QJsonObject>
 #include <QTimer>
 #include <QThread>
+
+#include <algorithm>
+#include <functional>
+#include <utility>
 
 SlideVisibilityModel::SlideVisibilityModel(QList<QSharedPointer<LayersModel>>* slideList, QObject* parent)
     : QAbstractTableModel(parent), m_slideList(slideList){
@@ -378,6 +384,23 @@ SlidesModel::SlidesModel(QObject *parent)
     m_clearCopyTimer->setInterval(30000);
     m_clearCopyTimer->setSingleShot(true);
     connect(m_clearCopyTimer, &QTimer::timeout, this, &SlidesModel::clearCopyLayer);
+    m_autosaveTimer = new QTimer(this);
+    m_autosaveTimer->setInterval(Autosave::intervalMs);
+    m_autosaveTimer->setSingleShot(true);
+    connect(m_autosaveTimer, &QTimer::timeout, this, &SlidesModel::autosave);
+    // Not restarted by further edits, so continuous edits are still autosaved regularly.
+    // The timer as context queues the start when the flag is set from the render thread.
+    connect(this, &SlidesModel::slidesNeedsSaveChanged, m_autosaveTimer, [this]() {
+        if (m_slidesNeedsSave && !m_autosaveTimer->isActive())
+            m_autosaveTimer->start();
+    });
+    // Edits since the last autosave are written on exit, before the slides are cleared for shutdown.
+    connect(QCoreApplication::instance(), &QCoreApplication::aboutToQuit, this, [this]() {
+        if (m_autosaveTimer->isActive()) {
+            m_autosaveTimer->stop();
+            autosave();
+        }
+    });
     connect(this, &SlidesModel::slideModelChanged, this, &SlidesModel::rebuildReferences);
     connect(this, &SlidesModel::slideModelChanged, m_visibilityModel, &SlideVisibilityModel::resetTable);
     connect(m_visibilityModel, &SlideVisibilityModel::keepVisibilityChanged, this, [this](BaseLayer *layer) {
@@ -900,44 +923,175 @@ int SlidesModel::addSlide() {
     return m_slides.size() - 1;
 }
 
+struct SlidesModel::RemovalStep {
+    // A removed slide is kept, without its layers, so undo puts back the same slide that
+    // layer removals further down the undo stack point at.
+    struct Slide {
+        int row = -1;
+        QSharedPointer<LayersModel> slide;
+        QJsonObject data;
+    };
+    struct Layer {
+        QPointer<LayersModel> slide;
+        RemovedLayer removed;
+    };
+    // In removal order, highest row first.
+    QVector<Slide> slides;
+    QVector<Layer> layers;
+};
+
+namespace {
+// Removal steps that can be undone. Older steps are dropped.
+constexpr int kMaxRemovalUndoSteps = 50;
+
+// Rows highest first, so removing one row does not shift the rows still to be removed.
+QList<int> descendingUniqueRows(QList<int> rows) {
+    std::sort(rows.begin(), rows.end(), std::greater<int>());
+    rows.erase(std::unique(rows.begin(), rows.end()), rows.end());
+    return rows;
+}
+}
+
 void SlidesModel::removeSlide(int i) {
+    removeSlides({i});
+}
+
+bool SlidesModel::removeSlides(const QList<int> &rows) {
+    auto step = std::make_shared<RemovalStep>();
     {
         std::lock_guard<std::recursive_mutex> lock(m_slidesMutex);
-        if(i < 0 || i >= m_slides.size() || (m_slides[i] && m_slides[i]->getLayersCanBeLocked()))
-            return;
+        for (const int i : descendingUniqueRows(rows)) {
+            if(i < 0 || i >= m_slides.size() || (m_slides[i] && m_slides[i]->getLayersCanBeLocked()))
+                continue;
 
-        beginRemoveRows(QModelIndex(), i, i);
-        m_slides.removeAt(i);
+            RemovalStep::Slide removed;
+            removed.row = i;
+            removed.slide = m_slides[i];
+            if (removed.slide) {
+                // No relative paths, so the snapshot does not depend on where the presentation is saved.
+                removed.slide->encodeToJSON(removed.data, QStringList());
+                // Brought back hidden; it is no longer the triggered slide.
+                removed.data.insert(QStringLiteral("visibility"), 0);
+            }
 
-        if (m_triggeredSlideIdx == i)
-            m_triggeredSlideIdx = -1;
-        else if (m_triggeredSlideIdx > i)
-            m_triggeredSlideIdx -= 1;
+            beginRemoveRows(QModelIndex(), i, i);
+            m_slides.removeAt(i);
 
-        if (m_previousTriggeredSlideIdx == i)
-            m_previousTriggeredSlideIdx = -2;
-        else if (m_previousTriggeredSlideIdx > i)
-            m_previousTriggeredSlideIdx -= 1;
+            if (m_triggeredSlideIdx == i)
+                m_triggeredSlideIdx = -1;
+            else if (m_triggeredSlideIdx > i)
+                m_triggeredSlideIdx -= 1;
 
-        if (m_previousSelectedSlideIdx == i)
-            m_previousSelectedSlideIdx = -2;
-        else if (m_previousSelectedSlideIdx > i)
-            m_previousSelectedSlideIdx -= 1;
+            if (m_previousTriggeredSlideIdx == i)
+                m_previousTriggeredSlideIdx = -2;
+            else if (m_previousTriggeredSlideIdx > i)
+                m_previousTriggeredSlideIdx -= 1;
 
-        if (m_selectedSlideIdx == i)
-            m_selectedSlideIdx = -1;
+            if (m_previousSelectedSlideIdx == i)
+                m_previousSelectedSlideIdx = -2;
+            else if (m_previousSelectedSlideIdx > i)
+                m_previousSelectedSlideIdx -= 1;
 
-        endRemoveRows();
+            if (m_selectedSlideIdx == i)
+                m_selectedSlideIdx = -1;
+
+            endRemoveRows();
+            step->slides.append(removed);
+        }
+
+        if (step->slides.isEmpty())
+            return false;
 
         setSlidesNeedsSave(true);
         setNeedSync();
     }
+
+    // Release the media of the removed slides now, as before undo existed; undo decodes them again.
+    for (const auto &removed : std::as_const(step->slides)) {
+        if (removed.slide) {
+            removed.slide->clearLayers();
+            removed.slide->setReferencedLayers({});
+        }
+    }
+    pushRemovalStep(step);
 
     if (m_slides.isEmpty()) {
         setSelectedSlideIdx(-1);
     }
 
     Q_EMIT slideModelChanged();
+    return true;
+}
+
+bool SlidesModel::removeLayers(LayersModel *slide, const QList<int> &rows) {
+    if (!slide)
+        return false;
+
+    auto step = std::make_shared<RemovalStep>();
+    for (const int row : descendingUniqueRows(rows)) {
+        RemovedLayer removed = slide->takeLayer(row);
+        if (removed.isValid())
+            step->layers.append({QPointer<LayersModel>(slide), removed});
+    }
+    return pushRemovalStep(step);
+}
+
+bool SlidesModel::undoRemove() {
+    while (!m_removalUndo.isEmpty()) {
+        const std::shared_ptr<RemovalStep> step = m_removalUndo.takeLast();
+        bool restored = false;
+
+        // Rows were removed highest first, so they are put back lowest first.
+        for (auto it = step->slides.crbegin(); it != step->slides.crend(); ++it) {
+            if (!it->slide)
+                continue;
+            {
+                std::lock_guard<std::recursive_mutex> lock(m_slidesMutex);
+                const int row = std::clamp(it->row, 0, static_cast<int>(m_slides.size()));
+                beginInsertRows(QModelIndex(), row, row);
+                m_slides.insert(row, it->slide);
+                // Slide indices at or after the row move down one (negative values are "none" markers).
+                for (int *idx : {&m_selectedSlideIdx, &m_previousSelectedSlideIdx, &m_triggeredSlideIdx, &m_previousTriggeredSlideIdx}) {
+                    if (*idx >= row)
+                        *idx += 1;
+                }
+                endInsertRows();
+            }
+            QJsonObject data = it->data;
+            it->slide->decodeFromJSON(data, QStringList());
+            restored = true;
+        }
+
+        for (auto it = step->layers.crbegin(); it != step->layers.crend(); ++it) {
+            if (it->slide && it->slide->restoreLayer(it->removed)) {
+                restored = true;
+                if (it->slide == selectedSlide())
+                    updateSelectedSlide();
+            }
+        }
+
+        if (!restored)
+            continue; // Everything of this step is gone, try the one before.
+
+        setSlidesNeedsSave(true);
+        setNeedSync();
+        Q_EMIT slideModelChanged();
+        return true;
+    }
+    return false;
+}
+
+bool SlidesModel::pushRemovalStep(const std::shared_ptr<RemovalStep> &step) {
+    if (!step || (step->slides.isEmpty() && step->layers.isEmpty()))
+        return false;
+    m_removalUndo.append(step);
+    while (m_removalUndo.size() > kMaxRemovalUndoSteps)
+        m_removalUndo.removeFirst();
+    return true;
+}
+
+void SlidesModel::clearRemovalUndo() {
+    m_removalUndo.clear();
 }
 
 void SlidesModel::moveSlide(int i, int t) {
@@ -1058,6 +1212,7 @@ void SlidesModel::updateSelectedSlide() {
 }
 
 void SlidesModel::clearSlides() {
+    clearRemovalUndo();
     {
         std::lock_guard<std::recursive_mutex> lock(m_slidesMutex);
         //Move all locked slides above unlocked ones
@@ -1112,6 +1267,7 @@ void SlidesModel::clearSlides() {
 
 void SlidesModel::clearAllForShutdown() {
     std::lock_guard<std::recursive_mutex> lock(m_slidesMutex);
+    clearRemovalUndo();
 
     if (m_masterSlide)
         m_masterSlide->clearLayers();
@@ -1243,6 +1399,8 @@ QString SlidesModel::makePathRelativeTo(const QString &filePath, const QStringLi
 }
 
 void SlidesModel::loadFromJSONFile(const QString &path) {
+    // Removals from the presentation loaded before cannot be put back into this one.
+    clearRemovalUndo();
     QString fileToOpen = path;
     fileToOpen.replace(QStringLiteral("file:///"), QStringLiteral(""));
 
@@ -1326,19 +1484,9 @@ void SlidesModel::loadFromJSONFile(const QString &path) {
     Q_EMIT presentationHasLoaded();
 }
 
-void SlidesModel::saveAsJSONFile(const QString &path) {
+QJsonDocument SlidesModel::asJSONDocument(const QStringList &pathsToConsider) {
     QJsonDocument doc;
     QJsonObject obj = doc.object();
-
-    QString fileToSave = path;
-    fileToSave.replace(QStringLiteral("file:///"), QStringLiteral(""));
-    QFileInfo fileToSaveInfo(fileToSave);
-
-    QStringList pathsToConsider;
-    pathsToConsider.append(fileToSaveInfo.absoluteDir().absolutePath());
-    pathsToConsider.append(LocationSettings::cPlayMediaLocation());
-    pathsToConsider.append(LocationSettings::cPlayFileLocation());
-    pathsToConsider.append(LocationSettings::univiewVideoLocation());
 
     QJsonObject masterSlideData;
     m_masterSlide->encodeToJSON(masterSlideData, pathsToConsider);
@@ -1355,6 +1503,21 @@ void SlidesModel::saveAsJSONFile(const QString &path) {
     obj.insert(QString(QStringLiteral("slides")), QJsonValue(slidesArray));
 
     doc.setObject(obj);
+    return doc;
+}
+
+void SlidesModel::saveAsJSONFile(const QString &path) {
+    QString fileToSave = path;
+    fileToSave.replace(QStringLiteral("file:///"), QStringLiteral(""));
+    QFileInfo fileToSaveInfo(fileToSave);
+
+    QStringList pathsToConsider;
+    pathsToConsider.append(fileToSaveInfo.absoluteDir().absolutePath());
+    pathsToConsider.append(LocationSettings::cPlayMediaLocation());
+    pathsToConsider.append(LocationSettings::cPlayFileLocation());
+    pathsToConsider.append(LocationSettings::univiewVideoLocation());
+
+    QJsonDocument doc = asJSONDocument(pathsToConsider);
     QFile jsonFile(fileToSave);
     if(!jsonFile.open(QFile::WriteOnly)) {
         qDebug() << QStringLiteral("Failed to open C-play presentation for writing: ") << fileToSave;
@@ -1369,6 +1532,18 @@ void SlidesModel::saveAsJSONFile(const QString &path) {
     updateRecentLoadedPresentations(fileToSave);
 
     setSlidesNeedsSave(false);
+}
+
+void SlidesModel::autosave() {
+    // Saved or cleared since the edit that started the timer.
+    if (!m_slidesNeedsSave)
+        return;
+    if (numberOfSlides() == 0 && m_masterSlide->getLayers().size() == 0)
+        return;
+
+    // Absolute paths, as the autosave is not in the folder of the presentation.
+    const QString path = Autosave::filePathFor(m_slidesPath, m_slidesName, QStringLiteral("cplaypres"));
+    Autosave::write(path, asJSONDocument({}));
 }
 
 void SlidesModel::runStartAfterPresentationLoad() {
@@ -1525,6 +1700,9 @@ void SlidesModel::setNeedSync() {
 }
 
 void SlidesModel::updateRecentLoadedPresentations(QString path) {
+    // Autosaves are listed on their own.
+    if (Autosave::isAutosave(path))
+        return;
     QStringList recentPresentations = PresentationSettings::recentLoadedPresentations();
     recentPresentations.push_front(path);
     recentPresentations.removeDuplicates();

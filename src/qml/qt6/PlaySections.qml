@@ -23,6 +23,50 @@ Rectangle {
     property alias scrollPositionTimer: scrollPositionTimer
     property alias sectionsView: sectionsView
     property bool shouldBeVisible: true
+    property var markedIndices: []
+    // Row a Shift + click range starts from: the last row clicked without Shift.
+    property int markAnchor: -1
+
+    // Rows marked with Ctrl + left click (one row) or Shift + left click (a range); remove acts on
+    // these when any are marked. Returns true when the click marked rows instead of selecting one.
+    function handleMarkClick(idx) {
+        const type = window.markClickType();
+        if (type === "toggle") {
+            markedIndices = window.toggleMarkedIndex(markedIndices, idx, sectionsView.currentIndex);
+            markAnchor = idx;
+            return true;
+        }
+        if (type === "range") {
+            markedIndices = window.markedRange(markAnchor >= 0 ? markAnchor : sectionsView.currentIndex, idx);
+            return true;
+        }
+        clearMarked();
+        markAnchor = idx;
+        return false;
+    }
+    function clearMarked() {
+        markAnchor = -1;
+        if (markedIndices.length > 0)
+            markedIndices = [];
+    }
+    function isMarked(idx) {
+        return markedIndices.indexOf(idx) >= 0;
+    }
+    // Removes the marked sections, or the selected one when none are marked.
+    function removeMarkedSections() {
+        const rows = window.rowsToRemove(markedIndices, sectionsView.currentIndex, sectionsView.count);
+        if (rows.length > 0 && mpv.playSectionsModel.removeSections(rows))
+            window.recordRemoval("sections");
+        clearMarked();
+        return rows.length > 0;
+    }
+    // Keyboard shortcut path (removeSelected action), only while the sections panel is shown.
+    // Returns false when nothing could be removed.
+    function removeSelectedSections() {
+        if (!shouldBeVisible)
+            return false;
+        return removeMarkedSections();
+    }
 
     visible: shouldBeVisible && !window.hideUI
     color: Kirigami.Theme.backgroundColor
@@ -337,11 +381,11 @@ Rectangle {
                         icon.name: "list-remove"
 
                         onClicked: {
-                            mpv.playSectionsModel.removeSection(sectionsView.currentIndex);
+                            removeMarkedSections();
                         }
 
                         ToolTip {
-                            text: qsTr("Remove selected section")
+                            text: markedIndices.length > 0 ? qsTr("Remove the %1 marked sections").arg(markedIndices.length) : qsTr("Remove selected section")
                         }
                     }
                     Button {
@@ -475,6 +519,15 @@ Rectangle {
 
         target: mpv
     }
+    // Marks are plain row indices, so any change to the rows drops them.
+    Connections {
+        function onRowsInserted() { clearMarked(); }
+        function onRowsRemoved() { clearMarked(); }
+        function onRowsMoved() { clearMarked(); }
+        function onModelReset() { clearMarked(); }
+
+        target: sectionsView.model
+    }
     ScrollView {
         id: sectionsScrollView
 
@@ -496,9 +549,12 @@ Rectangle {
         id: playSectionsItemCompact
 
         PlaySectionsItemCompact {
-            highlighted: sectionsView.currentIndex === index
+            highlighted: sectionsRoot.markedIndices.length > 0 ? sectionsRoot.isMarked(index) : sectionsView.currentIndex === index
 
             onClicked: {
+                window.removeShortcutTarget = "section";
+                if (sectionsRoot.handleMarkClick(index))
+                    return;
                 sectionsView.currentIndex = index;
             }
         }

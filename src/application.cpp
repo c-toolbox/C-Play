@@ -22,6 +22,7 @@
 #include "telemetry/nodetelemetry.h"
 #include "telemetry/nodeloaderverifier.h"
 #include <capture/nodecaptureinventory.h>
+#include "utils/autosave.h"
 #include "utils/ytdlpresolver.h"
 
 #ifdef JACK_SUPPORT
@@ -91,7 +92,9 @@
 #include <QString>
 #include <QStringList>
 #include <QPair>
+#include <QDateTime>
 #include <QFileInfo>
+#include <QLocale>
 #include <QGuiApplication>
 #include <QClipboard>
 #include <QMimeDatabase>
@@ -107,8 +110,10 @@
 #include <QStyle>
 #include <QStyleFactory>
 #include <QThread>
+#include <QTreeWidget>
 #include <QtGlobal>
 
+#include <bit>
 #include <memory>
 
 #include <KActionCollection>
@@ -119,6 +124,7 @@
 #include <KConfigGroup>
 #include <KFileMetaData/Properties>
 #include <KI18n/KLocalizedString>
+#include <KKeySequenceWidget>
 #include <KShortcutsDialog>
 
 bool ApplicationEventFilter::eventFilter(QObject* obj, QEvent* event)
@@ -659,6 +665,52 @@ void Application::copyToClipboard(const QString &text) {
     QGuiApplication::clipboard()->setText(text);
 }
 
+int Application::heldActionModifierCount(const QString &name) {
+    QAction *a = action(name);
+    if (!a)
+        return 0;
+
+    const Qt::KeyboardModifiers held = QGuiApplication::keyboardModifiers();
+    int best = 0;
+    for (const QKeySequence &sequence : a->shortcuts()) {
+        if (sequence.isEmpty())
+            continue;
+        // A recorded modifier-only shortcut may carry the modifier as the key (Key_Shift), as a flag, or both.
+        const QKeyCombination combination = sequence[0];
+        Qt::KeyboardModifiers required = combination.keyboardModifiers();
+        switch (combination.key()) {
+        case Qt::Key_Shift: required |= Qt::ShiftModifier; break;
+        case Qt::Key_Control: required |= Qt::ControlModifier; break;
+        case Qt::Key_Alt: required |= Qt::AltModifier; break;
+        case Qt::Key_Meta: required |= Qt::MetaModifier; break;
+        default: break;
+        }
+        if (required != Qt::NoModifier && (held & required) == required)
+            best = std::max(best, static_cast<int>(std::popcount(static_cast<uint>(required.toInt()))));
+    }
+    return best;
+}
+
+QVariantList Application::autosavedFiles() {
+    QVariantList list;
+    for (const QString &type : {QStringLiteral("cplaypres"), QStringLiteral("cplaylist"), QStringLiteral("cplayfile")}) {
+        for (const QFileInfo &file : Autosave::files(type)) {
+            QVariantMap entry;
+            entry.insert(QStringLiteral("type"), type);
+            entry.insert(QStringLiteral("path"), file.absoluteFilePath());
+            const QString text = Autosave::displayName(file) + QStringLiteral("  (")
+                + QLocale().toString(file.lastModified(), QLocale::ShortFormat) + QStringLiteral(")");
+            entry.insert(QStringLiteral("text"), text);
+            list.append(entry);
+        }
+    }
+    return list;
+}
+
+void Application::clearAutosavedFiles() {
+    Autosave::removeAll();
+}
+
 int Application::getFadeDurationCurrentTime(bool restart) {
     if (restart) {
         fadeDurationTimer.start();
@@ -1009,6 +1061,36 @@ void Application::activateColorScheme(const QString &name) {
     m_schemes->activateScheme(m_schemes->indexForScheme(name));
 }
 
+namespace {
+// KShortcutsDialog only records shortcuts with a regular key. The list marking actions are a
+// modifier held while clicking, so the key editors of those actions must also accept a lone modifier.
+class ModifierOnlyShortcutEnabler : public QObject {
+public:
+    explicit ModifierOnlyShortcutEnabler(const QStringList &actionTexts)
+        : m_actionTexts(actionTexts) {}
+
+    bool eventFilter(QObject *obj, QEvent *event) override {
+        if (event->type() != QEvent::Show)
+            return false;
+        auto *editor = qobject_cast<KKeySequenceWidget *>(obj);
+        if (!editor)
+            return false;
+        // The editor is shown for the current row of the dialog's action tree.
+        for (QObject *p = editor->parent(); p; p = p->parent()) {
+            if (auto *tree = qobject_cast<QTreeWidget *>(p)) {
+                if (tree->currentItem() && m_actionTexts.contains(tree->currentItem()->text(0)))
+                    editor->setPatterns(KKeySequenceRecorder::Modifier | KKeySequenceRecorder::ModifierAndKey);
+                break;
+            }
+        }
+        return false;
+    }
+
+private:
+    QStringList m_actionTexts;
+};
+}
+
 void Application::configureShortcuts() {
     KShortcutsDialog dlg(KShortcutsEditor::ApplicationAction, KShortcutsEditor::LetterShortcutsAllowed, nullptr);
     connect(&dlg, &KShortcutsDialog::accepted, this, [=]() {
@@ -1018,7 +1100,16 @@ void Application::configureShortcuts() {
     });
     dlg.setModal(true);
     dlg.addCollection(m_collection);
+
+    QStringList modifierOnlyActionTexts;
+    for (const QString &name : {QStringLiteral("listMarkToggle"), QStringLiteral("listMarkRange")}) {
+        if (QAction *a = action(name))
+            modifierOnlyActionTexts << KLocalizedString::removeAcceleratorMarker(a->text());
+    }
+    ModifierOnlyShortcutEnabler enabler(modifierOnlyActionTexts);
+    qApp->installEventFilter(&enabler);
     dlg.configure(true);
+    qApp->removeEventFilter(&enabler);
 }
 
 void Application::updateAboutOtherText(const QString &mpvVersion, const QString &ffmpegVersion) {
@@ -1400,9 +1491,32 @@ void Application::setupActions(const QString &actionName) {
     }
     if (actionName == QStringLiteral("removeSelected")) {
         auto action = new HAction(this);
-        action->setText(QStringLiteral("Remove Selected Layer or Slide"));
+        action->setText(QStringLiteral("Remove Selected Items"));
         action->setIcon(QIcon::fromTheme(QStringLiteral("layer-delete")));
         m_collection->setDefaultShortcut(action, QKeySequence(Qt::Key_Delete));
+        m_collection->addAction(actionName, action);
+    }
+    if (actionName == QStringLiteral("undoRemove")) {
+        auto action = new HAction(this);
+        action->setText(QStringLiteral("Undo Remove of Slides, Layers, Playlist Items or Sections"));
+        action->setIcon(QIcon::fromTheme(QStringLiteral("edit-undo")));
+        m_collection->setDefaultShortcut(action, QKeySequence(QStringLiteral("Ctrl+Z")));
+        m_collection->addAction(actionName, action);
+    }
+    // Modifier held while left clicking a row in the slides, layers, playlist or sections list.
+    // Never triggered as a shortcut, only read on click via heldActionModifierCount().
+    if (actionName == QStringLiteral("listMarkToggle")) {
+        auto action = new HAction(this);
+        action->setText(QStringLiteral("Mark/Unmark List Item (hold while clicking)"));
+        action->setIcon(QIcon::fromTheme(QStringLiteral("edit-select")));
+        m_collection->setDefaultShortcut(action, QKeySequence(Qt::Key_Control));
+        m_collection->addAction(actionName, action);
+    }
+    if (actionName == QStringLiteral("listMarkRange")) {
+        auto action = new HAction(this);
+        action->setText(QStringLiteral("Mark Range of List Items (hold while clicking)"));
+        action->setIcon(QIcon::fromTheme(QStringLiteral("edit-select-all")));
+        m_collection->setDefaultShortcut(action, QKeySequence(Qt::Key_Shift));
         m_collection->addAction(actionName, action);
     }
     m_collection->readSettings(m_shortcuts);

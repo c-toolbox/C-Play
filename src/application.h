@@ -229,6 +229,14 @@ public:
     Q_INVOKABLE static void showCursor();
     // Copies text to the system clipboard, e.g. a stream address from the MediaMTX editor.
     Q_INVOKABLE static void copyToClipboard(const QString &text);
+    // For actions whose shortcut is a modifier held while clicking (e.g. listMarkRange = Shift):
+    // the number of modifiers in the best shortcut of the action that is held right now, 0 if none is.
+    Q_INVOKABLE int heldActionModifierCount(const QString &name);
+    // Autosaved presentations, playlists and C-Play files (see utils/autosave.h) for the File menu,
+    // newest first within each type. Each entry has type ("cplaypres", "cplaylist" or "cplayfile"),
+    // path and text.
+    Q_INVOKABLE static QVariantList autosavedFiles();
+    Q_INVOKABLE static void clearAutosavedFiles();
     Q_INVOKABLE static QString mimeType(QUrl url);
 
     bool getFontPath(const std::string& inFontName, std::string& outPath);

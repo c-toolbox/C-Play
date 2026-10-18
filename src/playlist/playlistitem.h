@@ -9,6 +9,7 @@
 #ifndef PLAYLISTITEM_H
 #define PLAYLISTITEM_H
 
+#include <QJsonDocument>
 #include <QObject>
 #include <QString>
 #include <QtQml/qqmlregistration.h>
@@ -234,6 +235,8 @@ public:
 
     Q_INVOKABLE QString makePathRelativeTo(const QString &filePath, const QStringList &pathsToConsider) const;
     Q_INVOKABLE void saveAsJSONPlayFile(const QString &path) const;
+    // The item as saved in a *.cplayfile, with paths relative to pathsToConsider where possible.
+    QJsonDocument asJSONPlayFileDocument(const QStringList &pathsToConsider) const;
 
     void asJSON(QJsonObject& obj);
 

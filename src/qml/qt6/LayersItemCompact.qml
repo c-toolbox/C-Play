@@ -656,13 +656,15 @@ ItemDelegate {
     }
 
     onClicked: {
+        window.removeShortcutTarget = "layer";
+        if (layersRoot.handleMarkClick(index))
+            return;
         layersView.currentIndex = index;
         slideTitleField.text = model.title;
         layerView.layerItem.layerIdx = index;
         if(app.slides.selected.layersEnabled){
             app.slides.selected.layerToCopy = index;
         }
-        window.removeShortcutTarget = "layer";
     }
     onDoubleClicked: {
         layerView.layerItem.layerIdx = index;

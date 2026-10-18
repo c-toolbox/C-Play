@@ -25,6 +25,7 @@
 #include "tracksmodel.h"
 #include "layers/textlayer.h"
 #include "ndi/ndisendermodel.h"
+#include "utils/autosave.h"
 #include "utils/logfilewriter.h"
 #include <iostream>
 #ifdef MULTI_VIDEO_LAYER
@@ -2270,6 +2271,9 @@ bool MpvObject::hasPlane() const {
 }
 
 void MpvObject::updateRecentLoadedMediaFiles(QString path) {
+    // Autosaves are listed on their own.
+    if (Autosave::isAutosave(path))
+        return;
     QStringList recentMediaFiles = LocationSettings::recentLoadedMediaFiles();
     recentMediaFiles.push_front(path);
     recentMediaFiles.removeDuplicates();
@@ -2281,6 +2285,9 @@ void MpvObject::updateRecentLoadedMediaFiles(QString path) {
 }
 
 void MpvObject::updateRecentLoadedPlaylists(QString path) {
+    // Autosaves are listed on their own.
+    if (Autosave::isAutosave(path))
+        return;
     QStringList recentPlaylists = LocationSettings::recentLoadedPlaylists();
     recentPlaylists.push_front(path);
     recentPlaylists.removeDuplicates();

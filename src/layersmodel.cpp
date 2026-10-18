@@ -1027,27 +1027,39 @@ int LayersModel::addLayerBasedOnMime(QUrl fileUrl) {
 }
 
 void LayersModel::removeLayer(int i) {
+    takeLayer(i);
+}
+
+RemovedLayer LayersModel::takeLayer(int i) {
     std::lock_guard<std::recursive_mutex> layersLock(m_layersMutex);
+    RemovedLayer removed;
+    removed.row = i;
     const int ref = referenceIndexOf(rowLayer(i));
     if (ref >= 0) {
         // A reference is removed by ending the owner's visibility span before this slide.
         // SlidesModel rebuilds the references of all slides on layersModelChanged.
         const LayerReference r = m_refs[ref];
         if (r.layer && r.owner && !(r.owner->getLayersCanBeLocked() && r.layer->isLocked())) {
+            removed.reference = r.layer;
+            removed.referenceOwner = r.owner;
+            removed.previousKeepVisibility = r.layer->keepVisibilityForNumSlides();
             r.layer->setKeepVisibilityForNumSlides(std::max(0, r.slideOffset - 1));
             r.owner->setLayersNeedsSave(true);
             Q_EMIT layersModelChanged();
             Q_EMIT layerVisibilitySpanChanged(r.layer.get());
         }
-        return;
+        return removed;
     }
 
     const int own = ownIndexOfRow(i);
     if (own < 0 || !m_layers.at(own).first)
-        return;
+        return removed;
 
     if (getLayersCanBeLocked() && m_layers.at(own).first->isLocked())
-        return;
+        return removed;
+
+    // No relative paths, so the snapshot does not depend on where the presentation is saved.
+    removed.data = encodeLayerToJSON(m_layers[own].first, QStringList());
 
     m_layers[own].first->setEnabled(false);
     m_draggedLayersAwaitingGridGuess.remove(m_layers[own].first.get());
@@ -1062,6 +1074,41 @@ void LayersModel::removeLayer(int i) {
     setNeedSync();
 
     Q_EMIT layersModelChanged();
+    return removed;
+}
+
+bool LayersModel::restoreLayer(const RemovedLayer &removed) {
+    std::lock_guard<std::recursive_mutex> layersLock(m_layersMutex);
+    if (const std::shared_ptr<BaseLayer> layer = removed.reference.lock()) {
+        if (!removed.referenceOwner)
+            return false;
+        // Extending the owner's span again brings the reference back (see takeLayer).
+        layer->setKeepVisibilityForNumSlides(removed.previousKeepVisibility);
+        removed.referenceOwner->setLayersNeedsSave(true);
+        Q_EMIT layersModelChanged();
+        Q_EMIT layerVisibilitySpanChanged(layer.get());
+        return true;
+    }
+    if (removed.data.isEmpty())
+        return false;
+
+    int row = -1;
+    {
+        // Decoded like a loaded layer: its saved animation track, not a default fade.
+        const QScopedValueRollback<bool> decoding(m_decodingLayers, true);
+        row = decodeLayerFromJSON(removed.data, QStringList());
+    }
+    if (row < 0)
+        return false;
+    if (removed.row >= 0 && removed.row < m_order.size() && removed.row != row)
+        moveLayer(row, removed.row);
+
+    rebuildEffectSchedule();
+    setLayersNeedsSave(true);
+    setNeedSync();
+
+    Q_EMIT layersModelChanged();
+    return true;
 }
 
 void LayersModel::moveLayer(int i, int t) {
@@ -1228,13 +1275,14 @@ void LayersModel::clearLayers() {
     if (getLayersCanBeLocked()) {
         //Keep locked layers (in their order), remove unlocked layers
         Layers locked;
-        for (int i = 0; i < m_layers.size(); i++) {
-            if (m_layers[i].first && m_layers[i].first->isLocked()) {
-                locked.push_back(m_layers[i]);
+        const Layers snapshot = m_layers; // setEnabled callbacks may modify m_layers
+        for (const auto &entry : snapshot) {
+            if (entry.first && entry.first->isLocked()) {
+                locked.push_back(entry);
             }
-            else if (m_layers[i].first) {
-                m_layers[i].first->setEnabled(false);
-                m_draggedLayersAwaitingGridGuess.remove(m_layers[i].first.get());
+            else if (entry.first) {
+                entry.first->setEnabled(false);
+                m_draggedLayersAwaitingGridGuess.remove(entry.first.get());
             }
         }
         m_layers = locked;
@@ -1245,9 +1293,10 @@ void LayersModel::clearLayers() {
             setLayersNeedsSave(true);
     }
     else {
-        for (int i = 0; i < m_layers.size(); i++) {
-            if (m_layers[i].first)
-                m_layers[i].first->setEnabled(false);
+        const Layers snapshot = m_layers; // setEnabled callbacks may modify m_layers
+        for (const auto &entry : snapshot) {
+            if (entry.first)
+                entry.first->setEnabled(false);
         }
         m_layers.clear();
         m_draggedLayersAwaitingGridGuess.clear();
@@ -1526,6 +1575,509 @@ QString LayersModel::makePathRelativeTo(const QString &filePath, const QStringLi
     return filePath;
 }
 
+int LayersModel::decodeLayerFromJSON(const QJsonObject &o, const QStringList &forRelativePaths) {
+    if (o.contains(QStringLiteral("type"))) {
+        int type = 0;
+        QString typeStr = o.value(QStringLiteral("type")).toString();
+        for (int i = 1; i != (int)BaseLayer::LayerType::INVALID; i++) {
+            if (typeStr == QString::fromStdString(BaseLayer::typeDescription((BaseLayer::LayerType)i))) {
+                type = i;
+            }
+        }
+
+        if (type > 0 && o.contains(QStringLiteral("title")) && o.contains(QStringLiteral("path")) && o.contains(QStringLiteral("grid")) && o.contains(QStringLiteral("stereoscopic"))) {
+            QString title = o.value(QStringLiteral("title")).toString();
+
+            QString path = o.value(QStringLiteral("path")).toString();
+            if (type == BaseLayer::IMAGE
+                || type == BaseLayer::VIDEO
+#ifdef  PDF_SUPPORT
+                || type == BaseLayer::PDF
+#endif //  PDF_SUPPORT
+                || type == BaseLayer::AUDIO) {
+                path = checkAndCorrectPath(path, forRelativePaths);
+            }
+            else if (type == BaseLayer::CONTROL) {
+                // For Control layers, path holds "operation:parameter"
+                // Read operation and parameter from dedicated fields if present
+                QString operation = o.value(QStringLiteral("operation")).toString();
+                QString parameter = o.value(QStringLiteral("parameter")).toString();
+                if (!operation.isEmpty()) {
+                    path = operation + QStringLiteral(":") + parameter;
+                }
+            }
+            else if (type == BaseLayer::REST) {
+                // For REST layers, read url from dedicated field if present
+                if (o.contains(QStringLiteral("url"))) {
+                    path = o.value(QStringLiteral("url")).toString();
+                }
+            }
+            else if (type == BaseLayer::TCP) {
+                path = o.value(QStringLiteral("tcpCommandId")).toString(path);
+            }
+
+            int grid = PresentationSettings::defaultGridModeForLayers();
+            QString gridStr = o.value(QStringLiteral("grid")).toString();
+            if (gridStr == QStringLiteral("none") || gridStr == QStringLiteral("pre-split")) {
+                grid = BaseLayer::GridMode::None;
+            }
+            else if (gridStr == QStringLiteral("plane") || gridStr == QStringLiteral("flat")) {
+                grid = BaseLayer::GridMode::Plane;
+            }
+            else if (gridStr == QStringLiteral("dome")) {
+                grid = BaseLayer::GridMode::Dome;
+            }
+            else if (gridStr == QStringLiteral("sphere") || gridStr == QStringLiteral("eqr") || gridStr == QStringLiteral("sphere-eqr")) {
+                grid = BaseLayer::GridMode::Sphere_EQR;
+            }
+            else if (gridStr == QStringLiteral("eac") || gridStr == QStringLiteral("sphere-eac")) {
+                grid = BaseLayer::GridMode::Sphere_EAC;
+            }
+
+            int stereo = PresentationSettings::defaultStereoModeForLayers();
+            QString stereoStr = o.value(QStringLiteral("stereoscopic")).toString();
+            if (stereoStr == QStringLiteral("no") || stereoStr == QStringLiteral("mono")) {
+                stereo = BaseLayer::StereoMode::No_2D;
+            }
+            else if (stereoStr == QStringLiteral("yes") || stereoStr == QStringLiteral("sbs") || stereoStr == QStringLiteral("side-by-side")) {
+                stereo = BaseLayer::StereoMode::SBS_3D;
+            }
+            else if (stereoStr == QStringLiteral("tb") || stereoStr == QStringLiteral("top-bottom")) {
+                stereo = BaseLayer::StereoMode::TB_3D;
+            }
+            else if (stereoStr == QStringLiteral("tbf") || stereoStr == QStringLiteral("top-bottom-flip")) {
+                stereo = BaseLayer::StereoMode::TBF_3D;
+            }
+
+            const int row = addLayer(title, type, path, stereo, grid);
+            const int idx = ownIndexOfRow(row);
+
+            if (idx < 0)
+                return -1;
+
+#ifdef TEXT_LAYER
+            if (type == BaseLayer::TEXT) {
+                std::shared_ptr<TextLayer> textLayer = std::static_pointer_cast<TextLayer>(m_layers[idx].first);
+                if (o.contains(QStringLiteral("text"))) {
+                    std::string text = o.value(QStringLiteral("text")).toString().toStdString();
+                    textLayer->setText(text);
+                }
+                if (o.contains(QStringLiteral("font"))) {
+                    std::string font = o.value(QStringLiteral("font")).toString().toStdString();
+                    textLayer->setFont(font);
+                }
+                if (o.contains(QStringLiteral("size"))) {
+                    int size = o.value(QStringLiteral("size")).toInt();
+                    textLayer->setFontSize(size);
+                }
+                if (o.contains(QStringLiteral("width")) && o.contains(QStringLiteral("height"))) {
+                    int w = o.value(QStringLiteral("width")).toInt();
+                    int h = o.value(QStringLiteral("height")).toInt();
+                    textLayer->setTextureSize(w, h);
+                }
+                if (o.contains(QStringLiteral("alignment"))) {
+                    std::string alignment = o.value(QStringLiteral("alignment")).toString().toStdString();
+                    textLayer->setAlignmentFromStr(alignment);
+                }
+                if (o.contains(QStringLiteral("color"))) {
+                    QString color = o.value(QStringLiteral("color")).toString();
+                    QColor textColor(color);
+                    textLayer->setColor(color.toStdString(), textColor.redF(), textColor.greenF(), textColor.blueF());
+                }
+            }
+#endif
+#ifdef PDF_SUPPORT
+            if (type == BaseLayer::PDF) {
+                std::shared_ptr<PdfLayer> pdfLayer = std::static_pointer_cast<PdfLayer>(m_layers[idx].first);
+                if (o.contains(QStringLiteral("numPages"))) {
+                    int numPages = o.value(QStringLiteral("numPages")).toInt();
+                    pdfLayer->setNumPages(numPages);
+                }
+
+                if (o.contains(QStringLiteral("page"))) {
+                    int page = o.value(QStringLiteral("page")).toInt();
+                    pdfLayer->setPage(page);
+                }
+            }  
+#endif
+
+            if (type == BaseLayer::REST) {
+                RestLayer* restLayer = static_cast<RestLayer*>(m_layers[idx].first.get());
+                if (o.contains(QStringLiteral("method"))) {
+                    int method = o.value(QStringLiteral("method")).toInt();
+                    restLayer->setMethod(method);
+                }
+                if (o.contains(QStringLiteral("parameters"))) {
+                    std::string params = o.value(QStringLiteral("parameters")).toString().toStdString();
+                    restLayer->setParameters(params);
+                }
+                // Backward compatibility: read old body+contentType as parameters
+                if (!o.contains(QStringLiteral("parameters")) && o.contains(QStringLiteral("requestBody"))) {
+                    std::string body = o.value(QStringLiteral("requestBody")).toString().toStdString();
+                    restLayer->setParameters(body);
+                }
+                restLayer->setIgnoreStatus(o.value(QStringLiteral("ignoreStatus")).toBool(false));
+            }
+
+            if (type == BaseLayer::STREAM && o.contains(QStringLiteral("streamKey"))) {
+                static_cast<StreamLayer*>(m_layers[idx].first.get())->setStreamKey(o.value(QStringLiteral("streamKey")).toString().toStdString());
+            }
+
+#ifdef DIRECTSHOW_SUPPORT
+            if (type == BaseLayer::DIRECTSHOW) {
+                // Restore the predefined setup key so each machine can re-resolve its own local capture devices.
+                if (o.contains(QStringLiteral("directShowPreset"))) {
+                    std::string presetKey = o.value(QStringLiteral("directShowPreset")).toString().toStdString();
+                    static_cast<DirectShowLayer*>(m_layers[idx].first.get())->setPresetKey(presetKey);
+                }
+            }
+#endif
+            if (o.contains(QStringLiteral("captureNode")))
+                m_layers[idx].first->setTargetNode(o.value(QStringLiteral("captureNode")).toString().toStdString());
+#ifdef CAPTURE_SUPPORT
+            if (type == BaseLayer::CAPTURE && o.contains(QStringLiteral("capturePreset"))) {
+                // Each machine re-resolves its own local capture source from this setup title.
+                static_cast<CaptureLayer*>(m_layers[idx].first.get())->setPresetKey(o.value(QStringLiteral("capturePreset")).toString().toStdString());
+            }
+#endif
+
+            if (getLayersCanBeLocked() && o.contains(QStringLiteral("locked"))) {
+                bool locked = o.value(QStringLiteral("locked")).toBool();
+                m_layers[idx].first->setIsLocked(locked);
+            }
+
+            if (o.contains(QStringLiteral("visibility"))) {
+                int visibility = o.value(QStringLiteral("visibility")).toInt();
+                m_layers[idx].first->setAlpha(static_cast<float>(visibility) * 0.01f);
+            }
+
+            if (o.contains(QStringLiteral("volume"))) {
+                int volume = o.value(QStringLiteral("volume")).toInt();
+                m_layers[idx].first->setVolume(volume);
+            }
+
+            if (o.contains(QStringLiteral("audioId"))) {
+                int audioId = o.value(QStringLiteral("audioId")).toInt();
+                m_layers[idx].first->setAudioId(audioId);
+            }
+
+            if (o.contains(QStringLiteral("qrCodeDetection"))) {
+                bool qrEnabled = o.value(QStringLiteral("qrCodeDetection")).toBool();
+                m_layers[idx].first->setQRCodeDetectionEnabled(qrEnabled);
+            }
+
+            if (o.contains(QStringLiteral("textureDivisionMode"))) {
+                int divMode = o.value(QStringLiteral("textureDivisionMode")).toInt();
+                m_layers[idx].first->setTextureDivisionMode(divMode);
+            }
+
+            if (o.contains(QStringLiteral("textureDivisionGrid"))) {
+                int divGrid = o.value(QStringLiteral("textureDivisionGrid")).toInt();
+                m_layers[idx].first->setTextureDivisionGrid(divGrid);
+            }
+
+            // Projects from before merge layouts placed each cell on its own.
+            if (o.contains(QStringLiteral("textureDivisionMergeColumns"))) {
+                m_layers[idx].first->setTextureDivisionMerge(
+                    o.value(QStringLiteral("textureDivisionMergeColumns")).toInt(),
+                    o.value(QStringLiteral("textureDivisionMergeRows")).toInt());
+            } else if (o.contains(QStringLiteral("divisionSubLayers"))) {
+                m_layers[idx].first->setTextureDivisionMerge(0, 0);
+            }
+            // Merged cells take their grid parameters from this layer.
+            const bool divisionMerged = m_layers[idx].first->textureDivisionMergeColumns() > 0;
+
+            // Restore sublayer properties for division mode
+            if (o.contains(QStringLiteral("divisionSubLayers")) && m_layers[idx].first->textureDivisionMode() == 2) {
+                if (!m_layers[idx].first->getSubLayers().empty()) {
+                    QJsonArray subArray = o.value(QStringLiteral("divisionSubLayers")).toArray();
+                    auto& subs = m_layers[idx].first->getSubLayers();
+                    for (int si = 0; si < subArray.size() && si < static_cast<int>(subs.size()); ++si) {
+                        QJsonObject subObj = subArray[si].toObject();
+                        auto& sub = subs[si];
+                        if (!sub) continue;
+                        if (subObj.contains(QStringLiteral("visibility")))
+                            sub->setAlpha(static_cast<float>(subObj.value(QStringLiteral("visibility")).toInt()) * 0.01f);
+                        if (subObj.contains(QStringLiteral("grid")) && !divisionMerged)
+                            sub->setGridMode(static_cast<uint8_t>(subObj.value(QStringLiteral("grid")).toInt()));
+                        if (subObj.contains(QStringLiteral("stereo")) && !divisionMerged)
+                            sub->setStereoMode(static_cast<uint8_t>(subObj.value(QStringLiteral("stereo")).toInt()));
+                        if (subObj.contains(QStringLiteral("plane")) && !divisionMerged) {
+                            QJsonObject po = subObj.value(QStringLiteral("plane")).toObject();
+                            if (po.contains(QStringLiteral("circular"))) sub->setPlaneCircular(po.value(QStringLiteral("circular")).toBool());
+                            if (po.contains(QStringLiteral("centreDegrees"))) sub->setPlaneCentreDegrees(po.value(QStringLiteral("centreDegrees")).toDouble());
+                            if (po.contains(QStringLiteral("widthDegrees"))) sub->setPlaneWidthDegrees(po.value(QStringLiteral("widthDegrees")).toDouble());
+                            if (po.contains(QStringLiteral("aspectRatio")))
+                                sub->setPlaneAspectRatio(static_cast<uint8_t>(po.value(QStringLiteral("aspectRatio")).toInt()));
+                            if (po.contains(QStringLiteral("width")))
+                                sub->setPlaneWidth(po.value(QStringLiteral("width")).toDouble());
+                            if (po.contains(QStringLiteral("height")))
+                                sub->setPlaneHeight(po.value(QStringLiteral("height")).toDouble());
+                            if (po.contains(QStringLiteral("elevation")))
+                                sub->setPlaneElevation(po.value(QStringLiteral("elevation")).toDouble());
+                            if (po.contains(QStringLiteral("azimuth")))
+                                sub->setPlaneAzimuth(po.value(QStringLiteral("azimuth")).toDouble());
+                            if (po.contains(QStringLiteral("roll")))
+                                sub->setPlaneRoll(po.value(QStringLiteral("roll")).toDouble());
+                            if (po.contains(QStringLiteral("distance")))
+                                sub->setPlaneDistance(po.value(QStringLiteral("distance")).toDouble());
+                            if (po.contains(QStringLiteral("horizontal")))
+                                sub->setPlaneHorizontal(po.value(QStringLiteral("horizontal")).toDouble());
+                            if (po.contains(QStringLiteral("vertical")))
+                                sub->setPlaneVertical(po.value(QStringLiteral("vertical")).toDouble());
+                        }
+                        if (subObj.contains(QStringLiteral("rotate"))) {
+                            QJsonObject ro = subObj.value(QStringLiteral("rotate")).toObject();
+                            glm::vec3 rot(0.f);
+                            if (ro.contains(QStringLiteral("pitch")))
+                                rot.x = static_cast<float>(ro.value(QStringLiteral("pitch")).toDouble());
+                            if (ro.contains(QStringLiteral("yaw")))
+                                rot.y = static_cast<float>(ro.value(QStringLiteral("yaw")).toDouble());
+                            if (ro.contains(QStringLiteral("roll")))
+                                rot.z = static_cast<float>(ro.value(QStringLiteral("roll")).toDouble());
+                            sub->setRotate(rot);
+                        }
+                    }
+                }
+            }
+
+            if ((type == BaseLayer::VIDEO || type == BaseLayer::AUDIO || type == BaseLayer::STREAM || type == BaseLayer::YOUTUBE)) {
+                if (o.contains(QStringLiteral("mpvOptions"))) {
+                    std::string mpvOptions = o.value(QStringLiteral("mpvOptions")).toString().toStdString();
+                    MpvLayer* mpvLayer = static_cast<MpvLayer*>(m_layers[idx].first.get());
+                    mpvLayer->setMpvOptionsName(mpvOptions);
+                }
+            }
+
+            if ((type == BaseLayer::VIDEO || type == BaseLayer::AUDIO || type == BaseLayer::YOUTUBE)) {
+                BaseLayer* baseLayer = m_layers[idx].first.get();
+                if (o.contains(QStringLiteral("end_of_file"))) {
+                    int eofMode = 2; // Loop by default
+                    QString eofModeText = o.value(QStringLiteral("end_of_file")).toString();
+                    if (eofModeText == QStringLiteral("pause")) {
+                        eofMode = 0;
+                    }
+                    else if (eofModeText == QStringLiteral("loop")) {
+                        eofMode = 2;
+                    }
+                    baseLayer->setEOFMode(eofMode);
+                }
+                if (o.contains(QStringLiteral("section_enabled"))) {
+                    bool loopEnabled = o.value(QStringLiteral("section_enabled")).toBool();
+                    double loopA = o.contains(QStringLiteral("time_start")) ? o.value(QStringLiteral("time_start")).toDouble() : 0.0;
+                    double loopB = o.contains(QStringLiteral("time_end")) ? o.value(QStringLiteral("time_end")).toDouble() : 0.0;
+                    baseLayer->setLoopTime(loopA, loopB, loopEnabled);
+                }
+            }
+
+            if (o.contains(QStringLiteral("keepVisibilityForNumSlides"))) {
+                int keepVisibilityForNumSlides = o.value(QStringLiteral("keepVisibilityForNumSlides")).toInt();
+                m_layers[idx].first->setKeepVisibilityForNumSlides(keepVisibilityForNumSlides);
+            }
+
+            if (o.contains(QStringLiteral("flipY"))) {
+                bool flipY = o.value(QStringLiteral("flipY")).toBool();
+                m_layers[idx].first->setFlipY(flipY);
+            }
+
+            // Only saved when true, so absent means off (overrides the addLayer default).
+            m_layers[idx].first->setUseNoSignalImage(o.value(QStringLiteral("noSignalImage")).toBool());
+            // Absent means on: layers follow the audio mapping and the spatial mapping unless opted out.
+            m_layers[idx].first->setAudioMappingEnabled(o.value(QStringLiteral("audioMapping")).toBool(true));
+            m_layers[idx].first->setSpatialAudioEnabled(o.value(QStringLiteral("spatialAudio")).toBool(true));
+
+            if (o.contains(QStringLiteral("ndiOutput"))) {
+                m_layers[idx].first->setNdiOutputEnabled(o.value(QStringLiteral("ndiOutput")).toBool());
+                if (o.contains(QStringLiteral("ndiSenderName"))) {
+                    m_layers[idx].first->setNdiSenderName(o.value(QStringLiteral("ndiSenderName")).toString().toStdString());
+                }
+            }
+
+            if (o.contains(QStringLiteral("existOnMasterOnly"))) {
+                m_layers[idx].first->setExistOnMasterOnly(o.value(QStringLiteral("existOnMasterOnly")).toBool());
+            }
+
+            // Absent in older files: the layer keeps the slide default (set in addLayer).
+            if (o.contains(QStringLiteral("hierarchy"))) {
+                const QString h = o.value(QStringLiteral("hierarchy")).toString();
+                if (h == QStringLiteral("front"))
+                    m_layers[idx].first->setHierarchy(BaseLayer::LayerHierarchy::FRONT);
+                else if (h == QStringLiteral("back"))
+                    m_layers[idx].first->setHierarchy(BaseLayer::LayerHierarchy::BACK);
+            }
+
+            if (o.contains(QStringLiteral("nodeStreamFormat")))
+                m_layers[idx].first->setNodeStreamFormat(o.value(QStringLiteral("nodeStreamFormat")).toInt());
+            if (o.contains(QStringLiteral("nodeStreamSync")))
+                m_layers[idx].first->setNodeStreamSyncMode(o.value(QStringLiteral("nodeStreamSync")).toInt());
+            if (o.contains(QStringLiteral("nodeStreamGroup")))
+                m_layers[idx].first->setNodeStreamGroup(o.value(QStringLiteral("nodeStreamGroup")).toString().trimmed().toStdString());
+            if (o.contains(QStringLiteral("nodeStreamPort")))
+                m_layers[idx].first->setNodeStreamPort(o.value(QStringLiteral("nodeStreamPort")).toInt());
+            if (o.contains(QStringLiteral("nodeStreamMaxFps")))
+                m_layers[idx].first->setNodeStreamMaxFps(o.value(QStringLiteral("nodeStreamMaxFps")).toInt());
+            if (o.contains(QStringLiteral("nodeStreamUseNdi")))
+                m_layers[idx].first->setNodeStreamUseNdi(o.value(QStringLiteral("nodeStreamUseNdi")).toBool() ? 1 : 0);
+            if (o.contains(QStringLiteral("nodeStreamOutput")))
+                m_layers[idx].first->setNodeStreamOutputEnabled(o.value(QStringLiteral("nodeStreamOutput")).toBool());
+
+#ifdef WEBRTC_LAYER
+            // The default is on; only an explicit opt-out is stored in the file.
+            if (o.contains(QStringLiteral("masterRelay")) && m_layers[idx].first->type() == BaseLayer::WEBRTC) {
+                static_cast<WebRTCLayer*>(m_layers[idx].first.get())->setMasterRelayEnabled(o.value(QStringLiteral("masterRelay")).toBool());
+            }
+            if (o.contains(QStringLiteral("syncDelayMs")) && m_layers[idx].first->type() == BaseLayer::WEBRTC) {
+                static_cast<WebRTCLayer*>(m_layers[idx].first.get())->setSyncDelayMs(o.value(QStringLiteral("syncDelayMs")).toInt(kWebRtcDefaultSyncDelayMs));
+            }
+            if (o.contains(QStringLiteral("whepAuthUsername")) && m_layers[idx].first->type() == BaseLayer::WEBRTC) {
+                WebRTCLayer* webRtcLayer = static_cast<WebRTCLayer*>(m_layers[idx].first.get());
+                webRtcLayer->setAuthUsername(o.value(QStringLiteral("whepAuthUsername")).toString().toStdString());
+                webRtcLayer->setAuthPassword(o.value(QStringLiteral("whepAuthPassword")).toString().toStdString());
+            }
+#endif
+
+            if (o.contains(QStringLiteral("eye_mode"))) {
+                QString em = o.value(QStringLiteral("eye_mode")).toString();
+                if (em == QStringLiteral("left"))
+                    m_layers[idx].first->setEyeMode(static_cast<uint8_t>(BaseLayer::EyeMode::Left));
+                else if (em == QStringLiteral("right"))
+                    m_layers[idx].first->setEyeMode(static_cast<uint8_t>(BaseLayer::EyeMode::Right));
+                else
+                    m_layers[idx].first->setEyeMode(static_cast<uint8_t>(BaseLayer::EyeMode::Both));
+            }
+
+            if (grid == BaseLayer::GridMode::Plane && o.contains(QStringLiteral("plane"))) {
+                QJsonValue planeValues = o.value(QStringLiteral("plane"));
+                QJsonArray planeArray = planeValues.toArray();
+                for (auto pa : planeArray) {
+                    QJsonObject po = pa.toObject();
+                    if (po.contains(QStringLiteral("circular"))) m_layers[idx].first->setPlaneCircular(po.value(QStringLiteral("circular")).toBool());
+                    if (po.contains(QStringLiteral("centreDegrees"))) m_layers[idx].first->setPlaneCentreDegrees(po.value(QStringLiteral("centreDegrees")).toDouble());
+                    if (po.contains(QStringLiteral("widthDegrees"))) m_layers[idx].first->setPlaneWidthDegrees(po.value(QStringLiteral("widthDegrees")).toDouble());
+                    if (po.contains(QStringLiteral("aspectRatio"))) {
+                        int planeAR = po.value(QStringLiteral("aspectRatio")).toInt();
+                        m_layers[idx].first->setPlaneAspectRatio(static_cast<uint8_t>(planeAR));
+                    }
+                    if (po.contains(QStringLiteral("width"))) {
+                        double planeW = po.value(QStringLiteral("width")).toDouble();
+                        m_layers[idx].first->setPlaneWidth(planeW);
+                    }
+                    if (po.contains(QStringLiteral("height"))) {
+                        double planeH = po.value(QStringLiteral("height")).toDouble();
+                        m_layers[idx].first->setPlaneHeight(planeH);
+                    }
+                    if (po.contains(QStringLiteral("elevation"))) {
+                        double planeE = po.value(QStringLiteral("elevation")).toDouble();
+                        m_layers[idx].first->setPlaneElevation(planeE);
+                    }
+                    if (po.contains(QStringLiteral("azimuth"))) {
+                        double planeA = po.value(QStringLiteral("azimuth")).toDouble();
+                        m_layers[idx].first->setPlaneAzimuth(planeA);
+                    }
+                    if (po.contains(QStringLiteral("roll"))) {
+                        double planeR = po.value(QStringLiteral("roll")).toDouble();
+                        m_layers[idx].first->setPlaneRoll(planeR);
+                    }
+                    if (po.contains(QStringLiteral("distance"))) {
+                        double planeD = po.value(QStringLiteral("distance")).toDouble();
+                        m_layers[idx].first->setPlaneDistance(planeD);
+                    }
+                    if (po.contains(QStringLiteral("horizontal"))) {
+                        double planeHM = po.value(QStringLiteral("horizontal")).toDouble();
+                        m_layers[idx].first->setPlaneHorizontal(planeHM);
+                    }
+                    if (po.contains(QStringLiteral("vertical"))) {
+                        double planeVM = po.value(QStringLiteral("vertical")).toDouble();
+                        m_layers[idx].first->setPlaneVertical(planeVM);
+                    }
+                }
+            }
+            else if (grid == BaseLayer::GridMode::Dome && o.contains(QStringLiteral("dome"))) {
+                QJsonValue domeValues = o.value(QStringLiteral("dome"));
+                QJsonArray domeArray = domeValues.toArray();
+                for (auto pa : domeArray) {
+                    QJsonObject po = pa.toObject();
+                    glm::vec3 domeRotation = glm::vec3(0.f);
+                    if (po.contains(QStringLiteral("yaw"))) {
+                        double domeYaw = po.value(QStringLiteral("yaw")).toDouble();
+                        domeRotation.y = static_cast<float>(domeYaw);
+                        m_layers[idx].first->setRotate(domeRotation);
+                    }
+                }
+            }
+            else if ((grid == BaseLayer::GridMode::Sphere_EQR || grid == BaseLayer::GridMode::Sphere_EAC) 
+                && o.contains(QStringLiteral("sphere"))) {
+                QJsonValue sphereValues = o.value(QStringLiteral("sphere"));
+                QJsonArray sphereArray = sphereValues.toArray();
+                for (auto pa : sphereArray) {
+                    QJsonObject po = pa.toObject();
+                    glm::vec3 sphereRotation = glm::vec3(0.f);
+                    bool hasRotation = false;
+                    if (po.contains(QStringLiteral("pitch"))) {
+                        double spherePitch = po.value(QStringLiteral("pitch")).toDouble();
+                        sphereRotation.x = static_cast<float>(spherePitch);
+                        hasRotation = true;
+                    }
+                    if (po.contains(QStringLiteral("yaw"))) {
+                        double sphereYaw = po.value(QStringLiteral("yaw")).toDouble();
+                        sphereRotation.y = static_cast<float>(sphereYaw);
+                        hasRotation = true;
+                    }
+                    if (po.contains(QStringLiteral("roll"))) {
+                        double sphereRoll = po.value(QStringLiteral("roll")).toDouble();
+                        sphereRotation.z = static_cast<float>(sphereRoll);
+                        hasRotation = true;
+                    }
+                    if (hasRotation) {
+                        m_layers[idx].first->setRotate(sphereRotation);
+                    }
+                }
+            }
+
+            if (o.contains(QStringLiteral("roi"))) {
+                QJsonValue roiValues = o.value(QStringLiteral("roi"));
+                QJsonArray roiArray = roiValues.toArray();
+                for (auto ra : roiArray) {
+                    QJsonObject pa = ra.toObject();
+                    if (pa.contains(QStringLiteral("enabled"))) {
+                        bool roiEnabled = pa.value(QStringLiteral("enabled")).toBool();
+                        m_layers[idx].first->setRoiEnabled(roiEnabled);
+                    }
+                    glm::vec4 roi = glm::vec4(0.f, 0.f, 1.f, 1.f);
+                    if (pa.contains(QStringLiteral("xpos"))) {
+                        roi.x = static_cast<float>(pa.value(QStringLiteral("xpos")).toDouble());
+                    }
+                    if (pa.contains(QStringLiteral("ypos"))) {
+                        roi.y = static_cast<float>(pa.value(QStringLiteral("ypos")).toDouble());
+                    }
+                    if (pa.contains(QStringLiteral("width"))) {
+                        roi.z = static_cast<float>(pa.value(QStringLiteral("width")).toDouble());
+                    }
+                    if (pa.contains(QStringLiteral("height"))) {
+                        roi.w = static_cast<float>(pa.value(QStringLiteral("height")).toDouble());
+                    }
+                    m_layers[idx].first->setRoi(roi);
+                }
+            }
+
+            if (o.contains(QStringLiteral("postEffects"))) {
+                PostEffects fx;
+                applyPostEffectsMap(fx, o.value(QStringLiteral("postEffects")).toObject().toVariantMap());
+                m_layers[idx].first->setPostEffects(fx);
+            }
+
+            // Per-layer timeline keyframes and effects
+            if (o.contains(QStringLiteral("timelineKeyframes")) || o.contains(QStringLiteral("animationEffects"))) {
+                if (LayerTimeline *track = timelineAt(row))
+                    decodeTrack(o, *track);
+            }
+
+            return row;
+        }
+    }
+    return -1;
+}
+
 void LayersModel::decodeFromJSON(QJsonObject &obj, const QStringList &forRelativePaths) {
     std::lock_guard<std::recursive_mutex> layersLock(m_layersMutex);
     const QScopedValueRollback<bool> decoding(m_decodingLayers, true);
@@ -1560,504 +2112,7 @@ void LayersModel::decodeFromJSON(QJsonObject &obj, const QStringList &forRelativ
         QJsonValue value = obj.value(QStringLiteral("layers"));
         QJsonArray array = value.toArray();
         for (auto v : array) {
-            QJsonObject o = v.toObject();
-            if (o.contains(QStringLiteral("type"))) {
-                int type = 0;
-                QString typeStr = o.value(QStringLiteral("type")).toString();
-                for (int i = 1; i != (int)BaseLayer::LayerType::INVALID; i++) {
-                    if (typeStr == QString::fromStdString(BaseLayer::typeDescription((BaseLayer::LayerType)i))) {
-                        type = i;
-                    }
-                }
-
-                if (type > 0 && o.contains(QStringLiteral("title")) && o.contains(QStringLiteral("path")) && o.contains(QStringLiteral("grid")) && o.contains(QStringLiteral("stereoscopic"))) {
-                    QString title = o.value(QStringLiteral("title")).toString();
-
-                    QString path = o.value(QStringLiteral("path")).toString();
-                    if (type == BaseLayer::IMAGE
-                        || type == BaseLayer::VIDEO
-#ifdef  PDF_SUPPORT
-                        || type == BaseLayer::PDF
-#endif //  PDF_SUPPORT
-                        || type == BaseLayer::AUDIO) {
-                        path = checkAndCorrectPath(path, forRelativePaths);
-                    }
-                    else if (type == BaseLayer::CONTROL) {
-                        // For Control layers, path holds "operation:parameter"
-                        // Read operation and parameter from dedicated fields if present
-                        QString operation = o.value(QStringLiteral("operation")).toString();
-                        QString parameter = o.value(QStringLiteral("parameter")).toString();
-                        if (!operation.isEmpty()) {
-                            path = operation + QStringLiteral(":") + parameter;
-                        }
-                    }
-                    else if (type == BaseLayer::REST) {
-                        // For REST layers, read url from dedicated field if present
-                        if (o.contains(QStringLiteral("url"))) {
-                            path = o.value(QStringLiteral("url")).toString();
-                        }
-                    }
-                    else if (type == BaseLayer::TCP) {
-                        path = o.value(QStringLiteral("tcpCommandId")).toString(path);
-                    }
-
-                    int grid = PresentationSettings::defaultGridModeForLayers();
-                    QString gridStr = o.value(QStringLiteral("grid")).toString();
-                    if (gridStr == QStringLiteral("none") || gridStr == QStringLiteral("pre-split")) {
-                        grid = BaseLayer::GridMode::None;
-                    }
-                    else if (gridStr == QStringLiteral("plane") || gridStr == QStringLiteral("flat")) {
-                        grid = BaseLayer::GridMode::Plane;
-                    }
-                    else if (gridStr == QStringLiteral("dome")) {
-                        grid = BaseLayer::GridMode::Dome;
-                    }
-                    else if (gridStr == QStringLiteral("sphere") || gridStr == QStringLiteral("eqr") || gridStr == QStringLiteral("sphere-eqr")) {
-                        grid = BaseLayer::GridMode::Sphere_EQR;
-                    }
-                    else if (gridStr == QStringLiteral("eac") || gridStr == QStringLiteral("sphere-eac")) {
-                        grid = BaseLayer::GridMode::Sphere_EAC;
-                    }
-
-                    int stereo = PresentationSettings::defaultStereoModeForLayers();
-                    QString stereoStr = o.value(QStringLiteral("stereoscopic")).toString();
-                    if (stereoStr == QStringLiteral("no") || stereoStr == QStringLiteral("mono")) {
-                        stereo = BaseLayer::StereoMode::No_2D;
-                    }
-                    else if (stereoStr == QStringLiteral("yes") || stereoStr == QStringLiteral("sbs") || stereoStr == QStringLiteral("side-by-side")) {
-                        stereo = BaseLayer::StereoMode::SBS_3D;
-                    }
-                    else if (stereoStr == QStringLiteral("tb") || stereoStr == QStringLiteral("top-bottom")) {
-                        stereo = BaseLayer::StereoMode::TB_3D;
-                    }
-                    else if (stereoStr == QStringLiteral("tbf") || stereoStr == QStringLiteral("top-bottom-flip")) {
-                        stereo = BaseLayer::StereoMode::TBF_3D;
-                    }
-
-                    const int row = addLayer(title, type, path, stereo, grid);
-                    const int idx = ownIndexOfRow(row);
-
-                    if (idx < 0)
-                        continue;
-
-#ifdef TEXT_LAYER
-                    if (type == BaseLayer::TEXT) {
-                        std::shared_ptr<TextLayer> textLayer = std::static_pointer_cast<TextLayer>(m_layers[idx].first);
-                        if (o.contains(QStringLiteral("text"))) {
-                            std::string text = o.value(QStringLiteral("text")).toString().toStdString();
-                            textLayer->setText(text);
-                        }
-                        if (o.contains(QStringLiteral("font"))) {
-                            std::string font = o.value(QStringLiteral("font")).toString().toStdString();
-                            textLayer->setFont(font);
-                        }
-                        if (o.contains(QStringLiteral("size"))) {
-                            int size = o.value(QStringLiteral("size")).toInt();
-                            textLayer->setFontSize(size);
-                        }
-                        if (o.contains(QStringLiteral("width")) && o.contains(QStringLiteral("height"))) {
-                            int w = o.value(QStringLiteral("width")).toInt();
-                            int h = o.value(QStringLiteral("height")).toInt();
-                            textLayer->setTextureSize(w, h);
-                        }
-                        if (o.contains(QStringLiteral("alignment"))) {
-                            std::string alignment = o.value(QStringLiteral("alignment")).toString().toStdString();
-                            textLayer->setAlignmentFromStr(alignment);
-                        }
-                        if (o.contains(QStringLiteral("color"))) {
-                            QString color = o.value(QStringLiteral("color")).toString();
-                            QColor textColor(color);
-                            textLayer->setColor(color.toStdString(), textColor.redF(), textColor.greenF(), textColor.blueF());
-                        }
-                    }
-#endif
-#ifdef PDF_SUPPORT
-                    if (type == BaseLayer::PDF) {
-                        std::shared_ptr<PdfLayer> pdfLayer = std::static_pointer_cast<PdfLayer>(m_layers[idx].first);
-                        if (o.contains(QStringLiteral("numPages"))) {
-                            int numPages = o.value(QStringLiteral("numPages")).toInt();
-                            pdfLayer->setNumPages(numPages);
-                        }
-
-                        if (o.contains(QStringLiteral("page"))) {
-                            int page = o.value(QStringLiteral("page")).toInt();
-                            pdfLayer->setPage(page);
-                        }
-                    }  
-#endif
-
-                    if (type == BaseLayer::REST) {
-                        RestLayer* restLayer = static_cast<RestLayer*>(m_layers[idx].first.get());
-                        if (o.contains(QStringLiteral("method"))) {
-                            int method = o.value(QStringLiteral("method")).toInt();
-                            restLayer->setMethod(method);
-                        }
-                        if (o.contains(QStringLiteral("parameters"))) {
-                            std::string params = o.value(QStringLiteral("parameters")).toString().toStdString();
-                            restLayer->setParameters(params);
-                        }
-                        // Backward compatibility: read old body+contentType as parameters
-                        if (!o.contains(QStringLiteral("parameters")) && o.contains(QStringLiteral("requestBody"))) {
-                            std::string body = o.value(QStringLiteral("requestBody")).toString().toStdString();
-                            restLayer->setParameters(body);
-                        }
-                        restLayer->setIgnoreStatus(o.value(QStringLiteral("ignoreStatus")).toBool(false));
-                    }
-
-                    if (type == BaseLayer::STREAM && o.contains(QStringLiteral("streamKey"))) {
-                        static_cast<StreamLayer*>(m_layers[idx].first.get())->setStreamKey(o.value(QStringLiteral("streamKey")).toString().toStdString());
-                    }
-
-#ifdef DIRECTSHOW_SUPPORT
-                    if (type == BaseLayer::DIRECTSHOW) {
-                        // Restore the predefined setup key so each machine can re-resolve its own local capture devices.
-                        if (o.contains(QStringLiteral("directShowPreset"))) {
-                            std::string presetKey = o.value(QStringLiteral("directShowPreset")).toString().toStdString();
-                            static_cast<DirectShowLayer*>(m_layers[idx].first.get())->setPresetKey(presetKey);
-                        }
-                    }
-#endif
-                    if (o.contains(QStringLiteral("captureNode")))
-                        m_layers[idx].first->setTargetNode(o.value(QStringLiteral("captureNode")).toString().toStdString());
-#ifdef CAPTURE_SUPPORT
-                    if (type == BaseLayer::CAPTURE && o.contains(QStringLiteral("capturePreset"))) {
-                        // Each machine re-resolves its own local capture source from this setup title.
-                        static_cast<CaptureLayer*>(m_layers[idx].first.get())->setPresetKey(o.value(QStringLiteral("capturePreset")).toString().toStdString());
-                    }
-#endif
-
-                    if (getLayersCanBeLocked() && o.contains(QStringLiteral("locked"))) {
-                        bool locked = o.value(QStringLiteral("locked")).toBool();
-                        m_layers[idx].first->setIsLocked(locked);
-                    }
-
-                    if (o.contains(QStringLiteral("visibility"))) {
-                        int visibility = o.value(QStringLiteral("visibility")).toInt();
-                        m_layers[idx].first->setAlpha(static_cast<float>(visibility) * 0.01f);
-                    }
-
-                    if (o.contains(QStringLiteral("volume"))) {
-                        int volume = o.value(QStringLiteral("volume")).toInt();
-                        m_layers[idx].first->setVolume(volume);
-                    }
-
-                    if (o.contains(QStringLiteral("audioId"))) {
-                        int audioId = o.value(QStringLiteral("audioId")).toInt();
-                        m_layers[idx].first->setAudioId(audioId);
-                    }
-
-                    if (o.contains(QStringLiteral("qrCodeDetection"))) {
-                        bool qrEnabled = o.value(QStringLiteral("qrCodeDetection")).toBool();
-                        m_layers[idx].first->setQRCodeDetectionEnabled(qrEnabled);
-                    }
-
-                    if (o.contains(QStringLiteral("textureDivisionMode"))) {
-                        int divMode = o.value(QStringLiteral("textureDivisionMode")).toInt();
-                        m_layers[idx].first->setTextureDivisionMode(divMode);
-                    }
-
-                    if (o.contains(QStringLiteral("textureDivisionGrid"))) {
-                        int divGrid = o.value(QStringLiteral("textureDivisionGrid")).toInt();
-                        m_layers[idx].first->setTextureDivisionGrid(divGrid);
-                    }
-
-                    // Projects from before merge layouts placed each cell on its own.
-                    if (o.contains(QStringLiteral("textureDivisionMergeColumns"))) {
-                        m_layers[idx].first->setTextureDivisionMerge(
-                            o.value(QStringLiteral("textureDivisionMergeColumns")).toInt(),
-                            o.value(QStringLiteral("textureDivisionMergeRows")).toInt());
-                    } else if (o.contains(QStringLiteral("divisionSubLayers"))) {
-                        m_layers[idx].first->setTextureDivisionMerge(0, 0);
-                    }
-                    // Merged cells take their grid parameters from this layer.
-                    const bool divisionMerged = m_layers[idx].first->textureDivisionMergeColumns() > 0;
-
-                    // Restore sublayer properties for division mode
-                    if (o.contains(QStringLiteral("divisionSubLayers")) && m_layers[idx].first->textureDivisionMode() == 2) {
-                        if (!m_layers[idx].first->getSubLayers().empty()) {
-                            QJsonArray subArray = o.value(QStringLiteral("divisionSubLayers")).toArray();
-                            auto& subs = m_layers[idx].first->getSubLayers();
-                            for (int si = 0; si < subArray.size() && si < static_cast<int>(subs.size()); ++si) {
-                                QJsonObject subObj = subArray[si].toObject();
-                                auto& sub = subs[si];
-                                if (!sub) continue;
-                                if (subObj.contains(QStringLiteral("visibility")))
-                                    sub->setAlpha(static_cast<float>(subObj.value(QStringLiteral("visibility")).toInt()) * 0.01f);
-                                if (subObj.contains(QStringLiteral("grid")) && !divisionMerged)
-                                    sub->setGridMode(static_cast<uint8_t>(subObj.value(QStringLiteral("grid")).toInt()));
-                                if (subObj.contains(QStringLiteral("stereo")) && !divisionMerged)
-                                    sub->setStereoMode(static_cast<uint8_t>(subObj.value(QStringLiteral("stereo")).toInt()));
-                                if (subObj.contains(QStringLiteral("plane")) && !divisionMerged) {
-                                    QJsonObject po = subObj.value(QStringLiteral("plane")).toObject();
-                                    if (po.contains(QStringLiteral("circular"))) sub->setPlaneCircular(po.value(QStringLiteral("circular")).toBool());
-                                    if (po.contains(QStringLiteral("centreDegrees"))) sub->setPlaneCentreDegrees(po.value(QStringLiteral("centreDegrees")).toDouble());
-                                    if (po.contains(QStringLiteral("widthDegrees"))) sub->setPlaneWidthDegrees(po.value(QStringLiteral("widthDegrees")).toDouble());
-                                    if (po.contains(QStringLiteral("aspectRatio")))
-                                        sub->setPlaneAspectRatio(static_cast<uint8_t>(po.value(QStringLiteral("aspectRatio")).toInt()));
-                                    if (po.contains(QStringLiteral("width")))
-                                        sub->setPlaneWidth(po.value(QStringLiteral("width")).toDouble());
-                                    if (po.contains(QStringLiteral("height")))
-                                        sub->setPlaneHeight(po.value(QStringLiteral("height")).toDouble());
-                                    if (po.contains(QStringLiteral("elevation")))
-                                        sub->setPlaneElevation(po.value(QStringLiteral("elevation")).toDouble());
-                                    if (po.contains(QStringLiteral("azimuth")))
-                                        sub->setPlaneAzimuth(po.value(QStringLiteral("azimuth")).toDouble());
-                                    if (po.contains(QStringLiteral("roll")))
-                                        sub->setPlaneRoll(po.value(QStringLiteral("roll")).toDouble());
-                                    if (po.contains(QStringLiteral("distance")))
-                                        sub->setPlaneDistance(po.value(QStringLiteral("distance")).toDouble());
-                                    if (po.contains(QStringLiteral("horizontal")))
-                                        sub->setPlaneHorizontal(po.value(QStringLiteral("horizontal")).toDouble());
-                                    if (po.contains(QStringLiteral("vertical")))
-                                        sub->setPlaneVertical(po.value(QStringLiteral("vertical")).toDouble());
-                                }
-                                if (subObj.contains(QStringLiteral("rotate"))) {
-                                    QJsonObject ro = subObj.value(QStringLiteral("rotate")).toObject();
-                                    glm::vec3 rot(0.f);
-                                    if (ro.contains(QStringLiteral("pitch")))
-                                        rot.x = static_cast<float>(ro.value(QStringLiteral("pitch")).toDouble());
-                                    if (ro.contains(QStringLiteral("yaw")))
-                                        rot.y = static_cast<float>(ro.value(QStringLiteral("yaw")).toDouble());
-                                    if (ro.contains(QStringLiteral("roll")))
-                                        rot.z = static_cast<float>(ro.value(QStringLiteral("roll")).toDouble());
-                                    sub->setRotate(rot);
-                                }
-                            }
-                        }
-                    }
-
-                    if ((type == BaseLayer::VIDEO || type == BaseLayer::AUDIO || type == BaseLayer::STREAM || type == BaseLayer::YOUTUBE)) {
-                        if (o.contains(QStringLiteral("mpvOptions"))) {
-                            std::string mpvOptions = o.value(QStringLiteral("mpvOptions")).toString().toStdString();
-                            MpvLayer* mpvLayer = static_cast<MpvLayer*>(m_layers[idx].first.get());
-                            mpvLayer->setMpvOptionsName(mpvOptions);
-                        }
-                    }
-
-                    if ((type == BaseLayer::VIDEO || type == BaseLayer::AUDIO || type == BaseLayer::YOUTUBE)) {
-                        BaseLayer* baseLayer = m_layers[idx].first.get();
-                        if (o.contains(QStringLiteral("end_of_file"))) {
-                            int eofMode = 2; // Loop by default
-                            QString eofModeText = o.value(QStringLiteral("end_of_file")).toString();
-                            if (eofModeText == QStringLiteral("pause")) {
-                                eofMode = 0;
-                            }
-                            else if (eofModeText == QStringLiteral("loop")) {
-                                eofMode = 2;
-                            }
-                            baseLayer->setEOFMode(eofMode);
-                        }
-                        if (o.contains(QStringLiteral("section_enabled"))) {
-                            bool loopEnabled = o.value(QStringLiteral("section_enabled")).toBool();
-                            double loopA = o.contains(QStringLiteral("time_start")) ? o.value(QStringLiteral("time_start")).toDouble() : 0.0;
-                            double loopB = o.contains(QStringLiteral("time_end")) ? o.value(QStringLiteral("time_end")).toDouble() : 0.0;
-                            baseLayer->setLoopTime(loopA, loopB, loopEnabled);
-                        }
-                    }
-
-                    if (o.contains(QStringLiteral("keepVisibilityForNumSlides"))) {
-                        int keepVisibilityForNumSlides = o.value(QStringLiteral("keepVisibilityForNumSlides")).toInt();
-                        m_layers[idx].first->setKeepVisibilityForNumSlides(keepVisibilityForNumSlides);
-                    }
-
-                    if (o.contains(QStringLiteral("flipY"))) {
-                        bool flipY = o.value(QStringLiteral("flipY")).toBool();
-                        m_layers[idx].first->setFlipY(flipY);
-                    }
-
-                    // Only saved when true, so absent means off (overrides the addLayer default).
-                    m_layers[idx].first->setUseNoSignalImage(o.value(QStringLiteral("noSignalImage")).toBool());
-                    // Absent means on: layers follow the audio mapping and the spatial mapping unless opted out.
-                    m_layers[idx].first->setAudioMappingEnabled(o.value(QStringLiteral("audioMapping")).toBool(true));
-                    m_layers[idx].first->setSpatialAudioEnabled(o.value(QStringLiteral("spatialAudio")).toBool(true));
-
-                    if (o.contains(QStringLiteral("ndiOutput"))) {
-                        m_layers[idx].first->setNdiOutputEnabled(o.value(QStringLiteral("ndiOutput")).toBool());
-                        if (o.contains(QStringLiteral("ndiSenderName"))) {
-                            m_layers[idx].first->setNdiSenderName(o.value(QStringLiteral("ndiSenderName")).toString().toStdString());
-                        }
-                    }
-
-                    if (o.contains(QStringLiteral("existOnMasterOnly"))) {
-                        m_layers[idx].first->setExistOnMasterOnly(o.value(QStringLiteral("existOnMasterOnly")).toBool());
-                    }
-
-                    // Absent in older files: the layer keeps the slide default (set in addLayer).
-                    if (o.contains(QStringLiteral("hierarchy"))) {
-                        const QString h = o.value(QStringLiteral("hierarchy")).toString();
-                        if (h == QStringLiteral("front"))
-                            m_layers[idx].first->setHierarchy(BaseLayer::LayerHierarchy::FRONT);
-                        else if (h == QStringLiteral("back"))
-                            m_layers[idx].first->setHierarchy(BaseLayer::LayerHierarchy::BACK);
-                    }
-
-                    if (o.contains(QStringLiteral("nodeStreamFormat")))
-                        m_layers[idx].first->setNodeStreamFormat(o.value(QStringLiteral("nodeStreamFormat")).toInt());
-                    if (o.contains(QStringLiteral("nodeStreamSync")))
-                        m_layers[idx].first->setNodeStreamSyncMode(o.value(QStringLiteral("nodeStreamSync")).toInt());
-                    if (o.contains(QStringLiteral("nodeStreamGroup")))
-                        m_layers[idx].first->setNodeStreamGroup(o.value(QStringLiteral("nodeStreamGroup")).toString().trimmed().toStdString());
-                    if (o.contains(QStringLiteral("nodeStreamPort")))
-                        m_layers[idx].first->setNodeStreamPort(o.value(QStringLiteral("nodeStreamPort")).toInt());
-                    if (o.contains(QStringLiteral("nodeStreamMaxFps")))
-                        m_layers[idx].first->setNodeStreamMaxFps(o.value(QStringLiteral("nodeStreamMaxFps")).toInt());
-                    if (o.contains(QStringLiteral("nodeStreamUseNdi")))
-                        m_layers[idx].first->setNodeStreamUseNdi(o.value(QStringLiteral("nodeStreamUseNdi")).toBool() ? 1 : 0);
-                    if (o.contains(QStringLiteral("nodeStreamOutput")))
-                        m_layers[idx].first->setNodeStreamOutputEnabled(o.value(QStringLiteral("nodeStreamOutput")).toBool());
-
-#ifdef WEBRTC_LAYER
-                    // The default is on; only an explicit opt-out is stored in the file.
-                    if (o.contains(QStringLiteral("masterRelay")) && m_layers[idx].first->type() == BaseLayer::WEBRTC) {
-                        static_cast<WebRTCLayer*>(m_layers[idx].first.get())->setMasterRelayEnabled(o.value(QStringLiteral("masterRelay")).toBool());
-                    }
-                    if (o.contains(QStringLiteral("syncDelayMs")) && m_layers[idx].first->type() == BaseLayer::WEBRTC) {
-                        static_cast<WebRTCLayer*>(m_layers[idx].first.get())->setSyncDelayMs(o.value(QStringLiteral("syncDelayMs")).toInt(kWebRtcDefaultSyncDelayMs));
-                    }
-                    if (o.contains(QStringLiteral("whepAuthUsername")) && m_layers[idx].first->type() == BaseLayer::WEBRTC) {
-                        WebRTCLayer* webRtcLayer = static_cast<WebRTCLayer*>(m_layers[idx].first.get());
-                        webRtcLayer->setAuthUsername(o.value(QStringLiteral("whepAuthUsername")).toString().toStdString());
-                        webRtcLayer->setAuthPassword(o.value(QStringLiteral("whepAuthPassword")).toString().toStdString());
-                    }
-#endif
-
-                    if (o.contains(QStringLiteral("eye_mode"))) {
-                        QString em = o.value(QStringLiteral("eye_mode")).toString();
-                        if (em == QStringLiteral("left"))
-                            m_layers[idx].first->setEyeMode(static_cast<uint8_t>(BaseLayer::EyeMode::Left));
-                        else if (em == QStringLiteral("right"))
-                            m_layers[idx].first->setEyeMode(static_cast<uint8_t>(BaseLayer::EyeMode::Right));
-                        else
-                            m_layers[idx].first->setEyeMode(static_cast<uint8_t>(BaseLayer::EyeMode::Both));
-                    }
-
-                    if (grid == BaseLayer::GridMode::Plane && o.contains(QStringLiteral("plane"))) {
-                        QJsonValue planeValues = o.value(QStringLiteral("plane"));
-                        QJsonArray planeArray = planeValues.toArray();
-                        for (auto pa : planeArray) {
-                            QJsonObject po = pa.toObject();
-                            if (po.contains(QStringLiteral("circular"))) m_layers[idx].first->setPlaneCircular(po.value(QStringLiteral("circular")).toBool());
-                            if (po.contains(QStringLiteral("centreDegrees"))) m_layers[idx].first->setPlaneCentreDegrees(po.value(QStringLiteral("centreDegrees")).toDouble());
-                            if (po.contains(QStringLiteral("widthDegrees"))) m_layers[idx].first->setPlaneWidthDegrees(po.value(QStringLiteral("widthDegrees")).toDouble());
-                            if (po.contains(QStringLiteral("aspectRatio"))) {
-                                int planeAR = po.value(QStringLiteral("aspectRatio")).toInt();
-                                m_layers[idx].first->setPlaneAspectRatio(static_cast<uint8_t>(planeAR));
-                            }
-                            if (po.contains(QStringLiteral("width"))) {
-                                double planeW = po.value(QStringLiteral("width")).toDouble();
-                                m_layers[idx].first->setPlaneWidth(planeW);
-                            }
-                            if (po.contains(QStringLiteral("height"))) {
-                                double planeH = po.value(QStringLiteral("height")).toDouble();
-                                m_layers[idx].first->setPlaneHeight(planeH);
-                            }
-                            if (po.contains(QStringLiteral("elevation"))) {
-                                double planeE = po.value(QStringLiteral("elevation")).toDouble();
-                                m_layers[idx].first->setPlaneElevation(planeE);
-                            }
-                            if (po.contains(QStringLiteral("azimuth"))) {
-                                double planeA = po.value(QStringLiteral("azimuth")).toDouble();
-                                m_layers[idx].first->setPlaneAzimuth(planeA);
-                            }
-                            if (po.contains(QStringLiteral("roll"))) {
-                                double planeR = po.value(QStringLiteral("roll")).toDouble();
-                                m_layers[idx].first->setPlaneRoll(planeR);
-                            }
-                            if (po.contains(QStringLiteral("distance"))) {
-                                double planeD = po.value(QStringLiteral("distance")).toDouble();
-                                m_layers[idx].first->setPlaneDistance(planeD);
-                            }
-                            if (po.contains(QStringLiteral("horizontal"))) {
-                                double planeHM = po.value(QStringLiteral("horizontal")).toDouble();
-                                m_layers[idx].first->setPlaneHorizontal(planeHM);
-                            }
-                            if (po.contains(QStringLiteral("vertical"))) {
-                                double planeVM = po.value(QStringLiteral("vertical")).toDouble();
-                                m_layers[idx].first->setPlaneVertical(planeVM);
-                            }
-                        }
-                    }
-                    else if (grid == BaseLayer::GridMode::Dome && o.contains(QStringLiteral("dome"))) {
-                        QJsonValue domeValues = o.value(QStringLiteral("dome"));
-                        QJsonArray domeArray = domeValues.toArray();
-                        for (auto pa : domeArray) {
-                            QJsonObject po = pa.toObject();
-                            glm::vec3 domeRotation = glm::vec3(0.f);
-                            if (po.contains(QStringLiteral("yaw"))) {
-                                double domeYaw = po.value(QStringLiteral("yaw")).toDouble();
-                                domeRotation.y = static_cast<float>(domeYaw);
-                                m_layers[idx].first->setRotate(domeRotation);
-                            }
-                        }
-                    }
-                    else if ((grid == BaseLayer::GridMode::Sphere_EQR || grid == BaseLayer::GridMode::Sphere_EAC) 
-                        && o.contains(QStringLiteral("sphere"))) {
-                        QJsonValue sphereValues = o.value(QStringLiteral("sphere"));
-                        QJsonArray sphereArray = sphereValues.toArray();
-                        for (auto pa : sphereArray) {
-                            QJsonObject po = pa.toObject();
-                            glm::vec3 sphereRotation = glm::vec3(0.f);
-                            bool hasRotation = false;
-                            if (po.contains(QStringLiteral("pitch"))) {
-                                double spherePitch = po.value(QStringLiteral("pitch")).toDouble();
-                                sphereRotation.x = static_cast<float>(spherePitch);
-                                hasRotation = true;
-                            }
-                            if (po.contains(QStringLiteral("yaw"))) {
-                                double sphereYaw = po.value(QStringLiteral("yaw")).toDouble();
-                                sphereRotation.y = static_cast<float>(sphereYaw);
-                                hasRotation = true;
-                            }
-                            if (po.contains(QStringLiteral("roll"))) {
-                                double sphereRoll = po.value(QStringLiteral("roll")).toDouble();
-                                sphereRotation.z = static_cast<float>(sphereRoll);
-                                hasRotation = true;
-                            }
-                            if (hasRotation) {
-                                m_layers[idx].first->setRotate(sphereRotation);
-                            }
-                        }
-                    }
-
-                    if (o.contains(QStringLiteral("roi"))) {
-                        QJsonValue roiValues = o.value(QStringLiteral("roi"));
-                        QJsonArray roiArray = roiValues.toArray();
-                        for (auto ra : roiArray) {
-                            QJsonObject pa = ra.toObject();
-                            if (pa.contains(QStringLiteral("enabled"))) {
-                                bool roiEnabled = pa.value(QStringLiteral("enabled")).toBool();
-                                m_layers[idx].first->setRoiEnabled(roiEnabled);
-                            }
-                            glm::vec4 roi = glm::vec4(0.f, 0.f, 1.f, 1.f);
-                            if (pa.contains(QStringLiteral("xpos"))) {
-                                roi.x = static_cast<float>(pa.value(QStringLiteral("xpos")).toDouble());
-                            }
-                            if (pa.contains(QStringLiteral("ypos"))) {
-                                roi.y = static_cast<float>(pa.value(QStringLiteral("ypos")).toDouble());
-                            }
-                            if (pa.contains(QStringLiteral("width"))) {
-                                roi.z = static_cast<float>(pa.value(QStringLiteral("width")).toDouble());
-                            }
-                            if (pa.contains(QStringLiteral("height"))) {
-                                roi.w = static_cast<float>(pa.value(QStringLiteral("height")).toDouble());
-                            }
-                            m_layers[idx].first->setRoi(roi);
-                        }
-                    }
-
-                    if (o.contains(QStringLiteral("postEffects"))) {
-                        PostEffects fx;
-                        applyPostEffectsMap(fx, o.value(QStringLiteral("postEffects")).toObject().toVariantMap());
-                        m_layers[idx].first->setPostEffects(fx);
-                    }
-
-                    // Per-layer timeline keyframes and effects
-                    if (o.contains(QStringLiteral("timelineKeyframes")) || o.contains(QStringLiteral("animationEffects"))) {
-                        if (LayerTimeline *track = timelineAt(row))
-                            decodeTrack(o, *track);
-                    }
-                }
-            }
+            decodeLayerFromJSON(v.toObject(), forRelativePaths);
         }
 
         // Remove locked layers that have an identical (same type and title) locked layer
@@ -2099,6 +2154,388 @@ void LayersModel::decodeFromJSON(QJsonObject &obj, const QStringList &forRelativ
     setNeedSync();
 }
 
+QJsonObject LayersModel::encodeLayerToJSON(const std::shared_ptr<BaseLayer> &layer, const QStringList &forRelativePaths) {
+    QJsonObject layerData;
+
+    layerData.insert(QStringLiteral("type"), QJsonValue(QString::fromStdString(layer->typeName())));
+
+    layerData.insert(QStringLiteral("title"), QJsonValue(QString::fromStdString(layer->title())));
+
+    if (getLayersCanBeLocked() && layer->isLocked()) {
+        layerData.insert(QStringLiteral("locked"), QJsonValue(layer->isLocked()));
+    }
+
+    if (layer->type() == BaseLayer::IMAGE
+        || layer->type() == BaseLayer::VIDEO
+#ifdef  PDF_SUPPORT
+        || layer->type() == BaseLayer::PDF
+#endif //  PDF_SUPPORT
+        || layer->type() == BaseLayer::AUDIO) {
+        QString checkedFilePath = makePathRelativeTo(QString::fromStdString(layer->filepath()), forRelativePaths);
+        layerData.insert(QStringLiteral("path"), QJsonValue(checkedFilePath));
+    }
+    else {
+        layerData.insert(QStringLiteral("path"), QJsonValue(QString::fromStdString(layer->filepath())));
+    }
+    if (!layer->targetNode().empty())
+        layerData.insert(QStringLiteral("captureNode"), QJsonValue(QString::fromStdString(layer->targetNode())));
+
+#ifdef DIRECTSHOW_SUPPORT
+    if (layer->type() == BaseLayer::DIRECTSHOW) {
+        // Store the predefined setup key so each machine can re-resolve its own local capture devices on load.
+        const DirectShowLayer* directShowLayer = static_cast<const DirectShowLayer*>(layer.get());
+        if (!directShowLayer->presetKey().empty()) {
+            layerData.insert(QStringLiteral("directShowPreset"), QJsonValue(QString::fromStdString(directShowLayer->presetKey())));
+        }
+    }
+#endif
+#ifdef CAPTURE_SUPPORT
+    if (layer->type() == BaseLayer::CAPTURE) {
+        const CaptureLayer* captureLayer = static_cast<const CaptureLayer*>(layer.get());
+        if (!captureLayer->presetKey().empty()) {
+            layerData.insert(QStringLiteral("capturePreset"), QJsonValue(QString::fromStdString(captureLayer->presetKey())));
+        }
+        layerData.insert(QStringLiteral("volume"), QJsonValue(layer->volume()));
+    }
+#endif
+
+#ifdef TEXT_LAYER
+    if (layer->type() == BaseLayer::TEXT) {
+        std::shared_ptr<TextLayer> textLayer = std::static_pointer_cast<TextLayer>(layer);
+        layerData.insert(QStringLiteral("text"), QJsonValue(QString::fromStdString(textLayer->text())));
+        layerData.insert(QStringLiteral("font"), QJsonValue(QString::fromStdString(textLayer->fontName())));
+        layerData.insert(QStringLiteral("size"), QJsonValue(textLayer->fontSize()));
+        layerData.insert(QStringLiteral("width"), QJsonValue(textLayer->width()));
+        layerData.insert(QStringLiteral("height"), QJsonValue(textLayer->height()));
+        layerData.insert(QStringLiteral("alignment"), QJsonValue(QString::fromStdString(textLayer->alignmentStr())));
+        layerData.insert(QStringLiteral("color"), QJsonValue(QString::fromStdString(textLayer->colorHex())));
+    }
+#endif
+
+#ifdef PDF_SUPPORT
+    if (layer->type() == BaseLayer::PDF) {
+        std::shared_ptr<PdfLayer> pdfLayer = std::static_pointer_cast<PdfLayer>(layer);
+        layerData.insert(QStringLiteral("page"), QJsonValue(pdfLayer->page()));
+        layerData.insert(QStringLiteral("numPages"), QJsonValue(pdfLayer->numPages()));
+    }
+#endif
+#ifdef NDI_SUPPORT
+    if (layer->type() == BaseLayer::NDI) {
+        layerData.insert(QStringLiteral("volume"), QJsonValue(layer->volume()));
+    }
+#endif
+#ifdef OMT_SUPPORT
+    if (layer->type() == BaseLayer::OMT) {
+        layerData.insert(QStringLiteral("volume"), QJsonValue(layer->volume()));
+    }
+#endif
+#ifdef WEBRTC_LAYER
+    if (layer->type() == BaseLayer::WEBRTC) {
+        layerData.insert(QStringLiteral("volume"), QJsonValue(layer->volume()));
+    }
+#endif
+    if (layer->supportsTextureSubdivision()) {
+        if (layer->isQRCodeDetectionEnabled()) {
+            layerData.insert(QStringLiteral("qrCodeDetection"), QJsonValue(true));
+        }
+        if (layer->textureDivisionMode() != 0) {
+            layerData.insert(QStringLiteral("textureDivisionMode"), QJsonValue(layer->textureDivisionMode()));
+        }
+        if (layer->textureDivisionGrid() != 0) {
+            layerData.insert(QStringLiteral("textureDivisionGrid"), QJsonValue(layer->textureDivisionGrid()));
+        }
+        if (layer->textureDivisionMode() == 2) {
+            layerData.insert(QStringLiteral("textureDivisionMergeColumns"), QJsonValue(layer->textureDivisionMergeColumns()));
+            layerData.insert(QStringLiteral("textureDivisionMergeRows"), QJsonValue(layer->textureDivisionMergeRows()));
+        }
+        // Not hasSubLayers(): that is false while a placeholder or no-signal image shows.
+        if (layer->textureDivisionMode() == 2 && !layer->getSubLayers().empty()) {
+            QJsonArray subLayersArray;
+            auto& subs = layer->getSubLayers();
+            for (int si = 0; si < static_cast<int>(subs.size()); ++si) {
+                auto& sub = subs[si];
+                if (!sub) continue;
+                QJsonObject subData;
+                subData.insert(QStringLiteral("title"), QJsonValue(QString::fromStdString(sub->title())));
+                subData.insert(QStringLiteral("visibility"), QJsonValue(static_cast<int>(sub->alpha() * 100.f)));
+                subData.insert(QStringLiteral("grid"), QJsonValue(static_cast<int>(sub->gridMode())));
+                subData.insert(QStringLiteral("stereo"), QJsonValue(static_cast<int>(sub->stereoMode())));
+                if (sub->gridMode() == BaseLayer::GridMode::Plane) {
+                    QJsonObject planeObj;
+                    planeObj.insert(QStringLiteral("circular"), QJsonValue(sub->planeCircular()));
+                    planeObj.insert(QStringLiteral("centreDegrees"), QJsonValue(sub->planeCentreDegrees()));
+                    planeObj.insert(QStringLiteral("widthDegrees"), QJsonValue(sub->planeWidthDegrees()));
+                    planeObj.insert(QStringLiteral("aspectRatio"), QJsonValue(sub->planeAspectRatio()));
+                    planeObj.insert(QStringLiteral("width"), QJsonValue(sub->planeWidth()));
+                    planeObj.insert(QStringLiteral("height"), QJsonValue(sub->planeHeight()));
+                    planeObj.insert(QStringLiteral("elevation"), QJsonValue(sub->planeElevation()));
+                    planeObj.insert(QStringLiteral("azimuth"), QJsonValue(sub->planeAzimuth()));
+                    planeObj.insert(QStringLiteral("roll"), QJsonValue(sub->planeRoll()));
+                    planeObj.insert(QStringLiteral("distance"), QJsonValue(sub->planeDistance()));
+                    planeObj.insert(QStringLiteral("horizontal"), QJsonValue(sub->planeHorizontal()));
+                    planeObj.insert(QStringLiteral("vertical"), QJsonValue(sub->planeVertical()));
+                    subData.insert(QStringLiteral("plane"), planeObj);
+                } else {
+                    QJsonObject rotObj;
+                    rotObj.insert(QStringLiteral("pitch"), QJsonValue(static_cast<double>(sub->rotate().x)));
+                    rotObj.insert(QStringLiteral("yaw"), QJsonValue(static_cast<double>(sub->rotate().y)));
+                    rotObj.insert(QStringLiteral("roll"), QJsonValue(static_cast<double>(sub->rotate().z)));
+                    subData.insert(QStringLiteral("rotate"), rotObj);
+                }
+                subLayersArray.push_back(subData);
+            }
+            layerData.insert(QStringLiteral("divisionSubLayers"), subLayersArray);
+        }
+    }
+    if (layer->type() == BaseLayer::CONTROL) {
+        ControlLayer* controlLayer = static_cast<ControlLayer*>(layer.get());
+        layerData.insert(QStringLiteral("operation"), QJsonValue(QString::fromStdString(controlLayer->operation())));
+        layerData.insert(QStringLiteral("parameter"), QJsonValue(QString::fromStdString(controlLayer->parameter())));
+    }
+    if (layer->type() == BaseLayer::REST) {
+        RestLayer* restLayer = static_cast<RestLayer*>(layer.get());
+        layerData.insert(QStringLiteral("url"), QJsonValue(QString::fromStdString(restLayer->url())));
+        layerData.insert(QStringLiteral("method"), QJsonValue(restLayer->method()));
+        layerData.insert(QStringLiteral("parameters"), QJsonValue(QString::fromStdString(restLayer->parameters())));
+        if (restLayer->ignoreStatus())
+            layerData.insert(QStringLiteral("ignoreStatus"), QJsonValue(true));
+    }
+    if (layer->type() == BaseLayer::STREAM) {
+        const std::string streamKey = static_cast<StreamLayer*>(layer.get())->streamKey();
+        if (!streamKey.empty())
+            layerData.insert(QStringLiteral("streamKey"), QJsonValue(QString::fromStdString(streamKey)));
+    }
+    if (layer->type() == BaseLayer::TCP) {
+        auto *tcp = static_cast<TcpLayer *>(layer.get());
+        layerData.insert(QStringLiteral("tcpCommandId"), QString::fromStdString(tcp->commandId()));
+    }
+    if (layer->type() == BaseLayer::VIDEO || layer->type() == BaseLayer::AUDIO || layer->type() == BaseLayer::STREAM || layer->type() == BaseLayer::YOUTUBE) {
+        MpvLayer* mpvLayer = static_cast<MpvLayer*>(layer.get());
+        if (!mpvLayer->mpvOptionsName().empty()) {
+            layerData.insert(QStringLiteral("mpvOptions"), QJsonValue(QString::fromStdString(mpvLayer->mpvOptionsName())));
+        }
+    }
+    if (layer->type() == BaseLayer::VIDEO || layer->type() == BaseLayer::AUDIO || layer->type() == BaseLayer::YOUTUBE) {
+        if (layer->hasAudio()) {
+            layerData.insert(QStringLiteral("volume"), QJsonValue(layer->volume()));
+            layerData.insert(QStringLiteral("audioId"), QJsonValue(layer->audioId()));
+        }
+        if (layer->eofMode() >= 0) {
+            int eofMode = layer->eofMode();
+            QString eofModeText;
+            switch (eofMode) {
+            case 0:
+                eofModeText = QStringLiteral("pause");
+                break;
+            case 2:
+                eofModeText = QStringLiteral("loop");
+                break;
+            default:
+                eofModeText = QStringLiteral("loop");
+                break;
+            }
+            layerData.insert(QStringLiteral("end_of_file"), QJsonValue(eofModeText));
+        }
+        if (layer->loopTimeEnabled()) {
+            layerData.insert(QStringLiteral("section_enabled"), QJsonValue(layer->loopTimeEnabled()));
+            layerData.insert(QStringLiteral("time_start"), QJsonValue(layer->loopTimeA()));
+            layerData.insert(QStringLiteral("time_end"), QJsonValue(layer->loopTimeB()));
+        }
+    }
+    if (layer->type() == BaseLayer::STREAM) {
+        if (layer->hasAudio()) {
+            layerData.insert(QStringLiteral("volume"), QJsonValue(layer->volume()));
+            layerData.insert(QStringLiteral("audioId"), QJsonValue(layer->audioId()));
+        }
+    }
+
+    QString grid;
+    int gridIdx = layer->gridMode();
+    if (gridIdx == BaseLayer::GridMode::Plane) {
+        grid = QStringLiteral("plane");
+    } else if (gridIdx == BaseLayer::GridMode::Dome) {
+        grid = QStringLiteral("dome");
+    } else if (gridIdx == BaseLayer::GridMode::Sphere_EQR) {
+        grid = QStringLiteral("sphere-eqr");
+    } else if (gridIdx == BaseLayer::GridMode::Sphere_EAC) {
+        grid = QStringLiteral("sphere-eac");
+    } else {
+        grid = QStringLiteral("pre-split");
+    }
+    layerData.insert(QStringLiteral("grid"), QJsonValue(grid));
+
+    QString sv;
+    int stereoVideoIdx = layer->stereoMode();
+    if (stereoVideoIdx == BaseLayer::StereoMode::SBS_3D) {
+        sv = QStringLiteral("side-by-side");
+    } else if (stereoVideoIdx == BaseLayer::StereoMode::TB_3D) {
+        sv = QStringLiteral("top-bottom");
+    } else if (stereoVideoIdx == BaseLayer::StereoMode::TBF_3D) {
+        sv = QStringLiteral("top-bottom-flip");
+    } else {
+        sv = QStringLiteral("no");
+    }
+    layerData.insert(QStringLiteral("stereoscopic"), QJsonValue(sv));
+
+    layerData.insert(QStringLiteral("visibility"), QJsonValue(static_cast<int>(layer->alpha() * 100.f)));
+    layerData.insert(QStringLiteral("keepVisibilityForNumSlides"), QJsonValue(layer->keepVisibilityForNumSlides()));
+
+    switch (layer->type()) {
+#ifdef NDI_LAYER
+    case BaseLayer::NDI:
+#endif
+#ifdef OMT_LAYER
+    case BaseLayer::OMT:
+#endif
+#ifdef STREAM_LAYER
+    case BaseLayer::STREAM:
+#endif
+#ifdef SPOUT_LAYER
+    case BaseLayer::SPOUT:
+#endif
+#ifdef WEBRTC_LAYER
+    case BaseLayer::WEBRTC:
+#endif
+        // User-toggled in the LayerView; store both states since some types default to flipped.
+        layerData.insert(QStringLiteral("flipY"), QJsonValue(layer->flipY()));
+        break;
+#ifdef DIRECTSHOW_SUPPORT
+    case BaseLayer::DIRECTSHOW:
+        if (layer->flipY())
+            layerData.insert(QStringLiteral("flipY"), QJsonValue(true));
+        break;
+#endif
+    default:
+        break;
+    }
+
+    if (layer->ndiOutputEnabled()) {
+        layerData.insert(QStringLiteral("ndiOutput"), QJsonValue(true));
+        layerData.insert(QStringLiteral("ndiSenderName"), QJsonValue(QString::fromStdString(layer->ndiSenderName())));
+    }
+
+    if (layer->existOnMasterOnly()) {
+        layerData.insert(QStringLiteral("existOnMasterOnly"), QJsonValue(true));
+    }
+
+    if (layer->hierarchy() != m_layerHierachy) {
+        layerData.insert(QStringLiteral("hierarchy"),
+                         QJsonValue(layer->hierarchy() == BaseLayer::LayerHierarchy::FRONT ? QStringLiteral("front") : QStringLiteral("back")));
+    }
+
+    if (layer->useNoSignalImage())
+        layerData.insert(QStringLiteral("noSignalImage"), QJsonValue(true));
+
+    // Only saved when the layer opted out of the audio mapping / spatial mapping (on by default).
+    if (!layer->audioMappingEnabled())
+        layerData.insert(QStringLiteral("audioMapping"), QJsonValue(false));
+    if (!layer->spatialAudioEnabled())
+        layerData.insert(QStringLiteral("spatialAudio"), QJsonValue(false));
+
+    if (layer->nodeStreamOutputEnabled())
+        layerData.insert(QStringLiteral("nodeStreamOutput"), QJsonValue(true));
+    if (layer->nodeStreamUseNdi() >= 0)
+        layerData.insert(QStringLiteral("nodeStreamUseNdi"), QJsonValue(layer->nodeStreamUseNdi() == 1));
+    if (layer->nodeStreamFormat() != 0)
+        layerData.insert(QStringLiteral("nodeStreamFormat"), QJsonValue(layer->nodeStreamFormat()));
+    if (layer->nodeStreamSyncMode() != 0)
+        layerData.insert(QStringLiteral("nodeStreamSync"), QJsonValue(layer->nodeStreamSyncMode()));
+    if (!layer->nodeStreamGroup().empty())
+        layerData.insert(QStringLiteral("nodeStreamGroup"), QJsonValue(QString::fromStdString(layer->nodeStreamGroup())));
+    if (layer->nodeStreamPort() != 0)
+        layerData.insert(QStringLiteral("nodeStreamPort"), QJsonValue(layer->nodeStreamPort()));
+    if (layer->nodeStreamMaxFps() != 0)
+        layerData.insert(QStringLiteral("nodeStreamMaxFps"), QJsonValue(layer->nodeStreamMaxFps()));
+
+#ifdef WEBRTC_LAYER
+    // The default is on; only persist the opt-out.
+    if (layer->type() == BaseLayer::WEBRTC && !static_cast<WebRTCLayer*>(layer.get())->masterRelayEnabled()) {
+        layerData.insert(QStringLiteral("masterRelay"), QJsonValue(false));
+    }
+    if (layer->type() == BaseLayer::WEBRTC
+        && static_cast<WebRTCLayer*>(layer.get())->syncDelayMs() != kWebRtcDefaultSyncDelayMs) {
+        layerData.insert(QStringLiteral("syncDelayMs"), QJsonValue(static_cast<WebRTCLayer*>(layer.get())->syncDelayMs()));
+    }
+    if (layer->type() == BaseLayer::WEBRTC) {
+        const WebRTCLayer* webRtcLayer = static_cast<WebRTCLayer*>(layer.get());
+        if (!webRtcLayer->authUsername().empty()) {
+            layerData.insert(QStringLiteral("whepAuthUsername"), QJsonValue(QString::fromStdString(webRtcLayer->authUsername())));
+            layerData.insert(QStringLiteral("whepAuthPassword"), QJsonValue(QString::fromStdString(webRtcLayer->authPassword())));
+        }
+    }
+#endif
+
+    if (layer->eyeMode() != static_cast<uint8_t>(BaseLayer::EyeMode::Both)) {
+        QString em;
+        if (layer->eyeMode() == static_cast<uint8_t>(BaseLayer::EyeMode::Left))
+            em = QStringLiteral("left");
+        else
+            em = QStringLiteral("right");
+        layerData.insert(QStringLiteral("eye_mode"), QJsonValue(em));
+    }
+
+    // Plane properties
+    if (gridIdx == BaseLayer::GridMode::Plane) {
+        QJsonArray planeArray;
+        QJsonObject planeData;
+        planeData.insert(QStringLiteral("circular"), QJsonValue(layer->planeCircular()));
+        planeData.insert(QStringLiteral("centreDegrees"), QJsonValue(layer->planeCentreDegrees()));
+        planeData.insert(QStringLiteral("widthDegrees"), QJsonValue(layer->planeWidthDegrees()));
+        planeData.insert(QStringLiteral("aspectRatio"), QJsonValue(layer->planeAspectRatio()));
+        planeData.insert(QStringLiteral("width"), QJsonValue(layer->planeWidth()));
+        planeData.insert(QStringLiteral("height"), QJsonValue(layer->planeHeight()));
+        planeData.insert(QStringLiteral("elevation"), QJsonValue(layer->planeElevation()));
+        planeData.insert(QStringLiteral("azimuth"), QJsonValue(layer->planeAzimuth()));
+        planeData.insert(QStringLiteral("roll"), QJsonValue(layer->planeRoll()));
+        planeData.insert(QStringLiteral("distance"), QJsonValue(layer->planeDistance()));
+        planeData.insert(QStringLiteral("horizontal"), QJsonValue(layer->planeHorizontal()));
+        planeData.insert(QStringLiteral("vertical"), QJsonValue(layer->planeVertical()));
+        planeArray.push_back(QJsonValue(planeData));
+        layerData.insert(QString(QStringLiteral("plane")), QJsonValue(planeArray));
+    }
+    else if (gridIdx == BaseLayer::GridMode::Dome) {
+        QJsonArray domeArray;
+        QJsonObject domeData;
+        domeData.insert(QStringLiteral("yaw"), QJsonValue(layer->rotate().y));
+        domeArray.push_back(QJsonValue(domeData));
+        layerData.insert(QString(QStringLiteral("dome")), QJsonValue(domeArray));
+    }
+    else if (gridIdx == BaseLayer::GridMode::Sphere_EQR || gridIdx == BaseLayer::GridMode::Sphere_EAC) {
+        QJsonArray sphereArray;
+        QJsonObject sphereData;
+        sphereData.insert(QStringLiteral("pitch"), QJsonValue(layer->rotate().x));
+        sphereData.insert(QStringLiteral("yaw"), QJsonValue(layer->rotate().y));
+        sphereData.insert(QStringLiteral("roll"), QJsonValue(layer->rotate().z));
+        sphereArray.push_back(QJsonValue(sphereData));
+        layerData.insert(QString(QStringLiteral("sphere")), QJsonValue(sphereArray));
+    }
+
+    // ROI details
+    QJsonArray roiArray;
+    QJsonObject roiData;
+    roiData.insert(QStringLiteral("enabled"), QJsonValue(layer->roiEnabled()));
+    roiData.insert(QStringLiteral("xpos"), QJsonValue(layer->roi().x));
+    roiData.insert(QStringLiteral("ypos"), QJsonValue(layer->roi().y));
+    roiData.insert(QStringLiteral("width"), QJsonValue(layer->roi().z));
+    roiData.insert(QStringLiteral("height"), QJsonValue(layer->roi().w));
+    roiArray.push_back(QJsonValue(roiData));
+    layerData.insert(QString(QStringLiteral("roi")), QJsonValue(roiArray));
+
+    // Post effects, kept when only disabled so their settings survive
+    const QVariantMap postEffects = postEffectsToMap(layer->postEffects());
+    if (postEffects != postEffectsToMap(PostEffects()))
+        layerData.insert(QStringLiteral("postEffects"), QJsonObject::fromVariantMap(postEffects));
+
+    // Per-layer timeline keyframes and effects
+    if (const LayerTimeline *track = timelineAt(rowOfLayer(layer.get()))) {
+        const QJsonObject trackObj = encodeTrack(*track);
+        for (auto it = trackObj.begin(); it != trackObj.end(); ++it)
+            layerData.insert(it.key(), it.value());
+    }
+
+    return layerData;
+}
+
 void LayersModel::encodeToJSON(QJsonObject &obj, const QStringList &forRelativePaths) {
     obj.insert(QStringLiteral("name"), QJsonValue(getLayersName()));
     obj.insert(QStringLiteral("visibility"), QJsonValue(getLayersVisibility()));
@@ -2120,385 +2557,7 @@ void LayersModel::encodeToJSON(QJsonObject &obj, const QStringList &forRelativeP
         auto layer = m_layers[li].first;
         if (!layer)
             continue;
-        QJsonObject layerData;
-
-        layerData.insert(QStringLiteral("type"), QJsonValue(QString::fromStdString(layer->typeName())));
-
-        layerData.insert(QStringLiteral("title"), QJsonValue(QString::fromStdString(layer->title())));
-
-        if (getLayersCanBeLocked() && layer->isLocked()) {
-            layerData.insert(QStringLiteral("locked"), QJsonValue(layer->isLocked()));
-        }
-
-        if (layer->type() == BaseLayer::IMAGE
-            || layer->type() == BaseLayer::VIDEO
-#ifdef  PDF_SUPPORT
-            || layer->type() == BaseLayer::PDF
-#endif //  PDF_SUPPORT
-            || layer->type() == BaseLayer::AUDIO) {
-            QString checkedFilePath = makePathRelativeTo(QString::fromStdString(layer->filepath()), forRelativePaths);
-            layerData.insert(QStringLiteral("path"), QJsonValue(checkedFilePath));
-        }
-        else {
-            layerData.insert(QStringLiteral("path"), QJsonValue(QString::fromStdString(layer->filepath())));
-        }
-        if (!layer->targetNode().empty())
-            layerData.insert(QStringLiteral("captureNode"), QJsonValue(QString::fromStdString(layer->targetNode())));
-
-#ifdef DIRECTSHOW_SUPPORT
-        if (layer->type() == BaseLayer::DIRECTSHOW) {
-            // Store the predefined setup key so each machine can re-resolve its own local capture devices on load.
-            const DirectShowLayer* directShowLayer = static_cast<const DirectShowLayer*>(layer.get());
-            if (!directShowLayer->presetKey().empty()) {
-                layerData.insert(QStringLiteral("directShowPreset"), QJsonValue(QString::fromStdString(directShowLayer->presetKey())));
-            }
-        }
-#endif
-#ifdef CAPTURE_SUPPORT
-        if (layer->type() == BaseLayer::CAPTURE) {
-            const CaptureLayer* captureLayer = static_cast<const CaptureLayer*>(layer.get());
-            if (!captureLayer->presetKey().empty()) {
-                layerData.insert(QStringLiteral("capturePreset"), QJsonValue(QString::fromStdString(captureLayer->presetKey())));
-            }
-            layerData.insert(QStringLiteral("volume"), QJsonValue(layer->volume()));
-        }
-#endif
-
-#ifdef TEXT_LAYER
-        if (layer->type() == BaseLayer::TEXT) {
-            std::shared_ptr<TextLayer> textLayer = std::static_pointer_cast<TextLayer>(layer);
-            layerData.insert(QStringLiteral("text"), QJsonValue(QString::fromStdString(textLayer->text())));
-            layerData.insert(QStringLiteral("font"), QJsonValue(QString::fromStdString(textLayer->fontName())));
-            layerData.insert(QStringLiteral("size"), QJsonValue(textLayer->fontSize()));
-            layerData.insert(QStringLiteral("width"), QJsonValue(textLayer->width()));
-            layerData.insert(QStringLiteral("height"), QJsonValue(textLayer->height()));
-            layerData.insert(QStringLiteral("alignment"), QJsonValue(QString::fromStdString(textLayer->alignmentStr())));
-            layerData.insert(QStringLiteral("color"), QJsonValue(QString::fromStdString(textLayer->colorHex())));
-        }
-#endif
-
-#ifdef PDF_SUPPORT
-        if (layer->type() == BaseLayer::PDF) {
-            std::shared_ptr<PdfLayer> pdfLayer = std::static_pointer_cast<PdfLayer>(layer);
-            layerData.insert(QStringLiteral("page"), QJsonValue(pdfLayer->page()));
-            layerData.insert(QStringLiteral("numPages"), QJsonValue(pdfLayer->numPages()));
-        }
-#endif
-#ifdef NDI_SUPPORT
-        if (layer->type() == BaseLayer::NDI) {
-            layerData.insert(QStringLiteral("volume"), QJsonValue(layer->volume()));
-        }
-#endif
-#ifdef OMT_SUPPORT
-        if (layer->type() == BaseLayer::OMT) {
-            layerData.insert(QStringLiteral("volume"), QJsonValue(layer->volume()));
-        }
-#endif
-#ifdef WEBRTC_LAYER
-        if (layer->type() == BaseLayer::WEBRTC) {
-            layerData.insert(QStringLiteral("volume"), QJsonValue(layer->volume()));
-        }
-#endif
-        if (layer->supportsTextureSubdivision()) {
-            if (layer->isQRCodeDetectionEnabled()) {
-                layerData.insert(QStringLiteral("qrCodeDetection"), QJsonValue(true));
-            }
-            if (layer->textureDivisionMode() != 0) {
-                layerData.insert(QStringLiteral("textureDivisionMode"), QJsonValue(layer->textureDivisionMode()));
-            }
-            if (layer->textureDivisionGrid() != 0) {
-                layerData.insert(QStringLiteral("textureDivisionGrid"), QJsonValue(layer->textureDivisionGrid()));
-            }
-            if (layer->textureDivisionMode() == 2) {
-                layerData.insert(QStringLiteral("textureDivisionMergeColumns"), QJsonValue(layer->textureDivisionMergeColumns()));
-                layerData.insert(QStringLiteral("textureDivisionMergeRows"), QJsonValue(layer->textureDivisionMergeRows()));
-            }
-            // Not hasSubLayers(): that is false while a placeholder or no-signal image shows.
-            if (layer->textureDivisionMode() == 2 && !layer->getSubLayers().empty()) {
-                QJsonArray subLayersArray;
-                auto& subs = layer->getSubLayers();
-                for (int si = 0; si < static_cast<int>(subs.size()); ++si) {
-                    auto& sub = subs[si];
-                    if (!sub) continue;
-                    QJsonObject subData;
-                    subData.insert(QStringLiteral("title"), QJsonValue(QString::fromStdString(sub->title())));
-                    subData.insert(QStringLiteral("visibility"), QJsonValue(static_cast<int>(sub->alpha() * 100.f)));
-                    subData.insert(QStringLiteral("grid"), QJsonValue(static_cast<int>(sub->gridMode())));
-                    subData.insert(QStringLiteral("stereo"), QJsonValue(static_cast<int>(sub->stereoMode())));
-                    if (sub->gridMode() == BaseLayer::GridMode::Plane) {
-                        QJsonObject planeObj;
-                        planeObj.insert(QStringLiteral("circular"), QJsonValue(sub->planeCircular()));
-                        planeObj.insert(QStringLiteral("centreDegrees"), QJsonValue(sub->planeCentreDegrees()));
-                        planeObj.insert(QStringLiteral("widthDegrees"), QJsonValue(sub->planeWidthDegrees()));
-                        planeObj.insert(QStringLiteral("aspectRatio"), QJsonValue(sub->planeAspectRatio()));
-                        planeObj.insert(QStringLiteral("width"), QJsonValue(sub->planeWidth()));
-                        planeObj.insert(QStringLiteral("height"), QJsonValue(sub->planeHeight()));
-                        planeObj.insert(QStringLiteral("elevation"), QJsonValue(sub->planeElevation()));
-                        planeObj.insert(QStringLiteral("azimuth"), QJsonValue(sub->planeAzimuth()));
-                        planeObj.insert(QStringLiteral("roll"), QJsonValue(sub->planeRoll()));
-                        planeObj.insert(QStringLiteral("distance"), QJsonValue(sub->planeDistance()));
-                        planeObj.insert(QStringLiteral("horizontal"), QJsonValue(sub->planeHorizontal()));
-                        planeObj.insert(QStringLiteral("vertical"), QJsonValue(sub->planeVertical()));
-                        subData.insert(QStringLiteral("plane"), planeObj);
-                    } else {
-                        QJsonObject rotObj;
-                        rotObj.insert(QStringLiteral("pitch"), QJsonValue(static_cast<double>(sub->rotate().x)));
-                        rotObj.insert(QStringLiteral("yaw"), QJsonValue(static_cast<double>(sub->rotate().y)));
-                        rotObj.insert(QStringLiteral("roll"), QJsonValue(static_cast<double>(sub->rotate().z)));
-                        subData.insert(QStringLiteral("rotate"), rotObj);
-                    }
-                    subLayersArray.push_back(subData);
-                }
-                layerData.insert(QStringLiteral("divisionSubLayers"), subLayersArray);
-            }
-        }
-        if (layer->type() == BaseLayer::CONTROL) {
-            ControlLayer* controlLayer = static_cast<ControlLayer*>(layer.get());
-            layerData.insert(QStringLiteral("operation"), QJsonValue(QString::fromStdString(controlLayer->operation())));
-            layerData.insert(QStringLiteral("parameter"), QJsonValue(QString::fromStdString(controlLayer->parameter())));
-        }
-        if (layer->type() == BaseLayer::REST) {
-            RestLayer* restLayer = static_cast<RestLayer*>(layer.get());
-            layerData.insert(QStringLiteral("url"), QJsonValue(QString::fromStdString(restLayer->url())));
-            layerData.insert(QStringLiteral("method"), QJsonValue(restLayer->method()));
-            layerData.insert(QStringLiteral("parameters"), QJsonValue(QString::fromStdString(restLayer->parameters())));
-            if (restLayer->ignoreStatus())
-                layerData.insert(QStringLiteral("ignoreStatus"), QJsonValue(true));
-        }
-        if (layer->type() == BaseLayer::STREAM) {
-            const std::string streamKey = static_cast<StreamLayer*>(layer.get())->streamKey();
-            if (!streamKey.empty())
-                layerData.insert(QStringLiteral("streamKey"), QJsonValue(QString::fromStdString(streamKey)));
-        }
-        if (layer->type() == BaseLayer::TCP) {
-            auto *tcp = static_cast<TcpLayer *>(layer.get());
-            layerData.insert(QStringLiteral("tcpCommandId"), QString::fromStdString(tcp->commandId()));
-        }
-        if (layer->type() == BaseLayer::VIDEO || layer->type() == BaseLayer::AUDIO || layer->type() == BaseLayer::STREAM || layer->type() == BaseLayer::YOUTUBE) {
-            MpvLayer* mpvLayer = static_cast<MpvLayer*>(layer.get());
-            if (!mpvLayer->mpvOptionsName().empty()) {
-                layerData.insert(QStringLiteral("mpvOptions"), QJsonValue(QString::fromStdString(mpvLayer->mpvOptionsName())));
-            }
-        }
-        if (layer->type() == BaseLayer::VIDEO || layer->type() == BaseLayer::AUDIO || layer->type() == BaseLayer::YOUTUBE) {
-            if (layer->hasAudio()) {
-                layerData.insert(QStringLiteral("volume"), QJsonValue(layer->volume()));
-                layerData.insert(QStringLiteral("audioId"), QJsonValue(layer->audioId()));
-            }
-            if (layer->eofMode() >= 0) {
-                int eofMode = layer->eofMode();
-                QString eofModeText;
-                switch (eofMode) {
-                case 0:
-                    eofModeText = QStringLiteral("pause");
-                    break;
-                case 2:
-                    eofModeText = QStringLiteral("loop");
-                    break;
-                default:
-                    eofModeText = QStringLiteral("loop");
-                    break;
-                }
-                layerData.insert(QStringLiteral("end_of_file"), QJsonValue(eofModeText));
-            }
-            if (layer->loopTimeEnabled()) {
-                layerData.insert(QStringLiteral("section_enabled"), QJsonValue(layer->loopTimeEnabled()));
-                layerData.insert(QStringLiteral("time_start"), QJsonValue(layer->loopTimeA()));
-                layerData.insert(QStringLiteral("time_end"), QJsonValue(layer->loopTimeB()));
-            }
-        }
-        if (layer->type() == BaseLayer::STREAM) {
-            if (layer->hasAudio()) {
-                layerData.insert(QStringLiteral("volume"), QJsonValue(layer->volume()));
-                layerData.insert(QStringLiteral("audioId"), QJsonValue(layer->audioId()));
-            }
-        }
-
-        QString grid;
-        int gridIdx = layer->gridMode();
-        if (gridIdx == BaseLayer::GridMode::Plane) {
-            grid = QStringLiteral("plane");
-        } else if (gridIdx == BaseLayer::GridMode::Dome) {
-            grid = QStringLiteral("dome");
-        } else if (gridIdx == BaseLayer::GridMode::Sphere_EQR) {
-            grid = QStringLiteral("sphere-eqr");
-        } else if (gridIdx == BaseLayer::GridMode::Sphere_EAC) {
-            grid = QStringLiteral("sphere-eac");
-        } else {
-            grid = QStringLiteral("pre-split");
-        }
-        layerData.insert(QStringLiteral("grid"), QJsonValue(grid));
-
-        QString sv;
-        int stereoVideoIdx = layer->stereoMode();
-        if (stereoVideoIdx == BaseLayer::StereoMode::SBS_3D) {
-            sv = QStringLiteral("side-by-side");
-        } else if (stereoVideoIdx == BaseLayer::StereoMode::TB_3D) {
-            sv = QStringLiteral("top-bottom");
-        } else if (stereoVideoIdx == BaseLayer::StereoMode::TBF_3D) {
-            sv = QStringLiteral("top-bottom-flip");
-        } else {
-            sv = QStringLiteral("no");
-        }
-        layerData.insert(QStringLiteral("stereoscopic"), QJsonValue(sv));
-
-        layerData.insert(QStringLiteral("visibility"), QJsonValue(static_cast<int>(layer->alpha() * 100.f)));
-        layerData.insert(QStringLiteral("keepVisibilityForNumSlides"), QJsonValue(layer->keepVisibilityForNumSlides()));
-
-        switch (layer->type()) {
-#ifdef NDI_LAYER
-        case BaseLayer::NDI:
-#endif
-#ifdef OMT_LAYER
-        case BaseLayer::OMT:
-#endif
-#ifdef STREAM_LAYER
-        case BaseLayer::STREAM:
-#endif
-#ifdef SPOUT_LAYER
-        case BaseLayer::SPOUT:
-#endif
-#ifdef WEBRTC_LAYER
-        case BaseLayer::WEBRTC:
-#endif
-            // User-toggled in the LayerView; store both states since some types default to flipped.
-            layerData.insert(QStringLiteral("flipY"), QJsonValue(layer->flipY()));
-            break;
-#ifdef DIRECTSHOW_SUPPORT
-        case BaseLayer::DIRECTSHOW:
-            if (layer->flipY())
-                layerData.insert(QStringLiteral("flipY"), QJsonValue(true));
-            break;
-#endif
-        default:
-            break;
-        }
-
-        if (layer->ndiOutputEnabled()) {
-            layerData.insert(QStringLiteral("ndiOutput"), QJsonValue(true));
-            layerData.insert(QStringLiteral("ndiSenderName"), QJsonValue(QString::fromStdString(layer->ndiSenderName())));
-        }
-
-        if (layer->existOnMasterOnly()) {
-            layerData.insert(QStringLiteral("existOnMasterOnly"), QJsonValue(true));
-        }
-
-        if (layer->hierarchy() != m_layerHierachy) {
-            layerData.insert(QStringLiteral("hierarchy"),
-                             QJsonValue(layer->hierarchy() == BaseLayer::LayerHierarchy::FRONT ? QStringLiteral("front") : QStringLiteral("back")));
-        }
-
-        if (layer->useNoSignalImage())
-            layerData.insert(QStringLiteral("noSignalImage"), QJsonValue(true));
-
-        // Only saved when the layer opted out of the audio mapping / spatial mapping (on by default).
-        if (!layer->audioMappingEnabled())
-            layerData.insert(QStringLiteral("audioMapping"), QJsonValue(false));
-        if (!layer->spatialAudioEnabled())
-            layerData.insert(QStringLiteral("spatialAudio"), QJsonValue(false));
-
-        if (layer->nodeStreamOutputEnabled())
-            layerData.insert(QStringLiteral("nodeStreamOutput"), QJsonValue(true));
-        if (layer->nodeStreamUseNdi() >= 0)
-            layerData.insert(QStringLiteral("nodeStreamUseNdi"), QJsonValue(layer->nodeStreamUseNdi() == 1));
-        if (layer->nodeStreamFormat() != 0)
-            layerData.insert(QStringLiteral("nodeStreamFormat"), QJsonValue(layer->nodeStreamFormat()));
-        if (layer->nodeStreamSyncMode() != 0)
-            layerData.insert(QStringLiteral("nodeStreamSync"), QJsonValue(layer->nodeStreamSyncMode()));
-        if (!layer->nodeStreamGroup().empty())
-            layerData.insert(QStringLiteral("nodeStreamGroup"), QJsonValue(QString::fromStdString(layer->nodeStreamGroup())));
-        if (layer->nodeStreamPort() != 0)
-            layerData.insert(QStringLiteral("nodeStreamPort"), QJsonValue(layer->nodeStreamPort()));
-        if (layer->nodeStreamMaxFps() != 0)
-            layerData.insert(QStringLiteral("nodeStreamMaxFps"), QJsonValue(layer->nodeStreamMaxFps()));
-
-#ifdef WEBRTC_LAYER
-        // The default is on; only persist the opt-out.
-        if (layer->type() == BaseLayer::WEBRTC && !static_cast<WebRTCLayer*>(layer.get())->masterRelayEnabled()) {
-            layerData.insert(QStringLiteral("masterRelay"), QJsonValue(false));
-        }
-        if (layer->type() == BaseLayer::WEBRTC
-            && static_cast<WebRTCLayer*>(layer.get())->syncDelayMs() != kWebRtcDefaultSyncDelayMs) {
-            layerData.insert(QStringLiteral("syncDelayMs"), QJsonValue(static_cast<WebRTCLayer*>(layer.get())->syncDelayMs()));
-        }
-        if (layer->type() == BaseLayer::WEBRTC) {
-            const WebRTCLayer* webRtcLayer = static_cast<WebRTCLayer*>(layer.get());
-            if (!webRtcLayer->authUsername().empty()) {
-                layerData.insert(QStringLiteral("whepAuthUsername"), QJsonValue(QString::fromStdString(webRtcLayer->authUsername())));
-                layerData.insert(QStringLiteral("whepAuthPassword"), QJsonValue(QString::fromStdString(webRtcLayer->authPassword())));
-            }
-        }
-#endif
-
-        if (layer->eyeMode() != static_cast<uint8_t>(BaseLayer::EyeMode::Both)) {
-            QString em;
-            if (layer->eyeMode() == static_cast<uint8_t>(BaseLayer::EyeMode::Left))
-                em = QStringLiteral("left");
-            else
-                em = QStringLiteral("right");
-            layerData.insert(QStringLiteral("eye_mode"), QJsonValue(em));
-        }
-
-        // Plane properties
-        if (gridIdx == BaseLayer::GridMode::Plane) {
-            QJsonArray planeArray;
-            QJsonObject planeData;
-            planeData.insert(QStringLiteral("circular"), QJsonValue(layer->planeCircular()));
-            planeData.insert(QStringLiteral("centreDegrees"), QJsonValue(layer->planeCentreDegrees()));
-            planeData.insert(QStringLiteral("widthDegrees"), QJsonValue(layer->planeWidthDegrees()));
-            planeData.insert(QStringLiteral("aspectRatio"), QJsonValue(layer->planeAspectRatio()));
-            planeData.insert(QStringLiteral("width"), QJsonValue(layer->planeWidth()));
-            planeData.insert(QStringLiteral("height"), QJsonValue(layer->planeHeight()));
-            planeData.insert(QStringLiteral("elevation"), QJsonValue(layer->planeElevation()));
-            planeData.insert(QStringLiteral("azimuth"), QJsonValue(layer->planeAzimuth()));
-            planeData.insert(QStringLiteral("roll"), QJsonValue(layer->planeRoll()));
-            planeData.insert(QStringLiteral("distance"), QJsonValue(layer->planeDistance()));
-            planeData.insert(QStringLiteral("horizontal"), QJsonValue(layer->planeHorizontal()));
-            planeData.insert(QStringLiteral("vertical"), QJsonValue(layer->planeVertical()));
-            planeArray.push_back(QJsonValue(planeData));
-            layerData.insert(QString(QStringLiteral("plane")), QJsonValue(planeArray));
-        }
-        else if (gridIdx == BaseLayer::GridMode::Dome) {
-            QJsonArray domeArray;
-            QJsonObject domeData;
-            domeData.insert(QStringLiteral("yaw"), QJsonValue(layer->rotate().y));
-            domeArray.push_back(QJsonValue(domeData));
-            layerData.insert(QString(QStringLiteral("dome")), QJsonValue(domeArray));
-        }
-        else if (gridIdx == BaseLayer::GridMode::Sphere_EQR || gridIdx == BaseLayer::GridMode::Sphere_EAC) {
-            QJsonArray sphereArray;
-            QJsonObject sphereData;
-            sphereData.insert(QStringLiteral("pitch"), QJsonValue(layer->rotate().x));
-            sphereData.insert(QStringLiteral("yaw"), QJsonValue(layer->rotate().y));
-            sphereData.insert(QStringLiteral("roll"), QJsonValue(layer->rotate().z));
-            sphereArray.push_back(QJsonValue(sphereData));
-            layerData.insert(QString(QStringLiteral("sphere")), QJsonValue(sphereArray));
-        }
-
-        // ROI details
-        QJsonArray roiArray;
-        QJsonObject roiData;
-        roiData.insert(QStringLiteral("enabled"), QJsonValue(layer->roiEnabled()));
-        roiData.insert(QStringLiteral("xpos"), QJsonValue(layer->roi().x));
-        roiData.insert(QStringLiteral("ypos"), QJsonValue(layer->roi().y));
-        roiData.insert(QStringLiteral("width"), QJsonValue(layer->roi().z));
-        roiData.insert(QStringLiteral("height"), QJsonValue(layer->roi().w));
-        roiArray.push_back(QJsonValue(roiData));
-        layerData.insert(QString(QStringLiteral("roi")), QJsonValue(roiArray));
-
-        // Post effects, kept when only disabled so their settings survive
-        const QVariantMap postEffects = postEffectsToMap(layer->postEffects());
-        if (postEffects != postEffectsToMap(PostEffects()))
-            layerData.insert(QStringLiteral("postEffects"), QJsonObject::fromVariantMap(postEffects));
-
-        // Per-layer timeline keyframes and effects
-        if (const LayerTimeline *track = timelineAt(rowOfLayer(layer.get()))) {
-            const QJsonObject trackObj = encodeTrack(*track);
-            for (auto it = trackObj.begin(); it != trackObj.end(); ++it)
-                layerData.insert(it.key(), it.value());
-        }
-
-        layersArray.push_back(QJsonValue(layerData));
+        layersArray.push_back(QJsonValue(encodeLayerToJSON(layer, forRelativePaths)));
     }
 
     obj.insert(QString(QStringLiteral("layers")), QJsonValue(layersArray));

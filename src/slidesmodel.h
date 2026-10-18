@@ -14,6 +14,7 @@
 #include <QAbstractTableModel>
 #include <QtQml/qqmlregistration.h>
 #include <QElapsedTimer>
+#include <QJsonDocument>
 #include <memory>
 #include <mutex>
 
@@ -185,6 +186,15 @@ public:
 
     Q_INVOKABLE int addSlide();
     Q_INVOKABLE void removeSlide(int i);
+    // Removes the slides in rows as one step that undoRemove() can put back.
+    // Slides with lockable layers are kept. Returns false when nothing was removed.
+    Q_INVOKABLE bool removeSlides(const QList<int> &rows);
+    // Removes the layers in rows of slide (a slide or the master) as one step that
+    // undoRemove() can put back. Locked layers are kept. Returns false when nothing was removed.
+    Q_INVOKABLE bool removeLayers(LayersModel *slide, const QList<int> &rows);
+    // Puts back the slides or layers of the last removal step.
+    // Returns false when there was nothing left to put back.
+    Q_INVOKABLE bool undoRemove();
     Q_INVOKABLE void moveSlide(int i, int t);
     Q_INVOKABLE void moveSlideUp(int i);
     Q_INVOKABLE void moveSlideDown(int i);
@@ -233,6 +243,8 @@ public:
     Q_INVOKABLE QString makePathRelativeTo(const QString &filePath, const QStringList &pathsToConsider);
     Q_INVOKABLE void loadFromJSONFile(const QString &path);
     Q_INVOKABLE void saveAsJSONFile(const QString &path);
+    // The presentation as saved in a *.cplaypres, with paths relative to pathsToConsider where possible.
+    QJsonDocument asJSONDocument(const QStringList &pathsToConsider);
 
     Q_INVOKABLE void runStartAfterPresentationLoad();
     Q_INVOKABLE void runUpdateAudioOutputOnLayers();
@@ -350,6 +362,16 @@ private:
     QString m_slidesName;
     QString m_slidesPath;
     QTimer* m_clearCopyTimer;
+    // Started by an edit, writes the autosave of the presentation (see utils/autosave.h).
+    QTimer* m_autosaveTimer;
+    void autosave();
+
+    // Removed slides and layers, latest step last (see undoRemove). Cleared when another
+    // presentation is loaded or the slides are cleared.
+    struct RemovalStep;
+    QList<std::shared_ptr<RemovalStep>> m_removalUndo;
+    bool pushRemovalStep(const std::shared_ptr<RemovalStep> &step);
+    void clearRemovalUndo();
 };
 
 #endif // SLIDESMODEL_H

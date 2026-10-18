@@ -8,7 +8,7 @@ set(CPLAY_VERSION_MAJOR 2)
 set(CPLAY_VERSION_MINOR 4)
 set(CPLAY_VERSION_PATCH 0)
 set(CPLAY_VERSION_PR_NAME "Beta")
-set(CPLAY_VERSION_PR_VERS 36)
+set(CPLAY_VERSION_PR_VERS 37)
 
 qt_add_executable(${TARGET_NAME})
 set_compile_options(${TARGET_NAME})
@@ -127,6 +127,8 @@ set(SOURCE_FILES
     tracksmodel.h
     worker.cpp
     worker.h
+    utils/autosave.cpp
+    utils/autosave.h
     utils/domegrid.cpp
     utils/domegrid.h
     utils/dividetexturehandler.cpp

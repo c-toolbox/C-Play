@@ -23,6 +23,11 @@ Rectangle {
     property string position: PlaylistSettings.position
     property int rowHeight: PlaylistSettings.rowHeight
     property alias scrollPositionTimer: scrollPositionTimer
+    property var markedIndices: []
+    // Row a Shift + click range starts from: the last row clicked without Shift.
+    property int markAnchor: -1
+    // Rows captured when the remove is requested, removed once the remove timer fires.
+    property var layersToRemove: []
     property bool busyIndicator: false
     property bool shouldBeVisible: true
 
@@ -288,10 +293,46 @@ Rectangle {
     function removeSelectedLayer() {
         if (!shouldBeVisible || isBusy || !layerDeleteButton.enabled)
             return false;
-        if (layersView.currentIndex < 0 || layersView.currentIndex >= layersView.count)
+        if (window.rowsToRemove(markedIndices, layersView.currentIndex, layersView.count).length === 0)
             return false;
         layerDeleteButton.clicked();
         return true;
+    }
+
+    // Rows marked with Ctrl + left click (one row) or Shift + left click (a range); remove acts on
+    // these when any are marked. Returns true when the click marked rows instead of selecting one.
+    function handleMarkClick(idx) {
+        const type = window.markClickType();
+        if (type === "toggle") {
+            markedIndices = window.toggleMarkedIndex(markedIndices, idx, layersView.currentIndex);
+            markAnchor = idx;
+            return true;
+        }
+        if (type === "range") {
+            markedIndices = window.markedRange(markAnchor >= 0 ? markAnchor : layersView.currentIndex, idx);
+            return true;
+        }
+        clearMarked();
+        markAnchor = idx;
+        return false;
+    }
+    function clearMarked() {
+        markAnchor = -1;
+        if (markedIndices.length > 0)
+            markedIndices = [];
+    }
+    function isMarked(idx) {
+        return markedIndices.indexOf(idx) >= 0;
+    }
+
+    // Marks are plain row indices, so any change to the rows drops them.
+    Connections {
+        function onRowsInserted() { clearMarked(); }
+        function onRowsRemoved() { clearMarked(); }
+        function onRowsMoved() { clearMarked(); }
+        function onModelReset() { clearMarked(); }
+
+        target: layersView.model
     }
 
     Menu {
@@ -447,16 +488,19 @@ Rectangle {
                 Button {
                     id: layerDeleteButton
                     icon.name: "layer-delete"
-                    enabled: !layerView.visible && (!app.slides.selected.isLocked(layersView.currentIndex) || !app.slides.selected.layersCanBeLocked)
+                    enabled: !layerView.visible && (markedIndices.length > 0 || !app.slides.selected.isLocked(layersView.currentIndex) || !app.slides.selected.layersCanBeLocked)
 
                     onClicked: {
+                        layersToRemove = window.rowsToRemove(markedIndices, layersView.currentIndex, layersView.count);
                         busyIndicator = true;
                         app.slides.pauseLayerUpdate = true;
                         Qt.callLater(removeLayer);
                     }
 
                     ToolTip {
-                        text: app.slides.selected.isReference(layersView.currentIndex)
+                        text: markedIndices.length > 0
+                              ? qsTr("Remove the %1 marked layers (locked layers are kept)").arg(markedIndices.length)
+                              : app.slides.selected.isReference(layersView.currentIndex)
                               ? qsTr("Remove the selected reference: the original layer stops being visible from this slide on")
                               : qsTr("Remove selected layer")
                     }
@@ -698,6 +742,7 @@ Rectangle {
                     layerView.layerItem.layerIdx = layersView.currentIndex;
                 }
             }
+            onModelChanged: layersRoot.clearMarked()
         }
 
         Connections {
@@ -849,6 +894,7 @@ Rectangle {
         id: layersItemCompact
 
         LayersItemCompact {
+            highlighted: layersRoot.markedIndices.length > 0 ? layersRoot.isMarked(index) : layersView.currentIndex === index
         }
     }
     Timer {
@@ -898,8 +944,11 @@ Rectangle {
 
         onTriggered: {
             if(app.slides.selected.layersEnabled){
-                app.slides.selected.removeLayer(layersView.currentIndex);
+                if (app.slides.removeLayers(app.slides.selected, layersToRemove))
+                    window.recordRemoval("slides");
             }
+            layersToRemove = [];
+            clearMarked();
             app.slides.updateSelectedSlide();
             app.slides.pauseLayerUpdate = false;
             busyIndicator = false;
