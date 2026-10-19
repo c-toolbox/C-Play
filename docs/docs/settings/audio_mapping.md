@@ -7,7 +7,9 @@ sidebar_position: 1.5
 
 *New in C-Play v2.4.*
 
-The audio mapping decides which speakers play the sound of the **live layers** — the layers that play their audio through PortAudio: **NDI**, **OMT**, **Capture**, **DirectShow** and **WebRTC**. (Video, audio and other mpv-based layers follow the regular [audio output settings](/settings/audio#audio-output) instead.)
+The audio mapping decides which speakers play the sound of the **live layers** — the layers that play their audio through PortAudio: **NDI**, **OMT**, **Capture**, **DirectShow** and **WebRTC**.
+
+The mpv-based layers — **Video**, **Audio**, **Stream** and **YouTube** — normally follow the regular [audio output settings](/settings/audio#audio-output) instead. With mpv's *jack* audio driver, each of them can opt in to the same audio mapping, per layer: see [mpv layers via JACK](#mpv-layers-via-jack).
 
 It has three levels, each one building on the previous:
 
@@ -15,7 +17,7 @@ It has three levels, each one building on the previous:
 | --- | --- | --- |
 | 1. Up/down mix | [Audio settings](/settings/audio#audio-settings-for-live-video-layers) → *Perform audio mixing (up/down) to output device* and *Output channels* | Mixes every live layer to one output layout, for example 2.0 → 5.1 or 7.1 → 2.0. |
 | 2. Spatial mapping | *Audio mapping...* dialog (button below *Output channels*) | Optional. Makes the sound follow where each layer is shown: **surround panning** of the output layout, or **mono to a speaker array** by distance. |
-| 3. Per layer | Layer View, above the audio meter | Each live layer can opt out of the up/down mix and of the spatial mapping. Both are on by default. |
+| 3. Per layer | Layer View, above the audio meter | Each live layer can opt out of the up/down mix and of the spatial mapping. Both are on by default. mpv layers first opt in with *Audio mapping via JACK* (off by default). |
 
 When a level is off, the levels after it do nothing: without the up/down mix the live layers play their source channels unmixed, and without a spatial mapping they keep the plain up/down mix.
 
@@ -98,6 +100,40 @@ The Layer View of every live layer shows its audio options above the audio meter
 * **Follow the spatial mapping (surround panning / speaker array by distance)** — shown while a spatial mapping is selected, and available only while the layer uses the up/down mix. Uncheck it to give this layer the plain up/down mix, for example for a presenter microphone that should play from all fronts regardless of where its video is shown. In speaker array mode such a layer gets the standard up/down mix onto the first output channels.
 
 Both options are on by default whenever the mapping is enabled in the audio settings. They are saved with the layer in the presentation only when turned off (`"audioMapping": false`, `"spatialAudio": false`), so existing presentations follow the mapping, and they are synced to the nodes.
+
+## mpv layers via JACK
+
+**Video**, **Audio**, **Stream** and **YouTube** layers play through mpv, which normally sends its audio straight to its own output. When mpv uses the *jack* audio driver, each of these layers can instead send its audio into the audio mapping on this page, with the same output device, up/down mix, spatial mapping and per-layer options as the live layers. This is chosen per layer and is **off by default**, so other mpv layers keep playing through JACK as before.
+
+### Setup
+
+1. **Run a JACK server** on every machine that plays the audio: the master, and the nodes when *Enable audio on: Nodes / Clients* is on. See the [Audio configuration guide](/setup/audio#jack-low-latency-up-to-64-or-128-channels) for installing JACK on Windows.
+2. **Let mpv use JACK:** in the [audio settings](/settings/audio#audio-output), check *Use custom audio output for video/audio playback*, select *Use audio driver* and choose **jack**. Under *mpv layers via JACK* at the bottom of the audio settings, a status line shows whether this is set.
+3. **Set up the audio mapping** as for the live layers: the output device, *Perform audio mixing (up/down) to output device*, *Output channels* and, if wanted, a spatial mapping in the *Audio mapping...* dialog.
+4. **Turn it on for the layer:** open the layer in the Layer View and check **Audio mapping via JACK** next to its volume slider.
+
+The layer then shows the same options as a live layer above the audio meter toggle: *Map audio to the output layout (up/down mix)*, *Follow the spatial mapping* and the audio level meter (see [Per layer](#3-per-layer-opt-out-of-the-mapping)).
+
+The option is saved with the layer in the presentation only when on (`"jackAudio": true`) and synced to the nodes. Like the rest of the mapping, the mpv audio driver and the JACK server are set up on each machine.
+
+### How it works
+
+```
+mpv (layer) ──JACK──▶ cplay-mix-… (8 input ports) ──▶ up/down mix / spatial mapping ──PortAudio──▶ output device
+```
+
+* For each layer with the option on, C-Play opens a JACK client of its own named `cplay-mix-<process id>-<n>`, with eight input ports `in_1` … `in_8`. The layer's mpv client is named `cplay-mpv-<process id>-<n>`, so the master and a node can share one JACK server.
+* C-Play sets mpv's `jack-port` option to these input ports, so mpv connects its output ports there instead of to the system playback ports. A multichannel source keeps its channels (up to 7.1), in the same order as the [output layouts](#1-updown-mix-to-the-output-layout).
+* The connected inputs are mixed exactly like a live layer and played on the PortAudio device of the audio settings. The output opens as soon as mpv connects, and reopens when the number of channels, the device or the layer's audio mapping changes.
+* The layer's **volume and mute** are still applied by mpv, before JACK.
+* Turning the option on or off at runtime reloads mpv's audio output, so it reconnects right away. If the JACK server is not running, C-Play tries again every few seconds.
+
+### Good to know
+
+* **Only with the jack driver** — with any other mpv audio driver the option has no effect, and the layer plays through the regular audio output. A `jack-port` or `jack-name` set in the [mpv configuration files](/setup/video#mpv-configuration-files) or the layer's mpv options profile overrides the routing.
+* **Two clocks** — JACK and the PortAudio output device each run on their own clock. C-Play keeps the extra delay between about 20 and 100 ms, and skips ahead when more builds up, which can cause a very short glitch now and then. Choosing an output device on the same sound card that JACK uses keeps this to a minimum.
+* **Watching the connections** — in a JACK patchbay such as *QJackCtl*'s graph, the layer's `cplay-mpv-…` ports are connected to `cplay-mix-…:in_*`, and not to `system:playback_*`.
+* **Build support** — the option needs a C-Play build with JACK and PortAudio support. Without it, the checkbox and the *mpv layers via JACK* section are not shown.
 
 ## Good to know
 

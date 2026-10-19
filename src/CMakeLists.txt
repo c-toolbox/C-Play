@@ -8,7 +8,7 @@ set(CPLAY_VERSION_MAJOR 2)
 set(CPLAY_VERSION_MINOR 4)
 set(CPLAY_VERSION_PATCH 0)
 set(CPLAY_VERSION_PR_NAME "Beta")
-set(CPLAY_VERSION_PR_VERS 37)
+set(CPLAY_VERSION_PR_VERS 38)
 
 qt_add_executable(${TARGET_NAME})
 set_compile_options(${TARGET_NAME})
@@ -54,7 +54,11 @@ set(SOURCE_FILES
     audio/audiomappingmodel.h
     audio/audiomixer.cpp
     audio/audiomixer.h
+    audio/jackaudioinput.cpp
+    audio/jackaudioinput.h
     audio/speakersettings.h
+    audio/speakertest.cpp
+    audio/speakertest.h
     wwsclientmodel.cpp
     wwsclientmodel.h
     layers/audiolayer.cpp
@@ -665,6 +669,11 @@ endif()
 if(BUILD_CPLAY_WITH_WUFFS)
     target_include_directories(${TARGET_NAME} PRIVATE ${CPLAY_WUFFS_RELEASE_DIR})
     target_compile_definitions(${TARGET_NAME} PUBLIC WUFFS_SUPPORT)
+endif()
+
+# Any PortAudio layer: the Audio mapping dialog can also play a test signal per speaker.
+if("PortAudio::PortAudio" IN_LIST TARGET_LIBRARIES)
+    target_compile_definitions(${TARGET_NAME} PUBLIC CPLAY_PORTAUDIO)
 endif()
 
 find_package(OpenGL REQUIRED)

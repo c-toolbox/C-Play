@@ -9,7 +9,9 @@
 #define AUDIOMAPPINGMODEL_H
 
 #include "audio/speakersettings.h"
+#include "audio/speakertest.h"
 #include <QObject>
+#include <QTimer>
 #include <QVariantList>
 #include <vector>
 
@@ -17,7 +19,7 @@
 // and its options, the speaker positions of the surround output layout and the speakers of
 // the speaker array. Every change is pushed to the mixers of the PortAudio layers right away
 // (cplay::audio::setSpeakerSetup) and saved to AudioSettings. The speakers can be shown,
-// selected and placed in the master 3D view.
+// selected and placed in the master 3D view, and played one at a time with a test signal.
 class AudioMappingModel : public QObject {
     Q_OBJECT
     // Output layout from the audio settings and whether up/down mixing is on (the spatial
@@ -48,6 +50,13 @@ class AudioMappingModel : public QObject {
     Q_PROPERTY(bool showSpeakersInView READ showSpeakersInView WRITE setShowSpeakersInView NOTIFY viewStateChanged)
     Q_PROPERTY(int selectedSpeaker READ selectedSpeaker WRITE setSelectedSpeaker NOTIFY viewStateChanged)
     Q_PROPERTY(bool placeOnClick READ placeOnClick WRITE setPlaceOnClick NOTIFY viewStateChanged)
+    // Speaker test (master output device, not saved): the speaker playing the test noise (of
+    // the surround layout or the speaker array, following the mode, -1 = none), whether all
+    // speakers are stepped through, the test level in dB and the last error.
+    Q_PROPERTY(int testSpeaker READ testSpeaker NOTIFY testChanged)
+    Q_PROPERTY(bool testingAll READ testingAll NOTIFY testChanged)
+    Q_PROPERTY(double testLevel READ testLevel WRITE setTestLevel NOTIFY testChanged)
+    Q_PROPERTY(QString testError READ testError NOTIFY testChanged)
 
 public:
     explicit AudioMappingModel(QObject* parent = nullptr);
@@ -104,15 +113,37 @@ public:
     // Re-reads the audio settings, e.g. after the output channels or the mixing option changed.
     Q_INVOKABLE void reload();
 
+    int testSpeaker() const;
+    bool testingAll() const;
+    double testLevel() const;
+    void setTestLevel(double db);
+    QString testError() const;
+    // Plays pulsed pink noise on the output channel of one speaker (selecting it, so it is
+    // highlighted in the master view), or on every speaker in turn.
+    Q_INVOKABLE void startSpeakerTest(int index);
+    Q_INVOKABLE void startSpeakerTestAll();
+    Q_INVOKABLE void stopSpeakerTest();
+
 Q_SIGNALS:
     void layoutChanged();
     void spatialChanged();
     void speakersChanged();
     void viewStateChanged();
+    void testChanged();
 
 private:
     void apply();
     bool validArrayIndex(int index) const;
+    int testSpeakerCount() const;
+    bool playTestSpeaker(int index);
+    void stepTestAll();
+
+    cplay::audio::SpeakerTest m_test;
+    QTimer m_testAllTimer;
+    int m_testSpeaker = -1;
+    bool m_testingAll = false;
+    double m_testLevel = -20.0;
+    QString m_testError;
 
     int m_channelCount = 2;
     cplay::audio::SpeakerPositions m_positions{};

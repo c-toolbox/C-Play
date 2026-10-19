@@ -17,6 +17,10 @@
 #include <functional>
 #include "utils/framesynccontroller.h"
 
+namespace cplay::audio {
+class JackAudioInput;
+}
+
 class MpvLayer : public BaseLayer {
 public:
 
@@ -57,6 +61,11 @@ public:
         bool volumeMute_Dec = false;
         bool loadAudioInVidFolder = false;
         bool loadAudioInVidFolder_Dec = false;
+        // Route the audio (ao=jack) into C-Play's channel mapping (see setJackAudioRouting).
+        bool jackAudio = false;
+        bool jackAudio_Dec = false;
+        std::string jackClientName; // our JACK client receiving mpv's output ports
+        std::string jackMpvName;    // mpv's own JACK client name
 
         // Optional separate audio file to pass via loadfile command (mirrors MpvObject behavior)
         std::string audioFile;
@@ -175,6 +184,16 @@ public:
     void setLoadAudioInVidFolder(bool v);
     void setAudioFile(const std::string &audioFile);
 
+    // Per layer, off by default. Only works with mpv's JACK audio output (ao=jack): mpv
+    // connects its output ports to a JACK client of this layer instead of the system playback
+    // ports, and the audio is mixed (up/down mix and spatial mapping) and played through
+    // PortAudio like the live layers.
+    static bool jackAudioRoutingSupported();
+    bool jackAudioRouting() const;
+    void setJackAudioRouting(bool enabled);
+    bool hasAudioLevels() const override;
+    void updateAudioSpatialSource() override;
+
     std::string mpvOptionsName() const;
     void setMpvOptionsName(const std::string &name);
     void applyMpvOptions();
@@ -226,6 +245,8 @@ protected:
     bool m_frameSyncNeedsSettle = true;
     std::chrono::steady_clock::time_point m_frameSyncHoldUntil{};
     std::chrono::steady_clock::time_point m_frameSyncLastCheck{};
+    // Render thread only: exists while JACK routing is on and audio is enabled.
+    std::unique_ptr<cplay::audio::JackAudioInput> m_jackInput;
 };
 
 #endif // MPVLAYER_H

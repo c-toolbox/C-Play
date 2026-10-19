@@ -64,6 +64,7 @@ Kirigami.ApplicationWindow {
 
     // Closing the dialog hides the speakers again; the positions stay saved.
     onClosing: {
+        root.mapping.stopSpeakerTest();
         root.mapping.placeOnClick = false;
         root.mapping.showSpeakersInView = false;
     }
@@ -293,6 +294,68 @@ Kirigami.ApplicationWindow {
                     onToggled: root.mapping.placeOnClick = checked
                 }
             }
+            // Speaker test: pulsed pink noise on one output channel of this (master) computer.
+            RowLayout {
+                visible: root.surroundMode || root.arrayMode
+                Button {
+                    icon.name: root.mapping.testingAll ? "media-playback-stop" : "media-playlist-repeat"
+                    text: root.mapping.testingAll ? qsTr("Stop test") : qsTr("Test all in turn")
+                    onClicked: {
+                        if (root.mapping.testingAll)
+                            root.mapping.stopSpeakerTest();
+                        else
+                            root.mapping.startSpeakerTestAll();
+                    }
+
+                    ToolTip.visible: hovered
+                    ToolTip.delay: 500
+                    ToolTip.text: qsTr("Plays pink noise bursts on each speaker in turn (two bursts each) on the audio output of this computer. "
+                                       + "The speaker playing is selected and highlighted in the master view.")
+                }
+                Button {
+                    visible: root.mapping.testSpeaker >= 0 && !root.mapping.testingAll
+                    icon.name: "media-playback-stop"
+                    text: qsTr("Stop test")
+                    onClicked: root.mapping.stopSpeakerTest()
+                }
+                Label {
+                    text: qsTr("Test level:")
+                }
+                Slider {
+                    id: testLevelSlider
+                    Layout.preferredWidth: Kirigami.Units.gridUnit * 8
+                    from: -60
+                    to: 0
+                    stepSize: 1
+                    value: root.mapping.testLevel
+                    onMoved: root.mapping.testLevel = value
+                }
+                Label {
+                    text: qsTr("%1 dB").arg(testLevelSlider.value.toFixed(0))
+                }
+                Label {
+                    visible: root.mapping.testSpeaker >= 0
+                    font.bold: true
+                    text: {
+                        const i = root.mapping.testSpeaker;
+                        if (root.arrayMode) {
+                            const spk = root.mapping.arraySpeakers[i];
+                            return spk ? qsTr("Playing: speaker %1 (ch %2)").arg(i + 1).arg(spk.channel) : "";
+                        }
+                        const spk = root.mapping.speakers[i];
+                        return spk ? qsTr("Playing: %1 (ch %2)").arg(spk.label).arg(i + 1) : "";
+                    }
+                }
+                Item {
+                    Layout.fillWidth: true
+                }
+            }
+            Kirigami.InlineMessage {
+                Layout.fillWidth: true
+                type: Kirigami.MessageType.Error
+                visible: (root.surroundMode || root.arrayMode) && root.mapping.testError !== ""
+                text: qsTr("Speaker test: %1").arg(root.mapping.testError)
+            }
             Label {
                 visible: root.arrayMode
                 Layout.fillWidth: true
@@ -331,6 +394,21 @@ Kirigami.ApplicationWindow {
                         Layout.preferredWidth: Kirigami.Units.gridUnit * 4
                         font.bold: speakerRow.selected
                         text: qsTr("%1 (ch %2)").arg(speakerRow.speaker ? speakerRow.speaker.label : "").arg(speakerRow.index + 1)
+                    }
+                    ToolButton {
+                        readonly property bool testing: root.mapping.testSpeaker === speakerRow.index
+                        icon.name: testing ? "media-playback-stop" : "audio-volume-high"
+                        checked: testing
+                        onClicked: {
+                            if (testing && !root.mapping.testingAll)
+                                root.mapping.stopSpeakerTest();
+                            else
+                                root.mapping.startSpeakerTest(speakerRow.index);
+                        }
+
+                        ToolTip.visible: hovered
+                        ToolTip.delay: 500
+                        ToolTip.text: qsTr("Play a test signal on this speaker (output channel %1)").arg(speakerRow.index + 1)
                     }
                     Label {
                         visible: speakerRow.lfe
@@ -414,6 +492,21 @@ Kirigami.ApplicationWindow {
                         ToolTip.visible: hovered
                         ToolTip.delay: 500
                         ToolTip.text: qsTr("Select this speaker (highlighted in the master view)")
+                    }
+                    ToolButton {
+                        readonly property bool testing: root.mapping.testSpeaker === arrayRow.index
+                        icon.name: testing ? "media-playback-stop" : "audio-volume-high"
+                        checked: testing
+                        onClicked: {
+                            if (testing && !root.mapping.testingAll)
+                                root.mapping.stopSpeakerTest();
+                            else
+                                root.mapping.startSpeakerTest(arrayRow.index);
+                        }
+
+                        ToolTip.visible: hovered
+                        ToolTip.delay: 500
+                        ToolTip.text: qsTr("Play a test signal on this speaker (output channel %1)").arg(arrayRow.speaker ? arrayRow.speaker.channel : 1)
                     }
                     Label {
                         font.bold: arrayRow.selected

@@ -16,6 +16,12 @@ import org.ctoolbox.cplay
 SettingsBasePage {
     id: root
 
+    // Layers playing through PortAudio with the audio mapping: the live layers, and the mpv
+    // layers (Video/Audio/Stream/YouTube) routed through JACK.
+    readonly property bool portAudioLayers: NDI_SUPPORT || OMT_SUPPORT || CAPTURE_SUPPORT || JACK_AUDIO_MAPPING_SUPPORT
+    readonly property bool mpvUsesJack: AudioSettings.useCustomAudioOutput && AudioSettings.useAudioDriver
+                                        && AudioSettings.preferredAudioOutputDriver === "jack"
+
     ButtonGroup { id: useCustomAudioOutputGroup }
 
     GridLayout {
@@ -322,7 +328,22 @@ SettingsBasePage {
             }
             Layout.columnSpan: 2
         }
-        
+
+        Item {
+            visible: JACK_AUDIO_MAPPING_SUPPORT
+            height: 1
+            width: 1
+        }
+        Label {
+            visible: JACK_AUDIO_MAPPING_SUPPORT
+            color: Kirigami.Theme.disabledTextColor
+            font.italic: true
+            wrapMode: Text.WordWrap
+            text: qsTr("With the \"jack\" driver, each Video, Audio, Stream and YouTube layer can use the audio mixing and spatial mapping of the live layers, see \"mpv layers via JACK\" below.")
+            Layout.columnSpan: 2
+            Layout.fillWidth: true
+        }
+
         Item {
             Layout.columnSpan: 3
             Layout.fillWidth: true
@@ -377,27 +398,29 @@ SettingsBasePage {
         }
 
         SettingsHeader {
-            visible: NDI_SUPPORT || OMT_SUPPORT || CAPTURE_SUPPORT
+            visible: root.portAudioLayers
             Layout.columnSpan: 3
             Layout.topMargin: 20
             Layout.fillWidth: true
-            text: qsTr("Audio settings for Live video layers (NDI/OMT/Capture/DirectShow/WebRTC)")
+            text: JACK_AUDIO_MAPPING_SUPPORT
+                  ? qsTr("Audio output and mixing for Live layers (NDI/OMT/Capture/DirectShow/WebRTC) and mpv layers via JACK (Video/Audio/Stream/YouTube)")
+                  : qsTr("Audio settings for Live video layers (NDI/OMT/Capture/DirectShow/WebRTC)")
             level: 4
         }
         Item {
-            visible: NDI_SUPPORT || OMT_SUPPORT || CAPTURE_SUPPORT
+            visible: root.portAudioLayers
             Layout.columnSpan: 3
             // spacer item
             Layout.fillWidth: true
         }
 
         Item {
-            visible: NDI_SUPPORT || OMT_SUPPORT || CAPTURE_SUPPORT
+            visible: root.portAudioLayers
             height: 1
             width: 1
         }
         CheckBox {
-            visible: NDI_SUPPORT || OMT_SUPPORT || CAPTURE_SUPPORT
+            visible: root.portAudioLayers
             id: ndiAudioOutputCheckBox
 
             Layout.alignment: Qt.AlignRight
@@ -423,13 +446,13 @@ SettingsBasePage {
         }
 
         Item {
-            visible: NDI_SUPPORT || OMT_SUPPORT || CAPTURE_SUPPORT
+            visible: root.portAudioLayers
             height: 1
             width: 1
         }
         RowLayout {
             Label {
-                visible: NDI_SUPPORT || OMT_SUPPORT || CAPTURE_SUPPORT
+                visible: root.portAudioLayers
                 Layout.alignment: Qt.AlignRight
                 enabled: AudioSettings.portAudioCustomOutput
                 color: enabled ? Kirigami.Theme.textColor : Kirigami.Theme.disabledTextColor
@@ -437,7 +460,7 @@ SettingsBasePage {
             }
             ComboBox {
                 id: portAudioDeviceComboBox
-                visible: NDI_SUPPORT || OMT_SUPPORT || CAPTURE_SUPPORT
+                visible: root.portAudioLayers
 
                 enabled: AudioSettings.portAudioCustomOutput
                 model: app.portAudioModel
@@ -478,12 +501,12 @@ SettingsBasePage {
         }
 
         Item {
-            visible: NDI_SUPPORT || OMT_SUPPORT || CAPTURE_SUPPORT
+            visible: root.portAudioLayers
             height: 1
             width: 1
         }
         Label {
-            visible: NDI_SUPPORT || OMT_SUPPORT || CAPTURE_SUPPORT
+            visible: root.portAudioLayers
             id: portAudioDeviceInfo
             enabled: AudioSettings.portAudioCustomOutput
             color: enabled ? Kirigami.Theme.textColor : Kirigami.Theme.disabledTextColor
@@ -492,12 +515,12 @@ SettingsBasePage {
         }
 
         Item {
-            visible: NDI_SUPPORT || OMT_SUPPORT || CAPTURE_SUPPORT
+            visible: root.portAudioLayers
             height: 1
             width: 1
         }
         CheckBox {
-            visible: NDI_SUPPORT || OMT_SUPPORT || CAPTURE_SUPPORT
+            visible: root.portAudioLayers
             id: ndiAudioMixOutputCheckBox
 
             Layout.alignment: Qt.AlignRight
@@ -518,20 +541,20 @@ SettingsBasePage {
         }
 
         Item {
-            visible: NDI_SUPPORT || OMT_SUPPORT || CAPTURE_SUPPORT
+            visible: root.portAudioLayers
             height: 1
             width: 1
         }
         RowLayout {
             Label {
-                visible: NDI_SUPPORT || OMT_SUPPORT || CAPTURE_SUPPORT
+                visible: root.portAudioLayers
                 Layout.alignment: Qt.AlignRight
                 enabled: AudioSettings.portAudioMixInputToOutput
                 color: enabled ? Kirigami.Theme.textColor : Kirigami.Theme.disabledTextColor
                 text: qsTr("Output channels:")
             }
             ComboBox {
-                visible: NDI_SUPPORT || OMT_SUPPORT || CAPTURE_SUPPORT
+                visible: root.portAudioLayers
                 id: ndiAudioTargetChannelsComboBox
 
                 enabled: AudioSettings.portAudioMixInputToOutput
@@ -586,12 +609,12 @@ SettingsBasePage {
         }
 
         Item {
-            visible: NDI_SUPPORT || OMT_SUPPORT || CAPTURE_SUPPORT
+            visible: root.portAudioLayers
             height: 1
             width: 1
         }
         RowLayout {
-            visible: NDI_SUPPORT || OMT_SUPPORT || CAPTURE_SUPPORT
+            visible: root.portAudioLayers
             Button {
                 icon.name: "audio-speakers-symbolic"
                 text: qsTr("Audio mapping...")
@@ -613,6 +636,21 @@ SettingsBasePage {
                       : qsTr("Spatial mapping is off")
             }
             Layout.columnSpan: 2
+        }
+
+        Item {
+            visible: root.portAudioLayers
+            height: 1
+            width: 1
+        }
+        Label {
+            wrapMode: Text.WordWrap
+            Layout.fillWidth: true
+            font.italic: true
+            color: root.mpvUsesJack ? Kirigami.Theme.positiveTextColor : Kirigami.Theme.neutralTextColor
+            text: root.mpvUsesJack
+                    ? qsTr("mpv uses the \"jack\" audio driver: layers can use \"Audio mapping via JACK\".")
+                    : qsTr("mpv does not use the \"jack\" audio driver yet: \"Audio mapping via JACK\" has no effect until it does.")
         }
     }
 }

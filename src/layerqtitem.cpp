@@ -1594,6 +1594,24 @@ void LayerQtItem::setLayerSpatialAudio(bool enabled) {
     }
 }
 
+bool LayerQtItem::layerSupportsJackAudio() const {
+    return m_layer && MpvLayer::jackAudioRoutingSupported()
+           && (m_layer->type() == BaseLayer::LayerType::VIDEO || m_layer->type() == BaseLayer::LayerType::AUDIO
+               || m_layer->type() == BaseLayer::LayerType::STREAM || m_layer->type() == BaseLayer::LayerType::YOUTUBE);
+}
+
+bool LayerQtItem::layerJackAudio() const {
+    return layerSupportsJackAudio() && static_cast<const MpvLayer*>(m_layer)->jackAudioRouting();
+}
+
+void LayerQtItem::setLayerJackAudio(bool enabled) {
+    if (layerSupportsJackAudio() && m_layer->isEnabled() && layerJackAudio() != enabled) {
+        static_cast<MpvLayer*>(m_layer)->setJackAudioRouting(enabled);
+        Q_EMIT layerValueChanged();
+        Q_EMIT layerNeedsSave();
+    }
+}
+
 QString LayerQtItem::layerOperation() const {
     if (m_layer && m_layer->type() == BaseLayer::CONTROL) {
         ControlLayer* controlLayer = static_cast<ControlLayer*>(m_layer);

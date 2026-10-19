@@ -1847,6 +1847,7 @@ int LayersModel::decodeLayerFromJSON(const QJsonObject &o, const QStringList &fo
                     MpvLayer* mpvLayer = static_cast<MpvLayer*>(m_layers[idx].first.get());
                     mpvLayer->setMpvOptionsName(mpvOptions);
                 }
+                static_cast<MpvLayer*>(m_layers[idx].first.get())->setJackAudioRouting(o.value(QStringLiteral("jackAudio")).toBool());
             }
 
             if ((type == BaseLayer::VIDEO || type == BaseLayer::AUDIO || type == BaseLayer::YOUTUBE)) {
@@ -2314,6 +2315,9 @@ QJsonObject LayersModel::encodeLayerToJSON(const std::shared_ptr<BaseLayer> &lay
         if (!mpvLayer->mpvOptionsName().empty()) {
             layerData.insert(QStringLiteral("mpvOptions"), QJsonValue(QString::fromStdString(mpvLayer->mpvOptionsName())));
         }
+        // Only saved when on (off by default).
+        if (mpvLayer->jackAudioRouting())
+            layerData.insert(QStringLiteral("jackAudio"), QJsonValue(true));
     }
     if (layer->type() == BaseLayer::VIDEO || layer->type() == BaseLayer::AUDIO || layer->type() == BaseLayer::YOUTUBE) {
         if (layer->hasAudio()) {

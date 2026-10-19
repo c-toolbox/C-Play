@@ -12,6 +12,7 @@
 #include "haction.h"
 #include "layerqtitem.h"
 #include "layers/baselayer.h"
+#include "audio/jackaudioinput.h"
 #include "layersrendererqtitem.h"
 #include "mpvobject.h"
 #include "ndi/ndisendermodel.h"
@@ -537,6 +538,13 @@ void Application::setupQmlContextProperties() {
     m_engine->rootContext()->setContextProperty(QStringLiteral("CAPTURE_SUPPORT"), QVariant(true));
 #else
     m_engine->rootContext()->setContextProperty(QStringLiteral("CAPTURE_SUPPORT"), QVariant(false));
+#endif
+
+// mpv layers (ao=jack) into the PortAudio audio mapping, see audio/jackaudioinput.h
+#ifdef CPLAY_JACK_AUDIO_INPUT
+    m_engine->rootContext()->setContextProperty(QStringLiteral("JACK_AUDIO_MAPPING_SUPPORT"), QVariant(true));
+#else
+    m_engine->rootContext()->setContextProperty(QStringLiteral("JACK_AUDIO_MAPPING_SUPPORT"), QVariant(false));
 #endif
 
 #ifdef CLUX_SUPPORT

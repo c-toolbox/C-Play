@@ -1055,13 +1055,13 @@ Kirigami.ApplicationWindow {
 
             onClicked: {}
         }
-        // Audio controls of the live layers playing through PortAudio (NDI, OMT, DirectShow,
-        // capture and WebRTC), on top of the rendered image: the layer's audio mapping options
-        // above the optional audio level meter (the small button next to the bar toggles it).
+        // Audio controls of the layers playing through PortAudio (NDI, OMT, DirectShow, capture,
+        // WebRTC and mpv layers routed via JACK), on top of the rendered image: the layer's audio
+        // mapping options above the optional audio level meter (the small button next to the bar toggles it).
         ColumnLayout {
             id: audioLevelMeterGroup
 
-            visible: layerViewItem.layerHasAudioLevels && layerViewItem.layerIdx !== -1
+            visible: (layerViewItem.layerHasAudioLevels || layerViewItem.layerJackAudio) && layerViewItem.layerIdx !== -1
             anchors.left: parent.left
             anchors.bottom: parent.bottom
             anchors.margins: 12
@@ -1669,6 +1669,43 @@ Kirigami.ApplicationWindow {
                                     verticalOffset: 1
                                 }
                             }
+                        }
+                    }
+                    // mpv layers: route the audio through JACK into the audio mapping of the
+                    // live layers (off by default; needs mpv's "jack" audio driver).
+                    Rectangle {
+                        readonly property bool jackDriverSelected: AudioSettings.useCustomAudioOutput
+                                                                   && AudioSettings.useAudioDriver
+                                                                   && AudioSettings.preferredAudioOutputDriver === "jack"
+
+                        visible: layerViewItem.layerSupportsJackAudio
+                        color: Kirigami.Theme.alternateBackgroundColor
+                        implicitHeight: 35
+                        implicitWidth: jackAudioCheckBox.implicitWidth + 10
+                        radius: 5
+
+                        CheckBox {
+                            id: jackAudioCheckBox
+
+                            anchors.centerIn: parent
+                            focusPolicy: Qt.NoFocus
+                            text: qsTr("Audio mapping via JACK")
+                            checked: layerViewItem.layerJackAudio
+                            onToggled: layerViewItem.layerJackAudio = checked
+
+                            ToolTip.visible: hovered
+                            ToolTip.text: (parent.jackDriverSelected ? "" : qsTr("Requires the \"jack\" audio driver (Settings > Audio > Use audio driver).\n"))
+                                          + qsTr("Connect mpv's JACK output to an input of C-Play instead of the system playback ports, and play it through the audio mapping (up/down mix and spatial mapping) like the live layers.")
+                        }
+                        Connections {
+                            function onLayerChanged() {
+                                jackAudioCheckBox.checked = layerViewItem.layerJackAudio;
+                            }
+                            function onLayerValueChanged() {
+                                jackAudioCheckBox.checked = layerViewItem.layerJackAudio;
+                            }
+
+                            target: layerViewItem
                         }
                     }
                     Loader {

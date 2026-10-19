@@ -7,6 +7,7 @@
 
 #include "streamsettings.h"
 #include "mpvlayer.h"
+#include "audio/jackaudioinput.h"
 #include "application.h"
 #include "audiosettings.h"
 #include "track.h"
@@ -22,6 +23,25 @@
 namespace {
 // Grace window between issuing loadfile and declaring the load failed when mpv is still idle.
 constexpr std::chrono::seconds kMpvLoadFailureGrace{3};
+
+// Points mpv's JACK output (ao=jack) at the layer's JackAudioInput, or back at the system
+// playback ports (mpv's defaults). Read when the audio output opens: ao-reload applies it.
+void applyJackOptions(MpvLayer::mpvData& vd) {
+    if (vd.jackAudio) {
+        mpv::qt::set_property(vd.handle, QStringLiteral("jack-name"), QString::fromStdString(vd.jackMpvName), vd.loggingOn);
+        mpv::qt::set_property(vd.handle, QStringLiteral("jack-port"),
+                              QStringLiteral("^%1:in_").arg(QString::fromStdString(vd.jackClientName)), vd.loggingOn);
+        mpv::qt::set_property(vd.handle, QStringLiteral("jack-connect"), true, vd.loggingOn);
+    } else {
+        mpv::qt::set_property(vd.handle, QStringLiteral("jack-name"), QStringLiteral("mpv"), vd.loggingOn);
+        mpv::qt::set_property(vd.handle, QStringLiteral("jack-port"), QString(), vd.loggingOn);
+    }
+}
+
+void reloadAudioOutput(MpvLayer::mpvData& vd) {
+    if (vd.mpvInitialized && vd.handle && !vd.loadedFile.empty())
+        mpv::qt::command_async(vd.handle, QStringList() << QStringLiteral("ao-reload"));
+}
 } // namespace
 
 void loadTracks(MpvLayer::mpvData& vd) {
@@ -406,6 +426,10 @@ bool initMPV(MpvLayer::mpvData& vd) {
         mpv::qt::set_property(vd.handle, QStringLiteral("aid"), QStringLiteral("no"), vd.loggingOn);
     }
 
+    if (vd.jackAudio) {
+        applyJackOptions(vd);
+    }
+
     // Load mpv configurations
     mpv::qt::load_configurations(vd.handle, QString::fromStdString(SyncHelper::instance().configuration.confAll), vd.loggingOn);
     if (vd.isMaster) {
@@ -482,6 +506,12 @@ MpvLayer::MpvLayer(gl_adress_func_v1 opa,
     m_data.loggingOn = loggingOn;
     m_data.logLevel = std::move(logLevel);
     m_data.fileLoadedCallback = flc;
+
+    // Unique per process and layer: master and nodes may share one JACK server.
+    static std::atomic_int jackLayerCount{0};
+    const std::string jackId = std::format("{}-{}", QCoreApplication::applicationPid(), ++jackLayerCount);
+    m_data.jackClientName = "cplay-mix-" + jackId;
+    m_data.jackMpvName = "cplay-mpv-" + jackId;
 }
 
 MpvLayer::~MpvLayer() = default;
@@ -512,6 +542,7 @@ void MpvLayer::initializeGL() {
 }
 
 void MpvLayer::cleanup() {
+    m_jackInput.reset();
     m_data.terminate = true;
     if (m_data.mpvInitialized && m_data.handle) {
         mpv::qt::command_async(m_data.handle, QStringList() << QStringLiteral("quit"));
@@ -645,6 +676,7 @@ void MpvLayer::update(bool updateRendering) {
                 setEOFMode(m_data.eofMode_Dec);
                 setLoopTime(m_data.loopTimeA_Dec, m_data.loopTimeB_Dec, m_data.loopTimeEnabled_Dec);
                 setMpvOptionsName(m_data.mpvOptionsName_Dec);
+                setJackAudioRouting(m_data.jackAudio_Dec);
                 m_data.typePropertiesDecode = false;
             }
         }
@@ -799,6 +831,57 @@ void MpvLayer::updateAudioOutput() {
             }
         }
     }
+#ifdef CPLAY_JACK_AUDIO_INPUT
+    if (m_jackInput)
+        m_jackInput->requestRecheck(); // output device or audio mapping changed
+#endif
+}
+
+bool MpvLayer::jackAudioRoutingSupported() {
+#ifdef CPLAY_JACK_AUDIO_INPUT
+    return true;
+#else
+    return false;
+#endif
+}
+
+bool MpvLayer::jackAudioRouting() const {
+    return m_data.jackAudio;
+}
+
+void MpvLayer::setJackAudioRouting(bool enabled) {
+    if (!jackAudioRoutingSupported() || m_data.jackAudio == enabled)
+        return;
+
+    m_data.jackAudio = enabled;
+    if (m_data.mpvInitialized && m_data.handle) {
+        applyJackOptions(m_data);
+        reloadAudioOutput(m_data);
+    }
+
+    if (isMaster())
+        setNeedSync();
+}
+
+bool MpvLayer::hasAudioLevels() const {
+    return m_data.jackAudio;
+}
+
+void MpvLayer::updateAudioSpatialSource() {
+    BaseLayer::updateAudioSpatialSource();
+#ifdef CPLAY_JACK_AUDIO_INPUT
+    // The JACK input exists while mpv's audio is routed to it and audio plays on this machine.
+    if (!m_data.jackAudio || !m_data.audioEnabled || !m_data.mpvInitialized) {
+        m_jackInput.reset();
+        return;
+    }
+    if (!m_jackInput)
+        m_jackInput = std::make_unique<cplay::audio::JackAudioInput>(*this, m_data.jackClientName);
+    if (m_jackInput->update()) {
+        // New input ports: mpv reconnects when its audio output reopens.
+        reloadAudioOutput(m_data);
+    }
+#endif
 }
 
 void MpvLayer::setVolume(int v, bool storeLevel) {
@@ -882,6 +965,7 @@ void MpvLayer::encodeTypeProperties(std::vector<std::byte>& data) {
     sgct::serializeObject(data, m_data.loopTimeA);
     sgct::serializeObject(data, m_data.loopTimeB);
     sgct::serializeObject(data, m_data.mpvOptionsName);
+    sgct::serializeObject(data, m_data.jackAudio);
 }
 
 void MpvLayer::decodeTypeProperties(const std::vector<std::byte>& data, unsigned int& pos) {
@@ -897,6 +981,7 @@ void MpvLayer::decodeTypeProperties(const std::vector<std::byte>& data, unsigned
     sgct::deserializeObject(data, pos, m_data.loopTimeA_Dec);
     sgct::deserializeObject(data, pos, m_data.loopTimeB_Dec);
     sgct::deserializeObject(data, pos, m_data.mpvOptionsName_Dec);
+    sgct::deserializeObject(data, pos, m_data.jackAudio_Dec);
     m_data.typePropertiesDecode = true;
 }
 

@@ -30,6 +30,10 @@ double wrapDegrees(double a) {
 
 AudioMappingModel::AudioMappingModel(QObject* parent)
     : QObject(parent) {
+    m_test.setLevelDb(m_testLevel);
+    // Two bursts per speaker when stepping through all of them.
+    m_testAllTimer.setInterval(2000);
+    connect(&m_testAllTimer, &QTimer::timeout, this, &AudioMappingModel::stepTestAll);
     reload();
 }
 
@@ -53,6 +57,7 @@ void AudioMappingModel::setMode(int mode) {
     mode = std::clamp(mode, 0, 2);
     if (mode == this->mode())
         return;
+    stopSpeakerTest(); // the test speaker belongs to the other speaker list
     AudioSettings::setPortAudioSpatialMode(mode);
     AudioSettings::self()->save();
     m_selectedSpeaker = -1; // the selection belongs to the other speaker list
@@ -279,6 +284,7 @@ void AudioMappingModel::addArraySpeaker() {
 void AudioMappingModel::removeArraySpeaker(int index) {
     if (!validArrayIndex(index))
         return;
+    stopSpeakerTest();
     m_array.erase(m_array.begin() + index);
     if (m_selectedSpeaker >= static_cast<int>(m_array.size()))
         m_selectedSpeaker = -1;
@@ -295,6 +301,8 @@ void AudioMappingModel::setArraySpeakerChannel(int index, int channel) {
     saveArraySpeakers();
     apply();
     Q_EMIT speakersChanged();
+    if (m_testSpeaker == index && !m_testingAll)
+        startSpeakerTest(index); // follow the speaker to its new channel
 }
 
 void AudioMappingModel::setArraySpeakerDomePosition(int index, double azimuth, double elevation, bool save) {
@@ -328,6 +336,7 @@ void AudioMappingModel::saveArraySpeakers() {
 
 void AudioMappingModel::createEvenArray(int count) {
     count = std::clamp(count, 1, cplay::audio::kMaxArraySpeakers);
+    stopSpeakerTest();
     m_array.clear();
     for (int i = 0; i < count; ++i) {
         cplay::audio::ArraySpeakerSettings spk;
@@ -345,6 +354,7 @@ void AudioMappingModel::createEvenArray(int count) {
 }
 
 void AudioMappingModel::reload() {
+    stopSpeakerTest(); // the output device or layout may have changed
     m_channelCount = std::clamp(AudioSettings::portAudioOutputChannels(), 1, cplay::audio::kMaxChannels);
     m_positions = cplay::audio::parseSpeakerPositions(AudioSettings::portAudioSpeakerPositions(), m_channelCount);
     m_array = cplay::audio::parseSpeakerArray(AudioSettings::portAudioSpeakerArray());
@@ -360,4 +370,90 @@ void AudioMappingModel::reload() {
 
 void AudioMappingModel::apply() {
     cplay::audio::setSpeakerSetup(cplay::audio::speakerSetupFromSettings(m_positions, m_array));
+}
+
+int AudioMappingModel::testSpeaker() const {
+    return m_testSpeaker;
+}
+
+bool AudioMappingModel::testingAll() const {
+    return m_testingAll;
+}
+
+double AudioMappingModel::testLevel() const {
+    return m_testLevel;
+}
+
+void AudioMappingModel::setTestLevel(double db) {
+    db = std::clamp(db, -60.0, 0.0);
+    if (std::abs(db - m_testLevel) < 1e-6)
+        return;
+    m_testLevel = db;
+    m_test.setLevelDb(db);
+    Q_EMIT testChanged();
+}
+
+QString AudioMappingModel::testError() const {
+    return m_testError;
+}
+
+int AudioMappingModel::testSpeakerCount() const {
+    return mode() == static_cast<int>(cplay::audio::SpatialMode::SpeakerArray) ? static_cast<int>(m_array.size())
+                                                                                : m_channelCount;
+}
+
+bool AudioMappingModel::playTestSpeaker(int index) {
+    const bool array = mode() == static_cast<int>(cplay::audio::SpatialMode::SpeakerArray);
+    const int outputChannel = array ? m_array[static_cast<std::size_t>(index)].channel - 1 : index;
+    QString error;
+    if (!m_test.start(outputChannel, error)) {
+        m_test.stop();
+        m_testAllTimer.stop();
+        m_testSpeaker = -1;
+        m_testingAll = false;
+        m_testError = error;
+        Q_EMIT testChanged();
+        return false;
+    }
+    m_testSpeaker = index;
+    m_testError.clear();
+    setSelectedSpeaker(index); // highlighted in the master view (not the LFE)
+    Q_EMIT testChanged();
+    return true;
+}
+
+void AudioMappingModel::startSpeakerTest(int index) {
+    if (index < 0 || index >= testSpeakerCount())
+        return;
+    m_testAllTimer.stop();
+    m_testingAll = false;
+    playTestSpeaker(index);
+}
+
+void AudioMappingModel::startSpeakerTestAll() {
+    if (testSpeakerCount() == 0)
+        return;
+    m_testingAll = true;
+    if (playTestSpeaker(0))
+        m_testAllTimer.start();
+}
+
+void AudioMappingModel::stepTestAll() {
+    const int count = testSpeakerCount();
+    if (count == 0) {
+        stopSpeakerTest();
+        return;
+    }
+    playTestSpeaker((m_testSpeaker + 1) % count);
+}
+
+void AudioMappingModel::stopSpeakerTest() {
+    m_testAllTimer.stop();
+    m_test.stop();
+    if (m_testSpeaker < 0 && !m_testingAll && m_testError.isEmpty())
+        return;
+    m_testSpeaker = -1;
+    m_testingAll = false;
+    m_testError.clear();
+    Q_EMIT testChanged();
 }

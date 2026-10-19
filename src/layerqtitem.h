@@ -163,6 +163,9 @@ class LayerQtItem : public QQuickItem {
     Q_PROPERTY(bool layerAudioMapping READ layerAudioMapping WRITE setLayerAudioMapping NOTIFY layerValueChanged)
     // The layer follows the spatial audio mapping (Audio mapping dialog); off = standard up/down mix.
     Q_PROPERTY(bool layerSpatialAudio READ layerSpatialAudio WRITE setLayerSpatialAudio NOTIFY layerValueChanged)
+    // mpv layers (ao=jack): route the audio through a JACK input into the audio mapping above.
+    Q_PROPERTY(bool layerSupportsJackAudio READ layerSupportsJackAudio NOTIFY layerChanged)
+    Q_PROPERTY(bool layerJackAudio READ layerJackAudio WRITE setLayerJackAudio NOTIFY layerValueChanged)
     Q_PROPERTY(QString layerOperation READ layerOperation WRITE setLayerOperation NOTIFY layerValueChanged)
     Q_PROPERTY(QString layerParameter READ layerParameter WRITE setLayerParameter NOTIFY layerValueChanged)
     Q_PROPERTY(QString layerRestUrl READ layerRestUrl WRITE setLayerRestUrl NOTIFY layerValueChanged)
@@ -460,6 +463,9 @@ public:
     void setLayerAudioMapping(bool enabled);
     bool layerSpatialAudio() const;
     void setLayerSpatialAudio(bool enabled);
+    bool layerSupportsJackAudio() const;
+    bool layerJackAudio() const;
+    void setLayerJackAudio(bool enabled);
 
     QString layerOperation() const;
     void setLayerOperation(QString op);

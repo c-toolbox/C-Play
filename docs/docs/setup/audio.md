@@ -35,6 +35,8 @@ When C-Play loads an audio file, you should see how many channels it has by how 
 
  ![Jack](/assets/jack/12_channels.png)
 
+Normally mpv connects straight to these playback ports. Video, Audio, Stream and YouTube layers can instead have their JACK output go through C-Play's [audio mapping](/settings/audio_mapping) (up/down mix and spatial mapping), turned on per layer with *Audio mapping via JACK*. Those layers are then connected to a C-Play input (`cplay-mix-…`) in the graph instead of to `playback_**`. See [mpv layers via JACK](/settings/audio_mapping#mpv-layers-via-jack).
+
 ## Naming of external files
 
 In a show environment, it is beneficial not to have different video files for every movie. Since C-Play supports loading audio files that sit next to the video file, that is, *side-loading*, it is useful to add additional tracks as separate files next to the main video file on the master machine, or on the node if C-Play is configured to run audio from nodes.

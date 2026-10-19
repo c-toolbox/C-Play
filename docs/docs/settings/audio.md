@@ -28,6 +28,8 @@ If *"Use custom audio output"* is not selected, C-Play uses the system default a
 
 For multi-channel audio setups such as JACK, see the [Audio configuration guide](/setup/audio).
 
+With the **jack** driver, Video, Audio, Stream and YouTube layers can also use the up/down mix and spatial mapping of the live layers, turned on per layer. The note under the driver list points to this, and the *mpv layers via JACK* section at the bottom of the audio settings explains it and shows whether mpv uses the jack driver. See [mpv layers via JACK](/settings/audio_mapping#mpv-layers-via-jack).
+
 ### Audio track preferences
 
 * **Load audio files in same folder** — Automatically load adjacent audio files as additional tracks when opening a video (default on).
@@ -46,3 +48,5 @@ The live layers — **NDI**, **OMT**, **Capture**, **DirectShow** and **WebRTC**
 * **Audio mapping...** — Opens the [Audio mapping](/settings/audio_mapping) dialog for the optional spatial mapping: surround panning that makes the sound follow where each layer is shown, or a mono speaker array by distance, including speaker placement in the master view. The text next to the button shows whether a spatial mapping is on.
 
 Each live layer can opt out of the up/down mix and of the spatial mapping in its Layer View; both are on by default. See [Audio mapping](/settings/audio_mapping) for the complete structure.
+
+These settings also apply to the mpv layers (Video, Audio, Stream and YouTube) that have **Audio mapping via JACK** turned on, which needs mpv's *jack* audio driver. In builds with JACK support the section heading says so, and a *mpv layers via JACK* section below it lists the steps. See [mpv layers via JACK](/settings/audio_mapping#mpv-layers-via-jack).
