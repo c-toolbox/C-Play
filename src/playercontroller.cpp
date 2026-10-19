@@ -834,7 +834,7 @@ QUrl PlayerController::backgroundImageFileUrl() {
 void PlayerController::setBackgroundImageFile(const QString &path) {
     if (path.isEmpty()) {
         m_backgroundFile = QStringLiteral("");
-        SyncHelper::instance().variables.bgImageFile = "";
+        SyncHelper::instance().setString(SyncHelper::instance().variables.bgImageFile, "");
         SyncHelper::instance().variables.bgImageFileDirty = true;
         setBackgroundVisibility(0.f);
         Q_EMIT backgroundImageChanged();
@@ -862,7 +862,7 @@ void PlayerController::setBackgroundImageFile(const QString &path) {
     absolutePath.replace(QStringLiteral("file:///"), QStringLiteral(""));
     std::string str = absolutePath.toStdString();
     if (SyncHelper::instance().variables.bgImageFile != str) {
-        SyncHelper::instance().variables.bgImageFile = str;
+        SyncHelper::instance().setString(SyncHelper::instance().variables.bgImageFile, str);
         SyncHelper::instance().variables.bgImageFileDirty = true;
         setBackgroundVisibility(1.f);
     }
@@ -913,7 +913,7 @@ QUrl PlayerController::foregroundImageFileUrl() {
 void PlayerController::setForegroundImageFile(const QString &path) {
     if (path.isEmpty()) {
         m_foregroundFile = QStringLiteral("");
-        SyncHelper::instance().variables.fgImageFile = "";
+        SyncHelper::instance().setString(SyncHelper::instance().variables.fgImageFile, "");
         SyncHelper::instance().variables.fgImageFileDirty = true;
         Q_EMIT foregroundImageChanged();
         return;
@@ -940,7 +940,7 @@ void PlayerController::setForegroundImageFile(const QString &path) {
     absolutePath.replace(QStringLiteral("file:///"), QStringLiteral(""));
     std::string str = absolutePath.toStdString();
     if (SyncHelper::instance().variables.fgImageFile != str) {
-        SyncHelper::instance().variables.fgImageFile = str;
+        SyncHelper::instance().setString(SyncHelper::instance().variables.fgImageFile, str);
         SyncHelper::instance().variables.fgImageFileDirty = true;
     }
 
@@ -1101,7 +1101,7 @@ void PlayerController::setMasterNdiName(const QString &value) {
     if (SyncHelper::instance().variables.masterNdiName == name)
         return;
 
-    SyncHelper::instance().variables.masterNdiName = name;
+    SyncHelper::instance().setString(SyncHelper::instance().variables.masterNdiName, name);
     SyncHelper::instance().variables.playerControllerNeedSync = true;
 
     Q_EMIT masterNdiNameChanged();
@@ -1179,7 +1179,7 @@ void PlayerController::setSyncProperties(bool value) {
 }
 
 void PlayerController::takeNodeScreenshot(const QString& screenshotPath) {
-    SyncHelper::instance().variables.screenshotPath = screenshotPath.toStdString();
+    SyncHelper::instance().setString(SyncHelper::instance().variables.screenshotPath, screenshotPath.toStdString());
     SyncHelper::instance().variables.takeScreenshot = true;
     SyncHelper::instance().variables.playerControllerNeedSync = true;
 }

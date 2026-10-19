@@ -193,6 +193,13 @@ static void* get_proc_address_qopengl_v2(const char* name, void* ctx) {
     return reinterpret_cast<void*>(glctx->getProcAddress(QByteArray(name)));
 }
 
+std::shared_ptr<BaseLayer> makeLayerPtr(BaseLayer *layer) {
+    return std::shared_ptr<BaseLayer>(layer, [](BaseLayer *l) {
+        ScopedSharedGLContext context;
+        delete l;
+    });
+}
+
 LayersModel::LayersModel(QObject *parent)
     : QAbstractListModel(parent),
     m_layerTypeModel(new LayersTypeModel(this)),
@@ -389,6 +396,16 @@ void LayersModel::setHasSynced() {
 BaseLayer *LayersModel::layer(int i) {
     std::lock_guard<std::recursive_mutex> layersLock(m_layersMutex);
     return rowLayer(i);
+}
+
+std::shared_ptr<BaseLayer> LayersModel::rowLayerShared(int i) {
+    std::lock_guard<std::recursive_mutex> layersLock(m_layersMutex);
+    const BaseLayer *l = rowLayer(i);
+    const int own = ownIndexOf(l);
+    if (own >= 0)
+        return m_layers[own].first;
+    const int ref = referenceIndexOf(l);
+    return ref >= 0 ? m_refs[ref].layer : std::shared_ptr<BaseLayer>();
 }
 
 std::shared_ptr<BaseLayer> LayersModel::layerShared(int i) {
@@ -763,7 +780,8 @@ int LayersModel::layerVisibility(int i) const {
 }
 
 int LayersModel::layerIdx(std::string title) {
-    // Returning first with correct name
+    // Returning first with correct name. Also called from the HTTP server thread.
+    std::lock_guard<std::recursive_mutex> layersLock(m_layersMutex);
     QString titleLowCase = QString::fromStdString(title).toLower();
     for (int i = 0; i < m_layers.size(); i++) {
         if (!m_layers[i].first)
@@ -928,7 +946,7 @@ int LayersModel::addLayer(QString title, int type, QString filepath, int stereoM
         const int layerIdx = rowForNewOwnLayer();
         int initialStatus = (newLayer->type() == BaseLayer::REST || newLayer->type() == BaseLayer::TCP) ? -1 : 0;
         beginInsertRows(QModelIndex(), layerIdx, layerIdx);
-        m_layers.push_back(QPair(std::shared_ptr<BaseLayer>(newLayer), initialStatus));
+        m_layers.push_back(QPair(makeLayerPtr(newLayer), initialStatus));
         m_order.insert(layerIdx, newLayer);
         ensureTimelineSizeMatchesLayers();
         endInsertRows();
@@ -1409,7 +1427,7 @@ void LayersModel::addCopyOfLayer(BaseLayer* srcLayer) {
 
         const int layerIdx = rowForNewOwnLayer();
         beginInsertRows(QModelIndex(), layerIdx, layerIdx);
-        m_layers.push_back(QPair(std::shared_ptr<BaseLayer>(newLayer), 0));
+        m_layers.push_back(QPair(makeLayerPtr(newLayer), 0));
         m_order.insert(layerIdx, newLayer);
         ensureTimelineSizeMatchesLayers();
         endInsertRows();

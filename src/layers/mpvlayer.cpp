@@ -38,15 +38,20 @@ void applyJackOptions(MpvLayer::mpvData& vd) {
     }
 }
 
+bool hasLoadedFile(MpvLayer::mpvData& vd) {
+    const std::lock_guard<std::mutex> lock(vd.loadStatusMutex);
+    return !vd.loadedFile.empty();
+}
+
 void reloadAudioOutput(MpvLayer::mpvData& vd) {
-    if (vd.mpvInitialized && vd.handle && !vd.loadedFile.empty())
+    if (vd.mpvInitialized && vd.handle && hasLoadedFile(vd))
         mpv::qt::command_async(vd.handle, QStringList() << QStringLiteral("ao-reload"));
 }
 } // namespace
 
 void loadTracks(MpvLayer::mpvData& vd) {
-    if (vd.handle && vd.mpvInitialized && !vd.loadedFile.empty()) {
-        vd.audioTracks.clear();
+    if (vd.handle && vd.mpvInitialized && hasLoadedFile(vd)) {
+        std::vector<Track> audioTracks;
         const QList<QVariant> tracks = mpv::qt::get_property(vd.handle, QStringLiteral("track-list")).toList();
         int audioIndex = 0;
         for (const auto& track : tracks) {
@@ -65,10 +70,12 @@ void loadTracks(MpvLayer::mpvData& vd) {
                 newTrack.setTitle(t[QStringLiteral("title")].toString().toStdString());
                 newTrack.setIndex(audioIndex);
 
-                vd.audioTracks.push_back(newTrack);
+                audioTracks.push_back(newTrack);
                 audioIndex++;
             }
         }
+        const std::lock_guard<std::mutex> lock(vd.tracksMutex);
+        vd.audioTracks = std::move(audioTracks);
     }
 }
 
@@ -204,8 +211,9 @@ void on_mpv_events(MpvLayer::mpvData &vd, BaseLayer::RenderParams) {
                     vd.mediaDuration = *reinterpret_cast<double *>(prop->data);
                 }
             } else if (strcmp(prop->name, "time-pos") == 0) {
+                // break (not return): the rest of the queued events must still be handled.
                 if (vd.mediaIsPaused)
-                    return;
+                    break;
 
                 if (prop->format == MPV_FORMAT_DOUBLE) {
                     if(vd.loopTimeEnabled && vd.eofMode == 0) { // Pause on loop
@@ -215,7 +223,7 @@ void on_mpv_events(MpvLayer::mpvData &vd, BaseLayer::RenderParams) {
                             vd.mediaIsPaused = true;
                             mpv::qt::set_property_async(vd.handle, QStringLiteral("pause"), true);
                             mpv::qt::set_property_async(vd.handle, QStringLiteral("time-pos"), vd.loopTimeB);
-                            return;
+                            break;
                         }
                     }
                     if (!vd.isMaster && SyncHelper::instance().variables.timeThresholdEnabled
@@ -273,8 +281,13 @@ void on_mpv_events(MpvLayer::mpvData &vd, BaseLayer::RenderParams) {
             }
             vd.loadFailed = isError;
             if (isError) {
+                std::string loadedFile;
+                {
+                    const std::lock_guard<std::mutex> lock(vd.loadStatusMutex);
+                    loadedFile = vd.loadedFile;
+                }
                 sgct::Log::Error(std::format("mpv failed to load '{}': {}",
-                    vd.loadedFile, errStr ? errStr : "unknown error"));
+                    loadedFile, errStr ? errStr : "unknown error"));
             }
             break;
         }
@@ -609,11 +622,14 @@ void MpvLayer::unload() {
         m_data.intentionalStop = true;
         mpv::qt::command_async(m_data.handle, QStringList() << QStringLiteral("stop"));
     }
-    m_data.loadedFile.clear();
-    m_data.audioTracks.clear();
+    {
+        const std::lock_guard<std::mutex> lock(m_data.tracksMutex);
+        m_data.audioTracks.clear();
+    }
     m_data.updateRendering = false;
     {
         const std::lock_guard<std::mutex> lock(m_data.loadStatusMutex);
+        m_data.loadedFile.clear();
         m_data.fileLoaded = false;
         m_data.pendingLoadError.clear();
         m_data.loadRequestedTime = {};
@@ -757,6 +773,7 @@ double MpvLayer::remaining() {
 }
 
 bool MpvLayer::hasAudio() const {
+    const std::lock_guard<std::mutex> lock(const_cast<mpvData&>(m_data).tracksMutex);
     return !m_data.audioTracks.empty();
 }
 
@@ -801,14 +818,15 @@ void MpvLayer::enableAudio(bool enabled) {
     }
 }
 
-std::vector<Track>* MpvLayer::audioTracks() {
+std::vector<Track> MpvLayer::audioTracks() {
     if (m_data.handle && !m_data.loadedFile.empty()) {
         loadTracks(m_data);
         setAudioId(m_data.audioId);
-        return &m_data.audioTracks;
+        const std::lock_guard<std::mutex> lock(m_data.tracksMutex);
+        return m_data.audioTracks;
     }
     else {
-        return nullptr;
+        return {};
     }
 }
 
@@ -990,10 +1008,16 @@ void MpvLayer::loadFile(std::string filePath, bool reload) {
         sgct::Log::Info(std::format("Loading new file with mpv: {}", filePath));
         m_data.reconfigs = 0;
         m_data.updateRendering = false;
-        m_data.loadedFile = filePath;
+        {
+            const std::lock_guard<std::mutex> lock(m_data.loadStatusMutex);
+            m_data.loadedFile = filePath;
+        }
         m_frameSyncSeekPending = false;
         m_frameSyncNeedsSettle = true;
-        m_data.audioTracks.clear();
+        {
+            const std::lock_guard<std::mutex> lock(m_data.tracksMutex);
+            m_data.audioTracks.clear();
+        }
         // Keep the YouTube flag in sync with what we are actually about to open (the path
         // can change between loads; initMPV only reads it at initialization time).
         const bool newIsYoutube = usesYtdl() || (m_data.isStream && YtdlpResolver::isYouTubeUrl(filePath));
@@ -1046,6 +1070,7 @@ void MpvLayer::loadFile(std::string filePath, bool reload) {
 }
 
 std::string MpvLayer::loadedFile() {
+    const std::lock_guard<std::mutex> lock(m_data.loadStatusMutex);
     return m_data.loadedFile;
 }
 

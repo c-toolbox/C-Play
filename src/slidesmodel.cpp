@@ -666,6 +666,8 @@ LayersModel *SlidesModel::masterSlide() {
 }
 
 LayersModel *SlidesModel::slide(int i) {
+    // Also called from the HTTP server thread.
+    std::lock_guard<std::recursive_mutex> lock(m_slidesMutex);
     if (i == -1)
         return masterSlide();
     else if (i >= 0 && m_slides.size() > i && m_slides[i])
@@ -680,6 +682,7 @@ LayersModel* SlidesModel::slide(std::string name) {
     if (nameLowCase == QStringLiteral("master")) {
         return masterSlide();
     }
+    std::lock_guard<std::recursive_mutex> lock(m_slidesMutex);
     for (int i = 0; i < m_slides.size(); i++) {
         if (m_slides[i] && m_slides[i]->getLayersName().toLower() == nameLowCase) {
             return slide(i);

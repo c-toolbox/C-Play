@@ -111,7 +111,7 @@ private:
     const std::string LoadIndexFromSlides(std::string indexStr);
     const std::string SelectIndexFromSlides(std::string indexStr);
 
-    const std::string getLayerFromRequest(const httplib::Request& req, LayersModel* &lm, int &layerIdx, BaseLayer* &resolvedLayer);
+    const std::string getLayerFromRequest(const httplib::Request& req, LayersModel* &lm, int &layerIdx, std::shared_ptr<BaseLayer> &resolvedLayer);
 
     MpvObject *m_mpv;
     ControlEventFeed *m_eventFeed = nullptr;

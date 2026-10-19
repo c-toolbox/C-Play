@@ -662,9 +662,9 @@ void BaseLayer::enableAudio(bool) {
     // Overwrite in derived class
 }
 
-std::vector<Track>* BaseLayer::audioTracks() {
+std::vector<Track> BaseLayer::audioTracks() {
     // Overwrite in derived class
-    return nullptr;
+    return {};
 }
 
 void BaseLayer::updateAudioOutput() {

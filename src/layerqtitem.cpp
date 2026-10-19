@@ -76,9 +76,38 @@ static void* get_proc_address_qopengl_v2(const char* name, void* ctx) {
 }
 
 LayerQtItem::LayerQtItem()
-    : m_layerIdx(-1), m_layer(nullptr), m_ownsLayer(false), m_updatingLayer(true), m_renderer(nullptr), m_audioTracksModel(new TracksModel), m_timer(nullptr),
+    : m_layerIdx(-1), m_layer(nullptr), m_ownsLayer(false), m_updatingLayer(true), m_renderer(nullptr), m_audioTracksModel(new TracksModel(this)), m_timer(nullptr),
     m_viewOffset(0, 0), m_viewSize(0, 0), m_roiOffset(0, 0), m_roiSize(0, 0) {
     connect(this, &QQuickItem::windowChanged, this, &LayerQtItem::handleWindowChanged);
+}
+
+LayerQtItem::~LayerQtItem() {
+    delete m_timer;
+    m_timer = nullptr;
+    setCurrentLayer(nullptr, false);
+}
+
+void LayerQtItem::setCurrentLayer(std::shared_ptr<BaseLayer> layer, bool ownsLayer) {
+    disconnect(m_layerRemovedConnection);
+    disconnect(m_layerResetConnection);
+    m_layerSlide = nullptr;
+    m_layerRef = std::move(layer);
+    m_layer = m_layerRef.get();
+    m_ownsLayer = ownsLayer;
+    m_audioTracksModel->setOwnedTracks({});
+}
+
+void LayerQtItem::releaseRemovedLayer() {
+    auto *slide = qobject_cast<LayersModel *>(m_layerSlide.data());
+    if (!m_layer || m_ownsLayer || (slide && slide->containsLayer(m_layer)))
+        return;
+    m_layer->setShouldUpdateFrame(false);
+    setCurrentLayer(nullptr, false);
+    m_layerIdx = -1;
+    m_lastEmittedAudioLevel = -1.f;
+    m_lastEmittedHasAudio = false;
+    Q_EMIT layerChanged();
+    Q_EMIT layerValueChanged();
 }
 
 int LayerQtItem::layerIdx() const{
@@ -88,27 +117,37 @@ int LayerQtItem::layerIdx() const{
 void LayerQtItem::setLayerIdx(int idx) {
     m_layerIdx = idx;
 
-    BaseLayer* nl = nullptr;
-    if (Application::isCreated() && m_layerIdx >= 0)
-        nl = Application::instance().slidesModel()->selectedSlide()->layer(m_layerIdx);
+    std::shared_ptr<BaseLayer> nl;
+    LayersModel *slide = nullptr;
+    if (Application::isCreated() && m_layerIdx >= 0) {
+        slide = Application::instance().slidesModel()->selectedSlide();
+        if (slide)
+            nl = slide->rowLayerShared(m_layerIdx);
+    }
 
     if (nl == nullptr) {
         if(m_layer) {
             m_layer->setShouldUpdateFrame(false);
         }
         m_layerIdx = -1;
-        m_layer = nullptr;
+        setCurrentLayer(nullptr, false);
         m_lastEmittedAudioLevel = -1.f; // force a fresh audio level emit for the (empty) view
         m_lastEmittedHasAudio = false;  // force a fresh has-audio emit for the (empty) view
         Q_EMIT layerChanged();
         Q_EMIT layerValueChanged();
         return;
     }
-    if (nl != m_layer) {
+    if (nl.get() != m_layer) {
         if (m_layer) {
             m_layer->setShouldUpdateFrame(false);
         }
-        m_layer = nl;
+        setCurrentLayer(nl, false);
+        // Removing the layer from its slide must not leave it alive (or playing) here.
+        m_layerSlide = slide;
+        m_layerRemovedConnection = connect(slide, &QAbstractItemModel::rowsRemoved, this,
+                                           &LayerQtItem::releaseRemovedLayer, Qt::QueuedConnection);
+        m_layerResetConnection = connect(slide, &QAbstractItemModel::modelReset, this,
+                                         &LayerQtItem::releaseRemovedLayer, Qt::QueuedConnection);
         m_layer->setShouldPreLoad(true);
         m_layer->setAudioLevelsEnabled(m_audioLevelsEnabled); // re-apply the meter state to the new layer
         m_lastEmittedAudioLevel = -1.f; // force a fresh audio level emit for the new layer
@@ -1164,7 +1203,7 @@ QString LayerQtItem::layerNodeStreamNdiName() const {
 
 void LayerQtItem::loadTracks() {
     if (m_layer) {
-        m_audioTracksModel->setTracks(m_layer->audioTracks());
+        m_audioTracksModel->setOwnedTracks(m_layer->audioTracks());
     }
     else {
         m_audioTracksModel->setTracks(nullptr);
@@ -2074,16 +2113,23 @@ QString LayerQtItem::layerCaptureStatus() const {
 #endif
 
 void LayerQtItem::handleWindowChanged(QQuickWindow *win) {
+    if (m_connectedWindow && m_connectedWindow != win) {
+        disconnect(m_connectedWindow, nullptr, this, nullptr);
+        if (m_timer)
+            disconnect(m_timer, nullptr, m_connectedWindow, nullptr);
+    }
+    m_connectedWindow = win;
     if (win) {
-        connect(win, &QQuickWindow::beforeSynchronizing, this, &LayerQtItem::sync, Qt::DirectConnection);
-        connect(win, &QQuickWindow::sceneGraphInvalidated, this, &LayerQtItem::cleanup, Qt::DirectConnection);
+        connect(win, &QQuickWindow::beforeSynchronizing, this, &LayerQtItem::sync,
+                static_cast<Qt::ConnectionType>(Qt::DirectConnection | Qt::UniqueConnection));
+        connect(win, &QQuickWindow::sceneGraphInvalidated, this, &LayerQtItem::cleanup,
+                static_cast<Qt::ConnectionType>(Qt::DirectConnection | Qt::UniqueConnection));
         win->setColor(Qt::black);
 
         if (m_timer == nullptr) {
             m_timer = new QTimer();
             m_timer->setInterval((1.0f / 60.0f) * 1000.0f);
 
-            connect(m_timer, &QTimer::timeout, win, &QQuickWindow::update);
             // Refresh the reported audio level for visualization (e.g. the meter in LayerView).
             connect(m_timer, &QTimer::timeout, this, [this] {
                 const float level = layerAudioLevel();
@@ -2134,6 +2180,7 @@ void LayerQtItem::handleWindowChanged(QQuickWindow *win) {
 
             m_timer->start();
         }
+        connect(m_timer, &QTimer::timeout, win, &QQuickWindow::update, Qt::UniqueConnection);
     }
 }
 
@@ -2141,8 +2188,10 @@ void LayerQtItem::cleanup() {
     delete m_renderer;
     m_renderer = nullptr;
 
+    // Render thread: the GUI thread waits while the scene graph is invalidated, so only the
+    // reference is dropped here (the tracks model and connections belong to the GUI thread).
     if (m_layer && m_ownsLayer) {
-        delete m_layer;
+        m_layerRef.reset();
         m_layer = nullptr;
     }
 }
@@ -2168,6 +2217,18 @@ LayerQtOpenGLObject::LayerQtOpenGLObject(QObject* parent)
 LayerQtOpenGLObject::~LayerQtOpenGLObject() {
     delete m_program;
     delete m_postProgram;
+    releaseLayer();
+}
+
+void LayerQtOpenGLObject::releaseLayer() {
+    if (m_layerRef && !m_ownsLayer) {
+        // A slide layer: its OpenGL objects belong to the context of the 3D view, not to this
+        // window's, so it must not be destroyed here. Leave the last reference to the GUI thread.
+        QMetaObject::invokeMethod(QCoreApplication::instance(), [layer = m_layerRef]() mutable { layer.reset(); },
+                                  Qt::QueuedConnection);
+    }
+    m_layerRef.reset();
+    m_layer = nullptr;
 }
 
 void LayerQtOpenGLObject::setWindowSize(const QSize &size) {
@@ -2211,8 +2272,12 @@ BaseLayer *LayerQtOpenGLObject::layer() {
     return m_layer;
 }
 
-void LayerQtOpenGLObject::setLayer(BaseLayer *l) {
-    m_layer = l;
+void LayerQtOpenGLObject::setLayer(const std::shared_ptr<BaseLayer> &l) {
+    if (l == m_layerRef)
+        return;
+    releaseLayer(); // m_ownsLayer still describes the previous layer here
+    m_layerRef = l;
+    m_layer = m_layerRef.get();
 }
 
 QPoint LayerQtOpenGLObject::viewOffset() {
@@ -2276,12 +2341,8 @@ void LayerQtItem::createLayer(int type, QString filepath){
         newLayer->setUseNoSignalImage(true);
     newLayer->initialize();
 
-    if (m_layer && m_ownsLayer) {
-        delete m_layer;
-    }
-
-    m_layer = newLayer;
-    m_ownsLayer = true;
+    // The renderer keeps the previous layer alive until the next sync.
+    setCurrentLayer(makeLayerPtr(newLayer), true);
 }
 
 void LayerQtItem::start() {
@@ -2316,7 +2377,7 @@ void LayerQtItem::sync() {
         connect(m_renderer, &LayerQtOpenGLObject::colorPicked, this, &LayerQtItem::colorPicked);
     }
     m_renderer->setShowPostEffects(m_showPostEffects);
-    m_renderer->setLayer(m_layer);
+    m_renderer->setLayer(m_layerRef);
     m_renderer->setWindowSize(window()->size() * window()->devicePixelRatio());
     m_renderer->setViewportSize(this->size().toSize() * window()->devicePixelRatio());
     m_renderer->setPosition(this->position().toPoint());

@@ -16,7 +16,9 @@
 #include <QtQuick/QQuickWindow>
 #include <QColor>
 #include <QPointF>
+#include <QPointer>
 #include <layers/baselayer.h>
+#include <memory>
 #include <mutex>
 #include "tracksmodel.h"
 
@@ -35,7 +37,8 @@ public:
     void setOwnsLayer(bool owns);
 
     BaseLayer *layer();
-    void setLayer(BaseLayer *l);
+    // Called in sync() while the GUI thread is blocked; the copy keeps the layer alive while it is painted.
+    void setLayer(const std::shared_ptr<BaseLayer> &l);
 
     QPoint viewOffset();
     QSize viewSize();
@@ -61,6 +64,8 @@ Q_SIGNALS:
 
 private:
     void readPendingColorPick();
+    // Drops this object's reference to the layer (render thread).
+    void releaseLayer();
 
     bool m_updateLayer = false;
     bool m_itemVisible = false;
@@ -77,7 +82,8 @@ private:
     QOpenGLShaderProgram *m_program = nullptr;
     QOpenGLShaderProgram *m_postProgram = nullptr;
     QQuickWindow *m_window = nullptr;
-    BaseLayer *m_layer = nullptr;
+    std::shared_ptr<BaseLayer> m_layerRef;
+    BaseLayer *m_layer = nullptr; // m_layerRef.get()
 
     QOpenGLVertexArrayObject m_vao;
     QOpenGLBuffer m_vbo;
@@ -224,6 +230,7 @@ class LayerQtItem : public QQuickItem {
 
 public:
     LayerQtItem();
+    ~LayerQtItem() override;
 
     bool colorPickActive() const;
     void setColorPickActive(bool active);
@@ -558,10 +565,20 @@ private:
 
     Q_INVOKABLE void handleWindowChanged(QQuickWindow *win);
     void releaseResources() override;
+    // Shows layer (nullptr for none), keeping it alive while it is shown.
+    void setCurrentLayer(std::shared_ptr<BaseLayer> layer, bool ownsLayer);
+    // Stops showing a slide layer that its slide removed.
+    void releaseRemovedLayer();
 
     int m_layerIdx;
-    BaseLayer *m_layer;
+    std::shared_ptr<BaseLayer> m_layerRef;
+    BaseLayer *m_layer; // m_layerRef.get()
     bool m_ownsLayer;
+    // Slide owning the shown layer (not for owned layers), watched for its removal.
+    QPointer<QAbstractItemModel> m_layerSlide;
+    QMetaObject::Connection m_layerRemovedConnection;
+    QMetaObject::Connection m_layerResetConnection;
+    QPointer<QQuickWindow> m_connectedWindow;
     float m_lastEmittedAudioLevel = -1.f; // sentinel so the first timer tick always emits
     bool m_lastEmittedHasAudio = false;   // last reported audio-track availability (timer-polled)
     bool m_lastEmittedHasError = false;   // last reported loader failure state (timer-polled)

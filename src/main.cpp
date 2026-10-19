@@ -174,6 +174,9 @@ static std::vector<std::byte> encode() {
         return data;
     }
 
+    // Runs on the render thread while the GUI thread may set the strings it sends.
+    std::lock_guard<std::recursive_mutex> stringsLock(SyncHelper::instance().stringsMutex);
+
     // Logging follows the master even when playback synchronization is disabled.
     const bool generalLoggingEnabled = SyncHelper::instance().variables.generalLoggingEnabled.load();
     serializeObject(data, generalLoggingEnabled);

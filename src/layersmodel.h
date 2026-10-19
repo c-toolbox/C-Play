@@ -26,6 +26,11 @@ class QTimer;
 
 using Layers = QList<QPair<std::shared_ptr<BaseLayer>, int>>;
 
+// Owns a layer created on the master. Layer destructors release OpenGL objects and mpv render
+// contexts, and the last reference may be dropped on the GUI thread, so the deleter runs
+// inside a ScopedSharedGLContext (see application.h).
+std::shared_ptr<BaseLayer> makeLayerPtr(BaseLayer *layer);
+
 // A single keyframe at timeMs. Alpha is always keyed; the other groups are optional and
 // interpolate only between keyframes that have them. Values are absolute layer values.
 // easing shapes the segment from this keyframe to the next one of the same group.
@@ -151,6 +156,8 @@ public:
 
     Q_INVOKABLE BaseLayer *layer(int i);
     std::shared_ptr<BaseLayer> layerShared(int i);
+    // Like layer(i) (a row: own layer or reference), but keeps the layer alive.
+    std::shared_ptr<BaseLayer> rowLayerShared(int i);
 
     // ---- References / render order ---------------------------------------
 

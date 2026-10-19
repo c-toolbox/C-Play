@@ -13,8 +13,7 @@
 #include <QObject>
 #include <vector>
 #include <QtQml/qqmlregistration.h>
-
-class Track;
+#include "track.h"
 
 class TracksModel : public QAbstractListModel {
     Q_OBJECT
@@ -36,10 +35,13 @@ public:
     std::string getListAsFormattedString(std::string removePrefix = "", int charsPerItem = 40) const;
 
     Q_INVOKABLE void setTracks(std::vector<Track>* tracks);
+    // Shows a copy of the tracks, for lists owned by another thread or object (layers).
+    void setOwnedTracks(std::vector<Track> tracks);
     Q_INVOKABLE int countTracks() const;
 
 private:
     std::vector<Track>* m_tracks;
+    std::vector<Track> m_ownedTracks;
 };
 
 #endif // TRACKSMODEL_H

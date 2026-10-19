@@ -898,7 +898,7 @@ void HttpServerThread::setupHttpServer() {
         auto layerVolumeGetHandler = [this](const httplib::Request& req, httplib::Response& res) {
             LayersModel* layerModel = nullptr;
             int layerIdx = -1;
-            BaseLayer* layer = nullptr;
+            std::shared_ptr<BaseLayer> layer;
             res.set_content(getLayerFromRequest(req, layerModel, layerIdx, layer), "text/plain");
             if (layer) {
                 res.set_content(std::to_string(layer->volume()), "text/plain");
@@ -908,7 +908,7 @@ void HttpServerThread::setupHttpServer() {
         registerPost("/layer_volume", [this](const httplib::Request& req, httplib::Response& res) {
             LayersModel* layerModel = nullptr;
             int layerIdx = -1;
-            BaseLayer* layer = nullptr;
+            std::shared_ptr<BaseLayer> layer;
             res.set_content(getLayerFromRequest(req, layerModel, layerIdx, layer), "text/plain");
             if (layer) {
                 if (req.has_param("level")) {
@@ -916,7 +916,7 @@ void HttpServerThread::setupHttpServer() {
                     if (stringToInt(req.get_param_value("level"), volumeLevel)) {
                         if (volumeLevel >= 0 && volumeLevel <= 100) {
                             layer->setVolume(volumeLevel);
-                            if (layerModel) layerModel->updateLayerRow(layer);
+                            if (layerModel) layerModel->updateLayerRow(layer.get());
                         }
                     }
                 }
@@ -927,7 +927,7 @@ void HttpServerThread::setupHttpServer() {
         auto layerVisibilityGetHandler = [this](const httplib::Request& req, httplib::Response& res) {
             LayersModel* layerModel = nullptr;
             int layerIdx = -1;
-            BaseLayer* layer = nullptr;
+            std::shared_ptr<BaseLayer> layer;
             res.set_content(getLayerFromRequest(req, layerModel, layerIdx, layer), "text/plain");
             if (layer) {
                 res.set_content(std::to_string(static_cast<int>(layer->alpha()*100.f)), "text/plain");
@@ -937,7 +937,7 @@ void HttpServerThread::setupHttpServer() {
         registerPost("/layer_visibility", [this](const httplib::Request& req, httplib::Response& res) {
             LayersModel* layerModel = nullptr;
             int layerIdx = -1;
-            BaseLayer* layer = nullptr;
+            std::shared_ptr<BaseLayer> layer;
             res.set_content(getLayerFromRequest(req, layerModel, layerIdx, layer), "text/plain");
             if (layer) {
                 if (req.has_param("value")) {
@@ -945,7 +945,7 @@ void HttpServerThread::setupHttpServer() {
                     if (stringToInt(req.get_param_value("value"), value)) {
                         if (value >= 0 && value <= 100) {
                             layer->setAlpha(static_cast<float>(value) * 0.01f);
-                            if (layerModel) layerModel->updateLayerRow(layer);
+                            if (layerModel) layerModel->updateLayerRow(layer.get());
                         }
                     }
                 }
@@ -958,17 +958,17 @@ void HttpServerThread::setupHttpServer() {
             return [this, show](const httplib::Request& req, httplib::Response& res) {
                 LayersModel* layerModel = nullptr;
                 int layerIdx = -1;
-                BaseLayer* layer = nullptr;
+                std::shared_ptr<BaseLayer> layer;
                 res.set_content(getLayerFromRequest(req, layerModel, layerIdx, layer), "text/plain");
                 if (!layer || !layerModel) {
                     return;
                 }
                 std::shared_ptr<BaseLayer> parent = layerModel->layerShared(layerIdx);
                 int subLayerIdx = -1;
-                if (parent && parent.get() != layer) {
+                if (parent && parent != layer) {
                     auto& subLayers = parent->getSubLayers();
                     for (size_t i = 0; i < subLayers.size(); ++i) {
-                        if (subLayers[i].get() == layer) {
+                        if (subLayers[i] == layer) {
                             subLayerIdx = static_cast<int>(i);
                             break;
                         }
@@ -991,7 +991,7 @@ void HttpServerThread::setupHttpServer() {
         auto layerPlaneGetHandler = [this](const httplib::Request& req, httplib::Response& res) {
             LayersModel* layerModel = nullptr;
             int layerIdx = -1;
-            BaseLayer* layer = nullptr;
+            std::shared_ptr<BaseLayer> layer;
             res.set_content(getLayerFromRequest(req, layerModel, layerIdx, layer), "text/plain");
             if (layer) {
                     std::string returnString = "";
@@ -1043,7 +1043,7 @@ void HttpServerThread::setupHttpServer() {
         registerPost("/layer_plane", [this](const httplib::Request& req, httplib::Response& res) {
             LayersModel* layerModel = nullptr;
             int layerIdx = -1;
-            BaseLayer* layer = nullptr;
+            std::shared_ptr<BaseLayer> layer;
             res.set_content(getLayerFromRequest(req, layerModel, layerIdx, layer), "text/plain");
             if (layer) {
                     // Validate the new fields before changing any plane property.
@@ -1148,7 +1148,7 @@ void HttpServerThread::setupHttpServer() {
                         ++count;
                     }
                     if (updateLayer) {
-                        if (layerModel) layerModel->updateLayerRow(layer);
+                        if (layerModel) layerModel->updateLayerRow(layer.get());
                     }
                     res.set_content(returnString, "text/plain");
             }
@@ -1496,10 +1496,10 @@ const std::string HttpServerThread::SelectIndexFromSlides(std::string indexStr) 
     }
 }
 
-const std::string HttpServerThread::getLayerFromRequest(const httplib::Request& req, LayersModel*& lm, int& layerIdx, BaseLayer*& resolvedLayer) {
+const std::string HttpServerThread::getLayerFromRequest(const httplib::Request& req, LayersModel*& lm, int& layerIdx, std::shared_ptr<BaseLayer>& resolvedLayer) {
     lm = nullptr;
     layerIdx = -1;
-    resolvedLayer = nullptr;
+    resolvedLayer.reset();
     if (m_slidesModel) {
         if (req.has_param("layer_title")) {
             lm = m_slidesModel->masterSlide();
@@ -1514,7 +1514,8 @@ const std::string HttpServerThread::getLayerFromRequest(const httplib::Request& 
                 std::string layerTitleStr = req.get_param_value("layer_title");
                 // layer_idx / layer_title address the slide's own layers, not references.
                 layerIdx = lm->layerIdx(layerTitleStr);
-                BaseLayer* layer = lm->layerShared(layerIdx).get();
+                // Shared: the GUI thread may remove the layer while this request uses it.
+                std::shared_ptr<BaseLayer> layer = lm->layerShared(layerIdx);
                 if (!layer) {
                     return "Could not find layer with title: " + layerTitleStr;
                 }
@@ -1543,7 +1544,7 @@ const std::string HttpServerThread::getLayerFromRequest(const httplib::Request& 
             if (lm) {
                 std::string layerIdxStr = req.get_param_value("layer_idx");
                 if (stringToInt(layerIdxStr, layerIdx)) {
-                    BaseLayer* layer = lm->layerShared(layerIdx).get();
+                    std::shared_ptr<BaseLayer> layer = lm->layerShared(layerIdx);
                     if (!layer) {
                         return "Could not find layer with idx : " + layerIdxStr;
                     }
@@ -1569,7 +1570,7 @@ const std::string HttpServerThread::getLayerFromRequest(const httplib::Request& 
                 bool found = false;
                 for (auto& sub : subLayers) {
                     if (sub && sub->title() == subTitle) {
-                        resolvedLayer = sub.get();
+                        resolvedLayer = sub;
                         found = true;
                         break;
                     }
@@ -1583,7 +1584,7 @@ const std::string HttpServerThread::getLayerFromRequest(const httplib::Request& 
                 std::string subIdxStr = req.get_param_value("sub_layer_idx");
                 if (stringToInt(subIdxStr, subIdx)) {
                     if (subIdx >= 0 && subIdx < static_cast<int>(subLayers.size())) {
-                        resolvedLayer = subLayers[subIdx].get();
+                        resolvedLayer = subLayers[subIdx];
                     }
                     else {
                         return "Sub-layer index out of bounds: " + subIdxStr;

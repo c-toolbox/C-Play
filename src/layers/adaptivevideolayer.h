@@ -70,7 +70,7 @@ public:
     void setAudioId(int id) override;
     bool isAudioEnabled() const override;
     void enableAudio(bool enabled = true) override;
-    std::vector<Track>* audioTracks() override;
+    std::vector<Track> audioTracks() override;
     void updateAudioOutput() override;
     void setVolume(int v, bool storeLevel = true) override;
     void setVolumeMute(bool v) override;

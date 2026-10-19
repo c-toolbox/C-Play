@@ -251,6 +251,19 @@ MpvObject::MpvObject(QQuickItem *parent)
 MpvObject::~MpvObject() {
     mpv_set_wakeup_callback(mpv, nullptr, nullptr);
 
+    // Detach the views, waiting for a renderer that is using one of them.
+    std::vector<MpvView*> views;
+    {
+        std::lock_guard<std::recursive_mutex> lock(m_renderMutex);
+        views.swap(mpv_views);
+    }
+    for (MpvView* view : views) {
+        std::lock_guard<std::mutex> linkLock(view->m_link->mutex);
+        view->obj = nullptr;
+    }
+
+    // Usually destroyed on the GUI thread, where no OpenGL context is current otherwise.
+    ScopedSharedGLContext glContext;
     {
         std::lock_guard<std::recursive_mutex> lock(m_renderMutex);
         // only initialized if something got drawn
@@ -272,8 +285,10 @@ MpvObject::~MpvObject() {
         }
     }
 
-    if (SyncHelper::instance().variables.subtitleText)
+    if (SyncHelper::instance().variables.subtitleText) {
         delete SyncHelper::instance().variables.subtitleText;
+        SyncHelper::instance().variables.subtitleText = nullptr;
+    }
 
     // Make sure the general logging file is closed even if it was still enabled at shutdown.
     if (m_generalLogFileId >= 0) {
@@ -1007,12 +1022,12 @@ void MpvObject::loadFile(const QString &file, bool updateLastPlayedFile) {
         QFileInfo nodeMediaFileInfo(nodeSeparateMediaFile);
         if (nodeMediaFileInfo.exists())
         {
-            SyncHelper::instance().variables.loadedFile = nodeSeparateMediaFile.toStdString();
+            SyncHelper::instance().setString(SyncHelper::instance().variables.loadedFile, nodeSeparateMediaFile.toStdString());
         }
         else {
-            SyncHelper::instance().variables.loadedFile = fileToLoad.toStdString();
+            SyncHelper::instance().setString(SyncHelper::instance().variables.loadedFile, fileToLoad.toStdString());
         }
-        SyncHelper::instance().variables.overlayFile = "";
+        SyncHelper::instance().setString(SyncHelper::instance().variables.overlayFile, "");
         SyncHelper::instance().variables.loadFile = true;
         SyncHelper::instance().variables.overlayFileDirty = true;
 
@@ -1176,12 +1191,12 @@ void MpvObject::loadMultiVideo(const QString &jsonPath, bool updateLastPlayedFil
     // load any file into their main mpv instance. Clear the regular-file load state
     // (which may be stale from a previously played video) to avoid loading an
     // unrelated file and leaking its audio on the nodes.
-    SyncHelper::instance().variables.loadedFile  = "";
-    SyncHelper::instance().variables.overlayFile = "";
+    SyncHelper::instance().setString(SyncHelper::instance().variables.loadedFile, "");
+    SyncHelper::instance().setString(SyncHelper::instance().variables.overlayFile, "");
     SyncHelper::instance().variables.loadFile    = false;
 
     // Broadcast the composition JSON to nodes via SyncHelper
-    SyncHelper::instance().variables.multiVideoConfig       = jsonContent;
+    SyncHelper::instance().setString(SyncHelper::instance().variables.multiVideoConfig, jsonContent);
     SyncHelper::instance().variables.multiVideoConfigDirty  = true;
     SyncHelper::instance().variables.multiVideoEnabled      = true;
     SyncHelper::instance().variables.mpvNeedSync            = true;
@@ -1374,13 +1389,13 @@ void MpvObject::loadItem(PlayListItemData itemData, bool updateLastPlayedFile, Q
         QFileInfo nodeMediaFileInfo(nodeSeparateMediaFile);
         if (nodeMediaFileInfo.exists())
         {
-            SyncHelper::instance().variables.loadedFile = nodeSeparateMediaFile.toStdString();
+            SyncHelper::instance().setString(SyncHelper::instance().variables.loadedFile, nodeSeparateMediaFile.toStdString());
         }
         else {
-            SyncHelper::instance().variables.loadedFile = itemData.mediaFile().toStdString();
+            SyncHelper::instance().setString(SyncHelper::instance().variables.loadedFile, itemData.mediaFile().toStdString());
         }
 
-        SyncHelper::instance().variables.overlayFile = itemData.separateOverlayFile().toStdString();
+        SyncHelper::instance().setString(SyncHelper::instance().variables.overlayFile, itemData.separateOverlayFile().toStdString());
         SyncHelper::instance().variables.loadFile = true;
         SyncHelper::instance().variables.overlayFileDirty = true;
         m_separateAudioFile = audioFile;
@@ -2451,11 +2466,17 @@ void MpvObject::mpvRedraw(void* ctx) {
 }
 
 MpvView::MpvView(QQuickItem* parent)
-    : QQuickFramebufferObject(parent), fbo(nullptr), obj(nullptr), m_renderingPriority(1000) {
-
+    : QQuickFramebufferObject(parent), fbo(nullptr), obj(nullptr), m_renderingPriority(1000),
+    m_link(std::make_shared<MpvViewLink>()) {
+    m_link->view = this;
 }
 
 MpvView::~MpvView() {
+    {
+        // Waits for a render in progress; the renderer outlives this item.
+        std::lock_guard<std::mutex> linkLock(m_link->mutex);
+        m_link->view = nullptr;
+    }
     if (obj)
         obj->removeView(this);
 }
@@ -2463,7 +2484,7 @@ MpvView::~MpvView() {
 QQuickFramebufferObject::Renderer* MpvView::createRenderer() const {
     if (window())
         window()->setPersistentSceneGraph(true);
-    return new MpvRenderer(const_cast<MpvView*>(this));
+    return new MpvRenderer(m_link);
 }
 
 MpvObject* MpvView::mpvObject() const {
@@ -2475,7 +2496,10 @@ void MpvView::setMpvObject(MpvObject* mpv) {
         return;
     if (obj)
         obj->removeView(this);
-    obj = mpv;
+    {
+        std::lock_guard<std::mutex> linkLock(m_link->mutex);
+        obj = mpv;
+    }
     if (obj)
         obj->addView(this);
     Q_EMIT mpvObjectChanged();
@@ -2494,24 +2518,32 @@ void MpvView::setRenderingPriority(int rp) {
     Q_EMIT renderingPriorityChanged();
 }
 
-MpvRenderer::MpvRenderer(MpvView* new_view)
-    : view{ new_view } {
+MpvRenderer::MpvRenderer(std::shared_ptr<MpvViewLink> link)
+    : m_link{ std::move(link) } {
 }
 
 MpvRenderer::~MpvRenderer() {
     // Destroyed on the render thread with the OpenGL context current, so this
     // is the right place to release the NDI output GPU resources.
-    const bool isPrimaryView = !view || !view->obj
-        || view->obj->mpv_views.empty()
-        || view->obj->mpv_views[0] == view;
+    std::lock_guard<std::mutex> linkLock(m_link->mutex);
+    MpvView* view = m_link->view; // null when the item is already gone
+    bool isPrimaryView = true;
+    if (view && view->obj) {
+        std::lock_guard<std::recursive_mutex> lock(view->obj->m_renderMutex);
+        isPrimaryView = view->obj->mpv_views.empty() || view->obj->mpv_views[0] == view;
+        view->fbo = nullptr;
+    }
+    else if (view) {
+        view->fbo = nullptr;
+    }
     if (isPrimaryView && NdiSenderModel::instance()) {
         NdiSenderModel::instance()->cleanupGL();
     }
-    if (view)
-        view->fbo = nullptr;
 }
 
 void MpvRenderer::render() {
+    std::lock_guard<std::mutex> linkLock(m_link->mutex);
+    MpvView* view = m_link->view;
     if (!view || !view->obj || !view->obj->mpv_gl) {
         return;
     }
@@ -2642,6 +2674,8 @@ void MpvRenderer::render() {
 }
 
 QOpenGLFramebufferObject* MpvRenderer::createFramebufferObject(const QSize& size) {
+    std::lock_guard<std::mutex> linkLock(m_link->mutex);
+    MpvView* view = m_link->view;
     if (view && view->obj) {
         if (!view->obj->mpv_gl) {
             mpv_opengl_init_params gl_init_params[1] = { get_proc_address_mpv, nullptr };

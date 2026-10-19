@@ -248,7 +248,7 @@ public:
     virtual void setAudioId(int id);
     virtual bool isAudioEnabled() const;
     virtual void enableAudio(bool enabled = true);
-    virtual std::vector<Track>* audioTracks();
+    virtual std::vector<Track> audioTracks();
     virtual void updateAudioOutput();
     virtual void setVolume(int v, bool storeLevel = true);
     virtual void setVolumeScaling(float vScale);

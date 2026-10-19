@@ -20,6 +20,7 @@
 #include "utils/framesynccontroller.h"
 #include <atomic>
 #include <client.h>
+#include <memory>
 #include <mutex>
 #include <render_gl.h>
 #include <utils/planegrid.h>
@@ -619,6 +620,17 @@ private:
     void updatePerformanceStats();
 };
 
+class MpvView;
+
+// Links an MpvView to its renderer, which Qt destroys on the render thread after the item.
+// The renderer holds the mutex while it uses the view; ~MpvView, MpvView::setMpvObject() and
+// ~MpvObject take it to detach, so the view (and its MpvObject) are not destroyed or swapped
+// while the renderer uses them.
+struct MpvViewLink {
+    std::mutex mutex;
+    MpvView *view = nullptr;
+};
+
 class MpvView : public QQuickFramebufferObject {
     Q_OBJECT
     QML_ELEMENT
@@ -650,15 +662,17 @@ private:
     QOpenGLFramebufferObject* fbo;
     MpvObject* obj;
     int m_renderingPriority;
+    std::shared_ptr<MpvViewLink> m_link;
 
 };
 
 class MpvRenderer : public QQuickFramebufferObject::Renderer {
 public:
-    MpvRenderer(MpvView* new_view);
+    MpvRenderer(std::shared_ptr<MpvViewLink> link);
     ~MpvRenderer();
 
-    MpvView* view;
+    // The view is only used while holding m_link->mutex; it is null once the view is gone.
+    std::shared_ptr<MpvViewLink> m_link;
 
     // This function is called when a new FBO is needed.
     // This happens on the initial frame.

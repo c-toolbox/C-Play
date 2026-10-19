@@ -419,15 +419,18 @@ void WebRtcSource::teardownPeer()
         std::lock_guard<std::mutex> lock(m_trackMutex);
         videoTrack = std::move(m_videoTrack);
     }
+    // Resetting waits for a callback in progress, and none runs afterwards: they capture this,
+    // and libdatachannel can still call them from its threads after close().
     if (videoTrack) {
-        videoTrack->onFrame(nullptr);
+        videoTrack->resetCallbacks();
         videoTrack.reset();
     }
     if (m_audioTrack) {
-        m_audioTrack->onFrame(nullptr);
+        m_audioTrack->resetCallbacks();
         m_audioTrack.reset();
     }
     if (m_peer) {
+        m_peer->resetCallbacks();
         try {
             m_peer->close();
         } catch (const std::exception &error) {

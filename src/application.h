@@ -17,6 +17,7 @@
 #include <QElapsedTimer>
 #include <QVector3D>
 #include <atomic>
+#include <mutex>
 
 class QAbstractItemModel;
 class QAction;
@@ -34,6 +35,24 @@ class KConfigGroup;
 class KColorSchemeManager;
 class BaseLayer;
 class LayersRendererQtItem;
+class QOffscreenSurface;
+class QOpenGLContext;
+
+// Makes an OpenGL context current that shares its objects with the Qt Quick windows, while
+// in scope on the GUI thread of the master and no other context is current. With the
+// threaded Qt Quick render loop the GUI thread has no context of its own, so this is needed
+// to really release OpenGL objects (and mpv render contexts) of objects destroyed there.
+// Does nothing elsewhere (render threads, nodes); nested guards are fine.
+class ScopedSharedGLContext {
+public:
+    ScopedSharedGLContext();
+    ~ScopedSharedGLContext();
+    ScopedSharedGLContext(const ScopedSharedGLContext &) = delete;
+    ScopedSharedGLContext &operator=(const ScopedSharedGLContext &) = delete;
+
+private:
+    bool m_current = false;
+};
 #include "screensmodel.h"
 #include "slidesmodel.h"
 #include <layers/streammodel.h>
@@ -532,6 +551,11 @@ private:
     RenderThread renderThread;
     QElapsedTimer fadeDurationTimer;
     static Application *_instance;
+
+    // Used by ScopedSharedGLContext, created on first use.
+    friend class ScopedSharedGLContext;
+    QOpenGLContext *m_sharedGLContext = nullptr;
+    QOffscreenSurface *m_sharedGLSurface = nullptr;
 };
 
 class SyncHelper {
@@ -647,6 +671,15 @@ public:
     ~SyncHelper();
 
     static SyncHelper &instance();
+
+    // Guards the strings of variables that the GUI thread writes while the render threads
+    // read them (master encode(), Qt render thread): file paths, NDI name, screenshot path
+    // and multi-video config. Write them with setString().
+    std::recursive_mutex stringsMutex;
+    void setString(std::string &variable, std::string value) {
+        std::lock_guard<std::recursive_mutex> lock(stringsMutex);
+        variable = std::move(value);
+    }
 
     SyncVariables variables = {
         /*loadedFile*/ "",

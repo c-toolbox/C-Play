@@ -47,6 +47,10 @@ WebRtcHub::~WebRtcHub() {
     stopIfNoFeeds(true);
 }
 
+void WebRtcHub::shutdown() {
+    stopIfNoFeeds(true);
+}
+
 void WebRtcHub::registerFeed(const std::string &layerId, std::function<void()> requestKeyframe) {
     joinRetiredSenders();
 

@@ -319,9 +319,9 @@ void AdaptiveVideoLayer::enableAudio(bool enabled) {
     mdkVideoLayer->enableAudio(enabled);
 }
 
-std::vector<Track>* AdaptiveVideoLayer::audioTracks() {
+std::vector<Track> AdaptiveVideoLayer::audioTracks() {
     BaseLayer* sub = activeSubLayer();
-    return sub ? sub->audioTracks() : nullptr;
+    return sub ? sub->audioTracks() : std::vector<Track>();
 }
 
 void AdaptiveVideoLayer::updateAudioOutput() {

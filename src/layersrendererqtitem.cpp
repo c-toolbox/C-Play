@@ -3121,11 +3121,16 @@ void LayersRendererQtOpenGLObject::updateLayers() {
             SyncHelper::instance().variables.stereoscopicModeFg);
     }
     if (m_mpvObject && m_overlayImageLayer) {
+        std::string overlayFile;
+        {
+            std::lock_guard<std::recursive_mutex> lock(SyncHelper::instance().stringsMutex);
+            overlayFile = SyncHelper::instance().variables.overlayFile;
+        }
         bool overlayUpdated = false;
-        if(SyncHelper::instance().variables.overlayFile != m_overlayImageLayer->loadedFile()) {
+        if(overlayFile != m_overlayImageLayer->loadedFile()) {
             overlayUpdated = true;
         }
-        m_overlayImageLayer->processImageUpload(SyncHelper::instance().variables.overlayFile, overlayUpdated);
+        m_overlayImageLayer->processImageUpload(overlayFile, overlayUpdated);
     }
 
     if (m_shuttingDown || LayersRendererQtItem::isShuttingDown() || !Application::isCreated() || !Application::instance().slidesModel()) {

@@ -219,8 +219,8 @@ int MdkLayer::audioId() {
 void MdkLayer::setAudioId(int) {
 }
 
-std::vector<Track>* MdkLayer::audioTracks() {
-    return nullptr;
+std::vector<Track> MdkLayer::audioTracks() {
+    return {};
 }
 
 void MdkLayer::updateAudioOutput() {

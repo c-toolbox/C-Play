@@ -35,8 +35,10 @@ void RenderThread::terminate() {
 
 void RenderThread::run() {
     mutex.lock();
-    if (abort)
+    if (abort) {
+        mutex.unlock();
         return;
+    }
     sgct::Log::Info("Starting rendering");
     mutex.unlock();
 

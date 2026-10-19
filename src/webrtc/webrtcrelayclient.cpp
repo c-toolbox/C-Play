@@ -161,6 +161,18 @@ void WebRtcRelayClient::stop() {
 
     setState(WebRtcStreamState::Stopping);
 
+    // The session flag stops new callback work; resetting also waits for a callback that
+    // already passed that check (they capture this).
+    if (dc) {
+        dc->resetCallbacks();
+    }
+    if (pc) {
+        pc->resetCallbacks();
+    }
+    if (ws) {
+        ws->resetCallbacks();
+    }
+
     if (pc) {
         try {
             pc->close();

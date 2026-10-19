@@ -86,7 +86,15 @@ QHash<int, QByteArray> TracksModel::roleNames() const {
 
 void TracksModel::setTracks(std::vector<Track>* tracks) {
     beginResetModel();
+    m_ownedTracks.clear();
     m_tracks = tracks;
+    endResetModel();
+}
+
+void TracksModel::setOwnedTracks(std::vector<Track> tracks) {
+    beginResetModel();
+    m_ownedTracks = std::move(tracks);
+    m_tracks = &m_ownedTracks;
     endResetModel();
 }
 

@@ -73,7 +73,7 @@ public:
     bool hasAudio() const override;
     int audioId();
     void setAudioId(int id);
-    std::vector<Track>* audioTracks();
+    std::vector<Track> audioTracks();
     void updateAudioOutput();
     void setVolume(int v, bool storeLevel = true);
 

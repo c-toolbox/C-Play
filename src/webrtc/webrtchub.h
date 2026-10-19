@@ -77,6 +77,10 @@ public:
     void publishAudio(const std::string &layerId, const std::uint8_t *data, std::size_t size,
                       std::int64_t pts);
 
+    /// Disconnects all nodes and stops the signaling server. Called on application shutdown,
+    /// before static destruction (when libdatachannel's own globals may already be gone).
+    void shutdown();
+
 private:
     WebRtcHub() = default;
     ~WebRtcHub();

@@ -50,7 +50,9 @@ public:
         // so switching a live layer to/from a YouTube URL cannot fully re-configure mpv.
         bool isYoutubeAtInit = false;
         bool supportVideo = true;
-        std::vector<Track> audioTracks;
+        // Written by the mpv event thread (track-list changes) and read by the GUI thread.
+        std::mutex tracksMutex;
+        std::vector<Track> audioTracks; // guarded by tracksMutex
         bool audioEnabled = false;
         bool audioEnabled_Dec = false;
         int audioId = -1;
@@ -109,7 +111,8 @@ public:
 
         // Loader failure state. The mpv event thread (on_mpv_events) writes pendingLoadError /
         // fileLoaded; the render thread reads them in collectLoadStatus() and syncs them into
-        // BaseLayer's load-status members. Guarded by loadStatusMutex.
+        // BaseLayer's load-status members. Guarded by loadStatusMutex, which also guards writes of
+        // loadedFile (read by the mpv event thread).
         std::mutex loadStatusMutex;
         bool fileLoaded = false;                     // MPV_EVENT_FILE_LOADED received for loadedFile
         std::string pendingLoadError;                // "" = no failure reported by the event thread
@@ -177,7 +180,7 @@ public:
     int audioId();
     void setAudioId(int id);
     void enableAudio(bool enabled = true);
-    std::vector<Track>* audioTracks();
+    std::vector<Track> audioTracks();
     void updateAudioOutput();
     void setVolume(int v, bool storeLevel = true);
     void setVolumeMute(bool v);

@@ -98,7 +98,12 @@
 #include <QLocale>
 #include <QGuiApplication>
 #include <QClipboard>
+#ifdef WEBRTC_SUPPORT
+#include "webrtc/webrtchub.h"
+#endif
 #include <QMimeDatabase>
+#include <QOffscreenSurface>
+#include <QOpenGLContext>
 #include <QPointer>
 #include <QQmlApplicationEngine>
 #include <QQmlContext>
@@ -363,11 +368,51 @@ bool Application::isCreated() {
     return _instance != nullptr;
 }
 
+ScopedSharedGLContext::ScopedSharedGLContext() {
+    // Nodes never create the Application, and their GUI thread renders with GLFW.
+    if (QOpenGLContext::currentContext() || !Application::isCreated())
+        return;
+    auto *app = qobject_cast<QGuiApplication *>(QCoreApplication::instance());
+    QOpenGLContext *share = QOpenGLContext::globalShareContext();
+    if (!app || !share || QThread::currentThread() != app->thread())
+        return;
+    Application &application = Application::instance();
+    if (!application.m_sharedGLContext) {
+        auto *context = new QOpenGLContext();
+        context->setShareContext(share);
+        context->setFormat(share->format());
+        auto *surface = new QOffscreenSurface();
+        surface->setFormat(share->format());
+        surface->create();
+        if (!context->create() || !surface->isValid()) {
+            delete context;
+            delete surface;
+            return;
+        }
+        application.m_sharedGLContext = context;
+        application.m_sharedGLSurface = surface;
+    }
+    m_current = application.m_sharedGLContext->makeCurrent(application.m_sharedGLSurface);
+}
+
+ScopedSharedGLContext::~ScopedSharedGLContext() {
+    if (m_current && Application::isCreated() && Application::instance().m_sharedGLContext)
+        Application::instance().m_sharedGLContext->doneCurrent();
+}
+
 Application::~Application() {
     shutdownLayers();
     shutdownWorkerThread();
+#ifdef WEBRTC_SUPPORT
+    WebRtcHub::instance().shutdown();
+#endif
     delete m_engine;
     m_engine = nullptr;
+    // After the QML objects (layers, mpv) that may have used it, before the application.
+    delete m_sharedGLContext;
+    m_sharedGLContext = nullptr;
+    delete m_sharedGLSurface;
+    m_sharedGLSurface = nullptr;
     _instance = nullptr;
     delete m_aboutData;
     m_aboutData = nullptr;
