@@ -93,7 +93,7 @@ Q_SIGNALS:
 private:
     QList<PortAudioDevice> m_audioOutputs;
     int m_currentDevice;
-    bool m_paIsInitialized;
+    bool m_paIsInitialized = false;
 };
 
 #endif // NDIMODEL_H

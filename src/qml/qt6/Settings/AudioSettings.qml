@@ -312,6 +312,11 @@ SettingsBasePage {
                     }
                 }
 
+                // No selection until a driver is stored: showing "jack" (index 0) for an empty
+                // setting would claim a driver mpv does not use.
+                currentIndex: -1
+                displayText: currentIndex < 0 ? qsTr("Select driver") : currentText
+
                 Component.onCompleted: {
                     for (let i = 0; i < audioOutputDriver.count; ++i) {
                         if (audioOutputDriver.get(i).driver === AudioSettings.preferredAudioOutputDriver) {
@@ -320,7 +325,7 @@ SettingsBasePage {
                         }
                     }
                 }
-                onActivated: {
+                onActivated: function(index) {
                     AudioSettings.preferredAudioOutputDriver = model.get(index).driver;
                     AudioSettings.save();
                     mpv.updateAudioOutput();
@@ -644,7 +649,9 @@ SettingsBasePage {
             width: 1
         }
         Label {
+            visible: root.portAudioLayers
             wrapMode: Text.WordWrap
+            Layout.columnSpan: 2
             Layout.fillWidth: true
             font.italic: true
             color: root.mpvUsesJack ? Kirigami.Theme.positiveTextColor : Kirigami.Theme.neutralTextColor
