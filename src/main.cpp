@@ -34,6 +34,7 @@
 #include <KConfig>
 #include <KConfigGroup>
 #include <atomic>
+#include <cstdio>
 #include <mutex>
 #include <slidesmodel.h>
 #include <telemetry/nodetelemetry.h>
@@ -1821,7 +1822,16 @@ int main(int argc, char *argv[]) {
             return EXIT_FAILURE;
         Application::create(qapp_argv_size, qapp_argv.data(), QStringLiteral("C-Play"));
         Application::instance().setStartupFile(startupFile);
-        return Application::instance().run();
+        const int appReturnCode = Application::instance().run();
+#if defined(NDI_SUPPORT) && defined(_WIN32)
+        // All application/NDI cleanup is done at this point. The NDI runtime
+        // (Processing.NDI.Lib) can deadlock in its DLL_PROCESS_DETACH handler
+        // during the normal CRT exit path, leaving the master process hanging.
+        // Flush output and terminate without running DLL detach handlers.
+        std::fflush(nullptr);
+        TerminateProcess(GetCurrentProcess(), static_cast<UINT>(appReturnCode));
+#endif
+        return appReturnCode;
     } else {
         Log::Info("Start Client");
 

@@ -34,6 +34,9 @@ public:
 
     Q_INVOKABLE QString getNDIVersionString();
 
+    // Releases the global NDI finder (call once at application shutdown).
+    static void shutdownNdi();
+
 Q_SIGNALS:
     void sendersListChanged();
 

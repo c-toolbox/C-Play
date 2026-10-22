@@ -963,6 +963,15 @@ void ofxNDIreceive::ReleaseReceiver()
 {
 	if(!bNDIinitialized) return;
 
+	// The frame-synchronizer wraps the receiver and must be destroyed first,
+	// otherwise it is leaked (and later destroyed with a dangling receiver),
+	// which keeps NDI worker threads alive and hangs process exit.
+	if (m_frameSyncOn) {
+		if (pNDI_framesync) NDIlib_framesync_destroy(pNDI_framesync);
+		pNDI_framesync = nullptr;
+		m_frameSyncOn = false;
+	}
+
 	if (pNDI_recv) p_NDILib->recv_destroy(pNDI_recv);
 
 	m_Width = 0;

@@ -57,6 +57,10 @@ void NDISendersModel::updateSendersList() {
     Q_EMIT sendersListChanged();
 }
 
+void NDISendersModel::shutdownNdi() {
+    NdiFinder::destroy();
+}
+
 int NDISendersModel::getNumberOfSenders() {
     return m_NDIsenders.size();
 }
