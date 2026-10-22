@@ -1863,6 +1863,15 @@ int main(int argc, char *argv[]) {
         Engine::destroy();
 
         QCoreApplication::processEvents();
+#ifdef NDI_SUPPORT
+        NdiFinder::destroy();
+#endif
+#if defined(NDI_SUPPORT) && defined(_WIN32)
+        // Same as on the master: avoid the NDI runtime deadlocking in its
+        // DLL_PROCESS_DETACH handler during the normal CRT exit path.
+        std::fflush(nullptr);
+        TerminateProcess(GetCurrentProcess(), static_cast<UINT>(EXIT_SUCCESS));
+#endif
         return EXIT_SUCCESS;
     }
 }
