@@ -13,6 +13,7 @@
 #include <libomt.h>
 #include <portaudio.h>
 #include <memory>
+#include <mutex>
 #include <vector>
 
 class OmtFinder {
@@ -20,6 +21,10 @@ public:
     OmtFinder();
     ~OmtFinder();
     static OmtFinder& instance();
+    static void destroy();
+    // libomt loads libvmx dynamically for VMX1 video decoding. If it is missing, receivers
+    // still connect and deliver audio but never return video frames. Logs an error when absent.
+    static bool checkVideoDecoderAvailable();
 
     std::vector<std::string> getSendersList();
     bool senderExists(const std::string& senderName);
@@ -76,6 +81,7 @@ private:
     bool m_audioStreamOpen = false;
     bool m_audioStreamStarted = false;
     bool m_receiveAudio = false;
+    bool m_portAudioInitialized = false;
     bool m_isAudioEnabled = false;
     bool m_typePropertiesDecoded = false;
     int m_volume_Dec = 100;
@@ -88,6 +94,11 @@ private:
 
     // Temporary buffer for interleaving planar float audio
     std::vector<float> m_interleavedAudioBuf;
+
+    // Guards all PortAudio stream state; update() (render thread) and
+    // updateAudioOutput() (GUI thread) may otherwise open/close streams concurrently,
+    // which crashes non-thread-safe drivers such as ASIO.
+    std::recursive_mutex m_audioMutex;
 };
 
 #endif // OMTLAYER_H

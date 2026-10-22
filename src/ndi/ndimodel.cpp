@@ -9,6 +9,7 @@
 #include "ndilayer.h"
 #include "audiosettings.h"
 #include <QRegularExpression>
+#include <audio/portaudiolock.h>
 
 NDISendersModel::NDISendersModel(QObject *parent)
     : QAbstractListModel(parent) {
@@ -81,7 +82,7 @@ PortAudioModel::PortAudioModel(QObject* parent)
 
 PortAudioModel::~PortAudioModel() {
     if (m_paIsInitialized) {
-        Pa_Terminate();
+        cplay::audio::paTerminate();
     }
 }
 
@@ -128,7 +129,7 @@ void PortAudioModel::updatePortAudioList() {
     m_audioOutputs.clear();
 
     if (!m_paIsInitialized) {
-        PaError error = Pa_Initialize();
+        PaError error = cplay::audio::paInitialize();
         m_paIsInitialized = (error == paNoError);
     }
 

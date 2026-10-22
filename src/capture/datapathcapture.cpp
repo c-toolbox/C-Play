@@ -36,6 +36,7 @@
 #include <cstring>
 #include <format>
 #include <utility>
+#include <audio/portaudiolock.h>
 
 namespace {
 
@@ -870,7 +871,7 @@ void DatapathAudioCapture::run() {
 
     close();
     if (m_paInitialized)
-        Pa_Terminate();
+        cplay::audio::paTerminate();
     if (m_sdkLoaded)
         releaseSdk();
 }
@@ -933,7 +934,7 @@ bool DatapathAudioCapture::open() {
         return fail(std::format("could not start audio on Datapath input {} (0x{:08x})", m_input, error));
 
     if (!m_paInitialized) {
-        const PaError paErr = Pa_Initialize();
+        const PaError paErr = cplay::audio::paInitialize();
         if (paErr != paNoError)
             return fail(std::format("PortAudio initialization failed ({})", Pa_GetErrorText(paErr)));
         m_paInitialized = true;
@@ -955,11 +956,11 @@ bool DatapathAudioCapture::open() {
     m_pcm.assign(static_cast<size_t>(kAudioFramesPerBuffer) * 2 * m_sampleBytes, 0);
 
     PaStream* stream = nullptr;
-    PaError paErr = Pa_OpenStream(&stream, nullptr, &params, static_cast<double>(best.SamplesPerSec), kAudioFramesPerBuffer,
+    PaError paErr = cplay::audio::paOpenStream(&stream, nullptr, &params, static_cast<double>(best.SamplesPerSec), kAudioFramesPerBuffer,
                                   paClipOff, audioOutputCallback, this);
     if (paErr == paNoError) {
         m_stream = stream;
-        paErr = Pa_StartStream(stream);
+        paErr = cplay::audio::paStartStream(stream);
     }
     if (paErr != paNoError)
         return fail(std::format("could not open the audio output for Datapath input {} ({})", m_input, Pa_GetErrorText(paErr)));
@@ -974,9 +975,9 @@ bool DatapathAudioCapture::open() {
 void DatapathAudioCapture::close() {
     if (m_stream) {
         PaStream* stream = static_cast<PaStream*>(m_stream);
-        if (Pa_StopStream(stream) != paNoError)
-            Pa_AbortStream(stream);
-        Pa_CloseStream(stream);
+        if (cplay::audio::paStopStream(stream) != paNoError)
+            cplay::audio::paAbortStream(stream);
+        cplay::audio::paCloseStream(stream);
         m_stream = nullptr;
     }
     m_running.store(false);

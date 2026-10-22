@@ -15,6 +15,7 @@
 #include "audiosettings.h"
 #include <utils/directshowpathresolver.h>
 #include <utils/texturesubdivision.h>
+#include <audio/portaudiolock.h>
 #ifdef CAPTURE_DATAPATH
 #include <capture/datapathcapture.h>
 #endif
@@ -352,7 +353,7 @@ void DirectShowLayer::cleanup() {
     m_workerThread.reset();
 
     if (m_portAudioInitialized.load()) {
-        Pa_Terminate();
+        cplay::audio::paTerminate();
         m_portAudioInitialized.store(false);
     }
 #endif
@@ -1915,7 +1916,7 @@ void DirectShowLayer::handleAudioSample(const BYTE* pData, DWORD length, const A
 void DirectShowLayer::ensurePortAudioInitialized() {
     if (m_portAudioInitialized.load())
         return;
-    const PaError err = Pa_Initialize();
+    const PaError err = cplay::audio::paInitialize();
     if (err != paNoError) {
         sgct::Log::Error(std::format("DirectShowLayer: PortAudio initialization failed ({})\n", Pa_GetErrorText(err)));
         return;
@@ -1949,7 +1950,7 @@ bool DirectShowLayer::openAudioStreamLocked(int sampleRate, int channels) {
         m_audioOutputParameters.suggestedLatency = 0.05;
     m_audioOutputParameters.hostApiSpecificStreamInfo = nullptr;
 
-    m_audioError = Pa_OpenStream(&m_audioStream, nullptr, &m_audioOutputParameters, sampleRate,
+    m_audioError = cplay::audio::paOpenStream(&m_audioStream, nullptr, &m_audioOutputParameters, sampleRate,
                                  paFramesPerBufferUnspecified, paClipOff, audioOutputCallback, this);
     if (m_audioError != paNoError) {
         sgct::Log::Error(std::format("DirectShowLayer: failed to open PortAudio stream ({})\n", Pa_GetErrorText(m_audioError)));
@@ -1968,14 +1969,14 @@ bool DirectShowLayer::openAudioStreamLocked(int sampleRate, int channels) {
 void DirectShowLayer::closeAudioStreamLocked() {
     if (m_audioStream) {
         if (m_audioStreamStarted.load()) {
-            const PaError err = Pa_StopStream(m_audioStream);
+            const PaError err = cplay::audio::paStopStream(m_audioStream);
             if (err == paNoError || err == paStreamIsStopped)
                 m_audioStreamStarted.store(false);
             else
-                Pa_AbortStream(m_audioStream); // mirrors NdiLayer::cleanup()
+                cplay::audio::paAbortStream(m_audioStream); // mirrors NdiLayer::cleanup()
         }
         if (m_audioStreamOpen.load()) {
-            const PaError err = Pa_CloseStream(m_audioStream);
+            const PaError err = cplay::audio::paCloseStream(m_audioStream);
             if (err == paNoError)
                 m_audioStreamOpen.store(false);
         }
@@ -2098,16 +2099,16 @@ bool DirectShowLayer::openAudioInput(const std::string& deviceName) {
         input.hostApiSpecificStreamInfo = nullptr;
 
         // 256 frames (~5ms) per callback; stream flags are 0 (this PortAudio version predates paDefault/paNoFlag).
-        PaError err = Pa_OpenStream(&m_audioInputStream, &input, nullptr, rate, 256, 0, audioInputCallback, this);
+        PaError err = cplay::audio::paOpenStream(&m_audioInputStream, &input, nullptr, rate, 256, 0, audioInputCallback, this);
         if (err != paNoError) {
             sgct::Log::Error(std::format("DirectShowLayer: failed to open WASAPI input '{}' ({})\n", info->name, Pa_GetErrorText(err)));
             m_audioInputStream = nullptr;
             return false;
         }
-        err = Pa_StartStream(m_audioInputStream);
+        err = cplay::audio::paStartStream(m_audioInputStream);
         if (err != paNoError) {
             sgct::Log::Error(std::format("DirectShowLayer: failed to start WASAPI input '{}' ({})\n", info->name, Pa_GetErrorText(err)));
-            Pa_CloseStream(m_audioInputStream);
+            cplay::audio::paCloseStream(m_audioInputStream);
             m_audioInputStream = nullptr;
             return false;
         }
@@ -2134,10 +2135,10 @@ bool DirectShowLayer::openAudioInput(const std::string& deviceName) {
 
 void DirectShowLayer::closeAudioInputLocked() {
     if (m_audioInputStream) {
-        const PaError err = Pa_StopStream(m_audioInputStream); // no-op when already stopped
+        const PaError err = cplay::audio::paStopStream(m_audioInputStream); // no-op when already stopped
         if (err != paNoError && err != paStreamIsStopped)
-            Pa_AbortStream(m_audioInputStream); // mirrors closeAudioStreamLocked()
-        Pa_CloseStream(m_audioInputStream);
+            cplay::audio::paAbortStream(m_audioInputStream); // mirrors closeAudioStreamLocked()
+        cplay::audio::paCloseStream(m_audioInputStream);
         m_audioInputStream = nullptr;
     }
     m_audioInputOpen.store(false);
@@ -2258,7 +2259,7 @@ int DirectShowLayer::audioOutputCallback(const void* /*inputBuffer*/, void* outp
 void DirectShowLayer::start() {
     if (!m_audioStreamStarted.load() && isAudioEnabled() && m_audioStream && m_audioStreamOpen.load()) {
         setVolume(m_volume);
-        m_audioError = Pa_StartStream(m_audioStream);
+        m_audioError = cplay::audio::paStartStream(m_audioStream);
         if (m_audioError == paNoError) {
             m_audioStreamStarted.store(true);
         }
@@ -2267,7 +2268,7 @@ void DirectShowLayer::start() {
 
 void DirectShowLayer::stop() {
     if (isAudioEnabled() && m_audioStream && m_audioStreamOpen.load() && m_audioStreamStarted.load()) {
-        m_audioError = Pa_StopStream(m_audioStream);
+        m_audioError = cplay::audio::paStopStream(m_audioStream);
         if (m_audioError == paNoError) {
             m_audioStreamStarted.store(false);
         }

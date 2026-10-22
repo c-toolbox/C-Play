@@ -14,6 +14,7 @@
 #include <sgct/sgct.h>
 #include <algorithm>
 #include <format>
+#include <audio/portaudiolock.h>
 
 namespace cplay::audio {
 
@@ -43,7 +44,7 @@ PaDeviceIndex chooseOutputDevice() {
 
 JackAudioInput::JackAudioInput(BaseLayer &layer, std::string clientName)
     : m_layer(layer), m_clientName(std::move(clientName)) {
-    const PaError err = Pa_Initialize(); // reference counted with the other PortAudio users
+    const PaError err = cplay::audio::paInitialize(); // reference counted with the other PortAudio users
     if (err == paNoError)
         m_paInitialized = true;
     else
@@ -54,7 +55,7 @@ JackAudioInput::~JackAudioInput() {
     closeOutput();
     closeClient();
     if (m_paInitialized)
-        Pa_Terminate();
+        cplay::audio::paTerminate();
 }
 
 bool JackAudioInput::update() {
@@ -183,12 +184,12 @@ bool JackAudioInput::openOutput(PaDeviceIndex device, int outChannels) {
     m_targetFrames = std::max(2 * m_jackPeriod, m_sampleRate / 50);       // ~20 ms
     m_limitFrames = m_targetFrames + std::max(2 * m_jackPeriod, m_sampleRate / 12); // + ~80 ms
 
-    PaError err = Pa_OpenStream(&m_stream, nullptr, &params, m_sampleRate, paFramesPerBufferUnspecified, paClipOff,
+    PaError err = cplay::audio::paOpenStream(&m_stream, nullptr, &params, m_sampleRate, paFramesPerBufferUnspecified, paClipOff,
                                 &JackAudioInput::paCallback, this);
     if (err == paNoError) {
-        err = Pa_StartStream(m_stream);
+        err = cplay::audio::paStartStream(m_stream);
         if (err != paNoError) {
-            Pa_CloseStream(m_stream);
+            cplay::audio::paCloseStream(m_stream);
         }
     }
     if (err != paNoError) {
@@ -208,9 +209,9 @@ bool JackAudioInput::openOutput(PaDeviceIndex device, int outChannels) {
 void JackAudioInput::closeOutput() {
     m_outputRunning.store(false, std::memory_order_release);
     if (m_stream) {
-        if (Pa_StopStream(m_stream) != paNoError)
-            Pa_AbortStream(m_stream);
-        Pa_CloseStream(m_stream);
+        if (cplay::audio::paStopStream(m_stream) != paNoError)
+            cplay::audio::paAbortStream(m_stream);
+        cplay::audio::paCloseStream(m_stream);
         m_stream = nullptr;
     }
     m_device = paNoDevice;

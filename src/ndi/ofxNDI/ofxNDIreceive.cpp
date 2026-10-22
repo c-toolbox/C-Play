@@ -1086,11 +1086,11 @@ bool ofxNDIreceive::ReceiveImageAndAudio(unsigned char *pixels,
 							if (m_AudioData) {
 								memcpy((void*)m_AudioData, (void*)audio_frame.p_data, ((size_t)m_nAudioSamples * (size_t)m_nAudioChannels * sizeof(float)));
 
-								//SMPTE Audio levels - reference Level 20 dB headroom
+								// Float 1.0 = 0 dBFS (as sent by OBS and most apps, and as the OMT path assumes). Clamp in float before narrowing.
 								if (m_bAudioConvertToInterleaved && m_AudioDataInterleaved) {
 									for (int i = 0; i < m_nAudioSamples * m_nAudioChannels; i += m_nAudioChannels) {
 										for (int c = 0; c < m_nAudioChannels; c++) {
-											m_AudioDataInterleaved[i + c] = std::max<int16_t>(-32768, std::min<int16_t>(32767, (int16_t)(3276.8f * (m_AudioData[i / m_nAudioChannels + (m_nAudioSamples * c)] * m_bAudioVolume))));
+											m_AudioDataInterleaved[i + c] = (int16_t)std::max(-32768.f, std::min(32767.f, 32767.f * m_AudioData[i / m_nAudioChannels + (m_nAudioSamples * c)] * m_bAudioVolume));
 										}
 									}
 								}
@@ -1323,11 +1323,11 @@ bool ofxNDIreceive::ReceiveImageAndAudio(unsigned int &width, unsigned int &heig
 						if (m_AudioData) {
 							memcpy((void*)m_AudioData, (void*)audio_frame.p_data, ((size_t)m_nAudioSamples * (size_t)m_nAudioChannels * sizeof(float)));
 
-							//SMPTE Audio levels - reference Level 20 dB headroom
+							// Float 1.0 = 0 dBFS (as sent by OBS and most apps, and as the OMT path assumes). Clamp in float before narrowing.
 							if (m_bAudioConvertToInterleaved && m_AudioDataInterleaved) {
 								for (int i = 0; i < m_nAudioSamples * m_nAudioChannels; i += m_nAudioChannels) {
 									for (int c = 0; c < m_nAudioChannels; c++) {
-										m_AudioDataInterleaved[i + c] = std::max<int16_t>(-32768, std::min<int16_t>(32767, (int16_t)(3276.8f * (m_AudioData[i / m_nAudioChannels + (m_nAudioSamples * c)] * m_bAudioVolume))));
+										m_AudioDataInterleaved[i + c] = (int16_t)std::max(-32768.f, std::min(32767.f, 32767.f * m_AudioData[i / m_nAudioChannels + (m_nAudioSamples * c)] * m_bAudioVolume));
 									}
 								}
 							}
@@ -1535,11 +1535,11 @@ void* ofxNDIreceive::ReceiveAudioOnly() {
 					if (m_AudioData) {
 						memcpy((void*)m_AudioData, (void*)audio_frame.p_data, ((size_t)m_nAudioSamples * (size_t)m_nAudioChannels * sizeof(float)));
 
-						//SMPTE Audio levels - reference Level 20 dB headroom
+						// Float 1.0 = 0 dBFS (as sent by OBS and most apps, and as the OMT path assumes). Clamp in float before narrowing.
 						if (m_bAudioConvertToInterleaved && m_AudioDataInterleaved) {
 							for (int i = 0; i < m_nAudioSamples * m_nAudioChannels; i += m_nAudioChannels) {
 								for (int c = 0; c < m_nAudioChannels; c++) {
-									m_AudioDataInterleaved[i + c] = std::max<int16_t>(-32768, std::min<int16_t>(32767, (int16_t)(3276.8f * (m_AudioData[i / m_nAudioChannels + (m_nAudioSamples * c)] * m_bAudioVolume))));
+									m_AudioDataInterleaved[i + c] = (int16_t)std::max(-32768.f, std::min(32767.f, 32767.f * m_AudioData[i / m_nAudioChannels + (m_nAudioSamples * c)] * m_bAudioVolume));
 								}
 							}
 						}
@@ -1693,11 +1693,11 @@ void* ofxNDIreceive::ReceiveAudioOnlyFrameSync(int framesToCapture) {
 				if (m_AudioData) {
 					memcpy((void*)m_AudioData, (void*)audio_frame.p_data, ((size_t)m_nAudioSamples * (size_t)m_nAudioChannels * sizeof(float)));
 
-					//SMPTE Audio levels - reference Level 20 dB headroom
+					// Float 1.0 = 0 dBFS (as sent by OBS and most apps, and as the OMT path assumes). Clamp in float before narrowing.
 					if (m_bAudioConvertToInterleaved && m_AudioDataInterleaved) {
 						for (int i = 0; i < m_nAudioSamples * m_nAudioChannels; i += m_nAudioChannels) {
 							for (int c = 0; c < m_nAudioChannels; c++) {
-								m_AudioDataInterleaved[i + c] = std::max<int16_t>(-32768, std::min<int16_t>(32767, (int16_t)(3276.8f * (m_AudioData[i / m_nAudioChannels + (m_nAudioSamples * c)] * m_bAudioVolume))));
+								m_AudioDataInterleaved[i + c] = (int16_t)std::max(-32768.f, std::min(32767.f, 32767.f * m_AudioData[i / m_nAudioChannels + (m_nAudioSamples * c)] * m_bAudioVolume));
 							}
 						}
 					}

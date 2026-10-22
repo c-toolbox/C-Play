@@ -9,9 +9,15 @@
 #include "audiosettings.h"
 #include <sgct/sgct.h>
 #include <utils/texturesubdivision.h>
+#include <audio/portaudiolock.h>
 #include <cstring>
 #include <cmath>
 #include <algorithm>
+#if defined(_WIN32)
+#include <windows.h>
+#else
+#include <dlfcn.h>
+#endif
 
 // ============================================================
 // OmtFinder
@@ -22,6 +28,32 @@ OmtFinder::OmtFinder() {
 }
 
 OmtFinder::~OmtFinder() {
+}
+
+void OmtFinder::destroy() {
+    if (_instance) {
+        delete _instance;
+        _instance = nullptr;
+    }
+}
+
+bool OmtFinder::checkVideoDecoderAvailable() {
+#if defined(_WIN32)
+    const char* libName = "libvmx.dll";
+    // Kept loaded; libomt resolves the same module later.
+    const bool available = LoadLibraryA(libName) != nullptr;
+#elif defined(__APPLE__)
+    const char* libName = "libvmx.dylib";
+    const bool available = dlopen(libName, RTLD_NOW) != nullptr;
+#else
+    const char* libName = "libvmx.so";
+    const bool available = dlopen(libName, RTLD_NOW) != nullptr;
+#endif
+    if (!available) {
+        sgct::Log::Error(std::string("OMT Error: ") + libName
+            + " not found. OMT layers will receive audio but no video frames.");
+    }
+    return available;
 }
 
 OmtFinder& OmtFinder::instance() {
@@ -64,10 +96,14 @@ std::string OmtFinder::getOMTVersionString() {
 // ============================================================
 OmtLayer::OmtLayer() {
     setType(BaseLayer::LayerType::OMT);
+    // OMT frames arrive top-down; stored presentations override this via "flipY".
+    setFlipY(true);
     enableTextureSubdivision();
 }
 
 OmtLayer::~OmtLayer() {
+    std::lock_guard<std::recursive_mutex> lock(m_audioMutex);
+    std::unique_lock<std::recursive_mutex> paLock(cplay::audio::portAudioMutex());
     if (isAudioEnabled() && m_receiveAudio) {
         if (m_audioStreamOpen && m_audioStreamStarted) {
             m_audioError = Pa_CloseStream(m_audioStream);
@@ -75,8 +111,12 @@ OmtLayer::~OmtLayer() {
                 m_audioStreamOpen = false;
             }
         }
-        Pa_Terminate();
     }
+    if (m_portAudioInitialized) {
+        Pa_Terminate();
+        m_portAudioInitialized = false;
+    }
+    paLock.unlock();
 
     if (m_receiver) {
         omt_receive_destroy(m_receiver);
@@ -94,11 +134,13 @@ void OmtLayer::initialize() {
 
     // Only receive audio on master
     if (isAudioEnabled()) {
+        std::lock_guard<std::recursive_mutex> paLock(cplay::audio::portAudioMutex());
         m_audioError = Pa_Initialize();
         if (m_audioError != paNoError) {
             sgct::Log::Error("OmtLayer Error: PortAudio initialization failed.\n");
         }
         else {
+            m_portAudioInitialized = true;
             m_receiveAudio = true;
             m_audioOutputParameters.device = Pa_GetDefaultOutputDevice();
             if (m_audioOutputParameters.device == paNoDevice) {
@@ -157,6 +199,7 @@ void OmtLayer::update(bool updateRendering) {
     if (m_receiveAudio && m_receiver) {
         OMTMediaFrame* audioFrame = omt_receive(m_receiver, OMTFrameType_Audio, 0);
         if (audioFrame && audioFrame->Type == OMTFrameType_Audio && audioFrame->Data && audioFrame->DataLength > 0) {
+            std::lock_guard<std::recursive_mutex> lock(m_audioMutex);
             // Start audio stream on first audio frame if not yet started
             if (!m_audioStreamOpen) {
                 m_audioSampleRate = audioFrame->SampleRate;
@@ -258,8 +301,12 @@ void OmtLayer::ProcessAudioFrame(OMTMediaFrame* frame) {
 }
 
 bool OmtLayer::StartAudioStream() {
+    std::lock_guard<std::recursive_mutex> lock(m_audioMutex);
     if (!m_receiveAudio)
         return false;
+    if (m_audioStreamOpen)
+        return true;
+    std::lock_guard<std::recursive_mutex> paLock(cplay::audio::portAudioMutex());
 
     // Determine output channel count
     if (audioMixingEnabled()) {
@@ -352,6 +399,8 @@ bool OmtLayer::hasTexture() const {
 }
 
 void OmtLayer::start() {
+    std::lock_guard<std::recursive_mutex> lock(m_audioMutex);
+    std::lock_guard<std::recursive_mutex> paLock(cplay::audio::portAudioMutex());
     if (!m_audioStreamStarted && isAudioEnabled() && m_audioStream && m_audioStreamOpen) {
         setVolume(m_volume);
         m_audioError = Pa_StartStream(m_audioStream);
@@ -362,6 +411,8 @@ void OmtLayer::start() {
 }
 
 void OmtLayer::stop() {
+    std::lock_guard<std::recursive_mutex> lock(m_audioMutex);
+    std::lock_guard<std::recursive_mutex> paLock(cplay::audio::portAudioMutex());
     if (isAudioEnabled() && m_audioStream && m_audioStreamOpen && m_audioStreamStarted) {
         m_audioError = Pa_StopStream(m_audioStream);
         if (m_audioError == paNoError) {
@@ -392,6 +443,8 @@ void OmtLayer::updateAudioOutput() {
         }
     }
     if (isAudioEnabled()) {
+        std::lock_guard<std::recursive_mutex> lock(m_audioMutex);
+        std::lock_guard<std::recursive_mutex> paLock(cplay::audio::portAudioMutex());
         PaDeviceIndex currentDeviceIdx = m_audioOutputParameters.device;
         PaDeviceIndex newDeviceIdx = GetChosenApplicationAudioDevice();
 

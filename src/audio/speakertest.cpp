@@ -14,6 +14,7 @@
 
 #ifdef CPLAY_PORTAUDIO
 #include <portaudio.h>
+#include <audio/portaudiolock.h>
 #endif
 
 namespace cplay::audio {
@@ -86,7 +87,7 @@ void SpeakerTest::stop() {
 bool SpeakerTest::openStream(int minChannels, QString &error) {
 #ifdef CPLAY_PORTAUDIO
     if (!m_paInitialized) {
-        const PaError err = Pa_Initialize();
+        const PaError err = cplay::audio::paInitialize();
         if (err != paNoError) {
             error = QStringLiteral("PortAudio could not start: %1").arg(QString::fromUtf8(Pa_GetErrorText(err)));
             return false;
@@ -126,12 +127,12 @@ bool SpeakerTest::openStream(int minChannels, QString &error) {
     m_streamChannels = channels; // read by the callback
 
     PaStream *stream = nullptr;
-    PaError err = Pa_OpenStream(&stream, nullptr, &params, m_sampleRate, paFramesPerBufferUnspecified, paClipOff,
+    PaError err = cplay::audio::paOpenStream(&stream, nullptr, &params, m_sampleRate, paFramesPerBufferUnspecified, paClipOff,
                                 speakerTestCallback, this);
     if (err == paNoError) {
-        err = Pa_StartStream(stream);
+        err = cplay::audio::paStartStream(stream);
         if (err != paNoError)
-            Pa_CloseStream(stream);
+            cplay::audio::paCloseStream(stream);
     }
     if (err != paNoError) {
         m_streamChannels = 0;
@@ -154,13 +155,13 @@ void SpeakerTest::closeStream() {
         // Fade out before stopping so the noise does not end with a click.
         m_requestedChannel.store(-1);
         QThread::msleep(static_cast<unsigned long>(kPulseFade * 3000.0));
-        Pa_StopStream(static_cast<PaStream *>(m_stream));
-        Pa_CloseStream(static_cast<PaStream *>(m_stream));
+        cplay::audio::paStopStream(static_cast<PaStream *>(m_stream));
+        cplay::audio::paCloseStream(static_cast<PaStream *>(m_stream));
         m_stream = nullptr;
         m_streamChannels = 0;
     }
     if (m_paInitialized) {
-        Pa_Terminate(); // reference counted with the layers' Pa_Initialize
+        cplay::audio::paTerminate(); // reference counted with the layers' Pa_Initialize
         m_paInitialized = false;
     }
 #endif

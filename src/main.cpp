@@ -54,6 +54,14 @@
 #include <ndi/ndilayer.h>
 #endif
 
+#ifdef SPOUT_SUPPORT
+#include <layers/spoutlayer.h>
+#endif
+
+#ifdef OMT_SUPPORT
+#include <omt/omtlayer.h>
+#endif
+
 namespace {
 
 bool allowDirectRendering = false;
@@ -1797,6 +1805,9 @@ int main(int argc, char *argv[]) {
         }
 
         Log::Info("Start Master");
+#ifdef OMT_SUPPORT
+        OmtFinder::checkVideoDecoderAvailable();
+#endif
 
         // Hide window (as we are not using it on master)
         auto& windows = Engine::instance().thisNode().windows();
@@ -1823,6 +1834,12 @@ int main(int argc, char *argv[]) {
         Application::create(qapp_argv_size, qapp_argv.data(), QStringLiteral("C-Play"));
         Application::instance().setStartupFile(startupFile);
         const int appReturnCode = Application::instance().run();
+#ifdef SPOUT_SUPPORT
+        SpoutFinder::destroy();
+#endif
+#ifdef OMT_SUPPORT
+        OmtFinder::destroy();
+#endif
 #if defined(NDI_SUPPORT) && defined(_WIN32)
         // All application/NDI cleanup is done at this point. The NDI runtime
         // (Processing.NDI.Lib) can deadlock in its DLL_PROCESS_DETACH handler
@@ -1834,6 +1851,9 @@ int main(int argc, char *argv[]) {
         return appReturnCode;
     } else {
         Log::Info("Start Client");
+#ifdef OMT_SUPPORT
+        OmtFinder::checkVideoDecoderAvailable();
+#endif
 
         char *nodeAppArgv[] = { argv[0], nullptr };
         int nodeAppArgc = 1;
@@ -1865,6 +1885,12 @@ int main(int argc, char *argv[]) {
         QCoreApplication::processEvents();
 #ifdef NDI_SUPPORT
         NdiFinder::destroy();
+#endif
+#ifdef SPOUT_SUPPORT
+        SpoutFinder::destroy();
+#endif
+#ifdef OMT_SUPPORT
+        OmtFinder::destroy();
 #endif
 #if defined(NDI_SUPPORT) && defined(_WIN32)
         // Same as on the master: avoid the NDI runtime deadlocking in its

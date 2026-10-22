@@ -29,6 +29,13 @@ SpoutFinder::~SpoutFinder() {
 	_instance = nullptr;
 }
 
+void SpoutFinder::destroy() {
+	if (_instance) {
+		delete _instance;
+		_instance = nullptr;
+	}
+}
+
 SpoutFinder& SpoutFinder::instance() {
 	if (!_instance) {
 		_instance = new SpoutFinder();

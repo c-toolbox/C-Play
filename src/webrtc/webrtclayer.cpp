@@ -25,6 +25,7 @@
 #include <algorithm>
 #include <cstring>
 #include <string>
+#include <audio/portaudiolock.h>
 namespace {
 
 // Bounds of the Annex-B queue. It holds the (compressed) playout delay in sync mode, since
@@ -1632,7 +1633,7 @@ bool WebRTCLayer::startAudioOutput() {
     // PortAudio is process-wide and refcounted; initialize it once for all layers.
     static std::once_flag paInitFlag;
     std::call_once(paInitFlag, [] {
-        if (Pa_Initialize() != paNoError) {
+        if (cplay::audio::paInitialize() != paNoError) {
             sgct::Log::Error("WebRTCLayer: PortAudio initialization failed.\n");
         }
     });
@@ -1663,7 +1664,7 @@ bool WebRTCLayer::startAudioOutput() {
     m_audioOutputParameters.hostApiSpecificStreamInfo = nullptr;
 
     // Open the stream without a callback - we use Pa_WriteStream instead.
-    m_audioError = Pa_OpenStream(
+    m_audioError = cplay::audio::paOpenStream(
         &m_audioStream,
         nullptr,
         &m_audioOutputParameters,
@@ -1687,7 +1688,7 @@ bool WebRTCLayer::startAudioOutput() {
     }
     m_audioStreamOpen = true;
 
-    m_audioError = Pa_StartStream(m_audioStream);
+    m_audioError = cplay::audio::paStartStream(m_audioStream);
     if (m_audioError != paNoError) {
         sgct::Log::Error("WebRTCLayer: failed to start the PortAudio stream.\n");
         stopAudioOutput();
@@ -1707,10 +1708,10 @@ bool WebRTCLayer::startAudioOutput() {
 void WebRTCLayer::stopAudioOutput() {
     if (m_audioStream && m_audioStreamOpen) {
         if (m_audioStreamStarted) {
-            Pa_StopStream(m_audioStream);
+            cplay::audio::paStopStream(m_audioStream);
             m_audioStreamStarted = false;
         }
-        Pa_CloseStream(m_audioStream);
+        cplay::audio::paCloseStream(m_audioStream);
         m_audioStreamOpen = false;
     }
 

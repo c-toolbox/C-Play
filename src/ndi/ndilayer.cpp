@@ -16,6 +16,7 @@
 #include <cmath>
 #include <utils/texturesubdivision.h>
 #include <layers/texturelayer.h>
+#include <audio/portaudiolock.h>
 
 /* This routine will be called by the PortAudio engine when audio is needed.
 ** It may called at interrupt level on some machines so don't do anything
@@ -122,6 +123,7 @@ void NdiLayer::cleanup() {
 
     NDIreceiver.SetAudio(false);
 
+    std::unique_lock<std::recursive_mutex> paLock(cplay::audio::portAudioMutex());
     if (m_audioStream) {
         if (m_audioStreamStarted) {
             m_audioError = Pa_StopStream(m_audioStream);
@@ -146,6 +148,7 @@ void NdiLayer::cleanup() {
         Pa_Terminate();
         m_portAudioInitialized = false;
     }
+    paLock.unlock();
 
     NDIreceiver.ReleaseReceiver();
     m_gpuConversion.cleanup();
@@ -174,6 +177,7 @@ void NdiLayer::initialize() {
 
     // Only recevie audio on master
     if (isAudioEnabled()) {
+        std::lock_guard<std::recursive_mutex> paLock(cplay::audio::portAudioMutex());
         m_audioError = Pa_Initialize();
         if (m_audioError != paNoError) {
             NDIreceiver.SetAudio(false);
@@ -250,6 +254,7 @@ bool NdiLayer::hasTexture() const {
 }
 
 void NdiLayer::start() {
+    std::lock_guard<std::recursive_mutex> paLock(cplay::audio::portAudioMutex());
     if (!m_audioStreamStarted && isAudioEnabled() && m_audioStream && m_audioStreamOpen) {
         setVolume(m_volume);
         m_audioError = Pa_StartStream(m_audioStream);
@@ -260,6 +265,7 @@ void NdiLayer::start() {
 }
 
 void NdiLayer::stop() {
+    std::lock_guard<std::recursive_mutex> paLock(cplay::audio::portAudioMutex());
     if (isAudioEnabled() && m_audioStream && m_audioStreamOpen && m_audioStreamStarted) {
         m_audioError = Pa_StopStream(m_audioStream);
         if (m_audioError == paNoError) {
@@ -281,6 +287,12 @@ void NdiLayer::enableAudio(bool enabled) {
 }
 
 void NdiLayer::updateAudioOutput() {
+    // Serialize with update()/ReceiveData() on the render thread: both paths may call
+    // StartAudioStream(), and PortAudio's ASIO host API (single global driver) is not
+    // thread-safe. Concurrent Pa_OpenStream calls crash inside the ASIO driver.
+    std::lock_guard<std::mutex> lock(m_updateMutex);
+    std::lock_guard<std::recursive_mutex> paLock(cplay::audio::portAudioMutex());
+
     if (isMaster()) {
         if (!m_isAudioEnabled && AudioSettings::enableAudioOnMaster()) {
             enableAudio(true);
@@ -430,8 +442,14 @@ bool NdiLayer::ReceiveData(bool updateRendering) {
             receviedImage = NDIreceiver.ReceiveImageOnlyFrameSync(width, height);
             // Bootstrap audio parameters before opening the PortAudio callback,
             // or service the blocking audio path independently of video capture.
-            if (isMaster() && isAudioEnabled() && (!m_audioStreamOpen || !m_recevieAudioThroughCallback))
-                receviedAudio = NDIreceiver.ReceiveAudioOnly() != nullptr;
+            // Once the frame-synchronizer exists it owns the receiver's audio, so plain
+            // recv_capture never returns audio frames anymore; pull from the frame-sync queue.
+            if (isMaster() && isAudioEnabled() && (!m_audioStreamOpen || !m_recevieAudioThroughCallback)) {
+                if (NDIreceiver.FrameSyncOn())
+                    receviedAudio = NDIreceiver.ReceiveAudioOnlyFrameSync(0) != nullptr;
+                else
+                    receviedAudio = NDIreceiver.ReceiveAudioOnly() != nullptr;
+            }
         }
         catch (const std::exception& e) {
             sgct::Log::Error(std::format("NdiLayer Error in GPU frame sync receive: {}", e.what()));
@@ -575,6 +593,12 @@ bool NdiLayer::OpenReceiver() {
 }
 
 bool NdiLayer::StartAudioStream() {
+    // Also guards against updateFrame() (which runs ReceiveData without m_updateMutex)
+    // racing another thread into opening the same stream twice.
+    std::lock_guard<std::recursive_mutex> paLock(cplay::audio::portAudioMutex());
+    if (m_audioStreamOpen)
+        return true;
+
     if (audioMixingEnabled()) {
         m_audioOutputParameters.channelCount = cplay::audio::configuredOutputChannels(Pa_GetDeviceInfo(m_audioOutputParameters.device)->maxOutputChannels);
         NDIreceiver.SetAudioTargetOutputChannels(m_audioOutputParameters.channelCount);

@@ -16,6 +16,7 @@ public:
     SpoutFinder();
     ~SpoutFinder();
     static SpoutFinder& instance();
+    static void destroy();
 
     int senderCount();
     std::vector<std::string> getSendersList();
