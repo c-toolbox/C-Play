@@ -82,7 +82,7 @@ The device opens as many channels as the highest output channel used by a speake
 
 ![Speakers shown in the master 3D view](/assets/ui/settings/audio_mapping_master_view.png)
 
-Check **Show speakers in the master view** to draw the speakers in the 3D view (the view switches to the 3D view with the perspective camera if the flat video view is shown; the fisheye view works too). Speakers of the surround layout are labelled with their channel name, speakers of the array with their output channel, and array speakers also show their share of the selected layer.
+Check **Show speakers in the master view** to draw the speakers in the 3D view (the view switches to the 3D view with the perspective camera if the flat video view is shown; the fisheye and sphere views work too). Speakers of the surround layout are labelled with their channel name, speakers of the array with their output channel, and array speakers also show their share of the selected layer.
 
 * **Drag a speaker** to move it. On the dome it follows the dome surface; in the circular layout it follows the unwrapped 360° screen, drawn at the distance of the circular layers.
 * **Select a speaker** by pressing it in the view or with the round button in its row, then check **Click in the view places the selected speaker**: a click in the view moves the selected speaker there. Dragging still orbits the camera.

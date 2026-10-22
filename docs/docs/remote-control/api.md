@@ -137,7 +137,7 @@ The additional GET-only endpoints `/tcp/servers`, `/tcp/commands`, `/event_topic
 
 **View mode values:**
 
-This endpoint controls stereo display on the cluster. It does not select the master's flat, perspective, or fisheye preview described in [Views](/playback/views).
+This endpoint controls stereo display on the cluster. It does not select the master's flat, perspective, fisheye or sphere preview described in [Views](/playback/views).
 
 | Value | Mode |
 |:-:|------|

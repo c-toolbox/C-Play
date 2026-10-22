@@ -9,17 +9,18 @@ C-Play provides several view-related features for controlling how content is dis
 
 ### ![](/assets/icons/map-globe.svg) Master view
 
-The master view is what C-Play's main window displays — either just the main video, all layers rendered in an interactive 3D scene, or all layers through a 180° fisheye lens. The layer-rendering modes are useful for previewing how content will look when projected onto domes or spheres.
+The master view is what C-Play's main window displays — either just the main video, all layers rendered in an interactive 3D scene, all layers through a 180° fisheye lens, or all layers mapped on a sphere seen from outside. The layer-rendering modes are useful for previewing how content will look when projected onto domes or spheres.
 
-The view-mode button in the header taskbar opens a menu with the three master view modes. Its icon reflects the current mode:
+The view-mode button in the header taskbar opens a menu with the four master view modes. Its icon reflects the current mode:
 
 * **Show only the main video** — the standard flat playback view (crimson flat-map icon).
 * **Show 3D view with perspective camera** — the interactive 3D scene described below (lime globe icon).
 * **Show 3D view with fisheye camera** — a flat circular fulldome image, see [Fisheye 180° projection](#fisheye-180-projection-fulldome) below (light blue half-circle icon).
+* **Show 3D view mapped on a sphere** — all content on the outside of a sphere that you rotate with the mouse, see [Sphere view](#sphere-view) below (orange circle icon).
 
 ![Master view menu](/assets/ui/header_taskbar/master_view_menu.png)
 
-The same menu is available under **Settings → States**, where the *Master view* entry also shows an icon of the currently selected mode — there the items are worded as *Render only the main video*, *Render 3D view with perspective camera*, and *Render 3D view with a fisheye camera*. Choosing a mode only changes the current session; which mode C-Play starts in is decided by the [Window & UI settings](/settings/window_and_ui). The [NDI output](/system-integration/ndi-output) follows this mode as well — while a 3D view is active it publishes the rendered scene instead of the main video.
+The same menu is available under **Settings → States**, where the *Master view* entry also shows an icon of the currently selected mode — there the items are worded as *Render only the main video*, *Render 3D view with perspective camera*, *Render 3D view with a fisheye camera*, and *Render 3D view mapped on a sphere*. Choosing a mode only changes the current session; which mode C-Play starts in is decided by the [Window & UI settings](/settings/window_and_ui). The [NDI output](/system-integration/ndi-output) follows this mode as well — while a 3D view is active it publishes the rendered scene instead of the main video.
 
 The 3D view supports an interactive camera with orbit controls, letting you rotate around the scene to inspect your content from different angles.
 
@@ -70,6 +71,26 @@ Select **"Show 3D view with fisheye camera"** from the view-mode menu in the hea
 * The *"3D View FOV"* setting does not apply in this mode — the lens angle is fixed at 180° — and dome overflow masking is also not applied.
 
 Switching between the modes in the view-mode menu takes effect immediately; no restart is needed. This is useful for previewing how your content looks as a flat fulldome image, for example before stitching or when checking coverage of the full hemisphere.
+
+#### Sphere view
+
+Select **"Show 3D view mapped on a sphere"** from the view-mode menu to see all content mapped on the outside of a sphere, like a globe. Instead of turning the camera inside the scene, you turn the sphere itself. To start C-Play directly in this mode, enable *"Render 3D view mapped on a sphere at startup"* in the [Window & UI settings](/settings/window_and_ui).
+
+* Every layer is placed on the sphere by its direction from the centre: dome content covers the upper half of the sphere, sphere-mapped content (EQR and EAC) covers all of it, and flat/plane layers appear where they are aimed. Plain 2D layers stay flat as usual.
+* The content is shown the right way round: text and left/right read the same as from inside the dome, with the dome front facing you.
+* Only the half of the sphere facing you is drawn.
+* The dome tilt angle is ignored, the *"3D View FOV"* setting does not apply (the sphere camera has a fixed lens), and dome overflow masking is not applied.
+
+The mouse works differently from the perspective camera in this mode:
+
+| Input | Action |
+|:---|:---|
+| **Left- or right-click + drag** | *Rotate the sphere*. The sphere surface follows the pointer, whichever way the sphere is turned. |
+| **Mouse wheel / touchpad scroll** | *Zoom*: scrolling up moves the camera closer to the sphere, scrolling down moves it away. |
+| **Ctrl / Alt / Shift + left-click + drag** | *Manipulate the selected layer*, as described in [Moving layers in the 3D view](#moving-layers-in-the-3d-view). Aiming a flat layer points it at the spot under the pointer on the sphere. |
+| **Double-click** | *Reset* to the starting view: the dome front facing you, tipped slightly so the zenith is visible. |
+
+The speakers of the [audio mapping](/settings/audio_mapping) can also be shown and placed on the sphere.
 
 #### Dome overflow masking
 

@@ -35,8 +35,9 @@ When idle mode is enabled, the UI automatically hides after a period of inactivi
 These settings decide which master view mode C-Play starts in. The current mode can be changed at any time during playback from the view-mode menu in the header taskbar (or **Settings → States**); see [Views](/playback/views) for what each mode renders.
 
 * **Show 3D view at startup** — Automatically open the 3D visualization mode when C-Play launches, instead of the flat playback view (default off).
-* **3D view FOV** — The FOV (field of view) of the 3D view, minimum 30 and maximum 150 degrees. Default 90 degrees. Only applies to the perspective camera mode; it is disabled while fisheye startup rendering is enabled.
+* **3D view FOV** — The FOV (field of view) of the 3D view, minimum 30 and maximum 150 degrees. Default 90 degrees. Only applies to the perspective camera mode; it is disabled while fisheye or sphere startup rendering is enabled.
 * **Render 3D view as 180-degree fisheye (fulldome) at startup** — When *Show 3D view at startup* is on, start with the 3D view rendered through a virtual 180° equidistant fisheye lens centered on the zenith instead of the perspective camera, projecting dome/sphere/plane content onto a flat circular fulldome image. Default off. See [Views](/playback/views#fisheye-180-projection-fulldome).
+* **Render 3D view mapped on a sphere at startup** — When *Show 3D view at startup* is on, start with all content mapped on the outside of a sphere that you rotate with the mouse instead of the perspective camera. Default off. Only one of the fisheye and sphere options can be on: checking one unchecks the other. See [Views](/playback/views#sphere-view).
 * **NDI output resolution for 3D view** — Moved to the [Streaming settings](/settings/streaming#ndi) in C-Play v2.4.
 * **3D view camera position** — Starting X/Y/Z position of the 3D view camera (default 0/0/0). Loaded when C-Play starts; orbiting and zooming then move the camera freely until restart.
 * **3D view camera rotation** — Starting X/Y/Z rotation of the 3D view camera in degrees (default 0/0/0). Loaded together with the position at startup.

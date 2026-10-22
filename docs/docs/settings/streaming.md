@@ -22,7 +22,7 @@ These settings apply to [YouTube layers](/media/layers#youtube-playback-and-yt-d
 
 * **Convert NDI input on the GPU** — Receive NDI in the decoder's fastest native format and convert it to RGBA on the GPU, preserving alpha. Recreate NDI layers after changing it.
 * **Convert NDI output on the GPU** — Convert C-Play's NDI output on the GPU, halving the readback size. Discards alpha. Stop and start outputs after changing it.
-* **NDI output resolution for 3D view** — Resolution used when the [NDI output](/system-integration/ndi-output) publishes the 3D view instead of the main video: *2K*, *4K*, *6K*, or *8K* (default 2K). The perspective camera keeps a 16:9 aspect ratio (from 1920×1080 up to 7680×4320), while the fisheye (fulldome) camera is square (from 2048×2048 up to 8192×8192). The selected value applies when the 3D view output starts, for example after toggling NDI output off/on.
+* **NDI output resolution for 3D view** — Resolution used when the [NDI output](/system-integration/ndi-output) publishes the 3D view instead of the main video: *2K*, *4K*, *6K*, or *8K* (default 2K). The perspective camera and the sphere view keep a 16:9 aspect ratio (from 1920×1080 up to 7680×4320), while the fisheye (fulldome) camera is square (from 2048×2048 up to 8192×8192). The selected value applies when the 3D view output starts, for example after toggling NDI output off/on.
 
 Configure each receiving computer separately, including nodes. Supported formats, deinterlacing and fallbacks are described in [NDI output → Optional GPU color conversion](/system-integration/ndi-output#optional-gpu-color-conversion).
 

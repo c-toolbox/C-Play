@@ -32,18 +32,18 @@ The source is published at the native resolution of the player texture and one f
 
 ### Following the master view
 
-The output follows the [master view mode](/playback/views#-master-view): while the main window shows only the main video, the NDI source carries the full player output as before; while a **3D view** (perspective or fisheye camera) is active, it instead publishes the rendered 3D scene — all layers together, exactly as shown in C-Play's main window. Switching master view mode during transmission swaps the published content without interrupting the sender.
+The output follows the [master view mode](/playback/views#-master-view): while the main window shows only the main video, the NDI source carries the full player output as before; while a **3D view** (perspective camera, fisheye camera or sphere view) is active, it instead publishes the rendered 3D scene — all layers together, exactly as shown in C-Play's main window. Switching master view mode during transmission swaps the published content without interrupting the sender.
 
 The resolution of the 3D view output is set by *NDI output resolution for 3D view* in the [Streaming settings](/settings/streaming#ndi) (default **2K**):
 
-| Setting | Perspective camera (16:9) | Fisheye camera (1:1) |
+| Setting | Perspective camera and sphere view (16:9) | Fisheye camera (1:1) |
 |---------|---------------------------|----------------------|
 | **2K** | 1920×1080 | 2048×2048 |
 | **4K** | 3840×2160 | 4096×4096 |
 | **6K** | 5760×3240 | 6144×6144 |
 | **8K** | 7680×4320 | 8192×8192 |
 
-The perspective camera keeps a 16:9 aspect ratio, while the fisheye (fulldome) camera is square. The selected resolution applies when the 3D view output starts — for example after toggling NDI output off/on or switching between the perspective and fisheye cameras.
+The perspective camera and the sphere view keep a 16:9 aspect ratio, while the fisheye (fulldome) camera is square. The selected resolution applies when the 3D view output starts — for example after toggling NDI output off/on or switching between the perspective and fisheye cameras.
 
 ---
 
