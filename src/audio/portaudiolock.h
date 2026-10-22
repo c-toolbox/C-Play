@@ -10,6 +10,7 @@
 
 #include <mutex>
 #include <portaudio.h>
+#include <audio/sharedaudiooutput.h>
 
 namespace cplay::audio {
 
@@ -24,6 +25,11 @@ inline std::recursive_mutex& portAudioMutex() {
 }
 
 // Locked wrappers for code that does not otherwise hold portAudioMutex().
+//
+// Output streams on a device that only allows one stream (ASIO) or is opened exclusively
+// (WASAPI exclusive mode) are virtual streams of the shared output (sharedaudiooutput.h):
+// all layers are mixed into one device stream. Streams must therefore only be used through
+// these wrappers, never passed to Pa_* directly.
 inline PaError paInitialize() {
     std::lock_guard<std::recursive_mutex> lock(portAudioMutex());
     return Pa_Initialize();
@@ -38,28 +44,45 @@ inline PaError paOpenStream(PaStream** stream, const PaStreamParameters* inputPa
     const PaStreamParameters* outputParameters, double sampleRate, unsigned long framesPerBuffer,
     PaStreamFlags streamFlags, PaStreamCallback* streamCallback, void* userData) {
     std::lock_guard<std::recursive_mutex> lock(portAudioMutex());
+    if (!inputParameters && outputParameters && shouldShareOutput(outputParameters->device))
+        return sharedOpenStream(stream, outputParameters, sampleRate, framesPerBuffer, streamCallback, userData);
     return Pa_OpenStream(stream, inputParameters, outputParameters, sampleRate, framesPerBuffer,
         streamFlags, streamCallback, userData);
 }
 
 inline PaError paCloseStream(PaStream* stream) {
     std::lock_guard<std::recursive_mutex> lock(portAudioMutex());
+    if (isSharedStream(stream))
+        return sharedCloseStream(stream);
     return Pa_CloseStream(stream);
 }
 
 inline PaError paStartStream(PaStream* stream) {
     std::lock_guard<std::recursive_mutex> lock(portAudioMutex());
+    if (isSharedStream(stream))
+        return sharedStartStream(stream);
     return Pa_StartStream(stream);
 }
 
 inline PaError paStopStream(PaStream* stream) {
     std::lock_guard<std::recursive_mutex> lock(portAudioMutex());
+    if (isSharedStream(stream))
+        return sharedStopStream(stream);
     return Pa_StopStream(stream);
 }
 
 inline PaError paAbortStream(PaStream* stream) {
     std::lock_guard<std::recursive_mutex> lock(portAudioMutex());
+    if (isSharedStream(stream))
+        return sharedStopStream(stream);
     return Pa_AbortStream(stream);
+}
+
+// Not locked: blocking writes must not hold up other layers opening/closing streams.
+inline PaError paWriteStream(PaStream* stream, const void* buffer, unsigned long frames) {
+    if (isSharedStream(stream))
+        return sharedWriteStream(stream, buffer, frames);
+    return Pa_WriteStream(stream, buffer, frames);
 }
 
 } // namespace cplay::audio

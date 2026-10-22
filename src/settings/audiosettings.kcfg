@@ -57,6 +57,10 @@
     <entry name="PortAudioOutputApi" type="String">
       <label>Preferred portaudio host api used with NDI audio</label>
     </entry>
+    <entry name="PortAudioWasapiExclusive" type="bool">
+      <label>Open a WASAPI output device in exclusive mode; all PortAudio layers are mixed into one stream</label>
+      <default>false</default>
+    </entry>
     <entry name="PortAudioMixInputToOutput" type="bool">
       <default>false</default>
     </entry>

@@ -2316,6 +2316,8 @@ void DirectShowLayer::updateAudioOutput() {
         restartStream = true;
     } else if (m_audioStreamOpen.load() && m_audioOutputParameters.channelCount != channelCount) {
         restartStream = true;
+    } else if (m_audioStreamOpen.load() && cplay::audio::outputRoutingChanged(m_audioStream, newDeviceIdx)) {
+        restartStream = true; // to/from the shared output (ASIO or WASAPI exclusive)
     }
     if (!restartStream)
         return;

@@ -520,6 +520,37 @@ SettingsBasePage {
         }
 
         Item {
+            visible: root.portAudioLayers && Qt.platform.os === "windows"
+            height: 1
+            width: 1
+        }
+        CheckBox {
+            id: wasapiExclusiveCheckBox
+            visible: root.portAudioLayers && Qt.platform.os === "windows"
+
+            Layout.alignment: Qt.AlignRight
+            checked: AudioSettings.portAudioWasapiExclusive
+            enabled: AudioSettings.portAudioCustomOutput && AudioSettings.portAudioOutputApi.indexOf("WASAPI") >= 0
+            text: qsTr("Use WASAPI exclusive mode")
+
+            ToolTip.text: qsTr("Opens the WASAPI device exclusively, and C-Play mixes the audio of all live layers into that one stream. "
+                               + "ASIO devices are always shared this way, as ASIO allows only one stream per application.")
+            ToolTip.visible: hovered
+            ToolTip.delay: 500
+
+            onCheckedChanged: {
+                if (AudioSettings.portAudioWasapiExclusive === checked)
+                    return;
+                AudioSettings.portAudioWasapiExclusive = checked;
+                AudioSettings.save();
+                app.slides.runUpdateAudioOutputOnLayers();
+            }
+
+            Layout.columnSpan: 2
+            Layout.fillWidth: true
+        }
+
+        Item {
             visible: root.portAudioLayers
             height: 1
             width: 1

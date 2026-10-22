@@ -109,7 +109,8 @@ bool JackAudioInput::update() {
     // Up/down mix to the output layout, or the source channels unmixed (as the live layers).
     int outChannels = m_layer.audioMixingEnabled() ? configuredOutputChannels(info->maxOutputChannels) : connected;
     outChannels = std::clamp(outChannels, 1, info->maxOutputChannels);
-    if (m_stream && device == m_device && outChannels == m_outChannels)
+    if (m_stream && device == m_device && outChannels == m_outChannels
+        && !outputRoutingChanged(m_stream, device))
         return reopened;
 
     closeOutput();

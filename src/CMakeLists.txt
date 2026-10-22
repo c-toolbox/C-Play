@@ -56,6 +56,9 @@ set(SOURCE_FILES
     audio/audiomixer.h
     audio/jackaudioinput.cpp
     audio/jackaudioinput.h
+    audio/portaudiolock.h
+    audio/sharedaudiooutput.cpp
+    audio/sharedaudiooutput.h
     audio/speakersettings.h
     audio/speakertest.cpp
     audio/speakertest.h

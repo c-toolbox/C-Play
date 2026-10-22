@@ -126,15 +126,15 @@ void NdiLayer::cleanup() {
     std::unique_lock<std::recursive_mutex> paLock(cplay::audio::portAudioMutex());
     if (m_audioStream) {
         if (m_audioStreamStarted) {
-            m_audioError = Pa_StopStream(m_audioStream);
+            m_audioError = cplay::audio::paStopStream(m_audioStream);
             if (m_audioError == paNoError || m_audioError == paStreamIsStopped)
                 m_audioStreamStarted = false;
             else
-                Pa_AbortStream(m_audioStream);
+                cplay::audio::paAbortStream(m_audioStream);
         }
 
         if (m_audioStreamOpen) {
-            m_audioError = Pa_CloseStream(m_audioStream);
+            m_audioError = cplay::audio::paCloseStream(m_audioStream);
             if (m_audioError == paNoError)
                 m_audioStreamOpen = false;
         }
@@ -257,7 +257,7 @@ void NdiLayer::start() {
     std::lock_guard<std::recursive_mutex> paLock(cplay::audio::portAudioMutex());
     if (!m_audioStreamStarted && isAudioEnabled() && m_audioStream && m_audioStreamOpen) {
         setVolume(m_volume);
-        m_audioError = Pa_StartStream(m_audioStream);
+        m_audioError = cplay::audio::paStartStream(m_audioStream);
         if (m_audioError == paNoError) {
             m_audioStreamStarted = true;
         }     
@@ -267,7 +267,7 @@ void NdiLayer::start() {
 void NdiLayer::stop() {
     std::lock_guard<std::recursive_mutex> paLock(cplay::audio::portAudioMutex());
     if (isAudioEnabled() && m_audioStream && m_audioStreamOpen && m_audioStreamStarted) {
-        m_audioError = Pa_StopStream(m_audioStream);
+        m_audioError = cplay::audio::paStopStream(m_audioStream);
         if (m_audioError == paNoError) {
             m_audioStreamStarted = false;
         }
@@ -321,6 +321,9 @@ void NdiLayer::updateAudioOutput() {
         else if(m_audioOutputParameters.channelCount != channelCount){
             restartStream = true;
         }
+        else if (cplay::audio::outputRoutingChanged(m_audioStream, newDeviceIdx)) {
+            restartStream = true; // to/from the shared output (ASIO or WASAPI exclusive)
+        }
 
         //Change device index if we found a new one
         if (restartStream) {
@@ -335,7 +338,7 @@ void NdiLayer::updateAudioOutput() {
                         stop();
                     }
                     if (!m_audioStreamStarted) {
-                        m_audioError = Pa_CloseStream(m_audioStream);
+                        m_audioError = cplay::audio::paCloseStream(m_audioStream);
                         if (m_audioError == paNoError) {
                             m_audioStreamOpen = false;
                         }
@@ -525,7 +528,7 @@ bool NdiLayer::ReceiveData(bool updateRendering) {
             const int16_t* interleaved = NDIreceiver.GetAudioInterleaved();
             // GetAudioSamples() is the frame count per channel, which is what Pa_WriteStream expects.
             const int framesPerChannel = NDIreceiver.GetAudioSamples();
-            m_audioError = Pa_WriteStream(m_audioStream, interleaved, framesPerChannel);
+            m_audioError = cplay::audio::paWriteStream(m_audioStream, interleaved, framesPerChannel);
             if (m_audioError != paNoError) {
                 sgct::Log::Error("NdiLayer Error: audio stream error");
             }
@@ -614,10 +617,10 @@ bool NdiLayer::StartAudioStream() {
 
     if (m_recevieAudioThroughCallback) {
         // The callback receives the layer as userData so it can report the audio level.
-        m_audioError = Pa_OpenStream(&m_audioStream, NULL, &m_audioOutputParameters, NDIreceiver.GetAudioSampleRate(), NDIreceiver.GetAudioSamples(), paClipOff, paNDIAudioCallback, this);
+        m_audioError = cplay::audio::paOpenStream(&m_audioStream, NULL, &m_audioOutputParameters, NDIreceiver.GetAudioSampleRate(), NDIreceiver.GetAudioSamples(), paClipOff, paNDIAudioCallback, this);
     }
     else {
-        m_audioError = Pa_OpenStream(&m_audioStream, NULL, &m_audioOutputParameters, NDIreceiver.GetAudioSampleRate(), NDIreceiver.GetAudioSamples(), paClipOff, NULL, NULL);
+        m_audioError = cplay::audio::paOpenStream(&m_audioStream, NULL, &m_audioOutputParameters, NDIreceiver.GetAudioSampleRate(), NDIreceiver.GetAudioSamples(), paClipOff, NULL, NULL);
     }
 
     if (m_audioError == paNoError) {

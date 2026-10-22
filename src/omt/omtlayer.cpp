@@ -104,12 +104,11 @@ OmtLayer::OmtLayer() {
 OmtLayer::~OmtLayer() {
     std::lock_guard<std::recursive_mutex> lock(m_audioMutex);
     std::unique_lock<std::recursive_mutex> paLock(cplay::audio::portAudioMutex());
-    if (isAudioEnabled() && m_receiveAudio) {
-        if (m_audioStreamOpen && m_audioStreamStarted) {
-            m_audioError = Pa_CloseStream(m_audioStream);
-            if (m_audioError == paNoError) {
-                m_audioStreamOpen = false;
-            }
+    // Close whenever open: a stream left open would keep a shared device stream running.
+    if (m_audioStream && m_audioStreamOpen) {
+        m_audioError = cplay::audio::paCloseStream(m_audioStream);
+        if (m_audioError == paNoError) {
+            m_audioStreamOpen = false;
         }
     }
     if (m_portAudioInitialized) {
@@ -294,7 +293,7 @@ void OmtLayer::ProcessAudioFrame(OMTMediaFrame* frame) {
     }
 
     // Write directly to the PortAudio stream (blocking)
-    m_audioError = Pa_WriteStream(m_audioStream, m_interleavedAudioBuf.data(), static_cast<unsigned long>(samplesPerChannel));
+    m_audioError = cplay::audio::paWriteStream(m_audioStream, m_interleavedAudioBuf.data(), static_cast<unsigned long>(samplesPerChannel));
     if (m_audioError != paNoError && m_audioError != paOutputUnderflowed) {
         sgct::Log::Error("OmtLayer Error: Pa_WriteStream failed.\n");
     }
@@ -331,7 +330,7 @@ bool OmtLayer::StartAudioStream() {
     m_audioOutputParameters.hostApiSpecificStreamInfo = NULL;
 
     // Open stream without callback � we use Pa_WriteStream instead
-    m_audioError = Pa_OpenStream(
+    m_audioError = cplay::audio::paOpenStream(
         &m_audioStream,
         NULL,
         &m_audioOutputParameters,
@@ -403,7 +402,7 @@ void OmtLayer::start() {
     std::lock_guard<std::recursive_mutex> paLock(cplay::audio::portAudioMutex());
     if (!m_audioStreamStarted && isAudioEnabled() && m_audioStream && m_audioStreamOpen) {
         setVolume(m_volume);
-        m_audioError = Pa_StartStream(m_audioStream);
+        m_audioError = cplay::audio::paStartStream(m_audioStream);
         if (m_audioError == paNoError) {
             m_audioStreamStarted = true;
         }
@@ -414,7 +413,7 @@ void OmtLayer::stop() {
     std::lock_guard<std::recursive_mutex> lock(m_audioMutex);
     std::lock_guard<std::recursive_mutex> paLock(cplay::audio::portAudioMutex());
     if (isAudioEnabled() && m_audioStream && m_audioStreamOpen && m_audioStreamStarted) {
-        m_audioError = Pa_StopStream(m_audioStream);
+        m_audioError = cplay::audio::paStopStream(m_audioStream);
         if (m_audioError == paNoError) {
             m_audioStreamStarted = false;
         }
@@ -466,6 +465,9 @@ void OmtLayer::updateAudioOutput() {
         else if (m_audioOutputParameters.channelCount != channelCount) {
             restartStream = true;
         }
+        else if (cplay::audio::outputRoutingChanged(m_audioStream, newDeviceIdx)) {
+            restartStream = true; // to/from the shared output (ASIO or WASAPI exclusive)
+        }
 
         if (restartStream) {
             bool wasStarted = false;
@@ -478,7 +480,7 @@ void OmtLayer::updateAudioOutput() {
                         stop();
                     }
                     if (!m_audioStreamStarted) {
-                        m_audioError = Pa_CloseStream(m_audioStream);
+                        m_audioError = cplay::audio::paCloseStream(m_audioStream);
                         if (m_audioError == paNoError) {
                             m_audioStreamOpen = false;
                         }

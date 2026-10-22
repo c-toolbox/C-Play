@@ -1563,7 +1563,8 @@ void WebRTCLayer::maybeReopenAudioOutput() {
     }
 
     const bool restartStream = newDeviceIdx != currentDeviceIdx
-                               || m_audioOutputParameters.channelCount != channelCount;
+                               || m_audioOutputParameters.channelCount != channelCount
+                               || cplay::audio::outputRoutingChanged(m_audioStream, newDeviceIdx);
     if (!restartStream) {
         return;
     }
@@ -1623,7 +1624,7 @@ void WebRTCLayer::pushDecodedPcm(const float *pcm, int sampleRate, int channels,
         reportAudioLevel(maxAbs);
     }
 
-    m_audioError = Pa_WriteStream(m_audioStream, m_interleavedAudioBuf.data(), static_cast<unsigned long>(frames));
+    m_audioError = cplay::audio::paWriteStream(m_audioStream, m_interleavedAudioBuf.data(), static_cast<unsigned long>(frames));
     if (m_audioError != paNoError && m_audioError != paOutputUnderflowed) {
         sgct::Log::Error("WebRTCLayer: Pa_WriteStream failed.\n");
     }
