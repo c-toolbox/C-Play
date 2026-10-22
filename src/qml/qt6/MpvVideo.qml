@@ -272,7 +272,7 @@ MpvObject {
         id: label
         anchors.fill: parent
         color: Kirigami.Theme.textColor
-        visible: floatingTextureWindow.visible && UserInterfaceSettings.floatingWindowShowsMainVideoLayer && UserInterfaceSettings.floatingWindowShowOnlyMainVideoInLayer
+        visible: floatingTextureWindow.visible && UserInterfaceSettings.floatingWindowShowsMainVideoLayer && !UserInterfaceSettings.floatingWindowShows3DView && UserInterfaceSettings.floatingWindowShowOnlyMainVideoInLayer
         font.pointSize: parseInt(UserInterfaceSettings.osdFontSize)
         horizontalAlignment: Text.AlignHCenter
         verticalAlignment: Text.AlignVCenter

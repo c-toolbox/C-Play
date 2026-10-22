@@ -120,6 +120,7 @@ Kirigami.ApplicationWindow {
     //   0 = render only the main video (standard flat playback view)
     //   1 = render all layers with a perspective camera (3D view)
     //   2 = render all layers as a 180-degree fisheye (fulldome)
+    //   3 = render all layers mapped on a sphere seen from outside (dragging rotates the sphere)
     // The UserInterfaceSettings settings decide which mode is active at startup; afterwards the
     // globe menu in the header taskbar (and Settings > States) changes it during playback.
     property int mainViewMode: 0
@@ -421,6 +422,8 @@ Kirigami.ApplicationWindow {
 
         // One-pass 180-degree fisheye (fulldome) rendering, selected by the main view mode menu.
         renderAsFisheye: window.mainViewMode === 2
+        // All layers mapped on a sphere that the mouse rotates, selected the same way.
+        renderAsSphere: window.mainViewMode === 3
 
         // C-Lux live light-color overlay in the 3D view (only when built with CLUX support): a
         // toggle initialised from UserInterfaceSettings.cluxShowIn3DViewAtStartup and flipped at
@@ -516,7 +519,8 @@ Kirigami.ApplicationWindow {
             // The settings decide which main view mode is active at startup; after this, only the
             // globe menu in the header taskbar (window.mainViewMode) changes it during playback.
             if(UserInterfaceSettings.show3DviewAtStartup){
-                window.mainViewMode = UserInterfaceSettings.renderAsFisheyeIn3DView ? 2 : 1;
+                window.mainViewMode = UserInterfaceSettings.renderAsFisheyeIn3DView ? 2 :
+                                      UserInterfaceSettings.renderAsSphereIn3DView ? 3 : 1;
             }
 
             // Showing the master NDI output on the nodes at startup also decides the master view.
@@ -646,7 +650,11 @@ Kirigami.ApplicationWindow {
                 lastY = mouse.y;
 
                 if (dragMode === 2) {
-                    orbitCamera(dx, dy);
+                    // The sphere view rotates the sphere instead of the camera.
+                    if (viewLayersIn3DRenderItem.renderAsSphere)
+                        viewLayersIn3DRenderItem.rotateSphere(dx, dy);
+                    else
+                        orbitCamera(dx, dy);
                 } else if (dragMode === 3 || dragMode === 4 || dragMode === 5) {
                     if (viewLayersIn3DRenderItem.dragPlaneTo(mouse.x, mouse.y))
                         layerDragChanged = true;
@@ -672,6 +680,12 @@ Kirigami.ApplicationWindow {
             // Dolly zoom along the camera's view axis (mouse wheel / touchpad scroll).
             // Scroll up moves the camera forward into the scene (zoom in), scroll down back.
             onWheel: (wheel) => {
+                // The sphere view moves its camera toward or away from the sphere instead.
+                if (viewLayersIn3DRenderItem.renderAsSphere) {
+                    viewLayersIn3DRenderItem.zoomSphere(wheel.angleDelta.y);
+                    wheel.accepted = true;
+                    return;
+                }
                 // The renderer builds its sphere at meshRadius / 100 in world units, so all
                 // zoom distances and limits are based on that actual radius.
                 const radius = viewLayersIn3DRenderItem.meshRadius / 100;
@@ -685,6 +699,11 @@ Kirigami.ApplicationWindow {
             // startup pose from the settings). fieldOfView is left alone: it stays bound to
             // UserInterfaceSettings.fov3Dview and nothing in this view modifies it.
             onDoubleClicked: {
+                // The sphere view restores its own default sphere pose and distance.
+                if (viewLayersIn3DRenderItem.renderAsSphere) {
+                    viewLayersIn3DRenderItem.resetSphereView();
+                    return;
+                }
                 originNode.setEulerRotation(Qt.vector3d(0, 0, 0));
                 originCamera.position = Qt.vector3d(UserInterfaceSettings.cameraPosition3DviewX,
                                                     UserInterfaceSettings.cameraPosition3DviewY,
@@ -776,6 +795,9 @@ Kirigami.ApplicationWindow {
                         viewLayersIn3DRenderItem.meshRadius;
                         viewLayersIn3DRenderItem.meshFov;
                         viewLayersIn3DRenderItem.renderAsFisheye;
+                        viewLayersIn3DRenderItem.renderAsSphere;
+                        viewLayersIn3DRenderItem.sphereRotation;
+                        viewLayersIn3DRenderItem.sphereDistance;
                         speakerOverlay.width;
                         speakerOverlay.height;
                         speakerOverlay.tick;
@@ -995,17 +1017,27 @@ Kirigami.ApplicationWindow {
         id: floatingTextureWindow
         visible: false
         flags: Qt.FramelessWindowHint | Qt.Window
-        x: UserInterfaceSettings.floatingWindowPosX; 
-        y: UserInterfaceSettings.floatingWindowPosY; 
+        color: "black"
+        x: UserInterfaceSettings.floatingWindowPosX;
+        y: UserInterfaceSettings.floatingWindowPosY;
         width: UserInterfaceSettings.floatingWindowWidth;
         height: UserInterfaceSettings.floatingWindowHeight;
 
         LayerQtItem {
             id: floatingLayerViewItem
-            visible: !UserInterfaceSettings.floatingWindowShowsMainVideoLayer && floatingTextureWindow.visible
+            visible: !UserInterfaceSettings.floatingWindowShowsMainVideoLayer && !UserInterfaceSettings.floatingWindowShows3DView && floatingTextureWindow.visible
 
             height: parent.height
             width: parent.width
+
+            // Started/stopped here rather than with the window, so switching the floating
+            // window content while it is shown also starts or stops the custom layer.
+            onVisibleChanged: {
+                if (visible)
+                    floatingLayerViewItem.start()
+                else
+                    floatingLayerViewItem.stop()
+            }
 
             Component.onCompleted: {
                 if(UserInterfaceSettings.floatingWindowLayerType >= 0 && UserInterfaceSettings.floatingWindowLayerPath !== ""){
@@ -1020,7 +1052,7 @@ Kirigami.ApplicationWindow {
 
         MpvView {
             id: floatingMpvView
-            visible: UserInterfaceSettings.floatingWindowShowsMainVideoLayer && floatingTextureWindow.visible
+            visible: UserInterfaceSettings.floatingWindowShowsMainVideoLayer && !UserInterfaceSettings.floatingWindowShows3DView && floatingTextureWindow.visible
             anchors.fill: parent
             mpvObject: mpv
             renderingPriority: 1
@@ -1028,21 +1060,19 @@ Kirigami.ApplicationWindow {
 
         Image {
             id: floatingOverlayImage
-            visible: UserInterfaceSettings.floatingWindowShowsMainVideoLayer && floatingTextureWindow.visible
+            visible: UserInterfaceSettings.floatingWindowShowsMainVideoLayer && !UserInterfaceSettings.floatingWindowShows3DView && floatingTextureWindow.visible
             anchors.fill: parent
             fillMode: Image.PreserveAspectFit
             opacity: 1
         }
 
-        onVisibleChanged: {
-            if(!UserInterfaceSettings.floatingWindowShowsMainVideoLayer){
-                if (visible){
-                    floatingLayerViewItem.start()
-                }
-                else {
-                    floatingLayerViewItem.stop()
-                }
-            }
+        // The 3D master view: the perspective, fisheye or sphere view selected for the master UI,
+        // rendered by viewLayersIn3DRenderItem at this window's size.
+        LayersMirrorQtItem {
+            id: floatingLayersMirrorItem
+            visible: UserInterfaceSettings.floatingWindowShows3DView && floatingTextureWindow.visible
+            anchors.fill: parent
+            source: viewLayersIn3DRenderItem
         }
     }
 

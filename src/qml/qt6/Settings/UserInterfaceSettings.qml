@@ -433,7 +433,7 @@ SettingsBasePage {
                     from: 30
                     to: 150
                     value: UserInterfaceSettings.fov3Dview
-                    enabled: !UserInterfaceSettings.renderAsFisheyeIn3DView
+                    enabled: !UserInterfaceSettings.renderAsFisheyeIn3DView && !UserInterfaceSettings.renderAsSphereIn3DView
 
                     onValueChanged: {
                         UserInterfaceSettings.fov3Dview = value;
@@ -463,6 +463,30 @@ SettingsBasePage {
 
                 onCheckedChanged: {
                     UserInterfaceSettings.renderAsFisheyeIn3DView = checked;
+                    // Only one camera mode can be active at startup.
+                    if (checked)
+                        renderAsSphereCheckBox.checked = false;
+                    UserInterfaceSettings.save();
+                }
+            }
+            Item {
+                Layout.fillWidth: true
+            }
+
+            Item {
+                height: 1
+                width: 1
+            }
+            CheckBox {
+                id: renderAsSphereCheckBox
+                checked: UserInterfaceSettings.renderAsSphereIn3DView
+                text: qsTr("Render 3D view mapped on a sphere at startup")
+
+                onCheckedChanged: {
+                    UserInterfaceSettings.renderAsSphereIn3DView = checked;
+                    // Only one camera mode can be active at startup.
+                    if (checked)
+                        renderAsFisheyeCheckBox.checked = false;
                     UserInterfaceSettings.save();
                 }
             }
@@ -747,7 +771,8 @@ SettingsBasePage {
                         UserInterfaceSettings.floatingWindowPosY = floatingWindowPosY.value;
                         UserInterfaceSettings.floatingWindowVisibleAtStartup = showFloatingWindowAtStartupCheckBox.checked;
                         UserInterfaceSettings.floatingWindowVolume = floatingWindowVolume.value.toFixed(0);
-                        UserInterfaceSettings.floatingWindowShowsMainVideoLayer = !showCustomLayerInFloatingWindowCheckBox.checked;
+                        UserInterfaceSettings.floatingWindowShowsMainVideoLayer = floatingWindowContentComboBox.currentIndex === 0;
+                        UserInterfaceSettings.floatingWindowShows3DView = floatingWindowContentComboBox.currentIndex === 2;
                         UserInterfaceSettings.floatingWindowShowOnlyMainVideoInLayer = showFloatingWindowShowOnlyMainVideoInLayer.checked;
                         UserInterfaceSettings.save();
                         floatingWindowValuesNeedsSave = false;
@@ -940,23 +965,23 @@ SettingsBasePage {
                 Layout.fillWidth: true
             }
 
-            Item {
-                height: 1
-                width: 1
+            Label {
+                Layout.alignment: Qt.AlignRight
+                text: qsTr("Window content:")
             }
-            CheckBox {
-                id: showCustomLayerInFloatingWindowCheckBox
+            ComboBox {
+                id: floatingWindowContentComboBox
 
-                checked: !UserInterfaceSettings.floatingWindowShowsMainVideoLayer
-                enabled: true
-                text: qsTr("Show custom layer instead of main video layer")
+                // 0 = main video layer, 1 = custom layer, 2 = 3D master view (the view selected for the master UI)
+                model: [qsTr("Main video layer"), qsTr("Custom layer"), qsTr("3D master view")]
 
-                onCheckedChanged: {
+                onActivated: {
                     floatingWindowValuesNeedsSave = true;
                 }
 
                 Component.onCompleted: {
-                    checked = !UserInterfaceSettings.floatingWindowShowsMainVideoLayer;
+                    currentIndex = UserInterfaceSettings.floatingWindowShows3DView ? 2 :
+                                   UserInterfaceSettings.floatingWindowShowsMainVideoLayer ? 0 : 1;
                 }
             }
             Item {
@@ -972,7 +997,7 @@ SettingsBasePage {
                 id: showFloatingWindowShowOnlyMainVideoInLayer
 
                 checked: UserInterfaceSettings.floatingWindowShowOnlyMainVideoInLayer
-                enabled: !showCustomLayerInFloatingWindowCheckBox.checked
+                enabled: floatingWindowContentComboBox.currentIndex === 0
                 text: qsTr("Show only main video layer in floating window.")
 
                 onCheckedChanged: {
@@ -995,7 +1020,7 @@ SettingsBasePage {
             SpinBox {
                 id: floatingWindowVolume
                 editable: true
-                enabled: showCustomLayerInFloatingWindowCheckBox.checked
+                enabled: floatingWindowContentComboBox.currentIndex === 1
                 from: 0
                 to: 100
                 value: UserInterfaceSettings.floatingWindowVolume
@@ -1019,7 +1044,7 @@ SettingsBasePage {
         LayerCoreProperties {
             id: layerCoreProps
             columns: 3
-            enabled: showCustomLayerInFloatingWindowCheckBox.checked
+            enabled: floatingWindowContentComboBox.currentIndex === 1
             Layout.leftMargin: 50
             Layout.rightMargin: 250
 

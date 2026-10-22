@@ -12,12 +12,14 @@
 #include <QOpenGLFunctions_4_5_Core>
 #include <QOpenGLShaderProgram>
 #include <QOpenGLVertexArrayObject>
+#include <QPointer>
 #include <QtQuick/QQuickItem>
 #include <QtQuick/QQuickWindow>
 #include <QTimer>
 #include <QVector3D>
 #include <QVector2D>
 #include <QMatrix4x4>
+#include <QQuaternion>
 #include <QVariantList>
 #include <QVariantMap>
 #include <array>
@@ -31,6 +33,25 @@
 #include <utils/domegrid.h>
 #include <utils/spheregrid.h>
 #include "mpvobject.h"
+
+// 3D view output shared with a LayersMirrorQtItem in another window (the floating window).
+// The 3D view's render thread renders the scene once more, at the requested size, into one of
+// two textures and fences it; the mirror's render thread waits on the fence and shows the
+// latest texture. The OpenGL contexts are shared (Qt::AA_ShareOpenGLContexts), so the texture
+// names are valid in both.
+struct LayersRendererMirrorLink {
+    // Requested size in physical pixels, written by the mirror; 0 = no mirror needs the output.
+    std::atomic_int requestedWidth = 0;
+    std::atomic_int requestedHeight = 0;
+
+    // Published frame, written by the 3D view's render thread. latest is -1 while there is none.
+    std::mutex mutex;
+    GLuint textures[2] = {0, 0};
+    int width = 0;
+    int height = 0;
+    int latest = -1;
+    GLsync fence = nullptr;
+};
 
 class LayersRendererQtOpenGLObject : public QObject, protected QOpenGLFunctions_4_5_Core {
     Q_OBJECT
@@ -64,7 +85,16 @@ public:
     int ndiWidth() const;
     int ndiHeight() const;
 
+    // Mirror output (see LayersRendererMirrorLink): rendered whenever the size is non-zero,
+    // also while this item is hidden, with its own projection for the mirror's aspect ratio.
+    void setMirrorLink(std::shared_ptr<LayersRendererMirrorLink> link);
+    void setMirrorSize(int width, int height);
+    void setMirrorProjectionMatrix(const QMatrix4x4& projectionMatrix);
+
     void setRenderAsFisheye(bool value);
+    // Sphere view: all content is placed on a unit sphere seen from outside at the given
+    // distance (in sphere radii) and turned by the rotation (see the FisheyeProjection shader).
+    void setSphereView(bool enabled, const QMatrix4x4& rotation, float distance);
 
 #ifdef CLUX_SUPPORT
     // C-Lux preview overlay (top layer): renders the live light colors as a dome-grid ring
@@ -113,13 +143,27 @@ private:
     void createShaders();
     void renderQuad();
 
+    // True when the layers are projected by the lens shaders (fisheye or sphere view) from
+    // their world-space model matrices instead of through the perspective camera.
+    bool lensProjection() const { return m_renderAsFisheye || m_renderAsSphere; }
+    // Pushes the lens selection and the sphere view camera to the fisheye programs.
+    void applyLensUniforms(const QMatrix4x4& viewMatrix, const QMatrix4x4& projectionMatrix);
+
     // Region of the framebuffer actually rendered into. In fisheye mode this is the largest
     // centered square inside the item rect, so the fulldome image keeps a 1:1 aspect ratio.
     QRect renderViewportRect() const;
 
-    // Shared body of firstPass/secondPass: renders the layers either straight to the
-    // framebuffer Qt has bound, or into the NDI capture target followed by a blit.
+    // Shared body of firstPass/secondPass: renders the view (when visible) and the mirror output.
     void renderFrame();
+    // Renders the layers either straight to the framebuffer Qt has bound, or into the NDI
+    // capture target followed by a blit.
+    void renderView();
+    // Renders the layers into the next mirror texture and publishes it, or releases the mirror
+    // target when no mirror needs it.
+    void renderMirror();
+    bool mirrorRequested() const { return m_mirrorLink && m_mirrorRequestedWidth > 0 && m_mirrorRequestedHeight > 0; }
+    bool ensureMirrorTarget();
+    void releaseMirrorTarget();
     // Creates/resizes the capture target to the requested size. Returns false when there is
     // nothing usable to render into.
     bool ensureNdiTarget();
@@ -241,6 +285,9 @@ private:
     bool m_divideUpdateAndRender = false;
     bool m_shuttingDown = false;
     bool m_renderAsFisheye = false;
+    bool m_renderAsSphere = false;
+    QMatrix4x4 m_sphereRotation;
+    float m_sphereDistance = 3.5f;
 
 #ifdef CLUX_SUPPORT
     // C-Lux preview overlay (render thread). The live light colors are baked into a dome-grid
@@ -268,6 +315,17 @@ private:
     GLuint m_ndiTexture = 0;
     int m_ndiWidth = 0;
     int m_ndiHeight = 0;
+
+    // Mirror output. The requested size and projection are set in sync(), the framebuffers
+    // (one per link texture) are only touched on the render thread.
+    std::shared_ptr<LayersRendererMirrorLink> m_mirrorLink;
+    QMatrix4x4 m_mirrorProjectionMatrix;
+    int m_mirrorRequestedWidth = 0;
+    int m_mirrorRequestedHeight = 0;
+    GLuint m_mirrorFbos[2] = {0, 0};
+    int m_mirrorWidth = 0;
+    int m_mirrorHeight = 0;
+    int m_mirrorNext = 0;
 };
 
 class LayersRendererQtItem : public QQuickItem {
@@ -281,6 +339,11 @@ class LayersRendererQtItem : public QQuickItem {
     Q_PROPERTY(double meshFov MEMBER m_meshFov READ meshFov WRITE setMeshFov NOTIFY meshFovChanged)
     Q_PROPERTY(double meshAngle MEMBER m_meshAngle READ meshAngle WRITE setMeshAngle NOTIFY meshAngleChanged)
     Q_PROPERTY(bool renderAsFisheye MEMBER m_renderAsFisheye READ renderAsFisheye WRITE setRenderAsFisheye NOTIFY renderAsFisheyeChanged)
+    // Sphere view: all content mapped on a sphere seen from outside. The pointer rotates the
+    // sphere (rotateSphere) instead of the camera, the wheel moves the camera closer or farther.
+    Q_PROPERTY(bool renderAsSphere MEMBER m_renderAsSphere READ renderAsSphere WRITE setRenderAsSphere NOTIFY renderAsSphereChanged)
+    Q_PROPERTY(QQuaternion sphereRotation READ sphereRotation WRITE setSphereRotation NOTIFY cameraChanged)
+    Q_PROPERTY(float sphereDistance READ sphereDistance WRITE setSphereDistance NOTIFY cameraChanged)
     Q_PROPERTY(MpvObject* mpvObject READ mpvObject WRITE setMpvObject NOTIFY mpvObjectChanged)
     Q_PROPERTY(QString backgroundImageFile READ backgroundImageFile WRITE setBackgroundImageFile NOTIFY backgroundImageFileChanged)
     Q_PROPERTY(QString foregroundImageFile READ foregroundImageFile WRITE setForegroundImageFile NOTIFY foregroundImageFileChanged)
@@ -317,6 +380,23 @@ public:
     bool renderAsFisheye() const;
     void setRenderAsFisheye(bool value);
 
+    bool renderAsSphere() const;
+    void setRenderAsSphere(bool value);
+
+    QQuaternion sphereRotation() const;
+    void setSphereRotation(const QQuaternion& rotation);
+
+    // Camera distance from the sphere centre, in sphere radii.
+    float sphereDistance() const;
+    void setSphereDistance(float distance);
+
+    // Sphere view interaction: a pointer delta in pixels turns the sphere about the screen
+    // axes so its surface follows the pointer, a wheel delta (angleDelta.y) zooms, and the
+    // reset restores the default pose.
+    Q_INVOKABLE void rotateSphere(float dx, float dy);
+    Q_INVOKABLE void zoomSphere(float wheelDelta);
+    Q_INVOKABLE void resetSphereView();
+
 #ifdef CLUX_SUPPORT
     bool cluxPreviewVisible() const;
     void setCluxPreviewVisible(bool visible);
@@ -324,12 +404,15 @@ public:
 #endif
 
     // NDI output of the 3D view. The size follows the configured resolution tier and the
-    // camera mode (16:9 for perspective, 1:1 for fisheye).
+    // camera mode (16:9 for perspective and sphere view, 1:1 for fisheye).
     void setNdiCaptureEnabled(bool enabled);
     bool isNdiCaptureEnabled() const;
     unsigned int ndiTextureId() const;
     int ndiWidth() const;
     int ndiHeight() const;
+
+    // Output shared with a LayersMirrorQtItem showing this view in another window.
+    std::shared_ptr<LayersRendererMirrorLink> mirrorLink() const;
 
     MpvObject* mpvObject() const;
     void setMpvObject(MpvObject* mpv);
@@ -360,7 +443,7 @@ public:
     // Speaker placement for the spatial audio mapping (Audio mapping dialog). Directions are
     // azimuth/elevation in degrees in the dome frame (no dome tilt), drawn on the dome surface.
     // projectDomeDirection returns {visible, x, y} in this item's pixel space for the current
-    // camera (perspective or fisheye); domeDirectionAtPoint returns {valid, azimuth, elevation}
+    // camera (perspective, fisheye or sphere view); domeDirectionAtPoint returns {valid, azimuth, elevation}
     // for the dome point under a pixel.
     Q_INVOKABLE QVariantMap projectDomeDirection(double azimuthDeg, double elevationDeg) const;
     Q_INVOKABLE QVariantMap domeDirectionAtPoint(float x, float y) const;
@@ -385,6 +468,7 @@ Q_SIGNALS:
     void meshFovChanged();
     void meshAngleChanged();
     void renderAsFisheyeChanged();
+    void renderAsSphereChanged();
 #ifdef CLUX_SUPPORT
     void cluxPreviewVisibleChanged();
 #endif
@@ -399,10 +483,18 @@ private:
     void releaseResources() override;
 
     void updateCameraMatrices();
+    // View/projection of the active camera for a target of the given size: the perspective
+    // camera, or the sphere view camera outside the sphere.
+    void activeCameraMatrices(float widthPx, float heightPx, QMatrix4x4& viewMatrix, QMatrix4x4& projectionMatrix) const;
+    // Sphere view: dome-frame direction (unit length, no dome tilt) of the sphere point under a
+    // pixel. False when the pixel misses the sphere.
+    bool sphereDirectionAtPoint(float x, float y, QVector3D& direction) const;
 
     // Recomputes the NDI target size from the resolution setting and the camera mode, and
     // pushes it (together with the matching projection) to the renderer.
     void updateNdiTarget();
+    // Takes the size requested by the mirror (square for fisheye) and pushes it to the renderer.
+    void updateMirrorTarget();
 
     // Dragging helpers (GUI thread, pure CPU math on the live camera state).
     bool rayFromScreenPoint(float x, float y, QVector3D& origin, QVector3D& direction) const;
@@ -476,6 +568,9 @@ private:
     double m_meshAngle;
 
     bool m_renderAsFisheye = false;
+    bool m_renderAsSphere = false;
+    QQuaternion m_sphereRotation;
+    float m_sphereDistance = 3.5f;
 
 #ifdef CLUX_SUPPORT
     // C-Lux preview overlay (GUI thread), pushed to the renderer in sync().
@@ -487,6 +582,10 @@ private:
     int m_ndiWidth = 0;
     int m_ndiHeight = 0;
 
+    std::shared_ptr<LayersRendererMirrorLink> m_mirrorLink;
+    int m_mirrorWidth = 0;
+    int m_mirrorHeight = 0;
+
     MpvObject* m_mpvObject = nullptr;
     QString m_backgroundImageFile;
     QString m_foregroundImageFile;
@@ -494,6 +593,43 @@ private:
 
     static std::atomic_bool s_shuttingDown;
     static std::mutex s_layerAccessMutex;
+};
+
+// Shows the 3D view of a LayersRendererQtItem in another window (the floating window). The
+// source renders the scene for this item's size and camera mode (see LayersRendererMirrorLink),
+// so the layers are still updated only once per frame by the source.
+class LayersMirrorQtItem : public QQuickItem {
+    Q_OBJECT
+    QML_ELEMENT
+
+    Q_PROPERTY(LayersRendererQtItem* source READ source WRITE setSource NOTIFY sourceChanged)
+
+public:
+    LayersMirrorQtItem(QQuickItem* parent = nullptr);
+    ~LayersMirrorQtItem() override;
+
+    LayersRendererQtItem* source() const;
+    void setSource(LayersRendererQtItem* source);
+
+Q_SIGNALS:
+    void sourceChanged();
+
+protected:
+    QSGNode* updatePaintNode(QSGNode* oldNode, UpdatePaintNodeData* data) override;
+    void itemChange(ItemChange change, const ItemChangeData& value) override;
+    void geometryChange(const QRectF& newGeometry, const QRectF& oldGeometry) override;
+
+private:
+    // Publishes this item's size in physical pixels to the source while visible, 0 otherwise.
+    void updateRequest();
+
+    QPointer<LayersRendererQtItem> m_source;
+    std::shared_ptr<LayersRendererMirrorLink> m_link;
+    QTimer m_timer;
+
+    // Texture wrapped by the current node (render thread, in updatePaintNode only).
+    GLuint m_shownTexture = 0;
+    QSize m_shownSize;
 };
 
 #endif // LAYERSRENDERERQTITEM_H

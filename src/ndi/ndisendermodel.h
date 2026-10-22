@@ -35,8 +35,8 @@ class NdiSenderModel : public QObject {
     Q_PROPERTY(QString ndiName READ ndiName NOTIFY ndiNameChanged)
     Q_PROPERTY(int width READ width NOTIFY resolutionChanged)
     Q_PROPERTY(int height READ height NOTIFY resolutionChanged)
-    // Mirrors window.mainViewMode: 0 renders the main video, 1 and 2 the 3D view with a
-    // perspective respectively fisheye camera. Selects which source is published.
+    // Mirrors window.mainViewMode: 0 renders the main video, 1-3 the 3D view with a
+    // perspective camera, a fisheye camera or mapped on a sphere. Selects which source is published.
     Q_PROPERTY(int mainViewMode READ mainViewMode WRITE setMainViewMode NOTIFY mainViewModeChanged)
 
 public:

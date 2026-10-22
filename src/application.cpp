@@ -495,6 +495,7 @@ void Application::registerQmlTypes() {
     qmlRegisterType<MpvView>("org.ctoolbox.cplay", 1, 0, "MpvView");
     qmlRegisterType<LayerQtItem>("org.ctoolbox.cplay", 1, 0, "LayerQtItem");
     qmlRegisterType<LayersRendererQtItem>("org.ctoolbox.cplay", 1, 0, "LayersRendererQtItem");
+    qmlRegisterType<LayersMirrorQtItem>("org.ctoolbox.cplay", 1, 0, "LayersMirrorQtItem");
     qmlRegisterType<SlidesQtItem>("org.ctoolbox.cplay", 1, 0, "SlidesQtItem");
     qmlRegisterType<CPlayFileDialog>("org.ctoolbox.cplay", 1, 0, "CPlayFileDialog");
     qRegisterMetaType<QAction *>();

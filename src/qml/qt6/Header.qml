@@ -1635,9 +1635,11 @@ ToolBar {
             id: viewLayersIn3DRenderButton
 
             icon.name: window.mainViewMode === 0 ? "map-flat" :
-                      window.mainViewMode === 1 ? "map-globe" : "draw-halfcircle3"
+                      window.mainViewMode === 1 ? "map-globe" :
+                      window.mainViewMode === 2 ? "draw-halfcircle3" : "draw-circle"
             icon.color: window.mainViewMode === 0 ? "crimson" :
-                        window.mainViewMode === 1 ? "lime" : "lightblue"
+                        window.mainViewMode === 1 ? "lime" :
+                        window.mainViewMode === 2 ? "lightblue" : "orange"
             text: qsTr("Master view")
             focusPolicy: Qt.NoFocus
             display: AbstractButton.IconOnly
@@ -1649,7 +1651,8 @@ ToolBar {
             ToolTip {
                 text: window.mainViewMode === 0 ? "Choose how the master view is rendered (currently: only the main video)." :
                       window.mainViewMode === 1 ? "Choose how the master view is rendered (currently: 3D view with perspective camera)." :
-                                                  "Choose how the master view is rendered (currently: 3D view with fisheye camera)."
+                      window.mainViewMode === 2 ? "Choose how the master view is rendered (currently: 3D view with fisheye camera)." :
+                                                  "Choose how the master view is rendered (currently: 3D view mapped on a sphere)."
             }
 
             Menu {
@@ -1685,6 +1688,15 @@ ToolBar {
                         text: "All layers rendered through a virtual 180-degree fisheye lens centered on the zenith."
                     }
                     onTriggered: window.mainViewMode = 2
+                }
+                MenuItem {
+                    checkable: true
+                    checked: window.mainViewMode === 3
+                    text: qsTr("Show 3D view mapped on a sphere")
+                    ToolTip {
+                        text: "All layers mapped on a sphere seen from outside. Drag to rotate the sphere, scroll to zoom and double-click to reset."
+                    }
+                    onTriggered: window.mainViewMode = 3
                 }
                 MenuSeparator {
                     visible: NDI_SUPPORT

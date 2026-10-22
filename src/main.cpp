@@ -946,9 +946,10 @@ static bool updateMasterNdiLayer(const glm::vec3 &rotXYZ, const glm::vec3 &trans
         masterNdiLayer->setRotate(rotXYZ);
         masterNdiLayer->setTranslate(translateXYZ);
     } else {
-        // 2 = the 16:9 perspective view on a plane, 3 = the fisheye rendering on the dome, both flat.
+        // 3 = the fisheye rendering on the dome; 2 and 4 = the 16:9 perspective respectively
+        // sphere view on a plane, all flat.
         masterNdiLayer->setAlpha(1.f);
-        masterNdiLayer->setGridMode(static_cast<uint8_t>(ndiState == 2 ? BaseLayer::GridMode::Plane : BaseLayer::GridMode::Dome));
+        masterNdiLayer->setGridMode(static_cast<uint8_t>(ndiState == 3 ? BaseLayer::GridMode::Dome : BaseLayer::GridMode::Plane));
         masterNdiLayer->setStereoMode(static_cast<uint8_t>(BaseLayer::StereoMode::No_2D));
         masterNdiLayer->setRotate(glm::vec3(0.f));
         masterNdiLayer->setTranslate(glm::vec3(0.f));

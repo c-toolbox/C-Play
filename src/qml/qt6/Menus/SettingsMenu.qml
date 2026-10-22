@@ -23,9 +23,11 @@ Menu {
             title: qsTr("Master view")
 
             icon.name: window.mainViewMode === 0 ? "map-flat" :
-                      window.mainViewMode === 1 ? "map-globe" : "draw-halfcircle3"
+                      window.mainViewMode === 1 ? "map-globe" :
+                      window.mainViewMode === 2 ? "draw-halfcircle3" : "draw-circle"
             icon.color: window.mainViewMode === 0 ? "crimson" :
-                        window.mainViewMode === 1 ? "lime" : "lightblue"
+                        window.mainViewMode === 1 ? "lime" :
+                        window.mainViewMode === 2 ? "lightblue" : "orange"
 
             MenuItem {
                 checkable: true
@@ -44,6 +46,12 @@ Menu {
                 checked: window.mainViewMode === 2
                 text: qsTr("Render 3D view with a fisheye camera")
                 onTriggered: window.mainViewMode = 2
+            }
+            MenuItem {
+                checkable: true
+                checked: window.mainViewMode === 3
+                text: qsTr("Render 3D view mapped on a sphere")
+                onTriggered: window.mainViewMode = 3
             }
             MenuSeparator {
                 visible: NDI_SUPPORT

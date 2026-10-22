@@ -18,7 +18,10 @@
 #include <ndi/ndisendermodel.h>
 #include <QDebug>
 #include <QOpenGLContext>
+#include <QOpenGLExtraFunctions>
 #include <QQuickGraphicsDevice>
+#include <QSGSimpleTextureNode>
+#include <QtQuick/qsgtexture_platform.h>
 #include <QTimer>
 #include <QtCore/QRunnable>
 #include <QtQuick/qquickwindow.h>
@@ -430,11 +433,20 @@ void main() {
 // the direction, so the same projection works for the dome cap, a full sphere and an arbitrary
 // plane. The normalized radius is passed on so the fragment stage can discard everything that
 // falls outside the dome cap.
+// With lens == 1 (sphere view) the same direction is instead placed on a unit sphere that a
+// perspective camera looks at from outside, on the +Z axis at 1 / sphereHorizon radii. The depth
+// is mirrored so content reads the same way as from inside the dome (the dome front faces the
+// camera), then the sphere rotation turns it. The radius output becomes > 1 on the far side of
+// the sphere, so the same fragment discard hides it.
 constexpr const char* FisheyeProjection = R"(
 #version 460 core
 
 uniform mat4 model;      // layer transform only (rotation/translation), no camera
 uniform float halfFov;   // half field of view of the dome, in radians
+uniform int lens;                    // 0 = fisheye, 1 = sphere view
+uniform mat4 sphereRotation;         // sphere view: rotation of the sphere
+uniform mat4 sphereViewProjection;   // sphere view: camera outside the sphere
+uniform float sphereHorizon;         // sphere view: z of the visible horizon on the sphere
 
 vec4 fisheye_project(vec3 pos, out float radius) {
     vec3 dir = (model * vec4(pos, 1.0)).xyz;
@@ -444,6 +456,12 @@ vec4 fisheye_project(vec3 pos, out float radius) {
         return vec4(0.0, 0.0, 0.0, 1.0);
     }
     dir /= len;
+
+    if (lens == 1) {
+        vec3 s = mat3(sphereRotation) * vec3(dir.x, dir.y, -dir.z);
+        radius = 1.0 + sphereHorizon - s.z;
+        return sphereViewProjection * vec4(s, 1.0);
+    }
 
     float phi = acos(clamp(dir.y, -1.0, 1.0));   // angle from the zenith (+Y)
     radius = phi / max(halfFov, 1e-6);
@@ -586,12 +604,29 @@ void main() {
 std::atomic_bool LayersRendererQtItem::s_shuttingDown = false;
 std::mutex LayersRendererQtItem::s_layerAccessMutex;
 
+namespace {
+// Sphere view camera and interaction. Distances are in sphere radii.
+constexpr float kSphereViewFovDeg = 40.0f;
+constexpr float kSphereDefaultDistance = 3.5f;
+constexpr float kSphereMinDistance = 1.2f;
+constexpr float kSphereMaxDistance = 12.0f;
+constexpr float kSphereDefaultTiltDeg = 25.0f;     // tips the zenith toward the viewer
+constexpr float kSphereDegreesPerPixel = 0.3f;
+
+QQuaternion defaultSphereRotation() {
+    return QQuaternion::fromAxisAndAngle(1.0f, 0.0f, 0.0f, kSphereDefaultTiltDeg);
+}
+} // namespace
+
 LayersRendererQtItem::LayersRendererQtItem()
     : m_renderer(nullptr), 
     m_timer(nullptr), 
     m_fieldOfView(90.0f),
     m_cameraPosition(0.0f, 0.0f, 0.0f),
-    m_cameraEulerRotation(0.0f, 0.0f, 0.0f) {
+    m_cameraEulerRotation(0.0f, 0.0f, 0.0f),
+    m_sphereRotation(defaultSphereRotation()),
+    m_sphereDistance(kSphereDefaultDistance),
+    m_mirrorLink(std::make_shared<LayersRendererMirrorLink>()) {
 
     m_meshRadius = GridSettings::surfaceRadius();
     m_meshAngle = GridSettings::surfaceAngle();
@@ -682,6 +717,60 @@ void LayersRendererQtItem::setRenderAsFisheye(bool value) {
     Q_EMIT renderAsFisheyeChanged();
 }
 
+bool LayersRendererQtItem::renderAsSphere() const {
+    return m_renderAsSphere;
+}
+
+void LayersRendererQtItem::setRenderAsSphere(bool value) {
+    if (m_renderAsSphere == value)
+        return;
+    m_renderAsSphere = value;
+    Q_EMIT renderAsSphereChanged();
+    Q_EMIT cameraChanged();
+}
+
+QQuaternion LayersRendererQtItem::sphereRotation() const {
+    return m_sphereRotation;
+}
+
+void LayersRendererQtItem::setSphereRotation(const QQuaternion& rotation) {
+    if (qFuzzyCompare(m_sphereRotation, rotation))
+        return;
+    m_sphereRotation = rotation;
+    Q_EMIT cameraChanged();
+}
+
+float LayersRendererQtItem::sphereDistance() const {
+    return m_sphereDistance;
+}
+
+void LayersRendererQtItem::setSphereDistance(float distance) {
+    distance = std::clamp(distance, kSphereMinDistance, kSphereMaxDistance);
+    if (qFuzzyCompare(m_sphereDistance, distance))
+        return;
+    m_sphereDistance = distance;
+    Q_EMIT cameraChanged();
+}
+
+void LayersRendererQtItem::rotateSphere(float dx, float dy) {
+    // The camera looks along -Z with +Y up: turning about Y moves the facing surface right,
+    // turning about X moves it down, so the sphere follows the pointer. Turns are applied in
+    // screen space (pre-multiplied), so dragging behaves the same whatever the current pose.
+    const QQuaternion turn = QQuaternion::fromAxisAndAngle(0.0f, 1.0f, 0.0f, dx * kSphereDegreesPerPixel)
+                           * QQuaternion::fromAxisAndAngle(1.0f, 0.0f, 0.0f, dy * kSphereDegreesPerPixel);
+    setSphereRotation((turn * m_sphereRotation).normalized());
+}
+
+void LayersRendererQtItem::zoomSphere(float wheelDelta) {
+    // One wheel notch (120) moves the camera about 11% closer (scroll up) or farther.
+    setSphereDistance(m_sphereDistance * std::pow(0.999f, wheelDelta));
+}
+
+void LayersRendererQtItem::resetSphereView() {
+    setSphereRotation(defaultSphereRotation());
+    setSphereDistance(kSphereDefaultDistance);
+}
+
 #ifdef CLUX_SUPPORT
 bool LayersRendererQtItem::cluxPreviewVisible() const {
     return m_cluxPreviewVisible;
@@ -722,6 +811,10 @@ int LayersRendererQtItem::ndiWidth() const {
 
 int LayersRendererQtItem::ndiHeight() const {
     return m_renderer ? m_renderer->ndiHeight() : 0;
+}
+
+std::shared_ptr<LayersRendererMirrorLink> LayersRendererQtItem::mirrorLink() const {
+    return m_mirrorLink;
 }
 
 MpvObject* LayersRendererQtItem::mpvObject() const {
@@ -791,31 +884,85 @@ void buildCameraMatrices(const QVector3D& position, const QVector3D& eulerRotati
     const float fov = (fieldOfViewDeg > 1.0f && fieldOfViewDeg < 179.0f) ? fieldOfViewDeg : 90.0f;
     projectionMatrix.perspective(fov, aspectRatio, 0.1f, 1000.0f);
 }
+
+// Sphere view camera: on the +Z axis outside the unit sphere, looking at its centre.
+void buildSphereCameraMatrices(float distance, float widthPx, float heightPx,
+                               QMatrix4x4& viewMatrix, QMatrix4x4& projectionMatrix) {
+    const float aspectRatio = (heightPx > 0.0f) ? widthPx / heightPx : 1.0f;
+    viewMatrix.lookAt(QVector3D(0.0f, 0.0f, distance), QVector3D(0.0f, 0.0f, 0.0f), QVector3D(0.0f, 1.0f, 0.0f));
+    projectionMatrix.perspective(kSphereViewFovDeg, aspectRatio, 0.01f, 100.0f);
+}
+
+// Sphere view: where a dome-frame direction lands on the turned unit sphere. Mirrors the
+// FisheyeProjection shader (depth mirrored so the content reads as seen from inside).
+QVector3D spherePoint(const QVector3D& direction, const QQuaternion& rotation) {
+    return rotation.rotatedVector(QVector3D(direction.x(), direction.y(), -direction.z()).normalized());
+}
+
+// Azimuth/elevation in degrees of a dome-frame direction (azimuth 0 = -Z).
+void directionToAngles(const QVector3D& direction, double& azimuthDeg, double& elevationDeg) {
+    constexpr double toDeg = 180.0 / 3.14159265358979323846;
+    azimuthDeg = std::atan2(direction.x(), -direction.z()) * toDeg;
+    elevationDeg = std::atan2(direction.y(), std::hypot(direction.x(), direction.z())) * toDeg;
+}
+
+enum class Lens { Perspective, Fisheye, Sphere };
 } // namespace
+
+void LayersRendererQtItem::activeCameraMatrices(float widthPx, float heightPx,
+                                                QMatrix4x4& viewMatrix, QMatrix4x4& projectionMatrix) const {
+    if (m_renderAsSphere)
+        buildSphereCameraMatrices(m_sphereDistance, widthPx, heightPx, viewMatrix, projectionMatrix);
+    else
+        buildCameraMatrices(m_cameraPosition, m_cameraEulerRotation, m_fieldOfView,
+                            widthPx, heightPx, viewMatrix, projectionMatrix);
+}
 
 void LayersRendererQtItem::updateCameraMatrices() {
     QMatrix4x4 viewMatrix;
     QMatrix4x4 projectionMatrix;
-    buildCameraMatrices(m_cameraPosition, m_cameraEulerRotation, m_fieldOfView,
-                        static_cast<float>(width()), static_cast<float>(height()),
-                        viewMatrix, projectionMatrix);
+    activeCameraMatrices(static_cast<float>(width()), static_cast<float>(height()),
+                         viewMatrix, projectionMatrix);
 
     // The NDI target has its own fixed aspect ratio, so it needs its own projection.
     QMatrix4x4 ndiViewMatrix;
     QMatrix4x4 ndiProjectionMatrix;
-    buildCameraMatrices(m_cameraPosition, m_cameraEulerRotation, m_fieldOfView,
-                        static_cast<float>(m_ndiWidth), static_cast<float>(m_ndiHeight),
-                        ndiViewMatrix, ndiProjectionMatrix);
+    activeCameraMatrices(static_cast<float>(m_ndiWidth), static_cast<float>(m_ndiHeight),
+                         ndiViewMatrix, ndiProjectionMatrix);
+
+    // The same for the mirror, which follows the size of the window it is shown in.
+    QMatrix4x4 mirrorViewMatrix;
+    QMatrix4x4 mirrorProjectionMatrix;
+    activeCameraMatrices(static_cast<float>(m_mirrorWidth), static_cast<float>(m_mirrorHeight),
+                         mirrorViewMatrix, mirrorProjectionMatrix);
 
     if (m_renderer) {
         m_renderer->setCameraParams(viewMatrix, projectionMatrix);
         m_renderer->setNdiProjectionMatrix(ndiProjectionMatrix);
+        m_renderer->setMirrorProjectionMatrix(mirrorProjectionMatrix);
     }
 }
 
+void LayersRendererQtItem::updateMirrorTarget() {
+    int width = m_mirrorLink->requestedWidth;
+    int height = m_mirrorLink->requestedHeight;
+
+    // The fisheye (fulldome) image stays square, as on screen and over NDI.
+    if (m_renderAsFisheye)
+        width = height = std::min(width, height);
+    if (width <= 0 || height <= 0)
+        width = height = 0;
+
+    m_mirrorWidth = width;
+    m_mirrorHeight = height;
+
+    if (m_renderer)
+        m_renderer->setMirrorSize(m_mirrorWidth, m_mirrorHeight);
+}
+
 void LayersRendererQtItem::updateNdiTarget() {
-    // 0 = 2K, 1 = 4K, 2 = 6K, 3 = 8K. The perspective camera keeps a 16:9 aspect ratio,
-    // the fisheye (fulldome) camera a square one.
+    // 0 = 2K, 1 = 4K, 2 = 6K, 3 = 8K. The perspective camera and the sphere view keep a 16:9
+    // aspect ratio, the fisheye (fulldome) camera a square one.
     const int tier = std::clamp(StreamSettings::ndiResolution3DView(), 0, 3);
     const int scale = tier + 1;
 
@@ -908,7 +1055,47 @@ bool LayersRendererQtItem::rayFromScreenPoint(float x, float y, QVector3D& origi
     return true;
 }
 
+bool LayersRendererQtItem::sphereDirectionAtPoint(float x, float y, QVector3D& direction) const {
+    if (width() <= 0.0 || height() <= 0.0)
+        return false;
+
+    const float ndcX = 2.0f * x / static_cast<float>(width()) - 1.0f;
+    const float ndcY = 1.0f - 2.0f * y / static_cast<float>(height());
+
+    QMatrix4x4 viewMatrix;
+    QMatrix4x4 projectionMatrix;
+    buildSphereCameraMatrices(m_sphereDistance, static_cast<float>(width()), static_cast<float>(height()),
+                              viewMatrix, projectionMatrix);
+    bool invertible = false;
+    const QMatrix4x4 invVP = (projectionMatrix * viewMatrix).inverted(&invertible);
+    if (!invertible)
+        return false;
+
+    const QVector3D origin(0.0f, 0.0f, m_sphereDistance);
+    const QVector3D ray = (invVP.map(QVector3D(ndcX, ndcY, 1.0f)) - invVP.map(QVector3D(ndcX, ndcY, -1.0f))).normalized();
+
+    // Nearest intersection with the unit sphere.
+    const float b = QVector3D::dotProduct(origin, ray);
+    const float disc = b * b - (QVector3D::dotProduct(origin, origin) - 1.0f);
+    if (disc < 0.0f)
+        return false;   // the pixel is beside the sphere
+    const QVector3D hit = origin + ray * (-b - std::sqrt(disc));
+
+    // Undo the sphere rotation and the depth mirroring of spherePoint().
+    const QVector3D unrotated = m_sphereRotation.inverted().rotatedVector(hit);
+    direction = QVector3D(unrotated.x(), unrotated.y(), -unrotated.z()).normalized();
+    return true;
+}
+
 bool LayersRendererQtItem::aimAtScreenPointLocked(const BaseLayer* layer, float x, float y, double& azimuthDeg, double& elevationDeg) const {
+    if (m_renderAsSphere) {
+        // Every direction is shown on the sphere surface, so the pointer aims along the one under it.
+        QVector3D direction;
+        if (!sphereDirectionAtPoint(x, y, direction))
+            return false;
+        directionToAngles(direction, azimuthDeg, elevationDeg);
+        return true;
+    }
     return domeAnglesAtScreenPoint(x, y, layer->planeDistance() / 100.0, azimuthDeg, elevationDeg);
 }
 
@@ -1018,14 +1205,23 @@ namespace {
 // selected plane, into the item's pixel space. Mirrors renderLayers(): the perspective camera
 // runs the model matrix through the view/projection, while the fisheye (fulldome) lens projects
 // the model-space direction around the dome zenith (+Y) with an equidistant radius (see the
-// FisheyeProjection shader). Returns false when the point is behind the camera (perspective) or
-// degenerate (fisheye at the zenith), so the caller can keep a safe fallback.
-bool projectPlaneLocalToPixel(bool fisheye, double meshFovDeg, const QMatrix4x4& model,
+// FisheyeProjection shader), and the sphere view places the direction on the turned sphere that
+// the sphere camera (viewMatrix/projectionMatrix) looks at. Returns false when the point is behind
+// the camera (perspective) or degenerate (fisheye at the zenith), so the caller can keep a safe
+// fallback.
+bool projectPlaneLocalToPixel(Lens lens, double meshFovDeg, const QQuaternion& sphereRotation,
+                              const QMatrix4x4& model,
                               const QMatrix4x4& viewMatrix, const QMatrix4x4& projectionMatrix,
                               double widthPx, double heightPx, const QVector3D& localM,
                               QPointF& out) {
-    const QVector3D p = model.map(localM);   // model space (metres)
-    if (fisheye) {
+    QVector3D p = model.map(localM);   // model space (metres)
+    if (lens == Lens::Sphere) {
+        const float len = p.length();
+        if (len < 1e-6f)
+            return false;
+        p = spherePoint(p / len, sphereRotation);
+    }
+    if (lens == Lens::Fisheye) {
         const double len = p.length();
         if (len < 1e-6)
             return false;
@@ -1080,11 +1276,22 @@ QVariantMap LayersRendererQtItem::projectDomePoint(const QVector3D& point) const
     }
 
     QMatrix4x4 viewMatrix, projectionMatrix;
-    buildCameraMatrices(m_cameraPosition, m_cameraEulerRotation, m_fieldOfView,
-                        static_cast<float>(width()), static_cast<float>(height()), viewMatrix, projectionMatrix);
-    QMatrix4x4 tilt;
-    tilt.rotate(float(-m_meshAngle), 1.0f, 0.0f, 0.0f);
-    const QVector4D clip = projectionMatrix * viewMatrix * QVector4D(tilt.map(point), 1.0f);
+    activeCameraMatrices(static_cast<float>(width()), static_cast<float>(height()), viewMatrix, projectionMatrix);
+    QVector3D scenePoint;
+    if (m_renderAsSphere) {
+        // Mirrors the sphere view of the FisheyeProjection shader (no dome tilt, far side hidden).
+        const float len = point.length();
+        if (len < 1e-6f)
+            return result;
+        scenePoint = spherePoint(point / len, m_sphereRotation);
+        if (scenePoint.z() <= 1.0f / std::max(1.0f, m_sphereDistance))
+            return result; // on the far side of the sphere
+    } else {
+        QMatrix4x4 tilt;
+        tilt.rotate(float(-m_meshAngle), 1.0f, 0.0f, 0.0f);
+        scenePoint = tilt.map(point);
+    }
+    const QVector4D clip = projectionMatrix * viewMatrix * QVector4D(scenePoint, 1.0f);
     if (clip.w() <= 1e-6f)
         return result; // behind the camera
     const double ndcX = clip.x() / clip.w();
@@ -1138,9 +1345,10 @@ QVariantMap LayersRendererQtItem::circularPointAtPoint(float x, float y) const {
     if (!mapping.valid())
         return result;
 
-    // View ray in the dome frame (no tilt), from the camera (perspective) or the dome centre (fisheye).
+    // View ray in the dome frame (no tilt), from the camera (perspective) or the dome centre
+    // (fisheye and sphere view, which both show directions from the centre).
     QVector3D origin, dir;
-    if (m_renderAsFisheye) {
+    if (m_renderAsFisheye || m_renderAsSphere) {
         const QVariantMap hit = domeDirectionAtPoint(x, y);
         if (!hit.value(QStringLiteral("valid")).toBool())
             return result;
@@ -1210,6 +1418,11 @@ QVariantMap LayersRendererQtItem::domeDirectionAtPoint(float x, float y) const {
         const double dx = ndcX * s, dy = std::cos(phi), dz = ndcY * s;
         azimuthDeg = std::atan2(dx, -dz) * 180.0 / kPi;
         elevationDeg = std::atan2(dy, std::hypot(dx, dz)) * 180.0 / kPi;
+    } else if (m_renderAsSphere) {
+        QVector3D direction;
+        if (!sphereDirectionAtPoint(x, y, direction))
+            return result; // beside the sphere
+        directionToAngles(direction, azimuthDeg, elevationDeg);
     } else if (!domeAnglesAtScreenPoint(x, y, std::max(0.01, m_meshRadius / 100.0), azimuthDeg, elevationDeg)) {
         return result;
     }
@@ -1236,9 +1449,10 @@ void LayersRendererQtItem::planeMoveAxesLocked(double& rightPerCmH, double& down
     downPerCmV = -pxPerCm;
 
     // Rebuild the plane's model matrix exactly as the renderer does, including the dome-angle
-    // tilt that the fisheye lens deliberately omits (its output is locked to the zenith).
+    // tilt that the fisheye and sphere lenses deliberately omit (their output is locked to the zenith).
+    const Lens lens = m_renderAsSphere ? Lens::Sphere : m_renderAsFisheye ? Lens::Fisheye : Lens::Perspective;
     QMatrix4x4 model;
-    if (!m_renderAsFisheye)
+    if (lens == Lens::Perspective)
         model.rotate(float(-m_meshAngle), 1.0f, 0.0f, 0.0f);
     model.rotate(float(m_selectedPlaneLayer->planeAzimuth()), 0.0f, -1.0f, 0.0f);
     model.rotate(float(m_selectedPlaneLayer->planeElevation()), 1.0f, 0.0f, 0.0f);
@@ -1250,15 +1464,14 @@ void LayersRendererQtItem::planeMoveAxesLocked(double& rightPerCmH, double& down
     if (m_selectedPlaneLayer->circularPlaneActive()) {
         QMatrix4x4 circularModel(glm::value_ptr(m_selectedPlaneLayer->circularPlaneModel(false)));
         model.setToIdentity();
-        if (!m_renderAsFisheye) model.rotate(float(-m_meshAngle), 1, 0, 0);
+        if (lens == Lens::Perspective) model.rotate(float(-m_meshAngle), 1, 0, 0);
         model *= circularModel.transposed();
     }
 
     QMatrix4x4 viewMatrix, projectionMatrix;
-    if (!m_renderAsFisheye)
-        buildCameraMatrices(m_cameraPosition, m_cameraEulerRotation, m_fieldOfView,
-                            static_cast<float>(width()), static_cast<float>(height()),
-                            viewMatrix, projectionMatrix);
+    if (lens != Lens::Fisheye)
+        activeCameraMatrices(static_cast<float>(width()), static_cast<float>(height()),
+                             viewMatrix, projectionMatrix);
 
     if (m_selectedPlaneLayer->circularPlaneActive()) {
         const auto mapping = m_selectedPlaneLayer->circularMapping();
@@ -1267,10 +1480,10 @@ void LayersRendererQtItem::planeMoveAxesLocked(double& rightPerCmH, double& down
         double best = std::numeric_limits<double>::max();
         for (const auto &copy : copies) {
             QMatrix4x4 candidate(glm::value_ptr(copy.model)); candidate = candidate.transposed();
-            QMatrix4x4 tilt; if (!m_renderAsFisheye) tilt.rotate(float(-m_meshAngle), 1, 0, 0);
+            QMatrix4x4 tilt; if (lens == Lens::Perspective) tilt.rotate(float(-m_meshAngle), 1, 0, 0);
             candidate = tilt * candidate;
             QPointF centre;
-            if (!projectPlaneLocalToPixel(m_renderAsFisheye, m_meshFov, candidate, viewMatrix,
+            if (!projectPlaneLocalToPixel(lens, m_meshFov, m_sphereRotation, candidate, viewMatrix,
                                           projectionMatrix, wPx, hPx, QVector3D(), centre)) continue;
             const double dx = centre.x() - m_dragStartX, dy = centre.y() - m_dragStartY;
             if (dx * dx + dy * dy < best) { best = dx * dx + dy * dy; model = candidate; }
@@ -1280,7 +1493,7 @@ void LayersRendererQtItem::planeMoveAxesLocked(double& rightPerCmH, double& down
     // Sample the on-screen position of the plane centre and of two points one centimetre along
     // its local X (plane-horizontal) and Y (plane-vertical) axes. The differences give the pixels
     // per cm along each axis for the *active* projection, so the drag follows the pointer for any
-    // plane orientation, camera pose, or lens (perspective vs fisheye) without special-casing.
+    // plane orientation, camera pose, or lens (perspective, fisheye or sphere) without special-casing.
     QVector3D horizontalAxis(0.01f, 0, 0), verticalAxis(0, 0.01f, 0);
     if (m_selectedPlaneLayer->circularPlaneActive()) {
         QMatrix4x4 orientation;
@@ -1291,11 +1504,11 @@ void LayersRendererQtItem::planeMoveAxesLocked(double& rightPerCmH, double& down
         verticalAxis = orientation.inverted().mapVector(verticalAxis);
     }
     QPointF c0, cH, cV;
-    const bool ok0 = projectPlaneLocalToPixel(m_renderAsFisheye, m_meshFov, model, viewMatrix,
+    const bool ok0 = projectPlaneLocalToPixel(lens, m_meshFov, m_sphereRotation, model, viewMatrix,
                                               projectionMatrix, wPx, hPx, QVector3D(0, 0, 0), c0);
-    const bool okH = projectPlaneLocalToPixel(m_renderAsFisheye, m_meshFov, model, viewMatrix,
+    const bool okH = projectPlaneLocalToPixel(lens, m_meshFov, m_sphereRotation, model, viewMatrix,
                                               projectionMatrix, wPx, hPx, horizontalAxis, cH);
-    const bool okV = projectPlaneLocalToPixel(m_renderAsFisheye, m_meshFov, model, viewMatrix,
+    const bool okV = projectPlaneLocalToPixel(lens, m_meshFov, m_sphereRotation, model, viewMatrix,
                                               projectionMatrix, wPx, hPx, verticalAxis, cV);
     if (!ok0 || !okH || !okV)
         return;   // degenerate projection: keep the neutral fallback above
@@ -1626,10 +1839,14 @@ void LayersRendererQtItem::sync() {
         connect(window(), &QQuickWindow::beforeRenderPassRecording, m_renderer, &LayersRendererQtOpenGLObject::firstPass, Qt::DirectConnection);
         connect(window(), &QQuickWindow::afterRenderPassRecording, m_renderer, &LayersRendererQtOpenGLObject::secondPass, Qt::DirectConnection);
         connect(window(), &QQuickWindow::frameSwapped, m_renderer, &LayersRendererQtOpenGLObject::reportSwap, Qt::DirectConnection);
+        m_renderer->setMirrorLink(m_mirrorLink);
     }
     m_renderer->setWindow(window());
     m_renderer->setItemVisible(isVisible());
     m_renderer->setRenderAsFisheye(m_renderAsFisheye);
+    QMatrix4x4 sphereRotation;
+    sphereRotation.rotate(m_sphereRotation);
+    m_renderer->setSphereView(m_renderAsSphere, sphereRotation, m_sphereDistance);
     m_renderer->updateMeshes(m_meshRadius, m_meshFov, m_meshAngle);
     m_renderer->setMpvObject(m_mpvObject);
     m_renderer->setBackgroundImageFile(m_backgroundImageFile);
@@ -1656,6 +1873,7 @@ void LayersRendererQtItem::sync() {
 
     // Picks up runtime changes of the configured NDI resolution as well.
     updateNdiTarget();
+    updateMirrorTarget();
 
     updateCameraMatrices();
 }
@@ -1707,6 +1925,7 @@ LayersRendererQtOpenGLObject::~LayersRendererQtOpenGLObject() {
     }
 #endif
     releaseNdiTarget();
+    releaseMirrorTarget();
 }
 
 void LayersRendererQtOpenGLObject::setWindow(QQuickWindow* window) {
@@ -1720,6 +1939,30 @@ void LayersRendererQtOpenGLObject::setCameraParams(const QMatrix4x4& viewMatrix,
 
 void LayersRendererQtOpenGLObject::setRenderAsFisheye(bool value) {
     m_renderAsFisheye = value;
+}
+
+void LayersRendererQtOpenGLObject::setSphereView(bool enabled, const QMatrix4x4& rotation, float distance) {
+    m_renderAsSphere = enabled;
+    m_sphereRotation = rotation;
+    m_sphereDistance = distance;
+}
+
+void LayersRendererQtOpenGLObject::applyLensUniforms(const QMatrix4x4& viewMatrix, const QMatrix4x4& projectionMatrix) {
+    // Uniform values stay with the program, so setting them once per pass covers every draw.
+    const QMatrix4x4 viewProjection = projectionMatrix * viewMatrix;
+    const float horizon = 1.0f / std::max(1.0f, m_sphereDistance);
+    for (ShaderVariant &variant : m_shaderVariants) {
+        for (QOpenGLShaderProgram *prg : {variant.fisheyePrg.get(), variant.fisheyeEACPrg.get()}) {
+            if (!prg)
+                continue;
+            prg->bind();
+            prg->setUniformValue("lens", m_renderAsSphere ? 1 : 0);
+            prg->setUniformValue("sphereRotation", m_sphereRotation);
+            prg->setUniformValue("sphereViewProjection", viewProjection);
+            prg->setUniformValue("sphereHorizon", horizon);
+            prg->release();
+        }
+    }
 }
 
 #ifdef CLUX_SUPPORT
@@ -1812,6 +2055,9 @@ void LayersRendererQtOpenGLObject::renderCluxPreview(float angle, const QMatrix4
     if (!m_cluxDiskTexture || !m_domeMesh)
         return;
 
+    // The NDI path draws the overlay after renderLayers() with its own projection.
+    applyLensUniforms(viewMatrix, projectionMatrix);
+
     // Bake the latest light colors into the disk texture (only when they changed). RGB carries the
     // color, A carries the precomputed radial fade, so the existing programs' per-pixel alpha
     // produces the rim-to-center fade without any new shader.
@@ -1849,7 +2095,7 @@ void LayersRendererQtOpenGLObject::renderCluxPreview(float angle, const QMatrix4
     glEnable(GL_BLEND);
     glBlendFunc(GL_SRC_ALPHA, GL_ONE_MINUS_SRC_ALPHA);
 
-    if (m_renderAsFisheye) {
+    if (lensProjection()) {
         if (!m_sv->fisheyePrg) {
             glDisable(GL_BLEND);
             return;
@@ -2005,6 +2251,133 @@ void LayersRendererQtOpenGLObject::blitNdiTargetToScreen(GLuint targetFramebuffe
 
     glBindFramebuffer(GL_FRAMEBUFFER, targetFramebuffer);
     glViewport(itemRect.x(), itemRect.y(), itemRect.width(), itemRect.height());
+}
+
+void LayersRendererQtOpenGLObject::setMirrorLink(std::shared_ptr<LayersRendererMirrorLink> link) {
+    m_mirrorLink = std::move(link);
+}
+
+void LayersRendererQtOpenGLObject::setMirrorSize(int width, int height) {
+    m_mirrorRequestedWidth = width;
+    m_mirrorRequestedHeight = height;
+}
+
+void LayersRendererQtOpenGLObject::setMirrorProjectionMatrix(const QMatrix4x4& projectionMatrix) {
+    m_mirrorProjectionMatrix = projectionMatrix;
+}
+
+bool LayersRendererQtOpenGLObject::ensureMirrorTarget() {
+    const int width = m_mirrorRequestedWidth;
+    const int height = m_mirrorRequestedHeight;
+
+    if (m_mirrorFbos[0] != 0 && m_mirrorWidth == width && m_mirrorHeight == height)
+        return true;
+
+    releaseMirrorTarget();
+
+    // The textures are replaced while the mirror cannot pick them up.
+    std::lock_guard<std::mutex> lock(m_mirrorLink->mutex);
+
+    GLint previousFbo = 0;
+    glGetIntegerv(GL_FRAMEBUFFER_BINDING, &previousFbo);
+
+    glGenTextures(2, m_mirrorLink->textures);
+    glGenFramebuffers(2, m_mirrorFbos);
+
+    bool complete = true;
+    for (int i = 0; i < 2; i++) {
+        glBindTexture(GL_TEXTURE_2D, m_mirrorLink->textures[i]);
+        glTexImage2D(GL_TEXTURE_2D, 0, GL_RGBA8, width, height, 0, GL_RGBA, GL_UNSIGNED_BYTE, nullptr);
+        glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_MIN_FILTER, GL_LINEAR);
+        glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_MAG_FILTER, GL_LINEAR);
+        glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_WRAP_S, GL_CLAMP_TO_EDGE);
+        glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_WRAP_T, GL_CLAMP_TO_EDGE);
+
+        glBindFramebuffer(GL_FRAMEBUFFER, m_mirrorFbos[i]);
+        glFramebufferTexture2D(GL_FRAMEBUFFER, GL_COLOR_ATTACHMENT0, GL_TEXTURE_2D, m_mirrorLink->textures[i], 0);
+        complete = complete && glCheckFramebufferStatus(GL_FRAMEBUFFER) == GL_FRAMEBUFFER_COMPLETE;
+    }
+    glBindTexture(GL_TEXTURE_2D, 0);
+    glBindFramebuffer(GL_FRAMEBUFFER, static_cast<GLuint>(previousFbo));
+
+    m_mirrorWidth = width;
+    m_mirrorHeight = height;
+    m_mirrorNext = 0;
+    m_mirrorLink->width = width;
+    m_mirrorLink->height = height;
+    m_mirrorLink->latest = -1;
+
+    if (!complete) {
+        qWarning() << "LayersRendererQtItem: could not create the" << width << "x" << height
+                   << "mirror target";
+        return false;
+    }
+    return true;
+}
+
+void LayersRendererQtOpenGLObject::releaseMirrorTarget() {
+    if (m_mirrorFbos[0] == 0)
+        return;
+
+    glDeleteFramebuffers(2, m_mirrorFbos);
+    m_mirrorFbos[0] = m_mirrorFbos[1] = 0;
+    m_mirrorWidth = 0;
+    m_mirrorHeight = 0;
+
+    if (m_mirrorLink) {
+        std::lock_guard<std::mutex> lock(m_mirrorLink->mutex);
+        glDeleteTextures(2, m_mirrorLink->textures);
+        m_mirrorLink->textures[0] = m_mirrorLink->textures[1] = 0;
+        if (m_mirrorLink->fence) {
+            glDeleteSync(m_mirrorLink->fence);
+            m_mirrorLink->fence = nullptr;
+        }
+        m_mirrorLink->width = 0;
+        m_mirrorLink->height = 0;
+        m_mirrorLink->latest = -1;
+    }
+}
+
+void LayersRendererQtOpenGLObject::renderMirror() {
+    if (!mirrorRequested()) {
+        releaseMirrorTarget();
+        return;
+    }
+    if (!ensureMirrorTarget())
+        return;
+
+    GLint previousFbo = 0;
+    glGetIntegerv(GL_FRAMEBUFFER_BINDING, &previousFbo);
+
+    // Render into the texture the mirror is not showing, so it never sees a half drawn frame.
+    const int index = m_mirrorNext;
+    glBindFramebuffer(GL_FRAMEBUFFER, m_mirrorFbos[index]);
+    glViewport(0, 0, m_mirrorWidth, m_mirrorHeight);
+
+    glClearColor(0.0f, 0.0f, 0.0f, 1.0f);
+    glClear(GL_COLOR_BUFFER_BIT);
+
+    // renderViewportRect() (flat layer aspect, fisheye square) has to describe the mirror target
+    // during this pass. Like the NDI output, the mirror never contains the C-Lux preview.
+    const QRect viewportRect = m_viewportRect;
+    m_viewportRect = QRect(0, 0, m_mirrorWidth, m_mirrorHeight);
+    renderLayers(m_meshAngle, m_viewMatrix, m_mirrorProjectionMatrix, /*includeCluxPreview=*/false);
+    m_viewportRect = viewportRect;
+
+    glBindFramebuffer(GL_FRAMEBUFFER, static_cast<GLuint>(previousFbo));
+    const QRect vp = renderViewportRect();
+    glViewport(vp.x(), vp.y(), vp.width(), vp.height());
+
+    // The flush makes the fence visible to the mirror's context.
+    GLsync fence = glFenceSync(GL_SYNC_GPU_COMMANDS_COMPLETE, 0);
+    glFlush();
+
+    std::lock_guard<std::mutex> lock(m_mirrorLink->mutex);
+    if (m_mirrorLink->fence)
+        glDeleteSync(m_mirrorLink->fence);
+    m_mirrorLink->fence = fence;
+    m_mirrorLink->latest = index;
+    m_mirrorNext = 1 - index;
 }
 
 void LayersRendererQtOpenGLObject::setMpvObject(MpvObject* mpv) {
@@ -2297,7 +2670,7 @@ void LayersRendererQtOpenGLObject::renderLayer(const BaseLayer* layer, int eyeMo
 
     if (gridMode == 4) {
         // EAC sphere: plain perspective, or one-pass fisheye (fulldome).
-        if (m_renderAsFisheye) {
+        if (lensProjection()) {
             m_sv->fisheyeEACPrg->bind();
 
             m_sv->fisheyeEACPrg->setUniformValue(m_sv->fisheyeEACAlphaLoc, alpha);
@@ -2385,7 +2758,7 @@ void LayersRendererQtOpenGLObject::renderLayer(const BaseLayer* layer, int eyeMo
     }
     else if (gridMode == 3) {
         // EQR sphere rendering: plain perspective, or one-pass fisheye (fulldome).
-        if (m_renderAsFisheye) {
+        if (lensProjection()) {
             m_sv->fisheyePrg->bind();
 
             if (stereoMode > 0) {
@@ -2481,7 +2854,7 @@ void LayersRendererQtOpenGLObject::renderLayer(const BaseLayer* layer, int eyeMo
     }
     else if (gridMode == 2) {
         // Dome rendering: plain perspective, or one-pass 180-degree fisheye (fulldome).
-        if (m_renderAsFisheye) {
+        if (lensProjection()) {
             m_sv->fisheyePrg->bind();
 
             if (stereoMode > 0) {
@@ -2562,13 +2935,13 @@ void LayersRendererQtOpenGLObject::renderLayer(const BaseLayer* layer, int eyeMo
     }
     else if (gridMode == 1) {
         // Plane rendering
-        QOpenGLShaderProgram* prg = m_renderAsFisheye ? m_sv->fisheyePrg.get() : m_sv->meshPrg.get();
-        const int eyeModeLoc = m_renderAsFisheye ? m_sv->fisheyeEyeModeLoc : m_sv->meshEyeModeLoc;
-        const int stereoLoc = m_renderAsFisheye ? m_sv->fisheyeStereoscopicModeLoc : m_sv->meshStereoscopicModeLoc;
-        const int roiLoc = m_renderAsFisheye ? m_sv->fisheyeRoi : m_sv->meshRoi;
-        const int alphaLoc = m_renderAsFisheye ? m_sv->fisheyeAlphaLoc : m_sv->meshAlphaLoc;
-        const int flipYLoc = m_renderAsFisheye ? m_sv->fisheyeFlipYLoc : m_sv->meshFlipYLoc;
-        const int matrixLoc = m_renderAsFisheye ? m_sv->fisheyeMatrixLoc : m_sv->meshMatrixLoc;
+        QOpenGLShaderProgram* prg = lensProjection() ? m_sv->fisheyePrg.get() : m_sv->meshPrg.get();
+        const int eyeModeLoc = lensProjection() ? m_sv->fisheyeEyeModeLoc : m_sv->meshEyeModeLoc;
+        const int stereoLoc = lensProjection() ? m_sv->fisheyeStereoscopicModeLoc : m_sv->meshStereoscopicModeLoc;
+        const int roiLoc = lensProjection() ? m_sv->fisheyeRoi : m_sv->meshRoi;
+        const int alphaLoc = lensProjection() ? m_sv->fisheyeAlphaLoc : m_sv->meshAlphaLoc;
+        const int flipYLoc = lensProjection() ? m_sv->fisheyeFlipYLoc : m_sv->meshFlipYLoc;
+        const int matrixLoc = lensProjection() ? m_sv->fisheyeMatrixLoc : m_sv->meshMatrixLoc;
 
         prg->bind();
 
@@ -2590,7 +2963,7 @@ void LayersRendererQtOpenGLObject::renderLayer(const BaseLayer* layer, int eyeMo
         }
 
         prg->setUniformValue(alphaLoc, alpha);
-        (m_renderAsFisheye ? m_sv->fisheyeMaskLocs : m_sv->meshMaskLocs).apply(QtUniformSetter{prg}, anim, aspect, fx);
+        (lensProjection() ? m_sv->fisheyeMaskLocs : m_sv->meshMaskLocs).apply(QtUniformSetter{prg}, anim, aspect, fx);
         prg->setUniformValue(flipYLoc, layer->renderFlipY());
 
         if (layer->circularPlaneActive()) {
@@ -2598,11 +2971,11 @@ void LayersRendererQtOpenGLObject::renderLayer(const BaseLayer* layer, int eyeMo
             const auto mapping = layer->circularMapping();
             const auto copies = cplay::circular::copies(layer->circularPlaneModel(), layer->planeActualSize(), mapping.widthCm);
             QMatrix4x4 tilt;
-            if (!m_renderAsFisheye) tilt.rotate(-angle, 1, 0, 0);
+            if (!lensProjection()) tilt.rotate(-angle, 1, 0, 0);
             GLboolean previous[4];
             for (int i = 0; i < 4; ++i) { previous[i] = glIsEnabled(GL_CLIP_DISTANCE0 + i); glEnable(GL_CLIP_DISTANCE0 + i); }
             prg->setUniformValue("circularHalfWidth", float(mapping.widthCm / 200.0));
-            if (m_renderAsFisheye) {
+            if (lensProjection()) {
                 prg->setUniformValue(m_sv->fisheyeOutsideLoc, 0);
                 prg->setUniformValue(m_sv->fisheyeHalfFovLoc, static_cast<float>(glm::radians(m_meshFov * 0.5)));
             }
@@ -2611,7 +2984,7 @@ void LayersRendererQtOpenGLObject::renderLayer(const BaseLayer* layer, int eyeMo
                 QMatrix4x4 model(glm::value_ptr(copy.model));
                 model = model.transposed();
                 const QMatrix4x4 transform = tilt * model;
-                prg->setUniformValue(matrixLoc, m_renderAsFisheye ? transform : projectionMatrix * viewMatrix * transform);
+                prg->setUniformValue(matrixLoc, lensProjection() ? transform : projectionMatrix * viewMatrix * transform);
                 prg->setUniformValue("circularModel", model);
                 prg->setUniformValue("circularSourceBounds", QVector2D(copy.sourceBounds.x, copy.sourceBounds.y));
                 layer->drawPlane();
@@ -2622,7 +2995,7 @@ void LayersRendererQtOpenGLObject::renderLayer(const BaseLayer* layer, int eyeMo
 
             // Respect the dome angle. In fisheye mode the output is locked to the zenith, so the
             // dome tilt must not be applied.
-            if (!m_renderAsFisheye)
+            if (!lensProjection())
                 planeTransform.rotate(-angle, 1, 0, 0);
 
             // Specific plane parameters
@@ -2636,7 +3009,7 @@ void LayersRendererQtOpenGLObject::renderLayer(const BaseLayer* layer, int eyeMo
             if (animActive && anim.scale != 1.f)
                 planeTransform.scale(anim.scale, anim.scale, 1.f);
 
-            if (m_renderAsFisheye) {
+            if (lensProjection()) {
                 // The fisheye lens needs the plane in world space, without any camera.
                 prg->setUniformValue(m_sv->fisheyeOutsideLoc, 0);
                 prg->setUniformValue(m_sv->fisheyeHalfFovLoc, static_cast<float>(glm::radians(m_meshFov * 0.5)));
@@ -2743,7 +3116,7 @@ void LayersRendererQtOpenGLObject::renderMpvObject(MpvObject* mpv, int eyeMode, 
 
     if (gridMode == 4) {
         // EAC sphere: plain perspective, or one-pass fisheye (fulldome).
-        if (m_renderAsFisheye) {
+        if (lensProjection()) {
             m_sv->fisheyeEACPrg->bind();
 
             m_sv->fisheyeEACPrg->setUniformValue(m_sv->fisheyeEACAlphaLoc, alpha);
@@ -2840,7 +3213,7 @@ void LayersRendererQtOpenGLObject::renderMpvObject(MpvObject* mpv, int eyeMode, 
     }
     else if (gridMode == 3) {
         // EQR sphere: plain perspective, or one-pass fisheye (fulldome).
-        if (m_renderAsFisheye) {
+        if (lensProjection()) {
             m_sv->fisheyePrg->bind();
 
             if (stereoMode > 0) {
@@ -2914,7 +3287,7 @@ void LayersRendererQtOpenGLObject::renderMpvObject(MpvObject* mpv, int eyeMode, 
     }
     else if (gridMode == 2) {
         // Dome rendering: plain perspective, or one-pass 180-degree fisheye (fulldome).
-        if (m_renderAsFisheye) {
+        if (lensProjection()) {
             m_sv->fisheyePrg->bind();
 
             if (stereoMode > 0) {
@@ -2977,13 +3350,13 @@ void LayersRendererQtOpenGLObject::renderMpvObject(MpvObject* mpv, int eyeMode, 
     }
     else if (gridMode == 1) {
         // Plane
-        QOpenGLShaderProgram* prg = m_renderAsFisheye ? m_sv->fisheyePrg.get() : m_sv->meshPrg.get();
-        const int eyeModeLoc = m_renderAsFisheye ? m_sv->fisheyeEyeModeLoc : m_sv->meshEyeModeLoc;
-        const int stereoLoc = m_renderAsFisheye ? m_sv->fisheyeStereoscopicModeLoc : m_sv->meshStereoscopicModeLoc;
-        const int roiLoc = m_renderAsFisheye ? m_sv->fisheyeRoi : m_sv->meshRoi;
-        const int alphaLoc = m_renderAsFisheye ? m_sv->fisheyeAlphaLoc : m_sv->meshAlphaLoc;
-        const int flipYLoc = m_renderAsFisheye ? m_sv->fisheyeFlipYLoc : m_sv->meshFlipYLoc;
-        const int matrixLoc = m_renderAsFisheye ? m_sv->fisheyeMatrixLoc : m_sv->meshMatrixLoc;
+        QOpenGLShaderProgram* prg = lensProjection() ? m_sv->fisheyePrg.get() : m_sv->meshPrg.get();
+        const int eyeModeLoc = lensProjection() ? m_sv->fisheyeEyeModeLoc : m_sv->meshEyeModeLoc;
+        const int stereoLoc = lensProjection() ? m_sv->fisheyeStereoscopicModeLoc : m_sv->meshStereoscopicModeLoc;
+        const int roiLoc = lensProjection() ? m_sv->fisheyeRoi : m_sv->meshRoi;
+        const int alphaLoc = lensProjection() ? m_sv->fisheyeAlphaLoc : m_sv->meshAlphaLoc;
+        const int flipYLoc = lensProjection() ? m_sv->fisheyeFlipYLoc : m_sv->meshFlipYLoc;
+        const int matrixLoc = lensProjection() ? m_sv->fisheyeMatrixLoc : m_sv->meshMatrixLoc;
 
         prg->bind();
 
@@ -3002,12 +3375,12 @@ void LayersRendererQtOpenGLObject::renderMpvObject(MpvObject* mpv, int eyeMode, 
 
         QMatrix4x4 planeTransform;
         // In fisheye mode the output is zenith-locked, so the dome tilt must not be applied.
-        if (!m_renderAsFisheye)
+        if (!lensProjection())
             planeTransform.rotate(-angle, 1, 0, 0);                                      // dome angle
         planeTransform.rotate(float(mpv->planeElevation()), 1, 0, 0);                    // elevation
         planeTransform.translate(0.f, 0.f, float(-mpv->planeDistance()) / 100.f);        // distance
 
-        if (m_renderAsFisheye) {
+        if (lensProjection()) {
             // The fisheye lens needs the plane in world space, without any camera.
             prg->setUniformValue(m_sv->fisheyeOutsideLoc, 0);
             prg->setUniformValue(m_sv->fisheyeHalfFovLoc, static_cast<float>(glm::radians(m_meshFov * 0.5)));
@@ -3214,6 +3587,8 @@ void LayersRendererQtOpenGLObject::renderLayers(float angle,
     if (!Application::isCreated())
         return;
 
+    applyLensUniforms(viewMatrix, projectionMatrix);
+
     glm::vec3 rotXYZ = glm::vec3(0.f);
     glm::vec3 translateXYZ = glm::vec3(0.f);
     if (m_mpvObject) {
@@ -3327,9 +3702,10 @@ void LayersRendererQtOpenGLObject::renderLayers(float angle,
 #endif
 
     // Render black dome mask on top of everything (if enabled).
-    // In fisheye mode the output is already a flat fulldome disk, so there is no dome
-    // overflow to hide and the perspective-projected mask would only cover the image.
-    if (!m_renderAsFisheye && UserInterfaceSettings::hideDomeOverflowIn3DView() && m_domeMaskMesh && m_maskTexture != 0) {
+    // In fisheye mode the output is already a flat fulldome disk, and the sphere view shows
+    // the content from outside, so there is no dome overflow to hide and the perspective-
+    // projected mask would only cover the image.
+    if (!lensProjection() && UserInterfaceSettings::hideDomeOverflowIn3DView() && m_domeMaskMesh && m_maskTexture != 0) {
         glActiveTexture(GL_TEXTURE0);
         glBindTexture(GL_TEXTURE_2D, m_maskTexture);
         glEnable(GL_BLEND);
@@ -3468,6 +3844,15 @@ void LayersRendererQtOpenGLObject::init() {
 }
 
 void LayersRendererQtOpenGLObject::renderFrame() {
+    if (m_itemVisible)
+        renderView();
+
+    // The mirror is rendered even while this view is hidden, so the floating window keeps
+    // showing the 3D view when the main window shows the flat main video.
+    renderMirror();
+}
+
+void LayersRendererQtOpenGLObject::renderView() {
     // Remember the framebuffer Qt has bound for this frame, so it can be restored after an
     // offscreen pass and used as the blit destination.
     GLint previousFbo = 0;
@@ -3517,7 +3902,9 @@ void LayersRendererQtOpenGLObject::renderFrame() {
 }
 
 void LayersRendererQtOpenGLObject::firstPass() {
-    if (m_shuttingDown || LayersRendererQtItem::isShuttingDown() || !m_initialized || !m_itemVisible) {
+    // Also runs while hidden as long as the mirror target needs rendering or releasing.
+    if (m_shuttingDown || LayersRendererQtItem::isShuttingDown() || !m_initialized
+        || (!m_itemVisible && !mirrorRequested() && m_mirrorFbos[0] == 0)) {
         return;
     }
 
@@ -3526,8 +3913,10 @@ void LayersRendererQtOpenGLObject::firstPass() {
     glDisable(GL_DEPTH_TEST);
     glDepthMask(false);
 
-    glClearColor(0.0f, 0.0f, 0.0f, 1.0f);
-    glClear(GL_COLOR_BUFFER_BIT);
+    if (m_itemVisible) {
+        glClearColor(0.0f, 0.0f, 0.0f, 1.0f);
+        glClear(GL_COLOR_BUFFER_BIT);
+    }
 
     if (!m_divideUpdateAndRender) {
         renderFrame();
@@ -3543,7 +3932,8 @@ void LayersRendererQtOpenGLObject::firstPass() {
 }
 
 void LayersRendererQtOpenGLObject::secondPass() {
-    if (m_shuttingDown || LayersRendererQtItem::isShuttingDown() || !m_initialized || !m_itemVisible) {
+    if (m_shuttingDown || LayersRendererQtItem::isShuttingDown() || !m_initialized
+        || (!m_itemVisible && !mirrorRequested() && m_mirrorFbos[0] == 0)) {
         return;
     }
 
@@ -3560,4 +3950,126 @@ void LayersRendererQtOpenGLObject::secondPass() {
 #if QT_VERSION < QT_VERSION_CHECK(6, 0, 0)
     m_window->resetOpenGLState();
 #endif
+}
+
+// -------------------------------------------------------------------------
+// LayersMirrorQtItem
+// -------------------------------------------------------------------------
+
+LayersMirrorQtItem::LayersMirrorQtItem(QQuickItem* parent)
+    : QQuickItem(parent) {
+    setFlag(ItemHasContents, true);
+
+    // Same refresh rate as the source view.
+    m_timer.setInterval((1.0f / 60.0f) * 1000.0f);
+    connect(&m_timer, &QTimer::timeout, this, &QQuickItem::update);
+}
+
+LayersMirrorQtItem::~LayersMirrorQtItem() {
+    if (m_link) {
+        m_link->requestedWidth = 0;
+        m_link->requestedHeight = 0;
+    }
+}
+
+LayersRendererQtItem* LayersMirrorQtItem::source() const {
+    return m_source;
+}
+
+void LayersMirrorQtItem::setSource(LayersRendererQtItem* source) {
+    if (m_source == source)
+        return;
+
+    // Stop requesting output from the previous source.
+    if (m_link) {
+        m_link->requestedWidth = 0;
+        m_link->requestedHeight = 0;
+    }
+
+    m_source = source;
+    m_link = source ? source->mirrorLink() : nullptr;
+    updateRequest();
+    update();
+    Q_EMIT sourceChanged();
+}
+
+void LayersMirrorQtItem::itemChange(ItemChange change, const ItemChangeData& value) {
+    QQuickItem::itemChange(change, value);
+    if (change == ItemVisibleHasChanged || change == ItemSceneChange || change == ItemDevicePixelRatioHasChanged)
+        updateRequest();
+}
+
+void LayersMirrorQtItem::geometryChange(const QRectF& newGeometry, const QRectF& oldGeometry) {
+    QQuickItem::geometryChange(newGeometry, oldGeometry);
+    updateRequest();
+}
+
+void LayersMirrorQtItem::updateRequest() {
+    const bool active = m_link && isVisible() && window() && width() > 0 && height() > 0;
+
+    if (m_link) {
+        const qreal dpr = window() ? window()->devicePixelRatio() : 1.0;
+        m_link->requestedWidth = active ? int(std::lround(width() * dpr)) : 0;
+        m_link->requestedHeight = active ? int(std::lround(height() * dpr)) : 0;
+    }
+
+    if (active)
+        m_timer.start();
+    else
+        m_timer.stop();
+}
+
+QSGNode* LayersMirrorQtItem::updatePaintNode(QSGNode* oldNode, UpdatePaintNodeData*) {
+    auto* node = static_cast<QSGSimpleTextureNode*>(oldNode);
+
+    GLuint texture = 0;
+    QSize size;
+    if (m_link) {
+        std::lock_guard<std::mutex> lock(m_link->mutex);
+        if (m_link->latest >= 0) {
+            texture = m_link->textures[m_link->latest];
+            size = QSize(m_link->width, m_link->height);
+
+            // This window's GPU commands wait until the source has finished rendering the frame.
+            QOpenGLContext* ctx = QOpenGLContext::currentContext();
+            if (m_link->fence && ctx)
+                ctx->extraFunctions()->glWaitSync(m_link->fence, 0, GL_TIMEOUT_IGNORED);
+        }
+    }
+
+    if (texture == 0 || size.isEmpty() || !window()) {
+        delete node;
+        return nullptr;
+    }
+
+    if (!node) {
+        node = new QSGSimpleTextureNode();
+        node->setOwnsTexture(true);
+        node->setFiltering(QSGTexture::Linear);
+        // The OpenGL texture is stored bottom-up.
+        node->setTextureCoordinatesTransform(QSGSimpleTextureNode::MirrorVertically);
+        m_shownTexture = 0;
+    }
+
+    if (texture != m_shownTexture || size != m_shownSize) {
+        // Only wraps the texture; the source keeps owning it.
+        node->setTexture(QNativeInterface::QSGOpenGLTexture::fromNative(texture, window(), size));
+        m_shownTexture = texture;
+        m_shownSize = size;
+    }
+
+    // Largest centered rect that keeps the output's aspect ratio (it differs while the window
+    // is resized, and the fisheye image is square).
+    const QRectF bounds = boundingRect();
+    const double aspect = double(size.width()) / double(size.height());
+    double w = bounds.width();
+    double h = w / aspect;
+    if (h > bounds.height()) {
+        h = bounds.height();
+        w = h * aspect;
+    }
+    node->setRect(QRectF(bounds.x() + (bounds.width() - w) / 2.0,
+                         bounds.y() + (bounds.height() - h) / 2.0, w, h));
+
+    return node;
 }
