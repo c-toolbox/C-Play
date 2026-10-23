@@ -29,6 +29,9 @@
 #include <pa_win_wasapi.h>
 #define CPLAY_PA_WASAPI 1
 #endif
+#ifdef JACK_SUPPORT
+#include <jack/jack.h>
+#endif
 
 namespace cplay::audio {
 
@@ -43,6 +46,9 @@ constexpr auto kIdleTimeout = std::chrono::milliseconds(500);
 // Device callbacks are assumed to ask for at most this many frames (sizes the FIFOs).
 constexpr std::size_t kMaxDeviceFrames = 8192;
 constexpr std::size_t kDefaultChunkFrames = 4096;
+// Key of the JACK output in engines() (not a PortAudio device index).
+constexpr PaDeviceIndex kJackEngineKey = -100;
+constexpr const char *kJackClientName = "cplay-out";
 
 int64_t nowMs() {
     return std::chrono::duration_cast<std::chrono::milliseconds>(std::chrono::steady_clock::now().time_since_epoch())
@@ -196,29 +202,39 @@ struct VirtualStream {
     }
 };
 
-// One real output stream on a device, mixing all virtual streams opened on it.
+// One real output stream on a device (or the JACK client), mixing all virtual streams
+// opened on it.
 class Engine {
 public:
-    explicit Engine(PaDeviceIndex device) : m_device(device) {}
+    Engine(PaDeviceIndex device, bool jack) : m_device(device), m_jack(jack) {}
 
     bool open(int wantChannels, double wantRate);
     void close();
+    // Makes room for a stream with this many channels: the JACK client registers more
+    // ports, a device stream has the channels it was opened with.
+    bool reserveChannels(int channels);
     bool add(VirtualStream *stream);
     void remove(VirtualStream *stream);
     // Returns once the device callback no longer uses a stream that was just removed/stopped.
     void waitIdle() const;
     bool stalled() const { return nowMs() - m_lastCallbackMs.load(std::memory_order_relaxed) > kStallTimeout.count(); }
 
-    int channels() const { return m_channels; }
+    bool isJack() const { return m_jack; }
+    // The JACK server shut the client down: the streams on it must be reopened.
+    bool dead() const { return m_dead.load(); }
     double sampleRate() const { return m_sampleRate; }
     double outputLatency() const { return m_outputLatency; }
     int clientCount() const { return m_clientCount; }
 
 private:
+    bool openDevice(int wantChannels, double wantRate);
+    // Device callback (any backend): renders all running streams into out.
+    void mix(float *out, int outChannels, unsigned long frames);
     static int deviceCallback(const void *, void *output, unsigned long frames, const PaStreamCallbackTimeInfo *,
                               PaStreamCallbackFlags, void *userData);
 
     PaDeviceIndex m_device = paNoDevice;
+    const bool m_jack = false;
     PaStream *m_stream = nullptr;
     bool m_paInitialized = false;
     int m_channels = 0;
@@ -228,9 +244,127 @@ private:
     std::array<std::atomic<VirtualStream *>, kMaxClients> m_slots{};
     std::atomic<bool> m_inCallback{false};
     std::atomic<int64_t> m_lastCallbackMs{0};
+    std::atomic<bool> m_dead{false};
+
+#ifdef JACK_SUPPORT
+    bool openJack(int wantChannels);
+    static int jackProcess(jack_nframes_t frames, void *arg);
+    static void jackShutdown(void *arg);
+
+    jack_client_t *m_client = nullptr;
+    std::array<jack_port_t *, kMaxOutputChannels> m_ports{};
+    std::atomic<int> m_portCount{0}; // ports [0, count) are registered; read by the process callback
+    std::vector<float> m_jackBuffer; // interleaved mix, de-interleaved into the ports
+#endif
 };
 
 bool Engine::open(int wantChannels, double wantRate) {
+#ifdef JACK_SUPPORT
+    if (m_jack)
+        return openJack(wantChannels);
+#endif
+    return !m_jack && openDevice(wantChannels, wantRate);
+}
+
+bool Engine::reserveChannels(int channels) {
+#ifdef JACK_SUPPORT
+    if (m_jack) {
+        if (!m_client || m_dead.load())
+            return false;
+        channels = std::min(channels, kMaxOutputChannels);
+        const int have = m_portCount.load();
+        if (channels <= have)
+            return true;
+        // New ports are connected to the physical playback port of the same channel, as mpv
+        // does by default; they can be rewired in any JACK patchbay.
+        const char **physical = jack_get_ports(m_client, nullptr, JACK_DEFAULT_AUDIO_TYPE,
+                                               JackPortIsPhysical | JackPortIsInput);
+        int physicalCount = 0;
+        while (physical && physical[physicalCount])
+            ++physicalCount;
+        for (int i = have; i < channels; ++i) {
+            const std::string name = "out_" + std::to_string(i + 1);
+            jack_port_t *port = jack_port_register(m_client, name.c_str(), JACK_DEFAULT_AUDIO_TYPE, JackPortIsOutput, 0);
+            if (!port) {
+                sgct::Log::Error(std::format("SharedAudioOutput: could not register the JACK port {}:{}",
+                                             kJackClientName, name));
+                break;
+            }
+            m_ports[static_cast<std::size_t>(i)] = port;
+            m_portCount.store(i + 1, std::memory_order_release);
+            if (i < physicalCount)
+                jack_connect(m_client, jack_port_name(port), physical[i]);
+        }
+        if (physical)
+            jack_free(physical);
+        return m_portCount.load() >= channels;
+    }
+#endif
+    return channels <= m_channels;
+}
+
+#ifdef JACK_SUPPORT
+bool Engine::openJack(int wantChannels) {
+    jack_status_t status{};
+    m_client = jack_client_open(kJackClientName, JackNoStartServer, &status);
+    if (!m_client) {
+        sgct::Log::Error("SharedAudioOutput: could not open the JACK output client (is the JACK server running?).");
+        return false;
+    }
+    m_sampleRate = static_cast<double>(jack_get_sample_rate(m_client));
+    m_outputLatency = 2.0 * static_cast<double>(jack_get_buffer_size(m_client)) / m_sampleRate;
+    m_jackBuffer.assign(kMaxDeviceFrames * kMaxOutputChannels, 0.f);
+    jack_set_process_callback(m_client, &Engine::jackProcess, this);
+    jack_on_shutdown(m_client, &Engine::jackShutdown, this);
+    m_lastCallbackMs.store(nowMs());
+    if (jack_activate(m_client) != 0) {
+        sgct::Log::Error("SharedAudioOutput: could not activate the JACK output client.");
+        jack_client_close(m_client);
+        m_client = nullptr;
+        return false;
+    }
+    // The configured layout (or speaker array) at once, so the port set stays stable.
+    reserveChannels(std::max(wantChannels, configuredOutputChannels(kMaxOutputChannels)));
+    sgct::Log::Info(std::format("SharedAudioOutput: JACK client \"{}\" open with {} output port(s) at {} Hz. "
+                                "All PortAudio layers are mixed into it.", jack_get_client_name(m_client),
+                                m_portCount.load(), m_sampleRate));
+    return m_portCount.load() > 0;
+}
+
+int Engine::jackProcess(jack_nframes_t frames, void *arg) {
+    // JACK real-time thread: no locks, no allocation.
+    auto *self = static_cast<Engine *>(arg);
+    const int channels = self->m_portCount.load(std::memory_order_acquire);
+    if (channels <= 0)
+        return 0;
+    std::array<float *, kMaxOutputChannels> ports{};
+    for (int c = 0; c < channels; ++c)
+        ports[static_cast<std::size_t>(c)] = static_cast<float *>(
+            jack_port_get_buffer(self->m_ports[static_cast<std::size_t>(c)], frames));
+
+    std::size_t done = 0;
+    while (done < frames) {
+        const std::size_t n = std::min<std::size_t>(frames - done, kMaxDeviceFrames);
+        float *mixed = self->m_jackBuffer.data();
+        self->mix(mixed, channels, static_cast<unsigned long>(n));
+        for (int c = 0; c < channels; ++c) {
+            float *port = ports[static_cast<std::size_t>(c)] + done;
+            for (std::size_t f = 0; f < n; ++f)
+                port[f] = std::clamp(mixed[f * static_cast<std::size_t>(channels) + static_cast<std::size_t>(c)], -1.f, 1.f);
+        }
+        done += n;
+    }
+    return 0;
+}
+
+void Engine::jackShutdown(void *arg) {
+    // JACK notification thread: the client is unusable, but still closed in close().
+    auto *self = static_cast<Engine *>(arg);
+    self->m_dead.store(true);
+}
+#endif
+
+bool Engine::openDevice(int wantChannels, double wantRate) {
     const PaDeviceInfo *info = Pa_GetDeviceInfo(m_device);
     const PaHostApiInfo *api = info ? Pa_GetHostApiInfo(info->hostApi) : nullptr;
     if (!info || !api)
@@ -311,6 +445,16 @@ bool Engine::open(int wantChannels, double wantRate) {
 }
 
 void Engine::close() {
+#ifdef JACK_SUPPORT
+    if (m_client) {
+        if (!m_dead.load())
+            jack_deactivate(m_client);
+        jack_client_close(m_client); // also unregisters the ports
+        m_client = nullptr;
+        m_portCount.store(0);
+        sgct::Log::Info("SharedAudioOutput: JACK output client closed.");
+    }
+#endif
     if (m_stream) {
         if (Pa_StopStream(m_stream) != paNoError)
             Pa_AbortStream(m_stream);
@@ -363,17 +507,20 @@ int Engine::deviceCallback(const void *, void *output, unsigned long frames, con
                            PaStreamCallbackFlags, void *userData) {
     // PortAudio real-time thread: no locks, no allocation.
     auto *self = static_cast<Engine *>(userData);
-    auto *out = static_cast<float *>(output);
-    self->m_inCallback.store(true);
-    std::fill_n(out, static_cast<std::size_t>(frames) * static_cast<std::size_t>(self->m_channels), 0.f);
-    for (auto &slot : self->m_slots) {
+    self->mix(static_cast<float *>(output), self->m_channels, frames);
+    return paContinue; // the sum is clipped by PortAudio (opened without paClipOff)
+}
+
+void Engine::mix(float *out, int outChannels, unsigned long frames) {
+    m_inCallback.store(true);
+    std::fill_n(out, static_cast<std::size_t>(frames) * static_cast<std::size_t>(outChannels), 0.f);
+    for (auto &slot : m_slots) {
         VirtualStream *stream = slot.load();
         if (stream && stream->running.load())
-            stream->render(out, self->m_channels, frames);
+            stream->render(out, outChannels, frames);
     }
-    self->m_lastCallbackMs.store(nowMs(), std::memory_order_relaxed);
-    self->m_inCallback.store(false);
-    return paContinue; // the sum is clipped by PortAudio (opened without paClipOff)
+    m_lastCallbackMs.store(nowMs(), std::memory_order_relaxed);
+    m_inCallback.store(false);
 }
 
 // Engines by device; guarded by portAudioMutex(). Never destroyed, so nothing touches
@@ -381,6 +528,13 @@ int Engine::deviceCallback(const void *, void *output, unsigned long frames, con
 std::map<PaDeviceIndex, std::unique_ptr<Engine>> &engines() {
     static auto *map = new std::map<PaDeviceIndex, std::unique_ptr<Engine>>();
     return *map;
+}
+
+// Engines that died (JACK server shutdown) while streams were still open on them: no new
+// streams are opened on them, they are closed with their last stream. Guarded as engines().
+std::vector<std::unique_ptr<Engine>> &retiredEngines() {
+    static auto *list = new std::vector<std::unique_ptr<Engine>>();
+    return *list;
 }
 
 // Open virtual streams; read without portAudioMutex() by the write path.
@@ -394,7 +548,25 @@ VirtualStream *asVirtual(PaStream *stream) {
 
 } // namespace
 
+bool jackOutputSelected() {
+#ifdef JACK_SUPPORT
+    return AudioSettings::portAudioCustomOutput()
+           && AudioSettings::portAudioOutputApi() == QLatin1String(kJackOutputApi);
+#else
+    return false;
+#endif
+}
+
+int outputMaxChannels(PaDeviceIndex device) {
+    if (jackOutputSelected())
+        return kMaxOutputChannels;
+    const PaDeviceInfo *info = device != paNoDevice ? Pa_GetDeviceInfo(device) : nullptr;
+    return info ? info->maxOutputChannels : 0;
+}
+
 bool shouldShareOutput(PaDeviceIndex device) {
+    if (jackOutputSelected())
+        return true; // every output goes to the JACK client, whatever device stands in for it
     const PaDeviceInfo *info = device != paNoDevice ? Pa_GetDeviceInfo(device) : nullptr;
     const PaHostApiInfo *api = info ? Pa_GetHostApiInfo(info->hostApi) : nullptr;
     if (!api || info->maxOutputChannels <= 0)
@@ -413,7 +585,14 @@ bool isSharedStream(PaStream *stream) {
 }
 
 bool outputRoutingChanged(PaStream *stream, PaDeviceIndex device) {
-    return stream && isSharedStream(stream) != shouldShareOutput(device);
+    if (!stream)
+        return false;
+    // The stream is this layer's own and open, so its engine stays alive during the check.
+    const VirtualStream *virt = asVirtual(stream);
+    const bool share = shouldShareOutput(device);
+    if (!virt || !share)
+        return (virt != nullptr) != share;
+    return virt->engine->isJack() != jackOutputSelected() || virt->engine->dead();
 }
 
 PaError sharedOpenStream(PaStream **stream, const PaStreamParameters *outputParameters, double sampleRate,
@@ -425,22 +604,31 @@ PaError sharedOpenStream(PaStream **stream, const PaStreamParameters *outputPara
     const PaSampleFormat format = outputParameters->sampleFormat;
     if (format != paFloat32 && format != paInt16)
         return paSampleFormatNotSupported;
-    const PaDeviceInfo *info = Pa_GetDeviceInfo(outputParameters->device);
-    if (!info)
+    const bool jack = jackOutputSelected();
+    if (!jack && !Pa_GetDeviceInfo(outputParameters->device))
         return paInvalidDevice;
     const int channels = outputParameters->channelCount;
-    if (channels < 1 || channels > std::min(info->maxOutputChannels, kMaxOutputChannels))
+    if (channels < 1 || channels > std::min(outputMaxChannels(outputParameters->device), kMaxOutputChannels))
         return paInvalidChannelCount;
     if (sampleRate <= 0.0)
         return paInvalidSampleRate;
 
     auto &map = engines();
-    auto it = map.find(outputParameters->device);
+    const PaDeviceIndex key = jack ? kJackEngineKey : outputParameters->device;
+    auto it = map.find(key);
+    if (it != map.end() && it->second->dead()) {
+        // Keep it for the streams still open on it, and start over with a new one.
+        retiredEngines().push_back(std::move(it->second));
+        map.erase(it);
+        it = map.end();
+    }
     if (it == map.end()) {
-        auto engine = std::make_unique<Engine>(outputParameters->device);
-        if (!engine->open(channels, sampleRate))
+        auto engine = std::make_unique<Engine>(outputParameters->device, jack);
+        if (!engine->open(channels, sampleRate)) {
+            engine->close();
             return paDeviceUnavailable;
-        it = map.emplace(outputParameters->device, std::move(engine)).first;
+        }
+        it = map.emplace(key, std::move(engine)).first;
     }
     Engine *engine = it->second.get();
     const auto closeUnusedEngine = [&] {
@@ -449,7 +637,7 @@ PaError sharedOpenStream(PaStream **stream, const PaStreamParameters *outputPara
             map.erase(it);
         }
     };
-    if (channels > engine->channels()) {
+    if (!engine->reserveChannels(channels)) {
         closeUnusedEngine();
         return paInvalidChannelCount;
     }
@@ -528,14 +716,11 @@ PaError sharedCloseStream(PaStream *stream) {
     delete virt;
 
     if (engine->clientCount() == 0) {
+        engine->close();
         auto &map = engines();
-        for (auto it = map.begin(); it != map.end(); ++it) {
-            if (it->second.get() == engine) {
-                engine->close();
-                map.erase(it);
-                break;
-            }
-        }
+        auto &retired = retiredEngines();
+        std::erase_if(map, [engine](const auto &entry) { return entry.second.get() == engine; });
+        std::erase_if(retired, [engine](const auto &entry) { return entry.get() == engine; });
     }
     return paNoError;
 }

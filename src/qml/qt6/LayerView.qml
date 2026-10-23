@@ -1672,11 +1672,14 @@ Kirigami.ApplicationWindow {
                         }
                     }
                     // mpv layers: route the audio through JACK into the audio mapping of the
-                    // live layers (off by default; needs mpv's "jack" audio driver).
+                    // live layers (off by default; needs mpv playing through JACK).
                     Rectangle {
+                        // The "jack" driver or a JACK entry in mpv's device list ("jack" or "jack/<port>").
                         readonly property bool jackDriverSelected: AudioSettings.useCustomAudioOutput
-                                                                   && AudioSettings.useAudioDriver
-                                                                   && AudioSettings.preferredAudioOutputDriver === "jack"
+                                                                   && ((AudioSettings.useAudioDriver
+                                                                        && AudioSettings.preferredAudioOutputDriver === "jack")
+                                                                       || (AudioSettings.useAudioDevice
+                                                                           && /^jack(\/|$)/.test(AudioSettings.preferredAudioOutputDevice)))
 
                         visible: layerViewItem.layerSupportsJackAudio
                         color: Kirigami.Theme.alternateBackgroundColor
@@ -1694,7 +1697,7 @@ Kirigami.ApplicationWindow {
                             onToggled: layerViewItem.layerJackAudio = checked
 
                             ToolTip.visible: hovered
-                            ToolTip.text: (parent.jackDriverSelected ? "" : qsTr("Requires the \"jack\" audio driver (Settings > Audio > Use audio driver).\n"))
+                            ToolTip.text: (parent.jackDriverSelected ? "" : qsTr("Requires mpv to play through JACK (Settings > Audio: the \"jack\" driver or a JACK audio device).\n"))
                                           + qsTr("Connect mpv's JACK output to an input of C-Play instead of the system playback ports, and play it through the audio mapping (up/down mix and spatial mapping) like the live layers.")
                         }
                         Connections {

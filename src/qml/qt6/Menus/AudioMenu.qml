@@ -7,6 +7,7 @@
 import QtQml.Models
 import QtQuick
 import QtQuick.Controls
+import org.ctoolbox.cplay
 import "../Components/PopupHelpers.js" as PopupHelpers
 
 Menu {
@@ -65,5 +66,24 @@ Menu {
     }
     MenuItem {
         action: actions["volumeFadeDownAction"]
+    }
+    MenuSeparator {
+        visible: jackItem.visible
+        height: visible ? implicitHeight : 0
+    }
+    MenuItem {
+        id: jackItem
+
+        // JACK is used by mpv (the "jack" driver or a JACK audio device) or by the PortAudio layers (the JACK output).
+        visible: JACK_SUPPORT
+                 && ((AudioSettings.useCustomAudioOutput
+                      && ((AudioSettings.useAudioDriver && AudioSettings.preferredAudioOutputDriver === "jack")
+                          || (AudioSettings.useAudioDevice && /^jack(\/|$)/.test(AudioSettings.preferredAudioOutputDevice))))
+                     || (AudioSettings.portAudioCustomOutput && AudioSettings.portAudioOutputApi === "JACK"))
+        height: visible ? implicitHeight : 0
+        icon.name: "audio-card"
+        text: qsTr("Check JACK server")
+
+        onTriggered: jackStatusDialog.showStatus()
     }
 }

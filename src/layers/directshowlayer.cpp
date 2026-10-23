@@ -2186,7 +2186,7 @@ PaDeviceIndex DirectShowLayer::GetChosenApplicationAudioDevice() {
     if (choseDeviceIdx == paNoDevice) {
         sgct::Log::Error("DirectShowLayer Error: No default audio output device.\n");
     }
-    if (AudioSettings::portAudioCustomOutput()) {
+    if (AudioSettings::portAudioCustomOutput() && !cplay::audio::jackOutputSelected()) { // JACK: any device stands in
         if (!AudioSettings::portAudioOutputDevice().isEmpty()
             && !AudioSettings::portAudioOutputApi().isEmpty()) {
             int numDevices = Pa_GetDeviceCount();

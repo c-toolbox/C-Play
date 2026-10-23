@@ -602,6 +602,12 @@ void Application::setupQmlContextProperties() {
     m_engine->rootContext()->setContextProperty(QStringLiteral("JACK_AUDIO_MAPPING_SUPPORT"), QVariant(false));
 #endif
 
+#ifdef JACK_SUPPORT
+    m_engine->rootContext()->setContextProperty(QStringLiteral("JACK_SUPPORT"), QVariant(true));
+#else
+    m_engine->rootContext()->setContextProperty(QStringLiteral("JACK_SUPPORT"), QVariant(false));
+#endif
+
 #ifdef CLUX_SUPPORT
     m_engine->rootContext()->setContextProperty(QStringLiteral("CLUX_SUPPORT"), QVariant(true));
 #else
@@ -1102,6 +1108,49 @@ bool Application::isYouTubeUrl(const QString &path) {
 
 QString Application::resolveYtdlpPath() {
     return QString::fromStdString(YtdlpResolver::resolveYtdlpPath());
+}
+
+QVariantMap Application::jackServerStatus() {
+    QVariantMap status;
+#ifdef JACK_SUPPORT
+    jack_status_t openStatus{};
+    jack_client_t *client = jack_client_open("cplay-probe", JackNoStartServer, &openStatus);
+    if (!client) {
+        status[QStringLiteral("running")] = false;
+        status[QStringLiteral("text")] = (openStatus & JackServerFailed)
+                                             ? tr("No JACK server found. Start it, e.g. with QjackCtl.")
+                                             : tr("Could not connect to the JACK server.");
+        return status;
+    }
+    const auto countPorts = [client](unsigned long flags) {
+        const char **ports = jack_get_ports(client, nullptr, JACK_DEFAULT_AUDIO_TYPE, flags);
+        int count = 0;
+        if (ports) {
+            while (ports[count])
+                ++count;
+            jack_free(ports);
+        }
+        return count;
+    };
+    const jack_nframes_t sampleRate = jack_get_sample_rate(client);
+    const jack_nframes_t bufferSize = jack_get_buffer_size(client);
+    const int playbackPorts = countPorts(JackPortIsPhysical | JackPortIsInput);
+    const int capturePorts = countPorts(JackPortIsPhysical | JackPortIsOutput);
+    jack_client_close(client);
+
+    status[QStringLiteral("running")] = true;
+    status[QStringLiteral("text")] =
+        tr("JACK server running: %1 Hz, %2 frames (%3 ms), %4 playback / %5 capture ports")
+            .arg(sampleRate)
+            .arg(bufferSize)
+            .arg(sampleRate > 0 ? 1000.0 * bufferSize / sampleRate : 0.0, 0, 'f', 1)
+            .arg(playbackPorts)
+            .arg(capturePorts);
+#else
+    status[QStringLiteral("running")] = false;
+    status[QStringLiteral("text")] = tr("C-Play is built without JACK support.");
+#endif
+    return status;
 }
 
 QStringList Application::availableGuiStyles() {

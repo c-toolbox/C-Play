@@ -150,6 +150,12 @@ void PortAudioModel::updatePortAudioList() {
             }
         }
     }
+#ifdef JACK_SUPPORT
+    // Not a PortAudio device: the layers play through C-Play's own JACK client (see
+    // audio/sharedaudiooutput.h), like the mpv layers with the JACK audio driver.
+    m_audioOutputs.push_back(PortAudioModel::PortAudioDevice(paNoDevice,
+        QString::fromUtf8(cplay::audio::kJackOutputDevice), QString::fromUtf8(cplay::audio::kJackOutputApi)));
+#endif
     endResetModel();
 
     Q_EMIT portAudioListChanged();
@@ -195,6 +201,11 @@ QString PortAudioModel::getDeviceInfo() {
     }
     else {
         PaDeviceIndex deviceIndex = getIndexOfCurrentDevice();
+        if (deviceIndex >= 0 && deviceIndex < m_audioOutputs.size()
+            && m_audioOutputs[deviceIndex].apiName == QLatin1String(cplay::audio::kJackOutputApi)) {
+            return QStringLiteral("Using the JACK client \"cplay-out\", with an output port per channel connected "
+                                  "to the system playback ports (the JACK server must be running)");
+        }
         QString prePend = QStringLiteral("Using device ");
         if (deviceIndex < 0) {
             deviceIndex = Pa_GetDefaultOutputDevice(); /* default output device */

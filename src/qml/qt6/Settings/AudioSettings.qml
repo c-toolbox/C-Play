@@ -19,8 +19,24 @@ SettingsBasePage {
     // Layers playing through PortAudio with the audio mapping: the live layers, and the mpv
     // layers (Video/Audio/Stream/YouTube) routed through JACK.
     readonly property bool portAudioLayers: NDI_SUPPORT || OMT_SUPPORT || CAPTURE_SUPPORT || JACK_AUDIO_MAPPING_SUPPORT
-    readonly property bool mpvUsesJack: AudioSettings.useCustomAudioOutput && AudioSettings.useAudioDriver
-                                        && AudioSettings.preferredAudioOutputDriver === "jack"
+    // Either the "jack" driver or a JACK entry in mpv's device list ("jack" or "jack/<port>").
+    readonly property bool mpvUsesJack: AudioSettings.useCustomAudioOutput
+                                        && ((AudioSettings.useAudioDriver && AudioSettings.preferredAudioOutputDriver === "jack")
+                                            || (AudioSettings.useAudioDevice && /^jack(\/|$)/.test(AudioSettings.preferredAudioOutputDevice)))
+    // JACK is used by mpv or by the PortAudio layers (the JACK output in the device list).
+    readonly property bool usesJack: JACK_SUPPORT && (mpvUsesJack || (AudioSettings.portAudioCustomOutput
+                                                                      && AudioSettings.portAudioOutputApi === "JACK"))
+
+    function updateJackStatus() {
+        if (!usesJack)
+            return;
+        const status = app.jackServerStatus();
+        jackStatusLabel.text = status.text;
+        jackStatusLabel.running = status.running;
+    }
+
+    onUsesJackChanged: updateJackStatus()
+    Component.onCompleted: updateJackStatus()
 
     ButtonGroup { id: useCustomAudioOutputGroup }
 
@@ -335,6 +351,39 @@ SettingsBasePage {
         }
 
         Item {
+            visible: root.usesJack
+            height: 1
+            width: 1
+        }
+        RowLayout {
+            visible: root.usesJack
+            Label {
+                id: jackStatusLabel
+
+                property bool running: false
+
+                wrapMode: Text.WordWrap
+                Layout.fillWidth: true
+                font.italic: true
+                color: running ? Kirigami.Theme.positiveTextColor : Kirigami.Theme.negativeTextColor
+            }
+            ToolButton {
+                focusPolicy: Qt.NoFocus
+                icon.height: 16
+                icon.name: "view-refresh"
+                text: ""
+
+                ToolTip.text: qsTr("Check the JACK server again")
+                ToolTip.visible: hovered
+                ToolTip.delay: 500
+
+                onClicked: root.updateJackStatus()
+            }
+            Layout.columnSpan: 2
+            Layout.fillWidth: true
+        }
+
+        Item {
             visible: JACK_AUDIO_MAPPING_SUPPORT
             height: 1
             width: 1
@@ -344,7 +393,7 @@ SettingsBasePage {
             color: Kirigami.Theme.disabledTextColor
             font.italic: true
             wrapMode: Text.WordWrap
-            text: qsTr("With the \"jack\" driver, each Video, Audio, Stream and YouTube layer can use the audio mixing and spatial mapping of the live layers, see \"mpv layers via JACK\" below.")
+            text: qsTr("With the \"jack\" driver (or a JACK audio device), each Video, Audio, Stream and YouTube layer\ncan use the audio mixing and spatial mapping of the live layers, see \"mpv layers via JACK\" below.")
             Layout.columnSpan: 2
             Layout.fillWidth: true
         }
@@ -407,9 +456,7 @@ SettingsBasePage {
             Layout.columnSpan: 3
             Layout.topMargin: 20
             Layout.fillWidth: true
-            text: JACK_AUDIO_MAPPING_SUPPORT
-                  ? qsTr("Audio output and mixing for Live layers (NDI/OMT/Capture/DirectShow/WebRTC) and mpv layers via JACK (Video/Audio/Stream/YouTube)")
-                  : qsTr("Audio settings for Live video layers (NDI/OMT/Capture/DirectShow/WebRTC)")
+            text: qsTr("Audio settings for Live video layers (NDI/OMT/Capture/DirectShow/WebRTC)")
             level: 4
         }
         Item {
@@ -550,6 +597,16 @@ SettingsBasePage {
             Layout.fillWidth: true
         }
 
+        SettingsHeader {
+            visible: root.portAudioLayers
+            Layout.columnSpan: 3
+            Layout.topMargin: 20
+            Layout.fillWidth: true
+            text: JACK_AUDIO_MAPPING_SUPPORT
+                  ? qsTr("Audio mixing for Live layers (NDI/OMT/Capture/DirectShow/WebRTC)\nand for mpv layers via JACK (Video/Audio/Stream/YouTube)")
+                  : qsTr("Audio mixing for Live video layers (NDI/OMT/Capture/DirectShow/WebRTC)")
+            level: 4
+        }
         Item {
             visible: root.portAudioLayers
             height: 1
@@ -687,8 +744,8 @@ SettingsBasePage {
             font.italic: true
             color: root.mpvUsesJack ? Kirigami.Theme.positiveTextColor : Kirigami.Theme.neutralTextColor
             text: root.mpvUsesJack
-                    ? qsTr("mpv uses the \"jack\" audio driver: layers can use \"Audio mapping via JACK\".")
-                    : qsTr("mpv does not use the \"jack\" audio driver yet: \"Audio mapping via JACK\" has no effect until it does.")
+                    ? qsTr("mpv plays through JACK: layers can use \"Audio mapping via JACK\".")
+                    : qsTr("mpv does not play through JACK yet (\"jack\" driver or a JACK audio device): \"Audio mapping via JACK\" has no effect until it does.")
         }
     }
 }

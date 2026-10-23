@@ -8,6 +8,9 @@
 #include "audio/audiomixer.h"
 #include "audio/speakersettings.h"
 #include "audiosettings.h"
+#ifdef CPLAY_PORTAUDIO
+#include "audio/sharedaudiooutput.h"
+#endif
 #include <algorithm>
 #include <climits>
 #include <cmath>
@@ -473,7 +476,13 @@ void loadSpeakerSetupFromSettings() {
 }
 
 int configuredOutputChannels(int deviceMaxChannels) {
-    const int deviceMax = std::max(1, deviceMaxChannels);
+    int deviceMax = std::max(1, deviceMaxChannels);
+#ifdef CPLAY_PORTAUDIO
+    // The JACK output registers as many ports as the layout needs, whatever device the
+    // layers pick as its stand-in.
+    if (jackOutputSelected())
+        deviceMax = kMaxOutputChannels;
+#endif
     if (AudioSettings::portAudioSpatialMode() == static_cast<int>(SpatialMode::SpeakerArray)) {
         int highest = 0;
         for (const ArraySpeakerSettings &a : parseSpeakerArray(AudioSettings::portAudioSpeakerArray()))

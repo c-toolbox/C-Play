@@ -12,6 +12,7 @@
 #include "renderthread.h"
 #include <QMap>
 #include <QVariantList>
+#include <QVariantMap>
 #include <QUrl>
 #include <KSharedConfig>
 #include <QElapsedTimer>
@@ -234,6 +235,9 @@ public:
     // Used by the layer properties UI to show a hint/warning for YouTube URLs.
     Q_INVOKABLE bool isYouTubeUrl(const QString &path);
     Q_INVOKABLE QString resolveYtdlpPath();
+    // Probes for a running JACK server (never starts one): {"running": bool, "text": QString}
+    // with the sample rate, buffer size and physical ports when it runs.
+    Q_INVOKABLE QVariantMap jackServerStatus();
 
     // 3D view camera state bridge: main.qml registers the LayersRendererQtItem here so that
     // the settings dialog (a separate QML document) can read the live camera pose.

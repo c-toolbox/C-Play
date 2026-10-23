@@ -1222,6 +1222,37 @@ Kirigami.ApplicationWindow {
         }
     }
 
+    // Opened from AudioMenu ("Check JACK server"); a popup rather than the OSD, which can be hidden.
+    Dialog {
+        id: jackStatusDialog
+
+        property bool running: false
+        property alias text: jackStatusDialogLabel.text
+
+        function showStatus() {
+            const status = app.jackServerStatus();
+            running = status.running;
+            text = status.text;
+            open();
+        }
+
+        title: running ? qsTr("JACK server running") : qsTr("JACK server not found")
+        modal: true
+        width: 520
+        anchors.centerIn: parent
+        standardButtons: Dialog.Ok
+
+        onOpened: PopupHelpers.handlePopupOpen()
+        onClosed: PopupHelpers.handlePopupClose()
+
+        Label {
+            id: jackStatusDialogLabel
+
+            width: parent.width
+            wrapMode: Text.WordWrap
+        }
+    }
+
     Dialog {
         id: loggingCloseDialog
         title: qsTr("Logging enabled")

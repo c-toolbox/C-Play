@@ -101,15 +101,15 @@ bool SpeakerTest::openStream(int minChannels, QString &error) {
         error = QStringLiteral("No audio output device.");
         return false;
     }
-    if (minChannels > info->maxOutputChannels) {
+    const int maxChannels = outputMaxChannels(device);
+    if (minChannels > maxChannels) {
         error = QStringLiteral("Output channel %1 is beyond the %2 channels of \"%3\".")
-                    .arg(minChannels).arg(info->maxOutputChannels).arg(QString::fromUtf8(info->name));
+                    .arg(minChannels).arg(maxChannels).arg(QString::fromUtf8(info->name));
         return false;
     }
 
     // As many channels as the layers open, so the device sees the same layout.
-    const int channels = std::clamp(std::max(minChannels, configuredOutputChannels(info->maxOutputChannels)), 1,
-                                     info->maxOutputChannels);
+    const int channels = std::clamp(std::max(minChannels, configuredOutputChannels(maxChannels)), 1, maxChannels);
     PaStreamParameters params{};
     params.device = device;
     params.channelCount = channels;
