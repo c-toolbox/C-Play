@@ -256,6 +256,12 @@ MpvObject {
             }
         }
     }
+    // Keeps the main video black while a file loads or nothing is loaded, so the background
+    // image behind it does not flash through (the video's opacity follows the visibility).
+    Rectangle {
+        anchors.fill: parent
+        color: "black"
+    }
     MpvView {
         id: view
         anchors.fill: parent

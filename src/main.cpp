@@ -1234,9 +1234,10 @@ static void postSyncPreDraw() {
         const bool masterNdiActive = updateMasterNdiLayer(rotXYZ, translateXYZ);
 
         // Background image layer
+        // A fully visible main video hides it, also while a file loads or nothing is loaded,
+        // so it never shows through between loads. A plane does not cover the background.
         if (!masterNdiActive &&
-            (!mainVideoLayer->renderingIsOn() || !mainVideoLayer->ready() ||
-             SyncHelper::instance().variables.alpha < 1.f || SyncHelper::instance().variables.gridToMapOn == 1) &&
+            (SyncHelper::instance().variables.alpha < 1.f || SyncHelper::instance().variables.gridToMapOn == 1) &&
             backgroundImageLayer->ready() && SyncHelper::instance().variables.alphaBg > 0.f) {
             backgroundImageLayer->setAlpha(SyncHelper::instance().variables.alphaBg);
             backgroundImageLayer->setGridMode(static_cast<uint8_t>(SyncHelper::instance().variables.gridToMapOnBg));

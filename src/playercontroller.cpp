@@ -1039,12 +1039,10 @@ float PlayerController::backgroundVisibilityOnMaster() {
         return 1.f;
     }
 
+    // Same as on the nodes: a fully visible main video covers the background, even when
+    // nothing is loaded.
     if (backgroundVisibility() > 0.f) {
-        if (SyncHelper::instance().variables.loadedFile.empty()) {
-            return backgroundVisibility();
-        } else {
-            return 1.f - SyncHelper::instance().variables.alpha;
-        }
+        return 1.f - SyncHelper::instance().variables.alpha;
     }
 
     return 0.f;

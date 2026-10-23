@@ -906,6 +906,25 @@ void directionToAngles(const QVector3D& direction, double& azimuthDeg, double& e
     elevationDeg = std::atan2(direction.y(), std::hypot(direction.x(), direction.z())) * toDeg;
 }
 
+// Fisheye view: the dome-frame direction shown at a point, inverting the equidistant
+// FisheyeProjection inside the square the disk is drawn in. Points outside the disk extrapolate
+// below the dome edge (up to the nadir) unless insideDiskOnly is set.
+bool fisheyeDirectionAtPoint(const QRectF& square, double meshFovDeg, float x, float y,
+                             bool insideDiskOnly, QVector3D& direction) {
+    if (square.width() <= 0.0 || square.height() <= 0.0)
+        return false;
+    const double ndcX = (x - square.center().x()) / (square.width() / 2.0);
+    const double ndcY = (square.center().y() - y) / (square.height() / 2.0);
+    const double radius = std::hypot(ndcX, ndcY);
+    if (insideDiskOnly && radius > 1.0)
+        return false;   // outside the dome image
+    constexpr double kPiLocal = 3.14159265358979323846;
+    const double phi = std::min(radius * meshFovDeg * 0.5 * kPiLocal / 180.0, kPiLocal);
+    const double s = radius > 1e-9 ? std::sin(phi) / radius : 0.0;
+    direction = QVector3D(float(ndcX * s), float(std::cos(phi)), float(ndcY * s));
+    return true;
+}
+
 enum class Lens { Perspective, Fisheye, Sphere };
 } // namespace
 
@@ -1092,6 +1111,15 @@ bool LayersRendererQtItem::aimAtScreenPointLocked(const BaseLayer* layer, float 
         // Every direction is shown on the sphere surface, so the pointer aims along the one under it.
         QVector3D direction;
         if (!sphereDirectionAtPoint(x, y, direction))
+            return false;
+        directionToAngles(direction, azimuthDeg, elevationDeg);
+        return true;
+    }
+    if (m_renderAsFisheye) {
+        // The fisheye shows directions from the dome centre, so the pointer aims along the one
+        // under it. Beyond the disk edge it keeps going below the horizon so dragging is not cut off.
+        QVector3D direction;
+        if (!fisheyeDirectionAtPoint(fisheyeSquare(), m_meshFov, x, y, false, direction))
             return false;
         directionToAngles(direction, azimuthDeg, elevationDeg);
         return true;
@@ -1405,19 +1433,10 @@ QVariantMap LayersRendererQtItem::domeDirectionAtPoint(float x, float y) const {
     QVariantMap result{{QStringLiteral("valid"), false}, {QStringLiteral("azimuth"), 0.0}, {QStringLiteral("elevation"), 0.0}};
     double azimuthDeg = 0.0, elevationDeg = 0.0;
     if (m_renderAsFisheye) {
-        const QRectF sq = fisheyeSquare();
-        if (sq.width() <= 0.0)
-            return result;
-        const double ndcX = (x - sq.center().x()) / (sq.width() / 2.0);
-        const double ndcY = (sq.center().y() - y) / (sq.height() / 2.0);
-        const double radius = std::hypot(ndcX, ndcY);
-        if (radius > 1.0)
+        QVector3D direction;
+        if (!fisheyeDirectionAtPoint(fisheyeSquare(), m_meshFov, x, y, true, direction))
             return result; // outside the dome image
-        const double phi = radius * m_meshFov * 0.5 * kPi / 180.0;
-        const double s = radius > 1e-9 ? std::sin(phi) / radius : 0.0;
-        const double dx = ndcX * s, dy = std::cos(phi), dz = ndcY * s;
-        azimuthDeg = std::atan2(dx, -dz) * 180.0 / kPi;
-        elevationDeg = std::atan2(dy, std::hypot(dx, dz)) * 180.0 / kPi;
+        directionToAngles(direction, azimuthDeg, elevationDeg);
     } else if (m_renderAsSphere) {
         QVector3D direction;
         if (!sphereDirectionAtPoint(x, y, direction))
@@ -3600,8 +3619,17 @@ void LayersRendererQtOpenGLObject::renderLayers(float angle,
         translateXYZ.z = m_mpvObject->translate().z() / 100.f;
     }
 
+    // A fully visible main video hides everything behind it, also while a file loads or
+    // nothing is loaded (same as on the nodes). A plane does not cover the background.
+    const bool mediaFullyVisible = m_mpvObject && SyncHelper::instance().variables.alpha >= 1.f;
+    int mediaGridMode = m_mpvObject ? m_mpvObject->gridToMapOn() : 0;
+    if (mediaGridMode == 0)
+        mediaGridMode = SyncHelper::instance().variables.gridToMapOnBg;
+    const bool mediaCoversBackground = mediaFullyVisible && mediaGridMode != 1;
+
     // Render background image layer
-    if (m_backgroundImageLayer && m_backgroundImageLayer->ready() && SyncHelper::instance().variables.alphaBg > 0.f) {
+    if (!mediaCoversBackground && m_backgroundImageLayer && m_backgroundImageLayer->ready()
+        && SyncHelper::instance().variables.alphaBg > 0.f) {
         m_backgroundImageLayer->setAlpha(SyncHelper::instance().variables.alphaBg);
         m_backgroundImageLayer->setGridMode(static_cast<uint8_t>(SyncHelper::instance().variables.gridToMapOnBg));
         m_backgroundImageLayer->setStereoMode(static_cast<uint8_t>(SyncHelper::instance().variables.stereoscopicModeBg));
@@ -3638,7 +3666,9 @@ void LayersRendererQtOpenGLObject::renderLayers(float angle,
         }
     };
 
-    renderMasterLayers(BaseLayer::LayerHierarchy::BACK);
+    // Like on the nodes, BACK layers only show through a partly visible main video.
+    if (!mediaFullyVisible)
+        renderMasterLayers(BaseLayer::LayerHierarchy::BACK);
 
     // Render MPV video layer
     if (m_mpvObject && SyncHelper::instance().variables.alpha) {
