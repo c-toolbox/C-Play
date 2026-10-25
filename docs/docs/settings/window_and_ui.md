@@ -32,7 +32,7 @@ When idle mode is enabled, the UI automatically hides after a period of inactivi
 
 ### Master view
 
-These settings decide which master view mode C-Play starts in. The current mode can be changed at any time during playback from the view-mode menu in the header taskbar (or **Settings → States**); see [Views](/playback/views) for what each mode renders.
+These settings decide which master view mode C-Play starts in. The current mode can be changed at any time during playback from the view-mode menu in the header taskbar (or **Views → Master view** in the menu bar); see [Views](/playback/views) for what each mode renders.
 
 * **Show 3D view at startup** — Automatically open the 3D visualization mode when C-Play launches, instead of the flat playback view (default off).
 * **3D view FOV** — The FOV (field of view) of the 3D view, minimum 30 and maximum 150 degrees. Default 90 degrees. Only applies to the perspective camera mode; it is disabled while fisheye or sphere startup rendering is enabled.

@@ -101,6 +101,9 @@
 #ifdef WEBRTC_SUPPORT
 #include "webrtc/webrtchub.h"
 #endif
+#ifdef MOVIE_PREVIEW_SUPPORT
+#include "webrtc/moviepreviewstreamer.h"
+#endif
 #include <QMimeDatabase>
 #include <QOffscreenSurface>
 #include <QOpenGLContext>
@@ -110,6 +113,9 @@
 #include <QQmlEngine>
 #include <QQuickItem>
 #include <QQuickStyle>
+#ifdef WEBVIEW_SUPPORT
+#include <QtWebView/QtWebView>
+#endif
 #include <QQuickView>
 #include <QQuickWindow>
 #include <QSurfaceFormat>
@@ -172,6 +178,11 @@ static QApplication *createApplication(int &argc, char **argv, const QString &ap
 #else
     QApplication::setAttribute(Qt::AA_EnableHighDpiScaling);
     QApplication::setHighDpiScaleFactorRoundingPolicy(Qt::HighDpiScaleFactorRoundingPolicy::PassThrough);
+#endif
+
+#ifdef WEBVIEW_SUPPORT
+    // The presenter view window (PresenterWebView.qml); has to be set up before the application.
+    QtWebView::initialize();
 #endif
 
     QApplication *app = new QApplication(argc, argv);
@@ -406,6 +417,10 @@ Application::~Application() {
 #ifdef WEBRTC_SUPPORT
     WebRtcHub::instance().shutdown();
 #endif
+#ifdef MOVIE_PREVIEW_SUPPORT
+    if (MoviePreviewStreamer::instance())
+        MoviePreviewStreamer::instance()->shutdown();
+#endif
     delete m_engine;
     m_engine = nullptr;
     // After the QML objects (layers, mpv) that may have used it, before the application.
@@ -618,6 +633,18 @@ void Application::setupQmlContextProperties() {
     m_engine->rootContext()->setContextProperty(QStringLiteral("NODE_STREAM_SUPPORT"), QVariant(true));
 #else
     m_engine->rootContext()->setContextProperty(QStringLiteral("NODE_STREAM_SUPPORT"), QVariant(false));
+#endif
+
+#ifdef WEB_VIEWS_SUPPORT
+    m_engine->rootContext()->setContextProperty(QStringLiteral("WEB_VIEWS_SUPPORT"), QVariant(true));
+#else
+    m_engine->rootContext()->setContextProperty(QStringLiteral("WEB_VIEWS_SUPPORT"), QVariant(false));
+#endif
+
+#ifdef WEBVIEW_SUPPORT
+    m_engine->rootContext()->setContextProperty(QStringLiteral("WEBVIEW_SUPPORT"), QVariant(true));
+#else
+    m_engine->rootContext()->setContextProperty(QStringLiteral("WEBVIEW_SUPPORT"), QVariant(false));
 #endif
 }
 

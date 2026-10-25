@@ -56,7 +56,7 @@ Endpoints are divided into two categories:
 `/load_from_audiotracks`, `/load_from_playlist`, `/load_from_sections`,
 `/load_from_slides`, `/select_from_slides`, `/layer_fade_up`, `/layer_fade_down`
 
-The additional GET-only endpoints `/tcp/servers`, `/tcp/commands`, `/event_topics` and `/events`, and POST-only endpoints `/tcp/connect`, `/tcp/disconnect`, `/tcp/trigger` and `/tcp/command`, are documented in [TCP connection and update control](#tcp-connection-and-update-control) and [Change subscriptions](#change-subscriptions) at the bottom of this page.
+The additional GET-only endpoints `/tcp/servers`, `/tcp/commands`, `/event_topics` and `/events`, and POST-only endpoints `/tcp/connect`, `/tcp/disconnect`, `/tcp/trigger` and `/tcp/command`, are documented in [TCP connection and update control](#tcp-connection-and-update-control) and [Change subscriptions](#change-subscriptions) at the bottom of this page. The endpoints used by the presenter and movie views (`/presentation_state`, `/slide_notes`, `/movie_state`, `/movie_cue` and others) are documented in [Presenter view and movie view](/remote-control/web-views#http-endpoints).
 
 ---
 
@@ -417,7 +417,7 @@ The event feed exposes the same sampled state to HTTP, WebSocket and outgoing TC
 | `/event_topics` | GET | — | JSON array of supported topic names. |
 | `/events` | GET | `topics` (optional), `since` (optional), `wait` (optional) | JSON state snapshot or changes after a sequence cursor. |
 
-`topics` is a comma-separated list, such as `volume,playing_in_slides,playlist`; omit it or use `*` for all topics. Topic names include `position`, `remaining`, `duration`, `pause`, `volume`, `mute`, `speed`, `playlist`, `sections`, `audiotracks`, `slides`, `layers` and `triggered_slide`. Call `/event_topics` for the complete list. Unsupported topics return HTTP 400.
+`topics` is a comma-separated list, such as `volume,playing_in_slides,playlist`; omit it or use `*` for all topics. Topic names include `position`, `remaining`, `duration`, `pause`, `volume`, `mute`, `speed`, `playlist`, `sections`, `audiotracks`, `slides`, `layers` and `triggered_slide`, plus `presentation` and `movie` in builds with the [web views](/remote-control/web-views). Call `/event_topics` for the complete list. Unsupported topics return HTTP 400.
 
 ### Initial snapshot and long polling
 

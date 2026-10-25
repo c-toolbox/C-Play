@@ -25,6 +25,8 @@ class LayersModel;
 class BaseLayer;
 class ControlEventFeed;
 class TcpControlManager;
+class PresenterController;
+class MovieController;
 
 class HttpServerThread : public QThread {
     Q_OBJECT
@@ -39,6 +41,13 @@ public:
     void setSlidesModel(SlidesModel* sm);
     void setEventFeed(ControlEventFeed *feed) { m_eventFeed = feed; }
     void setTcpControlManager(TcpControlManager *manager) { m_tcpControlManager = manager; }
+#ifdef WEB_VIEWS_SUPPORT
+    void setPresenter(PresenterController *presenter) { m_presenter = presenter; }
+    void setMovie(MovieController *movie) { m_movie = movie; }
+#endif
+    // From http-server-conf.json, known after setupHttpServer().
+    bool serverEnabled() const { return runServer; }
+    int serverPort() const { return portServer; }
 
     Q_INVOKABLE void terminate();
 
@@ -111,11 +120,22 @@ private:
     const std::string LoadIndexFromSlides(std::string indexStr);
     const std::string SelectIndexFromSlides(std::string indexStr);
 
+#ifdef WEB_VIEWS_SUPPORT
+    void setupPresenterRoutes();
+    void setupMovieRoutes();
+    // Serves the built web app data/web/<folder> at <path>/.
+    void mountWebApp(const std::string &path, const QString &folder);
+#endif
+
     const std::string getLayerFromRequest(const httplib::Request& req, LayersModel* &lm, int &layerIdx, std::shared_ptr<BaseLayer> &resolvedLayer);
 
     MpvObject *m_mpv;
     ControlEventFeed *m_eventFeed = nullptr;
     TcpControlManager *m_tcpControlManager = nullptr;
+#ifdef WEB_VIEWS_SUPPORT
+    PresenterController *m_presenter = nullptr;
+    MovieController *m_movie = nullptr;
+#endif
     SlidesModel* m_slidesModel;
     httplib::Server svr;
     bool runServer;

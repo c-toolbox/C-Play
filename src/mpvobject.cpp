@@ -25,6 +25,9 @@
 #include "tracksmodel.h"
 #include "layers/textlayer.h"
 #include "ndi/ndisendermodel.h"
+#ifdef MOVIE_PREVIEW_SUPPORT
+#include "webrtc/moviepreviewstreamer.h"
+#endif
 #include "utils/autosave.h"
 #include "utils/logfilewriter.h"
 #include <iostream>
@@ -2539,6 +2542,11 @@ MpvRenderer::~MpvRenderer() {
     if (isPrimaryView && NdiSenderModel::instance()) {
         NdiSenderModel::instance()->cleanupGL();
     }
+#ifdef MOVIE_PREVIEW_SUPPORT
+    if (isPrimaryView && MoviePreviewStreamer::instance()) {
+        MoviePreviewStreamer::instance()->cleanupGL();
+    }
+#endif
 }
 
 void MpvRenderer::render() {
@@ -2671,6 +2679,14 @@ void MpvRenderer::render() {
     if (isPrimaryView && NdiSenderModel::instance()) {
         NdiSenderModel::instance()->renderFrameFromMpv();
     }
+
+#ifdef MOVIE_PREVIEW_SUPPORT
+    // The live picture of the movie view, only while a browser watches it.
+    MoviePreviewStreamer* preview = MoviePreviewStreamer::instance();
+    if (isPrimaryView && preview && preview->wantsLiveFrames()) {
+        preview->captureLiveFrame(view->obj->mpv_fbo);
+    }
+#endif
 }
 
 QOpenGLFramebufferObject* MpvRenderer::createFramebufferObject(const QSize& size) {

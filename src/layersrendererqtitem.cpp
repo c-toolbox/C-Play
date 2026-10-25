@@ -31,6 +31,7 @@
 #include <algorithm>
 #include <array>
 #include <cmath>
+#include <cstring>
 
  // Shader sources (same as LayersRenderer but compatible with QOpenGLShaderProgram)
 constexpr const char* VideoVert = R"(
@@ -815,6 +816,14 @@ int LayersRendererQtItem::ndiHeight() const {
 
 std::shared_ptr<LayersRendererMirrorLink> LayersRendererQtItem::mirrorLink() const {
     return m_mirrorLink;
+}
+
+bool LayersRendererQtItem::requestSnapshot(int width) {
+    if (width <= 0 || !window() || s_shuttingDown)
+        return false;
+    m_snapshotWidth = width;
+    window()->update();
+    return true;
 }
 
 MpvObject* LayersRendererQtItem::mpvObject() const {
@@ -1858,6 +1867,7 @@ void LayersRendererQtItem::sync() {
         connect(window(), &QQuickWindow::beforeRenderPassRecording, m_renderer, &LayersRendererQtOpenGLObject::firstPass, Qt::DirectConnection);
         connect(window(), &QQuickWindow::afterRenderPassRecording, m_renderer, &LayersRendererQtOpenGLObject::secondPass, Qt::DirectConnection);
         connect(window(), &QQuickWindow::frameSwapped, m_renderer, &LayersRendererQtOpenGLObject::reportSwap, Qt::DirectConnection);
+        connect(m_renderer, &LayersRendererQtOpenGLObject::snapshotReady, this, &LayersRendererQtItem::snapshotReady, Qt::QueuedConnection);
         m_renderer->setMirrorLink(m_mirrorLink);
     }
     m_renderer->setWindow(window());
@@ -1895,6 +1905,17 @@ void LayersRendererQtItem::sync() {
     updateMirrorTarget();
 
     updateCameraMatrices();
+
+    if (m_snapshotWidth > 0) {
+        // The perspective camera and the sphere view keep 16:9, as over NDI, the fisheye is square.
+        const int snapshotHeight = m_renderAsFisheye ? m_snapshotWidth : m_snapshotWidth * 9 / 16;
+        QMatrix4x4 snapshotViewMatrix;
+        QMatrix4x4 snapshotProjectionMatrix;
+        activeCameraMatrices(static_cast<float>(m_snapshotWidth), static_cast<float>(snapshotHeight),
+                             snapshotViewMatrix, snapshotProjectionMatrix);
+        m_renderer->requestSnapshot(m_snapshotWidth, snapshotHeight, snapshotProjectionMatrix);
+        m_snapshotWidth = 0;
+    }
 }
 
 void LayersRendererQtItem::beginShutdown() {
@@ -2283,6 +2304,74 @@ void LayersRendererQtOpenGLObject::setMirrorSize(int width, int height) {
 
 void LayersRendererQtOpenGLObject::setMirrorProjectionMatrix(const QMatrix4x4& projectionMatrix) {
     m_mirrorProjectionMatrix = projectionMatrix;
+}
+
+void LayersRendererQtOpenGLObject::requestSnapshot(int width, int height, const QMatrix4x4& projectionMatrix) {
+    m_snapshotWidth = width;
+    m_snapshotHeight = height;
+    m_snapshotProjectionMatrix = projectionMatrix;
+}
+
+void LayersRendererQtOpenGLObject::renderSnapshot() {
+    const int width = m_snapshotWidth;
+    const int height = m_snapshotHeight;
+    m_snapshotWidth = 0;
+    m_snapshotHeight = 0;
+
+    GLint previousFbo = 0;
+    glGetIntegerv(GL_FRAMEBUFFER_BINDING, &previousFbo);
+
+    GLuint texture = 0;
+    GLuint fbo = 0;
+    glGenTextures(1, &texture);
+    glBindTexture(GL_TEXTURE_2D, texture);
+    glTexImage2D(GL_TEXTURE_2D, 0, GL_RGBA8, width, height, 0, GL_RGBA, GL_UNSIGNED_BYTE, nullptr);
+    glBindTexture(GL_TEXTURE_2D, 0);
+    glGenFramebuffers(1, &fbo);
+    glBindFramebuffer(GL_FRAMEBUFFER, fbo);
+    glFramebufferTexture2D(GL_FRAMEBUFFER, GL_COLOR_ATTACHMENT0, GL_TEXTURE_2D, texture, 0);
+
+    QImage image;
+    if (glCheckFramebufferStatus(GL_FRAMEBUFFER) == GL_FRAMEBUFFER_COMPLETE) {
+        glViewport(0, 0, width, height);
+        glClearColor(0.0f, 0.0f, 0.0f, 1.0f);
+        glClear(GL_COLOR_BUFFER_BIT);
+
+        // As for the mirror: renderViewportRect() describes the target, and no C-Lux preview.
+        const QRect viewportRect = m_viewportRect;
+        m_viewportRect = QRect(0, 0, width, height);
+        renderLayers(m_meshAngle, m_viewMatrix, m_snapshotProjectionMatrix, /*includeCluxPreview=*/false);
+        m_viewportRect = viewportRect;
+
+        GLint packAlignment = 4, packRowLength = 0, packBuffer = 0;
+        glGetIntegerv(GL_PACK_ALIGNMENT, &packAlignment);
+        glGetIntegerv(GL_PACK_ROW_LENGTH, &packRowLength);
+        glGetIntegerv(GL_PIXEL_PACK_BUFFER_BINDING, &packBuffer);
+        glBindBuffer(GL_PIXEL_PACK_BUFFER, 0);
+        glPixelStorei(GL_PACK_ALIGNMENT, 4);
+        glPixelStorei(GL_PACK_ROW_LENGTH, 0);
+
+        QImage bottomUp(width, height, QImage::Format_RGBA8888);
+        glReadPixels(0, 0, width, height, GL_RGBA, GL_UNSIGNED_BYTE, bottomUp.bits());
+
+        glBindBuffer(GL_PIXEL_PACK_BUFFER, static_cast<GLuint>(packBuffer));
+        glPixelStorei(GL_PACK_ALIGNMENT, packAlignment);
+        glPixelStorei(GL_PACK_ROW_LENGTH, packRowLength);
+
+        image = QImage(width, height, QImage::Format_RGBA8888);
+        for (int y = 0; y < height; ++y)
+            std::memcpy(image.scanLine(y), bottomUp.constScanLine(height - 1 - y), static_cast<size_t>(width) * 4);
+    } else {
+        qWarning() << "LayersRendererQtItem: could not create the" << width << "x" << height << "snapshot target";
+    }
+
+    glBindFramebuffer(GL_FRAMEBUFFER, static_cast<GLuint>(previousFbo));
+    glDeleteFramebuffers(1, &fbo);
+    glDeleteTextures(1, &texture);
+    const QRect vp = renderViewportRect();
+    glViewport(vp.x(), vp.y(), vp.width(), vp.height());
+
+    Q_EMIT snapshotReady(image);
 }
 
 bool LayersRendererQtOpenGLObject::ensureMirrorTarget() {
@@ -3880,6 +3969,9 @@ void LayersRendererQtOpenGLObject::renderFrame() {
     // The mirror is rendered even while this view is hidden, so the floating window keeps
     // showing the 3D view when the main window shows the flat main video.
     renderMirror();
+
+    if (snapshotRequested())
+        renderSnapshot();
 }
 
 void LayersRendererQtOpenGLObject::renderView() {
@@ -3934,7 +4026,7 @@ void LayersRendererQtOpenGLObject::renderView() {
 void LayersRendererQtOpenGLObject::firstPass() {
     // Also runs while hidden as long as the mirror target needs rendering or releasing.
     if (m_shuttingDown || LayersRendererQtItem::isShuttingDown() || !m_initialized
-        || (!m_itemVisible && !mirrorRequested() && m_mirrorFbos[0] == 0)) {
+        || (!m_itemVisible && !mirrorRequested() && m_mirrorFbos[0] == 0 && !snapshotRequested())) {
         return;
     }
 
@@ -3963,7 +4055,7 @@ void LayersRendererQtOpenGLObject::firstPass() {
 
 void LayersRendererQtOpenGLObject::secondPass() {
     if (m_shuttingDown || LayersRendererQtItem::isShuttingDown() || !m_initialized
-        || (!m_itemVisible && !mirrorRequested() && m_mirrorFbos[0] == 0)) {
+        || (!m_itemVisible && !mirrorRequested() && m_mirrorFbos[0] == 0 && !snapshotRequested())) {
         return;
     }
 

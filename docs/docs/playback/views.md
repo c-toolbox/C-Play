@@ -7,6 +7,14 @@ sidebar_position: 6
 
 C-Play provides several view-related features for controlling how content is displayed, both on the master application and on networked display nodes.
 
+### Views menu
+
+From C-Play v2.4, the **Views** menu in the menu bar gathers the view controls (previously under **Settings → States**):
+
+* **Master view** — the four [master view](#-master-view) modes, also opened by the view-mode button in the header taskbar.
+* **Node windows** — [opacity and fading](#opacity-and-fading), [always on top](#always-on-top), and (in builds with NDI) *Show the master NDI output on all nodes*, see [NDI output](/system-integration/ndi-output).
+* **Presenter view (slides, notes)** and **Movie view (playlist, sections, cues)** — the web views served by the HTTP server, opened on a screen, in the default browser, or on other devices. Only in builds with the web views. See [Presenter view and movie view](/remote-control/web-views).
+
 ### ![](/assets/icons/map-globe.svg) Master view
 
 The master view is what C-Play's main window displays — either just the main video, all layers rendered in an interactive 3D scene, all layers through a 180° fisheye lens, or all layers mapped on a sphere seen from outside. The layer-rendering modes are useful for previewing how content will look when projected onto domes or spheres.
@@ -20,7 +28,7 @@ The view-mode button in the header taskbar opens a menu with the four master vie
 
 ![Master view menu](/assets/ui/header_taskbar/master_view_menu.png)
 
-The same menu is available under **Settings → States**, where the *Master view* entry also shows an icon of the currently selected mode — there the items are worded as *Render only the main video*, *Render 3D view with perspective camera*, *Render 3D view with a fisheye camera*, and *Render 3D view mapped on a sphere*. Choosing a mode only changes the current session; which mode C-Play starts in is decided by the [Window & UI settings](/settings/window_and_ui). The [NDI output](/system-integration/ndi-output) follows this mode as well — while a 3D view is active it publishes the rendered scene instead of the main video.
+The same menu is available as **Views → Master view** in the menu bar, where the entry also shows an icon of the currently selected mode. Choosing a mode only changes the current session; which mode C-Play starts in is decided by the [Window & UI settings](/settings/window_and_ui). The [NDI output](/system-integration/ndi-output) follows this mode as well — while a 3D view is active it publishes the rendered scene instead of the main video.
 
 The 3D view supports an interactive camera with orbit controls, letting you rotate around the scene to inspect your content from different angles.
 
@@ -117,7 +125,7 @@ The floating window can toggle between displaying the main video layer and layer
 ### View states
 
 ![States](/assets/ui/header_taskbar/states.png)
-Besides the master view modes explained above, there are a few other view states.
+Besides the master view modes explained above, there are a few other view states for the node windows. They are also in **Views → Node windows** in the menu bar.
 
 #### Always on top
 

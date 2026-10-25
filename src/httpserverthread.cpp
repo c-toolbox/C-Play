@@ -15,10 +15,23 @@
 #include "layers/baselayer.h"
 #include "controleventfeed.h"
 #include "tcp/tcpcontrolrestapi.h"
+#ifdef WEB_VIEWS_SUPPORT
+#include "moviecontroller.h"
+#include "presentercontroller.h"
+#endif
+#ifdef MOVIE_PREVIEW_SUPPORT
+#include "webrtc/moviepreviewstreamer.h"
+#endif
 
 #include <QFile>
 #include <QJsonDocument>
 #include <QJsonObject>
+#include <QDir>
+#include <QPointer>
+#include <QThread>
+#include <chrono>
+#include <future>
+#include <optional>
 
 #pragma warning(disable : 4996)
 
@@ -27,6 +40,23 @@ std::string formatTime(double timeInSeconds, std::string format = "hh:mm:ss/zz")
     QString formatQ = QString::fromStdString(format);
     QString formattedTime = t.addMSecs(static_cast<qint64>(timeInSeconds * 1000)).toString(formatQ);
     return formattedTime.toStdString();
+}
+
+// Runs fn on the thread of context and waits up to timeoutMs for its result, nullopt on timeout.
+// Unlike a BlockingQueuedConnection it cannot dead-lock while the GUI thread waits for the server
+// to stop. Runs fn directly when already on that thread (control actions dispatched from TCP).
+template <typename T>
+std::optional<T> runOnThreadOf(QObject *context, std::function<T()> fn, int timeoutMs = 5000) {
+    if (!context)
+        return std::nullopt;
+    if (QThread::currentThread() == context->thread())
+        return fn();
+    auto promise = std::make_shared<std::promise<T>>();
+    auto future = promise->get_future();
+    QMetaObject::invokeMethod(context, [promise, fn = std::move(fn)]() { promise->set_value(fn()); }, Qt::QueuedConnection);
+    if (future.wait_for(std::chrono::milliseconds(timeoutMs)) != std::future_status::ready)
+        return std::nullopt;
+    return future.get();
 }
 
 HttpServerThread::HttpServerThread(QObject *parent)
@@ -1154,8 +1184,205 @@ void HttpServerThread::setupHttpServer() {
             }
         });
 
+#ifdef WEB_VIEWS_SUPPORT
+        setupPresenterRoutes();
+        setupMovieRoutes();
+        svr.set_file_request_handler([](const httplib::Request &, httplib::Response &res) {
+            res.set_header("Cache-Control", "no-cache");
+        });
+#endif
     }
 }
+
+#ifdef WEB_VIEWS_SUPPORT
+// The JSON result of a runOnThreadOf call, 503 when C-Play did not respond.
+static void sendJson(httplib::Response &res, const std::optional<QJsonObject> &obj) {
+    if (!obj) {
+        res.status = 503;
+        res.set_content("C-Play did not respond", "text/plain");
+        return;
+    }
+    res.set_header("Cache-Control", "no-store");
+    res.set_content(QJsonDocument(*obj).toJson(QJsonDocument::Compact).toStdString(), "application/json");
+}
+
+// The presenter view (web/presentation_mode) and the API it uses. The models are only used on
+// the GUI thread, through runOnThreadOf.
+void HttpServerThread::setupPresenterRoutes() {
+    const auto slideIndex = [this](const httplib::Request &req, int fallback) {
+        int index = fallback;
+        if (req.has_param("index") && !stringToInt(req.get_param_value("index"), index))
+            return -2;
+        return index;
+    };
+
+    svr.Get("/presentation_state", [this](const httplib::Request &, httplib::Response &res) {
+        QPointer<PresenterController> presenter(m_presenter);
+        sendJson(res, runOnThreadOf<QJsonObject>(m_presenter, [presenter]() { return presenter ? presenter->state() : QJsonObject(); }));
+    });
+
+    svr.Get("/slide_thumbnail", [this, slideIndex](const httplib::Request &req, httplib::Response &res) {
+        QPointer<PresenterController> presenter(m_presenter);
+        const int index = slideIndex(req, -2);
+        const auto image = runOnThreadOf<QByteArray>(m_presenter, [presenter, index]() {
+            return presenter ? presenter->thumbnail(index) : QByteArray();
+        });
+        if (!image || image->isEmpty()) {
+            res.status = 404;
+            res.set_content("No thumbnail for this slide", "text/plain");
+            return;
+        }
+        // Thumbnails are addressed with their revision (?rev=), so a URL never changes content.
+        res.set_header("Cache-Control", req.has_param("rev") ? "public, max-age=31536000, immutable" : "no-store");
+        res.set_content(image->toStdString(), image->startsWith("\x89PNG") ? "image/png" : "image/jpeg");
+    });
+
+    // Notes in the body (UTF-8 text) or in the notes parameter.
+    registerPost("/slide_notes", [this, slideIndex](const httplib::Request &req, httplib::Response &res) {
+        QPointer<PresenterController> presenter(m_presenter);
+        const int index = slideIndex(req, -2);
+        const QString notes = QString::fromStdString(req.has_param("notes") ? req.get_param_value("notes") : req.body);
+        const auto ok = runOnThreadOf<bool>(m_presenter, [presenter, index, notes]() {
+            return presenter && presenter->setNotes(index, notes);
+        });
+        if (ok && !*ok) res.status = 400;
+        sendJson(res, ok ? std::optional<QJsonObject>(QJsonObject{{QStringLiteral("ok"), *ok}}) : std::nullopt);
+    });
+
+    // Renders the slide, by default the triggered one, with the master view camera as its thumbnail.
+    registerPost("/slide_thumbnail_update", [this, slideIndex](const httplib::Request &req, httplib::Response &res) {
+        QPointer<PresenterController> presenter(m_presenter);
+        QPointer<SlidesModel> slides(m_slidesModel);
+        const int requested = slideIndex(req, -3);
+        const auto result = runOnThreadOf<QJsonObject>(m_presenter, [presenter, slides, requested]() {
+            const int index = requested == -3 && slides ? slides->triggeredSlideIdx() : requested;
+            const bool ok = presenter && presenter->captureThumbnail(index);
+            return QJsonObject{{QStringLiteral("ok"), ok}, {QStringLiteral("index"), index}};
+        });
+        if (result && !result->value(QStringLiteral("ok")).toBool()) res.status = 409;
+        sendJson(res, result);
+    });
+
+    registerPost("/presentation_save", [this](const httplib::Request &, httplib::Response &res) {
+        QPointer<PresenterController> presenter(m_presenter);
+        const auto ok = runOnThreadOf<bool>(m_presenter, [presenter]() { return presenter && presenter->save(); });
+        if (ok && !*ok) res.status = 409;
+        sendJson(res, ok ? std::optional<QJsonObject>(QJsonObject{{QStringLiteral("ok"), *ok}}) : std::nullopt);
+    });
+
+    mountWebApp("/presenter", QStringLiteral("presentation_mode"));
+}
+
+// The movie view (web/movie_mode): the playlist and its sections, and cues into them.
+void HttpServerThread::setupMovieRoutes() {
+
+    svr.Get("/movie_state", [this](const httplib::Request &, httplib::Response &res) {
+        QPointer<MovieController> movie(m_movie);
+        sendJson(res, runOnThreadOf<QJsonObject>(m_movie, [movie]() { return movie ? movie->state() : QJsonObject(); }));
+    });
+
+    // Loads playlist item index (or keeps the loaded file without it) at section (-1 for none)
+    // and/or position (seconds), then plays (play=1) or pauses (play=0).
+    registerPost("/movie_cue", [this](const httplib::Request &req, httplib::Response &res) {
+        int index = -1, section = -2, play = -1;
+        double position = -1;
+        if ((req.has_param("index") && !stringToInt(req.get_param_value("index"), index))
+            || (req.has_param("section") && !stringToInt(req.get_param_value("section"), section))
+            || (req.has_param("position") && !stringToDouble(req.get_param_value("position"), position))
+            || (req.has_param("play") && !stringToInt(req.get_param_value("play"), play))) {
+            res.status = 400;
+            res.set_content("Invalid index, section, position or play parameter", "text/plain");
+            return;
+        }
+        QPointer<MovieController> movie(m_movie);
+        const auto ok = runOnThreadOf<bool>(m_movie, [movie, index, section, position, play]() {
+            return movie && movie->cue(index, section, position, play);
+        });
+        if (ok && !*ok) res.status = 400;
+        sendJson(res, ok ? std::optional<QJsonObject>(QJsonObject{{QStringLiteral("ok"), *ok}}) : std::nullopt);
+    });
+
+#ifdef MOVIE_PREVIEW_SUPPORT
+    // Pictures of the movie view over WebRTC (see MoviePreviewStreamer), not control actions.
+    svr.Get("/movie_preview", [](const httplib::Request &, httplib::Response &res) {
+        MoviePreviewStreamer *preview = MoviePreviewStreamer::instance();
+        sendJson(res, preview ? preview->status() : QJsonObject{{QStringLiteral("available"), false}});
+    });
+
+    // Body: the browser's SDP offer, ICE gathering complete. feed=live (what plays) or prepare
+    // (the cued picture). Answers {id, sdp}; post the id to /movie_preview/close when done.
+    svr.Post("/movie_preview/offer", [](const httplib::Request &req, httplib::Response &res) {
+        MoviePreviewStreamer *preview = MoviePreviewStreamer::instance();
+        const std::string feed = req.get_param_value("feed");
+        if (!preview || (feed != "live" && feed != "prepare") || req.body.empty()) {
+            res.status = preview ? 400 : 503;
+            res.set_content(preview ? "Post an SDP offer with feed=live or feed=prepare" : "Previews are not available", "text/plain");
+            return;
+        }
+        const auto answer = preview->answer(feed == "live" ? MoviePreviewStreamer::Feed::Live : MoviePreviewStreamer::Feed::Prepare, req.body);
+        if (!answer.error.empty()) {
+            res.status = 503;
+            res.set_content(answer.error, "text/plain");
+            return;
+        }
+        sendJson(res, QJsonObject{{QStringLiteral("id"), QString::fromStdString(answer.sessionId)},
+            {QStringLiteral("sdp"), QString::fromStdString(answer.sdp)}});
+    });
+
+    svr.Post("/movie_preview/close", [](const httplib::Request &req, httplib::Response &res) {
+        if (MoviePreviewStreamer *preview = MoviePreviewStreamer::instance())
+            preview->close(req.get_param_value("id"));
+        sendJson(res, QJsonObject{{QStringLiteral("ok"), true}});
+    });
+
+    // Shows playlist item index (-1: the loaded file) at position (seconds) in the prepare feed,
+    // playing on from there with play=1.
+    svr.Post("/movie_preview/prepare", [this](const httplib::Request &req, httplib::Response &res) {
+        int index = -1, play = 0;
+        double position = 0;
+        if ((req.has_param("index") && !stringToInt(req.get_param_value("index"), index))
+            || (req.has_param("position") && !stringToDouble(req.get_param_value("position"), position))
+            || (req.has_param("play") && !stringToInt(req.get_param_value("play"), play))) {
+            res.status = 400;
+            res.set_content("Invalid index, position or play parameter", "text/plain");
+            return;
+        }
+        QPointer<MovieController> movie(m_movie);
+        const auto file = runOnThreadOf<QString>(m_movie, [movie, index]() { return movie ? movie->mediaFile(index) : QString(); });
+        MoviePreviewStreamer *preview = MoviePreviewStreamer::instance();
+        if (!file || !preview) {
+            sendJson(res, std::nullopt);
+            return;
+        }
+        preview->prepare(*file, position, play == 1);
+        sendJson(res, QJsonObject{{QStringLiteral("ok"), true}, {QStringLiteral("file"), !file->isEmpty()}});
+    });
+#else
+    svr.Get("/movie_preview", [](const httplib::Request &, httplib::Response &res) {
+        sendJson(res, QJsonObject{{QStringLiteral("available"), false}});
+    });
+#endif
+
+    mountWebApp("/movie", QStringLiteral("movie_mode"));
+}
+
+void HttpServerThread::mountWebApp(const std::string &path, const QString &folder) {
+    // The built web app (pnpm build in web/<folder>), installed to data/web/<folder>.
+    const std::string webRoot = QDir(QStringLiteral("./data/web/") + folder).absolutePath().toStdString();
+    const bool webInstalled = svr.set_mount_point(path, webRoot);
+    const std::string name = folder.toStdString();
+    // Reached when no file matched.
+    svr.Get(path + "(/.*)?", [path, webInstalled, webRoot, name](const httplib::Request &req, httplib::Response &res) {
+        if (req.path == path) {
+            res.set_redirect(path + "/");
+            return;
+        }
+        res.status = 404;
+        res.set_content(webInstalled ? "Not found" : "The web view is not installed in " + webRoot
+            + ". Build it with pnpm install && pnpm build in web/" + name + ".", "text/plain");
+    });
+}
+#endif
 
 void HttpServerThread::registerPost(const std::string &path, httplib::Server::Handler handler) {
     m_postHandlers[path] = handler;

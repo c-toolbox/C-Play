@@ -9,5 +9,6 @@ C-Play has integrated a REST API library to enable external control against the 
 Below you find links to the API as well as an example UI.
 
  - [HTTP Web API](/remote-control/api)
+ - [Presenter view and movie view (web)](/remote-control/web-views)
  - [TCP control client](/remote-control/tcp)
  - [Medialon Example Web UI](/remote-control/ui)

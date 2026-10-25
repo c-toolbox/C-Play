@@ -17,7 +17,7 @@ Use Visual Studio 2022 as compiler. (However MSYS / MinGW will be installed late
 
 Run command
 ```
-craft libs/qt6/qtbase libs/qt6/qtdeclarative libs/qt6/qtquick3d libs/qt6/qt5compat extra-cmake-modules kconfig kcoreaddons kfilemetadata ki18n kiconthemes kio kirigami kcolorscheme kwindowsystem kxmlgui kio-extras breeze breeze-icons qqc2-breeze-style qqc2-desktop-style zxing-cpp
+craft libs/qt6/qtbase libs/qt6/qtdeclarative libs/qt6/qtquick3d libs/qt6/qt5compat libs/qt6/qtwebview extra-cmake-modules kconfig kcoreaddons kfilemetadata ki18n kiconthemes kio kirigami kcolorscheme kwindowsystem kxmlgui kio-extras breeze breeze-icons qqc2-breeze-style qqc2-desktop-style zxing-cpp
 ```
 These packages provide the following dependencies:
 - Qt6Core (within Base)
@@ -27,6 +27,7 @@ These packages provide the following dependencies:
 - Qt6QuickControls2 (within Declarative)
 - Qt6Quick3D (within Quick3D)
 - Qt6Core5Compat (within Core5Compat)
+- Qt6WebView (within WebView, which also installs Qt WebEngine on Windows)
 - ExtraCmakeModules
 - KF6Config (kconfig)
 - KF6CoreAddons (kcoreaddons)
@@ -43,6 +44,8 @@ These packages provide the following dependencies:
 - Breeze icons (breeze-icons)
 - Breeze widgets style (qqc2-breeze-style)
 - QQC2-Desktop-Style
+
+Qt WebView shows the [presenter view and movie view](/remote-control/web-views) in a C-Play window (CMake option `BUILD_CPLAY_WITH_WEBVIEW`). Without it, C-Play opens these views in a browser app window instead. See [Build from code → Web views](/build/web-views). Qt WebEngine is a large package to build; leave out `libs/qt6/qtwebview` if you do not need the C-Play window.
 
 Optional QR-code support:
 - ZXing-Cpp (for QR-code guided presentations)

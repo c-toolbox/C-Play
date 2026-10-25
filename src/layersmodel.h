@@ -292,6 +292,20 @@ public:
     Q_INVOKABLE QString getLayersName() const;
     Q_INVOKABLE QString getLayersNameShort(int maxChars) const;
 
+    // Presenter notes of the slide, shown and edited in the presenter view and saved in the presentation.
+    Q_PROPERTY(QString notes
+        READ notes
+        WRITE setNotes
+        NOTIFY notesChanged)
+    QString notes() const;
+    void setNotes(const QString &notes);
+
+    // JPEG preview of the slide for the presenter view, saved in the presentation.
+    QByteArray thumbnail() const;
+    void setThumbnail(const QByteArray &jpeg);
+    // Changes whenever the thumbnail changes, so clients know when to fetch it again. 0 = never set.
+    int thumbnailRevision() const;
+
     Q_PROPERTY(bool layersCanBeLocked
         READ getLayersCanBeLocked
         WRITE setLayersCanBeLocked
@@ -503,6 +517,8 @@ Q_SIGNALS:
     void layersEnabledChanged(bool);
     void layersNeedsSaveChanged(bool);
     void layersNameChanged();
+    void notesChanged();
+    void thumbnailChanged();
     void layersCanBeLockedChanged();
     void layerToCopyIdxChanged();
     void timelineChanged();
@@ -629,6 +645,9 @@ private:
     int m_syncIteration;
     QString m_layersName;
     QString m_layersPath;
+    QString m_notes;
+    QByteArray m_thumbnail;
+    int m_thumbnailRevision = 0;
 
     // Timeline data
     bool m_hasTimeline = false;

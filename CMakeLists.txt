@@ -1,5 +1,9 @@
 cmake_minimum_required(VERSION 3.25 FATAL_ERROR)
 cmake_policy(VERSION 3.25)
+if(POLICY CMP0144)
+    # find_package honours upper-case <PACKAGENAME>_ROOT (e.g. RGBEASY_ROOT)
+    cmake_policy(SET CMP0144 NEW)
+endif()
 set(CMAKE_POLICY_VERSION_MINIMUM 3.10)
 get_filename_component(C_PLAY_SOURCE_PARENT ${CMAKE_SOURCE_DIR} DIRECTORY)
 set(CMAKE_INSTALL_PREFIX "${C_PLAY_SOURCE_PARENT}/install" CACHE PATH "")
@@ -320,6 +324,24 @@ endif()
 # WebSockets/Network, which are already required; no extra dependencies.
 option(BUILD_CPLAY_WITH_CLUX "Global On/Off for C-Lux light server support" ON)
 
+# The web views served by the HTTP server: the presenter view of presentations (web/presentation_mode),
+# with slide notes and thumbnails, and the movie view of the playlist and sections (web/movie_mode).
+# The web apps are built with pnpm when pnpm is found, otherwise run pnpm install && pnpm build in
+# their folders by hand.
+option(BUILD_CPLAY_WEB_VIEWS "Global On/Off for the web views (presenter view of presentations, movie view of playlists)" ON)
+# With Qt WebView the presenter view opens in a C-Play window, without it in a browser app window.
+option(BUILD_CPLAY_WITH_WEBVIEW "Global On/Off for the presenter view in a C-Play window (Qt WebView)" ON)
+if(NOT BUILD_CPLAY_WEB_VIEWS)
+    set(BUILD_CPLAY_WITH_WEBVIEW OFF)
+endif()
+if(BUILD_CPLAY_WITH_WEBVIEW)
+    find_package(Qt6WebView ${QT_MIN_VERSION} QUIET)
+    if(NOT Qt6WebView_FOUND)
+        message(STATUS "Qt WebView not found, the presenter view opens in a browser app window")
+        set(BUILD_CPLAY_WITH_WEBVIEW OFF)
+    endif()
+endif()
+
 # MediaMTX support talks to a MediaMTX server over its HTTP control API, so it works on every
 # platform; it is enabled by default only on Windows.
 if(WIN32)
@@ -401,3 +423,6 @@ endif()
 add_subdirectory(data)
 add_subdirectory(help)
 add_subdirectory(src)
+if(BUILD_CPLAY_WEB_VIEWS)
+    add_subdirectory(web)
+endif()

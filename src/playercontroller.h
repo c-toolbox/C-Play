@@ -17,6 +17,8 @@ class MpvObject;
 class HttpServerThread;
 class SlidesModel;
 class ControlEventFeed;
+class PresenterController;
+class MovieController;
 
 class PlayerController : public QObject {
     Q_OBJECT
@@ -25,6 +27,11 @@ class PlayerController : public QObject {
     Q_PROPERTY(MpvObject *mpv READ mpv WRITE setMpv NOTIFY mpvChanged)
     Q_PROPERTY(SlidesModel *slides READ slidesModel WRITE setSlidesModel NOTIFY slidesModelChanged)
     Q_PROPERTY(QString tcpControlError READ tcpControlError NOTIFY tcpControlErrorChanged)
+#ifdef WEB_VIEWS_SUPPORT
+    Q_MOC_INCLUDE("presentercontroller.h")
+    // The presenter view of the slides (served at /presenter/ by the HTTP server).
+    Q_PROPERTY(PresenterController *presenter READ presenter CONSTANT)
+#endif
 
 public:
     explicit PlayerController(QObject *parent = nullptr);
@@ -32,6 +39,9 @@ public:
 
     void setupConnections();
     QString tcpControlError() const { return m_tcpControlError; }
+#ifdef WEB_VIEWS_SUPPORT
+    PresenterController *presenter() const { return m_presenter; }
+#endif
     Q_INVOKABLE void applyTcpControlSettings();
 
     Q_PROPERTY(bool nodeWindowsOnTop
@@ -246,6 +256,10 @@ private:
     MpvObject *m_mpv;
     SlidesModel* m_slidesModel;
     HttpServerThread *httpServer;
+#ifdef WEB_VIEWS_SUPPORT
+    PresenterController *m_presenter;
+    MovieController *m_movie;
+#endif
     QString m_backgroundFile;
     QString m_foregroundFile;
     int m_viewModeOnMaster;

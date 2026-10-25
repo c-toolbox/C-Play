@@ -34,6 +34,8 @@ These are the steps:
 
 - Configure with CMake 4.0 or newer and a compiler with C++23 support. Make your Craft Qt6/KF6 installation and mpv development files discoverable through `CMAKE_PREFIX_PATH` and `PATH`. The build enables vcpkg by default: set `VCPKG_ROOT` to its installation, or disable `BUILD_WITH_VCPKG_SUPPORT` when supplying dependencies yourself.
 
+- Optionally, install Node.js and pnpm to build the web views (see the [Web views Guide](/build/web-views)).
+
 - Build in Visual Studio 2022 or in Qt-Creator for good QML overview.
 
 - Follow the [Deploy Guide](/build/deploy) to copy the built application and its dependencies to a standalone folder and optionally create an installer.

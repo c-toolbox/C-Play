@@ -8,7 +8,7 @@ set(CPLAY_VERSION_MAJOR 2)
 set(CPLAY_VERSION_MINOR 4)
 set(CPLAY_VERSION_PATCH 0)
 set(CPLAY_VERSION_PR_NAME "Beta")
-set(CPLAY_VERSION_PR_VERS 42)
+set(CPLAY_VERSION_PR_VERS 43)
 
 qt_add_executable(${TARGET_NAME})
 set_compile_options(${TARGET_NAME})
@@ -364,9 +364,11 @@ set(QML_SRC_FILES
     qml/qt6/Menus/AudioMenu.qml
     qml/qt6/Menus/FileMenu.qml
     qml/qt6/Menus/HelpMenu.qml
+    qml/qt6/Menus/MasterViewMenu.qml
     qml/qt6/Menus/PlaybackMenu.qml
     qml/qt6/Menus/SettingsMenu.qml
     qml/qt6/Menus/SubtitleMenu.qml
+    qml/qt6/Menus/ViewsMenu.qml
     qml/qt6/Settings/AudioSettings.qml
     qml/qt6/Settings/GridSettings.qml
     qml/qt6/Settings/ImageSettings.qml
@@ -417,6 +419,18 @@ set(QML_SRC_FILES
     qml/qt6/ViewPlaylistItem.qml
     qml/qt6/WorkingIndicator.qml
 )
+if(BUILD_CPLAY_WEB_VIEWS)
+    target_sources(${TARGET_NAME} PRIVATE presentercontroller.cpp presentercontroller.h moviecontroller.cpp moviecontroller.h)
+    list(APPEND QML_SRC_FILES qml/qt6/Menus/WebViewMenu.qml qml/qt6/PresenterWindow.qml)
+    if(BUILD_CPLAY_WITH_WEBRTC)
+        # Live and prepared pictures in the movie view, sent over WebRTC (encoded by ffmpeg.exe).
+        target_sources(${TARGET_NAME} PRIVATE webrtc/moviepreviewstreamer.cpp webrtc/moviepreviewstreamer.h)
+        target_compile_definitions(${TARGET_NAME} PUBLIC MOVIE_PREVIEW_SUPPORT)
+    endif()
+endif()
+if(BUILD_CPLAY_WITH_WEBVIEW)
+    list(APPEND QML_SRC_FILES qml/qt6/PresenterWebView.qml)
+endif()
 set_source_files_properties(qml/qt6/Components/PopupHelpers.js PROPERTIES QT_QML_SKIP_QMLDIR_ENTRY TRUE)
 
 option(CPLAY_FAST_QML_BUILD "Skip QmlLint and QmlCacheGen. Should be OFF for release build." OFF)   
@@ -649,6 +663,15 @@ if(BUILD_CPLAY_WITH_CLUX)
     target_compile_definitions(${TARGET_NAME} PUBLIC CLUX_SUPPORT)
 endif()
 
+if(BUILD_CPLAY_WEB_VIEWS)
+    target_compile_definitions(${TARGET_NAME} PUBLIC WEB_VIEWS_SUPPORT)
+endif()
+
+if(BUILD_CPLAY_WITH_WEBVIEW)
+    list(APPEND TARGET_LIBRARIES Qt6::WebView)
+    target_compile_definitions(${TARGET_NAME} PUBLIC WEBVIEW_SUPPORT)
+endif()
+
 if(BUILD_CPLAY_WITH_NODE_STREAM)
     target_compile_definitions(${TARGET_NAME} PUBLIC NODE_STREAM_SUPPORT NODE_STREAM_LAYER)
     if(WIN32)
@@ -790,6 +813,33 @@ if(CPLAY_INSTALL_DEPENDENCIES)
         if(EXISTS "${YtDlp_DIR}/_internal")
             install(DIRECTORY "${YtDlp_DIR}/_internal" DESTINATION "${CMAKE_INSTALL_PREFIX}/bin/plugins/yt-dlp")
         endif()
+    endif()
+
+    # The web views open in a C-Play window through Qt WebView, which runs on Qt WebEngine on
+    # Windows: it needs its helper process, resources and locales next to C-Play. Not installed
+    # without Qt WebView (also off when the web views are off or Qt WebView is not found).
+    if(BUILD_CPLAY_WITH_WEBVIEW)
+        if(EXISTS "${_qt_bin_dir}/QtWebEngineProcess.exe")
+            install(FILES "${_qt_bin_dir}/QtWebEngineProcess.exe" DESTINATION "${CMAKE_INSTALL_PREFIX}/bin"
+                CONFIGURATIONS Release RelWithDebInfo MinSizeRel)
+        endif()
+        if(EXISTS "${_qt_bin_dir}/QtWebEngineProcessd.exe")
+            install(FILES "${_qt_bin_dir}/QtWebEngineProcessd.exe" DESTINATION "${CMAKE_INSTALL_PREFIX}/bin"
+                CONFIGURATIONS Debug)
+        endif()
+        # In <qt>/resources in Qt installers, in <qt>/bin in Craft. Without v8_context_snapshot.bin
+        # every page crashes its renderer process (a black view).
+        foreach(_resource qtwebengine_resources.pak qtwebengine_resources_100p.pak qtwebengine_resources_200p.pak
+                qtwebengine_devtools_resources.pak icudtl.dat v8_context_snapshot.bin)
+            foreach(_resource_dir "${_qt_dir}/resources" "${_qt_bin_dir}")
+                if(EXISTS "${_resource_dir}/${_resource}")
+                    install(FILES "${_resource_dir}/${_resource}" DESTINATION "${CMAKE_INSTALL_PREFIX}/bin/resources")
+                    break()
+                endif()
+            endforeach()
+        endforeach()
+        install(DIRECTORY "${_qt_dir}/translations/qtwebengine_locales"
+            DESTINATION "${CMAKE_INSTALL_PREFIX}/bin/translations" OPTIONAL)
     endif()
 
     install(CODE "set(QT_BIN_DIR \"${_qt_bin_dir}\")")

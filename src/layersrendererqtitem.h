@@ -12,6 +12,7 @@
 #include <QOpenGLFunctions_4_5_Core>
 #include <QOpenGLShaderProgram>
 #include <QOpenGLVertexArrayObject>
+#include <QImage>
 #include <QPointer>
 #include <QtQuick/QQuickItem>
 #include <QtQuick/QQuickWindow>
@@ -91,6 +92,10 @@ public:
     void setMirrorSize(int width, int height);
     void setMirrorProjectionMatrix(const QMatrix4x4& projectionMatrix);
 
+    // Renders the scene once at the given size into an offscreen target on the next frame (also
+    // while this item is hidden) and delivers it with snapshotReady (a null image on failure).
+    void requestSnapshot(int width, int height, const QMatrix4x4& projectionMatrix);
+
     void setRenderAsFisheye(bool value);
     // Sphere view: all content is placed on a unit sphere seen from outside at the given
     // distance (in sphere radii) and turned by the rotation (see the FisheyeProjection shader).
@@ -138,6 +143,7 @@ public:
 
 Q_SIGNALS:
     void initialized();
+    void snapshotReady(const QImage& image);
 
 private:
     void createShaders();
@@ -162,6 +168,8 @@ private:
     // target when no mirror needs it.
     void renderMirror();
     bool mirrorRequested() const { return m_mirrorLink && m_mirrorRequestedWidth > 0 && m_mirrorRequestedHeight > 0; }
+    bool snapshotRequested() const { return m_snapshotWidth > 0 && m_snapshotHeight > 0; }
+    void renderSnapshot();
     bool ensureMirrorTarget();
     void releaseMirrorTarget();
     // Creates/resizes the capture target to the requested size. Returns false when there is
@@ -326,6 +334,11 @@ private:
     int m_mirrorWidth = 0;
     int m_mirrorHeight = 0;
     int m_mirrorNext = 0;
+
+    // Pending snapshot, set in sync() and cleared once rendered.
+    QMatrix4x4 m_snapshotProjectionMatrix;
+    int m_snapshotWidth = 0;
+    int m_snapshotHeight = 0;
 };
 
 class LayersRendererQtItem : public QQuickItem {
@@ -414,6 +427,10 @@ public:
     // Output shared with a LayersMirrorQtItem showing this view in another window.
     std::shared_ptr<LayersRendererMirrorLink> mirrorLink() const;
 
+    // Renders one frame of the view offscreen with the active camera (perspective, fisheye or
+    // sphere view), 16:9 or square for fisheye, also while hidden. Delivered by snapshotReady.
+    Q_INVOKABLE bool requestSnapshot(int width);
+
     MpvObject* mpvObject() const;
     void setMpvObject(MpvObject* mpv);
 
@@ -477,6 +494,8 @@ Q_SIGNALS:
     void foregroundImageFileChanged();
     void uiPopupOpenChanged();
     void planeSelectionChanged();
+    // The requested snapshot, a null image when it could not be rendered.
+    void snapshotReady(const QImage& image);
 
 private:
     Q_INVOKABLE void handleWindowChanged(QQuickWindow* win);
@@ -585,6 +604,9 @@ private:
     std::shared_ptr<LayersRendererMirrorLink> m_mirrorLink;
     int m_mirrorWidth = 0;
     int m_mirrorHeight = 0;
+
+    // Width of the requested snapshot, passed to the renderer in the next sync(); 0 = none.
+    int m_snapshotWidth = 0;
 
     MpvObject* m_mpvObject = nullptr;
     QString m_backgroundImageFile;

@@ -14,7 +14,11 @@
 
 #define WUFFS_IMPLEMENTATION
 #define WUFFS_CONFIG__STATIC_FUNCTIONS
+// Wuffs uses the SIMD code paths when built with /arch:AVX2 (set by the SGCT compile options),
+// and errors out if they are also disabled.
+#if !defined(__AVX2__)
 #define WUFFS_CONFIG__DISABLE_MSVC_CPU_ARCH__X86_64_FAMILY
+#endif
 #define WUFFS_CONFIG__MODULES
 #define WUFFS_CONFIG__MODULE__BASE
 #define WUFFS_CONFIG__MODULE__ADLER32

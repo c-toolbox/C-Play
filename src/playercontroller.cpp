@@ -22,6 +22,10 @@
 #include "tcpcontrolsettings.h"
 #include "tcp/tcpcontrolcommandadapter.h"
 #include "controleventfeed.h"
+#ifdef WEB_VIEWS_SUPPORT
+#include "moviecontroller.h"
+#include "presentercontroller.h"
+#endif
 #ifdef CAPTURE_SUPPORT
 #include "capture/capturelayer.h"
 #endif
@@ -60,6 +64,10 @@ PlayerController::PlayerController(QObject *parent)
     m_mpv(nullptr),
     m_slidesModel(nullptr),
     httpServer(new HttpServerThread(this)),
+#ifdef WEB_VIEWS_SUPPORT
+    m_presenter(new PresenterController(this)),
+    m_movie(new MovieController(this)),
+#endif
     m_backgroundFile(QStringLiteral("")),
     m_foregroundFile(QStringLiteral("")),
     m_viewModeOnMaster(0)
@@ -77,8 +85,15 @@ PlayerController::PlayerController(QObject *parent)
     connect(&NodeLoaderVerifier::instance(), &NodeLoaderVerifier::loadFailuresChanged,
             this, &PlayerController::nodeLoadFailuresChanged);
 
+#ifdef WEB_VIEWS_SUPPORT
+    httpServer->setPresenter(m_presenter);
+    httpServer->setMovie(m_movie);
+#endif
     setupControlEvents();
     setupHttpServer();
+#ifdef WEB_VIEWS_SUPPORT
+    m_presenter->setServer(httpServer->serverEnabled(), httpServer->serverPort());
+#endif
 
     auto *tcpManager = Application::instance().tcpControlManager();
     tcpManager->listener()->setHandler([this](const QString &path, const QJsonObject &parameters) {
@@ -301,6 +316,14 @@ void PlayerController::setupControlEvents() {
         }
         return slides;
     });
+#ifdef WEB_VIEWS_SUPPORT
+    m_controlEvents->addTopic(QStringLiteral("presentation"), [this]() -> QJsonValue {
+        return m_presenter->state();
+    });
+    m_controlEvents->addTopic(QStringLiteral("movie"), [this]() -> QJsonValue {
+        return m_movie->state();
+    });
+#endif
     m_controlEvents->addTopic(QStringLiteral("layers"), [this]() -> QJsonValue {
         QJsonArray layers;
         if (!m_slidesModel) return layers;
@@ -1287,6 +1310,9 @@ void PlayerController::setMpv(MpvObject *mpv) {
     }
     m_mpv = mpv;
     httpServer->setMpv(mpv);
+#ifdef WEB_VIEWS_SUPPORT
+    m_movie->setMpv(mpv);
+#endif
     // The telemetry manager builds the master's own row from this instance.
     NodeTelemetryManager::instance().setMasterMpv(mpv);
     Q_EMIT mpvChanged();
@@ -1302,5 +1328,8 @@ void PlayerController::setSlidesModel(SlidesModel* sm) {
     }
     m_slidesModel = sm;
     httpServer->setSlidesModel(sm);
+#ifdef WEB_VIEWS_SUPPORT
+    m_presenter->setSlidesModel(sm);
+#endif
     Q_EMIT slidesModelChanged();
 }

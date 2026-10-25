@@ -1477,6 +1477,37 @@ QString LayersModel::getLayersName() const {
     return m_layersName;
 }
 
+QString LayersModel::notes() const {
+    return m_notes;
+}
+
+void LayersModel::setNotes(const QString &notes) {
+    if (m_notes == notes)
+        return;
+    m_notes = notes;
+    Q_EMIT notesChanged();
+    if (!m_decodingLayers)
+        setLayersNeedsSave(true);
+}
+
+QByteArray LayersModel::thumbnail() const {
+    return m_thumbnail;
+}
+
+void LayersModel::setThumbnail(const QByteArray &jpeg) {
+    // Unique across slides, so a revision identifies one image even after slides are moved.
+    static int s_thumbnailRevisions = 0;
+    m_thumbnail = jpeg;
+    m_thumbnailRevision = ++s_thumbnailRevisions;
+    Q_EMIT thumbnailChanged();
+    if (!m_decodingLayers)
+        setLayersNeedsSave(true);
+}
+
+int LayersModel::thumbnailRevision() const {
+    return m_thumbnailRevision;
+}
+
 QString LayersModel::getLayersNameShort(int maxChars) const {
     if (maxChars <= 0)
         return QString();
@@ -2110,6 +2141,13 @@ void LayersModel::decodeFromJSON(QJsonObject &obj, const QStringList &forRelativ
         setLayersVisibility(vis);
     }
 
+    if (obj.contains(QStringLiteral("notes"))) {
+        setNotes(obj.value(QStringLiteral("notes")).toString());
+    }
+    if (obj.contains(QStringLiteral("thumbnail"))) {
+        setThumbnail(QByteArray::fromBase64(obj.value(QStringLiteral("thumbnail")).toString().toLatin1()));
+    }
+
     if (obj.contains(QStringLiteral("lockableLayers"))) {
         bool lockable = obj.value(QStringLiteral("lockableLayers")).toBool();
         setLayersCanBeLocked(lockable);
@@ -2561,6 +2599,14 @@ QJsonObject LayersModel::encodeLayerToJSON(const std::shared_ptr<BaseLayer> &lay
 void LayersModel::encodeToJSON(QJsonObject &obj, const QStringList &forRelativePaths) {
     obj.insert(QStringLiteral("name"), QJsonValue(getLayersName()));
     obj.insert(QStringLiteral("visibility"), QJsonValue(getLayersVisibility()));
+
+    if (!m_notes.isEmpty()) {
+        obj.insert(QStringLiteral("notes"), QJsonValue(m_notes));
+    }
+    // Base64 JPEG, small enough (a few tens of kB) to keep the presentation a single file.
+    if (!m_thumbnail.isEmpty()) {
+        obj.insert(QStringLiteral("thumbnail"), QJsonValue(QString::fromLatin1(m_thumbnail.toBase64())));
+    }
 
     if (getLayersCanBeLocked()) {
         obj.insert(QStringLiteral("lockableLayers"), QJsonValue(getLayersCanBeLocked()));

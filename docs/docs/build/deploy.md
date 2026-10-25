@@ -25,6 +25,8 @@ The source recommends copying DLLs from configured paths on Windows 11, where ru
 
 When available beside the detected mpv library, `mpv.exe` and `ffmpeg.exe` are copied automatically. A detected yt-dlp executable and its optional `_internal` directory are installed under `bin/plugins/yt-dlp`.
 
+With the [web views](/build/web-views), the built web apps are installed to `bin/data/web`. With Qt WebView, the Qt WebEngine helper process, resources and locales are copied as well. Test the presenter and movie views on the staged application, both in the C-Play window and from another device.
+
 ## Install and verify the staged application
 
 Run the **INSTALL** target in Visual Studio, or use the matching configuration from the command line:

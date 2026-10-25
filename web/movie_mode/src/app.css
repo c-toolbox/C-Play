@@ -1,0 +1,105 @@
+:root {
+  color-scheme: dark;
+  --bg: #0f1115;
+  --surface: #171a21;
+  --frame: #050607;
+  --border: #2a2f3a;
+  --text: #eef1f5;
+  --text-muted: #8d95a5;
+  --accent: #3fb68b;
+  --accent-text: #04140e;
+  --next: #4f8fe6;
+  --warn: #f2b84b;
+  --warn-bg: rgb(242 184 75 / 0.15);
+  --danger: #ef6461;
+  --button: #222733;
+  --button-hover: #2c3242;
+  --radius: 10px;
+  --gap: clamp(0.6rem, 1.4vw, 1.1rem);
+}
+
+:root[data-theme='light'] {
+  color-scheme: light;
+  --bg: #f3f4f7;
+  --surface: #ffffff;
+  --frame: #1b1d22;
+  --border: #d5d9e1;
+  --text: #15181e;
+  --text-muted: #5e6675;
+  --accent: #1e8a63;
+  --accent-text: #ffffff;
+  --next: #2f6fc6;
+  --warn: #8a5a00;
+  --warn-bg: rgb(242 184 75 / 0.25);
+  --danger: #c43c39;
+  --button: #e5e8ee;
+  --button-hover: #d9dde6;
+}
+
+*,
+*::before,
+*::after {
+  box-sizing: border-box;
+}
+
+html,
+body {
+  margin: 0;
+  height: 100%;
+  background: var(--bg);
+  color: var(--text);
+  font-family: system-ui, -apple-system, 'Segoe UI', Roboto, Ubuntu, 'Helvetica Neue', sans-serif;
+  font-size: 16px;
+  -webkit-font-smoothing: antialiased;
+  overscroll-behavior: none;
+}
+
+#app {
+  height: 100%;
+}
+
+button {
+  font: inherit;
+  color: var(--text);
+  background: var(--button);
+  border: 1px solid var(--border);
+  border-radius: 8px;
+  padding: 0.45rem 0.85rem;
+  cursor: pointer;
+  touch-action: manipulation;
+}
+
+button:hover:not(:disabled) {
+  background: var(--button-hover);
+}
+
+button:disabled {
+  opacity: 0.45;
+  cursor: default;
+}
+
+button:focus-visible {
+  outline: 2px solid var(--accent);
+  outline-offset: 2px;
+}
+
+button.ghost {
+  background: transparent;
+  border-color: transparent;
+}
+
+button.ghost:hover:not(:disabled) {
+  background: var(--button);
+}
+
+button.primary {
+  background: var(--accent);
+  border-color: var(--accent);
+  color: var(--accent-text);
+  font-weight: 600;
+}
+
+button.primary:hover:not(:disabled) {
+  background: var(--accent);
+  filter: brightness(1.08);
+}

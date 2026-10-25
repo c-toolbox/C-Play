@@ -315,6 +315,8 @@ Kirigami.ApplicationWindow {
             onOpened: PopupHelpers.handlePopupOpen()
             onClosed: PopupHelpers.handlePopupClose()
         }
+        ViewsMenu {
+        }
         SettingsMenu {
             onOpened: PopupHelpers.handlePopupOpen()
             onClosed: PopupHelpers.handlePopupClose()
@@ -1011,6 +1013,27 @@ Kirigami.ApplicationWindow {
     Footer {
         id: footer
 
+    }
+
+    // The presenter view, in builds with it (BUILD_CPLAY_WEB_VIEWS). Slide thumbnails are
+    // rendered with the master view camera (perspective, fisheye or sphere view).
+    Binding {
+        when: WEB_VIEWS_SUPPORT
+        target: WEB_VIEWS_SUPPORT ? playerController.presenter : null
+        property: "layersRenderer"
+        value: viewLayersIn3DRenderItem
+    }
+    Loader {
+        id: presenterWindowLoader
+        active: WEB_VIEWS_SUPPORT
+        source: active ? Qt.resolvedUrl("PresenterWindow.qml") : ""
+    }
+    // The movie view of the playlist and its sections (web/movie_mode).
+    Loader {
+        id: movieWindowLoader
+        active: WEB_VIEWS_SUPPORT
+        source: active ? Qt.resolvedUrl("PresenterWindow.qml") : ""
+        onLoaded: item.view = "movie"
     }
 
     Window {
