@@ -675,6 +675,7 @@ bool ofxNDIreceive::shouldReceiveAudio() {
 // Set to receive Audio
 void ofxNDIreceive::SetAudio(bool bAudio, bool bAudioConverToInterleaved)
 {
+	std::lock_guard<std::recursive_mutex> lock(m_audioMutex);
 	m_bAudio = bAudio;
 	m_bAudioConvertToInterleaved = bAudioConverToInterleaved;
 	if (!m_bAudio)
@@ -963,7 +964,9 @@ void ofxNDIreceive::ReleaseReceiver()
 {
 	if(!bNDIinitialized) return;
 
-	// The frame-synchronizer wraps the receiver and must be destroyed first,
+	std::lock_guard<std::recursive_mutex> lock(m_audioMutex);
+
+	// The frame-synchronizer wraps
 	// otherwise it is leaked (and later destroyed with a dangling receiver),
 	// which keeps NDI worker threads alive and hangs process exit.
 	if (m_frameSyncOn) {
@@ -1482,6 +1485,7 @@ bool ofxNDIreceive::ReceiveImageOnly(unsigned int& width, unsigned int& height)
 }
 
 void* ofxNDIreceive::ReceiveAudioOnly() {
+	std::lock_guard<std::recursive_mutex> lock(m_audioMutex);
 	NDIlib_frame_type_e NDI_frame_type;
 	m_FrameType = NDIlib_frame_type_none;
 
@@ -1643,6 +1647,7 @@ bool ofxNDIreceive::ReceiveImageOnlyFrameSync(unsigned int& width, unsigned int&
 }
 
 void* ofxNDIreceive::ReceiveAudioOnlyFrameSync(int framesToCapture) {
+	std::lock_guard<std::recursive_mutex> lock(m_audioMutex);
 	if (!bNDIinitialized) {
 		printf("ofxNDIreceive : ReceiveAudioOnlyFrameSync not initialized\n");
 		return nullptr;
@@ -1690,14 +1695,20 @@ void* ofxNDIreceive::ReceiveAudioOnlyFrameSync(int framesToCapture) {
 				m_nAudioChannels = audio_frame.no_channels;
 				m_nAudioSamples = framesToCapture;
 				m_nAudioSampleRate = audio_frame.sample_rate;
-				if (m_AudioData) {
-					memcpy((void*)m_AudioData, (void*)audio_frame.p_data, ((size_t)m_nAudioSamples * (size_t)m_nAudioChannels * sizeof(float)));
+				// Use local copies so concurrent changes to members cannot invalidate the loop
+				float* audioData = m_AudioData;
+				int16_t* audioInterleaved = m_AudioDataInterleaved;
+				const int nChannels = audio_frame.no_channels;
+				const int nSamples = framesToCapture;
+				if (audioData && audio_frame.p_data && nChannels > 0 && nSamples > 0) {
+					memcpy((void*)audioData, (void*)audio_frame.p_data, ((size_t)nSamples * (size_t)nChannels * sizeof(float)));
 
 					//SMPTE Audio levels - reference Level 20 dB headroom
-					if (m_bAudioConvertToInterleaved && m_AudioDataInterleaved) {
-						for (int i = 0; i < m_nAudioSamples * m_nAudioChannels; i += m_nAudioChannels) {
-							for (int c = 0; c < m_nAudioChannels; c++) {
-								m_AudioDataInterleaved[i + c] = std::max<int16_t>(-32768, std::min<int16_t>(32767, (int16_t)(3276.8f * (m_AudioData[i / m_nAudioChannels + (m_nAudioSamples * c)] * m_bAudioVolume))));
+					if (m_bAudioConvertToInterleaved && audioInterleaved) {
+						for (int s = 0; s < nSamples; s++) {
+							for (int c = 0; c < nChannels; c++) {
+								const float v = 3276.8f * audioData[s + (size_t)nSamples * c] * m_bAudioVolume;
+								audioInterleaved[(size_t)s * nChannels + c] = (int16_t)std::max(-32768.0f, std::min(32767.0f, v));
 							}
 						}
 					}
@@ -1711,6 +1722,9 @@ void* ofxNDIreceive::ReceiveAudioOnlyFrameSync(int framesToCapture) {
 			// Release the video. You could keep the frame if you want and release it later.
 			NDIlib_framesync_free_audio_v2(pNDI_framesync, &audio_frame);
 
+			if (!m_bAudio) {
+				return nullptr;
+			}
 			if (m_bAudioConvertToInterleaved) {
 				return m_AudioDataInterleaved;
 			}
@@ -1777,8 +1791,9 @@ void ofxNDIreceive::FreeVideoData()
 // Free local audio frame buffer
 void ofxNDIreceive::FreeAudioData()
 {
+	std::lock_guard<std::recursive_mutex> lock(m_audioMutex);
 	// Free audio data
-	if (m_AudioData) free((void *)m_AudioData);
+	if (m_AudioData)
 	m_AudioData =nullptr;
 	if (m_AudioDataInterleaved) free((void*)m_AudioDataInterleaved);
 	m_AudioDataInterleaved = nullptr;

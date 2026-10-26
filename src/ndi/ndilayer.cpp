@@ -31,6 +31,14 @@ static int paNDIAudioCallback(const void*, void* outputBuffer,
     NdiLayer* layer = (NdiLayer*)userData;
     ofxNDIreceive* reciever = layer ? layer->receiver() : nullptr;
     if(reciever) {
+        // Hold the receiver audio lock while using its buffer; if teardown holds it, output silence.
+        std::unique_lock<std::recursive_mutex> audioLock(reciever->AudioMutex(), std::try_to_lock);
+        if (!audioLock.owns_lock()) {
+            const int outChannels = reciever->GetAudioTargetOutputChannels();
+            if (outChannels > 0)
+                std::memset(outputBuffer, 0, static_cast<std::size_t>(framesPerBuffer) * static_cast<std::size_t>(outChannels) * sizeof(int16_t));
+            return paContinue;
+        }
         if (reciever->shouldReceiveAudio()) {
             void* receviedFrames = reciever->ReceiveAudioOnlyFrameSync((int)framesPerBuffer);
             if (receviedFrames) {
@@ -121,8 +129,6 @@ NdiLayer::~NdiLayer() {
 void NdiLayer::cleanup() {
     std::lock_guard<std::mutex> lock(m_updateMutex);
 
-    NDIreceiver.SetAudio(false);
-
     std::unique_lock<std::recursive_mutex> paLock(cplay::audio::portAudioMutex());
     if (m_audioStream) {
         if (m_audioStreamStarted) {
@@ -150,6 +156,8 @@ void NdiLayer::cleanup() {
     }
     paLock.unlock();
 
+    // Stream is stopped, so no audio callback can use the buffers anymore.
+    NDIreceiver.SetAudio(false);
     NDIreceiver.ReleaseReceiver();
     m_gpuConversion.cleanup();
     m_receiveFormatConfigured = false;
@@ -239,6 +247,8 @@ void NdiLayer::update(bool updateRendering) {
 }
 
 void NdiLayer::updateFrame() {
+    std::lock_guard<std::mutex> lock(m_updateMutex);
+
     // Let's recieve image or audio
     if (m_isReady) {
         ReceiveData(true);
@@ -525,8 +535,9 @@ bool NdiLayer::ReceiveData(bool updateRendering) {
         }
 
         if (!m_recevieAudioThroughCallback && m_audioStreamOpen && m_audioStreamStarted) {
+            std::lock_guard<std::recursive_mutex> audioLock(NDIreceiver.AudioMutex());
             const int16_t* interleaved = NDIreceiver.GetAudioInterleaved();
-            // GetAudioSamples() is the frame count per channel, which is what Pa_WriteStream expects.
+            // GetAudioSamples()
             const int framesPerChannel = NDIreceiver.GetAudioSamples();
             m_audioError = cplay::audio::paWriteStream(m_audioStream, interleaved, framesPerChannel);
             if (m_audioError != paNoError) {
@@ -596,8 +607,7 @@ bool NdiLayer::OpenReceiver() {
 }
 
 bool NdiLayer::StartAudioStream() {
-    // Also guards against updateFrame() (which runs ReceiveData without m_updateMutex)
-    // racing another thread into opening the same stream twice.
+    // Serializes stream opening with other PortAudio users.
     std::lock_guard<std::recursive_mutex> paLock(cplay::audio::portAudioMutex());
     if (m_audioStreamOpen)
         return true;

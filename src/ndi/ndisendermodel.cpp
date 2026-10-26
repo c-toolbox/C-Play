@@ -30,6 +30,11 @@ NdiSenderModel *NdiSenderModel::instance() {
     return _instance;
 }
 
+void NdiSenderModel::releaseSender() {
+    m_enabled = false;
+    m_sender = std::make_unique<NdiSender>();
+}
+
 bool NdiSenderModel::available() const {
     return NdiSender::isSupported();
 }

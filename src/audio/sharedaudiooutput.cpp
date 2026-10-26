@@ -113,6 +113,8 @@ struct VirtualStream {
     std::mutex waitMutex;
     std::condition_variable spaceCv;
     std::atomic<bool> writerWaiting{false};
+    // Writers inside sharedWriteStream; close waits for zero before deleting the stream.
+    std::atomic<int> activeWriters{0};
 
     // Only while not running: the device callback skips the stream then.
     void reset() {
@@ -713,6 +715,11 @@ PaError sharedCloseStream(PaStream *stream) {
 
     Engine *engine = virt->engine;
     engine->remove(virt);
+    // No new writer can find the stream now; wait for those still inside sharedWriteStream.
+    while (virt->activeWriters.load(std::memory_order_acquire) > 0) {
+        virt->spaceCv.notify_all();
+        std::this_thread::sleep_for(std::chrono::milliseconds(1));
+    }
     delete virt;
 
     if (engine->clientCount() == 0) {
@@ -726,9 +733,21 @@ PaError sharedCloseStream(PaStream *stream) {
 }
 
 PaError sharedWriteStream(PaStream *stream, const void *buffer, unsigned long frames) {
-    VirtualStream *virt = asVirtual(stream);
+    VirtualStream *virt = nullptr;
+    {
+        // Register as a writer under the registry lock so close cannot delete the stream meanwhile.
+        std::lock_guard<std::mutex> lock(g_registryMutex);
+        if (g_registry.contains(stream)) {
+            virt = static_cast<VirtualStream *>(stream);
+            virt->activeWriters.fetch_add(1, std::memory_order_acq_rel);
+        }
+    }
     if (!virt)
         return paBadStreamPtr;
+    struct WriterGuard {
+        VirtualStream *v;
+        ~WriterGuard() { v->activeWriters.fetch_sub(1, std::memory_order_acq_rel); }
+    } writerGuard{virt};
     if (virt->callback)
         return paCanNotWriteToACallbackStream;
 

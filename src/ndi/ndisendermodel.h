@@ -45,6 +45,9 @@ public:
 
     static NdiSenderModel *instance();
 
+    // Destroys the underlying NDI sender while keeping this object alive for QML.
+    void releaseSender();
+
     bool available() const;
 
     bool enabled() const;

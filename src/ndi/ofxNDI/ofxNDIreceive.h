@@ -62,6 +62,7 @@
 #include <string>
 #include <iostream>
 #include <vector>
+#include <mutex>
 #include <assert.h>
 
 #include "ofxNDIdynloader.h" // NDI library loader
@@ -331,9 +332,15 @@ public:
 	// Reset starting received frame rate
 	void ResetFps(double fps);
 
+	// Guards the audio buffers and receiver lifetime against the audio thread.
+	// Hold it while using the buffer returned by ReceiveAudioOnly/ReceiveAudioOnlyFrameSync.
+	std::recursive_mutex& AudioMutex() { return m_audioMutex; }
+
 	// ====================================================================
 
 private:
+
+	std::recursive_mutex m_audioMutex;
 
 	ofxNDIdynloader libloader;
 	const NDIlib_v4* p_NDILib;
