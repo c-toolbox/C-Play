@@ -1213,7 +1213,8 @@ Kirigami.ApplicationWindow {
 
                 model: ["Play", "Pause", "Stop", "Rewind", "Seek", 
                         "SetPosition", "SetSpeed", "SetVolume", "SetSyncVolumeVisibilityFading",
-                        "SetBackgroundVisibility", "SetForegroundVisibility", "SetNodeWindowsOpacity",
+                        "SetBackgroundVisibility", "SetBackgroundMode", "SetBackgroundColor",
+                        "SetForegroundVisibility", "SetNodeWindowsOpacity",
                         "LoadFromAudioTracks", "LoadFromPlaylist", "LoadFromSections", "LoadFromSlides", 
                         "FadeVolumeDown", "FadeVolumeUp", "FadeImageDown", "FadeImageUp", 
                         "SpinPitchUp", "SpinPitchDown", "SpinYawLeft", "SpinYawRight",

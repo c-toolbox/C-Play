@@ -71,6 +71,11 @@
   const picturesOn = $derived(picturesAvailable && showPictures);
   const cuePictureTime = $derived(scrubTime ?? cueStart);
   const visibility = $derived(live.visibility ?? 100);
+  // The cluster nodes still load the file; C-Play holds playback until they have it.
+  const nodesLoading = $derived(!!live.mainLoad && !live.mainLoad.ready);
+  const nodesLoadingTitle = $derived(nodesLoading ? `Waiting for the nodes to load the file: ${live.mainLoad?.waiting.join(', ')}` : '');
+  // Playing is held while the nodes load (pausing is not).
+  const playHeld = $derived(nodesLoading && live.paused !== false);
 
   // Step 2 of a transition: the cue when preparing, otherwise the next playlist item. Loaded paused,
   // so it can be faded in when it plays.
@@ -283,6 +288,26 @@
     }, 'Could not play and fade in');
   }
 
+  /** Skips the master slide and shows a black background; returns what puts them back as they were. */
+  async function blackOutSurroundings() {
+    const [skipped, mode, color] = await Promise.all([
+      api.masterSkipped().catch(() => null),
+      api.backgroundMode().catch(() => null),
+      api.backgroundColor().catch(() => null),
+    ]);
+    const changes: Promise<unknown>[] = [];
+    if (skipped === false) changes.push(api.setMasterSkipped(true));
+    if (mode !== null && color) changes.push(api.setBackgroundColor('#000000'), api.setBackgroundMode(1));
+    await Promise.allSettled(changes);
+    return async () => {
+      const restores: Promise<unknown>[] = [];
+      if (skipped === false) restores.push(api.setMasterSkipped(false));
+      if (mode !== null && color) restores.push(api.setBackgroundColor(color), api.setBackgroundMode(mode === 1 ? 1 : 0));
+      const results = await Promise.allSettled(restores);
+      if (results.some((result) => result.status === 'rejected')) notify('Could not restore the master slide and background', true);
+    };
+  }
+
   /** The three steps in a row: fade out, load, play and fade in. Clicking again stops it. */
   async function transition() {
     if (transitionStep) {
@@ -292,8 +317,10 @@
     const request = nextRequest;
     if (!request) return;
     transitionCancelled = false;
+    let restore: (() => Promise<void>) | null = null;
     try {
       transitionStep = 'out';
+      restore = await blackOutSurroundings();
       if (visibility > 0) {
         if (!(await fadeOut())) return;
         // The feed reports the visibility; without it the fade time is all there is.
@@ -302,14 +329,30 @@
       }
       transitionStep = 'load';
       const target = request.index;
+      const loadBefore = live.mainLoad?.id;
       if (!(await loadNext())) return;
       if (target !== undefined && !(await waitUntil(() => live.state?.playing === target, 10000))) return;
+      // The nodes load the new file too. C-Play reports when all have it (or it stops waiting
+      // for silent nodes after 30 s); without the report there is nothing to wait for.
+      if (target !== undefined && live.mainLoad) {
+        const loaded = () => !!live.mainLoad && live.mainLoad.id !== loadBefore && live.mainLoad.ready;
+        if (!(await waitUntil(loaded, 40000))) return;
+        if (!loaded()) {
+          notify(`The nodes did not load the file: ${live.mainLoad?.waiting.join(', ')}`, true);
+          return;
+        }
+        if (live.mainLoad.failed.length) notify(`Could not load the file on: ${live.mainLoad.failed.join(', ')}`, true);
+        else if (live.mainLoad.timedOut) notify(`No answer from: ${live.mainLoad.waiting.join(', ')}`, true);
+      }
       // Let C-Play go to the section and position once the file is there.
       await sleep(500);
       if (transitionCancelled) return;
       transitionStep = 'in';
-      await playAndFadeIn();
+      if (!(await playAndFadeIn())) return;
+      // Restore once the picture is fully faded in again.
+      await waitUntil(() => live.visibility !== null && live.visibility >= 100, live.visibility === null ? fadeSeconds * 1000 : fadeSeconds * 1000 + 2000);
     } finally {
+      if (restore) await restore();
       if (transitionCancelled) notify('Transition stopped');
       transitionStep = null;
       transitionCancelled = false;
@@ -317,6 +360,7 @@
   }
 
   function togglePlay() {
+    if (playHeld) return;
     if (live.paused === false) void run(api.pause, 'Could not pause');
     else void run(api.play, 'Could not play');
   }
@@ -383,7 +427,7 @@
       void fadeOut();
     } else if (key === '2' && !transitionStep && nextRequest) {
       void loadNext();
-    } else if (key === '3' && !transitionStep) {
+    } else if (key === '3' && !transitionStep && !playHeld) {
       void playAndFadeIn();
     } else if (key === 't' || key === 'T') {
       void transition();
@@ -455,8 +499,8 @@
           class="step"
           class:running={transitionStep === 'in'}
           onclick={playAndFadeIn}
-          disabled={!live.connected || !!transitionStep}
-          title={`Play and fade the picture in${live.syncFades ? ' with the sound' : ''} (3)`}
+          disabled={!live.connected || !!transitionStep || playHeld}
+          title={playHeld ? nodesLoadingTitle : `Play and fade the picture in${live.syncFades ? ' with the sound' : ''} (3)`}
         >
           <span class="num">3</span>Play & fade in
         </button>
@@ -466,7 +510,7 @@
           class:running={!!transitionStep}
           onclick={transition}
           disabled={!live.connected || (!transitionStep && !nextRequest)}
-          title={transitionStep ? 'Stop the transition (T)' : `All three in a row, ${fadeSeconds} s fades (T)`}
+          title={transitionStep === 'load' && nodesLoading ? `${nodesLoadingTitle}. Stop the transition (T)` : transitionStep ? 'Stop the transition (T)' : `All three in a row, ${fadeSeconds} s fades (T)`}
         >
           {transitionStep ? '■ Stop' : '⇄ Transition'}
         </button>
@@ -546,8 +590,8 @@
             <span class="label">On air</span>
             {#if s.playing >= 0}<span class="position">{s.playing + 1} / {items.length}</span>{/if}
             <span class="item-title" title={onAirTitle}>{onAirTitle || 'Nothing loaded'}</span>
-            <span class="state" class:playing={live.paused === false}>
-              {live.paused === null ? '' : live.paused ? 'Paused' : 'Playing'}
+            <span class="state" class:playing={live.paused === false} title={nodesLoadingTitle}>
+              {live.paused === null ? '' : playHeld ? 'Loading on nodes' : live.paused ? 'Paused' : 'Playing'}
             </span>
           </header>
           <div class="readout">
@@ -580,7 +624,7 @@
               <button type="button" onclick={() => stepSection(-1)} disabled={!onAirSections.length} title="Previous section (←)">⏮ Section</button>
               <button type="button" onclick={() => void run(() => api.seek(-10), 'Could not seek')} title="Back 10 seconds">−10 s</button>
             {/if}
-            <button type="button" class="play" class:primary={live.paused !== false} onclick={togglePlay} disabled={!live.connected} title="Play or pause (Space)">
+            <button type="button" class="play" class:primary={live.paused !== false} onclick={togglePlay} disabled={!live.connected || playHeld} title={playHeld ? nodesLoadingTitle : 'Play or pause (Space)'}>
               {live.paused === false ? '❚❚ Pause' : '▶ Play'}
             </button>
             {#if isLive}

@@ -115,6 +115,9 @@ public:
         // loadedFile (read by the mpv event thread).
         std::mutex loadStatusMutex;
         bool fileLoaded = false;                     // MPV_EVENT_FILE_LOADED received for loadedFile
+        // The loaded file has a video track. Assumed until the track list says otherwise, so a
+        // file is not taken as ready before its first frame renders.
+        std::atomic_bool hasVideo = true;
         std::string pendingLoadError;                // "" = no failure reported by the event thread
         std::chrono::steady_clock::time_point loadRequestedTime{}; // when loadfile was issued
         // Quick-check mirror of pendingLoadError for ready() gating on the render thread
@@ -209,6 +212,11 @@ public:
 
     void loadFile(std::string filePath, bool reload = false);
     std::string loadedFile();
+
+    // How far the file last given to loadFile() is: Ready once mpv opened it and rendered its
+    // first frame (at once for a file without video), Failed when it could not be opened.
+    enum class LoadProgress { Loading, Ready, Failed };
+    LoadProgress loadProgress();
 
     bool renderingIsOn() const;
 

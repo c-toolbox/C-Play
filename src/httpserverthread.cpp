@@ -23,6 +23,7 @@
 #include "webrtc/moviepreviewstreamer.h"
 #endif
 
+#include <QColor>
 #include <QFile>
 #include <QJsonDocument>
 #include <QJsonObject>
@@ -388,6 +389,60 @@ void HttpServerThread::setupHttpServer() {
                 }
             } else {
                 backgroundImageGetHandler(req, res);
+            }
+        });
+
+        auto backgroundModeGetHandler = [this](const httplib::Request &, httplib::Response &res) {
+            PlayerController *playctrl = qobject_cast<PlayerController *>(parent());
+            if (playctrl) {
+                res.set_content(std::to_string(playctrl->backgroundMode()), "text/plain");
+            } else {
+                res.set_content("0", "text/plain");
+            }
+        };
+        svr.Get("/background_mode", backgroundModeGetHandler);
+        registerPost("/background_mode", [this, backgroundModeGetHandler](const httplib::Request &req, httplib::Response &res) {
+            if (req.has_param("mode")) {
+                const std::string mode = req.get_param_value("mode");
+                if (mode == "0" || mode == "image") {
+                    Q_EMIT setBackgroundMode(0);
+                    res.set_content("Background mode is image", "text/plain");
+                } else if (mode == "1" || mode == "color") {
+                    Q_EMIT setBackgroundMode(1);
+                    res.set_content("Background mode is color", "text/plain");
+                } else {
+                    res.set_content("Supply parameter mode with value 0 (image) or 1 (color)", "text/plain");
+                }
+            } else {
+                backgroundModeGetHandler(req, res);
+            }
+        });
+
+        auto backgroundColorGetHandler = [this](const httplib::Request &, httplib::Response &res) {
+            PlayerController *playctrl = qobject_cast<PlayerController *>(parent());
+            if (playctrl) {
+                res.set_content(playctrl->backgroundColor().toStdString(), "text/plain");
+            } else {
+                res.set_content("#000000", "text/plain");
+            }
+        };
+        svr.Get("/background_color", backgroundColorGetHandler);
+        registerPost("/background_color", [this, backgroundColorGetHandler](const httplib::Request &req, httplib::Response &res) {
+            if (req.has_param("color")) {
+                // Accepts RRGGBB (as '#' must be URL encoded as %23), #RRGGBB or a color name
+                const QString color = QString::fromStdString(req.get_param_value("color"));
+                QColor c(color);
+                if (!c.isValid())
+                    c = QColor(QLatin1Char('#') + color);
+                if (c.isValid()) {
+                    const QString hex = c.name(QColor::HexRgb);
+                    Q_EMIT setBackgroundColor(hex);
+                    res.set_content("Background color is " + hex.toStdString(), "text/plain");
+                } else {
+                    res.set_content("Supply parameter color as RRGGBB, e.g. color=1a2b3c", "text/plain");
+                }
+            } else {
+                backgroundColorGetHandler(req, res);
             }
         });
 
@@ -854,6 +909,85 @@ void HttpServerThread::setupHttpServer() {
         registerPost("/slide_next", [this](const httplib::Request&, httplib::Response& res) {
             Q_EMIT slideNext();
             res.set_content("Next slide", "text/plain");
+        });
+
+        // Slide from slide_idx (-1 = master) or slide_name ("master" = master), else the selected slide.
+        auto slideFromRequest = [this](const httplib::Request& req, std::string& error) -> LayersModel* {
+            if (!m_slidesModel) {
+                error = "Could not find reference to SlideModel";
+                return nullptr;
+            }
+            if (req.has_param("slide_idx")) {
+                int index = -2;
+                if (!stringToInt(req.get_param_value("slide_idx"), index)) {
+                    error = "Could not interpret slide_idx as integer.";
+                    return nullptr;
+                }
+                if (index < -1 || index >= m_slidesModel->numberOfSlides()) {
+                    error = "Index was out of bounds of slide list";
+                    return nullptr;
+                }
+                return m_slidesModel->slide(index);
+            }
+            if (req.has_param("slide_name")) {
+                std::string slideName = req.get_param_value("slide_name");
+                LayersModel* lm = m_slidesModel->slide(slideName);
+                if (!lm)
+                    error = "Could not find slide with name : " + slideName;
+                return lm;
+            }
+            const int selected = m_slidesModel->selectedSlideIdx();
+            if (selected < -1 || selected >= m_slidesModel->numberOfSlides()) {
+                error = "No slide selected";
+                return nullptr;
+            }
+            return m_slidesModel->slide(selected);
+        };
+
+        // The model emits signals into QML, so it is changed on its own thread.
+        auto setSlideSkippedQueued = [](LayersModel* lm, bool skipped) {
+            QPointer<LayersModel> model(lm);
+            QMetaObject::invokeMethod(lm, [model, skipped]() {
+                if (model)
+                    model->setSlideSkipped(skipped);
+            }, Qt::QueuedConnection);
+        };
+
+        auto slideSkippedGetHandler = [slideFromRequest](const httplib::Request& req, httplib::Response& res) {
+            std::string error;
+            LayersModel* lm = slideFromRequest(req, error);
+            res.set_content(lm ? (lm->slideSkipped() ? "1" : "0") : error, "text/plain");
+        };
+        svr.Get("/slide_skipped", slideSkippedGetHandler);
+        registerPost("/slide_skipped", [this, slideFromRequest, setSlideSkippedQueued, slideSkippedGetHandler](const httplib::Request& req, httplib::Response& res) {
+            if (!req.has_param("on")) {
+                slideSkippedGetHandler(req, res);
+                return;
+            }
+            std::string error;
+            LayersModel* lm = slideFromRequest(req, error);
+            if (!lm) {
+                res.set_content(error, "text/plain");
+                return;
+            }
+            int value = -1;
+            if (!stringToInt(req.get_param_value("on"), value) || (value != 0 && value != 1)) {
+                res.set_content("Supply parameter on with value 0 or 1", "text/plain");
+                return;
+            }
+            setSlideSkippedQueued(lm, value == 1);
+            res.set_content(value == 1 ? "Slide is skipped" : "Slide is not skipped", "text/plain");
+        });
+        registerPost("/slide_skip_toggle", [slideFromRequest, setSlideSkippedQueued](const httplib::Request& req, httplib::Response& res) {
+            std::string error;
+            LayersModel* lm = slideFromRequest(req, error);
+            if (!lm) {
+                res.set_content(error, "text/plain");
+                return;
+            }
+            const bool skipped = !lm->slideSkipped();
+            setSlideSkippedQueued(lm, skipped);
+            res.set_content(skipped ? "Slide is skipped" : "Slide is not skipped", "text/plain");
         });
 
         auto slidesHandler = [this](const httplib::Request& req, httplib::Response& res) {

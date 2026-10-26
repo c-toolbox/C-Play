@@ -567,10 +567,33 @@ Rectangle {
                 height: 1
                 width: Kirigami.Units.gridUnit * 0.5
             }
+            Switch {
+                id: slideEnabledSwitch
+
+                enabled: app.slides.selected.layersEnabled
+                checked: !app.slides.selected.slideSkipped
+                padding: 0
+                scale: 0.8
+
+                onToggled: {
+                    app.slides.selected.slideSkipped = !checked;
+                    checked = Qt.binding(() => !app.slides.selected.slideSkipped);
+                    if (checked && app.slides.selectedSlideIdx === -1)
+                        app.slides.checkMasterLayersRunBasedOnMediaVisibility(mpv.visibility);
+                    app.slides.updateSelectedSlide();
+                }
+
+                ToolTip {
+                    text: app.slides.selectedSlideIdx === -1
+                          ? qsTr("Enable/disable the master slide. A disabled master slide is not rendered and all its layers get zero opacity.")
+                          : qsTr("Enable/disable the slide. A disabled slide is skipped when going to the next or previous slide.")
+                }
+            }
             Label {
                 id: layersTitle
 
                 font.pointSize: 9
+                font.italic: app.slides.selected.slideSkipped
                 text: app.slides.selected.getLayersNameShort(25) + qsTr(" Layers")
                 wrapMode: Text.Wrap
             }

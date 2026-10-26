@@ -571,6 +571,8 @@ public:
         std::string fgImageFile;
         BaseLayer* subtitleText;
         bool loadFile;
+        // Id of the main video load sent with loadFile; nodes report its load progress back.
+        int loadFileId;
         bool overlayFileDirty;
         bool bgImageFileDirty;
         bool fgImageFileDirty;
@@ -607,6 +609,9 @@ public:
         int stereoscopicMode;
         int stereoscopicModeBg;
         int stereoscopicModeFg;
+        // 0 = background image, 1 = background color (bgColor, 0xRRGGBB).
+        int backgroundMode;
+        int bgColor;
         int eofMode;
         int viewMode;
         // 0 = normal layer composition on the nodes, 1-4 = show the master "C-Play" NDI stream
@@ -692,6 +697,7 @@ public:
         /*fgImageFile*/ "",
         /*subtitleText*/ nullptr,
         /*loadFile*/ false,
+        /*loadFileId*/ 0,
         /*overlayFileDirty*/ false,
         /*bgImageFileDirty*/ false,
         /*fgImageFileDirty*/ false,
@@ -727,6 +733,8 @@ public:
         /*stereoscopicMode*/ 0,
         /*stereoscopicModeBg*/ 0,
         /*stereoscopicModeFg*/ 0,
+        /*backgroundMode*/ 0,
+        /*bgColor*/ 0x000000,
         /*eofMode*/ 0,
         /*viewMode*/ 0,
         /*masterNdiOnNodes*/ 0,

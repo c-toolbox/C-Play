@@ -18,6 +18,31 @@ SettingsBasePage {
     id: root
 
     property string capturePlaceholderColor: ImageSettings.capturePlaceholderBackgroundColor
+    property string backgroundColor: playerController.backgroundColor()
+
+    Connections {
+        function onBackgroundColorChanged() {
+            root.backgroundColor = playerController.backgroundColor();
+        }
+        function onBackgroundModeChanged() {
+            backgroundModeComboBox.currentIndex = playerController.backgroundMode();
+        }
+
+        target: playerController
+    }
+
+    ColorDialog {
+        id: backgroundColorDialog
+
+        selectedColor: root.backgroundColor
+        title: qsTr("Background color")
+
+        onAccepted: {
+            playerController.setBackgroundColor(selectedColor.toString());
+            mpv.focus = true;
+        }
+        onRejected: mpv.focus = true
+    }
 
     ColorDialog {
         id: capturePlaceholderColorDialog
@@ -117,6 +142,8 @@ SettingsBasePage {
 
                 onClicked: {
                     playerController.setBackgroundImageFile(ImageSettings.imageToLoadAsBackground);
+                    playerController.setBackgroundColor(ImageSettings.backgroundColor);
+                    playerController.setBackgroundMode(ImageSettings.backgroundMode);
                     playerController.setBackgroundStereoMode(ImageSettings.stereoModeForBackground);
                     playerController.setBackgroundGridMode(ImageSettings.gridToMapOnForBackground);
                     fileForBackgroundImageText.text = playerController.backgroundImageFile();
@@ -155,6 +182,8 @@ SettingsBasePage {
 
                 onClicked: {
                     ImageSettings.imageToLoadAsBackground = playerController.backgroundImageFile();
+                    ImageSettings.backgroundMode = playerController.backgroundMode();
+                    ImageSettings.backgroundColor = playerController.backgroundColor();
                     ImageSettings.stereoModeForBackground = playerController.backgroundStereoMode();
                     ImageSettings.gridToMapOnForBackground = playerController.backgroundGridMode();
                     ImageSettings.imageToLoadAsForeground = playerController.foregroundImageFile();
@@ -165,6 +194,49 @@ SettingsBasePage {
             }
         }
 
+        Label {
+            Layout.alignment: Qt.AlignRight
+            text: qsTr("Background:")
+        }
+        RowLayout {
+            ComboBox {
+                id: backgroundModeComboBox
+
+                currentIndex: playerController.backgroundMode()
+                focusPolicy: Qt.NoFocus
+                model: [qsTr("Image"), qsTr("Color")]
+
+                onActivated: playerController.setBackgroundMode(currentIndex)
+
+                ToolTip {
+                    text: qsTr("Show the background image, or a solid background color instead of it.")
+                }
+            }
+            Rectangle {
+                Layout.preferredWidth: 48
+                Layout.preferredHeight: 24
+                color: root.backgroundColor
+                border.color: Kirigami.Theme.textColor
+                border.width: 1
+                opacity: backgroundModeComboBox.currentIndex === 1 ? 1.0 : 0.4
+            }
+            ToolButton {
+                focusPolicy: Qt.NoFocus
+                icon.height: 16
+                icon.name: "color-management"
+                text: ""
+
+                onClicked: backgroundColorDialog.open()
+
+                ToolTip {
+                    text: qsTr("Choose the background color")
+                }
+            }
+        }
+        Item {
+            // spacer item
+            Layout.fillWidth: true
+        }
         Label {
             Layout.alignment: Qt.AlignRight
             text: qsTr("Image to load as background:")

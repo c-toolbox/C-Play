@@ -147,6 +147,12 @@ public Q_SLOTS:
     void setBackgroundGridMode(int value);
     int backgroundStereoMode();
     void setBackgroundStereoMode(int value);
+    // 0 = show the background image, 1 = show the background color instead.
+    int backgroundMode();
+    void setBackgroundMode(int value);
+    // Background color as "#RRGGBB".
+    QString backgroundColor();
+    void setBackgroundColor(const QString &color);
 
     float foregroundVisibility();
     void setForegroundVisibility(float value);
@@ -221,6 +227,8 @@ Q_SIGNALS:
     void slidesModelChanged();
     void backgroundImageChanged();
     void backgroundVisibilityChanged();
+    void backgroundModeChanged();
+    void backgroundColorChanged();
     void foregroundImageChanged();
     void foregroundVisibilityChanged();
     void viewModeOnClientsChanged();

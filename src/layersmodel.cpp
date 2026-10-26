@@ -1274,9 +1274,10 @@ int LayersModel::layerHierarchy(int i) const {
 void LayersModel::setLayerHierarchy(int i, int h) {
     if (h != BaseLayer::LayerHierarchy::BACK && h != BaseLayer::LayerHierarchy::FRONT)
         return;
+    int own = -1;
     {
         std::lock_guard<std::recursive_mutex> layersLock(m_layersMutex);
-        const int own = ownIndexOfRow(i);
+        own = ownIndexOfRow(i);
         if (own < 0 || !m_layers[own].first || m_layers[own].first->hierarchy() == h)
             return;
         m_layers[own].first->setHierarchy(static_cast<BaseLayer::LayerHierarchy>(h));
@@ -1284,6 +1285,7 @@ void LayersModel::setLayerHierarchy(int i, int h) {
     setNeedSync();
     updateLayer(i);
     setLayersNeedsSave(true);
+    Q_EMIT layerHierarchyChanged(own);
 }
 
 void LayersModel::clearLayers() {
@@ -1366,6 +1368,44 @@ void LayersModel::setLayersEnabled(bool value) {
 
 bool LayersModel::getLayersEnabled() {
     return m_layersEnabled;
+}
+
+bool LayersModel::slideSkipped() const {
+    return m_slideSkipped;
+}
+
+void LayersModel::setSlideSkipped(bool value) {
+    if (m_slideSkipped == value)
+        return;
+    m_slideSkipped = value;
+
+    if (m_layerHierachy == BaseLayer::LayerHierarchy::BACK) {
+        std::lock_guard<std::recursive_mutex> layersLock(m_layersMutex);
+        if (value) {
+            stopLayerAnimations();
+            m_skippedAlphas.clear();
+            for (const auto &l : m_layers) {
+                if (!l.first)
+                    continue;
+                m_skippedAlphas.emplace_back(l.first, l.first->alpha());
+                l.first->setAlpha(0.f);
+            }
+        }
+        else {
+            for (const auto &entry : m_skippedAlphas) {
+                if (auto layer = entry.first.lock())
+                    layer->setAlpha(entry.second);
+            }
+            m_skippedAlphas.clear();
+        }
+        for (int i = 0; i < m_order.size(); i++)
+            updateLayer(i);
+        setNeedSync();
+    }
+
+    Q_EMIT slideSkippedChanged();
+    if (!m_decodingLayers)
+        setLayersNeedsSave(true);
 }
 
 void LayersModel::setLayersNeedsSave(bool value) {
@@ -2131,6 +2171,9 @@ int LayersModel::decodeLayerFromJSON(const QJsonObject &o, const QStringList &fo
 void LayersModel::decodeFromJSON(QJsonObject &obj, const QStringList &forRelativePaths) {
     std::lock_guard<std::recursive_mutex> layersLock(m_layersMutex);
     const QScopedValueRollback<bool> decoding(m_decodingLayers, true);
+    // Applied once the layers are loaded, so a skipped master zeroes the loaded opacities.
+    const bool skipped = obj.value(QStringLiteral("skipped")).toBool(false);
+    setSlideSkipped(false);
     if (obj.contains(QStringLiteral("name"))) {
         QString name = obj.value(QStringLiteral("name")).toString();
         setLayersName(name);
@@ -2208,6 +2251,7 @@ void LayersModel::decodeFromJSON(QJsonObject &obj, const QStringList &forRelativ
     applyPendingReferenceTracks();
 
     rebuildEffectSchedule();
+    setSlideSkipped(skipped);
     setNeedSync();
 }
 
@@ -2437,7 +2481,14 @@ QJsonObject LayersModel::encodeLayerToJSON(const std::shared_ptr<BaseLayer> &lay
     }
     layerData.insert(QStringLiteral("stereoscopic"), QJsonValue(sv));
 
-    layerData.insert(QStringLiteral("visibility"), QJsonValue(static_cast<int>(layer->alpha() * 100.f)));
+    float alpha = layer->alpha();
+    for (const auto &entry : m_skippedAlphas) {
+        if (entry.first.lock() == layer) {
+            alpha = entry.second;
+            break;
+        }
+    }
+    layerData.insert(QStringLiteral("visibility"), QJsonValue(static_cast<int>(alpha * 100.f)));
     layerData.insert(QStringLiteral("keepVisibilityForNumSlides"), QJsonValue(layer->keepVisibilityForNumSlides()));
 
     switch (layer->type()) {
@@ -2599,6 +2650,8 @@ QJsonObject LayersModel::encodeLayerToJSON(const std::shared_ptr<BaseLayer> &lay
 void LayersModel::encodeToJSON(QJsonObject &obj, const QStringList &forRelativePaths) {
     obj.insert(QStringLiteral("name"), QJsonValue(getLayersName()));
     obj.insert(QStringLiteral("visibility"), QJsonValue(getLayersVisibility()));
+    if (m_slideSkipped)
+        obj.insert(QStringLiteral("skipped"), QJsonValue(true));
 
     if (!m_notes.isEmpty()) {
         obj.insert(QStringLiteral("notes"), QJsonValue(m_notes));

@@ -33,6 +33,7 @@
 #include <QCoreApplication>
 #include <KConfig>
 #include <KConfigGroup>
+#include <algorithm>
 #include <atomic>
 #include <cstdio>
 #include <mutex>
@@ -82,6 +83,8 @@ sgct::config::Cluster clusterConfig;
 // Framebuffer transparency is a creation-time choice. Keep the active mode separate
 // from the master's requested mode, which is persisted on nodes for their next start.
 bool nodeWindowContentBased = false;
+// Set in postSyncPreDraw(): the background color fills the viewport in draw().
+bool nodeBackgroundColorShown = false;
 bool savedWindowContentBased = false;
 
 struct PendingLayerPacket {
@@ -107,6 +110,8 @@ std::shared_ptr<MultiVideoLayer> mainVideoLayer;
 #else
 std::shared_ptr<VideoLayer> mainVideoLayer;
 #endif
+// Id of the master's main video load that mainVideoLayer opened last (0: none yet).
+int mainVideoLoadId = 0;
 std::shared_ptr<TextLayer> mainSubtitleLayer;
 
 
@@ -301,6 +306,8 @@ static std::vector<std::byte> encode() {
             serializeObject(data, SyncHelper::instance().variables.gridToMapOnFg);
             serializeObject(data, SyncHelper::instance().variables.stereoscopicModeBg);
             serializeObject(data, SyncHelper::instance().variables.stereoscopicModeFg);
+            serializeObject(data, SyncHelper::instance().variables.backgroundMode);
+            serializeObject(data, SyncHelper::instance().variables.bgColor);
             serializeObject(data, SyncHelper::instance().variables.viewMode);
             serializeObject(data, SyncHelper::instance().variables.masterNdiOnNodes);
             if (SyncHelper::instance().variables.masterNdiOnNodes > 0) {
@@ -327,6 +334,7 @@ static std::vector<std::byte> encode() {
             serializeObject(data, 0);
             serializeObject(data, SyncHelper::instance().variables.loadFile);
             serializeObject(data, SyncHelper::instance().variables.loadedFile);
+            serializeObject(data, SyncHelper::instance().variables.loadFileId);
             SyncHelper::instance().variables.loadFile = false;
         } else if (SyncHelper::instance().variables.overlayFileDirty) { // ID: 1 = overlay image file
             serializeObject(data, 1);
@@ -647,6 +655,8 @@ static void decode(const std::vector<std::byte> &data) {
             deserializeObject(data, pos, SyncHelper::instance().variables.gridToMapOnFg);
             deserializeObject(data, pos, SyncHelper::instance().variables.stereoscopicModeBg);
             deserializeObject(data, pos, SyncHelper::instance().variables.stereoscopicModeFg);
+            deserializeObject(data, pos, SyncHelper::instance().variables.backgroundMode);
+            deserializeObject(data, pos, SyncHelper::instance().variables.bgColor);
             deserializeObject(data, pos, SyncHelper::instance().variables.viewMode);
             deserializeObject(data, pos, SyncHelper::instance().variables.masterNdiOnNodes);
             if (SyncHelper::instance().variables.masterNdiOnNodes > 0) {
@@ -678,6 +688,7 @@ static void decode(const std::vector<std::byte> &data) {
             if (!safeToRead()) return;
             deserializeObject(data, pos, SyncHelper::instance().variables.loadFile);
             deserializeObject(data, pos, SyncHelper::instance().variables.loadedFile);
+            deserializeObject(data, pos, SyncHelper::instance().variables.loadFileId);
 #ifdef MULTI_VIDEO_LAYER
             SyncHelper::instance().variables.multiVideoEnabled = false;
 #endif
@@ -1211,6 +1222,8 @@ static void postSyncPreDraw() {
         if (!SyncHelper::instance().variables.loadedFile.empty()) {
             // Load new MPV file (sub-players already cleared if multi-video was active)
             mainVideoLayer->loadFile(SyncHelper::instance().variables.loadedFile, SyncHelper::instance().variables.loadFile);
+            if (SyncHelper::instance().variables.loadFile)
+                mainVideoLoadId = SyncHelper::instance().variables.loadFileId;
             SyncHelper::instance().variables.loadFile = false;
         }
 
@@ -1236,9 +1249,13 @@ static void postSyncPreDraw() {
         // Background image layer
         // A fully visible main video hides it, also while a file loads or nothing is loaded,
         // so it never shows through between loads. A plane does not cover the background.
-        if (!masterNdiActive &&
+        // In color mode, draw() fills the viewport with the color instead of rendering the image.
+        const bool backgroundShown = !masterNdiActive &&
             (SyncHelper::instance().variables.alpha < 1.f || SyncHelper::instance().variables.gridToMapOn == 1) &&
-            backgroundImageLayer->ready() && SyncHelper::instance().variables.alphaBg > 0.f) {
+            SyncHelper::instance().variables.alphaBg > 0.f;
+        nodeBackgroundColorShown = backgroundShown && SyncHelper::instance().variables.backgroundMode == 1;
+        if (backgroundShown && SyncHelper::instance().variables.backgroundMode == 0 &&
+            backgroundImageLayer->ready()) {
             backgroundImageLayer->setAlpha(SyncHelper::instance().variables.alphaBg);
             backgroundImageLayer->setGridMode(static_cast<uint8_t>(SyncHelper::instance().variables.gridToMapOnBg));
             backgroundImageLayer->setStereoMode(static_cast<uint8_t>(SyncHelper::instance().variables.stereoscopicModeBg));
@@ -1484,12 +1501,21 @@ static void draw(const RenderData &data) {
     // rect. This replaces that hardcoded clear for this region without touching SGCT, so
     // unrendered areas fade between opaque black and fully transparent while rendered
     // content keeps its own per-pixel alpha.
+    // In background color mode the color, faded by the background visibility, is drawn over
+    // that clear in the same pass (premultiplied, as rendered content).
     glEnable(GL_SCISSOR_TEST);
-    if (nodeWindowContentBased) {
-        glClearColor(0.f, 0.f, 0.f, SyncHelper::instance().variables.windowOpacity);
+    float clearAlpha = nodeWindowContentBased ? SyncHelper::instance().variables.windowOpacity : 1.f;
+    if (nodeBackgroundColorShown) {
+        const int rgb = SyncHelper::instance().variables.bgColor;
+        const float a = std::clamp(SyncHelper::instance().variables.alphaBg, 0.f, 1.f);
+        clearAlpha = a + clearAlpha * (1.f - a);
+        glClearColor(float((rgb >> 16) & 0xFF) / 255.f * a,
+                     float((rgb >> 8) & 0xFF) / 255.f * a,
+                     float(rgb & 0xFF) / 255.f * a,
+                     clearAlpha);
     }
     else {
-        glClearColor(0.f, 0.f, 0.f, 1.f);
+        glClearColor(0.f, 0.f, 0.f, clearAlpha);
     }
     glClear(GL_COLOR_BUFFER_BIT);
     glDisable(GL_SCISSOR_TEST);
@@ -1532,6 +1558,12 @@ static void postDraw() {
         for (auto &layer : secondaryLayers)
             verifierLayers.push_back(layer);
         NodeLoaderVerifier::instance().collectAndSend(verifierLayers);
+    }
+
+    // Main video load progress for the master, which holds playback until every node has the
+    // file it loaded last. Sent only when the progress changes.
+    if (NodeLoaderVerifier::isReady() && mainVideoLoadId > 0 && mainVideoLayer) {
+        NodeLoaderVerifier::instance().reportMainVideo(mainVideoLoadId, mainVideoLayer->loadProgress());
     }
 
     if (NodeCaptureInventory::isReady()) {

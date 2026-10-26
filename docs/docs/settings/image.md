@@ -11,6 +11,7 @@ The image settings within C-Play control the background and foreground images th
 
 ### Background image
 
+* **Background** — Show the background *Image*, or a solid background *Color* instead of it (default Image). The color button selects the color. In color mode the color fills the whole view behind the media, independent of the grid and stereoscopic modes, and fades with the background visibility. The mode and color can also be set remotely with `/background_mode` and `/background_color` (see [HTTP API](/remote-control/api)).
 * **Image file** — Path to the image loaded behind the main media. At startup the background is loaded and visible.
 * **Stereoscopic mode** — Stereo format of the background image: 2D (mono), 3D side-by-side, 3D top-bottom, or 3D top-bottom+flip (default 2D).
 * **Grid mode** — Mapping mode for the background: None (pre-split), Plane, Dome, Sphere EQR, or Sphere EAC (default None).

@@ -453,7 +453,9 @@ int Application::run() {
     // Release the last NDI library user (the NDI sender) while the process is still
     // fully alive. Otherwise the NDI runtime is only torn down during process exit
     // (DLL detach), where its worker threads deadlock and the master never closes.
-    delete NdiSenderModel::instance();
+    // The model itself stays alive, QML bindings still reference it until the engine is deleted.
+    if (NdiSenderModel::instance())
+        NdiSenderModel::instance()->releaseSender();
 #ifdef NDI_SUPPORT
     NDISendersModel::shutdownNdi();
 #endif

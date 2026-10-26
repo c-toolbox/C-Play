@@ -129,8 +129,8 @@ QJsonObject PresenterController::state() const {
     int next = -1;
     if (selected != triggered)
         next = selected < count - 1 ? selected : -1;
-    else if (triggered + 1 < count)
-        next = triggered + 1;
+    else
+        next = m_slides->nextNotSkippedSlideIdx(triggered);
 
     QJsonArray slides;
     for (int i = 0; i < count; ++i) {

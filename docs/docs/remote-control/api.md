@@ -36,14 +36,14 @@ Endpoints are divided into two categories:
 
 `/status`, `/position`, `/remaining`, `/duration`, `/auto_play`, `/speed`, `/volume`,
 `/fade_duration`, `/sync_image_volume_fade`, `/visibility`, `/stereo_mode`, `/grid_mode`,
-`/background_image`, `/background_image_stereo_mode`, `/background_image_grid_mode`,
+`/background_image`, `/background_mode`, `/background_color`, `/background_image_stereo_mode`, `/background_image_grid_mode`,
 `/foreground_image`, `/foreground_image_stereo_mode`, `/foreground_image_grid_mode`,
 `/eof_mode`, `/loop_mode`, `/view_mode`, `/media_title`,
 `/audiotracks`, `/playing_in_audiotracks`, `/playlist`, `/playing_in_playlist`,
 `/sections`, `/playing_in_sections`,
 `/section_start_time`, `/section_end_time`, `/section_end_mode`,
 `/playfile_json`, `/playlist_json`,
-`/slide_name`, `/slides`, `/playing_in_slides`,
+`/slide_name`, `/slides`, `/playing_in_slides`, `/slide_skipped`,
 `/layers`, `/layer_volume`, `/layer_visibility`, `/layer_plane`
 
 ### POST only endpoints
@@ -52,7 +52,7 @@ Endpoints are divided into two categories:
 `/fade_volume_down`, `/fade_volume_up`, `/fade_image_down`, `/fade_image_up`,
 `/spin_pitch_up`, `/spin_pitch_down`, `/spin_yaw_left`, `/spin_yaw_right`,
 `/spin_roll_ccw`, `/spin_roll_cw`, `/orientation_reset`, `/surface_transition`,
-`/slide_previous`, `/slide_next`,
+`/slide_previous`, `/slide_next`, `/slide_skip_toggle`,
 `/load_from_audiotracks`, `/load_from_playlist`, `/load_from_sections`,
 `/load_from_slides`, `/select_from_slides`, `/layer_fade_up`, `/layer_fade_down`
 
@@ -149,6 +149,8 @@ This endpoint controls stereo display on the cluster. It does not select the mas
 | Endpoint | Method | Params | Description | Returns |
 |----------|--------|--------|-------------|---------|
 | `/background_image` | GET, POST | `on=` *(optional)* — `1` or `0` | Get or set background visibility | `0`/`1`, or confirmation message |
+| `/background_mode` | GET, POST | `mode=` *(optional)* — `0`/`image` or `1`/`color` | Get or set whether the background shows the background image or the background color. Setting a mode also turns the background on (image mode only when an image is set) | `0` (image) / `1` (color), or confirmation message |
+| `/background_color` | GET, POST | `color=` *(optional)* — `RRGGBB`, `%23RRGGBB` or a color name | Get or set the background color used in color mode | `#rrggbb`, or confirmation message |
 | `/background_image_stereo_mode` | GET, POST | — | Get background stereo mode | `0`–`3` |
 | `/background_image_grid_mode` | GET, POST | — | Get background grid mode | `0`–`4` |
 | `/foreground_image` | GET, POST | `on=` *(optional)* — `1` or `0` | Get or set foreground visibility | `0`/`1`, or confirmation message |
@@ -203,6 +205,8 @@ This endpoint controls stereo display on the cluster. It does not select the mas
 | `/playing_in_slides` | GET, POST | — | Current slide index (`-1` = master) | Index |
 | `/select_from_slides` | POST | `index=` *(required)* | Select slide (pre-loads layers) | Confirmation or error |
 | `/load_from_slides` | POST | `index=` *(required)* | Load/trigger slide | Confirmation or error |
+| `/slide_skipped` | GET, POST | `slide_idx=` (`-1` = master) or `slide_name=` *(optional, default: selected slide)*, `on=` *(optional, POST)* — `1` or `0` | Get or set whether the slide is skipped. Skipped slides are passed over by next/previous; a skipped master slide is not rendered and its layers get zero opacity | `0`/`1`, or confirmation message |
+| `/slide_skip_toggle` | POST | `slide_idx=` or `slide_name=` *(optional, default: selected slide)* | Toggle whether the slide is skipped | Confirmation or error |
 | `/layers` | GET, POST | `slide_name=` or `slide_idx=` *(required)*, `charsPerItem=` *(optional)* | Get formatted layer list for a slide | Text list |
 
 ### Layer control
@@ -417,7 +421,7 @@ The event feed exposes the same sampled state to HTTP, WebSocket and outgoing TC
 | `/event_topics` | GET | — | JSON array of supported topic names. |
 | `/events` | GET | `topics` (optional), `since` (optional), `wait` (optional) | JSON state snapshot or changes after a sequence cursor. |
 
-`topics` is a comma-separated list, such as `volume,playing_in_slides,playlist`; omit it or use `*` for all topics. Topic names include `position`, `remaining`, `duration`, `pause`, `volume`, `mute`, `speed`, `playlist`, `sections`, `audiotracks`, `slides`, `layers` and `triggered_slide`, plus `presentation` and `movie` in builds with the [web views](/remote-control/web-views). Call `/event_topics` for the complete list. Unsupported topics return HTTP 400.
+`topics` is a comma-separated list, such as `volume,playing_in_slides,playlist`; omit it or use `*` for all topics. Topic names include `position`, `remaining`, `duration`, `pause`, `volume`, `mute`, `speed`, `playlist`, `sections`, `audiotracks`, `slides`, `layers`, `triggered_slide` and `main_video_load` (see [Starting playback on all nodes](#starting-playback-on-all-nodes)), plus `presentation` and `movie` in builds with the [web views](/remote-control/web-views). Call `/event_topics` for the complete list. Unsupported topics return HTTP 400.
 
 ### Initial snapshot and long polling
 
@@ -445,6 +449,12 @@ A change response has `type: "events"`, the latest string `sequence`, `values: {
 The journal keeps the latest 512 events across all topics. A cursor that is too old or ahead of the current sequence returns `reset: true` with a fresh snapshot. Start again without `since` after restarting C-Play or changing topic selections. Invalid cursors or wait values return HTTP 400; an unavailable event feed returns 503. Successful `/events` responses use `application/json` and `Cache-Control: no-store`.
 
 Event responses use native JSON numbers and booleans, and structured collection values. Playlist, track, section, slide and layer events refresh controller state; they do not reproduce the original REST text-list formatting. `playing_in_slides` follows the selected slide, while `triggered_slide` follows the slide actually triggered. `layers` covers all slides, including the master, and includes volume, visibility and plane properties.
+
+### Starting playback on all nodes
+
+When the master loads a new main video file, every cluster node connected over the DataTransfer channel (the `datatransferport` of the node, by default its port + 1000) reports back when it has the file open and its first frame rendered, or when it could not open it. C-Play holds playback until all of them have answered: the play button is disabled, and a play requested meanwhile (`/play`, a cue, auto play) starts once the nodes are ready. A file that was already playing when the next one loads (for example the next playlist item) is paused until then. Nodes that could not load the file do not hold playback but are logged; nodes that do not answer within 30 seconds stop holding it. Without connected nodes, with playback sync off, or for multi-video compositions, playback is not held.
+
+The `main_video_load` topic follows this: `{"id": 12, "ready": false, "timedOut": false, "waiting": ["10.0.0.11"], "failed": []}`. `id` changes for every loaded file, so a client that loads a file can wait for a new `id` with `ready: true` before it fades in.
 
 ### Optional event WebSocket listener
 

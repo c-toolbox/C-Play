@@ -41,7 +41,8 @@ ItemDelegate {
     }
     function subText() {
         const text = model.layers + (model.layers === 1 ? " layer" : " layers");
-        return model.refs > 0 ? text + " + " + model.refs + (model.refs === 1 ? " ref" : " refs") : text;
+        const withRefs = model.refs > 0 ? text + " + " + model.refs + (model.refs === 1 ? " ref" : " refs") : text;
+        return model.skipped ? qsTr("Skipped") + " - " + withRefs : withRefs;
     }
     function statusToolTipText(status) {
         if (status === 2)
@@ -77,6 +78,9 @@ ItemDelegate {
             }
             if (down) {
                 return Qt.alpha(Kirigami.Theme.positiveBackgroundColor, 0.8);
+            }
+            if (model.skipped) {
+                return Qt.tint(Kirigami.Theme.backgroundColor, Qt.rgba(0.55, 0.0, 0.0, 0.25));
             }
             return Kirigami.Theme.backgroundColor;
         }
@@ -117,6 +121,7 @@ ItemDelegate {
                 anchors.bottomMargin: 15
                 anchors.fill: parent
                 color: root.hovered || root.highlighted ? Kirigami.Theme.highlightedTextColor : Kirigami.Theme.textColor
+                font.italic: model.skipped
                 icon.color: color
                 icon.name: iconName
                 icon.width: iconWidth
@@ -133,6 +138,7 @@ ItemDelegate {
                 anchors.topMargin: 3
                 color: Kirigami.Theme.textColor
                 font.pointSize: 9
+                font.italic: model.skipped
                 maximumLength: 24
                 text: model.name
                 visible: slidesView.currentIndex === index

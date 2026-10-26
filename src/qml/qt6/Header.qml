@@ -370,7 +370,7 @@ ToolBar {
             ToolTip {
                 id: imageToolTip
 
-                text: "Background image OFF and Foreground image OFF"
+                text: "Background OFF and Foreground image OFF"
             }
             Menu {
                 id: imageMenu
@@ -378,6 +378,24 @@ ToolBar {
                 y: parent.height
                 onOpened: PopupHelpers.handlePopupOpen()
                 onClosed: PopupHelpers.handlePopupClose()
+
+                // Updates the menu button icon and tooltip from the foreground and background state
+                function updateImageButton() {
+                    const foregroundOn = playerController.foregroundVisibility() === 1;
+                    const backgroundOn = playerController.backgroundVisibility() === 1;
+                    if (backgroundOn && foregroundOn)
+                        imageMenuButton.icon.name = "layer-visible-on";
+                    else if (backgroundOn)
+                        imageMenuButton.icon.name = "layer-bottom-icon";
+                    else if (foregroundOn)
+                        imageMenuButton.icon.name = "layer-top-icon";
+                    else
+                        imageMenuButton.icon.name = "layer-visible-off";
+                    const backgroundText = !backgroundOn ? "Background OFF"
+                                         : playerController.backgroundMode() === 1 ? "Background color ON"
+                                         : "Background image ON";
+                    imageToolTip.text = backgroundText + " and Foreground image " + (foregroundOn ? "ON" : "OFF");
+                }
 
                 MenuSeparator {
                 }
@@ -395,14 +413,8 @@ ToolBar {
 
                         onCheckedChanged: {
                             if (checked) {
-                                if (background_visible.checked) {
-                                    imageMenuButton.icon.name = "layer-visible-on";
-                                    imageToolTip.text = "Background image ON and Foreground image ON";
-                                } else {
-                                    imageMenuButton.icon.name = "layer-top-icon";
-                                    imageToolTip.text = "Background image OFF and Foreground image ON";
-                                }
                                 playerController.setForegroundVisibility(1);
+                                imageMenu.updateImageButton();
                             }
                         }
                         onClicked: {}
@@ -423,14 +435,8 @@ ToolBar {
 
                         onCheckedChanged: {
                             if (checked) {
-                                if (background_visible.checked) {
-                                    imageMenuButton.icon.name = "layer-bottom-icon";
-                                    imageToolTip.text = "Background image ON and Foreground image OFF";
-                                } else {
-                                    imageMenuButton.icon.name = "layer-visible-off";
-                                    imageToolTip.text = "Background image OFF and Foreground image OFF";
-                                }
                                 playerController.setForegroundVisibility(0);
+                                imageMenu.updateImageButton();
                             }
                         }
                         onClicked: {}
@@ -453,28 +459,54 @@ ToolBar {
                     id: columnBackground
 
                     RadioButton {
-                        id: background_visible
+                        id: background_image_visible
 
                         checked: false
-                        text: qsTr("Show background when video is not visible")
+                        text: qsTr("Show background image when video is not visible")
 
                         onCheckedChanged: {
                             if (checked) {
-                                if (foreground_visible.checked) {
-                                    imageMenuButton.icon.name = "layer-visible-on";
-                                    imageToolTip.text = "Background image ON and Foreground image ON";
-                                } else {
-                                    imageMenuButton.icon.name = "layer-bottom-icon";
-                                    imageToolTip.text = "Background image ON and Foreground image OFF";
-                                }
+                                if (playerController.backgroundMode() !== 0)
+                                    playerController.setBackgroundMode(0);
                                 playerController.setBackgroundVisibility(1);
+                                imageMenu.updateImageButton();
                             }
                         }
                         onClicked: {}
 
                         Connections {
                             function onBackgroundVisibilityChanged() {
-                                background_visible.checked = (playerController.backgroundVisibility() === 1);
+                                background_image_visible.checked = (playerController.backgroundVisibility() === 1 && playerController.backgroundMode() === 0);
+                            }
+                            function onBackgroundModeChanged() {
+                                background_image_visible.checked = (playerController.backgroundVisibility() === 1 && playerController.backgroundMode() === 0);
+                            }
+
+                            target: playerController
+                        }
+                    }
+                    RadioButton {
+                        id: background_color_visible
+
+                        checked: false
+                        text: qsTr("Show background color when video is not visible")
+
+                        onCheckedChanged: {
+                            if (checked) {
+                                if (playerController.backgroundMode() !== 1)
+                                    playerController.setBackgroundMode(1);
+                                playerController.setBackgroundVisibility(1);
+                                imageMenu.updateImageButton();
+                            }
+                        }
+                        onClicked: {}
+
+                        Connections {
+                            function onBackgroundVisibilityChanged() {
+                                background_color_visible.checked = (playerController.backgroundVisibility() === 1 && playerController.backgroundMode() === 1);
+                            }
+                            function onBackgroundModeChanged() {
+                                background_color_visible.checked = (playerController.backgroundVisibility() === 1 && playerController.backgroundMode() === 1);
                             }
 
                             target: playerController
@@ -488,14 +520,8 @@ ToolBar {
 
                         onCheckedChanged: {
                             if (checked) {
-                                if (foreground_visible.checked) {
-                                    imageMenuButton.icon.name = "layer-top-icon";
-                                    imageToolTip.text = "Background image OFF and Foreground image ON";
-                                } else {
-                                    imageMenuButton.icon.name = "layer-visible-off";
-                                    imageToolTip.text = "Background image OFF and Foreground image OFF";
-                                }
                                 playerController.setBackgroundVisibility(0);
+                                imageMenu.updateImageButton();
                             }
                         }
                         onClicked: {}

@@ -126,6 +126,26 @@
       ]
     },
     {
+      "path": "/background_mode",
+      "name": "Background Mode",
+      "parameters": [
+        "mode"
+      ],
+      "required": [
+        "mode"
+      ]
+    },
+    {
+      "path": "/background_color",
+      "name": "Background Color",
+      "parameters": [
+        "color"
+      ],
+      "required": [
+        "color"
+      ]
+    },
+    {
       "path": "/foreground_image",
       "name": "Foreground Image",
       "parameters": [

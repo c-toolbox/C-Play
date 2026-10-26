@@ -96,6 +96,8 @@ The C-Play command adapter supports these existing control operations:
 | `SetSpeed` | Positive finite playback factor. |
 | `SetVolume` | Integer 0–100. |
 | `SetBackgroundVisibility`, `SetForegroundVisibility`, `SetNodeWindowsOpacity` | Finite value 0–1. |
+| `SetBackgroundMode` | `image`, `color`, `0`, or `1`. |
+| `SetBackgroundColor` | `#RRGGBB`, `RRGGBB`, or a color name. |
 | `SetSyncVolumeVisibilityFading`, `SpinPitchUp`, `SpinPitchDown`, `SpinYawLeft`, `SpinYawRight`, `SpinRollCW`, `SpinRollCCW` | `true`, `false`, `1`, or `0`. |
 | `LoadFromAudioTracks`, `LoadFromPlaylist`, `LoadFromSections`, `LoadFromSlides` | Zero-based index or exact existing name; playlist selection also accepts its list title or filename. |
 

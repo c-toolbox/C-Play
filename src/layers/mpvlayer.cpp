@@ -54,8 +54,11 @@ void loadTracks(MpvLayer::mpvData& vd) {
         std::vector<Track> audioTracks;
         const QList<QVariant> tracks = mpv::qt::get_property(vd.handle, QStringLiteral("track-list")).toList();
         int audioIndex = 0;
+        bool hasVideo = false;
         for (const auto& track : tracks) {
             const auto t = track.toMap();
+            if (t[QStringLiteral("type")] == QStringLiteral("video") && !t[QStringLiteral("albumart")].toBool())
+                hasVideo = true;
             if (track.toMap()[QStringLiteral("type")] == QStringLiteral("audio")) {
                 auto newTrack = Track();
                 newTrack.setCodec(t[QStringLiteral("codec")].toString().toStdString());
@@ -74,6 +77,7 @@ void loadTracks(MpvLayer::mpvData& vd) {
                 audioIndex++;
             }
         }
+        vd.hasVideo = hasVideo;
         const std::lock_guard<std::mutex> lock(vd.tracksMutex);
         vd.audioTracks = std::move(audioTracks);
     }
@@ -1041,6 +1045,7 @@ void MpvLayer::loadFile(std::string filePath, bool reload) {
         }
         m_data.loadFailed = false;
         m_data.intentionalStop = false;
+        m_data.hasVideo = true;
 
         // Re-apply global settings first, then the layer-specific options,
         // so options persist across file loads (mpv may reset them per file).
@@ -1092,7 +1097,7 @@ void MpvLayer::collectLoadStatus() {
             const auto now = std::chrono::steady_clock::now();
             if (!m_data.isStream && m_data.loadRequestedTime.time_since_epoch().count() != 0 &&
                 now - m_data.loadRequestedTime > kMpvLoadFailureGrace) {
-                bool idleActive = false;
+                int idleActive = 0;
                 if (mpv_get_property(m_data.handle, "idle-active", MPV_FORMAT_FLAG, &idleActive) >= 0 &&
                     idleActive) {
                     error = "not found / could not open";
@@ -1105,6 +1110,33 @@ void MpvLayer::collectLoadStatus() {
         clearLoadError();
     else
         setLoadError(path, error);
+}
+
+MpvLayer::LoadProgress MpvLayer::loadProgress() {
+    if (!m_data.mpvInitialized || !m_data.handle)
+        return LoadProgress::Loading;
+    if (m_data.loadFailed)
+        return LoadProgress::Failed;
+
+    bool fileLoaded = false;
+    bool pastGrace = false;
+    {
+        const std::lock_guard<std::mutex> lock(m_data.loadStatusMutex);
+        fileLoaded = m_data.fileLoaded;
+        pastGrace = !fileLoaded && !m_data.loadedFile.empty() && !m_data.isStream
+            && m_data.loadRequestedTime.time_since_epoch().count() != 0
+            && std::chrono::steady_clock::now() - m_data.loadRequestedTime > kMpvLoadFailureGrace;
+    }
+    if (!fileLoaded) {
+        // Same idle-active cross-check as collectLoadStatus(): mpv never left idle after the
+        // grace window, so the file is missing or unopenable.
+        int idleActive = 0;
+        if (pastGrace && mpv_get_property(m_data.handle, "idle-active", MPV_FORMAT_FLAG, &idleActive) >= 0
+            && idleActive)
+            return LoadProgress::Failed;
+        return LoadProgress::Loading;
+    }
+    return m_data.updateRendering || !m_data.hasVideo ? LoadProgress::Ready : LoadProgress::Loading;
 }
 
 bool MpvLayer::renderingIsOn() const {

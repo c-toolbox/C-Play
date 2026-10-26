@@ -61,6 +61,8 @@ It has two modes:
 
 The mode and the prepared cue are remembered on the device across reloads.
 
+When a new file loads, C-Play holds playback until all cluster nodes have it loaded (see [Starting playback on all nodes](/remote-control/api#starting-playback-on-all-nodes)). Meanwhile the on-air panel shows *Loading on nodes*, and **Play** and **Play & fade in** are disabled; hover them to see which nodes are still loading. **Transition** waits for the nodes after loading too, so the new file fades in only once every node has it.
+
 ### Pictures
 
 In builds with WebRTC (`BUILD_CPLAY_WITH_WEBRTC`), **Pictures** shows video next to the controls, received over WebRTC (H.264, no sound). Without WebRTC in C-Play the button is not shown.

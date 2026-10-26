@@ -47,7 +47,20 @@ export interface EventsResponse {
   reset: boolean;
 }
 
-export const topics = ['movie', 'position', 'duration', 'pause', 'visibility', 'sync_image_volume_fade'] as const;
+/** Whether the cluster nodes have the main video loaded. Playback waits until they have. */
+export interface MainVideoLoad {
+  /** Counts the loads, a new file has a new id. */
+  id: number;
+  ready: boolean;
+  /** C-Play stopped waiting for nodes that did not answer. */
+  timedOut: boolean;
+  /** Nodes still loading the file. */
+  waiting: string[];
+  /** Nodes that could not load the file. */
+  failed: string[];
+}
+
+export const topics = ['movie', 'position', 'duration', 'pause', 'visibility', 'sync_image_volume_fade', 'main_video_load'] as const;
 export type Topic = (typeof topics)[number];
 
 /** A cue to send to C-Play. Fields left out keep what C-Play has. */
@@ -89,7 +102,8 @@ async function request(method: 'GET' | 'POST', path: string, params: Record<stri
 }
 
 const post = (path: string, params?: Record<string, string | number>) => request('POST', path, params);
-const number = async (path: string) => Number(await (await request('GET', path)).text());
+const text = async (path: string, params?: Record<string, string | number>) => (await request('GET', path, params)).text();
+const number = async (path: string) => Number(await text(path));
 
 export const api = {
   state: async () => (await (await request('GET', '/movie_state')).json()) as MovieState,
@@ -137,6 +151,18 @@ export const api = {
   stop: () => post('/stop'),
   /** Relative seek in whole seconds. */
   seek: (seconds: number) => post('/seek', { time: Math.round(seconds) }),
+  /** Null when C-Play has no master slide. */
+  masterSkipped: async () => {
+    const value = (await text('/slide_skipped', { slide_idx: -1 })).trim();
+    return value === '1' ? true : value === '0' ? false : null;
+  },
+  setMasterSkipped: (skipped: boolean) => post('/slide_skipped', { slide_idx: -1, on: skipped ? 1 : 0 }),
+  /** 0 image, 1 color. */
+  backgroundMode: () => number('/background_mode'),
+  setBackgroundMode: (mode: 0 | 1) => post('/background_mode', { mode }),
+  /** As #rrggbb. */
+  backgroundColor: async () => (await text('/background_color')).trim(),
+  setBackgroundColor: (color: string) => post('/background_color', { color: color.replace(/^#/, '') }),
 };
 
 /** The sections of playlist item index, as C-Play has them for the loaded item. */

@@ -18,6 +18,7 @@
 #include <QtQml/qqmlregistration.h>
 #include <QSet>
 #include <QVector>
+#include <atomic>
 #include <memory>
 #include <mutex>
 #include <unordered_map>
@@ -261,6 +262,16 @@ public:
 
     Q_INVOKABLE void setLayersEnabled(bool value);
     Q_INVOKABLE bool getLayersEnabled();
+
+    // A skipped slide is passed over by next/previous. A skipped master slide is not
+    // rendered and its layers get zero opacity (restored when no longer skipped).
+    Q_PROPERTY(bool slideSkipped
+        READ slideSkipped
+        WRITE setSlideSkipped
+        NOTIFY slideSkippedChanged)
+
+    bool slideSkipped() const;
+    void setSlideSkipped(bool value);
 
     Q_PROPERTY(bool layersNeedsSave
         READ getLayersNeedsSave
@@ -515,6 +526,8 @@ Q_SIGNALS:
     void layersTypeModelChanged();
     void layersVisibilityChanged();
     void layersEnabledChanged(bool);
+    void slideSkippedChanged();
+    void layerHierarchyChanged(int ownIdx);
     void layersNeedsSaveChanged(bool);
     void layersNameChanged();
     void notesChanged();
@@ -637,6 +650,10 @@ private:
     BaseLayer::LayerHierarchy m_layerHierachy;
     int m_layersVisibility = 0;
     bool m_layersEnabled = true;
+    // Read by the render thread.
+    std::atomic_bool m_slideSkipped{false};
+    // Opacity of the master layers before the master was skipped.
+    std::vector<std::pair<std::weak_ptr<BaseLayer>, float>> m_skippedAlphas;
     int m_layerToCopyIdx = -1;
     bool m_layersCanBeLocked = false;
     bool m_layersNeedsSave = false;

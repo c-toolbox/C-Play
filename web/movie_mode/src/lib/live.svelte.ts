@@ -1,9 +1,13 @@
-import { api, type EventsResponse, type MovieState, type Topic } from './api';
+import { api, type EventsResponse, type MainVideoLoad, type MovieState, type Topic } from './api';
 
 const sleep = (ms: number) => new Promise((resolve) => setTimeout(resolve, ms));
 
 function isState(value: unknown): value is MovieState {
   return typeof value === 'object' && value !== null && Array.isArray((value as MovieState).items);
+}
+
+function isMainLoad(value: unknown): value is MainVideoLoad {
+  return typeof value === 'object' && value !== null && typeof (value as MainVideoLoad).ready === 'boolean';
 }
 
 /**
@@ -20,6 +24,8 @@ export class LiveMovie {
   visibility = $state<number | null>(null);
   /** The sound fades with the picture. */
   syncFades = $state<boolean | null>(null);
+  /** Whether the nodes have the file loaded; null when not known (no event feed). */
+  mainLoad = $state<MainVideoLoad | null>(null);
   connected = $state(false);
 
   #running = false;
@@ -56,6 +62,7 @@ export class LiveMovie {
     else if (topic === 'pause' && typeof value === 'boolean') this.paused = value;
     else if (topic === 'visibility' && typeof value === 'number') this.visibility = value;
     else if (topic === 'sync_image_volume_fade' && typeof value === 'boolean') this.syncFades = value;
+    else if (topic === 'main_video_load' && isMainLoad(value)) this.mainLoad = value;
   }
 
   async #loop() {

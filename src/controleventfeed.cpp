@@ -59,7 +59,7 @@ QStringList ControlEventFeed::availableTopics() {
         QStringLiteral("playlist"), QStringLiteral("playing_in_playlist"),
         QStringLiteral("sections"), QStringLiteral("playing_in_sections"),
         QStringLiteral("slides"), QStringLiteral("slide_name"), QStringLiteral("playing_in_slides"),
-        QStringLiteral("triggered_slide"), QStringLiteral("layers")
+        QStringLiteral("triggered_slide"), QStringLiteral("layers"), QStringLiteral("main_video_load")
 #ifdef WEB_VIEWS_SUPPORT
         , QStringLiteral("presentation"), QStringLiteral("movie")
 #endif

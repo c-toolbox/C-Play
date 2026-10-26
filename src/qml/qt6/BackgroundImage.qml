@@ -17,12 +17,28 @@ Image {
     fillMode: Image.PreserveAspectFit
     height: footer.visible ? parent.height - footer.height : parent.height
     opacity: playerController.backgroundVisibility()
-    source: playerController.backgroundImageFileUrl()
+    source: playerController.backgroundMode() === 0 ? playerController.backgroundImageFileUrl() : ""
     width: parent.width
+
+    // Shown instead of the image in background color mode
+    Rectangle {
+        id: backgroundColorRect
+
+        anchors.fill: parent
+        color: playerController.backgroundColor()
+        visible: playerController.backgroundMode() === 1
+    }
 
     Connections {
         function onBackgroundImageChanged() {
-            root.source = playerController.backgroundImageFileUrl();
+            root.source = playerController.backgroundMode() === 0 ? playerController.backgroundImageFileUrl() : "";
+        }
+        function onBackgroundModeChanged() {
+            root.source = playerController.backgroundMode() === 0 ? playerController.backgroundImageFileUrl() : "";
+            backgroundColorRect.visible = playerController.backgroundMode() === 1;
+        }
+        function onBackgroundColorChanged() {
+            backgroundColorRect.color = playerController.backgroundColor();
         }
         function onBackgroundVisibilityChanged() {
             root.opacity = playerController.backgroundVisibility();

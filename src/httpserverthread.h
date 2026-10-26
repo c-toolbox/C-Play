@@ -64,6 +64,8 @@ Q_SIGNALS:
     void setViewMode(int mode);
     void setSyncVolumeVisibilityFading(bool sync);
     void setBackgroundVisibility(float value);
+    void setBackgroundMode(int mode);
+    void setBackgroundColor(const QString &color);
     void setForegroundVisibility(float value);
     void fadeVolumeDown();
     void fadeVolumeUp();

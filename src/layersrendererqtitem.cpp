@@ -3627,7 +3627,7 @@ void LayersRendererQtOpenGLObject::updateLayers() {
     // Update master slide
     {
         auto* master = Application::instance().slidesModel()->masterSlide();
-        if (master) {
+        if (master && !master->slideSkipped()) {
             int numLayers = master->numberOfLayers();
             for (int l = numLayers - 1; l >= 0; l--) {
                 std::shared_ptr<BaseLayer> layerPtr = master->layerShared(l);
@@ -3716,8 +3716,31 @@ void LayersRendererQtOpenGLObject::renderLayers(float angle,
         mediaGridMode = SyncHelper::instance().variables.gridToMapOnBg;
     const bool mediaCoversBackground = mediaFullyVisible && mediaGridMode != 1;
 
+    // Render background color: fill the current viewport, faded by the background visibility
+    if (!mediaCoversBackground && SyncHelper::instance().variables.backgroundMode == 1
+        && SyncHelper::instance().variables.alphaBg > 0.f) {
+        const int rgb = SyncHelper::instance().variables.bgColor;
+        const float a = std::clamp(SyncHelper::instance().variables.alphaBg, 0.f, 1.f);
+        GLint vp[4];
+        glGetIntegerv(GL_VIEWPORT, vp);
+        GLboolean scissorWasEnabled = glIsEnabled(GL_SCISSOR_TEST);
+        GLint previousScissor[4];
+        glGetIntegerv(GL_SCISSOR_BOX, previousScissor);
+        glEnable(GL_SCISSOR_TEST);
+        glScissor(vp[0], vp[1], vp[2], vp[3]);
+        glClearColor(float((rgb >> 16) & 0xFF) / 255.f * a,
+                     float((rgb >> 8) & 0xFF) / 255.f * a,
+                     float(rgb & 0xFF) / 255.f * a,
+                     1.f);
+        glClear(GL_COLOR_BUFFER_BIT);
+        glScissor(previousScissor[0], previousScissor[1], previousScissor[2], previousScissor[3]);
+        if (!scissorWasEnabled)
+            glDisable(GL_SCISSOR_TEST);
+    }
+
     // Render background image layer
-    if (!mediaCoversBackground && m_backgroundImageLayer && m_backgroundImageLayer->ready()
+    if (!mediaCoversBackground && SyncHelper::instance().variables.backgroundMode == 0
+        && m_backgroundImageLayer && m_backgroundImageLayer->ready()
         && SyncHelper::instance().variables.alphaBg > 0.f) {
         m_backgroundImageLayer->setAlpha(SyncHelper::instance().variables.alphaBg);
         m_backgroundImageLayer->setGridMode(static_cast<uint8_t>(SyncHelper::instance().variables.gridToMapOnBg));
@@ -3730,7 +3753,7 @@ void LayersRendererQtOpenGLObject::renderLayers(float angle,
         if (!Application::instance().slidesModel())
             return;
         auto* slide = Application::instance().slidesModel()->masterSlide();
-        if (!slide)
+        if (!slide || slide->slideSkipped())
             return;
         int numLayers = slide->numberOfLayers();
         for (int l = numLayers - 1; l >= 0; l--) {

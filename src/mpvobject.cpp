@@ -25,6 +25,7 @@
 #include "tracksmodel.h"
 #include "layers/textlayer.h"
 #include "ndi/ndisendermodel.h"
+#include "telemetry/nodeloaderverifier.h"
 #ifdef MOVIE_PREVIEW_SUPPORT
 #include "webrtc/moviepreviewstreamer.h"
 #endif
@@ -184,6 +185,14 @@ MpvObject::MpvObject(QQuickItem *parent)
 
     connect(this, &MpvObject::fileLoaded,
             this, &MpvObject::loadTracks);
+
+    connect(&NodeLoaderVerifier::instance(), &NodeLoaderVerifier::mainVideoLoadChanged, this, [this]() {
+        if (m_playWhenNodesReady && nodesLoadReady()) {
+            sgct::Log::Info("All nodes have the main video loaded, starting the held playback");
+            setPause(false);
+        }
+        Q_EMIT nodesLoadReadyChanged();
+    });
 
     connect(this, &MpvObject::planeChanged,
             this, &MpvObject::updatePlane);
@@ -386,6 +395,17 @@ bool MpvObject::pause() {
 }
 
 void MpvObject::setPause(bool value) {
+    // Playback starts together on all nodes: until they have the main video loaded, a play is
+    // held (see the mainVideoLoadChanged connection).
+    if (!value && !nodesLoadReady()) {
+        if (!m_playWhenNodesReady)
+            sgct::Log::Info("Playback held until all nodes have the main video loaded");
+        m_playWhenNodesReady = true;
+        Q_EMIT pauseChanged();
+        return;
+    }
+    m_playWhenNodesReady = false;
+
     SyncHelper::instance().variables.paused = value;
     setProperty(QStringLiteral("pause"), value);
     Q_EMIT pauseChanged();
@@ -393,6 +413,31 @@ void MpvObject::setPause(bool value) {
     // If playing again and no visibility -> Fade up
     if (!value && (visibility() == 0)) {
         Q_EMIT fadeImageUp();
+    }
+}
+
+bool MpvObject::nodesLoadReady() const {
+    return NodeLoaderVerifier::instance().mainVideoReady();
+}
+
+QStringList MpvObject::nodesLoadWaiting() const {
+    QStringList waiting;
+    const auto names = NodeLoaderVerifier::instance().mainVideoLoadState().value(QStringLiteral("waiting")).toArray();
+    for (const auto &name : names)
+        waiting.append(name.toString());
+    return waiting;
+}
+
+void MpvObject::syncMainVideoLoad() {
+    // The nodes only get the file while playback sync is on.
+    auto &verifier = NodeLoaderVerifier::instance();
+    SyncHelper::instance().variables.loadFileId =
+        verifier.beginMainVideoLoad(SyncHelper::instance().variables.syncOn);
+    SyncHelper::instance().variables.loadFile = true;
+    // Already playing (e.g. the next playlist item): hold the new file until the nodes have it.
+    if (!verifier.mainVideoReady() && !pause()) {
+        setPause(true);
+        m_playWhenNodesReady = true;
     }
 }
 
@@ -1031,7 +1076,7 @@ void MpvObject::loadFile(const QString &file, bool updateLastPlayedFile) {
             SyncHelper::instance().setString(SyncHelper::instance().variables.loadedFile, fileToLoad.toStdString());
         }
         SyncHelper::instance().setString(SyncHelper::instance().variables.overlayFile, "");
-        SyncHelper::instance().variables.loadFile = true;
+        syncMainVideoLoad();
         SyncHelper::instance().variables.overlayFileDirty = true;
 
         // setProperty("lavfi-complex", "");
@@ -1197,6 +1242,8 @@ void MpvObject::loadMultiVideo(const QString &jsonPath, bool updateLastPlayedFil
     SyncHelper::instance().setString(SyncHelper::instance().variables.loadedFile, "");
     SyncHelper::instance().setString(SyncHelper::instance().variables.overlayFile, "");
     SyncHelper::instance().variables.loadFile    = false;
+    // The nodes do not report the per-node sub-players; do not hold playback for them.
+    NodeLoaderVerifier::instance().beginMainVideoLoad(false);
 
     // Broadcast the composition JSON to nodes via SyncHelper
     SyncHelper::instance().setString(SyncHelper::instance().variables.multiVideoConfig, jsonContent);
@@ -1399,7 +1446,7 @@ void MpvObject::loadItem(PlayListItemData itemData, bool updateLastPlayedFile, Q
         }
 
         SyncHelper::instance().setString(SyncHelper::instance().variables.overlayFile, itemData.separateOverlayFile().toStdString());
-        SyncHelper::instance().variables.loadFile = true;
+        syncMainVideoLoad();
         SyncHelper::instance().variables.overlayFileDirty = true;
         m_separateAudioFile = audioFile;
 

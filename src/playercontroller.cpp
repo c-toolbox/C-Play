@@ -164,6 +164,8 @@ PlayerController::PlayerController(QObject *parent)
     setBackgroundImageFile(ImageSettings::imageToLoadAsBackground());
     setBackgroundGridMode(ImageSettings::gridToMapOnForBackground());
     setBackgroundStereoMode(ImageSettings::stereoModeForBackground());
+    setBackgroundColor(ImageSettings::backgroundColor());
+    setBackgroundMode(ImageSettings::backgroundMode());
 
     setForegroundImageFile(ImageSettings::imageToLoadAsForeground());
     setForegroundGridMode(ImageSettings::gridToMapOnForForeground());
@@ -246,6 +248,10 @@ void PlayerController::setupControlEvents() {
             return m_mpv ? QJsonValue::fromVariant(m_mpv->property(property.constData())) : QJsonValue();
         });
     }
+    // Whether the cluster nodes have the main video loaded: {id, ready, timedOut, waiting, failed}.
+    m_controlEvents->addTopic(QStringLiteral("main_video_load"), []() -> QJsonValue {
+        return NodeLoaderVerifier::instance().mainVideoLoadState();
+    });
     m_controlEvents->addTopic(QStringLiteral("speed"), [this]() -> QJsonValue {
         return m_mpv ? QJsonValue(m_mpv->speed()) : QJsonValue();
     });
@@ -431,6 +437,8 @@ void PlayerController::setupHttpServer() {
     connect(httpServer, &HttpServerThread::setVolume, this, &PlayerController::SetVolume);
     connect(httpServer, &HttpServerThread::setViewMode, this, &PlayerController::setViewModeOnClients);
     connect(httpServer, &HttpServerThread::setBackgroundVisibility, this, &PlayerController::setBackgroundVisibility);
+    connect(httpServer, &HttpServerThread::setBackgroundMode, this, &PlayerController::setBackgroundMode);
+    connect(httpServer, &HttpServerThread::setBackgroundColor, this, &PlayerController::setBackgroundColor);
     connect(httpServer, &HttpServerThread::setForegroundVisibility, this, &PlayerController::setForegroundVisibility);
     connect(httpServer, &HttpServerThread::setSyncVolumeVisibilityFading, this, &PlayerController::SetSyncVolumeVisibilityFading);
     connect(httpServer, &HttpServerThread::fadeVolumeDown, this, &PlayerController::FadeVolumeDown);
@@ -756,6 +764,10 @@ void PlayerController::DispatchControlOperation(const QString &operation, const 
         RunSurfaceTransition();
     } else if (operation == QStringLiteral("SetBackgroundVisibility")) {
         setBackgroundVisibility(parameter.toFloat());
+    } else if (operation == QStringLiteral("SetBackgroundMode")) {
+        setBackgroundMode(parameter == QStringLiteral("color") ? 1 : parameter == QStringLiteral("image") ? 0 : parameter.toInt());
+    } else if (operation == QStringLiteral("SetBackgroundColor")) {
+        setBackgroundColor(parameter);
     } else if (operation == QStringLiteral("SetForegroundVisibility")) {
         setForegroundVisibility(parameter.toFloat());
     } else if (operation == QStringLiteral("SetNodeWindowsOpacity")) {
@@ -859,7 +871,8 @@ void PlayerController::setBackgroundImageFile(const QString &path) {
         m_backgroundFile = QStringLiteral("");
         SyncHelper::instance().setString(SyncHelper::instance().variables.bgImageFile, "");
         SyncHelper::instance().variables.bgImageFileDirty = true;
-        setBackgroundVisibility(0.f);
+        if (backgroundMode() == 0)
+            setBackgroundVisibility(0.f);
         Q_EMIT backgroundImageChanged();
         return;
     }
@@ -909,6 +922,36 @@ int PlayerController::backgroundStereoMode() {
 void PlayerController::setBackgroundStereoMode(int value) {
     SyncHelper::instance().variables.stereoscopicModeBg = value;
     SyncHelper::instance().variables.playerControllerNeedSync = true;
+}
+
+int PlayerController::backgroundMode() {
+    return SyncHelper::instance().variables.backgroundMode;
+}
+
+void PlayerController::setBackgroundMode(int value) {
+    if (value != 0 && value != 1)
+        return;
+    SyncHelper::instance().variables.backgroundMode = value;
+    SyncHelper::instance().variables.playerControllerNeedSync = true;
+    Q_EMIT backgroundModeChanged();
+
+    // Like loading a background image: show the new background when there is one to show.
+    setBackgroundVisibility((value == 1 || !SyncHelper::instance().variables.bgImageFile.empty()) ? 1.f : 0.f);
+}
+
+QString PlayerController::backgroundColor() {
+    return QColor(QRgb(SyncHelper::instance().variables.bgColor)).name(QColor::HexRgb);
+}
+
+void PlayerController::setBackgroundColor(const QString &color) {
+    QColor c(color);
+    if (!c.isValid())
+        c = QColor(QStringLiteral("#") + color); // Allow "RRGGBB" without '#', e.g. from a URL parameter
+    if (!c.isValid())
+        return;
+    SyncHelper::instance().variables.bgColor = static_cast<int>(c.rgb() & 0xFFFFFF);
+    SyncHelper::instance().variables.playerControllerNeedSync = true;
+    Q_EMIT backgroundColorChanged();
 }
 
 float PlayerController::foregroundVisibility() {

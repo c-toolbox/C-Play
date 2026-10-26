@@ -5,6 +5,7 @@
  * SPDX-License-Identifier: GPL-3.0-or-later
  */
 #include "tcpcontrolcommandadapter.h"
+#include <QColor>
 #include <QJsonDocument>
 #include <QJsonObject>
 #include <QJsonParseError>
@@ -70,6 +71,11 @@ void TcpControlCommandAdapter::parseMessage(const QByteArray &payload) {
         bool numeric = false;
         const int value = parameter.toInt(&numeric);
         valid = numeric && (operation == QStringLiteral("Seek") || (value >= 0 && value <= 100));
+    } else if (operation == QStringLiteral("SetBackgroundMode")) {
+        valid = parameter == QStringLiteral("image") || parameter == QStringLiteral("color")
+            || parameter == QStringLiteral("0") || parameter == QStringLiteral("1");
+    } else if (operation == QStringLiteral("SetBackgroundColor")) {
+        valid = QColor(parameter).isValid() || QColor(QStringLiteral("#") + parameter).isValid();
     } else if (operation == QStringLiteral("SetPosition") || operation == QStringLiteral("SetSpeed")
         || operation == QStringLiteral("SetBackgroundVisibility")
         || operation == QStringLiteral("SetForegroundVisibility")

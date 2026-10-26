@@ -10,11 +10,14 @@
 #include <nlohmann/json.hpp>
 #include <sgct/sgct.h>
 
+#include <QJsonArray>
 #include <QMetaObject>
+#include <QStringList>
 #include <QTimer>
 #include <QVariantMap>
 
 #include <algorithm>
+#include <format>
 #include <functional>
 
 using nlohmann::json;
@@ -28,6 +31,10 @@ constexpr qint64 kFailureTtlMs = 30000;
 
 // Node-side collection cadence (postDraw runs every frame).
 constexpr int kCollectIntervalMs = 1000;
+
+// Playback is held at most this long for nodes that do not answer for a main video load (an
+// older node build, a hung decoder), so a show is never blocked for good.
+constexpr qint64 kMainLoadTimeoutMs = 30000;
 
 qint64 nowMs() {
     return std::chrono::duration_cast<std::chrono::milliseconds>(
@@ -44,6 +51,29 @@ QString nodeNameForId(int nodeId) {
             return address;
     }
     return QStringLiteral("node %1").arg(nodeId);
+}
+
+// Ids (the clientIndex of the dataTransfer callbacks) of the connected DataTransfer connections.
+QList<int> connectedDataTransferClients() {
+    QList<int> ids;
+    const auto& nm = sgct::NetworkManager::instance();
+    for (int i = 0; i < nm.connectionsCount(); ++i) {
+        const sgct::Network& connection = nm.connection(i);
+        if (connection.type() == sgct::Network::ConnectionType::DataTransfer && connection.isConnected())
+            ids.append(connection.id());
+    }
+    return ids;
+}
+
+const char* progressName(MpvLayer::LoadProgress progress) {
+    switch (progress) {
+    case MpvLayer::LoadProgress::Ready:
+        return "ready";
+    case MpvLayer::LoadProgress::Failed:
+        return "failed";
+    default:
+        return "loading";
+    }
 }
 
 } // namespace
@@ -78,6 +108,7 @@ NodeLoaderVerifier::NodeLoaderVerifier(QObject* parent)
         m_sweepTimer->setInterval(1000);
         connect(m_sweepTimer, &QTimer::timeout, this, &NodeLoaderVerifier::sweepAndExpire);
         m_sweepTimer->start();
+        updateMainVideoReady(); // no load yet: ready
     }
 }
 
@@ -97,18 +128,27 @@ void NodeLoaderVerifier::handleNodeData(void* data, int length, int /*packageId*
             return;
         }
 
-        // Packet discriminator: only "loadfail" packets belong to this consumer. Telemetry
-        // packets carry no "kind" and are handled by NodeTelemetryManager.
-        if (!root.contains("kind") || !root["kind"].is_string() ||
-            root["kind"].get<std::string>() != "loadfail") {
+        // Packet discriminator: only "loadfail" and "mainload" packets belong to this
+        // consumer. Telemetry packets carry no "kind" and are handled by NodeTelemetryManager.
+        if (!root.contains("kind") || !root["kind"].is_string())
             return;
-        }
+        const std::string kind = root["kind"].get<std::string>();
+        if (kind != "loadfail" && kind != "mainload")
+            return;
 
         if (!root.contains("node") || !root["node"].is_number_integer())
             return;
         const int nodeId = root["node"].get<int>();
         if (nodeId < 0)
             return;
+
+        if (kind == "mainload") {
+            if (!root.contains("load") || !root["load"].is_number_integer())
+                return;
+            handleMainLoadPacket(nodeId, clientIndex, root["load"].get<int>(),
+                                 root.value("state", std::string()));
+            return;
+        }
 
         const QString path = QString::fromStdString(root.value("path", std::string()));
         const QString layerTitle = QString::fromStdString(root.value("layerTitle", std::string()));
@@ -176,6 +216,7 @@ void NodeLoaderVerifier::handleNodeStatus(bool connected, int clientIndex) {
             return;
 
         bool changed = false;
+        bool mainChanged = false;
         {
             const std::lock_guard<std::mutex> lock(m_mutex);
             auto it = m_clientToNode.constFind(clientIndex);
@@ -185,16 +226,23 @@ void NodeLoaderVerifier::handleNodeStatus(bool connected, int clientIndex) {
                 changed = m_failures.remove(nodeId);
                 m_nodeLastSeenMs.remove(nodeId);
             }
+            // A node that is gone cannot be waited for.
+            mainChanged = m_mainLoad.remove(clientIndex) > 0;
+            mainChanged = m_mainLoadExpected.removeAll(clientIndex) > 0 || mainChanged;
         }
         if (changed)
             QMetaObject::invokeMethod(this, "loadFailuresChanged", Qt::QueuedConnection);
+        if (mainChanged)
+            QMetaObject::invokeMethod(this, &NodeLoaderVerifier::updateMainVideoReady, Qt::QueuedConnection);
     } else {
         // Node side: when the DataTransfer connection comes back after a drop (master restart,
         // network blip), reset the dedupe snapshot so still-failing paths are re-reported to the
         // fresh master session.
         const std::lock_guard<std::mutex> lock(m_nodeMutex);
-        if (connected && !m_nodeConnected)
+        if (connected && !m_nodeConnected) {
             m_lastSent.clear();
+            m_mainSentLoadId = 0; // the main video progress is sent again too
+        }
         m_nodeConnected = connected;
     }
 }
@@ -217,6 +265,100 @@ void NodeLoaderVerifier::sweepAndExpire() {
     // The sweep timer runs on the GUI thread - a direct emit is fine here.
     if (changed)
         Q_EMIT loadFailuresChanged();
+
+    // Releases a main video load that waits too long.
+    if (!m_mainReady)
+        updateMainVideoReady();
+}
+
+// ---------------------------------------------------------------------------
+// Master side: main video load tracking
+// ---------------------------------------------------------------------------
+
+void NodeLoaderVerifier::handleMainLoadPacket(int nodeId, int clientIndex, int loadId,
+                                              const std::string& state) {
+    MainLoadReport report;
+    report.nodeId = nodeId;
+    report.loadId = loadId;
+    report.progress = state == "ready"    ? MpvLayer::LoadProgress::Ready
+                      : state == "failed" ? MpvLayer::LoadProgress::Failed
+                                          : MpvLayer::LoadProgress::Loading;
+    {
+        const std::lock_guard<std::mutex> lock(m_mutex);
+        m_clientToNode.insert(clientIndex, nodeId);
+        m_mainLoad.insert(clientIndex, report);
+    }
+    QMetaObject::invokeMethod(this, &NodeLoaderVerifier::updateMainVideoReady, Qt::QueuedConnection);
+}
+
+int NodeLoaderVerifier::beginMainVideoLoad(bool tracked) {
+    ++m_mainLoadId;
+    m_mainLoadTracked = tracked && m_isMaster;
+    m_mainLoadTimedOut = false;
+    m_mainLoadStartMs = nowMs();
+    {
+        // Only the nodes connected now get the load with the next sync frame.
+        const std::lock_guard<std::mutex> lock(m_mutex);
+        m_mainLoadExpected = m_mainLoadTracked ? connectedDataTransferClients() : QList<int>();
+    }
+    updateMainVideoReady();
+    return m_mainLoadId;
+}
+
+bool NodeLoaderVerifier::mainVideoReady() const {
+    return m_mainReady;
+}
+
+QJsonObject NodeLoaderVerifier::mainVideoLoadState() const {
+    return m_mainLoadState;
+}
+
+void NodeLoaderVerifier::updateMainVideoReady() {
+    QStringList waiting;
+    QStringList failed;
+    {
+        const std::lock_guard<std::mutex> lock(m_mutex);
+        for (int client : std::as_const(m_mainLoadExpected)) {
+            const auto it = m_mainLoad.constFind(client);
+            if (it == m_mainLoad.constEnd() || it->loadId != m_mainLoadId) {
+                // Not heard from for this load yet; its node is known from earlier packets.
+                const auto node = m_clientToNode.constFind(client);
+                waiting.append(node != m_clientToNode.constEnd() ? nodeNameForId(node.value())
+                                                                 : QStringLiteral("connection %1").arg(client));
+            } else if (it->progress == MpvLayer::LoadProgress::Loading) {
+                waiting.append(nodeNameForId(it->nodeId));
+            } else if (it->progress == MpvLayer::LoadProgress::Failed) {
+                failed.append(nodeNameForId(it->nodeId));
+            }
+        }
+    }
+    waiting.sort();
+    failed.sort();
+
+    if (m_mainLoadTracked && !waiting.isEmpty() && !m_mainLoadTimedOut &&
+        nowMs() - m_mainLoadStartMs > kMainLoadTimeoutMs) {
+        m_mainLoadTimedOut = true;
+        sgct::Log::Warning(std::format("Main video load {}: no ready report from {} after {} s, playback allowed",
+                                       m_mainLoadId, waiting.join(QStringLiteral(", ")).toStdString(),
+                                       kMainLoadTimeoutMs / 1000));
+    }
+
+    const bool ready = !m_mainLoadTracked || waiting.isEmpty() || m_mainLoadTimedOut;
+    if (ready && !m_mainReady && !failed.isEmpty()) {
+        sgct::Log::Warning(std::format("Main video load {}: failed on {}", m_mainLoadId,
+                                       failed.join(QStringLiteral(", ")).toStdString()));
+    }
+
+    const QJsonObject state{{QStringLiteral("id"), m_mainLoadId},
+                            {QStringLiteral("ready"), ready},
+                            {QStringLiteral("timedOut"), m_mainLoadTimedOut},
+                            {QStringLiteral("waiting"), QJsonArray::fromStringList(waiting)},
+                            {QStringLiteral("failed"), QJsonArray::fromStringList(failed)}};
+    if (state == m_mainLoadState)
+        return;
+    m_mainLoadState = state;
+    m_mainReady = ready;
+    Q_EMIT mainVideoLoadChanged();
 }
 
 QVariantList NodeLoaderVerifier::loadFailuresList() const {
@@ -350,4 +492,34 @@ void NodeLoaderVerifier::collectAndSend(const std::vector<std::shared_ptr<BaseLa
 
     const std::lock_guard<std::mutex> lock(m_nodeMutex);
     m_lastSent = std::move(next);
+}
+
+void NodeLoaderVerifier::reportMainVideo(int loadId, MpvLayer::LoadProgress progress) {
+    if (m_isMaster || loadId <= 0)
+        return;
+    {
+        const std::lock_guard<std::mutex> lock(m_nodeMutex);
+        if (loadId == m_mainSentLoadId && progress == m_mainSentProgress)
+            return;
+    }
+    // transferData drops the packet without a connection; try again on a later frame then.
+    if (connectedDataTransferClients().isEmpty())
+        return;
+
+    json root;
+    root["v"] = 1;
+    root["kind"] = "mainload";
+    root["node"] = sgct::ClusterManager::instance().thisNodeId();
+    root["load"] = loadId;
+    root["state"] = progressName(progress);
+    const std::string s = root.dump();
+    try {
+        sgct::NetworkManager::instance().transferData(
+            s.data(), static_cast<int>(s.size()), m_packageCounter.fetch_add(1));
+    } catch (...) {
+        return; // retried on the next frame
+    }
+    const std::lock_guard<std::mutex> lock(m_nodeMutex);
+    m_mainSentLoadId = loadId;
+    m_mainSentProgress = progress;
 }

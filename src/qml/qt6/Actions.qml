@@ -270,6 +270,8 @@ QtObject {
         shortcut: root.isPrimary ? qaction.shortcutName() : qaction.alternateName()
         text: qaction.text
 
+        // Starting playback waits until the cluster nodes have the main video loaded.
+        enabled: !mpv.pause || mpv.nodesLoadReady
         Component.onCompleted: list["playPauseAction"] = playPauseAction
         function updateShortcuts() { shortcut = root.isPrimary ? qaction.shortcutName() : qaction.alternateName() }
         onTriggered: mpv.togglePlayPause()
@@ -709,9 +711,10 @@ QtObject {
             if(enabled && (app.slides.selectedSlideIdx > -2)){
                 layers.layersView.currentIndex = -1;
                 if(app.slides.selectedSlideIdx === app.slides.triggeredSlideIdx){
+                    const previousIdx = app.slides.previousNotSkippedSlideIdx(app.slides.triggeredSlideIdx);
                     app.slides.slideFadeTime = PresentationSettings.fadeDurationToPreviousSlide;
-                    app.slides.selectedSlideIdx = app.slides.selectedSlideIdx - 1;
-                    app.slides.triggeredSlideIdx = app.slides.triggeredSlideIdx - 1;
+                    app.slides.selectedSlideIdx = previousIdx;
+                    app.slides.triggeredSlideIdx = previousIdx;
                     if(app.slides.slideHasTimelineKeyframes(app.slides.selectedSlideIdx)){
                         app.slides.jumpToOutroStart(app.slides.selectedSlideIdx);
                     }
@@ -738,17 +741,19 @@ QtObject {
         onTriggered: {
             if(enabled && app.slides.selectedSlideIdx === app.slides.triggeredSlideIdx && app.slides.nextAnimationStep())
                 return;
-            if(enabled && (app.slides.selectedSlideIdx < app.slides.numberOfSlides() - 1)){
+            if(enabled && app.slides.selectedSlideIdx === app.slides.triggeredSlideIdx){
+                const nextIdx = app.slides.nextNotSkippedSlideIdx(app.slides.triggeredSlideIdx);
+                if(nextIdx >= 0){
+                    layers.layersView.currentIndex = -1;
+                    app.slides.slideFadeTime = PresentationSettings.fadeDurationToNextSlide;
+                    app.slides.selectedSlideIdx = nextIdx;
+                    app.slides.triggeredSlideIdx = nextIdx;
+                }
+            }
+            else if(enabled && (app.slides.selectedSlideIdx < app.slides.numberOfSlides() - 1)){
                 layers.layersView.currentIndex = -1;
-                if(app.slides.selectedSlideIdx === app.slides.triggeredSlideIdx){
-                    app.slides.slideFadeTime = PresentationSettings.fadeDurationToNextSlide;
-                    app.slides.selectedSlideIdx = app.slides.selectedSlideIdx + 1;
-                    app.slides.triggeredSlideIdx = app.slides.triggeredSlideIdx + 1;
-                }
-                else {
-                    app.slides.slideFadeTime = PresentationSettings.fadeDurationToNextSlide;
-                    app.slides.triggeredSlideIdx = app.slides.selectedSlideIdx;
-                }
+                app.slides.slideFadeTime = PresentationSettings.fadeDurationToNextSlide;
+                app.slides.triggeredSlideIdx = app.slides.selectedSlideIdx;
             }
         }
     }

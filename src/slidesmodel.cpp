@@ -409,6 +409,31 @@ SlidesModel::SlidesModel(QObject *parent)
         setSlidesNeedsSave(true);
     });
     connect(m_masterSlide, &LayersModel::layersNeedsSaveChanged, this, &SlidesModel::setLayersNeedsSave);
+    // Media visibility changes are ignored while the master is skipped, so catch up when it returns.
+    connect(m_masterSlide, &LayersModel::slideSkippedChanged, this, [this]() {
+        if (!m_masterSlide->slideSkipped() && m_lastMediaVisibility >= 0)
+            checkMasterLayersRunBasedOnMediaVisibility(m_lastMediaVisibility);
+    });
+    // Media visibility only controls master BACK layers. A layer moved to FRONT gets back
+    // what media visibility took from it, a layer moved to BACK follows media visibility.
+    connect(m_masterSlide, &LayersModel::layerHierarchyChanged, this, [this](int ownIdx) {
+        if (m_masterSlide->slideSkipped() || m_lastMediaVisibility < 0)
+            return;
+        const Layers& slideLayers = m_masterSlide->getLayers();
+        if (ownIdx < 0 || ownIdx >= slideLayers.size() || !slideLayers[ownIdx].first)
+            return;
+        auto layer = slideLayers[ownIdx].first;
+        if (layer->hierarchy() == BaseLayer::LayerHierarchy::BACK) {
+            checkMasterLayersRunBasedOnMediaVisibility(m_lastMediaVisibility);
+        }
+        else if (PresentationSettings::mediaVisibilityControlMasterLayers()) {
+            layer->setAlpha(1.f);
+            m_masterSlide->updateLayer(ownIdx);
+        }
+        else if (m_lastMediaVisibility == 100 && layer->alpha() > 0.f && layer->pause()) {
+            layer->requestStart();
+        }
+    });
 }
 
 SlidesModel::~SlidesModel() {
@@ -459,6 +484,8 @@ QVariant SlidesModel::data(const QModelIndex &index, int role) const {
             return QVariant(tlVis);
         return QVariant(slideItem->getLayersVisibility());
     }
+    case SkippedRole:
+        return QVariant(slideItem->slideSkipped());
     }
 
     return QVariant();
@@ -475,6 +502,7 @@ QHash<int, QByteArray> SlidesModel::roleNames() const {
     roles[LockedRole] = "locked";
     roles[LockedCountRole] = "countlocked";
     roles[VisibilityRole] = "visibility";
+    roles[SkippedRole] = "skipped";
     return roles;
 }
 
@@ -659,6 +687,24 @@ void SlidesModel::setSlideFadeTime(int value) {
 
 int SlidesModel::previousTriggeredIdx() {
     return m_previousTriggeredSlideIdx;
+}
+
+int SlidesModel::nextNotSkippedSlideIdx(int idx) {
+    std::lock_guard<std::recursive_mutex> lock(m_slidesMutex);
+    for (int i = std::max(idx + 1, 0); i < m_slides.size(); i++) {
+        if (m_slides[i] && !m_slides[i]->slideSkipped())
+            return i;
+    }
+    return -1;
+}
+
+int SlidesModel::previousNotSkippedSlideIdx(int idx) {
+    std::lock_guard<std::recursive_mutex> lock(m_slidesMutex);
+    for (int i = std::min(idx - 1, static_cast<int>(m_slides.size()) - 1); i >= 0; i--) {
+        if (m_slides[i] && !m_slides[i]->slideSkipped())
+            return i;
+    }
+    return -1;
 }
 
 LayersModel *SlidesModel::masterSlide() {
@@ -910,6 +956,14 @@ int SlidesModel::addSlide() {
         connect(m_slides[m_slides.size() - 1].get(), &LayersModel::layerVisibilitySpanChanged, this, &SlidesModel::updateReferenceOutroFades);
 
         LayersModel *lm = m_slides[m_slides.size() - 1].get();
+        connect(lm, &LayersModel::slideSkippedChanged, this, [this, lm]() {
+            for (int i = 0; i < m_slides.size(); ++i) {
+                if (m_slides[i].get() == lm) {
+                    updateSlide(i);
+                    break;
+                }
+            }
+        });
         connect(lm, &LayersModel::layersVisibilityChanged, this, [this, lm]() {
             for (int i = 0; i < m_slides.size(); ++i) {
                 if (m_slides[i].get() == lm) {
@@ -1252,6 +1306,7 @@ void SlidesModel::clearSlides() {
             }
         }
         m_masterSlide->clearLayers();
+        m_masterSlide->setSlideSkipped(false);
         setSlidesName(QStringLiteral(""));
         setSlidesPath(QStringLiteral(""));
         setSlidesNeedsSave(false);
@@ -1605,6 +1660,9 @@ void SlidesModel::runUpdateMuteOnLayers(bool mute) {
 
 void SlidesModel::checkMasterLayersRunBasedOnMediaVisibility(int mediaVisibility) {
     // Start/stop master layers that are visible dependent on media visibility
+    m_lastMediaVisibility = mediaVisibility;
+    if (masterSlide()->slideSkipped())
+        return;
     const Layers& slideLayers = masterSlide()->getLayers();
     for (int i = 0; i < slideLayers.size(); i++) {
         if (!slideLayers[i].first)

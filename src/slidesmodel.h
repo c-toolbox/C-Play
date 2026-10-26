@@ -97,7 +97,8 @@ public:
         LayerMaxStatusRole,
         LockedRole,
         LockedCountRole,
-        VisibilityRole
+        VisibilityRole,
+        SkippedRole
     };
 
     int rowCount(const QModelIndex &parent = QModelIndex()) const override;
@@ -136,6 +137,9 @@ public:
     Q_INVOKABLE int previousSlideIdx();
     Q_INVOKABLE int nextSlideIdx();
     Q_INVOKABLE int previousTriggeredIdx();
+    // Nearest slide after/before idx that is not skipped, -1 if there is none.
+    Q_INVOKABLE int nextNotSkippedSlideIdx(int idx);
+    Q_INVOKABLE int previousNotSkippedSlideIdx(int idx);
 
     Q_PROPERTY(int triggeredSlideIdx
         READ triggeredSlideIdx
@@ -351,6 +355,8 @@ private:
     int m_selectedSlideIdx = -1; // Means master
     int m_previousSelectedSlideIdx = -1;
     int m_triggeredSlideIdx = -1;
+    // Last value passed to checkMasterLayersRunBasedOnMediaVisibility, -1 until then.
+    int m_lastMediaVisibility = -1;
     int m_previousTriggeredSlideIdx = -1;
     int m_slideFadeTime = 0;
     float m_volumeScaling = 1.f;

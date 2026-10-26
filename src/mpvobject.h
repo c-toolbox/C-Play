@@ -60,6 +60,17 @@ public:
                        WRITE setPause
                            NOTIFY pauseChanged)
 
+    // False while the cluster nodes load the main video file (tracked over DataTransfer); a
+    // play meanwhile is held and starts once they have it.
+    Q_PROPERTY(bool nodesLoadReady
+                   READ nodesLoadReady
+                       NOTIFY nodesLoadReadyChanged)
+
+    // The nodes still loading the main video file.
+    Q_PROPERTY(QStringList nodesLoadWaiting
+                   READ nodesLoadWaiting
+                       NOTIFY nodesLoadReadyChanged)
+
     Q_PROPERTY(bool autoPlay
                    READ autoPlay
                        WRITE setAutoPlay
@@ -295,6 +306,9 @@ public:
     bool pause();
     void setPause(bool value);
 
+    bool nodesLoadReady() const;
+    QStringList nodesLoadWaiting() const;
+
     bool autoPlay();
     void setAutoPlay(bool value);
 
@@ -473,6 +487,7 @@ Q_SIGNALS:
     void volumeUpdate(int);
     void muteChanged();
     void pauseChanged();
+    void nodesLoadReadyChanged();
     void autoPlayChanged();
     void chapterChanged();
     void audioIdChanged();
@@ -589,6 +604,11 @@ private:
     int m_pendingVideoHeight = 0;
     bool m_syncVolumeVisibilityFading;
     bool m_autoPlay;
+    // A play asked for while the nodes load the main video, done once they have it.
+    bool m_playWhenNodesReady = false;
+
+    // Flags the main video file for the nodes, with a new load id the nodes report back on.
+    void syncMainVideoLoad();
 
     // Command-line API override
     bool m_apiOverrideFromCommandLine = false;

@@ -29,6 +29,8 @@ The buttons at the top go from what plays to the next thing smoothly:
 **Transition** runs the three in a row: it waits until the picture is faded out (C-Play's fade time)
 and the item is loaded, then plays and fades in. Clicking it again stops it. The sound fades with
 the picture when C-Play syncs the image and volume fades, as it does with its own fade buttons.
+While it runs, the master slide is skipped and the background is black (color mode) instead of the
+background image; both are put back as they were when it ends or is stopped.
 
 ## Pictures
 
