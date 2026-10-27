@@ -26,6 +26,8 @@ Rectangle {
     property var markedIndices: []
     // Row a Shift + click range starts from: the last row clicked without Shift.
     property int markAnchor: -1
+    // Set while the move buttons reorder marked rows, so the marks follow the rows.
+    property bool movingMarked: false
 
     // Rows marked with Ctrl + left click (one row) or Shift + left click (a range); remove acts on
     // these when any are marked. Returns true when the click marked rows instead of selecting one.
@@ -51,6 +53,17 @@ Rectangle {
     }
     function isMarked(idx) {
         return markedIndices.indexOf(idx) >= 0;
+    }
+    // Moves the marked sections (or else the selected one) one step up (dir -1) or down (dir 1).
+    function moveMarked(dir) {
+        movingMarked = true;
+        const moved = window.moveMarkedRows(markedIndices, sectionsView.currentIndex, sectionsView.count, dir,
+                                            r => dir < 0 ? mpv.playSectionsModel.moveSectionUp(r) : mpv.playSectionsModel.moveSectionDown(r));
+        movingMarked = false;
+        if (markedIndices.length > 0) {
+            markedIndices = moved;
+            markAnchor = -1;
+        }
     }
     // Removes the marked sections, or the selected one when none are marked.
     function removeMarkedSections() {
@@ -417,22 +430,22 @@ Rectangle {
                         icon.name: "pan-up-symbolic"
 
                         onClicked: {
-                            mpv.playSectionsModel.moveSectionUp(sectionsView.currentIndex);
+                            moveMarked(-1);
                         }
 
                         ToolTip {
-                            text: qsTr("Move selected section upwards")
+                            text: markedIndices.length > 0 ? qsTr("Move the %1 marked sections upwards").arg(markedIndices.length) : qsTr("Move selected section upwards")
                         }
                     }
                     Button {
                         icon.name: "pan-down-symbolic"
 
                         onClicked: {
-                            mpv.playSectionsModel.moveSectionDown(sectionsView.currentIndex);
+                            moveMarked(1);
                         }
 
                         ToolTip {
-                            text: qsTr("Move selected section downwards")
+                            text: markedIndices.length > 0 ? qsTr("Move the %1 marked sections downwards").arg(markedIndices.length) : qsTr("Move selected section downwards")
                         }
                     }
                     Button {
@@ -523,7 +536,7 @@ Rectangle {
     Connections {
         function onRowsInserted() { clearMarked(); }
         function onRowsRemoved() { clearMarked(); }
-        function onRowsMoved() { clearMarked(); }
+        function onRowsMoved() { if (!movingMarked) clearMarked(); }
         function onModelReset() { clearMarked(); }
 
         target: sectionsView.model

@@ -8,7 +8,7 @@ set(CPLAY_VERSION_MAJOR 2)
 set(CPLAY_VERSION_MINOR 4)
 set(CPLAY_VERSION_PATCH 0)
 set(CPLAY_VERSION_PR_NAME "Beta")
-set(CPLAY_VERSION_PR_VERS 44)
+set(CPLAY_VERSION_PR_VERS 45)
 
 qt_add_executable(${TARGET_NAME})
 set_compile_options(${TARGET_NAME})
@@ -396,6 +396,7 @@ set(QML_SRC_FILES
     qml/qt6/PlaySections.qml
     qml/qt6/PlaySectionsItemCompact.qml
     qml/qt6/VisibilitySlider.qml
+    qml/qt6/VisibilityToggle.qml
     qml/qt6/Layers.qml
     qml/qt6/LayersAddNew.qml
     qml/qt6/LayersItemCompact.qml

@@ -188,8 +188,12 @@ void SlideVisibilityModel::resetTable() {
     int columns = m_slideList->size();
 
     //Rows = Layers
+    // Iterate a const view: non-const QList::begin()/end() detach independently, and the
+    // render thread may snapshot (share) the list between those calls, which leaves
+    // begin/end pointing into different buffers and reads garbage QSharedPointers.
+    const QList<QSharedPointer<LayersModel>> slides = *m_slideList;
     int slideIdx = 0;
-    for (auto s : *m_slideList) {
+    for (const auto& s : slides) {
         const Layers& slideLayers = s->getLayers();
         for (auto layer : slideLayers) {
             newVisibilityLayers.push_back(layer.first.get());
@@ -205,7 +209,7 @@ void SlideVisibilityModel::resetTable() {
             int layerNum = 0;
             int slideNum = 0;
             bool storedValue = false;
-            for (auto s : *m_slideList) {
+            for (const auto& s : slides) {
                 const Layers& slideLayers = s->getLayers();
                 for (int i = 0; i < slideLayers.size(); i++) {
                     if (row == layerNum) {
@@ -234,7 +238,8 @@ void SlideVisibilityModel::resetTable() {
 
 BaseLayer* SlideVisibilityModel::findLayer(int row) {
     int layerNum = 0;
-    for (auto s : *m_slideList) {
+    const QList<QSharedPointer<LayersModel>> slides = *m_slideList;
+    for (const auto& s : slides) {
         const Layers& slideLayers = s->getLayers();
         for (auto layer : slideLayers) {
             if (row == layerNum && layer.first) {

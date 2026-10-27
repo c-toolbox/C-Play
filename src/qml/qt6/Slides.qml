@@ -33,6 +33,8 @@ Rectangle {
     property var markedIndices: []
     // Row a Shift + click range starts from: the last row clicked without Shift.
     property int markAnchor: -1
+    // Set while the move buttons reorder marked rows, so the marks follow the rows.
+    property bool movingMarked: false
     // Rows captured when the removal is confirmed, removed once the remove timer fires.
     property var slidesToRemove: []
     property Button openPresentationButton: openPresentationButton
@@ -226,6 +228,17 @@ Rectangle {
     function isMarked(idx) {
         return markedIndices.indexOf(idx) >= 0;
     }
+    // Moves the marked slides (or else the selected one) one step up (dir -1) or down (dir 1).
+    function moveMarked(dir) {
+        movingMarked = true;
+        const moved = window.moveMarkedRows(markedIndices, slidesView.currentIndex, slidesView.count, dir,
+                                            r => dir < 0 ? app.slides.moveSlideUp(r) : app.slides.moveSlideDown(r));
+        movingMarked = false;
+        if (markedIndices.length > 0) {
+            markedIndices = moved;
+            markAnchor = -1;
+        }
+    }
 
     // Keyboard shortcut path (removeSelected action): opens the same confirmation dialog as
     // the remove button, and only while the slides panel is shown.
@@ -243,7 +256,7 @@ Rectangle {
     Connections {
         function onRowsInserted() { clearMarked(); }
         function onRowsRemoved() { clearMarked(); }
-        function onRowsMoved() { clearMarked(); }
+        function onRowsMoved() { if (!movingMarked) clearMarked(); }
         function onModelReset() { clearMarked(); }
 
         target: slidesView.model
@@ -472,11 +485,11 @@ Rectangle {
                     enabled: !layerView.visible
 
                     onClicked: {
-                        app.slides.moveSlideUp(slidesView.currentIndex);
+                        moveMarked(-1);
                     }
 
                     ToolTip {
-                        text: qsTr("Move selected slide upwards")
+                        text: markedIndices.length > 0 ? qsTr("Move the %1 marked slides upwards").arg(markedIndices.length) : qsTr("Move selected slide upwards")
                     }
                 }
                 Button {
@@ -484,11 +497,11 @@ Rectangle {
                     enabled: !layerView.visible
 
                     onClicked: {
-                        app.slides.moveSlideDown(slidesView.currentIndex);
+                        moveMarked(1);
                     }
 
                     ToolTip {
-                        text: qsTr("Move selected slide downwards")
+                        text: markedIndices.length > 0 ? qsTr("Move the %1 marked slides downwards").arg(markedIndices.length) : qsTr("Move selected slide downwards")
                     }
                 }
                 Button {

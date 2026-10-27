@@ -30,6 +30,8 @@ Rectangle {
     property var markedIndices: []
     // Row a Shift + click range starts from: the last row clicked without Shift.
     property int markAnchor: -1
+    // Set while the move buttons reorder marked rows, so the marks follow the rows.
+    property bool movingMarked: false
 
     // Rows marked with Ctrl + left click (one row) or Shift + left click (a range); remove acts on
     // these when any are marked. Returns true when the click marked rows instead of selecting one.
@@ -55,6 +57,17 @@ Rectangle {
     }
     function isMarked(idx) {
         return markedIndices.indexOf(idx) >= 0;
+    }
+    // Moves the marked items (or else the selected one) one step up (dir -1) or down (dir 1).
+    function moveMarked(dir) {
+        movingMarked = true;
+        const moved = window.moveMarkedRows(markedIndices, playlistView.currentIndex, playlistView.count, dir,
+                                            r => dir < 0 ? mpv.playlistModel.moveItemUp(r) : mpv.playlistModel.moveItemDown(r));
+        movingMarked = false;
+        if (markedIndices.length > 0) {
+            markedIndices = moved;
+            markAnchor = -1;
+        }
     }
     // Removes the marked items, or the selected one when none are marked.
     function removeMarkedItems() {
@@ -328,22 +341,22 @@ Rectangle {
                 icon.name: "pan-up-symbolic"
 
                 onClicked: {
-                    mpv.playlistModel.moveItemUp(playlistView.currentIndex);
+                    moveMarked(-1);
                 }
 
                 ToolTip {
-                    text: qsTr("Move selected upwards")
+                    text: markedIndices.length > 0 ? qsTr("Move the %1 marked items upwards").arg(markedIndices.length) : qsTr("Move selected upwards")
                 }
             }
             Button {
                 icon.name: "pan-down-symbolic"
 
                 onClicked: {
-                    mpv.playlistModel.moveItemDown(playlistView.currentIndex);
+                    moveMarked(1);
                 }
 
                 ToolTip {
-                    text: qsTr("Move selected downwards")
+                    text: markedIndices.length > 0 ? qsTr("Move the %1 marked items downwards").arg(markedIndices.length) : qsTr("Move selected downwards")
                 }
             }
             Button {
@@ -499,7 +512,7 @@ Rectangle {
     Connections {
         function onRowsInserted() { clearMarked(); }
         function onRowsRemoved() { clearMarked(); }
-        function onRowsMoved() { clearMarked(); }
+        function onRowsMoved() { if (!movingMarked) clearMarked(); }
         function onModelReset() { clearMarked(); }
 
         target: playlistView.model

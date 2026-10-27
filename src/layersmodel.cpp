@@ -1220,6 +1220,36 @@ void LayersModel::moveLayerBottom(int i) {
     Q_EMIT layersModelChanged();
 }
 
+void LayersModel::moveLayers(const QList<int> &from, const QList<int> &to) {
+    // One lock for all moves: the render thread re-takes this lock every frame and starved
+    // the GUI thread when each move had to acquire it on its own.
+    std::lock_guard<std::recursive_mutex> layersLock(m_layersMutex);
+    const int n = m_order.size();
+    int first = n;
+    int last = -1;
+    for (int k = 0; k < from.size() && k < to.size(); k++) {
+        const int i = from[k];
+        const int t = to[k];
+        if (i < 0 || t < 0 || i >= n || t >= n || i == t)
+            continue;
+        if (!beginMoveRows(QModelIndex(), i, i, QModelIndex(), t > i ? t + 1 : t))
+            continue;
+        m_order.move(i, t);
+        syncOwnLayersToOrder();
+        endMoveRows();
+        first = std::min({first, i, t});
+        last = std::max({last, i, t});
+    }
+    if (last < 0)
+        return;
+
+    Q_EMIT dataChanged(index(first, 0), index(last, 0));
+    setLayersNeedsSave(true);
+    setNeedSync();
+
+    Q_EMIT layersModelChanged();
+}
+
 void LayersModel::updateLayer(int i) {
     if (i < 0 || i >= m_order.size())
         return;
@@ -4608,6 +4638,35 @@ bool LayersModel::fadeLayer(const BaseLayer *layer, bool show, int subLayerIdx) 
     return true;
 }
 
+static bool layerHasVisibility(const BaseLayer *layer) {
+    if (!layer)
+        return false;
+    const std::string type = layer->typeName();
+    return type != "Control" && type != "REST" && type != "TCP";
+}
+
+bool LayersModel::fadeLayers(const QList<int> &rows, bool show) {
+    bool started = false;
+    for (int row : rows) {
+        const BaseLayer *layer = rowLayer(row);
+        if (layerHasVisibility(layer) && fadeLayer(layer, show))
+            started = true;
+    }
+    return started;
+}
+
+bool LayersModel::canFadeLayers(const QList<int> &rows, bool show) const {
+    for (int row : rows) {
+        const BaseLayer *layer = rowLayer(row);
+        if (!layerHasVisibility(layer))
+            continue;
+        const int visibility = layerVisibility(row);
+        if (show ? visibility < 100 : visibility > 0)
+            return true;
+    }
+    return false;
+}
+
 BaseLayer *LayersModel::layerFadeTarget(const LayerFade &fade, int &row) const {
     row = rowOfLayer(fade.layer);
     BaseLayer *layer = rowLayer(row);
@@ -4644,7 +4703,8 @@ void LayersModel::advanceLayerFades() {
         }
         else if (ownRow) {
             // Keeps the layer's visibility sliders in step, as for an entrance or exit.
-            Q_EMIT layerAnimationProgressChanged(row, qRound(target->alpha() * 100.f));
+            // Truncated like VisibilityRole, or the slider jumps back and forth between the two.
+            Q_EMIT layerAnimationProgressChanged(row, static_cast<int>(target->alpha() * 100.f));
         }
     }
     setNeedSync();

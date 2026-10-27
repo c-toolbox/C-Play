@@ -151,27 +151,31 @@ ItemDelegate {
                 }
             }
             Label {
-                anchors.leftMargin: 93
-                anchors.bottomMargin: 5
-                anchors.bottom: parent.bottom
-                anchors.left: parent.left
+                id: slideLockCountLabel
+
+                anchors.right: slideLockButton.left
+                anchors.verticalCenter: slideLockButton.verticalCenter
                 font.pointSize: 9
                 visible: model.locked && PresentationSettings.customSlidesCanHaveLockableLayers
                 text: model.countlocked
                 color: "gray"
             }
             Button  {
+                id: slideLockButton
+
                 flat: true
                 hoverEnabled: true
                 visible: PresentationSettings.customSlidesCanHaveLockableLayers
-                anchors.leftMargin: 93
-                anchors.bottomMargin: -3
-                anchors.bottom: parent.bottom
-                anchors.left: parent.left
+                anchors.right: visibilityToggle.left
+                anchors.rightMargin: 4
+                anchors.verticalCenter: visibilityToggle.verticalCenter
+                padding: 0
+                implicitWidth: 18
+                implicitHeight: 18
                 icon.name: model.locked ? "object-locked" : "object-unlocked"
                 icon.color: model.locked ? "darkred" : "gray"
-                icon.width: 20
-                icon.height: 20
+                icon.width: 14
+                icon.height: 14
 
                 onClicked: {
                     app.slides.slide(index).layersCanBeLocked = !app.slides.slide(index).layersCanBeLocked;
@@ -242,60 +246,26 @@ ItemDelegate {
                 ToolTip.visible: layerStatusMA.containsMouse
                 ToolTip.text: slideStatusToolTipText()
             }
-            Item {
+            VisibilityToggle {
+                id: visibilityToggle
+
                 anchors.bottom: parent.bottom
                 anchors.right: its.right
-                implicitHeight: 25
-                implicitWidth: 100
-                visible: !visibilitySlider.visible
+                // Triggering a visible slide fades it out, so fade in only from fully off.
+                canFadeIn: model.visibility <= 0
+                value: model.visibility
 
-                ToolTip.visible: visibilityPreviewMA.containsMouse
-                ToolTip.text: qsTr("Slide visibility: %1%. This controls the opacity of the slide's layers during playback.").arg(model.visibility)
-
-                MouseArea {
-                    id: visibilityPreviewMA
-                    anchors.fill: parent
-                    hoverEnabled: true
-                }
-
-                Rectangle {
-                    color: Kirigami.Theme.highlightColor
-                    height: parent.height
-                    radius: 0
-                    width: model.visibility * 0.01 * parent.width
-                }
-
-                Label {
-                    anchors.centerIn: parent
-                    anchors.fill: parent
-                    topPadding: 5
-                    horizontalAlignment: Text.AlignHCenter
-                    text: model.visibility + "%"
-                    color:"#fff"
-                    font.pointSize: 9
-                    layer.enabled: true
-                    layer.effect: DropShadow {
-                        color: "#111"
-                        radius: 5
-                        samples: 17
-                        spread: 0.3
-                        verticalOffset: 1
-                    }
-                }
+                onFadeInRequested: root.triggerSlide()
+                onFadeOutRequested: root.triggerSlide()
+                onToggleRequested: root.triggerSlide()
             }
-            VisibilitySlider {
+            // Animation target driving the slide fades.
+            Item {
                 id: visibilitySlider
 
-                anchors.bottom: parent.bottom
-                anchors.right: its.right
-                enabled: false
-                implicitWidth: 100
-                overlayLabel: qsTr("")
-                visible: false
+                property real value: 0
 
-                ToolTip {
-                    text: qsTr("Slide visibility: controls the opacity of this slide's layers from 0% to 100% during fade animations.")
-                }
+                visible: false
 
                 onValueChanged: {
                     if (!slidesView.enabled && layerView.layerItem) {
@@ -470,7 +440,9 @@ ItemDelegate {
         slidesView.currentIndex = index;
         app.slides.slideToPaste = index;
     }
-    onDoubleClicked: {
+    onDoubleClicked: triggerSlide()
+
+    function triggerSlide() {
         slidesView.currentIndex = index;
         app.slides.slideFadeTime = PresentationSettings.fadeDurationToNextSlide;
         app.slides.triggeredSlideIdx = index;
@@ -504,10 +476,12 @@ ItemDelegate {
         hoverEnabled: false
         visible: (app.slides.slide(index).hasTimeline || slidesView.currentIndex === index) && app.slides.slide(index) !== null
                  && app.slides.slide(index).hasTimeline !== undefined
-        anchors.leftMargin: slidesScrollView.effectiveScrollBarWidth  > 0 ? 90 : 110
+        anchors.rightMargin: visibilityToggle.width
+                             + (slideLockButton.visible ? slideLockButton.width + slideLockButton.anchors.rightMargin : 0)
+                             + (slideLockCountLabel.visible ? slideLockCountLabel.width : 0)
         anchors.bottomMargin: -3
         anchors.bottom: parent.bottom
-        anchors.left: parent.left
+        anchors.right: parent.right
         icon.name: "chronometer"
         icon.color: (app.slides.slide(index) && app.slides.slide(index).hasTimeline) ? "lime" : "gray"
         icon.width: 20

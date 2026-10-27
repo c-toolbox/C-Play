@@ -26,6 +26,8 @@ Rectangle {
     property var markedIndices: []
     // Row a Shift + click range starts from: the last row clicked without Shift.
     property int markAnchor: -1
+    // Set while the move buttons reorder marked rows, so the marks follow the rows.
+    property bool movingMarked: false
     // Rows captured when the remove is requested, removed once the remove timer fires.
     property var layersToRemove: []
     property bool busyIndicator: false
@@ -325,11 +327,85 @@ Rectangle {
         return markedIndices.indexOf(idx) >= 0;
     }
 
+    // Bumped when layer rows change, so the fade and hierarchy button states re-evaluate.
+    property int rowsRevision: 0
+    readonly property var targetRows: markedIndices.length > 0 ? markedIndices
+                                    : layersView.currentIndex >= 0 ? [layersView.currentIndex] : []
+    function canFadeRows(show) {
+        const _r = rowsRevision;
+        return targetRows.length > 0 && app.slides.selected.canFadeLayers(targetRows, show);
+    }
+    function fadeRowsTo(show) {
+        if (markedIndices.length === 0 && layersView.currentItem) {
+            layersView.currentItem.fadeLayer(show);
+        } else if (app.slides.selected.fadeLayers(markedIndices, show)) {
+            app.slides.needsSync = true;
+        }
+    }
+    function hierarchyEditableRows() {
+        const _r = rowsRevision;
+        const model = app.slides.selected;
+        return targetRows.filter(r => model.layerHierarchy(r) >= 0 && !model.isReference(r)
+                                      && !(model.isLocked(r) && model.layersCanBeLocked));
+    }
+    // The hierarchy shared by all target rows, -1 when they differ.
+    function targetHierarchy() {
+        const _r = rowsRevision;
+        let shared = -1;
+        for (const r of targetRows) {
+            const h = app.slides.selected.layerHierarchy(r);
+            if (h < 0)
+                continue;
+            if (shared >= 0 && h !== shared)
+                return -1;
+            shared = h;
+        }
+        return shared;
+    }
+    Connections {
+        function onDataChanged() { layersRoot.rowsRevision++; }
+        function onModelReset() { layersRoot.rowsRevision++; }
+        function onLayerAnimationProgressChanged() { layersRoot.rowsRevision++; }
+        function onLayerAnimationFinished() { layersRoot.rowsRevision++; }
+
+        target: app.slides.selected
+    }
+    // Moves the marked layers (or else the selected one) one step up (dir -1) or down (dir 1).
+    function moveMarked(dir) {
+        const from = [];
+        const to = [];
+        const moved = window.moveMarkedRows(markedIndices, layersView.currentIndex, layersView.count, dir,
+                                            r => { from.push(r); to.push(r + dir); });
+        movingMarked = true;
+        app.slides.selected.moveLayers(from, to);
+        movingMarked = false;
+        if (markedIndices.length > 0) {
+            markedIndices = moved;
+            markAnchor = -1;
+        }
+    }
+    // Moves the marked layers to the top or bottom of the list, keeping their order.
+    function moveMarkedToEnd(toTop) {
+        const count = layersView.count;
+        const rows = markedIndices.filter(r => r >= 0 && r < count).sort((a, b) => toTop ? b - a : a - b);
+        // Each move shifts the rows still to be moved by one.
+        const to = toTop ? 0 : count - 1;
+        movingMarked = true;
+        rows.forEach((r, i) => {
+            app.slides.selected.moveLayer(toTop ? r + i : r - i, to);
+            // Several long-distance moves batched into one view update hang the ListView.
+            layersView.forceLayout();
+        });
+        movingMarked = false;
+        markedIndices = rows.map((r, i) => toTop ? i : count - 1 - i);
+        markAnchor = -1;
+    }
+
     // Marks are plain row indices, so any change to the rows drops them.
     Connections {
         function onRowsInserted() { clearMarked(); }
         function onRowsRemoved() { clearMarked(); }
-        function onRowsMoved() { clearMarked(); }
+        function onRowsMoved() { if (!movingMarked) clearMarked(); }
         function onModelReset() { clearMarked(); }
 
         target: layersView.model
@@ -393,12 +469,15 @@ Rectangle {
 
                     onClicked: {
                         if(app.slides.selected.layersEnabled){
-                            app.slides.selected.moveLayerTop(layersView.currentIndex);
+                            if (markedIndices.length > 0)
+                                moveMarkedToEnd(true);
+                            else
+                                app.slides.selected.moveLayerTop(layersView.currentIndex);
                         }
                     }
 
                     ToolTip {
-                        text: qsTr("Move selected layer to top")
+                        text: markedIndices.length > 0 ? qsTr("Move the %1 marked layers to top").arg(markedIndices.length) : qsTr("Move selected layer to top")
                     }
                 }
                 Button {
@@ -407,13 +486,17 @@ Rectangle {
 
                     onClicked: {
                         if(app.slides.selected.layersEnabled){
-                            app.slides.selected.moveLayerBottom(layersView.currentIndex);
-                            layersView.currentIndex = layersView.count - 1;
+                            if (markedIndices.length > 0) {
+                                moveMarkedToEnd(false);
+                            } else {
+                                app.slides.selected.moveLayerBottom(layersView.currentIndex);
+                                layersView.currentIndex = layersView.count - 1;
+                            }
                         }
                     }
 
                     ToolTip {
-                        text: qsTr("Move selected layer to bottom")
+                        text: markedIndices.length > 0 ? qsTr("Move the %1 marked layers to bottom").arg(markedIndices.length) : qsTr("Move selected layer to bottom")
                     }
                 }
                 Button {
@@ -461,6 +544,32 @@ Rectangle {
 
                     ToolTip {
                         text: qsTr("Configure Grid Parameters")
+                    }
+                }
+                Button {
+                    Layout.preferredWidth: configureGridParameters.implicitWidth * 0.625
+                    enabled: layersRoot.canFadeRows(false)
+                    icon.name: "go-previous"
+                    leftPadding: 0
+                    rightPadding: 0
+
+                    onClicked: layersRoot.fadeRowsTo(false)
+
+                    ToolTip {
+                        text: markedIndices.length > 0 ? qsTr("Fade out the %1 marked layers").arg(markedIndices.length) : qsTr("Fade out selected layer")
+                    }
+                }
+                Button {
+                    Layout.preferredWidth: configureGridParameters.implicitWidth * 0.625
+                    enabled: layersRoot.canFadeRows(true)
+                    icon.name: "go-next"
+                    leftPadding: 0
+                    rightPadding: 0
+
+                    onClicked: layersRoot.fadeRowsTo(true)
+
+                    ToolTip {
+                        text: markedIndices.length > 0 ? qsTr("Fade in the %1 marked layers").arg(markedIndices.length) : qsTr("Fade in selected layer")
                     }
                 }
                 Item {
@@ -512,12 +621,12 @@ Rectangle {
 
                     onClicked: {
                         if(app.slides.selected.layersEnabled){
-                            app.slides.selected.moveLayerUp(layersView.currentIndex);
+                            moveMarked(-1);
                         }
                     }
 
                     ToolTip {
-                        text: qsTr("Move selected layer upwards")
+                        text: markedIndices.length > 0 ? qsTr("Move the %1 marked layers upwards").arg(markedIndices.length) : qsTr("Move selected layer upwards")
                     }
                 }
                 Button {
@@ -526,12 +635,12 @@ Rectangle {
 
                     onClicked: {
                         if(app.slides.selected.layersEnabled){
-                            app.slides.selected.moveLayerDown(layersView.currentIndex);
+                            moveMarked(1);
                         }
                     }
 
                     ToolTip {
-                        text: qsTr("Move selected layer downwards")
+                        text: markedIndices.length > 0 ? qsTr("Move the %1 marked layers downwards").arg(markedIndices.length) : qsTr("Move selected layer downwards")
                     }
                 }
                 Button {
@@ -616,11 +725,10 @@ Rectangle {
                 ]
                 delegate: Button {
                     required property var modelData
-                    readonly property int selectedHierarchy: layersView.currentItem ? layersView.currentItem.layerHierarchy : -1
+                    readonly property int selectedHierarchy: layersRoot.targetHierarchy()
 
                     visible: app.slides.selectedSlideIdx === -1
-                    enabled: selectedHierarchy >= 0 && app.slides.selected.layersEnabled
-                             && !layersView.currentItem.layerIsReference && !layersView.currentItem.layerIsLocked
+                    enabled: app.slides.selected.layersEnabled && layersRoot.hierarchyEditableRows().length > 0
                     checkable: true
                     checked: selectedHierarchy === modelData.value
                     ButtonGroup.group: masterHierarchyGroup
@@ -638,12 +746,15 @@ Rectangle {
                     Layout.preferredHeight: Kirigami.Units.gridUnit * 1.2
 
                     onClicked: {
-                        app.slides.selected.setLayerHierarchy(layersView.currentIndex, modelData.value);
+                        for (const r of layersRoot.hierarchyEditableRows())
+                            app.slides.selected.setLayerHierarchy(r, modelData.value);
                         checked = Qt.binding(() => selectedHierarchy === modelData.value);
                     }
 
                     ToolTip {
-                        text: modelData.tip
+                        text: markedIndices.length > 0
+                              ? qsTr("%1 (applies to the %2 marked layers, references and locked layers are kept)").arg(modelData.tip).arg(markedIndices.length)
+                              : modelData.tip
                     }
                 }
             }

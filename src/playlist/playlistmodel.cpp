@@ -825,7 +825,7 @@ void PlayListModel::moveItemDown(int i) {
     m_playList.move(i, i + 1);
     if (m_playingVideo == i)
         m_playingVideo += 1;
-    else if (m_playingVideo == i - 1)
+    else if (m_playingVideo == i + 1)
         m_playingVideo = i;
     endMoveRows();
     setPlayListIsEdited(true);

@@ -234,6 +234,8 @@ public:
     Q_INVOKABLE void moveLayerUp(int i);
     Q_INVOKABLE void moveLayerDown(int i);
     Q_INVOKABLE void moveLayerBottom(int i);
+    // Moves row from[k] to row to[k], in order, holding the layers lock for the whole batch.
+    Q_INVOKABLE void moveLayers(const QList<int> &from, const QList<int> &to);
     Q_INVOKABLE void updateLayer(int i);
     Q_INVOKABLE void lockLayer(int i);
     Q_INVOKABLE void unlockLayer(int i);
@@ -470,6 +472,10 @@ public:
     // duration. subLayerIdx >= 0 fades that sublayer's opacity instead. Returns false when
     // the layer is not in this slide.
     bool fadeLayer(const BaseLayer *layer, bool show, int subLayerIdx = -1);
+    // fadeLayer() for each of the rows that has a visibility. Returns true when any fade started.
+    Q_INVOKABLE bool fadeLayers(const QList<int> &rows, bool show);
+    // True when any of the rows with a visibility can be faded in (show) or out.
+    Q_INVOKABLE bool canFadeLayers(const QList<int> &rows, bool show) const;
 
     // True when the layer's alpha is driven by the animation (keyframes or entrance effects).
     bool isLayerTimelineDriven(const BaseLayer *layer) const;

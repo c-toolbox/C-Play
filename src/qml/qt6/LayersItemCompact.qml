@@ -176,14 +176,16 @@ ItemDelegate {
                 flat: true
                 visible: app.slides.selected.layersCanBeLocked && !model.isReference
                 hoverEnabled: true
-                anchors.leftMargin: 93
-                anchors.bottomMargin: -3
-                anchors.bottom: parent.bottom
-                anchors.left: parent.left
+                anchors.right: layerVisibilityToggle.left
+                anchors.rightMargin: 4
+                anchors.verticalCenter: layerVisibilityToggle.verticalCenter
+                padding: 0
+                implicitWidth: 18
+                implicitHeight: 18
                 icon.name: model.locked ? "object-locked" : "object-unlocked"
                 icon.color: model.locked ? "darkred" : "gray"
-                icon.width: 20
-                icon.height: 20
+                icon.width: 14
+                icon.height: 14
 
                 onClicked: {
                     if(app.slides.selected.layersEnabled){
@@ -266,56 +268,29 @@ ItemDelegate {
                 visible: model.type === "Control"
                 color: Kirigami.Theme.textColor
             }
-            Item {
+            VisibilityToggle {
+                id: layerVisibilityToggle
+
                 anchors.bottom: parent.bottom
                 anchors.right: its.right
-                implicitHeight: 25
-                implicitWidth: 100
-                visible: !visibilitySlider.visible && model.type !== "Control" && model.type !== "REST" && model.type !== "TCP"
+                value: visibilitySlider.visible ? visibilitySlider.value : model.visibility
+                visible: model.type !== "Control" && model.type !== "REST" && model.type !== "TCP"
 
-                ToolTip.visible: visibilityPreviewMA.containsMouse
-                ToolTip.text: qsTr("Layer visibility: %1%. Select the layer to adjust its opacity.").arg(model.visibility)
-
-                MouseArea {
-                    id: visibilityPreviewMA
-                    anchors.fill: parent
-                    hoverEnabled: true
-                }
-
-                Rectangle {
-                    color: Kirigami.Theme.highlightColor
-                    height: parent.height
-                    radius: 0
-                    width: model.visibility * 0.01 * parent.width
-                }
-
-                Label {
-                    anchors.centerIn: parent
-                    anchors.fill: parent
-                    topPadding: 5
-                    horizontalAlignment: Text.AlignHCenter
-                    text: model.visibility + "%"
-                    color:"#fff"
-                    font.pointSize: 9
-                    layer.enabled: true
-                    layer.effect: DropShadow {
-                        color: "#111"
-                        radius: 5
-                        samples: 17
-                        spread: 0.3
-                        verticalOffset: 1
-                    }
-                }
+                onFadeInRequested: root.fadeLayer(true)
+                onFadeOutRequested: root.fadeLayer(false)
+                onToggleRequested: root.fadeLayer(model.visibility < 100)
             }
-            VisibilitySlider {
+            // Animation target driving the layer fades of the selected layer.
+            Item {
                 id: visibilitySlider
 
+                property real value: 0
                 // Model refreshes must not write back while the selected layer changes.
                 property bool syncingValue: false
                 // Follows changes made elsewhere, e.g. fades driven by the media visibility.
                 property int modelVisibility: model.visibility
                 onModelVisibilityChanged: {
-                    if (visible && !pressed && Math.round(value) !== modelVisibility)
+                    if (visible && Math.round(value) !== modelVisibility)
                         syncValue(modelVisibility);
                 }
                 function syncValue(newValue) {
@@ -324,15 +299,7 @@ ItemDelegate {
                     syncingValue = false;
                 }
 
-                anchors.bottom: parent.bottom
-                anchors.right: its.right
                 visible: layersView.currentIndex === index && model.type !== "Control" && model.type !== "REST" && model.type !== "TCP"
-                implicitWidth: 100
-                overlayLabel: qsTr("")
-
-                ToolTip {
-                    text: qsTr("Layer visibility: drag to adjust this layer's opacity from 0% to 100%.")
-                }
 
                 onVisibleChanged: {
                     if (visible) {
@@ -340,8 +307,7 @@ ItemDelegate {
                     }
                 }
                 onValueChanged: {
-                    if (!syncingValue && layerView.layerItem.layerIdx === index
-                            && (!layersView.enabled || visibilitySlider.enabled)) {
+                    if (!syncingValue && layerView.layerItem.layerIdx === index && !layersView.enabled) {
                         if (visibilitySlider.visible && (value.toFixed(0) !== layerView.layerItem.layerVisibility)) {
                             // A layer with entrance/exit effects scrubs through them instead of fading.
                             if (layerView.layerItem.layerSelectedSubLayer > 0
@@ -353,28 +319,6 @@ ItemDelegate {
                 }
                 Component.onCompleted: {
                     visibilitySlider.syncValue(app.slides.selected.layerVisibility(index));
-                }
-            }
-            Item {
-                anchors.bottom: parent.bottom
-                anchors.right: its.right
-                implicitHeight: 20
-                implicitWidth: 100
-                visible: layersView.currentIndex !== index && model.type !== "Control" && model.type !== "REST" && model.type !== "TCP"
-
-                ToolTip.visible: visibilityTextMA.containsMouse
-                ToolTip.text: qsTr("Layer visibility: %1%. Select the layer to adjust its opacity.").arg(model.visibility)
-
-                MouseArea {
-                    id: visibilityTextMA
-                    anchors.fill: parent
-                    hoverEnabled: true
-                }
-
-                Label {
-                    anchors.fill: parent
-                    horizontalAlignment: Text.AlignHCenter
-                    text: model.visibility + "%"
                 }
             }
         }
@@ -668,13 +612,23 @@ ItemDelegate {
     }
     onDoubleClicked: {
         layerView.layerItem.layerIdx = index;
-        if (model.type === "Control" || model.type === "REST" || model.type === "TCP") {
+        if (model.type === "Control" || model.type === "REST" || model.type === "TCP")
             layerView.layerItem.start();
-        } else if (layerView.layerItem.layerVisibility === 100 && !visibility_fade_out_animation.running) {
+        else
+            fadeLayer(layerView.layerItem.layerVisibility < 100);
+    }
+
+    function fadeLayer(show) {
+        if (layersView.currentIndex !== index) {
+            layersView.currentIndex = index;
+            slideTitleField.text = model.title;
+        }
+        layerView.layerItem.layerIdx = index;
+        if (!show && layerView.layerItem.layerVisibility > 0 && !visibility_fade_out_animation.running) {
             // The layer's exit effects replace the plain fade when it has any.
             if (!playLayerAnimation(false))
                 visibility_fade_out_animation.start();
-        } else if (layerView.layerItem.layerVisibility < 100 && !visibility_fade_in_animation.running) {
+        } else if (show && layerView.layerItem.layerVisibility < 100 && !visibility_fade_in_animation.running) {
             if (!playLayerAnimation(true))
                 visibility_fade_in_animation.start();
         }

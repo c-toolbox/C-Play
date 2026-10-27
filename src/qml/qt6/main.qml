@@ -114,6 +114,24 @@ Kirigami.ApplicationWindow {
         const rows = marked.length > 0 ? marked : [current];
         return rows.filter(r => r >= 0 && r < count).sort((a, b) => b - a);
     }
+    // Moves the marked rows (or else the current row) one step up (dir -1) or down (dir 1) by
+    // calling moveFn(row), keeping their order. A row stops at the list end or behind a row that
+    // could not move. Returns the new positions of the marked rows ([] when none are marked).
+    function moveMarkedRows(marked, current, count, dir, moveFn) {
+        const rows = (marked.length > 0 ? marked : [current])
+            .filter(r => r >= 0 && r < count)
+            .sort((a, b) => dir < 0 ? a - b : b - a);
+        let limit = dir < 0 ? 0 : count - 1;
+        const moved = [];
+        for (const r of rows) {
+            const to = r === limit ? r : r + dir;
+            if (to !== r)
+                moveFn(r);
+            moved.push(to);
+            limit = to - dir;
+        }
+        return marked.length > 0 ? moved : [];
+    }
     property bool uiPopupOpen: false  // True when any popup (Menu, ComboBox dropdown or Dialog) is open in this ApplicationWindow
 
     // How the central viewport renders its content:
