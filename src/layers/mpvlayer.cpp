@@ -16,6 +16,8 @@
 #include "utils/ytdlpresolver.h"
 #include <sgct/sgct.h>
 #include <cmath>
+#include <map>
+#include <set>
 #include <QCoreApplication>
 #include <QDir>
 #include <QFileInfo>
@@ -27,15 +29,30 @@ constexpr std::chrono::seconds kMpvLoadFailureGrace{3};
 // Points mpv's JACK output (ao=jack) at the layer's JackAudioInput, or back at the system
 // playback ports (mpv's defaults). Read when the audio output opens: ao-reload applies it.
 void applyJackOptions(MpvLayer::mpvData& vd) {
+    mpv::qt::set_property(vd.handle, QStringLiteral("jack-name"), QString::fromStdString(vd.jackMpvName), vd.loggingOn);
     if (vd.jackAudio) {
-        mpv::qt::set_property(vd.handle, QStringLiteral("jack-name"), QString::fromStdString(vd.jackMpvName), vd.loggingOn);
         mpv::qt::set_property(vd.handle, QStringLiteral("jack-port"),
                               QStringLiteral("^%1:in_").arg(QString::fromStdString(vd.jackClientName)), vd.loggingOn);
         mpv::qt::set_property(vd.handle, QStringLiteral("jack-connect"), true, vd.loggingOn);
     } else {
-        mpv::qt::set_property(vd.handle, QStringLiteral("jack-name"), QStringLiteral("mpv"), vd.loggingOn);
         mpv::qt::set_property(vd.handle, QStringLiteral("jack-port"), QString(), vd.loggingOn);
     }
+}
+
+// Lowest free number per layer type, so a re-created layer gets its old JACK name back
+// (keeps patchbay connections stable). JACK itself appends -01, -02 on clashes between
+// processes (master and nodes sharing one server).
+std::mutex jackNumbersMutex;
+std::map<std::string, std::set<int>> jackNumbersInUse;
+
+int acquireJackNumber(const std::string& type) {
+    const std::lock_guard<std::mutex> lock(jackNumbersMutex);
+    auto& used = jackNumbersInUse[type];
+    int n = 1;
+    while (used.contains(n))
+        ++n;
+    used.insert(n);
+    return n;
 }
 
 bool hasLoadedFile(MpvLayer::mpvData& vd) {
@@ -443,9 +460,7 @@ bool initMPV(MpvLayer::mpvData& vd) {
         mpv::qt::set_property(vd.handle, QStringLiteral("aid"), QStringLiteral("no"), vd.loggingOn);
     }
 
-    if (vd.jackAudio) {
-        applyJackOptions(vd);
-    }
+    applyJackOptions(vd);
 
     // Load mpv configurations
     mpv::qt::load_configurations(vd.handle, QString::fromStdString(SyncHelper::instance().configuration.confAll), vd.loggingOn);
@@ -528,15 +543,35 @@ MpvLayer::MpvLayer(gl_adress_func_v1 opa,
     static std::atomic_int jackLayerCount{0};
     const std::string jackId = std::format("{}-{}", QCoreApplication::applicationPid(), ++jackLayerCount);
     m_data.jackClientName = "cplay-mix-" + jackId;
-    m_data.jackMpvName = "cplay-mpv-" + jackId;
+    m_data.jackMpvName = "cplay-mpv";
 }
 
-MpvLayer::~MpvLayer() = default;
+MpvLayer::~MpvLayer() {
+    releaseJackNumber();
+}
+
+void MpvLayer::releaseJackNumber() {
+    if (m_jackNumber == 0)
+        return;
+    const std::lock_guard<std::mutex> lock(jackNumbersMutex);
+    jackNumbersInUse[m_jackType].erase(m_jackNumber);
+    m_jackNumber = 0;
+}
+
+void MpvLayer::setJackName(const std::string& name) {
+    releaseJackNumber();
+    m_data.jackMpvName = name;
+}
 
 void MpvLayer::initialize() {
     m_hasInitialized = true;
     m_data.isMaster = isMaster();
     m_data.layerType = static_cast<int>(type());
+    if (m_jackNumber == 0) {
+        m_jackType = QString::fromStdString(typeName()).toLower().toStdString();
+        m_jackNumber = acquireJackNumber(m_jackType);
+        m_data.jackMpvName = std::format("cplay-{}-layer-{}", m_jackType, m_jackNumber);
+    }
 }
 
 void MpvLayer::initializeMpv() {

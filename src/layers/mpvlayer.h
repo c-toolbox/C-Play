@@ -197,6 +197,8 @@ public:
     static bool jackAudioRoutingSupported();
     bool jackAudioRouting() const;
     void setJackAudioRouting(bool enabled);
+    // mpv's JACK client name; call before initializeMpv(). Overrides the type-based name.
+    void setJackName(const std::string& name);
     bool hasAudioLevels() const override;
     void updateAudioSpatialSource() override;
 
@@ -258,6 +260,12 @@ protected:
     std::chrono::steady_clock::time_point m_frameSyncLastCheck{};
     // Render thread only: exists while JACK routing is on and audio is enabled.
     std::unique_ptr<cplay::audio::JackAudioInput> m_jackInput;
+
+private:
+    void releaseJackNumber();
+    // Per-type number in the JACK name (cplay-<type>-layer-<n>); 0 when none is held.
+    std::string m_jackType;
+    int m_jackNumber = 0;
 };
 
 #endif // MPVLAYER_H

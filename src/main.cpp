@@ -151,7 +151,7 @@ static void initOGL(GLFWwindow *) {
 #else
     mainVideoLayer = std::make_shared<VideoLayer>(get_proc_address_glfw_v1, allowDirectRendering, !logFilePath.empty() || !logLevel.empty(), logLevel);
 #endif
-    
+    mainVideoLayer->setJackName("cplay-main");
     mainVideoLayer->initializeAndLoad(SyncHelper::instance().variables.loadedFile);
     primaryLayers.push_back(mainVideoLayer);
 

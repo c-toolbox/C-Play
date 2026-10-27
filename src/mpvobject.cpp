@@ -83,6 +83,7 @@ MpvObject::MpvObject(QQuickItem *parent)
         throw std::runtime_error("could not create mpv context");
 
     mpv_set_option_string(mpv, "vo", "libmpv");
+    mpv_set_option_string(mpv, "jack-name", "cplay-main");
 
     const bool cliLogging = !SyncHelper::instance().configuration.logFile.empty()
                             || !SyncHelper::instance().configuration.logLevel.empty();
