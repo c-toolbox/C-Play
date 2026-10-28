@@ -19,6 +19,10 @@ This is the folder that you preferably store all saved "*.cplayfile*" and "*.cpl
 
 The base location where your media is stored. The benefit of setting this path is that when you save a "*cplayfile*", the paths to media, audio, overlays, and so on will be relative. This simplifies moving content across drives if necessary.
 
+#### Cue list location
+
+The folder where the movie view saves and opens its cue lists ("*.cplaycue*"). When empty, the cue lists are kept next to the open playlist, or in the common C-play file location when no saved playlist is open.
+
 #### 3. File dialog location (recommended empty)
 
 The file dialog location can be set to a preferred path that C-Play will always open when clicking "*Open File*". By default, this is *empty*, and C-Play instead opens the last path you loaded a file from.

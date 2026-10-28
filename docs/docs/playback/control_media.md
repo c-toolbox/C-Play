@@ -7,7 +7,7 @@ sidebar_position: 1
 
 These are the runtime controls to use when a file has been loaded from either *"Open File"* or from the playlist.
 
-Start by selecting an audio track ![](/assets/icons/new-audio-alarm.svg). You can switch the audio track even when the video is loaded and playing *(though it is recommended to pause first, to preserve good sync between audio and image.)*
+Start by selecting an audio track in **Audio → Audio Track** in the menu bar. The same menu has mute, volume up/down, volume fades with their shortcuts, and *Check JACK server*. You can switch the audio track even when the video is loaded and playing *(though it is recommended to pause first, to preserve good sync between audio and image.)*
 
 ![Audio](/assets/ui/header_taskbar/audio.png)
 

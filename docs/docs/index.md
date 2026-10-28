@@ -4,6 +4,7 @@ sidebar_position: 1
 ---
 
 import DemoVideo from '@site/src/components/DemoVideo';
+import Link from '@docusaurus/Link';
 
 # C-Play : Cluster Media Player
 
@@ -67,6 +68,13 @@ An additional powerful feature in C-Play is the [presentation tool](/playback/pr
 With these [layer types](/media/layers), you can build immersive presentations combining media, live sources, and show-control actions. Available types depend on the platform and features enabled in your build.
 
 Each slide can have a [timeline](/media/cplaypres#-timeline-c-play-v23-and-newer) with keyframes to animate layer opacity, position, rotation, and scale. The [effects pane](/media/cplaypres#animations-c-play-v24-and-newer) adds entrance and exit effects such as fades, wipes, fly-ins, and zooms, with easing and click-triggered steps; these effects also work on slides without a timeline. Its [post process effects](/media/layer-operations#post-process-effects), such as chroma key and color correction, are always applied to a layer's image.
+
+Shows can also be run from two web interfaces served by C-Play, on a screen of the master or on a tablet or phone *(Added in 2.4)*: the [presenter view](/remote-control/web-views#presenter-view) steps through a presentation with slide thumbnails, speaker notes and a timer, and the [movie view](/remote-control/web-views#movie-view) runs a playlist and its sections, with cues that can be prepared before they go live, transitions and a cue list.
+
+<div style={{display: 'flex', flexWrap: 'wrap', gap: '1rem', alignItems: 'flex-start'}}>
+  <Link to="/remote-control/web-views#presenter-view" style={{flex: '1 1 300px'}}><img src={require('@site/static/assets/ui/presenter_view.png').default} alt="Presenter view" style={{width: '100%'}} /></Link>
+  <Link to="/remote-control/web-views#movie-view" style={{flex: '1 1 300px'}}><img src={require('@site/static/assets/ui/movie_view_live.png').default} alt="Movie view" style={{width: '100%'}} /></Link>
+</div>
 
 ### Technical features
 
