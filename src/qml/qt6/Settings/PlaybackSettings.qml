@@ -34,7 +34,7 @@ SettingsBasePage {
             Layout.fillWidth: true
             height: visibilityAtStartup.height
 
-            SpinBox {
+            DeferredSpinBox {
                 id: visibilityAtStartup
 
                 editable: true
@@ -53,7 +53,7 @@ SettingsBasePage {
             text: qsTr("Set fade duration:")
         }
         RowLayout {
-            SpinBox {
+            DeferredSpinBox {
                 id: fadeDuration
 
                 from: 0
@@ -180,7 +180,7 @@ SettingsBasePage {
             Layout.fillWidth: true
             height: seekSmallStep.height
 
-            SpinBox {
+            DeferredSpinBox {
                 id: seekSmallStep
 
                 editable: true
@@ -204,7 +204,7 @@ SettingsBasePage {
             Layout.fillWidth: true
             height: seekMediumStep.height
 
-            SpinBox {
+            DeferredSpinBox {
                 id: seekMediumStep
 
                 editable: true
@@ -228,7 +228,7 @@ SettingsBasePage {
             Layout.fillWidth: true
             height: seekBigStep.height
 
-            SpinBox {
+            DeferredSpinBox {
                 id: seekBigStep
 
                 editable: true
@@ -270,7 +270,7 @@ SettingsBasePage {
             text: qsTr("Time position sync threshold:")
         }
         RowLayout {
-            SpinBox {
+            DeferredSpinBox {
                 id: timeThresholdSaving
 
                 enabled: useThresholdToSyncTimePositionCheckbox.checked
@@ -296,7 +296,7 @@ SettingsBasePage {
             text: qsTr("Time position skip iterations:")
         }
         RowLayout {
-            SpinBox {
+            DeferredSpinBox {
                 id: timeSkipIterations
 
                 enabled: useThresholdToSyncTimePositionCheckbox.checked
@@ -339,7 +339,7 @@ SettingsBasePage {
             width: Kirigami.Units.gridUnit
         }
         RowLayout {
-            SpinBox {
+            DeferredSpinBox {
                 id: timeCheckThresholdOnLoopBox
 
                 enabled: applyThresholdSyncOnLoopOnlyCheckbox.checked && applyThresholdSyncOnLoopOnlyCheckbox.enabled
@@ -381,7 +381,7 @@ SettingsBasePage {
             text: qsTr("Frame sync seek threshold:")
         }
         RowLayout {
-            SpinBox {
+            DeferredSpinBox {
                 id: frameSyncSeekThresholdBox
 
                 enabled: useFrameSyncCorrectionCheckbox.checked
@@ -407,7 +407,7 @@ SettingsBasePage {
             text: qsTr("Frame sync in-sync threshold:")
         }
         RowLayout {
-            SpinBox {
+            DeferredSpinBox {
                 id: frameSyncSpeedAdjustThresholdBox
 
                 enabled: useFrameSyncCorrectionCheckbox.checked
@@ -433,7 +433,7 @@ SettingsBasePage {
             text: qsTr("Frame sync max speed adjustment:")
         }
         RowLayout {
-            SpinBox {
+            DeferredSpinBox {
                 id: frameSyncMaxSpeedAdjustBox
 
                 enabled: useFrameSyncCorrectionCheckbox.checked
@@ -459,7 +459,7 @@ SettingsBasePage {
             text: qsTr("Frame sync initial offset:")
         }
         RowLayout {
-            SpinBox {
+            DeferredSpinBox {
                 id: frameSyncInitialOffsetBox
 
                 enabled: useFrameSyncCorrectionCheckbox.checked

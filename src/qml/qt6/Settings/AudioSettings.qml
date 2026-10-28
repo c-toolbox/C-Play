@@ -126,7 +126,7 @@ SettingsBasePage {
             Layout.alignment: Qt.AlignRight
             text: qsTr("Volume at startup:")
         }
-        SpinBox {
+        DeferredSpinBox {
             editable: true
             from: 0
             to: 100
@@ -150,7 +150,7 @@ SettingsBasePage {
         Item {
             height: volumeStep.height
 
-            SpinBox {
+            DeferredSpinBox {
                 id: volumeStep
 
                 editable: true
@@ -430,7 +430,7 @@ SettingsBasePage {
             Layout.alignment: Qt.AlignRight
             text: qsTr("Preferred track:")
         }
-        SpinBox {
+        DeferredSpinBox {
             editable: true
             from: 0
             to: 100

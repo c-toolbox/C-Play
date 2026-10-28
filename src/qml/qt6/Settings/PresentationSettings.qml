@@ -572,7 +572,7 @@ SettingsBasePage {
             Layout.alignment: Qt.AlignRight
             text: qsTr("Number of upcoming slides to preload:")
         }
-        SpinBox {
+        DeferredSpinBox {
             editable: true
             from: 0
             to: 10
@@ -593,7 +593,7 @@ SettingsBasePage {
             Layout.alignment: Qt.AlignRight
             text: qsTr("Default visibility for new layer:")
         }
-        SpinBox {
+        DeferredSpinBox {
             editable: true
             from: 0
             to: 100
@@ -614,7 +614,7 @@ SettingsBasePage {
             Layout.alignment: Qt.AlignRight
             text: qsTr("DPI (dots per inch) for rendering PDF pages:")
         }
-        SpinBox {
+        DeferredSpinBox {
             visible: PDF_SUPPORT
             editable: true
             from: 0
@@ -636,7 +636,7 @@ SettingsBasePage {
             Layout.alignment: Qt.AlignRight
             text: qsTr("Slide fade duration (in msec) when moving to previous slide:")
         }
-        SpinBox {
+        DeferredSpinBox {
             editable: true
             from: 20
             to: 20000
@@ -656,7 +656,7 @@ SettingsBasePage {
             Layout.alignment: Qt.AlignRight
             text: qsTr("Slide fade duration (in msec) when moving to next slide:")
         }
-        SpinBox {
+        DeferredSpinBox {
             editable: true
             from: 20
             to: 20000
@@ -676,7 +676,7 @@ SettingsBasePage {
             Layout.alignment: Qt.AlignRight
             text: qsTr("Delay (in msec) between clearing and loading new presentation:")
         }
-        SpinBox {
+        DeferredSpinBox {
             editable: true
             from: 0
             to: 20000
@@ -696,7 +696,7 @@ SettingsBasePage {
             Layout.alignment: Qt.AlignRight
             text: qsTr("Delay (in msec) between presentation load and syncing:")
         }
-        SpinBox {
+        DeferredSpinBox {
             editable: true
             from: 0
             to: 20000
@@ -716,7 +716,7 @@ SettingsBasePage {
             Layout.alignment: Qt.AlignRight
             text: qsTr("Delay (in msec) between presentation load and start:")
         }
-        SpinBox {
+        DeferredSpinBox {
             editable: true
             from: 0
             to: 20000
@@ -737,7 +737,7 @@ SettingsBasePage {
             text: qsTr("Presentation change sync iterations:")
         }
         RowLayout {
-            SpinBox {
+            DeferredSpinBox {
                 editable: true
                 from: 0
                 to: 20000

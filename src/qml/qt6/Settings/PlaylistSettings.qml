@@ -257,7 +257,7 @@ SettingsBasePage {
             text: qsTr("Autoplay after certain seconds:")
         }
         RowLayout {
-            SpinBox {
+            DeferredSpinBox {
                 id: autoPlayWaitime
 
                 enabled: PlaylistSettings.autoPlayNext

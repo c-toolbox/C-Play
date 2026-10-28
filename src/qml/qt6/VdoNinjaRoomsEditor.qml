@@ -387,7 +387,7 @@ Kirigami.ApplicationWindow {
                 ToolTip.text: qsTr("Mixed into the room and stream ids, so they cannot be guessed from the organisation and room name alone. It is part of the caller links.")
             }
             Label { text: qsTr("Slots:"); Layout.alignment: Qt.AlignRight }
-            SpinBox {
+            DeferredSpinBox {
                 id: roomSlots
                 from: 1
                 to: 32

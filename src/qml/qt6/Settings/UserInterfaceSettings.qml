@@ -72,7 +72,7 @@ SettingsBasePage {
                 text: qsTr("Window fade duration:")
             }
             RowLayout {
-                SpinBox {
+                DeferredSpinBox {
                     id: winFadeDuration
 
                     from: 0
@@ -226,7 +226,7 @@ SettingsBasePage {
                 enabled: UserInterfaceSettings.idleModeOn
             }
             RowLayout {
-                SpinBox {
+                DeferredSpinBox {
                     editable: true
                     from: 1
                     to: 3600
@@ -372,7 +372,7 @@ SettingsBasePage {
             Item {
                 height: osdFontSize.height
 
-                SpinBox {
+                DeferredSpinBox {
                     id: osdFontSize
 
                     // used to prevent osd showing when opening the page
@@ -427,7 +427,7 @@ SettingsBasePage {
                 text: qsTr("3D View FOV:")
             }
             RowLayout {
-                SpinBox {
+                DeferredSpinBox {
                     id: fov3Dview
 
                     from: 30
@@ -502,7 +502,7 @@ SettingsBasePage {
                 spacing: Kirigami.Units.smallSpacing
 
                 Label { text: "X" }
-                SpinBox {
+                DeferredSpinBox {
                     id: camPosSpinX
 
                     editable: true
@@ -517,7 +517,7 @@ SettingsBasePage {
                     }
                 }
                 Label { text: "Y" }
-                SpinBox {
+                DeferredSpinBox {
                     id: camPosSpinY
 
                     editable: true
@@ -532,7 +532,7 @@ SettingsBasePage {
                     }
                 }
                 Label { text: "Z" }
-                SpinBox {
+                DeferredSpinBox {
                     id: camPosSpinZ
 
                     editable: true
@@ -559,7 +559,7 @@ SettingsBasePage {
                 spacing: Kirigami.Units.smallSpacing
 
                 Label { text: "X" }
-                SpinBox {
+                DeferredSpinBox {
                     id: camRotSpinX
 
                     editable: true
@@ -574,7 +574,7 @@ SettingsBasePage {
                     }
                 }
                 Label { text: "Y" }
-                SpinBox {
+                DeferredSpinBox {
                     id: camRotSpinY
 
                     editable: true
@@ -589,7 +589,7 @@ SettingsBasePage {
                     }
                 }
                 Label { text: "Z" }
-                SpinBox {
+                DeferredSpinBox {
                     id: camRotSpinZ
 
                     editable: true
@@ -684,7 +684,7 @@ SettingsBasePage {
                 enabled: hideDomeOverflowCheckBox.checked
             }
             RowLayout {
-                SpinBox {
+                DeferredSpinBox {
                     id: domeOverflowOpacity
 
                     enabled: hideDomeOverflowCheckBox.checked
@@ -883,7 +883,7 @@ SettingsBasePage {
             }
             RowLayout {
                 enabled: !defineWindowParametersFromScreenCheckBox.checked
-                SpinBox {
+                DeferredSpinBox {
                     id: floatingWindowWidth
                     editable: true
                     from: 32
@@ -901,7 +901,7 @@ SettingsBasePage {
                     Layout.alignment: Qt.AlignCenter
                     text: qsTr("x")
                 }
-                SpinBox {
+                DeferredSpinBox {
                     id: floatingWindowHeight
                     editable: true
                     from: 32
@@ -927,7 +927,7 @@ SettingsBasePage {
             }
             RowLayout {
                 enabled: !defineWindowParametersFromScreenCheckBox.checked
-                SpinBox {
+                DeferredSpinBox {
                     id: floatingWindowPosX
                     editable: true
                     from: -8192
@@ -945,7 +945,7 @@ SettingsBasePage {
                     Layout.alignment: Qt.AlignCenter
                     text: qsTr("x")
                 }
-                SpinBox {
+                DeferredSpinBox {
                     id: floatingWindowPosY
                     editable: true
                     from: -8192
@@ -1017,7 +1017,7 @@ SettingsBasePage {
                 Layout.alignment: Qt.AlignRight
                 text: qsTr("Layer Volume:")
             }
-            SpinBox {
+            DeferredSpinBox {
                 id: floatingWindowVolume
                 editable: true
                 enabled: floatingWindowContentComboBox.currentIndex === 1

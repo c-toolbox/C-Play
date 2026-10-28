@@ -432,7 +432,7 @@ Kirigami.ApplicationWindow {
                         visible: !speakerRow.lfe
                         text: qsTr("Azimuth:")
                     }
-                    SpinBox {
+                    DeferredSpinBox {
                         id: azimuthBox
                         visible: !speakerRow.lfe
                         editable: true
@@ -445,7 +445,7 @@ Kirigami.ApplicationWindow {
                         visible: !speakerRow.lfe
                         text: qsTr("Elevation:")
                     }
-                    SpinBox {
+                    DeferredSpinBox {
                         id: elevationBox
                         visible: !speakerRow.lfe
                         editable: true
@@ -512,7 +512,7 @@ Kirigami.ApplicationWindow {
                         font.bold: arrayRow.selected
                         text: qsTr("Speaker %1 - output ch:").arg(arrayRow.index + 1)
                     }
-                    SpinBox {
+                    DeferredSpinBox {
                         id: channelBox
                         editable: true
                         from: 1
@@ -526,7 +526,7 @@ Kirigami.ApplicationWindow {
                     Label {
                         text: root.circularArray ? qsTr("Degrees:") : qsTr("Azimuth:")
                     }
-                    SpinBox {
+                    DeferredSpinBox {
                         id: firstBox
                         editable: true
                         from: root.circularArray ? 0 : -180
@@ -542,7 +542,7 @@ Kirigami.ApplicationWindow {
                     Label {
                         text: root.circularArray ? qsTr("Height (cm):") : qsTr("Elevation:")
                     }
-                    SpinBox {
+                    DeferredSpinBox {
                         id: secondBox
                         editable: true
                         from: root.circularArray ? -100000 : -90
@@ -608,7 +608,7 @@ Kirigami.ApplicationWindow {
                     ToolTip.delay: 500
                     ToolTip.text: qsTr("Replaces the speakers with this many, evenly spaced around the dome or the circular screen, on output channels 1 and up.")
                 }
-                SpinBox {
+                DeferredSpinBox {
                     id: evenCountBox
                     visible: root.arrayMode
                     from: 1

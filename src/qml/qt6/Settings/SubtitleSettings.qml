@@ -160,7 +160,7 @@ SettingsBasePage {
             Layout.alignment: Qt.AlignRight
             text: qsTr("Subtitle font size:")
         }
-        SpinBox {
+        DeferredSpinBox {
             editable: true
             from: 0
             to: 500
@@ -182,7 +182,7 @@ SettingsBasePage {
             text: qsTr("Subtitle texture size:")
         }
         RowLayout {
-            SpinBox {
+            DeferredSpinBox {
                 id: subtitleTextureWidth
                 editable: true
                 from: 32
@@ -197,7 +197,7 @@ SettingsBasePage {
                 Layout.alignment: Qt.AlignCenter
                 text: qsTr("x")
             }
-            SpinBox {
+            DeferredSpinBox {
                 id: subtitleTextureHeight
                 editable: true
                 from: 32
@@ -322,7 +322,7 @@ SettingsBasePage {
             text: qsTr("Plane elevation:")
         }
         RowLayout {
-            SpinBox {
+            DeferredSpinBox {
                 id: planeElevationBox
 
                 from: -360
@@ -353,7 +353,7 @@ SettingsBasePage {
             text: qsTr("Plane distance:")
         }
         RowLayout {
-            SpinBox {
+            DeferredSpinBox {
                 id: planeDistanceBox
 
                 from: -20000
@@ -409,7 +409,7 @@ SettingsBasePage {
             Layout.alignment: Qt.AlignRight
             text: qsTr("Preferred track:")
         }
-        SpinBox {
+        DeferredSpinBox {
             editable: true
             from: 0
             to: 100

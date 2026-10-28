@@ -90,7 +90,7 @@ SettingsBasePage {
             Label { text: qsTr("Bind address:") }
             TextField { id: listenerAddress; text: TcpControlSettings.serverBindAddress }
             Label { text: qsTr("Port:") }
-            SpinBox { id: listenerPort; from: 1; to: 65535; value: TcpControlSettings.serverPort; editable: true }
+            DeferredSpinBox { id: listenerPort; from: 1; to: 65535; value: TcpControlSettings.serverPort; editable: true }
             Button {
                 text: qsTr("Apply listener")
                 onClicked: {
@@ -139,7 +139,7 @@ SettingsBasePage {
             Label { text: qsTr("Host:") }
             TextField { id: host; Layout.fillWidth: true; placeholderText: qsTr("Hostname or IP address") }
             Label { text: qsTr("Port:") }
-            SpinBox { id: port; from: 1; to: 65535; editable: true }
+            DeferredSpinBox { id: port; from: 1; to: 65535; editable: true }
             Label { text: qsTr("Enabled:") }
             CheckBox { id: enabled }
             Label { text: qsTr("Receive C-Play control commands:") }
@@ -158,17 +158,17 @@ SettingsBasePage {
             Label { text: qsTr("Send terminator (hex):") }
             TextField { id: sendHex; Layout.fillWidth: true; enabled: framing.currentIndex === 0 }
             Label { text: qsTr("Connection timeout (ms):") }
-            SpinBox { id: timeout; from: 1; to: 600000; editable: true }
+            DeferredSpinBox { id: timeout; from: 1; to: 600000; editable: true }
             Label { text: qsTr("Initial retry delay (ms):") }
-            SpinBox { id: retryInitial; from: 1; to: 600000; editable: true }
+            DeferredSpinBox { id: retryInitial; from: 1; to: 600000; editable: true }
             Label { text: qsTr("Maximum retry delay (ms):") }
-            SpinBox { id: retryMaximum; from: 1; to: 600000; editable: true }
+            DeferredSpinBox { id: retryMaximum; from: 1; to: 600000; editable: true }
             Label { text: qsTr("Reset backoff after (ms):") }
-            SpinBox { id: stable; from: 1; to: 600000; editable: true }
+            DeferredSpinBox { id: stable; from: 1; to: 600000; editable: true }
             Label { text: qsTr("Maximum message (bytes):") }
-            SpinBox { id: messageLimit; from: 1; to: 67108864; editable: true }
+            DeferredSpinBox { id: messageLimit; from: 1; to: 67108864; editable: true }
             Label { text: qsTr("Maximum pending writes (bytes):") }
-            SpinBox { id: writeLimit; from: 1; to: 67108864; editable: true }
+            DeferredSpinBox { id: writeLimit; from: 1; to: 67108864; editable: true }
         }
         RowLayout {
             Button { text: qsTr("Save server"); onClicked: root.saveServer() }
@@ -227,7 +227,7 @@ SettingsBasePage {
             Label { text: qsTr("Event payload:") }
             ComboBox { id: eventPayload; model: [qsTr("Fixed payload"), qsTr("Append current value")] }
             Label { text: qsTr("Characters per list item:") }
-            SpinBox { id: charsPerItem; from: 0; to: 4096; editable: true }
+            DeferredSpinBox { id: charsPerItem; from: 0; to: 4096; editable: true }
         }
         Label {
             Layout.fillWidth: true; wrapMode: Text.WordWrap

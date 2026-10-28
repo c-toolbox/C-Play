@@ -152,7 +152,7 @@ SettingsBasePage {
             text: qsTr("Plane width:")
         }
         RowLayout {
-            SpinBox {
+            DeferredSpinBox {
                 id: planeWidthBox
 
                 enabled: mpv.planeConsiderAspectRatio !== 1
@@ -182,7 +182,7 @@ SettingsBasePage {
             text: qsTr("Plane height:")
         }
         RowLayout {
-            SpinBox {
+            DeferredSpinBox {
                 id: planeHeightBox
 
                 enabled: mpv.planeConsiderAspectRatio !== 2
@@ -207,7 +207,7 @@ SettingsBasePage {
             Label {
                 text: qsTr("Horizontal:")
             }
-            SpinBox {
+            DeferredSpinBox {
                 id: planeHorizontalRangeBox
 
                 from: -1000000
@@ -220,7 +220,7 @@ SettingsBasePage {
             text: qsTr("Plane elevation:")
         }
         RowLayout {
-            SpinBox {
+            DeferredSpinBox {
                 id: planeElevationBox
 
                 from: 0
@@ -243,7 +243,7 @@ SettingsBasePage {
             Label {
                 text: qsTr("Vertical:")
             }
-            SpinBox {
+            DeferredSpinBox {
                 id: planeVerticalRangeBox
 
                 from: -1000000;
@@ -258,7 +258,7 @@ SettingsBasePage {
         RowLayout {
             Layout.columnSpan: 2
 
-            SpinBox {
+            DeferredSpinBox {
                 id: planeDistanceBox
 
                 from: 0
@@ -290,7 +290,7 @@ SettingsBasePage {
             text: qsTr("Dome/Sphere radius:")
         }
         RowLayout {
-            SpinBox {
+            DeferredSpinBox {
                 id: surfaceRadius
 
                 from: 0
@@ -311,7 +311,7 @@ SettingsBasePage {
         RowLayout {
             Layout.alignment: Qt.AlignRight
 
-            SpinBox {
+            DeferredSpinBox {
                 id: surfaceRadiusScenario
 
                 from: 0
@@ -328,7 +328,7 @@ SettingsBasePage {
             text: qsTr("Field of view (fov):")
         }
         RowLayout {
-            SpinBox {
+            DeferredSpinBox {
                 id: surfaceFov
 
                 from: 0
@@ -348,7 +348,7 @@ SettingsBasePage {
         RowLayout {
             Layout.alignment: Qt.AlignRight
 
-            SpinBox {
+            DeferredSpinBox {
                 id: surfaceFovScenario
 
                 from: 0
@@ -364,7 +364,7 @@ SettingsBasePage {
             text: qsTr("Dome angle:")
         }
         RowLayout {
-            SpinBox {
+            DeferredSpinBox {
                 id: surfaceAngle
 
                 from: 0
@@ -384,7 +384,7 @@ SettingsBasePage {
         RowLayout {
             Layout.alignment: Qt.AlignRight
 
-            SpinBox {
+            DeferredSpinBox {
                 id: surfaceAngleScenario
 
                 from: 0
@@ -400,7 +400,7 @@ SettingsBasePage {
             text: qsTr("Translate X:")
         }
         RowLayout {
-            SpinBox {
+            DeferredSpinBox {
                 id: surfaceTranslateX
 
                 from: -5000
@@ -420,7 +420,7 @@ SettingsBasePage {
         RowLayout {
             Layout.alignment: Qt.AlignRight
 
-            SpinBox {
+            DeferredSpinBox {
                 id: surfaceTranslateXScenario
 
                 from: -5000
@@ -436,7 +436,7 @@ SettingsBasePage {
             text: qsTr("Translate Y:")
         }
         RowLayout {
-            SpinBox {
+            DeferredSpinBox {
                 id: surfaceTranslateY
 
                 from: -5000
@@ -456,7 +456,7 @@ SettingsBasePage {
         RowLayout {
             Layout.alignment: Qt.AlignRight
 
-            SpinBox {
+            DeferredSpinBox {
                 id: surfaceTranslateYScenario
 
                 from: -5000
@@ -472,7 +472,7 @@ SettingsBasePage {
             text: qsTr("Translate Z:")
         }
         RowLayout {
-            SpinBox {
+            DeferredSpinBox {
                 id: surfaceTranslateZ
 
                 from: -5000
@@ -492,7 +492,7 @@ SettingsBasePage {
         RowLayout {
             Layout.alignment: Qt.AlignRight
 
-            SpinBox {
+            DeferredSpinBox {
                 id: surfaceTranslateZScenario
 
                 from: -5000
@@ -517,47 +517,18 @@ SettingsBasePage {
                 to: 18000
                 value: mpv.rotate.x * 100
 
-                onMoved: {
-                    rotateXSpinBox.value = value.toFixed(0);
-                    mpv.rotate.x = rotateXSpinBox.realValue;
-                }
+                onMoved: mpv.rotate.x = value / 100
             }
-            SpinBox {
+            DecimalSpinBox {
                 id: rotateXSpinBox
 
-                property int decimals: 2
-                property real realValue: value / 100
-
                 enabled: mpv.gridToMapOn < 3
-                from: -18000
-                stepSize: 10
-                textFromValue: function (value, locale) {
-                    return Number(value / 100).toLocaleString(locale, 'f', rotateXSpinBox.decimals);
-                }
-                to: 18000
-                value: mpv.rotate.x * 100
-                valueFromText: function (text, locale) {
-                    return Number.fromLocaleString(locale, text) * 100;
-                }
+                realFrom: -180
+                realStepSize: 0.1
+                realTo: 180
+                realValue: mpv.rotate.x
 
-                validator: DoubleValidator {
-                    bottom: Math.min(rotateXSpinBox.from, rotateXSpinBox.to)
-                    top: Math.max(rotateXSpinBox.from, rotateXSpinBox.to)
-                }
-
-                onValueModified: {
-                    mpv.rotate.x = realValue;
-                    rotateXSlider.value = value;
-                }
-
-                Connections {
-                    function onRotateChanged() {
-                        if (rotateXSpinBox.realValue !== mpv.rotate.x)
-                            rotateXSpinBox.value = mpv.rotate.x * 100;
-                    }
-
-                    target: mpv
-                }
+                onRealValueModified: (newValue) => mpv.rotate.x = newValue
             }
             Label {
                 Layout.alignment: Qt.AlignLeft
@@ -573,7 +544,7 @@ SettingsBasePage {
             Label {
                 text: qsTr("Transition time:")
             }
-            SpinBox {
+            DeferredSpinBox {
                 id: transitionTime
 
                 from: 0
@@ -607,47 +578,18 @@ SettingsBasePage {
                 to: 18000
                 value: mpv.rotate.y * 100
 
-                onMoved: {
-                    rotateYSpinBox.value = value.toFixed(0);
-                    mpv.rotate.y = rotateYSpinBox.realValue;
-                }
+                onMoved: mpv.rotate.y = value / 100
             }
-            SpinBox {
+            DecimalSpinBox {
                 id: rotateYSpinBox
 
-                property int decimals: 2
-                property real realValue: value / 100
-
                 enabled: mpv.gridToMapOn < 3
-                from: -18000
-                stepSize: 10
-                textFromValue: function (value, locale) {
-                    return Number(value / 100).toLocaleString(locale, 'f', rotateYSpinBox.decimals);
-                }
-                to: 18000
-                value: mpv.rotate.y * 100
-                valueFromText: function (text, locale) {
-                    return Number.fromLocaleString(locale, text) * 100;
-                }
+                realFrom: -180
+                realStepSize: 0.1
+                realTo: 180
+                realValue: mpv.rotate.y
 
-                validator: DoubleValidator {
-                    bottom: Math.min(rotateYSpinBox.from, rotateYSpinBox.to)
-                    top: Math.max(rotateYSpinBox.from, rotateYSpinBox.to)
-                }
-
-                onValueModified: {
-                    mpv.rotate.y = realValue;
-                    rotateYSlider.value = value;
-                }
-
-                Connections {
-                    function onRotateChanged() {
-                        if (rotateYSpinBox.realValue !== mpv.rotate.y)
-                            rotateYSpinBox.value = mpv.rotate.y * 100;
-                    }
-
-                    target: mpv
-                }
+                onRealValueModified: (newValue) => mpv.rotate.y = newValue
             }
             Label {
                 Layout.alignment: Qt.AlignLeft
@@ -779,47 +721,18 @@ SettingsBasePage {
                 to: 18000
                 value: mpv.rotate.z * 100
 
-                onMoved: {
-                    rotateZSpinBox.value = value.toFixed(0);
-                    mpv.rotate.z = rotateZSpinBox.realValue;
-                }
+                onMoved: mpv.rotate.z = value / 100
             }
-            SpinBox {
+            DecimalSpinBox {
                 id: rotateZSpinBox
 
-                property int decimals: 2
-                property real realValue: value / 100
-
                 enabled: mpv.gridToMapOn < 3
-                from: -18000
-                stepSize: 10
-                textFromValue: function (value, locale) {
-                    return Number(value / 100).toLocaleString(locale, 'f', rotateZSpinBox.decimals);
-                }
-                to: 18000
-                value: mpv.rotate.z * 100
-                valueFromText: function (text, locale) {
-                    return Number.fromLocaleString(locale, text) * 100;
-                }
+                realFrom: -180
+                realStepSize: 0.1
+                realTo: 180
+                realValue: mpv.rotate.z
 
-                validator: DoubleValidator {
-                    bottom: Math.min(rotateZSpinBox.from, rotateZSpinBox.to)
-                    top: Math.max(rotateZSpinBox.from, rotateZSpinBox.to)
-                }
-
-                onValueModified: {
-                    mpv.rotate.z = realValue;
-                    rotateZSlider.value = value;
-                }
-
-                Connections {
-                    function onRotateChanged() {
-                        if (rotateZSpinBox.realValue !== mpv.rotate.z)
-                            rotateZSpinBox.value = mpv.rotate.z * 100;
-                    }
-
-                    target: mpv
-                }
+                onRealValueModified: (newValue) => mpv.rotate.z = newValue
             }
             Label {
                 Layout.alignment: Qt.AlignLeft
@@ -842,28 +755,28 @@ SettingsBasePage {
             onToggled: GridSettings.circularEnabled = checked
         }
         Label { text: qsTr("Full canvas width (pixels):") }
-        SpinBox {
+        DeferredSpinBox {
             Layout.columnSpan: 2
             from: 1; to: 1000000; editable: true
             value: GridSettings.circularCanvasWidth
             onValueModified: GridSettings.circularCanvasWidth = value
         }
         Label { text: qsTr("Full canvas height (pixels):") }
-        SpinBox {
+        DeferredSpinBox {
             Layout.columnSpan: 2
             from: 1; to: 1000000; editable: true
             value: GridSettings.circularCanvasHeight
             onValueModified: GridSettings.circularCanvasHeight = value
         }
         Label { text: qsTr("Full surface width (cm):") }
-        SpinBox {
+        DeferredSpinBox {
             Layout.columnSpan: 2
             from: 1; to: 1000000; editable: true
             value: GridSettings.circularSurfaceWidthCM
             onValueModified: GridSettings.circularSurfaceWidthCM = value
         }
         Label { text: qsTr("Left/right seam angle (degrees):") }
-        SpinBox {
+        DeferredSpinBox {
             Layout.columnSpan: 2
             from: -36000; to: 36000; editable: true
             value: GridSettings.circularSeamDegrees

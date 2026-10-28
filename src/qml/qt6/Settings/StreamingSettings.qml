@@ -332,7 +332,7 @@ SettingsBasePage {
                 Layout.alignment: Qt.AlignRight
                 text: qsTr("Base port:")
             }
-            SpinBox {
+            DeferredSpinBox {
                 visible: NODE_STREAM_SUPPORT
                 editable: true
                 from: 1024
@@ -380,7 +380,7 @@ SettingsBasePage {
             }
             RowLayout {
                 visible: NODE_STREAM_SUPPORT
-                SpinBox {
+                DeferredSpinBox {
                     editable: true
                     from: 576
                     to: 65507
@@ -408,7 +408,7 @@ SettingsBasePage {
             }
             RowLayout {
                 visible: NODE_STREAM_SUPPORT
-                SpinBox {
+                DeferredSpinBox {
                     editable: true
                     from: 0
                     to: 100000
@@ -485,7 +485,7 @@ SettingsBasePage {
             }
             RowLayout {
                 visible: NODE_STREAM_SUPPORT
-                SpinBox {
+                DeferredSpinBox {
                     editable: true
                     from: 50
                     to: 10000
@@ -514,7 +514,7 @@ SettingsBasePage {
             }
             RowLayout {
                 visible: NODE_STREAM_SUPPORT
-                SpinBox {
+                DeferredSpinBox {
                     editable: true
                     from: 0
                     to: 50
@@ -542,7 +542,7 @@ SettingsBasePage {
             }
             RowLayout {
                 visible: NODE_STREAM_SUPPORT
-                SpinBox {
+                DeferredSpinBox {
                     editable: true
                     from: 0
                     to: 100
@@ -568,7 +568,7 @@ SettingsBasePage {
                 Layout.alignment: Qt.AlignRight
                 text: qsTr("Multicast TTL:")
             }
-            SpinBox {
+            DeferredSpinBox {
                 visible: NODE_STREAM_SUPPORT
                 editable: true
                 from: 1

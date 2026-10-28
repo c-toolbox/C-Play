@@ -691,25 +691,21 @@ Window {
                     }
 
                     Label { text: qsTr("Duration:") }
-                    SpinBox {
+                    DecimalSpinBox {
                         Layout.fillWidth: true
-                        from: 1; to: 600000; stepSize: 50
-                        editable: true
-                        value: options.e ? options.e.durationMs : 500
-                        textFromValue: function(v) { return (v / 1000).toFixed(2) + " s"; }
-                        valueFromText: function(t) { var p = parseFloat(t); return isNaN(p) ? value : Math.round(p * 1000); }
-                        onValueModified: root.updateSelected({ durationMs: value })
+                        realFrom: 0.01; realTo: 600; realStepSize: 0.05
+                        suffix: " s"
+                        realValue: (options.e ? options.e.durationMs : 500) / 1000
+                        onRealValueModified: (newValue) => root.updateSelected({ durationMs: Math.round(newValue * 1000) })
                     }
 
                     Label { text: qsTr("Delay:") }
-                    SpinBox {
+                    DecimalSpinBox {
                         Layout.fillWidth: true
-                        from: 0; to: 600000; stepSize: 50
-                        editable: true
-                        value: options.e ? options.e.delayMs : 0
-                        textFromValue: function(v) { return (v / 1000).toFixed(2) + " s"; }
-                        valueFromText: function(t) { var p = parseFloat(t); return isNaN(p) ? value : Math.round(p * 1000); }
-                        onValueModified: root.updateSelected({ delayMs: value })
+                        realFrom: 0; realTo: 600; realStepSize: 0.05
+                        suffix: " s"
+                        realValue: (options.e ? options.e.delayMs : 0) / 1000
+                        onRealValueModified: (newValue) => root.updateSelected({ delayMs: Math.round(newValue * 1000) })
                     }
 
                     Label { text: qsTr("Easing:") }
@@ -826,32 +822,30 @@ Window {
                                     font.pointSize: 8
                                     Layout.preferredWidth: Kirigami.Units.gridUnit * 4
                                 }
-                                SpinBox {
+                                DecimalSpinBox {
                                     id: startSpin
                                     Layout.fillWidth: true
                                     Layout.preferredWidth: 1
-                                    from: -1000000; to: 1000000; stepSize: 10
-                                    editable: true
-                                    value: options.startPose ? Math.round(options.startPose[poseRow.modelData.key.toLowerCase()] * 10) : 0
-                                    textFromValue: function(v) { return (v / 10.0).toFixed(1) + poseRow.modelData.unit; }
-                                    valueFromText: function(t) { var p = parseFloat(t); return isNaN(p) ? value : Math.round(p * 10); }
-                                    onValueModified: {
+                                    decimals: 1
+                                    realFrom: -100000; realTo: 100000; realStepSize: 1
+                                    suffix: poseRow.modelData.unit
+                                    realValue: options.startPose ? options.startPose[poseRow.modelData.key.toLowerCase()] : 0
+                                    onRealValueModified: (newValue) => {
                                         var values = poseRow.pinStartWith({});
-                                        values["start" + poseRow.modelData.key] = value / 10.0;
+                                        values["start" + poseRow.modelData.key] = newValue;
                                         root.updateSelected(values);
                                     }
                                 }
-                                SpinBox {
+                                DecimalSpinBox {
                                     Layout.fillWidth: true
                                     Layout.preferredWidth: 1
-                                    from: -1000000; to: 1000000; stepSize: 10
-                                    editable: true
-                                    value: options.e && options.isMove ? Math.round(options.e["target" + poseRow.modelData.key] * 10) : 0
-                                    textFromValue: function(v) { return (v / 10.0).toFixed(1) + poseRow.modelData.unit; }
-                                    valueFromText: function(t) { var p = parseFloat(t); return isNaN(p) ? value : Math.round(p * 10); }
-                                    onValueModified: {
+                                    decimals: 1
+                                    realFrom: -100000; realTo: 100000; realStepSize: 1
+                                    suffix: poseRow.modelData.unit
+                                    realValue: options.e && options.isMove ? options.e["target" + poseRow.modelData.key] : 0
+                                    onRealValueModified: (newValue) => {
                                         var values = {};
-                                        values["target" + poseRow.modelData.key] = value / 10.0;
+                                        values["target" + poseRow.modelData.key] = newValue;
                                         root.updateSelected(values);
                                     }
                                 }

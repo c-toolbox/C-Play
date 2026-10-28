@@ -1443,7 +1443,7 @@ GridLayout {
         Label {
             text: qsTr("Datapath")
         }
-        SpinBox {
+        DeferredSpinBox {
             id: captureInputSpinBox
 
             SourceCopyArea {

@@ -63,13 +63,6 @@ Kirigami.ApplicationWindow {
         planeDistanceBox.value = layerView.layerItem.layerPlaneDistance;
         planeHorizontalMoveBox.value = layerView.layerItem.layerPlaneHorizontal;
         planeVerticalMoveBox.value = layerView.layerItem.layerPlaneVertical;
-        planeElevationSpinBox.value = layerView.layerItem.layerPlaneElevation*100;
-        planeAzimuthSpinBox.value = layerView.layerItem.layerPlaneAzimuth*100;
-        planeRollSpinBox.value = layerView.layerItem.layerPlaneRoll*100;
-        domeRotateYawSpinBox.value = layerView.layerItem.layerRotateYaw*100;
-        sphereRotatePitchSpinBox.value = layerView.layerItem.layerRotatePitch*100;
-        sphereRotateYawSpinBox.value = layerView.layerItem.layerRotateYaw*100;
-        sphereRotateRollSpinBox.value = layerView.layerItem.layerRotateRoll*100;
         planeGridLayout.visible = (layerView.layerItem.layerGridMode === 1);
         domeGridLayout.visible = (layerView.layerItem.layerGridMode === 2);
         sphereGridLayout.visible = (layerView.layerItem.layerGridMode > 2);
@@ -316,33 +309,27 @@ Kirigami.ApplicationWindow {
                     visible: layerView.layerItem.layerPlaneCircular
                     text: qsTr("Centre angle (degrees):"); Layout.alignment: Qt.AlignRight
                 }
-                SpinBox {
+                DecimalSpinBox {
                     visible: layerView.layerItem.layerPlaneCircular
                     enabled: GridSettings.circularEnabled
                     Layout.columnSpan: 2
-                    from: -360000000; to: 360000000; stepSize: 100; editable: true
-                    value: Math.round(layerView.layerItem.layerPlaneCentreDegrees * 100)
-                    textFromValue: function(value, locale) { return Number(value / 100).toLocaleString(locale, 'f', 2) }
-                    valueFromText: function(text, locale) { return Math.round(Number.fromLocaleString(locale, text) * 100) }
-                    validator: DoubleValidator { bottom: -3600000; top: 3600000; decimals: 2 }
-                    onValueModified: layerView.layerItem.layerPlaneCentreDegrees = value / 100
+                    realFrom: -3600000; realTo: 3600000; realStepSize: 1
+                    realValue: layerView.layerItem.layerPlaneCentreDegrees
+                    onRealValueModified: (newValue) => layerView.layerItem.layerPlaneCentreDegrees = newValue
                 }
                 Label {
                     visible: layerView.layerItem.layerPlaneCircular
                     text: qsTr("Angular width (degrees):"); Layout.alignment: Qt.AlignRight
                 }
-                SpinBox {
+                DecimalSpinBox {
                     visible: layerView.layerItem.layerPlaneCircular
                     enabled: GridSettings.circularEnabled && layerView.layerItem.layerPlaneAspectRatio !== 1
                     Layout.columnSpan: 2
-                    from: 1
-                    to: layerView.layerItem.layerPlaneAspectRatio === 1 ? Math.max(36000, Math.round(layerView.layerItem.layerPlaneWidthDegrees * 100)) : 36000
-                    stepSize: 100; editable: true
-                    value: Math.round(layerView.layerItem.layerPlaneWidthDegrees * 100)
-                    textFromValue: function(value, locale) { return Number(value / 100).toLocaleString(locale, 'f', 2) }
-                    valueFromText: function(text, locale) { return Math.round(Number.fromLocaleString(locale, text) * 100) }
-                    validator: DoubleValidator { bottom: 0.01; top: 360; decimals: 2 }
-                    onValueModified: layerView.layerItem.layerPlaneWidthDegrees = value / 100
+                    realFrom: 0.01
+                    realTo: layerView.layerItem.layerPlaneAspectRatio === 1 ? Math.max(360, layerView.layerItem.layerPlaneWidthDegrees) : 360
+                    realStepSize: 1
+                    realValue: layerView.layerItem.layerPlaneWidthDegrees
+                    onRealValueModified: (newValue) => layerView.layerItem.layerPlaneWidthDegrees = newValue
                 }
                 Label {
                     visible: !layerView.layerItem.layerPlaneCircular
@@ -353,7 +340,7 @@ Kirigami.ApplicationWindow {
                     visible: !layerView.layerItem.layerPlaneCircular
                     Layout.columnSpan: 2
 
-                    SpinBox {
+                    DeferredSpinBox {
                         id: planeWidthBox
 
                         enabled: layerView.layerItem.layerPlaneAspectRatio !== 1
@@ -386,7 +373,7 @@ Kirigami.ApplicationWindow {
                 RowLayout {
                     Layout.columnSpan: 2
 
-                    SpinBox {
+                    DeferredSpinBox {
                         id: planeHeightBox
 
                         enabled: layerView.layerItem.layerPlaneAspectRatio !== 2
@@ -419,7 +406,7 @@ Kirigami.ApplicationWindow {
                 RowLayout {
                     Layout.columnSpan: 2
 
-                    SpinBox {
+                    DeferredSpinBox {
                         id: planeDistanceBox
 
                         from: 0
@@ -452,32 +439,15 @@ Kirigami.ApplicationWindow {
                 RowLayout {
                     Layout.columnSpan: 2
 
-                    SpinBox {
+                    DecimalSpinBox {
                         id: planeElevationSpinBox
 
-                        property int decimals: 2
-                        property real realValue: value / 100
+                        realFrom: -180
+                        realStepSize: 0.1
+                        realTo: 180
+                        realValue: layerView.layerItem.layerPlaneElevation
 
-                        from: -18000
-                        stepSize: 10
-                        textFromValue: function (value, locale) {
-                            return Number(value / 100).toLocaleString(locale, 'f', planeElevationSpinBox.decimals);
-                        }
-                        to: 18000
-                        value: layerView.layerItem.layerPlaneElevation * 100
-                        valueFromText: function (text, locale) {
-                            return Number.fromLocaleString(locale, text) * 100;
-                        }
-
-                        validator: DoubleValidator {
-                            bottom: Math.min(planeElevationSpinBox.from, planeElevationSpinBox.to)
-                            top: Math.max(planeElevationSpinBox.from, planeElevationSpinBox.to)
-                        }
-
-                        onValueModified: {
-                            layerView.layerItem.layerPlaneElevation = realValue;
-                            planeElevationSlider.value = value;
-                        }
+                        onRealValueModified: (newValue) => layerView.layerItem.layerPlaneElevation = newValue
                     }
 
                     Label {
@@ -498,10 +468,7 @@ Kirigami.ApplicationWindow {
                         to: 18000
                         value: layerView.layerItem.layerPlaneElevation * 100
 
-                        onMoved: {
-                            planeElevationSpinBox.value = value.toFixed(0);
-                            layerView.layerItem.layerPlaneElevation = planeElevationSpinBox.realValue;
-                        }
+                        onMoved: layerView.layerItem.layerPlaneElevation = value / 100
 
                         Layout.fillWidth: true
                     }
@@ -509,15 +476,6 @@ Kirigami.ApplicationWindow {
                     Button {
                         text: qsTr("Reset")
                         onClicked: layerView.layerItem.layerPlaneElevation = GridSettings.defaultPlane_Elevation_DegreesValue
-                    }
-
-                    Connections {
-                        function onLayerValueChanged() {
-                            if (planeElevationSpinBox.realValue !== layerView.layerItem.layerPlaneElevation)
-                                planeElevationSpinBox.value = layerView.layerItem.layerPlaneElevation * 100;
-                        }
-
-                        target: layerView.layerItem
                     }
                 }
 
@@ -528,32 +486,15 @@ Kirigami.ApplicationWindow {
                 RowLayout {
                     Layout.columnSpan: 2
 
-                    SpinBox {
+                    DecimalSpinBox {
                         id: planeAzimuthSpinBox
 
-                        property int decimals: 2
-                        property real realValue: value / 100
+                        realFrom: -180
+                        realStepSize: 0.1
+                        realTo: 180
+                        realValue: layerView.layerItem.layerPlaneAzimuth
 
-                        from: -18000
-                        stepSize: 10
-                        textFromValue: function (value, locale) {
-                            return Number(value / 100).toLocaleString(locale, 'f', planeAzimuthSpinBox.decimals);
-                        }
-                        to: 18000
-                        value: layerView.layerItem.layerPlaneAzimuth * 100
-                        valueFromText: function (text, locale) {
-                            return Number.fromLocaleString(locale, text) * 100;
-                        }
-
-                        validator: DoubleValidator {
-                            bottom: Math.min(planeAzimuthSpinBox.from, planeAzimuthSpinBox.to)
-                            top: Math.max(planeAzimuthSpinBox.from, planeAzimuthSpinBox.to)
-                        }
-
-                        onValueModified: {
-                            layerView.layerItem.layerPlaneAzimuth = realValue;
-                            planeAzimuthSlider.value = value;
-                        }
+                        onRealValueModified: (newValue) => layerView.layerItem.layerPlaneAzimuth = newValue
                     }
 
                     Label {
@@ -574,10 +515,7 @@ Kirigami.ApplicationWindow {
                         to: 18000
                         value: layerView.layerItem.layerPlaneAzimuth * 100
 
-                        onMoved: {
-                            planeAzimuthSpinBox.value = value.toFixed(0);
-                            layerView.layerItem.layerPlaneAzimuth = planeAzimuthSpinBox.realValue;
-                        }
+                        onMoved: layerView.layerItem.layerPlaneAzimuth = value / 100
 
                         Layout.fillWidth: true
                     }
@@ -585,15 +523,6 @@ Kirigami.ApplicationWindow {
                     Button {
                         text: qsTr("Reset")
                         onClicked: layerView.layerItem.layerPlaneAzimuth = 0
-                    }
-
-                    Connections {
-                        function onLayerValueChanged() {
-                            if (planeAzimuthSpinBox.realValue !== layerView.layerItem.layerPlaneAzimuth)
-                                planeAzimuthSpinBox.value = layerView.layerItem.layerPlaneAzimuth * 100;
-                        }
-
-                        target: layerView.layerItem
                     }
                 }
 
@@ -604,32 +533,15 @@ Kirigami.ApplicationWindow {
                 RowLayout {
                     Layout.columnSpan: 2
 
-                    SpinBox {
+                    DecimalSpinBox {
                         id: planeRollSpinBox
 
-                        property int decimals: 2
-                        property real realValue: value / 100
+                        realFrom: -180
+                        realStepSize: 0.1
+                        realTo: 180
+                        realValue: layerView.layerItem.layerPlaneRoll
 
-                        from: -18000
-                        stepSize: 10
-                        textFromValue: function (value, locale) {
-                            return Number(value / 100).toLocaleString(locale, 'f', planeRollSpinBox.decimals);
-                        }
-                        to: 18000
-                        value: layerView.layerItem.layerPlaneRoll * 100
-                        valueFromText: function (text, locale) {
-                            return Number.fromLocaleString(locale, text) * 100;
-                        }
-
-                        validator: DoubleValidator {
-                            bottom: Math.min(planeRollSpinBox.from, planeRollSpinBox.to)
-                            top: Math.max(planeRollSpinBox.from, planeRollSpinBox.to)
-                        }
-
-                        onValueModified: {
-                            layerView.layerItem.layerPlaneRoll = realValue;
-                            planeRollSlider.value = value;
-                        }
+                        onRealValueModified: (newValue) => layerView.layerItem.layerPlaneRoll = newValue
                     }
 
                     Label {
@@ -650,10 +562,7 @@ Kirigami.ApplicationWindow {
                         to: 18000
                         value: layerView.layerItem.layerPlaneRoll * 100
 
-                        onMoved: {
-                            planeRollSpinBox.value = value.toFixed(0);
-                            layerView.layerItem.layerPlaneRoll = planeRollSpinBox.realValue;
-                        }
+                        onMoved: layerView.layerItem.layerPlaneRoll = value / 100
 
                         Layout.fillWidth: true
                     }
@@ -661,15 +570,6 @@ Kirigami.ApplicationWindow {
                     Button {
                         text: qsTr("Reset")
                         onClicked: layerView.layerItem.layerPlaneRoll = 0
-                    }
-
-                    Connections {
-                        function onLayerValueChanged() {
-                            if (planeRollSpinBox.realValue !== layerView.layerItem.layerPlaneRoll)
-                                planeRollSpinBox.value = layerView.layerItem.layerPlaneRoll * 100;
-                        }
-
-                        target: layerView.layerItem
                     }
                 }
 
@@ -682,7 +582,7 @@ Kirigami.ApplicationWindow {
                     visible: !layerView.layerItem.layerPlaneCircular
                     Layout.columnSpan: 2
 
-                    SpinBox {
+                    DeferredSpinBox {
                         id: planeHorizontalMoveBox
 
                         from: -GridSettings.plane_Horizontal_Range_CM
@@ -738,7 +638,7 @@ Kirigami.ApplicationWindow {
                 RowLayout {
                     Layout.columnSpan: 2
 
-                    SpinBox {
+                    DeferredSpinBox {
                         id: planeVerticalMoveBox
 
                         from: -GridSettings.plane_Vertical_Range_CM
@@ -834,32 +734,15 @@ Kirigami.ApplicationWindow {
             RowLayout {
                 Layout.columnSpan: 2
 
-                SpinBox {
+                DecimalSpinBox {
                     id: domeRotateYawSpinBox
 
-                    property int decimals: 2
-                    property real realValue: value / 100
+                    realFrom: -180
+                    realStepSize: 0.1
+                    realTo: 180
+                    realValue: layerView.layerItem.layerRotateYaw
 
-                    from: -18000
-                    stepSize: 10
-                    textFromValue: function (value, locale) {
-                        return Number(value / 100).toLocaleString(locale, 'f', domeRotateYawSpinBox.decimals);
-                    }
-                    to: 18000
-                    value: layerView.layerItem.layerRotateYaw * 100
-                    valueFromText: function (text, locale) {
-                        return Number.fromLocaleString(locale, text) * 100;
-                    }
-
-                    validator: DoubleValidator {
-                        bottom: Math.min(domeRotateYawSpinBox.from, domeRotateYawSpinBox.to)
-                        top: Math.max(domeRotateYawSpinBox.from, domeRotateYawSpinBox.to)
-                    }
-
-                    onValueModified: {
-                        layerView.layerItem.layerRotateYaw = realValue;
-                        domeRotateYawSlider.value = value;
-                    }
+                    onRealValueModified: (newValue) => layerView.layerItem.layerRotateYaw = newValue
                 }
 
                 Label {
@@ -880,10 +763,7 @@ Kirigami.ApplicationWindow {
                     to: 18000
                     value: layerView.layerItem.layerRotateYaw * 100
 
-                    onMoved: {
-                        domeRotateYawSpinBox.value = value.toFixed(0);
-                        layerView.layerItem.layerRotateYaw = domeRotateYawSpinBox.realValue;
-                    }
+                    onMoved: layerView.layerItem.layerRotateYaw = value / 100
 
                     Layout.fillWidth: true
                 }
@@ -891,15 +771,6 @@ Kirigami.ApplicationWindow {
                 Button {
                     text: qsTr("Reset")
                     onClicked: layerView.layerItem.layerRotateYaw = 0
-                }
-
-                Connections {
-                    function onLayerValueChanged() {
-                        if (domeRotateYawSpinBox.realValue !== layerView.layerItem.layerRotateYaw)
-                            domeRotateYawSpinBox.value = layerView.layerItem.layerRotateYaw * 100;
-                    }
-
-                    target: layerView.layerItem
                 }
             }
         }
@@ -949,32 +820,15 @@ Kirigami.ApplicationWindow {
             RowLayout {
                 Layout.columnSpan: 2
 
-                SpinBox {
+                DecimalSpinBox {
                     id: sphereRotatePitchSpinBox
 
-                    property int decimals: 2
-                    property real realValue: value / 100
+                    realFrom: -180
+                    realStepSize: 0.1
+                    realTo: 180
+                    realValue: layerView.layerItem.layerRotatePitch
 
-                    from: -18000
-                    stepSize: 10
-                    textFromValue: function (value, locale) {
-                        return Number(value / 100).toLocaleString(locale, 'f', sphereRotatePitchSpinBox.decimals);
-                    }
-                    to: 18000
-                    value: layerView.layerItem.layerRotatePitch * 100
-                    valueFromText: function (text, locale) {
-                        return Number.fromLocaleString(locale, text) * 100;
-                    }
-
-                    validator: DoubleValidator {
-                        bottom: Math.min(sphereRotatePitchSpinBox.from, sphereRotatePitchSpinBox.to)
-                        top: Math.max(sphereRotatePitchSpinBox.from, sphereRotatePitchSpinBox.to)
-                    }
-
-                    onValueModified: {
-                        layerView.layerItem.layerRotatePitch = realValue;
-                        sphereRotatePitchSlider.value = value;
-                    }
+                    onRealValueModified: (newValue) => layerView.layerItem.layerRotatePitch = newValue
                 }
 
                 Label {
@@ -995,10 +849,7 @@ Kirigami.ApplicationWindow {
                     to: 18000
                     value: layerView.layerItem.layerRotatePitch * 100
 
-                    onMoved: {
-                        sphereRotatePitchSpinBox.value = value.toFixed(0);
-                        layerView.layerItem.layerRotatePitch = sphereRotatePitchSpinBox.realValue;
-                    }
+                    onMoved: layerView.layerItem.layerRotatePitch = value / 100
 
                     Layout.fillWidth: true
                 }
@@ -1006,15 +857,6 @@ Kirigami.ApplicationWindow {
                 Button {
                     text: qsTr("Reset")
                     onClicked: layerView.layerItem.layerRotatePitch = 0
-                }
-
-                Connections {
-                    function onLayerValueChanged() {
-                        if (sphereRotatePitchSpinBox.realValue !== layerView.layerItem.layerRotatePitch)
-                            sphereRotatePitchSpinBox.value = layerView.layerItem.layerRotatePitch * 100;
-                    }
-
-                    target: layerView.layerItem
                 }
             }
 
@@ -1025,32 +867,15 @@ Kirigami.ApplicationWindow {
             RowLayout {
                 Layout.columnSpan: 2
 
-                SpinBox {
+                DecimalSpinBox {
                     id: sphereRotateYawSpinBox
 
-                    property int decimals: 2
-                    property real realValue: value / 100
+                    realFrom: -180
+                    realStepSize: 0.1
+                    realTo: 180
+                    realValue: layerView.layerItem.layerRotateYaw
 
-                    from: -18000
-                    stepSize: 10
-                    textFromValue: function (value, locale) {
-                        return Number(value / 100).toLocaleString(locale, 'f', sphereRotateYawSpinBox.decimals);
-                    }
-                    to: 18000
-                    value: layerView.layerItem.layerRotateYaw * 100
-                    valueFromText: function (text, locale) {
-                        return Number.fromLocaleString(locale, text) * 100;
-                    }
-
-                    validator: DoubleValidator {
-                        bottom: Math.min(sphereRotateYawSpinBox.from, sphereRotateYawSpinBox.to)
-                        top: Math.max(sphereRotateYawSpinBox.from, sphereRotateYawSpinBox.to)
-                    }
-
-                    onValueModified: {
-                        layerView.layerItem.layerRotateYaw = realValue;
-                        sphereRotateYawSlider.value = value;
-                    }
+                    onRealValueModified: (newValue) => layerView.layerItem.layerRotateYaw = newValue
                 }
 
                 Label {
@@ -1071,10 +896,7 @@ Kirigami.ApplicationWindow {
                     to: 18000
                     value: layerView.layerItem.layerRotateYaw * 100
 
-                    onMoved: {
-                        sphereRotateYawSpinBox.value = value.toFixed(0);
-                        layerView.layerItem.layerRotateYaw = sphereRotateYawSpinBox.realValue;
-                    }
+                    onMoved: layerView.layerItem.layerRotateYaw = value / 100
 
                     Layout.fillWidth: true
                 }
@@ -1082,15 +904,6 @@ Kirigami.ApplicationWindow {
                 Button {
                     text: qsTr("Reset")
                     onClicked: layerView.layerItem.layerRotateYaw = 0
-                }
-
-                Connections {
-                    function onLayerValueChanged() {
-                        if (sphereRotateYawSpinBox.realValue !== layerView.layerItem.layerRotateYaw)
-                            sphereRotateYawSpinBox.value = layerView.layerItem.layerRotateYaw * 100;
-                    }
-
-                    target: layerView.layerItem
                 }
             }
 
@@ -1101,32 +914,15 @@ Kirigami.ApplicationWindow {
             RowLayout {
                 Layout.columnSpan: 2
 
-                SpinBox {
+                DecimalSpinBox {
                     id: sphereRotateRollSpinBox
 
-                    property int decimals: 2
-                    property real realValue: value / 100
+                    realFrom: -180
+                    realStepSize: 0.1
+                    realTo: 180
+                    realValue: layerView.layerItem.layerRotateRoll
 
-                    from: -18000
-                    stepSize: 10
-                    textFromValue: function (value, locale) {
-                        return Number(value / 100).toLocaleString(locale, 'f', sphereRotateRollSpinBox.decimals);
-                    }
-                    to: 18000
-                    value: layerView.layerItem.layerRotateRoll * 100
-                    valueFromText: function (text, locale) {
-                        return Number.fromLocaleString(locale, text) * 100;
-                    }
-
-                    validator: DoubleValidator {
-                        bottom: Math.min(sphereRotateRollSpinBox.from, sphereRotateRollSpinBox.to)
-                        top: Math.max(sphereRotateRollSpinBox.from, sphereRotateRollSpinBox.to)
-                    }
-
-                    onValueModified: {
-                        layerView.layerItem.layerRotateRoll = realValue;
-                        sphereRotateRollSlider.value = value;
-                    }
+                    onRealValueModified: (newValue) => layerView.layerItem.layerRotateRoll = newValue
                 }
 
                 Label {
@@ -1147,10 +943,7 @@ Kirigami.ApplicationWindow {
                     to: 18000
                     value: layerView.layerItem.layerRotateRoll * 100
 
-                    onMoved: {
-                        sphereRotateRollSpinBox.value = value.toFixed(0);
-                        layerView.layerItem.layerRotateRoll = sphereRotateRollSpinBox.realValue;
-                    }
+                    onMoved: layerView.layerItem.layerRotateRoll = value / 100
 
                     Layout.fillWidth: true
                 }
@@ -1158,15 +951,6 @@ Kirigami.ApplicationWindow {
                 Button {
                     text: qsTr("Reset")
                     onClicked: layerView.layerItem.layerRotateRoll = 0
-                }
-
-                Connections {
-                    function onLayerValueChanged() {
-                        if (sphereRotateRollSpinBox.realValue !== layerView.layerItem.layerRotateRoll)
-                            sphereRotateRollSpinBox.value = layerView.layerItem.layerRotateRoll * 100;
-                    }
-
-                    target: layerView.layerItem
                 }
             }
         }

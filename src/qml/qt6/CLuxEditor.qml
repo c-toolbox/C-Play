@@ -455,7 +455,7 @@ Kirigami.ApplicationWindow {
                         }
                         RowLayout {
                             Label { text: "R" }
-                            SpinBox {
+                            DeferredSpinBox {
                                 id: spinR
                                 from: 0
                                 to: 255
@@ -463,7 +463,7 @@ Kirigami.ApplicationWindow {
                                 Layout.fillWidth: true
                             }
                             Label { text: "G" }
-                            SpinBox {
+                            DeferredSpinBox {
                                 id: spinG
                                 from: 0
                                 to: 255
@@ -471,7 +471,7 @@ Kirigami.ApplicationWindow {
                                 Layout.fillWidth: true
                             }
                             Label { text: "B" }
-                            SpinBox {
+                            DeferredSpinBox {
                                 id: spinB
                                 from: 0
                                 to: 255

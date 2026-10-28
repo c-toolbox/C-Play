@@ -8,7 +8,7 @@ set(CPLAY_VERSION_MAJOR 2)
 set(CPLAY_VERSION_MINOR 4)
 set(CPLAY_VERSION_PATCH 0)
 set(CPLAY_VERSION_PR_NAME "Beta")
-set(CPLAY_VERSION_PR_VERS 45)
+set(CPLAY_VERSION_PR_VERS 46)
 
 qt_add_executable(${TARGET_NAME})
 set_compile_options(${TARGET_NAME})
@@ -352,6 +352,8 @@ if(Qt6_VERSION VERSION_GREATER_EQUAL 6.8.0)
 endif()
 
 set(QML_SRC_FILES
+    qml/qt6/Components/DecimalSpinBoxHelpers.js
+    qml/qt6/Components/DeferredSpinBox.qml
     qml/qt6/Components/EasingCurveThumb.qml
     qml/qt6/Components/EffectPreviewTile.qml
     qml/qt6/Components/ImageAdjustmentSlider.qml
@@ -361,6 +363,7 @@ set(QML_SRC_FILES
     qml/qt6/Components/SelectActionPopup.qml
     qml/qt6/Components/SettingsBasePage.qml
     qml/qt6/Components/SettingsHeader.qml
+    qml/qt6/Components/SpinBoxTextField.qml
     qml/qt6/Menus/AudioMenu.qml
     qml/qt6/Menus/FileMenu.qml
     qml/qt6/Menus/HelpMenu.qml
@@ -420,6 +423,12 @@ set(QML_SRC_FILES
     qml/qt6/ViewPlaylistItem.qml
     qml/qt6/WorkingIndicator.qml
 )
+# DoubleSpinBox was introduced in Qt 6.11; older Qt gets an int-based DecimalSpinBox with the same interface
+if(Qt6_VERSION VERSION_GREATER_EQUAL 6.11.0)
+    list(APPEND QML_SRC_FILES qml/qt6/Components/DecimalSpinBox.qml)
+else()
+    list(APPEND QML_SRC_FILES qml/qt6/Components/Legacy/DecimalSpinBox.qml)
+endif()
 if(BUILD_CPLAY_WEB_VIEWS)
     target_sources(${TARGET_NAME} PRIVATE presentercontroller.cpp presentercontroller.h moviecontroller.cpp moviecontroller.h)
     list(APPEND QML_SRC_FILES qml/qt6/Menus/WebViewMenu.qml qml/qt6/PresenterWindow.qml)
@@ -433,6 +442,7 @@ if(BUILD_CPLAY_WITH_WEBVIEW)
     list(APPEND QML_SRC_FILES qml/qt6/PresenterWebView.qml)
 endif()
 set_source_files_properties(qml/qt6/Components/PopupHelpers.js PROPERTIES QT_QML_SKIP_QMLDIR_ENTRY TRUE)
+set_source_files_properties(qml/qt6/Components/DecimalSpinBoxHelpers.js PROPERTIES QT_QML_SKIP_QMLDIR_ENTRY TRUE)
 
 option(CPLAY_FAST_QML_BUILD "Skip QmlLint and QmlCacheGen. Should be OFF for release build." OFF)   
 if(CPLAY_FAST_QML_BUILD)

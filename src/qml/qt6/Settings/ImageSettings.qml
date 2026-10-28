@@ -728,23 +728,18 @@ SettingsBasePage {
             text: qsTr("GPU memory for image ring buffer:")
         }
         RowLayout {
-            SpinBox {
+            DecimalSpinBox {
                 id: gpuMemorySpinBox
 
-                from: 1
-                to: 90
-                stepSize: 1
-                value: ImageSettings.gpuMemoryForImageBuffering
+                decimals: 0
+                realFrom: 1
+                realTo: 90
+                realStepSize: 1
+                realValue: ImageSettings.gpuMemoryForImageBuffering
+                suffix: "%"
 
-                textFromValue: function(value, locale) {
-                    return value + "%";
-                }
-                valueFromText: function(text, locale) {
-                    return parseInt(text);
-                }
-
-                onValueModified: {
-                    ImageSettings.gpuMemoryForImageBuffering = value;
+                onRealValueModified: (newValue) => {
+                    ImageSettings.gpuMemoryForImageBuffering = newValue;
                     ImageSettings.save();
                 }
 
@@ -755,7 +750,7 @@ SettingsBasePage {
             Label {
                 Layout.alignment: Qt.AlignLeft
                 font.italic: true
-                text: qsTr("%1 available for buffering. Default: 10%.").arg(playerController.imageRingBufferGpuMemoryText(gpuMemorySpinBox.value))
+                text: qsTr("%1 available for buffering. Default: 10%.").arg(playerController.imageRingBufferGpuMemoryText(gpuMemorySpinBox.realValue))
             }
         }
         Item {

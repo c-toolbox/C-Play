@@ -713,7 +713,7 @@ Kirigami.ApplicationWindow {
                                 enabled: !layerViewItem.layerNodeStreamUseNdi
                                 text: qsTr("Max frame rate:")
                             }
-                            SpinBox {
+                            DeferredSpinBox {
                                 editable: true
                                 enabled: !layerViewItem.layerNodeStreamUseNdi
                                 from: 0
@@ -750,7 +750,7 @@ Kirigami.ApplicationWindow {
                                 enabled: !layerViewItem.layerNodeStreamUseNdi
                                 text: qsTr("Port:")
                             }
-                            SpinBox {
+                            DeferredSpinBox {
                                 editable: true
                                 enabled: !layerViewItem.layerNodeStreamUseNdi
                                 from: 0
@@ -1229,7 +1229,7 @@ Kirigami.ApplicationWindow {
                         font.pointSize: 10
                         text: "Region of Interest - Pos X:"
                     }
-                    SpinBox {
+                    DeferredSpinBox {
                         id: spinX
 
                         to: layerViewItem.textureSize.width
@@ -1244,7 +1244,7 @@ Kirigami.ApplicationWindow {
                         font.pointSize: 10
                         text: "Pos Y:"
                     }
-                    SpinBox {
+                    DeferredSpinBox {
                         id: spinY
 
                         to: layerViewItem.textureSize.height
@@ -1259,7 +1259,7 @@ Kirigami.ApplicationWindow {
                         font.pointSize: 10
                         text: "Width:"
                     }
-                    SpinBox {
+                    DeferredSpinBox {
                         id: spinW
 
                         to: layerViewItem.textureSize.width
@@ -1274,7 +1274,7 @@ Kirigami.ApplicationWindow {
                         font.pointSize: 10
                         text: "Height:"
                     }
-                    SpinBox {
+                    DeferredSpinBox {
                         id: spinH
 
                         to: layerViewItem.textureSize.height
@@ -2165,7 +2165,7 @@ Kirigami.ApplicationWindow {
                             text: "Page:"
                         }
                     }
-                    SpinBox {
+                    DeferredSpinBox {
                         id: pageNum
 
                         from: 1
@@ -2252,7 +2252,7 @@ Kirigami.ApplicationWindow {
                                 Layout.alignment: Qt.AlignRight
                                 text: qsTr("Size:")
                             }
-                            SpinBox {
+                            DeferredSpinBox {
                                 editable: true
                                 from: 0
                                 to: 500
@@ -2349,7 +2349,7 @@ Kirigami.ApplicationWindow {
                                 Layout.alignment: Qt.AlignRight
                                 text: qsTr("Render:")
                             }
-                            SpinBox {
+                            DeferredSpinBox {
                                 id: textTextureWidth
                                 editable: true
                                 from: 32
@@ -2364,7 +2364,7 @@ Kirigami.ApplicationWindow {
                                 Layout.alignment: Qt.AlignCenter
                                 text: qsTr("x")
                             }
-                            SpinBox {
+                            DeferredSpinBox {
                                 id: textTextureHeight
                                 editable: true
                                 from: 32
@@ -2528,25 +2528,20 @@ Kirigami.ApplicationWindow {
                                 text: qsTr("Sync delay:")
                                 visible: masterRelayCheckBox.checked
                             }
-                            SpinBox {
+                            DecimalSpinBox {
                                 id: syncDelaySpinBox
 
-                                editable: true
+                                decimals: 0
                                 focusPolicy: Qt.StrongFocus
-                                from: 0
-                                stepSize: 10
-                                to: 1000
-                                value: layerViewItem.layerSyncDelay
+                                realFrom: 0
+                                realStepSize: 10
+                                realTo: 1000
+                                realValue: layerViewItem.layerSyncDelay
+                                suffix: " ms"
                                 visible: masterRelayCheckBox.checked
 
-                                textFromValue: function (value) {
-                                    return value + " ms";
-                                }
-                                valueFromText: function (text) {
-                                    return parseInt(text);
-                                }
-                                onValueModified: {
-                                    layerViewItem.layerSyncDelay = value;
+                                onRealValueModified: (newValue) => {
+                                    layerViewItem.layerSyncDelay = newValue;
                                 }
 
                                 ToolTip.text: qsTr("How far behind the live edge the master and all nodes show the stream, in sync. Raise it if nodes stutter; lower it for less latency.")
@@ -2610,7 +2605,6 @@ Kirigami.ApplicationWindow {
                             whepUrlEdit.text = layerViewItem.layerWhepUrl;
                             masterOnlyCheckBox.checked = layerViewItem.layerExistOnMasterOnly;
                             masterRelayCheckBox.checked = layerViewItem.layerMasterRelay;
-                            syncDelaySpinBox.value = layerViewItem.layerSyncDelay;
                             whepAuthUserEdit.text = layerViewItem.layerWhepAuthUsername;
                             whepAuthPasswordEdit.text = layerViewItem.layerWhepAuthPassword;
                         }
@@ -2619,7 +2613,6 @@ Kirigami.ApplicationWindow {
                         whepUrlEdit.text = layerViewItem.layerWhepUrl;
                         masterOnlyCheckBox.checked = layerViewItem.layerExistOnMasterOnly;
                         masterRelayCheckBox.checked = layerViewItem.layerMasterRelay;
-                        syncDelaySpinBox.value = layerViewItem.layerSyncDelay;
                         whepAuthUserEdit.text = layerViewItem.layerWhepAuthUsername;
                         whepAuthPasswordEdit.text = layerViewItem.layerWhepAuthPassword;
                     }

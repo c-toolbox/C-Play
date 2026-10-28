@@ -278,7 +278,7 @@ Window {
                     text: qsTr("Duration (ms):")
                     enabled: enableCheck.checked
                 }
-                SpinBox {
+                DeferredSpinBox {
                     id: durationSpin
                     from: 100; to: 3600000; stepSize: 100
                     editable: true
@@ -295,7 +295,7 @@ Window {
                     text: qsTr("Outro start (ms):")
                     enabled: enableCheck.checked
                 }
-                SpinBox {
+                DeferredSpinBox {
                     id: outroStartSpin
                     from: -1; to: root.duration - 1; stepSize: 100
                     editable: true
@@ -393,7 +393,7 @@ Window {
                     Label { text: qsTr("Selected keyframe:"); color: "#ccc"; font.pointSize: 8 }
 
                     Label { text: qsTr("Time (ms):"); color: "#aaa"; font.pointSize: 8 }
-                    SpinBox {
+                    DeferredSpinBox {
                         id: kfTimeSpin
                         from: 0; to: root.duration; stepSize: 10
                         editable: true
@@ -411,7 +411,7 @@ Window {
                     }
 
                     Label { text: qsTr("Alpha:"); color: "#aaa"; font.pointSize: 8 }
-                    SpinBox {
+                    DeferredSpinBox {
                         id: kfAlphaSpin
                         from: 0; to: 100; stepSize: 1
                         editable: true
@@ -470,15 +470,14 @@ Window {
                         checked: { var _r = root.inspectorRevision; var d = root.selectedKfData(); return d ? d.hasScale : false; }
                         onToggled: root.updateSelectedExtras({ hasScale: checked })
                     }
-                    SpinBox {
-                        from: 0; to: 1000; stepSize: 5
-                        editable: true
+                    DecimalSpinBox {
+                        decimals: 0
+                        realFrom: 0; realTo: 1000; realStepSize: 5
+                        suffix: " %"
                         enabled: hasScaleCheck.checked
                         implicitWidth: 80
-                        value: { var _r = root.inspectorRevision; var d = root.selectedKfData(); return d ? Math.round(d.scale * 100) : 100; }
-                        textFromValue: function(v) { return v + " %"; }
-                        valueFromText: function(t) { var p = parseFloat(t); return isNaN(p) ? value : Math.round(p); }
-                        onValueModified: root.updateSelectedExtras({ scale: value / 100.0 })
+                        realValue: { var _r = root.inspectorRevision; var d = root.selectedKfData(); return d ? Math.round(d.scale * 100) : 100; }
+                        onRealValueModified: (newValue) => root.updateSelectedExtras({ scale: newValue / 100.0 })
                     }
 
                     CheckBox {
@@ -504,17 +503,16 @@ Window {
                             spacing: 2
                             enabled: hasPlaneCheck.checked
                             Label { text: parent.modelData.label + ":"; color: "#aaa"; font.pointSize: 8 }
-                            SpinBox {
+                            DecimalSpinBox {
                                 id: planeSpin
-                                from: -100000; to: 100000; stepSize: 10
-                                editable: true
+                                decimals: 1
+                                realFrom: -10000; realTo: 10000; realStepSize: 1
+                                suffix: parent.modelData.unit
                                 implicitWidth: 78
-                                value: { var _r = root.inspectorRevision; var d = root.selectedKfData(); return d ? Math.round(d[parent.modelData.key] * 10) : 0; }
-                                textFromValue: function(v) { return (v / 10.0).toFixed(1) + planeSpin.parent.modelData.unit; }
-                                valueFromText: function(t) { var p = parseFloat(t); return isNaN(p) ? value : Math.round(p * 10); }
-                                onValueModified: {
+                                realValue: { var _r = root.inspectorRevision; var d = root.selectedKfData(); return d ? d[parent.modelData.key] : 0; }
+                                onRealValueModified: (newValue) => {
                                     var values = {};
-                                    values[parent.modelData.key] = value / 10.0;
+                                    values[parent.modelData.key] = newValue;
                                     root.updateSelectedExtras(values);
                                 }
                             }
@@ -543,61 +541,49 @@ Window {
                     }
 
                     Label { text: qsTr("X:"); color: "#aaa"; font.pointSize: 8; enabled: hasRotateCheck.checked }
-                    SpinBox {
-                        from: -36000; to: 36000; stepSize: 10
-                        editable: true
+                    DecimalSpinBox {
+                        decimals: 1
+                        realFrom: -360; realTo: 360; realStepSize: 0.1
+                        suffix: "\u00b0"
                         enabled: hasRotateCheck.checked
-                        value: { var _r = root.inspectorRevision; var d = root.selectedKfData(); return d ? Math.round(d.rotateX * 10) : 0; }
+                        realValue: { var _r = root.inspectorRevision; var d = root.selectedKfData(); return d ? d.rotateX : 0; }
                         implicitWidth: 80
-                        textFromValue: function(v) { return (v / 10.0).toFixed(1) + "\u00b0"; }
-                        valueFromText: function(t) {
-                            var parsed = parseFloat(t);
-                            return isNaN(parsed) ? value : Math.round(parsed * 10);
-                        }
-                        onValueModified: {
+                        onRealValueModified: (newValue) => {
                             var d = root.selectedKfData(); if (!d) return;
                             root.commitSelectedKf(d.timeMs, d.alpha,
-                                hasRotateCheck.checked, value / 10.0, d.rotateY, d.rotateZ,
+                                hasRotateCheck.checked, newValue, d.rotateY, d.rotateZ,
                                 d.hasTranslate, d.translateX, d.translateY, d.translateZ);
                         }
                     }
 
                     Label { text: qsTr("Y:"); color: "#aaa"; font.pointSize: 8; enabled: hasRotateCheck.checked }
-                    SpinBox {
-                        from: -36000; to: 36000; stepSize: 10
-                        editable: true
+                    DecimalSpinBox {
+                        decimals: 1
+                        realFrom: -360; realTo: 360; realStepSize: 0.1
+                        suffix: "\u00b0"
                         enabled: hasRotateCheck.checked
-                        value: { var _r = root.inspectorRevision; var d = root.selectedKfData(); return d ? Math.round(d.rotateY * 10) : 0; }
+                        realValue: { var _r = root.inspectorRevision; var d = root.selectedKfData(); return d ? d.rotateY : 0; }
                         implicitWidth: 80
-                        textFromValue: function(v) { return (v / 10.0).toFixed(1) + "\u00b0"; }
-                        valueFromText: function(t) {
-                            var parsed = parseFloat(t);
-                            return isNaN(parsed) ? value : Math.round(parsed * 10);
-                        }
-                        onValueModified: {
+                        onRealValueModified: (newValue) => {
                             var d = root.selectedKfData(); if (!d) return;
                             root.commitSelectedKf(d.timeMs, d.alpha,
-                                hasRotateCheck.checked, d.rotateX, value / 10.0, d.rotateZ,
+                                hasRotateCheck.checked, d.rotateX, newValue, d.rotateZ,
                                 d.hasTranslate, d.translateX, d.translateY, d.translateZ);
                         }
                     }
 
                     Label { text: qsTr("Z:"); color: "#aaa"; font.pointSize: 8; enabled: hasRotateCheck.checked }
-                    SpinBox {
-                        from: -36000; to: 36000; stepSize: 10
-                        editable: true
+                    DecimalSpinBox {
+                        decimals: 1
+                        realFrom: -360; realTo: 360; realStepSize: 0.1
+                        suffix: "\u00b0"
                         enabled: hasRotateCheck.checked
-                        value: { var _r = root.inspectorRevision; var d = root.selectedKfData(); return d ? Math.round(d.rotateZ * 10) : 0; }
+                        realValue: { var _r = root.inspectorRevision; var d = root.selectedKfData(); return d ? d.rotateZ : 0; }
                         implicitWidth: 80
-                        textFromValue: function(v) { return (v / 10.0).toFixed(1) + "\u00b0"; }
-                        valueFromText: function(t) {
-                            var parsed = parseFloat(t);
-                            return isNaN(parsed) ? value : Math.round(parsed * 10);
-                        }
-                        onValueModified: {
+                        onRealValueModified: (newValue) => {
                             var d = root.selectedKfData(); if (!d) return;
                             root.commitSelectedKf(d.timeMs, d.alpha,
-                                hasRotateCheck.checked, d.rotateX, d.rotateY, value / 10.0,
+                                hasRotateCheck.checked, d.rotateX, d.rotateY, newValue,
                                 d.hasTranslate, d.translateX, d.translateY, d.translateZ);
                         }
                     }
@@ -624,62 +610,44 @@ Window {
                     }
 
                     Label { text: qsTr("X:"); color: "#aaa"; font.pointSize: 8; enabled: hasTranslateCheck.checked }
-                    SpinBox {
-                        from: -100000; to: 100000; stepSize: 10
-                        editable: true
+                    DecimalSpinBox {
+                        realFrom: -1000; realTo: 1000; realStepSize: 0.1
                         enabled: hasTranslateCheck.checked
-                        value: { var _r = root.inspectorRevision; var d = root.selectedKfData(); return d ? Math.round(d.translateX * 100) : 0; }
+                        realValue: { var _r = root.inspectorRevision; var d = root.selectedKfData(); return d ? d.translateX : 0; }
                         implicitWidth: 90
-                        textFromValue: function(v) { return (v / 100.0).toFixed(2); }
-                        valueFromText: function(t) {
-                            var parsed = parseFloat(t);
-                            return isNaN(parsed) ? value : Math.round(parsed * 100);
-                        }
-                        onValueModified: {
+                        onRealValueModified: (newValue) => {
                             var d = root.selectedKfData(); if (!d) return;
                             root.commitSelectedKf(d.timeMs, d.alpha,
                                 d.hasRotate, d.rotateX, d.rotateY, d.rotateZ,
-                                d.hasTranslate, value / 100.0, d.translateY, d.translateZ);
+                                d.hasTranslate, newValue, d.translateY, d.translateZ);
                         }
                     }
 
                     Label { text: qsTr("Y:"); color: "#aaa"; font.pointSize: 8; enabled: hasTranslateCheck.checked }
-                    SpinBox {
-                        from: -100000; to: 100000; stepSize: 10
-                        editable: true
+                    DecimalSpinBox {
+                        realFrom: -1000; realTo: 1000; realStepSize: 0.1
                         enabled: hasTranslateCheck.checked
-                        value: { var _r = root.inspectorRevision; var d = root.selectedKfData(); return d ? Math.round(d.translateY * 100) : 0; }
+                        realValue: { var _r = root.inspectorRevision; var d = root.selectedKfData(); return d ? d.translateY : 0; }
                         implicitWidth: 90
-                        textFromValue: function(v) { return (v / 100.0).toFixed(2); }
-                        valueFromText: function(t) {
-                            var parsed = parseFloat(t);
-                            return isNaN(parsed) ? value : Math.round(parsed * 100);
-                        }
-                        onValueModified: {
+                        onRealValueModified: (newValue) => {
                             var d = root.selectedKfData(); if (!d) return;
                             root.commitSelectedKf(d.timeMs, d.alpha,
                                 d.hasRotate, d.rotateX, d.rotateY, d.rotateZ,
-                                d.hasTranslate, d.translateX, value / 100.0, d.translateZ);
+                                d.hasTranslate, d.translateX, newValue, d.translateZ);
                         }
                     }
 
                     Label { text: qsTr("Z:"); color: "#aaa"; font.pointSize: 8; enabled: hasTranslateCheck.checked }
-                    SpinBox {
-                        from: -100000; to: 100000; stepSize: 10
-                        editable: true
+                    DecimalSpinBox {
+                        realFrom: -1000; realTo: 1000; realStepSize: 0.1
                         enabled: hasTranslateCheck.checked
-                        value: { var _r = root.inspectorRevision; var d = root.selectedKfData(); return d ? Math.round(d.translateZ * 100) : 0; }
+                        realValue: { var _r = root.inspectorRevision; var d = root.selectedKfData(); return d ? d.translateZ : 0; }
                         implicitWidth: 90
-                        textFromValue: function(v) { return (v / 100.0).toFixed(2); }
-                        valueFromText: function(t) {
-                            var parsed = parseFloat(t);
-                            return isNaN(parsed) ? value : Math.round(parsed * 100);
-                        }
-                        onValueModified: {
+                        onRealValueModified: (newValue) => {
                             var d = root.selectedKfData(); if (!d) return;
                             root.commitSelectedKf(d.timeMs, d.alpha,
                                 d.hasRotate, d.rotateX, d.rotateY, d.rotateZ,
-                                d.hasTranslate, d.translateX, d.translateY, value / 100.0);
+                                d.hasTranslate, d.translateX, d.translateY, newValue);
                         }
                     }
 
