@@ -32,6 +32,24 @@ the picture when C-Play syncs the image and volume fades, as it does with its ow
 While it runs, the master slide is skipped and the background is black (color mode) instead of the
 background image; both are put back as they were when it ends or is stopped.
 
+## Cue list
+
+Below the playlist, a list of cues fired one after the other, e.g. with a presentation clicker.
+Each cue is a playlist item (found by its file name, so reordering the playlist does not break it),
+a section and/or time, what to do then (as C-Play, play, pause), and how it goes on air: **Cut** (at
+once) or **Fade** (the transition above: fade out, load, play & fade in).
+
+- **+ Add cue** inserts the prepared cue after the cue on standby; without a prepared cue (or live)
+  **+ Add on air** takes the item, section and time that play. **Update cue N** replaces the standby
+  cue with the prepared cue.
+- Clicking a cue puts it on standby (and, in prepare mode, makes it the prepared cue, so the cue
+  picture shows it). The standby cue can be named, set to Cut/Fade, moved or deleted.
+- **GO** (Page Down, G) fires the standby cue and puts the next one on standby; ◀ (Page Up) puts
+  the one before on standby without firing it. With cues in the list, Page Up/Down run the cue list
+  instead of stepping sections (the arrow keys still step sections).
+- **Save** writes `<name>.cplaycue` (JSON) in the cue list location (Settings > Location), else in the folder of the open playlist (else the C-Play
+  file location), **Open** lists the ones there. The list is also kept on the device.
+
 ## Pictures
 
 When C-Play is built with WebRTC (`BUILD_CPLAY_WITH_WEBRTC`), **Pictures** shows video next to the
@@ -85,8 +103,11 @@ pnpm check        # svelte-check / TypeScript
 | POST | `/movie_preview/offer?feed=live\|prepare` | Body: SDP offer, ICE gathering complete. Answers `{id, sdp}` |
 | POST | `/movie_preview/close?id=` | Ends a picture session |
 | POST | `/movie_preview/prepare?index=N&position=T&play=0\|1` | The cue picture: item N (-1 the loaded file) at T seconds, playing on with play=1 |
+| GET | `/movie_cuelists` | `{folder, playlist, files: [{name, modified}]}`, the `*.cplaycue` in the cue list folder |
+| GET | `/movie_cuelist?name=` | A cue list, `{type: "cplaycue", version, playlist, cues}` |
+| POST | `/movie_cuelist?name=` | Body: the cue list as JSON; saves `name.cplaycue` |
 
-Keyboard: Space = play/pause, ← → (Page Up/Down) = previous/next section (on air when live, of the
-cue when preparing), ↑ ↓ = previous/next item of the cue, L = switch Live/Prepare (going live takes
+Keyboard: Space = play/pause, ← → (Page Up/Down without cues in the cue list) = previous/next section (on air when live, of the
+cue when preparing), Page Down / G = GO (fire the standby cue), Page Up = standby back, ↑ ↓ = previous/next item of the cue, L = switch Live/Prepare (going live takes
 the cue), Enter = take the cue, Esc = discard the cue, P = pictures on/off, R = run or hold the
 cue picture, 1 2 3 = the transition steps, T = transition (or stop it), F = fullscreen (browser).

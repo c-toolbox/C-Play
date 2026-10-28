@@ -1,11 +1,13 @@
 <script lang="ts">
   import { onMount, untrack } from 'svelte';
+  import CueListPanel from './components/CueListPanel.svelte';
   import Picture from './components/Picture.svelte';
   import Playlist from './components/Playlist.svelte';
   import SectionList from './components/SectionList.svelte';
   import Timeline from './components/Timeline.svelte';
   import { ApiError, api, sectionAt, sectionEndModes, type CueRequest, type SectionInfo } from './lib/api';
   import { PreparedCue, type TakeMode } from './lib/cue.svelte';
+  import { CueList, cueItem, cueRequest, type CueEntry } from './lib/cuelist.svelte';
   import { LiveMovie } from './lib/live.svelte';
   import { PreviewStream, webRtcSupported } from './lib/preview.svelte';
   import { load, store } from './lib/storage';
@@ -13,6 +15,7 @@
 
   const live = new LiveMovie();
   const cue = new PreparedCue();
+  const cueList = new CueList();
   // Pictures over WebRTC: what plays, and the cue in prepare mode.
   const livePicture = new PreviewStream('live');
   const cuePicture = new PreviewStream('prepare');
@@ -46,6 +49,8 @@
   // The step the automatic transition is at, null when it does not run.
   let transitionStep = $state<'out' | 'load' | 'in' | null>(null);
   let transitionCancelled = false;
+  // A cue of the cue list is being sent (cut).
+  let firing = $state(false);
 
   const s = $derived(live.state);
   const items = $derived(s?.items ?? []);
@@ -269,11 +274,9 @@
     return run(api.fadeOut, 'Could not fade out');
   }
 
-  /** Loads the cue (or the next item) paused; the cue is on air then, so a new one starts from it. */
-  async function loadNext() {
-    const request = nextRequest;
-    if (!request) return false;
-    const ok = await sendCue(request, 'Could not load');
+  /** Sends request; the cue is on air then, so a new one starts from it. */
+  async function loadCue(request: CueRequest, failure = 'Could not load') {
+    const ok = await sendCue(request, failure);
     if (ok && !isLive) {
       await live.refresh();
       cue.reset(live.state);
@@ -281,11 +284,16 @@
     return ok;
   }
 
-  function playAndFadeIn() {
+  /** Loads the cue (or the next item) paused. */
+  function loadNext() {
+    return nextRequest ? loadCue(nextRequest) : Promise.resolve(false);
+  }
+
+  function playAndFadeIn(play = true) {
     return run(async () => {
-      if (live.paused !== false) await api.play();
+      if (play && live.paused !== false) await api.play();
       await api.fadeIn();
-    }, 'Could not play and fade in');
+    }, play ? 'Could not play and fade in' : 'Could not fade in');
   }
 
   /** Skips the master slide and shows a black background; returns what puts them back as they were. */
@@ -308,13 +316,12 @@
     };
   }
 
-  /** The three steps in a row: fade out, load, play and fade in. Clicking again stops it. */
-  async function transition() {
+  /** The three steps in a row: fade out, load request (paused), play and fade in. Clicking again stops it. */
+  async function transition(request: CueRequest | null = nextRequest, play = true) {
     if (transitionStep) {
       transitionCancelled = true;
       return;
     }
-    const request = nextRequest;
     if (!request) return;
     transitionCancelled = false;
     let restore: (() => Promise<void>) | null = null;
@@ -330,7 +337,7 @@
       transitionStep = 'load';
       const target = request.index;
       const loadBefore = live.mainLoad?.id;
-      if (!(await loadNext())) return;
+      if (!(await loadCue(request))) return;
       if (target !== undefined && !(await waitUntil(() => live.state?.playing === target, 10000))) return;
       // The nodes load the new file too. C-Play reports when all have it (or it stops waiting
       // for silent nodes after 30 s); without the report there is nothing to wait for.
@@ -348,7 +355,7 @@
       await sleep(500);
       if (transitionCancelled) return;
       transitionStep = 'in';
-      if (!(await playAndFadeIn())) return;
+      if (!(await playAndFadeIn(play))) return;
       // Restore once the picture is fully faded in again.
       await waitUntil(() => live.visibility !== null && live.visibility >= 100, live.visibility === null ? fadeSeconds * 1000 : fadeSeconds * 1000 + 2000);
     } finally {
@@ -357,6 +364,78 @@
       transitionStep = null;
       transitionCancelled = false;
     }
+  }
+
+  // The cue list.
+
+  /** The prepared cue, or what is on air when live (or nothing is prepared). */
+  function newCueEntry(): Omit<CueEntry, 'id'> | null {
+    if (!s) return null;
+    const go = cueList.cues[cueList.standby]?.go ?? 'cut';
+    if (!isLive && cue.changed(s)) {
+      const item = items[cueIndex];
+      if (!item) return null;
+      return { name: '', file: item.file, item: cueIndex, section: cue.section, position: cue.position, then: cue.takeMode, go };
+    }
+    const item = items[s.playing];
+    if (!item) return null;
+    const position = Math.round(live.position * 10) / 10;
+    return { name: '', file: item.file, item: s.playing, section: s.section, position, then: isLive ? 'auto' : cue.takeMode, go };
+  }
+
+  function addCue() {
+    const entry = newCueEntry();
+    if (entry) cueList.add(entry);
+    else notify('Only playlist items can be cued', true);
+  }
+
+  function updateCue() {
+    const entry = newCueEntry();
+    if (!entry) return;
+    const { file, item, section, position, then } = entry;
+    cueList.update(cueList.standby, { file, item, section, position, then });
+    notify(`Cue ${cueList.standby + 1} updated`);
+  }
+
+  /** Shows the standby cue as the prepared cue (and in the cue picture). */
+  function prepareStandby() {
+    const entry = cueList.cues[cueList.standby];
+    if (isLive || !entry || !live.state) return;
+    const index = cueItem(entry, live.state);
+    if (index < 0) return;
+    cue.set(index, entry.section, entry.position);
+    cue.setTakeMode(entry.then);
+  }
+
+  function selectCue(index: number) {
+    cueList.select(index);
+    prepareStandby();
+  }
+
+  function cueBack() {
+    cueList.back();
+    prepareStandby();
+  }
+
+  /** Fires the standby cue, cut or with the transition, and puts the next one on standby. */
+  async function goCue() {
+    if (!s || transitionStep || firing) return;
+    const index = cueList.standby;
+    const entry = cueList.cues[index];
+    if (!entry) return;
+    const request = cueRequest(entry, s);
+    if (!request) {
+      notify(`Cue ${index + 1}: ${entry.file} is not in the playlist`, true);
+      return;
+    }
+    cueList.fire();
+    if (entry.go === 'fade') await transition({ ...request, play: false }, entry.then !== 'pause');
+    else {
+      firing = true;
+      await loadCue(request, `Could not fire cue ${index + 1}`);
+      firing = false;
+    }
+    prepareStandby();
   }
 
   function togglePlay() {
@@ -411,6 +490,14 @@
     } else if (key === 'l' || key === 'L') {
       if (isLive) prepare();
       else void goLive();
+    } else if ((key === 'PageDown' || key === 'PageUp') && cueList.cues.length) {
+      // Presentation clickers send Page Down/Up: they run the cue list.
+      event.preventDefault();
+      if (event.repeat) return;
+      if (key === 'PageDown') void goCue();
+      else cueBack();
+    } else if (key === 'g' || key === 'G') {
+      if (!event.repeat) void goCue();
     } else if (key === 'ArrowRight' || key === 'ArrowLeft' || key === 'PageDown' || key === 'PageUp') {
       event.preventDefault();
       stepSection(key === 'ArrowRight' || key === 'PageDown' ? 1 : -1);
@@ -498,7 +585,7 @@
           type="button"
           class="step"
           class:running={transitionStep === 'in'}
-          onclick={playAndFadeIn}
+          onclick={() => playAndFadeIn()}
           disabled={!live.connected || !!transitionStep || playHeld}
           title={playHeld ? nodesLoadingTitle : `Play and fade the picture in${live.syncFades ? ' with the sound' : ''} (3)`}
         >
@@ -508,7 +595,7 @@
           type="button"
           class="step auto"
           class:running={!!transitionStep}
-          onclick={transition}
+          onclick={() => transition()}
           disabled={!live.connected || (!transitionStep && !nextRequest)}
           title={transitionStep === 'load' && nodesLoading ? `${nodesLoadingTitle}. Stop the transition (T)` : transitionStep ? 'Stop the transition (T)' : `All three in a row, ${fadeSeconds} s fades (T)`}
         >
@@ -582,6 +669,20 @@
       {/if}
       <aside class="side-col">
         <Playlist {items} playing={s.playing} cued={isLive ? null : cueIndex} onselect={selectItem} />
+        <CueListPanel
+          list={cueList}
+          movie={s}
+          addLabel={!isLive && cueChanged ? 'Add cue' : 'Add on air'}
+          canAdd={!!(!isLive && cueChanged ? items[cueIndex] : items[s.playing])}
+          canUpdate={!isLive}
+          goDisabled={!live.connected || !!transitionStep || firing}
+          onadd={addCue}
+          onupdate={updateCue}
+          onselect={selectCue}
+          ongo={() => void goCue()}
+          onback={cueBack}
+          {notify}
+        />
       </aside>
 
       <div class="main-col">
@@ -1031,7 +1132,8 @@
     min-height: 0;
     min-width: 0;
   }
-  .side-col > :global(.playlist) {
+  .side-col > :global(.playlist),
+  .side-col > :global(.cue-list) {
     flex: 1;
   }
 
@@ -1306,7 +1408,8 @@
     .side-col {
       order: 2;
     }
-    .side-col > :global(.playlist) {
+    .side-col > :global(.playlist),
+    .side-col > :global(.cue-list) {
       max-height: 60vh;
     }
     .section-now {

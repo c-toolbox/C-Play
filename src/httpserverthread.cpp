@@ -1436,6 +1436,60 @@ void HttpServerThread::setupMovieRoutes() {
         sendJson(res, ok ? std::optional<QJsonObject>(QJsonObject{{QStringLiteral("ok"), *ok}}) : std::nullopt);
     });
 
+    // Cue lists (*.cplaycue) of the movie view, in the cue list location. Files, not control actions.
+    svr.Get("/movie_cuelists", [this](const httplib::Request &, httplib::Response &res) {
+        QPointer<MovieController> movie(m_movie);
+        sendJson(res, runOnThreadOf<QJsonObject>(m_movie, [movie]() { return movie ? movie->cueLists() : QJsonObject(); }));
+    });
+
+    svr.Get("/movie_cuelist", [this](const httplib::Request &req, httplib::Response &res) {
+        QPointer<MovieController> movie(m_movie);
+        const QString name = QString::fromStdString(req.get_param_value("name"));
+        struct Result { QJsonObject cueList; QString error; int status = 200; };
+        const auto result = runOnThreadOf<Result>(m_movie, [movie, name]() {
+            Result r;
+            if (movie) r.cueList = movie->loadCueList(name, &r.error, &r.status);
+            return r;
+        });
+        if (result && !result->error.isEmpty()) {
+            res.status = result->status;
+            res.set_content(result->error.toStdString(), "text/plain");
+            return;
+        }
+        res.set_header("Cache-Control", "no-store");
+        sendJson(res, result ? std::optional<QJsonObject>(result->cueList) : std::nullopt);
+    });
+
+    // Body: the cue list as JSON, an object with a cues array.
+    svr.Post("/movie_cuelist", [this](const httplib::Request &req, httplib::Response &res) {
+        if (req.body.size() > 4 * 1024 * 1024) {
+            res.status = 413;
+            res.set_content("The cue list is too large", "text/plain");
+            return;
+        }
+        const QJsonDocument doc = QJsonDocument::fromJson(QByteArray::fromStdString(req.body));
+        if (!doc.isObject() || !doc.object().value(QStringLiteral("cues")).isArray()) {
+            res.status = 400;
+            res.set_content("Post a JSON object with a cues array", "text/plain");
+            return;
+        }
+        QPointer<MovieController> movie(m_movie);
+        const QString name = QString::fromStdString(req.get_param_value("name"));
+        const QJsonObject cueList = doc.object();
+        struct Result { QString error; int status = 200; };
+        const auto result = runOnThreadOf<Result>(m_movie, [movie, name, cueList]() {
+            Result r;
+            if (movie) r.error = movie->saveCueList(name, cueList, &r.status);
+            return r;
+        });
+        if (result && !result->error.isEmpty()) {
+            res.status = result->status;
+            res.set_content(result->error.toStdString(), "text/plain");
+            return;
+        }
+        sendJson(res, result ? std::optional<QJsonObject>(QJsonObject{{QStringLiteral("ok"), true}}) : std::nullopt);
+    });
+
 #ifdef MOVIE_PREVIEW_SUPPORT
     // Pictures of the movie view over WebRTC (see MoviePreviewStreamer), not control actions.
     svr.Get("/movie_preview", [](const httplib::Request &, httplib::Response &res) {

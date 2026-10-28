@@ -34,6 +34,11 @@ export class PreparedCue {
     this.#set({ item: index, section: null, position: null });
   }
 
+  /** Takes a cue of the cue list. */
+  set(item: number, section: number | null, position: number | null) {
+    this.#set({ item, section, position });
+  }
+
   selectSection(index: number) {
     this.#set({ ...this.#data, section: index, position: null });
   }

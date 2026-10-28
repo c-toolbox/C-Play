@@ -24,6 +24,9 @@
     <entry name="CPlayMediaLocation" type="String">
       <label>Location of universal media files</label>
     </entry>
+    <entry name="CueListLocation" type="String">
+      <label>Location of movie view cue lists (*.cplaycue), empty for the folder of the playlist</label>
+    </entry>
     <entry name="UniviewVideoLocation" type="String">
       <label>Location of uniview video files</label>
     </entry>

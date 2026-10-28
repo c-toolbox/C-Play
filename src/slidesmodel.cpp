@@ -1335,7 +1335,10 @@ void SlidesModel::clearAllForShutdown() {
     if (m_masterSlide)
         m_masterSlide->clearLayers();
 
-    for (auto& slide : m_slides) {
+    // Iterate a snapshot: clearLayers() emits signals whose handlers may modify
+    // m_slides (same thread, recursive mutex), invalidating live iterators.
+    const auto slidesSnapshot = m_slides;
+    for (const auto& slide : slidesSnapshot) {
         if (slide)
             slide->clearLayers();
     }

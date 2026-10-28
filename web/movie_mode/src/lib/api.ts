@@ -163,7 +163,28 @@ export const api = {
   /** As #rrggbb. */
   backgroundColor: async () => (await text('/background_color')).trim(),
   setBackgroundColor: (color: string) => post('/background_color', { color: color.replace(/^#/, '') }),
+  /** The cue lists saved next to the playlist in C-Play. */
+  cueLists: async () => (await (await request('GET', '/movie_cuelists')).json()) as CueListFolder,
+  loadCueList: async (name: string) => (await (await request('GET', '/movie_cuelist', { name })).json()) as unknown,
+  saveCueList: async (name: string, cueList: unknown) => {
+    const response = await fetch(`/movie_cuelist?${new URLSearchParams({ name })}`, {
+      method: 'POST',
+      cache: 'no-store',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify(cueList),
+    });
+    if (!response.ok) throw new ApiError((await response.text()) || response.statusText, response.status);
+  },
 };
+
+/** Where C-Play keeps the cue lists (*.cplaycue): the folder of the open playlist. */
+export interface CueListFolder {
+  folder: string;
+  /** Name of the open playlist, the default name of its cue list. */
+  playlist: string;
+  /** Without the extension, newest first. */
+  files: { name: string; modified: string }[];
+}
 
 /** The sections of playlist item index, as C-Play has them for the loaded item. */
 export function sectionsOf(state: MovieState, index: number): SectionInfo[] {

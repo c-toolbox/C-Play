@@ -72,6 +72,24 @@ SettingsBasePage {
         onRejected: mpv.focus = true
     }
     CPlayFileDialog {
+        id: openCueListLocation
+
+        useFolder: true
+        currentFolder: LocationSettings.cueListLocation !== "" ? app.pathToUrl(LocationSettings.cueListLocation) : app.pathToUrl(LocationSettings.fileDialogLastLocation)
+        title: "Choose Cue List Location"
+
+        onAccepted: {
+            var filePath = openCueListLocation.selectedFolder.toString();
+            // remove prefixed "file:///"
+            filePath = filePath.replace(/^(file:\/{3})/, "");
+            cueListLocationText.text = filePath;
+            LocationSettings.cueListLocation = cueListLocationText.text;
+            LocationSettings.save();
+            mpv.focus = true;
+        }
+        onRejected: mpv.focus = true
+    }
+    CPlayFileDialog {
         id: openUniviewVideoLocation
 
         useFolder: true
@@ -289,6 +307,56 @@ SettingsBasePage {
                 onClicked: {
                     cPlayMediaLocationText.text = "";
                     LocationSettings.cPlayMediaLocation = "";
+                    LocationSettings.save();
+                }
+
+                ToolTip {
+                    text: qsTr("Clear path")
+                }
+            }
+        }
+        Label {
+            Layout.alignment: Qt.AlignRight
+            text: qsTr("Cue list location")
+        }
+        RowLayout {
+            Layout.columnSpan: 2
+            Layout.fillWidth: true
+
+            TextField {
+                id: cueListLocationText
+
+                placeholderText: qsTr("Empty: next to the playlist")
+                text: LocationSettings.cueListLocation
+
+                onEditingFinished: {
+                    LocationSettings.cueListLocation = cueListLocationText.text;
+                    LocationSettings.save();
+                }
+
+                ToolTip {
+                    text: qsTr("Folder where the movie view saves and opens cue lists (*.cplaycue). If empty, the folder of the open playlist (or the common C-play file location) is used.")
+                }
+            }
+            ToolButton {
+                focusPolicy: Qt.NoFocus
+                icon.height: 16
+                icon.name: "system-file-manager"
+                text: ""
+
+                onClicked: {
+                    openCueListLocation.open();
+                }
+            }
+            ToolButton {
+                focusPolicy: Qt.NoFocus
+                icon.height: 16
+                icon.name: "edit-clear"
+                text: ""
+
+                onClicked: {
+                    cueListLocationText.text = "";
+                    LocationSettings.cueListLocation = "";
                     LocationSettings.save();
                 }
 

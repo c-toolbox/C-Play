@@ -125,7 +125,18 @@
 #include <QTreeWidget>
 #include <QtGlobal>
 
+#include <QTimer>
+
+#ifdef _WIN32
+#ifndef NOMINMAX
+#define NOMINMAX
+#endif
+#include <windows.h>
+#endif
+
 #include <bit>
+#include <cstdio>
+#include <cstdlib>
 #include <memory>
 
 #include <KActionCollection>
@@ -448,7 +459,14 @@ int Application::run() {
     shutdownLayers();
     shutdownWorkerThread();
     renderThread.terminate();
-    loop.exec();
+
+    // SGCT's engine teardown (on the render thread) joins its network threads. A sync
+    // server thread can stay blocked in accept() forever, so never wait unbounded here.
+    constexpr int RenderThreadShutdownTimeoutMs = 5000;
+    QTimer::singleShot(RenderThreadShutdownTimeoutMs, &loop, &QEventLoop::quit);
+    if (!renderThread.isFinished())
+        loop.exec();
+    const bool renderThreadFinished = renderThread.isFinished();
 
     // Release the last NDI library user (the NDI sender) while the process is still
     // fully alive. Otherwise the NDI runtime is only torn down during process exit
@@ -459,6 +477,18 @@ int Application::run() {
 #ifdef NDI_SUPPORT
     NDISendersModel::shutdownNdi();
 #endif
+
+    if (!renderThreadFinished) {
+        sgct::Log::Warning("Render thread did not finish shutdown in time (SGCT network "
+                           "teardown blocked); forcing process exit");
+        std::fflush(nullptr);
+#ifdef _WIN32
+        // ExitProcess/_Exit still run DLL detach, where the NDI runtime deadlocks.
+        // TerminateProcess skips DLL notifications entirely.
+        ::TerminateProcess(::GetCurrentProcess(), static_cast<UINT>(returnCode));
+#endif
+        std::_Exit(returnCode);
+    }
 
     return returnCode;
 }

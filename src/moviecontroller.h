@@ -41,7 +41,19 @@ public:
     // Empty when there is none.
     QString mediaFile(int itemIdx) const;
 
+    // Cue lists of the movie view (*.cplaycue), kept in the cue list location if set, else in the
+    // folder of the open playlist, else in the C-Play file location: {folder, playlist, files: [{name, modified}]}, newest first.
+    QJsonObject cueLists() const;
+    // The cue list name (without .cplaycue). On failure empty, with error and the HTTP status set.
+    QJsonObject loadCueList(const QString &name, QString *error, int *status) const;
+    // Saves cueList as name.cplaycue. Returns the error, empty when saved; status as above.
+    QString saveCueList(const QString &name, const QJsonObject &cueList, int *status) const;
+
 private:
+    QString cueListFolder() const;
+    // Empty for a name that is not a plain file name.
+    QString cueListPath(const QString &name) const;
+
     QPointer<PlayerController> m_player;
     QPointer<MpvObject> m_mpv;
     // A cue waiting for its file to load, replaced by the next cue.

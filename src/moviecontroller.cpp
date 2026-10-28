@@ -14,8 +14,14 @@
 #include "webrtc/moviepreviewstreamer.h"
 #endif
 
+#include "locationsettings.h"
+
+#include <QDateTime>
+#include <QDir>
 #include <QFileInfo>
 #include <QJsonArray>
+#include <QJsonDocument>
+#include <QSaveFile>
 #include <algorithm>
 
 namespace {
@@ -135,4 +141,79 @@ bool MovieController::cue(int itemIdx, int sectionIdx, double position, int play
     // The position and section take effect once mpv has the file (and C-Play its sections).
     m_pendingCue = connect(m_mpv, &MpvObject::fileLoaded, this, apply, Qt::SingleShotConnection);
     return true;
+}
+
+QString MovieController::cueListFolder() const {
+    if (!LocationSettings::cueListLocation().isEmpty())
+        return LocationSettings::cueListLocation();
+    PlayListModel *playlist = m_mpv ? m_mpv->playlistModel() : nullptr;
+    if (playlist && !playlist->getPlayListPath().isEmpty())
+        return QFileInfo(playlist->getPlayListPath()).absolutePath();
+    return LocationSettings::cPlayFileLocation();
+}
+
+QString MovieController::cueListPath(const QString &name) const {
+    QString fileName = name.trimmed();
+    if (fileName.endsWith(QStringLiteral(".cplaycue"), Qt::CaseInsensitive))
+        fileName.chop(9);
+    static const QString forbidden = QStringLiteral("/\\:*?\"<>|");
+    const bool plain = !fileName.isEmpty() && fileName.size() <= 120 && !fileName.startsWith(QLatin1Char('.'))
+        && std::none_of(fileName.cbegin(), fileName.cend(), [](QChar c) { return c.unicode() < 32 || forbidden.contains(c); });
+    const QString folder = cueListFolder();
+    if (!plain || folder.isEmpty())
+        return {};
+    return QDir(folder).absoluteFilePath(fileName + QStringLiteral(".cplaycue"));
+}
+
+QJsonObject MovieController::cueLists() const {
+    const QString folder = cueListFolder();
+    QJsonArray files;
+    if (!folder.isEmpty()) {
+        const auto entries = QDir(folder).entryInfoList({QStringLiteral("*.cplaycue")}, QDir::Files, QDir::Time);
+        for (const QFileInfo &entry : entries)
+            files.append(QJsonObject{{QStringLiteral("name"), entry.completeBaseName()},
+                {QStringLiteral("modified"), entry.lastModified().toString(Qt::ISODate)}});
+    }
+    PlayListModel *playlist = m_mpv ? m_mpv->playlistModel() : nullptr;
+    return {{QStringLiteral("folder"), folder},
+        {QStringLiteral("playlist"), playlist ? playlist->getPlayListName() : QString()},
+        {QStringLiteral("files"), files}};
+}
+
+QJsonObject MovieController::loadCueList(const QString &name, QString *error, int *status) const {
+    const QString path = cueListPath(name);
+    if (path.isEmpty()) {
+        *status = cueListFolder().isEmpty() ? 409 : 400;
+        *error = *status == 409 ? QStringLiteral("No folder for cue lists: open a saved playlist or set the C-Play file location")
+                                : QStringLiteral("Invalid cue list name");
+        return {};
+    }
+    QFile file(path);
+    if (!file.open(QIODevice::ReadOnly)) {
+        *status = 404;
+        *error = QStringLiteral("No cue list ") + QFileInfo(path).fileName();
+        return {};
+    }
+    const QJsonDocument doc = QJsonDocument::fromJson(file.readAll());
+    if (!doc.isObject() || !doc.object().value(QStringLiteral("cues")).isArray()) {
+        *status = 422;
+        *error = QFileInfo(path).fileName() + QStringLiteral(" is not a cue list");
+        return {};
+    }
+    return doc.object();
+}
+
+QString MovieController::saveCueList(const QString &name, const QJsonObject &cueList, int *status) const {
+    const QString path = cueListPath(name);
+    if (path.isEmpty()) {
+        *status = cueListFolder().isEmpty() ? 409 : 400;
+        return *status == 409 ? QStringLiteral("No folder for cue lists: open a saved playlist or set the C-Play file location")
+                              : QStringLiteral("Invalid cue list name");
+    }
+    QSaveFile file(path);
+    if (!file.open(QIODevice::WriteOnly) || file.write(QJsonDocument(cueList).toJson()) < 0 || !file.commit()) {
+        *status = 500;
+        return QStringLiteral("Could not write ") + path;
+    }
+    return {};
 }
