@@ -429,6 +429,22 @@ QStringList MpvObject::nodesLoadWaiting() const {
     return waiting;
 }
 
+QStringList MpvObject::nodesLoadFailed() const {
+    QStringList failed;
+    const auto names = NodeLoaderVerifier::instance().mainVideoLoadState().value(QStringLiteral("failed")).toArray();
+    for (const auto &name : names)
+        failed.append(name.toString());
+    return failed;
+}
+
+int MpvObject::nodesLoadCount() const {
+    return NodeLoaderVerifier::instance().mainVideoLoadState().value(QStringLiteral("nodes")).toInt();
+}
+
+bool MpvObject::nodesLoadTimedOut() const {
+    return NodeLoaderVerifier::instance().mainVideoLoadState().value(QStringLiteral("timedOut")).toBool();
+}
+
 void MpvObject::syncMainVideoLoad() {
     // The nodes only get the file while playback sync is on.
     auto &verifier = NodeLoaderVerifier::instance();

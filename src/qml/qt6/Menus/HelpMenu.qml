@@ -20,7 +20,7 @@ Menu {
         text: qsTr("Documentation")
         icon.name: "help-browser"
 
-        onTriggered: Qt.openUrlExternally("https://c-toolbox.github.io/C-Play/")
+        onTriggered: Qt.openUrlExternally("https://cplay.appvis.se/")
     }
     MenuSeparator {
     }

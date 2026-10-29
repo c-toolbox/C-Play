@@ -57,6 +57,7 @@ Windowed node windows use an opaque framebuffer in the default complete-window m
 ### Open file behavior
 
 * **Show mapping mode on open file** — When opening non-`.cplayfile` files, prompt for the grid mapping mode to use (default on).
+* **Show a notice when a file is loaded** — After a main video file is loaded with *Open File*, drag and drop or the playlist (double-click, next/previous, or a playlist item loaded remotely), a notice at the top of the master view confirms the load (default on). It warns when the media visibility is 0% (with a button to fade it up) and, when the file is synced to cluster nodes, shows how many nodes have loaded it and which nodes failed or did not answer. The notice is not shown in fullscreen.
 * **Use native file/folder dialogs when available** — When opening file or folder dialog, the default is to use Windows native dialogs, but they can sometimes fail. C-Play handles this and launches the Qt/QML version if this happens. Clear this checkbox to always use the Qt/QML dialog.
 
 ### Theme and appearance

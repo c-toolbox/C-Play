@@ -316,8 +316,10 @@ QJsonObject NodeLoaderVerifier::mainVideoLoadState() const {
 void NodeLoaderVerifier::updateMainVideoReady() {
     QStringList waiting;
     QStringList failed;
+    qsizetype nodes = 0;
     {
         const std::lock_guard<std::mutex> lock(m_mutex);
+        nodes = m_mainLoadExpected.size();
         for (int client : std::as_const(m_mainLoadExpected)) {
             const auto it = m_mainLoad.constFind(client);
             if (it == m_mainLoad.constEnd() || it->loadId != m_mainLoadId) {
@@ -352,6 +354,7 @@ void NodeLoaderVerifier::updateMainVideoReady() {
     const QJsonObject state{{QStringLiteral("id"), m_mainLoadId},
                             {QStringLiteral("ready"), ready},
                             {QStringLiteral("timedOut"), m_mainLoadTimedOut},
+                            {QStringLiteral("nodes"), static_cast<int>(nodes)},
                             {QStringLiteral("waiting"), QJsonArray::fromStringList(waiting)},
                             {QStringLiteral("failed"), QJsonArray::fromStringList(failed)}};
     if (state == m_mainLoadState)

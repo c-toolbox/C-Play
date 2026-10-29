@@ -249,6 +249,7 @@ QtObject {
                 mpv.pause = true;
                 mpv.position = 0;
                 mpv.playlistModel.setPlayingVideo(nextFileRow);
+                loadNotice.expectPlaylistItem(nextFileRow);
                 mpv.loadItem(nextFileRow);
             } else {
                 // Last file in playlist
@@ -256,6 +257,7 @@ QtObject {
                     mpv.pause = true;
                     mpv.position = 0;
                     mpv.playlistModel.setPlayingVideo(0);
+                    loadNotice.expectPlaylistItem(0);
                     mpv.loadItem(0);
                 }
             }
@@ -294,6 +296,7 @@ QtObject {
                 mpv.pause = true;
                 mpv.position = 0;
                 mpv.playlistModel.setPlayingVideo(previousFileRow);
+                loadNotice.expectPlaylistItem(previousFileRow);
                 mpv.loadItem(previousFileRow);
             }
         }

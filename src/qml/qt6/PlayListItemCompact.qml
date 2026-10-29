@@ -224,6 +224,7 @@ ItemDelegate {
         mpv.pause = true;
         iconWidth = Kirigami.Units.gridUnit * 1.8;
         mpv.position = 0;
+        loadNotice.expectPlaylistItem(index);
         mpv.loadItem(index);
         mpv.playlistModel.setPlayingVideo(index);
         if (mpv.autoPlay)

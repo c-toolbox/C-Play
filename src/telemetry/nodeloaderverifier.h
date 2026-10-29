@@ -96,8 +96,8 @@ public:
     // loaded (or failed to load it), when no node is connected, or after the wait timed out.
     bool mainVideoReady() const;
 
-    // Master: {id, ready, timedOut, waiting: [node names], failed: [node names]} for QML and the
-    // control event feed.
+    // Master: {id, ready, timedOut, nodes, waiting: [node names], failed: [node names]} for QML
+    // and the control event feed; nodes is the number of nodes the current load waits for.
     QJsonObject mainVideoLoadState() const;
 
     // Node, render thread (postDraw, every frame): the progress of main video load loadId.

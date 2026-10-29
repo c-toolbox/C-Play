@@ -1,6 +1,6 @@
 !define APPNAME "@TARGET_NAME@"
 !define COMPANYNAME "Visualization Center C"
-!define DESCRIPTION "Cluster Video Player, (c-toolbox.github.io/C-Play/)"
+!define DESCRIPTION "Cluster Video Player, (cplay.appvis.se)"
 # These three must be integers
 !define VERSIONMAJOR @CPLAY_VERSION_MAJOR@
 !define VERSIONMINOR @CPLAY_VERSION_MINOR@

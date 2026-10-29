@@ -8,7 +8,7 @@ set(CPLAY_VERSION_MAJOR 2)
 set(CPLAY_VERSION_MINOR 4)
 set(CPLAY_VERSION_PATCH 0)
 set(CPLAY_VERSION_PR_NAME "Beta")
-set(CPLAY_VERSION_PR_VERS 46)
+set(CPLAY_VERSION_PR_VERS 47)
 
 qt_add_executable(${TARGET_NAME})
 set_compile_options(${TARGET_NAME})
@@ -390,6 +390,7 @@ set(QML_SRC_FILES
     qml/qt6/Footer.qml
     qml/qt6/HProgressBar.qml
     qml/qt6/Header.qml
+    qml/qt6/LoadNotice.qml
     qml/qt6/MpvVideo.qml
     qml/qt6/Osd.qml
     qml/qt6/PlayList.qml

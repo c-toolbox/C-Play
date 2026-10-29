@@ -244,6 +244,7 @@ Kirigami.ApplicationWindow {
             openFileValuesDialog.open();
         }
         else{
+            loadNotice.expect(path);
             openMediaFile(path.toString(), true, PlaylistSettings.loadSiblings);
         }
         // the timer scrolls the playlist to the playing file
@@ -961,6 +962,18 @@ Kirigami.ApplicationWindow {
         }
     }
 
+    // Confirms a file opened with Open File, dropped on the master view or loaded from the
+    // playlist was loaded (unless turned off in the settings), and warns
+    // when nothing is shown because the media visibility is 0%. Centered at the top of the main
+    // viewport (same geometry as MpvVideo / the 3D view).
+    LoadNotice {
+        id: loadNotice
+
+        anchors.horizontalCenter: mpv.horizontalCenter
+        anchors.top: mpv.top
+        anchors.topMargin: Kirigami.Units.largeSpacing
+    }
+
     PlaySections {
         id: playSections
 
@@ -1251,6 +1264,7 @@ Kirigami.ApplicationWindow {
         onAccepted: {
             if (stereoscopicMode.currentIndex < 0 || gridMode.currentIndex < 0)
                 return;
+            loadNotice.expect(newMediaFileToOpen);
             openMediaFile(newMediaFileToOpen.toString(), true, PlaylistSettings.loadSiblings);
             mpv.stereoscopicMode = stereoscopicModeList.get(stereoscopicMode.currentIndex).value;
             mpv.gridToMapOn = gridModeList.get(gridMode.currentIndex).value;

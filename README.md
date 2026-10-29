@@ -6,9 +6,9 @@ C-Play is an open source cluster media player, useful for video playback and pre
 
 # Documentation
 
-https://c-toolbox.github.io/C-Play/
+https://cplay.appvis.se/
 
-For preparing videos and image sequences, including per-window outputs for an SGCT installation, use [C-Slice](https://c-toolbox.github.io/C-Slice/). See the [C-Play video preparation guide](https://c-toolbox.github.io/C-Play/media/video/#prepare-videos-with-c-slice) for the playback workflow.
+For preparing videos and image sequences, including per-window outputs for an SGCT installation, use [C-Slice](https://c-toolbox.github.io/C-Slice/). See the [C-Play video preparation guide](https://cplay.appvis.se/media/video/#prepare-videos-with-c-slice) for the playback workflow.
 
 # Content features
 These are just some features that set C-Play apart from other media and video players:
@@ -83,14 +83,14 @@ Optional libraries in current C-Play builds include:
 - [Wuffs](https://github.com/google/wuffs) & [Sail](https://sail.software/) - For more extensive image decoding
 # Build on Windows
 
-- Use the [Craft Guide](https://c-toolbox.github.io/C-Play/build/craft) to install all dependencies for the UI, including Qt and KDE Frameworks libraries.
+- Use the [Craft Guide](https://cplay.appvis.se/build/craft) to install all dependencies for the UI, including Qt and KDE Frameworks libraries.
 
-- Use the [Build FFMPEG and MPV Guide](https://c-toolbox.github.io/C-Play/build/mpv_ffmpeg) guide to build FFmpeg and MPV with JACK+portaudio support.
+- Use the [Build FFMPEG and MPV Guide](https://cplay.appvis.se/build/mpv_ffmpeg) guide to build FFmpeg and MPV with JACK+portaudio support.
 
 - Install optional libraries such as NDI, OMT, and Poppler, for network video/audio and PDF support, either through installers or using vcpkg where available.
 
 - Configure C-Play with CMake.
 
-- It is also good practice to follow the [Deploy Guide](https://c-toolbox.github.io/C-Play/build/deploy) to copy the build and its dependencies into a single binary folder.
+- It is also good practice to follow the [Deploy Guide](https://cplay.appvis.se/build/deploy) to copy the build and its dependencies into a single binary folder.
 
 - Build in Visual Studio 2022, or whichever IDE you prefer.

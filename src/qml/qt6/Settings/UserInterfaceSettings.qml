@@ -55,6 +55,26 @@ SettingsBasePage {
                 width: 1
             }
             CheckBox {
+                checked: UserInterfaceSettings.showLoadNotice
+                text: qsTr("Show a notice when a file is loaded (Open File, drag and drop, playlist)")
+
+                onCheckedChanged: {
+                    UserInterfaceSettings.showLoadNotice = checked;
+                    UserInterfaceSettings.save();
+                }
+
+                ToolTip.text: qsTr("Confirms the load in the master view, warns when media visibility is 0%, and shows whether the cluster nodes loaded the file.")
+                ToolTip.visible: hovered
+            }
+            Item {
+                Layout.fillWidth: true
+            }
+
+            Item {
+                height: 1
+                width: 1
+            }
+            CheckBox {
                 checked: UserInterfaceSettings.useNativeFileDialogs
                 text: qsTr("Use native file/folder dialogs when available")
 

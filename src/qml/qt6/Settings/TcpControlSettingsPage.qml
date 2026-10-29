@@ -11,7 +11,7 @@ import org.ctoolbox.cplay
 
 SettingsBasePage {
     id: root
-    helpUrl: "https://c-toolbox.github.io/C-Play/remote-control/tcp"
+    helpUrl: "https://cplay.appvis.se/remote-control/tcp"
     property var manager: app.tcpControlManager
     property string serverId: ""
     property string commandId: ""

@@ -87,6 +87,10 @@
       <label>Specify mapping modes for dialog if NOT a cplayfile.</label>
       <default>true</default>
     </entry>
+    <entry name="ShowLoadNotice" type="bool">
+      <label>Show a notice in the master view when a main video file has been loaded.</label>
+      <default>true</default>
+    </entry>
     <entry name="UseNativeFileDialogs" type="bool">
       <label>Use native file dialogs when available.</label>
       <default>true</default>

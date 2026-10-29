@@ -71,6 +71,22 @@ public:
                    READ nodesLoadWaiting
                        NOTIFY nodesLoadReadyChanged)
 
+    // The nodes that failed to load the main video file.
+    Q_PROPERTY(QStringList nodesLoadFailed
+                   READ nodesLoadFailed
+                       NOTIFY nodesLoadReadyChanged)
+
+    // The number of nodes the current main video load waits for (0 when no node is connected
+    // or the file is not synced to the nodes).
+    Q_PROPERTY(int nodesLoadCount
+                   READ nodesLoadCount
+                       NOTIFY nodesLoadReadyChanged)
+
+    // True when the nodes did not all answer in time and playback was allowed anyway.
+    Q_PROPERTY(bool nodesLoadTimedOut
+                   READ nodesLoadTimedOut
+                       NOTIFY nodesLoadReadyChanged)
+
     Q_PROPERTY(bool autoPlay
                    READ autoPlay
                        WRITE setAutoPlay
@@ -308,6 +324,9 @@ public:
 
     bool nodesLoadReady() const;
     QStringList nodesLoadWaiting() const;
+    QStringList nodesLoadFailed() const;
+    int nodesLoadCount() const;
+    bool nodesLoadTimedOut() const;
 
     bool autoPlay();
     void setAutoPlay(bool value);

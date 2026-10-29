@@ -248,7 +248,7 @@ void PlayerController::setupControlEvents() {
             return m_mpv ? QJsonValue::fromVariant(m_mpv->property(property.constData())) : QJsonValue();
         });
     }
-    // Whether the cluster nodes have the main video loaded: {id, ready, timedOut, waiting, failed}.
+    // Whether the cluster nodes have the main video loaded: {id, ready, timedOut, nodes, waiting, failed}.
     m_controlEvents->addTopic(QStringLiteral("main_video_load"), []() -> QJsonValue {
         return NodeLoaderVerifier::instance().mainVideoLoadState();
     });

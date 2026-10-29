@@ -535,7 +535,7 @@ void Application::setupAboutData() {
     m_aboutData->setLicense(KAboutLicense::GPL_V3);
     m_aboutData->setCopyrightStatement(QString::fromUtf8("(c) Erik Sundén 2021-2026"));
 
-    m_aboutData->setHomepage(QStringLiteral("https://c-toolbox.github.io/C-Play/"));
+    m_aboutData->setHomepage(QStringLiteral("https://cplay.appvis.se/"));
     m_aboutData->setBugAddress(QStringLiteral("https://github.com/c-toolbox/C-Play/issues").toUtf8());
     m_aboutData->setDesktopFileName(QStringLiteral("org.ctoolbox.cplay"));
 

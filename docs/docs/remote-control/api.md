@@ -454,7 +454,7 @@ Event responses use native JSON numbers and booleans, and structured collection 
 
 When the master loads a new main video file, every cluster node connected over the DataTransfer channel (the `datatransferport` of the node, by default its port + 1000) reports back when it has the file open and its first frame rendered, or when it could not open it. C-Play holds playback until all of them have answered: the play button is disabled, and a play requested meanwhile (`/play`, a cue, auto play) starts once the nodes are ready. A file that was already playing when the next one loads (for example the next playlist item) is paused until then. Nodes that could not load the file do not hold playback but are logged; nodes that do not answer within 30 seconds stop holding it. Without connected nodes, with playback sync off, or for multi-video compositions, playback is not held.
 
-The `main_video_load` topic follows this: `{"id": 12, "ready": false, "timedOut": false, "waiting": ["10.0.0.11"], "failed": []}`. `id` changes for every loaded file, so a client that loads a file can wait for a new `id` with `ready: true` before it fades in.
+The `main_video_load` topic follows this: `{"id": 12, "ready": false, "timedOut": false, "nodes": 2, "waiting": ["10.0.0.11"], "failed": []}`. `nodes` is the number of nodes the load waits for (0 when no node is connected or playback sync is off). `id` changes for every loaded file, so a client that loads a file can wait for a new `id` with `ready: true` before it fades in.
 
 ### Optional event WebSocket listener
 

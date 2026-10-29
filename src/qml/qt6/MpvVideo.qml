@@ -187,6 +187,7 @@ MpvObject {
         function onLoadFromPlaylist(index) {
             root.pause = true;
             root.position = 0;
+            loadNotice.expectPlaylistItem(index);
             root.loadItem(index);
             root.playlistModel.setPlayingVideo(index);
             if (mpv.autoPlay)
