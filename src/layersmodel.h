@@ -313,9 +313,13 @@ public:
     QString notes() const;
     void setNotes(const QString &notes);
 
-    // JPEG preview of the slide for the presenter view, saved in the presentation.
+    // JPEG preview of the slide for the presenter view.
     QByteArray thumbnail() const;
     void setThumbnail(const QByteArray &jpeg);
+    // The file the thumbnail is stored in, see SlidesModel::storeThumbnail(). Empty when it has
+    // none yet, the thumbnail is then saved inside the presentation.
+    QString thumbnailFile() const;
+    void setThumbnailFile(const QString &file);
     // Changes whenever the thumbnail changes, so clients know when to fetch it again. 0 = never set.
     int thumbnailRevision() const;
 
@@ -670,6 +674,7 @@ private:
     QString m_layersPath;
     QString m_notes;
     QByteArray m_thumbnail;
+    QString m_thumbnailFile;
     int m_thumbnailRevision = 0;
 
     // Timeline data

@@ -20,6 +20,7 @@
 #include <QJsonArray>
 #include <QJsonDocument>
 #include <QJsonObject>
+#include <QSaveFile>
 #include <QTimer>
 #include <QThread>
 
@@ -1583,6 +1584,16 @@ void SlidesModel::saveAsJSONFile(const QString &path) {
     pathsToConsider.append(LocationSettings::cPlayFileLocation());
     pathsToConsider.append(LocationSettings::univiewVideoLocation());
 
+    // Thumbnails without a file yet, or left in the folder of another location (save as).
+    const QString folder = thumbnailFolder(fileToSave);
+    for (int i = -1; i < numberOfSlides(); i++) {
+        LayersModel *slideToStore = slide(i);
+        const QFileInfo thumbnailInfo(slideToStore->thumbnailFile());
+        if (slideToStore->thumbnail().isEmpty() || (thumbnailInfo.exists() && thumbnailInfo.absoluteDir() == QDir(folder)))
+            continue;
+        writeThumbnailFile(slideToStore, folder);
+    }
+
     QJsonDocument doc = asJSONDocument(pathsToConsider);
     QFile jsonFile(fileToSave);
     if(!jsonFile.open(QFile::WriteOnly)) {
@@ -1598,6 +1609,44 @@ void SlidesModel::saveAsJSONFile(const QString &path) {
     updateRecentLoadedPresentations(fileToSave);
 
     setSlidesNeedsSave(false);
+}
+
+QString SlidesModel::thumbnailFolder(const QString &slidesPath) const {
+    QString location = LocationSettings::presentationThumbnailLocation();
+    if (location.isEmpty() && !slidesPath.isEmpty() && !Autosave::isAutosave(slidesPath))
+        location = QFileInfo(slidesPath).absolutePath();
+    if (location.isEmpty())
+        location = LocationSettings::cPlayFileLocation();
+    return location.isEmpty() ? QString() : QDir(location).filePath(QStringLiteral("cplaypres_thumbnails"));
+}
+
+void SlidesModel::storeThumbnail(LayersModel *slide) {
+    writeThumbnailFile(slide, thumbnailFolder(m_slidesPath));
+}
+
+void SlidesModel::writeThumbnailFile(LayersModel *slide, const QString &folder) {
+    QString file;
+    if (!folder.isEmpty() && QDir().mkpath(folder)) {
+        const QDir dir(folder);
+        // A slide keeps its file in the folder, others get the next free number as
+        // presentations can share the folder.
+        file = slide->thumbnailFile();
+        if (file.isEmpty() || QFileInfo(file).absoluteDir() != dir) {
+            int number = 1;
+            do {
+                file = dir.filePath(QStringLiteral("thumbnail_%1.jpg").arg(number++));
+            } while (QFile::exists(file));
+        }
+
+        // QSaveFile, so a failed write leaves the thumbnail in the file intact.
+        QSaveFile thumbnailFile(file);
+        if (!thumbnailFile.open(QIODevice::WriteOnly) || thumbnailFile.write(slide->thumbnail()) < 0 || !thumbnailFile.commit()) {
+            qDebug() << QStringLiteral("Failed to write slide thumbnail: ") << file;
+            file.clear();
+        }
+    }
+    // Without a file the thumbnail is saved inside the presentation.
+    slide->setThumbnailFile(file);
 }
 
 void SlidesModel::autosave() {

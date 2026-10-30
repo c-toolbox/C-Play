@@ -25,7 +25,7 @@
 #include <QUrl>
 
 namespace {
-// Wide enough for a sharp preview on a presenter screen, small enough to keep the presentation file light.
+// Wide enough for a sharp preview on a presenter screen, small enough to keep the thumbnail files light.
 constexpr int kThumbnailMaxWidth = 640;
 constexpr int kThumbnailJpegQuality = 85;
 
@@ -193,6 +193,8 @@ void PresenterController::onSnapshotReady(const QImage &snapshot) {
     if (!image.convertToFormat(QImage::Format_RGB888).save(&buffer, "JPEG", kThumbnailJpegQuality))
         return;
     slide->setThumbnail(jpeg);
+    if (m_slides)
+        m_slides->storeThumbnail(slide);
 }
 
 bool PresenterController::save() {

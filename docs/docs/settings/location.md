@@ -23,6 +23,10 @@ The base location where your media is stored. The benefit of setting this path i
 
 The folder where the movie view saves and opens its cue lists ("*.cplaycue*"). When empty, the cue lists are kept next to the open playlist, or in the common C-play file location when no saved playlist is open.
 
+#### Presentation thumbnail location
+
+The folder where a "*cplaypres_thumbnails*" folder is created for the slide thumbnails of the [presenter view](/remote-control/web-views#presenter-view), used for all presentations. When empty, the "*cplaypres_thumbnails*" folder is created next to the "*.cplaypres*" file. A presentation not saved yet uses the common C-play file location, or keeps its thumbnails in memory until it is saved if that is not set either.
+
 #### 3. File dialog location (recommended empty)
 
 The file dialog location can be set to a preferred path that C-Play will always open when clicking "*Open File*". By default, this is *empty*, and C-Play instead opens the last path you loaded a file from.

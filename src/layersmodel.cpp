@@ -1574,6 +1574,14 @@ void LayersModel::setThumbnail(const QByteArray &jpeg) {
         setLayersNeedsSave(true);
 }
 
+QString LayersModel::thumbnailFile() const {
+    return m_thumbnailFile;
+}
+
+void LayersModel::setThumbnailFile(const QString &file) {
+    m_thumbnailFile = file;
+}
+
 int LayersModel::thumbnailRevision() const {
     return m_thumbnailRevision;
 }
@@ -1686,7 +1694,8 @@ QString LayersModel::checkAndCorrectPath(const QString &filePath, const QStringL
 QString LayersModel::makePathRelativeTo(const QString &filePath, const QStringList &pathsToConsider) {
     // Assuming filePath is absolute
     for (int i = 0; i < pathsToConsider.size(); i++) {
-        if (filePath.startsWith(pathsToConsider[i])) {
+        // An unset location is empty, which every path starts with.
+        if (!pathsToConsider[i].isEmpty() && filePath.startsWith(pathsToConsider[i])) {
             QDir foundDir(pathsToConsider[i]);
             return foundDir.relativeFilePath(filePath);
         }
@@ -2217,7 +2226,16 @@ void LayersModel::decodeFromJSON(QJsonObject &obj, const QStringList &forRelativ
     if (obj.contains(QStringLiteral("notes"))) {
         setNotes(obj.value(QStringLiteral("notes")).toString());
     }
-    if (obj.contains(QStringLiteral("thumbnail"))) {
+    if (obj.contains(QStringLiteral("thumbnailFile"))) {
+        const QString file = obj.value(QStringLiteral("thumbnailFile")).toString();
+        const QString foundFile = checkAndCorrectPath(file, forRelativePaths);
+        QFile thumbnailFile(foundFile);
+        if (!foundFile.isEmpty() && thumbnailFile.open(QIODevice::ReadOnly))
+            setThumbnail(thumbnailFile.readAll());
+        // Kept when not found, as the folder may only be unavailable right now.
+        setThumbnailFile(foundFile.isEmpty() ? file : foundFile);
+    }
+    else if (obj.contains(QStringLiteral("thumbnail"))) {
         setThumbnail(QByteArray::fromBase64(obj.value(QStringLiteral("thumbnail")).toString().toLatin1()));
     }
 
@@ -2686,8 +2704,11 @@ void LayersModel::encodeToJSON(QJsonObject &obj, const QStringList &forRelativeP
     if (!m_notes.isEmpty()) {
         obj.insert(QStringLiteral("notes"), QJsonValue(m_notes));
     }
-    // Base64 JPEG, small enough (a few tens of kB) to keep the presentation a single file.
-    if (!m_thumbnail.isEmpty()) {
+    if (!m_thumbnailFile.isEmpty()) {
+        obj.insert(QStringLiteral("thumbnailFile"), QJsonValue(makePathRelativeTo(m_thumbnailFile, forRelativePaths)));
+    }
+    // Base64 JPEG, for a thumbnail without a file, so it is not lost (see SlidesModel::storeThumbnail()).
+    else if (!m_thumbnail.isEmpty()) {
         obj.insert(QStringLiteral("thumbnail"), QJsonValue(QString::fromLatin1(m_thumbnail.toBase64())));
     }
 

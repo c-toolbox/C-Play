@@ -90,6 +90,24 @@ SettingsBasePage {
         onRejected: mpv.focus = true
     }
     CPlayFileDialog {
+        id: openPresentationThumbnailLocation
+
+        useFolder: true
+        currentFolder: LocationSettings.presentationThumbnailLocation !== "" ? app.pathToUrl(LocationSettings.presentationThumbnailLocation) : app.pathToUrl(LocationSettings.fileDialogLastLocation)
+        title: "Choose Presentation Thumbnail Location"
+
+        onAccepted: {
+            var filePath = openPresentationThumbnailLocation.selectedFolder.toString();
+            // remove prefixed "file:///"
+            filePath = filePath.replace(/^(file:\/{3})/, "");
+            presentationThumbnailLocationText.text = filePath;
+            LocationSettings.presentationThumbnailLocation = presentationThumbnailLocationText.text;
+            LocationSettings.save();
+            mpv.focus = true;
+        }
+        onRejected: mpv.focus = true
+    }
+    CPlayFileDialog {
         id: openUniviewVideoLocation
 
         useFolder: true
@@ -357,6 +375,56 @@ SettingsBasePage {
                 onClicked: {
                     cueListLocationText.text = "";
                     LocationSettings.cueListLocation = "";
+                    LocationSettings.save();
+                }
+
+                ToolTip {
+                    text: qsTr("Clear path")
+                }
+            }
+        }
+        Label {
+            Layout.alignment: Qt.AlignRight
+            text: qsTr("Presentation thumbnail location")
+        }
+        RowLayout {
+            Layout.columnSpan: 2
+            Layout.fillWidth: true
+
+            TextField {
+                id: presentationThumbnailLocationText
+
+                placeholderText: qsTr("Empty: next to the presentation")
+                text: LocationSettings.presentationThumbnailLocation
+
+                onEditingFinished: {
+                    LocationSettings.presentationThumbnailLocation = presentationThumbnailLocationText.text;
+                    LocationSettings.save();
+                }
+
+                ToolTip {
+                    text: qsTr("Folder where a cplaypres_thumbnails folder is created for the slide thumbnails of all presentations. If empty, it is created next to the presentation, or in the common C-play file location for a presentation not saved yet.")
+                }
+            }
+            ToolButton {
+                focusPolicy: Qt.NoFocus
+                icon.height: 16
+                icon.name: "system-file-manager"
+                text: ""
+
+                onClicked: {
+                    openPresentationThumbnailLocation.open();
+                }
+            }
+            ToolButton {
+                focusPolicy: Qt.NoFocus
+                icon.height: 16
+                icon.name: "edit-clear"
+                text: ""
+
+                onClicked: {
+                    presentationThumbnailLocationText.text = "";
+                    LocationSettings.presentationThumbnailLocation = "";
                     LocationSettings.save();
                 }
 

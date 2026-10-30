@@ -27,6 +27,9 @@
     <entry name="CueListLocation" type="String">
       <label>Location of movie view cue lists (*.cplaycue), empty for the folder of the playlist</label>
     </entry>
+    <entry name="PresentationThumbnailLocation" type="String">
+      <label>Location of the cplaypres_thumbnails folder for slide thumbnails, empty for next to the presentation</label>
+    </entry>
     <entry name="UniviewVideoLocation" type="String">
       <label>Location of uniview video files</label>
     </entry>

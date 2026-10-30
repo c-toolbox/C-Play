@@ -50,9 +50,9 @@ The presenter view shows the current and the next slide as thumbnails, the notes
 * **Notes** — the notes of the current slide (or of the next slide before the presentation has started). **A−** / **A+** change the text size; *Saved to slide* shows that an edit has reached C-Play.
 * **Slide strip** — every slide with its thumbnail (or its number when it has none yet). Click one to trigger it.
 
-* **Slide notes** are editable in the view and saved in the presentation file, together with the slide thumbnails. Notes and thumbnails are kept in presentations also by builds without the web views.
+* **Slide notes** are editable in the view and saved in the presentation file. The slide thumbnails are numbered JPEG files in a `cplaypres_thumbnails` folder next to the presentation file, or where the [presentation thumbnail location](/settings/location#presentation-thumbnail-location) says, and the presentation file refers to them. Notes and thumbnails are kept in presentations also by builds without the web views.
 * **Thumbnails** — the thumbnail button of a slide uses what C-Play shows now as that slide's thumbnail, rendered with the [master view](/playback/views#-master-view) camera (perspective, fisheye or sphere view). Choose the master view mode before updating thumbnails.
-* An *Unsaved* mark shows when the presentation has unsaved changes in C-Play; **Save** writes the notes and thumbnails to the `*.cplaypres` file the presentation was loaded from or last saved to.
+* An *Unsaved* mark shows when the presentation has unsaved changes in C-Play; **Save** writes the notes and the references to the thumbnails to the `*.cplaypres` file the presentation was loaded from or last saved to.
 
 | Key | Action |
 | --- | --- |

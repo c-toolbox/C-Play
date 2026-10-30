@@ -249,6 +249,9 @@ public:
     Q_INVOKABLE void saveAsJSONFile(const QString &path);
     // The presentation as saved in a *.cplaypres, with paths relative to pathsToConsider where possible.
     QJsonDocument asJSONDocument(const QStringList &pathsToConsider);
+    // Writes the thumbnail of the slide to its file in the thumbnail folder of the presentation.
+    // Without a folder (not saved and no location set), it stays in memory until the presentation is saved.
+    void storeThumbnail(LayersModel *slide);
 
     Q_INVOKABLE void runStartAfterPresentationLoad();
     Q_INVOKABLE void runUpdateAudioOutputOnLayers();
@@ -347,6 +350,11 @@ private:
     QList<QSharedPointer<LayersModel>> m_slides;
     mutable std::recursive_mutex m_slidesMutex;
     QPointer<LayersModel> m_masterSlide;
+    // The cplaypres_thumbnails folder for the presentation at slidesPath (empty if not saved),
+    // empty when there is none. An autosave counts as not saved.
+    QString thumbnailFolder(const QString &slidesPath) const;
+    void writeThumbnailFile(LayersModel *slide, const QString &folder);
+
     LayersModel *m_dummySlide;
     SlideVisibilityModel* m_visibilityModel;
     std::weak_ptr<BaseLayer> m_layerToCopyFrom;
