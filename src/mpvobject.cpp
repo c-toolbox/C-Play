@@ -273,6 +273,7 @@ MpvObject::~MpvObject() {
     {
         std::lock_guard<std::recursive_mutex> lock(m_renderMutex);
         views.swap(mpv_views);
+        m_contextView = nullptr;
     }
     for (MpvView* view : views) {
         std::lock_guard<std::mutex> linkLock(view->m_link->mutex);
@@ -2584,9 +2585,25 @@ void MpvObject::addView(MpvView* view) {
 void MpvObject::removeView(MpvView* view) {
     std::lock_guard<std::recursive_mutex> lock(m_renderMutex);
     auto it = std::find(mpv_views.begin(), mpv_views.end(), view);
-    if (it != mpv_views.end()) { 
+    if (it != mpv_views.end()) {
         mpv_views.erase(it);
     }
+    if (m_contextView == view) {
+        m_contextView = nullptr;
+    }
+}
+
+// The view that renders mpv and blits into the other views. It has to be a visible one, as a
+// hidden item never renders. mpv_views is ordered by pointer, so its order means nothing here.
+MpvView* MpvObject::primaryView() const {
+    std::lock_guard<std::recursive_mutex> lock(m_renderMutex);
+    if (m_contextView && m_contextView->isVisible())
+        return m_contextView;
+    for (MpvView* view : mpv_views) {
+        if (view->isVisible())
+            return view;
+    }
+    return mpv_views.empty() ? nullptr : mpv_views.front();
 }
 
 // Called by mpv from its own thread; targets the MpvObject, since any single view may be destroyed first.
@@ -2595,14 +2612,7 @@ void MpvObject::mpvRedraw(void* ctx) {
     if (!obj)
         return;
     QMetaObject::invokeMethod(obj, [obj]() {
-        // The primary view renders mpv and blits into the other views.
-        MpvView* primary = nullptr;
-        {
-            std::lock_guard<std::recursive_mutex> lock(obj->m_renderMutex);
-            if (!obj->mpv_views.empty())
-                primary = obj->mpv_views.front();
-        }
-        if (primary)
+        if (MpvView* primary = obj->primaryView())
             primary->update();
     }, Qt::QueuedConnection);
 }
@@ -2672,7 +2682,7 @@ MpvRenderer::~MpvRenderer() {
     bool isPrimaryView = true;
     if (view && view->obj) {
         std::lock_guard<std::recursive_mutex> lock(view->obj->m_renderMutex);
-        isPrimaryView = view->obj->mpv_views.empty() || view->obj->mpv_views[0] == view;
+        isPrimaryView = view->obj->mpv_views.empty() || view->obj->primaryView() == view;
         view->fbo = nullptr;
     }
     else if (view) {
@@ -2814,7 +2824,7 @@ void MpvRenderer::render() {
     // output to avoid sending the same frame several times per tick.
     // renderFrameFromMpv is a no-op while the 3D view is the NDI source.
     const bool isPrimaryView = view->obj->mpv_views.empty()
-        || view->obj->mpv_views[0] == view;
+        || view->obj->primaryView() == view;
     if (isPrimaryView && NdiSenderModel::instance()) {
         NdiSenderModel::instance()->renderFrameFromMpv();
     }
@@ -2852,6 +2862,10 @@ QOpenGLFramebufferObject* MpvRenderer::createFramebufferObject(const QSize& size
 
                 if (mpv_render_context_create(&view->obj->mpv_gl, view->obj->mpv, params) < 0)
                     throw std::runtime_error("failed to initialize mpv GL context");
+            {
+                std::lock_guard<std::recursive_mutex> lock(view->obj->m_renderMutex);
+                view->obj->m_contextView = view;
+            }
             mpv_render_context_set_update_callback(view->obj->mpv_gl, MpvObject::mpvRedraw, view->obj);
             Q_EMIT view->obj->ready();
         }

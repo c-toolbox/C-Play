@@ -576,6 +576,8 @@ private:
     mpv_render_context *mpv_gl;
     QOpenGLFramebufferObject* mpv_fbo;
     std::vector<MpvView*> mpv_views;
+    // The view whose OpenGL context mpv_gl was created in.
+    MpvView* m_contextView = nullptr;
     // Recursive + mutable so it can be locked from const getters and from
     // addView()/removeView() without risking self-deadlock when those are
     // reached from an already-locked call stack (e.g. updatePlane()).
@@ -588,6 +590,7 @@ private:
 
     void addView(MpvView* view);
     void removeView(MpvView* view);
+    MpvView* primaryView() const;
     static void mpvRedraw(void* ctx);
 
     void sectionPositionCheck(double position);
