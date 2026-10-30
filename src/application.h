@@ -229,6 +229,10 @@ public:
     Q_INVOKABLE void updateAboutOtherText(const QString &mpvVersion, const QString &ffmpegVersion);
     Q_INVOKABLE QString getStartupFile();
     Q_INVOKABLE QString mpvOptionsPath(const QString &name, const QString &suffix);
+    // Global mpv configurations: the folders in data/mpv-conf (each with an all.json), and
+    // the one loaded at startup (from --mpvconf, else the saved PlaybackSettings choice).
+    Q_INVOKABLE QStringList mpvConfigurations();
+    Q_INVOKABLE QString loadedMpvConfiguration();
     // YouTube support for Stream layers: URL detection (same host patterns as mpv's
     // ytdl_hook) and yt-dlp discovery (settings path, next to C-Play.exe, working directory
     // plugins folder, or PATH).
@@ -674,6 +678,7 @@ public:
         std::string logLevel;
         std::string logFile;
         std::string mpvApiOverride;  // "opengl" or "opengl-next" from --mpvapi command line
+        std::string mpvConfFolder;   // Folder in data/mpv-conf the conf* files above point into
     };
 
     SyncHelper();
@@ -688,6 +693,21 @@ public:
     void setString(std::string &variable, std::string value) {
         std::lock_guard<std::recursive_mutex> lock(stringsMutex);
         variable = std::move(value);
+    }
+
+    // Points the global mpv configuration files at ./data/mpv-conf/<folder>/. Nodes switch
+    // folder at runtime (the master's saved startup choice arrives in decode()) while mpv
+    // threads read the paths, so such threads read them through configurationSnapshot().
+    void setMpvConfFolder(const std::string &folder) {
+        std::lock_guard<std::recursive_mutex> lock(stringsMutex);
+        configuration.mpvConfFolder = folder;
+        configuration.confAll = "./data/mpv-conf/" + folder + "/all.json";
+        configuration.confMasterOnly = "./data/mpv-conf/" + folder + "/master-only.json";
+        configuration.confNodesOnly = "./data/mpv-conf/" + folder + "/nodes-only.json";
+    }
+    ConfigurationVariables configurationSnapshot() {
+        std::lock_guard<std::recursive_mutex> lock(stringsMutex);
+        return configuration;
     }
 
     SyncVariables variables = {
@@ -789,7 +809,9 @@ public:
         /*confMasterOnly*/ "./data/mpv-conf/default/master-only.json",
         /*confNodesOnly*/ "./data/mpv-conf/default/nodes-only.json",
         /*logLevel*/ "",
-        /*logFile*/ ""};
+        /*logFile*/ "",
+        /*mpvApiOverride*/ "",
+        /*mpvConfFolder*/ "default"};
 
 private:
     static SyncHelper *_instance;

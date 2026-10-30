@@ -460,7 +460,8 @@ public:
     Q_INVOKABLE void loadSection(int playSectionsIndex);
     Q_INVOKABLE void loadItem(int playListIndex, bool updateLastPlayedFile = true);
     Q_INVOKABLE QUrl getOverlayFileUrl() const;
-    Q_INVOKABLE QString getReadableExternalConfiguration();
+    // The loaded global configuration files, or those of another data/mpv-conf folder.
+    Q_INVOKABLE QString getReadableExternalConfiguration(const QString &folder = QString());
     Q_INVOKABLE QVariant command(const QVariant &params, bool debug = false);
     Q_INVOKABLE QVariant getProperty(const QString &name, bool debug = false);
     Q_INVOKABLE int setProperty(const QString &name, const QVariant &value, bool debug = false);

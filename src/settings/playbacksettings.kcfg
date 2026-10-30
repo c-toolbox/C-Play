@@ -66,6 +66,10 @@
       <label>MPV render API type used for video rendering (0 = OpenGL, 1 = OpenGL Next)</label>
       <default>0</default>
     </entry>
+    <entry name="MpvConfigFolder" type="String">
+      <label>MPV configuration folder (in data/mpv-conf) used at startup when --mpvconf is not given; also sent to the nodes</label>
+      <default>default</default>
+    </entry>
     <entry name="UseFrameSyncCorrection" type="bool">
       <label>Use frame sync correction (progressive speed adjustment + hard seek to stay in sync)</label>
       <default>false</default>

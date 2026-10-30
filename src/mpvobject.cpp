@@ -2506,13 +2506,20 @@ QUrl MpvObject::getOverlayFileUrl() const {
     return QUrl::fromLocalFile(QString::fromStdString(SyncHelper::instance().variables.overlayFile));
 }
 
-QString MpvObject::getReadableExternalConfiguration() {
+QString MpvObject::getReadableExternalConfiguration(const QString &folder) {
     QString returnStr;
 
     QStringList confFiles;
-    confFiles.append(QString::fromStdString(SyncHelper::instance().configuration.confAll));
-    confFiles.append(QString::fromStdString(SyncHelper::instance().configuration.confMasterOnly));
-    confFiles.append(QString::fromStdString(SyncHelper::instance().configuration.confNodesOnly));
+    if (folder.isEmpty()) {
+        confFiles.append(QString::fromStdString(SyncHelper::instance().configuration.confAll));
+        confFiles.append(QString::fromStdString(SyncHelper::instance().configuration.confMasterOnly));
+        confFiles.append(QString::fromStdString(SyncHelper::instance().configuration.confNodesOnly));
+    } else {
+        const QString folderPath = QStringLiteral("./data/mpv-conf/") + folder;
+        confFiles.append(folderPath + QStringLiteral("/all.json"));
+        confFiles.append(folderPath + QStringLiteral("/master-only.json"));
+        confFiles.append(folderPath + QStringLiteral("/nodes-only.json"));
+    }
 
     for (const QString conf : confFiles) {
         returnStr.append(conf + QStringLiteral("\n"));

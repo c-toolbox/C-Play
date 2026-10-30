@@ -31,6 +31,7 @@
 #include <capture/nodecaptureinventory.h>
 #include <layersmodel.h>
 #include <QCoreApplication>
+#include <QFileInfo>
 #include <KConfig>
 #include <KConfigGroup>
 #include <algorithm>
@@ -73,6 +74,8 @@ int nodeGeneralLogFileId = -1;
 bool nodeGeneralLoggingApplied = false;
 bool nodeGeneralLoggingInitialized = false;
 std::string startupFile = "";
+// Master: send its mpv configuration folder (the saved startup choice) to the nodes once.
+bool mpvConfFolderNeedSync = false;
 
 // The cluster configuration of this process, stored at file scope so the preWindow callback
 // (a plain function pointer) can inspect which of this node's windows are fullscreen right
@@ -198,6 +201,13 @@ static std::vector<std::byte> encode() {
     serializeObject(data, SyncHelper::instance().variables.alpha);
     serializeObject(data, SyncHelper::instance().variables.alphaBg);
     serializeObject(data, SyncHelper::instance().variables.alphaFg);
+
+    // Startup mpv configuration folder, independent of playback synchronization.
+    serializeObject(data, mpvConfFolderNeedSync);
+    if (mpvConfFolderNeedSync) {
+        serializeObject(data, SyncHelper::instance().configuration.mpvConfFolder);
+        mpvConfFolderNeedSync = false;
+    }
 
     if (SyncHelper::instance().variables.syncOn) {
         // Always sync time-related variables
@@ -511,6 +521,31 @@ static std::vector<std::byte> encode() {
     return data;
 }
 
+static bool mpvConfFolderExists(const std::string &folder) {
+    return !folder.empty() &&
+           QFileInfo::exists(QString::fromStdString("./data/mpv-conf/" + folder + "/all.json"));
+}
+
+// Node: use the master's startup mpv configuration folder, unless this node was started with
+// its own --mpvconf (the command line always wins). Layers pick the new configuration files
+// up on their next file load, which re-applies the global configuration.
+static void applyMasterMpvConfFolder(const std::string &folder) {
+    if (!ConfigModel::instance().mpvConfFolder().isEmpty()) {
+        Log::Info(std::format("Keeping mpv configuration '{}' from --mpvconf (master uses '{}')",
+                              ConfigModel::instance().mpvConfFolder().toStdString(), folder));
+        return;
+    }
+    if (folder == SyncHelper::instance().configurationSnapshot().mpvConfFolder)
+        return;
+    if (!mpvConfFolderExists(folder)) {
+        Log::Warning(std::format("Master mpv configuration '{}' not found in ./data/mpv-conf - keeping '{}'",
+                                 folder, SyncHelper::instance().configurationSnapshot().mpvConfFolder));
+        return;
+    }
+    Log::Info(std::format("Using mpv configuration '{}' from master", folder));
+    SyncHelper::instance().setMpvConfFolder(folder);
+}
+
 static void decode(const std::vector<std::byte> &data) {
     unsigned int pos = 0;
 
@@ -541,6 +576,17 @@ static void decode(const std::vector<std::byte> &data) {
     deserializeObject(data, pos, SyncHelper::instance().variables.alpha);
     deserializeObject(data, pos, SyncHelper::instance().variables.alphaBg);
     deserializeObject(data, pos, SyncHelper::instance().variables.alphaFg);
+
+    if (!safeToRead()) return;
+    bool mpvConfFolderSync = false;
+    deserializeObject(data, pos, mpvConfFolderSync);
+    if (mpvConfFolderSync) {
+        if (!safeToRead()) return;
+        std::string mpvConfFolder;
+        deserializeObject(data, pos, mpvConfFolder);
+        applyMasterMpvConfFolder(mpvConfFolder);
+    }
+
     if (SyncHelper::instance().variables.syncOn) {
         // Always synced time-related variables
         deserializeObject(data, pos, SyncHelper::instance().variables.timePosition);
@@ -1703,9 +1749,7 @@ int main(int argc, char *argv[]) {
             if (i + 1 >= arg.size()) { i++; continue; }
             std::string mpvConfFolder = arg[i + 1]; // for instance, either "decoding_cpu" or "decoding_gpu_nvdec"
             mpvConfFolderArg = mpvConfFolder;
-            SyncHelper::instance().configuration.confAll = "./data/mpv-conf/" + mpvConfFolder + "/all.json";
-            SyncHelper::instance().configuration.confMasterOnly = "./data/mpv-conf/" + mpvConfFolder + "/master-only.json";
-            SyncHelper::instance().configuration.confNodesOnly = "./data/mpv-conf/" + mpvConfFolder + "/nodes-only.json";
+            SyncHelper::instance().setMpvConfFolder(mpvConfFolder);
             arg.erase(arg.begin() + i, arg.begin() + i + 2);
         } else if (arg[i] == "--mpvapi") {
             if (i + 1 >= arg.size()) { i++; continue; }
@@ -1838,6 +1882,22 @@ int main(int argc, char *argv[]) {
         }
 
         Log::Info("Start Master");
+
+        // Without --mpvconf, use the saved startup mpv configuration (Playback settings) and
+        // send it to the nodes. Read with KConfig, as PlaybackSettings needs QApplication.
+        if (mpvConfFolderArg.empty()) {
+            KConfig settings(QStringLiteral("C-Play/cplay.conf"));
+            const KConfigGroup group(&settings, QStringLiteral("Playback"));
+            const std::string savedFolder =
+                group.readEntry("MpvConfigFolder", QStringLiteral("default")).toStdString();
+            if (mpvConfFolderExists(savedFolder)) {
+                SyncHelper::instance().setMpvConfFolder(savedFolder);
+            } else {
+                Log::Warning(std::format("Saved mpv configuration '{}' not found in ./data/mpv-conf - using '{}'",
+                                         savedFolder, SyncHelper::instance().configuration.mpvConfFolder));
+            }
+            mpvConfFolderNeedSync = true;
+        }
 #ifdef OMT_SUPPORT
         OmtFinder::checkVideoDecoderAvailable();
 #endif

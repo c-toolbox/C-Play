@@ -42,4 +42,12 @@ The yt-dlp options for YouTube playback are on the [Streaming settings](/setting
 
 ### MPV configuration
 
-The currently loaded MPV configuration is displayed at the bottom of this page (read-only). For more details on how MPV configuration affects playback, see the [Video configuration guide](/setup/video).
+The bottom of this page shows which MPV configuration (a folder in *data/mpv-conf*) is used for video playback, and selects the one to use at startup:
+
+* **Loaded configuration** — The configuration C-Play is running with. When it was set with the `--mpvconf` command-line option, this is shown next to the name.
+* **Startup configuration** — The configuration to load the next time C-Play starts (default *default*). The list contains every folder in *data/mpv-conf* with an *all.json* file. The selection is saved immediately but requires a restart. The master also sends it to the nodes at startup. A `--mpvconf` command-line option takes priority, separately on the master and on each node.
+* **Copy button** — Copies the command-line option for the selected configuration (for instance `--mpvconf decoding_gpu_nvdec`) to the clipboard, for use in a launch script or shortcut.
+* **Render API** — Only shown when the build supports it and `--mpvapi` is not given. Selects *OpenGL* or *OpenGL Next* for mpv rendering; requires a restart.
+* **Configuration files** — Read-only view of the *all.json*, *master-only.json* and *nodes-only.json* files. It starts with the loaded configuration and switches to the configuration selected in the startup list, so you can compare what each configuration sets. The label shows which configuration is displayed, and marks the loaded one.
+
+For more details on the configuration files and how they affect playback, see the [Video configuration guide](/setup/video#mpv-configuration-files).

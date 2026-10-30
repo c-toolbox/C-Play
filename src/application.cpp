@@ -1161,6 +1161,20 @@ QString Application::mpvOptionsPath(const QString &name, const QString &suffix) 
     return mpvConfRootPath() + QStringLiteral("/") + name + suffix + QStringLiteral(".json");
 }
 
+QStringList Application::mpvConfigurations() {
+    QStringList folders;
+    const QDir rootDir(mpvConfRootPath());
+    for (const QString &folder : rootDir.entryList(QDir::Dirs | QDir::NoDotAndDotDot, QDir::Name)) {
+        if (QFileInfo::exists(rootDir.filePath(folder + QStringLiteral("/all.json"))))
+            folders << folder;
+    }
+    return folders;
+}
+
+QString Application::loadedMpvConfiguration() {
+    return QString::fromStdString(SyncHelper::instance().configuration.mpvConfFolder);
+}
+
 bool Application::isYouTubeUrl(const QString &path) {
     return YtdlpResolver::isYouTubeUrl(path.toStdString());
 }

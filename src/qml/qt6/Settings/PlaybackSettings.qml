@@ -487,6 +487,53 @@ SettingsBasePage {
             text: qsTr("Loaded MPV configuration")
             level: 4
         }
+        Label {
+            Layout.alignment: Qt.AlignRight
+            text: qsTr("Loaded configuration:")
+        }
+        Label {
+            Layout.fillWidth: true
+            text: ConfigModel.mpvConfFolder !== ""
+                  ? app.loadedMpvConfiguration() + " " + qsTr("(from --mpvconf command-line option)")
+                  : app.loadedMpvConfiguration()
+        }
+        Label {
+            Layout.alignment: Qt.AlignRight
+            text: qsTr("Startup configuration:")
+        }
+        RowLayout {
+            ComboBox {
+                id: mpvConfigComboBox
+
+                model: app.mpvConfigurations()
+
+                Component.onCompleted: currentIndex = find(PlaybackSettings.mpvConfigFolder)
+                onActivated: {
+                    PlaybackSettings.mpvConfigFolder = currentText;
+                    PlaybackSettings.save();
+                    conTextArea.shownConfiguration = currentText;
+                }
+            }
+            ToolButton {
+                enabled: mpvConfigComboBox.currentIndex >= 0
+                focusPolicy: Qt.NoFocus
+                icon.height: 16
+                icon.name: "edit-copy"
+                text: ""
+
+                ToolTip.text: qsTr("Copy command line option") + ": --mpvconf " + mpvConfigComboBox.currentText
+                ToolTip.visible: hovered
+                ToolTip.delay: 500
+
+                onClicked: app.copyToClipboard("--mpvconf " + mpvConfigComboBox.currentText)
+            }
+            LabelWithTooltip {
+                Layout.fillWidth: true
+                elide: Text.ElideRight
+                font.italic: true
+                text: qsTr("Requires restart. Also used by the nodes. A --mpvconf command-line option takes priority.")
+            }
+        }
         // Render API ComboBox - only visible when --mpvapi is NOT set
         Label {
             visible: mpv.renderApiOpenglNextSupported() && !mpv.commandLineApiOverride()
@@ -546,7 +593,10 @@ SettingsBasePage {
             text: qsTr("Render API overridden by --mpvapi command-line option") + ": " + (mpv.commandLineApiType() === 0 ? "OpenGL" : "OpenGL Next")
         }
         Label {
-            text: qsTr("Configuration from external files:")
+            Layout.alignment: Qt.AlignRight | Qt.AlignTop
+            text: conTextArea.shownConfiguration === app.loadedMpvConfiguration()
+                  ? qsTr("Files of '%1' (loaded):").arg(conTextArea.shownConfiguration)
+                  : qsTr("Files of '%1':").arg(conTextArea.shownConfiguration)
         }
         ScrollView {
             id: confText
@@ -557,10 +607,14 @@ SettingsBasePage {
             TextArea {
                 id: conTextArea
 
+                // Starts with the loaded configuration, then follows the startup selection
+                property string shownConfiguration: app.loadedMpvConfiguration()
+
                 Layout.fillWidth: true
                 readOnly: true
-
-                Component.onCompleted: text = mpv.getReadableExternalConfiguration()
+                text: shownConfiguration === app.loadedMpvConfiguration()
+                      ? mpv.getReadableExternalConfiguration()
+                      : mpv.getReadableExternalConfiguration(shownConfiguration)
             }
         }
     }

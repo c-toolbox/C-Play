@@ -111,10 +111,18 @@ void loadAudioId(MpvLayer::mpvData& vd) {
     }
 }
 
+// Load the global mpv configuration files (all + master-only or nodes-only). A node can
+// switch configuration folder at runtime, so read the paths through a locked snapshot.
+static void loadGlobalConfigurations(mpv_handle* handle, bool isMaster, bool loggingOn) {
+    const auto conf = SyncHelper::instance().configurationSnapshot();
+    mpv::qt::load_configurations(handle, QString::fromStdString(conf.confAll), loggingOn);
+    mpv::qt::load_configurations(handle, QString::fromStdString(isMaster ? conf.confMasterOnly : conf.confNodesOnly), loggingOn);
+}
+
 // Resolve the root folder containing the per-layer mpv options files.
 // Mirrors the logic used by MpvOptionsModel so the UI and the loader agree.
 static std::string mpvConfRootFolder() {
-    const QString confAll = QString::fromStdString(SyncHelper::instance().configuration.confAll);
+    const QString confAll = QString::fromStdString(SyncHelper::instance().configurationSnapshot().confAll);
     if (!confAll.isEmpty()) {
         QDir dir = QFileInfo(confAll).absoluteDir();
         if (dir.cdUp() && dir.exists())
@@ -463,13 +471,7 @@ bool initMPV(MpvLayer::mpvData& vd) {
     applyJackOptions(vd);
 
     // Load mpv configurations
-    mpv::qt::load_configurations(vd.handle, QString::fromStdString(SyncHelper::instance().configuration.confAll), vd.loggingOn);
-    if (vd.isMaster) {
-        mpv::qt::load_configurations(vd.handle, QString::fromStdString(SyncHelper::instance().configuration.confMasterOnly), vd.loggingOn);
-    }
-    else {
-        mpv::qt::load_configurations(vd.handle, QString::fromStdString(SyncHelper::instance().configuration.confNodesOnly), vd.loggingOn);
-    }
+    loadGlobalConfigurations(vd.handle, vd.isMaster, vd.loggingOn);
 
     // Apply per-layer options (after global settings so they take precedence)
     std::string layerOptionsPath = mpvOptionsFilePath(vd);
@@ -1380,13 +1382,7 @@ void MpvLayer::applyMpvOptions() {
         return;
 
     // Re-apply global settings first, then the layer-specific options
-    mpv::qt::load_configurations(m_data.handle, QString::fromStdString(SyncHelper::instance().configuration.confAll), m_data.loggingOn);
-    if (isMaster()) {
-        mpv::qt::load_configurations(m_data.handle, QString::fromStdString(SyncHelper::instance().configuration.confMasterOnly), m_data.loggingOn);
-    }
-    else {
-        mpv::qt::load_configurations(m_data.handle, QString::fromStdString(SyncHelper::instance().configuration.confNodesOnly), m_data.loggingOn);
-    }
+    loadGlobalConfigurations(m_data.handle, isMaster(), m_data.loggingOn);
 
     std::string optionsPath = mpvOptionsFilePath(m_data);
     if (!optionsPath.empty()) {
