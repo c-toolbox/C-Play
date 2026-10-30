@@ -88,6 +88,14 @@ void VideoLayer::cleanup() {
     // End Mpv running on separate thread
     MpvLayer::cleanup();
 
+    {
+        std::lock_guard<std::mutex> lock(m_displayFenceMutex);
+        if (m_displayFence) {
+            glDeleteSync(m_displayFence);
+            m_displayFence = nullptr;
+        }
+    }
+
     if (m_data.fboCreated) {
         m_data.fboCreated = false;
         glDeleteFramebuffers(1, &m_data.fboId);
@@ -126,10 +134,20 @@ void VideoLayer::updateFrame() {
     // See render_gl.h on what OpenGL environment mpv expects, and
     // other API details.
     if (m_data.updateRendering) {
+        const bool pingPong = m_isMaster && m_pingPongCreated;
+
+        // The 3D view and the slides update both call this each frame while a LayerView is open.
+        // Only a new frame may flip the buffers, or the texture the LayerView is about to show
+        // is overwritten right away.
+        if (pingPong && !m_redrawNeeded
+            && !(mpv_render_context_update(m_data.renderContext) & MPV_RENDER_UPDATE_FRAME)) {
+            return;
+        }
+
         // On master with ping-pong enabled, render MPV into the back buffer and
         // expose the previously completed front buffer for display.
         unsigned int renderTargetFbo = m_data.fboId;
-        if (m_isMaster && m_pingPongCreated) {
+        if (pingPong) {
             renderTargetFbo = m_renderingToPingPong ? m_pingPongFboId : m_data.fboId;
         }
 
@@ -141,10 +159,12 @@ void VideoLayer::updateFrame() {
             {MPV_RENDER_PARAM_FLIP_Y, &flip_y},
             {MPV_RENDER_PARAM_INVALID, nullptr}};
         mpv_render_context_render(m_data.renderContext, params);
+        m_redrawNeeded = false;
 
         // Swap ping-pong buffers: the just-rendered buffer becomes the display
         // buffer and the previously displayed buffer becomes the next render target.
-        if (m_isMaster && m_pingPongCreated) {
+        if (pingPong) {
+            publishDisplayFence();
             if (m_renderingToPingPong) {
                 renderData.texId = m_pingPongTexId;
             } else {
@@ -160,7 +180,26 @@ void VideoLayer::updateFrame() {
             {MPV_RENDER_PARAM_SKIP_RENDERING, &skip_rendering},
             {MPV_RENDER_PARAM_INVALID, nullptr}};
         mpv_render_context_render(m_data.renderContext, params);
+        // The skipped frame is gone from mpv, and a paused layer gets no new one.
+        m_redrawNeeded = true;
     }
+}
+
+void VideoLayer::waitForTexture() {
+    std::lock_guard<std::mutex> lock(m_displayFenceMutex);
+    if (m_displayFence)
+        glWaitSync(m_displayFence, 0, GL_TIMEOUT_IGNORED);
+}
+
+void VideoLayer::publishDisplayFence() {
+    // The flush makes the fence visible to the other windows' contexts.
+    GLsync fence = glFenceSync(GL_SYNC_GPU_COMMANDS_COMPLETE, 0);
+    glFlush();
+
+    std::lock_guard<std::mutex> lock(m_displayFenceMutex);
+    if (m_displayFence)
+        glDeleteSync(m_displayFence);
+    m_displayFence = fence;
 }
 
 void VideoLayer::applyPendingVideoSize() {
@@ -215,6 +254,7 @@ void VideoLayer::createMpvFBO(int width, int height) {
 
     m_data.fboWidth = width;
     m_data.fboHeight = height;
+    m_redrawNeeded = true;
 
     // Primary FBO
     glGenFramebuffers(1, &m_data.fboId);

@@ -1378,6 +1378,10 @@ unsigned int BaseLayer::textureId() const {
     return renderData.texId;
 }
 
+void BaseLayer::waitForTexture() {
+    // Overwrite in derived class
+}
+
 unsigned int BaseLayer::textureInternalFormat() const {
     return GL_RGBA8;
 }

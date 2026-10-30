@@ -2286,7 +2286,8 @@ void LayerQtOpenGLObject::setOwnsLayer(bool ownsLayer) {
 }
 
 void LayerQtOpenGLObject::reportSwap() {
-    if (m_layer && m_layer->isEnabled()) {
+    // Slide layers already report their swap from the 3D view, once per presented frame.
+    if (m_ownsLayer && m_layer && m_layer->isEnabled()) {
         m_layer->reportSwap();
     }
 }
@@ -2556,7 +2557,9 @@ void LayerQtOpenGLObject::paint() {
     program->enableAttributeArray(0);
 
     glActiveTexture(GL_TEXTURE1);
-    glBindTexture(GL_TEXTURE_2D, m_layer->textureId());
+    const unsigned int textureId = m_layer->textureId();
+    m_layer->waitForTexture();
+    glBindTexture(GL_TEXTURE_2D, textureId);
 
     program->setUniformValue("tex", 1);
     program->setUniformValue("flipY", (m_layer->renderFlipY() ? 1 : 0 ));

@@ -227,7 +227,7 @@ void NodeLoaderVerifier::handleNodeStatus(bool connected, int clientIndex) {
                 m_nodeLastSeenMs.remove(nodeId);
             }
             // A node that is gone cannot be waited for.
-            mainChanged = m_mainLoad.remove(clientIndex) > 0;
+            mainChanged = m_mainLoad.remove(clientIndex);
             mainChanged = m_mainLoadExpected.removeAll(clientIndex) > 0 || mainChanged;
         }
         if (changed)

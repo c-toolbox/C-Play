@@ -391,6 +391,12 @@ unsigned int AdaptiveVideoLayer::textureId() const {
     return sub ? sub->textureId() : 0;
 }
 
+void AdaptiveVideoLayer::waitForTexture() {
+    BaseLayer* sub = m_mpl == MDK ? static_cast<BaseLayer*>(mdkVideoLayer.get()) : static_cast<BaseLayer*>(mpvVideoLayer.get());
+    if (sub)
+        sub->waitForTexture();
+}
+
 int AdaptiveVideoLayer::width() const {
     BaseLayer* sub = m_mpl == MDK ? static_cast<BaseLayer*>(mdkVideoLayer.get()) : static_cast<BaseLayer*>(mpvVideoLayer.get());
     return sub ? sub->width() : 0;

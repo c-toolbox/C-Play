@@ -368,6 +368,9 @@ public:
 
     int volume() const;
     virtual unsigned int textureId() const;
+    // Call after textureId() when sampling from another window's OpenGL context: makes that
+    // context's GPU commands wait until the texture is complete. Default is a no-op.
+    virtual void waitForTexture();
     virtual unsigned int textureInternalFormat() const;
     virtual int width() const;
     virtual int height() const;

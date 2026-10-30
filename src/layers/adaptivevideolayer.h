@@ -90,6 +90,7 @@ public:
 
     // Texture info (forwarded to active sub-layer)
     unsigned int textureId() const override;
+    void waitForTexture() override;
     int width() const override;
     int height() const override;
 

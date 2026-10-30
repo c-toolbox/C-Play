@@ -9,6 +9,7 @@
 #define VIDEOLAYER_H
 
 #include <layers/mpvlayer.h>
+#include <mutex>
 
 class VideoLayer : public MpvLayer {
 public:
@@ -27,11 +28,13 @@ public:
     virtual bool ready() const;
 
     unsigned int textureInternalFormat() const override;
+    void waitForTexture() override;
 
     void updateFbo();
 
 private:
     void applyPendingVideoSize();
+    void publishDisplayFence();
     void checkNeededMpvFboResize();
     void createMpvFBO(int width, int height);
     void generateTexture(unsigned int &id, int width, int height);
@@ -44,6 +47,9 @@ private:
     unsigned int m_pingPongTexId = 0;
     bool m_pingPongCreated = false;
     bool m_renderingToPingPong = false; // true => MPV renders to ping-pong FBO, display reads primary; false => vice-versa
+    bool m_redrawNeeded = true; // The display buffer lacks the current frame, so render even without a new one
+    std::mutex m_displayFenceMutex;
+    struct __GLsync *m_displayFence = nullptr; // Signals when the latest display buffer is complete
 };
 
 #endif // VIDEOLAYER_H
