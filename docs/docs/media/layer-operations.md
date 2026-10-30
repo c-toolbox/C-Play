@@ -21,6 +21,12 @@ In the top right, there is a *"Region of interest (ROI)"* ![](/assets/icons/trim
 
 For mapping choices, see [Video & image mapping modes](/media/mapping). For fades, visibility across slides, and timeline keyframes, return to [Build presentation](/media/cplaypres).
 
+### Maximum visibility
+
+In **Layer View**, set the **Layer visibility** slider to the brightest level you want, then click the lock beside it. The current percentage becomes that layer's maximum. The slider shows **max …%** and shades the part of the range above the limit. You can still lower the visibility or fade the layer out; fading it in stops at the locked maximum, including during slide transitions and entrance effects.
+
+Click the lock again to restore the full 0–100% range. The maximum is saved with the layer. If you select a division sublayer, the lock applies to that sublayer.
+
 ## Post process effects
 
 Post process effects are always applied to the layer's image, for example to key out a green screen. Unlike [entrance and exit effects](/media/cplaypres#effects-pane-entrance-exit-and-post-process-effects), they belong to the layer, not to the slide: they apply in every slide that shows the layer, on the master and on every node, and they are saved with the layer.

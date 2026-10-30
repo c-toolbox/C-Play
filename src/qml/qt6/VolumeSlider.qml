@@ -28,7 +28,7 @@ Slider {
     wheelEnabled: false
 
     background: Rectangle {
-        id: harunaSliderBG
+        id: volumeSliderBG
 
         color: Kirigami.Theme.alternateBackgroundColor
 

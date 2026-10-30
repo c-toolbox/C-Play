@@ -98,6 +98,8 @@ class LayerQtItem : public QQuickItem {
     Q_PROPERTY(int layerEyeMode READ layerEyeMode WRITE setLayerEyeMode NOTIFY layerValueChanged)
     Q_PROPERTY(int layerGridMode READ layerGridMode WRITE setLayerGridMode NOTIFY layerValueChanged)
     Q_PROPERTY(int layerVisibility READ layerVisibility WRITE setLayerVisibility NOTIFY layerValueChanged)
+    Q_PROPERTY(int layerVisibilityMaximum READ layerVisibilityMaximum NOTIFY layerValueChanged)
+    Q_PROPERTY(bool layerVisibilityLocked READ layerVisibilityLocked WRITE setLayerVisibilityLocked NOTIFY layerValueChanged)
     Q_PROPERTY(bool layerHasAudio READ layerHasAudio NOTIFY layerHasAudioChanged)
     // True when the layer reports live audio levels from its decoded audio path (NDI, OMT, DirectShow and WebRTC).
     Q_PROPERTY(bool layerHasAudioLevels READ layerHasAudioLevels NOTIFY layerChanged)
@@ -253,6 +255,9 @@ public:
     void setLayerGridMode(int mode);
 
     int layerVisibility() const;
+    int layerVisibilityMaximum() const;
+    bool layerVisibilityLocked() const;
+    void setLayerVisibilityLocked(bool locked);
     void setLayerVisibility(int value);
 
     bool layerHasAudio() const;

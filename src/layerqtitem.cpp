@@ -237,6 +237,29 @@ void LayerQtItem::setLayerVisibility(int value) {
     }
 }
 
+int LayerQtItem::layerVisibilityMaximum() const {
+    BaseLayer *target = selectedSubLayerPtr();
+    if (!target) target = m_layer;
+    return target ? target->visibilityMaximum() : 100;
+}
+
+bool LayerQtItem::layerVisibilityLocked() const {
+    BaseLayer *target = selectedSubLayerPtr();
+    if (!target) target = m_layer;
+    return target && target->visibilityLocked();
+}
+
+void LayerQtItem::setLayerVisibilityLocked(bool locked) {
+    BaseLayer *target = selectedSubLayerPtr();
+    if (!target) target = m_layer;
+    if (!target || !target->isEnabled() || target->visibilityLocked() == locked)
+        return;
+    target->setVisibilityMaximum(locked ? qRound(target->alpha() * 100.f) : -1);
+    applyDivisionMerge();
+    Q_EMIT layerNeedsSave();
+    Q_EMIT layerValueChanged();
+}
+
 bool LayerQtItem::layerHasAudio() const {
     if (m_layer)
         return m_layer->hasAudio();

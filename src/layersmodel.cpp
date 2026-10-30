@@ -302,6 +302,8 @@ QVariant LayersModel::data(const QModelIndex &index, int role) const {
         const int progress = layerPlayProgress(layerItem);
         return QVariant(progress >= 0 ? progress : static_cast<int>(layerItem->alpha() * 100.f));
     }
+    case VisibilityMaximumRole:
+        return QVariant(layerItem->visibilityMaximum());
     case NdiOutputRole:
         // The upload icon also covers node streaming over NDI: the layer is then
         // published as an NDI source on the master too.
@@ -333,6 +335,7 @@ QHash<int, QByteArray> LayersModel::roleNames() const {
     roles[GridRole] = "gridToMapOn";
     roles[StatusRole] = "status";
     roles[VisibilityRole] = "visibility";
+    roles[VisibilityMaximumRole] = "visibilityMaximum";
     roles[NdiOutputRole] = "ndiOutput";
     roles[ExistOnMasterOnlyRole] = "existOnMasterOnly";
     roles[NodeStreamOutputRole] = "nodeStreamOutput";
@@ -1377,7 +1380,7 @@ void LayersModel::setLayersVisibility(int value, bool propagateDown) {
         if (!m_layers[i].first)
             continue;
         if (propagateDown) {
-            m_layers[i].first->setAlpha(static_cast<float>(value) * 0.01f);
+            m_layers[i].first->setAlpha(static_cast<float>(value) * 0.01f * m_layers[i].first->maximumAlpha());
         }
     }
     // Also refreshes referenced rows, whose visibility follows the slide transitions.
@@ -1874,6 +1877,7 @@ int LayersModel::decodeLayerFromJSON(const QJsonObject &o, const QStringList &fo
                 m_layers[idx].first->setIsLocked(locked);
             }
 
+            m_layers[idx].first->setVisibilityMaximum(o.value(QStringLiteral("visibilityMax")).toInt(-1));
             if (o.contains(QStringLiteral("visibility"))) {
                 int visibility = o.value(QStringLiteral("visibility")).toInt();
                 m_layers[idx].first->setAlpha(static_cast<float>(visibility) * 0.01f);
@@ -1924,6 +1928,7 @@ int LayersModel::decodeLayerFromJSON(const QJsonObject &o, const QStringList &fo
                         QJsonObject subObj = subArray[si].toObject();
                         auto& sub = subs[si];
                         if (!sub) continue;
+                        sub->setVisibilityMaximum(subObj.value(QStringLiteral("visibilityMax")).toInt(-1));
                         if (subObj.contains(QStringLiteral("visibility")))
                             sub->setAlpha(static_cast<float>(subObj.value(QStringLiteral("visibility")).toInt()) * 0.01f);
                         if (subObj.contains(QStringLiteral("grid")) && !divisionMerged)
@@ -2407,6 +2412,8 @@ QJsonObject LayersModel::encodeLayerToJSON(const std::shared_ptr<BaseLayer> &lay
                 QJsonObject subData;
                 subData.insert(QStringLiteral("title"), QJsonValue(QString::fromStdString(sub->title())));
                 subData.insert(QStringLiteral("visibility"), QJsonValue(static_cast<int>(sub->alpha() * 100.f)));
+                if (sub->visibilityLocked())
+                    subData.insert(QStringLiteral("visibilityMax"), sub->visibilityMaximum());
                 subData.insert(QStringLiteral("grid"), QJsonValue(static_cast<int>(sub->gridMode())));
                 subData.insert(QStringLiteral("stereo"), QJsonValue(static_cast<int>(sub->stereoMode())));
                 if (sub->gridMode() == BaseLayer::GridMode::Plane) {
@@ -2537,6 +2544,8 @@ QJsonObject LayersModel::encodeLayerToJSON(const std::shared_ptr<BaseLayer> &lay
         }
     }
     layerData.insert(QStringLiteral("visibility"), QJsonValue(static_cast<int>(alpha * 100.f)));
+    if (layer->visibilityLocked())
+        layerData.insert(QStringLiteral("visibilityMax"), layer->visibilityMaximum());
     layerData.insert(QStringLiteral("keepVisibilityForNumSlides"), QJsonValue(layer->keepVisibilityForNumSlides()));
 
     switch (layer->type()) {
@@ -3841,7 +3850,7 @@ void LayersModel::applyTimelineAt(int timeMs, bool skipReferences) {
         const bool hasIntroEffects = track && hasVisibilityEffects(*track, cplay::anim::EffectPhase::Intro);
 
         if (hasKfs) {
-            layer->setAlpha(evaluateAlphaAt(l, timeMs));
+            layer->setAlpha(evaluateAlphaAt(l, timeMs) * layer->maximumAlpha());
         }
         else if (hasIntroEffects) {
             // Visibility is shaped by the effects; keep the layer running once the intro started.
@@ -3856,7 +3865,7 @@ void LayersModel::applyTimelineAt(int timeMs, bool skipReferences) {
             const int introEnd = plainFadeInMs();
             if (introEnd > 0 && timeMs < introEnd && !inOutro) {
                 float t = static_cast<float>(timeMs) / static_cast<float>(introEnd);
-                layer->setAlpha(t);
+                layer->setAlpha(t * layer->maximumAlpha());
             } else {
                 layer->setAlpha(1.f);
             }
@@ -3889,7 +3898,7 @@ void LayersModel::applyTimelineOutroAt(int outroTimeMs, const QVector<float> &ta
             const int dur = plainFadeOutMs();
             if (dur > 0) {
                 float ft = static_cast<float>(std::min(outroTimeMs, dur)) / static_cast<float>(dur);
-                layer->setAlpha(1.f - ft);
+                layer->setAlpha((1.f - ft) * targetAlpha);
             }
         }
         layer->setAnimState(evaluateAnimState(l, absTimeMs));
@@ -4476,7 +4485,9 @@ bool LayersModel::scrubLayerAnimation(int layerIdx, int value) {
     BaseLayer *layer = rowLayer(layerIdx);
     if (!layer)
         return false;
-    value = std::clamp(value, 0, 100);
+    const int maximum = layer->visibilityMaximum();
+    const int visibility = std::clamp(value, 0, maximum);
+    value = maximum > 0 ? qRound(100.0 * visibility / maximum) : 0;
 
     LayerPlay *play = nullptr;
     for (LayerPlay &p : m_layerPlays) {
@@ -4487,7 +4498,7 @@ bool LayersModel::scrubLayerAnimation(int layerIdx, int value) {
     }
     if (!play) {
         LayerPlay fresh;
-        if (!buildLayerPlay(layerIdx, layer->alpha() < 1.f, fresh))
+        if (!buildLayerPlay(layerIdx, layer->alpha() < layer->maximumAlpha(), fresh))
             return false;
         m_layerPlays.append(fresh);
         play = &m_layerPlays.last();
@@ -4512,7 +4523,7 @@ bool LayersModel::scrubLayerAnimation(int layerIdx, int value) {
     }
     updateLayer(layerIdx);
     // Keeps the other visibility slider of the layer (layer list or layer view) in step.
-    Q_EMIT layerAnimationProgressChanged(layerIdx, value);
+    Q_EMIT layerAnimationProgressChanged(layerIdx, visibility);
     return true;
 }
 
@@ -4571,10 +4582,10 @@ int LayersModel::layerPlayProgress(const BaseLayer *layer) const {
         if (p.layer != layer)
             continue;
         if (p.scrubbing)
-            return p.scrubValue;
+            return qRound(p.scrubValue * layer->maximumAlpha());
         const int ms = layerPlayMs(p);
         const int done = std::clamp(static_cast<int>(100LL * ms / std::max(1, p.spanMs)), 0, 100);
-        return p.show ? done : 100 - done;
+        return qRound((p.show ? done : 100 - done) * layer->maximumAlpha());
     }
     return -1;
 }
@@ -4644,7 +4655,7 @@ bool LayersModel::fadeLayer(const BaseLayer *layer, bool show, int subLayerIdx) 
         return f.layer == layer && f.subLayerIdx == subLayerIdx;
     });
     fade.from = target->alpha();
-    fade.to = show ? 1.f : 0.f;
+    fade.to = show ? target->maximumAlpha() : 0.f;
     // Like the visibility slider, a partly faded layer only fades the rest of the way.
     fade.durationMs = static_cast<int>(PlaybackSettings::fadeDuration() * std::abs(fade.to - fade.from));
     fade.elapsed.start();
@@ -4677,7 +4688,7 @@ bool LayersModel::canFadeLayers(const QList<int> &rows, bool show) const {
         if (!layerHasVisibility(layer))
             continue;
         const int visibility = layerVisibility(row);
-        if (show ? visibility < 100 : visibility > 0)
+        if (show ? visibility < layer->visibilityMaximum() : visibility > 0)
             return true;
     }
     return false;

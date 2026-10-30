@@ -927,6 +927,7 @@ void BaseLayer::decodeBaseAlways(const std::vector<std::byte>& data, unsigned in
 }
 
 void BaseLayer::encodeBaseProperties(std::vector<std::byte>& data) const {
+    sgct::serializeObject(data, m_visibilityMaximum);
     sgct::serializeObject(data, renderData.gridMode);
     sgct::serializeObject(data, renderData.stereoMode);
     sgct::serializeObject(data, renderData.eyeMode);
@@ -973,6 +974,7 @@ void BaseLayer::encodeBaseProperties(std::vector<std::byte>& data) const {
 }
 
 void BaseLayer::decodeBaseProperties(const std::vector<std::byte>& data, unsigned int& pos) {
+    sgct::deserializeObject(data, pos, m_visibilityMaximum);
     sgct::deserializeObject(data, pos, renderData.gridMode);
     sgct::deserializeObject(data, pos, renderData.stereoMode);
     sgct::deserializeObject(data, pos, renderData.eyeMode);
@@ -1404,7 +1406,26 @@ float BaseLayer::alpha() const {
     return renderData.alpha;
 }
 
+bool BaseLayer::visibilityLocked() const {
+    return m_visibilityMaximum >= 0;
+}
+
+int BaseLayer::visibilityMaximum() const {
+    return visibilityLocked() ? m_visibilityMaximum : 100;
+}
+
+float BaseLayer::maximumAlpha() const {
+    return static_cast<float>(visibilityMaximum()) * 0.01f;
+}
+
+void BaseLayer::setVisibilityMaximum(int maximum) {
+    m_visibilityMaximum = std::clamp(maximum, -1, 100);
+    setAlpha(alpha());
+    setNeedSync();
+}
+
 void BaseLayer::setAlpha(float a) {
+    a = std::clamp(a, 0.f, maximumAlpha());
     if(a == alpha()) {
         return;
     }

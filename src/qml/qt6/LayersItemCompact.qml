@@ -274,11 +274,12 @@ ItemDelegate {
                 anchors.bottom: parent.bottom
                 anchors.right: its.right
                 value: visibilitySlider.visible ? visibilitySlider.value : model.visibility
+                canFadeIn: value < model.visibilityMaximum
                 visible: model.type !== "Control" && model.type !== "REST" && model.type !== "TCP"
 
                 onFadeInRequested: root.fadeLayer(true)
                 onFadeOutRequested: root.fadeLayer(false)
-                onToggleRequested: root.fadeLayer(model.visibility < 100)
+                onToggleRequested: root.fadeLayer(model.visibility < model.visibilityMaximum)
             }
             // Animation target driving the layer fades of the selected layer.
             Item {
@@ -615,7 +616,7 @@ ItemDelegate {
         if (model.type === "Control" || model.type === "REST" || model.type === "TCP")
             layerView.layerItem.start();
         else
-            fadeLayer(layerView.layerItem.layerVisibility < 100);
+            fadeLayer(layerView.layerItem.layerVisibility < layerView.layerItem.layerVisibilityMaximum);
     }
 
     function fadeLayer(show) {
@@ -628,7 +629,7 @@ ItemDelegate {
             // The layer's exit effects replace the plain fade when it has any.
             if (!playLayerAnimation(false))
                 visibility_fade_out_animation.start();
-        } else if (show && layerView.layerItem.layerVisibility < 100 && !visibility_fade_in_animation.running) {
+        } else if (show && layerView.layerItem.layerVisibility < layerView.layerItem.layerVisibilityMaximum && !visibility_fade_in_animation.running) {
             if (!playLayerAnimation(true))
                 visibility_fade_in_animation.start();
         }
@@ -662,10 +663,10 @@ ItemDelegate {
     PropertyAnimation {
         id: visibility_fade_in_animation
 
-        duration: PlaybackSettings.fadeDuration * ((100 - visibilitySlider.value) / 100)
+        duration: PlaybackSettings.fadeDuration * ((layerView.layerItem.layerVisibilityMaximum - visibilitySlider.value) / 100)
         property: "value"
         target: visibilitySlider
-        to: 100
+        to: layerView.layerItem.layerVisibilityMaximum
 
         onFinished: {
             layersView.enabled = true;

@@ -374,6 +374,11 @@ public:
 
     float alpha() const;
     void setAlpha(float a);
+    bool visibilityLocked() const;
+    int visibilityMaximum() const;
+    float maximumAlpha() const;
+    // A negative maximum unlocks visibility; otherwise the limit is a percentage.
+    void setVisibilityMaximum(int maximum);
 
     bool shouldUpdate() const;
     void setShouldUpdate(bool value);
@@ -624,6 +629,7 @@ protected:
     std::string m_filepath;
     int m_volume;
     float m_volumeScaling;
+    int m_visibilityMaximum = -1;
     // Live audio level state (see audioLevel()/reportAudioLevel()). The writer is always
     // the layer's own single audio path, readers are lock-free.
     std::atomic<float> m_audioPeak{0.f};

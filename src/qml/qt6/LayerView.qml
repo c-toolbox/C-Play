@@ -164,10 +164,10 @@ Kirigami.ApplicationWindow {
 
     color: Kirigami.Theme.alternateBackgroundColor
     height: 630
-    minimumWidth: 1200
+    minimumWidth: 1280
     title: qsTr("")
     visible: false
-    width: 1200
+    width: 1280
 
     Component.onCompleted: {
         if (window.x > width) {
@@ -458,8 +458,8 @@ Kirigami.ApplicationWindow {
                     id: visibility_fade_out_animation
 
                     duration: PlaybackSettings.fadeDuration
-                    property: "value"
-                    target: visibilitySlider
+                    property: "layerVisibility"
+                    target: layerViewItem
                     to: 0
                 }
                 ToolButton {
@@ -487,10 +487,12 @@ Kirigami.ApplicationWindow {
                     }
 
                     overlayLabel: qsTr("Layer visibility: ")
+                    implicitWidth: 180
+                    maximumValue: layerViewItem.layerVisibilityMaximum
+                    maximumLocked: layerViewItem.layerVisibilityLocked
 
-                    onValueChanged: {
-                        if (!syncingValue && layerViewItem.layerIdx >= 0
-                                && value.toFixed(0) !== layerViewItem.layerVisibility) {
+                    onMoved: {
+                        if (!syncingValue && layerViewItem.layerIdx >= 0) {
                             // A layer with entrance/exit effects scrubs through them instead of fading.
                             if (layerViewItem.layerSelectedSubLayer > 0
                                     || !app.slides.selected.scrubLayerAnimation(layerViewItem.layerIdx, Math.round(value)))
@@ -502,18 +504,48 @@ Kirigami.ApplicationWindow {
                         visibilitySlider.syncValue(layerViewItem.layerVisibility);
                     }
                 }
+                ToolButton {
+                    id: visibilityLockButton
+
+                    enabled: layerViewItem.layerIdx >= 0
+                    checkable: true
+                    checked: layerViewItem.layerVisibilityLocked
+                    focusPolicy: Qt.NoFocus
+                    icon.name: checked ? "lock" : "unlock"
+                    Accessible.name: qsTr("Lock maximum layer visibility")
+                    ToolTip.text: checked
+                                  ? qsTr("Maximum visibility locked at %1%. Click to restore the full range.").arg(layerViewItem.layerVisibilityMaximum)
+                                  : qsTr("Use the current visibility as this layer's maximum")
+                    ToolTip.visible: hovered
+
+                    onClicked: {
+                        const lockMaximum = checked;
+                        const maximum = Math.round(visibilitySlider.value);
+                        visibility_fade_in_animation.stop();
+                        visibility_fade_out_animation.stop();
+                        if (!layerViewItem.layerVisibilityLocked) {
+                            // The slider may currently represent entrance/exit progress.
+                            // Finish that pose, then lock the percentage the user chose.
+                            if (layerViewItem.layerSelectedSubLayer <= 0)
+                                app.slides.selected.scrubLayerAnimation(layerViewItem.layerIdx, layerViewItem.layerVisibilityMaximum);
+                            layerViewItem.layerVisibility = maximum;
+                        }
+                        layerViewItem.layerVisibilityLocked = lockMaximum;
+                        app.slides.needsSync = true;
+                    }
+                }
                 PropertyAnimation {
                     id: visibility_fade_in_animation
 
                     duration: PlaybackSettings.fadeDuration
-                    property: "value"
-                    target: visibilitySlider
-                    to: 100
+                    property: "layerVisibility"
+                    target: layerViewItem
+                    to: layerViewItem.layerVisibilityMaximum
                 }
                 ToolButton {
                     id: fade_image_in
 
-                    enabled: layerViewItem.layerVisibility !== 100
+                    enabled: layerViewItem.layerVisibility < layerViewItem.layerVisibilityMaximum
                     focusPolicy: Qt.NoFocus
                     icon.name: "view-visible"
 
@@ -2837,6 +2869,8 @@ Kirigami.ApplicationWindow {
         }
         Connections {
             function onLayerChanged() {
+                visibility_fade_in_animation.stop();
+                visibility_fade_out_animation.stop();
                 if(layerViewItem.layerIdx !== -1) {
                     layerViewItem.loadTracks();
                     layerWindow.title = layerViewItem.layerTitle;

@@ -635,7 +635,7 @@ void SlidesModel::setTriggeredSlideVisibility(int value) {
             int localIdx = layers[i].second;
 
             if (localIdx == 0) { // Exact
-                layers[i].first->setAlpha(valF); // 0&->100%
+                layers[i].first->setAlpha(valF * layers[i].first->maximumAlpha());
                 continue;
             }
             else if (localIdx < 0) {  //Upcoming
@@ -657,7 +657,7 @@ void SlidesModel::setTriggeredSlideVisibility(int value) {
             }
             else if (localIdx == 1) {
                 if(layers[i].first->alpha() > 0.f)
-                    layers[i].first->setAlpha(1.f - valF); //100%->0%
+                    layers[i].first->setAlpha((1.f - valF) * layers[i].first->maximumAlpha());
                 continue;
             }
             else {
@@ -1728,7 +1728,7 @@ void SlidesModel::checkMasterLayersRunBasedOnMediaVisibility(int mediaVisibility
         if (slideLayers[i].first->hierarchy() == BaseLayer::LayerHierarchy::FRONT)
             continue;
         if (PresentationSettings::mediaVisibilityControlMasterLayers()) {
-            slideLayers[i].first->setAlpha(static_cast<float>(100 - mediaVisibility) / 100.f);
+            slideLayers[i].first->setAlpha(static_cast<float>(100 - mediaVisibility) / 100.f * slideLayers[i].first->maximumAlpha());
             masterSlide()->updateLayer(i);
         }
         else {
@@ -1851,7 +1851,7 @@ void SlidesModel::onSlideVisibilityChanged(int slideIdx) {
             // the timeline; the rest follow the slide visibility envelope.
             if (slide(slideIdx)->isLayerTimelineDriven(layers[i].first))
                 continue;
-            layers[i].first->setAlpha(valF);
+            layers[i].first->setAlpha(valF * layers[i].first->maximumAlpha());
             continue;
         }
         else if (localIdx < 0) {  // Upcoming
@@ -1871,7 +1871,7 @@ void SlidesModel::onSlideVisibilityChanged(int slideIdx) {
         }
         else if (localIdx == 1) {
             if (layers[i].first->alpha() > 0.f)
-                layers[i].first->setAlpha(1.f - valF); // 100%->0%
+                layers[i].first->setAlpha((1.f - valF) * layers[i].first->maximumAlpha());
             continue;
         }
         else {

@@ -19,25 +19,38 @@ Slider {
     id: root
 
     property string overlayLabel: qsTr("Media visibility: ")
+    property real maximumValue: 100
+    property bool maximumLocked: false
 
     from: 0
     implicitHeight: 25
     implicitWidth: 130
     leftPadding: 0
-    rightPadding: 0
-    to: 100
+    // Keep the capped part of the 0–100% track visible, but outside the input range.
+    rightPadding: width * (1 - maximumValue / 100)
+    to: maximumValue
     wheelEnabled: false
 
     background: Rectangle {
-        id: harunaSliderBG
+        id: visibilitySliderBG
 
+        width: root.width
         color: Kirigami.Theme.alternateBackgroundColor
 
         Rectangle {
             color: Kirigami.Theme.highlightColor
             height: parent.height
             radius: 0
-            width: root.visualPosition * parent.width
+            width: root.visualPosition * parent.width * root.maximumValue / 100
+        }
+        Rectangle {
+            x: parent.width * root.maximumValue / 100
+            width: parent.width - x
+            height: parent.height
+            visible: root.maximumLocked && root.maximumValue < 100
+            color: Qt.alpha(Kirigami.Theme.textColor, 0.18)
+            border.color: Qt.alpha(Kirigami.Theme.textColor, 0.35)
+            border.width: 1
         }
     }
     handle: Item {
@@ -51,7 +64,9 @@ Slider {
         color: "#fff"
         font.pointSize: 9
         layer.enabled: true
-        text: root.overlayLabel + qsTr("%1\%").arg(Number(root.value.toFixed(0)))
+        text: root.maximumLocked
+              ? root.overlayLabel + qsTr("%1% (max %2%)").arg(Math.round(root.value)).arg(Math.round(root.maximumValue))
+              : root.overlayLabel + qsTr("%1%").arg(Math.round(root.value))
 
         layer.effect: DropShadow {
             color: "#111"
