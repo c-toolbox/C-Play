@@ -698,15 +698,19 @@ public:
     // Points the global mpv configuration files at ./data/mpv-conf/<folder>/. Nodes switch
     // folder at runtime (the master's saved startup choice arrives in decode()) while mpv
     // threads read the paths, so such threads read them through configurationSnapshot().
+    // configurationMutex is held only to copy the strings and never around another lock:
+    // MpvLayer::loadFile() reads them with LayersModel::m_layersMutex held, while encode()
+    // locks stringsMutex and then m_layersMutex, so stringsMutex here would deadlock.
+    std::mutex configurationMutex;
     void setMpvConfFolder(const std::string &folder) {
-        std::lock_guard<std::recursive_mutex> lock(stringsMutex);
+        std::lock_guard<std::mutex> lock(configurationMutex);
         configuration.mpvConfFolder = folder;
         configuration.confAll = "./data/mpv-conf/" + folder + "/all.json";
         configuration.confMasterOnly = "./data/mpv-conf/" + folder + "/master-only.json";
         configuration.confNodesOnly = "./data/mpv-conf/" + folder + "/nodes-only.json";
     }
     ConfigurationVariables configurationSnapshot() {
-        std::lock_guard<std::recursive_mutex> lock(stringsMutex);
+        std::lock_guard<std::mutex> lock(configurationMutex);
         return configuration;
     }
 
