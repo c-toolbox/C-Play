@@ -8,7 +8,7 @@ set(CPLAY_VERSION_MAJOR 2)
 set(CPLAY_VERSION_MINOR 4)
 set(CPLAY_VERSION_PATCH 0)
 set(CPLAY_VERSION_PR_NAME "Beta")
-set(CPLAY_VERSION_PR_VERS 47)
+set(CPLAY_VERSION_PR_VERS 48)
 
 qt_add_executable(${TARGET_NAME})
 set_compile_options(${TARGET_NAME})
@@ -163,6 +163,8 @@ set(SOURCE_FILES
     utils/imagesequenceutils.h
     utils/logfilewriter.cpp
     utils/logfilewriter.h
+    utils/mediasizeprobe.cpp
+    utils/mediasizeprobe.h
     utils/multivideoconfig.cpp
     utils/multivideoconfig.h
     utils/nodeidentityconfig.cpp

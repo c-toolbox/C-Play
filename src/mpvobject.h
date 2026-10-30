@@ -445,11 +445,16 @@ public:
     Q_INVOKABLE void enableAudioOnNodes(bool enabled);
     Q_INVOKABLE void setLoadAudioInVidFolder(bool enabled);
     Q_INVOKABLE QString checkAndCorrectPath(const QString &filePath, const QStringList &searchPaths);
-    Q_INVOKABLE void loadFile(const QString &file, bool updateLastPlayedFile = true);
+    // guessGridMode: set the grid from the video size once it is known (a dropped media file).
+    Q_INVOKABLE void loadFile(const QString &file, bool updateLastPlayedFile = true, bool guessGridMode = false);
+    // Probes the video size of file off the GUI thread and emits gridModeProbed() with the
+    // grid mode guessed from it, or -1 when the size gives no hint or guessing is turned off.
+    Q_INVOKABLE void probeGridModeForFile(const QString &file);
     Q_INVOKABLE void loadMultiVideo(const QString &jsonPath, bool updateLastPlayedFile = true);
     // Adds the file at row index of the playlist, or appends it when index is out of range.
     // Returns the row the file landed on, or -1 when it could not be loaded.
-    Q_INVOKABLE int addFileToPlaylist(const QString &file, int index = -1);
+    // guessGridMode: a media file gets its grid from the video size the first time it is played.
+    Q_INVOKABLE int addFileToPlaylist(const QString &file, int index = -1, bool guessGridMode = false);
     Q_INVOKABLE void clearPlaylist();
     Q_INVOKABLE void setLoadedAsCurrentEditItem();
     Q_INVOKABLE void loadSection(int playSectionsIndex);
@@ -519,6 +524,7 @@ Q_SIGNALS:
     void fileLoaded();
     void sectionLoaded(int);
     void endFile(QString reason);
+    void gridModeProbed(QString file, int gridMode);
     void watchPercentageChanged();
     void loggingEnabledChanged();
     void performanceMetricsEnabledChanged();
@@ -563,6 +569,7 @@ private:
     void loadUniviewPlaylist(const QString &file, bool updateLastPlayedFile = true);
 
     void loadItem(PlayListItemData itemData, bool updateLastPlayedFile = true, QString flag = QStringLiteral("replace"));
+    void applyGuessedGridMode();
 
     mpv_handle *mpv;
     mpv_render_context *mpv_gl;
@@ -621,6 +628,9 @@ private:
     int m_videoHeight;
     int m_pendingVideoWidth = 0;
     int m_pendingVideoHeight = 0;
+    // Armed when a dropped media file is loaded, consumed by the first video reconfig.
+    bool m_guessGridModeOnVideoReconfig = false;
+    QPointer<PlayListItem> m_gridGuessPlaylistItem;
     bool m_syncVolumeVisibilityFading;
     bool m_autoPlay;
     // A play asked for while the nodes load the main video, done once they have it.

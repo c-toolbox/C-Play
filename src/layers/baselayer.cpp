@@ -107,6 +107,16 @@ bool BaseLayer::masterPlaceholderBackground(std::string& hex) const {
     return s_placeholderBackground;
 }
 
+int BaseLayer::guessGridModeFromSize(int width, int height, int currentGridMode) {
+    if (width <= 0 || height <= 0)
+        return currentGridMode;
+    if (width == height)
+        return Dome;
+    if (width == 2 * height)
+        return Sphere_EQR;
+    return currentGridMode;
+}
+
 std::string BaseLayer::typeDescription(BaseLayer::LayerType e) {
     switch (e) {
     case BASE:

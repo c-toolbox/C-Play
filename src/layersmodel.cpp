@@ -2962,13 +2962,8 @@ void LayersModel::guessGridModeForDraggedLayer(int layerIdx, BaseLayer *layer) {
     if (!PresentationSettings::guessGridModeOnDragAndDrop())
         return;
 
-    uint8_t guessedGridMode = layer->gridMode();
-    if (layer->width() == layer->height()) {
-        guessedGridMode = BaseLayer::Dome;
-    }
-    else if (layer->width() == 2 * layer->height()) {
-        guessedGridMode = BaseLayer::Sphere_EQR;
-    }
+    const uint8_t guessedGridMode = static_cast<uint8_t>(
+        BaseLayer::guessGridModeFromSize(layer->width(), layer->height(), layer->gridMode()));
 
     Q_UNUSED(layerIdx)
     if (guessedGridMode != layer->gridMode()) {

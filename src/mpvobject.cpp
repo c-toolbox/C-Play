@@ -19,6 +19,7 @@
 #include "playbacksettings.h"
 #include "playlistitem.h"
 #include "playlistsettings.h"
+#include "presentationsettings.h"
 #include "subtitlesettings.h"
 #include "userinterfacesettings.h"
 #include "track.h"
@@ -31,13 +32,16 @@
 #endif
 #include "utils/autosave.h"
 #include "utils/logfilewriter.h"
+#include "utils/mediasizeprobe.h"
 #include <iostream>
+#include <thread>
 #ifdef MULTI_VIDEO_LAYER
 #include <nlohmann/json.hpp>
 #include <QFile>
 #include <sgct/sgct.h>
 #endif
 
+#include <QCoreApplication>
 #include <QCryptographicHash>
 #include <QDir>
 #include <QColor>
@@ -1017,7 +1021,7 @@ QString MpvObject::checkAndCorrectPath(const QString &filePath, const QStringLis
     return QStringLiteral("");
 }
 
-void MpvObject::loadFile(const QString &file, bool updateLastPlayedFile) {
+void MpvObject::loadFile(const QString &file, bool updateLastPlayedFile, bool guessGridMode) {
     QString fileToLoad = file;
     fileToLoad.replace(QStringLiteral("file:///"), QStringLiteral(""));
     QFileInfo fileInfo(fileToLoad);
@@ -1036,6 +1040,8 @@ void MpvObject::loadFile(const QString &file, bool updateLastPlayedFile) {
     m_playlistModel->setPlayingVideo(-1);
     m_currentSectionsIndex = -1;
     m_playSectionsModel->clear();
+    m_guessGridModeOnVideoReconfig = false;
+    m_gridGuessPlaylistItem.clear();
 
     // Reset list file start/end times when loading a standalone file
     m_startTime = -1.0;
@@ -1100,6 +1106,7 @@ void MpvObject::loadFile(const QString &file, bool updateLastPlayedFile) {
         setAudioId(-1);
         m_playSectionsModel->setCurrentEditItemIsEdited(true);
         command(QStringList() << QStringLiteral("loadfile") << fileToLoad, true);
+        m_guessGridModeOnVideoReconfig = guessGridMode && PresentationSettings::guessGridModeOnDragAndDrop();
         setRotate(QVector3D(GridSettings::surfaceRotateX(), GridSettings::surfaceRotateY(), GridSettings::surfaceRotateZ()));
 
         if (updateLastPlayedFile) {
@@ -1117,6 +1124,8 @@ void MpvObject::loadMultiVideo(const QString &jsonPath, bool updateLastPlayedFil
 #ifdef MULTI_VIDEO_LAYER
     QString path = jsonPath;
     path.replace(QStringLiteral("file:///"), QStringLiteral(""));
+    m_guessGridModeOnVideoReconfig = false;
+    m_gridGuessPlaylistItem.clear();
 
     // Set m_loadedFileStructure so setLoadedAsCurrentEditItem() (called from
     // MPV_EVENT_FILE_LOADED after the master file loads) creates the PlayListItem
@@ -1272,10 +1281,30 @@ void MpvObject::loadMultiVideo(const QString &jsonPath, bool updateLastPlayedFil
 #endif
 }
 
-int MpvObject::addFileToPlaylist(const QString &file, int index) {
+void MpvObject::probeGridModeForFile(const QString &file) {
+    QString path = file;
+    path.replace(QStringLiteral("file:///"), QStringLiteral(""));
+    if (!PresentationSettings::guessGridModeOnDragAndDrop() || !QFileInfo::exists(path)) {
+        Q_EMIT gridModeProbed(file, -1);
+        return;
+    }
+
+    QPointer<MpvObject> self(this);
+    std::thread([self, file, path]() {
+        int w = 0, h = 0;
+        const int gridMode = MediaSizeProbe::probe(path, w, h) ? BaseLayer::guessGridModeFromSize(w, h, -1) : -1;
+        QMetaObject::invokeMethod(QCoreApplication::instance(), [self, file, gridMode]() {
+            if (self)
+                Q_EMIT self->gridModeProbed(file, gridMode);
+        }, Qt::QueuedConnection);
+    }).detach();
+}
+
+int MpvObject::addFileToPlaylist(const QString &file, int index, bool guessGridMode) {
     PlayListItem *item = loadMediaFileDescription(file);
     if (!item)
         return -1;
+    item->setGuessGridModeOnLoad(guessGridMode && !item->hasDescriptionFile());
 
     const int row = m_playlistModel->insertItem(index, item);
     Q_EMIT playlistModelChanged();
@@ -1398,6 +1427,12 @@ void MpvObject::loadItem(int playListIndex, bool updateLastPlayedFile) {
         m_endTime = pld.m_useListFileEndTime ? pld.m_listFileEndTime : -1.0;
 
         loadItem(pld, updateLastPlayedFile);
+        // A list grid mode is the user's choice, keep it over the guess.
+        if (item->guessGridModeOnLoad() && !pld.m_useListGridMode
+            && PresentationSettings::guessGridModeOnDragAndDrop()) {
+            m_guessGridModeOnVideoReconfig = true;
+            m_gridGuessPlaylistItem = item;
+        }
         m_playSectionsModel->updateCurrentEditItem(*item);
         Q_EMIT playSectionsModelChanged();
         m_playSectionsModel->setCurrentEditItemIsEdited(false);
@@ -1407,6 +1442,8 @@ void MpvObject::loadItem(int playListIndex, bool updateLastPlayedFile) {
 
 void MpvObject::loadItem(PlayListItemData itemData, bool updateLastPlayedFile, QString flag) {
     try {
+        m_guessGridModeOnVideoReconfig = false;
+        m_gridGuessPlaylistItem.clear();
         setAudioId(-1);
 
         // Apply list audio file override if enabled
@@ -1851,6 +1888,34 @@ void MpvObject::mpvEvents(void *ctx) {
     QMetaObject::invokeMethod(static_cast<MpvObject *>(ctx), "eventHandler", Qt::QueuedConnection);
 }
 
+void MpvObject::applyGuessedGridMode() {
+    // The decoded size, not dwidth/dheight which follow the display aspect.
+    int64_t w = 0, h = 0;
+    if (mpv_get_property(mpv, "width", MPV_FORMAT_INT64, &w) < 0
+        || mpv_get_property(mpv, "height", MPV_FORMAT_INT64, &h) < 0
+        || w <= 0 || h <= 0) {
+        return;
+    }
+    m_guessGridModeOnVideoReconfig = false;
+
+    const int guessedGridMode = BaseLayer::guessGridModeFromSize((int)w, (int)h, gridToMapOn());
+    setGridToMapOn(guessedGridMode);
+
+    // Remember the guess on the playlist item, so it is not guessed again on the next play.
+    if (m_gridGuessPlaylistItem) {
+        m_gridGuessPlaylistItem->setGuessGridModeOnLoad(false);
+        if (guessedGridMode != m_gridGuessPlaylistItem->gridToMapOn()) {
+            m_gridGuessPlaylistItem->setGridToMapOn(guessedGridMode);
+            const int row = m_playlistModel->getPlayList().indexOf(m_gridGuessPlaylistItem);
+            if (row >= 0)
+                m_playlistModel->refreshItem(row);
+        }
+        m_gridGuessPlaylistItem.clear();
+    }
+    if (m_playSectionsModel->currentEditItem())
+        m_playSectionsModel->currentEditItem()->setGridToMapOn(guessedGridMode);
+}
+
 void MpvObject::eventHandler() {
     while (mpv) {
         mpv_event *event = mpv_wait_event(mpv, 0);
@@ -1918,6 +1983,9 @@ void MpvObject::eventHandler() {
                     m_fboReady = false;
                 }
                 Q_EMIT planeChanged();
+            }
+            if (m_guessGridModeOnVideoReconfig) {
+                applyGuessedGridMode();
             }
             break;
         }

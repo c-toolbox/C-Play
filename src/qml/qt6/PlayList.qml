@@ -588,7 +588,7 @@ Rectangle {
             // Each file goes in after the previous one, so multiple files keep their dropped order.
             var lastAdded = -1;
             for(var i in drop.urls){
-                var idx = mpv.addFileToPlaylist(drop.urls[i].toString(), insertAt);
+                var idx = mpv.addFileToPlaylist(drop.urls[i].toString(), insertAt, true);
                 if(idx >= 0) {
                     lastAdded = idx;
                     insertAt = idx + 1;

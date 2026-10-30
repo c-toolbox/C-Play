@@ -246,11 +246,17 @@ public:
     void loadDetailsFromDisk();
     bool hasDescriptionFile();
 
+    // Set for media files dropped on the playlist: the grid mode is guessed from the
+    // video size the first time the item is played. Not part of the saved data.
+    bool guessGridModeOnLoad() const;
+    void setGuessGridModeOnLoad(bool guess);
+
 private:
     void loadJSONPlayfile();
     void loadUniviewFDV();
 
     bool m_hasDescriptionFile;
+    bool m_guessGridModeOnLoad{false};
     PlayListItemData m_data;
 
     QString checkAndCorrectPath(const QString &filePath, const QStringList &searchPaths);

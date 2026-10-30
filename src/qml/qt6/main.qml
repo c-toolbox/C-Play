@@ -183,14 +183,14 @@ Kirigami.ApplicationWindow {
         app.sendQuitToNodes();
     }
 
-    function openMediaFile(path, startPlayback, loadSiblings) {
+    function openMediaFile(path, startPlayback, loadSiblings, guessGridMode) {
         mpv.pause = true;
         mpv.position = 0;
         if (loadSiblings) {
             // get video files from same folder as the opened file
             mpv.playlistModel.getVideos(path);
         }
-        mpv.loadFile(path);
+        mpv.loadFile(path, true, guessGridMode === true);
     }
 
     function saveCPlayFile(path) {
@@ -229,7 +229,8 @@ Kirigami.ApplicationWindow {
         );
     }
 
-    function openFile(path) {
+    // fromDrop: a dropped media file gets its grid mode guessed from the video size.
+    function openFile(path, fromDrop) {
         var openFileExt = playerController.returnFileExtension(path);
         if(openFileExt == "cplaypres"){
             slides.presentationToLoad = path.toString();
@@ -242,10 +243,12 @@ Kirigami.ApplicationWindow {
             openFileValuesDialogLabel.text = playerController.returnFileName(path);
             newMediaFileToOpen = path;
             openFileValuesDialog.open();
+            if (fromDrop === true)
+                openFileValuesDialog.probeGridMode(path.toString());
         }
         else{
             loadNotice.expect(path);
-            openMediaFile(path.toString(), true, PlaylistSettings.loadSiblings);
+            openMediaFile(path.toString(), true, PlaylistSettings.loadSiblings, fromDrop === true);
         }
         // the timer scrolls the playlist to the playing file
         // once the table view rows are loaded
@@ -412,7 +415,7 @@ Kirigami.ApplicationWindow {
             onDropped: function(drop) {
                 if (!drop.urls || drop.urls.length === 0)
                     return;
-                openFile(app.pathToUrl(drop.urls[0]))
+                openFile(app.pathToUrl(drop.urls[0]), true)
             }
         }
     }
@@ -744,7 +747,7 @@ Kirigami.ApplicationWindow {
                 onDropped: function(drop) {
                     if (!drop.urls || drop.urls.length === 0)
                         return;
-                    openFile(app.pathToUrl(drop.urls[0]))
+                    openFile(app.pathToUrl(drop.urls[0]), true)
                 }
             }
         }
@@ -1134,11 +1137,52 @@ Kirigami.ApplicationWindow {
         id: openFileValuesDialog
         standardButtons: Dialog.Ok | Dialog.Cancel
         width: 250
+        // Only closed by Ok or Cancel, not by a stray click outside the dialog.
+        modal: true
+        closePolicy: Popup.NoAutoClose
+
+        // A dropped file is probed for its video size, and the grid guessed from it is
+        // preselected unless the grid was already picked by hand.
+        property string probedFile: ""
+        property bool probingGrid: false
+        property bool gridSuggested: false
+        property bool gridChosenByUser: false
+
+        function probeGridMode(path) {
+            probedFile = path;
+            probingGrid = true;
+            mpv.probeGridModeForFile(path);
+        }
+
+        Connections {
+            function onGridModeProbed(file, guessedGridMode) {
+                if (!openFileValuesDialog.visible || file !== openFileValuesDialog.probedFile)
+                    return;
+                openFileValuesDialog.probingGrid = false;
+                if (guessedGridMode < 0)
+                    return;
+                for (let i = 0; i < gridModeList.count; ++i) {
+                    if (gridModeList.get(i).value === guessedGridMode) {
+                        if (!openFileValuesDialog.gridChosenByUser)
+                            gridMode.currentIndex = i;
+                        openFileValuesDialog.gridSuggested = true;
+                        break;
+                    }
+                }
+            }
+
+            target: mpv
+        }
 
         onOpened: PopupHelpers.handlePopupOpen()
         onClosed: PopupHelpers.handlePopupClose()
 
+        // Fits the layout and its margins, also when the grid suggestion label is shown.
+        contentHeight: openFileValuesLayout.implicitHeight + 2 * openFileValuesLayout.anchors.margins
+
         GridLayout {
+            id: openFileValuesLayout
+
             anchors.fill: parent
             anchors.margins: 15
             columnSpacing: 2
@@ -1236,6 +1280,8 @@ Kirigami.ApplicationWindow {
                     }
                 }
 
+                onActivated: openFileValuesDialog.gridChosenByUser = true
+
                 onActiveFocusChanged: {
                     if (activeFocus) {
                         PopupHelpers.handlePopupOpen();
@@ -1244,9 +1290,22 @@ Kirigami.ApplicationWindow {
                     }
                 }
             }
+            Label {
+                Layout.columnSpan: 2
+                Layout.fillWidth: true
+                visible: openFileValuesDialog.probingGrid || openFileValuesDialog.gridSuggested
+                font.italic: true
+                wrapMode: Text.WordWrap
+                text: openFileValuesDialog.probingGrid ? qsTr("Checking the video size...")
+                                                       : qsTr("Grid suggested from the video size.")
+            }
         }
 
         onVisibleChanged: {
+            probedFile = "";
+            probingGrid = false;
+            gridSuggested = false;
+            gridChosenByUser = false;
             for (let i = 0; i < stereoscopicModeList.count; ++i) {
                 if (stereoscopicModeList.get(i).value === playerController.backgroundStereoMode()) {
                     stereoscopicMode.currentIndex = i;

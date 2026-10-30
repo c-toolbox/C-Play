@@ -122,6 +122,9 @@ public:
     typedef void* (*gl_adress_func_v1)(void* ctx, const char* name);
     typedef void* (*gl_adress_func_v2)(const char* name, void* ctx);
     static std::string typeDescription(BaseLayer::LayerType e);
+    // Grid mode suggested by the media size (square is a dome master, 2:1 is
+    // equirectangular), or currentGridMode when the size says nothing.
+    static int guessGridModeFromSize(int width, int height, int currentGridMode);
     static BaseLayer *createLayer(bool isMaster, int layerType, gl_adress_func_v1 opa1, gl_adress_func_v2 opa2, std::string strId = "", uint32_t numID = 0);
 
     struct RenderParams {

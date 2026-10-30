@@ -795,6 +795,14 @@ bool PlayListItem::hasDescriptionFile() {
     return m_hasDescriptionFile;
 }
 
+bool PlayListItem::guessGridModeOnLoad() const {
+    return m_guessGridModeOnLoad;
+}
+
+void PlayListItem::setGuessGridModeOnLoad(bool guess) {
+    m_guessGridModeOnLoad = guess;
+}
+
 void PlayListItem::loadJSONPlayfile() {
     QFileInfo jsonFileInfo(filePath());
     if (!jsonFileInfo.exists()) {

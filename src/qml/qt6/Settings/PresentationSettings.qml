@@ -453,6 +453,10 @@ SettingsBasePage {
                 PresentationSettings.guessGridModeOnDragAndDrop = checked;
                 PresentationSettings.save();
             }
+
+            ToolTip {
+                text: qsTr("Media dropped on the layers list, the main view or the playlist gets the dome grid when square and the sphere grid when 2:1")
+            }
         }
         Item {
             // spacer item
