@@ -1690,16 +1690,20 @@ void SlidesModel::runUpdateAudioOutputOnLayers() {
     }
 }
 
+int SlidesModel::layersMasterVolume() const {
+    return qRound(m_volumeScaling * 100.f);
+}
+
 void SlidesModel::runUpdateVolumeOnLayers(int volume) {
     m_volumeScaling = static_cast<float>(volume) / 100.f;
+    Q_EMIT layersMasterVolumeChanged();
     for (int i = -1; i < numberOfSlides(); i++) {
         const Layers& slideLayers = slide(i)->getLayers();
         for (auto layer : slideLayers) {
             if (!layer.first)
                 continue;
             layer.first->setVolumeScaling(m_volumeScaling);
-            float volLevelF = static_cast<float>(layer.first->volume()) * m_volumeScaling;
-            layer.first->setVolume(static_cast<int>(volLevelF), false);
+            layer.first->setVolume(layer.first->volumeAtAlpha(layer.first->alpha()), false);
         }
     }
 }

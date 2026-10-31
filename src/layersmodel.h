@@ -596,6 +596,8 @@ private:
     void removeDefaultFadeEffects();
     // Gives a layer added by the user to a timeline slide the default fade effects.
     void addDefaultFadeForNewLayer(int layerIdx);
+    // Gives a new layer the master volume that the existing layers already follow.
+    void applyMasterVolumeToNewLayer(BaseLayer *layer);
     LayerTimeline *timelineAt(int layerIdx);
     const LayerTimeline *timelineAt(int layerIdx) const;
     // Evaluates keyframes and effects of one layer at absolute timeline time.

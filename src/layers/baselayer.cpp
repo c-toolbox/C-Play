@@ -1211,6 +1211,14 @@ int BaseLayer::volume() const {
     return m_volume;
 }
 
+int BaseLayer::volumeAtAlpha(float a) const {
+    float volLevelF = static_cast<float>(volume()) * a;
+    if (m_volumeScaling >= 0.f && m_volumeScaling < 1.f) {
+        volLevelF *= m_volumeScaling;
+    }
+    return static_cast<int>(volLevelF);
+}
+
 int BaseLayer::keepVisibilityForNumSlides() const {
     return m_keepVisibilityForNumSlides;
 }
@@ -1462,11 +1470,7 @@ void BaseLayer::setAlpha(float a) {
         }
 
        //Alpha controls volume level as well, from 0 to desired value (100%)
-       float volLevelF = static_cast<float>(volume()) * a;
-       if (m_volumeScaling >= 0.f && m_volumeScaling < 1.f) {
-           volLevelF *= m_volumeScaling;
-       }
-       setVolume(static_cast<int>(volLevelF), false);
+       setVolume(volumeAtAlpha(a), false);
     }
 
     renderData.alpha = a;

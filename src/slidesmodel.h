@@ -165,6 +165,14 @@ public:
     Q_INVOKABLE int slideFadeTime();
     Q_INVOKABLE void setSlideFadeTime(int value);
 
+    // The master volume applied to the layers, 100 when it does not control them.
+    Q_PROPERTY(int layersMasterVolume
+        READ layersMasterVolume
+        NOTIFY layersMasterVolumeChanged)
+
+    int layersMasterVolume() const;
+    float volumeScaling() const { return m_volumeScaling; }
+
     Q_PROPERTY(LayersModel *selected
         READ selectedSlide
         NOTIFY selectedSlideChanged)
@@ -332,6 +340,7 @@ Q_SIGNALS:
     void presentationHasLoaded();
     void slidesNeedsSaveChanged();
     void slideFadeTimeChanged();
+    void layersMasterVolumeChanged();
     void selectedSlideChanged();
     void triggeredSlideVisibilityChanged();
     void triggeredSlideChanged();

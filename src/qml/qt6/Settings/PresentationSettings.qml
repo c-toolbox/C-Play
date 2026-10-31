@@ -492,6 +492,7 @@ SettingsBasePage {
             onCheckedChanged: {
                 PresentationSettings.masterVolumeControlLayersVolume = checked;
                 PresentationSettings.save();
+                app.slides.runUpdateVolumeOnLayers(checked ? mpv.volume : 100);
             }
         }
         Item {

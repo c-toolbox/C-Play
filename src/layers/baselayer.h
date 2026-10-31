@@ -367,6 +367,8 @@ public:
     void setKeepVisibilityForNumSlides(int k);
 
     int volume() const;
+    // The stored volume as heard at visibility a, which also includes the volume scaling.
+    int volumeAtAlpha(float a) const;
     virtual unsigned int textureId() const;
     // Call after textureId() when sampling from another window's OpenGL context: makes that
     // context's GPU commands wait until the texture is complete. Default is a no-op.

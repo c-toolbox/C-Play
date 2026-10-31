@@ -318,12 +318,22 @@ int LayerQtItem::layerVolume() const {
         return 0;
 }
 
+int LayerQtItem::layerCurrentVolume() const {
+    // Shows the visibility's effect on this layer only, so the master volume is left out.
+    if (m_layer)
+        return static_cast<int>(static_cast<float>(m_layer->volume()) * m_layer->alpha());
+    else
+        return 0;
+}
+
 void LayerQtItem::setLayerVolume(int value) {
     if (m_layer && m_layer->isEnabled()) {
         if (m_layer->volume() != value) {
             Q_EMIT layerNeedsSave();
         }
         m_layer->setVolume(value);
+        // The stored level is the maximum; what plays still follows the visibility.
+        m_layer->setVolume(m_layer->volumeAtAlpha(m_layer->alpha()), false);
         Q_EMIT layerValueChanged();
     }
 }

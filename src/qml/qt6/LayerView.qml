@@ -1653,13 +1653,21 @@ Kirigami.ApplicationWindow {
                         Slider {
                             id: volumeSlider
 
+                            // Reads the visibility slider too, which also follows fades.
+                            readonly property int currentVolume: {
+                                visibilitySlider.value;
+                                return layerViewItem.layerCurrentVolume;
+                            }
+
                             from: 0
                             implicitHeight: 25
-                            implicitWidth: 130
+                            implicitWidth: 190
                             leftPadding: 0
                             rightPadding: 0
                             to: 100
                             wheelEnabled: false
+                            ToolTip.text: qsTr("The layer's maximum volume. Fading the layer in stops at this level, and lower visibility lowers the volume in proportion.")
+                            ToolTip.visible: hovered
 
                             onValueChanged: {
                                 if (value.toFixed(0) !== layerViewItem.layerVolume) {
@@ -1674,10 +1682,16 @@ Kirigami.ApplicationWindow {
                                 color: Kirigami.Theme.alternateBackgroundColor
 
                                 Rectangle {
-                                    color: Kirigami.Theme.highlightColor
+                                    color: Qt.alpha(Kirigami.Theme.highlightColor, 0.35)
                                     height: parent.height
                                     radius: 0
                                     width: volumeSlider.visualPosition * parent.width
+                                }
+                                Rectangle {
+                                    color: Kirigami.Theme.highlightColor
+                                    height: parent.height
+                                    radius: 0
+                                    width: volumeSlider.currentVolume * 0.01 * parent.width
                                 }
                             }
                             handle: Item {
@@ -1691,7 +1705,28 @@ Kirigami.ApplicationWindow {
                                 color: enabled ? "white" : "grey"
                                 font.pointSize: 9
                                 layer.enabled: true
-                                text: qsTr("Volume: %1\%").arg(Number(volumeSlider.value.toFixed(0)))
+                                text: volumeSlider.currentVolume < Math.round(volumeSlider.value)
+                                      ? qsTr("Max volume: %1\% (now %2\%)").arg(Math.round(volumeSlider.value)).arg(volumeSlider.currentVolume)
+                                      : qsTr("Max volume: %1\%").arg(Math.round(volumeSlider.value))
+
+                                layer.effect: DropShadow {
+                                    color: "#111"
+                                    radius: 5
+                                    samples: 17
+                                    spread: 0.3
+                                    verticalOffset: 1
+                                }
+                            }
+                            Label {
+                                anchors.horizontalCenter: volumeSlider.horizontalCenter
+                                anchors.top: volumeSlider.bottom
+                                anchors.topMargin: 6
+                                color: enabled ? "white" : "grey"
+                                font.pointSize: 9
+                                layer.enabled: true
+                                text: qsTr("Actual volume is %1\% due to master volume being %2\%")
+                                      .arg(Math.floor(volumeSlider.currentVolume * app.slides.layersMasterVolume / 100)).arg(app.slides.layersMasterVolume)
+                                visible: app.slides.layersMasterVolume < 100
 
                                 layer.effect: DropShadow {
                                     color: "#111"

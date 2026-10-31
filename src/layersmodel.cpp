@@ -11,6 +11,7 @@
 #include "locationsettings.h"
 #include "playbacksettings.h"
 #include "presentationsettings.h"
+#include "slidesmodel.h"
 #include "subtitlesettings.h"
 #ifdef NDI_SUPPORT
 #include <ndi/ndilayer.h>
@@ -198,6 +199,14 @@ std::shared_ptr<BaseLayer> makeLayerPtr(BaseLayer *layer) {
         ScopedSharedGLContext context;
         delete l;
     });
+}
+
+void LayersModel::applyMasterVolumeToNewLayer(BaseLayer *layer) {
+    const auto *slides = qobject_cast<SlidesModel *>(parent());
+    if (!slides)
+        return;
+    layer->setVolumeScaling(slides->volumeScaling());
+    layer->setVolume(layer->volumeAtAlpha(layer->alpha()), false);
 }
 
 LayersModel::LayersModel(QObject *parent)
@@ -945,6 +954,7 @@ int LayersModel::addLayer(QString title, int type, QString filepath, int stereoM
         if (useNoSignalImage)
             newLayer->setUseNoSignalImage(true);
         newLayer->initialize();
+        applyMasterVolumeToNewLayer(newLayer);
 
         const int layerIdx = rowForNewOwnLayer();
         int initialStatus = (newLayer->type() == BaseLayer::REST || newLayer->type() == BaseLayer::TCP) ? -1 : 0;
@@ -1497,6 +1507,7 @@ void LayersModel::addCopyOfLayer(BaseLayer* srcLayer) {
 
         newLayer->setHierarchy(hierarchy());
         newLayer->initialize();
+        applyMasterVolumeToNewLayer(newLayer);
 
         const int layerIdx = rowForNewOwnLayer();
         beginInsertRows(QModelIndex(), layerIdx, layerIdx);
@@ -1886,6 +1897,7 @@ int LayersModel::decodeLayerFromJSON(const QJsonObject &o, const QStringList &fo
             if (o.contains(QStringLiteral("volume"))) {
                 int volume = o.value(QStringLiteral("volume")).toInt();
                 m_layers[idx].first->setVolume(volume);
+                m_layers[idx].first->setVolume(m_layers[idx].first->volumeAtAlpha(m_layers[idx].first->alpha()), false);
             }
 
             if (o.contains(QStringLiteral("audioId"))) {
