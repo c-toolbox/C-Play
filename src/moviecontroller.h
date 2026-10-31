@@ -34,12 +34,24 @@ public:
     // goes to section sectionIdx (-1 leaves the playing section, -2 keeps it) and to position
     // (seconds in the file, < 0 keeps it; applied after the section). play: 1 plays, 0 pauses,
     // -1 leaves it to C-Play (auto play). A new item is positioned once it is loaded.
+    // audio selects that audio track of the item (zero-based, as /audiotracks lists them), < 0
+    // leaves C-Play's choice; an audio track the file does not have is ignored.
     // Returns false for invalid indices.
-    bool cue(int itemIdx, int sectionIdx, double position, int play);
+    bool cue(int itemIdx, int sectionIdx, double position, int play, int audio = -1);
 
     // The media file of playlist item itemIdx, or of the loaded file for -1, as mpv opens it.
     // Empty when there is none.
     QString mediaFile(int itemIdx) const;
+
+    // What mpv opens for playlist item itemIdx, for mediaInfo: {media, audio, audioFileAuto}.
+    // Empty when there is no such item.
+    QJsonObject mediaSource(int itemIdx) const;
+    // What C-Play only knows of a file once it is loaded: {tracks, duration}, with tracks the
+    // audio tracks as in the audiotracks event topic and duration in seconds (0 when it has
+    // none). Opens the file in a silent mpv of its own, so it may take a while: called on the
+    // HTTP thread, not the GUI thread. The result is kept per file. Empty when the file could
+    // not be opened.
+    static QJsonObject mediaInfo(const QJsonObject &source);
 
     // Cue lists of the movie view (*.cplaycue), kept in the cue list location if set, else in the
     // folder of the open playlist, else in the C-Play file location: {folder, playlist, files: [{name, modified}]}, newest first.

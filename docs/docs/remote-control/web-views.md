@@ -65,12 +65,18 @@ The presenter view shows the current and the next slide as thumbnails, the notes
 
 The movie view shows the playlist, what is on air (item, section, position and time left in the section) with a timeline of the sections, and the transport: play/pause, ±10 s, previous/next section and stop.
 
+The on-air panel also has a **Volume** slider (0–100%) with **Fade out** and **Fade in** buttons at its ends (as in C-Play, **Fade in** goes back to the level before the fade out, and pressed again up to 100; the picture fades too when C-Play syncs the image and volume fades), and below it an **Audio file** selector for the audio tracks and external audio files already loaded with the movie, like the desktop **Audio File** button. These controls follow changes in C-Play and affect the on-air audio immediately in both Live and Prepare mode.
+
 ![Movie view in Live mode, with the cue list](/assets/ui/movie_view_live.png)
 
 It has two modes:
 
 * **Live** — the view follows C-Play, and every action goes to C-Play at once: clicking an item loads it, clicking a section or the timeline jumps there.
-* **Prepare** — C-Play no longer follows the view. Picking an item, a section or a time (timeline or *Start at*) builds a **cue** in the view only, while the on-air panel keeps showing what C-Play plays (play/pause stays available). **Take → Live** (or the *Live* button) sends the cue to C-Play in one command: it loads the item if needed, goes to the section and time once the file is loaded, and then plays, pauses or leaves it to C-Play (*Then*). Only what was changed is sent, so going back to Live without changes does nothing. **Discard** starts the cue over from what is on air.
+* **Prepare** — C-Play no longer follows the view. Picking an item, a section, a time (timeline or *Start at*) or an **Audio file** builds a **cue** in the view only, while the on-air panel keeps showing what C-Play plays (play/pause stays available). **Take → Live** (or the *Live* button) sends the cue to C-Play in one command: it loads the item if needed, selects the audio, goes to the section and time once the file is loaded, and then plays, pauses or leaves it to C-Play (*Then*). Only what was changed is sent, so going back to Live without changes does nothing. **Discard** starts the cue over from what is on air.
+
+The cue's **Audio file** selector lists the audio tracks and external audio file of the cued item, also before it is loaded (C-Play opens the file silently to read them). *Default audio* leaves the choice to C-Play.
+
+The cue timeline works for files added to the playlist directly too: C-Play reads their duration the same way. When the playlist sets a start or end time for the item, a cue starts at the start time and stays between the two.
 
 ![Movie view in Prepare mode, with pictures](/assets/ui/movie_view_prepare.png)
 
@@ -90,10 +96,10 @@ The buttons at the top go from what plays to the next thing smoothly:
 
 ### Cue list
 
-Below the playlist is a list of cues that are fired one after the other, for example with a presentation clicker. Each cue is a playlist item (found by its file name, so reordering the playlist does not break it), a section and/or a time, what to do then (*As C-Play*, *Play* or *Pause*), and how it goes on air: **Cut** (at once) or **Fade** (the [transition](#transition): fade out, load, play & fade in).
+Below the playlist is a list of cues that are fired one after the other, for example with a presentation clicker. Each cue is a playlist item (found by its file name, so reordering the playlist does not break it), a section and/or a time, an audio track, what to do then (*As C-Play*, *Play* or *Pause*), and how it goes on air: **Cut** (at once) or **Fade** (the [transition](#transition): fade out, load, play & fade in).
 
-* **+ Add cue** inserts the prepared cue after the cue on standby. Without a prepared cue (or in live mode), **+ Add on air** adds the item, section and time that play now. **Update cue N** replaces the standby cue with the prepared cue.
-* Click a cue to put it on standby (marked *NEXT*). In prepare mode it also becomes the prepared cue, so the cue picture shows it. The standby cue can be renamed, set to *Cut* or *Fade*, given a *Then* action, moved up or down, or deleted.
+* **+ Add cue** inserts the prepared cue after the cue on standby. Without a prepared cue (or in live mode), **+ Add on air** adds the item, section, time and audio that play now. **Update cue N** replaces the standby cue with the prepared cue.
+* Click a cue to put it on standby (marked *NEXT*). In prepare mode it also becomes the prepared cue, so the cue picture shows it. The standby cue can be renamed, set to *Cut* or *Fade*, given a *Then* action and an audio file, moved up or down, or deleted.
 * **GO ▶** (Page Down or G) fires the standby cue and puts the next one on standby. **◀** (Page Up) puts the previous cue on standby without firing it. With cues in the list, Page Up/Down run the cue list instead of stepping sections; the arrow keys still step sections.
 * **Save** writes `<name>.cplaycue` (JSON) to the cue list location in [Location settings](/settings/location), or else to the folder of the open playlist (or the C-Play file location). **Open** lists the cue lists there, and **New** starts an empty list. The list is also kept on the device.
 
@@ -134,7 +140,8 @@ The views use the [HTTP API](/remote-control/api) and the [event feed](/remote-c
 | POST | `/slide_thumbnail_update[?index=N]` | Renders the shown slide with the master view camera as its thumbnail |
 | POST | `/presentation_save` | Saves the presentation to its file |
 | GET | `/movie_state` | Playlist, sections of each item and of the loaded file, playing item and section |
-| POST | `/movie_cue?index=N&section=S&position=T&play=0\|1` | Loads item N unless loaded, then section S (-1 for none) and time T (seconds); parameters left out keep what C-Play has |
+| GET | `/movie_media?index=N` | `{tracks: [{index, id, text}], duration}`: the audio and seconds of item N, also when it is not loaded (422 when the file cannot be opened) |
+| POST | `/movie_cue?index=N&section=S&position=T&audio=A&play=0\|1` | Loads item N unless loaded, then audio track A (zero-based), section S (-1 for none) and time T (seconds); parameters left out keep what C-Play has |
 | GET | `/movie_preview` | Whether pictures are available (built with WebRTC), and the last problem of each picture |
 | POST | `/movie_preview/offer?feed=live\|prepare` | Body: SDP offer with ICE gathering complete. Answers `{id, sdp}` |
 | POST | `/movie_preview/close?id=` | Ends a picture session |

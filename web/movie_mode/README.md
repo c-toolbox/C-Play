@@ -3,6 +3,8 @@
 Web app for running a C-Play playlist (`*.cplaylist`) and the sections of its files. It shows the
 playlist, what is on air (item, section, position, time left in the section) with a timeline of
 the sections, and the transport (play/pause, ±10 s, previous/next section, stop).
+The on air panel also controls volume (0–100%, with fade out and in buttons) and selects an audio track or external audio file
+already loaded with the movie. Both controls follow C-Play and act immediately in Live and Prepare.
 
 It has two modes:
 
@@ -36,11 +38,11 @@ background image; both are put back as they were when it ends or is stopped.
 
 Below the playlist, a list of cues fired one after the other, e.g. with a presentation clicker.
 Each cue is a playlist item (found by its file name, so reordering the playlist does not break it),
-a section and/or time, what to do then (as C-Play, play, pause), and how it goes on air: **Cut** (at
+a section and/or time, an audio track, what to do then (as C-Play, play, pause), and how it goes on air: **Cut** (at
 once) or **Fade** (the transition above: fade out, load, play & fade in).
 
 - **+ Add cue** inserts the prepared cue after the cue on standby; without a prepared cue (or live)
-  **+ Add on air** takes the item, section and time that play. **Update cue N** replaces the standby
+  **+ Add on air** takes the item, section, time and audio that play. **Update cue N** replaces the standby
   cue with the prepared cue.
 - Clicking a cue puts it on standby (and, in prepare mode, makes it the prepared cue, so the cue
   picture shows it). The standby cue can be named, set to Cut/Fade, moved or deleted.
@@ -93,11 +95,16 @@ pnpm check        # svelte-check / TypeScript
 
 | Method | Path | |
 | --- | --- | --- |
-| GET | `/events?topics=movie,position,duration,pause[&since=&wait=]` | Snapshot, then long polling |
+| GET | `/events?topics=movie,position,duration,pause,volume,audiotracks,playing_in_audiotracks,visibility,sync_image_volume_fade,main_video_load[&since=&wait=]` | Snapshot, then long polling |
 | GET | `/movie_state` | Playlist, sections of each item and of the loaded file, playing item and section |
 | GET | `/position`, `/duration` | Seconds (polled when the event feed does not run) |
-| POST | `/movie_cue?index=N&section=S&position=T&play=0\|1` | Loads item N unless loaded, then section S (-1 for none) and time T (seconds); left out parameters keep what C-Play has |
+| GET, POST | `/volume?level=0..100` | Current volume; POST sets it |
+| GET | `/audiotracks`, `/playing_in_audiotracks` | Loaded audio choices and selection (polled when the event feed does not run) |
+| POST | `/load_from_audiotracks?index=N` | Selects the loaded audio track/file at zero-based index N |
+| GET | `/movie_media?index=N` | `{tracks: [{index, id, text}], duration}`, the audio and seconds of item N, also when not loaded (422 when the file cannot be opened) |
+| POST | `/movie_cue?index=N&section=S&position=T&audio=A&play=0\|1` | Loads item N unless loaded, then audio track A (zero-based), section S (-1 for none) and time T (seconds); left out parameters keep what C-Play has |
 | POST | `/play`, `/pause`, `/stop`, `/seek?time=±s` | Transport |
+| POST | `/fade_volume_down`, `/fade_volume_up` | Fades the sound (the picture follows when C-Play syncs them) |
 | POST | `/fade_image_down`, `/fade_image_up` | Fades (the sound follows when C-Play syncs them); GET `/fade_duration` in seconds |
 | GET | `/movie_preview` | `available` (built with WebRTC), and the last problem of each picture |
 | POST | `/movie_preview/offer?feed=live\|prepare` | Body: SDP offer, ICE gathering complete. Answers `{id, sdp}` |

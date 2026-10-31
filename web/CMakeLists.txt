@@ -34,8 +34,16 @@ function(cplay_web_app name description)
         endif()
     endif()
 
+    # Asset names change with every build: clear the last install, so only this build remains.
+    # Not without a build to replace it (dist is optional).
+    set(_destination "${CMAKE_INSTALL_PREFIX}/bin/data/web/${name}")
+    install(CODE "
+        if(EXISTS \"${_dir}/dist/index.html\")
+            file(REMOVE_RECURSE \"\$ENV{DESTDIR}${_destination}\")
+        endif()
+    ")
     install(DIRECTORY "${_dir}/dist/"
-        DESTINATION "${CMAKE_INSTALL_PREFIX}/bin/data/web/${name}" OPTIONAL)
+        DESTINATION "${_destination}" OPTIONAL)
 endfunction()
 
 cplay_web_app(presentation_mode "presenter view")

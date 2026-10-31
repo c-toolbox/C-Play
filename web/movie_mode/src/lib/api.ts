@@ -14,8 +14,12 @@ export interface MovieItem {
   index: number;
   title: string;
   file: string;
-  /** Seconds, 0 when not known before the file is loaded. */
+  /** Seconds, 0 when not known before the file is loaded (see api.media). */
   duration: number;
+  /** Where the playlist starts the file, seconds. */
+  listStart?: number;
+  /** Where the playlist ends the file, seconds. */
+  listEnd?: number;
   /** At the file end: 0 pause, 1 next item, 2 loop. */
   endMode: number;
   sections: SectionInfo[];
@@ -26,6 +30,22 @@ export interface LoadedFile {
   file: string;
   /** The sections as edited in C-Play. */
   sections: SectionInfo[];
+}
+
+/** A track or external audio file already loaded with the movie. */
+export interface AudioTrack {
+  index: number;
+  id: number;
+  text: string;
+}
+
+export const audioName = (track: AudioTrack) => track.text.trim() || `Track ${track.index + 1}`;
+
+/** What C-Play reads from the file of a playlist item, also when it is not loaded. */
+export interface MediaInfo {
+  tracks: AudioTrack[];
+  /** Seconds, 0 when the file has none (an image). */
+  duration: number;
 }
 
 export interface MovieState {
@@ -60,7 +80,7 @@ export interface MainVideoLoad {
   failed: string[];
 }
 
-export const topics = ['movie', 'position', 'duration', 'pause', 'visibility', 'sync_image_volume_fade', 'main_video_load'] as const;
+export const topics = ['movie', 'position', 'duration', 'pause', 'volume', 'audiotracks', 'playing_in_audiotracks', 'visibility', 'sync_image_volume_fade', 'main_video_load'] as const;
 export type Topic = (typeof topics)[number];
 
 /** A cue to send to C-Play. Fields left out keep what C-Play has. */
@@ -71,6 +91,8 @@ export interface CueRequest {
   section?: number;
   /** Seconds in the file, applied after the section. */
   position?: number;
+  /** Audio track of the item, zero-based. */
+  audio?: number;
   play?: boolean;
 }
 
@@ -109,6 +131,22 @@ export const api = {
   state: async () => (await (await request('GET', '/movie_state')).json()) as MovieState,
   position: () => number('/position'),
   duration: () => number('/duration'),
+  volume: () => number('/volume'),
+  setVolume: (level: number) => post('/volume', { level: Math.round(Math.max(0, Math.min(100, level))) }),
+  audioTracks: async (): Promise<AudioTrack[]> => {
+    // Widths up to four do not truncate; one also preserves tracks without a title/language.
+    const value = await text('/audiotracks', { charsPerItem: 1 });
+    return value ? value.split(/\r?\n/).map((label, index) => ({ index, id: index + 1, text: label.trim() })) : [];
+  },
+  media: async (index: number) => (await (await request('GET', '/movie_media', { index })).json()) as MediaInfo,
+  /** The selected audio id minus one, -1 when no audio is selected. */
+  audioTrack: () => number('/playing_in_audiotracks'),
+  selectAudioTrack: async (index: number) => {
+    const response = await post('/load_from_audiotracks', { index });
+    const result = await response.text();
+    // This endpoint reports invalid/stale indices as text with HTTP 200.
+    if (!result.startsWith('Loading audio track with index:')) throw new ApiError(result, 400);
+  },
   events: async (since: string, signal?: AbortSignal) => {
     const query = since ? `&since=${since}&wait=20000` : '';
     const response = await fetch(`/events?topics=${topics.join(',')}${query}`, { cache: 'no-store', signal });
@@ -120,6 +158,7 @@ export const api = {
     if (cue.index !== undefined) params.index = cue.index;
     if (cue.section !== undefined) params.section = cue.section;
     if (cue.position !== undefined) params.position = Math.max(0, cue.position);
+    if (cue.audio !== undefined) params.audio = cue.audio;
     if (cue.play !== undefined) params.play = cue.play ? 1 : 0;
     return post('/movie_cue', params);
   },
@@ -145,6 +184,9 @@ export const api = {
   /** Fade the picture out or in; the sound follows when C-Play syncs the fades. */
   fadeOut: () => post('/fade_image_down'),
   fadeIn: () => post('/fade_image_up'),
+  /** Fade the sound out or in; the picture follows when C-Play syncs the fades. */
+  fadeVolumeOut: () => post('/fade_volume_down'),
+  fadeVolumeIn: () => post('/fade_volume_up'),
   play: () => post('/play'),
   pause: () => post('/pause'),
   /** Back to the start, paused. */

@@ -17,6 +17,10 @@ export interface CueEntry {
   section: number | null;
   /** Seconds in the file, null for the section start (or where C-Play is, or the start of a new item). */
   position: number | null;
+  /** Audio track of the item, null to leave it to C-Play. */
+  audio: number | null;
+  /** The name of the audio track, to show in the list. */
+  audioName: string;
   then: TakeMode;
   go: GoMode;
 }
@@ -42,6 +46,7 @@ function toEntry(value: unknown): CueEntry | null {
   if (typeof v.file !== 'string' || typeof v.item !== 'number') return null;
   const section = optionalNumber(v.section);
   const position = optionalNumber(v.position);
+  const audio = optionalNumber(v.audio);
   return {
     id: newId(),
     name: typeof v.name === 'string' ? v.name : '',
@@ -49,6 +54,8 @@ function toEntry(value: unknown): CueEntry | null {
     item: Math.trunc(v.item),
     section: section === null ? null : Math.max(-1, Math.trunc(section)),
     position: position === null ? null : Math.max(0, position),
+    audio: audio === null || audio < 0 ? null : Math.trunc(audio),
+    audioName: typeof v.audioName === 'string' ? v.audioName : '',
     then: takeModes.includes(v.then as TakeMode) ? (v.then as TakeMode) : 'auto',
     go: v.go === 'fade' ? 'fade' : 'cut',
   };
@@ -68,6 +75,7 @@ export function cueRequest(entry: CueEntry, state: MovieState): CueRequest | nul
     index: index !== state.playing ? index : undefined,
     section: entry.section ?? undefined,
     position: entry.position ?? undefined,
+    audio: entry.audio ?? undefined,
     play: entry.then === 'auto' ? undefined : entry.then === 'play',
   };
 }

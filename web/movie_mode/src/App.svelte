@@ -1,11 +1,12 @@
 <script lang="ts">
   import { onMount, untrack } from 'svelte';
+  import AudioControls from './components/AudioControls.svelte';
   import CueListPanel from './components/CueListPanel.svelte';
   import Picture from './components/Picture.svelte';
   import Playlist from './components/Playlist.svelte';
   import SectionList from './components/SectionList.svelte';
   import Timeline from './components/Timeline.svelte';
-  import { ApiError, api, sectionAt, sectionEndModes, type CueRequest, type SectionInfo } from './lib/api';
+  import { ApiError, api, audioName, sectionAt, sectionEndModes, type AudioTrack, type CueRequest, type MediaInfo, type SectionInfo } from './lib/api';
   import { PreparedCue, type TakeMode } from './lib/cue.svelte';
   import { CueList, cueItem, cueRequest, type CueEntry } from './lib/cuelist.svelte';
   import { LiveMovie } from './lib/live.svelte';
@@ -51,6 +52,8 @@
   let transitionCancelled = false;
   // A cue of the cue list is being sent (cut).
   let firing = $state(false);
+  // The file of the cued item when it is not on air, null until C-Play has opened it.
+  let cuedMedia = $state<MediaInfo | null>(null);
 
   const s = $derived(live.state);
   const items = $derived(s?.items ?? []);
@@ -68,10 +71,12 @@
   const cueIsOnAir = $derived(s ? !cue.isNewItem(s) : true);
   const cueTitle = $derived(cueIsOnAir ? onAirTitle : (items[cueIndex]?.title ?? ''));
   const cueSections = $derived(s ? cue.sections(s) : []);
-  const cueDuration = $derived(cueIsOnAir ? onAirDuration : (items[cueIndex]?.duration ?? 0));
+  const cueDuration = $derived(cueIsOnAir ? onAirDuration : items[cueIndex]?.duration || (cuedMedia?.duration ?? 0));
   const cueStart = $derived(s ? cue.startTime(s) : null);
   const cueSection = $derived(cue.section ?? (cueIsOnAir && s ? s.section : -1));
   const cueChanged = $derived(s ? cue.changed(s) : false);
+  const cueAudioTracks = $derived(cueIsOnAir ? live.audioTracks : (cuedMedia?.tracks ?? []));
+  const cueAudioKnown = $derived(cueIsOnAir || cuedMedia !== null);
   const hasState = $derived(!!s);
   const picturesOn = $derived(picturesAvailable && showPictures);
   const cuePictureTime = $derived(scrubTime ?? cueStart);
@@ -105,6 +110,24 @@
   // The playlist changed in C-Play.
   $effect(() => {
     if (s && !isLive) cue.validate(s);
+  });
+
+  // What is known of a file once it is loaded, for a cued item that is not.
+  $effect(() => {
+    cuedMedia = null;
+    if (isLive || cueIsOnAir || cueIndex < 0) return;
+    let current = true;
+    api
+      .media(cueIndex)
+      .then((media) => {
+        if (current) cuedMedia = media;
+      })
+      .catch(() => {
+        if (current) cuedMedia = { tracks: [], duration: 0 };
+      });
+    return () => {
+      current = false;
+    };
   });
 
   // The time field shows where the cue starts, unless it is being typed in.
@@ -212,6 +235,12 @@
     setLive(true);
   }
 
+  /** A position in the cued item, within what the playlist plays of the file. */
+  function setCuePosition(seconds: number) {
+    const item = items[cueIndex];
+    cue.setPosition(Math.min(item?.listEnd ?? Infinity, Math.max(item?.listStart ?? 0, seconds)), cueSections);
+  }
+
   function selectItem(index: number) {
     if (!isLive) cue.selectItem(index);
     else if (index !== s?.playing) void sendCue({ index }, 'Could not load the item');
@@ -224,7 +253,7 @@
 
   function seek(seconds: number) {
     if (!isLive) {
-      cue.setPosition(seconds, cueSections);
+      setCuePosition(seconds);
       return;
     }
     // Moving into another section loads it (which pauses), so keep playing when it played.
@@ -368,6 +397,12 @@
 
   // The cue list.
 
+  function selectCueAudio(value: number) {
+    const track = cueAudioTracks.find((x) => x.index === value);
+    if (value < 0) cue.selectAudio(null, '');
+    else if (track) cue.selectAudio(value, audioName(track));
+  }
+
   /** The prepared cue, or what is on air when live (or nothing is prepared). */
   function newCueEntry(): Omit<CueEntry, 'id'> | null {
     if (!s) return null;
@@ -375,12 +410,15 @@
     if (!isLive && cue.changed(s)) {
       const item = items[cueIndex];
       if (!item) return null;
-      return { name: '', file: item.file, item: cueIndex, section: cue.section, position: cue.position, then: cue.takeMode, go };
+      return { name: '', file: item.file, item: cueIndex, section: cue.section, position: cue.position, audio: cue.audio, audioName: cue.audioName, then: cue.takeMode, go };
     }
     const item = items[s.playing];
     if (!item) return null;
     const position = Math.round(live.position * 10) / 10;
-    return { name: '', file: item.file, item: s.playing, section: s.section, position, then: isLive ? 'auto' : cue.takeMode, go };
+    // What is on air is the audio that plays now.
+    const track = live.audioTracks.find((x) => x.index === live.audioTrack);
+    const audio = track ? track.index : null;
+    return { name: '', file: item.file, item: s.playing, section: s.section, position, audio, audioName: track ? audioName(track) : '', then: isLive ? 'auto' : cue.takeMode, go };
   }
 
   function addCue() {
@@ -392,8 +430,8 @@
   function updateCue() {
     const entry = newCueEntry();
     if (!entry) return;
-    const { file, item, section, position, then } = entry;
-    cueList.update(cueList.standby, { file, item, section, position, then });
+    const { file, item, section, position, audio, audioName, then } = entry;
+    cueList.update(cueList.standby, { file, item, section, position, audio, audioName, then });
     notify(`Cue ${cueList.standby + 1} updated`);
   }
 
@@ -403,7 +441,7 @@
     if (isLive || !entry || !live.state) return;
     const index = cueItem(entry, live.state);
     if (index < 0) return;
-    cue.set(index, entry.section, entry.position);
+    cue.set(index, entry.section, entry.position, entry.audio, entry.audioName);
     cue.setTakeMode(entry.then);
   }
 
@@ -451,7 +489,7 @@
       timeText = cueStart === null ? '' : formatTime(cueStart, true);
       return;
     }
-    cue.setPosition(seconds, cueSections);
+    setCuePosition(seconds);
   }
 
   // Qt WebView in C-Play has no window.close() signal, it watches the title instead.
@@ -734,6 +772,17 @@
               <button type="button" class="ghost" onclick={() => void run(api.stop, 'Could not stop')} title="Back to the start, paused">■ Stop</button>
             {/if}
           </div>
+          <AudioControls
+            volume={live.volume}
+            tracks={live.audioTracks}
+            selected={live.audioTrack}
+            connected={live.connected}
+            syncFades={live.syncFades}
+            onvolume={(level) => run(() => api.setVolume(level), 'Could not change the volume')}
+            onselect={(index) => run(() => api.selectAudioTrack(index), 'Could not select the audio file')}
+            onfadeout={() => void run(api.fadeVolumeOut, 'Could not fade the volume out')}
+            onfadein={() => void run(api.fadeVolumeIn, 'Could not fade the volume in')}
+          />
         </section>
 
         {#if isLive}
@@ -783,6 +832,23 @@
                   }}
                   onblur={commitTime}
                 />
+              </label>
+              <label class="cue-audio">
+                <span>Audio file</span>
+                <select
+                  value={cue.audio ?? -1}
+                  disabled={!cueAudioKnown && cue.audio === null}
+                  onchange={(event) => selectCueAudio(Number(event.currentTarget.value))}
+                  title="The audio track or file to select when the cue is taken"
+                >
+                  <option value={-1}>{cueAudioKnown ? 'Default audio' : 'Reading the file…'}</option>
+                  {#each cueAudioTracks as track (track.index)}
+                    <option value={track.index}>{audioName(track)}</option>
+                  {/each}
+                  {#if cue.audio !== null && !cueAudioTracks.some((x) => x.index === cue.audio)}
+                    <option value={cue.audio}>{cue.audioName || `Track ${cue.audio + 1}`}{cueAudioKnown ? ' (not in this file)' : ''}</option>
+                  {/if}
+                </select>
               </label>
               <div class="take-mode" role="radiogroup" aria-label="After taking the cue">
                 <span>Then</span>
@@ -1116,6 +1182,10 @@
     .transition .step {
       padding: 0.35rem 0.7rem;
     }
+    /* The cue is what is worked on while preparing, what is on air follows below it. */
+    .card.cue {
+      order: -1;
+    }
     /* The Prepare button says so already. */
     .prepare-banner {
       display: none;
@@ -1156,6 +1226,13 @@
   }
   .card.cue {
     border-color: var(--next);
+  }
+  /* Its controls stay reachable: the column scrolls instead of the card being cut off. */
+  .card.cue.grow {
+    flex: 1 0 auto;
+  }
+  .card.cue > :global(.sections) {
+    max-height: 40vh;
   }
   .card > header {
     display: flex;
@@ -1286,6 +1363,7 @@
     gap: 0.6rem 1rem;
   }
   .start-at,
+  .cue-audio,
   .take-mode {
     display: flex;
     align-items: center;
@@ -1303,6 +1381,20 @@
     border: 1px solid var(--border);
     background: var(--bg);
     color: var(--text);
+  }
+  .cue-audio {
+    flex: 1 1 17rem;
+    min-width: 0;
+  }
+  .cue-audio select {
+    flex: 1;
+    min-width: 0;
+    padding: 0.45rem 0.6rem;
+    border: 1px solid var(--border);
+    border-radius: 8px;
+    background: var(--bg);
+    color: var(--text);
+    font: inherit;
   }
   .start-at input:focus {
     outline: 2px solid var(--next);

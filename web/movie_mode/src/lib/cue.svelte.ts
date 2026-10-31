@@ -11,32 +11,44 @@ interface CueData {
   section: number | null;
   /** Seconds in the file, null to keep C-Play's position (or the start of a new item). */
   position: number | null;
+  /** Audio track of the item, null to leave it to C-Play. */
+  audio: number | null;
+  /** The name of the audio track, to show before (or without) the tracks of the item. */
+  audioName: string;
 }
+
+const noAudio = { audio: null, audioName: '' };
 
 /**
  * The cue prepared while not live: an item, section and position chosen without C-Play following.
  * Only what was changed is sent when it is taken, so taking an unchanged cue does nothing.
  */
 export class PreparedCue {
-  #data = $state<CueData>(load('cue', { item: -1, section: null, position: null }));
+  #data = $state<CueData>({ ...noAudio, ...load<Omit<CueData, keyof typeof noAudio>>('cue', { item: -1, section: null, position: null }) });
   takeMode = $state<TakeMode>(load('takeMode', 'auto'));
 
   item = $derived(this.#data.item);
   section = $derived(this.#data.section);
   position = $derived(this.#data.position);
+  audio = $derived(this.#data.audio);
+  audioName = $derived(this.#data.audioName);
 
   /** Starts from what C-Play plays. */
   reset(state: MovieState | null) {
-    this.#set({ item: state?.playing ?? -1, section: null, position: null });
+    this.#set({ item: state?.playing ?? -1, section: null, position: null, ...noAudio });
   }
 
   selectItem(index: number) {
-    this.#set({ item: index, section: null, position: null });
+    this.#set({ item: index, section: null, position: null, ...noAudio });
   }
 
   /** Takes a cue of the cue list. */
-  set(item: number, section: number | null, position: number | null) {
-    this.#set({ item, section, position });
+  set(item: number, section: number | null, position: number | null, audio: number | null, audioName: string) {
+    this.#set({ item, section, position, audio, audioName });
+  }
+
+  selectAudio(audio: number | null, audioName: string) {
+    this.#set({ ...this.#data, audio, audioName });
   }
 
   selectSection(index: number) {
@@ -74,7 +86,7 @@ export class PreparedCue {
   }
 
   changed(state: MovieState) {
-    return this.isNewItem(state) || this.#data.section !== null || this.#data.position !== null;
+    return this.isNewItem(state) || this.#data.section !== null || this.#data.position !== null || this.#data.audio !== null;
   }
 
   /** Where the cue starts playing, null when it keeps C-Play's position. */
@@ -82,17 +94,18 @@ export class PreparedCue {
     const { section, position } = this.#data;
     if (position !== null) return position;
     if (section !== null && section >= 0) return this.sections(state)[section]?.start ?? 0;
-    return this.isNewItem(state) ? 0 : null;
+    return this.isNewItem(state) ? (state.items[this.#data.item]?.listStart ?? 0) : null;
   }
 
   /** The commands for C-Play, null when the cue changes nothing. */
   request(state: MovieState): CueRequest | null {
     if (!this.changed(state)) return null;
-    const { section, position } = this.#data;
+    const { section, position, audio } = this.#data;
     return {
       index: this.isNewItem(state) ? this.#data.item : undefined,
       section: section ?? undefined,
       position: position ?? undefined,
+      audio: audio ?? undefined,
       play: this.takeMode === 'auto' ? undefined : this.takeMode === 'play',
     };
   }

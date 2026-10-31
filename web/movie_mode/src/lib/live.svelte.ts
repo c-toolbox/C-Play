@@ -1,4 +1,4 @@
-import { api, type EventsResponse, type MainVideoLoad, type MovieState, type Topic } from './api';
+import { api, type AudioTrack, type EventsResponse, type MainVideoLoad, type MovieState, type Topic } from './api';
 
 const sleep = (ms: number) => new Promise((resolve) => setTimeout(resolve, ms));
 
@@ -20,6 +20,10 @@ export class LiveMovie {
   duration = $state(0);
   /** null when not known (no event feed). */
   paused = $state<boolean | null>(null);
+  volume = $state<number | null>(null);
+  audioTracks = $state<AudioTrack[]>([]);
+  /** Selected audio id minus one, -1 when none is selected. */
+  audioTrack = $state(-1);
   /** How visible the picture is, 0-100 (fades); null when not known. */
   visibility = $state<number | null>(null);
   /** The sound fades with the picture. */
@@ -29,6 +33,7 @@ export class LiveMovie {
   connected = $state(false);
 
   #running = false;
+  #feedRunning = false;
   #abort: AbortController | null = null;
 
   start() {
@@ -45,10 +50,17 @@ export class LiveMovie {
   /** Fetches the state right away, e.g. after an action, instead of waiting for the events. */
   async refresh() {
     try {
-      const [state, position, duration] = await Promise.all([api.state(), api.position(), api.duration()]);
+      const [state, position, duration, volume] = await Promise.all([api.state(), api.position(), api.duration(), api.volume()]);
       this.state = state;
       this.position = position;
       this.duration = duration;
+      this.volume = volume;
+      // The feed has these. An answer from before a load would overwrite what it reported since.
+      if (!this.#feedRunning) {
+        const [audioTracks, audioTrack] = await Promise.all([api.audioTracks(), api.audioTrack()]);
+        this.audioTracks = audioTracks;
+        this.audioTrack = audioTrack;
+      }
       this.connected = true;
     } catch {
       this.connected = false;
@@ -60,6 +72,9 @@ export class LiveMovie {
     else if (topic === 'position' && typeof value === 'number') this.position = value;
     else if (topic === 'duration' && typeof value === 'number') this.duration = value;
     else if (topic === 'pause' && typeof value === 'boolean') this.paused = value;
+    else if (topic === 'volume' && typeof value === 'number') this.volume = value;
+    else if (topic === 'audiotracks' && Array.isArray(value)) this.audioTracks = value;
+    else if (topic === 'playing_in_audiotracks' && typeof value === 'number') this.audioTrack = value;
     else if (topic === 'visibility' && typeof value === 'number') this.visibility = value;
     else if (topic === 'sync_image_volume_fade' && typeof value === 'boolean') this.syncFades = value;
     else if (topic === 'main_video_load' && isMainLoad(value)) this.mainLoad = value;
@@ -67,10 +82,9 @@ export class LiveMovie {
 
   async #loop() {
     let since = '';
-    let feedRunning = false;
     while (this.#running) {
       try {
-        if (since && !feedRunning) {
+        if (since && !this.#feedRunning) {
           await sleep(500);
           await this.refresh();
           continue;
@@ -80,8 +94,8 @@ export class LiveMovie {
         const response: EventsResponse = await api.events(since, this.#abort.signal);
         this.connected = true;
         if (response.type === 'snapshot') {
-          feedRunning = isState(response.values.movie);
-          if (feedRunning) for (const [topic, value] of Object.entries(response.values)) this.#apply(topic as Topic, value);
+          this.#feedRunning = isState(response.values.movie);
+          if (this.#feedRunning) for (const [topic, value] of Object.entries(response.values)) this.#apply(topic as Topic, value);
           else await this.refresh();
         }
         for (const event of response.events) this.#apply(event.topic, event.value);

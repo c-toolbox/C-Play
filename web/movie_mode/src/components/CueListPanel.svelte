@@ -1,6 +1,6 @@
 <script lang="ts">
   import { untrack } from 'svelte';
-  import { ApiError, api, sectionsOf, type MovieState } from '../lib/api';
+  import { ApiError, api, audioName, sectionsOf, type AudioTrack, type MovieState } from '../lib/api';
   import type { TakeMode } from '../lib/cue.svelte';
   import { CueList, cueItem, type CueEntry } from '../lib/cuelist.svelte';
   import { formatTime } from '../lib/time';
@@ -43,6 +43,32 @@
   $effect(() => {
     listElement?.querySelector(`[data-cue="${list.standby}"]`)?.scrollIntoView({ block: 'nearest', behavior: 'smooth' });
   });
+
+  // The audio tracks of the file of the standby cue, for choosing its audio.
+  const standbyItem = $derived(standbyEntry ? cueItem(standbyEntry, movie) : -1);
+  let standbyTracks = $state<AudioTrack[]>([]);
+
+  $effect(() => {
+    standbyTracks = [];
+    if (standbyItem < 0) return;
+    let current = true;
+    api
+      .media(standbyItem)
+      .then((media) => {
+        if (current) standbyTracks = media.tracks;
+      })
+      .catch(() => {});
+    return () => {
+      current = false;
+    };
+  });
+
+  function selectAudio(index: number, value: number) {
+    const track = standbyTracks.find((x) => x.index === value);
+    list.update(index, { audio: track ? track.index : null, audioName: track ? audioName(track) : '' });
+    // In prepare mode the standby cue is the prepared cue.
+    onselect(index);
+  }
 
   function describe(entry: CueEntry) {
     const index = cueItem(entry, movie);
@@ -182,6 +208,7 @@
               <span class="meta">
                 {#if entry.name}{info.title} ·{/if}
                 {info.section || (entry.position === null ? 'From the start' : '')}{info.section && info.time ? ' · ' : ''}{info.time ? `at ${info.time}` : ''}
+                {entry.audio === null ? '' : `· ${entry.audioName || `Audio ${entry.audio + 1}`}`}
                 · {thenLabels[entry.then]}
               </span>
             </span>
@@ -213,6 +240,20 @@
                   <option value={mode}>{label}</option>
                 {/each}
               </select>
+              <select
+                value={entry.audio ?? -1}
+                aria-label="Audio file"
+                title="The audio track or file to select when the cue is fired"
+                onchange={(event) => selectAudio(index, Number((event.currentTarget as HTMLSelectElement).value))}
+              >
+                <option value={-1}>Default audio</option>
+                {#each standbyTracks as track (track.index)}
+                  <option value={track.index}>{audioName(track)}</option>
+                {/each}
+                {#if entry.audio !== null && !standbyTracks.some((x) => x.index === entry.audio)}
+                  <option value={entry.audio}>{entry.audioName || `Track ${entry.audio + 1}`}</option>
+                {/if}
+              </select>
               <span class="spacer"></span>
               <button type="button" class="ghost" onclick={() => list.move(index, -1)} disabled={index === 0} aria-label="Move up" title="Move up">↑</button>
               <button type="button" class="ghost" onclick={() => list.move(index, 1)} disabled={index === list.cues.length - 1} aria-label="Move down" title="Move down">↓</button>
@@ -235,7 +276,7 @@
   <div class="actions">
     <button type="button" onclick={onadd} disabled={!canAdd} title="Insert after the cue on standby">+ {addLabel}</button>
     {#if canUpdate && standbyEntry}
-      <button type="button" onclick={onupdate} title="Replace the item, section, time and then of the standby cue with the prepared cue">Update cue {list.standby + 1}</button>
+      <button type="button" onclick={onupdate} title="Replace the item, section, time, audio and then of the standby cue with the prepared cue">Update cue {list.standby + 1}</button>
     {/if}
   </div>
 </section>

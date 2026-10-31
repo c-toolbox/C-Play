@@ -1455,22 +1455,51 @@ void HttpServerThread::setupMovieRoutes() {
         sendJson(res, runOnThreadOf<QJsonObject>(m_movie, [movie]() { return movie ? movie->state() : QJsonObject(); }));
     });
 
+    // The audio tracks and duration of playlist item index, also when it is not loaded.
+    svr.Get("/movie_media", [this](const httplib::Request &req, httplib::Response &res) {
+        int index = -1;
+        if (!req.has_param("index") || !stringToInt(req.get_param_value("index"), index)) {
+            res.status = 400;
+            res.set_content("Invalid index parameter", "text/plain");
+            return;
+        }
+        QPointer<MovieController> movie(m_movie);
+        const auto source = runOnThreadOf<QJsonObject>(m_movie, [movie, index]() { return movie ? movie->mediaSource(index) : QJsonObject(); });
+        if (!source) {
+            sendJson(res, std::nullopt);
+            return;
+        }
+        if (source->isEmpty()) {
+            res.status = 400;
+            res.set_content("No playlist item with that index", "text/plain");
+            return;
+        }
+        const QJsonObject info = MovieController::mediaInfo(*source);
+        if (info.isEmpty()) {
+            res.status = 422;
+            res.set_content("Could not open the file of that item", "text/plain");
+            return;
+        }
+        sendJson(res, std::optional<QJsonObject>(info));
+    });
+
     // Loads playlist item index (or keeps the loaded file without it) at section (-1 for none)
-    // and/or position (seconds), then plays (play=1) or pauses (play=0).
+    // and/or position (seconds), selects audio track audio, then plays (play=1) or pauses (play=0).
     registerPost("/movie_cue", [this](const httplib::Request &req, httplib::Response &res) {
-        int index = -1, section = -2, play = -1;
+        int index = -1, section = -2, play = -1, audio = -1;
         double position = -1;
         if ((req.has_param("index") && !stringToInt(req.get_param_value("index"), index))
             || (req.has_param("section") && !stringToInt(req.get_param_value("section"), section))
             || (req.has_param("position") && !stringToDouble(req.get_param_value("position"), position))
-            || (req.has_param("play") && !stringToInt(req.get_param_value("play"), play))) {
+            || (req.has_param("play") && !stringToInt(req.get_param_value("play"), play))
+            || (req.has_param("audio") && !stringToInt(req.get_param_value("audio"), audio))) {
             res.status = 400;
-            res.set_content("Invalid index, section, position or play parameter", "text/plain");
+            res.set_content("Invalid index, section, position, play or audio parameter", "text/plain");
             return;
         }
         QPointer<MovieController> movie(m_movie);
-        const auto ok = runOnThreadOf<bool>(m_movie, [movie, index, section, position, play]() {
-            return movie && movie->cue(index, section, position, play);
+        const auto ok = runOnThreadOf<bool>(m_movie, [movie, index, section, position, play, audio]() {
+            return movie && movie->cue(index, section, position, play, audio);
         });
         if (ok && !*ok) res.status = 400;
         sendJson(res, ok ? std::optional<QJsonObject>(QJsonObject{{QStringLiteral("ok"), *ok}}) : std::nullopt);
